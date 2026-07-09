@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Productos | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Principal</span>
+      <a href="index.html"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="productos.html" class="on"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
+      <div class="divider"></div>
+      <span class="a-section">Catalogo</span>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Productos</h2>
+          <p>Gestiona el catalogo completo de JJ Paper</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-ghost" onclick="recalcPrices('all')" title="Recalcular precios según tasas actuales">🔄 Recalcular precios</button>
+        <button class="btn-ghost" onclick="openImportModal()">📥 Importar CSV</button>
+        <button class="btn-p"     onclick="openNewProduct()">+ Nuevo Producto</button>
+      </div>
+    </div>
+
+    <!-- Bulk toolbar -->
+    <div class="bulk-toolbar" id="bulkToolbar">
+      <div class="bulk-left">
+        <strong id="bulkCount">0 seleccionados</strong>
+        <button class="bulk-btn green"  onclick="bulkActivate()">✅ Activar</button>
+        <button class="bulk-btn gray"   onclick="bulkDeactivate()">⏸️ Desactivar</button>
+        <button class="bulk-btn yellow" onclick="bulkFeatured()">⭐ Destacar</button>
+        <button class="bulk-btn gray"   onclick="bulkUnfeatured()">🔕 Quitar dest.</button>
+      </div>
+      <div class="bulk-right">
+        <select id="bulkCatSel"   class="sort-sel" style="height:34px"></select>
+        <button class="bulk-btn green" onclick="bulkChangeCategory()">↳ Cat.</button>
+        <select id="bulkBrandSel" class="sort-sel" style="height:34px"></select>
+        <button class="bulk-btn green" onclick="bulkChangeBrand()">↳ Marca</button>
+        <input  id="bulkPricePct" type="number" class="fi" style="width:68px;height:34px;padding:0 8px" placeholder="%">
+        <button class="bulk-btn yellow" onclick="bulkAdjustPrice()">💲 Precio</button>
+        <button class="bulk-btn green"  onclick="recalcPrices('selected')" title="Recalcular precio por costo+tasas">🔄 Recalcular</button>
+        <button class="bulk-btn red"    onclick="bulkDelete()">🗑️ Eliminar</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Form panel -->
+      <div class="form-panel" id="prodFormPanel" style="display:none">
+        <h3 id="prodFormTitle">Nuevo Producto</h3>
+        <form id="prodForm" onsubmit="e=>e.preventDefault()">
+          <div class="f-grid">
+
+            <div class="fg full">
+              <label class="fl">Nombre del producto *</label>
+              <input type="text" class="fi" id="f-prod-name" placeholder="Ej: Cuaderno Rayado A4 100 hojas" required>
+            </div>
+            <div class="fg full">
+              <label class="fl">Descripcion</label>
+              <textarea class="fta" id="f-prod-desc" placeholder="Descripcion detallada..." style="min-height:68px"></textarea>
+            </div>
+
+            <div class="fg">
+              <label class="fl">Categoria *</label>
+              <select class="sort-sel" id="prodCatSel" style="width:100%;height:42px"></select>
+            </div>
+            <div class="fg">
+              <label class="fl">Unidad de medida</label>
+              <select class="sort-sel" id="prodUnitSel" style="width:100%;height:42px" onchange="syncUnitText(this)"></select>
+              <input type="text" class="fi" id="f-prod-unit" placeholder="o escribe: unid, cja..." style="margin-top:6px">
+            </div>
+
+            <div class="fg">
+              <label class="fl">Emoji <small style="color:#aaa">(sin foto)</small></label>
+              <input type="text" class="fi" id="f-prod-emoji" placeholder="📦">
+            </div>
+            <div class="fg">
+              <label class="fl">Etiqueta</label>
+              <input type="text" class="fi" id="f-prod-tag" placeholder="Popular, Nuevo, Al mayor...">
+            </div>
+            <div class="fg">
+              <label class="fl">Cantidad minima de pedido</label>
+              <input type="number" class="fi" id="f-prod-minqty" value="1" min="1">
+            </div>
+
+            <!-- Variantes: una fila por marca, cada una con su precio/costo/stock -->
+            <div class="fg full">
+              <label class="fl">Marcas / Variantes
+                <small style="color:#aaa">— cada marca maneja su propio precio y stock (stock vacío = ∞)</small>
+              </label>
+              <div class="variant-head">
+                <span>Marca</span><span>Presentación</span><span>SKU</span><span>Costo $</span><span>Precio $ *</span>
+                <span>Mg %</span><span></span><span>Stock</span><span>Activa</span><span></span>
+              </div>
+              <div id="variantRows"></div>
+              <button type="button" class="btn-ghost sm" style="margin-top:8px" onclick="addVariantRow()">+ Agregar marca</button>
+            </div>
+
+            <div class="fg" style="grid-column:1/-1">
+              <label class="fl">Imagen del producto</label>
+              <div class="img-upload-zone" onclick="document.getElementById('f-prod-img').click()">
+                <input type="file" id="f-prod-img" accept="image/*" style="display:none" onchange="onImgChange(this)">
+                <div class="u-ico">📷</div>
+                <p>Clic para subir imagen<br><small>JPG, PNG, WEBP — max 5 MB</small></p>
+              </div>
+              <div class="img-preview" id="imgPreview">
+                <img id="imgPreviewEl" alt="Preview">
+              </div>
+            </div>
+
+            <div class="fg full">
+              <div style="display:flex;gap:24px;flex-wrap:wrap">
+                <label class="check-label"><input type="checkbox" id="f-prod-active" checked> Activo (visible en catalogo)</label>
+                <label class="check-label"><input type="checkbox" id="f-prod-featured"> Destacado (aparece en inicio)</label>
+              </div>
+            </div>
+
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <button type="button" class="btn-p" onclick="saveProd()">💾 Guardar Producto</button>
+            <button type="button" class="btn-ghost" onclick="cancelProdForm()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Products table -->
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <h3>📦 Catalogo de Productos</h3>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span id="prodTableCount" style="font-size:12px;color:var(--gr)"></span>
+            <div class="srch" style="min-width:210px">
+              <span class="srch-ico">🔍</span>
+              <input type="text" placeholder="Buscar producto..." oninput="searchProds(this.value)">
+            </div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th class="td-chk"><input type="checkbox" id="chkAll" onchange="toggleAllSel(this.checked)" title="Seleccionar pagina"></th>
+                <th style="width:56px">Img</th>
+                <th>Producto / SKU</th>
+                <th>Marcas</th>
+                <th>Precio</th>
+                <th>Unidad</th>
+                <th style="text-align:center">Stock</th>
+                <th>Estado</th>
+                <th style="width:95px">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="prodTableBody">
+              <tr><td colspan="9" class="table-empty">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="prodTableCount2"></span>
+          <div class="pag" id="prodTablePag"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- CSV Import Modal -->
+<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal-box" style="max-width:780px;width:96%">
+    <div class="modal-hd">
+      <h3>📥 Importar Productos en Masa — CSV</h3>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="import-hint-box">
+        <p style="font-size:13px;font-weight:600;margin-bottom:6px">Cada fila = una variante (producto + marca + presentación). Encabezados:</p>
+        <code class="csv-headers">name, brand, variant, category_slug, sku, description, price_usd, cost_usd, margin_pct, unit_abbr, emoji, tag, featured, active, stock, min_qty</code>
+        <ul style="font-size:11px;color:var(--gr);margin:8px 0 0 16px;line-height:1.8">
+          <li>Solo <code>name</code> y <code>price_usd</code> son obligatorios. Repite el <code>name</code> para agregar varias marcas, y <code>variant</code> para la variedad dentro de la marca (color, tamaño, contenido…).</li>
+          <li>Marcas que no existan se <strong>crean automáticamente</strong>.</li>
+          <li>Si el producto+marca+presentación ya existe, se <strong>actualiza</strong> (precio, costo, stock…) — re-importa el CSV para actualizar stock en masa.</li>
+        </ul>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn-ghost" onclick="downloadCSVTemplate()">⬇️ Descargar plantilla</button>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-top:18px">
+        <label class="fl">Archivo CSV</label>
+        <input type="file" id="importFile" accept=".csv,text/csv" class="fi" onchange="onImportFile(this)">
+      </div>
+
+      <div id="importStatus" style="font-size:12px;margin-top:8px;line-height:1.7"></div>
+      <div id="importPreview" style="margin-top:14px">
+        <p class="import-hint">Selecciona un archivo CSV para previsualizar antes de importar.</p>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-ghost" onclick="closeImportModal()">Cancelar</button>
+      <button class="btn-p" id="importBtn" onclick="importProducts()">📥 Importar productos</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/products.js"></script>
+<script>
+function syncUnitText(sel) {
+  const txt = sel.options[sel.selectedIndex]?.text.match(/\(([^)]+)\)/)?.[1] || '';
+  if (txt) document.getElementById('f-prod-unit').value = txt;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
+    document.getElementById('adminAside')?.classList.toggle('op')
+  );
+  await loadSettings();
+  await Promise.all([loadAdminCategories(), loadAdminBrands(), loadAdminUnits()]);
+  await loadAdminProducts();
+});
+</script>
+</body>
+</html>

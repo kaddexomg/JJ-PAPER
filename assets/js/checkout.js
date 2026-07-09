@@ -1,0 +1,342 @@
+/* ======================================================
+   JJ Paper — Checkout (pedido completo + pago en Bs + comprobante)
+   ====================================================== */
+
+let coMethod    = '';      // 'pago_movil' | 'transferencia' | 'efectivo'
+let coReceipt   = null;    // File object
+let coSubmitting = false;
+
+// ---- Totals ----
+function coTotals() {
+  const items = Object.values(cart);
+  const subtotal = items.reduce((s, i) => s + i.price_usd * i.qty, 0);
+  const rate = getRate();
+  return { items, subtotal, rate, bs: subtotal * rate };
+}
+
+// ---- Render cart summary (editable) ----
+function renderCheckoutItems() {
+  const box   = document.getElementById('coItems');
+  const empty = document.getElementById('coEmpty');
+  const main  = document.getElementById('coMain');
+  if (!box) return;
+
+  const { items, subtotal, rate, bs } = coTotals();
+
+  if (!items.length) {
+    if (empty) empty.style.display = 'block';
+    if (main)  main.style.display  = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (main)  main.style.display  = 'grid';
+
+  box.innerHTML = items.map(i => {
+    const nm  = escapeHTML(i.name);
+    const sub = i.price_usd * i.qty;
+    const img = i.image_url
+      ? `<img src="${encodeURI(i.image_url)}" alt="${nm}" loading="lazy">`
+      : `<span style="font-size:26px">${i.emoji || '📦'}</span>`;
+    return `<div class="co-item">
+      <div class="co-item-img">${img}</div>
+      <div class="co-item-info">
+        <div class="co-item-name">${nm}${i.brand ? ` <span class="co-item-brand">· ${escapeHTML(i.brand)}</span>` : ''}</div>
+        <div class="co-item-price">${fmtPrice(i.price_usd)} <span>· ${fmtBs(i.price_usd)}</span> /${escapeHTML(i.unit || 'unid')}</div>
+        <div class="co-item-ctrl">
+          <button class="qb" onclick="coQty('${i.id}',-1)" aria-label="Quitar una unidad de ${nm}">−</button>
+          <span class="qn" aria-label="Cantidad">${i.qty}</span>
+          <button class="qb" onclick="coQty('${i.id}',1)" aria-label="Agregar una unidad de ${nm}">+</button>
+          <button class="co-del" onclick="coRemove('${i.id}')" title="Quitar" aria-label="Quitar ${nm} del pedido">🗑️</button>
+        </div>
+      </div>
+      <div class="co-item-sub">${fmtPrice(sub)}</div>
+    </div>`;
+  }).join('');
+
+  // Totals
+  document.getElementById('coSubUsd').textContent  = fmtPrice(subtotal);
+  document.getElementById('coRate').textContent    = `Bs ${rate.toFixed(2)} / $`;
+  document.getElementById('coTotalUsd').textContent = fmtPrice(subtotal);
+  document.getElementById('coTotalBs').textContent  = fmtBsNum(bs);
+
+  // Keep the Bs amounts in the payment panel in sync
+  document.querySelectorAll('.co-pay-bs').forEach(el => el.textContent = fmtBsNum(bs));
+}
+
+function coQty(id, delta) {
+  updateCartQty(id, delta);     // from cart.js (saves + badge)
+  renderCheckoutItems();
+}
+function coRemove(id) {
+  removeCartItem(id);           // from cart.js
+  renderCheckoutItems();
+}
+
+// ---- Payment method selection ----
+function selectPayment(method) {
+  coMethod = method;
+  document.querySelectorAll('.co-pm').forEach(el => {
+    const on = el.dataset.m === method;
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+
+  document.getElementById('panel-pago_movil').style.display   = method === 'pago_movil'   ? 'block' : 'none';
+  document.getElementById('panel-transferencia').style.display = method === 'transferencia' ? 'block' : 'none';
+  document.getElementById('panel-efectivo').style.display     = method === 'efectivo'     ? 'block' : 'none';
+
+  document.getElementById('coReceiptWrap').style.display =
+    (method === 'pago_movil' || method === 'transferencia') ? 'block' : 'none';
+}
+
+// ---- Receipt file ----
+function handleReceiptFile(input) {
+  const file = input.files?.[0];
+  const prev = document.getElementById('coReceiptPreview');
+  if (!file) { coReceipt = null; if (prev) prev.innerHTML = ''; return; }
+
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('La imagen supera 5 MB', 'warn');
+    input.value = ''; coReceipt = null; return;
+  }
+  coReceipt = file;
+  if (prev) {
+    const url = URL.createObjectURL(file);
+    prev.innerHTML = `<img src="${url}" alt="Comprobante"><span>✔ ${escapeHTML(file.name)}</span>`;
+  }
+}
+
+// ---- Build order object ----
+function buildOrder(orderNumber) {
+  const { items, subtotal, rate, bs } = coTotals();
+  return {
+    order_number: orderNumber,
+    client_name: document.getElementById('co-name').value.trim(),
+    rif:   document.getElementById('co-rif').value.trim()   || null,
+    phone: document.getElementById('co-tel').value.trim(),
+    email: document.getElementById('co-email').value.trim() || null,
+    city:  document.getElementById('co-city').value.trim()  || null,
+    address: document.getElementById('co-address').value.trim() || null,
+    items: items.map(i => ({
+      id: i.product_id || i.id, variant_id: i.variant_id || null,
+      name: i.name, brand: i.brand || null, qty: i.qty, unit: i.unit || 'unid',
+      price_usd: i.price_usd, subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
+    })),
+    subtotal_usd: +subtotal.toFixed(2),
+    total_usd: +subtotal.toFixed(2),
+    exchange_rate: rate,
+    total_bs: +bs.toFixed(2),
+    payment_method: coMethod,
+    payment_ref: document.getElementById('co-payref')?.value.trim() || null,
+    notes: document.getElementById('co-notes').value.trim() || null,
+    // Atribución de vendedor por link de referido (resuelto en initCheckout)
+    seller_id: window.__refSellerId || null,
+    source: window.__refSellerId ? 'ref' : 'web',
+  };
+}
+
+// ---- Validation shared by both submit paths ----
+function validateCheckout() {
+  const name  = document.getElementById('co-name').value.trim();
+  const tel   = document.getElementById('co-tel').value.trim();
+  const email = document.getElementById('co-email').value.trim();
+  if (!Object.keys(cart).length) { showToast('Tu carrito está vacío', 'warn'); return false; }
+  if (!name) { showToast('Ingresa tu nombre o empresa', 'warn'); document.getElementById('co-name').focus(); return false; }
+  if (!tel)  { showToast('Ingresa tu teléfono', 'warn'); document.getElementById('co-tel').focus(); return false; }
+
+  // Teléfono venezolano: 04XX-XXXXXXX o +58 4XX..., acepta separadores comunes
+  const telDigits = tel.replace(/\D/g, '');
+  const telOk = /^(0?4\d{9}|584\d{9})$/.test(telDigits) || /^0?2\d{9}$/.test(telDigits);
+  if (!telOk) {
+    showToast('Revisa el teléfono (ej: 0412-1234567)', 'warn');
+    document.getElementById('co-tel').focus(); return false;
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    showToast('Revisa el correo electrónico', 'warn');
+    document.getElementById('co-email').focus(); return false;
+  }
+
+  // Monto mínimo de pedido (configurable en jjp_settings.order_min_usd)
+  const minOrder = parseFloat(APP.SETTINGS?.order_min_usd) || 0;
+  const { subtotal } = coTotals();
+  if (minOrder > 0 && subtotal < minOrder) {
+    showToast(`El pedido mínimo es ${fmtPrice(minOrder)}`, 'warn');
+    return false;
+  }
+
+  if (!coMethod) { showToast('Selecciona un método de pago', 'warn');
+    document.getElementById('coPayBox')?.scrollIntoView({ behavior:'smooth' }); return false; }
+  return true;
+}
+
+// ---- Upload receipt, returns public URL or null ----
+async function uploadReceipt(orderNumber) {
+  if (!coReceipt) return null;
+  const ext  = (coReceipt.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const path = `${orderNumber}/${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from(APP.RECEIPTS_BUCKET)
+    .upload(path, coReceipt, { contentType: coReceipt.type, upsert: false });
+  if (error) { console.warn('receipt upload error:', error); return null; }
+  return APP.RECEIPTS_URL + path;
+}
+
+// ---- Primary submit: register order in Supabase ----
+async function submitOrder() {
+  if (coSubmitting || !validateCheckout()) return;
+
+  // Require receipt for electronic payments (the whole point is verification)
+  if ((coMethod === 'pago_movil' || coMethod === 'transferencia') && !coReceipt) {
+    showToast('Sube el comprobante de pago (o usa "Enviar por WhatsApp")', 'warn');
+    document.getElementById('coReceiptWrap')?.scrollIntoView({ behavior:'smooth' });
+    return;
+  }
+
+  coSubmitting = true;
+  const btn = document.getElementById('coSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+
+  const orderNumber = genOrderNumber();
+  const order = buildOrder(orderNumber);
+
+  const receiptUrl = await uploadReceipt(orderNumber);
+  order.receipt_url = receiptUrl;
+  order.status = (coMethod === 'efectivo')
+    ? 'pendiente_pago'
+    : (receiptUrl ? 'verificando' : 'pendiente_pago');
+
+  const { error } = await sb.from('jjp_orders').insert(order);
+  if (error) {
+    console.error('order insert error:', error);
+    showToast('No se pudo registrar el pedido. Intenta de nuevo.', 'err');
+    coSubmitting = false;
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar pedido'; }
+    return;
+  }
+
+  showConfirmation(order);
+}
+
+// ---- Secondary path: send full order to WhatsApp (also saves it) ----
+async function submitOrderWA() {
+  if (!validateCheckout()) return;
+  const orderNumber = genOrderNumber();
+  const order = buildOrder(orderNumber);
+
+  const receiptUrl = await uploadReceipt(orderNumber);
+  order.receipt_url = receiptUrl;
+  order.status = 'pendiente_pago';
+  // Best-effort save (don't block the WhatsApp handoff on errors)
+  sb.from('jjp_orders').insert(order).then(({ error }) => {
+    if (error) console.warn('order (WA) save error:', error);
+  });
+
+  openWA(buildWAMessage(order));
+  showConfirmation(order, true);
+}
+
+function buildWAMessage(o) {
+  const methodLabel = {
+    pago_movil: 'Pago Móvil (Bs)', transferencia: 'Transferencia (Bs)', efectivo: 'Efectivo / Contra entrega',
+  }[o.payment_method] || 'Por confirmar';
+
+  let msg = `🛒 *PEDIDO ${o.order_number}*\n_JJ Paper · ${fmtDate(new Date().toISOString())}_\n\n`;
+  msg += `*Cliente:* ${o.client_name}\n`;
+  if (o.rif)   msg += `*RIF/CI:* ${o.rif}\n`;
+  msg += `*Teléfono:* ${o.phone}\n`;
+  if (o.city)    msg += `*Ciudad:* ${o.city}\n`;
+  if (o.address) msg += `*Dirección:* ${o.address}\n`;
+  msg += `\n*Productos:*\n`;
+  o.items.forEach(i => { msg += `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}\n`; });
+  msg += `\n💰 *Total: ${fmtPrice(o.total_usd)}*`;
+  msg += `\n💴 *En bolívares: ${fmtBsNum(o.total_bs)}* (tasa ${o.exchange_rate.toFixed(2)})`;
+  msg += `\n💳 *Pago:* ${methodLabel}`;
+  if (o.receipt_url) msg += `\n🧾 Comprobante: ${o.receipt_url}`;
+  if (o.notes) msg += `\n\n📝 *Nota:* ${o.notes}`;
+  msg += `\n\n_Enviado desde JJPaper.com.ve_`;
+  return msg;
+}
+
+// ---- Confirmation screen ----
+function showConfirmation(o, viaWA = false) {
+  const wrap = document.getElementById('checkoutWrap');
+  const methodLabel = {
+    pago_movil: 'Pago Móvil', transferencia: 'Transferencia bancaria', efectivo: 'Efectivo / Contra entrega',
+  }[o.payment_method] || '';
+
+  const statusMsg = o.payment_method === 'efectivo'
+    ? 'Tu pedido fue registrado. Pagarás al recibir/retirar.'
+    : (o.receipt_url
+        ? 'Recibimos tu comprobante. Un asesor verificará el pago y confirmará tu pedido.'
+        : 'Tu pedido fue registrado. Te falta enviar el comprobante de pago para confirmarlo.');
+
+  wrap.innerHTML = `
+  <div class="co-done">
+    <div class="co-done-ico">✅</div>
+    <h2>¡Pedido recibido!</h2>
+    <p class="co-done-num">N° <strong>${escapeHTML(o.order_number)}</strong></p>
+    <p class="co-done-msg">${statusMsg}</p>
+    <div class="co-done-box">
+      <div class="co-done-row"><span>Total</span><strong>${fmtPrice(o.total_usd)}</strong></div>
+      <div class="co-done-row"><span>En bolívares</span><strong>${fmtBsNum(o.total_bs)}</strong></div>
+      <div class="co-done-row"><span>Método de pago</span><strong>${methodLabel}</strong></div>
+    </div>
+    <p class="co-done-hint">📲 Guarda tu número de pedido. Puedes consultar su estado en cualquier momento en <a href="rastreo.html" style="color:var(--gd);font-weight:700">Rastrear pedido</a>.</p>
+    <div class="co-done-acts">
+      ${viaWA ? '' : `<button class="btn-wa" onclick="openWA(buildWAMessage(window.__lastOrder))">💬 Avisar por WhatsApp</button>`}
+      <a class="btn-o" href="rastreo.html?n=${encodeURIComponent(o.order_number)}">🔎 Rastrear mi pedido</a>
+      <a class="btn-p" href="catalogo.html">Seguir comprando →</a>
+    </div>
+  </div>`;
+
+  window.__lastOrder = o;
+  // Recordar el pedido en este navegador para el rastreo rápido
+  try {
+    const mine = JSON.parse(localStorage.getItem('jjp_my_orders') || '[]');
+    mine.unshift({ n: o.order_number, tel: o.phone, at: Date.now() });
+    localStorage.setItem('jjp_my_orders', JSON.stringify(mine.slice(0, 10)));
+  } catch (e) {}
+  // Clear the cart now that the order is placed
+  cart = {};
+  cartSave();
+  cartUpdateBadge();
+  sessionStorage.removeItem('jjp_checkout_note');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- Render payment data from settings ----
+function renderPaymentData() {
+  const s = APP.SETTINGS || {};
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+  set('pm-bank',  s.pago_movil_bank);
+  set('pm-phone', s.pago_movil_phone);
+  set('pm-ci',    s.pago_movil_ci);
+  set('pm-name',  s.pago_movil_name);
+  set('tr-bank',    s.transfer_bank);
+  set('tr-account', s.transfer_account);
+  set('tr-type',    s.transfer_type);
+  set('tr-holder',  s.transfer_holder);
+  set('tr-ci',      s.transfer_ci);
+}
+
+// Copy helper for payment fields
+function coCopy(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard?.writeText(el.textContent.trim())
+    .then(() => showToast('Copiado ✔'))
+    .catch(() => {});
+}
+
+// ---- Init ----
+async function initCheckout() {
+  await loadSettings();
+  renderPaymentData();
+  renderCheckoutItems();
+
+  // Si el cliente llegó por link de vendedor, la venta queda atribuida
+  window.__refSellerId = await resolveRefSeller();
+
+  // Carry note from the cart drawer if present
+  const note = sessionStorage.getItem('jjp_checkout_note');
+  if (note) { const el = document.getElementById('co-notes'); if (el) el.value = note; }
+}

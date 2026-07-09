@@ -1,0 +1,13 @@
+.vercel
+.env*
+
+# Netlify
+.netlify/
+
+# Dependencias / temporales
+node_modules/
+*.log
+
+# Sistema
+Thumbs.db
+Desktop.ini

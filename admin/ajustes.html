@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajustes | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Principal</span>
+      <a href="index.html"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
+      <div class="divider"></div>
+      <span class="a-section">Catalogo</span>
+      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html" class="on"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Ajustes</h2>
+          <p>Configura tasa, datos de pago y contacto del sitio</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div style="max-width:840px">
+
+        <!-- Tasas + precios -->
+        <div class="form-panel">
+          <h3>💱 Tasas y precios</h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <button class="btn-o sm" id="fetchRatesBtn" type="button" onclick="fetchRatesToForm()">🔄 Actualizar tasas (BCV + Binance)</button>
+            <span style="font-size:11px;color:var(--gr)" id="ratesUpdatedAt"></span>
+          </div>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Tasa BCV (Bs por $) — la que ve el cliente</label>
+              <input type="number" step="0.01" class="fi" id="set-exchange_rate" placeholder="633.00" oninput="renderGap()"></div>
+            <div class="fg"><label class="fl">Tasa Binance / USDT (Bs por $) — costo distribuidor</label>
+              <input type="number" step="0.01" class="fi" id="set-usdt_rate" placeholder="735.00" oninput="renderGap()"></div>
+            <div class="fg"><label class="fl">Margen de ganancia global (%)</label>
+              <input type="number" step="0.5" class="fi" id="set-default_margin_pct" placeholder="30"></div>
+          </div>
+          <div class="gap-info" id="gapInfo" style="margin-top:6px;font-size:12px;color:var(--gd)"></div>
+          <p style="font-size:12px;color:var(--gr);margin-top:10px">
+            La tasa <strong>BCV</strong> convierte los precios a bolívares para el cliente.
+            La tasa <strong>Binance</strong> se usa solo internamente para calcular el costo real:
+            el precio de venta = costo × (Binance/BCV) × (1 + margen). Recalcula los precios desde
+            <a href="productos.html" style="color:var(--gd);font-weight:700">Productos</a> cuando cambien las tasas.
+          </p>
+        </div>
+
+        <!-- Pago Móvil -->
+        <div class="form-panel">
+          <h3>📲 Datos de Pago Móvil</h3>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Banco</label><input type="text" class="fi" id="set-pago_movil_bank" placeholder="Banco de Venezuela (0102)"></div>
+            <div class="fg"><label class="fl">Teléfono</label><input type="text" class="fi" id="set-pago_movil_phone" placeholder="0412-1234567"></div>
+            <div class="fg"><label class="fl">Cédula / RIF</label><input type="text" class="fi" id="set-pago_movil_ci" placeholder="V-12.345.678"></div>
+            <div class="fg"><label class="fl">Titular</label><input type="text" class="fi" id="set-pago_movil_name" placeholder="JJ Paper, C.A."></div>
+          </div>
+        </div>
+
+        <!-- Transferencia -->
+        <div class="form-panel">
+          <h3>🏦 Datos de Transferencia</h3>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Banco</label><input type="text" class="fi" id="set-transfer_bank" placeholder="Banco de Venezuela"></div>
+            <div class="fg"><label class="fl">Número de cuenta</label><input type="text" class="fi" id="set-transfer_account" placeholder="0102-0000-00-0000000000"></div>
+            <div class="fg"><label class="fl">Tipo de cuenta</label><input type="text" class="fi" id="set-transfer_type" placeholder="Cuenta Corriente"></div>
+            <div class="fg"><label class="fl">Titular</label><input type="text" class="fi" id="set-transfer_holder" placeholder="JJ Paper, C.A."></div>
+            <div class="fg"><label class="fl">RIF / Cédula</label><input type="text" class="fi" id="set-transfer_ci" placeholder="J-12345678-9"></div>
+          </div>
+        </div>
+
+        <!-- Contacto -->
+        <div class="form-panel">
+          <h3>📞 Contacto y datos del sitio</h3>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Nombre del sitio</label><input type="text" class="fi" id="set-site_name" placeholder="JJ Paper"></div>
+            <div class="fg"><label class="fl">Eslogan</label><input type="text" class="fi" id="set-site_tagline" placeholder="Calidad · Compromiso · Confianza"></div>
+            <div class="fg"><label class="fl">WhatsApp (solo números, con código país)</label><input type="text" class="fi" id="set-whatsapp_number" placeholder="584121234567"></div>
+            <div class="fg"><label class="fl">Teléfono (visible)</label><input type="text" class="fi" id="set-phone_display" placeholder="+58 412-1234567"></div>
+            <div class="fg"><label class="fl">Mensaje WhatsApp por defecto</label><input type="text" class="fi" id="set-whatsapp_message" placeholder="Hola JJ Paper..."></div>
+            <div class="fg"><label class="fl">Correo</label><input type="email" class="fi" id="set-email" placeholder="ventas@jjpaper.com.ve"></div>
+            <div class="fg full">
+              <label class="fl">Dirección</label>
+              <input type="text" class="fi" id="set-address" placeholder="Av. Principal, Local 12, Caracas">
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn-o" id="geocodeBtn" onclick="geocodeAddress()">📍 Ubicar en el mapa</button>
+                <input type="text" class="fi" id="set-map_lat" placeholder="Latitud" oninput="renderMapPreview()" style="max-width:150px">
+                <input type="text" class="fi" id="set-map_lng" placeholder="Longitud" oninput="renderMapPreview()" style="max-width:150px">
+                <a id="mapPreviewLink" href="#" target="_blank" rel="noopener" style="display:none;font-size:12px;color:var(--gd);font-weight:700">Ver en OpenStreetMap ↗</a>
+              </div>
+              <p style="font-size:11px;color:var(--gr);margin-top:6px">Escribe la dirección y pulsa "Ubicar en el mapa" para fijar el punto que verán los clientes. También puedes ajustar lat/lng a mano.</p>
+              <div id="mapPreview" style="margin-top:10px"></div>
+            </div>
+            <div class="fg"><label class="fl">Horario semana</label><input type="text" class="fi" id="set-hours_weekday" placeholder="Lunes - Viernes: 8:00am - 6:00pm"></div>
+            <div class="fg"><label class="fl">Horario sábado</label><input type="text" class="fi" id="set-hours_saturday" placeholder="Sabado: 8:00am - 1:00pm"></div>
+          </div>
+        </div>
+
+        <button class="btn-p" id="saveSettingsBtn" onclick="saveSettings()" style="justify-content:center">💾 Guardar cambios</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/settings.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
+    document.getElementById('adminAside')?.classList.toggle('op');
+  });
+  await loadSettingsForm();
+});
+</script>
+</body>
+</html>

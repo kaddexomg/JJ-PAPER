@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Promociones, combos y ofertas al mayor de JJ Paper. Papelería y suministros con los mejores precios de Venezuela.">
+<title>Promociones y Combos | JJ Paper</title>
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<meta name="theme-color" content="#106B3A">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Promociones y Combos | JJ Paper">
+<meta property="og:description" content="Ofertas, combos y promociones al mayor en papelería y suministros de oficina.">
+<link rel="stylesheet" href="assets/css/variables.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/cart.css">
+<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/promos.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+<link rel="stylesheet" href="assets/css/glass.css">
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+<div id="cart-placeholder"></div>
+
+<div class="page-offset">
+  <div class="page-hero">
+    <h1>Promociones <em>y Combos</em></h1>
+    <p>Ofertas por tiempo limitado, combos armados y anuncios especiales. Aprovecha los mejores precios al mayor.</p>
+  </div>
+</div>
+
+<section id="promos-feed" style="background:var(--gl);padding-top:40px">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div id="promoHero"></div>
+    <div class="pr-filters" id="promoFilters"></div>
+    <div class="promo-grid" id="promoGrid">
+      <div class="pr-empty" style="grid-column:1/-1"><div class="pe-ico">⏳</div><p>Cargando promociones...</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Accesos rápidos -->
+<section id="accesos" style="background:#fff">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div class="s-hd rv">
+      <div class="s-tag">⚡ Accesos Rápidos</div>
+      <h2 class="s-title">¿Qué deseas <em>hacer hoy</em>?</h2>
+    </div>
+    <div class="qa-hub">
+      <a class="qa-card rv" href="catalogo.html">
+        <div class="qa-ico">🛍️</div><h4>Ver Catálogo</h4>
+        <p>Explora todos nuestros productos al mayor</p><span class="qa-go">Explorar →</span>
+      </a>
+      <a class="qa-card rv" href="pedidos.html">
+        <div class="qa-ico">📋</div><h4>Solicitar Cotización</h4>
+        <p>Recibe tu pre-factura por WhatsApp</p><span class="qa-go">Cotizar →</span>
+      </a>
+      <a class="qa-card rv" href="rastreo.html">
+        <div class="qa-ico">🔎</div><h4>Rastrear Pedido</h4>
+        <p>Consulta el estado de tu compra en línea</p><span class="qa-go">Rastrear →</span>
+      </a>
+      <a class="qa-card rv" href="checkout.html">
+        <div class="qa-ico">🛒</div><h4>Finalizar Compra</h4>
+        <p>Completa el pago de tu carrito</p><span class="qa-go">Ir al checkout →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<div id="footer-placeholder"></div>
+<div id="chatbot-placeholder"></div>
+<button class="btt" id="btt" aria-label="Volver arriba" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/toast.js"></script>
+<script src="assets/js/reveal.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/cart.js"></script>
+<script src="assets/js/promos.js"></script>
+<script src="assets/js/chatbot.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  injectNav('promos');
+  injectFooter();
+  await loadSettings();
+  await renderPromoFeed('promoHero', 'promoGrid', 'promoFilters');
+});
+</script>
+</body>
+</html>

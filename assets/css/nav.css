@@ -1,0 +1,99 @@
+/* ======================================================
+   JJ Paper — Navigation
+   ====================================================== */
+
+#nav {
+  position:fixed; top:0; left:0; right:0; z-index:1000;
+  background:var(--gd); display:flex; align-items:center;
+  justify-content:space-between; padding:0 5%; height:64px;
+  box-shadow:0 2px 20px rgba(0,0,0,.2); transition:var(--tr);
+}
+
+/* Brand */
+.n-brand   { display:flex; align-items:center; gap:12px; cursor:pointer; user-select:none }
+.n-logo    { width:38px; height:38px; border-radius:8px; background:var(--gm);
+             display:flex; align-items:center; justify-content:center;
+             font-weight:800; font-size:17px; color:#fff; flex-shrink:0 }
+.n-logo-img { width:38px; height:38px; border-radius:9px; flex-shrink:0;
+              filter:drop-shadow(0 2px 6px rgba(0,0,0,.25)); transition:var(--tr) }
+.n-brand:hover .n-logo-img { transform:rotate(-6deg) scale(1.05) }
+.n-name    { color:#fff; font-weight:800; font-size:18px; letter-spacing:.3px }
+.n-name em { color:var(--gm); font-style:normal }
+
+/* Desktop links */
+.n-links   { display:flex; align-items:center; gap:24px }
+.n-links a {
+  color:rgba(255,255,255,.8); font-weight:500; font-size:14px;
+  transition:var(--tr); position:relative; padding-bottom:4px; cursor:pointer;
+}
+.n-links a::after {
+  content:''; position:absolute; bottom:0; left:0; right:0;
+  height:2px; background:var(--gm); transform:scaleX(0); transition:var(--tr);
+}
+.n-links a:hover,
+.n-links a.on    { color:#fff }
+.n-links a:hover::after,
+.n-links a.on::after { transform:scaleX(1) }
+
+/* Actions */
+.n-acts   { display:flex; align-items:center; gap:10px }
+.n-cart   {
+  background:var(--gm); color:#fff; padding:8px 18px; border-radius:20px;
+  font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; transition:var(--tr);
+}
+.n-cart:hover           { background:#fff; color:var(--gd) }
+.n-cbadge               { background:#fff; color:var(--gd); width:20px; height:20px;
+                          border-radius:50%; display:flex; align-items:center;
+                          justify-content:center; font-size:11px; font-weight:800 }
+.n-cart:hover .n-cbadge { background:var(--gd); color:#fff }
+
+/* Hamburger */
+.n-tog  { display:none; color:#fff; font-size:26px; padding:4px; line-height:1 }
+
+/* Mobile menu */
+.m-menu {
+  display:none; position:fixed; top:64px; left:0; right:0;
+  background:var(--gd); z-index:999; flex-direction:column;
+  padding:8px 5% 16px; border-top:1px solid rgba(255,255,255,.1);
+}
+.m-menu.op { display:flex }
+.m-menu a  {
+  color:#fff; padding:14px 0; font-weight:500;
+  border-bottom:1px solid rgba(255,255,255,.1); font-size:15px; cursor:pointer;
+}
+.m-menu a:last-child { border-bottom:none }
+
+/* Page-level padding offset */
+.page-offset { padding-top:64px }
+
+/* Footer */
+footer { background:var(--bk); color:rgba(255,255,255,.65); padding:48px 5% 28px }
+.ft-in { max-width:var(--max-w); margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:36px }
+.ft-logo     { display:flex; align-items:center; gap:10px; margin-bottom:14px }
+.ft-logo-ico { width:36px; height:36px; background:var(--gm); border-radius:8px;
+               display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; color:#fff }
+.ft-logo-img { width:36px; height:36px; border-radius:9px }
+.ft-logo-n    { font-size:18px; font-weight:800; color:#fff }
+.ft-logo-n em { color:var(--gm); font-style:normal }
+.ft-brand p   { font-size:12px; line-height:1.7; max-width:270px }
+.ft-tag       { margin-top:12px; font-size:10px; font-weight:700; color:var(--gm); letter-spacing:2px; text-transform:uppercase }
+.ft-col h5    { font-size:13px; font-weight:700; color:#fff; margin-bottom:14px }
+.ft-col a     { display:block; font-size:12px; margin-bottom:9px; transition:var(--tr); cursor:pointer }
+.ft-col a:hover { color:var(--gm); padding-left:4px }
+.ft-bot {
+  max-width:var(--max-w); margin:34px auto 0; padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.1);
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; flex-wrap:wrap; gap:10px;
+}
+.ft-bot em { color:var(--gm); font-style:normal; font-weight:700 }
+
+/* Features bar */
+.f-bar { background:#fff; border-bottom:1px solid #eee }
+.f-in  { max-width:var(--max-w); margin:0 auto; padding:26px 5%;
+         display:grid; grid-template-columns:repeat(4,1fr) }
+.f-item  { display:flex; align-items:center; gap:14px; padding:0 16px; border-right:1px solid #eee }
+.f-item:last-child { border-right:none }
+.f-ico   { font-size:26px; flex-shrink:0 }
+.f-item h4 { font-size:13px; font-weight:700; color:var(--gd) }
+.f-item p  { font-size:11px; color:#666; margin-top:2px }

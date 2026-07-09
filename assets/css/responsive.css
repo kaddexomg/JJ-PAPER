@@ -1,0 +1,62 @@
+/* ======================================================
+   JJ Paper — Responsive
+   ====================================================== */
+
+@media (max-width:992px) {
+  :root { --section-pad: 64px 5% }
+
+  /* Nav */
+  .f-in { grid-template-columns:1fr 1fr }
+  .f-item { border-right:none; border-bottom:1px solid #eee; padding:12px 0 }
+
+  /* Sections */
+  .nos-grid  { grid-template-columns:1fr }
+  .cnt-grid  { grid-template-columns:1fr }
+  .ft-in     { grid-template-columns:1fr 1fr }
+
+  /* Hero */
+  .h-in  { grid-template-columns:1fr; text-align:center }
+  .h-vis { display:none }
+  .h-acts { justify-content:center }
+
+  /* Product modal */
+  .prod-modal-grid { grid-template-columns:1fr }
+  .prod-modal-img  { max-height:200px }
+}
+
+@media (max-width:768px) {
+  :root { --section-pad: 50px 4% }
+
+  /* Nav */
+  .n-links { display:none }
+  .n-tog   { display:block }
+  #cart    { width:100vw; right:-100vw }
+  .cb-win  { width:calc(100vw - 32px); right:16px }
+
+  /* Forms */
+  .f-grid { grid-template-columns:1fr }
+
+  /* Footer */
+  .ft-in { grid-template-columns:1fr }
+
+  /* Features bar */
+  .f-in  { grid-template-columns:1fr }
+
+  /* Order items row (se oculta el estimado por línea; el total sí se muestra) */
+  .oi-row  { grid-template-columns:1fr 54px 54px 32px }
+  .oi-est  { display:none }
+
+  /* Rastreo */
+  .trk-form { grid-template-columns:1fr }
+  .trk-tabs { flex-direction:row }
+}
+
+@media (max-width:480px) {
+  .h-title  { font-size:30px }
+  .h-in     { padding:50px 4% }
+  .o-form   { padding:22px 16px }
+  .btt      { right:88px; bottom:22px }
+  .cb-fab   { bottom:22px; right:22px }
+  .cb-win   { bottom:90px }
+  .prod-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)) }
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"index:%{http_code} \" http://localhost:8123/)",
+      "Bash(curl -s -o /dev/null -w \"catalogo:%{http_code} \" http://localhost:8123/catalogo.html)",
+      "Bash(curl -s -o /dev/null -w \"config.js:%{http_code}\\\\n\" http://localhost:8123/assets/js/config.js)"
+    ]
+  }
+}

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Principal</span>
+      <a href="index.html" class="on"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
+      <div class="divider"></div>
+      <span class="a-section">Catalogo</span>
+      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Dashboard</h2>
+          <p>Resumen general de JJ Paper</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span style="font-size:12px;color:var(--gr)" id="topbarDate"></span>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ico green">💰</div>
+          <div><div class="stat-n" id="stat-sales">—</div><div class="stat-l">Ventas confirmadas</div><div class="stat-d" id="stat-sales-sub"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico yellow">🛒</div>
+          <div><div class="stat-n" id="stat-orders">—</div><div class="stat-l">Pedidos por verificar</div><div class="stat-d" id="stat-orders-sub"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico blue">📦</div>
+          <div><div class="stat-n" id="stat-products">—</div><div class="stat-l">Productos activos</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico red">⭐</div>
+          <div><div class="stat-n" id="stat-reviews">—</div><div class="stat-l">Resenas por aprobar</div></div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+        <a href="pedidos.html" class="btn-p">🛒 Ver Pedidos</a>
+        <a href="productos.html" class="btn-o">+ Agregar Producto</a>
+        <a href="vendedores.html" class="btn-ghost">👥 Vendedores</a>
+        <a href="ajustes.html" class="btn-ghost">⚙️ Configurar pagos</a>
+      </div>
+
+      <!-- Notificaciones -->
+      <div class="admin-table-wrap" style="margin-bottom:24px">
+        <div class="table-top">
+          <h3>🔔 Notificaciones <span id="notifBadge" style="display:none;background:var(--gm);color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;margin-left:6px"></span></h3>
+          <button class="btn-ghost" onclick="markAllNotifsRead()" style="font-size:12px">Marcar todas leídas</button>
+        </div>
+        <div id="notifList" style="padding:4px 0"><p style="color:#aaa;font-size:13px;padding:10px 16px">Cargando...</p></div>
+      </div>
+
+      <!-- Analytics row -->
+      <div class="dash-row">
+        <div class="dash-card">
+          <h3>📈 Ventas confirmadas (últimos 7 días)</h3>
+          <div class="bar-chart" id="salesChart"></div>
+        </div>
+        <div class="dash-card">
+          <h3>📊 Pedidos por estado</h3>
+          <div id="statusBreakdown"></div>
+        </div>
+      </div>
+
+      <!-- Recent orders + low stock -->
+      <div class="dash-row">
+        <div class="admin-table-wrap">
+          <div class="table-top">
+            <h3>🛒 Pedidos recientes</h3>
+            <a href="pedidos.html" class="btn-ghost">Ver todos →</a>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>N°</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody id="recentOrdersBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="dash-card">
+          <h3>⚠️ Bajo stock</h3>
+          <div id="lowStock"><p style="color:#aaa;font-size:13px">Cargando...</p></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/dashboard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+
+  const d = document.getElementById('topbarDate');
+  if (d) d.textContent = new Date().toLocaleDateString('es-VE', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
+    document.getElementById('adminAside')?.classList.toggle('op');
+  });
+
+  await loadSettings();
+  await initDashboard();
+});
+</script>
+</body>
+</html>

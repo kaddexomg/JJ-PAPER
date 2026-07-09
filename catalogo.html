@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Catálogo completo de JJ Paper — Papelería, cuadernos, papel, carpetas, suministros y limpieza al mayor.">
+<title>Catálogo | JJ Paper</title>
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<meta name="theme-color" content="#106B3A">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="stylesheet" href="assets/css/variables.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/cart.css">
+<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+<link rel="stylesheet" href="assets/css/glass.css">
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+<div id="cart-placeholder"></div>
+
+<!-- Page hero -->
+<div class="page-offset">
+  <div class="page-hero">
+    <!-- Capa de logos animados (decorativa) -->
+    <div class="hero-logos" aria-hidden="true">
+      <img src="assets/img/logo.svg" alt="" class="hero-logo l1">
+      <img src="assets/img/logo.svg" alt="" class="hero-logo l2">
+      <img src="assets/img/logo.svg" alt="" class="hero-logo l3">
+    </div>
+    <div class="page-hero-in">
+      <img src="assets/img/logo.svg" alt="JJ Paper" class="hero-brand-logo">
+      <h1>Nuestro <em>Catálogo</em></h1>
+      <p>58+ productos de papelería, suministros y limpieza al mejor precio mayorista.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Catalog section -->
+<section id="catalogo" style="background:var(--gl)">
+  <div class="cat-wrap" style="max-width:var(--max-w);margin:0 auto" id="cat-top">
+
+    <!-- Toolbar -->
+    <div class="cat-tb rv">
+      <div class="srch" role="search">
+        <span class="srch-ico" aria-hidden="true">🔍</span>
+        <label class="sr-only" for="srch">Buscar producto</label>
+        <input type="search" id="srch" placeholder="Buscar producto..." oninput="filterProds()">
+      </div>
+      <label class="sr-only" for="sortSel">Ordenar productos</label>
+      <select class="sort-sel" id="sortSel" onchange="filterProds()" aria-label="Ordenar productos">
+        <option value="">Ordenar por...</option>
+        <option value="az">Nombre A → Z</option>
+        <option value="za">Nombre Z → A</option>
+        <option value="pasc">Precio: menor → mayor</option>
+        <option value="pdesc">Precio: mayor → menor</option>
+      </select>
+      <div class="dl-wrap">
+        <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
+                onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
+        <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
+          <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
+          <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel / CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category filters -->
+    <div class="cat-filters rv" id="catFilters">
+      <button class="cf on" data-cat="todos" onclick="setCat('todos')">🏷️ Todos</button>
+    </div>
+
+    <!-- Count -->
+    <p class="cat-count" id="catCount"></p>
+
+    <!-- Grid -->
+    <div class="prod-grid" id="prodGrid">
+      <div class="cat-loading"><div class="spin"></div>Cargando catálogo...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pag" id="pagination"></div>
+
+  </div>
+</section>
+
+<div id="footer-placeholder"></div>
+<div id="chatbot-placeholder"></div>
+<div id="prod-modal-placeholder"></div>
+<button class="btt" id="btt" aria-label="Volver arriba" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/toast.js"></script>
+<script src="assets/js/reveal.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/cart.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/export.js"></script>
+<script src="assets/js/product-modal.js"></script>
+<script src="assets/js/chatbot.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  injectNav('catalogo');
+  injectFooter();
+  await initCatalog();
+});
+</script>
+</body>
+</html>

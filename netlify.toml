@@ -1,0 +1,17 @@
+# JJ Paper — sitio estático (vanilla JS + Supabase)
+[build]
+  publish = "."
+
+# Seguridad básica de cabeceras
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache larga para assets (versionados por deploy)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

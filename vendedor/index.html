@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Panel | JJ Paper Vendedor</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em> <small style="font-size:10px;opacity:.7">VENDEDOR</small></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Ventas</span>
+      <a href="index.html" class="on"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
+      <a href="pos.html"><span class="a-ico">🛍️</span> Nueva venta (POS)</a>
+      <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
+      <a href="clientes.html"><span class="a-ico">👥</span> Mis clientes</a>
+      <div class="divider"></div>
+      <span class="a-section">Sitio</span>
+      <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Vendedor: <strong id="sellerName" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Mi Panel</h2>
+          <p>Tus ventas, comisiones y metas del mes</p>
+        </div>
+      </div>
+      <a href="pos.html" class="btn-p">🛍️ Nueva venta</a>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Stats del mes -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-ico green">💵</div>
+          <div><div class="stat-n" id="v-sales">—</div><div class="stat-l">Ventas confirmadas (mes)</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico gold">💰</div>
+          <div><div class="stat-n" id="v-comm">—</div><div class="stat-l">Comisión estimada</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico blue">🛒</div>
+          <div><div class="stat-n" id="v-orders">—</div><div class="stat-l">Pedidos del mes</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico red">⏳</div>
+          <div><div class="stat-n" id="v-pending">—</div><div class="stat-l">Por cobrar / verificar</div></div>
+        </div>
+      </div>
+
+      <!-- Meta -->
+      <div class="admin-table-wrap" style="margin-bottom:24px;padding:16px 18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <h3 style="margin:0">🎯 Meta del mes</h3>
+          <span id="v-goal-label" style="font-size:13px;color:var(--gr)">—</span>
+        </div>
+        <div style="background:#eee;border-radius:8px;height:14px;margin-top:12px;overflow:hidden">
+          <div id="v-goal-bar" style="background:linear-gradient(90deg,var(--gm),var(--gd));height:14px;border-radius:8px;width:0%;transition:width .6s"></div>
+        </div>
+      </div>
+
+      <div class="dash-row">
+        <!-- Mi link de venta -->
+        <div class="dash-card">
+          <h3>🔗 Mi link de venta</h3>
+          <p style="font-size:13px;color:var(--gr);line-height:1.6">Comparte este link: todo cliente que entre por él queda atribuido a ti por 30 días, y sus compras suman a tu comisión.</p>
+          <div id="v-reflink-box"></div>
+        </div>
+        <!-- Ranking -->
+        <div class="dash-card">
+          <h3>🏆 Ranking del equipo (30 días)</h3>
+          <div id="v-ranking"><p style="color:#aaa;font-size:13px">Cargando...</p></div>
+        </div>
+      </div>
+
+      <!-- Notificaciones -->
+      <div class="admin-table-wrap" style="margin-bottom:24px">
+        <div class="table-top">
+          <h3>🔔 Mis notificaciones</h3>
+          <button class="btn-ghost" onclick="vMarkAllRead()" style="font-size:12px">Marcar leídas</button>
+        </div>
+        <div id="v-notifs" style="padding:4px 0"><p style="color:#aaa;font-size:13px;padding:10px 16px">Cargando...</p></div>
+      </div>
+
+      <!-- Últimos pedidos -->
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <h3>🛒 Mis últimos pedidos</h3>
+          <a href="pedidos.html" class="btn-ghost">Ver todos →</a>
+        </div>
+        <table class="admin-table">
+          <thead><tr><th>N°</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+          <tbody id="v-recent"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/vdashboard.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+  await initSellerDashboard();
+});
+</script>
+</body>
+</html>

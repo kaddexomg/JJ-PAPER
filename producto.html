@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Detalle de producto — JJ Paper">
+<title>Producto | JJ Paper</title>
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<meta name="theme-color" content="#106B3A">
+<link rel="stylesheet" href="assets/css/variables.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/cart.css">
+<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+<link rel="stylesheet" href="assets/css/glass.css">
+<style>
+.prod-detail-wrap { max-width:900px; margin:0 auto; padding:40px 5% }
+.prod-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:start; margin-bottom:40px }
+.pd-img { border-radius:var(--r); aspect-ratio:1; background:var(--gl);
+          display:flex; align-items:center; justify-content:center;
+          font-size:100px; overflow:hidden; box-shadow:var(--sh) }
+.pd-img img { width:100%; height:100%; object-fit:cover }
+.pd-breadcrumb { font-size:12px; color:var(--gr); margin-bottom:12px }
+.pd-breadcrumb a { color:var(--gm); }
+.pd-cat  { font-size:11px; font-weight:700; color:var(--gm); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px }
+.pd-name { font-size:28px; font-weight:800; color:var(--bk); line-height:1.2; margin-bottom:14px }
+.pd-desc { font-size:15px; color:#555; line-height:1.75; margin-bottom:24px }
+.pd-price-usd { font-size:34px; font-weight:800; color:var(--gd) }
+.pd-price-bs  { font-size:16px; color:var(--gr); font-weight:500; margin-top:4px }
+.pd-unit { font-size:13px; color:#aaa; margin-top:4px; margin-bottom:24px }
+.pd-qty  { display:flex; align-items:center; gap:14px; margin-bottom:16px }
+.pd-qty .qb { width:40px; height:40px; font-size:22px }
+.pd-qty .qn { font-size:22px; font-weight:800; min-width:36px; text-align:center }
+.pd-actions { display:flex; flex-direction:column; gap:10px }
+.pd-add { background:var(--gd); color:#fff; padding:15px; border-radius:var(--rs);
+          font-weight:700; font-size:15px; display:flex; align-items:center;
+          justify-content:center; gap:12px; transition:var(--tr); width:100% }
+.pd-add:hover { background:var(--gm) }
+.related-section { border-top:1px solid #eee; padding-top:36px }
+.related-section h3 { font-size:20px; font-weight:700; margin-bottom:20px; color:var(--bk) }
+
+@media (max-width:768px) {
+  .prod-detail-grid { grid-template-columns:1fr }
+}
+</style>
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+<div id="cart-placeholder"></div>
+
+<div class="page-offset">
+  <div class="prod-detail-wrap">
+
+    <!-- Breadcrumb -->
+    <p class="pd-breadcrumb">
+      <a href="index.html">Inicio</a> /
+      <a href="catalogo.html">Catalogo</a> /
+      <span id="pd-breadcat">Producto</span>
+    </p>
+
+    <!-- Loading state -->
+    <div id="prodDetailLoading" style="text-align:center;padding:60px 0">
+      <div class="spin" style="margin:0 auto 12px"></div>
+      <p style="color:var(--gr)">Cargando producto...</p>
+    </div>
+
+    <!-- Product content (hidden until loaded) -->
+    <div id="prodDetailContent" style="display:none">
+      <div class="prod-detail-grid">
+        <div class="pd-img" id="pd-img">📦</div>
+        <div>
+          <div class="pd-cat"  id="pd-cat"></div>
+          <h1 class="pd-name" id="pd-name"></h1>
+          <p class="pd-desc"  id="pd-desc"></p>
+          <div id="pd-variants"></div>
+          <div class="pd-price-usd" id="pd-price-usd"></div>
+          <div class="pd-price-bs"  id="pd-price-bs"></div>
+          <div class="pd-unit"      id="pd-unit"></div>
+          <div class="pd-qty">
+            <button class="qb" onclick="pdChangeQty(-1)">−</button>
+            <span   class="qn" id="pdQtyDisplay">1</span>
+            <button class="qb" onclick="pdChangeQty(1)">+</button>
+          </div>
+          <div class="pd-actions">
+            <button class="pd-add" onclick="pdAddToCart()">🛒 Agregar al carrito</button>
+            <button class="btn-wa" onclick="pdOrderWA()">💬 Preguntar por WhatsApp</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Related products -->
+      <div class="related-section">
+        <h3>Productos relacionados</h3>
+        <div class="prod-grid" id="relatedGrid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="footer-placeholder"></div>
+<div id="chatbot-placeholder"></div>
+<div id="prod-modal-placeholder"></div>
+<button class="btt" id="btt" aria-label="Volver arriba" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/toast.js"></script>
+<script src="assets/js/reveal.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/cart.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/product-modal.js"></script>
+<script src="assets/js/chatbot.js"></script>
+<script>
+let currentProd = null;
+let pdVariant   = null;
+let pdQty       = 1;
+
+function pdStock() { return pdVariant ? pdVariant.stock : currentProd?.stock; }
+function pdPrice() { return pdVariant ? +pdVariant.price_usd : +(currentProd?.price_usd || 0); }
+
+function pdChangeQty(d) {
+  const min = Math.max(1, (pdVariant?.min_qty ?? currentProd?.min_qty) || 1);
+  const s   = pdStock();
+  const max = (typeof s === 'number' && s > 0) ? s : Infinity;
+  const next = Math.max(min, pdQty + d);
+  if (next > max) { showToast(`Solo quedan ${max} disponibles`, 'warn'); return; }
+  pdQty = next;
+  const el = document.getElementById('pdQtyDisplay');
+  if (el) el.textContent = pdQty;
+}
+
+function pdAddToCart() {
+  if (!currentProd) return;
+  if (pdStock() === 0) { showToast('Marca agotada', 'warn'); return; }
+  addCart(currentProd, pdQty, false, pdVariant);
+}
+
+function pdOrderWA() {
+  if (!currentProd) return;
+  const p = currentProd;
+  const brand = variantLabel(pdVariant);
+  const msg = `📦 Hola JJ Paper, estoy interesado en:\n• ${p.name}${brand ? ` (${brand})` : ''} x${pdQty}\n  Precio: ${fmtPrice(pdPrice() * pdQty)}\n\n¿Tienen disponibilidad?`;
+  openWA(msg);
+}
+
+// Pills de marca (cuando el producto viene en varias marcas)
+function pdRenderVariants() {
+  const box = document.getElementById('pd-variants');
+  if (!box || !currentProd) return;
+  const vs = currentProd.variants || [];
+  if (vs.length <= 1) { box.innerHTML = ''; pdRefreshPrice(); return; }
+  box.innerHTML = `<div class="pm-variants">
+    <div class="pm-variants-lbl">Marca:</div>
+    <div class="pm-variants-list">
+      ${vs.map(v => {
+        const label = escapeHTML(variantLabel(v) || 'Estándar');
+        const out   = v.stock === 0;
+        return `<button class="pm-var${v.id === pdVariant?.id ? ' on' : ''}${out ? ' out' : ''}"
+          onclick="pdSelectVariant('${v.id}')">
+          ${v.jjp_brands?.logo_url ? `<img src="${escapeHTML(v.jjp_brands.logo_url)}" alt="${label}" loading="lazy">` : ''}
+          <span>${label}</span><b>${fmtPrice(v.price_usd)}</b>${out ? '<em>Agotado</em>' : ''}
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+  pdRefreshPrice();
+}
+
+function pdSelectVariant(id) {
+  pdVariant = currentProd?.variants.find(v => v.id === id) || pdVariant;
+  pdQty = Math.max(1, (pdVariant?.min_qty ?? currentProd?.min_qty) || 1);
+  const qd = document.getElementById('pdQtyDisplay');
+  if (qd) qd.textContent = pdQty;
+  pdRenderVariants();
+}
+
+function pdRefreshPrice() {
+  document.getElementById('pd-price-usd').textContent = fmtPrice(pdPrice());
+  document.getElementById('pd-price-bs').textContent  = fmtBs(pdPrice());
+}
+
+async function initProductPage() {
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { window.location.href = 'catalogo.html'; return; }
+
+  await loadSettings();
+
+  const { data: p, error } = await sb.from('jjp_products')
+    .select(`*,jjp_categories(name,slug,color),${VARIANTS_SELECT}`)
+    .eq('id', id).single();
+
+  if (error || !p) { window.location.href = 'catalogo.html'; return; }
+  currentProd = normalizeProduct(p);
+  pdVariant = p.variants.find(v => v.stock !== 0) || p.variants[0] || null;
+  pdQty = Math.max(1, (pdVariant?.min_qty ?? p.min_qty) || 1);
+  const qd = document.getElementById('pdQtyDisplay');
+  if (qd) qd.textContent = pdQty;
+
+  // Update meta
+  document.title = `${p.name} | JJ Paper`;
+
+  // Fill content
+  const cat = p.jjp_categories || {};
+  const bg  = cat.color || '#f2f2f2';
+
+  document.getElementById('pd-breadcat').textContent = cat.name || 'Producto';
+  document.getElementById('pd-cat').textContent      = cat.name || '';
+  document.getElementById('pd-name').textContent     = p.name;
+  document.getElementById('pd-desc').textContent     = p.description || '';
+  document.getElementById('pd-unit').textContent     = `por ${p.unit}`;
+  pdRenderVariants();
+
+  const imgEl = document.getElementById('pd-img');
+  imgEl.style.background = bg;
+  if (p.image_url) {
+    imgEl.innerHTML = `<img src="${p.image_url}" alt="${p.name}">`;
+  } else {
+    imgEl.textContent = p.emoji || '📦';
+  }
+
+  document.getElementById('prodDetailLoading').style.display = 'none';
+  document.getElementById('prodDetailContent').style.display = 'block';
+
+  // Related products (same category)
+  const { data: related } = await sb.from('jjp_products')
+    .select(`*,jjp_categories(name,slug,color),${VARIANTS_SELECT}`)
+    .eq('category_id', p.category_id)
+    .eq('active', true)
+    .neq('id', id)
+    .limit(4);
+
+  if (related?.length) {
+    allProducts = related.map(normalizeProduct);
+    allProducts.forEach(r => { productMap[r.id] = r; });
+    document.getElementById('relatedGrid').innerHTML = related.map(r => productCardHTML(r)).join('');
+    observeReveal(document.getElementById('relatedGrid'));
+  } else {
+    document.querySelector('.related-section').style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  injectNav('catalogo');
+  injectFooter();
+  cartLoad();
+  injectCartDrawer();
+  await initProductPage();
+});
+</script>
+</body>
+</html>

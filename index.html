@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="JJ Paper — Papelería y suministros al mayor en Venezuela. Calidad, compromiso y confianza.">
+<title>JJ Paper — Papelería y Suministros al Mayor</title>
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<meta name="theme-color" content="#106B3A">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<meta property="og:type" content="website">
+<meta property="og:title" content="JJ Paper — Papelería y Suministros al Mayor">
+<meta property="og:description" content="Más de 58 productos de papelería, material escolar y suministros de oficina. Distribución al mayor en toda Venezuela.">
+<meta property="og:image" content="assets/img/logo.svg">
+<meta property="og:locale" content="es_VE">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="assets/css/variables.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/cart.css">
+<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/promos.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+<link rel="stylesheet" href="assets/css/motion.css">
+<link rel="stylesheet" href="assets/css/glass.css">
+<style>
+/* ---- Hero ---- */
+#inicio { min-height:100vh; background:linear-gradient(135deg,var(--gd) 0%,#072e16 100%);
+          display:flex; align-items:center; position:relative; overflow:hidden; padding-top:64px }
+.h-bg   { position:absolute; inset:0; overflow:hidden }
+.h-c    { position:absolute; border-radius:50%; background:rgba(43,182,115,.07) }
+.h-c:nth-child(1){width:700px;height:700px;top:-260px;right:-150px;animation:hpulse 9s ease-in-out infinite}
+.h-c:nth-child(2){width:420px;height:420px;bottom:-180px;left:-100px;animation:hpulse 11s ease-in-out infinite 2s}
+.h-c:nth-child(3){width:190px;height:190px;top:38%;left:28%;animation:hpulse 7s ease-in-out infinite 1s}
+@keyframes hpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.h-in   { position:relative;z-index:2;max-width:var(--max-w);margin:0 auto;padding:80px 5%;
+          display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center }
+.hero-badge { display:inline-flex;align-items:center;gap:8px;background:rgba(43,182,115,.2);
+              border:1px solid rgba(43,182,115,.4);color:var(--gm);padding:6px 16px;
+              border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;
+              letter-spacing:1.5px;margin-bottom:24px }
+.h-title    { font-size:clamp(32px,5vw,60px);font-weight:800;color:#fff;line-height:1.1;margin-bottom:14px }
+.h-title em { color:var(--gm);font-style:normal }
+.h-tag  { font-size:13px;color:rgba(255,255,255,.6);font-weight:600;letter-spacing:3px;
+          text-transform:uppercase;margin-bottom:22px }
+.h-desc { font-size:16px;color:rgba(255,255,255,.8);line-height:1.75;margin-bottom:38px;max-width:460px }
+.h-acts { display:flex;gap:14px;flex-wrap:wrap }
+/* Columna visual: chapa 3D + carrusel de promos */
+.h-vis    { display:flex;flex-direction:column;align-items:center;gap:10px }
+.h-logo3d { width:min(400px,78vw);height:min(340px,60vw);touch-action:manipulation }
+
+.hp-carousel { width:100%;max-width:470px }
+.hp-viewport { overflow:hidden;border-radius:var(--r);cursor:grab;touch-action:pan-y;
+               box-shadow:0 14px 34px rgba(0,0,0,.28) }
+.hp-viewport:active { cursor:grabbing }
+.hp-track  { display:flex;transition:transform .55s cubic-bezier(.2,.7,.2,1);will-change:transform }
+.hp-slide  { flex:0 0 100%;display:flex;align-items:center;gap:14px;padding:16px 18px;
+             min-height:92px;color:#fff;text-decoration:none;user-select:none }
+.hp-media  { width:58px;height:58px;border-radius:14px;background:rgba(255,255,255,.16);
+             display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden }
+.hp-media img { width:100%;height:100%;object-fit:cover }
+.hp-emoji  { font-size:30px }
+.hp-txt    { display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 }
+.hp-kind   { font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;opacity:.85 }
+.hp-title  { font-size:15px;font-weight:800;line-height:1.25;overflow:hidden;
+             display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical }
+.hp-price  { font-size:13px;font-weight:700;opacity:.95 }
+.hp-save   { font-style:normal;background:rgba(255,255,255,.25);border-radius:8px;
+             padding:1px 7px;font-size:11px;font-weight:800;margin-left:4px }
+.hp-go     { font-size:20px;font-weight:800;opacity:.7;flex-shrink:0 }
+.hp-slide:hover .hp-go { opacity:1;transform:translateX(3px);transition:.2s }
+.hp-dots   { display:flex;gap:7px;justify-content:center;margin-top:11px }
+.hp-dots button { width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);
+                  transition:.25s;padding:0 }
+.hp-dots button.on { background:var(--gm);width:22px;border-radius:5px }
+
+.h-wave  { position:absolute;bottom:0;left:0;right:0 }
+
+/* ---- Nosotros ---- */
+#nosotros  { background:var(--gl) }
+.nos-wrap  { max-width:1100px;margin:0 auto }
+.nos-grid  { display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:start }
+.nos-txt h3{ font-size:22px;font-weight:700;color:var(--gd);margin-bottom:14px }
+.nos-txt p { font-size:14px;color:#555;line-height:1.8;margin-bottom:16px }
+.vals      { display:flex;flex-direction:column;gap:12px }
+.metrics   { display:grid;grid-template-columns:1fr 1fr;gap:12px }
+.nos-vis   { display:flex;flex-direction:column;gap:16px }
+
+/* ---- Contacto ---- */
+#contacto  { background:#fff }
+.cnt-wrap  { max-width:1100px;margin:0 auto }
+.cnt-grid  { display:grid;grid-template-columns:1fr 1fr;gap:46px;align-items:start }
+.cc-cards  { display:flex;flex-direction:column;gap:12px;margin-bottom:20px }
+.cc { display:flex;gap:14px;align-items:flex-start;background:var(--gl);border-radius:var(--r);
+      padding:18px;transition:var(--tr) }
+.cc:hover    { transform:translateX(4px) }
+.cc-ico      { width:44px;height:44px;border-radius:11px;background:var(--gd);
+               display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0 }
+.cc h4       { font-size:13px;font-weight:700;color:var(--bk);margin-bottom:3px }
+.cc p,.cc a  { font-size:12px;color:#555;line-height:1.6 }
+.cc a:hover  { color:var(--gd) }
+.map-c       { border-radius:var(--r);overflow:hidden;box-shadow:var(--sh) }
+.map-c iframe{ width:100%;height:400px;border:none;display:block }
+</style>
+</head>
+<body data-cursor-glow>
+
+<div id="nav-placeholder"></div>
+<div id="cart-placeholder"></div>
+
+<!-- ===================== INICIO ===================== -->
+<section id="inicio" data-particles>
+  <div class="mesh-layer">
+    <div class="mesh-blob b1"></div><div class="mesh-blob b2"></div><div class="mesh-blob b3"></div>
+  </div>
+  <div class="h-bg">
+    <div class="h-c" data-parallax="0.10"></div>
+    <div class="h-c" data-parallax="0.18"></div>
+    <div class="h-c" data-parallax="0.26"></div>
+  </div>
+  <div class="h-in">
+    <div class="h-txt">
+      <div class="hero-badge">🏪 Distribuidores al Mayor</div>
+      <h1 class="h-title" data-word-reveal>Tu proveedor de<br><em>papelería y oficina</em></h1>
+      <p class="h-tag">Calidad &middot; Compromiso &middot; Confianza</p>
+      <p class="h-desc">Más de 58 productos de papelería, material escolar y suministros de oficina. Distribución al mayor para empresas, colegios y emprendedores en toda Venezuela.</p>
+      <div class="h-acts">
+        <a href="catalogo.html" class="btn-p magnetic">Ver Catálogo &rarr;</a>
+        <a href="promociones.html" class="btn-o-wh magnetic">🔥 Promociones</a>
+        <a id="heroWaBtn" class="btn-o-wh magnetic" target="_blank" rel="noopener"
+           href="https://wa.me/584121234567?text=Hola%20JJ%20Paper%2C%20quisiera%20hablar%20con%20un%20vendedor.">💬 Contactar vendedor</a>
+        <div class="dl-wrap">
+          <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
+                  onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
+          <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
+            <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
+            <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel / CSV</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="h-vis">
+      <div class="h-logo3d" data-jj-logo3d aria-label="Logo JJ Paper interactivo"></div>
+      <div class="hp-carousel" id="heroPromos" style="display:none"></div>
+    </div>
+  </div>
+  <div class="h-wave">
+    <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:80px">
+      <path d="M0,40 C360,80 1080,0 1440,40 L1440,80 L0,80 Z" fill="#F2F2F2"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ===================== FEATURES BAR ===================== -->
+<div class="f-bar">
+  <div class="f-in">
+    <div class="f-item"><div class="f-ico">🚀</div><div><h4>Despacho Rápido</h4><p>Entrega en 24-48h hábiles</p></div></div>
+    <div class="f-item"><div class="f-ico">✅</div><div><h4>Calidad Certificada</h4><p>Marcas líderes del mercado</p></div></div>
+    <div class="f-item"><div class="f-ico">💰</div><div><h4>Precios al Mayor</h4><p>Los mejores precios de reventa</p></div></div>
+    <div class="f-item"><div class="f-ico">📱</div><div><h4>Pedidos WhatsApp</h4><p>Atención personalizada</p></div></div>
+  </div>
+</div>
+
+<!-- ===================== MARCAS ===================== -->
+<div class="brands-strip" id="brandsStrip" style="display:none">
+  <h6>Trabajamos con las mejores marcas</h6>
+  <div class="brands-track-wrap"><div class="brands-track" id="brandsTrack"></div></div>
+</div>
+
+<!-- ===================== PROMOCIONES (feed) ===================== -->
+<section id="promos-home" style="background:#fff;display:none">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div class="s-hd rv">
+      <div class="s-tag">🔥 Promociones</div>
+      <h2 class="s-title">Ofertas y <em>combos de hoy</em></h2>
+      <p class="s-desc">Promociones por tiempo limitado publicadas por nuestro equipo. ¡Aprovéchalas antes de que terminen!</p>
+    </div>
+    <div id="homePromoHero"></div>
+    <div class="promo-grid" id="homePromoGrid"></div>
+    <div style="text-align:center;margin-top:28px">
+      <a href="promociones.html" class="btn-p">Ver todas las promociones &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ACCESOS RÁPIDOS ===================== -->
+<section id="accesos" style="background:var(--gl);padding-top:50px;padding-bottom:50px">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div class="s-hd rv" style="margin-bottom:30px">
+      <div class="s-tag">⚡ Accesos Rápidos</div>
+      <h2 class="s-title">¿Qué deseas <em>hacer hoy</em>?</h2>
+    </div>
+    <div class="qa-hub rv-stagger">
+      <a class="qa-card tilt rv-up" href="catalogo.html">
+        <div class="qa-ico">🛍️</div><h4>Ver Catálogo</h4>
+        <p>Explora todos nuestros productos al mayor</p><span class="qa-go">Explorar →</span>
+      </a>
+      <a class="qa-card tilt rv-up" href="promociones.html">
+        <div class="qa-ico">🔥</div><h4>Promociones</h4>
+        <p>Ofertas, combos y anuncios vigentes</p><span class="qa-go">Ver ofertas →</span>
+      </a>
+      <a class="qa-card tilt rv-up" href="pedidos.html">
+        <div class="qa-ico">📋</div><h4>Solicitar Cotización</h4>
+        <p>Recibe tu pre-factura por WhatsApp</p><span class="qa-go">Cotizar →</span>
+      </a>
+      <a class="qa-card tilt rv-up" href="rastreo.html">
+        <div class="qa-ico">🔎</div><h4>Rastrear Pedido</h4>
+        <p>Consulta el estado de tu compra en línea</p><span class="qa-go">Rastrear →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PRODUCTOS DESTACADOS ===================== -->
+<section id="destacados" style="background:var(--gl)">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div class="s-hd rv">
+      <div class="s-tag">⭐ Productos Destacados</div>
+      <h2 class="s-title">Lo más <em>solicitado</em></h2>
+      <p class="s-desc">Los productos favoritos de nuestros clientes al mejor precio mayorista.</p>
+    </div>
+    <div id="featuredContainer"></div>
+    <div style="text-align:center;margin-top:28px">
+      <a href="catalogo.html" class="btn-p">Ver catálogo completo &rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MÁS VENDIDOS ===================== -->
+<section id="masvendidos" style="background:#fff;display:none">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div class="s-hd rv">
+      <div class="s-tag">🏆 Más Vendidos</div>
+      <h2 class="s-title">Lo que más <em>compran nuestros clientes</em></h2>
+      <p class="s-desc">Ranking real de los últimos 30 días. Si todos lo llevan, por algo será.</p>
+    </div>
+    <div id="bestSellersContainer"></div>
+  </div>
+</section>
+
+<!-- ===================== NOSOTROS ===================== -->
+<section id="nosotros">
+  <div class="nos-wrap">
+    <div class="s-hd rv">
+      <div class="s-tag">🏠 Nosotros</div>
+      <h2 class="s-title">Quiénes <em>somos</em></h2>
+      <p class="s-desc">Empresa venezolana comprometida con la calidad y el servicio al mayor.</p>
+    </div>
+    <div class="nos-grid">
+      <div class="nos-txt rv">
+        <h3>Tu aliado en papelería y suministros</h3>
+        <p>JJ Paper nació con la misión de ser el proveedor más confiable de papelería y suministros de oficina al mayor en Venezuela. Trabajamos directamente con fabricantes y distribuidores líderes para ofrecerte siempre el mejor precio sin sacrificar la calidad.</p>
+        <p>Nuestro equipo está comprometido con atender cada pedido con rapidez, profesionalismo y las mejores condiciones del mercado.</p>
+        <div class="vals">
+          <div class="val"><div class="val-ico">🏆</div><div><h4>Calidad</h4><p>Solo trabajamos con marcas que cumplen los más altos estándares del mercado.</p></div></div>
+          <div class="val"><div class="val-ico">🤝</div><div><h4>Compromiso</h4><p>Cumplimos los tiempos de entrega y mantenemos comunicación transparente.</p></div></div>
+          <div class="val"><div class="val-ico">💚</div><div><h4>Confianza</h4><p>Construimos relaciones a largo plazo basadas en la honestidad y el trato justo.</p></div></div>
+        </div>
+      </div>
+      <div class="nos-vis rv">
+        <div class="metrics rv-stagger">
+          <div class="met rv-up"><div class="met-n"><span data-count="10" data-count-suffix="+">10+</span></div><div class="met-l">Años en el mercado</div></div>
+          <div class="met rv-up"><div class="met-n"><span data-count="500" data-count-suffix="+">500+</span></div><div class="met-l">Clientes activos</div></div>
+          <div class="met rv-up"><div class="met-n"><span id="metProducts" data-count="58">58</span></div><div class="met-l">Productos en catálogo</div></div>
+          <div class="met rv-up"><div class="met-n"><span data-count="99" data-count-suffix="%">99%</span></div><div class="met-l">Satisfacción del cliente</div></div>
+        </div>
+        <div class="tl">
+          <h3>Nuestra Historia</h3>
+          <div class="tl-items">
+            <div class="tl-it"><div class="tl-dot">2014</div><div class="tl-ct"><h4>Fundación de JJ Paper</h4><p>Inicio de operaciones con 15 productos esenciales.</p></div></div>
+            <div class="tl-it"><div class="tl-dot">2017</div><div class="tl-ct"><h4>Expansión del Catálogo</h4><p>Alcanzamos 40 productos e incorporamos la línea de limpieza.</p></div></div>
+            <div class="tl-it"><div class="tl-dot">2020</div><div class="tl-ct"><h4>Canal Digital</h4><p>Implementamos pedidos por WhatsApp y presencia en línea.</p></div></div>
+            <div class="tl-it"><div class="tl-dot">2024</div><div class="tl-ct"><h4>58+ Productos</h4><p>Catálogo completo atendiendo empresas, colegios y emprendedores.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CONTACTO ===================== -->
+<section id="contacto">
+  <div class="cnt-wrap">
+    <div class="s-hd rv">
+      <div class="s-tag">💬 Contacto</div>
+      <h2 class="s-title">Comunícate <em>con nosotros</em></h2>
+      <p class="s-desc">Estamos listos para atender tu pedido y resolver cualquier duda.</p>
+    </div>
+    <div class="cnt-grid">
+      <div class="rv">
+        <div class="cc-cards">
+          <div class="cc"><div class="cc-ico">📱</div><div><h4>WhatsApp</h4><p id="ctPhone">+58 412-1234567</p><p>Lun-Sáb &middot; 8:00am - 6:00pm</p></div></div>
+          <div class="cc"><div class="cc-ico">📧</div><div><h4>Correo Electrónico</h4><p><a id="ctEmail" href="mailto:ventas@jjpaper.com.ve">ventas@jjpaper.com.ve</a></p><p>Respuesta en menos de 24 horas</p></div></div>
+          <div class="cc"><div class="cc-ico">📍</div><div><h4>Dirección</h4><p id="ctAddress">Av. Principal, Local 12<br>Caracas, Venezuela</p><a id="ctDirLink" href="#" target="_blank" rel="noopener" style="display:none;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--gd);margin-top:4px">🧭 Cómo llegar ↗</a></div></div>
+          <div class="cc"><div class="cc-ico">🕐</div><div><h4>Horario de Atención</h4><p id="ctHours1">Lunes - Viernes: 8:00am - 6:00pm</p><p id="ctHours2">Sábado: 8:00am - 1:00pm</p></div></div>
+        </div>
+        <a class="btn-wa" id="ctWaBtn" href="https://wa.me/584121234567?text=Hola%20JJ%20Paper%2C%20quisiera%20informacion%20sobre%20sus%20productos." target="_blank">
+          💬 Escribir por WhatsApp
+        </a>
+      </div>
+      <div class="rv">
+        <div class="map-c">
+          <iframe src="https://www.openstreetmap.org/export/embed.html?bbox=-66.9366%2C10.4806%2C-66.8566%2C10.5206&layer=mapnik&marker=10.5006%2C-66.8966" loading="lazy" title="Ubicación JJ Paper"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="footer-placeholder"></div>
+<div id="chatbot-placeholder"></div>
+<div id="prod-modal-placeholder"></div>
+<button class="btt" id="btt" aria-label="Volver arriba" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/toast.js"></script>
+<script src="assets/js/reveal.js"></script>
+<script src="assets/js/motion.js"></script>
+<script src="assets/js/logo3d.js"></script>
+<script src="assets/js/hero-promos.js"></script>
+<script src="assets/js/nav.js"></script>
+<script src="assets/js/cart.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/export.js"></script>
+<script src="assets/js/promos.js"></script>
+<script src="assets/js/product-modal.js"></script>
+<script src="assets/js/chatbot.js"></script>
+<script>
+// Fill hero stats + contact cards from settings (with hardcoded fallbacks)
+function fillHomeFromSettings() {
+  const s = APP.SETTINGS || {};
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
+  set('ctPhone',    s.phone_display);
+  set('ctHours1',   s.hours_weekday);
+  set('ctHours2',   s.hours_saturday);
+  const em = document.getElementById('ctEmail');
+  if (em && s.email) { em.textContent = s.email; em.href = `mailto:${s.email}`; }
+  const ad = document.getElementById('ctAddress');
+  if (ad && s.address) ad.textContent = s.address;
+
+  // Mapa: si hay coords en ajustes, el iframe apunta a la dirección real.
+  // Sin coords se mantiene el mapa por defecto.
+  const lat = parseFloat(s.map_lat), lng = parseFloat(s.map_lng);
+  if (!isNaN(lat) && !isNaN(lng)) {
+    const mc = document.querySelector('#contacto .map-c');
+    if (mc) {
+      mc.innerHTML = `<iframe src="${osmEmbed(lat, lng)}" loading="lazy" title="Ubicación JJ Paper"></iframe>`;
+    }
+    const dir = document.getElementById('ctDirLink');
+    if (dir) { dir.href = osmLink(lat, lng); dir.style.display = 'inline-flex'; }
+  }
+  const wa = document.getElementById('ctWaBtn');
+  if (wa && s.whatsapp_number) {
+    wa.href = `https://wa.me/${s.whatsapp_number}?text=${encodeURIComponent(s.whatsapp_message || APP.WA_MSG)}`;
+  }
+  // Botón "Contactar vendedor" del hero → mismo número de ajustes
+  const hw = document.getElementById('heroWaBtn');
+  if (hw && s.whatsapp_number) {
+    hw.href = `https://wa.me/${s.whatsapp_number}?text=${encodeURIComponent('Hola JJ Paper 👋, quisiera hablar con un vendedor.')}`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  injectNav('inicio');
+  injectFooter();
+  await loadSettings();
+  fillHomeFromSettings();
+  refreshContactUI();
+  await renderFeatured('featuredContainer', 8);
+  await renderBestSellers('masvendidos', 'bestSellersContainer', 8);
+  await renderHomePromos('promos-home', 'homePromoHero', 'homePromoGrid', 3);
+  // Carrusel de promos del hero (reutiliza el caché de renderHomePromos)
+  initHeroPromos('heroPromos');
+  // Live product count in metrics (re-anima con el dato real)
+  if (allProducts.length) {
+    const el = document.getElementById('metProducts');
+    if (el && window.JJMotion) JJMotion.recount(el, allProducts.length, '');
+    else if (el) el.textContent = allProducts.length;
+  }
+  renderBrandsStrip();
+});
+</script>
+</body>
+</html>

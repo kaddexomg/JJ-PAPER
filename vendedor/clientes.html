@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Clientes | JJ Paper Vendedor</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em> <small style="font-size:10px;opacity:.7">VENDEDOR</small></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Ventas</span>
+      <a href="index.html"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
+      <a href="pos.html"><span class="a-ico">🛍️</span> Nueva venta (POS)</a>
+      <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
+      <a href="clientes.html" class="on"><span class="a-ico">👥</span> Mis clientes</a>
+      <div class="divider"></div>
+      <span class="a-section">Sitio</span>
+      <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Vendedor: <strong id="sellerName" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Mis clientes</h2>
+          <p>Tu cartera: haz seguimiento y reactiva a los inactivos</p>
+        </div>
+      </div>
+      <button class="btn-p" onclick="openCustomerModal()">＋ Nuevo cliente</button>
+    </div>
+
+    <div class="admin-content">
+      <div class="of-chips">
+        <button class="of-chip on" data-f="mios" onclick="setCustFilter('mios')">Mi cartera</button>
+        <button class="of-chip" data-f="inactivos" onclick="setCustFilter('inactivos')">😴 Inactivos +60d</button>
+        <button class="of-chip" data-f="libres" onclick="setCustFilter('libres')">🆓 Sin vendedor</button>
+        <button class="of-chip" data-f="todos" onclick="setCustFilter('todos')">Todos</button>
+      </div>
+
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <h3>👥 Clientes</h3>
+          <input class="fi" id="custSearch" placeholder="Buscar por nombre o teléfono..." oninput="renderCustomers()" style="max-width:260px;font-size:13px">
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Cliente</th><th>Ciudad</th><th>Compras</th><th>Total histórico</th><th>Última compra</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="custBody">
+              <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal cliente -->
+<div class="modal-overlay" id="custModal" onclick="if(event.target===this)closeCustomerModal()">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <h3 id="custModalTitle">Nuevo cliente</h3>
+      <button class="modal-close" onclick="closeCustomerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="fl">Nombre / empresa *</label><input class="fi" id="cu-name"></div>
+        <div class="fg"><label class="fl">Teléfono *</label><input class="fi" id="cu-phone" placeholder="04121234567"></div>
+        <div class="fg"><label class="fl">RIF / CI</label><input class="fi" id="cu-rif"></div>
+        <div class="fg"><label class="fl">Ciudad</label><input class="fi" id="cu-city"></div>
+        <div class="fg"><label class="fl">Email</label><input class="fi" id="cu-email" type="email"></div>
+        <div class="fg"><label class="fl">Dirección</label><input class="fi" id="cu-address"></div>
+      </div>
+      <div class="fg" style="margin-top:10px">
+        <label class="fl">Notas de seguimiento</label>
+        <textarea class="fi" id="cu-notes" rows="3" placeholder="Ej: compra resmas cada mes para su oficina, prefiere Pago Móvil..."></textarea>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeCustomerModal()">Cancelar</button>
+        <button class="btn-p" id="custSaveBtn" onclick="saveCustomer()">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/vcustomers.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+  await loadCustomers();
+});
+</script>
+</body>
+</html>

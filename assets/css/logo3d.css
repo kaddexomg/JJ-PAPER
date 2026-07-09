@@ -1,0 +1,18 @@
+/* ======================================================
+   JJ Paper — Logo 3D interactivo (contenedor)
+   Aislado: solo estiliza [data-jj-logo3d] y su canvas.
+   ====================================================== */
+[data-jj-logo3d] {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;      /* cuadrado por defecto; sobreescribible */
+  max-width: 460px;
+  margin: 0 auto;
+  touch-action: none;        /* evita scroll al arrastrar sobre el logo */
+  -webkit-user-select: none;
+  user-select: none;
+}
+[data-jj-logo3d] > canvas {
+  filter: drop-shadow(0 18px 40px rgba(16, 107, 58, .28));
+}

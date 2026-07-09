@@ -1,0 +1,120 @@
+/* ======================================================
+   JJ Paper — Checkout
+   ====================================================== */
+
+.ped-wrap { max-width:1080px; margin:0 auto }
+
+/* Layout */
+.co-grid { display:grid; grid-template-columns:1fr 360px; gap:24px; align-items:start }
+.co-left { display:flex; flex-direction:column; gap:18px }
+
+/* Cards */
+.co-card { background:#fff; border-radius:var(--r); padding:24px; box-shadow:var(--sh) }
+.co-step { display:flex; align-items:center; gap:10px; font-size:16px; font-weight:800;
+           color:var(--bk); margin-bottom:18px }
+.co-step span {
+  width:26px; height:26px; border-radius:50%; background:var(--gd); color:#fff;
+  font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+
+/* Order items */
+.co-item { display:grid; grid-template-columns:54px 1fr auto; gap:12px; align-items:center;
+           padding:12px 0; border-bottom:1px solid #f2f2f2 }
+.co-item:last-child { border-bottom:none }
+.co-item-img { width:54px; height:54px; border-radius:var(--rs); background:var(--gl); overflow:hidden;
+               display:flex; align-items:center; justify-content:center }
+.co-item-img img { width:100%; height:100%; object-fit:cover }
+.co-item-name  { font-size:13px; font-weight:700; color:var(--bk); margin-bottom:2px }
+.co-item-price { font-size:11px; color:#888 }
+.co-item-price span { color:var(--gm) }
+.co-item-ctrl  { display:flex; align-items:center; gap:6px; margin-top:6px }
+.co-del { font-size:14px; margin-left:6px; opacity:.6; transition:var(--tr) }
+.co-del:hover { opacity:1 }
+.co-item-sub { font-size:14px; font-weight:800; color:var(--gd) }
+
+/* Payment methods */
+.co-pms { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:6px }
+.co-pm {
+  display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center;
+  padding:16px 8px; border:2px solid var(--gb); border-radius:var(--r); background:#fff;
+  transition:var(--tr); cursor:pointer;
+}
+.co-pm:hover { border-color:var(--gm) }
+.co-pm.on    { border-color:var(--gd); background:var(--gx) }
+.co-pm-ico { font-size:26px }
+.co-pm-t   { font-size:13px; font-weight:800; color:var(--bk) }
+.co-pm-s   { font-size:10px; color:var(--gr); font-weight:600 }
+
+/* Payment data panels */
+.co-pay-panel { margin-top:16px; background:var(--gl); border-radius:var(--r); padding:18px;
+                border:1px dashed var(--gm) }
+.co-pay-amount { font-size:14px; color:#555; margin-bottom:12px }
+.co-pay-amount strong { font-size:20px; color:var(--gd); font-weight:800 }
+.co-pay-data { display:flex; flex-direction:column; gap:8px }
+.co-pd-row { display:grid; grid-template-columns:90px 1fr auto; gap:10px; align-items:center;
+             font-size:13px; padding:7px 0; border-bottom:1px solid #e6e6e6 }
+.co-pd-row:last-child { border-bottom:none }
+.co-pd-row span { color:#888; font-weight:600 }
+.co-pd-row b    { color:var(--bk); font-weight:700; word-break:break-all }
+.co-cp { font-size:11px; color:var(--gd); font-weight:700; text-decoration:underline; white-space:nowrap }
+.co-pay-hint { font-size:12px; color:#777; line-height:1.6; margin-top:12px }
+
+/* Receipt upload */
+.co-receipt { margin-top:18px; padding-top:18px; border-top:1px solid #eee }
+.co-upload {
+  display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+  border:2px dashed var(--gm); border-radius:var(--r); padding:22px; text-align:center;
+  color:var(--gd); font-weight:700; font-size:13px; background:var(--gx); transition:var(--tr); margin-top:6px;
+}
+.co-upload:hover { background:#dcefe3 }
+.co-receipt-preview { margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap }
+.co-receipt-preview img { width:90px; height:90px; object-fit:cover; border-radius:var(--rs); border:1px solid var(--gb) }
+.co-receipt-preview span { font-size:12px; color:var(--gd); font-weight:700 }
+
+/* Sticky summary */
+.co-right { position:sticky; top:84px }
+.co-summary { background:#fff; border-radius:var(--r); padding:24px; box-shadow:var(--sh) }
+.co-summary h3 { font-size:16px; font-weight:800; margin-bottom:16px }
+.co-sum-row { display:flex; justify-content:space-between; align-items:center; font-size:14px;
+              color:#555; margin-bottom:10px }
+.co-sum-row.small { font-size:12px; color:#999 }
+.co-sum-div { height:1px; background:#eee; margin:6px 0 12px }
+.co-sum-row.total { font-size:16px; font-weight:800; color:var(--bk) }
+.co-sum-row.total span:last-child { color:var(--gd) }
+.co-sum-row.bs { font-size:14px; font-weight:700; color:var(--gm); margin-bottom:18px }
+.co-submit {
+  width:100%; background:var(--gd); color:#fff; padding:15px; border-radius:var(--rs);
+  font-weight:800; font-size:15px; transition:var(--tr); margin-bottom:10px;
+}
+.co-submit:hover:not(:disabled) { background:var(--gm); transform:translateY(-2px) }
+.co-submit:disabled { opacity:.6; cursor:not-allowed }
+.co-secure { font-size:11px; color:#aaa; text-align:center; margin-top:10px }
+
+/* Empty state */
+.co-empty { text-align:center; padding:70px 20px; background:#fff; border-radius:var(--r); box-shadow:var(--sh) }
+.co-empty-ico { font-size:60px; margin-bottom:14px }
+.co-empty h3 { font-size:20px; font-weight:800; margin-bottom:8px }
+.co-empty p  { font-size:14px; color:#777; margin-bottom:22px }
+
+/* Confirmation */
+.co-done { text-align:center; padding:50px 24px; background:#fff; border-radius:var(--r);
+           box-shadow:var(--sh); max-width:520px; margin:0 auto }
+.co-done-ico { font-size:64px; margin-bottom:10px }
+.co-done h2 { font-size:24px; font-weight:800; margin-bottom:6px }
+.co-done-num { font-size:15px; color:#555; margin-bottom:14px }
+.co-done-num strong { color:var(--gd); font-size:18px; letter-spacing:.5px }
+.co-done-msg { font-size:14px; color:#666; line-height:1.7; margin-bottom:22px }
+.co-done-box { background:var(--gl); border-radius:var(--r); padding:18px; margin-bottom:20px; text-align:left }
+.co-done-row { display:flex; justify-content:space-between; font-size:14px; padding:7px 0;
+               border-bottom:1px solid #e6e6e6 }
+.co-done-row:last-child { border-bottom:none }
+.co-done-row strong { color:var(--gd) }
+.co-done-hint { font-size:12px; color:#888; line-height:1.6; margin-bottom:22px }
+.co-done-acts { display:flex; flex-direction:column; gap:10px }
+
+/* Responsive */
+@media (max-width:860px) {
+  .co-grid { grid-template-columns:1fr }
+  .co-right { position:static }
+  .co-pms { grid-template-columns:1fr }
+}

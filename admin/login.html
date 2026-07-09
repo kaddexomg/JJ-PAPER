@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login | JJ Paper</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <h2>Acceso al panel</h2>
+    <p>Administradores y vendedores. Te llevamos a tu panel según tu cuenta.</p>
+    <div class="login-err" id="loginErr"></div>
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <div class="fg" style="margin-bottom:14px">
+        <label class="fl">Correo electronico</label>
+        <input type="email" class="fi" id="loginEmail" placeholder="admin@jjpaper.com.ve" required autocomplete="email">
+      </div>
+      <div class="fg" style="margin-bottom:22px">
+        <label class="fl">Contrasena</label>
+        <input type="password" class="fi" id="loginPass" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-p" style="width:100%;justify-content:center" id="loginBtn">
+        Iniciar sesion
+      </button>
+    </form>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--gr)">
+      <a href="../index.html" style="color:var(--gm)">← Volver al sitio</a>
+    </p>
+  </div>
+</div>
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script>
+// Si ya hay sesión activa, va directo a su panel según el rol de la cuenta
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const p = await loadProfile();
+  if (p && p.active) window.location.href = roleHome(p);
+  else await sb.auth.signOut();   // sesión huérfana o cuenta desactivada
+})();
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginErr');
+  const email = document.getElementById('loginEmail').value;
+  const pass  = document.getElementById('loginPass').value;
+
+  btn.disabled    = true;
+  btn.textContent = 'Ingresando...';
+  err.classList.remove('sh');
+
+  try {
+    await adminLogin(email, pass);
+    const p = await loadProfile();
+    if (!p || !p.active) {
+      await sb.auth.signOut();
+      throw new Error('inactive');
+    }
+    // La ruta de inicio depende del rol de la credencial usada
+    btn.textContent = p.role === 'admin'
+      ? 'Entrando al panel de administración…'
+      : `Bienvenido ${p.name || ''}, abriendo tu panel de ventas…`;
+    window.location.href = roleHome(p);
+  } catch (ex) {
+    const raw = (ex.message || '').toLowerCase();
+    err.textContent =
+      ex.message === 'inactive'      ? 'Tu cuenta aún no está habilitada. Un administrador debe activarla.'
+    : raw.includes('not confirmed')  ? 'Tu cuenta aún no está habilitada. Un administrador debe activarla.'
+    : raw.includes('invalid')        ? 'Credenciales incorrectas. Verifica tu correo y contraseña.'
+    :                                  'No se pudo iniciar sesión. Intenta de nuevo en un momento.';
+    err.classList.add('sh');
+    btn.disabled    = false;
+    btn.textContent = 'Iniciar sesion';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+/* ======================================================
+   JJ Paper — Feed de Promociones, Combos y Anuncios
+   ====================================================== */
+
+/* ---------- Temas de tarjeta (fondo del media) ---------- */
+.pr-theme-green { background:linear-gradient(135deg,#106B3A 0%,#2BB673 100%) }
+.pr-theme-gold  { background:linear-gradient(135deg,#b45309 0%,#f59e0b 100%) }
+.pr-theme-red   { background:linear-gradient(135deg,#991b1b 0%,#ef4444 100%) }
+.pr-theme-blue  { background:linear-gradient(135deg,#1e3a8a 0%,#3b82f6 100%) }
+.pr-theme-dark  { background:linear-gradient(135deg,#111827 0%,#374151 100%) }
+
+/* ---------- Grid del feed ---------- */
+.promo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:22px }
+
+/* ---------- Tarjeta ---------- */
+.promo-card { background:#fff; border-radius:var(--r); overflow:hidden; box-shadow:var(--sh);
+              display:flex; flex-direction:column; position:relative; transition:var(--tr) }
+.promo-card:hover { transform:translateY(-6px); box-shadow:var(--sl) }
+
+.pr-media { position:relative; height:170px; display:flex; align-items:center; justify-content:center; overflow:hidden }
+.pr-media img { width:100%; height:100%; object-fit:cover }
+.pr-media .pr-emoji { font-size:64px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.25));
+                      animation:prFloat 3.5s ease-in-out infinite }
+@keyframes prFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+.pr-badge { position:absolute; top:12px; left:12px; background:#fff; color:var(--gd);
+            font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+            padding:5px 12px; border-radius:20px; box-shadow:0 3px 10px rgba(0,0,0,.18); z-index:2 }
+.pr-badge.hot { background:#ef4444; color:#fff; animation:prPulseBadge 1.6s ease-in-out infinite }
+@keyframes prPulseBadge { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+.pr-kind { position:absolute; top:12px; right:12px; background:rgba(0,0,0,.35); color:#fff;
+           backdrop-filter:blur(6px); font-size:10px; font-weight:700; text-transform:uppercase;
+           letter-spacing:1px; padding:4px 10px; border-radius:20px; z-index:2 }
+
+.pr-body  { padding:18px 20px 20px; display:flex; flex-direction:column; gap:8px; flex:1 }
+.pr-title { font-size:16px; font-weight:800; color:var(--bk); line-height:1.3 }
+.pr-desc  { font-size:13px; color:#666; line-height:1.6; flex:1; white-space:pre-line }
+
+.pr-prices { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap }
+.pr-price  { font-size:22px; font-weight:800; color:var(--gd) }
+.pr-old    { font-size:14px; color:#aaa; text-decoration:line-through; font-weight:600 }
+.pr-bs     { font-size:12px; color:var(--gr); font-weight:600; width:100% }
+.pr-save   { font-size:11px; font-weight:800; color:#ef4444; background:#fee2e2;
+             padding:3px 10px; border-radius:12px }
+
+.pr-count { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+            color:#b45309; background:#fef3c7; padding:6px 12px; border-radius:20px; width:fit-content }
+.pr-count.urgent { color:#fff; background:#ef4444 }
+
+.pr-cta { margin-top:6px; display:flex; align-items:center; justify-content:center; gap:8px;
+          background:var(--gd); color:#fff; font-size:13px; font-weight:700; padding:12px;
+          border-radius:10px; transition:var(--tr); text-align:center }
+.pr-cta:hover { background:var(--gh); transform:translateY(-2px) }
+.pr-cta.wa { background:var(--wa) }
+.pr-cta.wa:hover { background:#1da851 }
+
+/* ---------- Banner destacado (featured) ---------- */
+.promo-hero { border-radius:var(--r); overflow:hidden; box-shadow:var(--sl); position:relative;
+              display:grid; grid-template-columns:1.2fr 1fr; min-height:230px; margin-bottom:28px; color:#fff }
+.promo-hero .ph-txt { padding:34px 38px; display:flex; flex-direction:column; justify-content:center;
+                      gap:10px; position:relative; z-index:2 }
+.promo-hero .ph-badge { display:inline-flex; width:fit-content; background:rgba(255,255,255,.2);
+                        border:1px solid rgba(255,255,255,.4); font-size:11px; font-weight:800;
+                        letter-spacing:1.5px; text-transform:uppercase; padding:5px 14px; border-radius:20px }
+.promo-hero h3 { font-size:clamp(22px,3vw,32px); font-weight:800; line-height:1.15 }
+.promo-hero p  { font-size:14px; opacity:.9; line-height:1.6; max-width:440px; white-space:pre-line }
+.promo-hero .ph-prices { display:flex; align-items:baseline; gap:12px }
+.promo-hero .ph-price  { font-size:30px; font-weight:800 }
+.promo-hero .ph-old    { font-size:16px; text-decoration:line-through; opacity:.65 }
+.promo-hero .ph-acts   { display:flex; gap:10px; margin-top:8px; flex-wrap:wrap }
+.promo-hero .ph-cta { background:#fff; color:var(--gd); font-weight:800; font-size:13px;
+                      padding:12px 26px; border-radius:10px; transition:var(--tr) }
+.promo-hero .ph-cta:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.25) }
+.promo-hero .ph-vis { display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden }
+.promo-hero .ph-vis img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0 }
+.promo-hero .ph-vis .pr-emoji { font-size:110px; filter:drop-shadow(0 10px 24px rgba(0,0,0,.3));
+                                animation:prFloat 3.5s ease-in-out infinite }
+.promo-hero .ph-deco { position:absolute; border-radius:50%; background:rgba(255,255,255,.08) }
+
+/* Dots del carrusel destacado */
+.ph-dots { display:flex; gap:8px; justify-content:center; margin:-12px 0 24px }
+.ph-dots button { width:9px; height:9px; border-radius:50%; background:#cfd8d2; transition:var(--tr); padding:0 }
+.ph-dots button.on { background:var(--gd); width:24px; border-radius:5px }
+
+/* ---------- Filtros del feed ---------- */
+.pr-filters { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:30px }
+.pr-chip { background:#fff; border:1.5px solid var(--gb); color:#555; font-size:13px; font-weight:700;
+           padding:9px 20px; border-radius:24px; transition:var(--tr) }
+.pr-chip:hover { border-color:var(--gm); color:var(--gd) }
+.pr-chip.on { background:var(--gd); border-color:var(--gd); color:#fff }
+
+/* ---------- Estado vacío ---------- */
+.pr-empty { text-align:center; padding:70px 20px; color:var(--gr) }
+.pr-empty .pe-ico { font-size:56px; margin-bottom:14px }
+.pr-empty h3 { font-size:18px; font-weight:800; color:var(--bk); margin-bottom:6px }
+.pr-empty p  { font-size:13px; margin-bottom:18px }
+
+/* ---------- Hub de accesos rápidos ---------- */
+.qa-hub { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px }
+.qa-card { background:#fff; border-radius:var(--r); padding:26px 20px; text-align:center;
+           box-shadow:var(--sh); transition:var(--tr); border:2px solid transparent;
+           display:flex; flex-direction:column; align-items:center; gap:8px }
+.qa-card:hover { transform:translateY(-5px); border-color:var(--gm); box-shadow:var(--sl) }
+.qa-card .qa-ico { width:58px; height:58px; border-radius:16px; background:var(--gx);
+                   display:flex; align-items:center; justify-content:center; font-size:26px;
+                   transition:var(--tr) }
+.qa-card:hover .qa-ico { transform:scale(1.12) rotate(-4deg) }
+.qa-card h4 { font-size:14px; font-weight:800; color:var(--bk) }
+.qa-card p  { font-size:12px; color:var(--gr); line-height:1.5 }
+.qa-card .qa-go { font-size:12px; font-weight:800; color:var(--gd); margin-top:2px }
+
+/* ---------- Responsive ---------- */
+@media (max-width:768px) {
+  .promo-hero { grid-template-columns:1fr }
+  .promo-hero .ph-vis { min-height:150px; order:-1 }
+  .promo-hero .ph-txt { padding:24px 22px 28px }
+  .promo-grid { grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px }
+}

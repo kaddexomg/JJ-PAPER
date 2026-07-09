@@ -1,0 +1,74 @@
+/* ======================================================
+   JJ Paper — Variables & Reset
+   ====================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Brand colors */
+  --gd:  #106B3A;   /* green dark  */
+  --gm:  #2BB673;   /* green mid   */
+  --gh:  #0d5a2f;   /* green hover */
+  --gx:  #e8f5ed;   /* green light bg */
+
+  /* Neutrals */
+  --bk:  #1A1A1A;
+  --wh:  #ffffff;
+  --gl:  #F2F2F2;
+  --gr:  #888888;
+  --gb:  #dddddd;
+
+  /* Semantic */
+  --danger:  #e53e3e;
+  --warning: #f59e0b;
+  --info:    #3b82f6;
+  --success: #2BB673;
+  --wa:      #25D366;   /* WhatsApp */
+
+  /* Shadows */
+  --sh:  0 4px 20px rgba(0,0,0,.10);
+  --sl:  0 8px 40px rgba(0,0,0,.15);
+  --sxl: 0 16px 60px rgba(0,0,0,.20);
+
+  /* Radii */
+  --r:   12px;
+  --rs:  8px;
+  --rx:  6px;
+
+  /* Transition */
+  --tr:  all .3s ease;
+  --trx: all .2s ease;
+
+  /* Spacing */
+  --section-pad: 80px 5%;
+  --max-w: 1200px;
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+html { scroll-behavior:smooth; font-size:16px }
+body { font-family:'Montserrat',sans-serif; color:var(--bk); background:var(--wh); overflow-x:hidden; line-height:1.6 }
+
+a  { text-decoration:none; color:inherit }
+ul { list-style:none }
+button { cursor:pointer; border:none; font-family:inherit; background:none }
+input,textarea,select { font-family:inherit }
+img { max-width:100%; display:block }
+
+::-webkit-scrollbar       { width:6px; height:6px }
+::-webkit-scrollbar-track { background:var(--gl) }
+::-webkit-scrollbar-thumb { background:var(--gm); border-radius:3px }
+
+/* Utility */
+.max-w { max-width:var(--max-w); margin:0 auto; padding:0 5% }
+section { padding:var(--section-pad) }
+.s-hd  { text-align:center; margin-bottom:50px }
+.s-tag { display:inline-block; background:var(--gx); color:var(--gd); padding:6px 16px; border-radius:20px;
+         font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:14px }
+.s-title    { font-size:clamp(26px,4vw,40px); font-weight:800; color:var(--bk); line-height:1.2 }
+.s-title em { color:var(--gd); font-style:normal }
+.s-desc     { font-size:15px; color:#555; line-height:1.7; max-width:560px; margin:14px auto 0 }
+
+/* Scroll-reveal */
+.rv    { opacity:0; transform:translateY(28px); transition:opacity .6s ease, transform .6s ease }
+/* transform:none al terminar: no deja stacking context residual
+   (translateY(0) tapaba menús desplegables de secciones vecinas) */
+.rv.vi { opacity:1; transform:none }

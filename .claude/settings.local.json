@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Supabase__list_organizations",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "PowerShell(npx skills add browser-act/skills --skill browser-act -y)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.claude\\\\skills\" -ErrorAction SilentlyContinue | Select-Object Name, LinkType, Target; Get-ChildItem \".claude\\\\skills\" -Force -ErrorAction SilentlyContinue | Select-Object Name, LinkType, Target)",
+      "PowerShell(npx skills add affaan-m/ECC -y)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\Temp\\\\claude\\\\C--Users-PC-Desktop-JJ-PAPER\\\\1abf7542-81b9-48a4-b902-985cfde350d1\\\\scratchpad\\\\vercel-agent-skills\\\\skills\" -Directory | ForEach-Object { \"=== $\\($_.Name\\) ===\"; \\(Get-Content \\(Join-Path $_.FullName 'SKILL.md'\\) -TotalCount 12\\) -join \"`n\" })",
+      "PowerShell(npx skills add vercel-labs/agent-skills --skill web-design-guidelines --skill writing-guidelines --skill deploy-to-vercel --skill vercel-react-best-practices -y)",
+      "Bash(ls \"/c/Users/PC/.claude/skills\" 2>/dev/null | head -20; echo \"---agents-root:\"; ls \"/c/Users/PC/.agents/skills\" 2>/dev/null | head -20; echo \"---counts:\"; ls \"/c/Users/PC/.claude/skills\" 2>/dev/null | wc -l; ls \"/c/Users/PC/.agents/skills\" 2>/dev/null | wc -l)",
+      "Bash(mkdir -p \"/c/Users/PC/.claude/skills\")",
+      "Bash(mv \"/c/Users/PC/Desktop/JJ PAPER/.agents/skills\"/* \"/c/Users/PC/.claude/skills/\")",
+      "Bash(mv \"/c/Users/PC/Desktop/JJ PAPER/skills-lock.json\" \"/c/Users/PC/.claude/skills-lock.json\")",
+      "Skill(design-sync)",
+      "Skill(design-sync:*)",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__list_tables",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__execute_sql",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__apply_migration",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__get_advisors",
+      "Bash(node --check assets/js/chatbot.js)",
+      "Bash(node --check assets/js/admin/auth.js)",
+      "Bash(node --check assets/js/admin/dashboard.js)",
+      "Read(//c/Users/PC/Downloads/**)",
+      "Bash(python -c \"import openpyxl; print\\('openpyxl', openpyxl.__version__\\)\")",
+      "PowerShell($src=\"C:\\\\Users\\\\PC\\\\Downloads\\\\LISTA JJ PAPER NUEVA JUNIO.xlsx\"; $tmp=\"C:\\\\Users\\\\PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-PC-Desktop-JJ-PAPER\\\\be6ff245-f7a9-4375-a583-e5897bc07657\\\\scratchpad\\\\xlsx\"; Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force $tmp | Out-Null; $zip=\"$tmp\\\\book.zip\"; Copy-Item $src $zip; Expand-Archive $zip -DestinationPath $tmp -Force; Get-ChildItem -Recurse $tmp | Select-Object FullName | Format-Table -AutoSize -Wrap)",
+      "Read(//c/Users/PC/AppData/Local/Temp/claude/C--Users-PC-Desktop-JJ-PAPER/be6ff245-f7a9-4375-a583-e5897bc07657/scratchpad/**)",
+      "Bash(node parse.js)",
+      "Bash(node extract.js)",
+      "Bash(node -e ' *)",
+      "Bash(node -e 'const fs=require\\(\"fs\"\\);const s=fs.readFileSync\\(process.argv[1]+\"/staging.sql\",\"utf8\"\\);fs.writeFileSync\\(process.argv[1]+\"/staging_b64.txt\", Buffer.from\\(s\\).toString\\(\"base64\"\\)\\);' /c/Users/PC/AppData/Local/Temp/claude/C--Users-PC-Desktop-JJ-PAPER/be6ff245-f7a9-4375-a583-e5897bc07657/scratchpad)",
+      "Bash(node generate.js)",
+      "Bash(py -m http.server 8099)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8099/index.html)",
+      "Bash(curl -s http://localhost:8099/assets/css/glass.css -o /dev/null -w \"glass.css: %{http_code}\\\\n\")",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(taskkill //F //IM py.exe)"
+    ]
+  }
+}

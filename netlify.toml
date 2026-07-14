@@ -2,6 +2,20 @@
 [build]
   publish = "."
 
+# SEGURIDAD: nunca servir el backend (wa-server, incluye credenciales de sesión de
+# WhatsApp) ni las migraciones SQL. force=true anula el archivo estático → 404.
+[[redirects]]
+  from = "/wa-server/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/sql/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
 # Netlify Image CDN: permite transformar imágenes remotas de Supabase Storage
 [images]
   remote_images = ["https://oeiuczltgdexwjjgquyq\\.supabase\\.co/storage/v1/object/public/.*"]

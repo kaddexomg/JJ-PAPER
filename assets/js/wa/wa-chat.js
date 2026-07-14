@@ -20,6 +20,7 @@ async function waInit(opts) {
   WA_ME = opts.me;
   WA_IS_ADMIN = WA_ME.role === 'admin';
 
+  waRequestNotifPerm();
   await waLinkInit(WA_ME.id);
   if (WA_IS_ADMIN) await waLoadProfiles();
   await waLoadChats();
@@ -214,8 +215,47 @@ async function waHydrateMedia(root) {
   }
 }
 
+/* ---------- notificaciones de escritorio ---------- */
+function waRequestNotifPerm() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    // Se pide al primer clic del usuario (los navegadores exigen gesto)
+    document.addEventListener('click', function once() {
+      document.removeEventListener('click', once);
+      Notification.requestPermission().catch(() => {});
+    }, { once: true });
+  }
+}
+
+let _waAudioCtx = null;
+function waBeep() {
+  try {
+    _waAudioCtx = _waAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _waAudioCtx.createOscillator(), g = _waAudioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = 660; g.gain.value = 0.04;
+    o.connect(g); g.connect(_waAudioCtx.destination);
+    o.start(); o.stop(_waAudioCtx.currentTime + 0.12);
+  } catch (e) {}
+}
+
+function waMaybeNotify(m) {
+  const active = waActive && m.chat_id === waActive.id;
+  if (active && !document.hidden) return;            // ya lo estás viendo
+  waBeep();
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const chat = waChats.find(c => c.id === m.chat_id);
+  const who = chat?.display_name || (chat ? waPrettyPhone(chat.phone) : 'Cliente');
+  const preview = m.body || WA_TYPE_LABEL[m.type] || 'Nuevo mensaje';
+  try {
+    const n = new Notification('WhatsApp · ' + who, {
+      body: preview, tag: 'wa-' + m.chat_id, renotify: true, icon: '/assets/img/logo.svg'
+    });
+    n.onclick = () => { window.focus(); waOpenChat(m.chat_id); n.close(); };
+  } catch (e) {}
+}
+
 /* ---------- eventos Realtime ---------- */
 function waOnNewMessage(m) {
+  if (m.direction === 'in') waMaybeNotify(m);
   if (waActive && m.chat_id === waActive.id) {
     if (waMsgs.some(x => x.id === m.id)) return;   // eco del optimista
     // Sustituir burbuja optimista (id temporal) si coincide

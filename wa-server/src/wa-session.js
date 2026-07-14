@@ -41,6 +41,22 @@ function parseMessage(msg) {
 
 const HAS_MEDIA = new Set(['image', 'video', 'audio', 'document', 'sticker']);
 
+// Versión de WhatsApp Web cacheada por proceso: evita una llamada de red en CADA
+// arranque (era la causa principal del QR lento). Si el fetch falla, devuelve
+// undefined → Baileys usa su versión embebida, y reintenta el fetch al próximo start.
+let _waVersion = null;
+async function resolveWaVersion() {
+  if (_waVersion) return _waVersion;
+  try {
+    const { version } = await fetchLatestBaileysVersion();
+    _waVersion = version;
+    return version;
+  } catch (e) {
+    log.warn({ err: e.message }, 'fetchLatestBaileysVersion falló; uso la versión embebida de Baileys');
+    return undefined;
+  }
+}
+
 export class WaSession {
   constructor(profileId) {
     this.profileId = profileId;
@@ -66,14 +82,14 @@ export class WaSession {
     await this.setSession({ status: 'starting', last_error: null });
     try {
       const { state, saveCreds } = await useMultiFileAuthState(this.dir);
-      const { version } = await fetchLatestBaileysVersion();
+      const version = await resolveWaVersion();
       const sock = makeWASocket({
         version,
         auth: state,
         logger: baileysLogger,
         printQRInTerminal: false,
         browser: ['JJ Paper CRM', 'Chrome', '1.0.0'],
-        syncFullHistory: false,
+        syncFullHistory: true,          // trae chats/mensajes anteriores al vincular
         markOnlineOnConnect: false
       });
       this.sock = sock;
@@ -83,6 +99,8 @@ export class WaSession {
       sock.ev.on('messages.upsert', ev => this.onMessages(ev).catch(e =>
         log.error({ err: e.message, profile: this.profileId }, 'messages.upsert falló')));
       sock.ev.on('messages.update', ups => this.onReceipts(ups).catch(() => {}));
+      sock.ev.on('messaging-history.set', ev => this.onHistory(ev).catch(e =>
+        log.error({ err: e.message, profile: this.profileId }, 'messaging-history.set falló')));
     } catch (e) {
       log.error({ err: e.message, profile: this.profileId }, 'start de sesión falló');
       await this.setSession({ status: 'error', last_error: e.message });
@@ -201,6 +219,80 @@ export class WaSession {
       const preview = parsed.body || PREVIEW_BY_TYPE[parsed.type] || '';
       await touchChat(chat.id, preview, fromMe ? 'me' : 'them', !fromMe);
     }
+  }
+
+  // ---------- Sincronización de historial (al vincular y al re-sincronizar) ----------
+  // Baileys entrega los chats/mensajes anteriores por chunks en 'messaging-history.set'.
+  // Importamos texto + metadatos; la media vieja NO se descarga (serían miles de archivos):
+  // el hilo la muestra como "📷 Foto/🎥 Video…". Los mensajes nuevos sí traen media completa.
+  async onHistory({ messages }) {
+    if (!messages?.length) return;
+    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial…');
+    const chats = new Map();   // jid -> { chat, ts, preview, from }
+    let batch = [];
+    let saved = 0;
+
+    for (const msg of messages) {
+      const key = msg.key || {};
+      let jid = key.remoteJid || '';
+      if (!jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) continue;
+      if (jid.endsWith('@lid')) {
+        const alt = key.senderPn || key.participantPn || key.remoteJidAlt;
+        if (!alt) continue;
+        jid = alt;
+      }
+      if (!key.id) continue;                 // sin id no se puede deduplicar
+      const parsed = parseMessage(msg);
+      if (!parsed) continue;
+
+      let entry = chats.get(jid);
+      if (!entry) {
+        const chat = await upsertChat(this.profileId, jid, jidToPhone(jid), msg.pushName);
+        if (!chat) continue;
+        entry = { chat, ts: 0, preview: '', from: 'them' };
+        chats.set(jid, entry);
+      }
+
+      const fromMe = !!key.fromMe;
+      const tsSec = Number(msg.messageTimestamp || 0);
+      batch.push({
+        chat_id: entry.chat.id,
+        owner_id: this.profileId,
+        wa_msg_id: key.id,
+        direction: fromMe ? 'out' : 'in',
+        type: parsed.type,
+        body: parsed.body || null,
+        media_mime: parsed.mime ? parsed.mime.split(';')[0] : null,
+        media_filename: parsed.filename || null,
+        status: fromMe ? 'sent' : 'received',
+        wa_timestamp: tsSec ? new Date(tsSec * 1000).toISOString() : null
+      });
+      if (tsSec >= entry.ts) {               // recordar el más reciente para el preview de la lista
+        entry.ts = tsSec;
+        entry.preview = parsed.body || PREVIEW_BY_TYPE[parsed.type] || '';
+        entry.from = fromMe ? 'me' : 'them';
+      }
+      if (batch.length >= 200) { saved += await this.flushHistory(batch); batch = []; }
+    }
+    if (batch.length) saved += await this.flushHistory(batch);
+
+    // Ordena/previsualiza la bandeja con el último mensaje de cada chat
+    for (const e of chats.values()) {
+      if (!e.ts) continue;
+      await db.from('jjp_wa_chats').update({
+        last_message_at: new Date(e.ts * 1000).toISOString(),
+        last_message_preview: (e.preview || '').slice(0, 120),
+        last_message_from: e.from
+      }).eq('id', e.chat.id);
+    }
+    log.info({ profile: this.profileId, chats: chats.size, mensajes: saved }, 'historial sincronizado ✅');
+  }
+
+  async flushHistory(rows) {
+    const { error } = await db.from('jjp_wa_messages')
+      .upsert(rows, { onConflict: 'owner_id,wa_msg_id', ignoreDuplicates: true });
+    if (error) { log.error({ error: error.message }, 'flush historial falló'); return 0; }
+    return rows.length;
   }
 
   // ---------- Acuses (entregado/leído) ----------

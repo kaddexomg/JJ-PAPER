@@ -2,8 +2,8 @@
    JJ Paper — Supabase Config & App Constants
    ====================================================== */
 
-const SUPABASE_URL = 'https://drojfbytyhjgivdddxkw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_8jhIrali77opBrySfh5-uQ_oSIVUOtn';
+const SUPABASE_URL = 'https://oeiuczltgdexwjjgquyq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_3fTrF94WK0TDpF3nvwPMSg_l1H-9cBI';
 
 // Supabase client (loaded via CDN in each HTML)
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -205,6 +205,19 @@ function osmEmbed(lat, lng, d = 0.004) {
 // Enlace "abrir en OpenStreetMap" (para el botón Cómo llegar)
 function osmLink(lat, lng, z = 16) {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${z}/${lat}/${lng}`;
+}
+
+// Imagen optimizada vía Netlify Image CDN (webp redimensionado al vuelo).
+// En desarrollo local (Live Server / file://) devuelve la URL original.
+function optImg(url, width) {
+  if (!url) return url;
+  const h = location.hostname;
+  const local = location.protocol === 'file:' || h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local');
+  // Solo imágenes de nuestro Supabase Storage (otras URLs no están en el
+  // allowlist de netlify.toml y el CDN las rechazaría).
+  // Devuelve la URL ya codificada: no envolver en encodeURI (doble-codificaría el %)
+  if (local || !url.startsWith(SUPABASE_URL)) return encodeURI(url);
+  return `/.netlify/images?url=${encodeURIComponent(url)}&w=${width || 400}&q=75&fm=webp`;
 }
 
 // WhatsApp open

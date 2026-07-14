@@ -6,13 +6,13 @@
 <meta name="description" content="Detalle de producto — JJ Paper">
 <title>Producto | JJ Paper</title>
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
-<meta name="theme-color" content="#106B3A">
+<meta name="theme-color" content="#16604A">
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20260710">
 <link rel="stylesheet" href="assets/css/cart.css">
-<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css">
 <link rel="stylesheet" href="assets/css/glass.css">
 <style>
@@ -20,8 +20,11 @@
 .prod-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:start; margin-bottom:40px }
 .pd-img { border-radius:var(--r); aspect-ratio:1; background:var(--gl);
           display:flex; align-items:center; justify-content:center;
-          font-size:100px; overflow:hidden; box-shadow:var(--sh) }
-.pd-img img { width:100%; height:100%; object-fit:cover }
+          font-size:100px; overflow:hidden; box-shadow:var(--sh); position:relative }
+.pd-img::before { content:''; position:absolute; inset:0;
+                  background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.25)) }
+.pd-img img { width:100%; height:100%; object-fit:contain; padding:14px; position:relative }
+.pd-img.zoomable { cursor:zoom-in }
 .pd-breadcrumb { font-size:12px; color:var(--gr); margin-bottom:12px }
 .pd-breadcrumb a { color:var(--gm); }
 .pd-cat  { font-size:11px; font-weight:700; color:var(--gm); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px }
@@ -113,13 +116,18 @@
 <script src="assets/js/reveal.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
-<script src="assets/js/catalog.js"></script>
+<script src="assets/js/catalog.js?v=20260710"></script>
 <script src="assets/js/product-modal.js"></script>
-<script src="assets/js/chatbot.js"></script>
+<script src="assets/js/chatbot.js?v=20260710b"></script>
 <script>
 let currentProd = null;
 let pdVariant   = null;
 let pdQty       = 1;
+
+function pdZoomImg() {
+  const url = pdVariant?.image_url || currentProd?.image_url;
+  if (url) openImgLightbox(url, currentProd?.name);
+}
 
 function pdStock() { return pdVariant ? pdVariant.stock : currentProd?.stock; }
 function pdPrice() { return pdVariant ? +pdVariant.price_usd : +(currentProd?.price_usd || 0); }
@@ -219,7 +227,10 @@ async function initProductPage() {
   const imgEl = document.getElementById('pd-img');
   imgEl.style.background = bg;
   if (p.image_url) {
-    imgEl.innerHTML = `<img src="${p.image_url}" alt="${p.name}">`;
+    imgEl.innerHTML = `<img src="${optImg(p.image_url, 800)}" alt="${escapeHTML(p.name)}" decoding="async">
+      <button class="pm-zoom-btn" onclick="event.stopPropagation();pdZoomImg()" aria-label="Ver imagen completa de ${escapeHTML(p.name)}">🔍 Ampliar</button>`;
+    imgEl.classList.add('zoomable');
+    imgEl.onclick = pdZoomImg;
   } else {
     imgEl.textContent = p.emoji || '📦';
   }

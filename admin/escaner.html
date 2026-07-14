@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#00140f">
+<title>Escáner | JJ Paper</title>
+<link rel="icon" href="../assets/img/logo.svg">
+<style>
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:#00140f; color:#eaf5ee;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { min-height:100%; display:flex; flex-direction:column; padding:12px; gap:10px; }
+  header { display:flex; align-items:center; gap:10px; }
+  header img { width:34px; height:34px; }
+  header h1 { font-size:17px; margin:0; font-weight:700; }
+  header .who { margin-left:auto; font-size:12px; color:#9fc7b3; text-align:right; }
+  .cam { position:relative; width:100%; max-width:560px; margin:0 auto; aspect-ratio:3/4;
+    max-height:56vh; background:#000; border-radius:16px; overflow:hidden; }
+  .cam video { width:100%; height:100%; object-fit:cover; }
+  .reticle { position:absolute; inset:26% 12%; border:3px solid #99CC33; border-radius:12px;
+    box-shadow:0 0 0 4000px rgba(0,0,0,.25); pointer-events:none; }
+  .status { text-align:center; font-size:15px; min-height:22px; color:#dff3e6; }
+  .last { text-align:center; font-size:13px; color:#9fc7b3; word-break:break-all; min-height:18px; }
+  .counter { text-align:center; font-size:44px; font-weight:800; color:#99CC33; line-height:1; }
+  .counter small { display:block; font-size:12px; font-weight:500; color:#9fc7b3; margin-top:4px; }
+  .manual { display:flex; gap:8px; width:100%; max-width:560px; margin:0 auto; }
+  .manual input { flex:1; height:46px; border-radius:12px; border:1px solid #2c5647;
+    background:#0c231b; color:#eaf5ee; padding:0 14px; font-size:16px; }
+  .btn { height:46px; border:0; border-radius:12px; font-size:15px; font-weight:700;
+    padding:0 16px; cursor:pointer; }
+  .btn-p { background:#99CC33; color:#06231a; }
+  .btn-g { background:#16604A; color:#eaf5ee; }
+  .foot { margin-top:auto; text-align:center; font-size:12px; color:#6f9583; padding-top:8px; }
+  .warn { background:#3a2410; border:1px solid #c9902b; color:#ffd699; border-radius:12px;
+    padding:12px; font-size:14px; text-align:center; max-width:560px; margin:0 auto; }
+  a.link { color:#99CC33; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="../assets/img/logo.svg" alt="JJ Paper">
+    <h1>Escáner de inventario</h1>
+    <div class="who" id="who">…</div>
+  </header>
+
+  <div class="cam">
+    <video id="video" playsinline muted></video>
+    <div class="reticle"></div>
+  </div>
+
+  <div class="counter"><span id="count">0</span><small>escaneos esta sesión</small></div>
+  <div class="status" id="status">Iniciando cámara…</div>
+  <div class="last" id="last"></div>
+
+  <form class="manual" id="manualForm">
+    <input type="text" id="manual" placeholder="O escribe/pega el código…" autocomplete="off" inputmode="numeric">
+    <button class="btn btn-p" type="submit">Enviar</button>
+  </form>
+
+  <div class="foot">
+    Cada código viaja a tu PC (Inventario → 📷 Modo conteo) en vivo.<br>
+    Mantén esta pantalla abierta mientras cuentas.
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script>
+let escStream = null, escDetector = null, escTimer = null, escCount = 0;
+const escSeen = {};                       // code -> última vez visto (anti-doble-lectura)
+
+const $ = id => document.getElementById(id);
+function setStatus(t){ $('status').textContent = t; }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Staff activo (vendedor o admin). Cada quien escanea a su propio nombre.
+  const session = await requireAuth('vendedor');
+  if (!session) return;
+  $('who').textContent = CURRENT_PROFILE?.name || session.user.email;
+  $('manualForm').addEventListener('submit', onManual);
+  await startCamera();
+});
+
+async function startCamera(){
+  const video = $('video');
+  if (!('BarcodeDetector' in window)) {
+    document.querySelector('.cam').insertAdjacentHTML('afterend',
+      '<div class="warn">⚠️ Este navegador no soporta escaneo por cámara. ' +
+      'Usa <b>Chrome en Android</b>, o escribe/pega el código abajo — igual llega a la PC.</div>');
+    setStatus('Escribe el código y toca Enviar.');
+    $('manual').focus();
+    return;
+  }
+  try {
+    const formats = await BarcodeDetector.getSupportedFormats();
+    escDetector = new BarcodeDetector({
+      formats: formats.length ? formats
+        : ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','codabar','itf']
+    });
+    escStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }, audio: false
+    });
+    video.srcObject = escStream;
+    await video.play();
+    setStatus('Apunta al código de barras…');
+    loop();
+  } catch (e) {
+    console.error(e);
+    setStatus('⚠️ No se pudo abrir la cámara (revisa permisos). Puedes escribir el código abajo.');
+    $('manual').focus();
+  }
+}
+
+function loop(){
+  const video = $('video');
+  escTimer = setInterval(async () => {
+    if (!escDetector || video.readyState < 2) return;
+    let codes = [];
+    try { codes = await escDetector.detect(video); } catch (e) { return; }
+    const now = Date.now();
+    for (const b of codes) {
+      const code = (b.rawValue || '').trim();
+      if (!code) continue;
+      if (escSeen[code] == null) sendCode(code);   // una vez por presentación
+      escSeen[code] = now;
+    }
+    for (const c of Object.keys(escSeen))
+      if (now - escSeen[c] > 700) delete escSeen[c]; // re-arma tras salir del cuadro
+  }, 250);
+}
+
+async function sendCode(code){
+  beep();
+  if (navigator.vibrate) navigator.vibrate(60);
+  const { error } = await sb.from('jjp_scan_events')
+    .insert({ owner_id: CURRENT_PROFILE.id, code });
+  if (error) {
+    setStatus('⚠️ Error enviando (revisa conexión)');
+    if (typeof showToast === 'function') showToast('Error: ' + error.message, 'err');
+    return;
+  }
+  escCount++;
+  $('count').textContent = escCount;
+  $('last').textContent = 'Último: ' + code;
+  setStatus('✓ Enviado a la PC');
+}
+
+function onManual(ev){
+  ev.preventDefault();
+  const inp = $('manual');
+  const code = (inp.value || '').trim();
+  if (!code) return;
+  inp.value = '';
+  delete escSeen[code];
+  sendCode(code);
+}
+
+// Pitido corto vía WebAudio (sin archivos)
+let _ac = null;
+function beep(){
+  try {
+    _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _ac.createOscillator(), g = _ac.createGain();
+    o.type = 'square'; o.frequency.value = 880; g.gain.value = 0.05;
+    o.connect(g); g.connect(_ac.destination);
+    o.start(); o.stop(_ac.currentTime + 0.08);
+  } catch (e) {}
+}
+</script>
+</body>
+</html>

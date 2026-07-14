@@ -62,6 +62,7 @@ function renderCustomers() {
         ${!c.seller_id ? `<button class="btn-o sm" onclick="claimCustomer('${c.id}')" title="Añadir a mi cartera">➕ Tomar</button>` : ''}
         ${mine ? `<button class="btn-p sm" onclick="openCustomerModal('${c.id}')">✏️</button>` : ''}
         <a class="btn-o sm" href="pos.html?tel=${encodeURIComponent(c.phone || '')}" title="Nueva venta a este cliente">🛍️</a>
+        ${mine ? `<a class="btn-o sm" href="whatsapp.html?cust=${c.id}" title="Abrir chat en el CRM">📨</a>` : ''}
         <a class="btn-wa sm" style="width:auto;padding:7px 10px" target="_blank" title="${inactive ? 'Reactivar por WhatsApp' : 'Escribir por WhatsApp'}"
            href="https://wa.me/${(c.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waReact)}">${inactive ? '🔄' : '💬'}</a>
       </div></td>

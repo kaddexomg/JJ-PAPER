@@ -11,18 +11,18 @@
   pointer-events:none;
 }
 .mesh-blob {
-  position:absolute; border-radius:50%; filter:blur(70px); opacity:.55;
+  position:absolute; border-radius:50%; filter:blur(70px); opacity:.38;
   will-change:transform;
   mix-blend-mode:screen;
 }
 .mesh-blob.b1 { width:520px; height:520px; top:-140px; left:-80px;
-  background:radial-gradient(circle,#2BB673,transparent 70%);
+  background:radial-gradient(circle,#7FAE45,transparent 70%);
   animation:meshFloat1 18s ease-in-out infinite }
 .mesh-blob.b2 { width:460px; height:460px; bottom:-160px; right:-60px;
-  background:radial-gradient(circle,#37d98c,transparent 70%);
+  background:radial-gradient(circle,#3E8E6E,transparent 70%);
   animation:meshFloat2 22s ease-in-out infinite }
 .mesh-blob.b3 { width:340px; height:340px; top:34%; left:44%;
-  background:radial-gradient(circle,#0f8a49,transparent 70%);
+  background:radial-gradient(circle,#1B6F56,transparent 70%);
   animation:meshFloat3 26s ease-in-out infinite }
 @keyframes meshFloat1 {
   0%,100%{transform:translate(0,0) scale(1)}
@@ -87,7 +87,7 @@
 /* ---------- 9. Cursor glow (sutil, solo desktop fino) ---------- */
 .cursor-glow {
   position:fixed; top:0; left:0; width:340px; height:340px; border-radius:50%;
-  background:radial-gradient(circle,rgba(43,182,115,.14),transparent 65%);
+  background:radial-gradient(circle,rgba(103,164,39,.14),transparent 65%);
   pointer-events:none; z-index:9998; transform:translate(-50%,-50%);
   opacity:0; transition:opacity .3s ease; mix-blend-mode:multiply;
   will-change:left,top;
@@ -125,4 +125,16 @@
 /* Táctil: sin tilt/magnetic/cursor (no hay puntero fino) */
 @media (hover:none) {
   .cursor-glow { display:none }
+}
+
+/* Mobile: los blobs con blur(70px) son muy caros en GPU móvil.
+   Se ocultan y el hero recibe un degradado estático equivalente. */
+@media (max-width:768px) {
+  .mesh-blob { display:none }
+  .mesh-layer {
+    background:
+      radial-gradient(circle at 12% 8%,  rgba(127,174,69,.26), transparent 55%),
+      radial-gradient(circle at 88% 92%, rgba(62,142,110,.24), transparent 55%),
+      radial-gradient(circle at 55% 42%, rgba(27,111,86,.26),  transparent 60%);
+  }
 }

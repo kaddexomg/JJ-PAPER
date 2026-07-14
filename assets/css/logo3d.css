@@ -14,5 +14,25 @@
   user-select: none;
 }
 [data-jj-logo3d] > canvas {
-  filter: drop-shadow(0 18px 40px rgba(16, 107, 58, .28));
+  filter: drop-shadow(0 18px 40px rgba(22, 96, 74, .28));
+}
+
+/* ---- Modo fondo: cubre al padre, detrás del contenido ---- */
+[data-jj-logo3d="bg"] {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  max-width: none;
+  margin: 0;
+  pointer-events: none;   /* los clics pasan al contenido; logo3d.js los oye a nivel documento */
+  touch-action: auto;
+  user-select: auto;
+}
+[data-jj-logo3d="bg"] > canvas {
+  filter: none;
+  opacity: .85;
+}
+/* Mobile: la chapa queda detrás del texto → se atenúa para no pelear con él */
+@media (max-width: 992px) {
+  [data-jj-logo3d="bg"] > canvas { opacity: .38 }
 }

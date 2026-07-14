@@ -15,6 +15,12 @@ let cbProducts = null;   // caché de productos para búsqueda en el chat
 let cbQuote = { active: false, step: '', type: '', items: [], name: '', phone: '', pendingText: '' };
 let cbTrack = { active: false, step: '', num: '' };
 
+// Captación de lead: antes de conversar pedimos nombre + teléfono (una sola vez).
+let cbLead  = { done: false, step: '', name: '', phone: '' };
+
+// Ícono oficial de WhatsApp (SVG inline, hereda el color con currentColor).
+const WA_SVG = `<svg viewBox="0 0 32 32" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M16.04 3C9.4 3 4 8.4 4 15.04c0 2.13.56 4.2 1.62 6.03L4 29l8.1-1.58a12 12 0 0 0 3.94.67h.01c6.64 0 12.04-5.4 12.04-12.04C28.09 8.4 22.69 3 16.04 3Zm0 21.9h-.01c-1.2 0-2.38-.32-3.42-.94l-.24-.14-4.8.94.96-4.68-.16-.25a9.9 9.9 0 0 1-1.52-5.26c0-5.5 4.48-9.98 9.99-9.98 2.66 0 5.17 1.04 7.05 2.93a9.9 9.9 0 0 1 2.92 7.06c0 5.5-4.48 9.98-9.99 9.98Zm5.48-7.47c-.3-.15-1.78-.88-2.06-.98-.28-.1-.48-.15-.68.15-.2.3-.78.98-.96 1.18-.18.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.18-.3-.02-.46.13-.61.14-.14.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.68-1.63-.93-2.23-.24-.58-.49-.5-.68-.51l-.58-.01c-.2 0-.53.07-.8.38-.28.3-1.06 1.04-1.06 2.53s1.08 2.93 1.23 3.13c.15.2 2.13 3.25 5.16 4.56.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.78-.73 2.03-1.43.25-.7.25-1.3.18-1.43-.07-.13-.27-.2-.57-.35Z"/></svg>`;
+
 /* ------------------------------------------------------
    Utilidades
    ------------------------------------------------------ */
@@ -124,14 +130,17 @@ function cbParseList(text, strict = true) {
 
 async function cbLoadProducts() {
   if (cbProducts) return cbProducts;
-  // Incluye variantes (marcas): el chatbot agrega la más barata disponible
+  // Incluye variantes (marcas): el chatbot agrega la más barata disponible.
+  // Trae descripción y tag para entender mejor lo que busca el cliente.
   const { data } = await sb.from('jjp_products')
-    .select('id,name,price_usd,unit,emoji,stock,min_qty,category_id,jjp_categories(name,slug),jjp_product_variants(id,brand_id,variant_name,price_usd,stock,min_qty,active,jjp_brands(name))')
+    .select('id,name,description,price_usd,unit,emoji,tag,stock,min_qty,category_id,jjp_categories(name,slug),jjp_product_variants(id,brand_id,variant_name,price_usd,stock,min_qty,active,jjp_brands(name))')
     .eq('active', true);
   cbProducts = (data || []).map(p => {
     p.variants = (p.jjp_product_variants || [])
       .filter(v => v.active !== false)
       .sort((a, b) => a.price_usd - b.price_usd);
+    // Texto de marcas para que el chat entienda "boligrafo bic", "resma xerox", etc.
+    p._brandText = normTxt((p.variants || []).map(v => v.jjp_brands?.name).filter(Boolean).join(' '));
     return p;
   });
   return cbProducts;
@@ -150,6 +159,8 @@ async function cbSearchSmart(query) {
   const scored = list.map(p => {
     const name = normTxt(p.name).split(/\s+/).map(cbSingular);
     const cat  = normTxt(p.jjp_categories?.name || '');
+    const desc = normTxt(p.description || '');       // entiende por descripción
+    const brnd = p._brandText || '';                 // entiende por marca
     let score = 0;
     for (const variants of expanded) {
       let hit = 0;
@@ -158,6 +169,8 @@ async function cbSearchSmart(query) {
         else if (v.length >= 4 && name.some(n => n.startsWith(v) || v.startsWith(n) && n.length >= 4)) hit = Math.max(hit, 2);
         // Tolerancia a errores de escritura: "resna"→"resma", "cuaderno"→"cuadreno"
         else if (v.length >= 4 && name.some(n => n.length >= 4 && cbSim(n, v) >= 0.75)) hit = Math.max(hit, 2);
+        else if (v.length >= 4 && brnd.includes(v)) hit = Math.max(hit, 2);   // marca
+        else if (v.length >= 4 && desc.includes(v)) hit = Math.max(hit, 1);   // descripción
         else if (cat.includes(v)) hit = Math.max(hit, 1);
       }
       score += hit;
@@ -182,23 +195,25 @@ async function cbSearchSmart(query) {
 
 function injectChatbot() {
   const html = `
-<button class="cb-fab" onclick="toggleChat()" title="Asistente JJ Paper" aria-label="Abrir asistente de chat" aria-expanded="false" aria-controls="cbWin">
-  💬
+<button class="cb-fab" onclick="toggleChat()" title="Chatea con JJ Paper" aria-label="Abrir chat de WhatsApp / asistente" aria-expanded="false" aria-controls="cbWin">
+  ${WA_SVG}
   <span class="cb-badge" id="cbBadge" aria-hidden="true">1</span>
 </button>
 <div class="cb-win" id="cbWin" role="dialog" aria-modal="false" aria-label="Asistente JJ Paper">
   <div class="cb-hd">
     <div class="cb-av" aria-hidden="true">🤖</div>
     <div class="cb-hd-i"><h4>Asistente JJ Paper</h4><p>En línea ahora ✅</p></div>
+    <button class="cb-wa-hd" onclick="cbGoWA()" title="Continuar por WhatsApp" aria-label="Continuar la conversación por WhatsApp">${WA_SVG}<span>WhatsApp</span></button>
     <button class="cb-x" onclick="toggleChat()" aria-label="Cerrar chat">✕</button>
   </div>
   <div class="cb-msgs" id="cbMsgs" role="log" aria-live="polite" aria-atomic="false"></div>
-  <div class="cb-qbtns" id="cbQuick">
+  <div class="cb-qbtns" id="cbQuick" style="display:none">
     <button class="qb-btn" onclick="cbQ('Cotización al mayor')">📋 Cotizar</button>
     <button class="qb-btn" onclick="cbQ('Ver carrito')">🛒 Carrito</button>
     <button class="qb-btn" onclick="cbQ('Rastrear mi pedido')">🔎 Rastrear</button>
     <button class="qb-btn" onclick="cbQ('Métodos de pago')">💳 Pagos</button>
     <button class="qb-btn" onclick="cbQ('Horario')">🕐 Horario</button>
+    <button class="qb-btn" onclick="cbMenu()" aria-label="Volver al menú principal del asistente">🏠 Menú</button>
   </div>
   <div class="cb-ia">
     <label class="sr-only" for="cbIn">Escribe tu mensaje al asistente</label>
@@ -225,14 +240,172 @@ function toggleChat() {
   if (chatOpen) setTimeout(() => document.getElementById('cbIn')?.focus(), 60);
   if (chatOpen && !cbGreeted) {
     cbGreeted = true;
-    setTimeout(() => cbBotMsg(
-      `¡Hola! 👋 Soy el asistente de <strong>JJ Paper</strong>. Puedo:<br>
-       • Buscar productos y precios (ej: <em>"10 resmas carta"</em>)<br>
-       • Armar tu <strong>cotización al mayor o al detal</strong> 📋<br>
-       • Procesar <strong>listas completas</strong>: pégame algo como <em>"50 resmas, 20 cloros, 10 cuadernos"</em> 📝<br>
-       • Agregar al carrito y completar tu pedido 🛒<br>
-       • Rastrear tu pedido o cotización 🔎`), 400);
+    // Si aún no tenemos sus datos, los pedimos primero (captación de clientes).
+    if (!cbLead.done) setTimeout(cbLeadStart, 400);
+    else              setTimeout(cbGreet, 400);
   }
+}
+
+// Saludo con el menú de funciones (tras capturar el lead).
+function cbGreet() {
+  const hi = cbLead.name ? `¡Hola, <strong>${escapeHTML(cbLead.name.split(' ')[0])}</strong>! 👋` : '¡Hola! 👋';
+  cbShowQuick();
+  cbBotMsg(
+    `${hi} Soy el asistente de <strong>JJ Paper</strong>. Puedo:<br>
+     • Buscar productos y precios (ej: <em>"10 resmas carta"</em>)<br>
+     • Armar tu <strong>cotización al mayor o al detal</strong> 📋<br>
+     • Procesar <strong>listas completas</strong>: <em>"50 resmas, 20 cloros, 10 cuadernos"</em> 📝<br>
+     • Agregar al carrito y completar tu pedido 🛒<br>
+     • Rastrear tu pedido o cotización 🔎<br>
+     ¿O prefieres hablar con un asesor? Pulsa <b>WhatsApp</b> arriba 💬`);
+}
+
+function cbShowQuick() {
+  const q = document.getElementById('cbQuick');
+  if (q) q.style.display = 'flex';
+}
+
+/* ------------------------------------------------------
+   Navegación del chat: menú y retroceder
+   El usuario no siempre sigue el hilo: puede volver al menú
+   o retroceder un paso en cualquier punto de un flujo.
+   También por texto: "menú", "atrás", "volver".
+   ------------------------------------------------------ */
+
+// Botones estándar de navegación para mensajes de flujo
+function cbNavBtns() {
+  return `<button class="cb-act" onclick="cbBack()">⬅ Atrás</button>
+          <button class="cb-act" onclick="cbMenu()">🏠 Menú</button>`;
+}
+
+// Sale de cualquier flujo activo y vuelve al menú principal
+function cbMenu() {
+  cbQuote.active = false;
+  cbTrack.active = false;
+  cbGreet();
+}
+
+// Vuelve a preguntar los productos de la cotización (paso "items")
+function cbQuoteAskItems() {
+  cbQuote.step = 'items';
+  cbBotMsg(`Seguimos con los productos 👇${cbQuoteListHTML()}
+    Escribe otro producto (ej: <em>"50 resmas carta"</em>) o pega tu lista completa.
+    <span class="cb-acts">
+      ${cbQuote.items.length ? `<button class="cb-act p" onclick="cbQuoteNext()">✅ Listo, continuar</button>` : ''}
+      ${cbNavBtns()}
+    </span>`, 250);
+}
+
+// Retrocede un paso según el flujo y el paso activo
+function cbBack() {
+  if (cbQuote.active) {
+    switch (cbQuote.step) {
+      case 'confirm': cbQuoteAskItems(); return;
+      case 'phone':
+        cbQuote.step = 'name';
+        cbBotMsg(`Ok, corrijamos. ¿A nombre de quién va la cotización? 🏢
+          <span class="cb-acts">${cbNavBtns()}</span>`, 250);
+        return;
+      case 'name': cbQuoteAskItems(); return;
+      case 'items':
+        cbQuote.step = 'type';
+        cbBotMsg(`Volvamos a elegir. ¿Cotización <b>al mayor</b> o <b>al detal</b>?
+          <span class="cb-acts">
+            <button class="cb-act p" onclick="cbQuoteSetType('mayor')">🏪 Al mayor</button>
+            <button class="cb-act p" onclick="cbQuoteSetType('detal')">🛍️ Al detal</button>
+            <button class="cb-act" onclick="cbMenu()">🏠 Menú</button>
+          </span>`, 250);
+        return;
+      default: cbMenu(); return;
+    }
+  }
+  if (cbTrack.active) {
+    if (cbTrack.step === 'phone') {
+      cbTrack.step = 'num';
+      cbBotMsg(`Ok, escríbeme de nuevo tu número de pedido o cotización (ej: <em>JJP-260701-1234</em>):
+        <span class="cb-acts"><button class="cb-act" onclick="cbMenu()">🏠 Menú</button></span>`, 250);
+      return;
+    }
+    cbMenu();
+    return;
+  }
+  cbMenu();
+}
+
+// Comandos de texto de navegación, válidos en cualquier flujo
+function cbNavCommand(text) {
+  const n = normTxt(text);
+  if (/^(menu|inicio|empezar de nuevo|reiniciar|ayuda)$/.test(n)) { cbMenu(); return true; }
+  if (/^(atras|volver|regresar|retroceder)$/.test(n))             { cbBack(); return true; }
+  return false;
+}
+
+/* ------------------------------------------------------
+   Captación de lead (nombre + teléfono → base de datos)
+   ------------------------------------------------------ */
+
+const CB_LEAD_KEY = 'jjp_lead';
+
+function cbLeadLoad() {
+  try {
+    const s = JSON.parse(localStorage.getItem(CB_LEAD_KEY) || 'null');
+    if (s && s.name && s.phone) cbLead = { done: true, step: '', name: s.name, phone: s.phone };
+  } catch (e) {}
+}
+
+function cbLeadStart() {
+  cbLead.step = 'name';
+  cbBotMsg(
+    `¡Bienvenido a <strong>JJ Paper</strong>! 👋 Para atenderte mejor, ¿me dices tu <strong>nombre</strong>? 😊`);
+}
+
+// Devuelve el código de referido (?ref) si el vendedor compartió el link.
+function cbRefCode() {
+  try {
+    return new URLSearchParams(location.search).get('ref')
+      || localStorage.getItem('jjp_ref') || null;
+  } catch (e) { return null; }
+}
+
+async function cbLeadHandle(text) {
+  const t = text.trim();
+
+  if (cbLead.step === 'name') {
+    if (t.replace(/[^a-záéíóúñ ]/gi, '').trim().length < 2) {
+      cbBotMsg('Escríbeme un nombre válido, por favor 🙏 (ej: <em>María Pérez</em>)');
+      return;
+    }
+    cbLead.name = t.slice(0, 120);
+    cbLead.step = 'phone';
+    cbBotMsg(`Mucho gusto, <strong>${escapeHTML(cbLead.name.split(' ')[0])}</strong> 🤝. Ahora tu <strong>número de teléfono / WhatsApp</strong> 📱 (ej: 0412-1234567):`);
+    return;
+  }
+
+  if (cbLead.step === 'phone') {
+    const digits = t.replace(/\D/g, '');
+    if (!/^(0?4\d{9}|584\d{9}|0?2\d{9})$/.test(digits)) {
+      cbBotMsg('Ese teléfono no parece válido 😅. Ejemplo: <em>0412-1234567</em>');
+      return;
+    }
+    cbLead.phone = t.slice(0, 30);
+    cbLead.step  = '';
+    cbLead.done  = true;
+    try { localStorage.setItem(CB_LEAD_KEY, JSON.stringify({ name: cbLead.name, phone: cbLead.phone })); } catch (e) {}
+
+    // Guardar en la base de datos (best-effort, no bloquea la conversación).
+    sb.rpc('jjp_capture_lead', {
+      p_name: cbLead.name, p_phone: cbLead.phone, p_source: 'chat', p_ref: cbRefCode(),
+    }).then(({ error }) => { if (error) console.warn('lead capture:', error.message); });
+
+    cbBotMsg(`¡Listo, <strong>${escapeHTML(cbLead.name.split(' ')[0])}</strong>! ✅ Ya quedaste registrado.`, 300);
+    setTimeout(cbGreet, 700);
+    return;
+  }
+}
+
+function cbGoWA() {
+  const who = cbLead.name ? ` Soy ${cbLead.name}.` : '';
+  openWA(`Hola JJ Paper 👋.${who} Quisiera información sobre sus productos.`);
 }
 
 function cbQ(text)   { cbUserMsg(text); cbProcess(text); }
@@ -385,6 +558,7 @@ async function cbQuoteSetType(type) {
   cbBotMsg(`${intro}<br>Cuando termines pulsa <b>Listo</b>.
     <span class="cb-acts">
       ${cbQuote.items.length ? `<button class="cb-act p" onclick="cbQuoteNext()">✅ Listo, continuar</button>` : ''}
+      ${cbNavBtns()}
       <button class="cb-act" onclick="cbQuoteCancel()">✕ Cancelar</button>
     </span>`);
 }
@@ -414,6 +588,7 @@ async function cbQuoteBulk(text) {
     ¿Agrego algo más? Escríbelo, o:
     <span class="cb-acts">
       <button class="cb-act p" onclick="cbQuoteNext()">✅ Listo, continuar</button>
+      ${cbNavBtns()}
       <button class="cb-act" onclick="cbQuoteCancel()">✕ Cancelar</button>
     </span>`);
 }
@@ -443,6 +618,7 @@ function cbQuoteAdd(id, qty) {
     ¿Algo más? Escríbelo, o:
     <span class="cb-acts">
       <button class="cb-act p" onclick="cbQuoteNext()">✅ Listo, continuar</button>
+      ${cbNavBtns()}
       <button class="cb-act" onclick="cbQuoteCancel()">✕ Cancelar</button>
     </span>`, 250);
 }
@@ -454,6 +630,7 @@ function cbQuoteAddFree(text, qty) {
     ¿Algo más? O pulsa:
     <span class="cb-acts">
       <button class="cb-act p" onclick="cbQuoteNext()">✅ Listo, continuar</button>
+      ${cbNavBtns()}
       <button class="cb-act" onclick="cbQuoteCancel()">✕ Cancelar</button>
     </span>`, 250);
 }
@@ -467,14 +644,40 @@ function cbQuoteNext() {
   if (!cbQuote.active) return;
   if (cbQuote.step === 'items') {
     if (!cbQuote.items.length) { cbBotMsg('Aún no tienes productos en la cotización. Escríbeme al menos uno 😉'); return; }
+    // Ya capturamos nombre + teléfono al inicio → saltamos directo a confirmar.
+    if (cbLead.done && cbLead.name && cbLead.phone) {
+      cbQuote.name  = cbLead.name;
+      cbQuote.phone = cbLead.phone;
+      cbQuote.step  = 'confirm';
+      cbQuoteConfirmMsg();
+      return;
+    }
     cbQuote.step = 'name';
-    cbBotMsg('¿A nombre de quién va la cotización? (nombre o empresa) 🏢');
+    cbBotMsg(`¿A nombre de quién va la cotización? (nombre o empresa) 🏢
+      <span class="cb-acts">${cbNavBtns()}</span>`);
   }
+}
+
+// Resumen final de la cotización antes de enviarla.
+function cbQuoteConfirmMsg() {
+  cbBotMsg(`Revisa tu cotización 👇${cbQuoteListHTML()}
+    <div class="cb-sum-row"><span><b>Tipo</b></span><span>${cbQuote.type === 'detal' ? '🛍️ Al detal' : '🏪 Al mayor'}</span></div>
+    <div class="cb-sum-row"><span><b>Cliente</b></span><span>${escapeHTML(cbQuote.name)}</span></div>
+    <div class="cb-sum-row"><span><b>Teléfono</b></span><span>${escapeHTML(cbQuote.phone)}</span></div>
+    <span class="cb-acts">
+      <button class="cb-act p" onclick="cbQuoteSubmit()">📨 Cerrar y enviar cotización</button>
+      <button class="cb-act" onclick="cbQuoteAskItems()">⬅ Atrás / agregar más</button>
+      <button class="cb-act" onclick="cbQuoteCancel()">✕ Cancelar</button>
+    </span>`);
 }
 
 function cbQuoteCancel() {
   cbQuote.active = false;
-  cbBotMsg('Cotización cancelada. Cuando quieras la retomamos 😊');
+  cbBotMsg(`Cotización cancelada. Cuando quieras la retomamos 😊
+    <span class="cb-acts">
+      <button class="cb-act p" onclick="cbQuoteStart()">📋 Nueva cotización</button>
+      <button class="cb-act" onclick="cbMenu()">🏠 Menú</button>
+    </span>`);
 }
 
 async function cbQuoteSubmit() {
@@ -518,6 +721,7 @@ async function cbQuoteSubmit() {
 // Maneja el texto del usuario cuando el flujo de cotización está activo
 async function cbQuoteHandle(text) {
   const t = text.trim();
+  if (cbNavCommand(t)) return;
   if (/^(cancelar|salir|no)$/i.test(t)) { cbQuoteCancel(); return; }
 
   if (cbQuote.step === 'type') {
@@ -571,7 +775,8 @@ async function cbQuoteHandle(text) {
     if (t.length < 3) { cbBotMsg('Escríbeme un nombre o empresa válido 🙏'); return; }
     cbQuote.name = t.slice(0, 120);
     cbQuote.step = 'phone';
-    cbBotMsg(`Gracias, <strong>${escapeHTML(cbQuote.name)}</strong>. Ahora tu teléfono 📱 (ej: 0412-1234567):`);
+    cbBotMsg(`Gracias, <strong>${escapeHTML(cbQuote.name)}</strong>. Ahora tu teléfono 📱 (ej: 0412-1234567):
+      <span class="cb-acts">${cbNavBtns()}</span>`);
     return;
   }
 
@@ -583,15 +788,7 @@ async function cbQuoteHandle(text) {
     }
     cbQuote.phone = t.slice(0, 30);
     cbQuote.step = 'confirm';
-    cbBotMsg(`Revisa tu cotización 👇${cbQuoteListHTML()}
-      <div class="cb-sum-row"><span><b>Tipo</b></span><span>${cbQuote.type === 'detal' ? '🛍️ Al detal' : '🏪 Al mayor'}</span></div>
-      <div class="cb-sum-row"><span><b>Cliente</b></span><span>${escapeHTML(cbQuote.name)}</span></div>
-      <div class="cb-sum-row"><span><b>Teléfono</b></span><span>${escapeHTML(cbQuote.phone)}</span></div>
-      <span class="cb-acts">
-        <button class="cb-act p" onclick="cbQuoteSubmit()">📨 Cerrar y enviar cotización</button>
-        <button class="cb-act" onclick="cbQuote.step='items';cbBotMsg('Dale, sigue agregando o consultando productos 😉'+cbQuoteListHTML())">➕ Agregar más</button>
-        <button class="cb-act" onclick="cbQuoteCancel()">✕ Cancelar</button>
-      </span>`);
+    cbQuoteConfirmMsg();
     return;
   }
 
@@ -608,13 +805,15 @@ async function cbQuoteHandle(text) {
 function cbTrackStart(num = '') {
   cbQuote.active = false;
   cbTrack = { active: true, step: num ? 'phone' : 'num', num };
-  cbBotMsg(num
+  cbBotMsg((num
     ? `Vi el número <b>${escapeHTML(num)}</b> 👀. Confírmame el teléfono con el que registraste el pedido/cotización 📱:`
-    : 'Claro 🔎. Escríbeme tu número de pedido o cotización (ej: <em>JJP-260701-1234</em>):');
+    : 'Claro 🔎. Escríbeme tu número de pedido o cotización (ej: <em>JJP-260701-1234</em>):')
+    + `<span class="cb-acts"><button class="cb-act" onclick="cbMenu()">🏠 Menú</button></span>`);
 }
 
 async function cbTrackHandle(text) {
   const t = text.trim();
+  if (cbNavCommand(t)) return;
   if (/^(cancelar|salir)$/i.test(t)) { cbTrack.active = false; cbBotMsg('Listo, cancelado.'); return; }
 
   if (cbTrack.step === 'num') {
@@ -622,7 +821,8 @@ async function cbTrackHandle(text) {
     if (!m) { cbBotMsg('Ese número no tiene el formato <em>JJP-XXXXXX-XXXX</em>. Revísalo 🙏'); return; }
     cbTrack.num = m[0].toUpperCase();
     cbTrack.step = 'phone';
-    cbBotMsg('Perfecto. Ahora el teléfono con el que lo registraste 📱:');
+    cbBotMsg(`Perfecto. Ahora el teléfono con el que lo registraste 📱:
+      <span class="cb-acts">${cbNavBtns()}</span>`);
     return;
   }
 
@@ -690,11 +890,17 @@ const CB_KB = [
    ------------------------------------------------------ */
 
 async function cbProcess(text) {
+  // 0) Captación de lead: hasta tener nombre + teléfono, todo va a ese flujo.
+  if (!cbLead.done) { await cbLeadHandle(text); return; }
+
   const q = normTxt(text);
 
-  // 0) Flujos activos capturan el texto
+  // 0.1) Flujos activos capturan el texto
   if (cbQuote.active) { await cbQuoteHandle(text); return; }
   if (cbTrack.active) { await cbTrackHandle(text); return; }
+
+  // 0.2) Navegación por texto fuera de flujo ("menú", "ayuda", "volver")
+  if (cbNavCommand(text)) return;
 
   // 1) Número de pedido/cotización pegado directamente
   const numMatch = /JJP-\d{6}-\d{4}/i.exec(text);
@@ -759,4 +965,4 @@ async function cbProcess(text) {
     </span>`);
 }
 
-document.addEventListener('DOMContentLoaded', injectChatbot);
+document.addEventListener('DOMContentLoaded', () => { cbLeadLoad(); injectChatbot(); });

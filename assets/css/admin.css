@@ -138,7 +138,7 @@ body.admin-body { background:var(--gl) }
 
 /* ---- Login ---- */
 .login-page {
-  min-height:100vh; background:linear-gradient(135deg,var(--gd),#072e16);
+  min-height:100vh; background:linear-gradient(135deg,var(--gd),var(--gdk));
   display:flex; align-items:center; justify-content:center; padding:20px;
 }
 .login-box {

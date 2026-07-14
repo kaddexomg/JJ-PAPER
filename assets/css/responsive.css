@@ -14,14 +14,13 @@
   .cnt-grid  { grid-template-columns:1fr }
   .ft-in     { grid-template-columns:1fr 1fr }
 
-  /* Hero */
-  .h-in  { grid-template-columns:1fr; text-align:center }
-  .h-vis { display:none }
-  .h-acts { justify-content:center }
+  /* Hero: sus overrides mobile viven en el <style> de index.html — ese bloque
+     se parsea después de este archivo y a igual especificidad ganaría siempre
+     (reglas aquí quedaban muertas). No agregar reglas del hero en este archivo. */
 
   /* Product modal */
   .prod-modal-grid { grid-template-columns:1fr }
-  .prod-modal-img  { max-height:200px }
+  .prod-modal-img  { max-height:260px }
 }
 
 @media (max-width:768px) {
@@ -52,11 +51,15 @@
 }
 
 @media (max-width:480px) {
-  .h-title  { font-size:30px }
-  .h-in     { padding:50px 4% }
   .o-form   { padding:22px 16px }
   .btt      { right:88px; bottom:22px }
   .cb-fab   { bottom:22px; right:22px }
-  .cb-win   { bottom:90px }
-  .prod-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)) }
+  /* Chat: nunca más alto que el viewport real (dvh sigue al teclado en pantalla) */
+  .cb-win   { bottom:90px; max-height:min(480px, calc(100dvh - 110px)) }
+
+  /* Catálogo: siempre 2 columnas en teléfonos (antes quedaba 1 col ancha 360-480px) */
+  .prod-grid { grid-template-columns:repeat(2,1fr); gap:12px }
+  .pc-img    { height:170px }
+  .pc-info   { padding:10px }
+  .pc-name   { font-size:12px }
 }

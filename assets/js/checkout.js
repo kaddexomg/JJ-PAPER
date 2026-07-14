@@ -218,7 +218,9 @@ async function submitOrder() {
 
 // ---- Secondary path: send full order to WhatsApp (also saves it) ----
 async function submitOrderWA() {
-  if (!validateCheckout()) return;
+  // Mismo guard que submitOrder: doble clic aquí insertaba dos pedidos
+  if (coSubmitting || !validateCheckout()) return;
+  coSubmitting = true;
   const orderNumber = genOrderNumber();
   const order = buildOrder(orderNumber);
 

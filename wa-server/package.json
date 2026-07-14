@@ -1,0 +1,20 @@
+{
+  "name": "jjp-wa-server",
+  "version": "1.0.0",
+  "description": "Puente WhatsApp (Baileys) <-> Supabase para el CRM de JJ Paper",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@whiskeysockets/baileys": "6.7.23",
+    "dotenv": "^16.4.5",
+    "pino": "^9.3.0",
+    "pino-pretty": "^11.2.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,38 +1,43 @@
 /* ======================================================
    JJ Paper — Variables & Reset
    ====================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap');
 
 :root {
-  /* Brand colors */
-  --gd:  #106B3A;   /* green dark  */
-  --gm:  #2BB673;   /* green mid   */
-  --gh:  #0d5a2f;   /* green hover */
-  --gx:  #e8f5ed;   /* green light bg */
+  /* Brand colors — paleta oficial JJ Paper (logo + IG, jul 2026) */
+  --gd:  #16604A;   /* verde JJ (disco del logo) — primario */
+  --gm:  #67A427;   /* verde lima medio — texto/acentos sobre claro */
+  --lm:  #99CC33;   /* lima "martian" — SOLO sobre fondos oscuros */
+  --gh:  #0F4636;   /* verde hover oscuro */
+  --gx:  #EFF6E4;   /* fondo claro lima suave */
+  --gdk: #003333;   /* verde profundo — extremos de gradientes */
+  --rg:  #A7D7A0;   /* verde claro del anillo del logo */
+  --am:  #C9A24B;   /* dorado latón apagado — acento (antes naranja chillón) */
+  --amd: #8F6A25;   /* latón oscuro hover / texto acento sobre claro */
 
   /* Neutrals */
   --bk:  #1A1A1A;
   --wh:  #ffffff;
   --gl:  #F2F2F2;
-  --gr:  #888888;
+  --gr:  #707070;
   --gb:  #dddddd;
 
   /* Semantic */
   --danger:  #e53e3e;
   --warning: #f59e0b;
   --info:    #3b82f6;
-  --success: #2BB673;
+  --success: #2F9E44;
   --wa:      #25D366;   /* WhatsApp */
 
-  /* Shadows */
-  --sh:  0 4px 20px rgba(0,0,0,.10);
-  --sl:  0 8px 40px rgba(0,0,0,.15);
-  --sxl: 0 16px 60px rgba(0,0,0,.20);
+  /* Shadows — difusas y suaves (iOS) */
+  --sh:  0 4px 24px rgba(10,40,30,.08);
+  --sl:  0 10px 44px rgba(10,40,30,.12);
+  --sxl: 0 18px 64px rgba(10,40,30,.16);
 
-  /* Radii */
-  --r:   12px;
-  --rs:  8px;
-  --rx:  6px;
+  /* Radii — curvas continuas estilo iOS */
+  --r:   16px;
+  --rs:  12px;
+  --rx:  9px;
 
   /* Transition */
   --tr:  all .3s ease;

@@ -4,12 +4,30 @@
 
 .cb-fab {
   position:fixed; bottom:28px; right:28px; z-index:1500;
-  width:56px; height:56px; border-radius:50%; background:var(--gd);
-  color:#fff; box-shadow:0 4px 20px rgba(16,107,58,.4);
-  display:flex; align-items:center; justify-content:center; font-size:24px;
-  transition:var(--tr);
+  width:60px; height:60px; border-radius:50%; background:var(--wa);
+  color:#fff; box-shadow:0 6px 22px rgba(37,211,102,.5);
+  display:flex; align-items:center; justify-content:center;
+  transition:var(--tr); animation:cbWaPulse 2.4s ease-in-out infinite;
 }
-.cb-fab:hover { background:var(--gm); transform:scale(1.1) }
+.cb-fab:hover { filter:brightness(1.06); transform:scale(1.1); animation:none }
+.cb-fab svg   { width:30px; height:30px }
+@keyframes cbWaPulse {
+  0%   { box-shadow:0 6px 22px rgba(37,211,102,.5), 0 0 0 0 rgba(37,211,102,.45) }
+  70%  { box-shadow:0 6px 22px rgba(37,211,102,.5), 0 0 0 14px rgba(37,211,102,0) }
+  100% { box-shadow:0 6px 22px rgba(37,211,102,.5), 0 0 0 0 rgba(37,211,102,0) }
+}
+@media (prefers-reduced-motion: reduce) { .cb-fab { animation:none } }
+
+/* Botón directo a WhatsApp dentro del encabezado del chat */
+.cb-wa-hd {
+  margin-left:auto; display:flex; align-items:center; gap:5px;
+  background:var(--wa); color:#fff; border-radius:16px;
+  padding:5px 11px 5px 8px; font-size:11px; font-weight:800;
+  box-shadow:0 2px 8px rgba(37,211,102,.35); transition:var(--tr);
+}
+.cb-wa-hd:hover { filter:brightness(1.08); transform:translateY(-1px) }
+.cb-wa-hd svg   { width:16px; height:16px }
+.cb-hd .cb-x    { margin-left:8px }
 .cb-badge {
   position:absolute; top:-3px; right:-3px; width:18px; height:18px;
   background:#e53e3e; border-radius:50%;
@@ -30,8 +48,9 @@
 }
 .cb-av     { width:34px; height:34px; border-radius:50%; background:var(--gm);
              display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0 }
-.cb-hd-i h4 { font-size:13px; font-weight:700 }
-.cb-hd-i p  { font-size:10px; opacity:.75 }
+.cb-hd-i   { flex:1 1 auto; min-width:0 }
+.cb-hd-i h4 { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.cb-hd-i p  { font-size:10px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .cb-x       { margin-left:auto; background:rgba(255,255,255,.15); color:#fff;
               width:28px; height:28px; border-radius:50%; font-size:15px;
               display:flex; align-items:center; justify-content:center; flex-shrink:0 }
@@ -54,7 +73,7 @@
 
 .cb-qbtns { padding:0 14px 10px; display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0 }
 .qb-btn   { padding:5px 12px; border-radius:15px; font-size:10px; font-weight:700;
-            background:var(--gx); color:var(--gd); border:1px solid rgba(43,182,115,.3); transition:var(--tr) }
+            background:var(--gx); color:var(--gd); border:1px solid rgba(103,164,39,.35); transition:var(--tr) }
 .qb-btn:hover { background:var(--gd); color:#fff }
 
 /* Botones de acción dentro de mensajes */

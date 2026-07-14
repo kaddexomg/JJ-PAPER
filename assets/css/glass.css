@@ -6,26 +6,30 @@
    ====================================================== */
 
 :root {
-  /* Tokens de vidrio */
-  --glass-blur:      18px;
-  --glass-sat:       180%;
-  --glass-bg:        rgba(255,255,255,.55);   /* vidrio claro */
-  --glass-bg-strong: rgba(255,255,255,.70);
-  --glass-brd:       rgba(255,255,255,.55);   /* borde luminoso */
-  --glass-brd-dk:    rgba(255,255,255,.14);   /* borde sobre verde */
-  --glass-hi:        rgba(255,255,255,.75);   /* highlight superior */
-  --glass-sh:        0 8px 32px rgba(16,107,58,.16), inset 0 1px 0 var(--glass-hi);
-  --glass-sh-dk:     0 8px 30px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.18);
+  /* Tokens de vidrio — afinados estilo iOS 26: más blur, borde especular
+     fino y sombra difusa de bajo contraste */
+  --glass-blur:      26px;
+  --glass-sat:       190%;
+  --glass-bg:        rgba(255,255,255,.52);   /* vidrio claro */
+  --glass-bg-strong: rgba(255,255,255,.66);
+  --glass-brd:       rgba(255,255,255,.65);   /* borde luminoso */
+  --glass-brd-dk:    rgba(255,255,255,.16);   /* borde sobre verde */
+  --glass-hi:        rgba(255,255,255,.85);   /* highlight superior */
+  --glass-sh:        0 12px 40px rgba(22,96,74,.12),
+                     inset 0 1px 0 var(--glass-hi),
+                     inset 0 -1px 0 rgba(255,255,255,.20),
+                     0 0 0 .5px rgba(22,96,74,.05);
+  --glass-sh-dk:     0 10px 36px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.20);
   /* Vidrio verde (nav / oscuros) */
-  --glass-green:     rgba(16,107,58,.72);
-  --glass-green-op:  rgba(16,107,58,.92);
+  --glass-green:     rgba(18,84,64,.66);
+  --glass-green-op:  rgba(18,84,64,.90);
 }
 
 /* Brillo/reflejo reutilizable: capa de luz en el borde superior */
 .glass-sheen { position:relative; isolation:isolate }
 .glass-sheen::before {
   content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-  background:linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 42%);
+  background:linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 46%);
   z-index:0;
 }
 
@@ -34,10 +38,10 @@
    =================================================================== */
 #nav {
   background:var(--glass-green);
-  -webkit-backdrop-filter:blur(20px) saturate(160%);
-          backdrop-filter:blur(20px) saturate(160%);
+  -webkit-backdrop-filter:blur(26px) saturate(185%);
+          backdrop-filter:blur(26px) saturate(185%);
   border-bottom:1px solid var(--glass-brd-dk);
-  box-shadow:0 4px 30px rgba(0,0,0,.18);
+  box-shadow:0 4px 30px rgba(0,0,0,.14);
 }
 /* reflejo de luz que recorre el borde superior del nav */
 #nav::after {
@@ -58,7 +62,7 @@
 
 /* Píldora del carrito: vidrio interactivo */
 .n-cart {
-  background:rgba(43,182,115,.85);
+  background:rgba(22,96,74,.88);
   -webkit-backdrop-filter:blur(6px);
           backdrop-filter:blur(6px);
   border:1px solid rgba(255,255,255,.30);
@@ -81,9 +85,9 @@
 .btn-p > *, .btn-o > *, .btn-o-wh > *, .btn-wa > * { position:relative; z-index:1 }
 
 .btn-p {
-  background:linear-gradient(180deg, rgba(52,197,128,.95), rgba(16,107,58,.95));
-  border:1px solid rgba(255,255,255,.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 6px 20px rgba(16,107,58,.28);
+  background:linear-gradient(180deg, rgba(42,158,110,.94), rgba(17,88,66,.94));
+  border:1px solid rgba(255,255,255,.30);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 8px 24px rgba(16,88,64,.22);
 }
 .btn-p:active { transform:scale(.97) }
 
@@ -104,9 +108,9 @@
 .btn-o-wh:active { transform:scale(.97) }
 
 .btn-wa {
-  background:linear-gradient(180deg, rgba(45,214,110,.95), rgba(29,168,81,.95));
+  background:linear-gradient(180deg, rgba(41,190,101,.94), rgba(27,150,74,.94));
   border:1px solid rgba(255,255,255,.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 6px 18px rgba(37,211,102,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 8px 22px rgba(37,180,92,.24);
 }
 .btn-wa:active { transform:scale(.98) }
 
@@ -120,7 +124,7 @@
   border:1px solid var(--glass-brd);
   box-shadow:var(--glass-sh);
 }
-.card:hover { transform:translateY(-3px); box-shadow:0 14px 40px rgba(16,107,58,.20), inset 0 1px 0 var(--glass-hi) }
+.card:hover { transform:translateY(-3px); box-shadow:0 16px 44px rgba(16,107,58,.15), inset 0 1px 0 var(--glass-hi) }
 
 .val-ico {
   background:rgba(255,255,255,.4);
@@ -197,7 +201,7 @@
    BACK-TO-TOP — burbuja de vidrio interactiva
    =================================================================== */
 .btt {
-  background:rgba(43,182,115,.8);
+  background:rgba(22,96,74,.85);
   -webkit-backdrop-filter:blur(10px) saturate(160%);
           backdrop-filter:blur(10px) saturate(160%);
   border:1px solid rgba(255,255,255,.35);
@@ -227,4 +231,29 @@
   #nav, .m-menu   { background:var(--gd) }
   .card, .val, .modal-box, .modal-hd, .toast, .f-bar { background:#fff }
   .modal-overlay  { background:rgba(0,0,0,.55) }
+}
+
+/* ===================================================================
+   MOBILE — el blur apilado es caro en GPUs móviles: nav y modal
+   quedan con blur moderado; el resto pasa a fondo semi-opaco sólido
+   (mismo look, sin costo de composición).
+   =================================================================== */
+@media (max-width:768px) {
+  #nav, .m-menu {
+    -webkit-backdrop-filter:blur(10px) saturate(160%);
+            backdrop-filter:blur(10px) saturate(160%);
+  }
+  .modal-box {
+    -webkit-backdrop-filter:blur(12px) saturate(180%);
+            backdrop-filter:blur(12px) saturate(180%);
+  }
+  .card, .val, .toast, .f-bar, .brands-strip, .modal-hd,
+  .val-ico, .modal-close, .s-tag, .status-badge,
+  .n-cart, .btn-o, .btn-o-wh, .btt, .modal-overlay,
+  .fi:focus, .fta:focus {
+    -webkit-backdrop-filter:none;
+            backdrop-filter:none;
+  }
+  .card, .val, .modal-hd, .toast, .f-bar, .brands-strip { background:rgba(255,255,255,.94) }
+  .modal-overlay { background:rgba(16,40,28,.55) }
 }

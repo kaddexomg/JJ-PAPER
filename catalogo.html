@@ -6,15 +6,15 @@
 <meta name="description" content="Catálogo completo de JJ Paper — Papelería, cuadernos, papel, carpetas, suministros y limpieza al mayor.">
 <title>Catálogo | JJ Paper</title>
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
-<meta name="theme-color" content="#106B3A">
+<meta name="theme-color" content="#16604A">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20260710">
 <link rel="stylesheet" href="assets/css/cart.css">
-<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css">
 <link rel="stylesheet" href="assets/css/glass.css">
 </head>
@@ -64,7 +64,7 @@
                 onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
         <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
           <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
-          <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel / CSV</button>
+          <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
         </div>
       </div>
     </div>
@@ -100,10 +100,10 @@
 <script src="assets/js/reveal.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
-<script src="assets/js/catalog.js"></script>
+<script src="assets/js/catalog.js?v=20260710"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/product-modal.js"></script>
-<script src="assets/js/chatbot.js"></script>
+<script src="assets/js/chatbot.js?v=20260710b"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   injectNav('catalogo');

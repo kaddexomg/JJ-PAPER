@@ -26,7 +26,7 @@
     var kind = (typeof PROMO_KIND_LABEL !== 'undefined' && PROMO_KIND_LABEL[p.kind]) || '🔥 Oferta';
     var save = (typeof promoSavePct === 'function') ? promoSavePct(p) : null;
     var media = p.image_url
-      ? '<img src="' + escapeHTML(p.image_url) + '" alt="" loading="lazy">'
+      ? '<img src="' + escapeHTML(optImg(p.image_url, 800)) + '" alt="" loading="lazy" decoding="async">'
       : '<span class="hp-emoji">' + escapeHTML(p.emoji || '🎉') + '</span>';
     return '' +
       '<a class="hp-slide ' + theme + '" href="promociones.html" ' +
@@ -127,10 +127,15 @@
       if (dx < -OFFSET_MIN || (dx < -12 && vel > VELOCITY_MIN)) goTo(idx + 1);
       else if (dx > OFFSET_MIN || (dx > 12 && vel > VELOCITY_MIN)) goTo(idx - 1);
       else goTo(idx);
-      // Si hubo arrastre real, el click posterior no debe navegar
-      if (drag.moved) {
+      // Si hubo arrastre real, el click posterior no debe navegar.
+      // Solo tras pointerup: pointercancel no genera click, y el listener
+      // once:true quedaría armado tragándose el siguiente clic legítimo.
+      if (drag.moved && e.type === 'pointerup') {
         var swallow = function (ev) { ev.preventDefault(); ev.stopPropagation(); };
         host.addEventListener('click', swallow, { capture: true, once: true });
+        setTimeout(function () {
+          host.removeEventListener('click', swallow, { capture: true });
+        }, 350);
       }
       drag = null;
       play();

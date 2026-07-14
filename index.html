@@ -6,7 +6,7 @@
 <meta name="description" content="JJ Paper — Papelería y suministros al mayor en Venezuela. Calidad, compromiso y confianza.">
 <title>JJ Paper — Papelería y Suministros al Mayor</title>
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
-<meta name="theme-color" content="#106B3A">
+<meta name="theme-color" content="#16604A">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <meta property="og:type" content="website">
@@ -18,40 +18,52 @@
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20260710">
 <link rel="stylesheet" href="assets/css/cart.css">
-<link rel="stylesheet" href="assets/css/chatbot.css">
+<link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/promos.css">
 <link rel="stylesheet" href="assets/css/responsive.css">
 <link rel="stylesheet" href="assets/css/motion.css">
 <link rel="stylesheet" href="assets/css/glass.css">
+<link rel="stylesheet" href="assets/css/logo3d.css">
 <style>
 /* ---- Hero ---- */
-#inicio { min-height:100vh; background:linear-gradient(135deg,var(--gd) 0%,#072e16 100%);
+#inicio { min-height:100vh; background:linear-gradient(135deg,var(--gd) 0%,var(--gdk) 100%);
           display:flex; align-items:center; position:relative; overflow:hidden; padding-top:64px }
 .h-bg   { position:absolute; inset:0; overflow:hidden }
-.h-c    { position:absolute; border-radius:50%; background:rgba(43,182,115,.07) }
+.h-c    { position:absolute; border-radius:50%; background:rgba(153,204,51,.07) }
 .h-c:nth-child(1){width:700px;height:700px;top:-260px;right:-150px;animation:hpulse 9s ease-in-out infinite}
 .h-c:nth-child(2){width:420px;height:420px;bottom:-180px;left:-100px;animation:hpulse 11s ease-in-out infinite 2s}
 .h-c:nth-child(3){width:190px;height:190px;top:38%;left:28%;animation:hpulse 7s ease-in-out infinite 1s}
 @keyframes hpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 .h-in   { position:relative;z-index:2;max-width:var(--max-w);margin:0 auto;padding:80px 5%;
-          display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center }
-.hero-badge { display:inline-flex;align-items:center;gap:8px;background:rgba(43,182,115,.2);
-              border:1px solid rgba(43,182,115,.4);color:var(--gm);padding:6px 16px;
+          display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;
+          width:100%;min-width:0 }
+/* min-width:0: sin esto el min-content del carrusel de promos (banda flex)
+   se propaga por grid/flex y desborda el hero en mobile */
+.h-txt, .h-vis { min-width:0 }
+.hero-badge { display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);
+              -webkit-backdrop-filter:blur(12px) saturate(160%);backdrop-filter:blur(12px) saturate(160%);
+              border:1px solid rgba(255,255,255,.28);color:rgba(255,255,255,.92);padding:6px 16px;
+              box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
               border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;
               letter-spacing:1.5px;margin-bottom:24px }
 .h-title    { font-size:clamp(32px,5vw,60px);font-weight:800;color:#fff;line-height:1.1;margin-bottom:14px }
-.h-title em { color:var(--gm);font-style:normal }
-.h-tag  { font-size:13px;color:rgba(255,255,255,.6);font-weight:600;letter-spacing:3px;
+.h-title em { color:var(--lm);font-style:normal }
+.h-tag  { font-size:13px;color:rgba(255,255,255,.78);font-weight:600;letter-spacing:3px;
           text-transform:uppercase;margin-bottom:22px }
 .h-desc { font-size:16px;color:rgba(255,255,255,.8);line-height:1.75;margin-bottom:38px;max-width:460px }
 .h-acts { display:flex;gap:14px;flex-wrap:wrap }
-/* Columna visual: chapa 3D + carrusel de promos */
-.h-vis    { display:flex;flex-direction:column;align-items:center;gap:10px }
-.h-logo3d { width:min(400px,78vw);height:min(340px,60vw);touch-action:manipulation }
+/* Chapa 3D: capa de FONDO de todo el hero (detrás del texto, sobre el gradiente).
+   No es un botón: reacciona a mouse/scroll/clic vía listeners globales (logo3d.js). */
+.h-logo3d-bg { position:absolute; inset:0; z-index:1; pointer-events:none }
+/* Legibilidad: el texto del hero lleva sombra suave por si la chapa pasa detrás */
+.h-txt .h-title, .h-txt .h-tag, .h-txt .h-desc, .hero-badge {
+  text-shadow:0 2px 22px rgba(0,40,32,.65), 0 1px 4px rgba(0,40,32,.4) }
+/* Columna visual: carrusel de promos (la chapa vive en el fondo) */
+.h-vis    { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px }
 
-.hp-carousel { width:100%;max-width:470px }
+.hp-carousel { width:100%;max-width:470px;min-width:0 }
 .hp-viewport { overflow:hidden;border-radius:var(--r);cursor:grab;touch-action:pan-y;
                box-shadow:0 14px 34px rgba(0,0,0,.28) }
 .hp-viewport:active { cursor:grabbing }
@@ -67,16 +79,41 @@
 .hp-title  { font-size:15px;font-weight:800;line-height:1.25;overflow:hidden;
              display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical }
 .hp-price  { font-size:13px;font-weight:700;opacity:.95 }
-.hp-save   { font-style:normal;background:rgba(255,255,255,.25);border-radius:8px;
+.hp-save   { font-style:normal;background:var(--am);color:#0B3B2E;border-radius:8px;
              padding:1px 7px;font-size:11px;font-weight:800;margin-left:4px }
 .hp-go     { font-size:20px;font-weight:800;opacity:.7;flex-shrink:0 }
 .hp-slide:hover .hp-go { opacity:1;transform:translateX(3px);transition:.2s }
 .hp-dots   { display:flex;gap:7px;justify-content:center;margin-top:11px }
 .hp-dots button { width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);
                   transition:.25s;padding:0 }
-.hp-dots button.on { background:var(--gm);width:22px;border-radius:5px }
+.hp-dots button.on { background:var(--lm);width:22px;border-radius:5px }
 
 .h-wave  { position:absolute;bottom:0;left:0;right:0 }
+
+/* ---- Hero mobile ----
+   Estas reglas viven AQUÍ y no en responsive.css: este <style> se parsea
+   después de los <link>, y a igual especificidad el último gana. Cualquier
+   override del hero en responsive.css quedaría muerto (pasó en jul 2026). */
+@media (max-width:992px) {
+  #inicio { min-height:100svh }             /* 100vh en mobile incluye la barra del navegador */
+  .h-in   { grid-template-columns:1fr; text-align:center; gap:30px; padding:56px 5% 54px }
+  .h-desc { margin-left:auto; margin-right:auto }
+  .h-acts { justify-content:center }
+  /* Columna visual compacta: el carrusel de promos SÍ se ve en mobile */
+  .hp-carousel { max-width:min(470px,100%) }
+}
+@media (max-width:480px) {
+  .h-in       { gap:22px; padding:44px 4% 46px }
+  .hero-badge { margin-bottom:16px; font-size:10px }
+  .h-tag      { letter-spacing:2px; margin-bottom:16px }
+  .h-desc     { font-size:14px; line-height:1.65; margin-bottom:24px }
+  .h-acts     { display:grid; grid-template-columns:1fr 1fr; gap:10px }
+  .h-acts .btn-p, .h-acts .btn-o-wh, .h-acts .dl-btn {
+    width:100%; justify-content:center; text-align:center; padding:12px 8px; font-size:13px;
+  }
+  .dl-wrap    { width:100% }
+  .dl-menu    { left:0; right:0 }
+}
 
 /* ---- Nosotros ---- */
 #nosotros  { background:var(--gl) }
@@ -120,6 +157,7 @@
     <div class="h-c" data-parallax="0.18"></div>
     <div class="h-c" data-parallax="0.26"></div>
   </div>
+  <div class="h-logo3d-bg" data-jj-logo3d="bg" aria-hidden="true"></div>
   <div class="h-in">
     <div class="h-txt">
       <div class="hero-badge">🏪 Distribuidores al Mayor</div>
@@ -136,13 +174,12 @@
                   onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
           <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
             <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
-            <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel / CSV</button>
+            <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
           </div>
         </div>
       </div>
     </div>
     <div class="h-vis">
-      <div class="h-logo3d" data-jj-logo3d aria-label="Logo JJ Paper interactivo"></div>
       <div class="hp-carousel" id="heroPromos" style="display:none"></div>
     </div>
   </div>
@@ -217,9 +254,9 @@
 <section id="destacados" style="background:var(--gl)">
   <div style="max-width:var(--max-w);margin:0 auto">
     <div class="s-hd rv">
-      <div class="s-tag">⭐ Productos Destacados</div>
-      <h2 class="s-title">Lo más <em>solicitado</em></h2>
-      <p class="s-desc">Los productos favoritos de nuestros clientes al mejor precio mayorista.</p>
+      <div class="s-tag">🛍️ Vista previa del catálogo</div>
+      <h2 class="s-title">Explora nuestros <em>productos</em></h2>
+      <p class="s-desc">Una muestra de nuestro catálogo con fotografía. Entra al catálogo completo para verlo todo segmentado por categoría.</p>
     </div>
     <div id="featuredContainer"></div>
     <div style="text-align:center;margin-top:28px">
@@ -324,11 +361,11 @@
 <script src="assets/js/hero-promos.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
-<script src="assets/js/catalog.js"></script>
+<script src="assets/js/catalog.js?v=20260710"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/promos.js"></script>
 <script src="assets/js/product-modal.js"></script>
-<script src="assets/js/chatbot.js"></script>
+<script src="assets/js/chatbot.js?v=20260710b"></script>
 <script>
 // Fill hero stats + contact cards from settings (with hardcoded fallbacks)
 function fillHomeFromSettings() {
@@ -370,7 +407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   fillHomeFromSettings();
   refreshContactUI();
-  await renderFeatured('featuredContainer', 8);
+  await renderFeatured('featuredContainer', 100);
   await renderBestSellers('masvendidos', 'bestSellersContainer', 8);
   await renderHomePromos('promos-home', 'homePromoHero', 'homePromoGrid', 3);
   // Carrusel de promos del hero (reutiliza el caché de renderHomePromos)

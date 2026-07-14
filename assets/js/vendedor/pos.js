@@ -41,7 +41,7 @@ function posRenderResults(list) {
   box.innerHTML = list.map(p => {
     const variants = (p.jjp_product_variants || []).filter(v => v.active);
     const img = p.image_url
-      ? `<img src="${encodeURI(p.image_url)}" alt="" loading="lazy">`
+      ? `<img src="${optImg(p.image_url, 200)}" alt="" loading="lazy" decoding="async">`
       : `<span style="font-size:20px">${p.emoji || '📦'}</span>`;
     const vSel = variants.length
       ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:5px 8px">

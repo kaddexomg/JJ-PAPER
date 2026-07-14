@@ -1,11 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- Fondo círculo menta -->
-  <circle cx="32" cy="32" r="31" fill="#77C99B"/>
-  <!-- Anillo teal -->
-  <circle cx="32" cy="32" r="25.5" fill="none" stroke="#2E9E8B" stroke-width="3.4"/>
-  <!-- Monograma JJ (sombra + blanco) -->
-  <g font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="36" text-anchor="middle">
-    <text x="33.2" y="45.5" fill="#2E9E8B" opacity="0.55">JJ</text>
-    <text x="32" y="44.3" fill="#ffffff">JJ</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- JJ Paper — logo oficial (réplica badge IG). Disco verde, anillo claro,
+       monograma JJ (paths), PAPER serif, tagline "TU MEJOR OPCIÓN". -->
+  <!-- Anillo verde claro -->
+  <circle cx="256" cy="256" r="244" fill="none" stroke="#A7D7A0" stroke-width="9"/>
+  <!-- Disco verde -->
+  <circle cx="256" cy="256" r="230" fill="#16604A"/>
+  <!-- Monograma JJ -->
+  <g fill="#FFFFFF">
+    <!-- J pequeña (izquierda, más baja, gancho que curla arriba en punta) -->
+    <path d="M208 152 L254 152 L254 252
+             C254 298 224 318 184 318
+             C156 318 136 306 128 286
+             L126 272
+             C140 284 162 290 182 287
+             C202 283 208 270 208 252 Z"/>
+    <!-- J grande (derecha, más alta, gancho amplio que barre por debajo) -->
+    <path d="M286 92 L344 92 L344 248
+             C344 330 300 366 230 366
+             C196 366 168 352 154 330
+             L150 314
+             C166 332 194 342 226 338
+             C272 332 286 300 286 248 Z"/>
   </g>
+  <!-- PAPER (x compensa el letter-spacing final con text-anchor:middle) -->
+  <text x="261" y="414" text-anchor="middle" fill="#FFFFFF"
+        font-family="'Playfair Display', Prata, Georgia, 'Times New Roman', serif"
+        font-weight="600" font-size="62" letter-spacing="10">PAPER</text>
+  <!-- Tagline -->
+  <g stroke="#A7D7A0">
+    <line x1="106" y1="444" x2="130" y2="444" stroke-width="2"/>
+    <line x1="386" y1="444" x2="410" y2="444" stroke-width="2"/>
+  </g>
+  <text x="258" y="450" text-anchor="middle" fill="#A7D7A0"
+        font-family="Montserrat, Arial, sans-serif" font-weight="600"
+        font-size="17" letter-spacing="4">TU MEJOR OPCIÓN</text>
 </svg>

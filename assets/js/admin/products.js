@@ -131,7 +131,7 @@ function renderAdminProdTable() {
 
   tbody.innerHTML = page.map(p => {
     const img = p.image_url
-      ? `<div class="td-img"><img src="${p.image_url}" alt=""></div>`
+      ? `<div class="td-img"><img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async"></div>`
       : `<div class="td-img">${p.emoji || '📦'}</div>`;
 
     const vsum = variantSummary(p);
@@ -453,12 +453,13 @@ async function saveProd() {
     featured:    document.getElementById('f-prod-featured')?.checked ?? false,
   };
 
-  // Upload image
+  // Upload image (comprimida client-side: max 1400px, webp/jpeg)
   const file = document.getElementById('f-prod-img')?.files?.[0];
   if (file) {
-    const ext  = file.name.split('.').pop().toLowerCase();
+    const { blob, ext } = await compressImage(file);
     const path = `${editingId || Date.now()}.${ext}`;
-    const { error: upErr } = await sb.storage.from('jjp-products').upload(path, file, { upsert: true });
+    const { error: upErr } = await sb.storage.from('jjp-products')
+      .upload(path, blob, { upsert: true, contentType: blob.type });
     if (upErr) { showToast('Error al subir imagen: ' + upErr.message, 'err'); }
     else {
       const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
@@ -514,6 +515,33 @@ async function deleteProduct(id, name) {
   if (error) { showToast('Error: ' + error.message, 'err'); return; }
   showToast('Producto eliminado');
   await loadAdminProducts();
+}
+
+// ---- Image compression (client-side, antes de subir a Storage) ----
+// Redimensiona a máx 1400px por lado y comprime a webp (fallback jpeg).
+// Un JPG de cámara de varios MB queda en ~150-300KB sin pérdida visible.
+async function compressImage(file, maxSide = 1400) {
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    // Fondo blanco: PNG con transparencia no debe quedar negro en jpeg
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const toBlob = type_q => new Promise(res => canvas.toBlob(res, type_q[0], type_q[1]));
+    let blob = await toBlob(['image/webp', 0.82]);
+    if (blob?.type === 'image/webp') return { blob, ext: 'webp' };
+    blob = await toBlob(['image/jpeg', 0.85]);
+    if (blob) return { blob, ext: 'jpg' };
+  } catch (e) {
+    console.warn('compressImage: fallback al archivo original', e);
+  }
+  // Último recurso: el archivo tal cual (p.ej. formato no decodificable)
+  return { blob: file, ext: (file.name.split('.').pop() || 'jpg').toLowerCase() };
 }
 
 // ---- Image preview ----

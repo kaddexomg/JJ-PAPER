@@ -2,6 +2,10 @@
 [build]
   publish = "."
 
+# Netlify Image CDN: permite transformar imágenes remotas de Supabase Storage
+[images]
+  remote_images = ["https://oeiuczltgdexwjjgquyq\\.supabase\\.co/storage/v1/object/public/.*"]
+
 # Seguridad básica de cabeceras
 [[headers]]
   for = "/*"
@@ -10,8 +14,9 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Cache larga para assets (versionados por deploy)
+# Assets sin hash: revalidar siempre (304 si no cambió, nueva versión si cambió).
+# Evita que el navegador sirva CSS/JS viejo tras un deploy.
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"

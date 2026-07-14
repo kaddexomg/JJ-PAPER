@@ -86,19 +86,28 @@
 .pc:hover { transform:translateY(-4px); box-shadow:var(--sl) }
 
 .pc-img {
-  height:160px; display:flex; align-items:center; justify-content:center;
+  height:200px; display:flex; align-items:center; justify-content:center;
   font-size:56px; position:relative; overflow:hidden;
 }
 .pc-img img {
-  width:100%; height:100%; object-fit:cover; position:absolute; inset:0;
+  width:100%; height:100%; object-fit:cover; object-position:center;
+  position:absolute; inset:0;
 }
+/* Velo blanco sutil sobre el color de categoría: solo para tarjetas con emoji */
+.pc-img::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.25));
+}
+/* Con foto real: fondo blanco limpio, sin velo, imagen grande y completa */
+.pc-img.has-img { background:#fff !important }
+.pc-img.has-img::before { display:none }
 .pc-img-emoji { position:relative; z-index:1; font-size:56px }
 .pc-cat {
   position:absolute; top:8px; left:8px; background:#fff; color:var(--gd);
   padding:2px 9px; border-radius:10px; font-size:9px; font-weight:800; text-transform:uppercase; z-index:2;
 }
 .pc-tag {
-  position:absolute; top:8px; right:8px; background:var(--gm); color:#fff;
+  position:absolute; top:8px; right:8px; background:var(--am); color:#0B3B2E;
   padding:2px 9px; border-radius:10px; font-size:9px; font-weight:800; z-index:2;
 }
 .pc-out {
@@ -111,7 +120,7 @@
 .pc-img     { cursor:pointer }
 .pc-eye {
   position:absolute; inset:0; z-index:3; display:flex; align-items:center; justify-content:center;
-  background:rgba(16,107,58,.55); color:#fff; font-size:13px; font-weight:700;
+  background:rgba(22,96,74,.60); color:#fff; font-size:13px; font-weight:700;
   opacity:0; transition:var(--tr);
 }
 .pc:hover .pc-eye { opacity:1 }
@@ -123,10 +132,10 @@
 .pc-brand-logo { height:16px; max-width:60px; object-fit:contain; vertical-align:middle }
 .pc-brand-multi { cursor:pointer }
 .pc-brand-multi .pc-brand-logo { height:14px; max-width:42px }
-.pc-brand-count { background:#e8f5ed; color:var(--gd); border-radius:20px; padding:2px 8px; font-size:9px; white-space:nowrap }
+.pc-brand-count { background:var(--gx); color:var(--gd); border-radius:20px; padding:2px 8px; font-size:9px; white-space:nowrap }
 .price-from { font-size:11px; font-weight:600; color:var(--gr); text-transform:uppercase }
 .pm-brand-logo { height:18px; max-width:70px; object-fit:contain; vertical-align:middle; margin:0 4px -4px 0 }
-.pc-desc    { font-size:11px; color:#888; line-height:1.5; flex:1; margin-bottom:10px }
+.pc-desc    { font-size:11px; color:#6b6b6b; line-height:1.5; flex:1; margin-bottom:10px }
 .pc-ft      { display:flex; align-items:center; justify-content:space-between;
               padding-top:10px; border-top:1px solid #f2f2f2; gap:8px }
 
@@ -165,7 +174,12 @@
   display:flex; align-items:center; justify-content:center; font-size:80px;
   overflow:hidden;
 }
-.prod-modal-img img { width:100%; height:100%; object-fit:cover }
+.prod-modal-img img { width:100%; height:100%; object-fit:contain; padding:12px }
+/* Velo suave para que la imagen completa resalte sobre el color de categoría */
+.prod-modal-img::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.25));
+}
 .prod-modal-cat  { font-size:11px; font-weight:700; color:var(--gm); text-transform:uppercase;
                    letter-spacing:1px; margin-bottom:8px }
 .prod-modal-name { font-size:22px; font-weight:800; color:var(--bk); margin-bottom:12px; line-height:1.3 }
@@ -195,7 +209,7 @@
   display:inline-block; font-size:12px; font-weight:700; padding:4px 11px;
   border-radius:20px; margin-bottom:14px;
 }
-.pm-stock.ok  { background:#e8f5ed; color:var(--gd) }
+.pm-stock.ok  { background:var(--gx); color:var(--gd) }
 .pm-stock.low { background:#fff3e0; color:#c05600 }
 .pm-stock.out { background:#fdecea; color:var(--danger) }
 /* Selector de marca (variantes) en modal y producto.html */
@@ -209,7 +223,7 @@
 .pm-var b { color:var(--gd); font-weight:800 }
 .pm-var em { font-style:normal; font-size:10px; color:var(--danger); font-weight:700 }
 .pm-var:hover { border-color:var(--gm) }
-.pm-var.on { border-color:var(--gd); background:#e8f5ed; box-shadow:0 0 0 1px var(--gd) }
+.pm-var.on { border-color:var(--gd); background:var(--gx); box-shadow:0 0 0 1px var(--gd) }
 .pm-var.out { opacity:.55 }
 .pm-var.out b { text-decoration:line-through }
 
@@ -221,7 +235,7 @@
 
 /* ---- Page hero (catalog/pedidos/nosotros) ---- */
 .page-hero {
-  background:linear-gradient(135deg,var(--gd) 0%,#072e16 100%);
+  background:linear-gradient(135deg,var(--gd) 0%,var(--gdk) 100%);
   padding:60px 5% 50px; text-align:center; color:#fff;
   position:relative; overflow:hidden;
 }
@@ -295,7 +309,7 @@
 
 /* Toolbar: búsqueda y orden con foco brillante */
 .srch input:focus, .sort-sel:focus {
-  box-shadow:0 0 0 3px rgba(43,182,115,.18);
+  box-shadow:0 0 0 3px rgba(103,164,39,.22);
 }
 
 /* Grid con más aire en pantallas grandes */
@@ -307,4 +321,48 @@
   .pc, .pc-img img, .cf { transition:none }
   .pc:hover { transform:none }
   .pc:hover .pc-img img { transform:none }
+}
+
+/* ======================================================
+   Lightbox de imagen (vista completa + zoom)
+   ====================================================== */
+.prod-modal-img.zoomable { cursor:zoom-in }
+.pm-zoom-btn {
+  position:absolute; bottom:10px; right:10px; z-index:2;
+  background:rgba(255,255,255,.9); color:var(--gd);
+  padding:8px 14px; border-radius:20px; font-size:12px; font-weight:700;
+  box-shadow:0 2px 8px rgba(0,0,0,.15); min-height:36px;
+}
+.img-lightbox {
+  position:fixed; inset:0; z-index:4000;
+  background:rgba(8,20,13,.93);
+  display:none; flex-direction:column;
+}
+.img-lightbox.op { display:flex }
+.ilb-stage {
+  flex:1; overflow:auto; display:flex;
+  touch-action:pinch-zoom; cursor:zoom-in;
+  -webkit-overflow-scrolling:touch;
+}
+/* margin:auto centra la imagen y, a diferencia de justify/align center,
+   permite hacer scroll hasta los bordes cuando está ampliada */
+.ilb-stage img {
+  margin:auto; max-width:94vw; max-height:82vh; object-fit:contain;
+  border-radius:8px; user-select:none;
+}
+.ilb-stage.zoomed { cursor:zoom-out }
+.ilb-stage.zoomed img { max-width:none; max-height:none; width:170vw; height:auto }
+.ilb-close {
+  position:absolute; top:14px; right:14px; z-index:2;
+  width:44px; height:44px; border-radius:50%;
+  background:rgba(255,255,255,.14); color:#fff; font-size:19px;
+  display:flex; align-items:center; justify-content:center;
+}
+.ilb-close:hover { background:rgba(255,255,255,.28) }
+.ilb-hint {
+  text-align:center; color:rgba(255,255,255,.65); font-size:12px;
+  padding:10px 16px calc(12px + env(safe-area-inset-bottom));
+}
+@media (min-width:769px) {
+  .ilb-hint::after { content:' · doble click para acercar' }
 }

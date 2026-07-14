@@ -1,0 +1,5 @@
+# NUNCA commitear: credenciales de Supabase y sesiones de WhatsApp
+.env
+sessions/
+node_modules/
+*.log

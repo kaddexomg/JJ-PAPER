@@ -207,7 +207,7 @@ function productCardHTML(p) {
     ? `<span class="pc-tag">${escapeHTML(p.tag)}</span>` : '';
 
   const imgHTML = p.image_url
-    ? `<img src="${encodeURI(p.image_url)}" alt="${name}" loading="lazy">`
+    ? `<img src="${optImg(p.image_url, 400)}" alt="${name}" loading="lazy" decoding="async">`
     : `<span class="pc-img-emoji">${productIcon(p)}</span>`;
 
   // Marcas disponibles: 1 → nombre+logo; varias → chip "N marcas"
@@ -237,7 +237,7 @@ function productCardHTML(p) {
     : `<button class="add-btn" title="Agregar al carrito" aria-label="Agregar ${name} al carrito" onclick="addCartById('${p.id}')">+</button>`;
 
   return `<div class="pc rv${soldOut ? ' is-out' : ''}">
-    <div class="pc-img" style="background:${bg}" onclick="openProductModal('${p.id}')"
+    <div class="pc-img${p.image_url ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
          role="button" tabindex="0" aria-label="Ver detalle de ${name}"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProductModal('${p.id}')}">
       ${imgHTML}
@@ -315,7 +315,12 @@ async function renderFeatured(containerId, limit = 4) {
 
   if (!allProducts.length) await loadProducts();
 
-  const featured = allProducts.filter(p => p.featured).slice(0, limit);
+  // Vista previa del inicio: solo productos CON foto. Destacados primero, luego el resto con imagen.
+  const withImg = allProducts.filter(p => p.image_url);
+  const featured = [
+    ...withImg.filter(p => p.featured),
+    ...withImg.filter(p => !p.featured),
+  ].slice(0, limit);
   if (!featured.length) { container.innerHTML = ''; return; }
 
   container.innerHTML = `<div class="prod-grid">${featured.map(p => productCardHTML(p)).join('')}</div>`;

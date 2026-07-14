@@ -42,7 +42,7 @@
   padding:11px 13px; border:2px solid var(--gb); border-radius:var(--rs); font-size:14px;
   transition:var(--tr); background:#fff; width:100%; color:var(--bk);
 }
-.fi:focus,.fta:focus { outline:none; border-color:var(--gm); box-shadow:0 0 0 3px rgba(43,182,115,.12) }
+.fi:focus,.fta:focus { outline:none; border-color:var(--gm); box-shadow:0 0 0 3px rgba(103,164,39,.16) }
 .fi.err,.fta.err    { border-color:var(--danger) }
 .fta { resize:vertical; min-height:90px }
 
@@ -75,8 +75,8 @@
 .val p  { font-size:12px; color:#666; line-height:1.5 }
 
 .met { border-radius:var(--r); padding:24px; text-align:center; color:#fff }
-.met:nth-child(odd)  { background:var(--gd) }
-.met:nth-child(even) { background:var(--gm) }
+.met:nth-child(odd)  { background:linear-gradient(160deg,var(--gd),var(--gdk)) }
+.met:nth-child(even) { background:linear-gradient(160deg,#1B6F56,#4E8B33) }
 .met-n { font-size:36px; font-weight:800; line-height:1 }
 .met-l { font-size:12px; opacity:.85; margin-top:5px; font-weight:500 }
 
@@ -194,7 +194,7 @@
 /* ---- Accessibility focus ---- */
 a:focus-visible, button:focus-visible, input:focus-visible,
 select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
-  outline:3px solid rgba(43,182,115,.55); outline-offset:2px; border-radius:6px;
+  outline:3px solid rgba(103,164,39,.60); outline-offset:2px; border-radius:6px;
 }
 
 /* Texto solo para lectores de pantalla (accesible pero invisible) */
@@ -212,9 +212,17 @@ input.sr-only { clip:rect(0,0,0,0) }
     min-width:44px; min-height:44px;
   }
   .co-cp { padding:8px 10px }
+  .pg { min-width:44px; min-height:44px }
+  .cf, .pr-chip, .trk-tab, .trk-mine button { min-height:44px }
+  /* Dots de carrusel: el punto visual queda igual, el área táctil crece */
+  .hp-dots button, .ph-dots button { position:relative }
+  .hp-dots button::after, .ph-dots button::after {
+    content:''; position:absolute; top:50%; left:50%;
+    width:28px; height:28px; transform:translate(-50%,-50%);
+  }
 }
 
 /* ---- Price display ---- */
 .price-usd { font-size:18px; font-weight:800; color:var(--gd) }
 .price-bs  { font-size:12px; color:var(--gr); font-weight:500 }
-.price-unit{ font-size:10px; color:#aaa; display:block; margin-top:1px }
+.price-unit{ font-size:10px; color:#767676; display:block; margin-top:1px }

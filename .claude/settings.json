@@ -3,7 +3,10 @@
     "allow": [
       "Bash(curl -s -o /dev/null -w \"index:%{http_code} \" http://localhost:8123/)",
       "Bash(curl -s -o /dev/null -w \"catalogo:%{http_code} \" http://localhost:8123/catalogo.html)",
-      "Bash(curl -s -o /dev/null -w \"config.js:%{http_code}\\\\n\" http://localhost:8123/assets/js/config.js)"
+      "Bash(curl -s -o /dev/null -w \"config.js:%{http_code}\\\\n\" http://localhost:8123/assets/js/config.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8123/catalogo.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --user-data-dir=C:/Users/PC/AppData/Local/Temp/claude/c--Users-PC-Desktop-JJ-PAPER/7f5ec085-2a30-440d-aed6-7ccf65c88294/scratchpad/edge-prof --no-first-run --window-size=500,3000 --hide-scrollbars --virtual-time-budget=15000 --screenshot=C:/Users/PC/AppData/Local/Temp/claude/c--Users-PC-Desktop-JJ-PAPER/7f5ec085-2a30-440d-aed6-7ccf65c88294/scratchpad/catalogo-frame375.png file:///C:/Users/PC/AppData/Local/Temp/claude/c--Users-PC-Desktop-JJ-PAPER/7f5ec085-2a30-440d-aed6-7ccf65c88294/scratchpad/frame375.html)",
+      "Bash(taskkill //IM msedge.exe //F)"
     ]
   }
 }

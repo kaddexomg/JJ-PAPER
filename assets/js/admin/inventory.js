@@ -70,7 +70,8 @@ function invGetFiltered() {
       || normTxt(r.jjp_products?.name).includes(q)
       || normTxt(r.jjp_brands?.name).includes(q)
       || normTxt(r.variant_name).includes(q)
-      || normTxt(r.sku).includes(q);
+      || normTxt(r.sku).includes(q)
+      || normTxt(r.barcode).includes(q);
     return stateOk && brandOk && qOk;
   });
 }
@@ -108,7 +109,7 @@ function renderInventory() {
   tbody.innerHTML = page.map(r => {
     const p   = r.jjp_products || {};
     const img = p.image_url
-      ? `<div class="td-img"><img src="${p.image_url}" alt=""></div>`
+      ? `<div class="td-img"><img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async"></div>`
       : `<div class="td-img">${p.emoji || '📦'}</div>`;
     const badge = r.stock < 0
       ? `<span class="badge badge-blue" title="Sin control de stock">∞</span>`

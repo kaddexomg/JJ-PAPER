@@ -15,6 +15,41 @@
 .inv-stock-ctrl .qb { width:26px; height:26px; font-size:14px }
 .inv-stock-in { width:64px; height:30px; font-size:13px; text-align:center; padding:0 4px }
 .inv-filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+
+/* ---- Modo conteo (escáner) ---- */
+.scan-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,20,15,.96);
+  display:none; flex-direction:column; padding:14px; overflow-y:auto; }
+.scan-overlay.op { display:flex; }
+.scan-head { display:flex; align-items:center; justify-content:space-between; color:#fff; margin-bottom:10px; }
+.scan-head h3 { margin:0; font-size:18px; }
+.scan-cam { position:relative; width:100%; max-width:520px; margin:0 auto; aspect-ratio:4/3;
+  background:#000; border-radius:14px; overflow:hidden; }
+.scan-cam video { width:100%; height:100%; object-fit:cover; }
+.scan-reticle { position:absolute; inset:18% 12%; border:3px solid #99CC33;
+  border-radius:12px; box-shadow:0 0 0 4000px rgba(0,0,0,.25); pointer-events:none; }
+.scan-status { text-align:center; color:#dfe; font-size:14px; margin:10px auto; min-height:20px; max-width:520px; }
+.scan-panel { width:100%; max-width:520px; margin:0 auto; background:#fff; border-radius:14px; padding:14px; }
+.scan-item { display:flex; gap:12px; align-items:center; }
+.scan-item-thumb { width:56px; height:56px; border-radius:10px; background:#f2f2f2;
+  display:flex; align-items:center; justify-content:center; font-size:28px; overflow:hidden; flex:none; }
+.scan-item-thumb img { width:100%; height:100%; object-fit:cover; }
+.scan-item-name { font-weight:700; }
+.scan-item-sub { font-size:12px; color:var(--gr); }
+.scan-count-row { display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.scan-count-in { width:80px; height:36px; text-align:center; font-size:16px; }
+.scan-hint { font-size:13px; color:var(--gr); margin:6px 0; }
+.scan-manual { display:flex; gap:8px; max-width:520px; margin:12px auto 0; width:100%; }
+.scan-manual .fi { flex:1; }
+.scan-link { width:100%; max-width:520px; margin:12px auto 0; background:#fff8e6;
+  border:1px solid #e8c96b; border-radius:14px; padding:14px; display:none; }
+.scan-link.op { display:block; }
+.scan-link-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.scan-link-results { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; margin-top:8px; }
+.scan-hit { text-align:left; background:#f7f7f7; border:1px solid #eee; border-radius:10px;
+  padding:8px 10px; cursor:pointer; display:flex; flex-direction:column; }
+.scan-hit:hover { background:#eef7e0; }
+.scan-hit-name { font-weight:600; font-size:14px; }
+.scan-hit-sub { font-size:12px; color:var(--gr); }
 </style>
 </head>
 <body class="admin-body">
@@ -32,6 +67,7 @@
       <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
       <a href="inventario.html" class="on"><span class="a-ico">🗃️</span> Inventario</a>
       <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
       <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
       <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
       <div class="divider"></div>
@@ -60,7 +96,9 @@
       <div class="topbar-right">
         <button class="btn-ghost" onclick="invExportCSV()" title="Exporta lo filtrado; edítalo y re-impórtalo en Productos">⬇️ Exportar CSV</button>
         <button class="btn-ghost" onclick="location.href='productos.html'">📥 Importar / Productos</button>
-        <button class="btn-p" onclick="loadInventory()">🔄 Refrescar</button>
+        <button class="btn-p" onclick="invScanOpen()">📷 Modo conteo</button>
+        <button class="btn-ghost" onclick="invScanPhoneLink()" title="Abre esta dirección en tu teléfono para escanear con su cámara">📲 Teléfono</button>
+        <button class="btn-ghost" onclick="loadInventory()">🔄 Refrescar</button>
       </div>
     </div>
 
@@ -127,6 +165,30 @@
   </main>
 </div>
 
+<!-- Overlay Modo conteo (escáner de cámara) -->
+<div class="scan-overlay" id="scanOverlay">
+  <div class="scan-head">
+    <h3>📷 Modo conteo</h3>
+    <button class="btn-p" onclick="invScanClose()">✓ Terminar</button>
+  </div>
+  <div class="scan-cam">
+    <video id="scanVideo" playsinline muted></video>
+    <div class="scan-reticle"></div>
+  </div>
+  <div class="scan-status" id="scanStatus">Iniciando…</div>
+
+  <div class="scan-panel">
+    <div id="scanActive"><p class="scan-hint">Ningún producto en conteo todavía.</p></div>
+  </div>
+
+  <form class="scan-manual" onsubmit="scanManualSubmit(event)">
+    <input type="text" class="fi" id="scanManualInput" placeholder="O escribe/pega el código y Enter…" autocomplete="off">
+    <button class="btn-ghost" type="submit">Buscar</button>
+  </form>
+
+  <div class="scan-link" id="scanLink"></div>
+</div>
+
 <div class="toast-c" id="toastC"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -134,6 +196,7 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/inventory.js"></script>
+<script src="../assets/js/admin/inv-scan.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
@@ -143,6 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminAside')?.classList.toggle('op')
   );
   await loadInventory();
+  scanStartBridge();   // recibe escaneos del teléfono (admin/escaner.html) en vivo
 });
 </script>
 </body>

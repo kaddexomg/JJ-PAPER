@@ -148,4 +148,6 @@ function closeMenu() {
 window.addEventListener('scroll', () => {
   const btt = document.getElementById('btt');
   if (btt) btt.classList.toggle('sh', window.scrollY > 400);
+  // Vidrio del nav más sólido tras hacer scroll (glass.css #nav.scrolled)
+  document.getElementById('nav')?.classList.toggle('scrolled', window.scrollY > 24);
 });

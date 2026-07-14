@@ -76,7 +76,7 @@ function promoPricesHTML(p) {
 }
 
 function promoMediaHTML(p, heroSize = false) {
-  if (p.image_url) return `<img src="${escapeHTML(p.image_url)}" alt="${escapeHTML(p.title)}" loading="lazy">`;
+  if (p.image_url) return `<img src="${escapeHTML(optImg(p.image_url, 800))}" alt="${escapeHTML(p.title)}" loading="lazy" decoding="async">`;
   return `<span class="pr-emoji">${escapeHTML(p.emoji || '🎉')}</span>`;
 }
 

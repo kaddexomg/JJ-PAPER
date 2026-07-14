@@ -78,7 +78,7 @@ function renderModalBody() {
   const imgUrl = v?.image_url || p.image_url;
 
   const imgHTML = imgUrl
-    ? `<img src="${encodeURI(imgUrl)}" alt="${name}">`
+    ? `<img src="${optImg(imgUrl, 800)}" alt="${name}" decoding="async">`
     : `<span style="font-size:90px">${p.emoji || '📦'}</span>`;
 
   // Stock badge (de la variante seleccionada)
@@ -130,9 +130,10 @@ function renderModalBody() {
 
   body.innerHTML = `
 <div class="prod-modal-grid">
-  <div class="prod-modal-img" style="background:${bg}">
+  <div class="prod-modal-img${imgUrl ? ' zoomable' : ''}" style="background:${bg}" ${imgUrl ? 'onclick="openModalImgZoom()"' : ''}>
     ${imgHTML}
     ${p.tag ? `<span class="pm-tag">${escapeHTML(p.tag)}</span>` : ''}
+    ${imgUrl ? `<button class="pm-zoom-btn" onclick="event.stopPropagation();openModalImgZoom()" aria-label="Ver imagen completa de ${name}">🔍 Ampliar</button>` : ''}
   </div>
   <div class="prod-modal-info">
     <div class="prod-modal-cat">${escapeHTML(cat.name || '')}</div>
@@ -224,9 +225,78 @@ function modalOrderWA() {
   openWA(msg);
 }
 
-// Close on ESC
+/* ======================================================
+   Lightbox de imagen: vista completa a pantalla con zoom
+   (doble toque / doble click alterna acercamiento).
+   ====================================================== */
+let _ilbUntrap = null;
+
+function ensureImgLightbox() {
+  if (document.getElementById('imgLightbox')) return;
+  const lb = document.createElement('div');
+  lb.id = 'imgLightbox';
+  lb.className = 'img-lightbox';
+  lb.setAttribute('role', 'dialog');
+  lb.setAttribute('aria-modal', 'true');
+  lb.setAttribute('aria-label', 'Vista ampliada de la imagen del producto');
+  lb.innerHTML = `
+    <button class="ilb-close" aria-label="Cerrar vista ampliada">✕</button>
+    <div class="ilb-stage"><img id="ilbImg" alt="" decoding="async"></div>
+    <p class="ilb-hint">Doble toque para acercar · pellizca para zoom</p>`;
+  document.body.appendChild(lb);
+
+  const stage = lb.querySelector('.ilb-stage');
+  const img   = lb.querySelector('#ilbImg');
+  lb.querySelector('.ilb-close').addEventListener('click', closeImgLightbox);
+  stage.addEventListener('click', e => { if (e.target === stage) closeImgLightbox(); });
+  img.addEventListener('dblclick', () => stage.classList.toggle('zoomed'));
+  // Doble toque en táctil (dblclick no siempre dispara en mobile)
+  let lastTap = 0;
+  img.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTap < 320) { e.preventDefault(); stage.classList.toggle('zoomed'); }
+    lastTap = now;
+  });
+}
+
+function openImgLightbox(url, alt) {
+  if (!url) return;
+  ensureImgLightbox();
+  const lb    = document.getElementById('imgLightbox');
+  const stage = lb.querySelector('.ilb-stage');
+  const img   = document.getElementById('ilbImg');
+  stage.classList.remove('zoomed');
+  img.src = encodeURI(url);
+  img.alt = alt || 'Imagen del producto';
+  lb.classList.add('op');
+  document.body.style.overflow = 'hidden';
+  if (_ilbUntrap) _ilbUntrap();
+  _ilbUntrap = trapFocus(lb);
+}
+
+// Devuelve true si el lightbox estaba abierto (para encadenar con ESC)
+function closeImgLightbox() {
+  const lb = document.getElementById('imgLightbox');
+  if (!lb?.classList.contains('op')) return false;
+  lb.classList.remove('op');
+  // Si el modal de producto sigue abierto, el body debe seguir sin scroll
+  const modalOpen = document.getElementById('prodModal')?.classList.contains('op');
+  document.body.style.overflow = modalOpen ? 'hidden' : '';
+  if (_ilbUntrap) { _ilbUntrap(); _ilbUntrap = null; }
+  return true;
+}
+
+// Abre el lightbox con la imagen de la variante/producto del modal
+function openModalImgZoom() {
+  const url = modalVariant?.image_url || modalProduct?.image_url;
+  if (url) openImgLightbox(url, modalProduct?.name);
+}
+
+// Close on ESC (el lightbox tiene prioridad sobre el modal)
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeProdModal();
+  if (e.key !== 'Escape') return;
+  if (closeImgLightbox()) return;
+  closeProdModal();
 });
 
 document.addEventListener('DOMContentLoaded', injectProductModal);

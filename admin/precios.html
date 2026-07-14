@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Precios · Ajuste cambiario | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Principal</span>
+      <a href="index.html"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="precios.html" class="on"><span class="a-ico">💱</span> Precios</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
+      <div class="divider"></div>
+      <span class="a-section">Catalogo</span>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Precios · Ajuste cambiario</h2>
+          <p>Protege tu margen ante la brecha BCV ↔ USDT. Se cobra a BCV.</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-ghost" onclick="prRebaseAll()" title="Fijar el precio actual como nueva base comercial">📌 Fijar base = precio actual</button>
+        <button class="btn-p" onclick="prApplyAll()">✅ Aplicar sugeridos (todos)</button>
+        <button class="btn-ghost" onclick="loadPricing()">🔄 Refrescar</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Tasas del día -->
+      <div class="stat-grid" style="margin-bottom:18px">
+        <div class="stat-card"><div class="stat-ico blue">🏦</div>
+          <div><div class="stat-n" id="pr-bcv">—</div><div class="stat-l">Tasa BCV (cobro)</div></div></div>
+        <div class="stat-card"><div class="stat-ico yellow">💵</div>
+          <div><div class="stat-n" id="pr-usdt">—</div><div class="stat-l">USDT / paralelo (reposición)</div></div></div>
+        <div class="stat-card"><div class="stat-ico red">📊</div>
+          <div><div class="stat-n" id="pr-gap">—</div><div class="stat-l">Brecha</div></div></div>
+        <div class="stat-card"><div class="stat-ico green">✖️</div>
+          <div><div class="stat-n" id="pr-factor">—</div><div class="stat-l">Factor (× precio)</div></div></div>
+      </div>
+
+      <p style="font-size:13px;color:var(--gr);margin:-6px 0 16px">
+        Sugerido = <strong>Base × Factor</strong>. Conserva el margen de cada producto sin necesidad del costo.
+        Actualización de tasas: <span id="pr-updated">—</span>.
+      </p>
+
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <h3>💱 Sugerencias de precio</h3>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span id="prCount" style="font-size:12px;color:var(--gr)"></span>
+            <div class="srch" style="min-width:220px">
+              <span class="srch-ico">🔍</span>
+              <input type="text" placeholder="Producto o marca..." oninput="prOnSearch(this.value)">
+            </div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th style="text-align:center">Margen</th>
+                <th style="text-align:right">Base (a la par)</th>
+                <th style="text-align:right">Precio actual</th>
+                <th style="text-align:right">Sugerido</th>
+                <th style="width:90px;text-align:center"></th>
+              </tr>
+            </thead>
+            <tbody id="prBody">
+              <tr><td colspan="6" class="table-empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer"><span style="font-size:12px;color:var(--gr)">Mostrando hasta 400 filas. Usa el buscador para acotar.</span><span></span></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/pricing.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
+    document.getElementById('adminAside')?.classList.toggle('op'));
+  await loadPricing();
+});
+</script>
+</body>
+</html>

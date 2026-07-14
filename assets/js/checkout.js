@@ -305,6 +305,89 @@ function showConfirmation(o, viaWA = false) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// ---- Pedir cotización (mismo carrito, sin pago) ----
+let quoteSubmitting = false;
+async function submitQuote() {
+  if (quoteSubmitting) return;
+  // Validación ligera: solo nombre + teléfono (la cotización no requiere pago)
+  const name = document.getElementById('co-name').value.trim();
+  const tel  = document.getElementById('co-tel').value.trim();
+  if (!Object.keys(cart).length) { showToast('Tu carrito está vacío', 'warn'); return; }
+  if (!name) { showToast('Ingresa tu nombre o empresa', 'warn'); document.getElementById('co-name').focus(); return; }
+  if (!tel)  { showToast('Ingresa tu teléfono', 'warn'); document.getElementById('co-tel').focus(); return; }
+  const telDigits = tel.replace(/\D/g, '');
+  const telOk = /^(0?4\d{9}|584\d{9})$/.test(telDigits) || /^0?2\d{9}$/.test(telDigits);
+  if (!telOk) { showToast('Revisa el teléfono (ej: 0412-1234567)', 'warn'); document.getElementById('co-tel').focus(); return; }
+
+  quoteSubmitting = true;
+  const btn = document.getElementById('coQuoteBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+  const { items, subtotal } = coTotals();
+  const qItems = items.map(i => ({
+    id: i.product_id || i.id, variant_id: i.variant_id || null,
+    name: i.name, brand: i.brand || null, qty: i.qty, unit: i.unit || 'unid',
+    price_usd: i.price_usd, subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
+  }));
+
+  const { data, error } = await sb.rpc('jjp_create_quote', {
+    p_client_name: name,
+    p_phone: tel,
+    p_items: qItems,
+    p_rif:  document.getElementById('co-rif').value.trim()   || null,
+    p_city: document.getElementById('co-city').value.trim()  || null,
+    p_email: document.getElementById('co-email').value.trim() || null,
+    p_notes: document.getElementById('co-notes').value.trim() || null,
+    p_source: 'web',
+    p_estimated_total_usd: +subtotal.toFixed(2),
+  });
+
+  const row = Array.isArray(data) ? data[0] : data;   // la RPC devuelve table(quote_number)
+  if (error || !row?.quote_number) {
+    console.error('quote rpc error:', error);
+    showToast('No se pudo enviar la cotización. Intenta de nuevo.', 'err');
+    quoteSubmitting = false;
+    if (btn) { btn.disabled = false; btn.textContent = '📋 Pedir cotización'; }
+    return;
+  }
+  showQuoteConfirmation(row.quote_number, name, tel, qItems, subtotal);
+}
+
+function showQuoteConfirmation(quoteNumber, name, tel, items, subtotal) {
+  const wrap = document.getElementById('checkoutWrap');
+  const waMsg = `📋 *COTIZACIÓN ${quoteNumber}* — JJ Paper\n\nHola, soy ${name}. Solicité esta cotización desde la web:\n`
+    + items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty}`).join('\n')
+    + `\n\n💰 Total estimado: ${fmtPrice(subtotal)}\nQuedo atento a la confirmación de precios. ¡Gracias!`;
+  window.__lastQuoteWA = waMsg;
+
+  wrap.innerHTML = `
+  <div class="co-done">
+    <div class="co-done-ico">📋</div>
+    <h2>¡Cotización enviada!</h2>
+    <p class="co-done-num">N° <strong>${escapeHTML(quoteNumber)}</strong></p>
+    <p class="co-done-msg">Recibimos tu solicitud. Un asesor confirmará los precios y te enviará la pre-factura a la brevedad.</p>
+    <div class="co-done-box">
+      <div class="co-done-row"><span>Productos</span><strong>${items.length}</strong></div>
+      <div class="co-done-row"><span>Total estimado</span><strong>${fmtPrice(subtotal)}</strong></div>
+    </div>
+    <p class="co-done-hint">📲 Guarda tu número. Puedes consultar el estado en <a href="rastreo.html" style="color:var(--gd);font-weight:700">Rastrear</a>.</p>
+    <div class="co-done-acts">
+      <button class="btn-wa" onclick="openWA(window.__lastQuoteWA)">💬 Enviar por WhatsApp</button>
+      <a class="btn-o" href="rastreo.html?c=${encodeURIComponent(quoteNumber)}">🔎 Rastrear cotización</a>
+      <a class="btn-p" href="catalogo.html">Seguir viendo →</a>
+    </div>
+  </div>`;
+
+  // Recordar la cotización en este navegador (rastreo rápido)
+  try {
+    const mine = JSON.parse(localStorage.getItem('jjp_my_quotes') || '[]');
+    mine.unshift({ n: quoteNumber, tel, at: Date.now() });
+    localStorage.setItem('jjp_my_quotes', JSON.stringify(mine.slice(0, 10)));
+  } catch (e) {}
+  cart = {}; cartSave(); cartUpdateBadge();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 // ---- Render payment data from settings ----
 function renderPaymentData() {
   const s = APP.SETTINGS || {};

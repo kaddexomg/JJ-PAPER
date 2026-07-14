@@ -91,6 +91,7 @@ function viewVOrder(id) {
     </table>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       ${canDeliver ? `<button class="bulk-btn green" onclick="markVDelivered('${o.id}')">📦 Marcar entregado</button>` : ''}
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}">🧾 Comprobante</a>
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${o.client_name}, le escribe ${SELLER?.name || ''} de JJ Paper sobre su pedido ${o.order_number}.`)}">💬 Contactar</a>
     </div>`;

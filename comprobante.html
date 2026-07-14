@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprobante | JJ Paper</title>
+<link rel="icon" href="assets/img/logo.svg">
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#1a1a1a; background:#eef1f0; padding:20px; }
+  .sheet { max-width:820px; margin:0 auto; background:#fff; padding:34px 38px; border-radius:8px;
+    box-shadow:0 4px 24px rgba(0,0,0,.1); }
+  .cmp-head { display:flex; justify-content:space-between; align-items:flex-start; gap:20px;
+    border-bottom:3px solid #16604A; padding-bottom:16px; margin-bottom:8px; }
+  .cmp-biz { display:flex; gap:12px; align-items:center; }
+  .cmp-biz img { width:56px; height:56px; }
+  .cmp-biz h1 { font-size:20px; color:#16604A; line-height:1.1; }
+  .cmp-biz .meta { font-size:12px; color:#555; margin-top:3px; }
+  .cmp-doc { text-align:right; }
+  .cmp-doc .tag { display:inline-block; background:#16604A; color:#fff; font-weight:700;
+    font-size:12px; padding:4px 10px; border-radius:5px; letter-spacing:.5px; }
+  .cmp-doc .num { font-size:20px; font-weight:800; margin-top:6px; }
+  .cmp-doc .date { font-size:12px; color:#555; }
+  .cmp-parties { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:18px 0; }
+  .cmp-parties .box { background:#f6f8f7; border-radius:8px; padding:12px 14px; }
+  .cmp-parties h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#16604A; margin-bottom:6px; }
+  .cmp-parties p { font-size:13px; line-height:1.5; }
+  table { width:100%; border-collapse:collapse; margin-top:6px; }
+  thead th { background:#16604A; color:#fff; font-size:12px; text-align:left; padding:8px 10px; }
+  thead th.r { text-align:right; } thead th.c { text-align:center; }
+  tbody td { padding:8px 10px; border-bottom:1px solid #e5e9e7; font-size:13px; }
+  tbody td.r { text-align:right; } tbody td.c { text-align:center; }
+  tfoot td { padding:6px 10px; font-size:13px; }
+  tfoot td.lbl { text-align:right; font-weight:600; color:#444; }
+  tfoot td.val { text-align:right; font-weight:700; width:150px; }
+  tfoot tr.total td { font-size:16px; color:#16604A; border-top:2px solid #16604A; padding-top:10px; }
+  tfoot tr.bs td { color:#C9A24B; }
+  .cmp-foot { margin-top:22px; border-top:1px solid #e5e9e7; padding-top:14px; font-size:11px; color:#777; line-height:1.6; }
+  .cmp-legal { font-style:italic; }
+  .toolbar { max-width:820px; margin:0 auto 14px; display:flex; gap:10px; justify-content:flex-end; }
+  .btn { border:0; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .btn-p { background:#16604A; color:#fff; }
+  .btn-g { background:#dfe5e2; color:#16604A; }
+  .loading, .err { max-width:820px; margin:40px auto; text-align:center; color:#555; }
+  .err { color:#b00; }
+  @media print {
+    body { background:#fff; padding:0; }
+    .sheet { box-shadow:none; border-radius:0; max-width:none; padding:16px 20px; }
+    .toolbar { display:none; }
+    @page { margin:12mm; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar" style="display:none">
+  <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir</button>
+  <button class="btn btn-g" onclick="window.close()">Cerrar</button>
+</div>
+<div id="content"><div class="loading">Cargando comprobante…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/admin/auth.js"></script>
+<script>
+(async () => {
+  const content = document.getElementById('content');
+  const session = await requireAuth('vendedor');   // admin o vendedor
+  if (!session) return;
+  await loadSettings();
+
+  const params = new URLSearchParams(location.search);
+  const num = params.get('n');
+  if (!num) { content.innerHTML = '<div class="err">Falta el número de pedido (?n=...)</div>'; return; }
+
+  const { data: o, error } = await sb.from('jjp_orders').select('*').eq('order_number', num).maybeSingle();
+  if (error || !o) { content.innerHTML = '<div class="err">No se encontró el pedido ' + escapeHTML(num) + '.</div>'; return; }
+
+  render(o);
+  document.getElementById('toolbar').style.display = 'flex';
+  if (params.get('print') === '1') setTimeout(() => window.print(), 400);
+})();
+
+function render(o) {
+  const s = APP.SETTINGS || {};
+  const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+  const rate = Number(o.exchange_rate) || getRate();
+  const total = Number(o.total_usd) || 0;
+
+  // IVA desglosado sobre precios IVA-incluido (configurable jjp_settings.iva_pct, def 16; 0 = no desglosar)
+  const ivaPct = s.iva_pct !== undefined && s.iva_pct !== '' ? parseFloat(s.iva_pct) : 16;
+  let ivaRows = '';
+  if (ivaPct > 0) {
+    const base = total / (1 + ivaPct / 100);
+    const iva  = total - base;
+    ivaRows = `
+      <tr><td colspan="3" class="lbl">Base imponible</td><td class="val">${fmtPrice(base)}</td></tr>
+      <tr><td colspan="3" class="lbl">IVA (${ivaPct}%)</td><td class="val">${fmtPrice(iva)}</td></tr>`;
+  }
+
+  const discRow = (o.discount_status === 'approved' && o.discount_pct > 0)
+    ? `<tr><td colspan="3" class="lbl">Descuento ${o.discount_pct}%</td><td class="val">−${fmtPrice((Number(o.subtotal_usd)||total) - total)}</td></tr>` : '';
+
+  const rows = items.map(i => `<tr>
+    <td>${escapeHTML(i.name || i.product || '—')}${i.brand ? ` <small style="color:#888">(${escapeHTML(i.brand)})</small>` : ''}</td>
+    <td class="c">${i.qty} ${escapeHTML(i.unit || '')}</td>
+    <td class="r">${fmtPrice(i.price_usd)}</td>
+    <td class="r">${fmtPrice(i.subtotal_usd ?? i.price_usd * i.qty)}</td>
+  </tr>`).join('');
+
+  const bizName = s.business_name || 'JJ Paper';
+  const method = { pago_movil:'Pago Móvil', transferencia:'Transferencia', efectivo:'Efectivo' }[o.payment_method] || o.payment_method || '—';
+
+  document.getElementById('content').innerHTML = `
+  <div class="sheet">
+    <div class="cmp-head">
+      <div class="cmp-biz">
+        <img src="assets/img/logo.svg" alt="">
+        <div>
+          <h1>${escapeHTML(bizName)}</h1>
+          <div class="meta">
+            ${s.rif ? 'RIF: ' + escapeHTML(s.rif) + '<br>' : ''}
+            ${s.address ? escapeHTML(s.address) + '<br>' : ''}
+            ${s.whatsapp_number ? '📱 ' + escapeHTML(s.phone_display || s.whatsapp_number) : ''}
+          </div>
+        </div>
+      </div>
+      <div class="cmp-doc">
+        <span class="tag">COMPROBANTE</span>
+        <div class="num">${escapeHTML(o.order_number)}</div>
+        <div class="date">${fmtDate(o.created_at)}</div>
+      </div>
+    </div>
+
+    <div class="cmp-parties">
+      <div class="box">
+        <h3>Cliente</h3>
+        <p><strong>${escapeHTML(o.client_name)}</strong><br>
+        ${o.rif ? 'RIF/CI: ' + escapeHTML(o.rif) + '<br>' : ''}
+        ${o.phone ? '📱 ' + escapeHTML(o.phone) + '<br>' : ''}
+        ${o.city ? escapeHTML(o.city) + '<br>' : ''}
+        ${o.address ? escapeHTML(o.address) : ''}</p>
+      </div>
+      <div class="box">
+        <h3>Datos del documento</h3>
+        <p>Método de pago: <strong>${method}</strong><br>
+        ${o.payment_ref ? 'Referencia: ' + escapeHTML(o.payment_ref) + '<br>' : ''}
+        Tasa del día: Bs ${rate.toFixed(2)} / $<br>
+        Estado: ${escapeHTML(o.status || '')}</p>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr>
+        <th>Producto</th><th class="c">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        ${discRow}
+        ${ivaRows}
+        <tr class="total"><td colspan="3" class="lbl">TOTAL (USD)</td><td class="val">${fmtPrice(total)}</td></tr>
+        <tr class="bs"><td colspan="3" class="lbl">TOTAL (Bs)</td><td class="val">${fmtBsNum(total * rate)}</td></tr>
+      </tfoot>
+    </table>
+
+    <div class="cmp-foot">
+      ${o.notes ? '<p><strong>Notas:</strong> ' + escapeHTML(o.notes) + '</p>' : ''}
+      <p class="cmp-legal">Este documento es un comprobante interno de la operación y NO constituye una factura fiscal a los efectos del SENIAT.</p>
+      <p>${escapeHTML(bizName)} · Gracias por su compra.</p>
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>

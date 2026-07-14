@@ -87,7 +87,7 @@ function renderOrdersTable() {
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
-      <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div></td>
+      <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🏷️ desc. ${o.discount_pct}% por aprobar</div>` : ''}</td>
       <td>
         <select class="status-sel st-${o.status}" onchange="updateOrderStatus('${o.id}', this.value)">
           ${ORDER_STATUSES.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
@@ -134,6 +134,19 @@ async function updateOrderStatus(id, status) {
   // keep the select colour in sync
   const sel = document.querySelector(`select[onchange*="${id}"]`);
   if (sel) sel.className = `status-sel st-${status}`;
+}
+
+// Aprobar / rechazar el descuento solicitado por un vendedor (RPC valida que seas admin)
+async function decideDiscount(id, approve) {
+  if (!confirm(`¿${approve ? 'Aprobar' : 'Rechazar'} el descuento de este pedido?`)) return;
+  const { data, error } = await sb.rpc('jjp_decide_discount', { p_order: id, p_approve: approve });
+  if (error) { showToast('No se pudo procesar el descuento: ' + error.message, 'err'); return; }
+  const row = Array.isArray(data) ? data[0] : data;
+  const o = adminOrders.find(x => x.id === id);
+  if (o && row) Object.assign(o, row);
+  showToast(approve ? '✅ Descuento aprobado' : '✕ Descuento rechazado');
+  renderOrdersTable();
+  viewOrder(id);   // refresca el modal con los totales nuevos
 }
 
 async function syncOrderStock(id, status) {
@@ -212,12 +225,28 @@ function viewOrder(id) {
     <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr></thead>
     <tbody>${itemsRows}</tbody>
     <tfoot>
-      <tr><td colspan="3" style="text-align:right;font-weight:700">Total</td>
+      ${o.discount_pct > 0 ? `
+      <tr><td colspan="3" style="text-align:right">Subtotal</td>
+          <td style="text-align:right">${fmtPrice(o.subtotal_usd)}</td></tr>
+      <tr><td colspan="3" style="text-align:right;color:var(--gm)">Descuento ${o.discount_pct}% ${o.discount_status === 'approved' ? '(aplicado)' : o.discount_status === 'pending' ? '(pendiente)' : '(rechazado)'}</td>
+          <td style="text-align:right;color:var(--gm)">${o.discount_status === 'approved' ? '−' + fmtPrice(o.subtotal_usd - o.total_usd) : '—'}</td></tr>` : ''}
+      <tr><td colspan="3" style="text-align:right;font-weight:700">Total${o.discount_status === 'pending' ? ' (a cobrar, sin descuento)' : ''}</td>
           <td style="text-align:right"><strong>${fmtPrice(o.total_usd)}</strong></td></tr>
       <tr><td colspan="3" style="text-align:right;color:var(--gm);font-weight:700">En bolívares (tasa ${Number(o.exchange_rate).toFixed(2)})</td>
           <td style="text-align:right;color:var(--gm)"><strong>${fmtBsNum(o.total_bs)}</strong></td></tr>
     </tfoot>
   </table>
+
+  ${o.discount_status === 'pending' ? `
+  <div style="margin-top:16px;padding:14px;border:1px solid #e8c96b;background:#fff8e6;border-radius:12px">
+    <strong>🏷️ Descuento por aprobar: ${o.discount_pct}%</strong>
+    <p style="font-size:13px;color:#555;margin:6px 0">Solicitado por el vendedor. Al aprobar, el total baja a <strong>${fmtPrice(o.subtotal_usd * (1 - o.discount_pct / 100))}</strong>.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-p" onclick="decideDiscount('${o.id}', true)">✅ Aprobar descuento</button>
+      <button class="btn-danger" onclick="decideDiscount('${o.id}', false)">✕ Rechazar</button>
+    </div>
+  </div>` : o.discount_status === 'approved' ? `
+  <div style="margin-top:12px;color:var(--gm);font-size:13px">✅ Descuento ${o.discount_pct}% aprobado.</div>` : ''}
 
   <div class="ord-actions">
     <div class="ord-status-set">

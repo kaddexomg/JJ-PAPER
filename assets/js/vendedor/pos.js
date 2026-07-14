@@ -126,13 +126,14 @@ function posRenderTicket() {
 
   const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
   const d        = posDiscount();
-  const total    = subtotal * (1 - d / 100);
   const rate     = getRate();
+  // El descuento NO se aplica hasta que el admin lo apruebe → se cobra a precio lleno
   tots.innerHTML = `
     <div class="pos-tot"><span>Subtotal</span><span>${fmtPrice(subtotal)}</span></div>
-    ${d > 0 ? `<div class="pos-tot" style="color:var(--gm)"><span>Descuento ${d}%</span><span>−${fmtPrice(subtotal - total)}</span></div>` : ''}
-    <div class="pos-tot big"><span>Total</span><span>${fmtPrice(total)}</span></div>
-    <div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(total * rate)}</span></div>`;
+    ${d > 0 ? `<div class="pos-tot" style="color:var(--gm)"><span>Descuento ${d}% (solicitado)</span><span>⏳ pendiente</span></div>` : ''}
+    <div class="pos-tot big"><span>Total a cobrar</span><span>${fmtPrice(subtotal)}</span></div>
+    <div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(subtotal * rate)}</span></div>
+    ${d > 0 ? `<div class="pos-tot" style="color:var(--gr);font-size:11px"><span>Con el descuento quedaría</span><span>${fmtPrice(subtotal * (1 - d / 100))}</span></div>` : ''}`;
 }
 
 /* ---------- Cliente (CRM) ---------- */
@@ -185,8 +186,9 @@ async function posSubmit() {
 
   const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
   const d        = posDiscount();
-  const total    = +(subtotal * (1 - d / 100)).toFixed(2);
   const rate     = getRate();
+  // Descuento solicitado → se cobra a precio lleno hasta que el admin lo apruebe.
+  const total    = +subtotal.toFixed(2);
   const payRef   = document.getElementById('posPayRef').value.trim() || null;
 
   const order = {
@@ -202,6 +204,8 @@ async function posSubmit() {
     })),
     subtotal_usd: +subtotal.toFixed(2),
     discount_pct: d,
+    discount_status: d > 0 ? 'pending' : 'none',
+    discount_requested_by: d > 0 ? SELLER.id : null,
     total_usd: total,
     exchange_rate: rate,
     total_bs: +(total * rate).toFixed(2),
@@ -228,18 +232,23 @@ async function posSubmit() {
 }
 
 function posShowDone(o) {
+  // El mensaje al cliente muestra el precio lleno (el descuento se confirma tras la aprobación del admin)
   const waMsg = `🛒 *PEDIDO ${o.order_number}* — JJ Paper\n\nHola ${o.client_name}, aquí está el resumen de tu compra:\n`
     + o.items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
-    + (o.discount_pct > 0 ? `\n🏷️ Descuento: ${o.discount_pct}%` : '')
     + `\n💰 *Total: ${fmtPrice(o.total_usd)}* (${fmtBsNum(o.total_bs)})`
     + `\n\n🔎 Rastrea tu pedido: ${location.origin}/rastreo.html?n=${encodeURIComponent(o.order_number)}`
     + `\n\nAtendido por: ${SELLER.name} — JJ Paper 📄`;
 
+  const discNote = o.discount_pct > 0
+    ? `<div class="co-done-row" style="color:var(--gm)"><span>Descuento ${o.discount_pct}%</span><strong>⏳ pendiente de aprobación del admin</strong></div>`
+    : '';
+
   document.getElementById('posDoneBody').innerHTML = `
     <p style="text-align:center;font-size:15px">Pedido <strong>${escapeHTML(o.order_number)}</strong> registrado a nombre de <strong>${escapeHTML(o.client_name)}</strong>.</p>
     <div class="co-done-box" style="margin:14px 0">
-      <div class="co-done-row"><span>Total</span><strong>${fmtPrice(o.total_usd)}</strong></div>
+      <div class="co-done-row"><span>Total a cobrar</span><strong>${fmtPrice(o.total_usd)}</strong></div>
       <div class="co-done-row"><span>En bolívares</span><strong>${fmtBsNum(o.total_bs)}</strong></div>
+      ${discNote}
       <div class="co-done-row"><span>Estado</span><strong>${o.status === 'verificando' ? 'Verificando pago' : 'Pendiente de pago'}</strong></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">

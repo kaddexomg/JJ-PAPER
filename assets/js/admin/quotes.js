@@ -22,6 +22,9 @@ function quoteItemsOf(q) {
   return Array.isArray(items) ? items : [];
 }
 
+// Nombre del producto tolerante: el chatbot guarda `product`, el vendedor/POS `name`.
+function qItemName(i) { return i.name || i.product || '—'; }
+
 // Total estimado: usa estimated_total_usd o lo calcula de los items con precio
 function quoteEstTotal(q) {
   if (q.estimated_total_usd) return Number(q.estimated_total_usd);
@@ -44,7 +47,7 @@ function renderQuotesTable() {
 
   tbody.innerHTML = page.map(q => {
     const items = quoteItemsOf(q);
-    const itemsPreview = items.slice(0,2).map(i => `${escapeHTML(i.product)} x${i.qty}`).join(', ')
+    const itemsPreview = items.slice(0,2).map(i => `${escapeHTML(qItemName(i))} x${i.qty}`).join(', ')
       + (items.length > 2 ? '…' : '');
     const est = quoteEstTotal(q);
     return `<tr>
@@ -111,10 +114,10 @@ function buildPrefacturaMsg(q) {
     if (i.price_usd) {
       const sub = i.price_usd * i.qty;
       total += sub;
-      msg += `${idx+1}. ${i.product} x${i.qty}${i.unit ? ' ' + i.unit : ''} — $${sub.toFixed(2)}\n`;
+      msg += `${idx+1}. ${qItemName(i)} x${i.qty}${i.unit ? ' ' + i.unit : ''} — $${sub.toFixed(2)}\n`;
     } else {
       pending++;
-      msg += `${idx+1}. ${i.product} x${i.qty}${i.unit ? ' ' + i.unit : ''} — (precio por confirmar)\n`;
+      msg += `${idx+1}. ${qItemName(i)} x${i.qty}${i.unit ? ' ' + i.unit : ''} — (precio por confirmar)\n`;
     }
   });
   if (total > 0) {
@@ -144,7 +147,7 @@ async function convertQuoteToOrder(id) {
     client_name: q.client_name, rif: q.rif || null, phone: q.phone,
     email: q.email || null, city: q.city || null, address: null,
     items: items.map(i => ({
-      id: i.product_id || null, name: i.product, qty: i.qty,
+      id: i.product_id || i.id || null, name: qItemName(i), qty: i.qty,
       unit: i.unit || 'unid', price_usd: i.price_usd,
       subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
     })),
@@ -193,7 +196,7 @@ function viewQuoteDetail(id) {
       <tbody>
         ${items.map((i, idx) => `<tr>
           <td>${i.line || idx + 1}</td>
-          <td>${escapeHTML(i.product)}</td>
+          <td>${escapeHTML(qItemName(i))}</td>
           <td>${i.qty}</td>
           <td>${escapeHTML(i.unit || '—')}</td>
           <td style="text-align:right">${i.price_usd ? fmtPrice(i.price_usd) : '<span style="color:#bbb">por confirmar</span>'}</td>

@@ -49,6 +49,10 @@ function applySettings(map) {
   if (map.exchange_rate) APP.EXCHANGE_RATE = parseFloat(map.exchange_rate);
   if (map.whatsapp_number) APP.WA_NUM = map.whatsapp_number;
   if (map.whatsapp_message) APP.WA_MSG = map.whatsapp_message;
+  // Todos los enlaces marcados con data-wa-msg usan el número configurado
+  document.querySelectorAll('[data-wa-msg]').forEach(el => {
+    el.href = `https://wa.me/${APP.WA_NUM}?text=${encodeURIComponent(el.dataset.waMsg || APP.WA_MSG)}`;
+  });
   // Keep injected footer/contact info in sync (nav.js)
   if (typeof refreshContactUI === 'function') refreshContactUI();
 }

@@ -94,11 +94,33 @@ function posRenderTicket() {
       <strong style="min-width:60px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
     </div>`).join('');
 
-  const total = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
+  const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
+  const pct   = quoteDiscountPct();
+  const total = subtotal * (1 - pct / 100);
   const rate  = getRate();
   tots.innerHTML = `
+    ${pct > 0 ? `
+      <div class="pos-tot"><span>Subtotal</span><span>${fmtPrice(subtotal)}</span></div>
+      <div class="pos-tot" style="color:var(--gm)"><span>Descuento ${pct}%</span><span>−${fmtPrice(subtotal - total)}</span></div>` : ''}
     <div class="pos-tot big"><span>Total estimado</span><span>${fmtPrice(total)}</span></div>
     <div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(total * rate)}</span></div>`;
+}
+
+// % propuesto, acotado al máximo permitido al vendedor (jjp_profiles.max_discount_pct)
+function quoteDiscountPct() {
+  const el = document.getElementById('qDisc');
+  if (!el) return 0;
+  const max = Number(SELLER?.max_discount_pct) || 0;
+  let pct = Math.max(0, Math.min(100, Number(el.value) || 0));
+  if (max > 0 && pct > max) {
+    pct = max; el.value = max;
+    showToast(`Tu descuento máximo permitido es ${max}%`, 'warn');
+  }
+  const hint = document.getElementById('qDiscHint');
+  if (hint) hint.textContent = max > 0
+    ? `Máx. permitido: ${max}%. Al facturar, el admin lo confirma.`
+    : 'Al facturar, el admin confirma el descuento.';
+  return pct;
 }
 
 /* --- guardar cotización --- */
@@ -115,7 +137,9 @@ async function quoteSubmit() {
   const btn = document.getElementById('qSubmitBtn');
   btn.disabled = true; btn.textContent = 'Guardando...';
 
-  const total = +lines.reduce((s, l) => s + l.price_usd * l.qty, 0).toFixed(2);
+  const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
+  const pct   = quoteDiscountPct();
+  const total = +(subtotal * (1 - pct / 100)).toFixed(2);
   const quote = {
     quote_number: genOrderNumber('COT'),
     client_name: name,
@@ -128,6 +152,7 @@ async function quoteSubmit() {
       subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
     })),
     estimated_total_usd: total,
+    discount_pct: pct,
     exchange_rate: getRate(),
     notes: document.getElementById('qNotes').value.trim() || null,
     status: 'pendiente',
@@ -147,8 +172,13 @@ async function quoteSubmit() {
 }
 
 function quoteShowDone(q) {
+  const subtotal = q.items.reduce((s, i) => s + i.subtotal_usd, 0);
+  const discLines = q.discount_pct > 0
+    ? `\n\nSubtotal: ${fmtPrice(subtotal)}\n🏷️ *Descuento ${q.discount_pct}%: −${fmtPrice(subtotal - q.estimated_total_usd)}*`
+    : '';
   const waMsg = `📋 *COTIZACIÓN ${q.quote_number}* — JJ Paper\n\nHola ${q.client_name}, aquí está tu cotización:\n`
     + q.items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
+    + discLines
     + `\n\n💰 *Total estimado: ${fmtPrice(q.estimated_total_usd)}* (${fmtBsNum(q.estimated_total_usd * q.exchange_rate)})`
     + `\n_Precios sujetos a cambio según tasa del día._`
     + (q.notes ? `\n\n📝 ${q.notes}` : '')
@@ -157,6 +187,7 @@ function quoteShowDone(q) {
   document.getElementById('qDoneBody').innerHTML = `
     <p style="text-align:center;font-size:15px">Cotización <strong>${escapeHTML(q.quote_number)}</strong> guardada para <strong>${escapeHTML(q.client_name)}</strong>.</p>
     <div class="co-done-box" style="margin:14px 0">
+      ${q.discount_pct > 0 ? `<div class="co-done-row"><span>Descuento propuesto</span><strong>${q.discount_pct}%</strong></div>` : ''}
       <div class="co-done-row"><span>Total estimado</span><strong>${fmtPrice(q.estimated_total_usd)}</strong></div>
       <div class="co-done-row"><span>Productos</span><strong>${q.items.length}</strong></div>
     </div>
@@ -174,5 +205,6 @@ function quoteReset() {
   ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  const disc = document.getElementById('qDisc'); if (disc) disc.value = 0;
   document.getElementById('qDoneModal').classList.remove('op');
 }

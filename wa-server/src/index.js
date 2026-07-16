@@ -1,6 +1,7 @@
 import { log } from './logger.js';
 import * as manager from './session-manager.js';
 import { startOutbox } from './outbox.js';
+import { startCampaigns } from './campaigns.js';
 import { startRates } from './rates.js';
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
@@ -8,6 +9,7 @@ log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html 
 
 await manager.boot();
 startOutbox(manager);
+startCampaigns(manager);   // difusión masiva con throttle (vendedor/difusion.html)
 startRates();   // actualiza BCV + USDT/paralelo en jjp_settings cada hora
 
 process.on('SIGINT', () => { log.info('apagando…'); process.exit(0); });

@@ -138,10 +138,15 @@ async function convertQuoteToOrder(id) {
     showToast('Todos los productos deben tener precio para convertir', 'warn');
     return;
   }
-  if (!confirm(`¿Crear un pedido a partir de la cotización ${q.quote_number}?`)) return;
+  const discNote = Number(q.discount_pct) > 0
+    ? `\n\nIncluye ${q.discount_pct}% de descuento propuesto — al convertir queda APROBADO.` : '';
+  if (!confirm(`¿Crear un pedido a partir de la cotización ${q.quote_number}?${discNote}`)) return;
 
   const rate  = getRate();
-  const total = items.reduce((s, i) => s + i.price_usd * i.qty, 0);
+  const subtotal = items.reduce((s, i) => s + i.price_usd * i.qty, 0);
+  const pct   = Number(q.discount_pct) || 0;
+  // El admin convierte → el descuento propuesto en la cotización queda aprobado
+  const total = subtotal * (1 - pct / 100);
   const order = {
     order_number: genOrderNumber(),
     client_name: q.client_name, rif: q.rif || null, phone: q.phone,
@@ -151,7 +156,9 @@ async function convertQuoteToOrder(id) {
       unit: i.unit || 'unid', price_usd: i.price_usd,
       subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
     })),
-    subtotal_usd: +total.toFixed(2), total_usd: +total.toFixed(2),
+    subtotal_usd: +subtotal.toFixed(2), total_usd: +total.toFixed(2),
+    discount_pct: pct,
+    discount_status: pct > 0 ? 'approved' : 'none',
     exchange_rate: rate, total_bs: +(total * rate).toFixed(2),
     payment_method: 'efectivo', payment_ref: null,
     notes: `Generado desde cotización ${q.quote_number}`,

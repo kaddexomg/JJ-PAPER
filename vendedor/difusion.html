@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Difusión WhatsApp | JJ Paper Vendedor</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+<style>
+  .d-tag{display:inline-block;background:#e8f3ee;color:#16604A;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600}
+  .d-prog{height:8px;border-radius:6px;background:#e5e7eb;overflow:hidden}
+  .d-prog-fill{height:100%;background:linear-gradient(90deg,#16604A,#99CC33);transition:width .4s}
+  .d-tpl-card{border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:8px}
+  .d-tpl-hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .d-tpl-body{white-space:pre-wrap;font-family:inherit;font-size:13px;color:#444;background:#f8faf9;border-radius:8px;padding:10px;margin:0;max-height:150px;overflow:auto}
+  .d-tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+  .d-preview{white-space:pre-wrap;background:#e7f6e9;border-radius:12px;padding:12px;font-size:13px;border:1px solid #c9e8cd}
+  .d-varchips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+  .d-varchips button{font-size:12px}
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em> <small style="font-size:10px;opacity:.7">VENDEDOR</small></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Ventas</span>
+      <a href="index.html"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
+      <a href="pos.html"><span class="a-ico">🛍️</span> Nueva venta (POS)</a>
+      <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
+      <a href="clientes.html"><span class="a-ico">👥</span> Mis clientes</a>
+      <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
+      <a href="difusion.html" class="on"><span class="a-ico">📣</span> Difusión</a>
+      <div class="divider"></div>
+      <span class="a-section">Sitio</span>
+      <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Vendedor: <strong id="sellerName" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Difusión WhatsApp</h2>
+          <p>Carga contactos, crea plantillas y automatiza tus envíos</p>
+        </div>
+      </div>
+      <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+    </div>
+
+    <div class="admin-content">
+      <div class="of-chips" role="tablist" aria-label="Secciones de difusión">
+        <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setDTab('campanas')">📣 Campañas</button>
+        <button class="of-chip"    role="tab" data-tab="contactos" aria-selected="false" onclick="setDTab('contactos')">📇 Contactos</button>
+        <button class="of-chip"    role="tab" data-tab="plantillas" aria-selected="false" onclick="setDTab('plantillas')">📝 Plantillas</button>
+      </div>
+
+      <!-- ===== Campañas ===== -->
+      <section data-panel="campanas">
+        <div class="admin-table-wrap">
+          <div class="table-top">
+            <h3>📣 Mis campañas</h3>
+            <span style="font-size:12px;color:#777">Los mensajes salen uno a uno con pausa aleatoria (protege tu número). La reactivación de inactivos se crea sola cada día.</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="admin-table">
+              <thead><tr><th>Campaña</th><th>Estado</th><th>Progreso</th><th>Destinatarios</th><th>Acciones</th></tr></thead>
+              <tbody id="dCampBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Contactos ===== -->
+      <section data-panel="contactos" style="display:none">
+        <div class="admin-table-wrap">
+          <div class="table-top">
+            <h3>📇 Contactos <span id="dContactCount" style="font-size:12px;color:#777;font-weight:400"></span></h3>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input class="fi" id="dContactSearch" placeholder="Buscar nombre, teléfono o etiqueta..." oninput="renderDContacts()" style="max-width:240px;font-size:13px">
+              <button class="btn-p" onclick="openImportModal()">📥 Importar lista</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="admin-table">
+              <thead><tr><th>Contacto</th><th>Etiquetas</th><th>Compras</th><th>Última compra</th><th>Difusión</th></tr></thead>
+              <tbody id="dContactsBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Plantillas ===== -->
+      <section data-panel="plantillas" style="display:none">
+        <div class="admin-table-wrap">
+          <div class="table-top">
+            <h3>📝 Plantillas de mensaje</h3>
+            <button class="btn-p" onclick="openTplModal()">＋ Nueva plantilla</button>
+          </div>
+          <div class="d-tpl-grid" id="dTplList"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: importar contactos -->
+<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeDModal('importModal')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <div class="modal-hd">
+      <h3 id="importTitle">📥 Importar lista de contactos</h3>
+      <button class="modal-close" onclick="closeDModal('importModal')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#666;margin-top:0">Pega tu avance de datos (una línea por contacto: <code>Nombre o empresa, teléfono</code>) o sube un CSV.</p>
+      <div class="fg">
+        <label class="fl" for="di-text">Lista de contactos</label>
+        <textarea class="fi" id="di-text" rows="7" oninput="diParse()" placeholder="Librería El Saber, 04121234567&#10;Oficina Torre Delta, 0424-555.66.77&#10;Colegio San José, +58 412 9998877"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg">
+          <label class="fl" for="di-file">O sube un archivo CSV</label>
+          <input class="fi" id="di-file" type="file" accept=".csv,.txt" onchange="diFileChosen(this)">
+        </div>
+        <div class="fg">
+          <label class="fl" for="di-tag">Etiqueta para este lote (opcional)</label>
+          <input class="fi" id="di-tag" placeholder="ej: librerías, zona norte" oninput="diParse()">
+        </div>
+      </div>
+      <div id="diPreview" style="font-size:13px" aria-live="polite"></div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeDModal('importModal')">Cancelar</button>
+        <button class="btn-p" id="diConfirmBtn" onclick="diConfirm()" disabled>📥 Importar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: plantilla -->
+<div class="modal-overlay" id="tplModal" onclick="if(event.target===this)closeDModal('tplModal')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tplModalTitle" style="max-width:640px">
+    <div class="modal-hd">
+      <h3 id="tplModalTitle">Nueva plantilla</h3>
+      <button class="modal-close" onclick="closeDModal('tplModal')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl" for="tp-name">Nombre de la plantilla *</label>
+        <input class="fi" id="tp-name" placeholder="ej: Oferta resmas mayorista"></div>
+      <div class="fg">
+        <label class="fl" for="tp-body">Mensaje * (usa las variables — se reemplazan por los datos de cada contacto)</label>
+        <div class="d-varchips" aria-label="Insertar variable">
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('nombre')">＋ nombre</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('vendedor')">＋ vendedor</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">＋ descuento</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('link')">＋ link catálogo</button>
+        </div>
+        <textarea class="fi" id="tp-body" rows="7" oninput="tplPreview()" placeholder="Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper..."></textarea>
+      </div>
+      <div class="fg">
+        <label class="fl">Vista previa (con datos de ejemplo)</label>
+        <div class="d-preview" id="tplPreview" aria-live="polite"></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeDModal('tplModal')">Cancelar</button>
+        <button class="btn-p" onclick="saveTpl()">💾 Guardar plantilla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nueva campaña -->
+<div class="modal-overlay" id="campModal" onclick="if(event.target===this)closeDModal('campModal')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="campModalTitle" style="max-width:640px">
+    <div class="modal-hd">
+      <h3 id="campModalTitle">📣 Nueva campaña</h3>
+      <button class="modal-close" onclick="closeDModal('campModal')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="fl" for="nc-name">Nombre de la campaña</label>
+          <input class="fi" id="nc-name"></div>
+        <div class="fg"><label class="fl" for="nc-tpl">Plantilla</label>
+          <select class="fi" id="nc-tpl" onchange="ncRefresh()"></select></div>
+        <div class="fg"><label class="fl" for="nc-aud">Audiencia</label>
+          <select class="fi" id="nc-aud" onchange="ncRefresh()">
+            <option value="todos">Toda mi cartera</option>
+            <option value="inactivos">😴 Solo inactivos</option>
+            <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
+            <option value="etiqueta">🏷️ Por etiqueta</option>
+          </select></div>
+        <div class="fg" id="nc-tag-wrap" style="display:none"><label class="fl" for="nc-tag">Etiqueta</label>
+          <input class="fi" id="nc-tag" placeholder="ej: librerías" oninput="ncRefresh()"></div>
+      </div>
+      <p id="ncCount" style="font-size:13px;font-weight:600;color:#16604A" aria-live="polite"></p>
+      <div class="fg">
+        <label class="fl">Así se verá el mensaje</label>
+        <div class="d-preview" id="ncPreview"></div>
+      </div>
+      <p style="font-size:12px;color:#888">Los contactos excluidos (🔕) y sin teléfono válido se omiten automáticamente. Envío espaciado con pausas aleatorias y tope diario para cuidar tu número de WhatsApp.</p>
+      <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeDModal('campModal')">Cancelar</button>
+        <button class="btn-p" id="ncLaunchBtn" onclick="launchCampaign()">🚀 Lanzar campaña</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/vdifusion.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+  await initDifusion();
+});
+</script>
+</body>
+</html>

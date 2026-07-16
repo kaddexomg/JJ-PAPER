@@ -27,9 +27,25 @@ async function waInit(opts) {
   waSubscribe();
   await waHandleParams();
 
-  document.getElementById('waComposerInput')?.addEventListener('keydown', e => {
+  const ci = document.getElementById('waComposerInput');
+  ci?.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); waSendText(); }
   });
+  // Mic ↔ Enviar según haya texto (como WhatsApp) + autosize del textarea
+  ci?.addEventListener('input', () => {
+    waComposerButtons();
+    ci.style.height = 'auto';
+    ci.style.height = Math.min(ci.scrollHeight, 110) + 'px';
+  });
+  waComposerButtons();
+}
+
+function waComposerButtons() {
+  const hasText = !!(document.getElementById('waComposerInput')?.value || '').trim();
+  const mic = document.getElementById('waMicBtn');
+  const send = document.getElementById('waSendBtn');
+  if (mic)  mic.style.display  = hasText || !waRecSupported() ? 'none' : 'inline-flex';
+  if (send) send.style.display = hasText || !waRecSupported() ? 'inline-flex' : 'none';
 }
 
 function waSubscribe() {
@@ -125,6 +141,8 @@ function waRenderThreadHeader() {
       : waActive.customer_id
         ? `<a class="btn-o wa-cust-btn" href="${(WA_IS_ADMIN ? '../vendedor/' : '') + 'pos.html?tel=' + encodeURIComponent(waActive.phone)}" title="Nueva venta a este cliente">🛍️ Venta</a>`
         : `<button class="btn-o wa-cust-btn" onclick="waLinkCustomer()" title="Crear cliente en el CRM">＋ CRM</button>`}
+    ${(mine || WA_IS_ADMIN)
+      ? `<button class="btn-o wa-cust-btn wa-del-btn" onclick="waDeleteChat()" title="Borrar chat del CRM" aria-label="Borrar chat">🗑️</button>` : ''}
   `;
   const composer = document.getElementById('waComposer');
   if (composer) composer.style.display = mine ? 'flex' : 'none';
@@ -289,6 +307,8 @@ async function waSendText() {
   if (!body || !waActive) return;
   if (waActive.owner_id !== WA_ME.id) { showToast('Solo puedes enviar desde tus propios chats', 'warn'); return; }
   input.value = '';
+  input.style.height = 'auto';
+  waComposerButtons();
 
   const optimistic = {
     id: 'tmp-' + Date.now(), _optimistic: true,
@@ -342,6 +362,110 @@ async function waFileChosen(input) {
   });
   if (error) { showToast('No se pudo enviar: ' + error.message, 'err'); return; }
   const ci = document.getElementById('waComposerInput'); if (ci) ci.value = '';
+}
+
+/* ---------- notas de voz (MediaRecorder) ---------- */
+let waRec = null;          // { recorder, chunks, timer, secs, cancelled }
+
+function waRecSupported() {
+  return !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+}
+
+function waRecMime() {
+  const prefs = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+  return prefs.find(m => MediaRecorder.isTypeSupported(m)) || '';
+}
+
+async function waRecStart() {
+  if (!waActive || waActive.owner_id !== WA_ME.id) return;
+  if (waRec) return;
+  if (!waRecSupported()) { showToast('Tu navegador no soporta grabar audio', 'warn'); return; }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    showToast('No se pudo acceder al micrófono (revisa permisos)', 'err');
+    return;
+  }
+  const mime = waRecMime();
+  const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  waRec = { recorder, chunks: [], secs: 0, cancelled: false };
+  recorder.ondataavailable = e => { if (e.data.size) waRec?.chunks.push(e.data); };
+  recorder.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    const rec = waRec; waRec = null;
+    waRecRenderBar(false);
+    if (!rec || rec.cancelled || !rec.chunks.length) return;
+    waRecSend(new Blob(rec.chunks, { type: recorder.mimeType || mime || 'audio/webm' }), rec.secs);
+  };
+  recorder.start(250);
+  waRec.timer = setInterval(() => {
+    if (!waRec) return;
+    waRec.secs++;
+    const el = document.getElementById('waRecTime');
+    if (el) el.textContent = waRecFmt(waRec.secs);
+    if (waRec.secs >= 300) waRecStop();     // tope 5 min
+  }, 1000);
+  waRecRenderBar(true);
+}
+
+function waRecFmt(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+
+function waRecStop() {                      // detener y ENVIAR
+  if (!waRec) return;
+  clearInterval(waRec.timer);
+  waRec.recorder.stop();
+}
+
+function waRecCancel() {                    // detener y DESCARTAR
+  if (!waRec) return;
+  waRec.cancelled = true;
+  clearInterval(waRec.timer);
+  waRec.recorder.stop();
+}
+
+function waRecRenderBar(on) {
+  const bar = document.getElementById('waRecBar');
+  const composer = document.getElementById('waComposer');
+  if (bar) bar.style.display = on ? 'flex' : 'none';
+  if (composer) composer.style.display = on ? 'none' : 'flex';
+  if (on) {
+    const el = document.getElementById('waRecTime');
+    if (el) el.textContent = '0:00';
+  }
+}
+
+async function waRecSend(blob, secs) {
+  if (!waActive) return;
+  const ext = blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'm4a' : 'webm';
+  const path = `${WA_ME.id}/${waActive.id}/${Date.now()}.${ext}`;
+  showToast('Enviando nota de voz…');
+  const { error: upErr } = await sb.storage.from('jjp-wa-media')
+    .upload(path, blob, { contentType: blob.type || 'audio/webm' });
+  if (upErr) { showToast('Error subiendo el audio: ' + upErr.message, 'err'); return; }
+  const { error } = await sb.from('jjp_wa_messages').insert({
+    chat_id: waActive.id, owner_id: WA_ME.id,
+    direction: 'out', type: 'audio', body: null,
+    media_path: path, media_mime: blob.type || 'audio/webm',
+    media_size: blob.size, media_filename: `nota-de-voz-${waRecFmt(secs)}.${ext}`,
+    status: 'pending'
+  });
+  if (error) showToast('No se pudo enviar: ' + error.message, 'err');
+}
+
+/* ---------- borrar chat ---------- */
+async function waDeleteChat() {
+  if (!waActive) return;
+  const mine = waActive.owner_id === WA_ME.id;
+  if (!mine && !WA_IS_ADMIN) { showToast('Solo el dueño del chat o un admin puede borrarlo', 'warn'); return; }
+  const who = waActive.display_name || waPrettyPhone(waActive.phone);
+  if (!confirm(`¿Borrar el chat con ${who}?\n\nSe eliminan los mensajes y archivos del CRM (NO se borra nada en el teléfono del cliente). Esta acción no se puede deshacer.`)) return;
+  const id = waActive.id;
+  const { data, error } = await sb.rpc('jjp_wa_delete_chat', { p_chat_id: id });
+  if (error || data === false) { showToast('No se pudo borrar: ' + (error?.message || 'sin permiso'), 'err'); return; }
+  waChats = waChats.filter(c => c.id !== id);
+  waCloseThread();
+  showToast('Chat borrado 🗑️');
 }
 
 async function waRetry(msgId) {

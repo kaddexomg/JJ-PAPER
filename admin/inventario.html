@@ -161,6 +161,46 @@
         </div>
       </div>
 
+      <!-- Kardex: historial de movimientos de stock -->
+      <div class="admin-table-wrap" style="margin-top:18px">
+        <div class="table-top">
+          <h3>📜 Movimientos de stock (kardex)</h3>
+          <div class="inv-filters">
+            <span id="movCount" style="font-size:12px;color:var(--gr)"></span>
+            <select class="sort-sel" style="height:34px" onchange="movOnReason(this.value)">
+              <option value="">Todas las razones</option>
+              <option value="venta">🛒 Ventas (pedidos)</option>
+              <option value="reverso">↩️ Reversos</option>
+              <option value="conteo">📷 Conteos físicos</option>
+              <option value="ajuste">✏️ Ajustes manuales</option>
+            </select>
+            <div class="srch" style="min-width:200px">
+              <span class="srch-ico">🔍</span>
+              <input type="text" placeholder="Producto, marca, SKU, pedido..." oninput="movOnSearch(this.value)">
+            </div>
+            <button class="btn-ghost sm" onclick="loadMoves()">🔄</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Producto</th>
+                <th>Marca / Presentación</th>
+                <th style="text-align:center">Cambio</th>
+                <th style="text-align:center">Antes → Después</th>
+                <th>Razón</th>
+                <th>Referencia</th>
+              </tr>
+            </thead>
+            <tbody id="movTableBody">
+              <tr><td colspan="7" class="table-empty">Cargando movimientos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </main>
 </div>
@@ -206,6 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminAside')?.classList.toggle('op')
   );
   await loadInventory();
+  loadMoves();         // kardex (no bloquea la tabla principal)
   scanStartBridge();   // recibe escaneos del teléfono (admin/escaner.html) en vivo
 });
 </script>

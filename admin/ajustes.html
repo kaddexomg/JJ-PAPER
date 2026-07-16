@@ -130,6 +130,55 @@
           </div>
         </div>
 
+        <!-- Formato del comprobante / factura -->
+        <div class="form-panel">
+          <h3>🧾 Formato del comprobante / factura</h3>
+          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
+            Personaliza cómo se ve el documento imprimible que se genera desde Pedidos
+            (colores, título, textos del pie y tipo de papel).
+          </p>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Razón social (en el documento)</label>
+              <input type="text" class="fi" id="set-business_name" placeholder="JJ Paper, C.A."></div>
+            <div class="fg"><label class="fl">RIF de la empresa</label>
+              <input type="text" class="fi" id="set-rif" placeholder="J-12345678-9"></div>
+            <div class="fg"><label class="fl">Título del documento</label>
+              <select class="fi" id="set-doc_title">
+                <option value="">COMPROBANTE (por defecto)</option>
+                <option value="NOTA DE ENTREGA">NOTA DE ENTREGA</option>
+                <option value="RECIBO">RECIBO</option>
+                <option value="PRESUPUESTO">PRESUPUESTO</option>
+                <option value="ORDEN DE DESPACHO">ORDEN DE DESPACHO</option>
+              </select></div>
+            <div class="fg"><label class="fl">IVA a desglosar (%) — 0 = no mostrar IVA</label>
+              <input type="number" step="0.5" min="0" class="fi" id="set-iva_pct" placeholder="16"></div>
+            <div class="fg"><label class="fl">Color principal</label>
+              <input type="color" class="fi" id="set-doc_color" value="#16604A" style="height:42px;padding:4px"></div>
+            <div class="fg"><label class="fl">Color de acento (total en Bs)</label>
+              <input type="color" class="fi" id="set-doc_accent" value="#C9A24B" style="height:42px;padding:4px"></div>
+            <div class="fg"><label class="fl">Papel por defecto</label>
+              <select class="fi" id="set-doc_paper">
+                <option value="">Carta (por defecto)</option>
+                <option value="ticket">Ticket 80mm (impresora térmica)</option>
+              </select></div>
+            <div class="fg"><label class="fl">Mostrar total en Bs</label>
+              <select class="fi" id="set-doc_show_bs">
+                <option value="">Sí (por defecto)</option>
+                <option value="0">No</option>
+              </select></div>
+            <div class="fg"><label class="fl">Logo del documento (URL — vacío usa el del sitio)</label>
+              <input type="text" class="fi" id="set-doc_logo_url" placeholder="assets/img/logo.svg"></div>
+            <div class="fg full"><label class="fl">Texto legal del pie (vacío usa el texto por defecto)</label>
+              <input type="text" class="fi" id="set-doc_footer_legal" placeholder="Este documento es un comprobante interno..."></div>
+            <div class="fg"><label class="fl">Nota final</label>
+              <input type="text" class="fi" id="set-doc_footer_note" placeholder="Gracias por su compra."></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button type="button" class="btn-o sm" onclick="docPreview('carta')">👁️ Vista previa (carta)</button>
+            <button type="button" class="btn-o sm" onclick="docPreview('ticket')">🧾 Vista previa (ticket 80mm)</button>
+          </div>
+        </div>
+
         <button class="btn-p" id="saveSettingsBtn" onclick="saveSettings()" style="justify-content:center">💾 Guardar cambios</button>
       </div>
     </div>

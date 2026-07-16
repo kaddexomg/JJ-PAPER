@@ -8,7 +8,13 @@ const SETTINGS_FIELDS = [
   'email', 'address', 'map_lat', 'map_lng', 'hours_weekday', 'hours_saturday',
   'pago_movil_bank', 'pago_movil_phone', 'pago_movil_ci', 'pago_movil_name',
   'transfer_bank', 'transfer_account', 'transfer_type', 'transfer_holder', 'transfer_ci',
+  // Formato del comprobante/factura (comprobante.html)
+  'business_name', 'rif', 'iva_pct', 'doc_title', 'doc_color', 'doc_accent',
+  'doc_logo_url', 'doc_paper', 'doc_show_bs', 'doc_footer_legal', 'doc_footer_note',
 ];
+
+// Defaults visuales del comprobante (inputs type=color no aceptan vacío)
+const DOC_COLOR_DEFAULTS = { doc_color: '#16604A', doc_accent: '#C9A24B' };
 
 async function loadSettingsForm() {
   const { data, error } = await sb.from('jjp_settings').select('key,value');
@@ -16,7 +22,7 @@ async function loadSettingsForm() {
   const map = Object.fromEntries((data || []).map(r => [r.key, r.value]));
   SETTINGS_FIELDS.forEach(k => {
     const el = document.getElementById('set-' + k);
-    if (el) el.value = map[k] ?? '';
+    if (el) el.value = map[k] || DOC_COLOR_DEFAULTS[k] || '';
   });
   const upd = document.getElementById('ratesUpdatedAt');
   if (upd) upd.textContent = map.rates_updated_at
@@ -100,6 +106,15 @@ async function fetchRatesToForm() {
   if (rates.paralelo) document.getElementById('set-usdt_rate').value     = Number(rates.paralelo).toFixed(2);
   renderGap();
   showToast('Tasas cargadas. Revisa y pulsa "Guardar".');
+}
+
+// Vista previa del comprobante con el pedido más reciente
+async function docPreview(fmt) {
+  const { data } = await sb.from('jjp_orders')
+    .select('order_number').order('created_at', { ascending: false }).limit(1);
+  if (!data?.length) { showToast('Aún no hay pedidos para previsualizar. Guarda y crea un pedido primero.', 'warn'); return; }
+  showToast('Guarda los cambios antes de previsualizar si editaste algo.', 'ok', 3000);
+  window.open(`../comprobante.html?n=${encodeURIComponent(data[0].order_number)}${fmt ? '&f=' + fmt : ''}`, '_blank');
 }
 
 async function saveSettings() {

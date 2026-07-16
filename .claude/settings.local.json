@@ -36,7 +36,32 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8099/index.html)",
       "Bash(curl -s http://localhost:8099/assets/css/glass.css -o /dev/null -w \"glass.css: %{http_code}\\\\n\")",
       "Bash(taskkill //F //IM python.exe)",
-      "Bash(taskkill //F //IM py.exe)"
+      "Bash(taskkill //F //IM py.exe)",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__list_projects",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__get_project",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__restore_project",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__get_project_url",
+      "mcp__d7cccc1e-7385-4594-8685-d1bbaba347d0__get_publishable_keys",
+      "Bash(node -e \"console.log\\(1\\)\")",
+      "Bash(npm install *)",
+      "Bash(node read_xlsx.js)",
+      "Bash(node read_xlsx2.js)",
+      "Bash(node read_xlsx3.js)",
+      "Bash(grep -c '\\\\.jpg$')",
+      "Bash(node build_import.js)",
+      "Bash(node gen_insert_sql.js)",
+      "Bash(awk -F, 'NR==1{for\\(i=1;i<=NF;i++\\) print i, $i}' sql/jjpaper_productos_import.csv)",
+      "WebFetch(domain:jj-paper.netlify.app)",
+      "Bash(netlify status *)",
+      "Bash(curl -s \"https://jj-paper.netlify.app/assets/js/config.js?cb=$\\(date +%s\\)\")",
+      "Bash(node --check assets/js/admin/inv-scan.js)",
+      "Bash(node --check assets/js/admin/inventory.js)",
+      "Bash(node --check assets/js/admin/products.js)",
+      "Bash(node --check upload-images.js)",
+      "Bash(rm -rf C:/Users/PC/AppData/Local/Temp/claude/C--Users-PC-Desktop-JJ-PAPER/555fe59c-a53c-4ada-a2c1-a7c154ce40af/scratchpad/deploy_stage)",
+      "Bash(mkdir -p C:/Users/PC/AppData/Local/Temp/claude/C--Users-PC-Desktop-JJ-PAPER/555fe59c-a53c-4ada-a2c1-a7c154ce40af/scratchpad/deploy_stage)",
+      "Bash(cp index.html catalogo.html checkout.html logo-demo.html pedidos.html producto.html promociones.html rastreo.html netlify.toml C:/Users/PC/AppData/Local/Temp/claude/C--Users-PC-Desktop-JJ-PAPER/555fe59c-a53c-4ada-a2c1-a7c154ce40af/scratchpad/deploy_stage/)",
+      "Bash(cp -r admin assets vendedor C:/Users/PC/AppData/Local/Temp/claude/C--Users-PC-Desktop-JJ-PAPER/555fe59c-a53c-4ada-a2c1-a7c154ce40af/scratchpad/deploy_stage/)"
     ]
   }
 }

@@ -81,7 +81,15 @@ async function buildContent(row) {
   switch (row.type) {
     case 'image': return { image: buffer, caption, mimetype: row.media_mime || undefined };
     case 'video': return { video: buffer, caption, mimetype: row.media_mime || undefined };
-    case 'audio': return { audio: buffer, mimetype: row.media_mime || 'audio/mpeg' };
+    case 'audio': {
+      // Grabaciones del CRM (opus) salen como nota de voz (ptt); archivos mp3/m4a como audio normal
+      const isVoice = /opus|ogg|webm/i.test(row.media_mime || '');
+      return {
+        audio: buffer,
+        ptt: isVoice,
+        mimetype: isVoice ? 'audio/ogg; codecs=opus' : (row.media_mime || 'audio/mpeg')
+      };
+    }
     case 'document': return {
       document: buffer, caption,
       mimetype: row.media_mime || 'application/octet-stream',

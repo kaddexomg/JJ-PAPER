@@ -6,53 +6,78 @@
 <title>Comprobante | JJ Paper</title>
 <link rel="icon" href="assets/img/logo.svg">
 <style>
+  /* Colores personalizables desde Ajustes (jjp_settings.doc_color / doc_accent) */
+  :root { --doc-c:#16604A; --doc-a:#C9A24B; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#1a1a1a; background:#eef1f0; padding:20px; }
   .sheet { max-width:820px; margin:0 auto; background:#fff; padding:34px 38px; border-radius:8px;
     box-shadow:0 4px 24px rgba(0,0,0,.1); }
   .cmp-head { display:flex; justify-content:space-between; align-items:flex-start; gap:20px;
-    border-bottom:3px solid #16604A; padding-bottom:16px; margin-bottom:8px; }
+    border-bottom:3px solid var(--doc-c); padding-bottom:16px; margin-bottom:8px; }
   .cmp-biz { display:flex; gap:12px; align-items:center; }
-  .cmp-biz img { width:56px; height:56px; }
-  .cmp-biz h1 { font-size:20px; color:#16604A; line-height:1.1; }
+  .cmp-biz img { width:56px; height:56px; object-fit:contain; }
+  .cmp-biz h1 { font-size:20px; color:var(--doc-c); line-height:1.1; }
   .cmp-biz .meta { font-size:12px; color:#555; margin-top:3px; }
   .cmp-doc { text-align:right; }
-  .cmp-doc .tag { display:inline-block; background:#16604A; color:#fff; font-weight:700;
+  .cmp-doc .tag { display:inline-block; background:var(--doc-c); color:#fff; font-weight:700;
     font-size:12px; padding:4px 10px; border-radius:5px; letter-spacing:.5px; }
   .cmp-doc .num { font-size:20px; font-weight:800; margin-top:6px; }
   .cmp-doc .date { font-size:12px; color:#555; }
   .cmp-parties { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:18px 0; }
   .cmp-parties .box { background:#f6f8f7; border-radius:8px; padding:12px 14px; }
-  .cmp-parties h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#16604A; margin-bottom:6px; }
+  .cmp-parties h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--doc-c); margin-bottom:6px; }
   .cmp-parties p { font-size:13px; line-height:1.5; }
   table { width:100%; border-collapse:collapse; margin-top:6px; }
-  thead th { background:#16604A; color:#fff; font-size:12px; text-align:left; padding:8px 10px; }
+  thead th { background:var(--doc-c); color:#fff; font-size:12px; text-align:left; padding:8px 10px; }
   thead th.r { text-align:right; } thead th.c { text-align:center; }
   tbody td { padding:8px 10px; border-bottom:1px solid #e5e9e7; font-size:13px; }
   tbody td.r { text-align:right; } tbody td.c { text-align:center; }
   tfoot td { padding:6px 10px; font-size:13px; }
   tfoot td.lbl { text-align:right; font-weight:600; color:#444; }
   tfoot td.val { text-align:right; font-weight:700; width:150px; }
-  tfoot tr.total td { font-size:16px; color:#16604A; border-top:2px solid #16604A; padding-top:10px; }
-  tfoot tr.bs td { color:#C9A24B; }
+  tfoot tr.total td { font-size:16px; color:var(--doc-c); border-top:2px solid var(--doc-c); padding-top:10px; }
+  tfoot tr.bs td { color:var(--doc-a); }
   .cmp-foot { margin-top:22px; border-top:1px solid #e5e9e7; padding-top:14px; font-size:11px; color:#777; line-height:1.6; }
   .cmp-legal { font-style:italic; }
-  .toolbar { max-width:820px; margin:0 auto 14px; display:flex; gap:10px; justify-content:flex-end; }
+  .toolbar { max-width:820px; margin:0 auto 14px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
   .btn { border:0; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; text-decoration:none; }
-  .btn-p { background:#16604A; color:#fff; }
-  .btn-g { background:#dfe5e2; color:#16604A; }
+  .btn-p { background:var(--doc-c); color:#fff; }
+  .btn-g { background:#dfe5e2; color:var(--doc-c); }
   .loading, .err { max-width:820px; margin:40px auto; text-align:center; color:#555; }
   .err { color:#b00; }
+
+  /* ---- Formato ticket (impresora térmica 80mm / recibo compacto) ---- */
+  body.ticket { background:#fff; padding:8px; }
+  body.ticket .sheet { max-width:340px; padding:14px 12px; box-shadow:none; border:1px dashed #bbb; border-radius:0;
+    font-size:12px; }
+  body.ticket .cmp-head { flex-direction:column; align-items:center; text-align:center; gap:6px;
+    border-bottom-width:2px; padding-bottom:10px; }
+  body.ticket .cmp-biz { flex-direction:column; gap:4px; text-align:center; }
+  body.ticket .cmp-biz img { width:44px; height:44px; }
+  body.ticket .cmp-biz h1 { font-size:16px; }
+  body.ticket .cmp-doc { text-align:center; }
+  body.ticket .cmp-doc .num { font-size:16px; margin-top:4px; }
+  body.ticket .cmp-parties { grid-template-columns:1fr; gap:8px; margin:10px 0; }
+  body.ticket .cmp-parties .box { padding:8px 10px; }
+  body.ticket thead th, body.ticket tbody td { padding:5px 6px; font-size:11px; }
+  body.ticket tfoot td { padding:4px 6px; font-size:12px; }
+  body.ticket tfoot td.val { width:auto; }
+  body.ticket tfoot tr.total td { font-size:14px; }
+  body.ticket .cmp-foot { margin-top:12px; padding-top:8px; font-size:10px; text-align:center; }
+
   @media print {
     body { background:#fff; padding:0; }
     .sheet { box-shadow:none; border-radius:0; max-width:none; padding:16px 20px; }
     .toolbar { display:none; }
     @page { margin:12mm; }
+    body.ticket .sheet { border:0; max-width:none; padding:2mm; }
+    body.ticket { padding:0; }
   }
 </style>
 </head>
 <body>
 <div class="toolbar" id="toolbar" style="display:none">
+  <button class="btn btn-g" id="fmtBtn" onclick="toggleFormat()">🧾 Ver como ticket</button>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir</button>
   <button class="btn btn-g" onclick="window.close()">Cerrar</button>
 </div>
@@ -62,23 +87,47 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/admin/auth.js"></script>
 <script>
+let ORDER = null;
+
 (async () => {
   const content = document.getElementById('content');
   const session = await requireAuth('vendedor');   // admin o vendedor
   if (!session) return;
   await loadSettings();
+  applyDocTheme();
 
   const params = new URLSearchParams(location.search);
   const num = params.get('n');
   if (!num) { content.innerHTML = '<div class="err">Falta el número de pedido (?n=...)</div>'; return; }
 
+  // Formato inicial: ?f=ticket|carta manda; si no, el ajuste doc_paper
+  const s = APP.SETTINGS || {};
+  const f = params.get('f') || s.doc_paper || 'carta';
+  setFormat(f === 'ticket');
+
   const { data: o, error } = await sb.from('jjp_orders').select('*').eq('order_number', num).maybeSingle();
   if (error || !o) { content.innerHTML = '<div class="err">No se encontró el pedido ' + escapeHTML(num) + '.</div>'; return; }
 
+  ORDER = o;
   render(o);
   document.getElementById('toolbar').style.display = 'flex';
   if (params.get('print') === '1') setTimeout(() => window.print(), 400);
 })();
+
+// Aplica colores/tema del documento configurados en Ajustes
+function applyDocTheme() {
+  const s = APP.SETTINGS || {};
+  const okColor = c => /^#[0-9a-fA-F]{3,8}$/.test((c || '').trim());
+  if (okColor(s.doc_color))  document.documentElement.style.setProperty('--doc-c', s.doc_color.trim());
+  if (okColor(s.doc_accent)) document.documentElement.style.setProperty('--doc-a', s.doc_accent.trim());
+}
+
+function setFormat(ticket) {
+  document.body.classList.toggle('ticket', ticket);
+  const btn = document.getElementById('fmtBtn');
+  if (btn) btn.textContent = ticket ? '📄 Ver como carta' : '🧾 Ver como ticket';
+}
+function toggleFormat() { setFormat(!document.body.classList.contains('ticket')); }
 
 function render(o) {
   const s = APP.SETTINGS || {};
@@ -100,6 +149,10 @@ function render(o) {
   const discRow = (o.discount_status === 'approved' && o.discount_pct > 0)
     ? `<tr><td colspan="3" class="lbl">Descuento ${o.discount_pct}%</td><td class="val">−${fmtPrice((Number(o.subtotal_usd)||total) - total)}</td></tr>` : '';
 
+  // Total en Bs (ocultable con doc_show_bs = '0')
+  const bsRow = (s.doc_show_bs === '0') ? '' :
+    `<tr class="bs"><td colspan="3" class="lbl">TOTAL (Bs)</td><td class="val">${fmtBsNum(total * rate)}</td></tr>`;
+
   const rows = items.map(i => `<tr>
     <td>${escapeHTML(i.name || i.product || '—')}${i.brand ? ` <small style="color:#888">(${escapeHTML(i.brand)})</small>` : ''}</td>
     <td class="c">${i.qty} ${escapeHTML(i.unit || '')}</td>
@@ -107,14 +160,21 @@ function render(o) {
     <td class="r">${fmtPrice(i.subtotal_usd ?? i.price_usd * i.qty)}</td>
   </tr>`).join('');
 
-  const bizName = s.business_name || 'JJ Paper';
+  // Textos y logo personalizables
+  const bizName  = s.business_name || s.site_name || 'JJ Paper';
+  const docTitle = s.doc_title || 'COMPROBANTE';
+  const logoUrl  = s.doc_logo_url || 'assets/img/logo.svg';
+  const legal    = s.doc_footer_legal !== undefined && s.doc_footer_legal !== ''
+    ? s.doc_footer_legal
+    : 'Este documento es un comprobante interno de la operación y NO constituye una factura fiscal a los efectos del SENIAT.';
+  const footNote = s.doc_footer_note || 'Gracias por su compra.';
   const method = { pago_movil:'Pago Móvil', transferencia:'Transferencia', efectivo:'Efectivo' }[o.payment_method] || o.payment_method || '—';
 
   document.getElementById('content').innerHTML = `
   <div class="sheet">
     <div class="cmp-head">
       <div class="cmp-biz">
-        <img src="assets/img/logo.svg" alt="">
+        <img src="${escapeHTML(logoUrl)}" alt="">
         <div>
           <h1>${escapeHTML(bizName)}</h1>
           <div class="meta">
@@ -125,7 +185,7 @@ function render(o) {
         </div>
       </div>
       <div class="cmp-doc">
-        <span class="tag">COMPROBANTE</span>
+        <span class="tag">${escapeHTML(docTitle)}</span>
         <div class="num">${escapeHTML(o.order_number)}</div>
         <div class="date">${fmtDate(o.created_at)}</div>
       </div>
@@ -158,14 +218,14 @@ function render(o) {
         ${discRow}
         ${ivaRows}
         <tr class="total"><td colspan="3" class="lbl">TOTAL (USD)</td><td class="val">${fmtPrice(total)}</td></tr>
-        <tr class="bs"><td colspan="3" class="lbl">TOTAL (Bs)</td><td class="val">${fmtBsNum(total * rate)}</td></tr>
+        ${bsRow}
       </tfoot>
     </table>
 
     <div class="cmp-foot">
       ${o.notes ? '<p><strong>Notas:</strong> ' + escapeHTML(o.notes) + '</p>' : ''}
-      <p class="cmp-legal">Este documento es un comprobante interno de la operación y NO constituye una factura fiscal a los efectos del SENIAT.</p>
-      <p>${escapeHTML(bizName)} · Gracias por su compra.</p>
+      ${legal ? '<p class="cmp-legal">' + escapeHTML(legal) + '</p>' : ''}
+      <p>${escapeHTML(bizName)} · ${escapeHTML(footNote)}</p>
     </div>
   </div>`;
 }

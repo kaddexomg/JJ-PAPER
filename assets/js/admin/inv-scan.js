@@ -128,7 +128,11 @@ async function scanCommitActive() {
   const n = a.counted;
   const prev = a.row.stock;
   a.row.stock = n;                                 // optimista en memoria
-  const { error } = await sb.from('jjp_product_variants').update({ stock: n }).eq('id', a.row.id);
+  // RPC con razón "conteo físico" → el kardex registra el ajuste del conteo
+  let { error } = await sb.rpc('jjp_set_stock', { p_variant_id: a.row.id, p_stock: n, p_reason: 'conteo físico' });
+  if (error) {
+    ({ error } = await sb.from('jjp_product_variants').update({ stock: n }).eq('id', a.row.id));
+  }
   if (error) {
     a.row.stock = prev;
     showToast('Error guardando conteo: ' + error.message, 'err');

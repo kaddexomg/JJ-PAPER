@@ -320,6 +320,10 @@ body.admin-body { background:var(--gl) }
   border-radius:8px; padding:6px }
 .variant-row .fi, .variant-row .sort-sel { height:36px; font-size:12px; padding:0 8px; width:100% }
 .variant-row .v-active { justify-content:center; font-size:12px; margin:0 }
+.v-brand-wrap { position:relative; display:flex; align-items:center }
+.v-brand-logo { position:absolute; left:6px; width:22px; height:22px; border-radius:50%;
+  object-fit:cover; pointer-events:none; box-shadow:0 0 0 1px rgba(0,0,0,.08) }
+.variant-row .v-brand.has-logo { padding-left:34px }
 .variant-row .btn-danger.sm, .variant-row .btn-ghost.sm { padding:6px 8px; font-size:12px }
 @media (max-width:900px) {
   .variant-head { display:none }

@@ -84,7 +84,15 @@
           <div class="wa-composer" id="waComposer" style="display:none">
             <button class="btn-o" onclick="waAttach()" title="Adjuntar archivo" aria-label="Adjuntar archivo">📎</button>
             <textarea id="waComposerInput" rows="1" placeholder="Escribe un mensaje…" aria-label="Mensaje"></textarea>
-            <button class="btn-p" onclick="waSendText()" title="Enviar" aria-label="Enviar mensaje">➤</button>
+            <button class="btn-p" id="waSendBtn" onclick="waSendText()" title="Enviar" aria-label="Enviar mensaje">➤</button>
+            <button class="btn-p" id="waMicBtn" onclick="waRecStart()" title="Grabar nota de voz" aria-label="Grabar nota de voz">🎙️</button>
+          </div>
+          <div class="wa-rec-bar" id="waRecBar" style="display:none" role="status" aria-label="Grabando nota de voz">
+            <span class="wa-rec-dot" aria-hidden="true"></span>
+            <span class="wa-rec-time" id="waRecTime">0:00</span>
+            <span class="wa-rec-hint">Grabando…</span>
+            <button class="btn-o" onclick="waRecCancel()" title="Descartar grabación" aria-label="Descartar grabación">🗑️</button>
+            <button class="btn-p" onclick="waRecStop()" title="Detener y enviar" aria-label="Detener y enviar">➤ Enviar</button>
           </div>
           <input type="file" id="waFileInput" style="display:none" onchange="waFileChosen(this)"
                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">

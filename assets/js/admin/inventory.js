@@ -179,13 +179,18 @@ function invOnBrand(v)  { invBrandF = v; invPage = 1; renderInventory(); }
 
 // ---- Edición de stock ----
 
-async function invUpdateStock(id, newStock) {
+async function invUpdateStock(id, newStock, reason = 'ajuste manual') {
   const row = invRows.find(r => r.id === id);
   if (!row) return;
   const prev = row.stock;
   row.stock = newStock;                       // optimista
   renderInventory();
-  const { error } = await sb.from('jjp_product_variants').update({ stock: newStock }).eq('id', id);
+  // RPC con razón → queda registrado en el kardex (jjp_stock_moves)
+  let { error } = await sb.rpc('jjp_set_stock', { p_variant_id: id, p_stock: newStock, p_reason: reason });
+  if (error) {
+    // Fallback si el RPC no existe aún en esta base
+    ({ error } = await sb.from('jjp_product_variants').update({ stock: newStock }).eq('id', id));
+  }
   if (error) {
     row.stock = prev;
     renderInventory();
@@ -210,6 +215,78 @@ function invToggleInf(id) {
   const row = invRows.find(r => r.id === id);
   if (!row) return;
   invUpdateStock(id, row.stock < 0 ? 0 : -1);
+}
+
+// ---- Kardex (jjp_stock_moves): historial de movimientos ----
+
+let movRows = [], movSearch = '', movReason = '';
+
+async function loadMoves() {
+  const { data, error } = await sb.from('jjp_stock_moves')
+    .select('*').order('created_at', { ascending: false }).limit(300);
+  const tbody = document.getElementById('movTableBody');
+  if (error) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Kardex no disponible (aplica la migración SQL).</td></tr>`;
+    return;
+  }
+  movRows = data || [];
+  renderMoves();
+}
+
+function movOnSearch(v) { movSearch = v; renderMoves(); }
+function movOnReason(v) { movReason = v; renderMoves(); }
+
+function movGetFiltered() {
+  const q = normTxt(movSearch);
+  return movRows.filter(m => {
+    const rOk = !movReason || normTxt(m.reason).includes(movReason);
+    const qOk = !q
+      || normTxt(m.product_name).includes(q)
+      || normTxt(m.brand_name).includes(q)
+      || normTxt(m.variant_name).includes(q)
+      || normTxt(m.sku).includes(q)
+      || normTxt(m.ref).includes(q);
+    return rOk && qOk;
+  });
+}
+
+function movReasonBadge(reason) {
+  const r = normTxt(reason);
+  const cls = r.includes('venta') ? 'badge-green'
+    : r.includes('reverso')       ? 'badge-yellow'
+    : r.includes('conteo')        ? 'badge-blue'
+    : 'badge-gray';
+  return `<span class="badge ${cls}">${escapeHTML(reason || '—')}</span>`;
+}
+
+function renderMoves() {
+  const tbody = document.getElementById('movTableBody');
+  if (!tbody) return;
+  const list = movGetFiltered().slice(0, 150);
+  const count = document.getElementById('movCount');
+  if (count) count.textContent = `${list.length} movimiento${list.length !== 1 ? 's' : ''}`;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Sin movimientos registrados todavía. Cada venta, conteo o ajuste quedará aquí.</td></tr>`;
+    return;
+  }
+  const stockTxt = s => (s === null || s === undefined) ? '—' : (s < 0 ? '∞' : s);
+  tbody.innerHTML = list.map(m => {
+    const d = new Date(m.created_at);
+    const fecha = d.toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit' }) + ' ' +
+      d.toLocaleTimeString('es-VE', { hour:'2-digit', minute:'2-digit' });
+    const delta = m.delta > 0 ? `<strong style="color:var(--gd)">+${m.delta}</strong>`
+      : m.delta < 0 ? `<strong style="color:var(--danger)">${m.delta}</strong>` : '·';
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap">${fecha}</td>
+      <td><div class="td-name">${escapeHTML(m.product_name || '—')}</div>
+        <div class="td-sub">SKU ${escapeHTML(m.sku || '—')}</div></td>
+      <td class="td-brand">${escapeHTML([m.brand_name, m.variant_name].filter(Boolean).join(' · ') || 'Genérica')}</td>
+      <td style="text-align:center">${delta}</td>
+      <td style="text-align:center;font-size:13px">${stockTxt(m.stock_before)} → <strong>${stockTxt(m.stock_after)}</strong></td>
+      <td>${movReasonBadge(m.reason)}</td>
+      <td style="font-size:12px">${escapeHTML(m.ref || '—')}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ---- Export CSV (compatible con la importación de Productos) ----

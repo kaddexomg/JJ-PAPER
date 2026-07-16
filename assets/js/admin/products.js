@@ -30,7 +30,7 @@ async function loadAdminCategories() {
 }
 
 async function loadAdminBrands() {
-  const { data } = await sb.from('jjp_brands').select('id,name,slug').eq('active', true).order('sort_order');
+  const { data } = await sb.from('jjp_brands').select('id,name,slug,logo_url').eq('active', true).order('sort_order');
   adminBrands = data || [];
   populateSelect('bulkBrandSel', adminBrands, 'id', 'name', '-- Marca --');
 }
@@ -366,7 +366,10 @@ function renderVariantRows() {
 
   box.innerHTML = formVariants.map((v, i) => `
     <div class="variant-row" data-i="${i}">
-      <select class="sort-sel v-brand" onchange="formVariants[${i}].brand_id=this.value">${brandOpts(v.brand_id)}</select>
+      <div class="v-brand-wrap">
+        <img class="v-brand-logo" alt="" src="${brandLogo(v.brand_id)}"${brandLogo(v.brand_id) ? '' : ' style="display:none"'}>
+        <select class="sort-sel v-brand${brandLogo(v.brand_id) ? ' has-logo' : ''}" onchange="formVariants[${i}].brand_id=this.value;updateVariantLogo(${i},this.value)">${brandOpts(v.brand_id)}</select>
+      </div>
       <input type="text"   class="fi v-name"   placeholder="Presentación (color, tamaño...)" value="${(v.variant_name || '').replace(/"/g,'&quot;')}" oninput="formVariants[${i}].variant_name=this.value">
       <input type="text"   class="fi v-sku"    placeholder="SKU"      value="${(v.sku || '').replace(/"/g,'&quot;')}" oninput="formVariants[${i}].sku=this.value">
       <input type="number" class="fi v-cost"   placeholder="Costo $"  step="0.01" min="0" value="${v.cost_usd}" oninput="formVariants[${i}].cost_usd=this.value">
@@ -377,6 +380,22 @@ function renderVariantRows() {
       <label class="check-label v-active" title="Visible en catálogo"><input type="checkbox" ${v.active ? 'checked' : ''} onchange="formVariants[${i}].active=this.checked"> ✓</label>
       <button type="button" class="btn-danger sm" title="Quitar" onclick="removeVariantRow(${i})">✕</button>
     </div>`).join('');
+}
+
+// Logo de una marca por id (para la vista previa en el editor)
+function brandLogo(bid) {
+  return (adminBrands.find(b => b.id === bid) || {}).logo_url || '';
+}
+
+// Actualiza el logo mostrado al cambiar la marca de una variante
+function updateVariantLogo(i, bid) {
+  const wrap = document.querySelector(`.variant-row[data-i="${i}"]`);
+  if (!wrap) return;
+  const img = wrap.querySelector('.v-brand-logo');
+  const sel = wrap.querySelector('.v-brand');
+  const url = brandLogo(bid);
+  if (url) { img.src = url; img.style.display = ''; sel.classList.add('has-logo'); }
+  else     { img.style.display = 'none'; sel.classList.remove('has-logo'); }
 }
 
 function addVariantRow() {

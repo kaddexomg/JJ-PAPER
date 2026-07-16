@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="JJ Paper — Papelería y suministros al mayor en Venezuela. Calidad, compromiso y confianza.">
 <title>JJ Paper — Papelería y Suministros al Mayor</title>
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
@@ -101,6 +101,10 @@
   .h-acts { justify-content:center }
   /* Columna visual compacta: el carrusel de promos SÍ se ve en mobile */
   .hp-carousel { max-width:min(470px,100%) }
+  /* Nosotros / Contacto: menos aire entre columnas apiladas */
+  .nos-grid { gap:30px }
+  .cnt-grid { gap:28px }
+  .map-c iframe { height:320px }
 }
 @media (max-width:480px) {
   .h-in       { gap:22px; padding:44px 4% 46px }
@@ -113,6 +117,11 @@
   }
   .dl-wrap    { width:100% }
   .dl-menu    { left:0; right:0 }
+  /* Contacto: mapa y tarjetas compactos en teléfono */
+  .map-c iframe { height:260px }
+  .metrics      { gap:10px }
+  .cc           { padding:14px }
+  .tl           { padding:20px 16px }
 }
 
 /* ---- Nosotros ---- */

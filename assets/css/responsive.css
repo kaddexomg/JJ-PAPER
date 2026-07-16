@@ -1,5 +1,7 @@
 /* ======================================================
    JJ Paper — Responsive
+   Todas las reglas viven dentro de media queries:
+   el layout de escritorio NO se toca desde este archivo.
    ====================================================== */
 
 @media (max-width:992px) {
@@ -24,7 +26,11 @@
 }
 
 @media (max-width:768px) {
-  :root { --section-pad: 50px 4% }
+  :root { --section-pad: 48px 4% }
+
+  /* iOS hace zoom automático al enfocar inputs con fuente <16px:
+     en táctil todos los campos suben a 16px (evita el salto de viewport) */
+  .fi, .fta, .srch input, .sort-sel, .cb-in, .c-note textarea { font-size:16px }
 
   /* Nav */
   .n-links { display:none }
@@ -32,17 +38,73 @@
   #cart    { width:100vw; right:-100vw }
   .cb-win  { width:calc(100vw - 32px); right:16px }
 
+  /* Menú móvil: nunca más alto que el viewport (7 enlaces + landscape) */
+  .m-menu { max-height:calc(100dvh - 64px); overflow-y:auto }
+
+  /* Cart drawer: 100vh en mobile deja el botón de checkout bajo la barra
+     del navegador — dvh sigue a la UI real; safe-area para iPhone con notch */
+  #cart  { height:100dvh }
+  .c-ft  { padding:14px 18px calc(14px + env(safe-area-inset-bottom, 0px)) }
+
+  /* Toasts: nunca más anchos que la pantalla */
+  .toast-c { left:16px; right:16px }
+  .toast   { max-width:100% }
+
+  /* Encabezados de sección más compactos */
+  .s-hd   { margin-bottom:32px }
+  .s-desc { font-size:14px }
+
+  /* Features bar: 2×2 compacto (una sola columna alargaba mucho el scroll) */
+  .f-in   { grid-template-columns:1fr 1fr; gap:6px 14px; padding:18px 4% }
+  .f-item { border-bottom:none; padding:8px 0 }
+  .f-ico  { font-size:22px }
+
+  /* Page hero (catálogo/pedidos/rastreo/checkout) */
+  .page-hero { padding:42px 5% 36px }
+  .hero-brand-logo { width:58px; height:58px; margin-bottom:10px }
+
+  /* Toolbar del catálogo: búsqueda a ancho completo,
+     orden + descarga comparten la segunda fila */
+  .cat-tb   { gap:10px }
+  .srch     { flex:1 1 100% }
+  .sort-sel { flex:1 1 0; min-width:0 }
+  .dl-btn   { padding:11px 14px }
+
+  /* Filtros de categoría: banda horizontal deslizable (los pills apilados
+     empujaban el catálogo fuera de la primera pantalla) */
+  .cat-filters {
+    flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; padding-bottom:4px;
+  }
+  .cat-filters::-webkit-scrollbar { display:none }
+  .cf { flex:0 0 auto; white-space:nowrap }
+
+  /* Catálogo: 2 columnas fijas (auto-fill de 230px dejaba 1 sola columna
+     gigante entre 480 y 768px) */
+  .prod-grid { grid-template-columns:repeat(2,1fr); gap:14px }
+  .pc-img    { height:180px }
+
+  /* Modales: aprovechar la pantalla completa sin desbordarla */
+  .modal-overlay { padding:12px }
+  .modal-box     { max-height:calc(100dvh - 24px) }
+  .modal-body    { padding:18px 16px }
+
   /* Forms */
   .f-grid { grid-template-columns:1fr }
 
-  /* Footer */
-  .ft-in { grid-template-columns:1fr }
+  /* Pedidos / cotización */
+  .o-form { padding:26px 18px }
+  .rv-sec { padding:26px 18px }
 
-  /* Features bar */
-  .f-in  { grid-template-columns:1fr }
+  /* Checkout */
+  .co-card, .co-summary { padding:20px 16px }
+
+  /* Footer */
+  .ft-in { grid-template-columns:1fr; gap:26px }
+  footer { padding:40px 6% 24px }
 
   /* Order items row (se oculta el estimado por línea; el total sí se muestra) */
-  .oi-row  { grid-template-columns:1fr 54px 54px 32px }
+  .oi-row  { grid-template-columns:1fr 54px 54px 44px }
   .oi-est  { display:none }
 
   /* Rastreo */
@@ -51,15 +113,56 @@
 }
 
 @media (max-width:480px) {
+  /* Nav compacto: la píldora del carrito pierde la palabra (queda 🛒 + badge)
+     y el brand baja un punto — todo sigue entrando en 360px sin apretarse */
+  #nav        { padding:0 4% }
+  .n-name     { font-size:16px }
+  .n-cart     { padding:7px 12px; font-size:13px }
+  .n-cart-lbl { display:none }
+  .n-acts     { gap:6px }
+
   .o-form   { padding:22px 16px }
-  .btt      { right:88px; bottom:22px }
-  .cb-fab   { bottom:22px; right:22px }
+  .btt      { right:88px; bottom:calc(16px + env(safe-area-inset-bottom, 0px)) }
+  .cb-fab   { bottom:calc(16px + env(safe-area-inset-bottom, 0px)); right:18px; width:54px; height:54px }
   /* Chat: nunca más alto que el viewport real (dvh sigue al teclado en pantalla) */
-  .cb-win   { bottom:90px; max-height:min(480px, calc(100dvh - 110px)) }
+  .cb-win   { bottom:calc(84px + env(safe-area-inset-bottom, 0px)); max-height:min(480px, calc(100dvh - 110px)) }
 
   /* Catálogo: siempre 2 columnas en teléfonos (antes quedaba 1 col ancha 360-480px) */
   .prod-grid { grid-template-columns:repeat(2,1fr); gap:12px }
   .pc-img    { height:170px }
   .pc-info   { padding:10px }
   .pc-name   { font-size:12px }
+  /* Descripción a 3 líneas: las tarjetas quedan parejas en el grid */
+  .pc-desc   { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden }
+  /* Pie de tarjeta: si precio + controles no caben en la fila (tarjetas de
+     ~150px con targets de 44px), los controles bajan a su propia línea */
+  .pc-ft     { flex-wrap:wrap; row-gap:8px }
+  .pc-ctrl   { margin-left:auto }
+
+  /* Accesos rápidos: 2×2 compacto (4 tarjetas apiladas = mucho scroll) */
+  .qa-hub  { grid-template-columns:1fr 1fr; gap:10px }
+  .qa-card { padding:18px 12px }
+  .qa-card p { font-size:11px }
+  .qa-card .qa-ico { width:48px; height:48px; font-size:22px }
+
+  /* Modal de producto */
+  .prod-modal-usd { font-size:24px }
+
+  /* Métricas de "Nosotros" (grid 2×2 definido en index.html) */
+  .met   { padding:18px 12px }
+  .met-n { font-size:28px }
+
+  /* Rastreo */
+  .trk-card { padding:22px 16px }
+
+  /* Checkout: filas de datos de pago más angostas */
+  .co-pd-row { grid-template-columns:80px 1fr auto; font-size:12px }
+}
+
+/* Teléfonos muy angostos (≤360px): último ajuste de densidad */
+@media (max-width:360px) {
+  .prod-grid { gap:10px }
+  .pc-img    { height:150px }
+  .cf        { padding:8px 14px }
+  .page-hero h1 { font-size:26px }
 }

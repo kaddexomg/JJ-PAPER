@@ -209,7 +209,8 @@ input.sr-only { clip:rect(0,0,0,0) }
 /* Objetivos táctiles: en dispositivos de puntero grueso (dedo) subimos a ≥44px
    sin afectar el layout de escritorio (WCAG 2.2 SC 2.5.8) */
 @media (pointer:coarse) {
-  .qb, .c-cls, .modal-close, .cb-send, .cb-x, .ci-del, .co-del, .btt, .add-btn {
+  .qb, .c-cls, .modal-close, .cb-send, .cb-x, .ci-del, .co-del, .btt, .add-btn,
+  .n-tog, .btn-del-i {
     min-width:44px; min-height:44px;
   }
   .co-cp { padding:8px 10px }

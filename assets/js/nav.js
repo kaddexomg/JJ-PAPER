@@ -31,8 +31,8 @@ function injectNav(activeKey = '') {
   </a>
   <div class="n-links">${linksHTML}</div>
   <div class="n-acts">
-    <button class="n-cart" id="openCartBtn">
-      🛒 Carrito <span class="n-cbadge" id="cartBadge">0</span>
+    <button class="n-cart" id="openCartBtn" aria-label="Abrir carrito">
+      🛒 <span class="n-cart-lbl">Carrito</span> <span class="n-cbadge" id="cartBadge">0</span>
     </button>
     <button class="n-tog" id="menuTog" aria-label="Abrir menú" aria-expanded="false" aria-controls="mmenu">&#9776;</button>
   </div>

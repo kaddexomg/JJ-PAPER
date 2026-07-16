@@ -43,6 +43,11 @@
 .wa-chat-bottom { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .wa-chat-preview { font-size: 12.5px; color: var(--gr); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wa-chat-owner { font-size: 11px; color: var(--amd); margin-top: 2px; }
+.wa-label {
+  display: inline-block; margin-top: 3px; padding: 1px 8px; border-radius: 999px;
+  color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .2px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .wa-unread {
   background: var(--wa); color: var(--wh); font-size: 11px; font-weight: 700;
   border-radius: 10px; padding: 1px 7px; flex-shrink: 0; align-self: center;
@@ -67,8 +72,17 @@
   box-shadow: var(--sh); text-transform: capitalize;
 }
 
-.wam { display: flex; margin: 3px 0; }
+.wam { display: flex; margin: 3px 0; align-items: center; gap: 4px; }
 .wam.out { justify-content: flex-end; }
+
+/* Borrar mensaje: aparece al pasar el mouse por la burbuja */
+.wam-del {
+  border: 0; background: transparent; cursor: pointer; font-size: 13px;
+  opacity: 0; transition: opacity .15s; padding: 4px; flex-shrink: 0;
+}
+.wam:hover .wam-del, .wam-del:focus-visible { opacity: .75; }
+.wam-del:hover { opacity: 1; }
+@media (hover: none) { .wam-del { opacity: .35; } }   /* táctil: siempre visible tenue */
 .wam-bubble {
   max-width: min(72%, 480px); padding: 7px 10px 5px; border-radius: 12px;
   background: var(--wh); box-shadow: 0 1px 2px rgba(0,0,0,.08);
@@ -121,6 +135,13 @@
 @media (prefers-reduced-motion: reduce) { .wa-rec-dot { animation: none } }
 
 .wa-del-btn { color: var(--danger); }
+.wa-cust-btn.on-pin { background: var(--gx); box-shadow: inset 0 0 0 2px var(--gd); }
+
+/* Topbar del chat: los controles nunca se montan sobre el contenido */
+.wa-topbar-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.wa-new-btn { min-width: 42px; min-height: 42px; font-size: 20px; flex-shrink: 0; padding: 0; }
+.wa-owner-sel { max-width: 100%; flex-basis: 100%; font-size: 13px; height: 36px; }
+.wa-owner-sel:has(option:only-child) { display: none; }   /* sin equipo → se oculta */
 .wa-readonly-note {
   display: none; padding: 10px 14px; background: var(--gx);
   font-size: 12.5px; color: var(--gr); text-align: center;

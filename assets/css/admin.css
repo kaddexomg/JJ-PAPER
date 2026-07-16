@@ -53,8 +53,9 @@ body.admin-body { background:var(--gl) }
 }
 
 .admin-topbar {
-  background:#fff; padding:0 28px; height:62px;
+  background:#fff; padding:8px 28px; min-height:62px;
   display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:8px;   /* altura fija causaba botones montados sobre el contenido */
   border-bottom:1px solid #eee; position:sticky; top:0; z-index:100;
   box-shadow:0 1px 8px rgba(0,0,0,.06);
 }

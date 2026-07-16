@@ -53,15 +53,10 @@
           <p>Chats del equipo y sesiones vinculadas</p>
         </div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <select class="fi" id="waOwnerFilter" onchange="waSetOwnerFilter(this.value)"
-                style="max-width:180px;font-size:13px" aria-label="Filtrar chats por usuario">
-          <option value="me">Mis chats</option>
-        </select>
+      <div class="wa-topbar-right">
         <span class="wa-chip" id="waStatusChip">Cargando…</span>
         <button class="btn-o" onclick="openWaLinkModal()">🔗 Mi cuenta</button>
         <button class="btn-o" onclick="openWaSessionsModal()">⚙️ Sesiones</button>
-        <button class="btn-p" onclick="openWaNewChat()">＋ Nuevo chat</button>
       </div>
     </div>
 
@@ -70,6 +65,10 @@
         <div class="wa-list-pane">
           <div class="wa-list-head">
             <input class="fi" id="waSearch" placeholder="Buscar chat…" oninput="waRenderChatList()" aria-label="Buscar chat">
+            <button class="btn-p wa-new-btn" onclick="openWaNewChat()" title="Nuevo chat" aria-label="Nuevo chat">＋</button>
+            <select class="fi wa-owner-sel" id="waOwnerFilter" onchange="waSetOwnerFilter(this.value)" aria-label="Filtrar chats por usuario">
+              <option value="me">Mis chats</option>
+            </select>
           </div>
           <div class="wa-chat-list" id="waChatList" aria-live="polite">
             <div class="wa-empty">Cargando chats…</div>

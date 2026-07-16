@@ -48,7 +48,6 @@
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="wa-chip" id="waStatusChip">Cargando…</span>
         <button class="btn-o" onclick="openWaLinkModal()">🔗 Mi cuenta</button>
-        <button class="btn-p" onclick="openWaNewChat()">＋ Nuevo chat</button>
       </div>
     </div>
 
@@ -57,6 +56,7 @@
         <div class="wa-list-pane">
           <div class="wa-list-head">
             <input class="fi" id="waSearch" placeholder="Buscar chat…" oninput="waRenderChatList()" aria-label="Buscar chat">
+            <button class="btn-p wa-new-btn" onclick="openWaNewChat()" title="Nuevo chat" aria-label="Nuevo chat">＋</button>
           </div>
           <div class="wa-chat-list" id="waChatList" aria-live="polite">
             <div class="wa-empty">Cargando chats…</div>

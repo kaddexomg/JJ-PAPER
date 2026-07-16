@@ -62,6 +62,7 @@ function waSubscribe() {
 /* ---------- bandeja ---------- */
 async function waLoadChats() {
   let q = sb.from('jjp_wa_chats').select('*')
+    .order('pinned', { ascending: false })
     .order('last_message_at', { ascending: false, nullsFirst: false })
     .limit(200);
   if (!WA_IS_ADMIN || waOwnerFilter === 'me') q = q.eq('owner_id', WA_ME.id);
@@ -77,7 +78,8 @@ function waRenderChatList() {
   if (!list) return;
   const term = normTxt(document.getElementById('waSearch')?.value || '');
   const rows = waChats.filter(c =>
-    !term || normTxt(c.display_name || '').includes(term) || (c.phone || '').includes(term));
+    !term || normTxt(c.display_name || '').includes(term) || (c.phone || '').includes(term)
+    || normTxt(c.label || '').includes(term));
 
   if (!rows.length) {
     list.innerHTML = '<div class="wa-empty">Sin chats todavía.<br>Usa <strong>＋ Nuevo chat</strong> o espera mensajes entrantes.</div>';
@@ -91,9 +93,10 @@ function waRenderChatList() {
       <div class="wa-avatar">${escapeHTML((c.display_name || '?').charAt(0).toUpperCase())}</div>
       <div class="wa-chat-info">
         <div class="wa-chat-top">
-          <span class="wa-chat-name">${escapeHTML(c.display_name || waPrettyPhone(c.phone))}</span>
+          <span class="wa-chat-name">${c.pinned ? '📌 ' : ''}${escapeHTML(c.display_name || waPrettyPhone(c.phone))}</span>
           <span class="wa-chat-time">${waTime(c.last_message_at)}</span>
         </div>
+        ${c.label ? `<span class="wa-label" style="background:${escapeHTML(c.label_color || '#16604A')}">${escapeHTML(c.label)}</span>` : ''}
         <div class="wa-chat-bottom">
           <span class="wa-chat-preview">${c.last_message_from === 'me' ? 'Tú: ' : ''}${escapeHTML(c.last_message_preview || '')}</span>
           ${c.unread_count ? `<span class="wa-unread">${c.unread_count}</span>` : ''}
@@ -141,8 +144,11 @@ function waRenderThreadHeader() {
       : waActive.customer_id
         ? `<a class="btn-o wa-cust-btn" href="${(WA_IS_ADMIN ? '../vendedor/' : '') + 'pos.html?tel=' + encodeURIComponent(waActive.phone)}" title="Nueva venta a este cliente">🛍️ Venta</a>`
         : `<button class="btn-o wa-cust-btn" onclick="waLinkCustomer()" title="Crear cliente en el CRM">＋ CRM</button>`}
-    ${(mine || WA_IS_ADMIN)
-      ? `<button class="btn-o wa-cust-btn wa-del-btn" onclick="waDeleteChat()" title="Borrar chat del CRM" aria-label="Borrar chat">🗑️</button>` : ''}
+    ${(mine || WA_IS_ADMIN) ? `
+      <button class="btn-o wa-cust-btn ${waActive.pinned ? 'on-pin' : ''}" onclick="waTogglePin()"
+        title="${waActive.pinned ? 'Desanclar chat' : 'Anclar chat arriba'}" aria-label="Anclar chat">📌</button>
+      <button class="btn-o wa-cust-btn" onclick="waSetLabel()" title="Etiqueta del chat" aria-label="Etiqueta del chat">🏷️</button>
+      <button class="btn-o wa-cust-btn wa-del-btn" onclick="waDeleteChat()" title="Borrar chat del CRM" aria-label="Borrar chat">🗑️</button>` : ''}
   `;
   const composer = document.getElementById('waComposer');
   if (composer) composer.style.display = mine ? 'flex' : 'none';
@@ -180,11 +186,14 @@ function waMsgBubble(m) {
   const tick = out ? `<span class="wa-tick ${m.status}">${WA_STATUS_TICK[m.status] || ''}</span>` : '';
   const failed = m.status === 'failed'
     ? `<div class="wa-failed">No se envió${m.error ? ': ' + escapeHTML(m.error) : ''} <button class="wa-retry" onclick="waRetry('${m.id}')">Reintentar</button></div>` : '';
+  const canDel = waActive && (waActive.owner_id === WA_ME.id || WA_IS_ADMIN) && !m._optimistic;
+  const delBtn = canDel
+    ? `<button class="wam-del" onclick="waDeleteMsg('${m.id}')" title="Borrar mensaje del CRM" aria-label="Borrar mensaje">🗑️</button>` : '';
   return `
     <div class="wam ${out ? 'out' : 'in'}" id="wam-${m.id}">
-      <div class="wam-bubble">${inner}
+      ${out ? delBtn : ''}<div class="wam-bubble">${inner}
         <span class="wam-meta">${waTime(m.wa_timestamp || m.created_at)} ${tick}</span>
-      </div>${failed}
+      </div>${out ? '' : delBtn}${failed}
     </div>`;
 }
 
@@ -454,18 +463,83 @@ async function waRecSend(blob, secs) {
 }
 
 /* ---------- borrar chat ---------- */
+// Supabase no permite borrar storage.objects desde SQL: la media se limpia
+// aquí con la Storage API (política wa_media_delete) y luego el RPC borra el chat.
+async function waPurgeChatMedia(ownerId, chatId) {
+  try {
+    const folder = `${ownerId}/${chatId}`;
+    for (let i = 0; i < 20; i++) {                       // hasta 2000 archivos
+      const { data: files, error } = await sb.storage.from('jjp-wa-media')
+        .list(folder, { limit: 100 });
+      if (error || !files?.length) break;
+      await sb.storage.from('jjp-wa-media').remove(files.map(f => `${folder}/${f.name}`));
+      if (files.length < 100) break;
+    }
+  } catch (e) { /* huérfanos no bloquean el borrado del chat */ }
+}
+
 async function waDeleteChat() {
   if (!waActive) return;
   const mine = waActive.owner_id === WA_ME.id;
   if (!mine && !WA_IS_ADMIN) { showToast('Solo el dueño del chat o un admin puede borrarlo', 'warn'); return; }
   const who = waActive.display_name || waPrettyPhone(waActive.phone);
   if (!confirm(`¿Borrar el chat con ${who}?\n\nSe eliminan los mensajes y archivos del CRM (NO se borra nada en el teléfono del cliente). Esta acción no se puede deshacer.`)) return;
-  const id = waActive.id;
+  const id = waActive.id, owner = waActive.owner_id;
+  showToast('Borrando chat…');
+  await waPurgeChatMedia(owner, id);
   const { data, error } = await sb.rpc('jjp_wa_delete_chat', { p_chat_id: id });
   if (error || data === false) { showToast('No se pudo borrar: ' + (error?.message || 'sin permiso'), 'err'); return; }
   waChats = waChats.filter(c => c.id !== id);
   waCloseThread();
   showToast('Chat borrado 🗑️');
+}
+
+/* ---------- borrar mensaje individual (del CRM) ---------- */
+async function waDeleteMsg(msgId) {
+  const m = waMsgs.find(x => x.id === msgId);
+  if (!m || !waActive) return;
+  if (waActive.owner_id !== WA_ME.id && !WA_IS_ADMIN) return;
+  if (!confirm('¿Borrar este mensaje del CRM?\n(No se borra en el teléfono del cliente)')) return;
+  const { error } = await sb.from('jjp_wa_messages').delete().eq('id', msgId);
+  if (error) { showToast('No se pudo borrar: ' + error.message, 'err'); return; }
+  if (m.media_path) sb.storage.from('jjp-wa-media').remove([m.media_path]).catch(() => {});
+  waMsgs = waMsgs.filter(x => x.id !== msgId);
+  waRenderThread('keep');
+  showToast('Mensaje borrado');
+}
+
+/* ---------- anclar chat ---------- */
+async function waTogglePin() {
+  if (!waActive || (waActive.owner_id !== WA_ME.id && !WA_IS_ADMIN)) return;
+  const pinned = !waActive.pinned;
+  const { error } = await sb.from('jjp_wa_chats').update({ pinned }).eq('id', waActive.id);
+  if (error) { showToast('No se pudo anclar: ' + error.message, 'err'); return; }
+  waActive.pinned = pinned;
+  waRenderThreadHeader();
+  await waLoadChats();
+  showToast(pinned ? '📌 Chat anclado' : 'Chat desanclado');
+}
+
+/* ---------- etiqueta del chat ---------- */
+const WA_LABEL_COLORS = ['#16604A', '#C9A24B', '#1565C0', '#C2185B', '#6A1B9A', '#E65100'];
+function waLabelColor(text) {
+  let h = 0;
+  for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return WA_LABEL_COLORS[h % WA_LABEL_COLORS.length];
+}
+
+async function waSetLabel() {
+  if (!waActive || (waActive.owner_id !== WA_ME.id && !WA_IS_ADMIN)) return;
+  const label = prompt('Etiqueta del chat (vacío = quitar):\nEj: cliente frecuente, mayorista, pendiente pago…', waActive.label || '');
+  if (label === null) return;
+  const clean = label.trim().slice(0, 30);
+  const upd = { label: clean || null, label_color: clean ? waLabelColor(clean) : null };
+  const { error } = await sb.from('jjp_wa_chats').update(upd).eq('id', waActive.id);
+  if (error) { showToast('No se pudo etiquetar: ' + error.message, 'err'); return; }
+  Object.assign(waActive, upd);
+  waRenderThreadHeader();
+  waRenderChatList();
+  showToast(clean ? `🏷️ Etiqueta: ${clean}` : 'Etiqueta quitada');
 }
 
 async function waRetry(msgId) {

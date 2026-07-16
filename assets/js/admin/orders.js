@@ -25,7 +25,9 @@ let adminSellers = [];   // vendedores activos (para atribuir pedidos)
 
 async function loadOrders(statusFilter = ordersFilter) {
   ordersFilter = statusFilter;
-  let q = sb.from('jjp_orders').select('*, jjp_profiles(name)').order('created_at', { ascending: false });
+  // jjp_orders tiene 3 FKs hacia jjp_profiles (seller + descuentos): hay que
+  // nombrar la relación o PostgREST devuelve 300 PGRST201 (embed ambiguo).
+  let q = sb.from('jjp_orders').select('*, jjp_profiles!jjp_orders_seller_id_fkey(name)').order('created_at', { ascending: false });
   if (statusFilter) q = q.eq('status', statusFilter);
   const [{ data, error }, sellersRes] = await Promise.all([
     q,

@@ -301,7 +301,7 @@
     this.t = 0;
 
     this._initParticles(reduce ? 14 : (this.bg ? 46 : 34));
-    if (this.bg) this._initFloaters(window.innerWidth <= 992 ? 7 : 12);
+    if (this.bg) this._initFloaters(window.innerWidth <= 992 ? 6 : 10);
     this._bind();
     this._resize();
 
@@ -348,14 +348,14 @@
         bx: 0.05 + Math.random() * 0.90,     // ancla (fracción del canvas)
         by: 0.08 + Math.random() * 0.78,
         depth: 0.60 + Math.random() * 0.40,  // lejos=chico/tenue, cerca=grande
-        sz: 30 + Math.random() * 24,
+        sz: 22 + Math.random() * 17,
         ph: Math.random() * Math.PI * 2,
         ph2: Math.random() * Math.PI * 2,
-        wa: 0.0035 + Math.random() * 0.0040, // velocidades de deriva
-        wb: 0.0028 + Math.random() * 0.0045,
-        rs: (Math.random() - 0.5) * 0.010,   // tumbado lento
-        ax: 30 + Math.random() * 60,         // amplitud de paseo (px CSS)
-        ay: 22 + Math.random() * 46,
+        wa: 0.0026 + Math.random() * 0.0030, // velocidades de deriva
+        wb: 0.0021 + Math.random() * 0.0034,
+        rs: (Math.random() - 0.5) * 0.007,   // tumbado lento
+        ax: 18 + Math.random() * 34,         // amplitud de paseo (px CSS)
+        ay: 14 + Math.random() * 26,
         px: 0, py: 0,                        // última posición dibujada
         fx: 0, fy: 0, fvx: 0, fvy: 0         // impulso de clic
       });
@@ -373,10 +373,10 @@
       self.pointer.y = clamp((py - rect.top) / rect.height, 0, 1);
       self.pointer.inside = true;
       var dx = self.pointer.x - 0.5, dy = self.pointer.y - 0.5;
-      self.tiltY = dx * 0.5;
-      self.tiltX = -dy * 0.42;
-      self.camX = dx * 22;
-      self.camY = dy * 22;
+      self.tiltY = dx * 0.32;
+      self.tiltX = -dy * 0.26;
+      self.camX = dx * 14;
+      self.camY = dy * 14;
     };
     this._onLeave = function () {
       self.pointer.inside = false;
@@ -399,10 +399,10 @@
       var dx = clamp((e.clientX - cx) / (window.innerWidth / 2), -1, 1);
       var dy = clamp((e.clientY - cy) / (window.innerHeight / 2), -1, 1);
       var k = self.bg ? 1 : 0.5;
-      self.tiltY = dx * 0.40 * k;
-      self.tiltX = -dy * 0.32 * k;
-      self.camX = dx * (self.bg ? 30 : 12);
-      self.camY = dy * (self.bg ? 18 : 12);
+      self.tiltY = dx * 0.26 * k;
+      self.tiltX = -dy * 0.20 * k;
+      self.camX = dx * (self.bg ? 18 : 10);
+      self.camY = dy * (self.bg ? 11 : 10);
     };
 
     // Modo bg: el canvas no recibe eventos (pointer-events:none) →
@@ -417,8 +417,8 @@
     // Flechas: ← → impulso de giro, ↑ ↓ cabeceo
     this._onKey = function (e) {
       if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-      if (e.key === 'ArrowLeft')       self.spinVel -= 0.035;
-      else if (e.key === 'ArrowRight') self.spinVel += 0.035;
+      if (e.key === 'ArrowLeft')       self.spinVel -= 0.022;
+      else if (e.key === 'ArrowRight') self.spinVel += 0.022;
       else if (e.key === 'ArrowUp')    self.tiltX = clamp(self.tiltX + 0.15, -0.5, 0.5);
       else if (e.key === 'ArrowDown')  self.tiltX = clamp(self.tiltX - 0.15, -0.5, 0.5);
     };
@@ -429,10 +429,10 @@
       var y = window.scrollY || 0;
       var dy = y - self._lastScrollY;
       self._lastScrollY = y;
-      self.spinVel += clamp(dy * (self.bg ? 0.0004 : 0.0002), -0.012, 0.012);
+      self.spinVel += clamp(dy * (self.bg ? 0.00025 : 0.00015), -0.007, 0.007);
       if (self.bg) self.scrollPar = y;
       if (!self.pointer.inside) {
-        self.tiltX = clamp(-dy * 0.002, -0.22, 0.22);
+        self.tiltX = clamp(-dy * 0.0012, -0.14, 0.14);
         clearTimeout(self._scrollT);
         self._scrollT = setTimeout(function () {
           if (!self.pointer.inside) self.tiltX = 0;
@@ -473,7 +473,8 @@
       var mobile = window.innerWidth <= 992;
       this.cx = this.W * (mobile ? 0.5 : 0.72);
       this.cy = this.H * (mobile ? 0.44 : 0.40);
-      this.R = Math.min(this.W, this.H) * (mobile ? 0.34 : 0.33);
+      // Chapa más contenida: protagonista sin dominar el hero
+      this.R = Math.min(this.W, this.H) * (mobile ? 0.25 : 0.22);
     } else {
       this.cx = this.W / 2; this.cy = this.H / 2;
       this.R = Math.min(this.W, this.H) * 0.30;
@@ -483,8 +484,8 @@
 
   LogoScene.prototype._click = function (x, y) {
     // Impulso contenido + "pop" elástico (el muelle lo devuelve con rebote)
-    this.spinVel += (this.spinVel >= 0 ? 1 : -1) * 0.09;
-    this.pop = 1;
+    this.spinVel += (this.spinVel >= 0 ? 1 : -1) * 0.05;
+    this.pop = 0.7;
     this.ripples.push({ x: x, y: y, r: 0, life: 1 });
     // Los útiles cercanos al clic salen despedidos con suavidad y regresan
     if (this.floaters && !reduce) {
@@ -494,7 +495,7 @@
         var dx = f.px - x, dy = f.py - y;
         var d = Math.sqrt(dx * dx + dy * dy);
         if (d < rad && d > 1) {
-          var kick = (1 - d / rad) * 9 * this.dpr;
+          var kick = (1 - d / rad) * 5.5 * this.dpr;
           f.fvx += (dx / d) * kick;
           f.fvy += (dy / d) * kick;
         }
@@ -542,10 +543,10 @@
     this.t += 1;
     var t = this.t, ph = this.ph;
 
-    this._spring('tiltXc', 'tiltXv', this.tiltX, 0.045, 0.90);
-    this._spring('tiltYc', 'tiltYv', this.tiltY, 0.045, 0.90);
-    this._spring('camXc', 'camXv', this.camX, 0.040, 0.88);
-    this._spring('camYc', 'camYv', this.camY, 0.040, 0.88);
+    this._spring('tiltXc', 'tiltXv', this.tiltX, 0.030, 0.86);
+    this._spring('tiltYc', 'tiltYv', this.tiltY, 0.030, 0.86);
+    this._spring('camXc', 'camXv', this.camX, 0.028, 0.85);
+    this._spring('camYc', 'camYv', this.camY, 0.028, 0.85);
     this.scrollParC = lerp(this.scrollParC, this.scrollPar, 0.07);
 
     // Cursor suavizado (muelle) para proximidad de chapa y partículas
@@ -567,7 +568,7 @@
 
     // Deriva orgánica: suma de senos desfasados → paseo "vivo" que nunca
     // repite un bucle evidente. En bg pasea más amplio por el hero.
-    var amp = reduce ? 0 : this.R * (this.bg ? 0.34 : 0.10);
+    var amp = reduce ? 0 : this.R * (this.bg ? 0.20 : 0.08);
     var wxT = (Math.sin(t * 0.0047 + ph[0]) * 0.55 +
                Math.sin(t * 0.0083 + ph[1]) * 0.30 +
                Math.sin(t * 0.0139 + ph[2]) * 0.15) * amp * 1.15;
@@ -576,12 +577,12 @@
                Math.sin(t * 0.0127 + ph[5]) * 0.15) * amp * 0.55;
     // La chapa "esquiva" con suavidad al cursor cuando se le acerca
     if (prox > 0 && pd > 1) {
-      var flee = prox * prox * this.R * 0.14;
+      var flee = prox * prox * this.R * 0.09;
       wxT -= (pdx / pd) * flee;
       wyT -= (pdy / pd) * flee;
     }
-    this.wx = lerp(this.wx, wxT, 0.03);
-    this.wy = lerp(this.wy, wyT, 0.03);
+    this.wx = lerp(this.wx, wxT, 0.02);
+    this.wy = lerp(this.wy, wyT, 0.02);
 
     // Giro que respira: acelera y frena solo; la cercanía del cursor lo anima
     var dir = this.spinVel >= 0 ? 1 : -1;
@@ -676,22 +677,22 @@
       if (this.mSeen && !reduce) {
         var rdx = x - this.mx, rdy = y - this.my;
         var rd = Math.sqrt(rdx * rdx + rdy * rdy);
-        var rad = 150 * dpr;
+        var rad = 120 * dpr;
         if (rd < rad && rd > 1) {
           var rf = 1 - rd / rad;
-          x += (rdx / rd) * rf * rf * 70 * dpr;
-          y += (rdy / rd) * rf * rf * 70 * dpr;
+          x += (rdx / rd) * rf * rf * 44 * dpr;
+          y += (rdy / rd) * rf * rf * 44 * dpr;
         }
       }
       f.px = x; f.py = y;
-      var rot = reduce ? 0 : Math.sin(t * 0.006 + f.ph) * 0.35 + t * f.rs;
-      // Sprite 120u con objeto de ~90u: ×2.8 da útiles de ~40-115px visibles
-      var sz = f.sz * f.depth * dpr * 2.8 *
-               (reduce ? 1 : 1 + 0.06 * Math.sin(t * 0.011 + f.ph2));
+      var rot = reduce ? 0 : Math.sin(t * 0.005 + f.ph) * 0.24 + t * f.rs;
+      // Sprite 120u con objeto de ~90u: ×2.4 da útiles de ~28-85px visibles
+      var sz = f.sz * f.depth * dpr * 2.4 *
+               (reduce ? 1 : 1 + 0.05 * Math.sin(t * 0.009 + f.ph2));
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(rot);
-      ctx.globalAlpha = 0.35 + f.depth * 0.40;
+      ctx.globalAlpha = 0.28 + f.depth * 0.36;
       ctx.drawImage(f.img, -sz / 2, -sz / 2, sz, sz);
       ctx.restore();
     }

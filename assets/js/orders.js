@@ -21,6 +21,27 @@ async function initQuoteForm() {
   document.body.appendChild(dl);
 
   document.querySelectorAll('#orderItems .oi-prod').forEach(wireQuoteLine);
+
+  // Prellenado desde el catálogo: pedidos.html?prod=<nombre>&qty=<cant>
+  const qs      = new URLSearchParams(location.search);
+  const preName = qs.get('prod');
+  if (preName) {
+    const first = document.querySelector('#orderItems .oi-prod');
+    if (first && !first.value) {
+      first.value = preName;
+      const row = first.closest('.oi-row');
+      const qty = parseInt(qs.get('qty'), 10);
+      if (row && qty > 0) row.querySelector('.oi-qty').value = qty;
+      const p = findQuoteProduct(preName);
+      if (p && row) {
+        const un = row.querySelector('.oi-un');
+        if (un && !un.value) un.value = p.unit || '';
+      }
+      first.scrollIntoView({ behavior:'smooth', block:'center' });
+      showToast(`${preName} agregado a tu cotización`);
+    }
+  }
+
   updateQuoteEstimate();
 }
 

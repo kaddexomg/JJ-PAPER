@@ -23,6 +23,9 @@
   /* Product modal */
   .prod-modal-grid { grid-template-columns:1fr }
   .prod-modal-img  { max-height:260px }
+  .pm-media        { position:static }
+  .pm-thumbs       { justify-content:center }
+  .pm-thumb        { width:48px; height:48px }
 }
 
 @media (max-width:768px) {

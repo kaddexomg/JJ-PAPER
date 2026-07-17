@@ -10,11 +10,11 @@
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css?v=20260710">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20260717">
 <link rel="stylesheet" href="assets/css/cart.css">
 <link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
-<link rel="stylesheet" href="assets/css/responsive.css">
-<link rel="stylesheet" href="assets/css/glass.css">
+<link rel="stylesheet" href="assets/css/responsive.css?v=20260717">
+<link rel="stylesheet" href="assets/css/glass.css?v=20260717">
 <style>
 .prod-detail-wrap { max-width:900px; margin:0 auto; padding:40px 5% }
 .prod-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:start; margin-bottom:40px }
@@ -23,7 +23,10 @@
           font-size:100px; overflow:hidden; box-shadow:var(--sh); position:relative }
 .pd-img::before { content:''; position:absolute; inset:0;
                   background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.25)) }
-.pd-img img { width:100%; height:100%; object-fit:contain; padding:14px; position:relative }
+/* Con foto real: fondo blanco limpio y sin velo (la imagen se ve nítida) */
+.pd-img.has-img { background:#fff !important }
+.pd-img.has-img::before { display:none }
+.pd-img img { width:100%; height:100%; object-fit:contain; padding:14px; position:relative; z-index:1 }
 .pd-img.zoomable { cursor:zoom-in }
 .pd-breadcrumb { font-size:12px; color:var(--gr); margin-bottom:12px }
 .pd-breadcrumb a { color:var(--gm); }
@@ -88,8 +91,12 @@
             <button class="qb" onclick="pdChangeQty(1)">+</button>
           </div>
           <div class="pd-actions">
-            <button class="pd-add" onclick="pdAddToCart()">🛒 Agregar al carrito</button>
-            <button class="btn-wa" onclick="pdOrderWA()">💬 Preguntar por WhatsApp</button>
+            <div class="pm-act-grid">
+              <button class="pm-buy" onclick="pdBuyNow()">⚡ Comprar ahora</button>
+              <button class="pd-add" onclick="pdAddToCart()">🛒 Agregar al carrito</button>
+              <button class="pm-quote" onclick="pdQuoteWS()">📋 Cotizar al mayor</button>
+              <button class="btn-wa" onclick="pdOrderWA()">💬 Consultar</button>
+            </div>
           </div>
         </div>
       </div>
@@ -117,7 +124,7 @@
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
 <script src="assets/js/catalog.js?v=20260716"></script>
-<script src="assets/js/product-modal.js"></script>
+<script src="assets/js/product-modal.js?v=20260717"></script>
 <script src="assets/js/chatbot.js?v=20260716"></script>
 <script>
 let currentProd = null;
@@ -147,6 +154,21 @@ function pdAddToCart() {
   if (!currentProd) return;
   if (pdStock() === 0) { showToast('Marca agotada', 'warn'); return; }
   addCart(currentProd, pdQty, false, pdVariant);
+}
+
+// Compra directa: agrega al carrito y pasa al checkout
+function pdBuyNow() {
+  if (!currentProd) return;
+  if (pdStock() === 0) { showToast('Marca agotada', 'warn'); return; }
+  addCart(currentProd, pdQty, true, pdVariant);
+  window.location.href = 'checkout.html';
+}
+
+// Cotización al mayor con el producto prellenado
+function pdQuoteWS() {
+  if (!currentProd) return;
+  const qs = new URLSearchParams({ prod: currentProd.name, qty: pdQty });
+  window.location.href = `pedidos.html?${qs}`;
 }
 
 function pdOrderWA() {
@@ -185,6 +207,10 @@ function pdSelectVariant(id) {
   pdQty = Math.max(1, (pdVariant?.min_qty ?? currentProd?.min_qty) || 1);
   const qd = document.getElementById('pdQtyDisplay');
   if (qd) qd.textContent = pdQty;
+  // La imagen sigue a la variante elegida (si tiene foto propia)
+  const im = document.querySelector('#pd-img img');
+  const u  = pdVariant?.image_url || currentProd?.image_url;
+  if (im && u) im.src = optImg(u, 800);
   pdRenderVariants();
 }
 
@@ -229,7 +255,7 @@ async function initProductPage() {
   if (p.image_url) {
     imgEl.innerHTML = `<img src="${optImg(p.image_url, 800)}" alt="${escapeHTML(p.name)}" decoding="async">
       <button class="pm-zoom-btn" onclick="event.stopPropagation();pdZoomImg()" aria-label="Ver imagen completa de ${escapeHTML(p.name)}">🔍 Ampliar</button>`;
-    imgEl.classList.add('zoomable');
+    imgEl.classList.add('zoomable', 'has-img');
     imgEl.onclick = pdZoomImg;
   } else {
     imgEl.textContent = p.emoji || '📦';

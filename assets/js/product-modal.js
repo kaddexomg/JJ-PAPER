@@ -7,6 +7,8 @@
 let modalQty     = 1;
 let modalProduct = null;
 let modalVariant = null;
+let modalGallery = [];    // urls de la galería (producto + variantes)
+let modalImgIdx  = -1;    // miniatura elegida (-1 = imagen de la variante)
 let _modalUntrap = null;
 
 function injectProductModal() {
@@ -56,6 +58,9 @@ async function openProductModal(productId) {
   modalVariant = p.variants.find(v => cart[v.id]) ||
                  p.variants.find(v => v.stock !== 0) || p.variants[0] || null;
   modalQty = Math.max(1, (modalVariant?.min_qty ?? p.min_qty) || 1);
+  // Galería: imagen del producto + imágenes propias de cada variante (sin repetir)
+  modalGallery = [...new Set([p.image_url, ...p.variants.map(x => x.image_url)].filter(Boolean))];
+  modalImgIdx  = -1;
 
   if (title) title.textContent = p.name;
   renderModalBody();
@@ -75,11 +80,24 @@ function renderModalBody() {
   const stock  = v ? v.stock : p.stock;
   const minQty = Math.max(1, (v?.min_qty ?? p.min_qty) || 1);
   const inCart = cart[(v?.id || p.id)]?.qty || 0;
-  const imgUrl = v?.image_url || p.image_url;
+  // Imagen mostrada: miniatura elegida > imagen de la variante > imagen del producto
+  const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) ||
+                 v?.image_url || p.image_url;
 
   const imgHTML = imgUrl
     ? `<img src="${optImg(imgUrl, 800)}" alt="${name}" decoding="async">`
     : `<span style="font-size:90px">${p.emoji || '📦'}</span>`;
+
+  // Miniaturas (solo si hay más de una imagen distinta)
+  const thumbsHTML = modalGallery.length > 1
+    ? `<div class="pm-thumbs" role="group" aria-label="Más imágenes del producto">
+        ${modalGallery.map((u, i) => `
+          <button class="pm-thumb${u === imgUrl ? ' on' : ''}"
+            onclick="selectModalImg(${i})" aria-label="Ver imagen ${i + 1}">
+            <img src="${optImg(u, 160)}" alt="" loading="lazy" decoding="async">
+          </button>`).join('')}
+      </div>`
+    : '';
 
   // Stock badge (de la variante seleccionada)
   let stockHTML;
@@ -130,10 +148,13 @@ function renderModalBody() {
 
   body.innerHTML = `
 <div class="prod-modal-grid">
-  <div class="prod-modal-img${imgUrl ? ' zoomable' : ''}" style="background:${bg}" ${imgUrl ? 'onclick="openModalImgZoom()"' : ''}>
-    ${imgHTML}
-    ${p.tag ? `<span class="pm-tag">${escapeHTML(p.tag)}</span>` : ''}
-    ${imgUrl ? `<button class="pm-zoom-btn" onclick="event.stopPropagation();openModalImgZoom()" aria-label="Ver imagen completa de ${name}">🔍 Ampliar</button>` : ''}
+  <div class="pm-media">
+    <div class="prod-modal-img${imgUrl ? ' zoomable has-img' : ''}" style="background:${bg}" ${imgUrl ? 'onclick="openModalImgZoom()"' : ''}>
+      ${imgHTML}
+      ${p.tag ? `<span class="pm-tag">${escapeHTML(p.tag)}</span>` : ''}
+      ${imgUrl ? `<button class="pm-zoom-btn" onclick="event.stopPropagation();openModalImgZoom()" aria-label="Ver imagen completa de ${name}">🔍 Ampliar</button>` : ''}
+    </div>
+    ${thumbsHTML}
   </div>
   <div class="prod-modal-info">
     <div class="prod-modal-cat">${escapeHTML(cat.name || '')}</div>
@@ -155,12 +176,24 @@ function renderModalBody() {
         <span class="pm-subtotal" id="modalSubtotal"></span>
       </div>
       ${inCart > 0 ? `<div class="pm-incart">🛒 Ya tienes ${inCart} en el carrito${brandName ? ` (${escapeHTML(brandName)})` : ''}</div>` : ''}
-      <button class="prod-modal-add" onclick="modalAddToCart()" ${soldOut?'disabled':''}>
-        ${soldOut ? 'Marca agotada' : '🛒 Agregar al carrito'}
-      </button>
-      <button class="btn-wa" onclick="modalOrderWA()">
-        💬 Preguntar por WhatsApp
-      </button>
+      <div class="pm-act-grid">
+        <button class="pm-buy" onclick="modalBuyNow()" ${soldOut?'disabled':''}>
+          ⚡ Comprar ahora
+        </button>
+        <button class="prod-modal-add" onclick="modalAddToCart()" ${soldOut?'disabled':''}>
+          ${soldOut ? 'Agotado' : '🛒 Agregar al carrito'}
+        </button>
+        <button class="pm-quote" onclick="modalQuoteWS()">
+          📋 Cotizar al mayor
+        </button>
+        <button class="btn-wa" onclick="modalOrderWA()">
+          💬 Consultar
+        </button>
+      </div>
+      <div class="pm-links">
+        <a class="pm-link" href="producto.html?id=${p.id}">📄 Ver ficha completa →</a>
+        <button class="pm-link" onclick="modalShare()">🔗 Compartir</button>
+      </div>
     </div>
   </div>
 </div>`;
@@ -168,10 +201,18 @@ function renderModalBody() {
   updateModalSubtotal();
 }
 
+// Cambia la imagen mostrada desde las miniaturas (sin resetear variante/cantidad)
+function selectModalImg(i) {
+  if (!modalGallery[i]) return;
+  modalImgIdx = i;
+  renderModalBody();
+}
+
 function selectModalVariant(variantId) {
   const v = modalProduct?.variants.find(x => x.id === variantId);
   if (!v) return;
   modalVariant = v;
+  modalImgIdx  = -1;   // vuelve a la imagen propia de la variante
   modalQty = Math.max(1, (v.min_qty ?? modalProduct.min_qty) || 1);
   renderModalBody();
 }
@@ -223,6 +264,35 @@ function modalOrderWA() {
   const price = modalVariant ? +modalVariant.price_usd : +p.price_usd;
   const msg   = `📦 Hola JJ Paper, estoy interesado en:\n• ${p.name}${brand ? ` (${brand})` : ''} x${modalQty}\n  Precio: ${fmtPrice(price * modalQty)}\n\n¿Tienen disponibilidad?`;
   openWA(msg);
+}
+
+// Compra directa: agrega al carrito y va al checkout en un paso
+function modalBuyNow() {
+  if (!modalProduct) return;
+  const stock = modalVariant ? modalVariant.stock : modalProduct.stock;
+  if (stock === 0) return;
+  addCart(modalProduct, modalQty, true, modalVariant);
+  window.location.href = 'checkout.html';
+}
+
+// Cotización al mayor: abre pedidos.html con el producto prellenado
+function modalQuoteWS() {
+  if (!modalProduct) return;
+  const qs = new URLSearchParams({ prod: modalProduct.name, qty: modalQty });
+  window.location.href = `pedidos.html?${qs}`;
+}
+
+// Compartir: enlace a la ficha del producto (share nativo o copiar)
+function modalShare() {
+  if (!modalProduct) return;
+  const url = new URL(`producto.html?id=${modalProduct.id}`, location.href).href;
+  if (navigator.share) {
+    navigator.share({ title: modalProduct.name, url }).catch(() => {});
+  } else if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => showToast('Enlace copiado 🔗'));
+  } else {
+    prompt('Copia el enlace:', url);
+  }
 }
 
 /* ======================================================
@@ -286,9 +356,10 @@ function closeImgLightbox() {
   return true;
 }
 
-// Abre el lightbox con la imagen de la variante/producto del modal
+// Abre el lightbox con la imagen visible (miniatura elegida > variante > producto)
 function openModalImgZoom() {
-  const url = modalVariant?.image_url || modalProduct?.image_url;
+  const url = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) ||
+              modalVariant?.image_url || modalProduct?.image_url;
   if (url) openImgLightbox(url, modalProduct?.name);
 }
 

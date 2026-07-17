@@ -8,8 +8,8 @@
 :root {
   /* Tokens de vidrio — afinados estilo iOS 26: más blur, borde especular
      fino y sombra difusa de bajo contraste */
-  --glass-blur:      26px;
-  --glass-sat:       190%;
+  --glass-blur:      34px;
+  --glass-sat:       230%;
   --glass-bg:        rgba(255,255,255,.52);   /* vidrio claro */
   --glass-bg-strong: rgba(255,255,255,.66);
   --glass-brd:       rgba(255,255,255,.65);   /* borde luminoso */
@@ -38,16 +38,22 @@
    =================================================================== */
 #nav {
   background:var(--glass-green);
-  -webkit-backdrop-filter:blur(26px) saturate(185%);
-          backdrop-filter:blur(26px) saturate(185%);
-  border-bottom:1px solid var(--glass-brd-dk);
-  box-shadow:0 4px 30px rgba(0,0,0,.14);
+  -webkit-backdrop-filter:blur(36px) saturate(240%);
+          backdrop-filter:blur(36px) saturate(240%);
+  border-bottom:1px solid rgba(255,255,255,.30);
+  box-shadow:0 6px 36px rgba(0,0,0,.20),
+             inset 0 1px 0 rgba(255,255,255,.28);
 }
 /* reflejo de luz que recorre el borde superior del nav */
 #nav::after {
-  content:''; position:absolute; left:0; right:0; top:0; height:1px;
-  background:linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+  content:''; position:absolute; left:0; right:0; top:0; height:1.5px;
+  background:linear-gradient(90deg, transparent 5%, rgba(255,255,255,.85) 50%, transparent 95%);
   pointer-events:none;
+}
+/* baño de luz vertical: el vidrio "atrapa" la luz en su mitad superior */
+#nav::before {
+  content:''; position:absolute; inset:0 0 45% 0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0));
 }
 /* nav se vuelve más sólido tras hacer scroll (clase la pone nav.js si existe) */
 #nav.scrolled { background:var(--glass-green-op) }
@@ -62,57 +68,86 @@
 
 /* Píldora del carrito: vidrio interactivo */
 .n-cart {
-  background:rgba(22,96,74,.88);
-  -webkit-backdrop-filter:blur(6px);
-          backdrop-filter:blur(6px);
-  border:1px solid rgba(255,255,255,.30);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 2px 10px rgba(0,0,0,.15);
+  background:rgba(22,96,74,.85);
+  -webkit-backdrop-filter:blur(14px) saturate(180%);
+          backdrop-filter:blur(14px) saturate(180%);
+  border:1px solid rgba(255,255,255,.50);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 4px 16px rgba(0,0,0,.22);
 }
 .n-cart:active { transform:scale(.96) }
 
 /* ===================================================================
    BOTONES — vidrio interactivo (reacción al puntero y al toque)
    =================================================================== */
-.btn-p, .btn-o, .btn-o-wh, .btn-wa {
+.btn-p, .btn-o, .btn-o-wh, .btn-wa, .prod-modal-add, .pm-buy, .dl-btn {
   position:relative; overflow:hidden; isolation:isolate;
 }
-/* brillo diagonal que reacciona al hover */
-.btn-p::before, .btn-o::before, .btn-o-wh::before, .btn-wa::before {
+/* brillo superior intenso: media cúpula de luz sobre el vidrio */
+.btn-p::before, .btn-o::before, .btn-o-wh::before, .btn-wa::before,
+.prod-modal-add::before, .pm-buy::before, .dl-btn::before {
   content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-  background:linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%);
-  opacity:.9; transition:opacity .3s ease; z-index:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.08) 48%, rgba(255,255,255,0) 60%);
+  opacity:.95; transition:opacity .3s ease; z-index:0;
 }
-.btn-p > *, .btn-o > *, .btn-o-wh > *, .btn-wa > * { position:relative; z-index:1 }
+.btn-p > *, .btn-o > *, .btn-o-wh > *, .btn-wa > *,
+.prod-modal-add > *, .pm-buy > *, .dl-btn > * { position:relative; z-index:1 }
+
+/* Destello que barre el botón al pasar el puntero (specular sweep) */
+.btn-p::after, .btn-wa::after, .prod-modal-add::after, .pm-buy::after, .dl-btn::after {
+  content:''; position:absolute; top:-20%; bottom:-20%; left:-70%; width:45%;
+  background:linear-gradient(105deg, transparent, rgba(255,255,255,.55) 50%, transparent);
+  transform:skewX(-18deg); pointer-events:none; z-index:0;
+  transition:left .55s cubic-bezier(.3,.7,.3,1);
+}
+.btn-p:hover::after, .btn-wa:hover::after, .prod-modal-add:hover::after,
+.pm-buy:hover::after, .dl-btn:hover::after { left:135% }
 
 .btn-p {
-  background:linear-gradient(180deg, rgba(42,158,110,.94), rgba(17,88,66,.94));
-  border:1px solid rgba(255,255,255,.30);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 8px 24px rgba(16,88,64,.22);
+  background:linear-gradient(180deg, rgba(42,158,110,.96), rgba(17,88,66,.96));
+  border:1px solid rgba(255,255,255,.48);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.60),
+             inset 0 -1px 0 rgba(0,0,0,.10),
+             0 10px 30px rgba(16,88,64,.32);
 }
+.btn-p:hover  { box-shadow:inset 0 1px 0 rgba(255,255,255,.60), 0 14px 38px rgba(16,88,64,.42) }
 .btn-p:active { transform:scale(.97) }
 
 .btn-o {
-  -webkit-backdrop-filter:blur(8px) saturate(140%);
-          backdrop-filter:blur(8px) saturate(140%);
-  background:rgba(16,107,58,.06);
+  -webkit-backdrop-filter:blur(14px) saturate(180%);
+          backdrop-filter:blur(14px) saturate(180%);
+  background:rgba(16,107,58,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45);
 }
 .btn-o:hover  { background:var(--gd) }
 .btn-o:active { transform:scale(.97) }
 
 .btn-o-wh {
-  -webkit-backdrop-filter:blur(10px) saturate(140%);
-          backdrop-filter:blur(10px) saturate(140%);
-  background:rgba(255,255,255,.12);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+  -webkit-backdrop-filter:blur(16px) saturate(180%);
+          backdrop-filter:blur(16px) saturate(180%);
+  background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45);
 }
 .btn-o-wh:active { transform:scale(.97) }
 
 .btn-wa {
-  background:linear-gradient(180deg, rgba(41,190,101,.94), rgba(27,150,74,.94));
-  border:1px solid rgba(255,255,255,.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 8px 22px rgba(37,180,92,.24);
+  background:linear-gradient(180deg, rgba(41,190,101,.96), rgba(27,150,74,.96));
+  border:1px solid rgba(255,255,255,.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.60),
+             inset 0 -1px 0 rgba(0,0,0,.10),
+             0 10px 28px rgba(37,180,92,.34);
 }
+.btn-wa:hover  { box-shadow:inset 0 1px 0 rgba(255,255,255,.60), 0 14px 36px rgba(37,180,92,.44) }
 .btn-wa:active { transform:scale(.98) }
+
+/* Botón principal del modal de producto: mismo vidrio que .btn-p */
+.prod-modal-add {
+  background:linear-gradient(180deg, rgba(42,158,110,.96), rgba(17,88,66,.96)) !important;
+  border:1px solid rgba(255,255,255,.48);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.60),
+             inset 0 -1px 0 rgba(0,0,0,.10),
+             0 10px 30px rgba(16,88,64,.32);
+}
 
 /* ===================================================================
    CARDS / VALORES — vidrio esmerilado
@@ -143,8 +178,8 @@
 }
 .modal-box {
   background:var(--glass-bg-strong);
-  -webkit-backdrop-filter:blur(26px) saturate(180%);
-          backdrop-filter:blur(26px) saturate(180%);
+  -webkit-backdrop-filter:blur(34px) saturate(210%);
+          backdrop-filter:blur(34px) saturate(210%);
   border:1px solid var(--glass-brd);
   box-shadow:0 24px 70px rgba(0,0,0,.30), inset 0 1px 0 var(--glass-hi);
 }
@@ -232,6 +267,10 @@
   .card, .val, .modal-box, .modal-hd, .toast, .f-bar { background:#fff }
   .modal-overlay  { background:rgba(0,0,0,.55) }
 }
+@media (prefers-reduced-motion:reduce) {
+  .btn-p::after, .btn-wa::after, .prod-modal-add::after,
+  .pm-buy::after, .dl-btn::after { display:none }
+}
 
 /* ===================================================================
    MOBILE — el blur apilado es caro en GPUs móviles: nav y modal
@@ -240,12 +279,12 @@
    =================================================================== */
 @media (max-width:768px) {
   #nav, .m-menu {
-    -webkit-backdrop-filter:blur(10px) saturate(160%);
-            backdrop-filter:blur(10px) saturate(160%);
+    -webkit-backdrop-filter:blur(16px) saturate(200%);
+            backdrop-filter:blur(16px) saturate(200%);
   }
   .modal-box {
-    -webkit-backdrop-filter:blur(12px) saturate(180%);
-            backdrop-filter:blur(12px) saturate(180%);
+    -webkit-backdrop-filter:blur(16px) saturate(200%);
+            backdrop-filter:blur(16px) saturate(200%);
   }
   .card, .val, .toast, .f-bar, .brands-strip, .modal-hd,
   .val-ico, .modal-close, .s-tag, .status-badge,

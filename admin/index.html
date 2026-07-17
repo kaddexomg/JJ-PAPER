@@ -31,6 +31,7 @@
       <span class="a-section">Catalogo</span>
       <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
       <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="facturas.html"><span class="a-ico">🧾</span> Cuentas por Pagar</a>
       <a href="precios.html"><span class="a-ico">💱</span> Precios</a>
       <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
       <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
@@ -97,6 +98,15 @@
         <div id="notifList" style="padding:4px 0"><p style="color:#aaa;font-size:13px;padding:10px 16px">Cargando...</p></div>
       </div>
 
+      <!-- Facturas de proveedor por vencer -->
+      <div class="admin-table-wrap" style="margin-bottom:24px">
+        <div class="table-top">
+          <h3>🧾 Facturas por pagar</h3>
+          <a href="facturas.html" class="btn-ghost">Ver todas →</a>
+        </div>
+        <div id="dashInvoices" style="padding:4px 16px 12px"><p style="color:#aaa;font-size:13px">Cargando...</p></div>
+      </div>
+
       <!-- Analytics row -->
       <div class="dash-row">
         <div class="dash-card">
@@ -137,6 +147,7 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/invoices.js"></script>
 <script src="../assets/js/admin/dashboard.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

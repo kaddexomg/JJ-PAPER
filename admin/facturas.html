@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuentas por Pagar | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Principal</span>
+      <a href="index.html"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
+      <div class="divider"></div>
+      <span class="a-section">Catalogo</span>
+      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="facturas.html" class="on"><span class="a-ico">🧾</span> Cuentas por Pagar</a>
+      <a href="precios.html"><span class="a-ico">💱</span> Precios</a>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Cuentas por Pagar</h2>
+          <p>Facturas de proveedores a credito y sus vencimientos</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="invCount" style="font-size:12px;color:var(--gr)"></span>
+        <button class="btn-ghost" onclick="openSuppliers()">🏢 Proveedores</button>
+        <button class="btn-p" onclick="openNewInvoice()">+ Nueva Factura</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- KPIs -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-ico green">💵</div>
+          <div><div class="stat-n" id="kpiUsd">—</div><div class="stat-l">Por pagar (USD)</div><div class="stat-d" id="kpiUsdSub"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico blue">🇻🇪</div>
+          <div><div class="stat-n" id="kpiBs">—</div><div class="stat-l">Por pagar (Bs)</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico yellow">⏳</div>
+          <div><div class="stat-n" id="kpiSemana">—</div><div class="stat-l">Vencen en 7 dias</div></div>
+        </div>
+        <div class="stat-card" id="kpiVencidasCard">
+          <div class="stat-ico red">🔴</div>
+          <div><div class="stat-n" id="kpiVencidas">—</div><div class="stat-l">Vencidas</div></div>
+        </div>
+      </div>
+
+      <!-- Formulario -->
+      <div class="form-panel" id="invFormPanel" style="display:none">
+        <h3 id="invFormTitle">Nueva Factura</h3>
+        <form id="invForm" onsubmit="return false">
+          <div class="f-grid">
+            <div class="fg">
+              <label class="fl" for="f-inv-supplier">Proveedor *</label>
+              <select class="fi" id="f-inv-supplier" onchange="onSupplierPick()"></select>
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-number">N° de factura</label>
+              <input type="text" class="fi" id="f-inv-number" placeholder="Ej: 00123">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-issue">Fecha de emision</label>
+              <input type="date" class="fi" id="f-inv-issue" onchange="recalcDue()">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-terms">Plazo (dias) <small style="color:#aaa">calcula el vencimiento</small></label>
+              <input type="number" class="fi" id="f-inv-terms" min="0" value="30" onchange="recalcDue()" oninput="recalcDue()">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-due">Vence el * <span id="dueHint"></span></label>
+              <input type="date" class="fi" id="f-inv-due" onchange="renderDueHint()">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-amount">Monto *</label>
+              <input type="number" class="fi" id="f-inv-amount" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-currency">Moneda</label>
+              <select class="fi" id="f-inv-currency">
+                <option value="USD">USD ($)</option>
+                <option value="Bs">Bolivares (Bs)</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-inv-photo">Foto de la factura</label>
+              <input type="file" class="fi" id="f-inv-photo" accept="image/*" capture="environment">
+              <small id="invPhotoPrev" style="display:none;color:var(--gr);font-size:11px">Ya tiene una foto guardada. Sube otra solo si quieres reemplazarla.</small>
+            </div>
+            <div class="fg" style="grid-column:1/-1">
+              <label class="fl" for="f-inv-notes">Notas</label>
+              <input type="text" class="fi" id="f-inv-notes" placeholder="Ej: mercancia recibida completa, pagar por transferencia">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button type="button" class="btn-p" id="btnSaveInv" onclick="saveInvoice()">💾 Guardar Factura</button>
+            <button type="button" class="btn-ghost" onclick="cancelInvForm()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Filtros -->
+      <div class="fac-filters">
+        <select class="fi" id="filtStatus" onchange="applyInvFilters()">
+          <option value="abiertas">Abiertas (por pagar)</option>
+          <option value="vencidas">Solo vencidas</option>
+          <option value="pagadas">Pagadas</option>
+          <option value="anuladas">Anuladas</option>
+          <option value="todas">Todas</option>
+        </select>
+        <select class="fi" id="filtSupplier" onchange="applyInvFilters()"></select>
+        <input type="search" class="fi" id="filtQ" placeholder="Buscar proveedor, n° o nota..." oninput="applyInvFilters()">
+      </div>
+
+      <!-- Tabla -->
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <h3>🧾 Facturas por pagar</h3>
+          <p style="font-size:12px;color:var(--gr)">Recordatorio automatico 7, 3, 1 y 0 dias antes; y a diario si esta vencida</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Proveedor</th>
+                <th>Saldo</th>
+                <th>Vence</th>
+                <th>Estado</th>
+                <th>Foto</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="invTableBody">
+              <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Modal: abono -->
+<div class="fac-modal" id="payModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="fac-modal-box">
+    <h3 id="payTitle">Abonar</h3>
+    <p class="fac-sub" id="paySub"></p>
+    <div class="fg">
+      <label class="fl" for="f-pay-amount">Monto del abono *</label>
+      <input type="number" class="fi" id="f-pay-amount" step="0.01" min="0">
+    </div>
+    <div class="fg">
+      <label class="fl" for="f-pay-method">Metodo</label>
+      <input type="text" class="fi" id="f-pay-method" placeholder="Transferencia, efectivo, Zelle...">
+    </div>
+    <div class="fg">
+      <label class="fl" for="f-pay-ref">Referencia</label>
+      <input type="text" class="fi" id="f-pay-ref" placeholder="N° de referencia (opcional)">
+    </div>
+    <p class="fac-sub">Al cubrir el saldo, la factura se marca pagada sola y dejan de llegarte recordatorios.</p>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn-p" id="btnSavePay" onclick="savePayment()">💾 Registrar abono</button>
+      <button class="btn-ghost" onclick="closePayment()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: proveedores -->
+<div class="fac-modal" id="supModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="supTitle">
+  <div class="fac-modal-box">
+    <h3 id="supTitle">🏢 Proveedores</h3>
+    <div id="supList" class="fac-sup-list"></div>
+    <div class="divider" style="margin:14px 0"></div>
+    <div class="f-grid">
+      <div class="fg">
+        <label class="fl" for="f-sup-name">Nombre *</label>
+        <input type="text" class="fi" id="f-sup-name" placeholder="Ej: Distribuidora Central">
+      </div>
+      <div class="fg">
+        <label class="fl" for="f-sup-phone">Telefono</label>
+        <input type="text" class="fi" id="f-sup-phone" placeholder="0412-1234567">
+      </div>
+      <div class="fg">
+        <label class="fl" for="f-sup-terms">Plazo habitual (dias)</label>
+        <input type="number" class="fi" id="f-sup-terms" min="0" value="30">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn-p" id="btnSaveSup" onclick="saveSupplier()">＋ Agregar proveedor</button>
+      <button class="btn-ghost" onclick="closeSuppliers()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox: foto de la factura -->
+<div class="fac-lightbox" id="invLightbox" style="display:none" role="dialog" aria-modal="true" aria-label="Foto de la factura">
+  <button class="fac-lb-close" onclick="closeInvLightbox()" aria-label="Cerrar">✕</button>
+  <img id="lbImg" alt="Foto de la factura">
+  <p id="lbCap"></p>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/invoices.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
+    document.getElementById('adminAside')?.classList.toggle('op')
+  );
+
+  // ESC cierra lo que este abierto encima
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('invLightbox').style.display === 'flex') closeInvLightbox();
+    else if (document.getElementById('payModal').style.display === 'flex') closePayment();
+    else if (document.getElementById('supModal').style.display === 'flex') closeSuppliers();
+  });
+  // Clic fuera del cuadro cierra el modal
+  document.getElementById('payModal')?.addEventListener('click', e => { if (e.target.id === 'payModal') closePayment(); });
+  document.getElementById('supModal')?.addEventListener('click', e => { if (e.target.id === 'supModal') closeSuppliers(); });
+  document.getElementById('invLightbox')?.addEventListener('click', e => { if (e.target.id === 'invLightbox') closeInvLightbox(); });
+
+  await loadSettings();
+  await initInvoicesPage();
+});
+</script>
+</body>
+</html>

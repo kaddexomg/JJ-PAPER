@@ -21,6 +21,41 @@ async function initDashboard() {
   renderRecentOrders(allOrders.slice(0, 6));
   renderLowStock(prods);
   loadNotifications();
+  loadInvoicesWidget();
+}
+
+/* ---- Facturas de proveedor por vencer (Cuentas por Pagar) ----
+   Reusa los helpers de admin/invoices.js (semáforo y fechas de Caracas),
+   que index.html carga antes que este archivo. */
+async function loadInvoicesWidget() {
+  const box = document.getElementById('dashInvoices');
+  if (!box) return;
+
+  const { data, error } = await sb.from('jjp_supplier_invoices')
+    .select('id,invoice_number,due_date,amount,amount_paid,currency,supplier_name,jjp_suppliers(name)')
+    .eq('status', 'pendiente')
+    .order('due_date', { ascending: true })
+    .limit(5);
+
+  if (error) { box.innerHTML = `<p style="color:#aaa;font-size:13px">No pude cargar las facturas</p>`; return; }
+  if (!data?.length) {
+    box.innerHTML = `<p style="color:#aaa;font-size:13px">✅ No tienes facturas pendientes de pago</p>`;
+    return;
+  }
+
+  box.innerHTML = data.map(i => {
+    const days = daysUntil(i.due_date);
+    const bal  = Math.max(Number(i.amount || 0) - Number(i.amount_paid || 0), 0);
+    const prov = i.jjp_suppliers?.name || i.supplier_name || 'Sin proveedor';
+    const money = (i.currency === 'Bs' ? 'Bs ' : '$') + bal.toFixed(2);
+    return `<div class="fac-sup-row">
+      <div>
+        <strong>${escapeHTML(prov)}</strong>
+        <div class="fac-sub">${money}${i.invoice_number ? ' · #' + escapeHTML(i.invoice_number) : ''} · vence ${fmtDate(i.due_date + 'T00:00:00')}</div>
+      </div>
+      <span class="fac-chip ${urgencyClass(days)}">${escapeHTML(lapseText(days))}</span>
+    </div>`;
+  }).join('');
 }
 
 /* ---- Notificaciones internas (jjp_notifications) ---- */

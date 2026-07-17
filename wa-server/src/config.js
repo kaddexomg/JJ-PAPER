@@ -12,6 +12,7 @@ export const MEDIA_BUCKET = 'jjp-wa-media';
 export const OUTBOX_SWEEP_MS   = 30_000;  // barrido de salientes pendientes
 export const SESSIONS_SWEEP_MS = 15_000;  // barrido de requested_action perdidos
 export const CAMPAIGN_SWEEP_MS = 15_000;  // tick del despachador de difusión
+export const INVOICE_SWEEP_MS  = 60_000;  // avisos de facturas por pagar (los genera el cron de la BD)
 export const MAX_RETRIES       = 3;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {

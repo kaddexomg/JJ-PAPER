@@ -331,3 +331,63 @@ body.admin-body { background:var(--gl) }
   .variant-row { grid-template-columns:1fr 1fr 1fr;
     grid-template-areas:none }
 }
+
+/* ======================================================
+   Cuentas por Pagar (admin/facturas.html)
+   Prefijo .fac- para no colisionar con otros modulos.
+   ====================================================== */
+.fac-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px }
+.fac-filters .fi { height:40px; max-width:260px; flex:1 1 180px }
+
+/* Semaforo de vencimiento: el color ES la informacion */
+.fac-chip {
+  display:inline-block; font-size:11px; font-weight:700; border-radius:20px;
+  padding:3px 10px; white-space:nowrap; letter-spacing:.2px;
+}
+.fac-red    { background:#fdecea; color:#b3261e; box-shadow:inset 0 0 0 1px #f5c2bd }
+.fac-orange { background:#fff1e6; color:#b35309; box-shadow:inset 0 0 0 1px #ffd6b0 }
+.fac-yellow { background:#fff8e1; color:#8a6100; box-shadow:inset 0 0 0 1px #ffe9a8 }
+.fac-green  { background:#e9f7ef; color:#1b7a4b; box-shadow:inset 0 0 0 1px #b8e6cd }
+.fac-mute   { background:#f0f0f0; color:#777;    box-shadow:inset 0 0 0 1px #e0e0e0 }
+
+.fac-row-red td { background:#fffafa }
+.fac-sub { font-size:11px; color:var(--gr); margin:2px 0 0 }
+
+/* La tarjeta de vencidas late solo si hay alguna: sin alarma, sin ruido */
+.stat-card.fac-alert { box-shadow:0 0 0 2px #f5c2bd inset }
+
+/* ---- Modales ---- */
+.fac-modal {
+  position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.5);
+  display:flex; align-items:center; justify-content:center; padding:16px;
+  backdrop-filter:blur(3px);
+}
+.fac-modal-box {
+  background:#fff; border-radius:16px; padding:22px; width:100%; max-width:560px;
+  max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.28);
+}
+.fac-modal-box h3 { margin:0 0 4px }
+
+.fac-sup-list { max-height:280px; overflow-y:auto }
+.fac-sup-row {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:8px; border:1px solid #eee; border-radius:10px; margin-bottom:6px; background:#fafafa;
+}
+
+/* ---- Lightbox de la foto ---- */
+.fac-lightbox {
+  position:fixed; inset:0; z-index:1300; background:rgba(0,0,0,.9);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px;
+}
+.fac-lightbox img { max-width:96vw; max-height:82vh; object-fit:contain; border-radius:8px }
+.fac-lightbox p { color:#ddd; font-size:12px; margin:0; text-align:center }
+.fac-lb-close {
+  position:absolute; top:14px; right:16px; width:44px; height:44px; border-radius:50%;
+  border:0; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; font-size:20px;
+}
+.fac-lb-close:hover { background:rgba(255,255,255,.3) }
+
+@media (max-width:640px) {
+  .fac-filters .fi { max-width:none }
+  .fac-modal-box { padding:16px; border-radius:14px }
+}

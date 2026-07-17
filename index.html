@@ -60,8 +60,10 @@
 /* Legibilidad: el texto del hero lleva sombra suave por si la chapa pasa detrás */
 .h-txt .h-title, .h-txt .h-tag, .h-txt .h-desc, .hero-badge {
   text-shadow:0 2px 22px rgba(0,40,32,.65), 0 1px 4px rgba(0,40,32,.4) }
-/* Columna visual: carrusel de promos (la chapa vive en el fondo) */
-.h-vis    { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px }
+/* Columna visual: carrusel de promos anclado ABAJO para no tapar la chapa
+   (la chapa flota arriba de esta columna, en el fondo del hero) */
+.h-vis    { display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+            gap:10px;align-self:stretch;padding-bottom:4px }
 
 .hp-carousel { width:100%;max-width:470px;min-width:0 }
 .hp-viewport { overflow:hidden;border-radius:var(--r);cursor:grab;touch-action:pan-y;
@@ -101,6 +103,8 @@
   .h-acts { justify-content:center }
   /* Columna visual compacta: el carrusel de promos SÍ se ve en mobile */
   .hp-carousel { max-width:min(470px,100%) }
+  /* Mobile: columna única → el carrusel vuelve al flujo normal */
+  .h-vis { align-self:auto; justify-content:center; padding-bottom:0 }
   /* Nosotros / Contacto: menos aire entre columnas apiladas */
   .nos-grid { gap:30px }
   .cnt-grid { gap:28px }

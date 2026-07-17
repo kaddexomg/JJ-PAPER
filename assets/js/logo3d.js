@@ -9,7 +9,10 @@
          → cubre a su padre, pointer-events:none, reacciona a
            mouse/scroll/clic GLOBALES. Es la "simulación de
            video" detrás del contenido del hero.
-   - Click/tap = burst de partículas + impulso de giro + onda.
+   - Motion orgánico: muelles amortiguados (no lerp seco), deriva
+     por suma de senos (pasea "viva" por el hero), giro que respira,
+     esquiva al cursor y las partículas se apartan de él.
+   - Click/tap = burst suave + pop elástico + onda.
    - Respeta prefers-reduced-motion. Pausa fuera de pantalla.
 
    USO:
@@ -29,6 +32,201 @@
     amber: '#C9A24B',   /* dorado latón apagado (chispas) */
     white: '#ffffff'
   };
+
+  /* ============ Útiles de papelería flotantes (modo bg) ============
+     Dibujados en vectorial con la paleta de marca + tonos naturales
+     (madera, grafito, acero, latón). Cada uno se pre-renderiza UNA vez
+     a un sprite (con sombra horneada) y luego solo se hace drawImage:
+     mismo costo por frame que un emoji, look consistente en todo OS.
+     Espacio de dibujo: 120×120 con centro en (0,0). */
+  var INK = {
+    wood:  '#E8C99B', wood2: '#D9B98A',
+    graph: '#3E3E3E',
+    steel: '#CBD5DA', steel2: '#9FAEB5',
+    paper: '#FDFDF8', fold:  '#DCE5DC',
+    pink:  '#E4A9A0'
+  };
+
+  /* Rect redondeado compatible (arcTo: sin depender de ctx.roundRect) */
+  function rr(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  }
+  function lgrad(g, y0, y1, c0, c1) {
+    var gr = g.createLinearGradient(0, y0, 0, y1);
+    gr.addColorStop(0, c0); gr.addColorStop(1, c1);
+    return gr;
+  }
+
+  var FLOATER_KINDS = [
+    // Lápiz: cuerpo verde marca, madera, grafito, ferrule latón y goma
+    function (g) {
+      g.rotate(-0.6);
+      g.fillStyle = INK.pink; rr(g, -47, -7, 9, 14, 4); g.fill();
+      g.fillStyle = BRAND.amber; g.fillRect(-40, -7, 6, 14);
+      g.fillStyle = lgrad(g, -7, 7, BRAND.disc2, BRAND.disc);
+      g.fillRect(-34, -7, 58, 14);
+      g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(-34, -2.5); g.lineTo(24, -2.5);
+      g.moveTo(-34, 2.5);  g.lineTo(24, 2.5);
+      g.stroke();
+      g.fillStyle = INK.wood;
+      g.beginPath(); g.moveTo(24, -7); g.lineTo(40, 0); g.lineTo(24, 7);
+      g.closePath(); g.fill();
+      g.fillStyle = INK.graph;
+      g.beginPath(); g.moveTo(34, -2.6); g.lineTo(40, 0); g.lineTo(34, 2.6);
+      g.closePath(); g.fill();
+    },
+    // Clip metálico
+    function (g) {
+      g.rotate(0.5);
+      g.lineCap = 'round'; g.lineWidth = 5;
+      g.strokeStyle = lgrad(g, -30, 30, INK.steel, INK.steel2);
+      g.beginPath();
+      g.moveTo(-11, 14);
+      g.lineTo(-11, -16); g.arc(0, -16, 11, Math.PI, 2 * Math.PI);
+      g.lineTo(11, 20);   g.arc(3.5, 20, 7.5, 0, Math.PI);
+      g.lineTo(-4, -12);  g.arc(0.5, -12, 4.5, Math.PI, 2 * Math.PI);
+      g.lineTo(5.5, 12);
+      g.stroke();
+    },
+    // Regla de madera con marcas
+    function (g) {
+      g.rotate(0.35);
+      g.fillStyle = lgrad(g, -9, 9, '#EBD3A7', INK.wood2);
+      rr(g, -42, -9, 84, 18, 3); g.fill();
+      g.strokeStyle = 'rgba(90,60,20,.55)'; g.lineWidth = 1.4;
+      g.beginPath();
+      for (var x = -36; x <= 36; x += 6) {
+        g.moveTo(x, -9); g.lineTo(x, x % 12 === 0 ? -3 : -5.5);
+      }
+      g.stroke();
+    },
+    // Hoja de papel con esquina doblada y renglones
+    function (g) {
+      g.rotate(-0.25);
+      g.fillStyle = INK.paper;
+      g.beginPath();
+      g.moveTo(-20, -27); g.lineTo(10, -27); g.lineTo(20, -17);
+      g.lineTo(20, 27); g.lineTo(-20, 27);
+      g.closePath(); g.fill();
+      g.fillStyle = INK.fold;
+      g.beginPath(); g.moveTo(10, -27); g.lineTo(20, -17); g.lineTo(10, -17);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(22,96,74,.30)'; g.lineWidth = 1.4;
+      g.beginPath();
+      for (var y = -10; y <= 20; y += 7) { g.moveTo(-14, y); g.lineTo(14, y); }
+      g.stroke();
+    },
+    // Tijeras abiertas en X: hojas de acero cruzadas, pivote latón, aros verdes
+    function (g) {
+      g.rotate(0.4);
+      for (var b = -1; b <= 1; b += 2) {
+        g.save();
+        g.rotate(b * 0.45);
+        // Hoja (arriba) con filo que termina en punta
+        g.fillStyle = lgrad(g, -32, 0, INK.steel, INK.steel2);
+        g.beginPath();
+        g.moveTo(-3.6, 0); g.quadraticCurveTo(-4.2, -18, 0, -31);
+        g.quadraticCurveTo(4.2, -18, 3.6, 0);
+        g.closePath(); g.fill();
+        // Mango (abajo): brazo corto + aro
+        g.strokeStyle = BRAND.disc; g.lineWidth = 3.6; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(0, 2); g.lineTo(0, 9); g.stroke();
+        g.beginPath(); g.arc(0, 15.5, 6.2, 0, Math.PI * 2); g.stroke();
+        g.restore();
+      }
+      g.fillStyle = BRAND.amber;
+      g.beginPath(); g.arc(0, 0, 2.8, 0, Math.PI * 2); g.fill();
+    },
+    // Goma de borrar con funda verde
+    function (g) {
+      g.rotate(-0.5);
+      g.fillStyle = '#F4F1E8'; rr(g, -18, -10, 36, 20, 5); g.fill();
+      g.save();
+      rr(g, -18, -10, 36, 20, 5); g.clip();
+      g.fillStyle = lgrad(g, -10, 10, BRAND.disc2, BRAND.disc);
+      g.fillRect(-18, -10, 16, 20);
+      g.restore();
+    },
+    // Chincheta con cabeza de latón
+    function (g) {
+      g.rotate(0.3);
+      g.strokeStyle = INK.steel2; g.lineWidth = 2; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, 6); g.lineTo(0, 26); g.stroke();
+      g.fillStyle = '#A88434';
+      g.beginPath(); g.ellipse(0, 4, 8, 3.2, 0, 0, Math.PI * 2); g.fill();
+      var rg = g.createRadialGradient(-3, -9, 1, 0, -6, 12);
+      rg.addColorStop(0, '#E7C87E'); rg.addColorStop(1, BRAND.amber);
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(0, -6, 10, 0, Math.PI * 2); g.fill();
+    },
+    // Cuaderno de espiral con etiqueta
+    function (g) {
+      g.rotate(0.2);
+      g.fillStyle = lgrad(g, -26, 26, BRAND.disc2, BRAND.disc);
+      rr(g, -19, -26, 38, 52, 4); g.fill();
+      g.strokeStyle = INK.steel; g.lineWidth = 2.2; g.lineCap = 'round';
+      g.beginPath();
+      for (var y = -21; y <= 21; y += 7) {
+        g.moveTo(-23, y); g.lineTo(-15, y - 3);
+      }
+      g.stroke();
+      g.fillStyle = INK.paper; rr(g, -8, -9, 22, 14, 2); g.fill();
+      g.strokeStyle = BRAND.lime; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(-4, -2); g.lineTo(10, -2); g.stroke();
+    },
+    // Bolígrafo verde profundo con punta de latón
+    function (g) {
+      g.rotate(-0.7);
+      g.fillStyle = lgrad(g, -4.5, 4.5, '#0A4A4A', BRAND.deep);
+      rr(g, -32, -4.5, 54, 9, 4.5); g.fill();
+      g.fillStyle = INK.steel2; rr(g, -30, -7.5, 15, 3.4, 1.7); g.fill();
+      g.fillStyle = BRAND.amber;
+      g.beginPath(); g.moveTo(22, -4.5); g.lineTo(34, 0); g.lineTo(22, 4.5);
+      g.closePath(); g.fill();
+      g.fillStyle = INK.graph;
+      g.beginPath(); g.moveTo(31, -1.2); g.lineTo(35, 0); g.lineTo(31, 1.2);
+      g.closePath(); g.fill();
+    },
+    // Sacapuntas lima con cuchilla y tornillo
+    function (g) {
+      g.rotate(0.25);
+      g.fillStyle = lgrad(g, -12, 12, BRAND.lime, '#7FA82B');
+      rr(g, -14, -12, 28, 24, 4); g.fill();
+      g.fillStyle = lgrad(g, -12, 12, INK.steel, INK.steel2);
+      rr(g, 4, -12, 10, 24, 3); g.fill();
+      g.fillStyle = BRAND.amber;
+      g.beginPath(); g.arc(9, -6, 2, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#0B3B2E';
+      g.beginPath(); g.ellipse(-4, 0, 5.5, 4.5, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.25)';
+      g.beginPath(); g.ellipse(-5.5, -1.5, 2, 1.4, -0.5, 0, Math.PI * 2); g.fill();
+    }
+  ];
+
+  /* Pre-render de sprites (compartidos entre instancias) */
+  var SPRITE_PX = 144, spriteCache = [];
+  function floaterSprite(kind) {
+    if (spriteCache[kind]) return spriteCache[kind];
+    var c = document.createElement('canvas');
+    c.width = c.height = SPRITE_PX;
+    var g = c.getContext('2d');
+    g.translate(SPRITE_PX / 2, SPRITE_PX / 2);
+    g.scale(SPRITE_PX / 120, SPRITE_PX / 120);
+    g.shadowColor = 'rgba(0,25,20,.32)';
+    g.shadowBlur = 5;
+    g.shadowOffsetY = 4;
+    FLOATER_KINDS[kind](g);
+    spriteCache[kind] = c;
+    return c;
+  }
 
   /* Monograma JJ — MISMOS paths que assets/img/logo.svg (espacio 512×512) */
   var JJ_PATHS = [
@@ -75,21 +273,35 @@
 
     // Estado de animación
     this.spin = 0;
-    this.spinVel = reduce ? 0 : 0.012;
+    this.spinVel = reduce ? 0 : 0.009;
     this.tiltX = 0; this.tiltY = 0;
     this.tiltXc = 0; this.tiltYc = 0;
+    this.tiltXv = 0; this.tiltYv = 0;          // velocidades de muelle
     this.camX = 0; this.camY = 0;
     this.camXc = 0; this.camYc = 0;
+    this.camXv = 0; this.camYv = 0;
     this.scrollPar = 0; this.scrollParC = 0;   // parallax vertical (modo bg)
     this.pointer = { x: 0.5, y: 0.5, inside: false };
     this.particles = [];
     this.bursts = [];
     this.ripples = [];
     this.hoverPulse = 0;
+    this.pop = 0;                              // "pop" elástico al hacer clic
+    this.wx = 0; this.wy = 0;                  // deriva orgánica (paseo vivo)
+    // Cursor suavizado en px de canvas (proximidad chapa/partículas)
+    this.mx = -1e4; this.my = -1e4;
+    this.mvx = 0; this.mvy = 0;
+    this.mTx = -1e4; this.mTy = -1e4;
+    this.mSeen = false;
+    this.prox = 0;
+    // Fases aleatorias fijas → cada carga pasea distinto, nunca en bucle exacto
+    this.ph = [];
+    for (var pi = 0; pi < 6; pi++) this.ph.push(Math.random() * Math.PI * 2);
     this.running = false;
     this.t = 0;
 
     this._initParticles(reduce ? 14 : (this.bg ? 46 : 34));
+    if (this.bg) this._initFloaters(window.innerWidth <= 992 ? 7 : 12);
     this._bind();
     this._resize();
 
@@ -120,20 +332,51 @@
     }
   };
 
+  // Registra la posición del mouse en px de canvas (para proximidad)
+  LogoScene.prototype._mouse = function (x, y) {
+    this.mTx = x * this.dpr; this.mTy = y * this.dpr;
+    if (!this.mSeen) { this.mSeen = true; this.mx = this.mTx; this.my = this.mTy; }
+  };
+
+  /* Útiles flotantes: anclas repartidas por el hero; cada uno deriva con
+     senos propios, tumba lento y guarda su impulso de clic (muelle a 0) */
+  LogoScene.prototype._initFloaters = function (n) {
+    this.floaters = [];
+    for (var i = 0; i < n; i++) {
+      this.floaters.push({
+        img: floaterSprite(i % FLOATER_KINDS.length),
+        bx: 0.05 + Math.random() * 0.90,     // ancla (fracción del canvas)
+        by: 0.08 + Math.random() * 0.78,
+        depth: 0.60 + Math.random() * 0.40,  // lejos=chico/tenue, cerca=grande
+        sz: 30 + Math.random() * 24,
+        ph: Math.random() * Math.PI * 2,
+        ph2: Math.random() * Math.PI * 2,
+        wa: 0.0035 + Math.random() * 0.0040, // velocidades de deriva
+        wb: 0.0028 + Math.random() * 0.0045,
+        rs: (Math.random() - 0.5) * 0.010,   // tumbado lento
+        ax: 30 + Math.random() * 60,         // amplitud de paseo (px CSS)
+        ay: 22 + Math.random() * 46,
+        px: 0, py: 0,                        // última posición dibujada
+        fx: 0, fy: 0, fvx: 0, fvy: 0         // impulso de clic
+      });
+    }
+  };
+
   LogoScene.prototype._bind = function () {
     var self = this;
     this._onMove = function (e) {
       var rect = self.cv.getBoundingClientRect();
       var px = e.touches ? e.touches[0].clientX : e.clientX;
       var py = e.touches ? e.touches[0].clientY : e.clientY;
+      self._mouse(px - rect.left, py - rect.top);
       self.pointer.x = clamp((px - rect.left) / rect.width, 0, 1);
       self.pointer.y = clamp((py - rect.top) / rect.height, 0, 1);
       self.pointer.inside = true;
       var dx = self.pointer.x - 0.5, dy = self.pointer.y - 0.5;
-      self.tiltY = dx * 0.6;
-      self.tiltX = -dy * 0.5;
-      self.camX = dx * 26;
-      self.camY = dy * 26;
+      self.tiltY = dx * 0.5;
+      self.tiltX = -dy * 0.42;
+      self.camX = dx * 22;
+      self.camY = dy * 22;
     };
     this._onLeave = function () {
       self.pointer.inside = false;
@@ -149,16 +392,17 @@
 
     // Mouse mueve la cámara/inclinación aunque esté fuera del canvas
     this._onWinMove = function (e) {
-      if (!self.bg && self.pointer.inside) return;
       var rect = self.cv.getBoundingClientRect();
+      self._mouse(e.clientX - rect.left, e.clientY - rect.top);
+      if (!self.bg && self.pointer.inside) return;
       var cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
       var dx = clamp((e.clientX - cx) / (window.innerWidth / 2), -1, 1);
       var dy = clamp((e.clientY - cy) / (window.innerHeight / 2), -1, 1);
       var k = self.bg ? 1 : 0.5;
-      self.tiltY = dx * 0.5 * k;
-      self.tiltX = -dy * 0.42 * k;
-      self.camX = dx * (self.bg ? 34 : 14);
-      self.camY = dy * (self.bg ? 22 : 14);
+      self.tiltY = dx * 0.40 * k;
+      self.tiltX = -dy * 0.32 * k;
+      self.camX = dx * (self.bg ? 30 : 12);
+      self.camY = dy * (self.bg ? 18 : 12);
     };
 
     // Modo bg: el canvas no recibe eventos (pointer-events:none) →
@@ -173,8 +417,8 @@
     // Flechas: ← → impulso de giro, ↑ ↓ cabeceo
     this._onKey = function (e) {
       if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-      if (e.key === 'ArrowLeft')       self.spinVel -= 0.05;
-      else if (e.key === 'ArrowRight') self.spinVel += 0.05;
+      if (e.key === 'ArrowLeft')       self.spinVel -= 0.035;
+      else if (e.key === 'ArrowRight') self.spinVel += 0.035;
       else if (e.key === 'ArrowUp')    self.tiltX = clamp(self.tiltX + 0.15, -0.5, 0.5);
       else if (e.key === 'ArrowDown')  self.tiltX = clamp(self.tiltX - 0.15, -0.5, 0.5);
     };
@@ -185,10 +429,10 @@
       var y = window.scrollY || 0;
       var dy = y - self._lastScrollY;
       self._lastScrollY = y;
-      self.spinVel += clamp(dy * (self.bg ? 0.0008 : 0.0004), -0.03, 0.03);
+      self.spinVel += clamp(dy * (self.bg ? 0.0004 : 0.0002), -0.012, 0.012);
       if (self.bg) self.scrollPar = y;
       if (!self.pointer.inside) {
-        self.tiltX = clamp(-dy * 0.004, -0.35, 0.35);
+        self.tiltX = clamp(-dy * 0.002, -0.22, 0.22);
         clearTimeout(self._scrollT);
         self._scrollT = setTimeout(function () {
           if (!self.pointer.inside) self.tiltX = 0;
@@ -224,11 +468,12 @@
     this.cv.height = Math.round(h * this.dpr);
     this.W = this.cv.width; this.H = this.cv.height;
     if (this.bg) {
-      // Desktop: chapa hacia la derecha (columna visual); mobile: centrada
+      // Desktop: chapa hacia la derecha y ARRIBA (el carrusel de promos
+      // se ancla abajo de esa columna → conviven sin taparse); mobile: centrada
       var mobile = window.innerWidth <= 992;
       this.cx = this.W * (mobile ? 0.5 : 0.72);
-      this.cy = this.H * (mobile ? 0.44 : 0.50);
-      this.R = Math.min(this.W, this.H) * (mobile ? 0.34 : 0.36);
+      this.cy = this.H * (mobile ? 0.44 : 0.40);
+      this.R = Math.min(this.W, this.H) * (mobile ? 0.34 : 0.33);
     } else {
       this.cx = this.W / 2; this.cy = this.H / 2;
       this.R = Math.min(this.W, this.H) * 0.30;
@@ -237,12 +482,28 @@
   };
 
   LogoScene.prototype._click = function (x, y) {
-    this.spinVel += (this.spinVel >= 0 ? 1 : -1) * 0.18;
+    // Impulso contenido + "pop" elástico (el muelle lo devuelve con rebote)
+    this.spinVel += (this.spinVel >= 0 ? 1 : -1) * 0.09;
+    this.pop = 1;
     this.ripples.push({ x: x, y: y, r: 0, life: 1 });
-    var n = reduce ? 8 : 26;
+    // Los útiles cercanos al clic salen despedidos con suavidad y regresan
+    if (this.floaters && !reduce) {
+      var rad = this.R * 2.2;
+      for (var fi = 0; fi < this.floaters.length; fi++) {
+        var f = this.floaters[fi];
+        var dx = f.px - x, dy = f.py - y;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < rad && d > 1) {
+          var kick = (1 - d / rad) * 9 * this.dpr;
+          f.fvx += (dx / d) * kick;
+          f.fvy += (dy / d) * kick;
+        }
+      }
+    }
+    var n = reduce ? 6 : 18;
     for (var i = 0; i < n; i++) {
       var ang = (i / n) * Math.PI * 2 + Math.random() * 0.3;
-      var sp = (2 + Math.random() * 5) * this.dpr;
+      var sp = (1.2 + Math.random() * 3.2) * this.dpr;
       this.bursts.push({
         x: x, y: y,
         vx: Math.cos(ang) * sp,
@@ -270,29 +531,88 @@
     if (this._raf) cancelAnimationFrame(this._raf);
   };
 
+  /* Muelle amortiguado: persigue el objetivo con inercia y leve rebote,
+     en vez de lerp seco (movimiento natural, no robótico) */
+  LogoScene.prototype._spring = function (p, v, target, k, d) {
+    this[v] = (this[v] + (target - this[p]) * k) * d;
+    this[p] += this[v];
+  };
+
   LogoScene.prototype._step = function () {
     this.t += 1;
-    this.tiltXc = lerp(this.tiltXc, this.tiltX, 0.08);
-    this.tiltYc = lerp(this.tiltYc, this.tiltY, 0.08);
-    this.camXc = lerp(this.camXc, this.camX, 0.07);
-    this.camYc = lerp(this.camYc, this.camY, 0.07);
-    this.scrollParC = lerp(this.scrollParC, this.scrollPar, 0.09);
+    var t = this.t, ph = this.ph;
 
-    var base = reduce ? 0 : 0.012;
-    this.spinVel = lerp(this.spinVel, base * (this.spinVel >= 0 ? 1 : -1), 0.03);
-    this.spin += this.spinVel + this.tiltYc * 0.04;
+    this._spring('tiltXc', 'tiltXv', this.tiltX, 0.045, 0.90);
+    this._spring('tiltYc', 'tiltYv', this.tiltY, 0.045, 0.90);
+    this._spring('camXc', 'camXv', this.camX, 0.040, 0.88);
+    this._spring('camYc', 'camYv', this.camY, 0.040, 0.88);
+    this.scrollParC = lerp(this.scrollParC, this.scrollPar, 0.07);
 
-    this.hoverPulse = lerp(this.hoverPulse, this.pointer.inside ? 1 : 0, 0.1);
+    // Cursor suavizado (muelle) para proximidad de chapa y partículas
+    if (this.mSeen) {
+      this.mvx = (this.mvx + (this.mTx - this.mx) * 0.06) * 0.85;
+      this.mvy = (this.mvy + (this.mTy - this.my) * 0.06) * 0.85;
+      this.mx += this.mvx; this.my += this.mvy;
+    }
+
+    // Proximidad del cursor a la chapa (0 lejos … 1 encima)
+    var prox = 0, pdx = 0, pdy = 0, pd = 0;
+    if (this.mSeen) {
+      pdx = this.mx - (this.cx + this.wx);
+      pdy = this.my - (this.cy + this.wy);
+      pd = Math.sqrt(pdx * pdx + pdy * pdy);
+      prox = clamp(1 - pd / (this.R * 1.7), 0, 1);
+    }
+    this.prox = prox;
+
+    // Deriva orgánica: suma de senos desfasados → paseo "vivo" que nunca
+    // repite un bucle evidente. En bg pasea más amplio por el hero.
+    var amp = reduce ? 0 : this.R * (this.bg ? 0.34 : 0.10);
+    var wxT = (Math.sin(t * 0.0047 + ph[0]) * 0.55 +
+               Math.sin(t * 0.0083 + ph[1]) * 0.30 +
+               Math.sin(t * 0.0139 + ph[2]) * 0.15) * amp * 1.15;
+    var wyT = (Math.sin(t * 0.0053 + ph[3]) * 0.55 +
+               Math.sin(t * 0.0091 + ph[4]) * 0.30 +
+               Math.sin(t * 0.0127 + ph[5]) * 0.15) * amp * 0.55;
+    // La chapa "esquiva" con suavidad al cursor cuando se le acerca
+    if (prox > 0 && pd > 1) {
+      var flee = prox * prox * this.R * 0.14;
+      wxT -= (pdx / pd) * flee;
+      wyT -= (pdy / pd) * flee;
+    }
+    this.wx = lerp(this.wx, wxT, 0.03);
+    this.wy = lerp(this.wy, wyT, 0.03);
+
+    // Giro que respira: acelera y frena solo; la cercanía del cursor lo anima
+    var dir = this.spinVel >= 0 ? 1 : -1;
+    var base = reduce ? 0
+      : 0.009 * (0.72 + 0.40 * Math.sin(t * 0.005 + ph[1]) + prox * 0.5);
+    this.spinVel = lerp(this.spinVel, base * dir, 0.02);
+    this.spin += this.spinVel + this.tiltYc * 0.03;
+
+    this.hoverPulse = lerp(this.hoverPulse,
+      Math.max(this.pointer.inside ? 1 : 0, prox), 0.06);
+    this.pop *= 0.93;
+
+    // Impulso de clic de los útiles: muelle de vuelta a su paseo normal
+    if (this.floaters) {
+      for (var fi = 0; fi < this.floaters.length; fi++) {
+        var f = this.floaters[fi];
+        f.fvx = (f.fvx - f.fx * 0.015) * 0.92;
+        f.fvy = (f.fvy - f.fy * 0.015) * 0.92;
+        f.fx += f.fvx; f.fy += f.fvy;
+      }
+    }
 
     for (var i = this.bursts.length - 1; i >= 0; i--) {
       var b = this.bursts[i];
-      b.x += b.vx; b.y += b.vy; b.vx *= 0.94; b.vy *= 0.94;
-      b.life -= 0.02;
+      b.x += b.vx; b.y += b.vy; b.vx *= 0.96; b.vy *= 0.96;
+      b.life -= 0.014;
       if (b.life <= 0) this.bursts.splice(i, 1);
     }
     for (var j = this.ripples.length - 1; j >= 0; j--) {
       var rp = this.ripples[j];
-      rp.r += this.R * 0.06; rp.life -= 0.03;
+      rp.r += this.R * 0.04; rp.life -= 0.022;
       if (rp.life <= 0) this.ripples.splice(j, 1);
     }
   };
@@ -302,9 +622,14 @@
     ctx.clearRect(0, 0, W, H);
 
     var camx = this.camXc * this.dpr, camy = this.camYc * this.dpr;
-    var cx = this.cx + camx;
-    var cy = this.cy + camy - (this.bg ? this.scrollParC * 0.22 * this.dpr : 0);
-    var R = this.R * (1 + this.hoverPulse * 0.04);
+    var cx = this.cx + camx + this.wx;
+    var cy = this.cy + camy + this.wy
+           - (this.bg ? this.scrollParC * 0.22 * this.dpr : 0);
+    // Escala: respiración sutil + pulso de hover + pop elástico del clic
+    var breathe = reduce ? 0 : 0.012 * Math.sin(this.t * 0.013 + this.ph[2]);
+    var R = this.R * (1 + this.hoverPulse * 0.045 + this.pop * 0.10 + breathe);
+
+    if (this.floaters) this._drawFloaters(ctx);
 
     // Halo lima suave detrás (acotado a la zona de la chapa: es más barato)
     var halo = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R * 2.1);
@@ -334,6 +659,45 @@
     }
   };
 
+  /* Útiles de papelería flotando por el hero: deriva orgánica, parallax
+     por profundidad, se apartan del cursor y vuelven tras un clic */
+  LogoScene.prototype._drawFloaters = function (ctx) {
+    var t = this.t, dpr = this.dpr;
+    for (var i = 0; i < this.floaters.length; i++) {
+      var f = this.floaters[i];
+      var x = f.bx * this.W + f.fx
+            + (reduce ? 0 : Math.sin(t * f.wa + f.ph) * f.ax * dpr)
+            + this.camXc * dpr * f.depth * 0.7;
+      var y = f.by * this.H + f.fy
+            + (reduce ? 0 : Math.sin(t * f.wb + f.ph2) * f.ay * dpr)
+            + this.camYc * dpr * f.depth * 0.7
+            - this.scrollParC * 0.30 * dpr * f.depth;
+      // Repulsión del cursor: se apartan y regresan solos (suave, sin saltos)
+      if (this.mSeen && !reduce) {
+        var rdx = x - this.mx, rdy = y - this.my;
+        var rd = Math.sqrt(rdx * rdx + rdy * rdy);
+        var rad = 150 * dpr;
+        if (rd < rad && rd > 1) {
+          var rf = 1 - rd / rad;
+          x += (rdx / rd) * rf * rf * 70 * dpr;
+          y += (rdy / rd) * rf * rf * 70 * dpr;
+        }
+      }
+      f.px = x; f.py = y;
+      var rot = reduce ? 0 : Math.sin(t * 0.006 + f.ph) * 0.35 + t * f.rs;
+      // Sprite 120u con objeto de ~90u: ×2.8 da útiles de ~40-115px visibles
+      var sz = f.sz * f.depth * dpr * 2.8 *
+               (reduce ? 1 : 1 + 0.06 * Math.sin(t * 0.011 + f.ph2));
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.globalAlpha = 0.35 + f.depth * 0.40;
+      ctx.drawImage(f.img, -sz / 2, -sz / 2, sz, sz);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  };
+
   /* Partículas: verde anillo / lima / chispas ámbar */
   LogoScene.prototype._tone = function (t, alpha) {
     var c = t < 0.45 ? BRAND.ring : (t < 0.85 ? BRAND.lime : BRAND.amber);
@@ -355,6 +719,17 @@
       var x = cx + Math.sin(a) * orb;
       var y = cy + Math.sin(this.t * 0.01 + p.ph) * R * 0.28
                  + Math.cos(a) * orb * tilt * 0.5;
+      // Las partículas se apartan con suavidad del cursor (campo de repulsión)
+      if (this.mSeen) {
+        var rdx = x - this.mx, rdy = y - this.my;
+        var rd = Math.sqrt(rdx * rdx + rdy * rdy);
+        var rad = R * 0.9;
+        if (rd < rad && rd > 1) {
+          var rf = 1 - rd / rad;
+          x += (rdx / rd) * rf * rf * R * 0.30;
+          y += (rdy / rd) * rf * rf * R * 0.30;
+        }
+      }
       var depth = (z + 1) / 2;
       var sz = p.sz * (0.5 + depth) * this.dpr;
       var al = 0.15 + depth * 0.55;

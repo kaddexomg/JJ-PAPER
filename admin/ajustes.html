@@ -179,6 +179,26 @@
           </div>
         </div>
 
+        <!-- Clientes destacados (marquee del home) -->
+        <div class="form-panel">
+          <h3>🤝 Clientes que confían en nosotros</h3>
+          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
+            Empresas e instituciones que aparecen en la cinta giratoria del inicio
+            ("Clientes que confían en nosotros"). Agrega el nombre y el logo
+            (sube un archivo o pega la URL de una imagen). Los cambios se ven de inmediato en el sitio.
+          </p>
+          <div class="f-grid">
+            <div class="fg"><label class="fl" for="cl-name">Nombre de la empresa / cliente</label>
+              <input type="text" class="fi" id="cl-name" placeholder="Ej: COPOSA"></div>
+            <div class="fg"><label class="fl" for="cl-logo-file">Logo (archivo, máx. 2 MB)</label>
+              <input type="file" class="fi" id="cl-logo-file" accept="image/*" style="padding:8px"></div>
+            <div class="fg"><label class="fl" for="cl-logo-url">…o URL del logo (opcional)</label>
+              <input type="text" class="fi" id="cl-logo-url" placeholder="https://... o assets/img/clients/logo.png"></div>
+          </div>
+          <button type="button" class="btn-o" onclick="addClient()" style="margin-top:10px">➕ Agregar cliente</button>
+          <div id="clientsList" style="margin-top:14px"></div>
+        </div>
+
         <button class="btn-p" id="saveSettingsBtn" onclick="saveSettings()" style="justify-content:center">💾 Guardar cambios</button>
       </div>
     </div>
@@ -192,6 +212,7 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/settings.js"></script>
+<script src="../assets/js/admin/clients.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
@@ -201,6 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminAside')?.classList.toggle('op');
   });
   await loadSettingsForm();
+  await loadClientsPanel();
 });
 </script>
 </body>

@@ -366,6 +366,31 @@ async function renderBrandsStrip() {
   strip.style.display = 'block';
 }
 
+// ---- Clients strip (marquee "Clientes que confían en nosotros", jjp_clients) ----
+async function renderClientsStrip() {
+  const strip = document.getElementById('clientsStrip');
+  const track = document.getElementById('clientsTrack');
+  if (!strip || !track) return;
+
+  const { data } = await sb.from('jjp_clients')
+    .select('name,logo_url')
+    .eq('active', true)
+    .order('sort_order');
+  const clients = (data || []).filter(c => c.name);
+  if (!clients.length) return;
+
+  const itemHTML = c => c.logo_url
+    ? `<div class="brand-logo-i client-logo-i"><img src="${escapeHTML(c.logo_url)}" alt="${escapeHTML(c.name)}" loading="lazy" title="${escapeHTML(c.name)}"><span>${escapeHTML(c.name)}</span></div>`
+    : `<div class="brand-logo-i client-logo-i"><span>${escapeHTML(c.name)}</span></div>`;
+
+  // Con pocos clientes repetimos la lista hasta llenar el ancho,
+  // y luego se duplica completa para que el loop del -50% sea continuo
+  let base = clients.map(itemHTML).join('');
+  for (let n = clients.length; n < 6; n += clients.length) base += clients.map(itemHTML).join('');
+  track.innerHTML = base + base;
+  strip.style.display = 'block';
+}
+
 // ---- Init for catalog.html ----
 async function initCatalog() {
   const grid = document.getElementById('prodGrid');

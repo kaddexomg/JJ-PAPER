@@ -10,6 +10,7 @@
 let chatOpen   = false;
 let cbGreeted  = false;
 let cbProducts = null;   // caché de productos para búsqueda en el chat
+let cbPromos   = null;   // caché de promociones activas (jjp_promos)
 
 // Flujos activos (máquinas de estado simples)
 let cbQuote = { active: false, step: '', type: '', items: [], name: '', phone: '', pendingText: '' };
@@ -52,6 +53,20 @@ const CB_SYN = [
   ['clip','sujetapapeles','gancho'],
   ['notas adhesivas','post it','postit','taco de notas'],
   ['tijera','tijeras'],
+  ['papel higienico','papel toilet','papel de bano','rollo de bano'],
+  ['lapiz','lapices','portamina','portaminas'],
+  ['toner','tinta','cartucho'],
+  ['sobre','sobre manila'],
+  ['bolsa','bolsas plasticas'],
+  ['desinfectante','limpiador','multiuso'],
+  ['ambientador','aromatizante','spray'],
+  ['guante','guantes de latex'],
+  ['calculadora','sumadora'],
+  ['perforadora','sacabocado','perforador'],
+  ['regla','escuadra','juego de geometria'],
+  ['colores','creyones','crayones','crayolas'],
+  ['temperas','pintura al frio','pinturas'],
+  ['cartulina','papel lustrillo','papel construccion'],
 ];
 
 function cbSingular(w) {
@@ -148,8 +163,9 @@ async function cbLoadProducts() {
 
 // Devuelve { exact: [productos], alt: [productos], catName }
 async function cbSearchSmart(query) {
-  const list  = await cbLoadProducts();
-  const words = normTxt(query).split(/\s+/)
+  const list   = await cbLoadProducts();
+  const qNorm  = normTxt(query).trim();
+  const words  = qNorm.split(/\s+/)
     .map(cbSingular)
     .filter(w => w.length > 2 && !['para','con','los','las','del','que','una','unos','unas'].includes(w));
   if (!words.length) return { exact: [], alt: [], catName: '' };
@@ -157,11 +173,14 @@ async function cbSearchSmart(query) {
   const expanded = words.map(cbExpand); // array de arrays de variantes
 
   const scored = list.map(p => {
-    const name = normTxt(p.name).split(/\s+/).map(cbSingular);
+    const nameStr = normTxt(p.name);
+    const name = nameStr.split(/\s+/).map(cbSingular);
     const cat  = normTxt(p.jjp_categories?.name || '');
     const desc = normTxt(p.description || '');       // entiende por descripción
     const brnd = p._brandText || '';                 // entiende por marca
     let score = 0;
+    // Frase completa: "resma carta" dentro del nombre pesa más que palabras sueltas
+    if (qNorm.length >= 5 && nameStr.includes(qNorm)) score += 4;
     for (const variants of expanded) {
       let hit = 0;
       for (const v of variants) {
@@ -176,17 +195,105 @@ async function cbSearchSmart(query) {
       score += hit;
     }
     return { p, score };
-  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+  }).filter(x => x.score > 0)
+    // Empates: primero con stock, luego el más barato (lo más útil para el cliente)
+    .sort((a, b) => b.score - a.score
+      || (b.p.stock !== 0 ? 1 : 0) - (a.p.stock !== 0 ? 1 : 0)
+      || (a.p.price_usd || 9e9) - (b.p.price_usd || 9e9));
 
   const strong = scored.filter(x => x.score >= 2).slice(0, 3).map(x => x.p);
   if (strong.length) return { exact: strong, alt: [], catName: '' };
 
-  // Sin match fuerte: ofrecer alternativas de la categoría detectada
+  // Sin match fuerte: alternativas de la categoría detectada, completadas
+  // con más productos de esa misma categoría (similares en uso)
   const weak = scored.slice(0, 4).map(x => x.p);
   if (weak.length) {
-    return { exact: [], alt: weak, catName: weak[0].jjp_categories?.name || '' };
+    const catId = weak[0].category_id;
+    const extra = list.filter(p =>
+      p.category_id === catId && p.stock !== 0 && !weak.some(w => w.id === p.id));
+    return { exact: [], alt: [...weak, ...extra].slice(0, 4), catName: weak[0].jjp_categories?.name || '' };
   }
   return { exact: [], alt: [], catName: '' };
+}
+
+/* ------------------------------------------------------
+   Ofertas y promociones (jjp_promos + productos con tag)
+   ------------------------------------------------------ */
+
+async function cbLoadPromos() {
+  if (cbPromos) return cbPromos;
+  const now = new Date().toISOString();
+  const { data } = await sb.from('jjp_promos')
+    .select('id,title,kind,badge,description,emoji,price_usd,old_price_usd,cta_label,cta_url,wa_message,featured,starts_at,ends_at')
+    .eq('active', true)
+    .order('featured', { ascending: false })
+    .order('sort_order');
+  cbPromos = (data || []).filter(p =>
+    (!p.starts_at || p.starts_at <= now) && (!p.ends_at || p.ends_at >= now));
+  return cbPromos;
+}
+
+// Productos marcados como oferta en el catálogo (por su etiqueta)
+function cbOfferProducts() {
+  return (cbProducts || []).filter(p =>
+    p.stock !== 0 && /oferta|promo|descuento|rebaja|combo|2x1|especial/i.test(p.tag || ''));
+}
+
+function cbPromoHTML(pr) {
+  const price = pr.price_usd
+    ? `<span style="color:var(--gd);font-weight:700">${fmtPrice(pr.price_usd)}</span>
+       ${pr.old_price_usd ? ` <s style="color:var(--gr);font-size:11px">${fmtPrice(pr.old_price_usd)}</s>` : ''}`
+    : '';
+  const wa  = pr.wa_message || `Hola JJ Paper, me interesa la promoción "${pr.title}"`;
+  const cta = pr.cta_url
+    ? `<a class="cb-prod-add" href="${escapeHTML(pr.cta_url)}">${escapeHTML(pr.cta_label || 'Ver →')}</a>`
+    : `<button class="cb-prod-add" onclick="openWA('${wa.replace(/'/g, "\\'")}')" aria-label="Pedir la promoción ${escapeHTML(pr.title)} por WhatsApp">💬 Pedir</button>`;
+  return `<div class="cb-prod">
+    <span class="cb-prod-ico">${pr.emoji || '🔥'}</span>
+    <span class="cb-prod-info">
+      <b>${escapeHTML(pr.title)}</b>${pr.badge ? ` <small style="color:#c0392b;font-weight:700">${escapeHTML(pr.badge)}</small>` : ''}<br>
+      ${pr.description ? `<span style="color:var(--gr);font-size:11px">${escapeHTML(pr.description.slice(0, 90))}</span><br>` : ''}
+      ${price}
+    </span>
+    ${cta}
+  </div>`;
+}
+
+// Muestra las ofertas vigentes (promos del feed + productos en oferta)
+async function cbShowOffers() {
+  const [promos] = await Promise.all([cbLoadPromos(), cbLoadProducts()]);
+  const offers = cbOfferProducts();
+  if (!promos.length && !offers.length) {
+    cbBotMsg(`Por ahora no hay ofertas publicadas 😌, pero al mayor siempre tienes el mejor precio.
+      Pide tu <b>cotización</b> y te preparamos precios especiales por volumen:
+      <span class="cb-acts">
+        <button class="cb-act p" onclick="cbQuoteStart()">📋 Cotizar al mayor</button>
+        <a class="cb-act" href="promociones.html">🔥 Ver promociones →</a>
+      </span>`);
+    return;
+  }
+  cbBotMsg(`🔥 Esto es lo que tenemos <b>en oferta ahora mismo</b>:<br>
+    ${promos.slice(0, 3).map(cbPromoHTML).join('')}
+    ${offers.slice(0, 3).map(p => cbProductHTML(p)).join('')}
+    <span class="cb-acts">
+      <a class="cb-act p" href="promociones.html">🔥 Ver todas las promociones</a>
+      <button class="cb-act" onclick="cbQuoteStart()">📋 Cotizar al mayor</button>
+    </span>`);
+}
+
+// Sugerencia breve de oferta para colar en otras respuestas (cross-sell).
+// Prefiere ofertas de la misma categoría; devuelve '' si no hay nada que ofrecer.
+function cbOfferHintHTML(excludeIds = [], catId = null) {
+  const offers = cbOfferProducts().filter(p => !excludeIds.includes(p.id));
+  const pick = offers.find(p => catId && p.category_id === catId) || offers[0];
+  if (pick) {
+    return `<span style="font-size:11px;color:#c0392b;font-weight:700">🔥 En oferta ahora:</span><br>${cbProductHTML(pick)}`;
+  }
+  if ((cbPromos || []).length) {
+    const pr = cbPromos[0];
+    return `<span style="font-size:11px;color:#c0392b;font-weight:700">🔥 Aprovecha:</span><br>${cbPromoHTML(pr)}`;
+  }
+  return '';
 }
 
 /* ------------------------------------------------------
@@ -208,6 +315,7 @@ function injectChatbot() {
   </div>
   <div class="cb-msgs" id="cbMsgs" role="log" aria-live="polite" aria-atomic="false"></div>
   <div class="cb-qbtns" id="cbQuick" style="display:none">
+    <button class="qb-btn" onclick="cbQ('Ver ofertas')">🔥 Ofertas</button>
     <button class="qb-btn" onclick="cbQ('Cotización al mayor')">📋 Cotizar</button>
     <button class="qb-btn" onclick="cbQ('Ver carrito')">🛒 Carrito</button>
     <button class="qb-btn" onclick="cbQ('Rastrear mi pedido')">🔎 Rastrear</button>
@@ -253,6 +361,7 @@ function cbGreet() {
   cbBotMsg(
     `${hi} Soy el asistente de <strong>JJ Paper</strong>. Puedo:<br>
      • Buscar productos y precios (ej: <em>"10 resmas carta"</em>)<br>
+     • Mostrarte las <strong>ofertas y promociones</strong> vigentes 🔥<br>
      • Armar tu <strong>cotización al mayor o al detal</strong> 📋<br>
      • Procesar <strong>listas completas</strong>: <em>"50 resmas, 20 cloros, 10 cuadernos"</em> 📝<br>
      • Agregar al carrito y completar tu pedido 🛒<br>
@@ -913,6 +1022,7 @@ async function cbProcess(text) {
   }
 
   // 2) Intents de flujo
+  if (/(oferta|promocion|promo\b|descuento|rebaja|combo|especiales)/.test(q)) { await cbShowOffers(); return; }
   if (/(cotiz|presupuesto|pre factura|prefactura)/.test(q)) { cbQuoteStart(); return; }
   if (/(rastre|seguimiento|estado de mi|donde va mi|track)/.test(q)) { cbTrackStart(); return; }
   if (/(ver carrito|mi carrito|carrito)/.test(q)) { cbShowCart(); return; }
@@ -937,13 +1047,16 @@ async function cbProcess(text) {
   const { exact, alt, catName } = await cbSearchSmart(rest);
 
   if (exact.length) {
+    await cbLoadPromos();   // para poder sugerir ofertas vigentes (cacheado)
     // Relacionados: misma categoría, no repetidos (cross-sell)
     const catId = exact[0].category_id;
     const related = (cbProducts || [])
       .filter(p => p.category_id === catId && !exact.some(e => e.id === p.id) && p.stock !== 0)
       .slice(0, 2);
+    const offerHint = cbOfferHintHTML([...exact.map(e => e.id), ...related.map(r => r.id)], catId);
     cbBotMsg(`Encontré esto en el catálogo:<br>${exact.map(p => cbProductHTML(p, qty)).join('')}
       ${related.length ? `<span style="font-size:11px;color:var(--gr)">También te puede interesar:</span><br>${related.map(p => cbProductHTML(p)).join('')}` : ''}
+      ${offerHint}
       <span class="cb-acts">
         <button class="cb-act" onclick="cbQuoteStart()">📋 Cotizar (mayor o detal)</button>
         <a class="cb-act" href="catalogo.html">Ver catálogo →</a>
@@ -951,8 +1064,11 @@ async function cbProcess(text) {
     return;
   }
   if (alt.length) {
-    cbBotMsg(`No tengo <em>"${escapeHTML(rest)}"</em> exacto, pero ${catName ? `en <b>${escapeHTML(catName)}</b> ` : ''}tenemos estas alternativas:<br>
+    await cbLoadPromos();
+    const offerHint = cbOfferHintHTML(alt.map(a => a.id), alt[0].category_id);
+    cbBotMsg(`No tengo <em>"${escapeHTML(rest)}"</em> exacto, pero ${catName ? `en <b>${escapeHTML(catName)}</b> ` : ''}tenemos estas alternativas similares:<br>
       ${alt.slice(0, 3).map(p => cbProductHTML(p, qty)).join('')}
+      ${offerHint}
       <span class="cb-acts"><button class="cb-act" onclick="cbQuoteStart()">📋 Pedir cotización con eso</button></span>`);
     return;
   }

@@ -192,6 +192,15 @@
 @keyframes brandsScroll { from { transform:translateX(0) } to { transform:translateX(-50%) } }
 @media (prefers-reduced-motion:reduce) { .brands-track { animation:none; flex-wrap:wrap; width:auto; justify-content:center } }
 
+/* ---- Clients marquee ("Clientes que confían en nosotros") ----
+   A diferencia de las marcas, va a COLOR y con el nombre visible:
+   el objetivo es que se reconozcan de inmediato (confianza). */
+.clients-strip { background:var(--gl) }
+.client-logo-i { filter:none; opacity:1 }
+.client-logo-i img { height:42px; max-width:130px }
+.client-logo-i span { font-size:12px; font-weight:800; color:var(--gd); white-space:nowrap }
+.client-logo-i:hover { transform:scale(1.05) }
+
 /* ---- Accessibility focus ---- */
 a:focus-visible, button:focus-visible, input:focus-visible,
 select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {

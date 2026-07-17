@@ -287,6 +287,27 @@
   </div>
 </section>
 
+<!-- ===================== CLIENTES QUE CONFÍAN ===================== -->
+<div class="brands-strip clients-strip" id="clientsStrip" style="display:none">
+  <h6>Clientes que confían en nosotros</h6>
+  <div class="brands-track-wrap"><div class="brands-track" id="clientsTrack"></div></div>
+</div>
+
+<!-- ===================== RESEÑAS ===================== -->
+<section id="resenas" style="background:#fff;display:none">
+  <div style="max-width:var(--max-w);margin:0 auto">
+    <div class="s-hd rv">
+      <div class="s-tag">⭐ Reseñas</div>
+      <h2 class="s-title">Lo que dicen <em>nuestros clientes</em></h2>
+      <p class="s-desc">Experiencias reales de empresas, colegios y revendedores que compran con nosotros.</p>
+    </div>
+    <div class="rv-grid" id="rvGrid"></div>
+    <div style="text-align:center;margin-top:28px">
+      <a href="pedidos.html" class="btn-o">✍️ Deja tu reseña</a>
+    </div>
+  </div>
+</section>
+
 <!-- ===================== NOSOTROS ===================== -->
 <section id="nosotros">
   <div class="nos-wrap">
@@ -371,11 +392,12 @@
 <script src="assets/js/hero-promos.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
-<script src="assets/js/catalog.js?v=20260710"></script>
+<script src="assets/js/catalog.js?v=20260716"></script>
 <script src="assets/js/export.js"></script>
 <script src="assets/js/promos.js"></script>
+<script src="assets/js/reviews.js"></script>
 <script src="assets/js/product-modal.js"></script>
-<script src="assets/js/chatbot.js?v=20260710b"></script>
+<script src="assets/js/chatbot.js?v=20260716"></script>
 <script>
 // Fill hero stats + contact cards from settings (with hardcoded fallbacks)
 function fillHomeFromSettings() {
@@ -429,6 +451,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (el) el.textContent = allProducts.length;
   }
   renderBrandsStrip();
+  renderClientsStrip();
+  // Reseñas: la sección solo aparece si hay reseñas aprobadas
+  loadReviews(6).then(n => {
+    if (n) document.getElementById('resenas').style.display = '';
+  });
 });
 </script>
 </body>

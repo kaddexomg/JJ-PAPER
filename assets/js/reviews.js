@@ -29,18 +29,20 @@ async function submitReview() {
   showToast('¡Gracias! Tu reseña está pendiente de aprobación.');
 }
 
-async function loadReviews() {
+async function loadReviews(limit = null) {
   const grid = document.getElementById('rvGrid');
   if (!grid) return;
 
-  const { data, error } = await sb.from('jjp_reviews')
+  let query = sb.from('jjp_reviews')
     .select('name,stars,text,created_at')
     .eq('approved', true)
     .order('created_at', { ascending: false });
+  if (limit) query = query.limit(limit);
+  const { data, error } = await query;
 
   if (error || !data?.length) {
     grid.innerHTML = `<p style="color:var(--gr);font-size:13px;text-align:center">Sé el primero en dejar una reseña.</p>`;
-    return;
+    return 0;
   }
 
   grid.innerHTML = data.map(r => {
@@ -56,4 +58,5 @@ async function loadReviews() {
   }).join('');
 
   observeReveal(grid);
+  return data.length;
 }

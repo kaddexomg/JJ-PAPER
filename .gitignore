@@ -1,6 +1,9 @@
 .vercel
 .env*
 
+# Credenciales de sesión de WhatsApp (Baileys) — JAMÁS al repo ni al deploy
+wa-server/sessions/
+
 # Netlify
 .netlify/
 

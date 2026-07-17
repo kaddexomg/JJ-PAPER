@@ -67,7 +67,7 @@ async function fetchAllRows(table, select, applyFilters) {
 
 async function loadAdminProducts(search = '') {
   const rows = await fetchAllRows('jjp_products',
-    `id,name,description,price_usd,unit,unit_id,emoji,image_url,tag,active,featured,stock,min_qty,category_id,jjp_categories(name),${VARIANTS_ADMIN_SELECT}`,
+    `id,name,description,price_usd,unit,unit_id,emoji,image_url,tag,active,featured,essential,stock,min_qty,category_id,jjp_categories(name),${VARIANTS_ADMIN_SELECT}`,
     q => {
       q = q.order('created_at', { ascending: false });
       if (search) q = q.ilike('name', `%${search}%`);
@@ -152,7 +152,8 @@ function renderAdminProdTable() {
       <td style="text-align:center;font-size:13px">${vsum.stock}</td>
       <td>
         <span class="badge ${p.active ? 'badge-green' : 'badge-red'}">${p.active ? 'Activo' : 'Inactivo'}</span>
-        ${p.featured ? '<span class="badge badge-yellow" style="margin-left:4px">⭐</span>' : ''}
+        ${p.featured ? '<span class="badge badge-yellow" style="margin-left:4px" title="Destacado en inicio">⭐</span>' : ''}
+        ${p.essential ? '<span class="badge badge-green" style="margin-left:4px" title="Esencial — primera página del catálogo">🔝</span>' : ''}
         ${p.tag ? `<span class="badge badge-blue" style="margin-top:3px;display:block">${p.tag}</span>` : ''}
       </td>
       <td>
@@ -226,6 +227,8 @@ async function bulkActivate()   { await bulkUpdate({ active: true  }, 'Productos
 async function bulkDeactivate() { await bulkUpdate({ active: false }, 'Productos desactivados'); }
 async function bulkFeatured()   { await bulkUpdate({ featured: true  }, 'Marcados como destacados'); }
 async function bulkUnfeatured() { await bulkUpdate({ featured: false }, 'Quitados de destacados'); }
+async function bulkEssential()  { await bulkUpdate({ essential: true  }, 'Marcados como esenciales'); }
+async function bulkUnessential(){ await bulkUpdate({ essential: false }, 'Quitados de esenciales'); }
 
 async function bulkChangeCategory() {
   const id = document.getElementById('bulkCatSel')?.value;
@@ -325,8 +328,9 @@ function openEditProduct(id) {
   document.getElementById('f-prod-emoji').value    = p.emoji      || '';
   document.getElementById('f-prod-tag').value      = p.tag        || '';
   document.getElementById('f-prod-minqty').value   = p.min_qty    || 1;
-  document.getElementById('f-prod-active').checked   = p.active;
-  document.getElementById('f-prod-featured').checked = p.featured;
+  document.getElementById('f-prod-active').checked    = p.active;
+  document.getElementById('f-prod-featured').checked  = p.featured;
+  document.getElementById('f-prod-essential').checked = !!p.essential;
   document.getElementById('prodCatSel').value      = p.category_id || '';
   document.getElementById('prodUnitSel').value     = p.unit_id    || '';
 
@@ -470,6 +474,7 @@ async function saveProd() {
     category_id: document.getElementById('prodCatSel')?.value  || null,
     active:      document.getElementById('f-prod-active')?.checked  ?? true,
     featured:    document.getElementById('f-prod-featured')?.checked ?? false,
+    essential:   document.getElementById('f-prod-essential')?.checked ?? false,
   };
 
   // Upload image (comprimida client-side: max 1400px, webp/jpeg)
@@ -611,12 +616,12 @@ function closeImportModal() {
 }
 
 function downloadCSVTemplate() {
-  const headers = 'name,brand,variant,category_slug,sku,description,price_usd,cost_usd,margin_pct,unit_abbr,emoji,tag,featured,active,stock,min_qty';
+  const headers = 'name,brand,variant,category_slug,sku,description,price_usd,cost_usd,margin_pct,unit_abbr,emoji,tag,featured,essential,active,stock,min_qty';
   const example = [
-    '"Boligrafo punta fina",BIC,Azul,papeleria,BOL-BIC-AZ,"Boligrafo tinta seca",0.45,0.22,,unid,🖊️,Popular,false,true,200,1',
-    '"Boligrafo punta fina",BIC,Negro,papeleria,BOL-BIC-NE,"Boligrafo tinta seca",0.45,0.22,,unid,🖊️,,false,true,150,1',
-    '"Boligrafo punta fina",Kilométrico,Azul,papeleria,BOL-KM-AZ,"Boligrafo tinta seca",0.40,0.18,,unid,🖊️,,false,true,300,1',
-    '"Resma Carta 500h",Chamex,,papel,RES-CH,"Resma papel bond carta",5.80,4.10,,resma,📄,Al mayor,true,true,45,1',
+    '"Boligrafo punta fina",BIC,Azul,boligrafos,BOL-BIC-AZ,"Boligrafo tinta seca",0.45,0.22,,unid,🖊️,Popular,false,true,true,200,1',
+    '"Boligrafo punta fina",BIC,Negro,boligrafos,BOL-BIC-NE,"Boligrafo tinta seca",0.45,0.22,,unid,🖊️,,false,true,true,150,1',
+    '"Boligrafo punta fina",Kilométrico,Azul,boligrafos,BOL-KM-AZ,"Boligrafo tinta seca",0.40,0.18,,unid,🖊️,,false,false,true,300,1',
+    '"Resma Carta 500h",Chamex,,papel,RES-CH,"Resma papel bond carta",5.80,4.10,,resma,📄,Al mayor,true,true,true,45,1',
   ].join('\n');
   const blob    = new Blob(['﻿' + headers + '\n' + example], { type: 'text/csv;charset=utf-8;' });
   const url     = URL.createObjectURL(blob);
@@ -777,6 +782,7 @@ async function importProducts() {
           emoji:       r.emoji       || '📦',
           tag:         r.tag         || null,
           featured:    r.featured === 'true' || r.featured === '1',
+          essential:   r.essential === 'true' || r.essential === '1',
           active:      r.active !== 'false' && r.active !== '0',
           min_qty:     r.min_qty ? parseInt(r.min_qty) : 1,
           category_id: catMap[r.category_slug] || null,

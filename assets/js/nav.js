@@ -56,13 +56,17 @@ function injectNav(activeKey = '') {
 }
 
 function injectFooter() {
+  // Las 8 familias de jjp_category_groups (?grupo=). Hardcodeadas a propósito:
+  // el footer se inyecta en páginas que no cargan el catálogo.
   const cats = [
-    ['cuadernos', '📓 Cuadernos'],
-    ['escritura',  '✏️ Escritura'],
-    ['carpetas',   '📁 Carpetas'],
-    ['papel',      '📄 Papel'],
-    ['suministros','📎 Suministros'],
-    ['limpieza',   '🧴 Limpieza'],
+    ['escritura',     '🖊️ Escritura'],
+    ['papel',         '📄 Papel y cuadernos'],
+    ['escolar_arte',  '🎨 Escolar y arte'],
+    ['corte_pegado',  '✂️ Corte y pegado'],
+    ['archivo',       '🗂️ Archivo y carpetas'],
+    ['administracion','🧾 Administración'],
+    ['sujecion',      '📎 Sujeción'],
+    ['tecnologia',    '🧰 Tecnología y otros'],
   ];
 
   const year = new Date().getFullYear();
@@ -85,7 +89,7 @@ function injectFooter() {
     <div class="ft-col">
       <h5>Categorías</h5>
       ${cats.map(([slug, label]) =>
-        `<a href="catalogo.html?cat=${slug}">${label}</a>`
+        `<a href="catalogo.html?grupo=${slug}">${label}</a>`
       ).join('')}
     </div>
     <div class="ft-col">

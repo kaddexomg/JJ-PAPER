@@ -44,6 +44,22 @@
 .cf:hover   { border-color:var(--gd); color:var(--gd) }
 .cf.on      { background:var(--gd); color:#fff; border-color:var(--gd) }
 
+/* ---- Subfiltros: categorías de la familia abierta ----
+   Chips más chicos y con menos peso que las familias, para que se lean
+   como segundo nivel y no compitan con los 8 chips de arriba. */
+.sub-filters {
+  margin-top:-8px; margin-bottom:20px; padding:10px 12px;
+  background:#fff; border:1px solid var(--gb); border-radius:14px;
+  animation:subIn .25s ease;
+}
+.cf.sub {
+  padding:6px 13px; font-size:11px; font-weight:600;
+  border-width:1px; border-radius:16px; background:var(--gl); color:#666;
+}
+.cf.sub:hover { border-color:var(--gm); color:var(--gd) }
+.cf.sub.on    { background:var(--gm); color:#fff; border-color:var(--gm); box-shadow:0 2px 8px rgba(153,204,51,.3) }
+@keyframes subIn { from { opacity:0; transform:translateY(-4px) } to { opacity:1; transform:none } }
+
 /* ---- Count & State ---- */
 .cat-count   { text-align:right; margin-bottom:10px; color:var(--gr); font-size:12px; font-weight:500 }
 .no-res      { text-align:center; padding:60px 20px; color:#aaa; grid-column:1/-1 }

@@ -4,17 +4,44 @@
 
 let allProducts  = [];
 let categories   = [];
+let catGroups    = [];
+let currentGroup = 'todos';
 let currentCat   = 'todos';
 let currentPage  = 1;
 let currentSearch= '';
 let currentSort  = '';
 
 // ---- Load data ----
+// El catálogo tiene 2 niveles: 8 familias (jjp_category_groups) que agrupan
+// las ~39 categorías finas. El chip de familia filtra; las subcategorías
+// aparecen sólo al entrar en una familia.
+async function loadCatGroups() {
+  const { data } = await sb.from('jjp_category_groups')
+    .select('id,name,slug,emoji')
+    .order('sort_order');
+  if (data) catGroups = data;
+}
+
 async function loadCategories() {
   const { data } = await sb.from('jjp_categories')
-    .select('id,name,slug,emoji,color')
+    .select('id,name,slug,emoji,color,group_id')
     .order('sort_order');
   if (data) categories = data;
+}
+
+// slug de la familia a la que pertenece una categoría (por id)
+function groupSlugOfCat(catId) {
+  const c = categories.find(x => x.id === catId);
+  if (!c) return null;
+  return catGroups.find(g => g.id === c.group_id)?.slug || null;
+}
+
+// Categorías de una familia que tienen al menos un producto visible
+function catsOfGroup(groupSlug) {
+  const g = catGroups.find(x => x.slug === groupSlug);
+  if (!g) return [];
+  const used = new Set(allProducts.map(p => p.category_id));
+  return categories.filter(c => c.group_id === g.id && used.has(c.id));
 }
 
 // Select de variantes reutilizado por catálogo, modal y producto.html
@@ -58,7 +85,7 @@ function normalizeProduct(p) {
 
 async function loadProducts() {
   const { data, error } = await sb.from('jjp_products')
-    .select(`id,name,description,price_usd,unit,image_url,emoji,tag,featured,stock,min_qty,category_id,jjp_categories(name,slug,color),${VARIANTS_SELECT}`)
+    .select(`id,name,description,price_usd,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
     .eq('active', true)
     .order('sort_order');
   if (error) { console.error(error); return; }
@@ -68,28 +95,64 @@ async function loadProducts() {
 }
 
 // ---- Filter + Sort ----
+// Un producto pertenece a la familia de su categoría. El id del grupo viene
+// embebido en jjp_categories(group_id); lo resolvemos contra catGroups.
+function groupSlugOfProduct(p) {
+  const gid = p.jjp_categories?.group_id;
+  return gid ? (catGroups.find(g => g.id === gid)?.slug || null) : null;
+}
+
 function getFiltered() {
   const q = normTxt(currentSearch);
   let list = allProducts.filter(p => {
-    const catOk  = currentCat === 'todos' || p.jjp_categories?.slug === currentCat;
+    const grpOk  = currentGroup === 'todos' || groupSlugOfProduct(p) === currentGroup;
+    const catOk  = currentCat   === 'todos' || p.jjp_categories?.slug === currentCat;
     const qOk    = !q || normTxt(p.name).includes(q) || normTxt(p.description).includes(q)
                       || normTxt(p._brandNames).includes(q) || normTxt(p._skus).includes(q)
                       || normTxt(p._varNames).includes(q);
-    return catOk && qOk;
+    return grpOk && catOk && qOk;
   });
 
   if      (currentSort === 'az')    list.sort((a,b) => a.name.localeCompare(b.name));
   else if (currentSort === 'za')    list.sort((a,b) => b.name.localeCompare(a.name));
   else if (currentSort === 'pasc')  list.sort((a,b) => a._minPrice - b._minPrice);
   else if (currentSort === 'pdesc') list.sort((a,b) => b._minPrice - a._minPrice);
+  // Orden por defecto: los esenciales copan la página 1. El sort es estable,
+  // así que dentro de cada bloque se respeta el sort_order de la consulta.
+  else list.sort((a,b) => (b.essential ? 1 : 0) - (a.essential ? 1 : 0));
   return list;
 }
 
 // ---- Set filter ----
+// Familia: resetea la subcategoría y redibuja los subchips.
+function setGroup(slug) {
+  currentGroup = slug;
+  currentCat   = 'todos';
+  currentPage  = 1;
+  document.querySelectorAll('#catFilters .cf').forEach(b => {
+    const on = b.dataset.group === slug;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  renderSubFilters();
+  renderProds();
+}
+
 function setCat(cat) {
   currentCat  = cat;
   currentPage = 1;
-  document.querySelectorAll('.cf').forEach(b => {
+  // Entrar a una categoría desde fuera (?cat=, chatbot, promos) debe abrir
+  // también su familia para que los subchips tengan sentido.
+  if (cat !== 'todos') {
+    const c = categories.find(x => x.slug === cat);
+    const g = c && catGroups.find(x => x.id === c.group_id);
+    if (g && currentGroup !== g.slug) {
+      currentGroup = g.slug;
+      renderCatFilters();
+      renderSubFilters();
+    }
+  }
+  document.querySelectorAll('#subFilters .cf').forEach(b => {
     const on = b.dataset.cat === cat;
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -275,15 +338,36 @@ function renderPag(pages) {
   el.innerHTML = html;
 }
 
-// ---- Build category filter buttons ----
+// ---- Build filter buttons (nivel 1: familias) ----
 function renderCatFilters() {
   const wrap = document.getElementById('catFilters');
   if (!wrap) return;
-  const todos = `<button class="cf on" data-cat="todos" aria-pressed="true" onclick="setCat('todos')">🏷️ Todos</button>`;
-  const btns  = categories.map(c =>
-    `<button class="cf" data-cat="${c.slug}" aria-pressed="false" onclick="setCat('${c.slug}')">${c.emoji} ${c.name}</button>`
+  const on = s => currentGroup === s;
+  const todos = `<button class="cf${on('todos') ? ' on' : ''}" data-group="todos" aria-pressed="${on('todos')}" onclick="setGroup('todos')">🏷️ Todos</button>`;
+  const btns  = catGroups.map(g =>
+    `<button class="cf${on(g.slug) ? ' on' : ''}" data-group="${g.slug}" aria-pressed="${on(g.slug)}" onclick="setGroup('${g.slug}')">${g.emoji} ${g.name}</button>`
   ).join('');
   wrap.innerHTML = todos + btns;
+}
+
+// ---- Build filter buttons (nivel 2: categorías de la familia abierta) ----
+function renderSubFilters() {
+  const wrap = document.getElementById('subFilters');
+  if (!wrap) return;
+
+  if (currentGroup === 'todos') { wrap.innerHTML = ''; wrap.hidden = true; return; }
+
+  const subs = catsOfGroup(currentGroup);
+  // Con una sola subcategoría el subfiltro no aporta nada.
+  if (subs.length < 2) { wrap.innerHTML = ''; wrap.hidden = true; return; }
+
+  const on = s => currentCat === s;
+  const todas = `<button class="cf sub${on('todos') ? ' on' : ''}" data-cat="todos" aria-pressed="${on('todos')}" onclick="setCat('todos')">Todas</button>`;
+  const btns  = subs.map(c =>
+    `<button class="cf sub${on(c.slug) ? ' on' : ''}" data-cat="${c.slug}" aria-pressed="${on(c.slug)}" onclick="setCat('${c.slug}')">${c.emoji} ${c.name}</button>`
+  ).join('');
+  wrap.innerHTML = todas + btns;
+  wrap.hidden = false;
 }
 
 // ---- Skeleton loader (shows card placeholders while data loads) ----
@@ -304,7 +388,7 @@ function resetFilters() {
   currentSort   = '';
   const s = document.getElementById('srch');     if (s) s.value = '';
   const o = document.getElementById('sortSel');  if (o) o.value = '';
-  setCat('todos');
+  setGroup('todos');
 }
 
 // ---- Featured products (used on index.html) ----
@@ -399,20 +483,18 @@ async function initCatalog() {
   grid.innerHTML = skeletonGridHTML(APP.PER_PAGE);
 
   await loadSettings();
-  await Promise.all([loadCategories(), loadProducts()]);
+  await Promise.all([loadCatGroups(), loadCategories(), loadProducts()]);
+
+  // Params de entrada: ?grupo= (familia) y ?cat= (categoría fina).
+  // ?cat= abre además su familia — lo resuelve setCat().
+  const qs       = new URLSearchParams(location.search);
+  const urlGroup = qs.get('grupo');
+  const urlCat   = qs.get('cat');
+  if (urlGroup && catGroups.some(g => g.slug === urlGroup)) currentGroup = urlGroup;
 
   renderCatFilters();
+  renderSubFilters();
 
-  // Check URL param for pre-selected category
-  const urlCat = new URLSearchParams(location.search).get('cat');
-  if (urlCat) {
-    currentCat = urlCat;
-    document.querySelectorAll('.cf').forEach(b => {
-      const on = b.dataset.cat === urlCat;
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
-  }
-
-  renderProds();
+  if (urlCat) setCat(urlCat);
+  else renderProds();
 }

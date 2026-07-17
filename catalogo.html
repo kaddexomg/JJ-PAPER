@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css?v=20260710">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20260716b">
 <link rel="stylesheet" href="assets/css/cart.css">
 <link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css">
@@ -69,10 +69,13 @@
       </div>
     </div>
 
-    <!-- Category filters -->
-    <div class="cat-filters rv" id="catFilters">
-      <button class="cf on" data-cat="todos" onclick="setCat('todos')">🏷️ Todos</button>
+    <!-- Filtros nivel 1: familias -->
+    <div class="cat-filters rv" id="catFilters" role="group" aria-label="Familias de productos">
+      <button class="cf on" data-group="todos" onclick="setGroup('todos')">🏷️ Todos</button>
     </div>
+
+    <!-- Filtros nivel 2: categorías de la familia abierta -->
+    <div class="cat-filters sub-filters" id="subFilters" role="group" aria-label="Categorías de la familia" hidden></div>
 
     <!-- Count -->
     <p class="cat-count" id="catCount"></p>
@@ -100,8 +103,8 @@
 <script src="assets/js/reveal.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
-<script src="assets/js/catalog.js?v=20260716"></script>
-<script src="assets/js/export.js"></script>
+<script src="assets/js/catalog.js?v=20260716b"></script>
+<script src="assets/js/export.js?v=20260716b"></script>
 <script src="assets/js/product-modal.js"></script>
 <script src="assets/js/chatbot.js?v=20260716"></script>
 <script>

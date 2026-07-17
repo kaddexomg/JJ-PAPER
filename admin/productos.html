@@ -25,6 +25,7 @@
       <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
       <a href="productos.html" class="on"><span class="a-ico">📦</span> Productos</a>
       <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="facturas.html"><span class="a-ico">🧾</span> Cuentas por Pagar</a>
       <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
       <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
       <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
@@ -67,6 +68,8 @@
         <button class="bulk-btn gray"   onclick="bulkDeactivate()">⏸️ Desactivar</button>
         <button class="bulk-btn yellow" onclick="bulkFeatured()">⭐ Destacar</button>
         <button class="bulk-btn gray"   onclick="bulkUnfeatured()">🔕 Quitar dest.</button>
+        <button class="bulk-btn green"  onclick="bulkEssential()">🔝 Esencial</button>
+        <button class="bulk-btn gray"   onclick="bulkUnessential()">↓ Quitar esen.</button>
       </div>
       <div class="bulk-right">
         <select id="bulkCatSel"   class="sort-sel" style="height:34px"></select>
@@ -149,6 +152,7 @@
               <div style="display:flex;gap:24px;flex-wrap:wrap">
                 <label class="check-label"><input type="checkbox" id="f-prod-active" checked> Activo (visible en catalogo)</label>
                 <label class="check-label"><input type="checkbox" id="f-prod-featured"> Destacado (aparece en inicio)</label>
+                <label class="check-label"><input type="checkbox" id="f-prod-essential"> Esencial (primera pagina del catalogo)</label>
               </div>
             </div>
 

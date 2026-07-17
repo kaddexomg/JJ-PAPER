@@ -11,11 +11,25 @@ function exportRows() {
   const rows = [];
   const stockTxt = s => (s == null || s < 0) ? '∞' : String(s);
   const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
+
+  // El folleto se secciona por FAMILIA (8 bandas), no por las ~39 categorías
+  // finas: éstas viajan en la columna "Subcategoría" del Excel.
+  const GROUPS  = (typeof catGroups !== 'undefined' && catGroups) ? catGroups : [];
+  const groupOf = p => GROUPS.find(g => g.id === p.jjp_categories?.group_id);
+  const orderOf = p => {
+    const i = GROUPS.findIndex(g => g.id === p.jjp_categories?.group_id);
+    return i < 0 ? 99 : i;   // familia desconocida al final
+  };
+
   (allProducts || []).forEach(p => {
-    const cat = p.jjp_categories?.name || 'Otros';
+    const g    = groupOf(p);
+    const cat  = g?.name || 'Otros';
+    const sub  = p.jjp_categories?.name || '';
+    const ord  = orderOf(p);
+    const base = { cat, sub, ord, essential: !!p.essential };
     if (p.variants?.length) {
       p.variants.forEach(v => rows.push({
-        cat, name: p.name || '—',
+        ...base, name: p.name || '—',
         brand: v.jjp_brands?.name || '',
         pres:  v.variant_name || '',
         sku:   v.sku || '',
@@ -26,15 +40,19 @@ function exportRows() {
       }));
     } else {
       rows.push({
-        cat, name: p.name || '—', brand: '', pres: '', sku: '',
+        ...base, name: p.name || '—', brand: '', pres: '', sku: '',
         unit: p.unit || 'unid',
         usd: num(p.price_usd), bs: num(toBs(num(p.price_usd))),
         stock: stockTxt(p.stock),
       });
     }
   });
-  // Ordena por categoría y luego por nombre para un archivo legible
-  rows.sort((a, b) => a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name));
+  // Familia (en su orden oficial) → esenciales primero → subcategoría → nombre
+  rows.sort((a, b) =>
+    a.ord - b.ord
+    || (b.essential ? 1 : 0) - (a.essential ? 1 : 0)
+    || a.sub.localeCompare(b.sub)
+    || a.name.localeCompare(b.name));
   return rows;
 }
 
@@ -101,11 +119,11 @@ async function exportCSV() {
 
   const rate = getRate();
   const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
-  const head = ['Categoría','Producto','Marca','Presentación','SKU','Unidad','Precio USD','Precio Bs','Stock'];
+  const head = ['Familia','Subcategoría','Producto','Marca','Presentación','SKU','Unidad','Precio USD','Precio Bs','Stock'];
   const lines = [head.map(q).join(';')];
 
   rows.forEach(r => lines.push([
-    q(r.cat), q(r.name), q(r.brand), q(r.pres), q(r.sku), q(r.unit),
+    q(r.cat), q(r.sub), q(r.name), q(r.brand), q(r.pres), q(r.sku), q(r.unit),
     q(r.usd.toFixed(2)), q(r.bs.toFixed(2)), q(r.stock),
   ].join(';')));
 

@@ -80,6 +80,41 @@ function normalizeProduct(p) {
   p._brandNames = p._brands.map(b => b.name).join(' ');
   p._skus = vs.map(v => v.sku).filter(Boolean).join(' ');
   p._varNames = vs.map(v => v.variant_name).filter(Boolean).join(' ');
+
+  // Auto-generate a short emoji description if missing
+  if (!p.description || p.description.trim() === '') {
+    const n = (p.name || '').toUpperCase();
+    if (n.includes("ALFILER")) p.description = "📌 Ideal para mapas y corchos, gran calidad.";
+    else if (n.includes("ALMOHADILLA")) p.description = "🧽 Almohadilla duradera para sellos y tinta nítida.";
+    else if (n.includes("ARCHIVADOR") || n.includes("CARPETA") || n.includes("ARCHICOMODO")) p.description = "📁 Mantén tus documentos organizados y seguros.";
+    else if (n.includes("BANDA")) p.description = "🖇️ Bandas de goma elásticas, súper resistentes.";
+    else if (n.includes("BOLIGRAFO") || n.includes("ESFERO")) p.description = "🖊️ Escritura suave y fluida para el día a día.";
+    else if (n.includes("BORRADOR")) p.description = "🧼 Borra sin dejar manchas ni dañar el papel.";
+    else if (n.includes("CINTA")) p.description = "🩹 Cinta adhesiva de alta fijación.";
+    else if (n.includes("CUADERNO") || n.includes("LIBRETA") || n.includes("BLOCK")) p.description = "📓 Excelente para tus apuntes y notas importantes.";
+    else if (n.includes("LAPIZ") || n.includes("LÁPIZ") || n.includes("PORTAMINA")) p.description = "✏️ Trazos precisos para dibujo y escritura.";
+    else if (n.includes("MARCADOR") || n.includes("RESALTADOR") || n.includes("PLUMON")) p.description = "🖍️ Colores vivos y duraderos para tus proyectos.";
+    else if (n.includes("PAPEL") || n.includes("RESMA")) p.description = "📄 Hojas de calidad premium para impresión y escritura.";
+    else if (n.includes("REGLA") || n.includes("ESCUADRA") || n.includes("COMPAS")) p.description = "📏 Precisión exacta para tus medidas y trazos.";
+    else if (n.includes("TIJERA") || n.includes("CUTTER") || n.includes("BISTURI") || n.includes("GUILLOTINA")) p.description = "✂️ Cortes limpios, precisos y seguros.";
+    else if (n.includes("GRAPADORA") || n.includes("GRAPA") || n.includes("PERFORADORA") || n.includes("SACAGRAPAS")) p.description = "🖇️ Fija y organiza tus documentos sin esfuerzo.";
+    else if (n.includes("PEGAMENTO") || n.includes("PEGA") || n.includes("SILICON") || n.includes("COLA")) p.description = "🧴 Adhesivo de secado rápido y máxima adherencia.";
+    else if (n.includes("CALCULADORA")) p.description = "🧮 Cálculos rápidos y exactos para tu negocio o estudio.";
+    else if (n.includes("CLIPS") || n.includes("CHINCHE") || n.includes("GANCHO")) p.description = "📎 Sujeta tus hojas con firmeza y orden.";
+    else if (n.includes("CARTULINA") || n.includes("FOAMI") || n.includes("CREPE")) p.description = "🎨 Material perfecto para manualidades y proyectos creativos.";
+    else if (n.includes("DICCIONARIO")) p.description = "📖 Tu mejor aliado para el aprendizaje y consulta rápida.";
+    else if (n.includes("SOBRE")) p.description = "✉️ Envíos y entregas seguras y profesionales.";
+    else if (n.includes("SACAPUNTA")) p.description = "✏️ Mantén tus lápices siempre afilados y listos.";
+    else if (n.includes("PINTURA") || n.includes("TEMPERA") || n.includes("ACUARELA") || n.includes("PINCEL")) p.description = "🎨 Colores vibrantes para dar vida a tus ideas.";
+    else if (n.includes("PIZARRA") || n.includes("BORRADOR PIZARRA")) p.description = "📋 Ideal para presentaciones, clases y organización.";
+    else if (n.includes("ETIQUETA")) p.description = "🏷️ Etiqueta y clasifica tus artículos fácilmente.";
+    else if (n.includes("TINTA")) p.description = "🖋️ Tinta de alta pigmentación y secado rápido.";
+    else if (n.includes("CD") || n.includes("DVD") || n.includes("PENDRIVE")) p.description = "💾 Almacena y transporta tu información segura.";
+    else if (n.includes("EXHIBIDOR") || n.includes("ORGANIZADOR") || n.includes("BANDEJA")) p.description = "🗃️ Optimiza tu espacio de trabajo con estilo.";
+    else if (n.includes("PAPELERA")) p.description = "🗑️ Mantén tu área de trabajo siempre limpia.";
+    else p.description = "✨ Excelente artículo de papelería, calidad garantizada.";
+  }
+
   return p;
 }
 

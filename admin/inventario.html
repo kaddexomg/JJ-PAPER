@@ -50,6 +50,28 @@
 .scan-hit:hover { background:#eef7e0; }
 .scan-hit-name { font-weight:600; font-size:14px; }
 .scan-hit-sub { font-size:12px; color:var(--gr); }
+.scan-bridge { font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; margin-left:auto; margin-right:10px; }
+.scan-bridge.on  { background:rgba(153,204,51,.18); color:#b6e05a; }
+.scan-bridge.off { background:rgba(255,255,255,.10); color:#9fc7b3; }
+.scan-prog { margin-bottom:12px; }
+.scan-prog-bar { height:8px; border-radius:999px; background:#e8eee9; overflow:hidden; }
+.scan-prog-bar span { display:block; height:100%; background:linear-gradient(90deg,#16604A,#99CC33); transition:width .3s; }
+.scan-prog-txt { font-size:12px; color:var(--gr); margin-top:5px; }
+.scan-unknown-row { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #f0e2bd;
+  border-radius:10px; padding:8px 10px; }
+.scan-unknown-row code { flex:1; font-size:13px; word-break:break-all; }
+/* Totales globales del conteo */
+.scan-tot-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+.scan-tot { background:#f3f7f4; border:1px solid #e0eae3; border-radius:10px; padding:8px 6px; text-align:center; }
+.scan-tot b { display:block; font-size:20px; color:#16604A; line-height:1.1; }
+.scan-tot span { font-size:11px; color:var(--gr); }
+.scan-tot-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; justify-content:center; }
+/* Alta manual de productos */
+.scan-new-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.scan-new-form label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--gr); }
+.scan-new-form label:first-child, .scan-new-form button { grid-column:1 / -1; }
+.scan-new-form .fi { padding:8px 10px; font-size:16px; }
+@media (max-width:520px) { .scan-new-form { grid-template-columns:1fr; } }
 </style>
 </head>
 <body class="admin-body">
@@ -211,7 +233,9 @@
 <div class="scan-overlay" id="scanOverlay">
   <div class="scan-head">
     <h3>📷 Modo conteo</h3>
-    <button class="btn-p" onclick="invScanClose()">✓ Terminar</button>
+    <span class="scan-bridge off" id="scanBridgeState">📲 Puente desconectado</span>
+    <button class="btn-ghost" onclick="scanNewOpen('')" title="Agregar un producto que no está en la lista de precios">➕ Producto nuevo</button>
+    <button class="btn-p" onclick="invScanFinish()">✓ Terminar</button>
   </div>
   <div class="scan-cam">
     <video id="scanVideo" playsinline muted></video>
@@ -220,6 +244,7 @@
   <div class="scan-status" id="scanStatus">Iniciando…</div>
 
   <div class="scan-panel">
+    <div class="scan-prog" id="scanProgress"></div>
     <div id="scanActive"><p class="scan-hint">Ningún producto en conteo todavía.</p></div>
   </div>
 

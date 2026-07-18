@@ -35,6 +35,7 @@ async function ccLoad() {
   ccRender();
   ccLoadDupes();
   ccLoadLog();
+  ccLoadMoves();
 }
 
 // ---- Valorización ----
@@ -157,6 +158,7 @@ function ccRender() {
       <td>
         <div class="cc-actions">
           <button class="btn-ghost sm" onclick="ccFixCode('${r.variant_id}')" title="Corregir el código de barras">🔗</button>
+          <button class="btn-ghost sm" onclick="ccTransferOpen('${r.variant_id}')" title="Mover unidades contadas a otro producto (conteo cruzado)">🔀</button>
           <button class="btn-ghost sm" onclick="ccRemove('${r.variant_id}')" title="Quitar del conteo (vuelve a 'sin contar')">🗑️</button>
         </div>
       </td>
@@ -278,6 +280,163 @@ async function ccClearCode() {
   showToast('Código quitado', 'ok');
   ccFixing = null;
   ccRenderFix(); ccRender(); ccLoadDupes(); ccLoadLog();
+}
+
+// ======================================================
+//  Transferir unidades: el arreglo del conteo cruzado
+//  "Conté (o el escáner contó) en el producto que no era."
+// ======================================================
+let ccTransferFrom = null;   // fila de origen
+let ccAllVariants  = null;   // catálogo completo para elegir destino
+
+async function ccTransferOpen(variantId) {
+  ccTransferFrom = ccRows.find(r => r.variant_id === variantId) || null;
+  if (!ccTransferFrom) return;
+  if (!ccAllVariants) {
+    const { data } = await sb.from('jjp_product_variants')
+      .select('id,sku,barcode,variant_name,jjp_products(name),jjp_brands(name)')
+      .limit(3000);
+    ccAllVariants = data || [];
+  }
+  ccRenderTransfer();
+  document.getElementById('ccTransferPanel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function ccTransferCancel() { ccTransferFrom = null; ccRenderTransfer(); }
+
+function ccRenderTransfer() {
+  const el = document.getElementById('ccTransferPanel');
+  if (!el) return;
+  if (!ccTransferFrom) { el.classList.remove('op'); el.innerHTML = ''; return; }
+  const r = ccTransferFrom;
+  el.classList.add('op');
+  el.innerHTML = `
+    <div class="cc-fix-head">
+      <div>
+        <strong>🔀 Mover unidades de: ${escapeHTML(r.product_name)}</strong>
+        <div class="td-sub">Tiene ${r.counted} contada(s) · SKU ${escapeHTML(r.sku || '—')}</div>
+      </div>
+      <button class="btn-ghost sm" onclick="ccTransferCancel()">Cerrar</button>
+    </div>
+    <p class="cc-hint">Para cuando se contó aquí lo que era de otro producto. Las unidades salen de este y entran al que elijas; ambos movimientos quedan en la bitácora.</p>
+    <div class="cc-fix-row">
+      <input type="number" class="fi" id="ccTransQty" min="1" max="${r.counted}" value="1"
+        style="max-width:110px" aria-label="Unidades a mover">
+      <input type="text" class="fi" id="ccTransSearch" placeholder="¿A qué producto van? Nombre, SKU o código…"
+        oninput="ccTransferSearch(this.value)" autocomplete="off">
+    </div>
+    <div class="scan-link-results" id="ccTransResults"></div>`;
+  setTimeout(() => document.getElementById('ccTransSearch')?.focus(), 50);
+}
+
+function ccTransferSearch(q) {
+  const box = document.getElementById('ccTransResults');
+  if (!box || !ccTransferFrom) return;
+  const term = normTxt(q);
+  if (term.length < 2) { box.innerHTML = '<p class="cc-hint">Escribe al menos 2 letras…</p>'; return; }
+  const hits = (ccAllVariants || []).filter(v =>
+    v.id !== ccTransferFrom.variant_id && (
+      normTxt(v.jjp_products?.name).includes(term) ||
+      normTxt(v.jjp_brands?.name).includes(term) ||
+      normTxt(v.sku).includes(term) ||
+      normTxt(v.barcode).includes(term)
+    )).slice(0, 20);
+  if (!hits.length) { box.innerHTML = '<p class="cc-hint">Sin coincidencias.</p>'; return; }
+  box.innerHTML = hits.map(v => {
+    const sub = [v.jjp_brands?.name, v.variant_name].filter(Boolean).join(' · ') || 'Genérica';
+    const ya = ccRows.find(r => r.variant_id === v.id);
+    return `
+    <button class="scan-hit" onclick="ccTransferDo('${v.id}')">
+      <span class="scan-hit-name">${escapeHTML(v.jjp_products?.name || '—')}</span>
+      <span class="scan-hit-sub">${escapeHTML(sub)} · SKU ${escapeHTML(v.sku || '—')}${ya ? ` · lleva ${ya.counted} contadas` : ' · aún sin contar'}</span>
+    </button>`;
+  }).join('');
+}
+
+async function ccTransferDo(toId) {
+  if (!ccTransferFrom) return;
+  const qty = Math.max(1, parseInt(document.getElementById('ccTransQty')?.value) || 1);
+  const dest = (ccAllVariants || []).find(v => v.id === toId);
+  const destName = dest?.jjp_products?.name || 'el producto elegido';
+  if (qty > ccTransferFrom.counted) {
+    showToast(`Sólo hay ${ccTransferFrom.counted} contadas en el origen`, 'warn'); return;
+  }
+  if (!confirm(`Mover ${qty} unidad(es):\n\n${ccTransferFrom.product_name}  →  ${destName}\n\n¿Continuar?`)) return;
+
+  const { error } = await sb.rpc('jjp_count_transfer', {
+    p_from: ccTransferFrom.variant_id, p_to: toId, p_qty: qty, p_session: CC_SESSION
+  });
+  if (error) { showToast('Error: ' + error.message, 'err'); return; }
+  showToast(`${qty} unidad(es) movidas a ${destName}`, 'ok', 5000);
+  ccTransferFrom = null;
+  await ccLoad();               // recarga todo: totales, tabla y bitácora
+}
+
+// ======================================================
+//  Bitácora de movimientos del conteo (con deshacer)
+// ======================================================
+let ccMovesSource = '';
+
+const CC_SRC_BADGE = {
+  pc:            ['badge-green',  '💻 PC'],
+  telefono:      ['badge-blue',   '📲 Teléfono'],
+  manual:        ['badge-yellow', '✍️ Manual'],
+  busqueda:      ['badge-green',  '🔍 Búsqueda'],
+  transferencia: ['badge-blue',   '🔀 Transferencia'],
+  reverso:       ['badge-red',    '↩️ Reverso'],
+  historico:     ['badge-gray',   '📦 Histórico'],
+};
+
+function ccOnMovesSource(v) { ccMovesSource = v; ccLoadMoves(); }
+
+async function ccLoadMoves() {
+  const el = document.getElementById('ccMovesBody');
+  if (!el) return;
+  let q = sb.from('jjp_count_log_view')
+    .select('*').eq('session_key', CC_SESSION)
+    .order('created_at', { ascending: false }).limit(200);
+  if (ccMovesSource) q = q.eq('source', ccMovesSource);
+  const { data, error } = await q;
+  if (error) {
+    el.innerHTML = `<tr><td colspan="6" class="table-empty">Bitácora de movimientos no disponible (¿falta la migración?).</td></tr>`;
+    return;
+  }
+  if (!data?.length) {
+    el.innerHTML = `<tr><td colspan="6" class="table-empty">Sin movimientos${ccMovesSource ? ' de ese origen' : ''}.</td></tr>`;
+    return;
+  }
+  el.innerHTML = data.map(m => {
+    const d = new Date(m.created_at);
+    const cuando = d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit' }) + ' ' +
+                   d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const [cls, label] = CC_SRC_BADGE[m.source] || ['badge-gray', escapeHTML(m.source)];
+    const delta = m.delta > 0
+      ? `<strong style="color:var(--gd,#2f7d32)">+${m.delta}</strong>`
+      : `<strong style="color:var(--danger,#c0392b)">${m.delta}</strong>`;
+    const deshecho = !!m.reverted_by;
+    const esReverso = !!m.reverts;
+    return `<tr${deshecho ? ' style="opacity:.5"' : ''}>
+      <td style="font-size:12px;white-space:nowrap">${cuando}</td>
+      <td><div class="td-name">${escapeHTML(m.product_name || '—')}</div>
+        <div class="td-sub">SKU ${escapeHTML(m.sku || '—')}</div></td>
+      <td style="text-align:center">${delta}</td>
+      <td style="text-align:center">${m.counted_after ?? '—'}</td>
+      <td><span class="badge ${cls}">${label}</span>
+        ${m.note ? `<div class="td-sub">${escapeHTML(m.note)}</div>` : ''}
+        ${deshecho ? '<div class="td-sub">✓ deshecho</div>' : ''}</td>
+      <td>${(!deshecho && !esReverso && m.delta !== 0)
+        ? `<button class="btn-ghost sm" onclick="ccRevertMove('${m.id}', ${m.delta}, '${escapeHTML(m.product_name || '')}')">↩️ Deshacer</button>`
+        : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function ccRevertMove(logId, delta, name) {
+  const verbo = delta > 0 ? `restar ${delta}` : `devolver ${-delta}`;
+  if (!confirm(`Deshacer este movimiento de "${name}" (${verbo} unidad(es)). ¿Continuar?`)) return;
+  const { error } = await sb.rpc('jjp_count_revert', { p_log_id: logId });
+  if (error) { showToast('Error: ' + error.message, 'err'); return; }
+  showToast('Movimiento deshecho', 'ok');
+  await ccLoad();
 }
 
 // ---- Códigos repartidos en más de un producto ----

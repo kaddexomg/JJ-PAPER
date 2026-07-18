@@ -48,6 +48,13 @@
 .cc-fix-row .fi { flex:1; min-height:44px; font-size:16px; }
 .cc-fix-row .btn-p { min-height:44px; padding:0 20px; }
 .cc-wide { width:100%; min-height:42px; margin-top:8px; }
+/* Resultados de búsqueda dentro de los paneles (transferencia) */
+.scan-link-results { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; margin-top:8px; }
+.scan-hit { text-align:left; background:#fff; border:1px solid #e2e9e4; border-radius:10px;
+  padding:10px 14px; cursor:pointer; display:flex; flex-direction:column; min-height:52px; }
+.scan-hit:hover { background:#eef7e0; }
+.scan-hit-name { font-weight:600; font-size:14px; }
+.scan-hit-sub { font-size:12px; color:var(--gr); }
 @media (max-width:640px) {
   .cc-val-n { font-size:20px; }
   .cc-fix-row { flex-direction:column; }
@@ -141,6 +148,9 @@
       <!-- Corrección de código -->
       <div class="cc-fix" id="ccFixPanel"></div>
 
+      <!-- Transferencia de unidades (conteo cruzado) -->
+      <div class="cc-fix" id="ccTransferPanel"></div>
+
       <!-- Tabla del conteo -->
       <div class="admin-table-wrap" style="margin-bottom:18px">
         <div class="table-top">
@@ -183,10 +193,47 @@
         </div>
       </div>
 
-      <!-- Bitácora -->
+      <!-- Bitácora de movimientos del conteo -->
+      <div class="admin-table-wrap" style="margin-bottom:18px">
+        <div class="table-top">
+          <h3>📜 Movimientos del conteo</h3>
+          <div class="cc-filters">
+            <span style="font-size:12px;color:var(--gr)">Cada escaneo y ajuste, con su origen · deshacer puntual</span>
+            <select class="sort-sel" style="height:34px" onchange="ccOnMovesSource(this.value)">
+              <option value="">Todos los orígenes</option>
+              <option value="pc">💻 PC</option>
+              <option value="telefono">📲 Teléfono</option>
+              <option value="manual">✍️ Manual</option>
+              <option value="busqueda">🔍 Búsqueda</option>
+              <option value="transferencia">🔀 Transferencias</option>
+              <option value="reverso">↩️ Reversos</option>
+              <option value="historico">📦 Histórico</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Cuándo</th>
+                <th>Producto</th>
+                <th style="text-align:center">Cambio</th>
+                <th style="text-align:center">Quedó en</th>
+                <th>Origen</th>
+                <th style="width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="ccMovesBody">
+              <tr><td colspan="6" class="table-empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bitácora de códigos -->
       <div class="admin-table-wrap">
         <div class="table-top">
-          <h3>📜 Cambios de códigos</h3>
+          <h3>🔗 Cambios de códigos</h3>
           <span style="font-size:12px;color:var(--gr)">Todo cambio hecho desde aquí queda registrado y se puede deshacer</span>
         </div>
         <div style="overflow-x:auto">

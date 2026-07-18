@@ -68,7 +68,7 @@ async function scanSyncTally() {
 // ---- Suma / resta persistente ----
 // Optimista en pantalla, autoritativo en la base. Si la base falla,
 // el delta queda encolado y se reintenta: no se pierde ninguna unidad.
-async function scanCountApply(row, delta) {
+async function scanCountApply(row, delta, source = 'pc') {
   if (!row || !delta) return scanTally[row?.id]?.n ?? 0;
   const id   = row.id;
   const prev = scanTally[id]?.n ?? 0;
@@ -80,15 +80,17 @@ async function scanCountApply(row, delta) {
   scanRenderActive();
   scanRenderProgress();
 
+  // p_source alimenta la bitácora jjp_count_log: luego se sabe si esta
+  // unidad la contó la PC, el teléfono o un ajuste manual.
   const { data, error } = await sb.rpc('jjp_count_add', {
-    p_variant_id: id, p_delta: delta, p_session: SCAN_SESSION
+    p_variant_id: id, p_delta: delta, p_session: SCAN_SESSION, p_source: source
   });
 
   if (error) {
     // Fallback para bases sin la migración: escribe el total directo
     const fb = await sb.rpc('jjp_set_stock', { p_variant_id: id, p_stock: next, p_reason: 'conteo físico' });
     if (fb.error) {
-      scanQueue.push({ variantId: id, delta });    // se reintenta después
+      scanQueue.push({ variantId: id, delta, source });   // se reintenta después
       scanSaveLocal();
       showToast('Sin conexión: el conteo quedó guardado y se subirá solo', 'warn', 4000);
     }
@@ -115,7 +117,7 @@ async function scanCountSet(row, total) {
   scanRenderActive();
   scanRenderProgress();
   const { error } = await sb.rpc('jjp_count_set', {
-    p_variant_id: row.id, p_total: n, p_session: SCAN_SESSION
+    p_variant_id: row.id, p_total: n, p_session: SCAN_SESSION, p_source: 'manual'
   });
   if (error) await sb.rpc('jjp_set_stock', { p_variant_id: row.id, p_stock: n, p_reason: 'conteo físico' });
 }
@@ -128,7 +130,8 @@ async function scanFlushQueue() {
   scanSaveLocal();
   for (const q of pend) {
     const { error } = await sb.rpc('jjp_count_add', {
-      p_variant_id: q.variantId, p_delta: q.delta, p_session: SCAN_SESSION
+      p_variant_id: q.variantId, p_delta: q.delta, p_session: SCAN_SESSION,
+      p_source: q.source || 'pc', p_note: 'subido de la cola offline'
     });
     if (error) scanQueue.push(q);
   }
@@ -243,7 +246,7 @@ function scanLoop() {
 
 // ---- Lógica de escaneo ----
 // Devuelve el resultado del escaneo (lo usa el puente para responderle al teléfono)
-function scanHandleCode(code) {
+function scanHandleCode(code, source = 'pc') {
   scanBeep();
   if (navigator.vibrate) navigator.vibrate(60);
 
@@ -260,7 +263,7 @@ function scanHandleCode(code) {
 
   scanActive = { row };
   const total = (scanTally[row.id]?.n ?? 0) + 1;     // preview inmediato
-  scanCountApply(row, +1);                           // persiste en la base
+  scanCountApply(row, +1, source);                   // persiste en la base
   const name = row.jjp_products?.name || '';
   scanSetStatus(`✓ ${name} — ${total}`);
   scanRenderActive();
@@ -323,7 +326,7 @@ async function scanDoLink(variantId) {
   scanUnknown = scanUnknown.filter(u => u.code !== code);
   scanLinking = null;
   scanActive = { row };
-  await scanCountApply(row, +1);                   // el escaneo que lo destapó también cuenta
+  await scanCountApply(row, +1, 'pc');             // el escaneo que lo destapó también cuenta
   scanRenderUnknown();
   scanRenderActive();
   scanSetStatus(`✓ ${row.jjp_products?.name || ''} — ${scanTally[row.id]?.n ?? 0}`);
@@ -429,7 +432,7 @@ async function scanNewSubmit(ev) {
   scanUnknown = scanUnknown.filter(u => u.code !== code);
   scanNewOpenFor = null;
   scanActive = { row };
-  if (qty > 0) await scanCountApply(row, qty);
+  if (qty > 0) await scanCountApply(row, qty, 'manual');
   else { scanRenderActive(); scanRenderProgress(); }
 
   scanRenderUnknown();
@@ -541,7 +544,7 @@ async function scanPickRow(id) {
   scanBeep();
   const total = (scanTally[row.id]?.n ?? 0) + 1;
   scanSetStatus(`✓ ${row.jjp_products?.name || ''} — ${total}`);
-  await scanCountApply(row, +1);
+  await scanCountApply(row, +1, 'busqueda');
   const inp = document.getElementById('scanManualInput');
   if (inp) { inp.value = ''; inp.focus(); }
   scanOmni('');
@@ -582,7 +585,7 @@ function scanSetCounted(v) {
   if (scanActive) scanCountSet(scanActive.row, v);
 }
 function scanBump(delta) {
-  if (scanActive) scanCountApply(scanActive.row, delta);
+  if (scanActive) scanCountApply(scanActive.row, delta, 'manual');
 }
 
 // ---- Render de paneles ----
@@ -813,7 +816,7 @@ async function scanProcessEvent(ev) {
     await scanSyncTally();
     scanRenderProgress();
   }
-  const res = scanHandleCode((ev.code || '').trim());
+  const res = scanHandleCode((ev.code || '').trim(), 'telefono');
   await scanAckEvent(ev.id, res);
 }
 

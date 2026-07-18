@@ -70,8 +70,30 @@
 .scan-new-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
 .scan-new-form label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--gr); }
 .scan-new-form label:first-child, .scan-new-form button { grid-column:1 / -1; }
-.scan-new-form .fi { padding:8px 10px; font-size:16px; }
+.scan-new-form .fi { padding:10px 12px; font-size:16px; min-height:44px; }
 @media (max-width:520px) { .scan-new-form { grid-template-columns:1fr; } }
+/* Buscador universal: contar sin escanear */
+.scan-manual .fi { font-size:16px; min-height:48px; padding:10px 14px; }
+.scan-manual .btn-p { min-height:48px; padding:0 18px; font-size:15px; }
+.scan-search-results { width:100%; max-width:520px; margin:8px auto 0; background:#fff;
+  border-radius:14px; padding:8px; display:none; max-height:300px; overflow-y:auto; }
+.scan-search-results.op { display:block; }
+.scan-search-results .scan-hit { width:100%; margin-bottom:6px; }
+/* Objetivos táctiles grandes: se cuenta con una mano y el teléfono en la otra */
+.scan-hit { min-height:56px; padding:10px 14px; position:relative; }
+.scan-hit-name { font-size:15px; }
+.scan-hit-n { position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:#16604A; color:#fff; font-size:12px; font-weight:700;
+  padding:6px 12px; border-radius:999px; white-space:nowrap; }
+.scan-wide { width:100%; min-height:48px; margin-top:8px; font-size:15px; }
+.scan-big-in { min-height:48px; font-size:16px; }
+.scan-unknown-card { background:#fff; border:1px solid #f0e2bd; border-radius:12px; padding:12px; }
+.scan-unknown-card code { display:block; font-size:15px; font-weight:700; word-break:break-all; margin-bottom:4px; }
+.scan-unknown-alt { display:flex; gap:8px; margin-top:8px; }
+.scan-unknown-alt .btn-ghost { flex:1; min-height:42px; }
+.scan-count-row .qb { min-width:44px; min-height:44px; font-size:20px; }
+.scan-count-in { width:90px; height:44px; font-size:18px; }
+.scan-tot-actions .btn-ghost { min-height:42px; }
 </style>
 </head>
 <body class="admin-body">
@@ -249,9 +271,12 @@
   </div>
 
   <form class="scan-manual" onsubmit="scanManualSubmit(event)">
-    <input type="text" class="fi" id="scanManualInput" placeholder="O escribe/pega el código y Enter…" autocomplete="off">
-    <button class="btn-ghost" type="submit">Buscar</button>
+    <input type="text" class="fi" id="scanManualInput" autocomplete="off"
+      oninput="scanOmni(this.value)"
+      placeholder="🔍 Busca por nombre, marca o SKU — o escribe el código">
+    <button class="btn-p" type="submit">Buscar</button>
   </form>
+  <div class="scan-search-results" id="scanSearchResults"></div>
 
   <div class="scan-link" id="scanLink"></div>
 </div>

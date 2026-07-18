@@ -438,7 +438,8 @@ function scanNewForm() {
       <strong>➕ Producto nuevo${code ? ` — código ${escapeHTML(code)}` : ''}</strong>
       <button class="btn-ghost sm" onclick="scanNewCancel()">Cancelar</button>
     </div>
-    <p class="scan-hint">Para lo que no está en la lista de precios. Se crea al instante y sigues contando.</p>
+    <p class="scan-hint">Para lo que NO está en la lista de precios. Se crea al instante y sigues contando.</p>
+    ${code ? `<button class="btn-ghost scan-wide" onclick="scanStartLink('${escapeHTML(code)}')">🔍 Espera: mejor búscalo en mi lista de precios</button>` : ''}
     <form class="scan-new-form" onsubmit="scanNewSubmit(event)">
       <label>Nombre *
         <input type="text" class="fi" id="scanNewName" required autocomplete="off"
@@ -474,15 +475,97 @@ function scanNewForm() {
     </form>`;
 }
 
+// ======================================================
+//  Buscador universal: un solo campo para todo
+//  - dígitos  → código de barras (Enter cuenta)
+//  - letras   → busca en tu lista de precios y cuentas con un toque
+//  Sirve para lo que no tiene código de barras o cuyo código no lee.
+// ======================================================
+function scanIsCode(v) { return /^\d{6,}$/.test(v.trim()); }
+
+function scanOmni(v) {
+  const box = document.getElementById('scanSearchResults');
+  if (!box) return;
+  const q = (v || '').trim();
+
+  if (!q) { box.innerHTML = ''; box.classList.remove('op'); return; }
+
+  if (scanIsCode(q)) {                       // parece código: no estorbes
+    box.classList.add('op');
+    box.innerHTML = `<p class="scan-hint">Pulsa Enter para contar el código <code>${escapeHTML(q)}</code></p>`;
+    return;
+  }
+
+  const term = normTxt(q);
+  if (term.length < 2) { box.innerHTML = ''; box.classList.remove('op'); return; }
+
+  const hits = invRows.filter(r =>
+    normTxt(r.jjp_products?.name).includes(term) ||
+    normTxt(r.jjp_brands?.name).includes(term) ||
+    normTxt(r.variant_name).includes(term) ||
+    normTxt(r.sku).includes(term)
+  ).slice(0, 25);
+
+  box.classList.add('op');
+  if (!hits.length) {
+    box.innerHTML = `
+      <p class="scan-hint">Nada con “${escapeHTML(q)}” en tu lista de precios.</p>
+      <button class="btn-p scan-wide" onclick="scanNewOpen('')">➕ Crear producto nuevo</button>`;
+    return;
+  }
+  box.innerHTML = hits.map(r => {
+    const n = scanTally[r.id]?.n ?? 0;
+    return `
+    <button class="scan-hit" onclick="scanPickRow('${r.id}')">
+      <span class="scan-hit-name">${escapeHTML(r.jjp_products?.name || '—')}</span>
+      <span class="scan-hit-sub">${escapeHTML(invLabel(r))} · SKU ${escapeHTML(r.sku || '—')}</span>
+      <span class="scan-hit-n">${n > 0 ? `contadas: ${n} · +1` : '+1'}</span>
+    </button>`;
+  }).join('');
+}
+
+// Cuenta un producto elegido de la búsqueda (sin escanear nada)
+async function scanPickRow(id) {
+  const row = invRows.find(r => r.id === id);
+  if (!row) return;
+  scanActive = { row };
+  scanBeep();
+  const total = (scanTally[row.id]?.n ?? 0) + 1;
+  scanSetStatus(`✓ ${row.jjp_products?.name || ''} — ${total}`);
+  await scanCountApply(row, +1);
+  const inp = document.getElementById('scanManualInput');
+  if (inp) { inp.value = ''; inp.focus(); }
+  scanOmni('');
+}
+
 // ---- Entrada manual (teclado / lector USB / pegar) ----
 function scanManualSubmit(ev) {
   ev.preventDefault();
   const inp = document.getElementById('scanManualInput');
-  const code = (inp.value || '').trim();
-  if (!code) return;
-  inp.value = '';
-  delete scanSeen[code];
-  scanHandleCode(code);
+  const q = (inp.value || '').trim();
+  if (!q) return;
+
+  // Código exacto de un producto conocido → cuenta directo
+  const byCode = invRows.find(r => (r.barcode || '').trim() === q);
+  if (byCode) { inp.value = ''; scanOmni(''); delete scanSeen[q]; scanHandleCode(q); return; }
+
+  if (scanIsCode(q)) {                       // código no registrado → a la cola
+    inp.value = ''; scanOmni('');
+    delete scanSeen[q];
+    scanHandleCode(q);
+    return;
+  }
+
+  // Texto: si la búsqueda dejó un único candidato, cuéntalo
+  const term = normTxt(q);
+  const hits = invRows.filter(r =>
+    normTxt(r.jjp_products?.name).includes(term) ||
+    normTxt(r.jjp_brands?.name).includes(term) ||
+    normTxt(r.variant_name).includes(term) ||
+    normTxt(r.sku).includes(term)
+  );
+  if (hits.length === 1) { scanPickRow(hits[0].id); return; }
+  scanOmni(q);                               // varios o ninguno: que elija
 }
 
 // ---- Ajuste manual del número contado ----
@@ -537,19 +620,26 @@ function scanRenderUnknown() {
   const el = document.getElementById('scanLink');
   if (!el) return;
 
-  if (scanNewOpenFor !== null) { el.classList.add('op'); el.innerHTML = scanNewForm(); return; }
+  // Alta manual. Siempre deja salida hacia la búsqueda: si el producto sí
+  // existía en la lista de precios, no debe quedarse atrapado creando uno nuevo.
+  if (scanNewOpenFor !== null) {
+    el.classList.add('op');
+    el.innerHTML = scanNewForm();
+    return;
+  }
 
   if (scanLinking) {
     el.classList.add('op');
     el.innerHTML = `
       <div class="scan-link-head">
-        <strong>Vincular código ${escapeHTML(scanLinking)}</strong>
+        <strong>🔍 ¿A qué producto pertenece ${escapeHTML(scanLinking)}?</strong>
         <button class="btn-ghost sm" onclick="scanCancelLink()">Cancelar</button>
       </div>
-      <p class="scan-hint">Busca el producto al que pertenece este código:</p>
-      <input type="text" class="fi" placeholder="Nombre, marca o SKU…" oninput="scanLinkSearch(this.value)" autofocus>
+      <p class="scan-hint">Búscalo en tu lista de precios. Al elegirlo, el código queda guardado y suma 1.</p>
+      <input type="text" class="fi scan-big-in" placeholder="Nombre, marca o SKU…"
+        oninput="scanLinkSearch(this.value)" autofocus>
       <div class="scan-link-results" id="scanLinkResults"></div>
-      <button class="btn-ghost sm" onclick="scanNewOpen('${escapeHTML(scanLinking)}')">➕ No existe: crear producto nuevo</button>`;
+      <button class="btn-ghost scan-wide" onclick="scanNewOpen('${escapeHTML(scanLinking)}')">➕ No está en la lista: crear producto nuevo</button>`;
     return;
   }
 
@@ -557,16 +647,18 @@ function scanRenderUnknown() {
   el.classList.add('op');
   el.innerHTML = `
     <div class="scan-link-head">
-      <strong>${scanUnknown.length} código(s) sin vincular</strong>
+      <strong>${scanUnknown.length} código(s) sin identificar</strong>
       <span class="scan-hint">Puedes seguir contando</span>
     </div>
     <div class="scan-link-results">
       ${scanUnknown.map(u => `
-        <div class="scan-unknown-row">
+        <div class="scan-unknown-card">
           <code>${escapeHTML(u.code)}</code>
-          <button class="btn-p sm" onclick="scanStartLink('${escapeHTML(u.code)}')">Vincular</button>
-          <button class="btn-ghost sm" onclick="scanNewOpen('${escapeHTML(u.code)}')" title="Crear producto nuevo">➕</button>
-          <button class="btn-ghost sm" onclick="scanDropUnknown('${escapeHTML(u.code)}')" aria-label="Descartar código">✕</button>
+          <button class="btn-p scan-wide" onclick="scanStartLink('${escapeHTML(u.code)}')">🔍 Buscarlo en mi lista de precios</button>
+          <div class="scan-unknown-alt">
+            <button class="btn-ghost sm" onclick="scanNewOpen('${escapeHTML(u.code)}')">➕ Crear nuevo</button>
+            <button class="btn-ghost sm" onclick="scanDropUnknown('${escapeHTML(u.code)}')">✕ Descartar</button>
+          </div>
         </div>`).join('')}
     </div>`;
 }

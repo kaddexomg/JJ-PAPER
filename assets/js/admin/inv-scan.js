@@ -307,8 +307,17 @@ async function scanDoLink(variantId) {
   const row = invRows.find(r => r.id === variantId);
   if (!row || !scanLinking) return;
   const code = scanLinking;
-  const { error } = await sb.from('jjp_product_variants').update({ barcode: code }).eq('id', variantId);
+  // Vía RPC: si el código estaba en otro producto se lo quita, y todo queda
+  // en la bitácora para poder revisarlo y deshacerlo en Control del conteo.
+  let { error } = await sb.rpc('jjp_barcode_assign', {
+    p_variant_id: variantId, p_code: code, p_note: 'vinculado al escanear'
+  });
+  if (error) {   // base sin la migración de control
+    ({ error } = await sb.from('jjp_product_variants').update({ barcode: code }).eq('id', variantId));
+  }
   if (error) { showToast('Error vinculando código: ' + error.message, 'err'); return; }
+  const robado = invRows.find(r => r.id !== variantId && (r.barcode || '') === code);
+  if (robado) robado.barcode = null;               // el código ya no le pertenece
   row.barcode = code;                              // en memoria → próximos escaneos lo reconocen
   showToast(`Código ${code} vinculado a ${row.jjp_products?.name || ''}`);
   scanUnknown = scanUnknown.filter(u => u.code !== code);

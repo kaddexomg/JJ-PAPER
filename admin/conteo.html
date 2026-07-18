@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control del conteo | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+<style>
+.cc-code { background:#f0f4f1; border:1px solid #dde7e0; border-radius:6px;
+  padding:2px 7px; font-size:12px; font-weight:600; white-space:nowrap; }
+.cc-qty-cell { display:flex; align-items:center; gap:4px; }
+.cc-qty { width:64px; height:34px; text-align:center; font-size:14px; padding:0 4px; }
+.cc-qty-cell .qb { width:30px; height:30px; font-size:15px; }
+.cc-bs { font-size:11px; color:var(--gr); }
+.cc-actions { display:flex; gap:4px; }
+.cc-hint { font-size:12px; color:var(--gr); margin:6px 0; }
+.cc-filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+/* Valorización */
+.cc-val-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:12px; margin-bottom:18px; }
+.cc-val { background:#fff; border:1px solid #e6ece8; border-radius:14px; padding:14px 16px; }
+.cc-val-l { font-size:12px; color:var(--gr); margin-bottom:4px; }
+.cc-val-n { font-size:24px; font-weight:800; color:#16604A; line-height:1.15; }
+.cc-val-bs { font-size:13px; color:var(--gr); margin-top:2px; }
+.cc-val.accent { background:linear-gradient(135deg,#16604A,#1b7a5c); border-color:#16604A; }
+.cc-val.accent .cc-val-l { color:rgba(255,255,255,.75); }
+.cc-val.accent .cc-val-n { color:#fff; }
+.cc-val.accent .cc-val-bs { color:rgba(255,255,255,.85); }
+/* Avisos */
+.cc-warn { background:#fff8e6; border:1px solid #e8c96b; border-radius:12px;
+  padding:12px 14px; margin-bottom:14px; font-size:13px; }
+.cc-alert { background:#fdeeee; border:1px solid #f0b8b8; border-radius:12px; padding:12px 14px; }
+.cc-ok { background:#f0f7ec; border:1px solid #cfe3bf; border-radius:12px;
+  padding:10px 14px; font-size:13px; color:#3d6b28; }
+.cc-dupe-row { display:flex; gap:10px; align-items:center; background:#fff;
+  border:1px solid #f0d0d0; border-radius:8px; padding:8px 10px; margin-top:6px; font-size:13px; }
+/* Corrección de código */
+.cc-fix { background:#f3f7f4; border:1px solid #cfe0d5; border-radius:14px;
+  padding:16px; margin-bottom:18px; display:none; }
+.cc-fix.op { display:block; }
+.cc-fix-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.cc-fix-row { display:flex; gap:8px; margin-top:8px; }
+.cc-fix-row .fi { flex:1; min-height:44px; font-size:16px; }
+.cc-fix-row .btn-p { min-height:44px; padding:0 20px; }
+.cc-wide { width:100%; min-height:42px; margin-top:8px; }
+@media (max-width:640px) {
+  .cc-val-n { font-size:20px; }
+  .cc-fix-row { flex-direction:column; }
+}
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <span class="a-section">Principal</span>
+      <a href="index.html"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="conteo.html" class="on"><span class="a-ico">🔧</span> Control del conteo</a>
+      <a href="facturas.html"><span class="a-ico">🧾</span> Cuentas por Pagar</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
+      <div class="divider"></div>
+      <span class="a-section">Catalogo</span>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Control del conteo</h2>
+          <p>Corrige errores y códigos cruzados · valor de lo contado</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="ccRateInfo" style="font-size:12px;color:var(--gr)"></span>
+        <button class="btn-ghost" onclick="ccExport()">⬇️ Exportar valorización</button>
+        <button class="btn-p" onclick="location.href='inventario.html'">📷 Volver a contar</button>
+        <button class="btn-ghost" onclick="ccLoad()">🔄 Refrescar</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Valorización -->
+      <div class="cc-val-grid">
+        <div class="cc-val">
+          <div class="cc-val-l">Productos contados</div>
+          <div class="cc-val-n" id="cc-prod">—</div>
+        </div>
+        <div class="cc-val">
+          <div class="cc-val-l">Unidades escaneadas</div>
+          <div class="cc-val-n" id="cc-unid">—</div>
+        </div>
+        <div class="cc-val">
+          <div class="cc-val-l">Valor a costo</div>
+          <div class="cc-val-n" id="cc-costo">—</div>
+          <div class="cc-val-bs" id="cc-costo-bs">—</div>
+        </div>
+        <div class="cc-val accent">
+          <div class="cc-val-l">Valor a precio de venta</div>
+          <div class="cc-val-n" id="cc-venta">—</div>
+          <div class="cc-val-bs" id="cc-venta-bs">—</div>
+        </div>
+        <div class="cc-val">
+          <div class="cc-val-l">Margen sobre lo contado</div>
+          <div class="cc-val-n" id="cc-margen">—</div>
+        </div>
+      </div>
+
+      <div class="cc-warn" id="ccCostWarn" style="display:none"></div>
+
+      <!-- Códigos repetidos -->
+      <div id="ccDupes" style="margin-bottom:18px"></div>
+
+      <!-- Corrección de código -->
+      <div class="cc-fix" id="ccFixPanel"></div>
+
+      <!-- Tabla del conteo -->
+      <div class="admin-table-wrap" style="margin-bottom:18px">
+        <div class="table-top">
+          <h3>🔧 Lo contado</h3>
+          <div class="cc-filters">
+            <span id="ccCount" style="font-size:12px;color:var(--gr)"></span>
+            <label style="font-size:12px;color:var(--gr);display:flex;align-items:center;gap:5px">
+              <input type="checkbox" onchange="ccOnProblem(this.checked)"> Solo con pendientes
+            </label>
+            <select class="sort-sel" style="height:34px" onchange="ccOnSort(this.value)">
+              <option value="valor">Mayor valor</option>
+              <option value="cantidad">Más unidades</option>
+              <option value="reciente">Contado recién</option>
+              <option value="nombre">Nombre A–Z</option>
+            </select>
+            <div class="srch" style="min-width:200px">
+              <span class="srch-ico">🔍</span>
+              <input type="text" placeholder="Producto, SKU, código..." oninput="ccOnSearch(this.value)">
+            </div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Código</th>
+                <th style="width:150px">Contadas</th>
+                <th style="text-align:right">Costo u.</th>
+                <th style="text-align:right">Precio u.</th>
+                <th style="text-align:right">Total costo</th>
+                <th style="text-align:right">Total venta</th>
+                <th style="width:90px">Arreglar</th>
+              </tr>
+            </thead>
+            <tbody id="ccBody">
+              <tr><td colspan="8" class="table-empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bitácora -->
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <h3>📜 Cambios de códigos</h3>
+          <span style="font-size:12px;color:var(--gr)">Todo cambio hecho desde aquí queda registrado y se puede deshacer</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width:110px">Cuándo</th>
+                <th>Producto</th>
+                <th>Cambio</th>
+                <th style="width:120px"></th>
+              </tr>
+            </thead>
+            <tbody id="ccLogBody">
+              <tr><td colspan="4" class="table-empty">Cargando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/count-control.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
+    document.getElementById('adminAside')?.classList.toggle('op')
+  );
+  if (typeof loadSettings === 'function') await loadSettings();   // tasa BCV
+  await ccLoad();
+});
+</script>
+</body>
+</html>

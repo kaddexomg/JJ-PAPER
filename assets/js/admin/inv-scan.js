@@ -31,8 +31,21 @@ const LS_QUEUE     = 'jjpCountQueue';   // deltas pendientes de subir
 let scanTally = {};
 // Deltas que no se pudieron subir: [{ variantId, delta }]
 let scanQueue = [];
-// Cola de códigos desconocidos, en orden: [{ code, at }]
+// Cola de códigos desconocidos, en orden: [{ code, at, seen, device, remote }]
 let scanUnknown = [];
+
+// Quién cuenta desde esta PC (login compartido: la etiqueta distingue a cada quien)
+let scanDevice = localStorage.getItem('jjpCountDevicePC') || 'PC';
+let scanConflicts = 0;                    // variantes contadas por 2+ personas
+let scanLastRemote = '';                  // última actividad de otra persona
+
+function scanSetDevice() {
+  const v = prompt('¿Con qué nombre cuentas desde esta PC? (ej: Caja, Depósito, Ana)', scanDevice);
+  if (v == null) return;
+  scanDevice = (v.trim() || 'PC').slice(0, 32);
+  localStorage.setItem('jjpCountDevicePC', scanDevice);
+  scanRenderProgress();
+}
 
 // ---- Caché local (sobrevive recargas y cortes de red) ----
 function scanLoadLocal() {
@@ -80,10 +93,10 @@ async function scanCountApply(row, delta, source = 'pc') {
   scanRenderActive();
   scanRenderProgress();
 
-  // p_source alimenta la bitácora jjp_count_log: luego se sabe si esta
-  // unidad la contó la PC, el teléfono o un ajuste manual.
+  // p_source = canal (pc/búsqueda/manual); p_by = quién cuenta (etiqueta).
+  // Ambos alimentan la bitácora jjp_count_log para auditar y detectar cruces.
   const { data, error } = await sb.rpc('jjp_count_add', {
-    p_variant_id: id, p_delta: delta, p_session: SCAN_SESSION, p_source: source
+    p_variant_id: id, p_delta: delta, p_session: SCAN_SESSION, p_source: source, p_by: scanDevice
   });
 
   if (error) {
@@ -117,7 +130,7 @@ async function scanCountSet(row, total) {
   scanRenderActive();
   scanRenderProgress();
   const { error } = await sb.rpc('jjp_count_set', {
-    p_variant_id: row.id, p_total: n, p_session: SCAN_SESSION, p_source: 'manual'
+    p_variant_id: row.id, p_total: n, p_session: SCAN_SESSION, p_source: 'manual', p_by: scanDevice
   });
   if (error) await sb.rpc('jjp_set_stock', { p_variant_id: row.id, p_stock: n, p_reason: 'conteo físico' });
 }
@@ -150,9 +163,12 @@ async function invScanOpen() {
   scanSetStatus('Iniciando cámara…');
   await scanSyncTally();             // acumulado real desde la base
   await scanFlushQueue();
+  await scanLoadUnknownRemote();     // códigos sin vincular que mandaron los teléfonos
+  await scanLoadConflicts();         // ¿algo contado por 2+ personas?
   scanRenderProgress();
-  await scanDrainPending();          // recupera lo escaneado con la PC cerrada
+  await scanDrainPending();          // recupera lo escaneado con la PC cerrada (legado)
   await scanStartCamera();
+  scanStartLogFeed();                // refleja en vivo lo que cuentan los teléfonos
 }
 
 async function invScanClose() {
@@ -276,6 +292,7 @@ let scanLinking = null;      // código de la cola que se está vinculando
 function scanStartLink(code) {
   scanLinking = code;
   scanNewOpenFor = null;
+  scanBrowsing = null;
   scanRenderUnknown();
 }
 function scanCancelLink() {
@@ -283,6 +300,7 @@ function scanCancelLink() {
   scanRenderUnknown();
 }
 function scanDropUnknown(code) {
+  scanResolveUnknown(code);                        // no vuelve a aparecer desde la base
   scanUnknown = scanUnknown.filter(u => u.code !== code);
   if (scanLinking === code) scanLinking = null;
   scanRenderUnknown();
@@ -323,6 +341,7 @@ async function scanDoLink(variantId) {
   if (robado) robado.barcode = null;               // el código ya no le pertenece
   row.barcode = code;                              // en memoria → próximos escaneos lo reconocen
   showToast(`Código ${code} vinculado a ${row.jjp_products?.name || ''}`);
+  scanResolveUnknown(code);                        // sale de la cola compartida
   scanUnknown = scanUnknown.filter(u => u.code !== code);
   scanLinking = null;
   scanActive = { row };
@@ -342,6 +361,7 @@ let scanBrandsList = null;      // marcas cacheadas
 async function scanNewOpen(code) {
   scanNewOpenFor = code || '';
   scanLinking = null;
+  scanBrowsing = null;
   if (!scanCats) {
     const { data } = await sb.from('jjp_categories').select('id,name').order('sort_order');
     scanCats = data || [];
@@ -429,6 +449,7 @@ async function scanNewSubmit(ev) {
   invRows.unshift(row);
   invPopulateBrandFilter?.();
 
+  if (code) scanResolveUnknown(code);              // sale de la cola compartida
   scanUnknown = scanUnknown.filter(u => u.code !== code);
   scanNewOpenFor = null;
   scanActive = { row };
@@ -495,6 +516,106 @@ function scanNewForm() {
 // ======================================================
 function scanIsCode(v) { return /^\d{6,}$/.test(v.trim()); }
 
+// Búsqueda por palabras (todas deben aparecer) sobre nombre+marca+presentación+SKU.
+// Mejor que substring simple: "cuaderno rayado" ya no exige el orden exacto.
+function scanTokens(q) { return normTxt(q).split(/\s+/).filter(t => t.length >= 2); }
+function scanRowText(r) {
+  return normTxt(`${r.jjp_products?.name || ''} ${r.jjp_brands?.name || ''} ${r.variant_name || ''} ${r.sku || ''}`);
+}
+function scanMatch(r, tokens) { const t = scanRowText(r); return tokens.every(tok => t.includes(tok)); }
+function scanRankHits(hits, tokens) {
+  const first = tokens[0] || '';
+  return hits.sort((a, b) => {
+    const an = normTxt(a.jjp_products?.name), bn = normTxt(b.jjp_products?.name);
+    const as = an.startsWith(first) ? 0 : 1, bs = bn.startsWith(first) ? 0 : 1;
+    if (as !== bs) return as - bs;
+    return an.localeCompare(bn);
+  });
+}
+
+// ======================================================
+//  Explorar sin código: elegir por PRODUCTO (para lo que no tiene barra)
+//  Categoría → toca el producto (con foto/emoji) y suma 1. No hace falta
+//  escribir ni escanear.
+// ======================================================
+let scanBrowsing = null;   // null | { cat: <nombre categoría> }
+
+function scanBrowseOpen() {
+  scanBrowsing = { cat: null };
+  scanLinking = null; scanNewOpenFor = null;
+  scanBrowseRender();
+}
+function scanBrowseClose() { scanBrowsing = null; scanRenderUnknown(); }
+function scanBrowsePick(cat) { scanBrowsing = { cat }; scanBrowseRender(); }
+
+function scanCatOf(r) { return r.jjp_products?.jjp_categories?.name || 'Sin categoría'; }
+
+function scanBrowseCats() {
+  const map = new Map();
+  for (const r of invRows) { const c = scanCatOf(r); map.set(c, (map.get(c) || 0) + 1); }
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function scanBrowseItems(list) {
+  if (!list.length) return '<p class="scan-hint">Sin productos.</p>';
+  return list.slice(0, 200).map(r => {
+    const p = r.jjp_products || {};
+    const n = scanTally[r.id]?.n ?? 0;
+    const thumb = p.image_url
+      ? `<img src="${optImg(p.image_url, 48)}" style="width:26px;height:26px;border-radius:6px;object-fit:cover;vertical-align:middle;margin-right:6px" alt="">`
+      : (p.emoji || '📦') + ' ';
+    return `
+    <button class="scan-hit" onclick="scanPickRow('${r.id}')">
+      <span class="scan-hit-name">${thumb}${escapeHTML(p.name || '—')}</span>
+      <span class="scan-hit-sub">${escapeHTML(invLabel(r))} · SKU ${escapeHTML(r.sku || '—')}${n > 0 ? ` · contadas: ${n}` : ''}</span>
+    </button>`;
+  }).join('');
+}
+
+function scanBrowseRender() {
+  const el = document.getElementById('scanLink');
+  if (!el || !scanBrowsing) return;
+  el.classList.add('op');
+  if (!scanBrowsing.cat) {
+    const cats = scanBrowseCats();
+    el.innerHTML = `
+      <div class="scan-link-head">
+        <strong>📖 Elegir por producto (sin código)</strong>
+        <button class="btn-ghost sm" onclick="scanBrowseClose()">Cerrar</button>
+      </div>
+      <p class="scan-hint">Para lo que no tiene código de barras: elige la categoría y toca el producto para sumar 1.</p>
+      <div class="scan-link-results">
+        ${cats.map(([c, n]) => `
+          <button class="scan-hit" onclick="scanBrowsePick('${escapeHTML(c)}')">
+            <span class="scan-hit-name">${escapeHTML(c)}</span>
+            <span class="scan-hit-sub">${n} producto(s)</span>
+          </button>`).join('')}
+      </div>`;
+    return;
+  }
+  const cat = scanBrowsing.cat;
+  const list = invRows.filter(r => scanCatOf(r) === cat)
+    .sort((a, b) => normTxt(a.jjp_products?.name).localeCompare(normTxt(b.jjp_products?.name)));
+  el.innerHTML = `
+    <div class="scan-link-head">
+      <strong>📖 ${escapeHTML(cat)}</strong>
+      <button class="btn-ghost sm" onclick="scanBrowseOpen()">← Categorías</button>
+    </div>
+    <input type="text" class="fi scan-big-in" placeholder="Filtrar dentro de ${escapeHTML(cat)}…"
+      oninput="scanBrowseFilter(this.value)" autocomplete="off">
+    <div class="scan-link-results" id="scanBrowseList">${scanBrowseItems(list)}</div>`;
+}
+
+function scanBrowseFilter(q) {
+  const box = document.getElementById('scanBrowseList');
+  if (!box || !scanBrowsing?.cat) return;
+  const tokens = scanTokens(q);
+  let list = invRows.filter(r => scanCatOf(r) === scanBrowsing.cat);
+  if (tokens.length) list = list.filter(r => scanMatch(r, tokens));
+  list.sort((a, b) => normTxt(a.jjp_products?.name).localeCompare(normTxt(b.jjp_products?.name)));
+  box.innerHTML = scanBrowseItems(list);
+}
+
 function scanOmni(v) {
   const box = document.getElementById('scanSearchResults');
   if (!box) return;
@@ -508,20 +629,16 @@ function scanOmni(v) {
     return;
   }
 
-  const term = normTxt(q);
-  if (term.length < 2) { box.innerHTML = ''; box.classList.remove('op'); return; }
+  const tokens = scanTokens(q);
+  if (!tokens.length) { box.innerHTML = ''; box.classList.remove('op'); return; }
 
-  const hits = invRows.filter(r =>
-    normTxt(r.jjp_products?.name).includes(term) ||
-    normTxt(r.jjp_brands?.name).includes(term) ||
-    normTxt(r.variant_name).includes(term) ||
-    normTxt(r.sku).includes(term)
-  ).slice(0, 25);
+  const hits = scanRankHits(invRows.filter(r => scanMatch(r, tokens)), tokens).slice(0, 25);
 
   box.classList.add('op');
   if (!hits.length) {
     box.innerHTML = `
       <p class="scan-hint">Nada con “${escapeHTML(q)}” en tu lista de precios.</p>
+      <button class="btn-ghost scan-wide" onclick="scanBrowseOpen()">📖 Explorar por categoría (sin código)</button>
       <button class="btn-p scan-wide" onclick="scanNewOpen('')">➕ Crear producto nuevo</button>`;
     return;
   }
@@ -569,13 +686,8 @@ function scanManualSubmit(ev) {
   }
 
   // Texto: si la búsqueda dejó un único candidato, cuéntalo
-  const term = normTxt(q);
-  const hits = invRows.filter(r =>
-    normTxt(r.jjp_products?.name).includes(term) ||
-    normTxt(r.jjp_brands?.name).includes(term) ||
-    normTxt(r.variant_name).includes(term) ||
-    normTxt(r.sku).includes(term)
-  );
+  const tokens = scanTokens(q);
+  const hits = tokens.length ? invRows.filter(r => scanMatch(r, tokens)) : [];
   if (hits.length === 1) { scanPickRow(hits[0].id); return; }
   scanOmni(q);                               // varios o ninguno: que elija
 }
@@ -632,6 +744,9 @@ function scanRenderUnknown() {
   const el = document.getElementById('scanLink');
   if (!el) return;
 
+  // Si el operador está explorando por categoría, no lo interrumpas
+  if (scanBrowsing) { scanBrowseRender(); return; }
+
   // Alta manual. Siempre deja salida hacia la búsqueda: si el producto sí
   // existía en la lista de precios, no debe quedarse atrapado creando uno nuevo.
   if (scanNewOpenFor !== null) {
@@ -666,6 +781,7 @@ function scanRenderUnknown() {
       ${scanUnknown.map(u => `
         <div class="scan-unknown-card">
           <code>${escapeHTML(u.code)}</code>
+          ${(u.seen > 1 || u.device) ? `<div class="scan-hint">${u.seen > 1 ? `visto ${u.seen}× ` : ''}${u.device ? `· desde ${escapeHTML(u.device)}` : ''}</div>` : ''}
           <button class="btn-p scan-wide" onclick="scanStartLink('${escapeHTML(u.code)}')">🔍 Buscarlo en mi lista de precios</button>
           <div class="scan-unknown-alt">
             <button class="btn-ghost sm" onclick="scanNewOpen('${escapeHTML(u.code)}')">➕ Crear nuevo</button>
@@ -685,6 +801,10 @@ function scanRenderProgress() {
   const { productos, unidades } = scanTotals();
   const pend = scanQueue.length;
   el.innerHTML = `
+    <div class="scan-who-row">
+      <span class="scan-hint">Contando como <b>${escapeHTML(scanDevice)}</b></span>
+      <button class="btn-ghost sm" onclick="scanSetDevice()" title="Cambiar tu nombre de contador">✏️ Cambiar</button>
+    </div>
     <div class="scan-prog-bar"><span style="width:${pct}%"></span></div>
     <div class="scan-prog-txt">${hechos} de ${total} variantes contadas (${pct}%)</div>
     <div class="scan-tot-grid">
@@ -692,8 +812,11 @@ function scanRenderProgress() {
       <div class="scan-tot"><b>${unidades}</b><span>unidades escaneadas</span></div>
       <div class="scan-tot"><b>${total - hechos}</b><span>sin contar</span></div>
     </div>
+    ${scanLastRemote ? `<div class="scan-hint" style="color:var(--brand,#16604A)">📲 ${escapeHTML(scanLastRemote)}</div>` : ''}
+    ${scanConflicts ? `<div class="scan-hint" style="color:var(--danger)">⚠️ ${scanConflicts} producto(s) contados por 2+ personas — <a href="conteo.html" target="_blank">revisar cruces</a></div>` : ''}
     ${pend ? `<div class="scan-hint" style="color:var(--danger)">⏳ ${pend} conteo(s) esperando conexión — no se pierden</div>` : ''}
     <div class="scan-tot-actions">
+      <button class="btn-ghost sm" onclick="scanBrowseOpen()" title="Contar productos que no tienen código de barras">📖 Sin código</button>
       <button class="btn-ghost sm" onclick="scanNewOpen('')">➕ Producto nuevo</button>
       <button class="btn-ghost sm" onclick="scanShowDetail()">📋 Ver detalle</button>
       <button class="btn-ghost sm" onclick="invScanReset()" title="Borrar el conteo y empezar de cero">♻️ Reiniciar conteo</button>
@@ -702,6 +825,7 @@ function scanRenderProgress() {
 
 // Detalle de todo lo contado en la sesión (y export rápido)
 function scanShowDetail() {
+  scanBrowsing = null;
   const ids = Object.keys(scanTally).sort((a, b) => (scanTally[b].n || 0) - (scanTally[a].n || 0));
   if (!ids.length) { showToast('Todavía no has contado nada', 'warn'); return; }
   const { productos, unidades } = scanTotals();
@@ -767,15 +891,98 @@ function scanStartBridge() {
 
   // Si la pestaña estuvo en segundo plano, Realtime pudo perder eventos
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { scanDrainPending(); scanFlushQueue(); }
+    if (!document.hidden) { scanDrainPending(); scanFlushQueue(); scanLoadUnknownRemote(); }
   });
+
+  scanStartLogFeed();   // refleja en vivo lo que cuentan los teléfonos
 }
 
 function scanRenderBridge() {
   const el = document.getElementById('scanBridgeState');
   if (!el) return;
-  el.textContent = scanBridgeOk ? '📲 Puente activo' : '📲 Puente desconectado';
-  el.className = 'scan-bridge ' + (scanBridgeOk ? 'on' : 'off');
+  el.textContent = scanFeedOk ? '📲 En vivo' : (scanBridgeOk ? '📲 Puente activo' : '📲 Conectando…');
+  el.className = 'scan-bridge ' + ((scanFeedOk || scanBridgeOk) ? 'on' : 'off');
+}
+
+// ======================================================
+//  Feed en vivo del conteo (todos los que cuentan a la vez)
+//  El teléfono ahora cuenta directo por RPC (jjp_count_scan), así que la
+//  PC ya no recibe el puente de eventos: en su lugar escucha jjp_count_log.
+//  Cada INSERT trae variant_id + counted_after + counted_by → reflejamos
+//  el conteo de todos sin recargar y avisamos si otra persona sumó.
+// ======================================================
+let scanFeedCh = null;
+let scanFeedOk = false;
+
+function scanStartLogFeed() {
+  if (scanFeedCh) return;
+  const uid = (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id) || null;
+  if (!uid) return;
+  scanFeedCh = sb.channel('count-feed-' + uid)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'jjp_count_log',
+        filter: 'owner_id=eq.' + uid },
+      payload => scanOnLogEvent(payload.new))
+    .subscribe(status => { scanFeedOk = status === 'SUBSCRIBED'; scanRenderBridge(); });
+}
+
+function scanOnLogEvent(row) {
+  if (!row || row.session_key !== SCAN_SESSION || !row.variant_id) return;
+  const id = row.variant_id;
+  const rowObj = invRows.find(r => r.id === id);
+
+  // Refleja el acumulado autoritativo que dejó la base
+  if (typeof row.counted_after === 'number') {
+    scanTally[id] = {
+      n: row.counted_after,
+      name: rowObj?.jjp_products?.name || scanTally[id]?.name || '',
+      sku:  rowObj?.sku || scanTally[id]?.sku || '',
+    };
+    if (rowObj) rowObj.stock = row.counted_after;
+    scanSaveLocal();
+    scanRenderProgress();
+    if (scanActive && scanActive.row.id === id) scanRenderActive();
+  }
+
+  // Aviso de otra persona (lo propio ya se pintó localmente)
+  const mine = row.counted_by && row.counted_by === scanDevice;
+  if (!mine && row.delta > 0) {
+    const quien = row.counted_by || 'otro equipo';
+    const nombre = rowObj?.jjp_products?.name || 'un producto';
+    scanLastRemote = `${quien}: +${row.delta} ${nombre} (${row.counted_after ?? '?'})`;
+    scanRenderProgress();
+    // Refresca cruces de vez en cuando (no en cada evento)
+    if (Math.random() < 0.15) scanLoadConflicts().then(scanRenderProgress);
+  }
+}
+
+// Códigos sin vincular que los teléfonos dejaron en jjp_count_unknown.
+// Los mezcla con los que detectó la cámara local, sin duplicar.
+async function scanLoadUnknownRemote() {
+  const { data, error } = await sb.from('jjp_count_unknown')
+    .select('code,device,seen,last_at')
+    .eq('session_key', SCAN_SESSION).is('resolved_at', null)
+    .order('last_at', { ascending: false }).limit(200);
+  if (error || !data) return;                 // base sin migración → sigue solo con lo local
+  for (const u of data) {
+    const code = (u.code || '').trim();
+    if (!code || scanUnknown.some(x => x.code === code)) continue;
+    scanUnknown.push({ code, at: Date.now(), seen: u.seen, device: u.device, remote: true });
+  }
+  scanRenderUnknown();
+}
+
+// Marca un desconocido como resuelto (al vincularlo o crearlo)
+async function scanResolveUnknown(code) {
+  if (!code) return;
+  await sb.rpc('jjp_count_unknown_resolve', { p_code: code, p_session: SCAN_SESSION });
+}
+
+async function scanLoadConflicts() {
+  const { count, error } = await sb.from('jjp_count_conflicts')
+    .select('variant_id', { count: 'exact', head: true })
+    .eq('session_key', SCAN_SESSION);
+  if (!error) scanConflicts = count || 0;
 }
 
 // Procesa los eventos que el teléfono envió y esta PC todavía no atendió

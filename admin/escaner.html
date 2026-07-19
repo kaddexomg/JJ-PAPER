@@ -15,7 +15,9 @@
   header { display:flex; align-items:center; gap:10px; }
   header img { width:32px; height:32px; }
   header h1 { font-size:16px; margin:0; font-weight:700; }
-  header .who { margin-left:auto; font-size:11px; color:#9fc7b3; text-align:right; }
+  header .who { margin-left:auto; font-size:12px; color:#b6e05a; font-weight:700; text-align:right;
+    cursor:pointer; display:flex; flex-direction:column; align-items:flex-end; line-height:1.15; }
+  header .who small { color:#6f9583; font-weight:400; font-size:10px; }
 
   /* Estado del puente con la PC */
   .link-state { display:flex; align-items:center; justify-content:center; gap:7px;
@@ -76,6 +78,21 @@
   .foot { text-align:center; font-size:11px; color:#6f9583; padding-top:4px; }
   .warn { background:#3a2410; border:1px solid #c9902b; color:#ffd699; border-radius:12px;
     padding:12px; font-size:14px; text-align:center; max-width:560px; margin:0 auto; }
+
+  /* ¿Quién cuenta? — etiqueta de persona/dispositivo (login compartido) */
+  .dev-modal { position:fixed; inset:0; background:rgba(0,10,7,.94); display:none;
+    align-items:center; justify-content:center; padding:20px; z-index:50; }
+  .dev-modal.op { display:flex; }
+  .dev-card { background:#0c231b; border:1px solid #2c5647; border-radius:18px;
+    padding:22px; max-width:420px; width:100%; }
+  .dev-card h2 { margin:0 0 6px; font-size:19px; }
+  .dev-card p { margin:0 0 15px; font-size:13px; color:#9fc7b3; line-height:1.4; }
+  .dev-card input { width:100%; height:50px; border-radius:12px; border:1px solid #2c5647;
+    background:#0a1d16; color:#eaf5ee; padding:0 15px; font-size:16px; margin-bottom:12px; }
+  .dev-recent { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .dev-chip { background:#123a2c; border:1px solid #2c5647; color:#eaf5ee; border-radius:999px;
+    padding:9px 15px; font-size:14px; cursor:pointer; }
+  .dev-card .btn-p { width:100%; height:50px; }
 </style>
 </head>
 <body>
@@ -83,7 +100,7 @@
   <header>
     <img src="../assets/img/logo.svg" alt="JJ Paper">
     <h1>Escáner de inventario</h1>
-    <div class="who" id="who">…</div>
+    <div class="who" id="who" onclick="openDevModal()" title="Cambiar quién cuenta">…<small>tocar para cambiar</small></div>
   </header>
 
   <div class="link-state wait" id="linkState"><span class="dot"></span><span id="linkTxt">Conectando con la PC…</span></div>
@@ -123,6 +140,18 @@
   </div>
 </div>
 
+<!-- ¿Quién cuenta? Varias personas comparten el login; cada una se identifica -->
+<div class="dev-modal" id="devModal">
+  <form class="dev-card" id="devForm">
+    <h2>¿Quién está contando?</h2>
+    <p>Escribe tu nombre o el del área (ej: <b>María</b>, <b>Pasillo 3</b>, <b>Depósito</b>).
+       Sirve para saber quién contó cada cosa y avisar si dos personas cuentan lo mismo.</p>
+    <div class="dev-recent" id="devRecent"></div>
+    <input type="text" id="devInput" placeholder="Tu nombre o área…" maxlength="32" autocomplete="off">
+    <button class="btn btn-p" type="submit">Empezar a contar</button>
+  </form>
+</div>
+
 <div class="toast-c" id="toastC"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -131,73 +160,70 @@
 <script src="../assets/js/admin/auth.js"></script>
 <script>
 let escStream = null, escDetector = null, escTimer = null;
-let escCount = 0;                          // escaneos enviados
+let escCount = 0;                          // escaneos contados
 const escSeen = {};                        // code -> última vez visto (anti-doble-lectura)
-const escItems = new Set();                // productos distintos reconocidos
-let escQueue = [];                         // códigos pendientes de enviar (sin señal)
-let escReplyCh = null;                     // canal de respuestas de la PC
+const escItems = new Set();                // productos distintos contados
+let escQueue = [];                         // códigos pendientes (sin señal)
 let escWakeLock = null;
-let escLastAck = 0;                        // última vez que la PC respondió
+let escDevice = '';                        // quién cuenta (etiqueta compartida)
 
 const $ = id => document.getElementById(id);
+const SESSION = 'default';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Staff activo (vendedor o admin). Cada quien escanea a su propio nombre.
+  // Login compartido: varias personas usan la misma cuenta y cada una se
+  // identifica con un nombre/área. El conteo va DIRECTO a la base (RPC),
+  // ya no depende de que una PC esté abierta procesando.
   const session = await requireAuth('vendedor');
   if (!session) return;
-  $('who').textContent = CURRENT_PROFILE?.name || session.user.email;
-  $('manualForm').addEventListener('submit', onManual);
 
-  escQueue = JSON.parse(localStorage.getItem('jjp_scan_queue') || '[]');
+  escQueue  = JSON.parse(localStorage.getItem('jjp_scan_queue') || '[]');
+  escDevice = localStorage.getItem('jjp_scan_device') || '';
   renderStats();
 
-  startReplyChannel();
+  $('manualForm').addEventListener('submit', onManual);
+  $('devForm').addEventListener('submit', onDevSubmit);
+
+  if (!escDevice) openDevModal(true);
+  else $('who').innerHTML = escHtml(escDevice) + '<small>tocar para cambiar</small>';
+
   await keepAwake();
   await startCamera();
+  setLink('on', 'Contando');
   flushQueue();
-  setInterval(flushQueue, 5000);           // reintenta lo que quedó sin enviar
-  setInterval(refreshLinkState, 3000);
+  setInterval(flushQueue, 5000);           // reintenta lo que quedó en cola
+  window.addEventListener('online', () => { setLink('on', 'Contando'); flushQueue(); });
+  window.addEventListener('offline', () => setLink('off', 'Sin señal — se cuenta en cola'));
 });
 
-// ---- Canal de respuestas: la PC marca cada evento y escribe el resultado ----
-function startReplyChannel(){
-  escReplyCh = sb.channel('scan-reply-' + CURRENT_PROFILE.id)
-    .on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'jjp_scan_events',
-        filter: 'owner_id=eq.' + CURRENT_PROFILE.id },
-      p => onReply(p.new))
-    .subscribe(st => setLink(st === 'SUBSCRIBED' ? 'wait' : 'off',
-      st === 'SUBSCRIBED' ? 'Esperando a la PC…' : 'Sin conexión con el servidor'));
+// ---- ¿Quién cuenta? (etiqueta de persona/dispositivo) ----
+function recentDevices(){
+  try { return JSON.parse(localStorage.getItem('jjp_scan_devices') || '[]'); } catch (e) { return []; }
 }
-
-function onReply(row){
-  const r = row?.result;
-  if (!r) return;
-  escLastAck = Date.now();
-  setLink('on', 'PC conectada');
-  if (r.kind === 'dup') return;            // lectura repetida: no ensucia la pantalla
-
-  const cam = $('cam');
-  if (r.ok) {
-    escItems.add(r.name || row.code);
-    showFeedback('ok', '✅', r.name || 'Producto', 'Contado en la PC', r.counted);
-    cam.className = 'cam hit';
-    if (navigator.vibrate) navigator.vibrate(40);
-    addHist('✅', r.name || row.code, r.counted);
-  } else {
-    showFeedback('new', '❓', 'Código no registrado', row.code + ' — vincúlalo en la PC');
-    cam.className = 'cam miss';
-    if (navigator.vibrate) navigator.vibrate([50, 60, 50]);
-    addHist('❓', row.code, null);
-  }
-  setTimeout(() => { cam.className = 'cam'; }, 600);
-  renderStats();
+function rememberDevice(name){
+  const list = recentDevices().filter(d => d.toLowerCase() !== name.toLowerCase());
+  list.unshift(name);
+  localStorage.setItem('jjp_scan_devices', JSON.stringify(list.slice(0, 6)));
 }
-
-function refreshLinkState(){
-  if (!escLastAck) return;
-  // Si la PC dejó de responder por más de 25s, avisa (probablemente cerró el modo conteo)
-  if (Date.now() - escLastAck > 25000) setLink('wait', 'PC sin responder — ¿cerraste el modo conteo?');
+function openDevModal(first){
+  const list = recentDevices();
+  $('devRecent').innerHTML = list.length
+    ? list.map(d => `<button type="button" class="dev-chip" onclick="pickDevice('${escHtml(d)}')">${escHtml(d)}</button>`).join('')
+    : '';
+  $('devInput').value = first ? '' : escDevice;
+  $('devModal').classList.add('op');
+  setTimeout(() => $('devInput').focus(), 60);
+}
+function pickDevice(name){ $('devInput').value = name; onDevSubmit(); }
+function onDevSubmit(ev){
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const name = ($('devInput').value || '').trim().slice(0, 32);
+  if (!name){ if (typeof showToast === 'function') showToast('Escribe tu nombre para saber quién cuenta', 'warn'); return; }
+  escDevice = name;
+  localStorage.setItem('jjp_scan_device', name);
+  rememberDevice(name);
+  $('who').innerHTML = escHtml(name) + '<small>tocar para cambiar</small>';
+  $('devModal').classList.remove('op');
 }
 
 function setLink(kind, txt){
@@ -296,35 +322,71 @@ async function keepAwake(){
   } catch (e) {}
 }
 
-// ---- Envío (con cola: un pasillo sin señal ya no pierde escaneos) ----
+// ---- Conteo directo (autónomo: no necesita una PC abierta) ----
+// Cada código llama a jjp_count_scan, que resuelve el producto, suma 1 y
+// deja rastro de quién contó. La respuesta trae el nombre y el acumulado.
 async function sendCode(code){
+  code = (code || '').trim();
+  if (!code) return;
   beep();
-  if (navigator.vibrate) navigator.vibrate(60);
-  escCount++;
-  renderStats();
+  if (navigator.vibrate) navigator.vibrate(50);
 
-  const { error } = await sb.from('jjp_scan_events')
-    .insert({ owner_id: CURRENT_PROFILE.id, code, device: navigator.userAgent.slice(0, 60) });
+  const { data, error } = await sb.rpc('jjp_count_scan', {
+    p_code: code, p_session: SESSION, p_by: escDevice || 'teléfono'
+  });
 
-  if (error) {
-    escQueue.push(code);
-    saveQueue();
-    setLink('off', 'Sin señal — ' + escQueue.length + ' en cola, se envían solos');
-    showFeedback('err', '📴', 'Guardado en cola', 'Se enviará cuando vuelva la señal');
-    renderStats();
+  if (error){
+    escQueue.push(code); saveQueue(); renderStats();
+    setLink('off', 'Sin señal — ' + escQueue.length + ' en cola, se cuentan solos');
+    showFeedback('err', '📴', 'Guardado en cola', 'Se contará cuando vuelva la señal');
+    return;
   }
+  escCount++;
+  applyResult(code, data);
+  renderStats();
 }
 
+// Pinta el resultado que devolvió la base
+function applyResult(code, r){
+  const cam = $('cam');
+  setLink('on', 'Contando');
+  if (r && r.ok){
+    escItems.add(r.variant_id || r.name || code);
+    showFeedback(r.dupe ? 'new' : 'ok', r.dupe ? '⚠️' : '✅',
+      r.name || 'Producto', r.dupe ? 'Contado · código compartido, revisar' : 'Contado', r.counted);
+    cam.className = 'cam hit';
+    if (navigator.vibrate) navigator.vibrate(40);
+    addHist(r.dupe ? '⚠️' : '✅', r.name || code, r.counted);
+  } else if (r && r.kind === 'nuevo'){
+    showFeedback('new', '❓', 'Código no registrado', code + ' — vincúlalo en la PC / Control');
+    cam.className = 'cam miss';
+    if (navigator.vibrate) navigator.vibrate([50, 60, 50]);
+    addHist('❓', code, null);
+  } else {
+    showFeedback('err', '⚠️', 'No se pudo contar', code);
+  }
+  setTimeout(() => { cam.className = 'cam'; }, 600);
+}
+
+// Reintenta la cola contra la base, en orden. Si vuelve a fallar, se detiene
+// y lo pendiente queda guardado para el próximo intento (no se pierde nada).
 async function flushQueue(){
   if (!escQueue.length || !navigator.onLine) return;
   const pend = escQueue.slice();
-  const rows = pend.map(code => ({ owner_id: CURRENT_PROFILE.id, code }));
-  const { error } = await sb.from('jjp_scan_events').insert(rows);
-  if (error) return;                        // sigue en cola, se reintenta
-  escQueue = escQueue.slice(pend.length);
-  saveQueue();
-  renderStats();
-  if (typeof showToast === 'function') showToast(pend.length + ' escaneo(s) de la cola enviados');
+  let ok = 0, last = null;
+  for (const code of pend){
+    const { data, error } = await sb.rpc('jjp_count_scan', {
+      p_code: code, p_session: SESSION, p_by: escDevice || 'teléfono'
+    });
+    if (error) break;
+    ok++; escCount++; last = { code, data };
+  }
+  if (ok){
+    escQueue = escQueue.slice(ok);
+    saveQueue(); renderStats();
+    if (last) applyResult(last.code, last.data);
+    if (typeof showToast === 'function') showToast(ok + ' escaneo(s) de la cola contados');
+  }
 }
 
 function saveQueue(){ localStorage.setItem('jjp_scan_queue', JSON.stringify(escQueue)); }

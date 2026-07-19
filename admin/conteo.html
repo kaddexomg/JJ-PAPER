@@ -142,6 +142,12 @@
 
       <div class="cc-warn" id="ccCostWarn" style="display:none"></div>
 
+      <!-- Quién contó (varias personas a la vez) -->
+      <div id="ccCounters" style="margin-bottom:18px"></div>
+
+      <!-- Cruces: mismo producto contado por 2+ personas -->
+      <div id="ccConflicts" style="margin-bottom:18px"></div>
+
       <!-- Códigos repetidos -->
       <div id="ccDupes" style="margin-bottom:18px"></div>
 
@@ -219,12 +225,13 @@
                 <th>Producto</th>
                 <th style="text-align:center">Cambio</th>
                 <th style="text-align:center">Quedó en</th>
+                <th>Quién</th>
                 <th>Origen</th>
                 <th style="width:120px"></th>
               </tr>
             </thead>
             <tbody id="ccMovesBody">
-              <tr><td colspan="6" class="table-empty">Cargando…</td></tr>
+              <tr><td colspan="7" class="table-empty">Cargando…</td></tr>
             </tbody>
           </table>
         </div>

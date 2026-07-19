@@ -33,9 +33,59 @@ async function ccLoad() {
   ccRows = data || [];
   ccRenderStats();
   ccRender();
+  ccLoadCounters();
+  ccLoadConflicts();
   ccLoadDupes();
   ccLoadLog();
   ccLoadMoves();
+}
+
+// ---- Quién contó (varias personas a la vez) ----
+async function ccLoadCounters() {
+  const el = document.getElementById('ccCounters');
+  if (!el) return;
+  const { data, error } = await sb.from('jjp_count_counters')
+    .select('*').eq('session_key', CC_SESSION).order('unidades', { ascending: false });
+  if (error || !data?.length) { el.innerHTML = ''; return; }
+  if (data.length < 2 && data[0]?.quien === '(sin nombre)') { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="table-top"><h3>👥 Quién contó</h3>
+      <span style="font-size:12px;color:var(--gr)">Aporte de cada persona en este conteo</span></div>
+    <div class="cc-val-grid" style="margin-bottom:0">
+      ${data.map(c => `
+        <div class="cc-val">
+          <div class="cc-val-l">${escapeHTML(c.quien)}</div>
+          <div class="cc-val-n">${(c.unidades || 0).toLocaleString('es-VE')}</div>
+          <div class="cc-val-bs">${c.productos} producto(s) · ${c.movimientos} movimiento(s)</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ---- Cruces: mismo producto contado por 2+ personas ----
+async function ccLoadConflicts() {
+  const el = document.getElementById('ccConflicts');
+  if (!el) return;
+  const { data, error } = await sb.from('jjp_count_conflicts')
+    .select('*').eq('session_key', CC_SESSION).order('ultimo', { ascending: false }).limit(100);
+  if (error) { el.innerHTML = ''; return; }
+  if (!data?.length) {
+    el.innerHTML = `<div class="cc-ok">✓ Ningún producto fue contado por dos personas distintas.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="cc-alert">
+      <strong>⚠️ ${data.length} producto(s) contados por 2+ personas</strong>
+      <p class="cc-hint">Suma colaborativa: puede ser correcto (dos aportes), pero revisa que no sea el mismo estante contado dos veces. Si sobró, ajusta la cantidad o usa 🔀 para mover.</p>
+      ${data.map(d => `
+        <div class="cc-dupe-row">
+          <div style="flex:1">
+            <strong>${escapeHTML(d.product_name || '—')}</strong>
+            <div class="td-sub">${escapeHTML(d.brand_name || 'Genérica')} · SKU ${escapeHTML(d.sku || '—')} · total contado: <b>${d.total}</b></div>
+            <div class="td-sub">👥 ${escapeHTML(d.quienes || '—')}</div>
+          </div>
+          <button class="btn-ghost sm" onclick="ccSearch=''; document.querySelector('.srch input').value='${escapeHTML(d.sku || d.product_name || '')}'; ccOnSearch('${escapeHTML(d.sku || d.product_name || '')}')">Ver</button>
+        </div>`).join('')}
+    </div>`;
 }
 
 // ---- Valorización ----
@@ -397,11 +447,11 @@ async function ccLoadMoves() {
   if (ccMovesSource) q = q.eq('source', ccMovesSource);
   const { data, error } = await q;
   if (error) {
-    el.innerHTML = `<tr><td colspan="6" class="table-empty">Bitácora de movimientos no disponible (¿falta la migración?).</td></tr>`;
+    el.innerHTML = `<tr><td colspan="7" class="table-empty">Bitácora de movimientos no disponible (¿falta la migración?).</td></tr>`;
     return;
   }
   if (!data?.length) {
-    el.innerHTML = `<tr><td colspan="6" class="table-empty">Sin movimientos${ccMovesSource ? ' de ese origen' : ''}.</td></tr>`;
+    el.innerHTML = `<tr><td colspan="7" class="table-empty">Sin movimientos${ccMovesSource ? ' de ese origen' : ''}.</td></tr>`;
     return;
   }
   el.innerHTML = data.map(m => {
@@ -420,6 +470,7 @@ async function ccLoadMoves() {
         <div class="td-sub">SKU ${escapeHTML(m.sku || '—')}</div></td>
       <td style="text-align:center">${delta}</td>
       <td style="text-align:center">${m.counted_after ?? '—'}</td>
+      <td>${m.counted_by ? escapeHTML(m.counted_by) : '<span style="color:var(--gr)">—</span>'}</td>
       <td><span class="badge ${cls}">${label}</span>
         ${m.note ? `<div class="td-sub">${escapeHTML(m.note)}</div>` : ''}
         ${deshecho ? '<div class="td-sub">✓ deshecho</div>' : ''}</td>

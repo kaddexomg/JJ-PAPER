@@ -164,6 +164,51 @@
           <div><div class="stat-n" id="inv-out">—</div><div class="stat-l">Agotadas</div></div></div>
       </div>
 
+      <!-- Cola de fotos faltantes -->
+      <div class="admin-table-wrap" style="margin-bottom:18px">
+        <div class="table-top">
+          <h3>📷 Faltan fotos</h3>
+          <div class="inv-filters">
+            <span id="mpCount" style="font-size:12px;color:var(--gr)"></span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" checked onchange="mpOnSolo(this.checked)">
+              Solo lo ya contado
+            </label>
+            <select class="sort-sel" id="mpCatSel" style="height:34px" onchange="mpOnCat(this.value)"></select>
+            <div class="srch" style="min-width:200px">
+              <span class="srch-ico">🔍</span>
+              <input type="text" placeholder="Producto o SKU..." oninput="mpOnSearch(this.value)">
+            </div>
+            <button class="btn-ghost" style="height:34px" onclick="mpExportCSV()">⬇️ CSV</button>
+          </div>
+        </div>
+        <div class="stat-grid" style="margin:0 0 12px">
+          <div class="stat-card"><div class="stat-ico red">📷</div>
+            <div><div class="stat-n" id="mp-sinfoto">—</div><div class="stat-l">Sin foto</div></div></div>
+          <div class="stat-card"><div class="stat-ico yellow">📦</div>
+            <div><div class="stat-n" id="mp-contados">—</div><div class="stat-l">Ya contados sin foto</div></div></div>
+          <div class="stat-card"><div class="stat-ico green">💵</div>
+            <div><div class="stat-n" id="mp-usd">—</div><div class="stat-l">Inmovilizado sin foto</div></div></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th style="width:120px">SKU</th>
+                <th>Categoría</th>
+                <th style="width:80px;text-align:right">Stock</th>
+                <th style="width:110px;text-align:right">USD parado</th>
+                <th style="width:110px;text-align:center">Foto</th>
+              </tr>
+            </thead>
+            <tbody id="mpTableBody">
+              <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Tabla -->
       <div class="admin-table-wrap">
         <div class="table-top">
@@ -291,6 +336,7 @@
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/inventory.js"></script>
 <script src="../assets/js/admin/inv-scan.js"></script>
+<script src="../assets/js/admin/missing-photos.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
@@ -300,6 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminAside')?.classList.toggle('op')
   );
   await loadInventory();
+  mpLoad();            // cola de fotos faltantes
   loadMoves();         // kardex (no bloquea la tabla principal)
   scanStartBridge();   // recibe escaneos del teléfono (admin/escaner.html) en vivo
 });

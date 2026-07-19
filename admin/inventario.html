@@ -148,6 +148,7 @@
         <button class="btn-ghost" onclick="location.href='conteo.html'" title="Corregir cantidades y códigos cruzados · valor de lo contado">🔧 Control del conteo</button>
         <button class="btn-p" onclick="invScanOpen()">📷 Modo conteo</button>
         <button class="btn-ghost" onclick="invScanPhoneLink()" title="Abre esta dirección en tu teléfono para escanear con su cámara">📲 Teléfono</button>
+        <button class="btn-ghost" onclick="invOfflineHelp()" title="Contar sin internet, por WiFi local (servidor de la PC)">📴 Sin internet</button>
         <button class="btn-ghost" onclick="loadInventory()">🔄 Refrescar</button>
       </div>
     </div>
@@ -340,6 +341,18 @@
 <script src="../assets/js/admin/inv-scan.js"></script>
 <script src="../assets/js/admin/missing-photos.js"></script>
 <script>
+// Conteo sin internet: el wa-server de la PC sirve la app por WiFi local.
+function invOfflineHelp() {
+  const url = 'http://localhost:8787/lan/start';
+  alert('CONTEO SIN INTERNET (WiFi local)\n\n'
+    + '1) En esta PC debe estar corriendo el servidor (wa-server).\n'
+    + '2) Se abrirá una página con un CÓDIGO QR.\n'
+    + '3) Cada teléfono, en la MISMA red WiFi, escanea ese QR (o escribe la dirección) y cuenta.\n'
+    + '4) Se ve todo en vivo; al volver internet, se sube solo a la nube.\n\n'
+    + 'Abriendo la página del QR en esta PC…');
+  window.open(url, '_blank');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
   if (!session) return;

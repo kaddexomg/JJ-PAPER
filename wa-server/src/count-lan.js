@@ -1,0 +1,385 @@
+// ======================================================================
+// JJ Paper — Servidor de conteo OFFLINE por WiFi local
+//
+// Corre dentro del wa-server (en la PC). Sirve la app y una API por la
+// red local, así el teléfono cuenta AUNQUE no haya internet: abre
+// http://<IP-de-la-PC>:8787/admin/escaner.html (mismo origen que la API).
+//
+// - Cada escaneo se resuelve contra el catálogo cacheado y se bufferiza
+//   en disco (count-buffer.json). No se pierde nada aunque se reinicie.
+// - La PC ve el conteo en vivo por SSE (/lan/feed).
+// - Cuando vuelve internet, el buffer se sube a Supabase en lote
+//   (RPC jjp_count_apply_batch) y el acumulado se fusiona con el compartido.
+//
+// Sin dependencias nuevas: http/fs/os/path nativos + el cliente Supabase.
+// ======================================================================
+import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import QRCode from 'qrcode';
+import { db } from './supabase.js';
+import { log } from './logger.js';
+import {
+  COUNT_LAN_PORT, COUNT_SESSION, COUNT_SYNC_MS, COUNT_ONLINE_MS,
+  COUNT_CATALOG_MS, REPO_ROOT
+} from './config.js';
+
+const BUFFER_FILE = path.join(REPO_ROOT, 'wa-server', 'count-buffer.json');
+
+// ---- Estado en memoria ----
+let state = {
+  session:   COUNT_SESSION,
+  ownerId:   null,
+  catalogAt: null,
+  catalog:   [],        // [{id,barcode,sku,name,emoji,brand,category,image_url,price,dupe}]
+  base:      {},        // vid -> acumulado en Supabase (último conocido)
+  pending:   [],        // [{v,d,by,at}] deltas aún sin subir
+  counters:  {},        // device -> unidades contadas en la sesión
+  unknowns:  {},        // code -> {seen,device,last}
+  syncedAt:  null,
+};
+let online = true;
+let byBarcode = new Map();      // code -> {id,name,sku,emoji,dupe}
+const sseClients = new Set();
+let saveTimer = null;
+
+// ---- Persistencia ----
+function loadBuffer() {
+  try {
+    if (fs.existsSync(BUFFER_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(BUFFER_FILE, 'utf8'));
+      state = { ...state, ...raw };
+      rebuildIndex();
+      log.info({ pending: state.pending.length, catalog: state.catalog.length }, 'count-lan: buffer recuperado');
+    }
+  } catch (e) { log.warn({ err: e?.message }, 'count-lan: no se pudo leer el buffer'); }
+}
+function saveBuffer() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { fs.writeFileSync(BUFFER_FILE, JSON.stringify(state)); }
+    catch (e) { log.warn({ err: e?.message }, 'count-lan: no se pudo guardar el buffer'); }
+  }, 800);
+}
+
+function rebuildIndex() {
+  byBarcode = new Map();
+  const seen = new Map();
+  for (const it of state.catalog) {
+    if (it.barcode) seen.set(it.barcode, (seen.get(it.barcode) || 0) + 1);
+  }
+  for (const it of state.catalog) {
+    if (!it.barcode) continue;
+    const dupe = (seen.get(it.barcode) || 0) > 1;
+    // el más "fresco" gana si hay repetidos: el catálogo ya viene ordenado por la RPC
+    if (!byBarcode.has(it.barcode)) byBarcode.set(it.barcode, { ...it, dupe });
+  }
+}
+
+// ---- Catálogo + dueño desde Supabase (cuando hay internet) ----
+async function detectOwner() {
+  if (state.ownerId) return;
+  const { data } = await db.from('jjp_count_tally')
+    .select('owner_id').eq('session_key', state.session).limit(1);
+  if (data?.[0]?.owner_id) state.ownerId = data[0].owner_id;
+}
+
+async function refreshCatalog() {
+  const { data, error } = await db.rpc('jjp_count_catalog', { p_only_active: true });
+  if (error || !data) return false;
+  state.catalog = data.map(r => ({
+    id: r.variant_id, barcode: r.barcode, sku: r.sku, name: r.product_name,
+    emoji: r.emoji, brand: r.brand_name, category: r.category_name,
+    image_url: r.image_url, price: r.price_usd,
+  }));
+  // base = acumulado real en Supabase (counted >= 0 significa contado)
+  const base = {};
+  for (const r of data) if (r.counted >= 0) base[r.variant_id] = r.counted;
+  state.base = base;
+  state.catalogAt = new Date().toISOString();
+  rebuildIndex();
+  saveBuffer();
+  broadcast('state', publicState());
+  return true;
+}
+
+// ---- Cálculo del acumulado (base + lo pendiente por subir) ----
+function tallyOf(vid) {
+  let n = state.base[vid] || 0;
+  for (const p of state.pending) if (p.v === vid) n += p.d;
+  return Math.max(0, n);
+}
+function fullTally() {
+  const ids = new Set([...Object.keys(state.base), ...state.pending.map(p => p.v)]);
+  const out = {};
+  for (const id of ids) out[id] = tallyOf(id);
+  return out;
+}
+
+// ---- Aplicar un escaneo ----
+function applyScan(code, device) {
+  code = String(code || '').trim();
+  if (!code) return { ok: false, kind: 'vacio' };
+  const hit = byBarcode.get(code);
+  if (!hit) {
+    const u = state.unknowns[code] || { seen: 0, device, last: null };
+    u.seen += 1; u.device = device || u.device; u.last = Date.now();
+    state.unknowns[code] = u;
+    saveBuffer();
+    broadcast('scan', { ok: false, kind: 'nuevo', code, device });
+    return { ok: false, kind: 'nuevo', code };
+  }
+  return bump(hit.id, 1, device, hit);
+}
+
+function bump(vid, delta, device, hit) {
+  hit = hit || state.catalog.find(c => c.id === vid);
+  if (!hit) return { ok: false, kind: 'nuevo' };
+  state.pending.push({ v: vid, d: delta, by: device || 'LAN', at: Date.now() });
+  if (delta > 0) state.counters[device || 'LAN'] = (state.counters[device || 'LAN'] || 0) + delta;
+  const counted = tallyOf(vid);
+  saveBuffer();
+  const res = { ok: true, kind: 'contado', variant_id: vid, name: hit.name,
+    sku: hit.sku, counted, dupe: !!hit.dupe, device };
+  broadcast('scan', res);
+  return res;
+}
+
+function setExact(vid, total, device) {
+  const cur = tallyOf(vid);
+  const delta = Math.max(0, parseInt(total, 10) || 0) - cur;
+  if (delta !== 0) state.pending.push({ v: vid, d: delta, by: device || 'LAN', at: Date.now() });
+  const counted = tallyOf(vid);
+  saveBuffer();
+  const hit = state.catalog.find(c => c.id === vid) || {};
+  const res = { ok: true, kind: 'ajuste', variant_id: vid, name: hit.name, counted, device };
+  broadcast('scan', res);
+  return res;
+}
+
+function resolveUnknown(code) {
+  delete state.unknowns[String(code || '').trim()];
+  saveBuffer();
+}
+
+// ---- Sincronización con Supabase ----
+async function checkOnline() {
+  try {
+    const { error } = await db.from('jjp_settings').select('key', { head: true, count: 'exact' }).limit(1);
+    online = !error;
+  } catch (e) { online = false; }
+  if (online && !state.ownerId) await detectOwner().catch(() => {});
+  broadcast('online', { online, pending: state.pending.length });
+}
+
+async function syncNow() {
+  if (!online || !state.pending.length || !state.ownerId) return;
+  const sent = state.pending.splice(0, state.pending.length);   // saca todo; lo nuevo entra en la próxima vuelta
+  // Agrupa por persona y por variante para conservar la atribución
+  const byDevice = {};
+  for (const p of sent) {
+    const dev = p.by || 'LAN';
+    byDevice[dev] = byDevice[dev] || {};
+    byDevice[dev][p.v] = (byDevice[dev][p.v] || 0) + p.d;
+  }
+  const failed = [];
+  for (const [dev, map] of Object.entries(byDevice)) {
+    const items = Object.entries(map).map(([v, d]) => ({ v, d }));
+    const { data, error } = await db.rpc('jjp_count_apply_batch', {
+      p_owner: state.ownerId, p_session: state.session, p_by: dev, p_items: items
+    });
+    if (error) {
+      // devuelve lo de este device al buffer para reintentar
+      for (const [v, d] of Object.entries(map)) failed.push({ v, d, by: dev, at: Date.now() });
+      online = false;
+      log.warn({ err: error.message }, 'count-lan: falló la subida, se reintenta');
+    } else if (data?.totals) {
+      for (const [v, total] of Object.entries(data.totals)) state.base[v] = total;
+    }
+  }
+  if (failed.length) state.pending.unshift(...failed);
+  state.syncedAt = new Date().toISOString();
+  saveBuffer();
+  broadcast('state', publicState());
+  if (!failed.length) log.info({ applied: sent.length }, 'count-lan: conteo subido a Supabase');
+}
+
+// ---- SSE ----
+function broadcast(event, data) {
+  const line = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of sseClients) { try { res.write(line); } catch (e) {} }
+}
+
+function publicState() {
+  return {
+    session: state.session, online, pending: state.pending.length,
+    catalogAt: state.catalogAt, syncedAt: state.syncedAt,
+    tally: fullTally(), counters: state.counters,
+    unknowns: Object.entries(state.unknowns).map(([code, u]) => ({ code, ...u })),
+  };
+}
+
+// ---- Utilidades HTTP ----
+function lanIp() {
+  const ifaces = os.networkInterfaces();
+  for (const name of Object.keys(ifaces)) {
+    for (const i of ifaces[name] || []) {
+      if (i.family === 'IPv4' && !i.internal) return i.address;
+    }
+  }
+  return '127.0.0.1';
+}
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2', '.map': 'application/json',
+};
+
+function sendJSON(res, code, obj) {
+  const body = JSON.stringify(obj);
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+  res.end(body);
+}
+
+function readBody(req) {
+  return new Promise(resolve => {
+    let b = '';
+    req.on('data', c => { b += c; if (b.length > 1e6) req.destroy(); });
+    req.on('end', () => { try { resolve(JSON.parse(b || '{}')); } catch (e) { resolve({}); } });
+  });
+}
+
+function serveStatic(req, res, urlPath) {
+  let rel = decodeURIComponent(urlPath.split('?')[0]);
+  if (rel === '/' ) rel = '/index.html';
+  // sin traversal
+  const full = path.normalize(path.join(REPO_ROOT, rel));
+  if (!full.startsWith(REPO_ROOT)) { res.writeHead(403); res.end('forbidden'); return; }
+  fs.stat(full, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); res.end('no encontrado'); return; }
+    const ext = path.extname(full).toLowerCase();
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    fs.createReadStream(full).pipe(res);
+  });
+}
+
+// Página de arranque: URL grande + QR para que el teléfono la escanee
+function startHtml(url, qr) {
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conteo offline — JJ Paper</title>
+<style>body{margin:0;min-height:100vh;background:#00140f;color:#eaf5ee;font-family:system-ui,Segoe UI,Roboto,sans-serif;
+display:flex;align-items:center;justify-content:center;padding:24px}
+.c{max-width:460px;text-align:center}h1{font-size:22px}p{color:#9fc7b3;line-height:1.5}
+img{width:280px;height:280px;background:#fff;border-radius:16px;padding:10px;margin:14px 0}
+a{display:inline-block;background:#99CC33;color:#06231a;font-weight:700;text-decoration:none;
+padding:14px 22px;border-radius:12px;font-size:16px;margin-top:8px}
+code{background:#0c231b;border:1px solid #2c5647;border-radius:8px;padding:6px 10px;font-size:15px;display:inline-block;margin-top:8px}</style>
+</head><body><div class="c">
+<h1>📦 Conteo offline · WiFi local</h1>
+<p>En el teléfono (misma WiFi), escanea este QR o escribe la dirección en Chrome:</p>
+${qr ? `<img src="${qr}" alt="QR">` : ''}
+<div><code>${url}</code></div>
+<p>La PC también puede contar y ver todo en vivo:</p>
+<a href="/admin/lan.html">Abrir el conteo en esta PC →</a>
+<p style="font-size:12px;margin-top:22px">Funciona sin internet. Cuando vuelva la señal, todo se sube solo a la nube.</p>
+</div></body></html>`;
+}
+
+// ---- Rutas ----
+async function handle(req, res) {
+  const { url, method } = req;
+  if (method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    return res.end();
+  }
+
+  const pathOnly = url.split('?')[0];
+  if (pathOnly === '/') { res.writeHead(302, { Location: '/lan/start' }); return res.end(); }
+  if (pathOnly === '/lan/start') {
+    const u = `http://${lanIp()}:${COUNT_LAN_PORT}/admin/lan.html`;
+    let qr = '';
+    try { qr = await QRCode.toDataURL(u, { width: 320, margin: 1 }); } catch (e) {}
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(startHtml(u, qr));
+  }
+
+  if (url.startsWith('/lan/')) {
+    const route = url.split('?')[0];
+
+    if (route === '/lan/health')
+      return sendJSON(res, 200, { ok: true, online, ip: lanIp(), port: COUNT_LAN_PORT,
+        session: state.session, pending: state.pending.length, catalog: state.catalog.length,
+        catalogAt: state.catalogAt });
+
+    if (route === '/lan/state')  return sendJSON(res, 200, publicState());
+
+    if (route === '/lan/catalog')
+      return sendJSON(res, 200, { at: state.catalogAt, items: state.catalog });
+
+    if (route === '/lan/feed') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
+        Connection: 'keep-alive', 'Access-Control-Allow-Origin': '*',
+      });
+      res.write(`event: state\ndata: ${JSON.stringify(publicState())}\n\n`);
+      sseClients.add(res);
+      req.on('close', () => sseClients.delete(res));
+      return;
+    }
+
+    if (method === 'POST' && route === '/lan/scan') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, applyScan(b.code, b.device));
+    }
+    if (method === 'POST' && route === '/lan/pick') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, bump(b.variant_id, parseInt(b.delta, 10) || 1, b.device));
+    }
+    if (method === 'POST' && route === '/lan/set') {
+      const b = await readBody(req);
+      return sendJSON(res, 200, setExact(b.variant_id, b.total, b.device));
+    }
+    if (method === 'POST' && route === '/lan/unknown-resolve') {
+      const b = await readBody(req);
+      resolveUnknown(b.code);
+      return sendJSON(res, 200, { ok: true });
+    }
+    if (method === 'POST' && route === '/lan/sync') { await syncNow(); return sendJSON(res, 200, publicState()); }
+
+    return sendJSON(res, 404, { ok: false, error: 'ruta LAN desconocida' });
+  }
+
+  // Todo lo demás: servir la app (mismo origen que la API → sin mixed-content)
+  return serveStatic(req, res, url);
+}
+
+// ---- Arranque ----
+export async function startCountLan() {
+  loadBuffer();
+  await checkOnline().catch(() => {});
+  await detectOwner().catch(() => {});
+  await refreshCatalog().catch(() => {});
+
+  const server = http.createServer((req, res) => { handle(req, res).catch(e => {
+    try { sendJSON(res, 500, { ok: false, error: e?.message || 'error' }); } catch (_) {}
+  }); });
+  server.listen(COUNT_LAN_PORT, '0.0.0.0', () => {
+    log.info(`count-lan: escuchando en http://${lanIp()}:${COUNT_LAN_PORT}  (teléfono → /admin/escaner.html)`);
+  });
+  server.on('error', e => log.error({ err: e?.message }, 'count-lan: no se pudo abrir el puerto'));
+
+  setInterval(() => checkOnline().catch(() => {}), COUNT_ONLINE_MS);
+  setInterval(() => syncNow().catch(() => {}), COUNT_SYNC_MS);
+  setInterval(() => { if (online) refreshCatalog().catch(() => {}); }, COUNT_CATALOG_MS);
+  // keep-alive SSE (evita que proxies/red corten el stream)
+  setInterval(() => broadcast('ping', { t: Date.now() }), 25_000);
+}

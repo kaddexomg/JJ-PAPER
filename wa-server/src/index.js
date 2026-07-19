@@ -4,6 +4,7 @@ import { startOutbox } from './outbox.js';
 import { startCampaigns } from './campaigns.js';
 import { startInvoiceAlerts } from './invoices.js';
 import { startRates } from './rates.js';
+import { startCountLan } from './count-lan.js';
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
 log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html · vendedor/whatsapp.html)');
@@ -13,6 +14,7 @@ startOutbox(manager);
 startCampaigns(manager);   // difusión masiva con throttle (vendedor/difusion.html)
 startInvoiceAlerts(manager);   // recordatorios de facturas por pagar → WhatsApp del dueño
 startRates();   // actualiza BCV + USDT/paralelo en jjp_settings cada hora
+startCountLan();   // servidor de conteo OFFLINE por WiFi local (teléfono ↔ PC sin internet)
 
 process.on('SIGINT', () => { log.info('apagando…'); process.exit(0); });
 process.on('unhandledRejection', e => log.error({ err: e?.message || e }, 'unhandledRejection'));

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#00140f">
+<title>Conteo offline (WiFi local) | JJ Paper</title>
+<link rel="icon" href="../assets/img/logo.svg">
+<style>
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; min-height:100%; background:#00140f; color:#eaf5ee;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:620px; margin:0 auto; display:flex; flex-direction:column; padding:12px; gap:9px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+  header { display:flex; align-items:center; gap:10px; }
+  header img { width:32px; height:32px; }
+  header h1 { font-size:15px; margin:0; font-weight:700; }
+  header .who { margin-left:auto; font-size:12px; color:#b6e05a; font-weight:700; text-align:right;
+    cursor:pointer; display:flex; flex-direction:column; align-items:flex-end; line-height:1.15; }
+  header .who small { color:#6f9583; font-weight:400; font-size:10px; }
+
+  .sync { display:flex; align-items:center; justify-content:center; gap:7px;
+    font-size:12px; font-weight:600; padding:7px 12px; border-radius:999px; }
+  .sync.cloud { background:rgba(153,204,51,.15); color:#b6e05a; }
+  .sync.local { background:rgba(201,162,75,.18); color:#e3bd6f; }
+  .sync.off   { background:rgba(220,90,80,.15);  color:#ff9d94; }
+  .dot { width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .sync.cloud .dot { animation:pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  .cam { position:relative; width:100%; aspect-ratio:3/4; max-height:40vh; background:#000;
+    border-radius:16px; overflow:hidden; }
+  .cam video { width:100%; height:100%; object-fit:cover; }
+  .reticle { position:absolute; inset:26% 12%; border:3px solid #99CC33; border-radius:12px;
+    box-shadow:0 0 0 4000px rgba(0,0,0,.25); pointer-events:none; transition:border-color .2s; }
+  .cam.hit  .reticle { border-color:#b6e05a; }
+  .cam.miss .reticle { border-color:#ffb020; }
+
+  .feedback { border-radius:14px; padding:12px 14px; background:#0c231b; border:1px solid #2c5647;
+    min-height:64px; display:flex; align-items:center; gap:12px; }
+  .feedback.ok  { background:#0e2b1d; border-color:#3f7a3a; }
+  .feedback.new { background:#33260f; border-color:#c9902b; }
+  .feedback.err { background:#3a1414; border-color:#a34; }
+  .fb-icon { font-size:26px; line-height:1; }
+  .fb-body { flex:1; min-width:0; }
+  .fb-name { font-size:15px; font-weight:700; line-height:1.25; }
+  .fb-sub  { font-size:12px; color:#9fc7b3; margin-top:3px; word-break:break-all; }
+  .fb-count { font-size:30px; font-weight:800; color:#99CC33; line-height:1; }
+
+  .stats { display:flex; gap:8px; }
+  .stat { flex:1; background:#0c231b; border:1px solid #1e4033; border-radius:12px; padding:8px; text-align:center; }
+  .stat b { display:block; font-size:20px; color:#99CC33; line-height:1.1; }
+  .stat span { font-size:10px; color:#9fc7b3; }
+
+  .row { display:flex; gap:8px; }
+  .row input { flex:1; height:46px; border-radius:12px; border:1px solid #2c5647;
+    background:#0c231b; color:#eaf5ee; padding:0 14px; font-size:16px; }
+  .btn { height:46px; border:0; border-radius:12px; font-size:15px; font-weight:700; padding:0 16px; cursor:pointer; }
+  .btn-p { background:#99CC33; color:#06231a; }
+  .btn-g { background:#16604A; color:#eaf5ee; }
+  .btn-ghost { background:#123a2c; border:1px solid #2c5647; color:#eaf5ee; }
+
+  .results { display:flex; flex-direction:column; gap:6px; max-height:38vh; overflow-y:auto; }
+  .hit { text-align:left; background:#0c231b; border:1px solid #2c5647; border-radius:10px;
+    padding:10px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; color:#eaf5ee; }
+  .hit:hover { background:#123a2c; }
+  .hit img { width:30px; height:30px; border-radius:6px; object-fit:cover; }
+  .hit .h-b { flex:1; min-width:0; }
+  .hit .h-n { font-weight:600; font-size:14px; }
+  .hit .h-s { font-size:12px; color:#9fc7b3; }
+  .hit .h-c { color:#99CC33; font-weight:700; font-size:13px; }
+
+  .card { background:#0c231b; border:1px solid #1e4033; border-radius:14px; padding:12px 14px; }
+  .card h2 { font-size:12px; color:#9fc7b3; margin:0 0 8px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:#123a2c; border:1px solid #2c5647; border-radius:999px; padding:6px 12px; font-size:13px; }
+  .chip b { color:#99CC33; }
+  .unk { display:flex; align-items:center; gap:8px; background:#251a0a; border:1px solid #6b551f;
+    border-radius:9px; padding:7px 10px; font-size:13px; }
+  .unk code { flex:1; }
+  .foot { text-align:center; font-size:11px; color:#6f9583; padding-top:4px; }
+  .warn { background:#3a2410; border:1px solid #c9902b; color:#ffd699; border-radius:12px;
+    padding:14px; font-size:14px; line-height:1.45; }
+
+  .dev-modal { position:fixed; inset:0; background:rgba(0,10,7,.94); display:none;
+    align-items:center; justify-content:center; padding:20px; z-index:50; }
+  .dev-modal.op { display:flex; }
+  .dev-card { background:#0c231b; border:1px solid #2c5647; border-radius:18px; padding:22px; max-width:420px; width:100%; }
+  .dev-card h2 { margin:0 0 6px; font-size:19px; }
+  .dev-card p { margin:0 0 15px; font-size:13px; color:#9fc7b3; line-height:1.4; }
+  .dev-card input { width:100%; height:50px; border-radius:12px; border:1px solid #2c5647;
+    background:#0a1d16; color:#eaf5ee; padding:0 15px; font-size:16px; margin-bottom:12px; }
+  .dev-recent { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .dev-chip { background:#123a2c; border:1px solid #2c5647; color:#eaf5ee; border-radius:999px; padding:9px 15px; font-size:14px; cursor:pointer; }
+  .dev-card .btn-p { width:100%; height:50px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <header>
+    <img src="../assets/img/logo.svg" alt="JJ Paper">
+    <h1>Conteo offline · WiFi local</h1>
+    <div class="who" id="who" onclick="openDevModal()" title="Cambiar quién cuenta">…<small>tocar para cambiar</small></div>
+  </header>
+
+  <div class="sync off" id="syncState"><span class="dot"></span><span id="syncTxt">Conectando…</span></div>
+
+  <!-- Aviso si la página NO la sirve el servidor local -->
+  <div class="warn hidden" id="noLan">
+    ⚠️ Esta página debe abrirse <b>desde el servidor de la PC</b> (misma WiFi), no desde internet.<br><br>
+    En la PC del inventario, con el wa-server corriendo, abre:<br>
+    <b id="lanHint">http://IP-DE-LA-PC:8787/admin/lan.html</b><br><br>
+    En el teléfono, escribe esa misma dirección en Chrome (misma red WiFi).
+  </div>
+
+  <div id="counter">
+    <div class="cam" id="cam">
+      <video id="video" playsinline muted></video>
+      <div class="reticle"></div>
+    </div>
+
+    <div class="feedback" id="feedback" style="margin-top:9px">
+      <div class="fb-icon">📦</div>
+      <div class="fb-body">
+        <div class="fb-name">Listo para contar</div>
+        <div class="fb-sub">Apunta al código, o busca abajo</div>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-top:9px">
+      <div class="stat"><b id="stProd">0</b><span>productos</span></div>
+      <div class="stat"><b id="stUnid">0</b><span>unidades</span></div>
+      <div class="stat"><b id="stPend">0</b><span>sin subir</span></div>
+    </div>
+
+    <form class="row" id="searchForm" style="margin-top:9px">
+      <input type="text" id="q" placeholder="🔍 Nombre, marca, SKU — o escribe el código" autocomplete="off">
+      <button class="btn btn-p" type="submit">Buscar</button>
+    </form>
+    <div class="results" id="results"></div>
+
+    <div class="row" style="margin-top:2px">
+      <button class="btn btn-ghost" style="flex:1" onclick="openBrowse()">📖 Sin código (por categoría)</button>
+    </div>
+
+    <div class="card" id="whoCard" style="margin-top:9px"><h2>👥 Quién contó</h2><div class="chips" id="counters"></div></div>
+
+    <div class="card hidden" id="unkCard"><h2>❓ Códigos sin identificar</h2><div id="unknowns"></div></div>
+
+    <div class="foot" id="foot">Todo se guarda en la PC. Cuando vuelva internet se sube solo a la nube.</div>
+  </div>
+</div>
+
+<!-- ¿Quién cuenta? -->
+<div class="dev-modal" id="devModal">
+  <form class="dev-card" id="devForm">
+    <h2>¿Quién está contando?</h2>
+    <p>Escribe tu nombre o área (ej: <b>María</b>, <b>Pasillo 3</b>, <b>Depósito</b>).</p>
+    <div class="dev-recent" id="devRecent"></div>
+    <input type="text" id="devInput" placeholder="Tu nombre o área…" maxlength="32" autocomplete="off">
+    <button class="btn btn-p" type="submit">Empezar a contar</button>
+  </form>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const BASE = location.origin;           // servido por el wa-server (mismo origen)
+let device = '';
+let catalog = [];                       // [{id,barcode,sku,name,emoji,brand,category,image_url,price,dupe}]
+let byBarcode = new Map();
+let seen = {};                          // anti doble lectura de cámara
+let detector = null, stream = null, timer = null;
+let browsing = null;                    // {cat} | null
+
+// ---------- Arranque ----------
+document.addEventListener('DOMContentLoaded', async () => {
+  device = localStorage.getItem('jjp_scan_device') || '';
+  $('searchForm').addEventListener('submit', onSearch);
+  $('devForm').addEventListener('submit', onDevSubmit);
+  $('q').addEventListener('input', () => onQuery($('q').value));
+
+  const ok = await checkLan();
+  if (!ok) return;                      // muestra aviso "abrir desde la PC"
+
+  if (!device) openDevModal(true);
+  else $('who').innerHTML = esc(device) + '<small>tocar para cambiar</small>';
+
+  await loadCatalog();
+  startFeed();
+  await startCamera();
+});
+
+async function checkLan() {
+  try {
+    const r = await fetch(BASE + '/lan/health', { cache: 'no-store' });
+    if (!r.ok) throw 0;
+    const h = await r.json();
+    $('lanHint').textContent = `http://${h.ip}:${h.port}/admin/lan.html`;
+    return true;
+  } catch (e) {
+    $('counter').classList.add('hidden');
+    $('noLan').classList.remove('hidden');
+    setSync('off', 'Sin servidor local');
+    return false;
+  }
+}
+
+async function loadCatalog() {
+  try {
+    const r = await fetch(BASE + '/lan/catalog', { cache: 'no-store' });
+    const d = await r.json();
+    catalog = d.items || [];
+    byBarcode = new Map();
+    const cnt = {};
+    for (const it of catalog) if (it.barcode) cnt[it.barcode] = (cnt[it.barcode] || 0) + 1;
+    for (const it of catalog) if (it.barcode && !byBarcode.has(it.barcode))
+      byBarcode.set(it.barcode, { ...it, dupe: cnt[it.barcode] > 1 });
+  } catch (e) {}
+}
+
+// ---------- Feed en vivo (SSE) ----------
+function startFeed() {
+  const es = new EventSource(BASE + '/lan/feed');
+  es.addEventListener('state', e => applyState(JSON.parse(e.data)));
+  es.addEventListener('online', e => { const d = JSON.parse(e.data); renderSync(d.online, d.pending); });
+  es.addEventListener('scan', e => {
+    const r = JSON.parse(e.data);
+    // refleja escaneos de OTROS equipos (los propios ya se pintaron)
+    if (r.device && r.device !== device && r.ok) flashOther(r);
+  });
+  es.onerror = () => setSync('off', 'Reconectando con la PC…');
+}
+
+let lastState = null;
+function applyState(s) {
+  lastState = s;
+  const tally = s.tally || {};
+  const prod = Object.keys(tally).length;
+  const unid = Object.values(tally).reduce((a, n) => a + (n || 0), 0);
+  $('stProd').textContent = prod;
+  $('stUnid').textContent = unid;
+  $('stPend').textContent = s.pending || 0;
+  renderSync(s.online, s.pending);
+  renderCounters(s.counters || {});
+  renderUnknowns(s.unknowns || []);
+}
+
+function renderSync(isOnline, pending) {
+  if (isOnline && !pending) return setSync('cloud', 'Guardando en la nube ✓');
+  if (isOnline && pending)  return setSync('cloud', `Subiendo… ${pending} pendiente(s)`);
+  return setSync('local', `Sin internet · ${pending || 0} guardado(s) local, subirán al reconectar`);
+}
+function setSync(kind, txt) { $('syncState').className = 'sync ' + kind; $('syncTxt').textContent = txt; }
+
+function renderCounters(c) {
+  const ents = Object.entries(c).sort((a, b) => b[1] - a[1]);
+  $('counters').innerHTML = ents.length
+    ? ents.map(([d, n]) => `<span class="chip">${esc(d)} <b>${n}</b></span>`).join('')
+    : '<span class="fb-sub">Nadie ha contado aún.</span>';
+}
+function renderUnknowns(list) {
+  if (!list.length) { $('unkCard').classList.add('hidden'); return; }
+  $('unkCard').classList.remove('hidden');
+  $('unknowns').innerHTML = list.map(u => `
+    <div class="unk">
+      <code>${esc(u.code)}</code>
+      <span class="fb-sub">${u.seen > 1 ? u.seen + '× ' : ''}${u.device ? '· ' + esc(u.device) : ''}</span>
+      <button class="btn btn-ghost" style="height:34px;padding:0 12px" onclick="dropUnknown('${esc(u.code)}')">✕</button>
+    </div>`).join('') +
+    `<div class="fb-sub" style="margin-top:6px">Para vincularlos a un producto, hazlo desde la PC con internet (Control del conteo).</div>`;
+}
+
+// ---------- Contar ----------
+async function scan(code) {
+  code = (code || '').trim();
+  if (!code) return;
+  beep(); if (navigator.vibrate) navigator.vibrate(50);
+  try {
+    const r = await fetch(BASE + '/lan/scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, device })
+    });
+    showResult(await r.json(), code);
+  } catch (e) { feedback('err', '⚠️', 'No se pudo contar', 'Revisa la conexión con la PC'); }
+}
+
+async function pick(variantId, delta = 1) {
+  try {
+    const r = await fetch(BASE + '/lan/pick', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant_id: variantId, device, delta })
+    });
+    showResult(await r.json());
+    $('q').value = ''; onQuery('');
+  } catch (e) { feedback('err', '⚠️', 'No se pudo contar', ''); }
+}
+
+async function dropUnknown(code) {
+  try { await fetch(BASE + '/lan/unknown-resolve', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) }); }
+  catch (e) {}
+}
+
+function showResult(r, code) {
+  const cam = $('cam');
+  if (r && r.ok) {
+    feedback(r.dupe ? 'new' : 'ok', r.dupe ? '⚠️' : '✅', r.name || 'Producto',
+      r.dupe ? 'Contado · código compartido, revisar' : 'Contado', r.counted);
+    cam.className = 'cam hit';
+    if (navigator.vibrate) navigator.vibrate(40);
+  } else if (r && r.kind === 'nuevo') {
+    feedback('new', '❓', 'Código no registrado', (code || r.code) + ' — quedará para vincular en la PC');
+    cam.className = 'cam miss';
+    if (navigator.vibrate) navigator.vibrate([50, 60, 50]);
+  } else {
+    feedback('err', '⚠️', 'No se pudo contar', code || '');
+  }
+  setTimeout(() => { cam.className = 'cam'; }, 600);
+}
+
+function flashOther(r) {
+  const el = document.createElement('div');
+  el.className = 'fb-sub';
+  el.style.cssText = 'position:fixed;left:0;right:0;bottom:12px;text-align:center;color:#b6e05a;font-weight:700';
+  el.textContent = `📲 ${r.device}: ${r.name} (${r.counted})`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1400);
+}
+
+function feedback(kind, icon, name, sub, count) {
+  $('feedback').className = 'feedback ' + kind;
+  $('feedback').innerHTML =
+    `<div class="fb-icon">${icon}</div>
+     <div class="fb-body"><div class="fb-name">${esc(name)}</div><div class="fb-sub">${esc(sub)}</div></div>` +
+    (count != null ? `<div class="fb-count">${count}</div>` : '');
+}
+
+// ---------- Búsqueda / explorar ----------
+function tokens(q) { return norm(q).split(/\s+/).filter(t => t.length >= 2); }
+function rowText(r) { return norm(`${r.name || ''} ${r.brand || ''} ${r.sku || ''}`); }
+function isCode(v) { return /^\d{6,}$/.test(v.trim()); }
+
+function onSearch(ev) {
+  ev.preventDefault();
+  const q = $('q').value.trim();
+  if (!q) return;
+  if (isCode(q)) { $('q').value = ''; onQuery(''); scan(q); return; }
+  const t = tokens(q);
+  const hits = catalog.filter(r => t.every(tok => rowText(r).includes(tok)));
+  if (hits.length === 1) { pick(hits[0].id); return; }
+  onQuery(q);
+}
+
+function onQuery(q) {
+  browsing = null;
+  const box = $('results');
+  q = (q || '').trim();
+  if (!q) { box.innerHTML = ''; return; }
+  if (isCode(q)) { box.innerHTML = `<div class="fb-sub" style="padding:8px">Pulsa Enter para contar el código <b>${esc(q)}</b></div>`; return; }
+  const t = tokens(q);
+  if (!t.length) { box.innerHTML = ''; return; }
+  const hits = catalog.filter(r => t.every(tok => rowText(r).includes(tok))).slice(0, 30);
+  box.innerHTML = hits.length ? hits.map(itemHtml).join('')
+    : '<div class="fb-sub" style="padding:8px">Sin coincidencias.</div>';
+}
+
+function itemHtml(r) {
+  const n = (lastState?.tally || {})[r.id] || 0;
+  const thumb = r.image_url ? `<img src="${esc(r.image_url)}" alt="">` : `<span style="font-size:22px">${r.emoji || '📦'}</span>`;
+  return `<button class="hit" onclick="pick('${r.id}')">
+    ${thumb}
+    <span class="h-b"><span class="h-n">${esc(r.name || '—')}</span>
+      <span class="h-s">${esc(r.brand || 'Genérica')} · SKU ${esc(r.sku || '—')}</span></span>
+    <span class="h-c">${n > 0 ? n + ' · +1' : '+1'}</span>
+  </button>`;
+}
+
+function openBrowse() {
+  browsing = { cat: null };
+  const box = $('results');
+  const map = new Map();
+  for (const r of catalog) { const c = r.category || 'Sin categoría'; map.set(c, (map.get(c) || 0) + 1); }
+  const cats = [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  box.innerHTML = cats.map(([c, k]) => `
+    <button class="hit" onclick="browseCat('${esc(c)}')">
+      <span class="h-b"><span class="h-n">${esc(c)}</span><span class="h-s">${k} producto(s)</span></span>
+    </button>`).join('');
+}
+function browseCat(cat) {
+  browsing = { cat };
+  const list = catalog.filter(r => (r.category || 'Sin categoría') === cat)
+    .sort((a, b) => norm(a.name).localeCompare(norm(b.name)));
+  $('results').innerHTML =
+    `<button class="hit" onclick="openBrowse()"><span class="h-n">← Categorías</span></button>` +
+    list.slice(0, 300).map(itemHtml).join('');
+}
+
+// ---------- Cámara ----------
+async function startCamera() {
+  const video = $('video');
+  if (!('BarcodeDetector' in window)) {
+    feedback('', '⌨️', 'Sin cámara de escaneo', 'Usa la búsqueda o escribe el código'); $('q').focus(); return;
+  }
+  try {
+    const formats = await BarcodeDetector.getSupportedFormats();
+    detector = new BarcodeDetector({ formats: formats.length ? formats
+      : ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','codabar','itf'] });
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    video.srcObject = stream; await video.play(); loop();
+  } catch (e) { feedback('err', '⚠️', 'Cámara no disponible', 'Revisa permisos, o usa la búsqueda'); $('q').focus(); }
+}
+function loop() {
+  const video = $('video');
+  timer = setInterval(async () => {
+    if (!detector || video.readyState < 2) return;
+    let codes = [];
+    try { codes = await detector.detect(video); } catch (e) { return; }
+    const now = Date.now();
+    for (const b of codes) {
+      const code = (b.rawValue || '').trim();
+      if (!code) continue;
+      if (seen[code] == null) scan(code);
+      seen[code] = now;
+    }
+    for (const c of Object.keys(seen)) if (now - seen[c] > 700) delete seen[c];
+  }, 250);
+}
+
+// ---------- Quién cuenta ----------
+function recentDevices() { try { return JSON.parse(localStorage.getItem('jjp_scan_devices') || '[]'); } catch (e) { return []; } }
+function openDevModal(first) {
+  const list = recentDevices();
+  $('devRecent').innerHTML = list.map(d => `<button type="button" class="dev-chip" onclick="pickDevice('${esc(d)}')">${esc(d)}</button>`).join('');
+  $('devInput').value = first ? '' : device;
+  $('devModal').classList.add('op');
+  setTimeout(() => $('devInput').focus(), 60);
+}
+function pickDevice(name) { $('devInput').value = name; onDevSubmit(); }
+function onDevSubmit(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const name = ($('devInput').value || '').trim().slice(0, 32);
+  if (!name) return;
+  device = name;
+  localStorage.setItem('jjp_scan_device', name);
+  const list = recentDevices().filter(d => d.toLowerCase() !== name.toLowerCase());
+  list.unshift(name); localStorage.setItem('jjp_scan_devices', JSON.stringify(list.slice(0, 6)));
+  $('who').innerHTML = esc(name) + '<small>tocar para cambiar</small>';
+  $('devModal').classList.remove('op');
+}
+
+// ---------- Utilidades ----------
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function norm(s) { return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+let _ac = null;
+function beep() { try {
+  _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+  const o = _ac.createOscillator(), g = _ac.createGain();
+  o.type = 'square'; o.frequency.value = 880; g.gain.value = 0.05;
+  o.connect(g); g.connect(_ac.destination); o.start(); o.stop(_ac.currentTime + 0.08);
+} catch (e) {} }
+</script>
+</body>
+</html>

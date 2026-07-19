@@ -3,3 +3,4 @@
 sessions/
 node_modules/
 *.log
+count-buffer.json

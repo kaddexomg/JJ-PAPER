@@ -23,10 +23,12 @@
 
 /* ---- Descargar catálogo (botón + menú) ---- */
 .dl-wrap  { position:relative }
-.dl-btn   { padding:11px 18px; border-radius:var(--rs); border:2px solid var(--gd);
-            background:var(--gd); color:#fff; font-size:14px; font-weight:700;
+/* Botón secundario a propósito: descargar el catálogo es una utilidad,
+   no la acción principal. El peso visual queda para "Agregar al carrito". */
+.dl-btn   { padding:8px 14px; border-radius:var(--rs); border:1px solid var(--am);
+            background:transparent; color:var(--amd); font-size:13px; font-weight:600;
             display:flex; align-items:center; gap:6px; transition:var(--tr); white-space:nowrap }
-.dl-btn:hover  { background:var(--gm); border-color:var(--gm) }
+.dl-btn:hover  { background:var(--am); border-color:var(--am); color:#fff }
 .dl-btn:focus-visible { outline:2px solid var(--gm); outline-offset:2px }
 .dl-menu  { position:absolute; top:calc(100% + 6px); right:0; z-index:20;
             background:#fff; border:1px solid var(--gb); border-radius:var(--rs);

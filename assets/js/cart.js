@@ -74,7 +74,7 @@ function addCart(product, qty = 1, silent = false, variant = null) {
   let newQty = item.qty + qty;
   if (item.stock !== null && newQty > item.stock) {
     newQty = item.stock;
-    showToast(`Solo quedan ${item.stock} disponibles`, 'warn');
+    showToast('Cantidad máxima disponible alcanzada', 'warn');
   }
   item.qty = newQty;
   cartSave();
@@ -91,7 +91,7 @@ function updateCartQty(id, delta) {
   let newQty = item.qty + delta;
 
   if (delta > 0 && item.stock != null && newQty > item.stock) {
-    showToast(`Solo quedan ${item.stock} disponibles`, 'warn');
+    showToast('Cantidad máxima disponible alcanzada', 'warn');
     newQty = item.stock;
   }
   // Bajar de la cantidad mínima elimina el producto

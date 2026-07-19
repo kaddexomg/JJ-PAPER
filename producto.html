@@ -145,7 +145,7 @@ function pdChangeQty(d) {
   const s   = pdStock();
   const max = (typeof s === 'number' && s > 0) ? s : Infinity;
   const next = Math.max(min, pdQty + d);
-  if (next > max) { showToast(`Solo quedan ${max} disponibles`, 'warn'); return; }
+  if (next > max) { showToast('Cantidad máxima disponible alcanzada', 'warn'); return; }
   pdQty = next;
   const el = document.getElementById('pdQtyDisplay');
   if (el) el.textContent = pdQty;

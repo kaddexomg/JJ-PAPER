@@ -14,7 +14,7 @@
   var SEL = {
     ripple:  '.btn-p:not(.c-checkout), .prod-modal-add, .pd-add, .f-sub, .add-btn',
     scratch: '.pm-buy',
-    grass:   '.dl-btn',
+    grass:   '',            // .dl-btn ya no lleva briznas: es un botón secundario
     heat:    '.btn-wa',
     lantern: '.pm-quote, .btn-o',
     helix:   '.c-checkout'
@@ -74,7 +74,9 @@
   function decorate(root) {
     root = root || document;
     if (!root.querySelectorAll) return;
-    var q = function (sel) { return root.querySelectorAll(sel); };
+    // Un selector vacío significa "efecto desactivado". querySelectorAll('')
+    // lanzaría SyntaxError, así que se corta antes.
+    var q = function (sel) { return sel ? root.querySelectorAll(sel) : []; };
 
     q(SEL.scratch).forEach(function (b) {
       if (b.dataset.fx) return; b.dataset.fx = '1';

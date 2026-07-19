@@ -1,13 +1,26 @@
 /* ======================================================
-   JJ Paper — Subida masiva de fotos de producto al catálogo
-   Uso (una sola vez, desde la carpeta wa-server con .env listo):
-     node upload-images.js "C:\\Users\\PC\\Desktop\\productos"
-   - Fotos con código  (…_SH-BRNE.jpg) → se casan por SKU exacto.
-   - Fotos con nombre   (shark-marcadores-…​.jpg) → se casan por nombre (difuso).
-   - Sube cada foto al bucket público jjp-products y setea jjp_products.image_url.
-   - Si varias fotos apuntan al mismo producto, usa la de MAYOR tamaño (mejor calidad).
-   - Reporta al final qué quedó sin casar (para revisarlo a mano).
-   NO borra ni renombra tus archivos. Re-ejecutable (upsert).
+   JJ Paper — Subida de fotos de producto al catálogo
+
+   Uso (desde wa-server con .env listo):
+     node upload-images.js                    → simulacro, no escribe nada
+     node upload-images.js --apply            → sube de verdad
+     node upload-images.js --apply --force    → además pisa fotos existentes
+     node upload-images.js --dir "C:\\ruta"    → otra carpeta raíz
+
+   Regla de oro: NUNCA crea productos. Si el SKU del nombre de archivo
+   no existe en la base, la foto se reporta como SIN_MATCH y se deja
+   quieta. Así la subida no puede inventar productos ni cruzar el
+   inventario que ya está contado.
+
+   Casa SOLO por SKU exacto (…_KO-BOA.jpg), resolviéndolo contra la
+   base con jjp_variant_by_sku. El casado difuso por nombre se quitó a
+   propósito: "BLOCK DE NOTAS #1/#2/#3" comparten todas las palabras y
+   terminaba pegando la foto al producto equivocado. Para esas fotos
+   está el clasificador con IA, que renombra con el SKU correcto.
+
+   Recorre la raíz y las subcarpetas de trabajo (Clasificadas, Otras…).
+   Si varias fotos apuntan al mismo SKU usa la de mayor tamaño.
+   No borra ni renombra tus archivos. Re-ejecutable.
    ====================================================== */
 import 'dotenv/config';
 import fs from 'node:fs';
@@ -22,94 +35,133 @@ if (!URL || !KEY) {
 }
 const sb = createClient(URL, KEY, { auth: { persistSession: false } });
 
-const DIR = process.argv[2] || 'C:\\Users\\PC\\Desktop\\productos';
-const BUCKET = 'jjp-products';
-const EXT_OK = new Set(['.jpg', '.jpeg', '.png', '.webp']);
-const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+const argv  = process.argv.slice(2);
+const flag  = n => argv.includes(n);
+const APPLY = flag('--apply');
+const FORCE = flag('--force');
+const DIR   = (argv[argv.indexOf('--dir') + 1] && flag('--dir'))
+  ? argv[argv.indexOf('--dir') + 1]
+  : 'C:\\Users\\PC\\Desktop\\productos';
 
-const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .replace(/[^a-z0-9]+/g, ' ').trim();
+const BUCKET  = 'jjp-products';
+const EXT_OK  = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const MIME    = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+// Subcarpetas de trabajo que sí se recorren. El resto se ignora para no
+// arrastrar descartes, miniaturas ni respaldos.
+const SUBDIRS = ['Clasificadas', 'Otras', 'Otras 2', 'SIN_CATALOGO'];
+
+const skuKey = s => String(s || '').toUpperCase().replace(/\s+/g, '');
+
+// El clasificador nombra "descripcion-del-producto_SKU.jpg", y agrega
+// "_1", "_2" cuando hay repetidos. Se admite ese sufijo.
+function skuFromFilename(base) {
+  const m = /_([A-Za-z0-9][A-Za-z0-9/.\-]*?)(?:_\d+)?$/.exec(base);
+  if (!m) return null;
+  const raw = m[1];
+  // Descarta lo que claramente no es un SKU: nombres de WhatsApp
+  // ("...124257"), contadores sueltos. Un SKU real lleva letras.
+  if (!/[A-Za-z]/.test(raw)) return null;
+  return raw;
+}
+
+function listImages(dir, label) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter(d => d.isFile() && EXT_OK.has(path.extname(d.name).toLowerCase()))
+    .map(d => ({ file: d.name, full: path.join(dir, d.name), carpeta: label }));
+}
 
 async function main() {
-  // 1) Catálogo: SKU → producto, y nombre normalizado → producto
-  const { data: vars, error } = await sb
-    .from('jjp_product_variants')
-    .select('sku, product_id, jjp_products(id,name)')
-    .limit(5000);
-  if (error) { console.error('Error leyendo catálogo:', error.message); process.exit(1); }
+  console.log(APPLY
+    ? `MODO REAL — se escribirá en la base${FORCE ? ' (incluso pisando fotos existentes)' : ''}\n`
+    : 'SIMULACRO — no se escribe nada. Agregá --apply para subir de verdad.\n');
 
-  const skuKey = s => String(s || '').toUpperCase().replace(/\s+/g, '');   // insensible a espacios/mayúsculas
-  const bySku = new Map();          // skuKey → {id, name}
-  const byName = [];                // [{tokens:Set, id, name}]
-  const seenProd = new Set();
-  for (const v of vars) {
-    const p = v.jjp_products; if (!p) continue;
-    if (v.sku) bySku.set(skuKey(v.sku), { id: p.id, name: p.name });
-    if (!seenProd.has(p.id)) {
-      seenProd.add(p.id);
-      byName.push({ id: p.id, name: p.name, tokens: new Set(norm(p.name).split(' ').filter(Boolean)) });
-    }
-  }
+  // 1) Junta las fotos de la raíz + subcarpetas de trabajo
+  const files = [
+    ...listImages(DIR, 'raíz'),
+    ...SUBDIRS.flatMap(s => listImages(path.join(DIR, s), s)),
+  ];
 
-  // 2) Recorre fotos de la raíz de la carpeta (ignora subcarpetas y descartadas)
-  const files = fs.readdirSync(DIR, { withFileTypes: true })
-    .filter(d => d.isFile() && EXT_OK.has(path.extname(d.name).toLowerCase()))
-    .map(d => d.name);
-
-  const chosen = new Map();   // product_id → {file, size, how}
-  const unmatched = [];
+  // 2) Resuelve cada archivo a su variante, contra la base (no contra un CSV)
+  const chosen    = new Map();   // variant_id → mejor candidata
+  const sinSku    = [];          // el nombre no tiene SKU legible
+  const sinMatch  = [];          // el SKU no existe en la base
+  const yaTiene   = [];          // la variante ya tiene foto
 
   for (const f of files) {
-    const ext = path.extname(f).toLowerCase();
-    const base = f.slice(0, -ext.length);
-    let match = null, how = '';
+    const ext  = path.extname(f.file).toLowerCase();
+    const base = f.file.slice(0, -ext.length);
+    const sku  = skuFromFilename(base);
+    if (!sku) { sinSku.push(f); continue; }
 
-    // a) código al final: …_SKU
-    const m = /_([A-Z0-9][A-Z0-9/.\-]*)$/i.exec(base);
-    if (m && bySku.has(skuKey(m[1]))) { match = bySku.get(skuKey(m[1])); how = 'sku'; }
+    const { data, error } = await sb.rpc('jjp_variant_by_sku', { p_sku: sku });
+    if (error) { console.error(`Error resolviendo ${sku}: ${error.message}`); continue; }
+    const hit = data?.[0];
+    if (!hit) { sinMatch.push({ ...f, sku }); continue; }
+    if (hit.tiene_imagen && !FORCE) { yaTiene.push({ ...f, sku, nombre: hit.nombre }); continue; }
 
-    // b) nombre difuso por solape de palabras
-    if (!match) {
-      const ftok = new Set(norm(base.replace(/_[^_]*$/, '')).split(' ').filter(t => t.length > 2));
-      let best = null, bestScore = 0;
-      for (const p of byName) {
-        let hit = 0; for (const t of ftok) if (p.tokens.has(t)) hit++;
-        const score = hit / Math.max(3, p.tokens.size);   // proporción de palabras del producto cubiertas
-        if (hit >= 3 && score > bestScore) { best = p; bestScore = score; }
-      }
-      if (best) { match = best; how = 'nombre'; }
+    const size = fs.statSync(f.full).size;
+    const prev = chosen.get(hit.variant_id);
+    if (!prev || size > prev.size) {
+      chosen.set(hit.variant_id, {
+        ...f, sku, size, ext, nombre: hit.nombre,
+        product_id: hit.product_id,
+        exacto: hit.exacto,   // false = casó por SKU normalizado (CEL-T1/2 ← cel-t1-2)
+      });
     }
-
-    if (!match) { unmatched.push(f); continue; }
-
-    const size = fs.statSync(path.join(DIR, f)).size;
-    const prev = chosen.get(match.id);
-    if (!prev || size > prev.size) chosen.set(match.id, { file: f, size, how, name: match.name });
   }
 
-  console.log(`Fotos en carpeta: ${files.length} · productos a actualizar: ${chosen.size} · sin casar: ${unmatched.length}\n`);
+  console.log(`Fotos encontradas: ${files.length}`);
+  console.log(`  · a subir:            ${chosen.size}`);
+  console.log(`  · ya tenían foto:     ${yaTiene.length}${FORCE ? ' (se pisarán)' : ' (se saltan)'}`);
+  console.log(`  · SKU inexistente:    ${sinMatch.length}`);
+  console.log(`  · sin SKU en nombre:  ${sinSku.length}\n`);
 
-  // 3) Sube y actualiza image_url
+  // 3) Sube y actualiza — variante y producto (hoy la relación es 1:1)
   let ok = 0, fail = 0;
-  for (const [pid, info] of chosen) {
-    const ext = path.extname(info.file).toLowerCase();
-    const buf = fs.readFileSync(path.join(DIR, info.file));
-    const dest = `${pid}${ext}`;
+  const MB = 1024 * 1024;
+  for (const [variantId, info] of chosen) {
+    const marca = info.exacto ? '' : ' [SKU recuperado]';
+    if (!APPLY) { console.log(`· [simulacro] ${info.sku}  →  ${info.nombre}${marca}   (${info.carpeta}/${info.file})`); ok++; continue; }
+
+    // Storage corta la conexión con archivos muy grandes ("fetch failed").
+    // Se avisa para poder comprimir la foto en vez de perder la subida.
+    if (info.size > 8 * MB) {
+      console.log(`  … ${info.sku} pesa ${(info.size / MB).toFixed(1)} MB — conviene comprimirla`);
+    }
+    const buf  = fs.readFileSync(info.full);
+    const dest = `${info.product_id}${info.ext}`;
     const up = await sb.storage.from(BUCKET).upload(dest, buf, {
-      contentType: MIME[ext] || 'image/jpeg', upsert: true,
+      contentType: MIME[info.ext] || 'image/jpeg', upsert: true,
     });
-    if (up.error) { console.log(`✗ ${info.name} — subida: ${up.error.message}`); fail++; continue; }
+    if (up.error) { console.log(`✗ ${info.sku} — subida: ${up.error.message}`); fail++; continue; }
+
     const pub = `${URL}/storage/v1/object/public/${BUCKET}/${dest}`;
-    const upd = await sb.from('jjp_products').update({ image_url: pub }).eq('id', pid);
-    if (upd.error) { console.log(`✗ ${info.name} — image_url: ${upd.error.message}`); fail++; continue; }
-    console.log(`✓ ${info.name}  (${info.how})  ←  ${info.file}`);
+    const uv = await sb.from('jjp_product_variants').update({ image_url: pub }).eq('id', variantId);
+    const up2 = await sb.from('jjp_products').update({ image_url: pub }).eq('id', info.product_id);
+    if (uv.error || up2.error) {
+      console.log(`✗ ${info.sku} — image_url: ${(uv.error || up2.error).message}`); fail++; continue;
+    }
+    console.log(`✓ ${info.sku}  →  ${info.nombre}${marca}`);
     ok++;
   }
 
-  console.log(`\nListo: ${ok} imágenes cargadas, ${fail} con error.`);
-  if (unmatched.length) {
-    console.log(`\nSin casar (${unmatched.length}) — revísalas a mano o renómbralas con su _SKU:`);
-    unmatched.forEach(f => console.log('  · ' + f));
+  console.log(`\n${APPLY ? 'Listo' : 'Simulacro'}: ${ok} imágenes${APPLY ? ' cargadas' : ' se cargarían'}, ${fail} con error.`);
+
+  // 4) Reporte de lo que hay que mirar a mano
+  const rep = path.join(DIR, 'REPORTE_SUBIDA.csv');
+  const rows = [
+    'motivo;carpeta;archivo;sku',
+    ...sinMatch.map(f => `SKU_NO_EXISTE;${f.carpeta};${f.file};${f.sku}`),
+    ...sinSku.map(f   => `SIN_SKU_EN_NOMBRE;${f.carpeta};${f.file};`),
+    ...yaTiene.map(f  => `YA_TENIA_FOTO;${f.carpeta};${f.file};${f.sku}`),
+  ];
+  fs.writeFileSync(rep, rows.join('\n'), 'utf8');
+  console.log(`\nReporte de pendientes: ${rep}`);
+  if (sinMatch.length) {
+    console.log(`\nSKU que no existe en la base (${sinMatch.length}) — NO se creó ningún producto:`);
+    sinMatch.slice(0, 15).forEach(f => console.log(`  · ${f.sku}   ${f.carpeta}/${f.file}`));
+    if (sinMatch.length > 15) console.log(`  … y ${sinMatch.length - 15} más en el CSV`);
   }
 }
 

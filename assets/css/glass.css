@@ -79,28 +79,28 @@
 /* ===================================================================
    BOTONES — vidrio interactivo (reacción al puntero y al toque)
    =================================================================== */
-.btn-p, .btn-o, .btn-o-wh, .btn-wa, .prod-modal-add, .pm-buy, .dl-btn {
+.btn-p, .btn-o, .btn-o-wh, .btn-wa, .prod-modal-add, .pm-buy {
   position:relative; overflow:hidden; isolation:isolate;
 }
 /* brillo superior intenso: media cúpula de luz sobre el vidrio */
 .btn-p::before, .btn-o::before, .btn-o-wh::before, .btn-wa::before,
-.prod-modal-add::before, .pm-buy::before, .dl-btn::before {
+.prod-modal-add::before, .pm-buy::before {
   content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
   background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.08) 48%, rgba(255,255,255,0) 60%);
   opacity:.95; transition:opacity .3s ease; z-index:0;
 }
 .btn-p > *, .btn-o > *, .btn-o-wh > *, .btn-wa > *,
-.prod-modal-add > *, .pm-buy > *, .dl-btn > * { position:relative; z-index:1 }
+.prod-modal-add > *, .pm-buy > * { position:relative; z-index:1 }
 
 /* Destello que barre el botón al pasar el puntero (specular sweep) */
-.btn-p::after, .btn-wa::after, .prod-modal-add::after, .pm-buy::after, .dl-btn::after {
+.btn-p::after, .btn-wa::after, .prod-modal-add::after, .pm-buy::after {
   content:''; position:absolute; top:-20%; bottom:-20%; left:-70%; width:45%;
   background:linear-gradient(105deg, transparent, rgba(255,255,255,.55) 50%, transparent);
   transform:skewX(-18deg); pointer-events:none; z-index:0;
   transition:left .55s cubic-bezier(.3,.7,.3,1);
 }
 .btn-p:hover::after, .btn-wa:hover::after, .prod-modal-add:hover::after,
-.pm-buy:hover::after, .dl-btn:hover::after { left:135% }
+.pm-buy:hover::after { left:135% }
 
 .btn-p {
   background:linear-gradient(180deg, rgba(42,158,110,.96), rgba(17,88,66,.96));
@@ -269,7 +269,7 @@
 }
 @media (prefers-reduced-motion:reduce) {
   .btn-p::after, .btn-wa::after, .prod-modal-add::after,
-  .pm-buy::after, .dl-btn::after { display:none }
+  .pm-buy::after { display:none }
 }
 
 /* ===================================================================

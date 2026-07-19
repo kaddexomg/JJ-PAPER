@@ -99,16 +99,19 @@ function renderModalBody() {
       </div>`
     : '';
 
-  // Stock badge (de la variante seleccionada)
+  // Stock badge (de la variante seleccionada).
+  // Semáforo, nunca la cantidad exacta: el stock real es información
+  // interna (la competencia deduce rotación y proveedor con ella). El
+  // tope de compra sí respeta el stock — ver modalChangeQty.
   let stockHTML;
   if (stock === null || stock === undefined || stock < 0) {
     stockHTML = `<span class="pm-stock ok">✔ Disponible</span>`;
   } else if (stock === 0) {
     stockHTML = `<span class="pm-stock out">✕ Agotado</span>`;
   } else if (stock <= 5) {
-    stockHTML = `<span class="pm-stock low">⚠ Últimas ${stock} ${unit}</span>`;
+    stockHTML = `<span class="pm-stock low">⚠ Pocas unidades</span>`;
   } else {
-    stockHTML = `<span class="pm-stock ok">✔ En stock (${stock} ${unit})</span>`;
+    stockHTML = `<span class="pm-stock ok">✔ Disponible</span>`;
   }
   const soldOut = stock === 0;
 
@@ -143,7 +146,8 @@ function renderModalBody() {
     metaBits.push(`<span class="pm-meta-i"><b>Marca:</b> ${v.jjp_brands.logo_url ? `<img class="pm-brand-logo" src="${escapeHTML(v.jjp_brands.logo_url)}" alt="${escapeHTML(brandName)}" loading="lazy"> ` : ''}${escapeHTML(brandName)}</span>`);
   if (p.variants.length <= 1 && v?.variant_name)
     metaBits.push(`<span class="pm-meta-i"><b>Presentación:</b> ${escapeHTML(v.variant_name)}</span>`);
-  if (v?.sku)     metaBits.push(`<span class="pm-meta-i"><b>SKU:</b> ${escapeHTML(v.sku)}</span>`);
+  // El SKU no se muestra al público: es el código con el que compramos.
+  // Sigue siendo buscable — catalog.js indexa p._skus sin pintarlo.
   if (minQty > 1) metaBits.push(`<span class="pm-meta-i"><b>Mínimo:</b> ${minQty} ${unit}</span>`);
 
   body.innerHTML = `
@@ -240,7 +244,8 @@ function modalChangeQty(delta) {
   const stock = modalVariant ? modalVariant.stock : modalProduct?.stock;
   const max   = (typeof stock === 'number' && stock > 0) ? stock : Infinity;
   const next  = Math.max(min, modalQty + delta);
-  if (next > max) { showToast(`Solo quedan ${max} disponibles`, 'warn'); return; }
+  // Limita sin revelar el stock: el tope existe, el número no se dice.
+  if (next > max) { showToast('Cantidad máxima disponible alcanzada', 'warn'); return; }
   modalQty = next;
   const el = document.getElementById('modalQtyDisplay');
   if (el) el.textContent = modalQty;

@@ -1,0 +1,6 @@
+# Bloquea el código de servidor / migraciones / config del panel en el sitio público
+# (el wa-server local ya bloquea .env por su cuenta). Devuelve 404.
+/wa-server/*  /404.html  404
+/sql/*        /404.html  404
+/.claude/*    /404.html  404
+/*.md         /404.html  404

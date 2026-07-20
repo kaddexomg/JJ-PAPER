@@ -11,8 +11,8 @@ export const MEDIA_BUCKET = 'jjp-wa-media';
 
 export const COUNT_LAN_PORT   = parseInt(process.env.COUNT_LAN_PORT || '8787', 10); // servidor de conteo offline (WiFi local)
 export const COUNT_SESSION     = process.env.COUNT_SESSION || 'default';
-export const COUNT_SYNC_MS     = 8_000;   // intenta subir el conteo bufferizado
-export const COUNT_ONLINE_MS   = 15_000;  // chequeo de conexión a Supabase
+export const COUNT_SYNC_MS     = 5_000;   // intenta subir el conteo bufferizado
+export const COUNT_ONLINE_MS   = 10_000;  // chequeo de conexión a Supabase
 export const COUNT_CATALOG_MS  = 300_000; // refresco del catálogo local (5 min)
 export const REPO_ROOT         = path.join(__dirname, '..', '..');  // raíz del sitio (para servir la app por LAN)
 

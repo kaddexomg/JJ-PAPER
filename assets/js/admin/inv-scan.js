@@ -616,39 +616,65 @@ function scanBrowseFilter(q) {
   box.innerHTML = scanBrowseItems(list);
 }
 
+// Puntúa un producto contra la consulta: exacto (SKU/código) manda, luego
+// sufijo de código, empieza-con, incluye y cobertura de todas las palabras.
+function scanScore(r, q, toks) {
+  const nq = normTxt(q), digits = q.replace(/\D/g, '');
+  const name = normTxt(r.jjp_products?.name), sku = normTxt(r.sku),
+        brand = normTxt(r.jjp_brands?.name), vn = normTxt(r.variant_name);
+  const bc = String(r.barcode || '');
+  let s = 0;
+  if (sku && sku === nq) s += 1000;
+  if (bc && bc === q.trim()) s += 1000;
+  if (bc && digits.length >= 4 && bc.endsWith(digits)) s += 500;   // código parcial
+  if (sku && sku.startsWith(nq)) s += 230;
+  if (name.startsWith(nq)) s += 200;
+  if (nq.length >= 2 && name.includes(nq)) s += 90;
+  if (nq.length >= 2 && brand.includes(nq)) s += 30;
+  if (toks.length) {
+    let tok = 0, all = true;
+    for (const t of toks) {
+      if (name.includes(t)) tok += 45; else if (brand.includes(t)) tok += 18;
+      else if (sku.includes(t)) tok += 22; else if (vn.includes(t)) tok += 15; else { all = false; break; }
+    }
+    if (all) s += tok + 25;
+  }
+  return s;
+}
+function scanSearchHits(q) {
+  const toks = scanTokens(q);
+  const out = [];
+  for (const r of invRows) { const s = scanScore(r, q, toks); if (s > 0) out.push([s, r]); }
+  out.sort((a, b) => b[0] - a[0] ||
+    normTxt(a[1].jjp_products?.name).localeCompare(normTxt(b[1].jjp_products?.name)));
+  return out.slice(0, 25).map(x => x[1]);
+}
+
 function scanOmni(v) {
   const box = document.getElementById('scanSearchResults');
   if (!box) return;
   const q = (v || '').trim();
-
   if (!q) { box.innerHTML = ''; box.classList.remove('op'); return; }
+  if (q.length < 2) { box.innerHTML = ''; box.classList.remove('op'); return; }
 
-  if (scanIsCode(q)) {                       // parece código: no estorbes
-    box.classList.add('op');
-    box.innerHTML = `<p class="scan-hint">Pulsa Enter para contar el código <code>${escapeHTML(q)}</code></p>`;
-    return;
-  }
-
-  const tokens = scanTokens(q);
-  if (!tokens.length) { box.innerHTML = ''; box.classList.remove('op'); return; }
-
-  const hits = scanRankHits(invRows.filter(r => scanMatch(r, tokens)), tokens).slice(0, 25);
-
+  const hits = scanSearchHits(q);
   box.classList.add('op');
   if (!hits.length) {
-    box.innerHTML = `
-      <p class="scan-hint">Nada con “${escapeHTML(q)}” en tu lista de precios.</p>
-      <button class="btn-ghost scan-wide" onclick="scanBrowseOpen()">📖 Explorar por categoría (sin código)</button>
-      <button class="btn-p scan-wide" onclick="scanNewOpen('')">➕ Crear producto nuevo</button>`;
+    box.innerHTML = scanIsCode(q)
+      ? `<p class="scan-hint">Código no registrado. Pulsa Enter para contarlo — quedará por vincular.</p>`
+      : `<p class="scan-hint">Nada con “${escapeHTML(q)}” en tu lista de precios.</p>
+         <button class="btn-ghost scan-wide" onclick="scanBrowseOpen()">📖 Explorar por categoría (sin código)</button>
+         <button class="btn-p scan-wide" onclick="scanNewOpen('')">➕ Crear producto nuevo</button>`;
     return;
   }
   box.innerHTML = hits.map(r => {
     const n = scanTally[r.id]?.n ?? 0;
+    const bc = r.barcode ? ` · ${escapeHTML(r.barcode)}` : ' · sin código';
     return `
     <button class="scan-hit" onclick="scanPickRow('${r.id}')">
       <span class="scan-hit-name">${escapeHTML(r.jjp_products?.name || '—')}</span>
-      <span class="scan-hit-sub">${escapeHTML(invLabel(r))} · SKU ${escapeHTML(r.sku || '—')}</span>
-      <span class="scan-hit-n">${n > 0 ? `contadas: ${n} · +1` : '+1'}</span>
+      <span class="scan-hit-sub">${escapeHTML(invLabel(r))} · SKU ${escapeHTML(r.sku || '—')}${bc}</span>
+      <span class="scan-hit-n">${n > 0 ? `lleva ${n} · +1` : '+1'}</span>
     </button>`;
   }).join('');
 }
@@ -735,6 +761,8 @@ function scanRenderActive() {
       <input type="number" min="0" class="fi scan-count-in" value="${n}"
         onchange="scanSetCounted(this.value)" aria-label="Unidades contadas">
       <button class="qb" onclick="scanBump(1)" aria-label="Sumar uno">+</button>
+      <button class="qb" onclick="scanBump(5)" aria-label="Sumar cinco">+5</button>
+      <button class="qb" onclick="scanBump(10)" aria-label="Sumar diez">+10</button>
       <span class="scan-hint">se guarda solo</span>
     </div>`;
 }

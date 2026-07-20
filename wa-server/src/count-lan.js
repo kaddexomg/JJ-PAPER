@@ -80,14 +80,18 @@ function rebuildIndex() {
 // ---- Catálogo + dueño desde Supabase (cuando hay internet) ----
 async function detectOwner() {
   if (state.ownerId) return;
-  const { data } = await db.from('jjp_count_tally')
-    .select('owner_id').eq('session_key', state.session).limit(1);
-  if (data?.[0]?.owner_id) state.ownerId = data[0].owner_id;
+  const { data } = await withTimeout(
+    db.from('jjp_count_tally').select('owner_id').eq('session_key', state.session).limit(1), 6000);
+  if (data?.[0]?.owner_id) { state.ownerId = data[0].owner_id; saveBuffer(); }
 }
 
 async function refreshCatalog() {
-  const { data, error } = await db.rpc('jjp_count_catalog', { p_only_active: true });
-  if (error || !data) return false;
+  let data, error;
+  try { ({ data, error } = await withTimeout(db.rpc('jjp_count_catalog', { p_only_active: true }), 12000)); }
+  catch (e) { markProbe(false, e); return false; }
+  if (error) { markProbe(false, error); return false; }
+  markProbe(true);
+  if (!data) return false;
   state.catalog = data.map(r => ({
     id: r.variant_id, barcode: r.barcode, sku: r.sku, name: r.product_name,
     emoji: r.emoji, brand: r.brand_name, category: r.category_name,
@@ -163,46 +167,93 @@ function resolveUnknown(code) {
   saveBuffer();
 }
 
-// ---- Sincronización con Supabase ----
-async function checkOnline() {
-  try {
-    const { error } = await db.from('jjp_settings').select('key', { head: true, count: 'exact' }).limit(1);
-    online = !error;
-  } catch (e) { online = false; }
-  if (online && !state.ownerId) await detectOwner().catch(() => {});
-  broadcast('online', { online, pending: state.pending.length });
+// ---- Conexión con Supabase (robusta) ----
+// CLAVE: sólo un fallo de RED marca offline. Un error lógico de Postgres
+// significa que SÍ llegamos al servidor → seguimos online. Antes cualquier
+// error de una RPC apagaba la conexión y hacía "flapping" (se veía offline
+// con internet). Además toda llamada lleva timeout para no quedar colgado.
+function isNetworkError(err) {
+  if (!err) return false;
+  if (err.code || err.status || err.statusCode) return false;   // hubo respuesta del servidor
+  const m = (err.message || err.toString() || '').toLowerCase();
+  return err.name === 'AbortError' || err.name === 'TypeError'
+      || m.includes('fetch') || m.includes('network') || m.includes('timeout')
+      || m.includes('enotfound') || m.includes('econn') || m.includes('getaddrinfo')
+      || m.includes('socket') || m.includes('dns') || m.includes('failed');
 }
 
+function setOnline(v) {
+  if (online === v) { return; }
+  online = v;
+  log.info({ online }, 'count-lan: ' + (online ? 'CONECTADO' : 'sin internet'));
+  broadcast('online', { online, pending: state.pending.length });
+  if (online) syncNow().catch(() => {});   // al reconectar, sube lo pendiente ya
+}
+function markProbe(ok, err) {
+  if (ok) return setOnline(true);
+  if (isNetworkError(err)) return setOnline(false);
+  return setOnline(true);   // error lógico → estamos online igual
+}
+
+// Ejecuta una consulta de Supabase con timeout (evita quedarse "esperando")
+async function withTimeout(builder, ms = 8000) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), ms);
+  try { return await builder.abortSignal(ctrl.signal); }
+  finally { clearTimeout(to); }
+}
+
+async function checkOnline() {
+  try {
+    const { error } = await withTimeout(
+      db.from('jjp_product_variants').select('id', { head: true }).limit(1), 6000);
+    markProbe(!error, error);
+  } catch (e) { markProbe(false, e); }
+  if (online && !state.ownerId) await detectOwner().catch(() => {});
+}
+
+// ---- Subida a Supabase ----
+let syncing = false;
 async function syncNow() {
-  if (!online || !state.pending.length || !state.ownerId) return;
-  const sent = state.pending.splice(0, state.pending.length);   // saca todo; lo nuevo entra en la próxima vuelta
-  // Agrupa por persona y por variante para conservar la atribución
-  const byDevice = {};
-  for (const p of sent) {
-    const dev = p.by || 'LAN';
-    byDevice[dev] = byDevice[dev] || {};
-    byDevice[dev][p.v] = (byDevice[dev][p.v] || 0) + p.d;
-  }
-  const failed = [];
-  for (const [dev, map] of Object.entries(byDevice)) {
-    const items = Object.entries(map).map(([v, d]) => ({ v, d }));
-    const { data, error } = await db.rpc('jjp_count_apply_batch', {
-      p_owner: state.ownerId, p_session: state.session, p_by: dev, p_items: items
-    });
-    if (error) {
-      // devuelve lo de este device al buffer para reintentar
-      for (const [v, d] of Object.entries(map)) failed.push({ v, d, by: dev, at: Date.now() });
-      online = false;
-      log.warn({ err: error.message }, 'count-lan: falló la subida, se reintenta');
-    } else if (data?.totals) {
-      for (const [v, total] of Object.entries(data.totals)) state.base[v] = total;
+  if (syncing || !state.pending.length || !state.ownerId) return;  // sin guard de "online": el intento se auto-diagnostica
+  syncing = true;
+  try {
+    const sent = state.pending.splice(0, state.pending.length);   // saca todo; lo nuevo entra en la próxima vuelta
+    const byDevice = {};
+    for (const p of sent) {
+      const dev = p.by || 'LAN';
+      byDevice[dev] = byDevice[dev] || {};
+      byDevice[dev][p.v] = (byDevice[dev][p.v] || 0) + p.d;
     }
-  }
-  if (failed.length) state.pending.unshift(...failed);
-  state.syncedAt = new Date().toISOString();
-  saveBuffer();
-  broadcast('state', publicState());
-  if (!failed.length) log.info({ applied: sent.length }, 'count-lan: conteo subido a Supabase');
+    const failed = [];
+    let netDown = false, appliedAny = false;
+    for (const [dev, map] of Object.entries(byDevice)) {
+      if (netDown) { for (const [v, d] of Object.entries(map)) failed.push({ v, d, by: dev, at: Date.now() }); continue; }
+      try {
+        const { data, error } = await withTimeout(db.rpc('jjp_count_apply_batch', {
+          p_owner: state.ownerId, p_session: state.session, p_by: dev, p_items: Object.entries(map).map(([v, d]) => ({ v, d }))
+        }), 9000);
+        if (error) {
+          for (const [v, d] of Object.entries(map)) failed.push({ v, d, by: dev, at: Date.now() });
+          markProbe(false, error);
+          if (isNetworkError(error)) netDown = true;
+          else log.warn({ err: error.message }, 'count-lan: error lógico al subir (se reintenta)');
+        } else {
+          appliedAny = true;
+          markProbe(true);
+          if (data?.totals) for (const [v, total] of Object.entries(data.totals)) state.base[v] = total;
+        }
+      } catch (e) {
+        for (const [v, d] of Object.entries(map)) failed.push({ v, d, by: dev, at: Date.now() });
+        markProbe(false, e); netDown = true;
+      }
+    }
+    if (failed.length) state.pending.unshift(...failed);
+    state.syncedAt = new Date().toISOString();
+    saveBuffer();
+    broadcast('state', publicState());
+    if (appliedAny) log.info({ pending: state.pending.length }, 'count-lan: conteo subido a Supabase');
+  } finally { syncing = false; }
 }
 
 // ---- SSE ----

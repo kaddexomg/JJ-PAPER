@@ -82,6 +82,22 @@
   .warn { background:#3a2410; border:1px solid #c9902b; color:#ffd699; border-radius:12px;
     padding:14px; font-size:14px; line-height:1.45; }
 
+  /* Cantidad rápida (contar cajas: +5, +10, o N de una) */
+  .quick { display:flex; gap:6px; align-items:center; }
+  .quick .qb { flex:1; height:44px; border-radius:10px; border:1px solid #2c5647; background:#123a2c;
+    color:#eaf5ee; font-size:16px; font-weight:800; cursor:pointer; }
+  .quick .qb.minus { background:#3a1a1a; border-color:#6b2f2f; }
+  .quick .qn { width:60px; height:44px; text-align:center; border-radius:10px; border:1px solid #2c5647;
+    background:#0c231b; color:#eaf5ee; font-size:16px; }
+  .quick .qadd { height:44px; padding:0 12px; border-radius:10px; border:0; background:#99CC33;
+    color:#06231a; font-weight:800; cursor:pointer; }
+  .quick-name { font-size:12px; color:#9fc7b3; margin:0 0 4px; }
+  .recents { display:flex; flex-wrap:wrap; gap:6px; }
+  .rchip { background:#0c231b; border:1px solid #2c5647; color:#eaf5ee; border-radius:999px;
+    padding:8px 12px; font-size:13px; cursor:pointer; max-width:100%; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .rchip b { color:#99CC33; }
+
   .dev-modal { position:fixed; inset:0; background:rgba(0,10,7,.94); display:none;
     align-items:center; justify-content:center; padding:20px; z-index:50; }
   .dev-modal.op { display:flex; }
@@ -129,6 +145,19 @@
       </div>
     </div>
 
+    <!-- Cantidad rápida del último producto contado (cajas: +5, +10, o N) -->
+    <div id="quick" class="hidden" style="margin-top:9px">
+      <div class="quick-name" id="quickName"></div>
+      <div class="quick">
+        <button class="qb minus" onclick="quickAdd(-1)">−1</button>
+        <button class="qb" onclick="quickAdd(1)">+1</button>
+        <button class="qb" onclick="quickAdd(5)">+5</button>
+        <button class="qb" onclick="quickAdd(10)">+10</button>
+        <input class="qn" id="quickN" type="number" inputmode="numeric" min="1" placeholder="N">
+        <button class="qadd" onclick="quickAddN()">Agregar</button>
+      </div>
+    </div>
+
     <div class="stats" style="margin-top:9px">
       <div class="stat"><b id="stProd">0</b><span>productos</span></div>
       <div class="stat"><b id="stUnid">0</b><span>unidades</span></div>
@@ -136,9 +165,10 @@
     </div>
 
     <form class="row" id="searchForm" style="margin-top:9px">
-      <input type="text" id="q" placeholder="🔍 Nombre, marca, SKU — o escribe el código" autocomplete="off">
+      <input type="text" id="q" placeholder="🔍 Nombre, marca, SKU o código (parcial sirve)" autocomplete="off">
       <button class="btn btn-p" type="submit">Buscar</button>
     </form>
+    <div class="recents" id="recents" style="margin-top:6px"></div>
     <div class="results" id="results"></div>
 
     <div class="row" style="margin-top:2px">
@@ -173,6 +203,9 @@ let byBarcode = new Map();
 let seen = {};                          // anti doble lectura de cámara
 let detector = null, stream = null, timer = null;
 let browsing = null;                    // {cat} | null
+let lastVariant = null;                 // {id,name} último contado (para +N)
+let recents = [];                       // [{id,name}] atajos de recientes
+let serverUp = true;                    // ¿responde el servidor local?
 
 // ---------- Arranque ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -189,6 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadCatalog();
   startFeed();
+  startPolling();                       // respaldo estable aunque el SSE se caiga
   await startCamera();
 });
 
@@ -220,17 +254,34 @@ async function loadCatalog() {
   } catch (e) {}
 }
 
-// ---------- Feed en vivo (SSE) ----------
+// ---------- Feed en vivo (SSE) — mejora, no requisito ----------
+// El conteo NUNCA depende de esto: cada toque cuenta por POST directo.
+// El SSE sólo pinta en vivo lo de los demás; si se cae, el polling cubre.
+let es = null;
 function startFeed() {
-  const es = new EventSource(BASE + '/lan/feed');
+  try { if (es) es.close(); } catch (e) {}
+  es = new EventSource(BASE + '/lan/feed');
   es.addEventListener('state', e => applyState(JSON.parse(e.data)));
   es.addEventListener('online', e => { const d = JSON.parse(e.data); renderSync(d.online, d.pending); });
   es.addEventListener('scan', e => {
     const r = JSON.parse(e.data);
-    // refleja escaneos de OTROS equipos (los propios ya se pintaron)
-    if (r.device && r.device !== device && r.ok) flashOther(r);
+    if (r.device && r.device !== device && r.ok) flashOther(r);   // escaneo de OTRO equipo
   });
-  es.onerror = () => setSync('off', 'Reconectando con la PC…');
+  es.onerror = () => {};   // EventSource reintenta solo; no asustamos al usuario
+}
+
+// Respaldo estable: aunque el SSE muera, refrescamos estado y salud del server.
+function startPolling() {
+  setInterval(async () => {
+    try {
+      const r = await fetch(BASE + '/lan/state', { cache: 'no-store' });
+      applyState(await r.json());
+      if (!serverUp) { serverUp = true; startFeed(); }   // servidor volvió → reabre SSE
+    } catch (e) {
+      serverUp = false;
+      setSync('off', 'Reconectando con la PC…');
+    }
+  }, 3000);
 }
 
 let lastState = null;
@@ -310,6 +361,7 @@ function showResult(r, code) {
       r.dupe ? 'Contado · código compartido, revisar' : 'Contado', r.counted);
     cam.className = 'cam hit';
     if (navigator.vibrate) navigator.vibrate(40);
+    if (r.variant_id) { lastVariant = { id: r.variant_id, name: r.name }; addRecent(lastVariant); renderQuick(); }
   } else if (r && r.kind === 'nuevo') {
     feedback('new', '❓', 'Código no registrado', (code || r.code) + ' — quedará para vincular en la PC');
     cam.className = 'cam miss';
@@ -337,43 +389,98 @@ function feedback(kind, icon, name, sub, count) {
     (count != null ? `<div class="fb-count">${count}</div>` : '');
 }
 
-// ---------- Búsqueda / explorar ----------
+// ---------- Cantidad rápida (contar cajas de una) ----------
+function renderQuick() {
+  if (!lastVariant) { $('quick').classList.add('hidden'); return; }
+  $('quick').classList.remove('hidden');
+  $('quickName').textContent = 'Último: ' + (lastVariant.name || '');
+}
+function quickAdd(delta) { if (lastVariant) pick(lastVariant.id, delta); }
+function quickAddN() {
+  const n = parseInt($('quickN').value, 10);
+  if (lastVariant && n) { pick(lastVariant.id, n); $('quickN').value = ''; }
+}
+
+// ---------- Recientes (atajos para re-contar rápido) ----------
+function addRecent(v) {
+  recents = recents.filter(x => x.id !== v.id);
+  recents.unshift(v);
+  recents = recents.slice(0, 8);
+  renderRecents();
+}
+function renderRecents() {
+  const box = $('recents');
+  if (!box) return;
+  if (($('q').value || '').trim() || !recents.length) { box.innerHTML = ''; return; }
+  box.innerHTML = recents.map(v =>
+    `<button class="rchip" onclick="pick('${v.id}')">${esc(v.name || '—')} <b>+1</b></button>`).join('');
+}
+
+// ---------- Búsqueda inteligente / explorar ----------
 function tokens(q) { return norm(q).split(/\s+/).filter(t => t.length >= 2); }
-function rowText(r) { return norm(`${r.name || ''} ${r.brand || ''} ${r.sku || ''}`); }
-function isCode(v) { return /^\d{6,}$/.test(v.trim()); }
+function isFullCode(v) { return /^\d{6,}$/.test(v.trim()); }
+
+// Puntúa cada producto: exacto (SKU/código) manda; luego sufijo de código,
+// empieza-con, incluye, y cobertura de TODAS las palabras. Ordena por score.
+function searchHits(qraw) {
+  const q = norm(qraw), toks = tokens(qraw), digits = qraw.replace(/\D/g, '');
+  const out = [];
+  for (const r of catalog) {
+    const name = norm(r.name), sku = norm(r.sku), brand = norm(r.brand), bc = String(r.barcode || '');
+    let s = 0;
+    if (sku && sku === q) s += 1000;
+    if (bc && bc === qraw.trim()) s += 1000;
+    if (bc && digits.length >= 4 && bc.endsWith(digits)) s += 500;      // código parcial (últimos dígitos)
+    if (sku && sku.startsWith(q)) s += 230;
+    if (name.startsWith(q)) s += 200;
+    if (q.length >= 2 && name.includes(q)) s += 90;
+    if (q.length >= 2 && brand.includes(q)) s += 30;
+    if (toks.length) {
+      let tok = 0, all = true;
+      for (const t of toks) {
+        if (name.includes(t)) tok += 45; else if (brand.includes(t)) tok += 18;
+        else if (sku.includes(t)) tok += 22; else { all = false; break; }
+      }
+      if (all) s += tok + 25;                                           // todas las palabras aparecen
+    }
+    if (s > 0) out.push([s, r]);
+  }
+  out.sort((a, b) => b[0] - a[0] || norm(a[1].name).localeCompare(norm(b[1].name)));
+  return out.slice(0, 30).map(x => x[1]);
+}
 
 function onSearch(ev) {
   ev.preventDefault();
   const q = $('q').value.trim();
   if (!q) return;
-  if (isCode(q)) { $('q').value = ''; onQuery(''); scan(q); return; }
-  const t = tokens(q);
-  const hits = catalog.filter(r => t.every(tok => rowText(r).includes(tok)));
-  if (hits.length === 1) { pick(hits[0].id); return; }
+  const hits = searchHits(q);
+  if (hits.length === 1) { pick(hits[0].id); return; }               // único candidato → cuenta directo
+  if (isFullCode(q) && !hits.length) { $('q').value = ''; onQuery(''); scan(q); return; }  // código no listado → a la cola
   onQuery(q);
 }
 
 function onQuery(q) {
   browsing = null;
+  renderRecents();
   const box = $('results');
   q = (q || '').trim();
   if (!q) { box.innerHTML = ''; return; }
-  if (isCode(q)) { box.innerHTML = `<div class="fb-sub" style="padding:8px">Pulsa Enter para contar el código <b>${esc(q)}</b></div>`; return; }
-  const t = tokens(q);
-  if (!t.length) { box.innerHTML = ''; return; }
-  const hits = catalog.filter(r => t.every(tok => rowText(r).includes(tok))).slice(0, 30);
-  box.innerHTML = hits.length ? hits.map(itemHtml).join('')
-    : '<div class="fb-sub" style="padding:8px">Sin coincidencias.</div>';
+  const hits = searchHits(q);
+  if (hits.length) { box.innerHTML = hits.map(itemHtml).join(''); return; }
+  box.innerHTML = isFullCode(q)
+    ? `<div class="fb-sub" style="padding:8px">Código no registrado. Pulsa Enter para contarlo — quedará para vincular en la PC.</div>`
+    : `<div class="fb-sub" style="padding:8px">Sin coincidencias. Prueba con menos palabras o usa 📖 Sin código.</div>`;
 }
 
 function itemHtml(r) {
   const n = (lastState?.tally || {})[r.id] || 0;
   const thumb = r.image_url ? `<img src="${esc(r.image_url)}" alt="">` : `<span style="font-size:22px">${r.emoji || '📦'}</span>`;
+  const bc = r.barcode ? ` · ${esc(r.barcode)}` : ' · sin código';
   return `<button class="hit" onclick="pick('${r.id}')">
     ${thumb}
     <span class="h-b"><span class="h-n">${esc(r.name || '—')}</span>
-      <span class="h-s">${esc(r.brand || 'Genérica')} · SKU ${esc(r.sku || '—')}</span></span>
-    <span class="h-c">${n > 0 ? n + ' · +1' : '+1'}</span>
+      <span class="h-s">${esc(r.brand || 'Genérica')} · SKU ${esc(r.sku || '—')}${bc}</span></span>
+    <span class="h-c">${n > 0 ? 'lleva ' + n + ' · +1' : '+1'}</span>
   </button>`;
 }
 

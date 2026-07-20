@@ -272,14 +272,26 @@ function publicState() {
 }
 
 // ---- Utilidades HTTP ----
+// Elige la IP de la WiFi/LAN real. Descarta adaptadores virtuales/VPN
+// (CloudflareWARP, VMware, Hyper-V, Tailscale…) que el teléfono NO alcanza,
+// y prioriza el rango doméstico 192.168 > 10 > 172.16-31.
+// Se puede forzar con la variable de entorno COUNT_LAN_IP.
 function lanIp() {
+  if (process.env.COUNT_LAN_IP) return process.env.COUNT_LAN_IP;
   const ifaces = os.networkInterfaces();
+  const bad = /warp|vmware|virtualbox|hyper-?v|vethernet|loopback|tailscale|zerotier|docker|wsl|\btun\b|\btap\b|radmin|virtual/i;
+  const cands = [];
   for (const name of Object.keys(ifaces)) {
     for (const i of ifaces[name] || []) {
-      if (i.family === 'IPv4' && !i.internal) return i.address;
+      if (i.family !== 'IPv4' || i.internal) continue;
+      if (bad.test(name)) continue;                    // fuera VPN/virtuales
+      cands.push({ name, ip: i.address });
     }
   }
-  return '127.0.0.1';
+  const rank = ip => ip.startsWith('192.168.') ? 3 : ip.startsWith('10.') ? 2
+    : /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ? 1 : 0;
+  cands.sort((a, b) => rank(b.ip) - rank(a.ip));
+  return cands[0]?.ip || '127.0.0.1';
 }
 
 const MIME = {

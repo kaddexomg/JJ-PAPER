@@ -14,3 +14,4 @@ node_modules/
 # Sistema
 Thumbs.db
 Desktop.ini
+dist/

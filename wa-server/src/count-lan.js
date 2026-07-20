@@ -304,16 +304,33 @@ function readBody(req) {
   });
 }
 
+// Sólo se sirve la app web. Se BLOQUEA todo lo sensible: el propio wa-server
+// (contiene .env con la service_role key), node_modules, .git, y cualquier
+// archivo/carpeta oculto (dotfiles). Además sólo extensiones web conocidas.
+const BLOCKED_SEG = new Set(['wa-server', 'node_modules', '.git', 'sessions']);
+const SERVE_EXT = new Set(Object.keys(MIME));   // .html/.js/.css/.svg/.png/…
+
 function serveStatic(req, res, urlPath) {
   let rel = decodeURIComponent(urlPath.split('?')[0]);
-  if (rel === '/' ) rel = '/index.html';
-  // sin traversal
+  if (rel === '/') rel = '/index.html';
+
+  const segs = rel.split('/').filter(Boolean);
+  // Bloquea dotfiles (.env, .git…) y carpetas sensibles en cualquier nivel
+  if (segs.some(s => s.startsWith('.') || BLOCKED_SEG.has(s.toLowerCase()))) {
+    res.writeHead(403); return res.end('forbidden');
+  }
+
   const full = path.normalize(path.join(REPO_ROOT, rel));
-  if (!full.startsWith(REPO_ROOT)) { res.writeHead(403); res.end('forbidden'); return; }
+  if (full !== REPO_ROOT && !full.startsWith(REPO_ROOT + path.sep)) {   // sin traversal
+    res.writeHead(403); return res.end('forbidden');
+  }
+
+  const ext = path.extname(full).toLowerCase();
+  if (!SERVE_EXT.has(ext)) { res.writeHead(403); return res.end('tipo no permitido'); }
+
   fs.stat(full, (err, st) => {
-    if (err || !st.isFile()) { res.writeHead(404); res.end('no encontrado'); return; }
-    const ext = path.extname(full).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    if (err || !st.isFile()) { res.writeHead(404); return res.end('no encontrado'); }
+    res.writeHead(200, { 'Content-Type': MIME[ext], 'X-Content-Type-Options': 'nosniff' });
     fs.createReadStream(full).pipe(res);
   });
 }

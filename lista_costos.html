@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista de Costos | JJ Paper</title>
+<link rel="icon" href="assets/img/logo.svg">
+<style>
+  :root { --doc-c:#16604A; --doc-a:#C9A24B; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#1a1a1a; background:#eef1f0; padding:20px; }
+  .sheet { max-width:850px; margin:0 auto; background:#fff; padding:34px 38px; border-radius:8px;
+    box-shadow:0 4px 24px rgba(0,0,0,.1); }
+  .cmp-head { display:flex; justify-content:space-between; align-items:flex-start; gap:20px;
+    border-bottom:3px solid var(--doc-c); padding-bottom:16px; margin-bottom:16px; }
+  .cmp-biz { display:flex; gap:12px; align-items:center; }
+  .cmp-biz img { width:56px; height:56px; object-fit:contain; }
+  .cmp-biz h1 { font-size:20px; color:var(--doc-c); line-height:1.1; }
+  .cmp-biz .meta { font-size:12px; color:#555; margin-top:3px; }
+  .cmp-doc { text-align:right; }
+  .cmp-doc .tag { display:inline-block; background:var(--doc-c); color:#fff; font-weight:700;
+    font-size:12px; padding:4px 10px; border-radius:5px; letter-spacing:.5px; }
+  .cmp-doc .date { font-size:12px; color:#555; margin-top:6px; }
+
+  .cat-section { margin-top:20px; page-break-inside:avoid; }
+  .cat-header { background:var(--doc-c); color:#fff; font-size:14px; font-weight:700; padding:7px 12px; border-radius:4px; margin-bottom:6px; display:flex; justify-content:space-between; }
+  
+  table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  thead th { background:#f0f4f2; color:var(--doc-c); font-size:12px; text-align:left; padding:6px 10px; border-bottom:2px solid var(--doc-c); }
+  thead th.r { text-align:right; } thead th.c { text-align:center; }
+  tbody td { padding:7px 10px; border-bottom:1px solid #e5e9e7; font-size:12.5px; }
+  tbody td.r { text-align:right; font-weight:600; } tbody td.c { text-align:center; }
+  tbody tr:nth-child(even) { background:#fafcfb; }
+
+  .cmp-foot { margin-top:24px; border-top:1px solid #e5e9e7; padding-top:14px; font-size:11px; color:#777; text-align:center; }
+  .toolbar { max-width:850px; margin:0 auto 14px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+  .btn { border:0; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .btn-p { background:var(--doc-c); color:#fff; }
+  .btn-g { background:#dfe5e2; color:var(--doc-c); }
+  .loading, .err { max-width:850px; margin:40px auto; text-align:center; color:#555; }
+  .err { color:#b00; }
+
+  @media print {
+    body { background:#fff; padding:0; }
+    .sheet { box-shadow:none; border-radius:0; max-width:none; padding:16px 20px; }
+    .toolbar { display:none; }
+    @page { margin:10mm; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar" id="toolbar" style="display:none">
+  <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir Lista</button>
+  <button class="btn btn-g" onclick="window.close()">Cerrar</button>
+</div>
+
+<div id="content"><div class="loading">Cargando lista de costos…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/admin/auth.js"></script>
+<script>
+(async () => {
+  const content = document.getElementById('content');
+  const session = await requireAuth('vendedor');
+  if (!session) return;
+  await loadSettings();
+  applyDocTheme();
+
+  // Obtener variantes de productos con sus categorías (incluyendo cost_usd y price_usd)
+  const select = 'id,sku,cost_usd,price_usd,variant_name,jjp_brands(name),'
+    + 'jjp_products(name,jjp_categories(name,sort_order))';
+  
+  let out = [], CHUNK = 1000;
+  for (let from = 0; ; from += CHUNK) {
+    const { data, error } = await sb.from('jjp_product_variants')
+      .select(select)
+      .eq('active', true)
+      .range(from, from + CHUNK - 1);
+      
+    if (error) { 
+      content.innerHTML = '<div class="err">Error al obtener lista de productos/costos.</div>'; 
+      console.error(error); 
+      return; 
+    }
+    out.push(...(data || []));
+    if (!data || data.length < CHUNK) break;
+  }
+
+  renderList(out);
+  document.getElementById('toolbar').style.display = 'flex';
+})();
+
+function applyDocTheme() {
+  const s = APP.SETTINGS || {};
+  const okColor = c => /^#[0-9a-fA-F]{3,8}$/.test((c || '').trim());
+  if (okColor(s.doc_color))  document.documentElement.style.setProperty('--doc-c', s.doc_color.trim());
+  if (okColor(s.doc_accent)) document.documentElement.style.setProperty('--doc-a', s.doc_accent.trim());
+}
+
+function renderList(variants) {
+  const s = APP.SETTINGS || {};
+  const bizName  = s.business_name || s.site_name || 'JJ Paper';
+  const logoUrl  = s.doc_logo_url || 'assets/img/logo.svg';
+
+  // Permite verificar si la URL solicita modo costo (?mode=cost) o por defecto precio público
+  const params = new URLSearchParams(location.search);
+  const isCostMode = params.get('mode') === 'cost';
+  const priceLabel = isCostMode ? 'Costo (USD)' : 'Precio (USD)';
+  const docTitle   = isCostMode ? 'LISTA DE COSTOS' : 'LISTA DE PRECIOS';
+
+  // Agrupar por categoría
+  const groups = {};
+  variants.forEach(v => {
+    const catName = v.jjp_products?.jjp_categories?.name || 'Sin Categoría';
+    if (!groups[catName]) groups[catName] = [];
+    groups[catName].push(v);
+  });
+
+  // Ordenar categorías alfabéticamente
+  const sortedCats = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
+
+  let htmlCategories = '';
+  let totalItems = 0;
+
+  sortedCats.forEach(cat => {
+    const items = groups[cat];
+    // Ordenar productos dentro de la categoría por nombre de producto
+    items.sort((a, b) => {
+      const nameA = (a.jjp_products?.name || '') + ' ' + (a.jjp_brands?.name || '') + ' ' + (a.variant_name || '');
+      const nameB = (b.jjp_products?.name || '') + ' ' + (b.jjp_brands?.name || '') + ' ' + (b.variant_name || '');
+      return nameA.localeCompare(nameB, 'es');
+    });
+
+    totalItems += items.length;
+
+    const rowsHtml = items.map(i => {
+      const pName = escapeHTML(i.jjp_products?.name || '—');
+      const bName = i.jjp_brands?.name ? ` <small style="color:#666">(${escapeHTML(i.jjp_brands.name)})</small>` : '';
+      const vName = (i.variant_name && i.variant_name !== 'Única' && i.variant_name !== 'Estándar') ? ` <small style="color:#555">· ${escapeHTML(i.variant_name)}</small>` : '';
+      const sku = escapeHTML(i.sku || '—');
+      const valUSD = isCostMode ? (i.cost_usd || 0) : (i.price_usd || 0);
+      const valFormatted = fmtPrice(valUSD);
+
+      return `<tr>
+        <td style="font-family:monospace;font-size:12px;color:#444">${sku}</td>
+        <td>${pName}${bName}${vName}</td>
+        <td class="r">${valFormatted}</td>
+      </tr>`;
+    }).join('');
+
+    htmlCategories += `
+      <div class="cat-section">
+        <div class="cat-header">
+          <span>📂 ${escapeHTML(cat)}</span>
+          <span style="font-weight:normal;font-size:12px">${items.length} ítems</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:140px">SKU</th>
+              <th>Producto / Marca</th>
+              <th class="r" style="width:120px">${priceLabel}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>`;
+  });
+
+  const nowStr = new Date().toLocaleDateString('es-VE', { year:'numeric', month:'long', day:'numeric' });
+
+  document.getElementById('content').innerHTML = `
+  <div class="sheet">
+    <div class="cmp-head">
+      <div class="cmp-biz">
+        <img src="${escapeHTML(logoUrl)}" alt="">
+        <div>
+          <h1>${escapeHTML(bizName)}</h1>
+          <div class="meta">
+            ${s.rif ? 'RIF: ' + escapeHTML(s.rif) + '<br>' : ''}
+            ${s.address ? escapeHTML(s.address) + '<br>' : ''}
+          </div>
+        </div>
+      </div>
+      <div class="cmp-doc">
+        <span class="tag">${docTitle}</span>
+        <div class="date">${nowStr}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px">${totalItems} artículos en total</div>
+      </div>
+    </div>
+
+    ${htmlCategories || '<div class="err">No hay productos disponibles.</div>'}
+
+    <div class="cmp-foot">
+      ${isCostMode ? 'Documento interno confidencial — Lista de costos' : 'Lista de precios en Divisas (USD)'} por categoría (${bizName})
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>

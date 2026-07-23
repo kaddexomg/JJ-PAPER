@@ -23,11 +23,17 @@ export const INVOICE_SWEEP_MS  = 60_000;  // avisos de facturas por pagar (los g
 export const EMAIL_SWEEP_MS    = 20_000;  // barrido de correos pendientes (Gmail SMTP)
 export const MAX_RETRIES       = 3;
 
-// Correo del CRM por Gmail SMTP (gratis, con "contraseña de aplicación" de Google).
-// Si faltan, el envío de correos queda desactivado (el resto del server sigue igual).
+// Correo del CRM. Método principal: cada usuario VINCULA su Gmail con Google
+// (OAuth, permiso gmail.send) desde el panel — sin contraseñas. El server usa
+// estas credenciales de OAuth (las mismas del login con Google) para renovar el
+// acceso y enviar por la API de Gmail.
+export const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID || '';
+export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+
+// Respaldo opcional por SMTP (si algún día se usa una cuenta con contraseña de app).
 export const GMAIL_USER     = process.env.GMAIL_USER || '';
 export const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS || '';
-export const GMAIL_FROM     = process.env.GMAIL_FROM || '';   // ej: "JJ Paper <ventas@jjpaper.com>"
+export const GMAIL_FROM     = process.env.GMAIL_FROM || '';
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY en wa-server/.env');

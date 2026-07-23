@@ -11,17 +11,30 @@ const MAIL_STATUS = {
 };
 
 let MAIL_IS_ADMIN = false;
-let MAIL_COMPANY_READY = false;
 
 async function mailInit(me) {
   MAIL_ME = me;
   MAIL_IS_ADMIN = me.role === 'admin';
-  await mailLoadCompanyFlag();
+  await mailCaptureGmailLink();       // ¿volvemos de vincular con Google?
+  sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN') mailCaptureGmailLink(); });
   await mailLoadAccount();
   await mailLoad();
-  // Botón de "Correo de la empresa" solo para admin
   const cb = document.getElementById('mailCompanyBtn');
-  if (cb) cb.style.display = MAIL_IS_ADMIN ? 'inline-flex' : 'none';
+  if (cb) cb.style.display = 'none';   // método empresa/SMTP retirado: ahora es OAuth por usuario
+
+  // Vincular Gmail con Google (OAuth, permiso gmail.send) — sin contraseñas
+  window.linkGmailStart = async function () {
+    localStorage.setItem('jjp_link_gmail', '1');
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/gmail.send',
+        redirectTo: location.href.split('#')[0],
+        queryParams: { access_type: 'offline', prompt: 'consent' }
+      }
+    });
+    if (error) { localStorage.removeItem('jjp_link_gmail'); showToast('No se pudo abrir Google: ' + error.message, 'err'); }
+  };
   sb.channel('mail-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },
       () => mailLoadDebounced())
@@ -35,34 +48,45 @@ async function mailInit(me) {
 /* ---------- Mi correo (cuenta Gmail por usuario) ---------- */
 let MAIL_ACCT = null;
 
+// Captura el permiso de Google al volver de "Vincular con Google"
+async function mailCaptureGmailLink() {
+  if (localStorage.getItem('jjp_link_gmail') !== '1') return;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  localStorage.removeItem('jjp_link_gmail');
+  const refresh = session.provider_refresh_token;
+  const email = session.user?.email;
+  if (!refresh || !email) {
+    showToast('Google no devolvió el permiso de envío. Reintenta "Vincular con Google" y acepta el permiso.', 'warn', 6000);
+    return;
+  }
+  const { error } = await sb.from('jjp_email_accounts').upsert({
+    profile_id: MAIL_ME.id, email, provider: 'google',
+    oauth_refresh: refresh, app_pass: null, enabled: true, verified: false, last_error: null
+  }, { onConflict: 'profile_id' });
+  if (error) { showToast('No se pudo guardar el vínculo: ' + error.message, 'err'); return; }
+  showToast('Correo vinculado con Google ✅ (se verifica al prender el servidor)');
+  await mailLoadAccount();
+}
+
 async function mailLoadAccount() {
   const { data } = await sb.from('jjp_email_accounts')
-    .select('email,from_name,enabled,verified,last_error,app_pass')
+    .select('email,from_name,enabled,verified,last_error,app_pass,oauth_refresh')
     .eq('profile_id', MAIL_ME.id).maybeSingle();
   MAIL_ACCT = data || null;
   mailRenderAcctChip();
 }
 
-function mailAcctConfigured() { return !!(MAIL_ACCT?.email && MAIL_ACCT?.app_pass); }
-// Puede enviar si tiene su propia cuenta O si hay correo de empresa listo
-function mailCanSend() { return mailAcctConfigured() || MAIL_COMPANY_READY; }
-
-async function mailLoadCompanyFlag() {
-  const { data } = await sb.from('jjp_settings').select('value').eq('key', 'email_company_ready').maybeSingle();
-  MAIL_COMPANY_READY = data?.value === 'true';
-}
+function mailAcctConfigured() { return !!(MAIL_ACCT?.email && (MAIL_ACCT?.oauth_refresh || MAIL_ACCT?.app_pass)); }
+function mailCanSend() { return mailAcctConfigured(); }
 
 function mailRenderAcctChip() {
   const chip = document.getElementById('mailAcctChip');
   if (!chip) return;
-  if (mailAcctConfigured()) {
-    if (MAIL_ACCT.verified) { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🟢'; chip.className = 'wa-chip ok'; }
-    else if (MAIL_ACCT.last_error) { chip.textContent = '✉️ tu correo 🔴'; chip.className = 'wa-chip'; chip.title = MAIL_ACCT.last_error; }
-    else { chip.textContent = '✉️ verificando… 🕓'; chip.className = 'wa-chip'; }
-    return;
-  }
-  if (MAIL_COMPANY_READY) { chip.textContent = '🏢 Correo de la empresa 🟢'; chip.className = 'wa-chip ok'; chip.title = 'Enviarás desde el correo de la empresa con tu nombre'; return; }
-  chip.textContent = '⚙️ Correo no configurado'; chip.className = 'wa-chip';
+  if (!mailAcctConfigured()) { chip.textContent = '✉️ Vincular mi correo'; chip.className = 'wa-chip'; return; }
+  if (MAIL_ACCT.verified) { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🟢'; chip.className = 'wa-chip ok'; }
+  else if (MAIL_ACCT.last_error) { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🔴'; chip.className = 'wa-chip'; chip.title = MAIL_ACCT.last_error; }
+  else { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🕓'; chip.className = 'wa-chip'; chip.title = 'Se verifica al prender el servidor'; }
 }
 
 /* ---------- cuenta de EMPRESA (solo admin) ---------- */
@@ -101,18 +125,27 @@ async function mailSaveCompany() {
 function openMailAccount() {
   const m = document.getElementById('mailAcctModal');
   if (!m) return;
-  document.getElementById('acctEmail').value = MAIL_ACCT?.email || '';
-  document.getElementById('acctFromName').value = MAIL_ACCT?.from_name || '';
-  document.getElementById('acctPass').value = '';   // nunca precargar la contraseña
-  document.getElementById('acctPass').placeholder = mailAcctConfigured() ? '•••••••• (dejar vacío = no cambiar)' : 'contraseña de aplicación de Google';
   const st = document.getElementById('acctState');
   if (st) st.innerHTML = mailAcctConfigured()
-    ? (MAIL_ACCT.verified ? '🟢 Verificada' : MAIL_ACCT.last_error ? ('🔴 ' + escapeHTML(MAIL_ACCT.last_error)) : '🕓 Verificando…')
-    : '';
+    ? `Vinculado: <strong>${escapeHTML(MAIL_ACCT.email)}</strong> ${MAIL_ACCT.verified ? '🟢 listo' : MAIL_ACCT.last_error ? ('🔴 ' + escapeHTML(MAIL_ACCT.last_error)) : '🕓 se verifica al prender el servidor'}`
+    : 'Aún no vinculas tu correo. Toca <strong>Vincular con Google</strong>.';
+  const fn = document.getElementById('acctFromName'); if (fn) fn.value = MAIL_ACCT?.from_name || '';
+  const ae = document.getElementById('acctEmail'); if (ae) ae.value = MAIL_ACCT?.email || '';
+  const ap = document.getElementById('acctPass'); if (ap) ap.value = '';
   m.classList.add('op');
   if (typeof trapFocus === 'function') trapFocus(m);
 }
 function closeMailAccount() { document.getElementById('mailAcctModal')?.classList.remove('op'); }
+
+// Guardar solo el nombre visible (remitente)
+async function mailSaveFromName() {
+  const fromName = (document.getElementById('acctFromName')?.value || '').trim();
+  if (!mailAcctConfigured()) { showToast('Primero vincula tu correo con Google', 'warn'); return; }
+  const { error } = await sb.from('jjp_email_accounts').update({ from_name: fromName || null }).eq('profile_id', MAIL_ME.id);
+  if (error) { showToast('No se pudo guardar: ' + error.message, 'err'); return; }
+  if (MAIL_ACCT) MAIL_ACCT.from_name = fromName;
+  showToast('Nombre visible guardado ✅');
+}
 
 async function mailSaveAccount() {
   const email = (document.getElementById('acctEmail')?.value || '').trim();

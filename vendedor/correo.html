@@ -123,31 +123,27 @@
       <button class="modal-close" onclick="closeMailAccount()" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">
-      <p class="wa-link-note">Tus correos saldrán desde <strong>tu propia cuenta</strong>. Cada usuario configura la suya.</p>
+      <p class="wa-link-note">Vincula tu Gmail con <strong>un clic</strong> (sin contraseñas). Tus correos saldrán desde tu cuenta, con tu nombre.</p>
       <div id="acctState" style="margin:6px 0 12px;font-size:13px"></div>
-      <div class="fg" style="margin-bottom:12px">
-        <label class="fl" for="acctEmail">Correo Gmail</label>
-        <input class="fi" id="acctEmail" type="email" placeholder="tucorreo@gmail.com" autocomplete="off">
+      <button class="btn-p" style="width:100%;justify-content:center;gap:10px" onclick="linkGmailStart()">
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Vincular con Google
+      </button>
+      <div class="fg" style="margin-top:16px">
+        <label class="fl" for="acctFromName">Nombre visible (remitente)</label>
+        <div style="display:flex;gap:8px">
+          <input class="fi" id="acctFromName" placeholder="Juan · JJ Paper" autocomplete="off">
+          <button class="btn-o" onclick="mailSaveFromName()">Guardar</button>
+        </div>
       </div>
-      <div class="fg" style="margin-bottom:12px">
-        <label class="fl" for="acctFromName">Nombre visible (opcional)</label>
-        <input class="fi" id="acctFromName" placeholder="Juan · JJ Paper" autocomplete="off">
-      </div>
-      <div class="fg" style="margin-bottom:14px">
-        <label class="fl" for="acctPass">Contraseña de aplicación</label>
-        <input class="fi" id="acctPass" type="password" autocomplete="new-password">
-      </div>
-      <details style="margin-bottom:14px;font-size:12px;color:var(--gr,#777)">
-        <summary style="cursor:pointer">¿Cómo saco la contraseña de aplicación?</summary>
-        <ol style="margin:8px 0 0 18px;line-height:1.6">
-          <li>Cuenta de Google → <strong>Seguridad</strong></li>
-          <li>Activa la <strong>Verificación en 2 pasos</strong></li>
-          <li>Busca <strong>Contraseñas de aplicaciones</strong> → crea una (nombre: JJ Paper)</li>
-          <li>Copia los 16 caracteres y pégalos aquí (con o sin espacios)</li>
-        </ol>
-        <p style="margin-top:8px">Es una clave aparte SOLO para enviar correos; no es tu contraseña normal y puedes revocarla cuando quieras.</p>
+      <details style="margin-top:16px;font-size:12px;color:var(--gr,#777)">
+        <summary style="cursor:pointer">Avanzado: usar SMTP con contraseña de aplicación</summary>
+        <div class="fg" style="margin-top:8px"><label class="fl" for="acctEmail">Correo</label>
+          <input class="fi" id="acctEmail" type="email" placeholder="tucorreo@gmail.com" autocomplete="off"></div>
+        <div class="fg" style="margin-top:8px"><label class="fl" for="acctPass">Contraseña de aplicación</label>
+          <input class="fi" id="acctPass" type="password" autocomplete="new-password"></div>
+        <button class="btn-o" style="margin-top:8px" onclick="mailSaveAccount()">Guardar SMTP</button>
       </details>
-      <button class="btn-p" style="width:100%;justify-content:center" onclick="mailSaveAccount()">💾 Guardar</button>
     </div>
   </div>
 </div>

@@ -24,6 +24,14 @@
   .mail-err{font-size:12px;color:#c0392b;margin-top:4px}
   .mail-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--gr,#999);margin-top:8px}
   .mail-meta .wam-del,.mail-meta .wa-retry{margin-left:auto}
+  .mail-picker{position:absolute;left:0;right:0;top:100%;z-index:10;background:var(--card,#fff);border:1px solid rgba(0,0,0,.15);border-radius:8px;max-height:200px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+  .mail-picker.op{display:block}
+  .mail-pick-item{display:block;width:100%;text-align:left;padding:8px 12px;background:none;border:none;border-bottom:1px solid rgba(0,0,0,.05);cursor:pointer;font-size:13px}
+  .mail-pick-item:hover{background:rgba(153,204,51,.12)}
+  .mail-pick-item small{color:var(--gr,#888)}
+  .mail-attach{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .mail-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:rgba(0,0,0,.05);border-radius:16px;padding:4px 10px}
+  .mail-chip button{background:none;border:none;cursor:pointer;color:#c0392b;font-size:14px;line-height:1}
   .srv-state{display:flex;align-items:center;gap:14px;padding:14px;border-radius:12px;margin-bottom:14px}
   .srv-state.on{background:rgba(153,204,51,.12)} .srv-state.off{background:rgba(220,60,60,.10)}
   .srv-dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto}
@@ -98,19 +106,28 @@
       <button class="modal-close" onclick="closeMailCompose()" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">
-      <div class="fg" style="margin-bottom:12px">
+      <div class="fg" style="margin-bottom:12px;position:relative">
         <label class="fl" for="mailTo">Para</label>
-        <input class="fi" id="mailTo" type="email" placeholder="cliente@correo.com">
+        <input class="fi" id="mailTo" type="text" placeholder="correo@cliente.com o busca por nombre…" autocomplete="off" oninput="mailSearchClients()">
+        <div id="mailToResults" class="mail-picker"></div>
       </div>
       <div class="fg" style="margin-bottom:12px">
         <label class="fl" for="mailSubject">Asunto</label>
         <input class="fi" id="mailSubject" placeholder="Asunto del correo">
       </div>
-      <div class="fg" style="margin-bottom:16px">
+      <div class="fg" style="margin-bottom:12px">
         <label class="fl" for="mailBody">Mensaje</label>
         <textarea class="fi" id="mailBody" rows="7" placeholder="Escribe tu mensaje…"></textarea>
       </div>
-      <button class="btn-p" style="width:100%;justify-content:center" onclick="mailSend()">📤 Enviar</button>
+      <div class="fg" style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn-o" onclick="document.getElementById('mailFile').click()">📎 Adjuntar archivo</button>
+          <input type="file" id="mailFile" multiple style="display:none" onchange="mailAttachFiles(this)">
+          <span style="font-size:11px;color:var(--gr,#999)">Máx 20 MB c/u</span>
+        </div>
+        <div id="mailAttachList" class="mail-attach"></div>
+      </div>
+      <button class="btn-p" id="mailSendBtn" style="width:100%;justify-content:center" onclick="mailSend()">📤 Enviar</button>
     </div>
   </div>
 </div>

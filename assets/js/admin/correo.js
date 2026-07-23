@@ -28,7 +28,7 @@ async function mailInit(me) {
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        scopes: 'https://www.googleapis.com/auth/gmail.send',
+        scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly',
         redirectTo: location.href.split('#')[0],
         queryParams: { access_type: 'offline', prompt: 'consent' }
       }
@@ -188,7 +188,7 @@ function mailRender() {
         <span class="mail-to">${escapeHTML(m.to_addr || '—')}</span>
         <span class="mail-st">${MAIL_STATUS[m.status] || m.status}</span>
       </div>
-      <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}</div>
+      <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}${(m.attachments && m.attachments.length) ? ` <span style="font-size:11px;color:var(--gr,#888)">📎 ${m.attachments.length}</span>` : ''}</div>
       <div class="mail-body">${escapeHTML((m.body || '').slice(0, 160))}</div>
       ${m.error ? `<div class="mail-err">${escapeHTML(m.error)}</div>` : ''}
       <div class="mail-meta">
@@ -205,13 +205,82 @@ function mailTime(iso) {
   return d.toLocaleString('es-VE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function openMailCompose() {
+/* ---------- redactar: estado, picker de clientes y adjuntos ---------- */
+let mailCompose = { attachments: [], customerId: null };
+
+function openMailCompose(prefill) {
+  mailCompose = { attachments: [], customerId: prefill?.customerId || null };
+  ['mailTo', 'mailSubject', 'mailBody'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  if (prefill?.to) document.getElementById('mailTo').value = prefill.to;
+  if (prefill?.subject) document.getElementById('mailSubject').value = prefill.subject;
+  mailRenderAttach();
+  const res = document.getElementById('mailToResults'); if (res) res.classList.remove('op');
   document.getElementById('mailModal')?.classList.add('op');
   if (typeof trapFocus === 'function') trapFocus(document.getElementById('mailModal'));
   document.getElementById('mailTo')?.focus();
 }
 function closeMailCompose() {
   document.getElementById('mailModal')?.classList.remove('op');
+}
+
+// Buscar clientes con correo para el campo "Para"
+let _mailPickTimer = null;
+function mailSearchClients() {
+  clearTimeout(_mailPickTimer);
+  mailCompose.customerId = null;   // al escribir, deja de ser un cliente elegido
+  _mailPickTimer = setTimeout(async () => {
+    const term = (document.getElementById('mailTo')?.value || '').trim();
+    const box = document.getElementById('mailToResults');
+    if (!box) return;
+    if (term.length < 2 || term.includes('@')) { box.classList.remove('op'); box.innerHTML = ''; return; }
+    let q = sb.from('jjp_customers').select('id,name,email,phone')
+      .not('email', 'is', null).eq('email_opt_out', false)
+      .or(`name.ilike.%${term}%,email.ilike.%${term}%`).limit(8);
+    if (!MAIL_IS_ADMIN) q = q.eq('seller_id', MAIL_ME.id);
+    const { data } = await q;
+    if (!data?.length) { box.classList.remove('op'); box.innerHTML = ''; return; }
+    box.innerHTML = data.map(c =>
+      `<button type="button" class="mail-pick-item" onclick="mailPickClient('${c.id}','${escapeHTML(c.email)}','${escapeHTML((c.name||'').replace(/'/g,''))}')">
+        <strong>${escapeHTML(c.name || '—')}</strong> · ${escapeHTML(c.email)}<br><small>${escapeHTML(waPrettyPhoneSafe(c.phone))}</small>
+      </button>`).join('');
+    box.classList.add('op');
+  }, 250);
+}
+function waPrettyPhoneSafe(p) { return typeof waPrettyPhone === 'function' ? waPrettyPhone(p) : (p || ''); }
+
+function mailPickClient(id, email, name) {
+  document.getElementById('mailTo').value = email;
+  mailCompose.customerId = id;
+  const box = document.getElementById('mailToResults');
+  if (box) { box.classList.remove('op'); box.innerHTML = ''; }
+}
+
+// Subir adjuntos al bucket privado y guardarlos en el estado
+async function mailAttachFiles(input) {
+  const files = Array.from(input.files || []);
+  input.value = '';
+  for (const file of files) {
+    if (file.size > 20 * 1024 * 1024) { showToast(`"${file.name}" supera 20 MB`, 'warn'); continue; }
+    const path = `${MAIL_ME.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name.replace(/[^\w.\-]/g, '_')}`;
+    showToast('Subiendo ' + file.name + '…');
+    const { error } = await sb.storage.from('jjp-email-media')
+      .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+    if (error) { showToast('No se pudo subir ' + file.name + ': ' + error.message, 'err'); continue; }
+    mailCompose.attachments.push({ path, name: file.name, mime: file.type || 'application/octet-stream', size: file.size });
+  }
+  mailRenderAttach();
+}
+function mailRemoveAttach(i) {
+  const a = mailCompose.attachments[i];
+  if (a?.path) sb.storage.from('jjp-email-media').remove([a.path]).catch(() => {});
+  mailCompose.attachments.splice(i, 1);
+  mailRenderAttach();
+}
+function mailRenderAttach() {
+  const box = document.getElementById('mailAttachList');
+  if (!box) return;
+  box.innerHTML = mailCompose.attachments.map((a, i) =>
+    `<span class="mail-chip">📎 ${escapeHTML(a.name)} <button type="button" onclick="mailRemoveAttach(${i})" title="Quitar">✕</button></span>`).join('');
 }
 
 function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
@@ -230,9 +299,12 @@ async function mailSend() {
 
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',
-    to_addr: to, subject: subject || '(sin asunto)', body, status: 'pending'
+    to_addr: to, subject: subject || '(sin asunto)', body, status: 'pending',
+    customer_id: mailCompose.customerId || null,
+    attachments: mailCompose.attachments
   });
   if (error) { showToast('No se pudo encolar: ' + error.message, 'err'); return; }
+  mailCompose = { attachments: [], customerId: null };
   closeMailCompose();
   ['mailTo', 'mailSubject', 'mailBody'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   showToast('Correo en cola 📤 (sale cuando el servidor esté encendido)');
@@ -243,7 +315,8 @@ async function mailRetry(id) {
   if (!m) return;
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',
-    to_addr: m.to_addr, subject: m.subject, body: m.body, html: m.html, status: 'pending'
+    to_addr: m.to_addr, subject: m.subject, body: m.body, html: m.html, status: 'pending',
+    customer_id: m.customer_id || null, attachments: m.attachments || []
   });
   if (error) showToast('No se pudo reintentar: ' + error.message, 'err');
   else showToast('Reintentando…');

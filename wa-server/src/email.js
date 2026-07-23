@@ -57,28 +57,70 @@ async function gmailAccessToken(refresh) {
 function encHeader(s) {   // asunto/nombre con acentos → RFC 2047
   return /[^\x00-\x7F]/.test(s || '') ? `=?UTF-8?B?${Buffer.from(s, 'utf8').toString('base64')}?=` : (s || '');
 }
-function buildRawEmail({ from, to, subject, text, html }) {
-  const isHtml = !!html;
-  const lines = [
-    `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`,
-    'MIME-Version: 1.0',
-    `Content-Type: text/${isHtml ? 'html' : 'plain'}; charset="UTF-8"`,
-    'Content-Transfer-Encoding: base64', '',
-    Buffer.from(isHtml ? html : (text || ''), 'utf8').toString('base64')
-  ];
-  return Buffer.from(lines.join('\r\n'), 'utf8')
-    .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function b64url(buf) {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+
+// Descarga los adjuntos desde Storage (service_role) → base64
+async function loadAttachments(list) {
+  const out = [];
+  for (const a of list || []) {
+    if (!a?.path) continue;
+    const { data, error } = await db.storage.from('jjp-email-media').download(a.path);
+    if (error) { log.warn({ err: error.message, path: a.path }, 'adjunto no descargó'); continue; }
+    const buf = Buffer.from(await data.arrayBuffer());
+    out.push({ name: a.name || 'archivo', mime: (a.mime || 'application/octet-stream').split(';')[0], b64: buf.toString('base64') });
+  }
+  return out;
+}
+
+function buildRawEmail({ from, to, subject, text, html }, atts) {
+  const NL = '\r\n';
+  const isHtml = !!html;
+  const bodyB64 = Buffer.from(isHtml ? html : (text || ''), 'utf8').toString('base64');
+
+  if (!atts?.length) {
+    const s = [
+      `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
+      `Content-Type: text/${isHtml ? 'html' : 'plain'}; charset="UTF-8"`,
+      'Content-Transfer-Encoding: base64', '', bodyB64
+    ].join(NL);
+    return b64url(Buffer.from(s, 'utf8'));
+  }
+
+  const boundary = 'jjp_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let s = [
+    `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`, '',
+    `--${boundary}`,
+    `Content-Type: text/${isHtml ? 'html' : 'plain'}; charset="UTF-8"`,
+    'Content-Transfer-Encoding: base64', '', bodyB64, ''
+  ].join(NL);
+  for (const a of atts) {
+    s += [
+      `--${boundary}`,
+      `Content-Type: ${a.mime}; name="${a.name}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${a.name}"`, '',
+      a.b64.replace(/(.{76})/g, '$1' + NL), ''
+    ].join(NL);
+  }
+  s += `--${boundary}--`;
+  return b64url(Buffer.from(s, 'utf8'));
+}
+
 async function gmailApiSend(acct, m) {
   const token = await gmailAccessToken(acct.refresh);
+  const atts = await loadAttachments(m.attachments);
   const raw = buildRawEmail({
     from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
     text: m.body || '', html: m.html || null
-  });
+  }, atts);
+  const body = m.thread_id ? { raw, threadId: m.thread_id } : { raw };
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw })
+    body: JSON.stringify(body)
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error?.message || `Gmail API HTTP ${res.status}`);
@@ -213,10 +255,12 @@ async function dispatch(row) {
     if (acct.source === 'oauth') {
       messageId = await gmailApiSend(acct, row);           // API de Gmail (scope gmail.send)
     } else {
+      const atts = await loadAttachments(row.attachments);
       const info = await buildTxFromAcct(acct).sendMail({  // SMTP (app pass / .env)
         from: acct.from, to: row.to_addr,
         subject: row.subject || '(sin asunto)',
-        text: row.body || '', html: row.html || undefined
+        text: row.body || '', html: row.html || undefined,
+        attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
       });
       messageId = info.messageId || null;
     }

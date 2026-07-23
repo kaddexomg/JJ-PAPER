@@ -87,6 +87,7 @@
           <div class="wa-list-head">
             <input class="fi" id="waSearch" placeholder="Buscar chat…" oninput="waRenderChatList()" aria-label="Buscar chat">
             <button class="btn-p wa-new-btn" onclick="openWaNewChat()" title="Nuevo chat" aria-label="Nuevo chat">＋</button>
+            <button class="btn-o wa-new-btn" onclick="waPurgeAllChats()" title="Vaciar todos mis chats (sin desvincular)" aria-label="Vaciar chats">🧹</button>
             <select class="fi wa-owner-sel" id="waOwnerFilter" onchange="waSetOwnerFilter(this.value)" aria-label="Filtrar chats por usuario">
               <option value="me">Mis chats</option>
             </select>

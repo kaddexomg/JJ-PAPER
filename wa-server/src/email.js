@@ -68,8 +68,16 @@ export function startEmail() {
 
   setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'email sweep falló')), EMAIL_SWEEP_MS);
   sweep().catch(() => {});
+  verifyAllAccounts().catch(() => {});   // valida las cuentas guardadas mientras el server estaba apagado
   log.info('módulo correo activo (Gmail SMTP por usuario)');
   return true;
+}
+
+// Al arrancar, verifica todas las cuentas ya configuradas (así el chip 🟢/🔴 se
+// actualiza aunque las hayan guardado con el servidor apagado).
+async function verifyAllAccounts() {
+  const { data } = await db.from('jjp_email_accounts').select('*').eq('enabled', true);
+  for (const row of data || []) await verifyAccount(row).catch(() => {});
 }
 
 // Valida las credenciales de una cuenta y escribe verified/last_error
@@ -81,8 +89,12 @@ async function verifyAccount(row) {
       .update({ verified: true, last_error: null }).eq('profile_id', row.profile_id);
     log.info({ email: row.email }, 'cuenta de correo verificada ✅');
   } catch (e) {
+    // Traducir el error críptico de Gmail a algo accionable para el usuario
+    const friendly = /invalid login|5\.7\.8|username and password|badcredentials|application-specific/i.test(e.message || '')
+      ? 'Gmail rechazó las credenciales. Usa una CONTRASEÑA DE APLICACIÓN (no tu clave normal de Gmail) y ten activada la Verificación en 2 pasos.'
+      : e.message;
     await db.from('jjp_email_accounts')
-      .update({ verified: false, last_error: e.message }).eq('profile_id', row.profile_id);
+      .update({ verified: false, last_error: friendly }).eq('profile_id', row.profile_id);
     log.warn({ email: row.email, err: e.message }, 'cuenta de correo NO verifica');
   }
 }

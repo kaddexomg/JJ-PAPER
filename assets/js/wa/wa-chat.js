@@ -475,6 +475,26 @@ async function waRecSend(blob, secs) {
   if (error) showToast('No se pudo enviar: ' + error.message, 'err');
 }
 
+/* ---------- vaciar TODOS mis chats (reset de sincronización) ---------- */
+// Borra la copia del CRM (chats + mensajes) sin desvincular WhatsApp: la sesión
+// sigue conectada y los mensajes NUEVOS vuelven a entrar. No toca el teléfono.
+async function waPurgeAllChats() {
+  if (!confirm('¿Vaciar TODOS tus chats del CRM?\n\nSe borran los chats y mensajes sincronizados (NO se borra nada en tu teléfono ni se desvincula WhatsApp). Los mensajes nuevos volverán a entrar. Esta acción no se puede deshacer.')) return;
+  showToast('Vaciando chats…');
+  // Limpieza best-effort de la media en Storage (los huérfanos no bloquean)
+  try {
+    const { data: chats } = await sb.from('jjp_wa_chats').select('id,owner_id').eq('owner_id', WA_ME.id);
+    for (const c of chats || []) await waPurgeChatMedia(c.owner_id, c.id);
+  } catch (e) { /* seguir igual */ }
+  const { data, error } = await sb.rpc('jjp_wa_purge_chats', { p_owner: WA_ME.id });
+  if (error) { showToast('No se pudo vaciar: ' + error.message, 'err'); return; }
+  waChats = [];
+  waActive = null;
+  document.getElementById('waWrap')?.classList.remove('thread-open');
+  waRenderChatList();
+  showToast(`Listo: ${data || 0} chats vaciados 🧹`);
+}
+
 /* ---------- borrar chat ---------- */
 // Supabase no permite borrar storage.objects desde SQL: la media se limpia
 // aquí con la Storage API (política wa_media_delete) y luego el RPC borra el chat.

@@ -126,15 +126,24 @@ async function main() {
     const marca = info.exacto ? '' : ' [SKU recuperado]';
     if (!APPLY) { console.log(`· [simulacro] ${info.sku}  →  ${info.nombre}${marca}   (${info.carpeta}/${info.file})`); ok++; continue; }
 
-    // Storage corta la conexión con archivos muy grandes ("fetch failed").
-    // Se avisa para poder comprimir la foto en vez de perder la subida.
-    if (info.size > 8 * MB) {
-      console.log(`  … ${info.sku} pesa ${(info.size / MB).toFixed(1)} MB — conviene comprimirla`);
-    }
-    const buf  = fs.readFileSync(info.full);
+    // Compresión SIEMPRE antes de subir: las fotos de cámara pesan 8-15 MB y
+    // matan la carga del catálogo. Máx 1200px, misma extensión/URL.
+    let buf = fs.readFileSync(info.full);
+    try {
+      const sharp = (await import('sharp')).default;
+      let pipe = sharp(buf).rotate().resize({ width: 1200, withoutEnlargement: true });
+      pipe = info.ext === '.png'  ? pipe.png({ compressionLevel: 9, palette: true })
+           : info.ext === '.webp' ? pipe.webp({ quality: 78 })
+           : pipe.jpeg({ quality: 78, mozjpeg: true });
+      const out = await pipe.toBuffer();
+      if (out.length < buf.length) {
+        console.log(`  · ${info.sku}: ${(buf.length / MB).toFixed(1)} MB → ${(out.length / 1024).toFixed(0)} KB`);
+        buf = out;
+      }
+    } catch (e) { console.log(`  … ${info.sku}: no se pudo comprimir (${e.message}), se sube original`); }
     const dest = `${info.product_id}${info.ext}`;
     const up = await sb.storage.from(BUCKET).upload(dest, buf, {
-      contentType: MIME[info.ext] || 'image/jpeg', upsert: true,
+      contentType: MIME[info.ext] || 'image/jpeg', upsert: true, cacheControl: '31536000',
     });
     if (up.error) { console.log(`✗ ${info.sku} — subida: ${up.error.message}`); fail++; continue; }
 

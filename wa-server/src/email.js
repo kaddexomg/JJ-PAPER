@@ -179,8 +179,106 @@ export function startEmail() {
   setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'email sweep falló')), EMAIL_SWEEP_MS);
   sweep().catch(() => {});
   verifyAllAccounts().catch(() => {});   // valida las cuentas guardadas con el server apagado
-  log.info('módulo correo activo (Gmail por OAuth / SMTP por usuario)');
+
+  // Recepción: sondea la bandeja de cada cuenta OAuth cada 2 min
+  setInterval(() => pollInbound().catch(e => log.error({ err: e.message }, 'poll entrantes falló')), INBOUND_POLL_MS);
+  setTimeout(() => pollInbound().catch(() => {}), 8000);   // primer sondeo tras arrancar
+
+  log.info('módulo correo activo (Gmail API por usuario · envío + recepción)');
   return true;
+}
+
+const INBOUND_POLL_MS = 120_000;
+
+// ---- Recepción de correos (Gmail API, solo cuentas con permiso de lectura) ----
+async function pollInbound() {
+  const { data: accts } = await db.from('jjp_email_accounts')
+    .select('profile_id,email,oauth_refresh,enabled').eq('enabled', true).not('oauth_refresh', 'is', null);
+  for (const a of accts || []) {
+    await pollAccountInbound(a).catch(e => log.warn({ err: e.message, email: a.email }, 'poll cuenta falló'));
+  }
+}
+
+async function pollAccountInbound(acct) {
+  let token;
+  try { token = await gmailAccessToken(acct.oauth_refresh); }
+  catch { return; }   // refresh inválido → lo maneja verifyAccount
+
+  const listRes = await fetch(
+    'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=' +
+    encodeURIComponent('in:inbox newer_than:2d'),
+    { headers: { Authorization: `Bearer ${token}` } });
+  if (!listRes.ok) {
+    if (listRes.status === 403) log.warn({ email: acct.email }, 'sin permiso de lectura (re-vincular con Google)');
+    return;
+  }
+  const ids = ((await listRes.json()).messages || []).map(m => m.id);
+  if (!ids.length) return;
+
+  const { data: have } = await db.from('jjp_emails')
+    .select('gmail_id').eq('owner_id', acct.profile_id).in('gmail_id', ids);
+  const known = new Set((have || []).map(r => r.gmail_id));
+  const missing = ids.filter(id => !known.has(id));
+
+  for (const id of missing) {
+    try { await ingestMessage(acct, token, id); }
+    catch (e) { log.warn({ err: e.message, id }, 'ingesta de entrante falló'); }
+  }
+}
+
+function headerVal(headers, name) {
+  return (headers || []).find(h => h.name?.toLowerCase() === name)?.value || '';
+}
+function parseFrom(v) {
+  const m = /<([^>]+)>/.exec(v);
+  const email = (m ? m[1] : v).trim().toLowerCase();
+  const name = v.replace(/<[^>]*>/, '').replace(/"/g, '').trim();
+  return { email, name: name || email };
+}
+function decodeB64Url(s) {
+  return Buffer.from((s || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+}
+function extractBody(payload) {
+  if (!payload) return '';
+  const walk = (p) => {
+    if (p.mimeType === 'text/plain' && p.body?.data) return decodeB64Url(p.body.data);
+    if (p.parts) { for (const c of p.parts) { const r = walk(c); if (r) return r; } }
+    return '';
+  };
+  let txt = walk(payload);
+  if (!txt) {
+    const html = (function walkH(p) {
+      if (p.mimeType === 'text/html' && p.body?.data) return decodeB64Url(p.body.data);
+      if (p.parts) { for (const c of p.parts) { const r = walkH(c); if (r) return r; } }
+      return '';
+    })(payload);
+    txt = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  return txt.slice(0, 20000);
+}
+
+async function ingestMessage(acct, token, id) {
+  const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+    { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return;
+  const msg = await res.json();
+  const headers = msg.payload?.headers || [];
+  const from = parseFrom(headerVal(headers, 'from'));
+  const subject = headerVal(headers, 'subject');
+  const ts = msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : new Date().toISOString();
+
+  const { data: cust } = await db.from('jjp_customers')
+    .select('id').ilike('email', from.email).limit(1).maybeSingle();
+
+  const { error } = await db.from('jjp_emails').insert({
+    owner_id: acct.profile_id, direction: 'in', status: 'received',
+    from_addr: from.name ? `${from.name} <${from.email}>` : from.email,
+    to_addr: acct.email, subject: subject || '(sin asunto)',
+    body: extractBody(msg.payload), snippet: msg.snippet || null,
+    gmail_id: id, thread_id: msg.threadId || null,
+    customer_id: cust?.id || null, is_read: false, created_at: ts
+  });
+  if (error && error.code !== '23505') log.warn({ err: error.message }, 'insert entrante falló');
 }
 
 // Traduce errores crípticos a algo accionable

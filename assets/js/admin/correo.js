@@ -175,28 +175,74 @@ async function mailLoad() {
   mailRender();
 }
 
+let mailFilter = 'all';   // 'all' | 'in' | 'out'
+let mailExpanded = null;
+
+function setMailFilter(f) {
+  mailFilter = f;
+  document.querySelectorAll('.mail-tab').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  mailRender();
+}
+
+function mailUnreadCount() { return mailRows.filter(m => m.direction === 'in' && !m.is_read).length; }
+
+function mailRenderTabs() {
+  const n = mailUnreadCount();
+  const badge = document.getElementById('mailInBadge');
+  if (badge) { badge.textContent = n || ''; badge.style.display = n ? 'inline-block' : 'none'; }
+}
+
 function mailRender() {
+  mailRenderTabs();
   const box = document.getElementById('mailList');
   if (!box) return;
-  if (!mailRows.length) {
-    box.innerHTML = '<div class="wa-empty">Sin correos todavía. Usa <strong>✉️ Nuevo correo</strong>.</div>';
+  const rows = mailRows.filter(m => mailFilter === 'all' || m.direction === mailFilter);
+  if (!rows.length) {
+    box.innerHTML = '<div class="wa-empty">Sin correos en esta vista. Usa <strong>✉️ Nuevo correo</strong>.</div>';
     return;
   }
-  box.innerHTML = mailRows.map(m => `
-    <div class="mail-item mail-${m.status}">
+  box.innerHTML = rows.map(m => {
+    const inbound = m.direction === 'in';
+    const who = inbound ? (m.from_addr || '—') : (m.to_addr || '—');
+    const unread = inbound && !m.is_read;
+    const open = mailExpanded === m.id;
+    const preview = open ? escapeHTML(m.body || m.snippet || '') : escapeHTML((m.body || m.snippet || '').slice(0, 160));
+    return `
+    <div class="mail-item mail-${m.status}${unread ? ' mail-unread' : ''}" ${inbound ? `onclick="mailOpenInbound('${m.id}')" style="cursor:pointer"` : ''}>
       <div class="mail-top">
-        <span class="mail-to">${escapeHTML(m.to_addr || '—')}</span>
-        <span class="mail-st">${MAIL_STATUS[m.status] || m.status}</span>
+        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${escapeHTML(who)}</span>
+        <span class="mail-st">${inbound ? (unread ? '🟢 Nuevo' : 'Recibido') : (MAIL_STATUS[m.status] || m.status)}</span>
       </div>
       <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}${(m.attachments && m.attachments.length) ? ` <span style="font-size:11px;color:var(--gr,#888)">📎 ${m.attachments.length}</span>` : ''}</div>
-      <div class="mail-body">${escapeHTML((m.body || '').slice(0, 160))}</div>
+      <div class="mail-body" style="${open ? 'white-space:pre-wrap' : ''}">${preview}</div>
       ${m.error ? `<div class="mail-err">${escapeHTML(m.error)}</div>` : ''}
       <div class="mail-meta">
         ${mailTime(m.created_at)}
-        ${m.status === 'failed' ? `<button class="wa-retry" onclick="mailRetry('${m.id}')">Reintentar</button>` : ''}
-        <button class="wam-del" onclick="mailDelete('${m.id}')" title="Borrar del CRM" aria-label="Borrar">🗑️</button>
+        ${inbound ? `<button class="wa-retry" onclick="event.stopPropagation();mailReply('${m.id}')">↩️ Responder</button>` : ''}
+        ${m.status === 'failed' ? `<button class="wa-retry" onclick="event.stopPropagation();mailRetry('${m.id}')">Reintentar</button>` : ''}
+        <button class="wam-del" onclick="event.stopPropagation();mailDelete('${m.id}')" title="Borrar del CRM" aria-label="Borrar">🗑️</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+async function mailOpenInbound(id) {
+  mailExpanded = mailExpanded === id ? null : id;
+  const m = mailRows.find(x => x.id === id);
+  if (m && !m.is_read) {
+    m.is_read = true;
+    sb.from('jjp_emails').update({ is_read: true }).eq('id', id).then(() => {});
+  }
+  mailRender();
+}
+
+function mailReply(id) {
+  const m = mailRows.find(x => x.id === id);
+  if (!m) return;
+  const from = /<([^>]+)>/.exec(m.from_addr || '');
+  const to = from ? from[1] : (m.from_addr || '');
+  const subj = /^re:/i.test(m.subject || '') ? m.subject : 'Re: ' + (m.subject || '');
+  openMailCompose({ to, subject: subj, customerId: m.customer_id });
 }
 
 function mailTime(iso) {

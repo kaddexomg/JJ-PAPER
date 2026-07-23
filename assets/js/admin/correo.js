@@ -205,44 +205,75 @@ function mailRender() {
     const inbound = m.direction === 'in';
     const who = inbound ? (m.from_addr || '—') : (m.to_addr || '—');
     const unread = inbound && !m.is_read;
-    const open = mailExpanded === m.id;
-    const preview = open ? escapeHTML(m.body || m.snippet || '') : escapeHTML((m.body || m.snippet || '').slice(0, 160));
+    const preview = escapeHTML((m.snippet || m.body || '').slice(0, 160));
     return `
-    <div class="mail-item mail-${m.status}${unread ? ' mail-unread' : ''}" ${inbound ? `onclick="mailOpenInbound('${m.id}')" style="cursor:pointer"` : ''}>
+    <div class="mail-item mail-${m.status}${unread ? ' mail-unread' : ''}" onclick="mailOpen('${m.id}')" style="cursor:pointer">
       <div class="mail-top">
         <span class="mail-to">${inbound ? '📥 ' : '📤 '}${escapeHTML(who)}</span>
         <span class="mail-st">${inbound ? (unread ? '🟢 Nuevo' : 'Recibido') : (MAIL_STATUS[m.status] || m.status)}</span>
       </div>
       <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}${(m.attachments && m.attachments.length) ? ` <span style="font-size:11px;color:var(--gr,#888)">📎 ${m.attachments.length}</span>` : ''}</div>
-      <div class="mail-body" style="${open ? 'white-space:pre-wrap' : ''}">${preview}</div>
+      <div class="mail-body">${preview}</div>
       ${m.error ? `<div class="mail-err">${escapeHTML(m.error)}</div>` : ''}
       <div class="mail-meta">
         ${mailTime(m.created_at)}
-        ${inbound ? `<button class="wa-retry" onclick="event.stopPropagation();mailReply('${m.id}')">↩️ Responder</button>` : ''}
-        ${m.status === 'failed' ? `<button class="wa-retry" onclick="event.stopPropagation();mailRetry('${m.id}')">Reintentar</button>` : ''}
         <button class="wam-del" onclick="event.stopPropagation();mailDelete('${m.id}')" title="Borrar del CRM" aria-label="Borrar">🗑️</button>
       </div>
     </div>`;
   }).join('');
 }
 
-async function mailOpenInbound(id) {
-  mailExpanded = mailExpanded === id ? null : id;
-  const m = mailRows.find(x => x.id === id);
-  if (m && !m.is_read) {
-    m.is_read = true;
-    sb.from('jjp_emails').update({ is_read: true }).eq('id', id).then(() => {});
-  }
-  mailRender();
+// Escapa y convierte URLs/correos en enlaces clicables (seguro, sin HTML crudo)
+function mailLinkify(text) {
+  let s = escapeHTML(text || '');
+  s = s.replace(/\b(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+  s = s.replace(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g, e => `<a href="mailto:${e}">${e}</a>`);
+  return s;
 }
 
-function mailReply(id) {
+let mailReadId = null;
+async function mailOpen(id) {
   const m = mailRows.find(x => x.id === id);
   if (!m) return;
+  mailReadId = id;
+  const inbound = m.direction === 'in';
+  if (inbound && !m.is_read) { m.is_read = true; sb.from('jjp_emails').update({ is_read: true }).eq('id', id).then(() => {}); }
+
+  document.getElementById('mailReadSubject').textContent = m.subject || '(sin asunto)';
+  document.getElementById('mailReadFrom').textContent = (inbound ? 'De: ' : 'Para: ') + (inbound ? (m.from_addr || '—') : (m.to_addr || '—'));
+  document.getElementById('mailReadDate').textContent = new Date(m.created_at).toLocaleString('es-VE');
+  document.getElementById('mailReadBody').innerHTML = mailLinkify(m.body || m.snippet || '(sin contenido)');
+
+  // Adjuntos (salientes): enlaces de descarga firmados
+  const att = document.getElementById('mailReadAttach');
+  if (att) {
+    if (m.attachments && m.attachments.length) {
+      const links = await Promise.all(m.attachments.map(async a => {
+        const { data } = await sb.storage.from('jjp-email-media').createSignedUrl(a.path, 3600).catch(() => ({ data: null }));
+        const url = data?.signedUrl;
+        return url ? `<a class="mail-chip" href="${url}" target="_blank" rel="noopener">📎 ${escapeHTML(a.name)}</a>` : `<span class="mail-chip">📎 ${escapeHTML(a.name)}</span>`;
+      }));
+      att.innerHTML = links.join('');
+    } else att.innerHTML = '';
+  }
+
+  const replyBtn = document.getElementById('mailReadReply');
+  if (replyBtn) replyBtn.style.display = inbound ? 'inline-flex' : 'none';
+  document.getElementById('mailReadModal')?.classList.add('op');
+  if (typeof trapFocus === 'function') trapFocus(document.getElementById('mailReadModal'));
+  mailRender();   // refresca badge/negrita
+}
+function closeMailRead() { document.getElementById('mailReadModal')?.classList.remove('op'); }
+
+function mailReplyCurrent() {
+  const m = mailRows.find(x => x.id === mailReadId);
+  if (!m) return;
+  closeMailRead();
   const from = /<([^>]+)>/.exec(m.from_addr || '');
   const to = from ? from[1] : (m.from_addr || '');
   const subj = /^re:/i.test(m.subject || '') ? m.subject : 'Re: ' + (m.subject || '');
-  openMailCompose({ to, subject: subj, customerId: m.customer_id });
+  const quote = `\n\n-----\nEl ${new Date(m.created_at).toLocaleString('es-VE')}, ${m.from_addr || ''} escribió:\n${(m.body || m.snippet || '').split('\n').map(l => '> ' + l).join('\n')}`;
+  openMailCompose({ to, subject: subj, customerId: m.customer_id, body: quote });
 }
 
 function mailTime(iso) {
@@ -259,6 +290,7 @@ function openMailCompose(prefill) {
   ['mailTo', 'mailSubject', 'mailBody'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   if (prefill?.to) document.getElementById('mailTo').value = prefill.to;
   if (prefill?.subject) document.getElementById('mailSubject').value = prefill.subject;
+  if (prefill?.body) document.getElementById('mailBody').value = prefill.body;
   mailRenderAttach();
   const res = document.getElementById('mailToResults'); if (res) res.classList.remove('op');
   document.getElementById('mailModal')?.classList.add('op');

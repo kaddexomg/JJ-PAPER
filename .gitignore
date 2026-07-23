@@ -15,3 +15,18 @@ node_modules/
 Thumbs.db
 Desktop.ini
 dist/
+
+# Datos de negocio y material de trabajo — JAMÁS al repo
+*.pdf
+*.xlsx
+*.xls
+*.csv
+*.jpeg
+*.jpg
+*.code-workspace
+_archivo/
+
+# Sesiones alternativas de WhatsApp
+.wwebjs_auth/
+auth/
+wa-server/auth/

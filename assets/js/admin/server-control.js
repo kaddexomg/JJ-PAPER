@@ -58,10 +58,10 @@ function srvRenderModal() {
       </div>
     </div>
     ${on ? `<div class="srv-mods">${modChips}</div>` : ''}
-    <div class="srv-actions">
+    ${CURRENT_PROFILE?.role === 'admin' ? `<div class="srv-actions">
       <button class="btn-p" onclick="srvCommand('restart')" ${on ? '' : 'disabled'}>🔄 Reiniciar</button>
       <button class="btn-o srv-stop" onclick="srvCommand('stop')" ${on ? '' : 'disabled'}>⏹️ Detener</button>
-    </div>
+    </div>` : ''}
     <div class="srv-help">
       ${on
         ? 'Reiniciar = vuelve a levantar el puente solo (útil si un chat se traba). Detener = lo apaga; para prenderlo de nuevo hay que ir a la PC de la tienda.'

@@ -12,13 +12,71 @@ const MAIL_STATUS = {
 
 async function mailInit(me) {
   MAIL_ME = me;
+  await mailLoadAccount();
   await mailLoad();
   sb.channel('mail-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },
       () => mailLoadDebounced())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_email_accounts', filter: `profile_id=eq.${MAIL_ME.id}` },
+      p => { MAIL_ACCT = p.new || null; mailRenderAcctChip(); })
     .subscribe();
   // Estado del servidor (para avisar si el correo está apagado)
   if (typeof srvInit === 'function') srvInit();
+}
+
+/* ---------- Mi correo (cuenta Gmail por usuario) ---------- */
+let MAIL_ACCT = null;
+
+async function mailLoadAccount() {
+  const { data } = await sb.from('jjp_email_accounts')
+    .select('email,from_name,enabled,verified,last_error,app_pass')
+    .eq('profile_id', MAIL_ME.id).maybeSingle();
+  MAIL_ACCT = data || null;
+  mailRenderAcctChip();
+}
+
+function mailAcctConfigured() { return !!(MAIL_ACCT?.email && MAIL_ACCT?.app_pass); }
+
+function mailRenderAcctChip() {
+  const chip = document.getElementById('mailAcctChip');
+  if (!chip) return;
+  if (!mailAcctConfigured()) { chip.textContent = '⚙️ Configura tu correo'; chip.className = 'wa-chip'; return; }
+  if (MAIL_ACCT.verified) { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🟢'; chip.className = 'wa-chip ok'; }
+  else if (MAIL_ACCT.last_error) { chip.textContent = '✉️ correo 🔴'; chip.className = 'wa-chip'; chip.title = MAIL_ACCT.last_error; }
+  else { chip.textContent = '✉️ verificando… 🕓'; chip.className = 'wa-chip'; }
+}
+
+function openMailAccount() {
+  const m = document.getElementById('mailAcctModal');
+  if (!m) return;
+  document.getElementById('acctEmail').value = MAIL_ACCT?.email || '';
+  document.getElementById('acctFromName').value = MAIL_ACCT?.from_name || '';
+  document.getElementById('acctPass').value = '';   // nunca precargar la contraseña
+  document.getElementById('acctPass').placeholder = mailAcctConfigured() ? '•••••••• (dejar vacío = no cambiar)' : 'contraseña de aplicación de Google';
+  const st = document.getElementById('acctState');
+  if (st) st.innerHTML = mailAcctConfigured()
+    ? (MAIL_ACCT.verified ? '🟢 Verificada' : MAIL_ACCT.last_error ? ('🔴 ' + escapeHTML(MAIL_ACCT.last_error)) : '🕓 Verificando…')
+    : '';
+  m.classList.add('op');
+  if (typeof trapFocus === 'function') trapFocus(m);
+}
+function closeMailAccount() { document.getElementById('mailAcctModal')?.classList.remove('op'); }
+
+async function mailSaveAccount() {
+  const email = (document.getElementById('acctEmail')?.value || '').trim();
+  const fromName = (document.getElementById('acctFromName')?.value || '').trim();
+  const passIn = document.getElementById('acctPass')?.value || '';
+  if (!validEmail(email)) { showToast('Correo inválido', 'warn'); return; }
+
+  const row = { profile_id: MAIL_ME.id, email, from_name: fromName || null, enabled: true, verified: false, last_error: null };
+  if (passIn) row.app_pass = passIn.replace(/\s+/g, '');   // Google muestra la app pass con espacios
+  else if (!mailAcctConfigured()) { showToast('Pega tu contraseña de aplicación', 'warn'); return; }
+
+  const { error } = await sb.from('jjp_email_accounts').upsert(row, { onConflict: 'profile_id' });
+  if (error) { showToast('No se pudo guardar: ' + error.message, 'err'); return; }
+  showToast('Correo guardado. Verificando con Google… (necesita el servidor encendido)');
+  closeMailAccount();
+  await mailLoadAccount();
 }
 
 let _mailTimer = null;
@@ -79,6 +137,11 @@ async function mailSend() {
   const body = (document.getElementById('mailBody')?.value || '').trim();
   if (!validEmail(to)) { showToast('Correo destino inválido', 'warn'); return; }
   if (!body) { showToast('Escribe el mensaje', 'warn'); return; }
+  if (!mailAcctConfigured()) {
+    showToast('Primero configura tu correo (⚙️ Mi correo)', 'warn');
+    openMailAccount();
+    return;
+  }
 
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',

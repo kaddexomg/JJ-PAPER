@@ -1,0 +1,110 @@
+/* ======================================================
+   JJ Paper — Buscador universal de productos (reusable)
+   Usado por POS, cotizador y consulta de existencias.
+   Busca por nombre, SKU (producto/variante), código de barras y marca.
+   Requiere: sb, normTxt, fmtPrice, toBs (de config.js).
+   ====================================================== */
+
+let PF_PRODUCTS = null;
+
+async function pfLoad(force) {
+  if (PF_PRODUCTS && !force) return PF_PRODUCTS;
+  const { data, error } = await sb.from('jjp_products')
+    .select('id,name,sku,price_usd,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,stock,min_qty,active,jjp_brands(name))')
+    .eq('active', true).order('name');
+  if (error) { if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); return PF_PRODUCTS || []; }
+  PF_PRODUCTS = data || [];
+  return PF_PRODUCTS;
+}
+
+function pfNorm(s) { return typeof normTxt === 'function' ? normTxt(String(s || '')) : String(s || '').toLowerCase(); }
+
+// Filtra por nombre / sku / código / marca
+function pfMatch(list, term) {
+  const q = pfNorm(term);
+  if (!q) return (list || []).slice(0, 40);
+  const lc = String(term || '').trim().toLowerCase();
+  return (list || []).filter(p => {
+    if (pfNorm(p.name).includes(q)) return true;
+    if ((p.sku || '').toLowerCase().includes(lc)) return true;
+    return (p.jjp_product_variants || []).some(v => v.active && (
+      (v.sku || '').toLowerCase().includes(lc) ||
+      (v.barcode || '').toLowerCase().includes(lc) ||
+      pfNorm(v.jjp_brands?.name || v.variant_name || '').includes(q)));
+  }).slice(0, 40);
+}
+
+// Match EXACTO por código de barras o SKU (para escaneo). Devuelve {product, variant} o null.
+function pfFindByCode(list, code) {
+  const c = String(code || '').trim().toLowerCase();
+  if (!c) return null;
+  for (const p of list || []) {
+    for (const v of (p.jjp_product_variants || [])) {
+      if (v.active && ((v.barcode || '').toLowerCase() === c || (v.sku || '').toLowerCase() === c))
+        return { product: p, variant: v };
+    }
+    if ((p.sku || '').toLowerCase() === c) return { product: p, variant: null };
+  }
+  return null;
+}
+
+// Nivel de existencia → clase de color
+function pfStockClass(stock, min) {
+  const s = Number(stock), m = Number(min) || 0;
+  if (!Number.isFinite(s)) return '';
+  if (s <= 0) return 'pf-out';
+  if (s <= m || s <= 3) return 'pf-low';
+  return 'pf-ok';
+}
+function pfStockLabel(stock) {
+  const s = Number(stock);
+  if (!Number.isFinite(s)) return 'stock —';
+  if (s <= 0) return '⛔ sin stock';
+  return `stock ${s}`;
+}
+
+// Precio USD + Bs a tasa viva
+function pfPriceHtml(usd) {
+  const bs = (typeof toBs === 'function') ? toBs(usd) : null;
+  return `${fmtPrice(usd)}${bs ? ` · Bs ${Number(bs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}` : ''}`;
+}
+
+/* ---------- Escaneo con cámara (API nativa BarcodeDetector) ---------- */
+async function pfScanCamera(onCode) {
+  if (!('BarcodeDetector' in window)) {
+    if (typeof showToast === 'function') showToast('Este navegador no lee código por cámara. Usa un lector físico.', 'warn', 5000);
+    return;
+  }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+  catch { if (typeof showToast === 'function') showToast('No se pudo abrir la cámara (permisos)', 'err'); return; }
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center';
+  overlay.innerHTML = `<video autoplay playsinline muted style="max-width:100%;max-height:80vh"></video>
+    <p style="color:#fff;margin-top:12px;font-size:14px">Apunta al código de barras…</p>
+    <button style="margin-top:12px;padding:10px 20px;border-radius:8px;border:none;background:#fff;font-size:15px;cursor:pointer">Cancelar</button>`;
+  document.body.appendChild(overlay);
+  const video = overlay.querySelector('video');
+  video.srcObject = stream;
+
+  let stop = false;
+  const cleanup = () => { stop = true; stream.getTracks().forEach(t => t.stop()); overlay.remove(); };
+  overlay.querySelector('button').onclick = cleanup;
+
+  const detector = new window.BarcodeDetector();
+  const tick = async () => {
+    if (stop) return;
+    try {
+      const codes = await detector.detect(video);
+      if (codes && codes.length) {
+        const value = codes[0].rawValue;
+        cleanup();
+        onCode(value);
+        return;
+      }
+    } catch (e) { /* frame sin código */ }
+    requestAnimationFrame(tick);
+  };
+  video.onloadedmetadata = () => tick();
+}

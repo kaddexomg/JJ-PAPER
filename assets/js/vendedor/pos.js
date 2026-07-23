@@ -13,11 +13,8 @@ async function initPos() {
   document.getElementById('posDiscMax').textContent = `(máx ${max}%)`;
   document.getElementById('posDisc').max = max;
 
-  const { data } = await sb.from('jjp_products')
-    .select('id,name,price_usd,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,price_usd,stock,active,jjp_brands(name))')
-    .eq('active', true).order('name');
-  posProducts = data || [];
-  posRenderResults(posProducts.slice(0, 30));
+  posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
+  posRenderResults(pfMatch(posProducts, ''));
 
   // prefill de cliente si viene desde el CRM (?tel=...)
   const tel = new URLSearchParams(location.search).get('tel');
@@ -29,10 +26,30 @@ async function initPos() {
 
 /* ---------- Buscador de productos ---------- */
 function posSearch() {
-  const q = normTxt(document.getElementById('posSearch').value.trim());
-  if (!q) { posRenderResults(posProducts.slice(0, 30)); return; }
-  const hits = posProducts.filter(p => normTxt(p.name).includes(q));
-  posRenderResults(hits.slice(0, 30));
+  posRenderResults(pfMatch(posProducts, document.getElementById('posSearch').value.trim()));
+}
+
+// Enter en el buscador: si el texto es un código exacto (lector físico), agrega directo
+function posSearchKey(e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = document.getElementById('posSearch').value.trim();
+  const hit = pfFindByCode(posProducts, code);
+  if (hit) {
+    posAddResolved(hit.product, hit.variant);
+    showToast('➕ ' + hit.product.name);
+    document.getElementById('posSearch').value = '';
+    posSearch();
+  }
+}
+
+// Escanear con la cámara
+function posScanCam() {
+  pfScanCamera(code => {
+    const hit = pfFindByCode(posProducts, code);
+    if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
+    else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
+  });
 }
 
 function posRenderResults(list) {
@@ -51,7 +68,7 @@ function posRenderResults(list) {
       <div class="pr-img">${img}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${escapeHTML(p.name)}</div>
-        <div style="font-size:11px;color:var(--gr)">${fmtPrice(p.price_usd)} /${escapeHTML(p.unit || 'unid')} · stock ${p.stock ?? '—'}</div>
+        <div style="font-size:11px;color:var(--gr)">${pfPriceHtml(p.price_usd)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
       </div>
       ${vSel}
       <button class="btn-p sm" onclick="posAdd('${p.id}')">＋</button>
@@ -63,17 +80,22 @@ function posAdd(pid) {
   const p = posProducts.find(x => x.id === pid);
   if (!p) return;
   const variants = (p.jjp_product_variants || []).filter(v => v.active);
-  let key = pid, variant = null;
+  let variant = null;
   if (variants.length) {
     const vid = document.getElementById(`pv-${pid}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
-    key = `${pid}::${variant.id}`;
   }
+  posAddResolved(p, variant);
+}
+
+// Agrega un producto (con variante ya resuelta) al ticket
+function posAddResolved(p, variant) {
+  const key = variant ? `${p.id}::${variant.id}` : p.id;
   if (posTicket[key]) {
     posTicket[key].qty += 1;
   } else {
     posTicket[key] = {
-      id: pid,
+      id: p.id,
       variant_id: variant?.id || null,
       name: p.name,
       brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,

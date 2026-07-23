@@ -3,7 +3,7 @@
    ====================================================== */
 
 const SETTINGS_FIELDS = [
-  'exchange_rate', 'usdt_rate', 'default_margin_pct',
+  'exchange_rate', 'usdt_rate', 'rate_eur', 'default_margin_pct',
   'site_name', 'site_tagline', 'phone_display', 'whatsapp_number', 'whatsapp_message',
   'email', 'address', 'map_lat', 'map_lng', 'hours_weekday', 'hours_saturday',
   'pago_movil_bank', 'pago_movil_phone', 'pago_movil_ci', 'pago_movil_name',
@@ -87,8 +87,11 @@ function renderGap() {
   if (!box) return;
   if (!bcv || !usdt) { box.textContent = ''; return; }
   const gap = (usdt / bcv - 1) * 100;
+  const eur = parseFloat(document.getElementById('set-rate_eur')?.value);
+  // 1 EUR = eur/bcv dólares (ambas son Bs/divisa a tasa BCV)
+  const eurInfo = (eur && bcv) ? ` · 1 € = <strong>$${(eur / bcv).toFixed(3)}</strong> (para costos en euros)` : '';
   box.innerHTML = `Brecha Binance vs BCV: <strong>${gap.toFixed(2)}%</strong>
-    <span style="color:var(--gr)">— este % se suma al costo automáticamente (invisible al cliente).</span>`;
+    <span style="color:var(--gr)">— este % se suma al costo automáticamente (invisible al cliente).</span>${eurInfo}`;
 }
 
 // Fetch official (BCV) + parallel (~Binance) rates from the public API
@@ -96,7 +99,7 @@ async function fetchRatesToForm() {
   const btn = document.getElementById('fetchRatesBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Consultando...'; }
   const rates = await fetchRates();
-  if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualizar tasas (BCV + Binance)'; }
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualizar tasas (BCV + Binance + Euro)'; }
 
   if (!rates || (!rates.bcv && !rates.binance)) {
     showToast('No se pudieron obtener las tasas. Ingrésalas manualmente.', 'warn');
@@ -104,13 +107,8 @@ async function fetchRatesToForm() {
   }
   if (rates.bcv)     document.getElementById('set-exchange_rate').value = Number(rates.bcv).toFixed(2);
   if (rates.binance) document.getElementById('set-usdt_rate').value     = Number(rates.binance).toFixed(2);
+  if (rates.eur) { const e = document.getElementById('set-rate_eur'); if (e) e.value = Number(rates.eur).toFixed(2); }
   renderGap();
-  // El euro se guarda directo (no tiene campo en el formulario)
-  if (rates.eur) {
-    await sb.from('jjp_settings').upsert(
-      { key: 'rate_eur', value: Number(rates.eur).toFixed(2), updated_at: new Date().toISOString() },
-      { onConflict: 'key' });
-  }
   const mon = rates.monitor ? ` · Monitor: Bs ${Number(rates.monitor).toFixed(2)}` : '';
   const eu  = rates.eur ? ` · Euro: Bs ${Number(rates.eur).toFixed(2)}` : '';
   showToast(`Tasas cargadas (Binance P2P real${mon}${eu}). Revisa y pulsa "Guardar".`);

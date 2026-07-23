@@ -98,14 +98,15 @@ async function fetchRatesToForm() {
   const rates = await fetchRates();
   if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualizar tasas (BCV + Binance)'; }
 
-  if (!rates || (!rates.bcv && !rates.paralelo)) {
+  if (!rates || (!rates.bcv && !rates.binance)) {
     showToast('No se pudieron obtener las tasas. Ingrésalas manualmente.', 'warn');
     return;
   }
-  if (rates.bcv)      document.getElementById('set-exchange_rate').value = Number(rates.bcv).toFixed(2);
-  if (rates.paralelo) document.getElementById('set-usdt_rate').value     = Number(rates.paralelo).toFixed(2);
+  if (rates.bcv)     document.getElementById('set-exchange_rate').value = Number(rates.bcv).toFixed(2);
+  if (rates.binance) document.getElementById('set-usdt_rate').value     = Number(rates.binance).toFixed(2);
   renderGap();
-  showToast('Tasas cargadas. Revisa y pulsa "Guardar".');
+  const mon = rates.monitor ? ` · Monitor: Bs ${Number(rates.monitor).toFixed(2)}` : '';
+  showToast(`Tasas cargadas (Binance P2P real${mon}). Revisa y pulsa "Guardar".`);
 }
 
 // Vista previa del comprobante con el pedido más reciente

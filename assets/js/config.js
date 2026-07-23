@@ -300,21 +300,38 @@ function realMarginPct(priceUsd, costUsd) {
   return ((Number(priceUsd) - adj) / adj) * 100;
 }
 
-// Trae las tasas BCV (oficial) y paralelo (≈ Binance) desde dolarapi.com
-// Devuelve { bcv, paralelo } o null si falla.
+// Trae las 3 tasas: BCV (oficial, dolarapi), Binance P2P real (CriptoYa)
+// y Monitor/paralelo (dolarapi). Devuelve { bcv, binance, monitor, paralelo } o null.
+// "paralelo" queda como alias de binance por compatibilidad.
 async function fetchRates() {
-  try {
+  const getJson = async (url) => {
     const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 5000);
-    const res = await fetch('https://ve.dolarapi.com/v1/dolares', { signal: ctl.signal });
-    clearTimeout(t);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const find = f => data.find(d => d.fuente === f)?.promedio;
-    return {
-      bcv:      find('oficial')  || null,
-      paralelo: find('paralelo') || null,
-    };
+    const t = setTimeout(() => ctl.abort(), 6000);
+    try {
+      const res = await fetch(url, { signal: ctl.signal });
+      return res.ok ? await res.json() : null;
+    } catch (e) { return null; }
+    finally { clearTimeout(t); }
+  };
+  try {
+    const [dolar, cripto] = await Promise.all([
+      getJson('https://ve.dolarapi.com/v1/dolares'),
+      getJson('https://criptoya.com/api/USDT/VES/1'),
+    ]);
+    const find = f => Number(dolar?.find?.(d => d.fuente === f)?.promedio) || null;
+    const bcv = find('oficial'), monitor = find('paralelo');
+    // Binance P2P: promedio ask/bid; si falla, mediana de otros P2P; si no, monitor.
+    const mid = x => (x && x.ask > 0 && x.bid > 0) ? (x.ask + x.bid) / 2
+              : (x?.ask > 0 ? x.ask : (x?.bid > 0 ? x.bid : null));
+    let binance = mid(cripto?.binancep2p);
+    if (!binance && cripto) {
+      const o = ['bybitp2p', 'bitgetp2p', 'bingxp2p', 'okexp2p']
+        .map(k => mid(cripto[k])).filter(Boolean).sort((a, b) => a - b);
+      binance = o.length ? o[Math.floor(o.length / 2)] : null;
+    }
+    binance = binance || monitor;
+    if (!bcv && !binance) return null;
+    return { bcv, binance, monitor, paralelo: binance };
   } catch (e) {
     console.warn('fetchRates error:', e);
     return null;

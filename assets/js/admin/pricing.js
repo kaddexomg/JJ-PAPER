@@ -17,6 +17,7 @@ async function loadPricing() {
   // Tarjetas de tasas
   setTxt('pr-bcv',  s.rate_bcv ? `Bs ${(+s.rate_bcv).toFixed(2)}` : '—');
   setTxt('pr-usdt', s.usdt_rate ? `Bs ${(+s.usdt_rate).toFixed(2)}` : '—');
+  setTxt('pr-monitor', s.rate_monitor ? `Bs ${(+s.rate_monitor).toFixed(2)}` : '—');
   setTxt('pr-gap',  s.rate_gap_pct ? `${(+s.rate_gap_pct).toFixed(1)}%` : '—');
   setTxt('pr-factor', prFactor.toFixed(4));
   setTxt('pr-updated', s.rates_updated_iso ? fmtDate(s.rates_updated_iso) : '—');

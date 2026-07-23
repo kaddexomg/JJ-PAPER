@@ -4,22 +4,52 @@ import { log } from './logger.js';
 // Refresca las tasas cada hora. Corre en esta PC (Node), sin pg_net ni extensiones.
 const RATE_SWEEP_MS = 60 * 60 * 1000;
 
-// Fuentes VE (dolarapi): oficial = BCV (con esta se COBRA en Bs, legal)
-//                        paralelo ≈ Binance/USDT (a esta se REPONE la mercancía)
-async function fetchOne(url) {
-  const r = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const j = await r.json();
-  return Number(j.promedio || j.venta || j.compra) || null;
+// Tres tasas del mercado venezolano:
+//   BCV     → oficial; con esta se COBRA en Bs (legal, la ve el cliente)
+//   Binance → USDT P2P real; a esta cobran los PROVEEDORES (reposición)
+//   Monitor → paralelo de referencia (EnParaleloVzla); informativa
+async function fetchJson(url, timeoutMs = 8000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { headers: { accept: 'application/json' }, signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
 }
 
-async function fetchRates() {
-  let bcv = null, usdt = null;
-  try { bcv  = await fetchOne('https://ve.dolarapi.com/v1/dolares/oficial'); }
-  catch (e) { log.warn({ err: e.message }, 'fetch BCV falló'); }
-  try { usdt = await fetchOne('https://ve.dolarapi.com/v1/dolares/paralelo'); }
-  catch (e) { log.warn({ err: e.message }, 'fetch paralelo/USDT falló'); }
-  return { bcv, usdt };
+// Binance P2P real vía CriptoYa. Si binancep2p falla, mediana de los demás P2P.
+async function fetchBinance() {
+  const j = await fetchJson('https://criptoya.com/api/USDT/VES/1');
+  const mid = x => (x && x.ask > 0 && x.bid > 0) ? (x.ask + x.bid) / 2
+            : (x?.ask > 0 ? x.ask : (x?.bid > 0 ? x.bid : null));
+  const bin = mid(j.binancep2p);
+  if (bin) return bin;
+  const others = ['bybitp2p', 'bitgetp2p', 'bingxp2p', 'okexp2p', 'kucoinp2p']
+    .map(k => mid(j[k])).filter(Boolean).sort((a, b) => a - b);
+  return others.length ? others[Math.floor(others.length / 2)] : null;
+}
+
+// BCV + Monitor vía dolarapi (fallback: pydolarve para el BCV)
+async function fetchBcvMonitor() {
+  try {
+    const data = await fetchJson('https://ve.dolarapi.com/v1/dolares');
+    const find = f => Number(data.find(d => d.fuente === f)?.promedio) || null;
+    return { bcv: find('oficial'), monitor: find('paralelo') };
+  } catch (e) {
+    const j = await fetchJson('https://pydolarve.org/api/v2/dollar?page=bcv');
+    return { bcv: Number(j?.monitors?.usd?.price) || null, monitor: null };
+  }
+}
+
+async function fetchAll() {
+  const [bm, binance] = await Promise.allSettled([fetchBcvMonitor(), fetchBinance()]);
+  const bcv     = bm.status === 'fulfilled' ? bm.value.bcv : null;
+  const monitor = bm.status === 'fulfilled' ? bm.value.monitor : null;
+  const bin     = binance.status === 'fulfilled' ? binance.value : null;
+  if (bm.status === 'rejected')      log.warn({ err: bm.reason?.message }, 'fetch BCV/monitor falló');
+  if (binance.status === 'rejected') log.warn({ err: binance.reason?.message }, 'fetch Binance falló');
+  return { bcv, binance: bin, monitor };
 }
 
 async function setSetting(key, value) {
@@ -29,27 +59,36 @@ async function setSetting(key, value) {
 }
 
 export async function updateRates() {
-  const { bcv, usdt } = await fetchRates();
-  if (!bcv && !usdt) { log.warn('ambas fuentes de tasa fallaron; conservo la anterior'); return; }
+  const { bcv, binance, monitor } = await fetchAll();
+  if (!bcv && !binance && !monitor) { log.warn('todas las fuentes de tasa fallaron; conservo la anterior'); return; }
 
-  const rateBcv  = bcv || usdt;
-  const rateUsdt = Math.max(usdt || 0, bcv || 0) || rateBcv;   // paralelo nunca por debajo del BCV
-  const gap      = rateBcv > 0 ? (rateUsdt / rateBcv - 1) * 100 : 0;
-  // Factor de protección de margen: cuánto hay que subir el PRECIO en USD para que,
-  // cobrando en Bs a BCV, el ingreso real (en USDT) mantenga el margen. = USDT/BCV.
-  const factor   = rateBcv > 0 ? rateUsdt / rateBcv : 1;
+  const rateBcv = bcv || monitor || binance;
+  // Reposición: Binance real; si falta, el monitor; nunca por debajo del BCV.
+  const rateBin = Math.max(binance || monitor || 0, rateBcv || 0) || rateBcv;
+  const rateMon = monitor || null;
+  const gap     = rateBcv > 0 ? (rateBin / rateBcv - 1) * 100 : 0;
+  // Factor de protección de margen: cuánto subir el PRECIO en USD para que,
+  // cobrando en Bs a BCV, el ingreso real (en USDT) mantenga el margen. = Binance/BCV.
+  const factor  = rateBcv > 0 ? rateBin / rateBcv : 1;
 
   const nowIso = new Date().toISOString();
-  await setSetting('exchange_rate',     rateBcv.toFixed(2));    // COBRO en Bs = BCV (legal). La usa todo el sitio.
+  await setSetting('exchange_rate',     rateBcv.toFixed(2));   // COBRO en Bs = BCV (legal). La usa todo el sitio.
   await setSetting('rate_bcv',          rateBcv.toFixed(2));
-  await setSetting('usdt_rate',         rateUsdt.toFixed(2));   // referencia de reposición
-  await setSetting('rate_gap_pct',      gap.toFixed(1));        // brecha BCV↔USDT
-  await setSetting('rate_factor',       factor.toFixed(4));     // multiplicador para proteger margen
+  await setSetting('usdt_rate',         rateBin.toFixed(2));   // Binance P2P real (reposición)
+  await setSetting('rate_binance',      rateBin.toFixed(2));
+  if (rateMon) await setSetting('rate_monitor', rateMon.toFixed(2));
+  await setSetting('rate_gap_pct',      gap.toFixed(1));       // brecha BCV↔Binance
+  await setSetting('rate_factor',       factor.toFixed(4));    // multiplicador para proteger margen
   await setSetting('rates_updated_iso', nowIso);
   await setSetting('rates_updated_at',  nowIso);
 
-  log.info({ bcv: rateBcv, usdt: rateUsdt, brecha: gap.toFixed(1) + '%', factor: factor.toFixed(4) },
-    'tasas actualizadas ✅ (se cobra a BCV; factor para proteger margen)');
+  // Historial para ver la tendencia diaria (tabla jjp_fx_rates)
+  const { error: hErr } = await db.from('jjp_fx_rates')
+    .insert({ bcv: rateBcv, binance: rateBin, monitor: rateMon });
+  if (hErr) log.warn({ err: hErr.message }, 'no se guardó historial de tasas');
+
+  log.info({ bcv: rateBcv, binance: rateBin, monitor: rateMon, brecha: gap.toFixed(1) + '%', factor: factor.toFixed(4) },
+    'tasas actualizadas ✅ (se cobra a BCV; factor Binance/BCV protege margen)');
 }
 
 export function startRates() {

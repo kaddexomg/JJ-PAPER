@@ -7,18 +7,33 @@ let posProducts = [];
 let posTicket   = {};
 
 async function initQuoter() {
-  const { data } = await sb.from('jjp_products')
-    .select('id,name,price_usd,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,price_usd,stock,active,jjp_brands(name))')
-    .eq('active', true).order('name');
-  posProducts = data || [];
-  posRenderResults(posProducts.slice(0, 30));
+  posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
+  posRenderResults(pfMatch(posProducts, ''));
+  const id = new URLSearchParams(location.search).get('add');   // desde Consultar stock
+  if (id) {
+    const p = posProducts.find(x => x.id === id);
+    if (p) posAddResolved(p, (p.jjp_product_variants || []).filter(x => x.active)[0] || null);
+  }
 }
 
 /* --- buscador (mismo patrón del POS) --- */
 function posSearch() {
-  const q = normTxt(document.getElementById('posSearch').value.trim());
-  if (!q) { posRenderResults(posProducts.slice(0, 30)); return; }
-  posRenderResults(posProducts.filter(p => normTxt(p.name).includes(q)).slice(0, 30));
+  posRenderResults(pfMatch(posProducts, document.getElementById('posSearch').value.trim()));
+}
+
+function posSearchKey(e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = document.getElementById('posSearch').value.trim();
+  const hit = pfFindByCode(posProducts, code);
+  if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); document.getElementById('posSearch').value = ''; posSearch(); }
+}
+function posScanCam() {
+  pfScanCamera(code => {
+    const hit = pfFindByCode(posProducts, code);
+    if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
+    else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
+  });
 }
 
 function posRenderResults(list) {
@@ -37,7 +52,7 @@ function posRenderResults(list) {
       <div class="pr-img">${img}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${escapeHTML(p.name)}</div>
-        <div style="font-size:11px;color:var(--gr)">${fmtPrice(p.price_usd)} /${escapeHTML(p.unit || 'unid')}</div>
+        <div style="font-size:11px;color:var(--gr)">${pfPriceHtml(p.price_usd)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
       </div>
       ${vSel}
       <button class="btn-p sm" onclick="posAdd('${p.id}')">＋</button>
@@ -49,19 +64,24 @@ function posAdd(pid) {
   const p = posProducts.find(x => x.id === pid);
   if (!p) return;
   const variants = (p.jjp_product_variants || []).filter(v => v.active);
-  let key = pid, variant = null;
+  let variant = null;
   if (variants.length) {
     const vid = document.getElementById(`pv-${pid}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
-    key = `${pid}::${variant.id}`;
   }
+  posAddResolved(p, variant);
+}
+
+function posAddResolved(p, variant) {
+  const key = variant ? `${p.id}::${variant.id}` : p.id;
   if (posTicket[key]) posTicket[key].qty += 1;
   else posTicket[key] = {
-    id: pid, variant_id: variant?.id || null, name: p.name,
+    id: p.id, variant_id: variant?.id || null, name: p.name,
     brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
     unit: p.unit || 'unid',
     price_usd: Number(variant ? variant.price_usd : p.price_usd),
     qty: Math.max(1, Number(p.min_qty) || 1),
+    stock: variant ? variant.stock : p.stock,
   };
   posRenderTicket();
 }

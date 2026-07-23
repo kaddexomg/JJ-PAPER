@@ -15,6 +15,7 @@ async function initPos() {
 
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
   posRenderResults(pfMatch(posProducts, ''));
+  posPrefillAdd();                        // ?add=<id> desde Consultar stock
 
   // prefill de cliente si viene desde el CRM (?tel=...)
   const tel = new URLSearchParams(location.search).get('tel');
@@ -41,6 +42,16 @@ function posSearchKey(e) {
     document.getElementById('posSearch').value = '';
     posSearch();
   }
+}
+
+// Agrega el producto que llega por ?add=<id> (desde Consultar stock)
+function posPrefillAdd() {
+  const id = new URLSearchParams(location.search).get('add');
+  if (!id) return;
+  const p = posProducts.find(x => x.id === id);
+  if (!p) return;
+  const v = (p.jjp_product_variants || []).filter(x => x.active)[0] || null;
+  posAddResolved(p, v);
 }
 
 // Escanear con la cámara

@@ -11,6 +11,9 @@
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <link rel="stylesheet" href="../assets/css/glass.css">
 <style>
+.pf-ok{color:#2ecc40;font-weight:600}
+.pf-low{color:#e67e22;font-weight:600}
+.pf-out{color:#dc3c3c;font-weight:600}
 .pos-grid { display:grid; grid-template-columns: 1.2fr 1fr; gap:18px; align-items:start; }
 @media (max-width: 900px) { .pos-grid { grid-template-columns: 1fr; } }
 .pos-result { display:flex; align-items:center; gap:10px; padding:9px 10px; border-bottom:1px solid #f1f1f1; }
@@ -63,7 +66,10 @@
 
         <div class="admin-table-wrap" style="padding:16px 18px">
           <h3 style="margin:0 0 10px">🔎 Buscar productos</h3>
-          <input class="fi" id="posSearch" placeholder="Escribe: resma, bolígrafo, carpeta..." oninput="posSearch()" autocomplete="off">
+          <div style="display:flex;gap:8px">
+            <input class="fi" id="posSearch" placeholder="Nombre, código de barras o SKU…" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1">
+            <button class="btn-o" onclick="posScanCam()" title="Escanear con la cámara" aria-label="Escanear con la cámara">📷</button>
+          </div>
           <div id="posResults" style="max-height:520px;overflow-y:auto;margin-top:8px">
             <p style="color:#aaa;font-size:13px;padding:8px 0">Cargando catálogo...</p>
           </div>
@@ -113,7 +119,9 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js"></script>
 <script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/product-finder.js"></script>
 <script src="../assets/js/vendedor/vquotes.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

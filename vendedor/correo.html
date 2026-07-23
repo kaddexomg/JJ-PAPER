@@ -173,6 +173,17 @@
       <hr style="margin:16px 0;border:none;border-top:1px solid rgba(0,0,0,.1)">
       <h4 style="margin:0 0 8px">Campañas recientes</h4>
       <div id="ecampList"><p class="wa-link-note">Cargando…</p></div>
+      <div id="ecampAuto" style="display:none;margin-top:16px;border-top:1px solid rgba(0,0,0,.1);padding-top:12px">
+        <h4 style="margin:0 0 8px">⚙️ Automatizaciones</h4>
+        <label style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="checkbox" id="autoThanks"> Enviar “gracias” al registrar un pedido</label>
+        <input class="fi" id="thanksSubj" placeholder="Asunto de gracias" style="margin-bottom:6px">
+        <textarea class="fi" id="thanksBody" rows="3" placeholder="Hola {{nombre}}, gracias por tu pedido {{pedido}}…"></textarea>
+        <label style="display:flex;gap:8px;align-items:center;margin:12px 0 6px"><input type="checkbox" id="autoReact"> Reactivar clientes inactivos (diario)</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span style="font-size:13px">Inactivos por</span><input class="fi" id="reactDays" type="number" style="max-width:80px" value="45"><span style="font-size:13px">días</span></div>
+        <input class="fi" id="reactSubj" placeholder="Asunto reactivación" style="margin-bottom:6px">
+        <textarea class="fi" id="reactBody" rows="3" placeholder="Hola {{nombre}}, hace tiempo no te vemos…"></textarea>
+        <button class="btn-p" style="width:100%;justify-content:center;margin-top:10px" onclick="ecampSaveAutomations()">💾 Guardar automatizaciones</button>
+      </div>
     </div>
   </div>
 </div>

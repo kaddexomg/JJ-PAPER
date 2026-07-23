@@ -385,6 +385,37 @@ async function openCampaigns() {
   if (typeof trapFocus === 'function') trapFocus(document.getElementById('ecampModal'));
   await ecampLoadTags();
   await ecampLoadList();
+  await ecampLoadAutomations();
+}
+
+/* ---- Automatizaciones (solo admin) ---- */
+async function ecampLoadAutomations() {
+  const wrap = document.getElementById('ecampAuto');
+  if (!wrap) return;
+  if (!MAIL_IS_ADMIN) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const keys = ['email_auto_thanks', 'email_thanks_subject', 'email_thanks_body',
+    'email_auto_reactivation', 'email_reactivation_days', 'email_reactivation_subject', 'email_reactivation_body'];
+  const { data } = await sb.from('jjp_settings').select('key,value').in('key', keys);
+  const m = {}; (data || []).forEach(r => m[r.key] = r.value);
+  const set = (id, v, chk) => { const e = document.getElementById(id); if (!e) return; if (chk) e.checked = v === 'true'; else e.value = v || ''; };
+  set('autoThanks', m.email_auto_thanks, true); set('thanksSubj', m.email_thanks_subject); set('thanksBody', m.email_thanks_body);
+  set('autoReact', m.email_auto_reactivation, true); set('reactDays', m.email_reactivation_days); set('reactSubj', m.email_reactivation_subject); set('reactBody', m.email_reactivation_body);
+}
+async function ecampSaveAutomations() {
+  const g = id => document.getElementById(id);
+  const rows = [
+    { key: 'email_auto_thanks', value: g('autoThanks').checked ? 'true' : 'false' },
+    { key: 'email_thanks_subject', value: g('thanksSubj').value },
+    { key: 'email_thanks_body', value: g('thanksBody').value },
+    { key: 'email_auto_reactivation', value: g('autoReact').checked ? 'true' : 'false' },
+    { key: 'email_reactivation_days', value: g('reactDays').value || '45' },
+    { key: 'email_reactivation_subject', value: g('reactSubj').value },
+    { key: 'email_reactivation_body', value: g('reactBody').value },
+  ];
+  const { error } = await sb.from('jjp_settings').upsert(rows, { onConflict: 'key' });
+  if (error) { showToast('No se pudo guardar: ' + error.message, 'err'); return; }
+  showToast('Automatizaciones guardadas ✅');
 }
 function closeCampaigns() { document.getElementById('ecampModal')?.classList.remove('op'); }
 

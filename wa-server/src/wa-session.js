@@ -89,7 +89,12 @@ export class WaSession {
         logger: baileysLogger,
         printQRInTerminal: false,
         browser: ['JJ Paper CRM', 'Chrome', '1.0.0'],
-        syncFullHistory: true,          // trae chats/mensajes anteriores al vincular
+        // NO arrastrar años de historial: en cada (re)conexión eso disparaba
+        // una tormenta de escrituras en jjp_wa_chats → el panel recargaba la
+        // bandeja cientos de veces y se quedaba "cargando". Baileys con false
+        // igual entrega los chats/mensajes recientes; los viejos llegan al
+        // usar cada chat. Los mensajes NUEVOS siempre entran completos.
+        syncFullHistory: false,
         markOnlineOnConnect: false
       });
       this.sock = sock;

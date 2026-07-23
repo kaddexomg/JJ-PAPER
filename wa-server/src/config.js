@@ -20,7 +20,14 @@ export const OUTBOX_SWEEP_MS   = 30_000;  // barrido de salientes pendientes
 export const SESSIONS_SWEEP_MS = 15_000;  // barrido de requested_action perdidos
 export const CAMPAIGN_SWEEP_MS = 15_000;  // tick del despachador de difusión
 export const INVOICE_SWEEP_MS  = 60_000;  // avisos de facturas por pagar (los genera el cron de la BD)
+export const EMAIL_SWEEP_MS    = 20_000;  // barrido de correos pendientes (Gmail SMTP)
 export const MAX_RETRIES       = 3;
+
+// Correo del CRM por Gmail SMTP (gratis, con "contraseña de aplicación" de Google).
+// Si faltan, el envío de correos queda desactivado (el resto del server sigue igual).
+export const GMAIL_USER     = process.env.GMAIL_USER || '';
+export const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS || '';
+export const GMAIL_FROM     = process.env.GMAIL_FROM || '';   // ej: "JJ Paper <ventas@jjpaper.com>"
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY en wa-server/.env');

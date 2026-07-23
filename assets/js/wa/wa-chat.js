@@ -48,14 +48,27 @@ function waComposerButtons() {
   if (send) send.style.display = hasText || !waRecSupported() ? 'inline-flex' : 'none';
 }
 
+// Recarga de bandeja agrupada: durante una ráfaga (sync de historial, varios
+// mensajes juntos) llegan decenas de eventos de jjp_wa_chats. Sin esto el panel
+// recargaba los 200 chats por CADA evento y se quedaba "cargando" sin dejar
+// escribir. Ahora recarga UNA vez ~700ms después del último cambio.
+let _waChatsReloadTimer = null;
+function waLoadChatsDebounced() {
+  clearTimeout(_waChatsReloadTimer);
+  _waChatsReloadTimer = setTimeout(() => waLoadChats(), 700);
+}
+
 function waSubscribe() {
+  // Solo escucho MIS mensajes salvo que sea admin (que puede ver los del equipo).
+  // Filtrar por owner_id evita recibir el firehose de todo el sistema.
+  const msgFilter = WA_IS_ADMIN ? {} : { filter: `owner_id=eq.${WA_ME.id}` };
   sb.channel('wa-ui-' + WA_ME.id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_wa_messages' },
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_wa_messages', ...msgFilter },
       p => waOnNewMessage(p.new))
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_wa_messages' },
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_wa_messages', ...msgFilter },
       p => waOnMessageUpdate(p.new))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_wa_chats' },
-      () => waLoadChats())
+      () => waLoadChatsDebounced())
     .subscribe();
 }
 

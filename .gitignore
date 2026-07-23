@@ -30,3 +30,7 @@ _archivo/
 .wwebjs_auth/
 auth/
 wa-server/auth/
+
+# Credenciales OAuth de Google (client_secret) — jamás al repo
+client_secret*.json
+*.apps.googleusercontent.com.json

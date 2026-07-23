@@ -11,6 +11,23 @@
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <link rel="stylesheet" href="../assets/css/glass.css">
 <link rel="stylesheet" href="../assets/css/wa.css">
+<style>
+  .srv-state{display:flex;align-items:center;gap:14px;padding:14px;border-radius:12px;margin-bottom:14px}
+  .srv-state.on{background:rgba(153,204,51,.12)}
+  .srv-state.off{background:rgba(220,60,60,.10)}
+  .srv-dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto}
+  .srv-state.on .srv-dot{background:#2ecc40;box-shadow:0 0 0 4px rgba(46,204,64,.25)}
+  .srv-state.off .srv-dot{background:#dc3c3c;box-shadow:0 0 0 4px rgba(220,60,60,.2)}
+  .srv-mods{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .srv-mod{font-size:11px;padding:3px 8px;border-radius:20px;background:rgba(0,0,0,.05)}
+  .srv-mod.off{opacity:.55}
+  .srv-actions{display:flex;gap:10px;margin-bottom:12px}
+  .srv-actions .btn-p,.srv-actions .btn-o{flex:1;justify-content:center}
+  .srv-actions .srv-stop{color:#c0392b;border-color:#c0392b}
+  .srv-actions button[disabled]{opacity:.4;cursor:not-allowed}
+  .srv-help{font-size:12px;color:var(--gr,#777);line-height:1.5}
+  .srv-help code{background:rgba(0,0,0,.07);padding:1px 5px;border-radius:4px}
+</style>
 </head>
 <body class="admin-body">
 
@@ -26,6 +43,7 @@
       <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
       <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
       <a href="whatsapp.html" class="on"><span class="a-ico">💬</span> WhatsApp</a>
+      <a href="correo.html"><span class="a-ico">📧</span> Correo</a>
       <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
       <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
       <div class="divider"></div>
@@ -55,6 +73,8 @@
         </div>
       </div>
       <div class="wa-topbar-right">
+        <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
+              title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <span class="wa-chip" id="waStatusChip">Cargando…</span>
         <button class="btn-o" onclick="openWaLinkModal()">🔗 Mi cuenta</button>
         <button class="btn-o" onclick="openWaSessionsModal()">⚙️ Sesiones</button>
@@ -113,6 +133,17 @@
   </div>
 </div>
 
+<!-- Modal: control del servidor -->
+<div class="modal-overlay" id="srvModal" onclick="if(event.target===this)closeSrvModal()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="srvTitle" style="max-width:520px">
+    <div class="modal-hd">
+      <h3 id="srvTitle">🖥️ Servidor JJ Paper</h3>
+      <button class="modal-close" onclick="closeSrvModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body" id="srvBody">Cargando estado…</div>
+  </div>
+</div>
+
 <!-- Modal: sesiones del equipo -->
 <div class="modal-overlay" id="waSessionsModal" onclick="if(event.target===this)closeWaSessionsModal()">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="waSessTitle" style="max-width:640px">
@@ -157,6 +188,7 @@
 <script src="../assets/js/wa/wa-common.js"></script>
 <script src="../assets/js/wa/wa-link.js"></script>
 <script src="../assets/js/wa/wa-chat.js"></script>
+<script src="../assets/js/admin/server-control.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
@@ -167,6 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   await loadSettings();
   await waInit({ me: CURRENT_PROFILE });
+  srvInit();   // chip 🟢/🔴 del servidor + control
 });
 </script>
 </body>

@@ -10,10 +10,18 @@ const MAIL_STATUS = {
   pending: '🕓 En cola', sending: '📤 Enviando…', sent: '✅ Enviado', failed: '⚠️ Falló'
 };
 
+let MAIL_IS_ADMIN = false;
+let MAIL_COMPANY_READY = false;
+
 async function mailInit(me) {
   MAIL_ME = me;
+  MAIL_IS_ADMIN = me.role === 'admin';
+  await mailLoadCompanyFlag();
   await mailLoadAccount();
   await mailLoad();
+  // Botón de "Correo de la empresa" solo para admin
+  const cb = document.getElementById('mailCompanyBtn');
+  if (cb) cb.style.display = MAIL_IS_ADMIN ? 'inline-flex' : 'none';
   sb.channel('mail-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },
       () => mailLoadDebounced())
@@ -36,14 +44,58 @@ async function mailLoadAccount() {
 }
 
 function mailAcctConfigured() { return !!(MAIL_ACCT?.email && MAIL_ACCT?.app_pass); }
+// Puede enviar si tiene su propia cuenta O si hay correo de empresa listo
+function mailCanSend() { return mailAcctConfigured() || MAIL_COMPANY_READY; }
+
+async function mailLoadCompanyFlag() {
+  const { data } = await sb.from('jjp_settings').select('value').eq('key', 'email_company_ready').maybeSingle();
+  MAIL_COMPANY_READY = data?.value === 'true';
+}
 
 function mailRenderAcctChip() {
   const chip = document.getElementById('mailAcctChip');
   if (!chip) return;
-  if (!mailAcctConfigured()) { chip.textContent = '⚙️ Configura tu correo'; chip.className = 'wa-chip'; return; }
-  if (MAIL_ACCT.verified) { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🟢'; chip.className = 'wa-chip ok'; }
-  else if (MAIL_ACCT.last_error) { chip.textContent = '✉️ correo 🔴'; chip.className = 'wa-chip'; chip.title = MAIL_ACCT.last_error; }
-  else { chip.textContent = '✉️ verificando… 🕓'; chip.className = 'wa-chip'; }
+  if (mailAcctConfigured()) {
+    if (MAIL_ACCT.verified) { chip.textContent = '✉️ ' + MAIL_ACCT.email + ' 🟢'; chip.className = 'wa-chip ok'; }
+    else if (MAIL_ACCT.last_error) { chip.textContent = '✉️ tu correo 🔴'; chip.className = 'wa-chip'; chip.title = MAIL_ACCT.last_error; }
+    else { chip.textContent = '✉️ verificando… 🕓'; chip.className = 'wa-chip'; }
+    return;
+  }
+  if (MAIL_COMPANY_READY) { chip.textContent = '🏢 Correo de la empresa 🟢'; chip.className = 'wa-chip ok'; chip.title = 'Enviarás desde el correo de la empresa con tu nombre'; return; }
+  chip.textContent = '⚙️ Correo no configurado'; chip.className = 'wa-chip';
+}
+
+/* ---------- cuenta de EMPRESA (solo admin) ---------- */
+let MAIL_COMPANY = null;
+async function openMailCompany() {
+  if (!MAIL_IS_ADMIN) return;
+  const { data } = await sb.from('jjp_email_company').select('*').eq('id', 1).maybeSingle();
+  MAIL_COMPANY = data || null;
+  document.getElementById('coEmail').value = MAIL_COMPANY?.email || '';
+  document.getElementById('coFromName').value = MAIL_COMPANY?.from_name || '';
+  document.getElementById('coPass').value = '';
+  document.getElementById('coPass').placeholder = (MAIL_COMPANY?.email && MAIL_COMPANY?.app_pass) ? '•••••••• (dejar vacío = no cambiar)' : 'contraseña de aplicación de Google';
+  const st = document.getElementById('coState');
+  if (st) st.innerHTML = MAIL_COMPANY?.verified ? '🟢 Verificada' : MAIL_COMPANY?.last_error ? ('🔴 ' + escapeHTML(MAIL_COMPANY.last_error)) : (MAIL_COMPANY?.app_pass ? '🕓 Verificando…' : '');
+  document.getElementById('mailCompanyModal')?.classList.add('op');
+  if (typeof trapFocus === 'function') trapFocus(document.getElementById('mailCompanyModal'));
+}
+function closeMailCompany() { document.getElementById('mailCompanyModal')?.classList.remove('op'); }
+
+async function mailSaveCompany() {
+  const email = (document.getElementById('coEmail')?.value || '').trim();
+  const fromName = (document.getElementById('coFromName')?.value || '').trim();
+  const passIn = document.getElementById('coPass')?.value || '';
+  if (!validEmail(email)) { showToast('Correo inválido', 'warn'); return; }
+  const has = !!(MAIL_COMPANY?.app_pass);
+  const row = { id: 1, email, from_name: fromName || null, enabled: true, verified: false, last_error: null };
+  if (passIn) row.app_pass = passIn.replace(/\s+/g, '');
+  else if (!has) { showToast('Pega la contraseña de aplicación', 'warn'); return; }
+  const { error } = await sb.from('jjp_email_company').upsert(row, { onConflict: 'id' });
+  if (error) { showToast('No se pudo guardar: ' + error.message, 'err'); return; }
+  showToast('Correo de empresa guardado. Verificando… (necesita el servidor encendido)');
+  closeMailCompany();
+  setTimeout(mailLoadCompanyFlag, 4000);
 }
 
 function openMailAccount() {
@@ -137,9 +189,9 @@ async function mailSend() {
   const body = (document.getElementById('mailBody')?.value || '').trim();
   if (!validEmail(to)) { showToast('Correo destino inválido', 'warn'); return; }
   if (!body) { showToast('Escribe el mensaje', 'warn'); return; }
-  if (!mailAcctConfigured()) {
-    showToast('Primero configura tu correo (⚙️ Mi correo)', 'warn');
-    openMailAccount();
+  if (!mailCanSend()) {
+    if (MAIL_IS_ADMIN) { showToast('Configura el correo de la empresa (🏢) o el tuyo (⚙️ Mi correo)', 'warn'); openMailCompany(); }
+    else { showToast('Aún no hay correo disponible. Pide a un admin que configure el correo de la empresa.', 'warn'); }
     return;
   }
 

@@ -20,7 +20,10 @@ function buildTx(email, pass) {
   });
 }
 
-// Devuelve las credenciales efectivas para un owner (fila propia o respaldo .env)
+// Credenciales efectivas para un owner. Orden:
+//  1) su propia cuenta (si el vendedor optó por vincular la suya)
+//  2) la cuenta de EMPRESA (lo normal) — envía con el nombre del vendedor
+//  3) respaldo .env
 async function accountFor(ownerId) {
   if (ownerId) {
     const { data } = await db.from('jjp_email_accounts')
@@ -32,6 +35,21 @@ async function accountFor(ownerId) {
         source: 'user'
       };
     }
+  }
+  const { data: co } = await db.from('jjp_email_company')
+    .select('email,app_pass,from_name,enabled').eq('id', 1).maybeSingle();
+  if (co?.enabled && co.email && co.app_pass) {
+    // Remitente = "Nombre del vendedor <correo_empresa>" (así el cliente ve quién escribe)
+    let sellerName = co.from_name || '';
+    if (ownerId) {
+      const { data: prof } = await db.from('jjp_profiles').select('name').eq('id', ownerId).maybeSingle();
+      if (prof?.name) sellerName = co.from_name ? `${prof.name} · ${co.from_name}` : prof.name;
+    }
+    return {
+      email: co.email, pass: co.app_pass,
+      from: sellerName ? `${sellerName} <${co.email}>` : co.email,
+      source: 'company'
+    };
   }
   if (GMAIL_USER && GMAIL_APP_PASS) {
     return { email: GMAIL_USER, pass: GMAIL_APP_PASS, from: GMAIL_FROM || GMAIL_USER, source: 'env' };
@@ -59,18 +77,51 @@ export function startEmail() {
       () => sweep().catch(e => log.error({ err: e.message }, 'email sweep falló')))
     .subscribe(st => log.info({ st }, 'realtime email'));
 
-  // Cambios de cuenta → invalidar caché y verificar SMTP en vivo (feedback 🟢/🔴)
+  // Cambios de cuenta de usuario → invalidar caché y verificar SMTP en vivo
   db.channel('wa-server-email-accounts')
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'jjp_email_accounts' },
       p => { const id = p.new?.profile_id || p.old?.profile_id; transporters.delete(id); if (p.new) verifyAccount(p.new).catch(() => {}); })
     .subscribe();
 
+  // Cambios en la cuenta de EMPRESA → invalidar TODO el caché y re-verificar
+  db.channel('wa-server-email-company')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'jjp_email_company' },
+      () => { transporters.clear(); verifyCompany().catch(() => {}); })
+    .subscribe();
+
   setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'email sweep falló')), EMAIL_SWEEP_MS);
   sweep().catch(() => {});
-  verifyAllAccounts().catch(() => {});   // valida las cuentas guardadas mientras el server estaba apagado
-  log.info('módulo correo activo (Gmail SMTP por usuario)');
+  verifyAllAccounts().catch(() => {});   // valida las cuentas guardadas con el server apagado
+  verifyCompany().catch(() => {});       // valida la cuenta de empresa + bandera "listo"
+  log.info('módulo correo activo (Gmail SMTP: empresa + por usuario)');
   return true;
+}
+
+// Traduce el error críptico de Gmail a algo accionable
+function friendlyGmailError(msg) {
+  return /invalid login|5\.7\.8|username and password|badcredentials|application-specific/i.test(msg || '')
+    ? 'Gmail rechazó las credenciales. Usa una CONTRASEÑA DE APLICACIÓN (no la clave normal) y ten activada la Verificación en 2 pasos.'
+    : msg;
+}
+
+// Verifica la cuenta de empresa y publica la bandera jjp_settings.email_company_ready
+async function verifyCompany() {
+  const { data: co } = await db.from('jjp_email_company').select('*').eq('id', 1).maybeSingle();
+  let ready = false;
+  if (co?.enabled && co.email && co.app_pass) {
+    try {
+      await buildTx(co.email, co.app_pass).verify();
+      ready = true;
+      await db.from('jjp_email_company').update({ verified: true, last_error: null }).eq('id', 1);
+      log.info({ email: co.email }, 'correo de empresa verificado ✅');
+    } catch (e) {
+      await db.from('jjp_email_company').update({ verified: false, last_error: friendlyGmailError(e.message) }).eq('id', 1);
+      log.warn({ err: e.message }, 'correo de empresa NO verifica');
+    }
+  }
+  await db.from('jjp_settings').update({ value: ready ? 'true' : 'false' }).eq('key', 'email_company_ready');
 }
 
 // Al arrancar, verifica todas las cuentas ya configuradas (así el chip 🟢/🔴 se
@@ -118,7 +169,7 @@ async function dispatch(row) {
   if (!entry) {
     // Sin cuenta configurada: no reintentar en bucle, marcar claro
     await db.from('jjp_emails').update({
-      status: 'failed', error: 'Sin correo configurado. Ve a "Mi correo" y agrega tu Gmail + contraseña de aplicación.'
+      status: 'failed', error: 'Sin correo disponible. Un admin debe configurar el "Correo de la empresa", o vincula el tuyo en "Mi correo".'
     }).eq('id', row.id).eq('status', 'pending');
     return;
   }

@@ -74,6 +74,7 @@
               title="Configurar mi correo" style="cursor:pointer">✉️ Mi correo…</span>
         <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
               title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
+        <button class="btn-o" id="mailCompanyBtn" onclick="openMailCompany()" style="display:none">🏢 Correo empresa</button>
         <button class="btn-o" onclick="openMailAccount()">⚙️ Mi correo</button>
         <button class="btn-p" onclick="openMailCompose()">✉️ Nuevo correo</button>
       </div>
@@ -145,6 +146,42 @@
         <p style="margin-top:8px">Es una clave aparte SOLO para enviar correos; no es tu contraseña normal y puedes revocarla cuando quieras.</p>
       </details>
       <button class="btn-p" style="width:100%;justify-content:center" onclick="mailSaveAccount()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: correo de la empresa (solo admin) -->
+<div class="modal-overlay" id="mailCompanyModal" onclick="if(event.target===this)closeMailCompany()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="coTitle" style="max-width:520px">
+    <div class="modal-hd">
+      <h3 id="coTitle">🏢 Correo de la empresa</h3>
+      <button class="modal-close" onclick="closeMailCompany()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="wa-link-note">Se configura <strong>una sola vez</strong>. Todos los vendedores enviarán desde este correo, con <strong>su propio nombre</strong> como remitente. Así nadie más tiene que crear contraseñas.</p>
+      <div id="coState" style="margin:6px 0 12px;font-size:13px"></div>
+      <div class="fg" style="margin-bottom:12px">
+        <label class="fl" for="coEmail">Correo Gmail de la empresa</label>
+        <input class="fi" id="coEmail" type="email" placeholder="ventas@jjpaper.com" autocomplete="off">
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label class="fl" for="coFromName">Nombre de la empresa (opcional)</label>
+        <input class="fi" id="coFromName" placeholder="JJ Paper" autocomplete="off">
+      </div>
+      <div class="fg" style="margin-bottom:14px">
+        <label class="fl" for="coPass">Contraseña de aplicación</label>
+        <input class="fi" id="coPass" type="password" autocomplete="new-password">
+      </div>
+      <details style="margin-bottom:14px;font-size:12px;color:var(--gr,#777)">
+        <summary style="cursor:pointer">¿Cómo saco la contraseña de aplicación?</summary>
+        <ol style="margin:8px 0 0 18px;line-height:1.6">
+          <li>En la cuenta Google de la empresa → <strong>Seguridad</strong></li>
+          <li>Activa la <strong>Verificación en 2 pasos</strong></li>
+          <li><strong>Contraseñas de aplicaciones</strong> → crea una (nombre: JJ Paper)</li>
+          <li>Copia los 16 caracteres y pégalos aquí</li>
+        </ol>
+      </details>
+      <button class="btn-p" style="width:100%;justify-content:center" onclick="mailSaveCompany()">💾 Guardar</button>
     </div>
   </div>
 </div>

@@ -7,12 +7,14 @@ import { startRates } from './rates.js';
 import { startCountLan } from './count-lan.js';
 import { startEmail } from './email.js';
 import { startHeartbeat } from './heartbeat.js';
+import { startWaActions } from './wa-actions.js';
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
 log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html · vendedor/whatsapp.html)');
 
 await manager.boot();
 startOutbox(manager);
+startWaActions(manager);   // reaccionar / marcar leído / "escribiendo…"
 startCampaigns(manager);   // difusión masiva con throttle (vendedor/difusion.html)
 startInvoiceAlerts(manager);   // recordatorios de facturas por pagar → WhatsApp del dueño
 startRates();   // actualiza BCV + USDT/paralelo en jjp_settings cada hora

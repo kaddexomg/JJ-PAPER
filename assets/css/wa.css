@@ -218,3 +218,42 @@
 @media (max-height: 700px) {
   .wa-wrap { height: calc(100vh - 120px); height: calc(100dvh - 120px); min-height: 360px; }
 }
+
+/* ---------- funciones de chat: citar / reaccionar / reenviar / reenviado ---------- */
+.wam { position: relative; }
+.wam-acts {
+  display: none; position: absolute; top: -12px; gap: 2px; z-index: 3;
+  background: var(--card, #fff); border: 1px solid rgba(0,0,0,.1); border-radius: 20px;
+  padding: 2px 4px; box-shadow: 0 2px 8px rgba(0,0,0,.14);
+}
+.wam.out .wam-acts { right: 8px; } .wam.in .wam-acts { left: 8px; }
+.wam:hover .wam-acts, .wam:focus-within .wam-acts { display: flex; }
+.wam-acts button { background: none; border: 0; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 50%; line-height: 1; }
+.wam-acts button:hover { background: rgba(0,0,0,.07); }
+.wam-quote {
+  border-left: 3px solid var(--gm, #16604A); background: rgba(0,0,0,.05);
+  padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--gr, #555);
+  margin-bottom: 4px; white-space: pre-wrap; word-break: break-word;
+}
+.wam-fwd { font-size: 11px; font-style: italic; color: var(--gr, #888); margin-bottom: 2px; }
+.wam-react {
+  position: absolute; bottom: -10px; background: var(--card, #fff);
+  border: 1px solid rgba(0,0,0,.12); border-radius: 12px; padding: 0 5px;
+  font-size: 13px; line-height: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.wam.out .wam-react { left: 8px; } .wam.in .wam-react { right: 8px; }
+.wa-react-pop {
+  position: fixed; z-index: 1000; display: flex; gap: 2px;
+  background: var(--card, #fff); border: 1px solid rgba(0,0,0,.12); border-radius: 24px;
+  padding: 4px 6px; box-shadow: 0 4px 16px rgba(0,0,0,.22);
+}
+.wa-react-pop button { background: none; border: 0; cursor: pointer; font-size: 20px; padding: 2px 4px; border-radius: 50%; }
+.wa-react-pop button:hover { background: rgba(0,0,0,.08); transform: scale(1.15); }
+.wa-reply-bar {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: rgba(0,0,0,.04); border-top: 1px solid rgba(0,0,0,.06);
+}
+.wa-reply-info { flex: 1; min-width: 0; border-left: 3px solid var(--gm, #16604A); padding-left: 8px; }
+.wa-reply-info strong { display: block; font-size: 12px; color: var(--gm, #16604A); }
+.wa-reply-info span { display: block; font-size: 12px; color: var(--gr, #666); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-reply-x { background: none; border: 0; font-size: 16px; cursor: pointer; color: var(--gr, #888); }

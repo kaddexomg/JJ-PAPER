@@ -41,6 +41,22 @@ function parseMessage(msg) {
 
 const HAS_MEDIA = new Set(['image', 'video', 'audio', 'document', 'sticker']);
 
+// contextInfo (cita/reenvío) vive dentro del sub-mensaje (extendedText, image…)
+function getContextInfo(m) {
+  if (!m) return null;
+  for (const k of Object.keys(m)) {
+    const ci = m[k]?.contextInfo;
+    if (ci) return ci;
+  }
+  return null;
+}
+// Texto/etiqueta para mostrar el mensaje citado
+function quotedPreview(q) {
+  const p = parseMessage({ message: q });
+  if (!p) return '';
+  return p.body || PREVIEW_BY_TYPE[p.type] || '';
+}
+
 // Versión de WhatsApp Web cacheada por proceso: evita una llamada de red en CADA
 // arranque (era la causa principal del QR lento). Si el fetch falla, devuelve
 // undefined → Baileys usa su versión embebida, y reintenta el fetch al próximo start.
@@ -187,6 +203,10 @@ export class WaSession {
         jid = alt;
       }
 
+      // Reacción entrante (👍❤️…): no es un mensaje nuevo, actualiza el reaccionado
+      const raw = unwrap(msg.message);
+      if (raw?.reactionMessage) { await this.applyReaction(msg, raw.reactionMessage).catch(() => {}); continue; }
+
       const parsed = parseMessage(msg);
       if (!parsed) continue;
 
@@ -199,6 +219,7 @@ export class WaSession {
         media = await uploadIncomingMedia(msg, this.sock, this.profileId, chat.id, parsed.mime);
       }
 
+      const ctx = getContextInfo(raw);
       const fromMe = !!key.fromMe;
       const row = {
         chat_id: chat.id,
@@ -212,6 +233,9 @@ export class WaSession {
         media_size: media?.size || null,
         media_filename: parsed.filename || null,
         status: fromMe ? 'sent' : 'received',
+        forwarded: !!ctx?.isForwarded,
+        reply_to_wa_id: ctx?.quotedMessage ? (ctx.stanzaId || null) : null,
+        reply_preview: ctx?.quotedMessage ? quotedPreview(ctx.quotedMessage) : null,
         wa_timestamp: msg.messageTimestamp
           ? new Date(Number(msg.messageTimestamp) * 1000).toISOString() : null
       };
@@ -316,9 +340,43 @@ export class WaSession {
     return !!this.sock?.user && !this.stopped;
   }
 
-  async send(jid, content) {
+  async send(jid, content, options) {
     if (!this.isConnected()) throw new Error('sesión no conectada');
-    return this.sock.sendMessage(jid, content);
+    return this.sock.sendMessage(jid, content, options);
+  }
+
+  // Reacción entrante → actualiza el mensaje reaccionado (emoji '' = quitada)
+  async applyReaction(msg, reaction) {
+    const targetId = reaction.key?.id;
+    if (!targetId) return;
+    const fromMe = !!msg.key?.fromMe;
+    await db.from('jjp_wa_messages')
+      .update({ reaction: reaction.text || '', reaction_from: fromMe ? 'me' : 'them' })
+      .eq('owner_id', this.profileId).eq('wa_msg_id', targetId);
+  }
+
+  // Acciones efímeras pedidas desde el panel (jjp_wa_actions)
+  async doAction(a) {
+    const jid = a.jid;
+    if (a.kind === 'typing')      return void this.sock.sendPresenceUpdate('composing', jid);
+    if (a.kind === 'stop_typing') return void this.sock.sendPresenceUpdate('paused', jid);
+    if (a.kind === 'read') {
+      const { data: msgs } = await db.from('jjp_wa_messages')
+        .select('wa_msg_id').eq('owner_id', this.profileId).eq('chat_id', a.chat_id)
+        .eq('direction', 'in').not('wa_msg_id', 'is', null)
+        .order('created_at', { ascending: false }).limit(20);
+      const keys = (msgs || []).filter(m => m.wa_msg_id)
+        .map(m => ({ remoteJid: jid, id: m.wa_msg_id, fromMe: false }));
+      if (keys.length) await this.sock.readMessages(keys);
+      return;
+    }
+    if (a.kind === 'react') {
+      if (!a.target_wa_id) return;
+      const { data } = await db.from('jjp_wa_messages')
+        .select('direction').eq('owner_id', this.profileId).eq('wa_msg_id', a.target_wa_id).maybeSingle();
+      const fromMe = data?.direction === 'out';
+      await this.sock.sendMessage(jid, { react: { text: a.emoji || '', key: { remoteJid: jid, id: a.target_wa_id, fromMe } } });
+    }
   }
 
   async stop(statusRow = 'disabled') {

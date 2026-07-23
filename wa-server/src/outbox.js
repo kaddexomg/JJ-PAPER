@@ -52,7 +52,14 @@ async function dispatch(row) {
 
   try {
     const content = await buildContent(row);
-    const res = await session.send(row.jjp_wa_chats.jid, content);
+    // Cita (responder a un mensaje): stub mínimo que Baileys usa para el contextInfo
+    const options = row.reply_to_wa_id ? {
+      quoted: {
+        key: { remoteJid: row.jjp_wa_chats.jid, id: row.reply_to_wa_id, fromMe: row.reply_from === 'me' },
+        message: { conversation: row.reply_preview || '' }
+      }
+    } : undefined;
+    const res = await session.send(row.jjp_wa_chats.jid, content, options);
     await db.from('jjp_wa_messages').update({
       status: 'sent',
       wa_msg_id: res?.key?.id || null,

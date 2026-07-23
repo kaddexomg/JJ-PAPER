@@ -36,6 +36,7 @@ async function waInit(opts) {
     waComposerButtons();
     ci.style.height = 'auto';
     ci.style.height = Math.min(ci.scrollHeight, 110) + 'px';
+    if ((ci.value || '').trim()) waTypingPing(); else waTypingStop();
   });
   waComposerButtons();
 }
@@ -128,11 +129,14 @@ async function waOpenChat(chatId) {
   waMsgs = [];
   waHasOlder = false;
 
+  waCancelReply();
   document.getElementById('waWrap')?.classList.add('thread-open');
   waRenderThreadHeader();
   waRenderChatList();
   await waLoadMessages();
   waMarkRead();
+  // Marcar como leído en el teléfono del cliente (recibo de lectura)
+  if (waActive.owner_id === WA_ME.id) waSendAction('read');
 }
 
 function waCloseThread() {
@@ -187,6 +191,8 @@ async function waLoadMessages(older) {
 function waMsgBubble(m) {
   const out = m.direction === 'out';
   let inner = '';
+  if (m.forwarded) inner += `<div class="wam-fwd">↪ Reenviado</div>`;
+  if (m.reply_preview) inner += `<div class="wam-quote">${escapeHTML(m.reply_preview).slice(0, 120)}</div>`;
   if (m.type !== 'text' && m.media_path) {
     inner += `<div class="wa-media" data-path="${escapeHTML(m.media_path)}" data-type="${m.type}"
                    data-mime="${escapeHTML(m.media_mime || '')}" data-name="${escapeHTML(m.media_filename || '')}">
@@ -200,14 +206,128 @@ function waMsgBubble(m) {
   const failed = m.status === 'failed'
     ? `<div class="wa-failed">No se envió${m.error ? ': ' + escapeHTML(m.error) : ''} <button class="wa-retry" onclick="waRetry('${m.id}')">Reintentar</button></div>` : '';
   const canDel = waActive && (waActive.owner_id === WA_ME.id || WA_IS_ADMIN) && !m._optimistic;
-  const delBtn = canDel
-    ? `<button class="wam-del" onclick="waDeleteMsg('${m.id}')" title="Borrar mensaje del CRM" aria-label="Borrar mensaje">🗑️</button>` : '';
+  const mine = waActive && waActive.owner_id === WA_ME.id;
+  // Barra de acciones: responder / reaccionar / reenviar / borrar
+  let acts = '<span class="wam-acts">';
+  if (mine && m.wa_msg_id && !m._optimistic) {
+    acts += `<button onclick="waStartReply('${m.id}')" title="Responder">↩</button>`;
+    acts += `<button onclick="waReactPick('${m.id}',event)" title="Reaccionar">😊</button>`;
+    acts += `<button onclick="waForward('${m.id}')" title="Reenviar">↪</button>`;
+  }
+  if (canDel) acts += `<button onclick="waDeleteMsg('${m.id}')" title="Borrar mensaje del CRM" aria-label="Borrar mensaje">🗑️</button>`;
+  acts += '</span>';
+  const react = m.reaction ? `<span class="wam-react">${escapeHTML(m.reaction)}</span>` : '';
   return `
     <div class="wam ${out ? 'out' : 'in'}" id="wam-${m.id}">
-      ${out ? delBtn : ''}<div class="wam-bubble">${inner}
-        <span class="wam-meta">${waTime(m.wa_timestamp || m.created_at)} ${tick}</span>
-      </div>${out ? '' : delBtn}${failed}
+      ${acts}<div class="wam-bubble">${inner}
+        <span class="wam-meta">${waTime(m.wa_timestamp || m.created_at)} ${tick}</span>${react}
+      </div>${failed}
     </div>`;
+}
+
+/* ---------- responder (citar) ---------- */
+let waReplyTo = null;   // { wa_msg_id, preview, from }
+
+function waStartReply(msgId) {
+  const m = waMsgs.find(x => x.id === msgId);
+  if (!m) return;
+  waReplyTo = {
+    wa_msg_id: m.wa_msg_id,
+    preview: m.body || WA_TYPE_LABEL[m.type] || 'Mensaje',
+    from: m.direction === 'out' ? 'me' : 'them'
+  };
+  const bar = document.getElementById('waReplyBar');
+  if (bar) {
+    bar.style.display = 'flex';
+    bar.innerHTML = `<div class="wa-reply-info"><strong>Respondiendo</strong>
+        <span>${escapeHTML(waReplyTo.preview.slice(0, 90))}</span></div>
+      <button class="wa-reply-x" onclick="waCancelReply()" aria-label="Cancelar respuesta">✕</button>`;
+  }
+  document.getElementById('waComposerInput')?.focus();
+}
+function waCancelReply() {
+  waReplyTo = null;
+  const bar = document.getElementById('waReplyBar');
+  if (bar) { bar.style.display = 'none'; bar.innerHTML = ''; }
+}
+
+/* ---------- reaccionar ---------- */
+const WA_REACT_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+function waReactPick(msgId, ev) {
+  ev?.stopPropagation();
+  document.getElementById('waReactPop')?.remove();
+  const pop = document.createElement('div');
+  pop.id = 'waReactPop';
+  pop.className = 'wa-react-pop';
+  pop.innerHTML = WA_REACT_EMOJIS.map(e => `<button onclick="waReact('${msgId}','${e}')">${e}</button>`).join('')
+    + `<button onclick="waReact('${msgId}','')" title="Quitar reacción">✖</button>`;
+  document.body.appendChild(pop);
+  const r = (ev?.target || document.getElementById('wam-' + msgId)).getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 240)) + 'px';
+  pop.style.top = Math.max(8, r.top - 48) + 'px';
+  setTimeout(() => document.addEventListener('click', function h() { pop.remove(); document.removeEventListener('click', h); }), 0);
+}
+
+async function waReact(msgId, emoji) {
+  document.getElementById('waReactPop')?.remove();
+  const m = waMsgs.find(x => x.id === msgId);
+  if (!m || !waActive || waActive.owner_id !== WA_ME.id) return;
+  m.reaction = emoji; m.reaction_from = 'me';        // optimista
+  const el = document.getElementById('wam-' + m.id);
+  if (el) el.outerHTML = waMsgBubble(m);
+  const { error } = await sb.from('jjp_wa_actions').insert({
+    owner_id: WA_ME.id, chat_id: waActive.id, jid: waActive.jid,
+    kind: 'react', target_wa_id: m.wa_msg_id, emoji
+  });
+  if (error) showToast('No se pudo reaccionar: ' + error.message, 'err');
+}
+
+/* ---------- reenviar ---------- */
+let waForwardMsgId = null;
+
+function waForward(msgId) {
+  waForwardMsgId = msgId;
+  const box = document.getElementById('waFwdList');
+  if (!box) return;
+  const mine = waChats.filter(c => c.owner_id === WA_ME.id && c.id !== waActive?.id);
+  box.innerHTML = mine.length
+    ? mine.map(c => `<button class="wa-cust-result" onclick="waDoForward('${c.id}')">
+        ${escapeHTML(c.display_name || waPrettyPhone(c.phone))}</button>`).join('')
+    : '<p class="wa-link-note">No tienes otros chats. Abre uno nuevo primero.</p>';
+  document.getElementById('waFwdModal')?.classList.add('op');
+  if (typeof trapFocus === 'function') trapFocus(document.getElementById('waFwdModal'));
+}
+function closeWaFwd() { document.getElementById('waFwdModal')?.classList.remove('op'); }
+
+async function waDoForward(chatId) {
+  const m = waMsgs.find(x => x.id === waForwardMsgId);
+  if (!m) return;
+  const { error } = await sb.from('jjp_wa_messages').insert({
+    chat_id: chatId, owner_id: WA_ME.id, direction: 'out', type: m.type, body: m.body,
+    media_path: m.media_path, media_mime: m.media_mime, media_size: m.media_size,
+    media_filename: m.media_filename, status: 'pending', forwarded: true
+  });
+  if (error) { showToast('No se pudo reenviar: ' + error.message, 'err'); return; }
+  closeWaFwd();
+  showToast('Reenviado ↪');
+}
+
+/* ---------- presencia: "escribiendo…" ---------- */
+let _waTypingActive = false, _waTypingTimer = null;
+function waTypingPing() {
+  if (!waActive || waActive.owner_id !== WA_ME.id) return;
+  if (!_waTypingActive) { _waTypingActive = true; waSendAction('typing'); }
+  clearTimeout(_waTypingTimer);
+  _waTypingTimer = setTimeout(waTypingStop, 3500);
+}
+function waTypingStop() {
+  clearTimeout(_waTypingTimer);
+  if (_waTypingActive) { _waTypingActive = false; waSendAction('stop_typing'); }
+}
+function waSendAction(kind) {
+  if (!waActive) return;
+  sb.from('jjp_wa_actions').insert({ owner_id: WA_ME.id, chat_id: waActive.id, jid: waActive.jid, kind }).then(() => {});
 }
 
 function waRenderThread(scroll) {
@@ -331,19 +451,25 @@ async function waSendText() {
   input.value = '';
   input.style.height = 'auto';
   waComposerButtons();
+  waTypingStop();
+  const reply = waReplyTo;   // capturar antes de limpiar
+  waCancelReply();
 
   const optimistic = {
     id: 'tmp-' + Date.now(), _optimistic: true,
     chat_id: waActive.id, direction: 'out', type: 'text',
-    body, status: 'pending', created_at: new Date().toISOString()
+    body, status: 'pending', created_at: new Date().toISOString(),
+    reply_preview: reply?.preview || null
   };
   waMsgs.push(optimistic);
   waRenderThread('bottom');
 
-  const { error } = await sb.from('jjp_wa_messages').insert({
+  const insert = {
     chat_id: waActive.id, owner_id: WA_ME.id,
     direction: 'out', type: 'text', body, status: 'pending'
-  });
+  };
+  if (reply?.wa_msg_id) { insert.reply_to_wa_id = reply.wa_msg_id; insert.reply_preview = reply.preview; insert.reply_from = reply.from; }
+  const { error } = await sb.from('jjp_wa_messages').insert(insert);
   if (error) {
     waMsgs = waMsgs.filter(m => m.id !== optimistic.id);
     waRenderThread('bottom');
@@ -375,13 +501,16 @@ async function waFileChosen(input) {
   if (upErr) { showToast('Error subiendo archivo: ' + upErr.message, 'err'); return; }
 
   const caption = (document.getElementById('waComposerInput')?.value || '').trim() || null;
-  const { error } = await sb.from('jjp_wa_messages').insert({
+  const reply = waReplyTo; waCancelReply();
+  const insert = {
     chat_id: waActive.id, owner_id: WA_ME.id,
     direction: 'out', type, body: caption,
     media_path: path, media_mime: file.type || null,
     media_size: file.size, media_filename: file.name,
     status: 'pending'
-  });
+  };
+  if (reply?.wa_msg_id) { insert.reply_to_wa_id = reply.wa_msg_id; insert.reply_preview = reply.preview; insert.reply_from = reply.from; }
+  const { error } = await sb.from('jjp_wa_messages').insert(insert);
   if (error) { showToast('No se pudo enviar: ' + error.message, 'err'); return; }
   const ci = document.getElementById('waComposerInput'); if (ci) ci.value = '';
 }

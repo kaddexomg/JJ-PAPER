@@ -105,8 +105,15 @@ async function fetchRatesToForm() {
   if (rates.bcv)     document.getElementById('set-exchange_rate').value = Number(rates.bcv).toFixed(2);
   if (rates.binance) document.getElementById('set-usdt_rate').value     = Number(rates.binance).toFixed(2);
   renderGap();
+  // El euro se guarda directo (no tiene campo en el formulario)
+  if (rates.eur) {
+    await sb.from('jjp_settings').upsert(
+      { key: 'rate_eur', value: Number(rates.eur).toFixed(2), updated_at: new Date().toISOString() },
+      { onConflict: 'key' });
+  }
   const mon = rates.monitor ? ` · Monitor: Bs ${Number(rates.monitor).toFixed(2)}` : '';
-  showToast(`Tasas cargadas (Binance P2P real${mon}). Revisa y pulsa "Guardar".`);
+  const eu  = rates.eur ? ` · Euro: Bs ${Number(rates.eur).toFixed(2)}` : '';
+  showToast(`Tasas cargadas (Binance P2P real${mon}${eu}). Revisa y pulsa "Guardar".`);
 }
 
 // Vista previa del comprobante con el pedido más reciente

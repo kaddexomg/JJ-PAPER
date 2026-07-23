@@ -42,14 +42,22 @@ async function fetchBcvMonitor() {
   }
 }
 
+// Euro oficial BCV (Bs/EUR) vía dolarapi
+async function fetchEur() {
+  const data = await fetchJson('https://ve.dolarapi.com/v1/euros');
+  return Number(data.find(d => d.fuente === 'oficial')?.promedio) || null;
+}
+
 async function fetchAll() {
-  const [bm, binance] = await Promise.allSettled([fetchBcvMonitor(), fetchBinance()]);
+  const [bm, binance, eur] = await Promise.allSettled([fetchBcvMonitor(), fetchBinance(), fetchEur()]);
   const bcv     = bm.status === 'fulfilled' ? bm.value.bcv : null;
   const monitor = bm.status === 'fulfilled' ? bm.value.monitor : null;
   const bin     = binance.status === 'fulfilled' ? binance.value : null;
+  const rateEur = eur.status === 'fulfilled' ? eur.value : null;
   if (bm.status === 'rejected')      log.warn({ err: bm.reason?.message }, 'fetch BCV/monitor falló');
   if (binance.status === 'rejected') log.warn({ err: binance.reason?.message }, 'fetch Binance falló');
-  return { bcv, binance: bin, monitor };
+  if (eur.status === 'rejected')     log.warn({ err: eur.reason?.message }, 'fetch euro falló');
+  return { bcv, binance: bin, monitor, eur: rateEur };
 }
 
 async function setSetting(key, value) {
@@ -59,7 +67,7 @@ async function setSetting(key, value) {
 }
 
 export async function updateRates() {
-  const { bcv, binance, monitor } = await fetchAll();
+  const { bcv, binance, monitor, eur } = await fetchAll();
   if (!bcv && !binance && !monitor) { log.warn('todas las fuentes de tasa fallaron; conservo la anterior'); return; }
 
   const rateBcv = bcv || monitor || binance;
@@ -77,6 +85,7 @@ export async function updateRates() {
   await setSetting('usdt_rate',         rateBin.toFixed(2));   // Binance P2P real (reposición)
   await setSetting('rate_binance',      rateBin.toFixed(2));
   if (rateMon) await setSetting('rate_monitor', rateMon.toFixed(2));
+  if (eur)     await setSetting('rate_eur',     eur.toFixed(2));     // Bs por EURO (BCV oficial)
   await setSetting('rate_gap_pct',      gap.toFixed(1));       // brecha BCV↔Binance
   await setSetting('rate_factor',       factor.toFixed(4));    // multiplicador para proteger margen
   await setSetting('rates_updated_iso', nowIso);
@@ -84,10 +93,10 @@ export async function updateRates() {
 
   // Historial para ver la tendencia diaria (tabla jjp_fx_rates)
   const { error: hErr } = await db.from('jjp_fx_rates')
-    .insert({ bcv: rateBcv, binance: rateBin, monitor: rateMon });
+    .insert({ bcv: rateBcv, binance: rateBin, monitor: rateMon, eur });
   if (hErr) log.warn({ err: hErr.message }, 'no se guardó historial de tasas');
 
-  log.info({ bcv: rateBcv, binance: rateBin, monitor: rateMon, brecha: gap.toFixed(1) + '%', factor: factor.toFixed(4) },
+  log.info({ bcv: rateBcv, binance: rateBin, monitor: rateMon, eur, brecha: gap.toFixed(1) + '%', factor: factor.toFixed(4) },
     'tasas actualizadas ✅ (se cobra a BCV; factor Binance/BCV protege margen)');
 }
 

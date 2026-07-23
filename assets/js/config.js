@@ -273,6 +273,30 @@ function getGapPct() {
   return (usdt / bcv - 1) * 100;
 }
 
+// Tasa euro BCV (Bs por EUR). 0 si no está configurada.
+function getEurRate() {
+  const r = parseFloat(APP.SETTINGS?.rate_eur);
+  return (r && r > 0) ? r : 0;
+}
+
+// Conversiones con el euro (vía Bs, todas las tasas son Bs/divisa):
+//   USD → EUR: monto × BCV_usd / BCV_eur   (para cotizar en €)
+//   EUR → USD: monto × BCV_eur / BCV_usd   (costos de proveedor en €)
+function usdToEur(usd) {
+  const eur = getEurRate(), bcv = getBcvRate();
+  return (eur && bcv) ? Number(usd) * bcv / eur : null;
+}
+function eurToUsd(eurAmt) {
+  const eur = getEurRate(), bcv = getBcvRate();
+  return (eur && bcv) ? Number(eurAmt) * eur / bcv : null;
+}
+// Costo en EUR de proveedor → costo ajustado a "USD-BCV" (pasa por Binance igual
+// que los costos en USDT: el € del proveedor se repone comprando divisa real).
+function eurCostAdjustedUSD(costEur) {
+  const usd = eurToUsd(costEur);
+  return usd == null ? null : adjustedCostUSD(usd);
+}
+
 // Margen global por defecto (%)
 function getDefaultMargin() {
   const m = parseFloat(APP.SETTINGS?.default_margin_pct);
@@ -314,12 +338,14 @@ async function fetchRates() {
     finally { clearTimeout(t); }
   };
   try {
-    const [dolar, cripto] = await Promise.all([
+    const [dolar, cripto, euros] = await Promise.all([
       getJson('https://ve.dolarapi.com/v1/dolares'),
       getJson('https://criptoya.com/api/USDT/VES/1'),
+      getJson('https://ve.dolarapi.com/v1/euros'),
     ]);
     const find = f => Number(dolar?.find?.(d => d.fuente === f)?.promedio) || null;
     const bcv = find('oficial'), monitor = find('paralelo');
+    const eur = Number(euros?.find?.(d => d.fuente === 'oficial')?.promedio) || null;
     // Binance P2P: promedio ask/bid; si falla, mediana de otros P2P; si no, monitor.
     const mid = x => (x && x.ask > 0 && x.bid > 0) ? (x.ask + x.bid) / 2
               : (x?.ask > 0 ? x.ask : (x?.bid > 0 ? x.bid : null));
@@ -331,7 +357,7 @@ async function fetchRates() {
     }
     binance = binance || monitor;
     if (!bcv && !binance) return null;
-    return { bcv, binance, monitor, paralelo: binance };
+    return { bcv, binance, monitor, eur, paralelo: binance };
   } catch (e) {
     console.warn('fetchRates error:', e);
     return null;

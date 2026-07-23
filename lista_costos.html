@@ -51,6 +51,11 @@
 </head>
 <body>
 <div class="toolbar" id="toolbar" style="display:none">
+  <input type="search" placeholder="Buscar producto, marca o SKU…" oninput="onSearchCost(this.value)"
+    style="flex:1 1 220px;min-width:180px;border:1px solid #cdd6d2;border-radius:6px;padding:8px 12px;font-size:13px">
+  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--doc-c);font-weight:600;cursor:pointer">
+    <input type="checkbox" onchange="onToggleZero(this)"> Ocultar agotados
+  </label>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir Lista</button>
   <button class="btn btn-g" onclick="window.close()">Cerrar</button>
 </div>
@@ -68,8 +73,8 @@
   await loadSettings();
   applyDocTheme();
 
-  // Obtener variantes de productos con sus categorías (incluyendo cost_usd y price_usd)
-  const select = 'id,sku,cost_usd,price_usd,variant_name,jjp_brands(name),'
+  // Obtener variantes de productos con sus categorías (cost_usd, price_usd y stock)
+  const select = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
     + 'jjp_products(name,jjp_categories(name,sort_order))';
   
   let out = [], CHUNK = 1000;
@@ -88,9 +93,29 @@
     if (!data || data.length < CHUNK) break;
   }
 
+  ALL_VARIANTS = out;
   renderList(out);
   document.getElementById('toolbar').style.display = 'flex';
 })();
+
+// Estado de filtros (barra de herramientas, no se imprime)
+let ALL_VARIANTS = [];
+let FILTER_HIDE_ZERO = false;
+let FILTER_SEARCH = '';
+
+function applyFilters() {
+  let rows = ALL_VARIANTS;
+  if (FILTER_HIDE_ZERO) rows = rows.filter(v => (v.stock || 0) > 0);
+  const q = (FILTER_SEARCH || '').trim().toLowerCase();
+  if (q) rows = rows.filter(v => {
+    const hay = [(v.jjp_products?.name), v.jjp_brands?.name, v.variant_name, v.sku]
+      .filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  renderList(rows);
+}
+function onToggleZero(el) { FILTER_HIDE_ZERO = el.checked; applyFilters(); }
+function onSearchCost(v) { FILTER_SEARCH = v; applyFilters(); }
 
 function applyDocTheme() {
   const s = APP.SETTINGS || {};
@@ -110,6 +135,14 @@ function renderList(variants) {
   const priceLabel = isCostMode ? 'Costo (USD)' : 'Precio (USD)';
   const docTitle   = isCostMode ? 'LISTA DE COSTOS' : 'LISTA DE PRECIOS';
 
+  // Tasas para conversión: BCV (Bs/USD) y euro BCV (Bs/EUR)
+  const bcv = getBcvRate();
+  const eurRate = getEurRate();
+  const toBs  = usd => bcv ? usd * bcv : null;
+  const toEur = usd => (bcv && eurRate) ? usd * bcv / eurRate : null;
+  const fmtBs  = usd => { const v = toBs(usd);  return v == null ? '—' : 'Bs ' + v.toLocaleString('es-VE', { maximumFractionDigits: 2 }); };
+  const fmtEur = usd => { const v = toEur(usd); return v == null ? '—' : '€ ' + v.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+
   // Agrupar por categoría
   const groups = {};
   variants.forEach(v => {
@@ -122,7 +155,7 @@ function renderList(variants) {
   const sortedCats = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'es'));
 
   let htmlCategories = '';
-  let totalItems = 0;
+  let totalItems = 0, totalUnits = 0, totalValueUSD = 0;
 
   sortedCats.forEach(cat => {
     const items = groups[cat];
@@ -134,6 +167,7 @@ function renderList(variants) {
     });
 
     totalItems += items.length;
+    let catUnits = 0, catValueUSD = 0;
 
     const rowsHtml = items.map(i => {
       const pName = escapeHTML(i.jjp_products?.name || '—');
@@ -141,27 +175,42 @@ function renderList(variants) {
       const vName = (i.variant_name && i.variant_name !== 'Única' && i.variant_name !== 'Estándar') ? ` <small style="color:#555">· ${escapeHTML(i.variant_name)}</small>` : '';
       const sku = escapeHTML(i.sku || '—');
       const valUSD = isCostMode ? (i.cost_usd || 0) : (i.price_usd || 0);
-      const valFormatted = fmtPrice(valUSD);
+      const stock = Number(i.stock) || 0;
+      catUnits += stock;
+      catValueUSD += valUSD * stock;
+
+      // Existencia con semáforo: rojo agotado, ámbar bajo (≤5), verde ok
+      const stockColor = stock <= 0 ? '#b00' : (stock <= 5 ? '#c08a00' : '#0a7');
+      const stockTxt = stock <= 0 ? 'Agotado' : String(stock);
 
       return `<tr>
         <td style="font-family:monospace;font-size:12px;color:#444">${sku}</td>
         <td>${pName}${bName}${vName}</td>
-        <td class="r">${valFormatted}</td>
+        <td class="c" style="color:${stockColor};font-weight:700">${stockTxt}</td>
+        <td class="r">${fmtPrice(valUSD)}</td>
+        <td class="r" style="color:#555;font-weight:500">${fmtBs(valUSD)}</td>
+        <td class="r" style="color:#555;font-weight:500">${fmtEur(valUSD)}</td>
       </tr>`;
     }).join('');
+
+    totalUnits += catUnits;
+    totalValueUSD += catValueUSD;
 
     htmlCategories += `
       <div class="cat-section">
         <div class="cat-header">
           <span>📂 ${escapeHTML(cat)}</span>
-          <span style="font-weight:normal;font-size:12px">${items.length} ítems</span>
+          <span style="font-weight:normal;font-size:12px">${items.length} ítems · ${catUnits} u. · ${fmtPrice(catValueUSD)}</span>
         </div>
         <table>
           <thead>
             <tr>
-              <th style="width:140px">SKU</th>
+              <th style="width:120px">SKU</th>
               <th>Producto / Marca</th>
-              <th class="r" style="width:120px">${priceLabel}</th>
+              <th class="c" style="width:70px">Existencia</th>
+              <th class="r" style="width:90px">${priceLabel}</th>
+              <th class="r" style="width:100px">En Bs (BCV)</th>
+              <th class="r" style="width:90px">En €</th>
             </tr>
           </thead>
           <tbody>
@@ -189,14 +238,31 @@ function renderList(variants) {
       <div class="cmp-doc">
         <span class="tag">${docTitle}</span>
         <div class="date">${nowStr}</div>
-        <div style="font-size:11px;color:#666;margin-top:2px">${totalItems} artículos en total</div>
+        <div style="font-size:11px;color:#666;margin-top:2px">${totalItems} artículos · ${totalUnits} unidades</div>
       </div>
     </div>
+
+    ${isCostMode ? `
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div style="flex:1;min-width:150px;background:#f0f4f2;border-radius:6px;padding:8px 12px">
+        <div style="font-size:10px;color:#666;text-transform:uppercase">Valor inventario (costo)</div>
+        <div style="font-size:16px;font-weight:700;color:var(--doc-c)">${fmtPrice(totalValueUSD)}</div>
+      </div>
+      <div style="flex:1;min-width:150px;background:#f0f4f2;border-radius:6px;padding:8px 12px">
+        <div style="font-size:10px;color:#666;text-transform:uppercase">En Bolívares (BCV)</div>
+        <div style="font-size:16px;font-weight:700;color:var(--doc-c)">${fmtBs(totalValueUSD)}</div>
+      </div>
+      <div style="flex:1;min-width:150px;background:#f0f4f2;border-radius:6px;padding:8px 12px">
+        <div style="font-size:10px;color:#666;text-transform:uppercase">En Euros</div>
+        <div style="font-size:16px;font-weight:700;color:var(--doc-c)">${fmtEur(totalValueUSD)}</div>
+      </div>
+    </div>` : ''}
 
     ${htmlCategories || '<div class="err">No hay productos disponibles.</div>'}
 
     <div class="cmp-foot">
-      ${isCostMode ? 'Documento interno confidencial — Lista de costos' : 'Lista de precios en Divisas (USD)'} por categoría (${bizName})
+      ${isCostMode ? 'Documento interno confidencial — Lista de costos y existencias' : 'Lista de precios en Divisas (USD)'} por categoría (${bizName})
+      ${bcv ? `<br>Tasas de conversión: BCV Bs ${bcv.toFixed(2)}/USD${eurRate ? ` · Euro BCV Bs ${eurRate.toFixed(2)}/€` : ''}` : ''}
     </div>
   </div>`;
 }

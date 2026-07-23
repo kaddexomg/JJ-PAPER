@@ -45,7 +45,11 @@
           <p>Tu cartera: haz seguimiento y reactiva a los inactivos</p>
         </div>
       </div>
-      <button class="btn-p" onclick="openCustomerModal()">＋ Nuevo cliente</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-o" onclick="openCustImport()" title="Importar desde Excel o CSV">⬆️ Importar</button>
+        <button class="btn-p" onclick="openCustomerModal()">＋ Nuevo cliente</button>
+      </div>
+      <input type="file" id="custImportInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="custImportFile(this)">
     </div>
 
     <div class="admin-content">
@@ -107,6 +111,7 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>

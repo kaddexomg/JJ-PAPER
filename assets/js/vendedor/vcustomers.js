@@ -126,3 +126,80 @@ async function saveCustomer() {
   closeCustomerModal();
   loadCustomers();
 }
+
+/* ---------- Importar clientes (Excel / CSV) ---------- */
+function custPhoneNorm(p) {
+  const d = String(p || '').replace(/\D/g, '');
+  if (d.startsWith('58') && d.length === 12) return '0' + d.slice(2);
+  if (d.startsWith('0') && d.length === 11) return d;
+  if (d.length === 10 && /^[24]/.test(d)) return '0' + d;
+  return d || null;
+}
+function custPick(o, keys) {
+  for (const k of Object.keys(o)) if (keys.includes(k.toLowerCase().trim())) return String(o[k] ?? '').trim();
+  return '';
+}
+function custParseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+  const sep = (lines[0].includes(';') && !lines[0].includes(',')) ? ';' : ',';
+  const head = lines[0].split(sep).map(h => h.trim().toLowerCase());
+  return lines.slice(1).map(l => {
+    const c = l.split(sep), o = {};
+    head.forEach((h, i) => o[h] = (c[i] || '').trim());
+    return o;
+  });
+}
+
+function openCustImport() { document.getElementById('custImportInput')?.click(); }
+
+async function custImportFile(input) {
+  const file = input.files?.[0]; input.value = '';
+  if (!file) return;
+  let rows = [];
+  try {
+    if (/\.csv$/i.test(file.name)) rows = custParseCSV(await file.text());
+    else if (window.XLSX) {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    } else { showToast('No se pudo leer el Excel. Exporta a CSV e inténtalo.', 'warn'); return; }
+  } catch (e) { showToast('Error leyendo el archivo: ' + e.message, 'err'); return; }
+
+  const mapped = rows.map(r => ({
+    name: custPick(r, ['nombre', 'name', 'cliente', 'empresa', 'razon social']),
+    phone: custPhoneNorm(custPick(r, ['telefono', 'teléfono', 'phone', 'celular', 'tel', 'movil', 'móvil'])),
+    email: custPick(r, ['email', 'correo', 'e-mail', 'mail']).toLowerCase(),
+    city: custPick(r, ['ciudad', 'city']),
+    rif: custPick(r, ['rif', 'ci', 'cedula', 'cédula', 'documento']),
+  })).filter(r => r.name || r.phone || r.email);
+
+  if (!mapped.length) { showToast('No hallé filas válidas. Columnas: nombre, telefono, email, ciudad, rif.', 'warn'); return; }
+  if (!confirm(`Importar ${mapped.length} cliente(s) a tu cartera?`)) return;
+
+  showToast('Importando…');
+  let added = 0, upd = 0, fail = 0;
+  for (const r of mapped) {
+    try {
+      const ors = [];
+      if (r.email) ors.push(`email.eq.${r.email}`);
+      if (r.phone) ors.push(`phone.eq.${r.phone}`);
+      let existing = null;
+      if (ors.length) { const { data } = await sb.from('jjp_customers').select('id').or(ors.join(',')).limit(1); existing = data?.[0]; }
+      if (existing) {
+        await sb.from('jjp_customers').update({
+          email: r.email || undefined, city: r.city || undefined, rif: r.rif || undefined,
+          updated_at: new Date().toISOString()
+        }).eq('id', existing.id);
+        upd++;
+      } else {
+        const { error } = await sb.from('jjp_customers').insert({
+          name: r.name || 'Cliente', phone: r.phone || null, email: r.email || null,
+          city: r.city || null, rif: r.rif || null, seller_id: SELLER.id
+        });
+        if (error) fail++; else added++;
+      }
+    } catch (e) { fail++; }
+  }
+  showToast(`Importado: ${added} nuevos · ${upd} actualizados${fail ? ` · ${fail} con error` : ''}`, fail ? 'warn' : 'ok', 6000);
+  loadCustomers();
+}

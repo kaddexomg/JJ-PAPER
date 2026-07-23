@@ -183,13 +183,18 @@ function renderList(variants) {
       const stockColor = stock <= 0 ? '#b00' : (stock <= 5 ? '#c08a00' : '#0a7');
       const stockTxt = stock <= 0 ? 'Agotado' : String(stock);
 
+      // Bs y € solo en modo costo (interno). La lista de precios pública = solo USD.
+      const bsEurCells = isCostMode
+        ? `<td class="r" style="color:#555;font-weight:500">${fmtBs(valUSD)}</td>
+           <td class="r" style="color:#555;font-weight:500">${fmtEur(valUSD)}</td>`
+        : '';
+
       return `<tr>
         <td style="font-family:monospace;font-size:12px;color:#444">${sku}</td>
         <td>${pName}${bName}${vName}</td>
         <td class="c" style="color:${stockColor};font-weight:700">${stockTxt}</td>
         <td class="r">${fmtPrice(valUSD)}</td>
-        <td class="r" style="color:#555;font-weight:500">${fmtBs(valUSD)}</td>
-        <td class="r" style="color:#555;font-weight:500">${fmtEur(valUSD)}</td>
+        ${bsEurCells}
       </tr>`;
     }).join('');
 
@@ -209,8 +214,7 @@ function renderList(variants) {
               <th>Producto / Marca</th>
               <th class="c" style="width:70px">Existencia</th>
               <th class="r" style="width:90px">${priceLabel}</th>
-              <th class="r" style="width:100px">En Bs (BCV)</th>
-              <th class="r" style="width:90px">En €</th>
+              ${isCostMode ? '<th class="r" style="width:100px">En Bs (BCV)</th><th class="r" style="width:90px">En €</th>' : ''}
             </tr>
           </thead>
           <tbody>

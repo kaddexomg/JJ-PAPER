@@ -57,20 +57,34 @@
 <script>
 // Si ya hay sesión activa (incluye el regreso del login con Google), va a su
 // panel según el rol; si la cuenta aún no está activa, lo avisa y cierra sesión.
-(async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) return;
-  const p = await loadProfile();
-  if (p && p.active) { window.location.href = roleHome(p); return; }
-  await sb.auth.signOut();
-  const err = document.getElementById('loginErr');
-  if (err) {
-    err.textContent = p
-      ? 'Tu cuenta con Google fue creada ✅ pero un administrador debe activarla antes de entrar.'
-      : 'No se pudo cargar tu perfil. Intenta de nuevo.';
-    err.classList.add('sh');
-  }
-})();
+// Enruta según el perfil: activo → su panel; inactivo → aviso + cierre de sesión.
+let _routing = false;
+async function routeIfSession() {
+  if (_routing) return;
+  _routing = true;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { _routing = false; return; }
+    CURRENT_PROFILE = null;                 // no confiar en caché de un intento previo
+    const p = await loadProfile();
+    if (p && p.active) { window.location.href = roleHome(p); return; }
+    await sb.auth.signOut();
+    const err = document.getElementById('loginErr');
+    if (err) {
+      err.textContent = p
+        ? 'Tu cuenta con Google fue creada ✅ pero un administrador debe activarla antes de entrar.'
+        : 'No se pudo cargar tu perfil. Intenta de nuevo.';
+      err.classList.add('sh');
+    }
+  } finally { _routing = false; }
+}
+
+// Al volver de Google el token llega en el #hash; supabase-js lo procesa async.
+// Escuchamos el evento para enrutar en cuanto la sesión quede lista (sin carrera).
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') routeIfSession();
+});
+routeIfSession();   // sesión ya existente (entrar de nuevo sin re-loguear)
 
 // Login con Google (OAuth). El provider se habilita en el dashboard de Supabase.
 async function loginWithGoogle() {

@@ -8,6 +8,23 @@ const SUPABASE_KEY = 'sb_publishable_3fTrF94WK0TDpF3nvwPMSg_l1H-9cBI';
 // Supabase client (loaded via CDN in each HTML)
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// --- Cazador de retorno de OAuth (login con Google) ---------------------------
+// Si Supabase, por su "Site URL", devuelve el token a una página pública en vez
+// de al login, lo reenviamos a admin/login.html (conservando el #access_token)
+// para que enrute por rol. NO da acceso a nada: login.html valida perfil+activo
+// antes de entrar, y todas las páginas del panel exigen requireAuth. Corre ANTES
+// de que supabase-js consuma el hash (misma vuelta síncrona).
+(function routeOAuthToLogin() {
+  try {
+    const h = location.hash || '';
+    if (!/[#&](access_token|error|error_description)=/.test(h)) return;
+    const p = location.pathname;
+    if (/\/(admin|vendedor)\//.test(p)) return;            // ya está en zona de login/panel
+    const base = p.replace(/[^/]*$/, '');                  // carpeta actual (normalmente "/")
+    location.replace(location.origin + base + 'admin/login.html' + location.search + h);
+  } catch (e) { /* nunca bloquear la carga del sitio por esto */ }
+})();
+
 // App config
 const APP = {
   WA_NUM:        '584121234567',

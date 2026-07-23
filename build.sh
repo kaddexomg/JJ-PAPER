@@ -11,6 +11,7 @@ for item in *; do
     wa-server|sql|dist|node_modules) continue ;;   # nunca publicar
     build.sh|skills-lock.json)       continue ;;   # herramientas del repo
     *.md|*.code-workspace)           continue ;;   # docs / config de editor
+    *.pdf|*.xlsx|*.xls|*.csv|*.jpeg|*.jpg) continue ;; # datos de negocio sueltos
     *) cp -r "$item" dist/ ;;
   esac
 done

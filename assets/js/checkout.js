@@ -169,7 +169,8 @@ function validateCheckout() {
   return true;
 }
 
-// ---- Upload receipt, returns public URL or null ----
+// ---- Upload receipt, returns storage path or null ----
+// El bucket jjp-receipts es PRIVADO: se guarda el path y el admin genera signed URLs.
 async function uploadReceipt(orderNumber) {
   if (!coReceipt) return null;
   const ext  = (coReceipt.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -177,7 +178,7 @@ async function uploadReceipt(orderNumber) {
   const { error } = await sb.storage.from(APP.RECEIPTS_BUCKET)
     .upload(path, coReceipt, { contentType: coReceipt.type, upsert: false });
   if (error) { console.warn('receipt upload error:', error); return null; }
-  return APP.RECEIPTS_URL + path;
+  return path;
 }
 
 // ---- Primary submit: register order in Supabase ----

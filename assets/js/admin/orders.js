@@ -37,9 +37,23 @@ async function loadOrders(statusFilter = ordersFilter) {
   if (error) { showToast('Error cargando pedidos', 'err'); return; }
   adminOrders  = data || [];
   adminSellers = sellersRes.data || [];
+  await signReceipts(adminOrders);
   ordersPage = 1;
   renderOrdersStats();
   renderOrdersTable();
+}
+
+// El bucket jjp-receipts es privado: receipt_url puede ser una URL pública vieja
+// o un path nuevo; en ambos casos se convierte a signed URL de 1 hora.
+async function signReceipts(orders) {
+  await Promise.all(orders.map(async o => {
+    if (!o.receipt_url) return;
+    const path = o.receipt_url.includes('/jjp-receipts/')
+      ? o.receipt_url.split('/jjp-receipts/')[1]
+      : o.receipt_url;
+    const { data } = await sb.storage.from(APP.RECEIPTS_BUCKET).createSignedUrl(path, 3600);
+    if (data?.signedUrl) o.receipt_url = data.signedUrl;
+  }));
 }
 
 function setOrdersFilter(status) {

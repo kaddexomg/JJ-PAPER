@@ -309,7 +309,7 @@ async function exportPDF() {
       doc.setFont('helvetica', 'bold');
       doc.text(`WhatsApp ${phone}`, 40, pageH - 20);
       doc.setFont('helvetica', 'normal'); doc.setTextColor(110);
-      doc.text(`${mail}  ·  jj-paper.netlify.app`, pageW / 2, pageH - 20, { align: 'center' });
+      doc.text(`${mail}  ·  jj-paper.pages.dev`, pageW / 2, pageH - 20, { align: 'center' });
       doc.text(`Página ${page}`, pageW - 40, pageH - 20, { align: 'right' });
     },
   });
@@ -320,7 +320,7 @@ async function exportPDF() {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
   doc.text(`${rows.length} presentaciones  ·  ${cats.length} categorías`, 40, 96);
   doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.setFontSize(8.5);
-  doc.text('Pedidos al mayor por WhatsApp o en jj-paper.netlify.app', pageW - 40, 96, { align: 'right' });
+  doc.text('Pedidos al mayor por WhatsApp o en jj-paper.pages.dev', pageW - 40, 96, { align: 'right' });
 
   doc.save(`Catalogo-JJPaper-${todayStamp()}.pdf`);
   showToast('Catálogo PDF descargado', 'ok');
@@ -420,7 +420,7 @@ async function exportExcel() {
 
   // Cabecera de documento
   fullRow('JJ PAPER — Catálogo Mayorista', S.title, 30);
-  fullRow('Calidad · Compromiso · Confianza  ·  jj-paper.netlify.app', S.subtitle, 16);
+  fullRow('Calidad · Compromiso · Confianza  ·  jj-paper.pages.dev', S.subtitle, 16);
   fullRow(`Emitido: ${todayStamp()}   ·   Tasa BCV: Bs ${rate.toFixed(2)} / USD   ·   Precios sujetos a cambio`, S.meta, 18);
   push(['', '', '', '', '', ''], Array(NCOLS).fill(undefined), 8);
 

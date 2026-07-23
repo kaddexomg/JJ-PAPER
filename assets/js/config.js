@@ -14,7 +14,6 @@ const APP = {
   WA_MSG:        'Hola JJ Paper, quisiera informacion sobre sus productos.',
   SITE_NAME:     'JJ Paper',
   STORAGE_URL:   `${SUPABASE_URL}/storage/v1/object/public/jjp-products/`,
-  RECEIPTS_URL:  `${SUPABASE_URL}/storage/v1/object/public/jjp-receipts/`,
   RECEIPTS_BUCKET: 'jjp-receipts',
   PER_PAGE:      12,
   CART_KEY:      'jjp_cart_v2',
@@ -211,17 +210,14 @@ function osmLink(lat, lng, z = 16) {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${z}/${lat}/${lng}`;
 }
 
-// Imagen optimizada vía Netlify Image CDN (webp redimensionado al vuelo).
-// En desarrollo local (Live Server / file://) devuelve la URL original.
+// Imagen de producto: URL directa de Supabase Storage.
+// El deploy vive en Cloudflare Pages, donde /.netlify/images no existe (daba 404
+// y rompía todas las imágenes en producción). Las imágenes ya se comprimen al
+// subir, así que la URL original es suficiente. `width` se acepta por
+// compatibilidad con los call sites pero no se usa.
 function optImg(url, width) {
   if (!url) return url;
-  const h = location.hostname;
-  const local = location.protocol === 'file:' || h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local');
-  // Solo imágenes de nuestro Supabase Storage (otras URLs no están en el
-  // allowlist de netlify.toml y el CDN las rechazaría).
-  // Devuelve la URL ya codificada: no envolver en encodeURI (doble-codificaría el %)
-  if (local || !url.startsWith(SUPABASE_URL)) return encodeURI(url);
-  return `/.netlify/images?url=${encodeURIComponent(url)}&w=${width || 400}&q=75&fm=webp`;
+  return encodeURI(url);
 }
 
 // WhatsApp open

@@ -37,6 +37,54 @@ function acctSig(acct) {
   return acct.source === 'oauth' ? `oauth:${acct.email}:${acct.refresh}` : `smtp:${acct.email}:${acct.pass}`;
 }
 
+// ---- Envío por la API de Gmail (para cuentas vinculadas con OAuth 'gmail.send') ----
+// SMTP+XOAUTH2 exigiría el scope amplio https://mail.google.com/; la API de Gmail
+// funciona con el scope mínimo gmail.send. Renovamos el access token con el refresh.
+async function gmailAccessToken(refresh) {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: refresh, grant_type: 'refresh_token'
+    })
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error_description || j.error || `token HTTP ${res.status}`);
+  return j.access_token;
+}
+
+function encHeader(s) {   // asunto/nombre con acentos → RFC 2047
+  return /[^\x00-\x7F]/.test(s || '') ? `=?UTF-8?B?${Buffer.from(s, 'utf8').toString('base64')}?=` : (s || '');
+}
+function buildRawEmail({ from, to, subject, text, html }) {
+  const isHtml = !!html;
+  const lines = [
+    `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: text/${isHtml ? 'html' : 'plain'}; charset="UTF-8"`,
+    'Content-Transfer-Encoding: base64', '',
+    Buffer.from(isHtml ? html : (text || ''), 'utf8').toString('base64')
+  ];
+  return Buffer.from(lines.join('\r\n'), 'utf8')
+    .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function gmailApiSend(acct, m) {
+  const token = await gmailAccessToken(acct.refresh);
+  const raw = buildRawEmail({
+    from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
+    text: m.body || '', html: m.html || null
+  });
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw })
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error?.message || `Gmail API HTTP ${res.status}`);
+  return j.id || null;
+}
+
 // Credenciales efectivas para un owner. Orden:
 //  1) su cuenta vinculada por Google (OAuth) — método principal, sin claves
 //  2) su cuenta por SMTP (si vinculó una con contraseña de app)
@@ -119,7 +167,9 @@ async function verifyAccount(row) {
     acct = { email: row.email, pass: row.app_pass, source: 'smtp' };
   else return;
   try {
-    await buildTxFromAcct(acct).verify();
+    // OAuth: basta con que el refresh token consiga un access token (sin SMTP)
+    if (acct.source === 'oauth') await gmailAccessToken(acct.refresh);
+    else await buildTxFromAcct(acct).verify();
     await db.from('jjp_email_accounts')
       .update({ verified: true, last_error: null }).eq('profile_id', row.profile_id);
     log.info({ email: row.email, via: acct.source }, 'cuenta de correo verificada ✅');
@@ -145,8 +195,8 @@ async function sweep() {
 }
 
 async function dispatch(row) {
-  const entry = await txFor(row.owner_id);
-  if (!entry) {
+  const acct = await accountFor(row.owner_id);
+  if (!acct) {
     // Sin cuenta configurada: no reintentar en bucle, marcar claro
     await db.from('jjp_emails').update({
       status: 'failed', error: 'Sin correo vinculado. Abre "Mi correo" y toca "Vincular con Google".'
@@ -159,16 +209,22 @@ async function dispatch(row) {
   if (!locked?.length) return;
 
   try {
-    const info = await entry.tx.sendMail({
-      from: entry.from, to: row.to_addr,
-      subject: row.subject || '(sin asunto)',
-      text: row.body || '', html: row.html || undefined
-    });
+    let messageId = null;
+    if (acct.source === 'oauth') {
+      messageId = await gmailApiSend(acct, row);           // API de Gmail (scope gmail.send)
+    } else {
+      const info = await buildTxFromAcct(acct).sendMail({  // SMTP (app pass / .env)
+        from: acct.from, to: row.to_addr,
+        subject: row.subject || '(sin asunto)',
+        text: row.body || '', html: row.html || undefined
+      });
+      messageId = info.messageId || null;
+    }
     await db.from('jjp_emails').update({
-      status: 'sent', message_id: info.messageId || null, error: null,
-      from_addr: entry.from, sent_at: new Date().toISOString()
+      status: 'sent', message_id: messageId, error: null,
+      from_addr: acct.from, sent_at: new Date().toISOString()
     }).eq('id', row.id);
-    log.info({ id: row.id, to: row.to_addr }, 'correo enviado');
+    log.info({ id: row.id, to: row.to_addr, via: acct.source }, 'correo enviado');
   } catch (e) {
     const retries = (row.retry_count || 0) + 1;
     const failed = retries >= MAX_RETRIES;

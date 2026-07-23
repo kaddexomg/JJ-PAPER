@@ -375,3 +375,105 @@ async function mailDelete(id) {
   mailRows = mailRows.filter(x => x.id !== id);
   mailRender();
 }
+
+/* ================= Campañas de correo ================= */
+const ECAMP_KIND = { general: 'General', seguimiento: 'Seguimiento', captacion: 'Captación' };
+const ECAMP_ST = { draft: '📝 Borrador', running: '📤 Enviando…', paused: '⏸️ Pausada', done: '✅ Completada', cancelled: '🚫 Cancelada' };
+
+async function openCampaigns() {
+  document.getElementById('ecampModal')?.classList.add('op');
+  if (typeof trapFocus === 'function') trapFocus(document.getElementById('ecampModal'));
+  await ecampLoadTags();
+  await ecampLoadList();
+}
+function closeCampaigns() { document.getElementById('ecampModal')?.classList.remove('op'); }
+
+async function ecampLoadTags() {
+  const sel = document.getElementById('ecampAudience');
+  if (!sel || sel.dataset.filled) return;
+  let q = sb.from('jjp_customers').select('tags').not('email', 'is', null);
+  if (!MAIL_IS_ADMIN) q = q.eq('seller_id', MAIL_ME.id);
+  const { data } = await q;
+  const tags = new Set();
+  (data || []).forEach(r => (r.tags || []).forEach(t => tags.add(t)));
+  sel.innerHTML = `<option value="all">Todos mis clientes con correo</option>` +
+    [...tags].map(t => `<option value="tag:${escapeHTML(t)}">Etiqueta: ${escapeHTML(t)}</option>`).join('');
+  sel.dataset.filled = '1';
+}
+
+async function ecampAudienceRows() {
+  const val = document.getElementById('ecampAudience')?.value || 'all';
+  let q = sb.from('jjp_customers').select('id,name,email,tags')
+    .not('email', 'is', null).eq('email_opt_out', false);
+  if (!MAIL_IS_ADMIN) q = q.eq('seller_id', MAIL_ME.id);
+  const { data } = await q;
+  let rows = data || [];
+  if (val.startsWith('tag:')) { const tag = val.slice(4); rows = rows.filter(c => (c.tags || []).includes(tag)); }
+  return rows;
+}
+
+async function ecampPreview() {
+  const rows = await ecampAudienceRows();
+  const el = document.getElementById('ecampCount');
+  if (el) el.textContent = `${rows.length} destinatario(s)`;
+}
+
+async function ecampCreate() {
+  const name = (document.getElementById('ecampName')?.value || '').trim();
+  const kind = document.getElementById('ecampKind')?.value || 'general';
+  const subject = (document.getElementById('ecampSubject')?.value || '').trim();
+  const body = (document.getElementById('ecampBody')?.value || '').trim();
+  if (!name || !subject || !body) { showToast('Nombre, asunto y mensaje son obligatorios', 'warn'); return; }
+  if (!mailAcctConfigured()) { showToast('Primero vincula tu correo (⚙️ Mi correo)', 'warn'); return; }
+  const rows = await ecampAudienceRows();
+  if (!rows.length) { showToast('No hay destinatarios con correo en esa audiencia', 'warn'); return; }
+  if (!confirm(`Enviar "${name}" a ${rows.length} cliente(s)?\nSale poco a poco desde tu correo.`)) return;
+
+  const { data: camp, error } = await sb.from('jjp_email_campaigns').insert({
+    owner_id: MAIL_ME.id, name, kind, subject, body, status: 'draft', total: rows.length
+  }).select('id').single();
+  if (error) { showToast('No se pudo crear: ' + error.message, 'err'); return; }
+
+  const targets = rows.map(c => ({
+    campaign_id: camp.id, owner_id: MAIL_ME.id, customer_id: c.id,
+    to_addr: c.email, name: c.name || '', vars: { nombre: (c.name || '').split(' ')[0] || 'cliente' }
+  }));
+  for (let i = 0; i < targets.length; i += 500) {
+    const { error: te } = await sb.from('jjp_email_campaign_targets').insert(targets.slice(i, i + 500));
+    if (te) { showToast('Error creando destinatarios: ' + te.message, 'err'); return; }
+  }
+  await sb.from('jjp_email_campaigns').update({ status: 'running', started_at: new Date().toISOString() }).eq('id', camp.id);
+  showToast(`Campaña "${name}" lanzada a ${rows.length} 📣 (necesita el servidor encendido)`);
+  ['ecampName', 'ecampSubject', 'ecampBody'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  await ecampLoadList();
+}
+
+async function ecampLoadList() {
+  const box = document.getElementById('ecampList');
+  if (!box) return;
+  let q = sb.from('jjp_email_campaigns').select('*').order('created_at', { ascending: false }).limit(30);
+  const { data } = await q;
+  if (!data?.length) { box.innerHTML = '<p class="wa-link-note">Sin campañas todavía.</p>'; return; }
+  box.innerHTML = data.map(c => {
+    const done = c.sent_count + c.failed_count;
+    const pct = c.total ? Math.round(done / c.total * 100) : 0;
+    return `<div class="ecamp-item">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <strong>${escapeHTML(c.name || '—')}</strong>
+        <span style="font-size:12px">${ECAMP_ST[c.status] || c.status}</span>
+      </div>
+      <div style="font-size:12px;color:var(--gr,#888)">${ECAMP_KIND[c.kind] || c.kind} · ${escapeHTML(c.subject || '')}</div>
+      <div style="background:#eee;border-radius:4px;height:6px;margin:6px 0"><div style="background:var(--gm,#16604A);height:6px;border-radius:4px;width:${pct}%"></div></div>
+      <div style="font-size:11px;color:var(--gr,#888)">${c.sent_count}/${c.total} enviados${c.failed_count ? ` · ${c.failed_count} fallidos` : ''}
+        ${(c.status === 'running' || c.status === 'paused') ? `<button class="wa-retry" style="margin-left:8px" onclick="ecampCancel('${c.id}')">Cancelar</button>` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function ecampCancel(id) {
+  if (!confirm('¿Cancelar esta campaña? Los que faltan no se enviarán.')) return;
+  const { error } = await sb.from('jjp_email_campaigns').update({ status: 'cancelled' }).eq('id', id);
+  if (error) { showToast('No se pudo cancelar: ' + error.message, 'err'); return; }
+  showToast('Campaña cancelada');
+  await ecampLoadList();
+}

@@ -38,6 +38,7 @@
   .mail-badge{background:#dc3c3c;color:#fff;border-radius:10px;padding:0 6px;font-size:11px;display:none}
   .mail-item.mail-unread{background:rgba(153,204,51,.10);border-left:3px solid #2ecc40}
   .mail-item.mail-received .mail-st{color:#2ecc40}
+  .ecamp-item{border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 12px;margin-bottom:8px}
 </style>
 </head>
 <body class="admin-body">
@@ -90,6 +91,7 @@
               title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <button class="btn-o" id="mailCompanyBtn" onclick="openMailCompany()" style="display:none">🏢 Correo empresa</button>
         <button class="btn-o" onclick="openMailAccount()">⚙️ Mi correo</button>
+        <button class="btn-o" onclick="openCampaigns()">📣 Campañas</button>
         <button class="btn-p" onclick="openMailCompose()">✉️ Nuevo correo</button>
       </div>
     </div>
@@ -137,6 +139,39 @@
         <div id="mailAttachList" class="mail-attach"></div>
       </div>
       <button class="btn-p" id="mailSendBtn" style="width:100%;justify-content:center" onclick="mailSend()">📤 Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: campañas de correo -->
+<div class="modal-overlay" id="ecampModal" onclick="if(event.target===this)closeCampaigns()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="ecampTitle" style="max-width:640px">
+    <div class="modal-hd">
+      <h3 id="ecampTitle">📣 Campañas de correo</h3>
+      <button class="modal-close" onclick="closeCampaigns()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="fl" for="ecampName">Nombre interno</label>
+          <input class="fi" id="ecampName" placeholder="Ej: Seguimiento julio"></div>
+        <div class="fg"><label class="fl" for="ecampKind">Tipo</label>
+          <select class="fi" id="ecampKind"><option value="general">General</option><option value="seguimiento">Seguimiento</option><option value="captacion">Captación</option></select></div>
+      </div>
+      <div class="fg" style="margin-top:8px"><label class="fl" for="ecampSubject">Asunto</label>
+        <input class="fi" id="ecampSubject" placeholder="Novedades de JJ Paper"></div>
+      <div class="fg" style="margin-top:8px"><label class="fl" for="ecampBody">Mensaje</label>
+        <textarea class="fi" id="ecampBody" rows="5" placeholder="Hola {{nombre}}, …"></textarea>
+        <small style="color:var(--gr,#888)">Usa <code>{{nombre}}</code> para el nombre del cliente.</small></div>
+      <div class="fg" style="margin-top:8px"><label class="fl" for="ecampAudience">Audiencia</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="fi" id="ecampAudience" onchange="ecampPreview()"><option value="all">Todos mis clientes con correo</option></select>
+          <button class="btn-o" onclick="ecampPreview()">Contar</button>
+          <span id="ecampCount" style="font-size:12px;color:var(--gr,#888)"></span>
+        </div></div>
+      <button class="btn-p" style="width:100%;justify-content:center;margin-top:12px" onclick="ecampCreate()">🚀 Lanzar campaña</button>
+      <hr style="margin:16px 0;border:none;border-top:1px solid rgba(0,0,0,.1)">
+      <h4 style="margin:0 0 8px">Campañas recientes</h4>
+      <div id="ecampList"><p class="wa-link-note">Cargando…</p></div>
     </div>
   </div>
 </div>

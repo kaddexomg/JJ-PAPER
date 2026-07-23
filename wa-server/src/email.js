@@ -127,6 +127,26 @@ async function gmailApiSend(acct, m) {
   return j.id || null;
 }
 
+// Envío inmediato reutilizable (lo usa el despachador de campañas).
+// Lanza si el owner no tiene correo vinculado. Devuelve { id, from }.
+export async function sendEmailNow(ownerId, m) {
+  const acct = await accountFor(ownerId);
+  if (!acct) throw new Error('Sin correo vinculado');
+  let id = null;
+  if (acct.source === 'oauth') {
+    id = await gmailApiSend(acct, m);
+  } else {
+    const atts = await loadAttachments(m.attachments);
+    const info = await buildTxFromAcct(acct).sendMail({
+      from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
+      text: m.body || '', html: m.html || undefined,
+      attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
+    });
+    id = info.messageId || null;
+  }
+  return { id, from: acct.from };
+}
+
 // Credenciales efectivas para un owner. Orden:
 //  1) su cuenta vinculada por Google (OAuth) — método principal, sin claves
 //  2) su cuenta por SMTP (si vinculó una con contraseña de app)

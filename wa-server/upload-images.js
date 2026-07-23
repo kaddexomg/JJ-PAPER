@@ -55,9 +55,11 @@ const skuKey = s => String(s || '').toUpperCase().replace(/\s+/g, '');
 // El clasificador nombra "descripcion-del-producto_SKU.jpg", y agrega
 // "_1", "_2" cuando hay repetidos. Se admite ese sufijo.
 function skuFromFilename(base) {
-  const m = /_([A-Za-z0-9][A-Za-z0-9/.\-]*?)(?:_\d+)?$/.exec(base);
+  // Se admiten espacios: hay SKU como "KO-CHK 12" y el clasificador los
+  // conserva en el nombre de archivo. Sin esto quedaban como "sin SKU".
+  const m = /_([A-Za-z0-9][A-Za-z0-9/.\- ]*?)(?:_\d+)?$/.exec(base);
   if (!m) return null;
-  const raw = m[1];
+  const raw = m[1].trim();
   // Descarta lo que claramente no es un SKU: nombres de WhatsApp
   // ("...124257"), contadores sueltos. Un SKU real lleva letras.
   if (!/[A-Za-z]/.test(raw)) return null;

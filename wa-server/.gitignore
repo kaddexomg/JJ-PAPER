@@ -4,3 +4,5 @@ sessions/
 node_modules/
 *.log
 count-buffer.json
+lan-cert.pem
+lan-key.pem

@@ -127,7 +127,7 @@
   <div class="warn hidden" id="noLan">
     ⚠️ Esta página debe abrirse <b>desde el servidor de la PC</b> (misma WiFi), no desde internet.<br><br>
     En la PC del inventario, con el wa-server corriendo, abre:<br>
-    <b id="lanHint">http://IP-DE-LA-PC:8787/admin/lan.html</b><br><br>
+    <b id="lanHint">https://IP-DE-LA-PC:8788/admin/lan.html</b><br><br>
     En el teléfono, escribe esa misma dirección en Chrome (misma red WiFi).
   </div>
 
@@ -231,7 +231,8 @@ async function checkLan() {
     const r = await fetch(BASE + '/lan/health', { cache: 'no-store' });
     if (!r.ok) throw 0;
     const h = await r.json();
-    $('lanHint').textContent = `http://${h.ip}:${h.port}/admin/lan.html`;
+    // El teléfono necesita HTTPS para que el navegador permita la cámara.
+    $('lanHint').textContent = `https://${h.ip}:${h.https_port || h.port}/admin/lan.html`;
     return true;
   } catch (e) {
     $('counter').classList.add('hidden');

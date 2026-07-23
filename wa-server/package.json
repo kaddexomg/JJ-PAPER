@@ -4,7 +4,9 @@
   "description": "Puente WhatsApp (Baileys) <-> Supabase para el CRM de JJ Paper",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node src/index.js"
   },
@@ -15,6 +17,7 @@
     "pino": "^9.3.0",
     "pino-pretty": "^11.2.0",
     "qrcode": "^1.5.4",
+    "selfsigned": "^5.5.0",
     "ws": "^8.18.0"
   }
 }

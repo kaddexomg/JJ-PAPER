@@ -14,10 +14,12 @@
 // Sin dependencias nuevas: http/fs/os/path nativos + el cliente Supabase.
 // ======================================================================
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import QRCode from 'qrcode';
+import selfsigned from 'selfsigned';
 import { db } from './supabase.js';
 import { log } from './logger.js';
 import {
@@ -25,7 +27,43 @@ import {
   COUNT_CATALOG_MS, REPO_ROOT
 } from './config.js';
 
+// La cámara del teléfono SOLO funciona en HTTPS o en localhost. Por eso el
+// servidor sirve la misma app+API por HTTPS (cert propio persistido en disco,
+// así el teléfono acepta la advertencia UNA sola vez) en HTTPS_PORT, y mantiene
+// el puerto HTTP original para la PC. HTTPS_PORT = COUNT_LAN_PORT + 1.
+const HTTPS_PORT = COUNT_LAN_PORT + 1;
 const BUFFER_FILE = path.join(REPO_ROOT, 'wa-server', 'count-buffer.json');
+const CERT_FILE   = path.join(REPO_ROOT, 'wa-server', 'lan-cert.pem');
+const KEY_FILE    = path.join(REPO_ROOT, 'wa-server', 'lan-key.pem');
+
+// Cert autofirmado para la LAN: se genera una vez y se reutiliza (10 años).
+// selfsigned v5 es asíncrono y resuelve { private, public, cert, fingerprint }.
+async function lanCert() {
+  try {
+    if (fs.existsSync(CERT_FILE) && fs.existsSync(KEY_FILE)) {
+      return { cert: fs.readFileSync(CERT_FILE, 'utf8'), key: fs.readFileSync(KEY_FILE, 'utf8') };
+    }
+  } catch (_) {}
+  const pems = await selfsigned.generate(
+    [{ name: 'commonName', value: 'jjpaper-lan' }],
+    {
+      days: 3650, keySize: 2048,
+      extensions: [{
+        name: 'subjectAltName',
+        altNames: [
+          { type: 2, value: 'localhost' },
+          { type: 7, ip: '127.0.0.1' },
+          { type: 7, ip: lanIp() },
+        ],
+      }],
+    },
+  );
+  try {
+    fs.writeFileSync(CERT_FILE, pems.cert);
+    fs.writeFileSync(KEY_FILE, pems.private);
+  } catch (e) { log.warn({ err: e?.message }, 'count-lan: no se pudo persistir el cert (se regenerará)'); }
+  return { cert: pems.cert, key: pems.private };
+}
 
 // ---- Estado en memoria ----
 let state = {
@@ -385,7 +423,8 @@ async function handle(req, res) {
   const pathOnly = url.split('?')[0];
   if (pathOnly === '/') { res.writeHead(302, { Location: '/lan/start' }); return res.end(); }
   if (pathOnly === '/lan/start') {
-    const u = `http://${lanIp()}:${COUNT_LAN_PORT}/admin/lan.html`;
+    // El QR apunta a HTTPS: la cámara del teléfono solo funciona en origen seguro.
+    const u = `https://${lanIp()}:${HTTPS_PORT}/admin/lan.html`;
     let qr = '';
     try { qr = await QRCode.toDataURL(u, { width: 320, margin: 1 }); } catch (e) {}
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -396,7 +435,7 @@ async function handle(req, res) {
     const route = url.split('?')[0];
 
     if (route === '/lan/health')
-      return sendJSON(res, 200, { ok: true, online, ip: lanIp(), port: COUNT_LAN_PORT,
+      return sendJSON(res, 200, { ok: true, online, ip: lanIp(), port: COUNT_LAN_PORT, https_port: HTTPS_PORT,
         session: state.session, pending: state.pending.length, catalog: state.catalog.length,
         catalogAt: state.catalogAt });
 
@@ -449,13 +488,26 @@ export async function startCountLan() {
   await detectOwner().catch(() => {});
   await refreshCatalog().catch(() => {});
 
-  const server = http.createServer((req, res) => { handle(req, res).catch(e => {
+  const onReq = (req, res) => { handle(req, res).catch(e => {
     try { sendJSON(res, 500, { ok: false, error: e?.message || 'error' }); } catch (_) {}
-  }); });
+  }); };
+
+  // HTTP: lo usa la PC (feed en vivo, salud). HTTPS: lo usa el teléfono (cámara).
+  const server = http.createServer(onReq);
   server.listen(COUNT_LAN_PORT, '0.0.0.0', () => {
-    log.info(`count-lan: escuchando en http://${lanIp()}:${COUNT_LAN_PORT}  (teléfono → /admin/escaner.html)`);
+    log.info(`count-lan: HTTP en http://${lanIp()}:${COUNT_LAN_PORT}  (PC)`);
   });
-  server.on('error', e => log.error({ err: e?.message }, 'count-lan: no se pudo abrir el puerto'));
+  server.on('error', e => log.error({ err: e?.message }, 'count-lan: no se pudo abrir el puerto HTTP'));
+
+  try {
+    const tls = https.createServer(await lanCert(), onReq);
+    tls.listen(HTTPS_PORT, '0.0.0.0', () => {
+      log.info(`count-lan: HTTPS en https://${lanIp()}:${HTTPS_PORT}  (teléfono → /admin/escaner.html)`);
+    });
+    tls.on('error', e => log.error({ err: e?.message }, 'count-lan: no se pudo abrir el puerto HTTPS'));
+  } catch (e) {
+    log.error({ err: e?.message }, 'count-lan: HTTPS deshabilitado (fallo generando cert)');
+  }
 
   setInterval(() => checkOnline().catch(() => {}), COUNT_ONLINE_MS);
   setInterval(() => syncNow().catch(() => {}), COUNT_SYNC_MS);

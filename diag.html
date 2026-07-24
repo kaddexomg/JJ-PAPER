@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnostico JJ Paper</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:16px;font-size:15px}
+  h1{font-size:18px;margin:0 0 4px}
+  .sub{color:#8b949e;font-size:13px;margin:0 0 16px}
+  table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
+  td{padding:8px 12px;border-bottom:1px solid #21262d;vertical-align:top}
+  td.k{color:#8b949e;width:52%}
+  .ok{color:#3fb950;font-weight:bold}
+  .no{color:#f85149;font-weight:bold}
+  .box{background:#161b22;border-radius:8px;padding:12px;margin-top:14px}
+  .emoji{font-size:30px;letter-spacing:8px;margin:6px 0}
+  .ua{word-break:break-all;font-size:12px;color:#c9d1d9}
+</style>
+</head>
+<body>
+<h1>Diagnostico de esta PC</h1>
+<p class="sub">Toma captura de pantalla y envisela al desarrollador.</p>
+
+<div class="box">
+  <b>Navegador (texto completo):</b>
+  <div class="ua" id="ua">...</div>
+</div>
+
+<table id="tbl"></table>
+
+<div class="box">
+  <b>Prueba de iconos (emojis):</b>
+  <div class="emoji">&#128231; &#128722; &#128241; &#9989; &#128269;</div>
+  <div style="font-size:12px;color:#8b949e">Si arriba ves CUADROS VACIOS o nada, esta PC no dibuja los emojis (hay que cambiarlos por iconos).</div>
+</div>
+
+<script>
+/* ES5 puro: nada de sintaxis moderna, para que corra en navegadores viejos */
+function testSyntax(code){
+  try { eval(code); return true; } catch(e){ return false; }
+}
+function row(k, ok, extra){
+  var v = ok === true ? '<span class="ok">SI</span>' : (ok === false ? '<span class="no">NO</span>' : ok);
+  return '<tr><td class="k">' + k + '</td><td>' + v + (extra ? ' <span style="color:#8b949e">'+extra+'</span>' : '') + '</td></tr>';
+}
+
+document.getElementById('ua').innerHTML = navigator.userAgent;
+
+var supportsBackdrop = false;
+try { supportsBackdrop = (window.CSS && CSS.supports && (CSS.supports('backdrop-filter','blur(2px)') || CSS.supports('-webkit-backdrop-filter','blur(2px)'))); } catch(e){}
+
+var mem = (typeof navigator.deviceMemory !== 'undefined') ? (navigator.deviceMemory + ' GB (aprox)') : 'desconocida';
+var cores = (typeof navigator.hardwareConcurrency !== 'undefined') ? navigator.hardwareConcurrency : 'desconocido';
+
+var html = '';
+html += row('JavaScript moderno: optional chaining (?.)', testSyntax('var o={};o?.x'), '(si NO, las paginas se ven en blanco)');
+html += row('JavaScript moderno: nullish (??)', testSyntax('var a=null; a = a ?? 1'));
+html += row('JavaScript: funciones flecha (=>)', testSyntax('var f=function(){}; eval("(()=>1)")'));
+html += row('JavaScript: template `...`', testSyntax('eval("`x`")'));
+html += row('JavaScript: async/await', testSyntax('eval("(async function(){})")'));
+html += row('JavaScript: let / const', testSyntax('eval("let z=1")'));
+html += row('fetch()', ('fetch' in window));
+html += row('Promise', ('Promise' in window));
+html += row('localStorage', ('localStorage' in window));
+html += row('Efecto glass (backdrop-filter blur)', supportsBackdrop, supportsBackdrop ? '' : '(sin esto el blur no se ve; conviene quitarlo)');
+html += row('CSS grid', (window.CSS && CSS.supports) ? CSS.supports('display','grid') : 'desconocido');
+html += row('Lector de codigo por camara (BarcodeDetector)', ('BarcodeDetector' in window));
+html += row('Memoria RAM', mem);
+html += row('Nucleos CPU', cores);
+html += row('Resolucion pantalla', screen.width + ' x ' + screen.height);
+document.getElementById('tbl').innerHTML = html;
+</script>
+</body>
+</html>

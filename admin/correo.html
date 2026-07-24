@@ -40,6 +40,10 @@
   .mail-item.mail-received .mail-st{color:#2ecc40}
   .ecamp-item{border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 12px;margin-bottom:8px}
   .mail-read-body{white-space:pre-wrap;word-break:break-word;margin-top:12px;line-height:1.55;font-size:14px;max-height:50vh;overflow:auto}
+  .mail-read-body{white-space:pre-wrap;word-break:break-word;margin-top:12px;line-height:1.55;font-size:14px;max-height:55vh;overflow:auto}
+  #mailReadBody{margin-top:12px}
+  .mail-read-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
+  .mail-att-card{display:inline-block;background:rgba(0,0,0,.05);border-radius:10px;padding:8px 12px;font-size:13px;text-decoration:none;color:inherit;max-width:160px}
   .mail-read-body a{color:var(--gm,#16604A);text-decoration:underline}
 </style>
 </head>
@@ -147,7 +151,7 @@
 
 <!-- Modal: leer correo -->
 <div class="modal-overlay" id="mailReadModal" onclick="if(event.target===this)closeMailRead()">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="mailReadSubject" style="max-width:640px">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="mailReadSubject" style="max-width:760px">
     <div class="modal-hd">
       <h3 id="mailReadSubject" style="font-size:16px">Correo</h3>
       <button class="modal-close" onclick="closeMailRead()" aria-label="Cerrar">✕</button>
@@ -158,9 +162,12 @@
       </div>
       <div id="mailReadAttach" class="mail-attach" style="margin-top:8px"></div>
       <div id="mailReadBody" class="mail-read-body"></div>
-      <div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn-o" onclick="closeMailRead()">Cerrar</button>
+      <div class="mail-read-actions">
         <button class="btn-p" id="mailReadReply" onclick="mailReplyCurrent()">↩️ Responder</button>
+        <button class="btn-o" onclick="mailForwardCurrent()">↪️ Reenviar</button>
+        <button class="btn-o" id="mailReadUnread" onclick="mailMarkUnread()">📩 No leído</button>
+        <button class="btn-o" onclick="mailDeleteCurrent()" style="color:#c0392b">🗑️ Eliminar</button>
+        <button class="btn-o" onclick="closeMailRead()">Cerrar</button>
       </div>
     </div>
   </div>

@@ -173,6 +173,11 @@ async function mailLoad() {
   if (error) { showToast('Error cargando correos: ' + error.message, 'err'); return; }
   mailRows = data || [];
   mailRender();
+  // Si el lector está abierto y el server terminó de bajar adjuntos, refréscalos
+  if (mailReadId && document.getElementById('mailReadModal')?.classList.contains('op')) {
+    const m = mailRows.find(x => x.id === mailReadId);
+    if (m) mailRenderAttachments(m);
+  }
 }
 
 let mailFilter = 'all';   // 'all' | 'in' | 'out'
@@ -242,27 +247,69 @@ async function mailOpen(id) {
   document.getElementById('mailReadSubject').textContent = m.subject || '(sin asunto)';
   document.getElementById('mailReadFrom').textContent = (inbound ? 'De: ' : 'Para: ') + (inbound ? (m.from_addr || '—') : (m.to_addr || '—'));
   document.getElementById('mailReadDate').textContent = new Date(m.created_at).toLocaleString('es-VE');
-  document.getElementById('mailReadBody').innerHTML = mailLinkify(m.body || m.snippet || '(sin contenido)');
 
-  // Adjuntos (salientes): enlaces de descarga firmados
-  const att = document.getElementById('mailReadAttach');
-  if (att) {
-    if (m.attachments && m.attachments.length) {
-      const links = await Promise.all(m.attachments.map(async a => {
-        const { data } = await sb.storage.from('jjp-email-media').createSignedUrl(a.path, 3600).catch(() => ({ data: null }));
-        const url = data?.signedUrl;
-        return url ? `<a class="mail-chip" href="${url}" target="_blank" rel="noopener">📎 ${escapeHTML(a.name)}</a>` : `<span class="mail-chip">📎 ${escapeHTML(a.name)}</span>`;
-      }));
-      att.innerHTML = links.join('');
-    } else att.innerHTML = '';
-  }
+  mailRenderBody(m);
+  mailRenderAttachments(m);
 
-  const replyBtn = document.getElementById('mailReadReply');
-  if (replyBtn) replyBtn.style.display = inbound ? 'inline-flex' : 'none';
+  document.getElementById('mailReadReply').style.display = inbound ? 'inline-flex' : 'none';
+  const un = document.getElementById('mailReadUnread'); if (un) un.style.display = inbound ? 'inline-flex' : 'none';
+
   document.getElementById('mailReadModal')?.classList.add('op');
   if (typeof trapFocus === 'function') trapFocus(document.getElementById('mailReadModal'));
   mailRender();   // refresca badge/negrita
 }
+
+// Cuerpo del correo: HTML del remitente en un marco AISLADO (sandbox SIN scripts,
+// SIN acceso al mismo origen) → no puede ejecutar código ni leer nuestros datos.
+function mailRenderBody(m) {
+  const box = document.getElementById('mailReadBody');
+  if (!box) return;
+  if (m.html) {
+    box.innerHTML = '';
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox');
+    frame.style.cssText = 'width:100%;border:0;min-height:320px;background:#fff;border-radius:8px';
+    box.appendChild(frame);
+    frame.srcdoc = `<!doctype html><meta charset="utf-8"><base target="_blank">
+      <div style="font:14px/1.55 system-ui,Segoe UI,Arial;color:#111;padding:8px;word-break:break-word">${m.html}</div>`;
+    frame.onload = () => { try { frame.style.height = Math.min((frame.contentWindow.document.body.scrollHeight || 320) + 28, 620) + 'px'; } catch (e) {} };
+  } else {
+    box.innerHTML = `<div class="mail-read-body">${mailLinkify(m.body || m.snippet || '(sin contenido)')}</div>`;
+  }
+}
+
+// Adjuntos: entrantes se bajan on-demand (RPC → wa-server → Storage privado)
+async function mailRenderAttachments(m) {
+  const att = document.getElementById('mailReadAttach');
+  if (!att) return;
+  const list = m.attachments || [];
+  if (!list.length) { att.innerHTML = ''; return; }
+
+  if (m.attach_state === 'requested') { att.innerHTML = '<span class="mail-chip">📎 Descargando adjuntos…</span>'; return; }
+  const needFetch = m.direction === 'in' && list.some(a => !a.path) && (m.attach_state === 'pending' || m.attach_state === 'error');
+  if (needFetch) {
+    att.innerHTML = `<button class="btn-o" onclick="mailFetchAttachments('${m.id}')">📎 Ver ${list.length} adjunto(s)</button>`;
+    return;
+  }
+  const cards = await Promise.all(list.map(async a => {
+    if (!a.path) return `<span class="mail-chip">📎 ${escapeHTML(a.name)}${a.error ? ' (error)' : ''}</span>`;
+    const { data } = await sb.storage.from('jjp-email-media').createSignedUrl(a.path, 3600);
+    const url = data?.signedUrl;
+    if (!url) return `<span class="mail-chip">📎 ${escapeHTML(a.name)}</span>`;
+    const prev = /^image\//.test(a.mime || '') ? `<img src="${url}" alt="" style="max-width:130px;max-height:130px;border-radius:8px;display:block;margin-bottom:4px">` : '';
+    return `<a class="mail-att-card" href="${url}" target="_blank" rel="noopener">${prev}📎 ${escapeHTML(a.name)}</a>`;
+  }));
+  att.innerHTML = cards.join('');
+}
+
+async function mailFetchAttachments(id) {
+  showToast('Trayendo adjuntos… (necesita el servidor encendido)');
+  const { error } = await sb.rpc('jjp_email_request_attachments', { p_id: id });
+  if (error) { showToast('No se pudo pedir: ' + error.message, 'err'); return; }
+  const m = mailRows.find(x => x.id === id); if (m) m.attach_state = 'requested';
+  mailRenderAttachments(m || { attach_state: 'requested' });
+}
+
 function closeMailRead() { document.getElementById('mailReadModal')?.classList.remove('op'); }
 
 function mailReplyCurrent() {
@@ -274,6 +321,33 @@ function mailReplyCurrent() {
   const subj = /^re:/i.test(m.subject || '') ? m.subject : 'Re: ' + (m.subject || '');
   const quote = `\n\n-----\nEl ${new Date(m.created_at).toLocaleString('es-VE')}, ${m.from_addr || ''} escribió:\n${(m.body || m.snippet || '').split('\n').map(l => '> ' + l).join('\n')}`;
   openMailCompose({ to, subject: subj, customerId: m.customer_id, body: quote });
+}
+
+function mailForwardCurrent() {
+  const m = mailRows.find(x => x.id === mailReadId);
+  if (!m) return;
+  closeMailRead();
+  const subj = /^fwd:/i.test(m.subject || '') ? m.subject : 'Fwd: ' + (m.subject || '');
+  const head = `\n\n----- Mensaje reenviado -----\nDe: ${m.from_addr || ''}\nFecha: ${new Date(m.created_at).toLocaleString('es-VE')}\nAsunto: ${m.subject || ''}\n\n`;
+  openMailCompose({ subject: subj, body: head + (m.body || m.snippet || '') });
+  // adjuntos ya descargados se reenvían
+  mailCompose.attachments = (m.attachments || []).filter(a => a.path).map(a => ({ path: a.path, name: a.name, mime: a.mime, size: a.size }));
+  mailRenderAttach();
+}
+
+async function mailMarkUnread() {
+  const m = mailRows.find(x => x.id === mailReadId);
+  if (!m) return;
+  await sb.from('jjp_emails').update({ is_read: false }).eq('id', m.id);
+  m.is_read = false;
+  closeMailRead();
+  mailRender();
+}
+
+function mailDeleteCurrent() {
+  const id = mailReadId;
+  closeMailRead();
+  mailDelete(id);
 }
 
 function mailTime(iso) {

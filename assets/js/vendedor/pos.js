@@ -16,6 +16,7 @@ async function initPos() {
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
   posRenderResults(pfMatch(posProducts, ''));
   posPrefillAdd();                        // ?add=<id> desde Consultar stock
+  pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
 
   // prefill de cliente si viene desde el CRM (?tel=...)
   const tel = new URLSearchParams(location.search).get('tel');
@@ -54,7 +55,7 @@ function posPrefillAdd() {
   posAddResolved(p, v);
 }
 
-// Escanear con la cámara
+// Escanear con la cámara del propio dispositivo
 function posScanCam() {
   pfScanCamera(code => {
     const hit = pfFindByCode(posProducts, code);
@@ -62,6 +63,24 @@ function posScanCam() {
     else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
   });
 }
+
+// Código que llega del teléfono-escáner (puente) → agrega al ticket
+function posOnScan(code) {
+  const hit = pfFindByCode(posProducts, code);
+  if (hit) { posAddResolved(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
+  else showToast('📱 Código no está en el catálogo: ' + code, 'warn');
+}
+
+// Modal para vincular el teléfono como pistola de código
+function posPhone() {
+  const url = pfPhoneScanUrl();
+  const a = document.getElementById('posPhoneUrl');
+  if (a) { a.textContent = url; a.href = url; }
+  const qr = document.getElementById('posPhoneQR');
+  if (qr) qr.href = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(url);
+  document.getElementById('posPhoneModal')?.classList.add('op');
+}
+function closePosPhone() { document.getElementById('posPhoneModal')?.classList.remove('op'); }
 
 function posRenderResults(list) {
   const box = document.getElementById('posResults');

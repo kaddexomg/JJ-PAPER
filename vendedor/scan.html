@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Escáner de ventas | JJ Paper</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/glass.css">
+<style>
+  body{background:#0d1117;color:#fff;margin:0}
+  .scan-wrap{max-width:520px;margin:0 auto;padding:16px;text-align:center}
+  .scan-head{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:10px}
+  .scan-video-box{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:60vh;margin:0 auto}
+  #scanVideo{width:100%;height:100%;object-fit:cover}
+  .scan-reticle{position:absolute;inset:22% 12%;border:3px solid #99CC33;border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.25)}
+  .scan-state{margin:12px 0;font-size:14px;color:#cbd5e1}
+  .scan-stat{display:flex;gap:12px;justify-content:center;margin:10px 0}
+  .scan-card{background:#161b22;border-radius:12px;padding:12px 16px;min-width:90px}
+  .scan-card b{display:block;font-size:22px}
+  .scan-card span{font-size:11px;color:#94a3b8}
+  .scan-manual{display:flex;gap:8px;margin-top:14px}
+  .scan-manual input{flex:1;font-size:16px}
+  .scan-note{font-size:12px;color:#94a3b8;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="scan-wrap">
+  <div class="scan-head">
+    <img src="../assets/img/logo.svg" alt="JJ Paper" width="30" height="30">
+    <strong>Escáner de ventas</strong>
+  </div>
+  <p style="font-size:13px;color:#94a3b8;margin-top:0">Vendedor: <strong id="scanUser">…</strong></p>
+
+  <div class="scan-video-box">
+    <video id="scanVideo" autoplay playsinline muted></video>
+    <div class="scan-reticle"></div>
+  </div>
+  <div class="scan-state" id="scanState">Iniciando cámara…</div>
+
+  <div class="scan-stat">
+    <div class="scan-card"><b id="scanCount">0</b><span>enviados</span></div>
+    <div class="scan-card"><b id="scanLast" style="font-size:14px;word-break:break-all">—</b><span>último código</span></div>
+  </div>
+
+  <div class="scan-manual">
+    <input class="fi" id="scanManual" inputmode="numeric" placeholder="O escribe/pega un código" onkeydown="if(event.key==='Enter')scanManualSend()">
+    <button class="btn-p" onclick="scanManualSend()">Enviar</button>
+  </div>
+
+  <p class="scan-note">Cada código se envía a tu <strong>caja abierta en la PC</strong> (POS o cotizador) y se agrega al ticket. No modifica el inventario. Mantén esta página abierta mientras vendes.</p>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/scan.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+  await initScan();
+});
+</script>
+</body>
+</html>

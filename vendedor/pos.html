@@ -70,7 +70,8 @@
           <h3 style="margin:0 0 10px">🔎 Buscar productos</h3>
           <div style="display:flex;gap:8px">
             <input class="fi" id="posSearch" placeholder="Nombre, código de barras o SKU…" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1">
-            <button class="btn-o" onclick="posScanCam()" title="Escanear con la cámara" aria-label="Escanear con la cámara">📷</button>
+            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara">📷</button>
+            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner">📱</button>
           </div>
           <div id="posResults" style="max-height:520px;overflow-y:auto;margin-top:8px">
             <p style="color:#aaa;font-size:13px;padding:8px 0">Cargando catálogo...</p>
@@ -119,6 +120,25 @@
 </div>
 
 <!-- Confirmación -->
+<!-- Modal: vincular teléfono como escáner -->
+<div class="modal-overlay" id="posPhoneModal" onclick="if(event.target===this)closePosPhone()">
+  <div class="modal-box" role="dialog" aria-modal="true" style="max-width:460px">
+    <div class="modal-hd"><h3>📱 Teléfono como escáner</h3><button class="modal-close" onclick="closePosPhone()">✕</button></div>
+    <div class="modal-body">
+      <ol style="line-height:1.7;font-size:14px;padding-left:18px">
+        <li>En tu teléfono (con tu sesión iniciada) abre:<br>
+          <a id="posPhoneUrl" href="#" target="_blank" style="color:var(--gm);word-break:break-all"></a></li>
+        <li>Da permiso de cámara y apunta al código.</li>
+        <li>Cada escaneo cae aquí y se suma al ticket. Deja esta caja abierta.</li>
+      </ol>
+      <p style="text-align:center;margin-top:10px">
+        <a id="posPhoneQR" href="#" target="_blank" class="btn-o">🔳 Ver QR para abrir en el teléfono</a>
+      </p>
+      <p style="font-size:12px;color:var(--gr);margin-top:8px">No modifica el inventario. Es distinto del escáner de conteo.</p>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="posDoneModal">
   <div class="modal-box">
     <div class="modal-hd"><h3>✅ Venta registrada</h3><button class="modal-close" onclick="posReset()">✕</button></div>

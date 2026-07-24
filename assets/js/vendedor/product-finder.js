@@ -69,6 +69,29 @@ function pfPriceHtml(usd) {
   return `${fmtPrice(usd)}${bs ? ` · Bs ${Number(bs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}` : ''}`;
 }
 
+/* ---------- Puente teléfono → PC (teléfono como pistola de código) ---------- */
+// El POS/cotizador de la PC llama a esto; cada código que el teléfono manda
+// (tabla jjp_pos_scans, vía Realtime) dispara onCode(code). RLS ya limita a lo
+// del propio vendedor. NO afecta inventario ni conteo.
+function pfPhoneBridge(onCode) {
+  const owner = (typeof SELLER !== 'undefined' && SELLER?.id) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id) || 'me';
+  // Rescata escaneos recientes que llegaron antes de abrir la caja
+  sb.from('jjp_pos_scans').select('id,code').eq('consumed', false)
+    .gte('created_at', new Date(Date.now() - 120000).toISOString())
+    .order('created_at', { ascending: true })
+    .then(({ data }) => (data || []).forEach(r => { onCode(r.code); sb.from('jjp_pos_scans').update({ consumed: true }).eq('id', r.id); }));
+
+  return sb.channel('pos-scan-' + owner)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_pos_scans' },
+      p => { onCode(p.new.code); sb.from('jjp_pos_scans').update({ consumed: true }).eq('id', p.new.id); })
+    .subscribe();
+}
+
+// URL de la página del teléfono-escáner (para el QR / enlace en la PC)
+function pfPhoneScanUrl() {
+  return location.origin + location.pathname.replace(/[^/]*$/, '') + 'scan.html';
+}
+
 /* ---------- Escaneo con cámara (API nativa BarcodeDetector) ---------- */
 async function pfScanCamera(onCode) {
   if (!('BarcodeDetector' in window)) {

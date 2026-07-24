@@ -14,7 +14,23 @@ async function initQuoter() {
     const p = posProducts.find(x => x.id === id);
     if (p) posAddResolved(p, (p.jjp_product_variants || []).filter(x => x.active)[0] || null);
   }
+  pfPhoneBridge(posOnScan);   // teléfono → agrega a la cotización en vivo
 }
+
+function posOnScan(code) {
+  const hit = pfFindByCode(posProducts, code);
+  if (hit) { posAddResolved(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
+  else showToast('📱 Código no está en el catálogo: ' + code, 'warn');
+}
+function posPhone() {
+  const url = pfPhoneScanUrl();
+  const a = document.getElementById('posPhoneUrl');
+  if (a) { a.textContent = url; a.href = url; }
+  const qr = document.getElementById('posPhoneQR');
+  if (qr) qr.href = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(url);
+  document.getElementById('posPhoneModal')?.classList.add('op');
+}
+function closePosPhone() { document.getElementById('posPhoneModal')?.classList.remove('op'); }
 
 /* --- buscador (mismo patrón del POS) --- */
 function posSearch() {

@@ -203,6 +203,7 @@ export function startEmail() {
   // Recepción: sondea la bandeja de cada cuenta OAuth cada 2 min
   setInterval(() => pollInbound().catch(e => log.error({ err: e.message }, 'poll entrantes falló')), INBOUND_POLL_MS);
   setTimeout(() => pollInbound().catch(() => {}), 8000);   // primer sondeo tras arrancar
+  startAttachWorker();   // descarga on-demand de adjuntos entrantes
 
   log.info('módulo correo activo (Gmail API por usuario · envío + recepción)');
   return true;
@@ -277,6 +278,30 @@ function extractBody(payload) {
   return txt.slice(0, 20000);
 }
 
+// HTML del correo (para verlo con formato en el panel)
+function extractHtml(payload) {
+  if (!payload) return '';
+  const walk = (p) => {
+    if (p.mimeType === 'text/html' && p.body?.data) return decodeB64Url(p.body.data);
+    if (p.parts) { for (const c of p.parts) { const r = walk(c); if (r) return r; } }
+    return '';
+  };
+  return (walk(payload) || '').slice(0, 500000);
+}
+// Metadatos de adjuntos (sin descargar): [{att_id,name,mime,size}]
+function extractAttachments(payload) {
+  const out = [];
+  const walk = (p) => {
+    if (!p) return;
+    if (p.filename && p.body?.attachmentId) {
+      out.push({ att_id: p.body.attachmentId, name: p.filename, mime: (p.mimeType || 'application/octet-stream').split(';')[0], size: p.body.size || null });
+    }
+    if (p.parts) p.parts.forEach(walk);
+  };
+  walk(payload);
+  return out;
+}
+
 async function ingestMessage(acct, token, id) {
   const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
     { headers: { Authorization: `Bearer ${token}` } });
@@ -286,6 +311,7 @@ async function ingestMessage(acct, token, id) {
   const from = parseFrom(headerVal(headers, 'from'));
   const subject = headerVal(headers, 'subject');
   const ts = msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : new Date().toISOString();
+  const atts = extractAttachments(msg.payload);
 
   const { data: cust } = await db.from('jjp_customers')
     .select('id').ilike('email', from.email).limit(1).maybeSingle();
@@ -294,11 +320,52 @@ async function ingestMessage(acct, token, id) {
     owner_id: acct.profile_id, direction: 'in', status: 'received',
     from_addr: from.name ? `${from.name} <${from.email}>` : from.email,
     to_addr: acct.email, subject: subject || '(sin asunto)',
-    body: extractBody(msg.payload), snippet: msg.snippet || null,
+    body: extractBody(msg.payload), html: extractHtml(msg.payload) || null,
+    snippet: msg.snippet || null,
     gmail_id: id, thread_id: msg.threadId || null,
+    attachments: atts, attach_state: atts.length ? 'pending' : 'none',
     customer_id: cust?.id || null, is_read: false, created_at: ts
   });
   if (error && error.code !== '23505') log.warn({ err: error.message }, 'insert entrante falló');
+}
+
+// ---- Descarga on-demand de adjuntos entrantes (cuando el panel abre el correo) ----
+function startAttachWorker() {
+  db.channel('email-attach')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_emails', filter: 'attach_state=eq.requested' },
+      p => fetchAttachmentsFor(p.new).catch(e => log.warn({ err: e.message }, 'fetch adjuntos falló')))
+    .subscribe();
+  setInterval(async () => {
+    const { data } = await db.from('jjp_emails').select('*').eq('attach_state', 'requested').limit(5);
+    for (const r of data || []) await fetchAttachmentsFor(r).catch(() => {});
+  }, 15000);
+}
+
+async function fetchAttachmentsFor(row) {
+  const { data: acct } = await db.from('jjp_email_accounts')
+    .select('oauth_refresh').eq('profile_id', row.owner_id).maybeSingle();
+  if (!acct?.oauth_refresh || !row.gmail_id) { await db.from('jjp_emails').update({ attach_state: 'error' }).eq('id', row.id); return; }
+  let token;
+  try { token = await gmailAccessToken(acct.oauth_refresh); }
+  catch { await db.from('jjp_emails').update({ attach_state: 'error' }).eq('id', row.id); return; }
+
+  const out = [];
+  for (const a of row.attachments || []) {
+    if (a.path || !a.att_id) { out.push(a); continue; }
+    try {
+      const r = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${row.gmail_id}/attachments/${a.att_id}`,
+        { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!r.ok || !j.data) throw new Error(j.error?.message || 'sin datos');
+      const buf = Buffer.from(j.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+      const path = `${row.owner_id}/${row.id}/${Date.now()}-${(a.name || 'archivo').replace(/[^\w.\-]/g, '_')}`;
+      const { error } = await db.storage.from('jjp-email-media').upload(path, buf, { contentType: a.mime || 'application/octet-stream' });
+      if (error) throw new Error(error.message);
+      out.push({ ...a, path, size: buf.length });
+    } catch (e) { out.push({ ...a, error: e.message }); }
+  }
+  await db.from('jjp_emails').update({ attachments: out, attach_state: 'ready' }).eq('id', row.id);
+  log.info({ id: row.id, n: out.length }, 'adjuntos entrantes descargados');
 }
 
 // Traduce errores crípticos a algo accionable

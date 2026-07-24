@@ -9,6 +9,7 @@ import { startEmail } from './email.js';
 import { startEmailCampaigns } from './email-campaigns.js';
 import { startHeartbeat } from './heartbeat.js';
 import { startWaActions } from './wa-actions.js';
+import { startRetention } from './retention.js';
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
 log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html · vendedor/whatsapp.html)');
@@ -22,6 +23,7 @@ startRates();   // actualiza BCV + USDT/paralelo en jjp_settings cada hora
 startCountLan();   // servidor de conteo OFFLINE por WiFi local (teléfono ↔ PC sin internet)
 const emailOn = startEmail();   // envío + recepción de correos del CRM (Gmail API por usuario)
 startEmailCampaigns();          // campañas de correo (seguimiento/captación) con throttle
+startRetention();               // purga storage de correo/WA (adjuntos y html viejos → re-traíbles de Gmail)
 
 // Latido + control remoto (panel de admin ve estado y puede reiniciar/detener)
 startHeartbeat({ whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn });

@@ -30,6 +30,13 @@ function consScan() {
   });
 }
 
+// Abre la lista de PRECIOS al público lista para imprimir. Si hay una búsqueda
+// activa, la lleva pre-filtrada (?q=) para no imprimir el catálogo completo.
+function consPrintList() {
+  const q = (document.getElementById('consSearch')?.value || '').trim();
+  window.open('../lista_costos.html' + (q ? '?q=' + encodeURIComponent(q) : ''), '_blank');
+}
+
 function consRender(list) {
   const box = document.getElementById('consResults');
   if (!box) return;

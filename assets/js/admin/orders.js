@@ -274,7 +274,8 @@ function viewOrder(id) {
     <div class="ord-quick">
       <button class="bulk-btn green" onclick="updateOrderStatus('${o.id}','pagado'); document.getElementById('ordModalStatus').value='pagado'">✅ Confirmar pago</button>
       <button class="bulk-btn red" onclick="updateOrderStatus('${o.id}','rechazado'); document.getElementById('ordModalStatus').value='rechazado'">✕ Rechazar</button>
-      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}">🧾 Comprobante</a>
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">🧾 Factura</a>
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo">📦 Orden de recibo</a>
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${o.client_name}, le escribimos de JJ Paper sobre su pedido ${o.order_number}.`)}">💬 Contactar</a>
     </div>

@@ -102,7 +102,16 @@
   }
 
   ALL_VARIANTS = out;
-  renderList(out);
+  // ?q=<texto> llega desde "Consultar stock": imprime solo lo buscado
+  const preQ = new URLSearchParams(location.search).get('q') || '';
+  if (preQ) {
+    FILTER_SEARCH = preQ;
+    const box = document.querySelector('#toolbar input[type="search"]');
+    if (box) box.value = preQ;
+    applyFilters();
+  } else {
+    renderList(out);
+  }
   document.getElementById('toolbar').style.display = 'flex';
 })();
 

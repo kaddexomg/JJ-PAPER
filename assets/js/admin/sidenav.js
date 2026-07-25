@@ -56,10 +56,11 @@
     { section: 'Ventas' },
     { href: 'index.html', ico: '📊', label: 'Mi Panel' },
     { group: 'Vender', ico: '🛍️', items: [
-      { href: 'pos.html',       ico: '🛍️', label: 'Nueva venta (POS)' },
-      { href: 'cotizador.html', ico: '📋', label: 'Cotizador' },
-      { href: 'consulta.html',  ico: '🔎', label: 'Consultar stock' },
-      { href: 'pedidos.html',   ico: '🛒', label: 'Mis pedidos' },
+      { href: 'pos.html',          ico: '🛍️', label: 'Nueva venta (POS)' },
+      { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
+      { href: 'cotizaciones.html', ico: '🗂️', label: 'Mis cotizaciones' },
+      { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
+      { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
     ]},
     { group: 'Clientes', ico: '👥', items: [
       { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },

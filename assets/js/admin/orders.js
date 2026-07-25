@@ -113,6 +113,7 @@ function renderOrdersTable() {
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewOrder('${o.id}')">👁️ Ver</button>
           <a class="btn-wa sm" style="width:auto;padding:7px 10px" href="https://wa.me/${(o.phone||'').replace(/\D/g,'')}" target="_blank">💬</a>
+          ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -268,6 +269,7 @@ function viewOrder(id) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <input type="number" class="fi" id="ordDlvFee" step="0.01" min="0" value="${Number(o.delivery_fee_usd || 0).toFixed(2)}" style="max-width:120px" aria-label="Costo del envío en dólares">
       <button class="btn-p" onclick="confirmDeliveryFee('${o.id}')">✅ Confirmar envío</button>
+      <button class="btn-o" onclick="document.getElementById('ordDlvFee').value='0'; confirmDeliveryFee('${o.id}')" title="El envío queda en $0 y el total se recalcula">🆓 Dejarlo gratis</button>
     </div>
   </div>` : ''}
 
@@ -292,6 +294,7 @@ function viewOrder(id) {
     <div class="ord-quick">
       <button class="bulk-btn green" onclick="updateOrderStatus('${o.id}','pagado'); document.getElementById('ordModalStatus').value='pagado'">✅ Confirmar pago</button>
       <button class="bulk-btn red" onclick="updateOrderStatus('${o.id}','rechazado'); document.getElementById('ordModalStatus').value='rechazado'">✕ Rechazar</button>
+      ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteOrder('${o.id}')" title="Borra el pedido definitivamente de la lista">🗑️ Eliminar</button>` : ''}
       <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
@@ -334,6 +337,23 @@ async function confirmDeliveryFee(id) {
   renderOrdersTable();
   renderOrdersStats();
   viewOrder(id);   // refresca el modal con los totales nuevos
+}
+
+// Eliminar un pedido de verdad (solo rechazados/cancelados; la RPC valida
+// que seas admin y repone stock si estaba descontado). Para pruebas viejas.
+async function deleteOrder(id) {
+  const o = adminOrders.find(x => x.id === id);
+  if (!o) return;
+  if (!confirm(`¿Eliminar DEFINITIVAMENTE el pedido ${o.order_number}?\n\nEsto lo borra de la lista y no se puede deshacer.`)) return;
+  const { data, error } = await sb.rpc('jjp_delete_order', { p_order: id });
+  if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
+  if (data !== true) { showToast('El pedido ya no existe', 'warn'); }
+  adminOrders = adminOrders.filter(x => x.id !== id);
+  closeOrderModal();
+  renderOrdersTable();
+  renderOrdersStats();
+  if (typeof refreshAdminBadges === 'function') refreshAdminBadges();
+  showToast(`🗑️ Pedido ${o.order_number} eliminado`);
 }
 
 // Atribuir/quitar vendedor de un pedido (la comisión sigue al pedido)

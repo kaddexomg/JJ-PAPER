@@ -57,9 +57,23 @@
 .trk-step.current .trk-lbl { color:var(--bk) }
 .trk-lbl small { display:block; font-weight:500; color:var(--gr); font-size:11px; margin-top:2px }
 
+/* Estado actual en grande (lo primero que ve el cliente) */
+.trk-now { display:flex; align-items:center; gap:12px; border-radius:var(--rs); padding:14px 16px;
+           font-size:15px; font-weight:800; margin-bottom:16px }
+.trk-now .ico { font-size:24px }
+.trk-now small { display:block; font-weight:600; font-size:11px; opacity:.75; margin-top:2px }
+.trk-now.ok   { background:var(--gx); color:var(--gd) }
+.trk-now.wait { background:#fff8e6; color:#9a6b00 }
+.trk-now.bad  { background:#fdecea; color:var(--danger) }
+
+.trk-sub { display:flex; justify-content:space-between; font-size:13px; color:#555; padding:3px 0 }
 .trk-tot { display:flex; justify-content:space-between; border-top:1px solid #f0f0f0;
            padding-top:14px; margin-top:6px; font-size:14px }
 .trk-tot b { color:var(--gd) }
+@media (max-width:560px) {
+  .trk-form { grid-template-columns:1fr }
+  .trk-card { padding:20px }
+}
 .trk-items { margin-top:8px; font-size:12px; color:#555 }
 .trk-items li { padding:3px 0; border-bottom:1px dashed #f2f2f2; list-style:none;
                 display:flex; justify-content:space-between; gap:10px }
@@ -86,9 +100,9 @@
       </div>
       <div class="trk-form">
         <div class="fg"><label class="fl" id="trkNumLbl" for="trk-num">N° de pedido</label>
-          <input type="text" class="fi" id="trk-num" placeholder="JJP-260701-1234"></div>
+          <input type="text" class="fi" id="trk-num" placeholder="JJP-260701-1234" onkeydown="if(event.key==='Enter')track()"></div>
         <div class="fg"><label class="fl" for="trk-tel">Teléfono</label>
-          <input type="tel" class="fi" id="trk-tel" placeholder="0412-1234567"></div>
+          <input type="tel" class="fi" id="trk-tel" placeholder="0412-1234567" onkeydown="if(event.key==='Enter')track()"></div>
         <button class="btn-p" id="trkBtn" onclick="track()">Buscar</button>
       </div>
       <p class="trk-hint" id="trkHint">El número de pedido te lo dimos al confirmar la compra (también llega en el mensaje de WhatsApp).</p>
@@ -149,7 +163,9 @@ function fmtDateTime(iso) {
 }
 
 async function track() {
-  const num = document.getElementById('trk-num').value.trim();
+  // El número no distingue mayúsculas y el teléfono acepta cualquier formato
+  // (la RPC compara solo los dígitos): menos "no encontrado" por detalles.
+  const num = document.getElementById('trk-num').value.trim().toUpperCase();
   const tel = document.getElementById('trk-tel').value.trim();
   const out = document.getElementById('trkResult');
   if (!num) { showToast('Ingresa tu número', 'warn'); return; }
@@ -216,17 +232,36 @@ function renderOrderResult(o) {
         : '🚫 Este pedido fue cancelado.'}${dates[o.status] ? `<br><small>${fmtDateTime(dates[o.status])}</small>` : ''}</div>`
     : '';
 
+  // Estado actual en grande: lo primero que quiere saber el cliente
+  const [nowIco, nowLbl] = ORDER_LBL[o.status] || ['📦', o.status];
+  const nowCls = isDead ? 'bad'
+    : ['pagado', 'preparando', 'entregado'].includes(o.status) ? 'ok' : 'wait';
+  const nowHTML = isDead ? '' : `<div class="trk-now ${nowCls}">
+    <span class="ico">${nowIco}</span>
+    <span>${nowLbl}${dates[o.status] ? `<small>${fmtDateTime(dates[o.status])}</small>` : ''}</span>
+  </div>`;
+
+  // Entrega: retiro o delivery con su costo
+  const dlvHTML = o.delivery_type === 'delivery'
+    ? `<div class="trk-sub"><span>Entrega 🛵 Delivery${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}</span><span>${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : '¡Gratis! 🎉'}</span></div>`
+    : o.delivery_type === 'retiro'
+      ? `<div class="trk-sub"><span>Entrega</span><span>🏬 Retiro en tienda</span></div>` : '';
+  const subHTML = dlvHTML
+    ? `<div class="trk-sub"><span>Subtotal</span><span>${fmtPrice(o.subtotal_usd ?? o.total_usd)}</span></div>` : '';
+
   const items = Array.isArray(o.items) ? o.items : [];
   return `<div class="trk-card">
     <div class="trk-res-hd">
       <span class="trk-num">${escapeHTML(o.order_number)}</span>
       <span class="trk-date">Pedido el ${fmtDate(o.created_at)} · ${items.length} producto${items.length !== 1 ? 's' : ''}</span>
     </div>
+    ${nowHTML}
     ${deadHTML}
     <div class="trk-steps">${stepsHTML}</div>
     <ul class="trk-items">${items.map(i =>
       `<li><span>${escapeHTML(i.name)}${i.brand ? ` <small style="color:var(--gm);font-weight:700">(${escapeHTML(i.brand)})</small>` : ''} x${i.qty}</span><span>${fmtPrice(i.subtotal_usd ?? i.price_usd * i.qty)}</span></li>`).join('')}
     </ul>
+    ${subHTML}${dlvHTML}
     <div class="trk-tot"><span>Total</span><b>${fmtPrice(o.total_usd)} · ${fmtBsNum(o.total_bs)}</b></div>
     <a class="btn-wa" style="margin-top:16px" href="#"
        onclick="openWA('Hola JJ Paper, consulto por mi pedido ${escapeHTML(o.order_number)}'); return false">💬 Consultar por WhatsApp</a>
@@ -253,7 +288,7 @@ function renderQuoteResult(q) {
     ${isDead ? '<div class="trk-bad">🚫 Esta cotización fue cancelada.</div>' : ''}
     <div class="trk-steps">${stepsHTML}</div>
     <ul class="trk-items">${items.map(i =>
-      `<li><span>${escapeHTML(i.product)} x${i.qty}${i.unit ? ' ' + escapeHTML(i.unit) : ''}</span>
+      `<li><span>${escapeHTML(i.product || i.name || '—')} x${i.qty}${i.unit ? ' ' + escapeHTML(i.unit) : ''}</span>
        <span>${i.price_usd ? fmtPrice(i.price_usd * i.qty) : 'por confirmar'}</span></li>`).join('')}
     </ul>
     ${q.estimated_total_usd ? `<div class="trk-tot"><span>Total estimado</span><b>${fmtPrice(q.estimated_total_usd)} · ${fmtBs(q.estimated_total_usd)}</b></div>` : ''}

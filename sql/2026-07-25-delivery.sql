@@ -33,3 +33,13 @@ on conflict (key) do nothing;
 -- Cambio: total_usd/total_bs suman coalesce(delivery_fee_usd,0) en ambas ramas.
 -- (definición completa en el historial de migraciones de Supabase)
 -- ------------------------------------------------------
+
+-- ------------------------------------------------------
+-- Migración: track_normalize_and_delete_order (25-jul-2026)
+-- 1) jjp_track_order / jjp_track_quote: número case-insensitive y teléfono
+--    comparado por últimos 10 dígitos (formatos 0412-..., +58412... coinciden).
+-- 2) jjp_delete_order(uuid): borrado real de pedidos, SOLO admin y SOLO
+--    en estado rechazado/cancelado; repone stock si estaba descontado.
+--    EXECUTE revocado de public y anon.
+-- (definiciones completas en el historial de migraciones de Supabase)
+-- ------------------------------------------------------

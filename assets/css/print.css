@@ -1,0 +1,66 @@
+/* ======================================================
+   JJ Paper — Hoja de impresión compartida (panel admin/vendedor)
+   Objetivo: al hacer Ctrl+P / "Guardar como PDF" en una página del
+   panel (POS, cotizador, consulta, pedidos, cotizaciones) NO deben
+   salir impresos el menú lateral, el topbar, la barra de búsqueda ni
+   los botones de acción. Para documentos formales (comprobante /
+   presupuesto / lista de precios) usa las páginas dedicadas, que ya
+   traen su propio @media print.
+
+   Se incluye SOLO en las páginas del flujo de ventas. NO se enlaza en
+   inventario/conteo/productos: esas pantallas quedan intactas.
+
+   Utilidad reutilizable: añade la clase .no-print a cualquier control
+   que no deba imprimirse.
+   ====================================================== */
+
+@media print {
+  /* Respetar colores/fondos de marca al imprimir (evita texto
+     blanco-sobre-blanco en encabezados de color). */
+  html, body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Chrome del panel: fuera del papel */
+  .admin-aside,
+  .admin-topbar,
+  .menu-toggle,
+  .toast-c,
+  .modal-overlay,
+  .of-chip,
+  .of-chips,
+  .filters,
+  .no-print {
+    display: none !important;
+  }
+
+  /* El contenido ocupa toda la hoja, sin márgenes del layout */
+  .admin-wrap,
+  .admin-main,
+  .admin-content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Controles interactivos: buscadores, botones y campos no se imprimen */
+  .admin-content input,
+  .admin-content select,
+  .admin-content textarea,
+  .admin-content button,
+  .admin-content .btn-p,
+  .admin-content .btn-o,
+  .admin-content .btn-wa,
+  .admin-content .btn-ghost,
+  .admin-content .btn-danger,
+  .admin-content .qb {
+    display: none !important;
+  }
+
+  /* Márgenes de página razonables */
+  @page { margin: 12mm; }
+}

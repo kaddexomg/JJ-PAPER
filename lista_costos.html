@@ -42,9 +42,14 @@
   .err { color:#b00; }
 
   @media print {
-    body { background:#fff; padding:0; }
+    /* Conserva los fondos de color: sin esto los encabezados verdes con
+       texto blanco salen blanco-sobre-blanco (invisibles) al imprimir. */
+    body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .sheet { box-shadow:none; border-radius:0; max-width:none; padding:10px 15px; }
     .toolbar { display:none; }
+    /* Repite la cabecera de columnas en cada página de listas largas */
+    thead { display:table-header-group; }
+    tr { page-break-inside:avoid; }
     @page { margin:8mm 10mm; }
   }
 </style>
@@ -68,7 +73,10 @@
 <script>
 (async () => {
   const content = document.getElementById('content');
-  const session = await requireAuth('vendedor');
+  // La lista de COSTOS (?mode=cost) es confidencial: solo admin. La lista de
+  // PRECIOS al público la puede abrir cualquier vendedor.
+  const needAdmin = new URLSearchParams(location.search).get('mode') === 'cost';
+  const session = await requireAuth(needAdmin ? 'admin' : 'vendedor');
   if (!session) return;
   await loadSettings();
   applyDocTheme();

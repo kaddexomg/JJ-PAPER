@@ -64,7 +64,7 @@ function renderQuotesTable() {
       <td>
         <select class="sort-sel" style="min-width:120px;padding:6px 10px;font-size:12px"
           onchange="updateQuoteStatus('${q.id}',this.value)">
-          ${['pendiente','contactado','confirmado','cancelado'].map(s =>
+          ${['pendiente','contactado','confirmado','convertido','cancelado'].map(s =>
             `<option value="${s}" ${q.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
           ).join('')}
         </select>
@@ -133,6 +133,11 @@ function buildPrefacturaMsg(q) {
 async function convertQuoteToOrder(id) {
   const q = adminQuotes.find(x => x.id === id);
   if (!q) return;
+  // Evita crear pedidos duplicados si ya se convirtió
+  if (['convertido', 'convertida'].includes(q.status)) {
+    showToast('Esta cotización ya fue convertida en pedido', 'warn');
+    return;
+  }
   const items = quoteItemsOf(q);
   if (!items.length || items.some(i => !i.price_usd)) {
     showToast('Todos los productos deben tener precio para convertir', 'warn');
@@ -152,7 +157,8 @@ async function convertQuoteToOrder(id) {
     client_name: q.client_name, rif: q.rif || null, phone: q.phone,
     email: q.email || null, city: q.city || null, address: null,
     items: items.map(i => ({
-      id: i.product_id || i.id || null, name: qItemName(i), qty: i.qty,
+      id: i.product_id || i.id || null,
+      name: qItemName(i), brand: i.brand || null, qty: i.qty,
       unit: i.unit || 'unid', price_usd: i.price_usd,
       subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
     })),
@@ -161,6 +167,7 @@ async function convertQuoteToOrder(id) {
     discount_status: pct > 0 ? 'approved' : 'none',
     exchange_rate: rate, total_bs: +(total * rate).toFixed(2),
     payment_method: 'efectivo', payment_ref: null,
+    seller_id: q.seller_id || null,   // conserva la atribución del vendedor (comisión)
     notes: `Generado desde cotización ${q.quote_number}`,
     status: 'pendiente_pago',
   };
@@ -168,8 +175,8 @@ async function convertQuoteToOrder(id) {
   const { error } = await sb.from('jjp_orders').insert(order);
   if (error) { console.error(error); showToast('Error creando el pedido', 'err'); return; }
 
-  await sb.from('jjp_quotes').update({ status: 'confirmado' }).eq('id', id);
-  q.status = 'confirmado';
+  await sb.from('jjp_quotes').update({ status: 'convertido' }).eq('id', id);
+  q.status = 'convertido';
   renderQuotesTable();
   closeQuoteDetail();
   showToast(`✅ Pedido ${order.order_number} creado desde la cotización`);
@@ -222,6 +229,8 @@ function viewQuoteDetail(id) {
       <a class="btn-wa" style="width:auto;padding:12px 20px"
         href="https://wa.me/${(q.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(buildPrefacturaMsg(q))}"
         target="_blank">🧾 Enviar pre-factura por WhatsApp</a>
+      <a class="btn-o" style="width:auto;padding:12px 20px;text-decoration:none" target="_blank"
+        href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️ Imprimir presupuesto</a>
       <button class="btn-p" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
       ${q.email ? `<a class="btn-o" href="mailto:${escapeHTML(q.email)}" style="text-decoration:none">📧 Email</a>` : ''}

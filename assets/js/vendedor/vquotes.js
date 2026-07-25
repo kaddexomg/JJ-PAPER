@@ -228,6 +228,8 @@ function quoteShowDone(q) {
       <div class="co-done-row"><span>Productos</span><strong>${q.items.length}</strong></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
+         href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(q.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Enviar al cliente</a>
       <button class="btn-p" onclick="quoteReset()">📋 Nueva cotización</button>

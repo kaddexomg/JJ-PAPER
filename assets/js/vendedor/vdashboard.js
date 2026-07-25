@@ -9,7 +9,7 @@ async function initSellerDashboard() {
   const [{ data: orders }, rank] = await Promise.all([
     // RLS: solo devuelve pedidos del vendedor logueado
     sb.from('jjp_orders')
-      .select('order_number,client_name,total_usd,status,created_at')
+      .select('order_number,client_name,total_usd,delivery_fee_usd,status,created_at')
       .order('created_at', { ascending: false }),
     sb.rpc('jjp_seller_ranking', { p_days: 30 }),
   ]);
@@ -19,7 +19,9 @@ async function initSellerDashboard() {
   const paid  = month.filter(o => V_PAID.includes(o.status));
   const pend  = month.filter(o => ['pendiente_pago', 'verificando'].includes(o.status));
   const sales = paid.reduce((s, o) => s + Number(o.total_usd || 0), 0);
-  const comm  = sales * (Number(SELLER.commission_pct) || 0) / 100;
+  // Comisión sobre productos: el envío no comisiona
+  const commBase = paid.reduce((s, o) => s + Number(o.total_usd || 0) - Number(o.delivery_fee_usd || 0), 0);
+  const comm  = commBase * (Number(SELLER.commission_pct) || 0) / 100;
 
   setV('v-sales',   fmtPrice(sales));
   setV('v-comm',    fmtPrice(comm));

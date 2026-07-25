@@ -6,12 +6,55 @@ let coMethod    = '';      // 'pago_movil' | 'transferencia' | 'efectivo'
 let coReceipt   = null;    // File object
 let coSubmitting = false;
 
+// ---- Delivery state ----
+let dlvType   = 'retiro';  // 'retiro' | 'delivery'
+let dlvPoint  = null;      // { lat, lng } marcado por el cliente
+let dlvMap    = null;      // instancia Leaflet (se crea al elegir delivery)
+let dlvMarker = null;
+
+// Distancia en línea recta (haversine) × 1.4: aproxima el recorrido real
+// por calles sin depender de un servicio de rutas externo.
+const DLV_ROAD_FACTOR = 1.4;
+
+function dlvStoreCoords() {
+  const s = APP.SETTINGS || {};
+  const lat = parseFloat(s.map_lat), lng = parseFloat(s.map_lng);
+  return (isFinite(lat) && isFinite(lng)) ? { lat, lng } : null;
+}
+
+function dlvDistanceKm() {
+  const store = dlvStoreCoords();
+  if (!store || !dlvPoint) return null;
+  const R = 6371, rad = d => d * Math.PI / 180;
+  const dLat = rad(dlvPoint.lat - store.lat);
+  const dLng = rad(dlvPoint.lng - store.lng);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(rad(store.lat)) * Math.cos(rad(dlvPoint.lat)) * Math.sin(dLng / 2) ** 2;
+  const straight = 2 * R * Math.asin(Math.sqrt(a));
+  return +(straight * DLV_ROAD_FACTOR).toFixed(1);
+}
+
+// Costo del envío: base + $/km, gratis desde delivery_free_over_usd (0 = nunca)
+function coDeliveryFee(subtotal) {
+  if (dlvType !== 'delivery' || !dlvPoint) return { fee: 0, km: null, free: false };
+  const s = APP.SETTINGS || {};
+  const km = dlvDistanceKm();
+  if (km === null) return { fee: 0, km: null, free: false };
+  const freeOver = parseFloat(s.delivery_free_over_usd) || 0;
+  if (freeOver > 0 && subtotal >= freeOver) return { fee: 0, km, free: true };
+  const base  = parseFloat(s.delivery_base_usd)   || 0;
+  const perKm = parseFloat(s.delivery_per_km_usd) || 0;
+  return { fee: +(base + perKm * km).toFixed(2), km, free: false };
+}
+
 // ---- Totals ----
 function coTotals() {
   const items = Object.values(cart);
   const subtotal = items.reduce((s, i) => s + i.price_usd * i.qty, 0);
+  const delivery = coDeliveryFee(subtotal);
+  const total = subtotal + delivery.fee;
   const rate = getRate();
-  return { items, subtotal, rate, bs: subtotal * rate };
+  return { items, subtotal, delivery, total, rate, bs: total * rate };
 }
 
 // ---- Render cart summary (editable) ----
@@ -21,7 +64,7 @@ function renderCheckoutItems() {
   const main  = document.getElementById('coMain');
   if (!box) return;
 
-  const { items, subtotal, rate, bs } = coTotals();
+  const { items, subtotal, delivery, total, rate, bs } = coTotals();
 
   if (!items.length) {
     if (empty) empty.style.display = 'block';
@@ -56,8 +99,21 @@ function renderCheckoutItems() {
   // Totals
   document.getElementById('coSubUsd').textContent  = fmtPrice(subtotal);
   document.getElementById('coRate').textContent    = `Bs ${rate.toFixed(2)} / $`;
-  document.getElementById('coTotalUsd').textContent = fmtPrice(subtotal);
+  document.getElementById('coTotalUsd').textContent = fmtPrice(total);
   document.getElementById('coTotalBs').textContent  = fmtBsNum(bs);
+
+  // Línea de envío en el resumen
+  const shipRow  = document.getElementById('coShipRow');
+  const freeRow  = document.getElementById('coShipFreeRow');
+  if (shipRow && freeRow) {
+    const showFee  = dlvType === 'delivery' && dlvPoint && !delivery.free;
+    const showFree = dlvType === 'delivery' && dlvPoint && delivery.free;
+    shipRow.style.display = showFee ? 'flex' : 'none';
+    freeRow.style.display = showFree ? 'flex' : 'none';
+    if (showFee)  document.getElementById('coShipUsd').textContent = fmtPrice(delivery.fee);
+    if (showFree) document.getElementById('coShipFreeLbl').textContent = `${delivery.km} km`;
+  }
+  dlvRenderQuote(subtotal, delivery);
 
   // Keep the Bs amounts in the payment panel in sync
   document.querySelectorAll('.co-pay-bs').forEach(el => el.textContent = fmtBsNum(bs));
@@ -89,6 +145,116 @@ function selectPayment(method) {
     (method === 'pago_movil' || method === 'transferencia') ? 'block' : 'none';
 }
 
+// ---- Delivery UI ----
+function selectDelivery(type) {
+  dlvType = type;
+  document.querySelectorAll('.co-dlv-opt').forEach(el => {
+    const on = el.dataset.d === type;
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  document.getElementById('coPickupPanel').style.display   = type === 'retiro'   ? 'block' : 'none';
+  document.getElementById('coDeliveryPanel').style.display = type === 'delivery' ? 'block' : 'none';
+  if (type === 'delivery') dlvInitMap();
+  renderCheckoutItems();
+}
+
+function dlvInitMap() {
+  if (!window.L) return;   // Leaflet no cargó: el pedido igual sale, sin cotización
+  const center = dlvPoint || dlvStoreCoords() || { lat: 10.488, lng: -66.879 }; // fallback: Caracas
+  if (!dlvMap) {
+    dlvMap = L.map('dlvMap', { scrollWheelZoom: false }).setView([center.lat, center.lng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap',
+    }).addTo(dlvMap);
+    const store = dlvStoreCoords();
+    if (store) {
+      L.marker([store.lat, store.lng], { icon: dlvIcon('🏬'), interactive: false })
+        .addTo(dlvMap).bindTooltip('JJ Paper', { permanent: false });
+    }
+    dlvMap.on('click', e => dlvSetPoint(e.latlng.lat, e.latlng.lng));
+  }
+  // El contenedor estaba display:none al crear el mapa: recalcular tamaño
+  setTimeout(() => dlvMap.invalidateSize(), 60);
+}
+
+// Pin sin imágenes (el CSS de Leaflet referencia PNGs que no vendoreamos)
+function dlvIcon(emoji) {
+  return L.divIcon({
+    className: 'dlv-pin',
+    html: `<span>${emoji}</span>`,
+    iconSize: [34, 34], iconAnchor: [17, 30],
+  });
+}
+
+function dlvSetPoint(lat, lng, { pan = false } = {}) {
+  dlvPoint = { lat: +(+lat).toFixed(6), lng: +(+lng).toFixed(6) };
+  if (dlvMap) {
+    if (!dlvMarker) {
+      dlvMarker = L.marker([lat, lng], { icon: dlvIcon('📍'), draggable: true }).addTo(dlvMap);
+      dlvMarker.on('dragend', () => {
+        const p = dlvMarker.getLatLng();
+        dlvSetPoint(p.lat, p.lng);
+      });
+    } else {
+      dlvMarker.setLatLng([lat, lng]);
+    }
+    if (pan) dlvMap.setView([lat, lng], Math.max(dlvMap.getZoom(), 15));
+  }
+  renderCheckoutItems();
+}
+
+function dlvUseMyLocation() {
+  if (!navigator.geolocation) { showToast('Tu navegador no permite usar la ubicación', 'warn'); return; }
+  showToast('Buscando tu ubicación…');
+  navigator.geolocation.getCurrentPosition(
+    pos => dlvSetPoint(pos.coords.latitude, pos.coords.longitude, { pan: true }),
+    ()  => showToast('No pudimos obtener tu ubicación. Marca el punto en el mapa.', 'warn'),
+    { enableHighAccuracy: true, timeout: 10000 },
+  );
+}
+
+async function dlvSearchAddress() {
+  const q = document.getElementById('dlvSearch')?.value.trim();
+  if (!q) { showToast('Escribe una dirección para buscar', 'warn'); return; }
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ve&q=${encodeURIComponent(q)}`;
+    const res  = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const data = await res.json();
+    if (!data?.length) { showToast('No se encontró esa dirección. Marca el punto en el mapa.', 'warn'); return; }
+    dlvSetPoint(+data[0].lat, +data[0].lon, { pan: true });
+  } catch (e) {
+    showToast('No se pudo buscar la dirección. Marca el punto en el mapa.', 'warn');
+  }
+}
+
+function dlvRenderQuote(subtotal, delivery) {
+  const box = document.getElementById('dlvQuote');
+  if (!box) return;
+  if (dlvType !== 'delivery' || !dlvPoint || delivery.km === null) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'flex';
+  document.getElementById('dlvKm').textContent = `${delivery.km} km`;
+  document.getElementById('dlvFee').textContent = delivery.free
+    ? '🎉 ¡Gratis!'
+    : fmtPrice(delivery.fee);
+
+  // Incentivo: cuánto falta para envío gratis
+  const hint = document.getElementById('dlvHint');
+  const freeOver = parseFloat(APP.SETTINGS?.delivery_free_over_usd) || 0;
+  if (hint) {
+    if (delivery.free) {
+      hint.textContent = `Tu pedido supera ${fmtPrice(freeOver)}: el envío va por nuestra cuenta. 🎉`;
+    } else if (freeOver > 0 && subtotal < freeOver) {
+      hint.textContent = `💡 Agrega ${fmtPrice(freeOver - subtotal)} más y el envío es GRATIS. Un asesor confirma el costo junto con tu pago.`;
+    } else {
+      hint.textContent = 'El costo del envío se calcula por distancia desde la tienda y lo confirma un asesor junto con tu pago.';
+    }
+  }
+}
+
 // ---- Receipt file ----
 function handleReceiptFile(input) {
   const file = input.files?.[0];
@@ -108,7 +274,7 @@ function handleReceiptFile(input) {
 
 // ---- Build order object ----
 function buildOrder(orderNumber) {
-  const { items, subtotal, rate, bs } = coTotals();
+  const { items, subtotal, delivery, total, rate, bs } = coTotals();
   return {
     order_number: orderNumber,
     client_name: document.getElementById('co-name').value.trim(),
@@ -123,9 +289,15 @@ function buildOrder(orderNumber) {
       price_usd: i.price_usd, subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
     })),
     subtotal_usd: +subtotal.toFixed(2),
-    total_usd: +subtotal.toFixed(2),
+    total_usd: +total.toFixed(2),
     exchange_rate: rate,
     total_bs: +bs.toFixed(2),
+    // Delivery: el staff confirma o ajusta el costo en admin/pedidos
+    delivery_type: dlvType,
+    delivery_lat: dlvType === 'delivery' ? dlvPoint?.lat ?? null : null,
+    delivery_lng: dlvType === 'delivery' ? dlvPoint?.lng ?? null : null,
+    delivery_distance_km: dlvType === 'delivery' ? delivery.km : null,
+    delivery_fee_usd: delivery.fee,
     payment_method: coMethod,
     payment_ref: document.getElementById('co-payref')?.value.trim() || null,
     notes: document.getElementById('co-notes').value.trim() || null,
@@ -161,6 +333,13 @@ function validateCheckout() {
   const { subtotal } = coTotals();
   if (minOrder > 0 && subtotal < minOrder) {
     showToast(`El pedido mínimo es ${fmtPrice(minOrder)}`, 'warn');
+    return false;
+  }
+
+  // Delivery exige el punto en el mapa (es lo que cotiza el envío)
+  if (dlvType === 'delivery' && !dlvPoint) {
+    showToast('Marca en el mapa el punto de entrega', 'warn');
+    document.getElementById('coDeliveryBox')?.scrollIntoView({ behavior:'smooth' });
     return false;
   }
 
@@ -248,8 +427,16 @@ function buildWAMessage(o) {
   msg += `*Teléfono:* ${o.phone}\n`;
   if (o.city)    msg += `*Ciudad:* ${o.city}\n`;
   if (o.address) msg += `*Dirección:* ${o.address}\n`;
+  if (o.delivery_type === 'delivery') {
+    msg += `*Entrega:* 🛵 Delivery${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}\n`;
+    if (o.delivery_lat && o.delivery_lng) msg += `*Punto de entrega:* https://maps.google.com/?q=${o.delivery_lat},${o.delivery_lng}\n`;
+  } else if (o.delivery_type === 'retiro') {
+    msg += `*Entrega:* 🏬 Retiro en tienda\n`;
+  }
   msg += `\n*Productos:*\n`;
   o.items.forEach(i => { msg += `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}\n`; });
+  if (o.delivery_fee_usd > 0) msg += `\n🛵 *Envío: ${fmtPrice(o.delivery_fee_usd)}*`;
+  else if (o.delivery_type === 'delivery') msg += `\n🛵 *Envío: GRATIS* 🎉`;
   msg += `\n💰 *Total: ${fmtPrice(o.total_usd)}*`;
   msg += `\n💴 *En bolívares: ${fmtBsNum(o.total_bs)}* (tasa ${o.exchange_rate.toFixed(2)})`;
   msg += `\n💳 *Pago:* ${methodLabel}`;
@@ -279,6 +466,8 @@ function showConfirmation(o, viaWA = false) {
     <p class="co-done-num">N° <strong>${escapeHTML(o.order_number)}</strong></p>
     <p class="co-done-msg">${statusMsg}</p>
     <div class="co-done-box">
+      ${o.delivery_type === 'delivery' ? `<div class="co-done-row"><span>Entrega 🛵</span><strong>${o.delivery_fee_usd > 0 ? fmtPrice(o.delivery_fee_usd) : 'Envío gratis 🎉'}${o.delivery_distance_km ? ` · ~${o.delivery_distance_km} km` : ''}</strong></div>` : ''}
+      ${o.delivery_type === 'retiro' ? `<div class="co-done-row"><span>Entrega</span><strong>🏬 Retiro en tienda</strong></div>` : ''}
       <div class="co-done-row"><span>Total</span><strong>${fmtPrice(o.total_usd)}</strong></div>
       <div class="co-done-row"><span>En bolívares</span><strong>${fmtBsNum(o.total_bs)}</strong></div>
       <div class="co-done-row"><span>Método de pago</span><strong>${methodLabel}</strong></div>
@@ -417,6 +606,11 @@ function coCopy(id) {
 async function initCheckout() {
   await loadSettings();
   renderPaymentData();
+
+  // Dirección de la tienda en el panel de retiro
+  const storeAddr = document.getElementById('dlvStoreAddr');
+  if (storeAddr) storeAddr.textContent = APP.SETTINGS?.address || 'consulta con un asesor';
+
   renderCheckoutItems();
 
   // Si el cliente llegó por link de vendedor, la venta queda atribuida

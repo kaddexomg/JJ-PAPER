@@ -8,6 +8,8 @@ const SETTINGS_FIELDS = [
   'email', 'address', 'map_lat', 'map_lng', 'hours_weekday', 'hours_saturday',
   'pago_movil_bank', 'pago_movil_phone', 'pago_movil_ci', 'pago_movil_name',
   'transfer_bank', 'transfer_account', 'transfer_type', 'transfer_holder', 'transfer_ci',
+  // Delivery cotizado por distancia (checkout)
+  'delivery_base_usd', 'delivery_per_km_usd', 'delivery_free_over_usd',
   // Formato del comprobante/factura (comprobante.html)
   'business_name', 'rif', 'iva_pct', 'doc_title', 'doc_color', 'doc_accent',
   'doc_logo_url', 'doc_paper', 'doc_show_bs', 'doc_footer_legal', 'doc_footer_note',

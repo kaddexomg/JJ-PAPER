@@ -238,8 +238,13 @@ function sheet(o, docType) {
       <tr><td colspan="3" class="lbl">IVA (${ivaPct}%)</td><td class="val">${fmtPrice(iva)}</td></tr>`;
   }
 
+  // El monto del descuento se calcula sobre el subtotal de productos:
+  // total puede incluir el envío y restar (subtotal - total) daría mal.
   const discRow = (o.discount_status === 'approved' && o.discount_pct > 0)
-    ? `<tr><td colspan="3" class="lbl">Descuento ${o.discount_pct}%</td><td class="val">−${fmtPrice((Number(o.subtotal_usd)||total) - total)}</td></tr>` : '';
+    ? `<tr><td colspan="3" class="lbl">Descuento ${o.discount_pct}%</td><td class="val">−${fmtPrice((Number(o.subtotal_usd) || 0) * Number(o.discount_pct) / 100)}</td></tr>` : '';
+
+  const shipRow = (o.delivery_type === 'delivery')
+    ? `<tr><td colspan="3" class="lbl">Envío${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}</td><td class="val">${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}</td></tr>` : '';
 
   // Total en Bs (ocultable con doc_show_bs = '0')
   const bsRow = (s.doc_show_bs === '0') ? '' :
@@ -323,6 +328,7 @@ function sheet(o, docType) {
       <tbody>${rows}</tbody>
       <tfoot>
         ${discRow}
+        ${shipRow}
         ${ivaRows}
         <tr class="total"><td colspan="3" class="lbl">TOTAL (USD)</td><td class="val">${fmtPrice(total)}</td></tr>
         ${bsRow}

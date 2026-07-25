@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="assets/css/catalog.css">
 <link rel="stylesheet" href="assets/css/cart.css">
 <link rel="stylesheet" href="assets/css/checkout.css">
+<link rel="stylesheet" href="assets/vendor/leaflet-1.9.4.css">
 <link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css">
 <link rel="stylesheet" href="assets/css/glass.css">
@@ -74,9 +75,49 @@
           </div>
         </div>
 
-        <!-- 3. Payment method -->
+        <!-- 3. Entrega -->
+        <div class="co-card" id="coDeliveryBox">
+          <h3 class="co-step"><span>3</span> Entrega</h3>
+
+          <div class="co-dlv-opts">
+            <button class="co-dlv-opt on" data-d="retiro" onclick="selectDelivery('retiro')" aria-pressed="true">
+              <span class="co-pm-ico">🏬</span>
+              <span class="co-pm-t">Retiro en tienda</span>
+              <span class="co-pm-s">Sin costo</span>
+            </button>
+            <button class="co-dlv-opt" data-d="delivery" onclick="selectDelivery('delivery')" aria-pressed="false">
+              <span class="co-pm-ico">🛵</span>
+              <span class="co-pm-t">Delivery</span>
+              <span class="co-pm-s">Según distancia</span>
+            </button>
+          </div>
+
+          <!-- Retiro -->
+          <div id="coPickupPanel">
+            <p class="co-pay-hint">🏬 Retiras tu pedido en nuestra tienda sin costo adicional: <strong id="dlvStoreAddr">—</strong></p>
+          </div>
+
+          <!-- Delivery: mapa + cotización -->
+          <div id="coDeliveryPanel" style="display:none">
+            <p class="co-pay-hint" style="margin-top:0">📍 Marca en el mapa el punto exacto de entrega (toca el mapa o arrastra el pin), o usa los botones:</p>
+            <div class="co-dlv-tools">
+              <button type="button" class="btn-o" onclick="dlvUseMyLocation()">🎯 Usar mi ubicación</button>
+              <input type="text" class="fi" id="dlvSearch" placeholder="Buscar dirección (ej: La Candelaria, Caracas)"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();dlvSearchAddress();}">
+              <button type="button" class="btn-o" onclick="dlvSearchAddress()" aria-label="Buscar dirección en el mapa">🔎 Buscar</button>
+            </div>
+            <div id="dlvMap" class="co-dlv-map" role="application" aria-label="Mapa para marcar el punto de entrega"></div>
+            <div class="co-dlv-quote" id="dlvQuote" style="display:none">
+              <div><span>Distancia aprox.</span><strong id="dlvKm">—</strong></div>
+              <div><span>Costo del envío</span><strong id="dlvFee">—</strong></div>
+            </div>
+            <p class="co-pay-hint" id="dlvHint">El costo del envío se calcula por distancia desde la tienda y lo confirma un asesor junto con tu pago.</p>
+          </div>
+        </div>
+
+        <!-- 4. Payment method -->
         <div class="co-card" id="coPayBox">
-          <h3 class="co-step"><span>3</span> Método de pago</h3>
+          <h3 class="co-step"><span>4</span> Método de pago</h3>
 
           <div class="co-pms">
             <button class="co-pm" data-m="pago_movil" onclick="selectPayment('pago_movil')">
@@ -147,6 +188,8 @@
         <div class="co-summary">
           <h3>Resumen</h3>
           <div class="co-sum-row"><span>Subtotal</span><span id="coSubUsd">$0.00</span></div>
+          <div class="co-sum-row" id="coShipRow" style="display:none"><span>Envío 🛵</span><span id="coShipUsd">$0.00</span></div>
+          <div class="co-sum-row small" id="coShipFreeRow" style="display:none;color:var(--gm);font-weight:700"><span>🎉 Envío gratis</span><span id="coShipFreeLbl"></span></div>
           <div class="co-sum-row small"><span>Tasa de cambio</span><span id="coRate">Bs 40.00 / $</span></div>
           <div class="co-sum-div"></div>
           <div class="co-sum-row total"><span>Total</span><span id="coTotalUsd">$0.00</span></div>
@@ -176,6 +219,7 @@
 <script src="assets/js/reveal.js"></script>
 <script src="assets/js/nav.js"></script>
 <script src="assets/js/cart.js"></script>
+<script src="assets/vendor/leaflet-1.9.4.js"></script>
 <script src="assets/js/checkout.js"></script>
 <script src="assets/js/chatbot.js?v=20260716"></script>
 <script>

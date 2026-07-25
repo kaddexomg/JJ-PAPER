@@ -34,7 +34,8 @@ function renderVOrders() {
   const commPct = Number(SELLER.commission_pct) || 0;
   tbody.innerHTML = vOrders.map(o => {
     const isPaid = V_PAID.includes(o.status);
-    const comm = isPaid ? o.total_usd * commPct / 100 : 0;
+    // La comisión es sobre los productos: el envío no comisiona
+    const comm = isPaid ? (o.total_usd - Number(o.delivery_fee_usd || 0)) * commPct / 100 : 0;
     return `<tr>
       <td><strong>${escapeHTML(o.order_number)}</strong><div class="td-sub">${fmtDate(o.created_at)}</div></td>
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone || '')}</div></td>
@@ -73,6 +74,11 @@ function viewVOrder(id) {
         <div class="ord-field"><label>Cliente</label><p>${escapeHTML(o.client_name)}</p></div>
         <div class="ord-field"><label>Teléfono</label><p>${escapeHTML(o.phone || '—')}</p></div>
         <div class="ord-field"><label>Ciudad</label><p>${escapeHTML(o.city || '—')}</p></div>
+        <div class="ord-field"><label>Entrega</label><p>${
+          o.delivery_type === 'delivery'
+            ? `🛵 Delivery${o.delivery_distance_km ? ` · ~${o.delivery_distance_km} km` : ''}${(o.delivery_lat && o.delivery_lng) ? ` · <a href="https://maps.google.com/?q=${o.delivery_lat},${o.delivery_lng}" target="_blank" rel="noopener" style="color:var(--gd);font-weight:700">📍 Ver punto</a>` : ''}`
+            : o.delivery_type === 'retiro' ? '🏬 Retiro en tienda' : '—'
+        }</p></div>
         ${o.notes ? `<div class="ord-field"><label>Notas</label><p>${escapeHTML(o.notes)}</p></div>` : ''}
       </div>
       <div>
@@ -85,6 +91,9 @@ function viewVOrder(id) {
       <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th><th style="text-align:right">Subtotal</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot>
+        ${o.delivery_type === 'delivery' ? `
+        <tr><td colspan="3" style="text-align:right;color:var(--gm)">Envío 🛵${o.delivery_fee_confirmed ? ' ✔' : ' (por confirmar)'}</td>
+            <td style="text-align:right;color:var(--gm)">${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}</td></tr>` : ''}
         <tr><td colspan="3" style="text-align:right;font-weight:700">Total</td>
             <td style="text-align:right"><strong>${fmtPrice(o.total_usd)}</strong></td></tr>
       </tfoot>

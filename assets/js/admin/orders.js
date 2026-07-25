@@ -103,7 +103,7 @@ function renderOrdersTable() {
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
-      <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🏷️ desc. ${o.discount_pct}% por aprobar</div>` : ''}</td>
+      <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🏷️ desc. ${o.discount_pct}% por aprobar</div>` : ''}${o.delivery_type === 'delivery' && !o.delivery_fee_confirmed ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} por confirmar</div>` : o.delivery_type === 'delivery' ? `<div class="td-sub" style="color:var(--gm);font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} ✔</div>` : ''}</td>
       <td>
         <select class="status-sel st-${o.status}" onchange="updateOrderStatus('${o.id}', this.value)">
           ${ORDER_STATUSES.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
@@ -219,6 +219,11 @@ function viewOrder(id) {
       <div class="ord-field"><label>Email</label><p>${escapeHTML(o.email || '—')}</p></div>
       <div class="ord-field"><label>Ciudad</label><p>${escapeHTML(o.city || '—')}</p></div>
       <div class="ord-field"><label>Dirección</label><p>${escapeHTML(o.address || '—')}</p></div>
+      <div class="ord-field"><label>Entrega</label><p>${
+        o.delivery_type === 'delivery'
+          ? `🛵 Delivery${o.delivery_distance_km ? ` · ~${o.delivery_distance_km} km` : ''}${(o.delivery_lat && o.delivery_lng) ? ` · <a href="https://maps.google.com/?q=${o.delivery_lat},${o.delivery_lng}" target="_blank" rel="noopener" style="color:var(--gd);font-weight:700">📍 Ver punto en el mapa</a>` : ''}`
+          : o.delivery_type === 'retiro' ? '🏬 Retiro en tienda' : '—'
+      }</p></div>
       ${o.notes ? `<div class="ord-field"><label>Notas</label><p>${escapeHTML(o.notes)}</p></div>` : ''}
     </div>
     <div>
@@ -245,7 +250,10 @@ function viewOrder(id) {
       <tr><td colspan="3" style="text-align:right">Subtotal</td>
           <td style="text-align:right">${fmtPrice(o.subtotal_usd)}</td></tr>
       <tr><td colspan="3" style="text-align:right;color:var(--gm)">Descuento ${o.discount_pct}% ${o.discount_status === 'approved' ? '(aplicado)' : o.discount_status === 'pending' ? '(pendiente)' : '(rechazado)'}</td>
-          <td style="text-align:right;color:var(--gm)">${o.discount_status === 'approved' ? '−' + fmtPrice(o.subtotal_usd - o.total_usd) : '—'}</td></tr>` : ''}
+          <td style="text-align:right;color:var(--gm)">${o.discount_status === 'approved' ? '−' + fmtPrice(Number(o.subtotal_usd) * Number(o.discount_pct) / 100) : '—'}</td></tr>` : ''}
+      ${o.delivery_type === 'delivery' ? `
+      <tr><td colspan="3" style="text-align:right;color:var(--gm)">Envío 🛵${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}${o.delivery_fee_confirmed ? ' ✔' : ' (por confirmar)'}</td>
+          <td style="text-align:right;color:var(--gm)">${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}</td></tr>` : ''}
       <tr><td colspan="3" style="text-align:right;font-weight:700">Total${o.discount_status === 'pending' ? ' (a cobrar, sin descuento)' : ''}</td>
           <td style="text-align:right"><strong>${fmtPrice(o.total_usd)}</strong></td></tr>
       <tr><td colspan="3" style="text-align:right;color:var(--gm);font-weight:700">En bolívares (tasa ${Number(o.exchange_rate).toFixed(2)})</td>
@@ -253,10 +261,20 @@ function viewOrder(id) {
     </tfoot>
   </table>
 
+  ${o.delivery_type === 'delivery' && !o.delivery_fee_confirmed ? `
+  <div style="margin-top:16px;padding:14px;border:1px solid #9cc9b8;background:#eef7f2;border-radius:12px">
+    <strong>🛵 Envío por confirmar: ${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km calculados por el cliente)` : ''}</strong>
+    <p style="font-size:13px;color:#555;margin:6px 0">Revisa el punto en el mapa y confirma el costo. Si lo ajustas, el total del pedido se recalcula.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input type="number" class="fi" id="ordDlvFee" step="0.01" min="0" value="${Number(o.delivery_fee_usd || 0).toFixed(2)}" style="max-width:120px" aria-label="Costo del envío en dólares">
+      <button class="btn-p" onclick="confirmDeliveryFee('${o.id}')">✅ Confirmar envío</button>
+    </div>
+  </div>` : ''}
+
   ${o.discount_status === 'pending' ? `
   <div style="margin-top:16px;padding:14px;border:1px solid #e8c96b;background:#fff8e6;border-radius:12px">
     <strong>🏷️ Descuento por aprobar: ${o.discount_pct}%</strong>
-    <p style="font-size:13px;color:#555;margin:6px 0">Solicitado por el vendedor. Al aprobar, el total baja a <strong>${fmtPrice(o.subtotal_usd * (1 - o.discount_pct / 100))}</strong>.</p>
+    <p style="font-size:13px;color:#555;margin:6px 0">Solicitado por el vendedor. Al aprobar, el total baja a <strong>${fmtPrice(o.subtotal_usd * (1 - o.discount_pct / 100) + Number(o.delivery_fee_usd || 0))}</strong>.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn-p" onclick="decideDiscount('${o.id}', true)">✅ Aprobar descuento</button>
       <button class="btn-danger" onclick="decideDiscount('${o.id}', false)">✕ Rechazar</button>
@@ -289,6 +307,33 @@ function viewOrder(id) {
 
 function closeOrderModal() {
   document.getElementById('orderModal')?.classList.remove('op');
+}
+
+// Confirmar (o ajustar) el costo del envío: recalcula total_usd/total_bs
+// restando el fee viejo y sumando el nuevo (respeta descuentos ya aplicados).
+async function confirmDeliveryFee(id) {
+  const o = adminOrders.find(x => x.id === id);
+  if (!o) return;
+  const newFee = parseFloat(document.getElementById('ordDlvFee')?.value);
+  if (!isFinite(newFee) || newFee < 0) { showToast('Costo de envío inválido', 'warn'); return; }
+
+  const oldFee   = Number(o.delivery_fee_usd || 0);
+  const newTotal = +(Number(o.total_usd || 0) - oldFee + newFee).toFixed(2);
+  const rate     = Number(o.exchange_rate || 0);
+  const patch = {
+    delivery_fee_usd: newFee,
+    delivery_fee_confirmed: true,
+    total_usd: newTotal,
+    total_bs: rate > 0 ? +(newTotal * rate).toFixed(2) : o.total_bs,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await sb.from('jjp_orders').update(patch).eq('id', id);
+  if (error) { showToast('No se pudo confirmar el envío', 'err'); return; }
+  Object.assign(o, patch);
+  showToast(`🛵 Envío confirmado: ${fmtPrice(newFee)}`);
+  renderOrdersTable();
+  renderOrdersStats();
+  viewOrder(id);   // refresca el modal con los totales nuevos
 }
 
 // Atribuir/quitar vendedor de un pedido (la comisión sigue al pedido)

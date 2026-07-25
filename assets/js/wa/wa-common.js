@@ -27,9 +27,42 @@ const WA_TYPE_LABEL = {
   image: 'Imagen', video: 'Video', audio: 'Audio', document: 'Documento',
   sticker: 'Sticker', unsupported: 'No soportado'
 };
+// Acuses de entrega dibujados a mano (SVG). Antes eran emojis (🕓 ✓ ✓✓ ⚠️), que
+// cada sistema pinta distinto, se ven gigantes y desalineados, y delatan que el
+// panel es "casero". Estos heredan el color con currentColor, así el azul de
+// "leído" y el rojo de "no se envió" salen del CSS.
+const WA_SVG_RELOJ = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.1" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.7V8.2l2.3 1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+const WA_SVG_CHECK = '<svg viewBox="0 0 17 16" aria-hidden="true"><path d="M1.8 9.1l3.4 3.4L14.6 3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const WA_SVG_CHECK2 = '<svg viewBox="0 0 23 16" aria-hidden="true"><path d="M1.6 9.1l3.4 3.4L14.4 3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.9 9.1l3.4 3.4L20.7 3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const WA_SVG_ALERTA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8l6.4 11.4H1.6L8 1.8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6v3.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.2" r=".85" fill="currentColor"/></svg>';
+
 const WA_STATUS_TICK = {
-  pending: '🕓', sending: '🕓', sent: '✓', delivered: '✓✓', read: '✓✓', failed: '⚠️'
+  pending: WA_SVG_RELOJ, sending: WA_SVG_RELOJ, sent: WA_SVG_CHECK,
+  delivered: WA_SVG_CHECK2, read: WA_SVG_CHECK2, failed: WA_SVG_ALERTA
 };
+
+// Texto para lectores de pantalla (el SVG solo no dice nada)
+const WA_STATUS_LABEL = {
+  pending: 'En cola', sending: 'Enviando', sent: 'Enviado',
+  delivered: 'Entregado', read: 'Leído', failed: 'No se envió'
+};
+
+// Color de avatar estable a partir del nombre: el mismo cliente siempre sale
+// del mismo color, como en WhatsApp (antes todos eran del mismo verde).
+const WA_AVATAR_COLORS = [
+  ['#16604A', '#1e8264'], ['#1565C0', '#3b8ede'], ['#6A1B9A', '#9440c4'],
+  ['#C2185B', '#e2497f'], ['#00695C', '#0d9488'], ['#B8860B', '#C9A24B'],
+  ['#4527A0', '#6f4fd8'], ['#AD5300', '#d97b1a']
+];
+function waAvatarColor(texto) {
+  let h = 0;
+  for (const ch of String(texto || '?')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return WA_AVATAR_COLORS[h % WA_AVATAR_COLORS.length];
+}
+function waAvatarStyle(texto) {
+  const [a, b] = waAvatarColor(texto);
+  return `background:linear-gradient(135deg,${a},${b})`;
+}
 
 const WA_SESSION_LABEL = {
   disabled: '⛔ Deshabilitada', starting: '⏳ Iniciando…',

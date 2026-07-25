@@ -52,6 +52,9 @@ async function waInit(opts) {
   window.addEventListener('pagehide', () => waGoOffline());
   // La página del chat no debe scrollear: el chat se ajusta al hueco real
   document.body.classList.add('wa-page');
+  // Panel derecho con una nota de bienvenida en vez de un hueco gris
+  const hilo = document.getElementById('waThread');
+  if (hilo && !hilo.innerHTML.trim()) hilo.innerHTML = waSinChat();
   waFitHeight(true);
   window.addEventListener('resize', () => waFitHeight(true));
   window.addEventListener('orientationchange', () => setTimeout(() => waFitHeight(true), 300));
@@ -276,9 +279,10 @@ function waRenderChatList() {
   list.innerHTML = rows.map(c => {
     const mine = c.owner_id === WA_ME.id;
     const owner = !mine ? waProfiles.find(p => p.id === c.owner_id)?.name : null;
+    const nombre = c.display_name || waPrettyPhone(c.phone) || '?';
     return `
     <button class="wa-chat-item ${waActive?.id === c.id ? 'on' : ''}" onclick="waOpenChat('${c.id}')">
-      <div class="wa-avatar">${escapeHTML((c.display_name || '?').charAt(0).toUpperCase())}</div>
+      <div class="wa-avatar" style="${waAvatarStyle(nombre)}">${escapeHTML(nombre.charAt(0).toUpperCase())}</div>
       <div class="wa-chat-info">
         <div class="wa-chat-top">
           <span class="wa-chat-name">${c.pinned ? '📌 ' : ''}${escapeHTML(c.display_name || waPrettyPhone(c.phone))}</span>
@@ -320,6 +324,10 @@ function waCloseThread() {
   document.getElementById('waWrap')?.classList.remove('thread-open');
   waSyncComposer('cerrar hilo');
   waRenderChatList();
+  const hd = document.getElementById('waThreadHead');
+  if (hd) hd.innerHTML = '<div class="wa-empty" style="padding:10px">Elige un chat para empezar</div>';
+  const box = document.getElementById('waThread');
+  if (box) box.innerHTML = waSinChat();
 }
 
 function waRenderThreadHeader() {
@@ -327,9 +335,10 @@ function waRenderThreadHeader() {
   if (!hd || !waActive) return;
   const mine = waActive.owner_id === WA_ME.id;
   const owner = !mine ? waProfiles.find(p => p.id === waActive.owner_id)?.name : null;
+  const nombreHilo = waActive.display_name || waPrettyPhone(waActive.phone) || '?';
   hd.innerHTML = `
     <button class="wa-back" onclick="waCloseThread()" aria-label="Volver a la lista">←</button>
-    <div class="wa-avatar">${escapeHTML((waActive.display_name || '?').charAt(0).toUpperCase())}</div>
+    <div class="wa-avatar" style="${waAvatarStyle(nombreHilo)}">${escapeHTML(nombreHilo.charAt(0).toUpperCase())}</div>
     <div class="wa-thread-title">
       <strong>${escapeHTML(waActive.display_name || waPrettyPhone(waActive.phone))}</strong>
       <small id="waPresence" class="wa-pres" aria-live="polite">${escapeHTML(waPrettyPhone(waActive.phone))}${owner ? ' · sesión de ' + escapeHTML(owner) : ''}</small>
@@ -363,7 +372,10 @@ async function waLoadMessages(older) {
   waRenderThread(older ? 'keep' : 'bottom');
 }
 
-function waMsgBubble(m) {
+// pos = posición dentro de un grupo de mensajes seguidos del mismo lado:
+// 'solo' | 'primero' | 'medio' | 'ultimo'. Solo el último lleva pico y hora,
+// como en WhatsApp: así una ráfaga de 5 mensajes se lee como un bloque.
+function waMsgBubble(m, pos) {
   const out = m.direction === 'out';
   let inner = '';
   if (m.forwarded) inner += `<div class="wam-fwd">↪ Reenviado</div>`;
@@ -377,7 +389,9 @@ function waMsgBubble(m) {
     inner += `<div class="wa-media-miss">${WA_TYPE_ICON[m.type] || ''} ${WA_TYPE_LABEL[m.type] || ''}</div>`;
   }
   if (m.body) inner += `<div class="wa-body">${escapeHTML(m.body)}</div>`;
-  const tick = out ? `<span class="wa-tick ${m.status}">${WA_STATUS_TICK[m.status] || ''}</span>` : '';
+  const tick = out
+    ? `<span class="wa-tick ${m.status}" role="img" aria-label="${WA_STATUS_LABEL[m.status] || m.status}">${WA_STATUS_TICK[m.status] || ''}</span>`
+    : '';
   const failed = m.status === 'failed'
     ? `<div class="wa-failed">No se envió${m.error ? ': ' + escapeHTML(m.error) : ''} <button class="wa-retry" onclick="waRetry('${m.id}')">Reintentar</button></div>` : '';
   const canDel = waActive && (waActive.owner_id === WA_ME.id || WA_IS_ADMIN) && !m._optimistic;
@@ -392,12 +406,42 @@ function waMsgBubble(m) {
   if (canDel) acts += `<button onclick="waDeleteMsg('${m.id}')" title="Borrar mensaje del CRM" aria-label="Borrar mensaje">🗑️</button>`;
   acts += '</span>';
   const react = m.reaction ? `<span class="wam-react">${escapeHTML(m.reaction)}</span>` : '';
+  const p = pos || 'solo';
+  const conPico = p === 'solo' || p === 'primero';   // el pico va arriba, en el primero del grupo
+  const soloMedia = !m.body && m.type !== 'text' && m.media_path;   // la hora va encima de la foto
   return `
-    <div class="wam ${out ? 'out' : 'in'}" id="wam-${m.id}">
-      ${acts}<div class="wam-bubble">${inner}
-        <span class="wam-meta">${waTime(m.wa_timestamp || m.created_at)} ${tick}</span>${react}
+    <div class="wam ${out ? 'out' : 'in'} g-${p}" id="wam-${m.id}">
+      ${acts}<div class="wam-bubble${conPico ? ' con-pico' : ''}${soloMedia ? ' solo-media' : ''}">${inner}
+        <span class="wam-meta">${waTime(m.wa_timestamp || m.created_at)}${tick}</span>${react}
       </div>${failed}
     </div>`;
+}
+
+// Estado vacío del hilo: mejor una nota amable con la marca que una línea gris
+function waHiloVacio() {
+  const quien = waActive ? escapeHTML(waActive.display_name || waPrettyPhone(waActive.phone)) : 'este cliente';
+  return `<div class="wa-vacio">
+    <svg viewBox="0 0 64 64" aria-hidden="true" class="wa-vacio-ico">
+      <path d="M12 14h40a4 4 0 014 4v22a4 4 0 01-4 4H27l-11 9v-9h-4a4 4 0 01-4-4V18a4 4 0 014-4z"
+            fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M20 24h24M20 32h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+    <p><strong>Todavía no hay mensajes con ${quien}</strong></p>
+    <p class="wa-vacio-sub">Escribe abajo para empezar la conversación.</p>
+  </div>`;
+}
+
+// Panel derecho sin chat elegido
+function waSinChat() {
+  return `<div class="wa-vacio">
+    <svg viewBox="0 0 64 64" aria-hidden="true" class="wa-vacio-ico">
+      <circle cx="32" cy="32" r="25" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <path d="M22 30h20M22 38h13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M32 7v6M32 51v6M7 32h6M51 32h6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+    <p><strong>Elige un chat de la lista</strong></p>
+    <p class="wa-vacio-sub">O toca <strong>＋</strong> para escribirle a un número nuevo.</p>
+  </div>`;
 }
 
 /* ---------- responder (citar) ---------- */
@@ -608,15 +652,29 @@ function waRenderThread(scroll) {
   let html = waHasOlder
     ? '<div class="wa-load-more"><button class="btn-o" onclick="waLoadMessages(true)">↑ Cargar anteriores</button></div>' : '';
   let lastDay = '';
-  for (const m of waMsgs) {
+  // Agrupar mensajes seguidos del mismo lado y del mismo día: solo el último del
+  // grupo lleva pico y hora. Un mensaje corta el grupo si pasan más de 5 min.
+  const HUECO = 5 * 60 * 1000;
+  const ts = m => new Date(m.wa_timestamp || m.created_at).getTime();
+  const mismoGrupo = (a, b) => a && b && a.direction === b.direction
+    && new Date(ts(a)).toDateString() === new Date(ts(b)).toDateString()
+    && Math.abs(ts(b) - ts(a)) < HUECO;
+
+  for (let i = 0; i < waMsgs.length; i++) {
+    const m = waMsgs[i];
     const day = new Date(m.wa_timestamp || m.created_at).toDateString();
     if (day !== lastDay) {
       lastDay = day;
       html += `<div class="wa-day">${waDayLabel(m.wa_timestamp || m.created_at)}</div>`;
     }
-    html += waMsgBubble(m);
+    const conAnterior = i > 0 && mismoGrupo(waMsgs[i - 1], m)
+      && new Date(ts(waMsgs[i - 1])).toDateString() === day;
+    const conSiguiente = mismoGrupo(m, waMsgs[i + 1]);
+    const pos = conAnterior && conSiguiente ? 'medio'
+      : conAnterior ? 'ultimo' : conSiguiente ? 'primero' : 'solo';
+    html += waMsgBubble(m, pos);
   }
-  if (!waMsgs.length) html += '<div class="wa-empty">Sin mensajes aún. ¡Escribe el primero!</div>';
+  if (!waMsgs.length) html += waHiloVacio();
   box.innerHTML = html;
 
   if (scroll === 'bottom') box.scrollTop = box.scrollHeight;

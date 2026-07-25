@@ -12,6 +12,7 @@ import { SESSIONS_DIR } from './config.js';
 import { jidToPhone } from './phone.js';
 import { upsertChat, touchChat, PREVIEW_BY_TYPE } from './chats.js';
 import { uploadIncomingMedia } from './media.js';
+import { publishPresence } from './wa-presence.js';
 
 // Estados de WhatsApp (proto WebMessageInfo.Status) → nuestros estados
 const RECEIPT_STATUS = { 3: 'delivered', 4: 'read' };
@@ -82,6 +83,12 @@ export class WaSession {
     this.pairingRequested = false;
     this.reconnectMs = 2000;
     this.dir = path.join(SESSIONS_DIR, profileId);
+    // Presencia: chats cuya presencia estamos observando y hasta cuándo nos
+    // declaramos "disponibles" (WhatsApp solo entrega el "escribiendo…" del
+    // cliente si nosotros estamos available; el panel renueva cada 4 min).
+    this.watched = new Set();
+    this.onlineUntil = 0;
+    this.onlineSent = false;
   }
 
   hasCreds() { return fs.existsSync(path.join(this.dir, 'creds.json')); }
@@ -120,6 +127,7 @@ export class WaSession {
       sock.ev.on('messages.upsert', ev => this.onMessages(ev).catch(e =>
         log.error({ err: e.message, profile: this.profileId }, 'messages.upsert falló')));
       sock.ev.on('messages.update', ups => this.onReceipts(ups).catch(() => {}));
+      sock.ev.on('presence.update', ev => this.onPresence(ev));
       sock.ev.on('messaging-history.set', ev => this.onHistory(ev).catch(e =>
         log.error({ err: e.message, profile: this.profileId }, 'messaging-history.set falló')));
     } catch (e) {
@@ -164,6 +172,10 @@ export class WaSession {
         last_error: null
       });
       log.info({ profile: this.profileId, num: jidToPhone(me.id) }, 'WhatsApp CONECTADO ✅');
+      // Las suscripciones de presencia mueren con la conexión: si el panel sigue
+      // abierto, volvemos a pedirlas para no perder el "escribiendo…".
+      this.onlineSent = false;
+      if (this.onlineUntil > Date.now()) this.setAvailable(true).catch(() => {});
     }
 
     if (connection === 'close') {
@@ -336,6 +348,59 @@ export class WaSession {
     }
   }
 
+  // ---------- Presencia del cliente (escribiendo / grabando / en línea) ----------
+  // Llega de WhatsApp y se reenvía al panel por Broadcast (nada toca la base).
+  onPresence(ev) {
+    const jid = ev?.id;
+    if (!jid || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) return;
+    const entry = ev.presences?.[jid] || Object.values(ev.presences || {})[0];
+    if (!entry) return;
+    publishPresence(this.profileId, {
+      jid,
+      phone: jidToPhone(jid),          // el panel casa por teléfono si el jid difiere (@lid)
+      state: entry.lastKnownPresence || 'unavailable',
+      lastSeen: entry.lastSeen || null
+    });
+  }
+
+  // El panel está a la vista → nos declaramos disponibles (requisito de WhatsApp
+  // para recibir presencia). Al cerrarlo, o a los 5 min sin señal, volvemos a
+  // invisible: así el número NO aparece en línea las 24 horas.
+  async setAvailable(on) {
+    this.onlineUntil = on ? Date.now() + 5 * 60_000 : 0;
+    if (!this.isConnected()) return;
+    if (on || this.onlineSent) {
+      try { await this.sock.sendPresenceUpdate(on ? 'available' : 'unavailable'); }
+      catch (e) { log.warn({ err: e.message }, 'sendPresenceUpdate falló'); }
+    }
+    this.onlineSent = on;
+    if (on) for (const jid of this.watched) this.subscribePresence(jid);
+  }
+
+  // Observar la presencia de un chat (el panel lo pide al abrirlo)
+  async watch(jid) {
+    if (!jid) return;
+    this.watched.add(jid);
+    // Tope: los chats más viejos dejan de observarse (se re-piden al abrirlos)
+    while (this.watched.size > 60) this.watched.delete(this.watched.values().next().value);
+    await this.setAvailable(true);
+    this.subscribePresence(jid);
+  }
+
+  subscribePresence(jid) {
+    if (!this.isConnected()) return;
+    try { Promise.resolve(this.sock.presenceSubscribe(jid)).catch(() => {}); }
+    catch (e) { /* la suscripción se reintenta al reabrir el chat */ }
+  }
+
+  // Llamado cada minuto por wa-actions: renueva o retira la disponibilidad
+  tickPresence() {
+    if (!this.isConnected()) return;
+    const activo = this.onlineUntil > Date.now();
+    if (activo) this.setAvailable(true).catch(() => {});
+    else if (this.onlineSent) this.setAvailable(false).catch(() => {});
+  }
+
   isConnected() {
     return !!this.sock?.user && !this.stopped;
   }
@@ -360,6 +425,9 @@ export class WaSession {
     const jid = a.jid;
     if (a.kind === 'typing')      return void this.sock.sendPresenceUpdate('composing', jid);
     if (a.kind === 'stop_typing') return void this.sock.sendPresenceUpdate('paused', jid);
+    if (a.kind === 'watch')       return void await this.watch(jid);
+    if (a.kind === 'online')      return void await this.setAvailable(true);
+    if (a.kind === 'offline')     return void await this.setAvailable(false);
     if (a.kind === 'read') {
       const { data: msgs } = await db.from('jjp_wa_messages')
         .select('wa_msg_id').eq('owner_id', this.profileId).eq('chat_id', a.chat_id)

@@ -3,13 +3,55 @@
    Usa variables.css y el layout admin existente.
    ====================================================== */
 
+/* ---------- Página de WhatsApp: alto REAL, no calculado a ojo ----------
+   El fallo "la barra de escribir desaparece" tenía dos causas de raíz:
+
+   1) .wa-wrap es un grid y no declaraba grid-template-rows: la fila implícita
+      'auto' crecía con los mensajes del hilo, el grid desbordaba su propia
+      altura y el composer quedaba recortado por overflow:hidden.
+   2) el alto era `calc(100vh - 150px)`, un número adivinado. La .admin-topbar
+      tiene flex-wrap y CRECE cuando los chips pasan a dos líneas, así que el
+      chat medía más que el hueco disponible y el composer caía por debajo del
+      borde de la ventana (aparecía/desaparecía según el scroll de la página).
+
+   Solución: la página del chat no scrollea y el chat ocupa EXACTAMENTE lo que
+   sobra, midiéndolo el navegador con flex. Sin números mágicos.            */
+body.wa-page { overflow: hidden; }
+body.wa-page .admin-wrap  { height: 100vh; height: 100dvh; min-height: 0; }
+body.wa-page .admin-main  { height: 100vh; height: 100dvh; min-height: 0; }
+body.wa-page .admin-topbar { position: static; flex-shrink: 0; }
+body.wa-page .admin-content {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  padding: 14px 28px 18px;
+}
+body.wa-page .wa-wrap { flex: 1 1 auto; height: auto; min-height: 0; }
+
+/* Ventana tan baja que la barra de escribir no cabe (teclado en pantalla, zoom
+   muy alto, barra superior en varias líneas): la página vuelve a scrollear Y la
+   barra de escribir se ANCLA al fondo de la ventana. Así es imposible perderla,
+   pase lo que pase con el resto del layout. */
+body.wa-page.wa-tight { overflow: visible; }
+body.wa-page.wa-tight .admin-wrap,
+body.wa-page.wa-tight .admin-main { height: auto; min-height: 100vh; }
+body.wa-page.wa-tight .admin-content { display: block; padding-bottom: 104px; }
+body.wa-page.wa-tight #waComposer,
+body.wa-page.wa-tight #waRecBar {
+  position: fixed; left: 240px; right: 0; bottom: 0; z-index: 120;
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, .14);
+}
+@media (max-width: 860px) {
+  body.wa-page.wa-tight #waComposer,
+  body.wa-page.wa-tight #waRecBar { left: 0; }
+}
+
 .wa-wrap {
   display: grid;
   grid-template-columns: minmax(280px, 340px) 1fr;
+  grid-template-rows: minmax(0, 1fr);   /* ver causa (1) arriba */
   gap: 0;
   height: calc(100vh - 150px);
-  height: calc(100dvh - 150px);   /* móvil: descuenta la barra del navegador */
-  min-height: 420px;
+  height: calc(100dvh - 150px);   /* respaldo si falta la clase wa-page */
+  max-height: 100%;
   background: var(--wh);
   border-radius: var(--r);
   box-shadow: var(--sh);
@@ -53,8 +95,16 @@
   border-radius: 10px; padding: 1px 7px; flex-shrink: 0; align-self: center;
 }
 
-/* ---------- columna derecha: hilo ---------- */
-.wa-thread-pane { display: flex; flex-direction: column; min-width: 0; background: #EDE7DD; }
+/* Oculta un bloque del chat sin dejar estilos inline pegados: el JS solo
+   pone/quita esta clase (ver waSyncComposer). !important para que gane a
+   cualquier display heredado o inline viejo. */
+.wa-hide { display: none !important; }
+
+/* ---------- columna derecha: hilo ----------
+   min-height:0 es obligatorio: sin él el hilo no se encoge, crece con su
+   contenido y empuja la barra de escribir fuera del contenedor
+   (.wa-wrap tiene overflow:hidden) → la barra "desaparece". */
+.wa-thread-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #EDE7DD; }
 .wa-thread-head {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; background: var(--wh); border-bottom: 1px solid var(--gb);
@@ -65,7 +115,7 @@
 .wa-cust-btn { font-size: 12.5px; padding: 6px 10px; flex-shrink: 0; }
 .wa-back { display: none; border: 0; background: transparent; font-size: 20px; cursor: pointer; padding: 4px 8px; }
 
-.wa-thread { flex: 1; overflow-y: auto; padding: 16px 4%; }
+.wa-thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 4%; }
 .wa-day {
   text-align: center; margin: 14px auto 8px; font-size: 11.5px; color: var(--gr);
   background: var(--wh); border-radius: 8px; padding: 3px 12px; width: fit-content;
@@ -107,9 +157,12 @@
 
 /* ---------- composer ---------- */
 .wa-composer {
-  display: flex; gap: 8px; align-items: flex-end;
+  display: flex; gap: 8px; align-items: flex-end; flex: 0 0 auto;
   padding: 10px 12px; background: var(--wh); border-top: 1px solid var(--gb);
 }
+/* El mic graba MANTENIENDO PULSADO: sin selección de texto ni menú táctil */
+#waMicBtn { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+#waMicBtn:active { transform: scale(.94); background: var(--danger); }
 .wa-composer textarea {
   flex: 1; resize: none; max-height: 110px; font-size: 14px;
   border: 1px solid var(--gb); border-radius: var(--rs); padding: 9px 12px; font-family: inherit;
@@ -121,7 +174,7 @@
 
 /* ---------- barra de grabación de nota de voz ---------- */
 .wa-rec-bar {
-  display: flex; gap: 10px; align-items: center;
+  display: flex; gap: 10px; align-items: center; flex: 0 0 auto;
   padding: 10px 14px; background: var(--wh); border-top: 1px solid var(--gb);
 }
 .wa-rec-dot {
@@ -133,6 +186,18 @@
 .wa-rec-hint { flex: 1; color: var(--gr); font-size: 13px; }
 .wa-rec-bar button { min-height: 44px; }
 @media (prefers-reduced-motion: reduce) { .wa-rec-dot { animation: none } }
+
+/* ---------- presencia del cliente: escribiendo… / en línea ---------- */
+.wa-pres { transition: color .2s; }
+.wa-pres.on { color: var(--gd, #99CC33); font-weight: 700; }
+.wa-chat-preview.typing { color: var(--gd, #99CC33); font-weight: 700; font-style: italic; }
+.wa-chat-preview.typing::after {
+  content: ''; display: inline-block; width: 3px; height: 3px; margin-left: 4px;
+  border-radius: 50%; background: currentColor; vertical-align: middle;
+  animation: waTypeDot 1s ease-in-out infinite;
+}
+@keyframes waTypeDot { 0%, 100% { opacity: .2 } 50% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .wa-chat-preview.typing::after { animation: none } }
 
 .wa-del-btn { color: var(--danger); }
 .wa-cust-btn.on-pin { background: var(--gx); box-shadow: inset 0 0 0 2px var(--gd); }
@@ -198,9 +263,10 @@
   .wa-wrap {
     grid-template-columns: 1fr;
     height: calc(100vh - 130px);
-    height: calc(100dvh - 130px);
+    height: calc(100dvh - 130px);   /* respaldo: con .wa-page manda el flex */
     border-radius: var(--rs);
   }
+  body.wa-page .admin-content { padding: 8px 10px 10px; }
   .wa-thread-pane { display: none; }
   .wa-wrap.thread-open .wa-list-pane { display: none; }
   .wa-wrap.thread-open .wa-thread-pane { display: flex; }
@@ -214,9 +280,14 @@
   .wa-media img, .wa-media video { max-height: 240px; }
 }
 
-/* ---------- pantallas bajas (laptops 768p): no perder el composer ---------- */
+/* ---------- pantallas bajas (laptops 768p): no perder el composer ----------
+   Con .wa-page el alto ya lo reparte el flex; esto solo cubre el caso sin clase.
+   OJO: aquí NO puede haber min-height, o en ventanas bajas el chat volvería a
+   ser más alto que la pantalla y el composer caería fuera. */
 @media (max-height: 700px) {
-  .wa-wrap { height: calc(100vh - 120px); height: calc(100dvh - 120px); min-height: 360px; }
+  .wa-wrap { height: calc(100vh - 120px); height: calc(100dvh - 120px); }
+  body.wa-page .admin-content { padding: 8px 14px 10px; }
+  body.wa-page .admin-topbar { padding: 4px 14px; min-height: 0; }
 }
 
 /* ---------- funciones de chat: citar / reaccionar / reenviar / reenviado ---------- */

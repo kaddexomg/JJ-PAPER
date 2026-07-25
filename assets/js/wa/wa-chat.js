@@ -20,11 +20,13 @@ async function waInit(opts) {
   WA_ME = opts.me;
   WA_IS_ADMIN = WA_ME.role === 'admin';
 
+  waTrackErrors();
   waRequestNotifPerm();
   await waLinkInit(WA_ME.id);
   if (WA_IS_ADMIN) await waLoadProfiles();
   await waLoadChats();
   waSubscribe();
+  waSubscribePresence();
   await waHandleParams();
 
   const ci = document.getElementById('waComposerInput');
@@ -38,15 +40,185 @@ async function waInit(opts) {
     ci.style.height = Math.min(ci.scrollHeight, 110) + 'px';
     if ((ci.value || '').trim()) waTypingPing(); else waTypingStop();
   });
+  waBindMic();
+
+  // La barra de escribir se re-sincroniza al volver a la pestaña o a la ventana:
+  // así nunca queda oculta por un estado viejo (ver waSyncComposer).
+  document.addEventListener('visibilitychange', () => {
+    waSyncComposer('visibilidad');
+    if (document.visibilityState === 'visible') waGoOnline(); else waGoOffline();
+  });
+  window.addEventListener('focus', () => waSyncComposer('foco'));
+  window.addEventListener('pagehide', () => waGoOffline());
+  // La página del chat no debe scrollear: el chat se ajusta al hueco real
+  document.body.classList.add('wa-page');
+  waFitHeight(true);
+  window.addEventListener('resize', () => waFitHeight(true));
+  window.addEventListener('orientationchange', () => setTimeout(() => waFitHeight(true), 300));
+  setInterval(waComposerWatchdog, 3000);
+  waGoOnline();
+  waSyncComposer('inicio');
+}
+
+/* ---------- composer: UNA sola fuente de verdad ----------
+   Antes la visibilidad de la barra de escribir se tocaba desde dos sitios con
+   style.display inline (render de la cabecera y grabación de voz). Si una
+   grabación fallaba a medias la barra quedaba oculta PARA SIEMPRE — solo volvía
+   al cambiar de chat. Ese era el "se traba y desaparece la barra". Ahora un
+   único estado manda, se re-aplica en cada evento y un watchdog lo corrige.   */
+let _waComposerState = null;
+
+function waComposerState() {
+  if (!waActive) return 'none';                                   // sin chat abierto
+  if (waRec) return 'recording';                                  // grabando nota de voz
+  return waActive.owner_id === WA_ME.id ? 'edit' : 'readonly';    // ajeno = solo lectura
+}
+
+function waSyncComposer(why) {
+  const st = waComposerState();
+  const show = (id, on) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.removeProperty('display');   // mata cualquier inline viejo
+    el.classList.toggle('wa-hide', !on);
+  };
+  show('waComposer',     st === 'edit');
+  show('waRecBar',       st === 'recording');
+  show('waReadonlyNote', st === 'readonly');
+  if (st === 'none' || st === 'readonly') waCancelReply();
+  if (_waComposerState !== st) {
+    _waComposerState = st;
+    waLog(`composer → ${st}${why ? ' (' + why + ')' : ''}`);
+  }
   waComposerButtons();
+}
+
+// Red de seguridad: si algo deja la barra oculta sin motivo (bug, extensión del
+// navegador, grabación fantasma) vuelve sola en ≤3 s en vez de dejar el panel
+// inservible hasta recargar la página. También vigila que no se salga de la
+// pantalla, que era la otra forma de "desaparecer".
+function waComposerWatchdog() {
+  const c = document.getElementById('waComposer');
+  if (!c) return;
+  const oculto = c.classList.contains('wa-hide') || c.style.display === 'none';
+  if (waComposerState() === 'edit' && oculto) {
+    waLog('watchdog: barra oculta sin motivo → restaurada');
+    waSyncComposer('watchdog');
+  }
+  waFitHeight();
+}
+
+/* Ajuste de alto a prueba de todo.
+   El CSS ya reparte el espacio con flex (body.wa-page), pero si alguna regla lo
+   pisa —o el navegador es viejo— esto mide de verdad y recorta el chat para que
+   la barra de escribir SIEMPRE quede dentro de la ventana. Es la última línea
+   de defensa del fallo que reportó el dueño. */
+let _waFitLast = 0, _waTight = null;
+function waFitHeight(force) {
+  const wrap = document.getElementById('waWrap');
+  if (!wrap) return;
+  const r = wrap.getBoundingClientRect();
+  const alto = (id, extra) => {
+    const el = document.getElementById(id);
+    if (!el || el.classList.contains('wa-hide')) return 0;
+    return el.getBoundingClientRect().height + (extra || 0);
+  };
+  // Mínimo con el que el chat sigue siendo usable: cabecera + barra de escribir
+  // + barra de respuesta + un pedazo de hilo.
+  const minimo = Math.ceil(alto('waThreadHead') + alto('waComposer') + alto('waReplyBar') + 110);
+  const disponible = Math.round(window.innerHeight - r.top - 12);   // 12px de respiro
+
+  // Ventana tan baja que la barra de escribir no cabe ni recortando el hilo:
+  // la página scrollea y la barra se ancla al fondo (CSS .wa-tight). Nunca se
+  // pierde. La histéresis de 48px evita que el modo oscile en el límite, porque
+  // entrar en modo apretado cambia el layout y cambiaría la medida otra vez.
+  const apretado = _waTight ? disponible < minimo + 48 : disponible < minimo;
+  if (apretado !== _waTight) {
+    _waTight = apretado;
+    document.body.classList.toggle('wa-tight', apretado);
+    waLog(apretado ? `ventana muy baja (${disponible}px < ${minimo}px): la página pasa a scroll`
+                   : 'ventana con espacio suficiente: chat a pantalla completa');
+  }
+  const objetivo = apretado ? minimo : disponible;
+  if (objetivo < 200) return;                              // tamaño absurdo: no tocar
+  if (!force && Math.abs(objetivo - r.height) < 4) return;
+  if (Math.abs(objetivo - r.height) < 2) return;
+  wrap.style.height = objetivo + 'px';
+  wrap.style.minHeight = '0';
+  if (!_waFitLast) waLog(`alto ajustado: chat ${Math.round(r.height)} → ${objetivo}px`);
+  _waFitLast = objetivo;
 }
 
 function waComposerButtons() {
   const hasText = !!(document.getElementById('waComposerInput')?.value || '').trim();
-  const mic = document.getElementById('waMicBtn');
-  const send = document.getElementById('waSendBtn');
-  if (mic)  mic.style.display  = hasText || !waRecSupported() ? 'none' : 'inline-flex';
-  if (send) send.style.display = hasText || !waRecSupported() ? 'inline-flex' : 'none';
+  const canRec = waRecSupported();
+  document.getElementById('waMicBtn')?.classList.toggle('wa-hide', hasText || !canRec);
+  document.getElementById('waSendBtn')?.classList.toggle('wa-hide', !hasText && canRec);
+}
+
+/* ---------- caja negra (diagnóstico) ----------
+   Deja rastro de los últimos eventos del panel en localStorage. Si algo vuelve
+   a fallar, el botón 🩺 de la barra superior copia el rastro completo y no hay
+   que reproducir el fallo para saber qué pasó. */
+const WA_LOG_KEY = 'jjp_wa_log';
+
+function waLog(msg) {
+  try {
+    const arr = JSON.parse(localStorage.getItem(WA_LOG_KEY) || '[]');
+    arr.push(new Date().toISOString().slice(11, 19) + ' · ' + msg);
+    localStorage.setItem(WA_LOG_KEY, JSON.stringify(arr.slice(-60)));
+  } catch (e) { /* localStorage lleno o bloqueado: el panel sigue igual */ }
+}
+
+function waTrackErrors() {
+  window.addEventListener('error', e =>
+    waLog('error JS: ' + (e.message || '') + ' @' + String(e.filename || '').split('/').pop() + ':' + e.lineno));
+  window.addEventListener('unhandledrejection', e =>
+    waLog('promesa rechazada: ' + (e.reason?.message || e.reason)));
+}
+
+async function waCopyDiag() {
+  const eventos = (() => { try { return JSON.parse(localStorage.getItem(WA_LOG_KEY) || '[]'); } catch (e) { return []; } })();
+  const info = [
+    'JJ Paper · diagnóstico del CRM WhatsApp',
+    'fecha: ' + new Date().toLocaleString('es-VE'),
+    'usuario: ' + (WA_ME?.name || '—') + ' (' + (WA_ME?.role || '—') + ')',
+    'navegador: ' + navigator.userAgent,
+    'ventana: ' + window.innerWidth + '×' + window.innerHeight,
+    'chat abierto: ' + (waActive ? waActive.phone + (waActive.owner_id === WA_ME.id ? ' (mío)' : ' (de otra sesión)') : 'ninguno'),
+    'estado de la barra: ' + waComposerState(),
+    'grabando: ' + (waRec ? 'sí (' + waRec.secs + 's)' : 'no'),
+    'mensajes cargados: ' + waMsgs.length + ' · chats: ' + waChats.length,
+    '--- últimos eventos ---',
+    ...eventos
+  ].join('\n');
+  try {
+    await navigator.clipboard.writeText(info);
+    showToast('Diagnóstico copiado ✅ pégalo en el chat de soporte');
+  } catch (e) {
+    prompt('Copia este diagnóstico (Ctrl+C):', info);
+  }
+}
+
+/* ---------- modales: abrir/cerrar liberando la trampa de foco ----------
+   trapFocus() devuelve una función para liberar el foco; antes se descartaba,
+   así que al cerrar un modal el foco quedaba dentro de un contenedor oculto y
+   escribir en el composer no hacía nada hasta hacer clic. */
+const _waTraps = new Map();
+
+function waOpenModal(id) {
+  const m = document.getElementById(id);
+  if (!m) return null;
+  m.classList.add('op');
+  if (typeof trapFocus === 'function') _waTraps.set(id, trapFocus(m));
+  return m;
+}
+
+function waCloseModal(id) {
+  document.getElementById(id)?.classList.remove('op');
+  const liberar = _waTraps.get(id);
+  if (liberar) { _waTraps.delete(id); try { liberar(); } catch (e) {} }
+  if (waComposerState() === 'edit') document.getElementById('waComposerInput')?.focus();
 }
 
 // Recarga de bandeja agrupada: durante una ráfaga (sync de historial, varios
@@ -85,6 +257,8 @@ async function waLoadChats() {
   if (error) { showToast('Error cargando chats: ' + error.message, 'err'); return; }
   waChats = data || [];
   waRenderChatList();
+  // La bandeja se acaba de re-dibujar: volver a pintar quién está escribiendo
+  for (const id of Object.keys(waPresence)) waPaintPresence(id);
 }
 
 function waRenderChatList() {
@@ -112,7 +286,7 @@ function waRenderChatList() {
         </div>
         ${c.label ? `<span class="wa-label" style="background:${escapeHTML(c.label_color || '#16604A')}">${escapeHTML(c.label)}</span>` : ''}
         <div class="wa-chat-bottom">
-          <span class="wa-chat-preview">${c.last_message_from === 'me' ? 'Tú: ' : ''}${escapeHTML(c.last_message_preview || '')}</span>
+          <span class="wa-chat-preview" data-pv="${c.id}">${c.last_message_from === 'me' ? 'Tú: ' : ''}${escapeHTML(c.last_message_preview || '')}</span>
           ${c.unread_count ? `<span class="wa-unread">${c.unread_count}</span>` : ''}
         </div>
         ${owner ? `<div class="wa-chat-owner">👤 ${escapeHTML(owner)}</div>` : ''}
@@ -135,13 +309,16 @@ async function waOpenChat(chatId) {
   waRenderChatList();
   await waLoadMessages();
   waMarkRead();
-  // Marcar como leído en el teléfono del cliente (recibo de lectura)
-  if (waActive.owner_id === WA_ME.id) waSendAction('read');
+  if (waActive.owner_id === WA_ME.id) {
+    waSendAction('read');    // recibo de lectura en el teléfono del cliente
+    waSendAction('watch');   // pedir la presencia del cliente ("escribiendo…")
+  }
 }
 
 function waCloseThread() {
   waActive = null;
   document.getElementById('waWrap')?.classList.remove('thread-open');
+  waSyncComposer('cerrar hilo');
   waRenderChatList();
 }
 
@@ -155,7 +332,7 @@ function waRenderThreadHeader() {
     <div class="wa-avatar">${escapeHTML((waActive.display_name || '?').charAt(0).toUpperCase())}</div>
     <div class="wa-thread-title">
       <strong>${escapeHTML(waActive.display_name || waPrettyPhone(waActive.phone))}</strong>
-      <small>${escapeHTML(waPrettyPhone(waActive.phone))}${owner ? ' · sesión de ' + escapeHTML(owner) : ''}</small>
+      <small id="waPresence" class="wa-pres" aria-live="polite">${escapeHTML(waPrettyPhone(waActive.phone))}${owner ? ' · sesión de ' + escapeHTML(owner) : ''}</small>
     </div>
     ${!mine ? ''
       : waActive.customer_id
@@ -167,10 +344,8 @@ function waRenderThreadHeader() {
       <button class="btn-o wa-cust-btn" onclick="waSetLabel()" title="Etiqueta del chat" aria-label="Etiqueta del chat">🏷️</button>
       <button class="btn-o wa-cust-btn wa-del-btn" onclick="waDeleteChat()" title="Borrar chat del CRM" aria-label="Borrar chat">🗑️</button>` : ''}
   `;
-  const composer = document.getElementById('waComposer');
-  if (composer) composer.style.display = mine ? 'flex' : 'none';
-  const roNote = document.getElementById('waReadonlyNote');
-  if (roNote) roNote.style.display = mine ? 'none' : 'block';
+  waSyncComposer('cabecera');
+  waPaintPresence(waActive.id);
 }
 
 async function waLoadMessages(older) {
@@ -238,7 +413,7 @@ function waStartReply(msgId) {
   };
   const bar = document.getElementById('waReplyBar');
   if (bar) {
-    bar.style.display = 'flex';
+    bar.classList.remove('wa-hide');
     bar.innerHTML = `<div class="wa-reply-info"><strong>Respondiendo</strong>
         <span>${escapeHTML(waReplyTo.preview.slice(0, 90))}</span></div>
       <button class="wa-reply-x" onclick="waCancelReply()" aria-label="Cancelar respuesta">✕</button>`;
@@ -248,7 +423,7 @@ function waStartReply(msgId) {
 function waCancelReply() {
   waReplyTo = null;
   const bar = document.getElementById('waReplyBar');
-  if (bar) { bar.style.display = 'none'; bar.innerHTML = ''; }
+  if (bar) { bar.classList.add('wa-hide'); bar.innerHTML = ''; }
 }
 
 /* ---------- reaccionar ---------- */
@@ -295,10 +470,9 @@ function waForward(msgId) {
     ? mine.map(c => `<button class="wa-cust-result" onclick="waDoForward('${c.id}')">
         ${escapeHTML(c.display_name || waPrettyPhone(c.phone))}</button>`).join('')
     : '<p class="wa-link-note">No tienes otros chats. Abre uno nuevo primero.</p>';
-  document.getElementById('waFwdModal')?.classList.add('op');
-  if (typeof trapFocus === 'function') trapFocus(document.getElementById('waFwdModal'));
+  waOpenModal('waFwdModal');
 }
-function closeWaFwd() { document.getElementById('waFwdModal')?.classList.remove('op'); }
+function closeWaFwd() { waCloseModal('waFwdModal'); }
 
 async function waDoForward(chatId) {
   const m = waMsgs.find(x => x.id === waForwardMsgId);
@@ -313,7 +487,7 @@ async function waDoForward(chatId) {
   showToast('Reenviado ↪');
 }
 
-/* ---------- presencia: "escribiendo…" ---------- */
+/* ---------- presencia SALIENTE: el cliente ve nuestro "escribiendo…" ---------- */
 let _waTypingActive = false, _waTypingTimer = null;
 function waTypingPing() {
   if (!waActive || waActive.owner_id !== WA_ME.id) return;
@@ -325,9 +499,105 @@ function waTypingStop() {
   clearTimeout(_waTypingTimer);
   if (_waTypingActive) { _waTypingActive = false; waSendAction('stop_typing'); }
 }
-function waSendAction(kind) {
-  if (!waActive) return;
-  sb.from('jjp_wa_actions').insert({ owner_id: WA_ME.id, chat_id: waActive.id, jid: waActive.jid, kind }).then(() => {});
+function waSendAction(kind, jid) {
+  if (!waActive && !jid) return;
+  sb.from('jjp_wa_actions').insert({
+    owner_id: WA_ME.id,
+    chat_id: jid ? null : waActive.id,
+    jid: jid || waActive.jid,
+    kind
+  }).then(() => {});
+}
+
+/* ---------- presencia ENTRANTE: "escribiendo…" del cliente ----------
+   Llega por Realtime Broadcast (canal efímero que publica wa-server): NO se
+   escribe nada en la base de datos, así que no consume cuota de Supabase.
+   WhatsApp solo entrega la presencia del cliente si nuestra sesión está
+   "disponible", por eso avisamos online/offline según el panel esté a la vista.
+*/
+let waPresence = {};              // chat_id → { state, lastSeen, at }
+const _waPresTimers = {};         // chat_id → temporizador de caducidad
+let _waOnlineTimer = null;
+
+function waSubscribePresence() {
+  sb.channel('wa-presence-' + WA_ME.id)
+    .on('broadcast', { event: 'presence' }, ({ payload }) => waOnPresence(payload))
+    .subscribe();
+}
+
+function waOnPresence(p) {
+  if (!p?.jid) return;
+  const owner = p.owner || WA_ME.id;
+  const chat = waChats.find(c => c.owner_id === owner && (c.jid === p.jid || (p.phone && c.phone === p.phone)));
+  if (!chat) return;
+  const st = p.state || 'unavailable';
+  waPresence[chat.id] = {
+    state: st,
+    at: Date.now(),
+    lastSeen: p.lastSeen || waPresence[chat.id]?.lastSeen || null
+  };
+  // WhatsApp no siempre manda el "dejó de escribir": caduca solo a los 12 s
+  clearTimeout(_waPresTimers[chat.id]);
+  if (st === 'composing' || st === 'recording') {
+    _waPresTimers[chat.id] = setTimeout(() => {
+      if (waPresence[chat.id]) waPresence[chat.id].state = 'available';
+      waPaintPresence(chat.id);
+    }, 12_000);
+  }
+  waPaintPresence(chat.id);
+}
+
+// Texto a mostrar; '' = nada que mostrar
+function waPresenceText(chatId) {
+  const p = waPresence[chatId];
+  if (!p) return '';
+  if (p.state === 'composing') return 'escribiendo…';
+  if (p.state === 'recording') return 'grabando audio…';
+  if (p.state === 'available') return 'en línea';
+  if (p.lastSeen) return 'últ. vez ' + waTime(new Date(p.lastSeen * 1000).toISOString());
+  return '';
+}
+
+// Pinta sin re-renderizar el hilo ni la bandeja (evita parpadeos al escribir)
+function waPaintPresence(chatId) {
+  const txt = waPresenceText(chatId);
+  const activo = txt === 'escribiendo…' || txt === 'grabando audio…';
+
+  if (waActive && waActive.id === chatId) {
+    const el = document.getElementById('waPresence');
+    if (el) {
+      const owner = waActive.owner_id !== WA_ME.id
+        ? waProfiles.find(pr => pr.id === waActive.owner_id)?.name : null;
+      const base = waPrettyPhone(waActive.phone) + (owner ? ' · sesión de ' + owner : '');
+      el.textContent = txt ? base + ' · ' + txt : base;
+      el.classList.toggle('on', activo);
+    }
+  }
+  const row = document.querySelector(`[data-pv="${chatId}"]`);
+  if (row) {
+    const chat = waChats.find(c => c.id === chatId);
+    row.textContent = activo
+      ? txt
+      : (chat?.last_message_from === 'me' ? 'Tú: ' : '') + (chat?.last_message_preview || '');
+    row.classList.toggle('typing', activo);
+  }
+}
+
+// "Disponible" solo mientras el panel está a la vista (no aparecemos en línea 24/7)
+function waGoOnline() {
+  if (document.visibilityState === 'hidden') return;
+  waSendAction('online', 'self');
+  clearInterval(_waOnlineTimer);
+  // El servidor da la disponibilidad por vencida a los 5 min sin señal
+  _waOnlineTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') waSendAction('online', 'self');
+  }, 240_000);
+}
+
+function waGoOffline() {
+  clearInterval(_waOnlineTimer);
+  _waOnlineTimer = null;
+  waSendAction('offline', 'self');
 }
 
 function waRenderThread(scroll) {
@@ -415,7 +685,16 @@ function waMaybeNotify(m) {
 
 /* ---------- eventos Realtime ---------- */
 function waOnNewMessage(m) {
-  if (m.direction === 'in') waMaybeNotify(m);
+  if (m.direction === 'in') {
+    waMaybeNotify(m);
+    // Ya envió: deja de estar "escribiendo…"
+    if (waPresence[m.chat_id]) {
+      clearTimeout(_waPresTimers[m.chat_id]);
+      waPresence[m.chat_id].state = 'available';
+      waPresence[m.chat_id].at = Date.now();
+      waPaintPresence(m.chat_id);
+    }
+  }
   if (waActive && m.chat_id === waActive.id) {
     if (waMsgs.some(x => x.id === m.id)) return;   // eco del optimista
     // Sustituir burbuja optimista (id temporal) si coincide
@@ -515,8 +794,14 @@ async function waFileChosen(input) {
   const ci = document.getElementById('waComposerInput'); if (ci) ci.value = '';
 }
 
-/* ---------- notas de voz (MediaRecorder) ---------- */
-let waRec = null;          // { recorder, chunks, timer, secs, cancelled }
+/* ---------- notas de voz (MediaRecorder) ----------
+   El mic se maneja MANTENIENDO PULSADO, como en WhatsApp. Antes bastaba un clic
+   y, con el campo vacío, el mic ocupa el sitio del botón Enviar: era facilísimo
+   arrancar una grabación sin querer y creer que la barra de escribir se había
+   ido. Además cualquier fallo del micrófono ahora devuelve la barra.          */
+let waRec = null;          // { recorder, stream, chunks, timer, secs, cancelled }
+let _waMicHeld = false;    // el botón del mic está pulsado ahora mismo
+let _waRecStarting = false;
 
 function waRecSupported() {
   return !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
@@ -527,37 +812,103 @@ function waRecMime() {
   return prefs.find(m => MediaRecorder.isTypeSupported(m)) || '';
 }
 
+function waBindMic() {
+  const mic = document.getElementById('waMicBtn');
+  if (!mic || mic.dataset.bound) return;
+  mic.dataset.bound = '1';
+  mic.removeAttribute('onclick');            // el onclick del HTML ya no manda
+  mic.title = 'Mantén pulsado para grabar una nota de voz';
+  mic.setAttribute('aria-label', 'Mantén pulsado para grabar una nota de voz');
+
+  mic.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    _waMicHeld = true;
+    waRecStart();
+  });
+  const soltar = enviar => {
+    if (!_waMicHeld) return;
+    _waMicHeld = false;
+    if (waRec) { enviar ? waRecStop() : waRecCancel(); }
+    else if (!_waRecStarting) waRecHint();   // pulsación demasiado corta
+  };
+  mic.addEventListener('pointerup', e => { e.preventDefault(); soltar(true); });
+  mic.addEventListener('pointercancel', () => soltar(false));
+  mic.addEventListener('pointerleave', () => soltar(false));
+  // Teclado (accesibilidad): Enter/Espacio alterna grabar ↔ enviar
+  mic.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    if (waRec) { _waMicHeld = false; waRecStop(); }
+    else { _waMicHeld = true; waRecStart(); }
+  });
+}
+
+function waRecHint() {
+  showToast('Mantén pulsado el 🎙️ para grabar una nota de voz', 'warn');
+}
+
 async function waRecStart() {
   if (!waActive || waActive.owner_id !== WA_ME.id) return;
-  if (waRec) return;
+  if (waRec || _waRecStarting) return;
   if (!waRecSupported()) { showToast('Tu navegador no soporta grabar audio', 'warn'); return; }
+  _waRecStarting = true;
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    showToast('No se pudo acceder al micrófono (revisa permisos)', 'err');
+    _waRecStarting = false;
+    waLog('micrófono rechazado: ' + (e?.name || e?.message || '?'));
+    showToast('No se pudo acceder al micrófono (revisa los permisos del navegador)', 'err');
+    waSyncComposer('fallo mic');
     return;
   }
+  _waRecStarting = false;
+  // Soltó el botón antes de que el micrófono estuviera listo: no grabamos nada
+  if (!_waMicHeld) { stream.getTracks().forEach(t => t.stop()); waRecHint(); return; }
+
   const mime = waRecMime();
-  const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-  waRec = { recorder, chunks: [], secs: 0, cancelled: false };
+  let recorder;
+  try {
+    recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  } catch (e) {
+    stream.getTracks().forEach(t => t.stop());
+    waLog('MediaRecorder no arrancó: ' + (e?.message || '?'));
+    showToast('Este navegador no pudo iniciar la grabación', 'err');
+    waSyncComposer('fallo grabadora');
+    return;
+  }
+  waRec = { recorder, stream, chunks: [], secs: 0, cancelled: false };
   recorder.ondataavailable = e => { if (e.data.size) waRec?.chunks.push(e.data); };
+  recorder.onerror = e => {
+    waLog('error de grabación: ' + (e?.error?.name || '?'));
+    waRecAbort('El micrófono falló');
+  };
   recorder.onstop = () => {
     stream.getTracks().forEach(t => t.stop());
     const rec = waRec; waRec = null;
-    waRecRenderBar(false);
+    waSyncComposer('fin grabación');
     if (!rec || rec.cancelled || !rec.chunks.length) return;
     waRecSend(new Blob(rec.chunks, { type: recorder.mimeType || mime || 'audio/webm' }), rec.secs);
   };
-  recorder.start(250);
+  // Si el micrófono se desconecta o el sistema corta el audio, no dejamos la
+  // barra de escribir escondida esperando un onstop que nunca llega.
+  stream.getTracks().forEach(t => t.addEventListener('ended', () => {
+    if (waRec) waRecAbort('El micrófono se desconectó');
+  }));
+
+  try { recorder.start(250); }
+  catch (e) { waRecAbort('No se pudo iniciar la grabación'); return; }
+
+  const el = document.getElementById('waRecTime');
+  if (el) el.textContent = '0:00';
   waRec.timer = setInterval(() => {
     if (!waRec) return;
     waRec.secs++;
-    const el = document.getElementById('waRecTime');
-    if (el) el.textContent = waRecFmt(waRec.secs);
+    const t = document.getElementById('waRecTime');
+    if (t) t.textContent = waRecFmt(waRec.secs);
     if (waRec.secs >= 300) waRecStop();     // tope 5 min
   }, 1000);
-  waRecRenderBar(true);
+  waSyncComposer('grabando');
 }
 
 function waRecFmt(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
@@ -565,25 +916,28 @@ function waRecFmt(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart
 function waRecStop() {                      // detener y ENVIAR
   if (!waRec) return;
   clearInterval(waRec.timer);
-  waRec.recorder.stop();
+  try { waRec.recorder.stop(); } catch (e) { waRecAbort('No se pudo cerrar la grabación'); }
 }
 
 function waRecCancel() {                    // detener y DESCARTAR
   if (!waRec) return;
   waRec.cancelled = true;
   clearInterval(waRec.timer);
-  waRec.recorder.stop();
+  try { waRec.recorder.stop(); } catch (e) { waRecAbort(); }
 }
 
-function waRecRenderBar(on) {
-  const bar = document.getElementById('waRecBar');
-  const composer = document.getElementById('waComposer');
-  if (bar) bar.style.display = on ? 'flex' : 'none';
-  if (composer) composer.style.display = on ? 'none' : 'flex';
-  if (on) {
-    const el = document.getElementById('waRecTime');
-    if (el) el.textContent = '0:00';
+// Corta todo y DEVUELVE la barra de escribir (red de seguridad ante cualquier fallo)
+function waRecAbort(msg) {
+  const rec = waRec;
+  waRec = null;
+  _waMicHeld = false;
+  if (rec) {
+    clearInterval(rec.timer);
+    try { rec.recorder.stop(); } catch (e) {}
+    try { rec.stream?.getTracks().forEach(t => t.stop()); } catch (e) {}
   }
+  waSyncComposer('grabación abortada');
+  if (msg) showToast(msg + ' — barra de escribir restaurada', 'warn');
 }
 
 async function waRecSend(blob, secs) {
@@ -619,7 +973,9 @@ async function waPurgeAllChats() {
   if (error) { showToast('No se pudo vaciar: ' + error.message, 'err'); return; }
   waChats = [];
   waActive = null;
+  waPresence = {};
   document.getElementById('waWrap')?.classList.remove('thread-open');
+  waSyncComposer('chats vaciados');
   waRenderChatList();
   showToast(`Listo: ${data || 0} chats vaciados 🧹`);
 }
@@ -720,12 +1076,11 @@ async function waRetry(msgId) {
 
 /* ---------- nuevo chat ---------- */
 function openWaNewChat() {
-  document.getElementById('waNewChatModal')?.classList.add('op');
-  if (typeof trapFocus === 'function') trapFocus(document.getElementById('waNewChatModal'));
+  waOpenModal('waNewChatModal');
   document.getElementById('waNewPhone')?.focus();
 }
 function closeWaNewChat() {
-  document.getElementById('waNewChatModal')?.classList.remove('op');
+  waCloseModal('waNewChatModal');
   const res = document.getElementById('waCustResults'); if (res) res.innerHTML = '';
 }
 
@@ -815,18 +1170,16 @@ async function waSetOwnerFilter(v) {
   waOwnerFilter = v;
   waActive = null;
   document.getElementById('waWrap')?.classList.remove('thread-open');
+  waSyncComposer('cambio de filtro');
   await waLoadChats();
 }
 
 async function openWaSessionsModal() {
-  const modal = document.getElementById('waSessionsModal');
-  if (!modal) return;
-  modal.classList.add('op');
-  if (typeof trapFocus === 'function') trapFocus(modal);
+  if (!waOpenModal('waSessionsModal')) return;
   await waRenderSessions();
 }
 function closeWaSessionsModal() {
-  document.getElementById('waSessionsModal')?.classList.remove('op');
+  waCloseModal('waSessionsModal');
 }
 
 async function waRenderSessions() {

@@ -81,12 +81,18 @@ async function srvCommand(cmd) {
 }
 
 function openSrvModal() {
-  document.getElementById('srvModal')?.classList.add('op');
-  if (typeof trapFocus === 'function') trapFocus(document.getElementById('srvModal'));
+  // waOpenModal (whatsapp.html) libera la trampa de foco al cerrar; en las demás
+  // páginas del admin no existe y se usa el camino directo.
+  if (typeof waOpenModal === 'function') waOpenModal('srvModal');
+  else {
+    document.getElementById('srvModal')?.classList.add('op');
+    if (typeof trapFocus === 'function') trapFocus(document.getElementById('srvModal'));
+  }
   srvLoad();
 }
 function closeSrvModal() {
-  document.getElementById('srvModal')?.classList.remove('op');
+  if (typeof waCloseModal === 'function') waCloseModal('srvModal');
+  else document.getElementById('srvModal')?.classList.remove('op');
 }
 
 function srvInit() {

@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <link rel="stylesheet" href="../assets/css/glass.css">
-<link rel="stylesheet" href="../assets/css/wa.css">
+<link rel="stylesheet" href="../assets/css/wa.css?v=20260725">
 <style>
   .srv-state{display:flex;align-items:center;gap:14px;padding:14px;border-radius:12px;margin-bottom:14px}
   .srv-state.on{background:rgba(153,204,51,.12)}
@@ -78,6 +78,7 @@
         <span class="wa-chip" id="waStatusChip">Cargando…</span>
         <button class="btn-o" onclick="openWaLinkModal()">🔗 Mi cuenta</button>
         <button class="btn-o" onclick="openWaSessionsModal()">⚙️ Sesiones</button>
+        <button class="btn-o" onclick="waCopyDiag()" title="Copiar diagnóstico técnico del chat" aria-label="Copiar diagnóstico">🩺</button>
       </div>
     </div>
 
@@ -101,15 +102,15 @@
             <div class="wa-empty" style="padding:10px">Elige un chat para empezar</div>
           </div>
           <div class="wa-thread" id="waThread"></div>
-          <div class="wa-readonly-note" id="waReadonlyNote">Solo lectura: este chat pertenece a la sesión de otro usuario.</div>
-          <div class="wa-reply-bar" id="waReplyBar" style="display:none"></div>
-          <div class="wa-composer" id="waComposer" style="display:none">
+          <div class="wa-readonly-note wa-hide" id="waReadonlyNote">Solo lectura: este chat pertenece a la sesión de otro usuario.</div>
+          <div class="wa-reply-bar wa-hide" id="waReplyBar"></div>
+          <div class="wa-composer wa-hide" id="waComposer">
             <button class="btn-o" onclick="waAttach()" title="Adjuntar archivo" aria-label="Adjuntar archivo">📎</button>
             <textarea id="waComposerInput" rows="1" placeholder="Escribe un mensaje…" aria-label="Mensaje"></textarea>
             <button class="btn-p" id="waSendBtn" onclick="waSendText()" title="Enviar" aria-label="Enviar mensaje">➤</button>
-            <button class="btn-p" id="waMicBtn" onclick="waRecStart()" title="Grabar nota de voz" aria-label="Grabar nota de voz">🎙️</button>
+            <button class="btn-p" id="waMicBtn" title="Mantén pulsado para grabar una nota de voz" aria-label="Mantén pulsado para grabar una nota de voz">🎙️</button>
           </div>
-          <div class="wa-rec-bar" id="waRecBar" style="display:none" role="status" aria-label="Grabando nota de voz">
+          <div class="wa-rec-bar wa-hide" id="waRecBar" role="status" aria-label="Grabando nota de voz">
             <span class="wa-rec-dot" aria-hidden="true"></span>
             <span class="wa-rec-time" id="waRecTime">0:00</span>
             <span class="wa-rec-hint">Grabando…</span>
@@ -199,9 +200,9 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js"></script>
-<script src="../assets/js/wa/wa-common.js"></script>
-<script src="../assets/js/wa/wa-link.js"></script>
-<script src="../assets/js/wa/wa-chat.js"></script>
+<script src="../assets/js/wa/wa-common.js?v=20260725"></script>
+<script src="../assets/js/wa/wa-link.js?v=20260725"></script>
+<script src="../assets/js/wa/wa-chat.js?v=20260725"></script>
 <script src="../assets/js/admin/server-control.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

@@ -38,17 +38,23 @@ const WA_SESSION_LABEL = {
   logged_out: '⚪ Sin vincular', error: '⚠️ Error'
 };
 
-// URLs firmadas del bucket privado jjp-wa-media (caché por sesión de página)
-const _waUrlCache = new Map();
+// URLs firmadas del bucket privado jjp-wa-media.
+// La firma vale 1 h: la caché caduca ANTES (50 min) porque con el panel abierto
+// todo el día las imágenes se rompían al vencer la URL guardada.
+const WA_URL_TTL = 3600;                    // segundos que pedimos a Supabase
+const WA_URL_CACHE_MS = 50 * 60 * 1000;     // margen de seguridad de la caché
+const _waUrlCache = new Map();              // path → { p, at }
+
 async function waSignedUrl(path) {
   if (!path) return null;
-  if (_waUrlCache.has(path)) return _waUrlCache.get(path);
-  const p = sb.storage.from('jjp-wa-media').createSignedUrl(path, 3600)
+  const hit = _waUrlCache.get(path);
+  if (hit && Date.now() - hit.at < WA_URL_CACHE_MS) return hit.p;
+  const p = sb.storage.from('jjp-wa-media').createSignedUrl(path, WA_URL_TTL)
     .then(({ data, error }) => {
       if (error) { _waUrlCache.delete(path); return null; }
       return data.signedUrl;
     });
-  _waUrlCache.set(path, p);
+  _waUrlCache.set(path, { p, at: Date.now() });
   return p;
 }
 

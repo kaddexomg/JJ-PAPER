@@ -304,10 +304,13 @@ function posShowDone(o) {
       <div class="co-done-row"><span>Estado</span><strong>${o.status === 'verificando' ? 'Verificando pago' : 'Pendiente de pago'}</strong></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
+         title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">🧾 Imprimir factura</a>
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">🧾 Solo factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Orden de recibo</a>
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Solo recibo</a>
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Enviar resumen al cliente</a>
       <button class="btn-p" onclick="posReset()">🛍️ Nueva venta</button>

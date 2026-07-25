@@ -11,6 +11,7 @@ import { normVePhone } from './phone.js';
 const sessions = new Map();
 
 export function get(profileId) { return sessions.get(profileId); }
+export function all() { return [...sessions.values()]; }
 
 export async function boot() {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });

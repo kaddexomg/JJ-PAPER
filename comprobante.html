@@ -51,8 +51,15 @@
   .loading, .err { max-width:820px; margin:40px auto; text-align:center; color:#555; }
   .err { color:#b00; }
 
+  /* ---- Varias hojas en un solo documento (Factura + Orden de recibo) ---- */
+  .sheet + .sheet { margin-top:22px; }
+  .sheet { position:relative; }
+  .cut-note { max-width:820px; margin:10px auto -8px; text-align:center; font-size:11px;
+    color:#8a8a8a; letter-spacing:1px; }
+  @media print { .cut-note { display:none } }
+
   /* ---- Marca de agua ANULADO (documentos rechazados/cancelados) ---- */
-  .voidmark { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:50; }
+  .voidmark { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:50; }
   .voidmark span { font-size:104px; font-weight:900; color:rgba(176,0,0,.15); border:8px solid rgba(176,0,0,.15);
     border-radius:16px; padding:4px 40px; transform:rotate(-20deg); letter-spacing:10px; text-transform:uppercase; }
   body.ticket .voidmark span { font-size:52px; padding:2px 20px; letter-spacing:5px; border-width:5px; }
@@ -79,6 +86,9 @@
   @media print {
     body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .sheet { box-shadow:none; border-radius:0; max-width:none; padding:16px 20px; }
+    /* Factura + Orden de recibo salen en la MISMA impresión, una por hoja */
+    .sheet { break-after:page; page-break-after:always; margin-top:0; }
+    .sheet:last-of-type { break-after:auto; page-break-after:auto; }
     /* !important: el JS pone display:flex inline al mostrar la barra; sin
        !important el estilo inline ganaría y la barra se imprimiría. */
     .toolbar { display:none !important; }
@@ -96,6 +106,7 @@
     <option value="factura">📄 Factura</option>
     <option value="recibo">📦 Orden de recibo</option>
     <option value="comprobante">🧾 Comprobante</option>
+    <option value="ambos">📄+📦 Factura + Orden de recibo</option>
   </select>
   <button class="btn btn-g" id="fmtBtn" onclick="toggleFormat()">🧾 Ver como ticket</button>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir</button>
@@ -108,7 +119,13 @@
 <script src="assets/js/admin/auth.js"></script>
 <script>
 let ORDER = null;
-let DOC_TYPE = 'comprobante';   // factura | recibo | comprobante | presupuesto
+// factura | recibo | comprobante | presupuesto | ambos (= factura + orden de recibo)
+let DOC_TYPE = 'comprobante';
+
+// Los tipos que se dibujan, en orden. 'ambos' saca las dos hojas en una sola
+// impresión: primero la factura, después la orden de recibo para firmar.
+const DOC_TYPES = { ambos: ['factura', 'recibo'] };
+function docTypeList(t) { return DOC_TYPES[t] || [t]; }
 
 (async () => {
   const content = document.getElementById('content');
@@ -134,9 +151,11 @@ let DOC_TYPE = 'comprobante';   // factura | recibo | comprobante | presupuesto
     if (error || !q) { content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; return; }
     docData = normalizeQuote(q);
   } else {
-    // ?t=factura|recibo|comprobante (por defecto comprobante)
-    const t = (params.get('t') || 'comprobante').toLowerCase();
-    DOC_TYPE = ['factura', 'recibo', 'comprobante'].includes(t) ? t : 'comprobante';
+    // ?t=factura|recibo|comprobante|ambos (por defecto comprobante).
+    // 'factura+recibo' llega como 'factura recibo' (el + se decodifica a espacio).
+    let t = (params.get('t') || 'comprobante').toLowerCase().trim();
+    if (/^factura[\s+,]+recibo$/.test(t)) t = 'ambos';
+    DOC_TYPE = ['factura', 'recibo', 'comprobante', 'ambos'].includes(t) ? t : 'comprobante';
     const { data: o, error } = await sb.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
     if (error || !o) { content.innerHTML = '<div class="err">No se encontró el pedido ' + escapeHTML(orderNum) + '.</div>'; return; }
     docData = o;
@@ -191,9 +210,17 @@ function setFormat(ticket) {
 }
 function toggleFormat() { setFormat(!document.body.classList.contains('ticket')); }
 
+// Dibuja el documento: una hoja, o dos si el tipo es 'ambos'
 function render(o) {
+  const tipos = docTypeList(DOC_TYPE);
+  document.getElementById('content').innerHTML = tipos
+    .map((t, i) => (i ? '<div class="cut-note">— — — — —  hoja ' + (i + 1) + ' de ' + tipos.length + '  — — — — —</div>' : '') + sheet(o, t))
+    .join('');
+}
+
+function sheet(o, docType) {
   const s = APP.SETTINGS || {};
-  const isQuote = DOC_TYPE === 'presupuesto';
+  const isQuote = docType === 'presupuesto';
   const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
   const rate = Number(o.exchange_rate) || getRate();
   const total = Number(o.total_usd) || 0;
@@ -228,11 +255,11 @@ function render(o) {
   // Textos y logo personalizables
   const bizName  = s.business_name || s.site_name || 'JJ Paper';
   const TITLES   = { factura:'FACTURA', recibo:'ORDEN DE RECIBO', presupuesto:'PRESUPUESTO', comprobante:(s.doc_title || 'COMPROBANTE') };
-  const docTitle = TITLES[DOC_TYPE] || (s.doc_title || 'COMPROBANTE');
+  const docTitle = TITLES[docType] || (s.doc_title || 'COMPROBANTE');
   const logoUrl  = s.doc_logo_url || 'assets/img/logo.svg';
-  const legal    = DOC_TYPE === 'presupuesto'
+  const legal    = docType === 'presupuesto'
     ? 'Presupuesto sin validez fiscal. Precios sujetos a cambio según la tasa del día y la disponibilidad de inventario.'
-    : DOC_TYPE === 'recibo'
+    : docType === 'recibo'
       ? 'Orden de recibo / entrega de mercancía. La firma del cliente deja constancia de recepción conforme.'
       : (s.doc_footer_legal !== undefined && s.doc_footer_legal !== ''
           ? s.doc_footer_legal
@@ -243,13 +270,13 @@ function render(o) {
     recibo:      ['Recibí conforme (firma)', 'Fecha de entrega'],
     presupuesto: ['Firma de aceptación', 'Fecha'],
     comprobante: ['Firma', 'Fecha'],
-  }[DOC_TYPE] || ['Firma', 'Fecha'];
+  }[docType] || ['Firma', 'Fecha'];
   const footNote = s.doc_footer_note || 'Gracias por su compra.';
   const method = { pago_movil:'Pago Móvil', transferencia:'Transferencia', efectivo:'Efectivo' }[o.payment_method] || o.payment_method || '—';
 
-  document.getElementById('content').innerHTML = `
-  ${voided ? '<div class="voidmark"><span>Anulado</span></div>' : ''}
+  return `
   <div class="sheet">
+    ${voided ? '<div class="voidmark"><span>Anulado</span></div>' : ''}
     <div class="cmp-head">
       <div class="cmp-biz">
         <img src="${escapeHTML(logoUrl)}" alt="">

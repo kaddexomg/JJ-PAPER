@@ -136,12 +136,14 @@ async function waLogout() {
   await _waAction({ requested_action: 'logout' }, 'Desvinculando…');
 }
 
-// Modal de vinculación
+// Modal de vinculación (waOpenModal/waCloseModal liberan la trampa de foco:
+// si no, al cerrar el modal el foco quedaba dentro y no se podía escribir)
 function openWaLinkModal() {
-  document.getElementById('waLinkModal')?.classList.add('op');
-  if (typeof trapFocus === 'function') trapFocus(document.getElementById('waLinkModal'));
+  if (typeof waOpenModal === 'function') waOpenModal('waLinkModal');
+  else document.getElementById('waLinkModal')?.classList.add('op');
   waRenderLink();
 }
 function closeWaLinkModal() {
-  document.getElementById('waLinkModal')?.classList.remove('op');
+  if (typeof waCloseModal === 'function') waCloseModal('waLinkModal');
+  else document.getElementById('waLinkModal')?.classList.remove('op');
 }

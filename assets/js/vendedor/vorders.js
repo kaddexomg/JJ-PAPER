@@ -91,6 +91,9 @@ function viewVOrder(id) {
     </table>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       ${canDeliver ? `<button class="bulk-btn green" onclick="markVDelivered('${o.id}')">📦 Marcar entregado</button>` : ''}
+      <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
+         title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">🧾 Factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo">📦 Orden de recibo</a>
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"

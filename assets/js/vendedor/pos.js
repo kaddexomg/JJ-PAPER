@@ -305,7 +305,9 @@ function posShowDone(o) {
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&print=1">🧾 Imprimir comprobante</a>
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">🧾 Imprimir factura</a>
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Orden de recibo</a>
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Enviar resumen al cliente</a>
       <button class="btn-p" onclick="posReset()">🛍️ Nueva venta</button>

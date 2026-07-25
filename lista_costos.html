@@ -34,7 +34,19 @@
   tbody tr:nth-child(even) { background:#fbfdfc; }
 
   .cmp-foot { margin-top:16px; border-top:1px solid #e5e9e7; padding-top:10px; font-size:10.5px; color:#777; text-align:center; }
-  .toolbar { max-width:900px; margin:0 auto 12px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+  .toolbar { max-width:900px; margin:0 auto 12px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; align-items:center; }
+  /* Controles de la barra (no se imprimen) */
+  .tb-field { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--doc-c); font-weight:700; }
+  .tb-field select { border:1px solid #cdd6d2; border-radius:6px; padding:7px 9px; font-size:13px;
+    font-weight:600; color:#1a1a1a; background:#fff; min-height:36px; cursor:pointer; }
+  .tb-check { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--doc-c);
+    font-weight:600; cursor:pointer; min-height:36px; }
+  .tb-warn { max-width:900px; margin:0 auto 10px; background:#fff8e6; border:1px solid #e8c96b;
+    border-radius:8px; padding:8px 12px; font-size:12.5px; color:#6b5518; }
+  .tb-warn strong { color:#8a6d16; }
+  /* Existencia en modo cliente: "A pedido" en latón, nunca en rojo de alarma */
+  .st-pedido { color:var(--doc-a); font-weight:700; }
+  .st-ok { color:#0a7; font-weight:700; }
   .btn { border:0; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; }
   .btn-p { background:var(--doc-c); color:#fff; }
   .btn-g { background:#dfe5e2; color:var(--doc-c); }
@@ -56,11 +68,37 @@
 </head>
 <body>
 <div class="toolbar" id="toolbar" style="display:none">
-  <input type="search" placeholder="Buscar producto, marca o SKU…" oninput="onSearchCost(this.value)"
-    style="flex:1 1 220px;min-width:180px;border:1px solid #cdd6d2;border-radius:6px;padding:8px 12px;font-size:13px">
-  <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--doc-c);font-weight:600;cursor:pointer">
-    <input type="checkbox" onchange="onToggleZero(this)"> Ocultar agotados
+  <input type="search" id="tbSearch" placeholder="Buscar producto, marca o SKU…" oninput="onSearchCost(this.value)"
+    style="flex:1 1 200px;min-width:170px;border:1px solid #cdd6d2;border-radius:6px;padding:8px 12px;font-size:13px"
+    aria-label="Buscar producto, marca o SKU">
+
+  <!-- Preset: ajusta de un golpe todo lo que el cliente NO debe ver -->
+  <label class="tb-field">
+    <span>Lista para</span>
+    <select id="tbPreset" onchange="onPreset(this.value)" aria-label="Para quién es la lista">
+      <option value="cliente">🤝 Cliente</option>
+      <option value="interno">🔒 Uso interno</option>
+    </select>
   </label>
+
+  <!-- Cómo se muestra la existencia. "A pedido" es la clave del negocio: un
+       producto en cero se le puede pedir al proveedor, así que decirle al
+       cliente "Agotado" tumba una venta que sí se podía hacer. -->
+  <label class="tb-field">
+    <span>Existencia</span>
+    <select id="tbStock" onchange="onStockMode(this.value)" aria-label="Cómo mostrar la existencia">
+      <option value="oculta">No mostrar</option>
+      <option value="pedido">Disponible / A pedido</option>
+      <option value="numeros">Cantidades exactas</option>
+    </select>
+  </label>
+
+  <label class="tb-check" id="tbZeroWrap">
+    <input type="checkbox" id="tbZero" onchange="onToggleZero(this)"> Quitar los que están en cero
+  </label>
+
+  <button class="btn btn-g" onclick="refrescarLista()" id="tbRefresh"
+    title="Vuelve a leer precios y existencias de la base (para la lista del día)">🔄 Actualizar</button>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir Lista</button>
   <button class="btn btn-g" onclick="window.close()">Cerrar</button>
 </div>
@@ -81,37 +119,22 @@
   await loadSettings();
   applyDocTheme();
 
-  // Obtener variantes de productos con sus categorías (cost_usd, price_usd y stock)
-  const select = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
-    + 'jjp_products(name,jjp_categories(name,sort_order))';
-  
-  let out = [], CHUNK = 1000;
-  for (let from = 0; ; from += CHUNK) {
-    const { data, error } = await sb.from('jjp_product_variants')
-      .select(select)
-      .eq('active', true)
-      .range(from, from + CHUNK - 1);
-      
-    if (error) { 
-      content.innerHTML = '<div class="err">Error al obtener lista de productos/costos.</div>'; 
-      console.error(error); 
-      return; 
-    }
-    out.push(...(data || []));
-    if (!data || data.length < CHUNK) break;
-  }
+  await cargarVariantes(content);
+  if (!ALL_VARIANTS.length && content.querySelector('.err')) return;
 
-  ALL_VARIANTS = out;
+  // Arranque: en la lista al cliente NUNCA se delata el stock. En la interna
+  // (?mode=cost) sí interesan las cantidades exactas.
+  const isCost = new URLSearchParams(location.search).get('mode') === 'cost';
+  aplicarPreset(isCost ? 'interno' : 'cliente', true);
+
   // ?q=<texto> llega desde "Consultar stock": imprime solo lo buscado
   const preQ = new URLSearchParams(location.search).get('q') || '';
   if (preQ) {
     FILTER_SEARCH = preQ;
-    const box = document.querySelector('#toolbar input[type="search"]');
+    const box = document.getElementById('tbSearch');
     if (box) box.value = preQ;
-    applyFilters();
-  } else {
-    renderList(out);
   }
+  applyFilters();
   document.getElementById('toolbar').style.display = 'flex';
 })();
 
@@ -119,6 +142,71 @@
 let ALL_VARIANTS = [];
 let FILTER_HIDE_ZERO = false;
 let FILTER_SEARCH = '';
+let STOCK_MODE = 'pedido';     // oculta | pedido | numeros
+let GENERADA_EN = null;        // fecha/hora de la última lectura de la base
+
+// Lee precios y existencias. Separado para poder REFRESCAR sin recargar la
+// página: la lista del día se actualiza con un botón.
+async function cargarVariantes(content) {
+  const select = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
+    + 'jjp_products(name,jjp_categories(name,sort_order))';
+  const out = [], CHUNK = 1000;
+  for (let from = 0; ; from += CHUNK) {
+    const { data, error } = await sb.from('jjp_product_variants')
+      .select(select)
+      .eq('active', true)
+      .range(from, from + CHUNK - 1);
+    if (error) {
+      if (content) content.innerHTML = '<div class="err">Error al obtener lista de productos/costos.</div>';
+      console.error(error);
+      return false;
+    }
+    out.push(...(data || []));
+    if (!data || data.length < CHUNK) break;
+  }
+  ALL_VARIANTS = out;
+  GENERADA_EN = new Date();
+  return true;
+}
+
+async function refrescarLista() {
+  const btn = document.getElementById('tbRefresh');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Actualizando…'; }
+  const ok = await cargarVariantes(null);
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualizar'; }
+  if (ok) applyFilters();
+}
+
+// Preset: de un golpe deja la lista lista para mandar al cliente, o para uso interno
+function aplicarPreset(preset, soloEstado) {
+  STOCK_MODE = preset === 'interno' ? 'numeros' : 'pedido';
+  FILTER_HIDE_ZERO = false;    // en cero NO se quita: se le puede pedir al proveedor
+  const p = document.getElementById('tbPreset'); if (p) p.value = preset;
+  const s = document.getElementById('tbStock');  if (s) s.value = STOCK_MODE;
+  const z = document.getElementById('tbZero');   if (z) z.checked = false;
+  sincronizarAvisos();
+  if (!soloEstado) applyFilters();
+}
+function onPreset(v) { aplicarPreset(v); }
+function onStockMode(v) { STOCK_MODE = v; sincronizarAvisos(); applyFilters(); }
+
+// Aviso claro cuando la lista muestra datos que el cliente no debería ver
+function sincronizarAvisos() {
+  const isCost = new URLSearchParams(location.search).get('mode') === 'cost';
+  let box = document.getElementById('tbWarn');
+  const peligro = STOCK_MODE === 'numeros' || isCost;
+  if (!peligro) { box?.remove(); return; }
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'tbWarn';
+    box.className = 'tb-warn';
+    box.setAttribute('role', 'status');
+    document.getElementById('toolbar').insertAdjacentElement('afterend', box);
+  }
+  box.innerHTML = isCost
+    ? '🔒 <strong>Documento interno:</strong> esta lista muestra COSTOS y existencias reales. No enviársela al cliente.'
+    : '⚠️ <strong>Ojo:</strong> estás mostrando las cantidades exactas de inventario. Para enviarla al cliente elegí <strong>Disponible / A pedido</strong> o <strong>No mostrar</strong>.';
+}
 
 function applyFilters() {
   let rows = ALL_VARIANTS;
@@ -196,9 +284,20 @@ function renderList(variants) {
       catUnits += stock;
       catValueUSD += valUSD * stock;
 
-      // Existencia con semáforo: rojo agotado, ámbar bajo (≤5), verde ok
-      const stockColor = stock <= 0 ? '#b00' : (stock <= 5 ? '#c08a00' : '#0a7');
-      const stockTxt = stock <= 0 ? 'Agotado' : String(stock);
+      // Cómo se muestra la existencia (ver STOCK_MODE):
+      //  · numeros = cantidad exacta con semáforo (SOLO uso interno)
+      //  · pedido  = "Disponible" / "A pedido" — lo que sí puede ver el cliente,
+      //              porque un cero no es una venta perdida: se le pide al proveedor
+      //  · oculta  = la columna no se dibuja
+      const stockCell = STOCK_MODE === 'oculta' ? '' : (() => {
+        if (STOCK_MODE === 'pedido') {
+          return stock > 0
+            ? '<td class="c st-ok">Disponible</td>'
+            : '<td class="c st-pedido">A pedido</td>';
+        }
+        const color = stock <= 0 ? '#b00' : (stock <= 5 ? '#c08a00' : '#0a7');
+        return `<td class="c" style="color:${color};font-weight:700">${stock <= 0 ? 'Agotado' : stock}</td>`;
+      })();
 
       // Bs y € solo en modo costo (interno). La lista de precios pública = solo USD.
       const bsEurCells = isCostMode
@@ -209,7 +308,7 @@ function renderList(variants) {
       return `<tr>
         <td style="font-family:monospace;font-size:12px;color:#444">${sku}</td>
         <td>${pName}${bName}${vName}</td>
-        <td class="c" style="color:${stockColor};font-weight:700">${stockTxt}</td>
+        ${stockCell}
         <td class="r">${fmtPrice(valUSD)}</td>
         ${bsEurCells}
       </tr>`;
@@ -222,14 +321,18 @@ function renderList(variants) {
       <div class="cat-section">
         <div class="cat-header">
           <span>📂 ${escapeHTML(cat)}</span>
-          <span style="font-weight:normal;font-size:12px">${items.length} ítems · ${catUnits} u. · ${fmtPrice(catValueUSD)}</span>
+          <!-- Unidades y valor del inventario son datos internos: al cliente
+               solo se le dice cuántos artículos hay en la categoría. -->
+          <span style="font-weight:normal;font-size:12px">${isCostMode
+            ? `${items.length} ítems · ${catUnits} u. · ${fmtPrice(catValueUSD)}`
+            : `${items.length} artículo${items.length === 1 ? '' : 's'}`}</span>
         </div>
         <table>
           <thead>
             <tr>
               <th style="width:120px">SKU</th>
               <th>Producto / Marca</th>
-              <th class="c" style="width:70px">Existencia</th>
+              ${STOCK_MODE === 'oculta' ? '' : `<th class="c" style="width:${STOCK_MODE === 'pedido' ? 82 : 70}px">${STOCK_MODE === 'pedido' ? 'Entrega' : 'Existencia'}</th>`}
               <th class="r" style="width:90px">${priceLabel}</th>
               ${isCostMode ? '<th class="r" style="width:100px">En Bs (BCV)</th><th class="r" style="width:90px">En €</th>' : ''}
             </tr>
@@ -241,7 +344,11 @@ function renderList(variants) {
       </div>`;
   });
 
-  const nowStr = new Date().toLocaleDateString('es-VE', { year:'numeric', month:'long', day:'numeric' });
+  // Fecha Y hora de la última lectura de la base: así se sabe si la lista es del
+  // día o quedó vieja (el botón 🔄 Actualizar la regenera sin recargar la página).
+  const gen = GENERADA_EN || new Date();
+  const nowStr = gen.toLocaleDateString('es-VE', { year:'numeric', month:'long', day:'numeric' });
+  const horaStr = gen.toLocaleTimeString('es-VE', { hour:'2-digit', minute:'2-digit' });
 
   document.getElementById('content').innerHTML = `
   <div class="sheet">
@@ -258,8 +365,10 @@ function renderList(variants) {
       </div>
       <div class="cmp-doc">
         <span class="tag">${docTitle}</span>
-        <div class="date">${nowStr}</div>
-        <div style="font-size:11px;color:#666;margin-top:2px">${totalItems} artículos · ${totalUnits} unidades</div>
+        <div class="date">${nowStr} · ${horaStr}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px">${isCostMode
+          ? `${totalItems} artículos · ${totalUnits} unidades`
+          : `${totalItems} artículos · precios vigentes al ${nowStr}`}</div>
       </div>
     </div>
 
@@ -283,7 +392,11 @@ function renderList(variants) {
 
     <div class="cmp-foot">
       ${isCostMode ? 'Documento interno confidencial — Lista de costos y existencias' : 'Lista de precios en Divisas (USD)'} por categoría (${bizName})
+      ${(!isCostMode && STOCK_MODE === 'pedido')
+        ? '<br><strong>A pedido</strong> = lo encargamos a nuestro proveedor y se lo confirmamos con la fecha de entrega. Consúltenos disponibilidad.'
+        : ''}
       ${bcv ? `<br>Tasas de conversión: BCV Bs ${bcv.toFixed(2)}/USD${eurRate ? ` · Euro BCV Bs ${eurRate.toFixed(2)}/€` : ''}` : ''}
+      ${!isCostMode ? '<br>Precios sujetos a cambio sin previo aviso según la tasa del día y la disponibilidad.' : ''}
     </div>
   </div>`;
 }

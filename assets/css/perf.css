@@ -1,0 +1,71 @@
+/* ======================================================
+   JJ Paper — Modo equipo lento (paneles admin / vendedor)
+   Se carga de ÚLTIMO en las páginas de staff. Sin la clase
+   .perf-low en <html> no cambia absolutamente nada.
+   perf.js decide cuándo ponerla (auto o interruptor manual).
+
+   Objetivo: que las PCs viejas de la tienda respondan. Lo que
+   más cuesta en una GPU integrada vieja es el desenfoque de
+   fondo (backdrop-filter): cada capa borrosa obliga a recomponer
+   la pantalla completa en cada scroll y en cada hover.
+   ====================================================== */
+
+html.perf-low body { text-rendering:optimizeSpeed }
+
+/* 1. Nada de desenfoques: ni de fondo ni de elemento */
+html.perf-low *,
+html.perf-low *::before,
+html.perf-low *::after {
+  -webkit-backdrop-filter:none !important;
+          backdrop-filter:none !important;
+  filter:none !important;
+}
+
+/* 2. Sin animaciones ni transiciones (el clic responde de una) */
+html.perf-low *,
+html.perf-low *::before,
+html.perf-low *::after {
+  animation:none !important;
+  transition:none !important;
+  scroll-behavior:auto !important;
+}
+
+/* 3. Sombras planas: una sombra grande y difusa se repinta en
+      cada scroll. Se deja un borde sutil para no perder el relieve. */
+html.perf-low .card,
+html.perf-low .modal-box,
+html.perf-low .toast,
+html.perf-low .stat-card,
+html.perf-low .admin-aside,
+html.perf-low .admin-topbar,
+html.perf-low .btn-p,
+html.perf-low .btn-o,
+html.perf-low .val {
+  box-shadow:none !important;
+  border:1px solid rgba(0,0,0,.10);
+}
+
+/* 4. El velo de los modales, opaco en vez de borroso */
+html.perf-low .modal-overlay { background:rgba(0,0,0,.62) !important }
+
+/* 5. Sin transformaciones al pasar el cursor (no recalcula capas) */
+html.perf-low .card:hover,
+html.perf-low .btn-p:hover,
+html.perf-low .stat-card:hover,
+html.perf-low .pc:hover { transform:none !important }
+
+/* 6. Tablas largas: el navegador solo pinta lo que se ve */
+html.perf-low .table-wrap tbody tr,
+html.perf-low .admin-table tbody tr {
+  content-visibility:auto;
+  contain-intrinsic-size:auto 44px;
+}
+
+/* Interruptor en la barra superior */
+.perf-toggle {
+  background:none; border:1px solid rgba(0,0,0,.15); border-radius:8px;
+  padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer;
+  color:var(--gr, #667); line-height:1;
+}
+.perf-toggle:hover { border-color:var(--gm, #16604a); color:var(--gm, #16604a) }
+html.perf-low .perf-toggle { border-color:var(--gm, #16604a); color:var(--gm, #16604a) }

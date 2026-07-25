@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/promos.css">
 <link rel="stylesheet" href="../assets/css/responsive.css">
-<link rel="stylesheet" href="../assets/css/glass.css">
 <style>
 .promo-form-grid { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start }
 .promo-preview-box h4 { font-size:12px; font-weight:700; color:var(--gr); text-transform:uppercase;
@@ -17,6 +16,8 @@
 .promo-preview-box { position:sticky; top:16px }
 @media (max-width:900px) { .promo-form-grid { grid-template-columns:1fr } }
 </style>
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
 </head>
 <body class="admin-body">
 
@@ -201,7 +202,7 @@
 </div>
 <div class="toast-c" id="toastC"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>

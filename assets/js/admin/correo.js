@@ -38,8 +38,10 @@ async function mailInit(me) {
   sb.channel('mail-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },
       () => mailLoadDebounced())
+    // Se re-consulta en vez de usar el payload: así el navegador nunca recibe
+    // columnas de credenciales, ni siquiera por websocket.
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_email_accounts', filter: `profile_id=eq.${MAIL_ME.id}` },
-      p => { MAIL_ACCT = p.new || null; mailRenderAcctChip(); })
+      () => mailLoadAccount())
     .subscribe();
   // Estado del servidor (para avisar si el correo está apagado)
   if (typeof srvInit === 'function') srvInit();
@@ -71,13 +73,14 @@ async function mailCaptureGmailLink() {
 
 async function mailLoadAccount() {
   const { data } = await sb.from('jjp_email_accounts')
-    .select('email,from_name,enabled,verified,last_error,app_pass,oauth_refresh')
+    // has_cred = la base dice SI hay credencial, sin entregarla al navegador
+    .select('email,from_name,enabled,verified,last_error,has_cred')
     .eq('profile_id', MAIL_ME.id).maybeSingle();
   MAIL_ACCT = data || null;
   mailRenderAcctChip();
 }
 
-function mailAcctConfigured() { return !!(MAIL_ACCT?.email && (MAIL_ACCT?.oauth_refresh || MAIL_ACCT?.app_pass)); }
+function mailAcctConfigured() { return !!(MAIL_ACCT?.email && MAIL_ACCT?.has_cred); }
 function mailCanSend() { return mailAcctConfigured(); }
 
 function mailRenderAcctChip() {
@@ -93,14 +96,15 @@ function mailRenderAcctChip() {
 let MAIL_COMPANY = null;
 async function openMailCompany() {
   if (!MAIL_IS_ADMIN) return;
-  const { data } = await sb.from('jjp_email_company').select('*').eq('id', 1).maybeSingle();
+  const { data } = await sb.from('jjp_email_company')
+    .select('id,email,from_name,enabled,verified,last_error,has_cred').eq('id', 1).maybeSingle();
   MAIL_COMPANY = data || null;
   document.getElementById('coEmail').value = MAIL_COMPANY?.email || '';
   document.getElementById('coFromName').value = MAIL_COMPANY?.from_name || '';
   document.getElementById('coPass').value = '';
-  document.getElementById('coPass').placeholder = (MAIL_COMPANY?.email && MAIL_COMPANY?.app_pass) ? '•••••••• (dejar vacío = no cambiar)' : 'contraseña de aplicación de Google';
+  document.getElementById('coPass').placeholder = (MAIL_COMPANY?.email && MAIL_COMPANY?.has_cred) ? '•••••••• (dejar vacío = no cambiar)' : 'contraseña de aplicación de Google';
   const st = document.getElementById('coState');
-  if (st) st.innerHTML = MAIL_COMPANY?.verified ? '🟢 Verificada' : MAIL_COMPANY?.last_error ? ('🔴 ' + escapeHTML(MAIL_COMPANY.last_error)) : (MAIL_COMPANY?.app_pass ? '🕓 Verificando…' : '');
+  if (st) st.innerHTML = MAIL_COMPANY?.verified ? '🟢 Verificada' : MAIL_COMPANY?.last_error ? ('🔴 ' + escapeHTML(MAIL_COMPANY.last_error)) : (MAIL_COMPANY?.has_cred ? '🕓 Verificando…' : '');
   document.getElementById('mailCompanyModal')?.classList.add('op');
   if (typeof trapFocus === 'function') trapFocus(document.getElementById('mailCompanyModal'));
 }
@@ -111,7 +115,7 @@ async function mailSaveCompany() {
   const fromName = (document.getElementById('coFromName')?.value || '').trim();
   const passIn = document.getElementById('coPass')?.value || '';
   if (!validEmail(email)) { showToast('Correo inválido', 'warn'); return; }
-  const has = !!(MAIL_COMPANY?.app_pass);
+  const has = !!(MAIL_COMPANY?.has_cred);
   const row = { id: 1, email, from_name: fromName || null, enabled: true, verified: false, last_error: null };
   if (passIn) row.app_pass = passIn.replace(/\s+/g, '');
   else if (!has) { showToast('Pega la contraseña de aplicación', 'warn'); return; }

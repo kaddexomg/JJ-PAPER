@@ -4,6 +4,9 @@
 # Credenciales de sesión de WhatsApp (Baileys) — JAMÁS al repo ni al deploy
 wa-server/sessions/
 
+# Registros del servidor (pueden traer teléfonos y textos de clientes)
+wa-server/logs/
+
 # Netlify
 .netlify/
 

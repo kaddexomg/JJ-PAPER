@@ -13,6 +13,7 @@ const SETTINGS_FIELDS = [
   // Formato del comprobante/factura (comprobante.html)
   'business_name', 'rif', 'iva_pct', 'doc_title', 'doc_color', 'doc_accent',
   'doc_logo_url', 'doc_paper', 'doc_show_bs', 'doc_footer_legal', 'doc_footer_note',
+  'doc_control_serie',
 ];
 
 // Defaults visuales del comprobante (inputs type=color no aceptan vacío)

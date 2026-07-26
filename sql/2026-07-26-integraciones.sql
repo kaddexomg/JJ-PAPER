@@ -185,11 +185,13 @@ begin
   end loop;
   if v_subtotal <= 0 then raise exception 'La cotización está vacía'; end if;
 
-  -- variant_id viaja al pedido: es lo que permite descontar del inventario.
+  -- variant_id viaja al pedido (permite descontar del inventario) y sku viaja
+  -- como "Código" en la factura.
   -- El alias se llama "linea" y no "it" para no chocar con la variable de arriba.
   select jsonb_agg(jsonb_build_object(
            'id',           coalesce(linea->>'product_id', linea->>'id'),
            'variant_id',   linea->>'variant_id',
+           'sku',          linea->>'sku',
            'name',         linea->>'name',
            'brand',        linea->>'brand',
            'qty',          (linea->>'qty')::numeric,

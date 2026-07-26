@@ -108,6 +108,7 @@ function posAddResolved(p, variant) {
   if (posTicket[key]) posTicket[key].qty += 1;
   else posTicket[key] = {
     id: p.id, variant_id: variant?.id || null, name: p.name,
+    sku: (variant?.sku || p.sku || null),   // sale como "Código" en el presupuesto
     brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
     unit: p.unit || 'unid',
     price_usd: Number(variant ? variant.price_usd : p.price_usd),
@@ -198,7 +199,7 @@ async function quoteSubmit() {
     rif:  document.getElementById('qCliRif').value.trim()  || null,
     city: document.getElementById('qCliCity').value.trim() || null,
     items: lines.map(l => ({
-      id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand,
+      id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
       qty: l.qty, unit: l.unit, price_usd: l.price_usd,
       subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
     })),

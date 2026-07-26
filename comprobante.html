@@ -27,6 +27,67 @@
   .cmp-parties .box { background:#f6f8f7; border-radius:8px; padding:12px 14px; }
   .cmp-parties h3 { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--doc-c); margin-bottom:6px; }
   .cmp-parties p { font-size:13px; line-height:1.5; }
+
+  /* ==========================================================
+     Presentación formal (factura / orden de recibo)
+     Mantiene la marca — verde JJ, latón y logo — pero ordena
+     los datos como el cliente espera verlos en una factura:
+     razón social y RIF arriba, Nº de Control a la derecha,
+     alícuota por línea y el IVA desglosado al pie.
+     NO es un documento fiscal y el pie lo dice.
+     ========================================================== */
+  .fisc-head { display:flex; justify-content:space-between; align-items:stretch; gap:16px;
+    border-bottom:3px solid var(--doc-c); padding-bottom:14px; margin-bottom:14px; }
+  .fisc-biz { display:flex; gap:14px; align-items:flex-start; flex:1; min-width:0; }
+  .fisc-biz img { width:62px; height:62px; object-fit:contain; flex-shrink:0; }
+  .fisc-biz .razon { font-size:19px; font-weight:800; color:var(--doc-c); line-height:1.15;
+    text-transform:uppercase; letter-spacing:.3px; }
+  .fisc-biz .rif { font-size:13px; font-weight:700; color:#333; margin-top:2px; letter-spacing:.4px; }
+  .fisc-biz .dir { font-size:11.5px; color:#555; line-height:1.5; margin-top:4px; }
+  .fisc-biz .dir .et { color:#888; }
+
+  /* Recuadro del documento: lo que en una factura va preimpreso */
+  .fisc-doc { border:2px solid var(--doc-c); border-radius:8px; min-width:238px; overflow:hidden;
+    display:flex; flex-direction:column; }
+  .fisc-doc .tipo { background:var(--doc-c); color:#fff; text-align:center; font-weight:800;
+    font-size:14px; letter-spacing:2px; padding:6px 10px; }
+  .fisc-doc .fila { display:flex; justify-content:space-between; gap:10px; padding:5px 10px;
+    font-size:12px; border-bottom:1px dashed #d8e0dc; }
+  .fisc-doc .fila:last-child { border-bottom:0; }
+  .fisc-doc .fila .et { color:#666; }
+  .fisc-doc .fila .vl { font-weight:700; color:#1a1a1a; }
+  /* El Nº de Control es el dato que más identifica al documento como factura */
+  .fisc-doc .control { background:#fff8f8; border-top:1px solid #f0d5d5; }
+  .fisc-doc .control .et { color:#9a2020; font-weight:700; }
+  .fisc-doc .control .vl { color:#B00020; font-size:13.5px; letter-spacing:.6px; }
+
+  /* Datos del cliente, enmarcados */
+  .fisc-cli { border:1px solid #cfdad5; border-radius:8px; margin:14px 0 4px; overflow:hidden; }
+  .fisc-cli .cab { background:var(--doc-c); color:#fff; font-size:11px; font-weight:700;
+    letter-spacing:1.4px; padding:5px 12px; text-transform:uppercase; }
+  .fisc-cli .cuerpo { display:grid; grid-template-columns:1fr 1fr; gap:2px 18px; padding:10px 12px; }
+  .fisc-cli .campo { font-size:12.5px; line-height:1.6; display:flex; gap:6px; min-width:0; }
+  .fisc-cli .campo .et { color:#777; flex-shrink:0; }
+  .fisc-cli .campo .vl { font-weight:600; color:#1a1a1a; overflow-wrap:anywhere; }
+  .fisc-cli .campo.full { grid-column:1 / -1; }
+
+  /* Totales alineados a la derecha, con la base imponible separada */
+  .fisc-tot { display:flex; justify-content:flex-end; margin-top:12px; }
+  .fisc-tot table { width:auto; min-width:320px; margin:0; }
+  .fisc-tot td { padding:4px 10px; font-size:13px; border:0; }
+  .fisc-tot td.et { text-align:right; color:#555; }
+  .fisc-tot td.vl { text-align:right; font-weight:700; min-width:120px; }
+  .fisc-tot tr.sep td { border-top:1px solid #dfe6e2; }
+  .fisc-tot tr.grand td { font-size:17px; color:#fff; background:var(--doc-c); font-weight:800;
+    padding:8px 10px; }
+  .fisc-tot tr.grand td.et { color:#dff0e7; }
+  .fisc-tot tr.bs td { color:var(--doc-a); font-weight:700; }
+  .fisc-tot tr.tasa td { font-size:11px; color:#8a8a8a; font-weight:400; }
+
+  /* Aviso de que el documento no sustituye a una factura fiscal */
+  .fisc-aviso { margin-top:16px; border:1px dashed #c9b98a; background:#fdfaf1; border-radius:8px;
+    padding:8px 12px; font-size:10.5px; color:#7a6a3d; line-height:1.5; }
+  .fisc-aviso strong { color:#6a5a2d; }
   table { width:100%; border-collapse:collapse; margin-top:6px; }
   thead th { background:var(--doc-c); color:#fff; font-size:12px; text-align:left; padding:8px 10px; }
   thead th.r { text-align:right; } thead th.c { text-align:center; }
@@ -82,6 +143,23 @@
   body.ticket tfoot td.val { width:auto; }
   body.ticket tfoot tr.total td { font-size:14px; }
   body.ticket .cmp-foot { margin-top:12px; padding-top:8px; font-size:10px; text-align:center; }
+  /* Formato fiscal en rollo de 80mm: todo a una columna y centrado */
+  body.ticket .fisc-head { flex-direction:column; align-items:center; text-align:center; gap:8px; }
+  body.ticket .fisc-biz { flex-direction:column; align-items:center; text-align:center; gap:5px; }
+  body.ticket .fisc-biz img { width:44px; height:44px; }
+  body.ticket .fisc-biz .razon { font-size:14px; }
+  body.ticket .fisc-biz .rif { font-size:11px; }
+  body.ticket .fisc-biz .dir { font-size:9.5px; }
+  body.ticket .fisc-doc { min-width:0; width:100%; }
+  body.ticket .fisc-doc .tipo { font-size:12px; letter-spacing:1px; padding:4px; }
+  body.ticket .fisc-doc .fila { font-size:10.5px; padding:3px 8px; }
+  body.ticket .fisc-cli .cuerpo { grid-template-columns:1fr; padding:8px 10px; }
+  body.ticket .fisc-cli .campo { font-size:10.5px; }
+  body.ticket .fisc-tot { justify-content:stretch; }
+  body.ticket .fisc-tot table { width:100%; min-width:0; }
+  body.ticket .fisc-tot td { font-size:11px; padding:3px 6px; }
+  body.ticket .fisc-tot tr.grand td { font-size:13px; padding:6px; }
+  body.ticket .fisc-aviso { font-size:9px; padding:6px 8px; }
 
   @media print {
     body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -227,35 +305,17 @@ function sheet(o, docType) {
   // Documento sin validez: rechazado/cancelado/anulado/descartado → marca de agua
   const voided = ['rechazado','cancelado','anulado','descartado','descartada'].includes(String(o.status || '').toLowerCase());
 
-  // IVA desglosado sobre precios IVA-incluido (configurable jjp_settings.iva_pct, def 16; 0 = no desglosar)
+  // IVA desglosado sobre precios IVA-incluido (jjp_settings.iva_pct; 0 = no desglosar).
+  // El precio de lista YA trae el impuesto: se calcula hacia atrás, así que el
+  // cliente paga lo mismo con o sin desglose.
   const ivaPct = s.iva_pct !== undefined && s.iva_pct !== '' ? parseFloat(s.iva_pct) : 16;
-  let ivaRows = '';
-  if (ivaPct > 0) {
-    const base = total / (1 + ivaPct / 100);
-    const iva  = total - base;
-    ivaRows = `
-      <tr><td colspan="3" class="lbl">Base imponible</td><td class="val">${fmtPrice(base)}</td></tr>
-      <tr><td colspan="3" class="lbl">IVA (${ivaPct}%)</td><td class="val">${fmtPrice(iva)}</td></tr>`;
-  }
+  const base   = ivaPct > 0 ? total / (1 + ivaPct / 100) : total;
+  const iva    = total - base;
 
   // El monto del descuento se calcula sobre el subtotal de productos:
   // total puede incluir el envío y restar (subtotal - total) daría mal.
-  const discRow = (o.discount_status === 'approved' && o.discount_pct > 0)
-    ? `<tr><td colspan="3" class="lbl">Descuento ${o.discount_pct}%</td><td class="val">−${fmtPrice((Number(o.subtotal_usd) || 0) * Number(o.discount_pct) / 100)}</td></tr>` : '';
-
-  const shipRow = (o.delivery_type === 'delivery')
-    ? `<tr><td colspan="3" class="lbl">Envío${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}</td><td class="val">${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}</td></tr>` : '';
-
-  // Total en Bs (ocultable con doc_show_bs = '0')
-  const bsRow = (s.doc_show_bs === '0') ? '' :
-    `<tr class="bs"><td colspan="3" class="lbl">TOTAL (Bs)</td><td class="val">${fmtBsNum(total * rate)}</td></tr>`;
-
-  const rows = items.map(i => `<tr>
-    <td>${escapeHTML(i.name || i.product || '—')}${i.brand ? ` <small style="color:#888">(${escapeHTML(i.brand)})</small>` : ''}</td>
-    <td class="c">${i.qty} ${escapeHTML(i.unit || '')}</td>
-    <td class="r">${fmtPrice(i.price_usd)}</td>
-    <td class="r">${fmtPrice(i.subtotal_usd ?? i.price_usd * i.qty)}</td>
-  </tr>`).join('');
+  const descMonto = (o.discount_status === 'approved' && o.discount_pct > 0)
+    ? (Number(o.subtotal_usd) || 0) * Number(o.discount_pct) / 100 : 0;
 
   // Textos y logo personalizables
   const bizName  = s.business_name || s.site_name || 'JJ Paper';
@@ -277,73 +337,107 @@ function sheet(o, docType) {
     comprobante: ['Firma', 'Fecha'],
   }[docType] || ['Firma', 'Fecha'];
   const footNote = s.doc_footer_note || 'Gracias por su compra.';
+  // El texto legal se escribe desde Ajustes y suele pegarse entre comillas:
+  // se limpian para que no salgan impresas en el documento.
+  const legalLimpio = String(legal || '').trim().replace(/^["“”']+|["“”']+$/g, '');
   const method = { pago_movil:'Pago Móvil', transferencia:'Transferencia', efectivo:'Efectivo' }[o.payment_method] || o.payment_method || '—';
+  const condicion = (o.payment_ref || ['pagado','preparando','entregado'].includes(o.status)) ? 'Contado' : 'Por confirmar';
+
+  // Una línea de la tabla. La alícuota va por línea, como en una factura formal.
+  const rows = items.map(i => {
+    const sub = Number(i.subtotal_usd ?? i.price_usd * i.qty) || 0;
+    return `<tr>
+      <td class="c" style="color:#888;font-size:10.5px;white-space:nowrap">${escapeHTML(i.sku || '—')}</td>
+      <td>${escapeHTML(i.name || i.product || '—')}${i.brand ? ` <small style="color:#888">(${escapeHTML(i.brand)})</small>` : ''}</td>
+      <td class="c">${i.qty} ${escapeHTML(i.unit || '')}</td>
+      <td class="r">${fmtPrice(i.price_usd)}</td>
+      ${ivaPct > 0 ? `<td class="c" style="color:#666">${ivaPct}%</td>` : ''}
+      <td class="r">${fmtPrice(sub)}</td>
+    </tr>`;
+  }).join('');
 
   return `
   <div class="sheet">
     ${voided ? '<div class="voidmark"><span>Anulado</span></div>' : ''}
-    <div class="cmp-head">
-      <div class="cmp-biz">
+
+    <div class="fisc-head">
+      <div class="fisc-biz">
         <img src="${escapeHTML(logoUrl)}" alt="">
-        <div>
-          <h1>${escapeHTML(bizName)}</h1>
-          <div class="meta">
-            ${s.rif ? 'RIF: ' + escapeHTML(s.rif) + '<br>' : ''}
-            ${s.address ? escapeHTML(s.address) + '<br>' : ''}
-            ${s.whatsapp_number ? '📱 ' + escapeHTML(s.phone_display || s.whatsapp_number) : ''}
+        <div style="min-width:0">
+          <div class="razon">${escapeHTML(bizName)}</div>
+          ${s.rif ? `<div class="rif">RIF: ${escapeHTML(s.rif)}</div>` : ''}
+          <div class="dir">
+            ${s.address ? `<span class="et">Domicilio fiscal:</span> ${escapeHTML(s.address)}<br>` : ''}
+            ${(s.phone_display || s.whatsapp_number) ? `<span class="et">Teléfono:</span> ${escapeHTML(s.phone_display || s.whatsapp_number)}` : ''}
+            ${s.email ? `${(s.phone_display || s.whatsapp_number) ? ' · ' : ''}<span class="et">Correo:</span> ${escapeHTML(s.email)}` : ''}
           </div>
         </div>
       </div>
-      <div class="cmp-doc">
-        <span class="tag">${escapeHTML(docTitle)}</span>
-        <div class="num">${escapeHTML(o.order_number)}</div>
-        <div class="date">${fmtDate(o.created_at)}</div>
+      <div class="fisc-doc">
+        <div class="tipo">${escapeHTML(docTitle)}</div>
+        <div class="fila"><span class="et">N°</span><span class="vl">${escapeHTML(o.order_number || '')}</span></div>
+        ${o.control_number ? `<div class="fila control"><span class="et">N° de Control</span><span class="vl">${escapeHTML(o.control_number)}</span></div>` : ''}
+        <div class="fila"><span class="et">Fecha de emisión</span><span class="vl">${fmtDate(o.created_at)}</span></div>
+        ${isQuote ? '' : `<div class="fila"><span class="et">Condición</span><span class="vl">${condicion}</span></div>`}
       </div>
     </div>
 
-    <div class="cmp-parties">
-      <div class="box">
-        <h3>Cliente</h3>
-        <p><strong>${escapeHTML(o.client_name)}</strong><br>
-        ${o.rif ? 'RIF/CI: ' + escapeHTML(o.rif) + '<br>' : ''}
-        ${o.phone ? '📱 ' + escapeHTML(o.phone) + '<br>' : ''}
-        ${o.city ? escapeHTML(o.city) + '<br>' : ''}
-        ${o.address ? escapeHTML(o.address) : ''}</p>
-      </div>
-      <div class="box">
-        <h3>Datos del documento</h3>
-        <p>${isQuote
-            ? 'Tipo: <strong>Cotización</strong><br>'
-            : 'Método de pago: <strong>' + method + '</strong><br>'}
-        ${(!isQuote && o.payment_ref) ? 'Referencia: ' + escapeHTML(o.payment_ref) + '<br>' : ''}
-        Tasa del día: Bs ${rate.toFixed(2)} / $<br>
-        Estado: ${escapeHTML(o.status || '')}</p>
+    <div class="fisc-cli">
+      <div class="cab">Datos del cliente</div>
+      <div class="cuerpo">
+        <div class="campo full"><span class="et">Razón social / Nombre:</span><span class="vl">${escapeHTML(o.client_name || '—')}</span></div>
+        <div class="campo"><span class="et">RIF / C.I.:</span><span class="vl">${escapeHTML(o.rif || '—')}</span></div>
+        <div class="campo"><span class="et">Teléfono:</span><span class="vl">${escapeHTML(o.phone || '—')}</span></div>
+        <div class="campo full"><span class="et">Domicilio fiscal:</span><span class="vl">${escapeHTML([o.address, o.city].filter(Boolean).join(', ') || '—')}</span></div>
+        ${isQuote ? '' : `
+        <div class="campo"><span class="et">Forma de pago:</span><span class="vl">${escapeHTML(method)}</span></div>
+        <div class="campo"><span class="et">Referencia:</span><span class="vl">${escapeHTML(o.payment_ref || '—')}</span></div>`}
       </div>
     </div>
 
     <table>
       <thead><tr>
-        <th>Producto</th><th class="c">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th>
+        <th class="c" style="width:96px">Código</th>
+        <th>Descripción</th>
+        <th class="c" style="width:82px">Cant.</th>
+        <th class="r" style="width:92px">Precio Unit.</th>
+        ${ivaPct > 0 ? '<th class="c" style="width:56px">Alíc.</th>' : ''}
+        <th class="r" style="width:104px">Total</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot>
-        ${discRow}
-        ${shipRow}
-        ${ivaRows}
-        <tr class="total"><td colspan="3" class="lbl">TOTAL (USD)</td><td class="val">${fmtPrice(total)}</td></tr>
-        ${bsRow}
-      </tfoot>
     </table>
 
-    <div class="cmp-foot">
-      ${o.notes ? '<p><strong>Notas:</strong> ' + escapeHTML(o.notes) + '</p>' : ''}
-      ${legal ? '<p class="cmp-legal">' + escapeHTML(legal) + '</p>' : ''}
-      <p>${escapeHTML(bizName)} · ${escapeHTML(footNote)}</p>
+    <div class="fisc-tot">
+      <table>
+        ${descMonto > 0 ? `
+        <tr><td class="et">Subtotal</td><td class="vl">${fmtPrice(Number(o.subtotal_usd) || 0)}</td></tr>
+        <tr><td class="et">Descuento ${o.discount_pct}%</td><td class="vl">−${fmtPrice(descMonto)}</td></tr>` : ''}
+        ${o.delivery_type === 'delivery' ? `
+        <tr><td class="et">Envío${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}</td>
+            <td class="vl">${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}</td></tr>` : ''}
+        ${ivaPct > 0 ? `
+        <tr class="sep"><td class="et">Base imponible</td><td class="vl">${fmtPrice(base)}</td></tr>
+        <tr><td class="et">IVA (${ivaPct}%)</td><td class="vl">${fmtPrice(iva)}</td></tr>` : ''}
+        <tr class="grand"><td class="et">TOTAL A PAGAR (USD)</td><td class="vl">${fmtPrice(total)}</td></tr>
+        ${s.doc_show_bs === '0' ? '' : `
+        <tr class="bs"><td class="et">TOTAL (Bs)</td><td class="vl">${fmtBsNum(total * rate)}</td></tr>
+        <tr class="tasa"><td class="et">Tasa BCV del día</td><td class="vl" style="font-weight:400">Bs ${rate.toFixed(2)} / $</td></tr>`}
+      </table>
     </div>
 
     <div class="sign-area">
       <div class="sign-box"><span class="ln">${signLabels[0]}</span></div>
       <div class="sign-box"><span class="ln">${signLabels[1]}</span></div>
+    </div>
+
+    <div class="fisc-aviso">
+      <strong>Documento sin valor fiscal.</strong>
+      ${escapeHTML(legalLimpio)}
+    </div>
+
+    <div class="cmp-foot">
+      ${o.notes ? '<p><strong>Notas:</strong> ' + escapeHTML(o.notes) + '</p>' : ''}
+      <p>${escapeHTML(bizName)} · ${escapeHTML(footNote)}</p>
     </div>
   </div>`;
 }

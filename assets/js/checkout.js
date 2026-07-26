@@ -284,7 +284,7 @@ function buildOrder(orderNumber) {
     city:  document.getElementById('co-city').value.trim()  || null,
     address: document.getElementById('co-address').value.trim() || null,
     items: items.map(i => ({
-      id: i.product_id || i.id, variant_id: i.variant_id || null,
+      id: i.product_id || i.id, variant_id: i.variant_id || null, sku: i.sku || null,
       name: i.name, brand: i.brand || null, qty: i.qty, unit: i.unit || 'unid',
       price_usd: i.price_usd, subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
     })),
@@ -515,7 +515,7 @@ async function submitQuote() {
 
   const { items, subtotal } = coTotals();
   const qItems = items.map(i => ({
-    id: i.product_id || i.id, variant_id: i.variant_id || null,
+    id: i.product_id || i.id, variant_id: i.variant_id || null, sku: i.sku || null,
     name: i.name, brand: i.brand || null, qty: i.qty, unit: i.unit || 'unid',
     price_usd: i.price_usd, subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
   }));

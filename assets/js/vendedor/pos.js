@@ -140,6 +140,7 @@ function posAddResolved(p, variant) {
       id: p.id,
       variant_id: variant?.id || null,
       name: p.name,
+      sku: (variant?.sku || p.sku || null),   // sale como "Código" en la factura
       brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
       unit: p.unit || 'unid',
       price_usd: Number(variant ? variant.price_usd : p.price_usd),
@@ -262,7 +263,7 @@ async function posSubmit() {
     rif:  document.getElementById('posCliRif').value.trim()  || null,
     city: document.getElementById('posCliCity').value.trim() || null,
     items: lines.map(l => ({
-      id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand,
+      id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
       qty: l.qty, unit: l.unit, price_usd: l.price_usd,
       subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
     })),

@@ -174,7 +174,11 @@
                 <option value="ORDEN DE DESPACHO">ORDEN DE DESPACHO</option>
               </select></div>
             <div class="fg"><label class="fl">IVA a desglosar (%) — 0 = no mostrar IVA</label>
-              <input type="number" step="0.5" min="0" class="fi" id="set-iva_pct" placeholder="16"></div>
+              <input type="number" step="0.5" min="0" class="fi" id="set-iva_pct" placeholder="16">
+              <small style="color:var(--gr);font-size:11px">Los precios ya incluyen el IVA: la factura lo desglosa hacia atrás.</small></div>
+            <div class="fg"><label class="fl">Serie del N° de Control</label>
+              <input type="text" class="fi" id="set-doc_control_serie" placeholder="00" maxlength="4">
+              <small style="color:var(--gr);font-size:11px">Prefijo del correlativo de las facturas (00-00000001). Cambiarlo solo afecta a las ventas nuevas.</small></div>
             <div class="fg"><label class="fl">Color principal</label>
               <input type="color" class="fi" id="set-doc_color" value="#16604A" style="height:42px;padding:4px"></div>
             <div class="fg"><label class="fl">Color de acento (total en Bs)</label>

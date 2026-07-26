@@ -502,16 +502,18 @@ async function docPdfDocumento(o, tipo = 'factura') {
   doc.autoTable({
     head: [cabecera],
     body: cuerpo,
-    startY: cliY + cliH + 14,
-    margin: { left: M, right: M, bottom: 150 },
-    styles: { fontSize: 8.5, cellPadding: { top: 5.5, bottom: 5.5, left: 7, right: 7 },
+    startY: cliY + cliH + 12,
+    // El margen inferior reserva justo lo que ocupan firma, aviso y pie:
+    // con más, la tabla saltaba de página antes de tiempo.
+    margin: { left: M, right: M, bottom: 132 },
+    styles: { fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 7, right: 7 },
               textColor: [40, 44, 42], lineColor: [229, 233, 231], lineWidth: 0.5 },
-    headStyles: { fillColor: C.main, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    headStyles: { fillColor: C.main, textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
     columnStyles: colsBase,
   });
 
   /* ============ Totales ============ */
-  let ty = doc.lastAutoTable.finalY + 16;
+  let ty = doc.lastAutoTable.finalY + 13;
   const totX = pageW - M - 250;             // ancho del bloque de totales
   const lineaTotal = (etiqueta, valor, opts = {}) => {
     doc.setFont('helvetica', opts.fuerte ? 'bold' : 'normal');
@@ -557,19 +559,27 @@ async function docPdfDocumento(o, tipo = 'factura') {
     lineaTotal('Tasa BCV del día', `Bs ${rate.toFixed(2)} / $`, { color: [140, 140, 140], colorVal: [140, 140, 140], tam: 7.5 });
   }
 
-  /* --- Firmas --- */
-  const firmas = {
-    factura:     ['Firma del cliente', 'Fecha'],
-    recibo:      ['Recibí conforme (firma)', 'Fecha de entrega'],
-    presupuesto: ['Firma de aceptación', 'Fecha'],
-  }[tipo] || ['Firma', 'Fecha'];
-  const firmaY = Math.min(ty + 56, pageH - 138);
+  /* --- Firma y sello ---
+     Una sola línea para firma y fecha, y al lado un recuadro discreto para
+     el sello: hay clientes que sellan al recibir y otros no. */
+  const firmaEtiqueta = {
+    factura:     'Firma y fecha del cliente',
+    recibo:      'Recibí conforme — firma y fecha',
+    presupuesto: 'Firma de aceptación y fecha',
+  }[tipo] || 'Firma y fecha';
+  const selloW = 128, selloH = 46;
+  const firmaY = Math.min(ty + 46, pageH - 132);
+  const firmaW = pageW - M * 2 - selloW - 24;
   doc.setDrawColor(120); doc.setLineWidth(0.9);
-  doc.line(M + 8, firmaY, M + 8 + 190, firmaY);
-  doc.line(pageW - M - 8 - 190, firmaY, pageW - M - 8, firmaY);
+  doc.line(M, firmaY, M + firmaW, firmaY);
   doc.setFontSize(8.5); doc.setTextColor(90); doc.setFont('helvetica', 'normal');
-  doc.text(firmas[0], M + 8 + 95, firmaY + 12, { align: 'center' });
-  doc.text(firmas[1], pageW - M - 8 - 95, firmaY + 12, { align: 'center' });
+  doc.text(firmaEtiqueta, M, firmaY + 11);
+  doc.setDrawColor(195, 204, 200); doc.setLineWidth(0.7);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.roundedRect(pageW - M - selloW, firmaY - selloH + 8, selloW, selloH, 4, 4, 'S');
+  doc.setLineDashPattern([], 0);
+  doc.setFontSize(7.5); doc.setTextColor(168, 178, 174);
+  doc.text('SELLO', pageW - M - selloW / 2, firmaY - selloH / 2 + 11, { align: 'center' });
 
   /* --- Pie legal --- */
   const legal = tipo === 'presupuesto'

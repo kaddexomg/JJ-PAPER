@@ -18,12 +18,24 @@ async function initPos() {
   posPrefillAdd();                        // ?add=<id> desde Consultar stock
   pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
 
-  // prefill de cliente si viene desde el CRM (?tel=...)
-  const tel = new URLSearchParams(location.search).get('tel');
+  // prefill de cliente si viene desde el CRM (?tel=... o ?cliente=<id>)
+  const params = new URLSearchParams(location.search);
+  const tel = params.get('tel');
   if (tel) {
     document.getElementById('posCliSearch').value = tel;
     posSearchCustomer();
   }
+  const cliente = params.get('cliente');
+  if (cliente) await posCargarCliente(cliente);
+}
+
+/* Llega con el cliente ya elegido desde el chat, el correo o la ficha:
+   no hay que volver a escribir su nombre ni buscarlo. */
+async function posCargarCliente(id) {
+  const { data: c } = await sb.from('jjp_customers')
+    .select('id,name,phone,rif,city,total_orders,total_usd').eq('id', id).maybeSingle();
+  if (!c) { showToast('No se encontró ese cliente', 'warn'); return; }
+  posPickCustomer(c);
 }
 
 /* ---------- Buscador de productos ---------- */
@@ -283,7 +295,20 @@ async function posSubmit() {
   btn.disabled = false; btn.textContent = '✅ Registrar venta';
 }
 
+/* Contexto para el hub de envío: la venta recién registrada.
+   Antes el único botón abría wa.me con texto pelado; ahora la factura
+   sale en PDF por el CRM y queda en el historial del cliente. */
+let posLastOrder = null;
+function posDoneCtx() {
+  const o = posLastOrder || {};
+  return {
+    nombre: o.client_name, telefono: o.phone, email: o.email || null,
+    order: o, docs: ['factura', 'recibo', 'estado', 'catalogo', 'lista'],
+  };
+}
+
 function posShowDone(o) {
+  posLastOrder = o;
   // El mensaje al cliente muestra el precio lleno (el descuento se confirma tras la aprobación del admin)
   const waMsg = `🛒 *PEDIDO ${o.order_number}* — JJ Paper\n\nHola ${o.client_name}, aquí está el resumen de tu compra:\n`
     + o.items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
@@ -311,8 +336,9 @@ function posShowDone(o) {
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">🧾 Solo factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Solo recibo</a>
+      ${sendBotonHTML('posDoneCtx()')}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
-         href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Enviar resumen al cliente</a>
+         href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
       <button class="btn-p" onclick="posReset()">🛍️ Nueva venta</button>
     </div>`;
   document.getElementById('posDoneModal').classList.add('op');

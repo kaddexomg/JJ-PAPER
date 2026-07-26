@@ -1,110 +1,20 @@
 /* ======================================================
    JJ Paper — Descarga de catálogo (PDF folleto + Excel/CSV)
-   - Exporta SIEMPRE el catálogo completo (ignora filtros).
-   - Precios en USD y Bs calculados a la tasa BCV vigente
-     (getRate() se refresca a diario), así el archivo queda
-     al día con la brecha BCV/USDT sin editar nada.
+
+   El PDF lo dibuja doc-engine.js: el archivo que el cliente
+   descarga del sitio y el que el vendedor le manda por WhatsApp
+   son EXACTAMENTE el mismo documento. Aquí queda solo la parte
+   de Excel/CSV y el menú del botón.
+
+   Exporta SIEMPRE el catálogo completo (ignora filtros), con
+   precios en USD y Bs a la tasa BCV vigente.
    ====================================================== */
 
-// ---- Filas de exportación (una por variante; si no hay, una por producto) ----
-function exportRows() {
-  const rows = [];
-  const stockTxt = s => (s == null || s < 0) ? '∞' : String(s);
-  const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
-
-  // El folleto se secciona por FAMILIA (8 bandas), no por las ~39 categorías
-  // finas: éstas viajan en la columna "Subcategoría" del Excel.
-  const GROUPS  = (typeof catGroups !== 'undefined' && catGroups) ? catGroups : [];
-  const groupOf = p => GROUPS.find(g => g.id === p.jjp_categories?.group_id);
-  const orderOf = p => {
-    const i = GROUPS.findIndex(g => g.id === p.jjp_categories?.group_id);
-    return i < 0 ? 99 : i;   // familia desconocida al final
-  };
-
-  (allProducts || []).forEach(p => {
-    const g    = groupOf(p);
-    const cat  = g?.name || 'Otros';
-    const sub  = p.jjp_categories?.name || '';
-    const ord  = orderOf(p);
-    const base = { cat, sub, ord, essential: !!p.essential };
-    if (p.variants?.length) {
-      p.variants.forEach(v => rows.push({
-        ...base, name: p.name || '—',
-        brand: v.jjp_brands?.name || '',
-        pres:  v.variant_name || '',
-        sku:   v.sku || '',
-        unit:  p.unit || 'unid',
-        usd:   num(v.price_usd),
-        bs:    num(toBs(num(v.price_usd))),
-        stock: stockTxt(v.stock),
-      }));
-    } else {
-      rows.push({
-        ...base, name: p.name || '—', brand: '', pres: '', sku: '',
-        unit: p.unit || 'unid',
-        usd: num(p.price_usd), bs: num(toBs(num(p.price_usd))),
-        stock: stockTxt(p.stock),
-      });
-    }
-  });
-  // Familia (en su orden oficial) → esenciales primero → subcategoría → nombre
-  rows.sort((a, b) =>
-    a.ord - b.ord
-    || (b.essential ? 1 : 0) - (a.essential ? 1 : 0)
-    || a.sub.localeCompare(b.sub)
-    || a.name.localeCompare(b.name));
-  return rows;
-}
-
 // Fecha corta para nombre de archivo: AAAA-MM-DD
-function todayStamp() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+function todayStamp() { return docToday(); }
 
 // Descarga un Blob con nombre dado
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/* ------------------------------------------------------
-   Paleta de marca para los archivos exportados
-   (misma que variables.css — mantener en sync)
-   ------------------------------------------------------ */
-const EXPORT_BRAND = {
-  deep:  { rgb: [0, 51, 51],     hex: '003333' },  /* --gdk verde profundo */
-  green: { rgb: [22, 96, 74],    hex: '16604A' },  /* --gd verde JJ */
-  ring:  { rgb: [167, 215, 160], hex: 'A7D7A0' },  /* anillo del logo */
-  brass: { rgb: [201, 162, 75],  hex: 'C9A24B' },  /* --am dorado latón */
-  light: { rgb: [239, 246, 228], hex: 'EFF6E4' },  /* --gx fondo lima suave */
-  zebra: { rgb: [246, 250, 244], hex: 'F6FAF4' },  /* fila alterna */
-};
-
-// Logo oficial (assets/img/logo.svg) rasterizado a PNG para jsPDF.
-// Cachea la promesa; si el navegador no puede rasterizar, devuelve null
-// y el PDF cae al badge dibujado a mano.
-let _logoPngPromise = null;
-function logoPngDataUrl(size = 256) {
-  if (_logoPngPromise) return _logoPngPromise;
-  _logoPngPromise = new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const c = document.createElement('canvas');
-        c.width = c.height = size;
-        c.getContext('2d').drawImage(img, 0, 0, size, size);
-        resolve(c.toDataURL('image/png'));
-      } catch (e) { resolve(null); }
-    };
-    img.onerror = () => resolve(null);
-    img.src = 'assets/img/logo.svg';
-  }).then(v => { if (!v) _logoPngPromise = null; return v; });
-  return _logoPngPromise;
-}
+function downloadBlob(blob, filename) { docDescargar(blob, filename); }
 
 /* ------------------------------------------------------
    CSV — fallback si el generador de Excel (.xlsx) no carga
@@ -113,8 +23,9 @@ function logoPngDataUrl(size = 256) {
    ------------------------------------------------------ */
 async function exportCSV() {
   setDlBusy(true, 'Generando CSV...');
-  try { await ensureProducts(); } finally { setDlBusy(false); }
-  const rows = exportRows();
+  let rows;
+  try { rows = await docLoadCatalogRows(); }
+  finally { setDlBusy(false); }
   if (!rows.length) { showToast('No hay productos para exportar', 'err'); return; }
 
   const rate = getRate();
@@ -135,9 +46,7 @@ async function exportCSV() {
   showToast('Catálogo CSV descargado', 'ok');
 }
 
-/* ------------------------------------------------------
-   PDF (folleto) — jsPDF + autoTable, cargados solo al pedirlo
-   ------------------------------------------------------ */
+// Carga un script por URL (lo usa el generador de Excel)
 function loadScript(src) {
   return new Promise((res, rej) => {
     const s = document.createElement('script');
@@ -147,41 +56,10 @@ function loadScript(src) {
   });
 }
 
-// Carga jsPDF + autoTable una sola vez. Reintenta con mirror (unpkg) si
-// jsdelivr falla. Cachea la promesa: varios clics comparten la misma carga.
-let _pdfPromise = null;
-function ensurePdfLib() {
-  if (window.jspdf?.jsPDF && window.jspdf.jsPDF.API?.autoTable) return Promise.resolve();
-  if (_pdfPromise) return _pdfPromise;
-  const mirrors = [
-    ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
-     'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
-    ['https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
-     'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
-  ];
-  _pdfPromise = (async () => {
-    let lastErr;
-    for (const [core, plugin] of mirrors) {
-      try { await loadScript(core); await loadScript(plugin); return; }
-      catch (e) { lastErr = e; }
-    }
-    _pdfPromise = null;           // permite reintentar en el próximo clic
-    throw lastErr;
-  })();
-  return _pdfPromise;
-}
-
 // Precarga en segundo plano (hover/focus del botón) → el clic se siente instantáneo
 function prefetchPdfLib() {
-  ensurePdfLib().catch(() => {});
-  logoPngDataUrl().catch(() => {});   // el logo también se precachea
-}
-
-// Garantiza que el catálogo esté cargado antes de exportar (clave en index.html)
-async function ensureProducts() {
-  if (!Array.isArray(allProducts) || !allProducts.length) {
-    if (typeof loadProducts === 'function') await loadProducts();
-  }
+  docEnsurePdfLib().catch(() => {});
+  docLogoPng().catch(() => {});
 }
 
 // Estado ocupado del botón de descarga (evita doble clic, muestra progreso)
@@ -195,135 +73,36 @@ function setDlBusy(on, label) {
   else if (btn.dataset.txt) { btn.textContent = btn.dataset.txt; delete btn.dataset.txt; }
 }
 
+/* ------------------------------------------------------
+   PDF — lo genera el motor de documentos
+   ------------------------------------------------------ */
 async function exportPDF() {
   setDlBusy(true, 'Generando PDF...');
   try {
-    await ensureProducts();
-    await ensurePdfLib();
+    const { blob, filename } = await docPdfCatalogo();
+    downloadBlob(blob, filename);
+    showToast('Catálogo PDF descargado', 'ok');
   } catch (e) {
+    console.error('exportPDF:', e);
+    showToast('No se pudo generar el PDF. Revisa tu conexión.', 'err');
+  } finally {
     setDlBusy(false);
-    showToast('No se pudo cargar el generador de PDF. Revisa tu conexión.', 'err');
-    return;
   }
-  setDlBusy(false);
+}
 
-  const rows = exportRows();
-  if (!rows.length) { showToast('No hay productos para exportar', 'err'); return; }
-
-  // Logo real (puede tardar unos ms la primera vez; null → badge dibujado)
-  const logoPng = await logoPngDataUrl().catch(() => null);
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const rate  = getRate();
-  const B     = EXPORT_BRAND;
-  const s     = APP.SETTINGS || {};
-  const phone = s.phone_display || '+58 412-1234567';
-  const mail  = s.email || 'ventas@jjpaper.com.ve';
-
-  // ---- Cuerpo agrupado por categoría: banda de sección + productos ----
-  const cats = [...new Set(rows.map(r => r.cat))];
-  const body = [];
-  cats.forEach(cat => {
-    const items = rows.filter(r => r.cat === cat);
-    body.push([{
-      content: `${cat.toUpperCase()}  ·  ${items.length} producto${items.length !== 1 ? 's' : ''}`,
-      colSpan: 6,
-      styles: { fillColor: B.light.rgb, textColor: B.green.rgb, fontStyle: 'bold',
-                fontSize: 9.5, cellPadding: { top: 7, bottom: 6, left: 8 }, halign: 'left' },
-    }]);
-    items.forEach(r => body.push([
-      r.name,
-      [r.brand, r.pres].filter(Boolean).join(' · ') || '—',
-      r.unit,
-      `$${r.usd.toFixed(2)}`,
-      `Bs ${r.bs.toFixed(2)}`,
-      r.stock,
-    ]));
-  });
-
-  const HEAD_H = 74;
-  doc.autoTable({
-    head: [['Producto', 'Marca / Presentación', 'Unidad', 'Precio USD', 'Precio Bs', 'Stock']],
-    body,
-    startY: 108,
-    margin: { top: HEAD_H + 26, bottom: 46, left: 40, right: 40 },
-    styles: { fontSize: 8, cellPadding: { top: 4.5, bottom: 4.5, left: 6, right: 6 },
-              overflow: 'linebreak', textColor: [40, 44, 42], lineColor: [228, 237, 231], lineWidth: 0.5 },
-    headStyles: { fillColor: B.green.rgb, textColor: 255, fontStyle: 'bold', fontSize: 8.5,
-                  cellPadding: { top: 6, bottom: 6, left: 6, right: 6 } },
-    alternateRowStyles: { fillColor: B.zebra.rgb },
-    columnStyles: {
-      0: { cellWidth: 168 },
-      1: { cellWidth: 108 },
-      2: { cellWidth: 46, halign: 'center' },
-      3: { cellWidth: 60, halign: 'right', fontStyle: 'bold', textColor: B.green.rgb },
-      4: { cellWidth: 72, halign: 'right' },
-      5: { cellWidth: 38, halign: 'center' },
-    },
-    didDrawPage: () => {
-      // ---- Encabezado: banda verde profundo + filo dorado latón ----
-      doc.setFillColor(...B.deep.rgb);
-      doc.rect(0, 0, pageW, HEAD_H, 'F');
-      doc.setFillColor(...B.green.rgb);
-      doc.rect(0, HEAD_H - 26, pageW, 26, 'F');   // franja inferior verde JJ
-      doc.setFillColor(...B.brass.rgb);
-      doc.rect(0, HEAD_H, pageW, 2.5, 'F');       // filo latón
-
-      // Logo oficial (o badge dibujado como fallback)
-      if (logoPng) {
-        doc.addImage(logoPng, 'PNG', 36, 9, 56, 56);
-      } else {
-        const bx = 62, by = 36, br = 24;
-        doc.setFillColor(...B.green.rgb);
-        doc.circle(bx, by, br, 'F');
-        doc.setDrawColor(...B.ring.rgb); doc.setLineWidth(2.6);
-        doc.circle(bx, by, br - 3.5, 'S');
-        doc.setTextColor(255);
-        doc.setFont('times', 'bold'); doc.setFontSize(24);
-        doc.text('JJ', bx, by + 8, { align: 'center' });
-      }
-
-      // Wordmark + tagline
-      doc.setTextColor(255);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(21);
-      doc.text('JJ Paper', 102, 32);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
-      doc.setTextColor(...B.ring.rgb);
-      doc.text('Catálogo Mayorista  ·  Calidad · Compromiso · Confianza', 102, 46);
-
-      // Datos de emisión (derecha, sobre la franja verde)
-      doc.setTextColor(255); doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Tasa BCV Bs ${rate.toFixed(2)} / USD`, pageW - 40, HEAD_H - 16, { align: 'right' });
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Emitido: ${todayStamp()}  ·  Precios sujetos a cambio`, pageW - 40, HEAD_H - 6.5, { align: 'right' });
-
-      // ---- Pie: contacto + página ----
-      const page = doc.internal.getNumberOfPages();
-      doc.setDrawColor(...B.brass.rgb); doc.setLineWidth(1);
-      doc.line(40, pageH - 34, pageW - 40, pageH - 34);
-      doc.setTextColor(...B.green.rgb); doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`WhatsApp ${phone}`, 40, pageH - 20);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(110);
-      doc.text(`${mail}  ·  jj-paper.pages.dev`, pageW / 2, pageH - 20, { align: 'center' });
-      doc.text(`Página ${page}`, pageW - 40, pageH - 20, { align: 'right' });
-    },
-  });
-
-  // ---- Resumen bajo el encabezado de la primera página ----
-  doc.setPage(1);
-  doc.setTextColor(...B.green.rgb);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-  doc.text(`${rows.length} presentaciones  ·  ${cats.length} categorías`, 40, 96);
-  doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.setFontSize(8.5);
-  doc.text('Pedidos al mayor por WhatsApp o en jj-paper.pages.dev', pageW - 40, 96, { align: 'right' });
-
-  doc.save(`Catalogo-JJPaper-${todayStamp()}.pdf`);
-  showToast('Catálogo PDF descargado', 'ok');
+/* Lista de precios para el cliente (sin existencias) */
+async function exportListaPrecios() {
+  setDlBusy(true, 'Generando lista...');
+  try {
+    const { blob, filename } = await docPdfListaPrecios();
+    downloadBlob(blob, filename);
+    showToast('Lista de precios descargada', 'ok');
+  } catch (e) {
+    console.error('exportListaPrecios:', e);
+    showToast('No se pudo generar la lista de precios', 'err');
+  } finally {
+    setDlBusy(false);
+  }
 }
 
 /* ------------------------------------------------------
@@ -352,8 +131,9 @@ function ensureXlsxLib() {
 
 async function exportExcel() {
   setDlBusy(true, 'Generando Excel...');
+  let rows;
   try {
-    await ensureProducts();
+    rows = await docLoadCatalogRows();
     await ensureXlsxLib();
   } catch (e) {
     setDlBusy(false);
@@ -363,11 +143,14 @@ async function exportExcel() {
   }
   setDlBusy(false);
 
-  const rows = exportRows();
   if (!rows.length) { showToast('No hay productos para exportar', 'err'); return; }
 
   const rate = getRate();
-  const B = EXPORT_BRAND;
+  // Misma paleta que el PDF (doc-engine) y que variables.css
+  const B = {
+    deep:  { hex: '003333' }, green: { hex: '16604A' }, ring: { hex: 'A7D7A0' },
+    brass: { hex: 'C9A24B' }, light: { hex: 'EFF6E4' }, zebra: { hex: 'F6FAF4' },
+  };
   const border = (c = 'E4EDE7') => ({
     top: { style: 'thin', color: { rgb: c } }, bottom: { style: 'thin', color: { rgb: c } },
     left: { style: 'thin', color: { rgb: c } }, right: { style: 'thin', color: { rgb: c } },
@@ -465,6 +248,7 @@ async function exportExcel() {
 function downloadCatalog(fmt) {
   closeDlMenu();
   if (fmt === 'pdf') exportPDF();
+  else if (fmt === 'lista') exportListaPrecios();
   else exportExcel();   // 'csv' legado → Excel con estilos (CSV queda de fallback)
 }
 

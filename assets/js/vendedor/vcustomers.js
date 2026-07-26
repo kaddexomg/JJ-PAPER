@@ -61,13 +61,27 @@ function renderCustomers() {
       <td><div class="td-actions">
         ${!c.seller_id ? `<button class="btn-o sm" onclick="claimCustomer('${c.id}')" title="Añadir a mi cartera">➕ Tomar</button>` : ''}
         ${mine ? `<button class="btn-p sm" onclick="openCustomerModal('${c.id}')">✏️</button>` : ''}
-        <a class="btn-o sm" href="pos.html?tel=${encodeURIComponent(c.phone || '')}" title="Nueva venta a este cliente">🛍️</a>
+        <button class="btn-send sm" onclick="custCtxMenu(event, '${c.id}')"
+                title="Enviar catálogo o lista de precios" aria-haspopup="menu">📤</button>
+        <a class="btn-o sm" href="pos.html?cliente=${encodeURIComponent(c.id)}" title="Nueva venta a este cliente">🛍️</a>
+        <a class="btn-o sm" href="cotizador.html?cliente=${encodeURIComponent(c.id)}" title="Cotizarle">📋</a>
         ${mine ? `<a class="btn-o sm" href="whatsapp.html?cust=${c.id}" title="Abrir chat en el CRM">📨</a>` : ''}
         <a class="btn-wa sm" style="width:auto;padding:7px 10px" target="_blank" title="${inactive ? 'Reactivar por WhatsApp' : 'Escribir por WhatsApp'}"
            href="https://wa.me/${(c.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waReact)}">${inactive ? '🔄' : '💬'}</a>
       </div></td>
     </tr>`;
   }).join('');
+}
+
+/* Menú de envío desde la cartera de clientes (send-hub.js): catálogo y
+   lista de precios salen por el CRM, con el PDF adjunto de verdad. */
+function custCtxMenu(ev, id) {
+  const c = vCustomers.find(x => x.id === id);
+  if (!c) return;
+  sendMenuAbrir(ev, {
+    nombre: c.name, telefono: c.phone, email: c.email,
+    customerId: c.id, docs: ['catalogo', 'lista'],
+  });
 }
 
 async function claimCustomer(id) {

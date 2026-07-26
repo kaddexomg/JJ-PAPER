@@ -1,0 +1,585 @@
+/* ======================================================
+   JJ Paper — Motor de documentos (PDF)
+
+   Un solo lugar donde se dibujan el catálogo, la lista de precios,
+   la cotización, la factura y la orden de recibo. Devuelve el PDF
+   como archivo (Blob), no como descarga: así el mismo documento
+   sirve para bajarlo, adjuntarlo a un correo o mandarlo por WhatsApp.
+
+   Antes esto vivía dentro de export.js atado a las variables de
+   index.html y terminaba en doc.save(): no había forma de adjuntarlo
+   a nada. Este módulo se carga solo — consulta lo que necesita.
+
+   Depende de: config.js (sb, APP, getRate, loadSettings).
+   ====================================================== */
+
+/* ---------------- Paleta e identidad ---------------- */
+const DOC_BRAND = {
+  deep:  { rgb: [0, 51, 51],   hex: '003333' },  /* verde profundo */
+  green: { rgb: [22, 96, 74],  hex: '16604A' },  /* verde JJ */
+  ring:  { rgb: [167, 215, 160] },               /* anillo del logo */
+  brass: { rgb: [201, 162, 75] },                /* dorado latón */
+  light: { rgb: [239, 246, 228] },               /* lima suave */
+  zebra: { rgb: [246, 250, 244] },               /* fila alterna */
+};
+
+// '#16604A' → [22,96,74]. Los colores del documento son configurables
+// desde Ajustes (doc_color / doc_accent); si vienen mal, se ignoran.
+function docHexRgb(hex, fallback) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return fallback;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Colores efectivos del documento según los ajustes del negocio
+function docColors() {
+  const s = APP.SETTINGS || {};
+  return {
+    main:  docHexRgb(s.doc_color,  DOC_BRAND.green.rgb),
+    acc:   docHexRgb(s.doc_accent, DOC_BRAND.brass.rgb),
+    deep:  DOC_BRAND.deep.rgb,
+    light: DOC_BRAND.light.rgb,
+    zebra: DOC_BRAND.zebra.rgb,
+    ring:  DOC_BRAND.ring.rgb,
+  };
+}
+
+function docToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/* ---------------- Carga de la librería ----------------
+   jsPDF + autoTable por CDN, con espejo de respaldo. Se cachea la
+   promesa: varios botones a la vez comparten la misma carga.        */
+let _docPdfLib = null;
+function docEnsurePdfLib() {
+  if (window.jspdf?.jsPDF && window.jspdf.jsPDF.API?.autoTable) return Promise.resolve();
+  if (_docPdfLib) return _docPdfLib;
+  const espejos = [
+    ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+     'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
+    ['https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
+     'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
+  ];
+  const cargar = src => new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = ok; s.onerror = () => fail(new Error('no cargó ' + src));
+    document.head.appendChild(s);
+  });
+  _docPdfLib = (async () => {
+    let ultimo;
+    for (const [core, plugin] of espejos) {
+      try { await cargar(core); await cargar(plugin); return; }
+      catch (e) { ultimo = e; }
+    }
+    _docPdfLib = null;              // permite reintentar en el próximo clic
+    throw ultimo;
+  })();
+  return _docPdfLib;
+}
+
+// Logo oficial rasterizado a PNG (jsPDF no dibuja SVG). Si el navegador
+// no puede, se cae al badge dibujado a mano y el PDF igual sale.
+let _docLogo = null;
+function docLogoPng(size = 256) {
+  if (_docLogo) return _docLogo;
+  const base = location.pathname.includes('/admin/') || location.pathname.includes('/vendedor/') ? '../' : '';
+  _docLogo = new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        c.getContext('2d').drawImage(img, 0, 0, size, size);
+        resolve(c.toDataURL('image/png'));
+      } catch (e) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = base + 'assets/img/logo.svg';
+  }).then(v => { if (!v) _docLogo = null; return v; });
+  return _docLogo;
+}
+
+// Los ajustes hacen falta para el nombre, el RIF y los colores
+async function docEnsureSettings() {
+  if (!APP.SETTINGS || !Object.keys(APP.SETTINGS).length) await loadSettings();
+}
+
+/* ====================================================================
+   CATÁLOGO Y LISTA DE PRECIOS
+   ==================================================================== */
+
+// Trae el catálogo completo (una fila por presentación). No reusa las
+// variables de catalogo.js a propósito: este módulo corre también en el
+// panel, donde esa página no existe.
+async function docLoadCatalogRows() {
+  const [{ data: grupos }, { data: prods }] = await Promise.all([
+    sb.from('jjp_category_groups').select('id,name,slug').order('sort_order'),
+    sb.from('jjp_products')
+      .select('id,name,unit,price_usd,stock,essential,sort_order,jjp_categories(name,group_id),' +
+              'jjp_product_variants(variant_name,sku,price_usd,stock,active,sort_order,jjp_brands(name))')
+      .eq('active', true)
+      .order('sort_order'),
+  ]);
+
+  const G = grupos || [];
+  const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
+  const stockTxt = s => (s == null || s < 0) ? '∞' : String(s);
+  const rate = getRate();
+
+  const filas = [];
+  (prods || []).forEach(p => {
+    const gid = p.jjp_categories?.group_id;
+    const idx = G.findIndex(g => g.id === gid);
+    const base = {
+      cat: (idx >= 0 ? G[idx].name : 'Otros'),
+      sub: p.jjp_categories?.name || '',
+      ord: idx < 0 ? 99 : idx,
+      essential: !!p.essential,
+      unit: p.unit || 'unid',
+    };
+    const vars = (p.jjp_product_variants || []).filter(v => v.active);
+    if (vars.length) {
+      vars.forEach(v => filas.push({
+        ...base, name: p.name || '—',
+        brand: v.jjp_brands?.name || '',
+        pres: v.variant_name || '',
+        sku: v.sku || '',
+        usd: num(v.price_usd), bs: num(v.price_usd) * rate,
+        stock: stockTxt(v.stock), stockNum: v.stock,
+      }));
+    } else {
+      filas.push({
+        ...base, name: p.name || '—', brand: '', pres: '', sku: '',
+        usd: num(p.price_usd), bs: num(p.price_usd) * rate,
+        stock: stockTxt(p.stock), stockNum: p.stock,
+      });
+    }
+  });
+
+  // Familia → esenciales primero → subcategoría → nombre
+  filas.sort((a, b) =>
+    a.ord - b.ord
+    || (b.essential ? 1 : 0) - (a.essential ? 1 : 0)
+    || a.sub.localeCompare(b.sub)
+    || a.name.localeCompare(b.name));
+  return filas;
+}
+
+/* Encabezado y pie comunes del folleto */
+function docFolletoChrome(doc, { subtitulo, logoPng, rate }) {
+  const C = docColors();
+  const s = APP.SETTINGS || {};
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const HEAD_H = 74;
+  const tel = s.phone_display || s.whatsapp_number || '';
+  const mail = s.email || '';
+
+  doc.setFillColor(...C.deep);  doc.rect(0, 0, pageW, HEAD_H, 'F');
+  doc.setFillColor(...C.main);  doc.rect(0, HEAD_H - 26, pageW, 26, 'F');
+  doc.setFillColor(...C.acc);   doc.rect(0, HEAD_H, pageW, 2.5, 'F');
+
+  if (logoPng) {
+    doc.addImage(logoPng, 'PNG', 36, 9, 56, 56);
+  } else {
+    const bx = 62, by = 36, br = 24;
+    doc.setFillColor(...C.main); doc.circle(bx, by, br, 'F');
+    doc.setDrawColor(...C.ring); doc.setLineWidth(2.6); doc.circle(bx, by, br - 3.5, 'S');
+    doc.setTextColor(255); doc.setFont('times', 'bold'); doc.setFontSize(24);
+    doc.text('JJ', bx, by + 8, { align: 'center' });
+  }
+
+  doc.setTextColor(255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(21);
+  doc.text(s.business_name || 'JJ Paper', 102, 32);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  doc.setTextColor(...C.ring);
+  doc.text(subtitulo, 102, 46);
+
+  doc.setTextColor(255); doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Tasa BCV Bs ${rate.toFixed(2)} / USD`, pageW - 40, HEAD_H - 16, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Emitido: ${docToday()}  ·  Precios sujetos a cambio`, pageW - 40, HEAD_H - 6.5, { align: 'right' });
+
+  const pag = doc.internal.getNumberOfPages();
+  doc.setDrawColor(...C.acc); doc.setLineWidth(1);
+  doc.line(40, pageH - 34, pageW - 40, pageH - 34);
+  doc.setTextColor(...C.main); doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  if (tel) doc.text(`WhatsApp ${tel}`, 40, pageH - 20);
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(110);
+  doc.text(`${mail}${mail ? '  ·  ' : ''}jj-paper.pages.dev`, pageW / 2, pageH - 20, { align: 'center' });
+  doc.text(`Página ${pag}`, pageW - 40, pageH - 20, { align: 'right' });
+}
+
+/* Folleto de productos. conStock=false → LISTA DE PRECIOS para el cliente:
+   nunca lleva existencias, para no tener que decirle "Agotado" a nadie. */
+async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista' } = {}) {
+  await docEnsureSettings();
+  await docEnsurePdfLib();
+  const filas = await docLoadCatalogRows();
+  if (!filas.length) throw new Error('No hay productos para exportar');
+
+  const logoPng = await docLogoPng().catch(() => null);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const C = docColors();
+  const rate = getRate();
+
+  const cats = [...new Set(filas.map(f => f.cat))];
+  const body = [];
+  const ncols = conStock ? 6 : 5;
+  cats.forEach(cat => {
+    const items = filas.filter(f => f.cat === cat);
+    body.push([{
+      content: `${cat.toUpperCase()}  ·  ${items.length} producto${items.length !== 1 ? 's' : ''}`,
+      colSpan: ncols,
+      styles: { fillColor: C.light, textColor: C.main, fontStyle: 'bold',
+                fontSize: 9.5, cellPadding: { top: 7, bottom: 6, left: 8 }, halign: 'left' },
+    }]);
+    items.forEach(f => {
+      const fila = [
+        f.name,
+        [f.brand, f.pres].filter(Boolean).join(' · ') || '—',
+        f.unit,
+        `$${f.usd.toFixed(2)}`,
+        `Bs ${f.bs.toFixed(2)}`,
+      ];
+      if (conStock) fila.push(f.stock);
+      body.push(fila);
+    });
+  });
+
+  const head = ['Producto', 'Marca / Presentación', 'Unidad', 'Precio USD', 'Precio Bs'];
+  if (conStock) head.push('Stock');
+
+  const colStyles = conStock
+    ? { 0: { cellWidth: 168 }, 1: { cellWidth: 108 }, 2: { cellWidth: 46, halign: 'center' },
+        3: { cellWidth: 60, halign: 'right', fontStyle: 'bold', textColor: C.main },
+        4: { cellWidth: 72, halign: 'right' }, 5: { cellWidth: 38, halign: 'center' } }
+    : { 0: { cellWidth: 190 }, 1: { cellWidth: 122 }, 2: { cellWidth: 52, halign: 'center' },
+        3: { cellWidth: 68, halign: 'right', fontStyle: 'bold', textColor: C.main },
+        4: { cellWidth: 82, halign: 'right' } };
+
+  doc.autoTable({
+    head: [head], body, startY: 108,
+    margin: { top: 100, bottom: 46, left: 40, right: 40 },
+    styles: { fontSize: 8, cellPadding: { top: 4.5, bottom: 4.5, left: 6, right: 6 },
+              overflow: 'linebreak', textColor: [40, 44, 42], lineColor: [228, 237, 231], lineWidth: 0.5 },
+    headStyles: { fillColor: C.main, textColor: 255, fontStyle: 'bold', fontSize: 8.5,
+                  cellPadding: { top: 6, bottom: 6, left: 6, right: 6 } },
+    alternateRowStyles: { fillColor: C.zebra },
+    columnStyles: colStyles,
+    didDrawPage: () => docFolletoChrome(doc, {
+      rate, logoPng,
+      subtitulo: `${titulo}  ·  Calidad · Compromiso · Confianza`,
+    }),
+  });
+
+  doc.setPage(1);
+  doc.setTextColor(...C.main);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+  doc.text(`${filas.length} presentaciones  ·  ${cats.length} categorías`, 40, 96);
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.setFontSize(8.5);
+  doc.text('Pedidos al mayor por WhatsApp o en jj-paper.pages.dev', pageW - 40, 96, { align: 'right' });
+
+  const nombre = `${conStock ? 'Catalogo' : 'Lista-de-precios'}-JJPaper-${docToday()}.pdf`;
+  return { blob: doc.output('blob'), filename: nombre, doc };
+}
+
+const docPdfCatalogo     = () => docPdfProductos({ conStock: true,  titulo: 'Catálogo Mayorista' });
+const docPdfListaPrecios = () => docPdfProductos({ conStock: false, titulo: 'Lista de Precios' });
+
+/* ====================================================================
+   DOCUMENTOS DE VENTA — factura, orden de recibo, presupuesto
+   Misma información y mismos ajustes que comprobante.html, pero como
+   archivo enviable. El que se imprime y el que se manda dicen lo mismo.
+   ==================================================================== */
+
+const DOC_TITULOS = {
+  factura:     'FACTURA',
+  recibo:      'ORDEN DE RECIBO',
+  presupuesto: 'PRESUPUESTO',
+  comprobante: 'COMPROBANTE',
+  pedido:      'RESUMEN DE PEDIDO',
+};
+
+// Cotización → misma forma que un pedido, solo para dibujarla
+function docNormalizeQuote(q) {
+  const items = typeof q.items === 'string' ? JSON.parse(q.items) : (q.items || []);
+  const subtotal = items.reduce((s, i) =>
+    s + Number(i.subtotal_usd ?? (Number(i.price_usd) || 0) * (Number(i.qty) || 0)), 0);
+  return {
+    order_number: q.quote_number,
+    client_name: q.client_name, rif: q.rif, phone: q.phone, email: q.email,
+    city: q.city, address: q.address,
+    items, subtotal_usd: subtotal,
+    total_usd: Number(q.estimated_total_usd) || subtotal,
+    discount_pct: q.discount_pct,
+    discount_status: Number(q.discount_pct) > 0 ? 'approved' : 'none',
+    exchange_rate: q.exchange_rate, notes: q.notes,
+    status: q.status, created_at: q.created_at,
+  };
+}
+
+async function docFetchPedido(numero) {
+  const { data, error } = await sb.from('jjp_orders').select('*').eq('order_number', numero).maybeSingle();
+  if (error || !data) throw new Error('No se encontró el pedido ' + numero);
+  return data;
+}
+async function docFetchCotizacion(numero) {
+  const { data, error } = await sb.from('jjp_quotes').select('*').eq('quote_number', numero).maybeSingle();
+  if (error || !data) throw new Error('No se encontró la cotización ' + numero);
+  return docNormalizeQuote(data);
+}
+
+async function docPdfDocumento(o, tipo = 'factura') {
+  await docEnsureSettings();
+  await docEnsurePdfLib();
+
+  const s = APP.SETTINGS || {};
+  const C = docColors();
+  const logoPng = await docLogoPng().catch(() => null);
+  const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+  const rate = Number(o.exchange_rate) || getRate();
+  const total = Number(o.total_usd) || 0;
+  const anulado = ['rechazado', 'cancelado', 'anulado', 'descartado', 'descartada']
+    .includes(String(o.status || '').toLowerCase());
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  /* --- Cabecera: negocio a la izquierda, documento a la derecha --- */
+  doc.setFillColor(...C.main);
+  doc.rect(0, 0, pageW, 4, 'F');
+
+  let y = 46;
+  if (logoPng) doc.addImage(logoPng, 'PNG', 40, y - 22, 46, 46);
+  doc.setTextColor(...C.main);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
+  doc.text(s.business_name || 'JJ Paper', logoPng ? 96 : 40, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+  const meta = [
+    s.rif ? 'RIF: ' + s.rif : '',
+    s.address || '',
+    s.phone_display || s.whatsapp_number || '',
+  ].filter(Boolean);
+  meta.forEach((t, i) => doc.text(t, logoPng ? 96 : 40, y + 13 + i * 11));
+
+  doc.setFillColor(...C.main);
+  doc.roundedRect(pageW - 190, y - 24, 150, 20, 4, 4, 'F');
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+  doc.text(DOC_TITULOS[tipo] || (s.doc_title || 'COMPROBANTE'), pageW - 115, y - 10, { align: 'center' });
+  doc.setTextColor(30); doc.setFontSize(15);
+  doc.text(String(o.order_number || ''), pageW - 40, y + 8, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(110);
+  doc.text(o.created_at ? new Date(o.created_at).toLocaleDateString('es-VE') : docToday(),
+           pageW - 40, y + 21, { align: 'right' });
+
+  /* --- Cliente y datos del documento --- */
+  const boxY = y + 46;
+  const boxW = (pageW - 80 - 16) / 2;
+  doc.setFillColor(246, 248, 247);
+  doc.roundedRect(40, boxY, boxW, 74, 4, 4, 'F');
+  doc.roundedRect(40 + boxW + 16, boxY, boxW, 74, 4, 4, 'F');
+
+  doc.setTextColor(...C.main); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+  doc.text('CLIENTE', 52, boxY + 15);
+  doc.text('DATOS DEL DOCUMENTO', 52 + boxW + 16, boxY + 15);
+
+  doc.setTextColor(45); doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text(String(o.client_name || '—').slice(0, 42), 52, boxY + 30);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(85);
+  [
+    o.rif ? 'RIF/CI: ' + o.rif : '',
+    o.phone || '',
+    [o.city, o.address].filter(Boolean).join(' · '),
+  ].filter(Boolean).slice(0, 3)
+   .forEach((t, i) => doc.text(String(t).slice(0, 46), 52, boxY + 43 + i * 11));
+
+  const metodo = { pago_movil: 'Pago Móvil', transferencia: 'Transferencia', efectivo: 'Efectivo' }[o.payment_method]
+    || o.payment_method || '—';
+  const derecha = tipo === 'presupuesto'
+    ? ['Tipo: Cotización', `Tasa del día: Bs ${rate.toFixed(2)} / $`, 'Estado: ' + (o.status || '')]
+    : ['Método de pago: ' + metodo,
+       o.payment_ref ? 'Referencia: ' + o.payment_ref : '',
+       `Tasa del día: Bs ${rate.toFixed(2)} / $`,
+       'Estado: ' + (o.status || '')].filter(Boolean);
+  doc.setTextColor(85);
+  derecha.slice(0, 4).forEach((t, i) => doc.text(String(t).slice(0, 46), 52 + boxW + 16, boxY + 30 + i * 11));
+
+  /* --- Líneas --- */
+  const cuerpo = items.map(i => [
+    (i.name || i.product || '—') + (i.brand ? `  (${i.brand})` : ''),
+    `${i.qty} ${i.unit || ''}`.trim(),
+    `$${Number(i.price_usd || 0).toFixed(2)}`,
+    `$${Number((i.subtotal_usd ?? (i.price_usd * i.qty)) || 0).toFixed(2)}`,
+  ]);
+
+  doc.autoTable({
+    head: [['Producto', 'Cant.', 'Precio', 'Subtotal']],
+    body: cuerpo,
+    startY: boxY + 90,
+    margin: { left: 40, right: 40, bottom: 120 },
+    styles: { fontSize: 9, cellPadding: { top: 6, bottom: 6, left: 8, right: 8 },
+              textColor: [40, 44, 42], lineColor: [229, 233, 231], lineWidth: 0.5 },
+    headStyles: { fillColor: C.main, textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+    columnStyles: {
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 62, halign: 'center' },
+      2: { cellWidth: 70, halign: 'right' },
+      3: { cellWidth: 78, halign: 'right', fontStyle: 'bold' },
+    },
+  });
+
+  /* --- Totales --- */
+  let ty = doc.lastAutoTable.finalY + 14;
+  const lineaTotal = (etiqueta, valor, opts = {}) => {
+    doc.setFont('helvetica', opts.fuerte ? 'bold' : 'normal');
+    doc.setFontSize(opts.fuerte ? 12 : 9);
+    doc.setTextColor(...(opts.color || [80, 80, 80]));
+    doc.text(etiqueta, pageW - 190, ty, { align: 'right' });
+    doc.text(valor, pageW - 40, ty, { align: 'right' });
+    ty += opts.fuerte ? 20 : 14;
+  };
+
+  if (o.discount_status === 'approved' && Number(o.discount_pct) > 0) {
+    lineaTotal(`Descuento ${o.discount_pct}%`,
+      `−$${(Number(o.subtotal_usd || 0) * Number(o.discount_pct) / 100).toFixed(2)}`);
+  }
+  if (o.delivery_type === 'delivery') {
+    lineaTotal(`Envío${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}`,
+      Number(o.delivery_fee_usd) > 0 ? `$${Number(o.delivery_fee_usd).toFixed(2)}` : 'Gratis');
+  }
+  const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
+  if (ivaPct > 0) {
+    const base = total / (1 + ivaPct / 100);
+    lineaTotal('Base imponible', `$${base.toFixed(2)}`);
+    lineaTotal(`IVA (${ivaPct}%)`, `$${(total - base).toFixed(2)}`);
+  }
+  doc.setDrawColor(...C.main); doc.setLineWidth(1.2);
+  doc.line(pageW - 250, ty - 10, pageW - 40, ty - 10);
+  ty += 4;
+  lineaTotal('TOTAL (USD)', `$${total.toFixed(2)}`, { fuerte: true, color: C.main });
+  if (s.doc_show_bs !== '0') {
+    lineaTotal('TOTAL (Bs)',
+      'Bs ' + (total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      { color: C.acc });
+  }
+
+  /* --- Firmas --- */
+  const firmas = {
+    factura:     ['Firma del cliente', 'Fecha'],
+    recibo:      ['Recibí conforme (firma)', 'Fecha de entrega'],
+    presupuesto: ['Firma de aceptación', 'Fecha'],
+  }[tipo] || ['Firma', 'Fecha'];
+  const fy = Math.min(ty + 54, pageH - 96);
+  doc.setDrawColor(120); doc.setLineWidth(0.9);
+  doc.line(48, fy, 48 + 190, fy);
+  doc.line(pageW - 48 - 190, fy, pageW - 48, fy);
+  doc.setFontSize(8.5); doc.setTextColor(90); doc.setFont('helvetica', 'normal');
+  doc.text(firmas[0], 48 + 95, fy + 12, { align: 'center' });
+  doc.text(firmas[1], pageW - 48 - 95, fy + 12, { align: 'center' });
+
+  /* --- Pie legal --- */
+  const legal = tipo === 'presupuesto'
+    ? 'Presupuesto sin validez fiscal. Precios sujetos a cambio según la tasa del día y la disponibilidad de inventario.'
+    : tipo === 'recibo'
+      ? 'Orden de recibo / entrega de mercancía. La firma del cliente deja constancia de recepción conforme.'
+      : (s.doc_footer_legal !== undefined && s.doc_footer_legal !== ''
+          ? s.doc_footer_legal
+          : 'Este documento es un comprobante interno de la operación y NO constituye una factura fiscal a los efectos del SENIAT.');
+
+  doc.setFontSize(7.5); doc.setTextColor(130);
+  if (o.notes) {
+    doc.text(doc.splitTextToSize('Notas: ' + o.notes, pageW - 80), 40, pageH - 62);
+  }
+  doc.setFont('helvetica', 'italic');
+  doc.text(doc.splitTextToSize(legal, pageW - 80), 40, pageH - 40);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${s.business_name || 'JJ Paper'} · ${s.doc_footer_note || 'Gracias por su compra.'}`,
+           40, pageH - 22);
+
+  /* --- Marca ANULADO ---
+     La transparencia depende de la API avanzada de jsPDF; si no está,
+     se dibuja en rojo claro. Un adorno nunca debe impedir que salga
+     el documento. */
+  if (anulado) {
+    try {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(90);
+      if (doc.setGState && doc.GState) {
+        doc.setTextColor(200, 60, 60);
+        doc.setGState(new doc.GState({ opacity: 0.16 }));
+        doc.text('ANULADO', pageW / 2, pageH / 2, { align: 'center', angle: 22 });
+        doc.setGState(new doc.GState({ opacity: 1 }));
+      } else {
+        doc.setTextColor(240, 205, 205);
+        doc.text('ANULADO', pageW / 2, pageH / 2, { align: 'center', angle: 22 });
+      }
+    } catch (e) { /* sin marca de agua, pero con documento */ }
+  }
+
+  const etiqueta = { factura: 'Factura', recibo: 'Recibo', presupuesto: 'Presupuesto' }[tipo] || 'Comprobante';
+  return {
+    blob: doc.output('blob'),
+    filename: `${etiqueta}-${o.order_number || docToday()}.pdf`,
+    doc,
+  };
+}
+
+/* ====================================================================
+   Caché del día: el catálogo son 600 presentaciones y las PC de la
+   tienda son viejas. Se genera UNA vez por día y por usuario, se guarda
+   en Storage y los envíos siguientes reusan ese archivo.
+   ==================================================================== */
+const _docCacheSesion = {};   // clave → {path, blob, filename}
+
+async function docArchivoDelDia(clase, bucket = 'jjp-wa-media') {
+  const clave = `${clase}:${bucket}`;
+  if (_docCacheSesion[clave]) return _docCacheSesion[clave];
+
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) throw new Error('Sin sesión');
+
+  const nombre = clase === 'catalogo'
+    ? `Catalogo-JJPaper-${docToday()}.pdf`
+    : `Lista-de-precios-JJPaper-${docToday()}.pdf`;
+  const path = `${user.id}/_docs/${nombre}`;
+
+  // ¿Ya está subido hoy? La política de Storage exige que la primera
+  // carpeta sea el uid, por eso el archivo es por usuario.
+  const { data: existentes } = await sb.storage.from(bucket)
+    .list(`${user.id}/_docs`, { search: nombre, limit: 1 });
+  if (existentes?.some(f => f.name === nombre)) {
+    const listo = { path, filename: nombre, blob: null, bucket };
+    _docCacheSesion[clave] = listo;
+    return listo;
+  }
+
+  const { blob } = clase === 'catalogo' ? await docPdfCatalogo() : await docPdfListaPrecios();
+  const { error } = await sb.storage.from(bucket)
+    .upload(path, blob, { contentType: 'application/pdf', upsert: true });
+  if (error) throw new Error('No se pudo guardar el PDF: ' + error.message);
+
+  const listo = { path, filename: nombre, blob, bucket };
+  _docCacheSesion[clave] = listo;
+  return listo;
+}
+
+/* Descarga directa (lo que ya hacía el botón del sitio público) */
+function docDescargar(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

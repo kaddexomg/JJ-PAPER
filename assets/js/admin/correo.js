@@ -426,9 +426,42 @@ async function mailAttachFiles(input) {
   }
   mailRenderAttach();
 }
+/* Adjuntar el catálogo o la lista de precios sin salir del compositor.
+   El PDF se genera una vez al día y se reusa: en las PC de la tienda,
+   rearmar 600 presentaciones en cada correo era demasiado. */
+async function mailAdjuntarDoc(clase) {
+  const etiqueta = clase === 'catalogo' ? 'catálogo' : 'lista de precios';
+  showToast(`Preparando el ${etiqueta}…`);
+  try {
+    const f = await docArchivoDelDia(clase, 'jjp-email-media');
+    if (mailCompose.attachments.some(a => a.path === f.path)) {
+      showToast('Ese documento ya está adjunto', 'warn');
+      return;
+    }
+    // shared: el archivo del día lo comparten todos los correos de hoy;
+    // quitarlo del compositor NO debe borrarlo del Storage.
+    mailCompose.attachments.push({
+      path: f.path, name: f.filename, mime: 'application/pdf',
+      size: f.blob?.size || null, shared: true,
+    });
+    mailRenderAttach();
+    // Si el asunto está vacío, se rellena solo: un correo menos que escribir
+    const subj = document.getElementById('mailSubject');
+    if (subj && !subj.value.trim()) {
+      subj.value = clase === 'catalogo' ? 'Catálogo JJ Paper' : 'Lista de precios — JJ Paper';
+    }
+    showToast(`📎 ${etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1)} adjunto`, 'ok');
+  } catch (e) {
+    console.error('adjuntar documento:', e);
+    showToast('No se pudo preparar el documento: ' + (e.message || e), 'err');
+  }
+}
+
 function mailRemoveAttach(i) {
   const a = mailCompose.attachments[i];
-  if (a?.path) sb.storage.from('jjp-email-media').remove([a.path]).catch(() => {});
+  // Los compartidos (catálogo/lista del día) se quitan del correo pero
+  // NO se borran: otros correos de hoy apuntan al mismo archivo.
+  if (a?.path && !a.shared) sb.storage.from('jjp-email-media').remove([a.path]).catch(() => {});
   mailCompose.attachments.splice(i, 1);
   mailRenderAttach();
 }

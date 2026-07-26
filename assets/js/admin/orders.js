@@ -112,7 +112,8 @@ function renderOrdersTable() {
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewOrder('${o.id}')">👁️ Ver</button>
-          <a class="btn-wa sm" style="width:auto;padding:7px 10px" href="https://wa.me/${(o.phone||'').replace(/\D/g,'')}" target="_blank">💬</a>
+          <button class="btn-send sm" onclick="sendMenuAbrir(event, ordCtx('${o.id}'))"
+                  title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
           ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         </div>
       </td>
@@ -172,9 +173,18 @@ async function syncOrderStock(id, status) {
     if (['pagado', 'preparando', 'entregado'].includes(status)) {
       const { data, error } = await sb.rpc('jjp_apply_order_stock', { p_order_id: id });
       if (error) throw error;
-      if (data === true) {
+      // La RPC ahora informa qué líneas no pudo tocar (las que no traen
+      // variante no se pueden descontar). Antes decía "listo" siempre y el
+      // inventario quedaba mal sin que nadie se enterara.
+      const faltantes = data?.faltantes || [];
+      if (data?.ya) {
+        /* el stock ya estaba aplicado: no hay nada que avisar */
+      } else if (data?.ok) {
         if (o) o.stock_applied = true;
         showToast('📦 Stock descontado del inventario');
+      } else {
+        showToast(`⚠️ No se pudo descontar: ${faltantes.join(', ')}. ` +
+                  'Esas líneas no tienen presentación asignada — ajústalas en inventario.', 'warn');
       }
     } else if (['rechazado', 'cancelado'].includes(status)) {
       const { data, error } = await sb.rpc('jjp_revert_order_stock', { p_order_id: id });
@@ -300,6 +310,7 @@ function viewOrder(id) {
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">🧾 Factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo">📦 Orden de recibo</a>
+      ${sendBotonHTML(`ordCtx('${o.id}')`)}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${o.client_name}, le escribimos de JJ Paper sobre su pedido ${o.order_number}.`)}">💬 Contactar</a>
     </div>
@@ -310,6 +321,17 @@ function viewOrder(id) {
 
 function closeOrderModal() {
   document.getElementById('orderModal')?.classList.remove('op');
+}
+
+/* Contexto para el hub de envío (assets/js/send-hub.js): con esto el
+   botón 📤 sabe a quién escribirle y qué documentos puede mandar. */
+function ordCtx(id) {
+  const o = adminOrders.find(x => x.id === id) || {};
+  return {
+    nombre: o.client_name, telefono: o.phone, email: o.email,
+    customerId: o.customer_id || null, order: o,
+    docs: ['factura', 'recibo', 'estado', 'catalogo', 'lista'],
+  };
 }
 
 // Confirmar (o ajustar) el costo del envío: recalcula total_usd/total_bs

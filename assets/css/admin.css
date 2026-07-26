@@ -391,3 +391,84 @@ body.admin-body { background:var(--gl) }
   .fac-filters .fi { max-width:none }
   .fac-modal-box { padding:16px; border-radius:14px }
 }
+
+/* ======================================================
+   Hub de envío — botón "📤 Enviar" y su menú
+   (assets/js/send-hub.js). Vive en el panel: pedidos,
+   cotizaciones, chat de WhatsApp, correo, POS y cotizador.
+   ====================================================== */
+.btn-send {
+  border:0; border-radius:var(--rx); cursor:pointer; font-weight:700; font-size:13px;
+  padding:9px 14px; background:var(--gd); color:#fff; transition:var(--trx);
+  display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+.btn-send:hover { background:var(--gh); transform:translateY(-1px) }
+.btn-send:focus-visible { outline:3px solid var(--am); outline-offset:2px }
+.btn-send.sm { padding:7px 10px; font-size:12px }
+
+.send-menu {
+  position:fixed; z-index:1400; width:min(340px, calc(100vw - 20px));
+  background:#fff; border-radius:14px; box-shadow:var(--sxl);
+  border:1px solid #e6ece9; overflow:hidden; animation:sendIn .16s ease;
+}
+@keyframes sendIn { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+
+.send-menu-head {
+  padding:12px 14px; background:linear-gradient(135deg,var(--gdk),var(--gd));
+  color:#fff; font-size:13px;
+}
+.send-menu-head strong { color:var(--rg) }
+.send-menu-sub { font-size:11px; opacity:.85; margin-top:3px }
+
+.send-row {
+  display:flex; align-items:center; gap:8px; padding:9px 12px;
+  border-bottom:1px solid #f1f4f2;
+}
+.send-row:last-of-type { border-bottom:0 }
+.send-row-txt { flex:1; min-width:0; display:flex; flex-direction:column }
+.send-row-label { font-size:13px; font-weight:600; color:var(--bk) }
+.send-row-hint { font-size:11px; color:var(--gr) }
+
+.send-go {
+  width:38px; height:38px; border:0; border-radius:10px; cursor:pointer;
+  font-size:16px; transition:var(--trx); flex-shrink:0;
+}
+.send-go.wa   { background:#e7f9ee; }
+.send-go.mail { background:#eaf1fb; }
+.send-go:hover:not(:disabled)  { transform:scale(1.08) }
+.send-go.wa:hover:not(:disabled)   { background:var(--wa) }
+.send-go.mail:hover:not(:disabled) { background:var(--info) }
+.send-go:disabled { opacity:.32; cursor:not-allowed }
+.send-go:focus-visible { outline:3px solid var(--am); outline-offset:2px }
+
+.send-menu-foot {
+  padding:8px 12px; background:#fafbfa; font-size:11px; min-height:30px;
+  border-top:1px solid #f1f4f2;
+}
+.send-ok   { color:var(--success); font-weight:600 }
+.send-off  { color:var(--danger);  font-weight:600 }
+.send-wait { color:var(--gr) }
+
+@media (max-width:640px) {
+  .send-menu { width:calc(100vw - 20px) }
+  .send-go { width:44px; height:44px }
+}
+
+/* ---- Ficha 360° del cliente (historial dentro del chat/correo) ---- */
+.c360 { margin-top:10px }
+.c360-tot {
+  display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;
+}
+.c360-tot span {
+  background:var(--gx); color:var(--gd); border-radius:999px;
+  padding:4px 10px; font-size:11px; font-weight:700;
+}
+.c360-item {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:7px 9px; border:1px solid #eef2f0; border-radius:10px;
+  margin-bottom:5px; background:#fff; font-size:12px;
+}
+.c360-item .c360-num { font-weight:700; color:var(--gd) }
+.c360-item .c360-fecha { color:var(--gr); font-size:11px }
+.c360-item a { text-decoration:none }
+.c360-empty { color:var(--gr); font-size:12px; padding:6px 0 }

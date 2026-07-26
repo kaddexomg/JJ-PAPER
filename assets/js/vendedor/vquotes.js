@@ -9,12 +9,27 @@ let posTicket   = {};
 async function initQuoter() {
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
   posRenderResults(pfMatch(posProducts, ''));
-  const id = new URLSearchParams(location.search).get('add');   // desde Consultar stock
+  const params = new URLSearchParams(location.search);
+  const id = params.get('add');   // desde Consultar stock
   if (id) {
     const p = posProducts.find(x => x.id === id);
     if (p) posAddResolved(p, (p.jjp_product_variants || []).filter(x => x.active)[0] || null);
   }
+  // Viene con el cliente ya elegido (desde el chat de WhatsApp, el correo
+  // o la ficha del cliente): sus datos entran solos.
+  const cliente = params.get('cliente');
+  if (cliente) await quoteCargarCliente(cliente);
   pfPhoneBridge(posOnScan);   // teléfono → agrega a la cotización en vivo
+}
+
+async function quoteCargarCliente(id) {
+  const { data: c } = await sb.from('jjp_customers')
+    .select('name,phone,rif,city').eq('id', id).maybeSingle();
+  if (!c) { showToast('No se encontró ese cliente', 'warn'); return; }
+  const set = (campo, v) => { const el = document.getElementById(campo); if (el && v) el.value = v; };
+  set('qCliName', c.name); set('qCliTel', c.phone);
+  set('qCliRif', c.rif);   set('qCliCity', c.city);
+  showToast(`Cotizando para ${c.name}`);
 }
 
 function posOnScan(code) {
@@ -207,7 +222,28 @@ async function quoteSubmit() {
   btn.disabled = false; btn.textContent = '📋 Guardar cotización';
 }
 
+/* Contexto para el hub de envío: la cotización recién guardada.
+   El presupuesto se manda en PDF, no como una lista de texto. */
+let quoteLast = null;
+function quoteDoneCtx() {
+  const q = quoteLast || {};
+  return {
+    nombre: q.client_name, telefono: q.phone, email: q.email || null,
+    quote: {
+      order_number: q.quote_number, client_name: q.client_name, rif: q.rif,
+      phone: q.phone, city: q.city, items: q.items || [],
+      subtotal_usd: (q.items || []).reduce((s, i) => s + (i.subtotal_usd || 0), 0),
+      total_usd: q.estimated_total_usd, discount_pct: q.discount_pct,
+      discount_status: Number(q.discount_pct) > 0 ? 'approved' : 'none',
+      exchange_rate: q.exchange_rate, notes: q.notes,
+      status: q.status, created_at: new Date().toISOString(),
+    },
+    docs: ['cotizacion', 'catalogo', 'lista'],
+  };
+}
+
 function quoteShowDone(q) {
+  quoteLast = q;
   const subtotal = q.items.reduce((s, i) => s + i.subtotal_usd, 0);
   const discLines = q.discount_pct > 0
     ? `\n\nSubtotal: ${fmtPrice(subtotal)}\n🏷️ *Descuento ${q.discount_pct}%: −${fmtPrice(subtotal - q.estimated_total_usd)}*`
@@ -230,8 +266,9 @@ function quoteShowDone(q) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
+      ${sendBotonHTML('quoteDoneCtx()')}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
-         href="https://wa.me/${(q.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Enviar al cliente</a>
+         href="https://wa.me/${(q.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
       <button class="btn-p" onclick="quoteReset()">📋 Nueva cotización</button>
     </div>`;
   document.getElementById('qDoneModal').classList.add('op');

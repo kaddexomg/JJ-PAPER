@@ -77,6 +77,8 @@ function renderVQuotes() {
       <td><span class="status-badge st-${escapeHTML(q.status || '')}">${VQ_STATUS_LABEL[q.status] || q.status}</span></td>
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVQuote('${q.id}')">👁️ Ver</button>
+        <button class="btn-send sm" onclick="sendMenuAbrir(event, vQuoteCtx('${q.id}'))"
+                title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
         <a class="btn-o sm" style="width:auto;padding:7px 10px" target="_blank"
            href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️</a>
       </div></td>
@@ -139,6 +141,7 @@ function viewVQuote(id) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️ Imprimir presupuesto</a>
+      ${sendBotonHTML(`vQuoteCtx('${q.id}')`)}
       ${closed ? '' : `<button class="btn-p" onclick="convertVQuote('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
          style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛍️ Convertir en venta</button>`}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
@@ -152,6 +155,26 @@ function closeVQuoteModal() {
   document.getElementById('vQuoteModal')?.classList.remove('op');
 }
 
+/* Contexto para el hub de envío (send-hub.js): la cotización sale en PDF */
+function vQuoteCtx(id) {
+  const q = vQuotes.find(x => x.id === id) || {};
+  const items = vqItems(q);
+  return {
+    nombre: q.client_name, telefono: q.phone, email: q.email,
+    customerId: q.customer_id || null,
+    quote: {
+      order_number: q.quote_number, client_name: q.client_name, rif: q.rif,
+      phone: q.phone, email: q.email, city: q.city, address: q.address,
+      items, subtotal_usd: items.reduce((s, i) => s + (i.price_usd || 0) * i.qty, 0),
+      total_usd: vqTotal(q), discount_pct: q.discount_pct,
+      discount_status: Number(q.discount_pct) > 0 ? 'approved' : 'none',
+      exchange_rate: q.exchange_rate, notes: q.notes,
+      status: q.status, created_at: q.created_at,
+    },
+    docs: ['cotizacion', 'catalogo', 'lista'],
+  };
+}
+
 async function updateVQuoteStatus(id, status) {
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
   if (error) { showToast('No se pudo actualizar el estado', 'err'); return; }
@@ -162,21 +185,17 @@ async function updateVQuoteStatus(id, status) {
 }
 
 /* ---------- Convertir cotización en venta ----------
-   Crea el pedido igual que el POS: a precio lleno y en 'pendiente_pago'.
-   Si la cotización traía descuento, queda SOLICITADO para que el admin lo
-   apruebe (el guardián de la BD también fuerza precio lleno a no-admin).   */
+   Lo resuelve la base de datos (jjp_convert_quote), la misma función que
+   usa el admin. Con eso el pedido conserva la presentación de cada línea
+   (variant_id) y el stock puede descontarse; antes esta copia la perdía y
+   el inventario nunca bajaba. La venta nace en 'pendiente_pago' y, si la
+   cotización traía descuento, queda SOLICITADO para que el admin lo apruebe. */
 let vqConverting = false;
 async function convertVQuote(id) {
   if (vqConverting) return;
   const q = vQuotes.find(x => x.id === id);
   if (!q) return;
   if (VQ_CLOSED.includes(q.status)) { showToast('Esta cotización ya está cerrada', 'warn'); return; }
-
-  const items = vqItems(q);
-  if (!items.length || items.some(i => !i.price_usd)) {
-    showToast('Todos los productos deben tener precio para convertir', 'warn');
-    return;
-  }
 
   const pct = Number(q.discount_pct) || 0;
   const aviso = pct > 0
@@ -185,48 +204,16 @@ async function convertVQuote(id) {
   if (!confirm(`¿Crear una venta a partir de la cotización ${q.quote_number}?${aviso}`)) return;
 
   vqConverting = true;
-  const subtotal = items.reduce((s, i) => s + i.price_usd * i.qty, 0);
-  const total    = +subtotal.toFixed(2);      // precio lleno, como en el POS
-  const rate     = getRate();
-
-  const order = {
-    order_number: genOrderNumber(),
-    client_name: q.client_name,
-    rif:   q.rif   || null,
-    phone: q.phone,
-    email: q.email || null,
-    city:  q.city  || null,
-    items: items.map(i => ({
-      id: i.product_id || i.id || null,
-      name: vqItemName(i), brand: i.brand || null,
-      qty: i.qty, unit: i.unit || 'unid', price_usd: i.price_usd,
-      subtotal_usd: +(i.price_usd * i.qty).toFixed(2),
-    })),
-    subtotal_usd: +subtotal.toFixed(2),
-    total_usd: total,
-    discount_pct: pct,
-    discount_status: pct > 0 ? 'pending' : 'none',
-    discount_requested_by: pct > 0 ? SELLER.id : null,
-    exchange_rate: rate,
-    total_bs: +(total * rate).toFixed(2),
-    payment_method: 'efectivo',
-    notes: `Generado desde cotización ${q.quote_number}`,
-    seller_id: SELLER.id,
-    source: 'pos',
-    status: 'pendiente_pago',
-  };
-
-  const { error } = await sb.from('jjp_orders').insert(order);
+  const { data, error } = await sb.rpc('jjp_convert_quote', { p_quote: id });
+  vqConverting = false;
   if (error) {
     console.error('convert quote:', error);
-    showToast('No se pudo crear la venta', 'err');
-    vqConverting = false;
+    showToast('No se pudo crear la venta: ' + error.message, 'err');
     return;
   }
+  const order = Array.isArray(data) ? data[0] : data;
 
-  await sb.from('jjp_quotes').update({ status: 'convertido' }).eq('id', id);
   q.status = 'convertido';
-  vqConverting = false;
   closeVQuoteModal();
   renderVQuotes();
   showVQuoteConverted(order);

@@ -313,10 +313,113 @@ async function waOpenChat(chatId) {
   waRenderChatList();
   await waLoadMessages();
   waMarkRead();
+  waCargarFicha();           // historial del cliente, para la ficha y el correo
   if (waActive.owner_id === WA_ME.id) {
     waSendAction('read');    // recibo de lectura en el teléfono del cliente
     waSendAction('watch');   // pedir la presencia del cliente ("escribiendo…")
   }
+}
+
+/* ====================================================================
+   Ficha del cliente dentro del chat
+   El vendedor ya no tiene que salirse del chat para saber qué le compró
+   esta persona: pedidos y cotizaciones se ven aquí mismo.
+   ==================================================================== */
+let waFicha = null;   // { cliente, pedidos, cotizaciones } del chat abierto
+
+async function waCargarFicha() {
+  waFicha = null;
+  if (!waActive?.customer_id) return;
+  const idAlAbrir = waActive.id;
+  const { data, error } = await sb.rpc('jjp_customer_360', { p_customer: waActive.customer_id });
+  if (error || !data) return;
+  if (waActive?.id !== idAlAbrir) return;   // el vendedor ya cambió de chat
+  waFicha = data;
+}
+
+// Contexto para el hub de envío (send-hub.js)
+function waSendCtx() {
+  const docs = ['catalogo', 'lista'];
+  const ctx = {
+    nombre: waActive?.display_name || waPrettyPhone(waActive?.phone),
+    telefono: waActive?.phone,
+    email: waFicha?.cliente?.email || null,
+    customerId: waActive?.customer_id || null,
+    docs,
+  };
+  // Si tiene documentos recientes, se ofrecen también desde el chat
+  const ped = waFicha?.pedidos?.[0];
+  const cot = waFicha?.cotizaciones?.[0];
+  if (ped) { ctx.order = { ...ped, order_number: ped.numero }; }
+  if (cot) { ctx.quote = { ...cot, order_number: cot.numero }; }
+  return ctx;
+}
+
+function waVerFicha() {
+  if (!waActive) return;
+  if (!waActive.customer_id) {
+    showToast('Este chat aún no está vinculado a un cliente del CRM', 'warn');
+    return;
+  }
+  const f = waFicha;
+  const c = f?.cliente || {};
+  const base = WA_IS_ADMIN ? '../vendedor/' : '';
+  const fecha = iso => iso ? new Date(iso).toLocaleDateString('es-VE') : '';
+  const linea = (d, tipo) => `
+    <div class="c360-item">
+      <div><span class="c360-num">${escapeHTML(d.numero || '—')}</span>
+        <div class="c360-fecha">${fecha(d.fecha)} · ${escapeHTML(d.estado || '')}</div></div>
+      <div style="text-align:right">
+        <strong>${fmtPrice(d.total_usd || 0)}</strong><br>
+        <a href="../comprobante.html?${tipo === 'pedido' ? 'n' : 'q'}=${encodeURIComponent(d.numero || '')}"
+           target="_blank" style="font-size:11px;color:var(--gd)">🖨️ imprimir</a>
+      </div>
+    </div>`;
+
+  const html = `
+    <div class="c360">
+      <div class="c360-tot">
+        <span>🛒 ${c.total_orders || 0} compras</span>
+        <span>💵 ${fmtPrice(c.total_usd || 0)} total</span>
+        ${c.last_order_at ? `<span>📅 última ${fecha(c.last_order_at)}</span>` : ''}
+        ${c.email ? `<span>📧 ${escapeHTML(c.email)}</span>` : ''}
+      </div>
+      <h4 style="font-size:13px;margin:10px 0 6px">Pedidos</h4>
+      ${f?.pedidos?.length ? f.pedidos.map(p => linea(p, 'pedido')).join('')
+                           : '<p class="c360-empty">Todavía no te ha comprado.</p>'}
+      <h4 style="font-size:13px;margin:12px 0 6px">Cotizaciones</h4>
+      ${f?.cotizaciones?.length ? f.cotizaciones.map(q => linea(q, 'cotizacion')).join('')
+                                : '<p class="c360-empty">Sin cotizaciones.</p>'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <a class="btn-p" style="width:auto;padding:9px 14px;text-decoration:none"
+           href="${base}pos.html?cliente=${encodeURIComponent(waActive.customer_id)}">🛍️ Venderle ahora</a>
+        <a class="btn-o" style="width:auto;padding:9px 14px;text-decoration:none"
+           href="${base}cotizador.html?cliente=${encodeURIComponent(waActive.customer_id)}">📋 Cotizarle</a>
+      </div>
+    </div>`;
+
+  waModalSimple(`Ficha de ${escapeHTML(c.name || waActive.display_name || '')}`, html);
+}
+
+/* Modal ligero creado al vuelo (no hace falta tocar los dos whatsapp.html) */
+function waModalSimple(titulo, html) {
+  document.getElementById('waSimpleModal')?.remove();
+  const el = document.createElement('div');
+  el.id = 'waSimpleModal';
+  el.className = 'modal-overlay op';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.innerHTML = `
+    <div class="modal-box" style="max-width:520px">
+      <div class="modal-hd">
+        <h3>${titulo}</h3>
+        <button class="modal-close" onclick="document.getElementById('waSimpleModal').remove()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">${html}</div>
+    </div>`;
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+  document.body.appendChild(el);
+  if (typeof trapFocus === 'function') trapFocus(el);
 }
 
 function waCloseThread() {
@@ -343,10 +446,14 @@ function waRenderThreadHeader() {
       <strong>${escapeHTML(waActive.display_name || waPrettyPhone(waActive.phone))}</strong>
       <small id="waPresence" class="wa-pres" aria-live="polite">${escapeHTML(waPrettyPhone(waActive.phone))}${owner ? ' · sesión de ' + escapeHTML(owner) : ''}</small>
     </div>
+    ${!mine ? '' : `<button class="btn-o wa-cust-btn" onclick="sendMenuAbrir(event, waSendCtx())"
+        title="Enviar catálogo, lista de precios o un documento" aria-label="Enviar documento" aria-haspopup="menu">📤</button>`}
     ${!mine ? ''
       : waActive.customer_id
         ? `<a class="btn-o wa-cust-btn" href="${(WA_IS_ADMIN ? '../vendedor/' : '') + 'pos.html?tel=' + encodeURIComponent(waActive.phone)}" title="Nueva venta a este cliente">🛍️ Venta</a>`
         : `<button class="btn-o wa-cust-btn" onclick="waLinkCustomer()" title="Crear cliente en el CRM">＋ CRM</button>`}
+    ${!mine ? '' : `<button class="btn-o wa-cust-btn" onclick="waVerFicha()"
+        title="Historial de compras y cotizaciones" aria-label="Ficha del cliente">📇</button>`}
     ${(mine || WA_IS_ADMIN) ? `
       <button class="btn-o wa-cust-btn ${waActive.pinned ? 'on-pin' : ''}" onclick="waTogglePin()"
         title="${waActive.pinned ? 'Desanclar chat' : 'Anclar chat arriba'}" aria-label="Anclar chat">📌</button>

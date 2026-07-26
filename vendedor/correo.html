@@ -142,6 +142,8 @@
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button type="button" class="btn-o" onclick="document.getElementById('mailFile').click()">📎 Adjuntar archivo</button>
           <input type="file" id="mailFile" multiple style="display:none" onchange="mailAttachFiles(this)">
+          <button type="button" class="btn-o" onclick="mailAdjuntarDoc('catalogo')" title="Adjunta el catálogo del día en PDF">📗 Catálogo</button>
+          <button type="button" class="btn-o" onclick="mailAdjuntarDoc('lista')" title="Adjunta la lista de precios del día en PDF">💵 Lista de precios</button>
           <span style="font-size:11px;color:var(--gr,#999)">Máx 20 MB c/u</span>
         </div>
         <div id="mailAttachList" class="mail-attach"></div>
@@ -259,6 +261,8 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js"></script>
+<script src="../assets/js/doc-engine.js?v=20260726"></script>
+<script src="../assets/js/send-hub.js?v=20260726"></script>
 <script src="../assets/js/admin/correo.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

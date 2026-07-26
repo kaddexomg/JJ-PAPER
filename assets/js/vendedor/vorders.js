@@ -45,8 +45,8 @@ function renderVOrders() {
       <td><span class="status-badge st-${o.status}">${V_STATUS_LABEL[o.status] || o.status}</span></td>
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVOrder('${o.id}')">👁️ Ver</button>
-        <a class="btn-wa sm" style="width:auto;padding:7px 10px" target="_blank"
-           href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${o.client_name}, le escribe ${SELLER?.name || ''} de JJ Paper sobre su pedido ${o.order_number}.`)}">💬</a>
+        <button class="btn-send sm" onclick="sendMenuAbrir(event, vOrderCtx('${o.id}'))"
+                title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -105,10 +105,21 @@ function viewVOrder(id) {
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">🧾 Factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo">📦 Orden de recibo</a>
+      ${sendBotonHTML(`vOrderCtx('${o.id}')`)}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${o.client_name}, le escribe ${SELLER?.name || ''} de JJ Paper sobre su pedido ${o.order_number}.`)}">💬 Contactar</a>
     </div>`;
   modal.classList.add('op');
+}
+
+/* Contexto para el hub de envío (send-hub.js) */
+function vOrderCtx(id) {
+  const o = vOrders.find(x => x.id === id) || {};
+  return {
+    nombre: o.client_name, telefono: o.phone, email: o.email,
+    customerId: o.customer_id || null, order: o,
+    docs: ['factura', 'recibo', 'estado', 'catalogo', 'lista'],
+  };
 }
 
 // El vendedor solo puede marcar entrega; los pagos los confirma el admin.

@@ -82,6 +82,9 @@ export class WaSession {
     this.pairingPhone = null;   // si está seteado, pedir pairing code en vez de QR
     this.pairingRequested = false;
     this.reconnectMs = 2000;
+    this.reconnectTimer = null;   // hay un reintento ya programado
+    this.startingSince = 0;       // arranque en curso: NADIE más debe arrancar
+    this.lastEventAt = 0;         // última señal de vida de WhatsApp
     this.dir = path.join(SESSIONS_DIR, profileId);
     // Presencia: chats cuya presencia estamos observando y hasta cuándo nos
     // declaramos "disponibles" (WhatsApp solo entrega el "escribiendo…" del
@@ -102,6 +105,9 @@ export class WaSession {
   async start() {
     this.stopped = false;
     this.pairingRequested = false;
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    this.lastEventAt = Date.now();
+    this.startingSince = Date.now();   // se limpia al abrir o al cerrar la conexión
     await this.setSession({ status: 'starting', last_error: null });
     try {
       const { state, saveCreds } = await useMultiFileAuthState(this.dir);
@@ -131,6 +137,7 @@ export class WaSession {
       sock.ev.on('messaging-history.set', ev => this.onHistory(ev).catch(e =>
         log.error({ err: e.message, profile: this.profileId }, 'messaging-history.set falló')));
     } catch (e) {
+      this.startingSince = 0;
       log.error({ err: e.message, profile: this.profileId }, 'start de sesión falló');
       await this.setSession({ status: 'error', last_error: e.message });
       this.scheduleReconnect();
@@ -161,6 +168,8 @@ export class WaSession {
 
     if (connection === 'open') {
       this.reconnectMs = 2000;
+      this.lastEventAt = Date.now();
+      this.startingSince = 0;
       this.pairingPhone = null;
       const me = this.sock.user || {};
       await this.setSession({
@@ -179,6 +188,7 @@ export class WaSession {
     }
 
     if (connection === 'close') {
+      this.startingSince = 0;
       const code = lastDisconnect?.error?.output?.statusCode;
       if (code === DisconnectReason.loggedOut) {
         log.warn({ profile: this.profileId }, 'sesión cerrada desde el teléfono (logged out)');
@@ -195,14 +205,35 @@ export class WaSession {
 
   scheduleReconnect() {
     if (this.stopped) return;
+    if (this.reconnectTimer) return;          // ya hay uno en camino
     const wait = this.reconnectMs;
     this.reconnectMs = Math.min(this.reconnectMs * 2, 60_000);
     log.info({ profile: this.profileId, wait }, 'reintento de conexión programado');
-    setTimeout(() => { if (!this.stopped) this.start(); }, wait);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (!this.stopped) this.start();
+    }, wait);
+  }
+
+  // ¿El websocket con WhatsApp sigue realmente abierto? Baileys puede quedarse
+  // con sock.user cargado y el socket muerto SIN emitir 'close': ahí el panel
+  // mostraba 🟢 y no entraba ni salía nada.
+  wsOpen() {
+    const ws = this.sock?.ws;
+    if (!ws) return false;
+    if (typeof ws.isOpen === 'boolean') return ws.isOpen;
+    const rs = ws.readyState ?? ws.socket?.readyState;
+    return rs === undefined ? true : rs === 1;   // 1 = OPEN
+  }
+
+  // Sana = conectada, con el socket abierto y sin un reintento pendiente
+  isHealthy() {
+    return !this.stopped && this.isConnected() && this.wsOpen() && !this.reconnectTimer;
   }
 
   // ---------- Entrantes (y enviados desde el teléfono) ----------
   async onMessages({ messages, type }) {
+    this.lastEventAt = Date.now();
     if (type !== 'notify' && type !== 'append') return;
     for (const msg of messages) {
       const key = msg.key || {};

@@ -12,14 +12,20 @@ const HEARTBEAT_MS = 20_000;   // cada cuánto late
 const POLL_MS      = 10_000;   // respaldo si Realtime está caído
 
 let modulesRef = {};
+let liveFn = null;      // devuelve estado en vivo (p. ej. salud de cada WhatsApp)
 let beatTimer = null;
 let pollTimer = null;
 let handling = false;
 
 async function beat() {
+  // El latido decía solo "el proceso vive". Ahora también dice si cada
+  // WhatsApp está realmente sano, que es lo que le importa al panel.
+  let extra = {};
+  try { extra = (typeof liveFn === 'function' ? liveFn() : {}) || {}; } catch (e) { /* nunca frenar el latido */ }
+
   const { error } = await db.from('jjp_server_control').update({
     heartbeat_at: new Date().toISOString(),
-    modules: modulesRef
+    modules: { ...modulesRef, ...extra }
   }).eq('id', 1);
   if (error) log.warn({ err: error.message }, 'heartbeat falló');
 }
@@ -44,8 +50,9 @@ async function runCommand(cmd) {
   handling = false;
 }
 
-export function startHeartbeat(modules = {}) {
+export function startHeartbeat(modules = {}, liveStatusFn = null) {
   modulesRef = modules;
+  liveFn = liveStatusFn;
 
   db.from('jjp_server_control').update({
     started_at: new Date().toISOString(),

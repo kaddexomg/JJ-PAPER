@@ -42,6 +42,30 @@ export async function boot() {
     const { data } = await db.from('jjp_wa_sessions').select('*').not('requested_action', 'is', null);
     for (const row of data || []) await handleRow(row).catch(() => {});
   }, SESSIONS_SWEEP_MS);
+
+  startWatchdog();
+}
+
+// Vigilante: Baileys puede quedarse con la sesión "abierta" pero el socket
+// muerto sin emitir 'close'. Antes eso dejaba el WhatsApp mudo hasta que
+// alguien lo notara y reiniciara el servidor a mano.
+function startWatchdog() {
+  setInterval(() => {
+    for (const s of sessions.values()) {
+      if (s.stopped || !s.hasCreds()) continue;   // desvinculada o apagada a propósito
+      if (s.isHealthy()) continue;
+      if (s.reconnectTimer) continue;             // ya se está reintentando
+      // Arranque EN CURSO: si el vigilante llamaba start() otra vez, quedaban
+      // DOS sockets de Baileys con las mismas credenciales y WhatsApp empezaba
+      // a fallar el descifrado ("Bad MAC"). Se le dan 3 minutos.
+      if (s.startingSince && Date.now() - s.startingSince < 180_000) continue;
+      const min = Math.round((Date.now() - (s.lastEventAt || 0)) / 60000);
+      log.warn({ profile: s.profileId, sinSenalMin: min }, 'sesión caída sin avisar — reconectando');
+      s.setSession({ status: 'disconnected', last_error: 'Reconectada por el vigilante' }).catch(() => {});
+      s.start().catch(e => log.error({ err: e.message, profile: s.profileId }, 'watchdog no pudo reconectar'));
+    }
+  }, 60_000);
+  log.info('vigilante de sesiones activo (revisa cada minuto)');
 }
 
 function ensure(profileId) {

@@ -25,9 +25,32 @@ const emailOn = startEmail();   // envío + recepción de correos del CRM (Gmail
 startEmailCampaigns();          // campañas de correo (seguimiento/captación) con throttle
 startRetention();               // purga storage de correo/WA (adjuntos y html viejos → re-traíbles de Gmail)
 
-// Latido + control remoto (panel de admin ve estado y puede reiniciar/detener)
-startHeartbeat({ whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn });
+// Latido + control remoto (panel de admin ve estado y puede reiniciar/detener).
+// El segundo argumento informa la salud REAL de cada sesión de WhatsApp: antes
+// el panel decía 🟢 aunque una sesión estuviera colgada.
+startHeartbeat(
+  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn },
+  () => {
+    const sesiones = manager.all();
+    return {
+      waSesiones: sesiones.length,
+      waSanas: sesiones.filter(s => s.isHealthy()).length,
+      waDetalle: sesiones.map(s => ({
+        perfil: s.profileId,
+        sana: s.isHealthy(),
+        minSinSenal: s.lastEventAt ? Math.round((Date.now() - s.lastEventAt) / 60000) : null
+      }))
+    };
+  }
+);
 
 process.on('SIGINT', () => { log.info('apagando…'); process.exit(0); });
 process.on('unhandledRejection', e => log.error({ err: e?.message || e }, 'unhandledRejection'));
-process.on('uncaughtException', e => log.error({ err: e?.message, stack: e?.stack }, 'uncaughtException'));
+
+// Antes esto solo se registraba y el proceso seguía vivo en un estado
+// indefinido: el panel decía 🟢 pero nada respondía. Ahora se sale con
+// código 1 y START-SERVIDOR.bat relanza limpio (el 2 es "detener a propósito").
+process.on('uncaughtException', e => {
+  log.error({ err: e?.message, stack: e?.stack }, 'uncaughtException — reiniciando el servidor');
+  setTimeout(() => process.exit(1), 300);   // deja que el log llegue al archivo
+});

@@ -340,9 +340,35 @@ const MIME = {
   '.woff2': 'font/woff2', '.map': 'application/json',
 };
 
+// Antes se respondía con Access-Control-Allow-Origin: * — o sea, CUALQUIER web
+// abierta en un equipo de la red podía leer el catálogo e inyectar conteos.
+// Ahora solo se permiten los orígenes nuestros: el panel en la nube, el propio
+// servidor por LAN y localhost.
+const ALLOWED_ORIGINS = [
+  'https://jj-paper.pages.dev',
+  'http://localhost:8787', 'https://localhost:8788',
+  'http://127.0.0.1:8787', 'https://127.0.0.1:8788',
+];
+function corsOrigin(req) {
+  const o = req?.headers?.origin;
+  if (!o) return null;                                   // petición del propio servidor
+  if (ALLOWED_ORIGINS.includes(o)) return o;
+  // El teléfono entra por la IP de la PC en la red local (192.168.x / 10.x)
+  if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
+  return null;
+}
+// Se marca la respuesta UNA vez al entrar la petición (handle) y de ahí en
+// adelante todas las salidas la heredan.
+function markCors(req, res) {
+  const o = corsOrigin(req);
+  if (!o) return;
+  res.setHeader('Access-Control-Allow-Origin', o);
+  res.setHeader('Vary', 'Origin');
+}
+
 function sendJSON(res, code, obj) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(body);
 }
 
@@ -411,9 +437,9 @@ ${qr ? `<img src="${qr}" alt="QR">` : ''}
 // ---- Rutas ----
 async function handle(req, res) {
   const { url, method } = req;
+  markCors(req, res);
   if (method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     });
@@ -447,7 +473,7 @@ async function handle(req, res) {
     if (route === '/lan/feed') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
-        Connection: 'keep-alive', 'Access-Control-Allow-Origin': '*',
+        Connection: 'keep-alive',
       });
       res.write(`event: state\ndata: ${JSON.stringify(publicState())}\n\n`);
       sseClients.add(res);

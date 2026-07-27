@@ -5,9 +5,11 @@
    El admin revisa y aplica (por producto o todos).
    ====================================================== */
 
-let prRows   = [];
-let prFactor = 1;
-let prSearch = '';
+let prRows      = [];
+let prFactor    = 1;
+let prSearch    = '';
+let prGroupMode = 'plano'; // plano | segmento | categoria
+let prAlphaSort = true;    // true: A-Z | false: por precio des.
 
 async function loadPricing() {
   await loadSettings();
@@ -28,7 +30,7 @@ async function loadPricing() {
   if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Cargando…</td></tr>`;
   const out = [], CHUNK = 1000;
   const sel = 'id,base_price_usd,price_usd,margin_pct,variant_name,'
-    + 'jjp_products(name),jjp_brands(name)';
+    + 'jjp_products(name,jjp_categories(name,sort_order,jjp_category_groups(name,emoji,sort_order))),jjp_brands(name)';
   for (let from = 0; ; from += CHUNK) {
     const { data, error } = await sb.from('jjp_product_variants')
       .select(sel).order('price_usd', { ascending: false }).range(from, from + CHUNK - 1);
@@ -37,7 +39,33 @@ async function loadPricing() {
     if (!data || data.length < CHUNK) break;
   }
   prRows = out;
+  prSyncAlphaBtn();
   renderPricing();
+}
+
+function prSetGroup(val) {
+  prGroupMode = val;
+  renderPricing();
+}
+
+function prToggleAlpha() {
+  prAlphaSort = !prAlphaSort;
+  prSyncAlphaBtn();
+  renderPricing();
+}
+
+function prSyncAlphaBtn() {
+  const btn = document.getElementById('prAlphaBtn');
+  if (!btn) return;
+  if (prAlphaSort) {
+    btn.className = 'btn-p sm';
+    btn.innerHTML = '🔤 Orden A-Z (Activo)';
+    btn.title = 'Orden alfabético A-Z activado';
+  } else {
+    btn.className = 'btn-ghost sm';
+    btn.innerHTML = '💲 Orden por Precio';
+    btn.title = 'Ordenado por precio de venta';
+  }
 }
 
 function prSuggested(r) {
@@ -52,6 +80,36 @@ function prFiltered() {
     normTxt(r.jjp_products?.name).includes(q) || normTxt(r.jjp_brands?.name).includes(q));
 }
 
+function renderRow(r) {
+  const base = Number(r.base_price_usd ?? r.price_usd) || 0;
+  const now  = Number(r.price_usd) || 0;
+  const sug  = prSuggested(r);
+  const diff = sug - now;
+  const applied = Math.abs(diff) < 0.005;
+
+  const catTag = (prGroupMode !== 'categoria' && r.jjp_products?.jjp_categories?.name)
+    ? ` <small style="color:var(--c-p);background:#eef6f3;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:600">${escapeHTML(r.jjp_products.jjp_categories.name)}</small>`
+    : '';
+
+  return `<tr>
+    <td>
+      <div class="td-name">${escapeHTML(r.jjp_products?.name || '—')}${catTag}</div>
+      <div class="td-sub">${escapeHTML([r.jjp_brands?.name, r.variant_name].filter(Boolean).join(' · ') || 'Genérica')}</div>
+    </td>
+    <td style="text-align:center">${r.margin_pct != null ? (+r.margin_pct).toFixed(0) + '%' : '—'}</td>
+    <td style="text-align:right">
+      <input type="number" step="0.01" min="0" class="fi" style="width:90px;text-align:right"
+             value="${base.toFixed(2)}" onchange="prSetBase('${r.id}', this.value)" title="Precio comercial base (a la par)">
+    </td>
+    <td style="text-align:right">${fmtPrice(now)}</td>
+    <td style="text-align:right"><strong style="color:${applied ? 'var(--gr)' : 'var(--gd)'}">${fmtPrice(sug)}</strong>
+      ${applied ? '' : `<div class="td-sub" style="color:${diff>0?'#c08a00':'#0a7'}">${diff>0?'+':''}${fmtPrice(diff)}</div>`}</td>
+    <td style="text-align:center">
+      <button class="btn-p sm" ${applied ? 'disabled style="opacity:.4"' : ''} onclick="prApply('${r.id}')">Aplicar</button>
+    </td>
+  </tr>`;
+}
+
 function renderPricing() {
   const tbody = document.getElementById('prBody');
   if (!tbody) return;
@@ -61,30 +119,78 @@ function renderPricing() {
 
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Sin resultados</td></tr>`; return; }
 
-  tbody.innerHTML = rows.slice(0, 400).map(r => {
-    const base = Number(r.base_price_usd ?? r.price_usd) || 0;
-    const now  = Number(r.price_usd) || 0;
-    const sug  = prSuggested(r);
-    const diff = sug - now;
-    const applied = Math.abs(diff) < 0.005;
-    return `<tr>
-      <td>
-        <div class="td-name">${escapeHTML(r.jjp_products?.name || '—')}</div>
-        <div class="td-sub">${escapeHTML([r.jjp_brands?.name, r.variant_name].filter(Boolean).join(' · ') || 'Genérica')}</div>
-      </td>
-      <td style="text-align:center">${r.margin_pct != null ? (+r.margin_pct).toFixed(0) + '%' : '—'}</td>
-      <td style="text-align:right">
-        <input type="number" step="0.01" min="0" class="fi" style="width:90px;text-align:right"
-               value="${base.toFixed(2)}" onchange="prSetBase('${r.id}', this.value)" title="Precio comercial base (a la par)">
-      </td>
-      <td style="text-align:right">${fmtPrice(now)}</td>
-      <td style="text-align:right"><strong style="color:${applied ? 'var(--gr)' : 'var(--gd)'}">${fmtPrice(sug)}</strong>
-        ${applied ? '' : `<div class="td-sub" style="color:${diff>0?'#c08a00':'#0a7'}">${diff>0?'+':''}${fmtPrice(diff)}</div>`}</td>
-      <td style="text-align:center">
-        <button class="btn-p sm" ${applied ? 'disabled style="opacity:.4"' : ''} onclick="prApply('${r.id}')">Aplicar</button>
+  if (prGroupMode === 'plano') {
+    const list = [...rows];
+    if (prAlphaSort) {
+      list.sort((a, b) => {
+        const nameA = (a.jjp_products?.name || '') + ' ' + (a.jjp_brands?.name || '') + ' ' + (a.variant_name || '');
+        const nameB = (b.jjp_products?.name || '') + ' ' + (b.jjp_brands?.name || '') + ' ' + (b.variant_name || '');
+        return nameA.localeCompare(nameB, 'es');
+      });
+    }
+    tbody.innerHTML = list.slice(0, 400).map(renderRow).join('');
+    return;
+  }
+
+  // Agrupado por segmento o categoría
+  const groups = {};
+  const groupMeta = {};
+
+  rows.forEach(r => {
+    let gKey = '', gTitle = '', gSortOrder = 999;
+    if (prGroupMode === 'segmento') {
+      const seg = r.jjp_products?.jjp_categories?.jjp_category_groups;
+      gKey = seg?.name || 'Otros Segmentos';
+      gTitle = (seg?.emoji ? seg.emoji + ' ' : '🏷️ ') + gKey;
+      gSortOrder = seg?.sort_order ?? 999;
+    } else {
+      const cat = r.jjp_products?.jjp_categories;
+      gKey = cat?.name || 'Sin Categoría';
+      gTitle = '📂 ' + gKey;
+      gSortOrder = cat?.sort_order ?? 999;
+    }
+    if (!groups[gKey]) {
+      groups[gKey] = [];
+      groupMeta[gKey] = { title: gTitle, sortOrder: gSortOrder };
+    }
+    groups[gKey].push(r);
+  });
+
+  const groupKeys = Object.keys(groups);
+  groupKeys.sort((a, b) => {
+    if (prAlphaSort) return a.localeCompare(b, 'es');
+    const oA = groupMeta[a].sortOrder, oB = groupMeta[b].sortOrder;
+    if (oA !== oB) return oA - oB;
+    return a.localeCompare(b, 'es');
+  });
+
+  let html = '';
+  let renderedCount = 0;
+
+  for (const gKey of groupKeys) {
+    if (renderedCount >= 400) break;
+    const items = groups[gKey];
+    items.sort((a, b) => {
+      const nameA = (a.jjp_products?.name || '') + ' ' + (a.jjp_brands?.name || '') + ' ' + (a.variant_name || '');
+      const nameB = (b.jjp_products?.name || '') + ' ' + (b.jjp_brands?.name || '') + ' ' + (b.variant_name || '');
+      if (prAlphaSort) return nameA.localeCompare(nameB, 'es');
+      return (b.price_usd || 0) - (a.price_usd || 0);
+    });
+
+    html += `<tr style="background:#f0f4f2;font-weight:700;color:var(--c-p)">
+      <td colspan="6" style="padding:8px 12px;font-size:13px;border-top:2px solid var(--c-p)">
+        ${escapeHTML(groupMeta[gKey].title)} (${items.length} productos)
       </td>
     </tr>`;
-  }).join('');
+
+    for (const r of items) {
+      if (renderedCount >= 400) break;
+      html += renderRow(r);
+      renderedCount++;
+    }
+  }
+
+  tbody.innerHTML = html;
 }
 
 async function prSetBase(id, val) {

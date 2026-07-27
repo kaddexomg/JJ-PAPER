@@ -90,9 +90,18 @@
       <div class="admin-table-wrap">
         <div class="table-top">
           <h3>💱 Sugerencias de precio</h3>
-          <div style="display:flex;gap:10px;align-items:center">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span id="prCount" style="font-size:12px;color:var(--gr)"></span>
-            <div class="srch" style="min-width:220px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gr);font-weight:600">
+              <span>Organizar:</span>
+              <select id="prGroupSelect" onchange="prSetGroup(this.value)" style="border:1px solid #cdd6d2;border-radius:6px;padding:5px 8px;font-size:12px">
+                <option value="plano">📋 Sin agrupar</option>
+                <option value="segmento">🏷️ Por Segmento / Familia</option>
+                <option value="categoria">📂 Por Categoría</option>
+              </select>
+            </div>
+            <button class="btn-ghost sm" id="prAlphaBtn" onclick="prToggleAlpha()" title="Ordenar A-Z alfabéticamente">🔤 Orden A-Z (Activo)</button>
+            <div class="srch" style="min-width:200px">
               <span class="srch-ico">🔍</span>
               <input type="text" placeholder="Producto o marca..." oninput="prOnSearch(this.value)">
             </div>

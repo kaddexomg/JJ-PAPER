@@ -53,4 +53,8 @@ Hero con chapa 3D + carrusel de promociones (`hero-promos.js`), reseñas
 > Cuidado: el `<style>` inline de `index.html` PISA `responsive.css` — las reglas
 > del hero mobile viven en el HTML. Ver [[Incidentes]].
 
+**Conceptos que toca**: [[Producto y variante]] (galería y precio "desde") ·
+[[Stock]] (semáforo, nunca el número) · [[Dinero y tasas]] (USD + Bs) ·
+[[Cliente]] (el chatbot capta leads) · [[Cotizacion]] (cotizar al mayor)
+
 Relacionado: [[Ventas y cotizaciones]] · [[Envio de documentos]] · [[Inventario y conteo]]

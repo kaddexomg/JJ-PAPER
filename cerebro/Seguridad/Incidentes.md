@@ -81,4 +81,8 @@ la tienda sirven el viejo.
 API (solo soporte o su GC). No perseguirlo desde el código; queda como
 [[Pendientes|pendiente del dueño]].
 
-Relacionado: [[Modelo de seguridad]] · [[Guia maestra de auditoria]] · [[Historia]]
+**Entidades que más han mordido**: [[Stock]] y [[Pedido]] (el `variant_id`) ·
+[[Cliente]] (contadores duplicados) · [[Cola de mensajes]] (doble arranque) ·
+[[Sesion y roles]] (confirm email)
+
+Relacionado: [[Modelo de seguridad]] · [[Guia maestra de auditoria]] · [[Historia]] · [[Por tarea]]

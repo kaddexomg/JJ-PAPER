@@ -57,4 +57,7 @@ El naranja `#F5A62B` fue ELIMINADO (12-jul). Logo SVG réplica del de Instagram
 | Google Cloud | OAuth consent + credenciales para Gmail/login |
 | WhatsApp | número del negocio vinculado por QR (Baileys); dueño: +584120100372 |
 
-Relacionado: [[Arquitectura]] · [[wa-server]] · [[Modelo de seguridad]]
+**Conceptos que configura**: [[Dinero y tasas]] · [[Delivery]] ·
+[[Envio de documentos]] (claves `doc_*`) · [[Sesion y roles]] (OAuth de Google)
+
+Relacionado: [[Arquitectura]] · [[wa-server]] · [[Modelo de seguridad]] · [[Por tarea]]

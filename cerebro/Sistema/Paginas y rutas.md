@@ -73,4 +73,4 @@ tags: [sistema, mapa]
 - `rastreo.html?n=<orden>` → estado del pedido.
 - `comprobante.html?o=<orden>&t=<tipo>` → imprimir documento.
 
-Relacionado: [[Arquitectura]] · [[Base de datos]]
+Relacionado: [[Arquitectura]] · [[Base de datos]] · [[Mapa de archivos]] (el índice inverso: de un archivo a su nota) · [[Por tarea]]

@@ -61,4 +61,8 @@ Cualquier `select('*')` nuevo en una página pública debe revisarse contra esta
 - `.gitignore` blindado contra datos de negocio (CSV de costos fuera del repo).
 - Repo privado. `.env` jamás en git.
 
+**Conceptos que protege**: [[Sesion y roles]] (los actores en detalle) ·
+[[Stock]] y [[Producto y variante]] (lo que el público no puede ver) ·
+[[Cliente]] (datos personales)
+
 Relacionado: [[Incidentes]] · [[Guia maestra de auditoria]] · [[Base de datos]] · [[Configuracion]]

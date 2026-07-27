@@ -48,4 +48,8 @@ Backend: [[wa-server]] (`wa-session.js`, `outbox.js`, `chats.js`, `media.js`,
 | Chat sin historial viejo | Baileys solo trae desde la vinculación; es normal |
 | No llega media | bucket `jjp-wa-media`, tamaño y mime en la fila |
 
+**Conceptos que toca**: [[Cola de mensajes]] (cómo sale cada mensaje) ·
+[[Cliente]] (ficha 360° y enlace del chat) · [[Sesion y roles]] (una sesión de
+WhatsApp por vendedor)
+
 Relacionado: [[wa-server]] · [[Envio de documentos]] · [[Difusion]] · [[Correo]]

@@ -52,4 +52,8 @@ productos), `upload-brand-logos.js`, `export-catalogo.js`.
 - `sin permiso de lectura (re-vincular con Google)` = el usuario debe re-vincular
   su Gmail desde "Mi correo" (refresh token revocado).
 
-Relacionado: [[Arquitectura]] · [[CRM WhatsApp]] · [[Correo]] · [[Configuracion]]
+**Conceptos que toca**: [[Cola de mensajes]] (su trabajo principal) ·
+[[Stock]] (conteo LAN) · [[Dinero y tasas]] (`rates.js`) · [[Sesion y roles]]
+(despacha por `owner_id`)
+
+Relacionado: [[Arquitectura]] · [[CRM WhatsApp]] · [[Correo]] · [[Configuracion]] · [[Por tarea]]

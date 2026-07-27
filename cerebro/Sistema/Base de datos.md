@@ -91,4 +91,11 @@ tags: [sistema, db]
 - Trigger `jjp_admin_limit`: máx 4 admins + anti-lockout.
 - Trigger de provisión de perfil al registrarse con Google.
 
-Relacionado: [[Modelo de seguridad]] · [[Guia maestra de auditoria]] · [[Arquitectura]]
+## Las tablas explicadas como entidades
+
+Si buscas entender **qué significan** estos datos (no solo dónde están), cada
+concepto cuenta el ciclo de vida completo: [[Cliente]] · [[Producto y variante]] ·
+[[Pedido]] · [[Cotizacion]] · [[Stock]] · [[Cola de mensajes]] ·
+[[Dinero y tasas]] · [[Sesion y roles]]
+
+Relacionado: [[Modelo de seguridad]] · [[Guia maestra de auditoria]] · [[Arquitectura]] · [[Mapa de archivos]]

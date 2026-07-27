@@ -29,9 +29,11 @@ focalizada** (solo el bloque relevante). Cada hallazgo se reporta así:
 - 🟡 **MEDIO** — molestia real, riesgo latente, deuda que ya mordió antes.
 - 🟢 **BAJO** — cosmético, consistencia, mejora.
 
-**Antes de empezar** (siempre): leer [[INICIO]], [[Reglas de trabajo]],
+**Antes de empezar** (siempre): leer [[CONTEXTO]], [[Reglas de trabajo]],
 [[Incidentes]] y [[Historial de auditorias]] — para no re-descubrir lo ya sabido
-ni proponer algo que ya se descartó.
+ni proponer algo que ya se descartó. Para entender qué significan los datos que
+vas a revisar: [[Cliente]], [[Producto y variante]], [[Pedido]], [[Cotizacion]],
+[[Stock]], [[Dinero y tasas]], [[Cola de mensajes]], [[Sesion y roles]].
 
 ---
 

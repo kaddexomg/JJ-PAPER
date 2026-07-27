@@ -55,4 +55,8 @@ local.
 `jjp_pos_scans`: el teléfono actúa como pistola de códigos para POS/cotizador
 vía Realtime (`pfPhoneBridge`). **No afecta inventario ni conteo.**
 
+**Conceptos que toca**: [[Stock]] (la entidad central aquí) ·
+[[Producto y variante]] (los códigos son de la variante) · [[Pedido]] (las ventas
+descuentan) · [[Sesion y roles]] (quién contó qué)
+
 Relacionado: [[Ventas y cotizaciones]] · [[Base de datos]] · [[wa-server]] · [[Catalogo publico]]

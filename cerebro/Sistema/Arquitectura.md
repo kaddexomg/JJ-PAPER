@@ -61,4 +61,7 @@ Login único en `admin/login.html` (email o Google OAuth), redirige por rol
   `pedidos.html` PISAN `responsive.css` (ver [[Incidentes]]).
 - Sidebar staff: SOLO desde `assets/js/admin/sidenav.js` (el HTML se reconstruye).
 
-Relacionado: [[Base de datos]] · [[wa-server]] · [[Configuracion]] · [[Paginas y rutas]]
+**Patrones clave explicados aparte**: [[Cola de mensajes]] (por qué nada se envía
+en directo) · [[Sesion y roles]] (quién puede qué) · [[Dinero y tasas]] (USD → Bs)
+
+Relacionado: [[CONTEXTO]] · [[Base de datos]] · [[wa-server]] · [[Configuracion]] · [[Paginas y rutas]] · [[Mapa de archivos]]

@@ -35,4 +35,4 @@ Acordadas con el dueño el 23-jul-2026. Aplican a humanos y a modelos de IA.
 14. Actualizar este cerebro: nota del módulo, [[Historia]] y, si nació una trampa,
     [[Incidentes]].
 
-Relacionado: [[INICIO]] · [[Guia maestra de auditoria]]
+Relacionado: [[CONTEXTO]] · [[Por tarea]] (recetas ya trazadas) · [[Incidentes]] · [[Guia maestra de auditoria]]

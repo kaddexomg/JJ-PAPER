@@ -82,4 +82,8 @@ El caso más pedido: el cliente pregunta "¿tienen X?" y hay que mandarle la fot
 `sent` (+ `wa_msg_id`/`message_id`) o reintento hasta `MAX_RETRIES=3` → `failed`
 con el mensaje de error visible en el panel.
 
+**Conceptos que toca**: [[Cliente]] (todo envío queda en su historial) ·
+[[Cola de mensajes]] (el patrón de encolado) · [[Producto y variante]] (la ficha) ·
+[[Cotizacion]] y [[Pedido]] (los documentos) · [[Dinero y tasas]] (precios e IVA)
+
 Relacionado: [[CRM WhatsApp]] · [[Correo]] · [[Ventas y cotizaciones]] · [[wa-server]]

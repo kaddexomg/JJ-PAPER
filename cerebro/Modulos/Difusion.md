@@ -31,4 +31,8 @@ Reactivación diaria de clientes inactivos con 10% de descuento (nació con la
 difusión, 16-jul). El equivalente por correo vive en `email-campaigns.js`
 ([[Correo]]).
 
+**Conceptos que toca**: [[Cliente]] (los destinatarios salen de la cartera) ·
+[[Cola de mensajes]] (comparte cola con los mensajes normales) ·
+[[Sesion y roles]] (cada campaña sale por la sesión de su dueño)
+
 Relacionado: [[CRM WhatsApp]] · [[Correo]] · [[Ventas y cotizaciones]] · [[wa-server]]

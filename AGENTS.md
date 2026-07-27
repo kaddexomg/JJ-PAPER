@@ -10,11 +10,22 @@ conectadas con `[[enlaces]]` que cubren visión, historia, arquitectura, cada m�
 seguridad y auditoría. Se navega igual sin Obsidian: cada `[[nombre]]` es el archivo
 `nombre.md` dentro de `cerebro/`.
 
-- **Empieza por [`cerebro/INICIO.md`](cerebro/INICIO.md)** — mapa de contenido.
-- [`cerebro/Proyecto/Vision y metas.md`](cerebro/Proyecto/Vision%20y%20metas.md) — qué somos y hacia dónde vamos.
-- [`cerebro/Proyecto/Reglas de trabajo.md`](cerebro/Proyecto/Reglas%20de%20trabajo.md) — cómo se trabaja aquí (obligatorio).
-- [`cerebro/Seguridad/Incidentes.md`](cerebro/Seguridad/Incidentes.md) — errores ya cometidos. **No los repitas.**
-- [`cerebro/Seguridad/Guia maestra de auditoria.md`](cerebro/Seguridad/Guia%20maestra%20de%20auditoria.md) — auditoría en 9 bloques con SQL.
+### ⚡ Lee esto primero: [`cerebro/CONTEXTO.md`](cerebro/CONTEXTO.md)
+
+Es el **embudo**: en una sola lectura tienes el 80% del contexto necesario para
+trabajar sin romper nada. Todo lo demás cuelga de ahí.
+
+Después, según lo que vayas a hacer:
+
+- **Vas a tocar una entidad** (cliente, producto, pedido, stock, dinero, colas,
+  sesiones) → su nota en [`cerebro/Conceptos/`](cerebro/Conceptos/): ciclo de vida
+  completo y todos los módulos donde vive.
+- **Partiste de un archivo y no sabes qué es** → [`cerebro/Indices/Mapa de archivos.md`](cerebro/Indices/Mapa%20de%20archivos.md).
+- **Tu tarea es de las típicas** → [`cerebro/Indices/Por tarea.md`](cerebro/Indices/Por%20tarea.md) (rutas ya trazadas).
+- **Reglas de trabajo** (obligatorias) → [`cerebro/Proyecto/Reglas de trabajo.md`](cerebro/Proyecto/Reglas%20de%20trabajo.md).
+- **Errores ya cometidos** → [`cerebro/Seguridad/Incidentes.md`](cerebro/Seguridad/Incidentes.md). **No los repitas.**
+- **Auditar** → [`cerebro/Seguridad/Guia maestra de auditoria.md`](cerebro/Seguridad/Guia%20maestra%20de%20auditoria.md) (9 bloques con SQL).
+- **Mapa completo del baúl** → [`cerebro/INICIO.md`](cerebro/INICIO.md).
 
 Al terminar un trabajo, **actualiza el cerebro**: la nota del módulo tocado,
 `Historia.md` y, si nació una trampa, `Incidentes.md`.

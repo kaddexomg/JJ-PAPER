@@ -47,4 +47,8 @@ reactivación de inactivos. Comparten la cola con los correos normales.
 `retention.js` purga correo viejo (se puede re-traer de Gmail cuando haga falta).
 Nació de la [[Historial de auditorias|auditoría de storage]].
 
+**Conceptos que toca**: [[Cola de mensajes]] (mismo patrón que WhatsApp) ·
+[[Cliente]] (los entrantes se enlazan por dirección) · [[Sesion y roles]] (cada
+usuario con su cuenta de Gmail)
+
 Relacionado: [[wa-server]] · [[Envio de documentos]] · [[Difusion]] · [[Configuracion]]

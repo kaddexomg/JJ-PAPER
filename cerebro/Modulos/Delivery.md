@@ -28,4 +28,7 @@ hacia el cliente sin que alguien lo mire.
 - `jjp_decide_discount` **conserva el delivery fee** al aprobar/negar descuentos
   (si se pierde, el total queda mal y el vendedor cobra de menos).
 
+**Conceptos que toca**: [[Pedido]] (el fee viaja en el pedido) ·
+[[Dinero y tasas]] (no comisiona) · [[Cliente]] (su dirección)
+
 Relacionado: [[Ventas y cotizaciones]] · [[Catalogo publico]] · [[Configuracion]]

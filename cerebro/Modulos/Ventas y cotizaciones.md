@@ -69,4 +69,7 @@ Roles y metas en `jjp_profiles`; ranking con `jjp_seller_ranking`; atribución p
 costo de envío**. Notificaciones in-app (`jjp_notifications`) + crons diario y
 semanal de resumen.
 
+**Conceptos que toca**: [[Pedido]] · [[Cotizacion]] · [[Cliente]] · [[Stock]] ·
+[[Dinero y tasas]] · [[Producto y variante]] · [[Sesion y roles]] (comisiones y `?ref=`)
+
 Relacionado: [[Envio de documentos]] · [[Inventario y conteo]] · [[Delivery]] · [[Base de datos]]

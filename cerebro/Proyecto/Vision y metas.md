@@ -50,4 +50,4 @@ historial (por eso todo envío sale por el CRM propio y no por wa.me — ver
 - No hay framework ni build del frontend a propósito (mantenible por cualquiera).
 - No se factura fiscalmente: no fingir valor fiscal en documentos.
 
-Relacionado: [[Historia]] · [[Pendientes]] · [[Arquitectura]]
+Relacionado: [[CONTEXTO]] · [[Historia]] · [[Pendientes]] · [[Arquitectura]] · [[Glosario]]

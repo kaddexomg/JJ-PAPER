@@ -47,7 +47,9 @@ function sendToast(msg, tipo) {
 /* ====================================================================
    ENVÍO POR WHATSAPP (vía CRM)
    ==================================================================== */
-async function sendPorWhatsApp({ telefono, nombre, texto, blob, filename, path, customerId }) {
+// mime/tipoMedia opcionales: por defecto PDF adjunto (comportamiento histórico);
+// la ficha de producto los usa para mandar la FOTO como imagen con caption.
+async function sendPorWhatsApp({ telefono, nombre, texto, blob, filename, path, customerId, mime = 'application/pdf', tipoMedia = 'document' }) {
   if (!telefono) throw new Error('El cliente no tiene teléfono cargado');
 
   const { data: { user } } = await sb.auth.getUser();
@@ -65,13 +67,13 @@ async function sendPorWhatsApp({ telefono, nombre, texto, blob, filename, path, 
   if (!mediaPath && blob) {
     mediaPath = `${user.id}/${chatId}/${Date.now()}-${sendSafeName(filename)}`;
     const { error } = await sb.storage.from('jjp-wa-media')
-      .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
-    if (error) throw new Error('No se pudo subir el PDF: ' + error.message);
+      .upload(mediaPath, blob, { contentType: mime, upsert: true });
+    if (error) throw new Error('No se pudo subir el archivo: ' + error.message);
   }
 
   const insert = mediaPath ? {
-    chat_id: chatId, owner_id: user.id, direction: 'out', type: 'document',
-    body: texto || null, media_path: mediaPath, media_mime: 'application/pdf',
+    chat_id: chatId, owner_id: user.id, direction: 'out', type: tipoMedia,
+    body: texto || null, media_path: mediaPath, media_mime: mime,
     media_filename: filename || 'documento.pdf', media_size: mediaSize, status: 'pending',
   } : {
     chat_id: chatId, owner_id: user.id, direction: 'out', type: 'text',
@@ -92,7 +94,9 @@ async function sendPorWhatsApp({ telefono, nombre, texto, blob, filename, path, 
 /* ====================================================================
    ENVÍO POR CORREO
    ==================================================================== */
-async function sendPorCorreo({ email, asunto, cuerpo, blob, filename, path, customerId }) {
+// html opcional: versión con formato del cuerpo (jjp_emails.html);
+// el servidor la prefiere sobre el texto plano si viene cargada.
+async function sendPorCorreo({ email, asunto, cuerpo, html, blob, filename, path, customerId }) {
   if (!email) throw new Error('El cliente no tiene correo cargado');
 
   const { data: { user } } = await sb.auth.getUser();
@@ -115,7 +119,7 @@ async function sendPorCorreo({ email, asunto, cuerpo, blob, filename, path, cust
 
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: user.id, direction: 'out', to_addr: email,
-    subject: asunto || '(sin asunto)', body: cuerpo || '',
+    subject: asunto || '(sin asunto)', body: cuerpo || '', html: html || null,
     status: 'pending', customer_id: customerId || null, attachments: adjuntos,
   });
   if (error) throw new Error('No se pudo encolar el correo: ' + error.message);

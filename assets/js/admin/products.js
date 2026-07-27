@@ -159,6 +159,8 @@ function renderAdminProdTable() {
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="openEditProduct('${p.id}')">✏️</button>
+          <button class="btn-send sm" onclick="fichaAbrir(event,'${p.id}')"
+                  title="Enviar foto + reseña + enlace de compra al cliente">📤</button>
           <button class="btn-danger sm" onclick="deleteProduct('${p.id}','${esc}')">🗑️</button>
         </div>
       </td>

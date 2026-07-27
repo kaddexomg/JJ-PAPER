@@ -8,7 +8,8 @@ mkdir -p dist
 
 for item in *; do
   case "$item" in
-    wa-server|sql|dist|node_modules) continue ;;   # nunca publicar
+    wa-server|sql|dist|node_modules)  continue ;;   # nunca publicar
+    docs|cerebro)                     continue ;;   # documentación interna del negocio
     build.sh|skills-lock.json)       continue ;;   # herramientas del repo
     *.md|*.code-workspace)           continue ;;   # docs / config de editor
     *.pdf|*.xlsx|*.xls|*.csv|*.jpeg|*.jpg) continue ;; # datos de negocio sueltos

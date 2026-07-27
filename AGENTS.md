@@ -1,11 +1,23 @@
 # JJ PAPER — Guía para agentes de IA (Claude, Codex, Cursor, Gemini, etc.)
 
 Este archivo es la **puerta de entrada** para cualquier modelo de IA que trabaje en este
-repositorio. Léelo completo antes de tocar código. Documentación detallada en `docs/`:
+repositorio. Léelo completo antes de tocar código.
 
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — mapa completo del sistema, módulo por módulo.
-- [`docs/AUDITORIA.md`](docs/AUDITORIA.md) — cómo auditar este proyecto (seguridad, rendimiento, flujos).
-- [`docs/PELIGROS.md`](docs/PELIGROS.md) — errores ya cometidos y trampas conocidas. **No los repitas.**
+## 🧠 El cerebro del proyecto
+
+La documentación viva es un **baúl de Obsidian** en [`cerebro/`](cerebro/): notas
+conectadas con `[[enlaces]]` que cubren visión, historia, arquitectura, cada módulo,
+seguridad y auditoría. Se navega igual sin Obsidian: cada `[[nombre]]` es el archivo
+`nombre.md` dentro de `cerebro/`.
+
+- **Empieza por [`cerebro/INICIO.md`](cerebro/INICIO.md)** — mapa de contenido.
+- [`cerebro/Proyecto/Vision y metas.md`](cerebro/Proyecto/Vision%20y%20metas.md) — qué somos y hacia dónde vamos.
+- [`cerebro/Proyecto/Reglas de trabajo.md`](cerebro/Proyecto/Reglas%20de%20trabajo.md) — cómo se trabaja aquí (obligatorio).
+- [`cerebro/Seguridad/Incidentes.md`](cerebro/Seguridad/Incidentes.md) — errores ya cometidos. **No los repitas.**
+- [`cerebro/Seguridad/Guia maestra de auditoria.md`](cerebro/Seguridad/Guia%20maestra%20de%20auditoria.md) — auditoría en 9 bloques con SQL.
+
+Al terminar un trabajo, **actualiza el cerebro**: la nota del módulo tocado,
+`Historia.md` y, si nació una trampa, `Incidentes.md`.
 
 ## Qué es este proyecto
 

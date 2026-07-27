@@ -37,3 +37,6 @@ wa-server/auth/
 # Credenciales OAuth de Google (client_secret) — jamás al repo
 client_secret*.json
 *.apps.googleusercontent.com.json
+
+# Obsidian: estado local de la interfaz (no es configuracion compartible)
+cerebro/.obsidian/workspace.json

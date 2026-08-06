@@ -6,3 +6,5 @@ node_modules/
 count-buffer.json
 lan-cert.pem
 lan-key.pem
+exported-orders.json
+

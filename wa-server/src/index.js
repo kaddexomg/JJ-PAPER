@@ -10,6 +10,7 @@ import { startEmailCampaigns } from './email-campaigns.js';
 import { startHeartbeat } from './heartbeat.js';
 import { startWaActions } from './wa-actions.js';
 import { startRetention } from './retention.js';
+import { startMixer } from './mixer.js';
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
 log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html · vendedor/whatsapp.html)');
@@ -24,12 +25,13 @@ startCountLan();   // servidor de conteo OFFLINE por WiFi local (teléfono ↔ P
 const emailOn = startEmail();   // envío + recepción de correos del CRM (Gmail API por usuario)
 startEmailCampaigns();          // campañas de correo (seguimiento/captación) con throttle
 startRetention();               // purga storage de correo/WA (adjuntos y html viejos → re-traíbles de Gmail)
+startMixer();                   // exportador de pedidos local para el Mixer de facturación
 
 // Latido + control remoto (panel de admin ve estado y puede reiniciar/detener).
 // El segundo argumento informa la salud REAL de cada sesión de WhatsApp: antes
 // el panel decía 🟢 aunque una sesión estuviera colgada.
 startHeartbeat(
-  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn },
+  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn, mixer: true },
   () => {
     const sesiones = manager.all();
     return {

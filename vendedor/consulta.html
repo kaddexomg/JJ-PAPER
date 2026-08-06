@@ -76,6 +76,30 @@
   </main>
 </div>
 
+<!-- Modal: Edición rápida de producto -->
+<div class="modal-overlay" id="editProdModal" onclick="if(event.target===this)closeConsEdit()">
+  <div class="modal-box" role="dialog" aria-modal="true" style="max-width:480px">
+    <div class="modal-hd">
+      <h3>✏️ Edición rápida de producto</h3>
+      <button class="modal-close" onclick="closeConsEdit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px">
+        <label class="fl" for="editProdName">Nombre comercial del producto</label>
+        <input class="fi" id="editProdName" placeholder="Nombre del producto">
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="fl" for="editProdDesc">Descripción</label>
+        <textarea class="fi" id="editProdDesc" placeholder="Descripción del producto..." rows="3"></textarea>
+      </div>
+      
+      <div id="editProdVariants" style="margin-bottom:16px"></div>
+      
+      <button class="btn-p" id="btnSaveProd" onclick="consSave()" style="width:100%;justify-content:center">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
@@ -87,7 +111,7 @@
 <script src="../assets/js/vendedor/product-finder.js"></script>
 <script src="../assets/js/send-hub.js?v=20260727"></script>
 <script src="../assets/js/ficha-producto.js?v=20260727"></script>
-<script src="../assets/js/vendedor/consulta.js"></script>
+<script src="../assets/js/vendedor/consulta.js?v=20260806"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();

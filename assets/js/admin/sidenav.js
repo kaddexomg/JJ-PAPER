@@ -60,6 +60,7 @@
       { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
       { href: 'cotizaciones.html', ico: '🗂️', label: 'Mis cotizaciones' },
       { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
+      { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
     ]},
     { group: 'Clientes', ico: '👥', items: [

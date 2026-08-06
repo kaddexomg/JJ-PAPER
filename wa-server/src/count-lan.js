@@ -434,6 +434,65 @@ ${qr ? `<img src="${qr}" alt="QR">` : ''}
 </div></body></html>`;
 }
 
+async function getMixnetPedidos(req, res) {
+  try {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const format = parsedUrl.searchParams.get('format') || 'json';
+    const days = parseInt(parsedUrl.searchParams.get('days') || '3', 10);
+    
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    const { data: orders, error } = await db.from('jjp_orders')
+      .select('id, order_number, client_name, rif, phone, city, items, subtotal_usd, total_usd, exchange_rate, total_bs, payment_method, payment_ref, notes, seller_id, status, created_at')
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      log.error({ err: error.message }, 'mixnet: error consultando pedidos');
+      return sendJSON(res, 500, { ok: false, error: error.message });
+    }
+    
+    if (format === 'csv') {
+      let csv = 'Pedido,Fecha,Cliente,RIF,Telefono,Ciudad,MetodoPago,Referencia,SKU,Producto,Cantidad,PrecioUSD,SubtotalUSD,Tasa,TotalUSD,TotalBs\n';
+      for (const o of orders || []) {
+        const items = Array.isArray(o.items) ? o.items : JSON.parse(o.items || '[]');
+        for (const i of items) {
+          const row = [
+            o.order_number || '',
+            o.created_at || '',
+            `"${(o.client_name || '').replace(/"/g, '""')}"`,
+            `"${(o.rif || '').replace(/"/g, '""')}"`,
+            `"${(o.phone || '').replace(/"/g, '""')}"`,
+            `"${(o.city || '').replace(/"/g, '""')}"`,
+            o.payment_method || '',
+            o.payment_ref || '',
+            i.sku || '',
+            `"${(i.name || '').replace(/"/g, '""')}"`,
+            i.qty || 0,
+            i.price_usd || 0,
+            i.subtotal_usd || 0,
+            o.exchange_rate || 0,
+            o.total_usd || 0,
+            o.total_bs || 0
+          ].join(',');
+          csv += row + '\n';
+        }
+      }
+      res.writeHead(200, { 
+        'Content-Type': 'text/csv; charset=utf-8', 
+        'Content-Disposition': 'attachment; filename=pedidos_mixnet.csv' 
+      });
+      return res.end(csv);
+    }
+    
+    return sendJSON(res, 200, { ok: true, count: orders?.length || 0, orders });
+  } catch (e) {
+    log.error({ err: e.message }, 'mixnet: excepcion en getMixnetPedidos');
+    return sendJSON(res, 500, { ok: false, error: e.message });
+  }
+}
+
 // ---- Rutas ----
 async function handle(req, res) {
   const { url, method } = req;
@@ -449,7 +508,6 @@ async function handle(req, res) {
   const pathOnly = url.split('?')[0];
   if (pathOnly === '/') { res.writeHead(302, { Location: '/lan/start' }); return res.end(); }
   if (pathOnly === '/lan/start') {
-    // El QR apunta a HTTPS: la cámara del teléfono solo funciona en origen seguro.
     const u = `https://${lanIp()}:${HTTPS_PORT}/admin/lan.html`;
     let qr = '';
     try { qr = await QRCode.toDataURL(u, { width: 320, margin: 1 }); } catch (e) {}
@@ -459,6 +517,10 @@ async function handle(req, res) {
 
   if (url.startsWith('/lan/')) {
     const route = url.split('?')[0];
+
+    if (route === '/lan/mixnet/pedidos') {
+      return getMixnetPedidos(req, res);
+    }
 
     if (route === '/lan/health')
       return sendJSON(res, 200, { ok: true, online, ip: lanIp(), port: COUNT_LAN_PORT, https_port: HTTPS_PORT,
@@ -507,12 +569,64 @@ async function handle(req, res) {
   return serveStatic(req, res, url);
 }
 
+async function exportMixnetFile() {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 3); // 3 días
+    
+    const { data: orders, error } = await db.from('jjp_orders')
+      .select('order_number, client_name, rif, phone, city, items, subtotal_usd, total_usd, exchange_rate, total_bs, payment_method, payment_ref, created_at')
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      log.error({ err: error.message }, 'mixnet: falló consulta para archivo local');
+      return;
+    }
+    
+    let csv = 'Pedido,Fecha,Cliente,RIF,Telefono,Ciudad,MetodoPago,Referencia,SKU,Producto,Cantidad,PrecioUSD,SubtotalUSD,Tasa,TotalUSD,TotalBs\n';
+    for (const o of orders || []) {
+      const items = Array.isArray(o.items) ? o.items : JSON.parse(o.items || '[]');
+      for (const i of items) {
+        const row = [
+          o.order_number || '',
+          o.created_at || '',
+          `"${(o.client_name || '').replace(/"/g, '""')}"`,
+          `"${(o.rif || '').replace(/"/g, '""')}"`,
+          `"${(o.phone || '').replace(/"/g, '""')}"`,
+          `"${(o.city || '').replace(/"/g, '""')}"`,
+          o.payment_method || '',
+          o.payment_ref || '',
+          i.sku || '',
+          `"${(i.name || '').replace(/"/g, '""')}"`,
+          i.qty || 0,
+          i.price_usd || 0,
+          i.subtotal_usd || 0,
+          o.exchange_rate || 0,
+          o.total_usd || 0,
+          o.total_bs || 0
+        ].join(',');
+        csv += row + '\n';
+      }
+    }
+    
+    const filePath = path.join(REPO_ROOT, 'wa-server', 'pedidos_mixnet_local.csv');
+    fs.writeFileSync(filePath, csv, 'utf8');
+  } catch (e) {
+    log.error({ err: e.message }, 'mixnet: fallo escribiendo archivo local');
+  }
+}
+
 // ---- Arranque ----
 export async function startCountLan() {
   loadBuffer();
   await checkOnline().catch(() => {});
   await detectOwner().catch(() => {});
   await refreshCatalog().catch(() => {});
+  
+  // Escribir el archivo mixnet inicialmente y luego cada 60s
+  exportMixnetFile().catch(() => {});
+  setInterval(() => exportMixnetFile().catch(() => {}), 60_000);
 
   const onReq = (req, res) => { handle(req, res).catch(e => {
     try { sendJSON(res, 500, { ok: false, error: e?.message || 'error' }); } catch (_) {}

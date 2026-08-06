@@ -68,6 +68,7 @@ function consRender(list) {
           <a class="btn-o sm" href="cotizador.html?add=${p.id}">📋 Cotizar</a>
           <button class="btn-send sm" onclick="fichaAbrir(event,'${p.id}')"
                   title="Enviar foto + reseña + enlace de compra al cliente">📤 Ficha</button>
+          <button class="btn-o sm" onclick="consEdit('${p.id}')" title="Edición rápida">✏️</button>
         </div>
       </div>
       <div style="overflow-x:auto"><table class="admin-table cons-table">
@@ -76,4 +77,91 @@ function consRender(list) {
       </table></div>
     </div>`;
   }).join('');
+}
+
+let editingProdId = null;
+
+function consEdit(pid) {
+  const p = CONS.find(x => x.id === pid);
+  if (!p) return;
+  editingProdId = pid;
+  document.getElementById('editProdName').value = p.name || '';
+  document.getElementById('editProdDesc').value = p.description || '';
+  
+  const variants = (p.jjp_product_variants || []).filter(v => v.active);
+  const vBox = document.getElementById('editProdVariants');
+  if (variants.length) {
+    vBox.innerHTML = '<h4 style="margin:10px 0 6px;font-size:13px">Precios de variantes</h4>' + variants.map(v => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="flex:1;font-size:12px">${escapeHTML(v.jjp_brands?.name || v.variant_name || 'Variante')}</span>
+        <input type="number" step="0.01" class="fi val-price" data-vid="${v.id}" value="${v.price_usd}" style="width:90px;font-size:12px;padding:4px;height:28px;margin:0">
+      </div>
+    `).join('');
+  } else {
+    vBox.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="flex:1;font-size:12px">Precio base</span>
+        <input type="number" step="0.01" id="editBasePrice" value="${p.price_usd || 0}" style="width:90px;font-size:12px;padding:4px;height:28px;margin:0" class="fi">
+      </div>
+    `;
+  }
+  
+  document.getElementById('editProdModal').classList.add('op');
+}
+
+function closeConsEdit() {
+  document.getElementById('editProdModal').classList.remove('op');
+}
+
+async function consSave() {
+  if (!editingProdId) return;
+  const btn = document.getElementById('btnSaveProd');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  
+  const newName = document.getElementById('editProdName').value.trim();
+  const newDesc = document.getElementById('editProdDesc').value.trim();
+  
+  if (!newName) {
+    showToast('El nombre es obligatorio', 'warn');
+    btn.disabled = false; btn.textContent = '💾 Guardar';
+    return;
+  }
+  
+  // 1. Guardar cambios en el producto
+  const pUpdates = { name: newName, description: newDesc };
+  const p = CONS.find(x => x.id === editingProdId);
+  const hasVariants = (p?.jjp_product_variants || []).filter(v => v.active).length > 0;
+  
+  if (!hasVariants) {
+    const baseP = parseFloat(document.getElementById('editBasePrice')?.value);
+    if (!isNaN(baseP) && baseP >= 0) pUpdates.price_usd = baseP;
+  }
+  
+  const { error: errP } = await sb.from('jjp_products').update(pUpdates).eq('id', editingProdId);
+  if (errP) {
+    console.error('Error actualizando producto:', errP);
+    showToast('Error al actualizar producto', 'err');
+    btn.disabled = false; btn.textContent = '💾 Guardar';
+    return;
+  }
+  
+  // 2. Guardar cambios en variantes
+  if (hasVariants) {
+    const inputs = document.querySelectorAll('#editProdVariants .val-price');
+    for (const input of inputs) {
+      const vid = input.getAttribute('data-vid');
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && val >= 0) {
+        const { error: errV } = await sb.from('jjp_product_variants').update({ price_usd: val }).eq('id', vid);
+        if (errV) {
+          console.error('Error actualizando variante:', vid, errV);
+        }
+      }
+    }
+  }
+  
+  showToast('✅ Producto actualizado correctamente');
+  closeConsEdit();
+  await initConsulta();
+  btn.disabled = false; btn.textContent = '💾 Guardar';
 }

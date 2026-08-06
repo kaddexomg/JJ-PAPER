@@ -13,7 +13,47 @@ async function pfLoad(force) {
     .select('id,name,sku,price_usd,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,stock,min_qty,active,jjp_brands(name))')
     .eq('active', true).order('name');
   if (error) { if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); return PF_PRODUCTS || []; }
-  PF_PRODUCTS = data || [];
+  
+  let products = data || [];
+  
+  // Cargar precios personalizados del vendedor si está logueado
+  const sellerId = (typeof SELLER !== 'undefined' && SELLER?.id) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id);
+  if (sellerId) {
+    try {
+      const { data: sellerPrices, error: spError } = await sb.from('jjp_seller_prices')
+        .select('product_id,variant_id,price_usd')
+        .eq('seller_id', sellerId);
+      
+      if (!spError && sellerPrices && sellerPrices.length > 0) {
+        // Crear mapa para búsquedas rápidas
+        const customPrices = {};
+        sellerPrices.forEach(sp => {
+          const key = sp.variant_id ? `v::${sp.variant_id}` : `p::${sp.product_id}`;
+          customPrices[key] = sp.price_usd;
+        });
+        
+        // Aplicar precios personalizados sobre el catálogo en memoria
+        products.forEach(p => {
+          const pKey = `p::${p.id}`;
+          if (customPrices[pKey] !== undefined) {
+            p.price_usd = customPrices[pKey];
+          }
+          if (p.jjp_product_variants) {
+            p.jjp_product_variants.forEach(v => {
+              const vKey = `v::${v.id}`;
+              if (customPrices[vKey] !== undefined) {
+                v.price_usd = customPrices[vKey];
+              }
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error aplicando precios personalizados:', err);
+    }
+  }
+
+  PF_PRODUCTS = products;
   return PF_PRODUCTS;
 }
 

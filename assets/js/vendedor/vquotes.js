@@ -138,7 +138,11 @@ function posRenderTicket() {
     <div class="pos-line">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600">${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
-        <div style="font-size:11px;color:var(--gr)">${fmtPrice(l.price_usd)} /${escapeHTML(l.unit)}</div>
+        <div style="font-size:11px;color:var(--gr);display:flex;align-items:center;gap:6px;margin-top:2px">
+          <span>Precio:</span>
+          <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:75px;font-size:11px;padding:2px 4px;margin:0;height:24px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
+          <span>/${escapeHTML(l.unit)}</span>
+        </div>
       </div>
       <button class="qb" onclick="posQty('${k}',-1)">−</button>
       <strong style="min-width:22px;text-align:center">${l.qty}</strong>
@@ -156,6 +160,19 @@ function posRenderTicket() {
       <div class="pos-tot" style="color:var(--gm)"><span>Descuento ${pct}%</span><span>−${fmtPrice(subtotal - total)}</span></div>` : ''}
     <div class="pos-tot big"><span>Total estimado</span><span>${fmtPrice(total)}</span></div>
     <div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(total * rate)}</span></div>`;
+}
+
+function posUpdatePrice(key, val) {
+  const price = parseFloat(val);
+  if (isNaN(price) || price < 0) {
+    showToast('Precio inválido', 'warn');
+    posRenderTicket();
+    return;
+  }
+  const l = posTicket[key];
+  if (!l) return;
+  l.price_usd = +price.toFixed(2);
+  posRenderTicket();
 }
 
 // % propuesto, acotado al máximo permitido al vendedor (jjp_profiles.max_discount_pct)

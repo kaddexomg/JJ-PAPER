@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Precios Personalizados | JJ Paper Vendedor</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/print.css">
+<style>
+  .pf-ok{color:#2ecc40;font-weight:600}
+  .pf-low{color:#e67e22;font-weight:600}
+  .pf-out{color:#dc3c3c;font-weight:600}
+  .cons-wrap{max-width:900px}
+  .cons-card{background:var(--card,#fff);border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:14px;margin-bottom:12px}
+  .cons-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .cons-table{width:100%;font-size:13px}
+  .cons-table th{font-size:11px;color:var(--gr,#888)}
+  .cons-table td,.cons-table th{padding:6px 8px;text-align:left}
+  .cons-table input[type="number"] {
+    transition: all 0.2s ease;
+  }
+  .cons-table input[type="number"]:focus {
+    border-color: var(--gm, #99CC33);
+    box-shadow: 0 0 0 2px rgba(153, 204, 51, 0.2);
+  }
+  @media(max-width:600px){ .cons-head{flex-wrap:wrap} }
+</style>
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- Se autoinyecta por sidenav.js -->
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>💱 Mis Precios Personalizados</h2>
+          <p>Define precios base especiales para tus cotizaciones y ventas rápidas (POS)</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="cons-wrap">
+        <div style="background: rgba(153, 204, 51, 0.1); border-left: 4px solid var(--gm, #99CC33); padding: 12px; border-radius: 6px; margin-bottom: 18px; font-size: 13px; line-height: 1.5;">
+          💡 <strong>¿Cómo funciona?</strong> Cuando guardes un precio aquí, este será el precio por defecto que aparecerá en tus búsquedas del <strong>POS</strong> y del <strong>Cotizador</strong>. Los demás vendedores seguirán viendo los precios oficiales del catálogo general. Haz clic en ↩️ para eliminar tu personalización y volver al precio del catálogo.
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <input class="fi" id="prodSearch" placeholder="Buscar producto por nombre, SKU, marca..." oninput="prodSearch()" autocomplete="off" style="flex:1">
+        </div>
+        
+        <div id="prodResults"><div class="wa-empty">Cargando catálogo y tus precios…</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/product-finder.js?v=20260806"></script>
+<script src="../assets/js/vendedor/vproducts.js?v=20260806"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+  
+  // Establecer email en el footer del aside
+  const emailEl = document.getElementById('adminUserEmail');
+  if (emailEl) {
+    const { data: { session } } = await sb.auth.getSession();
+    emailEl.textContent = seller.name || session?.user?.email || 'Vendedor';
+  }
+  
+  await initProducts();
+});
+</script>
+</body>
+</html>

@@ -15,6 +15,8 @@ export const COUNT_SYNC_MS     = 5_000;   // intenta subir el conteo bufferizado
 export const COUNT_ONLINE_MS   = 10_000;  // chequeo de conexión a Supabase
 export const COUNT_CATALOG_MS  = 300_000; // refresco del catálogo local (5 min)
 export const REPO_ROOT         = path.join(__dirname, '..', '..');  // raíz del sitio (para servir la app por LAN)
+export const MIXER_EXPORT_DIR  = process.env.MIXER_EXPORT_DIR || path.join(REPO_ROOT, 'mixer_export');
+
 
 export const OUTBOX_SWEEP_MS   = 30_000;  // barrido de salientes pendientes
 export const SESSIONS_SWEEP_MS = 15_000;  // barrido de requested_action perdidos

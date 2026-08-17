@@ -27,6 +27,14 @@ async function initPos() {
   }
   const cliente = params.get('cliente');
   if (cliente) await posCargarCliente(cliente);
+
+  // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
+  custAcBind({
+    nameId: 'posCliName',
+    boxId: 'posCliNameResults',
+    onPick: posPickCustomer,
+    onChange: () => { posCustomer = null; },
+  });
 }
 
 /* Llega con el cliente ya elegido desde el chat, el correo o la ficha:
@@ -245,6 +253,7 @@ function posSearchCustomer() {
 
 function posPickCustomer(c) {
   posCustomer = c;
+  document.getElementById('posCliSearch').value = c.name || '';
   document.getElementById('posCliName').value = c.name || '';
   document.getElementById('posCliTel').value  = c.phone || '';
   document.getElementById('posCliRif').value  = c.rif || '';
@@ -370,5 +379,7 @@ function posReset() {
   });
   document.getElementById('posDisc').value = 0;
   document.getElementById('posCliResults').innerHTML = '';
+  document.getElementById('posCliNameResults').innerHTML = '';
+  document.getElementById('posCliNameResults').style.display = 'none';
   document.getElementById('posDoneModal').classList.remove('op');
 }

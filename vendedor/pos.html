@@ -24,6 +24,11 @@
 .pos-line .qb { width:24px; height:24px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; }
 .pos-tot { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
 .pos-tot.big { font-size:17px; font-weight:800; border-top:2px solid #eee; padding-top:10px; margin-top:6px; }
+.cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; background:#fff;
+  border:1px solid #e5e5e5; border-radius:10px; box-shadow:0 10px 28px rgba(10,40,30,.14); display:none;
+  max-height:270px; overflow:auto; }
+.cust-ac-item { cursor:pointer; }
+.cust-ac-item:hover, .cust-ac-item.on { background:#faf8f3; }
 </style>
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
@@ -96,8 +101,11 @@
           <h3 style="margin:0 0 10px">👤 Cliente</h3>
           <input class="fi" id="posCliSearch" placeholder="Buscar cliente por nombre o teléfono..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px">
           <div id="posCliResults"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-            <input class="fi" id="posCliName" placeholder="Nombre / empresa *">
+          <div style="position:relative;margin:6px 0 8px">
+            <input class="fi" id="posCliName" placeholder="Nombre / empresa *" style="width:100%">
+            <div id="posCliNameResults" class="cust-ac-box"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <input class="fi" id="posCliTel" placeholder="Teléfono *">
             <input class="fi" id="posCliRif" placeholder="RIF / CI">
             <input class="fi" id="posCliCity" placeholder="Ciudad">
@@ -159,7 +167,8 @@
 <script src="../assets/js/vendedor/product-finder.js"></script>
 <script src="../assets/js/doc-engine.js?v=20260726"></script>
 <script src="../assets/js/send-hub.js?v=20260726"></script>
-<script src="../assets/js/vendedor/pos.js?v=20260806"></script>
+<script src="../assets/js/vendedor/cust-autocomplete.js?v=20260817"></script>
+<script src="../assets/js/vendedor/pos.js?v=20260817"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();

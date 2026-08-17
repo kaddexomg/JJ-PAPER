@@ -109,12 +109,13 @@ async function saveAdminCustomer() {
   const zone = document.getElementById('ac-zone').value.trim() || null;
   let seller_id = null;
 
+  const findSeller = pat => adminProfiles.find(x => pat.test(x.name?.toLowerCase() || ''))?.id || null;
   if (zone === '008') {
-    seller_id = adminProfiles.find(x => x.name?.toLowerCase().includes('marianela'))?.id || null;
+    seller_id = findSeller(/marianela/);
   } else if (zone === '014') {
-    seller_id = adminProfiles.find(x => x.name?.toLowerCase().includes('andreina'))?.id || null;
+    seller_id = findSeller(/andreina/);
   } else if (zone === '006' || zone === '004') {
-    seller_id = adminProfiles.find(x => x.name?.toLowerCase().includes('giovanni'))?.id || null;
+    seller_id = findSeller(/yovanni|giovanni|006.*004|004.*006|araujo/);
   }
 
   const fields = {

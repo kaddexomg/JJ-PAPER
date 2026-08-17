@@ -20,6 +20,13 @@ async function initQuoter() {
   const cliente = params.get('cliente');
   if (cliente) await quoteCargarCliente(cliente);
   pfPhoneBridge(posOnScan);   // teléfono → agrega a la cotización en vivo
+
+  // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
+  custAcBind({
+    nameId: 'qCliName',
+    boxId: 'qCliNameResults',
+    onPick: quotePickCustomer,
+  });
 }
 
 async function quoteCargarCliente(id) {
@@ -30,6 +37,16 @@ async function quoteCargarCliente(id) {
   set('qCliName', c.name); set('qCliTel', c.phone);
   set('qCliRif', c.rif);   set('qCliCity', c.city);
   showToast(`Cotizando para ${c.name}`);
+}
+
+function quotePickCustomer(c) {
+  document.getElementById('qCliName').value = c.name || '';
+  document.getElementById('qCliTel').value  = c.phone || '';
+  document.getElementById('qCliRif').value  = c.rif || '';
+  document.getElementById('qCliCity').value = c.city || '';
+  document.getElementById('qCliNameResults').innerHTML =
+    `<p style="font-size:12px;color:var(--gm);margin:8px 0">✔ Cliente frecuente seleccionado: <strong>${escapeHTML(c.name)}</strong></p>`;
+  document.getElementById('qCliNameResults').style.display = 'block';
 }
 
 function posOnScan(code) {
@@ -298,6 +315,8 @@ function quoteReset() {
   ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  document.getElementById('qCliNameResults').innerHTML = '';
+  document.getElementById('qCliNameResults').style.display = 'none';
   const disc = document.getElementById('qDisc'); if (disc) disc.value = 0;
   document.getElementById('qDoneModal').classList.remove('op');
 }

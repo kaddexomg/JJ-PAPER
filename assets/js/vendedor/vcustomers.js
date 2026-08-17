@@ -1,6 +1,6 @@
 /* ======================================================
-   JJ Paper Vendedor — CRM de clientes
-   (RLS: el vendedor ve sus clientes + los sin asignar)
+   JJ Paper Vendedor — CRM de clientes con Zonas y Vendedores
+   Zonas: Marianela (008), Andreina (014), Giovanni (006 y 004)
    ====================================================== */
 
 let vCustomers  = [];
@@ -8,6 +8,14 @@ let custFilter  = 'mios';
 let editingCustId = null;
 
 const INACTIVE_DAYS = 60;
+
+// Mapeo de Zonas y Vendedores asignados
+const ZONE_SELLER_MAP = {
+  '008': { name: 'Marianela', code: '008' },
+  '014': { name: 'Andreina', code: '014' },
+  '006': { name: 'Giovanni', code: '006' },
+  '004': { name: 'Giovanni', code: '004' }
+};
 
 async function loadCustomers() {
   const { data, error } = await sb.from('jjp_customers')
@@ -28,18 +36,38 @@ function isInactive(c) {
   return (Date.now() - new Date(c.last_order_at).getTime()) > INACTIVE_DAYS * 86400e3;
 }
 
+function getZoneBadge(zone) {
+  if (!zone) return '<span class="badge-zone" style="background:#eee;color:#555">Sin Zona</span>';
+  let color = '#3498db';
+  if (zone === '008') color = '#e67e22'; // Marianela
+  else if (zone === '014') color = '#9b59b6'; // Andreina
+  else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
+  return `<span class="badge-zone" style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
+}
+
 function renderCustomers() {
   const tbody = document.getElementById('custBody');
   const q = normTxt(document.getElementById('custSearch')?.value.trim() || '');
 
   let list = vCustomers;
-  if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
-  if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
-  if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
-  if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')));
+  
+  // Si no es admin, filtramos por su cartera / zona
+  const isAdmin = SELLER.role === 'admin' || SELLER.is_admin;
+  if (!isAdmin) {
+    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
+    if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
+    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
+  } else {
+    // Admin ve todos, pero respetamos filtros si aplica
+    if (custFilter === 'mios')      list = list.filter(c => c.seller_id);
+    if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
+    if (custFilter === 'inactivos') list = list.filter(c => isInactive(c));
+  }
+
+  if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')) || (c.zone || '').includes(q));
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${
       custFilter === 'mios' ? 'Aún no tienes clientes en tu cartera. Toma los "Sin vendedor" o crea nuevos. 💪' : 'Sin resultados.'
     }</td></tr>`;
     return;
@@ -47,19 +75,20 @@ function renderCustomers() {
 
   tbody.innerHTML = list.map(c => {
     const inactive = isInactive(c);
-    const mine     = c.seller_id === SELLER.id;
+    const mine     = c.seller_id === SELLER.id || isAdmin;
     const waReact  = `Hola ${c.name} 👋, le escribe ${SELLER.name} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${SELLER.ref_code ? '?ref=' + SELLER.ref_code : ''}`;
     return `<tr>
       <td>
         <div class="td-name">${escapeHTML(c.name)} ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}</div>
         <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}</div>
       </td>
+      <td>${getZoneBadge(c.zone)}</td>
       <td>${escapeHTML(c.city || '—')}</td>
       <td style="text-align:center">${c.total_orders}</td>
       <td><strong>${fmtPrice(c.total_usd)}</strong></td>
       <td>${c.last_order_at ? fmtDate(c.last_order_at) : '<span style="color:#ccc">nunca</span>'}</td>
       <td><div class="td-actions">
-        ${!c.seller_id ? `<button class="btn-o sm" onclick="claimCustomer('${c.id}')" title="Añadir a mi cartera">➕ Tomar</button>` : ''}
+        ${!c.seller_id && !isAdmin ? `<button class="btn-o sm" onclick="claimCustomer('${c.id}')" title="Añadir a mi cartera">➕ Tomar</button>` : ''}
         ${mine ? `<button class="btn-p sm" onclick="openCustomerModal('${c.id}')">✏️</button>` : ''}
         <button class="btn-send sm" onclick="custCtxMenu(event, '${c.id}')"
                 title="Enviar catálogo o lista de precios" aria-haspopup="menu">📤</button>
@@ -73,8 +102,6 @@ function renderCustomers() {
   }).join('');
 }
 
-/* Menú de envío desde la cartera de clientes (send-hub.js): catálogo y
-   lista de precios salen por el CRM, con el PDF adjunto de verdad. */
 function custCtxMenu(ev, id) {
   const c = vCustomers.find(x => x.id === id);
   if (!c) return;
@@ -102,6 +129,7 @@ function openCustomerModal(id = null) {
   document.getElementById('cu-phone').value   = c?.phone || '';
   document.getElementById('cu-rif').value     = c?.rif || '';
   document.getElementById('cu-city').value    = c?.city || '';
+  document.getElementById('cu-zone').value    = c?.zone || '';
   document.getElementById('cu-email').value   = c?.email || '';
   document.getElementById('cu-address').value = c?.address || '';
   document.getElementById('cu-notes').value   = c?.notes || '';
@@ -120,6 +148,7 @@ async function saveCustomer() {
     name, phone,
     rif:     document.getElementById('cu-rif').value.trim()     || null,
     city:    document.getElementById('cu-city').value.trim()    || null,
+    zone:    document.getElementById('cu-zone').value.trim()    || null,
     email:   document.getElementById('cu-email').value.trim()   || null,
     address: document.getElementById('cu-address').value.trim() || null,
     notes:   document.getElementById('cu-notes').value.trim()   || null,
@@ -141,7 +170,6 @@ async function saveCustomer() {
   loadCustomers();
 }
 
-/* ---------- Importar clientes (Excel / CSV) ---------- */
 function custPhoneNorm(p) {
   const d = String(p || '').replace(/\D/g, '');
   if (d.startsWith('58') && d.length === 12) return '0' + d.slice(2);
@@ -184,10 +212,11 @@ async function custImportFile(input) {
     phone: custPhoneNorm(custPick(r, ['telefono', 'teléfono', 'phone', 'celular', 'tel', 'movil', 'móvil'])),
     email: custPick(r, ['email', 'correo', 'e-mail', 'mail']).toLowerCase(),
     city: custPick(r, ['ciudad', 'city']),
+    zone: custPick(r, ['zona', 'zone', 'grupo zona']),
     rif: custPick(r, ['rif', 'ci', 'cedula', 'cédula', 'documento']),
   })).filter(r => r.name || r.phone || r.email);
 
-  if (!mapped.length) { showToast('No hallé filas válidas. Columnas: nombre, telefono, email, ciudad, rif.', 'warn'); return; }
+  if (!mapped.length) { showToast('No hallé filas válidas. Columnas: nombre, telefono, email, ciudad, zona, rif.', 'warn'); return; }
   if (!confirm(`Importar ${mapped.length} cliente(s) a tu cartera?`)) return;
 
   showToast('Importando…');
@@ -201,14 +230,14 @@ async function custImportFile(input) {
       if (ors.length) { const { data } = await sb.from('jjp_customers').select('id').or(ors.join(',')).limit(1); existing = data?.[0]; }
       if (existing) {
         await sb.from('jjp_customers').update({
-          email: r.email || undefined, city: r.city || undefined, rif: r.rif || undefined,
+          email: r.email || undefined, city: r.city || undefined, zone: r.zone || undefined, rif: r.rif || undefined,
           updated_at: new Date().toISOString()
         }).eq('id', existing.id);
         upd++;
       } else {
         const { error } = await sb.from('jjp_customers').insert({
           name: r.name || 'Cliente', phone: r.phone || null, email: r.email || null,
-          city: r.city || null, rif: r.rif || null, seller_id: SELLER.id
+          city: r.city || null, zone: r.zone || null, rif: r.rif || null, seller_id: SELLER.id
         });
         if (error) fail++; else added++;
       }

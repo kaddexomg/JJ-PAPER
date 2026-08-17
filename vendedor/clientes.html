@@ -64,15 +64,15 @@
       <div class="admin-table-wrap">
         <div class="table-top">
           <h3>👥 Clientes</h3>
-          <input class="fi" id="custSearch" placeholder="Buscar por nombre o teléfono..." oninput="renderCustomers()" style="max-width:260px;font-size:13px">
+          <input class="fi" id="custSearch" placeholder="Buscar por nombre, teléfono o zona..." oninput="renderCustomers()" style="max-width:260px;font-size:13px">
         </div>
         <div style="overflow-x:auto">
           <table class="admin-table">
             <thead>
-              <tr><th>Cliente</th><th>Ciudad</th><th>Compras</th><th>Total histórico</th><th>Última compra</th><th>Acciones</th></tr>
+              <tr><th>Cliente</th><th>Zona</th><th>Ciudad</th><th>Compras</th><th>Total histórico</th><th>Última compra</th><th>Acciones</th></tr>
             </thead>
             <tbody id="custBody">
-              <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+              <tr><td colspan="7" class="table-empty">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -94,6 +94,7 @@
         <div class="fg"><label class="fl">Teléfono *</label><input class="fi" id="cu-phone" placeholder="04121234567"></div>
         <div class="fg"><label class="fl">RIF / CI</label><input class="fi" id="cu-rif"></div>
         <div class="fg"><label class="fl">Ciudad</label><input class="fi" id="cu-city"></div>
+        <div class="fg"><label class="fl">Zona (004, 006, 008, 014)</label><input class="fi" id="cu-zone" placeholder="Ej: 008"></div>
         <div class="fg"><label class="fl">Email</label><input class="fi" id="cu-email" type="email"></div>
         <div class="fg"><label class="fl">Dirección</label><input class="fi" id="cu-address"></div>
       </div>

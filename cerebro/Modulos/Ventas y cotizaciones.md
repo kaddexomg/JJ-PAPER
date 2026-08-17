@@ -46,7 +46,7 @@ en pedido con `jjp_convert_quote`.
 - Delivery: el staff confirma el fee calculado o lo regala con "🆓 gratis"
   (ver [[Delivery]]).
 - Botón 📤 en cada fila: factura, recibo, estado del pedido.
-- **Integración con MixNet**: Los pedidos se exponen a través del servidor local de la PC de la tienda en `http://localhost:8787/lan/mixnet/pedidos` (formatos JSON y CSV), se guardan automáticamente en `wa-server/pedidos_mixnet_local.csv` cada 60 segundos, y adicionalmente el puente `wa-server/src/mixer.js` genera en tiempo real archivos individuales CSV y TXT por cada pedido en `C:/JJ-PAPER-MIXER` para facilitar que el Mixer de facturación los jale de forma aislada.
+- **Integración con MixNet**: Los pedidos se exponen a través del servidor local de la PC de la tienda en `http://localhost:8787/lan/mixnet/pedidos` (formatos JSON y CSV), se guardan automáticamente en `wa-server/pedidos_mixnet_local.csv` cada 60 segundos, y adicionalmente el puente `wa-server/src/mixer.js` genera en tiempo real archivos individuales CSV y TXT por cada pedido en `C:/JJ-PAPER-MIXER` para facilitar que el Mixer de facturación los jale de forma aislada. Para entornos donde el servidor principal no está en la misma LAN, se dispone de la solución puente autónoma [`mixer-bridge.js`](file:///C:/Users/PC/Desktop/JJ%20PAPER/mixer-bridge.js) que se ejecuta con Node.js 13.14.0 en una de las PC de los vendedores de la tienda, escribiendo los pedidos directamente en la unidad de red mapeada `M:\mixnet` de Windows 7 sin requerir permisos de administrador. Ver [[DISEÑO_RED_MIXNET]].
 
 ## Clientes (`vendedor/clientes.html` → `vcustomers.js`)
 

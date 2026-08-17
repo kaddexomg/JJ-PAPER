@@ -74,11 +74,13 @@ tags: [proyecto, cronologia]
 - wa-server: vigilante de sesiones + logs a archivo + estado vivo en el latido.
 - Nace este cerebro (`cerebro/` como baúl Obsidian) + `AGENTS.md` + `docs/`.
 
-**06-ago — Precios personalizados y conexión con MixNet**
+**06-ago — Precios personalizados, conexión con MixNet y UI WhatsApp**
 - POS y Cotizaciones: Precios de venta unitarios personalizables en vivo para el vendedor, recalculando subtotales y totales automáticamente.
 - Consulta de existencias: Modal de edición rápida (nombre, descripción, precios de variantes) para vendedores activos.
 - Mis precios personalizados: Nuevo panel del vendedor (`vendedor/productos.html` y `vproducts.js`) que gestiona la tabla `jjp_seller_prices` en Supabase. El buscador universal (`product-finder.js`) inyecta automáticamente los precios personalizados por vendedor en memoria.
 - Integración MixNet / Mixer: Endpoint local `/lan/mixnet/pedidos` (formatos JSON y CSV) y exportación consolidada a `pedidos_mixnet_local.csv` cada 60s. Además, el puente `mixer.js` escribe de manera inmediata archivos individuales CSV y TXT de cada pedido en `C:/JJ-PAPER-MIXER` conforme se registran en la base de datos de la tienda.
+- Solución de Red y Conexión MixNet: Diseñadas 3 alternativas de arquitectura LAN/Nube para entornos donde la PC del facturador MixNet y el servidor principal no están en la misma red local. Creado el script puente independiente `mixer-bridge.js` que corre directo en la PC de MixNet consumiendo Supabase en tiempo real.
+- Rediseño y Animaciones CRM WhatsApp: Modernización de la interfaz en `assets/css/wa.css` con esquinas asimétricas, profundidad de sombras, paleta de colores WhatsApp/Telegram y animaciones de entrada (`messageAppear`).
 
 
 Relacionado: [[Vision y metas]] · [[Pendientes]] · [[Historial de auditorias]]

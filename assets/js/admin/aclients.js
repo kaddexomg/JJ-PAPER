@@ -1,9 +1,6 @@
 /* ======================================================
    JJ Paper Admin — Gestión Global de Clientes y Zonas
-   Asignación automática:
-     - Zona 008 -> Marianela
-     - Zona 014 -> Andreina
-     - Zonas 006, 004 -> Giovanni
+   Optimizado: Importación masiva por lotes (batch upsert)
    ====================================================== */
 
 let adminCustomers = [];
@@ -12,7 +9,6 @@ let currentZoneFilter = 'todos';
 let editingAdminCustId = null;
 
 async function loadAdminCustomers() {
-  // Cargar perfiles (vendedores) para conocer IDs y nombres
   const { data: profs } = await sb.from('jjp_profiles').select('id, name, role');
   adminProfiles = profs || [];
 
@@ -113,16 +109,12 @@ async function saveAdminCustomer() {
   const zone = document.getElementById('ac-zone').value.trim() || null;
   let seller_id = null;
 
-  // Asignación automática por zona si no tiene
   if (zone === '008') {
-    const s = adminProfiles.find(x => x.name?.toLowerCase().includes('marianela'));
-    if (s) seller_id = s.id;
+    seller_id = adminProfiles.find(x => x.name?.toLowerCase().includes('marianela'))?.id || null;
   } else if (zone === '014') {
-    const s = adminProfiles.find(x => x.name?.toLowerCase().includes('andreina'));
-    if (s) seller_id = s.id;
+    seller_id = adminProfiles.find(x => x.name?.toLowerCase().includes('andreina'))?.id || null;
   } else if (zone === '006' || zone === '004') {
-    const s = adminProfiles.find(x => x.name?.toLowerCase().includes('giovanni'));
-    if (s) seller_id = s.id;
+    seller_id = adminProfiles.find(x => x.name?.toLowerCase().includes('giovanni'))?.id || null;
   }
 
   const fields = {
@@ -159,7 +151,7 @@ async function deleteAdminCustomer(id) {
   loadAdminCustomers();
 }
 
-/* ---- Importación masiva CSV consolidado ---- */
+/* ---- Importación masiva CSV consolidado (Optimizada por lotes) ---- */
 function openAdminCustImport() {
   document.getElementById('adminCustImportInput')?.click();
 }
@@ -191,56 +183,59 @@ async function adminCustImportFile(input) {
   }
 
   if (!rows.length) { showToast('El archivo CSV está vacío o no tiene formato válido', 'warn'); return; }
-  if (!confirm(`Se procesarán ${rows.length} registros para importación y distribución automática por zonas. ¿Continuar?`)) return;
+  if (!confirm(`Se procesarán ${rows.length} registros para importación masiva y distribución automática por zonas. ¿Continuar?`)) return;
 
-  showToast('Importando y distribuyendo clientes...', 'ok', 8000);
+  showToast('Preparando importación masiva...', 'ok', 4000);
 
-  // Mapear IDs de vendedores
   const marianela = adminProfiles.find(x => x.name?.toLowerCase().includes('marianela'))?.id || null;
   const andreina  = adminProfiles.find(x => x.name?.toLowerCase().includes('andreina'))?.id || null;
   const giovanni  = adminProfiles.find(x => x.name?.toLowerCase().includes('giovanni'))?.id || null;
 
-  let added = 0, updated = 0, failed = 0;
-
+  // Preparar todos los registros normalizados
+  const batchRecords = [];
   for (const r of rows) {
-    try {
-      const name = r.name || r.nombre || r.cliente || 'Cliente';
-      const rawPhone = r.phone || r.telefono || r.celular || '';
-      const phone = rawPhone.replace(/\D/g, '');
-      const zone = r.zone || r.zona || '';
-      const rif = r.rif || r.ci || null;
-      const email = r.email || r.correo || null;
-      const city = r.city || r.ciudad || null;
+    const name = r.name || r.nombre || r.cliente || 'Cliente';
+    const rawPhone = r.phone || r.telefono || r.celular || '';
+    const phone = rawPhone.replace(/\D/g, '') || null;
+    const zone = r.zone || r.zona || null;
+    const rif = r.rif || r.ci || null;
+    const email = r.email || r.correo || null;
+    const city = r.city || r.ciudad || 'Caracas';
 
-      if (!phone) { failed++; continue; }
+    let seller_id = null;
+    if (zone === '008') seller_id = marianela;
+    else if (zone === '014') seller_id = andreina;
+    else if (zone === '006' || zone === '004') seller_id = giovanni;
 
-      // Asignar vendedor según zona
-      let seller_id = null;
-      if (zone === '008') seller_id = marianela;
-      else if (zone === '014') seller_id = andreina;
-      else if (zone === '006' || zone === '004') seller_id = giovanni;
+    batchRecords.push({
+      name,
+      phone: phone || ('s/n-' + Math.random().toString(36).slice(2, 8)), // Asegurar unicidad si no hay teléfono
+      zone,
+      seller_id,
+      rif,
+      email,
+      city,
+      updated_at: new Date().toISOString()
+    });
+  }
 
-      // Verificar si ya existe por teléfono
-      const { data: existing } = await sb.from('jjp_customers').select('id').eq('phone', phone).limit(1);
-      const extId = existing?.[0]?.id;
+  // Insertar por lotes de 100 elementos para evitar timeouts
+  const BATCH_SIZE = 100;
+  let successCount = 0;
+  let errorCount = 0;
 
-      if (extId) {
-        await sb.from('jjp_customers').update({
-          name, zone: zone || undefined, seller_id: seller_id || undefined, rif: rif || undefined, email: email || undefined, city: city || undefined,
-          updated_at: new Date().toISOString()
-        }).eq('id', extId);
-        updated++;
-      } else {
-        const { error } = await sb.from('jjp_customers').insert({
-          name, phone, zone: zone || null, seller_id: seller_id || null, rif, email, city
-        });
-        if (error) failed++; else added++;
-      }
-    } catch (e) {
-      failed++;
+  for (let i = 0; i < batchRecords.length; i += BATCH_SIZE) {
+    const chunk = batchRecords.slice(i, i + BATCH_SIZE);
+    showToast(`Procesando lote ${Math.floor(i / BATCH_SIZE) + 1} de ${Math.ceil(batchRecords.length / BATCH_SIZE)}...`, 'ok', 3000);
+    
+    const { error } = await sb.from('jjp_customers').upsert(chunk, { onConflict: 'phone' });
+    if (error) {
+      errorCount += chunk.length;
+    } else {
+      successCount += chunk.length;
     }
   }
 
-  showToast(`Importación completa: ${added} nuevos · ${updated} actualizados${failed ? ` · ${failed} errores` : ''}`, 'ok', 6000);
+  showToast(`Importación finalizada: ${successCount} procesados con éxito${errorCount ? ` · ${errorCount} con error` : ''}`, 'ok', 6000);
   loadAdminCustomers();
 }

@@ -209,7 +209,7 @@ function posRenderTicket() {
     <div class="pos-tot"><span>Subtotal</span><span>${fmtPrice(subtotal)}</span></div>
     ${d > 0 ? `<div class="pos-tot" style="color:var(--gm)"><span>Descuento ${d}% (solicitado)</span><span>⏳ pendiente</span></div>` : ''}
     <div class="pos-tot big"><span>Total a cobrar</span><span>${fmtPrice(subtotal)}</span></div>
-    <div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(subtotal * rate)}</span></div>
+    ${sellerShowBs() ? `<div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(subtotal * rate)}</span></div>` : ''}
     ${d > 0 ? `<div class="pos-tot" style="color:var(--gr);font-size:11px"><span>Con el descuento quedaría</span><span>${fmtPrice(subtotal * (1 - d / 100))}</span></div>` : ''}`;
 }
 

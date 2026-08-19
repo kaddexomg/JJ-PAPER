@@ -55,6 +55,9 @@ async function sendPorWhatsApp({ telefono, nombre, texto, blob, filename, path, 
   const { data: { user } } = await sb.auth.getUser();
   if (!user) throw new Error('Sin sesión');
 
+  // Firma personal del vendedor (si la tiene configurada) al pie del mensaje
+  if (typeof sellerSign === 'function') texto = sellerSign(texto);
+
   // Abre (o reusa) el chat con esa persona: sin chat no hay dónde encolar.
   const { data: chatId, error: chatErr } = await sb.rpc('jjp_wa_ensure_chat', {
     p_phone: telefono, p_name: nombre || null,
@@ -101,6 +104,9 @@ async function sendPorCorreo({ email, asunto, cuerpo, html, blob, filename, path
 
   const { data: { user } } = await sb.auth.getUser();
   if (!user) throw new Error('Sin sesión');
+
+  // Firma personal del vendedor (si la tiene configurada) al pie del correo
+  if (typeof sellerSign === 'function') cuerpo = sellerSign(cuerpo);
 
   const adjuntos = [];
   let attPath = path || null;

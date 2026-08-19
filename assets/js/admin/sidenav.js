@@ -74,6 +74,8 @@
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'correo.html',   ico: '✉️', label: 'Correo' },
     ]},
+    { section: 'Mi cuenta' },
+    { href: 'ajustes.html', ico: '⚙️', label: 'Mis ajustes' },
     { section: 'Sitio' },
     { href: '../catalogo.html', ico: '🌐', label: 'Ver catálogo', ext: true },
     { action: 'logout', ico: '🚪', label: 'Cerrar Sesión' },

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajustes del Vendedor | JJ Paper</title>
+<link rel="icon" href="../assets/img/logo.svg">
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+<style>
+  .aj-wrap { max-width: 760px; }
+  .aj-card {
+    background: var(--card,#fff); border: 1px solid rgba(0,0,0,.08);
+    border-radius: 14px; padding: 18px; margin-bottom: 16px;
+    box-shadow: 0 4px 18px rgba(10,40,30,.06);
+  }
+  .aj-card h3 { font-size: 15px; margin: 0 0 4px; color: var(--bk); }
+  .aj-card .sub { font-size: 12.5px; color: var(--gr); margin-bottom: 14px; line-height: 1.5; }
+  .aj-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .aj-row .fi { flex: 1 1 180px; }
+  .aj-row input[type="number"] { max-width: 160px; }
+  .aj-info {
+    background: var(--gx); border-radius: 8px; padding: 10px 12px;
+    font-size: 12.5px; line-height: 1.6; color: #333; margin-bottom: 12px;
+  }
+  .aj-hint { font-size: 12px; color: var(--gr); margin-top: 8px; min-height: 18px; line-height: 1.5; }
+  .aj-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .aj-pair { grid-template-columns: 1fr; } }
+  .aj-ref {
+    font-family: Consolas, monospace; font-size: 12px; background: #f4f6f5;
+    border: 1px dashed var(--gb); border-radius: 8px; padding: 8px 10px;
+    word-break: break-all; color: var(--gd);
+  }
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- Se autoinyecta por sidenav.js -->
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>⚙️ Ajustes del Vendedor</h2>
+          <p>Tu tasa del día, perfil, firma y preferencias de tus documentos</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="aj-wrap">
+
+        <!-- Tasa del día -->
+        <section class="aj-card">
+          <h3>💱 Tasa del día</h3>
+          <div class="sub">Fija tu propia tasa con la que conviertes $→Bs. Se aplica en todo tu panel:
+            POS, cotizaciones y el catálogo que envías. Si no fijas una, se usa la oficial BCV.</div>
+          <div class="aj-info" id="ajTasaInfo">Cargando…</div>
+          <div class="aj-row">
+            <input type="number" step="0.01" min="0" id="ajTasa" class="fi" aria-label="Tu tasa del día" placeholder="Tasa en bolívares">
+            <button class="btn btn-p sm" id="ajTasasBtn" onclick="vajConsultarTasas()">🔄 Consultar tasas hoy</button>
+            <button class="btn btn-p sm" onclick="vajGuardarTasa()">💾 Guardar mi tasa</button>
+            <button class="btn btn-o sm" onclick="vajUsarOficial()">Usar tasa oficial</button>
+          </div>
+          <div class="aj-hint" id="ajTasaHint"></div>
+        </section>
+
+        <!-- Mi perfil -->
+        <section class="aj-card">
+          <h3>👤 Mi perfil</h3>
+          <div class="sub">Tus datos de contacto y de inicio de sesión.</div>
+          <div class="aj-pair">
+            <div>
+              <label class="fl">Nombre</label>
+              <input class="fi" id="ajName" readonly disabled>
+            </div>
+            <div>
+              <label class="fl">Correo de login</label>
+              <input class="fi" id="ajEmail" readonly disabled>
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            <label class="fl">Teléfono de contacto</label>
+            <div class="aj-row">
+              <input class="fi" id="ajPhone" placeholder="0412-0000000" inputmode="tel" autocomplete="tel">
+              <button class="btn btn-p sm" onclick="vajGuardarPerfil()">💾 Guardar teléfono</button>
+            </div>
+          </div>
+          <div style="margin-top:16px">
+            <label class="fl">Tu enlace de venta (referido)</label>
+            <div class="aj-row">
+              <div class="aj-ref" id="ajRef">—</div>
+              <button class="btn btn-o sm" onclick="vajCopiarRef()">📋 Copiar</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Mensajes y documentos -->
+        <section class="aj-card">
+          <h3>💬 Mis mensajes y documentos</h3>
+          <div class="sub">Se agregan automáticamente a los mensajes y envíos que haces a tus clientes.</div>
+          <div style="margin-bottom:14px">
+            <label class="fl" for="ajFirma">Firma al pie de tus mensajes</label>
+            <textarea class="fta" id="ajFirma" rows="3" placeholder="Ej: Vendedor: María Pérez · WhatsApp 0412-0000000 · JJ Paper"></textarea>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:14px">
+            <input type="checkbox" id="ajShowBs" style="width:18px;height:18px;accent-color:var(--gd)">
+            Mostrar precios en bolívares (Bs) en mis documentos
+          </label>
+          <button class="btn btn-p sm" onclick="vajGuardarMsgs()">💾 Guardar preferencias</button>
+        </section>
+
+        <!-- Seguridad -->
+        <section class="aj-card">
+          <h3>🔒 Seguridad</h3>
+          <div class="sub">Cambia la contraseña de tu cuenta. Aplica la próxima vez que inicies sesión.</div>
+          <div class="aj-pair">
+            <div>
+              <label class="fl" for="ajPass">Nueva contraseña</label>
+              <input type="password" class="fi" id="ajPass" autocomplete="new-password">
+            </div>
+            <div>
+              <label class="fl" for="ajPass2">Repite la contraseña</label>
+              <input type="password" class="fi" id="ajPass2" autocomplete="new-password">
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            <button class="btn btn-p sm" id="ajPassBtn" onclick="vajCambiarClave()">🔒 Cambiar contraseña</button>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js?v=20260819b"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/vajustes.js?v=20260819b"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+
+  const emailEl = document.getElementById('adminUserEmail');
+  if (emailEl) {
+    const { data: { session } } = await sb.auth.getSession();
+    emailEl.textContent = seller.name || session?.user?.email || 'Vendedor';
+  }
+
+  await vajInit();
+});
+</script>
+</body>
+</html>

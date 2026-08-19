@@ -75,6 +75,7 @@ tags: [indice]
 | `vdashboard.js` | metas y comisiones | [[Ventas y cotizaciones]] |
 | `scan.js` | teléfono como pistola de códigos | [[Inventario y conteo]] |
 | `vcatalogo.js` | catálogo del vendedor: tarjetas con foto, precios editables, imprimir, enviar (PDF sin costo/SKU) | [[Envio de documentos]] |
+| `vajustes.js` | ajustes del vendedor: tasa del día, teléfono, firma, mostrar Bs, contraseña | [[Dinero y tasas]] |
 | `wa/wa-chat.js` | el chat completo del CRM | [[CRM WhatsApp]] |
 | `wa/wa-common.js`, `wa/wa-link.js` | utilidades y vinculación por QR | [[CRM WhatsApp]] |
 

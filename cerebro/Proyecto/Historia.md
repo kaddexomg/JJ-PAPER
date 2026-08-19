@@ -98,5 +98,20 @@ tags: [proyecto, cronologia]
   (grupo Catálogo) en `sidenav.js`; bump `?v=20260819` en doc-engine.js (13 HTML)
   y sidenav.js (30 HTML).
 
+**19-ago (2) — Ajustes del vendedor**
+- Nueva página `vendedor/ajustes.html` + `vajustes.js`: el vendedor configura su
+  propia **tasa del día** (con botón "Consultar tasas hoy" que trae BCV+Binance+Euro,
+  como el admin) y esta tasa aplica a TODO su panel (POS, cotizaciones, catálogo)
+  vía override de `getRate()` en `config.js`.
+- Opciones de perfil: editar su **teléfono** (RLS ya lo permitía), ver/copiar su
+  **link de referido**, **firma** que se agrega sola al pie de todos sus envíos
+  (inyectada en `send-hub.js`), **mostrar/ocultar Bs** en sus documentos
+  (catálogo PDF, tarjetas, POS y cotizador) y **cambiar contraseña**.
+- Tabla nueva `jjp_seller_settings` (clave-valor por seller, RLS: cada vendedor
+  solo sus filas, admins lectura total) → `sql/2026-08-19-seller-settings.sql`
+  (correr a mano en el SQL editor de Supabase).
+- Bump `?v=20260819b`: sidenav.js (31 HTML), doc-engine.js (14), send-hub.js (14),
+  pos.js y vquotes.js (1 cada uno).
+
 
 Relacionado: [[Vision y metas]] · [[Pendientes]] · [[Historial de auditorias]]

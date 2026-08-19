@@ -119,6 +119,7 @@ function vcStock(p) {
 }
 
 function vcBs(usd) {
+  if (typeof sellerShowBs === 'function' && !sellerShowBs()) return '';
   const bs = (typeof toBs === 'function') ? toBs(usd) : null;
   return bs ? 'Bs ' + Number(bs).toLocaleString('es-VE', { maximumFractionDigits: 2 }) : '';
 }
@@ -252,7 +253,7 @@ async function vcDescargar() {
   if (!filas.length) return showToast('No hay productos para descargar', 'warn');
   showToast('⏳ Generando PDF con fotos…', 'warn');
   try {
-    const archivo = await docPdfCatalogoFotos({ filas, conSku: true, titulo: 'Catálogo interno' });
+    const archivo = await docPdfCatalogoFotos({ filas, conSku: true, titulo: 'Catálogo interno', showBs: sellerShowBs() });
     docDescargar(archivo.blob, archivo.filename);
     showToast('⬇️ PDF descargado', 'ok');
   } catch (e) {
@@ -264,7 +265,8 @@ async function vcDescargar() {
 /* ---------------- Envío al cliente (chequeo) ---------------- */
 
 function vcMsgDefault(n) {
-  return `📗 *Catálogo JJ Paper*\n\nHola, te compartimos nuestro catálogo con los precios del día.\n\n*${n} producto${n === 1 ? '' : 's'}* · Precios en $ y Bs.\n\nCualquier producto que necesites, escríbenos por aquí. 📄`;
+  const base = `📗 *Catálogo JJ Paper*\n\nHola, te compartimos nuestro catálogo con los precios del día.\n\n*${n} producto${n === 1 ? '' : 's'}* · Precios en $${sellerShowBs() ? ' y Bs' : ''}.\n\nCualquier producto que necesites, escríbenos por aquí. 📄`;
+  return typeof sellerSign === 'function' ? sellerSign(base) : base;
 }
 
 function vcCSS() {
@@ -422,7 +424,7 @@ async function vcEnviar(via) {
   if (foot) foot.textContent = '⏳ Generando el PDF con fotos…';
 
   try {
-    const archivo = await docPdfCatalogoFotos({ filas, conSku: false, titulo: 'Catálogo' });
+    const archivo = await docPdfCatalogoFotos({ filas, conSku: false, titulo: 'Catálogo', showBs: sellerShowBs() });
     if (foot) foot.textContent = '⏳ Enviando…';
 
     if (via === 'wa') {

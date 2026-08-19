@@ -39,6 +39,7 @@ tags: [sistema, mapa]
 | `difusion.html` | `vdifusion.js` | [[Difusion]] |
 | `scan.html` | `scan.js` (teléfono como pistola → `jjp_pos_scans`) | [[Inventario y conteo]] |
 | `catalogo.html` | `vcatalogo.js` (tarjetas con foto, 💱 precios editables, 🖨️ imprimir, 📤 enviar, ⬇️ PDF) | [[Envio de documentos]] |
+| `ajustes.html` | `vajustes.js` (tasa del día propia, teléfono, ref, firma, mostrar Bs, contraseña) | [[Dinero y tasas]] |
 
 `vcommon.js` = `initSellerPage()` (guardia de rol + notificaciones).
 

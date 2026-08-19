@@ -20,6 +20,15 @@ Se refrescan cada hora: el [[wa-server]] (`rates.js`) las trae y un `pg_cron` de
 respaldo hace lo mismo. Historial en `jjp_fx_rates` (para saber a qué tasa se
 vendió algo).
 
+## La tasa del vendedor (jjp_seller_settings)
+
+Cada vendedor puede fijar **su propia tasa del día** desde `vendedor/ajustes.html`
+(clave `rate_usd`). Se guarda en la tabla `jjp_seller_settings` y se aplica en
+TODO su panel: POS, cotizador y catálogo PDF. `getRate()` en `config.js` la
+respeta automáticamente (`APP.SELLER_RATE`); si el vendedor no la fija, se usa la
+tasa oficial BCV. El botón "Consultar tasas hoy" trae BCV + Binance + Euro con
+el mismo `fetchRates()` del admin. Ver `sql/2026-08-19-seller-settings.sql`.
+
 ## Cómo se usa en el código
 
 En `assets/js/config.js`: `toBs(usd)` convierte, `fmtPrice(usd)` formatea en

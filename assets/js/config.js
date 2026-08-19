@@ -157,7 +157,11 @@ function normTxt(str) {
 }
 
 // Current exchange rate (USD -> Bs) with sane fallback
+// Tasa con la que se convierte USD → Bs.
+// El vendedor puede fijar la suya (se carga en APP.SELLER_RATE desde sus
+// ajustes en vcommon.js); si no, se usa la oficial (BCV) global del negocio.
 function getRate() {
+  if (APP.SELLER_RATE) return APP.SELLER_RATE;
   return APP.EXCHANGE_RATE || parseFloat(sessionStorage.getItem(APP.RATE_KEY)) || 40;
 }
 

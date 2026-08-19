@@ -374,7 +374,7 @@ async function docCargaFotos(filas, concurrentes = 4) {
   await Promise.all([...Array(concurrentes)].map(worker));
 }
 
-async function docPdfCatalogoFotos({ filas, conSku = false, titulo = 'Catálogo' } = {}) {
+async function docPdfCatalogoFotos({ filas, conSku = false, titulo = 'Catálogo', showBs = true } = {}) {
   await docEnsureSettings();
   await docEnsurePdfLib();
 
@@ -403,7 +403,7 @@ async function docPdfCatalogoFotos({ filas, conSku = false, titulo = 'Catálogo'
   const pageW = doc.internal.pageSize.getWidth();
   const M = 36;
 
-  const subtitulo = `${titulo}  ·  ${lista.length} producto${lista.length === 1 ? '' : 's'}  ·  Precios en $ y Bs (tasa BCV)` +
+  const subtitulo = `${titulo}  ·  ${lista.length} producto${lista.length === 1 ? '' : 's'}  ·  Precios en $${showBs ? ' y Bs (tasa BCV)' : ''}` +
     (conSku ? '' : '  ·  Pedidos por WhatsApp');
 
   docFolletoChrome(doc, { rate, logoPng, subtitulo });
@@ -470,8 +470,10 @@ async function docPdfCatalogoFotos({ filas, conSku = false, titulo = 'Catálogo'
     const usd = Number(f.usd) || 0;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...C.main);
     doc.text(`$${usd.toFixed(2)}`, ix, cy + ch - 12);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120);
-    doc.text(`Bs ${(usd * rate).toFixed(2)}`, cx + cw - 7, cy + ch - 12, { align: 'right' });
+    if (showBs) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120);
+      doc.text(`Bs ${(usd * rate).toFixed(2)}`, cx + cw - 7, cy + ch - 12, { align: 'right' });
+    }
   });
 
   const nombre = `${conSku ? 'Catalogo-interno' : 'Catalogo'}-JJPaper-${docToday()}.pdf`;

@@ -297,6 +297,188 @@ const docPdfCatalogo     = () => docPdfProductos({ conStock: true,  titulo: 'Cat
 const docPdfListaPrecios = () => docPdfProductos({ conStock: false, titulo: 'Lista de Precios' });
 
 /* ====================================================================
+   CATÁLOGO CON FOTOS — tarjetas visuales (panel vendedor)
+   Una tarjeta por producto con su foto, nombre, descripción, SKU y
+   precio. La vista "Catálogo" del vendedor lo genera así:
+     · conSku=false → PDF para el CLIENTE (foto, nombre, descripción,
+       precio $ y Bs; sin SKU ni costo).
+     · conSku=true  → PDF interno (además el código), para imprimir o
+       descargar en el negocio.
+   Las filas las arma la página (con sus precios ya editados) y se pasan
+   como { name, desc, sku, img, emoji, brand, usd, unit }. Si no llegan,
+   se cargan desde el catálogo (una fila por producto, precio mínimo).
+   ==================================================================== */
+
+// Normaliza cualquier formato de imagen (incluido webp) a JPEG para jsPDF.
+// Primero intenta fetch→blob (evita el "taint" del canvas; funciona si el
+// origen manda CORS — Supabase Storage sí lo hace). Si falla, intenta el
+// método clásico con crossOrigin. Si nada funciona, devuelve null y la
+// tarjeta se dibuja con las iniciales del producto.
+function docImagenJpeg(url) {
+  return new Promise(resolve => {
+    const u = encodeURI(url);
+    const dibuja = (src) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const max = 800;
+          const w = img.naturalWidth || max, h = img.naturalHeight || max;
+          const esc = Math.min(1, max / Math.max(w, h));
+          const c = document.createElement('canvas');
+          c.width = Math.round(w * esc); c.height = Math.round(h * esc);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL('image/jpeg', 0.82));
+        } catch (e) { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    };
+    fetch(u)
+      .then(r => { if (!r.ok) throw 0; return r.blob(); })
+      .then(b => new Promise((ok, no) => {
+        const fr = new FileReader();
+        fr.onload = () => ok(fr.result);
+        fr.onerror = no;
+        fr.readAsDataURL(b);
+      }))
+      .then(dataUrl => dibuja(dataUrl))
+      .catch(() => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const max = 800;
+            const w = img.naturalWidth || max, h = img.naturalHeight || max;
+            const esc = Math.min(1, max / Math.max(w, h));
+            const c = document.createElement('canvas');
+            c.width = Math.round(w * esc); c.height = Math.round(h * esc);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL('image/jpeg', 0.82));
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = u;
+      });
+  });
+}
+
+// Carga las fotos con límite de concurrencia para no ahogar las PCs viejas
+async function docCargaFotos(filas, concurrentes = 4) {
+  let idx = 0;
+  async function worker() {
+    while (idx < filas.length) {
+      const f = filas[idx++];
+      f.imgData = f.img ? await docImagenJpeg(f.img) : null;
+    }
+  }
+  await Promise.all([...Array(concurrentes)].map(worker));
+}
+
+async function docPdfCatalogoFotos({ filas, conSku = false, titulo = 'Catálogo' } = {}) {
+  await docEnsureSettings();
+  await docEnsurePdfLib();
+
+  let lista = (filas || []).filter(f => f && f.name);
+  if (!lista.length) {
+    lista = await docLoadCatalogRows().then(rows => {
+      // Agrupa por producto: una tarjeta por nombre (precio mínimo) para no
+      // repetir la misma foto por cada presentación.
+      const porNombre = new Map();
+      rows.forEach(r => {
+        const cur = porNombre.get(r.name);
+        if (!cur || r.usd < cur.usd) porNombre.set(r.name, r);
+      });
+      return [...porNombre.values()];
+    });
+  }
+  if (!lista.length) throw new Error('No hay productos para armar el catálogo');
+
+  const logoPng = await docLogoPng().catch(() => null);
+  await docCargaFotos(lista);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const C = docColors();
+  const rate = getRate();
+  const pageW = doc.internal.pageSize.getWidth();
+  const M = 36;
+
+  const subtitulo = `${titulo}  ·  ${lista.length} producto${lista.length === 1 ? '' : 's'}  ·  Precios en $ y Bs (tasa BCV)` +
+    (conSku ? '' : '  ·  Pedidos por WhatsApp');
+
+  docFolletoChrome(doc, { rate, logoPng, subtitulo });
+
+  // Tarjetas: 2 columnas × 3 filas por página
+  const GX = 10, GY = 14;
+  const cw = (pageW - M * 2 - GX) / 2;
+  const ch = 212;
+  const topY = 88;
+  const imgH = 106;
+
+  lista.forEach((f, i) => {
+    const perX = 2, perY = 3;
+    const col = i % perX;
+    const row = Math.floor(i / perX) % perY;
+    if (i > 0 && col === 0 && row === 0) {
+      doc.addPage();
+      docFolletoChrome(doc, { rate, logoPng, subtitulo });
+    }
+    const cx = M + col * (cw + GX);
+    const cy = topY + row * (ch + GY);
+
+    // caja de la tarjeta
+    doc.setDrawColor(...C.main); doc.setLineWidth(0.6);
+    doc.roundedRect(cx, cy, cw, ch, 4, 4, 'S');
+
+    // foto
+    const ix = cx + 7, iy = cy + 7, iw = cw - 14;
+    if (f.imgData) {
+      doc.addImage(f.imgData, 'JPEG', ix, iy, iw, imgH, undefined, 'FAST');
+      doc.setDrawColor(235, 240, 237); doc.setLineWidth(0.5);
+      doc.line(ix, iy + imgH, ix + iw, iy + imgH);
+    } else {
+      doc.setFillColor(241, 245, 243);
+      doc.roundedRect(ix, iy, iw, imgH, 3, 3, 'F');
+      const ini = String(f.name || 'JJ').replace(/[^A-Za-zÀ-ÿ0-9 ]/g, '').trim()
+        .split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'JJ';
+      doc.setTextColor(...C.main); doc.setFont('helvetica', 'bold'); doc.setFontSize(26);
+      doc.text(ini, ix + iw / 2, iy + imgH / 2 + 9, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(160);
+      doc.text('sin foto', ix + iw / 2, iy + imgH / 2 + 24, { align: 'center' });
+    }
+
+    // zona de texto
+    let ty = iy + imgH + 11;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(28, 32, 30);
+    const nom = doc.splitTextToSize(String(f.name || ''), cw - 14).slice(0, 2);
+    doc.text(nom, ix, ty); ty += nom.length * 10.5 + 1;
+    if (conSku && f.sku) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(150);
+      doc.text('Cód.: ' + String(f.sku), ix, ty); ty += 8.5;
+    }
+    if (f.brand) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120);
+      doc.text(doc.splitTextToSize('Marca: ' + String(f.brand), cw - 14)[0], ix, ty); ty += 9;
+    }
+    if (f.desc) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120);
+      const d = doc.splitTextToSize(String(f.desc), cw - 14).slice(0, 2);
+      doc.text(d, ix, ty); ty += d.length * 8.5 + 1;
+    }
+
+    // precio abajo
+    const usd = Number(f.usd) || 0;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...C.main);
+    doc.text(`$${usd.toFixed(2)}`, ix, cy + ch - 12);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.text(`Bs ${(usd * rate).toFixed(2)}`, cx + cw - 7, cy + ch - 12, { align: 'right' });
+  });
+
+  const nombre = `${conSku ? 'Catalogo-interno' : 'Catalogo'}-JJPaper-${docToday()}.pdf`;
+  return { blob: doc.output('blob'), filename: nombre, doc };
+}
+
+/* ====================================================================
    DOCUMENTOS DE VENTA — factura, orden de recibo, presupuesto
    Misma información y mismos ajustes que comprobante.html, pero como
    archivo enviable. El que se imprime y el que se manda dicen lo mismo.

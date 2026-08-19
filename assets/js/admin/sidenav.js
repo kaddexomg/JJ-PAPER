@@ -38,6 +38,7 @@
       { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },
       { href: 'marcas.html',    ico: '🏷️', label: 'Marcas' },
       { href: 'unidades.html',  ico: '📐', label: 'Unidades' },
+      { href: '../vendedor/catalogo.html', ico: '📗', label: 'Catálogo' },
     ]},
     { group: 'Inventario', ico: '🗃️', items: [
       { href: 'inventario.html', ico: '🗃️', label: 'Inventario' },
@@ -62,6 +63,7 @@
       { href: 'cotizaciones.html', ico: '🗂️', label: 'Mis cotizaciones' },
       { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
       { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
+      { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
     ]},
     { group: 'Clientes', ico: '👥', items: [

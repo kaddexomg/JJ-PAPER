@@ -82,5 +82,21 @@ tags: [proyecto, cronologia]
 - Solución de Red y Conexión MixNet: Diseñadas 3 alternativas de arquitectura LAN/Nube para entornos donde la PC del facturador MixNet y el servidor principal no están en la misma red local. Creado el script puente independiente `mixer-bridge.js` que corre directo en la PC de MixNet consumiendo Supabase en tiempo real.
 - Rediseño y Animaciones CRM WhatsApp: Modernización de la interfaz en `assets/css/wa.css` con esquinas asimétricas, profundidad de sombras, paleta de colores WhatsApp/Telegram y animaciones de entrada (`messageAppear`).
 
+**19-ago — Catálogo del vendedor con fotos**
+- Nueva página `vendedor/catalogo.html` + `vcatalogo.js`: tarjetas con foto, nombre,
+  descripción corta, SKU, marca, precio $ y Bs y semáforo de existencias
+  (✔ Disponible / ⚠ Pocas / ✕ Agotado). Precios personalizados de
+  `jjp_seller_prices` aplicados igual que en `product-finder.js`.
+- 💱 Edición de precios en vivo: solo para el PDF/impresión, NUNCA toca la base.
+- 🖨️ Imprimir (con SKU) y ⬇️ descargar PDF interno (con SKU).
+- 📤 Enviar al cliente: modal de chequeo con buscador de cliente (RLS), mensaje
+  editable y botones directos WhatsApp/Correo; el PDF del CLIENTE va SIN costo ni
+  SKU (protege el margen).
+- `doc-engine.js` gana `docPdfCatalogoFotos` + `docImagenJpeg` (fetch→blob→canvas,
+  evita el taint) + `docCargaFotos` (carga concurrente, límite 4).
+- Menú: "📗 Catálogo" agregado al sidebar del vendedor (grupo Vender) y del admin
+  (grupo Catálogo) en `sidenav.js`; bump `?v=20260819` en doc-engine.js (13 HTML)
+  y sidenav.js (30 HTML).
+
 
 Relacionado: [[Vision y metas]] · [[Pendientes]] · [[Historial de auditorias]]

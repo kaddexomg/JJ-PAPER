@@ -25,7 +25,7 @@ tags: [indice]
 |---|---|---|
 | `config.js` | cliente `sb`, tasas (`toBs`, `fmtPrice`), `escapeHTML`, `normTxt`, `optImg` | [[Dinero y tasas]] |
 | `toast.js` | avisos al usuario | — |
-| `doc-engine.js` | **motor único de PDF** (catálogo, lista, factura, recibo, presupuesto) | [[Envio de documentos]] |
+| `doc-engine.js` | **motor único de PDF** (catálogo, lista, factura, recibo, presupuesto + `docPdfCatalogoFotos` para tarjetas con foto) | [[Envio de documentos]] |
 | `send-hub.js` | menú 📤 + `sendPorWhatsApp` / `sendPorCorreo` (encolar) | [[Cola de mensajes]] |
 | `ficha-producto.js` | 📤 Ficha: foto + reseña + enlace de compra | [[Envio de documentos]] |
 | `catalog.js` | catálogo público, grupos y categorías, búsqueda | [[Catalogo publico]] |
@@ -74,6 +74,7 @@ tags: [indice]
 | `vdifusion.js` | campañas masivas | [[Difusion]] |
 | `vdashboard.js` | metas y comisiones | [[Ventas y cotizaciones]] |
 | `scan.js` | teléfono como pistola de códigos | [[Inventario y conteo]] |
+| `vcatalogo.js` | catálogo del vendedor: tarjetas con foto, precios editables, imprimir, enviar (PDF sin costo/SKU) | [[Envio de documentos]] |
 | `wa/wa-chat.js` | el chat completo del CRM | [[CRM WhatsApp]] |
 | `wa/wa-common.js`, `wa/wa-link.js` | utilidades y vinculación por QR | [[CRM WhatsApp]] |
 

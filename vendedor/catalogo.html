@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catálogo | JJ Paper Vendedor</title>
+<link rel="icon" href="../assets/img/logo.svg">
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+<style>
+  /* ===================== Vista del catálogo en tarjetas ===================== */
+  .cat-toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 16px;
+  }
+  .cat-toolbar .fi { flex: 1 1 220px; min-width: 180px; }
+  .cat-toolbar select {
+    padding: 11px 12px; border: 2px solid var(--gb); border-radius: var(--rs);
+    font: inherit; font-size: 13px; background: #fff; color: var(--bk);
+    min-height: 44px; cursor: pointer;
+  }
+  .cat-count { font-size: 13px; color: var(--gr); font-weight: 600; white-space: nowrap; }
+  .cat-toolbar .btn { margin: 0; }
+
+  .vc-edit-warn {
+    display: none; background: #fff8e6; border: 1px solid #e8c96b; border-radius: 8px;
+    padding: 9px 12px; font-size: 12.5px; color: #6b5518; margin-bottom: 14px; line-height: 1.5;
+  }
+  .vc-edit-warn b { color: #8a6d16; }
+
+  .vc-grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  .vc-card {
+    background: var(--card, #fff); border: 1px solid rgba(0,0,0,.08);
+    border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 4px 18px rgba(10,40,30,.06);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .vc-card:hover { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(10,40,30,.12); }
+  .vc-img { width: 100%; height: 150px; object-fit: cover; background: #f0f4f2; display: block; }
+  .vc-noimg {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px; color: var(--gd);
+  }
+  .vc-body { padding: 10px 12px 6px; flex: 1; min-width: 0; }
+  .vc-titulo { font-size: 14px; font-weight: 700; color: var(--bk); line-height: 1.25; }
+  .vc-sku    { font-family: Consolas, monospace; font-size: 11px; color: var(--gr); margin-top: 2px; }
+  .vc-marca  { font-size: 12px; color: #555; margin-top: 3px; }
+  .vc-desc   { font-size: 12px; color: #777; margin-top: 4px; line-height: 1.45; }
+  .vc-pie {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
+    padding: 8px 12px 11px; border-top: 1px solid #f0f3f1;
+  }
+  .vc-precio { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .vc-precio-num { font-size: 15px; font-weight: 800; color: var(--gd); }
+  .vc-bs { font-size: 11px; color: var(--gr); }
+  .vc-price-input {
+    width: 92px; padding: 4px 6px; border: 2px solid var(--gm); border-radius: 8px;
+    font: inherit; font-size: 13px; font-weight: 700; color: var(--bk); background: #fff;
+  }
+  .vc-reset {
+    display: none; background: none; border: 0; font-size: 15px; cursor: pointer;
+    color: var(--danger); align-self: flex-start; margin-top: 2px;
+  }
+  body.vc-editing .vc-price-input { display: inline-block; }
+  body.vc-editing .vc-precio-num   { display: none; }
+  body.vc-editing .vc-reset.vc-has-ov { display: inline-block; }
+
+  .vc-stock { font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .pf-ok  { color: #2e8b57; }
+  .pf-low { color: #d9822b; }
+  .pf-out { color: #dc3c3c; }
+
+  /* Cabecera que solo aparece al imprimir */
+  .vc-print-head { display: none; }
+  .vc-print-head h1 { font-size: 18px; color: var(--gd); }
+  .vc-print-head .meta { font-size: 12px; color: #555; margin-top: 2px; }
+
+  @media (max-width: 720px) {
+    .vc-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .vc-img  { height: 110px; }
+    .vc-titulo { font-size: 12.5px; }
+    .vc-precio-num { font-size: 13px; }
+  }
+
+  /* Impresión: solo la parrilla de tarjetas, con cabecera del negocio */
+  @media print {
+    html, body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .admin-aside, .admin-topbar, .cat-toolbar, .vc-edit-warn, .toast-c, .menu-toggle { display: none !important; }
+    .admin-wrap, .admin-main, .admin-content {
+      display: block !important; margin: 0 !important; padding: 0 !important;
+      width: 100% !important; max-width: none !important;
+    }
+    .vc-print-head { display: block !important; margin-bottom: 14px; border-bottom: 2px solid var(--gd); padding-bottom: 8px; }
+    .vc-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px; }
+    .vc-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none; }
+    .vc-card:hover { transform: none; }
+    .vc-price-input, .vc-reset { display: none !important; }
+    .vc-precio-num { display: inline !important; }
+    @page { margin: 12mm; }
+  }
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- Se autoinyecta por sidenav.js -->
+    </nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>📗 Catálogo</h2>
+          <p>Mira, imprime, edita precios y envía el catálogo por WhatsApp o correo</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="vc-print-head" id="vcPrintHead">
+        <h1>Catálogo JJ Paper</h1>
+        <div class="meta" id="vcPrintMeta"></div>
+      </div>
+
+      <div class="cat-toolbar">
+        <input class="fi" id="vcQ" type="search" placeholder="Buscar por nombre, SKU, marca…" oninput="vcSetSearch(this.value)" autocomplete="off" aria-label="Buscar producto">
+        <select id="vcGrupo" onchange="vcSetGrupo(this.value)" aria-label="Filtrar por grupo">
+          <option value="all">Todos los grupos</option>
+        </select>
+        <select id="vcCat" onchange="vcSetCat(this.value)" aria-label="Filtrar por categoría">
+          <option value="all">Todas las categorías</option>
+        </select>
+        <span class="cat-count" id="vcCount">…</span>
+        <button class="btn btn-p" id="vcEditBtn" onclick="vcToggleEdicion()">💱 Editar precios</button>
+        <button class="btn btn-o" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn btn-p" onclick="vcAbrirEnvio()">📤 Enviar al cliente</button>
+        <button class="btn btn-o" onclick="vcDescargar()">⬇️ Descargar PDF</button>
+      </div>
+
+      <div class="vc-edit-warn" id="vcEditWarn">
+        ✏️ <b>Estás editando precios:</b> los cambios aplican al PDF que generes
+        (descargar / imprimir / enviar). El precio del catálogo en la base NO se modifica.
+      </div>
+
+      <div class="vc-grid" id="vcGrid">
+        <div class="wa-empty">Cargando catálogo…</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js?v=20260819"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/doc-engine.js?v=20260819"></script>
+<script src="../assets/js/send-hub.js?v=20260819"></script>
+<script src="../assets/js/vendedor/vcatalogo.js?v=20260819"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const seller = await initSellerPage();
+  if (!seller) return;
+
+  const emailEl = document.getElementById('adminUserEmail');
+  if (emailEl) {
+    const { data: { session } } = await sb.auth.getSession();
+    emailEl.textContent = seller.name || session?.user?.email || 'Vendedor';
+  }
+
+  await vcInit();
+
+  // Cabecera para imprimir
+  const meta = document.getElementById('vcPrintMeta');
+  if (meta) {
+    const s = APP.SETTINGS || {};
+    const hoy = new Date().toLocaleDateString('es-VE', { year: 'numeric', month: 'long', day: 'numeric' });
+    meta.textContent = [s.business_name || s.site_name || 'JJ Paper', s.rif ? 'RIF: ' + s.rif : '', hoy]
+      .filter(Boolean).join(' · ');
+  }
+});
+</script>
+</body>
+</html>

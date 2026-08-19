@@ -38,6 +38,7 @@ tags: [sistema, mapa]
 | `correo.html` | `../admin/correo.js` (compartido) | [[Correo]] |
 | `difusion.html` | `vdifusion.js` | [[Difusion]] |
 | `scan.html` | `scan.js` (teléfono como pistola → `jjp_pos_scans`) | [[Inventario y conteo]] |
+| `catalogo.html` | `vcatalogo.js` (tarjetas con foto, 💱 precios editables, 🖨️ imprimir, 📤 enviar, ⬇️ PDF) | [[Envio de documentos]] |
 
 `vcommon.js` = `initSellerPage()` (guardia de rol + notificaciones).
 

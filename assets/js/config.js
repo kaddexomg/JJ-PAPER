@@ -2,8 +2,8 @@
    JJ Paper — Supabase Config & App Constants
    ====================================================== */
 
-const SUPABASE_URL = 'https://oeiuczltgdexwjjgquyq.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_3fTrF94WK0TDpF3nvwPMSg_l1H-9cBI';
+const SUPABASE_URL = 'https://czzvsqnmxtjzqzioknnn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6enZzcW5teHRqenF6aW9rbm5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzI5MzYsImV4cCI6MjEwMzE0ODkzNn0.OcwmkYAP0Ax2_UI3kXAg5C6T-mf4aIeEf__Nz7EAhbc';
 
 // Supabase client (loaded via CDN in each HTML)
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);

@@ -68,7 +68,7 @@ Entidades que atraviesan TODO el sistema (los nodos del grafo):
 |---|---|
 | Sitio | **jj-paper.pages.dev** (Cloudflare Pages; Netlify obsoleto) |
 | Deploy | `git push` a `main` → build automático (`build.sh` → `dist/`) |
-| Base de datos | Supabase **`oeiuczltgdexwjjgquyq`** (el viejo `droj…` está MUERTO) |
+| Base de datos | Supabase **`czzvsqnmxtjzqzioknnn`** (migrado 24-ago-2026; el anterior `oeiuczlt…` quedó bloqueado por storage) |
 | Servidor | `wa-server/` en la PC de la tienda; 🟢/🔴 por heartbeat en el panel |
 | Repo | privado `github.com/kaddexomg/JJ-PAPER`, rama `main` |
 

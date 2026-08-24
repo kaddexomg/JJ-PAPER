@@ -6,13 +6,13 @@
   Permissions-Policy: geolocation=(self), microphone=(), camera=(self)
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Cross-Origin-Opener-Policy: same-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: https://oeiuczltgdexwjjgquyq.supabase.co; worker-src 'self' blob:; connect-src 'self' https://oeiuczltgdexwjjgquyq.supabase.co wss://oeiuczltgdexwjjgquyq.supabase.co https://cdn.jsdelivr.net https://unpkg.com https://accounts.google.com https://www.googleapis.com https://nominatim.openstreetmap.org https://ve.dolarapi.com https://criptoya.com http://localhost:8787 https://localhost:8788; frame-src https://www.openstreetmap.org https://accounts.google.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: https://czzvsqnmxtjzqzioknnn.supabase.co; worker-src 'self' blob:; connect-src 'self' https://czzvsqnmxtjzqzioknnn.supabase.co wss://czzvsqnmxtjzqzioknnn.supabase.co https://cdn.jsdelivr.net https://unpkg.com https://accounts.google.com https://www.googleapis.com https://nominatim.openstreetmap.org https://ve.dolarapi.com https://criptoya.com http://localhost:8787 https://localhost:8788; frame-src https://www.openstreetmap.org https://accounts.google.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
 
 # diag.html comprueba con eval() qué soporta el navegador: es su razón de ser.
 # Sin 'unsafe-eval' reportaria "no soportado" en TODO y enganaria el diagnostico.
 # El permiso vive SOLO en esta pagina, no en el resto del sitio.
 /diag.html
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://oeiuczltgdexwjjgquyq.supabase.co wss://oeiuczltgdexwjjgquyq.supabase.co; frame-ancestors 'self'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://czzvsqnmxtjzqzioknnn.supabase.co wss://czzvsqnmxtjzqzioknnn.supabase.co; frame-ancestors 'self'; base-uri 'self'; object-src 'none'
 
 # Librerías con versión en el nombre: se pueden cachear para siempre.
 # Esto es lo que hace que el panel abra rápido en las PCs viejas de la tienda.

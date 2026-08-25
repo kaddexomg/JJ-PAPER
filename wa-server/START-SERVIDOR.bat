@@ -10,6 +10,9 @@ cd /d "%~dp0"
 
 :loop
 echo.
+echo [%date% %time%] Verificando conexion y ruta de MixNet...
+node auto-detect-mixnet.js
+echo.
 echo [%date% %time%] Iniciando servidor JJ Paper...
 node src/index.js
 

@@ -1,8 +1,12 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Cargar .env explícitamente desde la carpeta wa-server (evita problemas de CWD al ejecutar desde .bat o accesos directos)
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config(); // fallback estándar
 
 export const SUPABASE_URL = process.env.SUPABASE_URL;
 export const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;

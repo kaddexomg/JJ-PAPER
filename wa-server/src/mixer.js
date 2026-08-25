@@ -17,7 +17,56 @@ import { log } from './logger.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, '..', 'exported-orders.json');
 
-let exportedOrders = new Set();
+// Auto-detección inteligente del directorio de MixNet / facturador
+function detectMixerDirectory() {
+  if (process.env.MIXER_EXPORT_DIR && fs.existsSync(process.env.MIXER_EXPORT_DIR)) {
+    return process.env.MIXER_EXPORT_DIR;
+  }
+
+  const drives = ['C:', 'D:', 'E:', 'F:'];
+  const candidateFolders = [
+    'JJ-PAPER-MIXER',
+    'MixNet',
+    'Mixer',
+    'MIXNET',
+    'MIXER',
+    'Facturacion',
+    'FACTURACION',
+    'Sistemas/MixNet',
+    'Sistemas/Mixer',
+    'Program Files/MixNet',
+    'Program Files (x86)/MixNet',
+    'Program Files/Mixer',
+    'Program Files (x86)/Mixer',
+    'MixNet/Pedidos',
+    'MixNet/Import',
+    'Mixer/Pedidos',
+    'Mixer/Import'
+  ];
+
+  for (const drive of drives) {
+    for (const folder of candidateFolders) {
+      const fullPath = path.join(drive, folder);
+      try {
+        if (fs.existsSync(fullPath)) {
+          log.info(`Puente Mixer: Directorio detectado automáticamente en -> ${fullPath}`);
+          return fullPath;
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Fallback por defecto seguro si no se encontró una ruta previa
+  const defaultPath = path.join('C:', 'JJ-PAPER-MIXER');
+  try {
+    if (!fs.existsSync(defaultPath)) {
+      fs.mkdirSync(defaultPath, { recursive: true });
+    }
+  } catch (_) {}
+  return defaultPath;
+}
+
+let activeExportDir = detectMixerDirectory();
 
 // Carga el historial de órdenes ya exportadas para no volver a crearlas si el Mixer las borra
 function loadExportHistory() {
@@ -115,13 +164,13 @@ function exportOrder(o) {
   const txtContent = txtLines.join('\n');
 
   // Asegurar directorio
-  if (!fs.existsSync(MIXER_EXPORT_DIR)) {
-    fs.mkdirSync(MIXER_EXPORT_DIR, { recursive: true });
+  if (!fs.existsSync(activeExportDir)) {
+    fs.mkdirSync(activeExportDir, { recursive: true });
   }
 
   // Escribir archivos
-  const csvPath = path.join(MIXER_EXPORT_DIR, `pedido_${o.order_number}.csv`);
-  const txtPath = path.join(MIXER_EXPORT_DIR, `pedido_${o.order_number}.txt`);
+  const csvPath = path.join(activeExportDir, `pedido_${o.order_number}.csv`);
+  const txtPath = path.join(activeExportDir, `pedido_${o.order_number}.txt`);
 
   try {
     fs.writeFileSync(csvPath, csvContent, 'utf8');
@@ -195,11 +244,12 @@ function setupRealtimeListener() {
 }
 
 export function startMixer() {
-  log.info(`Puente Mixer: Iniciando. Carpeta de exportación: ${MIXER_EXPORT_DIR}`);
+  activeExportDir = detectMixerDirectory();
+  log.info(`Puente Mixer: Iniciando. Carpeta de exportación: ${activeExportDir}`);
   
   // Asegurar directorio
-  if (!fs.existsSync(MIXER_EXPORT_DIR)) {
-    fs.mkdirSync(MIXER_EXPORT_DIR, { recursive: true });
+  if (!fs.existsSync(activeExportDir)) {
+    fs.mkdirSync(activeExportDir, { recursive: true });
   }
 
   loadExportHistory();

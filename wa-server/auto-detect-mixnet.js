@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,9 +17,8 @@ function findMixerFolder() {
 
   for (const d of drives) {
     if (!fs.existsSync(d + '\\')) continue;
-    console.log(Buscando en unidad ...);
+    console.log('Buscando en unidad ' + d + '...');
     
-    // Nivel 1
     try {
       const topItems = fs.readdirSync(d + '\\', { withFileTypes: true });
       for (const it of topItems) {
@@ -28,7 +27,6 @@ function findMixerFolder() {
           if (keywords.some(k => nameLower.includes(k))) {
             found.push(path.join(d + '\\', it.name));
           }
-          // Revisar subcarpetas típicas de Program Files / Sistemas
           if (['program files', 'program files (x86)', 'sistemas', 'archivos de programa'].includes(nameLower)) {
             try {
               const subItems = fs.readdirSync(path.join(d + '\\', it.name), { withFileTypes: true });
@@ -52,31 +50,30 @@ let targetPath = 'C:\\JJ-PAPER-MIXER';
 
 if (results.length > 0) {
   console.log('\n[!] Se encontraron las siguientes carpetas de MixNet / Facturacion:');
-  results.forEach((r, idx) => console.log(  . ));
+  results.forEach((r, idx) => console.log('  ' + (idx + 1) + '. ' + r));
   targetPath = results[0];
-  console.log(\n-> Se selecciono automaticamente la ruta principal: );
+  console.log('\n-> Se selecciono automaticamente la ruta principal: ' + targetPath);
 } else {
   console.log('\n[i] No se detecto una instalacion previa de MixNet en carpetas estandar.');
-  console.log(-> Se utilizara la carpeta predeterminada de puente: );
+  console.log('-> Se utilizara la carpeta predeterminada de puente: ' + targetPath);
 }
 
-// Asegurar carpeta
 try {
   if (!fs.existsSync(targetPath)) {
     fs.mkdirSync(targetPath, { recursive: true });
   }
 } catch (_) {}
 
-// Guardar en .env automáticamente
 if (fs.existsSync(ENV_FILE)) {
   let envContent = fs.readFileSync(ENV_FILE, 'utf8');
+  const normalizedPath = targetPath.replace(/\\/g, '/');
   if (envContent.includes('MIXER_EXPORT_DIR=')) {
-    envContent = envContent.replace(/MIXER_EXPORT_DIR=.*/g, MIXER_EXPORT_DIR=);
+    envContent = envContent.replace(/MIXER_EXPORT_DIR=.*/g, 'MIXER_EXPORT_DIR=' + normalizedPath);
   } else {
-    envContent += \nMIXER_EXPORT_DIR=\n;
+    envContent += '\nMIXER_EXPORT_DIR=' + normalizedPath + '\n';
   }
   fs.writeFileSync(ENV_FILE, envContent, 'utf8');
-  console.log(\n[OK] Archivo .env actualizado automaticamente con MIXER_EXPORT_DIR=);
+  console.log('\n[OK] Archivo .env actualizado con MIXER_EXPORT_DIR=' + normalizedPath);
 }
 
 console.log('\n========================================================');

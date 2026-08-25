@@ -162,10 +162,11 @@
       <div class="fg">
         <label class="fl" for="tp-body">Mensaje * (usa las variables — se reemplazan por los datos de cada contacto)</label>
         <div class="d-varchips" aria-label="Insertar variable">
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('nombre')">＋ nombre</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('vendedor')">＋ vendedor</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">＋ descuento</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('link')">＋ link catálogo</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('empresa')">🏢 empresa</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('nombre')">👤 nombre</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('vendedor')">💼 vendedor</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">🏷️ descuento</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('link')">🔗 link catálogo</button>
         </div>
         <textarea class="fi" id="tp-body" rows="7" oninput="tplPreview()" placeholder="Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper..."></textarea>
       </div>

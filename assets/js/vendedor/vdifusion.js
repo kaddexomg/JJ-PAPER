@@ -220,10 +220,11 @@ function tplInsertVar(v) {
   tplPreview();
 }
 
-function dSampleVars(name = 'María González') {
+function dSampleVars(name = 'Distribuidora Alfa, C.A.') {
   return {
     nombre:    name,
-    vendedor:  SELLER.name || 'su vendedor JJ Paper',
+    empresa:   name,
+    vendedor:  SELLER.name || 'su asesor comercial JJ Paper',
     descuento: APP.SETTINGS.wa_react_discount || '10',
     link:      sellerRefLink() || `${location.origin}/catalogo.html`,
   };

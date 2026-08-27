@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Campañas de Ofertas WhatsApp | JJ Paper Vendedor</title>
+<title>Campañas de Ofertas WhatsApp | JJ Paper Admin</title>
 <link rel="stylesheet" href="../assets/css/variables.css">
 <link rel="stylesheet" href="../assets/css/components.css">
 <link rel="stylesheet" href="../assets/css/catalog.css">
@@ -30,23 +30,33 @@
   <aside class="admin-aside" id="adminAside">
     <div class="aside-brand">
       <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
-      <span>JJ <em>Paper</em> <small style="font-size:10px;opacity:.7">VENDEDOR</small></span>
+      <span>JJ <em>Paper</em></span>
     </div>
     <nav class="aside-nav">
-      <span class="a-section">Ventas</span>
-      <a href="index.html"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
-      <a href="pos.html"><span class="a-ico">🛍️</span> Nueva venta (POS)</a>
-      <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
-      <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
-      <a href="clientes.html"><span class="a-ico">👥</span> Mis clientes</a>
+      <span class="a-section">Principal</span>
+      <a href="index.html"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
       <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
       <a href="difusion.html" class="on"><span class="a-ico">📣</span> Campañas de Ofertas</a>
+      <a href="correo.html"><span class="a-ico">📧</span> Correo</a>
+      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
+      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
       <div class="divider"></div>
-      <span class="a-section">Sitio</span>
-      <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
+      <span class="a-section">Catalogo</span>
+      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
+      <a href="facturas.html"><span class="a-ico">🧾</span> Cuentas por Pagar</a>
+      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
+      <div class="divider"></div>
+      <span class="a-section">Sistema</span>
+      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
       <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
     </nav>
-    <div class="aside-ft">Vendedor: <strong id="sellerName" style="color:#fff">—</strong></div>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
   </aside>
 
   <main class="admin-main">
@@ -55,7 +65,7 @@
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
           <h2>📣 Campañas de Ofertas WhatsApp</h2>
-          <p>Carga contactos, crea plantillas y automatiza tus envíos de ofertas 1 a 1</p>
+          <p>Envío masivo automático 1 a 1 con pausas inteligentes, plantillas y promociones de catálogo</p>
         </div>
       </div>
       <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
@@ -64,7 +74,7 @@
     <div class="admin-content">
       <div class="of-chips" role="tablist" aria-label="Secciones de difusión">
         <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setDTab('campanas')">📣 Campañas</button>
-        <button class="of-chip"    role="tab" data-tab="contactos" aria-selected="false" onclick="setDTab('contactos')">📇 Contactos</button>
+        <button class="of-chip"    role="tab" data-tab="contactos" aria-selected="false" onclick="setDTab('contactos')">📇 Contactos CRM</button>
         <button class="of-chip"    role="tab" data-tab="plantillas" aria-selected="false" onclick="setDTab('plantillas')">📝 Plantillas</button>
       </div>
 
@@ -72,8 +82,8 @@
       <section data-panel="campanas">
         <div class="admin-table-wrap">
           <div class="table-top">
-            <h3>📣 Mis campañas</h3>
-            <span style="font-size:12px;color:#777">Los mensajes salen uno a uno con pausa aleatoria (protege tu número). La reactivación de inactivos se crea sola cada día.</span>
+            <h3>📣 Campañas activas y finalizadas</h3>
+            <span style="font-size:12px;color:#777">Los mensajes salen uno a uno con pausa aleatoria para proteger el número. Despacho autónomo por wa-server.</span>
           </div>
           <div style="overflow-x:auto">
             <table class="admin-table">
@@ -179,7 +189,6 @@
         <textarea class="fi" id="tp-body" rows="7" oninput="tplPreview()" placeholder="Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.&#10;&#10;Tenemos en promoción: *{{producto}}* por tan solo *{{precio}}*.&#10;&#10;👉 Ver catálogo aquí: {{link}}"></textarea>
       </div>
 
-      <!-- Asistente rápido para autocompletar plantilla de producto/combo -->
       <div style="background:#f0f7f4;border:1px dashed #2d7a5b;border-radius:8px;padding:10px;margin-bottom:14px">
         <div style="font-size:12px;font-weight:700;color:#16604A;margin-bottom:6px">💡 ¿Quieres armar una plantilla rápida de oferta?</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -237,7 +246,7 @@
           <select class="fi" id="nc-tpl" onchange="ncRefresh()"></select></div>
         <div class="fg"><label class="fl" for="nc-aud">Audiencia</label>
           <select class="fi" id="nc-aud" onchange="ncRefresh()">
-            <option value="todos">Toda mi cartera</option>
+            <option value="todos">Toda la cartera</option>
             <option value="inactivos">😴 Solo inactivos</option>
             <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
             <option value="etiqueta">🏷️ Por etiqueta</option>
@@ -289,9 +298,16 @@
 <script src="../assets/js/vendedor/vcommon.js?v=20260827_v1"></script>
 <script src="../assets/js/vendedor/vdifusion.js?v=20260827_v1"></script>
 <script>
+let SELLER = null;
 document.addEventListener('DOMContentLoaded', async () => {
-  const seller = await initSellerPage();
-  if (!seller) return;
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
+    document.getElementById('adminAside')?.classList.toggle('op')
+  );
+  await loadSettings();
+  SELLER = CURRENT_PROFILE;
   await initDifusion();
 });
 </script>

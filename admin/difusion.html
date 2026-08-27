@@ -72,6 +72,7 @@
     </div>
 
     <div class="admin-content">
+      <div id="dgErr" style="display:none;white-space:pre-wrap;background:#fdecea;color:#b91c1c;border:1px solid #f5c2c0;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px"></div>
       <div class="of-chips" role="tablist" aria-label="Secciones de difusión">
         <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setDTab('campanas')">📣 Campañas</button>
         <button class="of-chip"    role="tab" data-tab="contactos" aria-selected="false" onclick="setDTab('contactos')">📇 Contactos CRM</button>
@@ -325,7 +326,18 @@
 <script src="../assets/js/vendedor/vcommon.js?v=20260827_v1"></script>
 <script src="../assets/js/vendedor/vdifusion.js?v=20260827_v1"></script>
 <script>
-let SELLER = null;
+window.addEventListener('error', (e) => {
+  const box = document.getElementById('dgErr');
+  if (!box) return;
+  box.style.display = 'block';
+  box.textContent += '[ERR] ' + (e.message || e.error) + '\n';
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const box = document.getElementById('dgErr');
+  if (!box) return;
+  box.style.display = 'block';
+  box.textContent += '[REJ] ' + (e.reason && (e.reason.message || e.reason)) + '\n';
+});
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
   if (!session) return;
@@ -333,9 +345,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
     document.getElementById('adminAside')?.classList.toggle('op')
   );
-  await loadSettings();
-  SELLER = CURRENT_PROFILE;
-  await initDifusion();
+  const seller = await initSellerPage();
+  if (!seller) return;
+  try {
+    await initDifusion();
+  } catch (err) {
+    const box = document.getElementById('dgErr');
+    if (box) box.textContent += '[initDifusion] ' + (err && (err.message || err)) + '\n';
+  }
 });
 </script>
 </body>

@@ -326,32 +326,37 @@
 <script src="../assets/js/vendedor/vcommon.js?v=20260827_v1"></script>
 <script src="../assets/js/vendedor/vdifusion.js?v=20260827_v1"></script>
 <script>
-window.addEventListener('error', (e) => {
-  const box = document.getElementById('dgErr');
+const dgBox = () => document.getElementById('dgErr');
+function dg(t) {
+  const box = dgBox();
   if (!box) return;
   box.style.display = 'block';
-  box.textContent += '[ERR] ' + (e.message || e.error) + '\n';
-});
-window.addEventListener('unhandledrejection', (e) => {
-  const box = document.getElementById('dgErr');
-  if (!box) return;
-  box.style.display = 'block';
-  box.textContent += '[REJ] ' + (e.reason && (e.reason.message || e.reason)) + '\n';
-});
+  box.textContent += t + '\n';
+}
+window.addEventListener('error', (e) => dg('[ERR] ' + (e.message || e.error)));
+window.addEventListener('unhandledrejection', (e) => dg('[REJ] ' + (e.reason && (e.reason.message || e.reason))));
 document.addEventListener('DOMContentLoaded', async () => {
-  const session = await requireAuth();
-  if (!session) return;
-  renderUserBar(session);
-  document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
-    document.getElementById('adminAside')?.classList.toggle('op')
-  );
-  const seller = await initSellerPage();
-  if (!seller) return;
   try {
-    await initDifusion();
+    const session = await requireAuth();
+    dg('[pass] requireAuth session: ' + (session && session.user && session.user.id));
+    renderUserBar(session);
+    document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
+      document.getElementById('adminAside')?.classList.toggle('op')
+    );
+    const seller = await initSellerPage();
+    dg('[pass] initSellerPage seller: ' + (seller && seller.id) + ' role=' + (seller && seller.role) + ' name=' + (seller && seller.name));
+    dg('[pass] SELLER global: ' + (typeof SELLER !== 'undefined' && SELLER && SELLER.id) + ' role=' + (SELLER && SELLER.role));
+    if (!seller) { dg('[fail] seller null, abandona'); return; }
+
+    // Carga paso a paso para localizar dónde se cuelga
+    const r1 = await loadDContacts();   dg('[ok] loadDContacts -> ' + (dContacts ? dContacts.length : 'null') + ' contactos');
+    const r2 = await loadDTemplates();  dg('[ok] loadDTemplates -> ' + (dTemplates ? dTemplates.length : 'null') + ' plantillas');
+    const r3 = await loadDCampaigns();  dg('[ok] loadDCampaigns -> ' + (dCampaigns ? dCampaigns.length : 'null') + ' campañas');
+    const r4 = await loadDProductsAndCombos(); dg('[ok] loadDProductsAndCombos -> prods=' + (dProducts ? dProducts.length : 'null') + ' combos=' + (dCombos ? dCombos.length : 'null'));
+    setDTab('campanas');
+    dg('[ok] Todo cargado correctamente.');
   } catch (err) {
-    const box = document.getElementById('dgErr');
-    if (box) box.textContent += '[initDifusion] ' + (err && (err.message || err)) + '\n';
+    dg('[FAIL/CATCH] ' + (err && (err.message || err)) + ' | ' + (err && err.details));
   }
 });
 </script>

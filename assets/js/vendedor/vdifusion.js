@@ -97,8 +97,12 @@ function setDTab(t) {
 
 /* ================== CONTACTOS ================== */
 async function loadDContacts() {
-  const { data, error } = await sb.from('jjp_customers')
-    .select('*').eq('seller_id', SELLER.id).order('name');
+  const isAdm = SELLER?.role === 'admin';
+  let q = sb.from('jjp_customers').select('*').order('name');
+  if (!isAdm && SELLER?.id) {
+    q = q.eq('seller_id', SELLER.id);
+  }
+  const { data, error } = await q;
   if (error) { showToast('Error cargando contactos', 'err'); return; }
   dContacts = data || [];
   renderDContacts();

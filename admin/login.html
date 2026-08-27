@@ -93,8 +93,8 @@ async function routeIfSession() {
 }
 
 // Al volver de Google el token llega en el #hash; supabase-js lo procesa async.
-sb.auth.onAuthStateChange((event) => {
-  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+sb.auth.onAuthStateChange((event, session) => {
+  if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
     routeIfSession();
   }
 });
@@ -107,8 +107,7 @@ async function loginWithGoogle() {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: siteURL('admin/login.html'),
-      queryParams: { access_type: 'offline', prompt: 'select_account' }
+      redirectTo: window.location.origin + '/admin/login.html'
     }
   });
   if (error) {

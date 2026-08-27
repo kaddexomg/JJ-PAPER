@@ -360,8 +360,30 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
   };
 }
 
+function ncOnSpeedChange() {
+  const mode = document.getElementById('nc-speed-mode')?.value || 'safe';
+  const customWrap = document.getElementById('nc-custom-speed-wrap');
+  const minIn = document.getElementById('nc-delay-min');
+  const maxIn = document.getElementById('nc-delay-max');
+  
+  if (customWrap) customWrap.style.display = mode === 'custom' ? 'grid' : 'none';
+  if (minIn && maxIn) {
+    if (mode === 'safe') { minIn.value = 15; maxIn.value = 35; }
+    else if (mode === 'ultra_safe') { minIn.value = 30; maxIn.value = 60; }
+    else if (mode === 'moderate') { minIn.value = 8; maxIn.value = 18; }
+  }
+}
+
 function dRender(body, vars) {
-  return String(body || '').replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
+  let str = String(body || '').replace(/\{([^{}]+?)\}/g, (_, choices) => {
+    if (choices.startsWith('{') || choices.endsWith('}')) return choices;
+    const parts = choices.split('|');
+    if (parts.length > 1) {
+      return parts[0].trim(); // preview toma la primera opción
+    }
+    return choices;
+  });
+  return str.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
     (_, k) => vars[k.trim().toLowerCase()] ?? '');
 }
 
@@ -396,8 +418,12 @@ async function deleteTpl(id) {
 
 /* ================== CAMPAÑAS ================== */
 async function loadDCampaigns() {
-  const { data, error } = await sb.from('jjp_wa_campaigns')
-    .select('*').order('created_at', { ascending: false }).limit(50);
+  const isAdm = SELLER?.role === 'admin';
+  let q = sb.from('jjp_wa_campaigns').select('*').order('created_at', { ascending: false }).limit(50);
+  if (!isAdm && SELLER?.id) {
+    q = q.eq('owner_id', SELLER.id);
+  }
+  const { data, error } = await q;
   if (error) { showToast('Error cargando campañas', 'err'); return; }
   dCampaigns = data || [];
   renderDCampaigns();
@@ -534,59 +560,52 @@ function ncOnAttachChange() {
 }
 
 async function launchCampaign() {
-  const name = document.getElementById('nc-name').value.trim() || 'Difusión';
-  const tpl  = dTemplates.find(t => t.id === document.getElementById('nc-tpl').value);
-  const list = ncAudience();
-  const extra = ncGetExtraContext();
-
-  if (!tpl || !list.length) return;
-  if (!confirm(`Vas a enviar "${tpl.name}" a ${list.length} contacto(s) por WhatsApp. ¿Lanzar campaña?`)) return;
-
   const btn = document.getElementById('ncLaunchBtn');
-  btn.disabled = true; btn.textContent = 'Preparando campaña…';
-
-  let mediaPath = null;
-  let mediaType = 'text';
-  let mediaMime = null;
-  let mediaFilename = null;
-  let mediaSize = null;
-
+  const name = document.getElementById('nc-name').value.trim();
+  const list = ncAudience();
+  const tpl  = dTemplates.find(t => t.id === document.getElementById('nc-tpl').value);
+  const extra = ncGetExtraContext();
   const attachOpt = document.getElementById('nc-attach-opt')?.value || 'none';
+
+  const delayMin = parseInt(document.getElementById('nc-delay-min')?.value, 10) || 15;
+  const delayMax = parseInt(document.getElementById('nc-delay-max')?.value, 10) || 35;
+
+  if (!name) { showToast('El nombre de la campaña es obligatorio', 'warn'); return; }
+  if (!tpl)  { showToast('Selecciona una plantilla', 'warn'); return; }
+  if (!list.length) { showToast('No hay destinatarios en esta audiencia', 'warn'); return; }
+
+  btn.disabled = true;
+  let mediaPath = null, mediaType = null, mediaMime = null, mediaFilename = null, mediaSize = null;
+
   if (attachOpt === 'pdf_lista_precios') {
-    btn.textContent = 'Generando Lista de Precios PDF…';
+    btn.textContent = 'Generando catálogo PDF…';
     try {
-      if (typeof docPdfProductos === 'function') {
-        const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
-        mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
-        mediaMime = 'application/pdf';
-        mediaType = 'document';
-        mediaSize = blob.size;
-        mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
-        const { error: upErr } = await sb.storage.from('jjp-wa-media')
-          .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
-        if (upErr) throw new Error('No se pudo guardar el PDF en almacenamiento: ' + upErr.message);
-      } else {
-        throw new Error('Motor de documentos no disponible.');
-      }
+      if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
+      const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+      mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+      mediaMime = 'application/pdf';
+      mediaType = 'document';
+      mediaSize = blob.size;
+      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
+      const { error: upErr } = await sb.storage.from('jjp-wa-media')
+        .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw new Error('No se pudo guardar el PDF: ' + upErr.message);
     } catch (err) {
       showToast('Error generando PDF: ' + err.message, 'err');
       btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
       return;
     }
-  } else if (attachOpt === 'prod_image') {
-    const extra = ncGetExtraContext();
-    const prod = dProducts.find(p => p.id === extra.productId);
+  } else if (attachOpt === 'prod_image' && extra.productId) {
+    const prod = dProducts.find(x => x.id === extra.productId);
     const imgUrl = prod?.jjp_products?.image_url || prod?.image_url;
     if (imgUrl) {
       mediaPath = imgUrl;
       mediaType = 'image';
       mediaMime = 'image/jpeg';
-      const prodName = prod.jjp_products?.name || prod.variant_name || 'producto';
-      mediaFilename = prodName.replace(/[^\w.-]/g, '_') + '.jpg';
+      mediaFilename = (prod.jjp_products?.name || prod.variant_name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
     }
   } else if (attachOpt === 'custom_file') {
-    const fileInput = document.getElementById('nc-custom-file');
-    const file = fileInput?.files?.[0];
+    const file = document.getElementById('nc-custom-file')?.files?.[0];
     if (file) {
       btn.textContent = 'Subiendo archivo…';
       try {
@@ -606,15 +625,8 @@ async function launchCampaign() {
     }
   }
 
-  btn.textContent = 'Lanzando…';
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
-  if (!ownerId) {
-    showToast('Error de sesión: Por favor recarga la página o inicia sesión de nuevo.', 'err');
-    btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
-    return;
-  }
-
   const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tpl.id);
   
   let payload = {
@@ -625,7 +637,9 @@ async function launchCampaign() {
     body: tpl.body,
     message: tpl.body,
     status: 'en_cola',
-    total: list.length
+    total: list.length,
+    delay_min_s: delayMin,
+    delay_max_s: Math.max(delayMin + 1, delayMax)
   };
 
   if (mediaPath) {

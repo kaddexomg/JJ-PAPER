@@ -172,8 +172,11 @@ let _mailTimer = null;
 function mailLoadDebounced() { clearTimeout(_mailTimer); _mailTimer = setTimeout(mailLoad, 500); }
 
 async function mailLoad() {
-  const { data, error } = await sb.from('jjp_emails')
-    .select('*').order('created_at', { ascending: false }).limit(100);
+  let q = sb.from('jjp_emails').select('*').order('created_at', { ascending: false }).limit(100);
+  if (!MAIL_IS_ADMIN && MAIL_ME?.id) {
+    q = q.eq('owner_id', MAIL_ME.id);
+  }
+  const { data, error } = await q;
   if (error) { showToast('Error cargando correos: ' + error.message, 'err'); return; }
   mailRows = data || [];
   mailRender();

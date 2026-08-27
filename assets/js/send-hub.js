@@ -59,10 +59,41 @@ async function sendPorWhatsApp({ telefono, nombre, texto, blob, filename, path, 
   if (typeof sellerSign === 'function') texto = sellerSign(texto);
 
   // Abre (o reusa) el chat con esa persona: sin chat no hay dónde encolar.
-  const { data: chatId, error: chatErr } = await sb.rpc('jjp_wa_ensure_chat', {
-    p_phone: telefono, p_name: nombre || null,
-  });
-  if (chatErr) throw new Error('No se pudo abrir el chat: ' + chatErr.message);
+  let chatId = null;
+  const norm = typeof normVePhone === 'function' ? normVePhone(telefono) : telefono.replace(/\D/g, '');
+  const jid = norm.includes('@') ? norm : (norm.startsWith('58') ? norm : ('58' + norm.replace(/^0/, ''))) + '@s.whatsapp.net';
+  const cleanPhone = jid.split('@')[0];
+
+  try {
+    const { data: rpcChat, error: rpcErr } = await sb.rpc('jjp_wa_ensure_chat', {
+      p_phone: telefono, p_name: nombre || null,
+    });
+    if (!rpcErr && rpcChat) {
+      chatId = rpcChat;
+    }
+  } catch (e) {
+    // Fallback a consulta e inserción directa
+  }
+
+  if (!chatId) {
+    const { data: existingChat } = await sb.from('jjp_wa_chats')
+      .select('id').eq('owner_id', user.id).eq('jid', jid).maybeSingle();
+    
+    if (existingChat?.id) {
+      chatId = existingChat.id;
+    } else {
+      const { data: newChat, error: insErr } = await sb.from('jjp_wa_chats').upsert({
+        owner_id: user.id,
+        jid,
+        phone: cleanPhone,
+        customer_id: customerId || null,
+        display_name: nombre || cleanPhone
+      }, { onConflict: 'owner_id,jid' }).select('id').single();
+
+      if (insErr) throw new Error('No se pudo abrir el chat: ' + insErr.message);
+      chatId = newChat.id;
+    }
+  }
 
   let mediaPath = path || null;
   let mediaSize = blob?.size || null;

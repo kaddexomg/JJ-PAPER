@@ -256,7 +256,20 @@ async function waLoadChats() {
     .limit(200);
   if (!WA_IS_ADMIN || waOwnerFilter === 'me') q = q.eq('owner_id', WA_ME.id);
   else if (waOwnerFilter !== 'all') q = q.eq('owner_id', waOwnerFilter);
-  const { data, error } = await q;
+  
+  let { data, error } = await q;
+  if (error && error.message && error.message.includes('pinned')) {
+    console.warn('Fallback: reintentando carga de chats sin ordenar por pinned');
+    let q2 = sb.from('jjp_wa_chats').select('*')
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(200);
+    if (!WA_IS_ADMIN || waOwnerFilter === 'me') q2 = q2.eq('owner_id', WA_ME.id);
+    else if (waOwnerFilter !== 'all') q2 = q2.eq('owner_id', waOwnerFilter);
+    const res2 = await q2;
+    data = res2.data;
+    error = res2.error;
+  }
+
   if (error) { showToast('Error cargando chats: ' + error.message, 'err'); return; }
   waChats = data || [];
   waRenderChatList();

@@ -7,31 +7,80 @@
 let dContacts   = [];
 let dTemplates  = [];
 let dCampaigns  = [];
+let dProducts   = [];
+let dCombos     = [];
 let dTab        = 'campanas';
 let editingTplId = null;
 let dImportRows  = [];   // preview del import pendiente de confirmar
 
-const D_VARS = ['nombre', 'vendedor', 'descuento', 'link'];
+const D_VARS = ['nombre', 'empresa', 'vendedor', 'producto', 'precio', 'descuento', 'link', 'descripcion'];
 
 const D_CAMP_STATUS = {
   en_cola:    ['⏳ En cola', '#b45309'],
+  pending:    ['⏳ En cola', '#b45309'],
   enviando:   ['📤 Enviando', '#16604A'],
+  sending:    ['📤 Enviando', '#16604A'],
   pausada:    ['⏸️ Pausada', '#6b7280'],
   completada: ['✅ Completada', '#15803d'],
+  sent:       ['✅ Completada', '#15803d'],
   cancelada:  ['✕ Cancelada', '#b91c1c'],
 };
 
 /* ---------- init ---------- */
 async function initDifusion() {
-  await Promise.all([loadDContacts(), loadDTemplates(), loadDCampaigns()]);
+  await Promise.all([loadDContacts(), loadDTemplates(), loadDCampaigns(), loadDProductsAndCombos()]);
   setDTab('campanas');
 
   // Progreso en vivo: wa-server actualiza contadores → refresco de la lista
   sb.channel('difusion-progress')
     .on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'jjp_wa_campaigns' },
+      { event: '*', schema: 'public', table: 'jjp_wa_campaigns' },
       () => loadDCampaigns())
     .subscribe();
+}
+
+async function loadDProductsAndCombos() {
+  try {
+    // Cargar productos para el selector de promociones
+    const { data: prods } = await sb.from('jjp_product_variants')
+      .select('id,sku,price_usd,variant_name,jjp_products(id,name,description),jjp_brands(name)')
+      .eq('active', true)
+      .order('price_usd', { ascending: false })
+      .limit(300);
+    dProducts = prods || [];
+
+    // Cargar promociones / combos activos
+    const { data: promos } = await sb.from('jjp_promos')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order')
+      .limit(100);
+    dCombos = promos || [];
+
+    renderProductAndComboSelects();
+  } catch (e) {
+    console.warn('Error cargando catálogo para difusión:', e);
+  }
+}
+
+function renderProductAndComboSelects() {
+  const pSel = document.getElementById('nc-prod-select');
+  if (pSel) {
+    pSel.innerHTML = '<option value="">-- Selecciona un producto del catálogo --</option>' +
+      dProducts.map(p => {
+        const title = [p.jjp_products?.name, p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
+        return `<option value="${p.id}">${escapeHTML(title)} — $${(+p.price_usd).toFixed(2)}</option>`;
+      }).join('');
+  }
+
+  const cSel = document.getElementById('nc-combo-select');
+  if (cSel) {
+    cSel.innerHTML = '<option value="">-- Selecciona un combo u oferta activa --</option>' +
+      dCombos.map(c => {
+        const price = c.price_usd ? ` — $${(+c.price_usd).toFixed(2)}` : '';
+        return `<option value="${c.id}">[${c.kind.toUpperCase()}] ${escapeHTML(c.title)}${price}</option>`;
+      }).join('');
+  }
 }
 
 function setDTab(t) {
@@ -127,7 +176,6 @@ function diFileChosen(input) {
   input.value = '';
 }
 
-// Acepta líneas "Nombre, teléfono[, ciudad]" con separador coma / punto y coma / tab
 function diParse() {
   const tagBase = document.getElementById('di-tag').value.trim().toLowerCase();
   const lines = document.getElementById('di-text').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -136,7 +184,6 @@ function diParse() {
   for (const line of lines) {
     const parts = line.split(/[;,\t]/).map(p => p.trim());
     if (parts.length < 2) { bad++; continue; }
-    // El teléfono es la parte con más dígitos (tolera "teléfono, nombre" invertido)
     let phoneIdx = 0, best = 0;
     parts.forEach((p, i) => { const d = p.replace(/\D/g, '').length; if (d > best) { best = d; phoneIdx = i; } });
     if (best < 10) { bad++; continue; }
@@ -169,12 +216,47 @@ async function diConfirm() {
   loadDContacts();
 }
 
+const DEFAULT_GLOBAL_TEMPLATES = [
+  {
+    id: 'tpl-promo-prod',
+    name: '📦 Promoción de Producto Destacado',
+    kind: 'producto',
+    owner_id: null,
+    body: 'Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nLe escribimos para presentarle una excelente oferta en:\n📦 *{{producto}}*\n💲 Precio especial: *{{precio}}*\n\n👉 Consulte disponibilidad o haga su pedido directo aquí: {{link}}\n\n¿Desea que le reservemos inventario de este rubro?'
+  },
+  {
+    id: 'tpl-promo-combo',
+    name: '🎁 Oferta Combo / Pack Especial',
+    kind: 'combo',
+    owner_id: null,
+    body: '¡Saludos cordiales {{nombre}}! 🌟\n\nDesde JJ Paper queremos compartirle nuestro combo del mes:\n🎁 *{{producto}}*\n📝 Incluye: {{descripcion}}\n💲 Precio de oportunidad: *{{precio}}*\n\n👉 Vea todos los detalles y haga su pedido en: {{link}}\n\n¡Quedamos a su orden para coordinar despacho inmediato!'
+  },
+  {
+    id: 'tpl-reactivacion',
+    name: '🔄 Reactivación de Clientes con Descuento',
+    kind: 'reactivacion',
+    owner_id: null,
+    body: 'Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nEsperamos que todo marche excelente en su negocio. Le informamos que tiene activo un *{{descuento}}% de descuento* en su próximo pedido.\n\n👉 Vea el catálogo actualizado con precios al día aquí: {{link}}\n\n¿En qué podemos apoyarle esta semana?'
+  },
+  {
+    id: 'tpl-catalogo-general',
+    name: '🏢 Catálogo Digital y Lista de Precios B2B',
+    kind: 'general',
+    owner_id: null,
+    body: 'Estimados amigos de *{{empresa}}*,\n\nLe saluda {{vendedor}} de JJ Paper. Le compartimos nuestro catálogo digital actualizado con precios y existencias disponibles.\n\n👉 Enlace directo: {{link}}\n\nCualquier cotización que requiera, estamos a su completa disposición.'
+  }
+];
+
 /* ================== PLANTILLAS ================== */
 async function loadDTemplates() {
   const { data, error } = await sb.from('jjp_wa_templates')
     .select('*').eq('active', true).order('created_at');
-  if (error) { showToast('Error cargando plantillas', 'err'); return; }
-  dTemplates = data || [];
+  
+  const list = data || [];
+  // Asegurar que siempre estén disponibles las plantillas base del sistema
+  const existingNames = new Set(list.map(x => x.name.toLowerCase()));
+  const missingGlobals = DEFAULT_GLOBAL_TEMPLATES.filter(g => !existingNames.has(g.name.toLowerCase()));
+  dTemplates = [...list, ...missingGlobals];
   renderDTemplates();
 }
 
@@ -220,13 +302,61 @@ function tplInsertVar(v) {
   tplPreview();
 }
 
-function dSampleVars(name = 'Distribuidora Alfa, C.A.') {
+function tplApplyPreset(type) {
+  const nameEl = document.getElementById('tp-name');
+  const bodyEl = document.getElementById('tp-body');
+  if (type === 'promo_producto') {
+    if (!nameEl.value) nameEl.value = 'Promoción de Producto';
+    bodyEl.value = `Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nLe escribimos para presentarle una excelente oferta en:\n📦 *{{producto}}*\n💲 Precio especial: *{{precio}}*\n\n👉 Consulte disponibilidad o haga su pedido directo aquí: {{link}}\n\n¿Desea que le reservemos inventario de este rubro?`;
+  } else if (type === 'promo_combo') {
+    if (!nameEl.value) nameEl.value = 'Oferta Combo Especial';
+    bodyEl.value = `¡Saludos cordiales {{nombre}}! 🌟\n\nDesde JJ Paper queremos compartirle nuestro combo del mes:\n🎁 *{{producto}}*\n📝 Incluye: {{descripcion}}\n💲 Precio de oportunidad: *{{precio}}*\n\n👉 Vea todos los detalles y haga su pedido en: {{link}}\n\n¡Quedamos a su orden para coordinar despacho inmediato!`;
+  } else if (type === 'reactivacion') {
+    if (!nameEl.value) nameEl.value = 'Reactivación con Descuento';
+    bodyEl.value = `Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nEsperamos que todo marche excelente en su negocio. Le informamos que tiene activo un *{{descuento}}% de descuento* en su próximo pedido.\n\n👉 Vea el catálogo actualizado con precios al día aquí: {{link}}\n\n¿En qué podemos apoyarle esta semana?`;
+  }
+  tplPreview();
+}
+
+function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
+  const bcv = parseFloat(APP.SETTINGS?.rate_bcv) || 0;
+  
+  let prodName = 'Resma Carta HP 75g (Caja × 10)';
+  let prodPrice = '$38.50 USD' + (bcv ? ` (Bs ${ (38.50 * bcv).toFixed(2) })` : '');
+  let prodDesc = 'Papel bond de alta blancura ideal para oficina y colegios.';
+  let prodLink = sellerRefLink() || `${location.origin}/catalogo.html`;
+  let discount = APP.SETTINGS?.wa_react_discount || '10';
+
+  if (extraContext.type === 'producto' && extraContext.productId) {
+    const p = dProducts.find(x => x.id === extraContext.productId);
+    if (p) {
+      prodName = [p.jjp_products?.name, p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
+      const priceUsd = Number(p.price_usd) || 0;
+      prodPrice = `$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '');
+      prodDesc = p.jjp_products?.description || '';
+      prodLink = `${location.origin}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`;
+    }
+  } else if (extraContext.type === 'combo' && extraContext.comboId) {
+    const c = dCombos.find(x => x.id === extraContext.comboId);
+    if (c) {
+      prodName = c.title || 'Combo Especial';
+      const priceUsd = Number(c.price_usd) || 0;
+      prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
+      prodDesc = c.description || '';
+      prodLink = `${location.origin}/promociones.html`;
+      if (c.badge) discount = c.badge;
+    }
+  }
+
   return {
-    nombre:    name,
-    empresa:   name,
-    vendedor:  SELLER.name || 'su asesor comercial JJ Paper',
-    descuento: APP.SETTINGS.wa_react_discount || '10',
-    link:      sellerRefLink() || `${location.origin}/catalogo.html`,
+    nombre:      name,
+    empresa:     name,
+    vendedor:    SELLER.name || 'su asesor comercial JJ Paper',
+    descuento:   discount,
+    producto:    prodName,
+    precio:      prodPrice,
+    descripcion: prodDesc,
+    link:        prodLink,
   };
 }
 
@@ -250,7 +380,7 @@ async function saveTpl() {
   } else {
     ({ error } = await sb.from('jjp_wa_templates').insert({ owner_id: SELLER.id, name, body }));
   }
-  if (error) { showToast('Error guardando plantilla', 'err'); return; }
+  if (error) { showToast('Error guardando plantilla: ' + error.message, 'err'); return; }
   showToast('Plantilla guardada ✔');
   closeDModal('tplModal');
   loadDTemplates();
@@ -281,9 +411,9 @@ function renderDCampaigns() {
   }
   tbody.innerHTML = dCampaigns.map(c => {
     const [label, color] = D_CAMP_STATUS[c.status] || [c.status, '#666'];
-    const done = c.sent_count + c.failed_count;
+    const done = (c.sent_count || 0) + (c.failed_count || 0);
     const pct = c.total ? Math.round(done / c.total * 100) : 0;
-    const active = c.status === 'en_cola' || c.status === 'enviando';
+    const active = c.status === 'en_cola' || c.status === 'pending' || c.status === 'enviando' || c.status === 'sending';
     return `<tr>
       <td>
         <div class="td-name">${escapeHTML(c.name)} ${c.kind === 'reactivacion' ? '🔄' : ''}</div>
@@ -295,12 +425,12 @@ function renderDCampaigns() {
              aria-label="Progreso de ${escapeHTML(c.name)}">
           <div class="d-prog-fill" style="width:${pct}%"></div>
         </div>
-        <div class="td-sub">${c.sent_count}/${c.total} enviados${c.failed_count ? ` · ${c.failed_count} fallidos/omitidos` : ''}</div>
+        <div class="td-sub">${c.sent_count || 0}/${c.total || 0} enviados${c.failed_count ? ` · ${c.failed_count} fallidos/omitidos` : ''}</div>
       </td>
-      <td style="text-align:center">${c.total}</td>
+      <td style="text-align:center">${c.total || 0}</td>
       <td><div class="td-actions">
         ${active ? `<button class="btn-o sm" onclick="setCampStatus('${c.id}','pausada')">⏸️ Pausar</button>` : ''}
-        ${c.status === 'pausada' ? `<button class="btn-p sm" onclick="setCampStatus('${c.id}','en_cola')">▶️ Reanudar</button>` : ''}
+        ${c.status === 'pausada' ? `<button class="btn-p sm" onclick="setCampStatus('${c.id}','pending')">▶️ Reanudar</button>` : ''}
         ${(active || c.status === 'pausada') ? `<button class="btn-o sm" onclick="cancelCampaign('${c.id}')" title="Cancelar campaña">✕</button>` : ''}
       </div></td>
     </tr>`;
@@ -309,7 +439,7 @@ function renderDCampaigns() {
 
 async function setCampStatus(id, status) {
   const { error } = await sb.from('jjp_wa_campaigns').update({ status }).eq('id', id);
-  if (error) { showToast('No se pudo actualizar', 'err'); return; }
+  if (error) { showToast('No se pudo actualizar: ' + error.message, 'err'); return; }
   showToast(status === 'pausada' ? 'Campaña pausada ⏸️' : 'Campaña reanudada ▶️');
   loadDCampaigns();
 }
@@ -327,16 +457,34 @@ function newCampaign(preTplId = null) {
     `<option value="${t.id}">${escapeHTML(t.name)} ${t.owner_id ? '(mía)' : '(global)'}</option>`).join('');
   if (preTplId) sel.value = preTplId;
   document.getElementById('nc-name').value = 'Difusión ' + new Date().toLocaleDateString('es-VE');
+  document.getElementById('nc-type').value = 'general';
   document.getElementById('nc-tag').value = '';
   document.getElementById('nc-aud').value = 'todos';
-  ncRefresh();
+  renderProductAndComboSelects();
+  ncOnTypeChange();
   openDModal('campModal');
+}
+
+function ncOnTypeChange() {
+  const type = document.getElementById('nc-type').value;
+  const prodWrap = document.getElementById('nc-prod-wrap');
+  const comboWrap = document.getElementById('nc-combo-wrap');
+  if (prodWrap) prodWrap.style.display = type === 'producto' ? '' : 'none';
+  if (comboWrap) comboWrap.style.display = type === 'combo' ? '' : 'none';
+  ncRefresh();
+}
+
+function ncGetExtraContext() {
+  const type = document.getElementById('nc-type')?.value || 'general';
+  const productId = document.getElementById('nc-prod-select')?.value || null;
+  const comboId = document.getElementById('nc-combo-select')?.value || null;
+  return { type, productId, comboId };
 }
 
 function ncAudience() {
   const aud = document.getElementById('nc-aud').value;
   const tag = document.getElementById('nc-tag').value.trim().toLowerCase();
-  const inactDays = parseInt(APP.SETTINGS.wa_react_days, 10) || 60;
+  const inactDays = parseInt(APP.SETTINGS?.wa_react_days, 10) || 60;
   let list = dContacts.filter(c => c.phone && !c.wa_opt_out);
   if (aud === 'inactivos')  list = list.filter(c => c.total_orders > 0 && c.last_order_at &&
       (Date.now() - new Date(c.last_order_at).getTime()) > inactDays * 86400e3);
@@ -350,39 +498,180 @@ function ncRefresh() {
     document.getElementById('nc-aud').value === 'etiqueta' ? '' : 'none';
   const list = ncAudience();
   const tpl  = dTemplates.find(t => t.id === document.getElementById('nc-tpl').value);
+  const extra = ncGetExtraContext();
+
   document.getElementById('ncCount').textContent =
     list.length ? `Se enviará a ${list.length} contacto(s), uno por uno con pausa aleatoria.` : 'Ningún contacto coincide con esa audiencia.';
   document.getElementById('ncPreview').textContent =
-    tpl ? dRender(tpl.body, dSampleVars(list[0]?.name || 'María González')) : '';
+    tpl ? dRender(tpl.body, dSampleVars(list[0]?.name || 'María González', extra)) : '';
   document.getElementById('ncLaunchBtn').disabled = !list.length || !tpl;
+}
+
+function ncOnAttachChange() {
+  const opt = document.getElementById('nc-attach-opt')?.value || 'none';
+  const customWrap = document.getElementById('nc-custom-file-wrap');
+  const statusEl = document.getElementById('nc-attach-status');
+  if (customWrap) customWrap.style.display = opt === 'custom_file' ? '' : 'none';
+  
+  if (statusEl) {
+    if (opt === 'pdf_lista_precios') {
+      statusEl.textContent = '📄 Se generará el PDF oficial de Lista de Precios con los colores de JJ Paper y precios vigentes en USD y Bs BCV.';
+    } else if (opt === 'prod_image') {
+      const extra = ncGetExtraContext();
+      const prod = dProducts.find(p => p.id === extra.productId);
+      const imgUrl = prod?.jjp_products?.image_url || prod?.image_url;
+      if (imgUrl) {
+        statusEl.textContent = `🖼️ Se adjuntará la imagen de: ${prod.jjp_products?.name || prod.variant_name || 'producto'}`;
+      } else {
+        statusEl.textContent = '⚠️ El producto seleccionado no tiene imagen registrada; se enviará solo texto o selecciona otra opción.';
+      }
+    } else if (opt === 'custom_file') {
+      statusEl.textContent = '📁 Selecciona un archivo PDF o imagen desde tu equipo.';
+    } else {
+      statusEl.textContent = '';
+    }
+  }
 }
 
 async function launchCampaign() {
   const name = document.getElementById('nc-name').value.trim() || 'Difusión';
   const tpl  = dTemplates.find(t => t.id === document.getElementById('nc-tpl').value);
   const list = ncAudience();
+  const extra = ncGetExtraContext();
+
   if (!tpl || !list.length) return;
   if (!confirm(`Vas a enviar "${tpl.name}" a ${list.length} contacto(s) por WhatsApp. ¿Lanzar campaña?`)) return;
 
   const btn = document.getElementById('ncLaunchBtn');
-  btn.disabled = true; btn.textContent = 'Lanzando…';
+  btn.disabled = true; btn.textContent = 'Preparando campaña…';
 
-  const { data: camp, error } = await sb.from('jjp_wa_campaigns')
-    .insert({ owner_id: SELLER.id, name, template_id: tpl.id, body: tpl.body, total: list.length })
-    .select('id').single();
-  if (error) { showToast('Error creando campaña', 'err'); btn.disabled = false; btn.textContent = '🚀 Lanzar campaña'; return; }
+  let mediaPath = null;
+  let mediaType = 'text';
+  let mediaMime = null;
+  let mediaFilename = null;
+  let mediaSize = null;
+
+  const attachOpt = document.getElementById('nc-attach-opt')?.value || 'none';
+  if (attachOpt === 'pdf_lista_precios') {
+    btn.textContent = 'Generando Lista de Precios PDF…';
+    try {
+      if (typeof docPdfProductos === 'function') {
+        const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+        mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+        mediaMime = 'application/pdf';
+        mediaType = 'document';
+        mediaSize = blob.size;
+        mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
+        if (upErr) throw new Error('No se pudo guardar el PDF en almacenamiento: ' + upErr.message);
+      } else {
+        throw new Error('Motor de documentos no disponible.');
+      }
+    } catch (err) {
+      showToast('Error generando PDF: ' + err.message, 'err');
+      btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
+      return;
+    }
+  } else if (attachOpt === 'prod_image') {
+    const extra = ncGetExtraContext();
+    const prod = dProducts.find(p => p.id === extra.productId);
+    const imgUrl = prod?.jjp_products?.image_url || prod?.image_url;
+    if (imgUrl) {
+      mediaPath = imgUrl;
+      mediaType = 'image';
+      mediaMime = 'image/jpeg';
+      const prodName = prod.jjp_products?.name || prod.variant_name || 'producto';
+      mediaFilename = prodName.replace(/[^\w.-]/g, '_') + '.jpg';
+    }
+  } else if (attachOpt === 'custom_file') {
+    const fileInput = document.getElementById('nc-custom-file');
+    const file = fileInput?.files?.[0];
+    if (file) {
+      btn.textContent = 'Subiendo archivo…';
+      try {
+        mediaFilename = file.name;
+        mediaMime = file.type || 'application/octet-stream';
+        mediaType = file.type.startsWith('image/') ? 'image' : 'document';
+        mediaSize = file.size;
+        mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${file.name.replace(/[^\w.-]/g, '_')}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(mediaPath, file, { contentType: mediaMime, upsert: true });
+        if (upErr) throw new Error('No se pudo subir el archivo: ' + upErr.message);
+      } catch (err) {
+        showToast('Error subiendo archivo: ' + err.message, 'err');
+        btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
+        return;
+      }
+    }
+  }
+
+  btn.textContent = 'Lanzando…';
+  const sessionUser = (await sb.auth.getUser())?.data?.user;
+  const ownerId = sessionUser?.id || SELLER?.id;
+  if (!ownerId) {
+    showToast('Error de sesión: Por favor recarga la página o inicia sesión de nuevo.', 'err');
+    btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
+    return;
+  }
+
+  const isRealUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tpl.id);
+  
+  let payload = {
+    owner_id: ownerId,
+    created_by: ownerId,
+    name,
+    template_id: isRealUuid ? tpl.id : null,
+    body: tpl.body,
+    message: tpl.body,
+    status: 'en_cola',
+    total: list.length
+  };
+
+  if (mediaPath) {
+    payload.media_path = mediaPath;
+    payload.media_type = mediaType;
+    payload.media_mime = mediaMime;
+    payload.media_filename = mediaFilename;
+    payload.media_size = mediaSize;
+  }
+
+  let { data: camp, error } = await sb.from('jjp_wa_campaigns').insert(payload).select('id').single();
+
+  // Nota: con el schema reparado ya no hace falta reintento inteligente.
+  // Si falla es un error real, no de schema.
+  if (error) {
+    console.error('Error creando campaña:', error);
+  }
+
+  if (error) {
+    console.error('Error final creando campaña:', error);
+    showToast('Error creando campaña: ' + (error.message || error.details || JSON.stringify(error)), 'err');
+    btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
+    return;
+  }
 
   const targets = list.map(c => ({
-    campaign_id: camp.id, owner_id: SELLER.id, customer_id: c.id,
-    phone: c.phone, name: c.name, vars: dSampleVars(c.name),
+    campaign_id: camp.id,
+    owner_id: ownerId,
+    customer_id: c.id || null,
+    phone: c.phone,
+    name: c.name,
+    status: 'en_cola',
+    vars: dSampleVars(c.name, extra),
   }));
+
   for (let i = 0; i < targets.length; i += 100) {
-    const { error: e2 } = await sb.from('jjp_wa_campaign_targets').insert(targets.slice(i, i + 100));
-    if (e2) { showToast('Error cargando destinatarios: ' + e2.message, 'err'); break; }
+    let { error: e2 } = await sb.from('jjp_wa_campaign_targets').insert(targets.slice(i, i + 100));
+    if (e2) {
+      console.error('Error insertando destinatarios:', e2);
+      showToast('Error cargando destinatarios: ' + e2.message, 'err');
+      break;
+    }
   }
 
   btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
-  showToast('Campaña lanzada 🚀 — los mensajes salen espaciados para proteger tu número');
+  showToast('Campaña lanzada 🚀 — wa-server la despachará automáticamente con su adjunto');
   closeDModal('campModal');
   loadDCampaigns();
 }
@@ -404,3 +693,4 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   document.querySelectorAll('.modal-overlay.op').forEach(m => closeDModal(m.id));
 });
+

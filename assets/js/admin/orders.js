@@ -367,7 +367,7 @@ async function deleteOrder(id) {
   const o = adminOrders.find(x => x.id === id);
   if (!o) return;
   if (!confirm(`¿Eliminar DEFINITIVAMENTE el pedido ${o.order_number}?\n\nEsto lo borra de la lista y no se puede deshacer.`)) return;
-  const { data, error } = await sb.rpc('jjp_delete_order', { p_order: id });
+  const { data, error } = await sb.rpc('jjp_delete_order', { p_order_id: id });
   if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
   if (data !== true) { showToast('El pedido ya no existe', 'warn'); }
   adminOrders = adminOrders.filter(x => x.id !== id);

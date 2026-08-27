@@ -27,7 +27,7 @@ async function sweep() {
 
     const { data: camps, error } = await db.from('jjp_wa_campaigns')
       .select('*')
-      .in('status', ['en_cola', 'enviando'])
+      .in('status', ['en_cola', 'enviando', 'pending', 'sending'])
       .order('created_at', { ascending: true });
     if (error) { log.error({ error: error.message }, 'select campañas falló'); return; }
     if (!camps?.length) return;
@@ -58,14 +58,15 @@ async function step(camp, dailyLimit) {
 
   const { data: targets } = await db.from('jjp_wa_campaign_targets')
     .select('*')
-    .eq('campaign_id', camp.id).eq('status', 'pending')
+    .eq('campaign_id', camp.id)
+    .in('status', ['pending', 'en_cola'])
     .order('created_at', { ascending: true })
     .limit(1);
 
   if (!targets?.length) { await finish(camp); return; }
   const t = targets[0];
 
-  if (camp.status === 'en_cola') {
+  if (camp.status === 'en_cola' || camp.status === 'pending') {
     await db.from('jjp_wa_campaigns')
       .update({ status: 'enviando', started_at: camp.started_at || new Date().toISOString() })
       .eq('id', camp.id);
@@ -83,10 +84,23 @@ async function step(camp, dailyLimit) {
 
   try {
     const chatId = await ensureChat(camp.owner_id, norm, t);
-    const body = renderTemplate(camp.body, t.vars || {});
+    const body = renderTemplate(camp.body || camp.message || '', t.vars || {});
+
+    const msgPayload = {
+      chat_id: chatId,
+      owner_id: camp.owner_id,
+      direction: 'out',
+      type: camp.media_path ? (camp.media_type || 'document') : 'text',
+      body,
+      media_path: camp.media_path || null,
+      media_mime: camp.media_mime || null,
+      media_filename: camp.media_filename || null,
+      media_size: camp.media_size || null,
+      status: 'pending'
+    };
 
     const { data: msg, error: msgErr } = await db.from('jjp_wa_messages')
-      .insert({ chat_id: chatId, owner_id: camp.owner_id, direction: 'out', type: 'text', body, status: 'pending' })
+      .insert(msgPayload)
       .select('id').single();
     if (msgErr) throw new Error(msgErr.message);
 
@@ -95,7 +109,9 @@ async function step(camp, dailyLimit) {
       .eq('id', t.id);
     await syncCounts(camp.id);
 
-    const delayMs = 1000 * (camp.delay_min_s + Math.random() * (camp.delay_max_s - camp.delay_min_s));
+    const minS = Number(camp.delay_min_s) || 12;
+    const maxS = Number(camp.delay_max_s) || 28;
+    const delayMs = 1000 * (minS + Math.random() * Math.max(1, maxS - minS));
     nextSendAt.set(camp.owner_id, Date.now() + delayMs);
     log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000) }, 'difusión: mensaje encolado');
   } catch (e) {
@@ -136,7 +152,7 @@ async function finish(camp) {
   await syncCounts(camp.id);
   await db.from('jjp_wa_campaigns')
     .update({ status: 'completada', finished_at: new Date().toISOString() })
-    .eq('id', camp.id).in('status', ['en_cola', 'enviando']);
+    .eq('id', camp.id).in('status', ['en_cola', 'enviando', 'pending', 'sending']);
   await db.from('jjp_notifications').insert({
     user_id: camp.owner_id, type: 'wa_campana',
     title: '📣 Campaña completada',
@@ -150,9 +166,9 @@ async function finish(camp) {
 async function syncCounts(campaignId) {
   const [{ count: sent }, { count: failed }] = await Promise.all([
     db.from('jjp_wa_campaign_targets').select('id', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId).eq('status', 'sent'),
+      .eq('campaign_id', campaignId).in('status', ['sent', 'enviado']),
     db.from('jjp_wa_campaign_targets').select('id', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId).in('status', ['failed', 'skipped']),
+      .eq('campaign_id', campaignId).in('status', ['failed', 'fallido', 'skipped', 'omitido']),
   ]);
   await db.from('jjp_wa_campaigns')
     .update({ sent_count: sent || 0, failed_count: failed || 0 })
@@ -167,7 +183,7 @@ async function releaseCancelled() {
   for (const c of cancelled || []) {
     await db.from('jjp_wa_campaign_targets')
       .update({ status: 'skipped', error: 'campaña cancelada' })
-      .eq('campaign_id', c.id).eq('status', 'pending');
+      .eq('campaign_id', c.id).in('status', ['pending', 'en_cola']);
   }
 }
 
@@ -175,7 +191,7 @@ async function countSentToday(ownerId) {
   const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
   const { count } = await db.from('jjp_wa_campaign_targets')
     .select('id', { count: 'exact', head: true })
-    .eq('owner_id', ownerId).eq('status', 'sent')
+    .eq('owner_id', ownerId).in('status', ['sent', 'enviado'])
     .gte('sent_at', midnight.toISOString());
   return count || 0;
 }

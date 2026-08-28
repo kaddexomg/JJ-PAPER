@@ -32,6 +32,15 @@ window.CampaignEditor = (() => {
           <div class="ce-config-pane">
             <div class="ce-section">
               <div class="ce-section-title">
+                <span>📝 Plantilla Base</span>
+              </div>
+              <div class="ce-field-group">
+                <select class="ce-select" id="ceTemplateSelect" onchange="CampaignEditor.onTemplateChange()"></select>
+              </div>
+            </div>
+
+            <div class="ce-section">
+              <div class="ce-section-title">
                 <span>🎯 Tipo y Enfoque</span>
               </div>
               <div class="ce-field-group">
@@ -64,22 +73,13 @@ window.CampaignEditor = (() => {
 
             <div class="ce-section">
               <div class="ce-section-title">
-                <span>📝 Plantilla Base</span>
-              </div>
-              <div class="ce-field-group">
-                <select class="ce-select" id="ceTemplateSelect" onchange="CampaignEditor.onTemplateChange()"></select>
-              </div>
-            </div>
-
-            <div class="ce-section">
-              <div class="ce-section-title">
                 <span>📎 Adjunto de Campaña</span>
               </div>
               <div class="ce-field-group">
                 <select class="ce-select" id="ceAttachSelect" onchange="CampaignEditor.onAttachChange()">
                   <option value="none">❌ Sin adjunto (Solo mensaje)</option>
+                  <option value="prod_image">🖼️ Ficha / Foto del Producto o Combo</option>
                   <option value="pdf_lista_precios">📄 Adjuntar Lista de Precios PDF</option>
-                  <option value="prod_image">🖼️ Foto del Producto / Combo</option>
                   <option value="custom_file">📁 Subir Archivo Propio (PDF/Imagen)</option>
                 </select>
               </div>
@@ -90,14 +90,40 @@ window.CampaignEditor = (() => {
 
             <div class="ce-section" id="ceSecuritySection">
               <div class="ce-section-title">
-                <span>🛡️ Velocidad y Anti-Bloqueo</span>
+                <span>🛡️ Ritmo Humano y Anti-Baneo WA</span>
               </div>
               <div class="ce-field-group">
+                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Intervalo entre cada mensaje:</label>
                 <select class="ce-select" id="ceSpeedSelect">
-                  <option value="safe" selected>🐢 Seguro (15 - 35 seg)</option>
-                  <option value="ultra_safe">🛡️ Ultra Seguro (30 - 60 seg)</option>
-                  <option value="fast">⚡ Rápido (8 - 18 seg)</option>
+                  <option value="human" selected>☕ Humano natural (45 - 90 seg aleatorio)</option>
+                  <option value="safe">🐢 Seguro y prudente (25 - 55 seg aleatorio)</option>
+                  <option value="ultra_safe">🛡️ Máxima protección (60 - 120 seg aleatorio)</option>
+                  <option value="fast">⚡ Moderado (15 - 30 seg aleatorio)</option>
                 </select>
+              </div>
+              <div class="ce-field-group" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+                <div>
+                  <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Pausa cada:</label>
+                  <select class="ce-select" id="ceBatchSizeSelect">
+                    <option value="10" selected>10 mensajes</option>
+                    <option value="15">15 mensajes</option>
+                    <option value="20">20 mensajes</option>
+                    <option value="5">5 mensajes (cauteloso)</option>
+                    <option value="0">Sin pausa larga</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Descanso de:</label>
+                  <select class="ce-select" id="ceBatchPauseSelect">
+                    <option value="5" selected>☕ 5 minutos</option>
+                    <option value="10">☕ 10 minutos</option>
+                    <option value="15">☕ 15 minutos</option>
+                    <option value="3">☕ 3 minutos</option>
+                  </select>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.3">
+                💡 Incluye variación <code>{Hola|Buenos días|Saludos}</code> para que cada cliente reciba un texto único y no se detecte como spam.
               </div>
             </div>
           </div>
@@ -108,7 +134,7 @@ window.CampaignEditor = (() => {
               <div class="ce-chat-avatar">👤</div>
               <div class="ce-chat-meta">
                 <div class="ce-chat-client-name" id="cePreviewClientName">Librería El Saber, C.A.</div>
-                <div class="ce-chat-client-sub" id="cePreviewClientSub">Vista previa en tiempo real</div>
+                <div class="ce-chat-client-sub" id="cePreviewClientSub">Vista previa interactiva en tiempo real</div>
               </div>
             </div>
 
@@ -135,7 +161,9 @@ window.CampaignEditor = (() => {
                 <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('producto')">📦 {{producto}}</button>
                 <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('precio')">💲 {{precio}}</button>
                 <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🏷️ {{descuento}}</button>
+                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descripcion')">📝 {{descripcion}}</button>
                 <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
+                <button type="button" class="ce-var-btn" style="background:#fef3c7;color:#92400e;border-color:#fcd34d" onclick="CampaignEditor.insertSpintax()" title="Variar saludos para evitar bloqueos">🎲 Spintax</button>
               </div>
 
               <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
@@ -193,8 +221,8 @@ window.CampaignEditor = (() => {
       onTemplateChange();
     } else {
       document.getElementById('ceMessageInput').value = isEmail 
-        ? 'Estimado/a {{nombre}},\n\nLe saludamos cordialmente de JJ Paper...\n\nAtentamente,\n{{vendedor}}'
-        : 'Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}';
+        ? '{Hola|Estimado(a)|Saludos cordiales} {{nombre}},\n\nLe saludamos cordialmente de JJ Paper...\n\nAtentamente,\n{{vendedor}}'
+        : '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}';
     }
 
     if (isEmail) {
@@ -204,6 +232,39 @@ window.CampaignEditor = (() => {
     onAudienceChange();
     updatePreview();
     activeOverlay.classList.add('active');
+  }
+
+  function onTemplateChange() {
+    const tplId = document.getElementById('ceTemplateSelect').value;
+    const tpl = (currentConfig?.templates || []).find(t => t.id === tplId);
+    if (!tpl) return;
+
+    document.getElementById('ceMessageInput').value = tpl.body || '';
+    if (tpl.subject && document.getElementById('ceSubjectInput')) {
+      document.getElementById('ceSubjectInput').value = tpl.subject;
+    }
+
+    const typeSel = document.getElementById('ceTypeSelect');
+    if (tpl.kind === 'producto' || tpl.id.includes('prod')) {
+      typeSel.value = 'producto';
+      onTypeChange();
+      return;
+    } else if (tpl.kind === 'combo' || tpl.id.includes('combo')) {
+      typeSel.value = 'combo';
+      onTypeChange();
+      return;
+    } else if (tpl.kind === 'reactivacion' || tpl.id.includes('react')) {
+      typeSel.value = 'reactivacion';
+      document.getElementById('ceAudienceSelect').value = 'inactivos';
+      onAudienceChange();
+    } else {
+      typeSel.value = 'general';
+      selectedProductOrCombo = null;
+      document.getElementById('ceSelectedCardWrap').style.display = 'none';
+      document.getElementById('ceSelectedCardWrap').innerHTML = '';
+    }
+
+    updatePreview();
   }
 
   function onTypeChange() {
@@ -268,10 +329,10 @@ window.CampaignEditor = (() => {
 
     let msg = '';
     if (isEmail) {
-      msg = `Estimado/a {{nombre}},\n\nLe presentamos una oferta destacada en nuestro catálogo:\n\n📦 *${p.name}*\n${p.description ? p.description + '\n' : ''}💲 Precio especial: *$${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' (Aplica ' + p.discount_pct + '% de descuento)' : ''}\n\nPuede consultar nuestro catálogo online aquí: {{link}}\n\nQuedamos a su entera disposición,\n{{vendedor}} — JJ Paper`;
-      document.getElementById('ceSubjectInput').value = `📦 Oferta Especial: ${p.name} — JJ Paper`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que se encuentre excelente. Le presentamos una oportunidad destacada de nuestro catálogo:\n\n📦 *${p.name}*\n${p.description ? '📝 ' + p.description + '\n' : ''}💲 Precio especial: *$${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' (Incluye ' + p.discount_pct + '% de descuento exclusivo)' : ''}\n\n👉 Puede consultar disponibilidad y gestionar su pedido en línea aquí:\n{{link}}\n\nSi requiere cotización formal con factura fiscal o despacho inmediato, quedamos a su entera disposición.\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      document.getElementById('ceSubjectInput').value = `📦 Oferta Especial en ${p.name} — JJ Paper`;
     } else {
-      msg = `Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos en promoción destacada:\n📦 *${p.name}*\n${p.description ? p.description + '\n' : ''}💲 Precio especial: *$${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' 🔥 *(' + p.discount_pct + '% OFF)*' : ''}\n\n👉 Ver catálogo completo: {{link}}\n¿Le apartamos algunas unidades?`;
+      msg = `{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nLe escribimos para presentarle una excelente oferta en:\n📦 *${p.name}*\n${p.description ? p.description + '\n' : ''}💲 Precio de oportunidad: *$${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' 🔥 *(' + p.discount_pct + '% OFF)*' : ''}\n\n👉 Ver catálogo o pedir aquí: {{link}}\n¿Le reservamos inventario de este producto para su despacho?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     document.getElementById('ceAttachSelect').value = 'prod_image';
@@ -286,24 +347,15 @@ window.CampaignEditor = (() => {
 
     let msg = '';
     if (isEmail) {
-      msg = `Estimado/a {{nombre}},\n\nLe presentamos nuestro combo especial:\n\n🎁 *${c.name}*\n${c.description ? c.description + '\n' : ''}💲 Precio del combo: *$${Number(c.final_price_usd).toFixed(2)} USD*\n\nCatálogo: {{link}}\n\nAtentamente,\n{{vendedor}} — JJ Paper`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nDesde JJ Paper queremos compartirle nuestro combo especial diseñado para su negocio:\n\n🎁 *${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}💲 Precio del combo: *$${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Vea todos los detalles y confirme su orden aquí:\n{{link}}\n\n¡Contamos con despacho inmediato y asesoría personalizada!\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       document.getElementById('ceSubjectInput').value = `🎁 Combo en Promoción: ${c.name} — JJ Paper`;
     } else {
-      msg = `¡Hola {{nombre}}! 👋 Le saluda {{vendedor}} de JJ Paper.\n\n🎁 *SUPER COMBO DISPONIBLE*\n*${c.name}*\n${c.description ? c.description + '\n' : ''}💲 Por tan solo: *$${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Ver catálogo: {{link}}\n¡Promoción válida hasta agotar stock!`;
+      msg = `{¡Hola|Saludos cordiales|Buen día} {{nombre}}! 🌟 Le saluda {{vendedor}} de JJ Paper.\n\n🎁 *SUPER COMBO DE TEMPORADA*\n*${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}💲 Por tan solo: *$${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Vea los detalles y haga su pedido en: {{link}}\n¡Promoción por tiempo limitado hasta agotar stock! ¿Desea apartarlo hoy?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     document.getElementById('ceAttachSelect').value = 'prod_image';
     onAttachChange();
     updatePreview();
-  }
-
-  function onTemplateChange() {
-    const tplId = document.getElementById('ceTemplateSelect').value;
-    const tpl = (currentConfig?.templates || []).find(t => t.id === tplId);
-    if (tpl) {
-      document.getElementById('ceMessageInput').value = tpl.body || '';
-      updatePreview();
-    }
   }
 
   function onAudienceChange() {
@@ -355,6 +407,18 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
+  function insertSpintax() {
+    const textarea = document.getElementById('ceMessageInput');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const spin = `{Hola|Buen día|Saludos|Qué tal}`;
+    textarea.value = text.substring(0, start) + spin + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + spin.length;
+    updatePreview();
+  }
+
   function updatePreview() {
     const text = document.getElementById('ceMessageInput').value;
     const isEmail = currentConfig?.channel === 'email';
@@ -364,12 +428,18 @@ window.CampaignEditor = (() => {
       empresa: 'Librería El Saber, C.A.',
       vendedor: currentConfig?.seller?.name || 'Asesor JJ Paper',
       producto: selectedProductOrCombo?.name || 'Cuaderno Universitario 100h',
-      precio: `$${Number(selectedProductOrCombo?.final_price_usd || 2.45).toFixed(2)}`,
+      precio: `$${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
       descuento: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '15%',
+      descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta calidad con despacho directo.',
       link: 'https://jjpaper-store.netlify.app/catalogo.html'
     };
 
-    let rendered = text;
+    // Renderizar Spintax y variables de prueba
+    let rendered = text.replace(/\{([^{}]+?)\}/g, (_, choices) => {
+      const parts = choices.split('|');
+      return parts[0].trim();
+    });
+
     for (const [k, v] of Object.entries(sample)) {
       rendered = rendered.replaceAll(`{{${k}}}`, v);
     }
@@ -379,7 +449,7 @@ window.CampaignEditor = (() => {
     
     if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
       attachPreviewEl.style.display = 'block';
-      attachPreviewEl.innerHTML = `<img src="${selectedProductOrCombo.image_url}" alt="Preview">`;
+      attachPreviewEl.innerHTML = `<img src="${selectedProductOrCombo.image_url}" alt="Preview" style="max-height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px">`;
     } else if (attachOpt === 'pdf_lista_precios') {
       attachPreviewEl.style.display = 'block';
       attachPreviewEl.innerHTML = `<div class="ce-bubble-doc-card">📄 Lista_de_Precios_JJ_Paper.pdf (PDF Oficial)</div>`;
@@ -420,7 +490,7 @@ window.CampaignEditor = (() => {
     const name = document.getElementById('ceCampName').value.trim();
     const body = document.getElementById('ceMessageInput').value.trim();
     const attachOpt = document.getElementById('ceAttachSelect').value;
-    const speed = document.getElementById('ceSpeedSelect')?.value || 'safe';
+    const speed = document.getElementById('ceSpeedSelect')?.value || 'human';
     const isEmail = currentConfig?.channel === 'email';
     const subject = isEmail ? document.getElementById('ceSubjectInput').value.trim() : null;
 
@@ -430,10 +500,14 @@ window.CampaignEditor = (() => {
     if (!selectedAudienceList.length) { alert('No hay destinatarios seleccionados.'); return; }
 
     const delays = {
-      safe: { min: 15, max: 35 },
-      ultra_safe: { min: 30, max: 60 },
-      fast: { min: 8, max: 18 }
-    }[speed] || { min: 15, max: 35 };
+      human: { min: 45, max: 90 },
+      safe: { min: 25, max: 55 },
+      ultra_safe: { min: 60, max: 120 },
+      fast: { min: 15, max: 30 }
+    }[speed] || { min: 45, max: 90 };
+
+    const batchSize = parseInt(document.getElementById('ceBatchSizeSelect')?.value, 10) || 0;
+    const batchPauseM = parseInt(document.getElementById('ceBatchPauseSelect')?.value, 10) || 5;
 
     const launchConfig = {
       channel: currentConfig.channel || 'whatsapp',
@@ -444,7 +518,9 @@ window.CampaignEditor = (() => {
       attachOpt,
       selectedProductOrCombo,
       customFile: document.getElementById('ceCustomFileInput')?.files?.[0] || null,
-      delays
+      delays,
+      batchSize,
+      batchPauseM
     };
 
     if (typeof currentConfig.onLaunch === 'function') {
@@ -466,5 +542,6 @@ window.CampaignEditor = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, updatePreview, launch };
+  return { open, close, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch };
 })();
+

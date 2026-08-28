@@ -502,7 +502,7 @@ function newCampaign(preTplId = null) {
 }
 
 async function launchCampaignFromEditor(config) {
-  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, delays } = config;
+  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, delays, batchSize, batchPauseM } = config;
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
 
@@ -553,8 +553,10 @@ async function launchCampaignFromEditor(config) {
     message: body,
     status: 'en_cola',
     total: audience.length,
-    delay_min_s: delays?.min || 15,
-    delay_max_s: delays?.max || 35
+    delay_min_s: delays?.min || 45,
+    delay_max_s: delays?.max || 90,
+    batch_size: batchSize || 0,
+    batch_pause_m: batchPauseM || 5
   };
 
   if (mediaPath) {

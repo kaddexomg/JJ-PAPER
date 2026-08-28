@@ -562,7 +562,7 @@ function newEcCampaign(preTplId = null) {
 }
 
 async function launchEmailCampaignFromEditor(config) {
-  const { name, body, subject, audience, attachOpt, selectedProductOrCombo, customFile } = config;
+  const { name, body, subject, audience, attachOpt, selectedProductOrCombo, customFile, delays } = config;
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
 
@@ -579,7 +579,17 @@ async function launchEmailCampaignFromEditor(config) {
     } catch (e) {
       console.warn('PDF inline attachment notice:', e);
     }
+  } else if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
+    attachments.push({
+      path: selectedProductOrCombo.image_url,
+      name: (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg',
+      contentType: 'image/jpeg'
+    });
   }
+
+  let imgHtml = (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url)
+    ? `<div style="margin:14px 0;text-align:center"><img src="${selectedProductOrCombo.image_url}" alt="${escapeHTML(selectedProductOrCombo.name || '')}" style="max-width:380px;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 10px rgba(0,0,0,0.06)"></div>`
+    : '';
 
   let htmlBody = body.replace(/\n/g, '<br>');
 
@@ -589,14 +599,14 @@ async function launchEmailCampaignFromEditor(config) {
     kind: selectedProductOrCombo?.type || 'general',
     subject: subject || name,
     body,
-    html: `<div style="font-family:sans-serif;color:#333;line-height:1.6">${htmlBody}</div>`,
+    html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
     attachments,
     status: 'running',
     total: audience.length,
     sent_count: 0,
     failed_count: 0,
-    delay_min_s: 5,
-    delay_max_s: 15
+    delay_min_s: delays?.min || 15,
+    delay_max_s: delays?.max || 45
   };
 
   let { data: camp, error } = await sb.from('jjp_email_campaigns').insert(payload).select('id').single();

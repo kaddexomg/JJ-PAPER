@@ -109,9 +109,21 @@ async function step(camp, dailyLimit) {
       .eq('id', t.id);
     await syncCounts(camp.id);
 
-    const minS = Number(camp.delay_min_s) || 12;
-    const maxS = Number(camp.delay_max_s) || 28;
-    const delayMs = 1000 * (minS + Math.random() * Math.max(1, maxS - minS));
+    const minS = Number(camp.delay_min_s) || 45;
+    const maxS = Number(camp.delay_max_s) || 90;
+    let delayMs = 1000 * (minS + Math.random() * Math.max(1, maxS - minS));
+
+    // Si la campaña tiene configurada pausa por lotes (ej: descansar 5 min cada 10 envíos)
+    const batchSize = Number(camp.batch_size) || 0;
+    const batchPauseM = Number(camp.batch_pause_m) || 5;
+    const currentSent = (camp.sent_count || 0) + 1;
+
+    if (batchSize > 0 && currentSent % batchSize === 0) {
+      const longPauseMs = batchPauseM * 60 * 1000;
+      delayMs = longPauseMs;
+      log.info({ campaign: camp.name, sent: currentSent, pauseMin: batchPauseM }, 'difusión: pausa de lote (descanso humano anti-bloqueo)');
+    }
+
     nextSendAt.set(camp.owner_id, Date.now() + delayMs);
     log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000) }, 'difusión: mensaje encolado');
   } catch (e) {

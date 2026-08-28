@@ -79,9 +79,9 @@
 
     <div class="admin-content">
       <div class="of-chips" role="tablist" aria-label="Secciones de campañas de email">
-        <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setDTab('campanas')">📣 Campañas</button>
-        <button class="of-chip"    role="tab" data-tab="plantillas" aria-selected="false" onclick="setDTab('plantillas')">📝 Plantillas de Email</button>
-        <button class="of-chip"    role="tab" data-tab="detalle" aria-selected="false" onclick="setDTab('detalle')" id="tabDetalle" style="display:none">📊 Detalle</button>
+        <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setEcTab('campanas')">📣 Campañas</button>
+        <button class="of-chip"    role="tab" data-tab="plantillas" aria-selected="false" onclick="setEcTab('plantillas')">📝 Plantillas de Email</button>
+        <button class="of-chip"    role="tab" data-tab="detalle" aria-selected="false" onclick="setEcTab('detalle')" id="tabDetalle" style="display:none">📊 Detalle</button>
       </div>
 
       <!-- ===== Campañas ===== -->
@@ -94,7 +94,7 @@
           <div style="overflow-x:auto">
             <table class="admin-table">
               <thead><tr><th>Campaña</th><th>Tipo</th><th>Estado</th><th>Progreso</th><th>Destinatarios</th><th>Acciones</th></tr></thead>
-              <tbody id="dCampBody"><tr><td colspan="6" class="table-empty">Cargando...</td></tr></tbody>
+              <tbody id="ecCampBody"><tr><td colspan="6" class="table-empty">Cargando...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -105,9 +105,9 @@
         <div class="admin-table-wrap">
           <div class="table-top">
             <h3>📝 Plantillas de Email</h3>
-            <button class="btn-p" onclick="openTplModal()">＋ Nueva plantilla</button>
+            <button class="btn-p" onclick="openEcTplModal()">＋ Nueva plantilla</button>
           </div>
-          <div class="d-tpl-grid" id="dTplList"></div>
+          <div class="d-tpl-grid" id="ecTplList"></div>
         </div>
       </section>
 
@@ -116,15 +116,16 @@
         <div class="admin-table-wrap" id="detailWrap">
           <div class="ec-detail-header">
             <div>
-              <h3 id="detName" style="margin:0 0 4px">Detalle de Campaña</h3>
-              <p id="detMeta" style="margin:0;font-size:12px;color:#777"></p>
+              <h3 id="detCampName" style="margin:0 0 4px">Detalle de Campaña</h3>
+              <p id="detCampSub" style="margin:0;font-size:12px;color:#777"></p>
             </div>
-            <button class="btn-o" onclick="setDTab('campanas')">← Volver a campañas</button>
+            <button class="btn-o" onclick="backToCampaigns()">← Volver a campañas</button>
           </div>
           
           <div class="d-prog" style="height:12px;margin-bottom:8px">
             <div class="d-prog-fill" id="detProgFill" style="width:0%"></div>
           </div>
+          <div id="detProgLabel" style="font-size:12px;color:#666;margin-bottom:12px;font-weight:600"></div>
           
           <div class="ec-stats">
             <div class="ec-stat">
@@ -140,7 +141,7 @@
               <div class="ec-stat-label">Fallidos</div>
             </div>
             <div class="ec-stat">
-              <div class="ec-stat-num" id="statQueue">0</div>
+              <div class="ec-stat-num" id="statPending">0</div>
               <div class="ec-stat-label">En Cola</div>
             </div>
             <div class="ec-stat">
@@ -152,7 +153,7 @@
           <div style="overflow-x:auto">
             <table class="admin-table">
               <thead><tr><th>Destinatario</th><th>Email</th><th>Estado</th><th>Fecha envío</th><th>Error</th></tr></thead>
-              <tbody id="detRecipientsBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+              <tbody id="detTargetsBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -163,11 +164,11 @@
 </div>
 
 <!-- Modal: Nueva Plantilla de Email -->
-<div class="modal-overlay" id="tplModal" onclick="if(event.target===this)closeDModal('tplModal')">
+<div class="modal-overlay" id="tplModal" onclick="if(event.target===this)closeEcModal('tplModal')">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tplModalTitle" style="max-width:680px">
     <div class="modal-hd">
       <h3 id="tplModalTitle">Nueva plantilla de Email</h3>
-      <button class="modal-close" onclick="closeDModal('tplModal')" aria-label="Cerrar">✕</button>
+      <button class="modal-close" onclick="closeEcModal('tplModal')" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">
       <div class="fg"><label class="fl" for="tp-name">Nombre de la plantilla *</label>
@@ -179,30 +180,30 @@
       <div class="fg">
         <label class="fl" style="font-weight:700">Variables dinámicas (haz clic para insertar en el texto):</label>
         <div class="d-varchips" aria-label="Insertar variable">
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('empresa')">🏢 {{empresa}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('nombre')">👤 {{nombre}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('vendedor')">💼 {{vendedor}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('producto')">📦 {{producto}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('precio')">💲 {{precio}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">🏷️ {{descuento}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('link')">🔗 {{link}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('descripcion')">📝 {{descripcion}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('empresa')">🏢 {{empresa}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('nombre')">👤 {{nombre}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('vendedor')">💼 {{vendedor}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('producto')">📦 {{producto}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('precio')">💲 {{precio}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('descuento')">🏷️ {{descuento}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('link')">🔗 {{link}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('descripcion')">📝 {{descripcion}}</button>
         </div>
       </div>
 
       <div class="fg">
         <label class="fl" for="tp-body">Cuerpo del correo (Soporta HTML básico) *</label>
-        <textarea class="fi" id="tp-body" rows="7" oninput="tplPreview()" placeholder="Hola {{nombre}}, le saluda {{vendedor}} de JJ Paper.&#10;&#10;Tenemos en promoción: {{producto}} por tan solo {{precio}}.&#10;&#10;Ver catálogo aquí: {{link}}"></textarea>
+        <textarea class="fi" id="tp-body" rows="7" oninput="ecTplPreview()" placeholder="Hola {{nombre}}, le saluda {{vendedor}} de JJ Paper.&#10;&#10;Tenemos en promoción: {{producto}} por tan solo {{precio}}.&#10;&#10;Ver catálogo aquí: {{link}}"></textarea>
       </div>
 
       <!-- Asistente rápido para autocompletar plantilla de producto/combo -->
       <div style="background:#f0f7f4;border:1px dashed #2d7a5b;border-radius:8px;padding:10px;margin-bottom:14px">
         <div style="font-size:12px;font-weight:700;color:#16604A;margin-bottom:6px">💡 ¿Quieres armar una plantilla rápida?</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('promo_producto')">📦 Producto</button>
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('promo_combo')">🎁 Combo</button>
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('reactivacion')">🔄 Reactivación</button>
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('catalogo')">🏢 Catálogo B2B</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('producto')">📦 Producto</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('combo')">🎁 Combo</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('reactivacion')">🔄 Reactivación</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('general')">🏢 Catálogo B2B</button>
         </div>
       </div>
 
@@ -211,26 +212,26 @@
         <div class="d-preview" id="tplPreview" aria-live="polite"></div>
       </div>
       <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn-o" onclick="closeDModal('tplModal')">Cancelar</button>
-        <button class="btn-p" onclick="saveTpl()">💾 Guardar plantilla</button>
+        <button class="btn-o" onclick="closeEcModal('tplModal')">Cancelar</button>
+        <button class="btn-p" onclick="saveEcTpl()">💾 Guardar plantilla</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Modal: Nueva Campaña -->
-<div class="modal-overlay" id="campModal" onclick="if(event.target===this)closeDModal('campModal')">
+<div class="modal-overlay" id="campModal" onclick="if(event.target===this)closeEcModal('campModal')">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="campModalTitle" style="max-width:680px">
     <div class="modal-hd">
       <h3 id="campModalTitle">📣 Nueva campaña de Email</h3>
-      <button class="modal-close" onclick="closeDModal('campModal')" aria-label="Cerrar">✕</button>
+      <button class="modal-close" onclick="closeEcModal('campModal')" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="fg"><label class="fl" for="nc-name">Nombre de la campaña *</label>
           <input class="fi" id="nc-name"></div>
         <div class="fg"><label class="fl" for="nc-type">Tipo de Campaña</label>
-          <select class="fi" id="nc-type" onchange="ncOnTypeChange()">
+          <select class="fi" id="nc-type" onchange="ecOnTypeChange()">
             <option value="general">📣 General / Cartera</option>
             <option value="producto">📦 Promoción de un Producto</option>
             <option value="combo">🎁 Promoción de un Combo / Oferta</option>
@@ -240,20 +241,20 @@
       <!-- Selector de producto específico -->
       <div class="fg" id="nc-prod-wrap" style="display:none;background:#f9fbf9;border:1px solid #cddcd4;border-radius:8px;padding:10px">
         <label class="fl" for="nc-prod-select">Selecciona el Producto a Promocionar:</label>
-        <select class="fi" id="nc-prod-select" onchange="ncRefresh()"></select>
+        <select class="fi" id="nc-prod-select" onchange="ecRefresh()"></select>
       </div>
 
       <!-- Selector de combo / promoción del feed -->
       <div class="fg" id="nc-combo-wrap" style="display:none;background:#fdf9f4;border:1px solid #eedec4;border-radius:8px;padding:10px">
         <label class="fl" for="nc-combo-select">Selecciona el Combo u Oferta a Promocionar:</label>
-        <select class="fi" id="nc-combo-select" onchange="ncRefresh()"></select>
+        <select class="fi" id="nc-combo-select" onchange="ecRefresh()"></select>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
         <div class="fg"><label class="fl" for="nc-tpl">Plantilla de Email *</label>
-          <select class="fi" id="nc-tpl" onchange="ncRefresh()"></select></div>
+          <select class="fi" id="nc-tpl" onchange="ecRefresh()"></select></div>
         <div class="fg"><label class="fl" for="nc-aud">Audiencia</label>
-          <select class="fi" id="nc-aud" onchange="ncRefresh()">
+          <select class="fi" id="nc-aud" onchange="ecRefresh()">
             <option value="todos">Toda mi cartera</option>
             <option value="inactivos">😴 Solo inactivos</option>
             <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
@@ -262,14 +263,14 @@
       </div>
 
       <div class="fg" id="nc-tag-wrap" style="display:none"><label class="fl" for="nc-tag">Etiqueta de clientes</label>
-        <input class="fi" id="nc-tag" placeholder="ej: librerías, zona norte" oninput="ncRefresh()"></div>
+        <input class="fi" id="nc-tag" placeholder="ej: librerías, zona norte" oninput="ecRefresh()"></div>
 
       <p id="ncCount" style="font-size:13px;font-weight:700;color:#16604A" aria-live="polite"></p>
       
       <!-- Adjunto opcional: Catálogo / Lista de Precios PDF o Ficha de Producto -->
       <div class="fg" style="background:#f0f7f4;border:1px solid #c9e3d5;border-radius:8px;padding:12px;margin-top:6px">
         <label class="fl" style="font-weight:700;color:#16604A">📎 Archivo Adjunto (Opcional):</label>
-        <select class="fi" id="nc-attach-opt" onchange="ncOnAttachChange()">
+        <select class="fi" id="nc-attach-opt" onchange="ecOnAttachChange()">
           <option value="none">❌ Sin adjunto</option>
           <option value="pdf_lista_precios">📄 Generar Lista de Precios PDF</option>
           <option value="prod_image">🖼️ Adjuntar imagen del producto</option>
@@ -291,8 +292,8 @@
       </p>
       
       <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn-o" onclick="closeDModal('campModal')">Cancelar</button>
-        <button class="btn-p" id="ncLaunchBtn" onclick="launchCampaign()">🚀 Lanzar campaña de email</button>
+        <button class="btn-o" onclick="closeEcModal('campModal')">Cancelar</button>
+        <button class="btn-p" id="ncLaunchBtn" onclick="launchEcCampaign()">🚀 Lanzar campaña de email</button>
       </div>
     </div>
   </div>
@@ -307,19 +308,20 @@
 <script src="../assets/js/admin/sidenav.js?v=20260827_v2"></script>
 <script src="../assets/js/doc-engine.js?v=20260827_v2"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260827_v2"></script>
+<script src="../assets/js/vendedor/product-picker.js?v=20260827_v2"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260827_v2"></script>
 <script src="../assets/js/vendedor/vcampanas-email.js?v=20260827_v2"></script>
 <script>
+function newCampaign() {
+  newEcCampaign();
+}
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();
   if (!seller) return;
-  if(typeof initEmailCampaigns === 'function') {
+  if (typeof initEmailCampaigns === 'function') {
     await initEmailCampaigns();
-  } else {
-    console.warn('initEmailCampaigns no está definido todavía. Ignora este mensaje si estás creando el archivo JS ahora mismo.');
   }
 });
 </script>
-  <script src="../assets/js/vendedor/product-picker.js"></script>
-  <script src="../assets/js/vendedor/campaign-editor.js"></script>
 </body>
 </html>

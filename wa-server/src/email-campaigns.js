@@ -94,7 +94,15 @@ async function step(camp, dailyLimit) {
 }
 
 function renderTemplate(body, vars) {
-  return String(body || '').replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
+  let str = String(body || '').replace(/\{([^{}]+?)\}/g, (_, choices) => {
+    if (choices.startsWith('{') || choices.endsWith('}')) return choices;
+    const parts = choices.split('|');
+    if (parts.length > 1) {
+      return parts[Math.floor(Math.random() * parts.length)].trim();
+    }
+    return choices;
+  });
+  return str.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
     (_, k) => vars[k.trim().toLowerCase()] ?? '');
 }
 

@@ -548,8 +548,16 @@ async function launchCampaignFromEditor(config) {
       const imgUrl = selectedProductOrCombo.image_url;
       const imgResp = await fetch(imgUrl);
       if (!imgResp.ok) throw new Error('No se pudo descargar la imagen del producto');
-      const imgBlob = await imgResp.blob();
-      mediaMime = imgBlob.type || 'image/jpeg';
+      let imgBlob = await imgResp.blob();
+      // Comprime la imagen (máx 1200px, calidad ~0.82) para que quede < ~5 MB
+      // y WhatsApp pueda entregarla. Evita subir blobs de 10-20 MB.
+      try {
+        const comp = await compressImageForWhatsApp(imgBlob);
+        if (comp) {
+          imgBlob = comp.blob;
+          mediaMime = comp.blob.type || 'image/jpeg';
+        }
+      } catch (e) { console.warn('no se pudo comprimir imagen de campaña', e); }
       mediaFilename = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
       mediaType = 'image';
       mediaSize = imgBlob.size;
@@ -752,8 +760,11 @@ async function launchCampaign() {
       try {
         const imgResp = await fetch(imgUrl);
         if (!imgResp.ok) throw new Error('No se pudo descargar la imagen del producto');
-        const imgBlob = await imgResp.blob();
-        mediaMime = imgBlob.type || 'image/jpeg';
+        let imgBlob = await imgResp.blob();
+        try {
+          const comp = await compressImageForWhatsApp(imgBlob);
+          if (comp) { imgBlob = comp.blob; mediaMime = comp.blob.type || 'image/jpeg'; }
+        } catch (e) { console.warn('no se pudo comprimir imagen de campaña', e); }
         mediaFilename = (prod.jjp_products?.name || prod.variant_name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
         mediaType = 'image';
         mediaSize = imgBlob.size;
@@ -870,4 +881,25 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   document.querySelectorAll('.modal-overlay.op').forEach(m => closeDModal(m.id));
 });
+
+/* ---- Compresión de imagen para adjuntos de campaña (WhatsApp ~5MB) ---- */
+async function compressImageForWhatsApp(blob, maxSide = 1200) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const toBlob = (t, q) => new Promise(res => canvas.toBlob(res, t, q));
+    let out = await toBlob('image/webp', 0.82);
+    if (out) return { blob: out };
+    out = await toBlob('image/jpeg', 0.85);
+    if (out) return { blob: out };
+  } catch (e) { console.warn('compressImageForWhatsApp: fallback al original', e); }
+  return null;
+}
 

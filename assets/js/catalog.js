@@ -533,3 +533,38 @@ async function initCatalog() {
   if (urlCat) setCat(urlCat);
   else renderProds();
 }
+
+/* ======================================================
+   Catálogo: Toggle Grid/Lista & Envío Rápido a Clientes
+   ====================================================== */
+
+let catCurrentView = 'grid';
+
+window.setCatView = function(view) {
+  catCurrentView = view;
+  const grid = document.getElementById('grid');
+  if (grid) {
+    grid.classList.toggle('list-view', view === 'list');
+  }
+  document.querySelectorAll('.cvt-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === view);
+  });
+};
+
+window.sendProductToClient = async function(prodId, channel = 'whatsapp') {
+  const p = productMap[prodId] || allProducts.find(x => x.id === prodId);
+  if (!p) return;
+
+  if (window.CampaignEditor) {
+    window.CampaignEditor.open({
+      channel,
+      defaultName: `Envío Ficha: ${p.name}`,
+      products: allProducts,
+      onLaunch: async (config) => {
+        alert(`Ficha de ${p.name} enviada exitosamente por ${channel.toUpperCase()}`);
+      }
+    });
+  } else {
+    alert(`Preparando envío de ficha para: ${p.name}`);
+  }
+};

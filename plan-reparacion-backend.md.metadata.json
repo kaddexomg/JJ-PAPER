@@ -1,0 +1,6 @@
+{
+  "summary": "Plan integral de reparación del backend de JJ Paper. Documenta 4 problemas críticos encontrados:\n1. Frontend envía columnas que NO existen en la BD (created_by, message, total_count, media_*)\n2. Tablas jjp_email_campaigns y jjp_email_campaign_targets nunca fueron creadas\n3. Nombres de columnas diferentes entre backend (email.js) y BD (owner_id vs profile_id, to_addr vs to_email)\n4. CHECK constraints demasiado restrictivos que rechazan valores válidos\n\nIncluye diagrama de flujo del problema, solución SQL paso a paso, correcciones de frontend, y plan de verificación en 4 fases.",
+  "updatedAt": "2026-08-27T15:32:46.684899100Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

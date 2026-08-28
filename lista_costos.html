@@ -164,21 +164,45 @@ let GENERADA_EN = null;        // fecha/hora de la última lectura de la base
 // Lee precios y existencias. Separado para poder REFRESCAR sin recargar la
 // página: la lista del día se actualiza con un botón.
 async function cargarVariantes(content) {
-  const select = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
+  const selWithGroups = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
     + 'jjp_products(name,jjp_categories(name,sort_order,jjp_category_groups(name,emoji,sort_order)))';
+  const selFallback = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
+    + 'jjp_products(name,jjp_categories(name,sort_order))';
+  const selBasic = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
+    + 'jjp_products(name)';
+
+  let activeSel = selWithGroups;
   const out = [], CHUNK = 1000;
   for (let from = 0; ; from += CHUNK) {
-    const { data, error } = await sb.from('jjp_product_variants')
-      .select(select)
+    let res = await sb.from('jjp_product_variants')
+      .select(activeSel)
       .eq('active', true)
       .range(from, from + CHUNK - 1);
-    if (error) {
-      if (content) content.innerHTML = '<div class="err">Error al obtener lista de productos/costos.</div>';
-      console.error(error);
+
+    if (res.error && activeSel === selWithGroups) {
+      console.warn('Fallback a categorías simples en lista_costos:', res.error.message);
+      activeSel = selFallback;
+      res = await sb.from('jjp_product_variants')
+        .select(activeSel)
+        .eq('active', true)
+        .range(from, from + CHUNK - 1);
+    }
+    if (res.error && activeSel === selFallback) {
+      console.warn('Fallback a productos simples en lista_costos:', res.error.message);
+      activeSel = selBasic;
+      res = await sb.from('jjp_product_variants')
+        .select(activeSel)
+        .eq('active', true)
+        .range(from, from + CHUNK - 1);
+    }
+
+    if (res.error) {
+      if (content) content.innerHTML = `<div class="err">Error al obtener lista de productos/costos: ${escapeHTML(res.error.message)}</div>`;
+      console.error('Error cargando variantes en lista_costos:', res.error);
       return false;
     }
-    out.push(...(data || []));
-    if (!data || data.length < CHUNK) break;
+    out.push(...(res.data || []));
+    if (!res.data || res.data.length < CHUNK) break;
   }
   ALL_VARIANTS = out;
   GENERADA_EN = new Date();

@@ -444,3 +444,105 @@
 @media (min-width:769px) {
   .ilb-hint::after { content:' · doble click para acercar' }
 }
+
+/* ======================================================
+   JJ Paper — Modo Lista y Quick Actions de Catálogo (Fase 4)
+   ====================================================== */
+
+.cat-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid var(--gb);
+}
+
+.cvt-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.cvt-btn.active, .cvt-btn:hover {
+  background: #ffffff;
+  color: var(--gd);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Modo Lista */
+.prod-grid.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prod-grid.list-view .pc {
+  flex-direction: row;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 14px;
+  border-radius: 10px;
+}
+
+.prod-grid.list-view .pc-img {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.prod-grid.list-view .pc-body {
+  flex: 1;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prod-grid.list-view .pc-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  min-width: 0;
+}
+
+.prod-grid.list-view .pc-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gd);
+  white-space: nowrap;
+}
+
+.cat-quick-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.cat-qa-btn {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cat-qa-btn:hover {
+  background: var(--gd);
+  color: #ffffff;
+  border-color: var(--gd);
+}

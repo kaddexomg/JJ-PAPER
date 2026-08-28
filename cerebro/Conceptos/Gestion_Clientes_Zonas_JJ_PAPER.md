@@ -10,15 +10,23 @@ tags: [clientes, zonas, crm, administracion, vendedores]
 
 ## 1. Mapeo de Zonas y Vendedores
 
-Para optimizar la gestión comercial de la papelería en Venezuela, los clientes han sido clasificados y distribuidos en carteras cerradas según su zona geográfica/grupo:
+Para optimizar la gestión comercial de la papelería en Venezuela, los clientes han sido clasificados y distribuidos en carteras cerradas según su zona geográfica/grupo.
+
+> **Fuente de verdad:** los reportes por zona `CLIENTES/ZONA004.DOC`, `ZONA006.DOC`, `ZONA008.DOC`, `ZONA014.DOC`.
+> Cantidades recargadas el 27-08-2026 (ver [[2026-08-27]]). **Giovanni maneja 2 zonas (004 y 006), por lo tanto es el que más clientes tiene.**
 
 | Zona / Grupo | Vendedor Asignado | Cantidad de Clientes | Identificador Visual / Badge |
 |---|---|---|---|
-| **Zona 008** | **Marianela** | 359 registros | Naranja (`#e67e22`) |
-| **Zona 014** | **Andreina** | 362 registros | Morado (`#9b59b6`) |
-| **Zona 006** | **Giovanni** | 249 registros | Verde (`#2ecc71`) |
-| **Zona 004** | **Giovanni** | 75 registros | Verde (`#2ecc71`) |
-| *Total* | *Equipo de Ventas* | **1,045 clientes** | — |
+| **Zona 008** | **Marianela** | 494 registros | Naranja (`#e67e22`) |
+| **Zona 014** | **Andreina** | 540 registros | Morado (`#9b59b6`) |
+| **Zona 006** | **Giovanni** | 433 registros | Verde (`#2ecc71`) |
+| **Zona 004** | **Giovanni** | 121 registros | Verde (`#2ecc71`) |
+| *Total* | *Equipo de Ventas* | **1,588 clientes** | — |
+
+### IDs de vendedores (Supabase operativo `czzvsqnmxtjzqzioknnn`)
+- **Marianela** → `d9608291-1363-4790-a7b0-0d6fd426564f` (zona 008)
+- **Andreina** → `b0cd93c5-e2f0-4322-9d35-e374109d284f` (zona 014)
+- **Giovanni (Yovanni Araujo)** → `95d5ad44-e844-4f4f-a9d0-2db7d162c8c6` (zonas 004 y 006)
 
 ---
 

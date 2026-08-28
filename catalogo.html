@@ -60,6 +60,10 @@
         <option value="pasc">Precio: menor → mayor</option>
         <option value="pdesc">Precio: mayor → menor</option>
       </select>
+      <div class="cat-view-toggle" role="group" aria-label="Cambiar vista">
+        <button type="button" class="cvt-btn active" data-view="grid" onclick="setCatView('grid')" title="Vista cuadrícula">⊞</button>
+        <button type="button" class="cvt-btn" data-view="list" onclick="setCatView('list')" title="Vista lista">☰</button>
+      </div>
       <div class="dl-wrap">
         <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
                 onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>

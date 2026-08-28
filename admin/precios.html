@@ -112,6 +112,7 @@
             <thead>
               <tr>
                 <th>Producto</th>
+                <th style="text-align:right">Costo (USD)</th>
                 <th style="text-align:center">Margen</th>
                 <th style="text-align:right">Base (a la par)</th>
                 <th style="text-align:right">Precio actual</th>
@@ -120,7 +121,7 @@
               </tr>
             </thead>
             <tbody id="prBody">
-              <tr><td colspan="6" class="table-empty">Cargando…</td></tr>
+              <tr><td colspan="7" class="table-empty">Cargando…</td></tr>
             </tbody>
           </table>
         </div>
@@ -134,11 +135,11 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
-<script src="../assets/js/config.js"></script>
-<script src="../assets/js/toast.js"></script>
-<script src="../assets/js/admin/auth.js"></script>
-<script src="../assets/js/admin/sidenav.js?v=20260819b"></script>
-<script src="../assets/js/admin/pricing.js"></script>
+<script src="../assets/js/config.js?v=20260825_final_fix"></script>
+<script src="../assets/js/toast.js?v=20260825_final_fix"></script>
+<script src="../assets/js/admin/auth.js?v=20260825_final_fix"></script>
+<script src="../assets/js/admin/sidenav.js?v=20260825_final_fix"></script>
+<script src="../assets/js/admin/pricing.js?v=20260825_final_fix"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();

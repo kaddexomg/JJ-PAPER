@@ -226,6 +226,36 @@
           <div id="clientsList" style="margin-top:14px"></div>
         </div>
 
+        
+        <!-- Monitor y Optimización de Almacenamiento (Fase 7) -->
+        <div class="form-panel" style="background:#f8fafc;border:1px solid #cbd5e1">
+          <h3>💾 Almacenamiento y Storage (Supabase)</h3>
+          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
+            Regla de Oro: Mantenimiento proactivo para no exceder la cuota gratuita (1 GB).
+            La limpieza purga adjuntos antiguos de campañas (>7d) y recibos validados (>30d).
+          </p>
+          <div id="storageStatsWrap" style="margin-bottom:14px;font-size:13px;color:#334155">
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+              <div style="background:#fff;border:1px solid #e2e8f0;padding:10px 14px;border-radius:8px">
+                <span style="font-size:11px;color:#64748b">WhatsApp Media</span>
+                <div style="font-size:15px;font-weight:700;color:#16604A" id="stgWaSize">—</div>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;padding:10px 14px;border-radius:8px">
+                <span style="font-size:11px;color:#64748b">Email Media</span>
+                <div style="font-size:15px;font-weight:700;color:#2b6cb0" id="stgEmailSize">—</div>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;padding:10px 14px;border-radius:8px">
+                <span style="font-size:11px;color:#64748b">Recibos de Pago</span>
+                <div style="font-size:15px;font-weight:700;color:#ca8a04" id="stgReceiptsSize">—</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button type="button" class="btn-o sm" onclick="runStorageClean()">🧹 Ejecutar Limpieza de Storage</button>
+            <button type="button" class="btn-o sm" onclick="loadStorageMonitor()">🔄 Refrescar Estadísticas</button>
+          </div>
+        </div>
+
         <button class="btn-p" id="saveSettingsBtn" onclick="saveSettings()" style="justify-content:center">💾 Guardar cambios</button>
       </div>
     </div>
@@ -251,6 +281,54 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   await loadSettingsForm();
   await loadClientsPanel();
+});
+</script>
+<script>
+async function loadStorageMonitor() {
+  try {
+    const { data, error } = await sb.rpc('jjp_storage_stats');
+    if (!error && Array.isArray(data)) {
+      const wa = data.find(x => x.bucket_id === 'jjp-wa-media');
+      const em = data.find(x => x.bucket_id === 'jjp-email-media');
+      const rc = data.find(x => x.bucket_id === 'jjp-receipts');
+      if (document.getElementById('stgWaSize')) document.getElementById('stgWaSize').textContent = wa ? (wa.size_pretty || wa.files + ' archivos') : '0 B';
+      if (document.getElementById('stgEmailSize')) document.getElementById('stgEmailSize').textContent = em ? (em.size_pretty || em.files + ' archivos') : '0 B';
+      if (document.getElementById('stgReceiptsSize')) document.getElementById('stgReceiptsSize').textContent = rc ? (rc.size_pretty || rc.files + ' archivos') : '0 B';
+    }
+  } catch (e) {
+    console.log('Storage monitor init notice:', e.message);
+  }
+}
+
+async function runStorageClean() {
+  if (!confirm('¿Deseas purgar archivos antiguos de campañas completadas y recibos procesados?')) return;
+  try {
+    let deletedCount = 0;
+    const { data: waFiles } = await sb.storage.from('jjp-wa-media').list('', { limit: 100 });
+    if (waFiles && waFiles.length > 0) {
+      const oldWa = waFiles.filter(f => f.name.includes('campaigns') || (Date.now() - new Date(f.created_at).getTime() > 7 * 86400000)).map(f => f.name);
+      if (oldWa.length > 0) {
+        await sb.storage.from('jjp-wa-media').remove(oldWa);
+        deletedCount += oldWa.length;
+      }
+    }
+    const { data: emFiles } = await sb.storage.from('jjp-email-media').list('', { limit: 100 });
+    if (emFiles && emFiles.length > 0) {
+      const oldEm = emFiles.filter(f => (Date.now() - new Date(f.created_at).getTime() > 7 * 86400000)).map(f => f.name);
+      if (oldEm.length > 0) {
+        await sb.storage.from('jjp-email-media').remove(oldEm);
+        deletedCount += oldEm.length;
+      }
+    }
+    showToast('Limpieza completada: ' + deletedCount + ' archivos purgados exitosamente');
+    await loadStorageMonitor();
+  } catch (e) {
+    showToast('Error en limpieza: ' + e.message, 'err');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(loadStorageMonitor, 1000);
 });
 </script>
 </body>

@@ -1,6 +1,6 @@
 # AGENTS.md — contexto del proyecto
 
-> Generado por AgentForge el 2026-08-17 13:33. El agente lo consulta (load_project_context)
+> Generado por AgentForge el 2026-08-26 10:23. El agente lo consulta (load_project_context)
 > ANTES de escribir o modificar codigo para respetar stack y convenciones.
 
 ## Tech Stack
@@ -19,7 +19,9 @@ admin/
 AGENTS.md
 assets/ (css, img, js, vendor)
 audits/
+backups/ (rescate_2026-08-24)
 build.sh
+cargar_clientes.mjs
 catalogo.html
 cerebro/ (.obsidian, Conceptos, Indices, Modulos, Proyecto, Seguridad, Sesiones, Sistema)
 checkout.html
@@ -31,8 +33,6 @@ comprobante.html
 CONEXION_MIXNET.md
 datos_importacion_final.json
 diag.html
-DISEÑO_RED_MIXNET.md
-docs/
 ...
 ```
 

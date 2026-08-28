@@ -1,0 +1,504 @@
+﻿/* ============================================================================
+   JJ Paper — Editor Chat-Like de Campañas (WhatsApp & Email)
+   assets/css/campaign-editor.css
+   ============================================================================ */
+
+.camp-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.camp-editor-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.camp-editor-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 1100px;
+  height: 90vh;
+  max-height: 820px;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: campModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes campModalPop {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Topbar */
+.ce-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #16604A;
+  color: #ffffff;
+}
+
+.ce-title-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.ce-channel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.ce-channel-badge.email {
+  background: #2b6cb0;
+}
+
+.ce-name-input {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 6px 12px;
+  flex: 1;
+  max-width: 420px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ce-name-input:focus {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ce-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ce-close-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 20px;
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.ce-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Body: Split Pane */
+.ce-body {
+  display: grid;
+  grid-template-columns: 42% 58%;
+  flex: 1;
+  min-height: 0;
+  background: #f8fafc;
+}
+
+/* Panel Izquierdo: Configuración */
+.ce-config-pane {
+  padding: 18px 20px;
+  overflow-y: auto;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ffffff;
+}
+
+.ce-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ce-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ce-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ce-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ce-input, .ce-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1e293b;
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ce-input:focus, .ce-select:focus {
+  border-color: #16604A;
+  box-shadow: 0 0 0 3px rgba(22, 96, 74, 0.12);
+}
+
+/* Card Informativa de Producto/Combo Seleccionado */
+.ce-selected-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+}
+
+.ce-selected-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.ce-selected-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ce-selected-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #16604A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ce-selected-price {
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+/* Panel Derecho: Chat Simulator */
+.ce-chat-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #e5ddd5;
+  background-image: radial-gradient(#d4cbbf 1px, transparent 1px);
+  background-size: 16px 16px;
+  position: relative;
+}
+
+.ce-chat-pane.email-mode {
+  background: #edf2f7;
+  background-image: none;
+}
+
+.ce-chat-header {
+  padding: 10px 16px;
+  background: #f0f2f5;
+  border-bottom: 1px solid #d1d7db;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ce-chat-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.ce-chat-meta {
+  flex: 1;
+}
+
+.ce-chat-client-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111b21;
+}
+
+.ce-chat-client-sub {
+  font-size: 11px;
+  color: #667781;
+}
+
+/* Burbujas del Chat */
+.ce-chat-viewport {
+  flex: 1;
+  padding: 16px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ce-bubble-container {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.ce-bubble {
+  max-width: 82%;
+  background: #d9fdd3;
+  padding: 8px 12px 6px 12px;
+  border-radius: 10px 0 10px 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  word-break: break-word;
+}
+
+.ce-chat-pane.email-mode .ce-bubble {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  padding: 16px;
+  max-width: 90%;
+}
+
+.ce-email-subject-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.ce-bubble-attachment-preview {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.06);
+  margin-bottom: 4px;
+}
+
+.ce-bubble-attachment-preview img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.ce-bubble-doc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.ce-bubble-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #111b21;
+  white-space: pre-wrap;
+}
+
+.ce-bubble-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 11px;
+  color: #667781;
+}
+
+.ce-checkmarks {
+  color: #53bdeb;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Área de Redacción y Variables */
+.ce-composer-area {
+  background: #f0f2f5;
+  border-top: 1px solid #d1d7db;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ce-variables-toolbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ce-var-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ce-var-btn:hover {
+  background: #16604A;
+  color: #ffffff;
+  border-color: #16604A;
+}
+
+.ce-textarea {
+  width: 100%;
+  min-height: 90px;
+  max-height: 140px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #111b21;
+  background: #ffffff;
+  resize: vertical;
+  outline: none;
+}
+
+.ce-textarea:focus {
+  border-color: #16604A;
+}
+
+/* Footer con Acciones */
+.ce-footer {
+  padding: 12px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ce-footer-summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ce-footer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.ce-btn-cancel {
+  padding: 8px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ce-btn-cancel:hover {
+  background: #f1f5f9;
+}
+
+.ce-btn-launch {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #16604A;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(22, 96, 74, 0.3);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.ce-btn-launch:hover {
+  background: #124e3c;
+  transform: translateY(-1px);
+}
+
+.ce-btn-launch:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .camp-editor-modal {
+    height: 96vh;
+  }
+  .ce-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .ce-config-pane {
+    max-height: 220px;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+}

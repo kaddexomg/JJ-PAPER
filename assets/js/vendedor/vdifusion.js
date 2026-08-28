@@ -482,17 +482,122 @@ async function cancelCampaign(id) {
 /* ---- Nueva campaña ---- */
 function newCampaign(preTplId = null) {
   setDTab('campanas');
-  const sel = document.getElementById('nc-tpl');
-  sel.innerHTML = dTemplates.map(t =>
-    `<option value="${t.id}">${escapeHTML(t.name)} ${t.owner_id ? '(mía)' : '(global)'}</option>`).join('');
-  if (preTplId) sel.value = preTplId;
-  document.getElementById('nc-name').value = 'Difusión ' + new Date().toLocaleDateString('es-VE');
-  document.getElementById('nc-type').value = 'general';
-  document.getElementById('nc-tag').value = '';
-  document.getElementById('nc-aud').value = 'todos';
-  renderProductAndComboSelects();
-  ncOnTypeChange();
+  if (window.CampaignEditor) {
+    window.CampaignEditor.open({
+      channel: 'whatsapp',
+      preTplId,
+      products: dProducts,
+      combos: dCombos,
+      templates: dTemplates,
+      contacts: dContacts,
+      seller: SELLER,
+      onLaunch: async (config) => {
+        await launchCampaignFromEditor(config);
+      }
+    });
+    return;
+  }
+  // Fallback modal tradicional si el editor no estuviera disponible
   openDModal('campModal');
+}
+
+async function launchCampaignFromEditor(config) {
+  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, delays } = config;
+  const sessionUser = (await sb.auth.getUser())?.data?.user;
+  const ownerId = sessionUser?.id || SELLER?.id;
+
+  let mediaPath = null, mediaType = null, mediaMime = null, mediaFilename = null, mediaSize = null;
+
+  if (attachOpt === 'pdf_lista_precios') {
+    try {
+      if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
+      const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+      mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+      mediaMime = 'application/pdf';
+      mediaType = 'document';
+      mediaSize = blob.size;
+      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
+      const { error: upErr } = await sb.storage.from('jjp-wa-media')
+        .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw new Error('No se pudo guardar el PDF: ' + upErr.message);
+    } catch (err) {
+      showToast('Error generando PDF: ' + err.message, 'err');
+      throw err;
+    }
+  } else if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
+    mediaPath = selectedProductOrCombo.image_url;
+    mediaType = 'image';
+    mediaMime = 'image/jpeg';
+    mediaFilename = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+  } else if (attachOpt === 'custom_file' && customFile) {
+    try {
+      mediaFilename = customFile.name;
+      mediaMime = customFile.type || 'application/octet-stream';
+      mediaType = customFile.type.startsWith('image/') ? 'image' : 'document';
+      mediaSize = customFile.size;
+      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${customFile.name.replace(/[^\w.-]/g, '_')}`;
+      const { error: upErr } = await sb.storage.from('jjp-wa-media')
+        .upload(mediaPath, customFile, { contentType: mediaMime, upsert: true });
+      if (upErr) throw new Error('No se pudo subir el archivo: ' + upErr.message);
+    } catch (err) {
+      showToast('Error subiendo archivo: ' + err.message, 'err');
+      throw err;
+    }
+  }
+
+  let payload = {
+    owner_id: ownerId,
+    created_by: ownerId,
+    name,
+    body,
+    message: body,
+    status: 'en_cola',
+    total: audience.length,
+    delay_min_s: delays?.min || 15,
+    delay_max_s: delays?.max || 35
+  };
+
+  if (mediaPath) {
+    payload.media_path = mediaPath;
+    payload.media_type = mediaType;
+    payload.media_mime = mediaMime;
+    payload.media_filename = mediaFilename;
+    payload.media_size = mediaSize;
+  }
+
+  let { data: camp, error } = await sb.from('jjp_wa_campaigns').insert(payload).select('id').single();
+  if (error) {
+    console.error('Error insertando campaña:', error);
+    showToast('Error creando campaña: ' + error.message, 'err');
+    throw error;
+  }
+
+  const extra = {
+    productId: selectedProductOrCombo?.id,
+    type: selectedProductOrCombo?.type || 'general'
+  };
+
+  const targets = audience.map(c => ({
+    campaign_id: camp.id,
+    owner_id: ownerId,
+    customer_id: c.id || null,
+    phone: c.phone,
+    name: c.name,
+    status: 'en_cola',
+    vars: dSampleVars(c.name, extra)
+  }));
+
+  for (let i = 0; i < targets.length; i += 100) {
+    let { error: e2 } = await sb.from('jjp_wa_campaign_targets').insert(targets.slice(i, i + 100));
+    if (e2) {
+      console.error('Error insertando destinatarios:', e2);
+      showToast('Error cargando destinatarios: ' + e2.message, 'err');
+      break;
+    }
+  }
+
+  showToast('¡Campaña lanzada con éxito! 🚀 Despachando en segundo plano.');
+  loadDCampaigns();
 }
 
 function ncOnTypeChange() {

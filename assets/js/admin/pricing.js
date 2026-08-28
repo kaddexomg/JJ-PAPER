@@ -25,18 +25,42 @@ async function loadPricing() {
   setTxt('pr-factor', prFactor.toFixed(4));
   setTxt('pr-updated', s.rates_updated_iso ? fmtDate(s.rates_updated_iso) : '—');
 
-  // Variantes (base + precio actual + margen)
+  // Variantes (costo + base + precio actual + margen)
   const tbody = document.getElementById('prBody');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Cargando…</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Cargando…</td></tr>`;
   const out = [], CHUNK = 1000;
-  const sel = 'id,base_price_usd,price_usd,margin_pct,variant_name,'
+  const selWithGroups = 'id,sku,cost_usd,base_price_usd,price_usd,margin_pct,variant_name,'
     + 'jjp_products(name,jjp_categories(name,sort_order,jjp_category_groups(name,emoji,sort_order))),jjp_brands(name)';
+  const selFallback = 'id,sku,cost_usd,base_price_usd,price_usd,margin_pct,variant_name,'
+    + 'jjp_products(name,jjp_categories(name,sort_order)),jjp_brands(name)';
+  const selBasic = 'id,sku,cost_usd,base_price_usd,price_usd,margin_pct,variant_name,'
+    + 'jjp_products(name),jjp_brands(name)';
+
+  let activeSel = selWithGroups;
   for (let from = 0; ; from += CHUNK) {
-    const { data, error } = await sb.from('jjp_product_variants')
-      .select(sel).order('price_usd', { ascending: false }).range(from, from + CHUNK - 1);
-    if (error) { showToast('Error cargando precios', 'err'); break; }
-    out.push(...(data || []));
-    if (!data || data.length < CHUNK) break;
+    let res = await sb.from('jjp_product_variants')
+      .select(activeSel).order('price_usd', { ascending: false }).range(from, from + CHUNK - 1);
+    
+    if (res.error && activeSel === selWithGroups) {
+      console.warn('Fallo join grupos, reintentando con categorías simples:', res.error.message);
+      activeSel = selFallback;
+      res = await sb.from('jjp_product_variants')
+        .select(activeSel).order('price_usd', { ascending: false }).range(from, from + CHUNK - 1);
+    }
+    if (res.error && activeSel === selFallback) {
+      console.warn('Fallo join categorías, reintentando select básico:', res.error.message);
+      activeSel = selBasic;
+      res = await sb.from('jjp_product_variants')
+        .select(activeSel).order('price_usd', { ascending: false }).range(from, from + CHUNK - 1);
+    }
+
+    if (res.error) {
+      console.error('Error definitivo cargando precios:', res.error);
+      showToast('Error cargando precios: ' + res.error.message, 'err');
+      break;
+    }
+    out.push(...(res.data || []));
+    if (!res.data || res.data.length < CHUNK) break;
   }
   prRows = out;
   prSyncAlphaBtn();
@@ -77,10 +101,13 @@ function prFiltered() {
   const q = normTxt(prSearch);
   if (!q) return prRows;
   return prRows.filter(r =>
-    normTxt(r.jjp_products?.name).includes(q) || normTxt(r.jjp_brands?.name).includes(q));
+    normTxt(r.jjp_products?.name).includes(q) ||
+    normTxt(r.jjp_brands?.name).includes(q) ||
+    normTxt(r.sku).includes(q));
 }
 
 function renderRow(r) {
+  const cost = Number(r.cost_usd) || 0;
   const base = Number(r.base_price_usd ?? r.price_usd) || 0;
   const now  = Number(r.price_usd) || 0;
   const sug  = prSuggested(r);
@@ -94,7 +121,10 @@ function renderRow(r) {
   return `<tr>
     <td>
       <div class="td-name">${escapeHTML(r.jjp_products?.name || '—')}${catTag}</div>
-      <div class="td-sub">${escapeHTML([r.jjp_brands?.name, r.variant_name].filter(Boolean).join(' · ') || 'Genérica')}</div>
+      <div class="td-sub">${escapeHTML([r.jjp_brands?.name, r.variant_name, r.sku].filter(Boolean).join(' · ') || 'Genérica')}</div>
+    </td>
+    <td style="text-align:right;color:#555;font-weight:600">
+      ${cost > 0 ? fmtPrice(cost) : '<span style="color:#aaa;font-weight:400">—</span>'}
     </td>
     <td style="text-align:center">${r.margin_pct != null ? (+r.margin_pct).toFixed(0) + '%' : '—'}</td>
     <td style="text-align:right">
@@ -117,7 +147,7 @@ function renderPricing() {
   const cnt = document.getElementById('prCount');
   if (cnt) cnt.textContent = `${rows.length} productos`;
 
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" class="table-empty">Sin resultados</td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Sin resultados</td></tr>`; return; }
 
   if (prGroupMode === 'plano') {
     const list = [...rows];
@@ -178,7 +208,7 @@ function renderPricing() {
     });
 
     html += `<tr style="background:#f0f4f2;font-weight:700;color:var(--c-p)">
-      <td colspan="6" style="padding:8px 12px;font-size:13px;border-top:2px solid var(--c-p)">
+      <td colspan="7" style="padding:8px 12px;font-size:13px;border-top:2px solid var(--c-p)">
         ${escapeHTML(groupMeta[gKey].title)} (${items.length} productos)
       </td>
     </tr>`;

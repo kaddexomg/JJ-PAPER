@@ -29,7 +29,8 @@
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
-      { href: 'difusion.html', ico: '📣', label: 'Campañas de Ofertas' },
+      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
+      { href: '../vendedor/campanas-email.html', ico: '📣', label: 'Campañas Email' },
       { href: 'correo.html',   ico: '✉️', label: 'Correo' },
     ]},
     { section: 'Catálogo' },
@@ -69,7 +70,8 @@
     ]},
     { group: 'Clientes', ico: '👥', items: [
       { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },
-      { href: 'difusion.html', ico: '📣', label: 'Campañas de Ofertas' },
+      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
+      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },

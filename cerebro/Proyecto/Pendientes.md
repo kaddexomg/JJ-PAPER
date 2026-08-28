@@ -8,6 +8,11 @@ tags: [proyecto, backlog]
 
 ## 🔴 Requieren al dueño (manuales, no de código)
 
+- [ ] **Correr la migración** `sql/2026-08-28-wa-messages-columnas-faltantes.sql`
+      en el SQL editor de Supabase (proyecto `czzvsqnmxtjzqzioknnn`): agrega
+      `forwarded`, `reply_to_wa_id`, `reply_preview`, `reply_from`, `reaction*`
+      a `jjp_wa_messages`. Sin eso los mensajes WhatsApp ENTRANTES no se guardan
+      en el CRM (ver [[Incidentes]]).
 - [ ] Rotar la clave `service_role` de Supabase (expuesta en auditoría 22-jul;
       cambiarla invalida el `.env` del [[wa-server]] — coordinar reinicio).
 - [ ] Activar "leaked password protection" en Supabase Auth.

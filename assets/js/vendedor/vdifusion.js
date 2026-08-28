@@ -43,7 +43,7 @@ async function loadDProductsAndCombos() {
   try {
     // Cargar productos para el selector de promociones
     const { data: prods } = await sb.from('jjp_product_variants')
-      .select('id,sku,price_usd,variant_name,jjp_products(id,name,description),jjp_brands(name)')
+      .select('id,sku,price_usd,variant_name,jjp_products(id,name,description,image_url),jjp_brands(name)')
       .eq('active', true)
       .order('price_usd', { ascending: false })
       .limit(300);
@@ -331,7 +331,21 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
   let prodLink = sellerRefLink() || `${location.origin}/catalogo.html`;
   let discount = APP.SETTINGS?.wa_react_discount || '10';
 
-  if (extraContext.type === 'producto' && extraContext.productId) {
+  // El editor puede pasar el objeto completo elegido (del ProductPicker) para que el
+  // producto/precio/descripción SIEMPRE sean los reales, sin depender de que el id
+  // coincida con dProducts/dCombos.
+  const direct = extraContext.selected;
+  if (direct) {
+    const type = extraContext.type;
+    prodName = direct.name || direct.variant_name || direct.title || prodName;
+    const priceUsd = Number(direct.final_price_usd ?? direct.price_usd) || 0;
+    prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
+    prodDesc = direct.description || prodDesc;
+    prodLink = type === 'combo'
+      ? `${location.origin}/promociones.html`
+      : `${location.origin}/catalogo.html?q=${encodeURIComponent(direct.name || '')}`;
+    if (direct.discount_pct) discount = String(direct.discount_pct);
+  } else if (extraContext.type === 'producto' && extraContext.productId) {
     const p = dProducts.find(x => x.id === extraContext.productId);
     if (p) {
       prodName = [p.jjp_products?.name, p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
@@ -525,10 +539,27 @@ async function launchCampaignFromEditor(config) {
       throw err;
     }
   } else if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
-    mediaPath = selectedProductOrCombo.image_url;
-    mediaType = 'image';
-    mediaMime = 'image/jpeg';
-    mediaFilename = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+    try {
+      const imgUrl = selectedProductOrCombo.image_url;
+      const imgResp = await fetch(imgUrl);
+      if (!imgResp.ok) throw new Error('No se pudo descargar la imagen del producto');
+      const imgBlob = await imgResp.blob();
+      mediaMime = imgBlob.type || 'image/jpeg';
+      mediaFilename = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+      mediaType = 'image';
+      mediaSize = imgBlob.size;
+      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
+      const { error: upErr } = await sb.storage.from('jjp-wa-media')
+        .upload(mediaPath, imgBlob, { contentType: mediaMime, upsert: true });
+      if (upErr) throw new Error('No se pudo subir la imagen: ' + upErr.message);
+    } catch (err) {
+      console.error(err);
+      mediaPath = null;
+      mediaType = null;
+      mediaMime = null;
+      mediaFilename = null;
+      mediaSize = null;
+    }
   } else if (attachOpt === 'custom_file' && customFile) {
     try {
       mediaFilename = customFile.name;
@@ -576,7 +607,9 @@ async function launchCampaignFromEditor(config) {
 
   const extra = {
     productId: selectedProductOrCombo?.id,
-    type: selectedProductOrCombo?.type || 'general'
+    comboId: selectedProductOrCombo?.id,
+    type: selectedProductOrCombo?.type || 'general',
+    selected: selectedProductOrCombo
   };
 
   const targets = audience.map(c => ({
@@ -710,10 +743,24 @@ async function launchCampaign() {
     const prod = dProducts.find(x => x.id === extra.productId);
     const imgUrl = prod?.jjp_products?.image_url || prod?.image_url;
     if (imgUrl) {
-      mediaPath = imgUrl;
-      mediaType = 'image';
-      mediaMime = 'image/jpeg';
-      mediaFilename = (prod.jjp_products?.name || prod.variant_name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+      btn.textContent = 'Descargando imagen del producto…';
+      try {
+        const imgResp = await fetch(imgUrl);
+        if (!imgResp.ok) throw new Error('No se pudo descargar la imagen del producto');
+        const imgBlob = await imgResp.blob();
+        mediaMime = imgBlob.type || 'image/jpeg';
+        mediaFilename = (prod.jjp_products?.name || prod.variant_name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+        mediaType = 'image';
+        mediaSize = imgBlob.size;
+        mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(mediaPath, imgBlob, { contentType: mediaMime, upsert: true });
+        if (upErr) throw new Error('No se pudo subir la imagen: ' + upErr.message);
+      } catch (err) {
+        showToast('Error con la imagen del producto: ' + err.message, 'err');
+        btn.disabled = false; btn.textContent = '🚀 Lanzar campaña';
+        return;
+      }
     }
   } else if (attachOpt === 'custom_file') {
     const file = document.getElementById('nc-custom-file')?.files?.[0];

@@ -1,0 +1,5 @@
+{
+  "summary":  "Diagnóstico detallado de los 4 bugs principales encontrados en el sistema de campañas WhatsApp: variables no reemplazadas, imagen no enviada, error de columna forwarded, y spam de logs. Incluye la causa raíz de cada uno y las correcciones aplicadas.",
+  "updatedAt":  "2026-08-28T16:26:20.934442400Z",
+  "userFacing":  true
+}

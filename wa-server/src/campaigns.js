@@ -84,7 +84,14 @@ async function step(camp, dailyLimit) {
 
   try {
     const chatId = await ensureChat(camp.owner_id, norm, t);
-    const body = renderTemplate(camp.body || camp.message || '', t.vars || {});
+    // Personalizar variables con datos REALES del target. El frontend guarda vars de
+    // ejemplo en t.vars; aquí se garantiza que identidad y vendedor sean correctos.
+    const realVars = {
+      ...(t.vars || {}),
+      nombre: t.name || (t.vars || {}).nombre || '',
+      empresa: t.name || (t.vars || {}).empresa || '',
+    };
+    const body = renderTemplate(camp.body || camp.message || '', realVars);
 
     const msgPayload = {
       chat_id: chatId,
@@ -148,19 +155,20 @@ async function ensureChat(ownerId, norm, target) {
   return chat.id;
 }
 
-// Procesa Spintax: {Hola|Buenos días|Estimado/a} elige una opción al azar
-// Luego {{variable}} → valor correspondiente
+// Procesa variables {{nombre}}, {{link}}, etc. PRIMERO, luego Spintax {Hola|Buenos días}.
+// Orden invertido: las variables usan doble llave y deben resolverse antes de que
+// la regex de Spintax (llave simple) toque el texto. Antes la regex de Spintax
+// capturaba la llave interna de {{var}}, destruyendo la marca de variable.
 function renderTemplate(body, vars) {
-  let str = String(body || '').replace(/\{([^{}]+?)\}/g, (_, choices) => {
-    if (choices.startsWith('{') || choices.endsWith('}')) return choices;
-    const parts = choices.split('|');
-    if (parts.length > 1) {
-      return parts[Math.floor(Math.random() * parts.length)].trim();
-    }
-    return choices;
-  });
-  return str.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
+  // 1) Variables: {{clave}} → valor real del target
+  let str = String(body || '').replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
     (_, k) => vars[k.trim().toLowerCase()] ?? '');
+  // 2) Spintax: {Hola|Buenos días|Estimado/a} → elige una opción al azar
+  str = str.replace(/\{([^{}]*\|[^{}]*)\}/g, (_, choices) => {
+    const parts = choices.split('|');
+    return parts[Math.floor(Math.random() * parts.length)].trim();
+  });
+  return str;
 }
 
 async function skip(camp, target, reason) {

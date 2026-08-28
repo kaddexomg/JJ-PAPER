@@ -455,15 +455,16 @@ window.CampaignEditor = (() => {
       link: 'https://jjpaper-store.netlify.app/catalogo.html'
     };
 
-    // Renderizar Spintax y variables de prueba
-    let rendered = text.replace(/\{([^{}]+?)\}/g, (_, choices) => {
+    // Renderizar variables dobles PRIMERO ({{clave}} → valor), luego Spintax {A|B|C}.
+    // Antes se resolvía Spintax antes y con una regex de llave simple que destruía la
+    // llave interna de {{variable}} (la dejaba como {variable}), por eso las variables
+    // se veían rotas en el preview y no coincidían con lo que se envía.
+    let rendered = text.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
+      (_, k) => sample[k.trim().toLowerCase()] ?? '');
+    rendered = rendered.replace(/\{([^{}]*\|[^{}]*)\}/g, (_, choices) => {
       const parts = choices.split('|');
       return parts[0].trim();
     });
-
-    for (const [k, v] of Object.entries(sample)) {
-      rendered = rendered.replaceAll(`{{${k}}}`, v);
-    }
 
     const attachOpt = document.getElementById('ceAttachSelect').value;
     const attachPreviewEl = document.getElementById('ceBubbleAttachment');

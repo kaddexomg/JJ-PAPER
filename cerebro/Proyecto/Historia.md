@@ -113,5 +113,30 @@ tags: [proyecto, cronologia]
 - Bump `?v=20260819b`: sidenav.js (31 HTML), doc-engine.js (14), send-hub.js (14),
   pos.js y vquotes.js (1 cada uno).
 
+**28-ago — wa-server: sesión WhatsApp que no persistía + CRM de entrantes roto**
+- Diagnóstico (sin tocar nada): el QR se regeneraba porque Realtime y el barrido
+  entregaban el MISMO `connect` dos veces → DOS sockets Baileys con el mismo auth
+  → WhatsApp expulsaba a ambos. Además dos sesiones `enabled` se habían pegado al
+  MISMO número (0412-4676073), pisándose.
+- Fix de código: mutex por perfil (`working`) en `session-manager.js` + guard de
+  30 s en `WaSession.start()`. Un perfil = una acción a la vez.
+- Bug de datos: la tabla `jjp_wa_messages` de la base nueva no tenía
+  `forwarded`/`reply_to_wa_id`/`reply_preview`/`reply_from`/`reaction*` → todos
+  los mensajes ENTRANTES se perdían (campañas/salida seguían OK).
+  → `sql/2026-08-28-wa-messages-columnas-faltantes.sql` (correr en SQL editor).
+- Regla: cada sesión de WhatsApp = UN número propio. Ver [[Incidentes]].
+
+**28-ago (2) — Catálogo propio del admin + menú por ROL**
+- Bug: al entrar admin a `vendedor/catalogo.html` (catálogo en tarjetas con
+  imágenes/PDF/envío), la ruta y el menú pasaban a la sección vendedor; parecía
+  que el admin "cambiaba de usuario". El catálogo debe existir para ambos roles.
+- Fix: `sidenav.js` ahora resuelve el menú por el ROL de la sesión (`loadProfile`)
+  y apunta enlaces a rutas absolutas (`siteURL`); la URL solo es fallback.
+- **Nueva página `admin/catalogo.html`**: mismo catálogo en tarjetas (imágenes,
+  precios, 🖨️ imprimir, 📤 enviar, ⬇️ PDF) pero dentro de la sección admin, con
+  su menú. El ítem "Catálogo" del admin apunta aquí; `vendedor/catalogo.html`
+  redirige a los admins a `admin/catalogo.html` (los vendedores siguen igual).
+- Bump `?v=20260828_cat_admin` en sidenav.js y sus 35 referencias HTML.
+
 
 Relacionado: [[Vision y metas]] · [[Pendientes]] · [[Historial de auditorias]]

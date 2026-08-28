@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Catálogo | JJ Paper Vendedor</title>
+<title>Catálogo | JJ Paper Admin</title>
 <link rel="icon" href="../assets/img/logo.svg">
 <link rel="stylesheet" href="../assets/css/variables.css">
 <link rel="stylesheet" href="../assets/css/components.css">
@@ -181,17 +181,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();
   if (!seller) return;
 
-  // El admin tiene su propio catálogo en admin/catalogo.html; nunca debe quedarse
-  // en la sección del vendedor (menú, ruta y contexto correctos por rol).
-  if (seller.role === 'admin') {
-    window.location.href = typeof siteURL === 'function' ? siteURL('admin/catalogo.html') : '../admin/catalogo.html';
-    return;
-  }
-
   const emailEl = document.getElementById('adminUserEmail');
   if (emailEl) {
     const { data: { session } } = await sb.auth.getSession();
-    emailEl.textContent = seller.name || session?.user?.email || 'Vendedor';
+    emailEl.textContent = seller.name || session?.user?.email || 'Admin';
   }
 
   await vcInit();

@@ -103,6 +103,13 @@ export class WaSession {
   }
 
   async start() {
+    // Defensa extra: si otro flujo (panel, vigilante, barrido) ya está
+    // arrancando hace menos de 30 s, no abrir un segundo socket con el mismo
+    // auth — DOS sockets = WhatsApp expulsa a ambos y el QR se regenera.
+    if (this.startingSince && Date.now() - this.startingSince < 30_000) {
+      log.warn({ profile: this.profileId }, 'arranque ya en curso — ignoro el nuevo start()');
+      return;
+    }
     this.stopped = false;
     this.pairingRequested = false;
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
@@ -276,7 +283,6 @@ export class WaSession {
         media_size: media?.size || null,
         media_filename: parsed.filename || null,
         status: fromMe ? 'sent' : 'received',
-        forwarded: !!ctx?.isForwarded,
         reply_to_wa_id: ctx?.quotedMessage ? (ctx.stanzaId || null) : null,
         reply_preview: ctx?.quotedMessage ? quotedPreview(ctx.quotedMessage) : null,
         wa_timestamp: msg.messageTimestamp

@@ -10,6 +10,12 @@ import { normVePhone } from './phone.js';
 
 const sessions = new Map();
 
+// Candado anti doble-socket: Realtime y el barrido pueden entregar el MISMO
+// 'connect' dos veces; antes se creaban DOS sockets de Baileys con el mismo
+// auth → WhatsApp expulsaba a ambos y el QR se regeneraba en bucle.
+// Un perfil = UNA acción a la vez. Las demás peticiones se ignoran.
+const working = new Set();
+
 export function get(profileId) { return sessions.get(profileId); }
 export function all() { return [...sessions.values()]; }
 
@@ -75,7 +81,19 @@ function ensure(profileId) {
 
 async function handleRow(row) {
   if (!row?.profile_id) return;
-  const s = ensure(row.profile_id);
+  if (working.has(row.profile_id)) return;      // ya hay una acción de este perfil en curso
+  working.add(row.profile_id);
+  try {
+    await execAction(row.profile_id, row);
+  } catch (e) {
+    log.error({ err: e.message, profile: row.profile_id }, 'acción falló');
+  } finally {
+    working.delete(row.profile_id);
+  }
+}
+
+async function execAction(profileId, row) {
+  const s = ensure(profileId);
 
   // Admin deshabilitó la sesión → detener
   if (!row.enabled) {

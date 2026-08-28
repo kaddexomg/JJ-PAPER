@@ -40,7 +40,7 @@
       { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },
       { href: 'marcas.html',    ico: '🏷️', label: 'Marcas' },
       { href: 'unidades.html',  ico: '📐', label: 'Unidades' },
-      { href: '../vendedor/catalogo.html', ico: '📗', label: 'Catálogo' },
+      { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
     ]},
     { group: 'Inventario', ico: '🗃️', items: [
       { href: 'inventario.html', ico: '🗃️', label: 'Inventario' },
@@ -84,7 +84,23 @@
     { action: 'logout', ico: '🚪', label: 'Cerrar Sesión' },
   ];
 
-  const NAV = isVendedor ? VENDEDOR_NAV : ADMIN_NAV;
+  // Dirección y nav según el ROL de la sesión, no según la URL. Antes se decidía
+  // por la ruta: un admin que abría /vendedor/catalogo.html veía el menú del
+  // vendedor y todo parecía "cambiársele" la sesión. Ahora el rol manda; la URL
+  // es solo un fallback mientras el perfil todavía no se carga.
+  let NAV = isVendedor ? VENDEDOR_NAV : ADMIN_NAV;
+  let DIR = isVendedor ? 'vendedor' : 'admin';
+
+  // Resuelve un href del menú a ruta absoluta según el DIR de la sesión, para que
+  // los enlaces funcionen aunque estés viendo el panel de admin o el de vendedor
+  // (siteURL respeta la raíz real, incluso con file:// o una subcarpeta de dominio).
+  function absHref(href) {
+    if (!href || href === '#' || /^https?:/i.test(href) || href.startsWith('/')) return href;
+    let rel = href;
+    if (!rel.startsWith('..')) rel = DIR + '/' + rel;   // enlace relativo → dentro del panel del rol
+    else rel = rel.replace(/^\.\.\//, '');              // '../x' → sale del panel → raíz/x
+    return typeof siteURL === 'function' ? siteURL(rel) : rel;
+  }
 
   function isActive(href) {
     if (!href || href.startsWith('../')) return false;
@@ -93,7 +109,7 @@
 
   function linkEl(it) {
     const a = document.createElement('a');
-    a.href = it.href || '#';
+    a.href = it.href ? absHref(it.href) : '#';
     if (it.ext) a.target = '_blank';
     if (it.action === 'logout') {
       a.href = '#';
@@ -143,7 +159,7 @@
     return wrap;
   }
 
-  function build() {
+  function renderNav() {
     const host = document.querySelector('.aside-nav');
     if (!host) return;
     host.innerHTML = '';
@@ -203,7 +219,20 @@
     document.head.appendChild(style);
   }
 
-  function init() { injectCSS(); build(); }
+  // Corrige el menú cuando el rol real difiere del deducido por la URL
+  // (ej: admin visitando /vendedor/catalogo.html debe ver el menú de admin).
+  // Requiere admin/auth.js (loadProfile) — si no está, se queda con la URL.
+  async function applyRole() {
+    if (typeof loadProfile !== 'function') return;
+    let role;
+    try { role = (await loadProfile())?.role; } catch (e) { return; }
+    if (!role) return;
+    NAV = role === 'admin' ? ADMIN_NAV : VENDEDOR_NAV;
+    DIR = role === 'admin' ? 'admin' : 'vendedor';
+    renderNav();
+  }
+
+  function init() { injectCSS(); renderNav(); applyRole(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();

@@ -17,6 +17,18 @@ limpiada en TODOS los caminos de salida** (éxito, error, timeout). Hoy son 3 mi
 en `session-manager.js`. Síntoma de que hay dos procesos: `Bad MAC` continuo.
 → `Bad MAC` y `sendPresenceUpdate falló` **ocasionales** son ruido normal.
 
+**Doble `connect` → dos sockets → sesión expulsada y QR regenerado** (28-ago)
+Realtime y el barrido de respaldo podían entregar el MISMO
+`requested_action: 'connect'` dos veces; cada `start()` abría un socket Baileys
+con el mismo auth → WhatsApp expulsaba a ambos ("sesión cerrada desde el
+teléfono"). Síntoma: el QR se regenera aunque escanees. Regla: **un perfil =
+una acción a la vez** — hoy hay mutex `working` en `session-manager.js` y guard
+de 30 s en `WaSession.start()`. Regla aparte: dos sesiones `enabled` sobre el
+MISMO número de WhatsApp se pisan entre sí; cada sesión = un número propio.
+Columnas grandes de `jjp_wa_messages` (`forwarded`, `reply_to_wa_id`,
+`reply_preview`, `reply_from`, `reaction*`) faltaban en la base nueva: sin ellas
+los mensajes ENTRANTES no se guardan. Migración: `sql/2026-08-28-wa-messages-columnas-faltantes.sql`.
+
 **Throttle de campañas**: quitarlo = riesgo de baneo del número del negocio. Ver
 [[Difusion]].
 
@@ -63,6 +75,12 @@ compartido ahí no tiene efecto.
 
 **Sidebar**: se reconstruye desde `assets/js/admin/sidenav.js`; editar el HTML del
 aside no sirve. No confundir con `nav.js` (sitio público).
+**Sidebar por URL ≠ por rol**: decidía el menú según la ruta (`/vendedor/`); un
+admin entrando a `vendedor/catalogo.html` veía el menú del vendedor y parecía que
+cambiaba de sesión. Hoy el menú sale del ROL (`loadProfile`); la URL es fallback.
+El admin tiene su propia página `admin/catalogo.html` (mismo catálogo en
+tarjetas); `vendedor/catalogo.html` redirige a los admins. No volver a decidir el
+menú por la ruta.
 
 **`optImg` con el CDN de Netlify rompió TODAS las imágenes** en producción. Hoy
 devuelve la URL cruda (las imágenes ya se comprimen al subir). No reactivar

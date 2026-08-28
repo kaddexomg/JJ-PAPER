@@ -41,17 +41,27 @@ window.CampaignEditor = (() => {
 
             <div class="ce-section">
               <div class="ce-section-title">
-                <span>🎯 Tipo y Enfoque</span>
+                <span>🎯 Tipo de Campaña y Catálogo</span>
               </div>
               <div class="ce-field-group">
                 <select class="ce-select" id="ceTypeSelect" onchange="CampaignEditor.onTypeChange()">
-                  <option value="general">📣 General / Toda Cartera</option>
-                  <option value="producto">📦 Promoción de un Producto</option>
-                  <option value="combo">🎁 Promoción de un Combo / Oferta</option>
+                  <option value="general">📣 Campaña General / Toda Cartera</option>
+                  <option value="producto">📦 Promoción de un Producto Destacado</option>
+                  <option value="combo">🎁 Promoción de un Combo / Oferta Especial</option>
                   <option value="reactivacion">😴 Reactivación de Clientes Inactivos</option>
                 </select>
               </div>
-              <div id="ceSelectedCardWrap" style="display:none; margin-top:4px;"></div>
+              
+              <div id="cePickerTriggerWrap" style="margin-top:6px; display:flex; gap:6px;">
+                <button type="button" class="ce-var-btn" style="flex:1; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('product')">
+                  📦 Elegir Producto del Catálogo
+                </button>
+                <button type="button" class="ce-var-btn" style="flex:1; background:#fdf2f8; color:#9d174d; border-color:#fbcfe8; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('combo')">
+                  🎁 Elegir Combo / Promoción
+                </button>
+              </div>
+
+              <div id="ceSelectedCardWrap" style="display:none; margin-top:8px;"></div>
             </div>
 
             <div class="ce-section">
@@ -267,21 +277,10 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
-  function onTypeChange() {
-    const type = document.getElementById('ceTypeSelect').value;
-    const cardWrap = document.getElementById('ceSelectedCardWrap');
-
-    if (type === 'producto') {
-      window.ProductPicker.open({
-        mode: 'product',
-        products: currentConfig.products || [],
-        onSelect: (prod) => {
-          selectedProductOrCombo = prod;
-          renderSelectedCard();
-          applyProductTemplate();
-        }
-      });
-    } else if (type === 'combo') {
+  function openCatalogPicker(mode = 'product') {
+    const typeSel = document.getElementById('ceTypeSelect');
+    if (mode === 'combo') {
+      if (typeSel) typeSel.value = 'combo';
       window.ProductPicker.open({
         mode: 'combo',
         combos: currentConfig.combos || [],
@@ -291,6 +290,28 @@ window.CampaignEditor = (() => {
           applyComboTemplate();
         }
       });
+    } else {
+      if (typeSel) typeSel.value = 'producto';
+      window.ProductPicker.open({
+        mode: 'product',
+        products: currentConfig.products || [],
+        onSelect: (prod) => {
+          selectedProductOrCombo = prod;
+          renderSelectedCard();
+          applyProductTemplate();
+        }
+      });
+    }
+  }
+
+  function onTypeChange() {
+    const type = document.getElementById('ceTypeSelect').value;
+    const cardWrap = document.getElementById('ceSelectedCardWrap');
+
+    if (type === 'producto') {
+      openCatalogPicker('product');
+    } else if (type === 'combo') {
+      openCatalogPicker('combo');
     } else {
       selectedProductOrCombo = null;
       cardWrap.style.display = 'none';
@@ -542,6 +563,6 @@ window.CampaignEditor = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch };
+  return { open, close, openCatalogPicker, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch };
 })();
 

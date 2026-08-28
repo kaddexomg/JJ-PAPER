@@ -520,12 +520,18 @@ async function initCatalog() {
   await loadSettings();
   await Promise.all([loadCatGroups(), loadCategories(), loadProducts()]);
 
-  // Params de entrada: ?grupo= (familia) y ?cat= (categoría fina).
+  // Params de entrada: ?grupo= (familia), ?cat= (categoría fina) y ?q= (búsqueda).
   // ?cat= abre además su familia — lo resuelve setCat().
   const qs       = new URLSearchParams(location.search);
   const urlGroup = qs.get('grupo');
   const urlCat   = qs.get('cat');
+  const urlQ     = qs.get('q');
   if (urlGroup && catGroups.some(g => g.slug === urlGroup)) currentGroup = urlGroup;
+  if (urlQ) {
+    currentSearch = urlQ;
+    const s = document.getElementById('srch');
+    if (s) s.value = urlQ;
+  }
 
   renderCatFilters();
   renderSubFilters();

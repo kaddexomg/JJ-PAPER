@@ -335,15 +335,20 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
   // producto/precio/descripción SIEMPRE sean los reales, sin depender de que el id
   // coincida con dProducts/dCombos.
   const direct = extraContext.selected;
+  // Base pública del sitio en uso (jj-paper.pages.dev) — nunca un dominio de Netlify
+  const base = location.origin + location.pathname
+    .replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
+  const ficha = (prodId) => `${base}/producto.html?id=${prodId}`;
   if (direct) {
     const type = extraContext.type;
     prodName = direct.name || direct.variant_name || direct.title || prodName;
     const priceUsd = Number(direct.final_price_usd ?? direct.price_usd) || 0;
     prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
     prodDesc = direct.description || prodDesc;
+    const prodId = direct.raw?.jjp_products?.id || direct.product_id;
     prodLink = type === 'combo'
-      ? `${location.origin}/promociones.html`
-      : `${location.origin}/catalogo.html?q=${encodeURIComponent(direct.name || '')}`;
+      ? `${base}/promociones.html`
+      : (prodId ? ficha(prodId) : `${base}/catalogo.html?q=${encodeURIComponent(direct.name || '')}`);
     if (direct.discount_pct) discount = String(direct.discount_pct);
   } else if (extraContext.type === 'producto' && extraContext.productId) {
     const p = dProducts.find(x => x.id === extraContext.productId);
@@ -352,7 +357,7 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
       const priceUsd = Number(p.price_usd) || 0;
       prodPrice = `$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '');
       prodDesc = p.jjp_products?.description || '';
-      prodLink = `${location.origin}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`;
+      prodLink = p.jjp_products?.id ? ficha(p.jjp_products.id) : `${base}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`;
     }
   } else if (extraContext.type === 'combo' && extraContext.comboId) {
     const c = dCombos.find(x => x.id === extraContext.comboId);
@@ -361,7 +366,7 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
       const priceUsd = Number(c.price_usd) || 0;
       prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
       prodDesc = c.description || '';
-      prodLink = `${location.origin}/promociones.html`;
+      prodLink = `${base}/promociones.html`;
       if (c.badge) discount = c.badge;
     }
   }

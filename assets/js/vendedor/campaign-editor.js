@@ -444,6 +444,20 @@ window.CampaignEditor = (() => {
     const text = document.getElementById('ceMessageInput').value;
     const isEmail = currentConfig?.channel === 'email';
     
+    // El link de venta debe apuntar SIEMPRE al dominio real en uso (jj-paper.pages.dev),
+    // nunca a un dominio viejo de Netlify. Para un producto se usa la FICHA directa
+    // (producto.html?id=<id del producto> — igual que la función fichaLink de ficha-producto.js);
+    // para un combo/oferta se enlaza la sección de promociones.
+    const publicBase = location.origin + location.pathname
+      .replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
+    const prodId = selectedProductOrCombo?.raw?.jjp_products?.id || selectedProductOrCombo?.product_id;
+    const isCombo = selectedProductOrCombo?.type === 'combo';
+    const link = selectedProductOrCombo
+      ? (isCombo
+          ? `${publicBase}/promociones.html`
+          : (prodId ? `${publicBase}/producto.html?id=${prodId}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`))
+      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo.html`) : `${publicBase}/catalogo.html`);
+
     const sample = {
       nombre: 'Librería El Saber',
       empresa: 'Librería El Saber, C.A.',
@@ -452,7 +466,7 @@ window.CampaignEditor = (() => {
       precio: `$${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
       descuento: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '15%',
       descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta calidad con despacho directo.',
-      link: 'https://jjpaper-store.netlify.app/catalogo.html'
+      link
     };
 
     // Renderizar variables dobles PRIMERO ({{clave}} → valor), luego Spintax {A|B|C}.

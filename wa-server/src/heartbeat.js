@@ -8,8 +8,8 @@ import { log } from './logger.js';
 // (Arrancar desde apagado NO se puede por web: eso lo hace run-forever.bat
 //  en la PC de la tienda, o el arranque automático de Windows.)
 
-const HEARTBEAT_MS = 20_000;   // cada cuánto late
-const POLL_MS      = 10_000;   // respaldo si Realtime está caído
+const HEARTBEAT_MS = 30_000;   // cada cuánto late
+const POLL_MS      = 30_000;   // respaldo si Realtime está caído
 
 let modulesRef = {};
 let liveFn = null;      // devuelve estado en vivo (p. ej. salud de cada WhatsApp)

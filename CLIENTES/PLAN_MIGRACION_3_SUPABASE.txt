@@ -1,0 +1,249 @@
+================================================================================
+  PLAN DE MIGRACIÓN A 3 PROYECTOS SUPABASE — JJ PAPER
+  "Un sistema, 3 bases: Catálogo · WhatsApp/Campañas · Ventas/Clientes/Correo"
+  Versión: 1.0 (borrador técnico)  ·  Fecha: 2026-08-28
+  Estado: PLANTA Y DISEÑO — No se ha tocado código todavía.
+================================================================================
+
+--------------------------------------------------------------------------------
+1) OBJETIVO / POR QUÉ HACEMOS ESTO
+--------------------------------------------------------------------------------
+Hoy TODO (catálogo público, admin, vendedor, ventas, WhatsApp, campañas,
+correo, conteo offline) vive en UNA sola base Supabase:
+   https://czzvsqnmxtjzqzioknnn.supabase.co
+
+Problema: el EGRESS (datos que salen) se agota (4.55 GB / 5 GB) sobre todo por
+la descarga masiva de PDFs/catálogos en campañas de difusión con varios
+vendedores. Al estar todo en una sola base, cuando se acerca al límite toca
+TODA la aplicación (catálogo, ventas y WhatsApp a la vez).
+
+Idea aprobada por el dueño:
+   Partir la información en 3 proyectos Supabase independientes, cada uno con
+   su propia cuota (5 GB egress + 1 GB storage). Así, al agotarse uno, los
+   demás SIGUEN funcionando, y el egress pesado (campañas/media) queda aislado
+   en un proyecto aparte que no tira abajo catálogo ni ventas.
+
+Los 3 proyectos hablarían UNO SOLO sistema (backend wa-server + frontend),
+que sabría qué tabla vive en qué base, exactamente igual que funciona hoy.
+
+--------------------------------------------------------------------------------
+2) LAS 3 BASES (PARTICIÓN RECOMENDADA)
+--------------------------------------------------------------------------------
+   P1 = PROYECTO CATÁLOGO   (base actual czzvs... o una nueva limpia)
+   P2 = PROYECTO WHATSAPP/CAMPAÑAS/MEDIA   (NUEVO - base #2)
+   P3 = PROYECTO VENTAS/CLIENTES/CORREO    (NUEVO - base #3)
+
+   (Nota: la base actual puede quedarse como "Catálogo" para no desperdiciar
+    lo que ya tiene, o empezar P1 limpio. Recomendación más abajo.)
+
+--------------------------------------------------------------------------------
+3) MAPA DE TABLAS POR PROYECTO (qué vive en cada una)
+--------------------------------------------------------------------------------
+La clave de todo: agrupar las tablas de forma que CADA base sea
+"autocontenida" y se evite cruzar entre bases dentro de una misma operación.
+
+--- P1 · CATÁLOGO (productos, precios, marcas, catálogo, ajustes globales) ---
+   jjp_categories, jjp_category_groups, jjp_brands, jjp_units
+   jjp_products, jjp_product_variants
+   jjp_settings                          (tasas, precios, whatasapp_number, etc.)
+   jjp_seller_prices, jjp_seller_settings (precios por vendedor)
+   jjp_fx_rates                          (histórico de tasas)
+   jjp_promos, jjp_promotions, jjp_reviews   (catálogo público)
+   BUCKET: jjp-products (imágenes de productos), jjp-brands (logos)
+   ─────────────────────────────────────────────
+   RAZÓN: el público (sitio) lee SOLO catálogo y tasas → su lectura no debe
+   mezclarse con el egress pesado de WhatsApp.
+
+--- P2 · WHATSAPP / CAMPAÑAS / MEDIA (el que consume egress) ---
+   jjp_wa_sessions, jjp_wa_chats, jjp_wa_messages
+   jjp_wa_campaigns, jjp_wa_campaign_targets, jjp_wa_templates
+   jjp_wa_actions
+   jjp_notifications                     (avisos de campañas)
+   BUCKET: jjp-wa-media (los PDFs de catálogo/lista de precios, imágenes,
+          videos de WhatsApp)
+   ─────────────────────────────────────────────
+   RAZÓN: TODO el tráfico de descarga de media y realtime de difusión queda
+   aislado aquí. Si P2 llega a 5 GB, catálogo (P1) y ventas (P3) siguen vivos.
+
+--- P3 · VENTAS / CLIENTES / CORREO / CONFIG OPERATIVA ---
+   jjp_profiles                          (usuarios/vendedores/admin)
+   jjp_customers, jjp_clients            (clientes y sus zonas/opt-outs)
+   jjp_orders, jjp_quotes                (pedidos y cotizaciones)
+   jjp_email_accounts, jjp_email_company, jjp_emails
+   jjp_email_campaigns, jjp_email_campaign_targets
+   jjp_stock_moves, jjp_suppliers, jjp_supplier_invoices,
+   jjp_invoice_payments, jjp_invoice_alerts
+   jjp_count_* (tally/log/unknown/scan/barcode/control), jjp_scan_events
+   jjp_server_control                    (latido del wa-server)
+   BUCKET: jjp-email-media, jjp-receipts (adjuntos, comprobantes, facturas)
+   ─────────────────────────────────────────────
+   RAZÓN: ventas + cartera de clientes + correo forman el "negocio operativo"
+   y comparten referencias (pedido→cliente→correo). El conteo offline es
+   operación interna de la empresa → va aquí (o en P1, ver nota).
+
+--------------------------------------------------------------------------------
+4) PUNTOS CRÍTICOS DE CRUCE ENTRE BASES (los que hay que resolver)
+--------------------------------------------------------------------------------
+No todo cae limpio en un solo proyecto. Hay tablas que se consultan desde
+varios módulos. Detectamos estos cruces (leyendo wa-server/src/*.js):
+
+  a) campaigns.js  (WhatsApp/P2) lee:
+       · jjp_customers.wa_opt_out   (P3)  → para respetar opt-out del cliente
+       · jjp_settings.wa_daily_limit (P1)  → tope diario de difusión
+       · jjp_notifications          (P2)  → inserta aviso de campaña
+
+  b) outbox.js / session (P2):
+       · envía a jjp_wa_messages (P2) y actualiza chats (P2)
+       · el chat guarda customer_id → referencia a cliente de P3 (solo id)
+
+  c) email-campaigns.js (P3):
+       · lee jjp_customers email_opt_out (P3)  ← mismo proyecto, sin problema
+       · lee jjp_settings.wa_daily_limit? NO, usa email_daily_limit (P1) si está allí
+
+  d) facturación/pedidos (P3):
+       · jjp_orders.items  guarda SKU/nombre/precio del catálogo (P1)
+         → se guarda COPIA del texto del producto al vender (denormalización),
+           para no necesitar JOIN con P1 al recuperar un pedido.
+
+  e) jwt_profile / requireAuth (frontend):
+       · jjp_profiles está en P3 en esta propuesta. TODAS las páginas del panel
+         validan perfil+activo → el frontend consulta P3 para auth.
+
+RESOLUCIÓN / PATRÓN GENERAL:
+   - No hacer JOINs entre bases. En su lugar:
+       1. DENORMALIZAR: guardar copia de lo que se necesita (ej. wa_opt_out
+          denormalizado en el target de campaña; nombre/SKU copiados en items).
+       2. LLAMADAS MÚLTIPLES EN EL SERVIDOR: si wa-server necesita un dato de
+          otra base, lo consulta por separado (fetch a P3 y luego a P2) y une
+          en memoria. El wa-server tiene service_role en las 3.
+       3. SÍNCRONO DE SOLO-REFRENCIAS: guardar el id (UUID) del cliente en el
+          chat/target, no la fila completa.
+
+--------------------------------------------------------------------------------
+5) AUTHENTICACIÓN / IDENTIDAD (lo más delicado)
+--------------------------------------------------------------------------------
+Supabase NO replica auth entre proyectos (cada base tiene sus propios usuarios
+auth.users). Para que el login sea "uno solo" en los 3:
+
+   OPCIÓN A (RECOMENDADA): UNA SOLA base "maestra de identidad".
+     · auth (login/password + Google OAuth) vive en UNA base (P3, junto a
+       jjp_profiles, o en P1).
+     · El usuario inicia sesión en la base maestra → obtiene su JWT.
+     · Las otras 2 bases usan el MISMO JWT: Supabase valida la firma si las 3
+       comparten el MISMO JWT secret (capturado al crear el proyecto). Así
+       auth.uid() funciona en las 3 sin volver a loguear.
+     · jjp_profiles se duplica/replica como tabla de solo-lectura en las otras
+       bases (o se consulta vía RLS desde la maestra por el wa-server).
+
+   OPCIÓN B (más simple pero menos limpia): todo el LOGIN en una sola base y
+     las demás SOLO las usa el wa-server (tienen service_role y no exponen
+     auth al navegador). El navegador habla con la base maestra; el wa-server
+     es el "traductor" que escribe en P2/P3 con su service_role.
+
+   IMPORTANTE: la auth debe DECIDIRSE ANTES de migrar, porque afecta a todo.
+   Recomendación: Opción B para minimizar riesgo la primera vez, y refinar a
+   Opción A después.
+
+--------------------------------------------------------------------------------
+6) CAMBIOS NECESARIOS EN CÓDIGO (resumen por archivo)
+--------------------------------------------------------------------------------
+FRONTEND (sitio estático, Cloudflare Pages):
+   - assets/js/config.js  : hoy define UNA (SUPABASE_URL, SUPABASE_KEY).
+       → Definir 3 configuraciones (URL+anon key) y EXPORTAR 3 clientes:
+            sb_cat (P1), sb_wa (P2), sb_ventas (P3).
+       → Como el navegador NO debe usar service_role, las 3 usan anon key y RLS.
+   - assets/js/*.js (admin/vendedor/catálogo) : cada módulo usa el cliente de
+       su proyecto en vez del único `sb`. Cada tabla sabe su base (helper
+       `table(proyecto, nombre)`).
+   - Las páginas públicas (catálogo, checkout, comprobante): leen P1 (catálogo)
+       y escriben pedidos en P3 (checkout). checkout.html y comprobante.html
+       pasan a usar sb_ventas para jjp_orders.
+
+BACKEND (wa-server):
+   - src/supabase.js      : hoy exporta UN solo `db`.
+       → Exportar 3: db_cat, db_wa, db_ventas (URIs + service_role del .env).
+   - Cada módulo usa el suyo:
+       outbox.js, wa-session.js, session-manager.js, wa-presence.js,
+       wa-actions.js, campaigns.js  → db_wa
+       mixer.js, invoices.js, retention.js, email.js, email-campaigns.js,
+       count-lan.js (parte de conteo/ventas)  → db_ventas
+       rates.js, (lectura de settings)        → db_cat
+   - campañas.js: si necesita wa_opt_out (P3) o wa_daily_limit (P1) lee el
+       otro cliente por separado (cross-base), siguiendo el patrón sección 4.
+   - wa-server/.env: añadir las URL + service_role de P2 y P3.
+
+BASE DE DATOS (SQL):
+   - Cada proyecto nuevo recibe SOLO su grupo de tablas del mapa (sección 3),
+     con sus RLS, índices, triggers y RPCs.
+   - En P2 (WhatsApp) se denormaliza: copiar wa_opt_out y wa_daily_limit o
+     guardarlos localmente (una mini-copia de clientes con opt-out).
+   - En P3 se denormaliza: en jjp_orders.items guardar nombre/SKU/precio
+     (ya se hace), y en chats/targets guardar el customer_id como referencia.
+
+--------------------------------------------------------------------------------
+7) MIGRACIÓN DE DATOS (cómo pasar la info existente)
+--------------------------------------------------------------------------------
+La base actual czzvs... tiene ~35 MB de tablas + ~60 MB de storage real.
+Pasos:
+   1. Crear P2 y P3 (dashboard Supabase).
+   2. Si P1 = la base actual → NO mover catálogo. Si P1 = nueva →
+      exportar/importar las tablas de catálogo (pg_dump y restaurar).
+   3. P2 (WhatsApp): crear tablas nuevas y copiar jjp_wa_* + jjp_notifications
+      + bucket jjp-wa-media (los PDFs/imágenes) desde la base actual.
+   4. P3 (Ventas): copiar jjp_profiles, jjp_customers, jjp_clients,
+      jjp_orders, jjp_quotes, emails, proveedores, conteo + storage
+      (jjp-email-media, jjp-receipts).
+   5. Verificar RLS, triggers de perfiles (jjp_handle_new_user), y que los
+      UUIDs de usuarios/clientes se conserven (para que las referencias
+      cruzadas por id sigan válidas).
+   NOTA: hacer copias de SEGURIDAD (backups) de la base actual ANTES de mover
+   cualquier tabla.
+
+--------------------------------------------------------------------------------
+8) RIESGOS Y MITIGACIONES
+--------------------------------------------------------------------------------
+   RIESGO                              MITIGACIÓN
+   - Auth/JWT no válido entre bases    → Decidir Opción A o B antes; probar con
+                                          1 usuario en cada proyecto.
+   - JOINs rotos entre módulos         → Denormalizar (copiar datos) en vez de
+                                          cruzar bases.
+   - Algún RPC/trigger que referencie  → Revisar cada SQL que se copia; los
+     una tabla de otro proyecto          RPCs se copian con SU proyecto.
+   - UUIDs referenciados cruzados      → Migrar FKs por id sin regenerar UUIDs.
+   - Tiempo/paro del sistema           → Migración por fases (sección 9), con
+                                          doble escritura temporal si hace falta.
+   - Confusión de 3 urls en el front   → Archivo config central único + helpers.
+
+--------------------------------------------------------------------------------
+9) PLAN DE EJECUCIÓN POR FASES (orden sugerido, SIN tocar aún)
+--------------------------------------------------------------------------------
+   FASE 0 · DISEÑO (este documento) — aprobar partición y opción de auth.
+   FASE 1 · Preparar el wa-server para multi-base:
+           refactor de supabase.js → exportar 3 clientes; .env con 3 pares.
+   FASE 2 · Crear P2 y P3 en Supabase; copiar datos de P2 y P3; seguridad.
+             Verificar access con un solo login.
+   FASE 3 · Apuntar el FRONTEND a 3 configs (assets/js/config.js + páginas).
+   FASE 4 · Pruebas integrales: catálogo público, login, pedido/checkout,
+             campaña WhatsApp con PDF, correo, conteo offline.
+   FASE 5 · Monitorear egress por proyecto en el dashboard de cada uno.
+
+--------------------------------------------------------------------------------
+10) DECISIÓN PENDIENTE QUE NECESITAMOS DE TI
+--------------------------------------------------------------------------------
+   Antes de seguir, necesitamos confirmar:
+
+   A) ¿La base ACTUAL se queda como "Catálogo (P1)" o empezamos P1 limpio?
+      (Recomendado: quedarse con la actual para no duplicar catálogo.)
+
+   B) ¿Auth con cuál enfoque?
+      - B1: Una sola base maneja el login; las otras dos SOLO vía wa-server
+            (más simple, recomendada la primera vez).
+      - B2: Las 3 comparten el mismo JWT secret (login único en las 3, más
+            elegante pero más delicado de configurar).
+
+   C) ¿El conteo OFFLINE (count-lan) va en P3 (ventas/operación) o en P1?
+      (Recomendado P3.)
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

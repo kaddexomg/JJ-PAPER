@@ -104,9 +104,9 @@ export class WaSession {
 
   async start() {
     // Defensa extra: si otro flujo (panel, vigilante, barrido) ya está
-    // arrancando hace menos de 30 s, no abrir un segundo socket con el mismo
+    // arrancando hace menos de 90 s, no abrir un segundo socket con el mismo
     // auth — DOS sockets = WhatsApp expulsa a ambos y el QR se regenera.
-    if (this.startingSince && Date.now() - this.startingSince < 30_000) {
+    if (this.startingSince && Date.now() - this.startingSince < 90_000) {
       log.warn({ profile: this.profileId }, 'arranque ya en curso — ignoro el nuevo start()');
       return;
     }

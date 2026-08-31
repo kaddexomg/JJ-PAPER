@@ -10,6 +10,10 @@ import { touchChat, PREVIEW_BY_TYPE } from './chats.js';
 let manager = null;
 let processing = false;
 
+// Caché de media en memoria (Cambio 1)
+const mediaCache = new Map();
+const CACHE_TTL = 12 * 60 * 60_000; // 12 horas
+
 export function startOutbox(sessionManager) {
   manager = sessionManager;
 
@@ -81,9 +85,23 @@ async function dispatch(row) {
   }
 }
 
+async function getCachedMedia(mediaPath) {
+  const cached = mediaCache.get(mediaPath);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.buffer;
+  
+  const buffer = await downloadOutgoingMedia(mediaPath);
+  mediaCache.set(mediaPath, { buffer, ts: Date.now() });
+  
+  // Limpiar entradas viejas (evitar memory leak)
+  for (const [k, v] of mediaCache) {
+    if (Date.now() - v.ts > CACHE_TTL) mediaCache.delete(k);
+  }
+  return buffer;
+}
+
 async function buildContent(row) {
   if (row.type === 'text') return { text: row.body || '' };
-  const buffer = await downloadOutgoingMedia(row.media_path);
+  const buffer = await getCachedMedia(row.media_path);
   const caption = row.body || undefined;
   switch (row.type) {
     case 'image': return { image: buffer, caption, mimetype: row.media_mime || undefined };

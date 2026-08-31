@@ -1,0 +1,174 @@
+================================================================================
+  EXPLICACIÓN SENCILLA — POR QUÉ SE CONSUME UNO EL EGRESS DE SUPABASE
+  (el "4.55 GB / 5 GB" que ves en el panel)
+================================================================================
+
+================================================================================
+1) QUÉ ES CADA COSA EN EL PANEL "Free plan usage"
+================================================================================
+
+El panel muestra 4 contadores. Cada uno significa una cosa distinta:
+
+   * "Egress: 4.55 GB / 5 GB"   → datos que SALEN de tu base hacia tu
+                                   computador/red (descargas, WhatsApp,
+                                   el servidor leyendo).
+   * "Database size: 35 MB / 500 MB" → el tamaño de las TABLAS (la base).
+                                   Tranquilo: esto está MUY lejos del límite.
+   * "File storage: 332 MB / 1 GB"  → los ARCHIVOS guardados (imágenes, PDFs,
+                                   videos, adjuntos).
+   * "Monthly active users: 7 / 50.000" → cuánta gente entró. Cero problema.
+
+--------------------------------------------------------------------------------
+LA CLAVE:
+  Tu base de datos está BIEN (35 MB de 500 MB).
+  Tu almacenamiento está BIEN (en realidad ~60 MB reales, ver sección 4).
+  El QUE SE ESTÁ AGOTANDO es el EGRESS = la transferencia de datos.
+  Es como el "data plan" del teléfono: no es lo que guardas, es lo que mueves.
+--------------------------------------------------------------------------------
+
+
+================================================================================
+2) QUÉ GENERA EL EGRESS (en orden de importancia)
+================================================================================
+
+a) EL SERVIDOR LEYENDO CONSTANTEMENTE (los "sweeps")
+   El wa-server (el programa que conecta WhatsApp con Supabase) hace
+   consultas/lecturas en bucle, todo el día, para mantenerse al día:
+
+      - chequeo de conexión  cada 5 segundos
+      - conteo offline       cada 5 segundos
+      - exportar pedidos     cada 60 segundos
+      - buscar pedidos Mixer cada 30 segundos
+      - buscar mensajes por enviar cada 30 segundos
+      - buscar sesiones      cada 15 segundos
+      - buscar campañas      cada 15 segundos
+      - buscar correos       cada 20-30 segundos
+      - "latido" del servidor cada 20 segundos
+
+   Cada una de esas consultas es una "descarga" pequeña de la base → y TODAS
+   se suman como egress. Aunque sean chiquititas, repetidas miles de veces
+   al día acumulan gigas.
+
+b) 8+ CANALES "REALTIME" SIEMPRE ABIERTOS
+   El servidor mantiene conexiones en vivo (websockets) que reciben eventos:
+   outbox, sessions, control, acciones, email, adjuntos, pedidos del Mixer,
+   presencia, etc. Ese tráfico también cuenta como egress.
+
+c) LAS DESCARGAS DE MEDIA (imágenes, PDFs, videos) ← TU CASO
+   Cada vez que el servidor envía un archivo por WhatsApp, PRIMERO lo baja
+   de Supabase y DESPUÉS lo manda. Esa bajada es egress y pesa lo que pese
+   el archivo.
+
+
+================================================================================
+3) TU CASO REAL: 5 VENDEDORES + CAMPAÑAS CON PDF DE LISTA DE PRECIOS
+================================================================================
+
+Los catálogos de JJ Paper (tal como están guardados) pesan ~1 MB cada uno.
+Ya tienes guardados 9 catálogos (8.2 MB en total).
+
+EL CÁLCULO QUE TE COME LA CUOTA:
+   Por CADA contacto al que le envías el PDF, el servidor lo baja de Supabase:
+
+      1 contacto            →  1 MB de egress
+      1 campaña a 300 personas →  300 MB de egress
+      5 vendedores × 300     →  1.500 MB = 1.5 GB  (UNA sola ronda)
+
+   Si el catálogo pesa 2 MB, se duplica: 3 GB por ronda.
+   Si lo reenvías cada semana, se acumula mes a mes.
+
+   Eso es EXACTAMENTE lo que está pasando y por qué estás en 4.55/5 GB:
+   NO es el tamaño de la base (35 MB), son las DESCARGAS de los PDFs de
+   las campañas, más los "sweeps" del servidor.
+
+   Ojo también: los VIDEOS pesan muchísimo. Hay uno de 30 MB guardado.
+   Enviar ese video a 100 contactos = 3 GB de egress de un solo golpe.
+
+
+================================================================================
+4) EL ALMACENAMIENTO ESTÁ BIEN (no te preocupes por eso)
+================================================================================
+
+Medí lo que realmente hay guardado en tu cuenta:
+
+   - jjp-wa-media   → 154 archivos ≈ 44.8 MB  (9 PDFs de catálogo ≈ 8 MB,
+                                           1 video de 30 MB, imágenes)
+   - jjp-products   → 530 imágenes de productos ≈ 15.5 MB
+   - jjp-brands     → 16 logos ≈ 0.4 MB
+
+   Total REAL ≈ 60 MB de 1 GB. MUY lejos de llenarse.
+
+   (El panel te muestra "332 MB" porque cuenta también metadatos/versiones
+   de los objetos, pero el peso físico real es ~60 MB.)
+
+   CONCLUSIÓN: con PDFs de 1 MB tu almacenamiento NO se va a llenar.
+   El problema real es el EGRESS, no el espacio.
+
+
+================================================================================
+5) QUÉ RIESGOS HAY SI DEJAS ESTO ASÍ
+================================================================================
+
+  RIESGO PRINCIPAL: LLEGAR A 5 GB DE EGRESS
+     Cuando llegues al tope, Supabase en el plan gratis puede LIMITAR o
+     BLOQUEAR las lecturas salientes hasta que arranque el nuevo ciclo mensual.
+     Efecto práctico:
+        - WhatsApp deja de enviar PDFs/imágenes (no puede bajar la media)
+        - el panel se queda "cargando"
+        - las campañas se detienen
+
+     NO se borra tu base, NO se borra tu datos, NO se pausa tu proyecto
+     para siempre. Es como quedarte sin datos del celular: se reinicia
+     en el próximo ciclo.
+
+  OTROS RIESGOS MENORES:
+     - Subir/enviar VIDEOS pesados agota el egress en minutos.
+     - Si el storage (1 GB) se llenara de verdad, los envíos de media
+       fallarían con error de subida. Pero con catálogos de 1 MB estás lejos.
+
+  LO QUE NO ES UN RIESGO:
+     - La base de datos (35 MB de 500 MB).
+     - "Pausar tu proyecto" permanentemente.
+     - Perder datos.
+
+
+================================================================================
+6) LA SOLUCIÓN REAL (para cuando quieras aplicarla)
+================================================================================
+
+No es "borrar" ni "desfragmentar" ni "liberar espacio". Es EVITAR
+RE-DESCARGAR el PDF por cada contacto.
+
+Actualmente, para enviar un catálogo a 300 personas, el servidor baja el
+PDF 300 veces desde Supabase (300 MB). 
+
+La solución: CARGAR el PDF UNA SOLA VEZ en memoria al empezar la campaña
+y REUTILIZAR ese mismo buffer para los 300 envíos.
+
+   Hoy:   300 contactos × 1 MB = 300 MB de egress
+   Con la mejora: 1 MB de egress (una sola descarga) para toda la campaña
+   → reduciría el consumo ~300 veces.
+
+Además conviene (opcional):
+   - Subir el intervalo de los "sweeps" que no necesitan ser tan seguidos
+     (los de 5 y 15 segundos se pueden espaciar sin que nada se rompa).
+   - Apagar los canales Realtime que no se usan.
+   - No enviar videos pesados por campaña masiva.
+
+Esto NO toca nada de tu base ni de tus datos: solo cambia cómo el servidor
+describe la media, para gastar muchísimo menos egress.
+
+================================================================================
+  RESUMEN EN 3 LÍNEAS
+================================================================================
+  1. Tu base y tu almacenamiento están BIEN (35 MB y ~60 MB reales).
+  2. El que se agota es el EGRESS = transferencia de datos, y lo consume
+     sobre todo la descarga de PDFs de lista de precios en campañas masivas
+     (5 vendedores × cientos de contactos = gigas por ronda) + los "sweeps"
+     constantes del servidor.
+  3. La solución no es borrar espacio: es descargar cada PDF UNA sola vez
+     por campaña en vez de una vez por contacto (divide el gasto ~300×).
+
+  Si llegas al límite, Supabase solo limita las lecturas hasta el próximo
+  ciclo: no pierdes datos ni se pausa tu proyecto de forma permanente.
+================================================================================

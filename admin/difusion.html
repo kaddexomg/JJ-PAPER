@@ -11,8 +11,26 @@
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <style>
   .d-tag{display:inline-block;background:#e8f3ee;color:#16604A;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600}
+  .d-tag-click{cursor:pointer;transition:filter .2s,transform .2s}
+  .d-tag-click:hover{filter:brightness(.94);transform:scale(1.03)}
+  .d-tag-click.on{background:#16604A;color:#fff;box-shadow:0 2px 6px rgba(22,96,74,.3)}
+  .d-tag-chips .d-tag{font-size:12px;padding:5px 10px}
   .d-prog{height:8px;border-radius:6px;background:#e5e7eb;overflow:hidden}
   .d-prog-fill{height:100%;background:linear-gradient(90deg,#16604A,#99CC33);transition:width .4s}
+  .d-camp-stats{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+  .d-stat{font-weight:700}
+  .d-stat.ok{color:#15803d}
+  .d-stat.err{color:#b91c1c}
+  .d-stat.skip{color:#a16207}
+  .d-btn-del{color:#b91c1c;border-color:#fecaca}
+  .d-btn-del:hover{background:#fee2e2}
+  .rd-field{background:#f8faf9;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+  .rd-field span{font-size:11px;color:#777;font-weight:600}
+  .rd-field strong{font-size:13px;color:#111}
+  .rd-stat{background:#f8faf9;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center}
+  .rd-stat .rd-n{display:block;font-size:22px;font-weight:800;line-height:1}
+  .rd-stat .rd-l{display:block;font-size:11px;color:#777;margin-top:4px;font-weight:600}
+  .rd-ok .rd-n{color:#15803d}.rd-err .rd-n{color:#b91c1c}.rd-skip .rd-n{color:#a16207}.rd-pend .rd-n{color:#6b7280}
   .d-tpl-card{border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:8px}
   .d-tpl-hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
   .d-tpl-body{white-space:pre-wrap;font-family:inherit;font-size:13px;color:#444;background:#f8faf9;border-radius:8px;padding:10px;margin:0;max-height:150px;overflow:auto}
@@ -89,8 +107,8 @@
           </div>
           <div style="overflow-x:auto">
             <table class="admin-table">
-              <thead><tr><th>Campaña</th><th>Estado</th><th>Progreso</th><th>Destinatarios</th><th>Acciones</th></tr></thead>
-              <tbody id="dCampBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+              <thead><tr><th>Campaña</th><th>Estado</th><th>Progreso</th><th>Destinatarios</th><th>Reporte</th><th>Acciones</th></tr></thead>
+              <tbody id="dCampBody"><tr><td colspan="6" class="table-empty">Cargando...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -106,6 +124,7 @@
               <button class="btn-p" onclick="openImportModal()">📥 Importar lista</button>
             </div>
           </div>
+          <div id="dTagChips" class="d-tag-chips" style="padding:10px 20px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #f0f0f0"></div>
           <div style="overflow-x:auto">
             <table class="admin-table">
               <thead><tr><th>Contacto</th><th>Etiquetas</th><th>Compras</th><th>Última compra</th><th>Difusión</th></tr></thead>
@@ -318,6 +337,50 @@
 
 <div class="toast-c" id="toastC"></div>
 
+<!-- Modal: reporte / detalle de campaña -->
+<div class="modal-overlay" id="reportModal" onclick="if(event.target===this)closeDModal('reportModal')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="reportTitle" style="max-width:720px">
+    <div class="modal-hd">
+      <h3 id="reportTitle">📊 Reporte de campaña</h3>
+      <button class="modal-close" onclick="closeDModal('reportModal')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="rd-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:17px;font-weight:800" id="rd-name">—</div>
+          <div style="font-size:12px;color:#777">Creada: <span id="rd-created">—</span></div>
+        </div>
+        <span id="rd-status" style="font-weight:700;font-size:13px">—</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0">
+        <div class="rd-field"><span>⚙️ Ritmo de envío</span><strong id="rd-speed">—</strong></div>
+        <div class="rd-field"><span>📎 Adjunto</span><strong id="rd-attach">—</strong></div>
+      </div>
+
+      <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:12px;color:#777">
+        <span>Progreso total</span><span id="rd-pct">0%</span>
+      </div>
+      <div class="d-prog" style="height:12px;margin-bottom:18px"><div class="d-prog-fill" id="rd-prog" style="width:0%"></div></div>
+
+      <div class="rd-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
+        <div class="rd-stat rd-ok"><span class="rd-n" id="rd-sent">0</span><span class="rd-l">✅ Enviados</span></div>
+        <div class="rd-stat rd-err"><span class="rd-n" id="rd-failed">0</span><span class="rd-l">❌ Fallidos</span></div>
+        <div class="rd-stat rd-skip"><span class="rd-n" id="rd-skipped">0</span><span class="rd-l">⏭️ Omitidos</span></div>
+        <div class="rd-stat rd-pend"><span class="rd-n" id="rd-pending">0</span><span class="rd-l">⏳ Pendientes</span></div>
+      </div>
+
+      <div class="rd-failed-block" id="rd-failed-list"></div>
+
+      <div style="margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn-o" onclick="closeDModal('reportModal')">Cerrar</button>
+        <button class="btn-o" onclick="exportCampaignReport(currentReportCampaignId)">⬇️ Exportar (CSV)</button>
+        <button class="btn-p d-btn-del" onclick="deleteCampaignFromReport(currentReportCampaignId, document.getElementById('rd-name').textContent)">🗑️ Eliminar campaña</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
 <script src="../assets/js/config.js?v=20260827_v1"></script>
 <script src="../assets/js/toast.js?v=20260827_v1"></script>
@@ -325,7 +388,7 @@
 <script src="../assets/js/admin/sidenav.js?v=20260828_cat_admin"></script>
 <script src="../assets/js/doc-engine.js?v=20260827_v1"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260827_v1"></script>
-<script src="../assets/js/vendedor/vdifusion.js?v=20260828_comprimir"></script>
+<script src="../assets/js/vendedor/vdifusion.js?v=20260831_reportes"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();

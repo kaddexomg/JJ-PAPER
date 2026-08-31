@@ -101,11 +101,30 @@ async function purgeOrphanEmailFiles() {
   log.info({ n: rootFiles.length }, 'retención: archivos sueltos en raíz de email-media borrados');
 }
 
+async function purgeWAMedia() {
+  const WA_MEDIA_TTL_DAYS = 5; // 5 días de retención para multimedia WA
+  const cutoff = new Date(Date.now() - WA_MEDIA_TTL_DAYS * 86_400_000).toISOString();
+  const { data, error } = await db.from('jjp_wa_messages')
+    .select('id, media_path')
+    .not('media_path', 'is', null)
+    .lt('created_at', cutoff)
+    .limit(300);
+  if (error) { log.warn({ err: error.message }, 'retención: select WA media falló'); return; }
+
+  const paths = (data || []).map(r => r.media_path).filter(Boolean);
+  if (!paths.length) return;
+  await removeFromBucket('jjp-wa-media', paths);
+  const ids = data.map(r => r.id);
+  await db.from('jjp_wa_messages').update({ media_path: null }).in('id', ids);
+  log.info({ n: paths.length }, 'retención: multimedia vieja de WhatsApp borrada (5+ días)');
+}
+
 async function sweep() {
   try { await purgeInboundAttachments(); } catch (e) { log.warn({ err: e.message }, 'retención inbound'); }
   try { await purgeOutboundAttachments(); } catch (e) { log.warn({ err: e.message }, 'retención outbound'); }
   try { await trimOldHtml(); } catch (e) { log.warn({ err: e.message }, 'retención html'); }
   try { await purgeOrphanEmailFiles(); } catch (e) { log.warn({ err: e.message }, 'retención huérfanos'); }
+  try { await purgeWAMedia(); } catch (e) { log.warn({ err: e.message }, 'retención wa_media'); }
 }
 
 export function startRetention() {

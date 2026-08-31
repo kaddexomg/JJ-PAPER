@@ -46,7 +46,7 @@ async function sweep() {
 
 async function step(camp, dailyLimit) {
   const session = manager.get(camp.owner_id);
-  if (!session?.isConnected()) return;                 // espera a que la sesión conecte
+  if (!session?.isConnected()) return;
 
   if (Date.now() < (nextSendAt.get(camp.owner_id) || 0)) return;
 
@@ -56,15 +56,15 @@ async function step(camp, dailyLimit) {
     return;
   }
 
+  // Procesar hasta 20 targets en un tick (los skips son instantáneos)
   const { data: targets } = await db.from('jjp_wa_campaign_targets')
     .select('*')
     .eq('campaign_id', camp.id)
     .in('status', ['pending', 'en_cola'])
     .order('created_at', { ascending: true })
-    .limit(1);
+    .limit(20);
 
   if (!targets?.length) { await finish(camp); return; }
-  const t = targets[0];
 
   if (camp.status === 'en_cola' || camp.status === 'pending') {
     await db.from('jjp_wa_campaigns')
@@ -72,72 +72,85 @@ async function step(camp, dailyLimit) {
       .eq('id', camp.id);
   }
 
-  // Respetar opt-out aunque haya cambiado después de crear la campaña
-  if (t.customer_id) {
-    const { data: cust } = await db.from('jjp_customers')
-      .select('wa_opt_out').eq('id', t.customer_id).maybeSingle();
-    if (cust?.wa_opt_out) { await skip(camp, t, 'cliente con opt-out'); return; }
-  }
-
-  const norm = normVePhone(t.phone);
-  if (!/^58\d{10}$/.test(norm)) { await skip(camp, t, 'teléfono inválido: ' + t.phone); return; }
-
-  try {
-    const chatId = await ensureChat(camp.owner_id, norm, t);
-    // Personalizar variables con datos REALES del target. El frontend guarda vars de
-    // ejemplo en t.vars; aquí se garantiza que identidad y vendedor sean correctos.
-    const realVars = {
-      ...(t.vars || {}),
-      nombre: t.name || (t.vars || {}).nombre || '',
-      empresa: t.name || (t.vars || {}).empresa || '',
-    };
-    const body = renderTemplate(camp.body || camp.message || '', realVars);
-
-    const msgPayload = {
-      chat_id: chatId,
-      owner_id: camp.owner_id,
-      direction: 'out',
-      type: camp.media_path ? (camp.media_type || 'document') : 'text',
-      body,
-      media_path: camp.media_path || null,
-      media_mime: camp.media_mime || null,
-      media_filename: camp.media_filename || null,
-      media_size: camp.media_size || null,
-      status: 'pending'
-    };
-
-    const { data: msg, error: msgErr } = await db.from('jjp_wa_messages')
-      .insert(msgPayload)
-      .select('id').single();
-    if (msgErr) throw new Error(msgErr.message);
-
-    await db.from('jjp_wa_campaign_targets')
-      .update({ status: 'sent', message_id: msg.id, sent_at: new Date().toISOString(), error: null })
-      .eq('id', t.id);
-    await syncCounts(camp.id);
-
-    const minS = Number(camp.delay_min_s) || 45;
-    const maxS = Number(camp.delay_max_s) || 90;
-    let delayMs = 1000 * (minS + Math.random() * Math.max(1, maxS - minS));
-
-    // Si la campaña tiene configurada pausa por lotes (ej: descansar 5 min cada 10 envíos)
-    const batchSize = Number(camp.batch_size) || 0;
-    const batchPauseM = Number(camp.batch_pause_m) || 5;
-    const currentSent = (camp.sent_count || 0) + 1;
-
-    if (batchSize > 0 && currentSent % batchSize === 0) {
-      const longPauseMs = batchPauseM * 60 * 1000;
-      delayMs = longPauseMs;
-      log.info({ campaign: camp.name, sent: currentSent, pauseMin: batchPauseM }, 'difusión: pausa de lote (descanso humano anti-bloqueo)');
+  for (const t of targets) {
+    // Validaciones rápidas que no requieren delay
+    if (t.customer_id) {
+      const { data: cust } = await db.from('jjp_customers')
+        .select('wa_opt_out').eq('id', t.customer_id).maybeSingle();
+      if (cust?.wa_opt_out) { await skip(camp, t, 'cliente con opt-out'); continue; }
     }
 
-    nextSendAt.set(camp.owner_id, Date.now() + delayMs);
-    log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000) }, 'difusión: mensaje encolado');
-  } catch (e) {
-    await db.from('jjp_wa_campaign_targets')
-      .update({ status: 'failed', error: e.message }).eq('id', t.id);
-    await syncCounts(camp.id);
-    log.warn({ campaign: camp.name, target: t.id, err: e.message }, 'difusión: target falló');
+    const norm = normVePhone(t.phone);
+    if (!/^58\d{10}$/.test(norm)) { await skip(camp, t, 'teléfono inválido: ' + t.phone); continue; }
+
+    // Validar WA
+    try {
+      const [exists] = await session.sock.onWhatsApp(norm + '@s.whatsapp.net');
+      if (!exists?.exists) {
+        await skip(camp, t, 'número sin WhatsApp: ' + t.phone);
+        continue;
+      }
+    } catch (e) {
+      log.warn({ phone: norm, err: e.message }, 'validación WA falló, se intenta enviar');
+    }
+
+    // Este SÍ es válido → encolar y aplicar delay
+    try {
+      const chatId = await ensureChat(camp.owner_id, norm, t);
+      const realVars = {
+        ...(t.vars || {}),
+        nombre: t.name || (t.vars || {}).nombre || '',
+        empresa: t.name || (t.vars || {}).empresa || '',
+      };
+      const body = renderTemplate(camp.body || camp.message || '', realVars);
+
+      const msgPayload = {
+        chat_id: chatId,
+        owner_id: camp.owner_id,
+        direction: 'out',
+        type: camp.media_path ? (camp.media_type || 'document') : 'text',
+        body,
+        media_path: camp.media_path || null,
+        media_mime: camp.media_mime || null,
+        media_filename: camp.media_filename || null,
+        media_size: camp.media_size || null,
+        status: 'pending'
+      };
+
+      const { data: msg, error: msgErr } = await db.from('jjp_wa_messages')
+        .insert(msgPayload)
+        .select('id').single();
+      if (msgErr) throw new Error(msgErr.message);
+
+      await db.from('jjp_wa_campaign_targets')
+        .update({ status: 'sent', message_id: msg.id, sent_at: new Date().toISOString(), error: null })
+        .eq('id', t.id);
+      await syncCounts(camp.id);
+
+      const minS = Number(camp.delay_min_s) || 45;
+      const maxS = Number(camp.delay_max_s) || 90;
+      let delayMs = 1000 * (minS + Math.random() * Math.max(1, maxS - minS));
+
+      const batchSize = Number(camp.batch_size) || 0;
+      const batchPauseM = Number(camp.batch_pause_m) || 5;
+      const currentSent = (camp.sent_count || 0) + 1;
+
+      if (batchSize > 0 && currentSent % batchSize === 0) {
+        const longPauseMs = batchPauseM * 60 * 1000;
+        delayMs = longPauseMs;
+        log.info({ campaign: camp.name, sent: currentSent, pauseMin: batchPauseM }, 'difusión: pausa de lote (descanso humano anti-bloqueo)');
+      }
+
+      nextSendAt.set(camp.owner_id, Date.now() + delayMs);
+      log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000) }, 'difusión: mensaje encolado');
+    } catch (e) {
+      await db.from('jjp_wa_campaign_targets')
+        .update({ status: 'failed', error: e.message }).eq('id', t.id);
+      await syncCounts(camp.id);
+      log.warn({ campaign: camp.name, target: t.id, err: e.message }, 'difusión: target falló');
+    }
+    
+    break; // solo 1 envío real por tick (el delay anti-baneo)
   }
 }
 
@@ -193,14 +206,16 @@ async function finish(camp) {
 
 // Recalcula contadores desde los targets (fuente de verdad)
 async function syncCounts(campaignId) {
-  const [{ count: sent }, { count: failed }] = await Promise.all([
+  const [{ count: sent }, { count: failed }, { count: skipped }] = await Promise.all([
     db.from('jjp_wa_campaign_targets').select('id', { count: 'exact', head: true })
       .eq('campaign_id', campaignId).in('status', ['sent', 'enviado']),
     db.from('jjp_wa_campaign_targets').select('id', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId).in('status', ['failed', 'fallido', 'skipped', 'omitido']),
+      .eq('campaign_id', campaignId).in('status', ['failed', 'fallido']),
+    db.from('jjp_wa_campaign_targets').select('id', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId).in('status', ['skipped', 'omitido']),
   ]);
   await db.from('jjp_wa_campaigns')
-    .update({ sent_count: sent || 0, failed_count: failed || 0 })
+    .update({ sent_count: sent || 0, failed_count: failed || 0, skipped_count: skipped || 0 })
     .eq('id', campaignId);
 }
 

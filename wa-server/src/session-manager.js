@@ -56,19 +56,26 @@ export async function boot() {
 // muerto sin emitir 'close'. Antes eso dejaba el WhatsApp mudo hasta que
 // alguien lo notara y reiniciara el servidor a mano.
 function startWatchdog() {
-  setInterval(() => {
+  setInterval(async () => {
     for (const s of sessions.values()) {
-      if (s.stopped || !s.hasCreds()) continue;   // desvinculada o apagada a propósito
+      if (s.stopped || !s.hasCreds()) continue;
       if (s.isHealthy()) continue;
-      if (s.reconnectTimer) continue;             // ya se está reintentando
-      // Arranque EN CURSO: si el vigilante llamaba start() otra vez, quedaban
-      // DOS sockets de Baileys con las mismas credenciales y WhatsApp empezaba
-      // a fallar el descifrado ("Bad MAC"). Se le dan 3 minutos.
+      if (s.reconnectTimer) continue;
       if (s.startingSince && Date.now() - s.startingSince < 180_000) continue;
+      if (working.has(s.profileId)) continue;  // ← NUEVO: respetar el candado
+      
       const min = Math.round((Date.now() - (s.lastEventAt || 0)) / 60000);
       log.warn({ profile: s.profileId, sinSenalMin: min }, 'sesión caída sin avisar — reconectando');
-      s.setSession({ status: 'disconnected', last_error: 'Reconectada por el vigilante' }).catch(() => {});
-      s.start().catch(e => log.error({ err: e.message, profile: s.profileId }, 'watchdog no pudo reconectar'));
+      
+      working.add(s.profileId);  // ← NUEVO
+      try {
+        await s.setSession({ status: 'disconnected', last_error: 'Reconectada por el vigilante' });
+        await s.start();
+      } catch (e) {
+        log.error({ err: e.message, profile: s.profileId }, 'watchdog no pudo reconectar');
+      } finally {
+        working.delete(s.profileId);  // ← NUEVO
+      }
     }
   }, 60_000);
   log.info('vigilante de sesiones activo (revisa cada minuto)');

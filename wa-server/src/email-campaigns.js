@@ -44,52 +44,55 @@ async function step(camp, dailyLimit) {
 
   const { data: targets } = await db.from('jjp_email_campaign_targets')
     .select('*').eq('campaign_id', camp.id).eq('status', 'pending')
-    .order('created_at', { ascending: true }).limit(1);
+    .order('created_at', { ascending: true }).limit(20);
   if (!targets?.length) { await finish(camp); return; }
-  const t = targets[0];
 
-  // Respetar opt-out aunque cambie después de crear la campaña
-  if (t.customer_id) {
-    const { data: cust } = await db.from('jjp_customers')
-      .select('email_opt_out').eq('id', t.customer_id).maybeSingle();
-    if (cust?.email_opt_out) { await skip(camp, t, 'cliente sin correos'); return; }
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t.to_addr || '')) { await skip(camp, t, 'correo inválido'); return; }
+  for (const t of targets) {
+    // Respetar opt-out aunque cambie después de crear la campaña
+    if (t.customer_id) {
+      const { data: cust } = await db.from('jjp_customers')
+        .select('email_opt_out').eq('id', t.customer_id).maybeSingle();
+      if (cust?.email_opt_out) { await skip(camp, t, 'cliente sin correos'); continue; }
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t.to_addr || '')) { await skip(camp, t, 'correo inválido'); continue; }
 
-  await db.from('jjp_email_campaign_targets').update({ status: 'sending' }).eq('id', t.id);
+    await db.from('jjp_email_campaign_targets').update({ status: 'sending' }).eq('id', t.id);
 
-  try {
-    const subject = renderTemplate(camp.subject, t.vars || {});
-    const body = renderTemplate(camp.body, t.vars || {});
-    const html = camp.html ? renderTemplate(camp.html, t.vars || {}) : null;
+    try {
+      const subject = renderTemplate(camp.subject, t.vars || {});
+      const body = renderTemplate(camp.body, t.vars || {});
+      const html = camp.html ? renderTemplate(camp.html, t.vars || {}) : null;
 
-    const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
-      to_addr: t.to_addr, subject, body, html, attachments: camp.attachments || []
-    });
+      const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
+        to_addr: t.to_addr, subject, body, html, attachments: camp.attachments || []
+      });
 
-    // Historial en jjp_emails (aparece en "Enviados")
-    const { data: em } = await db.from('jjp_emails').insert({
-      owner_id: camp.owner_id, direction: 'out', status: 'sent',
-      to_addr: t.to_addr, from_addr: from, subject, body, html,
-      attachments: camp.attachments || [], customer_id: t.customer_id || null,
-      campaign_id: camp.id, message_id: msgId, sent_at: new Date().toISOString()
-    }).select('id').single();
+      // Historial en jjp_emails (aparece en "Enviados")
+      const { data: em } = await db.from('jjp_emails').insert({
+        owner_id: camp.owner_id, direction: 'out', status: 'sent',
+        to_addr: t.to_addr, from_addr: from, subject, body, html,
+        attachments: camp.attachments || [], customer_id: t.customer_id || null,
+        campaign_id: camp.id, message_id: msgId, sent_at: new Date().toISOString()
+      }).select('id').single();
 
-    await db.from('jjp_email_campaign_targets')
-      .update({ status: 'sent', email_id: em?.id || null, sent_at: new Date().toISOString(), error: null })
-      .eq('id', t.id);
-    if (t.customer_id) await db.from('jjp_customers').update({ last_email_at: new Date().toISOString() }).eq('id', t.customer_id);
-    await syncCounts(camp.id);
+      await db.from('jjp_email_campaign_targets')
+        .update({ status: 'sent', email_id: em?.id || null, sent_at: new Date().toISOString(), error: null })
+        .eq('id', t.id);
+      if (t.customer_id) await db.from('jjp_customers').update({ last_email_at: new Date().toISOString() }).eq('id', t.customer_id);
+      await syncCounts(camp.id);
 
-    const delayMs = 1000 * (camp.delay_min_s + Math.random() * Math.max(0, camp.delay_max_s - camp.delay_min_s));
-    nextSendAt.set(camp.owner_id, Date.now() + delayMs);
-    log.info({ campaign: camp.name, to: t.to_addr, nextInS: Math.round(delayMs / 1000) }, 'campaña correo: enviado');
-  } catch (e) {
-    await db.from('jjp_email_campaign_targets').update({ status: 'failed', error: e.message }).eq('id', t.id);
-    await syncCounts(camp.id);
-    log.warn({ campaign: camp.name, target: t.id, err: e.message }, 'campaña correo: target falló');
-    // Si es fallo de credenciales, no reintentar en bucle rápido
-    nextSendAt.set(camp.owner_id, Date.now() + 30_000);
+      const delayMs = 1000 * (camp.delay_min_s + Math.random() * Math.max(0, camp.delay_max_s - camp.delay_min_s));
+      nextSendAt.set(camp.owner_id, Date.now() + delayMs);
+      log.info({ campaign: camp.name, to: t.to_addr, nextInS: Math.round(delayMs / 1000) }, 'campaña correo: enviado');
+    } catch (e) {
+      await db.from('jjp_email_campaign_targets').update({ status: 'failed', error: e.message }).eq('id', t.id);
+      await syncCounts(camp.id);
+      log.warn({ campaign: camp.name, target: t.id, err: e.message }, 'campaña correo: target falló');
+      // Si es fallo de credenciales, no reintentar en bucle rápido
+      nextSendAt.set(camp.owner_id, Date.now() + 30_000);
+    }
+    
+    break; // solo 1 envío real por tick
   }
 }
 
@@ -120,14 +123,16 @@ async function finish(camp) {
 }
 
 async function syncCounts(campaignId) {
-  const [{ count: sent }, { count: failed }] = await Promise.all([
+  const [{ count: sent }, { count: failed }, { count: skipped }] = await Promise.all([
     db.from('jjp_email_campaign_targets').select('id', { count: 'exact', head: true })
       .eq('campaign_id', campaignId).eq('status', 'sent'),
     db.from('jjp_email_campaign_targets').select('id', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId).in('status', ['failed', 'skipped']),
+      .eq('campaign_id', campaignId).eq('status', 'failed'),
+    db.from('jjp_email_campaign_targets').select('id', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId).eq('status', 'skipped'),
   ]);
   await db.from('jjp_email_campaigns')
-    .update({ sent_count: sent || 0, failed_count: failed || 0, updated_at: new Date().toISOString() })
+    .update({ sent_count: sent || 0, failed_count: failed || 0, skipped_count: skipped || 0, updated_at: new Date().toISOString() })
     .eq('id', campaignId);
 }
 

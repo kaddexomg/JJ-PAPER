@@ -1,0 +1,6 @@
+{
+  "summary":  "Guía de implementación paso a paso ultra-detallada del plan de estabilización del backend wa-server de JJ Paper. Diseñada para que CUALQUIER agente IA (incluso uno sin contexto previo) pueda ejecutar los 7 cambios sin equivocarse. Incluye: reglas de oro inquebrantables, contexto del proyecto, cada cambio con código EXACTO antes/después (con números de línea), procedimiento de prueba para cada paso, y checklist final de verificación.",
+  "updatedAt":  "2026-08-29T02:12:58.414338600Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

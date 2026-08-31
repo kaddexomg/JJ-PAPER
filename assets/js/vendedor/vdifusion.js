@@ -105,36 +105,8 @@ async function loadDContacts() {
   const { data, error } = await q;
   if (error) { showToast('Error cargando contactos', 'err'); return; }
   dContacts = data || [];
+  renderDTagChips();
   renderDContacts();
-}
-
-function renderDContacts() {
-  const tbody = document.getElementById('dContactsBody');
-  const q = normTxt(document.getElementById('dContactSearch')?.value.trim() || '');
-  let list = dContacts;
-  if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')) ||
-                                 (c.tags || []).some(t => normTxt(t).includes(q)));
-
-  document.getElementById('dContactCount').textContent = `${dContacts.length} contacto(s) en tu cartera`;
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin contactos. Usa "Importar lista" para cargar tu avance de datos. 📇</td></tr>';
-    return;
-  }
-  tbody.innerHTML = list.map(c => `<tr>
-    <td>
-      <div class="td-name">${escapeHTML(c.name)}</div>
-      <div class="td-sub">${escapeHTML(c.phone || '')}</div>
-    </td>
-    <td>${(c.tags || []).map(t => `<span class="d-tag">${escapeHTML(t)}</span>`).join(' ') || '—'}</td>
-    <td>${c.total_orders > 0 ? `${c.total_orders} compra(s)` : '<span class="d-tag" style="background:#fef3c7;color:#92400e">prospecto</span>'}</td>
-    <td>${c.last_order_at ? fmtDate(c.last_order_at) : '—'}</td>
-    <td><div class="td-actions">
-      <button class="btn-o sm" onclick="toggleOptOut('${c.id}')" aria-pressed="${c.wa_opt_out}"
-        title="${c.wa_opt_out ? 'Excluido de difusiones — clic para incluir' : 'Incluido en difusiones — clic para excluir'}">
-        ${c.wa_opt_out ? '🔕 Excluido' : '🔔 Incluido'}</button>
-      <button class="btn-o sm" onclick="editTags('${c.id}')" title="Editar etiquetas">🏷️</button>
-    </div></td>
-  </tr>`).join('');
 }
 
 async function toggleOptOut(id) {
@@ -159,6 +131,57 @@ async function editTags(id) {
   if (error) { showToast('No se pudo guardar', 'err'); return; }
   c.tags = tags;
   renderDContacts();
+}
+
+/* ---- Etiquetas clickeables (filtro rápido) ---- */
+let dActiveTag = null;
+
+function renderDTagChips() {
+  const wrap = document.getElementById('dTagChips');
+  if (!wrap) return;
+  const counts = {};
+  dContacts.forEach(c => (c.tags || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+  const tags = Object.keys(counts).sort();
+  if (!tags.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = tags.map(t =>
+    `<button class="d-tag d-tag-click ${dActiveTag === t ? 'on' : ''}" onclick="toggleDTagFilter('${escapeHTML(t)}')">🏷️ ${escapeHTML(t)} <span style="opacity:.7">(${counts[t]})</span></button>`
+  ).join('') + (dActiveTag ? `<button class="d-tag d-tag-click" style="color:#b91c1c;background:#fee2e2" onclick="toggleDTagFilter(null)">✕ Quitar filtro</button>` : '');
+}
+
+function toggleDTagFilter(tag) {
+  dActiveTag = dActiveTag === tag ? null : (tag || null);
+  renderDTagChips();
+  renderDContacts();
+}
+
+function renderDContacts() {
+  const tbody = document.getElementById('dContactsBody');
+  const q = normTxt(document.getElementById('dContactSearch')?.value.trim() || '');
+  let list = dContacts;
+  if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')) ||
+                                 (c.tags || []).some(t => normTxt(t).includes(q)));
+  if (dActiveTag) list = list.filter(c => (c.tags || []).includes(dActiveTag));
+
+  document.getElementById('dContactCount').textContent = `${list.length} de ${dContacts.length} contacto(s)${dActiveTag ? ` con etiqueta "${dActiveTag}"` : ''}`;
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin contactos. Usa "Importar lista" para cargar tu avance de datos. 📇</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(c => `<tr>
+    <td>
+      <div class="td-name">${escapeHTML(c.name)}</div>
+      <div class="td-sub">${escapeHTML(c.phone || '')}</div>
+    </td>
+    <td>${(c.tags || []).map(t => `<span class="d-tag d-tag-click" onclick="toggleDTagFilter('${escapeHTML(t)}')">${escapeHTML(t)}</span>`).join(' ') || '—'}</td>
+    <td>${c.total_orders > 0 ? `${c.total_orders} compra(s)` : '<span class="d-tag" style="background:#fef3c7;color:#92400e">prospecto</span>'}</td>
+    <td>${c.last_order_at ? fmtDate(c.last_order_at) : '—'}</td>
+    <td><div class="td-actions">
+      <button class="btn-o sm" onclick="toggleOptOut('${c.id}')" aria-pressed="${c.wa_opt_out}"
+        title="${c.wa_opt_out ? 'Excluido de difusiones — clic para incluir' : 'Incluido en difusiones — clic para excluir'}">
+        ${c.wa_opt_out ? '🔕 Excluido' : '🔔 Incluido'}</button>
+      <button class="btn-o sm" onclick="editTags('${c.id}')" title="Editar etiquetas">🏷️</button>
+    </div></td>
+  </tr>`).join('');
 }
 
 /* ---- Import masivo ---- */
@@ -455,32 +478,46 @@ async function loadDCampaigns() {
 function renderDCampaigns() {
   const tbody = document.getElementById('dCampBody');
   if (!dCampaigns.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin campañas todavía. Lanza la primera con "＋ Nueva campaña". 📣</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Sin campañas todavía. Lanza la primera con "＋ Nueva campaña". 📣</td></tr>';
     return;
   }
   tbody.innerHTML = dCampaigns.map(c => {
     const [label, color] = D_CAMP_STATUS[c.status] || [c.status, '#666'];
-    const done = (c.sent_count || 0) + (c.failed_count || 0);
+    const sent = c.sent_count || 0;
+    const failed = c.failed_count || 0;
+    const skipped = c.skipped_count || 0;
+    const done = sent + failed + skipped;
     const pct = c.total ? Math.round(done / c.total * 100) : 0;
     const active = c.status === 'en_cola' || c.status === 'pending' || c.status === 'enviando' || c.status === 'sending';
-    return `<tr>
+    const canDelete = ['completada', 'cancelada', 'pausada'].includes(c.status);
+    return `<tr class="d-camp-row" style="cursor:pointer">
       <td>
         <div class="td-name">${escapeHTML(c.name)} ${c.kind === 'reactivacion' ? '🔄' : ''}</div>
         <div class="td-sub">${fmtDate(c.created_at)}</div>
       </td>
       <td><span style="color:${color};font-weight:600">${label}</span></td>
-      <td style="min-width:140px">
+      <td style="min-width:150px">
         <div class="d-prog" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
              aria-label="Progreso de ${escapeHTML(c.name)}">
           <div class="d-prog-fill" style="width:${pct}%"></div>
         </div>
-        <div class="td-sub">${c.sent_count || 0}/${c.total || 0} enviados${c.failed_count ? ` · ${c.failed_count} fallidos/omitidos` : ''}</div>
+        <div class="td-sub d-camp-stats">
+          <span class="d-stat ok">✅ ${sent}</span>
+          ${failed ? `<span class="d-stat err">❌ ${failed}</span>` : ''}
+          ${skipped ? `<span class="d-stat skip">⏭️ ${skipped}</span>` : ''}
+          <span>${pct}%</span>
+        </div>
       </td>
       <td style="text-align:center">${c.total || 0}</td>
-      <td><div class="td-actions">
-        ${active ? `<button class="btn-o sm" onclick="setCampStatus('${c.id}','pausada')">⏸️ Pausar</button>` : ''}
-        ${c.status === 'pausada' ? `<button class="btn-p sm" onclick="setCampStatus('${c.id}','pending')">▶️ Reanudar</button>` : ''}
+      <td>
+        <span class="d-tag d-tag-click" onclick="openCampaignDetail('${c.id}')" style="cursor:pointer">📊 Reporte</span>
+      </td>
+      <td><div class="td-actions" style="flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn-o sm" onclick="openCampaignDetail('${c.id}')" title="Ver reporte de la campaña">📊</button>
+        ${active ? `<button class="btn-o sm" onclick="setCampStatus('${c.id}','pausada')" title="Pausar envíos">⏸️</button>` : ''}
+        ${c.status === 'pausada' ? `<button class="btn-p sm" onclick="setCampStatus('${c.id}','pending')" title="Reanudar envíos">▶️</button>` : ''}
         ${(active || c.status === 'pausada') ? `<button class="btn-o sm" onclick="cancelCampaign('${c.id}')" title="Cancelar campaña">✕</button>` : ''}
+        ${canDelete ? `<button class="btn-o sm d-btn-del" onclick="deleteCampaign('${c.id}','${escapeHTML(c.name)}')" title="Eliminar campaña del sistema">🗑️</button>` : ''}
       </div></td>
     </tr>`;
   }).join('');
@@ -496,6 +533,114 @@ async function setCampStatus(id, status) {
 async function cancelCampaign(id) {
   if (!confirm('¿Cancelar la campaña? Los mensajes pendientes NO se enviarán.')) return;
   await setCampStatus(id, 'cancelada');
+}
+
+/* ---- Eliminación real (RPC con CASCADE de targets) ---- */
+async function deleteCampaign(id, name) {
+  if (!confirm(`¿Eliminar la campaña "${name}"?\n\nSe borrarán para siempre la campaña y su registro de destinatarios del sistema. Esta acción NO se puede deshacer.`)) return;
+  const { data, error } = await sb.rpc('jjp_delete_campaign', { p_campaign_id: id });
+  if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
+  if (data === false) { showToast('No tienes permiso para eliminar esta campaña', 'err'); return; }
+  showToast('Campaña eliminada 🗑️');
+  loadDCampaigns();
+}
+
+/* ---- Reporte de campaña (resumen) ---- */
+let dReportTargets = [];
+let currentReportCampaignId = null;
+
+async function openCampaignDetail(id) {
+  currentReportCampaignId = id;
+  const camp = dCampaigns.find(c => c.id === id);
+  if (!camp) return;
+
+  const [label, color] = D_CAMP_STATUS[camp.status] || [camp.status, '#666'];
+  const sent = camp.sent_count || 0;
+  const failed = camp.failed_count || 0;
+  const skipped = camp.skipped_count || 0;
+  const pending = Math.max(0, (camp.total || 0) - sent - failed - skipped);
+  const pct = camp.total ? Math.round((sent + failed + skipped) / camp.total * 100) : 0;
+
+  document.getElementById('rd-name').textContent = camp.name;
+  document.getElementById('rd-status').textContent = label;
+  document.getElementById('rd-status').style.color = color;
+  document.getElementById('rd-created').textContent = fmtDate(camp.created_at);
+  document.getElementById('rd-speed').textContent = camp.delay_min_s && camp.delay_max_s
+    ? `Entre ${camp.delay_min_s}s y ${camp.delay_max_s}s por mensaje` : '—';
+  document.getElementById('rd-attach').textContent = camp.media_filename || 'Sin adjunto';
+  document.getElementById('rd-sent').textContent = sent;
+  document.getElementById('rd-failed').textContent = failed;
+  document.getElementById('rd-skipped').textContent = skipped;
+  document.getElementById('rd-pending').textContent = pending;
+  document.getElementById('rd-pct').textContent = `${pct}%`;
+  document.getElementById('rd-prog').style.width = `${pct}%`;
+
+  const failList = document.getElementById('rd-failed-list');
+  failList.innerHTML = '<span style="color:#777">Cargando...</span>';
+  openDModal('reportModal');
+
+  const { data, error } = await sb.from('jjp_wa_campaign_targets')
+    .select('name,phone,status,error,sent_at,message_id')
+    .eq('campaign_id', id)
+    .order('created_at', { ascending: true });
+  if (error) { failList.innerHTML = '<span style="color:#b91c1c">Error cargando detalle: ' + escapeHTML(error.message) + '</span>'; return; }
+  dReportTargets = data || [];
+
+  const final = ['sent', 'enviado'].includes(camp.status) || !camp.total || dReportTargets.every(t => t.status !== 'en_cola' && t.status !== 'pending');
+  const badge = final ? '✅ Enviado' : '⏳ Enviado';
+  const failedOnes = dReportTargets.filter(t => t.status === 'failed' || t.status === 'fallido');
+  const skippedOnes = dReportTargets.filter(t => t.status === 'skipped' || t.status === 'omitido');
+  const okOnes = dReportTargets.filter(t => t.status === 'sent' || t.status === 'enviado');
+
+  let html = '';
+  if (failedOnes.length) {
+    html += `<div class="rd-subgroup" style="margin-bottom:14px">
+      <h4 style="margin:0 0 8px;color:#b91c1c;font-size:13px">❌ Fallidos (${failedOnes.length})</h4>
+      <table class="admin-table"><thead><tr><th>Contacto</th><th>Estado</th><th>Motivo</th></tr></thead><tbody>
+      ${failedOnes.map(t => `<tr><td>${escapeHTML(t.name || '—')}<div class="td-sub">${escapeHTML(t.phone || '')}</div></td><td><span style="color:#b91c1c">❌</span></td><td style="color:#b91c1c;font-size:12px">${escapeHTML(t.error || 'Error desconocido')}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  } else {
+    html += `<p style="color:#15803d;font-weight:600">✔ Sin errores de envío</p>`;
+  }
+
+  if (skippedOnes.length) {
+    html += `<div class="rd-subgroup" style="margin-bottom:14px">
+      <h4 style="margin:0 0 8px;color:#a16207;font-size:13px">⏭️ Omitidos (${skippedOnes.length})</h4>
+      <table class="admin-table"><thead><tr><th>Contacto</th><th>Estado</th><th>Motivo</th></tr></thead><tbody>
+      ${skippedOnes.map(t => `<tr><td>${escapeHTML(t.name || '—')}<div class="td-sub">${escapeHTML(t.phone || '')}</div></td><td><span style="color:#a16207">⏭️</span></td><td style="color:#a16207;font-size:12px">${escapeHTML(t.error || 'Omitido')}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  if (!failedOnes.length && !skippedOnes.length) {
+    html += `<p style="color:#15803d;font-weight:600">✔ Todos los ${badge} correctamente: ${okOnes.length} destino(s)</p>`;
+  }
+
+  failList.innerHTML = html;
+}
+
+function exportCampaignReport(campaignId) {
+  if (!dReportTargets.length) { showToast('Sin datos para exportar', 'warn'); return; }
+  const esc = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const rows = [['Contacto', 'Teléfono', 'Estado', 'Motivo', 'Enviado a']];
+  for (const t of dReportTargets) {
+    rows.push([esc(t.name), esc(t.phone), esc(t.status), esc(t.error), t.sent_at ? new Date(t.sent_at).toLocaleString('es-VE') : '']);
+  }
+  const csv = '\uFEFF' + rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `reporte-campana-${campaignId.slice(0, 8)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Reporte exportado ⬇️');
+}
+
+function deleteCampaignFromReport(id, name) {
+  closeDModal('reportModal');
+  deleteCampaign(id, name);
 }
 
 /* ---- Nueva campaña ---- */

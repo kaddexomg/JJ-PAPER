@@ -61,17 +61,49 @@ function b64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Descarga los adjuntos desde Storage (service_role) → base64
+// Descarga los adjuntos → base64, con caché en memoria.
+// Un mismo archivo se descarga UNA sola vez (a RAM) y se reutiliza en todos
+// los envíos de la campaña, en vez de re-descargarlo por cada destinatario.
+// Acepta dos formatos de `a.path`:
+//   - URL pública completa (http…/jjp-products/…) → se baja con fetch
+//   - ruta dentro del bucket jjp-email-media           → se baja con Storage
+const attachCache = new Map();
+
 async function loadAttachments(list) {
   const out = [];
   for (const a of list || []) {
     if (!a?.path) continue;
-    const { data, error } = await db.storage.from('jjp-email-media').download(a.path);
-    if (error) { log.warn({ err: error.message, path: a.path }, 'adjunto no descargó'); continue; }
-    const buf = Buffer.from(await data.arrayBuffer());
-    out.push({ name: a.name || 'archivo', mime: (a.mime || 'application/octet-stream').split(';')[0], b64: buf.toString('base64') });
+    const key = String(a.path);
+    if (!attachCache.has(key)) {
+      const buf = await fetchAttachmentBytes(key);
+      if (buf) attachCache.set(key, buf.toString('base64'));
+    }
+    const b64 = attachCache.get(key);
+    if (b64 === undefined) continue;
+    out.push({
+      name: a.name || 'archivo',
+      mime: (a.mime || 'application/octet-stream').split(';')[0],
+      b64
+    });
   }
   return out;
+}
+
+// Devuelve el Buffer del archivo (o null si no se pudo). Distingue URL vs bucket.
+async function fetchAttachmentBytes(path) {
+  try {
+    if (/^https?:\/\//i.test(path)) {
+      const r = await fetch(path, { redirect: 'follow' });
+      if (!r.ok) { log.warn({ err: `HTTP ${r.status}`, path }, 'adjunto no descargó'); return null; }
+      return Buffer.from(await r.arrayBuffer());
+    }
+    const { data, error } = await db.storage.from('jjp-email-media').download(path);
+    if (error) { log.warn({ err: error.message, path }, 'adjunto no descargó'); return null; }
+    return Buffer.from(await data.arrayBuffer());
+  } catch (e) {
+    log.warn({ err: e.message, path }, 'adjunto no descargó');
+    return null;
+  }
 }
 
 function buildRawEmail({ from, to, subject, text, html }, atts) {

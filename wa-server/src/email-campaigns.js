@@ -59,9 +59,14 @@ async function step(camp, dailyLimit) {
     await db.from('jjp_email_campaign_targets').update({ status: 'sending' }).eq('id', t.id);
 
     try {
-      const subject = renderTemplate(camp.subject, t.vars || {});
-      const body = renderTemplate(camp.body, t.vars || {});
-      const html = camp.html ? renderTemplate(camp.html, t.vars || {}) : null;
+      const realVars = {
+        ...(t.vars || {}),
+        nombre: t.name || (t.vars || {}).nombre || '',
+        empresa: (t.vars || {}).empresa || t.name || '',
+      };
+      const subject = renderTemplate(camp.subject, realVars);
+      const body = renderTemplate(camp.body, realVars);
+      const html = camp.html ? renderTemplate(camp.html, realVars) : null;
 
       const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
         to_addr: t.to_addr, subject, body, html, attachments: camp.attachments || []
@@ -96,17 +101,19 @@ async function step(camp, dailyLimit) {
   }
 }
 
+// Procesa variables {{nombre}}, {{link}}, etc. PRIMERO, luego Spintax {Hola|Buenos días}.
+// Orden invertido respecto a lo que había: las variables usan doble llave y deben
+// resolverse antes de que la regex de Spintax (llave simple) toque el texto.
 function renderTemplate(body, vars) {
-  let str = String(body || '').replace(/\{([^{}]+?)\}/g, (_, choices) => {
-    if (choices.startsWith('{') || choices.endsWith('}')) return choices;
-    const parts = choices.split('|');
-    if (parts.length > 1) {
-      return parts[Math.floor(Math.random() * parts.length)].trim();
-    }
-    return choices;
-  });
-  return str.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
+  // 1) Variables: {{clave}} → valor real del target
+  let str = String(body || '').replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
     (_, k) => vars[k.trim().toLowerCase()] ?? '');
+  // 2) Spintax: {Hola|Buenos días|Estimado/a} → elige una opción al azar
+  str = str.replace(/\{([^{}]*\|[^{}]*)\}/g, (_, choices) => {
+    const parts = choices.split('|');
+    return parts[Math.floor(Math.random() * parts.length)].trim();
+  });
+  return str;
 }
 
 async function skip(camp, t, reason) {

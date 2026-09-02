@@ -1,0 +1,546 @@
+=== AUDITORIA DE PRODUCTOS MIXNET ===
+
+Archivo: 29032012.DBF | Registros: 27658
+Ruta: C:\RESPAMIX\MIX11 (servidor)\comp01 2019-12-02 17;30;49 (Completo)\29032012.DBF
+Campos: codmovart(C), fecha_mov(D), hora(C), tipinv(C), numdoc(C), unidad(C), ref_bulto(N), cantidad(N), costo_tot(N), origen(C), prov_cli(C), venta_tot(N), codven(C), almacen(C), asiento(C), fecha_asi(D), codcon(C), coddpto(C), cambio(N), moneda(C)
+Muestra de datos:
+  Fila 1: {"codmovart":"SS-CE505A","fecha_mov":"20120109","hora":"155838","tipinv":"EN","numdoc":"44573","unidad":"1","ref_bulto":"","cantidad":"10.000","costo_tot":"6289.60000","origen":"CPA","prov_cli":"SOLT","venta_tot":"","codven":"","almacen":"01","asiento":"","fecha_asi":"","codcon":"","coddpto":"","cambio":"","moneda":""}
+  Fila 2: {"codmovart":"JJ-A1","fecha_mov":"20111202","hora":"163507","tipinv":"SA","numdoc":"00000799","unidad":"1","ref_bulto":"","cantidad":"120.000","costo_tot":"0.00000","origen":"ALB","prov_cli":"001-315","venta_tot":"","codven":"","almacen":"01","asiento":"","fecha_asi":"","codcon":"","coddpto":"","cambio":"","moneda":""}
+  Fila 3: {"codmovart":"NC-BAAA","fecha_mov":"20120110","hora":"092317","tipinv":"SA","numdoc":"00028230","unidad":"1","ref_bulto":"","cantidad":"12.000","costo_tot":"57.68400","origen":"FAC","prov_cli":"001-02","venta_tot":"86.66","codven":"001","almacen":"01","asiento":"","fecha_asi":"","codcon":"","coddpto":"","cambio":"","moneda":""}
+---------------------------------------------------
+Archivo: MXCTACLI.DBF | Registros: 6172
+Ruta: M:\comp01\MXCTACLI.DBF
+Campos: codcli(C), nomcli(C), codacti(C), grupo(C), cif(C), direc1(C), direc2(C), direc3(C), direc4(C), tlf1(C), tlf2(C), fax(C), estatus(C), lim_cre(N), dia_cre(N), transpor(C), descuento(N), observa(C), contacto(C), zona(C), cobrador(C), vendedor(C), saldo(N), fec_upag(D), codcon(C), tot_ven(N), regimen(C), tarifa(C), banco(C), ctabanco(C), forma(C), nit(C), fechaing(D), email(C), fecha_mod(D), hora_mod(C), limfacp(N), activo(L), cli_esp(C), porriva(N), regmerc(C)
+Muestra de datos:
+  Fila 1: {"codcli":"003-03","nomcli":"****LIBRERIA AGO","codacti":"","grupo":"002","cif":"V-01875469-0","direc1":"EDF. CUBAGUA CALLE NEWTON","direc2":"COLINAS DE BELLO MONTE","direc3":"DIAGONAL CENTRO POLO.-","direc4":"","tlf1":"8374011 PPAL","tlf2":"7530265","fax":"","estatus":"A","lim_cre":"0","dia_cre":"30","transpor":"","descuento":"0.00","observa":"CAJA: VIERNES P.M SOLO CONTADO SUSPENDIDO CREDITO","contacto":"MARIA ESTHER","zona":"002001","cobrador":"026","vendedor":"026","saldo":"0.00","fec_upag":"20170522","codcon":"","tot_ven":"43210.79","regimen":"1","tarifa":"C","banco":"01","ctabanco":"015101083281080","forma":"01","nit":"","fechaing":"","email":"saithanahmenf@hotmail.com","fecha_mod":"20260112","hora_mod":"145734","limfacp":"0","activo":"T","cli_esp":"","porriva":"0.00","regmerc":"S"}
+  Fila 2: {"codcli":"003-06","nomcli":"COMERCIALIZADORA ALPRADO, C.A.","codacti":"","grupo":"005","cif":"J-30470100-4","direc1":"ALTO PRADO.CTRO.COMERCIAL","direc2":"LOCAL 14.","direc3":"","direc4":"","tlf1":"0212-978.15.24","tlf2":"","fax":"2663575","estatus":"B","lim_cre":"0","dia_cre":"30","transpor":"","descuento":"0.00","observa":"CAJA: MARTES A.M","contacto":"CARMEN CECLIA.RANGEL","zona":"005027","cobrador":"026","vendedor":"026","saldo":"0.00","fec_upag":"20160920","codcon":"","tot_ven":"340989.44","regimen":"1","tarifa":"C","banco":"01","ctabanco":"015101083281080","forma":"05","nit":"","fechaing":"","email":"C.I 2552489","fecha_mod":"20260112","hora_mod":"145734","limfacp":"0","activo":"F","cli_esp":"","porriva":"0.00","regmerc":"S"}
+  Fila 3: {"codcli":"002-07","nomcli":"AQUARELLA INVERSIONES C.A.","codacti":"","grupo":"002","cif":"J-31328250-2","direc1":"AV.ESTE 10 CALLE BOLIVAR","direc2":"A CEDE%O.CASA S/NOMBRE","direc3":"NRO.23.URB.SAN AGUSTIN","direc4":"Z.P.1010","tlf1":"5770992","tlf2":"","fax":"","estatus":"B","lim_cre":"0","dia_cre":"30","transpor":"","descuento":"0.00","observa":"CJ: LOS JUEVES MA%ANA 8-11  ESTAR TEMPRANO","contacto":"MARIA RODRIGUEZ","zona":"002009","cobrador":"033","vendedor":"033","saldo":"0.00","fec_upag":"20130911","codcon":"","tot_ven":"0.00","regimen":"1","tarifa":"C","banco":"02","ctabanco":"010204917500000","forma":"01","nit":"Z.P.1010","fechaing":"","email":"AQUARELLAINVERSIONES@YAHOO.COM","fecha_mod":"20200228","hora_mod":"150434","limfacp":"0","activo":"F","cli_esp":"","porriva":"0.00","regmerc":"S"}
+---------------------------------------------------
+Archivo: MXRETIVA.DBF | Registros: 12910
+Ruta: M:\comp01\MXRETIVA.DBF
+Campos: provee(C), numcom(C), ncontrol(C), emision(D), fec_reg(D), numcxp(C), tiptrans(C), tot_cpa(N), base_imp(N), tot_exen(N), por_iva(N), imp_iva(N), por_ret(N), mon_ret(N), codcon(C), feccan(D), compro(C), cambio(N), moneda(C), plan_imp(C), expe_imp(C), fecha_imp(D), fecha_nac(D), origen(C), tipdoc(C)
+Muestra de datos:
+  Fila 1: {"provee":"VENESP","numcom":"0269","ncontrol":"0000269","emision":"20100701","fec_reg":"20100701","numcxp":"","tiptrans":"1","tot_cpa":"3259.20","base_imp":"2910.00","tot_exen":"0.00","por_iva":"12.00","imp_iva":"349.200","por_ret":"75.00","mon_ret":"261.900","codcon":"","feccan":"20100701","compro":"00000001","cambio":"2150.00","moneda":"US$","plan_imp":"","expe_imp":"","fecha_imp":"","fecha_nac":"","origen":"PAG","tipdoc":"FC"}
+  Fila 2: {"provee":"DISPA","numcom":"0013197","ncontrol":"018585","emision":"20100701","fec_reg":"20100701","numcxp":"","tiptrans":"1","tot_cpa":"4883.76","base_imp":"4360.50","tot_exen":"0.00","por_iva":"12.00","imp_iva":"523.260","por_ret":"75.00","mon_ret":"392.445","codcon":"","feccan":"20100701","compro":"00000002","cambio":"2150.00","moneda":"US$","plan_imp":"","expe_imp":"","fecha_imp":"","fecha_nac":"","origen":"PAG","tipdoc":"FC"}
+  Fila 3: {"provee":"INCO3000","numcom":"3961","ncontrol":"004111","emision":"20100701","fec_reg":"20100701","numcxp":"","tiptrans":"1","tot_cpa":"1536.91","base_imp":"1372.24","tot_exen":"0.00","por_iva":"12.00","imp_iva":"164.669","por_ret":"75.00","mon_ret":"123.502","codcon":"","feccan":"20100701","compro":"00000003","cambio":"2150.00","moneda":"US$","plan_imp":"","expe_imp":"","fecha_imp":"","fecha_nac":"","origen":"PAG","tipdoc":"FC"}
+---------------------------------------------------
+Archivo: MXCTAINV.DBF | Registros: 2263
+Ruta: C:\RESPAMIX\MIX11 (servidor)\Comp01b\EJ004\MXCTAINV.DBF
+Campos: codart(C), nomart(C), nomalt(C), grupo(C), marca(C), alterno(C), iva(C), precio_a(N), precio_b(N), precio_c(N), precio_d(N), des_a(N), des_b(N), des_c(N), des_d(N), factor(C), exmin(N), exmax(N), precio_max(N), precio_min(N), ubica(C), peso(N), unidad(C), altura(N), ancho(N), profun(N), can_bul(N), compuesto(C), ult_prove(C), prov_asig(C), ult_costo(N), ordena(N), costo_act(N), existe_act(N), fecha_cos(D), fecha_sal(D), pedido(N), cotiza(N), recalc(L), acu_ent(N), acu_sal(N), acu_cos(N), acu_csa(N), acu_ven(N), acu_cve(N), fecha_crea(D), codcon(C), estatus(C), fecha_mod(D), hora_mod(C), resumen(M), tipprod(C), xxxxxxx(C), invdiario(C), almacen(C)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","nomalt":"","grupo":"06","marca":"","alterno":"","iva":"A","precio_a":"17.094","precio_b":"11.111","precio_c":"10.000","precio_d":"0.000","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"07  :: 02:2011","peso":"0.000","unidad":"1","altura":"0.000","ancho":"7.650","profun":"100.000","can_bul":"1.000","compuesto":"N","ult_prove":"EDALP","prov_asig":"","ult_costo":"2.355","ordena":"0.000","costo_act":"6.631","existe_act":"135.000","fecha_cos":"20111107","fecha_sal":"20111207","pedido":"0.000","cotiza":"128.000","recalc":"F","acu_ent":"370.000","acu_sal":"235.000","acu_cos":"2680.740","acu_csa":"1785.524","acu_ven":"1719.000","acu_cve":"191.000","fecha_crea":"","codcon":"","estatus":"","fecha_mod":"20120109","hora_mod":"071903","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","nomalt":"","grupo":"06","marca":"","alterno":"","iva":"A","precio_a":"7.312","precio_b":"4.753","precio_c":"4.278","precio_d":"0.000","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"21: :: 11:2011","peso":"0.000","unidad":"1","altura":"0.000","ancho":"2.900","profun":"1.000","can_bul":"1.000","compuesto":"N","ult_prove":"II","prov_asig":"","ult_costo":"1.275","ordena":"0.000","costo_act":"2.880","existe_act":"516.000","fecha_cos":"20111205","fecha_sal":"20111206","pedido":"30.000","cotiza":"1602.000","recalc":"F","acu_ent":"2073.000","acu_sal":"1557.000","acu_cos":"6568.723","acu_csa":"5082.643","acu_ven":"5254.680","acu_cve":"1203.000","fecha_crea":"","codcon":"","estatus":"","fecha_mod":"20120109","hora_mod":"071843","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 3: {"codart":"OS-ARO","nomart":"ARCHIVADOR L.ANCHO OSLO OFICIO","nomalt":"","grupo":"000","marca":"","alterno":"","iva":"A","precio_a":"0.000","precio_b":"0.000","precio_c":"0.000","precio_d":"0.000","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"500.000","exmax":"1500.000","precio_max":"0.00","precio_min":"0.00","ubica":"02  :08  :2011","peso":"0.000","unidad":"10","altura":"0.000","ancho":"9.300","profun":"10.000","can_bul":"1.000","compuesto":"N","ult_prove":"PPCA","prov_asig":"","ult_costo":"6.730","ordena":"0.000","costo_act":"0.000","existe_act":"0.000","fecha_cos":"","fecha_sal":"","pedido":"0.000","cotiza":"6268.000","recalc":"F","acu_ent":"0.000","acu_sal":"0.000","acu_cos":"0.000","acu_csa":"0.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"","codcon":"","estatus":"1","fecha_mod":"20110802","hora_mod":"110802","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+---------------------------------------------------
+Archivo: JJCTAINV.DBF | Registros: 2141
+Ruta: C:\RESPAMIX\COMP01-10012023\JJCTAINV.DBF
+Campos: codart(C), nomart(C), nomalt(C), grupo(C), marca(C), alterno(C), iva(C), precio_a(N), precio_b(N), precio_c(N), precio_d(N), des_a(N), des_b(N), des_c(N), des_d(N), factor(C), exmin(N), exmax(N), precio_max(N), precio_min(N), ubica(C), peso(N), unidad(C), altura(N), ancho(N), profun(N), can_bul(N), compuesto(C), ult_prove(C), prov_asig(C), ult_costo(N), ordena(N), costo_act(N), existe_act(N), fecha_cos(D), fecha_sal(D), pedido(N), cotiza(N), recalc(L), acu_ent(N), acu_sal(N), acu_cos(N), acu_csa(N), acu_ven(N), acu_cve(N), fecha_crea(D), codcon(C), estatus(C), fecha_mod(D), hora_mod(C), resumen(M), tipprod(C), xxxxxxx(C), invdiario(C), almacen(C)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","nomalt":"","grupo":"000","marca":"NO.","alterno":"","iva":"A","precio_a":"2.540","precio_b":"2.200","precio_c":"28.140","precio_d":"24.380","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"30  : 11-:2022","peso":"0.000","unidad":"36","altura":"1.650","ancho":"36.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"EDALP","prov_asig":"","ult_costo":"2188.000","ordena":"0.000","costo_act":"0.000","existe_act":"0.000","fecha_cos":"","fecha_sal":"","pedido":"0.000","cotiza":"0.000","recalc":"T","acu_ent":"0.000","acu_sal":"0.000","acu_cos":"0.000","acu_csa":"0.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"20180822","codcon":"","estatus":"1","fecha_mod":"20221201","hora_mod":"102943","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","nomalt":"","grupo":"000","marca":"NO.","alterno":"","iva":"A","precio_a":"0.000","precio_b":"0.000","precio_c":"0.000","precio_d":"0.000","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"09  :02  :2014","peso":"0.000","unidad":"1","altura":"0.000","ancho":"1.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"II","prov_asig":"","ult_costo":"4.381","ordena":"0.000","costo_act":"0.000","existe_act":"0.000","fecha_cos":"","fecha_sal":"","pedido":"0.000","cotiza":"0.000","recalc":"F","acu_ent":"0.000","acu_sal":"0.000","acu_cos":"0.000","acu_csa":"0.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"20140718","codcon":"","estatus":"1","fecha_mod":"20180129","hora_mod":"140651","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO UNID","nomalt":"","grupo":"09","marca":"SI.","alterno":"","iva":"A","precio_a":"2.780","precio_b":"2.410","precio_c":"30.800","precio_d":"26.700","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"1000.000","exmax":"3000.000","precio_max":"0.00","precio_min":"0.00","ubica":"27- :10. :2022","peso":"0.000","unidad":"10","altura":"1.810","ancho":"10.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"OS","prov_asig":"","ult_costo":"9.263","ordena":"0.000","costo_act":"9.234","existe_act":"0.000","fecha_cos":"20221111","fecha_sal":"20221130","pedido":"1407.000","cotiza":"10025.000","recalc":"F","acu_ent":"1808.000","acu_sal":"1808.000","acu_cos":"13195.576","acu_csa":"13195.576","acu_ven":"16526.980","acu_cve":"1243.000","fecha_crea":"20220706","codcon":"","estatus":"0","fecha_mod":"20221201","hora_mod":"105837","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+---------------------------------------------------
+Archivo: VICTAINV.DBF | Registros: 2017
+Ruta: M:\comp01\VICTAINV.DBF
+Campos: codart(C), nomart(C), nomalt(C), grupo(C), marca(C), alterno(C), iva(C), precio_a(N), precio_b(N), precio_c(N), precio_d(N), des_a(N), des_b(N), des_c(N), des_d(N), factor(C), exmin(N), exmax(N), precio_max(N), precio_min(N), ubica(C), peso(N), unidad(C), altura(N), ancho(N), profun(N), can_bul(N), compuesto(C), ult_prove(C), prov_asig(C), ult_costo(N), ordena(N), costo_act(N), existe_act(N), fecha_cos(D), fecha_sal(D), pedido(N), cotiza(N), recalc(L), acu_ent(N), acu_sal(N), acu_cos(N), acu_csa(N), acu_ven(N), acu_cve(N), fecha_crea(D), codcon(C), estatus(C), fecha_mod(D), hora_mod(C), resumen(M), tipprod(C), xxxxxxx(C), invdiario(C), almacen(C)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK DE NOTA RAYA ALPHA C/ESPIR 45 HOJAS","nomalt":"","grupo":"09","marca":"","alterno":"","iva":"A","precio_a":"0.890","precio_b":"0.770","precio_c":"32.570","precio_d":"28.170","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"12  : 06-:2024","peso":"0.000","unidad":"36","altura":"0.580","ancho":"36.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"EDALP","prov_asig":"EDALP","ult_costo":"21.150","ordena":"0.000","costo_act":"21.150","existe_act":"0.000","fecha_cos":"20240612","fecha_sal":"20240612","pedido":"0.000","cotiza":"0.000","recalc":"F","acu_ent":"400.000","acu_sal":"400.000","acu_cos":"8460.000","acu_csa":"8460.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"20180822","codcon":"","estatus":"0","fecha_mod":"20240612","hora_mod":"135621","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 2: {"codart":"SH-ACTC","nomart":"ACETATO TRANS/CARTA P/COPIA 100HJAS","nomalt":"","grupo":"09","marca":"","alterno":"","iva":"A","precio_a":"11.600","precio_b":"10.050","precio_c":"424.440","precio_d":"367.730","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"11  :06  :2024","peso":"0.000","unidad":"1","altura":"7.540","ancho":"1.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"II","prov_asig":"II","ult_costo":"4.381","ordena":"0.000","costo_act":"0.000","existe_act":"0.000","fecha_cos":"","fecha_sal":"","pedido":"0.000","cotiza":"0.000","recalc":"F","acu_ent":"0.000","acu_sal":"0.000","acu_cos":"0.000","acu_csa":"0.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"20140718","codcon":"","estatus":"0","fecha_mod":"20240617","hora_mod":"103013","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO UNID","nomalt":"","grupo":"09","marca":"","alterno":"","iva":"A","precio_a":"2.910","precio_b":"2.520","precio_c":"106.480","precio_d":"92.210","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"1000.000","exmax":"3000.000","precio_max":"0.00","precio_min":"0.00","ubica":"29- :02. :2024","peso":"0.000","unidad":"10","altura":"1.890","ancho":"10.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"INAA","prov_asig":"OS","ult_costo":"65.270","ordena":"0.000","costo_act":"65.252","existe_act":"7.000","fecha_cos":"20240402","fecha_sal":"20240429","pedido":"1236.000","cotiza":"19915.000","recalc":"F","acu_ent":"42.000","acu_sal":"35.000","acu_cos":"2737.820","acu_csa":"2281.058","acu_ven":"2222.910","acu_cve":"23.000","fecha_crea":"20220706","codcon":"","estatus":"","fecha_mod":"20240429","hora_mod":"135811","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+---------------------------------------------------
+Archivo: CTAINV.DBF | Registros: 1957
+Ruta: C:\RESPAMIX\comp0125042022\CTAINV.DBF
+Campos: codart(C), nomart(C), nomalt(C), grupo(C), marca(C), alterno(C), iva(C), precio_a(N), precio_b(N), precio_c(N), precio_d(N), des_a(N), des_b(N), des_c(N), des_d(N), factor(C), exmin(N), exmax(N), precio_max(N), precio_min(N), ubica(C), peso(N), unidad(C), altura(N), ancho(N), profun(N), can_bul(N), compuesto(C), ult_prove(C), prov_asig(C), ult_costo(N), ordena(N), costo_act(N), existe_act(N), fecha_cos(D), fecha_sal(D), pedido(N), cotiza(N), recalc(L), acu_ent(N), acu_sal(N), acu_cos(N), acu_csa(N), acu_ven(N), acu_cve(N), fecha_crea(D), codcon(C), estatus(C), fecha_mod(D), hora_mod(C), resumen(M), tipprod(C), xxxxxxx(C), invdiario(C), almacen(C)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","nomalt":"","grupo":"000","marca":"","alterno":"","iva":"A","precio_a":"0.000","precio_b":"0.000","precio_c":"0.000","precio_d":"0.000","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"02  : 08-:2018","peso":"0.000","unidad":"36","altura":"0.000","ancho":"36.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"EDALP","prov_asig":"","ult_costo":"2188.000","ordena":"0.000","costo_act":"0.000","existe_act":"0.000","fecha_cos":"","fecha_sal":"","pedido":"0.000","cotiza":"0.000","recalc":"T","acu_ent":"0.000","acu_sal":"0.000","acu_cos":"0.000","acu_csa":"0.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"20180822","codcon":"","estatus":"1","fecha_mod":"20181102","hora_mod":"111232","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","nomalt":"","grupo":"000","marca":"","alterno":"","iva":"A","precio_a":"0.000","precio_b":"0.000","precio_c":"0.000","precio_d":"0.000","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"09  :02  :2014","peso":"0.000","unidad":"1","altura":"0.000","ancho":"1.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"II","prov_asig":"","ult_costo":"4.381","ordena":"0.000","costo_act":"0.000","existe_act":"0.000","fecha_cos":"","fecha_sal":"","pedido":"0.000","cotiza":"0.000","recalc":"F","acu_ent":"0.000","acu_sal":"0.000","acu_cos":"0.000","acu_csa":"0.000","acu_ven":"0.000","acu_cve":"0.000","fecha_crea":"20140718","codcon":"","estatus":"1","fecha_mod":"20180129","hora_mod":"140651","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO UNID","nomalt":"","grupo":"09","marca":"","alterno":"","iva":"A","precio_a":"2.630","precio_b":"2.280","precio_c":"13.150","precio_d":"11.400","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"1000.000","exmax":"3000.000","precio_max":"0.00","precio_min":"0.00","ubica":"03- :03. :2022","peso":"0.000","unidad":"10","altura":"1.710","ancho":"10.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"OS","prov_asig":"","ult_costo":"7.368","ordena":"0.000","costo_act":"7.363","existe_act":"358.000","fecha_cos":"20220316","fecha_sal":"20220328","pedido":"285.000","cotiza":"4111.000","recalc":"F","acu_ent":"1134.000","acu_sal":"776.000","acu_cos":"6824.589","acu_csa":"4188.607","acu_ven":"4274.840","acu_cve":"468.000","fecha_crea":"20220303","codcon":"","estatus":"0","fecha_mod":"20220329","hora_mod":"122049","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+---------------------------------------------------
+Archivo: ALB.DBF | Registros: 2217
+Ruta: M:\comp01\EJ007\ALB.DBF
+Campos: numalb(C), emision(D), vence(D), cliente(C), codsuc(C), codven(C), comen1(C), comen2(C), estatus(C), estguia(C), desc(N), descuento(N), tot_alb(N), numfac(C), numrma(C), numguia(C), almacen(C), transpor(C), hora(C), recargo(C), imp_iva(N), cambio(N), moneda(C), nomcli(C), direc1(C), direc2(C), direc3(C), direc4(C), cif(C), nit(C), tlf1(C), tlf2(C), fax(C), email(C)
+Muestra de datos:
+  Fila 1: {"numalb":"10001929","emision":"20220112","vence":"20220112","cliente":"006-296","codsuc":"","codven":"006","comen1":"","comen2":"","estatus":"OK","estguia":"","desc":"0.00","descuento":"0.00","tot_alb":"77.96","numfac":"00107223","numrma":"","numguia":"","almacen":"01","transpor":"","hora":"113854","recargo":"1","imp_iva":"9.89","cambio":"5.00","moneda":"US$","nomcli":"PAPELERIA LA CIENCIA HY C.A","direc1":"AV PRINCIPAL DE PROPATRIA","direc2":"ENTRE CALLE 6 Y 7 ,CASA","direc3":"No 2 - PB LOCAL No 2 URB","direc4":"PROPATRIA,CARACAS,DISTRI","cif":"J-40718196-3","nit":"","tlf1":"TO CAPITAL","tlf2":"0212 873 52 29","fax":"0424 233 51 17","email":"PAPELERIALACIENCIA2017@GMAIL.COM"}
+  Fila 2: {"numalb":"10001930","emision":"20220112","vence":"20220112","cliente":"006-137","codsuc":"","codven":"006","comen1":"","comen2":"","estatus":"OK","estguia":"","desc":"0.00","descuento":"0.00","tot_alb":"29.72","numfac":"00107214","numrma":"","numguia":"","almacen":"01","transpor":"","hora":"114112","recargo":"1","imp_iva":"4.10","cambio":"5.00","moneda":"US$","nomcli":"BAZAR Y LIBRERIA YELICARP, C.A","direc1":"BOULEVARD LA VEGA FRENTE","direc2":"CALLE REAL CASA NRO 20","direc3":"URB LA VEGA","direc4":"","cif":"J-31411228-7","nit":"","tlf1":"04126020515","tlf2":"4710721","fax":"","email":""}
+  Fila 3: {"numalb":"00001735","emision":"20220112","vence":"20220112","cliente":"033-318","codsuc":"","codven":"009","comen1":"","comen2":"","estatus":"PE","estguia":"","desc":"0.00","descuento":"0.00","tot_alb":"173.77","numfac":"","numrma":"","numguia":"","almacen":"01","transpor":"","hora":"130821","recargo":"1","imp_iva":"23.97","cambio":"5.00","moneda":"US$","nomcli":"INVERSIONES MHYN, C.A.","direc1":"AV INTERCOMUNAL EL VALLE","direc2":"QTA HILDA NRO 13 ZONA CAL","direc3":"LE 7 DISTRITO CAPITAL ZON","direc4":"A POSTAL 1090","cif":"J-41223511-7","nit":"","tlf1":"0424-246-63-60","tlf2":"","fax":"","email":""}
+---------------------------------------------------
+Archivo: MXCTAPRO.DBF | Registros: 1696
+Ruta: M:\comp01\MXCTAPRO.DBF
+Campos: codcli(C), nomcli(C), grupo(C), cif(C), direc1(C), direc2(C), direc3(C), direc4(C), tlf1(C), tlf2(C), fax(C), estatus(C), lim_cre(N), dia_cre(N), descuento(N), observa(C), contacto(C), zona(C), cobrador(C), vendedor(C), saldo(N), fec_upag(D), codcon(C), tot_ven(N), regimen(C), forma(C), banco(C), ctabanco(C), nit(C), fechaing(D), email(C), fecha_mod(D), hora_mod(C), porriva(N), regmerc(C), tprov(C), inactivo(L)
+Muestra de datos:
+  Fila 1: {"codcli":"HP","nomcli":"SANFORD BRANDS VENEZUELA I.N.C.","grupo":"06","cif":"J-30560396-0","direc1":"ZONA INDUSTRIAL LA HAMACA","direc2":"C/GUSTAVO DALEN","direc3":"MARACAY - EDO.ARAGUA","direc4":"","tlf1":"951.34.22","tlf2":"0424-203-34-90","fax":"","estatus":"","lim_cre":"0","dia_cre":"0","descuento":"0.00","observa":"","contacto":"SRA,YAJAIRA","zona":"","cobrador":"","vendedor":"","saldo":"-4238429.14","fec_upag":"20260710","codcon":"","tot_ven":"-97867485778.48","regimen":"1","forma":"01","banco":"01","ctabanco":"015101083281080","nit":"","fechaing":"","email":"","fecha_mod":"20260817","hora_mod":"141539","porriva":"75.00","regmerc":"","tprov":"","inactivo":""}
+  Fila 2: {"codcli":"CH","nomcli":"MANUFACTURAS DE PAPEL,C.A MANPA","grupo":"06","cif":"J-00023530-9","direc1":"AVD. FRANCISCO DE MIRANDA","direc2":"CON AVDA. EL BOSQUE TORRE","direc3":"COUNTRY CLUB P-12","direc4":"","tlf1":"901 2335","tlf2":"2397667","fax":"2392480","estatus":"A","lim_cre":"0","dia_cre":"0","descuento":"0.00","observa":"","contacto":"HENRRY","zona":"","cobrador":"","vendedor":"","saldo":"0.00","fec_upag":"20080421","codcon":"","tot_ven":"0.00","regimen":"1","forma":"01","banco":"01","ctabanco":"015101083281080","nit":"","fechaing":"","email":"","fecha_mod":"20091118","hora_mod":"094102","porriva":"75.00","regmerc":"","tprov":"","inactivo":""}
+  Fila 3: {"codcli":"CP","nomcli":"CARACAS PAPER COMPANY, S.A.","grupo":"06","cif":"J-00005325-1","direc1":"","direc2":"","direc3":"","direc4":"","tlf1":"0243-2311703","tlf2":"","fax":"","estatus":"S","lim_cre":"0","dia_cre":"0","descuento":"0.00","observa":"","contacto":"JAIRO","zona":"","cobrador":"","vendedor":"","saldo":"-339314.44","fec_upag":"20260609","codcon":"","tot_ven":"-7513174596.40","regimen":"1","forma":"01","banco":"01","ctabanco":"015101083281080","nit":"","fechaing":"","email":"","fecha_mod":"20260831","hora_mod":"115558","porriva":"75.00","regmerc":"","tprov":"","inactivo":""}
+---------------------------------------------------
+Archivo: ALB01.DBF | Registros: 1550
+Ruta: M:\comp01\EJ007\ALB01.DBF
+Campos: numalb(C), emision(D), vence(D), cliente(C), codsuc(C), codven(C), comen1(C), comen2(C), estatus(C), estguia(C), desc(N), descuento(N), tot_alb(N), numfac(C), numrma(C), numguia(C), almacen(C), transpor(C), hora(C), recargo(C), imp_iva(N), cambio(N), moneda(C), nomcli(C), direc1(C), direc2(C), direc3(C), direc4(C), cif(C), nit(C), tlf1(C), tlf2(C), fax(C), email(C)
+Muestra de datos:
+  Fila 1: {"numalb":"00001735","emision":"20220112","vence":"20220112","cliente":"033-318","codsuc":"","codven":"009","comen1":"","comen2":"","estatus":"PE","estguia":"","desc":"0.00","descuento":"0.00","tot_alb":"173.77","numfac":"","numrma":"","numguia":"","almacen":"01","transpor":"","hora":"130821","recargo":"1","imp_iva":"23.97","cambio":"5.00","moneda":"US$","nomcli":"INVERSIONES MHYN, C.A.","direc1":"AV INTERCOMUNAL EL VALLE","direc2":"QTA HILDA NRO 13 ZONA CAL","direc3":"LE 7 DISTRITO CAPITAL ZON","direc4":"A POSTAL 1090","cif":"J-41223511-7","nit":"","tlf1":"0424-246-63-60","tlf2":"","fax":"","email":""}
+  Fila 2: {"numalb":"00001736","emision":"20220112","vence":"20220112","cliente":"002-244","codsuc":"","codven":"002","comen1":"","comen2":"","estatus":"PE","estguia":"","desc":"0.00","descuento":"0.00","tot_alb":"23.05","numfac":"","numrma":"","numguia":"","almacen":"01","transpor":"","hora":"130947","recargo":"1","imp_iva":"3.18","cambio":"5.00","moneda":"US$","nomcli":"ZULEIMA ROSARIO VALBUENA RODRIGUEZ","direc1":"AV. EL PASEO Y ROOSEVELT","direc2":"QUINTA ROB, LOS ROSALES","direc3":"CONSULTORIO DRA.VALBUENA","direc4":"PISO 1/ CARACAS, D/C","cif":"V-03414769-4","nit":"","tlf1":"0424 124 27 03","tlf2":"","fax":"","email":""}
+  Fila 3: {"numalb":"00001737","emision":"20220112","vence":"20220112","cliente":"004-024","codsuc":"","codven":"004","comen1":"","comen2":"","estatus":"PE","estguia":"","desc":"0.00","descuento":"0.00","tot_alb":"52.49","numfac":"","numrma":"","numguia":"","almacen":"01","transpor":"","hora":"131145","recargo":"1","imp_iva":"7.24","cambio":"5.00","moneda":"US$","nomcli":"SOLUCIONES ALLEN 194,C.A.","direc1":"CALLE SAN RAFAEL CC LA","direc2":"ASUNCION NIVEL PLANTA BAJ","direc3":"A LOCAL 5 ZONA CASCO CENT","direc4":"RAL SANTA TERESA DEL TUY","cif":"J-40246763-0","nit":"","tlf1":"02392311778","tlf2":"04143989697","fax":"","email":"ALLEN-SOLUCIONES@HOTMAIL.COM"}
+---------------------------------------------------
+Archivo: p3792098.DBF | Registros: 1444
+Ruta: C:\RESPAMIX\COMP01-10012023\p3792098.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: UNICO.DBF | Registros: 1046
+Ruta: C:\DB3\UNICO.DBF
+Campos: u(C), codart(C), nomart(C)
+Muestra de datos:
+  Fila 1: {"u":"2530-SIL100     SILICON LIQUIDO 100ml                     1","codart":"2530-SIL100","nomart":"SILICON LIQUIDO 100ml"}
+  Fila 2: {"u":"AC-CLM1         CLIPS MARIPOSA # 1 FANAGRA                2","codart":"AC-CLM1","nomart":"CLIPS MARIPOSA # 1 FANAGRA"}
+  Fila 3: {"u":"AC-CLM2         CLIPS MARIPOSA # 2 FANAGRA                3","codart":"AC-CLM2","nomart":"CLIPS MARIPOSA # 2 FANAGRA"}
+---------------------------------------------------
+Archivo: p3322102.DBF | Registros: 1367
+Ruta: C:\RESPAMIX\COMP01-10012023\p3322102.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","pedido":""}
+  Fila 3: {"item":"","articulo":"","grupo":"","precio_c":"","pedido":""}
+---------------------------------------------------
+Archivo: p4892927.DBF | Registros: 1367
+Ruta: C:\RESPAMIX\COMP01-10012023\p4892927.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","pedido":""}
+  Fila 3: {"item":"","articulo":"","grupo":"","precio_c":"","pedido":""}
+---------------------------------------------------
+Archivo: j3792098.DBF | Registros: 1664
+Ruta: C:\RESPAMIX\COMP01-10012023\j3792098.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"10.000","existe_act":"73.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"4.750","existe_act":"480.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"13.750","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j3631945.DBF | Registros: 1650
+Ruta: C:\RESPAMIX\COMP01-10012023\j3631945.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"10.000","existe_act":"80.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"4.750","existe_act":"520.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"13.750","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j5506864.DBF | Registros: 1574
+Ruta: C:\RESPAMIX\COMP01-10012023\j5506864.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"13.419","existe_act":"0.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"7.066","existe_act":"308.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"17.900","existe_act":"1528.000"}
+---------------------------------------------------
+Archivo: j3152967.DBF | Registros: 1572
+Ruta: C:\RESPAMIX\COMP01-10012023\j3152967.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"36.250","existe_act":"289.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"12.278","existe_act":"35.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"55.700","existe_act":"7970.000"}
+---------------------------------------------------
+Archivo: j5404533.DBF | Registros: 1564
+Ruta: C:\RESPAMIX\COMP01-10012023\j5404533.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"36.250","existe_act":"289.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"12.278","existe_act":"35.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"55.700","existe_act":"7970.000"}
+---------------------------------------------------
+Archivo: j3791806.DBF | Registros: 1552
+Ruta: C:\RESPAMIX\COMP01-10012023\j3791806.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"36.250","existe_act":"289.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"12.278","existe_act":"35.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"55.700","existe_act":"8000.000"}
+---------------------------------------------------
+Archivo: j3276178.DBF | Registros: 1509
+Ruta: C:\RESPAMIX\COMP01-10012023\j3276178.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"62.000","existe_act":"221.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"15.353","existe_act":"92.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"74.730","existe_act":"5897.000"}
+---------------------------------------------------
+Archivo: j5356988.DBF | Registros: 1495
+Ruta: C:\RESPAMIX\COMP01-10012023\j5356988.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"10.000","existe_act":"142.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"4.278","existe_act":"7.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"12.200","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j5347370.DBF | Registros: 1492
+Ruta: C:\RESPAMIX\COMP01-10012023\j5347370.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_d(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_d":"9.400","existe_act":"142.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_d":"4.021","existe_act":"7.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_d":"11.400","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j5349783.DBF | Registros: 1492
+Ruta: C:\RESPAMIX\COMP01-10012023\j5349783.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_d(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_d":"9.400","existe_act":"142.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_d":"4.021","existe_act":"7.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_d":"11.400","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j5352863.DBF | Registros: 1492
+Ruta: C:\RESPAMIX\COMP01-10012023\j5352863.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_d(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_d":"9.400","existe_act":"142.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_d":"4.021","existe_act":"7.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_d":"11.400","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j5000673.DBF | Registros: 1465
+Ruta: C:\RESPAMIX\COMP01-10012023\j5000673.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_d(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_d":"9.400","existe_act":"142.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_d":"4.021","existe_act":"67.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_d":"11.400","existe_act":"5.000"}
+---------------------------------------------------
+Archivo: j2986186.DBF | Registros: 1445
+Ruta: C:\RESPAMIX\COMP01-10012023\j2986186.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"10.000","existe_act":"135.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"4.278","existe_act":"516.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"12.111","existe_act":"30.000"}
+---------------------------------------------------
+Archivo: j3994819.DBF | Registros: 1421
+Ruta: C:\RESPAMIX\COMP01-10012023\j3994819.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"19.000","existe_act":"320.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"12.278","existe_act":"176.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"26.150","existe_act":"5954.000"}
+---------------------------------------------------
+Archivo: MXFISINV.DBF | Registros: 995
+Ruta: C:\RESPAMIX\MIX11 (servidor)\comp01w\MXFISINV.DBF
+Campos: codmovart(C), almacen(C), grupo(C), descrip(C), con_fis(N), nvo_costo(N), fec_conteo(D), hora(C), id_usuario(C), nb_usuario(C)
+Muestra de datos:
+  Fila 1: {"codmovart":"HP-MAMM","almacen":"01","grupo":"09","descrip":"MARCADOR GRUESO 680 SHARPIE NEGRO X12","con_fis":"122.000","nvo_costo":"114875.563","fec_conteo":"20191016","hora":"133153","id_usuario":"DC","nb_usuario":"DAMELIS CORDOVA"}
+  Fila 2: {"codmovart":"PRI-MA6","almacen":"01","grupo":"10","descrip":"MARCADOR ESCOLAR DE AGUA X 6 COL","con_fis":"139.000","nvo_costo":"6116.205","fec_conteo":"20191017","hora":"083349","id_usuario":"DC","nb_usuario":"DAMELIS CORDOVA"}
+  Fila 3: {"codmovart":"PRI-MA12","almacen":"01","grupo":"10","descrip":"MARCADOR ESCOLAR DE AGUA X12 COLORES","con_fis":"24.000","nvo_costo":"9503.429","fec_conteo":"20191017","hora":"083434","id_usuario":"DC","nb_usuario":"DAMELIS CORDOVA"}
+---------------------------------------------------
+Archivo: j2991198.DBF | Registros: 1410
+Ruta: C:\RESPAMIX\COMP01-10012023\j2991198.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"16.445","existe_act":"144.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"8.660","existe_act":"308.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"15.600","existe_act":"1677.000"}
+---------------------------------------------------
+Archivo: j3141580.DBF | Registros: 1399
+Ruta: C:\RESPAMIX\COMP01-10012023\j3141580.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"16.445","existe_act":"144.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"11.050","existe_act":"284.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"17.900","existe_act":"7.000"}
+---------------------------------------------------
+Archivo: p3470084.DBF | Registros: 974
+Ruta: C:\RESPAMIX\COMP01-10012023\p3470084.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: j3315275.DBF | Registros: 1318
+Ruta: C:\RESPAMIX\COMP01-10012023\j3315275.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"62.000","existe_act":"132.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"14.050","existe_act":"7.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"44.950","existe_act":"0.000"}
+---------------------------------------------------
+Archivo: j5058025.DBF | Registros: 1215
+Ruta: C:\RESPAMIX\COMP01-10012023\j5058025.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_b(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_b":"67.800","existe_act":"91.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_b":"14.600","existe_act":"0.000"}
+  Fila 3: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_b":"106.000","existe_act":"191.000"}
+---------------------------------------------------
+Archivo: j3470084.DBF | Registros: 1193
+Ruta: C:\RESPAMIX\COMP01-10012023\j3470084.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"60.900","existe_act":"108.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA T/BARRIL X 100","grupo":"06","precio_c":"13.100","existe_act":"0.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"71.000","existe_act":"6.000"}
+---------------------------------------------------
+Archivo: j3322102.DBF | Registros: 1352
+Ruta: C:\RESPAMIX\COMP01-10012023\j3322102.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"5.350"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA TIPO BARRIL","grupo":"06","precio_c":"5.850"}
+  Fila 3: {"codart":"OS-ARO","nomart":"ARCHIVADOR L.ANCHO OSLO OFICIO","grupo":"06","precio_c":"10.300"}
+---------------------------------------------------
+Archivo: j4892927.DBF | Registros: 1352
+Ruta: C:\RESPAMIX\COMP01-10012023\j4892927.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"5.350"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA TIPO BARRIL","grupo":"06","precio_c":"5.850"}
+  Fila 3: {"codart":"OS-ARO","nomart":"ARCHIVADOR L.ANCHO OSLO OFICIO","grupo":"06","precio_c":"10.300"}
+---------------------------------------------------
+Archivo: p4891561.DBF | Registros: 768
+Ruta: C:\RESPAMIX\COMP01-10012023\p4891561.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: p3590423.DBF | Registros: 753
+Ruta: C:\RESPAMIX\COMP01-10012023\p3590423.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: p5358965.DBF | Registros: 722
+Ruta: C:\RESPAMIX\COMP01-10012023\p5358965.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: p3015205.DBF | Registros: 719
+Ruta: C:\RESPAMIX\COMP01-10012023\p3015205.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: j3072930.DBF | Registros: 1027
+Ruta: C:\RESPAMIX\COMP01-10012023\j3072930.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"5.944","existe_act":"0.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA TIPO BARRIL","grupo":"06","precio_c":"6.500","existe_act":"95.000"}
+  Fila 3: {"codart":"OS-ARO","nomart":"ARCHIVADOR L.ANCHO OSLO OFICIO","grupo":"06","precio_c":"10.310","existe_act":"0.000"}
+---------------------------------------------------
+Archivo: j3209866.DBF | Registros: 1000
+Ruta: C:\RESPAMIX\COMP01-10012023\j3209866.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"5.350","existe_act":"0.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA TIPO BARRIL","grupo":"06","precio_c":"5.850","existe_act":"211.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"06","precio_c":"8.750","existe_act":"1387.000"}
+---------------------------------------------------
+Archivo: j2588523.DBF | Registros: 983
+Ruta: C:\RESPAMIX\COMP01-10012023\j2588523.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.","grupo":"06","precio_c":"9.000","existe_act":"100.000"}
+  Fila 2: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA TIPO BARRIL","grupo":"06","precio_c":"6.500","existe_act":"1.000"}
+  Fila 3: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"08","precio_c":"8.800","existe_act":"1657.000"}
+---------------------------------------------------
+Archivo: CTAEVA.DBF | Registros: 151
+Ruta: M:\comp01\CTAEVA.DBF
+Campos: codart(C), nomart(C), nomalt(C), grupo(C), marca(C), alterno(C), iva(C), precio_a(N), precio_b(N), precio_c(N), precio_d(N), des_a(N), des_b(N), des_c(N), des_d(N), factor(C), exmin(N), exmax(N), precio_max(N), precio_min(N), ubica(C), peso(N), unidad(C), altura(N), ancho(N), profun(N), can_bul(N), compuesto(C), ult_prove(C), prov_asig(C), ult_costo(N), ordena(N), costo_act(N), existe_act(N), fecha_cos(D), fecha_sal(D), pedido(N), cotiza(N), recalc(L), acu_ent(N), acu_sal(N), acu_cos(N), acu_csa(N), acu_ven(N), acu_cve(N), fecha_crea(D), codcon(C), estatus(C), fecha_mod(D), hora_mod(C), resumen(M), tipprod(C), xxxxxxx(C), invdiario(C), almacen(C)
+Muestra de datos:
+  Fila 1: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","nomalt":"","grupo":"06","marca":"","alterno":"","iva":"A","precio_a":"4.000","precio_b":"3.470","precio_c":"147.240","precio_d":"127.730","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"12  : 09-:2024","peso":"1.810","unidad":"1","altura":"2.600","ancho":"0.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"IMY","prov_asig":"IMY","ult_costo":"2.800","ordena":"0.000","costo_act":"2.800","existe_act":"182.000","fecha_cos":"20231231","fecha_sal":"20240219","pedido":"1.000","cotiza":"21.000","recalc":"T","acu_ent":"193.000","acu_sal":"11.000","acu_cos":"540.400","acu_csa":"30.800","acu_ven":"951.420","acu_cve":"9.000","fecha_crea":"20220510","codcon":"","estatus":"","fecha_mod":"20240912","hora_mod":"113915","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 2: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","nomalt":"","grupo":"09","marca":"","alterno":"","iva":"A","precio_a":"6.720","precio_b":"5.830","precio_c":"247.360","precio_d":"214.600","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"300.000","exmax":"600.000","precio_max":"0.00","precio_min":"0.00","ubica":"23- :09- :2024","peso":"3.040","unidad":"1","altura":"4.370","ancho":"1.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"IMY","prov_asig":"IMY","ult_costo":"2.800","ordena":"0.000","costo_act":"2.800","existe_act":"1.000","fecha_cos":"20231231","fecha_sal":"20240821","pedido":"29.000","cotiza":"2806.000","recalc":"T","acu_ent":"46.000","acu_sal":"45.000","acu_cos":"128.800","acu_csa":"126.000","acu_ven":"7267.780","acu_cve":"40.000","fecha_crea":"20220510","codcon":"","estatus":"","fecha_mod":"20240924","hora_mod":"112126","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+  Fila 3: {"codart":"MY-AROAZ","nomart":"ARCHIVADOR SINFONIA OFICIO ALFA-NUM","nomalt":"","grupo":"06","marca":"","alterno":"","iva":"A","precio_a":"7.830","precio_b":"6.790","precio_c":"288.220","precio_d":"249.940","des_a":"0.00","des_b":"0.00","des_c":"0.00","des_d":"0.00","factor":"","exmin":"100.000","exmax":"200.000","precio_max":"0.00","precio_min":"0.00","ubica":"12  :09  :2024","peso":"3.530","unidad":"10","altura":"5.090","ancho":"0.000","profun":"0","can_bul":"1.000","compuesto":"N","ult_prove":"DPOFIP","prov_asig":"IMY","ult_costo":"129.590","ordena":"0.000","costo_act":"59.190","existe_act":"1.000","fecha_cos":"20240924","fecha_sal":"20240924","pedido":"20.000","cotiza":"1392.000","recalc":"F","acu_ent":"42.000","acu_sal":"41.000","acu_cos":"6178.644","acu_csa":"6119.454","acu_ven":"5326.120","acu_cve":"24.000","fecha_crea":"20220510","codcon":"","estatus":"","fecha_mod":"20240924","hora_mod":"101403","resumen":"","tipprod":"0","xxxxxxx":"","invdiario":"","almacen":""}
+---------------------------------------------------
+Archivo: MXCAMBIO.DBF | Registros: 3850
+Ruta: M:\MXCAMBIO.DBF
+Campos: fecha(D), hora(C), factor(N)
+Muestra de datos:
+  Fila 1: {"fecha":"19960422","hora":"00:00","factor":"495.00"}
+  Fila 2: {"fecha":"19960101","hora":"00:00","factor":"290.00"}
+  Fila 3: {"fecha":"19940801","hora":"00:00","factor":"170.00"}
+---------------------------------------------------
+Archivo: j3333395.DBF | Registros: 908
+Ruta: C:\RESPAMIX\COMP01-10012023\j3333395.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"11578.950","existe_act":"47.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"6355.908","existe_act":"293.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"10188.620","existe_act":"234.000"}
+---------------------------------------------------
+Archivo: j5375275.DBF | Registros: 906
+Ruta: C:\RESPAMIX\COMP01-10012023\j5375275.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_b(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_b":"1.680","existe_act":"34.000"}
+  Fila 2: {"codart":"OS-ARAKC","nomart":"ARCHIVADOR L.ANCHO AKTA CARTA","grupo":"09","precio_b":"1.680","existe_act":"1.000"}
+  Fila 3: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_b":"3.720","existe_act":"220.000"}
+---------------------------------------------------
+Archivo: j4707089.DBF | Registros: 894
+Ruta: C:\RESPAMIX\COMP01-10012023\j4707089.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"283.000","existe_act":"83.000"}
+  Fila 2: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_c":"498.036","existe_act":"0.000"}
+  Fila 3: {"codart":"OS-ARAKC","nomart":"ARCHIVADOR L.ANCHO AKTA CARTA","grupo":"09","precio_c":"382.421","existe_act":"0.000"}
+---------------------------------------------------
+Archivo: j5702791.DBF | Registros: 860
+Ruta: C:\RESPAMIX\COMP01-10012023\j5702791.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_a(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"IX-ALMA","nomart":"ALFILER PARA MAPA TIPO BARRIL","grupo":"06","precio_a":"10.000","existe_act":"278.000"}
+  Fila 2: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"06","precio_a":"14.600","existe_act":"2280.000"}
+  Fila 3: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_a":"37.250","existe_act":"43.000"}
+---------------------------------------------------
+Archivo: j4135048.DBF | Registros: 837
+Ruta: C:\RESPAMIX\COMP01-10012023\j4135048.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"7413.540","existe_act":"47.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"4889.160","existe_act":"297.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"7837.400","existe_act":"271.000"}
+---------------------------------------------------
+Archivo: j4299665.DBF | Registros: 829
+Ruta: C:\RESPAMIX\COMP01-10012023\j4299665.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"7413.540","existe_act":"50.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"4889.160","existe_act":"297.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"7837.400","existe_act":"273.000"}
+---------------------------------------------------
+Archivo: j3318191.DBF | Registros: 819
+Ruta: C:\RESPAMIX\COMP01-10012023\j3318191.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_a(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_a":"1.920","existe_act":"1.000"}
+  Fila 2: {"codart":"OS-ARAKC","nomart":"ARCHIVADOR L.ANCHO AKTA CARTA","grupo":"09","precio_a":"1.920","existe_act":"-30.000"}
+  Fila 3: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_a":"3.910","existe_act":"224.000"}
+---------------------------------------------------
+Archivo: j3742554.DBF | Registros: 818
+Ruta: C:\RESPAMIX\COMP01-10012023\j3742554.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"4383.460","existe_act":"50.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"4889.160","existe_act":"297.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"7837.400","existe_act":"276.000"}
+---------------------------------------------------
+Archivo: p5356988.DBF | Registros: 547
+Ruta: C:\RESPAMIX\COMP01-10012023\p5356988.DBF
+Campos: item(C), articulo(C), grupo(C), precio_c(N), existencia(N), pedido(C)
+Muestra de datos:
+  Fila 1: {"item":"","articulo":"","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 2: {"item":"","articulo":"JJ PAPER, C.A.","grupo":"","precio_c":"","existencia":"","pedido":""}
+  Fila 3: {"item":"","articulo":"R.I.F.:","grupo":"","precio_c":"","existencia":"","pedido":""}
+---------------------------------------------------
+Archivo: j3617976.DBF | Registros: 749
+Ruta: C:\RESPAMIX\COMP01-10012023\j3617976.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"1072714.280","existe_act":"239.000"}
+  Fila 2: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"1749154.880","existe_act":"162.000"}
+  Fila 3: {"codart":"MY-AROAZ","nomart":"ARCHIVADOR SINFONIA OFICIO ALFA-NUM","grupo":"06","precio_c":"2100715.790","existe_act":"264.000"}
+---------------------------------------------------
+Archivo: j4891561.DBF | Registros: 742
+Ruta: C:\RESPAMIX\COMP01-10012023\j4891561.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"23009.689","existe_act":"0.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"29548.853","existe_act":"248.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"62648.699","existe_act":"180.000"}
+---------------------------------------------------
+Archivo: j5038465.DBF | Registros: 731
+Ruta: C:\RESPAMIX\COMP01-10012023\j5038465.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"568.000","existe_act":"66.000"}
+  Fila 2: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_c":"2041.300","existe_act":"10.000"}
+  Fila 3: {"codart":"OS-ARAKC","nomart":"ARCHIVADOR L.ANCHO AKTA CARTA","grupo":"09","precio_c":"2005.150","existe_act":"7.000"}
+---------------------------------------------------
+Archivo: j3590423.DBF | Registros: 727
+Ruta: C:\RESPAMIX\COMP01-10012023\j3590423.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"13894.740","existe_act":"33.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"14779.524","existe_act":"268.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"25274.640","existe_act":"200.000"}
+---------------------------------------------------
+Archivo: j3075363.DBF | Registros: 714
+Ruta: C:\RESPAMIX\COMP01-10012023\j3075363.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"3624.060","existe_act":"75.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"3102.000","existe_act":"309.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"4669.000","existe_act":"587.000"}
+---------------------------------------------------
+Archivo: j5358965.DBF | Registros: 696
+Ruta: C:\RESPAMIX\COMP01-10012023\j5358965.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_c":"19488.730","existe_act":"3.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"23743.000","existe_act":"228.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"56152.000","existe_act":"140.000"}
+---------------------------------------------------
+Archivo: j3015205.DBF | Registros: 693
+Ruta: C:\RESPAMIX\COMP01-10012023\j3015205.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"479.000","existe_act":"0.000"}
+  Fila 2: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_c":"2150.000","existe_act":"46.000"}
+  Fila 3: {"codart":"OS-ARAKC","nomart":"ARCHIVADOR L.ANCHO AKTA CARTA","grupo":"09","precio_c":"2150.000","existe_act":"0.000"}
+---------------------------------------------------
+Archivo: j5308123.DBF | Registros: 692
+Ruta: C:\RESPAMIX\COMP01-10012023\j5308123.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_c":"19488.730","existe_act":"3.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"26202.240","existe_act":"228.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"61941.600","existe_act":"136.000"}
+---------------------------------------------------
+Archivo: j3015933.DBF | Registros: 629
+Ruta: C:\RESPAMIX\COMP01-10012023\j3015933.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"OS-ARAKO","nomart":"ARCHIVADOR L.ANCHO AKTA OFICIO","grupo":"09","precio_c":"11278.200","existe_act":"4.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"17971.000","existe_act":"228.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"43780.000","existe_act":"139.000"}
+---------------------------------------------------
+Archivo: MXEXTINV.DBF | Registros: 1828
+Ruta: C:\RESPAMIX\MIX11 (servidor)\Comp01b\EJ004\MXEXTINV.DBF
+Campos: codmovart(C), almacen(C), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codmovart":"2530-SIL100","almacen":"01","existe_act":"967.000"}
+  Fila 2: {"codmovart":"2530-SIL30","almacen":"01","existe_act":"7.000"}
+  Fila 3: {"codmovart":"3M-PP2500","almacen":"01","existe_act":"1.000"}
+---------------------------------------------------
+Archivo: j5090267.DBF | Registros: 604
+Ruta: C:\RESPAMIX\COMP01-10012023\j5090267.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"502.000","existe_act":"36.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"660.000","existe_act":"346.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"995.000","existe_act":"817.000"}
+---------------------------------------------------
+Archivo: MXRETYP.DBF | Registros: 251
+Ruta: C:\RESPAMIX\COMP01-10012023\MXRETYP.DBF
+Campos: provee(C), numcom(C), ncontrol(C), emision(D), fec_reg(D), numcxp(C), tiptrans(C), tot_cpa(N), base_imp(N), tot_exen(N), por_iva(N), imp_iva(N), por_ret(N), mon_ret(N), codcon(C), feccan(D), compro(C), cambio(N), moneda(C), plan_imp(C), expe_imp(C), fecha_imp(D), fecha_nac(D), origen(C), tipdoc(C)
+Muestra de datos:
+  Fila 1: {"provee":"VENESP","numcom":"0269","ncontrol":"0000269","emision":"20100701","fec_reg":"20100701","numcxp":"","tiptrans":"1","tot_cpa":"3259.20","base_imp":"2910.00","tot_exen":"0.00","por_iva":"12.00","imp_iva":"349.200","por_ret":"75.00","mon_ret":"261.900","codcon":"","feccan":"20100701","compro":"00000001","cambio":"2150.0000","moneda":"US$","plan_imp":"","expe_imp":"","fecha_imp":"","fecha_nac":"","origen":"PAG","tipdoc":"FC"}
+  Fila 2: {"provee":"DISPA","numcom":"0013197","ncontrol":"018585","emision":"20100701","fec_reg":"20100701","numcxp":"","tiptrans":"1","tot_cpa":"4883.76","base_imp":"4360.50","tot_exen":"0.00","por_iva":"12.00","imp_iva":"523.260","por_ret":"75.00","mon_ret":"392.445","codcon":"","feccan":"20100701","compro":"00000002","cambio":"2150.0000","moneda":"US$","plan_imp":"","expe_imp":"","fecha_imp":"","fecha_nac":"","origen":"PAG","tipdoc":"FC"}
+  Fila 3: {"provee":"INCO3000","numcom":"3961","ncontrol":"004111","emision":"20100701","fec_reg":"20100701","numcxp":"","tiptrans":"1","tot_cpa":"1536.91","base_imp":"1372.24","tot_exen":"0.00","por_iva":"12.00","imp_iva":"164.669","por_ret":"75.00","mon_ret":"123.502","codcon":"","feccan":"20100701","compro":"00000003","cambio":"2150.0000","moneda":"US$","plan_imp":"","expe_imp":"","fecha_imp":"","fecha_nac":"","origen":"PAG","tipdoc":"FC"}
+---------------------------------------------------
+Archivo: j3872244.DBF | Registros: 589
+Ruta: C:\RESPAMIX\COMP01-10012023\j3872244.DBF
+Campos: codart(C), nomart(C), grupo(C), precio_c(N), existe_act(N)
+Muestra de datos:
+  Fila 1: {"codart":"LA-B3","nomart":"BLOCK ANALISIS 03 COL.ALPHA","grupo":"06","precio_c":"502.000","existe_act":"92.000"}
+  Fila 2: {"codart":"MY-ARGAZ","nomart":"ARCHIVADOR SINFONIA GIRO ALFA-NUME","grupo":"06","precio_c":"660.000","existe_act":"352.000"}
+  Fila 3: {"codart":"MY-ARCAZ","nomart":"ARCHIVADOR SINFONIA CARTA ALFA-NUME","grupo":"09","precio_c":"995.000","existe_act":"828.000"}
+---------------------------------------------------

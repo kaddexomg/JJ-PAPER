@@ -1,6 +1,6 @@
 /*
   ============================================================
-  JJ Paper — Extractor TOTAL MixNet v3.1 (Con Soporte MEMO)
+  JJ Paper — Extractor TOTAL MixNet v3.2 (Con Soporte MEMO)
   ============================================================
   Extrae TODA la informacion util de MixNet, incluyendo
   correos electronicos ocultos en archivos .DBT / .FPT.
@@ -133,7 +133,7 @@ function readMemo(struct, blockStr) {
   try {
     var startPos = blockNum * struct.memoBlockSize;
     if (struct.memoExt === 'DBT') {
-      var buf = Buffer.alloc(4096); // Asumimos que un correo no pasa de 4KB
+      var buf = Buffer.alloc(4096);
       var bytesRead = fs.readSync(struct.memoFd, buf, 0, 4096, startPos);
       var text = '';
       for (var i = 0; i < bytesRead; i++) {
@@ -169,7 +169,7 @@ function closeMemo(struct) {
 function readDbfData(struct, maxRows) {
   if (!struct) return [];
   maxRows = maxRows || 500000;
-  openMemo(struct); // Abrimos soporte para leer correos
+  openMemo(struct);
 
   try {
     var buf = fs.readFileSync(struct.path);
@@ -187,7 +187,6 @@ function readDbfData(struct, maxRows) {
           var val = decodeStr(rec, fpos, f.len);
           
           if (f.type === 'M') {
-            // Es un campo MEMO! Leer del archivo externo
             obj[f.name] = readMemo(struct, val);
           } else if (f.type === 'N' || f.type === 'F') {
             var num = parseFloat(val);
@@ -211,12 +210,14 @@ function readDbfData(struct, maxRows) {
 
 /* ═══════════════ MATCHING DE CAMPOS ═══════════════ */
 function findField(fieldNames, candidates) {
+  // Primero buscar coincidencia exacta o prefijo
   for (var ci = 0; ci < candidates.length; ci++) {
     var c = candidates[ci].toLowerCase();
     for (var fi = 0; fi < fieldNames.length; fi++) {
       if (fieldNames[fi] === c || fieldNames[fi].indexOf(c) === 0) return fieldNames[fi];
     }
   }
+  // Luego buscar subcadena (solo si candidato >= 3 chars)
   for (var ci = 0; ci < candidates.length; ci++) {
     var c = candidates[ci].toLowerCase();
     if (c.length < 3) continue;
@@ -260,19 +261,24 @@ function scoreProducto(struct) {
   var s = 0;
   var fnStr = struct.fileName;
   
-  // Nombres de archivos conocidos para inventario
+  // *** PRIORIDAD ABSOLUTA: tablas conocidas de inventario de JJ Paper ***
+  // La auditoria confirmo que VICTAINV, MXCTAINV, JJCTAINV y CTAINV
+  // son las tablas maestras de productos con codart, nomart, precio_a, etc.
+  if (/VICTAINV|MXCTAINV|JJCTAINV|CTAINV/i.test(fnStr)) s += 1000;
+  
+  // Nombres genericos de archivos de productos
   if (/ARTIC|PROALM|PRODUC|ITEM/i.test(fnStr)) s += 10;
   if (/LISPRE/i.test(fnStr)) s += 5;
-  if (/VICTAINV|MXCTAINV|CTAINV/i.test(fnStr)) s += 1000; /* SUPER BONUS FOR ACTUAL TABLES */
   
-  if (hasField(fn, ['codarti', 'codart', 'codigo', 'codinv', 'cod_art', 'art'])) s += 3;
-  if (hasField(fn, ['descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des'])) s += 3;
-  if (hasField(fn, ['precio1', 'precio', 'pvp', 'pventa', 'p1', 'prec', 'p_vta'])) s += 3;
-  if (hasField(fn, ['exist', 'stock', 'saldoinv', 'cant', 'cantidad'])) s += 2;
-  if (hasField(fn, ['costo', 'cost', 'ultcos', 'cost_u'])) s += 2;
+  // Campos tipicos de inventario (incluye los nombres REALES de MixNet)
+  if (hasField(fn, ['codart', 'codarti', 'codigo', 'codinv', 'cod_art', 'art'])) s += 3;
+  if (hasField(fn, ['nomart', 'descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des'])) s += 3;
+  if (hasField(fn, ['precio_a', 'precio1', 'p1', 'precio', 'pvp', 'pventa', 'prec', 'p_vta'])) s += 3;
+  if (hasField(fn, ['existe_act', 'exist', 'stock', 'saldoinv', 'cant', 'cantidad'])) s += 2;
+  if (hasField(fn, ['costo_act', 'costo', 'cost', 'ultcos', 'cost_u', 'ult_costo'])) s += 2;
   if (hasField(fn, ['familia', 'fam', 'grupo', 'cat'])) s += 2;
   
-  // Penalizar fuertemente las tablas de facturas o lineas temporales (REN, NUM, ENC, TRA)
+  // Penalizar fuertemente tablas de facturas o temporales
   if (/REN|ENC|NUM|TRA|HIS|BUF/i.test(fnStr)) s -= 15;
   if (hasField(fn, ['fecha', 'fec']) && hasField(fn, ['nrofac', 'numfac', 'factura', 'docto'])) s -= 5;
   
@@ -284,9 +290,11 @@ function listDbf(dir) {
   try { return fs.readdirSync(dir).filter(function (f) { return /\.dbf$/i.test(f); }); } catch (_) { return []; }
 }
 
+// Escanea recursivamente buscando carpetas con archivos MixNet DBF
 function scanForMixnet(baseDir, maxDepth, results) {
   if (maxDepth < 0) return;
-  try { var entries = fs.readdirSync(baseDir, { withFileTypes: true }); } catch (_) { return; }
+  var entries;
+  try { entries = fs.readdirSync(baseDir, { withFileTypes: true }); } catch (_) { return; }
   var dbfs = [];
   for (var i = 0; i < entries.length; i++) {
     var e = entries[i];
@@ -294,29 +302,46 @@ function scanForMixnet(baseDir, maxDepth, results) {
     var nameLow = name.toLowerCase();
     if (e.isFile() && /\.dbf$/i.test(name)) dbfs.push(name);
     if (e.isDirectory()) {
-      if (/^(windows|program|appdata|perflogs|\$|users|node_modules|\.)/i.test(nameLow)) continue;
-      if (/^comp\d/i.test(nameLow)) {
-        var compDir = path.join(baseDir, name);
-        var compDbfs = listDbf(compDir);
-        if (compDbfs.length > 5) results.push({ path: compDir, dbfCount: compDbfs.length, newestMs: fs.statSync(compDir).mtimeMs });
-      }
-      if (/mixnet|mixer|respami|mix\d|sistema|datos|factur/i.test(nameLow) || maxDepth > 1) {
+      // Saltar carpetas del sistema que nunca tendran MixNet
+      if (/^(windows|program|appdata|perflogs|\$|node_modules|\.git)/i.test(nameLow)) continue;
+      // Si el nombre parece de MixNet (comp01, respamix, mix11, etc.), entrar SIEMPRE
+      if (/comp\d|respami|mixnet|mixer|mix\d|sistema|datos|factur|ej\d/i.test(nameLow)) {
+        scanForMixnet(path.join(baseDir, name), maxDepth, results); // no reducir profundidad
+      } else if (maxDepth > 0) {
+        // Carpetas normales: entrar pero con profundidad reducida
         scanForMixnet(path.join(baseDir, name), maxDepth - 1, results);
       }
     }
   }
-  if (dbfs.filter(function (f) { return /^MX/i.test(f); }).length > 5) {
-    results.push({ path: baseDir, dbfCount: dbfs.length, newestMs: fs.statSync(baseDir).mtimeMs });
+  // Si esta carpeta tiene 5+ archivos DBF que empiezan con MX, VI, JJ, o CT, es candidata
+  var mxCount = 0;
+  for (var j = 0; j < dbfs.length; j++) {
+    if (/^(MX|VI|JJ|CT)/i.test(dbfs[j])) mxCount++;
+  }
+  if (dbfs.length > 5 && mxCount > 0) {
+    try {
+      results.push({ path: baseDir, dbfCount: dbfs.length, newestMs: fs.statSync(baseDir).mtimeMs });
+    } catch (_) {}
   }
 }
 
 function findBestMixnetDir() {
   log('[FASE 1] Buscando bases de datos MixNet...');
   var results = [];
+  
+  // Rutas conocidas de JJ Paper (confirmadas por la auditoria)
   var knownPaths = [
-    'M:\\comp01', 'M:\\COMP02', 'M:\\COMP03', 'M:\\COMP01d',
-    'C:\\RESPAMIX\\MIX11 (servidor)\\comp01', 'C:\\RESPAMIX\\COMP01-10012023',
-    'P:\\Elias\\MIX\\MIX11\\comp01', 'C:\\MIXNET\\comp01', 'D:\\MIXNET\\comp01'
+    'M:\\comp01',
+    'M:\\COMP02',
+    'M:\\COMP03',
+    'M:\\COMP01d',
+    'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
+    'C:\\RESPAMIX\\MIX11 (servidor)\\Comp01b\\EJ004',
+    'C:\\RESPAMIX\\COMP01-10012023',
+    'C:\\RESPAMIX\\comp0125042022',
+    'P:\\Elias\\MIX\\MIX11\\comp01',
+    'C:\\MIXNET\\comp01',
+    'D:\\MIXNET\\comp01'
   ];
 
   for (var i = 0; i < knownPaths.length; i++) {
@@ -324,29 +349,37 @@ function findBestMixnetDir() {
     var dbfs = listDbf(p);
     if (dbfs.length > 5) {
       logOK(p + ' — ' + dbfs.length + ' archivos DBF');
-      results.push({ path: p, dbfCount: dbfs.length, newestMs: fs.statSync(p).mtimeMs });
+      try {
+        results.push({ path: p, dbfCount: dbfs.length, newestMs: fs.statSync(p).mtimeMs });
+      } catch (_) {}
     }
   }
 
+  // Si no encontro nada en rutas conocidas, escanear unidades
   if (results.length === 0) {
     log('  No se encontraron rutas conocidas. Escaneando unidades...');
     var drives = ['M:', 'P:', 'Z:', 'C:', 'D:', 'E:', 'F:'];
     for (var i = 0; i < drives.length; i++) {
       var root = drives[i] + '\\';
-      if (fs.existsSync(root)) { log('  Escaneando ' + drives[i] + '...'); scanForMixnet(root, 3, results); }
+      if (fs.existsSync(root)) {
+        log('  Escaneando ' + drives[i] + '...');
+        scanForMixnet(root, 4, results); // 4 niveles de profundidad
+      }
     }
   }
 
   if (results.length === 0) return null;
+  
+  // Ordenar por fecha de modificacion mas reciente
   results.sort(function (a, b) { return b.newestMs - a.newestMs; });
-  log('  -> SELECCIONADO: ' + results[0].path);
+  log('  -> SELECCIONADO: ' + results[0].path + ' (' + results[0].dbfCount + ' DBFs)');
   return results[0].path;
 }
 
 /* ═══════════════ CSV HELPERS ═══════════════ */
 function escCSV(v) {
   if (v === null || v === undefined) v = '';
-  v = String(v).trim().replace(/\r\n/g, ' ').replace(/\n/g, ' '); // quitar saltos de linea en correos
+  v = String(v).trim().replace(/\r\n/g, ' ').replace(/\n/g, ' ');
   if (/[",]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
   return v;
 }
@@ -354,18 +387,26 @@ function escCSV(v) {
 function writeOut(texto, nombre) {
   var rutas = [path.join(__dirname, nombre)];
   var u = process.env.USERPROFILE || '';
-  if (fs.existsSync(path.join(u, 'Desktop'))) rutas.push(path.join(u, 'Desktop', nombre));
-  if (fs.existsSync(path.join(u, 'Escritorio'))) rutas.push(path.join(u, 'Escritorio', nombre));
+  if (u) {
+    var desktop = path.join(u, 'Desktop');
+    var escritorio = path.join(u, 'Escritorio');
+    if (fs.existsSync(desktop)) rutas.push(path.join(desktop, nombre));
+    if (fs.existsSync(escritorio)) rutas.push(path.join(escritorio, nombre));
+  }
   
+  var saved = [];
   for (var i = 0; i < rutas.length; i++) {
-    try { fs.writeFileSync(rutas[i], texto, 'utf8'); } catch (_) { }
+    try { fs.writeFileSync(rutas[i], texto, 'utf8'); saved.push(rutas[i]); } catch (_) { }
+  }
+  if (saved.length > 0) {
+    log('    Guardado en: ' + saved[0]);
   }
 }
 
 /* ═══════════════ EXTRACCION PRINCIPAL ═══════════════ */
 function main() {
   say(''); log('============================================================');
-  log('  JJ PAPER — EXTRACTOR MIXNET v3.1 (SOPORTE MEMO ACTIVADO)');
+  log('  JJ PAPER — EXTRACTOR MIXNET v3.2 (SOPORTE MEMO ACTIVADO)');
   log('============================================================'); say('');
 
   var baseDir = findBestMixnetDir();
@@ -374,16 +415,37 @@ function main() {
   say(''); log('[FASE 2] Leyendo estructura de tablas...');
   var allDbfFiles = listDbf(baseDir);
   
-  // Buscar tambien en subcarpetas EJ*
+  // Buscar tambien en subcarpetas (EJ*, Comp*, etc.)
   try {
     var subdirs = fs.readdirSync(baseDir, { withFileTypes: true });
     for (var i = 0; i < subdirs.length; i++) {
-      if (subdirs[i].isDirectory() && /^EJ\d/i.test(subdirs[i].name)) {
-        var ejDbfs = listDbf(path.join(baseDir, subdirs[i].name));
-        for (var j = 0; j < ejDbfs.length; j++) allDbfFiles.push(path.join(subdirs[i].name, ejDbfs[j]));
+      if (subdirs[i].isDirectory()) {
+        var subName = subdirs[i].name;
+        if (/^(EJ\d|comp)/i.test(subName)) {
+          var subPath = path.join(baseDir, subName);
+          var ejDbfs = listDbf(subPath);
+          for (var j = 0; j < ejDbfs.length; j++) {
+            allDbfFiles.push(path.join(subName, ejDbfs[j]));
+          }
+          // Y sub-sub carpetas (ej: Comp01b/EJ004)
+          try {
+            var subsubs = fs.readdirSync(subPath, { withFileTypes: true });
+            for (var k = 0; k < subsubs.length; k++) {
+              if (subsubs[k].isDirectory()) {
+                var ss = path.join(subPath, subsubs[k].name);
+                var ssDbfs = listDbf(ss);
+                for (var m = 0; m < ssDbfs.length; m++) {
+                  allDbfFiles.push(path.join(subName, subsubs[k].name, ssDbfs[m]));
+                }
+              }
+            }
+          } catch (_) {}
+        }
       }
     }
   } catch (_) { }
+
+  log('  Total archivos DBF encontrados: ' + allDbfFiles.length);
 
   var allStructs = [];
   for (var i = 0; i < allDbfFiles.length; i++) {
@@ -392,8 +454,11 @@ function main() {
     if (struct && struct.fields.length > 0) allStructs.push(struct);
   }
 
-  var clientTable = null, productTable = null, stockTable = null;
-  var bcs = 4, bps = 2; // Threshold for products (lowered to catch main tables that lack specific column names)
+  log('  Total tablas validas: ' + allStructs.length);
+
+  // Seleccionar las mejores tablas de clientes y productos por scoring
+  var clientTable = null, productTable = null;
+  var bcs = 4, bps = 2;
 
   for (var i = 0; i < allStructs.length; i++) {
     var sc = scoreCliente(allStructs[i]);
@@ -401,21 +466,24 @@ function main() {
     
     var sp = scoreProducto(allStructs[i]);
     if (sp > bps && allStructs[i].numRecords > 5) { bps = sp; productTable = allStructs[i]; }
-    
-    if (false && /VICTAINV|FISINV|MXCTAINV|JJCTAINV/i.test(allStructs[i].fileName)) {
-      if (!stockTable || allStructs[i].numRecords > stockTable.numRecords) stockTable = allStructs[i];
-    }
   }
 
-  if (clientTable) log('  CLIENTES: ' + clientTable.fileName + ' (' + clientTable.numRecords + ' registros)');
-  if (productTable) log('  PRODUCTOS: ' + productTable.fileName + ' (' + productTable.numRecords + ' registros)');
-  if (stockTable) log('  EXISTENCIAS: ' + stockTable.fileName + ' (' + stockTable.numRecords + ' registros)');
+  if (clientTable) log('  CLIENTES: ' + clientTable.fileName + ' (' + clientTable.numRecords + ' registros, score=' + bcs + ')');
+  else logWarn('No se encontro tabla de clientes');
+  
+  if (productTable) log('  PRODUCTOS: ' + productTable.fileName + ' (' + productTable.numRecords + ' registros, score=' + bps + ')');
+  else logWarn('No se encontro tabla de productos');
+
+  if (!clientTable && !productTable) {
+    log('[ERROR] No se encontraron tablas validas. Verifica que MixNet este accesible.');
+    return;
+  }
 
   say(''); log('[FASE 3] Extrayendo datos reales (procesando .DBT/.FPT si existen)...');
   
   var d = new Date();
-  var p = function(n) { return String(n).padStart(2, '0'); };
-  var stamp = '' + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes());
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var stamp = '' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes());
   var BOM = '\uFEFF';
 
   // ═══════════ A) CLIENTES ═══════════
@@ -428,7 +496,7 @@ function main() {
     var fieldMap = {
       codigo: findField(fn, ['codcli', 'codigo', 'cod_cli', 'id']),
       nombre: findField(fn, ['nomcli', 'razonsocial', 'razon', 'nombre']),
-      rif: findField(fn, ['cifoi', 'rif', 'cedula']),
+      rif: findField(fn, ['cifoi', 'cif', 'rif', 'cedula']),
       direc1: findField(fn, ['direc1', 'dir1', 'direccion1']),
       direc2: findField(fn, ['direc2', 'dir2', 'direccion2']),
       direc3: findField(fn, ['direc3', 'dir3']),
@@ -470,57 +538,73 @@ function main() {
     
     var cFile = 'jj_clientes_' + stamp + '.csv';
     writeOut(BOM + cLines.join('\r\n'), cFile);
-    log('  -> ' + cFile + ' generados (' + cRows.length + ' clientes, ' + emailCount + ' emails leidos del Memo!)');
+    log('  -> ' + cFile + ' (' + cRows.length + ' clientes, ' + emailCount + ' emails)');
   }
 
-  // ═══════════ B) PRODUCTOS (Mejorado) ═══════════
+  // ═══════════ B) PRODUCTOS ═══════════
   if (productTable) {
     var pRows = readDbfData(productTable);
     var pFile = 'jj_productos_' + stamp + '.csv';
     var pFn = productTable.fieldNames;
+    
+    // Mapear los campos REALES de MixNet (confirmados por auditoria):
+    //   codart, nomart, precio_a, precio_b, precio_c, precio_d,
+    //   costo_act, existe_act, grupo, marca, unidad, ult_costo, ult_prove
     var pf = {
-      codigo: findField(pFn, ['codarti', 'codart', 'codigo', 'art', 'id']),
-      descrip: findField(pFn, ['descrip', 'nombre', 'detalle', 'nom', 'des']),
-      p1: findField(pFn, ['precio1', 'p1', 'precio', 'p_vta']),
-      p2: findField(pFn, ['precio2', 'p2']),
-      p3: findField(pFn, ['precio3', 'p3']),
-      costo: findField(pFn, ['costo', 'cost', 'cost_u']),
-      exist: findField(pFn, ['exist', 'stock', 'cant', 'saldo']),
-      fam: findField(pFn, ['familia', 'fam', 'grupo', 'cat']),
-      uni: findField(pFn, ['unidad', 'uni', 'medida'])
+      codigo:  findField(pFn, ['codart', 'codarti', 'codigo', 'art', 'id']),
+      descrip: findField(pFn, ['nomart', 'descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des']),
+      p1:      findField(pFn, ['precio_a', 'precio1', 'p1', 'precio', 'pvp', 'pventa', 'prec', 'p_vta']),
+      p2:      findField(pFn, ['precio_b', 'precio2', 'p2']),
+      p3:      findField(pFn, ['precio_c', 'precio3', 'p3']),
+      p4:      findField(pFn, ['precio_d', 'precio4', 'p4']),
+      costo:   findField(pFn, ['costo_act', 'costo', 'cost', 'cost_u', 'ult_costo']),
+      exist:   findField(pFn, ['existe_act', 'exist', 'stock', 'cant', 'saldo', 'cantidad']),
+      grupo:   findField(pFn, ['grupo', 'familia', 'fam', 'cat']),
+      marca:   findField(pFn, ['marca']),
+      unidad:  findField(pFn, ['unidad', 'uni', 'medida']),
+      iva:     findField(pFn, ['iva']),
+      proveedor: findField(pFn, ['ult_prove', 'prov_asig', 'proveedor']),
+      estatus: findField(pFn, ['estatus', 'status'])
     };
 
-    var sMap = {};
-    if (stockTable && stockTable !== productTable) {
-      var sRows = readDbfData(stockTable);
-      var sCod = findField(stockTable.fieldNames, ['codarti', 'codart', 'codigo', 'art']);
-      var sEx = findField(stockTable.fieldNames, ['exist', 'stock', 'cantidad', 'cant', 'saldo']);
-      if (sCod && sEx) {
-        for (var i=0; i<sRows.length; i++) {
-          var c = String(sRows[i][sCod]).trim();
-          if (c) sMap[c] = sRows[i][sEx];
-        }
-      }
+    // Mostrar que campos se mapearon para debug
+    log('    Campos mapeados:');
+    var pfKeys = ['codigo', 'descrip', 'p1', 'p2', 'p3', 'p4', 'costo', 'exist', 'grupo', 'marca', 'unidad'];
+    for (var ki = 0; ki < pfKeys.length; ki++) {
+      var k = pfKeys[ki];
+      log('      ' + k + ' -> ' + (pf[k] || '(no encontrado)'));
     }
 
-    var pLines = ['codigo,descripcion,precio1,precio2,precio3,costo,existencia,familia,unidad'];
+    var pHeader = 'codigo,descripcion,precio_a,precio_b,precio_c,precio_d,costo_actual,existencia,grupo,marca,unidad,iva,proveedor,estatus';
+    var pLines = [pHeader];
     for (var i = 0; i < pRows.length; i++) {
       var r = pRows[i];
-      var cod = String(r[pf.codigo] || '').trim();
-      var ex = r[pf.exist];
-      if ((!ex || ex==='' || ex===0) && sMap[cod] !== undefined) ex = sMap[cod];
+      var cod = pf.codigo ? String(r[pf.codigo] || '').trim() : '';
+      if (!cod) continue; // Saltar registros sin codigo
       pLines.push([
-        escCSV(cod), escCSV(r[pf.descrip]), escCSV(r[pf.p1]), escCSV(r[pf.p2]), escCSV(r[pf.p3]),
-        escCSV(r[pf.costo]), escCSV(ex), escCSV(r[pf.fam]), escCSV(r[pf.uni])
+        escCSV(cod),
+        escCSV(pf.descrip ? r[pf.descrip] : ''),
+        escCSV(pf.p1 ? r[pf.p1] : ''),
+        escCSV(pf.p2 ? r[pf.p2] : ''),
+        escCSV(pf.p3 ? r[pf.p3] : ''),
+        escCSV(pf.p4 ? r[pf.p4] : ''),
+        escCSV(pf.costo ? r[pf.costo] : ''),
+        escCSV(pf.exist ? r[pf.exist] : ''),
+        escCSV(pf.grupo ? r[pf.grupo] : ''),
+        escCSV(pf.marca ? r[pf.marca] : ''),
+        escCSV(pf.unidad ? r[pf.unidad] : ''),
+        escCSV(pf.iva ? r[pf.iva] : ''),
+        escCSV(pf.proveedor ? r[pf.proveedor] : ''),
+        escCSV(pf.estatus ? r[pf.estatus] : '')
       ].join(','));
     }
     writeOut(BOM + pLines.join('\r\n'), pFile);
-    log('  -> ' + pFile + ' (' + pRows.length + ' productos extraidos completos!)');
+    log('  -> ' + pFile + ' (' + (pLines.length - 1) + ' productos extraidos!)');
   }
 
   say(''); log('============================================================');
-  log('  ¡LISTO! La extraccion v3.1 ha finalizado correctamente.');
+  log('  LISTO! La extraccion v3.2 ha finalizado correctamente.');
   log('============================================================');
 }
 
-try { main(); } catch (e) { log('[ERROR] ' + (e.stack || e)); }
+try { main(); } catch (e) { log('[ERROR FATAL] ' + (e.stack || e)); }

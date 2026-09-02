@@ -15,8 +15,7 @@ function readDbfPreview(filePath) {
     while (buf[offset] !== 0x0D && offset < headerLen) {
       var name = '';
       for (var i = 0; i < 11; i++) {
-        if (buf[offset + i] 
-         === 0) break;
+        if (buf[offset + i] === 0) break;
         name += String.fromCharCode(buf[offset + i]);
       }
       fields.push({
@@ -32,9 +31,84 @@ function readDbfPreview(filePath) {
       if (fields[i].type === 'C' && fields[i].len > 15) hasDesc = true;
       if (fields[i].type === 'M') hasDesc = true; // Memo fields
     }
-    if (!hasDesc) return null; // must have a description field
+    // if (!hasDesc) return null; // must have a description field
     
     // read first 3 records
     var rows = [];
     var recOffset = headerLen;
-    for (varȀ���Ȁ��5�Ѡ�����̰��յI���ɑ̤�Ȭ����(����������ɕ�=��͕Ѐ��ɕ��ɑ1������՘�����Ѡ���ɕ���(������مȁɽ܀����(������مȁ�=��͕Ѐ�ɕ�=��͕Ѐ���쀼��ͭ�������ѕ������(��������Ȁ�مȁ����쁤��������̹����Ѡ쁤�����(��������مȁ��􁙥����m�t�(��������مȁم���՘�ѽM�ɥ�����͍������=��͕а��=��͕Ѐ����������ɥ����(��������ɽ�m������t��م��(���������=��͕Ѐ�􁘹����(�������(������ɽ�̹��͠�ɽܤ�(������ɕ�=��͕Ѐ��ɕ��ɑ1���(�����(����(����ɕ��ɸ��(�������������Ѡ���͕���������A�Ѡ��(��������Ѡ聙���A�Ѡ�(������ɕ��ɑ�聹յI���ɑ̰(������������聙����̹�����չ�ѥ�������ɕ��ɸ�������������������������������������������(������ͅ�����ɽ��(������(��􁍅э�������(����ɕ��ɸ��ձ��(���)�()���ͽ��������%����������Ց�ѽɥ���ɽ�չ��������х����́���5��9�и�����()مȁɕ�����������Ѡ������}}��ɹ������ɕ���ѕ}��ṕй�ͽ����)������̹�����M幌�ɕ���ѕ�������(�����ͽ��������9�����Օ��ɼ�ɕ���ѕ}��ṕй�ͽ�����(���ɽ���̹��РĤ�)�()مȁ���)M=8����͔��̹ɕ�����M幌�ɕ���ѕ�������ј�����)مȁ����̀􁨹�Ʌ���̹�����С��ɕ��م�ѕ̤�(������Ʌȁ�ɍ��ٽ́	�������ɔ���-����5��х����́ѥ����́�����х����̤)مȁ���̀􁙥��̹���ѕȡ�չ�ѥ�������ɕ��ɸ�����Ѡ�ѽU�����͔�������]�Ѡ���	��������ͥ销�������������ͥ销��������������((������Ʌȁх���́�Ʌ�ͅ��������́��٥�́��Ʉ��ȁ��́Ʌ����)���̀􁑉�̹���ѕȡ�չ�ѥ�������ɕ��ɸ���I9�9�9U5�QI�!%M�	U�=A%�	-UA�1=�5=X���ѕ�С��Ѡ���͕���������Ѡ������()مȁչ��Ք�����)���̹��������չ�ѥ�������(��مȁ������Ѡ���͕���������Ѡ��ѽU�����͔���(�������չ��Օm��t��չ��Օm��t���)���()مȁ���̀�=����й���̡չ��Ք��)���ͽ������������酹����������̹����Ѡ������ɍ��ٽ́	���ѕ������̸�����()مȁɕ�ձ�̀�mt�)��Ȁ�مȁ����쁤������̹����Ѡ쁤�����(��مȁ��􁭕��m�t�(��مȁ�ɕ٥�܀�ɕ����Aɕ٥�ܡչ��Օm�t���Ѡ��(�������ɕ٥�ܤ�ɕ�ձ�̹��͠��ɕ٥�ܤ�)�()݅ȁ��Ѐ����U%Q=I%��AI=UQ=L�5%a9P����q�q�q�q���)ɕ�ձ�̹��������չ�ѥ���Ȥ��(����Ѐ��ɍ��ټ耈���ȹ�����������I�����ɽ�耈���ȹɕ��ɑ̀���q�q���(����Ѐ��I�ф耈���ȹ��Ѡ����q�q���(����Ѐ�������耈���ȹ�����̀���q�q���(����Ѐ��5Օ��Ʉ������ѽ��q�q���(��ȹͅ�������������չ�ѥ���ɽܰ���ँ�(������Ѐ�􀈀�������������Ĥ����耈���)M=8���ɥ�����ɽܤ����q�q���(�����(����Ѐ�􀈴��������������������������������������������������q�q���)���()�̹�ɥѕ���M幌���Ց�ѽɥ���ɽ�Սѽ̹��М����Ф�)���ͽ��������������������������������������������������)���ͽ��������Ց�ѽɥ��������х���������Ѽ����)���ͽ��������M������ɼ�����ɍ��ټ聅Ց�ѽɥ���ɽ�Սѽ̹��Ј��)���ͽ��������A�ȁ��ٽȰ���ɔ��͔��ɍ��ټ�䁕�٥�����ԁ���ѕ��������)���ͽ������������������������������������������������
+    for (var r = 0; r < Math.min(3, numRecords); r++) {
+      if (recOffset + recordLen > buf.length) break;
+      var row = {};
+      var fOffset = recOffset + 1; // skip deleted flag
+      for (var i = 0; i < fields.length; i++) {
+        var f = fields[i];
+        var val = buf.toString('ascii', fOffset, fOffset + f.len).trim();
+        row[f.name] = val;
+        fOffset += f.len;
+      }
+      rows.push(row);
+      recOffset += recordLen;
+    }
+    
+    return {
+      file: path.basename(filePath),
+      path: filePath,
+      records: numRecords,
+      fields: fields.map(function(f) { return f.name + '(' + f.type + ')'; }).join(', '),
+      sample: rows
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+console.log("Iniciando auditoria profunda de catalogos en MixNet...");
+
+var reportFile = path.join(__dirname, 'reporte_mixnet.json');
+if (!fs.existsSync(reportFile)) {
+  console.log("No encuentro reporte_mixnet.json. Por favor, asegurate de correr este script en la misma carpeta.");
+  process.exit(1);
+}
+
+var j = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
+var files = j.grandes.concat(j.relevantes);
+// Filtrar archivos DBF de entre 50KB y 15MB (tamaños tipicos de catalogos)
+var dbfs = files.filter(function(f) { return f.path.toUpperCase().endsWith('.DBF') && f.size > 50000 && f.size < 15000000; });
+
+// Filtrar tablas transaccionales obvias para ir mas rapido
+dbfs = dbfs.filter(function(f) { return !/REN|ENC|NUM|TRA|HIS|BUF|COPIA|BACKUP|LOG|MOV/i.test(path.basename(f.path)); });
+
+var unique = {};
+dbfs.forEach(function(f) {
+  var bn = path.basename(f.path).toUpperCase();
+  if (!unique[bn]) unique[bn] = f;
+});
+
+var keys = Object.keys(unique);
+console.log("Analizando " + keys.length + " archivos DBF potenciales...");
+
+var results = [];
+for (var i = 0; i < keys.length; i++) {
+  var k = keys[i];
+  var preview = readDbfPreview(unique[k].path);
+  if (preview) results.push(preview);
+}
+
+var out = "=== AUDITORIA DE PRODUCTOS MIXNET ===\r\n\r\n";
+results.forEach(function(r) {
+  out += "Archivo: " + r.file + " | Registros: " + r.records + "\r\n";
+  out += "Ruta: " + r.path + "\r\n";
+  out += "Campos: " + r.fields + "\r\n";
+  out += "Muestra de datos:\r\n";
+  r.sample.forEach(function(row, idx) {
+    out += "  Fila " + (idx+1) + ": " + JSON.stringify(row) + "\r\n";
+  });
+  out += "---------------------------------------------------\r\n";
+});
+
+fs.writeFileSync('auditoria-productos.txt', out);
+console.log("=========================================");
+console.log("Auditoria completada con exito.");
+console.log("Se genero el archivo: auditoria-productos.txt");
+console.log("Por favor, abre ese archivo y enviame su contenido.");
+console.log("=========================================");

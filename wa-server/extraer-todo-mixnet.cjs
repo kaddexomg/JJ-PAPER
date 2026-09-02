@@ -401,7 +401,7 @@ function main() {
     var sp = scoreProducto(allStructs[i]);
     if (sp > bps && allStructs[i].numRecords > 5) { bps = sp; productTable = allStructs[i]; }
     
-    if (/VICTAINV|FISINV|MXCTAINV|JJCTAINV/i.test(allStructs[i].fileName)) {
+    if (false && /VICTAINV|FISINV|MXCTAINV|JJCTAINV/i.test(allStructs[i].fileName)) {
       if (!stockTable || allStructs[i].numRecords > stockTable.numRecords) stockTable = allStructs[i];
     }
   }

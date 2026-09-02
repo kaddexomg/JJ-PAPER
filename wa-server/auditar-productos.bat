@@ -1,0 +1,1 @@
+@echo off\r\necho EJECUTANDO AUDITORIA DE PRODUCTOS MIXNET...\r\nnode auditor-mixnet.cjs\r\npause

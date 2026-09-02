@@ -17,7 +17,7 @@ function readDbfPreview(filePath) {
       for (var i = 0; i < 11; i++) {
         if (buf[offset + i] 
          === 0) break;
-        name += String.fromCharCode(buf[offset + i);
+        name += String.fromCharCode(buf[offset + i]);
       }
       fields.push({
         name: name.trim().toLowerCase(),

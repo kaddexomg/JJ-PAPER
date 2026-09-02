@@ -91,8 +91,7 @@ function readDbfStructure(filePath) {
       headerLen: headerLen,
       recordLen: recordLen,
       fields: fields,
-      fieldNames: fields.map(function (f) { return f.name; }),
-      mtimeMs: fs.statSync(filePath).mtimeMs
+      fieldNames: fields.map(function (f) { return f.name; })
     };
   } catch (_) {
     return null;
@@ -283,9 +282,6 @@ function scoreProducto(struct) {
   if (/REN|ENC|NUM|TRA|HIS|BUF/i.test(fnStr)) s -= 15;
   if (hasField(fn, ['fecha', 'fec']) && hasField(fn, ['nrofac', 'numfac', 'factura', 'docto'])) s -= 5;
   
-  // Penalizar carpetas de ejercicios (EJ004, etc.) o temporales
-  if (/\\EJ\d\d|\\comp\d+[a-z]\\/i.test(struct.path)) s -= 50;
-
   return s;
 }
 
@@ -465,16 +461,11 @@ function main() {
   var bcs = 4, bps = 2;
 
   for (var i = 0; i < allStructs.length; i++) {
-    var struct = allStructs[i];
-    var sc = scoreCliente(struct);
-    if (sc > bcs || (sc === bcs && clientTable && struct.mtimeMs > clientTable.mtimeMs)) { 
-      if (struct.numRecords > 30) { bcs = sc; clientTable = struct; }
-    }
+    var sc = scoreCliente(allStructs[i]);
+    if (sc > bcs && allStructs[i].numRecords > 30) { bcs = sc; clientTable = allStructs[i]; }
     
-    var sp = scoreProducto(struct);
-    if (sp > bps || (sp === bps && productTable && struct.mtimeMs > productTable.mtimeMs)) { 
-      if (struct.numRecords > 5) { bps = sp; productTable = struct; }
-    }
+    var sp = scoreProducto(allStructs[i]);
+    if (sp > bps && allStructs[i].numRecords > 5) { bps = sp; productTable = allStructs[i]; }
   }
 
   if (clientTable) log('  CLIENTES: ' + clientTable.fileName + ' (' + clientTable.numRecords + ' registros, score=' + bcs + ')');

@@ -258,12 +258,23 @@ function scoreCliente(struct) {
 function scoreProducto(struct) {
   var fn = struct.fieldNames;
   var s = 0;
-  if (hasField(fn, ['codarti', 'codart', 'codigo', 'codinv'])) s += 3;
-  if (hasField(fn, ['descrip', 'nombre', 'detalle', 'articulo', 'descri'])) s += 3;
-  if (hasField(fn, ['precio1', 'precio', 'pvp', 'pventa', 'p1'])) s += 3;
-  if (hasField(fn, ['exist', 'stock', 'saldoinv'])) s += 2;
-  if (hasField(fn, ['costo', 'cost', 'ultcos'])) s += 2;
-  if (hasField(fn, ['fecha', 'fec']) && hasField(fn, ['nrofac', 'numfac', 'factura', 'docto'])) s -= 4;
+  var fnStr = struct.fileName;
+  
+  // Nombres de archivos conocidos para inventario
+  if (/ARTIC|PROALM|PRODUC|ITEM/i.test(fnStr)) s += 10;
+  if (/LISPRE/i.test(fnStr)) s += 5;
+  
+  if (hasField(fn, ['codarti', 'codart', 'codigo', 'codinv', 'cod_art', 'art'])) s += 3;
+  if (hasField(fn, ['descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des'])) s += 3;
+  if (hasField(fn, ['precio1', 'precio', 'pvp', 'pventa', 'p1', 'prec', 'p_vta'])) s += 3;
+  if (hasField(fn, ['exist', 'stock', 'saldoinv', 'cant', 'cantidad'])) s += 2;
+  if (hasField(fn, ['costo', 'cost', 'ultcos', 'cost_u'])) s += 2;
+  if (hasField(fn, ['familia', 'fam', 'grupo', 'cat'])) s += 2;
+  
+  // Penalizar fuertemente las tablas de facturas o lineas temporales (REN, NUM, ENC, TRA)
+  if (/REN|ENC|NUM|TRA|HIS|BUF/i.test(fnStr)) s -= 15;
+  if (hasField(fn, ['fecha', 'fec']) && hasField(fn, ['nrofac', 'numfac', 'factura', 'docto'])) s -= 5;
+  
   return s;
 }
 
@@ -381,21 +392,23 @@ function main() {
   }
 
   var clientTable = null, productTable = null, stockTable = null;
-  var bcs = 4, bps = 4;
+  var bcs = 4, bps = 2; // Threshold for products (lowered to catch main tables that lack specific column names)
 
   for (var i = 0; i < allStructs.length; i++) {
     var sc = scoreCliente(allStructs[i]);
     if (sc > bcs && allStructs[i].numRecords > 30) { bcs = sc; clientTable = allStructs[i]; }
+    
     var sp = scoreProducto(allStructs[i]);
     if (sp > bps && allStructs[i].numRecords > 5) { bps = sp; productTable = allStructs[i]; }
-    if (/VICTAINV|FISINV/i.test(allStructs[i].fileName)) {
+    
+    if (/VICTAINV|FISINV|MXCTAINV|JJCTAINV/i.test(allStructs[i].fileName)) {
       if (!stockTable || allStructs[i].numRecords > stockTable.numRecords) stockTable = allStructs[i];
     }
   }
 
   if (clientTable) log('  CLIENTES: ' + clientTable.fileName + ' (' + clientTable.numRecords + ' registros)');
-  if (productTable) log('  PRODUCTOS: ' + productTable.fileName);
-  if (stockTable) log('  EXISTENCIAS: ' + stockTable.fileName);
+  if (productTable) log('  PRODUCTOS: ' + productTable.fileName + ' (' + productTable.numRecords + ' registros)');
+  if (stockTable) log('  EXISTENCIAS: ' + stockTable.fileName + ' (' + stockTable.numRecords + ' registros)');
 
   say(''); log('[FASE 3] Extrayendo datos reales (procesando .DBT/.FPT si existen)...');
   
@@ -459,26 +472,28 @@ function main() {
     log('  -> ' + cFile + ' generados (' + cRows.length + ' clientes, ' + emailCount + ' emails leidos del Memo!)');
   }
 
-  // ═══════════ B) PRODUCTOS (Simplificado) ═══════════
+  // ═══════════ B) PRODUCTOS (Mejorado) ═══════════
   if (productTable) {
     var pRows = readDbfData(productTable);
     var pFile = 'jj_productos_' + stamp + '.csv';
     var pFn = productTable.fieldNames;
     var pf = {
-      codigo: findField(pFn, ['codarti', 'codart', 'codigo']),
-      descrip: findField(pFn, ['descrip', 'nombre', 'detalle']),
-      p1: findField(pFn, ['precio1', 'p1']),
+      codigo: findField(pFn, ['codarti', 'codart', 'codigo', 'art', 'id']),
+      descrip: findField(pFn, ['descrip', 'nombre', 'detalle', 'nom', 'des']),
+      p1: findField(pFn, ['precio1', 'p1', 'precio', 'p_vta']),
       p2: findField(pFn, ['precio2', 'p2']),
-      costo: findField(pFn, ['costo', 'cost']),
-      exist: findField(pFn, ['exist', 'stock']),
-      fam: findField(pFn, ['familia', 'fam'])
+      p3: findField(pFn, ['precio3', 'p3']),
+      costo: findField(pFn, ['costo', 'cost', 'cost_u']),
+      exist: findField(pFn, ['exist', 'stock', 'cant', 'saldo']),
+      fam: findField(pFn, ['familia', 'fam', 'grupo', 'cat']),
+      uni: findField(pFn, ['unidad', 'uni', 'medida'])
     };
 
     var sMap = {};
     if (stockTable && stockTable !== productTable) {
       var sRows = readDbfData(stockTable);
-      var sCod = findField(stockTable.fieldNames, ['codarti', 'codart', 'codigo']);
-      var sEx = findField(stockTable.fieldNames, ['exist', 'stock', 'cantidad']);
+      var sCod = findField(stockTable.fieldNames, ['codarti', 'codart', 'codigo', 'art']);
+      var sEx = findField(stockTable.fieldNames, ['exist', 'stock', 'cantidad', 'cant', 'saldo']);
       if (sCod && sEx) {
         for (var i=0; i<sRows.length; i++) {
           var c = String(sRows[i][sCod]).trim();
@@ -487,19 +502,19 @@ function main() {
       }
     }
 
-    var pLines = ['codigo,descripcion,precio1,precio2,costo,existencia,familia'];
+    var pLines = ['codigo,descripcion,precio1,precio2,precio3,costo,existencia,familia,unidad'];
     for (var i = 0; i < pRows.length; i++) {
       var r = pRows[i];
       var cod = String(r[pf.codigo] || '').trim();
       var ex = r[pf.exist];
       if ((!ex || ex==='' || ex===0) && sMap[cod] !== undefined) ex = sMap[cod];
       pLines.push([
-        escCSV(cod), escCSV(r[pf.descrip]), escCSV(r[pf.p1]), escCSV(r[pf.p2]),
-        escCSV(r[pf.costo]), escCSV(ex), escCSV(r[pf.fam])
+        escCSV(cod), escCSV(r[pf.descrip]), escCSV(r[pf.p1]), escCSV(r[pf.p2]), escCSV(r[pf.p3]),
+        escCSV(r[pf.costo]), escCSV(ex), escCSV(r[pf.fam]), escCSV(r[pf.uni])
       ].join(','));
     }
     writeOut(BOM + pLines.join('\r\n'), pFile);
-    log('  -> ' + pFile + ' (' + pRows.length + ' productos)');
+    log('  -> ' + pFile + ' (' + pRows.length + ' productos extraidos completos!)');
   }
 
   say(''); log('============================================================');

@@ -263,6 +263,7 @@ function scoreProducto(struct) {
   // Nombres de archivos conocidos para inventario
   if (/ARTIC|PROALM|PRODUC|ITEM/i.test(fnStr)) s += 10;
   if (/LISPRE/i.test(fnStr)) s += 5;
+  if (/VICTAINV|MXCTAINV|CTAINV/i.test(fnStr)) s += 1000; /* SUPER BONUS FOR ACTUAL TABLES */
   
   if (hasField(fn, ['codarti', 'codart', 'codigo', 'codinv', 'cod_art', 'art'])) s += 3;
   if (hasField(fn, ['descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des'])) s += 3;

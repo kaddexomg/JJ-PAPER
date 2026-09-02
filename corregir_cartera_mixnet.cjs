@@ -14,6 +14,9 @@
 
   SALIDA:
     CLIENTES/cartera_corregida_mixnet.csv
+    Columnas: name, phone, zone, rif, city, email, address, notes
+    · address: dirección real de MixNet (direc 1..4 concatenadas)
+    · notes:   observaciones de MixNet (si hay)
 
   Uso:
     node corregir_cartera_mixnet.cjs
@@ -53,6 +56,14 @@ const mRif=mh.findIndex(h=>/^cifoih/i.test(h));
 const mTel1=mh.findIndex(h=>/^tlf1/i.test(h));
 const mTel2=mh.findIndex(h=>/^tlf2/i.test(h));
 const mTelP=mh.findIndex(h=>/^telefono_principal/i.test(h));
+const mDirIdx=mh.map((h,i)=>(/^direc\d/i.test(h)?i:null)).filter(i=>i!==null).sort((a,b)=>a-b);
+const mObs=mh.findIndex(h=>/^observa/i.test(h));
+
+function buildAddress(r){
+  const parts=(mDirIdx.map(i=>String(r[i]||'').trim())).filter(p=>p && !/^Z\.P/i.test(p));
+  if(!parts.length)return'';
+  return parts.join(', ').replace(/\s+/g,' ');
+}
 
 const mixByNorm={};
 const mixList=[];
@@ -61,7 +72,7 @@ for(let i=1;i<mix.length;i++){
   const nm=String(r[mName]||'').trim();
   if(!nm)continue;
   const k=norm(nm);
-  const entry={r:r,name:nm,k:k,tokens:k.split(' ').filter(w=>w.length>2),tel1:r[mTel1]||'',tel2:r[mTel2]||'',telP:r[mTelP]||'',rif:r[mRif]||''};
+  const entry={r:r,name:nm,k:k,tokens:k.split(' ').filter(w=>w.length>2),tel1:r[mTel1]||'',tel2:r[mTel2]||'',telP:r[mTelP]||'',rif:r[mRif]||'',address:buildAddress(r),obs:String(r[mObs]||'').trim().replace(/\s+/g,' ')};
   mixList.push(entry);
   if(!mixByNorm[k])mixByNorm[k]=entry;
 }
@@ -102,7 +113,7 @@ function fuzzyFind(carName){
 
 const car=parseCSV(fs.readFileSync(CAR,'utf8'));
 const ch=car[0];
-const cols=['name','phone','zone','rif','city','email'];
+const cols=['name','phone','zone','rif','city','email','address','notes'];
 const cIdx={};for(let i=0;i<ch.length;i++)cIdx[ch[i].trim().toLowerCase()]=i;
 
 let corregidos=0,sinMatch=0;
@@ -119,11 +130,13 @@ for(let i=1;i<car.length;i++){
   const oldRif=String(r[cIdx.rif]||'').trim();
 
   const match=fuzzyFind(name);
-  let newPhone,newRif=oldRif;
+  let newPhone,newRif=oldRif,newAddress='',newNotes='';
   if(match){
     corregidos++;
     newRif=match.rif||oldRif;
     newPhone=bestPhone([match.tel1,match.tel2,match.telP])||extractPhoneAny(oldPhone)||oldPhone;
+    newAddress=match.address||'';
+    newNotes=match.obs||'';
   }else{
     sinMatch++;
     newPhone=extractPhoneAny(oldPhone)||oldPhone;
@@ -131,7 +144,7 @@ for(let i=1;i<car.length;i++){
   }
   let line=[];
   for(const col of cols){
-    let v=col==='name'?name:col==='phone'?newPhone:col==='zone'?zone:col==='rif'?newRif:col==='city'?'Caracas':email;
+    let v=col==='name'?name:col==='phone'?newPhone:col==='zone'?zone:col==='rif'?newRif:col==='city'?'Caracas':col==='email'?email:col==='address'?newAddress:newNotes;
     if(/[",\n\r]/.test(String(v)))v='"'+String(v).replace(/"/g,'""')+'"';
     line.push(v);
   }

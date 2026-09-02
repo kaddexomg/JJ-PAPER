@@ -523,6 +523,4 @@ function main() {
   log('============================================================');
 }
 
-try { main(); } catch (e) { log('[ERROR] ' + (e.stack || e)); }/ /  
- C o n f i r m a c i o n  
- 
+try { main(); } catch (e) { log('[ERROR] ' + (e.stack || e)); }

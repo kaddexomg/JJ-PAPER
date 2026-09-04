@@ -9,59 +9,53 @@
   :root { --doc-c:#16604A; --doc-a:#C9A24B; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#1a1a1a; background:#eef1f0; padding:15px; }
-  .sheet { max-width:900px; margin:0 auto; background:#fff; padding:24px 30px; border-radius:8px;
+  .sheet { max-width:920px; margin:0 auto; background:#fff; padding:18px 24px; border-radius:8px;
     box-shadow:0 4px 24px rgba(0,0,0,.1); }
-  .cmp-head { display:flex; justify-content:space-between; align-items:flex-start; gap:15px;
-    border-bottom:2px solid var(--doc-c); padding-bottom:12px; margin-bottom:12px; }
+  .cmp-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+    border-bottom:2px solid var(--doc-c); padding-bottom:8px; margin-bottom:8px; }
   .cmp-biz { display:flex; gap:10px; align-items:center; }
-  .cmp-biz img { width:48px; height:48px; object-fit:contain; }
-  .cmp-biz h1 { font-size:18px; color:var(--doc-c); line-height:1.1; }
-  .cmp-biz .meta { font-size:11px; color:#555; margin-top:2px; }
+  .cmp-biz img { width:42px; height:42px; object-fit:contain; }
+  .cmp-biz h1 { font-size:16px; color:var(--doc-c); line-height:1.1; }
+  .cmp-biz .meta { font-size:10px; color:#555; margin-top:1px; line-height:1.2; }
   .cmp-doc { text-align:right; }
   .cmp-doc .tag { display:inline-block; background:var(--doc-c); color:#fff; font-weight:700;
-    font-size:11px; padding:3px 8px; border-radius:4px; letter-spacing:.5px; }
-  .cmp-doc .date { font-size:11px; color:#555; margin-top:4px; }
+    font-size:11px; padding:2px 7px; border-radius:3px; letter-spacing:.4px; }
+  .cmp-doc .date { font-size:10px; color:#555; margin-top:2px; }
 
-  .cat-section { margin-top:10px; margin-bottom:4px; break-inside:auto; page-break-inside:auto; }
-  .cat-header { background:var(--doc-c); color:#fff; font-size:12px; font-weight:700; padding:4px 8px; border-radius:3px; margin-bottom:3px; display:flex; justify-content:space-between; align-items:center; break-after:avoid; page-break-after:avoid; }
+  .cat-section { margin-top:6px; margin-bottom:2px; break-inside:auto; page-break-inside:auto; }
+  .cat-header { background:var(--doc-c); color:#fff; font-size:11px; font-weight:700; padding:2.5px 6px; border-radius:2px; margin-bottom:2px; display:flex; justify-content:space-between; align-items:center; break-after:avoid; page-break-after:avoid; }
   
-  table { width:100%; border-collapse:collapse; margin-bottom:4px; break-inside:auto; page-break-inside:auto; }
-  thead th { background:#f0f4f2; color:var(--doc-c); font-size:10.5px; text-align:left; padding:3px 6px; border-bottom:1.5px solid var(--doc-c); }
+  table { width:100%; border-collapse:collapse; margin-bottom:2px; break-inside:auto; page-break-inside:auto; }
+  thead th { background:#edf3f0; color:var(--doc-c); font-size:9.5px; text-align:left; padding:2px 5px; border-bottom:1.5px solid var(--doc-c); font-weight:700; }
   thead th.r { text-align:right; } thead th.c { text-align:center; }
   tbody tr { break-inside:avoid; page-break-inside:avoid; }
-  tbody td { padding:3px 6px; border-bottom:1px solid #eef2f0; font-size:11px; line-height:1.25; }
+  tbody td { padding:1.5px 5px; border-bottom:1px solid #f0f3f1; font-size:10px; line-height:1.18; }
   tbody td.r { text-align:right; font-weight:600; } tbody td.c { text-align:center; }
-  tbody tr:nth-child(even) { background:#fbfdfc; }
+  tbody tr:nth-child(even) { background:#fafcfb; }
 
-  .cmp-foot { margin-top:16px; border-top:1px solid #e5e9e7; padding-top:10px; font-size:10.5px; color:#777; text-align:center; }
-  .toolbar { max-width:900px; margin:0 auto 12px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; align-items:center; }
+  .cmp-foot { margin-top:10px; border-top:1px solid #e5e9e7; padding-top:6px; font-size:9.5px; color:#777; text-align:center; }
+  .toolbar { max-width:920px; margin:0 auto 10px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; align-items:center; }
   /* Controles de la barra (no se imprimen) */
-  .tb-field { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--doc-c); font-weight:700; }
-  .tb-field select { border:1px solid #cdd6d2; border-radius:6px; padding:7px 9px; font-size:13px;
-    font-weight:600; color:#1a1a1a; background:#fff; min-height:36px; cursor:pointer; }
-  .tb-check { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--doc-c);
-    font-weight:600; cursor:pointer; min-height:36px; }
-  .tb-warn { max-width:900px; margin:0 auto 10px; background:#fff8e6; border:1px solid #e8c96b;
-    border-radius:8px; padding:8px 12px; font-size:12.5px; color:#6b5518; }
+  .tb-field { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--doc-c); font-weight:700; }
+  .tb-field select { border:1px solid #cdd6d2; border-radius:5px; padding:5px 8px; font-size:12px;
+    font-weight:600; color:#1a1a1a; background:#fff; min-height:32px; cursor:pointer; }
+  .tb-check { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--doc-c);
+    font-weight:600; cursor:pointer; min-height:32px; }
+  .tb-warn { max-width:920px; margin:0 auto 8px; background:#fff8e6; border:1px solid #e8c96b;
+    border-radius:6px; padding:6px 10px; font-size:11.5px; color:#6b5518; }
   .tb-warn strong { color:#8a6d16; }
   /* Existencia en modo cliente: "A pedido" en latón, nunca en rojo de alarma */
   .st-pedido { color:var(--doc-a); font-weight:700; }
   .st-ok { color:#0a7; font-weight:700; }
-  .btn { border:0; border-radius:6px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; }
+  .btn { border:0; border-radius:5px; padding:6px 13px; font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; }
   .btn-p { background:var(--doc-c); color:#fff; }
   .btn-g { background:#dfe5e2; color:var(--doc-c); }
-  .loading, .err { max-width:900px; margin:30px auto; text-align:center; color:#555; }
+  .loading, .err { max-width:920px; margin:30px auto; text-align:center; color:#555; }
   .err { color:#b00; }
 
-  /* Salto de página entre secciones cuando está activo */
-  .sheet.page-break-sections .cat-section:not(:first-of-type) {
-    break-before:page;
-    page-break-before:always;
-  }
-
   @media print {
-    /* Conserva los fondos de color y márgenes estandarizados para A4/Carta */
-    @page { margin:10mm 12mm 12mm 12mm; size:letter portrait; }
+    /* Conserva los fondos de color y márgenes compactos para A4/Carta */
+    @page { margin:7mm 9mm 7mm 9mm; size:letter portrait; }
     html, body {
       background:#fff !important;
       padding:0 !important;
@@ -80,25 +74,28 @@
     }
     .toolbar, .tb-warn { display:none !important; }
 
-    /* Evitar que se corten filas o títulos a la mitad de una hoja */
-    .cmp-head { break-inside:avoid !important; page-break-inside:avoid !important; margin-bottom:12px; }
-    .cmp-foot { break-inside:avoid !important; page-break-inside:avoid !important; }
+    /* Encabezado y pie de página limpios */
+    .cmp-head { break-inside:avoid !important; page-break-inside:avoid !important; margin-bottom:6px !important; padding-bottom:6px !important; }
+    .cmp-foot { break-inside:avoid !important; page-break-inside:avoid !important; margin-top:8px !important; padding-top:4px !important; font-size:8.5px !important; }
 
     table {
       width:100% !important;
       border-collapse:collapse !important;
       page-break-inside:auto;
+      margin-bottom:2px !important;
     }
     thead {
-      display:table-header-group !important; /* Repite encabezados en cada hoja nueva */
+      display:table-header-group !important; /* Repite encabezados en cada página */
       break-inside:avoid !important;
       page-break-inside:avoid !important;
     }
     thead tr, thead th {
       break-inside:avoid !important;
       page-break-inside:avoid !important;
-      background:#f0f4f2 !important;
+      background:#edf3f0 !important;
       -webkit-print-color-adjust:exact !important;
+      padding:1.5px 4px !important;
+      font-size:8.5px !important;
     }
     tbody {
       page-break-inside:auto;
@@ -109,20 +106,25 @@
     }
     td, th {
       word-break:break-word;
-      font-size:10px !important;
-      padding:3px 5px !important;
+    }
+    tbody td {
+      font-size:9px !important;
+      padding:1.5px 4px !important;
+      line-height:1.15 !important;
     }
     .cat-section {
       break-inside:auto;
       page-break-inside:auto;
-      margin-top:14px;
-      margin-bottom:12px;
+      margin-top:6px !important;
+      margin-bottom:2px !important;
     }
     .cat-header {
       break-after:avoid !important;
-      page-break-after:avoid !important; /* Nunca dejar el título solo al pie de la página */
+      page-break-after:avoid !important; /* Nunca dejar el título huérfano */
       break-inside:avoid !important;
       page-break-inside:avoid !important;
+      padding:2px 5px !important;
+      font-size:9.5px !important;
       -webkit-print-color-adjust:exact !important;
     }
   }
@@ -174,12 +176,12 @@
     <input type="checkbox" id="tbZero" onchange="onToggleZero(this)"> Quitar los que están en cero
   </label>
 
-  <!-- Control de formato de impresión: Separado por hojas o continuo protegido -->
+  <!-- Control de formato de impresión: Continuo compacto protegido o salto forzado -->
   <label class="tb-field">
     <span>Impresión</span>
-    <select id="tbPageBreak" onchange="onPageBreakMode(this.value)" aria-label="Separación por hojas">
-      <option value="hojas">📄 Hoja por sección (Separado)</option>
-      <option value="auto">📜 Continuo protegido (Sin cortes de fila)</option>
+    <select id="tbPageBreak" onchange="onPageBreakMode(this.value)" aria-label="Ajuste de hojas para impresión">
+      <option value="auto">📄 Óptimo / Compacto (13 a 15 páginas sin cortes)</option>
+      <option value="hojas">📑 Una hoja por sección (Modo extendido)</option>
     </select>
   </label>
 
@@ -230,7 +232,7 @@ let FILTER_HIDE_ZERO = false;
 let FILTER_SEARCH = '';
 let STOCK_MODE = 'pedido';     // oculta | pedido | numeros
 let GROUP_MODE = 'letra';      // letra | categoria | segmento | plano
-let PAGE_BREAK_MODE = 'hojas'; // hojas | auto
+let PAGE_BREAK_MODE = 'auto';  // auto (óptimo 13-15 páginas) | hojas (extendido)
 let IS_ALPHA_SORT = true;      // true: A-Z | false: por orden de catálogo
 let GENERADA_EN = null;        // fecha/hora de la última lectura de la base
 

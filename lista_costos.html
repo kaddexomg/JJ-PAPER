@@ -57,12 +57,20 @@
     /* Conserva los fondos de color: sin esto los encabezados verdes con
        texto blanco salen blanco-sobre-blanco (invisibles) al imprimir. */
     body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .sheet { box-shadow:none; border-radius:0; max-width:none; padding:10px 15px; }
+    .sheet { box-shadow:none; border-radius:0; max-width:none; padding:10px 15px; margin:0; }
     .toolbar { display:none !important; }
     /* Repite la cabecera de columnas en cada página de listas largas */
     thead { display:table-header-group; }
-    tr { page-break-inside:avoid; }
-    @page { margin:8mm 10mm; }
+    thead tr { break-inside:avoid; page-break-inside:avoid; }
+    tbody { break-inside:auto; page-break-inside:auto; }
+    tbody tr { break-inside:avoid !important; page-break-inside:avoid !important; }
+    tr { break-inside:avoid !important; page-break-inside:avoid !important; }
+    td, th { word-break:break-word; }
+    .cmp-head { break-inside:avoid; page-break-inside:avoid; }
+    .cmp-foot { break-inside:avoid; page-break-inside:avoid; }
+    .cat-header { break-after:avoid !important; page-break-after:avoid !important; break-inside:avoid; page-break-inside:avoid; }
+    .cat-section { break-inside:auto; page-break-inside:auto; margin-bottom:12px; }
+    @page { margin:10mm 12mm; size:auto; }
   }
 </style>
 </head>

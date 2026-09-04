@@ -53,24 +53,78 @@
   .loading, .err { max-width:900px; margin:30px auto; text-align:center; color:#555; }
   .err { color:#b00; }
 
+  /* Salto de página entre secciones cuando está activo */
+  .sheet.page-break-sections .cat-section:not(:first-of-type) {
+    break-before:page;
+    page-break-before:always;
+  }
+
   @media print {
-    /* Conserva los fondos de color: sin esto los encabezados verdes con
-       texto blanco salen blanco-sobre-blanco (invisibles) al imprimir. */
-    body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .sheet { box-shadow:none; border-radius:0; max-width:none; padding:10px 15px; margin:0; }
-    .toolbar { display:none !important; }
-    /* Repite la cabecera de columnas en cada página de listas largas */
-    thead { display:table-header-group; }
-    thead tr { break-inside:avoid; page-break-inside:avoid; }
-    tbody { break-inside:auto; page-break-inside:auto; }
-    tbody tr { break-inside:avoid !important; page-break-inside:avoid !important; }
-    tr { break-inside:avoid !important; page-break-inside:avoid !important; }
-    td, th { word-break:break-word; }
-    .cmp-head { break-inside:avoid; page-break-inside:avoid; }
-    .cmp-foot { break-inside:avoid; page-break-inside:avoid; }
-    .cat-header { break-after:avoid !important; page-break-after:avoid !important; break-inside:avoid; page-break-inside:avoid; }
-    .cat-section { break-inside:auto; page-break-inside:auto; margin-bottom:12px; }
-    @page { margin:10mm 12mm; size:auto; }
+    /* Conserva los fondos de color y márgenes estandarizados para A4/Carta */
+    @page { margin:10mm 12mm 12mm 12mm; size:letter portrait; }
+    html, body {
+      background:#fff !important;
+      padding:0 !important;
+      margin:0 !important;
+      width:100% !important;
+      -webkit-print-color-adjust:exact !important;
+      print-color-adjust:exact !important;
+    }
+    .sheet {
+      box-shadow:none !important;
+      border-radius:0 !important;
+      max-width:none !important;
+      width:100% !important;
+      padding:0 !important;
+      margin:0 !important;
+    }
+    .toolbar, .tb-warn { display:none !important; }
+
+    /* Evitar que se corten filas o títulos a la mitad de una hoja */
+    .cmp-head { break-inside:avoid !important; page-break-inside:avoid !important; margin-bottom:12px; }
+    .cmp-foot { break-inside:avoid !important; page-break-inside:avoid !important; }
+
+    table {
+      width:100% !important;
+      border-collapse:collapse !important;
+      page-break-inside:auto;
+    }
+    thead {
+      display:table-header-group !important; /* Repite encabezados en cada hoja nueva */
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+    }
+    thead tr, thead th {
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+      background:#f0f4f2 !important;
+      -webkit-print-color-adjust:exact !important;
+    }
+    tbody {
+      page-break-inside:auto;
+    }
+    tbody tr {
+      break-inside:avoid !important;
+      page-break-inside:avoid !important; /* Cada fila se mantiene entera, jamás se corta en dos */
+    }
+    td, th {
+      word-break:break-word;
+      font-size:10px !important;
+      padding:3px 5px !important;
+    }
+    .cat-section {
+      break-inside:auto;
+      page-break-inside:auto;
+      margin-top:14px;
+      margin-bottom:12px;
+    }
+    .cat-header {
+      break-after:avoid !important;
+      page-break-after:avoid !important; /* Nunca dejar el título solo al pie de la página */
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+      -webkit-print-color-adjust:exact !important;
+    }
   }
 </style>
 </head>
@@ -120,6 +174,15 @@
     <input type="checkbox" id="tbZero" onchange="onToggleZero(this)"> Quitar los que están en cero
   </label>
 
+  <!-- Control de formato de impresión: Separado por hojas o continuo protegido -->
+  <label class="tb-field">
+    <span>Impresión</span>
+    <select id="tbPageBreak" onchange="onPageBreakMode(this.value)" aria-label="Separación por hojas">
+      <option value="hojas">📄 Hoja por sección (Separado)</option>
+      <option value="auto">📜 Continuo protegido (Sin cortes de fila)</option>
+    </select>
+  </label>
+
   <button class="btn btn-g" onclick="refrescarLista()" id="tbRefresh"
     title="Vuelve a leer precios y existencias de la base (para la lista del día)">🔄 Actualizar</button>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir Lista</button>
@@ -167,6 +230,7 @@ let FILTER_HIDE_ZERO = false;
 let FILTER_SEARCH = '';
 let STOCK_MODE = 'pedido';     // oculta | pedido | numeros
 let GROUP_MODE = 'letra';      // letra | categoria | segmento | plano
+let PAGE_BREAK_MODE = 'hojas'; // hojas | auto
 let IS_ALPHA_SORT = true;      // true: A-Z | false: por orden de catálogo
 let GENERADA_EN = null;        // fecha/hora de la última lectura de la base
 
@@ -258,12 +322,14 @@ function aplicarPreset(preset, soloEstado) {
   const s = document.getElementById('tbStock');  if (s) s.value = STOCK_MODE;
   const g = document.getElementById('tbGroup');  if (g) g.value = GROUP_MODE;
   const z = document.getElementById('tbZero');   if (z) z.checked = false;
+  const b = document.getElementById('tbPageBreak'); if (b) b.value = PAGE_BREAK_MODE;
   sincronizarBotonSort();
   sincronizarAvisos();
   if (!soloEstado) applyFilters();
 }
 function onPreset(v) { aplicarPreset(v); }
 function onStockMode(v) { STOCK_MODE = v; sincronizarAvisos(); applyFilters(); }
+function onPageBreakMode(v) { PAGE_BREAK_MODE = v; applyFilters(); }
 
 // Aviso claro cuando la lista muestra datos que el cliente no debería ver
 function sincronizarAvisos() {
@@ -485,8 +551,10 @@ function renderList(variants) {
   const nowStr = gen.toLocaleDateString('es-VE', { year:'numeric', month:'long', day:'numeric' });
   const horaStr = gen.toLocaleTimeString('es-VE', { hour:'2-digit', minute:'2-digit' });
 
+  const sheetClass = PAGE_BREAK_MODE === 'hojas' ? 'sheet page-break-sections' : 'sheet';
+
   document.getElementById('content').innerHTML = `
-  <div class="sheet">
+  <div class="${sheetClass}">
     <div class="cmp-head">
       <div class="cmp-biz">
         <img src="${escapeHTML(logoUrl)}" alt="">

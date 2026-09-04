@@ -93,6 +93,7 @@
   <label class="tb-field">
     <span>Organizar</span>
     <select id="tbGroup" onchange="onGroupMode(this.value)" aria-label="Cómo agrupar los productos">
+      <option value="letra">🔤 Por Letra Inicial (A - Z)</option>
       <option value="categoria">📂 Por Categoría</option>
       <option value="segmento">🏷️ Por Segmento / Familia</option>
       <option value="plano">📋 Lista continua (Sin agrupar)</option>
@@ -165,7 +166,7 @@ let ALL_VARIANTS = [];
 let FILTER_HIDE_ZERO = false;
 let FILTER_SEARCH = '';
 let STOCK_MODE = 'pedido';     // oculta | pedido | numeros
-let GROUP_MODE = 'categoria';  // categoria | segmento | plano
+let GROUP_MODE = 'letra';      // letra | categoria | segmento | plano
 let IS_ALPHA_SORT = true;      // true: A-Z | false: por orden de catálogo
 let GENERADA_EN = null;        // fecha/hora de la última lectura de la base
 
@@ -322,7 +323,7 @@ function renderList(variants) {
   const fmtBs  = usd => { const v = toBs(usd);  return v == null ? '—' : 'Bs ' + v.toLocaleString('es-VE', { maximumFractionDigits: 2 }); };
   const fmtEur = usd => { const v = toEur(usd); return v == null ? '—' : '€ ' + v.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
-  // Agrupar según GROUP_MODE: 'categoria' | 'segmento' | 'plano'
+  // Agrupar según GROUP_MODE: 'letra' | 'categoria' | 'segmento' | 'plano'
   const groups = {};
   const groupMeta = {};
 
@@ -331,7 +332,15 @@ function renderList(variants) {
     let gTitle = '';
     let gSortOrder = 999;
 
-    if (GROUP_MODE === 'segmento') {
+    if (GROUP_MODE === 'letra') {
+      const pName = (v.jjp_products?.name || '').trim();
+      const firstChar = (pName.charAt(0) || '#').toUpperCase();
+      const isLetter = /^[A-ZÁÉÍÓÚÑ]$/.test(firstChar);
+      const letter = isLetter ? firstChar : '#';
+      gKey = letter;
+      gTitle = `Sección ${letter}`;
+      gSortOrder = letter.charCodeAt(0);
+    } else if (GROUP_MODE === 'segmento') {
       const segObj = v.jjp_products?.jjp_categories?.jjp_category_groups;
       const segName = segObj?.name || 'Otros Segmentos';
       const emoji = segObj?.emoji || '🏷️';

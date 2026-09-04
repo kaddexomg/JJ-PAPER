@@ -3,16 +3,22 @@
 // Uso: node migrate_schema.mjs
 import { Client } from 'pg';
 
+// IMPORTANTE: Las credenciales deben estar en variables de entorno, NUNCA en el código.
+// Uso: PG_SRC_HOST=... PG_SRC_USER=... PG_SRC_PASS=... PG_DST_HOST=... PG_DST_USER=... PG_DST_PASS=... node migrate_schema.mjs
 const SR = {
-  host: 'aws-0-us-west-2.pooler.supabase.com', port: 5432,
-  user: 'postgres.czzvsqnmxtjzqzioknnn', password: 'Samily*30909109',
+  host: process.env.PG_SRC_HOST || 'aws-0-us-west-2.pooler.supabase.com', port: 5432,
+  user: process.env.PG_SRC_USER, password: process.env.PG_SRC_PASS,
   database: 'postgres', ssl: { rejectUnauthorized: false },
 };
 const DS = {
-  host: 'aws-0-us-east-2.pooler.supabase.com', port: 5432,
-  user: 'postgres.qxgdrfkobbhdzgtoiavv', password: '30909109KJSP',
+  host: process.env.PG_DST_HOST || 'aws-0-us-east-2.pooler.supabase.com', port: 5432,
+  user: process.env.PG_DST_USER, password: process.env.PG_DST_PASS,
   database: 'postgres', ssl: { rejectUnauthorized: false },
 };
+if (!SR.user || !SR.password || !DS.user || !DS.password) {
+  console.error('Faltan variables de entorno: PG_SRC_USER, PG_SRC_PASS, PG_DST_USER, PG_DST_PASS');
+  process.exit(1);
+}
 
 const LOG = [];
 

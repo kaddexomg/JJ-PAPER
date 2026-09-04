@@ -85,7 +85,7 @@ async function main() {
     if (n.startsWith('SACAPUNTA') || n.startsWith('SACAPUNTAS')) return catMap['TAJALAPICES'];
     if (n.startsWith('TIJERA') || n.startsWith('TIJERAS') || n.startsWith('CORTA CARTON') || n.startsWith('EXACTO') || n.startsWith('GUILLOTINA') || n.startsWith('REPUESTO CUCHILLA')) return catMap['TIJERAS'];
     if (n.startsWith('TIZA') || n.startsWith('TIZAS')) return catMap['TIZAS'];
-    if (n.startsWith('BANDEJA') || n.startsWith('BANDEJAS') || n.startsWith('JUEGO ESCRITORIO') || n.startsWith('PAPELERA') || n.startsWith('PORTA TACO') || n.startsWith('PORTA CLIP') || n.startsWith('DISPENSADOR')) return catMap['BANDEJAS'] || catMap['VARIOS'];
+    if (n.startsWith('BANDEJA') || n.startsWith('BANDEJAS')) return catMap['BANDEJAS'] || catMap['VARIOS'];
 
     return catMap['VARIOS'];
   }

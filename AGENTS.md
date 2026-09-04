@@ -64,3 +64,11 @@ No se detectaron tests.
 - **Regla Crítica de SQL (Fuente de la Verdad)**: **NUNCA guiarse únicamente por `INSTALACION_DEFINITIVA_TOTAL.sql`**. El esquema real en producción incluye múltiples parches y reparaciones posteriores (hasta el 31 de agosto). El archivo `sql/SQL_Proyecto_A_Fixed.sql` contiene la consolidación correcta que incluye estas reparaciones (ej. `jjp_wa_messages`, correcciones de conteo).
 - **Prevención de Errores (42P13)**: Cuando se aplica el esquema maestro en uno de los nuevos proyectos, si la base de datos no está vacía (tiene restos de intentos previos), dará un error `42P13` (existing function) que abortará el script y provocará errores en cadena (`42P01` relation does not exist).
 - **Solución Obligatoria**: Antes de aplicar cualquier esquema, se debe ejecutar `sql/LIMPIAR_NUEVO_SUPABASE.sql` en el SQL Editor del proyecto destino para vaciar el esquema `public` y garantizar que el script maestro corra sin interrupciones.
+
+## Catálogo de Productos y Lista de Precios (Septiembre 2026)
+- **Sincronización Catálogo (04-09-2026)**: Catálogo sincronizado en Supabase con 767 variantes y productos activos según `catalogo actualizado 03_09_2026 - Hoja 1.csv`.
+- **Clasificación Estricta**: La regla de asignación en `verificar_catalogo.mjs` no debe forzar productos con 'P' (Porta Taco, Porta Clip) o 'D' (Dispensadores) dentro de `BANDEJAS`.
+- **Lista de Costos / Precios (`lista_costos.html`)**:
+  - Organizada por defecto en modo **🔤 Por Letra Inicial (A - Z)** (`GROUP_MODE = 'letra'`) para orden correlativo estricto.
+  - Impresión optimizada a **13 - 15 páginas** exactas con diseño de alta densidad, cabeceras repetidas (`thead { display: table-header-group }`) y filas protegidas contra cortes (`break-inside: avoid !important`).
+  - Habilitado para vendedores (`requireAuth('vendedor')`). Documento de costos interno requiere admin (`?mode=cost`).

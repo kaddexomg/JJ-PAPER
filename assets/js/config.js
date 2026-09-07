@@ -5,8 +5,64 @@
 const SUPABASE_URL = 'https://qxgdrfkobbhdzgtoiavv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4Z2RyZmtvYmJoZHpndG9pYXZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MzcxOTIsImV4cCI6MjEwMzUxMzE5Mn0.TWZz5LhFUq-89SLS-qpGMdWecHX31oFAG4tG6EQvt0c';
 
-// Supabase client (loaded via CDN in each HTML)
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Proyecto B — Comunicación (WhatsApp, Email, Difusión)
+const SUPABASE_URL_COMM = 'https://klcibjwleiqppedefpxw.supabase.co';
+const SUPABASE_KEY_COMM = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsY2liandsZWlxcHBlZGVmcHh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NTE3OTYsImV4cCI6MjEwMzMyNzc5Nn0.eE2UYJSX9yKK-1u2sv2aF-G1Rp7yho1Myz1-kSttz6g';
+
+// Proyecto C — Storage e Inventario
+const SUPABASE_URL_INV = 'https://nmcamjxhyysmmvgxgabo.supabase.co';
+const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2FtanhoeXlzbW12Z3hnYWJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNjE0NjQsImV4cCI6MjA5NzYzNzQ2NH0.06UCJ-udrEjOpM6m66ooX14OZAgbd7wp7yw51NwsJD0';
+
+// Supabase base clients
+const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _rawSbComm = supabase.createClient(SUPABASE_URL_COMM, SUPABASE_KEY_COMM);
+const _rawSbInv  = supabase.createClient(SUPABASE_URL_INV,  SUPABASE_KEY_INV);
+
+// Tablas dedicadas a Proyecto B (Comunicación)
+const COMM_TABLES = new Set([
+  'jjp_wa_sessions', 'jjp_wa_chats', 'jjp_wa_messages', 'jjp_wa_actions',
+  'jjp_wa_templates', 'jjp_wa_campaigns', 'jjp_wa_campaign_targets',
+  'jjp_email_accounts', 'jjp_email_company', 'jjp_emails',
+  'jjp_email_campaigns', 'jjp_email_campaign_targets', 'jjp_server_control'
+]);
+
+const COMM_RPCS = new Set([
+  'jjp_wa_ensure_chat', 'jjp_wa_delete_chat', 'jjp_wa_purge_chats'
+]);
+
+// Proxy transparente en `sb`: Enruta automáticamente a Proyecto B o C según la tabla/RPC
+// sin romper absolutamente ningún código existente en los JS del frontend.
+const sb = new Proxy(_rawSbCore, {
+  get(target, prop, receiver) {
+    if (prop === 'from') {
+      return function (tableName) {
+        if (COMM_TABLES.has(tableName)) return _rawSbComm.from(tableName);
+        return _rawSbCore.from(tableName);
+      };
+    }
+    if (prop === 'rpc') {
+      return function (fnName, params, options) {
+        if (COMM_RPCS.has(fnName)) return _rawSbComm.rpc(fnName, params, options);
+        return _rawSbCore.rpc(fnName, params, options);
+      };
+    }
+    if (prop === 'channel') {
+      return function (name, opts) {
+        // Canales que escuchan eventos de WhatsApp o servidor local van a Comm
+        if (name && (name.startsWith('wa-') || name.startsWith('difusion-') || name.includes('email'))) {
+          return _rawSbComm.channel(name, opts);
+        }
+        return _rawSbCore.channel(name, opts);
+      };
+    }
+    const val = Reflect.get(target, prop, receiver);
+    return typeof val === 'function' ? val.bind(target) : val;
+  }
+});
+
+const sbCore = _rawSbCore;
+const sbComm = _rawSbComm;
+const sbInv  = _rawSbInv;
 
 // --- Cazador de retorno de OAuth (login con Google) ---------------------------
 // Si Supabase, por su "Site URL", devuelve el token a una página pública en vez
@@ -31,6 +87,7 @@ const APP = {
   WA_MSG:        'Hola JJ Paper, quisiera informacion sobre sus productos.',
   SITE_NAME:     'JJ Paper',
   STORAGE_URL:   `${SUPABASE_URL}/storage/v1/object/public/jjp-products/`,
+  STORAGE_URL_INV: `${SUPABASE_URL_INV}/storage/v1/object/public/jjp-products/`,
   RECEIPTS_BUCKET: 'jjp-receipts',
   PER_PAGE:      12,
   CART_KEY:      'jjp_cart_v2',

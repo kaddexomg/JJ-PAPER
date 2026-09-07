@@ -1,4 +1,4 @@
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 
 // Refresca las tasas cada hora. Corre en esta PC (Node), sin pg_net ni extensiones.
@@ -61,7 +61,7 @@ async function fetchAll() {
 }
 
 async function setSetting(key, value) {
-  const { error } = await db.from('jjp_settings')
+  const { error } = await dbCore.from('jjp_settings')
     .upsert({ key, value: String(value), updated_at: new Date().toISOString() }, { onConflict: 'key' });
   if (error) log.error({ key, error: error.message }, 'setSetting falló');
 }
@@ -91,8 +91,8 @@ export async function updateRates() {
   await setSetting('rates_updated_iso', nowIso);
   await setSetting('rates_updated_at',  nowIso);
 
-  // Historial para ver la tendencia diaria (tabla jjp_fx_rates)
-  const { error: hErr } = await db.from('jjp_fx_rates')
+  // Historial para ver la tendencia diaria (tabla jjp_fx_rates en Core)
+  const { error: hErr } = await dbCore.from('jjp_fx_rates')
     .insert({ bcv: rateBcv, binance: rateBin, monitor: rateMon, eur });
   if (hErr) log.warn({ err: hErr.message }, 'no se guardó historial de tasas');
 

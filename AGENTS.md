@@ -60,10 +60,13 @@ wa-server/
 No se detectaron tests.
 
 ## Migración a 3 Proyectos Supabase (Septiembre 2026)
-- **Estrategia**: El proyecto original (czzvsqnmxtjzqzioknnn) excedió su cuota, por lo que el sistema se está migrando a 3 proyectos paralelos: Proyecto A (Core), Proyecto B (Comunicación) y Proyecto C (Inventario). Las credenciales se encuentran en `.env.supabase-multi`.
-- **Regla Crítica de SQL (Fuente de la Verdad)**: **NUNCA guiarse únicamente por `INSTALACION_DEFINITIVA_TOTAL.sql`**. El esquema real en producción incluye múltiples parches y reparaciones posteriores (hasta el 31 de agosto). El archivo `sql/SQL_Proyecto_A_Fixed.sql` contiene la consolidación correcta que incluye estas reparaciones (ej. `jjp_wa_messages`, correcciones de conteo).
-- **Prevención de Errores (42P13)**: Cuando se aplica el esquema maestro en uno de los nuevos proyectos, si la base de datos no está vacía (tiene restos de intentos previos), dará un error `42P13` (existing function) que abortará el script y provocará errores en cadena (`42P01` relation does not exist).
-- **Solución Obligatoria**: Antes de aplicar cualquier esquema, se debe ejecutar `sql/LIMPIAR_NUEVO_SUPABASE.sql` en el SQL Editor del proyecto destino para vaciar el esquema `public` y garantizar que el script maestro corra sin interrupciones.
+- **Estrategia**: El proyecto original (czzvsqnmxtjzqzioknnn) excedió su cuota. Se migró exitosamente el Core a Proyecto A (`qxgdrfkobbhdzgtoiavv`). Las credenciales multi-proyecto residen en `.env.supabase-multi`.
+- **Estado Actual (07-09-2026)**:
+  - **Proyecto A (Core)**: 100% ACTIVO en producción (`assets/js/config.js`, `_headers`, `wa-server/.env`).
+  - **Esquema Maestro Consolidado**: `sql/SQL_Proyecto_A_Fixed.sql` (incluye correcciones de storage, grants a public/anon, constraints de templates y funciones actualizadas).
+  - **Datos Restaurados**: 1,808 clientes, 1,012 productos y variantes, 601 conteos de inventario, tasas de cambio y perfiles de staff.
+  - **Admin Activo**: Usuario Google `picoj386@gmail.com` activado con UID `bddc57dc-5bf9-4a72-9e1c-751d07b03164` (`role: 'admin'`, `ref_code: 'jose'`).
+  - **Prevención 42P13 / Limpieza**: Si se reinstala en un proyecto nuevo, ejecutar `sql/LIMPIAR_NUEVO_SUPABASE.sql` antes de aplicar el DDL maestro.
 
 ## Catálogo de Productos y Lista de Precios (Septiembre 2026)
 - **Sincronización Catálogo (04-09-2026)**: Catálogo sincronizado en Supabase con 767 variantes y productos activos según `catalogo actualizado 03_09_2026 - Hoja 1.csv`.

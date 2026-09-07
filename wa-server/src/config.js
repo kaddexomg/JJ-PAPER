@@ -8,8 +8,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config(); // fallback estándar
 
-export const SUPABASE_URL = process.env.SUPABASE_URL;
-export const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const SUPABASE_URL = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
+export const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+export const SUPABASE_URL_CORE = process.env.SUPABASE_URL_CORE || process.env.SUPABASE_URL;
+export const SERVICE_KEY_CORE  = process.env.SUPABASE_SERVICE_ROLE_KEY_CORE || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
+export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 export const SESSIONS_DIR = path.join(__dirname, '..', 'sessions');
 export const MEDIA_BUCKET = 'jjp-wa-media';
 

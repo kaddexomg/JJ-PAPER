@@ -103,3 +103,23 @@ No se detectaron tests.
   - `mediaCache` (TTL 12h) en `outbox.js` (WhatsApp) y `attachCache` en `email.js` (Correo) evitan descargas redundantes hacia Supabase Storage durante envíos masivos.
   - Soporte multiagente paralelo con temporizadores y colas independientes por vendedor (`byOwner`).
 - **Deploy Automático**: Empujado a `origin main` (commit `eb20d8e`) con Cloudflare Pages actualizado.
+
+## Integración de Suite Gemini AI & Copiloto JJ Paper (08-09-2026)
+- **Pool de 7 API Keys & Balanceo Resiliente (`assets/js/gemini-client.js`)**:
+  - Pool de 7 claves con rotación automática y reintentos transparentes ante límites de cuota (HTTP 429/503).
+  - Cascada de modelos ultrarrápidos: `gemini-3.6-flash` (prioritario), `gemini-3.5-flash`, `gemini-flash-latest` y `gemini-2.5-flash-lite`.
+  - Contexto de negocio embebido: Tasa oficial BCV en vivo (`getRate()`), catálogo, productos, zonas de venta y condiciones de despacho.
+- **Asistente IA en WhatsApp CRM (`admin/whatsapp.html`, `vendedor/whatsapp.html` y `assets/js/wa/wa-chat.js`)**:
+  - Botón interactivo `🪄 IA` en la barra de mensajes.
+  - **Sugerencias Inteligentes**: Lee el contexto del cliente y redacta 3 opciones listas en 1 clic (Directa, Cordial, Comercial).
+  - **Motor Anti-Spam / Anti-Baneo**: Toma cualquier mensaje base y genera 3 variaciones naturales con distinta estructura, sinónimos venezolanos y saludo para evitar bloqueos por envíos repetitivos.
+  - **Cotizador Rápido de Precios**: Búsqueda en vivo de productos que inyecta en el mensaje el precio oficial en USD y su equivalente en Bs a tasa BCV.
+- **Redactor Comercial de Correos (`admin/correo.html`, `vendedor/correo.html` y `assets/js/admin/correo.js`)**:
+  - Botones `✨ Redactar con IA` (modal nuevo correo) y `✨ Responder con IA` (vista de lectura).
+  - Redacción guiada por escenarios: Cotización formal, confirmación de despacho, recordatorio de pago amistoso y promociones de catálogo.
+- **Copiloto JJ Flotante & Generador Canvas de Flyers (`assets/js/copilot-jj.js`)**:
+  - Botón flotante `🤖 Copiloto JJ` auto-inyectado en todos los paneles de Admin y Vendedor a través de `assets/js/admin/sidenav.js`.
+  - **Pestaña Chat**: Consultas inmediatas sobre productos, precios, políticas de despacho y procedimientos.
+  - **Pestaña Generador de Flyer (Canvas 800x800)**: Diseña flyers comerciales de alta resolución con cabecera institucional JJ Paper, nombre del producto, badge de stock, marcas, precio destacado en USD ($) y Bs oficiales (BCV).
+  - Opciones de exportación: Copiar al portapapeles (`ClipboardItem`), Descargar PNG o Enviar directo al chat activo de WhatsApp (`waSendGeneratedImage`).
+- **Deploy**: Confirmado en `origin main` (commit `a176ac2`).

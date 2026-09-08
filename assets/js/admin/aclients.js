@@ -39,6 +39,7 @@ function getZoneBadge(zone) {
   if (zone === '008') color = '#e67e22'; // Marianela
   else if (zone === '014') color = '#9b59b6'; // Andreina
   else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
+  else if (zone === '010') color = '#16a085'; // Keyder
   return `<span style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
 }
 
@@ -116,6 +117,8 @@ async function saveAdminCustomer() {
     seller_id = findSeller(/andreina/);
   } else if (zone === '006' || zone === '004') {
     seller_id = findSeller(/yovanni|giovanni|006.*004|004.*006|araujo/);
+  } else if (zone === '010') {
+    seller_id = findSeller(/keyder|salazar/) || adminProfiles.find(x => x.role === 'admin')?.id || null;
   }
 
   const fields = {
@@ -191,6 +194,8 @@ async function adminCustImportFile(input) {
   const marianela = adminProfiles.find(x => x.name?.toLowerCase().includes('marianela'))?.id || null;
   const andreina  = adminProfiles.find(x => x.name?.toLowerCase().includes('andreina'))?.id || null;
   const giovanni  = adminProfiles.find(x => x.name?.toLowerCase().includes('giovanni'))?.id || null;
+  const keyder    = adminProfiles.find(x => /keyder|salazar/.test(x.name?.toLowerCase() || ''))?.id
+                    || adminProfiles.find(x => x.role === 'admin')?.id || null;
 
   // Preparar todos los registros normalizados
   const batchRecords = [];
@@ -207,6 +212,7 @@ async function adminCustImportFile(input) {
     if (zone === '008') seller_id = marianela;
     else if (zone === '014') seller_id = andreina;
     else if (zone === '006' || zone === '004') seller_id = giovanni;
+    else if (zone === '010') seller_id = keyder;
 
     batchRecords.push({
       name,

@@ -14,7 +14,8 @@ const ZONE_SELLER_MAP = {
   '008': { name: 'Marianela', code: '008' },
   '014': { name: 'Andreina', code: '014' },
   '006': { name: 'Giovanni', code: '006' },
-  '004': { name: 'Giovanni', code: '004' }
+  '004': { name: 'Giovanni', code: '004' },
+  '010': { name: 'Keyder', code: '010' }
 };
 
 async function loadCustomers() {
@@ -42,6 +43,7 @@ function getZoneBadge(zone) {
   if (zone === '008') color = '#e67e22'; // Marianela
   else if (zone === '014') color = '#9b59b6'; // Andreina
   else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
+  else if (zone === '010') color = '#16a085'; // Keyder
   return `<span class="badge-zone" style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
 }
 
@@ -58,10 +60,11 @@ function renderCustomers() {
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
   } else {
-    // Admin ve todos, pero respetamos filtros si aplica
-    if (custFilter === 'mios')      list = list.filter(c => c.seller_id);
+    // Admin: tiene su PROPIA cartera en 'Mi cartera' e 'Inactivos', pero
+    // conserva 'Todos' y 'Sin vendedor' para la gestión global.
+    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
-    if (custFilter === 'inactivos') list = list.filter(c => isInactive(c));
+    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
   }
 
   if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')) || (c.zone || '').includes(q));

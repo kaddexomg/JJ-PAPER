@@ -69,6 +69,7 @@
         <button class="of-chip" data-zone="014" onclick="setAdminZone('014')">Zona 014 (Andreina)</button>
         <button class="of-chip" data-zone="006" onclick="setAdminZone('006')">Zona 006 (Giovanni)</button>
         <button class="of-chip" data-zone="004" onclick="setAdminZone('004')">Zona 004 (Giovanni)</button>
+        <button class="of-chip" data-zone="010" onclick="setAdminZone('010')">Zona 010 (Keyder)</button>
         <button class="of-chip" data-zone="sin" onclick="setAdminZone('sin')">Sin Zona</button>
       </div>
 
@@ -104,7 +105,7 @@
         <div class="fg"><label class="fl">Nombre / Empresa *</label><input class="fi" id="ac-name"></div>
         <div class="fg"><label class="fl">Teléfono *</label><input class="fi" id="ac-phone" placeholder="04121234567"></div>
         <div class="fg"><label class="fl">RIF / CI</label><input class="fi" id="ac-rif"></div>
-        <div class="fg"><label class="fl">Zona (004, 006, 008, 014)</label><input class="fi" id="ac-zone" placeholder="Ej: 008"></div>
+        <div class="fg"><label class="fl">Zona (004, 006, 008, 014, 010)</label><input class="fi" id="ac-zone" placeholder="Ej: 010"></div>
         <div class="fg"><label class="fl">Ciudad</label><input class="fi" id="ac-city"></div>
         <div class="fg"><label class="fl">Email</label><input class="fi" id="ac-email" type="email"></div>
         <div class="fg" style="grid-column: span 2"><label class="fl">Dirección</label><input class="fi" id="ac-address"></div>
@@ -129,7 +130,7 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260828_cat_admin"></script>
-<script src="../assets/js/admin/aclients.js"></script>
+<script src="../assets/js/admin/aclients.js?v=20260908_keyder010"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth('admin');

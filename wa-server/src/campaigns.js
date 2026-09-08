@@ -1,4 +1,4 @@
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { CAMPAIGN_SWEEP_MS } from './config.js';
 import { normVePhone, localVePhone, phoneToJid } from './phone.js';
@@ -75,7 +75,7 @@ async function step(camp, dailyLimit) {
   for (const t of targets) {
     // Validaciones rápidas que no requieren delay
     if (t.customer_id) {
-      const { data: cust } = await db.from('jjp_customers')
+      const { data: cust } = await dbCore.from('jjp_customers')
         .select('wa_opt_out').eq('id', t.customer_id).maybeSingle();
       if (cust?.wa_opt_out) { await skip(camp, t, 'cliente con opt-out'); continue; }
     }
@@ -195,7 +195,7 @@ async function finish(camp) {
   await db.from('jjp_wa_campaigns')
     .update({ status: 'completada', finished_at: new Date().toISOString() })
     .eq('id', camp.id).in('status', ['en_cola', 'enviando', 'pending', 'sending']);
-  await db.from('jjp_notifications').insert({
+  await dbCore.from('jjp_notifications').insert({
     user_id: camp.owner_id, type: 'wa_campana',
     title: '📣 Campaña completada',
     body: `"${camp.name}" terminó de enviarse.`,
@@ -215,7 +215,7 @@ async function syncCounts(campaignId) {
       .eq('campaign_id', campaignId).in('status', ['skipped', 'omitido']),
   ]);
   await db.from('jjp_wa_campaigns')
-    .update({ sent_count: sent || 0, failed_count: failed || 0, skipped_count: skipped || 0 })
+    .update({ sent_count: sent || 0, failed_count: failed || 0, skipped_count: skipped || 0, updated_at: new Date().toISOString() })
     .eq('id', campaignId);
 }
 
@@ -241,7 +241,7 @@ async function countSentToday(ownerId) {
 }
 
 async function getDailyLimit() {
-  const { data } = await db.from('jjp_settings').select('value').eq('key', 'wa_daily_limit').maybeSingle();
+  const { data } = await dbCore.from('jjp_settings').select('value').eq('key', 'wa_daily_limit').maybeSingle();
   const n = parseInt(data?.value, 10);
   return Number.isFinite(n) && n > 0 ? n : 150;
 }

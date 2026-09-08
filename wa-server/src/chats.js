@@ -1,4 +1,4 @@
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { normVePhone, localVePhone } from './phone.js';
 
@@ -7,7 +7,7 @@ import { normVePhone, localVePhone } from './phone.js';
 async function findCustomer(phone) {
   const full = normVePhone(phone);
   const local = localVePhone(phone);
-  const { data, error } = await db.from('jjp_customers')
+  const { data, error } = await dbCore.from('jjp_customers')
     .select('id,name').in('phone', [full, local]).limit(1);
   if (error) { log.warn({ error: error.message }, 'lookup jjp_customers falló'); return null; }
   return data?.[0] || null;

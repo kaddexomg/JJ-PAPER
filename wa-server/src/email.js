@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import {
   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
@@ -345,7 +345,7 @@ async function ingestMessage(acct, token, id) {
   const ts = msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : new Date().toISOString();
   const atts = extractAttachments(msg.payload);
 
-  const { data: cust } = await db.from('jjp_customers')
+  const { data: cust } = await dbCore.from('jjp_customers')
     .select('id').ilike('email', from.email).limit(1).maybeSingle();
 
   const { error } = await db.from('jjp_emails').insert({

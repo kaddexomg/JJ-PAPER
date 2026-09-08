@@ -1,4 +1,4 @@
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { CAMPAIGN_SWEEP_MS } from './config.js';
 import { sendEmailNow } from './email.js';
@@ -50,7 +50,7 @@ async function step(camp, dailyLimit) {
   for (const t of targets) {
     // Respetar opt-out aunque cambie después de crear la campaña
     if (t.customer_id) {
-      const { data: cust } = await db.from('jjp_customers')
+      const { data: cust } = await dbCore.from('jjp_customers')
         .select('email_opt_out').eq('id', t.customer_id).maybeSingle();
       if (cust?.email_opt_out) { await skip(camp, t, 'cliente sin correos'); continue; }
     }
@@ -83,7 +83,7 @@ async function step(camp, dailyLimit) {
       await db.from('jjp_email_campaign_targets')
         .update({ status: 'sent', email_id: em?.id || null, sent_at: new Date().toISOString(), error: null })
         .eq('id', t.id);
-      if (t.customer_id) await db.from('jjp_customers').update({ last_email_at: new Date().toISOString() }).eq('id', t.customer_id);
+      if (t.customer_id) await dbCore.from('jjp_customers').update({ last_email_at: new Date().toISOString() }).eq('id', t.customer_id);
       await syncCounts(camp.id);
 
       const delayMs = 1000 * (camp.delay_min_s + Math.random() * Math.max(0, camp.delay_max_s - camp.delay_min_s));
@@ -161,7 +161,7 @@ async function countSentToday(ownerId) {
 }
 
 async function getDailyLimit() {
-  const { data } = await db.from('jjp_settings').select('value').eq('key', 'email_daily_limit').maybeSingle();
+  const { data } = await dbCore.from('jjp_settings').select('value').eq('key', 'email_daily_limit').maybeSingle();
   const n = parseInt(data?.value, 10);
   return Number.isFinite(n) && n > 0 ? n : 300;
 }

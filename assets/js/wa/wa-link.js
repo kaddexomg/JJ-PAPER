@@ -16,12 +16,21 @@ async function waLinkInit(profileId) {
       { event: 'UPDATE', schema: 'public', table: 'jjp_wa_sessions', filter: `profile_id=eq.${profileId}` },
       payload => { WA_SESSION = payload.new; waRenderLink(); })
     .subscribe();
+
+  // Sondeo de respaldo: si Realtime sufre lag en WebSocket, refrescar cada 3s si está conectando o esperando QR
+  setInterval(async () => {
+    const modal = document.getElementById('waLinkModal');
+    const isModalOpen = modal?.classList.contains('op') || modal?.style?.display === 'block';
+    if (isModalOpen || WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr') {
+      await waLoadSession();
+    }
+  }, 3000);
 }
 
 async function waLoadSession() {
   const { data, error } = await sb.from('jjp_wa_sessions')
     .select('*').eq('profile_id', _waLinkMe).maybeSingle();
-  if (error) { showToast('Error cargando sesión WhatsApp', 'err'); return; }
+  if (error) { return; }
   WA_SESSION = data;
   waRenderLink();
 }

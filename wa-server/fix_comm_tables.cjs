@@ -168,6 +168,39 @@ async function fix() {
   const del = await cB.query("DELETE FROM public.jjp_emails WHERE body IS NULL AND html IS NULL");
   console.log(`✅ Correos vacíos eliminados para re-ingesta: ${del.rowCount}`);
 
+  // Configurar Realtime y REPLICA IDENTITY FULL para que los updates (como QR) fluyan al browser
+  await cB.query(`
+    ALTER TABLE public.jjp_wa_sessions REPLICA IDENTITY FULL;
+    ALTER TABLE public.jjp_wa_chats REPLICA IDENTITY FULL;
+    ALTER TABLE public.jjp_wa_messages REPLICA IDENTITY FULL;
+    ALTER TABLE public.jjp_emails REPLICA IDENTITY FULL;
+    ALTER TABLE public.jjp_wa_campaigns REPLICA IDENTITY FULL;
+    ALTER TABLE public.jjp_wa_campaign_targets REPLICA IDENTITY FULL;
+
+    DO $$
+    BEGIN
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_wa_sessions;
+      EXCEPTION WHEN duplicate_object THEN END;
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_wa_chats;
+      EXCEPTION WHEN duplicate_object THEN END;
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_wa_messages;
+      EXCEPTION WHEN duplicate_object THEN END;
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_emails;
+      EXCEPTION WHEN duplicate_object THEN END;
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_wa_campaigns;
+      EXCEPTION WHEN duplicate_object THEN END;
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_wa_campaign_targets;
+      EXCEPTION WHEN duplicate_object THEN END;
+    END $$;
+  `);
+  console.log('✅ Realtime publication & REPLICA IDENTITY configurados en Proyecto B');
+
   // Notificar schema reload a ambos
   await cA.query("NOTIFY pgrst, 'reload schema';");
   await cB.query("NOTIFY pgrst, 'reload schema';");

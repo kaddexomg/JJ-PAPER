@@ -277,6 +277,66 @@ function ecTplInsertVar(v) {
   ecTplPreview();
 }
 
+async function ensureGeminiClient() {
+  if (window.GeminiClient) return window.GeminiClient;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const isSubdir = window.location.pathname.includes('/admin/') || window.location.pathname.includes('/vendedor/');
+    script.src = (isSubdir ? '../assets/js/gemini-client.js?v=' : 'assets/js/gemini-client.js?v=') + Date.now();
+    script.onload = () => {
+      if (window.GeminiClient) resolve(window.GeminiClient);
+      else reject(new Error('Módulo GeminiClient no disponible tras la carga.'));
+    };
+    script.onerror = () => reject(new Error('No se pudo cargar el motor Gemini AI (gemini-client.js).'));
+    document.head.appendChild(script);
+  });
+}
+
+async function ecTplDraftWithAi() {
+  const currentName = document.getElementById('tp-name')?.value?.trim();
+  const currentSubj = document.getElementById('tp-subject')?.value?.trim();
+  const topic = prompt('✨ ¿Qué producto, combo o temática deseas promocionar en esta plantilla?\n(Ej: Oferta de resmas de papel por caja, Útiles escolares, Reactivación con entrega en Caracas)', currentName || currentSubj || 'Promoción especial de papelería al mayor');
+  if (!topic || !topic.trim()) return;
+
+  const btn = document.getElementById('ecAiTplBtn');
+  const origText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Redactando con IA...';
+  }
+
+  try {
+    await ensureGeminiClient();
+    if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+
+    const res = await window.GeminiClient.draftCampaignMessage({
+      objective: topic.trim(),
+      channel: 'email',
+      audience: 'todos',
+      sellerName: SELLER?.name || ''
+    });
+
+    if (res.subject) {
+      document.getElementById('tp-subject').value = res.subject;
+      if (!document.getElementById('tp-name').value) {
+        document.getElementById('tp-name').value = res.subject.replace(/^[^\w\s]+/, '').slice(0, 45).trim();
+      }
+    }
+    if (res.body) {
+      document.getElementById('tp-body').value = res.body;
+    }
+    ecTplPreview();
+    if (typeof showToast === 'function') showToast('Plantilla redactada exitosamente con IA', 'success');
+  } catch (err) {
+    alert('Error al redactar plantilla con IA: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+}
+
 function ecTplApplyPreset(type) {
   const nameEl = document.getElementById('tp-name');
   const subjEl = document.getElementById('tp-subject');

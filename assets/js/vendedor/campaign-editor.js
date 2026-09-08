@@ -638,6 +638,21 @@ window.CampaignEditor = (() => {
   }
 
   /* ---------------- MÉTODOS DE INTELIGENCIA ARTIFICIAL ---------------- */
+  async function ensureGeminiClient() {
+    if (window.GeminiClient) return window.GeminiClient;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      const isSubdir = window.location.pathname.includes('/admin/') || window.location.pathname.includes('/vendedor/');
+      script.src = (isSubdir ? '../assets/js/gemini-client.js?v=' : 'assets/js/gemini-client.js?v=') + Date.now();
+      script.onload = () => {
+        if (window.GeminiClient) resolve(window.GeminiClient);
+        else reject(new Error('Módulo GeminiClient no disponible tras la carga.'));
+      };
+      script.onerror = () => reject(new Error('No se pudo cargar el archivo gemini-client.js. Verifica la conexión.'));
+      document.head.appendChild(script);
+    });
+  }
+
   async function aiDraftTemplate() {
     const isEmail = currentConfig?.channel === 'email';
     const defPrompt = selectedProductOrCombo 
@@ -653,6 +668,7 @@ window.CampaignEditor = (() => {
     btn.textContent = '⏳ Redactando con IA...';
 
     try {
+      await ensureGeminiClient();
       if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const result = await window.GeminiClient.draftCampaignMessage({
         objective: obj.trim(),
@@ -695,6 +711,7 @@ window.CampaignEditor = (() => {
     btn.textContent = '⏳ Generando Spintax...';
 
     try {
+      await ensureGeminiClient();
       if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const spintax = await window.GeminiClient.generateCampaignSpintax(text, currentConfig?.channel || 'whatsapp');
       textarea.value = spintax;
@@ -723,6 +740,7 @@ window.CampaignEditor = (() => {
     btn.textContent = '⏳ Diseñando Flyer...';
 
     try {
+      await ensureGeminiClient();
       if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const p = selectedProductOrCombo;
       const cvs = await window.GeminiClient.renderProductCard({

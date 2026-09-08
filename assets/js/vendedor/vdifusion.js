@@ -336,6 +336,62 @@ function tplInsertVar(v) {
   tplPreview();
 }
 
+async function ensureGeminiClient() {
+  if (window.GeminiClient) return window.GeminiClient;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const isSubdir = window.location.pathname.includes('/admin/') || window.location.pathname.includes('/vendedor/');
+    script.src = (isSubdir ? '../assets/js/gemini-client.js?v=' : 'assets/js/gemini-client.js?v=') + Date.now();
+    script.onload = () => {
+      if (window.GeminiClient) resolve(window.GeminiClient);
+      else reject(new Error('Módulo GeminiClient no disponible tras la carga.'));
+    };
+    script.onerror = () => reject(new Error('No se pudo cargar el motor Gemini AI (gemini-client.js).'));
+    document.head.appendChild(script);
+  });
+}
+
+async function tplDraftWithAi() {
+  const currentName = document.getElementById('tp-name')?.value?.trim();
+  const topic = prompt('✨ ¿Qué producto, combo o temática deseas promocionar en WhatsApp?\n(Ej: Súper oferta en resmas de papel, Combo escolar, Reactivación con entrega en Caracas)', currentName || 'Promoción especial de papelería al mayor');
+  if (!topic || !topic.trim()) return;
+
+  const btn = document.getElementById('waAiTplBtn');
+  const origText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Redactando con IA...';
+  }
+
+  try {
+    await ensureGeminiClient();
+    if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+
+    const res = await window.GeminiClient.draftCampaignMessage({
+      objective: topic.trim(),
+      channel: 'whatsapp',
+      audience: 'todos',
+      sellerName: SELLER?.name || ''
+    });
+
+    if (!document.getElementById('tp-name').value) {
+      document.getElementById('tp-name').value = topic.slice(0, 35).trim();
+    }
+    if (res.body) {
+      document.getElementById('tp-body').value = res.body;
+    }
+    tplPreview();
+    if (typeof showToast === 'function') showToast('Plantilla redactada exitosamente con IA', 'success');
+  } catch (err) {
+    alert('Error al redactar plantilla con IA: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+}
+
 function tplApplyPreset(type) {
   const nameEl = document.getElementById('tp-name');
   const bodyEl = document.getElementById('tp-body');

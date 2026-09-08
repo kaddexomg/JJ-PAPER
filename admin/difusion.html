@@ -211,7 +211,10 @@
       </div>
 
       <div style="background:#f0f7f4;border:1px dashed #2d7a5b;border-radius:8px;padding:10px;margin-bottom:14px">
-        <div style="font-size:12px;font-weight:700;color:#16604A;margin-bottom:6px">💡 ¿Quieres armar una plantilla rápida de oferta?</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:700;color:#16604A">💡 ¿Quieres armar una plantilla rápida de oferta?</div>
+          <button type="button" class="btn-p sm" id="waAiTplBtn" style="background:#8b5cf6;border-color:#7c3aed;color:#fff;font-weight:600;padding:4px 10px;" onclick="tplDraftWithAi()">✨ Redactar con IA</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button type="button" class="btn-o sm" onclick="tplApplyPreset('promo_producto')">📦 Plantilla de Producto</button>
           <button type="button" class="btn-o sm" onclick="tplApplyPreset('promo_combo')">🎁 Plantilla de Combo</button>
@@ -403,6 +406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
   <script src="../assets/js/vendedor/product-picker.js"></script>
+  <script src="../assets/js/gemini-client.js?v=20260908_ai_v2"></script>
   <script src="../assets/js/vendedor/campaign-editor.js?v=20260908_cooldown"></script>
 </body>
 </html>

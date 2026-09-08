@@ -28,13 +28,12 @@
     'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
   ];
 
-  // Modelos ultrarrápidos con latencia < 800ms
+  // Modelos ultrarrápidos con latencia mínima comprobada
   const GEMINI_MODELS = [
-    'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
-    'gemini-flash-lite-latest',
-    'gemini-3.5-flash',
-    'gemini-3.6-flash'
+    'gemini-3.5-flash-lite',
+    'gemini-flash-latest',
+    'gemini-3.5-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -102,15 +101,16 @@
           const errBody = await res.json().catch(() => ({}));
           const errMsg = errBody.error?.message || `HTTP ${status}`;
 
-          // Si es límite de cuota (429) o servicio ocupado (503), rotar llave de inmediato
-          if (status === 429 || status === 503 || status === 403) {
+          // Si es límite de cuota (429) o clave no autorizada (403), rotar de inmediato a la siguiente llave
+          if (status === 429 || status === 403) {
             _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
             lastError = new Error(`Key límite excedido (${status}): ${errMsg}`);
-            break; // Salir de modelos para esta llave e ir a la siguiente llave del pool
+            break; // Cambiar de llave
           }
 
-          // Si el modelo específico no está disponible, probar el siguiente modelo
-          if (status === 404) {
+          // Si el modelo específico está sobrecargado (503) o no encontrado (404), continuar con el siguiente modelo de esta llave
+          if (status === 503 || status === 404) {
+            lastError = new Error(`Modelo ${m} no disponible (${status}): ${errMsg}`);
             continue;
           }
 
@@ -118,7 +118,7 @@
         } catch (netErr) {
           clearTimeout(timeoutId);
           lastError = netErr;
-          break; // Error de red, aborto por timeout (>3.5s), probar siguiente llave
+          break; // Error de red o timeout (>3.5s), probar siguiente llave
         }
       }
     }
@@ -137,13 +137,14 @@
     const sellerRef = seller.ref_code || '';
 
     return `
-Eres el Copiloto de Inteligencia Artificial de "JJ Paper C.A." en Caracas, Venezuela.
-- JJ Paper es una distribuidora mayorista y detal de papelería, útiles de oficina, escolares, computación y consumibles.
-- Tasa oficial BCV vigente en el sistema: 1 USD = ${rate.toFixed(2)} Bs.
-- Vendedor / Usuario activo: ${sellerName} ${sellerRef ? `(Código: ${sellerRef})` : ''}.
-- Monedas aceptadas: Dólares USD en efectivo, Zelle, Transferencias Banesco Panamá, Bolívares por Pago Móvil y Transferencias al cambio BCV.
-- Despachos: Entregas directas en Caracas y envíos a nivel nacional por Tealca, MRW y Zoom.
-- Tono: Profesional, cordial, empático, comercial venezolano, respetuoso y muy ágil.
+Eres el Copiloto Experto de Inteligencia Artificial y Estratega Comercial de "JJ Paper C.A." en Caracas, Venezuela.
+- JJ Paper es una distribuidora líder mayorista y detal de papelería, útiles escolares, consumibles de oficina, computación y papelería corporativa.
+- Catálogo principal: Resmas de papel Bond (Carta, Oficio, Extra Oficio de 75g y 80g), cuadernos (engrapados, doble espiral, cosidos), bolígrafos, marcadores, carpetas de fibra, archivadores, consumibles, tóner y embalaje.
+- Tasa oficial BCV vigente: 1 USD = ${rate.toFixed(2)} Bs (todas las transacciones, presupuestos y facturas se calculan rigurosamente al cambio oficial del Banco Central de Venezuela).
+- Asesor comercial activo: ${sellerName} ${sellerRef ? `(Código: ${sellerRef})` : ''}.
+- Medios de pago: Dólares USD en efectivo, Zelle, Banesco Panamá, Bolívares por Pago Móvil y Transferencias bancarias nacionales al cambio BCV.
+- Despachos: Entregas directas en Caracas con rutas diarias y envíos asegurados a toda Venezuela por Tealca, MRW y Zoom.
+- Tono comercial: Altamente profesional, empático, ágil, consultivo, con impecable cordialidad comercial venezolana.
 `;
   }
 
@@ -372,7 +373,7 @@ REGLAS CRÍTICAS DE CONSTRUCCIÓN:
   }
 
   /* --------------------------------------------------------------------------
-     4.2. Redactor Inteligente de Campañas Comerciales
+     4.2. Redactor Inteligente de Campañas Comerciales (WhatsApp y Email)
      -------------------------------------------------------------------------- */
   async function draftCampaignMessage({
     objective = 'promocion',
@@ -387,46 +388,45 @@ REGLAS CRÍTICAS DE CONSTRUCCIÓN:
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
     const sys = getBusinessContext() + `
-Eres el Director de Marketing y Copywriter de JJ Paper.
-Redactas campañas de alto impacto y conversión para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+Eres el Director Creativo de Marketing y Copywriting Comercial de JJ Paper C.A.
+Tu objetivo es redactar un mensaje publicitario o plantilla de altísima conversión para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
 
-REGLAS DE FORMATO:
-- Debes incluir variables dinámicas: {{nombre}}, {{vendedor}}, {{link}} y si hay producto: {{producto}}, {{precio}}.
-- Utiliza Spintax {opción 1|opción 2|opción 3} en saludos y despedidas para evitar bloqueos por spam.
-- Tasa oficial BCV vigente: ${rate.toFixed(2)} Bs.
-- Si es para Email, devuelve un JSON con "subject" y "body".
-- Si es para WhatsApp, devuelve un JSON con "body".
+CRITERIOS COMERCIALES DE ALTA CONVERSIÓN:
+1. Aplica principios de persuasión B2B (Gancho, Valor/Ahorro, Urgencia de stock, Facilidad de compra y Llamado a la acción claro).
+2. Para WhatsApp: utiliza Spintax sintáctico {opción 1|opción 2|opción 3} en saludos, conectores y despedidas para evitar bloqueos por spam.
+3. Para Email: genera un asunto ("subject") con gancho de apertura y un cuerpo ("body") estructurado con párrafos legibles, bullets (-) y firma institucional.
+4. Conserva estrictamente variables dinámicas: {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}, y si aplica: {{producto}}, {{precio}}, {{descuento}}, {{descripcion}}.
+5. Resalta que las operaciones son al cambio oficial BCV (${rate.toFixed(2)} Bs/USD) con entregas rápidas en Caracas y envíos nacionales.
 
-Ejemplo de respuesta WhatsApp:
-{
-  "body": "{¡Hola!|Buen día|Saludos cordiales} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper...\\n\\n📦 *{{producto}}*\\n💲 Precio mayorista: *{{precio}}*...\\n\\n👉 Pedidos en línea: {{link}}\\n{¿Le reservamos mercancía?|¿Desea cotizar otras cantidades?}"
-}
+Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni \`\`\`json):
+- Si channel === 'email': { "subject": "...", "body": "..." }
+- Si channel === 'whatsapp': { "body": "..." }
 `;
 
     const prompt = `
 Objetivo de campaña: ${objective}
-Canal: ${channel}
-Destinatarios: ${audience}
-Producto o Promoción: ${product ? `${product.name} (Precio: $${product.price_usd || product.final_price_usd || ''})` : 'Catálogo general de papelería'}
-Descuento extra: ${discount || 'Precio regular mayorista'}
-Notas adicionales del vendedor: ${customNotes || 'Enfocado en despacho rápido y disponibilidad'}
-Vendedor emisor: ${sellerName || 'Asesor JJ Paper'}
+Canal de difusión: ${channel}
+Segmento de audiencia: ${audience}
+Producto o Promoción: ${product ? `${product.name} (Precio: $${product.price_usd || product.final_price_usd || ''})` : 'Catálogo general mayorista de papelería'}
+Descuento o Beneficio: ${discount || 'Precios directos de distribuidora'}
+Notas / Instrucciones adicionales: ${customNotes || 'Enfocado en reposición de mercancía, despacho inmediato y ahorro'}
+Asesor emisor: ${sellerName || 'Equipo de Ventas JJ Paper'}
 
-Genera el mensaje comercial en formato JSON estricto.`;
+Genera el mensaje en formato JSON estricto.`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.75 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.72 });
       const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
       return JSON.parse(clean);
     } catch (e) {
       if (channel === 'email') {
         return {
-          subject: product ? `📦 Promoción Especial: ${product.name} — JJ Paper` : 'Novedades y Ofertas Especiales — JJ Paper',
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nLe saludamos cordialmente de JJ Paper C.A. Esperamos que su negocio se encuentre excelente.\n\nQueremos presentarle nuestra disponibilidad inmediata en ${product ? `*${product.name}* a un precio especial de *${product.price_usd ? '$' + Number(product.price_usd).toFixed(2) + ' USD' : '{{precio}}'}*` : 'artículos escolares, de oficina y papelería al mayor'}.\n\n👉 Puede revisar nuestro catálogo completo y gestionar su pedido aquí:\n{{link}}\n\nNuestras facturas y despachos se calculan a tasa oficial BCV (${rate.toFixed(2)} Bs).\n\n{Quedamos a su completa disposición.|Esperamos su pronta respuesta para asegurar su pedido.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          subject: product ? `📦 Oportunidad Mayorista: ${product.name} — JJ Paper` : '📦 Lista de Precios y Ofertas Especiales — JJ Paper',
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que en {{empresa}} se encuentren muy bien. Le saluda atentamente {{vendedor}} de JJ Paper C.A.\n\nLe contactamos para presentarle nuestras mejores condiciones de despacho en ${product ? `*{{producto}}* con un precio exclusivo de *{{precio}}*` : 'papelería corporativa, útiles escolares y suministros de oficina al mayor'}.\n\n🔹 Precios directos al mayor en divisas o Bolívares a tasa oficial BCV (${rate.toFixed(2)} Bs).\n🔹 Despacho rápido en Caracas y envíos asegurados a nivel nacional.\n🔹 Emisión inmediata de notas de entrega y facturas fiscales.\n\n👉 Puede revisar catálogo y procesar su orden en línea:\n{{link}}\n\n{¿Desea que le apartemos mercancía o requiere una cotización formal?|Quedamos a su completa disposición para atender su requerimiento hoy mismo.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
         };
       } else {
         return {
-          body: `{¡Hola!|Buen día|Saludos cordiales} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones activas hoy ${product ? `en *${product.name}* a tan solo *${product.price_usd ? '$' + Number(product.price_usd).toFixed(2) + ' USD' : '{{precio}}'}*` : 'en todo nuestro catálogo de papelería y oficina'}.\n\n👉 Puede ver detalles y pedir en línea aquí: {{link}}\n\n{¿Le apartamos mercancía para su despacho de hoy?|¿Desea que le verifiquemos disponibilidad de algún otro artículo?}`
+          body: `{¡Hola!|Buen día|Un cordial saludo} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\n{Tenemos excelentes ofertas hoy en|Aproveche disponibilidad inmediata en|Le presentamos nuestro precio mayorista en} ${product ? `*{{producto}}* por tan solo *{{precio}}*` : 'útiles escolares, resmas de papel y artículos de oficina'}.\n\n📦 Stock listo para entrega inmediata en Caracas y envíos a toda Venezuela.\n💲 Tasa oficial BCV: ${rate.toFixed(2)} Bs.\n\n👉 Revise el catálogo y ordene directamente aquí:\n{{link}}\n\n{¿Cuántas unidades o bultos desea cotizar?|¿Le reservamos su pedido para el despacho de hoy?}`
         };
       }
     }
@@ -451,10 +451,10 @@ Genera el mensaje comercial en formato JSON estricto.`;
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
     const sys = getBusinessContext() + `
-Eres el Asistente Oficial y Copiloto de JJ Paper para el personal interno (${userRole}).
-- Responde de forma concisa, útil y clara.
-- Usa los datos de precios en USD y en Bs calculados con la tasa BCV del día (${rate.toFixed(2)} Bs).
-- Puedes explicar cómo emitir pedidos, cotizaciones, consultar clientes en el CRM, usar WhatsApp y generar fichas gráficas de productos.
+Eres el Asistente Oficial y Copiloto Comercial de JJ Paper para el personal (${userRole}).
+- Responde de forma concisa, útil, respetuosa y comercial.
+- Precios oficiales calculados con la tasa BCV del día (${rate.toFixed(2)} Bs).
+- Orienta sobre cotizaciones, pedidos POS, clientes en CRM, difusiones y generación de flyers de productos.
 ${productContext}
 `;
 
@@ -469,7 +469,7 @@ Respuesta del Copiloto JJ:`;
   }
 
   /* --------------------------------------------------------------------------
-     6. Generador Visual de Tarjeta de Producto (HTML5 Canvas Flyer 800x800)
+     6. Generador Visual de Flyer Publicitario (Canvas Ultra-HD 1200x1200)
      -------------------------------------------------------------------------- */
   async function renderProductCard({
     product,
@@ -480,8 +480,8 @@ Respuesta del Copiloto JJ:`;
     canvas = null
   }) {
     const cvs = canvas || document.createElement('canvas');
-    cvs.width = 800;
-    cvs.height = 800;
+    cvs.width = 1200;
+    cvs.height = 1200;
     const ctx = cvs.getContext('2d');
 
     const w = typeof window !== 'undefined' ? window : {};
@@ -489,167 +489,260 @@ Respuesta del Copiloto JJ:`;
     const priceUsd = customPriceUsd !== null ? parseFloat(customPriceUsd) : parseFloat(product.price_usd || 0);
     const priceBs = (priceUsd * rate).toFixed(2);
 
-    // 1. Fondo blanco/hueso
-    ctx.fillStyle = '#F8FAFC';
-    ctx.fillRect(0, 0, 800, 800);
+    // 1. Fondo Studio Premium con Degradado Profundo
+    const bgGrad = ctx.createLinearGradient(0, 0, 1200, 1200);
+    bgGrad.addColorStop(0, '#0a231b');
+    bgGrad.addColorStop(0.5, '#103d30');
+    bgGrad.addColorStop(1, '#061711');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1200, 1200);
 
-    // 2. Cabecera con degradado verde institucional JJ Paper
-    const gradHeader = ctx.createLinearGradient(0, 0, 800, 140);
-    gradHeader.addColorStop(0, '#16604A');
-    gradHeader.addColorStop(1, '#0C382B');
-    ctx.fillStyle = gradHeader;
-    ctx.fillRect(0, 0, 800, 130);
+    // 2. Halo de iluminación radial en el centro para dar profundidad de estudio
+    const radialGlow = ctx.createRadialGradient(600, 480, 50, 600, 480, 500);
+    radialGlow.addColorStop(0, 'rgba(22, 96, 74, 0.45)');
+    radialGlow.addColorStop(0.6, 'rgba(16, 185, 129, 0.12)');
+    radialGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = radialGlow;
+    ctx.fillRect(0, 0, 1200, 1200);
 
-    // Acento dorado en el borde de la cabecera
+    // 3. Cabecera Institucional JJ Paper
+    // Franja dorada superior
     ctx.fillStyle = '#EAB308';
-    ctx.fillRect(0, 126, 800, 4);
+    ctx.fillRect(60, 50, 1080, 4);
 
-    // Texto de la cabecera
+    // Logotipo / Marca
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 34px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('JJ PAPER', 40, 58);
+    ctx.font = '900 46px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('JJ PAPER', 60, 105);
 
-    ctx.fillStyle = '#99CC33';
-    ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('DISTRIBUIDORA MAYORISTA & PAPELERÍA', 40, 84);
+    ctx.fillStyle = '#A3E635';
+    ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('DISTRIBUIDORA MAYORISTA & PAPELERÍA · CARACAS', 60, 134);
 
-    ctx.fillStyle = '#D1D5DB';
-    ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`Tasa Oficial BCV: Bs ${rate.toFixed(2)}`, 40, 106);
-
-    // Badge "DISPONIBLE" en la esquina superior derecha
-    ctx.fillStyle = '#10B981';
-    roundRect(ctx, 620, 36, 140, 38, 19);
+    // Badge Tasa Oficial BCV en cabecera
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+    roundRect(ctx, 840, 70, 300, 56, 14);
     ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#FDE047';
+    ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('✓ EN STOCK', 690, 60);
+    ctx.fillText('TASA BCV OFICIAL', 990, 94);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(`Bs ${rate.toFixed(2)}`, 990, 117);
     ctx.textAlign = 'left';
 
-    // 3. Tarjeta central de la imagen del producto
-    const boxX = 40, boxY = 150, boxW = 720, boxH = 340;
+    // 4. Tarjeta Central del Producto (Escaparate Studio)
+    const cardX = 60, cardY = 160, cardW = 1080, cardH = 550;
+
+    // Sombra suave multicapa
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 35;
+    ctx.shadowOffsetY = 16;
     ctx.fillStyle = '#FFFFFF';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
-    ctx.shadowBlur = 20;
-    ctx.shadowOffsetY = 6;
-    roundRect(ctx, boxX, boxY, boxW, boxH, 18);
+    roundRect(ctx, cardX, cardY, cardW, cardH, 26);
     ctx.fill();
     ctx.shadowColor = 'transparent';
 
+    // Borde interno sutil
+    ctx.strokeStyle = '#E2E8F0';
+    ctx.lineWidth = 2;
+    roundRect(ctx, cardX, cardY, cardW, cardH, 26);
+    ctx.stroke();
+
+    // Cinta / Ribbon Promocional en la esquina superior derecha del escaparate
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, cardX + cardW - 240, cardY + 20, 220, 44, 22);
+    ctx.fillStyle = '#DC2626';
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔥 OFERTA ESPECIAL', cardX + cardW - 130, cardY + 48);
+    ctx.restore();
+
+    // Sello de Garantía izquierda
+    ctx.fillStyle = '#0F172A';
+    roundRect(ctx, cardX + 24, cardY + 20, 230, 36, 18);
+    ctx.fill();
+    ctx.fillStyle = '#34D399';
+    ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('✓ 100% ORIGINAL JJ PAPER', cardX + 42, cardY + 43);
+
+    // Carga o renderizado de imagen de producto
     let imageLoaded = false;
     if (product.image_url) {
       try {
         const img = await loadImageSafe(product.image_url);
         if (img) {
-          const maxImgW = boxW - 60;
-          const maxImgH = boxH - 40;
-          const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1);
+          const maxW = cardW - 120;
+          const maxH = cardH - 120;
+          const scale = Math.min(maxW / img.width, maxH / img.height, 1);
           const dw = img.width * scale;
           const dh = img.height * scale;
-          const dx = boxX + (boxW - dw) / 2;
-          const dy = boxY + (boxH - dh) / 2;
+          const dx = cardX + (cardW - dw) / 2;
+          const dy = cardY + 70 + (cardH - 90 - dh) / 2;
+          
+          // Sombra de contacto bajo el producto
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(cardX + cardW / 2, dy + dh + 10, dw * 0.4, 16, 0, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+          ctx.fill();
+          ctx.restore();
+
           ctx.drawImage(img, dx, dy, dw, dh);
           imageLoaded = true;
         }
       } catch (e) {
-        console.warn('No se pudo cargar la imagen del producto:', e);
+        console.warn('Error cargando imagen:', e);
       }
     }
 
     if (!imageLoaded) {
-      ctx.fillStyle = '#F1F5F9';
-      roundRect(ctx, boxX + 20, boxY + 20, boxW - 40, boxH - 40, 14);
+      // Mockup vectorial publicitario elegante si no hay foto
+      ctx.fillStyle = '#F8FAFC';
+      roundRect(ctx, cardX + 40, cardY + 75, cardW - 80, cardH - 105, 20);
       ctx.fill();
 
-      ctx.font = '90px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(product.emoji || '📦', boxX + boxW / 2, boxY + boxH / 2 + 30);
-      ctx.textAlign = 'left';
+      // Halo circular detrás del emoji
+      const iconGlow = ctx.createRadialGradient(cardX + cardW / 2, cardY + cardH / 2 + 10, 10, cardX + cardW / 2, cardY + cardH / 2 + 10, 140);
+      iconGlow.addColorStop(0, '#E0F2FE');
+      iconGlow.addColorStop(1, '#F8FAFC');
+      ctx.fillStyle = iconGlow;
+      ctx.beginPath();
+      ctx.arc(cardX + cardW / 2, cardY + cardH / 2 + 10, 130, 0, Math.PI * 2);
+      ctx.fill();
 
-      ctx.fillStyle = '#64748B';
-      ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = '140px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('JJ PAPER · PRODUCTO ORIGINAL GARANTIZADO', boxX + boxW / 2, boxY + boxH - 35);
+      ctx.fillText(product.emoji || '📦', cardX + cardW / 2, cardY + cardH / 2 + 60);
+
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('PRODUCTO GARANTIZADO · CALIDAD DE FÁBRICA', cardX + cardW / 2, cardY + cardH - 45);
       ctx.textAlign = 'left';
     }
 
-    // 4. Nombre y detalles del producto
-    const infoY = 515;
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    
-    const nameLines = wrapText(ctx, product.name || 'Producto JJ Paper', 720);
-    ctx.fillText(nameLines[0], 40, infoY);
+    // 5. Datos del Producto (Título y Especificaciones)
+    const titleY = 750;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const nameLines = wrapText(ctx, product.name || 'Producto JJ Paper', 1080);
+    ctx.fillText(nameLines[0], 60, titleY);
     if (nameLines.length > 1) {
-      ctx.fillText(nameLines[1], 40, infoY + 34);
+      ctx.fillText(nameLines[1], 60, titleY + 44);
     }
 
-    const pillY = nameLines.length > 1 ? infoY + 50 : infoY + 20;
-    let pillText = `Presentación: por ${product.unit || 'unidad'}`;
-    if (product.brands) pillText += ` · Marca: ${product.brands}`;
-    if (product.sku) pillText += ` · Cód: ${product.sku}`;
+    // Pastilla de características
+    const specY = nameLines.length > 1 ? titleY + 84 : titleY + 46;
+    let specText = `Presentación: ${product.unit || 'unidad'}`;
+    if (product.brands) specText += `  |  Marca: ${product.brands}`;
+    if (product.sku) specText += `  |  Código: ${product.sku}`;
 
-    ctx.fillStyle = '#475569';
-    ctx.font = '500 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(pillText, 40, pillY + 18);
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(specText, 60, specY);
 
-    // 5. Destacado de Precio (Caja Hero)
-    const priceBoxY = pillY + 35;
-    const gradPrice = ctx.createLinearGradient(40, priceBoxY, 760, priceBoxY + 95);
-    gradPrice.addColorStop(0, '#16604A');
-    gradPrice.addColorStop(1, '#0C382B');
-    ctx.fillStyle = gradPrice;
-    roundRect(ctx, 40, priceBoxY, 720, 95, 16);
+    // 6. Bloque Hero de Precios (Doble Moneda USD / Bs Oficial)
+    const priceBoxY = specY + 25;
+    const priceBoxH = 160;
+
+    const priceGrad = ctx.createLinearGradient(60, priceBoxY, 1140, priceBoxY + priceBoxH);
+    priceGrad.addColorStop(0, '#16604A');
+    priceGrad.addColorStop(1, '#0B3327');
+    ctx.fillStyle = priceGrad;
+    roundRect(ctx, 60, priceBoxY, 1080, priceBoxH, 22);
     ctx.fill();
 
-    ctx.fillStyle = '#99CC33';
-    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('PRECIO MAYORISTA ESPECIAL', 65, priceBoxY + 32);
+    ctx.strokeStyle = '#22C55E';
+    ctx.lineWidth = 2;
+    roundRect(ctx, 60, priceBoxY, 1080, priceBoxH, 22);
+    ctx.stroke();
+
+    // Columna Izquierda: Precio USD
+    ctx.fillStyle = '#A3E635';
+    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('PRECIO MAYORISTA ESPECIAL', 95, priceBoxY + 48);
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 44px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`$${priceUsd.toFixed(2)}`, 65, priceBoxY + 76);
+    ctx.font = '900 64px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const formattedUsd = `$${priceUsd.toFixed(2)}`;
+    ctx.fillText(formattedUsd, 95, priceBoxY + 118);
 
     ctx.fillStyle = '#E2E8F0';
-    ctx.font = '500 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('USD', 65 + ctx.measureText(`$${priceUsd.toFixed(2)}`).width + 8, priceBoxY + 74);
+    ctx.font = '700 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('USD', 95 + ctx.measureText(formattedUsd).width + 12, priceBoxY + 114);
 
-    // Caja derecha equivalente en Bs
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    roundRect(ctx, 470, priceBoxY + 14, 270, 67, 12);
+    // Columna Derecha: Tarjeta Equivalente en Bolívares
+    const bsBoxW = 420, bsBoxH = 114;
+    const bsBoxX = 1140 - bsBoxW - 30;
+    const bsBoxY = priceBoxY + 23;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    roundRect(ctx, bsBoxX, bsBoxY, bsBoxW, bsBoxH, 16);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, bsBoxX, bsBoxY, bsBoxW, bsBoxH, 16);
+    ctx.stroke();
 
-    ctx.fillStyle = '#F8FAFC';
-    ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#CBD5E1';
+    ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('AL CAMBIO OFICIAL BCV', 605, priceBoxY + 36);
+    ctx.fillText('TOTAL AL CAMBIO BCV DEL DÍA', bsBoxX + bsBoxW / 2, bsBoxY + 38);
 
     ctx.fillStyle = '#FDE047';
-    ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`Bs ${Number(priceBs).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 605, priceBoxY + 65);
+    ctx.font = '900 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(`Bs ${Number(priceBs).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, bsBoxX + bsBoxW / 2, bsBoxY + 84);
     ctx.textAlign = 'left';
 
-    // 6. Pie de Página Comercial
-    const footY = 745;
-    ctx.fillStyle = '#E2E8F0';
-    ctx.fillRect(40, footY - 15, 720, 1);
+    // 7. Tres Pilares de Confianza
+    const pillarY = priceBoxY + priceBoxH + 34;
+    const pillars = [
+      '⚡ Despacho en 24h Caracas',
+      '🛡️ Factura y Garantía',
+      '💳 Zelle / Pago Móvil / Divisas'
+    ];
+    ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const pillW = 340, pillH = 40;
+    pillars.forEach((p, idx) => {
+      const px = 60 + idx * (pillW + 30);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      roundRect(ctx, px, pillarY, pillW, pillH, 20);
+      ctx.fill();
+      ctx.fillStyle = '#E2E8F0';
+      ctx.textAlign = 'center';
+      ctx.fillText(p, px + pillW / 2, pillarY + 26);
+      ctx.textAlign = 'left';
+    });
 
-    const contactStr = sellerName ? `Atendido por: ${sellerName}` : 'JJ Paper Distribuidora';
-    const subStr = customNote || (sellerPhone ? `📱 WhatsApp: ${sellerPhone} · Envíos a toda Venezuela` : '📱 Solicita tu cotización formal y pedidos inmediatos');
+    // 8. Pie de Página Comercial y Contacto
+    const footerY = 1145;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(60, footerY - 25, 1080, 1.5);
 
-    ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(contactStr, 40, footY + 8);
+    const advisorStr = sellerName ? `Atendido por: ${sellerName}` : 'Equipo Comercial JJ Paper';
+    const phoneStr = sellerPhone ? `📱 WhatsApp: ${sellerPhone}` : '📱 Pedidos directos';
+    const noteStr = customNote || 'Envíos a toda Venezuela vía Tealca, MRW y Zoom';
 
-    ctx.fillStyle = '#64748B';
-    ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(subStr, 40, footY + 28);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(`${advisorStr}  ·  ${phoneStr}`, 60, footerY + 12);
 
-    ctx.fillStyle = '#16604A';
-    ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '500 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(noteStr, 60, footerY + 36);
+
+    ctx.fillStyle = '#A3E635';
+    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('🌐 jjpaper.com', 760, footY + 18);
+    ctx.fillText('🌐 jjpaper.com', 1140, footerY + 22);
     ctx.textAlign = 'left';
 
     return cvs;

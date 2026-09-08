@@ -183,4 +183,19 @@ No se detectaron tests.
   - Previene definitivamente colisiones de puertos (8787/8788), WebSockets concurrentes en Baileys y desincronizaciones criptográficas "Bad MAC".
 - **Optimización de Despacho Outbox (`wa-server/src/outbox.js`)**:
   - Escucha eventos `INSERT` y `UPDATE` con `status=eq.pending` en tiempo real para disparar reintentos al instante sin esperar el barrido periódico.
-  - Fallback a cualquier sesión activa sana en el servidor si la sesión del vendedor asignado está desconectada.
+  - Fallback a cualquier sesión activa sana en el servidor si la sesión del vendedor asignado está desconectada.
+
+## Suite de IA Avanzada: Priorización Flash-Lite, Auto-Carga Resiliente y Flyers Ultra-HD (08-09-2026)
+- **Priorización de Modelos y Failover Inmediato (`assets/js/gemini-client.js`)**:
+  - Priorizado `gemini-3.1-flash-lite` como modelo principal, respondiendo en **~1.000ms** de forma continua.
+  - Ante picos 503 (modelo ocupado), el motor ahora conmuta de inmediato al siguiente modelo en la misma clave (`continue`), y ante cuota 429 rota instantáneamente a la siguiente llave (`break`) a través del pool balanceado de 7 llaves.
+- **Auto-Carga Dinámica Resiliente (`ensureGeminiClient`)**:
+  - Implementado cargador automático bajo demanda en `assets/js/vendedor/campaign-editor.js`, `vcampanas-email.js` y `vdifusion.js`. Si una página no incluyó la etiqueta de script, el cliente se autodescarga asíncronamente eliminando el error `Módulo GeminiClient no disponible`.
+  - Incluida la etiqueta de script `<script src="../assets/js/gemini-client.js?v=20260908_ai_v2"></script>` en `admin/campanas-email.html`, `vendedor/campanas-email.html`, `admin/difusion.html` y `vendedor/difusion.html`.
+- **Redactor Comercial Inteligente de Plantillas (`ecTplDraftWithAi` y `tplDraftWithAi`)**:
+  - Añadido botón interactivo `✨ Redactar con IA` dentro de los modales de creación de plantillas (`tplModal`) tanto en Campañas de Correo como en Difusiones de WhatsApp.
+  - Genera con 1 solo clic Asunto, Cuerpo con viñetas comerciales, variables dinámicas (`{{nombre}}`, `{{empresa}}`, `{{vendedor}}`, `{{producto}}`, `{{precio}}`, `{{link}}`) y Spintax dinámico `{A|B|C}` anti-spam.
+- **Generador Visual de Flyers Publicitarios Ultra-HD (`renderProductCard`)**:
+  - Resolución ampliada a **1200 x 1200 px** (Canvas Retina 2x) para máxima nitidez en WhatsApp y pantallas móviles.
+  - Iluminación de estudio con halo radial esmeralda, cinta promocional superior derecha ("🔥 OFERTA ESPECIAL"), sello de garantía institucional, doble cotización jerárquica en USD ($) y Bolívares (Bs) a tasa oficial BCV, y pie de página con datos de contacto del asesor.
+  - Mockup vectorial publicitario 3D inteligente en caso de que el producto no posea fotografía en catálogo.

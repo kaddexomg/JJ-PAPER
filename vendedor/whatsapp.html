@@ -79,6 +79,7 @@
           <div class="wa-reply-bar wa-hide" id="waReplyBar"></div>
           <div class="wa-composer wa-hide" id="waComposer">
             <button class="btn-o" onclick="waAttach()" title="Adjuntar archivo" aria-label="Adjuntar archivo">📎</button>
+            <button class="btn-o" id="waAiBtn" onclick="waToggleAiMenu(event)" title="Asistente IA (Sugerir respuesta, Variar anti-spam, Cotizar, Generar flyer)" aria-label="Asistente IA" style="font-weight:600;background:#f0f9ff;color:#0284c7;border-color:#bae6fd">🪄 IA</button>
             <textarea id="waComposerInput" rows="1" placeholder="Escribe un mensaje…" aria-label="Mensaje"></textarea>
             <button class="btn-p" id="waSendBtn" onclick="waSendText()" title="Enviar" aria-label="Enviar mensaje">➤</button>
             <button class="btn-p" id="waMicBtn" title="Mantén pulsado para grabar una nota de voz" aria-label="Mantén pulsado para grabar una nota de voz">🎙️</button>
@@ -167,6 +168,7 @@
 <script src="../assets/js/wa/wa-link.js?v=20260825_final_fix"></script>
 <script src="../assets/js/doc-engine.js?v=20260825_final_fix"></script>
 <script src="../assets/js/send-hub.js?v=20260908_v3"></script>
+<script src="../assets/js/gemini-client.js?v=20260908_ai_v1"></script>
 <script src="../assets/js/wa/wa-chat.js?v=20260908_v3"></script>
 <script src="../assets/js/admin/server-control.js?v=20260908_v3"></script>
 <script>

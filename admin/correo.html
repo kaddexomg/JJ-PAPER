@@ -139,6 +139,7 @@
       </div>
       <div class="fg" style="margin-bottom:16px">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn-o" onclick="openMailAiComposer()" style="background:#f0f9ff;color:#0284c7;border-color:#bae6fd;font-weight:700">✨ Redactar con IA</button>
           <button type="button" class="btn-o" onclick="document.getElementById('mailFile').click()">📎 Adjuntar archivo</button>
           <input type="file" id="mailFile" multiple style="display:none" onchange="mailAttachFiles(this)">
           <button type="button" class="btn-o" onclick="mailAdjuntarDoc('catalogo')" title="Adjunta el catálogo del día en PDF">📗 Catálogo</button>
@@ -167,6 +168,7 @@
       <div id="mailReadBody" class="mail-read-body"></div>
       <div class="mail-read-actions">
         <button class="btn-p" id="mailReadReply" onclick="mailReplyCurrent()">↩️ Responder</button>
+        <button class="btn-o" id="mailReadReplyAi" onclick="mailReplyWithAi()" style="background:#f0f9ff;color:#0284c7;border-color:#bae6fd;font-weight:700">✨ Responder con IA</button>
         <button class="btn-o" onclick="mailForwardCurrent()">↪️ Reenviar</button>
         <button class="btn-o" id="mailReadUnread" onclick="mailMarkUnread()">📩 No leído</button>
         <button class="btn-o" onclick="mailDeleteCurrent()" style="color:#c0392b">🗑️ Eliminar</button>
@@ -325,6 +327,7 @@
 <script src="../assets/js/admin/server-control.js?v=20260908_v3"></script>
 <script src="../assets/js/doc-engine.js?v=20260825_final_fix"></script>
 <script src="../assets/js/send-hub.js?v=20260908_v3"></script>
+<script src="../assets/js/gemini-client.js?v=20260908_ai_v1"></script>
 <script src="../assets/js/admin/correo.js?v=20260908_v3"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

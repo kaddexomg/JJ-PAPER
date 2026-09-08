@@ -676,3 +676,162 @@ async function ecampCancel(id) {
   showToast('Campaña cancelada');
   await ecampLoadList();
 }
+
+/* ==========================================================================
+   JJ Paper — Redactor Comercial de Correos con IA (Gemini)
+   ========================================================================== */
+
+let _mailAiReplyContext = null;
+
+function openMailAiComposer(prefillReply = null) {
+  _mailAiReplyContext = prefillReply || null;
+  closeMailAiModal();
+
+  const toVal = prefillReply ? prefillReply.to : (document.getElementById('mailTo')?.value || '');
+  const subjVal = prefillReply ? prefillReply.subject : (document.getElementById('mailSubject')?.value || '');
+
+  const ovl = document.createElement('div');
+  ovl.className = 'modal-overlay op';
+  ovl.id = 'mailAiModalOvl';
+  ovl.style.zIndex = '99999';
+  ovl.innerHTML = `
+    <div class="modal-box" style="max-width:560px;width:100%;border-radius:16px" onclick="event.stopPropagation()">
+      <div class="modal-hd" style="border-bottom:1px solid #e2e8f0;padding:14px 18px">
+        <h3 style="margin:0;font-size:16px;color:#16604A">✨ Redactor de Correo Inteligente (Gemini IA)</h3>
+        <button class="modal-close" onclick="closeMailAiModal()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div class="fg">
+          <label class="fl" style="font-weight:700;font-size:12px">Tipo o Intención del Correo</label>
+          <select id="mailAiScenario" class="fi" style="width:100%">
+            <option value="cotizacion" ${prefillReply ? '' : 'selected'}>📄 Cotización / Presupuesto Formal</option>
+            <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
+            <option value="cobro">💳 Recordatorio Amistoso de Cobro / Pago</option>
+            <option value="promo">📣 Promoción de Catálogo / Novedades</option>
+            <option value="respuesta" ${prefillReply ? 'selected' : ''}>↩️ Respuesta Profesional a Consulta</option>
+            <option value="libre">✍️ Asunto Libre</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label class="fl" style="font-weight:700;font-size:12px">Destinatario / Cliente</label>
+          <input type="text" id="mailAiTo" class="fi" placeholder="Nombre o correo del cliente" value="${escapeHTML(toVal)}" style="width:100%">
+        </div>
+
+        <div class="fg">
+          <label class="fl" style="font-weight:700;font-size:12px">Puntos clave, productos o instrucciones</label>
+          <textarea id="mailAiNotes" class="fi" rows="3" placeholder="Ej: 10 cajas de resma carta Chamex a 4.20 c/u, entrega mañana en Altamira, pago en Bs al cambio BCV..." style="width:100%;resize:vertical"></textarea>
+        </div>
+
+        ${prefillReply ? `
+        <div class="fg" style="background:#f1f5f9;padding:8px 10px;border-radius:8px;font-size:11.5px;color:#475569">
+          <strong>Respondiendo a:</strong> ${escapeHTML(prefillReply.from || '')}<br>
+          <em>"${escapeHTML((prefillReply.originalText || '').slice(0, 150))}…"</em>
+        </div>
+        ` : ''}
+
+        <button class="btn-p" id="mailAiGenBtn" onclick="mailAiGenerate()" style="width:100%;padding:10px;justify-content:center">
+          ✨ Generar Asunto y Cuerpo con IA
+        </button>
+
+        <div id="mailAiResultBox" style="display:none;flex-direction:column;gap:10px;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:10px">
+          <div>
+            <label class="fl" style="font-weight:700;font-size:11.5px">Asunto Propuesto:</label>
+            <input type="text" id="mailAiResSubject" class="fi" style="width:100%;font-weight:600">
+          </div>
+          <div>
+            <label class="fl" style="font-weight:700;font-size:11.5px">Cuerpo Propuesto:</label>
+            <textarea id="mailAiResBody" class="fi" rows="7" style="width:100%;resize:vertical;font-size:12.5px"></textarea>
+          </div>
+          <button class="btn-p" onclick="mailAiApplyToComposer()" style="background:#16604A;color:#fff;width:100%;padding:10px;justify-content:center">
+            ✅ Insertar en el Correo
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  ovl.onclick = closeMailAiModal;
+  document.body.appendChild(ovl);
+}
+window.openMailAiComposer = openMailAiComposer;
+
+function closeMailAiModal() {
+  document.getElementById('mailAiModalOvl')?.remove();
+}
+window.closeMailAiModal = closeMailAiModal;
+
+async function mailReplyWithAi() {
+  const m = mailRows.find(x => x.id === mailReadId);
+  if (!m) return;
+  const from = /<([^>]+)>/.exec(m.from_addr || '');
+  const to = from ? from[1] : (m.from_addr || '');
+  const subj = /^re:/i.test(m.subject || '') ? m.subject : 'Re: ' + (m.subject || '');
+  const originalText = m.body || m.snippet || '';
+
+  openMailAiComposer({
+    to,
+    from: m.from_addr,
+    subject: subj,
+    originalText,
+    customerId: m.customer_id
+  });
+}
+window.mailReplyWithAi = mailReplyWithAi;
+
+async function mailAiGenerate() {
+  const scenario = document.getElementById('mailAiScenario').value;
+  const to = (document.getElementById('mailAiTo')?.value || '').trim();
+  const notes = (document.getElementById('mailAiNotes')?.value || '').trim();
+  const genBtn = document.getElementById('mailAiGenBtn');
+
+  genBtn.disabled = true;
+  genBtn.textContent = 'Redactando con Gemini IA… ⏳';
+
+  try {
+    const profile = window.CURRENT_PROFILE || window.MAIL_ME || {};
+    const result = await window.GeminiClient.draftEmail({
+      scenario,
+      toName: to,
+      toEmail: to.includes('@') ? to : '',
+      notes,
+      originalEmail: _mailAiReplyContext?.originalText || '',
+      sellerName: profile.full_name || profile.name || 'Asesor JJ Paper'
+    });
+
+    document.getElementById('mailAiResSubject').value = result.subject || '';
+    document.getElementById('mailAiResBody').value = result.body || '';
+    document.getElementById('mailAiResultBox').style.display = 'flex';
+  } catch (err) {
+    showToast('Error redactando correo: ' + err.message, 'err');
+  } finally {
+    genBtn.disabled = false;
+    genBtn.textContent = '✨ Regenerar Asunto y Cuerpo con IA';
+  }
+}
+window.mailAiGenerate = mailAiGenerate;
+
+function mailAiApplyToComposer() {
+  const subj = document.getElementById('mailAiResSubject')?.value || '';
+  const body = document.getElementById('mailAiResBody')?.value || '';
+  const to = document.getElementById('mailAiTo')?.value || '';
+
+  if (_mailAiReplyContext) {
+    closeMailRead();
+    openMailCompose({
+      to: _mailAiReplyContext.to || to,
+      subject: subj,
+      customerId: _mailAiReplyContext.customerId,
+      body: body
+    });
+  } else {
+    if (to && document.getElementById('mailTo')) document.getElementById('mailTo').value = to;
+    if (subj && document.getElementById('mailSubject')) document.getElementById('mailSubject').value = subj;
+    if (body && document.getElementById('mailBody')) document.getElementById('mailBody').value = body;
+  }
+
+  closeMailAiModal();
+  showToast('¡Texto insertado en el correo! ✨');
+}
+window.mailAiApplyToComposer = mailAiApplyToComposer;
+

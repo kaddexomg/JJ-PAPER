@@ -1432,3 +1432,339 @@ async function waHandleParams() {
     await waStartChat(tel, null);
   }
 }
+
+/* ==========================================================================
+   JJ Paper — Suite de Asistente IA en WhatsApp CRM
+   ========================================================================== */
+
+async function waSendGeneratedImage(blob, filename = 'flyer.png', caption = null) {
+  if (!blob || !waActive) {
+    showToast('Abre un chat primero para enviar la imagen', 'warn');
+    return false;
+  }
+  if (waActive.owner_id !== WA_ME.id) {
+    showToast('Solo puedes enviar desde tus propios chats', 'warn');
+    return false;
+  }
+  const ext = (filename.split('.').pop() || 'png').toLowerCase();
+  const path = `${WA_ME.id}/${waActive.id}/${Date.now()}.${ext}`;
+
+  showToast('Subiendo imagen a WhatsApp…');
+  const { error: upErr } = await sb.storage.from('jjp-wa-media')
+    .upload(path, blob, { contentType: 'image/png' });
+  if (upErr) {
+    showToast('Error subiendo imagen: ' + upErr.message, 'err');
+    return false;
+  }
+
+  const reply = waReplyTo; waCancelReply();
+  const insert = {
+    chat_id: waActive.id, owner_id: WA_ME.id,
+    direction: 'out', type: 'image', body: caption || null,
+    media_path: path, media_mime: 'image/png',
+    media_size: blob.size, media_filename: filename,
+    status: 'pending'
+  };
+  if (reply?.wa_msg_id) {
+    insert.reply_to_wa_id = reply.wa_msg_id;
+    insert.reply_preview = reply.preview;
+    insert.reply_from = reply.from;
+  }
+  const { error } = await sb.from('jjp_wa_messages').insert(insert);
+  if (error) {
+    showToast('No se pudo enviar imagen: ' + error.message, 'err');
+    return false;
+  }
+  showToast('¡Flyer enviado a WhatsApp! ✅');
+  return true;
+}
+window.waSendGeneratedImage = waSendGeneratedImage;
+
+function waToggleAiMenu(ev) {
+  ev?.stopPropagation();
+  let pop = document.getElementById('waAiMenuPop');
+  if (pop) { pop.remove(); return; }
+
+  pop = document.createElement('div');
+  pop.id = 'waAiMenuPop';
+  pop.style.cssText = `
+    position: absolute; bottom: 58px; left: 46px; z-index: 150;
+    background: #ffffff; border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.2);
+    border: 1px solid #cbd5e1; width: 270px; overflow: hidden;
+    font-family: inherit; font-size: 13px; display: flex; flex-direction: column;
+  `;
+
+  pop.innerHTML = `
+    <div style="background:linear-gradient(135deg,#16604A,#0d3d2f);color:#fff;padding:9px 12px;font-weight:700;display:flex;align-items:center;gap:6px">
+      <span>🪄 Asistente IA JJ Paper</span>
+    </div>
+    <div style="padding:6px 0;display:flex;flex-direction:column">
+      <button class="wa-ai-item-btn" onclick="waAiSuggestReply()">
+        <span>💡</span> <strong>Sugerir Respuesta</strong>
+      </button>
+      <button class="wa-ai-item-btn" onclick="waAiVariarText()">
+        <span>🛡️</span> <strong>Variar Texto (Anti-Spam)</strong>
+      </button>
+      <button class="wa-ai-item-btn" onclick="waAiSearchPrice()">
+        <span>📦</span> <strong>Consultar Precio / Catálogo</strong>
+      </button>
+      <button class="wa-ai-item-btn" onclick="waAiOpenFlyer()">
+        <span>🎨</span> <strong>Generar Flyer de Producto</strong>
+      </button>
+    </div>
+  `;
+
+  if (!document.getElementById('wa-ai-item-css')) {
+    const st = document.createElement('style');
+    st.id = 'wa-ai-item-css';
+    st.textContent = `
+      .wa-ai-item-btn {
+        display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+        border: 0; background: none; width: 100%; text-align: left; cursor: pointer;
+        font: inherit; font-size: 12.5px; color: #1e293b; transition: background 0.15s;
+      }
+      .wa-ai-item-btn:hover { background: #f1f5f9; color: #16604A; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  const composer = document.getElementById('waComposer');
+  if (composer) {
+    composer.style.position = 'relative';
+    composer.appendChild(pop);
+  } else {
+    document.body.appendChild(pop);
+  }
+
+  const closePop = (e) => {
+    if (!pop.contains(e.target) && e.target.id !== 'waAiBtn') {
+      pop.remove();
+      document.removeEventListener('click', closePop);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closePop), 20);
+}
+window.waToggleAiMenu = waToggleAiMenu;
+
+async function waAiSuggestReply() {
+  document.getElementById('waAiMenuPop')?.remove();
+  if (!waActive) { showToast('Elige un chat primero', 'warn'); return; }
+
+  const lastIn = [...waMsgs].reverse().find(m => m.direction === 'in')?.body || '';
+  const clientName = waActive.contact_name || waActive.phone || 'Cliente';
+  const sellerName = WA_ME.full_name || WA_ME.name || 'Asesor';
+
+  waOpenAiModal('💡 Sugerir Respuesta Inteligente', `
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px">
+      Analizando consulta de <strong>${escapeHTML(clientName)}</strong>:<br>
+      <em>"${escapeHTML(lastIn || '(Sin mensaje reciente escrito)')}"</em>
+    </div>
+    <div id="waAiSuggestLoading" style="padding:16px;text-align:center;color:#16604A;font-weight:600">
+      Consultando catálogo y generando 3 respuestas… ⏳
+    </div>
+    <div id="waAiSuggestContent" style="display:none;flex-direction:column;gap:10px"></div>
+  `);
+
+  try {
+    const replies = await window.GeminiClient.suggestWhatsAppReplies({
+      chatHistory: waMsgs,
+      lastMessage: lastIn,
+      clientName,
+      sellerName
+    });
+
+    document.getElementById('waAiSuggestLoading').style.display = 'none';
+    const box = document.getElementById('waAiSuggestContent');
+    box.style.display = 'flex';
+
+    box.innerHTML = `
+      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(replies.opcion_directa)}\`)">
+        <div class="wa-ai-card-hd">⚡ Opción Directa:</div>
+        <div class="wa-ai-card-bd">${escapeHTML(replies.opcion_directa)}</div>
+        <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Usar esta respuesta</button>
+      </div>
+      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(replies.opcion_cordial)}\`)">
+        <div class="wa-ai-card-hd">🤝 Opción Cordial:</div>
+        <div class="wa-ai-card-bd">${escapeHTML(replies.opcion_cordial)}</div>
+        <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Usar esta respuesta</button>
+      </div>
+      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(replies.opcion_comercial)}\`)">
+        <div class="wa-ai-card-hd">💼 Opción Comercial / Cierre:</div>
+        <div class="wa-ai-card-bd">${escapeHTML(replies.opcion_comercial)}</div>
+        <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Usar esta respuesta</button>
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('waAiSuggestLoading').innerHTML = `<span style="color:#b91c1c">Error: ${err.message}</span>`;
+  }
+}
+window.waAiSuggestReply = waAiSuggestReply;
+
+async function waAiVariarText() {
+  document.getElementById('waAiMenuPop')?.remove();
+  const currentText = (document.getElementById('waComposerInput')?.value || '').trim();
+  if (!currentText) {
+    showToast('Escribe primero el mensaje en la barra de texto para variarlo', 'warn');
+    return;
+  }
+
+  waOpenAiModal('🛡️ Anti-Spam (Variar Redacción)', `
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px">
+      Generando 3 variaciones con distinta estructura y sinónimos para no disparar los filtros de WhatsApp:
+    </div>
+    <div id="waAiVarLoading" style="padding:16px;text-align:center;color:#16604A;font-weight:600">
+      Generando variaciones anti-baneo… ⏳
+    </div>
+    <div id="waAiVarContent" style="display:none;flex-direction:column;gap:10px"></div>
+  `);
+
+  try {
+    const vars = await window.GeminiClient.generateAntiSpamVariations(currentText);
+    document.getElementById('waAiVarLoading').style.display = 'none';
+    const box = document.getElementById('waAiVarContent');
+    box.style.display = 'flex';
+
+    box.innerHTML = `
+      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(vars.variacion_a)}\`)">
+        <div class="wa-ai-card-hd">⚡ Variación A (Directa):</div>
+        <div class="wa-ai-card-bd">${escapeHTML(vars.variacion_a)}</div>
+        <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Aplicar al mensaje</button>
+      </div>
+      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(vars.variacion_b)}\`)">
+        <div class="wa-ai-card-hd">🤝 Variación B (Cálida / Amistosa):</div>
+        <div class="wa-ai-card-bd">${escapeHTML(vars.variacion_b)}</div>
+        <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Aplicar al mensaje</button>
+      </div>
+      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(vars.variacion_c)}\`)">
+        <div class="wa-ai-card-hd">💼 Variación C (Formal / Comercial):</div>
+        <div class="wa-ai-card-bd">${escapeHTML(vars.variacion_c)}</div>
+        <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Aplicar al mensaje</button>
+      </div>
+    `;
+  } catch (err) {
+    document.getElementById('waAiVarLoading').innerHTML = `<span style="color:#b91c1c">Error: ${err.message}</span>`;
+  }
+}
+window.waAiVariarText = waAiVariarText;
+
+function waAiSearchPrice() {
+  document.getElementById('waAiMenuPop')?.remove();
+  waOpenAiModal('📦 Consultar Precio / Catálogo', `
+    <div style="margin-bottom:10px">
+      <input type="text" id="waAiSearchInput" class="fi" placeholder="Escribe el nombre o código del producto…" style="width:100%">
+    </div>
+    <div id="waAiSearchRes" style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+      <div style="color:#64748b;font-size:12.5px;padding:8px">Escribe al menos 2 letras para buscar…</div>
+    </div>
+  `);
+
+  let debounce;
+  document.getElementById('waAiSearchInput').oninput = (e) => {
+    clearTimeout(debounce);
+    debounce = setTimeout(async () => {
+      const q = e.target.value.trim();
+      const resBox = document.getElementById('waAiSearchRes');
+      if (q.length < 2) return;
+      resBox.innerHTML = '<div style="color:#64748b;font-size:12px;padding:8px">Buscando productos…</div>';
+      const prods = await window.GeminiClient.searchProductsLive(q, 8);
+      if (!prods.length) {
+        resBox.innerHTML = '<div style="color:#64748b;font-size:12px;padding:8px">Sin resultados</div>';
+        return;
+      }
+      resBox.innerHTML = prods.map(p => `
+        <div class="wa-ai-card" onclick="waAiInsertPriceProd(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+          <div style="font-weight:700;color:#0f172a">${escapeHTML(p.name)} ${p.sku ? `(${p.sku})` : ''}</div>
+          <div style="font-size:12.5px;color:#16604A;font-weight:600;margin-top:2px">
+            💵 $${p.price_usd.toFixed(2)} USD · Bs ${p.price_bs.toFixed(2)} x ${p.unit}
+          </div>
+          ${p.brands ? `<div style="font-size:11px;color:#64748b">Marca: ${escapeHTML(p.brands)}</div>` : ''}
+          <div style="font-size:11px;color:#0284c7;margin-top:4px">👆 Clic para insertar cotización en el mensaje</div>
+        </div>
+      `).join('');
+    }, 200);
+  };
+}
+window.waAiSearchPrice = waAiSearchPrice;
+
+function waAiInsertPriceProd(p) {
+  const ci = document.getElementById('waComposerInput');
+  if (ci) {
+    const textToInsert = `🛍️ *${p.name}* ${p.sku ? `(${p.sku})` : ''}\n💰 Precio: $${p.price_usd.toFixed(2)} USD (Bs ${p.price_bs.toFixed(2)} al cambio BCV) por ${p.unit}`;
+    ci.value = ci.value ? (ci.value + '\n\n' + textToInsert) : textToInsert;
+    waComposerButtons();
+    ci.focus();
+  }
+  waCloseAiModal();
+}
+window.waAiInsertPriceProd = waAiInsertPriceProd;
+
+function waAiOpenFlyer() {
+  document.getElementById('waAiMenuPop')?.remove();
+  const cpiWin = document.getElementById('jjp-copilot-window');
+  if (cpiWin) {
+    cpiWin.classList.remove('cpi-hidden');
+    // Activar pestaña flyer
+    const tabBtn = cpiWin.querySelector('[data-tab="flyer"]');
+    if (tabBtn) tabBtn.click();
+  } else {
+    showToast('El creador de flyers se está cargando…', 'info');
+  }
+}
+window.waAiOpenFlyer = waAiOpenFlyer;
+
+function waAiApplyText(text) {
+  const ci = document.getElementById('waComposerInput');
+  if (ci) {
+    ci.value = text;
+    waComposerButtons();
+    ci.focus();
+  }
+  waCloseAiModal();
+}
+window.waAiApplyText = waAiApplyText;
+
+function waOpenAiModal(title, bodyHtml) {
+  waCloseAiModal();
+  const ovl = document.createElement('div');
+  ovl.className = 'modal-overlay op';
+  ovl.id = 'waAiModalOvl';
+  ovl.style.zIndex = '99999';
+  ovl.innerHTML = `
+    <div class="modal-box" style="max-width:500px;width:100%;border-radius:16px" onclick="event.stopPropagation()">
+      <div class="modal-hd" style="border-bottom:1px solid #e2e8f0;padding:14px 18px">
+        <h3 style="margin:0;font-size:15px;color:#16604A">${title}</h3>
+        <button class="modal-close" onclick="waCloseAiModal()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body" style="padding:16px">
+        ${bodyHtml}
+      </div>
+    </div>
+  `;
+  ovl.onclick = waCloseAiModal;
+
+  if (!document.getElementById('wa-ai-modal-css')) {
+    const st = document.createElement('style');
+    st.id = 'wa-ai-modal-css';
+    st.textContent = `
+      .wa-ai-card {
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 10px 12px; cursor: pointer; transition: all 0.2s;
+      }
+      .wa-ai-card:hover { background: #f0fdf4; border-color: #86efac; transform: translateY(-1px); }
+      .wa-ai-card-hd { font-weight: 700; color: #16604A; font-size: 12px; margin-bottom: 4px; }
+      .wa-ai-card-bd { font-size: 13px; color: #1e293b; line-height: 1.4; white-space: pre-wrap; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  document.body.appendChild(ovl);
+}
+function waCloseAiModal() {
+  document.getElementById('waAiModalOvl')?.remove();
+}
+window.waCloseAiModal = waCloseAiModal;
+
+function escapeJs(str) {
+  return String(str || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+}
+

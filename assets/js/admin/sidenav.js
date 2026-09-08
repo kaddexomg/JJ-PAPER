@@ -233,7 +233,15 @@
     renderNav();
   }
 
-  function init() { injectCSS(); renderNav(); applyRole(); }
+  function loadCopilot() {
+    if (document.getElementById('jjp-copilot-script')) return;
+    const s = document.createElement('script');
+    s.id = 'jjp-copilot-script';
+    s.src = '../assets/js/copilot-jj.js?v=20260908_ai_v1';
+    document.head.appendChild(s);
+  }
+
+  function init() { injectCSS(); renderNav(); applyRole(); loadCopilot(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();

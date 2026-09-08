@@ -21,11 +21,16 @@
   const ADMIN_NAV = [
     { section: 'Principal' },
     { href: 'index.html', ico: '📊', label: 'Dashboard' },
-    { group: 'Ventas', ico: '🛒', items: [
-      { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
-      { href: 'cotizaciones.html', ico: '📋', label: 'Cotizaciones' },
-      { href: 'promociones.html',  ico: '🔥', label: 'Promociones' },
-      { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
+    { group: 'Ventas y Cartera', ico: '🛒', items: [
+      { href: '../vendedor/pos.html',       ico: '🛍️', label: 'Nueva Venta (POS)' },
+      { href: '../vendedor/cotizador.html', ico: '📋', label: 'Cotizador Rápido' },
+      { href: 'pedidos.html',               ico: '🛒', label: 'Todos los Pedidos' },
+      { href: 'cotizaciones.html',          ico: '🗂️', label: 'Todas las Cotizaciones' },
+      { href: '../vendedor/clientes.html',  ico: '👤', label: 'Mi Cartera Personal' },
+      { href: '../vendedor/consulta.html',  ico: '🔎', label: 'Consultar Stock' },
+      { href: '../lista_costos.html',       ico: '📄', label: 'Lista de Precios', ext: true },
+      { href: 'promociones.html',           ico: '🔥', label: 'Promociones' },
+      { href: 'resenas.html',               ico: '⭐', label: 'Reseñas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
@@ -104,8 +109,13 @@
   }
 
   function isActive(href) {
-    if (!href || href.startsWith('../')) return false;
-    return href.split('/').pop().toLowerCase() === current;
+    if (!href) return false;
+    const target = href.split('/').pop().toLowerCase();
+    if (href.includes('/')) {
+      const cleanHref = href.replace(/^\.\.\//, '');
+      return path.toLowerCase().endsWith(cleanHref.toLowerCase()) || target === current;
+    }
+    return target === current;
   }
 
   function linkEl(it) {

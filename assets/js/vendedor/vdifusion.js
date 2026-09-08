@@ -678,71 +678,103 @@ function newCampaign(preTplId = null) {
 }
 
 async function launchCampaignFromEditor(config) {
-  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, delays, batchSize, batchPauseM } = config;
+  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, generatedFlyerFile, delays, batchSize, batchPauseM } = config;
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
 
-  let mediaPath = null, mediaType = null, mediaMime = null, mediaFilename = null, mediaSize = null;
+  const attachOpts = String(attachOpt || 'none').split(',').map(s => s.trim()).filter(Boolean);
 
-  if (attachOpt === 'pdf_lista_precios') {
-    try {
-      if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
-      mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
-      mediaMime = 'application/pdf';
-      mediaType = 'document';
-      mediaSize = blob.size;
-      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
-      const { error: upErr } = await sb.storage.from('jjp-wa-media')
-        .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
-      if (upErr) throw new Error('No se pudo guardar el PDF: ' + upErr.message);
-    } catch (err) {
-      showToast('Error generando PDF: ' + err.message, 'err');
-      throw err;
+  let mediaPath = null, mediaType = null, mediaMime = null, mediaFilename = null, mediaSize = null;
+  let extraMediaPath = null, extraMediaType = null, extraMediaMime = null, extraMediaFilename = null, extraMediaSize = null;
+
+  function assignMedia(m) {
+    if (!mediaPath) {
+      mediaPath = m.path;
+      mediaType = m.type;
+      mediaMime = m.mime;
+      mediaFilename = m.filename;
+      mediaSize = m.size;
+    } else if (!extraMediaPath) {
+      extraMediaPath = m.path;
+      extraMediaType = m.type;
+      extraMediaMime = m.mime;
+      extraMediaFilename = m.filename;
+      extraMediaSize = m.size;
     }
-  } else if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
+  }
+
+  // 1. Flyer generado con IA o archivo propio subido
+  if (generatedFlyerFile) {
+    try {
+      const fName = generatedFlyerFile.name || `Flyer_${Date.now()}.png`;
+      const fPath = `${SELLER.id}/campaigns/${Date.now()}-${fName.replace(/[^\w.-]/g, '_')}`;
+      const { error: upErr } = await sb.storage.from('jjp-wa-media')
+        .upload(fPath, generatedFlyerFile, { contentType: 'image/png', upsert: true });
+      if (!upErr) {
+        assignMedia({ path: fPath, type: 'image', mime: 'image/png', filename: fName, size: generatedFlyerFile.size });
+      }
+    } catch (err) {
+      console.warn('Error subiendo flyer:', err);
+    }
+  } else if (attachOpts.includes('custom_file') && customFile) {
+    try {
+      const fName = customFile.name;
+      const fMime = customFile.type || 'application/octet-stream';
+      const fType = customFile.type.startsWith('image/') ? 'image' : 'document';
+      const fPath = `${SELLER.id}/campaigns/${Date.now()}-${fName.replace(/[^\w.-]/g, '_')}`;
+      const { error: upErr } = await sb.storage.from('jjp-wa-media')
+        .upload(fPath, customFile, { contentType: fMime, upsert: true });
+      if (!upErr) {
+        assignMedia({ path: fPath, type: fType, mime: fMime, filename: fName, size: customFile.size });
+      }
+    } catch (err) {
+      console.warn('Error subiendo archivo propio:', err);
+    }
+  }
+
+  // 2. Imagen / foto de producto o combo
+  if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url && (!mediaPath || !extraMediaPath)) {
     try {
       const imgUrl = selectedProductOrCombo.image_url;
       const imgResp = await fetch(imgUrl);
-      if (!imgResp.ok) throw new Error('No se pudo descargar la imagen del producto');
-      let imgBlob = await imgResp.blob();
-      // Comprime la imagen (máx 1200px, calidad ~0.82) para que quede < ~5 MB
-      // y WhatsApp pueda entregarla. Evita subir blobs de 10-20 MB.
-      try {
-        const comp = await compressImageForWhatsApp(imgBlob);
-        if (comp) {
-          imgBlob = comp.blob;
-          mediaMime = comp.blob.type || 'image/jpeg';
+      if (imgResp.ok) {
+        let imgBlob = await imgResp.blob();
+        let mime = imgBlob.type || 'image/jpeg';
+        try {
+          const comp = await compressImageForWhatsApp(imgBlob);
+          if (comp) {
+            imgBlob = comp.blob;
+            mime = comp.blob.type || 'image/jpeg';
+          }
+        } catch (e) {}
+        const fName = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+        const fPath = `${SELLER.id}/campaigns/${Date.now()}-${fName}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(fPath, imgBlob, { contentType: mime, upsert: true });
+        if (!upErr) {
+          assignMedia({ path: fPath, type: 'image', mime: mime, filename: fName, size: imgBlob.size });
         }
-      } catch (e) { console.warn('no se pudo comprimir imagen de campaña', e); }
-      mediaFilename = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
-      mediaType = 'image';
-      mediaSize = imgBlob.size;
-      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
-      const { error: upErr } = await sb.storage.from('jjp-wa-media')
-        .upload(mediaPath, imgBlob, { contentType: mediaMime, upsert: true });
-      if (upErr) throw new Error('No se pudo subir la imagen: ' + upErr.message);
+      }
     } catch (err) {
-      console.error(err);
-      mediaPath = null;
-      mediaType = null;
-      mediaMime = null;
-      mediaFilename = null;
-      mediaSize = null;
+      console.warn('Error subiendo imagen de producto:', err);
     }
-  } else if (attachOpt === 'custom_file' && customFile) {
+  }
+
+  // 3. Lista de precios oficial PDF
+  if (attachOpts.includes('pdf_lista_precios') && (!mediaPath || !extraMediaPath)) {
     try {
-      mediaFilename = customFile.name;
-      mediaMime = customFile.type || 'application/octet-stream';
-      mediaType = customFile.type.startsWith('image/') ? 'image' : 'document';
-      mediaSize = customFile.size;
-      mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${customFile.name.replace(/[^\w.-]/g, '_')}`;
-      const { error: upErr } = await sb.storage.from('jjp-wa-media')
-        .upload(mediaPath, customFile, { contentType: mediaMime, upsert: true });
-      if (upErr) throw new Error('No se pudo subir el archivo: ' + upErr.message);
+      if (typeof docPdfProductos === 'function') {
+        const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+        const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+        const pdfPath = `${SELLER.id}/campaigns/${Date.now()}-${pdfFilename}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(pdfPath, blob, { contentType: 'application/pdf', upsert: true });
+        if (!upErr) {
+          assignMedia({ path: pdfPath, type: 'document', mime: 'application/pdf', filename: pdfFilename, size: blob.size });
+        }
+      }
     } catch (err) {
-      showToast('Error subiendo archivo: ' + err.message, 'err');
-      throw err;
+      console.warn('Error generando PDF de precios:', err);
     }
   }
 
@@ -770,6 +802,14 @@ async function launchCampaignFromEditor(config) {
     payload.media_mime = mediaMime;
     payload.media_filename = mediaFilename;
     payload.media_size = mediaSize;
+  }
+
+  if (extraMediaPath) {
+    payload.extra_media_path = extraMediaPath;
+    payload.extra_media_type = extraMediaType;
+    payload.extra_media_mime = extraMediaMime;
+    payload.extra_media_filename = extraMediaFilename;
+    payload.extra_media_size = extraMediaSize;
   }
 
   let { data: camp, error } = await sb.from('jjp_wa_campaigns').insert(payload).select('id').single();

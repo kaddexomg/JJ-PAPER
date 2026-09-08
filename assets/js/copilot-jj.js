@@ -201,6 +201,7 @@
           <div class="cpi-chips">
             <span class="cpi-chip" onclick="cpiQuickAsk('¿A cómo está la tasa BCV hoy?')">💵 Tasa BCV hoy</span>
             <span class="cpi-chip" onclick="cpiQuickAsk('¿Cuánto cuesta la resma de papel bond carta?')">📄 Resma papel</span>
+            <span class="cpi-chip" onclick="cpiQuickAsk('Genera un flyer de resma de papel')">🎨 Diseñar Flyer</span>
             <span class="cpi-chip" onclick="cpiQuickAsk('¿Cuáles son las opciones de despacho?')">🚚 Despachos</span>
             <span class="cpi-chip" onclick="cpiLaunchCampaignModal()">🚀 Editor de Campaña</span>
           </div>
@@ -336,8 +337,21 @@
 
     _chatHistory.push({ sender: 'Usuario', text });
 
+    const isFlyerRequest = /(imagen|flyer|foto|tarjeta|diseñ|afiche|volante|publicidad|crear imagen|generar imagen)/i.test(text);
+
     ensureGeminiClient(async () => {
       try {
+        let matchedProduct = null;
+        if (isFlyerRequest) {
+          aiBubble.innerHTML = '<em>Buscando producto en catálogo para diseñar flyer…</em>';
+          const queryClean = text.replace(/^(genera|crea|diseña|haz|dame|muestra|envia|quiero|necesito)?\s*(una|un|el|la)?\s*(imagen|flyer|foto|tarjeta|diseño|afiche|volante|publicidad)\s*(de|del|para)?\s*/i, '').trim();
+          const q = queryClean.length >= 2 ? queryClean : text;
+          const prods = await window.GeminiClient.searchProductsLive(q, 3);
+          if (prods && prods.length > 0) {
+            matchedProduct = prods[0];
+          }
+        }
+
         const profile = window.CURRENT_PROFILE || window.WA_ME || {};
         const reply = await window.GeminiClient.askCopilot({
           message: text,
@@ -346,8 +360,36 @@
           userName: profile.full_name || profile.name || ''
         });
 
-        aiBubble.textContent = reply;
         _chatHistory.push({ sender: 'Copiloto', text: reply });
+
+        if (matchedProduct) {
+          const canvasId = 'cpiInlineCanvas_' + Date.now();
+          aiBubble.innerHTML = `
+            <div>${escapeHtmlStr(reply)}</div>
+            <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+              <div style="font-weight:700;color:#16604A;margin-bottom:6px;font-size:12.5px">🎨 Flyer Promocional: ${escapeHtmlStr(matchedProduct.name)}</div>
+              <canvas id="${canvasId}" class="cpi-canvas-preview" width="800" height="800" style="width:100%;height:auto;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08)"></canvas>
+              <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyInlineFlyer(this)">📋 Copiar</button>
+                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadInlineFlyer(this, '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar</button>
+                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">✏️ Personalizar</button>
+                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#16604A;color:#fff;border-color:#16604A" onclick="cpiLaunchProductCampaign('${escapeJsStr(matchedProduct.id || '')}')">📢 Lanzar Campaña</button>
+              </div>
+            </div>
+          `;
+          const cvs = document.getElementById(canvasId);
+          if (cvs) {
+            await window.GeminiClient.renderProductCard({
+              product: matchedProduct,
+              customPriceUsd: matchedProduct.price_usd,
+              sellerName: profile.full_name || profile.name || '',
+              sellerPhone: profile.phone || '',
+              canvas: cvs
+            });
+          }
+        } else {
+          aiBubble.textContent = reply;
+        }
       } catch (err) {
         aiBubble.innerHTML = `<span style="color:#b91c1c">⚠️ Error al consultar IA: ${err.message}</span>`;
       }
@@ -558,6 +600,69 @@
       }
     });
   }
+
+  window.cpiCopyInlineFlyer = function (btn) {
+    const box = btn.closest('div').parentElement;
+    const canvas = box.querySelector('canvas');
+    if (!canvas) return;
+    try {
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        const orig = btn.textContent;
+        btn.textContent = '¡Copiado! ✓';
+        setTimeout(() => btn.textContent = orig, 2000);
+        if (typeof showToast === 'function') showToast('Flyer copiado al portapapeles');
+      });
+    } catch (e) {
+      alert('Tu navegador no permite copiar directamente imágenes. Usa el botón Descargar.');
+    }
+  };
+
+  window.cpiDownloadInlineFlyer = function (btn, name) {
+    const box = btn.closest('div').parentElement;
+    const canvas = box.querySelector('canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = `Flyer_${(name || 'Producto').replace(/\s+/g, '_')}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+
+  window.cpiCustomizeProductFlyer = async function (prodKey) {
+    const flyerTabBtn = document.querySelector('.cpi-tab[data-tab="flyer"]');
+    if (flyerTabBtn) flyerTabBtn.click();
+    ensureGeminiClient(async () => {
+      let prod = null;
+      if (prodKey) {
+        const prods = await window.GeminiClient.searchProductsLive(prodKey, 1);
+        if (prods && prods.length) prod = prods[0];
+      }
+      if (!prod && _selectedFlyerProduct) prod = _selectedFlyerProduct;
+      if (prod) {
+        _selectedFlyerProduct = prod;
+        const searchInput = document.getElementById('cpiFlyerSearch');
+        if (searchInput) searchInput.value = prod.name;
+        const priceInput = document.getElementById('cpiFlyerPrice');
+        if (priceInput) priceInput.value = Number(prod.price_usd || 0).toFixed(2);
+        const form = document.getElementById('cpiFlyerForm');
+        if (form) form.style.display = 'block';
+        renderCurrentFlyer();
+      }
+    });
+  };
+
+  window.cpiLaunchProductCampaign = async function (prodKey) {
+    ensureGeminiClient(async () => {
+      let prod = null;
+      if (prodKey) {
+        const prods = await window.GeminiClient.searchProductsLive(prodKey, 1);
+        if (prods && prods.length) prod = prods[0];
+      }
+      if (prod) _selectedFlyerProduct = prod;
+      launchProductCampaignFromFlyer();
+    });
+  };
 
   window.cpiCopyText = function (btn, str) {
     navigator.clipboard.writeText(str).then(() => {

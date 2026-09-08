@@ -124,6 +124,22 @@ async function step(camp, dailyLimit) {
         .select('id').single();
       if (msgErr) throw new Error(msgErr.message);
 
+      if (camp.extra_media_path) {
+        const extraPayload = {
+          chat_id: chatId,
+          owner_id: camp.owner_id,
+          direction: 'out',
+          type: camp.extra_media_type || 'document',
+          body: '',
+          media_path: camp.extra_media_path,
+          media_mime: camp.extra_media_mime || null,
+          media_filename: camp.extra_media_filename || null,
+          media_size: camp.extra_media_size || null,
+          status: 'pending'
+        };
+        await db.from('jjp_wa_messages').insert(extraPayload);
+      }
+
       await db.from('jjp_wa_campaign_targets')
         .update({ status: 'sent', message_id: msg.id, sent_at: new Date().toISOString(), error: null })
         .eq('id', t.id);

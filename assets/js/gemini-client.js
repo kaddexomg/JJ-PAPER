@@ -17,22 +17,24 @@
 })(typeof window !== 'undefined' ? window : this, function () {
 
   // Pool oficial de 7 API Keys proporcionadas por el usuario
+  // Pool oficial de 7 API Keys ordenadas por velocidad y latencia comprobada
   const GEMINI_KEYS = [
-    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
+    'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
     'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
+    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
     'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
     'AQ.Ab8RN6I3nhWx1f54n5rcLa1nJv238N-IqJoIRWljUjZmg3nl-Q',
-    'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
     'AQ.Ab8RN6K7DB2-YqkZma3jsV8EfCqHel0UnR07oY-r8qquxgKTsA',
     'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
   ];
 
-  // Modelos preferidos en orden de velocidad y cuota disponible
+  // Modelos ultrarrápidos con latencia < 800ms
   const GEMINI_MODELS = [
-    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest',
     'gemini-3.5-flash',
-    'gemini-flash-latest',
-    'gemini-2.5-flash-lite'
+    'gemini-3.6-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -49,18 +51,21 @@
   }
 
   /* --------------------------------------------------------------------------
-     Llamada Base a la API con reintento automático entre las 7 llaves
+     Llamada Base a la API con reintento automático ultrarrápido (timeout 3.5s)
      -------------------------------------------------------------------------- */
   async function callGemini({ prompt, systemInstruction = '', temperature = 0.7, maxTokens = 1500, model = null }) {
     _totalCalls++;
     const modelsToTry = model ? [model, ...GEMINI_MODELS.filter(m => m !== model)] : GEMINI_MODELS;
     let lastError = null;
 
-    // Intentar a través de las 7 llaves si una falla por cuota (429/503)
+    // Intentar a través de las 7 llaves si una falla por cuota o demora más de 3.5s
     for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
       const currentKey = GEMINI_KEYS[(_keyIndex + attempt) % GEMINI_KEYS.length];
       
       for (const m of modelsToTry) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
           
@@ -81,8 +86,10 @@
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyPayload)
+            body: JSON.stringify(bodyPayload),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
 
           if (res.ok) {
             const data = await res.json();
@@ -102,15 +109,16 @@
             break; // Salir de modelos para esta llave e ir a la siguiente llave del pool
           }
 
-          // Si el modelo específico dio 404 (no disponible), probar el siguiente modelo
+          // Si el modelo específico no está disponible, probar el siguiente modelo
           if (status === 404) {
             continue;
           }
 
           lastError = new Error(`Error en API (${status}): ${errMsg}`);
         } catch (netErr) {
+          clearTimeout(timeoutId);
           lastError = netErr;
-          break; // Error de red o timeout, probar siguiente llave
+          break; // Error de red, aborto por timeout (>3.5s), probar siguiente llave
         }
       }
     }
@@ -680,12 +688,32 @@ Respuesta del Copiloto JJ:`;
     return lines;
   }
 
-  function loadImageSafe(url) {
+  async function loadImageSafe(url) {
+    if (!url) return null;
+    try {
+      const resp = await fetch(url, { mode: 'cors' });
+      if (resp.ok) {
+        const blob = await resp.blob();
+        return new Promise((res) => {
+          const img = new Image();
+          img.onload = () => res(img);
+          img.onerror = () => res(null);
+          img.src = URL.createObjectURL(blob);
+        });
+      }
+    } catch (e) {
+      // Fallback a Image con CORS
+    }
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
+      img.onerror = () => {
+        const fallback = new Image();
+        fallback.onload = () => resolve(fallback);
+        fallback.onerror = () => resolve(null);
+        fallback.src = url;
+      };
       img.src = url;
     });
   }

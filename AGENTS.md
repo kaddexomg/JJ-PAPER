@@ -198,4 +198,17 @@ No se detectaron tests.
 - **Generador Visual de Flyers Publicitarios Ultra-HD (`renderProductCard`)**:
   - Resolución ampliada a **1200 x 1200 px** (Canvas Retina 2x) para máxima nitidez en WhatsApp y pantallas móviles.
   - Iluminación de estudio con halo radial esmeralda, cinta promocional superior derecha ("🔥 OFERTA ESPECIAL"), sello de garantía institucional, doble cotización jerárquica en USD ($) y Bolívares (Bs) a tasa oficial BCV, y pie de página con datos de contacto del asesor.
-  - Mockup vectorial publicitario 3D inteligente en caso de que el producto no posea fotografía en catálogo.
+  - Mockup vectorial publicitario 3D inteligente en caso de que el producto no posea fotografía en catálogo.
+
+## Plan de Integración MixNet: Micro-Agente Satélite para Windows 7 (Bajos Recursos)
+- **Principio Fundamental**: NO modificar ni poner en riesgo `wa-server` actual. La suite de WhatsApp, campañas y correos permanece intacta y protegida.
+- **Limitaciones de las PCs de Facturación en la Empresa**:
+  - La mayoría opera con **Windows 7** y pocos recursos (2GB - 4GB RAM).
+  - Node 18+ (requerido por Baileys/WhatsApp) no corre nativamente en Windows 7 y consumiría demasiada RAM.
+  - Si una PC de facturación se apaga, no debe afectar el WhatsApp ni las campañas de la empresa.
+- **Solución Acordada: Micro-Agente Satélite Desacoplado (`mixnet-bridge.cjs`)**:
+  - Script independiente en CommonJS nativo sin dependencias pesadas de npm, compatible con Node 13+ en Windows 7.
+  - Consumo ultraligero: **<20 MB de RAM y 0% de CPU**.
+  - Sondea periódicamente (cada 5-10s) pedidos (`jjp_orders`) y cotizaciones (`jjp_quotes`) en Supabase.
+  - Deposita automáticamente `pedido_[ID].csv` / `pedido_[ID].txt` y `cotizacion_[ID].csv` en la carpeta vigilada de MixNet (`C:\JJ-PAPER-MIXER\` o ruta interna).
+  - **Arranque Automático Desatendido**: Configurado con script `.vbs` en `shell:startup` para iniciar en segundo plano sin ventana negra cada vez que se enciende la PC. Si la PC se apaga por la noche, al encenderse a la mañana siguiente procesa las órdenes acumuladas en segundos.

@@ -113,11 +113,98 @@ async function fix() {
     DROP POLICY IF EXISTS wa_sess_admin_all ON public.jjp_wa_sessions;
     CREATE POLICY wa_sess_all ON public.jjp_wa_sessions FOR ALL USING (true) WITH CHECK (true);
 
+    -- Campañas de WhatsApp y targets completos
+    CREATE TABLE IF NOT EXISTS public.jjp_wa_campaigns (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_id UUID,
+      created_by UUID,
+      name TEXT,
+      kind TEXT NOT NULL DEFAULT 'manual',
+      template_id UUID,
+      body TEXT,
+      message TEXT,
+      status TEXT NOT NULL DEFAULT 'en_cola',
+      delay_min_s INTEGER NOT NULL DEFAULT 45,
+      delay_max_s INTEGER NOT NULL DEFAULT 90,
+      batch_size INTEGER NOT NULL DEFAULT 0,
+      batch_pause_m INTEGER NOT NULL DEFAULT 5,
+      total INTEGER NOT NULL DEFAULT 0,
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      skipped_count INTEGER NOT NULL DEFAULT 0,
+      media_path TEXT,
+      media_type TEXT,
+      media_mime TEXT,
+      media_filename TEXT,
+      media_size INTEGER,
+      started_at TIMESTAMPTZ,
+      finished_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS owner_id UUID;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS created_by UUID;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS name TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS kind TEXT DEFAULT 'manual';
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS template_id UUID;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS body TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS message TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'en_cola';
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS delay_min_s INTEGER NOT NULL DEFAULT 45;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS delay_max_s INTEGER NOT NULL DEFAULT 90;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS batch_size INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS batch_pause_m INTEGER NOT NULL DEFAULT 5;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS total INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS sent_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS failed_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS skipped_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS media_path TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS media_type TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS media_mime TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS media_filename TEXT;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS media_size INTEGER;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+    ALTER TABLE public.jjp_wa_campaigns ADD COLUMN IF NOT EXISTS finished_at TIMESTAMPTZ;
+    ALTER TABLE public.jjp_wa_campaigns DROP CONSTRAINT IF EXISTS jjp_wa_campaigns_status_check;
+    ALTER TABLE public.jjp_wa_campaigns DROP CONSTRAINT IF EXISTS jjp_wa_campaigns_kind_check;
+
+    CREATE TABLE IF NOT EXISTS public.jjp_wa_campaign_targets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      campaign_id UUID NOT NULL REFERENCES public.jjp_wa_campaigns(id) ON DELETE CASCADE,
+      owner_id UUID NOT NULL,
+      customer_id UUID,
+      phone TEXT NOT NULL,
+      name TEXT,
+      vars JSONB NOT NULL DEFAULT '{}'::jsonb,
+      status TEXT NOT NULL DEFAULT 'pending',
+      message_id UUID,
+      error TEXT,
+      sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    ALTER TABLE public.jjp_wa_campaign_targets DROP CONSTRAINT IF EXISTS jjp_wa_campaign_targets_status_check;
+
+    ALTER TABLE public.jjp_wa_campaigns ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS wa_camp_all ON public.jjp_wa_campaigns;
+    CREATE POLICY wa_camp_all ON public.jjp_wa_campaigns FOR ALL USING (true) WITH CHECK (true);
+
+    ALTER TABLE public.jjp_wa_campaign_targets ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS wa_camp_tgt_all ON public.jjp_wa_campaign_targets;
+    CREATE POLICY wa_camp_tgt_all ON public.jjp_wa_campaign_targets FOR ALL USING (true) WITH CHECK (true);
+
     ALTER TABLE public.jjp_wa_chats ENABLE ROW LEVEL SECURITY;
     DROP POLICY IF EXISTS wa_chat_all ON public.jjp_wa_chats;
     CREATE POLICY wa_chat_all ON public.jjp_wa_chats FOR ALL USING (true) WITH CHECK (true);
 
     ALTER TABLE public.jjp_wa_messages ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.jjp_wa_messages ADD COLUMN IF NOT EXISTS forwarded BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE public.jjp_wa_messages ADD COLUMN IF NOT EXISTS reply_to_wa_id TEXT;
+    ALTER TABLE public.jjp_wa_messages ADD COLUMN IF NOT EXISTS reply_preview TEXT;
+    ALTER TABLE public.jjp_wa_messages ADD COLUMN IF NOT EXISTS reply_from TEXT;
+    ALTER TABLE public.jjp_wa_messages ADD COLUMN IF NOT EXISTS reaction TEXT;
+    ALTER TABLE public.jjp_wa_messages ADD COLUMN IF NOT EXISTS reaction_from TEXT;
+
     DROP POLICY IF EXISTS wa_msg_all ON public.jjp_wa_messages;
     CREATE POLICY wa_msg_all ON public.jjp_wa_messages FOR ALL USING (true) WITH CHECK (true);
 
@@ -175,10 +262,13 @@ async function fix() {
     ALTER TABLE public.jjp_wa_messages REPLICA IDENTITY FULL;
     ALTER TABLE public.jjp_emails REPLICA IDENTITY FULL;
     ALTER TABLE public.jjp_wa_campaigns REPLICA IDENTITY FULL;
-    ALTER TABLE public.jjp_wa_campaign_targets REPLICA IDENTITY FULL;
+    ALTER TABLE public.jjp_server_control REPLICA IDENTITY FULL;
 
     DO $$
     BEGIN
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_server_control;
+      EXCEPTION WHEN duplicate_object THEN END;
       BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.jjp_wa_sessions;
       EXCEPTION WHEN duplicate_object THEN END;

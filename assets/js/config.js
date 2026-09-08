@@ -48,8 +48,8 @@ const sb = new Proxy(_rawSbCore, {
     }
     if (prop === 'channel') {
       return function (name, opts) {
-        // Canales que escuchan eventos de WhatsApp o servidor local van a Comm
-        if (name && (name.startsWith('wa-') || name.startsWith('difusion-') || name.includes('email'))) {
+        // Canales que escuchan eventos de WhatsApp, servidor local o email van a Comm
+        if (name && (name.startsWith('wa-') || name.startsWith('difusion-') || name.startsWith('srv-') || name.includes('email'))) {
           return _rawSbComm.channel(name, opts);
         }
         return _rawSbCore.channel(name, opts);

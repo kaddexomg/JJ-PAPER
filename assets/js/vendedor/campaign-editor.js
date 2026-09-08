@@ -391,13 +391,17 @@ window.CampaignEditor = (() => {
     selectedAudienceList = contacts.filter(c => {
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
-      if (c.opt_out || c.email_opt_out) return false;
+      if (isEmail && c.email_opt_out) return false;
+      if (!isEmail && (c.opt_out || c.wa_opt_out)) return false;
 
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);
       if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0);
       if (aud === 'etiqueta' && tagVal) {
-        return (c.zone && c.zone.toLowerCase().includes(tagVal)) || 
-               (c.tags && c.tags.toLowerCase().includes(tagVal));
+        const zoneMatch = c.zone && String(c.zone).toLowerCase().includes(tagVal);
+        const tagMatch = Array.isArray(c.tags)
+          ? c.tags.some(t => String(t).toLowerCase().includes(tagVal))
+          : (c.tags && String(c.tags).toLowerCase().includes(tagVal));
+        return zoneMatch || tagMatch;
       }
       return true;
     });

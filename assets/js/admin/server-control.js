@@ -8,10 +8,11 @@
 let _srvRow = null;
 let _srvTimer = null;
 
-// 🟢 si el último latido llegó hace < 70s (late cada 20s)
+// 🟢 si el último latido llegó hace < 90s (late cada 30s)
 function srvOnline(row) {
-  if (!row?.heartbeat_at) return false;
-  return (Date.now() - new Date(row.heartbeat_at).getTime()) < 70_000;
+  const ts = row?.heartbeat_at || row?.heartbeat;
+  if (!ts) return false;
+  return (Date.now() - new Date(ts).getTime()) < 90_000;
 }
 
 function srvAgo(iso) {
@@ -48,12 +49,13 @@ function srvRenderModal() {
   const modChips = Object.keys(modLabel).map(k =>
     `<span class="srv-mod ${mods[k] ? 'on' : 'off'}">${mods[k] ? '✅' : '⛔'} ${modLabel[k]}</span>`).join('');
 
+  const hbIso = _srvRow?.heartbeat_at || _srvRow?.heartbeat;
   box.innerHTML = `
     <div class="srv-state ${on ? 'on' : 'off'}">
       <div class="srv-dot"></div>
       <div>
         <strong>${on ? 'Servidor ENCENDIDO' : 'Servidor APAGADO'}</strong><br>
-        <small>${on ? 'Último latido ' + srvAgo(_srvRow?.heartbeat_at) : 'Sin latidos recientes'}
+        <small>${on ? 'Último latido ' + srvAgo(hbIso) : 'Sin latidos recientes'}
         ${_srvRow?.host ? ' · PC: ' + escapeHTML(_srvRow.host) : ''}</small>
       </div>
     </div>

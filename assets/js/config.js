@@ -55,6 +55,21 @@ const sb = new Proxy(_rawSbCore, {
         return _rawSbCore.channel(name, opts);
       };
     }
+    if (prop === 'storage') {
+      return {
+        from(bucketName) {
+          if (bucketName === 'jjp-wa-media' || bucketName === 'jjp-email-media') {
+            return _rawSbComm.storage.from(bucketName);
+          }
+          if (bucketName === 'jjp-products' || bucketName === 'jjp-receipts') {
+            return _rawSbInv.storage.from(bucketName);
+          }
+          return _rawSbCore.storage.from(bucketName);
+        },
+        listBuckets: () => _rawSbComm.storage.listBuckets(),
+        getBucket: (id) => _rawSbComm.storage.getBucket(id)
+      };
+    }
     const val = Reflect.get(target, prop, receiver);
     return typeof val === 'function' ? val.bind(target) : val;
   }

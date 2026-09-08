@@ -54,7 +54,8 @@ async function step(camp, dailyLimit) {
         .select('email_opt_out').eq('id', t.customer_id).maybeSingle();
       if (cust?.email_opt_out) { await skip(camp, t, 'cliente sin correos'); continue; }
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t.to_addr || '')) { await skip(camp, t, 'correo inválido'); continue; }
+    const toAddr = t.to_addr || t.email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toAddr || '')) { await skip(camp, t, 'correo inválido'); continue; }
 
     await db.from('jjp_email_campaign_targets').update({ status: 'sending' }).eq('id', t.id);
 
@@ -65,17 +66,17 @@ async function step(camp, dailyLimit) {
         empresa: (t.vars || {}).empresa || t.name || '',
       };
       const subject = renderTemplate(camp.subject, realVars);
-      const body = renderTemplate(camp.body, realVars);
-      const html = camp.html ? renderTemplate(camp.html, realVars) : null;
+      const body = renderTemplate(camp.body || camp.body_html || '', realVars);
+      const html = (camp.html || camp.body_html) ? renderTemplate(camp.html || camp.body_html, realVars) : null;
 
       const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
-        to_addr: t.to_addr, subject, body, html, attachments: camp.attachments || []
+        to_addr: toAddr, subject, body, html, attachments: camp.attachments || []
       });
 
       // Historial en jjp_emails (aparece en "Enviados")
       const { data: em } = await db.from('jjp_emails').insert({
         owner_id: camp.owner_id, direction: 'out', status: 'sent',
-        to_addr: t.to_addr, from_addr: from, subject, body, html,
+        to_addr: toAddr, from_addr: from, subject, body, html,
         attachments: camp.attachments || [], customer_id: t.customer_id || null,
         campaign_id: camp.id, message_id: msgId, sent_at: new Date().toISOString()
       }).select('id').single();

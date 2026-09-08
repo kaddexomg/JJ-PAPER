@@ -23,8 +23,11 @@ async function beat() {
   let extra = {};
   try { extra = (typeof liveFn === 'function' ? liveFn() : {}) || {}; } catch (e) { /* nunca frenar el latido */ }
 
+  const now = new Date().toISOString();
   const { error } = await db.from('jjp_server_control').update({
-    heartbeat_at: new Date().toISOString(),
+    heartbeat: now,
+    heartbeat_at: now,
+    status: 'online',
     modules: { ...modulesRef, ...extra }
   }).eq('id', 1);
   if (error) log.warn({ err: error.message }, 'heartbeat falló');
@@ -43,7 +46,10 @@ async function runCommand(cmd) {
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
     await db.from('jjp_server_control').update({
-      heartbeat_at: null, modules: { stopped: true }
+      heartbeat: null,
+      heartbeat_at: null,
+      status: 'stopped',
+      modules: { stopped: true }
     }).eq('id', 1);
     process.exit(2);   // código 2 → run-forever.bat NO relanza (parada intencional)
   }
@@ -54,9 +60,12 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   modulesRef = modules;
   liveFn = liveStatusFn;
 
+  const now = new Date().toISOString();
   db.from('jjp_server_control').update({
-    started_at: new Date().toISOString(),
-    heartbeat_at: new Date().toISOString(),
+    started_at: now,
+    heartbeat: now,
+    heartbeat_at: now,
+    status: 'online',
     host: os.hostname(),
     modules: modulesRef,
     command: null

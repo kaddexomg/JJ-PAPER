@@ -301,7 +301,7 @@ function mailRenderBody(m) {
       } catch (e) {}
     };
   } else {
-    box.innerHTML = `<div class="mail-read-body" style="padding:12px;background:#fff;border-radius:8px;border:1px solid rgba(0,0,0,.08);">${mailLinkify(textContent || '(sin contenido)')}</div>`;
+    box.innerHTML = `<div class="mail-read-body" style="padding:16px;background:#fff;border-radius:8px;border:1px solid rgba(0,0,0,.08);font-size:15px;line-height:1.65;color:#1e293b;white-space:pre-wrap;word-break:break-word;">${mailLinkify(textContent || '(sin contenido)')}</div>`;
   }
 }
 
@@ -509,9 +509,11 @@ async function mailSend() {
     return;
   }
 
+  const formattedHtml = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e293b;padding:4px 0;">${body.split(/\r?\n\r?\n/).map(p => `<p style="margin:0 0 12px 0;">${p.replace(/\r?\n/g, '<br>')}</p>`).join('')}</div>`;
+
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',
-    to_addr: to, subject: subject || '(sin asunto)', body, status: 'pending',
+    to_addr: to, subject: subject || '(sin asunto)', body, html: formattedHtml, status: 'pending',
     customer_id: mailCompose.customerId || null,
     attachments: mailCompose.attachments
   });
@@ -519,7 +521,7 @@ async function mailSend() {
   mailCompose = { attachments: [], customerId: null };
   closeMailCompose();
   ['mailTo', 'mailSubject', 'mailBody'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  showToast('Correo en cola 📤 (sale cuando el servidor esté encendido)');
+  showToast('Correo en cola 📤 (sale de inmediato con el servidor encendido)');
 }
 
 async function mailRetry(id) {

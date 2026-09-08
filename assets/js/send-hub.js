@@ -18,12 +18,13 @@
    ====================================================== */
 
 /* ---------------- Estado del servidor ---------------- */
-// 🟢 si el último latido llegó hace menos de 70s (late cada 20s)
+// 🟢 si el último latido llegó hace menos de 90s (late cada 30s)
 async function sendServerOnline() {
   try {
-    const { data } = await sb.from('jjp_server_control').select('heartbeat_at').eq('id', 1).maybeSingle();
-    if (!data?.heartbeat_at) return false;
-    return (Date.now() - new Date(data.heartbeat_at).getTime()) < 70_000;
+    const { data } = await sb.from('jjp_server_control').select('heartbeat_at, heartbeat').eq('id', 1).maybeSingle();
+    const ts = data?.heartbeat_at || data?.heartbeat;
+    if (!ts) return false;
+    return (Date.now() - new Date(ts).getTime()) < 90_000;
   } catch (e) { return false; }
 }
 

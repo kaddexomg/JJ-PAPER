@@ -19,6 +19,24 @@ const RECEIPT_STATUS = { 3: 'delivered', 4: 'read' };
 // No retroceder: read no vuelve a delivered
 const UPGRADABLE = { delivered: ['sending', 'sent'], read: ['sending', 'sent', 'delivered'] };
 
+// Caché en memoria para stanzas de reintento (evita "Esperando este mensaje" en WhatsApp)
+class RetryCounterCache {
+  constructor(limit = 2000) {
+    this.map = new Map();
+    this.limit = limit;
+  }
+  get(key) { return this.map.get(key); }
+  set(key, val) {
+    if (this.map.size >= this.limit) {
+      const first = this.map.keys().next().value;
+      this.map.delete(first);
+    }
+    this.map.set(key, val);
+    return true;
+  }
+  del(key) { return this.map.delete(key); }
+}
+
 function unwrap(m) {
   return m?.ephemeralMessage?.message || m?.viewOnceMessage?.message
       || m?.viewOnceMessageV2?.message || m;
@@ -131,7 +149,27 @@ export class WaSession {
         // igual entrega los chats/mensajes recientes; los viejos llegan al
         // usar cada chat. Los mensajes NUEVOS siempre entran completos.
         syncFullHistory: false,
-        markOnlineOnConnect: false
+        markOnlineOnConnect: false,
+        msgRetryCounterCache: new RetryCounterCache(),
+        getMessage: async (key) => {
+          try {
+            const id = key?.id;
+            if (!id) return undefined;
+            const { data } = await db.from('jjp_wa_messages')
+              .select('body, type, media_filename')
+              .eq('wa_msg_id', id)
+              .limit(1);
+            if (!data || !data.length) return undefined;
+            const m = data[0];
+            if (m.type === 'text') return { conversation: m.body || '' };
+            if (m.type === 'image') return { imageMessage: { caption: m.body || '' } };
+            if (m.type === 'video') return { videoMessage: { caption: m.body || '' } };
+            if (m.type === 'document') return { documentMessage: { caption: m.body || '', fileName: m.media_filename || 'documento.pdf' } };
+            return { conversation: m.body || '' };
+          } catch (e) {
+            return undefined;
+          }
+        }
       });
       this.sock = sock;
 
@@ -271,6 +309,22 @@ export class WaSession {
 
       const ctx = getContextInfo(raw);
       const fromMe = !!key.fromMe;
+
+      // Si fue enviado por el CRM (outbox), ya existe en la base. Evitar duplicar la fila.
+      if (fromMe && key.id) {
+        const { data: existing } = await db.from('jjp_wa_messages')
+          .select('id').eq('owner_id', this.profileId).eq('wa_msg_id', key.id).limit(1);
+        if (existing && existing.length > 0) {
+          await db.from('jjp_wa_messages')
+            .update({
+              status: 'sent',
+              wa_timestamp: msg.messageTimestamp ? new Date(Number(msg.messageTimestamp) * 1000).toISOString() : new Date().toISOString()
+            })
+            .eq('id', existing[0].id);
+          continue;
+        }
+      }
+
       const row = {
         chat_id: chat.id,
         owner_id: this.profileId,

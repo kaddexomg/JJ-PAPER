@@ -40,7 +40,13 @@ function acctSig(acct) {
 // ---- Envío por la API de Gmail (para cuentas vinculadas con OAuth 'gmail.send') ----
 // SMTP+XOAUTH2 exigiría el scope amplio https://mail.google.com/; la API de Gmail
 // funciona con el scope mínimo gmail.send. Renovamos el access token con el refresh.
+const tokenCache = new Map(); // refresh -> { token, expiresAt }
+
 async function gmailAccessToken(refresh) {
+  const cached = tokenCache.get(refresh);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.token;
+  }
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -51,6 +57,9 @@ async function gmailAccessToken(refresh) {
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error_description || j.error || `token HTTP ${res.status}`);
+  // Guardar en caché (expira 5 min antes del tiempo real, por defecto 3600s)
+  const ttl = (j.expires_in ? Math.max(300, j.expires_in - 300) : 3000) * 1000;
+  tokenCache.set(refresh, { token: j.access_token, expiresAt: Date.now() + ttl });
   return j.access_token;
 }
 
@@ -92,52 +101,92 @@ async function loadAttachments(list) {
 // Devuelve el Buffer del archivo (o null si no se pudo). Distingue URL vs bucket.
 async function fetchAttachmentBytes(path) {
   try {
-    if (/^https?:\/\//i.test(path)) {
-      const r = await fetch(path, { redirect: 'follow' });
+    let cleanPath = String(path || '');
+    if (cleanPath.includes('czzvsqnmxtjzqzioknnn.supabase.co')) {
+      cleanPath = cleanPath.replace('https://czzvsqnmxtjzqzioknnn.supabase.co', 'https://nmcamjxhyysmmvgxgabo.supabase.co');
+    }
+    if (/^https?:\/\//i.test(cleanPath)) {
+      let r = await fetch(cleanPath, { redirect: 'follow' });
+      if (!r.ok && cleanPath.includes(SUPABASE_URL_CORE)) {
+        // Intentar en Proyecto C (Inventario/Storage)
+        const fallbackUrl = cleanPath.replace(SUPABASE_URL_CORE, 'https://nmcamjxhyysmmvgxgabo.supabase.co');
+        const r2 = await fetch(fallbackUrl, { redirect: 'follow' });
+        if (r2.ok) return Buffer.from(await r2.arrayBuffer());
+      }
       if (!r.ok) { log.warn({ err: `HTTP ${r.status}`, path }, 'adjunto no descargó'); return null; }
       return Buffer.from(await r.arrayBuffer());
     }
-    const { data, error } = await db.storage.from('jjp-email-media').download(path);
-    if (error) { log.warn({ err: error.message, path }, 'adjunto no descargó'); return null; }
-    return Buffer.from(await data.arrayBuffer());
+    // Probar primero en jjp-email-media (Comm)
+    const { data, error } = await db.storage.from('jjp-email-media').download(cleanPath);
+    if (!error && data) return Buffer.from(await data.arrayBuffer());
+
+    // Fallback a jjp-wa-media (Comm)
+    const { data: d2, error: e2 } = await db.storage.from('jjp-wa-media').download(cleanPath);
+    if (!e2 && d2) return Buffer.from(await d2.arrayBuffer());
+
+    // Fallback a jjp-wa-media (Core)
+    const { data: d3, error: e3 } = await dbCore.storage.from('jjp-wa-media').download(cleanPath);
+    if (!e3 && d3) return Buffer.from(await d3.arrayBuffer());
+
+    log.warn({ err: error?.message || e2?.message || e3?.message, path }, 'adjunto no descargó');
+    return null;
   } catch (e) {
     log.warn({ err: e.message, path }, 'adjunto no descargó');
     return null;
   }
 }
 
-function buildRawEmail({ from, to, subject, text, html }, atts) {
+function formatTextToHtml(text) {
+  const escaped = String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const paragraphs = escaped.split(/\r?\n\r?\n/).map(p => `<p style="margin:0 0 12px 0;">${p.replace(/\r?\n/g, '<br>')}</p>`).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e293b;background:#ffffff;margin:0;padding:16px;">${paragraphs}</body></html>`;
+}
+
+function buildRawEmail({ from, to, subject, text, html }, atts = []) {
   const NL = '\r\n';
-  const isHtml = !!html;
-  const bodyB64 = Buffer.from(isHtml ? html : (text || ''), 'utf8').toString('base64');
+  const effectiveText = text || '';
+  const effectiveHtml = html || formatTextToHtml(effectiveText);
+  const textB64 = Buffer.from(effectiveText, 'utf8').toString('base64');
+  const htmlB64 = Buffer.from(effectiveHtml, 'utf8').toString('base64');
+
+  const altBoundary = 'jjp_alt_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const altBody = [
+    `--${altBoundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64', '', textB64, '',
+    `--${altBoundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64', '', htmlB64, '',
+    `--${altBoundary}--`
+  ].join(NL);
 
   if (!atts?.length) {
     const s = [
       `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
-      `Content-Type: text/${isHtml ? 'html' : 'plain'}; charset="UTF-8"`,
-      'Content-Transfer-Encoding: base64', '', bodyB64
+      `Content-Type: multipart/alternative; boundary="${altBoundary}"`, '',
+      altBody
     ].join(NL);
     return b64url(Buffer.from(s, 'utf8'));
   }
 
-  const boundary = 'jjp_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const mixBoundary = 'jjp_mix_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   let s = [
     `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
-    `Content-Type: multipart/mixed; boundary="${boundary}"`, '',
-    `--${boundary}`,
-    `Content-Type: text/${isHtml ? 'html' : 'plain'}; charset="UTF-8"`,
-    'Content-Transfer-Encoding: base64', '', bodyB64, ''
+    `Content-Type: multipart/mixed; boundary="${mixBoundary}"`, '',
+    `--${mixBoundary}`,
+    `Content-Type: multipart/alternative; boundary="${altBoundary}"`, '',
+    altBody, ''
   ].join(NL);
   for (const a of atts) {
     s += [
-      `--${boundary}`,
+      `--${mixBoundary}`,
       `Content-Type: ${a.mime}; name="${a.name}"`,
       'Content-Transfer-Encoding: base64',
       `Content-Disposition: attachment; filename="${a.name}"`, '',
       a.b64.replace(/(.{76})/g, '$1' + NL), ''
     ].join(NL);
   }
-  s += `--${boundary}--`;
+  s += `--${mixBoundary}--`;
   return b64url(Buffer.from(s, 'utf8'));
 }
 
@@ -225,7 +274,17 @@ export function startEmail() {
   db.channel('wa-server-email-accounts')
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'jjp_email_accounts' },
-      p => { const id = p.new?.profile_id || p.old?.profile_id; transporters.delete(id); if (p.new) verifyAccount(p.new).catch(() => {}); })
+      p => {
+        const id = p.new?.profile_id || p.old?.profile_id;
+        transporters.delete(id);
+        if (!p.new) return;
+        // Prevenir bucle infinito: SOLO verificar si cambiaron credenciales o enabled
+        const oldSig = p.old ? `${p.old.email || ''}:${p.old.oauth_refresh || ''}:${p.old.app_pass || ''}:${p.old.enabled}` : '';
+        const newSig = `${p.new.email || ''}:${p.new.oauth_refresh || ''}:${p.new.app_pass || ''}:${p.new.enabled}`;
+        if (oldSig !== newSig) {
+          verifyAccount(p.new).catch(() => {});
+        }
+      })
     .subscribe();
 
   setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'email sweep falló')), EMAIL_SWEEP_MS);
@@ -417,25 +476,42 @@ async function verifyAllAccounts() {
 }
 
 // Valida una cuenta (OAuth o SMTP) y escribe verified/last_error
+const _verifyingAccounts = new Set();
 async function verifyAccount(row) {
-  if (!row.enabled || !row.email) return;
+  if (!row?.enabled || !row?.email || !row?.profile_id) return;
+  if (_verifyingAccounts.has(row.profile_id)) return;
+  _verifyingAccounts.add(row.profile_id);
+
   let acct = null;
   if (row.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET)
     acct = { email: row.email, refresh: row.oauth_refresh, source: 'oauth' };
   else if (row.app_pass)
     acct = { email: row.email, pass: row.app_pass, source: 'smtp' };
-  else return;
+  else {
+    _verifyingAccounts.delete(row.profile_id);
+    return;
+  }
+
   try {
     // OAuth: basta con que el refresh token consiga un access token (sin SMTP)
     if (acct.source === 'oauth') await gmailAccessToken(acct.refresh);
     else await buildTxFromAcct(acct).verify();
-    await db.from('jjp_email_accounts')
-      .update({ verified: true, last_error: null }).eq('profile_id', row.profile_id);
+    
+    // Solo actualizar si el estado en la fila era diferente
+    if (row.verified !== true || row.last_error !== null) {
+      await db.from('jjp_email_accounts')
+        .update({ verified: true, last_error: null }).eq('profile_id', row.profile_id);
+    }
     log.info({ email: row.email, via: acct.source }, 'cuenta de correo verificada ✅');
   } catch (e) {
-    await db.from('jjp_email_accounts')
-      .update({ verified: false, last_error: friendlyGmailError(e.message) }).eq('profile_id', row.profile_id);
+    const errText = friendlyGmailError(e.message);
+    if (row.verified !== false || row.last_error !== errText) {
+      await db.from('jjp_email_accounts')
+        .update({ verified: false, last_error: errText }).eq('profile_id', row.profile_id);
+    }
     log.warn({ email: row.email, err: e.message }, 'cuenta de correo NO verifica');
+  } finally {
+    _verifyingAccounts.delete(row.profile_id);
   }
 }
 

@@ -1,5 +1,5 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log, baileysLogger } from './logger.js';
 import { MEDIA_BUCKET } from './config.js';
 
@@ -39,7 +39,17 @@ export async function uploadIncomingMedia(msg, sock, ownerId, chatId, mime) {
 
 // Media saliente: Storage → buffer para sock.sendMessage
 export async function downloadOutgoingMedia(mediaPath) {
+  // Probar en Proyecto B (jjp-wa-media)
   const { data, error } = await db.storage.from(MEDIA_BUCKET).download(mediaPath);
-  if (error) throw new Error('descarga Storage falló: ' + error.message);
-  return Buffer.from(await data.arrayBuffer());
+  if (!error && data) return Buffer.from(await data.arrayBuffer());
+
+  // Fallback a Proyecto A (jjp-wa-media)
+  const { data: d2, error: e2 } = await dbCore.storage.from(MEDIA_BUCKET).download(mediaPath);
+  if (!e2 && d2) return Buffer.from(await d2.arrayBuffer());
+
+  // Fallback a jjp-email-media
+  const { data: d3, error: e3 } = await db.storage.from('jjp-email-media').download(mediaPath);
+  if (!e3 && d3) return Buffer.from(await d3.arrayBuffer());
+
+  throw new Error('descarga Storage falló: ' + (error?.message || e2?.message || e3?.message));
 }

@@ -205,15 +205,18 @@ async function loadEcContacts() {
     .select('*')
     .not('email', 'is', null)
     .neq('email', '')
-    .eq('email_opt_out', false)
     .order('name');
     
   if (!isAdm && SELLER?.id) {
     q = q.eq('seller_id', SELLER.id);
   }
   const { data, error } = await q;
-  if (error) { showToast('Error cargando audiencia de correos', 'err'); return; }
-  ecContacts = (data || []).filter(c => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || ''));
+  if (error) {
+    console.error('Error cargando audiencia de correos:', error);
+    showToast('Error cargando audiencia: ' + (error.message || error), 'err');
+    return;
+  }
+  ecContacts = (data || []).filter(c => !c.email_opt_out && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || ''));
 }
 
 /* ================== PLANTILLAS ================== */
@@ -604,6 +607,7 @@ async function launchEmailCampaignFromEditor(config) {
     subject: subject || name,
     body,
     html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
+    body_html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
     attachments,
     status: 'running',
     total: audience.length,
@@ -630,6 +634,7 @@ async function launchEmailCampaignFromEditor(config) {
     owner_id: ownerId,
     customer_id: c.id || null,
     to_addr: c.email,
+    email: c.email,
     name: c.name,
     status: 'pending',
     vars: ecSampleVars(c.name, extra)
@@ -797,12 +802,15 @@ async function launchEcCampaign() {
 
   btn.textContent = 'Creando campaña…';
 
+  const htmlContent = (tpl.body || '').replace(/\n/g, '<br>');
   const { data: camp, error } = await sb.from('jjp_email_campaigns').insert({
     owner_id: SELLER.id,
     name,
     kind: extra.type || 'general',
     subject: tpl.subject,
     body: tpl.body,
+    html: htmlContent,
+    body_html: htmlContent,
     status: 'draft',
     total: list.length,
     attachments
@@ -819,6 +827,7 @@ async function launchEcCampaign() {
     owner_id: SELLER.id,
     customer_id: c.id || null,
     to_addr: c.email,
+    email: c.email,
     name: c.name || 'Cliente',
     status: 'pending',
     vars: ecSampleVars(c.name, extra),

@@ -1388,11 +1388,27 @@ async function waRenderSessions() {
 }
 
 async function waToggleSession(profileId, enabled) {
-  // La semilla crea la fila; upsert cubre perfiles creados después
-  const { error } = await sb.from('jjp_wa_sessions')
-    .upsert({ profile_id: profileId, enabled }, { onConflict: 'profile_id' });
-  if (error) { showToast('Error: ' + error.message, 'err'); return; }
-  showToast(enabled ? 'Sesión habilitada' : 'Sesión deshabilitada');
+  // Primero intenta update directo ya que la semilla crea la fila
+  let { error } = await sb.from('jjp_wa_sessions')
+    .update({ enabled, status: enabled ? 'starting' : 'disabled' })
+    .eq('profile_id', profileId);
+
+  // Si no existía, upsert
+  if (error) {
+    const res = await sb.from('jjp_wa_sessions')
+      .upsert({ profile_id: profileId, enabled, status: enabled ? 'starting' : 'disabled' }, { onConflict: 'profile_id' });
+    error = res.error;
+  }
+
+  if (error) {
+    const msg = error.message?.includes('policy')
+      ? 'Permiso denegado por política de base de datos. Verifica tu rol de admin.'
+      : (error.message || 'Error desconocido');
+    showToast('No se pudo cambiar el estado: ' + msg, 'err');
+    waRenderSessions();
+    return;
+  }
+  showToast(enabled ? 'Sesión de WhatsApp activada ✅' : 'Sesión de WhatsApp desactivada');
   waRenderSessions();
 }
 

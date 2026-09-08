@@ -271,17 +271,37 @@ async function mailOpen(id) {
 function mailRenderBody(m) {
   const box = document.getElementById('mailReadBody');
   if (!box) return;
-  if (m.html) {
+  const htmlContent = m.html || m.body_html || '';
+  const textContent = m.body || m.body_text || m.snippet || '';
+
+  if (htmlContent && htmlContent.trim()) {
     box.innerHTML = '';
     const frame = document.createElement('iframe');
     frame.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox');
-    frame.style.cssText = 'width:100%;border:0;min-height:320px;background:#fff;border-radius:8px';
+    frame.style.cssText = 'width:100%;border:1px solid rgba(0,0,0,.08);min-height:350px;background:#fff;border-radius:8px;box-sizing:border-box;display:block;';
     box.appendChild(frame);
-    frame.srcdoc = `<!doctype html><meta charset="utf-8"><base target="_blank">
-      <div style="font:14px/1.55 system-ui,Segoe UI,Arial;color:#111;padding:8px;word-break:break-word">${m.html}</div>`;
-    frame.onload = () => { try { frame.style.height = Math.min((frame.contentWindow.document.body.scrollHeight || 320) + 28, 620) + 'px'; } catch (e) {} };
+    frame.srcdoc = `<!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base target="_blank">
+        <style>
+          body { font:14px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#222; margin:12px; padding:0; word-break:break-word; }
+          img { max-width:100%; height:auto; }
+          table { max-width:100% !important; }
+        </style>
+      </head>
+      <body>${htmlContent}</body>
+      </html>`;
+    frame.onload = () => {
+      try {
+        const h = frame.contentWindow?.document?.body?.scrollHeight;
+        if (h && h > 100) frame.style.height = Math.min(h + 35, 750) + 'px';
+      } catch (e) {}
+    };
   } else {
-    box.innerHTML = `<div class="mail-read-body">${mailLinkify(m.body || m.snippet || '(sin contenido)')}</div>`;
+    box.innerHTML = `<div class="mail-read-body" style="padding:12px;background:#fff;border-radius:8px;border:1px solid rgba(0,0,0,.08);">${mailLinkify(textContent || '(sin contenido)')}</div>`;
   }
 }
 

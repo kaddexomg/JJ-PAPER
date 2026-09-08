@@ -219,7 +219,7 @@ function docFolletoChrome(doc, { subtitulo, logoPng, rate }) {
 
 /* Folleto de productos. conStock=false → LISTA DE PRECIOS para el cliente:
    nunca lleva existencias, para no tener que decirle "Agotado" a nadie. */
-async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista' } = {}) {
+async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista', returnBase64 = false } = {}) {
   await docEnsureSettings();
   await docEnsurePdfLib();
   const filas = await docLoadCatalogRows();
@@ -290,7 +290,16 @@ async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista'
   doc.text('Pedidos al mayor por WhatsApp o en jj-paper.pages.dev', pageW - 40, 96, { align: 'right' });
 
   const nombre = `${conStock ? 'Catalogo' : 'Lista-de-precios'}-JJPaper-${docToday()}.pdf`;
-  return { blob: doc.output('blob'), filename: nombre, doc };
+  const blob = doc.output('blob');
+  if (!returnBase64) return { blob, filename: nombre, doc };
+  // Modo "adjuntar a campaña": entregar el PDF como base64 inline (data URI)
+  // para que el despachador lo adjunte sin depender de Storage.
+  const base64 = await new Promise(res => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.readAsDataURL(blob);
+  });
+  return { base64, filename: nombre, blob, doc };
 }
 
 const docPdfCatalogo     = () => docPdfProductos({ conStock: true,  titulo: 'Catálogo Mayorista' });

@@ -9,6 +9,50 @@ window.CampaignEditor = (() => {
   let selectedAudienceList = [];
   let selectedProductOrCombo = null;
   let generatedFlyerFile = null;
+  let cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
+  let cooldownHours = 0;
+  let cooldownLoading = null;
+
+  function normPhoneKey(p) {
+    return String(p || '').replace(/\D/g, '').replace(/^0+/, '').slice(-11);
+  }
+
+  // Descarga la lista de contactos a los que YA se les envió por campaña en las
+  // últimas N horas (email o WhatsApp) para NO repetirles mientras dure el
+  // cooldown. Página en rangos de 1.000 (PostgREST).
+  async function reloadCooldown() {
+    cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
+    cooldownHours = 0;
+    const isEmail = currentConfig?.channel === 'email';
+    const key = isEmail ? 'email_camp_cooldown_h' : 'wa_camp_cooldown_h';
+    const hours = parseInt(APP?.SETTINGS?.[key] || 48, 10);
+    if (!hours || hours <= 0) return;
+    const ownerId = currentConfig?.seller?.id;
+    if (!ownerId) return;
+    const cutoff = new Date(Date.now() - hours * 3600e3).toISOString();
+    const table = isEmail ? 'jjp_email_campaign_targets' : 'jjp_wa_campaign_targets';
+    const valueField = isEmail ? 'to_addr' : 'phone';
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from(table)
+        .select(`customer_id, ${valueField}, sent_at`)
+        .eq('owner_id', ownerId)
+        .eq('status', 'sent')
+        .gte('sent_at', cutoff)
+        .order('sent_at', { ascending: false })
+        .range(from, from + 999);
+      if (error) break;
+      for (const r of data || []) {
+        if (r.customer_id) cooldownExcluded.customer.add(r.customer_id);
+        if (isEmail) {
+          if (r.to_addr) cooldownExcluded.email.add(String(r.to_addr).toLowerCase().trim());
+        } else if (r.phone) {
+          cooldownExcluded.phone.add(normPhoneKey(r.phone));
+        }
+      }
+      if (!data || data.length < 1000) break;
+    }
+    cooldownHours = hours;
+  }
 
   function initModal() {
     if (document.getElementById('campEditorOverlay')) return;
@@ -232,7 +276,7 @@ window.CampaignEditor = (() => {
     activeOverlay = div;
   }
 
-  function open(config = {}) {
+  async function open(config = {}) {
     initModal();
     currentConfig = config;
     selectedProductOrCombo = null;
@@ -284,7 +328,7 @@ window.CampaignEditor = (() => {
       document.getElementById('ceSubjectInput').value = 'Ofertas y Novedades Especiales — JJ Paper';
     }
 
-    onAudienceChange();
+    await onAudienceChange();
     updatePreview();
     activeOverlay.classList.add('active');
   }
@@ -428,7 +472,9 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
-  function onAudienceChange() {
+  async function onAudienceChange() {
+    if (!cooldownLoading) cooldownLoading = reloadCooldown().finally(() => { cooldownLoading = null; });
+    await cooldownLoading;
     const aud = document.getElementById('ceAudienceSelect').value;
     const tagWrap = document.getElementById('ceTagWrap');
     tagWrap.style.display = aud === 'etiqueta' ? 'block' : 'none';
@@ -436,12 +482,20 @@ window.CampaignEditor = (() => {
     const contacts = currentConfig?.contacts || [];
     const isEmail = currentConfig?.channel === 'email';
     const tagVal = document.getElementById('ceTagInput')?.value?.toLowerCase().trim();
+    const ex = cooldownExcluded;
 
+    const hitCooldown = (c) =>
+      ex.customer.has(c.id) ||
+      (isEmail ? ex.email.has(String(c.email || '').toLowerCase().trim()) : ex.phone.has(normPhoneKey(c.phone)));
+
+    let excludedCount = 0;
     selectedAudienceList = contacts.filter(c => {
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
       if (isEmail && c.email_opt_out) return false;
       if (!isEmail && (c.opt_out || c.wa_opt_out)) return false;
+
+      if (hitCooldown(c)) { excludedCount++; return false; }
 
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);
       if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0);
@@ -455,7 +509,10 @@ window.CampaignEditor = (() => {
       return true;
     });
 
-    document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${selectedAudienceList.length} contactos</strong>`;
+    const cooldownTxt = cooldownHours > 0
+      ? ` · ${excludedCount} omitido${excludedCount !== 1 ? 's' : ''} por envío reciente (<${cooldownHours}h)`
+      : '';
+    document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${selectedAudienceList.length} contactos</strong><span style="color:#b45309;font-size:11px">${cooldownTxt}</span>`;
     document.getElementById('ceLaunchBtn').disabled = selectedAudienceList.length === 0;
   }
 
@@ -731,6 +788,7 @@ window.CampaignEditor = (() => {
     if (!name) { alert('Ingresa un nombre para la campaña.'); return; }
     if (!body) { alert('El mensaje no puede estar vacío.'); return; }
     if (isEmail && !subject) { alert('El asunto del correo es obligatorio.'); return; }
+    await onAudienceChange();
     if (!selectedAudienceList.length) { alert('No hay destinatarios seleccionados.'); return; }
 
     const scheduledVal = document.getElementById('ceScheduledAt')?.value;

@@ -1,4 +1,4 @@
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { INVOICE_SWEEP_MS } from './config.js';
 import { normVePhone, localVePhone, phoneToJid } from './phone.js';
@@ -24,7 +24,7 @@ async function sweep() {
   if (running) return;
   running = true;
   try {
-    const { data: alerts, error } = await db.from('jjp_invoice_alerts')
+    const { data: alerts, error } = await dbCore.from('jjp_invoice_alerts')
       .select('id, title, body')
       .eq('wa_status', 'pending')
       .order('created_at', { ascending: true })
@@ -90,7 +90,7 @@ async function ensureChat(ownerId, phone) {
 
 // Primer admin activo con la sesión de WhatsApp conectada
 async function pickConnectedAdmin() {
-  const { data: admins } = await db.from('jjp_profiles')
+  const { data: admins } = await dbCore.from('jjp_profiles')
     .select('id').eq('role', 'admin').eq('active', true);
   for (const a of admins || []) {
     if (manager.get(a.id)?.isConnected()) return a.id;
@@ -99,11 +99,11 @@ async function pickConnectedAdmin() {
 }
 
 async function mark(ids, patch) {
-  await db.from('jjp_invoice_alerts').update(patch).in('id', ids);
+  await dbCore.from('jjp_invoice_alerts').update(patch).in('id', ids);
 }
 
 async function getConfig() {
-  const { data } = await db.from('jjp_settings').select('key,value')
+  const { data } = await dbCore.from('jjp_settings').select('key,value')
     .in('key', ['invoice_alert_phone', 'invoice_wa_alerts']);
   const map = Object.fromEntries((data || []).map(r => [r.key, r.value]));
   return {

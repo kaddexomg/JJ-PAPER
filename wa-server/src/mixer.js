@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { MIXER_EXPORT_DIR } from './config.js';
 import { log } from './logger.js';
 
@@ -192,7 +192,7 @@ async function sweepRecentOrders() {
   try {
     const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     
-    const { data: orders, error } = await db.from('jjp_orders')
+    const { data: orders, error } = await dbCore.from('jjp_orders')
       .select('*')
       .gte('created_at', windowStart)
       .order('created_at', { ascending: true });
@@ -219,7 +219,7 @@ async function sweepRecentOrders() {
 function setupRealtimeListener() {
   log.info('Puente Mixer: Iniciando listener Realtime de pedidos...');
   
-  return db.channel('mixer-orders')
+  return dbCore.channel('mixer-orders')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_orders' },
       p => {
         log.info(`Puente Mixer: Recibida inserción de pedido ${p.new.order_number} por Realtime.`);

@@ -50,6 +50,8 @@
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
+              title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <span class="wa-chip" id="waStatusChip">Cargando…</span>
         <button class="btn-o" onclick="openWaLinkModal()">🔗 Mi cuenta</button>
         <button class="btn-o" onclick="waCopyDiag()" title="Copiar diagnóstico técnico del chat" aria-label="Copiar diagnóstico">🩺</button>
@@ -142,6 +144,17 @@
   </div>
 </div>
 
+<!-- Modal: control del servidor -->
+<div class="modal-overlay" id="srvModal" onclick="if(event.target===this)closeSrvModal()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="srvTitle" style="max-width:520px">
+    <div class="modal-hd">
+      <h3 id="srvTitle">🖥️ Servidor JJ Paper</h3>
+      <button class="modal-close" onclick="closeSrvModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body" id="srvBody">Cargando estado…</div>
+  </div>
+</div>
+
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
@@ -155,11 +168,13 @@
 <script src="../assets/js/doc-engine.js?v=20260819b"></script>
 <script src="../assets/js/send-hub.js?v=20260819b"></script>
 <script src="../assets/js/wa/wa-chat.js?v=20260725b"></script>
+<script src="../assets/js/admin/server-control.js?v=20260825_final_fix"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();
   if (!seller) return;
   await waInit({ me: seller });
+  srvInit();
 });
 </script>
 </body>

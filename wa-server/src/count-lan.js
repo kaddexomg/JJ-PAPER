@@ -20,7 +20,7 @@ import os from 'node:os';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import selfsigned from 'selfsigned';
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import {
   COUNT_LAN_PORT, COUNT_SESSION, COUNT_SYNC_MS, COUNT_ONLINE_MS,
@@ -443,7 +443,7 @@ async function getMixnetPedidos(req, res) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
     
-    const { data: orders, error } = await db.from('jjp_orders')
+    const { data: orders, error } = await dbCore.from('jjp_orders')
       .select('id, order_number, client_name, rif, phone, city, items, subtotal_usd, total_usd, exchange_rate, total_bs, payment_method, payment_ref, notes, seller_id, status, created_at')
       .gte('created_at', cutoffDate.toISOString())
       .order('created_at', { ascending: false });
@@ -574,7 +574,7 @@ async function exportMixnetFile() {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 3); // 3 días
     
-    const { data: orders, error } = await db.from('jjp_orders')
+    const { data: orders, error } = await dbCore.from('jjp_orders')
       .select('order_number, client_name, rif, phone, city, items, subtotal_usd, total_usd, exchange_rate, total_bs, payment_method, payment_ref, created_at')
       .gte('created_at', cutoffDate.toISOString())
       .order('created_at', { ascending: false });

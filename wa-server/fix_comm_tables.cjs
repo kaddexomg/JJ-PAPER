@@ -216,6 +216,23 @@ async function fix() {
     DROP POLICY IF EXISTS jjp_email_accounts_all ON public.jjp_email_accounts;
     CREATE POLICY jjp_email_accounts_all ON public.jjp_email_accounts FOR ALL USING (true) WITH CHECK (true);
 
+    -- Función para actualizar último mensaje y unread del chat (touchChat)
+    CREATE OR REPLACE FUNCTION public.jjp_wa_touch_chat(p_chat uuid, p_preview text, p_from text, p_inc int)
+    RETURNS void
+    LANGUAGE sql
+    SECURITY DEFINER
+    SET search_path TO 'public','pg_temp'
+    AS $$
+      UPDATE public.jjp_wa_chats
+         SET last_message_at      = now(),
+             last_message_preview = left(coalesce(p_preview,''), 120),
+             last_message_from    = p_from,
+             unread_count         = unread_count + coalesce(p_inc, 0)
+       WHERE id = p_chat;
+    $$;
+
+    GRANT EXECUTE ON FUNCTION public.jjp_wa_touch_chat(uuid, text, text, int) TO anon, authenticated, service_role;
+
     GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
     GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
   `);

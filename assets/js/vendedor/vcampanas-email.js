@@ -18,6 +18,7 @@ const EC_VARS = ['nombre', 'empresa', 'vendedor', 'producto', 'precio', 'descuen
 
 const EC_STATUS = {
   draft:     ['📝 Borrador', '#6b7280'],
+  scheduled: ['⏰ Programada', '#d97706'],
   running:   ['📤 Enviando', '#16604A'],
   paused:    ['⏸️ Pausada', '#b45309'],
   done:      ['✅ Completada', '#15803d'],
@@ -428,7 +429,10 @@ function renderEcCampaigns() {
     return;
   }
   tbody.innerHTML = ecCampaigns.map(c => {
-    const [label, color] = EC_STATUS[c.status] || [c.status, '#666'];
+    const isFuture = c.scheduled_at && new Date(c.scheduled_at).getTime() > Date.now();
+    const [defLabel, defColor] = EC_STATUS[c.status] || [c.status, '#666'];
+    const label = isFuture ? '⏰ Programada' : defLabel;
+    const color = isFuture ? '#d97706' : defColor;
     const done = (c.sent_count || 0) + (c.failed_count || 0);
     const pct = c.total ? Math.round(done / c.total * 100) : 0;
     const active = c.status === 'running';
@@ -436,6 +440,7 @@ function renderEcCampaigns() {
       <td>
         <div class="td-name">${escapeHTML(c.name || 'Campaña')}</div>
         <div class="td-sub">Asunto: ${escapeHTML(c.subject || '—')}</div>
+        ${isFuture ? `<div class="td-sub" style="color:#d97706;font-weight:600">⏰ Inicia: ${fmtDate(c.scheduled_at)}</div>` : ''}
       </td>
       <td><span class="d-tag">${escapeHTML(c.kind || 'general')}</span></td>
       <td><span style="color:${color};font-weight:600">${label}</span></td>
@@ -630,13 +635,17 @@ async function launchEmailCampaignFromEditor(config) {
     html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
     body_html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
     attachments,
-    status: 'running',
+    status: config.scheduled_at ? 'scheduled' : 'running',
     total: audience.length,
     sent_count: 0,
     failed_count: 0,
     delay_min_s: delays?.min || 15,
     delay_max_s: delays?.max || 45
   };
+
+  if (config.scheduled_at) {
+    payload.scheduled_at = config.scheduled_at;
+  }
 
   let { data: camp, error } = await sb.from('jjp_email_campaigns').insert(payload).select('id').single();
   if (error) {

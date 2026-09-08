@@ -260,31 +260,50 @@ Genera el asunto y cuerpo en JSON estricto.`;
   }
 
   /* --------------------------------------------------------------------------
-     4. Búsqueda Rápida de Productos y Precios en Base de Datos
+     4. Búsqueda Rápida de Productos y Precios en Base de Datos (Tokenizada)
      -------------------------------------------------------------------------- */
   async function searchProductsLive(query, limit = 6) {
     const w = typeof window !== 'undefined' ? window : {};
     if (!w.sb || !query || query.trim().length < 2) return [];
     try {
       const q = query.trim();
-      const { data, error } = await w.sb.from('jjp_products')
+      const tokens = q.split(/\s+/).filter(t => t.length >= 2);
+      const primary = tokens[0] || q;
+
+      let req = w.sb.from('jjp_products')
         .select(`
           id, name, sku, price_usd, unit, emoji, image_url, description, active,
           jjp_product_variants(id, variant_name, sku, price_usd, active, jjp_brands(name))
         `)
-        .or(`name.ilike.%${q}%,sku.ilike.%${q}%`)
-        .limit(limit);
+        .neq('active', false);
 
+      // Si hay una palabra clave principal, buscar por nombre, sku o descripcion
+      req = req.or(`name.ilike.%${primary}%,sku.ilike.%${primary}%,description.ilike.%${primary}%`);
+
+      const { data, error } = await req.limit(Math.max(limit * 4, 20));
       if (error || !data) return [];
 
       const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
-      return data.map(p => {
+
+      // Si el usuario ingresó varios términos (ej. "cuaderno caribe" o "boligrafo negro"),
+      // filtrar y puntuar por coincidencia de tokens en producto y variantes
+      const scored = data.map(p => {
         const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
+        const brandNames = variants.map(v => v.jjp_brands?.name).filter(Boolean);
+        const variantNames = variants.map(v => v.variant_name).filter(Boolean);
+        const fullSearchText = `${p.name} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
+
+        let matchCount = 0;
+        tokens.forEach(t => {
+          if (fullSearchText.includes(t.toLowerCase())) matchCount++;
+        });
+
         let minPrice = parseFloat(p.price_usd || 0);
         if (variants.length > 0) {
           const varPrices = variants.map(v => parseFloat(v.price_usd)).filter(n => n > 0);
           if (varPrices.length > 0) minPrice = Math.min(...varPrices);
         }
+
         return {
           id: p.id,
           name: p.name,
@@ -294,12 +313,114 @@ Genera el asunto y cuerpo en JSON estricto.`;
           unit: p.unit || 'unidad',
           image_url: p.image_url || '',
           emoji: p.emoji || '📦',
-          brands: [...new Set(variants.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ')
+          brands: [...new Set(brandNames)].join(', '),
+          score: matchCount
         };
       });
+
+      // Ordenar por puntuación de coincidencia y limitar
+      return scored
+        .filter(item => tokens.length <= 1 || item.score >= Math.min(tokens.length, 2))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
     } catch (e) {
       console.warn('Error buscando productos:', e);
       return [];
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     4.1. Generador de Plantillas Spintax Anti-Baneo para Campañas
+     -------------------------------------------------------------------------- */
+  async function generateCampaignSpintax(baseText, channel = 'whatsapp') {
+    if (!baseText || !baseText.trim()) {
+      throw new Error('Debes proporcionar un texto para convertir a Spintax.');
+    }
+
+    const sys = getBusinessContext() + `
+Eres un especialista en copywriting comercial y prevención de bloqueos/anti-spam para envíos masivos por ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+Tu misión es transformar el texto que el usuario te entrega en una plantilla de alto dinamismo utilizando Spintax sintáctico con la sintaxis {opción 1|opción 2|opción 3}.
+
+REGLAS CRÍTICAS DE CONSTRUCCIÓN:
+1. Aplica Spintax en saludos: {¡Hola!|Buen día|Estimado(a) cliente|Un cordial saludo}.
+2. Aplica Spintax en llamadas a la acción y enganches comerciales: {tenemos para ti|te traemos|aprovecha nuestra oferta en|te presentamos}.
+3. Aplica Spintax en el cierre: {¿Deseas que te reservemos?|¿Cuántas unidades necesitas cotizar?|Contáctanos para apartar tu pedido|Quedamos a tu orden}.
+4. PRESERVA INTACTAS al 100% todas las variables encerradas en dobles llaves, exactamente como vengan (por ejemplo: {{nombre}}, {{empresa}}, {{vendedor}}, {{producto}}, {{precio}}, {{descuento}}, {{link}}). NO las traduzcas, NO las cambies, NO quites las dobles llaves.
+5. Mantén enlaces, precios y datos numéricos intactos.
+6. Devuelve ÚNICAMENTE el texto final resultante con Spintax y variables, sin explicaciones ni envoltorios markdown.`;
+
+    const prompt = `Convierte este texto a formato Spintax anti-baneo:\n\n${baseText.trim()}`;
+
+    try {
+      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.8 });
+      return res.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/i, '').trim();
+    } catch (e) {
+      console.warn('Fallback spintax:', e);
+      if (!baseText.startsWith('{')) {
+        return `{¡Hola!|Buen día|Saludos cordiales} ` + baseText;
+      }
+      return baseText;
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     4.2. Redactor Inteligente de Campañas Comerciales
+     -------------------------------------------------------------------------- */
+  async function draftCampaignMessage({
+    objective = 'promocion',
+    product = null,
+    discount = '',
+    audience = 'todos',
+    channel = 'whatsapp',
+    customNotes = '',
+    sellerName = ''
+  }) {
+    const w = typeof window !== 'undefined' ? window : {};
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+
+    const sys = getBusinessContext() + `
+Eres el Director de Marketing y Copywriter de JJ Paper.
+Redactas campañas de alto impacto y conversión para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+
+REGLAS DE FORMATO:
+- Debes incluir variables dinámicas: {{nombre}}, {{vendedor}}, {{link}} y si hay producto: {{producto}}, {{precio}}.
+- Utiliza Spintax {opción 1|opción 2|opción 3} en saludos y despedidas para evitar bloqueos por spam.
+- Tasa oficial BCV vigente: ${rate.toFixed(2)} Bs.
+- Si es para Email, devuelve un JSON con "subject" y "body".
+- Si es para WhatsApp, devuelve un JSON con "body".
+
+Ejemplo de respuesta WhatsApp:
+{
+  "body": "{¡Hola!|Buen día|Saludos cordiales} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper...\\n\\n📦 *{{producto}}*\\n💲 Precio mayorista: *{{precio}}*...\\n\\n👉 Pedidos en línea: {{link}}\\n{¿Le reservamos mercancía?|¿Desea cotizar otras cantidades?}"
+}
+`;
+
+    const prompt = `
+Objetivo de campaña: ${objective}
+Canal: ${channel}
+Destinatarios: ${audience}
+Producto o Promoción: ${product ? `${product.name} (Precio: $${product.price_usd || product.final_price_usd || ''})` : 'Catálogo general de papelería'}
+Descuento extra: ${discount || 'Precio regular mayorista'}
+Notas adicionales del vendedor: ${customNotes || 'Enfocado en despacho rápido y disponibilidad'}
+Vendedor emisor: ${sellerName || 'Asesor JJ Paper'}
+
+Genera el mensaje comercial en formato JSON estricto.`;
+
+    try {
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.75 });
+      const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+      return JSON.parse(clean);
+    } catch (e) {
+      if (channel === 'email') {
+        return {
+          subject: product ? `📦 Promoción Especial: ${product.name} — JJ Paper` : 'Novedades y Ofertas Especiales — JJ Paper',
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nLe saludamos cordialmente de JJ Paper C.A. Esperamos que su negocio se encuentre excelente.\n\nQueremos presentarle nuestra disponibilidad inmediata en ${product ? `*${product.name}* a un precio especial de *${product.price_usd ? '$' + Number(product.price_usd).toFixed(2) + ' USD' : '{{precio}}'}*` : 'artículos escolares, de oficina y papelería al mayor'}.\n\n👉 Puede revisar nuestro catálogo completo y gestionar su pedido aquí:\n{{link}}\n\nNuestras facturas y despachos se calculan a tasa oficial BCV (${rate.toFixed(2)} Bs).\n\n{Quedamos a su completa disposición.|Esperamos su pronta respuesta para asegurar su pedido.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+        };
+      } else {
+        return {
+          body: `{¡Hola!|Buen día|Saludos cordiales} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones activas hoy ${product ? `en *${product.name}* a tan solo *${product.price_usd ? '$' + Number(product.price_usd).toFixed(2) + ' USD' : '{{precio}}'}*` : 'en todo nuestro catálogo de papelería y oficina'}.\n\n👉 Puede ver detalles y pedir en línea aquí: {{link}}\n\n{¿Le apartamos mercancía para su despacho de hoy?|¿Desea que le verifiquemos disponibilidad de algún otro artículo?}`
+        };
+      }
     }
   }
 
@@ -573,6 +694,8 @@ Respuesta del Copiloto JJ:`;
     callGemini,
     suggestWhatsAppReplies,
     generateAntiSpamVariations,
+    generateCampaignSpintax,
+    draftCampaignMessage,
     draftEmail,
     searchProductsLive,
     askCopilot,

@@ -18,6 +18,7 @@ const D_VARS = ['nombre', 'empresa', 'vendedor', 'producto', 'precio', 'descuent
 const D_CAMP_STATUS = {
   en_cola:    ['⏳ En cola', '#b45309'],
   pending:    ['⏳ En cola', '#b45309'],
+  programada: ['⏰ Programada', '#d97706'],
   enviando:   ['📤 Enviando', '#16604A'],
   sending:    ['📤 Enviando', '#16604A'],
   pausada:    ['⏸️ Pausada', '#6b7280'],
@@ -488,18 +489,23 @@ function renderDCampaigns() {
     return;
   }
   tbody.innerHTML = dCampaigns.map(c => {
-    const [label, color] = D_CAMP_STATUS[c.status] || [c.status, '#666'];
+    const isFuture = c.scheduled_at && new Date(c.scheduled_at).getTime() > Date.now();
+    const [defLabel, defColor] = D_CAMP_STATUS[c.status] || [c.status, '#666'];
+    const label = isFuture ? '⏰ Programada' : defLabel;
+    const color = isFuture ? '#d97706' : defColor;
     const sent = c.sent_count || 0;
     const failed = c.failed_count || 0;
     const skipped = c.skipped_count || 0;
     const done = sent + failed + skipped;
     const pct = c.total ? Math.round(done / c.total * 100) : 0;
     const active = c.status === 'en_cola' || c.status === 'pending' || c.status === 'enviando' || c.status === 'sending';
-    const canDelete = ['completada', 'cancelada', 'pausada'].includes(c.status);
+    const canDelete = ['completada', 'cancelada', 'pausada', 'programada'].includes(c.status);
     return `<tr class="d-camp-row" style="cursor:pointer">
       <td>
         <div class="td-name">${escapeHTML(c.name)} ${c.kind === 'reactivacion' ? '🔄' : ''}</div>
-        <div class="td-sub">${fmtDate(c.created_at)}</div>
+        ${c.scheduled_at && isFuture 
+          ? `<div class="td-sub" style="color:#d97706;font-weight:600">⏰ Inicia: ${fmtDate(c.scheduled_at)}</div>` 
+          : `<div class="td-sub">${fmtDate(c.created_at)}</div>`}
       </td>
       <td><span style="color:${color};font-weight:600">${label}</span></td>
       <td style="min-width:150px">
@@ -746,13 +752,17 @@ async function launchCampaignFromEditor(config) {
     name,
     body,
     message: body,
-    status: 'en_cola',
+    status: config.scheduled_at ? 'programada' : 'en_cola',
     total: audience.length,
     delay_min_s: delays?.min || 45,
     delay_max_s: delays?.max || 90,
     batch_size: batchSize || 0,
     batch_pause_m: batchPauseM || 5
   };
+
+  if (config.scheduled_at) {
+    payload.scheduled_at = config.scheduled_at;
+  }
 
   if (mediaPath) {
     payload.media_path = mediaPath;

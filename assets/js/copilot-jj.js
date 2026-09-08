@@ -202,7 +202,7 @@
             <span class="cpi-chip" onclick="cpiQuickAsk('¿A cómo está la tasa BCV hoy?')">💵 Tasa BCV hoy</span>
             <span class="cpi-chip" onclick="cpiQuickAsk('¿Cuánto cuesta la resma de papel bond carta?')">📄 Resma papel</span>
             <span class="cpi-chip" onclick="cpiQuickAsk('¿Cuáles son las opciones de despacho?')">🚚 Despachos</span>
-            <span class="cpi-chip" onclick="cpiQuickAsk('¿Cómo creo una cotización nueva?')">📝 Cotizar</span>
+            <span class="cpi-chip" onclick="cpiLaunchCampaignModal()">🚀 Editor de Campaña</span>
           </div>
           <div class="cpi-chat-msgs" id="cpiChatMsgs">
             <div class="cpi-msg ai">
@@ -243,6 +243,7 @@
                 <button class="cpi-chip" id="cpiCopyImgBtn" style="flex:1;text-align:center;padding:7px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">📋 Copiar Imagen</button>
                 <button class="cpi-chip" id="cpiDownloadImgBtn" style="flex:1;text-align:center;padding:7px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0">⬇️ Descargar PNG</button>
                 <button class="cpi-chip" id="cpiSendWaBtn" style="flex:100%;text-align:center;padding:8px;background:#16604A;color:#fff;display:none">💬 Enviar a este Chat de WhatsApp</button>
+                <button class="cpi-chip" id="cpiCampaignFlyerBtn" style="flex:100%;text-align:center;padding:8px;background:#0369a1;color:#fff;">📢 Usar este Producto en Difusión / Campaña</button>
               </div>
             </div>
           </div>
@@ -408,7 +409,53 @@
     document.getElementById('cpiCopyImgBtn').onclick = copyFlyerToClipboard;
     document.getElementById('cpiDownloadImgBtn').onclick = downloadFlyerPng;
     document.getElementById('cpiSendWaBtn').onclick = sendFlyerToWaActive;
+    document.getElementById('cpiCampaignFlyerBtn').onclick = launchProductCampaignFromFlyer;
   }
+
+  function launchProductCampaignFromFlyer() {
+    if (!_selectedFlyerProduct) return;
+    const win = document.getElementById('jjp-copilot-window');
+    if (win) win.classList.add('cpi-hidden');
+
+    if (window.CampaignEditor && typeof window.CampaignEditor.open === 'function') {
+      window.CampaignEditor.open({
+        defaultName: `Difusión ${_selectedFlyerProduct.name}`,
+        onLaunch: async (config) => {
+          if (typeof launchCampaignFromEditor === 'function') {
+            await launchCampaignFromEditor(config);
+          }
+        }
+      });
+      setTimeout(() => {
+        if (typeof window.CampaignEditor.onTypeChange === 'function') {
+          const typeSel = document.getElementById('ceTypeSelect');
+          if (typeSel) {
+            typeSel.value = 'producto';
+            window.CampaignEditor.onTypeChange();
+          }
+        }
+      }, 150);
+    } else {
+      const path = location.pathname.includes('/admin/') ? '../vendedor/difusion.html' : 'difusion.html';
+      location.href = path;
+    }
+  }
+
+  window.cpiLaunchCampaignModal = function () {
+    const win = document.getElementById('jjp-copilot-window');
+    if (win) win.classList.add('cpi-hidden');
+
+    if (window.CampaignEditor && typeof window.CampaignEditor.open === 'function') {
+      window.CampaignEditor.open();
+    } else if (typeof newCampaign === 'function') {
+      newCampaign();
+    } else if (typeof newEcCampaign === 'function') {
+      newEcCampaign();
+    } else {
+      const path = location.pathname.includes('/admin/') ? '../vendedor/difusion.html' : 'difusion.html';
+      location.href = path;
+    }
+  };
 
   async function renderCurrentFlyer() {
     if (!_selectedFlyerProduct) return;

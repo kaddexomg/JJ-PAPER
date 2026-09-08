@@ -8,6 +8,7 @@ window.CampaignEditor = (() => {
   let currentConfig = null;
   let selectedAudienceList = [];
   let selectedProductOrCombo = null;
+  let generatedFlyerFile = null;
 
   function initModal() {
     if (document.getElementById('campEditorOverlay')) return;
@@ -147,6 +148,19 @@ window.CampaignEditor = (() => {
                 💡 Incluye variación <code>{Hola|Buenos días|Saludos}</code> para que cada cliente reciba un texto único y no se detecte como spam.
               </div>
             </div>
+
+            <div class="ce-section" id="ceScheduleSection">
+              <div class="ce-section-title">
+                <span>📅 Programar Envío (Opcional)</span>
+              </div>
+              <div class="ce-field-group">
+                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Fecha y hora de inicio:</label>
+                <input type="datetime-local" class="ce-input" id="ceScheduledAt" style="font-size:12px">
+                <div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.3">
+                  ⏰ Déjalo vacío para iniciar de inmediato. Si eliges fecha y hora futura, el servidor despachará automáticamente al llegar ese momento.
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Chat Simulator Pane (Right) -->
@@ -175,6 +189,12 @@ window.CampaignEditor = (() => {
 
             <!-- Composer Area -->
             <div class="ce-composer-area">
+              <div class="ce-ai-toolbar" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                <button type="button" id="ceAiDraftBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.aiDraftTemplate()" title="Redactar o personalizar plantilla con IA">🪄 Redactar con IA</button>
+                <button type="button" id="ceAiSpintaxBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%);color:#991b1b;border-color:#fecaca;font-weight:700" onclick="CampaignEditor.aiAntiSpamSpintax()" title="Generar Spintax anti-baneo automático">🛡️ Variar Anti-Spam IA</button>
+                <button type="button" id="ceAiFlyerBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);color:#1e40af;border-color:#bfdbfe;font-weight:700" onclick="CampaignEditor.aiDesignFlyer()" title="Diseñar Flyer gráfico del producto con IA">🎨 Diseñar Flyer con IA</button>
+              </div>
+
               <div class="ce-variables-toolbar">
                 <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('nombre')">👤 {{nombre}}</button>
                 <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('empresa')">🏢 {{empresa}}</button>
@@ -216,6 +236,10 @@ window.CampaignEditor = (() => {
     initModal();
     currentConfig = config;
     selectedProductOrCombo = null;
+    generatedFlyerFile = null;
+    if (document.getElementById('ceScheduledAt')) {
+      document.getElementById('ceScheduledAt').value = '';
+    }
 
     const isEmail = config.channel === 'email';
     const badge = document.getElementById('ceBadge');
@@ -531,13 +555,18 @@ window.CampaignEditor = (() => {
     const attachOpts = currentAttachOpts();
     const attachPreviewEl = document.getElementById('ceBubbleAttachment');
     const previewItems = [];
-    if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url) {
+    if (generatedFlyerFile) {
+      try {
+        const flyerBlobUrl = URL.createObjectURL(generatedFlyerFile);
+        previewItems.push(`<div style="position:relative"><img src="${flyerBlobUrl}" alt="Flyer con IA" style="max-height:180px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(0,0,0,0.06)"><span style="position:absolute;top:6px;right:6px;background:#16604A;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700">🎨 Flyer IA</span></div>`);
+      } catch (e) {}
+    } else if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url) {
       previewItems.push(`<img src="${selectedProductOrCombo.image_url}" alt="Preview" style="max-height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px">`);
     }
     if (attachOpts.includes('pdf_lista_precios')) {
       previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_JJ_Paper.pdf (PDF Oficial)</div>`);
     }
-    if (attachOpts.includes('custom_file')) {
+    if (attachOpts.includes('custom_file') && !generatedFlyerFile) {
       const file = document.getElementById('ceCustomFileInput')?.files?.[0];
       if (file) {
         previewItems.push(`<div class="ce-bubble-doc-card">📎 ${escapeHTML(file.name)} (${(file.size / 1024).toFixed(1)} KB)</div>`);
@@ -567,6 +596,127 @@ window.CampaignEditor = (() => {
     }[tag] || tag));
   }
 
+  /* ---------------- MÉTODOS DE INTELIGENCIA ARTIFICIAL ---------------- */
+  async function aiDraftTemplate() {
+    const isEmail = currentConfig?.channel === 'email';
+    const defPrompt = selectedProductOrCombo 
+      ? `Promoción de ${selectedProductOrCombo.name}`
+      : 'Oferta especial de útiles y papelería al mayor';
+
+    const obj = prompt('¿Qué deseas promocionar en esta campaña? (Ej: Super oferta de cuadernos, Reactivación de clientes, Despacho gratis en Caracas)', defPrompt);
+    if (!obj || !obj.trim()) return;
+
+    const btn = document.getElementById('ceAiDraftBtn');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Redactando con IA...';
+
+    try {
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+      const result = await window.GeminiClient.draftCampaignMessage({
+        objective: obj.trim(),
+        product: selectedProductOrCombo,
+        discount: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '',
+        audience: document.getElementById('ceAudienceSelect')?.value || 'todos',
+        channel: currentConfig?.channel || 'whatsapp',
+        sellerName: currentConfig?.seller?.name || ''
+      });
+
+      if (isEmail && result.subject && document.getElementById('ceSubjectInput')) {
+        document.getElementById('ceSubjectInput').value = result.subject;
+      }
+      if (result.body) {
+        document.getElementById('ceMessageInput').value = result.body;
+      }
+
+      updatePreview();
+      btn.disabled = false;
+      btn.textContent = '🪄 Redactado ✓';
+      setTimeout(() => { btn.textContent = origText; }, 2500);
+    } catch (err) {
+      alert('Error redactando con IA: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+
+  async function aiAntiSpamSpintax() {
+    const textarea = document.getElementById('ceMessageInput');
+    const text = (textarea?.value || '').trim();
+    if (!text) {
+      alert('Por favor escribe o selecciona primero un texto de mensaje para variarlo.');
+      return;
+    }
+
+    const btn = document.getElementById('ceAiSpintaxBtn');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Generando Spintax...';
+
+    try {
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+      const spintax = await window.GeminiClient.generateCampaignSpintax(text, currentConfig?.channel || 'whatsapp');
+      textarea.value = spintax;
+      updatePreview();
+
+      btn.disabled = false;
+      btn.textContent = '🛡️ Spintax Aplicado ✓';
+      setTimeout(() => { btn.textContent = origText; }, 2500);
+    } catch (err) {
+      alert('Error generando Spintax: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+
+  async function aiDesignFlyer() {
+    if (!selectedProductOrCombo) {
+      alert('Por favor selecciona primero un producto o combo en el panel izquierdo.');
+      openCatalogPicker('product');
+      return;
+    }
+
+    const btn = document.getElementById('ceAiFlyerBtn');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Diseñando Flyer...';
+
+    try {
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+      const p = selectedProductOrCombo;
+      const cvs = await window.GeminiClient.renderProductCard({
+        product: p,
+        customPriceUsd: p.final_price_usd || p.price_usd,
+        sellerName: currentConfig?.seller?.name || '',
+        sellerPhone: currentConfig?.seller?.phone || '',
+        customNote: '🔥 ¡Promoción exclusiva por tiempo limitado!'
+      });
+
+      cvs.toBlob(async (blob) => {
+        if (!blob) throw new Error('No se pudo generar el archivo de imagen.');
+        const fileName = `Flyer_${(p.name || 'producto').replace(/[^\w.-]/g, '_')}.png`;
+        generatedFlyerFile = new File([blob], fileName, { type: 'image/png' });
+
+        if (currentConfig?.channel === 'email') {
+          const chk = document.getElementById('ceAttachFile');
+          if (chk) chk.checked = true;
+        } else {
+          document.getElementById('ceAttachSelect').value = 'custom_file';
+        }
+
+        updatePreview();
+        btn.disabled = false;
+        btn.textContent = '🎨 Flyer Listo ✓';
+        setTimeout(() => { btn.textContent = origText; }, 2500);
+      }, 'image/png');
+
+    } catch (err) {
+      alert('Error generando flyer: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
+
   async function launch() {
     const name = document.getElementById('ceCampName').value.trim();
     const body = document.getElementById('ceMessageInput').value.trim();
@@ -583,6 +733,21 @@ window.CampaignEditor = (() => {
     if (isEmail && !subject) { alert('El asunto del correo es obligatorio.'); return; }
     if (!selectedAudienceList.length) { alert('No hay destinatarios seleccionados.'); return; }
 
+    const scheduledVal = document.getElementById('ceScheduledAt')?.value;
+    let scheduled_at = null;
+    if (scheduledVal) {
+      const dt = new Date(scheduledVal);
+      if (isNaN(dt.getTime())) {
+        alert('Fecha u hora programada inválida.');
+        return;
+      }
+      if (dt.getTime() < Date.now() - 60000) {
+        alert('La fecha y hora de programación debe ser futura.');
+        return;
+      }
+      scheduled_at = dt.toISOString();
+    }
+
     const delays = {
       human: { min: 45, max: 90 },
       safe: { min: 25, max: 55 },
@@ -593,18 +758,22 @@ window.CampaignEditor = (() => {
     const batchSize = parseInt(document.getElementById('ceBatchSizeSelect')?.value, 10) || 0;
     const batchPauseM = parseInt(document.getElementById('ceBatchPauseSelect')?.value, 10) || 5;
 
+    const fileToUpload = generatedFlyerFile || document.getElementById('ceCustomFileInput')?.files?.[0] || null;
+    const finalAttachOpt = generatedFlyerFile ? 'custom_file' : attachOpt;
+
     const launchConfig = {
       channel: currentConfig.channel || 'whatsapp',
       name,
       body,
       subject,
       audience: selectedAudienceList,
-      attachOpt,
+      attachOpt: finalAttachOpt,
       selectedProductOrCombo,
-      customFile: document.getElementById('ceCustomFileInput')?.files?.[0] || null,
+      customFile: fileToUpload,
       delays,
       batchSize,
-      batchPauseM
+      batchPauseM,
+      scheduled_at
     };
 
     if (typeof currentConfig.onLaunch === 'function') {
@@ -626,6 +795,6 @@ window.CampaignEditor = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, openCatalogPicker, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch };
+  return { open, close, openCatalogPicker, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch, aiDraftTemplate, aiAntiSpamSpintax, aiDesignFlyer };
 })();
 

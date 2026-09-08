@@ -120,7 +120,23 @@ No se detectaron tests.
   - Redacción guiada por escenarios: Cotización formal, confirmación de despacho, recordatorio de pago amistoso y promociones de catálogo.
 - **Copiloto JJ Flotante & Generador Canvas de Flyers (`assets/js/copilot-jj.js`)**:
   - Botón flotante `🤖 Copiloto JJ` auto-inyectado en todos los paneles de Admin y Vendedor a través de `assets/js/admin/sidenav.js`.
-  - **Pestaña Chat**: Consultas inmediatas sobre productos, precios, políticas de despacho y procedimientos.
+  - **Pestaña Chat**: Consultas inmediatas sobre productos, precios, políticas de despacho y procedimientos. Accesos directos a Difusiones y Editor de Campañas.
   - **Pestaña Generador de Flyer (Canvas 800x800)**: Diseña flyers comerciales de alta resolución con cabecera institucional JJ Paper, nombre del producto, badge de stock, marcas, precio destacado en USD ($) y Bs oficiales (BCV).
-  - Opciones de exportación: Copiar al portapapeles (`ClipboardItem`), Descargar PNG o Enviar directo al chat activo de WhatsApp (`waSendGeneratedImage`).
-- **Deploy**: Confirmado en `origin main` (commit `a176ac2`).
+  - Opciones de exportación: Copiar al portapapeles (`ClipboardItem`), Descargar PNG, Enviar directo al chat activo de WhatsApp (`waSendGeneratedImage`) o inyectar directo a Campaña/Difusión.
+
+## Suite de Campañas Inteligentes con IA y Despacho Programado (08-09-2026)
+- **Desbloqueo CSP Google AI**: Añadido `https://generativelanguage.googleapis.com` al `connect-src` de `_headers`, permitiendo llamadas directas desde navegadores en Cloudflare Pages.
+- **Motor Anti-Spam / Anti-Baneo con Spintax Dinámico**:
+  - `GeminiClient.generateCampaignSpintax()`: Transforma automáticamente mensajes y plantillas en Spintax `{A|B|C}` preservando variables `{{nombre}}`, `{{empresa}}`, `{{producto}}`, `{{precio}}`, `{{link}}`.
+  - Al despachar masivamente, cada cliente recibe una variación sintáctica única y humana, imposibilitando el bloqueo por patrón repetitivo.
+- **Redactor Comercial Inteligente (`GeminiClient.draftCampaignMessage`)**:
+  - Redacta plantillas de alta conversión para WhatsApp y Email adaptadas a productos destacados, combos o reactivación.
+- **Integración Directa en Editor de Campañas (`campaign-editor.js`)**:
+  - Botón `🪄 Redactar con IA`: Redacción asistida con 1 clic.
+  - Botón `🛡️ Variar Anti-Spam IA`: Convierte el mensaje actual en Spintax dinámico.
+  - Botón `🎨 Diseñar Flyer con IA`: Genera tarjeta visual en Canvas 800x800 y la adjunta automáticamente a la campaña.
+- **Programación de Envíos (`scheduled_at`)**:
+  - Columna `scheduled_at TIMESTAMPTZ` en `jjp_wa_campaigns` y `jjp_email_campaigns` (Proyecto B).
+  - Selector datetime-local en el editor de campañas.
+  - Sweepers en `wa-server` (`campaigns.js` y `email-campaigns.js`) respetan la marca temporal antes de iniciar envíos.
+  - Badges visuales en tablas de campañas (`vdifusion.js` y `vcampanas-email.js`) indicando `⏰ Programada: dd/mm hh:mm`.

@@ -36,6 +36,7 @@ async function sweep() {
 }
 
 async function step(camp, dailyLimit) {
+  if (camp.scheduled_at && new Date(camp.scheduled_at).getTime() > Date.now()) return;
   if (Date.now() < (nextSendAt.get(camp.owner_id) || 0)) return;
   if (await countSentToday(camp.owner_id) >= dailyLimit) {
     log.warn({ owner: camp.owner_id, dailyLimit }, 'tope diario de correos alcanzado');

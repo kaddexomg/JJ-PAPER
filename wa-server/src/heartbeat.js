@@ -1,5 +1,5 @@
 import os from 'node:os';
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 
 // Latido + control remoto del wa-server.
@@ -24,13 +24,22 @@ async function beat() {
   try { extra = (typeof liveFn === 'function' ? liveFn() : {}) || {}; } catch (e) { /* nunca frenar el latido */ }
 
   const now = new Date().toISOString();
-  const { error } = await db.from('jjp_server_control').update({
+  const payload = {
     heartbeat: now,
     heartbeat_at: now,
     status: 'online',
+    host: os.hostname(),
     modules: { ...modulesRef, ...extra }
-  }).eq('id', 1);
-  if (error) log.warn({ err: error.message }, 'heartbeat falló');
+  };
+
+  // 1. Actualizar Proyecto B (Comunicación)
+  const { error } = await db.from('jjp_server_control').update(payload).eq('id', 1);
+  if (error) log.warn({ err: error.message }, 'heartbeat falló en Proyecto B');
+
+  // 2. Latido dual a Proyecto A (Core) para compatibilidad total de navegadores
+  try {
+    await dbCore.from('jjp_server_control').update(payload).eq('id', 1);
+  } catch (_) {}
 }
 
 async function runCommand(cmd) {
@@ -38,19 +47,23 @@ async function runCommand(cmd) {
   handling = true;
   // Limpiar el comando ANTES de ejecutarlo (evita re-disparos)
   await db.from('jjp_server_control').update({ command: null }).eq('id', 1);
+  try { await dbCore.from('jjp_server_control').update({ command: null }).eq('id', 1); } catch (_) {}
 
   if (cmd === 'restart') {
     log.info('comando: REINICIAR — saliendo (run-forever.bat relanza)');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);
+    try { await dbCore.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1); } catch (_) {}
     process.exit(0);   // código 0 → el .bat/supervisor lo vuelve a levantar
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
-    await db.from('jjp_server_control').update({
+    const stopPayload = {
       heartbeat: null,
       heartbeat_at: null,
       status: 'stopped',
       modules: { stopped: true }
-    }).eq('id', 1);
+    };
+    await db.from('jjp_server_control').update(stopPayload).eq('id', 1);
+    try { await dbCore.from('jjp_server_control').update(stopPayload).eq('id', 1); } catch (_) {}
     process.exit(2);   // código 2 → run-forever.bat NO relanza (parada intencional)
   }
   handling = false;
@@ -61,7 +74,7 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   liveFn = liveStatusFn;
 
   const now = new Date().toISOString();
-  db.from('jjp_server_control').update({
+  const startPayload = {
     started_at: now,
     heartbeat: now,
     heartbeat_at: now,
@@ -69,9 +82,13 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
     host: os.hostname(),
     modules: modulesRef,
     command: null
-  }).eq('id', 1).then(({ error }) => {
-    if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server');
+  };
+  db.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
+    if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto B');
   });
+  try {
+    dbCore.from('jjp_server_control').update(startPayload).eq('id', 1).then();
+  } catch (_) {}
 
   beatTimer = setInterval(() => beat().catch(() => {}), HEARTBEAT_MS);
 

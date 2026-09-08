@@ -21,16 +21,13 @@
   const ADMIN_NAV = [
     { section: 'Principal' },
     { href: 'index.html', ico: '📊', label: 'Dashboard' },
-    { group: 'Ventas y Cartera', ico: '🛒', items: [
-      { href: '../vendedor/pos.html',       ico: '🛍️', label: 'Nueva Venta (POS)' },
-      { href: '../vendedor/cotizador.html', ico: '📋', label: 'Cotizador Rápido' },
-      { href: 'pedidos.html',               ico: '🛒', label: 'Todos los Pedidos' },
-      { href: 'cotizaciones.html',          ico: '🗂️', label: 'Todas las Cotizaciones' },
-      { href: '../vendedor/clientes.html',  ico: '👤', label: 'Mi Cartera Personal' },
-      { href: '../vendedor/consulta.html',  ico: '🔎', label: 'Consultar Stock' },
-      { href: '../lista_costos.html',       ico: '📄', label: 'Lista de Precios', ext: true },
-      { href: 'promociones.html',           ico: '🔥', label: 'Promociones' },
-      { href: 'resenas.html',               ico: '⭐', label: 'Reseñas' },
+    { group: 'Ventas', ico: '🛒', items: [
+      { href: 'pos.html',          ico: '🛍️', label: 'Nueva Venta (POS)' },
+      { href: 'cotizador.html',    ico: '📋', label: 'Nueva Cotización' },
+      { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
+      { href: 'cotizaciones.html', ico: '🗂️', label: 'Cotizaciones' },
+      { href: 'promociones.html',  ico: '🔥', label: 'Promociones' },
+      { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },

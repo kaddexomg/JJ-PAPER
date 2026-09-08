@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotizador | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/print.css">
+<style>
+.pf-ok{color:#2ecc40;font-weight:600}
+.pf-low{color:#e67e22;font-weight:600}
+.pf-out{color:#dc3c3c;font-weight:600}
+.pos-grid { display:grid; grid-template-columns: 1.2fr 1fr; gap:18px; align-items:start; }
+@media (max-width: 900px) { .pos-grid { grid-template-columns: 1fr; } }
+.pos-result { display:flex; align-items:center; gap:10px; padding:9px 10px; border-bottom:1px solid #f1f1f1; }
+.pos-result:hover { background:#faf8f3; }
+.pos-result .pr-img { width:38px; height:38px; border-radius:8px; background:#f5f2ea; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+.pos-result .pr-img img { width:100%; height:100%; object-fit:cover; }
+.pos-line { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed #eee; font-size:13px; }
+.pos-line .qb { width:24px; height:24px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+.pos-tot { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
+.pos-tot.big { font-size:17px; font-weight:800; border-top:2px solid #eee; padding-top:10px; margin-top:6px; }
+.cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; background:#fff;
+  border:1px solid #e5e5e5; border-radius:10px; box-shadow:0 10px 28px rgba(10,40,30,.14); display:none;
+  max-height:270px; overflow:auto; }
+.cust-ac-item { cursor:pointer; }
+.cust-ac-item:hover, .cust-ac-item.on { background:#faf8f3; }
+</style>
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- Generado dinámicamente por sidenav.js -->
+    </nav>
+    <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Cotizador al Mayor</h2>
+          <p>Arma presupuestos y cotizaciones para tu clientela asignada</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="pos-grid">
+
+        <!-- Columna izquierda: buscador de productos -->
+        <div class="admin-table-wrap" style="padding:16px 18px">
+          <h3 style="margin:0 0 10px">🔎 Buscar productos</h3>
+          <div style="display:flex;gap:8px">
+            <input class="fi" id="posSearch" placeholder="Nombre, código o SKU…" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1">
+            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara">📷</button>
+            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner">📱</button>
+          </div>
+          <div id="posResults" style="max-height:520px;overflow-y:auto;margin-top:8px">
+            <p style="color:#aaa;font-size:13px;padding:8px 0">Cargando catálogo...</p>
+          </div>
+        </div>
+
+        <!-- Columna derecha: cotización -->
+        <div class="admin-table-wrap" style="padding:16px 18px">
+          <h3 style="margin:0 0 10px">📋 Resumen de cotización</h3>
+          <div id="posTicket"><p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p></div>
+
+          <div style="margin:12px 0">
+            <label class="fl">Descuento propuesto %</label>
+            <input class="fi" type="number" id="qDisc" min="0" max="100" step="0.5" value="0" oninput="posRenderTicket()">
+            <span id="qDiscHint" style="font-size:11px;color:var(--gr)"></span>
+          </div>
+
+          <div id="posTotals"></div>
+
+          <div class="divider" style="margin:14px 0"></div>
+          <h3 style="margin:0 0 10px">👤 Cliente (Mi Clientela)</h3>
+          <div style="position:relative;margin-bottom:8px">
+            <input class="fi" id="qCliName" placeholder="Nombre / empresa *" style="width:100%">
+            <div id="qCliNameResults" class="cust-ac-box"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input class="fi" id="qCliTel" placeholder="Teléfono *">
+            <input class="fi" id="qCliRif" placeholder="RIF / CI">
+            <input class="fi" id="qCliCity" placeholder="Ciudad" style="grid-column:span 2">
+          </div>
+
+          <div class="divider" style="margin:14px 0"></div>
+          <h3 style="margin:0 0 10px">📝 Notas / Condiciones</h3>
+          <textarea class="fi" id="qNotes" placeholder="Validez de la oferta, forma de entrega, etc." rows="2"></textarea>
+
+          <button class="btn-p" id="qSubmitBtn" onclick="quoteSubmit()" style="width:100%;justify-content:center;margin-top:14px">📋 Guardar cotización</button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: vincular teléfono como escáner -->
+<div class="modal-overlay" id="posPhoneModal" onclick="if(event.target===this)closePosPhone()">
+  <div class="modal-box" role="dialog" aria-modal="true" style="max-width:460px">
+    <div class="modal-hd"><h3>📱 Teléfono como escáner</h3><button class="modal-close" onclick="closePosPhone()">✕</button></div>
+    <div class="modal-body">
+      <ol style="line-height:1.7;font-size:14px;padding-left:18px">
+        <li>En tu teléfono (con tu sesión iniciada) abre:<br>
+          <a id="posPhoneUrl" href="#" target="_blank" style="color:var(--gm);word-break:break-all"></a></li>
+        <li>Da permiso de cámara y apunta al código.</li>
+        <li>Cada escaneo cae aquí y se suma a la cotización. Deja esta ventana abierta.</li>
+      </ol>
+      <p style="text-align:center;margin-top:10px">
+        <a id="posPhoneQR" href="#" target="_blank" class="btn-o">🔳 Ver QR para abrir en el teléfono</a>
+      </p>
+      <p style="font-size:12px;color:var(--gr);margin-top:8px">No modifica el inventario.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmación -->
+<div class="modal-overlay" id="qDoneModal">
+  <div class="modal-box">
+    <div class="modal-hd"><h3>📋 Cotización guardada</h3><button class="modal-close" onclick="quoteReset()">✕</button></div>
+    <div class="modal-body" id="qDoneBody"></div>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js"></script>
+<script src="../assets/js/vendedor/vcommon.js"></script>
+<script src="../assets/js/vendedor/product-finder.js"></script>
+<script src="../assets/js/doc-engine.js"></script>
+<script src="../assets/js/send-hub.js"></script>
+<script src="../assets/js/vendedor/cust-autocomplete.js"></script>
+<script src="../assets/js/vendedor/vquotes.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth('admin');
+  if (!session) return;
+  const profile = await loadProfile();
+  window.SELLER = profile;
+  const emailEl = document.getElementById('adminUserEmail');
+  if (emailEl) emailEl.textContent = profile.name || session.user.email;
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
+    document.getElementById('adminAside')?.classList.toggle('op');
+  });
+  await loadSettings();
+  await initQuoter();
+});
+</script>
+</body>
+</html>

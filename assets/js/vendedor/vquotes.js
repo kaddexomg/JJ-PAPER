@@ -196,16 +196,17 @@ function posUpdatePrice(key, val) {
 function quoteDiscountPct() {
   const el = document.getElementById('qDisc');
   if (!el) return 0;
-  const max = Number(SELLER?.max_discount_pct) || 0;
+  const isAdmin = (SELLER?.role === 'admin' || CURRENT_PROFILE?.role === 'admin');
+  const max = isAdmin ? 100 : (Number(SELLER?.max_discount_pct) || 0);
   let pct = Math.max(0, Math.min(100, Number(el.value) || 0));
-  if (max > 0 && pct > max) {
+  if (!isAdmin && max > 0 && pct > max) {
     pct = max; el.value = max;
     showToast(`Tu descuento máximo permitido es ${max}%`, 'warn');
   }
   const hint = document.getElementById('qDiscHint');
-  if (hint) hint.textContent = max > 0
-    ? `Máx. permitido: ${max}%. Al facturar, el admin lo confirma.`
-    : 'Al facturar, el admin confirma el descuento.';
+  if (hint) hint.textContent = isAdmin
+    ? 'Modo Admin: descuento directo aplicado.'
+    : (max > 0 ? `Máx. permitido: ${max}%. Al facturar, el admin lo confirma.` : 'Al facturar, el admin confirma el descuento.');
   return pct;
 }
 

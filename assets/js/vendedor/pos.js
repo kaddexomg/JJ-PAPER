@@ -8,9 +8,9 @@ let posCustomer = null;    // cliente elegido del CRM (o null si es nuevo)
 let posSubmitting = false;
 
 async function initPos() {
-  // límite de descuento del vendedor
-  const max = Number(SELLER.max_discount_pct) || 0;
-  document.getElementById('posDiscMax').textContent = `(máx ${max}%)`;
+  const isAdmin = (SELLER?.role === 'admin' || CURRENT_PROFILE?.role === 'admin');
+  const max = isAdmin ? 100 : (Number(SELLER?.max_discount_pct) || 0);
+  document.getElementById('posDiscMax').textContent = isAdmin ? '(Admin)' : `(máx ${max}%)`;
   document.getElementById('posDisc').max = max;
 
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
@@ -235,11 +235,19 @@ function posSearchCustomer() {
     const box = document.getElementById('posCliResults');
     posCustomer = null;
     if (q.length < 3) { box.innerHTML = ''; return; }
-    const { data } = await sb.from('jjp_customers')
-      .select('id,name,phone,rif,city,total_orders,total_usd')
-      .or(`name.ilike.%${q}%,phone.ilike.%${q.replace(/\D/g, '') || q}%`)
-      .limit(5);
-    if (!data?.length) { box.innerHTML = '<p style="font-size:12px;color:var(--gr);margin:4px 0">Cliente nuevo — completa sus datos abajo.</p>'; return; }
+    const sellerObj = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
+    const sellerId = sellerObj?.id;
+
+    let query = sb.from('jjp_customers')
+      .select('id,name,phone,rif,city,total_orders,total_usd,seller_id')
+      .or(`name.ilike.%${q}%,phone.ilike.%${q.replace(/\D/g, '') || q}%`);
+
+    if (sellerId) {
+      query = query.eq('seller_id', sellerId);
+    }
+
+    const { data } = await query.limit(5);
+    if (!data?.length) { box.innerHTML = '<p style="font-size:12px;color:var(--gr);margin:4px 0">No está en tu clientela asignada — completa sus datos abajo.</p>'; return; }
     box.innerHTML = data.map(c => `
       <div class="pos-result" style="cursor:pointer" onclick='posPickCustomer(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
         <div style="flex:1">

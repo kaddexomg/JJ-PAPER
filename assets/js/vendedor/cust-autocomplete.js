@@ -38,15 +38,24 @@ async function custAcSearch(nameId, boxId, opts) {
     const or = (digits && digits.length >= 3)
       ? `name.ilike.%${q}%,phone.ilike.%${digits}%`
       : `name.ilike.%${q}%`;
-    const { data, error } = await sb.from('jjp_customers')
-      .select('id,name,phone,rif,city,total_orders,total_usd')
-      .or(or)
-      .limit((opts && opts.limit) || 6);
+    const sellerObj = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
+    const sellerId = opts?.sellerId || sellerObj?.id;
+
+    let query = sb.from('jjp_customers')
+      .select('id,name,phone,rif,city,total_orders,total_usd,seller_id')
+      .or(or);
+
+    // En ventas y cotizaciones se filtra por la clientela asignada del usuario activo
+    if (sellerId && opts?.sellerOnly !== false) {
+      query = query.eq('seller_id', sellerId);
+    }
+
+    const { data, error } = await query.limit((opts && opts.limit) || 6);
     if (error) { console.error('autocompletado cliente:', error); custAcHide(boxId); return; }
     custAc.results[boxId] = data || [];
     custAc.sel = -1;
     if (!(data || []).length) {
-      box.innerHTML = '<p style="font-size:12px;color:var(--gr);margin:8px 0">Cliente nuevo — completa sus datos manualmente.</p>';
+      box.innerHTML = '<p style="font-size:12px;color:var(--gr);margin:8px 0">No está en tu clientela asignada — completa sus datos manualmente si es nuevo.</p>';
       box.style.display = 'block';
       return;
     }

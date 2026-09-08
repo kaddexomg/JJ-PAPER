@@ -16,17 +16,39 @@ let currentSort  = '';
 // las ~39 categorías finas. El chip de familia filtra; las subcategorías
 // aparecen sólo al entrar en una familia.
 async function loadCatGroups() {
+  const cacheKey = 'jjp_cat_groups_cache_v1';
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) { catGroups = parsed; return; }
+    } catch (_) {}
+  }
   const { data } = await sb.from('jjp_category_groups')
     .select('id,name,slug,emoji')
     .order('sort_order');
-  if (data) catGroups = data;
+  if (data) {
+    catGroups = data;
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch (_) {}
+  }
 }
 
 async function loadCategories() {
+  const cacheKey = 'jjp_categories_cache_v1';
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) { categories = parsed; return; }
+    } catch (_) {}
+  }
   const { data } = await sb.from('jjp_categories')
     .select('id,name,slug,emoji,color,group_id')
     .order('sort_order');
-  if (data) categories = data;
+  if (data) {
+    categories = data;
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(data)); } catch (_) {}
+  }
 }
 
 // slug de la familia a la que pertenece una categoría (por id)
@@ -119,14 +141,35 @@ function normalizeProduct(p) {
 }
 
 async function loadProducts() {
+  const cacheKey = 'jjp_products_cache_v4';
+  const cacheTimeKey = 'jjp_products_cache_v4_time';
+  const cached = sessionStorage.getItem(cacheKey);
+  const cachedTime = sessionStorage.getItem(cacheTimeKey);
+  const now = Date.now();
+  if (cached && cachedTime && (now - parseInt(cachedTime, 10) < 180000)) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        allProducts = parsed.map(normalizeProduct);
+        allProducts.forEach(p => { productMap[p.id] = p; });
+        return;
+      }
+    } catch (_) {}
+  }
+
   const { data, error } = await sb.from('jjp_products')
     .select(`id,name,description,price_usd,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
     .eq('active', true)
+    .range(0, 1999)
     .order('sort_order');
   if (error) { console.error(error); return; }
   allProducts = (data || []).map(normalizeProduct);
   // Populate lookup map for safe cart/modal calls from any page
   allProducts.forEach(p => { productMap[p.id] = p; });
+  try {
+    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+    sessionStorage.setItem(cacheTimeKey, String(now));
+  } catch (_) {}
 }
 
 // ---- Filter + Sort ----
@@ -305,7 +348,7 @@ function productCardHTML(p) {
     ? `<span class="pc-tag">${escapeHTML(p.tag)}</span>` : '';
 
   const imgHTML = p.image_url
-    ? `<img src="${optImg(p.image_url, 400)}" alt="${name}" loading="lazy" decoding="async">`
+    ? `<img src="${optImg(p.image_url, 400)}" alt="${name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'pc-img-emoji\\'>${productIcon(p)}</span>'">`
     : `<span class="pc-img-emoji">${productIcon(p)}</span>`;
 
   // Marcas disponibles: 1 → nombre+logo; varias → chip "N marcas"

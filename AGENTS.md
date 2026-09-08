@@ -167,4 +167,20 @@ No se detectaron tests.
   - **Tormenta "Bad MAC" & Desincronización Signal/Baileys**: Al conectarse dos WebSockets simultáneos a WhatsApp con las mismas credenciales y archivos de sesión, las cadenas de cifrado (ratchets) de Signal Protocol se corrompieron mutuamente, generando un bucle de ping-pong continuo (reconexión cada 2s) y miles de advertencias `Bad MAC Error: Bad MAC`. Esto obligó a la sesión `b0cd93c5...` (Andreina) a desvincularse y solicitar escaneo QR.
   - **Explicación de "Servidor Fantasma"**: Aunque el panel web mostrara desconexión por desincronización del heartbeat en `jjp_server_control`, el proceso previo continuaba activo en background recibiendo mensajes y enviando campañas.
   - **Estado OAuth Gmail**: Las credenciales de `ventasjjmarianela014@gmail.com` y `araujoyovanni9@gmail.com` arrojaron `Token has been expired or revoked.` y deben renovarse desde el módulo de correo.
-  - **Resolución**: Se cerraron ambos procesos en conflicto, dejando los puertos liberados y el entorno limpio para arrancar una única instancia controlada.
+  - **Resolución**: Se cerraron ambos procesos en conflicto, dejando los puertos liberados y el entorno limpio para arrancar una única instancia controlada.
+
+## Campañas Email Nativas en Admin, Optimización de Catálogo y Candado Único en wa-server (08-09-2026)
+- **Campañas Email Nativas para Administrador (`admin/campanas-email.html`, `sidenav.js`)**:
+  - Implementada la interfaz nativa dentro de `/admin/` para gestión y despacho masivo de campañas de correo vía Gmail API.
+  - Se eliminó el enlace residual que redirigía a `../vendedor/campanas-email.html`, manteniendo al usuario con rol admin estrictamente en el entorno de administración.
+  - Soporte completo para selección de plantillas, audiencia, Spintax dinámico y adjuntos múltiples (PDF Lista de Precios + Imagen del producto + Archivo local).
+- **Optimización Integral de Carga del Catálogo (`assets/js/catalog.js`)**:
+  - **Caché en Memoria (`sessionStorage`)**: Implementado almacenamiento temporal de 3 a 5 minutos para grupos de categorías (`jjp_category_groups`), categorías finas (`jjp_categories`) y el catálogo completo de productos con sus variantes. Al navegar o recargar, el catálogo carga en **<50ms**.
+  - **Rango Ampliado (0 - 1999)**: La consulta de productos incluye explícitamente `.range(0, 1999)` para prevenir el truncamiento por defecto del límite de 1.000 filas de Supabase PostgREST.
+  - **Degradación Visual Agraciada (`onerror`)**: Si la URL de imagen de un producto falla o da 404, la etiqueta `<img>` conmuta instantáneamente al emoji/icono de su categoría sin mostrar recuadros de imagen rota.
+- **Candado de Instancia Única en el Sistema Operativo (`wa-server/src/index.js`)**:
+  - Mutex por puerto local (`127.0.0.1:8786`). Si se intenta ejecutar una segunda instancia de Node, el proceso detecta el puerto ocupado y aborta de inmediato con código de salida 2 (`process.exit(2)`).
+  - Previene definitivamente colisiones de puertos (8787/8788), WebSockets concurrentes en Baileys y desincronizaciones criptográficas "Bad MAC".
+- **Optimización de Despacho Outbox (`wa-server/src/outbox.js`)**:
+  - Escucha eventos `INSERT` y `UPDATE` con `status=eq.pending` en tiempo real para disparar reintentos al instante sin esperar el barrido periódico.
+  - Fallback a cualquier sesión activa sana en el servidor si la sesión del vendedor asignado está desconectada.

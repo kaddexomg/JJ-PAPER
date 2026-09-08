@@ -1,3 +1,4 @@
+import net from 'node:net';
 import { log } from './logger.js';
 import * as manager from './session-manager.js';
 import { startOutbox } from './outbox.js';
@@ -11,6 +12,26 @@ import { startHeartbeat } from './heartbeat.js';
 import { startWaActions } from './wa-actions.js';
 import { startRetention } from './retention.js';
 import { startMixer } from './mixer.js';
+
+// Candado de Instancia Única (Mutex de Red Local 127.0.0.1:8786):
+// Previene terminantemente la ejecución de dos instancias simultáneas de wa-server.
+// Si ya hay un proceso corriendo, este nuevo proceso aborta de inmediato con código 2
+// (detener limpio sin reiniciar en START-SERVIDOR.bat), evitando colisión de puertos
+// y desincronización de WhatsApp ("Bad MAC").
+const SINGLE_INSTANCE_PORT = 8786;
+const lockServer = net.createServer();
+lockServer.once('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    log.warn(`[CANDADO ACTIVO] Otra instancia de wa-server ya se encuentra ejecutándose en el sistema (puerto ${SINGLE_INSTANCE_PORT} ocupado).`);
+    log.warn('Abortando esta instancia para proteger los sockets de WhatsApp y evitar colisiones.');
+    process.exit(2);
+  } else {
+    log.error({ err: err.message }, 'Error al verificar candado de instancia única');
+  }
+});
+lockServer.listen(SINGLE_INSTANCE_PORT, '127.0.0.1', () => {
+  log.info(`Candado de instancia única adquirido (127.0.0.1:${SINGLE_INSTANCE_PORT}) ✅`);
+});
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
 log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html · vendedor/whatsapp.html)');

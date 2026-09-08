@@ -21,6 +21,9 @@ export function startOutbox(sessionManager) {
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'jjp_wa_messages', filter: 'status=eq.pending' },
       () => sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló')))
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'jjp_wa_messages', filter: 'status=eq.pending' },
+      () => sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló')))
     .subscribe(st => log.info({ st }, 'realtime outbox'));
 
   setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló')), OUTBOX_SWEEP_MS);
@@ -44,8 +47,22 @@ async function sweep() {
 }
 
 async function dispatch(row) {
-  const session = manager.get(row.owner_id);
-  if (!session?.isConnected()) return;   // queda pending hasta que la sesión conecte
+  let session = manager.get(row.owner_id);
+  if (!session?.isConnected()) {
+    // Si la sesión del owner asignado no está conectada, usar cualquier sesión sana activa
+    const fallback = manager.all().find(s => s.isHealthy());
+    if (fallback) {
+      session = fallback;
+    } else {
+      return;   // queda pending hasta que una sesión conecte
+    }
+  }
+
+  const jid = row.jjp_wa_chats?.jid;
+  if (!jid) {
+    log.warn({ id: row.id }, 'mensaje sin JID de chat válido, omitiendo');
+    return;
+  }
 
   // Lock optimista: si otro ciclo ya lo tomó, no afecta filas
   const { data: locked } = await db.from('jjp_wa_messages')

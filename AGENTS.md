@@ -91,3 +91,13 @@ No se detectaron tests.
     - **Proyecto B (Comunicación)**: 12 MB utilizados (2.4% de cuota) · Aislamiento total de chats, mensajes y campañas.
     - **Proyecto C (Storage & Inventario)**: 8 MB de esquema · Buckets `jjp-products` y `jjp-receipts` listos con 1 GB libre.
     - Todos los proyectos operan con más del 95% de margen libre.
+
+## Optimización Storage WebP, Cifrado Baileys y Caché RAM en Campañas (08-09-2026)
+- **Compresión Masiva a WebP**: Catálogo optimizado a 800px máx, calidad 80. Peso total reducido de 8.63 MB a 5.33 MB (38.2% ahorro). Archivos originales pesados eliminados de Storage. 320 productos y 294 variantes actualizadas a `.webp` en Proyecto C (`nmcamjxhyysmmvgxgabo`).
+- **Desacople 100% del Proyecto Viejo (`czzvsqnmxtjzqzioknnn`)**: 0 referencias en base de datos, CSP de `_headers` limpio, redirección automática en servidor. El proyecto antiguo se puede eliminar o pausar sin riesgo.
+- **Cifrado E2EE Baileys**: Implementado `msgRetryCounterCache` y reescrito `getMessage` con protobuf stanzas y `.limit(1)` en `wa-session.js`. Resuelve definitivamente "Esperando este mensaje...".
+- **Deduplicación & Heartbeat Dual**: Previene duplicados salientes por eco local `fromMe`. Latido actualiza `heartbeat` y `heartbeat_at` cada 30s.
+- **Caché en RAM para Campañas Masivas**:
+  - `mediaCache` (TTL 12h) en `outbox.js` (WhatsApp) y `attachCache` en `email.js` (Correo) evitan descargas redundantes hacia Supabase Storage durante envíos masivos.
+  - Soporte multiagente paralelo con temporizadores y colas independientes por vendedor (`byOwner`).
+- **Deploy Automático**: Empujado a `origin main` (commit `eb20d8e`) con Cloudflare Pages actualizado.

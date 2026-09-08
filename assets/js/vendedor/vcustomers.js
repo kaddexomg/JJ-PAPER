@@ -19,10 +19,20 @@ const ZONE_SELLER_MAP = {
 };
 
 async function loadCustomers() {
-  const { data, error } = await sb.from('jjp_customers')
-    .select('*').order('last_order_at', { ascending: false, nullsFirst: false });
-  if (error) { showToast('Error cargando clientes', 'err'); return; }
-  vCustomers = data || [];
+  // PostgREST corta en 1.000 filas: paginamos para cargar TODA la cartera
+  // (los clientes de zona 010 / sin pedidos quedaban fuera del límite y no se veían).
+  vCustomers = [];
+  const PAGE = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await sb.from('jjp_customers')
+      .select('*').order('last_order_at', { ascending: false, nullsFirst: false })
+      .range(from, from + PAGE - 1);
+    if (error) { showToast('Error cargando clientes', 'err'); return; }
+    vCustomers.push(...(data || []));
+    if (!data || data.length < PAGE || from > 12000) break;
+    from += PAGE;
+  }
   renderCustomers();
 }
 

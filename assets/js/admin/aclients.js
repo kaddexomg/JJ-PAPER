@@ -12,10 +12,20 @@ async function loadAdminCustomers() {
   const { data: profs } = await sb.from('jjp_profiles').select('id, name, role');
   adminProfiles = profs || [];
 
-  const { data, error } = await sb.from('jjp_customers')
-    .select('*').order('last_order_at', { ascending: false, nullsFirst: false });
-  if (error) { showToast('Error cargando clientes', 'err'); return; }
-  adminCustomers = data || [];
+  // PostgREST corta en 1.000 filas: paginamos para cargar TODA la cartera global
+  // (zona 010 quedaba fuera porque sus clientes no tienen last_order_at y caen al final del orden).
+  adminCustomers = [];
+  const PAGE = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await sb.from('jjp_customers')
+      .select('*').order('last_order_at', { ascending: false, nullsFirst: false })
+      .range(from, from + PAGE - 1);
+    if (error) { showToast('Error cargando clientes', 'err'); return; }
+    adminCustomers.push(...(data || []));
+    if (!data || data.length < PAGE || from > 12000) break;
+    from += PAGE;
+  }
   renderAdminCustomers();
 }
 

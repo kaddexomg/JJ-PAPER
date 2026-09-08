@@ -98,13 +98,19 @@ function setDTab(t) {
 /* ================== CONTACTOS ================== */
 async function loadDContacts() {
   const isAdm = SELLER?.role === 'admin';
-  let q = sb.from('jjp_customers').select('*').order('name');
-  if (!isAdm && SELLER?.id) {
-    q = q.eq('seller_id', SELLER.id);
+  // Paginamos (PostgREST limita a 1.000 filas) para no perder contactos en difusión.
+  dContacts = [];
+  const PAGE = 1000;
+  let from = 0;
+  for (;;) {
+    let q = sb.from('jjp_customers').select('*').order('name').range(from, from + PAGE - 1);
+    if (!isAdm && SELLER?.id) q = q.eq('seller_id', SELLER.id);
+    const { data, error } = await q;
+    if (error) { showToast('Error cargando contactos', 'err'); return; }
+    dContacts.push(...(data || []));
+    if (!data || data.length < PAGE || from > 12000) break;
+    from += PAGE;
   }
-  const { data, error } = await q;
-  if (error) { showToast('Error cargando contactos', 'err'); return; }
-  dContacts = data || [];
   renderDTagChips();
   renderDContacts();
 }

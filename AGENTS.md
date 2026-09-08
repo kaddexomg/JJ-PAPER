@@ -141,3 +141,20 @@ No se detectaron tests.
   - Selector datetime-local en el editor de campañas.
   - Sweepers en `wa-server` (`campaigns.js` y `email-campaigns.js`) respetan la marca temporal antes de iniciar envíos.
   - Badges visuales en tablas de campañas (`vdifusion.js` y `vcampanas-email.js`) indicando `⏰ Programada: dd/mm hh:mm`.
+
+## Suite de IA Ultrarrápida, Generación de Flyers en Chat y Campañas Multicontenido (08-09-2026)
+- **Optimización de Latencia Gemini (<800ms)**:
+  - Cascada de modelos optimizada priorizando `gemini-3.5-flash-lite` y `gemini-3.1-flash-lite`, eliminando modelos obsoletos o con 404 (`gemini-2.5-flash-lite`).
+  - Límite de tiempo por request (`AbortController` a 3.5s) que descarta inmediatamente intentos lentos y conmuta a la siguiente clave del pool de 7.
+- **Generación Visual de Flyers en Chat Copiloto (`copilot-jj.js`)**:
+  - Detección de intenciones gráficas en el chat (`flyer`, `imagen`, `foto`, `tarjeta`, etc.).
+  - Búsqueda en vivo en catálogo con extracción de producto, renderizado dinámico en Canvas 800x800 con precio USD y Bs oficiales a tasa BCV.
+  - Botones de acción directa embebidos en el mensaje: Copiar Imagen, Descargar PNG, Personalizar Precio y Lanzar Campaña.
+  - Carga segura de imágenes mediante blob (`fetch` + `createObjectURL`) para prevenir errores de lienzo contaminado (CORS).
+- **Habilitación de Funciones Comerciales para Usuarios ADMIN (`sidenav.js`)**:
+  - Integración en `ADMIN_NAV` bajo el grupo "Ventas y Cartera" de: `Nueva Venta (POS)`, `Cotizador Rápido`, `Mi Cartera Personal`, `Consultar Stock` y `Lista de Precios`.
+  - Los administradores tienen acceso completo a las herramientas de venta del vendedor sin perder ningún permiso o visibilidad global administrativa.
+- **Envío Masivo de Múltiples Adjuntos en Campañas (`campaign-editor.js`, `vdifusion.js`, `campaigns.js`)**:
+  - Unificación de controles de adjuntos a casillas de verificación múltiples tanto para WhatsApp como para Correo: `Ficha / Foto del Producto o Flyer`, `Lista de Precios Oficial (PDF)` y `Subir Archivo Propio`.
+  - Soporte de columnas `extra_media_*` en `jjp_wa_campaigns` de Proyecto B.
+  - Despacho secuencial en `wa-server` de mensaje principal con imagen/flyer y documento PDF complementario para cada destinatario.

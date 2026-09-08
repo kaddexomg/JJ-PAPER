@@ -78,10 +78,28 @@ function b64url(buf) {
 //   - ruta dentro del bucket jjp-email-media           → se baja con Storage
 const attachCache = new Map();
 
+// Acepta dos formatos de ítem:
+//   - { path, name, mime }  → archivo en Storage/URL (se baja UNA vez y se cachea en RAM)
+//   - { base64, name|filename, mime|contentType }  → contenido inline (p.ej. PDF generado
+//     en el navegador o archivo adjuntado desde la PC). El base64 puede venir como data URI
+//     (data:application/pdf;base64,xxxx) o en base64 puro.
 async function loadAttachments(list) {
   const out = [];
   for (const a of list || []) {
-    if (!a?.path) continue;
+    if (!a) continue;
+    let name = String(a.name || a.filename || 'archivo').replace(/[\r\n"]/g, '');
+    let mime = (a.mime || a.contentType || 'application/octet-stream').split(';')[0];
+
+    if (a.base64) {
+      let b64 = String(a.base64).trim();
+      const sep = b64.indexOf(';base64,');
+      if (sep !== -1) b64 = b64.slice(sep + 8);
+      if (!b64) continue;
+      out.push({ name, mime, b64 });
+      continue;
+    }
+
+    if (!a.path) continue;
     const key = String(a.path);
     if (!attachCache.has(key)) {
       const buf = await fetchAttachmentBytes(key);
@@ -89,11 +107,7 @@ async function loadAttachments(list) {
     }
     const b64 = attachCache.get(key);
     if (b64 === undefined) continue;
-    out.push({
-      name: a.name || 'archivo',
-      mime: (a.mime || 'application/octet-stream').split(';')[0],
-      b64
-    });
+    out.push({ name, mime, b64 });
   }
   return out;
 }

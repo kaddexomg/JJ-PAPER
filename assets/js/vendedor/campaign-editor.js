@@ -92,6 +92,17 @@ window.CampaignEditor = (() => {
                   <option value="pdf_lista_precios">📄 Adjuntar Lista de Precios PDF</option>
                   <option value="custom_file">📁 Subir Archivo Propio (PDF/Imagen)</option>
                 </select>
+                <div id="ceEmailAttachWrap" style="display:none; margin-top:4px;">
+                  <label style="display:block;font-size:12px;color:#334155;padding:3px 0;cursor:pointer">
+                    <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="vertical-align:middle;margin-right:4px">📄 Lista de Precios PDF
+                  </label>
+                  <label style="display:block;font-size:12px;color:#334155;padding:3px 0;cursor:pointer">
+                    <input type="checkbox" id="ceAttachImg" onchange="CampaignEditor.onAttachChange()" style="vertical-align:middle;margin-right:4px">🖼️ Ficha / Foto del Producto o Combo
+                  </label>
+                  <label style="display:block;font-size:12px;color:#334155;padding:3px 0;cursor:pointer">
+                    <input type="checkbox" id="ceAttachFile" onchange="CampaignEditor.onAttachChange()" style="vertical-align:middle;margin-right:4px">📁 Subir archivo propio (PDF/Imagen)
+                  </label>
+                </div>
               </div>
               <div id="ceCustomFileWrap" style="display:none; margin-top:4px;">
                 <input type="file" id="ceCustomFileInput" class="ce-input" accept=".pdf,image/*" onchange="CampaignEditor.onCustomFileChange(this)">
@@ -216,6 +227,16 @@ window.CampaignEditor = (() => {
     document.getElementById('ceEmailSubjectHeader').style.display = isEmail ? 'block' : 'none';
     document.getElementById('ceSecuritySection').style.display = isEmail ? 'none' : 'flex';
     document.getElementById('ceCheckmarks').style.display = isEmail ? 'none' : 'inline';
+
+    document.getElementById('ceAttachSelect').style.display = isEmail ? 'none' : 'block';
+    const emailAttachWrap = document.getElementById('ceEmailAttachWrap');
+    if (emailAttachWrap) emailAttachWrap.style.display = isEmail ? 'block' : 'none';
+    ['ceAttachPdf', 'ceAttachImg', 'ceAttachFile'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+    const customWrap = document.getElementById('ceCustomFileWrap');
+    if (customWrap) customWrap.style.display = 'none';
 
     document.getElementById('ceCampName').value = config.defaultName || (isEmail ? 'Campaña de Email ' : 'Difusión WhatsApp ') + new Date().toLocaleDateString('es-VE');
 
@@ -357,6 +378,8 @@ window.CampaignEditor = (() => {
     }
     document.getElementById('ceMessageInput').value = msg;
     document.getElementById('ceAttachSelect').value = 'prod_image';
+    const imgChk1 = document.getElementById('ceAttachImg');
+    if (currentConfig?.channel === 'email' && imgChk1) imgChk1.checked = true;
     onAttachChange();
     updatePreview();
   }
@@ -375,6 +398,8 @@ window.CampaignEditor = (() => {
     }
     document.getElementById('ceMessageInput').value = msg;
     document.getElementById('ceAttachSelect').value = 'prod_image';
+    const imgChk2 = document.getElementById('ceAttachImg');
+    if (currentConfig?.channel === 'email' && imgChk2) imgChk2.checked = true;
     onAttachChange();
     updatePreview();
   }
@@ -411,9 +436,28 @@ window.CampaignEditor = (() => {
   }
 
   function onAttachChange() {
-    const opt = document.getElementById('ceAttachSelect').value;
-    document.getElementById('ceCustomFileWrap').style.display = opt === 'custom_file' ? 'block' : 'none';
+    const isEmail = currentConfig?.channel === 'email';
+    const wrap = document.getElementById('ceCustomFileWrap');
+    if (wrap) {
+      wrap.style.display = isEmail
+        ? (document.getElementById('ceAttachFile')?.checked ? 'block' : 'none')
+        : (document.getElementById('ceAttachSelect').value === 'custom_file' ? 'block' : 'none');
+    }
     updatePreview();
+  }
+
+  // En email se permiten varios adjuntos a la vez (PDF + foto + archivo propio);
+  // en WhatsApp solo uno, usando el select tradicional.
+  function currentAttachOpts() {
+    if (currentConfig?.channel === 'email') {
+      const opts = [];
+      if (document.getElementById('ceAttachPdf')?.checked) opts.push('pdf_lista_precios');
+      if (document.getElementById('ceAttachImg')?.checked) opts.push('prod_image');
+      if (document.getElementById('ceAttachFile')?.checked) opts.push('custom_file');
+      return opts;
+    }
+    const v = document.getElementById('ceAttachSelect')?.value;
+    return v && v !== 'none' ? [v] : [];
   }
 
   function onCustomFileChange(input) {
@@ -484,26 +528,23 @@ window.CampaignEditor = (() => {
       return parts[0].trim();
     });
 
-    const attachOpt = document.getElementById('ceAttachSelect').value;
+    const attachOpts = currentAttachOpts();
     const attachPreviewEl = document.getElementById('ceBubbleAttachment');
-    
-    if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
-      attachPreviewEl.style.display = 'block';
-      attachPreviewEl.innerHTML = `<img src="${selectedProductOrCombo.image_url}" alt="Preview" style="max-height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px">`;
-    } else if (attachOpt === 'pdf_lista_precios') {
-      attachPreviewEl.style.display = 'block';
-      attachPreviewEl.innerHTML = `<div class="ce-bubble-doc-card">📄 Lista_de_Precios_JJ_Paper.pdf (PDF Oficial)</div>`;
-    } else if (attachOpt === 'custom_file') {
+    const previewItems = [];
+    if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url) {
+      previewItems.push(`<img src="${selectedProductOrCombo.image_url}" alt="Preview" style="max-height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px">`);
+    }
+    if (attachOpts.includes('pdf_lista_precios')) {
+      previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_JJ_Paper.pdf (PDF Oficial)</div>`);
+    }
+    if (attachOpts.includes('custom_file')) {
       const file = document.getElementById('ceCustomFileInput')?.files?.[0];
       if (file) {
-        attachPreviewEl.style.display = 'block';
-        attachPreviewEl.innerHTML = `<div class="ce-bubble-doc-card">📎 ${file.name} (${(file.size / 1024).toFixed(1)} KB)</div>`;
-      } else {
-        attachPreviewEl.style.display = 'none';
+        previewItems.push(`<div class="ce-bubble-doc-card">📎 ${escapeHTML(file.name)} (${(file.size / 1024).toFixed(1)} KB)</div>`);
       }
-    } else {
-      attachPreviewEl.style.display = 'none';
     }
+    attachPreviewEl.style.display = previewItems.length ? 'block' : 'none';
+    attachPreviewEl.innerHTML = previewItems.join('');
 
     if (isEmail) {
       const subj = document.getElementById('ceSubjectInput').value || 'Sin asunto';
@@ -529,7 +570,10 @@ window.CampaignEditor = (() => {
   async function launch() {
     const name = document.getElementById('ceCampName').value.trim();
     const body = document.getElementById('ceMessageInput').value.trim();
-    const attachOpt = document.getElementById('ceAttachSelect').value;
+    const attachOpts = currentAttachOpts();
+    const attachOpt = attachOpts.length
+      ? (currentConfig?.channel === 'email' ? attachOpts.join(',') : attachOpts[0])
+      : 'none';
     const speed = document.getElementById('ceSpeedSelect')?.value || 'human';
     const isEmail = currentConfig?.channel === 'email';
     const subject = isEmail ? document.getElementById('ceSubjectInput').value.trim() : null;

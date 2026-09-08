@@ -102,6 +102,7 @@ No se detectaron tests.
 - **Caché en RAM para Campañas Masivas**:
   - `mediaCache` (TTL 12h) en `outbox.js` (WhatsApp) y `attachCache` en `email.js` (Correo) evitan descargas redundantes hacia Supabase Storage durante envíos masivos.
   - Soporte multiagente paralelo con temporizadores y colas independientes por vendedor (`byOwner`).
+- **Adjuntos de Email (fix 08-09-2026)**: `loadAttachments` (email.js) acepta inline base64 (`data:…;base64,` o base64 puro) además de `path`; el editor de campañas email (`campaign-editor.js` + `vcampanas-email.js`) usa checkboxes múltiples (PDF Lista de Precios + foto del producto/combo + archivo propio desde PC) y puede enviar varios a la vez (`attachOpt` coma-separado para email; select único en WhatsApp).
 - **Deploy Automático**: Empujado a `origin main` (commit `eb20d8e`) con Cloudflare Pages actualizado.
 
 ## Integración de Suite Gemini AI & Copiloto JJ Paper (08-09-2026)

@@ -573,8 +573,11 @@ async function launchEmailCampaignFromEditor(config) {
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
 
+  const attachOpts = String(attachOpt || 'none').split(',').map(s => s.trim()).filter(Boolean);
   let attachments = [];
-  if (attachOpt === 'pdf_lista_precios') {
+  let imgSrc = '';
+
+  if (attachOpts.includes('pdf_lista_precios')) {
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
       const { base64, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista', returnBase64: true });
@@ -586,16 +589,34 @@ async function launchEmailCampaignFromEditor(config) {
     } catch (e) {
       console.warn('PDF inline attachment notice:', e);
     }
-  } else if (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url) {
+  }
+
+  if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url) {
     attachments.push({
       path: selectedProductOrCombo.image_url,
       name: (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg',
-      contentType: 'image/jpeg'
+      mime: 'image/jpeg'
     });
+    imgSrc = selectedProductOrCombo.image_url;
   }
 
-  let imgHtml = (attachOpt === 'prod_image' && selectedProductOrCombo?.image_url)
-    ? `<div style="margin:14px 0;text-align:center"><img src="${selectedProductOrCombo.image_url}" alt="${escapeHTML(selectedProductOrCombo.name || '')}" style="max-width:380px;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 10px rgba(0,0,0,0.06)"></div>`
+  if (attachOpts.includes('custom_file') && customFile) {
+    try {
+      if (!/\.(pdf|png|jpe?g|webp)$/i.test(customFile.name)) {
+        throw new Error('Formato no permitido (usa PDF o imagen).');
+      }
+      const mediaPath = `${ownerId}/campaigns/${Date.now()}-${customFile.name.replace(/[^\w.-]/g, '_')}`;
+      const { error: upErr } = await sb.storage.from('jjp-email-media')
+        .upload(mediaPath, customFile, { contentType: customFile.type || 'application/octet-stream', upsert: true });
+      if (upErr) throw new Error('No se pudo subir el archivo: ' + upErr.message);
+      attachments.push({ path: mediaPath, name: customFile.name, mime: customFile.type || 'application/octet-stream', size: customFile.size });
+    } catch (e) {
+      console.warn('Archivo propio no adjuntado:', e);
+    }
+  }
+
+  let imgHtml = imgSrc
+    ? `<div style="margin:14px 0;text-align:center"><img src="${imgSrc}" alt="${escapeHTML(selectedProductOrCombo?.name || '')}" style="max-width:380px;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 10px rgba(0,0,0,0.06)"></div>`
     : '';
 
   let htmlBody = body.replace(/\n/g, '<br>');
@@ -740,7 +761,7 @@ async function launchEcCampaign() {
   const list = ecAudience();
   const tpl  = ecTemplates.find(t => t.id === document.getElementById('nc-tpl').value);
   const extra = ecGetExtraContext();
-  const attachOpt = document.getElementById('nc-attach-opt')?.value || 'none';
+  const attachOpts = String(document.getElementById('nc-attach-opt')?.value || 'none').split(',').map(s => s.trim()).filter(Boolean);
 
   if (!name) { showToast('El nombre de la campaña es obligatorio', 'warn'); return; }
   if (!tpl)  { showToast('Selecciona una plantilla', 'warn'); return; }
@@ -760,7 +781,7 @@ async function launchEcCampaign() {
   btn.disabled = true;
   let attachments = [];
 
-  if (attachOpt === 'pdf_lista_precios') {
+  if (attachOpts.includes('pdf_lista_precios')) {
     btn.textContent = 'Generando catálogo PDF…';
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
@@ -776,13 +797,15 @@ async function launchEcCampaign() {
       btn.disabled = false; btn.textContent = '🚀 Lanzar campaña de email';
       return;
     }
-  } else if (attachOpt === 'prod_image' && extra.productId) {
+  }
+  if (attachOpts.includes('prod_image') && extra.productId) {
     const prod = ecProducts.find(x => x.id === extra.productId);
     const imgUrl = prod?.jjp_products?.image_url || prod?.image_url;
     if (imgUrl) {
       attachments.push({ path: imgUrl, name: (prod.jjp_products?.name || 'producto') + '.jpg', mime: 'image/jpeg' });
     }
-  } else if (attachOpt === 'custom_file') {
+  }
+  if (attachOpts.includes('custom_file')) {
     const file = document.getElementById('nc-custom-file')?.files?.[0];
     if (file) {
       btn.textContent = 'Subiendo archivo…';

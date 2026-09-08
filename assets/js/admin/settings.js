@@ -10,6 +10,8 @@ const SETTINGS_FIELDS = [
   'transfer_bank', 'transfer_account', 'transfer_type', 'transfer_holder', 'transfer_ci',
   // Delivery cotizado por distancia (checkout)
   'delivery_base_usd', 'delivery_per_km_usd', 'delivery_free_over_usd',
+  // Cooldown anti-reenvío de campañas (horas sin repetirle a un cliente)
+  'email_camp_cooldown_h', 'wa_camp_cooldown_h',
   // Formato del comprobante/factura (comprobante.html)
   'business_name', 'rif', 'iva_pct', 'doc_title', 'doc_color', 'doc_accent',
   'doc_logo_url', 'doc_paper', 'doc_show_bs', 'doc_footer_legal', 'doc_footer_note',

@@ -244,3 +244,19 @@ No se detectaron tests.
 - **Diseño de Flyers en Campañas (`campaign-editor.js`)**:
   - Generación previa y automática de la fotografía de estudio fotorrealista con IA antes de renderizar el flyer si el producto no tiene foto en catálogo.
   - Renderizado predeterminado en fondo blanco de estudio comercial (`theme: 'white'`) con titular publicitario configurable ("🔥 OFERTA AL MAYOR").
+
+## Motor de Fotos Reales de la Web, Guardado Oficial en Catálogo y Packshots IA sin Fondos Arquitectónicos (09-09-2026)
+- **Buscador de Fotografías Reales en la Web (`wa-server/src/product-images.js`, `count-lan.js`)**:
+  - Búsqueda en vivo de fotografías de producto auténticas de papelerías, catálogos comerciales y MercadoLibre vía DuckDuckGo Image Search (`/lan/products/search-images?q=...`), con expansión automática de abreviaturas venezolanas (`RESALT.` → `resaltador`, `P/PIZARRA` → `marcador pizarra`, `C/T` → `con tapa`).
+  - Bypass total de CORS en el servidor local `wa-server` y soporte para cualquier dominio `*.pages.dev` en `corsOrigin`.
+- **Selector Triple de Fuente de Imagen en Copiloto (`copilot-jj.js`)**:
+  - **🌐 Fotos Web Reales (Recomendado)**: Cuadrícula de fotos reales del producto encontradas en internet con previsualización inmediata en 1 clic.
+  - **🤖 Generar con IA (Flux Packshot)**: Fotografía aislada sobre fondo blanco puro (`#FFFFFF`) con ingeniería de prompts estricta.
+  - **📁 Subir / Enlace**: Carga de cualquier URL directa de Google Imágenes / web o subida de archivo desde PC / teléfono móvil (`<input type="file">`).
+- **Guardado Oficial en Catálogo (`/lan/products/save-image` y fallback Supabase)**:
+  - Botón `💾 Guardar como Foto Oficial en Catálogo`: Descarga la foto seleccionada, la sube al bucket `jjp-products/[id].[ext]` en Proyecto C (Storage) y actualiza automáticamente `image_url` en `jjp_products` (Proyecto A Core) de forma permanente para todos los usuarios.
+- **Erradicación Definitiva de Fondos Arquitectónicos (Paredes, Pisos, Cuartos) en IA**:
+  - En `gemini-client.js`: Eliminados los términos ambiguos "cyclorama", "floor", "room" o "shadows".
+  - Prompt estricto de Packshot de Objeto Aislado (`isolated object on pure solid white background #FFFFFF`) con tokens negativos explícitos (`STRICT NEGATIVE PROMPT: no room, no floor, no walls, no cyclorama, no table, no furniture, no background scenery, no interior, no people, no hands, no mockups`).
+  - Expansión de vocabulario comercial en `enrichProductForMarketing`: soporte para rosado, fucsia, magenta, morado, violeta, naranja, turquesa, cyan, resaltadores, displays y cajas por 12.
+  - Traducción asistida por Gemini a descripción comercial de empaque en inglés antes de pasar a Flux.

@@ -10,6 +10,7 @@ window.CampaignEditor = (() => {
   let selectedProductOrCombo = null;
   let generatedFlyerFile = null;
   let cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
+  let knownNoWaPhones = new Set();
   let cooldownHours = 0;
   let cooldownLoading = null;
 
@@ -20,10 +21,26 @@ window.CampaignEditor = (() => {
   // Descarga la lista de contactos a los que YA se les envió por campaña en las
   // últimas N horas (email o WhatsApp) para NO repetirles mientras dure el
   // cooldown. Página en rangos de 1.000 (PostgREST).
+  // También descarga los números que no tienen WhatsApp para excluirlos de inmediato.
   async function reloadCooldown() {
     cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
+    knownNoWaPhones = new Set();
     cooldownHours = 0;
     const isEmail = currentConfig?.channel === 'email';
+
+    if (!isEmail) {
+      try {
+        const { data: noWa } = await sb.from('jjp_wa_campaign_targets')
+          .select('phone')
+          .eq('status', 'skipped')
+          .ilike('error', '%sin WhatsApp%')
+          .limit(2000);
+        for (const row of noWa || []) {
+          if (row.phone) knownNoWaPhones.add(normPhoneKey(row.phone));
+        }
+      } catch (e) {}
+    }
+
     const key = isEmail ? 'email_camp_cooldown_h' : 'wa_camp_cooldown_h';
     const hours = parseInt(APP?.SETTINGS?.[key] || 48, 10);
     if (!hours || hours <= 0) return;
@@ -486,7 +503,10 @@ window.CampaignEditor = (() => {
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
       if (isEmail && c.email_opt_out) return false;
-      if (!isEmail && (c.opt_out || c.wa_opt_out)) return false;
+      if (!isEmail && (c.opt_out || c.wa_opt_out || knownNoWaPhones.has(normPhoneKey(c.phone)))) {
+        nonMobileCount++;
+        return false;
+      }
 
       // Para WhatsApp: verificar que sea un celular móvil venezolano o internacional válido
       // Omitir teléfonos fijos CANTV (0212, 0241...) e identificadores que no reciben WhatsApp
@@ -524,7 +544,7 @@ window.CampaignEditor = (() => {
 
     let detailsTxt = '';
     if (!isEmail && nonMobileCount > 0) {
-      detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} fijos CANTV sin WhatsApp omitidos)</span>`;
+      detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} omitidos: sin WhatsApp o fijos CANTV)</span>`;
     }
     if (cooldownHours > 0 && excludedCount > 0) {
       detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitido${excludedCount !== 1 ? 's' : ''} por envío reciente (<${cooldownHours}h)</span>`;

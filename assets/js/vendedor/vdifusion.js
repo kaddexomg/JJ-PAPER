@@ -1016,6 +1016,7 @@ async function launchCampaignFromEditor(config) {
 
   const targets = audience.filter(c => {
     if (!c.phone) return false;
+    if (c.wa_opt_out || c.opt_out) return false;
     if (typeof parsePhoneInfo === 'function') {
       const p = parsePhoneInfo(c.phone);
       return p.isValid && p.isMobile && !p.isLandline;
@@ -1245,6 +1246,7 @@ async function launchCampaign() {
 
   const targets = list.filter(c => {
     if (!c.phone) return false;
+    if (c.wa_opt_out || c.opt_out) return false;
     if (typeof parsePhoneInfo === 'function') {
       const p = parsePhoneInfo(c.phone);
       return p.isValid && p.isMobile && !p.isLandline;

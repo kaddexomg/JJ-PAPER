@@ -114,6 +114,12 @@ async function step(camp, dailyLimit) {
     }
 
     if (!hasWa) {
+      if (t.customer_id) {
+        await dbCore.from('jjp_customers')
+          .update({ wa_opt_out: true })
+          .eq('id', t.customer_id)
+          .catch(() => {});
+      }
       await skip(camp, t, 'número sin WhatsApp activo: ' + (t.phone || ''));
       continue;
     }

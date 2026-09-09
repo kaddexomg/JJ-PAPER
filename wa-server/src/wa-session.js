@@ -1,5 +1,6 @@
 import makeWASocket, {
   useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
   fetchLatestBaileysVersion,
   DisconnectReason,
   Browsers,
@@ -124,8 +125,17 @@ export class WaSession {
         const raw = fs.readFileSync(this.cacheFile, 'utf8');
         const list = JSON.parse(raw);
         if (Array.isArray(list)) {
-          for (const [id, msg] of list) {
-            if (id && msg) this.messageStore.set(id, msg);
+          for (const [id, entry] of list) {
+            if (!id || !entry) continue;
+            try {
+              if (typeof entry === 'string') {
+                // Entrada codificada en Base64 protobuf binario
+                const decoded = proto.Message.decode(Buffer.from(entry, 'base64'));
+                this.messageStore.set(id, decoded);
+              } else if (typeof entry === 'object') {
+                this.messageStore.set(id, entry);
+              }
+            } catch {}
           }
         }
         log.info({ profile: this.profileId, cached: this.messageStore.size }, 'MessageStore cargado desde disco');
@@ -156,7 +166,17 @@ export class WaSession {
   async flushStoreToDisk() {
     try {
       if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
-      const entries = Array.from(this.messageStore.entries()).slice(-2000);
+      const entries = [];
+      const slice = Array.from(this.messageStore.entries()).slice(-2000);
+      for (const [id, msg] of slice) {
+        try {
+          const protoMsg = (msg instanceof proto.Message) ? msg : proto.Message.fromObject(msg);
+          const b64 = Buffer.from(proto.Message.encode(protoMsg).finish()).toString('base64');
+          entries.push([id, b64]);
+        } catch {
+          entries.push([id, msg]);
+        }
+      }
       await fs.promises.writeFile(this.cacheFile, JSON.stringify(entries), 'utf8');
     } catch (e) {
       log.warn({ profile: this.profileId, err: e.message }, 'error guardando sent-cache.json');
@@ -164,7 +184,35 @@ export class WaSession {
   }
 
   getMessageFromStore(id) {
-    return this.messageStore.get(id);
+    const raw = this.messageStore.get(id);
+    if (!raw) return undefined;
+    if (raw instanceof proto.Message) return raw;
+    try {
+      return proto.Message.fromObject(raw);
+    } catch {
+      return raw;
+    }
+  }
+
+  cleanCorruptedSessions() {
+    try {
+      if (!fs.existsSync(this.dir)) return;
+      const files = fs.readdirSync(this.dir);
+      for (const f of files) {
+        if (f.startsWith('session-') && f.endsWith('.json')) {
+          const full = path.join(this.dir, f);
+          try {
+            const raw = fs.readFileSync(full, 'utf8');
+            JSON.parse(raw);
+          } catch {
+            log.warn({ profile: this.profileId, file: f }, 'Eliminando archivo de sesión truncado o corrupto');
+            try { fs.unlinkSync(full); } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      log.warn({ profile: this.profileId, err: e.message }, 'cleanCorruptedSessions error');
+    }
   }
 
   hasCreds() { return fs.existsSync(path.join(this.dir, 'creds.json')); }
@@ -190,11 +238,15 @@ export class WaSession {
     this.startingSince = Date.now();   // se limpia al abrir o al cerrar la conexión
     await this.setSession({ status: 'starting', last_error: null });
     try {
+      this.cleanCorruptedSessions();
       const { state, saveCreds } = await useMultiFileAuthState(this.dir);
       const version = await resolveWaVersion();
       const sock = makeWASocket({
         version,
-        auth: state,
+        auth: {
+          creds: state.creds,
+          keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
+        },
         logger: baileysLogger,
         printQRInTerminal: false,
         browser: Browsers.windows('Desktop'),
@@ -213,7 +265,7 @@ export class WaSession {
             // 1. Verificar MessageStore en memoria/disco (contiene el proto COMPLETO con mediaKey y hashes)
             const cached = this.getMessageFromStore(id);
             if (cached) {
-              return proto.Message.fromObject(cached);
+              return cached;
             }
             // 2. Fallback a Supabase jjp_wa_messages
             const { data } = await db.from('jjp_wa_messages')
@@ -222,11 +274,14 @@ export class WaSession {
               .limit(1);
             if (!data || !data.length) return undefined;
             const m = data[0];
-            if (m.type === 'text') return { conversation: m.body || '' };
-            if (m.type === 'image') return { imageMessage: { caption: m.body || '' } };
-            if (m.type === 'video') return { videoMessage: { caption: m.body || '' } };
-            if (m.type === 'document') return { documentMessage: { caption: m.body || '', fileName: m.media_filename || 'documento.pdf' } };
-            return { conversation: m.body || '' };
+            const text = m.body || '';
+            if (m.type === 'text') {
+              return text.includes('\n') ? { extendedTextMessage: { text } } : { conversation: text };
+            }
+            if (m.type === 'image') return { imageMessage: { caption: text } };
+            if (m.type === 'video') return { videoMessage: { caption: text } };
+            if (m.type === 'document') return { documentMessage: { caption: text, fileName: m.media_filename || 'documento.pdf' } };
+            return { conversation: text };
           } catch (e) {
             return undefined;
           }

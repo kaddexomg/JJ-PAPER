@@ -1,4 +1,4 @@
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { OUTBOX_SWEEP_MS, MAX_RETRIES } from './config.js';
 import { downloadOutgoingMedia } from './media.js';
@@ -109,12 +109,22 @@ async function dispatch(row) {
           }
         }
 
-        log.warn({ id: row.id, phone }, 'número sin WhatsApp → mensaje marcado como failed y target omitido');
+        // Marcar en la ficha del cliente en Core para no intentar nunca más por WhatsApp
+        if (row.jjp_wa_chats?.customer_id) {
+          await dbCore.from('jjp_customers')
+            .update({ wa_opt_out: true })
+            .eq('id', row.jjp_wa_chats.customer_id)
+            .catch(() => {});
+        }
+
+        log.warn({ id: row.id, phone }, 'número sin WhatsApp → mensaje marcado como failed, target omitido y wa_opt_out fijado');
         return;
       }
     } catch (valErr) {
-      // Si la validación falla (timeout, etc.), intentar enviar de todos modos
-      log.warn({ id: row.id, err: valErr.message }, 'validación onWhatsApp falló, intentando envío directo');
+      if (!session.isHealthy()) {
+        throw new Error('Sesión de WhatsApp inestable o desconectada durante validación: ' + valErr.message);
+      }
+      log.warn({ id: row.id, err: valErr.message }, 'validación onWhatsApp con aviso, intentando envío directo');
     }
 
     const content = await buildContent(row);

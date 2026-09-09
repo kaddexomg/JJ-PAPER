@@ -306,133 +306,380 @@ Genera el asunto y cuerpo en JSON estricto.`;
   }
 
   /* --------------------------------------------------------------------------
-     4. Búsqueda Rápida de Productos y Precios en Base de Datos (Tokenizada)
+     4. Motor Inteligente de Búsqueda de Productos (IA + Scoring Estructural)
+     Utiliza Gemini para interpretar la consulta y extraer atributos,
+     luego aplica scoring ponderado con descarte obligatorio por tipo base.
      -------------------------------------------------------------------------- */
+
+  // ══════ Taxonomía de Tipos Base para Descarte Obligatorio ══════
+  const PRODUCT_TYPE_MAP = {
+    'marcador':       ['marcador', 'marcadores', 'marker'],
+    'resaltador':     ['resaltador', 'resaltadores', 'highlighter', 'fluorescente'],
+    'boligrafo':      ['boligrafo', 'boligrafos', 'bolígrafo', 'bolígrafos', 'lapicero', 'pen'],
+    'lapiz':          ['lapiz', 'lápiz', 'lapices', 'lápices', 'mongol'],
+    'resma':          ['resma', 'resmas', 'papel bond', 'papel fotocopia', 'ream'],
+    'cuaderno':       ['cuaderno', 'cuadernos', 'libreta', 'block', 'notebook'],
+    'carpeta':        ['carpeta', 'carpetas', 'folder', 'manila'],
+    'archivador':     ['archivador', 'archivadores', 'binder'],
+    'sobre':          ['sobre', 'sobres', 'envelope'],
+    'cinta':          ['cinta', 'cintas', 'tirro', 'teipe', 'tape', 'masking'],
+    'tijera':         ['tijera', 'tijeras', 'scissors'],
+    'grapadora':      ['grapadora', 'grapadoras', 'engrapadora', 'cosedora', 'stapler'],
+    'perforadora':    ['perforadora', 'perforadoras', 'perforador', 'punch'],
+    'pegamento':      ['pegamento', 'pega', 'cola', 'silicon', 'silicón', 'silicona', 'glue', 'adhesivo'],
+    'clip':           ['clip', 'clips', 'gancho', 'sujetapapeles', 'binder clip'],
+    'sacapuntas':     ['sacapuntas', 'sacapunta', 'afilador', 'tajador', 'sharpener'],
+    'borrador':       ['borrador', 'borradores', 'goma', 'eraser'],
+    'plastilina':     ['plastilina', 'masa', 'clay', 'modelar'],
+    'tempera':        ['tempera', 'temperas', 'témpera', 'pintura'],
+    'toner':          ['toner', 'tóner', 'cartucho', 'tinta', 'ink'],
+    'rollo_termico':  ['rollo térmico', 'rollo termico', 'rollos térmicos', 'rollos termicos', 'thermal roll'],
+    'nota_adhesiva':  ['nota adhesiva', 'notas adhesivas', 'post-it', 'postit', 'sticky', 'banderita', 'señalizador'],
+    'bandeja':        ['bandeja', 'bandejas', 'organizador', 'portapapeles', 'tray'],
+    'regla':          ['regla', 'reglas', 'ruler', 'escuadra'],
+    'calculadora':    ['calculadora', 'calculadoras', 'casio', 'calculator'],
+    'escarcha':       ['escarcha', 'escarchas', 'brillantina', 'purpurina', 'glitter'],
+    'corrector':      ['corrector', 'correctores', 'liquid paper', 'correction'],
+    'porta_taco':     ['porta taco', 'portataco'],
+    'dispensador':    ['dispensador', 'dispensadores'],
+    'recibo':         ['recibo', 'talonario', 'factura', 'invoice'],
+    'pincel':         ['pincel', 'pinceles', 'brush'],
+    'color':          ['color', 'colores', 'creyón', 'creyones', 'crayon', 'colored pencil']
+  };
+
+  // ══════ Sinónimos de Variantes ══════
+  const VARIANT_SYNONYMS = {
+    'punta gruesa':   ['punta gruesa', 'chisel', 'biselada', 'broad', 'grueso', 'ancha'],
+    'punta fina':     ['punta fina', 'fine', 'micro', '0.5mm', '0.5 mm', 'fina', 'fino'],
+    'punta media':    ['punta media', 'medium', '0.7mm', '0.7 mm', '1.0mm', 'media', 'medio'],
+    'pizarra':        ['pizarra', 'dry erase', 'whiteboard', 'borrable', 'pizarron', 'pizarrón'],
+    'permanente':     ['permanente', 'permanent', 'indeleble'],
+    'carta':          ['carta', 'letter', '8.5x11', '21.5x28'],
+    'oficio':         ['oficio', 'legal', '8.5x14', '21.5x35.5'],
+    'extra oficio':   ['extra oficio', 'extraoficio'],
+    'engrapado':      ['engrapado', 'grapado', 'stapled'],
+    'espiral':        ['espiral', 'doble espiral', 'spiral', 'wire-o'],
+    'cosido':         ['cosido', 'sewn', 'stitched'],
+    'gel':            ['gel', 'tinta gel'],
+    'aceite':         ['aceite', 'oil', 'tinta aceite'],
+    'retractil':      ['retráctil', 'retractil', 'click', 'retractable'],
+    'transparente':   ['transparente', 'cristal', 'clear'],
+    'kraft':          ['kraft', 'marrón', 'marron', 'manila', 'brown']
+  };
+
+  // ══════ Caché de interpretación IA para no repetir llamadas idénticas ══════
+  const _queryInterpretCache = new Map();
+
+  /**
+   * Fase 1: Interpreta la consulta con Gemini para extraer atributos estructurados
+   */
+  async function interpretQueryWithAI(query) {
+    const cacheKey = query.trim().toLowerCase();
+    if (_queryInterpretCache.has(cacheKey)) {
+      const cached = _queryInterpretCache.get(cacheKey);
+      if (Date.now() - cached.ts < 300000) return cached.result;
+    }
+
+    try {
+      const sys = `Eres un clasificador de productos de papelería y útiles de oficina para la empresa JJ Paper C.A. (Venezuela).
+Tu ÚNICA tarea es interpretar la consulta del usuario y extraer los atributos estructurados del producto que busca.
+
+TIPOS BASE VÁLIDOS (usa EXACTAMENTE uno de estos):
+marcador, resaltador, boligrafo, lapiz, resma, cuaderno, carpeta, archivador, sobre, cinta, tijera, grapadora, perforadora, pegamento, clip, sacapuntas, borrador, plastilina, tempera, toner, rollo_termico, nota_adhesiva, bandeja, regla, calculadora, escarcha, corrector, porta_taco, dispensador, recibo, pincel, color
+
+REGLAS ESTRICTAS:
+- "marcador" y "resaltador" son DISTINTOS. Un resaltador/highlighter NO es un marcador.
+- "punta gruesa" = biselada = chisel tip. "punta fina" = fine tip.
+- Si el usuario menciona una marca, extráela exactamente como la dice.
+- Si menciona un número (ej: "80"), determina qué significa según contexto: ¿gramaje? ¿hojas? ¿SKU? ¿código? ¿cantidad de piezas?
+- "Servicio", "Expo", "Kores", "Studmark", "Sharpie", etc. son MARCAS.
+
+Devuelve SOLO JSON válido (sin markdown):
+{
+  "tipo_base": "marcador",
+  "marca": "Servicio",
+  "especificacion": "80",
+  "variante": "punta gruesa",
+  "color": null,
+  "presentacion": null,
+  "tokens_criticos": ["marcador", "servicio", "80", "punta gruesa"]
+}`;
+
+      const prompt = `Consulta del usuario: "${query}"
+
+Extrae los atributos del producto. JSON estricto:`;
+
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.05, maxTokens: 400 });
+      const result = extractJSON(raw);
+      _queryInterpretCache.set(cacheKey, { result, ts: Date.now() });
+      return result;
+    } catch (e) {
+      console.warn('interpretQueryWithAI fallback:', e.message);
+      return null;
+    }
+  }
+
+  /**
+   * Fase 2: Detecta el tipo base de un producto a partir de su nombre
+   */
+  function detectProductType(productName) {
+    const lower = (' ' + (productName || '').toLowerCase() + ' ');
+    const entries = Object.entries(PRODUCT_TYPE_MAP)
+      .sort((a, b) => {
+        const maxA = Math.max(...a[1].map(k => k.length));
+        const maxB = Math.max(...b[1].map(k => k.length));
+        return maxB - maxA;
+      });
+    for (const [type, keywords] of entries) {
+      for (const kw of keywords) {
+        if (lower.includes(' ' + kw + ' ') || lower.includes(' ' + kw + ',') ||
+            lower.includes('/' + kw + ' ') || lower.includes(' ' + kw + '/') ||
+            lower.startsWith(kw + ' ') || lower.endsWith(' ' + kw)) return type;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Fase 3: Verifica si un texto contiene algún sinónimo de una variante
+   */
+  function matchesVariant(text, variantQuery) {
+    if (!variantQuery || !text) return false;
+    const lower = text.toLowerCase();
+    const vqLower = variantQuery.toLowerCase();
+    if (lower.includes(vqLower)) return true;
+    for (const [, synonyms] of Object.entries(VARIANT_SYNONYMS)) {
+      const queryMatches = synonyms.some(s => vqLower.includes(s));
+      if (queryMatches) {
+        return synonyms.some(s => lower.includes(s));
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Motor Principal de Búsqueda Inteligente de Productos
+   * Combina interpretación IA + scoring estructural ponderado
+   */
   async function searchProductsLive(query, limit = 6) {
     const w = typeof window !== 'undefined' ? window : {};
     if (!query || query.trim().length < 2) return [];
 
     const q = query.trim().toLowerCase();
     const rawTokens = q.split(/\s+/).filter(t => t.length >= 2);
-    const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'para', 'con', 'sin', 'por', 'marca', 'tipo', 'color', 'caja', 'paquete', 'pack', 'combo', 'und', 'unidad']);
+    const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'para', 'con', 'sin', 'por', 'dame', 'busca', 'quiero', 'necesito', 'muestra', 'imagen', 'flyer', 'foto']);
     const tokens = rawTokens.filter(t => !STOPWORDS.has(t));
     const searchTokens = tokens.length > 0 ? tokens : rawTokens;
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
-    // 1. Intentar primero desde la caché en memoria o sessionStorage del catálogo (0ms de latencia)
-    let cachedList = null;
+    // ══════ PASO 1: Interpretar la consulta con IA (lanzar en paralelo) ══════
+    let aiInterpretation = null;
+    const aiPromise = interpretQueryWithAI(query).catch(() => null);
+
+    // ══════ PASO 2: Obtener lista de productos (caché o Supabase) ══════
+    let productList = null;
     if (Array.isArray(w.allProducts) && w.allProducts.length > 0) {
-      cachedList = w.allProducts;
+      productList = w.allProducts;
     } else {
       try {
         const stored = sessionStorage.getItem('jjp_products_cache_v4');
-        if (stored) cachedList = JSON.parse(stored);
+        if (stored) productList = JSON.parse(stored);
       } catch (_) {}
     }
 
-    if (Array.isArray(cachedList) && cachedList.length > 0) {
-      const scored = cachedList.map(p => {
-        const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
-        const brandNames = variants.map(v => v.jjp_brands?.name).filter(Boolean);
-        const variantNames = variants.map(v => v.variant_name).filter(Boolean);
-        const fullSearchText = `${p.name || ''} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
+    // Si no hay caché, consultar Supabase directamente
+    if (!Array.isArray(productList) || productList.length === 0) {
+      const client = (typeof sb !== 'undefined' ? sb : (w.sb || w.sbCore || w._rawSbCore));
+      if (!client) return [];
+      try {
+        const primary = searchTokens[0] || q;
+        const stem = primary.replace(/(?:es|s)$/i, '');
+        const searchPattern = stem.length >= 3 ? stem : primary;
+        const { data, error } = await client.from('jjp_products')
+          .select(`
+            id, name, sku, price_usd, unit, emoji, image_url, description, active,
+            jjp_product_variants(id, variant_name, sku, price_usd, active, jjp_brands(name))
+          `)
+          .neq('active', false)
+          .or(`name.ilike.%${searchPattern}%,sku.ilike.%${searchPattern}%,description.ilike.%${searchPattern}%`)
+          .limit(80);
+        if (error || !data) return [];
+        productList = data;
+      } catch (e) {
+        console.warn('Error cargando productos para búsqueda:', e);
+        return [];
+      }
+    }
 
-        let matchCount = 0;
+    // ══════ PASO 3: Esperar interpretación IA ══════
+    aiInterpretation = await aiPromise;
+
+    // ══════ PASO 4: Scoring Estructural Inteligente ══════
+    const scored = productList.map(p => {
+      const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
+      const brandNames = variants.map(v => v.jjp_brands?.name).filter(Boolean);
+      const variantNames = variants.map(v => v.variant_name).filter(Boolean);
+      const fullName = (p.name || '').toLowerCase();
+      const fullSearchText = `${p.name || ''} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
+
+      let score = 0;
+      let disqualified = false;
+
+      if (aiInterpretation && aiInterpretation.tipo_base) {
+        // ────── MODO IA: Scoring por atributos ponderados ──────
+        const ai = aiInterpretation;
+        const productType = detectProductType(p.name);
+
+        // PESO 50: ¿El tipo base coincide?
+        if (ai.tipo_base) {
+          if (productType === ai.tipo_base) {
+            score += 50;
+          } else if (productType !== null) {
+            // Tipo base detectado pero NO coincide → DESCARTAR
+            disqualified = true;
+          } else {
+            // Tipo base no detectado → verificar que al menos contenga la palabra
+            const typeKeywords = PRODUCT_TYPE_MAP[ai.tipo_base] || [ai.tipo_base];
+            const hasTypeWord = typeKeywords.some(kw => fullName.includes(kw.toLowerCase()));
+            if (hasTypeWord) {
+              score += 40;
+            } else {
+              disqualified = true;
+            }
+          }
+        }
+
+        // PESO 30: ¿Coincide la marca?
+        if (ai.marca && !disqualified) {
+          const marcaLower = ai.marca.toLowerCase();
+          const brandMatch = brandNames.some(b => b.toLowerCase().includes(marcaLower)) ||
+                             fullName.includes(marcaLower);
+          if (brandMatch) score += 30;
+        }
+
+        // PESO 20: ¿Coincide la variante (punta, tamaño, formato)?
+        if (ai.variante && !disqualified) {
+          const variantMatch = matchesVariant(fullSearchText, ai.variante) ||
+                               variantNames.some(v => matchesVariant(v, ai.variante));
+          if (variantMatch) score += 20;
+        }
+
+        // PESO 10: ¿Coincide la especificación numérica (gramaje, hojas, código)?
+        if (ai.especificacion && !disqualified) {
+          const specStr = String(ai.especificacion).toLowerCase();
+          if (fullSearchText.includes(specStr)) score += 10;
+        }
+
+        // PESO 5: ¿Coincide la presentación?
+        if (ai.presentacion && !disqualified) {
+          const presLower = ai.presentacion.toLowerCase();
+          if (fullSearchText.includes(presLower)) score += 5;
+        }
+
+        // PESO 3: ¿Coincide el color?
+        if (ai.color && !disqualified) {
+          const colorLower = ai.color.toLowerCase();
+          if (fullSearchText.includes(colorLower)) score += 3;
+        }
+
+        // Bonus: tokens críticos adicionales que coincidan
+        if (ai.tokens_criticos && Array.isArray(ai.tokens_criticos) && !disqualified) {
+          ai.tokens_criticos.forEach(tc => {
+            const tcLower = tc.toLowerCase();
+            if (tcLower.length >= 3 && fullSearchText.includes(tcLower)) {
+              score += 2;
+            }
+          });
+        }
+
+      } else {
+        // ────── MODO FALLBACK: Búsqueda mejorada por tokens con tipo base ──────
+        const queryType = detectProductType(q);
+        const productType = detectProductType(p.name);
+
+        if (queryType && productType && queryType !== productType) {
+          disqualified = true;
+        }
+
+        if (!disqualified) {
+          // Tipo base coincide → bonus grande
+          if (queryType && productType === queryType) score += 50;
+
+          // Token matching mejorado
+          searchTokens.forEach(t => {
+            const stem = t.replace(/(?:es|s)$/i, '');
+            if (fullSearchText.includes(t)) {
+              score += 8;
+            } else if (stem.length >= 3 && fullSearchText.includes(stem)) {
+              score += 5;
+            }
+          });
+
+          // Bonus por match en variantes
+          searchTokens.forEach(t => {
+            if (variantNames.some(v => v.toLowerCase().includes(t))) {
+              score += 4;
+            }
+          });
+
+          // Bonus por match de marca
+          searchTokens.forEach(t => {
+            if (brandNames.some(b => b.toLowerCase().includes(t))) {
+              score += 6;
+            }
+          });
+        }
+      }
+
+      // Calcular precio
+      let minPrice = parseFloat(p.price_usd || 0);
+      if (variants.length > 0) {
+        const varPrices = variants.map(v => parseFloat(v.price_usd)).filter(n => n > 0);
+        if (varPrices.length > 0) minPrice = Math.min(...varPrices);
+      }
+
+      return {
+        id: p.id,
+        name: p.name,
+        sku: p.sku || '',
+        price_usd: minPrice,
+        price_bs: (minPrice * rate),
+        unit: p.unit || 'unidad',
+        image_url: p.image_url || '',
+        emoji: p.emoji || '📦',
+        brands: [...new Set(brandNames)].join(', '),
+        variants: variantNames,
+        score: disqualified ? -1 : score
+      };
+    });
+
+    const filtered = scored
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    // Si IA no encontró nada, intentar sin descarte por tipo (fallback amplio)
+    if (filtered.length === 0) {
+      const fallback = scored.map(item => {
+        if (item.score >= 0) return item;
+        // Recalcular sin descarte
+        const fullText = `${item.name} ${item.sku} ${item.brands}`.toLowerCase();
+        let fscore = 0;
         searchTokens.forEach(t => {
           const stem = t.replace(/(?:es|s)$/i, '');
-          if (fullSearchText.includes(t) || (stem.length >= 3 && fullSearchText.includes(stem))) {
-            matchCount++;
-          }
+          if (fullText.includes(t)) fscore += 5;
+          else if (stem.length >= 3 && fullText.includes(stem)) fscore += 3;
         });
+        return { ...item, score: fscore };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
 
-        let minPrice = parseFloat(p.price_usd || 0);
-        if (variants.length > 0) {
-          const varPrices = variants.map(v => parseFloat(v.price_usd)).filter(n => n > 0);
-          if (varPrices.length > 0) minPrice = Math.min(...varPrices);
-        }
-
-        return {
-          id: p.id,
-          name: p.name,
-          sku: p.sku || '',
-          price_usd: minPrice,
-          price_bs: (minPrice * rate),
-          unit: p.unit || 'unidad',
-          image_url: p.image_url || '',
-          emoji: p.emoji || '📦',
-          brands: [...new Set(brandNames)].join(', '),
-          score: matchCount
-        };
-      });
-
-      const filtered = scored.filter(item => item.score > 0).sort((a, b) => b.score - a.score).slice(0, limit);
-      if (filtered.length > 0) return filtered;
+      return fallback;
     }
 
-    // 2. Si no está en caché o no hubo resultados, consultar directamente a Supabase Core
-    const client = (typeof sb !== 'undefined' ? sb : (w.sb || w.sbCore || w._rawSbCore));
-    if (!client) return [];
-
-    try {
-      // Elegir el término más representativo y aplicar stem para no fallar por plurales
-      const primary = searchTokens[0] || q;
-      const stem = primary.replace(/(?:es|s)$/i, '');
-      const searchPattern = stem.length >= 3 ? stem : primary;
-
-      let req = client.from('jjp_products')
-        .select(`
-          id, name, sku, price_usd, unit, emoji, image_url, description, active,
-          jjp_product_variants(id, variant_name, sku, price_usd, active, jjp_brands(name))
-        `)
-        .neq('active', false);
-
-      req = req.or(`name.ilike.%${searchPattern}%,sku.ilike.%${searchPattern}%,description.ilike.%${searchPattern}%`);
-
-      const { data, error } = await req.limit(Math.max(limit * 4, 25));
-      if (error || !data) return [];
-
-      const scored = data.map(p => {
-        const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
-        const brandNames = variants.map(v => v.jjp_brands?.name).filter(Boolean);
-        const variantNames = variants.map(v => v.variant_name).filter(Boolean);
-        const fullSearchText = `${p.name || ''} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
-
-        let matchCount = 0;
-        searchTokens.forEach(t => {
-          const s = t.replace(/(?:es|s)$/i, '');
-          if (fullSearchText.includes(t) || (s.length >= 3 && fullSearchText.includes(s))) {
-            matchCount++;
-          }
-        });
-
-        let minPrice = parseFloat(p.price_usd || 0);
-        if (variants.length > 0) {
-          const varPrices = variants.map(v => parseFloat(v.price_usd)).filter(n => n > 0);
-          if (varPrices.length > 0) minPrice = Math.min(...varPrices);
-        }
-
-        return {
-          id: p.id,
-          name: p.name,
-          sku: p.sku || '',
-          price_usd: minPrice,
-          price_bs: (minPrice * rate),
-          unit: p.unit || 'unidad',
-          image_url: p.image_url || '',
-          emoji: p.emoji || '📦',
-          brands: [...new Set(brandNames)].join(', '),
-          score: matchCount
-        };
-      });
-
-      return scored
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit);
-    } catch (e) {
-      console.warn('Error buscando productos:', e);
-      return [];
-    }
+    return filtered;
   }
 
   /* --------------------------------------------------------------------------
@@ -1477,6 +1724,9 @@ Respond with ONLY the 1 English sentence.`;
     draftCampaignMessage,
     draftEmail,
     searchProductsLive,
+    interpretQueryWithAI,
+    detectProductType,
+    matchesVariant,
     enrichProductForMarketing,
     generateProductStudioPhoto,
     searchRealProductPhoto,

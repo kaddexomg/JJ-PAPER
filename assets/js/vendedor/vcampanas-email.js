@@ -516,6 +516,7 @@ function renderEcCampaigns() {
         ${active ? `<button class="btn-o sm" onclick="setCampStatus('${c.id}','paused')">⏸️ Pausar</button>` : ''}
         ${c.status === 'paused' ? `<button class="btn-p sm" onclick="setCampStatus('${c.id}','running')">▶️ Reanudar</button>` : ''}
         ${(active || c.status === 'paused') ? `<button class="btn-o sm" onclick="cancelEcCampaign('${c.id}')" title="Cancelar campaña">✕</button>` : ''}
+        ${['completed','cancelled','paused','completada','cancelada','pausada','programada'].includes(c.status) ? `<button class="btn-o sm d-btn-del" onclick="deleteEcCampaign('${c.id}','${escapeHTML(c.name)}')" title="Eliminar campaña del sistema">🗑️</button>` : ''}
       </div></td>
     </tr>`;
   }).join('');
@@ -534,6 +535,21 @@ async function cancelEcCampaign(id) {
   if (error) { showToast('No se pudo cancelar: ' + error.message, 'err'); return; }
   showToast('Campaña cancelada');
   loadEcCampaigns();
+}
+
+async function deleteEcCampaign(id, name) {
+  if (!confirm(`¿Eliminar la campaña "${name}"?\n\nSe borrarán para siempre la campaña y su registro de destinatarios del sistema. Esta acción NO se puede deshacer.`)) return;
+  try {
+    // Eliminar targets primero (si existen)
+    await sb.from('jjp_email_campaign_targets').delete().eq('campaign_id', id);
+    // Eliminar la campaña
+    const { error } = await sb.from('jjp_email_campaigns').delete().eq('id', id);
+    if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
+    showToast('Campaña eliminada 🗑️');
+    loadEcCampaigns();
+  } catch (e) {
+    showToast('Error al eliminar: ' + e.message, 'err');
+  }
 }
 
 /* ================== DETALLE DE CAMPAÑA ================== */

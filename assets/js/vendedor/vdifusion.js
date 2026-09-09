@@ -562,7 +562,7 @@ function renderDCampaigns() {
     const done = sent + failed + skipped;
     const pct = c.total ? Math.round(done / c.total * 100) : 0;
     const active = c.status === 'en_cola' || c.status === 'pending' || c.status === 'enviando' || c.status === 'sending';
-    const canDelete = ['completada', 'cancelada', 'pausada', 'programada'].includes(c.status);
+    const canDelete = ['completada', 'cancelada', 'pausada', 'programada', 'completed', 'cancelled', 'paused', 'scheduled', 'failed', 'error', 'draft'].includes(c.status) || (!active);
     return `<tr class="d-camp-row" style="cursor:pointer">
       <td>
         <div class="td-name">${escapeHTML(c.name)} ${c.kind === 'reactivacion' ? '🔄' : ''}</div>

@@ -933,13 +933,31 @@
     }
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">🔍 Buscando fotos reales con IA inteligente…</div>';
 
-    const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
-      ? `${location.protocol}//${location.hostname}:8787`
-      : 'http://localhost:8787';
+  function getLanServerUrl() {
+    const isRemote = location.hostname.endsWith('pages.dev') || location.protocol === 'https:';
+    if (!isRemote && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname)) {
+      return `${location.protocol}//${location.hostname}:8787`;
+    }
+    return 'http://localhost:8787';
+  }
+
+  async function searchWebPhotos(query) {
+    const grid = document.getElementById('cpiWebGrid');
+    const loading = document.getElementById('cpiPhotoLoading');
+    const loadingText = document.getElementById('cpiPhotoLoadingText');
+    if (!grid) return;
+
+    if (loading) {
+      loading.style.display = 'flex';
+      if (loadingText) loadingText.textContent = '🧠 IA analizando producto… Buscando en Google, Bing y DuckDuckGo…';
+    }
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">🔍 Buscando fotos reales con IA inteligente…</div>';
+
+    const serverUrl = getLanServerUrl();
 
     try {
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 20000);
+      const t = setTimeout(() => controller.abort(), 16000);
       const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(query)}`, {
         signal: controller.signal
       });
@@ -947,22 +965,22 @@
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const results = data.results || [];
+      const results = data.results || (Array.isArray(data) ? data : []);
 
       if (loading) loading.style.display = 'none';
 
       if (results.length === 0) {
         grid.innerHTML = `
           <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px;line-height:1.5">
-            🔍 No se encontraron fotos exactas.<br>
-            <span style="font-size:11px;color:#94a3b8">Prueba editando la búsqueda arriba con solo la marca y el tipo de producto (ej: "Sharpie marcador negro"), o genera con IA, o pega una URL directa.</span>
+            🔍 No se encontraron fotos exactas en la búsqueda web.<br>
+            <span style="font-size:11px;color:#94a3b8">Puedes generar una fotografía fotorrealista con IA en la pestaña <em>"✨ Estudio IA"</em> o pegar un enlace en <em>"📁 Subir / Enlace"</em>.</span>
           </div>
         `;
         return;
       }
 
       grid.innerHTML = results.map((r, idx) => {
-        const isTrusted = r.score >= 50;
+        const isTrusted = (r.score >= 50);
         const badge = isTrusted ? '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:8px;padding:1px 3px;border-radius:3px;font-weight:700">⭐</span>' : '';
         return `
         <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title || r.source || 'Foto')}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
@@ -994,13 +1012,50 @@
 
     } catch (e) {
       if (loading) loading.style.display = 'none';
+      const isRemotePages = location.hostname.endsWith('pages.dev') || location.protocol === 'https:';
       grid.innerHTML = `
-        <div style="grid-column:1/-1;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px;font-size:11.5px;color:#92400e;line-height:1.4">
-          ℹ️ <strong>Búsqueda directa web:</strong> Servidor local ocupado o desconectado.<br>
-          Puedes <strong>pegar el enlace</strong> de la foto en la pestaña <em>"📁 Subir / Enlace"</em> o generar una versión con IA.
+        <div style="grid-column:1/-1;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;font-size:12px;color:#92400e;line-height:1.45">
+          ℹ️ <strong>Búsqueda directa web:</strong> ${isRemotePages ? 'El acceso web en la nube requiere el servidor local en la misma red o un enlace directo.' : 'Servidor local no disponible en este momento.'}<br>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="cpi-chip" style="background:#16604A;color:#fff;border-color:#16604A;font-size:11px;padding:4px 8px" onclick="document.getElementById('cpiSrcTabAi')?.click()">✨ Generar Foto con IA</button>
+            <button type="button" class="cpi-chip" style="background:#f1f5f9;color:#334155;border-color:#cbd5e1;font-size:11px;padding:4px 8px" onclick="document.getElementById('cpiSrcTabCustom')?.click()">📁 Pegar Enlace o Subir Foto</button>
+          </div>
         </div>
       `;
     }
+  }
+
+  async function convertImgSrcToBlob(src) {
+    if (!src) return null;
+    if (src.startsWith('data:')) {
+      const res = await fetch(src);
+      return await res.blob();
+    }
+    // Intentar fetch directo
+    try {
+      const res = await fetch(src, { mode: 'cors' });
+      if (res.ok) return await res.blob();
+    } catch (_) {}
+
+    // Fallback: Dibujar a través de Image HTML para extraer blob
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width || 800;
+          canvas.height = img.naturalHeight || img.height || 800;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9);
+        } catch (_) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
   }
 
   async function saveActivePhotoToCatalog(btn) {
@@ -1016,13 +1071,10 @@
     }
 
     try {
-      const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
-        ? `${location.protocol}//${location.hostname}:8787`
-        : 'http://localhost:8787';
-
+      const serverUrl = getLanServerUrl();
       let savedUrl = null;
 
-      // 1. Intentar vía wa-server local (bypasses CORS y descarga directa a Storage)
+      // 1. Intentar vía wa-server local (bypasses CORS y descarga directa a Storage Proyecto C)
       try {
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), 12000);
@@ -1046,25 +1098,19 @@
 
       // 2. Fallback: Guardar directamente en Supabase desde el navegador (Proyecto C Storage + Proyecto A Database)
       if (!savedUrl && window.sb) {
-        let blob = null;
-        if (currentSrc.startsWith('data:')) {
-          const res = await fetch(currentSrc);
-          blob = await res.blob();
-        } else {
-          try {
-            const res = await fetch(currentSrc, { mode: 'cors' });
-            if (res.ok) blob = await res.blob();
-          } catch (_) {}
-        }
-
+        const blob = await convertImgSrcToBlob(currentSrc);
         if (blob) {
           const ext = blob.type.includes('webp') ? 'webp' : (blob.type.includes('png') ? 'png' : 'jpg');
           const filePath = `${_selectedFlyerProduct.id}.${ext}`;
-          const { error: upErr } = await window.sb.storage.from('jjp-products').upload(filePath, blob, { upsert: true });
+          const { error: upErr } = await window.sb.storage.from('jjp-products').upload(filePath, blob, {
+            contentType: blob.type || 'image/jpeg',
+            upsert: true
+          });
           if (!upErr) {
             const { data: { publicUrl } } = window.sb.storage.from('jjp-products').getPublicUrl(filePath);
-            await window.sb.from('jjp_products').update({ image_url: publicUrl }).eq('id', _selectedFlyerProduct.id);
-            savedUrl = publicUrl;
+            const freshUrl = `${publicUrl}?v=${Date.now()}`;
+            await window.sb.from('jjp_products').update({ image_url: freshUrl }).eq('id', _selectedFlyerProduct.id);
+            savedUrl = freshUrl;
           }
         }
       }
@@ -1084,7 +1130,7 @@
         if (typeof showToast === 'function') showToast('¡Foto guardada y vinculada en el catálogo con éxito!');
         else alert('¡Foto guardada y vinculada en el catálogo con éxito!');
       } else {
-        throw new Error('No se pudo guardar la imagen. Si es un enlace externo, puedes guardar la foto a tu PC y subirla con el botón "Subir foto".');
+        throw new Error('No se pudo guardar la imagen automáticamente. Si es un enlace externo con bloqueo, guarda la foto en tu dispositivo y súbela con la opción "Subir foto".');
       }
     } catch (err) {
       alert('Error guardando en catálogo: ' + err.message);
@@ -1467,6 +1513,51 @@
       if (prod) _selectedFlyerProduct = prod;
       launchProductCampaignFromFlyer();
     });
+  };
+
+  window.cpiCopyPhotoDirect = async function (url, btn) {
+    if (!url) return;
+    try {
+      if (btn) btn.textContent = '⏳ Copiando…';
+      const blob = await convertImgSrcToBlob(url);
+      if (!blob) throw new Error('No se pudo convertir la imagen');
+      let finalBlob = blob;
+      if (blob.type !== 'image/png') {
+        const bmp = await createImageBitmap(blob);
+        const c = document.createElement('canvas');
+        c.width = bmp.width;
+        c.height = bmp.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        finalBlob = await new Promise(r => c.toBlob(r, 'image/png'));
+      }
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': finalBlob })]);
+      if (btn) {
+        btn.textContent = '¡Copiada! ✓';
+        setTimeout(() => btn.textContent = '📋 Copiar Foto', 2000);
+      }
+      if (typeof showToast === 'function') showToast('Foto copiada al portapapeles');
+    } catch (e) {
+      if (btn) btn.textContent = '📋 Copiar Foto';
+      alert('Tu navegador no permite copiar directamente esta imagen. Usa el botón "Descargar HD".');
+    }
+  };
+
+  window.cpiDownloadPhotoDirect = async function (url, name) {
+    if (!url) return;
+    try {
+      const blob = await convertImgSrcToBlob(url);
+      if (blob) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Foto_${(name || 'Producto').replace(/\s+/g, '_')}.png`;
+        a.click();
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch (e) {
+      window.open(url, '_blank');
+    }
   };
 
   window.cpiCopyText = function (btn, str) {

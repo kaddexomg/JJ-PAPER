@@ -801,23 +801,30 @@ Respuesta del Copiloto JJ:`;
     }
     
     try {
+      const loc = typeof window !== 'undefined' ? window.location : { hostname: 'localhost', protocol: 'http:' };
+      const isRemote = loc.hostname.endsWith('pages.dev') || loc.protocol === 'https:';
+      const serverUrl = (!isRemote && loc.hostname !== 'localhost' && loc.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(loc.hostname))
+        ? `${loc.protocol}//${loc.hostname}:8787`
+        : 'http://localhost:8787';
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`, {
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(productName)}`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
       
       if (res.ok) {
         const data = await res.json();
-        if (data && data.length > 0 && data[0].image) {
-          const url = data[0].image;
+        const results = data.results || (Array.isArray(data) ? data : []);
+        if (results && results.length > 0 && results[0].image) {
+          const url = results[0].image;
           _realPhotoCache.set(cacheKey, { url, timestamp: Date.now() });
           return url;
         }
       }
     } catch (e) {
-      console.warn('Real photo search failed:', e);
+      // Servidor local no disponible o entorno HTTPS en la nube
     }
     return null;
   }

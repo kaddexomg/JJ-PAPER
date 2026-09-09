@@ -737,24 +737,47 @@ export async function saveProductImageToStorage(productId, imageUrl) {
     throw new Error('productId e imageUrl requeridos');
   }
 
-  log.info({ productId, imageUrl }, 'Descargando y guardando foto real de producto');
+  log.info({ productId, imageUrl: imageUrl.slice(0, 100) }, 'Descargando y guardando foto de producto');
 
-  // 1. Descargar los bytes de la imagen
-  const resp = await fetch(imageUrl, {
-    headers: { 'User-Agent': UA }
-  });
+  let buffer;
+  let contentType = 'image/jpeg';
 
-  if (!resp.ok) {
-    throw new Error(`Error descargando imagen de la web (HTTP ${resp.status})`);
+  // 1. Obtener los bytes de la imagen (vía data: URI o fetch HTTP)
+  if (imageUrl.startsWith('data:')) {
+    const matches = imageUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (matches && matches.length === 3) {
+      contentType = matches[1];
+      buffer = Buffer.from(matches[2], 'base64');
+    } else {
+      const commaIdx = imageUrl.indexOf(',');
+      buffer = Buffer.from(imageUrl.slice(commaIdx + 1), 'base64');
+    }
+  } else {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const resp = await fetch(imageUrl, {
+      headers: { 'User-Agent': UA },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      throw new Error(`Error descargando imagen de la web (HTTP ${resp.status})`);
+    }
+
+    const arrayBuffer = await resp.arrayBuffer();
+    buffer = Buffer.from(arrayBuffer);
+    contentType = resp.headers.get('content-type') || 'image/jpeg';
   }
 
-  const arrayBuffer = await resp.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const contentType = resp.headers.get('content-type') || 'image/jpeg';
+  if (!buffer || buffer.length === 0) {
+    throw new Error('El archivo de imagen está vacío o corrupto');
+  }
+
   const ext = contentType.includes('webp') ? 'webp' : (contentType.includes('png') ? 'png' : 'jpg');
   const filePath = `${productId}.${ext}`;
 
-  // 2. Subir al bucket jjp-products en Proyecto C
+  // 2. Subir al bucket jjp-products en Proyecto C (Inventario & Storage)
   const { error: uploadErr } = await dbInv.storage
     .from('jjp-products')
     .upload(filePath, buffer, {
@@ -778,7 +801,7 @@ export async function saveProductImageToStorage(productId, imageUrl) {
     log.warn({ err: dbErr.message }, 'No se pudo actualizar image_url en jjp_products, pero el archivo se subió a Storage');
   }
 
-  log.info({ productId, publicUrl, sizeBytes: buffer.length }, 'Foto real de producto vinculada exitosamente');
+  log.info({ productId, publicUrl, sizeBytes: buffer.length }, 'Foto de producto vinculada exitosamente');
 
   return {
     success: true,

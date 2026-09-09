@@ -4,6 +4,7 @@ import { OUTBOX_SWEEP_MS, MAX_RETRIES } from './config.js';
 import { downloadOutgoingMedia } from './media.js';
 import { touchChat, PREVIEW_BY_TYPE } from './chats.js';
 import { recordLiveRequest } from './monitor.js';
+import { syncCounts } from './campaigns.js';
 
 // Cola de salientes: Realtime (INSERT pending) + barrido de respaldo cada 30s.
 // Fase 2 (masivos): aquí va el throttling — espera configurable entre envíos.
@@ -97,7 +98,18 @@ async function dispatch(row) {
           status: 'failed',
           error: `Número ${phone} no tiene WhatsApp activo`
         }).eq('id', row.id);
-        log.warn({ id: row.id, phone }, 'número sin WhatsApp → mensaje marcado como failed');
+
+        const { data: ctList } = await db.from('jjp_wa_campaign_targets')
+          .update({ status: 'skipped', error: `Número ${phone} no tiene WhatsApp activo` })
+          .eq('message_id', row.id)
+          .select('campaign_id');
+        if (ctList?.length) {
+          for (const ct of ctList) {
+            await syncCounts(ct.campaign_id).catch(() => {});
+          }
+        }
+
+        log.warn({ id: row.id, phone }, 'número sin WhatsApp → mensaje marcado como failed y target omitido');
         return;
       }
     } catch (valErr) {
@@ -123,6 +135,18 @@ async function dispatch(row) {
     // Si usamos sesión fallback, guardar quién realmente envió para que onReceipts funcione
     if (usedFallback) updatePayload.sent_by = session.profileId;
     await db.from('jjp_wa_messages').update(updatePayload).eq('id', row.id);
+
+    // Sincronizar target de campaña a sent si este mensaje pertenece a una
+    const { data: ctSentList } = await db.from('jjp_wa_campaign_targets')
+      .update({ status: 'sent', sent_at: new Date().toISOString(), error: null })
+      .eq('message_id', row.id)
+      .select('campaign_id');
+    if (ctSentList?.length) {
+      for (const ct of ctSentList) {
+        await syncCounts(ct.campaign_id).catch(() => {});
+      }
+    }
+
     const preview = row.body || PREVIEW_BY_TYPE[row.type] || '';
     await touchChat(row.chat_id, preview, 'me', false);
     recordLiveRequest({
@@ -141,6 +165,19 @@ async function dispatch(row) {
       retry_count: newRetries,
       error: e.message
     }).eq('id', row.id);
+
+    if (failed) {
+      const { data: ctFailList } = await db.from('jjp_wa_campaign_targets')
+        .update({ status: 'failed', error: e.message })
+        .eq('message_id', row.id)
+        .select('campaign_id');
+      if (ctFailList?.length) {
+        for (const ct of ctFailList) {
+          await syncCounts(ct.campaign_id).catch(() => {});
+        }
+      }
+    }
+
     log.warn({ id: row.id, retries: newRetries, failed, err: e.message }, 'envío falló');
   }
 }

@@ -1,7 +1,9 @@
 import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  DisconnectReason
+  DisconnectReason,
+  Browsers,
+  proto
 } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import fs from 'node:fs';
@@ -104,12 +106,65 @@ export class WaSession {
     this.startingSince = 0;       // arranque en curso: NADIE más debe arrancar
     this.lastEventAt = 0;         // última señal de vida de WhatsApp
     this.dir = path.join(SESSIONS_DIR, profileId);
+    this.cacheFile = path.join(this.dir, 'sent-cache.json');
+    this.messageStore = new Map();
+    this.storeSaveTimer = null;
+    this.loadMessageStore();
     // Presencia: chats cuya presencia estamos observando y hasta cuándo nos
     // declaramos "disponibles" (WhatsApp solo entrega el "escribiendo…" del
     // cliente si nosotros estamos available; el panel renueva cada 4 min).
     this.watched = new Set();
     this.onlineUntil = 0;
     this.onlineSent = false;
+  }
+
+  loadMessageStore() {
+    try {
+      if (fs.existsSync(this.cacheFile)) {
+        const raw = fs.readFileSync(this.cacheFile, 'utf8');
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          for (const [id, msg] of list) {
+            if (id && msg) this.messageStore.set(id, msg);
+          }
+        }
+        log.info({ profile: this.profileId, cached: this.messageStore.size }, 'MessageStore cargado desde disco');
+      }
+    } catch (e) {
+      log.warn({ profile: this.profileId, err: e.message }, 'no se pudo cargar sent-cache.json');
+    }
+  }
+
+  saveMessageToStore(id, msg) {
+    if (!id || !msg) return;
+    this.messageStore.set(id, msg);
+    while (this.messageStore.size > 4000) {
+      const oldestKey = this.messageStore.keys().next().value;
+      this.messageStore.delete(oldestKey);
+    }
+    this.scheduleSaveStore();
+  }
+
+  scheduleSaveStore() {
+    if (this.storeSaveTimer) return;
+    this.storeSaveTimer = setTimeout(() => {
+      this.storeSaveTimer = null;
+      this.flushStoreToDisk().catch(() => {});
+    }, 2500);
+  }
+
+  async flushStoreToDisk() {
+    try {
+      if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
+      const entries = Array.from(this.messageStore.entries()).slice(-2000);
+      await fs.promises.writeFile(this.cacheFile, JSON.stringify(entries), 'utf8');
+    } catch (e) {
+      log.warn({ profile: this.profileId, err: e.message }, 'error guardando sent-cache.json');
+    }
+  }
+
+  getMessageFromStore(id) {
+    return this.messageStore.get(id);
   }
 
   hasCreds() { return fs.existsSync(path.join(this.dir, 'creds.json')); }
@@ -142,7 +197,7 @@ export class WaSession {
         auth: state,
         logger: baileysLogger,
         printQRInTerminal: false,
-        browser: ['JJ Paper CRM', 'Chrome', '1.0.0'],
+        browser: Browsers.windows('Desktop'),
         // NO arrastrar años de historial: en cada (re)conexión eso disparaba
         // una tormenta de escrituras en jjp_wa_chats → el panel recargaba la
         // bandeja cientos de veces y se quedaba "cargando". Baileys con false
@@ -155,6 +210,12 @@ export class WaSession {
           try {
             const id = key?.id;
             if (!id) return undefined;
+            // 1. Verificar MessageStore en memoria/disco (contiene el proto COMPLETO con mediaKey y hashes)
+            const cached = this.getMessageFromStore(id);
+            if (cached) {
+              return proto.Message.fromObject(cached);
+            }
+            // 2. Fallback a Supabase jjp_wa_messages
             const { data } = await db.from('jjp_wa_messages')
               .select('body, type, media_filename')
               .eq('wa_msg_id', id)
@@ -282,6 +343,9 @@ export class WaSession {
     if (type !== 'notify' && type !== 'append') return;
     for (const msg of messages) {
       const key = msg.key || {};
+      if (key.id && msg.message) {
+        this.saveMessageToStore(key.id, msg.message);
+      }
       let jid = key.remoteJid || '';
       if (!jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) continue;
       if (jid.endsWith('@lid')) {
@@ -374,6 +438,7 @@ export class WaSession {
         jid = alt;
       }
       if (!key.id) continue;                 // sin id no se puede deduplicar
+      if (msg.message) this.saveMessageToStore(key.id, msg.message);
       const parsed = parseMessage(msg);
       if (!parsed) continue;
 
@@ -507,7 +572,11 @@ export class WaSession {
 
   async send(jid, content, options) {
     if (!this.isConnected()) throw new Error('sesión no conectada');
-    return this.sock.sendMessage(jid, content, options);
+    const res = await this.sock.sendMessage(jid, content, options);
+    if (res?.key?.id && res?.message) {
+      this.saveMessageToStore(res.key.id, res.message);
+    }
+    return res;
   }
 
   // Reacción entrante → actualiza el mensaje reaccionado (emoji '' = quitada)
@@ -549,6 +618,8 @@ export class WaSession {
 
   async stop(statusRow = 'disabled') {
     this.stopped = true;
+    if (this.storeSaveTimer) { clearTimeout(this.storeSaveTimer); this.storeSaveTimer = null; }
+    await this.flushStoreToDisk().catch(() => {});
     try { this.sock?.end?.(new Error('detenida por el CRM')); } catch {}
     this.sock = null;
     await this.setSession({ status: statusRow, qr_data: null, pairing_code: null });

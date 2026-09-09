@@ -491,10 +491,18 @@ window.CampaignEditor = (() => {
       // Para WhatsApp: verificar que sea un celular móvil venezolano o internacional válido
       // Omitir teléfonos fijos CANTV (0212, 0241...) e identificadores que no reciben WhatsApp
       if (!isEmail) {
-        const pInfo = typeof parsePhoneInfo === 'function'
-          ? parsePhoneInfo(c.phone)
-          : { isMobile: !/^(?:58|0)?(?:2\d{2})\d{7}$/.test((c.phone || '').replace(/\D/g, '')) && (c.phone || '').replace(/\D/g, '').length >= 10 };
-        if (!pInfo.isMobile) {
+        let isMob = false;
+        if (typeof parsePhoneInfo === 'function') {
+          const pInfo = parsePhoneInfo(c.phone);
+          isMob = pInfo.isValid && pInfo.isMobile && !pInfo.isLandline;
+        } else {
+          const d = (c.phone || '').replace(/\D/g, '');
+          const isLandline = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
+          const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(d);
+          const isIntlMobile = d.length >= 11 && !d.startsWith('0') && !isLandline;
+          isMob = (isVeMobile || isIntlMobile) && !isLandline;
+        }
+        if (!isMob) {
           nonMobileCount++;
           return false;
         }

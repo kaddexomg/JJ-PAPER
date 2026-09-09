@@ -66,7 +66,16 @@ async function step(camp, dailyLimit) {
     .order('created_at', { ascending: true })
     .limit(20);
 
-  if (!targets?.length) { await finish(camp); return; }
+  if (!targets?.length) {
+    const { count: sendingCount } = await db.from('jjp_wa_campaign_targets')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', camp.id)
+      .eq('status', 'enviando');
+    if (!sendingCount) {
+      await finish(camp);
+    }
+    return;
+  }
 
   if (camp.status === 'en_cola' || camp.status === 'pending') {
     await db.from('jjp_wa_campaigns')
@@ -94,17 +103,19 @@ async function step(camp, dailyLimit) {
     const norm = pInfo.norm;
 
     // Validar WA con Baileys (timeout 5s para evitar cuelgues)
+    let hasWa = false;
     try {
       const waPromise = session.sock.onWhatsApp(norm + '@s.whatsapp.net');
       const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
       const res = await Promise.race([waPromise, timeoutPromise]);
-      const exists = Array.isArray(res) && res.length > 0 ? res[0] : null;
-      if (exists && exists.exists === false) {
-        await skip(camp, t, 'número sin WhatsApp: ' + t.phone);
-        continue;
-      }
+      hasWa = Array.isArray(res) && res.length > 0 && Boolean(res[0]?.exists);
     } catch (e) {
-      log.warn({ phone: norm, err: e.message }, 'validación WA con aviso, intentando enviar');
+      log.warn({ phone: norm, err: e.message }, 'validación onWhatsApp falló con error/timeout');
+    }
+
+    if (!hasWa) {
+      await skip(camp, t, 'número sin WhatsApp activo: ' + (t.phone || ''));
+      continue;
     }
 
     // Este SÍ es válido → encolar y aplicar delay
@@ -152,9 +163,8 @@ async function step(camp, dailyLimit) {
       }
 
       await db.from('jjp_wa_campaign_targets')
-        .update({ status: 'sent', message_id: msg.id, sent_at: new Date().toISOString(), error: null })
+        .update({ status: 'enviando', message_id: msg.id, error: null })
         .eq('id', t.id);
-      await syncCounts(camp.id);
 
       const minS = Number(camp.delay_min_s) || 45;
       const maxS = Number(camp.delay_max_s) || 90;
@@ -234,7 +244,7 @@ async function finish(camp) {
 }
 
 // Recalcula contadores desde los targets (fuente de verdad)
-async function syncCounts(campaignId) {
+export async function syncCounts(campaignId) {
   const [{ count: sent }, { count: failed }, { count: skipped }] = await Promise.all([
     db.from('jjp_wa_campaign_targets').select('id', { count: 'exact', head: true })
       .eq('campaign_id', campaignId).in('status', ['sent', 'enviado']),

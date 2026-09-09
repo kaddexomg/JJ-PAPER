@@ -882,7 +882,16 @@ async function launchCampaignFromEditor(config) {
     selected: selectedProductOrCombo
   };
 
-  const targets = audience.map(c => ({
+  const targets = audience.filter(c => {
+    if (!c.phone) return false;
+    if (typeof parsePhoneInfo === 'function') {
+      const p = parsePhoneInfo(c.phone);
+      return p.isValid && p.isMobile && !p.isLandline;
+    }
+    const d = String(c.phone).replace(/\D/g, '');
+    const isLand = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
+    return !isLand && d.length >= 10;
+  }).map(c => ({
     campaign_id: camp.id,
     owner_id: ownerId,
     customer_id: c.id || null,
@@ -1102,7 +1111,16 @@ async function launchCampaign() {
     return;
   }
 
-  const targets = list.map(c => ({
+  const targets = list.filter(c => {
+    if (!c.phone) return false;
+    if (typeof parsePhoneInfo === 'function') {
+      const p = parsePhoneInfo(c.phone);
+      return p.isValid && p.isMobile && !p.isLandline;
+    }
+    const d = String(c.phone).replace(/\D/g, '');
+    const isLand = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
+    return !isLand && d.length >= 10;
+  }).map(c => ({
     campaign_id: camp.id,
     owner_id: ownerId,
     customer_id: c.id || null,

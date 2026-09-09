@@ -25,8 +25,8 @@
   function injectCopilotStyles() {
     if (document.getElementById('jjp-copilot-css')) return;
     const isWa = typeof location !== 'undefined' && location.pathname.includes('whatsapp');
-    const fabBottom = isWa ? '115px' : '22px';
-    const winBottom = isWa ? '175px' : '82px';
+    const fabBottom = isWa ? '155px' : '22px';
+    const winBottom = isWa ? '215px' : '82px';
     const style = document.createElement('style');
     style.id = 'jjp-copilot-css';
     style.textContent = `
@@ -592,7 +592,7 @@
               const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
                 ? `${location.protocol}//${location.hostname}:8787`
                 : 'http://localhost:8787';
-              const rRes = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(matchedProduct.name)}`, { signal: AbortSignal.timeout(6000) });
+              const rRes = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(matchedProduct.name)}`, { signal: AbortSignal.timeout(18000) });
               if (rRes.ok) {
                 const rData = await rRes.json();
                 const realImages = rData.results || [];
@@ -933,9 +933,9 @@
 
     if (loading) {
       loading.style.display = 'flex';
-      if (loadingText) loadingText.textContent = 'Buscando fotografías reales en la web…';
+      if (loadingText) loadingText.textContent = '🧠 IA analizando producto… Buscando en Google, Bing y DuckDuckGo…';
     }
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">Buscando fotos reales…</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">🔍 Buscando fotos reales con IA inteligente…</div>';
 
     const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
       ? `${location.protocol}//${location.hostname}:8787`
@@ -943,7 +943,7 @@
 
     try {
       const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 10000);
+      const t = setTimeout(() => controller.abort(), 20000);
       const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(query)}`, {
         signal: controller.signal
       });
@@ -957,20 +957,25 @@
 
       if (results.length === 0) {
         grid.innerHTML = `
-          <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">
-            No se encontraron fotos exactas con este término.<br>
-            <span style="font-size:11px;color:#94a3b8">Prueba buscando solo la marca y el producto arriba o genera con IA.</span>
+          <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px;line-height:1.5">
+            🔍 No se encontraron fotos exactas.<br>
+            <span style="font-size:11px;color:#94a3b8">Prueba editando la búsqueda arriba con solo la marca y el tipo de producto (ej: "Sharpie marcador negro"), o genera con IA, o pega una URL directa.</span>
           </div>
         `;
         return;
       }
 
-      grid.innerHTML = results.map((r, idx) => `
-        <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title)}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
+      grid.innerHTML = results.map((r, idx) => {
+        const isTrusted = r.score >= 50;
+        const badge = isTrusted ? '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:8px;padding:1px 3px;border-radius:3px;font-weight:700">⭐</span>' : '';
+        return `
+        <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title || r.source || 'Foto')}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
           <img src="${escapeHtmlStr(r.thumbnail || r.image)}" alt="" style="width:100%;height:100%;object-fit:contain;display:block" loading="lazy" onerror="this.parentElement.style.display='none'">
           ${idx === 0 ? '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>' : ''}
+          ${badge}
         </div>
-      `).join('');
+      `;
+      }).join('');
 
       // Auto-seleccionar la primera imagen si no hay una ya fijada
       if (results[0] && !_selectedFlyerProduct._studio_photo_url) {

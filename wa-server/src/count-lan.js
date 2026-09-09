@@ -26,6 +26,10 @@ import {
   COUNT_LAN_PORT, COUNT_SESSION, COUNT_SYNC_MS, COUNT_ONLINE_MS,
   COUNT_CATALOG_MS, REPO_ROOT
 } from './config.js';
+import {
+  getSystemHealthAndStats, executeOptimization, recordLiveRequest,
+  addMonitorSseClient, removeMonitorSseClient
+} from './monitor.js';
 
 // La cámara del teléfono SOLO funciona en HTTPS o en localhost. Por eso el
 // servidor sirve la misma app+API por HTTPS (cert propio persistido en disco,
@@ -505,6 +509,21 @@ async function handle(req, res) {
     return res.end();
   }
 
+  const reqStart = Date.now();
+  res.on('finish', () => {
+    const route = url.split('?')[0];
+    if (route !== '/lan/feed') {
+      recordLiveRequest({
+        type: route.startsWith('/lan/monitor') ? 'MONITOR' : route.startsWith('/lan/') ? 'LAN' : 'HTTP',
+        method,
+        path: route,
+        status: res.statusCode,
+        durationMs: Date.now() - reqStart,
+        ip: req.socket?.remoteAddress || '127.0.0.1'
+      });
+    }
+  });
+
   const pathOnly = url.split('?')[0];
   if (pathOnly === '/') { res.writeHead(302, { Location: '/lan/start' }); return res.end(); }
   if (pathOnly === '/lan/start') {
@@ -517,6 +536,44 @@ async function handle(req, res) {
 
   if (url.startsWith('/lan/')) {
     const route = url.split('?')[0];
+
+    if (route === '/lan/monitor/stream') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+      // Enviar snapshot inicial inmediatamente
+      getSystemHealthAndStats(false).then(initialStats => {
+        try {
+          res.write(`event: init\ndata: ${JSON.stringify(initialStats)}\n\n`);
+        } catch (_) {}
+      });
+      addMonitorSseClient(res);
+      req.on('close', () => removeMonitorSseClient(res));
+      return;
+    }
+
+    if (route === '/lan/monitor/stats') {
+      const stats = await getSystemHealthAndStats(url.includes('force=true'));
+      return sendJSON(res, 200, stats);
+    }
+
+    if (route === '/lan/monitor/feed') {
+      const stats = await getSystemHealthAndStats(false);
+      return sendJSON(res, 200, {
+        rpm: stats.rpm,
+        summary: stats.summary,
+        requests: stats.recentRequests
+      });
+    }
+
+    if (method === 'POST' && route === '/lan/monitor/optimize') {
+      const b = await readBody(req);
+      const result = await executeOptimization(b.action || 'optimize_all');
+      return sendJSON(res, result.success ? 200 : 500, result);
+    }
 
     if (route === '/lan/mixnet/pedidos') {
       return getMixnetPedidos(req, res);

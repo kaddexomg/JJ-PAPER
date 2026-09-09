@@ -17,21 +17,36 @@
 })(typeof window !== 'undefined' ? window : this, function () {
 
   // Pool oficial de 7 API Keys proporcionadas por el usuario
-  // Pool oficial de 7 API Keys ordenadas por velocidad y latencia comprobada
+  // Pool oficial de 7 API Keys proporcionadas por el usuario
+  // Con prioridad a las llaves Pro identificadas para tareas arquitectónicas
+  const PRO_KEYS = [
+    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
+    'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E'
+  ];
+
   const GEMINI_KEYS = [
-    'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
-    'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
     'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
     'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
+    'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
+    'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
     'AQ.Ab8RN6I3nhWx1f54n5rcLa1nJv238N-IqJoIRWljUjZmg3nl-Q',
     'AQ.Ab8RN6K7DB2-YqkZma3jsV8EfCqHel0UnR07oY-r8qquxgKTsA',
     'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
   ];
 
-  // Modelos ultrarrápidos con latencia mínima comprobada
-  const GEMINI_MODELS = [
+  // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
+  const PRO_MODELS = [
+    'gemini-2.5-pro',
+    'gemini-pro-latest',
+    'gemini-3.1-pro-preview',
     'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
+    'gemini-2.5-flash'
+  ];
+
+  // Modelos ultrarrápidos para sugerencias en vivo en chat
+  const FAST_MODELS = [
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
     'gemini-flash-latest',
     'gemini-3.5-flash'
   ];
@@ -50,20 +65,32 @@
   }
 
   /* --------------------------------------------------------------------------
-     Llamada Base a la API con reintento automático ultrarrápido (timeout 3.5s)
+     Llamada Base a la API con enrutamiento inteligente (Pro para Arquitectura, Fast para chat)
      -------------------------------------------------------------------------- */
-  async function callGemini({ prompt, systemInstruction = '', temperature = 0.7, maxTokens = 1500, model = null }) {
+  async function callGemini({
+    prompt,
+    systemInstruction = '',
+    temperature = 0.7,
+    maxTokens = 1500,
+    model = null,
+    mode = 'fast' // 'architect' | 'pro' | 'fast'
+  }) {
     _totalCalls++;
-    const modelsToTry = model ? [model, ...GEMINI_MODELS.filter(m => m !== model)] : GEMINI_MODELS;
+    const isArchitect = (mode === 'architect' || mode === 'pro');
+    const keyPool = isArchitect ? [...PRO_KEYS, ...GEMINI_KEYS.filter(k => !PRO_KEYS.includes(k))] : GEMINI_KEYS;
+    const modelsToTry = model
+      ? [model, ...(isArchitect ? PRO_MODELS : FAST_MODELS).filter(m => m !== model)]
+      : (isArchitect ? PRO_MODELS : FAST_MODELS);
+    
+    const timeoutMs = isArchitect ? 8000 : 3500;
     let lastError = null;
 
-    // Intentar a través de las 7 llaves si una falla por cuota o demora más de 3.5s
-    for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
-      const currentKey = GEMINI_KEYS[(_keyIndex + attempt) % GEMINI_KEYS.length];
+    for (let attempt = 0; attempt < keyPool.length; attempt++) {
+      const currentKey = keyPool[attempt % keyPool.length];
       
       for (const m of modelsToTry) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
@@ -93,7 +120,6 @@
           if (res.ok) {
             const data = await res.json();
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            _keyIndex = (_keyIndex + attempt) % GEMINI_KEYS.length; // Fijar en la llave exitosa
             return text.trim();
           }
 
@@ -108,7 +134,7 @@
             break; // Cambiar de llave
           }
 
-          // Si el modelo específico está sobrecargado (503) o no encontrado (404), continuar con el siguiente modelo de esta llave
+          // Si el modelo específico está sobrecargado (503) o no encontrado (404), probar siguiente modelo
           if (status === 503 || status === 404) {
             lastError = new Error(`Modelo ${m} no disponible (${status}): ${errMsg}`);
             continue;
@@ -118,7 +144,7 @@
         } catch (netErr) {
           clearTimeout(timeoutId);
           lastError = netErr;
-          break; // Error de red o timeout (>3.5s), probar siguiente llave
+          break; // Timeout o fallo de red, probar siguiente llave
         }
       }
     }
@@ -469,7 +495,63 @@ Respuesta del Copiloto JJ:`;
   }
 
   /* --------------------------------------------------------------------------
-     6. Generador Visual de Flyer Publicitario (Canvas Ultra-HD 1200x1200)
+     5.1. Analizador Inteligente de Producto para Marketing
+     -------------------------------------------------------------------------- */
+  async function enrichProductForMarketing(product) {
+    if (!product) return null;
+    const name = product.name || 'Producto JJ Paper';
+    
+    // Extracción inteligente de medidas
+    const measureMatch = name.match(/(\d+\s*x\s*\d+\s*(?:mm|cm|m|mts|pulg)?|\d+\s*(?:mm|cm|m|gr|g|kg|micras|ml|litros|hojas|piezas|und|unidades)\b|carta|oficio|extra\s*oficio|tabloide|a4|a3|1\/2\s*pliego|pliego)/i);
+    const measures = measureMatch ? measureMatch[0].toUpperCase() : (product.unit || 'Medida estándar');
+
+    // Extracción de color comercial
+    const colorMatch = name.match(/\b(transparente|marron|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|kraft)\b/i);
+    const color = colorMatch ? colorMatch[0].charAt(0).toUpperCase() + colorMatch[0].slice(1).toLowerCase() : null;
+
+    // Extracción de presentación / empaque
+    const presMatch = name.match(/\b(caja\s*\d*\s*und?|bulto\s*\d*\s*und?|resma|pack\s*\d*\s*und?|paquete\s*\d*\s*und?|display|blister|tubo|rollo)\b/i);
+    const presentation = presMatch ? presMatch[0].toUpperCase() : (product.unit ? `${product.unit}` : 'Por Unidad / Bulto');
+
+    // Heurística de tipo de categoría para render 3D
+    const isTape = /tirro|cinta|embalaje|adhesiv|teipe|mascarar/i.test(name);
+    const isPaper = /resma|papel|bond|cuaderno|block|hojas|fotocopia/i.test(name);
+    const isOffice = /grap|perforad|dispens|clip|tijera/i.test(name);
+    const isWriting = /boligrafo|marcador|lapiz|pluma|resaltador/i.test(name);
+    const isFolder = /carpeta|sobre|archiv|funda/i.test(name);
+
+    let catType = 'general';
+    if (isTape) catType = 'tape';
+    else if (isPaper) catType = 'paper';
+    else if (isOffice) catType = 'stapler';
+    else if (isWriting) catType = 'writing';
+    else if (isFolder) catType = 'folder';
+
+    const cleanTitle = name
+      .replace(/\b[A-Z0-9_-]{7,}\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return {
+      cleanTitle,
+      brand: product.brands || product.brand_name || 'JJ Paper Oficial',
+      measures,
+      color,
+      presentation,
+      categoryType: catType,
+      headlines: [
+        '🔥 OFERTA AL MAYOR',
+        '⭐ PRODUCTO DESTACADO',
+        '📦 LLEGANDO DE FÁBRICA',
+        '⚡ DISPONIBILIDAD INMEDIATA',
+        '🛡️ CALIDAD GARANTIZADA'
+      ]
+    };
+  }
+
+  /* --------------------------------------------------------------------------
+     6. Generador Visual de Flyer Publicitario de Estudio (Canvas Ultra-HD 1200x1200)
+     Soporta Fondo Blanco Estudio y Fondo Verde Esmeralda JJ Paper
      -------------------------------------------------------------------------- */
   async function renderProductCard({
     product,
@@ -477,6 +559,8 @@ Respuesta del Copiloto JJ:`;
     sellerName = '',
     sellerPhone = '',
     customNote = '',
+    theme = 'emerald', // 'emerald' | 'white'
+    headline = '',
     canvas = null
   }) {
     const cvs = canvas || document.createElement('canvas');
@@ -488,203 +572,208 @@ Respuesta del Copiloto JJ:`;
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
     const priceUsd = customPriceUsd !== null ? parseFloat(customPriceUsd) : parseFloat(product.price_usd || 0);
     const priceBs = (priceUsd * rate).toFixed(2);
+    const isWhite = (theme === 'white');
 
-    // 1. Fondo Studio Premium con Degradado Profundo
-    const bgGrad = ctx.createLinearGradient(0, 0, 1200, 1200);
-    bgGrad.addColorStop(0, '#0a231b');
-    bgGrad.addColorStop(0.5, '#103d30');
-    bgGrad.addColorStop(1, '#061711');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 1200, 1200);
+    // 1. Fondo Estudio Fotográfico
+    if (isWhite) {
+      // Fondo Blanco Puro de Estudio Comercial con Suave Degradado Ciclomara
+      const whiteGrad = ctx.createLinearGradient(0, 0, 0, 1200);
+      whiteGrad.addColorStop(0, '#FFFFFF');
+      whiteGrad.addColorStop(0.65, '#FFFFFF');
+      whiteGrad.addColorStop(1, '#F1F5F9');
+      ctx.fillStyle = whiteGrad;
+      ctx.fillRect(0, 0, 1200, 1200);
 
-    // 2. Halo de iluminación radial en el centro para dar profundidad de estudio
-    const radialGlow = ctx.createRadialGradient(600, 480, 50, 600, 480, 500);
-    radialGlow.addColorStop(0, 'rgba(22, 96, 74, 0.45)');
-    radialGlow.addColorStop(0.6, 'rgba(16, 185, 129, 0.12)');
-    radialGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = radialGlow;
-    ctx.fillRect(0, 0, 1200, 1200);
+      // Suave halo de luz de estudio central
+      const softGlow = ctx.createRadialGradient(600, 480, 50, 600, 480, 480);
+      softGlow.addColorStop(0, 'rgba(241, 245, 249, 0.9)');
+      softGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = softGlow;
+      ctx.fillRect(0, 0, 1200, 1200);
 
-    // 3. Cabecera Institucional JJ Paper
-    // Franja dorada superior
-    ctx.fillStyle = '#EAB308';
-    ctx.fillRect(60, 50, 1080, 4);
+      // Línea de horizonte de piso de estudio
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.45)';
+      ctx.fillRect(60, 718, 1080, 1.5);
+    } else {
+      // Fondo Verde Esmeralda Corporativo JJ Paper con Iluminación de Estudio Spotlight
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, 1200);
+      bgGrad.addColorStop(0, '#062017');
+      bgGrad.addColorStop(0.5, '#0B3327');
+      bgGrad.addColorStop(1, '#020F0A');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 1200, 1200);
 
-    // Logotipo / Marca
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '900 46px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('JJ PAPER', 60, 105);
+      const radialGlow = ctx.createRadialGradient(600, 460, 40, 600, 460, 500);
+      radialGlow.addColorStop(0, 'rgba(22, 96, 74, 0.6)');
+      radialGlow.addColorStop(0.65, 'rgba(16, 185, 129, 0.15)');
+      radialGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = radialGlow;
+      ctx.fillRect(0, 0, 1200, 1200);
+    }
 
-    ctx.fillStyle = '#A3E635';
-    ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('DISTRIBUIDORA MAYORISTA & PAPELERÍA · CARACAS', 60, 134);
+    // 2. Cabecera Institucional JJ Paper con Logotipo Oficial
+    ctx.fillStyle = isWhite ? '#16604A' : '#EAB308';
+    ctx.fillRect(60, 46, 1080, 3.5);
 
-    // Badge Tasa Oficial BCV en cabecera
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    roundRect(ctx, 840, 70, 300, 56, 14);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#FDE047';
-    ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('TASA BCV OFICIAL', 990, 94);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`Bs ${rate.toFixed(2)}`, 990, 117);
-    ctx.textAlign = 'left';
-
-    // 4. Tarjeta Central del Producto (Escaparate Studio)
-    const cardX = 60, cardY = 160, cardW = 1080, cardH = 550;
-
-    // Sombra suave multicapa
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-    ctx.shadowBlur = 35;
-    ctx.shadowOffsetY = 16;
-    ctx.fillStyle = '#FFFFFF';
-    roundRect(ctx, cardX, cardY, cardW, cardH, 26);
-    ctx.fill();
-    ctx.shadowColor = 'transparent';
-
-    // Borde interno sutil
-    ctx.strokeStyle = '#E2E8F0';
-    ctx.lineWidth = 2;
-    roundRect(ctx, cardX, cardY, cardW, cardH, 26);
-    ctx.stroke();
-
-    // Cinta / Ribbon Promocional en la esquina superior derecha del escaparate
+    // Isotipo Vectorial JJ Paper (Hojas de papel estilizadas en verde lima)
     ctx.save();
+    ctx.translate(62, 70);
+    ctx.fillStyle = '#99CC33';
     ctx.beginPath();
-    roundRect(ctx, cardX + cardW - 240, cardY + 20, 220, 44, 22);
-    ctx.fillStyle = '#DC2626';
+    ctx.moveTo(0, 36);
+    ctx.bezierCurveTo(0, 12, 14, 0, 36, 0);
+    ctx.bezierCurveTo(36, 24, 22, 36, 0, 36);
     ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('🔥 OFERTA ESPECIAL', cardX + cardW - 130, cardY + 48);
+
+    ctx.fillStyle = '#16604A';
+    ctx.beginPath();
+    ctx.moveTo(14, 38);
+    ctx.bezierCurveTo(24, 18, 38, 10, 50, 10);
+    ctx.bezierCurveTo(50, 28, 38, 38, 14, 38);
+    ctx.fill();
     ctx.restore();
 
-    // Sello de Garantía izquierda
-    ctx.fillStyle = '#0F172A';
-    roundRect(ctx, cardX + 24, cardY + 20, 230, 36, 18);
-    ctx.fill();
-    ctx.fillStyle = '#34D399';
-    ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('✓ 100% ORIGINAL JJ PAPER', cardX + 42, cardY + 43);
+    // Logotipo Tipográfico
+    ctx.fillStyle = isWhite ? '#0B3327' : '#FFFFFF';
+    ctx.font = '900 42px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('JJ PAPER', 125, 96);
 
-    // Carga o renderizado de imagen de producto
-    let imageLoaded = false;
+    ctx.fillStyle = isWhite ? '#16604A' : '#A3E635';
+    ctx.font = '800 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('DISTRIBUIDORA & PAPELERÍA MAYORISTA · CARACAS', 125, 118);
+
+    // Badge Superior Derecho (Titular Publicitario)
+    const topBadgeText = headline || '🔥 OFERTA AL MAYOR';
+    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const topBadgeW = Math.max(220, ctx.measureText(topBadgeText).width + 36);
+    const topBadgeX = 1140 - topBadgeW;
+
+    ctx.fillStyle = isWhite ? '#0B3327' : '#DC2626';
+    roundRect(ctx, topBadgeX, 64, topBadgeW, 46, 23);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.fillText(topBadgeText, topBadgeX + topBadgeW / 2, 93);
+    ctx.textAlign = 'left';
+
+    // 3. EL ESCENARIO CENTRAL DEL PRODUCTO
+    const stageCenterX = 600;
+    const stageCenterY = 430;
+    const maxImgW = 760;
+    const maxImgH = 460;
+
+    let imageRendered = false;
     if (product.image_url) {
       try {
         const img = await loadImageSafe(product.image_url);
-        if (img) {
-          const maxW = cardW - 120;
-          const maxH = cardH - 120;
-          const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+        if (img && img.width > 10 && img.height > 10) {
+          const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1.15);
           const dw = img.width * scale;
           const dh = img.height * scale;
-          const dx = cardX + (cardW - dw) / 2;
-          const dy = cardY + 70 + (cardH - 90 - dh) / 2;
-          
-          // Sombra de contacto bajo el producto
+          const dx = stageCenterX - dw / 2;
+          const dy = stageCenterY - dh / 2 + 10;
+
+          // Sombra de contacto realista en el suelo
           ctx.save();
           ctx.beginPath();
-          ctx.ellipse(cardX + cardW / 2, dy + dh + 10, dw * 0.4, 16, 0, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+          ctx.ellipse(stageCenterX, dy + dh - 4, dw * 0.32, 10, 0, 0, Math.PI * 2);
+          ctx.fillStyle = isWhite ? 'rgba(0, 0, 0, 0.28)' : 'rgba(0, 0, 0, 0.45)';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.ellipse(stageCenterX, dy + dh + 4, dw * 0.48, 22, 0, 0, Math.PI * 2);
+          ctx.fillStyle = isWhite ? 'rgba(0, 0, 0, 0.12)' : 'rgba(0, 0, 0, 0.25)';
           ctx.fill();
           ctx.restore();
 
+          // Fotografía del producto en el centro sin marcos ni recuadros de bodega
           ctx.drawImage(img, dx, dy, dw, dh);
-          imageLoaded = true;
+          imageRendered = true;
         }
-      } catch (e) {
-        console.warn('Error cargando imagen:', e);
+      } catch (err) {
+        console.warn('Fallo cargando imagen en renderProductCard:', err);
       }
     }
 
-    if (!imageLoaded) {
-      // Mockup vectorial publicitario elegante si no hay foto
-      ctx.fillStyle = '#F8FAFC';
-      roundRect(ctx, cardX + 40, cardY + 75, cardW - 80, cardH - 105, 20);
-      ctx.fill();
-
-      // Halo circular detrás del emoji
-      const iconGlow = ctx.createRadialGradient(cardX + cardW / 2, cardY + cardH / 2 + 10, 10, cardX + cardW / 2, cardY + cardH / 2 + 10, 140);
-      iconGlow.addColorStop(0, '#E0F2FE');
-      iconGlow.addColorStop(1, '#F8FAFC');
-      ctx.fillStyle = iconGlow;
-      ctx.beginPath();
-      ctx.arc(cardX + cardW / 2, cardY + cardH / 2 + 10, 130, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.font = '140px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(product.emoji || '📦', cardX + cardW / 2, cardY + cardH / 2 + 60);
-
-      ctx.fillStyle = '#475569';
-      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('PRODUCTO GARANTIZADO · CALIDAD DE FÁBRICA', cardX + cardW / 2, cardY + cardH - 45);
-      ctx.textAlign = 'left';
+    // Si no tiene imagen en Supabase, renderizar Ilustración Comercial 3D Fotorrealista
+    if (!imageRendered) {
+      renderCommercial3dProduct(ctx, product, stageCenterX, stageCenterY, isWhite);
     }
 
-    // 5. Datos del Producto (Título y Especificaciones)
-    const titleY = 750;
-    ctx.fillStyle = '#FFFFFF';
+    // 4. Bloque de Datos Comerciales del Producto (Y: 730 a 830)
+    const titleY = 745;
+    ctx.fillStyle = isWhite ? '#0B3327' : '#FFFFFF';
     ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const nameLines = wrapText(ctx, product.name || 'Producto JJ Paper', 1080);
-    ctx.fillText(nameLines[0], 60, titleY);
-    if (nameLines.length > 1) {
-      ctx.fillText(nameLines[1], 60, titleY + 44);
+    
+    // Limpiar nombre de códigos numéricos de bodega
+    const rawName = product.name || 'Producto Oficial JJ Paper';
+    const displayTitle = rawName.replace(/\b[A-Z0-9_-]{7,}\b/g, '').replace(/\s+/g, ' ').trim();
+    const titleLines = wrapText(ctx, displayTitle, 1080);
+    ctx.fillText(titleLines[0], 60, titleY);
+    if (titleLines.length > 1) {
+      ctx.fillText(titleLines[1], 60, titleY + 42);
     }
 
-    // Pastilla de características
-    const specY = nameLines.length > 1 ? titleY + 84 : titleY + 46;
-    let specText = `Presentación: ${product.unit || 'unidad'}`;
-    if (product.brands) specText += `  |  Marca: ${product.brands}`;
-    if (product.sku) specText += `  |  Código: ${product.sku}`;
+    // Pastilla de Atributos de Valor (Marca, Medida, Color, Presentación)
+    const metaY = titleLines.length > 1 ? titleY + 84 : titleY + 46;
+    let metaItems = [];
+    const brand = product.brand || product.brands || product.brand_name;
+    if (brand) metaItems.push(`🏷️ Marca: ${brand}`);
 
-    ctx.fillStyle = '#94A3B8';
+    const mMatch = product.measures || rawName.match(/(\d+\s*x\s*\d+\s*(?:mm|cm|m|mts|pulg)?|\d+\s*(?:mm|cm|m|gr|g|kg|micras|ml|litros|hojas|piezas|und|unidades)\b|carta|oficio|extra\s*oficio|tabloide|a4|a3|1\/2\s*pliego|pliego)/i)?.[0];
+    if (mMatch && mMatch.toUpperCase() !== 'MEDIDA ESTÁNDAR') metaItems.push(`📏 Medida: ${mMatch.toUpperCase()}`);
+
+    const cMatch = product.color || rawName.match(/\b(transparente|marron|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|kraft)\b/i)?.[0];
+    if (cMatch) metaItems.push(`🎨 Color: ${cMatch.charAt(0).toUpperCase() + cMatch.slice(1).toLowerCase()}`);
+
+    if (product.presentation || product.unit) metaItems.push(`📦 ${product.presentation || product.unit}`);
+    const metaStr = metaItems.length > 0 ? metaItems.join('   ·   ') : '✓ Garantía Oficial de Fábrica';
+
+    ctx.fillStyle = isWhite ? '#475569' : '#94A3B8';
     ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(specText, 60, specY);
+    ctx.fillText(metaStr, 60, metaY);
 
-    // 6. Bloque Hero de Precios (Doble Moneda USD / Bs Oficial)
-    const priceBoxY = specY + 25;
+    // 5. Bloque Hero de Precios (Doble Moneda USD / Bs Oficial BCV)
+    const priceBoxY = metaY + 24;
     const priceBoxH = 160;
 
-    const priceGrad = ctx.createLinearGradient(60, priceBoxY, 1140, priceBoxY + priceBoxH);
-    priceGrad.addColorStop(0, '#16604A');
-    priceGrad.addColorStop(1, '#0B3327');
-    ctx.fillStyle = priceGrad;
+    const pBoxGrad = ctx.createLinearGradient(60, priceBoxY, 1140, priceBoxY + priceBoxH);
+    if (isWhite) {
+      pBoxGrad.addColorStop(0, '#0B3327');
+      pBoxGrad.addColorStop(1, '#051C14');
+    } else {
+      pBoxGrad.addColorStop(0, '#16604A');
+      pBoxGrad.addColorStop(1, '#0B3327');
+    }
+    ctx.fillStyle = pBoxGrad;
     roundRect(ctx, 60, priceBoxY, 1080, priceBoxH, 22);
     ctx.fill();
 
-    ctx.strokeStyle = '#22C55E';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#99CC33';
+    ctx.lineWidth = 2.5;
     roundRect(ctx, 60, priceBoxY, 1080, priceBoxH, 22);
     ctx.stroke();
 
     // Columna Izquierda: Precio USD
-    ctx.fillStyle = '#A3E635';
-    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('PRECIO MAYORISTA ESPECIAL', 95, priceBoxY + 48);
+    ctx.fillStyle = '#99CC33';
+    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('PRECIO OFICIAL DE DISTRIBUIDORA', 95, priceBoxY + 46);
 
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '900 64px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     const formattedUsd = `$${priceUsd.toFixed(2)}`;
-    ctx.fillText(formattedUsd, 95, priceBoxY + 118);
+    ctx.fillText(formattedUsd, 95, priceBoxY + 116);
 
     ctx.fillStyle = '#E2E8F0';
     ctx.font = '700 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('USD', 95 + ctx.measureText(formattedUsd).width + 12, priceBoxY + 114);
+    ctx.fillText('USD', 95 + ctx.measureText(formattedUsd).width + 12, priceBoxY + 112);
 
-    // Columna Derecha: Tarjeta Equivalente en Bolívares
-    const bsBoxW = 420, bsBoxH = 114;
-    const bsBoxX = 1140 - bsBoxW - 30;
+    // Columna Derecha: Tarjeta al cambio oficial en Bolívares
+    const bsBoxW = 440, bsBoxH = 114;
+    const bsBoxX = 1140 - bsBoxW - 25;
     const bsBoxY = priceBoxY + 23;
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
     roundRect(ctx, bsBoxX, bsBoxY, bsBoxW, bsBoxH, 16);
     ctx.fill();
     ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)';
@@ -692,60 +781,187 @@ Respuesta del Copiloto JJ:`;
     roundRect(ctx, bsBoxX, bsBoxY, bsBoxW, bsBoxH, 16);
     ctx.stroke();
 
-    ctx.fillStyle = '#CBD5E1';
-    ctx.font = '600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = '#E2E8F0';
+    ctx.font = '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('TOTAL AL CAMBIO BCV DEL DÍA', bsBoxX + bsBoxW / 2, bsBoxY + 38);
+    ctx.fillText(`CAMBIO OFICIAL BCV (Bs. ${rate.toFixed(2)})`, bsBoxX + bsBoxW / 2, bsBoxY + 36);
 
     ctx.fillStyle = '#FDE047';
     ctx.font = '900 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillText(`Bs ${Number(priceBs).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, bsBoxX + bsBoxW / 2, bsBoxY + 84);
     ctx.textAlign = 'left';
 
-    // 7. Tres Pilares de Confianza
-    const pillarY = priceBoxY + priceBoxH + 34;
+    // 6. Tres Pilares de Confianza
+    const pillarY = priceBoxY + priceBoxH + 28;
     const pillars = [
-      '⚡ Despacho en 24h Caracas',
-      '🛡️ Factura y Garantía',
-      '💳 Zelle / Pago Móvil / Divisas'
+      '⚡ Despacho Rápido Caracas',
+      '🛡️ Factura Fiscal & Garantía',
+      '🚚 Envíos a Toda Venezuela'
     ];
     ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const pillW = 340, pillH = 40;
+    const pillW = 340, pillH = 38;
     pillars.forEach((p, idx) => {
       const px = 60 + idx * (pillW + 30);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      roundRect(ctx, px, pillarY, pillW, pillH, 20);
+      ctx.fillStyle = isWhite ? '#E2E8F0' : 'rgba(255, 255, 255, 0.08)';
+      roundRect(ctx, px, pillarY, pillW, pillH, 19);
       ctx.fill();
-      ctx.fillStyle = '#E2E8F0';
+      ctx.fillStyle = isWhite ? '#0F172A' : '#E2E8F0';
       ctx.textAlign = 'center';
-      ctx.fillText(p, px + pillW / 2, pillarY + 26);
+      ctx.fillText(p, px + pillW / 2, pillarY + 25);
       ctx.textAlign = 'left';
     });
 
-    // 8. Pie de Página Comercial y Contacto
+    // 7. Pie de Página Comercial y Contacto
     const footerY = 1145;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.fillRect(60, footerY - 25, 1080, 1.5);
+    ctx.fillStyle = isWhite ? '#CBD5E1' : 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(60, footerY - 22, 1080, 1.5);
 
-    const advisorStr = sellerName ? `Atendido por: ${sellerName}` : 'Equipo Comercial JJ Paper';
-    const phoneStr = sellerPhone ? `📱 WhatsApp: ${sellerPhone}` : '📱 Pedidos directos';
-    const noteStr = customNote || 'Envíos a toda Venezuela vía Tealca, MRW y Zoom';
+    const advisorStr = sellerName ? `Atendido por: ${sellerName}` : 'Dpto. de Ventas y Distribución';
+    const phoneStr = sellerPhone ? `📱 WhatsApp: ${sellerPhone}` : '📱 Pedidos directos en tienda y almacén';
 
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = isWhite ? '#0B3327' : '#FFFFFF';
     ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`${advisorStr}  ·  ${phoneStr}`, 60, footerY + 12);
+    ctx.fillText(`${advisorStr}   ·   ${phoneStr}`, 60, footerY + 14);
 
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = '500 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(noteStr, 60, footerY + 36);
-
-    ctx.fillStyle = '#A3E635';
+    ctx.fillStyle = isWhite ? '#16604A' : '#A3E635';
     ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('🌐 jjpaper.com', 1140, footerY + 22);
+    ctx.fillText('JJ PAPER C.A.', 1140, footerY + 14);
     ctx.textAlign = 'left';
 
     return cvs;
+  }
+
+  /**
+   * Renderizado Comercial 3D Fotorrealista para productos sin foto
+   */
+  function renderCommercial3dProduct(ctx, product, cx, cy, isWhite) {
+    const name = (product.name || '').toLowerCase();
+
+    ctx.save();
+
+    // Sombra de contacto en suelo de estudio
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 180, 260, 28, 0, 0, Math.PI * 2);
+    ctx.fillStyle = isWhite ? 'rgba(0, 0, 0, 0.22)' : 'rgba(0, 0, 0, 0.5)';
+    ctx.fill();
+
+    if (/tirro|cinta|embalaje|adhesiv/i.test(name)) {
+      // 3D Cinta de Embalaje Comercial
+      const rollR = 150;
+      const rollH = 85;
+
+      // Cara inferior del cilindro
+      ctx.fillStyle = isWhite ? '#D97706' : '#B45309';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + rollH / 2, rollR, rollR * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pared lateral del cilindro (cuerpo del rollo)
+      const rollGrad = ctx.createLinearGradient(cx - rollR, 0, cx + rollR, 0);
+      rollGrad.addColorStop(0, '#B45309');
+      rollGrad.addColorStop(0.3, '#F59E0B');
+      rollGrad.addColorStop(0.5, '#FDE68A');
+      rollGrad.addColorStop(0.7, '#D97706');
+      rollGrad.addColorStop(1, '#92400E');
+      ctx.fillStyle = rollGrad;
+      ctx.fillRect(cx - rollR, cy - rollH / 2, rollR * 2, rollH);
+
+      // Cara superior del cilindro
+      const topGrad = ctx.createRadialGradient(cx - 30, cy - rollH / 2 - 20, 10, cx, cy - rollH / 2, rollR);
+      topGrad.addColorStop(0, '#FEF3C7');
+      topGrad.addColorStop(0.7, '#F59E0B');
+      topGrad.addColorStop(1, '#B45309');
+      ctx.fillStyle = topGrad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - rollH / 2, rollR, rollR * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Núcleo de cartón central (agujero con profundidad)
+      const coreR = 68;
+      ctx.fillStyle = '#78350F';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - rollH / 2, coreR, coreR * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Texto de marca en el interior del núcleo
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 13px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('JJ PAPER PREMIUM', cx, cy - rollH / 2 + 5);
+      ctx.textAlign = 'left';
+
+    } else if (/resma|papel|bond|cuaderno|block/i.test(name)) {
+      // 3D Resma de Papel Bond Empacada
+      const rw = 280, rh = 180, depth = 70;
+
+      // Cara frontal
+      const frontGrad = ctx.createLinearGradient(cx - rw / 2, 0, cx + rw / 2, 0);
+      frontGrad.addColorStop(0, '#0F766E');
+      frontGrad.addColorStop(0.5, '#14B8A6');
+      frontGrad.addColorStop(1, '#0D9488');
+      ctx.fillStyle = frontGrad;
+      ctx.fillRect(cx - rw / 2, cy - rh / 2, rw, rh);
+
+      // Cara superior (perspectiva)
+      ctx.fillStyle = '#2DD4BF';
+      ctx.beginPath();
+      ctx.moveTo(cx - rw / 2, cy - rh / 2);
+      ctx.lineTo(cx - rw / 2 + 40, cy - rh / 2 - depth);
+      ctx.lineTo(cx + rw / 2 + 40, cy - rh / 2 - depth);
+      ctx.lineTo(cx + rw / 2, cy - rh / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Cara lateral derecha
+      ctx.fillStyle = '#0F766E';
+      ctx.beginPath();
+      ctx.moveTo(cx + rw / 2, cy - rh / 2);
+      ctx.lineTo(cx + rw / 2 + 40, cy - rh / 2 - depth);
+      ctx.lineTo(cx + rw / 2 + 40, cy + rh / 2 - depth);
+      ctx.lineTo(cx + rw / 2, cy + rh / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sello institucional en empaque
+      ctx.fillStyle = '#FFFFFF';
+      roundRect(ctx, cx - 100, cy - 40, 200, 80, 10);
+      ctx.fill();
+      ctx.fillStyle = '#0F766E';
+      ctx.font = '900 24px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('JJ PAPER', cx, cy - 8);
+      ctx.font = '700 13px -apple-system, sans-serif';
+      ctx.fillText('PAPEL BOND 75g · 500 HJS', cx, cy + 18);
+      ctx.textAlign = 'left';
+
+    } else {
+      // 3D Caja de Producto Comercial Studio
+      const bw = 240, bh = 220;
+      const bGrad = ctx.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
+      bGrad.addColorStop(0, '#16604A');
+      bGrad.addColorStop(0.5, '#22C55E');
+      bGrad.addColorStop(1, '#15803D');
+      ctx.fillStyle = bGrad;
+      roundRect(ctx, cx - bw / 2, cy - bh / 2, bw, bh, 20);
+      ctx.fill();
+
+      // Emblema comercial
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 10, 65, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#16604A';
+      ctx.font = '900 48px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('JJ', cx, cy + 8);
+      ctx.font = 'bold 15px -apple-system, sans-serif';
+      ctx.fillText('OFICIAL', cx, cy + 28);
+      ctx.textAlign = 'left';
+    }
+
+    ctx.restore();
   }
 
   function roundRect(ctx, x, y, width, height, radius) {
@@ -819,6 +1035,7 @@ Respuesta del Copiloto JJ:`;
     draftCampaignMessage,
     draftEmail,
     searchProductsLive,
+    enrichProductForMarketing,
     askCopilot,
     renderProductCard,
     getCurrentKeyIndex: () => _keyIndex,

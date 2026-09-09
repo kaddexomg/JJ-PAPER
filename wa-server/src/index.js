@@ -24,7 +24,7 @@ lockServer.once('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     log.warn(`[CANDADO ACTIVO] Otra instancia de wa-server ya se encuentra ejecutándose en el sistema (puerto ${SINGLE_INSTANCE_PORT} ocupado).`);
     log.warn('Abortando esta instancia para proteger los sockets de WhatsApp y evitar colisiones.');
-    process.exit(2);
+    process.exit(3);
   } else {
     log.error({ err: err.message }, 'Error al verificar candado de instancia única');
   }

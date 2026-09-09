@@ -1,67 +1,108 @@
-// Copia TODOS los datos (tablas public) del ORIGEN al DESTINO por pg con parámetros.
-// - Columnas json/jsonb se leen como ::text y se insertan como texto (server castea a jsonb).
-// - Columnas generated (STORED) se excluyen.
-// - Resetea secuencias al final.
+const fs = require('fs');
+const path = require('path');
 const { Client } = require('pg');
-const SR = { host:'aws-0-us-west-2.pooler.supabase.com', port:5432, user:'postgres.czzvsqnmxtjzqzioknnn', password:'Samily*30909109', database:'postgres', ssl:{rejectUnauthorized:false} };
-const DS = { host:'aws-0-us-east-2.pooler.supabase.com', port:5432, user:'postgres.qxgdrfkobbhdzgtoiavv', password:'30909109KJSP', database:'postgres', ssl:{rejectUnauthorized:false} };
-(async () => {
-  const src = new Client(SR); await src.connect();
-  const dst = new Client(DS); await dst.connect();
-  await src.query('set statement_timeout = 0');
-  await dst.query('set statement_timeout = 0');
 
-  const tables = await src.query(`select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relname not like 'pg_%' order by c.relname`);
-  let total = 0;
-  for (const t of tables.rows) {
-    const name = t.relname;
-    const cols = await src.query(`select a.attname, format_type(a.atttypid,a.atttypmod) t
-      from pg_attribute a where a.attrelid=('public.'||quote_ident($1))::regclass
-      and a.attnum>0 and not a.attisdropped and a.attgenerated='' order by a.attnum`, [name]);
-    const defs = cols.rows.map(r => {
-      const isJson = /^jsonb?(\[|$)/.test(r.t);
-      return { name: r.attname, json: isJson };
-    });
-    const colList = defs.map(d => d.name).join(', ');
-    if (!colList) { console.log('· '+name+': (sin columnas)'); continue; }
-    const cnt = await src.query(`select count(*)::int c from public.${name}`);
-    const n = cnt.rows[0].c;
-    if (!n) { console.log('· '+name+': 0'); continue; }
-    const selCols = defs.map(d => d.json ? `"${d.name}"::text as "${d.name}"` : `"${d.name}"`).join(', ');
-    const rows = await src.query(`select ${selCols} from public.${name}`);
-    await dst.query(`truncate public.${name} cascade`);
-    let ins = 0;
-    const BATCH = 400;
-    for (let i=0;i<rows.rows.length;i+=BATCH){
-      const chunk = rows.rows.slice(i,i+BATCH);
-      const ph = []; const params = [];
-      let pi = 1;
-      for (const row of chunk) {
-        const rowPh = [];
-        for (const d of defs) {
-          rowPh.push('$'+pi++);
-          let v = row[d.name];
-          if (d.json && v !== null && typeof v === 'object') v = JSON.stringify(v);
-          params.push(v);
-        }
-        ph.push('('+rowPh.join(',')+')');
-      }
-      const sql = `insert into public.${name} (${colList}) values ${ph.join(', ')}`;
-      await dst.query(sql, params);
-      ins += chunk.length;
+const DS_A = {
+  host: 'aws-0-us-east-2.pooler.supabase.com',
+  port: 5432,
+  user: 'postgres.qxgdrfkobbhdzgtoiavv',
+  password: '30909109KJSP',
+  database: 'postgres',
+  ssl: { rejectUnauthorized: false }
+};
+
+const backupFile = path.resolve(__dirname, '..', 'backups', 'backup_completo_origen_2026-09-07T17-43-28-075Z.json');
+const backup = JSON.parse(fs.readFileSync(backupFile, 'utf8'));
+
+// Tablas prioritarias en orden estricto de dependencias
+const tableOrder = [
+  'jjp_settings',
+  'jjp_fx_rates',
+  'jjp_profiles',
+  'jjp_categories',
+  'jjp_category_groups',
+  'jjp_brands',
+  'jjp_units',
+  'jjp_products',
+  'jjp_product_variants',
+  'jjp_customers',
+  'jjp_quotes',
+  'jjp_orders',
+  'jjp_reviews',
+  'jjp_promos',
+  'jjp_clients',
+  'jjp_count_tally',
+  'jjp_server_control',
+  'jjp_wa_sessions',
+  'jjp_wa_templates',
+  'jjp_wa_chats',
+  'jjp_wa_messages',
+  'jjp_email_accounts',
+  'jjp_email_company',
+  'jjp_emails',
+  'jjp_email_campaigns',
+  'jjp_email_campaign_targets',
+  'jjp_notifications'
+];
+
+(async () => {
+  const c = new Client(DS_A);
+  await c.connect();
+  console.log('Conectado a Proyecto A. Iniciando inserción limpia y estructurada...');
+
+  // Desactivar temporalmente triggers de auditoría para no alterar timestamps ni stats originales
+  await c.query('SET session_replication_role = replica;');
+
+  let totalIns = 0;
+
+  for (const table of tableOrder) {
+    const rows = backup.tables[table];
+    if (!rows || rows.length === 0) {
+      console.log('· ' + table + ': 0 filas (omitida)');
+      continue;
     }
-    total += ins;
-    console.log('✓ '+name+': '+ins);
+
+    // Obtener columnas existentes en la tabla destino
+    const colRes = await c.query(
+      "select column_name, data_type, is_generated, is_identity, identity_generation from information_schema.columns where table_schema = 'public' and table_name = $1",
+      [table]
+    );
+    const validCols = new Set(colRes.rows.filter(r => r.is_generated === 'NEVER').map(r => r.column_name));
+    if (validCols.size === 0) {
+      console.log('⚠️ Tabla ' + table + ' no existe en destino.');
+      continue;
+    }
+
+    // Truncar antes de rellenar
+    await c.query('truncate table public.' + table + ' cascade;');
+
+    // Verificar si la tabla tiene columnas de tipo identity ALWAYS
+    const hasIdentity = colRes.rows.some(r => r.is_identity === 'YES' || r.identity_generation === 'ALWAYS');
+    const overridingClause = hasIdentity ? ' OVERRIDING SYSTEM VALUE ' : ' ';
+
+
+    let count = 0;
+    for (const row of rows) {
+      const keys = Object.keys(row).filter(k => validCols.has(k));
+      const values = keys.map(k => {
+        const v = row[k];
+        if (v !== null && typeof v === 'object') return JSON.stringify(v);
+        return v;
+      });
+      const ph = keys.map((_, idx) => '$' + (idx + 1)).join(', ');
+      const sql = 'insert into public.' + table + ' (' + keys.map(k => '"' + k + '"').join(', ') + ')' + overridingClause + 'values (' + ph + ') on conflict do nothing;';
+      await c.query(sql, values);
+      count++;
+    }
+    totalIns += count;
+    console.log('✅ ' + table + ': ' + count + ' filas insertadas.');
+
   }
-  const seqs = await src.query(`select s.relname as seq, tc.table_name, a.attname as col
-    from pg_class s join pg_depend d on d.objid=s.oid
-    join pg_class tc on tc.oid=d.refobjid join pg_namespace n on n.oid=tc.relnamespace
-    join pg_attribute a on a.attrelid=tc.oid and a.attnum=d.refobjsubid
-    where s.relkind='S' and d.refclassid='pg_class'::regclass and n.nspname='public'`);
-  for (const s of seqs.rows) {
-    try { await dst.query(`select setval('public.${s.seq}', coalesce((select max("${s.col}") from public.${s.table_name}), 1))`); }
-    catch(e){ console.log('   (seq '+s.seq+' -> '+e.message.slice(0,50)); }
-  }
-  console.log('\nTOTAL FILAS COPIADAS: '+total);
-  await src.end(); await dst.end();
-})().catch(e=>console.log('FATAL', e.message));
+
+  // Reactivar triggers
+  await c.query('SET session_replication_role = DEFAULT;');
+
+  console.log('\n🎉 INSERCIÓN FINALIZADA CON ÉXITO: ' + totalIns + ' filas.');
+  await c.end();
+})().catch(e => console.error('FATAL:', e));
+

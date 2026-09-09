@@ -17,6 +17,29 @@ export const SERVICE_KEY_CORE  = process.env.SUPABASE_SERVICE_ROLE_KEY_CORE || p
 export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
 export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || 'https://nmcamjxhyysmmvgxgabo.supabase.co';
+export const SERVICE_KEY_INV   = process.env.SUPABASE_SERVICE_ROLE_KEY_INV || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2FtanhoeXlzbW12Z3hnYWJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjA2MTQ2NCwiZXhwIjoyMDk3NjM3NDY0fQ.QvuDcLSJleatqDcglU_w0fRnXbz9N6scGaDVqCUgoXg';
+
+export const PG_CORE = {
+  host: process.env.PG_HOST_CORE || 'aws-0-us-east-2.pooler.supabase.com',
+  port: parseInt(process.env.PG_PORT_CORE || '5432', 10),
+  user: process.env.PG_USER_CORE || 'postgres.qxgdrfkobbhdzgtoiavv',
+  password: process.env.PG_PASS_CORE || '30909109KJSP',
+  database: 'postgres',
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 5000
+};
+
+export const PG_COMM = {
+  host: process.env.PG_HOST_COMM || 'aws-0-us-east-2.pooler.supabase.com',
+  port: parseInt(process.env.PG_PORT_COMM || '5432', 10),
+  user: process.env.PG_USER_COMM || 'postgres.klcibjwleiqppedefpxw',
+  password: process.env.PG_PASS_COMM || 'Samily*30909109',
+  database: 'postgres',
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 5000
+};
+
 export const SESSIONS_DIR = path.join(__dirname, '..', 'sessions');
 export const MEDIA_BUCKET = 'jjp-wa-media';
 

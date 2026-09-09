@@ -211,4 +211,18 @@ No se detectaron tests.
   - Consumo ultraligero: **<20 MB de RAM y 0% de CPU**.
   - Sondea periódicamente (cada 5-10s) pedidos (`jjp_orders`) y cotizaciones (`jjp_quotes`) en Supabase.
   - Deposita automáticamente `pedido_[ID].csv` / `pedido_[ID].txt` y `cotizacion_[ID].csv` en la carpeta vigilada de MixNet (`C:\JJ-PAPER-MIXER\` o ruta interna).
-  - **Arranque Automático Desatendido**: Configurado con script `.vbs` en `shell:startup` para iniciar en segundo plano sin ventana negra cada vez que se enciende la PC. Si la PC se apaga por la noche, al encenderse a la mañana siguiente procesa las órdenes acumuladas en segundos.
+  - **Arranque Automático Desatendido**: Configurado con script `.vbs` en `shell:startup` para iniciar en segundo plano sin ventana negra cada vez que se enciende la PC. Si la PC se apaga por la noche, al encenderse a la mañana siguiente procesa las órdenes acumuladas en segundos.
+
+## Monitor de Cuotas Multi-Proyecto, Tráfico en Vivo y Gestor de Optimizaciones (08-09-2026)
+- **Dashboard Web & App de Escritorio PC (`admin/monitor.html`, `MONITOR-JJ-PAPER.bat`)**:
+  - Supervisión en tiempo real de las cuotas de almacenamiento y bases de datos de los 3 proyectos Supabase (Core 500 MB, Comunicación 500 MB, Storage 1.000 MB).
+  - Modo dual resiliente: Conexión nativa con `wa-server` local (consultas PostgreSQL directas, latencia, conexiones activas y tuplas muertas) y modo fallback en la nube directo con PostgREST y Storage API cuando se accede fuera de la red local.
+  - Lanzador de escritorio para Windows (`MONITOR-JJ-PAPER.bat` y `wa-server/MONITOR-SISTEMA.bat`) que abre el monitor como aplicación nativa de PC independiente sin barra de direcciones (Chrome/Edge en modo `--app`).
+- **Motor de Telemetría y Requests en Vivo (`wa-server/src/monitor.js`, `count-lan.js`)**:
+  - Ring buffer en memoria de los últimos 150 requests y llamadas con cálculo de RPM (Requests Per Minute) y latencias individuales.
+  - Registro de eventos HTTP, transacciones de WhatsApp (`outbox.js`), campañas de correo y sincronizaciones LAN.
+  - Consola interactiva en vivo con filtros rápidos (Todos, HTTP/LAN, WhatsApp, Optimizador) y control de pausa.
+- **Gestor de Optimizaciones y Purga de Datos Temporales**:
+  - Ejecución de `VACUUM ANALYZE` en PostgreSQL para compactar tablas, liberar espacio físico retenido por tuplas muertas y actualizar estadísticas del planificador de consultas en Proyecto A y Proyecto B.
+  - Purga de logs transitorios en `jjp_server_control` (>7 días) y targets obsoletos/fallidos de campañas antiguas (>30 días).
+  - Botón de "Mantenimiento Maestro 1-Clic" con modal de confirmación y reporte de tiempo transcurrido y filas optimizadas.

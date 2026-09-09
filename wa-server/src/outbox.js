@@ -3,6 +3,7 @@ import { log } from './logger.js';
 import { OUTBOX_SWEEP_MS, MAX_RETRIES } from './config.js';
 import { downloadOutgoingMedia } from './media.js';
 import { touchChat, PREVIEW_BY_TYPE } from './chats.js';
+import { recordLiveRequest } from './monitor.js';
 
 // Cola de salientes: Realtime (INSERT pending) + barrido de respaldo cada 30s.
 // Fase 2 (masivos): aquí va el throttling — espera configurable entre envíos.
@@ -89,6 +90,13 @@ async function dispatch(row) {
     }).eq('id', row.id);
     const preview = row.body || PREVIEW_BY_TYPE[row.type] || '';
     await touchChat(row.chat_id, preview, 'me', false);
+    recordLiveRequest({
+      type: 'WA',
+      method: 'OUTBOX',
+      path: `jid:${row.jjp_wa_chats?.jid || 'chat'}`,
+      status: 200,
+      detail: `Mensaje WA despachado (${row.type})`
+    });
     log.info({ id: row.id, type: row.type }, 'mensaje enviado');
   } catch (e) {
     const retries = (row.retry_count || 0) + 1;

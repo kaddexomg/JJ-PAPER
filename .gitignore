@@ -40,3 +40,16 @@ client_secret*.json
 
 # Obsidian: estado local de la interfaz (no es configuracion compartible)
 cerebro/.obsidian/workspace.json
+
+# Repo secundario para herramientas locales de PC
+archivos-pc/
+
+# Backups y datos de negocio
+backups/
+*.docx
+*.zip
+*.bak
+wa-server/*.txt
+wa-server/*.json
+auditoria-productos.txt
+

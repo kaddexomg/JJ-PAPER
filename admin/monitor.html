@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Monitor de Cuotas & Optimizador | JJ Paper Admin</title>
+<link rel="icon" href="../assets/img/logo.svg">
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<style>
+  :root {
+    --bg-dark: #00140f;
+    --card-bg: #07231a;
+    --card-border: #1a4535;
+    --accent: #99CC33;
+    --accent-hover: #b6e05a;
+    --text-main: #eaf5ee;
+    --text-muted: #8fb5a2;
+    --danger: #ff5252;
+    --warning: #ffb142;
+    --success: #2ed573;
+  }
+
+  body.admin-body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .engine-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  .engine-badge.online {
+    background: rgba(46, 213, 115, 0.15);
+    color: #4cd137;
+    border-color: rgba(46, 213, 115, 0.35);
+  }
+  .engine-badge.cloud {
+    background: rgba(255, 177, 66, 0.15);
+    color: #ffb142;
+    border-color: rgba(255, 177, 66, 0.35);
+  }
+
+  /* KPI Grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--card-border);
+  }
+  .kpi-card.highlight::before {
+    background: var(--accent);
+  }
+  .kpi-card.safety::before {
+    background: var(--success);
+  }
+  .kpi-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .kpi-val {
+    font-size: 24px;
+    font-weight: 800;
+    color: #ffffff;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .kpi-val small {
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .sub-kpi {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 400;
+  }
+  .badge-green {
+    color: #2ed573;
+    font-weight: 700;
+  }
+
+  /* Projects Grid */
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+  .proj-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  }
+  .proj-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .proj-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .proj-title p {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .proj-badges {
+    display: flex;
+    gap: 6px;
+  }
+  .badge-metric {
+    background: rgba(153, 204, 51, 0.12);
+    border: 1px solid rgba(153, 204, 51, 0.25);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  /* Progress Bar */
+  .progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .progress-labels span:first-child {
+    color: #ffffff;
+  }
+  .progress-labels span:last-child {
+    color: var(--accent);
+  }
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #04140e;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid #143527;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .progress-fill.optimal {
+    background: linear-gradient(90deg, #16604a, #99CC33);
+  }
+  .progress-fill.warning {
+    background: linear-gradient(90deg, #e67e22, #f1c40f);
+  }
+  .progress-fill.danger {
+    background: linear-gradient(90deg, #c0392b, #e74c3c);
+  }
+
+  /* Tables Breakdown */
+  .table-list {
+    background: #041610;
+    border: 1px solid #143527;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 170px;
+    overflow-y: auto;
+  }
+  .table-row-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .table-row-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .tbl-name {
+    font-weight: 600;
+    color: #d1e7dd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+  }
+  .tbl-rows {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+  .tbl-dead {
+    color: var(--warning);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .tbl-size {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .proj-actions {
+    margin-top: auto;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-action {
+    flex: 1;
+    background: #0d3829;
+    border: 1px solid #235843;
+    color: #eaf5ee;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-action:hover {
+    background: #17543e;
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Optimization Control Section */
+  .opt-section {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 28px;
+  }
+  .opt-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .opt-section-header h3 {
+    margin: 0;
+    font-size: 17px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .opt-info-banner {
+    background: rgba(153, 204, 51, 0.08);
+    border: 1px solid rgba(153, 204, 51, 0.2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #d1e7dd;
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+  .opt-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .opt-tool-card {
+    background: #051a13;
+    border: 1px solid #163d2e;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .opt-tool-card h4 {
+    margin: 0;
+    font-size: 14px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .opt-tool-card p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.35;
+    flex: 1;
+  }
+  .opt-tool-card .btn-opt {
+    margin-top: 6px;
+    background: #114232;
+    border: 1px solid #23654e;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .opt-tool-card .btn-opt:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #06231a;
+  }
+
+  /* Live Stream Console */
+  .stream-section {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 28px;
+  }
+  .stream-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stream-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .stream-title h3 {
+    margin: 0;
+    font-size: 17px;
+    color: #ffffff;
+  }
+  .pulse-dot {
+    width: 10px;
+    height: 10px;
+    background: #ff5252;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ff5252;
+    animation: livePulse 1.4s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.35); opacity: 0.5; }
+  }
+  .stream-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .feed-filter-btn {
+    background: #051c14;
+    border: 1px solid #163d2e;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .feed-filter-btn.active {
+    background: var(--accent);
+    color: #06231a;
+    border-color: var(--accent);
+  }
+  .stream-console {
+    background: #020d0a;
+    border: 1px solid #112d22;
+    border-radius: 12px;
+    padding: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .req-item {
+    display: grid;
+    grid-template-columns: 75px 65px 70px 1fr 140px 65px 65px;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-left: 3px solid #1b4b39;
+  }
+  .req-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .req-time { color: var(--text-muted); font-size: 11px; }
+  .req-type { font-size: 10px; font-weight: 800; padding: 2px 5px; border-radius: 4px; text-align: center; }
+  .type-http { background: rgba(52, 152, 219, 0.2); color: #3498db; }
+  .type-wa { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+  .type-opt { background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
+  .req-method { font-weight: 700; color: #fff; font-size: 11px; }
+  .req-path { color: #8cd4b9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .req-detail { color: var(--text-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .req-status { font-size: 11px; font-weight: 700; text-align: center; }
+  .badge-ok { color: #2ed573; }
+  .badge-err { color: #ff5252; font-weight: 800; }
+  .req-lat { font-size: 11px; text-align: right; }
+  .lat-fast { color: #2ed573; }
+  .lat-med { color: #ffb142; }
+  .lat-slow { color: #ff5252; font-weight: 700; }
+  @keyframes reqEntryFlash {
+    0% { background: rgba(153, 204, 51, 0.28); border-left-color: #99CC33; }
+    100% { background: rgba(255, 255, 255, 0.02); border-left-color: #1b4b39; }
+  }
+  .req-live-entry {
+    animation: reqEntryFlash 1.2s ease-out;
+  }
+  .empty-feed {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 30px;
+    font-style: italic;
+  }
+
+  /* Modal de confirmación */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+  .modal-box {
+    background: #07231a;
+    border: 1px solid #1a4e3b;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  }
+  .modal-box h4 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #fff;
+  }
+  .modal-box p {
+    color: #d1e7dd;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 20px 0;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .btn-sec {
+    background: #0d3829;
+    border: 1px solid #235843;
+    color: #eaf5ee;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-pri {
+    background: var(--accent);
+    border: 0;
+    color: #06231a;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Toast Notification */
+  .opt-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 10000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: none;
+    max-width: 400px;
+    line-height: 1.4;
+  }
+  .opt-toast.active { display: block; }
+  .opt-toast.info { background: #1b3d30; border: 1px solid var(--card-border); color: #fff; }
+  .opt-toast.success { background: #0c3822; border: 1px solid #2ed573; color: #b8f5d0; }
+  .opt-toast.error { background: #3d1414; border: 1px solid #ff5252; color: #ffc4c4; }
+
+  /* Spin animation */
+  .spinning {
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  @media (max-width: 768px) {
+    .req-item {
+      grid-template-columns: 60px 50px 1fr 50px;
+    }
+    .req-method, .req-detail, .req-time { display: none; }
+  }
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <!-- Sidenav auto-inyectado por sidenav.js -->
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav"></nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>⚡ Monitor de Cuotas & Optimizador</h2>
+          <p>Supervisión en vivo de los 3 proyectos Supabase, tráfico de llamadas y mantenimiento</p>
+        </div>
+      </div>
+      <div class="topbar-actions" style="display:flex;align-items:center;gap:10px;">
+        <span id="engineStatusBadge" class="engine-badge online">⏳ Conectando...</span>
+        <button class="btn-o sm" id="refreshBtn" title="Forzar actualización de métricas">
+          <span id="refreshSpinIcon">🔄</span> Actualizar
+        </button>
+        <button class="btn-p sm" id="masterOptimizeBtn" style="background:#99CC33;color:#06231a;font-weight:700;border:0;padding:7px 14px;border-radius:8px;cursor:pointer;">
+          🚀 Optimizar Todo (1-Clic)
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Barra de Control de Frecuencia -->
+      <div class="monitor-header">
+        <div style="font-size:13px;color:var(--text-muted);">
+          Actualización en tiempo real · 
+          <label style="margin-left:6px;">Intervalo: 
+            <select id="refreshIntervalSelect" style="background:#0c2a20;color:#fff;border:1px solid #1a4e3b;border-radius:6px;padding:3px 8px;font-size:12px;">
+              <option value="3">Cada 3 segundos</option>
+              <option value="5" selected>Cada 5 segundos</option>
+              <option value="10">Cada 10 segundos</option>
+              <option value="0">Pausado (Manual)</option>
+            </select>
+          </label>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          Cuota máxima por proyecto Supabase: <strong>500 MB (BD) / 1.000 MB (Storage)</strong>
+        </div>
+      </div>
+
+      <!-- KPI Grid Global -->
+      <div class="kpi-grid">
+        <div class="kpi-card highlight">
+          <div class="kpi-title">Base de Datos Usada (Core + Comm)</div>
+          <div class="kpi-val" id="kpiTotalDb">-- <small>MB</small></div>
+        </div>
+        <div class="kpi-card highlight">
+          <div class="kpi-title">Storage Usado (WebP + Comprobantes)</div>
+          <div class="kpi-val" id="kpiTotalStorage">-- <small>MB</small></div>
+        </div>
+        <div class="kpi-card safety">
+          <div class="kpi-title">Margen Seguro Global</div>
+          <div class="kpi-val" id="kpiFreeMargin">--% <small>LIBRE</small></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Tráfico en Vivo</div>
+          <div class="kpi-val" id="kpiLiveRpm">-- <small>RPM</small></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Latencia Promedio Multi-Proyecto</div>
+          <div class="kpi-val" id="kpiAvgLatency">-- <small>ms</small></div>
+        </div>
+      </div>
+
+      <!-- Grid de los 3 Proyectos Supabase -->
+      <div class="projects-grid">
+        
+        <!-- PROYECTO A: CORE -->
+        <div class="proj-card">
+          <div class="proj-header">
+            <div class="proj-title">
+              <h3>Proyecto A (Core)</h3>
+              <p>Ventas, Catálogo, Clientes & POS</p>
+            </div>
+            <div class="proj-badges">
+              <span class="badge-metric" id="coreLatency">⚡ -- ms</span>
+              <span class="badge-metric" id="coreConn">🔌 -- con</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-labels">
+              <span id="coreUsedTxt">-- MB / 500 MB</span>
+              <span id="corePctTxt">--% utilizado</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill optimal" id="coreProgressBar" style="width: 4%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">Tablas Principales:</div>
+            <div class="table-list" id="coreTableList">
+              <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:10px;">Cargando tablas...</div>
+            </div>
+          </div>
+
+          <div class="proj-actions">
+            <button class="btn-action" onclick="promptOptimization('vacuum_core', 'VACUUM ANALYZE en Proyecto A (Core)')">
+              🧹 VACUUM & Limpieza
+            </button>
+          </div>
+        </div>
+
+        <!-- PROYECTO B: COMUNICACIÓN -->
+        <div class="proj-card">
+          <div class="proj-header">
+            <div class="proj-title">
+              <h3>Proyecto B (Comunicación)</h3>
+              <p>WhatsApp, Correos CRM & Campañas</p>
+            </div>
+            <div class="proj-badges">
+              <span class="badge-metric" id="commLatency">⚡ -- ms</span>
+              <span class="badge-metric" id="commConn">🔌 -- con</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-labels">
+              <span id="commUsedTxt">-- MB / 500 MB</span>
+              <span id="commPctTxt">--% utilizado</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill optimal" id="commProgressBar" style="width: 2.6%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">Tablas de CRM & Mensajería:</div>
+            <div class="table-list" id="commTableList">
+              <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:10px;">Cargando tablas...</div>
+            </div>
+          </div>
+
+          <div class="proj-actions">
+            <button class="btn-action" onclick="promptOptimization('vacuum_comm', 'VACUUM ANALYZE en Proyecto B (Comunicación)')">
+              🧹 VACUUM & Limpieza
+            </button>
+          </div>
+        </div>
+
+        <!-- PROYECTO C: STORAGE & MEDIA -->
+        <div class="proj-card">
+          <div class="proj-header">
+            <div class="proj-title">
+              <h3>Proyecto C (Storage)</h3>
+              <p>Catálogo WebP & Comprobantes</p>
+            </div>
+            <div class="proj-badges">
+              <span class="badge-metric" id="storageLatency">⚡ -- ms</span>
+              <span class="badge-metric" id="storageFilesCount">🖼️ -- arch</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-labels">
+              <span id="storageUsedTxt">-- MB / 1.024 MB</span>
+              <span id="storagePctTxt">--% utilizado</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill optimal" id="storageProgressBar" style="width: 0.5%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">Buckets de Almacenamiento:</div>
+            <div class="table-list" id="storageBucketsList">
+              <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:10px;">Cargando buckets...</div>
+            </div>
+          </div>
+
+          <div class="proj-actions">
+            <button class="btn-action" onclick="promptOptimization('clean_server_logs', 'Mantenimiento de Servidor & Logs')">
+              💾 Depurar Logs Transitorios
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sección de Optimizaciones & Limpieza de Datos -->
+      <div class="opt-section">
+        <div class="opt-section-header">
+          <h3>⚙️ Gestor de Optimizaciones & Purga de Datos Temporales</h3>
+          <span style="font-size:12px;color:var(--accent);font-weight:600;">Mantenimiento seguro sin pérdida de datos de negocio</span>
+        </div>
+
+        <div class="opt-info-banner" id="optimizationSummaryText">
+          🔍 Analizando estado de tuplas y tablas en PostgreSQL...
+        </div>
+
+        <div class="opt-cards-grid">
+          <div class="opt-tool-card">
+            <h4>🧹 VACUUM Core</h4>
+            <p>Compacta tablas en Proyecto A, libera espacio físico de clientes/pedidos y actualiza estadísticas.</p>
+            <button class="btn-opt" onclick="promptOptimization('vacuum_core', 'VACUUM ANALYZE en Core')">Ejecutar VACUUM</button>
+          </div>
+
+          <div class="opt-tool-card">
+            <h4>💬 VACUUM Comunicación</h4>
+            <p>Compacta tablas de WhatsApp, correos y campañas en Proyecto B. Recupera tuplas muertas.</p>
+            <button class="btn-opt" onclick="promptOptimization('vacuum_comm', 'VACUUM ANALYZE en Comunicación')">Ejecutar VACUUM</button>
+          </div>
+
+          <div class="opt-tool-card">
+            <h4>🗑️ Purgar Targets Obsoletos</h4>
+            <p>Elimina destinatarios de pruebas o envíos cancelados/fallidos con más de 30 días de antigüedad.</p>
+            <button class="btn-opt" onclick="promptOptimization('clean_orphan_targets', 'Purga de Targets Antiguos')">Purgar Targets</button>
+          </div>
+
+          <div class="opt-tool-card">
+            <h4>💾 Limpieza de Logs Servidor</h4>
+            <p>Borra eventos completados y transitorios en la tabla de control de servidor con más de 7 días.</p>
+            <button class="btn-opt" onclick="promptOptimization('clean_server_logs', 'Purga de Logs de Servidor')">Limpiar Logs</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monitor de Requests y Llamadas en Vivo (Live Stream) -->
+      <div class="stream-section">
+        <div class="stream-header">
+          <div class="stream-title">
+            <div class="pulse-dot"></div>
+            <h3>Monitor de Requests & Llamadas en Vivo</h3>
+          </div>
+          <div class="stream-controls">
+            <button class="feed-filter-btn active" data-filter="ALL">Todos</button>
+            <button class="feed-filter-btn" data-filter="HTTP">HTTP/LAN</button>
+            <button class="feed-filter-btn" data-filter="WA">WhatsApp</button>
+            <button class="feed-filter-btn" data-filter="OPTIMIZE">Optimizador</button>
+            <button class="btn-o sm" id="pauseFeedBtn" style="margin-left:6px;">⏸️ Pausar</button>
+          </div>
+        </div>
+
+        <div class="stream-console" id="liveRequestsContainer">
+          <div class="empty-feed">Cargando eventos de red y llamadas en tiempo real...</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Modal de Confirmación de Optimización -->
+<div class="modal-overlay" id="optimizeConfirmModal">
+  <div class="modal-box">
+    <h4 id="optModalTitle">Confirmar Optimización</h4>
+    <p id="optModalDesc">¿Deseas ejecutar esta tarea de mantenimiento?</p>
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeOptModal()">Cancelar</button>
+      <button class="btn-pri" id="optConfirmActionBtn">Sí, Ejecutar Ahora</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast flotante -->
+<div class="opt-toast" id="optToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js"></script>
+<script src="../assets/js/admin/monitor-client.js"></script>
+</body>
+</html>

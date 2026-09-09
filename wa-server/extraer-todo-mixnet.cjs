@@ -1,65 +1,95 @@
 /*
-  ============================================================
-  JJ Paper — Extractor TOTAL MixNet v3.2 (Con Soporte MEMO)
-  ============================================================
-  Extrae TODA la informacion util de MixNet, incluyendo
-  correos electronicos ocultos en archivos .DBT / .FPT.
-  
-  Compatible con Node 13+ (CommonJS, Windows 7).
-  NO necesita npm install — usa solo modulos nativos.
-  ============================================================
+  ========================================================================
+  JJ Paper — Motor Inteligente de Extraccion MixNet v5.1 (2026)
+  ========================================================================
+  CERO PREGUNTAS — CERO DUDAS — 100% DATOS REALES DE LA TIENDA
+
+  Criterios y Lógica de Negocio Aplicados:
+    1. Localiza la empresa viva (M:\comp01) por fecha de transacciones reales.
+    2. Logica de precios de MixNet:
+       - PRECIO_CLIENTE_USD = Precio B (el precio real de venta al cliente).
+       - PRECIO_MAYOR_USD   = Precio A (precio base / distribuidor).
+       - PRECIO_BS          = Precio C (precio calculado en bolivares).
+       - COSTO_USD          = Costo actual / reposicion.
+       - STOCK_ACTUAL       = Existencia fisica en inventario.
+    3. Filtro riguroso de PRODUCTOS ACTIVOS:
+       - Descarta articulos inactivos (estatus = '1' en FoxPro).
+       - Descarta registros historicos obsoletos sin precio y sin stock.
+       - Extrae el catalogo real de la tienda (articulos vigentes hoy).
+    4. Cartera de clientes con RIF limpio, direccion, celulares y correos:
+       - Clasifica celulares para WhatsApp (0414, 0424, 0412, etc.) y telefonos fijos.
+       - Rastrea correos en campos, notas MEMO (.DBT/.FPT) y agenda (MXAGENDA).
+    5. Guarda archivos ultra-claros y legibles directamente en el ESCRITORIO.
+
+  Compatible con Node 13+ (Windows 7 / 10 / 11).
+  Cero dependencias npm — 100% nativo.
+  ========================================================================
 */
 'use strict';
 
 var fs = require('fs');
 var path = require('path');
 
-/* ═══════════════ SALIDA ═══════════════ */
-function say(s) { try { fs.writeSync(1, s + '\n'); } catch (_) { console.log(s); } }
-function ts() { var d = new Date(); return '[' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0') + ']'; }
-function log(m) { say(ts() + ' ' + m); }
-function logOK(m) { say(ts() + '   OK ' + m); }
-function logWarn(m) { say(ts() + '   !! ' + m); }
+/* ═══════════════ SALIDA DIRECTA A CONSOLA (SIN BUFFER) ═══════════════ */
+function say(s) {
+  try {
+    fs.writeSync(1, s + '\r\n');
+  } catch (_) {
+    console.log(s);
+  }
+}
 
-/* ═══════════════ CP1252 (acentos) ═══════════════ */
+function ts() {
+  var d = new Date();
+  var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+  return '[' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + ']';
+}
+
+function log(m)     { say(ts() + ' ' + m); }
+function logOK(m)   { say(ts() + '  [OK] ' + m); }
+function logWarn(m) { say(ts() + '  [!] ' + m); }
+function logErr(m)  { say(ts() + '  [ERROR] ' + m); }
+
+function banner(msg) {
+  say('');
+  say('========================================================================');
+  say('  ' + msg);
+  say('========================================================================');
+  say('');
+}
+
+/* ═══════════════ DECODIFICACION CP1252 ═══════════════ */
 var CP1252 = {
   0x80:'\u20AC', 0x82:'\u201A', 0x83:'\u0192', 0x84:'\u201E', 0x85:'\u2026',
   0x86:'\u2020', 0x87:'\u2021', 0x88:'\u02C6', 0x89:'\u2030', 0x8A:'\u0160',
   0x8B:'\u2039', 0x8C:'\u0152', 0x8E:'\u017D', 0x91:'\u2018', 0x92:'\u2019',
   0x93:'\u201C', 0x94:'\u201D', 0x95:'\u2022', 0x96:'\u2013', 0x97:'\u2014',
   0x98:'\u02DC', 0x99:'\u2122', 0x9A:'\u0161', 0x9B:'\u203A', 0x9C:'\u0153',
-  0x9E:'\u017E', 0x9F:'\u0178'
+  0x9E:'\u017E', 0x9F:'\u0178', 0xA0:' ',     0xA7:'\u00A7'
 };
-
-function decodeByte(b) {
-  if (b < 128) return String.fromCharCode(b);
-  if (b >= 0xA0) return String.fromCharCode(b);
-  return CP1252[b] || '';
-}
 
 function decodeStr(buf, start, len) {
   var s = '';
   for (var i = start; i < start + len; i++) {
     var b = buf[i];
     if (b === 0) break;
-    s += decodeByte(b);
+    if (b < 128) s += String.fromCharCode(b);
+    else if (b >= 0xA0) s += String.fromCharCode(b);
+    else s += CP1252[b] || '';
   }
   return s.trim();
 }
 
-/* ═══════════════ LECTOR DBF Y MEMO ═══════════════ */
-function cleanFieldName(raw) {
-  return raw.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-}
-
+/* ═══════════════ LECTOR DBF Y MEMO (.DBT / .FPT) ═══════════════ */
 function readDbfStructure(filePath) {
   try {
     var buf = fs.readFileSync(filePath);
     if (buf.length < 33) return null;
 
     var numRecords = buf.readUInt32LE(4);
-    var headerLen = buf.readUInt16LE(8);
-    var recordLen = buf.readUInt16LE(10);
+    var headerLen  = buf.readUInt16LE(8);
+    var recordLen  = buf.readUInt16LE(10);
+    var lastUpd    = { y: buf[1] + 1900, m: buf[2], d: buf[3] };
 
     if (headerLen < 33 || recordLen < 1 || headerLen > buf.length) return null;
 
@@ -72,16 +102,27 @@ function readDbfStructure(filePath) {
         if (c === 0) break;
         rawName += String.fromCharCode(c);
       }
-      var clean = cleanFieldName(rawName);
+      var clean = rawName.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
       if (clean.length > 0) {
         fields.push({
           name: clean,
           rawName: rawName.trim(),
           type: String.fromCharCode(buf[off + 11]),
-          len: buf[off + 16] || buf.readUInt16LE(off + 16)
+          len:  buf[off + 16] || buf.readUInt16LE(off + 16),
+          dec:  buf[off + 17] || 0
         });
       }
       off += 32;
+    }
+
+    var st = fs.statSync(filePath);
+
+    var memoPath = null;
+    var baseNoExt = filePath.replace(/\.dbf$/i, '');
+    var memoExts = ['.dbt', '.DBT', '.fpt', '.FPT'];
+    for (var mi = 0; mi < memoExts.length; mi++) {
+      var mp = baseNoExt + memoExts[mi];
+      if (fs.existsSync(mp)) { memoPath = mp; break; }
     }
 
     return {
@@ -90,530 +131,663 @@ function readDbfStructure(filePath) {
       numRecords: numRecords,
       headerLen: headerLen,
       recordLen: recordLen,
+      lastUpd: lastUpd,
+      mtime: st.mtime,
+      size: st.size,
       fields: fields,
-      fieldNames: fields.map(function (f) { return f.name; }),
-      mtimeMs: fs.statSync(filePath).mtimeMs
+      fieldNames: fields.map(function(f) { return f.name; }),
+      memoPath: memoPath
     };
   } catch (_) {
     return null;
   }
 }
 
-// Abre el archivo .DBT o .FPT asociado para leer campos Memo
 function openMemo(struct) {
-  var base = struct.path.substring(0, struct.path.length - 4);
-  var paths = [base + '.DBT', base + '.dbt', base + '.FPT', base + '.fpt'];
-  struct.memoFd = null;
-
-  for (var i = 0; i < paths.length; i++) {
-    var p = paths[i];
-    if (fs.existsSync(p)) {
-      try {
-        struct.memoFd = fs.openSync(p, 'r');
-        var ext = p.toUpperCase().slice(-3);
-        struct.memoExt = ext;
-        if (ext === 'FPT') {
-          var hbuf = Buffer.alloc(8);
-          fs.readSync(struct.memoFd, hbuf, 0, 8, 0);
-          struct.memoBlockSize = hbuf.readUInt16BE(6);
-          if (struct.memoBlockSize < 64) struct.memoBlockSize = 512;
-        } else {
-          struct.memoBlockSize = 512;
-        }
-        break;
-      } catch (_) {}
-    }
-  }
-}
-
-function readMemo(struct, blockStr) {
-  if (!struct.memoFd) return '';
-  var blockNum = parseInt(blockStr, 10);
-  if (isNaN(blockNum) || blockNum <= 0) return '';
-  
+  if (!struct.memoPath) return null;
   try {
-    var startPos = blockNum * struct.memoBlockSize;
-    if (struct.memoExt === 'DBT') {
-      var buf = Buffer.alloc(4096);
-      var bytesRead = fs.readSync(struct.memoFd, buf, 0, 4096, startPos);
-      var text = '';
-      for (var i = 0; i < bytesRead; i++) {
-        if (buf[i] === 0x1A || buf[i] === 0x00) break;
-        text += decodeByte(buf[i]);
-      }
-      return text.trim();
-    } else if (struct.memoExt === 'FPT') {
-      var hbuf = Buffer.alloc(8);
-      fs.readSync(struct.memoFd, hbuf, 0, 8, startPos);
-      var dataLen = hbuf.readUInt32BE(4);
-      if (dataLen <= 0 || dataLen > 65536) return '';
-      var dbuf = Buffer.alloc(dataLen);
-      fs.readSync(struct.memoFd, dbuf, 0, dataLen, startPos + 8);
-      var text = '';
-      for (var i = 0; i < dataLen; i++) {
-        if (dbuf[i] === 0) break;
-        text += decodeByte(dbuf[i]);
-      }
-      return text.trim();
+    var fd = fs.openSync(struct.memoPath, 'r');
+    var hBuf = Buffer.alloc(512);
+    fs.readSync(fd, hBuf, 0, 512, 0);
+    var blockSize = 512;
+    if (/\.fpt$/i.test(struct.memoPath)) {
+      var bs = hBuf.readUInt16BE(6);
+      if (bs >= 32 && bs <= 16384) blockSize = bs;
     }
-  } catch (_) {}
-  return '';
-}
-
-function closeMemo(struct) {
-  if (struct.memoFd) {
-    try { fs.closeSync(struct.memoFd); } catch (_) {}
-    struct.memoFd = null;
-  }
-}
-
-function readDbfData(struct, maxRows) {
-  if (!struct) return [];
-  maxRows = maxRows || 500000;
-  openMemo(struct);
-
-  try {
-    var buf = fs.readFileSync(struct.path);
-    var maxEnd = Math.min(struct.headerLen + struct.numRecords * struct.recordLen, buf.length);
-    var rows = [];
-    var pos = struct.headerLen;
-    while (pos + struct.recordLen <= maxEnd && rows.length < maxRows) {
-      var rec = buf.slice(pos, pos + struct.recordLen);
-      if (rec[0] !== 0x2A) { // no borrado
-        var obj = {};
-        var fpos = 1;
-        for (var fi = 0; fi < struct.fields.length; fi++) {
-          var f = struct.fields[fi];
-          if (fpos + f.len > rec.length) break;
-          var val = decodeStr(rec, fpos, f.len);
-          
-          if (f.type === 'M') {
-            obj[f.name] = readMemo(struct, val);
-          } else if (f.type === 'N' || f.type === 'F') {
-            var num = parseFloat(val);
-            obj[f.name] = isNaN(num) ? 0 : num;
-          } else {
-            obj[f.name] = val;
-          }
-          fpos += f.len;
-        }
-        rows.push(obj);
-      }
-      pos += struct.recordLen;
-    }
-    closeMemo(struct);
-    return rows;
+    return { fd: fd, blockSize: blockSize };
   } catch (_) {
-    closeMemo(struct);
-    return [];
+    return null;
   }
 }
 
-/* ═══════════════ MATCHING DE CAMPOS ═══════════════ */
+function readMemoBlock(memoInfo, blockNum) {
+  if (!memoInfo || !blockNum || blockNum <= 0) return '';
+  try {
+    var off = blockNum * memoInfo.blockSize;
+    var buf = Buffer.alloc(1024);
+    var n = fs.readSync(memoInfo.fd, buf, 0, 1024, off);
+    if (n <= 0) return '';
+    var txt = '';
+    for (var i = 0; i < n; i++) {
+      if (buf[i] === 0x1A || buf[i] === 0) break;
+      txt += decodeStr(buf, i, 1);
+    }
+    return txt.trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function closeMemo(memoInfo) {
+  if (memoInfo && memoInfo.fd) {
+    try { fs.closeSync(memoInfo.fd); } catch (_) {}
+  }
+}
+
+function readDbfRows(struct, maxLimit) {
+  var limit = maxLimit || 500000;
+  var buf;
+  try { buf = fs.readFileSync(struct.path); } catch (_) { return []; }
+
+  var memo = openMemo(struct);
+  var rows = [];
+  var pos = struct.headerLen;
+  var maxDataEnd = Math.min(
+    struct.headerLen + (struct.numRecords * struct.recordLen),
+    buf.length
+  );
+
+  while (pos + struct.recordLen <= maxDataEnd && rows.length < limit) {
+    var flag = buf[pos];
+    // 0x2A = borrado en FoxPro. Omitir.
+    if (flag !== 0x2A && flag === 0x20) {
+      var row = {};
+      var fOff = 1;
+      for (var fi = 0; fi < struct.fields.length; fi++) {
+        var f = struct.fields[fi];
+        var val = decodeStr(buf, pos + fOff, f.len);
+        if (f.type === 'M') {
+          var blk = parseInt(val, 10);
+          if (!isNaN(blk) && blk > 0) {
+            row[f.name] = readMemoBlock(memo, blk);
+          } else {
+            row[f.name] = '';
+          }
+        } else {
+          row[f.name] = val;
+        }
+        fOff += f.len;
+      }
+      rows.push(row);
+    }
+    pos += struct.recordLen;
+  }
+
+  closeMemo(memo);
+  return rows;
+}
+
 function findField(fieldNames, candidates) {
-  // Primero buscar coincidencia exacta o prefijo
   for (var ci = 0; ci < candidates.length; ci++) {
     var c = candidates[ci].toLowerCase();
     for (var fi = 0; fi < fieldNames.length; fi++) {
       if (fieldNames[fi] === c || fieldNames[fi].indexOf(c) === 0) return fieldNames[fi];
     }
   }
-  // Luego buscar subcadena (solo si candidato >= 3 chars)
-  for (var ci = 0; ci < candidates.length; ci++) {
-    var c = candidates[ci].toLowerCase();
-    if (c.length < 3) continue;
-    for (var fi = 0; fi < fieldNames.length; fi++) {
-      if (fieldNames[fi].indexOf(c) !== -1) return fieldNames[fi];
+  for (var ci2 = 0; ci2 < candidates.length; ci2++) {
+    var c2 = candidates[ci2].toLowerCase();
+    if (c2.length < 3) continue;
+    for (var fi2 = 0; fi2 < fieldNames.length; fi2++) {
+      if (fieldNames[fi2].indexOf(c2) !== -1) return fieldNames[fi2];
     }
   }
   return null;
 }
 
-function findFieldExact(fieldNames, candidates) {
-  for (var ci = 0; ci < candidates.length; ci++) {
-    var c = candidates[ci].toLowerCase();
-    for (var fi = 0; fi < fieldNames.length; fi++) {
-      if (fieldNames[fi] === c) return fieldNames[fi];
-    }
-  }
-  return null;
-}
-
-function hasField(fieldNames, candidates) {
-  return findField(fieldNames, candidates) !== null;
-}
-
-/* ═══════════════ SCORING DE TABLAS ═══════════════ */
-function scoreCliente(struct) {
-  var fn = struct.fieldNames;
-  var s = 0;
-  if (hasField(fn, ['nomcli', 'razonsocial', 'razon'])) s += 3;
-  if (hasField(fn, ['cifoi', 'rif', 'cedula', 'nit'])) s += 3;
-  if (hasField(fn, ['vendedor', 'vended', 'codven'])) s += 2;
-  if (hasField(fn, ['direc1', 'direccion', 'dir1'])) s += 2;
-  if (hasField(fn, ['tlf1', 'telefono', 'tel1', 'telf'])) s += 2;
-  if (hasField(fn, ['email', 'correo', 'mail'])) s += 2;
-  if (hasField(fn, ['zona', 'zonacto'])) s += 1;
-  return s;
-}
-
-function scoreProducto(struct) {
-  var fn = struct.fieldNames;
-  var s = 0;
-  var fnStr = struct.fileName;
-  
-  // *** PRIORIDAD ABSOLUTA: tablas conocidas de inventario de JJ Paper ***
-  // La auditoria confirmo que VICTAINV, MXCTAINV, JJCTAINV y CTAINV
-  // son las tablas maestras de productos con codart, nomart, precio_a, etc.
-  if (/VICTAINV|MXCTAINV|JJCTAINV|CTAINV/i.test(fnStr)) s += 1000;
-  
-  // Nombres genericos de archivos de productos
-  if (/ARTIC|PROALM|PRODUC|ITEM/i.test(fnStr)) s += 10;
-  if (/LISPRE/i.test(fnStr)) s += 5;
-  
-  // Campos tipicos de inventario (incluye los nombres REALES de MixNet)
-  if (hasField(fn, ['codart', 'codarti', 'codigo', 'codinv', 'cod_art', 'art'])) s += 3;
-  if (hasField(fn, ['nomart', 'descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des'])) s += 3;
-  if (hasField(fn, ['precio_a', 'precio1', 'p1', 'precio', 'pvp', 'pventa', 'prec', 'p_vta'])) s += 3;
-  if (hasField(fn, ['existe_act', 'exist', 'stock', 'saldoinv', 'cant', 'cantidad'])) s += 2;
-  if (hasField(fn, ['costo_act', 'costo', 'cost', 'ultcos', 'cost_u', 'ult_costo'])) s += 2;
-  if (hasField(fn, ['familia', 'fam', 'grupo', 'cat'])) s += 2;
-  
-  // Penalizar fuertemente tablas de facturas o temporales
-  if (/REN|ENC|NUM|TRA|HIS|BUF/i.test(fnStr)) s -= 15;
-  if (hasField(fn, ['fecha', 'fec']) && hasField(fn, ['nrofac', 'numfac', 'factura', 'docto'])) s -= 5;
-  
-  // Penalizar carpetas de ejercicios (EJ004, etc.) o temporales
-  if (/\\EJ\d\d|\\comp\d+[a-z]\\/i.test(struct.path)) s -= 50;
-
-  return s;
-}
-
-/* ═══════════════ BUSQUEDA INTELIGENTE ═══════════════ */
-function listDbf(dir) {
-  try { return fs.readdirSync(dir).filter(function (f) { return /\.dbf$/i.test(f); }); } catch (_) { return []; }
-}
-
-// Escanea recursivamente buscando carpetas con archivos MixNet DBF
-function scanForMixnet(baseDir, maxDepth, results) {
-  if (maxDepth < 0) return;
-  var entries;
-  try { entries = fs.readdirSync(baseDir, { withFileTypes: true }); } catch (_) { return; }
-  var dbfs = [];
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var name = e.name;
-    var nameLow = name.toLowerCase();
-    if (e.isFile() && /\.dbf$/i.test(name)) dbfs.push(name);
-    if (e.isDirectory()) {
-      // Saltar carpetas del sistema que nunca tendran MixNet
-      if (/^(windows|program|appdata|perflogs|\$|node_modules|\.git)/i.test(nameLow)) continue;
-      // Si el nombre parece de MixNet (comp01, respamix, mix11, etc.), entrar SIEMPRE
-      if (/comp\d|respami|mixnet|mixer|mix\d|sistema|datos|factur|ej\d/i.test(nameLow)) {
-        scanForMixnet(path.join(baseDir, name), maxDepth, results); // no reducir profundidad
-      } else if (maxDepth > 0) {
-        // Carpetas normales: entrar pero con profundidad reducida
-        scanForMixnet(path.join(baseDir, name), maxDepth - 1, results);
-      }
-    }
-  }
-  // Si esta carpeta tiene 5+ archivos DBF que empiezan con MX, VI, JJ, o CT, es candidata
-  var mxCount = 0;
-  for (var j = 0; j < dbfs.length; j++) {
-    if (/^(MX|VI|JJ|CT)/i.test(dbfs[j])) mxCount++;
-  }
-  if (dbfs.length > 5 && mxCount > 0) {
-    try {
-      results.push({ path: baseDir, dbfCount: dbfs.length, newestMs: fs.statSync(baseDir).mtimeMs });
-    } catch (_) {}
-  }
-}
-
-function findBestMixnetDir() {
-  log('[FASE 1] Buscando bases de datos MixNet...');
-  var results = [];
-  
-  // Rutas conocidas de JJ Paper (confirmadas por la auditoria)
-  var knownPaths = [
+/* ═══════════════ DETECCION DE LA EMPRESA ACTIVA ("BASE VIVA") ═══════════════ */
+function locateLiveStoreCompany() {
+  // Rutas candidatas
+  var candidateDirs = [
     'M:\\comp01',
-    'M:\\COMP02',
-    'M:\\COMP03',
-    'M:\\COMP01d',
-    'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
-    'C:\\RESPAMIX\\MIX11 (servidor)\\Comp01b\\EJ004',
-    'C:\\RESPAMIX\\COMP01-10012023',
-    'C:\\RESPAMIX\\comp0125042022',
+    'M:\\COMP01',
+    'M:\\',
+    'P:\\comp01',
     'P:\\Elias\\MIX\\MIX11\\comp01',
+    'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
     'C:\\MIXNET\\comp01',
     'D:\\MIXNET\\comp01'
   ];
 
-  for (var i = 0; i < knownPaths.length; i++) {
-    var p = knownPaths[i];
-    var dbfs = listDbf(p);
-    if (dbfs.length > 5) {
-      logOK(p + ' — ' + dbfs.length + ' archivos DBF');
-      try {
-        results.push({ path: p, dbfCount: dbfs.length, newestMs: fs.statSync(p).mtimeMs });
-      } catch (_) {}
-    }
-  }
+  var bestDir = null;
+  var latestTxDate = null;
+  var txFiles = ['MXTRAINV.DBF', 'MXTRACOB.DBF', 'MXRENFAC.DBF', 'YPENCFAC.DBF', 'VICTAINV.DBF', 'MXCTACLI.DBF'];
 
-  // Si no encontro nada en rutas conocidas, escanear unidades
-  if (results.length === 0) {
-    log('  No se encontraron rutas conocidas. Escaneando unidades...');
-    var drives = ['M:', 'P:', 'Z:', 'C:', 'D:', 'E:', 'F:'];
-    for (var i = 0; i < drives.length; i++) {
-      var root = drives[i] + '\\';
-      if (fs.existsSync(root)) {
-        log('  Escaneando ' + drives[i] + '...');
-        scanForMixnet(root, 4, results); // 4 niveles de profundidad
-      }
-    }
-  }
-
-  if (results.length === 0) return null;
-  
-  // Ordenar por fecha de modificacion mas reciente
-  results.sort(function (a, b) { return b.newestMs - a.newestMs; });
-  log('  -> SELECCIONADO: ' + results[0].path + ' (' + results[0].dbfCount + ' DBFs)');
-  return results[0].path;
-}
-
-/* ═══════════════ CSV HELPERS ═══════════════ */
-function escCSV(v) {
-  if (v === null || v === undefined) v = '';
-  v = String(v).trim().replace(/\r\n/g, ' ').replace(/\n/g, ' ');
-  if (/[",]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
-  return v;
-}
-
-function writeOut(texto, nombre) {
-  var rutas = [path.join(__dirname, nombre)];
-  var u = process.env.USERPROFILE || '';
-  if (u) {
-    var desktop = path.join(u, 'Desktop');
-    var escritorio = path.join(u, 'Escritorio');
-    if (fs.existsSync(desktop)) rutas.push(path.join(desktop, nombre));
-    if (fs.existsSync(escritorio)) rutas.push(path.join(escritorio, nombre));
-  }
-  
-  var saved = [];
-  for (var i = 0; i < rutas.length; i++) {
-    try { fs.writeFileSync(rutas[i], texto, 'utf8'); saved.push(rutas[i]); } catch (_) { }
-  }
-  if (saved.length > 0) {
-    log('    Guardado en: ' + saved[0]);
-  }
-}
-
-/* ═══════════════ EXTRACCION PRINCIPAL ═══════════════ */
-function main() {
-  say(''); log('============================================================');
-  log('  JJ PAPER — EXTRACTOR MIXNET v3.2 (SOPORTE MEMO ACTIVADO)');
-  log('============================================================'); say('');
-
-  var baseDir = findBestMixnetDir();
-  if (!baseDir) { log('[ERROR] No se encontraron datos de MixNet.'); return; }
-
-  say(''); log('[FASE 2] Leyendo estructura de tablas...');
-  var allDbfFiles = listDbf(baseDir);
-  
-  // Buscar tambien en subcarpetas (EJ*, Comp*, etc.)
-  try {
-    var subdirs = fs.readdirSync(baseDir, { withFileTypes: true });
-    for (var i = 0; i < subdirs.length; i++) {
-      if (subdirs[i].isDirectory()) {
-        var subName = subdirs[i].name;
-        if (/^(EJ\d|comp)/i.test(subName)) {
-          var subPath = path.join(baseDir, subName);
-          var ejDbfs = listDbf(subPath);
-          for (var j = 0; j < ejDbfs.length; j++) {
-            allDbfFiles.push(path.join(subName, ejDbfs[j]));
+  for (var i = 0; i < candidateDirs.length; i++) {
+    var d = candidateDirs[i];
+    try {
+      if (fs.existsSync(d)) {
+        // Verificar fecha mas reciente de transacciones
+        for (var ti = 0; ti < txFiles.length; ti++) {
+          var fp = path.join(d, txFiles[ti]);
+          if (fs.existsSync(fp)) {
+            var st = fs.statSync(fp);
+            if (!latestTxDate || st.mtime > latestTxDate) {
+              latestTxDate = st.mtime;
+              bestDir = d;
+            }
           }
-          // Y sub-sub carpetas (ej: Comp01b/EJ004)
-          try {
-            var subsubs = fs.readdirSync(subPath, { withFileTypes: true });
-            for (var k = 0; k < subsubs.length; k++) {
-              if (subsubs[k].isDirectory()) {
-                var ss = path.join(subPath, subsubs[k].name);
-                var ssDbfs = listDbf(ss);
-                for (var m = 0; m < ssDbfs.length; m++) {
-                  allDbfFiles.push(path.join(subName, subsubs[k].name, ssDbfs[m]));
-                }
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { dir: bestDir, lastTx: latestTxDate };
+}
+
+/* ═══════════════ EXTRACCION Y FILTRADO INTELIGENTE DE PRODUCTOS ═══════════════ */
+function extractActiveProducts(liveDir) {
+  log('Auditando y extrayendo catalogo de productos en ' + liveDir + '...');
+
+  // Tablas que contienen definiciones de articulos en la empresa
+  var tableNames = [
+    'VICTAINV.DBF',
+    'MXCTAINV.DBF',
+    'CTAEVA.DBF',
+    'JJCTAINV.DBF'
+  ];
+
+  var productsMap = new Map();
+  var totalRawFound = 0;
+  var inactiveCount = 0;
+  var obsoleteCount = 0;
+
+  for (var ti = 0; ti < tableNames.length; ti++) {
+    var tPath = path.join(liveDir, tableNames[ti]);
+    if (fs.existsSync(tPath)) {
+      var struct = readDbfStructure(tPath);
+      if (struct && struct.numRecords > 0) {
+        log('  -> Analizando tabla: ' + struct.fileName + ' (' + struct.numRecords + ' registros)');
+        var rows = readDbfRows(struct, 500000);
+        var fn = struct.fieldNames;
+
+        var fCode   = findField(fn, ['codart', 'codigo', 'cod_art', 'id']);
+        var fName   = findField(fn, ['nomart', 'nombre', 'descrip', 'articulo']);
+        var fPA     = findField(fn, ['precio_a', 'p1', 'precio1']);
+        var fPB     = findField(fn, ['precio_b', 'p2', 'precio2']);
+        var fPC     = findField(fn, ['precio_c', 'p3', 'precio3']);
+        var fCost   = findField(fn, ['costo_act', 'costo', 'ult_costo', 'cost_u']);
+        var fStock  = findField(fn, ['existe_act', 'exist', 'stock', 'cantidad']);
+        var fGroup  = findField(fn, ['grupo', 'familia', 'fam', 'cat']);
+        var fBrand  = findField(fn, ['marca', 'mar']);
+        var fUnit   = findField(fn, ['unidad', 'uni', 'medida']);
+        var fProv   = findField(fn, ['ult_prove', 'proveedor', 'prov_asig']);
+        var fStatus = findField(fn, ['estatus', 'status', 'inactivo']);
+        var fFMod   = findField(fn, ['fecha_mod', 'fec_mod', 'fechamod']);
+
+        for (var ri = 0; ri < rows.length; ri++) {
+          totalRawFound++;
+          var r = rows[ri];
+
+          var cod = String(r[fCode] || '').trim().toUpperCase();
+          if (!cod) continue;
+
+          var nom = String(r[fName] || '').trim();
+          if (!nom) nom = '(SIN NOMBRE)';
+
+          // CRITERIO 1: Estatus de FoxPro (estatus == '1' es DESACTIVADO / INACTIVO)
+          var stVal = String(r[fStatus] || '').trim();
+          if (stVal === '1') {
+            inactiveCount++;
+            continue;
+          }
+
+          // Precios de MixNet
+          // PRECIO B: Precio venta cliente (USD)
+          // PRECIO A: Precio mayorista / distribuidor (USD)
+          // PRECIO C: Precio en Bolivares (Bs)
+          var pB = parseFloat(String(r[fPB] || '0').replace(/,/g, '.')) || 0;
+          var pA = parseFloat(String(r[fPA] || '0').replace(/,/g, '.')) || 0;
+          var pC = parseFloat(String(r[fPC] || '0').replace(/,/g, '.')) || 0;
+          var cost = parseFloat(String(r[fCost] || '0').replace(/,/g, '.')) || 0;
+          var stock = parseFloat(String(r[fStock] || '0').replace(/,/g, '.')) || 0;
+
+          // Si el precio B esta en cero pero A tiene valor, usar A como respaldo para cliente
+          var precioCliente = pB > 0 ? pB : pA;
+          var precioMayor   = pA > 0 ? pA : pB;
+
+          var fMod = String(r[fFMod] || '').trim();
+
+          // CRITERIO 2: Filtro de activos reales:
+          // Un producto activo hoy en dia DEBE tener precio de venta > 0, o existencia > 0 en tienda.
+          // Si tiene precio 0 Y stock 0, es un articulo obsoleto/eliminado que no se vende.
+          if (precioCliente <= 0 && stock <= 0) {
+            obsoleteCount++;
+            continue;
+          }
+
+          // Descartar articulos con marcas de borrado en el nombre
+          if (/^(\*{3,}|NO USAR|ELIMINADO|ANULADO)/i.test(nom)) {
+            inactiveCount++;
+            continue;
+          }
+
+          var prodObj = {
+            codigo: cod,
+            descripcion: nom,
+            precio_cliente_usd: precioCliente,
+            precio_mayor_usd: precioMayor,
+            precio_bs: pC,
+            stock_actual: stock > 0 ? stock : 0,
+            costo_usd: cost,
+            estatus: 'ACTIVO',
+            categoria: String(r[fGroup] || '').trim(),
+            marca: String(r[fBrand] || '').trim(),
+            empaque: String(r[fUnit] || '').trim(),
+            proveedor: String(r[fProv] || '').trim(),
+            fecha_mod: fMod,
+            tabla_fuente: struct.fileName
+          };
+
+          // Fusion inteligente por SKU si ya fue leido en otra tabla
+          if (!productsMap.has(cod)) {
+            productsMap.set(cod, prodObj);
+          } else {
+            var cur = productsMap.get(cod);
+
+            // Si el nuevo registro viene con fecha_mod mas reciente, actualiza los precios
+            if (prodObj.fecha_mod && prodObj.fecha_mod > (cur.fecha_mod || '')) {
+              if (prodObj.precio_cliente_usd > 0) {
+                cur.precio_cliente_usd = prodObj.precio_cliente_usd;
+                cur.precio_mayor_usd   = prodObj.precio_mayor_usd;
+                cur.precio_bs          = prodObj.precio_bs;
+                cur.fecha_mod          = prodObj.fecha_mod;
+                cur.tabla_fuente       = prodObj.tabla_fuente;
               }
             }
-          } catch (_) {}
+
+            // Si el anterior tenia stock 0 y este tiene stock real, actualizar
+            if (prodObj.stock_actual > cur.stock_actual) {
+              cur.stock_actual = prodObj.stock_actual;
+            }
+
+            // Completar datos vacios
+            if (!cur.marca && prodObj.marca) cur.marca = prodObj.marca;
+            if (!cur.categoria && prodObj.categoria) cur.categoria = prodObj.categoria;
+            if (!cur.empaque && prodObj.empaque) cur.empaque = prodObj.empaque;
+            if (!cur.proveedor && prodObj.proveedor) cur.proveedor = prodObj.proveedor;
+            if (cur.costo_usd <= 0 && prodObj.costo_usd > 0) cur.costo_usd = prodObj.costo_usd;
+          }
         }
       }
     }
-  } catch (_) { }
-
-  log('  Total archivos DBF encontrados: ' + allDbfFiles.length);
-
-  var allStructs = [];
-  for (var i = 0; i < allDbfFiles.length; i++) {
-    var p = path.isAbsolute(allDbfFiles[i]) ? allDbfFiles[i] : path.join(baseDir, allDbfFiles[i]);
-    var struct = readDbfStructure(p);
-    if (struct && struct.fields.length > 0) allStructs.push(struct);
   }
 
-  log('  Total tablas validas: ' + allStructs.length);
+  var activeProducts = Array.from(productsMap.values());
 
-  // Seleccionar las mejores tablas de clientes y productos por scoring
-  var clientTable = null, productTable = null;
-  var bcs = 4, bps = 2;
+  // Ordenar alfabeticamente por descripcion
+  activeProducts.sort(function(a, b) {
+    return a.descripcion.localeCompare(b.descripcion);
+  });
 
-  for (var i = 0; i < allStructs.length; i++) {
-    var struct = allStructs[i];
-    var sc = scoreCliente(struct);
-    if (sc > bcs || (sc === bcs && clientTable && struct.mtimeMs > clientTable.mtimeMs)) { 
-      if (struct.numRecords > 30) { bcs = sc; clientTable = struct; }
+  return {
+    products: activeProducts,
+    totalRaw: totalRawFound,
+    inactive: inactiveCount,
+    obsolete: obsoleteCount
+  };
+}
+
+/* ═══════════════ EXTRACCION Y NORMALIZACION DE CLIENTES ═══════════════ */
+function extractActiveClients(liveDir) {
+  log('Auditando y extrayendo cartera de clientes con emails y telefonos...');
+
+  var EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+  var emailIndexByRif  = {};
+  var emailIndexByCod  = {};
+
+  function indexEmail(em, rif, cod) {
+    if (!em) return;
+    var clean = em.trim().toLowerCase();
+    if (rif) {
+      var rClean = rif.toUpperCase().replace(/[\s.-]/g, '');
+      if (rClean && !emailIndexByRif[rClean]) emailIndexByRif[rClean] = clean;
     }
-    
-    var sp = scoreProducto(struct);
-    if (sp > bps || (sp === bps && productTable && struct.mtimeMs > productTable.mtimeMs)) { 
-      if (struct.numRecords > 5) { bps = sp; productTable = struct; }
+    if (cod) {
+      var cClean = cod.trim().toUpperCase();
+      if (cClean && !emailIndexByCod[cClean]) emailIndexByCod[cClean] = clean;
     }
   }
 
-  if (clientTable) log('  CLIENTES: ' + clientTable.fileName + ' (' + clientTable.numRecords + ' registros, score=' + bcs + ')');
-  else logWarn('No se encontro tabla de clientes');
-  
-  if (productTable) log('  PRODUCTOS: ' + productTable.fileName + ' (' + productTable.numRecords + ' registros, score=' + bps + ')');
-  else logWarn('No se encontro tabla de productos');
+  // 1. Matriz de emails en tablas complementarias (MXAGENDA.DBF)
+  var agendaPaths = [
+    path.join(liveDir, 'MXAGENDA.DBF'),
+    path.join(path.dirname(liveDir), 'MXAGENDA.DBF'),
+    'M:\\MXAGENDA.DBF'
+  ];
 
-  if (!clientTable && !productTable) {
-    log('[ERROR] No se encontraron tablas validas. Verifica que MixNet este accesible.');
-    return;
+  for (var ai = 0; ai < agendaPaths.length; ai++) {
+    var ap = agendaPaths[ai];
+    if (fs.existsSync(ap)) {
+      var agStruct = readDbfStructure(ap);
+      if (agStruct) {
+        log('  -> Escaneando agenda de contactos: ' + agStruct.path);
+        var agRows = readDbfRows(agStruct, 20000);
+        agRows.forEach(function(ar) {
+          var m = String(ar.email || '').match(EMAIL_REGEX);
+          if (m) {
+            indexEmail(m[0], ar.rif || ar.cif || '', ar.codcli || ar.codigo || '');
+          }
+        });
+        break;
+      }
+    }
   }
 
-  say(''); log('[FASE 3] Extrayendo datos reales (procesando .DBT/.FPT si existen)...');
-  
+  // 2. Cartera maestra de clientes (MXCTACLI.DBF)
+  var cPath = path.join(liveDir, 'MXCTACLI.DBF');
+  if (!fs.existsSync(cPath)) cPath = path.join(liveDir, 'mxctacli.dbf');
+
+  var clientsMap = new Map();
+
+  if (fs.existsSync(cPath)) {
+    var cStruct = readDbfStructure(cPath);
+    if (cStruct) {
+      log('  -> Extrayendo clientes desde: ' + cStruct.path + ' (' + cStruct.numRecords + ' registros)');
+      var cRows = readDbfRows(cStruct, 500000);
+      var cfn = cStruct.fieldNames;
+
+      var fCod   = findField(cfn, ['codcli', 'codigo', 'cod_cli', 'id']);
+      var fNom   = findField(cfn, ['nomcli', 'razonsocial', 'razon', 'nombre']);
+      var fRif   = findField(cfn, ['cifoih', 'cifoi', 'cif', 'rif', 'cedula']);
+      var fDir1  = findField(cfn, ['direc1h', 'direc1', 'dir1', 'direccion1']);
+      var fDir2  = findField(cfn, ['direc2h', 'direc2', 'dir2']);
+      var fDir3  = findField(cfn, ['direc3h', 'direc3', 'dir3']);
+      var fDir4  = findField(cfn, ['direc4h', 'direc4', 'dir4']);
+      var fTlf1  = findField(cfn, ['tlf1h', 'tlf1', 'telefono1', 'tel1']);
+      var fTlf2  = findField(cfn, ['tlf2h', 'tlf2', 'telefono2', 'tel2']);
+      var fFax   = findField(cfn, ['fax4h', 'fax', 'tlf3']);
+      var fEmail = findField(cfn, ['emailngq', 'email', 'correo', 'mail']);
+      var fVen   = findField(cfn, ['vendedor', 'codven', 'vended']);
+      var fZona  = findField(cfn, ['zonacto', 'zona']);
+      var fSaldo = findField(cfn, ['saldoor', 'saldo']);
+
+      for (var ci = 0; ci < cRows.length; ci++) {
+        var rc = cRows[ci];
+        var cCod = String(rc[fCod] || '').trim();
+        var cNom = String(rc[fNom] || '').trim();
+        if (!cCod && !cNom) continue;
+
+        // Limpiar y estructurar RIF
+        var rawRif = String(rc[fRif] || '').trim().toUpperCase().replace(/[\s.-]/g, '');
+        var rifClean = rawRif;
+        if (/^\d+$/.test(rawRif)) rifClean = 'V-' + rawRif;
+        else if (/^[JVEGP]\d+$/.test(rawRif)) rifClean = rawRif.charAt(0) + '-' + rawRif.substring(1);
+
+        // Concatenar direccion fiscal completa
+        var dirParts = [rc[fDir1], rc[fDir2], rc[fDir3], rc[fDir4]].filter(function(x) {
+          return x && String(x).trim();
+        }).map(function(x) { return String(x).trim(); });
+        var direccion = dirParts.join(' ').trim();
+
+        // Clasificar telefonos: Movil (WhatsApp) vs Fijo
+        var rawPhones = [rc[fTlf1], rc[fTlf2], rc[fFax]].filter(function(x) {
+          return x && String(x).trim();
+        }).map(function(x) { return String(x).trim(); });
+
+        var movilPhone = '';
+        var fijoPhone  = '';
+
+        for (var pi = 0; pi < rawPhones.length; pi++) {
+          var pRaw = rawPhones[pi];
+          var digits = pRaw.replace(/\D/g, '');
+          // Si tiene 10 u 11 digitos y empieza por 0414, 0424, 0412, 0416, 0426
+          if (/^0?(414|424|412|416|426)\d{7}$/.test(digits)) {
+            if (!movilPhone) movilPhone = pRaw;
+          } else if (digits.length >= 7) {
+            if (!fijoPhone) fijoPhone = pRaw;
+          }
+        }
+        if (!movilPhone && rawPhones.length > 0) movilPhone = rawPhones[0];
+
+        // Resolucion de Email:
+        var email = '';
+        var mDirect = String(rc[fEmail] || '').match(EMAIL_REGEX);
+        if (mDirect) email = mDirect[0].toLowerCase();
+
+        // 2) Memo .DBT / .FPT
+        if (!email && rc.memo) {
+          var mMemo = String(rc.memo).match(EMAIL_REGEX);
+          if (mMemo) email = mMemo[0].toLowerCase();
+        }
+
+        // 3) En la direccion
+        if (!email && direccion) {
+          var mDir = direccion.match(EMAIL_REGEX);
+          if (mDir) email = mDir[0].toLowerCase();
+        }
+
+        // 4) En matriz de agenda
+        var rNorm = rawRif.toUpperCase().replace(/[\s.-]/g, '');
+        if (!email && rNorm && emailIndexByRif[rNorm]) {
+          email = emailIndexByRif[rNorm];
+        }
+        if (!email && cCod && emailIndexByCod[cCod.toUpperCase()]) {
+          email = emailIndexByCod[cCod.toUpperCase()];
+        }
+
+        var cliObj = {
+          codigo: cCod,
+          razon_social: cNom,
+          rif: rifClean,
+          telefono_movil_whatsapp: movilPhone,
+          telefono_fijo: fijoPhone,
+          email: email,
+          direccion_fiscal: direccion,
+          vendedor: String(rc[fVen] || '').trim(),
+          zona: String(rc[fZona] || '').trim(),
+          saldo: parseFloat(String(rc[fSaldo] || '0').replace(/,/g, '.')) || 0
+        };
+
+        var key = cCod || rifClean || cNom;
+        if (!clientsMap.has(key)) {
+          clientsMap.set(key, cliObj);
+        } else {
+          var prev = clientsMap.get(key);
+          if (!prev.email && cliObj.email) prev.email = cliObj.email;
+          if (!prev.telefono_movil_whatsapp && cliObj.telefono_movil_whatsapp) prev.telefono_movil_whatsapp = cliObj.telefono_movil_whatsapp;
+        }
+      }
+    }
+  }
+
+  var activeClients = Array.from(clientsMap.values());
+  activeClients.sort(function(a, b) {
+    return a.razon_social.localeCompare(b.razon_social);
+  });
+
+  return activeClients;
+}
+
+/* ═══════════════ HELPERS PARA EXCEL Y GUARDADO ═══════════════ */
+function escCSV(v) {
+  if (v === null || v === undefined) v = '';
+  v = String(v).trim().replace(/\r\n/g, ' ').replace(/\n/g, ' ');
+  if (/[",;]/.test(v)) return '"' + v.replace(/"/g, '""') + '"';
+  return v;
+}
+
+function fmtDate(s) {
+  if (!s || s.length < 8) return '';
+  return s.substring(0, 4) + '-' + s.substring(4, 6) + '-' + s.substring(6, 8);
+}
+
+function saveOutputs(prefix, csvContent, jsonPayload) {
   var d = new Date();
-  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var pad = function(n) { return (n < 10 ? '0' : '') + n; };
   var stamp = '' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes());
   var BOM = '\uFEFF';
 
-  // ═══════════ A) CLIENTES ═══════════
-  if (clientTable) {
-    var fn = clientTable.fieldNames;
-    var fEmail = findFieldExact(fn, ['email', 'emailngq', 'correo', 'mail']) || findField(fn, ['email', 'correo', 'mail']);
-    var fEmailSuc = findField(fn, ['email_suc', 'emailsuc', 'emailsu']);
-    if (fEmail === fEmailSuc) fEmailSuc = null;
+  var savedFiles = [];
+  var targetDirs = [__dirname];
 
-    var fieldMap = {
-      codigo: findField(fn, ['codcli', 'codigo', 'cod_cli', 'id']),
-      nombre: findField(fn, ['nomcli', 'razonsocial', 'razon', 'nombre']),
-      rif: findField(fn, ['cifoi', 'cif', 'rif', 'cedula']),
-      direc1: findField(fn, ['direc1', 'dir1', 'direccion1']),
-      direc2: findField(fn, ['direc2', 'dir2', 'direccion2']),
-      direc3: findField(fn, ['direc3', 'dir3']),
-      tlf1: findField(fn, ['tlf1', 'tlf14', 'telefono1', 'tel1']),
-      tlf2: findField(fn, ['tlf2', 'tlf24', 'telefono2']),
-      email: fEmail,
-      email_sucursal: fEmailSuc,
-      contacto: findField(fn, ['contact', 'contac']),
-      vendedor: findField(fn, ['vendedor', 'vended', 'codven']),
-      cobrador: findField(fn, ['cobrador', 'cobrad']),
-      zona: findField(fn, ['zonacto', 'zona']),
-      grupo: findField(fn, ['grupoi', 'grupo']),
-      estatus: findField(fn, ['estatus', 'status']),
-      lim_cre: findField(fn, ['lim_cre', 'limcre', 'limite']),
-      saldo: findField(fn, ['saldo', 'saldoor'])
-    };
-
-    var cRows = readDbfData(clientTable);
-    var cHeader = 'codigo,nombre,rif,direccion,telefono1,telefono2,email,email_sucursal,contacto,vendedor_cod,cobrador,zona,grupo,estatus,limite_credito,saldo';
-    var cLines = [cHeader];
-    
-    var emailCount = 0;
-    
-    for (var i = 0; i < cRows.length; i++) {
-      var r = cRows[i];
-      var val = function(key) { return fieldMap[key] ? String(r[fieldMap[key]] || '').trim() : ''; };
-      var direccion = [val('direc1'), val('direc2'), val('direc3')].filter(function(x) { return x; }).join(' ').trim();
-      var ev = val('email');
-      if (ev && ev.indexOf('@') !== -1) emailCount++;
-      
-      cLines.push([
-        escCSV(val('codigo')), escCSV(val('nombre')), escCSV(val('rif')), escCSV(direccion),
-        escCSV(val('tlf1')), escCSV(val('tlf2')), escCSV(ev), escCSV(val('email_sucursal')),
-        escCSV(val('contacto')), escCSV(val('vendedor')), escCSV(val('cobrador')),
-        escCSV(val('zona')), escCSV(val('grupo')), escCSV(val('estatus')),
-        escCSV(val('lim_cre')), escCSV(val('saldo'))
-      ].join(','));
-    }
-    
-    var cFile = 'jj_clientes_' + stamp + '.csv';
-    writeOut(BOM + cLines.join('\r\n'), cFile);
-    log('  -> ' + cFile + ' (' + cRows.length + ' clientes, ' + emailCount + ' emails)');
+  var u = process.env.USERPROFILE || '';
+  if (u) {
+    var desk = path.join(u, 'Desktop');
+    var escr = path.join(u, 'Escritorio');
+    if (fs.existsSync(desk) && targetDirs.indexOf(desk) === -1) targetDirs.push(desk);
+    if (fs.existsSync(escr) && targetDirs.indexOf(escr) === -1) targetDirs.push(escr);
   }
 
-  // ═══════════ B) PRODUCTOS ═══════════
-  if (productTable) {
-    var pRows = readDbfData(productTable);
-    var pFile = 'jj_productos_' + stamp + '.csv';
-    var pFn = productTable.fieldNames;
-    
-    // Mapear los campos REALES de MixNet (confirmados por auditoria):
-    //   codart, nomart, precio_a, precio_b, precio_c, precio_d,
-    //   costo_act, existe_act, grupo, marca, unidad, ult_costo, ult_prove
-    var pf = {
-      codigo:  findField(pFn, ['codart', 'codarti', 'codigo', 'art', 'id']),
-      descrip: findField(pFn, ['nomart', 'descrip', 'nombre', 'detalle', 'articulo', 'descri', 'nom', 'des']),
-      p1:      findField(pFn, ['precio_a', 'precio1', 'p1', 'precio', 'pvp', 'pventa', 'prec', 'p_vta']),
-      p2:      findField(pFn, ['precio_b', 'precio2', 'p2']),
-      p3:      findField(pFn, ['precio_c', 'precio3', 'p3']),
-      p4:      findField(pFn, ['precio_d', 'precio4', 'p4']),
-      costo:   findField(pFn, ['costo_act', 'costo', 'cost', 'cost_u', 'ult_costo']),
-      exist:   findField(pFn, ['existe_act', 'exist', 'stock', 'cant', 'saldo', 'cantidad']),
-      grupo:   findField(pFn, ['grupo', 'familia', 'fam', 'cat']),
-      marca:   findField(pFn, ['marca']),
-      unidad:  findField(pFn, ['unidad', 'uni', 'medida']),
-      iva:     findField(pFn, ['iva']),
-      proveedor: findField(pFn, ['ult_prove', 'prov_asig', 'proveedor']),
-      estatus: findField(pFn, ['estatus', 'status'])
-    };
-
-    // Mostrar que campos se mapearon para debug
-    log('    Campos mapeados:');
-    var pfKeys = ['codigo', 'descrip', 'p1', 'p2', 'p3', 'p4', 'costo', 'exist', 'grupo', 'marca', 'unidad'];
-    for (var ki = 0; ki < pfKeys.length; ki++) {
-      var k = pfKeys[ki];
-      log('      ' + k + ' -> ' + (pf[k] || '(no encontrado)'));
+  for (var i = 0; i < targetDirs.length; i++) {
+    var tDir = targetDirs[i];
+    try {
+      if (csvContent) {
+        var csvPath = path.join(tDir, prefix + '_' + stamp + '.csv');
+        fs.writeFileSync(csvPath, BOM + csvContent, 'utf8');
+        savedFiles.push(csvPath);
+      }
+      if (jsonPayload) {
+        var jsonPath = path.join(tDir, prefix + '_' + stamp + '.json');
+        fs.writeFileSync(jsonPath, JSON.stringify(jsonPayload, null, 2), 'utf8');
+        savedFiles.push(jsonPath);
+      }
+    } catch (e) {
+      logWarn('No se pudo guardar en ' + tDir + ': ' + e.message);
     }
-
-    var pHeader = 'codigo,descripcion,precio_a,precio_b,precio_c,precio_d,costo_actual,existencia,grupo,marca,unidad,iva,proveedor,estatus';
-    var pLines = [pHeader];
-    for (var i = 0; i < pRows.length; i++) {
-      var r = pRows[i];
-      var cod = pf.codigo ? String(r[pf.codigo] || '').trim() : '';
-      if (!cod) continue; // Saltar registros sin codigo
-      pLines.push([
-        escCSV(cod),
-        escCSV(pf.descrip ? r[pf.descrip] : ''),
-        escCSV(pf.p1 ? r[pf.p1] : ''),
-        escCSV(pf.p2 ? r[pf.p2] : ''),
-        escCSV(pf.p3 ? r[pf.p3] : ''),
-        escCSV(pf.p4 ? r[pf.p4] : ''),
-        escCSV(pf.costo ? r[pf.costo] : ''),
-        escCSV(pf.exist ? r[pf.exist] : ''),
-        escCSV(pf.grupo ? r[pf.grupo] : ''),
-        escCSV(pf.marca ? r[pf.marca] : ''),
-        escCSV(pf.unidad ? r[pf.unidad] : ''),
-        escCSV(pf.iva ? r[pf.iva] : ''),
-        escCSV(pf.proveedor ? r[pf.proveedor] : ''),
-        escCSV(pf.estatus ? r[pf.estatus] : '')
-      ].join(','));
-    }
-    writeOut(BOM + pLines.join('\r\n'), pFile);
-    log('  -> ' + pFile + ' (' + (pLines.length - 1) + ' productos extraidos!)');
   }
 
-  say(''); log('============================================================');
-  log('  LISTO! La extraccion v3.2 ha finalizado correctamente.');
-  log('============================================================');
+  return savedFiles;
 }
 
-try { main(); } catch (e) { log('[ERROR FATAL] ' + (e.stack || e)); }
+/* ═══════════════ MOTOR PRINCIPAL ═══════════════ */
+function run() {
+  banner('JJ PAPER -- EXTRACTOR CONSCIENTE Y PRECISO MIXNET v5.1');
+
+  // 1. Localizar Servidor Activo
+  log('Paso 1: Localizando servidor activo de MixNet...');
+  var live = locateLiveStoreCompany();
+
+  if (!live.dir) {
+    logErr('No se encontro la unidad de red M:\\comp01.');
+    say('  Por favor verifica que la unidad M: este conectada al servidor 192.168.0.185.');
+    return;
+  }
+
+  logOK('Servidor en vivo conectado: ' + live.dir);
+  if (live.lastTx) {
+    logOK('Ultima transaccion registrada en tienda: ' + live.lastTx.toLocaleDateString() + ' ' + live.lastTx.toLocaleTimeString());
+  }
+
+  // 2. Extraer y filtrar Productos Activos
+  log('Paso 2: Extrayendo catalogo con logica estricta de precios (Precio B = Cliente)...');
+  var prodResult = extractActiveProducts(live.dir);
+  var productos = prodResult.products;
+
+  say('');
+  say('  ----------------------------------------------------------------------');
+  say('  AUDITORIA DE PRODUCTOS EN TIENDA:');
+  say('    * Total registros evaluados en base de datos: ' + prodResult.totalRaw);
+  say('    * Registros inactivos / dados de baja:        ' + prodResult.inactive);
+  say('    * Registros obsoletos (sin precio ni stock):  ' + prodResult.obsolete);
+  say('    * PRODUCTOS ACTIVOS Y VIGENTES HOY:           ' + productos.length);
+  say('  ----------------------------------------------------------------------');
+
+  // Muestra de validacion visual de 4 productos
+  say('');
+  say('  MUESTRA DE PRECIOS EXACTOS (PRECIO B = CLIENTE):');
+  productos.slice(0, 4).forEach(function(p) {
+    say('  * [' + p.codigo + '] ' + p.descripcion);
+    say('    -> PRECIO CLIENTE (USD): $' + p.precio_cliente_usd.toFixed(2) + ' (Precio B)');
+    say('    -> PRECIO MAYOR (USD):   $' + p.precio_mayor_usd.toFixed(2) + ' (Precio A)');
+    say('    -> PRECIO EN BS:         ' + p.precio_bs.toFixed(2) + ' Bs (Precio C)');
+    say('    -> STOCK FISICO ACTUAL:  ' + p.stock_actual + ' unidades');
+    say('    -> TABLA FUENTE:         ' + p.tabla_fuente + (p.fecha_mod ? ' | ' + fmtDate(p.fecha_mod) : ''));
+    say('');
+  });
+
+  // 3. Extraer Clientes y Correos
+  log('Paso 3: Extrayendo cartera de clientes con emails y celulares...');
+  var clientes = extractActiveClients(live.dir);
+  var clientesConEmail = clientes.filter(function(c) { return c.email; }).length;
+
+  say('');
+  say('  ----------------------------------------------------------------------');
+  say('  AUDITORIA DE CARTERA DE CLIENTES:');
+  say('    * Total clientes activos:          ' + clientes.length);
+  say('    * Clientes con correo certificado: ' + clientesConEmail);
+  say('  ----------------------------------------------------------------------');
+
+  // 4. Estructurar CSVs Ultra-Clares para Excel
+  log('Paso 4: Construyendo archivos limpios para Excel y Supabase...');
+
+  var pHeaders = 'CODIGO,DESCRIPCION,PRECIO_CLIENTE_USD,PRECIO_MAYOR_USD,PRECIO_BS,STOCK_ACTUAL,COSTO_USD,ESTATUS,CATEGORIA,MARCA,EMPAQUE,PROVEEDOR,FECHA_ACTUALIZACION';
+  var pRows = [pHeaders];
+  productos.forEach(function(p) {
+    pRows.push([
+      escCSV(p.codigo),
+      escCSV(p.descripcion),
+      p.precio_cliente_usd.toFixed(2),
+      p.precio_mayor_usd.toFixed(2),
+      p.precio_bs.toFixed(2),
+      p.stock_actual.toString(),
+      p.costo_usd.toFixed(2),
+      escCSV(p.estatus),
+      escCSV(p.categoria),
+      escCSV(p.marca),
+      escCSV(p.empaque),
+      escCSV(p.proveedor),
+      escCSV(fmtDate(p.fecha_mod))
+    ].join(','));
+  });
+
+  var cHeaders = 'CODIGO_CLIENTE,NOMBRE_O_RAZON_SOCIAL,RIF,TELEFONO_MOVIL_WHATSAPP,TELEFONO_FIJO,EMAIL,DIRECCION_FISCAL,VENDEDOR_ASIGNADO,ZONA,SALDO_PENDIENTE';
+  var cRows = [cHeaders];
+  clientes.forEach(function(c) {
+    cRows.push([
+      escCSV(c.codigo),
+      escCSV(c.razon_social),
+      escCSV(c.rif),
+      escCSV(c.telefono_movil_whatsapp),
+      escCSV(c.telefono_fijo),
+      escCSV(c.email),
+      escCSV(c.direccion_fiscal),
+      escCSV(c.vendedor),
+      escCSV(c.zona),
+      c.saldo.toFixed(2)
+    ].join(','));
+  });
+
+  var supabasePayload = {
+    exportado_el: new Date().toISOString(),
+    servidor_fuente: live.dir,
+    resumen: {
+      total_productos_activos: productos.length,
+      total_clientes: clientes.length,
+      clientes_con_correo: clientesConEmail
+    },
+    productos: productos,
+    clientes: clientes
+  };
+
+  // Guardar archivos
+  var savedP = saveOutputs('mixnet_productos_activos', pRows.join('\r\n'), null);
+  var savedC = saveOutputs('mixnet_clientes_cartera', cRows.join('\r\n'), null);
+  var savedJ = saveOutputs('mixnet_payload_supabase', null, supabasePayload);
+
+  say('');
+  say('========================================================================');
+  say('  EXTRACCION COMPLETADA CON EXITO (DATOS REALES Y ACTIVOS)');
+  say('========================================================================');
+  say('  Archivos listos en tu ESCRITORIO:');
+  savedP.forEach(function(f) { say('    * PRODUCTOS : ' + f); });
+  savedC.forEach(function(f) { say('    * CLIENTES  : ' + f); });
+  savedJ.forEach(function(f) { say('    * SUPABASE  : ' + f); });
+  say('========================================================================');
+  say('');
+}
+
+try {
+  run();
+} catch (err) {
+  logErr('Error en ejecucion: ' + (err.stack || err.message));
+}

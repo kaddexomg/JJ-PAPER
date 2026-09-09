@@ -16,6 +16,19 @@ echo.
 echo [%date% %time%] Iniciando servidor JJ Paper...
 node src/index.js
 
+REM Codigo 3 = Ya hay una instancia corriendo en el sistema
+if "%errorlevel%"=="3" (
+  echo.
+  echo ============================================================
+  echo [INFO] El servidor JJ Paper YA SE ENCUENTRA ACTIVO en el sistema.
+  echo        (Hay un proceso en ejecucion protegiendo los sockets).
+  echo        El sistema esta 100%% operativo en http://localhost:8787
+  echo ============================================================
+  echo Presiona una tecla para cerrar esta ventana...
+  pause >nul
+  exit /b 0
+)
+
 REM Codigo 2 = DETENER pedido desde el panel -> no relanzar
 if "%errorlevel%"=="2" goto end
 

@@ -226,6 +226,34 @@
             </div>
 
             <div id="cpiFlyerForm" style="display:none">
+              <!-- Ficha de Detalles Comerciales del Producto -->
+              <div id="cpiFlyerSpecsCard" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font-size:12px;color:#334155;line-height:1.45;margin-bottom:8px"></div>
+
+              <!-- Selector de Estilo de Fondo -->
+              <div style="margin-bottom:8px">
+                <label class="cpi-input-lbl">Estilo de Fondo / Escenario:</label>
+                <div style="display:flex;gap:8px;margin-top:3px">
+                  <label style="flex:1;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#16604A">
+                    <input type="radio" name="cpiFlyerTheme" value="emerald" checked> 🟢 Verde Esmeralda
+                  </label>
+                  <label style="flex:1;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#475569">
+                    <input type="radio" name="cpiFlyerTheme" value="white"> ⚪ Blanco Estudio
+                  </label>
+                </div>
+              </div>
+
+              <!-- Selector de Titular / Badge Publicitario -->
+              <div style="margin-bottom:8px">
+                <label class="cpi-input-lbl">Titular Publicitario:</label>
+                <select id="cpiFlyerHeadline" class="cpi-chat-input" style="width:100%;font-weight:600">
+                  <option value="🔥 OFERTA AL MAYOR" selected>🔥 OFERTA AL MAYOR</option>
+                  <option value="⭐ PRODUCTO DESTACADO">⭐ PRODUCTO DESTACADO</option>
+                  <option value="📦 LLEGANDO DE FÁBRICA">📦 LLEGANDO DE FÁBRICA</option>
+                  <option value="⚡ DISPONIBILIDAD INMEDIATA">⚡ DISPONIBILIDAD INMEDIATA</option>
+                  <option value="🛡️ CALIDAD GARANTIZADA">🛡️ CALIDAD GARANTIZADA</option>
+                </select>
+              </div>
+
               <div style="display:flex;gap:8px">
                 <div style="flex:1">
                   <label class="cpi-input-lbl">Precio USD ($):</label>
@@ -236,9 +264,9 @@
                   <input type="text" class="cpi-chat-input" id="cpiFlyerNote" placeholder="Ej: Entrega inmediata" style="width:100%">
                 </div>
               </div>
-              <button class="cpi-chat-send" id="cpiRenderFlyerBtn" style="width:100%;margin-top:8px;padding:8px">🖼️ Generar / Actualizar Flyer</button>
+              <button class="cpi-chat-send" id="cpiRenderFlyerBtn" style="width:100%;margin-top:8px;padding:8px">🖼️ Actualizar Flyer</button>
 
-              <canvas id="cpiCanvas" class="cpi-canvas-preview" width="800" height="800"></canvas>
+              <canvas id="cpiCanvas" class="cpi-canvas-preview" width="1200" height="1200"></canvas>
 
               <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
                 <button class="cpi-chip" id="cpiCopyImgBtn" style="flex:1;text-align:center;padding:7px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">📋 Copiar Imagen</button>
@@ -379,11 +407,23 @@
           `;
           const cvs = document.getElementById(canvasId);
           if (cvs) {
+            const isWhiteBg = /(fondo blanco|blanco|estudio blanco)/i.test(text);
+            const theme = isWhiteBg ? 'white' : 'emerald';
+            if (typeof window.GeminiClient.enrichProductForMarketing === 'function') {
+              const en = await window.GeminiClient.enrichProductForMarketing(matchedProduct);
+              if (en) {
+                matchedProduct.brand = en.brand;
+                matchedProduct.measures = en.measures;
+                matchedProduct.color = en.color;
+                matchedProduct.presentation = en.presentation;
+              }
+            }
             await window.GeminiClient.renderProductCard({
               product: matchedProduct,
               customPriceUsd: matchedProduct.price_usd,
               sellerName: profile.full_name || profile.name || '',
               sellerPhone: profile.phone || '',
+              theme,
               canvas: cvs
             });
           }
@@ -434,11 +474,37 @@
           resBox.style.display = 'block';
 
           resBox.querySelectorAll('.cpi-res-item').forEach((el, idx) => {
-            el.onclick = () => {
+            el.onclick = async () => {
               _selectedFlyerProduct = prods[idx];
               resBox.style.display = 'none';
               searchInput.value = _selectedFlyerProduct.name;
               document.getElementById('cpiFlyerPrice').value = _selectedFlyerProduct.price_usd.toFixed(2);
+
+              // Extraer y enriquecer especificaciones comerciales
+              if (typeof window.GeminiClient.enrichProductForMarketing === 'function') {
+                const enriched = await window.GeminiClient.enrichProductForMarketing(_selectedFlyerProduct);
+                if (enriched) {
+                  _selectedFlyerProduct.brand = enriched.brand;
+                  _selectedFlyerProduct.measures = enriched.measures;
+                  _selectedFlyerProduct.color = enriched.color;
+                  _selectedFlyerProduct.presentation = enriched.presentation;
+
+                  const specsEl = document.getElementById('cpiFlyerSpecsCard');
+                  if (specsEl) {
+                    specsEl.style.display = 'block';
+                    let specsHtml = `<div style="font-weight:700;color:#16604A;margin-bottom:3px">📋 Ficha Comercial del Producto:</div>`;
+                    specsHtml += `🏷️ <strong>Marca:</strong> ${enriched.brand}   ·   📦 <strong>Presentación:</strong> ${enriched.presentation}`;
+                    if (enriched.measures && enriched.measures !== 'Medida estándar' && enriched.measures !== 'MEDIDA ESTÁNDAR') {
+                      specsHtml += `<br>📏 <strong>Medidas:</strong> ${enriched.measures}`;
+                    }
+                    if (enriched.color) {
+                      specsHtml += `   ·   🎨 <strong>Color:</strong> ${enriched.color}`;
+                    }
+                    specsEl.innerHTML = specsHtml;
+                  }
+                }
+              }
+
               document.getElementById('cpiFlyerForm').style.display = 'block';
               renderCurrentFlyer();
             };
@@ -446,6 +512,13 @@
         });
       }, 250);
     };
+
+    // Listeners para cambio de tema y titular publicitario en tiempo real
+    document.querySelectorAll('input[name="cpiFlyerTheme"]').forEach(r => {
+      r.onchange = renderCurrentFlyer;
+    });
+    const hlSelect = document.getElementById('cpiFlyerHeadline');
+    if (hlSelect) hlSelect.onchange = renderCurrentFlyer;
 
     document.getElementById('cpiRenderFlyerBtn').onclick = renderCurrentFlyer;
     document.getElementById('cpiCopyImgBtn').onclick = copyFlyerToClipboard;
@@ -504,6 +577,8 @@
     const canvas = document.getElementById('cpiCanvas');
     const customPrice = document.getElementById('cpiFlyerPrice').value;
     const note = document.getElementById('cpiFlyerNote').value;
+    const theme = document.querySelector('input[name="cpiFlyerTheme"]:checked')?.value || 'emerald';
+    const headline = document.getElementById('cpiFlyerHeadline')?.value || '🔥 OFERTA AL MAYOR';
     const profile = window.CURRENT_PROFILE || window.WA_ME || {};
 
     ensureGeminiClient(async () => {
@@ -513,6 +588,8 @@
         sellerName: profile.full_name || profile.name || '',
         sellerPhone: profile.phone || '',
         customNote: note,
+        theme,
+        headline,
         canvas
       });
     });

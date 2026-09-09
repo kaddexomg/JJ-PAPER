@@ -1,73 +1,74 @@
 @echo off
-chcp 65001 >nul 2>nul
-title JJ PAPER - Extractor TOTAL MixNet v3.2
-color 0A
+rem ====================================================================
+rem JJ PAPER - Extractor Total Omnisciente MixNet v5.0 (Windows 7)
+rem ====================================================================
+title JJ PAPER - Extractor Total MixNet v5.0
+color 0b
+cls
 
+echo ====================================================================
+echo      JJ PAPER -- MOTOR TOTAL MIXNET v5.0 (1-CLIC AUTOMATICO)
+echo ====================================================================
 echo.
-echo ========================================================
-echo   JJ PAPER -- EXTRACTOR MIXNET v3.2
-echo ========================================================
+echo  Buscando Node.js en esta PC...
 echo.
-echo   Extrae de MixNet:
-echo     - CLIENTES (nombre, RIF, email, vendedor, etc.)
-echo     - PRODUCTOS (codigo, nombre, precios, existencia)
-echo.
-echo   SOLO LEE. No modifica nada de MixNet.
-echo   Los archivos CSV se guardan en el Escritorio.
-echo.
-echo ========================================================
-echo.
-
-echo  Buscando Node.js...
-echo.
-
-where node >nul 2>nul
-if %errorlevel%==0 (
-  set "NODE=node"
-  goto FOUND
-)
 
 set "NODE="
-for %%p in (
-  "%ProgramFiles%\nodejs\node.exe"
-  "%ProgramFiles(x86)%\nodejs\node.exe"
-  "%LOCALAPPDATA%\Programs\nodejs\node.exe"
-  "C:\nodejs\node.exe"
-  "C:\node\node.exe"
-  "C:\Program Files\nodejs\node.exe"
-  "C:\Program Files (x86)\nodejs\node.exe"
-  "D:\nodejs\node.exe"
-  "D:\Program Files\nodejs\node.exe"
-) do (
-  if exist %%p set "NODE=%%~p"
-)
-if defined NODE goto FOUND
 
-echo.
-echo  ============================================
-echo   [ERROR] No se encontro Node.js
-echo   Instale desde: https://nodejs.org/
-echo  ============================================
+rem 1. Probar comando node directo del sistema
+where node >nul 2>nul
+if %errorlevel%==0 (
+    set "NODE=node"
+    goto EJECUTAR
+)
+
+rem 2. Probar ubicaciones comunes de instalacion
+if exist "C:\Program Files\nodejs\node.exe" (
+    set "NODE=C:\Program Files\nodejs\node.exe"
+    goto EJECUTAR
+)
+if exist "C:\Program Files (x86)\nodejs\node.exe" (
+    set "NODE=C:\Program Files (x86)\nodejs\node.exe"
+    goto EJECUTAR
+)
+if exist "C:\nodejs\node.exe" (
+    set "NODE=C:\nodejs\node.exe"
+    goto EJECUTAR
+)
+if exist "D:\nodejs\node.exe" (
+    set "NODE=D:\nodejs\node.exe"
+    goto EJECUTAR
+)
+if exist "C:\node\node.exe" (
+    set "NODE=C:\node\node.exe"
+    goto EJECUTAR
+)
+if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" (
+    set "NODE=%LOCALAPPDATA%\Programs\nodejs\node.exe"
+    goto EJECUTAR
+)
+if exist "%APPDATA%\npm\node.exe" (
+    set "NODE=%APPDATA%\npm\node.exe"
+    goto EJECUTAR
+)
+
+echo [ERROR] No se encontro Node.js en las carpetas habituales.
+echo Por favor abre una ventana de CMD en esta carpeta y ejecuta:
+echo   node extraer-todo-mixnet.cjs
 echo.
 pause
 exit /b 1
 
-:FOUND
-echo  Node encontrado: %NODE%
+:EJECUTAR
+echo  Node.js detectado: %NODE%
+echo  Iniciando escaneo total de todas las tablas de MixNet...
+echo --------------------------------------------------------------------
 echo.
-echo  Ejecutando extraccion...
-echo.
-echo --------------------------------------------------------
-echo.
-
 "%NODE%" "%~dp0extraer-todo-mixnet.cjs"
 
 echo.
-echo ========================================================
-echo   LISTO. Revisa tu Escritorio para los archivos:
-echo     - jj_clientes_*.csv    (clientes con email/vendedor)
-echo     - jj_productos_*.csv   (productos con precios/stock)
-echo ========================================================
+echo ====================================================================
+echo   Proceso finalizado con exito.
+echo ====================================================================
 echo.
-echo  Presiona cualquier tecla para cerrar...
-pause >nul
+pause

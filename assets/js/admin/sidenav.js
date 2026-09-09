@@ -52,6 +52,7 @@
     ]},
     { href: 'facturas.html', ico: '🧾', label: 'Cuentas por Pagar' },
     { section: 'Sistema' },
+    { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙️', label: 'Ajustes' },
     { href: '../index.html',   ico: '🌐', label: 'Ver Sitio', ext: true },

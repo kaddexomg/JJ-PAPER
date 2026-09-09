@@ -496,48 +496,129 @@ Respuesta del Copiloto JJ:`;
 
   /* --------------------------------------------------------------------------
      5.1. Analizador Inteligente de Producto para Marketing
+     Investiga y extrae especificaciones comerciales auténticas:
+     Marca, Medidas/Formato, Color, Presentación/Empaque y Tipo de Producto
      -------------------------------------------------------------------------- */
+  const KNOWN_STATIONERY_BRANDS = [
+    'MISTER BOBINA', 'MR. BOBINA', 'MR BOBINA', 'BOBINA',
+    'EXPO', 'STAR KIT', 'STUDMARK', 'KORES', 'MAYKA', 'OFIART', 'OFIMAK',
+    'CRISBY', 'ESFER', 'ROLLS', 'ROLLOS', 'SHARK', 'ALPHA', 'PRINTA',
+    'ACCO', 'MONGOL', 'PAPER MATE', 'INKJOY', 'LUXOR', 'BULL', 'DURACELL',
+    'CASIO', 'CASSIO', 'MARFIL', 'AKTA', 'OSLO', 'CARIBE', 'TUK',
+    'POST-IT', '3M', 'PRITT', 'SOLITA', 'FABER-CASTELL', 'BIC', 'NORMA',
+    'SABONIS', 'PILOT', 'SHARPIE', 'PENTEL', 'STAEDTLER', 'PEGA-LOKA'
+  ];
+
   async function enrichProductForMarketing(product) {
     if (!product) return null;
-    const name = product.name || 'Producto JJ Paper';
-    
-    // Extracción inteligente de medidas
-    const measureMatch = name.match(/(\d+\s*x\s*\d+\s*(?:mm|cm|m|mts|pulg)?|\d+\s*(?:mm|cm|m|gr|g|kg|micras|ml|litros|hojas|piezas|und|unidades)\b|carta|oficio|extra\s*oficio|tabloide|a4|a3|1\/2\s*pliego|pliego)/i);
-    const measures = measureMatch ? measureMatch[0].toUpperCase() : (product.unit || 'Medida estándar');
+    const rawName = product.name || 'Producto JJ Paper';
+    const upperName = rawName.toUpperCase();
 
-    // Extracción de color comercial
-    const colorMatch = name.match(/\b(transparente|marron|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|kraft)\b/i);
-    const color = colorMatch ? colorMatch[0].charAt(0).toUpperCase() + colorMatch[0].slice(1).toLowerCase() : null;
+    // 1. Detección Inteligente de Marca
+    let brand = product.brands || product.brand_name || '';
+    if (!brand || brand === 'JJ Paper Oficial') {
+      for (const b of KNOWN_STATIONERY_BRANDS) {
+        // Buscar coincidencia de palabra completa
+        const rx = new RegExp('\\b' + b.replace('.', '\\.') + '\\b', 'i');
+        if (rx.test(upperName)) {
+          // Capitalizar bonito
+          brand = b.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+          break;
+        }
+      }
+    }
+    if (!brand) brand = 'JJ Paper Oficial';
 
-    // Extracción de presentación / empaque
-    const presMatch = name.match(/\b(caja\s*\d*\s*und?|bulto\s*\d*\s*und?|resma|pack\s*\d*\s*und?|paquete\s*\d*\s*und?|display|blister|tubo|rollo)\b/i);
-    const presentation = presMatch ? presMatch[0].toUpperCase() : (product.unit ? `${product.unit}` : 'Por Unidad / Bulto');
+    // 2. Extracción Inteligente de Medidas y Formato
+    let measures = '';
+    const measureMatch = rawName.match(/(\d+\s*x\s*\d+\s*(?:mm|cm|m|mts|pulg)?|\d+\s*(?:mm|cm|m|gr|g|kg|micras|ml|litros|hojas|piezas|und|unidades)\b|carta|oficio|extra\s*oficio|tabloide|a4|a3|1\/2\s*pliego|pliego|\b[123]""\b|\b[123]\s*pulg\b)/i);
+    if (measureMatch) {
+      measures = measureMatch[0].toUpperCase();
+    } else if (/punta\s*gruesa|chisel|biselada/i.test(rawName)) {
+      measures = 'Punta Biselada / Chisel Tip';
+    } else if (/punta\s*fina|0\.5\s*mm/i.test(rawName)) {
+      measures = 'Punta Fina 0.5mm';
+    } else if (/punta\s*media|0\.7\s*mm|1\.?0?\s*mm/i.test(rawName)) {
+      measures = 'Punta Media';
+    } else {
+      measures = product.unit || 'Medida estándar';
+    }
 
-    // Heurística de tipo de categoría para render 3D
-    const isTape = /tirro|cinta|embalaje|adhesiv|teipe|mascarar/i.test(name);
-    const isPaper = /resma|papel|bond|cuaderno|block|hojas|fotocopia/i.test(name);
-    const isOffice = /grap|perforad|dispens|clip|tijera/i.test(name);
-    const isWriting = /boligrafo|marcador|lapiz|pluma|resaltador/i.test(name);
-    const isFolder = /carpeta|sobre|archiv|funda/i.test(name);
+    // 3. Extracción de Color Comercial
+    let color = null;
+    const colorMatch = rawName.match(/\b(transparente|marron|kraft|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|plata)\b/i);
+    if (colorMatch) {
+      const c = colorMatch[0].toLowerCase();
+      if (c === 'marron' || c === 'kraft') color = 'Marrón Manila Kraft';
+      else if (c === 'surtido' || c === 'multicolor') color = 'Colores Surtidos';
+      else color = c.charAt(0).toUpperCase() + c.slice(1);
+    } else if (/fibra/i.test(rawName)) {
+      color = 'Marrón Manila Fibra';
+    }
 
+    // 4. Extracción de Presentación / Empaque Físico
+    let presentation = '';
+    const presMatch = rawName.match(/\b(caja\s*\d*\s*und?|bulto\s*\d*\s*und?|resma\s*(?:500)?\s*h?|pack\s*\d*\s*und?|paquete\s*\d*\s*und?|display|blister|tubo|rollo|x\s*\d+\s*und?|x\s*\d+)\b/i);
+    if (presMatch) {
+      presentation = presMatch[0].toUpperCase().replace(/\s+/g, ' ');
+    } else if (product.unit) {
+      presentation = `Por ${product.unit}`;
+    } else {
+      presentation = 'Unidad / Empaque Comercial';
+    }
+
+    // 5. Deducción del Tipo de Producto Específico para el Prompt Fotográfico
+    let productTypeEn = 'stationery office supply merchandise';
+    if (/marcador.*pizarra|pizarra.*marcador/i.test(rawName)) {
+      productTypeEn = 'dry erase whiteboard markers with chisel tip';
+    } else if (/marcador.*permanente|permanente.*marcador/i.test(rawName)) {
+      productTypeEn = 'heavy duty permanent markers';
+    } else if (/carpeta.*(?:fibra|manila)|(?:fibra|manila).*carpeta/i.test(rawName)) {
+      productTypeEn = 'heavy duty kraft manila fiber office file folders';
+    } else if (/sacapunta/i.test(rawName)) {
+      if (/shark|tiburon/i.test(rawName)) {
+        productTypeEn = 'novelty shark shaped school pencil sharpener with shavings canister';
+      } else {
+        productTypeEn = 'compact school pencil sharpener with shavings container';
+      }
+    } else if (/resma|papel\s*bond/i.test(rawName)) {
+      productTypeEn = 'wrapped ream of premium white bond copy paper';
+    } else if (/archivador/i.test(rawName)) {
+      productTypeEn = 'heavy duty lever arch file binder folder with metal edges';
+    } else if (/bandeja.*malla/i.test(rawName)) {
+      productTypeEn = 'tier mesh metal desktop document organizer tray';
+    } else if (/boligrafo.*gel/i.test(rawName)) {
+      productTypeEn = 'smooth gel pens in retail blister pack';
+    } else if (/boligrafo/i.test(rawName)) {
+      productTypeEn = 'ballpoint pens in retail stationery packaging';
+    } else if (/tirro|cinta.*embalaje/i.test(rawName)) {
+      productTypeEn = 'roll of heavy duty packaging tape';
+    } else if (/almohadilla.*dactilar|almohadilla/i.test(rawName)) {
+      productTypeEn = 'stationery fingerprint stamp ink pad with protective case';
+    } else if (/borrador.*pizarra/i.test(rawName)) {
+      productTypeEn = 'ergonomic whiteboard magnetic eraser';
+    }
+
+    // Heurística de tipo de categoría interna
     let catType = 'general';
-    if (isTape) catType = 'tape';
-    else if (isPaper) catType = 'paper';
-    else if (isOffice) catType = 'stapler';
-    else if (isWriting) catType = 'writing';
-    else if (isFolder) catType = 'folder';
+    if (/tirro|cinta|embalaje|adhesiv|teipe|mascarar/i.test(rawName)) catType = 'tape';
+    else if (/resma|papel|bond|cuaderno|block|hojas|fotocopia/i.test(rawName)) catType = 'paper';
+    else if (/grap|perforad|dispens|clip|tijera/i.test(rawName)) catType = 'stapler';
+    else if (/boligrafo|marcador|lapiz|pluma|resaltador/i.test(rawName)) catType = 'writing';
+    else if (/carpeta|sobre|archiv|funda/i.test(rawName)) catType = 'folder';
 
-    const cleanTitle = name
+    const cleanTitle = rawName
       .replace(/\b[A-Z0-9_-]{7,}\b/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
     return {
       cleanTitle,
-      brand: product.brands || product.brand_name || 'JJ Paper Oficial',
+      brand,
       measures,
       color,
       presentation,
+      productTypeEn,
       categoryType: catType,
       headlines: [
         '🔥 OFERTA AL MAYOR',
@@ -547,6 +628,131 @@ Respuesta del Copiloto JJ:`;
         '🛡️ CALIDAD GARANTIZADA'
       ]
     };
+  }
+
+  /* --------------------------------------------------------------------------
+     5.2. Cargador Seguro de Imágenes (CORS / Blob Resiliente)
+     -------------------------------------------------------------------------- */
+  function loadImageSafe(url) {
+    return new Promise((resolve, reject) => {
+      if (!url) return reject(new Error('No URL provided'));
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('Timeout cargando imagen'));
+        }
+      }, 12000);
+
+      img.onload = () => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(img);
+        }
+      };
+
+      img.onerror = () => {
+        // Fallback vía fetch + blob
+        fetch(url, { mode: 'cors' })
+          .then(res => res.blob())
+          .then(blob => {
+            if (settled) return;
+            const objectUrl = URL.createObjectURL(blob);
+            const fallbackImg = new Image();
+            fallbackImg.onload = () => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                URL.revokeObjectURL(objectUrl);
+                resolve(fallbackImg);
+              }
+            };
+            fallbackImg.onerror = (e) => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                URL.revokeObjectURL(objectUrl);
+                reject(e);
+              }
+            };
+            fallbackImg.src = objectUrl;
+          })
+          .catch(err => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timer);
+              reject(err);
+            }
+          });
+      };
+
+      img.src = url;
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     5.3. Generador de Fotografía de Producto de Estudio con IA (Flux / SDXL)
+     Investiga las especificaciones reales (marca, medidas, color, empaque)
+     y produce una fotografía fotorrealista de catálogo en alta resolución.
+     -------------------------------------------------------------------------- */
+  const _studioPhotoCache = new Map();
+
+  async function generateProductStudioPhoto({ product, theme = 'white', forceNew = false }) {
+    if (!product) throw new Error('Producto no especificado');
+    const name = product.name || 'Producto de Papelería';
+    const cacheKey = `${product.id || name}_${theme}`;
+
+    if (!forceNew && _studioPhotoCache.has(cacheKey)) {
+      return _studioPhotoCache.get(cacheKey);
+    }
+
+    // 1. Extraer y enriquecer especificaciones comerciales
+    const enriched = await enrichProductForMarketing(product);
+    const brand = enriched?.brand && enriched.brand !== 'JJ Paper Oficial' ? enriched.brand : '';
+    const measures = (enriched?.measures && enriched.measures !== 'Medida estándar') ? enriched.measures : '';
+    const color = enriched?.color || '';
+    const presentation = enriched?.presentation || '';
+    const prodTypeEn = enriched?.productTypeEn || 'stationery office supply merchandise';
+
+    // 2. Construir especificaciones fotográficas descriptivas en inglés para Flux
+    let specDescriptors = [];
+    if (brand) specDescriptors.push(`authentic brand ${brand} branded retail packaging`);
+    if (color) specDescriptors.push(`${color} color theme`);
+    if (measures) specDescriptors.push(`${measures} format`);
+    if (presentation && presentation !== 'Unidad / Empaque Comercial') specDescriptors.push(presentation);
+
+    const specsStr = specDescriptors.length > 0 ? `, ${specDescriptors.join(', ')}` : '';
+
+    const bgPrompt = (theme === 'white')
+      ? 'isolated on seamless pure solid white commercial photography studio cyclorama background, subtle soft natural contact floor shadow, clean commercial product shot'
+      : 'isolated on solid luxury dark emerald green studio background, soft studio spotlight, commercial product shot';
+
+    const photoPrompt = `Professional commercial studio product photography of ${prodTypeEn} (${enriched?.cleanTitle || name}${specsStr}), real authentic office stationery merchandise, centered hero 3/4 angle, pristine commercial merchandise, ${bgPrompt}, 8k resolution, crisp sharp focus, commercial advertising catalog photography, hyperrealistic, no people, no hands, no text overlay, no watermark, no sku numbers, no mockups`;
+
+    // 3. Generar la imagen fotorrealista en alta resolución (1024x1024)
+    const seed = forceNew ? (Math.floor(Math.random() * 900000) + 100000) : (42000 + Math.abs(hashCode(name + theme)));
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(photoPrompt)}?width=1024&height=1024&model=flux&nologo=true&seed=${seed}`;
+
+    const result = {
+      imageUrl,
+      prompt: photoPrompt,
+      specs: enriched
+    };
+
+    _studioPhotoCache.set(cacheKey, result);
+    return result;
+  }
+
+  function hashCode(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return hash;
   }
 
   /* --------------------------------------------------------------------------
@@ -663,9 +869,22 @@ Respuesta del Copiloto JJ:`;
     const maxImgH = 460;
 
     let imageRendered = false;
-    if (product.image_url) {
+    let imgToLoad = product.image_url || product._studio_photo_url;
+    if (!imgToLoad) {
       try {
-        const img = await loadImageSafe(product.image_url);
+        const studioRes = await generateProductStudioPhoto({ product, theme });
+        if (studioRes?.imageUrl) {
+          imgToLoad = studioRes.imageUrl;
+          product._studio_photo_url = imgToLoad;
+        }
+      } catch (e) {
+        console.warn('No se pudo pregenerar foto de estudio para flyer:', e);
+      }
+    }
+
+    if (imgToLoad) {
+      try {
+        const img = await loadImageSafe(imgToLoad);
         if (img && img.width > 10 && img.height > 10) {
           const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1.15);
           const dw = img.width * scale;
@@ -686,7 +905,7 @@ Respuesta del Copiloto JJ:`;
           ctx.fill();
           ctx.restore();
 
-          // Fotografía del producto en el centro sin marcos ni recuadros de bodega
+          // Fotografía comercial del producto en el centro
           ctx.drawImage(img, dx, dy, dw, dh);
           imageRendered = true;
         }
@@ -695,7 +914,7 @@ Respuesta del Copiloto JJ:`;
       }
     }
 
-    // Si no tiene imagen en Supabase, renderizar Ilustración Comercial 3D Fotorrealista
+    // Fallback de seguridad si no hay conexión o falló la imagen
     if (!imageRendered) {
       renderCommercial3dProduct(ctx, product, stageCenterX, stageCenterY, isWhite);
     }
@@ -1036,6 +1255,7 @@ Respuesta del Copiloto JJ:`;
     draftEmail,
     searchProductsLive,
     enrichProductForMarketing,
+    generateProductStudioPhoto,
     askCopilot,
     renderProductCard,
     getCurrentKeyIndex: () => _keyIndex,

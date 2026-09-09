@@ -192,7 +192,7 @@
 
         <div class="cpi-tabs">
           <button class="cpi-tab active" data-tab="chat">💬 Chat Asesor</button>
-          <button class="cpi-tab" data-tab="flyer">🎨 Crear Flyer</button>
+          <button class="cpi-tab" data-tab="flyer">📸 Foto & Flyer IA</button>
           <button class="cpi-tab" data-tab="antispam">🛡️ Anti-Spam</button>
         </div>
 
@@ -201,78 +201,106 @@
           <div class="cpi-chips">
             <span class="cpi-chip" onclick="cpiQuickAsk('¿A cómo está la tasa BCV hoy?')">💵 Tasa BCV hoy</span>
             <span class="cpi-chip" onclick="cpiQuickAsk('¿Cuánto cuesta la resma de papel bond carta?')">📄 Resma papel</span>
+            <span class="cpi-chip" onclick="cpiQuickAsk('Genera una foto de marcadores Expo azul')">📸 Foto Marcadores</span>
             <span class="cpi-chip" onclick="cpiQuickAsk('Genera un flyer de resma de papel')">🎨 Diseñar Flyer</span>
-            <span class="cpi-chip" onclick="cpiQuickAsk('¿Cuáles son las opciones de despacho?')">🚚 Despachos</span>
             <span class="cpi-chip" onclick="cpiLaunchCampaignModal()">🚀 Editor de Campaña</span>
           </div>
           <div class="cpi-chat-msgs" id="cpiChatMsgs">
             <div class="cpi-msg ai">
-              ¡Hola! Soy tu Copiloto Inteligente de JJ Paper. Puedo responderte dudas sobre productos, precios en $ y Bs a tasa BCV, y ayudarte a vender más rápido. ¿Qué necesitas consultar?
+              ¡Hola! Soy tu Copiloto Inteligente de JJ Paper. Puedo responder dudas sobre productos, precios en $ y Bs a tasa BCV, y generar fotografías de estudio fotorrealistas de productos o flyers publicitarios. ¿Qué producto deseas consultar o fotografiar?
             </div>
           </div>
           <div class="cpi-chat-input-bar">
-            <input type="text" class="cpi-chat-input" id="cpiChatInput" placeholder="Pregunta algo sobre productos o precios…">
+            <input type="text" class="cpi-chat-input" id="cpiChatInput" placeholder="Pregunta sobre productos, fotos o precios…">
             <button class="cpi-chat-send" id="cpiChatSendBtn">➤</button>
           </div>
         </div>
 
-        <!-- Tab 2: Flyer Generator -->
+        <!-- Tab 2: Foto de Estudio & Flyer Generator -->
         <div class="cpi-body" id="cpiTabFlyer" style="display:none">
           <div class="cpi-flyer-panel">
             <div class="cpi-search-box">
               <label class="cpi-input-lbl">Selecciona un producto del catálogo:</label>
-              <input type="text" class="cpi-chat-input" id="cpiFlyerSearch" placeholder="Buscar por nombre o código…" autocomplete="off" style="width:100%">
+              <input type="text" class="cpi-chat-input" id="cpiFlyerSearch" placeholder="Buscar por nombre, marca o especificación…" autocomplete="off" style="width:100%">
               <div class="cpi-results-dropdown" id="cpiFlyerResults" style="display:none"></div>
             </div>
 
             <div id="cpiFlyerForm" style="display:none">
-              <!-- Ficha de Detalles Comerciales del Producto -->
-              <div id="cpiFlyerSpecsCard" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font-size:12px;color:#334155;line-height:1.45;margin-bottom:8px"></div>
+              <!-- Ficha de Detalles Comerciales Reales del Producto -->
+              <div id="cpiFlyerSpecsCard" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:9px 12px;font-size:12px;color:#334155;line-height:1.5;margin-bottom:10px"></div>
 
-              <!-- Selector de Estilo de Fondo -->
-              <div style="margin-bottom:8px">
+              <!-- Switcher de Modo: Foto de Estudio Real vs Flyer Publicitario -->
+              <div style="display:flex;gap:6px;background:#e2e8f0;padding:4px;border-radius:10px;margin-bottom:10px">
+                <button type="button" id="cpiBtnModePhoto" class="cpi-mode-toggle active" style="flex:1;padding:7px;border-radius:8px;border:0;font-size:12px;font-weight:700;cursor:pointer;background:#16604A;color:#fff;transition:all 0.2s">📸 Foto Real de Estudio</button>
+                <button type="button" id="cpiBtnModeFlyer" class="cpi-mode-toggle" style="flex:1;padding:7px;border-radius:8px;border:0;font-size:12px;font-weight:700;cursor:pointer;background:transparent;color:#475569;transition:all 0.2s">🎨 Flyer Comercial JJ</button>
+              </div>
+
+              <!-- Selector de Estilo de Fondo / Escenario -->
+              <div style="margin-bottom:10px">
                 <label class="cpi-input-lbl">Estilo de Fondo / Escenario:</label>
                 <div style="display:flex;gap:8px;margin-top:3px">
+                  <label style="flex:1;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#1e293b">
+                    <input type="radio" name="cpiFlyerTheme" value="white" checked> ⚪ Blanco Estudio
+                  </label>
                   <label style="flex:1;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#16604A">
-                    <input type="radio" name="cpiFlyerTheme" value="emerald" checked> 🟢 Verde Esmeralda
-                  </label>
-                  <label style="flex:1;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#475569">
-                    <input type="radio" name="cpiFlyerTheme" value="white"> ⚪ Blanco Estudio
+                    <input type="radio" name="cpiFlyerTheme" value="emerald"> 🟢 Verde Esmeralda
                   </label>
                 </div>
               </div>
 
-              <!-- Selector de Titular / Badge Publicitario -->
-              <div style="margin-bottom:8px">
-                <label class="cpi-input-lbl">Titular Publicitario:</label>
-                <select id="cpiFlyerHeadline" class="cpi-chat-input" style="width:100%;font-weight:600">
-                  <option value="🔥 OFERTA AL MAYOR" selected>🔥 OFERTA AL MAYOR</option>
-                  <option value="⭐ PRODUCTO DESTACADO">⭐ PRODUCTO DESTACADO</option>
-                  <option value="📦 LLEGANDO DE FÁBRICA">📦 LLEGANDO DE FÁBRICA</option>
-                  <option value="⚡ DISPONIBILIDAD INMEDIATA">⚡ DISPONIBILIDAD INMEDIATA</option>
-                  <option value="🛡️ CALIDAD GARANTIZADA">🛡️ CALIDAD GARANTIZADA</option>
-                </select>
-              </div>
-
-              <div style="display:flex;gap:8px">
-                <div style="flex:1">
-                  <label class="cpi-input-lbl">Precio USD ($):</label>
-                  <input type="number" step="0.01" class="cpi-chat-input" id="cpiFlyerPrice" style="width:100%">
+              <!-- Sub-panel MODO 1: FOTOGRAFÍA DE ESTUDIO REAL -->
+              <div id="cpiPanelPhoto" style="display:block">
+                <div style="position:relative;width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.06)">
+                  <div id="cpiPhotoLoading" style="position:absolute;inset:0;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:2;font-size:12.5px;color:#16604A;font-weight:600">
+                    <span class="cpi-pulse" style="width:16px;height:16px"></span>
+                    <span>Generando fotografía de estudio fotorrealista…</span>
+                  </div>
+                  <img id="cpiPhotoImg" src="" alt="Fotografía comercial" style="width:100%;height:100%;object-fit:contain;display:block">
                 </div>
-                <div style="flex:1">
-                  <label class="cpi-input-lbl">Nota / Contacto:</label>
-                  <input type="text" class="cpi-chat-input" id="cpiFlyerNote" placeholder="Ej: Entrega inmediata" style="width:100%">
+
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                  <button class="cpi-chip" id="cpiCopyPhotoBtn" style="flex:1;text-align:center;padding:7px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">📋 Copiar Foto</button>
+                  <button class="cpi-chip" id="cpiDownloadPhotoBtn" style="flex:1;text-align:center;padding:7px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0">⬇️ Descargar Foto HD</button>
+                  <button class="cpi-chip" id="cpiRegenPhotoBtn" style="flex:1;text-align:center;padding:7px;background:#fef3c7;color:#92400e;border-color:#fde68a">🔄 Otra Variación</button>
+                  <button class="cpi-chip" id="cpiSendWaPhotoBtn" style="flex:100%;text-align:center;padding:8px;background:#16604A;color:#fff;display:none">💬 Enviar Foto a WhatsApp</button>
+                  <button class="cpi-chip" id="cpiToFlyerBtn" style="flex:100%;text-align:center;padding:8px;background:#0369a1;color:#fff">🎨 Convertir en Flyer Publicitario JJ Paper</button>
                 </div>
               </div>
-              <button class="cpi-chat-send" id="cpiRenderFlyerBtn" style="width:100%;margin-top:8px;padding:8px">🖼️ Actualizar Flyer</button>
 
-              <canvas id="cpiCanvas" class="cpi-canvas-preview" width="1200" height="1200"></canvas>
+              <!-- Sub-panel MODO 2: FLYER PUBLICITARIO -->
+              <div id="cpiPanelFlyer" style="display:none">
+                <!-- Selector de Titular / Badge Publicitario -->
+                <div style="margin-bottom:8px">
+                  <label class="cpi-input-lbl">Titular Publicitario:</label>
+                  <select id="cpiFlyerHeadline" class="cpi-chat-input" style="width:100%;font-weight:600">
+                    <option value="🔥 OFERTA AL MAYOR" selected>🔥 OFERTA AL MAYOR</option>
+                    <option value="⭐ PRODUCTO DESTACADO">⭐ PRODUCTO DESTACADO</option>
+                    <option value="📦 LLEGANDO DE FÁBRICA">📦 LLEGANDO DE FÁBRICA</option>
+                    <option value="⚡ DISPONIBILIDAD INMEDIATA">⚡ DISPONIBILIDAD INMEDIATA</option>
+                    <option value="🛡️ CALIDAD GARANTIZADA">🛡️ CALIDAD GARANTIZADA</option>
+                  </select>
+                </div>
 
-              <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-                <button class="cpi-chip" id="cpiCopyImgBtn" style="flex:1;text-align:center;padding:7px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">📋 Copiar Imagen</button>
-                <button class="cpi-chip" id="cpiDownloadImgBtn" style="flex:1;text-align:center;padding:7px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0">⬇️ Descargar PNG</button>
-                <button class="cpi-chip" id="cpiSendWaBtn" style="flex:100%;text-align:center;padding:8px;background:#16604A;color:#fff;display:none">💬 Enviar a este Chat de WhatsApp</button>
-                <button class="cpi-chip" id="cpiCampaignFlyerBtn" style="flex:100%;text-align:center;padding:8px;background:#0369a1;color:#fff;">📢 Usar este Producto en Difusión / Campaña</button>
+                <div style="display:flex;gap:8px">
+                  <div style="flex:1">
+                    <label class="cpi-input-lbl">Precio USD ($):</label>
+                    <input type="number" step="0.01" class="cpi-chat-input" id="cpiFlyerPrice" style="width:100%">
+                  </div>
+                  <div style="flex:1">
+                    <label class="cpi-input-lbl">Nota / Contacto:</label>
+                    <input type="text" class="cpi-chat-input" id="cpiFlyerNote" placeholder="Ej: Entrega inmediata" style="width:100%">
+                  </div>
+                </div>
+                <button class="cpi-chat-send" id="cpiRenderFlyerBtn" style="width:100%;margin-top:8px;padding:8px">🖼️ Actualizar Flyer</button>
+
+                <canvas id="cpiCanvas" class="cpi-canvas-preview" width="1200" height="1200"></canvas>
+
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                  <button class="cpi-chip" id="cpiCopyImgBtn" style="flex:1;text-align:center;padding:7px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">📋 Copiar Flyer</button>
+                  <button class="cpi-chip" id="cpiDownloadImgBtn" style="flex:1;text-align:center;padding:7px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0">⬇️ Descargar PNG</button>
+                  <button class="cpi-chip" id="cpiSendWaBtn" style="flex:100%;text-align:center;padding:8px;background:#16604A;color:#fff;display:none">💬 Enviar Flyer a este Chat de WhatsApp</button>
+                  <button class="cpi-chip" id="cpiCampaignFlyerBtn" style="flex:100%;text-align:center;padding:8px;background:#0369a1;color:#fff;">📢 Usar este Producto en Difusión / Campaña</button>
+                </div>
               </div>
             </div>
           </div>
@@ -391,41 +419,63 @@
         _chatHistory.push({ sender: 'Copiloto', text: reply });
 
         if (matchedProduct) {
-          const canvasId = 'cpiInlineCanvas_' + Date.now();
-          aiBubble.innerHTML = `
-            <div>${escapeHtmlStr(reply)}</div>
-            <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
-              <div style="font-weight:700;color:#16604A;margin-bottom:6px;font-size:12.5px">🎨 Flyer Promocional: ${escapeHtmlStr(matchedProduct.name)}</div>
-              <canvas id="${canvasId}" class="cpi-canvas-preview" width="800" height="800" style="width:100%;height:auto;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08)"></canvas>
-              <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
-                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyInlineFlyer(this)">📋 Copiar</button>
-                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadInlineFlyer(this, '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar</button>
-                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">✏️ Personalizar</button>
-                <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#16604A;color:#fff;border-color:#16604A" onclick="cpiLaunchProductCampaign('${escapeJsStr(matchedProduct.id || '')}')">📢 Lanzar Campaña</button>
-              </div>
-            </div>
-          `;
-          const cvs = document.getElementById(canvasId);
-          if (cvs) {
-            const isWhiteBg = /(fondo blanco|blanco|estudio blanco)/i.test(text);
-            const theme = isWhiteBg ? 'white' : 'emerald';
-            if (typeof window.GeminiClient.enrichProductForMarketing === 'function') {
-              const en = await window.GeminiClient.enrichProductForMarketing(matchedProduct);
-              if (en) {
-                matchedProduct.brand = en.brand;
-                matchedProduct.measures = en.measures;
-                matchedProduct.color = en.color;
-                matchedProduct.presentation = en.presentation;
-              }
+          const isWhiteBg = /(fondo blanco|blanco|estudio blanco)/i.test(text);
+          const theme = isWhiteBg ? 'white' : 'emerald';
+
+          if (typeof window.GeminiClient.enrichProductForMarketing === 'function') {
+            const en = await window.GeminiClient.enrichProductForMarketing(matchedProduct);
+            if (en) {
+              matchedProduct.brand = en.brand;
+              matchedProduct.measures = en.measures;
+              matchedProduct.color = en.color;
+              matchedProduct.presentation = en.presentation;
             }
-            await window.GeminiClient.renderProductCard({
-              product: matchedProduct,
-              customPriceUsd: matchedProduct.price_usd,
-              sellerName: profile.full_name || profile.name || '',
-              sellerPhone: profile.phone || '',
-              theme,
-              canvas: cvs
-            });
+          }
+
+          const wantsPurePhoto = /(foto|fotografia|imagen real|foto real|imagen del|foto del)/i.test(text) && !/(flyer|afiche|volante|publicidad|tarjeta)/i.test(text);
+
+          if (wantsPurePhoto) {
+            const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: matchedProduct, theme });
+            matchedProduct._studio_photo_url = photoRes.imageUrl;
+            aiBubble.innerHTML = `
+              <div>${escapeHtmlStr(reply)}</div>
+              <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+                <div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">📸 Fotografía Comercial de Estudio: ${escapeHtmlStr(matchedProduct.name)}</div>
+                <div style="font-size:11.5px;color:#475569;margin-bottom:8px">🏷️ <strong>Marca:</strong> ${escapeHtmlStr(matchedProduct.brand || 'JJ Paper')} · 📦 ${escapeHtmlStr(matchedProduct.presentation || matchedProduct.unit || 'Comercial')} ${matchedProduct.measures && matchedProduct.measures !== 'Medida estándar' ? `· 📏 ${escapeHtmlStr(matchedProduct.measures)}` : ''} ${matchedProduct.color ? `· 🎨 ${escapeHtmlStr(matchedProduct.color)}` : ''}</div>
+                <img src="${photoRes.imageUrl}" alt="${escapeHtmlStr(matchedProduct.name)}" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08);background:#fff" />
+                <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyPhotoDirect('${photoRes.imageUrl}', this)">📋 Copiar Foto</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadPhotoDirect('${photoRes.imageUrl}', '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar HD</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">🎨 Ver en Estudio / Flyer</button>
+                </div>
+              </div>
+            `;
+          } else {
+            const canvasId = 'cpiInlineCanvas_' + Date.now();
+            aiBubble.innerHTML = `
+              <div>${escapeHtmlStr(reply)}</div>
+              <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+                <div style="font-weight:700;color:#16604A;margin-bottom:6px;font-size:12.5px">🎨 Flyer Promocional: ${escapeHtmlStr(matchedProduct.name)}</div>
+                <canvas id="${canvasId}" class="cpi-canvas-preview" width="800" height="800" style="width:100%;height:auto;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08)"></canvas>
+                <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyInlineFlyer(this)">📋 Copiar Flyer</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadInlineFlyer(this, '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">✏️ Personalizar</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#16604A;color:#fff;border-color:#16604A" onclick="cpiLaunchProductCampaign('${escapeJsStr(matchedProduct.id || '')}')">📢 Lanzar Campaña</button>
+                </div>
+              </div>
+            `;
+            const cvs = document.getElementById(canvasId);
+            if (cvs) {
+              await window.GeminiClient.renderProductCard({
+                product: matchedProduct,
+                customPriceUsd: matchedProduct.price_usd,
+                sellerName: profile.full_name || profile.name || '',
+                sellerPhone: profile.phone || '',
+                theme,
+                canvas: cvs
+              });
+            }
           }
         } else {
           aiBubble.textContent = reply;
@@ -437,18 +487,56 @@
     });
   }
 
-  /* ---------------- Tab 2: Flyer Generator ---------------- */
+  /* ---------------- Tab 2: Studio Photo & Flyer Generator ---------------- */
   let _flyerDebounce = null;
+  let _flyerMode = 'photo'; // 'photo' | 'flyer'
+
   function initFlyerTab() {
     const searchInput = document.getElementById('cpiFlyerSearch');
     const resBox = document.getElementById('cpiFlyerResults');
     const sendWaBtn = document.getElementById('cpiSendWaBtn');
+    const sendWaPhotoBtn = document.getElementById('cpiSendWaPhotoBtn');
 
     // Verificar si estamos en la página de WhatsApp con un chat activo
-    if (window.waActive && typeof window.waSendGeneratedImage === 'function') {
-      sendWaBtn.style.display = 'block';
-    } else {
-      sendWaBtn.style.display = 'none';
+    const hasWa = !!(window.waActive && typeof window.waSendGeneratedImage === 'function');
+    if (sendWaBtn) sendWaBtn.style.display = hasWa ? 'block' : 'none';
+    if (sendWaPhotoBtn) sendWaPhotoBtn.style.display = hasWa ? 'block' : 'none';
+
+    // Toggles de modo Foto vs Flyer
+    const btnModePhoto = document.getElementById('cpiBtnModePhoto');
+    const btnModeFlyer = document.getElementById('cpiBtnModeFlyer');
+    const panelPhoto = document.getElementById('cpiPanelPhoto');
+    const panelFlyer = document.getElementById('cpiPanelFlyer');
+
+    if (btnModePhoto && btnModeFlyer) {
+      btnModePhoto.onclick = () => {
+        _flyerMode = 'photo';
+        btnModePhoto.style.background = '#16604A';
+        btnModePhoto.style.color = '#fff';
+        btnModeFlyer.style.background = 'transparent';
+        btnModeFlyer.style.color = '#475569';
+        if (panelPhoto) panelPhoto.style.display = 'block';
+        if (panelFlyer) panelFlyer.style.display = 'none';
+        if (_selectedFlyerProduct) loadCurrentStudioPhoto();
+      };
+
+      btnModeFlyer.onclick = () => {
+        _flyerMode = 'flyer';
+        btnModeFlyer.style.background = '#16604A';
+        btnModeFlyer.style.color = '#fff';
+        btnModePhoto.style.background = 'transparent';
+        btnModePhoto.style.color = '#475569';
+        if (panelFlyer) panelFlyer.style.display = 'block';
+        if (panelPhoto) panelPhoto.style.display = 'none';
+        if (_selectedFlyerProduct) renderCurrentFlyer();
+      };
+    }
+
+    const toFlyerBtn = document.getElementById('cpiToFlyerBtn');
+    if (toFlyerBtn) {
+      toFlyerBtn.onclick = () => {
+        if (btnModeFlyer) btnModeFlyer.click();
+      };
     }
 
     searchInput.oninput = () => {
@@ -492,7 +580,7 @@
                   const specsEl = document.getElementById('cpiFlyerSpecsCard');
                   if (specsEl) {
                     specsEl.style.display = 'block';
-                    let specsHtml = `<div style="font-weight:700;color:#16604A;margin-bottom:3px">📋 Ficha Comercial del Producto:</div>`;
+                    let specsHtml = `<div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">📋 Ficha Comercial del Producto:</div>`;
                     specsHtml += `🏷️ <strong>Marca:</strong> ${enriched.brand}   ·   📦 <strong>Presentación:</strong> ${enriched.presentation}`;
                     if (enriched.measures && enriched.measures !== 'Medida estándar' && enriched.measures !== 'MEDIDA ESTÁNDAR') {
                       specsHtml += `<br>📏 <strong>Medidas:</strong> ${enriched.measures}`;
@@ -506,7 +594,11 @@
               }
 
               document.getElementById('cpiFlyerForm').style.display = 'block';
-              renderCurrentFlyer();
+              if (_flyerMode === 'photo') {
+                loadCurrentStudioPhoto();
+              } else {
+                renderCurrentFlyer();
+              }
             };
           });
         });
@@ -515,16 +607,127 @@
 
     // Listeners para cambio de tema y titular publicitario en tiempo real
     document.querySelectorAll('input[name="cpiFlyerTheme"]').forEach(r => {
-      r.onchange = renderCurrentFlyer;
+      r.onchange = () => {
+        if (_flyerMode === 'photo') loadCurrentStudioPhoto();
+        else renderCurrentFlyer();
+      };
     });
+
     const hlSelect = document.getElementById('cpiFlyerHeadline');
     if (hlSelect) hlSelect.onchange = renderCurrentFlyer;
 
     document.getElementById('cpiRenderFlyerBtn').onclick = renderCurrentFlyer;
     document.getElementById('cpiCopyImgBtn').onclick = copyFlyerToClipboard;
     document.getElementById('cpiDownloadImgBtn').onclick = downloadFlyerPng;
-    document.getElementById('cpiSendWaBtn').onclick = sendFlyerToWaActive;
+    if (sendWaBtn) sendWaBtn.onclick = sendFlyerToWaActive;
     document.getElementById('cpiCampaignFlyerBtn').onclick = launchProductCampaignFromFlyer;
+
+    // Listeners para Foto de Estudio
+    const copyPhotoBtn = document.getElementById('cpiCopyPhotoBtn');
+    if (copyPhotoBtn) copyPhotoBtn.onclick = copyPhotoToClipboard;
+    const dlPhotoBtn = document.getElementById('cpiDownloadPhotoBtn');
+    if (dlPhotoBtn) dlPhotoBtn.onclick = downloadPhoto;
+    const regenPhotoBtn = document.getElementById('cpiRegenPhotoBtn');
+    if (regenPhotoBtn) regenPhotoBtn.onclick = () => loadCurrentStudioPhoto(true);
+    if (sendWaPhotoBtn) sendWaPhotoBtn.onclick = sendPhotoToWaActive;
+  }
+
+  async function loadCurrentStudioPhoto(forceNew = false) {
+    if (!_selectedFlyerProduct) return;
+    const imgEl = document.getElementById('cpiPhotoImg');
+    const loadingEl = document.getElementById('cpiPhotoLoading');
+    const theme = document.querySelector('input[name="cpiFlyerTheme"]:checked')?.value || 'white';
+
+    if (loadingEl) loadingEl.style.display = 'flex';
+
+    ensureGeminiClient(async () => {
+      try {
+        const photoRes = await window.GeminiClient.generateProductStudioPhoto({
+          product: _selectedFlyerProduct,
+          theme,
+          forceNew
+        });
+
+        if (photoRes?.imageUrl) {
+          _selectedFlyerProduct._studio_photo_url = photoRes.imageUrl;
+          if (imgEl) {
+            imgEl.onload = () => {
+              if (loadingEl) loadingEl.style.display = 'none';
+            };
+            imgEl.onerror = () => {
+              if (loadingEl) loadingEl.style.display = 'none';
+            };
+            imgEl.src = photoRes.imageUrl;
+          }
+        }
+      } catch (err) {
+        console.error('Error generando foto de estudio:', err);
+        if (loadingEl) loadingEl.style.display = 'none';
+      }
+    });
+  }
+
+  async function copyPhotoToClipboard() {
+    const imgEl = document.getElementById('cpiPhotoImg');
+    const btn = document.getElementById('cpiCopyPhotoBtn');
+    if (!imgEl || !imgEl.src) return;
+    try {
+      if (btn) btn.textContent = '⏳ Copiando…';
+      const resp = await fetch(imgEl.src, { mode: 'cors' });
+      const blob = await resp.blob();
+      let finalBlob = blob;
+      if (blob.type !== 'image/png') {
+        const bmp = await createImageBitmap(blob);
+        const c = document.createElement('canvas');
+        c.width = bmp.width;
+        c.height = bmp.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        finalBlob = await new Promise(r => c.toBlob(r, 'image/png'));
+      }
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': finalBlob })]);
+      if (btn) {
+        btn.textContent = '¡Copiada! ✓';
+        setTimeout(() => btn.textContent = '📋 Copiar Foto', 2000);
+      }
+      if (typeof showToast === 'function') showToast('¡Fotografía de estudio copiada al portapapeles!');
+      else alert('¡Foto de estudio copiada! Pégala con Ctrl+V.');
+    } catch (err) {
+      if (btn) btn.textContent = '📋 Copiar Foto';
+      alert('Tu navegador no permite copiar imágenes directamente. Usa el botón "Descargar Foto HD".');
+    }
+  }
+
+  async function downloadPhoto() {
+    const imgEl = document.getElementById('cpiPhotoImg');
+    if (!imgEl || !imgEl.src || !_selectedFlyerProduct) return;
+    try {
+      const resp = await fetch(imgEl.src, { mode: 'cors' });
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Foto_Estudio_${(_selectedFlyerProduct.name || 'Producto').replace(/\s+/g, '_')}.png`;
+      a.click();
+    } catch (e) {
+      window.open(imgEl.src, '_blank');
+    }
+  }
+
+  async function sendPhotoToWaActive() {
+    const imgEl = document.getElementById('cpiPhotoImg');
+    if (!imgEl || !imgEl.src || !window.waActive) return;
+    try {
+      const resp = await fetch(imgEl.src, { mode: 'cors' });
+      const blob = await resp.blob();
+      if (typeof window.waSendGeneratedImage === 'function') {
+        const price = parseFloat(document.getElementById('cpiFlyerPrice')?.value || _selectedFlyerProduct.price_usd || 0).toFixed(2);
+        const caption = `📸 *${_selectedFlyerProduct.name}*\n🏷️ Marca: ${_selectedFlyerProduct.brand || 'Oficial'}\n💰 Precio Oficial: $${price} USD (Tasa BCV)`;
+        await window.waSendGeneratedImage(blob, `foto_${Date.now()}.png`, caption);
+        document.getElementById('jjp-copilot-window').classList.add('cpi-hidden');
+      }
+    } catch (e) {
+      alert('Error enviando imagen a WhatsApp: ' + e.message);
+    }
   }
 
   function launchProductCampaignFromFlyer() {
@@ -577,7 +780,7 @@
     const canvas = document.getElementById('cpiCanvas');
     const customPrice = document.getElementById('cpiFlyerPrice').value;
     const note = document.getElementById('cpiFlyerNote').value;
-    const theme = document.querySelector('input[name="cpiFlyerTheme"]:checked')?.value || 'emerald';
+    const theme = document.querySelector('input[name="cpiFlyerTheme"]:checked')?.value || 'white';
     const headline = document.getElementById('cpiFlyerHeadline')?.value || '🔥 OFERTA AL MAYOR';
     const profile = window.CURRENT_PROFILE || window.WA_ME || {};
 
@@ -611,7 +814,7 @@
       canvas.toBlob(async (blob) => {
         if (!blob) return;
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-        if (typeof showToast === 'function') showToast('¡Imagen copiada al portapapeles! Puedes pegarla en cualquier chat.');
+        if (typeof showToast === 'function') showToast('¡Flyer copiado al portapapeles! Puedes pegarlo en cualquier chat.');
         else alert('¡Flyer copiado al portapapeles! Pégalo con Ctrl+V.');
       });
     } catch (e) {
@@ -631,6 +834,47 @@
       }
     });
   }
+
+  window.cpiCopyPhotoDirect = async function (url, btn) {
+    try {
+      if (btn) btn.textContent = '⏳ Copiando…';
+      const resp = await fetch(url, { mode: 'cors' });
+      const blob = await resp.blob();
+      let finalBlob = blob;
+      if (blob.type !== 'image/png') {
+        const bmp = await createImageBitmap(blob);
+        const c = document.createElement('canvas');
+        c.width = bmp.width;
+        c.height = bmp.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bmp, 0, 0);
+        finalBlob = await new Promise(r => c.toBlob(r, 'image/png'));
+      }
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': finalBlob })]);
+      if (btn) {
+        btn.textContent = '¡Copiado! ✓';
+        setTimeout(() => btn.textContent = '📋 Copiar Foto', 2000);
+      }
+      if (typeof showToast === 'function') showToast('Fotografía copiada al portapapeles');
+      else alert('¡Foto de estudio copiada! Pégala con Ctrl+V.');
+    } catch (e) {
+      if (btn) btn.textContent = '📋 Copiar Foto';
+      alert('Tu navegador no permite copiar imágenes directamente. Usa el botón "Descargar HD".');
+    }
+  };
+
+  window.cpiDownloadPhotoDirect = async function (url, name) {
+    try {
+      const resp = await fetch(url, { mode: 'cors' });
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Foto_${(name || 'Producto').replace(/\s+/g, '_')}.png`;
+      a.click();
+    } catch (e) {
+      window.open(url, '_blank');
+    }
+  };
 
   /* ---------------- Tab 3: Anti-Spam Variations ---------------- */
   async function handleGenAntiSpam() {

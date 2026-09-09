@@ -197,15 +197,43 @@ export class WaSession {
   cleanCorruptedSessions() {
     try {
       if (!fs.existsSync(this.dir)) return;
+      let ownPhone = null;
+      let ownLid = null;
+      const credsPath = path.join(this.dir, 'creds.json');
+      if (fs.existsSync(credsPath)) {
+        try {
+          const c = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+          if (c?.me?.id) ownPhone = c.me.id.split(':')[0].replace(/\D/g, '');
+          if (c?.me?.lid) ownLid = c.me.lid.split(':')[0].replace(/\D/g, '');
+        } catch {}
+      }
+
       const files = fs.readdirSync(this.dir);
       for (const f of files) {
         if (f.startsWith('session-') && f.endsWith('.json')) {
           const full = path.join(this.dir, f);
+          let shouldRemove = false;
           try {
             const raw = fs.readFileSync(full, 'utf8');
             JSON.parse(raw);
+            const stat = fs.statSync(full);
+            // Si es un archivo de sesión propio (con el primary phone .0 u otros dispositivos viejos)
+            // que supera 15KB o coincide con ownPhone/ownLid .0, eliminarlo para forzar nuevo handshake PreKey
+            if ((ownPhone && f.includes(ownPhone)) || (ownLid && f.includes(ownLid))) {
+              if (f.endsWith('.0.json') || stat.size > 15_000) {
+                shouldRemove = true;
+                log.warn({ profile: this.profileId, file: f }, 'Eliminando sesión peer propia desincronizada (previene Bad MAC)');
+              }
+            } else if (stat.size > 35_000) {
+              // Sesiones de terceros anormalmente infladas (>35KB) con ratchets rotos
+              shouldRemove = true;
+              log.warn({ profile: this.profileId, file: f, size: stat.size }, 'Eliminando sesión inflada con ratchets obsoletos');
+            }
           } catch {
+            shouldRemove = true;
             log.warn({ profile: this.profileId, file: f }, 'Eliminando archivo de sesión truncado o corrupto');
+          }
+          if (shouldRemove) {
             try { fs.unlinkSync(full); } catch {}
           }
         }

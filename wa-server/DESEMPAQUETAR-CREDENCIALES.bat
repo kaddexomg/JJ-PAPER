@@ -16,15 +16,18 @@ echo.
 
 set "ZIP_FOUND="
 
-REM 1. Buscar en la misma carpeta
-if exist "wa-server-credenciales.zip" set "ZIP_FOUND=%~dp0wa-server-credenciales.zip"
-REM 2. Buscar en Descargas
+REM 1. Buscar wa-server-completo.zip (incluye node_modules)
+if exist "wa-server-completo.zip" set "ZIP_FOUND=%~dp0wa-server-completo.zip"
+if not defined ZIP_FOUND if exist "%USERPROFILE%\Downloads\wa-server-completo.zip" set "ZIP_FOUND=%USERPROFILE%\Downloads\wa-server-completo.zip"
+if not defined ZIP_FOUND if exist "%USERPROFILE%\Desktop\wa-server-completo.zip" set "ZIP_FOUND=%USERPROFILE%\Desktop\wa-server-completo.zip"
+
+REM 2. Buscar wa-server-credenciales.zip (solo .env y sessions)
+if not defined ZIP_FOUND if exist "wa-server-credenciales.zip" set "ZIP_FOUND=%~dp0wa-server-credenciales.zip"
 if not defined ZIP_FOUND if exist "%USERPROFILE%\Downloads\wa-server-credenciales.zip" set "ZIP_FOUND=%USERPROFILE%\Downloads\wa-server-credenciales.zip"
-REM 3. Buscar en Escritorio
 if not defined ZIP_FOUND if exist "%USERPROFILE%\Desktop\wa-server-credenciales.zip" set "ZIP_FOUND=%USERPROFILE%\Desktop\wa-server-credenciales.zip"
 
 if not defined ZIP_FOUND (
-    echo  [!] No se encontro "wa-server-credenciales.zip" automaticamente.
+    echo  [!] No se encontro "wa-server-completo.zip" ni "wa-server-credenciales.zip".
     echo.
     echo      Asegurate de haber descargado el archivo en tu carpeta
     echo      de Descargas, Escritorio o en esta misma carpeta.

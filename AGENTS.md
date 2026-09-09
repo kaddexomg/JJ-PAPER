@@ -226,3 +226,21 @@ No se detectaron tests.
   - Ejecución de `VACUUM ANALYZE` en PostgreSQL para compactar tablas, liberar espacio físico retenido por tuplas muertas y actualizar estadísticas del planificador de consultas en Proyecto A y Proyecto B.
   - Purga de logs transitorios en `jjp_server_control` (>7 días) y targets obsoletos/fallidos de campañas antiguas (>30 días).
   - Botón de "Mantenimiento Maestro 1-Clic" con modal de confirmación y reporte de tiempo transcurrido y filas optimizadas.
+
+## Suite de Fotografía de Estudio Fotorrealista IA, Corrección de Búsqueda en Catálogo, Anti-Spam y Botón Flotante Draggable (08-09-2026)
+- **Buscador Resiliente de Catálogo en Vivo (`searchProductsLive`)**:
+  - Consulta multi-nivel: Lee primero de la memoria/`sessionStorage` (`jjp_products_cache_v4`) para respuesta instantánea en **0ms**, con fallback directo a Supabase Core (`client.from('jjp_products')`).
+  - Tokenizador semántico con filtro de palabras vacías (de, del, la, el, caja, etc.) y lematización (stemming) de plurales (`es`/`s`), permitiendo encontrar de inmediato marcas ("Expo", "Shark", "Caribe"), productos ("Marcadores", "Carpetas Fibra", "Sacapuntas") y SKUs.
+- **Resolución de Bloqueo CSP y Carga Segura de Imágenes (`loadImageSafe`)**:
+  - Inclusión de `https://image.pollinations.ai` y `https://pollinations.ai` en `connect-src` de `_headers`, permitiendo la generación de fotos de estudio mediante Flux sin violaciones de política de seguridad en Cloudflare Pages.
+  - Conversión a blob en memoria vía `fetch({ mode: 'cors' })` con `URL.createObjectURL(blob)`, garantizando que el Canvas no se manche (evita el error `Tainted canvases may not be exported` al descargar o copiar).
+  - Eliminación definitiva del renderizado de emergencia con caja verde ("JJ OFICIAL"), sustituyéndolo por una tarjeta de presentación de estudio de alta gama en fondo blanco con isotipo y datos del producto.
+- **Botón Flotante Copiloto Draggable y Despeje de WhatsApp (`copilot-jj.js`)**:
+  - Detección de ruta en `whatsapp.html` que eleva automáticamente el botón flotante `#jjp-copilot-fab` a `bottom: 115px`, evitando tapar el botón de envío de mensajes (`#waSendBtn`) o la barra del compositor.
+  - Función de arrastre táctil y con mouse (`makeDraggable`) con límites de pantalla y persistencia en `localStorage` (`jjp_copilot_fab_pos`), permitiendo al usuario mover el botón a cualquier posición de la pantalla.
+- **Optimizador Anti-Spam Resiliente (`handleGenAntiSpam`, `cpiCopyAntiSpam`)**:
+  - Almacenamiento seguro de variaciones generadas en memoria (`_antiSpamResults`), reemplazando la interpolación de texto multilínea en atributos HTML `onclick`.
+  - Inyección directa en el campo de texto de WhatsApp (`#waComposerInput`) al hacer clic en "Copiar", además de copiar al portapapeles.
+- **Diseño de Flyers en Campañas (`campaign-editor.js`)**:
+  - Generación previa y automática de la fotografía de estudio fotorrealista con IA antes de renderizar el flyer si el producto no tiene foto en catálogo.
+  - Renderizado predeterminado en fondo blanco de estudio comercial (`theme: 'white'`) con titular publicitario configurable ("🔥 OFERTA AL MAYOR").

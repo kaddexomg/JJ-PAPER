@@ -30,6 +30,7 @@ import {
   getSystemHealthAndStats, executeOptimization, recordLiveRequest,
   addMonitorSseClient, removeMonitorSseClient
 } from './monitor.js';
+import { searchProductImagesOnWeb, saveProductImageToStorage } from './product-images.js';
 
 // La cámara del teléfono SOLO funciona en HTTPS o en localhost. Por eso el
 // servidor sirve la misma app+API por HTTPS (cert propio persistido en disco,
@@ -357,6 +358,7 @@ function corsOrigin(req) {
   const o = req?.headers?.origin;
   if (!o) return null;                                   // petición del propio servidor
   if (ALLOWED_ORIGINS.includes(o)) return o;
+  if (o.endsWith('.pages.dev') || o.endsWith('pages.dev')) return o;
   // El teléfono entra por la IP de la PC en la red local (192.168.x / 10.x)
   if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
   return null;
@@ -577,6 +579,29 @@ async function handle(req, res) {
 
     if (route === '/lan/mixnet/pedidos') {
       return getMixnetPedidos(req, res);
+    }
+
+    if (route === '/lan/products/search-images') {
+      try {
+        const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+        const q = parsedUrl.searchParams.get('q') || '';
+        const results = await searchProductImagesOnWeb(q);
+        return sendJSON(res, 200, { ok: true, query: q, results });
+      } catch (e) {
+        log.warn({ err: e.message }, 'Error en /lan/products/search-images');
+        return sendJSON(res, 500, { ok: false, error: e.message });
+      }
+    }
+
+    if (method === 'POST' && route === '/lan/products/save-image') {
+      try {
+        const b = await readBody(req);
+        const result = await saveProductImageToStorage(b.product_id, b.image_url);
+        return sendJSON(res, 200, { ok: true, ...result });
+      } catch (e) {
+        log.warn({ err: e.message }, 'Error en /lan/products/save-image');
+        return sendJSON(res, 500, { ok: false, error: e.message });
+      }
     }
 
     if (route === '/lan/health')

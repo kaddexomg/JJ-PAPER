@@ -150,6 +150,13 @@
         width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid #e2e8f0;
         box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-top: 6px;
       }
+      .cpi-src-tab.active {
+        background: #16604A !important; color: #fff !important;
+      }
+      .cpi-web-thumb:hover {
+        transform: scale(1.04);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+      }
 
       /* Tab 3: Anti-Spam */
       .cpi-var-box {
@@ -255,22 +262,61 @@
                 </div>
               </div>
 
-              <!-- Sub-panel MODO 1: FOTOGRAFÍA DE ESTUDIO REAL -->
+              <!-- Sub-panel MODO 1: FOTOGRAFÍA REAL / ESTUDIO -->
               <div id="cpiPanelPhoto" style="display:block">
+                <!-- Selector de Pestaña de Fuente -->
+                <div style="display:flex;gap:4px;background:#f1f5f9;padding:3px;border-radius:8px;margin-bottom:8px">
+                  <button type="button" id="cpiSrcTabWeb" class="cpi-src-tab active" style="flex:1;padding:6px 4px;border-radius:6px;border:0;font-size:11px;font-weight:700;cursor:pointer;background:#16604A;color:#fff;transition:all 0.15s">🌐 Fotos Web Reales</button>
+                  <button type="button" id="cpiSrcTabAi" class="cpi-src-tab" style="flex:1;padding:6px 4px;border-radius:6px;border:0;font-size:11px;font-weight:700;cursor:pointer;background:transparent;color:#475569;transition:all 0.15s">🤖 Generar con IA</button>
+                  <button type="button" id="cpiSrcTabCustom" class="cpi-src-tab" style="flex:1;padding:6px 4px;border-radius:6px;border:0;font-size:11px;font-weight:700;cursor:pointer;background:transparent;color:#475569;transition:all 0.15s">📁 Subir / Enlace</button>
+                </div>
+
+                <!-- Fuente 1: Fotos Web Reales -->
+                <div id="cpiSrcPanelWeb" style="display:block;margin-bottom:8px">
+                  <div style="display:flex;gap:6px;margin-bottom:6px">
+                    <input type="text" id="cpiWebQueryInput" class="cpi-chat-input" placeholder="Buscar fotos en internet…" style="flex:1;font-size:12px;padding:6px 8px">
+                    <button type="button" id="cpiWebSearchBtn" class="cpi-chat-send" style="padding:0 10px;font-size:12px">🔍 Buscar</button>
+                  </div>
+                  <div id="cpiWebGrid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:6px;max-height:160px;overflow-y:auto;padding:2px">
+                    <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">Selecciona un producto para ver fotos reales en la web</div>
+                  </div>
+                </div>
+
+                <!-- Fuente 2: Generación con IA (Flux Packshot) -->
+                <div id="cpiSrcPanelAi" style="display:none;margin-bottom:8px">
+                  <div style="font-size:11.5px;color:#475569;margin-bottom:6px;line-height:1.4">
+                    ✨ Genera con IA una toma comercial de producto aislada sobre <strong>fondo blanco puro (#FFFFFF)</strong> sin elementos arquitectónicos.
+                  </div>
+                  <button type="button" id="cpiRegenPhotoBtn" class="cpi-chat-send" style="width:100%;padding:8px;font-size:12px">✨ Generar Fotografía con IA (Packshot)</button>
+                </div>
+
+                <!-- Fuente 3: Subir / Enlace Propio -->
+                <div id="cpiSrcPanelCustom" style="display:none;margin-bottom:8px">
+                  <label class="cpi-input-lbl">Pegar URL directa de foto (Google / MercadoLibre):</label>
+                  <div style="display:flex;gap:6px;margin-bottom:6px">
+                    <input type="url" id="cpiCustomUrlInput" class="cpi-chat-input" placeholder="https://..." style="flex:1;font-size:12px;padding:6px 8px">
+                    <button type="button" id="cpiCustomUrlLoadBtn" class="cpi-chat-send" style="padding:0 10px;font-size:12px">Cargar</button>
+                  </div>
+                  <label class="cpi-input-lbl">O subir foto desde tu PC / Teléfono:</label>
+                  <input type="file" id="cpiFileInput" accept="image/*" style="font-size:11.5px;width:100%">
+                </div>
+
+                <!-- Visor de Fotografía Seleccionada Activa -->
                 <div style="position:relative;width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.06)">
-                  <div id="cpiPhotoLoading" style="position:absolute;inset:0;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:2;font-size:12.5px;color:#16604A;font-weight:600">
+                  <div id="cpiPhotoLoading" style="position:absolute;inset:0;background:rgba(255,255,255,0.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:2;font-size:12.5px;color:#16604A;font-weight:600">
                     <span class="cpi-pulse" style="width:16px;height:16px"></span>
-                    <span>Generando fotografía de estudio fotorrealista…</span>
+                    <span id="cpiPhotoLoadingText">Cargando fotografía…</span>
                   </div>
                   <img id="cpiPhotoImg" src="" alt="Fotografía comercial" style="width:100%;height:100%;object-fit:contain;display:block">
                 </div>
 
+                <!-- Acciones de la Fotografía -->
                 <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                  <button class="cpi-chip" id="cpiSaveToCatalogBtn" style="flex:100%;text-align:center;padding:9px;background:#16604A;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(22,96,74,0.3)">💾 Guardar como Foto Oficial en Catálogo</button>
+                  <button class="cpi-chip" id="cpiToFlyerBtn" style="flex:100%;text-align:center;padding:9px;background:#0369a1;color:#fff;font-weight:700">🎨 Convertir en Flyer Publicitario JJ Paper</button>
                   <button class="cpi-chip" id="cpiCopyPhotoBtn" style="flex:1;text-align:center;padding:7px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">📋 Copiar Foto</button>
                   <button class="cpi-chip" id="cpiDownloadPhotoBtn" style="flex:1;text-align:center;padding:7px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0">⬇️ Descargar Foto HD</button>
-                  <button class="cpi-chip" id="cpiRegenPhotoBtn" style="flex:1;text-align:center;padding:7px;background:#fef3c7;color:#92400e;border-color:#fde68a">🔄 Otra Variación</button>
                   <button class="cpi-chip" id="cpiSendWaPhotoBtn" style="flex:100%;text-align:center;padding:8px;background:#16604A;color:#fff;display:none">💬 Enviar Foto a WhatsApp</button>
-                  <button class="cpi-chip" id="cpiToFlyerBtn" style="flex:100%;text-align:center;padding:8px;background:#0369a1;color:#fff">🎨 Convertir en Flyer Publicitario JJ Paper</button>
                 </div>
               </div>
 
@@ -538,17 +584,43 @@
           const wantsPurePhoto = /(foto|fotografia|imagen real|foto real|imagen del|foto del)/i.test(text) && !/(flyer|afiche|volante|publicidad|tarjeta)/i.test(text);
 
           if (wantsPurePhoto) {
-            const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: matchedProduct, theme });
-            matchedProduct._studio_photo_url = photoRes.imageUrl;
+            aiBubble.innerHTML = '<em>Buscando fotografías reales del producto en la web…</em>';
+            let mainPhotoUrl = '';
+            let isRealPhoto = false;
+
+            try {
+              const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
+                ? `${location.protocol}//${location.hostname}:8787`
+                : 'http://localhost:8787';
+              const rRes = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(matchedProduct.name)}`, { signal: AbortSignal.timeout(6000) });
+              if (rRes.ok) {
+                const rData = await rRes.json();
+                const realImages = rData.results || [];
+                if (realImages.length > 0 && realImages[0].image) {
+                  mainPhotoUrl = realImages[0].image;
+                  isRealPhoto = true;
+                  matchedProduct._studio_photo_url = mainPhotoUrl;
+                }
+              }
+            } catch (_) {}
+
+            if (!mainPhotoUrl) {
+              const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: matchedProduct, theme });
+              mainPhotoUrl = photoRes.imageUrl;
+              matchedProduct._studio_photo_url = mainPhotoUrl;
+            }
+
             aiBubble.innerHTML = `
               <div>${escapeHtmlStr(reply)}</div>
               <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
-                <div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">📸 Fotografía Comercial de Estudio: ${escapeHtmlStr(matchedProduct.name)}</div>
+                <div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">
+                  ${isRealPhoto ? '🌐 Fotografía Real de Producto' : '📸 Fotografía Comercial de Estudio'}: ${escapeHtmlStr(matchedProduct.name)}
+                </div>
                 <div style="font-size:11.5px;color:#475569;margin-bottom:8px">🏷️ <strong>Marca:</strong> ${escapeHtmlStr(matchedProduct.brand || 'JJ Paper')} · 📦 ${escapeHtmlStr(matchedProduct.presentation || matchedProduct.unit || 'Comercial')} ${matchedProduct.measures && matchedProduct.measures !== 'Medida estándar' ? `· 📏 ${escapeHtmlStr(matchedProduct.measures)}` : ''} ${matchedProduct.color ? `· 🎨 ${escapeHtmlStr(matchedProduct.color)}` : ''}</div>
-                <img src="${photoRes.imageUrl}" alt="${escapeHtmlStr(matchedProduct.name)}" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08);background:#fff" />
+                <img src="${mainPhotoUrl}" alt="${escapeHtmlStr(matchedProduct.name)}" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08);background:#fff" />
                 <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
-                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyPhotoDirect('${photoRes.imageUrl}', this)">📋 Copiar Foto</button>
-                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadPhotoDirect('${photoRes.imageUrl}', '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar HD</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyPhotoDirect('${mainPhotoUrl}', this)">📋 Copiar Foto</button>
+                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadPhotoDirect('${mainPhotoUrl}', '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar HD</button>
                   <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">🎨 Ver en Estudio / Flyer</button>
                 </div>
               </div>
@@ -697,9 +769,15 @@
               }
 
               document.getElementById('cpiFlyerForm').style.display = 'block';
-              if (_flyerMode === 'photo') {
-                loadCurrentStudioPhoto();
-              } else {
+              const webQueryInput = document.getElementById('cpiWebQueryInput');
+              if (webQueryInput) webQueryInput.value = _selectedFlyerProduct.name;
+
+              if (_selectedFlyerProduct.image_url) {
+                selectActivePhoto(_selectedFlyerProduct.image_url);
+              }
+              searchWebPhotos(_selectedFlyerProduct.name);
+
+              if (_flyerMode === 'flyer') {
                 renderCurrentFlyer();
               }
             };
@@ -711,8 +789,12 @@
     // Listeners para cambio de tema y titular publicitario en tiempo real
     document.querySelectorAll('input[name="cpiFlyerTheme"]').forEach(r => {
       r.onchange = () => {
-        if (_flyerMode === 'photo') loadCurrentStudioPhoto();
-        else renderCurrentFlyer();
+        if (_flyerMode === 'photo') {
+          const aiActive = document.getElementById('cpiSrcTabAi')?.classList.contains('active');
+          if (aiActive) loadCurrentStudioPhoto();
+        } else {
+          renderCurrentFlyer();
+        }
       };
     });
 
@@ -725,6 +807,103 @@
     if (sendWaBtn) sendWaBtn.onclick = sendFlyerToWaActive;
     document.getElementById('cpiCampaignFlyerBtn').onclick = launchProductCampaignFromFlyer;
 
+    // Tabs de Fuente de Foto (Web, IA, Subir/Enlace)
+    const srcTabWeb = document.getElementById('cpiSrcTabWeb');
+    const srcTabAi = document.getElementById('cpiSrcTabAi');
+    const srcTabCustom = document.getElementById('cpiSrcTabCustom');
+    const panelSrcWeb = document.getElementById('cpiSrcPanelWeb');
+    const panelSrcAi = document.getElementById('cpiSrcPanelAi');
+    const panelSrcCustom = document.getElementById('cpiSrcPanelCustom');
+
+    if (srcTabWeb && srcTabAi && srcTabCustom) {
+      const setSrcTab = (tab) => {
+        [srcTabWeb, srcTabAi, srcTabCustom].forEach(t => {
+          t.style.background = 'transparent';
+          t.style.color = '#475569';
+          t.classList.remove('active');
+        });
+        [panelSrcWeb, panelSrcAi, panelSrcCustom].forEach(p => { if (p) p.style.display = 'none'; });
+
+        if (tab === 'web') {
+          srcTabWeb.style.background = '#16604A';
+          srcTabWeb.style.color = '#fff';
+          srcTabWeb.classList.add('active');
+          if (panelSrcWeb) panelSrcWeb.style.display = 'block';
+        } else if (tab === 'ai') {
+          srcTabAi.style.background = '#16604A';
+          srcTabAi.style.color = '#fff';
+          srcTabAi.classList.add('active');
+          if (panelSrcAi) panelSrcAi.style.display = 'block';
+        } else if (tab === 'custom') {
+          srcTabCustom.style.background = '#16604A';
+          srcTabCustom.style.color = '#fff';
+          srcTabCustom.classList.add('active');
+          if (panelSrcCustom) panelSrcCustom.style.display = 'block';
+        }
+      };
+
+      srcTabWeb.onclick = () => setSrcTab('web');
+      srcTabAi.onclick = () => {
+        setSrcTab('ai');
+        if (!_selectedFlyerProduct?._studio_photo_url || !_selectedFlyerProduct._studio_photo_url.includes('pollinations')) {
+          loadCurrentStudioPhoto();
+        }
+      };
+      srcTabCustom.onclick = () => setSrcTab('custom');
+    }
+
+    // Buscador de Fotos en la Web
+    const webQueryInput = document.getElementById('cpiWebQueryInput');
+    const webSearchBtn = document.getElementById('cpiWebSearchBtn');
+    if (webSearchBtn) {
+      webSearchBtn.onclick = () => {
+        const q = webQueryInput?.value.trim() || _selectedFlyerProduct?.name || '';
+        if (q) searchWebPhotos(q);
+      };
+    }
+    if (webQueryInput) {
+      webQueryInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          const q = webQueryInput.value.trim();
+          if (q) searchWebPhotos(q);
+        }
+      };
+    }
+
+    // Carga de URL directa
+    const customUrlInput = document.getElementById('cpiCustomUrlInput');
+    const customUrlLoadBtn = document.getElementById('cpiCustomUrlLoadBtn');
+    if (customUrlLoadBtn && customUrlInput) {
+      customUrlLoadBtn.onclick = () => {
+        const url = customUrlInput.value.trim();
+        if (url) {
+          selectActivePhoto(url);
+          if (typeof showToast === 'function') showToast('Imagen cargada');
+        }
+      };
+    }
+
+    // Subida de Archivo desde PC / Teléfono
+    const fileInput = document.getElementById('cpiFileInput');
+    if (fileInput) {
+      fileInput.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const dataUrl = evt.target.result;
+          selectActivePhoto(dataUrl);
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+
+    // Guardar como foto oficial en catálogo
+    const saveToCatalogBtn = document.getElementById('cpiSaveToCatalogBtn');
+    if (saveToCatalogBtn) {
+      saveToCatalogBtn.onclick = () => saveActivePhotoToCatalog(saveToCatalogBtn);
+    }
+
     // Listeners para Foto de Estudio
     const copyPhotoBtn = document.getElementById('cpiCopyPhotoBtn');
     if (copyPhotoBtn) copyPhotoBtn.onclick = copyPhotoToClipboard;
@@ -733,6 +912,186 @@
     const regenPhotoBtn = document.getElementById('cpiRegenPhotoBtn');
     if (regenPhotoBtn) regenPhotoBtn.onclick = () => loadCurrentStudioPhoto(true);
     if (sendWaPhotoBtn) sendWaPhotoBtn.onclick = sendPhotoToWaActive;
+  }
+
+  function selectActivePhoto(url) {
+    if (!url || !_selectedFlyerProduct) return;
+    _selectedFlyerProduct._studio_photo_url = url;
+    const imgEl = document.getElementById('cpiPhotoImg');
+    const loading = document.getElementById('cpiPhotoLoading');
+    if (loading) loading.style.display = 'none';
+    if (imgEl) {
+      imgEl.src = url;
+    }
+  }
+
+  async function searchWebPhotos(query) {
+    const grid = document.getElementById('cpiWebGrid');
+    const loading = document.getElementById('cpiPhotoLoading');
+    const loadingText = document.getElementById('cpiPhotoLoadingText');
+    if (!grid) return;
+
+    if (loading) {
+      loading.style.display = 'flex';
+      if (loadingText) loadingText.textContent = 'Buscando fotografías reales en la web…';
+    }
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">Buscando fotos reales…</div>';
+
+    const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
+      ? `${location.protocol}//${location.hostname}:8787`
+      : 'http://localhost:8787';
+
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(t);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const results = data.results || [];
+
+      if (loading) loading.style.display = 'none';
+
+      if (results.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">
+            No se encontraron fotos exactas con este término.<br>
+            <span style="font-size:11px;color:#94a3b8">Prueba buscando solo la marca y el producto arriba o genera con IA.</span>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = results.map((r, idx) => `
+        <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title)}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
+          <img src="${escapeHtmlStr(r.thumbnail || r.image)}" alt="" style="width:100%;height:100%;object-fit:contain;display:block" loading="lazy" onerror="this.parentElement.style.display='none'">
+          ${idx === 0 ? '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>' : ''}
+        </div>
+      `).join('');
+
+      // Auto-seleccionar la primera imagen si no hay una ya fijada
+      if (results[0] && !_selectedFlyerProduct._studio_photo_url) {
+        selectActivePhoto(results[0].image);
+      }
+
+      grid.querySelectorAll('.cpi-web-thumb').forEach(el => {
+        el.onclick = () => {
+          grid.querySelectorAll('.cpi-web-thumb').forEach(x => {
+            x.style.borderColor = '#e2e8f0';
+            const b = x.querySelector('span');
+            if (b) b.remove();
+          });
+          el.style.borderColor = '#16604A';
+          el.insertAdjacentHTML('beforeend', '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>');
+          const url = el.getAttribute('data-url');
+          if (url) selectActivePhoto(url);
+        };
+      });
+
+    } catch (e) {
+      if (loading) loading.style.display = 'none';
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px;font-size:11.5px;color:#92400e;line-height:1.4">
+          ℹ️ <strong>Búsqueda directa web:</strong> Servidor local ocupado o desconectado.<br>
+          Puedes <strong>pegar el enlace</strong> de la foto en la pestaña <em>"📁 Subir / Enlace"</em> o generar una versión con IA.
+        </div>
+      `;
+    }
+  }
+
+  async function saveActivePhotoToCatalog(btn) {
+    if (!_selectedFlyerProduct) return alert('Selecciona un producto primero');
+    const imgEl = document.getElementById('cpiPhotoImg');
+    const currentSrc = imgEl?.src || _selectedFlyerProduct._studio_photo_url || _selectedFlyerProduct.image_url;
+    if (!currentSrc) return alert('No hay ninguna foto seleccionada para guardar');
+
+    const origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Guardando en catálogo…';
+    }
+
+    try {
+      const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
+        ? `${location.protocol}//${location.hostname}:8787`
+        : 'http://localhost:8787';
+
+      let savedUrl = null;
+
+      // 1. Intentar vía wa-server local (bypasses CORS y descarga directa a Storage)
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch(`${serverUrl}/lan/products/save-image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: _selectedFlyerProduct.id,
+            image_url: currentSrc
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(t);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.publicUrl) {
+            savedUrl = data.publicUrl;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Fallback: Guardar directamente en Supabase desde el navegador (Proyecto C Storage + Proyecto A Database)
+      if (!savedUrl && window.sb) {
+        let blob = null;
+        if (currentSrc.startsWith('data:')) {
+          const res = await fetch(currentSrc);
+          blob = await res.blob();
+        } else {
+          try {
+            const res = await fetch(currentSrc, { mode: 'cors' });
+            if (res.ok) blob = await res.blob();
+          } catch (_) {}
+        }
+
+        if (blob) {
+          const ext = blob.type.includes('webp') ? 'webp' : (blob.type.includes('png') ? 'png' : 'jpg');
+          const filePath = `${_selectedFlyerProduct.id}.${ext}`;
+          const { error: upErr } = await window.sb.storage.from('jjp-products').upload(filePath, blob, { upsert: true });
+          if (!upErr) {
+            const { data: { publicUrl } } = window.sb.storage.from('jjp-products').getPublicUrl(filePath);
+            await window.sb.from('jjp_products').update({ image_url: publicUrl }).eq('id', _selectedFlyerProduct.id);
+            savedUrl = publicUrl;
+          }
+        }
+      }
+
+      if (savedUrl) {
+        _selectedFlyerProduct.image_url = savedUrl;
+        _selectedFlyerProduct._studio_photo_url = savedUrl;
+        if (btn) {
+          btn.textContent = '¡Foto Oficial Guardada! ✓';
+          btn.style.background = '#15803d';
+          setTimeout(() => {
+            btn.textContent = '💾 Guardar como Foto Oficial en Catálogo';
+            btn.style.background = '#16604A';
+            btn.disabled = false;
+          }, 3000);
+        }
+        if (typeof showToast === 'function') showToast('¡Foto guardada y vinculada en el catálogo con éxito!');
+        else alert('¡Foto guardada y vinculada en el catálogo con éxito!');
+      } else {
+        throw new Error('No se pudo guardar la imagen. Si es un enlace externo, puedes guardar la foto a tu PC y subirla con el botón "Subir foto".');
+      }
+    } catch (err) {
+      alert('Error guardando en catálogo: ' + err.message);
+      if (btn) {
+        btn.textContent = origText || '💾 Guardar como Foto Oficial en Catálogo';
+        btn.disabled = false;
+      }
+    }
   }
 
   async function loadCurrentStudioPhoto(forceNew = false) {

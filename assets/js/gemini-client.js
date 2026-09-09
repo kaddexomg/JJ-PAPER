@@ -606,11 +606,16 @@ Respuesta del Copiloto JJ:`;
 
     // 3. Extracción de Color Comercial
     let color = null;
-    const colorMatch = rawName.match(/\b(transparente|marron|kraft|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|plata)\b/i);
+    const colorMatch = rawName.match(/\b(transparente|marron|kraft|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|plata|rosado|rosa|fucsia|morado|violeta|naranja|pink|cyan|turquesa|celeste|lila|salmon)\b/i);
     if (colorMatch) {
       const c = colorMatch[0].toLowerCase();
       if (c === 'marron' || c === 'kraft') color = 'Marrón Manila Kraft';
       else if (c === 'surtido' || c === 'multicolor') color = 'Colores Surtidos';
+      else if (c === 'rosado' || c === 'rosa' || c === 'pink') color = 'Rosado Neón / Pink';
+      else if (c === 'fucsia') color = 'Fucsia Neón';
+      else if (c === 'morado' || c === 'violeta') color = 'Morado / Violeta';
+      else if (c === 'naranja') color = 'Naranja Neón';
+      else if (c === 'turquesa' || c === 'cyan') color = 'Turquesa / Cyan';
       else color = c.charAt(0).toUpperCase() + c.slice(1);
     } else if (/fibra/i.test(rawName)) {
       color = 'Marrón Manila Fibra';
@@ -629,10 +634,18 @@ Respuesta del Copiloto JJ:`;
 
     // 5. Deducción del Tipo de Producto Específico para el Prompt Fotográfico
     let productTypeEn = 'stationery office supply merchandise';
-    if (/marcador.*pizarra|pizarra.*marcador/i.test(rawName)) {
+    if (/resaltad|resalt\b|resalt\./i.test(rawName)) {
+      if (/x\s*12|caja/i.test(rawName)) {
+        productTypeEn = 'box of 12 fluorescent neon chisel tip highlighter markers in authentic retail packaging box';
+      } else {
+        productTypeEn = 'fluorescent neon chisel tip highlighter marker office pen';
+      }
+    } else if (/marcador.*pizarra|pizarra.*marcador/i.test(rawName)) {
       productTypeEn = 'dry erase whiteboard markers with chisel tip';
     } else if (/marcador.*permanente|permanente.*marcador/i.test(rawName)) {
       productTypeEn = 'heavy duty permanent markers';
+    } else if (/marcador/i.test(rawName)) {
+      productTypeEn = 'stationery felt tip markers in retail packaging';
     } else if (/carpeta.*(?:fibra|manila)|(?:fibra|manila).*carpeta/i.test(rawName)) {
       productTypeEn = 'heavy duty kraft manila fiber office file folders';
     } else if (/sacapunta/i.test(rawName)) {
@@ -781,11 +794,33 @@ Respuesta del Copiloto JJ:`;
 
     const specsStr = specDescriptors.length > 0 ? `, ${specDescriptors.join(', ')}` : '';
 
-    const bgPrompt = (theme === 'white')
-      ? 'isolated on seamless pure solid white commercial photography studio cyclorama background, subtle soft natural contact floor shadow, clean commercial product shot'
-      : 'isolated on solid luxury dark emerald green studio background, soft studio spotlight, commercial product shot';
+    // Consultar a Gemini para obtener una descripción comercial en inglés ultra-precisa del empaque/producto
+    let englishSubject = '';
+    try {
+      if (typeof callGemini === 'function') {
+        const sys = 'You are an expert commercial product photographer cataloging stationery, school and office supplies.';
+        const q = `Translate this Venezuelan stationery product title into a clear, professional 1-sentence English commercial retail packshot description: "${name}".
+Brand: ${brand || 'standard'}
+Color: ${color || 'standard'}
+Format/Specs: ${measures || 'standard'}
+Packaging/Presentation: ${presentation || 'standard'}
+CRITICAL: Only describe the physical merchandise and its authentic commercial packaging (e.g. "box of 12 fluorescent neon pink chisel-tip highlighter markers, Shark brand packaging"). Do NOT describe any background, scenery, room, wall or table. Respond with ONLY the 1 English sentence.`;
+        const translated = await callGemini({ prompt: q, systemInstruction: sys, temperature: 0.2 });
+        if (translated && translated.length > 5 && !translated.includes('Error')) {
+          englishSubject = translated.replace(/^["'`]|["'`]$/g, '').trim();
+        }
+      }
+    } catch (_) {}
 
-    const photoPrompt = `Professional commercial studio product photography of ${prodTypeEn} (${enriched?.cleanTitle || name}${specsStr}), real authentic office stationery merchandise, centered hero 3/4 angle, pristine commercial merchandise, ${bgPrompt}, 8k resolution, crisp sharp focus, commercial advertising catalog photography, hyperrealistic, no people, no hands, no text overlay, no watermark, no sku numbers, no mockups`;
+    if (!englishSubject) {
+      englishSubject = `${prodTypeEn} (${enriched?.cleanTitle || name}${specsStr})`;
+    }
+
+    const bgPrompt = (theme === 'white')
+      ? 'isolated object on pure solid white background #FFFFFF, crisp packshot product photography, studio lighting'
+      : 'isolated object on solid luxury dark emerald green #0B3327 background, soft center spotlight, commercial product packshot';
+
+    const photoPrompt = `Authentic commercial packshot product photography of ${englishSubject}. Centered hero merchandise, ${bgPrompt}, 8k resolution, razor-sharp focus, commercial advertising catalog photography, hyperrealistic. STRICT NEGATIVE PROMPT: no room, no floor, no walls, no cyclorama, no table, no furniture, no background scenery, no interior, no people, no hands, no text overlay, no watermark, no sku numbers, no mockups, no shadows on walls`;
 
     // 3. Generar la imagen fotorrealista en alta resolución (1024x1024)
     const seed = forceNew ? (Math.floor(Math.random() * 900000) + 100000) : (42000 + Math.abs(hashCode(name + theme)));

@@ -24,19 +24,26 @@
   /* ---------------- Estilos Scoped del Copiloto ---------------- */
   function injectCopilotStyles() {
     if (document.getElementById('jjp-copilot-css')) return;
+    const isWa = typeof location !== 'undefined' && location.pathname.includes('whatsapp');
+    const fabBottom = isWa ? '115px' : '22px';
+    const winBottom = isWa ? '175px' : '82px';
     const style = document.createElement('style');
     style.id = 'jjp-copilot-css';
     style.textContent = `
       #jjp-copilot-fab {
-        position: fixed; right: 22px; bottom: 22px; z-index: 9998;
+        position: fixed; right: 22px; bottom: ${fabBottom}; z-index: 9998;
         display: flex; align-items: center; gap: 8px;
         background: linear-gradient(135deg, #16604A 0%, #0d3d2f 100%);
         color: #fff; padding: 10px 16px; border-radius: 999px;
         box-shadow: 0 4px 18px rgba(22, 96, 74, 0.45);
-        cursor: pointer; border: 1.5px solid rgba(255,255,255,0.25);
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: grab; border: 1.5px solid rgba(255,255,255,0.25);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 13.5px; font-weight: 700; user-select: none;
+        touch-action: none;
+      }
+      #jjp-copilot-fab:active {
+        cursor: grabbing;
       }
       #jjp-copilot-fab:hover {
         transform: translateY(-2px) scale(1.03);
@@ -52,8 +59,8 @@
       }
 
       #jjp-copilot-window {
-        position: fixed; right: 22px; bottom: 82px; z-index: 9999;
-        width: 390px; max-width: calc(100vw - 32px); height: 580px; max-height: calc(100vh - 110px);
+        position: fixed; right: 22px; bottom: ${winBottom}; z-index: 9999;
+        width: 390px; max-width: calc(100vw - 32px); height: 580px; max-height: calc(100vh - ${isWa ? '195px' : '110px'});
         background: #ffffff; border-radius: 18px;
         box-shadow: 0 16px 45px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.06);
         border: 1px solid rgba(22, 96, 74, 0.15);
@@ -323,6 +330,8 @@
     const win = document.getElementById('jjp-copilot-window');
     const closeBtn = document.getElementById('cpiCloseBtn');
 
+    makeDraggable(fab);
+
     fab.addEventListener('click', () => {
       win.classList.toggle('cpi-hidden');
       if (!win.classList.contains('cpi-hidden') && _activeTab === 'chat') {
@@ -358,6 +367,100 @@
 
     // Anti-spam events
     document.getElementById('cpiGenAntiSpamBtn')?.addEventListener('click', handleGenAntiSpam);
+  }
+
+  /* ---------------- Arrastre Libre del Botón Flotante ---------------- */
+  function makeDraggable(fabEl) {
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+    let hasMoved = false;
+
+    try {
+      const saved = localStorage.getItem('jjp_copilot_fab_pos');
+      if (saved) {
+        const pos = JSON.parse(saved);
+        if (typeof pos.top === 'number' && typeof pos.left === 'number') {
+          const maxLeft = Math.max(10, window.innerWidth - 160);
+          const maxTop = Math.max(10, window.innerHeight - 60);
+          const curLeft = Math.min(Math.max(10, pos.left), maxLeft);
+          const curTop = Math.min(Math.max(10, pos.top), maxTop);
+          fabEl.style.left = curLeft + 'px';
+          fabEl.style.top = curTop + 'px';
+          fabEl.style.right = 'auto';
+          fabEl.style.bottom = 'auto';
+        }
+      }
+    } catch (_) {}
+
+    function onStart(e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      isDragging = true;
+      hasMoved = false;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+      const rect = fabEl.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      window.addEventListener('mousemove', onMove, { passive: false });
+      window.addEventListener('mouseup', onEnd);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+    }
+
+    function onMove(e) {
+      if (!isDragging) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        hasMoved = true;
+        if (e.cancelable) e.preventDefault();
+        let newLeft = initialLeft + dx;
+        let newTop = initialTop + dy;
+        const maxLeft = Math.max(10, window.innerWidth - fabEl.offsetWidth - 10);
+        const maxTop = Math.max(10, window.innerHeight - fabEl.offsetHeight - 10);
+        newLeft = Math.min(Math.max(10, newLeft), maxLeft);
+        newTop = Math.min(Math.max(10, newTop), maxTop);
+
+        fabEl.style.left = newLeft + 'px';
+        fabEl.style.top = newTop + 'px';
+        fabEl.style.right = 'auto';
+        fabEl.style.bottom = 'auto';
+      }
+    }
+
+    function onEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+
+      if (hasMoved) {
+        try {
+          const rect = fabEl.getBoundingClientRect();
+          localStorage.setItem('jjp_copilot_fab_pos', JSON.stringify({ left: rect.left, top: rect.top }));
+        } catch (_) {}
+      }
+    }
+
+    fabEl.addEventListener('mousedown', onStart);
+    fabEl.addEventListener('touchstart', onStart, { passive: true });
+
+    fabEl.addEventListener('click', (e) => {
+      if (hasMoved) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        hasMoved = false;
+      }
+    }, true);
   }
 
   /* ---------------- Tab 1: Chat Handling ---------------- */
@@ -556,7 +659,7 @@
           resBox.innerHTML = prods.map(p => `
             <div class="cpi-res-item" data-id="${p.id}">
               <strong>${p.name}</strong> ${p.sku ? `(${p.sku})` : ''}<br>
-              <span style="color:#16604A;font-weight:600">$${p.price_usd.toFixed(2)} USD</span> · Bs ${p.price_bs.toFixed(2)}
+              <span style="color:#16604A;font-weight:600">$${Number(p.price_usd || 0).toFixed(2)} USD</span> · Bs ${Number(p.price_bs || 0).toFixed(2)}
             </div>
           `).join('');
           resBox.style.display = 'block';
@@ -566,7 +669,7 @@
               _selectedFlyerProduct = prods[idx];
               resBox.style.display = 'none';
               searchInput.value = _selectedFlyerProduct.name;
-              document.getElementById('cpiFlyerPrice').value = _selectedFlyerProduct.price_usd.toFixed(2);
+              document.getElementById('cpiFlyerPrice').value = Number(_selectedFlyerProduct.price_usd || 0).toFixed(2);
 
               // Extraer y enriquecer especificaciones comerciales
               if (typeof window.GeminiClient.enrichProductForMarketing === 'function') {
@@ -877,6 +980,26 @@
   };
 
   /* ---------------- Tab 3: Anti-Spam Variations ---------------- */
+  let _antiSpamResults = [];
+
+  window.cpiCopyAntiSpam = function (idx, btn) {
+    const text = _antiSpamResults[idx] || '';
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '¡Copiado! ✓';
+      setTimeout(() => btn.textContent = orig, 2000);
+
+      // Si estamos en WhatsApp y hay un campo de mensaje, inyectarlo de inmediato
+      const ci = document.getElementById('waComposerInput');
+      if (ci) {
+        ci.value = text;
+        if (typeof waComposerButtons === 'function') waComposerButtons();
+      }
+      if (typeof showToast === 'function') showToast('Variación copiada al portapapeles');
+    });
+  };
+
   async function handleGenAntiSpam() {
     const input = document.getElementById('cpiAntiSpamInput');
     const resBox = document.getElementById('cpiAntiSpamResults');
@@ -891,11 +1014,12 @@
     ensureGeminiClient(async () => {
       try {
         const vars = await window.GeminiClient.generateAntiSpamVariations(text);
+        _antiSpamResults = [vars.variacion_a || '', vars.variacion_b || '', vars.variacion_c || ''];
         resBox.innerHTML = `
           <div class="cpi-var-box">
             <div class="cpi-var-title">
               <span>⚡ Opción 1: Directa</span>
-              <button class="cpi-var-copy-btn" onclick="cpiCopyText(this, \`${escapeJsStr(vars.variacion_a)}\`)">Copiar</button>
+              <button class="cpi-var-copy-btn" onclick="cpiCopyAntiSpam(0, this)">Copiar</button>
             </div>
             <div>${escapeHtmlStr(vars.variacion_a)}</div>
           </div>
@@ -903,7 +1027,7 @@
           <div class="cpi-var-box">
             <div class="cpi-var-title">
               <span>🤝 Opción 2: Cordial y Cercana</span>
-              <button class="cpi-var-copy-btn" onclick="cpiCopyText(this, \`${escapeJsStr(vars.variacion_b)}\`)">Copiar</button>
+              <button class="cpi-var-copy-btn" onclick="cpiCopyAntiSpam(1, this)">Copiar</button>
             </div>
             <div>${escapeHtmlStr(vars.variacion_b)}</div>
           </div>
@@ -911,7 +1035,7 @@
           <div class="cpi-var-box">
             <div class="cpi-var-title">
               <span>💼 Opción 3: Formal Comercial</span>
-              <button class="cpi-var-copy-btn" onclick="cpiCopyText(this, \`${escapeJsStr(vars.variacion_c)}\`)">Copiar</button>
+              <button class="cpi-var-copy-btn" onclick="cpiCopyAntiSpam(2, this)">Copiar</button>
             </div>
             <div>${escapeHtmlStr(vars.variacion_c)}</div>
           </div>

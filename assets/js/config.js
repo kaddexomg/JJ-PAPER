@@ -79,6 +79,13 @@ const sbCore = _rawSbCore;
 const sbComm = _rawSbComm;
 const sbInv  = _rawSbInv;
 
+if (typeof window !== 'undefined') {
+  window.sb = sb;
+  window.sbCore = sbCore;
+  window.sbComm = sbComm;
+  window.sbInv = sbInv;
+}
+
 // --- Cazador de retorno de OAuth (login con Google) ---------------------------
 // Si Supabase, por su "Site URL", devuelve el token a una página pública en vez
 // de al login, lo reenviamos a admin/login.html (conservando el #access_token)

@@ -743,12 +743,29 @@ window.CampaignEditor = (() => {
       await ensureGeminiClient();
       if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const p = selectedProductOrCombo;
+
+      // Si el producto no tiene foto previa, generar primero la fotografía fotorrealista de estudio
+      if (!p._studio_photo_url && !p.image_url) {
+        btn.textContent = '📸 Generando Foto Estudio IA...';
+        try {
+          const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: p, theme: 'white' });
+          if (photoRes?.imageUrl) {
+            p._studio_photo_url = photoRes.imageUrl;
+          }
+        } catch (photoErr) {
+          console.warn('Foto de estudio no pudo completarse antes del flyer:', photoErr);
+        }
+      }
+
+      btn.textContent = '🎨 Renderizando Flyer...';
       const cvs = await window.GeminiClient.renderProductCard({
         product: p,
         customPriceUsd: p.final_price_usd || p.price_usd,
         sellerName: currentConfig?.seller?.name || '',
         sellerPhone: currentConfig?.seller?.phone || '',
-        customNote: '🔥 ¡Promoción exclusiva por tiempo limitado!'
+        customNote: '🔥 ¡Promoción exclusiva por tiempo limitado!',
+        theme: 'white',
+        headline: '🔥 OFERTA AL MAYOR'
       });
 
       cvs.toBlob(async (blob) => {

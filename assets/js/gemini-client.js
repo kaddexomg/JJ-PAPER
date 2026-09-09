@@ -82,7 +82,7 @@
       ? [model, ...(isArchitect ? PRO_MODELS : FAST_MODELS).filter(m => m !== model)]
       : (isArchitect ? PRO_MODELS : FAST_MODELS);
     
-    const timeoutMs = isArchitect ? 8000 : 3500;
+    const timeoutMs = isArchitect ? 15000 : 10000;
     let lastError = null;
 
     for (let attempt = 0; attempt < keyPool.length; attempt++) {
@@ -299,38 +299,39 @@ Genera el asunto y cuerpo en JSON estricto.`;
      -------------------------------------------------------------------------- */
   async function searchProductsLive(query, limit = 6) {
     const w = typeof window !== 'undefined' ? window : {};
-    if (!w.sb || !query || query.trim().length < 2) return [];
-    try {
-      const q = query.trim();
-      const tokens = q.split(/\s+/).filter(t => t.length >= 2);
-      const primary = tokens[0] || q;
+    if (!query || query.trim().length < 2) return [];
 
-      let req = w.sb.from('jjp_products')
-        .select(`
-          id, name, sku, price_usd, unit, emoji, image_url, description, active,
-          jjp_product_variants(id, variant_name, sku, price_usd, active, jjp_brands(name))
-        `)
-        .neq('active', false);
+    const q = query.trim().toLowerCase();
+    const rawTokens = q.split(/\s+/).filter(t => t.length >= 2);
+    const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'para', 'con', 'sin', 'por', 'marca', 'tipo', 'color', 'caja', 'paquete', 'pack', 'combo', 'und', 'unidad']);
+    const tokens = rawTokens.filter(t => !STOPWORDS.has(t));
+    const searchTokens = tokens.length > 0 ? tokens : rawTokens;
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
-      // Si hay una palabra clave principal, buscar por nombre, sku o descripcion
-      req = req.or(`name.ilike.%${primary}%,sku.ilike.%${primary}%,description.ilike.%${primary}%`);
+    // 1. Intentar primero desde la caché en memoria o sessionStorage del catálogo (0ms de latencia)
+    let cachedList = null;
+    if (Array.isArray(w.allProducts) && w.allProducts.length > 0) {
+      cachedList = w.allProducts;
+    } else {
+      try {
+        const stored = sessionStorage.getItem('jjp_products_cache_v4');
+        if (stored) cachedList = JSON.parse(stored);
+      } catch (_) {}
+    }
 
-      const { data, error } = await req.limit(Math.max(limit * 4, 20));
-      if (error || !data) return [];
-
-      const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
-
-      // Si el usuario ingresó varios términos (ej. "cuaderno caribe" o "boligrafo negro"),
-      // filtrar y puntuar por coincidencia de tokens en producto y variantes
-      const scored = data.map(p => {
+    if (Array.isArray(cachedList) && cachedList.length > 0) {
+      const scored = cachedList.map(p => {
         const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
         const brandNames = variants.map(v => v.jjp_brands?.name).filter(Boolean);
         const variantNames = variants.map(v => v.variant_name).filter(Boolean);
-        const fullSearchText = `${p.name} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
+        const fullSearchText = `${p.name || ''} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
 
         let matchCount = 0;
-        tokens.forEach(t => {
-          if (fullSearchText.includes(t.toLowerCase())) matchCount++;
+        searchTokens.forEach(t => {
+          const stem = t.replace(/(?:es|s)$/i, '');
+          if (fullSearchText.includes(t) || (stem.length >= 3 && fullSearchText.includes(stem))) {
+            matchCount++;
+          }
         });
 
         let minPrice = parseFloat(p.price_usd || 0);
@@ -353,9 +354,68 @@ Genera el asunto y cuerpo en JSON estricto.`;
         };
       });
 
-      // Ordenar por puntuación de coincidencia y limitar
+      const filtered = scored.filter(item => item.score > 0).sort((a, b) => b.score - a.score).slice(0, limit);
+      if (filtered.length > 0) return filtered;
+    }
+
+    // 2. Si no está en caché o no hubo resultados, consultar directamente a Supabase Core
+    const client = (typeof sb !== 'undefined' ? sb : (w.sb || w.sbCore || w._rawSbCore));
+    if (!client) return [];
+
+    try {
+      // Elegir el término más representativo y aplicar stem para no fallar por plurales
+      const primary = searchTokens[0] || q;
+      const stem = primary.replace(/(?:es|s)$/i, '');
+      const searchPattern = stem.length >= 3 ? stem : primary;
+
+      let req = client.from('jjp_products')
+        .select(`
+          id, name, sku, price_usd, unit, emoji, image_url, description, active,
+          jjp_product_variants(id, variant_name, sku, price_usd, active, jjp_brands(name))
+        `)
+        .neq('active', false);
+
+      req = req.or(`name.ilike.%${searchPattern}%,sku.ilike.%${searchPattern}%,description.ilike.%${searchPattern}%`);
+
+      const { data, error } = await req.limit(Math.max(limit * 4, 25));
+      if (error || !data) return [];
+
+      const scored = data.map(p => {
+        const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
+        const brandNames = variants.map(v => v.jjp_brands?.name).filter(Boolean);
+        const variantNames = variants.map(v => v.variant_name).filter(Boolean);
+        const fullSearchText = `${p.name || ''} ${p.sku || ''} ${p.description || ''} ${brandNames.join(' ')} ${variantNames.join(' ')}`.toLowerCase();
+
+        let matchCount = 0;
+        searchTokens.forEach(t => {
+          const s = t.replace(/(?:es|s)$/i, '');
+          if (fullSearchText.includes(t) || (s.length >= 3 && fullSearchText.includes(s))) {
+            matchCount++;
+          }
+        });
+
+        let minPrice = parseFloat(p.price_usd || 0);
+        if (variants.length > 0) {
+          const varPrices = variants.map(v => parseFloat(v.price_usd)).filter(n => n > 0);
+          if (varPrices.length > 0) minPrice = Math.min(...varPrices);
+        }
+
+        return {
+          id: p.id,
+          name: p.name,
+          sku: p.sku || '',
+          price_usd: minPrice,
+          price_bs: (minPrice * rate),
+          unit: p.unit || 'unidad',
+          image_url: p.image_url || '',
+          emoji: p.emoji || '📦',
+          brands: [...new Set(brandNames)].join(', '),
+          score: matchCount
+        };
+      });
+
       return scored
-        .filter(item => tokens.length <= 1 || item.score >= Math.min(tokens.length, 2))
+        .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
     } catch (e) {
@@ -631,20 +691,42 @@ Respuesta del Copiloto JJ:`;
   }
 
   /* --------------------------------------------------------------------------
-     5.2. Cargador Seguro de Imágenes (CORS / Blob Resiliente)
+     5.2. Cargador Seguro de Imágenes (CORS / Blob Resiliente para Canvas)
      -------------------------------------------------------------------------- */
-  function loadImageSafe(url) {
-    return new Promise((resolve, reject) => {
-      if (!url) return reject(new Error('No URL provided'));
+  async function loadImageSafe(url) {
+    if (!url) return null;
+    try {
+      // 1. Intentar descargar como blob vía fetch en modo CORS (misma procedencia segura)
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const resp = await fetch(url, { mode: 'cors', signal: controller.signal });
+      clearTimeout(timer);
+
+      if (resp.ok) {
+        const blob = await resp.blob();
+        return new Promise((resolve) => {
+          const img = new Image();
+          const objUrl = URL.createObjectURL(blob);
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = objUrl;
+        });
+      }
+    } catch (e) {
+      // Fallback a Image con CORS
+    }
+
+    // 2. Fallback: Carga directa mediante Image con crossOrigin anónimo
+    return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       let settled = false;
       const timer = setTimeout(() => {
         if (!settled) {
           settled = true;
-          reject(new Error('Timeout cargando imagen'));
+          resolve(null);
         }
-      }, 12000);
+      }, 15000);
 
       img.onload = () => {
         if (!settled) {
@@ -655,38 +737,11 @@ Respuesta del Copiloto JJ:`;
       };
 
       img.onerror = () => {
-        // Fallback vía fetch + blob
-        fetch(url, { mode: 'cors' })
-          .then(res => res.blob())
-          .then(blob => {
-            if (settled) return;
-            const objectUrl = URL.createObjectURL(blob);
-            const fallbackImg = new Image();
-            fallbackImg.onload = () => {
-              if (!settled) {
-                settled = true;
-                clearTimeout(timer);
-                URL.revokeObjectURL(objectUrl);
-                resolve(fallbackImg);
-              }
-            };
-            fallbackImg.onerror = (e) => {
-              if (!settled) {
-                settled = true;
-                clearTimeout(timer);
-                URL.revokeObjectURL(objectUrl);
-                reject(e);
-              }
-            };
-            fallbackImg.src = objectUrl;
-          })
-          .catch(err => {
-            if (!settled) {
-              settled = true;
-              clearTimeout(timer);
-              reject(err);
-            }
-          });
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
       };
 
       img.src = url;
@@ -869,7 +924,7 @@ Respuesta del Copiloto JJ:`;
     const maxImgH = 460;
 
     let imageRendered = false;
-    let imgToLoad = product.image_url || product._studio_photo_url;
+    let imgToLoad = product._studio_photo_url || product.image_url;
     if (!imgToLoad) {
       try {
         const studioRes = await generateProductStudioPhoto({ product, theme });
@@ -884,7 +939,18 @@ Respuesta del Copiloto JJ:`;
 
     if (imgToLoad) {
       try {
-        const img = await loadImageSafe(imgToLoad);
+        let img = await loadImageSafe(imgToLoad);
+        // Si la foto del catálogo falló, intentar de inmediato generar la foto de estudio fotográfica
+        if (!img && imgToLoad !== product._studio_photo_url) {
+          try {
+            const studioRes = await generateProductStudioPhoto({ product, theme });
+            if (studioRes?.imageUrl) {
+              product._studio_photo_url = studioRes.imageUrl;
+              img = await loadImageSafe(studioRes.imageUrl);
+            }
+          } catch (_) {}
+        }
+
         if (img && img.width > 10 && img.height > 10) {
           const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1.15);
           const dw = img.width * scale;
@@ -1155,28 +1221,29 @@ Respuesta del Copiloto JJ:`;
       ctx.textAlign = 'left';
 
     } else {
-      // 3D Caja de Producto Comercial Studio
-      const bw = 240, bh = 220;
-      const bGrad = ctx.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
-      bGrad.addColorStop(0, '#16604A');
-      bGrad.addColorStop(0.5, '#22C55E');
-      bGrad.addColorStop(1, '#15803D');
-      ctx.fillStyle = bGrad;
-      roundRect(ctx, cx - bw / 2, cy - bh / 2, bw, bh, 20);
+      // Tarjeta Comercial de Presentación de Estudio (Fondo Blanco o Esmeralda)
+      const pw = 420, ph = 240;
+      ctx.fillStyle = isWhite ? '#FFFFFF' : 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = isWhite ? '#E2E8F0' : 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 2.5;
+      roundRect(ctx, cx - pw / 2, cy - ph / 2, pw, ph, 18);
       ctx.fill();
+      ctx.stroke();
 
-      // Emblema comercial
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      ctx.beginPath();
-      ctx.arc(cx, cy - 10, 65, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#16604A';
-      ctx.font = '900 48px -apple-system, sans-serif';
+      // Icono representativo
+      const emoji = product.emoji || '📦';
+      ctx.font = '68px -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('JJ', cx, cy + 8);
-      ctx.font = 'bold 15px -apple-system, sans-serif';
-      ctx.fillText('OFICIAL', cx, cy + 28);
+      ctx.fillText(emoji, cx, cy - 25);
+
+      // Etiqueta destacada
+      ctx.fillStyle = isWhite ? '#16604A' : '#A3E635';
+      ctx.font = '800 16px -apple-system, sans-serif';
+      ctx.fillText('PRODUCTO OFICIAL JJ PAPER', cx, cy + 45);
+
+      ctx.fillStyle = isWhite ? '#64748B' : 'rgba(255, 255, 255, 0.75)';
+      ctx.font = '600 13px -apple-system, sans-serif';
+      ctx.fillText('DISPONIBILIDAD INMEDIATA · CALIDAD GARANTIZADA', cx, cy + 70);
       ctx.textAlign = 'left';
     }
 
@@ -1215,37 +1282,6 @@ Respuesta del Copiloto JJ:`;
     lines.push(currentLine);
     return lines;
   }
-
-  async function loadImageSafe(url) {
-    if (!url) return null;
-    try {
-      const resp = await fetch(url, { mode: 'cors' });
-      if (resp.ok) {
-        const blob = await resp.blob();
-        return new Promise((res) => {
-          const img = new Image();
-          img.onload = () => res(img);
-          img.onerror = () => res(null);
-          img.src = URL.createObjectURL(blob);
-        });
-      }
-    } catch (e) {
-      // Fallback a Image con CORS
-    }
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = () => {
-        const fallback = new Image();
-        fallback.onload = () => resolve(fallback);
-        fallback.onerror = () => resolve(null);
-        fallback.src = url;
-      };
-      img.src = url;
-    });
-  }
-
   return {
     callGemini,
     suggestWhatsAppReplies,

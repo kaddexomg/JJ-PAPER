@@ -317,6 +317,36 @@ No se detectaron tests.
 - **Eliminación Total de Alucinaciones y Deformaciones en Fotografía de Catálogo (`gemini-client.js`, `campaign-editor.js`, `copilot-jj.js`)**:
   - **Causa Raíz de Caricaturas y Deformaciones Flux**: En el generador de imágenes se inyectaba `NEGATIVE PROMPT: blurry text, hand holding object, person, cartoon...`. Debido a que Pollinations Flux no procesa la sintaxis de prompt negativo, interpretaba esas palabras como instrucciones afirmativas, generando caricaturas, personas, manos y fondos distorsionados.
   - **Prompt Comercial 100% Positivo y Puro**: Eliminada la cláusula de prompt negativo y reemplazada por especificaciones fotográficas comerciales de estudio de producto 8K UHD sobre fondo blanco puro `#FFFFFF`.
-  - **Taxonomía Exhaustiva de Papelería**: `enrichProductForMarketing` ahora cubre todas las líneas de productos (grapadoras, escarchas, talonarios de recibos/facturas, perforadoras, tijeras, pistolas de silicón, silicón líquido, reglas, almohadillas dactilares, etc.) sin caer en el genérico "stationery office supply merchandise".
-  - **Prioridad a Fotos Comerciales Reales**: `campaign-editor.js` busca primero la fotografía comercial real con `searchRealProductPhoto` antes de recurrir a la generación sintética.
   - **CORS y Conectividad Robusta (`wa-server/src/count-lan.js`)**: `corsOrigin` permite cualquier puerto de localhost/127.0.0.1 y `sendJSON` preserva todas las cabeceras HTTP necesarias.
+
+## Auditoría Integral, Corrección de 8 Bugs Críticos y Estabilización de Campañas/IA (09-09-2026)
+- **Diagnóstico y Corrección de los 8 Bugs Críticos del Sistema (`commit e72ca96`)**:
+  - **1. Búsqueda de Productos (`wa-server/src/product-images.js`)**:
+    - **Regex Destructiva de Nombres Eliminada**: `cleanProductName` usaba `/\b[A-Z0-9_-]{7,}\b/g`, lo cual borraba nombres de productos en mayúsculas de 7+ letras (`GRAPADORA`, `RESALTADOR`, `BOLIGRAFO`, `FABER-CASTELL`, `AMARILLO`). Reemplazado por `/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g` que exige al menos un dígito para clasificar como código SKU de almacén.
+    - **Regex de Bing Corregida**: `[^&]` truncaba URLs de imágenes comerciales en CDNs con parámetros (`?w=800&h=800`). Sustituido por `[^"]` con `decodeURIComponent` y normalización de entidades `&amp;`.
+    - **Extracción de Títulos en Bing**: Se incluyó regex para capturar títulos desde el HTML de Bing, enriqueciendo el algoritmo de scoring y filtrado negativo.
+    - **Abreviaturas con Punto**: `expandAbbreviations` ahora soporta abreviaturas que terminan en punto (`RESALT.`, `PERM.`) mediante coincidencia opcional `\.?`.
+    - **Depuración de Código Muerto**: Eliminada la función inactiva `searchGoogleImages`.
+    - **Expansión de Cobertura Multi-Fuente**: Se amplió el despacho paralelo en Bing de 2 a 4 queries inteligentes canónicas.
+  - **2. Pipeline de Campañas y Mensajería (`campaigns.js`, `outbox.js`)**:
+    - **Persistencia de Timers tras Reinicio**: `campaigns.js` ahora carga `next_send_at` desde la base de datos (`jjp_wa_campaigns`) al iniciar el sweep si la memoria en RAM está vacía, respetando las pausas de lote de 15 minutos sin adelantar mensajes indebidos.
+    - **Auto-Recovery de Targets Huérfanos**: Detección automática al inicio del barrido de destinatarios atrapados en `enviando` por >5 minutos sin progreso, restableciéndolos a `pending`.
+    - **Eliminación de Doble Validación `onWhatsApp`**: Se retiró la comprobación redundante en `outbox.js` (ya garantizada en `campaigns.js`), eliminando la duplicación de peticiones de red hacia los servidores de Meta.
+    - **Aislamiento de Sesiones por Vendedor**: Eliminado el fallback cross-vendor en `outbox.js` para evitar que mensajes de un vendedor desconectado salgan desde el número de otro asesor.
+  - **3. Suite Gemini AI y Generación Gráfica (`assets/js/gemini-client.js`)**:
+    - **Modelos Oficiales Google AI**: Reemplazados nombres inexistentes por `gemini-2.0-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash` y `gemini-2.5-pro`.
+    - **Rotación Resiliente de API Keys**: Manejo de status HTTP 400 y 403 para rotar inmediatamente de clave en el pool de 7 llaves.
+    - **Extractor Universal de JSON (`extractJSON`)**: Parser robusto con regex envolvente `\{[\s\S]*\}` que previene excepciones por texto explicativo o markdown previo de Gemini.
+    - **Erradicación de Alucinaciones Pollinations/Flux**: Se removió la generación sintética de productos por IA (que producía objetos deformes/caricaturescos). Si no existe fotografía real en catálogo o en la web, el sistema recurre al mockup 3D vectorial de alta fidelidad del flyer (`renderProductCard`).
+    - **Temperaturas Calibradas**: Redactor B2B `draftCampaignMessage` a `0.45` (formal, estructurado, sin lenguaje teletienda/spam) y `generateCampaignSpintax` a `0.55`.
+  - **4. Correcciones en WhatsApp CRM y Copiloto UI (`wa-chat.js`, `copilot-jj.js`)**:
+    - **Resolución de Nombre de Contacto**: Reemplazado `contact_name` (inexistente en el esquema) por `display_name` en `wa-chat.js`, evitando saludos erróneos como "Hola 58412...".
+    - **Eliminación de XSS/Errores de Sintaxis en Tarjetas IA**: Sustituida la interpolación de texto en `onclick` por atributos `data-reply-key` con event listeners dedicados.
+    - **Rutas Nativas de Admin**: Corregida redirección en `copilot-jj.js` para que los administradores permanezcan en `admin/difusion.html`.
+  - **5. Limpieza Criptográfica Signal/Baileys (`wa-session.js`)**:
+    - Purga masiva de cientos de archivos de sesión redundantes `.0.json` y sesiones remotas desincronizadas (`session-277584189346047.27.json`).
+    - Los registros `Closing session` en consola corresponden a la negociación normal y saludable de PreKeys tras la depuración de ratchets obsoletos.
+- **Pendientes Prioritarios para la Siguiente Intervención**:
+  - **1. Reglas Taxonómicas Estrictas para Búsqueda de Productos**: Crear un documento de lineamientos canónicos (`cerebro/` / `docs/`) con metadatos por familias de papelería (medidas, calibres, tipos de punta, marcas y presentaciones exactas) que Gemini inyecte antes de buscar para evitar confusiones de producto (ej. marcadores de servicio vs permanentes).
+  - **2. Gestión de Campañas y Permisos en UI**: Implementar en `admin/difusion.html` y `vendedor/difusion.html` la acción para eliminar/archivar campañas completadas o canceladas desde la interfaz, y revisar permisos RLS en `jjp_wa_campaigns` / `jjp_wa_campaign_targets`.
+  - **3. Importador Masivo de Clientes CSV**: Asegurar que la carga de archivos CSV de clientes desde la interfaz de usuario procese correctamente las columnas y asigne cartera sin fallos de esquema o RLS.

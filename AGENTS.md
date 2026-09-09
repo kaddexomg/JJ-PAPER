@@ -296,3 +296,27 @@ No se detectaron tests.
   - Tono venezolano cercano y cálido ("Hola {{nombre}}, espero estés muy bien 👋", "Te escribe {{vendedor}} de JJ Paper").
   - Estructura visual con doble salto de línea y negritas para nombres de productos y precios (`*📦 {{producto}}*`, `*💲 Precio especial: {{precio}}*`).
   - Spintax dinámico en saludos y preguntas de cierre ("¿Te aparto unas unidades para tu próximo despacho?").
+
+## Temporizador Visual en Vivo de Campañas WhatsApp, Deliberación Profunda Gemini y Motor Anti-Alucinaciones de Imágenes (09-09-2026)
+- **Temporizador Visual en Vivo en Campañas WhatsApp (`vdifusion.js`, `difusion.html`, `campaigns.js`)**:
+  - **Columnas de Seguimiento Temporal en Proyecto B**: `next_send_at TIMESTAMPTZ`, `pause_reason TEXT` (`'batch_pause'` vs `'interval'`), `pause_until TIMESTAMPTZ` en `jjp_wa_campaigns` y `jjp_email_campaigns`.
+  - **Cálculo y Persistencia en Despachador**: `wa-server/src/campaigns.js` calcula el próximo timestamp de envío tras cada mensaje e identifica si entra en pausa de descanso anti-bloqueo de lote (ej: 15 minutos cada 20 envíos) o en intervalo normal de cadencia humana (45-90s). Al reiniciar el servidor, se respeta el tiempo restante sin adelantar envíos.
+  - **Ticker Visual en Tiempo Real (1s)**: En `vdifusion.js`, ticker interactivo `startCampaignLiveTimers()` que actualiza dinámicamente badges en la tabla de campañas y un banner destacado `#rd-live-timer-wrap` en el modal de detalle:
+    - Intervalo entre mensajes: `⏳ Próximo: 00:45s` (estilo esmeralda suave).
+    - Pausa anti-bloqueo: `☕ Pausa descanso (14m 30s)` (estilo ámbar pulsante con animación).
+  - **Sincronización Realtime**: Suscripción al canal `difusion-progress` en Supabase Realtime que refresca contadores y recalcula la cuenta regresiva en milisegundos.
+- **Deliberación Profunda con IA Gemini en Búsqueda de Imágenes (`wa-server/src/product-images.js`)**:
+  - **Diagnóstico de la Falla Previa**: Las búsquedas con títulos brutos de inventario (ej. `GRAPADORA STD 24/6 26/6 METALICA C/G` o `ESCARCHA 50GR`) enviaban términos de almacén literales a DuckDuckGo, retornando cajas de grapas/clavos o municiones/talco. Al obtener >=4 resultados basura, Gemini nunca era consultado. Además, rate-limits de DuckDuckGo provocaban errores de parseo JSON no capturados (`SyntaxError: Unexpected token I`), resultando en errores 500 y el mensaje "servidor ocupado o apagado".
+  - **Deliberación Previa con Gemini (Pool de 7 API Keys)**: Antes de buscar, Gemini analiza el SKU y extrae:
+    1. Título comercial canónico en español.
+    2. Categoría exacta (distinguiendo herramientas de consumibles: grapadora vs caja de grapas, escarcha escolar vs pólvora, talonario físico vs plantilla excel).
+    3. Queries canónicas optimizadas (`{brand} {producto} fondo blanco`).
+    4. Palabras clave negativas de descarte estricto (`negative_keywords`).
+  - **Búsqueda Multi-Fuente Paralela en Bing y DuckDuckGo**: Scraping directo en Bing Images (alta disponibilidad sin rate-limits agresivos) en paralelo con DuckDuckGo, retornando fotos comerciales auténticas de distribuidores y papelerías.
+  - **Filtrado Negativo Estricto**: Función `filterNegativeKeywords` que descarta automáticamente falsos positivos antes de rankear los resultados.
+- **Eliminación Total de Alucinaciones y Deformaciones en Fotografía de Catálogo (`gemini-client.js`, `campaign-editor.js`, `copilot-jj.js`)**:
+  - **Causa Raíz de Caricaturas y Deformaciones Flux**: En el generador de imágenes se inyectaba `NEGATIVE PROMPT: blurry text, hand holding object, person, cartoon...`. Debido a que Pollinations Flux no procesa la sintaxis de prompt negativo, interpretaba esas palabras como instrucciones afirmativas, generando caricaturas, personas, manos y fondos distorsionados.
+  - **Prompt Comercial 100% Positivo y Puro**: Eliminada la cláusula de prompt negativo y reemplazada por especificaciones fotográficas comerciales de estudio de producto 8K UHD sobre fondo blanco puro `#FFFFFF`.
+  - **Taxonomía Exhaustiva de Papelería**: `enrichProductForMarketing` ahora cubre todas las líneas de productos (grapadoras, escarchas, talonarios de recibos/facturas, perforadoras, tijeras, pistolas de silicón, silicón líquido, reglas, almohadillas dactilares, etc.) sin caer en el genérico "stationery office supply merchandise".
+  - **Prioridad a Fotos Comerciales Reales**: `campaign-editor.js` busca primero la fotografía comercial real con `searchRealProductPhoto` antes de recurrir a la generación sintética.
+  - **CORS y Conectividad Robusta (`wa-server/src/count-lan.js`)**: `corsOrigin` permite cualquier puerto de localhost/127.0.0.1 y `sendJSON` preserva todas las cabeceras HTTP necesarias.

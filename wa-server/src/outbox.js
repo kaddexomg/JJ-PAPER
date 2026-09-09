@@ -49,11 +49,13 @@ async function sweep() {
 
 async function dispatch(row) {
   let session = manager.get(row.owner_id);
+  let usedFallback = false;
   if (!session?.isConnected()) {
     // Si la sesión del owner asignado no está conectada, usar cualquier sesión sana activa
     const fallback = manager.all().find(s => s.isHealthy());
     if (fallback) {
       session = fallback;
+      usedFallback = true;
     } else {
       return;   // queda pending hasta que una sesión conecte
     }
@@ -61,8 +63,21 @@ async function dispatch(row) {
 
   const jid = row.jjp_wa_chats?.jid;
   if (!jid) {
-    log.warn({ id: row.id }, 'mensaje sin JID de chat válido, omitiendo');
+    // Mensaje sin JID válido → marcar como failed para no bloquear la cola
+    log.warn({ id: row.id }, 'mensaje sin JID de chat válido → marcado como failed');
+    await db.from('jjp_wa_messages').update({
+      status: 'failed',
+      error: 'Chat sin JID de WhatsApp válido'
+    }).eq('id', row.id);
     return;
+  }
+
+  // Backoff exponencial: si ya falló antes, esperar antes de reintentar
+  const retries = row.retry_count || 0;
+  if (retries > 0) {
+    const backoffMs = Math.min(retries * 30_000, 180_000); // 30s, 60s, 90s... max 3min
+    const retryAfter = new Date(row.updated_at || row.created_at).getTime() + backoffMs;
+    if (Date.now() < retryAfter) return; // aún no es tiempo de reintentar
   }
 
   // Lock optimista: si otro ciclo ya lo tomó, no afecta filas
@@ -73,6 +88,23 @@ async function dispatch(row) {
   if (!locked?.length) return;
 
   try {
+    // Validar que el número tiene WhatsApp antes de enviar
+    const phone = jid.replace(/@.*$/, '');
+    try {
+      const [exists] = await session.sock.onWhatsApp(jid);
+      if (!exists?.exists) {
+        await db.from('jjp_wa_messages').update({
+          status: 'failed',
+          error: `Número ${phone} no tiene WhatsApp activo`
+        }).eq('id', row.id);
+        log.warn({ id: row.id, phone }, 'número sin WhatsApp → mensaje marcado como failed');
+        return;
+      }
+    } catch (valErr) {
+      // Si la validación falla (timeout, etc.), intentar enviar de todos modos
+      log.warn({ id: row.id, err: valErr.message }, 'validación onWhatsApp falló, intentando envío directo');
+    }
+
     const content = await buildContent(row);
     // Cita (responder a un mensaje): stub mínimo que Baileys usa para el contextInfo
     const options = row.reply_to_wa_id ? {
@@ -82,12 +114,15 @@ async function dispatch(row) {
       }
     } : undefined;
     const res = await session.send(row.jjp_wa_chats.jid, content, options);
-    await db.from('jjp_wa_messages').update({
+    const updatePayload = {
       status: 'sent',
       wa_msg_id: res?.key?.id || null,
       error: null,
       wa_timestamp: new Date().toISOString()
-    }).eq('id', row.id);
+    };
+    // Si usamos sesión fallback, guardar quién realmente envió para que onReceipts funcione
+    if (usedFallback) updatePayload.sent_by = session.profileId;
+    await db.from('jjp_wa_messages').update(updatePayload).eq('id', row.id);
     const preview = row.body || PREVIEW_BY_TYPE[row.type] || '';
     await touchChat(row.chat_id, preview, 'me', false);
     recordLiveRequest({
@@ -95,18 +130,18 @@ async function dispatch(row) {
       method: 'OUTBOX',
       path: `jid:${row.jjp_wa_chats?.jid || 'chat'}`,
       status: 200,
-      detail: `Mensaje WA despachado (${row.type})`
+      detail: `Mensaje WA despachado (${row.type})${usedFallback ? ' [vía sesión fallback]' : ''}`
     });
-    log.info({ id: row.id, type: row.type }, 'mensaje enviado');
+    log.info({ id: row.id, type: row.type, fallback: usedFallback }, 'mensaje enviado');
   } catch (e) {
-    const retries = (row.retry_count || 0) + 1;
-    const failed = retries >= MAX_RETRIES;
+    const newRetries = retries + 1;
+    const failed = newRetries >= MAX_RETRIES;
     await db.from('jjp_wa_messages').update({
       status: failed ? 'failed' : 'pending',
-      retry_count: retries,
+      retry_count: newRetries,
       error: e.message
     }).eq('id', row.id);
-    log.warn({ id: row.id, retries, failed, err: e.message }, 'envío falló');
+    log.warn({ id: row.id, retries: newRetries, failed, err: e.message }, 'envío falló');
   }
 }
 

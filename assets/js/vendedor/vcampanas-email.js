@@ -645,7 +645,7 @@ async function launchEmailCampaignFromEditor(config) {
   if (attachOpts.includes('pdf_lista_precios')) {
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { base64, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista', returnBase64: true });
+      const { base64, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista', returnBase64: true });
       attachments.push({
         filename: filename || 'Lista_de_Precios_JJ_Paper.pdf',
         contentType: 'application/pdf',
@@ -854,7 +854,7 @@ async function launchEcCampaign() {
     btn.textContent = 'Generando catálogo PDF…';
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+      const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
       const mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
       const mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
       const { error: upErr } = await sb.storage.from('jjp-email-media')

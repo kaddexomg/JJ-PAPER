@@ -581,30 +581,23 @@
             }
           }
 
+          aiBubble.innerHTML = '<em>Buscando foto real del producto...</em>';
+          let mainPhotoUrl = matchedProduct.image_url || '';
+          let isRealPhoto = !!mainPhotoUrl;
+
+          if (!mainPhotoUrl && typeof window.GeminiClient.searchRealProductPhoto === 'function') {
+            mainPhotoUrl = await window.GeminiClient.searchRealProductPhoto(matchedProduct.name);
+            if (mainPhotoUrl) {
+              isRealPhoto = true;
+              matchedProduct.image_url = mainPhotoUrl;
+            }
+          }
+
           const wantsPurePhoto = /(foto|fotografia|imagen real|foto real|imagen del|foto del)/i.test(text) && !/(flyer|afiche|volante|publicidad|tarjeta)/i.test(text);
 
           if (wantsPurePhoto) {
-            aiBubble.innerHTML = '<em>Buscando fotografías reales del producto en la web…</em>';
-            let mainPhotoUrl = '';
-            let isRealPhoto = false;
-
-            try {
-              const serverUrl = (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname))
-                ? `${location.protocol}//${location.hostname}:8787`
-                : 'http://localhost:8787';
-              const rRes = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(matchedProduct.name)}`, { signal: AbortSignal.timeout(18000) });
-              if (rRes.ok) {
-                const rData = await rRes.json();
-                const realImages = rData.results || [];
-                if (realImages.length > 0 && realImages[0].image) {
-                  mainPhotoUrl = realImages[0].image;
-                  isRealPhoto = true;
-                  matchedProduct._studio_photo_url = mainPhotoUrl;
-                }
-              }
-            } catch (_) {}
-
             if (!mainPhotoUrl) {
+              aiBubble.innerHTML = '<em>Generando fotografía de estudio con IA...</em>';
               const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: matchedProduct, theme });
               mainPhotoUrl = photoRes.imageUrl;
               matchedProduct._studio_photo_url = mainPhotoUrl;
@@ -614,7 +607,7 @@
               <div>${escapeHtmlStr(reply)}</div>
               <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
                 <div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">
-                  ${isRealPhoto ? '🌐 Fotografía Real de Producto' : '📸 Fotografía Comercial de Estudio'}: ${escapeHtmlStr(matchedProduct.name)}
+                  ${isRealPhoto ? '✅ Encontré la foto real del producto' : '🤖 Fotografía Generada con IA'}: ${escapeHtmlStr(matchedProduct.name)}
                 </div>
                 <div style="font-size:11.5px;color:#475569;margin-bottom:8px">🏷️ <strong>Marca:</strong> ${escapeHtmlStr(matchedProduct.brand || 'JJ Paper')} · 📦 ${escapeHtmlStr(matchedProduct.presentation || matchedProduct.unit || 'Comercial')} ${matchedProduct.measures && matchedProduct.measures !== 'Medida estándar' ? `· 📏 ${escapeHtmlStr(matchedProduct.measures)}` : ''} ${matchedProduct.color ? `· 🎨 ${escapeHtmlStr(matchedProduct.color)}` : ''}</div>
                 <img src="${mainPhotoUrl}" alt="${escapeHtmlStr(matchedProduct.name)}" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08);background:#fff" />
@@ -627,9 +620,12 @@
             `;
           } else {
             const canvasId = 'cpiInlineCanvas_' + Date.now();
+            let previewMsg = isRealPhoto ? '✅ Encontré la foto real del producto. Creando flyer publicitario...' : 'No encontré foto real. Ofreciendo flyer con imagen generada por IA...';
+            
             aiBubble.innerHTML = `
               <div>${escapeHtmlStr(reply)}</div>
               <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+                <div style="font-size:11.5px;color:#16604A;font-weight:600;margin-bottom:6px">${previewMsg}</div>
                 <div style="font-weight:700;color:#16604A;margin-bottom:6px;font-size:12.5px">🎨 Flyer Promocional: ${escapeHtmlStr(matchedProduct.name)}</div>
                 <canvas id="${canvasId}" class="cpi-canvas-preview" width="800" height="800" style="width:100%;height:auto;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08)"></canvas>
                 <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">

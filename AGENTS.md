@@ -260,3 +260,17 @@ No se detectaron tests.
   - Prompt estricto de Packshot de Objeto Aislado (`isolated object on pure solid white background #FFFFFF`) con tokens negativos explícitos (`STRICT NEGATIVE PROMPT: no room, no floor, no walls, no cyclorama, no table, no furniture, no background scenery, no interior, no people, no hands, no mockups`).
   - Expansión de vocabulario comercial en `enrichProductForMarketing`: soporte para rosado, fucsia, magenta, morado, violeta, naranja, turquesa, cyan, resaltadores, displays y cajas por 12.
   - Traducción asistida por Gemini a descripción comercial de empaque en inglés antes de pasar a Flux.
+
+## Lineamientos de Estilo Visual Packshots y Copywriting Comercial B2B Anti-Spam (09-09-2026)
+- **Documento Rector (`docs/GUIA_ESTILO_VISUAL_Y_COPYWRITING_IA.md`)**:
+  - Centraliza los lineamientos de fotografía comercial (anatomía del prompt, iluminación softbox, ángulo hero a 15°-25°, empaque litografiado/blíster con euro-slot, y sombra de contacto en la base).
+  - Define la política editorial B2B: erradicar tono publicitario agresivo/spam, lenguaje consultivo humano, atención a colegios/oficinas/librerías venezolanas y preservación intacta de variables dinámicas.
+- **Refinamiento de Prompts Fotorrealistas (`assets/js/gemini-client.js`)**:
+  - Enriquecimiento de tipos de artículos escolares y de oficina: plastilinas en barra con caja litografiada, tijeras de oficina de acero inoxidable en blíster colgante, notas adhesivas señalizadoras en display colgante.
+  - Inyección en el prompt de Flux de empaques comerciales auténticos (`authentic retail folding carton box`, `hanging blister retail package with euro-slot`, `printed paper wrap`) y sombra de contacto suave en base (`soft natural contact shadow at base`).
+  - Negativos robustos contra textos deformados, manos sosteniendo el objeto, escritorios y renders 3D infantiles.
+- **Copywriting B2B y Spintax Dinámico**:
+  - `generateCampaignSpintax`: Saludos, conectores de valor y cierres amables y consultivos sin presión comercial ("¿Requiere una cotización formal?", "¿Desea que le verifiquemos disponibilidad?").
+  - `draftCampaignMessage`: Textos y asuntos de correo sobrios y elegantes, con desglose de precios oficiales a tasa BCV y condiciones de despacho directo en Caracas y envíos nacionales.
+- **Cache Bumping**:
+  - Actualizado `?v=20260909_b2b_packshot` en `admin/campanas-email.html`, `vendedor/campanas-email.html`, `admin/difusion.html` y `vendedor/difusion.html`.

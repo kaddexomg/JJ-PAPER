@@ -23,11 +23,17 @@ async function beat() {
   let extra = {};
   try { extra = (typeof liveFn === 'function' ? liveFn() : {}) || {}; } catch (e) { /* nunca frenar el latido */ }
 
+  // Estado real: si no hay sesiones WA sanas, reportar 'degraded'
+  const waSanas = extra.waSanas ?? 0;
+  const waSesiones = extra.waSesiones ?? 0;
+  let serverStatus = 'online';
+  if (waSesiones > 0 && waSanas === 0) serverStatus = 'degraded';
+
   const now = new Date().toISOString();
   const payload = {
     heartbeat: now,
     heartbeat_at: now,
-    status: 'online',
+    status: serverStatus,
     host: os.hostname(),
     modules: { ...modulesRef, ...extra }
   };

@@ -15,22 +15,26 @@ import { startMixer } from './mixer.js';
 
 // Candado de Instancia Única (Mutex de Red Local 127.0.0.1:8786):
 // Previene terminantemente la ejecución de dos instancias simultáneas de wa-server.
-// Si ya hay un proceso corriendo, este nuevo proceso aborta de inmediato con código 2
+// Si ya hay un proceso corriendo, este nuevo proceso aborta de inmediato con código 3
 // (detener limpio sin reiniciar en START-SERVIDOR.bat), evitando colisión de puertos
 // y desincronización de WhatsApp ("Bad MAC").
 const SINGLE_INSTANCE_PORT = 8786;
-const lockServer = net.createServer();
-lockServer.once('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    log.warn(`[CANDADO ACTIVO] Otra instancia de wa-server ya se encuentra ejecutándose en el sistema (puerto ${SINGLE_INSTANCE_PORT} ocupado).`);
-    log.warn('Abortando esta instancia para proteger los sockets de WhatsApp y evitar colisiones.');
-    process.exit(3);
-  } else {
-    log.error({ err: err.message }, 'Error al verificar candado de instancia única');
-  }
-});
-lockServer.listen(SINGLE_INSTANCE_PORT, '127.0.0.1', () => {
-  log.info(`Candado de instancia única adquirido (127.0.0.1:${SINGLE_INSTANCE_PORT}) ✅`);
+await new Promise((resolve, reject) => {
+  const lockServer = net.createServer();
+  lockServer.once('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      log.warn(`[CANDADO ACTIVO] Otra instancia de wa-server ya se encuentra ejecutándose en el sistema (puerto ${SINGLE_INSTANCE_PORT} ocupado).`);
+      log.warn('Abortando esta instancia para proteger los sockets de WhatsApp y evitar colisiones.');
+      process.exit(3);
+    } else {
+      log.error({ err: err.message }, 'Error al verificar candado de instancia única — abortando por seguridad');
+      process.exit(3);  // cualquier error de candado → abortar (no correr sin protección)
+    }
+  });
+  lockServer.listen(SINGLE_INSTANCE_PORT, '127.0.0.1', () => {
+    log.info(`Candado de instancia única adquirido (127.0.0.1:${SINGLE_INSTANCE_PORT}) ✅`);
+    resolve();
+  });
 });
 
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
@@ -73,7 +77,15 @@ process.on('unhandledRejection', e => log.error({ err: e?.message || e }, 'unhan
 // Antes esto solo se registraba y el proceso seguía vivo en un estado
 // indefinido: el panel decía 🟢 pero nada respondía. Ahora se sale con
 // código 1 y START-SERVIDOR.bat relanza limpio (el 2 es "detener a propósito").
-process.on('uncaughtException', e => {
+process.on('uncaughtException', async (e) => {
   log.error({ err: e?.message, stack: e?.stack }, 'uncaughtException — reiniciando el servidor');
-  setTimeout(() => process.exit(1), 300);   // deja que el log llegue al archivo
+  // Marcar como caído en BD antes de morir (para que el panel no mienta)
+  try {
+    const { db: dbComm } = await import('./supabase.js');
+    await dbComm.from('jjp_server_control').update({
+      status: 'crashed', heartbeat: null, heartbeat_at: null,
+      modules: { crashed: true, error: e?.message }
+    }).eq('id', 1);
+  } catch (_) {}
+  setTimeout(() => process.exit(1), 500);   // deja que el log y la BD se actualicen
 });

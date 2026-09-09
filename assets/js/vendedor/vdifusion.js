@@ -820,7 +820,7 @@ async function launchCampaignFromEditor(config) {
   if (attachOpts.includes('pdf_lista_precios') && (!mediaPath || !extraMediaPath)) {
     try {
       if (typeof docPdfProductos === 'function') {
-        const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+        const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
         const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
         const pdfPath = `${SELLER.id}/campaigns/${Date.now()}-${pdfFilename}`;
         const { error: upErr } = await sb.storage.from('jjp-wa-media')
@@ -995,7 +995,7 @@ async function launchCampaign() {
     btn.textContent = 'Generando catálogo PDF…';
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { blob, filename } = await docPdfProductos({ conStock: true, titulo: 'Lista de Precios Mayorista' });
+      const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
       mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
       mediaMime = 'application/pdf';
       mediaType = 'document';

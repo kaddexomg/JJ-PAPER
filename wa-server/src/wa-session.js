@@ -432,10 +432,19 @@ export class WaSession {
     for (const { key, update } of updates) {
       const st = RECEIPT_STATUS[update?.status];
       if (!st || !key?.id) continue;
-      await db.from('jjp_wa_messages')
+      // Intentar matchear por owner_id (caso normal)
+      const { data: updated } = await db.from('jjp_wa_messages')
         .update({ status: st })
         .eq('owner_id', this.profileId).eq('wa_msg_id', key.id)
-        .in('status', UPGRADABLE[st]);
+        .in('status', UPGRADABLE[st])
+        .select('id');
+      // Si no matcheó (ej: mensaje enviado por fallback), buscar por sent_by
+      if (!updated?.length) {
+        await db.from('jjp_wa_messages')
+          .update({ status: st })
+          .eq('sent_by', this.profileId).eq('wa_msg_id', key.id)
+          .in('status', UPGRADABLE[st]);
+      }
     }
   }
 

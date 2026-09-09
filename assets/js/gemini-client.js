@@ -163,14 +163,19 @@
     const sellerRef = seller.ref_code || '';
 
     return `
-Eres el Copiloto Experto de Inteligencia Artificial y Estratega Comercial de "JJ Paper C.A." en Caracas, Venezuela.
-- JJ Paper es una distribuidora líder mayorista y detal de papelería, útiles escolares, consumibles de oficina, computación y papelería corporativa.
+Eres el Asistente Experto de Comunicación Comercial B2B de "JJ Paper C.A." en Caracas, Venezuela.
+- JJ Paper es una distribuidora mayorista y detal de papelería, útiles escolares, consumibles de oficina y papelería corporativa.
 - Catálogo principal: Resmas de papel Bond (Carta, Oficio, Extra Oficio de 75g y 80g), cuadernos (engrapados, doble espiral, cosidos), bolígrafos, marcadores, carpetas de fibra, archivadores, consumibles, tóner y embalaje.
 - Tasa oficial BCV vigente: 1 USD = ${rate.toFixed(2)} Bs (todas las transacciones, presupuestos y facturas se calculan rigurosamente al cambio oficial del Banco Central de Venezuela).
 - Asesor comercial activo: ${sellerName} ${sellerRef ? `(Código: ${sellerRef})` : ''}.
 - Medios de pago: Dólares USD en efectivo, Zelle, Banesco Panamá, Bolívares por Pago Móvil y Transferencias bancarias nacionales al cambio BCV.
 - Despachos: Entregas directas en Caracas con rutas diarias y envíos asegurados a toda Venezuela por Tealca, MRW y Zoom.
-- Tono comercial: Altamente profesional, empático, ágil, consultivo, con impecable cordialidad comercial venezolana.
+
+DIRECTRICES DE TONO Y ESTILO B2B (HUMANO, PROFESIONAL Y RESPETUOSO):
+1. NO USES TONO DE ANUNCIO AGRESIVO O BOT: Prohibido sonar a teletienda, usar mayúsculas sostenidas exageradas, promesas vacías o saturación de signos de exclamación o emojis (máximo 1 o 2 emojis elegantes por mensaje).
+2. TRATO B2B CONSULTIVO: Habla como un asesor comercial humano que se dirige a gerentes de compras, administradores de oficinas, dueños de colegios o librerías. Sé cordial, empático y profesional ("Estimado/a", "Un gusto saludarle", "Esperamos que todo marche excelente en su empresa").
+3. CONCISIÓN Y VALOR REAL: Ve al grano. Destaca disponibilidad de inventario listo, precio mayorista transparente, factura fiscal y rapidez de despacho.
+4. LLAMADOS A LA ACCIÓN NATURALES: En lugar de "¡COMPRA YA!", usa cierres amables y abiertos ("¿Desea que le verifiquemos disponibilidad?", "¿Requiere una cotización formal para su empresa?", "¿Cuántas unidades o bultos estima para este pedido?").
 `;
   }
 
@@ -433,26 +438,33 @@ Genera el asunto y cuerpo en JSON estricto.`;
     }
 
     const sys = getBusinessContext() + `
-Eres un especialista en copywriting comercial y prevención de bloqueos/anti-spam para envíos masivos por ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
-Tu misión es transformar el texto que el usuario te entrega en una plantilla de alto dinamismo utilizando Spintax sintáctico con la sintaxis {opción 1|opción 2|opción 3}.
+Eres un especialista sénior en Copywriting Comercial B2B y prevención algorítmica de bloqueos (Anti-Spam) para envíos por ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+Tu objetivo es transformar el mensaje en una plantilla viva, humana, sumamente cordial y variada utilizando Spintax {opción 1|opción 2|opción 3}.
 
-REGLAS CRÍTICAS DE CONSTRUCCIÓN:
-1. Aplica Spintax en saludos: {¡Hola!|Buen día|Estimado(a) cliente|Un cordial saludo}.
-2. Aplica Spintax en llamadas a la acción y enganches comerciales: {tenemos para ti|te traemos|aprovecha nuestra oferta en|te presentamos}.
-3. Aplica Spintax en el cierre: {¿Deseas que te reservemos?|¿Cuántas unidades necesitas cotizar?|Contáctanos para apartar tu pedido|Quedamos a tu orden}.
-4. PRESERVA INTACTAS al 100% todas las variables encerradas en dobles llaves, exactamente como vengan (por ejemplo: {{nombre}}, {{empresa}}, {{vendedor}}, {{producto}}, {{precio}}, {{descuento}}, {{link}}). NO las traduzcas, NO las cambies, NO quites las dobles llaves.
-5. Mantén enlaces, precios y datos numéricos intactos.
-6. Devuelve ÚNICAMENTE el texto final resultante con Spintax y variables, sin explicaciones ni envoltorios markdown.`;
+ESTÁNDARES DE COPYWRITING B2B HUMANO:
+- Evita sonar como un bot automatizado o anuncio de telemarketing barato.
+- El mensaje debe leerse como escrito individualmente por un asesor comercial atento a su cliente.
+- Usa lenguaje venezolano formal y cálido ("Estimado(a)", "Un gusto saludarle", "Es un placer ponernos en contacto").
+- Nunca uses signos de exclamación excesivos (¡¡¡ !!!) ni más de 1 o 2 emojis sobrios.
 
-    const prompt = `Convierte este texto a formato Spintax anti-baneo:\n\n${baseText.trim()}`;
+REGLAS ESTRICTAS DE CONSTRUCCIÓN SPINTAX:
+1. Variaciones en Saludos: {Estimado(a) {{nombre}}, un gusto saludarle|Hola {{nombre}}, un cordial saludo|Apreciado(a) {{nombre}}, esperamos se encuentre muy bien}.
+2. Variaciones en la Presentación del Asesor: {le contacta {{vendedor}} de JJ Paper|le escribe {{vendedor}} del departamento comercial de JJ Paper|se comunica atentamente {{vendedor}} de JJ Paper}.
+3. Variaciones en la Propuesta de Valor: {queremos poner a su disposición excelentes opciones en|le informamos disponibilidad inmediata y precios especiales en|le compartimos nuestras mejores condiciones comerciales en|tenemos disponible para despacho inmediato}.
+4. Variaciones en Cierre y Llamado a la Acción (B2B sin presión): {¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|¿Cuántas unidades o bultos estima para esta semana?|Quedamos a su disposición para coordinar su despacho}.
+5. PRESERVACIÓN ABSOLUTA DE VARIABLES: Conserva exactamente {{nombre}}, {{empresa}}, {{vendedor}}, {{producto}}, {{precio}}, {{descuento}}, {{link}}, etc. NO las alteres, no les quites las llaves dobles ni las traduzcas.
+6. Mantén enlaces, montos numéricos y condiciones operativas intactos.
+7. Devuelve ÚNICAMENTE el texto resultante en Spintax, sin explicaciones ni bloques de código.`;
+
+    const prompt = `Convierte este texto a formato Spintax comercial B2B humano y anti-spam:\n\n${baseText.trim()}`;
 
     try {
-      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.8 });
+      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.78 });
       return res.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/i, '').trim();
     } catch (e) {
       console.warn('Fallback spintax:', e);
       if (!baseText.startsWith('{')) {
-        return `{¡Hola!|Buen día|Saludos cordiales} ` + baseText;
+        return `{Estimado(a) {{nombre}}, un cordial saludo|Hola {{nombre}}, un gusto saludarle|Buen día {{nombre}}} ` + baseText;
       }
       return baseText;
     }
@@ -474,15 +486,20 @@ REGLAS CRÍTICAS DE CONSTRUCCIÓN:
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
     const sys = getBusinessContext() + `
-Eres el Director Creativo de Marketing y Copywriting Comercial de JJ Paper C.A.
-Tu objetivo es redactar un mensaje publicitario o plantilla de altísima conversión para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+Eres el Director de Comunicaciones y Copywriting Comercial B2B de JJ Paper C.A.
+Tu objetivo es redactar un mensaje institucional altamente profesional, humano, empático y orientado a negocios para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
 
-CRITERIOS COMERCIALES DE ALTA CONVERSIÓN:
-1. Aplica principios de persuasión B2B (Gancho, Valor/Ahorro, Urgencia de stock, Facilidad de compra y Llamado a la acción claro).
-2. Para WhatsApp: utiliza Spintax sintáctico {opción 1|opción 2|opción 3} en saludos, conectores y despedidas para evitar bloqueos por spam.
-3. Para Email: genera un asunto ("subject") con gancho de apertura y un cuerpo ("body") estructurado con párrafos legibles, bullets (-) y firma institucional.
-4. Conserva estrictamente variables dinámicas: {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}, y si aplica: {{producto}}, {{precio}}, {{descuento}}, {{descripcion}}.
-5. Resalta que las operaciones son al cambio oficial BCV (${rate.toFixed(2)} Bs/USD) con entregas rápidas en Caracas y envíos nacionales.
+ESTRUCTURA Y LINEAMIENTOS EDITORIALES B2B:
+1. TONO PROFESIONAL Y HUMANO: Cero agresividad publicitaria, cero spam. Dirígete a administradores de empresas, encargados de compras, colegios y librerías con cordialidad y respeto comercial.
+2. ENFOQUE EN SOLUCIONES COMERCIALES:
+   - Disponibilidad real en almacén Caracas.
+   - Respaldo de factura fiscal y cotización formal inmediata.
+   - Precios directos al mayor en divisas ($) y Bolívares calculados rigurosamente a la tasa oficial BCV (${rate.toFixed(2)} Bs).
+   - Rutas de despacho rápido en Caracas y envíos asegurados a nivel nacional.
+3. ANTI-BLOQUEO / SPINTAX:
+   - Para WhatsApp: Integra Spintax {opción 1|opción 2|opción 3} en saludos, conectores y cierre de cortesía para prevenir detección por repetición masiva.
+4. FORMATO EMAIL: Asunto profesional claro sin mayúsculas sostenidas ni palabras clickbait; cuerpo con estructura limpia (saludo formal, justificación del contacto, viñetas de especificaciones/precios/garantías y firma corporativa).
+5. CONSERVACIÓN DE VARIABLES: Mantén estrictamente {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}, y si aplica: {{producto}}, {{precio}}, {{descuento}}, {{descripcion}}.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni \`\`\`json):
 - Si channel === 'email': { "subject": "...", "body": "..." }
@@ -490,29 +507,29 @@ Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni \`\`\`json
 `;
 
     const prompt = `
-Objetivo de campaña: ${objective}
+Objetivo o motivo del contacto: ${objective}
 Canal de difusión: ${channel}
-Segmento de audiencia: ${audience}
-Producto o Promoción: ${product ? `${product.name} (Precio: $${product.price_usd || product.final_price_usd || ''})` : 'Catálogo general mayorista de papelería'}
-Descuento o Beneficio: ${discount || 'Precios directos de distribuidora'}
-Notas / Instrucciones adicionales: ${customNotes || 'Enfocado en reposición de mercancía, despacho inmediato y ahorro'}
-Asesor emisor: ${sellerName || 'Equipo de Ventas JJ Paper'}
+Público destinatario: ${audience}
+Producto o Promoción: ${product ? `${product.name} (Precio: $${product.price_usd || product.final_price_usd || ''})` : 'Catálogo mayorista de papelería y suministros de oficina'}
+Descuento o Beneficio: ${discount || 'Condiciones de precio directo de distribuidora'}
+Notas / Requerimientos del asesor: ${customNotes || 'Enfocado en reposición de inventario, ahorro corporativo y atención personalizada'}
+Asesor emisor: ${sellerName || 'Equipo de Ventas Corporativas JJ Paper'}
 
-Genera el mensaje en formato JSON estricto.`;
+Genera el mensaje comercial B2B en formato JSON estricto.`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.72 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.68 });
       const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
       return JSON.parse(clean);
     } catch (e) {
       if (channel === 'email') {
         return {
-          subject: product ? `📦 Oportunidad Mayorista: ${product.name} — JJ Paper` : '📦 Lista de Precios y Ofertas Especiales — JJ Paper',
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que en {{empresa}} se encuentren muy bien. Le saluda atentamente {{vendedor}} de JJ Paper C.A.\n\nLe contactamos para presentarle nuestras mejores condiciones de despacho en ${product ? `*{{producto}}* con un precio exclusivo de *{{precio}}*` : 'papelería corporativa, útiles escolares y suministros de oficina al mayor'}.\n\n🔹 Precios directos al mayor en divisas o Bolívares a tasa oficial BCV (${rate.toFixed(2)} Bs).\n🔹 Despacho rápido en Caracas y envíos asegurados a nivel nacional.\n🔹 Emisión inmediata de notas de entrega y facturas fiscales.\n\n👉 Puede revisar catálogo y procesar su orden en línea:\n{{link}}\n\n{¿Desea que le apartemos mercancía o requiere una cotización formal?|Quedamos a su completa disposición para atender su requerimiento hoy mismo.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          subject: product ? `Información de disponibilidad y precios: ${product.name} — JJ Paper` : 'Actualización de catálogo y condiciones mayoristas — JJ Paper',
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que en {{empresa}} se encuentren muy bien. Le saluda atentamente {{vendedor}} de JJ Paper C.A.\n\nLe contactamos cordialmente para presentarle nuestras actuales condiciones de suministro en ${product ? `*{{producto}}*, disponible con precio preferencial de *{{precio}}*` : 'papelería corporativa, consumibles de oficina y útiles escolares al mayor'}.\n\n🔹 Precios transparentes al mayor calculados a tasa oficial BCV (${rate.toFixed(2)} Bs).\n🔹 Emisión inmediata de notas de entrega y facturación fiscal.\n🔹 Despacho ágil en Caracas y envíos protegidos a nivel nacional.\n\n👉 Puede consultar detalles y gestionar requerimientos en nuestro catálogo digital:\n{{link}}\n\n{¿Desea que le reservemos inventario o requiere una cotización formal membretada?|Quedamos a su completa orden para apoyar sus requerimientos de suministros.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
         };
       } else {
         return {
-          body: `{¡Hola!|Buen día|Un cordial saludo} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\n{Tenemos excelentes ofertas hoy en|Aproveche disponibilidad inmediata en|Le presentamos nuestro precio mayorista en} ${product ? `*{{producto}}* por tan solo *{{precio}}*` : 'útiles escolares, resmas de papel y artículos de oficina'}.\n\n📦 Stock listo para entrega inmediata en Caracas y envíos a toda Venezuela.\n💲 Tasa oficial BCV: ${rate.toFixed(2)} Bs.\n\n👉 Revise el catálogo y ordene directamente aquí:\n{{link}}\n\n{¿Cuántas unidades o bultos desea cotizar?|¿Le reservamos su pedido para el despacho de hoy?}`
+          body: `{Estimado(a) {{nombre}}, un gusto saludarle|Hola {{nombre}}, un cordial saludo|Apreciado(a) {{nombre}}, esperamos se encuentre excelente} 👋. Le saluda {{vendedor}} de JJ Paper.\n\n{Le escribimos para informarle que contamos con disponibilidad inmediata en|Nos ponemos en contacto para presentarle nuestras condiciones mayoristas en|Queremos compartirle disponibilidad para despacho en} ${product ? `*{{producto}}* a un valor de *{{precio}}*` : 'artículos de oficina, resmas de papel y papelería corporativa'}.\n\n📦 Stock en almacén listo para despacho en Caracas y envíos nacionales.\n💲 Facturación a tasa oficial BCV: ${rate.toFixed(2)} Bs.\n\n👉 Puede visualizar especificaciones o solicitar su pedido aquí:\n{{link}}\n\n{¿Requiere una cotización formal para su empresa?|¿Desea que le apartemos las unidades necesarias para su entrega?}`
         };
       }
     }
@@ -664,8 +681,12 @@ Respuesta del Copiloto JJ:`;
       productTypeEn = 'smooth gel pens in retail blister pack';
     } else if (/boligrafo/i.test(rawName)) {
       productTypeEn = 'ballpoint pens in retail stationery packaging';
-    } else if (/tirro|cinta.*embalaje/i.test(rawName)) {
-      productTypeEn = 'roll of heavy duty packaging tape';
+    } else if (/plastilina/i.test(rawName)) {
+      productTypeEn = 'cardboard box of school modeling clay bars in vibrant colors, kids art supplies in retail package';
+    } else if (/tijera.*oficina|tijera.*inoxidable|tijera/i.test(rawName)) {
+      productTypeEn = 'stainless steel office scissors with ergonomic colored handle in hanging blister retail packaging';
+    } else if (/nota.*adhesiv|bander.*adhesiv|señalizador/i.test(rawName)) {
+      productTypeEn = 'hanging blister retail package of colorful neon adhesive index flags sticky note page markers';
     } else if (/almohadilla.*dactilar|almohadilla/i.test(rawName)) {
       productTypeEn = 'stationery fingerprint stamp ink pad with protective case';
     } else if (/borrador.*pizarra/i.test(rawName)) {
@@ -679,6 +700,7 @@ Respuesta del Copiloto JJ:`;
     else if (/grap|perforad|dispens|clip|tijera/i.test(rawName)) catType = 'stapler';
     else if (/boligrafo|marcador|lapiz|pluma|resaltador/i.test(rawName)) catType = 'writing';
     else if (/carpeta|sobre|archiv|funda/i.test(rawName)) catType = 'folder';
+    else if (/plastilina|tijera|tempera|pincel|escolar|arte/i.test(rawName)) catType = 'school';
 
     const cleanTitle = rawName
       .replace(/\b[A-Z0-9_-]{7,}\b/g, '')
@@ -766,6 +788,40 @@ Respuesta del Copiloto JJ:`;
      Investiga las especificaciones reales (marca, medidas, color, empaque)
      y produce una fotografía fotorrealista de catálogo en alta resolución.
      -------------------------------------------------------------------------- */
+  const _realPhotoCache = new Map();
+  async function searchRealProductPhoto(productName) {
+    if (!productName) return null;
+    
+    const cacheKey = productName.toLowerCase().trim();
+    if (_realPhotoCache.has(cacheKey)) {
+      const cached = _realPhotoCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < 3600000) {
+        return cached.url;
+      }
+    }
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0 && data[0].image) {
+          const url = data[0].image;
+          _realPhotoCache.set(cacheKey, { url, timestamp: Date.now() });
+          return url;
+        }
+      }
+    } catch (e) {
+      console.warn('Real photo search failed:', e);
+    }
+    return null;
+  }
+
   const _studioPhotoCache = new Map();
 
   async function generateProductStudioPhoto({ product, theme = 'white', forceNew = false }) {
@@ -798,13 +854,16 @@ Respuesta del Copiloto JJ:`;
     let englishSubject = '';
     try {
       if (typeof callGemini === 'function') {
-        const sys = 'You are an expert commercial product photographer cataloging stationery, school and office supplies.';
-        const q = `Translate this Venezuelan stationery product title into a clear, professional 1-sentence English commercial retail packshot description: "${name}".
+        const sys = 'You are an expert commercial advertising packshot photographer specializing in stationery, office supplies and retail packaging catalogs.';
+        const q = `Translate this Venezuelan stationery product title into a clear, professional 1-sentence English retail packshot description: "${name}".
 Brand: ${brand || 'standard'}
 Color: ${color || 'standard'}
 Format/Specs: ${measures || 'standard'}
 Packaging/Presentation: ${presentation || 'standard'}
-CRITICAL: Only describe the physical merchandise and its authentic commercial packaging (e.g. "box of 12 fluorescent neon pink chisel-tip highlighter markers, Shark brand packaging"). Do NOT describe any background, scenery, room, wall or table. Respond with ONLY the 1 English sentence.`;
+CRITICAL PHOTO GUIDELINES:
+- Describe the physical merchandise in its authentic retail packaging (e.g. "retail hanging blister card with euro-slot of stainless steel office scissors, blue rubber grip", "colorful printed paper wrap of 500-sheet copy paper ream", "vibrant illustrated retail folding carton box of 6 modeling clay bars").
+- Only describe the product object itself and its packaging. Do NOT describe rooms, furniture, desks or people.
+Respond with ONLY the 1 English sentence.`;
         const translated = await callGemini({ prompt: q, systemInstruction: sys, temperature: 0.2 });
         if (translated && translated.length > 5 && !translated.includes('Error')) {
           englishSubject = translated.replace(/^["'`]|["'`]$/g, '').trim();
@@ -817,10 +876,10 @@ CRITICAL: Only describe the physical merchandise and its authentic commercial pa
     }
 
     const bgPrompt = (theme === 'white')
-      ? 'isolated object on pure solid white background #FFFFFF, crisp packshot product photography, studio lighting'
-      : 'isolated object on solid luxury dark emerald green #0B3327 background, soft center spotlight, commercial product packshot';
+      ? 'isolated product packshot on seamless pure solid white background #FFFFFF, commercial studio softbox lighting, soft natural contact shadow at base'
+      : 'isolated product packshot on luxury deep emerald green #0B3327 background, subtle center backlight halo, soft natural contact shadow at base';
 
-    const photoPrompt = `Authentic commercial packshot product photography of ${englishSubject}. Centered hero merchandise, ${bgPrompt}, 8k resolution, razor-sharp focus, commercial advertising catalog photography, hyperrealistic. STRICT NEGATIVE PROMPT: no room, no floor, no walls, no cyclorama, no table, no furniture, no background scenery, no interior, no people, no hands, no text overlay, no watermark, no sku numbers, no mockups, no shadows on walls`;
+    const photoPrompt = `Professional retail catalog packshot of ${englishSubject}. Centered front hero angle, ${bgPrompt}, razor-sharp focus on branding and packaging typography, 8k resolution, commercial advertising photography, hyperrealistic. NEGATIVE PROMPT: blurry text, disfigured packaging, hand holding object, person, cluttered background, room interior, office desk, table surface, 3d render cartoon, watermark, stock photo logo, grain, low resolution`;
 
     // 3. Generar la imagen fotorrealista en alta resolución (1024x1024)
     const seed = forceNew ? (Math.floor(Math.random() * 900000) + 100000) : (42000 + Math.abs(hashCode(name + theme)));
@@ -959,16 +1018,32 @@ CRITICAL: Only describe the physical merchandise and its authentic commercial pa
     const maxImgH = 460;
 
     let imageRendered = false;
-    let imgToLoad = product._studio_photo_url || product.image_url;
+    let imgToLoad = product.image_url;
+    
     if (!imgToLoad) {
       try {
-        const studioRes = await generateProductStudioPhoto({ product, theme });
-        if (studioRes?.imageUrl) {
-          imgToLoad = studioRes.imageUrl;
-          product._studio_photo_url = imgToLoad;
+        const realPhoto = await searchRealProductPhoto(product.name);
+        if (realPhoto) {
+          imgToLoad = realPhoto;
+          product.image_url = realPhoto;
         }
       } catch (e) {
-        console.warn('No se pudo pregenerar foto de estudio para flyer:', e);
+        console.warn('Fallo búsqueda de foto real para flyer:', e);
+      }
+    }
+
+    if (!imgToLoad) {
+      imgToLoad = product._studio_photo_url;
+      if (!imgToLoad) {
+        try {
+          const studioRes = await generateProductStudioPhoto({ product, theme });
+          if (studioRes?.imageUrl) {
+            imgToLoad = studioRes.imageUrl;
+            product._studio_photo_url = imgToLoad;
+          }
+        } catch (e) {
+          console.warn('No se pudo pregenerar foto de estudio para flyer:', e);
+        }
       }
     }
 
@@ -1327,6 +1402,7 @@ CRITICAL: Only describe the physical merchandise and its authentic commercial pa
     searchProductsLive,
     enrichProductForMarketing,
     generateProductStudioPhoto,
+    searchRealProductPhoto,
     askCopilot,
     renderProductCard,
     getCurrentKeyIndex: () => _keyIndex,

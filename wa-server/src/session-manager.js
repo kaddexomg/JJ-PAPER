@@ -55,30 +55,41 @@ export async function boot() {
 // Vigilante: Baileys puede quedarse con la sesión "abierta" pero el socket
 // muerto sin emitir 'close'. Antes eso dejaba el WhatsApp mudo hasta que
 // alguien lo notara y reiniciara el servidor a mano.
+// Intervalo: cada 90s. Umbral de muerte: 3 minutos sin señal de vida.
 function startWatchdog() {
+  const DEAD_THRESHOLD_MS = 180_000;  // 3 minutos sin señal → muerta
   setInterval(async () => {
     for (const s of sessions.values()) {
       if (s.stopped || !s.hasCreds()) continue;
-      if (s.isHealthy()) continue;
-      if (s.reconnectTimer) continue;
+      if (s.reconnectTimer) continue;  // ya hay un reintento programado
       if (s.startingSince && Date.now() - s.startingSince < 180_000) continue;
-      if (working.has(s.profileId)) continue;  // ← NUEVO: respetar el candado
-      
+      if (working.has(s.profileId)) continue;
+
+      // Si está conectada y el websocket está abierto → está sana, no tocar
+      if (s.isConnected() && s.wsOpen()) {
+        // Renovar lastEventAt para que no expire mientras esté conectada
+        if (!s.lastEventAt) s.lastEventAt = Date.now();
+        continue;
+      }
+
+      // Si tiene lastEventAt reciente (< DEAD_THRESHOLD), darle más tiempo
+      if (s.lastEventAt && Date.now() - s.lastEventAt < DEAD_THRESHOLD_MS) continue;
+
       const min = Math.round((Date.now() - (s.lastEventAt || 0)) / 60000);
       log.warn({ profile: s.profileId, sinSenalMin: min }, 'sesión caída sin avisar — reconectando');
       
-      working.add(s.profileId);  // ← NUEVO
+      working.add(s.profileId);
       try {
         await s.setSession({ status: 'disconnected', last_error: 'Reconectada por el vigilante' });
         await s.start();
       } catch (e) {
         log.error({ err: e.message, profile: s.profileId }, 'watchdog no pudo reconectar');
       } finally {
-        working.delete(s.profileId);  // ← NUEVO
+        working.delete(s.profileId);
       }
     }
-  }, 60_000);
-  log.info('vigilante de sesiones activo (revisa cada minuto)');
+  }, 90_000);  // cada 90 segundos (antes 60s era demasiado agresivo)
+  log.info('vigilante de sesiones activo (revisa cada 90s, umbral de muerte: 3 min)');
 }
 
 function ensure(profileId) {

@@ -656,10 +656,10 @@ window.CampaignEditor = (() => {
   async function aiDraftTemplate() {
     const isEmail = currentConfig?.channel === 'email';
     const defPrompt = selectedProductOrCombo 
-      ? `Promoción de ${selectedProductOrCombo.name}`
-      : 'Oferta especial de útiles y papelería al mayor';
+      ? `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`
+      : 'Actualización de condiciones mayoristas y reposición de inventario';
 
-    const obj = prompt('¿Qué deseas promocionar en esta campaña? (Ej: Super oferta de cuadernos, Reactivación de clientes, Despacho gratis en Caracas)', defPrompt);
+    const obj = prompt('✨ ¿Qué requerimiento o propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Oferta mayorista con despacho inmediato en Caracas)', defPrompt);
     if (!obj || !obj.trim()) return;
 
     const btn = document.getElementById('ceAiDraftBtn');

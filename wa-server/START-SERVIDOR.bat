@@ -20,12 +20,21 @@ REM Codigo 3 = Ya hay una instancia corriendo en el sistema
 if "%errorlevel%"=="3" (
   echo.
   echo ============================================================
-  echo [INFO] El servidor JJ Paper YA SE ENCUENTRA ACTIVO en el sistema.
-  echo        (Hay un proceso en ejecucion protegiendo los sockets).
-  echo        El sistema esta 100%% operativo en http://localhost:8787
+  echo  [AVISO] Ya hay una instancia del servidor en ejecucion.
   echo ============================================================
-  echo Presiona una tecla para cerrar esta ventana...
-  pause >nul
+  echo  1. Si deseas CERRAR la instancia previa y REINICIAR:
+  echo     Escribe R y presiona Enter.
+  echo  2. Para salir dejando el servidor actual corriendo:
+  echo     Presiona Enter.
+  echo.
+  set /p ACT="Opcion [R = Reiniciar / Enter = Salir]: "
+  if /i "%ACT%"=="R" (
+    echo.
+    echo [%date% %time%] Cerrando procesos node previos...
+    taskkill /F /IM node.exe >nul 2>&1
+    timeout /t 2 /nobreak >nul
+    goto loop
+  )
   exit /b 0
 )
 

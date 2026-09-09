@@ -273,4 +273,26 @@ No se detectaron tests.
   - `generateCampaignSpintax`: Saludos, conectores de valor y cierres amables y consultivos sin presión comercial ("¿Requiere una cotización formal?", "¿Desea que le verifiquemos disponibilidad?").
   - `draftCampaignMessage`: Textos y asuntos de correo sobrios y elegantes, con desglose de precios oficiales a tasa BCV y condiciones de despacho directo en Caracas y envíos nacionales.
 - **Cache Bumping**:
-  - Actualizado `?v=20260909_b2b_packshot` en `admin/campanas-email.html`, `vendedor/campanas-email.html`, `admin/difusion.html` y `vendedor/difusion.html`.
+  - Actualizado `?v=20260909_b2b_packshot_v3` en `assets/js/admin/sidenav.js`, `copilot-jj.js`, `campaign-editor.js` y páginas de difusión.
+
+## Reinicio Limpio de Servidor, Filtro Móvil WhatsApp, Fotos Reales y Copywriting B2B Humano (09-09-2026)
+- **Reinicio Limpio y Desbloqueo del Mutex de Red Local (`REINICIAR-SERVIDOR.bat` y `START-SERVIDOR.bat`)**:
+  - Implementado script `REINICIAR-SERVIDOR.bat` en la raíz y en `wa-server/` que cierra limpiamente procesos `node.exe` anteriores (`taskkill /F /IM node.exe`) y relanza el servidor con el código más reciente.
+  - Menú interactivo en `START-SERVIDOR.bat` cuando el candado detecta el puerto 8786 ocupado (código 3): permite al usuario presionar `R` para matar la instancia previa y reiniciar de inmediato sin bloquearse.
+- **Filtrado Estricto de Números Móviles para WhatsApp (`wa-server/src/phone.js`, `assets/js/wa/wa-common.js`)**:
+  - Detección precisa de líneas fijas CANTV (`0212`, `0241`, `0251`, etc.) que representan el ~70% de la base de clientes y no poseen WhatsApp.
+  - Normalización de prefijos heredados de vendedores (`0080414...` → `0414...`), `5804...` y números inválidos.
+  - `campaigns.js`: Omite de inmediato números fijos CANTV sin saturar USync en Baileys y con timeout de seguridad de 5s en `sock.onWhatsApp`.
+  - `campaign-editor.js` y `vdifusion.js`: Muestran en el resumen de audiencia el conteo exacto de móviles válidos y fijos omitidos (`X móviles WhatsApp (Y fijos CANTV omitidos)`).
+- **Búsqueda Instantánea de Fotografías Reales y Eliminación de Alucinaciones IA (`wa-server/src/product-images.js`)**:
+  - Prioridad 1 con DuckDuckGo Images JSON API (<1.5s): extrae packshots de distribuidores reales (Office Depot, Sam's Club, MercadoLibre) con expansión de abreviaturas y limpieza de códigos SKU de bodega.
+  - Se eliminó la generación forzada de caricaturas/deformaciones de Flux (Pollinations) cuando no se encuentra foto web: el sistema ahora orienta al usuario a pegar el link directo o subir el archivo, manteniendo imágenes comerciales 100% fidedignas.
+- **Previsualización Inmediata de Enlaces y Botón 1-Clic "Guardar en Catálogo" (`copilot-jj.js`)**:
+  - Detección automática de URLs de imágenes pegadas en el chat o en el campo de enlace del Flyer (`oninput` / `onpaste` con renderizado inmediato).
+  - Función `window.cpiSavePhotoDirectToCatalog(photoUrl, productId, btn)`: descarga la imagen (o decodifica base64), la sube a Supabase Storage Proyecto C (`jjp-products`) y actualiza permanentemente `jjp_products.image_url` en Proyecto A Core.
+  - Botón interactivo `💾 Guardar en Catálogo` inyectado directamente en la tarjeta de respuesta del Copiloto en el chat y en el visor del Flyer.
+- **Plantillas Comerciales B2B Humanas y Concisas (`campaign-editor.js`, `vdifusion.js`, `gemini-client.js`)**:
+  - Formato breve y directo (5 a 7 líneas máximo para WhatsApp, legible en 5 segundos).
+  - Tono venezolano cercano y cálido ("Hola {{nombre}}, espero estés muy bien 👋", "Te escribe {{vendedor}} de JJ Paper").
+  - Estructura visual con doble salto de línea y negritas para nombres de productos y precios (`*📦 {{producto}}*`, `*💲 Precio especial: {{precio}}*`).
+  - Spintax dinámico en saludos y preguntas de cierre ("¿Te aparto unas unidades para tu próximo despacho?").

@@ -486,20 +486,23 @@ REGLAS ESTRICTAS DE CONSTRUCCIÓN SPINTAX:
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
     const sys = getBusinessContext() + `
-Eres el Director de Comunicaciones y Copywriting Comercial B2B de JJ Paper C.A.
-Tu objetivo es redactar un mensaje institucional altamente profesional, humano, empático y orientado a negocios para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+Eres el Redactor Comercial de JJ Paper C.A. Tu misión es redactar mensajes de WhatsApp y Correo sumamente CONCISOS, PRECISOS, CÁLIDOS y HUMANOS.
 
-ESTRUCTURA Y LINEAMIENTOS EDITORIALES B2B:
-1. TONO PROFESIONAL Y HUMANO: Cero agresividad publicitaria, cero spam. Dirígete a administradores de empresas, encargados de compras, colegios y librerías con cordialidad y respeto comercial.
-2. ENFOQUE EN SOLUCIONES COMERCIALES:
-   - Disponibilidad real en almacén Caracas.
-   - Respaldo de factura fiscal y cotización formal inmediata.
-   - Precios directos al mayor en divisas ($) y Bolívares calculados rigurosamente a la tasa oficial BCV (${rate.toFixed(2)} Bs).
-   - Rutas de despacho rápido en Caracas y envíos asegurados a nivel nacional.
-3. ANTI-BLOQUEO / SPINTAX:
-   - Para WhatsApp: Integra Spintax {opción 1|opción 2|opción 3} en saludos, conectores y cierre de cortesía para prevenir detección por repetición masiva.
-4. FORMATO EMAIL: Asunto profesional claro sin mayúsculas sostenidas ni palabras clickbait; cuerpo con estructura limpia (saludo formal, justificación del contacto, viñetas de especificaciones/precios/garantías y firma corporativa).
-5. CONSERVACIÓN DE VARIABLES: Mantén estrictamente {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}, y si aplica: {{producto}}, {{precio}}, {{descuento}}, {{descripcion}}.
+CRITERIOS ESTRICTOS DE REDACCIÓN:
+1. BREVEDAD Y PRECISIÓN (CERO TEXTO RELLENO):
+   - En WhatsApp: MÁXIMO 5 a 7 líneas en total. Prohibido escribir parrafadas largas o cartas formales pesadas. La gente lee WhatsApp en su celular en 5 segundos.
+   - Ve directo al grano con amabilidad y cariño comercial sincero.
+2. ESTRUCTURA VISUAL IMPECABLE:
+   - Usa doble salto de línea (espacio en blanco) entre cada bloque para que el mensaje respire y sea muy fácil de leer.
+   - Usa formato en negrita con asteriscos (*Texto en Negrita*) para destacar el Título del anuncio, el Nombre del Producto y el Precio.
+   - Emojis moderados, amigables y profesionales (👋, 📦, 💲, 👉, ✨, ⚡).
+3. TONO HUMANO Y CORDIAL:
+   - Trato respetuoso pero cercano ("Hola {{nombre}}, espero te encuentres excelente", "Te escribe {{vendedor}} de JJ Paper").
+   - Cero agresividad publicitaria, cero mayúsculas sostenidas completas.
+4. SPINTAX Y ANTI-BLOQUEO (Para WhatsApp):
+   - Incluye Spintax {opción 1|opción 2|opción 3} en el saludo y en la pregunta de cierre.
+5. CONSERVACIÓN DE VARIABLES:
+   - Mantén estrictamente {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}, y si aplica: {{producto}}, {{precio}}.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni \`\`\`json):
 - Si channel === 'email': { "subject": "...", "body": "..." }
@@ -511,25 +514,25 @@ Objetivo o motivo del contacto: ${objective}
 Canal de difusión: ${channel}
 Público destinatario: ${audience}
 Producto o Promoción: ${product ? `${product.name} (Precio: $${product.price_usd || product.final_price_usd || ''})` : 'Catálogo mayorista de papelería y suministros de oficina'}
-Descuento o Beneficio: ${discount || 'Condiciones de precio directo de distribuidora'}
-Notas / Requerimientos del asesor: ${customNotes || 'Enfocado en reposición de inventario, ahorro corporativo y atención personalizada'}
-Asesor emisor: ${sellerName || 'Equipo de Ventas Corporativas JJ Paper'}
+Descuento o Beneficio: ${discount || 'Precios directos de distribuidora'}
+Notas del asesor: ${customNotes || 'Directo, amable, con disponibilidad inmediata'}
+Asesor emisor: ${sellerName || 'Equipo de Ventas JJ Paper'}
 
-Genera el mensaje comercial B2B en formato JSON estricto.`;
+Genera el mensaje comercial conciso, cálido y con negritas estructuradas en formato JSON estricto.`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.68 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.65 });
       const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
       return JSON.parse(clean);
     } catch (e) {
       if (channel === 'email') {
         return {
-          subject: product ? `Información de disponibilidad y precios: ${product.name} — JJ Paper` : 'Actualización de catálogo y condiciones mayoristas — JJ Paper',
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que en {{empresa}} se encuentren muy bien. Le saluda atentamente {{vendedor}} de JJ Paper C.A.\n\nLe contactamos cordialmente para presentarle nuestras actuales condiciones de suministro en ${product ? `*{{producto}}*, disponible con precio preferencial de *{{precio}}*` : 'papelería corporativa, consumibles de oficina y útiles escolares al mayor'}.\n\n🔹 Precios transparentes al mayor calculados a tasa oficial BCV (${rate.toFixed(2)} Bs).\n🔹 Emisión inmediata de notas de entrega y facturación fiscal.\n🔹 Despacho ágil en Caracas y envíos protegidos a nivel nacional.\n\n👉 Puede consultar detalles y gestionar requerimientos en nuestro catálogo digital:\n{{link}}\n\n{¿Desea que le reservemos inventario o requiere una cotización formal membretada?|Quedamos a su completa orden para apoyar sus requerimientos de suministros.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          subject: product ? `📦 Disponibilidad y precios: ${product.name} — JJ Paper` : '📋 Catálogo mayorista y precios actualizados — JJ Paper',
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que te encuentres excelente. Te saluda atentamente {{vendedor}} de JJ Paper C.A.\n\nTe contactamos brevemente para presentarte disponibilidad inmediata en:\n\n*📦 ${product ? product.name : 'Papelería y Suministros de Oficina al Mayor'}*\n${product ? `💲 Precio especial: *{{precio}}*\n` : ''}🔹 Precios calculados a tasa oficial BCV (${rate.toFixed(2)} Bs).\n🔹 Emisión de factura fiscal y cotización formal inmediata.\n🔹 Despacho ágil en Caracas y envíos protegidos a nivel nacional.\n\n👉 Puedes revisar nuestro catálogo en línea y hacer tus pedidos aquí:\n{{link}}\n\n{¿Te gustaría que te preparemos una cotización para tu negocio?|Quedamos a tu completa orden para apoyar tus pedidos.}\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
         };
       } else {
         return {
-          body: `{Estimado(a) {{nombre}}, un gusto saludarle|Hola {{nombre}}, un cordial saludo|Apreciado(a) {{nombre}}, esperamos se encuentre excelente} 👋. Le saluda {{vendedor}} de JJ Paper.\n\n{Le escribimos para informarle que contamos con disponibilidad inmediata en|Nos ponemos en contacto para presentarle nuestras condiciones mayoristas en|Queremos compartirle disponibilidad para despacho en} ${product ? `*{{producto}}* a un valor de *{{precio}}*` : 'artículos de oficina, resmas de papel y papelería corporativa'}.\n\n📦 Stock en almacén listo para despacho en Caracas y envíos nacionales.\n💲 Facturación a tasa oficial BCV: ${rate.toFixed(2)} Bs.\n\n👉 Puede visualizar especificaciones o solicitar su pedido aquí:\n{{link}}\n\n{¿Requiere una cotización formal para su empresa?|¿Desea que le apartemos las unidades necesarias para su entrega?}`
+          body: `{Hola|Buen día|Saludos} {{nombre}} 👋, espero estés excelente.\n\nTe escribe {{vendedor}} de JJ Paper con una promo especial para ti:\n\n*📦 ${product ? product.name : 'Suministros de Papelería al Mayor'}*\n${product ? `💲 Precio de oportunidad: *{{precio}}*\n` : ''}⚡ Stock disponible para entrega inmediata en Caracas y envíos nacionales.\n💲 Facturación a tasa oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puedes ver detalles o pedir directamente aquí:\n{{link}}\n\n{¿Te apartamos algunas unidades para tu entrega?|¿Te gustaría que te preparemos una cotización formal?}`
         };
       }
     }

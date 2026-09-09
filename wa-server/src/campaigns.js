@@ -1,7 +1,7 @@
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { CAMPAIGN_SWEEP_MS } from './config.js';
-import { normVePhone, localVePhone, phoneToJid } from './phone.js';
+import { normVePhone, localVePhone, phoneToJid, parsePhoneInfo } from './phone.js';
 
 // Despachador de campañas de difusión (jjp_wa_campaigns / jjp_wa_campaign_targets).
 // Anti-baneo: UN mensaje por vendedor por tick, con espera aleatoria entre
@@ -82,18 +82,29 @@ async function step(camp, dailyLimit) {
       if (cust?.wa_opt_out) { await skip(camp, t, 'cliente con opt-out'); continue; }
     }
 
-    const norm = normVePhone(t.phone);
-    if (!/^58\d{10}$/.test(norm)) { await skip(camp, t, 'teléfono inválido: ' + t.phone); continue; }
+    const pInfo = parsePhoneInfo(t.phone);
+    if (!pInfo.isValid) {
+      await skip(camp, t, 'teléfono inválido: ' + (t.phone || 'vacío'));
+      continue;
+    }
+    if (pInfo.isLandline) {
+      await skip(camp, t, 'teléfono fijo CANTV sin WhatsApp: ' + (t.phone || ''));
+      continue;
+    }
+    const norm = pInfo.norm;
 
-    // Validar WA
+    // Validar WA con Baileys (timeout 5s para evitar cuelgues)
     try {
-      const [exists] = await session.sock.onWhatsApp(norm + '@s.whatsapp.net');
-      if (!exists?.exists) {
+      const waPromise = session.sock.onWhatsApp(norm + '@s.whatsapp.net');
+      const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      const res = await Promise.race([waPromise, timeoutPromise]);
+      const exists = Array.isArray(res) && res.length > 0 ? res[0] : null;
+      if (exists && exists.exists === false) {
         await skip(camp, t, 'número sin WhatsApp: ' + t.phone);
         continue;
       }
     } catch (e) {
-      log.warn({ phone: norm, err: e.message }, 'validación WA falló, se intenta enviar');
+      log.warn({ phone: norm, err: e.message }, 'validación WA con aviso, intentando enviar');
     }
 
     // Este SÍ es válido → encolar y aplicar delay

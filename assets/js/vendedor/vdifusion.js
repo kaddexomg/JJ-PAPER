@@ -397,13 +397,13 @@ function tplApplyPreset(type) {
   const bodyEl = document.getElementById('tp-body');
   if (type === 'promo_producto') {
     if (!nameEl.value) nameEl.value = 'Promoción de Producto';
-    bodyEl.value = `Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nLe escribimos para presentarle una excelente oferta en:\n📦 *{{producto}}*\n💲 Precio especial: *{{precio}}*\n\n👉 Consulte disponibilidad o haga su pedido directo aquí: {{link}}\n\n¿Desea que le reservemos inventario de este rubro?`;
+    bodyEl.value = `{Hola|Qué tal|Buen día} {{nombre}}, espero estés excelente 👋\n\nTe escribe {{vendedor}} de JJ Paper con esta opción de alta rotación para tu negocio:\n\n*📦 {{producto}}*\n*💲 Precio especial: {{precio}}*\n\n👉 Puedes chequear detalles o hacer tu pedido aquí:\n{{link}}\n\n¿Te aparto unas unidades para tu próximo despacho?`;
   } else if (type === 'promo_combo') {
     if (!nameEl.value) nameEl.value = 'Oferta Combo Especial';
-    bodyEl.value = `¡Saludos cordiales {{nombre}}! 🌟\n\nDesde JJ Paper queremos compartirle nuestro combo del mes:\n🎁 *{{producto}}*\n📝 Incluye: {{descripcion}}\n💲 Precio de oportunidad: *{{precio}}*\n\n👉 Vea todos los detalles y haga su pedido en: {{link}}\n\n¡Quedamos a su orden para coordinar despacho inmediato!`;
+    bodyEl.value = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarte 👋\n\nTe escribe {{vendedor}} de JJ Paper. Armamos este combo especial pensado para surtir tu negocio:\n\n*🎁 COMBO: {{producto}}*\n📝 Incluye: {{descripcion}}\n*💲 Precio del combo: {{precio}}*\n\n👉 Puedes ver detalles o pedir directamente aquí:\n{{link}}\n\n¿Te apartamos este combo antes de agotar existencia?`;
   } else if (type === 'reactivacion') {
     if (!nameEl.value) nameEl.value = 'Reactivación con Descuento';
-    bodyEl.value = `Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nEsperamos que todo marche excelente en su negocio. Le informamos que tiene activo un *{{descuento}}% de descuento* en su próximo pedido.\n\n👉 Vea el catálogo actualizado con precios al día aquí: {{link}}\n\n¿En qué podemos apoyarle esta semana?`;
+    bodyEl.value = `{Hola|Qué tal|Buen día} {{nombre}}, espero que todo marche excelente en tu negocio 👋\n\nTe escribe {{vendedor}} de JJ Paper. Queremos reactivar tus compras con un *{{descuento}}% de descuento* en tu próximo pedido.\n\n👉 Puedes consultar el catálogo con precios actualizados aquí:\n{{link}}\n\n¿En qué podemos apoyarte con tu pedido de esta semana?`;
   }
   tplPreview();
 }
@@ -925,7 +925,13 @@ function ncAudience() {
   const aud = document.getElementById('nc-aud').value;
   const tag = document.getElementById('nc-tag').value.trim().toLowerCase();
   const inactDays = parseInt(APP.SETTINGS?.wa_react_days, 10) || 60;
-  let list = dContacts.filter(c => c.phone && !c.wa_opt_out);
+  let list = dContacts.filter(c => {
+    if (!c.phone || c.wa_opt_out) return false;
+    const pInfo = typeof parsePhoneInfo === 'function'
+      ? parsePhoneInfo(c.phone)
+      : { isMobile: !/^(?:58|0)?(?:2\d{2})\d{7}$/.test((c.phone || '').replace(/\D/g, '')) && (c.phone || '').replace(/\D/g, '').length >= 10 };
+    return pInfo.isMobile;
+  });
   if (aud === 'inactivos')  list = list.filter(c => c.total_orders > 0 && c.last_order_at &&
       (Date.now() - new Date(c.last_order_at).getTime()) > inactDays * 86400e3);
   if (aud === 'prospectos') list = list.filter(c => !c.total_orders);

@@ -668,36 +668,64 @@ function deduplicateResults(results) {
 export async function searchProductImagesOnWeb(rawQuery) {
   if (!rawQuery || !rawQuery.trim()) return [];
 
-  log.info({ rawQuery }, '🔍 Iniciando búsqueda inteligente de imágenes de producto');
+  const startTime = Date.now();
+  log.info({ rawQuery }, '🔍 Iniciando búsqueda rápida de imágenes de producto');
 
-  // CAPA 1: Generar queries inteligentes con Gemini
-  const { queries, metadata } = await generateSmartSearchQueries(rawQuery);
-  const brand = metadata?.brand || detectBrand(expandAbbreviations(rawQuery));
+  // CAPA 1: Extracción rápida en memoria (<1ms)
+  const cleaned = cleanProductName(rawQuery);
+  const expanded = expandAbbreviations(cleaned);
+  const brand = detectBrand(expanded);
 
-  log.info({ queries, brand, metadata: metadata?.product_type }, 'Queries generadas para búsqueda');
+  // Queries directas sin latencia
+  const directQueries = [
+    expanded,
+    brand ? `${brand} ${cleaned}` : cleaned
+  ].filter(Boolean);
 
-  // CAPA 2: Buscar en paralelo en múltiples fuentes
-  // Tomamos las 3 mejores queries y buscamos en los 3 motores
-  const searchPromises = [];
-  const topQueries = queries.slice(0, 3);
+  // CAPA 2: Búsqueda rápida inmediata en DuckDuckGo (500ms)
+  let allResults = [];
+  try {
+    const fastResults = await searchDuckDuckGoImages(directQueries[0], 12);
+    if (fastResults && fastResults.length > 0) {
+      allResults.push(...fastResults);
+    }
+  } catch (_) {}
 
-  for (const q of topQueries) {
-    searchPromises.push(
-      searchGoogleImages(q, 6).catch(() => []),
-      searchDuckDuckGoImages(q, 6).catch(() => []),
-      searchBingImages(q, 4).catch(() => [])
-    );
+  // Si tenemos suficientes fotos reales (>4), retornar de inmediato (<1s)
+  if (allResults.length < 4 && directQueries[1] && directQueries[1] !== directQueries[0]) {
+    try {
+      const more = await searchDuckDuckGoImages(directQueries[1], 8);
+      if (more && more.length > 0) allResults.push(...more);
+    } catch (_) {}
   }
 
-  const searchResults = await Promise.all(searchPromises);
-  let allResults = searchResults.flat();
+  // Fallback: Si aún no hay suficientes fotos, buscar en Bing
+  if (allResults.length < 3) {
+    try {
+      const bingRes = await searchBingImages(directQueries[0], 6);
+      if (bingRes && bingRes.length > 0) allResults.push(...bingRes);
+    } catch (_) {}
+  }
 
-  log.info({ totalRaw: allResults.length, sources: topQueries.length * 3 }, 'Resultados brutos recopilados');
+  // Fallback de IA con Gemini solo si la búsqueda directa no encontró nada
+  let metadata = null;
+  if (allResults.length === 0) {
+    try {
+      const smart = await generateSmartSearchQueries(rawQuery);
+      metadata = smart.metadata;
+      if (smart.queries && smart.queries.length > 0) {
+        for (const q of smart.queries.slice(0, 2)) {
+          const r = await searchDuckDuckGoImages(q, 6).catch(() => []);
+          if (r.length > 0) allResults.push(...r);
+        }
+      }
+    } catch (_) {}
+  }
 
   // CAPA 3: Deduplicar, rankear y retornar
   allResults = deduplicateResults(allResults);
 
-  // Asignar scores
+  // Asignar scores de relevancia comercial
   allResults = allResults.map(r => ({
     ...r,
     _score: scoreResult(r, brand, metadata)
@@ -706,7 +734,7 @@ export async function searchProductImagesOnWeb(rawQuery) {
   // Ordenar por score descendente
   allResults.sort((a, b) => b._score - a._score);
 
-  // Retornar las mejores 12
+  // Retornar las mejores 12 fotos reales
   const finalResults = allResults.slice(0, 12).map(r => ({
     title: r.title || metadata?.product_type || 'Foto de Producto',
     image: r.image,
@@ -721,9 +749,8 @@ export async function searchProductImagesOnWeb(rawQuery) {
     query: rawQuery,
     brand,
     totalFound: finalResults.length,
-    topScore: finalResults[0]?._score || 0,
-    queriesUsed: topQueries
-  }, '✅ Búsqueda inteligente de imágenes completada');
+    elapsedMs: Date.now() - startTime
+  }, '✅ Búsqueda rápida de imágenes completada');
 
   return finalResults;
 }

@@ -433,10 +433,10 @@ window.CampaignEditor = (() => {
 
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que se encuentre excelente. Le presentamos una oportunidad destacada de nuestro catálogo:\n\n📦 *${p.name}*\n${p.description ? '📝 ' + p.description + '\n' : ''}💲 Precio especial: *$${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' (Incluye ' + p.discount_pct + '% de descuento exclusivo)' : ''}\n\n👉 Puede consultar disponibilidad y gestionar su pedido en línea aquí:\n{{link}}\n\nSi requiere cotización formal con factura fiscal o despacho inmediato, quedamos a su entera disposición.\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      msg = `{Estimado(a)|Hola|Apreciado(a)} {{nombre}},\n\nEspero se encuentre muy bien. Le escribe {{vendedor}} del equipo comercial de JJ Paper.\n\nQueremos presentarle una alternativa destacada para abastecer su inventario con entrega garantizada:\n\n*📦 ${p.name}*\n${p.description ? '📝 ' + p.description + '\n' : ''}*💲 Precio especial: $${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' (Descuento del ' + p.discount_pct + '% aplicado)' : ''}\n\n👉 Puede revisar la ficha técnica y gestionar su pedido en línea en el siguiente enlace:\n{{link}}\n\nQuedo atento si desea una cotización formal o reservar cantidades para despacho.\n\nUn cordial saludo,\n{{vendedor}}\nJJ Paper C.A.`;
       document.getElementById('ceSubjectInput').value = `📦 Oferta Especial en ${p.name} — JJ Paper`;
     } else {
-      msg = `{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nLe escribimos para presentarle una excelente oferta en:\n📦 *${p.name}*\n${p.description ? p.description + '\n' : ''}💲 Precio de oportunidad: *$${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' 🔥 *(' + p.discount_pct + '% OFF)*' : ''}\n\n👉 Ver catálogo o pedir aquí: {{link}}\n¿Le reservamos inventario de este producto para su despacho?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, espero estés muy bien 👋\n\nTe escribe {{vendedor}} de JJ Paper. Quería pasarte esta opción de alta rotación para tu negocio:\n\n*📦 ${p.name}*\n${p.description ? p.description + '\n' : ''}*💲 Precio especial: $${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' _(' + p.discount_pct + '% de descuento)_' : ''}\n\n👉 Puedes chequear detalles o hacer tu pedido aquí:\n{{link}}\n\n¿Te aparto unas unidades para tu próximo despacho?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     const imgChk1 = document.getElementById('ceAttachImg');
@@ -452,10 +452,10 @@ window.CampaignEditor = (() => {
 
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nDesde JJ Paper queremos compartirle nuestro combo especial diseñado para su negocio:\n\n🎁 *${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}💲 Precio del combo: *$${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Vea todos los detalles y confirme su orden aquí:\n{{link}}\n\n¡Contamos con despacho inmediato y asesoría personalizada!\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      msg = `{Estimado(a)|Hola|Apreciado(a)} {{nombre}},\n\nEspero se encuentre muy bien. Le escribe {{vendedor}} de JJ Paper.\n\nPreparamos este combo especial pensado para surtir el inventario de su negocio al mejor costo:\n\n*🎁 COMBO: ${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}*💲 Precio del combo: $${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Puede ver el detalle completo y confirmar su pedido aquí:\n{{link}}\n\n¡Contamos con despacho inmediato y asesoría personalizada!\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       document.getElementById('ceSubjectInput').value = `🎁 Combo en Promoción: ${c.name} — JJ Paper`;
     } else {
-      msg = `{¡Hola|Saludos cordiales|Buen día} {{nombre}}! 🌟 Le saluda {{vendedor}} de JJ Paper.\n\n🎁 *SUPER COMBO DE TEMPORADA*\n*${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}💲 Por tan solo: *$${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Vea los detalles y haga su pedido en: {{link}}\n¡Promoción por tiempo limitado hasta agotar stock! ¿Desea apartarlo hoy?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarte 👋\n\nTe escribe {{vendedor}} de JJ Paper. Armamos este combo especial pensado para surtir tu negocio:\n\n*🎁 COMBO: ${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}*💲 Precio del combo: $${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Ver detalles o pedir directamente aquí:\n{{link}}\n\n¿Te apartamos este combo antes de agotar existencia?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     const imgChk2 = document.getElementById('ceAttachImg');
@@ -481,11 +481,24 @@ window.CampaignEditor = (() => {
       (isEmail ? ex.email.has(String(c.email || '').toLowerCase().trim()) : ex.phone.has(normPhoneKey(c.phone)));
 
     let excludedCount = 0;
+    let nonMobileCount = 0;
     selectedAudienceList = contacts.filter(c => {
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
       if (isEmail && c.email_opt_out) return false;
       if (!isEmail && (c.opt_out || c.wa_opt_out)) return false;
+
+      // Para WhatsApp: verificar que sea un celular móvil venezolano o internacional válido
+      // Omitir teléfonos fijos CANTV (0212, 0241...) e identificadores que no reciben WhatsApp
+      if (!isEmail) {
+        const pInfo = typeof parsePhoneInfo === 'function'
+          ? parsePhoneInfo(c.phone)
+          : { isMobile: !/^(?:58|0)?(?:2\d{2})\d{7}$/.test((c.phone || '').replace(/\D/g, '')) && (c.phone || '').replace(/\D/g, '').length >= 10 };
+        if (!pInfo.isMobile) {
+          nonMobileCount++;
+          return false;
+        }
+      }
 
       if (hitCooldown(c)) { excludedCount++; return false; }
 
@@ -501,10 +514,16 @@ window.CampaignEditor = (() => {
       return true;
     });
 
-    const cooldownTxt = cooldownHours > 0
-      ? ` · ${excludedCount} omitido${excludedCount !== 1 ? 's' : ''} por envío reciente (<${cooldownHours}h)`
-      : '';
-    document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${selectedAudienceList.length} contactos</strong><span style="color:#b45309;font-size:11px">${cooldownTxt}</span>`;
+    let detailsTxt = '';
+    if (!isEmail && nonMobileCount > 0) {
+      detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} fijos CANTV sin WhatsApp omitidos)</span>`;
+    }
+    if (cooldownHours > 0 && excludedCount > 0) {
+      detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitido${excludedCount !== 1 ? 's' : ''} por envío reciente (<${cooldownHours}h)</span>`;
+    }
+
+    const countLabel = isEmail ? `${selectedAudienceList.length} correos` : `${selectedAudienceList.length} móviles WhatsApp`;
+    document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${countLabel}</strong>${detailsTxt}`;
     document.getElementById('ceLaunchBtn').disabled = selectedAudienceList.length === 0;
   }
 

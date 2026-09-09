@@ -245,7 +245,7 @@
     if (document.getElementById('jjp-copilot-script')) return;
     const s = document.createElement('script');
     s.id = 'jjp-copilot-script';
-    s.src = '../assets/js/copilot-jj.js?v=20260909_b2b_packshot_v2';
+    s.src = '../assets/js/copilot-jj.js?v=20260909_b2b_packshot_v3';
     document.head.appendChild(s);
   }
 

@@ -542,14 +542,19 @@
 
     _chatHistory.push({ sender: 'Usuario', text });
 
-    const isFlyerRequest = /(imagen|flyer|foto|tarjeta|diseñ|afiche|volante|publicidad|crear imagen|generar imagen)/i.test(text);
+    const urlMatch = text.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif|avif)(?:\?[^\s"'<>]*)?|https?:\/\/[^\s"'<>]+)/i);
+    const pastedUrl = urlMatch ? urlMatch[0] : null;
+    const isFlyerRequest = /(imagen|flyer|foto|fotografia|tarjeta|diseñ|afiche|volante|publicidad|crear imagen|generar imagen|packshot)/i.test(text) || !!pastedUrl;
+    const wantsAiPhoto = /(generar con ia|inteligencia artificial|flux|estudio ia|crea con ia|diseña con ia)/i.test(text);
 
     ensureGeminiClient(async () => {
       try {
         let matchedProduct = null;
         if (isFlyerRequest) {
-          aiBubble.innerHTML = '<em>Buscando producto en catálogo para diseñar flyer…</em>';
-          const queryClean = text.replace(/^(genera|crea|diseña|haz|dame|muestra|envia|quiero|necesito)?\s*(una|un|el|la)?\s*(imagen|flyer|foto|tarjeta|diseño|afiche|volante|publicidad)\s*(de|del|para)?\s*/i, '').trim();
+          aiBubble.innerHTML = '<em>Consultando catálogo de JJ Paper…</em>';
+          let queryClean = text;
+          if (pastedUrl) queryClean = text.replace(pastedUrl, '').trim();
+          queryClean = queryClean.replace(/^(genera|crea|diseña|haz|dame|muestra|envia|quiero|necesito|busca|buscar|encuentra)?\s*(una|un|el|la|las|los)?\s*(imagen|flyer|foto|fotografia|tarjeta|diseño|afiche|volante|publicidad|packshot)?\s*(de|del|para)?\s*/i, '').trim();
           const q = queryClean.length >= 2 ? queryClean : text;
           const prods = await window.GeminiClient.searchProductsLive(q, 3);
           if (prods && prods.length > 0) {
@@ -581,11 +586,11 @@
             }
           }
 
-          aiBubble.innerHTML = '<em>Buscando foto real del producto...</em>';
-          let mainPhotoUrl = matchedProduct.image_url || '';
+          let mainPhotoUrl = pastedUrl || matchedProduct.image_url || '';
           let isRealPhoto = !!mainPhotoUrl;
 
-          if (!mainPhotoUrl && typeof window.GeminiClient.searchRealProductPhoto === 'function') {
+          if (!mainPhotoUrl && !wantsAiPhoto && typeof window.GeminiClient.searchRealProductPhoto === 'function') {
+            aiBubble.innerHTML = '<em>Buscando fotografía real del producto en la web…</em>';
             mainPhotoUrl = await window.GeminiClient.searchRealProductPhoto(matchedProduct.name);
             if (mainPhotoUrl) {
               isRealPhoto = true;
@@ -595,32 +600,47 @@
 
           const wantsPurePhoto = /(foto|fotografia|imagen real|foto real|imagen del|foto del)/i.test(text) && !/(flyer|afiche|volante|publicidad|tarjeta)/i.test(text);
 
-          if (wantsPurePhoto) {
-            if (!mainPhotoUrl) {
-              aiBubble.innerHTML = '<em>Generando fotografía de estudio con IA...</em>';
-              const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: matchedProduct, theme });
-              mainPhotoUrl = photoRes.imageUrl;
-              matchedProduct._studio_photo_url = mainPhotoUrl;
-            }
+          if (wantsAiPhoto && !mainPhotoUrl) {
+            aiBubble.innerHTML = '<em>Generando fotografía de estudio con IA…</em>';
+            const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: matchedProduct, theme });
+            mainPhotoUrl = photoRes.imageUrl;
+            matchedProduct._studio_photo_url = mainPhotoUrl;
+          }
 
-            aiBubble.innerHTML = `
-              <div>${escapeHtmlStr(reply)}</div>
-              <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
-                <div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">
-                  ${isRealPhoto ? '✅ Encontré la foto real del producto' : '🤖 Fotografía Generada con IA'}: ${escapeHtmlStr(matchedProduct.name)}
+          if (wantsPurePhoto || pastedUrl) {
+            if (!mainPhotoUrl) {
+              aiBubble.innerHTML = `
+                <div>${escapeHtmlStr(reply)}</div>
+                <div style="margin-top:10px;padding:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12.5px;color:#92400e;line-height:1.45">
+                  🔍 <strong>No encontré una fotografía web directa para:</strong> <em>${escapeHtmlStr(matchedProduct.name)}</em>.<br>
+                  <span style="font-size:11.5px;color:#78350f">Puedes buscar la foto en Google o la web, copiar el enlace y pegarlo aquí en el chat para guardarla directamente en el catálogo.</span>
+                  <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+                    <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#16604A;color:#fff;border-color:#16604A" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">📁 Pegar Enlace o Subir en Flyer</button>
+                    <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f1f5f9;color:#334155;border-color:#cbd5e1" onclick="cpiQuickAsk('crear imagen con ia de ${escapeJsStr(matchedProduct.name)}')">🤖 Generar con IA</button>
+                  </div>
                 </div>
-                <div style="font-size:11.5px;color:#475569;margin-bottom:8px">🏷️ <strong>Marca:</strong> ${escapeHtmlStr(matchedProduct.brand || 'JJ Paper')} · 📦 ${escapeHtmlStr(matchedProduct.presentation || matchedProduct.unit || 'Comercial')} ${matchedProduct.measures && matchedProduct.measures !== 'Medida estándar' ? `· 📏 ${escapeHtmlStr(matchedProduct.measures)}` : ''} ${matchedProduct.color ? `· 🎨 ${escapeHtmlStr(matchedProduct.color)}` : ''}</div>
-                <img src="${mainPhotoUrl}" alt="${escapeHtmlStr(matchedProduct.name)}" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08);background:#fff" />
-                <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
-                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyPhotoDirect('${mainPhotoUrl}', this)">📋 Copiar Foto</button>
-                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadPhotoDirect('${mainPhotoUrl}', '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar HD</button>
-                  <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">🎨 Ver en Estudio / Flyer</button>
+              `;
+            } else {
+              aiBubble.innerHTML = `
+                <div>${escapeHtmlStr(reply)}</div>
+                <div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
+                  <div style="font-weight:700;color:#16604A;margin-bottom:4px;font-size:12.5px">
+                    ${isRealPhoto ? '✅ Fotografía Comercial del Producto' : '🤖 Fotografía Generada con IA'}: ${escapeHtmlStr(matchedProduct.name)}
+                  </div>
+                  <div style="font-size:11.5px;color:#475569;margin-bottom:8px">🏷️ <strong>Marca:</strong> ${escapeHtmlStr(matchedProduct.brand || 'JJ Paper')} · 📦 ${escapeHtmlStr(matchedProduct.presentation || matchedProduct.unit || 'Comercial')} ${matchedProduct.measures && matchedProduct.measures !== 'Medida estándar' ? `· 📏 ${escapeHtmlStr(matchedProduct.measures)}` : ''} ${matchedProduct.color ? `· 🎨 ${escapeHtmlStr(matchedProduct.color)}` : ''}</div>
+                  <img src="${mainPhotoUrl}" alt="${escapeHtmlStr(matchedProduct.name)}" style="width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08);background:#fff" />
+                  <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+                    ${matchedProduct.id ? `<button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#16604A;color:#fff;border-color:#16604A;font-weight:700" onclick="cpiSavePhotoDirectToCatalog('${mainPhotoUrl}', '${escapeJsStr(matchedProduct.id)}', this)">💾 Guardar en Catálogo</button>` : ''}
+                    <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyPhotoDirect('${mainPhotoUrl}', this)">📋 Copiar Foto</button>
+                    <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadPhotoDirect('${mainPhotoUrl}', '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar HD</button>
+                    <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">🎨 Ver en Estudio / Flyer</button>
+                  </div>
                 </div>
-              </div>
-            `;
+              `;
+            }
           } else {
             const canvasId = 'cpiInlineCanvas_' + Date.now();
-            let previewMsg = isRealPhoto ? '✅ Encontré la foto real del producto. Creando flyer publicitario...' : 'No encontré foto real. Ofreciendo flyer con imagen generada por IA...';
+            let previewMsg = isRealPhoto ? '✅ Fotografía real comercial cargada. Creando flyer publicitario…' : (mainPhotoUrl ? 'Creando flyer publicitario…' : 'Creando flyer promocional oficial JJ Paper…');
             
             aiBubble.innerHTML = `
               <div>${escapeHtmlStr(reply)}</div>
@@ -629,6 +649,7 @@
                 <div style="font-weight:700;color:#16604A;margin-bottom:6px;font-size:12.5px">🎨 Flyer Promocional: ${escapeHtmlStr(matchedProduct.name)}</div>
                 <canvas id="${canvasId}" class="cpi-canvas-preview" width="800" height="800" style="width:100%;height:auto;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.08)"></canvas>
                 <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+                  ${(mainPhotoUrl && matchedProduct.id) ? `<button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#16604A;color:#fff;border-color:#16604A;font-weight:700" onclick="cpiSavePhotoDirectToCatalog('${mainPhotoUrl}', '${escapeJsStr(matchedProduct.id)}', this)">💾 Guardar Foto en Catálogo</button>` : ''}
                   <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd" onclick="cpiCopyInlineFlyer(this)">📋 Copiar Flyer</button>
                   <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#f0fdf4;color:#15803d;border-color:#bbf7d0" onclick="cpiDownloadInlineFlyer(this, '${escapeJsStr(matchedProduct.name)}')">⬇️ Descargar</button>
                   <button class="cpi-chip" style="font-size:11px;padding:5px 8px;background:#fef3c7;color:#92400e;border-color:#fde68a" onclick="cpiCustomizeProductFlyer('${escapeJsStr(matchedProduct.id || matchedProduct.name)}')">✏️ Personalizar</button>
@@ -869,6 +890,16 @@
     // Carga de URL directa
     const customUrlInput = document.getElementById('cpiCustomUrlInput');
     const customUrlLoadBtn = document.getElementById('cpiCustomUrlLoadBtn');
+    if (customUrlInput) {
+      const handleCustomUrl = () => {
+        const url = customUrlInput.value.trim();
+        if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'))) {
+          selectActivePhoto(url);
+        }
+      };
+      customUrlInput.addEventListener('input', handleCustomUrl);
+      customUrlInput.addEventListener('paste', () => setTimeout(handleCustomUrl, 50));
+    }
     if (customUrlLoadBtn && customUrlInput) {
       customUrlLoadBtn.onclick = () => {
         const url = customUrlInput.value.trim();
@@ -920,18 +951,6 @@
       imgEl.src = url;
     }
   }
-
-  async function searchWebPhotos(query) {
-    const grid = document.getElementById('cpiWebGrid');
-    const loading = document.getElementById('cpiPhotoLoading');
-    const loadingText = document.getElementById('cpiPhotoLoadingText');
-    if (!grid) return;
-
-    if (loading) {
-      loading.style.display = 'flex';
-      if (loadingText) loadingText.textContent = '🧠 IA analizando producto… Buscando en Google, Bing y DuckDuckGo…';
-    }
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">🔍 Buscando fotos reales con IA inteligente…</div>';
 
   function getLanServerUrl() {
     const isRemote = location.hostname.endsWith('pages.dev') || location.protocol === 'https:';
@@ -1058,31 +1077,40 @@
     });
   }
 
-  async function saveActivePhotoToCatalog(btn) {
-    if (!_selectedFlyerProduct) return alert('Selecciona un producto primero');
-    const imgEl = document.getElementById('cpiPhotoImg');
-    const currentSrc = imgEl?.src || _selectedFlyerProduct._studio_photo_url || _selectedFlyerProduct.image_url;
-    if (!currentSrc) return alert('No hay ninguna foto seleccionada para guardar');
+  window.cpiSavePhotoDirectToCatalog = async function (photoUrl, productId, btn) {
+    if (!productId && _selectedFlyerProduct) {
+      productId = _selectedFlyerProduct.id;
+    }
+    if (!productId) {
+      alert('No se pudo identificar el producto en catálogo para vincular la imagen');
+      return null;
+    }
+
+    const currentSrc = photoUrl || document.getElementById('cpiPhotoImg')?.src || _selectedFlyerProduct?._studio_photo_url || _selectedFlyerProduct?.image_url;
+    if (!currentSrc) {
+      alert('No hay ninguna foto para guardar');
+      return null;
+    }
 
     const origText = btn ? btn.textContent : '';
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '⏳ Guardando en catálogo…';
+      btn.textContent = '⏳ Guardando…';
     }
 
     try {
       const serverUrl = getLanServerUrl();
       let savedUrl = null;
 
-      // 1. Intentar vía wa-server local (bypasses CORS y descarga directa a Storage Proyecto C)
+      // 1. Intentar vía wa-server local (bypasses CORS y sube directamente a Storage Proyecto C)
       try {
         const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 12000);
+        const t = setTimeout(() => controller.abort(), 15000);
         const res = await fetch(`${serverUrl}/lan/products/save-image`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            product_id: _selectedFlyerProduct.id,
+            product_id: productId,
             image_url: currentSrc
           }),
           signal: controller.signal
@@ -1101,7 +1129,7 @@
         const blob = await convertImgSrcToBlob(currentSrc);
         if (blob) {
           const ext = blob.type.includes('webp') ? 'webp' : (blob.type.includes('png') ? 'png' : 'jpg');
-          const filePath = `${_selectedFlyerProduct.id}.${ext}`;
+          const filePath = `${productId}.${ext}`;
           const { error: upErr } = await window.sb.storage.from('jjp-products').upload(filePath, blob, {
             contentType: blob.type || 'image/jpeg',
             upsert: true
@@ -1109,36 +1137,48 @@
           if (!upErr) {
             const { data: { publicUrl } } = window.sb.storage.from('jjp-products').getPublicUrl(filePath);
             const freshUrl = `${publicUrl}?v=${Date.now()}`;
-            await window.sb.from('jjp_products').update({ image_url: freshUrl }).eq('id', _selectedFlyerProduct.id);
+            await window.sb.from('jjp_products').update({ image_url: freshUrl }).eq('id', productId);
             savedUrl = freshUrl;
           }
         }
       }
 
       if (savedUrl) {
-        _selectedFlyerProduct.image_url = savedUrl;
-        _selectedFlyerProduct._studio_photo_url = savedUrl;
+        if (_selectedFlyerProduct && _selectedFlyerProduct.id === productId) {
+          _selectedFlyerProduct.image_url = savedUrl;
+          _selectedFlyerProduct._studio_photo_url = savedUrl;
+        }
         if (btn) {
           btn.textContent = '¡Foto Oficial Guardada! ✓';
           btn.style.background = '#15803d';
+          btn.style.color = '#fff';
           setTimeout(() => {
-            btn.textContent = '💾 Guardar como Foto Oficial en Catálogo';
+            btn.textContent = origText || '💾 Guardar en Catálogo';
             btn.style.background = '#16604A';
             btn.disabled = false;
-          }, 3000);
+          }, 3500);
         }
-        if (typeof showToast === 'function') showToast('¡Foto guardada y vinculada en el catálogo con éxito!');
-        else alert('¡Foto guardada y vinculada en el catálogo con éxito!');
+        if (typeof showToast === 'function') showToast('¡Foto oficial vinculada al catálogo con éxito!');
+        else alert('¡Foto oficial vinculada al catálogo con éxito!');
+        return savedUrl;
       } else {
         throw new Error('No se pudo guardar la imagen automáticamente. Si es un enlace externo con bloqueo, guarda la foto en tu dispositivo y súbela con la opción "Subir foto".');
       }
     } catch (err) {
       alert('Error guardando en catálogo: ' + err.message);
       if (btn) {
-        btn.textContent = origText || '💾 Guardar como Foto Oficial en Catálogo';
+        btn.textContent = origText || '💾 Guardar en Catálogo';
         btn.disabled = false;
       }
+      return null;
     }
+  };
+
+  async function saveActivePhotoToCatalog(btn) {
+    if (!_selectedFlyerProduct) return alert('Selecciona un producto primero');
+    const imgEl = document.getElementById('cpiPhotoImg');
+    const currentSrc = imgEl?.src || _selectedFlyerProduct._studio_photo_url || _selectedFlyerProduct.image_url;
+    return await window.cpiSavePhotoDirectToCatalog(currentSrc, _selectedFlyerProduct.id, btn);
   }
 
   async function loadCurrentStudioPhoto(forceNew = false) {

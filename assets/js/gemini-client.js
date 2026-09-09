@@ -690,7 +690,15 @@ Respuesta del Copiloto JJ:`;
 
     // 5. Deducción del Tipo de Producto Específico para el Prompt Fotográfico
     let productTypeEn = 'stationery office supply merchandise';
-    if (/resaltad|resalt\b|resalt\./i.test(rawName)) {
+    if (/grapadora|engrapadora/i.test(rawName)) {
+      productTypeEn = 'desktop metal office stapler with polished steel finish and rubber base';
+    } else if (/escarcha|purpurina|brillantina/i.test(rawName)) {
+      productTypeEn = 'clear transparent shaker jar container of vibrant sparkling craft glitter powder';
+    } else if (/recibo|talonario|factura/i.test(rawName)) {
+      productTypeEn = 'printed paper cash receipt order book booklet with perforated pages';
+    } else if (/perforadora/i.test(rawName)) {
+      productTypeEn = 'two-hole metal desktop office paper punch tool';
+    } else if (/resaltad|resalt\b|resalt\./i.test(rawName)) {
       if (/x\s*12|caja/i.test(rawName)) {
         productTypeEn = 'box of 12 fluorescent neon chisel tip highlighter markers in authentic retail packaging box';
       } else {
@@ -704,6 +712,8 @@ Respuesta del Copiloto JJ:`;
       productTypeEn = 'stationery felt tip markers in retail packaging';
     } else if (/carpeta.*(?:fibra|manila)|(?:fibra|manila).*carpeta/i.test(rawName)) {
       productTypeEn = 'heavy duty kraft manila fiber office file folders';
+    } else if (/sobre/i.test(rawName)) {
+      productTypeEn = 'authentic brown kraft manila mailing envelope';
     } else if (/sacapunta/i.test(rawName)) {
       if (/shark|tiburon/i.test(rawName)) {
         productTypeEn = 'novelty shark shaped school pencil sharpener with shavings canister';
@@ -719,17 +729,25 @@ Respuesta del Copiloto JJ:`;
     } else if (/boligrafo.*gel/i.test(rawName)) {
       productTypeEn = 'smooth gel pens in retail blister pack';
     } else if (/boligrafo/i.test(rawName)) {
-      productTypeEn = 'ballpoint pens in retail stationery packaging';
+      productTypeEn = 'box of ballpoint pens in retail stationery packaging';
+    } else if (/silicon|silicona/i.test(rawName)) {
+      productTypeEn = 'clear liquid craft silicone glue squeeze bottle';
+    } else if (/pistola.*silicon/i.test(rawName)) {
+      productTypeEn = 'electric hot melt glue gun craft tool';
+    } else if (/regla/i.test(rawName)) {
+      productTypeEn = 'clear transparent 30cm plastic metric school ruler';
     } else if (/plastilina/i.test(rawName)) {
       productTypeEn = 'cardboard box of school modeling clay bars in vibrant colors, kids art supplies in retail package';
     } else if (/tijera.*oficina|tijera.*inoxidable|tijera/i.test(rawName)) {
       productTypeEn = 'stainless steel office scissors with ergonomic colored handle in hanging blister retail packaging';
     } else if (/nota.*adhesiv|bander.*adhesiv|señalizador/i.test(rawName)) {
       productTypeEn = 'hanging blister retail package of colorful neon adhesive index flags sticky note page markers';
-    } else if (/almohadilla.*dactilar|almohadilla/i.test(rawName)) {
+    } else if (/almohadilla.*dactilar|almohadilla|huellero/i.test(rawName)) {
       productTypeEn = 'stationery fingerprint stamp ink pad with protective case';
     } else if (/borrador.*pizarra/i.test(rawName)) {
       productTypeEn = 'ergonomic whiteboard magnetic eraser';
+    } else if (/cinta|tirro|teipe/i.test(rawName)) {
+      productTypeEn = 'roll of wide heavy duty adhesive packaging tape';
     }
 
     // Heurística de tipo de categoría interna
@@ -841,26 +859,33 @@ Respuesta del Copiloto JJ:`;
     
     try {
       const loc = typeof window !== 'undefined' ? window.location : { hostname: 'localhost', protocol: 'http:' };
-      const isRemote = loc.hostname.endsWith('pages.dev') || loc.protocol === 'https:';
-      const serverUrl = (!isRemote && loc.hostname !== 'localhost' && loc.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(loc.hostname))
-        ? `${loc.protocol}//${loc.hostname}:8787`
-        : 'http://localhost:8787';
+      const urlsToTry = [];
+      if (loc.hostname !== 'localhost' && loc.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(loc.hostname)) {
+        urlsToTry.push(`${loc.protocol}//${loc.hostname}:8787`);
+      }
+      urlsToTry.push('http://localhost:8787');
+      urlsToTry.push('https://localhost:8788');
+      urlsToTry.push('http://127.0.0.1:8787');
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(productName)}`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      
-      if (res.ok) {
-        const data = await res.json();
-        const results = data.results || (Array.isArray(data) ? data : []);
-        if (results && results.length > 0 && results[0].image) {
-          const url = results[0].image;
-          _realPhotoCache.set(cacheKey, { url, timestamp: Date.now() });
-          return url;
-        }
+      for (const serverUrl of urlsToTry) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(productName)}`, {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
+          if (res.ok) {
+            const data = await res.json();
+            const results = data.results || (Array.isArray(data) ? data : []);
+            if (results && results.length > 0 && results[0].image) {
+              const url = results[0].image;
+              _realPhotoCache.set(cacheKey, { url, timestamp: Date.now() });
+              return url;
+            }
+          }
+        } catch (_) {}
       }
     } catch (e) {
       // Servidor local no disponible o entorno HTTPS en la nube
@@ -889,8 +914,8 @@ Respuesta del Copiloto JJ:`;
 
     // 2. Construir especificaciones fotográficas descriptivas en inglés para Flux
     let specDescriptors = [];
-    if (brand) specDescriptors.push(`authentic brand ${brand} branded retail packaging`);
-    if (color) specDescriptors.push(`${color} color theme`);
+    if (brand) specDescriptors.push(`authentic brand ${brand} retail packaging`);
+    if (color) specDescriptors.push(`${color} color`);
     if (measures) specDescriptors.push(`${measures} format`);
     if (presentation && presentation !== 'Unidad / Empaque Comercial') specDescriptors.push(presentation);
 
@@ -925,7 +950,8 @@ Respond with ONLY the 1 English sentence.`;
       ? 'isolated product packshot on seamless pure solid white background #FFFFFF, commercial studio softbox lighting, soft natural contact shadow at base'
       : 'isolated product packshot on luxury deep emerald green #0B3327 background, subtle center backlight halo, soft natural contact shadow at base';
 
-    const photoPrompt = `Professional retail catalog packshot of ${englishSubject}. Centered front hero angle, ${bgPrompt}, razor-sharp focus on branding and packaging typography, 8k resolution, commercial advertising photography, hyperrealistic. NEGATIVE PROMPT: blurry text, disfigured packaging, hand holding object, person, cluttered background, room interior, office desk, table surface, 3d render cartoon, watermark, stock photo logo, grain, low resolution`;
+    // Prompt 100% positivo y fotorrealista para Flux (sin NEGATIVE PROMPT para evitar alucinaciones)
+    const photoPrompt = `Commercial retail packshot of ${englishSubject}, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
 
     // 3. Generar la imagen fotorrealista en alta resolución (1024x1024)
     const seed = forceNew ? (Math.floor(Math.random() * 900000) + 100000) : (42000 + Math.abs(hashCode(name + theme)));

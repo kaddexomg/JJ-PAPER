@@ -174,14 +174,23 @@ async function step(camp, dailyLimit) {
       const batchPauseM = Number(camp.batch_pause_m) || 5;
       const currentSent = (camp.sent_count || 0) + 1;
 
-      if (batchSize > 0 && currentSent % batchSize === 0) {
+      const isBatchPause = (batchSize > 0 && currentSent % batchSize === 0);
+      if (isBatchPause) {
         const longPauseMs = batchPauseM * 60 * 1000;
         delayMs = longPauseMs;
         log.info({ campaign: camp.name, sent: currentSent, pauseMin: batchPauseM }, 'difusión: pausa de lote (descanso humano anti-bloqueo)');
       }
 
+      const nextTime = new Date(Date.now() + delayMs).toISOString();
       nextSendAt.set(camp.owner_id, Date.now() + delayMs);
-      log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000) }, 'difusión: mensaje encolado');
+      await db.from('jjp_wa_campaigns').update({
+        next_send_at: nextTime,
+        pause_reason: isBatchPause ? 'batch_pause' : 'interval',
+        pause_until: isBatchPause ? nextTime : null,
+        updated_at: new Date().toISOString()
+      }).eq('id', camp.id);
+
+      log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000), isBatchPause }, 'difusión: mensaje encolado');
     } catch (e) {
       await db.from('jjp_wa_campaign_targets')
         .update({ status: 'failed', error: e.message }).eq('id', t.id);
@@ -232,7 +241,13 @@ async function skip(camp, target, reason) {
 async function finish(camp) {
   await syncCounts(camp.id);
   await db.from('jjp_wa_campaigns')
-    .update({ status: 'completada', finished_at: new Date().toISOString() })
+    .update({
+      status: 'completada',
+      finished_at: new Date().toISOString(),
+      next_send_at: null,
+      pause_reason: null,
+      pause_until: null
+    })
     .eq('id', camp.id).in('status', ['en_cola', 'enviando', 'pending', 'sending']);
   await dbCore.from('jjp_notifications').insert({
     user_id: camp.owner_id, type: 'wa_campana',

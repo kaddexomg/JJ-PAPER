@@ -31,12 +31,19 @@ const D_CAMP_STATUS = {
 async function initDifusion() {
   await Promise.all([loadDContacts(), loadDTemplates(), loadDCampaigns(), loadDProductsAndCombos()]);
   setDTab('campanas');
+  startCampaignLiveTimers();
 
-  // Progreso en vivo: wa-server actualiza contadores → refresco de la lista
+  // Progreso en vivo: wa-server actualiza contadores → refresco de la lista y modal
   sb.channel('difusion-progress')
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'jjp_wa_campaigns' },
-      () => loadDCampaigns())
+      (payload) => {
+        loadDCampaigns().then(() => {
+          if (currentReportCampaignId && payload.new?.id === currentReportCampaignId) {
+            updateReportModalFromCamp(payload.new);
+          }
+        });
+      })
     .subscribe();
 }
 
@@ -563,7 +570,10 @@ function renderDCampaigns() {
           ? `<div class="td-sub" style="color:#d97706;font-weight:600">⏰ Inicia: ${fmtDate(c.scheduled_at)}</div>` 
           : `<div class="td-sub">${fmtDate(c.created_at)}</div>`}
       </td>
-      <td><span style="color:${color};font-weight:600">${label}</span></td>
+      <td>
+        <div><span style="color:${color};font-weight:600">${label}</span></div>
+        ${active ? renderCampaignLiveBadge(c) : ''}
+      </td>
       <td style="min-width:150px">
         <div class="d-prog" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"
              aria-label="Progreso de ${escapeHTML(c.name)}">
@@ -589,6 +599,127 @@ function renderDCampaigns() {
       </div></td>
     </tr>`;
   }).join('');
+}
+
+function renderCampaignLiveBadge(c) {
+  const isPause = c.pause_reason === 'batch_pause';
+  const nextIso = c.next_send_at || '';
+  const initialText = isPause ? '☕ Pausa descanso...' : (nextIso ? '⏳ Calculando...' : '⏳ En proceso...');
+  const cls = isPause ? 'batch-pause' : 'interval';
+  return `
+    <div class="d-live-badge ${cls}" data-camp-id="${c.id}" data-next="${nextIso}" data-pause="${c.pause_reason || ''}" title="Cuenta regresiva en vivo">
+      <span class="d-live-icon">${isPause ? '☕' : '⏳'}</span>
+      <span class="d-live-txt">${initialText}</span>
+    </div>
+  `;
+}
+
+let _campaignTimerInterval = null;
+function startCampaignLiveTimers() {
+  if (_campaignTimerInterval) clearInterval(_campaignTimerInterval);
+  _campaignTimerInterval = setInterval(updateLiveTimersTick, 1000);
+}
+
+function updateLiveTimersTick() {
+  const now = Date.now();
+  
+  // 1. Actualizar badges en la tabla
+  document.querySelectorAll('.d-live-badge[data-next]').forEach(el => {
+    const nextIso = el.dataset.next;
+    const isPause = el.dataset.pause === 'batch_pause';
+    const txtEl = el.querySelector('.d-live-txt');
+    const iconEl = el.querySelector('.d-live-icon');
+    if (!txtEl) return;
+    
+    if (!nextIso) {
+      txtEl.textContent = '⏳ Encolando...';
+      return;
+    }
+    
+    const diff = Math.max(0, Math.floor((new Date(nextIso).getTime() - now) / 1000));
+    if (diff <= 0) {
+      txtEl.textContent = '📤 Enviando mensaje...';
+      if (iconEl) iconEl.textContent = '📤';
+      return;
+    }
+    
+    const m = Math.floor(diff / 60);
+    const s = diff % 60;
+    const timeStr = `${m > 0 ? m + 'm ' : ''}${s < 10 ? '0' : ''}${s}s`;
+    
+    if (isPause) {
+      txtEl.textContent = `Pausa: ${timeStr}`;
+      if (iconEl) iconEl.textContent = '☕';
+    } else {
+      txtEl.textContent = `Próximo: ${timeStr}`;
+      if (iconEl) iconEl.textContent = '⏳';
+    }
+  });
+
+  // 2. Actualizar el modal de detalle si está abierto
+  if (currentReportCampaignId) {
+    const camp = dCampaigns.find(c => c.id === currentReportCampaignId);
+    const wrap = document.getElementById('rd-live-timer-wrap');
+    if (wrap && camp) {
+      const active = camp.status === 'en_cola' || camp.status === 'pending' || camp.status === 'enviando' || camp.status === 'sending';
+      if (!active) {
+        wrap.style.display = 'none';
+      } else {
+        wrap.style.display = 'flex';
+        const nextIso = camp.next_send_at;
+        const isPause = camp.pause_reason === 'batch_pause';
+        const digitsEl = document.getElementById('rd-live-timer-digits');
+        const labelEl = document.getElementById('rd-live-timer-label');
+        const iconEl = document.getElementById('rd-live-timer-icon');
+        
+        wrap.className = `rd-live-timer ${isPause ? 'batch-pause' : 'interval'}`;
+        
+        if (!nextIso) {
+          if (labelEl) labelEl.textContent = 'Estado de envío:';
+          if (digitsEl) digitsEl.textContent = 'Preparando...';
+        } else {
+          const diff = Math.max(0, Math.floor((new Date(nextIso).getTime() - now) / 1000));
+          if (diff <= 0) {
+            if (labelEl) labelEl.textContent = 'Estado de envío:';
+            if (digitsEl) digitsEl.textContent = 'Enviando ahora...';
+            if (iconEl) iconEl.textContent = '📤';
+          } else {
+            const m = Math.floor(diff / 60);
+            const s = diff % 60;
+            const timeStr = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+            if (isPause) {
+              if (labelEl) labelEl.textContent = 'Pausa anti-bloqueo (descanso humano):';
+              if (digitsEl) digitsEl.textContent = timeStr;
+              if (iconEl) iconEl.textContent = '☕';
+            } else {
+              if (labelEl) labelEl.textContent = 'Próximo mensaje en:';
+              if (digitsEl) digitsEl.textContent = timeStr;
+              if (iconEl) iconEl.textContent = '⏳';
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function updateReportModalFromCamp(camp) {
+  if (!camp || camp.id !== currentReportCampaignId) return;
+  const [label, color] = D_CAMP_STATUS[camp.status] || [camp.status, '#666'];
+  const sent = camp.sent_count || 0;
+  const failed = camp.failed_count || 0;
+  const skipped = camp.skipped_count || 0;
+  const pending = Math.max(0, (camp.total || 0) - sent - failed - skipped);
+  const pct = camp.total ? Math.round((sent + failed + skipped) / camp.total * 100) : 0;
+
+  const st = document.getElementById('rd-status');
+  if (st) { st.textContent = label; st.style.color = color; }
+  const sEl = document.getElementById('rd-sent'); if (sEl) sEl.textContent = sent;
+  const fEl = document.getElementById('rd-failed'); if (fEl) fEl.textContent = failed;
+  const skEl = document.getElementById('rd-skipped'); if (skEl) skEl.textContent = skipped;
+  const pEl = document.getElementById('rd-pending'); if (pEl) pEl.textContent = pending;
+  const pctEl = document.getElementById('rd-pct'); if (pctEl) pctEl.textContent = `${pct}%`;
+  const progEl = document.getElementById('rd-prog'); if (progEl) progEl.style.width = `${pct}%`;
 }
 
 async function setCampStatus(id, status) {
@@ -642,6 +773,7 @@ async function openCampaignDetail(id) {
   document.getElementById('rd-pending').textContent = pending;
   document.getElementById('rd-pct').textContent = `${pct}%`;
   document.getElementById('rd-prog').style.width = `${pct}%`;
+  updateLiveTimersTick();
 
   const failList = document.getElementById('rd-failed-list');
   failList.innerHTML = '<span style="color:#777">Cargando...</span>';

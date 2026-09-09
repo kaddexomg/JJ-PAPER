@@ -356,9 +356,10 @@ const ALLOWED_ORIGINS = [
 ];
 function corsOrigin(req) {
   const o = req?.headers?.origin;
-  if (!o) return null;                                   // petición del propio servidor
+  if (!o) return '*';                                   // petición interna o sin origen
   if (ALLOWED_ORIGINS.includes(o)) return o;
   if (o.endsWith('.pages.dev') || o.endsWith('pages.dev')) return o;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) return o;
   // El teléfono entra por la IP de la PC en la red local (192.168.x / 10.x)
   if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
   return null;
@@ -369,12 +370,15 @@ function markCors(req, res) {
   const o = corsOrigin(req);
   if (!o) return;
   res.setHeader('Access-Control-Allow-Origin', o);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Vary', 'Origin');
 }
 
 function sendJSON(res, code, obj) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.statusCode = code;
   res.end(body);
 }
 

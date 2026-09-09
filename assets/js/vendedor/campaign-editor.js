@@ -771,16 +771,28 @@ window.CampaignEditor = (() => {
       if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const p = selectedProductOrCombo;
 
-      // Si el producto no tiene foto previa, generar primero la fotografía fotorrealista de estudio
+      // Si el producto no tiene foto previa, buscar primero la foto comercial real y luego fallback a foto estudio
       if (!p._studio_photo_url && !p.image_url) {
-        btn.textContent = '📸 Generando Foto Estudio IA...';
+        btn.textContent = '🔍 Buscando Foto Comercial Real...';
         try {
-          const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: p, theme: 'white' });
-          if (photoRes?.imageUrl) {
-            p._studio_photo_url = photoRes.imageUrl;
+          const realPhoto = await window.GeminiClient.searchRealProductPhoto(p.name);
+          if (realPhoto) {
+            p._studio_photo_url = realPhoto;
           }
-        } catch (photoErr) {
-          console.warn('Foto de estudio no pudo completarse antes del flyer:', photoErr);
+        } catch (photoSearchErr) {
+          console.warn('Búsqueda web de foto comercial no disponible:', photoSearchErr);
+        }
+
+        if (!p._studio_photo_url) {
+          btn.textContent = '📸 Generando Foto Estudio IA...';
+          try {
+            const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: p, theme: 'white' });
+            if (photoRes?.imageUrl) {
+              p._studio_photo_url = photoRes.imageUrl;
+            }
+          } catch (photoErr) {
+            console.warn('Foto de estudio no pudo completarse antes del flyer:', photoErr);
+          }
         }
       }
 

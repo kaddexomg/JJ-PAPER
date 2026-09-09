@@ -30,9 +30,9 @@ const GEMINI_KEYS = [
 ];
 
 const GEMINI_MODELS = [
-  'gemini-2.5-flash',
   'gemini-3.1-flash-lite',
-  'gemini-flash-latest'
+  'gemini-flash-latest',
+  'gemini-3.5-flash'
 ];
 
 let _geminiKeyIdx = 0;
@@ -212,80 +212,66 @@ async function generateSmartSearchQueries(rawProductName) {
   const expanded = expandAbbreviations(cleaned);
   const brand = detectBrand(expanded);
 
-  // 2. Construir queries manuales (fallback sin IA)
+  // 2. Construir queries manuales canónicas
   const manualQueries = buildManualQueries(expanded, brand);
 
-  // 3. Usar Gemini para generar queries superiores
+  // 3. Usar Gemini para deliberación profunda (rotando pool de 7 llaves)
   try {
-    const sysPrompt = `Eres un experto en productos de papelería, útiles escolares y artículos de oficina de Venezuela y Latinoamérica. Conoces todas las marcas: Sharpie, Expo, Shark, Star Kit, Studmark, Kores, Faber-Castell, Stabilo, BIC, Pilot, Pentel, Paper Mate, Staedtler, Pelikan, Mongol, Artesco, etc.
+    const sysPrompt = `Eres un experto de élite en artículos de papelería, útiles escolares, oficina e imprenta comercial en Venezuela y Latinoamérica (marcas: Sharpie, Expo, Shark, Star Kit, Studmark, Kores, Faber-Castell, Stabilo, BIC, Pilot, Pentel, Paper Mate, Staedtler, Pelikan, Mongol, Artesco, Mayka, Ofiart, etc.).
 
-Tu tarea es analizar el nombre de un producto de papelería (que puede tener abreviaturas venezolanas) y generar las MEJORES queries para buscar la FOTO REAL EXACTA de ese producto en Google Imágenes.
+Tu tarea es analizar el nombre de inventario de un producto (con códigos, abreviaturas y medidas de bodega) y extraer la información CANÓNICA para encontrar fotos comerciales REALES en la web.
 
-REGLAS ESTRICTAS:
-- Incluye SIEMPRE la marca exacta si la detectas
-- Incluye el tipo exacto de producto (marcador permanente, resaltador, bolígrafo, etc.)
-- Incluye el color si se menciona
-- Incluye la presentación/empaque (caja de 12, blister, etc.)
-- Incluye características (punta gruesa, punta fina, etc.)
-- NO incluyas palabras genéricas como "papelería", "artículo", "producto"
-- Genera queries que encontrarían la FOTO COMERCIAL del fabricante
+REGLAS CRÍTICAS DE DIFERENCIACIÓN:
+- Distingue máquina/herramienta de consumible: "GRAPADORA 24/6" es una GRAPADORA DE ESCRITORIO, NO una caja de grapas ni alfileres.
+- "ESCARCHA 50GR" es escarcha/brillantina/purpurina/glitter escolar en frasco plástico, NO pólvora, balas ni talco.
+- "BLOCK DE RECIBO" es un talonario de recibos de papel impreso (1/4 carta), NO una plantilla de Excel ni software.
+- "TALONARIO FACTURA" es un block de facturas impreso en papel bond/químico.
+- Genera queries canónicas limpias que encuentren fotos auténticas de fabricantes o papelerías.
+- Indica palabras negativas estrictas que arruinarían la búsqueda.`;
 
-ABREVIATURAS VENEZOLANAS COMUNES:
-- RESALT. = Resaltador (highlighter)
-- P/PIZARRA = Para pizarra (whiteboard marker)
-- C/T = Con tapa
-- X 12 = Caja de 12 unidades
-- PTA GR, P/G = Punta gruesa
-- PERM = Permanente`;
-
-    const userPrompt = `Producto: "${rawProductName}"
+    const userPrompt = `Producto de inventario: "${rawProductName}"
 Nombre expandido: "${expanded}"
-${brand ? `Marca detectada: ${brand}` : 'Marca: no detectada, intenta identificarla'}
+${brand ? `Marca detectada: ${brand}` : 'Detecta la marca si existe'}
 
-Responde SOLO con un JSON (sin markdown, sin backticks) con este formato exacto:
+Responde con JSON puro (sin markdown, sin backticks):
 {
-  "product_type": "tipo de producto en español",
-  "brand": "marca",
-  "color": "color o null",
-  "specs": "especificaciones (punta, tamaño, etc.) o null",
-  "packaging": "presentación (caja 12, blister, unidad) o null",
-  "query_es": "query óptima en español para Google Imágenes",
-  "query_en": "query óptima en inglés para Google Images",
-  "query_brand": "query con marca + producto + empaque"
+  "product_type": "tipo exacto de producto en español",
+  "brand": "marca o null",
+  "canonical_title": "título comercial limpio en español",
+  "packshot_en": "1 concise sentence in English describing the physical retail product for studio photography on pure white background",
+  "queries": [
+    "query precisa con marca y producto",
+    "query con producto y fondo blanco",
+    "query en inglés para catálogo internacional"
+  ],
+  "negative_keywords": ["palabras a excluir"]
 }`;
 
     const aiResult = await callGeminiServer(userPrompt, sysPrompt);
 
     if (aiResult) {
       try {
-        // Limpiar posibles backticks o markdown
         const jsonStr = aiResult.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(jsonStr);
 
-        const aiQueries = [];
-        // Prioridad: query con marca siempre primero
-        if (parsed.query_brand) aiQueries.push(parsed.query_brand);
-        if (parsed.query_es) aiQueries.push(parsed.query_es);
-        if (parsed.query_en) aiQueries.push(parsed.query_en);
-
-        // Si Gemini detectó marca que nosotros no, agregarla
+        const aiQueries = Array.isArray(parsed.queries) ? parsed.queries.filter(Boolean) : [];
         if (parsed.brand && !brand) {
-          const brandQuery = `${parsed.brand} ${parsed.product_type || ''} ${parsed.color || ''} ${parsed.packaging || ''}`.trim();
-          aiQueries.push(brandQuery);
+          aiQueries.unshift(`${parsed.brand} ${parsed.product_type || ''}`.trim());
         }
 
         log.info({
           raw: rawProductName,
           aiQueries,
           brand: parsed.brand,
+          canonicalTitle: parsed.canonical_title,
           productType: parsed.product_type
-        }, 'Gemini generó queries inteligentes para búsqueda de imagen');
+        }, '🧠 Gemini deliberó y generó queries canónicas para búsqueda de imagen');
 
-        // Combinar: AI queries primero, luego manuales como fallback
-        const uniqueQueries = [...new Set([...aiQueries, ...manualQueries])];
+        const uniqueQueries = [...new Set([...aiQueries, ...manualQueries])].filter(Boolean);
         return {
-          queries: uniqueQueries.slice(0, 6), // Máximo 6 queries
-          metadata: parsed
+          queries: uniqueQueries.slice(0, 6),
+          metadata: parsed,
+          negative_keywords: Array.isArray(parsed.negative_keywords) ? parsed.negative_keywords : []
         };
       } catch (parseErr) {
         log.warn({ err: parseErr.message, raw: aiResult }, 'No se pudo parsear JSON de Gemini, usando queries manuales');
@@ -295,70 +281,105 @@ Responde SOLO con un JSON (sin markdown, sin backticks) con este formato exacto:
     log.warn({ err: e.message }, 'Error en Gemini query generation, usando fallback manual');
   }
 
-  // Fallback: queries manuales sin IA
-  return { queries: manualQueries, metadata: null };
+  return { queries: manualQueries, metadata: null, negative_keywords: [] };
 }
 
 /**
- * Genera queries de búsqueda manuales (sin IA) como fallback.
+ * Genera queries de búsqueda manuales robustas con taxonomía exhaustiva de papelería.
  */
 function buildManualQueries(expandedName, brand) {
   const queries = [];
   const clean = expandedName.replace(/\s+/g, ' ').trim();
 
-  // Query 1: Nombre expandido completo
-  if (brand) {
-    queries.push(`${brand} ${clean.replace(new RegExp('\\b' + brand + '\\b', 'gi'), '').trim()}`);
-  } else {
-    queries.push(clean);
+  let productType = '';
+  let enProductType = '';
+
+  if (/grapadora|engrapadora/i.test(clean)) {
+    productType = 'grapadora metalica escritorio oficina fondo blanco';
+    enProductType = 'metal desktop office stapler white background';
+  } else if (/escarcha|purpurina|brillantina/i.test(clean)) {
+    productType = 'escarcha decorativa frasco 50g papeleria';
+    enProductType = 'craft glitter shaker jar bottle';
+  } else if (/recibo|talonario|factura/i.test(clean)) {
+    productType = 'talonario block recibo de dinero papel 1/4 carta';
+    enProductType = 'money receipt pad stationery paper book';
+  } else if (/perforadora/i.test(clean)) {
+    productType = 'perforadora de papel 2 huecos oficina';
+    enProductType = '2 hole paper punch metal office';
+  } else if (/resaltador|highlighter/i.test(clean)) {
+    productType = 'resaltador fluorescente punta biselada';
+    enProductType = 'highlighter marker chisel tip';
+  } else if (/marcador.*pizarra|pizarra/i.test(clean)) {
+    productType = 'marcador para pizarra acrilica recargable';
+    enProductType = 'dry erase whiteboard marker';
+  } else if (/marcador.*permanente|permanente/i.test(clean)) {
+    productType = 'marcador permanente punta gruesa';
+    enProductType = 'permanent marker';
+  } else if (/marcador/i.test(clean)) {
+    productType = 'marcador escolar estuche papeleria';
+    enProductType = 'felt tip marker stationery set';
+  } else if (/boligrafo.*gel/i.test(clean)) {
+    productType = 'boligrafo de gel tinta suave';
+    enProductType = 'gel ink pen';
+  } else if (/boligrafo|lapicero|pluma/i.test(clean)) {
+    productType = 'boligrafo tinta seca caja';
+    enProductType = 'ballpoint pen box';
+  } else if (/lapiz|lapices/i.test(clean)) {
+    productType = 'lapiz de grafito escolar';
+    enProductType = 'graphite pencil box';
+  } else if (/carpeta/i.test(clean)) {
+    productType = 'carpeta manila fibra oficina';
+    enProductType = 'manila office file folder';
+  } else if (/sobre/i.test(clean)) {
+    productType = 'sobre manila correspondencia papeleria';
+    enProductType = 'manila envelope stationery';
+  } else if (/sacapunta/i.test(clean)) {
+    productType = 'sacapuntas con deposito escolar';
+    enProductType = 'pencil sharpener canister';
+  } else if (/resma|papel\s*bond/i.test(clean)) {
+    productType = 'resma de papel bond blanco';
+    enProductType = 'copy paper ream 500 sheets';
+  } else if (/cinta|tirro|teipe/i.test(clean)) {
+    productType = 'cinta adhesiva embalaje transparente';
+    enProductType = 'packing adhesive tape roll';
+  } else if (/silicon|silicona/i.test(clean)) {
+    productType = 'silicon liquido escolar papeleria';
+    enProductType = 'liquid craft silicone glue bottle';
+  } else if (/tijera/i.test(clean)) {
+    productType = 'tijera de oficina escolar acero inoxidable';
+    enProductType = 'stationery scissors stainless steel';
+  } else if (/regla/i.test(clean)) {
+    productType = 'regla metrica escolar 30cm';
+    enProductType = 'ruler 30cm stationery';
+  } else if (/almohadilla|huellero/i.test(clean)) {
+    productType = 'almohadilla dactilar tinta para sellos';
+    enProductType = 'stamp ink pad fingerprint';
   }
 
-  // Query 2: Solo marca + tipo de producto
-  if (brand) {
-    // Extraer tipo de producto
-    let productType = '';
-    if (/resaltador|highlighter/i.test(clean)) productType = 'resaltador';
-    else if (/marcador.*pizarra|pizarra/i.test(clean)) productType = 'marcador para pizarra';
-    else if (/marcador.*permanente|permanente/i.test(clean)) productType = 'marcador permanente';
-    else if (/marcador/i.test(clean)) productType = 'marcador';
-    else if (/bolígrafo|boligrafo|lapicero/i.test(clean)) productType = 'bolígrafo';
-    else if (/lápiz|lapiz|lapices/i.test(clean)) productType = 'lápiz';
-    else if (/carpeta/i.test(clean)) productType = 'carpeta';
-    else if (/sacapunta/i.test(clean)) productType = 'sacapuntas';
-    else if (/resma|papel/i.test(clean)) productType = 'resma de papel';
-    else if (/cinta|tirro|teipe/i.test(clean)) productType = 'cinta adhesiva';
+  // Extraer color si existe
+  const colorMatch = clean.match(/\b(negro|azul|rojo|verde|amarillo|rosado|rosa|naranja|morado|fucsia|blanco|dorado|plata|plateado|transparente)\b/i);
+  const color = colorMatch ? colorMatch[1].toLowerCase() : '';
 
-    if (productType) {
-      // Extraer color
-      const colorMatch = clean.match(/\b(negro|azul|rojo|verde|amarillo|rosado|rosa|naranja|morado|fucsia|blanco|transparente|surtido|multicolor)\b/i);
-      const color = colorMatch ? colorMatch[1] : '';
-      queries.push(`${brand} ${productType} ${color}`.trim());
-    }
+  if (brand && productType) {
+    queries.push(`${brand} ${productType} ${color}`.trim());
+    if (enProductType) queries.push(`${brand} ${enProductType} ${color}`.trim());
+  } else if (brand) {
+    queries.push(`${brand} ${clean}`.trim());
+  } else if (productType) {
+    queries.push(`${productType} ${color}`.trim());
+    if (enProductType) queries.push(`${enProductType} ${color}`.trim());
   }
 
-  // Query 3: En inglés básico (para cobertura de Amazon/eBay)
-  const enMap = {
-    'resaltador': 'highlighter marker',
-    'marcador permanente': 'permanent marker',
-    'marcador para pizarra': 'dry erase whiteboard marker',
-    'marcador': 'marker',
-    'bolígrafo': 'ballpoint pen',
-    'lápiz': 'pencil',
-    'carpeta': 'file folder',
-    'sacapuntas': 'pencil sharpener',
-    'resma de papel': 'ream copy paper',
-    'cinta adhesiva': 'tape'
-  };
-  if (brand) {
-    for (const [es, en] of Object.entries(enMap)) {
-      if (new RegExp(es, 'i').test(clean)) {
-        queries.push(`${brand} ${en}`);
-        break;
-      }
-    }
+  // Query limpia de respaldo
+  const strippedClean = clean
+    .replace(/\b(STD|C\/G|C\/T|S\/T|P\/G|P\/F|P\/M|24\/6|26\/6|50GR|100GR|X\s*\d+)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (strippedClean && strippedClean.length > 4 && !queries.includes(strippedClean)) {
+    queries.push(`${strippedClean} fondo blanco`);
   }
 
-  return queries.filter(q => q && q.length > 3);
+  return queries.filter(Boolean);
 }
 
 
@@ -470,10 +491,9 @@ async function searchGoogleImages(query, limit = 8) {
  */
 async function searchDuckDuckGoImages(query, limit = 8) {
   try {
-    // 1. Obtener token vqd
     const tokenUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(query);
     const controller1 = new AbortController();
-    const t1 = setTimeout(() => controller1.abort(), 6000);
+    const t1 = setTimeout(() => controller1.abort(), 4000);
 
     const vqdRes = await fetch(tokenUrl, {
       headers: { 'User-Agent': UA },
@@ -481,15 +501,15 @@ async function searchDuckDuckGoImages(query, limit = 8) {
     });
     clearTimeout(t1);
 
+    if (!vqdRes.ok) return [];
     const html = await vqdRes.text();
     const vqdMatch = html.match(/vqd=['"]?([0-9-]+)['"]?/) || html.match(/vqd=([0-9-]+)/);
     if (!vqdMatch) return [];
     const vqd = vqdMatch[1];
 
-    // 2. Buscar imágenes
     const imgApiUrl = `https://duckduckgo.com/i.js?l=es-es&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,&p=1`;
     const controller2 = new AbortController();
-    const t2 = setTimeout(() => controller2.abort(), 6000);
+    const t2 = setTimeout(() => controller2.abort(), 5000);
 
     const imgRes = await fetch(imgApiUrl, {
       headers: {
@@ -500,9 +520,16 @@ async function searchDuckDuckGoImages(query, limit = 8) {
     });
     clearTimeout(t2);
 
-    const data = await imgRes.json();
-    const list = data.results || [];
+    if (!imgRes.ok) return [];
+    const rawText = await imgRes.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (_) {
+      return [];
+    }
 
+    const list = data.results || [];
     return list
       .filter(r => r.image &&
         !r.image.includes('.svg') &&
@@ -515,28 +542,28 @@ async function searchDuckDuckGoImages(query, limit = 8) {
         thumbnail: r.thumbnail || r.image,
         width: r.width || 800,
         height: r.height || 800,
-        source: r.source || 'duckduckgo'
+        source: 'duckduckgo'
       }));
   } catch (e) {
-    log.debug({ err: e.message, query }, 'DuckDuckGo image search falló');
+    log.debug({ err: e.message, query }, 'DuckDuckGo image search omitido');
     return [];
   }
 }
 
 /**
- * Busca en Bing Images (scraping HTML).
+ * Busca en Bing Images (scraping HTML directo, ultra confiable sin rate-limits agresivos).
  */
-async function searchBingImages(query, limit = 6) {
+async function searchBingImages(query, limit = 8) {
   try {
     const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC3&first=1`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 6000);
 
     const res = await fetch(url, {
       headers: {
         'User-Agent': UA,
-        'Accept': 'text/html',
-        'Accept-Language': 'es-VE,es;q=0.9'
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'es-VE,es;q=0.9,en;q=0.8'
       },
       signal: controller.signal
     });
@@ -546,12 +573,11 @@ async function searchBingImages(query, limit = 6) {
     const html = await res.text();
 
     const results = [];
-    // Bing embeds image data in murl attribute (media URL)
     const murlRegex = /murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/g;
     let m;
     while ((m = murlRegex.exec(html)) !== null && results.length < limit) {
       const imgUrl = m[1].replace(/&amp;/g, '&');
-      if (!isBlockedDomain(imgUrl) && imgUrl.length > 20 && imgUrl.length < 500) {
+      if (!isBlockedDomain(imgUrl) && imgUrl.length > 20 && imgUrl.length < 600) {
         results.push({
           image: imgUrl,
           thumbnail: imgUrl,
@@ -565,7 +591,7 @@ async function searchBingImages(query, limit = 6) {
 
     return results;
   } catch (e) {
-    log.debug({ err: e.message, query }, 'Bing image search falló');
+    log.debug({ err: e.message, query }, 'Bing image search omitido');
     return [];
   }
 }
@@ -594,59 +620,72 @@ function isTrustedDomain(url) {
 }
 
 /**
- * Calcula un score de relevancia para cada resultado de imagen.
- * Factores: tamaño de imagen, dominio de origen, presencia de marca en URL/título.
+ * Filtra imágenes que coincidan con palabras clave negativas (para evitar grapas en vez de grapadoras, etc.).
  */
-function scoreResult(result, brand, metadata) {
-  let score = 0;
+function filterNegativeKeywords(results, negativeTerms) {
+  if (!negativeTerms || !negativeTerms.length) return results;
+  const lowerTerms = negativeTerms.map(t => t.toLowerCase().trim()).filter(Boolean);
+  return results.filter(r => {
+    const textToCheck = ((r.title || '') + ' ' + (r.image || '')).toLowerCase();
+    for (const term of lowerTerms) {
+      if (textToCheck.includes(term)) return false;
+    }
+    return true;
+  });
+}
 
-  // Bonus por dominio confiable (e-commerce, fabricante)
-  if (isTrustedDomain(result.image)) score += 30;
-  if (isTrustedDomain(result.source)) score += 20;
-
-  // Bonus por tamaño de imagen (preferir imágenes grandes = alta resolución)
-  const w = result.width || 0;
-  const h = result.height || 0;
-  if (w >= 500 && h >= 500) score += 20;
-  else if (w >= 300 && h >= 300) score += 10;
-  else if (w < 100 || h < 100) score -= 30; // Penalizar icons/thumbs diminutos
-
-  // Bonus si la marca aparece en título o URL
-  if (brand) {
-    const brandLower = brand.toLowerCase();
-    if ((result.title || '').toLowerCase().includes(brandLower)) score += 25;
-    if ((result.image || '').toLowerCase().includes(brandLower)) score += 15;
-    if ((result.source || '').toLowerCase().includes(brandLower)) score += 10;
+function getCategoryNegativeTerms(text, productType) {
+  const combined = ((text || '') + ' ' + (productType || '')).toLowerCase();
+  const negatives = [];
+  if (/grapad|stapler/i.test(combined)) {
+    negatives.push('caja de grapas', 'staples only', 'staple refill', 'wire pins', 'clavos', 'alfileres', 'caja grapas');
   }
-
-  // Bonus por tipo de producto en título
-  if (metadata?.product_type) {
-    const typeLower = metadata.product_type.toLowerCase();
-    if ((result.title || '').toLowerCase().includes(typeLower)) score += 15;
+  if (/escarcha|glitter|purpurina/i.test(combined)) {
+    negatives.push('bullet', 'ammunition', 'powder horn', 'baby powder', 'talco', 'suplemento', 'protein');
   }
-
-  // Penalizar URLs muy cortas (probablemente placeholders)
-  if (result.image && result.image.length < 40) score -= 10;
-
-  // Bonus por formato de imagen de alta calidad
-  if (/\.(png|webp)/i.test(result.image || '')) score += 5;
-
-  return score;
+  if (/recibo|factura|talonario|forma continua/i.test(combined)) {
+    negatives.push('excel', 'spreadsheet', 'software', 'download', 'app store', 'plantilla digital');
+  }
+  return negatives;
 }
 
 /**
- * Elimina imágenes duplicadas basándose en la URL normalizada.
+ * Calcula un score de relevancia para cada resultado de imagen.
  */
+function scoreResult(result, brand, metadata) {
+  let score = 50;
+  const imgUrl = result.image.toLowerCase();
+  const title = (result.title || '').toLowerCase();
+
+  if (isTrustedDomain(result.image)) score += 30;
+
+  if (brand) {
+    const brandLower = brand.toLowerCase();
+    if (imgUrl.includes(brandLower) || title.includes(brandLower)) score += 25;
+  }
+
+  if (metadata?.product_type) {
+    const typeWords = metadata.product_type.toLowerCase().split(' ').filter(w => w.length > 3);
+    for (const w of typeWords) {
+      if (title.includes(w) || imgUrl.includes(w)) score += 10;
+    }
+  }
+
+  if (imgUrl.includes('packshot') || imgUrl.includes('product') || imgUrl.includes('catalogo') || imgUrl.includes('articulo')) {
+    score += 15;
+  }
+
+  if (result.width >= 500 && result.height >= 500) score += 10;
+  return score;
+}
+
 function deduplicateResults(results) {
   const seen = new Set();
   return results.filter(r => {
-    // Normalizar URL para detección de duplicados
-    const key = (r.image || '')
-      .replace(/\?.*$/, '')
-      .replace(/\/+$/, '')
-      .toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
+    if (!r.image) return false;
+    const cleanUrl = r.image.split('?')[0].toLowerCase();
+    if (seen.has(cleanUrl)) return false;
+    seen.add(cleanUrl);
     return true;
   });
 }
@@ -658,85 +697,81 @@ function deduplicateResults(results) {
 
 /**
  * FUNCIÓN PRINCIPAL: Busca fotografías reales de un producto en la web.
- *
- * Pipeline completo:
- * 1. Gemini analiza el nombre y genera queries inteligentes
- * 2. Busca en paralelo en Google, DuckDuckGo y Bing
- * 3. Valida, rankea y deduplica resultados
- * 4. Retorna las mejores N imágenes ordenadas por relevancia
+ * Pipeline de 3 capas:
+ * 1. Deliberación inteligente con Gemini (IA) para obtener queries canónicas y descartes
+ * 2. Búsqueda paralela en Bing y DuckDuckGo con las queries canónicas
+ * 3. Filtrado negativo, rankeo comercial y deduplicación
  */
 export async function searchProductImagesOnWeb(rawQuery) {
   if (!rawQuery || !rawQuery.trim()) return [];
 
   const startTime = Date.now();
-  log.info({ rawQuery }, '🔍 Iniciando búsqueda rápida de imágenes de producto');
+  log.info({ rawQuery }, '🔍 Iniciando búsqueda inteligente de imágenes de producto');
 
-  // CAPA 1: Extracción rápida en memoria (<1ms)
+  // CAPA 1: Extracción rápida y deliberación con Gemini
   const cleaned = cleanProductName(rawQuery);
   const expanded = expandAbbreviations(cleaned);
   const brand = detectBrand(expanded);
 
-  // Queries directas sin latencia
-  const directQueries = [
-    expanded,
-    brand ? `${brand} ${cleaned}` : cleaned
-  ].filter(Boolean);
-
-  // CAPA 2: Búsqueda rápida inmediata en DuckDuckGo (500ms)
-  let allResults = [];
+  let smart = null;
   try {
-    const fastResults = await searchDuckDuckGoImages(directQueries[0], 12);
-    if (fastResults && fastResults.length > 0) {
-      allResults.push(...fastResults);
+    smart = await generateSmartSearchQueries(rawQuery);
+  } catch (e) {
+    log.warn({ err: e.message }, 'Gemini deliberation falló, usando fallback heurístico');
+  }
+
+  const queries = (smart?.queries && smart.queries.length > 0)
+    ? smart.queries
+    : buildManualQueries(expanded, brand);
+
+  const metadata = smart?.metadata || null;
+  const negativeTerms = [
+    ...(smart?.negative_keywords || []),
+    ...getCategoryNegativeTerms(expanded, metadata?.product_type)
+  ];
+
+  log.info({ rawQuery, queries, brand, productType: metadata?.product_type }, 'Ejecutando búsqueda multi-fuente con queries canónicas');
+
+  // CAPA 2: Búsqueda paralela en Bing y DuckDuckGo usando queries canónicas
+  const searchPromises = [];
+  // Bing es extremadamente fiable con queries canónicas
+  for (const q of queries.slice(0, 2)) {
+    searchPromises.push(searchBingImages(q, 6));
+  }
+  // DuckDuckGo en paralelo
+  if (queries[0]) {
+    searchPromises.push(searchDuckDuckGoImages(queries[0], 6));
+  }
+
+  const settled = await Promise.allSettled(searchPromises);
+  let allResults = [];
+  for (const s of settled) {
+    if (s.status === 'fulfilled' && Array.isArray(s.value)) {
+      allResults.push(...s.value);
     }
-  } catch (_) {}
+  }
 
-  // Si tenemos suficientes fotos reales (>4), retornar de inmediato (<1s)
-  if (allResults.length < 4 && directQueries[1] && directQueries[1] !== directQueries[0]) {
+  // Si tenemos pocos resultados (<3), probar con la 3ra query en Bing
+  if (allResults.length < 3 && queries[2]) {
     try {
-      const more = await searchDuckDuckGoImages(directQueries[1], 8);
-      if (more && more.length > 0) allResults.push(...more);
+      const extraBing = await searchBingImages(queries[2], 6);
+      if (extraBing.length) allResults.push(...extraBing);
     } catch (_) {}
   }
 
-  // Fallback: Si aún no hay suficientes fotos, buscar en Bing
-  if (allResults.length < 3) {
-    try {
-      const bingRes = await searchBingImages(directQueries[0], 6);
-      if (bingRes && bingRes.length > 0) allResults.push(...bingRes);
-    } catch (_) {}
-  }
-
-  // Fallback de IA con Gemini solo si la búsqueda directa no encontró nada
-  let metadata = null;
-  if (allResults.length === 0) {
-    try {
-      const smart = await generateSmartSearchQueries(rawQuery);
-      metadata = smart.metadata;
-      if (smart.queries && smart.queries.length > 0) {
-        for (const q of smart.queries.slice(0, 2)) {
-          const r = await searchDuckDuckGoImages(q, 6).catch(() => []);
-          if (r.length > 0) allResults.push(...r);
-        }
-      }
-    } catch (_) {}
-  }
-
-  // CAPA 3: Deduplicar, rankear y retornar
+  // CAPA 3: Filtrado negativo, deduplicación y ranking
+  allResults = filterNegativeKeywords(allResults, negativeTerms);
   allResults = deduplicateResults(allResults);
 
-  // Asignar scores de relevancia comercial
   allResults = allResults.map(r => ({
     ...r,
     _score: scoreResult(r, brand, metadata)
   }));
 
-  // Ordenar por score descendente
   allResults.sort((a, b) => b._score - a._score);
 
-  // Retornar las mejores 12 fotos reales
   const finalResults = allResults.slice(0, 12).map(r => ({
-    title: r.title || metadata?.product_type || 'Foto de Producto',
+    title: r.title || metadata?.canonical_title || metadata?.product_type || 'Foto de Producto',
     image: r.image,
     thumbnail: r.thumbnail || r.image,
     width: r.width || 800,
@@ -750,7 +785,7 @@ export async function searchProductImagesOnWeb(rawQuery) {
     brand,
     totalFound: finalResults.length,
     elapsedMs: Date.now() - startTime
-  }, '✅ Búsqueda rápida de imágenes completada');
+  }, '✅ Búsqueda inteligente completada con éxito');
 
   return finalResults;
 }

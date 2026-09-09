@@ -968,68 +968,36 @@
 
     if (loading) {
       loading.style.display = 'flex';
-      if (loadingText) loadingText.textContent = '🧠 IA analizando producto… Buscando en Google, Bing y DuckDuckGo…';
+      if (loadingText) loadingText.textContent = '🧠 IA deliberando… Buscando foto comercial real…';
     }
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">🔍 Buscando fotos reales con IA inteligente…</div>';
 
-    const serverUrl = getLanServerUrl();
+    const urlsToTry = [];
+    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname)) {
+      urlsToTry.push(`${location.protocol}//${location.hostname}:8787`);
+    }
+    urlsToTry.push('http://localhost:8787');
+    urlsToTry.push('https://localhost:8788');
+    urlsToTry.push('http://127.0.0.1:8787');
 
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 16000);
-      const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(query)}`, {
-        signal: controller.signal
-      });
-      clearTimeout(t);
+    let results = null;
+    for (const serverUrl of urlsToTry) {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 12000);
+        const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal
+        });
+        clearTimeout(t);
+        if (res.ok) {
+          const data = await res.json();
+          results = data.results || (Array.isArray(data) ? data : []);
+          break;
+        }
+      } catch (_) {}
+    }
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const results = data.results || (Array.isArray(data) ? data : []);
-
-      if (loading) loading.style.display = 'none';
-
-      if (results.length === 0) {
-        grid.innerHTML = `
-          <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px;line-height:1.5">
-            🔍 No se encontraron fotos exactas en la búsqueda web.<br>
-            <span style="font-size:11px;color:#94a3b8">Puedes generar una fotografía fotorrealista con IA en la pestaña <em>"✨ Estudio IA"</em> o pegar un enlace en <em>"📁 Subir / Enlace"</em>.</span>
-          </div>
-        `;
-        return;
-      }
-
-      grid.innerHTML = results.map((r, idx) => {
-        const isTrusted = (r.score >= 50);
-        const badge = isTrusted ? '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:8px;padding:1px 3px;border-radius:3px;font-weight:700">⭐</span>' : '';
-        return `
-        <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title || r.source || 'Foto')}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
-          <img src="${escapeHtmlStr(r.thumbnail || r.image)}" alt="" style="width:100%;height:100%;object-fit:contain;display:block" loading="lazy" onerror="this.parentElement.style.display='none'">
-          ${idx === 0 ? '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>' : ''}
-          ${badge}
-        </div>
-      `;
-      }).join('');
-
-      // Auto-seleccionar la primera imagen si no hay una ya fijada
-      if (results[0] && !_selectedFlyerProduct._studio_photo_url) {
-        selectActivePhoto(results[0].image);
-      }
-
-      grid.querySelectorAll('.cpi-web-thumb').forEach(el => {
-        el.onclick = () => {
-          grid.querySelectorAll('.cpi-web-thumb').forEach(x => {
-            x.style.borderColor = '#e2e8f0';
-            const b = x.querySelector('span');
-            if (b) b.remove();
-          });
-          el.style.borderColor = '#16604A';
-          el.insertAdjacentHTML('beforeend', '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>');
-          const url = el.getAttribute('data-url');
-          if (url) selectActivePhoto(url);
-        };
-      });
-
-    } catch (e) {
+    if (!results) {
       if (loading) loading.style.display = 'none';
       const isRemotePages = location.hostname.endsWith('pages.dev') || location.protocol === 'https:';
       grid.innerHTML = `
@@ -1041,7 +1009,51 @@
           </div>
         </div>
       `;
+      return;
     }
+
+    if (loading) loading.style.display = 'none';
+
+    if (results.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px;line-height:1.5">
+          🔍 No se encontraron fotos exactas en la búsqueda web.<br>
+          <span style="font-size:11px;color:#94a3b8">Puedes generar una fotografía fotorrealista con IA en la pestaña <em>"✨ Estudio IA"</em> o pegar un enlace en <em>"📁 Subir / Enlace"</em>.</span>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = results.map((r, idx) => {
+      const isTrusted = (r.score >= 50);
+      const badge = isTrusted ? '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:8px;padding:1px 3px;border-radius:3px;font-weight:700">⭐</span>' : '';
+      return `
+      <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title || r.source || 'Foto')}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
+        <img src="${escapeHtmlStr(r.thumbnail || r.image)}" alt="" style="width:100%;height:100%;object-fit:contain;display:block" loading="lazy" onerror="this.parentElement.style.display='none'">
+        ${idx === 0 ? '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>' : ''}
+        ${badge}
+      </div>
+    `;
+    }).join('');
+
+    // Auto-seleccionar la primera imagen si no hay una ya fijada
+    if (results[0] && !_selectedFlyerProduct._studio_photo_url) {
+      selectActivePhoto(results[0].image);
+    }
+
+    grid.querySelectorAll('.cpi-web-thumb').forEach(el => {
+      el.onclick = () => {
+        grid.querySelectorAll('.cpi-web-thumb').forEach(x => {
+          x.style.borderColor = '#e2e8f0';
+          const b = x.querySelector('span');
+          if (b) b.remove();
+        });
+        el.style.borderColor = '#16604A';
+        el.insertAdjacentHTML('beforeend', '<span style="position:absolute;top:2px;right:2px;background:#16604A;color:#fff;font-size:9px;padding:2px 4px;border-radius:4px;font-weight:700">✓ Activa</span>');
+        const url = el.getAttribute('data-url');
+        if (url) selectActivePhoto(url);
+      };
+    });
   }
 
   async function convertImgSrcToBlob(src) {

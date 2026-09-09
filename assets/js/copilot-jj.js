@@ -1315,7 +1315,7 @@
         }
       }, 150);
     } else {
-      const path = location.pathname.includes('/admin/') ? '../vendedor/difusion.html' : 'difusion.html';
+      const path = 'difusion.html';
       location.href = path;
     }
   }
@@ -1331,7 +1331,7 @@
     } else if (typeof newEcCampaign === 'function') {
       newEcCampaign();
     } else {
-      const path = location.pathname.includes('/admin/') ? '../vendedor/difusion.html' : 'difusion.html';
+      const path = 'difusion.html';
       location.href = path;
     }
   };

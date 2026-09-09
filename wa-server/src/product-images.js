@@ -30,9 +30,9 @@ const GEMINI_KEYS = [
 ];
 
 const GEMINI_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-  'gemini-3.5-flash'
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
 ];
 
 let _geminiKeyIdx = 0;
@@ -150,7 +150,7 @@ async function callGeminiServer(prompt, systemInstruction = '', temperature = 0.
         }
 
         const status = res.status;
-        if (status === 429 || status === 403) break; // rotate key
+        if (status === 429 || status === 403 || status === 400) break; // rotate key
         if (status === 503 || status === 404) continue; // try next model
       } catch (e) {
         if (e.name === 'AbortError') break; // timeout, try next key
@@ -168,8 +168,9 @@ function expandAbbreviations(rawName) {
   let name = rawName.toUpperCase();
   for (const [abbr, full] of Object.entries(ABBREVIATION_MAP)) {
     // Reemplazar abreviatura como palabra completa
-    const escaped = abbr.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
-    const rx = new RegExp('\\b' + escaped + '\\b', 'gi');
+    const cleanAbbr = abbr.endsWith('.') ? abbr.slice(0, -1) : abbr;
+    const escaped = cleanAbbr.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+    const rx = new RegExp('\\b' + escaped + '\\.?\\b', 'gi');
     name = name.replace(rx, full);
   }
   return name;
@@ -193,7 +194,7 @@ function detectBrand(name) {
  */
 function cleanProductName(rawName) {
   return rawName
-    .replace(/\b[A-Z0-9_-]{7,}\b/g, '')        // Códigos de bodega (SKU largos)
+    .replace(/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g, '')        // Códigos de bodega (SKU largos)
     .replace(/\b\d{4,}\b/g, '')                  // Números de 4+ dígitos solos
     .replace(/[_#@$%^&*{}|\\]/g, ' ')            // Símbolos basura
     .replace(/\s+/g, ' ')
@@ -389,102 +390,7 @@ function buildManualQueries(expandedName, brand) {
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-/**
- * Busca imágenes en Google Images mediante scraping del HTML.
- * Extrae URLs de imágenes directamente del HTML de resultados.
- */
-async function searchGoogleImages(query, limit = 8) {
-  try {
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&hl=es&num=${limit + 5}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'es-VE,es;q=0.9,en;q=0.7'
-      },
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) return [];
-    const html = await res.text();
-
-    // Extraer URLs de imágenes del HTML de Google
-    const results = [];
-
-    // Método 1: Extraer de data-src o src en img tags
-    const imgRegex = /\["(https?:\/\/[^"]+\.(jpg|jpeg|png|webp)[^"]*)",\s*(\d+),\s*(\d+)\]/gi;
-    let m;
-    while ((m = imgRegex.exec(html)) !== null && results.length < limit) {
-      const imgUrl = m[1];
-      const w = parseInt(m[3]) || 0;
-      const h = parseInt(m[2]) || 0;
-      if (w >= 100 && h >= 100 && !isBlockedDomain(imgUrl) && !imgUrl.includes('gstatic.com/images')) {
-        results.push({
-          image: imgUrl.replace(/\\u003d/g, '=').replace(/\\u0026/g, '&'),
-          thumbnail: imgUrl,
-          width: w,
-          height: h,
-          title: '',
-          source: 'google'
-        });
-      }
-    }
-
-    // Método 2: Extraer de JSON embebido en el HTML (data layers)
-    if (results.length < 3) {
-      const jsonRegex = /"ou":"(https?:\/\/[^"]+)","ow":(\d+),"oh":(\d+)/g;
-      while ((m = jsonRegex.exec(html)) !== null && results.length < limit) {
-        const imgUrl = m[1];
-        const w = parseInt(m[2]) || 0;
-        const h = parseInt(m[3]) || 0;
-        if (w >= 100 && h >= 100 && !isBlockedDomain(imgUrl)) {
-          results.push({
-            image: imgUrl,
-            thumbnail: imgUrl,
-            width: w,
-            height: h,
-            title: '',
-            source: 'google'
-          });
-        }
-      }
-    }
-
-    // Método 3: Extraer todas las URLs de imagen que parezcan fotos de producto
-    if (results.length < 3) {
-      const allImgRegex = /https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?/gi;
-      while ((m = allImgRegex.exec(html)) !== null && results.length < limit) {
-        const imgUrl = m[0];
-        if (!isBlockedDomain(imgUrl) &&
-            !imgUrl.includes('gstatic') &&
-            !imgUrl.includes('google.com/images') &&
-            !imgUrl.includes('googleusercontent') &&
-            imgUrl.length > 30 &&
-            imgUrl.length < 500) {
-          if (!results.find(r => r.image === imgUrl)) {
-            results.push({
-              image: imgUrl,
-              thumbnail: imgUrl,
-              width: 800,
-              height: 800,
-              title: '',
-              source: 'google'
-            });
-          }
-        }
-      }
-    }
-
-    return results;
-  } catch (e) {
-    log.debug({ err: e.message, query }, 'Google Images scraping falló');
-    return [];
-  }
-}
 
 /**
  * Busca imágenes en DuckDuckGo Image Search (API JSON).
@@ -573,17 +479,20 @@ async function searchBingImages(query, limit = 8) {
     const html = await res.text();
 
     const results = [];
-    const murlRegex = /murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/g;
-    let m;
+    const murlRegex = /murl&quot;:&quot;(https?:\/\/[^"]+?)&quot;/g;
+    const titleRegex = /class="(?:inflnk|iusc)"[^>]*(?:alt|aria-label)="([^"]+)"/gi;
+    let m, tMatch;
     while ((m = murlRegex.exec(html)) !== null && results.length < limit) {
-      const imgUrl = m[1].replace(/&amp;/g, '&');
+      tMatch = titleRegex.exec(html);
+      const titleStr = tMatch ? tMatch[1] : '';
+      const imgUrl = decodeURIComponent(m[1].replace(/&amp;/g, '&'));
       if (!isBlockedDomain(imgUrl) && imgUrl.length > 20 && imgUrl.length < 600) {
         results.push({
           image: imgUrl,
           thumbnail: imgUrl,
           width: 800,
           height: 800,
-          title: '',
+          title: titleStr,
           source: 'bing'
         });
       }
@@ -735,7 +644,7 @@ export async function searchProductImagesOnWeb(rawQuery) {
   // CAPA 2: Búsqueda paralela en Bing y DuckDuckGo usando queries canónicas
   const searchPromises = [];
   // Bing es extremadamente fiable con queries canónicas
-  for (const q of queries.slice(0, 2)) {
+  for (const q of queries.slice(0, 4)) {
     searchPromises.push(searchBingImages(q, 6));
   }
   // DuckDuckGo en paralelo

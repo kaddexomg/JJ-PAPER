@@ -37,18 +37,15 @@
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
     'gemini-2.5-pro',
-    'gemini-pro-latest',
-    'gemini-3.1-pro-preview',
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash'
+    'gemini-2.0-flash',
+    'gemini-1.5-pro'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat
   const FAST_MODELS = [
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-flash-latest',
-    'gemini-3.5-flash'
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -62,6 +59,18 @@
 
   function getCurrentKey() {
     return GEMINI_KEYS[_keyIndex];
+  }
+
+  function extractJSON(raw) {
+    // Try direct parse first
+    try { return JSON.parse(raw.trim()); } catch (_) {}
+    // Remove markdown fences
+    let cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    try { return JSON.parse(cleaned); } catch (_) {}
+    // Extract first JSON object
+    const match = cleaned.match(/\{[\s\S]*\}/); 
+    if (match) try { return JSON.parse(match[0]); } catch (_) {}
+    throw new Error('No se pudo extraer JSON de la respuesta de IA');
   }
 
   /* --------------------------------------------------------------------------
@@ -127,17 +136,17 @@
           const errBody = await res.json().catch(() => ({}));
           const errMsg = errBody.error?.message || `HTTP ${status}`;
 
-          // Si es límite de cuota (429) o clave no autorizada (403), rotar de inmediato a la siguiente llave
-          if (status === 429 || status === 403) {
-            _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
-            lastError = new Error(`Key límite excedido (${status}): ${errMsg}`);
-            break; // Cambiar de llave
+          // Si es límite de cuota (429) o sobrecargado (503), probar siguiente modelo
+          if (status === 429 || status === 503 || status === 404) {
+            lastError = new Error(`Modelo no disponible o rate limit (${status}): ${errMsg}`);
+            continue; // probar siguiente modelo
           }
 
-          // Si el modelo específico está sobrecargado (503) o no encontrado (404), probar siguiente modelo
-          if (status === 503 || status === 404) {
-            lastError = new Error(`Modelo ${m} no disponible (${status}): ${errMsg}`);
-            continue;
+          // Si clave no autorizada (403) o error de solicitud (400)
+          if (status === 403 || status === 400) {
+            _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
+            lastError = new Error(`Key rechazada o inválida (${status}): ${errMsg}`);
+            break; // Cambiar de llave
           }
 
           lastError = new Error(`Error en API (${status}): ${errMsg}`);
@@ -204,8 +213,7 @@ Genera las 3 opciones en formato JSON estricto.`;
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.65 });
-      const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-      return JSON.parse(clean);
+      return extractJSON(raw);
     } catch (e) {
       // Fallback inteligente
       const nameGreet = clientName ? `Hola ${clientName}, ` : '¡Hola! ';
@@ -247,8 +255,7 @@ Devuelve EXACTAMENTE un objeto JSON válido con esta estructura:
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.8 });
-      const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-      return JSON.parse(clean);
+      return extractJSON(raw);
     } catch (e) {
       return {
         variacion_a: baseText,
@@ -289,8 +296,7 @@ Genera el asunto y cuerpo en JSON estricto.`;
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.6 });
-      const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-      return JSON.parse(clean);
+      return extractJSON(raw);
     } catch (e) {
       return {
         subject: `Cotización de Productos — JJ Paper C.A.`,
@@ -459,7 +465,7 @@ REGLAS ESTRICTAS DE CONSTRUCCIÓN SPINTAX:
     const prompt = `Convierte este texto a formato Spintax comercial B2B humano y anti-spam:\n\n${baseText.trim()}`;
 
     try {
-      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.78 });
+      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.55 });
       return res.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/i, '').trim();
     } catch (e) {
       console.warn('Fallback spintax:', e);
@@ -556,9 +562,8 @@ Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
 Genera el mensaje comercial con especificaciones reales, actitud B2B y formato JSON estricto:`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.68 });
-      const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-      return JSON.parse(clean);
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45 });
+      return extractJSON(raw);
     } catch (e) {
       console.warn('Fallback draftCampaignMessage:', e);
       if (channel === 'email') {
@@ -760,7 +765,7 @@ Respuesta del Copiloto JJ:`;
     else if (/plastilina|tijera|tempera|pincel|escolar|arte/i.test(rawName)) catType = 'school';
 
     const cleanTitle = rawName
-      .replace(/\b[A-Z0-9_-]{7,}\b/g, '')
+      .replace(/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -953,14 +958,14 @@ Respond with ONLY the 1 English sentence.`;
     // Prompt 100% positivo y fotorrealista para Flux (sin NEGATIVE PROMPT para evitar alucinaciones)
     const photoPrompt = `Commercial retail packshot of ${englishSubject}, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
 
-    // 3. Generar la imagen fotorrealista en alta resolución (1024x1024)
-    const seed = forceNew ? (Math.floor(Math.random() * 900000) + 100000) : (42000 + Math.abs(hashCode(name + theme)));
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(photoPrompt)}?width=1024&height=1024&model=flux&nologo=true&seed=${seed}`;
-
+    // NO generar imágenes AI de productos - producen resultados distorsionados e irreales.
+    // El sistema de flyers (renderProductCard) ya tiene un mockup 3D vectorial como fallback.
+    // Retornar null para que el flyer use el mockup vectorial en vez de una foto alucinada.
     const result = {
-      imageUrl,
-      prompt: photoPrompt,
-      specs: enriched
+      imageUrl: null, // sin imagen generada - usar mockup vectorial del flyer
+      prompt: photoPrompt, // conservar el prompt para referencia
+      specs: enriched,
+      noPhoto: true // flag para que el caller sepa que no hay foto real
     };
 
     _studioPhotoCache.set(cacheKey, result);
@@ -1174,7 +1179,7 @@ Respond with ONLY the 1 English sentence.`;
     
     // Limpiar nombre de códigos numéricos de bodega
     const rawName = product.name || 'Producto Oficial JJ Paper';
-    const displayTitle = rawName.replace(/\b[A-Z0-9_-]{7,}\b/g, '').replace(/\s+/g, ' ').trim();
+    const displayTitle = rawName.replace(/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g, '').replace(/\s+/g, ' ').trim();
     const titleLines = wrapText(ctx, displayTitle, 1080);
     ctx.fillText(titleLines[0], 60, titleY);
     if (titleLines.length > 1) {

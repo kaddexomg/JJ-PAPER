@@ -1551,7 +1551,7 @@ async function waAiSuggestReply() {
   if (!waActive) { showToast('Elige un chat primero', 'warn'); return; }
 
   const lastIn = [...waMsgs].reverse().find(m => m.direction === 'in')?.body || '';
-  const clientName = waActive.contact_name || waActive.phone || 'Cliente';
+  const clientName = waActive.display_name || waActive.phone || 'Cliente';
   const sellerName = WA_ME.full_name || WA_ME.name || 'Asesor';
 
   waOpenAiModal('💡 Sugerir Respuesta Inteligente', `
@@ -1578,22 +1578,32 @@ async function waAiSuggestReply() {
     box.style.display = 'flex';
 
     box.innerHTML = `
-      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(replies.opcion_directa)}\`)">
+      <div class="wa-ai-card" data-reply-key="directa">
         <div class="wa-ai-card-hd">⚡ Opción Directa:</div>
         <div class="wa-ai-card-bd">${escapeHTML(replies.opcion_directa)}</div>
         <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Usar esta respuesta</button>
       </div>
-      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(replies.opcion_cordial)}\`)">
+      <div class="wa-ai-card" data-reply-key="cordial">
         <div class="wa-ai-card-hd">🤝 Opción Cordial:</div>
         <div class="wa-ai-card-bd">${escapeHTML(replies.opcion_cordial)}</div>
         <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Usar esta respuesta</button>
       </div>
-      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(replies.opcion_comercial)}\`)">
+      <div class="wa-ai-card" data-reply-key="comercial">
         <div class="wa-ai-card-hd">💼 Opción Comercial / Cierre:</div>
         <div class="wa-ai-card-bd">${escapeHTML(replies.opcion_comercial)}</div>
         <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Usar esta respuesta</button>
       </div>
     `;
+
+    box.querySelectorAll('.wa-ai-card[data-reply-key]').forEach(card => {
+      card.addEventListener('click', () => {
+        const key = card.dataset.replyKey;
+        const text = key === 'directa' ? replies.opcion_directa 
+                   : key === 'cordial' ? replies.opcion_cordial 
+                   : replies.opcion_comercial;
+        waAiApplyText(text);
+      });
+    });
   } catch (err) {
     document.getElementById('waAiSuggestLoading').innerHTML = `<span style="color:#b91c1c">Error: ${err.message}</span>`;
   }
@@ -1625,22 +1635,32 @@ async function waAiVariarText() {
     box.style.display = 'flex';
 
     box.innerHTML = `
-      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(vars.variacion_a)}\`)">
+      <div class="wa-ai-card" data-reply-key="directa">
         <div class="wa-ai-card-hd">⚡ Variación A (Directa):</div>
         <div class="wa-ai-card-bd">${escapeHTML(vars.variacion_a)}</div>
         <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Aplicar al mensaje</button>
       </div>
-      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(vars.variacion_b)}\`)">
+      <div class="wa-ai-card" data-reply-key="cordial">
         <div class="wa-ai-card-hd">🤝 Variación B (Cálida / Amistosa):</div>
         <div class="wa-ai-card-bd">${escapeHTML(vars.variacion_b)}</div>
         <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Aplicar al mensaje</button>
       </div>
-      <div class="wa-ai-card" onclick="waAiApplyText(\`${escapeJs(vars.variacion_c)}\`)">
+      <div class="wa-ai-card" data-reply-key="comercial">
         <div class="wa-ai-card-hd">💼 Variación C (Formal / Comercial):</div>
         <div class="wa-ai-card-bd">${escapeHTML(vars.variacion_c)}</div>
         <button class="btn-p" style="margin-top:6px;font-size:11px;padding:4px 8px">Aplicar al mensaje</button>
       </div>
     `;
+
+    box.querySelectorAll('.wa-ai-card[data-reply-key]').forEach(card => {
+      card.addEventListener('click', () => {
+        const key = card.dataset.replyKey;
+        const text = key === 'directa' ? vars.variacion_a 
+                   : key === 'cordial' ? vars.variacion_b 
+                   : vars.variacion_c;
+        waAiApplyText(text);
+      });
+    });
   } catch (err) {
     document.getElementById('waAiVarLoading').innerHTML = `<span style="color:#b91c1c">Error: ${err.message}</span>`;
   }

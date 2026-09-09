@@ -52,14 +52,7 @@ async function dispatch(row) {
   let session = manager.get(row.owner_id);
   let usedFallback = false;
   if (!session?.isConnected()) {
-    // Si la sesión del owner asignado no está conectada, usar cualquier sesión sana activa
-    const fallback = manager.all().find(s => s.isHealthy());
-    if (fallback) {
-      session = fallback;
-      usedFallback = true;
-    } else {
-      return;   // queda pending hasta que una sesión conecte
-    }
+    return; // queda pending hasta que la sesión del vendedor conecte
   }
 
   const jid = row.jjp_wa_chats?.jid;
@@ -89,44 +82,6 @@ async function dispatch(row) {
   if (!locked?.length) return;
 
   try {
-    // Validar que el número tiene WhatsApp antes de enviar
-    const phone = jid.replace(/@.*$/, '');
-    try {
-      const [exists] = await session.sock.onWhatsApp(jid);
-      if (!exists?.exists) {
-        await db.from('jjp_wa_messages').update({
-          status: 'failed',
-          error: `Número ${phone} no tiene WhatsApp activo`
-        }).eq('id', row.id);
-
-        const { data: ctList } = await db.from('jjp_wa_campaign_targets')
-          .update({ status: 'skipped', error: `Número ${phone} no tiene WhatsApp activo` })
-          .eq('message_id', row.id)
-          .select('campaign_id');
-        if (ctList?.length) {
-          for (const ct of ctList) {
-            await syncCounts(ct.campaign_id).catch(() => {});
-          }
-        }
-
-        // Marcar en la ficha del cliente en Core para no intentar nunca más por WhatsApp
-        if (row.jjp_wa_chats?.customer_id) {
-          await dbCore.from('jjp_customers')
-            .update({ wa_opt_out: true })
-            .eq('id', row.jjp_wa_chats.customer_id)
-            .catch(() => {});
-        }
-
-        log.warn({ id: row.id, phone }, 'número sin WhatsApp → mensaje marcado como failed, target omitido y wa_opt_out fijado');
-        return;
-      }
-    } catch (valErr) {
-      if (!session.isHealthy()) {
-        throw new Error('Sesión de WhatsApp inestable o desconectada durante validación: ' + valErr.message);
-      }
-      log.warn({ id: row.id, err: valErr.message }, 'validación onWhatsApp con aviso, intentando envío directo');
-    }
-
     const content = await buildContent(row);
     // Cita (responder a un mensaje): stub mínimo que Baileys usa para el contextInfo
     const options = row.reply_to_wa_id ? {

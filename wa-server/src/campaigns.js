@@ -23,6 +23,26 @@ async function sweep() {
   if (running) return;
   running = true;
   try {
+    // Al inicio de sweep(), si nextSendAt está vacío, restaurar del DB
+    if (nextSendAt.size === 0) {
+      const { data: active } = await db.from('jjp_wa_campaigns')
+        .select('owner_id, next_send_at')
+        .in('status', ['en_cola', 'enviando', 'pending', 'sending'])
+        .not('next_send_at', 'is', null);
+      if (active) {
+        for (const c of active) {
+          const ts = new Date(c.next_send_at).getTime();
+          if (ts > Date.now()) nextSendAt.set(c.owner_id, ts);
+        }
+      }
+    }
+
+    // Recuperar targets huérfanos (enviando > 5 min sin progreso)
+    await db.from('jjp_wa_campaign_targets')
+      .update({ status: 'pending', error: null })
+      .eq('status', 'enviando')
+      .lt('updated_at', new Date(Date.now() - 5 * 60_000).toISOString());
+
     await releaseCancelled();
 
     const { data: camps, error } = await db.from('jjp_wa_campaigns')

@@ -373,7 +373,23 @@ No se detectaron tests.
   - **Crecimiento de Cartera**: La base de datos de clientes (`jjp_customers` en Proyecto A Core) creció de 1.999 a **5.473 clientes**.
   - **Calidad de Datos**: Limpieza de artefactos de codificación DOS/Windows-1252 (`¥` → `Ñ`, `COMPAÑIA`, tildes corregidas), RIFs validados, teléfonos normalizados a formato venezolano y direcciones físicas preservadas.
   - **Integridad `UNIQUE(phone)`**: Lógica de deduplicación estricta con fallback a `phone: null` ante colisiones, logrando 3.474 inserciones exitosas con **0 fallos**.
-  - **Asignación Libre (`seller_id: null`)**: Los clientes de Zona 020 están disponibles en la cartera libre para que cualquier vendedor o administrador pueda tomarlos, cotizarlos o enviarles catálogo.
-  - **Soporte en Frontend y Optimización DOM**:
-    - Filtro y badge azul `Zona 020 (Nueva Cartera)` agregado en `admin/clientes.html` y `assets/js/vendedor/vcustomers.js`.
-    - Paginación DOM virtual (`MAX_RENDER = 150`) con banner informativo en `aclients.js` y `vcustomers.js`, garantizando que la navegación y búsquedas con 5.473 clientes respondan en <10ms sin sobrecargar el navegador.
+  - **Asignación Exclusiva de Zona 020 a Keyder Salazar (`bddc57dc-5bf9-4a72-9e1c-751d07b03164`)**:
+  - Los 3.474 clientes de Zona 020 fueron asignados a Keyder Salazar (`seller_id = bddc57dc-5bf9-4a72-9e1c-751d07b03164`).
+  - **Exclusividad Estricta**: Invisibles para otros vendedores (no se descargan en `loadCustomers`, ni se muestran en `vcustomers.js`, ni en autocompletado de POS/cotizador para vendedores regulares). Keyder conserva rol `admin` (gestión global + distribución) y puede vender/cotizar directamente a su clientela. En `vcustomers.js`, "Mi cartera" para Keyder = `seller_id === SELLER.id` (agrupa sus 3.665 clientes entre Zona 010 y Zona 020).
+- **Soporte en Frontend y Optimización DOM**:
+  - Filtro y badge azul `Zona 020 (Nueva Cartera)` agregado en `admin/clientes.html` y `assets/js/vendedor/vcustomers.js`.
+  - Paginación DOM virtual (`MAX_RENDER = 150`) con banner informativo en `aclients.js` y `vcustomers.js`, garantizando que la navegación y búsquedas con 5.473 clientes respondan en <10ms sin sobrecargar el navegador.
+
+## Solución Definitiva a "Esperando este mensaje..." y Auto-Actualizador Resiliente (10-09-2026)
+- **Diagnóstico Forense Criptográfico (Signal Double Ratchet en Baileys)**:
+  - **Causa Raíz en Teléfono Emisor**: En WhatsApp Multi-Dispositivo, el teléfono físico del asesor es el dispositivo primario (`:0`). Cada mensaje saliente que despacha Baileys envía dos copias: una al destinatario y una copia de sincronización a `:0`. En `wa-session.js`, la función `cleanCorruptedSessions()` contenía una condición que eliminaba cualquier archivo que coincidiera con `ownPhone` y terminara en `.0.json`. En cada reinicio o reconexión, el servidor borraba el archivo de sesión criptográfica con el teléfono propio (`session-<phone>.0.json`), rompiendo el ratchet y provocando que el teléfono físico mostrara permanentemente: *"Esperando este mensaje. Esto puede tardar un momento."*
+  - **Causa Raíz en Destinatarios**: `cleanCorruptedSessions()` borraba sesiones de terceros mayores a 25 KB, reseteando ratchets activos a mitad de conversación. Además, si Baileys enviaba mensajes sin asegurar pre-claves (`assertSessions`), el cliente no disponía del bundle criptográfico para descifrar.
+  - **Falla en Reintentos (`getMessage`)**: Al fallar el descifrado, WhatsApp envía un `retryRequest`. Si el servidor no devuelve la estructura protobuf idéntica original desde memoria o disco, el mensaje queda bloqueado indefinidamente.
+  - **Desincronización en PC Servidor (`Supervisor-Pc`, 192.168.0.172)**: El proceso en producción inició a las 10:27 AM con el código antiguo que aún purgaba archivos `.0.json`.
+- **Implementación de las Soluciones Criptográficas (`commit b96cc85` y `585187f`)**:
+  - **Erradicación del Borrado Destructivo (`cleanCorruptedSessions`)**: Se eliminó la purga de `.0.json` y de archivos por tamaño. Ahora solo se eliminan archivos de 0 bytes o JSON con sintaxis rota (`JSON.parse` SyntaxError). Las sesiones válidas nunca se tocan.
+  - **Aserción Pre-Envío (`sock.assertSessions`)**: En `WaSession.send()`, Baileys fuerza la comprobación y carga del bundle de sesiones Signal tanto para el destinatario (`jid`) como para el teléfono propio del vendedor (`sock.user.id`) antes de entregar el paquete cifrado.
+  - **`MessageStore` Persistente en RAM y Disco**: Almacenamiento en caché de los mensajes despachados en `sent-cache.json` y memoria (hasta 10.000 mensajes) decodificables en protobuf para alimentar inmediatamente a `getMessage()` ante solicitudes de reintento (`retryRequest`).
+  - **Auto-Actualización en Bucle de Servicio (`run-service.bat`)**: Inyectado `git pull origin main` dentro de cada ciclo de reinicio del supervisor.
+  - **Script de 1 Clic (`ACTUALIZAR-SERVIDOR.bat`)**: Creado en la raíz del proyecto y en `wa-server/` para detener el servidor anterior, descargar cambios de GitHub, verificar dependencias de Node e iniciar en segundo plano (`start-hidden.vbs`).
+  - **Protocolo de Re-Vinculación (Borrón y Cuenta Nueva)**: Como la sesión en `Supervisor-Pc` ya tenía el archivo `.0.json` borrado por la versión previa, se requiere desvincular la sesión en el teléfono y escanear el QR una única vez con el código nuevo para generar un trinquete limpio y permanente.

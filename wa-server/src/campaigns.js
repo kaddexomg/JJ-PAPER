@@ -12,6 +12,8 @@ import { normVePhone, localVePhone, phoneToJid, parsePhoneInfo } from './phone.j
 let manager = null;
 let running = false;
 const nextSendAt = new Map();   // owner_id → timestamp del próximo envío permitido
+const ownerCampIndex = new Map(); // owner_id → índice de rotación de campañas (round-robin)
+const onWaCache = new Map();    // norm_phone → { exists: boolean, ts: number } (TTL 24h)
 
 export function startCampaigns(sessionManager) {
   manager = sessionManager;
@@ -54,11 +56,27 @@ async function sweep() {
 
     const dailyLimit = await getDailyLimit();
 
-    // Una campaña activa por vendedor a la vez (la más vieja primero)
-    const byOwner = new Map();
-    for (const c of camps) if (!byOwner.has(c.owner_id)) byOwner.set(c.owner_id, c);
+    // Soporte Multi-Campaña Simultáneo:
+    // Agrupar TODAS las campañas activas por vendedor (owner_id).
+    // Para cada vendedor, se hace rotación Round-Robin entre sus campañas activas.
+    // De este modo, si un vendedor tiene 2 o 3 campañas activas, todas progresan
+    // en paralelo sin que una con cientos de contactos congele a las demás.
+    const campsByOwner = new Map();
+    for (const c of camps) {
+      if (!campsByOwner.has(c.owner_id)) campsByOwner.set(c.owner_id, []);
+      campsByOwner.get(c.owner_id).push(c);
+    }
 
-    for (const camp of byOwner.values()) await step(camp, dailyLimit);
+    // Ejecución paralela por cada vendedor (concurrencia total entre vendedores)
+    const ownerIds = Array.from(campsByOwner.keys());
+    await Promise.allSettled(ownerIds.map(async (ownerId) => {
+      const list = campsByOwner.get(ownerId);
+      if (!list || !list.length) return;
+      const curIdx = (ownerCampIndex.get(ownerId) || 0) % list.length;
+      ownerCampIndex.set(ownerId, curIdx + 1);
+      const campToProcess = list[curIdx];
+      await step(campToProcess, dailyLimit);
+    }));
   } finally {
     running = false;
   }
@@ -122,15 +140,21 @@ async function step(camp, dailyLimit) {
     }
     const norm = pInfo.norm;
 
-    // Validar WA con Baileys (timeout 5s para evitar cuelgues)
+    // Validar WA con Baileys con caché en RAM (TTL 24h) para evitar llamadas redundantes
     let hasWa = false;
-    try {
-      const waPromise = session.sock.onWhatsApp(norm + '@s.whatsapp.net');
-      const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
-      const res = await Promise.race([waPromise, timeoutPromise]);
-      hasWa = Array.isArray(res) && res.length > 0 && Boolean(res[0]?.exists);
-    } catch (e) {
-      log.warn({ phone: norm, err: e.message }, 'validación onWhatsApp falló con error/timeout');
+    const cachedWa = onWaCache.get(norm);
+    if (cachedWa && Date.now() - cachedWa.ts < 24 * 60 * 60 * 1000) {
+      hasWa = cachedWa.exists;
+    } else {
+      try {
+        const waPromise = session.sock.onWhatsApp(norm + '@s.whatsapp.net');
+        const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+        const res = await Promise.race([waPromise, timeoutPromise]);
+        hasWa = Array.isArray(res) && res.length > 0 && Boolean(res[0]?.exists);
+        onWaCache.set(norm, { exists: hasWa, ts: Date.now() });
+      } catch (e) {
+        log.warn({ phone: norm, err: e.message }, 'validación onWhatsApp falló con error/timeout');
+      }
     }
 
     if (!hasWa) {

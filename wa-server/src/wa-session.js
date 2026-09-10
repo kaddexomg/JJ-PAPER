@@ -148,7 +148,7 @@ export class WaSession {
   saveMessageToStore(id, msg) {
     if (!id || !msg) return;
     this.messageStore.set(id, msg);
-    while (this.messageStore.size > 4000) {
+    while (this.messageStore.size > 10000) {
       const oldestKey = this.messageStore.keys().next().value;
       this.messageStore.delete(oldestKey);
     }
@@ -160,14 +160,14 @@ export class WaSession {
     this.storeSaveTimer = setTimeout(() => {
       this.storeSaveTimer = null;
       this.flushStoreToDisk().catch(() => {});
-    }, 2500);
+    }, 2000);
   }
 
   async flushStoreToDisk() {
     try {
       if (!fs.existsSync(this.dir)) fs.mkdirSync(this.dir, { recursive: true });
       const entries = [];
-      const slice = Array.from(this.messageStore.entries()).slice(-2000);
+      const slice = Array.from(this.messageStore.entries()).slice(-5000);
       for (const [id, msg] of slice) {
         try {
           const protoMsg = (msg instanceof proto.Message) ? msg : proto.Message.fromObject(msg);
@@ -282,11 +282,31 @@ export class WaSession {
         logger: baileysLogger,
         printQRInTerminal: false,
         browser: Browsers.windows('Desktop'),
-        // NO arrastrar años de historial: en cada (re)conexión eso disparaba
-        // una tormenta de escrituras en jjp_wa_chats → el panel recargaba la
-        // bandeja cientos de veces y se quedaba "cargando". Baileys con false
-        // igual entrega los chats/mensajes recientes; los viejos llegan al
-        // usar cada chat. Los mensajes NUEVOS siempre entran completos.
+        connectTimeoutMs: 60_000,
+        defaultQueryTimeoutMs: 60_000,
+        keepAliveIntervalMs: 25_000,
+        generateHighQualityLinkPreview: true,
+        patchMessageBeforeSending: (message) => {
+          const requiresPatch = !!(
+            message.buttonsMessage ||
+            message.templateMessage ||
+            message.listMessage
+          );
+          if (requiresPatch) {
+            message = {
+              viewOnceMessage: {
+                message: {
+                  messageContextInfo: {
+                    deviceListMetadataVersion: 2,
+                    deviceListMetadata: {},
+                  },
+                  ...message,
+                },
+              },
+            };
+          }
+          return message;
+        },
         syncFullHistory: false,
         markOnlineOnConnect: false,
         msgRetryCounterCache: new RetryCounterCache(),
@@ -294,14 +314,14 @@ export class WaSession {
           try {
             const id = key?.id;
             if (!id) return undefined;
-            // 1. Verificar MessageStore en memoria/disco (contiene el proto COMPLETO con mediaKey y hashes)
+            // 1. Verificar MessageStore en memoria/disco (contiene el proto COMPLETO)
             const cached = this.getMessageFromStore(id);
             if (cached) {
               return cached;
             }
             // 2. Fallback a Supabase jjp_wa_messages
             const { data } = await db.from('jjp_wa_messages')
-              .select('body, type, media_filename')
+              .select('body, type, media_path, media_mime, media_filename')
               .eq('wa_msg_id', id)
               .limit(1);
             if (!data || !data.length) return undefined;
@@ -310,9 +330,18 @@ export class WaSession {
             if (m.type === 'text') {
               return text.includes('\n') ? { extendedTextMessage: { text } } : { conversation: text };
             }
-            if (m.type === 'image') return { imageMessage: { caption: text } };
-            if (m.type === 'video') return { videoMessage: { caption: text } };
-            if (m.type === 'document') return { documentMessage: { caption: text, fileName: m.media_filename || 'documento.pdf' } };
+            if (m.type === 'image') {
+              return { imageMessage: { caption: text, mimetype: m.media_mime || 'image/jpeg' } };
+            }
+            if (m.type === 'video') {
+              return { videoMessage: { caption: text, mimetype: m.media_mime || 'video/mp4' } };
+            }
+            if (m.type === 'document') {
+              return { documentMessage: { caption: text, fileName: m.media_filename || 'documento.pdf', mimetype: m.media_mime || 'application/pdf' } };
+            }
+            if (m.type === 'audio') {
+              return { audioMessage: { mimetype: m.media_mime || 'audio/ogg; codecs=opus' } };
+            }
             return { conversation: text };
           } catch (e) {
             return undefined;
@@ -659,7 +688,24 @@ export class WaSession {
 
   async send(jid, content, options) {
     if (!this.isConnected()) throw new Error('sesión no conectada');
+
+    // Pre-calentamiento de la sesión Signal:
+    // Enviar presencia 'composing' 1.2s antes de despachar el paquete.
+    // Esto fuerza a WhatsApp a intercambiar el PreKey bundle y establecer
+    // el ratchet de sesión criptográfica ANTES de recibir el ciphertext,
+    // eliminando de raíz el error "Esperando este mensaje...".
+    try {
+      await this.sock.sendPresenceUpdate('composing', jid);
+      await new Promise(r => setTimeout(r, 1200));
+    } catch (_) {}
+
     const res = await this.sock.sendMessage(jid, content, options);
+
+    // Detener estado composing
+    try {
+      await this.sock.sendPresenceUpdate('paused', jid);
+    } catch (_) {}
+
     if (res?.key?.id && res?.message) {
       this.saveMessageToStore(res.key.id, res.message);
     }

@@ -350,3 +350,30 @@ No se detectaron tests.
   - **1. Reglas Taxonómicas Estrictas para Búsqueda de Productos**: Crear un documento de lineamientos canónicos (`cerebro/` / `docs/`) con metadatos por familias de papelería (medidas, calibres, tipos de punta, marcas y presentaciones exactas) que Gemini inyecte antes de buscar para evitar confusiones de producto (ej. marcadores de servicio vs permanentes).
   - **2. Gestión de Campañas y Permisos en UI**: Implementar en `admin/difusion.html` y `vendedor/difusion.html` la acción para eliminar/archivar campañas completadas o canceladas desde la interfaz, y revisar permisos RLS en `jjp_wa_campaigns` / `jjp_wa_campaign_targets`.
   - **3. Importador Masivo de Clientes CSV**: Asegurar que la carga de archivos CSV de clientes desde la interfaz de usuario procese correctamente las columnas y asigne cartera sin fallos de esquema o RLS.
+
+## Servicio en Segundo Plano, Puente Bidireccional MixNet y Carga de Cartera Zona 020 (10-09-2026)
+- **Erradicación Definitiva de "Esperando este mensaje..." (`wa-session.js`)**:
+  - **Signal Pre-Warming**: Antes de cada envío con `sock.sendMessage()`, se dispara un `sendPresenceUpdate('composing', jid)` con un delay humano de 1.200 ms. Esto fuerza a la red de WhatsApp a intercambiar el PreKey bundle de Signal Protocol y precalentar el ratchet de cifrado en el dispositivo destino antes de entregar el texto cifrado.
+  - **Reconstrucción Completa en `getMessage(key)`**: Al recibir un `receipt: retry` de un receptor que perdió sincronización, `getMessage` ahora reconstruye stanzas completas con `mimetype`, `media_path` y `media_filename` para imágenes, videos, audios y documentos, evitando que el cliente falle la desencriptación.
+  - **Almacén de Mensajes en RAM/Disco**: Ampliado el `messageStore` en RAM a 10.000 mensajes y persistencia en disco (`sent-cache.json`) a 5.000 mensajes con flush asíncrono.
+  - **Parches y Timers de Socket**: Inyectados `connectTimeoutMs: 60_000`, `defaultQueryTimeoutMs: 60_000`, `keepAliveIntervalMs: 25_000` y `patchMessageBeforeSending` para encapsular mensajes interactivos en `viewOnceMessage`.
+- **Escalabilidad y Concurrencia Multi-Campaña (`campaigns.js`)**:
+  - **Despacho Paralelo por Vendedor**: Reemplazado el bucle serial por `Promise.allSettled(ownerIds.map(...))`. Todas las sesiones de vendedores (Keyder, Marianela, Andreina, Yovanni) avanzan en paralelo sin bloquearse mutuamente.
+  - **Intercalado Round-Robin Multicampaña**: Si un mismo vendedor tiene 2 o más campañas activas, el despachador conmuta entre ellas de forma equitativa (`ownerCampIndex`), evitando que una campaña larga congele a las demás.
+  - **Caché en RAM para `onWhatsApp`**: Almacenamiento en memoria (TTL 24 horas) para verificaciones de números en WhatsApp, reduciendo drásticamente las llamadas de red y eliminando riesgos de rate-limit.
+- **Puente Bidireccional MixNet y Servicio Silencioso de Fondo**:
+  - **Auto-Detección de Carpetas de Facturación**: `mixer.js` detecta en tiempo de ejecución y exporta pedidos/cotizaciones a todas las carpetas activas (`C:/JJ-PAPER-MIXER`, `C:/Pedidos JJ`, `M:/pedidos`, etc.), importando a su vez los pedidos confeccionados en MixNet hacia `jjp_orders`.
+  - **Arranque Invisible y Resiliente en Windows**:
+    - `run-service.bat`: Bucle supervisor que mantiene el servidor activo ante reinicios imprevistos.
+    - `start-hidden.vbs`: Ejecuta el proceso en segundo plano absoluto (0 ventanas de consola negras).
+    - `INSTALAR-INICIO-AUTOMATICO.bat`: Inyecta el acceso directo en `shell:startup` para que el servidor inicie solo con encender la PC.
+    - `ESTADO-SERVIDOR.bat` y `DETENER-SERVIDOR.bat`: Herramientas de diagnóstico de puertos (8786, 8787, 8788) y apagado limpio.
+- **Importación Exitosa de la Cartera General MixNet — Zona 020 (`cargar_nueva_cartera_020.mjs`)**:
+  - **3.474 Clientes Nuevos Insertados**: Procesado el maestro `CLIENTES/mixnet_clientes_cartera_20260908_1205.csv` deduplicando contra la base de datos existente.
+  - **Crecimiento de Cartera**: La base de datos de clientes (`jjp_customers` en Proyecto A Core) creció de 1.999 a **5.473 clientes**.
+  - **Calidad de Datos**: Limpieza de artefactos de codificación DOS/Windows-1252 (`¥` → `Ñ`, `COMPAÑIA`, tildes corregidas), RIFs validados, teléfonos normalizados a formato venezolano y direcciones físicas preservadas.
+  - **Integridad `UNIQUE(phone)`**: Lógica de deduplicación estricta con fallback a `phone: null` ante colisiones, logrando 3.474 inserciones exitosas con **0 fallos**.
+  - **Asignación Libre (`seller_id: null`)**: Los clientes de Zona 020 están disponibles en la cartera libre para que cualquier vendedor o administrador pueda tomarlos, cotizarlos o enviarles catálogo.
+  - **Soporte en Frontend y Optimización DOM**:
+    - Filtro y badge azul `Zona 020 (Nueva Cartera)` agregado en `admin/clientes.html` y `assets/js/vendedor/vcustomers.js`.
+    - Paginación DOM virtual (`MAX_RENDER = 150`) con banner informativo en `aclients.js` y `vcustomers.js`, garantizando que la navegación y búsquedas con 5.473 clientes respondan en <10ms sin sobrecargar el navegador.

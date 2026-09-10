@@ -15,7 +15,8 @@ const ZONE_SELLER_MAP = {
   '014': { name: 'Andreina', code: '014' },
   '006': { name: 'Giovanni', code: '006' },
   '004': { name: 'Giovanni', code: '004' },
-  '010': { name: 'Keyder', code: '010' }
+  '010': { name: 'Keyder', code: '010' },
+  '020': { name: 'Cartera General', code: '020' }
 };
 
 async function loadCustomers() {
@@ -54,6 +55,7 @@ function getZoneBadge(zone) {
   else if (zone === '014') color = '#9b59b6'; // Andreina
   else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
   else if (zone === '010') color = '#16a085'; // Keyder
+  else if (zone === '020') color = '#3b82f6'; // Cartera General MixNet
   return `<span class="badge-zone" style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
 }
 
@@ -86,7 +88,10 @@ function renderCustomers() {
     return;
   }
 
-  tbody.innerHTML = list.map(c => {
+  const MAX_RENDER = 150;
+  const toShow = list.slice(0, MAX_RENDER);
+
+  const rows = toShow.map(c => {
     const inactive = isInactive(c);
     const mine     = c.seller_id === SELLER.id || isAdmin;
     const waReact  = `Hola ${c.name} 👋, le escribe ${SELLER.name} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${SELLER.ref_code ? '?ref=' + SELLER.ref_code : ''}`;
@@ -113,6 +118,12 @@ function renderCustomers() {
       </div></td>
     </tr>`;
   }).join('');
+
+  const moreNotice = list.length > MAX_RENDER
+    ? `<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--gr);font-size:13px;background:rgba(0,0,0,0.02)">Mostrando los primeros ${MAX_RENDER} de ${list.length} clientes. Usa el buscador arriba para afinar la lista.</td></tr>`
+    : '';
+
+  tbody.innerHTML = rows + moreNotice;
 }
 
 function custCtxMenu(ev, id) {

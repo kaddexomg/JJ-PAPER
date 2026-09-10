@@ -50,6 +50,7 @@ function getZoneBadge(zone) {
   else if (zone === '014') color = '#9b59b6'; // Andreina
   else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
   else if (zone === '010') color = '#16a085'; // Keyder
+  else if (zone === '020') color = '#3b82f6'; // Nueva Cartera MixNet
   return `<span style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
 }
 
@@ -71,7 +72,10 @@ function renderAdminCustomers() {
     return;
   }
 
-  tbody.innerHTML = list.map(c => `
+  const MAX_RENDER = 150;
+  const toShow = list.slice(0, MAX_RENDER);
+
+  const rows = toShow.map(c => `
     <tr>
       <td>
         <div style="font-weight:600;color:var(--dark)">${escapeHTML(c.name)}</div>
@@ -90,6 +94,12 @@ function renderAdminCustomers() {
       </td>
     </tr>
   `).join('');
+
+  const moreNotice = list.length > MAX_RENDER
+    ? `<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--gr);font-size:13px;background:rgba(0,0,0,0.02)">Mostrando los primeros ${MAX_RENDER} de ${list.length} clientes. Usa el buscador arriba para afinar la lista.</td></tr>`
+    : '';
+
+  tbody.innerHTML = rows + moreNotice;
 }
 
 /* ---- Crear / Editar / Eliminar ---- */

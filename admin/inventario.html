@@ -345,14 +345,20 @@
 <script src="../assets/js/admin/missing-photos.js"></script>
 <script>
 // Conteo sin internet: el wa-server de la PC sirve la app por WiFi local.
-function invOfflineHelp() {
-  const url = 'http://localhost:8787/lan/start';
+async function invOfflineHelp() {
+  let url = 'http://localhost:8787/lan/start';
+  try {
+    const { data } = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    if (data?.modules?.lan_url) {
+      url = data.modules.lan_url + '/lan/start';
+    }
+  } catch (_) {}
   alert('CONTEO SIN INTERNET (WiFi local)\n\n'
-    + '1) En esta PC debe estar corriendo el servidor (wa-server).\n'
-    + '2) Se abrirá una página con un CÓDIGO QR.\n'
+    + '1) El servidor JJ Paper está activo en la red local.\n'
+    + '2) Se abrirá la página con el CÓDIGO QR (' + url + ').\n'
     + '3) Cada teléfono, en la MISMA red WiFi, escanea ese QR (o escribe la dirección) y cuenta.\n'
     + '4) Se ve todo en vivo; al volver internet, se sube solo a la nube.\n\n'
-    + 'Abriendo la página del QR en esta PC…');
+    + 'Abriendo la página del QR…');
   window.open(url, '_blank');
 }
 

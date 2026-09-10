@@ -135,10 +135,13 @@ async function step(camp, dailyLimit) {
 
     if (!hasWa) {
       if (t.customer_id) {
-        await dbCore.from('jjp_customers')
-          .update({ wa_opt_out: true })
-          .eq('id', t.customer_id)
-          .catch(() => {});
+        try {
+          await dbCore.from('jjp_customers')
+            .update({ wa_opt_out: true })
+            .eq('id', t.customer_id);
+        } catch (e) {
+          log.warn({ custId: t.customer_id, err: e.message }, 'no se pudo actualizar wa_opt_out');
+        }
       }
       await skip(camp, t, 'número sin WhatsApp activo: ' + (t.phone || ''));
       continue;

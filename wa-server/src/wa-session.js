@@ -224,8 +224,12 @@ export class WaSession {
                 shouldRemove = true;
                 log.warn({ profile: this.profileId, file: f }, 'Eliminando sesión peer propia desincronizada (previene Bad MAC)');
               }
-            } else if (stat.size > 35_000) {
-              // Sesiones de terceros anormalmente infladas (>35KB) con ratchets rotos
+            } else if (!f.endsWith('.0.json') && stat.size > 15_000) {
+              // Dispositivos secundarios/acompañantes (.1, .2, .27, etc.) inflados con ratchets viejos
+              shouldRemove = true;
+              log.warn({ profile: this.profileId, file: f, size: stat.size }, 'Eliminando sesión de dispositivo acompañante inflada');
+            } else if (stat.size > 25_000) {
+              // Sesiones de terceros anormalmente infladas (>25KB) con ratchets rotos
               shouldRemove = true;
               log.warn({ profile: this.profileId, file: f, size: stat.size }, 'Eliminando sesión inflada con ratchets obsoletos');
             }

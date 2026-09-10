@@ -35,6 +35,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Si estamos en la nube o PC remota, leer la IP del servidor desde jjp_server_control
+  try {
+    const { data: srvData } = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    if (srvData?.modules?.lan_url) {
+      localServerUrl = srvData.modules.lan_url;
+    }
+  } catch (_) {}
+
   setupEventListeners();
   await refreshDashboard(true);
   startAutoRefresh();

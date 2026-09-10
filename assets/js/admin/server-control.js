@@ -54,9 +54,14 @@ function srvRenderModal() {
     <div class="srv-state ${on ? 'on' : 'off'}">
       <div class="srv-dot"></div>
       <div>
-        <strong>${on ? 'Servidor ENCENDIDO' : 'Servidor APAGADO'}</strong><br>
         <small>${on ? 'Último latido ' + srvAgo(hbIso) : 'Sin latidos recientes'}
-        ${_srvRow?.host ? ' · PC: ' + escapeHTML(_srvRow.host) : ''}</small>
+        ${_srvRow?.host ? ' · PC: ' + escapeHTML(_srvRow.host) : ''}
+        ${mods?.lan_ip ? ' (' + escapeHTML(mods.lan_ip) + ')' : ''}</small>
+        ${on && mods?.lan_url ? `
+        <div style="margin-top:6px;font-size:12px;display:flex;gap:10px;">
+          <a href="${mods.lan_url}/admin/monitor.html" target="_blank" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor Local</a>
+          <a href="${mods.lan_url}/lan/start" target="_blank" style="color:#0284c7;font-weight:600;text-decoration:none;">📱 QR Conteo Offline</a>
+        </div>` : ''}
       </div>
     </div>
     ${on ? `<div class="srv-mods">${modChips}</div>` : ''}

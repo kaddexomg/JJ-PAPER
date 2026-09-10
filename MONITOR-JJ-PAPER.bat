@@ -7,27 +7,17 @@ echo   JJ Paper - Monitor de Cuotas, Trafico y Optimizador
 echo ============================================================
 echo.
 
-REM 1. Verificar si el puerto 8786 (wa-server) esta respondiendo
+set SERVER_IP=192.168.0.172
+set URL=http://%SERVER_IP%:8787/admin/monitor.html
+
+REM 1. Verificar si esta PC es el servidor dedicado (puerto 8786 activo)
 netstat -ano | findstr ":8786" >nul
-if %errorlevel% neq 0 (
-    echo [INFO] El servidor local wa-server no esta activo.
-    echo [INFO] Iniciando wa-server en segundo plano para acceso PostgreSQL...
-    if exist "wa-server\start-wa.vbs" (
-        wscript "wa-server\start-wa.vbs"
-    ) else if exist "start-wa.vbs" (
-        wscript "start-wa.vbs"
-    ) else (
-        start "" /b cmd /c "cd wa-server && node src/index.js"
-    )
-    timeout /t 2 /nobreak >nul
+if %errorlevel% equ 0 (
+    echo [OK] Servidor wa-server detectado en ejecucion local.
+    set URL=http://localhost:8787/admin/monitor.html
 ) else (
-    echo [OK] Servidor wa-server detectado en ejecucion.
+    echo [INFO] Conectando al servidor JJ Paper en la red local (%SERVER_IP%:8787)...
 )
-
-echo.
-echo [INFO] Abriendo Dashboard de Monitoreo...
-
-set URL=http://localhost:8787/admin/monitor.html
 
 REM Intentar abrir en modo aplicacion nativa de escritorio (sin marco de navegador)
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (

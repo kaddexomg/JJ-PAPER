@@ -179,6 +179,16 @@ function exportOrder(o) {
     // Registrar en el historial para evitar duplicar
     exportedOrders.add(o.order_number);
     saveExportHistory();
+
+    // Espejo en carpeta alternativa detectada si existe (ej: C:/Pedidos JJ)
+    const altDir = 'C:/Pedidos JJ';
+    if (fs.existsSync(altDir) && path.resolve(altDir) !== path.resolve(activeExportDir)) {
+      try {
+        fs.writeFileSync(path.join(altDir, `pedido_${o.order_number}.csv`), csvContent, 'utf8');
+        fs.writeFileSync(path.join(altDir, `pedido_${o.order_number}.txt`), txtContent, 'utf8');
+      } catch (_) {}
+    }
+
     log.info(`Puente Mixer: Pedido ${o.order_number} exportado correctamente.`);
     return true;
   } catch (err) {

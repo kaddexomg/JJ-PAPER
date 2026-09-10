@@ -17,6 +17,23 @@ let beatTimer = null;
 let pollTimer = null;
 let handling = false;
 
+function getLanIp() {
+  if (process.env.COUNT_LAN_IP) return process.env.COUNT_LAN_IP;
+  const ifaces = os.networkInterfaces();
+  const bad = /warp|vmware|virtualbox|hyper-?v|vethernet|loopback|tailscale|zerotier|docker|wsl|\btun\b|\btap\b|radmin|virtual/i;
+  const cands = [];
+  for (const name of Object.keys(ifaces)) {
+    for (const i of ifaces[name] || []) {
+      if (i.family !== 'IPv4' || i.internal) continue;
+      if (bad.test(name)) continue;
+      cands.push(i.address);
+    }
+  }
+  const rank = ip => ip.startsWith('192.168.') ? 3 : ip.startsWith('10.') ? 2 : /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ? 1 : 0;
+  cands.sort((a, b) => rank(b) - rank(a));
+  return cands[0] || '127.0.0.1';
+}
+
 async function beat() {
   // El latido decía solo "el proceso vive". Ahora también dice si cada
   // WhatsApp está realmente sano, que es lo que le importa al panel.
@@ -29,13 +46,20 @@ async function beat() {
   let serverStatus = 'online';
   if (waSesiones > 0 && waSanas === 0) serverStatus = 'degraded';
 
+  const ip = getLanIp();
+  const lanInfo = {
+    lan_ip: ip,
+    lan_url: `http://${ip}:8787`,
+    lan_https_url: `https://${ip}:8788`
+  };
+
   const now = new Date().toISOString();
   const payload = {
     heartbeat: now,
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra }
+    modules: { ...modulesRef, ...extra, ...lanInfo }
   };
 
   // 1. Actualizar Proyecto B (Comunicación)
@@ -80,13 +104,19 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   liveFn = liveStatusFn;
 
   const now = new Date().toISOString();
+  const ip = getLanIp();
+  const lanInfo = {
+    lan_ip: ip,
+    lan_url: `http://${ip}:8787`,
+    lan_https_url: `https://${ip}:8788`
+  };
   const startPayload = {
     started_at: now,
     heartbeat: now,
     heartbeat_at: now,
     status: 'online',
     host: os.hostname(),
-    modules: modulesRef,
+    modules: { ...modulesRef, ...lanInfo },
     command: null
   };
   db.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {

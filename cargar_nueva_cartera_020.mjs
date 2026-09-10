@@ -250,8 +250,8 @@ async function main() {
       address: cand.address,
       city: 'Caracas',
       zone: '020',
-      seller_id: null,
-      notes: notes || 'MixNet Cartera 020',
+      seller_id: 'bddc57dc-5bf9-4a72-9e1c-751d07b03164', // Asignado exclusivamente a Admin Keyder
+      notes: notes || 'MixNet Cartera 020 (Keyder)',
       total_orders: 0,
       total_usd: 0,
       created_at: new Date().toISOString(),

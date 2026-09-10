@@ -55,8 +55,8 @@ wa-server/
 - DB: Supabase (jjp_customers, jjp_profiles)
 - Datos de negocio (.csv, .pdf, backups) NUNCA al repo (.gitignore lo bloquea)
 - Vendedores actuales: Yovanni (004/006), Marianela (008), Andreina (014)
-- Zona 010 (Keyder Salazar, admin): cartera propia de 191 clientes importada del reporte MixNet `clientes keyder.docx` (08-09-2026). Keyder conserva rol `admin` (gestión global + distribución) y puede vender/cotizar (las páginas `vendedor/*` aceptan admins). En `vcustomers.js`, "Mi cartera" para admins = `seller_id === SELLER.id`; "Todos"/"Sin vendedor" siguen globales.
-- Maestro MixNet `CLIENTES/mixnet_clientes_cartera_20260908_1205.csv` (NO subir a git): usado el 08-09-2026 para enriquecer 1.817 clientes globales con RIF/email/teléfono/dirección reales. El cruce BD→CSV usa CODIGO_CLIENTE (vía `notes` de zona 010), teléfono, nombre exacto o núcleo de nombre; teléfonos con colisión UNIQUE no se sobrescriben.
+- Zona 010 y Zona 020 (Keyder Salazar, admin): carteras propias (Zona 010 con 191 clientes y Zona 020 con 3.474 clientes de MixNet). Ambas son estrictamente exclusivas para Keyder: invisibles para otros vendedores (no se descargan en `loadCustomers` ni se muestran en `vcustomers.js`, ni en autocompletado de POS/cotizador para vendedores regulares). Keyder conserva rol `admin` (gestión global + distribución) y puede vender/cotizar directamente a su clientela. En `vcustomers.js`, "Mi cartera" para Keyder = `seller_id === SELLER.id` (agrupa sus 3.665 clientes).
+- Maestro MixNet `CLIENTES/mixnet_clientes_cartera_20260908_1205.csv` (NO subir a git): usado para enriquecer clientes globales e importar la cartera MixNet general a la Zona 020 de Keyder.
 
 ## Tests
 No se detectaron tests.

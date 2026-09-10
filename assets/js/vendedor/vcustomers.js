@@ -16,19 +16,24 @@ const ZONE_SELLER_MAP = {
   '006': { name: 'Giovanni', code: '006' },
   '004': { name: 'Giovanni', code: '004' },
   '010': { name: 'Keyder', code: '010' },
-  '020': { name: 'Cartera General', code: '020' }
+  '020': { name: 'Keyder', code: '020' }
 };
 
 async function loadCustomers() {
-  // PostgREST corta en 1.000 filas: paginamos para cargar TODA la cartera
-  // (los clientes de zona 010 / sin pedidos quedaban fuera del límite y no se veían).
+  const isAdmin = SELLER.role === 'admin' || SELLER.is_admin;
   vCustomers = [];
   const PAGE = 1000;
   let from = 0;
   for (;;) {
-    const { data, error } = await sb.from('jjp_customers')
-      .select('*').order('last_order_at', { ascending: false, nullsFirst: false })
-      .range(from, from + PAGE - 1);
+    let query = sb.from('jjp_customers')
+      .select('*').order('last_order_at', { ascending: false, nullsFirst: false });
+
+    // La Zona 020 es estrictamente exclusiva del Admin Keyder (no se descarga para otros vendedores)
+    if (!isAdmin) {
+      query = query.neq('zone', '020');
+    }
+
+    const { data, error } = await query.range(from, from + PAGE - 1);
     if (error) { showToast('Error cargando clientes', 'err'); return; }
     vCustomers.push(...(data || []));
     if (!data || data.length < PAGE || from > 12000) break;
@@ -54,8 +59,7 @@ function getZoneBadge(zone) {
   if (zone === '008') color = '#e67e22'; // Marianela
   else if (zone === '014') color = '#9b59b6'; // Andreina
   else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
-  else if (zone === '010') color = '#16a085'; // Keyder
-  else if (zone === '020') color = '#3b82f6'; // Cartera General MixNet
+  else if (zone === '010' || zone === '020') color = '#16a085'; // Keyder
   return `<span class="badge-zone" style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
 }
 
@@ -65,15 +69,16 @@ function renderCustomers() {
 
   let list = vCustomers;
   
-  // Si no es admin, filtramos por su cartera / zona
+  // Si no es admin, la Zona 020 es invisible en todos los filtros y vistas
   const isAdmin = SELLER.role === 'admin' || SELLER.is_admin;
   if (!isAdmin) {
+    list = list.filter(c => c.zone !== '020');
     if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
   } else {
-    // Admin: tiene su PROPIA cartera en 'Mi cartera' e 'Inactivos', pero
-    // conserva 'Todos' y 'Sin vendedor' para la gestión global.
+    // Admin Keyder: tiene su PROPIA cartera (010 y 020) en 'Mi cartera' e 'Inactivos',
+    // y conserva 'Todos' y 'Sin vendedor' para la gestión global.
     if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));

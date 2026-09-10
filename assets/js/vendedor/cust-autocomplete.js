@@ -40,14 +40,20 @@ async function custAcSearch(nameId, boxId, opts) {
       : `name.ilike.%${q}%`;
     const sellerObj = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
     const sellerId = opts?.sellerId || sellerObj?.id;
+    const isAdmin = sellerObj?.role === 'admin' || sellerObj?.is_admin;
 
     let query = sb.from('jjp_customers')
-      .select('id,name,phone,rif,city,total_orders,total_usd,seller_id')
+      .select('id,name,phone,rif,city,total_orders,total_usd,seller_id,zone')
       .or(or);
 
     // En ventas y cotizaciones se filtra por la clientela asignada del usuario activo
     if (sellerId && opts?.sellerOnly !== false) {
       query = query.eq('seller_id', sellerId);
+    }
+
+    // La Zona 020 es estrictamente exclusiva del Admin Keyder
+    if (!isAdmin) {
+      query = query.neq('zone', '020');
     }
 
     const { data, error } = await query.limit((opts && opts.limit) || 6);

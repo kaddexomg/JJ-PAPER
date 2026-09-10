@@ -79,11 +79,11 @@ async function runCommand(cmd) {
   await db.from('jjp_server_control').update({ command: null }).eq('id', 1);
   try { await dbCore.from('jjp_server_control').update({ command: null }).eq('id', 1); } catch (_) {}
 
-  if (cmd === 'restart') {
-    log.info('comando: REINICIAR — saliendo (run-forever.bat relanza)');
+  if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
+    log.info({ cmd }, 'comando recibido — saliendo para recargar (el supervisor sincroniza y relanza)');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);
     try { await dbCore.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1); } catch (_) {}
-    process.exit(0);   // código 0 → el .bat/supervisor lo vuelve a levantar
+    process.exit(0);   // código 0 → el supervisor relanza con git pull
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
     const stopPayload = {

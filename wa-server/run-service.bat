@@ -23,6 +23,9 @@ if exist "%LOGFILE%" (
   )
 )
 
+echo [%date% %time%] [SUPERVISOR] Sincronizando con GitHub... >> "%LOGFILE%"
+git pull origin main >> "%LOGFILE%" 2>&1
+
 echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
 node auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
 

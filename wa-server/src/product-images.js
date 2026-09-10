@@ -30,35 +30,44 @@ const GEMINI_KEYS = [
 ];
 
 const GEMINI_MODELS = [
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash'
+  'gemini-3.6-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash-lite'
 ];
 
 let _geminiKeyIdx = 0;
 
 // ---- Marcas conocidas del inventario JJ Paper ----
 const KNOWN_BRANDS = [
-  'SHARPIE', 'EXPO', 'SHARK', 'STAR KIT', 'STUDMARK', 'KORES', 'MAYKA',
-  'OFIART', 'OFIMAK', 'CRISBY', 'ESFER', 'MISTER BOBINA', 'MR BOBINA',
-  'ROLLS', 'ALPHA', 'PRINTA', 'ACCO', 'MONGOL', 'PAPER MATE', 'INKJOY',
-  'LUXOR', 'BULL', 'DURACELL', 'CASIO', 'MARFIL', 'AKTA', 'OSLO',
-  'CARIBE', 'TUK', 'POST-IT', '3M', 'PRITT', 'SOLITA', 'FABER-CASTELL',
-  'FABER CASTELL', 'BIC', 'NORMA', 'SABONIS', 'PILOT', 'PENTEL',
-  'STAEDTLER', 'PEGA-LOKA', 'PELIKAN', 'ARTESCO', 'FILGO', 'ARTEL',
-  'STABILO', 'UHU', 'SCOTCH', 'TESA', 'CONTACT', 'BACO', 'JOVI',
-  'CRAYOLA', 'GIOTTO', 'MAPED', 'ROTRING', 'LAMY', 'ZEBRA', 'UNI',
-  'MITSUBISHI', 'TOMBOW'
+  'CHAMEX', 'REPORT', 'HP', 'BOREAL', 'REPROSET', 'LEDESMA', 'CHAMPION',
+  'AVILA', 'CARVAJAL', 'HAMMERMILL', 'SHARPIE', 'EXPO', 'SHARK', 'STAR KIT',
+  'STUDMARK', 'KORES', 'MAYKA', 'OFFI-ESCOLAR', 'OFIART', 'OFIMAK', 'CRISBY',
+  'ESFER', 'MISTER BOBINA', 'MR BOBINA', 'ROLLS', 'ALPHA', 'PRINTA', 'ACCO',
+  'MONGOL', 'PAPER MATE', 'PAPERMATE', 'KILOMETRICO', 'INKJOY', 'LUXOR',
+  'BULL', 'DURACELL', 'CASIO', 'MARFIL', 'AKTA', 'OSLO', 'CARIBE', 'TUK',
+  'POST-IT', '3M', 'PRITT', 'SOLITA', 'FABER-CASTELL', 'FABER CASTELL',
+  'FABERCASTELL', 'BIC', 'NORMA', 'SABONIS', 'PILOT', 'PENTEL', 'STAEDTLER',
+  'PEGA-LOKA', 'PEGALOKA', 'PELIKAN', 'ARTESCO', 'FILGO', 'ARTEL', 'STABILO',
+  'UHU', 'SCOTCH', 'TESA', 'CONTACT', 'BACO', 'JOVI', 'CRAYOLA', 'GIOTTO',
+  'MAPED', 'ROTRING', 'LAMY', 'ZEBRA', 'UNI', 'UNI-BALL', 'MITSUBISHI',
+  'TOMBOW', 'DELI', 'MAX', 'KANGARO', 'RAPID', 'KW-TRIO', 'EAGLE', 'SAX',
+  'MAE', 'MON AMI', 'MONAMI', 'SIPA', 'MEMORIS', 'DOMS', 'STICK'
 ];
+
+// ---- Mapeo de errores tipográficos en marcas de inventario ----
+const BRAND_CORRECTIONS = {
+  'CHAMEEX': 'CHAMEX',
+  'CHAMEXX': 'CHAMEX',
+  'PAPERMATE': 'PAPER MATE',
+  'FABERCASTELL': 'FABER-CASTELL',
+  'PEGALOKA': 'PEGA-LOKA',
+  'STAR-KIT': 'STAR KIT',
+  'MR. BOBINA': 'MISTER BOBINA',
+  'UNIBALL': 'UNI-BALL'
+};
 
 // ---- Abreviaturas venezolanas de papelería ----
 const ABBREVIATION_MAP = {
-  'RESALT.': 'RESALTADOR',
-  'RESALT': 'RESALTADOR',
-  'P/PIZARRA': 'PARA PIZARRA',
-  'P/PIZ': 'PARA PIZARRA',
-  'C/T': 'CON TAPA',
-  'S/T': 'SIN TAPA',
   'P/G': 'PUNTA GRUESA',
   'P/F': 'PUNTA FINA',
   'P/M': 'PUNTA MEDIA',
@@ -66,19 +75,44 @@ const ABBREVIATION_MAP = {
   'PTA GRUE': 'PUNTA GRUESA',
   'PTA F': 'PUNTA FINA',
   'PTA M': 'PUNTA MEDIA',
+  'PTA.': 'PUNTA',
+  'T/C': 'CARTA',
+  'T/O': 'OFICIO',
+  'T/L': 'LEGAL',
+  'E/O': 'EXTRA OFICIO',
+  'D/C': 'DOBLE CARTA',
+  'C/T': 'CON TAPA',
+  'S/T': 'SIN TAPA',
+  'RESALT.': 'RESALTADOR',
+  'RESALT': 'RESALTADOR',
+  'P/PIZARRA': 'PARA PIZARRA',
+  'P/PIZ': 'PARA PIZARRA',
+  'BOLIG.': 'BOLIGRAFO',
+  'BOL.': 'BOLIGRAFO',
+  'MARC.': 'MARCADOR',
+  'SACAP.': 'SACAPUNTAS',
+  'PEGA B/': 'PEGA EN BARRA',
+  'GOMA B/': 'GOMA EN BARRA',
+  'SILIC.': 'SILICON',
+  'TIJ.': 'TIJERA',
+  'CARP.': 'CARPETA',
+  'TALON.': 'TALONARIO',
+  'ENCOL.': 'ENCOLADO',
+  'GRAP.': 'GRAPADORA',
+  'ENGRAP.': 'GRAPADORA',
+  'PERF.': 'PERFORADORA',
+  'PLAST.': 'PLASTILINA',
+  'HJS': 'HOJAS',
   'NEG': 'NEGRO',
   'AZL': 'AZUL',
   'ROJ': 'ROJO',
   'VDE': 'VERDE',
   'AMA': 'AMARILLO',
-  'PERM': 'PERMANENTE',
+  'BLC': 'BLANCO',
   'PERM.': 'PERMANENTE',
-  'BOR': 'BORRABLE',
+  'PERM': 'PERMANENTE',
   'BOR.': 'BORRABLE',
-  'T/C': 'TAMAÑO CARTA',
-  'T/O': 'TAMAÑO OFICIO',
-  'T/L': 'TAMAÑO LEGAL',
-  'E/O': 'EXTRA OFICIO',
+  'BOR': 'BORRABLE',
   'GR.': 'GRUESO',
   'GR': 'GRUESO',
   'FN': 'FINO',
@@ -87,22 +121,26 @@ const ABBREVIATION_MAP = {
 
 // ---- Dominios confiables para fotos de productos reales ----
 const TRUSTED_DOMAINS = [
-  'mercadolibre', 'amazon', 'sharpie.com', 'faber-castell',
-  'staedtler', 'pelikan', 'officedepot', 'officemax',
-  'lumen.com.mx', 'dideco', 'papeleriamoderna', 'crayola',
-  'expo-markers', 'pilotpen', 'pentel', 'stabilo',
-  'shopify', 'walmartimages', 'target.com', 'staples',
-  'ebayimg', 'alicdn', 'cdnimg', 'media.officedepot'
+  'mayka.com.ve', 'abspapel.com.ve', 'megabytepapeleria.com', 'triomcbo.com',
+  'papeleriaelcid.com', 'kores.com.ve', 'papeleriacomercial.com', 'papeleriasalazar.com',
+  'dofi.com.ve', 'distribuidorajp.com', 'libreriapapeleria.com', 'librerialatino.com',
+  'tecnomundo.com.ve', 'laprincipal.cl', 'lasecretaria.cl', 'mercadolibre',
+  'amazon', 'sharpie.com', 'faber-castell', 'staedtler', 'pelikan',
+  'officedepot', 'officemax', 'staples', 'lumen.com.mx', 'dideco',
+  'crayola', 'expo-markers', 'pilotpen', 'pentel', 'stabilo',
+  'shopify', 'walmartimages', 'target.com', 'prittworld', 'bic.com', 'chamex'
 ];
 
-// Dominios basura que nunca tienen fotos de productos reales
+// Dominios basura que nunca tienen fotos de productos reales (wallpapers, stock vectors, religión, etc.)
 const BLOCKED_DOMAINS = [
-  'pinterest', 'facebook', 'instagram', 'twitter',
-  'tiktok', 'youtube', 'reddit', 'tumblr',
-  'wikimedia', 'wikipedia', 'flickr', 'unsplash',
-  'pexels', 'pixabay', 'shutterstock', 'istock',
-  'gettyimages', 'dreamstime', 'alamy', '123rf',
-  'clipart', 'vector', 'icon', 'emoji'
+  'peakpx', 'wallpaper', 'fondoshd', 'wallpaperflare', 'wallpapercave',
+  'wallpaperaccess', 'wallpapersafari', 'freepik', 'vector', 'clipart',
+  'icon', 'emoji', 'pngwing', 'cleanpng', 'pinterest', 'facebook',
+  'instagram', 'twitter', 'tiktok', 'youtube', 'reddit', 'tumblr',
+  'wikimedia', 'wikipedia', 'flickr', 'unsplash', 'pexels', 'pixabay',
+  'shutterstock', 'istock', 'gettyimages', 'dreamstime', 'alamy',
+  '123rf', 'depositphotos', 'lookaside.fbsbx', 'memegenerator',
+  'deviantart', 'artstation', 'tenor', 'giphy'
 ];
 
 
@@ -193,12 +231,15 @@ function detectBrand(name) {
  * Limpia códigos de bodega, caracteres especiales y normaliza el nombre.
  */
 function cleanProductName(rawName) {
-  return rawName
-    .replace(/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g, '')        // Códigos de bodega (SKU largos)
-    .replace(/\b\d{4,}\b/g, '')                  // Números de 4+ dígitos solos
-    .replace(/[_#@$%^&*{}|\\]/g, ' ')            // Símbolos basura
-    .replace(/\s+/g, ' ')
-    .trim();
+  let text = (rawName || '').trim();
+  for (const [bad, good] of Object.entries(BRAND_CORRECTIONS)) {
+    const rx = new RegExp('\\b' + bad + '\\b', 'gi');
+    text = text.replace(rx, good);
+  }
+  text = text.replace(/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g, ' ');
+  text = text.replace(/\b\d{4,}\b/g, ' ');
+  text = text.replace(/[_#@$%^&*{}|\\\[\]]/g, ' ');
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -338,7 +379,7 @@ function buildManualQueries(expandedName, brand) {
     productType = 'sacapuntas con deposito escolar';
     enProductType = 'pencil sharpener canister';
   } else if (/resma|papel\s*bond/i.test(clean)) {
-    productType = 'resma de papel bond blanco';
+    productType = 'resma papel bond carta';
     enProductType = 'copy paper ream 500 sheets';
   } else if (/cinta|tirro|teipe/i.test(clean)) {
     productType = 'cinta adhesiva embalaje transparente';
@@ -363,9 +404,10 @@ function buildManualQueries(expandedName, brand) {
 
   if (brand && productType) {
     queries.push(`${brand} ${productType} ${color}`.trim());
+    queries.push(`${brand} ${clean.toLowerCase()}`.trim());
     if (enProductType) queries.push(`${brand} ${enProductType} ${color}`.trim());
   } else if (brand) {
-    queries.push(`${brand} ${clean}`.trim());
+    queries.push(`${brand} ${clean.toLowerCase()}`.trim());
   } else if (productType) {
     queries.push(`${productType} ${color}`.trim());
     if (enProductType) queries.push(`${enProductType} ${color}`.trim());
@@ -563,16 +605,48 @@ function getCategoryNegativeTerms(text, productType) {
  */
 function scoreResult(result, brand, metadata) {
   let score = 50;
-  const imgUrl = result.image.toLowerCase();
+  const imgUrl = (result.image || '').toLowerCase();
   const title = (result.title || '').toLowerCase();
 
-  if (isTrustedDomain(result.image)) score += 30;
-
-  if (brand) {
-    const brandLower = brand.toLowerCase();
-    if (imgUrl.includes(brandLower) || title.includes(brandLower)) score += 25;
+  // 1. Dominio o contenido bloqueado
+  if (isBlockedDomain(result.image)) return -999;
+  for (const b of BLOCKED_DOMAINS) {
+    if (title.includes(b) || imgUrl.includes(b)) return -999;
   }
 
+  // 2. Filtro de consumibles vs herramientas
+  const combinedType = ((metadata?.product_type || '') + ' ' + title).toLowerCase();
+  if (combinedType.includes('grapad') || combinedType.includes('stapler')) {
+    if (title.includes('caja de grapas') || title.includes('grapas galvanizadas') || title.includes('staples refill') || title.includes('1000 grapas')) {
+      return -500;
+    }
+  }
+  if (combinedType.includes('resma') || combinedType.includes('bond')) {
+    if (title.includes('shiva') || title.includes('lingam') || title.includes('temple') || title.includes('wallpaper')) {
+      return -999;
+    }
+  }
+
+  // 3. Evaluar marca
+  if (brand) {
+    const brandLower = brand.toLowerCase();
+    if (title.includes(brandLower) || imgUrl.includes(brandLower)) {
+      score += 60; // Gran bonificación por marca oficial buscada
+    } else {
+      // Penalizar si menciona otra marca de papelería diferente
+      for (const other of KNOWN_BRANDS) {
+        if (other !== brand && title.includes(other.toLowerCase())) {
+          score -= 40;
+          break;
+        }
+      }
+    }
+  }
+
+  // 4. Dominios de confianza
+  if (isTrustedDomain(result.image)) score += 30;
+
+  // 5. Palabras de catálogo comercial
   if (metadata?.product_type) {
     const typeWords = metadata.product_type.toLowerCase().split(' ').filter(w => w.length > 3);
     for (const w of typeWords) {

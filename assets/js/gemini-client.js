@@ -36,16 +36,16 @@
 
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
-    'gemini-2.5-pro',
-    'gemini-2.0-flash',
-    'gemini-1.5-pro'
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat
   const FAST_MODELS = [
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -1111,19 +1111,23 @@ Respuesta del Copiloto JJ:`;
     
     try {
       const loc = typeof window !== 'undefined' ? window.location : { hostname: 'localhost', protocol: 'http:' };
-      const urlsToTry = [];
+      const urlsToTry = [
+        `/api/search-images?q=${encodeURIComponent(productName)}`,
+        `/lan/products/search-images?q=${encodeURIComponent(productName)}`
+      ];
       if (loc.hostname !== 'localhost' && loc.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(loc.hostname)) {
-        urlsToTry.push(`${loc.protocol}//${loc.hostname}:8787`);
+        urlsToTry.push(`${loc.protocol}//${loc.hostname}:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`);
       }
-      urlsToTry.push('http://localhost:8787');
-      urlsToTry.push('https://localhost:8788');
-      urlsToTry.push('http://127.0.0.1:8787');
+      if (loc.protocol === 'http:' || loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') {
+        urlsToTry.push(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`);
+        urlsToTry.push(`http://127.0.0.1:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`);
+      }
 
-      for (const serverUrl of urlsToTry) {
+      for (const endpoint of urlsToTry) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 4000);
-          const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(productName)}`, {
+          const res = await fetch(endpoint, {
             signal: controller.signal
           });
           clearTimeout(timeoutId);
@@ -1140,7 +1144,7 @@ Respuesta del Copiloto JJ:`;
         } catch (_) {}
       }
     } catch (e) {
-      // Servidor local no disponible o entorno HTTPS en la nube
+      // Servidor local o endpoint en la nube no respondieron
     }
     return null;
   }
@@ -1202,17 +1206,18 @@ Respond with ONLY the 1 English sentence.`;
       ? 'isolated product packshot on seamless pure solid white background #FFFFFF, commercial studio softbox lighting, soft natural contact shadow at base'
       : 'isolated product packshot on luxury deep emerald green #0B3327 background, subtle center backlight halo, soft natural contact shadow at base';
 
-    // Prompt 100% positivo y fotorrealista para Flux (sin NEGATIVE PROMPT para evitar alucinaciones)
     const photoPrompt = `Commercial retail packshot of ${englishSubject}, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
 
-    // NO generar imágenes AI de productos - producen resultados distorsionados e irreales.
-    // El sistema de flyers (renderProductCard) ya tiene un mockup 3D vectorial como fallback.
-    // Retornar null para que el flyer use el mockup vectorial en vez de una foto alucinada.
+    // Generar imagen con Pollinations Flux (motor de IA publicitaria)
+    const cleanPrompt = photoPrompt.slice(0, 450);
+    const seed = Math.abs(hashCode(name + (forceNew ? Date.now() : '')));
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
+
     const result = {
-      imageUrl: null, // sin imagen generada - usar mockup vectorial del flyer
-      prompt: photoPrompt, // conservar el prompt para referencia
+      imageUrl,
+      prompt: photoPrompt,
       specs: enriched,
-      noPhoto: true // flag para que el caller sepa que no hay foto real
+      isAiGenerated: true
     };
 
     _studioPhotoCache.set(cacheKey, result);

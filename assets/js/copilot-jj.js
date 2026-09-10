@@ -972,61 +972,72 @@
     }
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px">🔍 Buscando fotos reales con IA inteligente…</div>';
 
-    const urlsToTry = [];
+    const urlsToTry = [
+      `/api/search-images?q=${encodeURIComponent(query)}`,
+      `/lan/products/search-images?q=${encodeURIComponent(query)}`
+    ];
     if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(location.hostname)) {
-      urlsToTry.push(`${location.protocol}//${location.hostname}:8787`);
+      urlsToTry.push(`${location.protocol}//${location.hostname}:8787/lan/products/search-images?q=${encodeURIComponent(query)}`);
     }
-    urlsToTry.push('http://localhost:8787');
-    urlsToTry.push('https://localhost:8788');
-    urlsToTry.push('http://127.0.0.1:8787');
+    if (location.protocol === 'http:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+      urlsToTry.push(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(query)}`);
+      urlsToTry.push(`https://localhost:8788/lan/products/search-images?q=${encodeURIComponent(query)}`);
+      urlsToTry.push(`http://127.0.0.1:8787/lan/products/search-images?q=${encodeURIComponent(query)}`);
+    }
 
     let results = null;
     for (const serverUrl of urlsToTry) {
       try {
         const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 12000);
-        const res = await fetch(`${serverUrl}/lan/products/search-images?q=${encodeURIComponent(query)}`, {
-          signal: controller.signal
-        });
+        const t = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(serverUrl, { signal: controller.signal });
         clearTimeout(t);
         if (res.ok) {
           const data = await res.json();
           results = data.results || (Array.isArray(data) ? data : []);
-          break;
+          if (results && results.length > 0) break;
         }
       } catch (_) {}
     }
 
-    if (!results) {
-      if (loading) loading.style.display = 'none';
-      const isRemotePages = location.hostname.endsWith('pages.dev') || location.protocol === 'https:';
-      grid.innerHTML = `
-        <div style="grid-column:1/-1;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;font-size:12px;color:#92400e;line-height:1.45">
-          ℹ️ <strong>Búsqueda directa web:</strong> ${isRemotePages ? 'El acceso web en la nube requiere el servidor local en la misma red o un enlace directo.' : 'Servidor local no disponible en este momento.'}<br>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-            <button type="button" class="cpi-chip" style="background:#16604A;color:#fff;border-color:#16604A;font-size:11px;padding:4px 8px" onclick="document.getElementById('cpiSrcTabAi')?.click()">✨ Generar Foto con IA</button>
-            <button type="button" class="cpi-chip" style="background:#f1f5f9;color:#334155;border-color:#cbd5e1;font-size:11px;padding:4px 8px" onclick="document.getElementById('cpiSrcTabCustom')?.click()">📁 Pegar Enlace o Subir Foto</button>
-          </div>
-        </div>
-      `;
-      return;
+    if (!results) results = [];
+
+    // Si el producto seleccionado tiene foto oficial en la base de datos de JJ Paper, agregarla al principio
+    if (_selectedFlyerProduct && _selectedFlyerProduct.image_url) {
+      const officialUrl = _selectedFlyerProduct.image_url;
+      const alreadyHas = results.some(r => r.image === officialUrl);
+      if (!alreadyHas) {
+        results.unshift({
+          title: `${_selectedFlyerProduct.name} (Catálogo Oficial JJ Paper)`,
+          image: officialUrl,
+          thumbnail: officialUrl,
+          source: 'catalogo_oficial',
+          score: 250,
+          isOfficial: true
+        });
+      }
     }
 
     if (loading) loading.style.display = 'none';
 
     if (results.length === 0) {
       grid.innerHTML = `
-        <div style="grid-column:1/-1;text-align:center;padding:12px;color:#64748b;font-size:12px;line-height:1.5">
-          🔍 No se encontraron fotos exactas en la búsqueda web.<br>
-          <span style="font-size:11px;color:#94a3b8">Puedes generar una fotografía fotorrealista con IA en la pestaña <em>"✨ Estudio IA"</em> o pegar un enlace en <em>"📁 Subir / Enlace"</em>.</span>
+        <div style="grid-column:1/-1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;color:#475569;font-size:12px;line-height:1.5">
+          🔍 No se encontraron fotos exactas en la búsqueda web automática.<br>
+          <span style="font-size:11px;color:#64748b">Puedes generar una foto publicitaria con IA, pegar un enlace directo o subir una foto desde tu equipo:</span>
+          <div style="margin-top:8px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+            <button type="button" class="cpi-chip" style="background:#16604A;color:#fff;border-color:#16604A;font-size:11px;padding:4px 10px;cursor:pointer" onclick="document.getElementById('cpiSrcTabAi')?.click()">✨ Generar Foto con IA</button>
+            <button type="button" class="cpi-chip" style="background:#f1f5f9;color:#334155;border-color:#cbd5e1;font-size:11px;padding:4px 10px;cursor:pointer" onclick="document.getElementById('cpiSrcTabCustom')?.click()">📁 Pegar Enlace / Subir</button>
+          </div>
         </div>
       `;
       return;
     }
 
     grid.innerHTML = results.map((r, idx) => {
-      const isTrusted = (r.score >= 50);
-      const badge = isTrusted ? '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:8px;padding:1px 3px;border-radius:3px;font-weight:700">⭐</span>' : '';
+      const badge = r.isOfficial
+        ? '<span style="position:absolute;bottom:2px;left:2px;background:#16604A;color:#fff;font-size:8px;padding:2px 4px;border-radius:3px;font-weight:700">⭐ Catálogo</span>'
+        : (r.score >= 50 ? '<span style="position:absolute;bottom:2px;left:2px;background:#f59e0b;color:#fff;font-size:8px;padding:1px 3px;border-radius:3px;font-weight:700">⭐ Real</span>' : '');
       return `
       <div class="cpi-web-thumb ${idx === 0 ? 'selected' : ''}" data-url="${escapeHtmlStr(r.image)}" title="${escapeHtmlStr(r.title || r.source || 'Foto')}" style="position:relative;border-radius:8px;border:2px solid ${idx === 0 ? '#16604A' : '#e2e8f0'};overflow:hidden;background:#fff;aspect-ratio:1/1;cursor:pointer;transition:transform 0.15s, border-color 0.15s">
         <img src="${escapeHtmlStr(r.thumbnail || r.image)}" alt="" style="width:100%;height:100%;object-fit:contain;display:block" loading="lazy" onerror="this.parentElement.style.display='none'">

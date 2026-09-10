@@ -45,9 +45,12 @@ function srvRenderModal() {
   if (!box) return;
   const on = srvOnline(_srvRow);
   const mods = _srvRow?.modules || {};
-  const modLabel = { whatsapp: 'WhatsApp', email: 'Correo', rates: 'Tasas', invoices: 'Facturas', campaigns: 'Difusión', countLan: 'Conteo LAN', outbox: 'Cola de envío' };
-  const modChips = Object.keys(modLabel).map(k =>
-    `<span class="srv-mod ${mods[k] ? 'on' : 'off'}">${mods[k] ? '✅' : '⛔'} ${modLabel[k]}</span>`).join('');
+  const modLabel = { whatsapp: 'WhatsApp', email: 'Correo', rates: 'Tasas', invoices: 'Facturas', campaigns: 'Difusión', countLan: 'Conteo LAN', outbox: 'Cola de envío', mixer: 'Puente MixNet' };
+  const mixerInfo = typeof mods.mixer === 'object' && mods.mixer !== null ? mods.mixer : null;
+  const modChips = Object.keys(modLabel).map(k => {
+    const isAct = k === 'mixer' ? (mods.mixer === true || mixerInfo?.online === true) : !!mods[k];
+    return `<span class="srv-mod ${isAct ? 'on' : 'off'}">${isAct ? '✅' : '⛔'} ${modLabel[k]}</span>`;
+  }).join('');
 
   const hbIso = _srvRow?.heartbeat_at || _srvRow?.heartbeat;
   box.innerHTML = `
@@ -65,6 +68,12 @@ function srvRenderModal() {
       </div>
     </div>
     ${on ? `<div class="srv-mods">${modChips}</div>` : ''}
+    ${on && mixerInfo ? `
+    <div style="margin: 8px 0; padding: 6px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 11px; color: #166534; line-height: 1.4;">
+      <strong>📁 Puente MixNet Activo:</strong> <code>${escapeHTML(mixerInfo.primary_dir || 'C:/JJ-PAPER-MIXER')}</code><br>
+      <span>📤 Pedidos exportados: <b>${mixerInfo.exported_orders_count || 0}</b> · Cotizaciones: <b>${mixerInfo.exported_quotes_count || 0}</b> · 📥 Importados: <b>${mixerInfo.imported_count || 0}</b></span>
+      ${mixerInfo.dbf_dir ? `<br><span>💾 Base de datos DBF conectada: <code>${escapeHTML(mixerInfo.dbf_dir)}</code></span>` : ''}
+    </div>` : ''}
     ${CURRENT_PROFILE?.role === 'admin' ? `<div class="srv-actions">
       <button class="btn-p" onclick="srvCommand('restart')" ${on ? '' : 'disabled'}>🔄 Reiniciar</button>
       <button class="btn-o srv-stop" onclick="srvCommand('stop')" ${on ? '' : 'disabled'}>⏹️ Detener</button>

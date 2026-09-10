@@ -1,70 +1,75 @@
 @echo off
 REM ============================================================
-REM  JJ Paper - Instalar el servidor como TAREA DE WINDOWS
+REM  JJ Paper - Instalar Inicio Automatico en Segundo Plano
 REM
-REM  Que hace: el servidor arranca SOLO al prender la PC, sin que
-REM  nadie tenga que hacer doble clic ni dejar una ventana abierta.
-REM  Si se cae, Windows lo vuelve a levantar.
-REM
-REM  Se ejecuta UNA SOLA VEZ, en la PC donde vive el servidor.
-REM  Clic derecho -> "Ejecutar como administrador".
-REM
-REM  Para quitarlo:  DESINSTALAR-INICIO-AUTOMATICO.bat
+REM  Que hace:
+REM  1. Configura el arranque automatico al encender la PC / iniciar sesion.
+REM  2. Usa start-hidden.vbs para que NO aparezca NINGUNA ventana negra.
+REM  3. Funciona en Windows 7, 10 y 11 con unidades de red mapeadas (M:, P:).
+REM  4. Inicia el servidor de inmediato en segundo plano.
 REM ============================================================
-title JJ Paper - Instalar inicio automatico
+title JJ Paper - Instalar Inicio Automatico
 cd /d "%~dp0"
 
-net session >nul 2>&1
-if not "%errorlevel%"=="0" (
-  echo.
-  echo  [!] Falta ejecutarlo como ADMINISTRADOR.
-  echo      Cierra esta ventana, haz clic derecho en el archivo
-  echo      y elige "Ejecutar como administrador".
-  echo.
-  pause
-  exit /b 1
-)
+echo ============================================================
+echo   JJ PAPER -- CONFIGURADOR DE ARRANQUE AUTOMATICO SILENCIOSO
+echo ============================================================
+echo.
 
+set STARTUP_DIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
+set VBS_TARGET=%STARTUP_DIR%\JJPaperServidor.vbs
 set TAREA=JJPaperServidor
 
-echo.
-echo  Instalando la tarea "%TAREA%"...
-echo  Carpeta del servidor: %~dp0
-echo.
+echo  1. Configurando arranque silencioso en Carpeta de Inicio de Windows...
+echo  Ruta de inicio: %STARTUP_DIR%
 
-schtasks /Query /TN "%TAREA%" >nul 2>&1
+REM Crear archivo .vbs puente en la carpeta Startup
+echo ' Lanzador de inicio JJ Paper > "%VBS_TARGET%"
+echo Set WshShell = CreateObject("WScript.Shell") >> "%VBS_TARGET%"
+echo WshShell.CurrentDirectory = "%~dp0" >> "%VBS_TARGET%"
+echo WshShell.Run Chr(34) ^& "%~dp0start-hidden.vbs" ^& Chr(34), 0, False >> "%VBS_TARGET%"
+echo Set WshShell = Nothing >> "%VBS_TARGET%"
+
+if exist "%VBS_TARGET%" (
+  echo  [OK] Acceso directo silencioso creado en carpeta de inicio.
+) else (
+  echo  [!] Advertencia: no se pudo escribir en la carpeta de inicio.
+)
+
+echo.
+echo  2. Verificando tarea programada de respaldo...
+net session >nul 2>&1
 if "%errorlevel%"=="0" (
-  echo  Ya existia: se reemplaza con la configuracion actual.
   schtasks /Delete /TN "%TAREA%" /F >nul 2>&1
-)
-
-REM /RU SYSTEM no sirve aqui: Baileys guarda la sesion en el perfil del usuario
-REM y el servidor debe correr con la misma cuenta que uso para vincular el QR.
-schtasks /Create ^
-  /TN "%TAREA%" ^
-  /TR "\"%~dp0START-SERVIDOR.bat\"" ^
-  /SC ONLOGON ^
-  /RL HIGHEST ^
-  /F
-
-if not "%errorlevel%"=="0" (
-  echo.
-  echo  [!] No se pudo crear la tarea. Revisa el mensaje de arriba.
-  pause
-  exit /b 1
+  schtasks /Create ^
+    /TN "%TAREA%" ^
+    /TR "wscript.exe \"%~dp0start-hidden.vbs\"" ^
+    /SC ONLOGON ^
+    /RL HIGHEST ^
+    /F >nul 2>&1
+  if "%errorlevel%"=="0" (
+    echo  [OK] Tarea programada de Windows creada con privilegios elevados.
+  )
+) else (
+  echo  [i] Tarea de inicio configurada a nivel de usuario (100%% funcional sin requerir Admin).
 )
 
 echo.
-echo  ============================================
-echo   LISTO. El servidor arrancara solo al iniciar sesion en Windows.
-echo  ============================================
+echo  3. Iniciando el servidor AHORA en segundo plano...
+wscript start-hidden.vbs
+
+timeout /t 3 /nobreak >nul
+
 echo.
-echo   Para prenderlo AHORA sin reiniciar:
-echo      schtasks /Run /TN "%TAREA%"
+echo ============================================================
+echo   INSTALACION COMPLETADA CON EXITO
+echo ============================================================
 echo.
-echo   Para ver si esta corriendo:
-echo      schtasks /Query /TN "%TAREA%"
-echo.
-echo   Los registros quedan en:  %~dp0logs\server.log
+echo   * El servidor ya se encuentra corriendo en segundo plano.
+echo   * Cada vez que se encienda la PC, arrancara automaticamente sin ventana negra.
+echo   * Para revisar su estado o registros, haz doble clic en:
+echo     ESTADO-SERVIDOR.bat
+echo   * Para detenerlo cuando lo necesites, haz doble clic en:
+echo     DETENER-SERVIDOR.bat
 echo.
 pause

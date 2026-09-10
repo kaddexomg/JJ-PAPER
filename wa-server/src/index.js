@@ -11,7 +11,7 @@ import { startEmailCampaigns } from './email-campaigns.js';
 import { startHeartbeat } from './heartbeat.js';
 import { startWaActions } from './wa-actions.js';
 import { startRetention } from './retention.js';
-import { startMixer } from './mixer.js';
+import { startMixer, getMixerStatus } from './mixer.js';
 
 // Candado de Instancia Única (Mutex de Red Local 127.0.0.1:8786):
 // Previene terminantemente la ejecución de dos instancias simultáneas de wa-server.
@@ -66,7 +66,8 @@ startHeartbeat(
         perfil: s.profileId,
         sana: s.isHealthy(),
         minSinSenal: s.lastEventAt ? Math.round((Date.now() - s.lastEventAt) / 60000) : null
-      }))
+      })),
+      mixer: getMixerStatus()
     };
   }
 );

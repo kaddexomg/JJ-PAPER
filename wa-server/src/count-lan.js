@@ -503,6 +503,66 @@ async function getMixnetPedidos(req, res) {
   }
 }
 
+async function getMixnetCotizaciones(req, res) {
+  try {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const format = parsedUrl.searchParams.get('format') || 'json';
+    const days = parseInt(parsedUrl.searchParams.get('days') || '3', 10);
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const { data: quotes, error } = await dbCore.from('jjp_quotes')
+      .select('id, quote_number, client_name, rif, phone, city, items, estimated_total_usd, exchange_rate, notes, seller_id, status, created_at')
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      log.error({ err: error.message }, 'mixnet: error consultando cotizaciones');
+      return sendJSON(res, 500, { ok: false, error: error.message });
+    }
+
+    if (format === 'csv') {
+      let csv = 'Cotizacion,Fecha,Cliente,RIF,Telefono,Ciudad,SKU,Producto,Cantidad,PrecioUSD,SubtotalUSD,Tasa,TotalUSD,TotalBs\n';
+      for (const q of quotes || []) {
+        const items = Array.isArray(q.items) ? q.items : JSON.parse(q.items || '[]');
+        const rate = q.exchange_rate || 0;
+        const totalUsd = q.estimated_total_usd || 0;
+        const totalBs = (totalUsd * rate).toFixed(2);
+        for (const i of items) {
+          const row = [
+            q.quote_number || '',
+            q.created_at || '',
+            `"${(q.client_name || '').replace(/"/g, '""')}"`,
+            `"${(q.rif || '').replace(/"/g, '""')}"`,
+            `"${(q.phone || '').replace(/"/g, '""')}"`,
+            `"${(q.city || '').replace(/"/g, '""')}"`,
+            i.sku || '',
+            `"${(i.name || '').replace(/"/g, '""')}"`,
+            i.qty || 0,
+            i.price_usd || 0,
+            i.subtotal_usd || 0,
+            rate,
+            totalUsd,
+            totalBs
+          ].join(',');
+          csv += row + '\n';
+        }
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename=cotizaciones_mixnet.csv'
+      });
+      return res.end(csv);
+    }
+
+    return sendJSON(res, 200, { ok: true, count: quotes?.length || 0, quotes });
+  } catch (e) {
+    log.error({ err: e.message }, 'mixnet: excepcion en getMixnetCotizaciones');
+    return sendJSON(res, 500, { ok: false, error: e.message });
+  }
+}
+
 // ---- Rutas ----
 async function handle(req, res) {
   const { url, method } = req;
@@ -583,6 +643,10 @@ async function handle(req, res) {
 
     if (route === '/lan/mixnet/pedidos') {
       return getMixnetPedidos(req, res);
+    }
+
+    if (route === '/lan/mixnet/cotizaciones') {
+      return getMixnetCotizaciones(req, res);
     }
 
     if (route === '/lan/products/search-images') {

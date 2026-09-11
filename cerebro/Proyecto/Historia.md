@@ -148,4 +148,13 @@ tags: [proyecto, cronologia]
   (Google OAuth, Gmail API, descargas de adjuntos e ingesta).
 - Optimización RAM: TTL 2h y límite de 50 archivos en caché de adjuntos en memoria (`attachCache`).
 
+**11-sep — Suite de Prospección B2B e Hiper-Personalización con IA**
+- Módulo exclusivo Admin (`admin/prospectos.html` + `vprospectos.js`) con tabla `jjp_prospects` en Core.
+- Poblada con las 131 cuentas corporativas de `CRM AMPLIO.xlsx` con sincronización continua sin duplicados (archivo o Ctrl+V).
+- Motor IA B2B (`analyzeAndDraftProspectB2B`): matriz de 24 sectores, dolor operativo, 2 Insumos Core + 1 Cross-sell, 4 ángulos, 130-180 palabras exactas con los 4 pilares y firma de Keyder Salazar (0412-4676073).
+- Priorización Flash-Lite (<1.5s) y extracción JSON tolerante a saltos de línea literales.
+- Campañas masivas de WhatsApp y Email directas desde Prospectos hacia Proyecto B.
+- Flujo Universal de IA (1. Analizar -> 2. Redactar -> 3. Enviar) para toda la cartera de clientes (`jjp_customers`) con botón `🧠 Flujo IA` en `admin/clientes.html`.
+- Integración en `campaign-editor.js` (`🎯 Abordaje B2B por Sector`) y en `correo.js` (escenario B2B formal). Ver [[2026-09-11]].
+
 Relacionado: [[Vision y metas]] · [[Pendientes]] · [[Historial de auditorias]]

@@ -457,3 +457,13 @@ No se detectaron tests.
     - **Mensaje WhatsApp con Spintax Anti-Baneo**: Estructura ágil de 10 a 14 líneas, variables dinámicas y contacto de Keyder Salazar.
 - **Flujo de Conversión Directa a Cartera (`jjp_customers`)**:
   - Botón de conversión con 1 clic que traslada el prospecto ganado a la Zona 020 de Keyder Salazar sin pérdida de historial.
+- **Campañas Masivas desde Prospectos (`vprospectos.js`, `admin/prospectos.html`)**:
+  - Botones dedicados `📢 Campaña WhatsApp` y `📣 Campaña Email` en el topbar de Prospectos.
+  - Encola campañas directamente hacia `jjp_wa_campaigns` / `jjp_email_campaigns` en Proyecto B.
+  - Modo dual: Hiper-personalizado con IA (cada empresa recibe su copy específico generado) o Plantilla con Spintax y variables.
+- **Flujo Universal de IA para Toda la Cartera de Clientes (`aclients.js`, `admin/clientes.html`)**:
+  - Botón `🧠 Flujo IA` en cada fila de cliente de la cartera general (`jjp_customers`).
+  - Aplica estrictamente el pipeline en 3 pasos: 1. Analizar cuenta (rubro, dolor y 2 core + 1 cross-sell) → 2. Redactar copy (130-180 palabras con 4 pilares y Spintax) → 3. Contactar (WhatsApp directo o Redactor CRM de Correo).
+- **Integración en Editor de Campañas y Correo CRM (`campaign-editor.js`, `correo.js`)**:
+  - Botón `🎯 Abordaje B2B por Sector` en la barra de IA de `CampaignEditor`.
+  - Escenario `🎯 Abordaje B2B por Necesidades` en el redactor de correo CRM (`correo.js`).

@@ -878,6 +878,198 @@ async function saveManualProspect() {
 }
 
 /* --------------------------------------------------------------------------
+   10. Campañas Masivas de WhatsApp y Email para Prospectos B2B
+   -------------------------------------------------------------------------- */
+let currentCampChannel = 'whatsapp';
+
+function openProspectCampaignModal(channel = 'whatsapp') {
+  currentCampChannel = channel;
+  const isEmail = channel === 'email';
+
+  // Filtrar prospectos elegibles según canal
+  const eligible = filteredProspects.filter(p => {
+    if (isEmail) {
+      return p.email && p.email.includes('@');
+    } else {
+      const phone = (p.phone_2 || p.phone_1 || '').replace(/\D/g, '');
+      const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(phone);
+      const isIntlMobile = phone.length >= 11 && !phone.startsWith('0') && !/^(?:58|0)?(?:2\d{2})\d{7}$/.test(phone);
+      return (isVeMobile || isIntlMobile);
+    }
+  });
+
+  document.getElementById('pcModalTitle').textContent = isEmail 
+    ? '📣 Nueva Campaña de Email para Prospectos B2B' 
+    : '📢 Nueva Campaña de WhatsApp para Prospectos B2B';
+
+  const sectorTag = currentSectorFilter !== 'todos' ? `[${currentSectorFilter}] ` : '';
+  document.getElementById('pcCampName').value = (isEmail ? 'Campaña Email ' : 'Difusión WA ') + sectorTag + new Date().toLocaleDateString('es-VE');
+  document.getElementById('pcEligibleCount').textContent = `${eligible.length} cuentas con ${isEmail ? 'correo válido' : 'WhatsApp verificado'}`;
+
+  document.getElementById('pcSubjectGroup').style.display = isEmail ? 'block' : 'none';
+  if (isEmail) {
+    document.getElementById('pcSubject').value = 'Propuesta de abastecimiento operativo y homologación | JJ Paper';
+  }
+
+  const defaultWa = `{Hola|Buen día|Estimado(a)} {{nombre}} 👋, un cordial saludo de Keyder Salazar de JJ Paper C.A.\n\nPonemos a su disposición suministro directo mayorista en consumibles de punto de venta, papelería corporativa y embalaje:\n*📦 Rollos térmicos POS y cajas registradoras*\n*📦 Carpetas reglamentarias y resmas Bond*\n*📦 Cintas de empaque industrial*\n\n• Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n• Cotizaciones formales en PDF emitidas en minutos.\n• Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV.\n\n👉 Puede revisar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal?|¿Gusta que le verifiquemos disponibilidad para su despacho de esta semana?|Quedo a su disposición para coordinar su requerimiento.}\n\nAtentamente,\nKeyder José Salazar | Teléfono/WhatsApp: 0412-4676073\nJJ Paper C.A.`;
+
+  const defaultEmail = `Estimado(a) {{nombre}}:\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación de sus sedes en Caracas, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nPonemos a su disposición nuestro suministro directo en insumos de alta demanda:\n• Rollos térmicos y consumibles para puntos de venta y facturación (cero quiebres de stock).\n• Carpetas reglamentarias de fibra marrón, archivadores y resmas de papel Bond para resguardo documental.\n• Cintas de embalaje industrial de alto micraje para almacén y despacho.\n\nBeneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 700 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\nKeyder José Salazar\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: 0412-4676073\nCaracas, Venezuela`;
+
+  document.getElementById('pcBody').value = isEmail ? defaultEmail : defaultWa;
+
+  document.getElementById('prospectCampaignModal').classList.add('op');
+}
+
+function closeProspectCampaignModal() {
+  document.getElementById('prospectCampaignModal')?.classList.remove('op');
+}
+
+async function launchProspectsCampaign() {
+  const isEmail = currentCampChannel === 'email';
+  const name = document.getElementById('pcCampName').value.trim();
+  const body = document.getElementById('pcBody').value.trim();
+  const subject = isEmail ? document.getElementById('pcSubject').value.trim() : null;
+  const mode = document.getElementById('pcModeSelect').value; // 'ia_custom' o 'template'
+  const speed = document.getElementById('pcSpeedSelect')?.value || 'human';
+
+  if (!name) { showToast('Ingresa un nombre para la campaña', 'warn'); return; }
+  if (!body) { showToast('Ingresa el texto del mensaje', 'warn'); return; }
+  if (isEmail && !subject) { showToast('Ingresa el asunto del correo', 'warn'); return; }
+
+  const eligible = filteredProspects.filter(p => {
+    if (isEmail) return p.email && p.email.includes('@');
+    const phone = (p.phone_2 || p.phone_1 || '').replace(/\D/g, '');
+    const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(phone);
+    const isIntlMobile = phone.length >= 11 && !phone.startsWith('0') && !/^(?:58|0)?(?:2\d{2})\d{7}$/.test(phone);
+    return (isVeMobile || isIntlMobile);
+  });
+
+  if (eligible.length === 0) {
+    showToast('No hay prospectos válidos en la lista filtrada', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('pcLaunchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Encolando campaña… ⏳';
+
+  try {
+    const { data: prof } = await sb.from('jjp_profiles').select('id, name').eq('role', 'admin').limit(1).single();
+    const ownerId = prof?.id || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+
+    let delayMin = 45, delayMax = 90, batchSize = 10, batchPause = 5;
+    if (speed === 'safe') { delayMin = 25; delayMax = 55; }
+    if (speed === 'ultra_safe') { delayMin = 60; delayMax = 120; }
+    if (speed === 'fast') { delayMin = 15; delayMax = 30; }
+
+    if (!isEmail) {
+      // 1. Crear campaña en jjp_wa_campaigns
+      const campPayload = {
+        owner_id: ownerId,
+        name: name,
+        kind: 'prospectos',
+        body: body,
+        message: body,
+        status: 'en_cola',
+        delay_min_s: delayMin,
+        delay_max_s: delayMax,
+        batch_size: batchSize,
+        batch_pause_m: batchPause,
+        total: eligible.length
+      };
+
+      const { data: camp, error: cErr } = await sb.from('jjp_wa_campaigns').insert(campPayload).select('id').single();
+      if (cErr) throw cErr;
+
+      // 2. Insertar destinatarios en jjp_wa_campaign_targets
+      const targets = eligible.map(p => {
+        const rawPhone = (p.phone_2 || p.phone_1 || '').replace(/\D/g, '');
+        let norm = rawPhone;
+        if (norm.startsWith('0')) norm = '58' + norm.slice(1);
+        else if (!norm.startsWith('58')) norm = '58' + norm;
+
+        const targetCustomBody = (mode === 'ia_custom' && p.custom_wa_body) ? p.custom_wa_body : body;
+
+        return {
+          campaign_id: camp.id,
+          owner_id: ownerId,
+          phone: norm,
+          name: p.company_name,
+          vars: {
+            nombre: p.contact_name || p.company_name,
+            empresa: p.company_name,
+            vendedor: KEYDER_PROFILE.name,
+            link: 'https://jj-paper.pages.dev',
+            custom_body: targetCustomBody
+          },
+          status: 'pending'
+        };
+      });
+
+      for (let i = 0; i < targets.length; i += 50) {
+        const chunk = targets.slice(i, i + 50);
+        await sb.from('jjp_wa_campaign_targets').insert(chunk);
+      }
+
+      showToast(`¡Campaña de WhatsApp "${name}" encolada con éxito para ${eligible.length} prospectos! 🚀`);
+    } else {
+      // 1. Crear campaña en jjp_email_campaigns
+      const campPayload = {
+        owner_id: ownerId,
+        name: name,
+        kind: 'prospectos',
+        subject: subject,
+        body: body,
+        status: 'running',
+        delay_min_s: 15,
+        delay_max_s: 45,
+        total: eligible.length
+      };
+
+      const { data: camp, error: cErr } = await sb.from('jjp_email_campaigns').insert(campPayload).select('id').single();
+      if (cErr) throw cErr;
+
+      // 2. Insertar destinatarios en jjp_email_campaign_targets
+      const targets = eligible.map(p => {
+        const targetCustomSubject = (mode === 'ia_custom' && p.suggested_subject) ? p.suggested_subject : subject;
+        const targetCustomBody = (mode === 'ia_custom' && p.custom_email_body) ? p.custom_email_body : body;
+
+        return {
+          campaign_id: camp.id,
+          owner_id: ownerId,
+          email: p.email.toLowerCase().trim(),
+          to_addr: p.email.toLowerCase().trim(),
+          name: p.company_name,
+          vars: {
+            nombre: p.contact_name || p.company_name,
+            empresa: p.company_name,
+            vendedor: KEYDER_PROFILE.name,
+            custom_subject: targetCustomSubject,
+            custom_body: targetCustomBody
+          },
+          status: 'pending'
+        };
+      });
+
+      for (let i = 0; i < targets.length; i += 50) {
+        const chunk = targets.slice(i, i + 50);
+        await sb.from('jjp_email_campaign_targets').insert(chunk);
+      }
+
+      showToast(`¡Campaña de Correo "${name}" iniciada con éxito para ${eligible.length} prospectos! 🚀`);
+    }
+
+    closeProspectCampaignModal();
+  } catch (err) {
+    console.error('Error lanzando campaña de prospectos:', err);
+    showToast('Error lanzando campaña: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Lanzar Campaña Ahora';
+  }
+}
+
+/* --------------------------------------------------------------------------
    Auto-inicialización
    -------------------------------------------------------------------------- */
 document.addEventListener('DOMContentLoaded', async () => {

@@ -704,7 +704,8 @@ function openMailAiComposer(prefillReply = null) {
         <div class="fg">
           <label class="fl" style="font-weight:700;font-size:12px">Tipo o Intención del Correo</label>
           <select id="mailAiScenario" class="fi" style="width:100%">
-            <option value="cotizacion" ${prefillReply ? '' : 'selected'}>📄 Cotización / Presupuesto Formal</option>
+            <option value="propuesta_b2b" ${prefillReply ? '' : 'selected'}>🎯 Abordaje B2B por Necesidades (130-180 palabras | 4 Pilares)</option>
+            <option value="cotizacion">📄 Cotización / Presupuesto Formal</option>
             <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
             <option value="cobro">💳 Recordatorio Amistoso de Cobro / Pago</option>
             <option value="promo">📣 Promoción de Catálogo / Novedades</option>
@@ -790,14 +791,24 @@ async function mailAiGenerate() {
 
   try {
     const profile = window.CURRENT_PROFILE || window.MAIL_ME || {};
-    const result = await window.GeminiClient.draftEmail({
-      scenario,
-      toName: to,
-      toEmail: to.includes('@') ? to : '',
-      notes,
-      originalEmail: _mailAiReplyContext?.originalText || '',
-      sellerName: profile.full_name || profile.name || 'Asesor JJ Paper'
-    });
+    let result;
+    if (scenario === 'propuesta_b2b') {
+      result = await window.GeminiClient.analyzeAndDraftProspectB2B({
+        companyName: to || 'Cliente Corporativo',
+        notes,
+        sellerName: profile.full_name || profile.name || 'Keyder José Salazar',
+        sellerPhone: '0412-4676073'
+      });
+    } else {
+      result = await window.GeminiClient.draftEmail({
+        scenario,
+        toName: to,
+        toEmail: to.includes('@') ? to : '',
+        notes,
+        originalEmail: _mailAiReplyContext?.originalText || '',
+        sellerName: profile.full_name || profile.name || 'Asesor JJ Paper'
+      });
+    }
 
     document.getElementById('mailAiResSubject').value = result.subject || '';
     document.getElementById('mailAiResBody').value = result.body || '';

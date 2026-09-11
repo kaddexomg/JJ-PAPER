@@ -251,6 +251,7 @@ window.CampaignEditor = (() => {
                 <button type="button" id="ceAiDraftBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.aiDraftTemplate()" title="Redactar o personalizar plantilla con IA">🪄 Redactar con IA</button>
                 <button type="button" id="ceAiSpintaxBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%);color:#991b1b;border-color:#fecaca;font-weight:700" onclick="CampaignEditor.aiAntiSpamSpintax()" title="Generar Spintax anti-baneo automático">🛡️ Variar Anti-Spam IA</button>
                 <button type="button" id="ceAiFlyerBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);color:#1e40af;border-color:#bfdbfe;font-weight:700" onclick="CampaignEditor.aiDesignFlyer()" title="Diseñar Flyer gráfico del producto con IA">🎨 Diseñar Flyer con IA</button>
+                <button type="button" id="ceAiSectorBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%);color:#6b21a8;border-color:#d8b4fe;font-weight:700" onclick="CampaignEditor.aiSectorPitch()" title="Generar propuesta estructurada por sector con IA">🎯 Abordaje B2B por Sector</button>
               </div>
 
               <div class="ce-variables-toolbar">
@@ -744,6 +745,58 @@ window.CampaignEditor = (() => {
     }
   }
 
+  async function aiSectorPitch() {
+    const isEmail = currentConfig?.channel === 'email';
+    const sector = prompt('Ingresa el sector o rubro para el abordaje B2B:\n(Ej: Supermercados, Retail y Farmacias, Banca, Clínicas y Salud, Logística, Colegios)', 'Supermercados');
+    if (!sector) return;
+
+    const btn = document.getElementById('ceAiSectorBtn');
+    const origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Analizando sector con IA… ⏳';
+    }
+
+    try {
+      await ensureGeminiClient();
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+
+      const result = await window.GeminiClient.analyzeAndDraftProspectB2B({
+        companyName: '{{empresa}}',
+        sector: sector,
+        contactName: '{{nombre}}',
+        sellerName: currentConfig?.seller?.name || 'Keyder José Salazar',
+        sellerPhone: currentConfig?.seller?.phone || '0412-4676073'
+      });
+
+      if (isEmail) {
+        if (result.subject && document.getElementById('ceSubjectInput')) {
+          document.getElementById('ceSubjectInput').value = result.subject;
+        }
+        if (result.email_body) {
+          document.getElementById('ceMessageInput').value = result.email_body;
+        }
+      } else {
+        if (result.wa_body) {
+          document.getElementById('ceMessageInput').value = result.wa_body;
+        }
+      }
+
+      updatePreview();
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🎯 Abordaje Aplicado ✓';
+        setTimeout(() => { btn.textContent = origText; }, 2500);
+      }
+    } catch (err) {
+      alert('Error generando propuesta por sector: ' + err.message);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
+  }
+
   async function aiAntiSpamSpintax() {
     const textarea = document.getElementById('ceMessageInput');
     const text = (textarea?.value || '').trim();
@@ -929,6 +982,6 @@ window.CampaignEditor = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, openCatalogPicker, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch, aiDraftTemplate, aiAntiSpamSpintax, aiDesignFlyer };
+  return { open, close, openCatalogPicker, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch, aiDraftTemplate, aiSectorPitch, aiAntiSpamSpintax, aiDesignFlyer };
 })();
 

@@ -138,5 +138,14 @@ tags: [proyecto, cronologia]
   redirige a los admins a `admin/catalogo.html` (los vendedores siguen igual).
 - Bump `?v=20260828_cat_admin` en sidenav.js y sus 35 referencias HTML.
 
+**10-sep — Blindaje QuickEdit en Windows + Timeouts de Red y Optimización de RAM**
+- Diagnóstico del congelamiento de 38 min (12:14 - 12:54): en Windows, QuickEdit
+  entra en modo selección al hacer clic en la ventana de consola y bloquea `stdout`
+  (`pino-pretty`) pausando de forma síncrona el event-loop de Node.js.
+- Solución: desactivación de QuickEdit en Registro de Windows (`HKCU\Console`), script
+  `disable-quickedit.ps1` en arranque de `START-SERVIDOR.bat` y guarda en `index.js`.
+- Blindaje `email.js`: timeouts `AbortSignal.timeout` (15s a 30s) en todas las llamadas `fetch`
+  (Google OAuth, Gmail API, descargas de adjuntos e ingesta).
+- Optimización RAM: TTL 2h y límite de 50 archivos en caché de adjuntos en memoria (`attachCache`).
 
 Relacionado: [[Vision y metas]] · [[Pendientes]] · [[Historial de auditorias]]

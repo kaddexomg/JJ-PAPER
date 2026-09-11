@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospectos B2B & IA Comercial | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+
+<style>
+/* Estilos especializados para Prospectos B2B e IA */
+.prospects-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.kpi-prospect-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--bdr, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+}
+.kpi-prospect-card .num {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--dark, #0f172a);
+  margin-top: 4px;
+}
+.kpi-prospect-card .lbl {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.of-tab-btn {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.of-tab-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.of-tab-btn.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(15,118,110,0.25);
+}
+
+.badge-sector {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.prospect-status-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-block;
+  white-space: nowrap;
+}
+.badge-gray    { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.badge-purple  { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+.badge-blue    { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.badge-emerald { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.badge-green   { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+
+.btn-ai-analyze-sm {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  color: #166534;
+  border: 1px solid #86efac;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-ai-analyze-sm:hover {
+  background: #86efac;
+  color: #064e3b;
+}
+
+.prospect-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.btn-action-icon {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-action-icon:hover {
+  background: #fff;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.ai-box-insights {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 14px;
+}
+.prospect-row.row-analyzed {
+  background: rgba(240, 253, 244, 0.35);
+}
+
+/* Modales */
+.word-count-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: inline-block;
+}
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <!-- Aside Auto-Inyectado por sidenav.js -->
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- sidenav.js reconstruye este menú -->
+    </nav>
+    <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <!-- Topbar -->
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>🎯 Prospectos B2B e Inteligencia Comercial</h2>
+          <p>Análisis de necesidades por cuenta con IA, generación de copys especializados y prospección directa</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-o" id="btnBatchAnalyze" onclick="analyzeBatchProspects(5)" title="Analiza con IA las siguientes cuentas sin copy">⚡ Analizar Lote con IA</button>
+        <button class="btn-o" onclick="openImportModal()" title="Sincronizar archivo de Google Sheets o pegar celdas">⬆️ Importar Google Sheets</button>
+        <button class="btn-p" onclick="openNewProspectModal()">＋ Nuevo Prospecto</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <!-- KPI Cards -->
+      <div class="prospects-kpi-grid">
+        <div class="kpi-prospect-card">
+          <span class="lbl">Total Cuentas</span>
+          <span class="num" id="kpiTotalProspects">0</span>
+        </div>
+        <div class="kpi-prospect-card" style="border-left:4px solid #7e22ce">
+          <span class="lbl">Analizados con IA</span>
+          <span class="num" id="kpiAnalyzedProspects" style="color:#7e22ce">0</span>
+        </div>
+        <div class="kpi-prospect-card" style="border-left:4px solid #059669">
+          <span class="lbl">Contactados</span>
+          <span class="num" id="kpiContactedProspects" style="color:#059669">0</span>
+        </div>
+        <div class="kpi-prospect-card" style="border-left:4px solid #d97706">
+          <span class="lbl">Por Contactar</span>
+          <span class="num" id="kpiPendingProspects" style="color:#d97706">0</span>
+        </div>
+        <div class="kpi-prospect-card" style="border-left:4px solid #2563eb">
+          <span class="lbl">Ganados / Cartera</span>
+          <span class="num" id="kpiWonProspects" style="color:#2563eb">0</span>
+        </div>
+      </div>
+
+      <!-- Pestañas de Estado -->
+      <div class="status-tabs" id="statusFilterTabs">
+        <button class="of-tab-btn active" data-status="todos" onclick="setStatusFilter('todos')">Todos</button>
+        <button class="of-tab-btn" data-status="nuevo" onclick="setStatusFilter('nuevo')">🆕 Nuevos / Pendientes</button>
+        <button class="of-tab-btn" data-status="analizado" onclick="setStatusFilter('analizado')">🧠 Analizados con IA</button>
+        <button class="of-tab-btn" data-status="contactado" onclick="setStatusFilter('contactado')">💬 Contactados</button>
+        <button class="of-tab-btn" data-status="ganado" onclick="setStatusFilter('ganado')">⭐ Ganados (Clientes)</button>
+      </div>
+
+      <!-- Filtro por Sectores (Chips) -->
+      <div class="of-chips" id="sectorChipsContainer" style="margin-bottom:14px">
+        <!-- Renderizado dinámicamente -->
+      </div>
+
+      <!-- Tabla de Prospectos -->
+      <div class="admin-table-wrap">
+        <div class="table-top">
+          <div style="font-weight:700;color:var(--dark);font-size:15px">
+            🏢 Directorio de Cuentas B2B
+          </div>
+          <input class="fi" id="prospectSearchInput" placeholder="Buscar por empresa, contacto, cargo, teléfono..." oninput="applyProspectFilters()" style="max-width:320px;font-size:13px">
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="min-width:240px">Empresa / Sede</th>
+                <th>Sector</th>
+                <th style="min-width:180px">Contacto / Cargo</th>
+                <th>Teléfonos / Correo</th>
+                <th>Estado</th>
+                <th>Inteligencia IA</th>
+                <th style="text-align:right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="prospectsTableBody">
+              <tr><td colspan="7" class="table-empty">Cargando prospectos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal 1: Ficha y Análisis de la Cuenta -->
+<div class="modal-overlay" id="prospectDetailModal" onclick="if(event.target===this)closeProspectDetailModal()">
+  <div class="modal-box" style="max-width:700px">
+    <div class="modal-hd">
+      <div>
+        <h3 id="pdmTitle">Detalle de la Cuenta</h3>
+        <span class="badge-sector" id="pdmSector" style="margin-top:4px">Sector</span>
+      </div>
+      <button class="modal-close" onclick="closeProspectDetailModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;background:#f8fafc;padding:12px;border-radius:8px">
+        <div><strong style="color:#475569;font-size:11.5px">Contacto & Cargo:</strong> <div id="pdmContact" style="font-weight:600">—</div></div>
+        <div><strong style="color:#475569;font-size:11.5px">Teléfonos:</strong> <div id="pdmPhones" style="font-weight:600">—</div></div>
+        <div><strong style="color:#475569;font-size:11.5px">Correo:</strong> <div id="pdmEmail" style="font-weight:600;color:#2563eb">—</div></div>
+        <div><strong style="color:#475569;font-size:11.5px">Dirección / Sede:</strong> <div id="pdmAddress" style="font-weight:600">—</div></div>
+        <div style="grid-column: span 2"><strong style="color:#475569;font-size:11.5px">Notas del Prospecto:</strong> <div id="pdmNotes" style="font-size:12px;color:#334155">—</div></div>
+      </div>
+
+      <div id="pdmAiContent">
+        <!-- Renderizado dinámico del análisis IA -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: Correo Personalizado (130-180 palabras | 4 Pilares) -->
+<div class="modal-overlay" id="prospectEmailModal" onclick="if(event.target===this)closeProspectEmailModal()">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-hd">
+      <div>
+        <h3>✉️ Correo Comercial Especializado</h3>
+        <span class="word-count-tag" id="pemWordCountBadge" style="margin-top:4px">0 palabras</span>
+      </div>
+      <button class="modal-close" onclick="closeProspectEmailModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg" style="margin-bottom:10px">
+        <label class="fl">Destinatario:</label>
+        <input class="fi" id="pemTo" placeholder="correo@empresa.com">
+      </div>
+      <div class="fg" style="margin-bottom:10px">
+        <label class="fl">Asunto (Seleccionado del Banco Dinámico):</label>
+        <input class="fi" id="pemSubject">
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label class="fl">Cuerpo del Correo (Estructura: Saludo, Necesidad, 2 Core + 1 Cross-sell, 4 Pilares y Firma):</label>
+        <textarea class="fi" id="pemBody" rows="12" style="font-family:inherit;font-size:13px;line-height:1.5"></textarea>
+      </div>
+
+      <div style="background:#f1f5f9;padding:10px 12px;border-radius:6px;font-size:11.5px;color:#475569;margin-bottom:14px;line-height:1.4">
+        📎 <strong>Adjunto obligatorio:</strong> Se incluye automáticamente la <em>Lista de Precios Oficial JJ Paper (PDF)</em> con más de 700 artículos al enviar este correo.
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
+        <button class="btn-o" onclick="copyEmailToClipboard()">📋 Copiar Asunto y Cuerpo</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-o" onclick="closeProspectEmailModal()">Cerrar</button>
+          <button class="btn-p" onclick="markProspectContactedEmail()">✔ Marcar como Contactado</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: WhatsApp con Spintax Anti-Baneo -->
+<div class="modal-overlay" id="prospectWaModal" onclick="if(event.target===this)closeProspectWaModal()">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-hd">
+      <div>
+        <h3>💬 Mensaje WhatsApp para Prospecto</h3>
+        <span style="font-size:11.5px;color:#059669;font-weight:600">🛡️ Con Spintax anti-baneo y formato móvil</span>
+      </div>
+      <button class="modal-close" onclick="closeProspectWaModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg" style="margin-bottom:10px">
+        <label class="fl">Número Celular (Móvil WhatsApp):</label>
+        <input class="fi" id="pwmPhone" placeholder="04121234567">
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label class="fl">Mensaje Estructurado:</label>
+        <textarea class="fi" id="pwmBody" rows="10" style="font-family:inherit;font-size:13px;line-height:1.5"></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
+        <button class="btn-o" onclick="copyWaToClipboard()">📋 Copiar Mensaje Resuelto</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-o" onclick="closeProspectWaModal()">Cerrar</button>
+          <button class="btn-p" style="background:#059669;border-color:#059669" onclick="openExternalWhatsApp()">💬 Abrir WhatsApp y Contactar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 4: Importación Continua desde Google Sheets / Excel -->
+<div class="modal-overlay" id="importProspectsModal" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-hd">
+      <h3>⬆️ Importar Prospectos desde Google Sheets</h3>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#475569;margin-bottom:14px;line-height:1.4">
+        Sube el archivo de Google Sheets o pega directamente las celdas copiadas. El sistema realiza <strong>sincronización continua sin duplicar</strong> (actualiza datos si la empresa ya existe y agrega los nuevos).
+      </p>
+
+      <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px dashed #cbd5e1;margin-bottom:16px;text-align:center">
+        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción A: Subir Archivo .XLSX o .CSV</label>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFileInput(this)">
+        <button class="btn-p sm" onclick="document.getElementById('importFileInput').click()">📁 Seleccionar CRM AMPLIO.xlsx</button>
+      </div>
+
+      <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px">
+        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción B: Pegar Celdas Directo de Google Sheets (Ctrl + V)</label>
+        <textarea class="fi" id="pasteImportTextarea" rows="4" placeholder="Copia las filas en tu hoja de cálculo y pégalas aquí..."></textarea>
+        <button class="btn-o sm" style="margin-top:8px" onclick="handlePasteImport()">📥 Procesar Celdas Pegadas</button>
+      </div>
+
+      <div style="text-align:right">
+        <button class="btn-o" onclick="closeImportModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 5: Creación / Edición Manual -->
+<div class="modal-overlay" id="editProspectModal" onclick="if(event.target===this)closeEditProspectModal()">
+  <div class="modal-box" style="max-width:600px">
+    <div class="modal-hd">
+      <h3 id="editProspectModalTitle">Nuevo Prospecto</h3>
+      <button class="modal-close" onclick="closeEditProspectModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="fl">Empresa / Razón Social *</label><input class="fi" id="ep-company"></div>
+        <div class="fg">
+          <label class="fl">Sector</label>
+          <input class="fi" id="ep-sector" placeholder="Ej: Supermercados, Retail, Salud...">
+        </div>
+        <div class="fg"><label class="fl">Nombre del Contacto</label><input class="fi" id="ep-contact"></div>
+        <div class="fg"><label class="fl">Cargo / Departamento</label><input class="fi" id="ep-role" placeholder="Gerente de Compras"></div>
+        <div class="fg"><label class="fl">Teléfono 1 (Fijo CANTV)</label><input class="fi" id="ep-tel1"></div>
+        <div class="fg"><label class="fl">Teléfono 2 (Celular WhatsApp)</label><input class="fi" id="ep-tel2" placeholder="04121234567"></div>
+        <div class="fg" style="grid-column: span 2"><label class="fl">Correo Electrónico</label><input class="fi" id="ep-email" type="email"></div>
+        <div class="fg" style="grid-column: span 2"><label class="fl">Dirección / Sede</label><input class="fi" id="ep-address"></div>
+        <div class="fg" style="grid-column: span 2"><label class="fl">Notas / Intereses previos</label><textarea class="fi" id="ep-notes" rows="2"></textarea></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeEditProspectModal()">Cancelar</button>
+        <button class="btn-p" onclick="saveManualProspect()">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<!-- Scripts del Sistema -->
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js?v=20260911_prospects"></script>
+<script src="../assets/js/gemini-client.js?v=20260911_prospects_ai"></script>
+<script src="../assets/js/admin/vprospectos.js?v=20260911_v1"></script>
+</body>
+</html>

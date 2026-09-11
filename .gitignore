@@ -52,4 +52,5 @@ backups/
 wa-server/*.txt
 wa-server/*.json
 auditoria-productos.txt
+scripts/
 

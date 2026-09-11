@@ -35,6 +35,16 @@ los mensajes ENTRANTES no se guardan. Migración: `sql/2026-08-28-wa-messages-co
 **Código nuevo sin reiniciar**: el server sigue con el código viejo en RAM.
 Reiniciar desde el panel o el .bat.
 
+**Congelamiento por Modo de Edición Rápida (QuickEdit) de Windows** (10-sep)
+Al hacer clic dentro de la ventana de consola (`START-SERVIDOR.bat`), Windows entra
+en modo de selección (`Seleccionar...`) y bloquea sincrónicamente `stdout`
+(`pino-pretty`). Todo el event-loop de Node.js se paraliza por completo
+(campañas, Realtime, sweeps y latidos se congelan indefinidamente hasta que el usuario
+presiona ENTER). Síntoma: el server deja de despachar sin errores y al presionar
+Enter revive de golpe. Solución aplicada: QuickEdit desactivado en el registro de
+Windows (`HKCU\Console -> QuickEdit = 0`), script `disable-quickedit.ps1` en arranque,
+guarda en `index.js`, y `AbortSignal.timeout` en todas las llamadas `fetch` de `email.js`.
+
 ## Base de datos
 
 **El proyecto Supabase murió** (13-jul): bug de OrioleDB en

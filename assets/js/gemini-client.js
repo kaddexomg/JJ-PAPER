@@ -36,16 +36,16 @@
 
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
-    'gemini-3.6-flash',
     'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite'
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat
   const FAST_MODELS = [
-    'gemini-3.6-flash',
     'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite'
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -62,14 +62,42 @@
   }
 
   function extractJSON(raw) {
-    // Try direct parse first
+    if (!raw || typeof raw !== 'string') throw new Error('Respuesta de IA vacía o inválida');
+
+    // 1. Intentar parseo directo
     try { return JSON.parse(raw.trim()); } catch (_) {}
-    // Remove markdown fences
+
+    // 2. Eliminar bloques markdown
     let cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
     try { return JSON.parse(cleaned); } catch (_) {}
-    // Extract first JSON object
-    const match = cleaned.match(/\{[\s\S]*\}/); 
-    if (match) try { return JSON.parse(match[0]); } catch (_) {}
+
+    // 3. Extraer primer objeto JSON {...}
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); } catch (_) {}
+
+      // 4. Sanitizar saltos de línea literales y caracteres de control dentro de strings
+      const jsonStr = match[0];
+      let inString = false;
+      let escaped = false;
+      let out = '';
+      for (let i = 0; i < jsonStr.length; i++) {
+        const c = jsonStr[i];
+        if (c === '"' && !escaped) {
+          inString = !inString;
+          out += c;
+        } else if (inString && (c === '\n' || c === '\r')) {
+          out += (c === '\n' ? '\\n' : '');
+        } else if (inString && c === '\t') {
+          out += '\\t';
+        } else {
+          out += c;
+        }
+        escaped = (c === '\\' && !escaped);
+      }
+      try { return JSON.parse(out); } catch (_) {}
+    }
+
     throw new Error('No se pudo extraer JSON de la respuesta de IA');
   }
 
@@ -823,6 +851,140 @@ Genera el mensaje comercial con especificaciones reales, actitud B2B y formato J
           body: `{Hola|Buen día|Estimado(a)} {{nombre}} 👋, un cordial saludo.\n\n{Le escribe|Le saluda|Se comunica} {{vendedor}} de JJ Paper C.A. Somos distribuidores mayoristas de papelería corporativa, consumibles y útiles escolares en Caracas.\n\nPonemos a su disposición disponibilidad inmediata y precios especiales en:\n\n*📦 ${product ? product.name : 'Suministros de Papelería al Mayor'}*\n${product ? `💲 Precio especial: *{{precio}}*\n` : ''}• Despacho directo a su sede en Caracas y envíos nacionales.\n• Facturación 100% a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• Emisión de cotización formal y opciones de crédito corporativo.\n\n👉 Puede consultar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo atento a su respuesta para apoyarle en lo que necesite.}\n\nAtentamente,\n\n{{vendedor}}\nJJ Paper C.A. | Caracas, Venezuela`
         };
       }
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     4.3. Analizador Comercial B2B de Prospectos e Hiper-Personalización (IA)
+     Analiza Sector, Empresa, Cargo y Ubicación, deduce necesidades operativas,
+     selecciona ángulo del banco dinámico y redacta correo (130-180 palabras)
+     y WhatsApp adaptados con Spintax.
+     -------------------------------------------------------------------------- */
+  async function analyzeAndDraftProspectB2B({
+    companyName = '',
+    sector = '',
+    contactName = '',
+    contactRole = '',
+    address = '',
+    notes = '',
+    city = 'Caracas',
+    sellerName = 'Keyder José Salazar',
+    sellerPhone = '0412-4676073'
+  }) {
+    const w = typeof window !== 'undefined' ? window : {};
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+
+    const sys = getBusinessContext() + `
+Eres el Director y Estratega Comercial B2B Sénior de "JJ Paper C.A." en Caracas, Venezuela.
+Tu objetivo es analizar minuciosamente a un cliente potencial (Prospecto corporativo) y desarrollar una propuesta de abordaje comercial hiper-personalizada y de alta conversión.
+
+PORTAFOLIO DE PRODUCTOS Y CAPACIDADES DE JJ PAPER:
+1. Consumibles POS y Cajas: Rollos térmicos (80x70mm, 80x80mm, 57x40mm, 57x30mm) para puntos de venta y cajas registradoras, marcadores detectores de billetes falsos (Kores), almohadillas dactilares para huellas.
+2. Papelería y Archivo Corporativo: Resmas de papel Bond (Carta, Oficio, Extra Oficio 75g y 80g HP/Report/Chamex), carpetas de fibra marrón con gancho, carpetas manila, archivadores de palanca de lomo ancho/fino, sobres manila (radiografía 14x17, extra oficio, carta), separadores y cajas de archivo.
+3. Embalaje y Almacén: Cintas de embalaje transparentes y marrones de alto micraje (48mm x 50m / 100m / 200m), tirro carrocero, dispensadores tipo pistola, exactos/cutters de alta resistencia, marcadores industriales indelebles (Sharpie, Expo, Kores, Servicio 80), sobres packing list.
+4. Oficina, Administración y RRHH: Bolígrafos (Bic, Solita, Sabonis, Kores), resaltadores fluorescentes, grapadoras metálicas, grapas 26/6, perforadoras de 2 y 3 huecos, binder clips, tijeras de acero inoxidable, silicón y notas adhesivas.
+
+MATRIZ OBLIGATORIA DE TONO Y NECESIDADES POR SECTOR:
+- Sector Financiero / Seguros / Organismos Públicos:
+  * Tono: Institucional, riguroso, formal y enfocado en cumplimiento normativo y auditorías.
+  * Foco: Homologación de proveedores, carpetas reglamentarias de fibra, resguardo de expedientes a 10 años, archivadores y facturación fiscal formal legal en bolívares a tasa oficial BCV.
+- Supermercados / Retail Masivo / Farmacias / Tiendas por Departamento:
+  * Tono: Dinámico, ágil, centrado en volumen, logística y rapidez operativa.
+  * Foco: Cero quiebres de stock en cajas registradoras (rollos térmicos y fiscales para POS), cintas de empaque y consumibles de alta rotación.
+- Clínicas / Salud Privada / Asistencia Médica:
+  * Tono: Consultivo, sobrio y enfocado en resguardo confidencial y pulcritud.
+  * Foco: Sobres de radiografía y estudios de gran formato, carpetas de historias médicas de múltiples divisiones, fundas protectoras y suministros higiénicos.
+- Logística / Tecnología POS / Concesionarios:
+  * Tono: Práctico, directo, enfocado en costo-beneficio y rendimiento por bulto/equipo.
+  * Foco: Embalaje resistente para traslados (cintas de alto micraje), rollos térmicos para terminales inalámbricos POS y kits de entrega.
+- Colegios / Institutos Educativos / Universidades:
+  * Tono: Académico, atento al calendario escolar, centrado en resmas para evaluaciones, marcadores de pizarra y material de apoyo.
+- Otros sectores comerciales: Tono consultivo B2B, enfocado en optimización de compras y entrega directa en Caracas.
+
+BANCO DE ASUNTOS POR ÁNGULO (SELECCIÓN DINÁMICA SEGÚN AFINIDAD):
+1. Ángulo Operativo/Stock: "Suministro directo y disponibilidad inmediata para ${companyName}"
+2. Ángulo Optimización/Costos: "Optimización en compras de papelería y consumibles operativos | JJ Paper"
+3. Ángulo Alianza/Procura: "Propuesta de abastecimiento operativo y homologación para ${companyName}"
+4. Ángulo Crítico/Línea de Cajas: "Disponibilidad de rollos térmicos y consumibles de caja para ${companyName}"
+
+DIRECTRICES ESTRICTAS PARA EL CUERPO DEL CORREO (LONGITUD: 130 A 180 PALABRAS):
+1. Saludo personalizado con nombre y cargo del contacto (ej: "Estimada Marilena Contreras, Gerente de Compras en Farmatodo, S.A.:"). Si no hay nombre, dirigirse respetuosamente al cargo o a la "Gerencia de Compras y Suministros".
+2. Reconocimiento operativo: 1-2 oraciones demostrando entender la exigencia diaria de su operación y sedes en ${city || 'Caracas'}.
+3. Propuesta de valor en viñetas (MÁXIMO 3 ÍTEMS):
+   - 2 Insumos Core indispensables para su área operativa inmediata.
+   - 1 Insumo Cross-Selling de apoyo para otra área (almacén, RRHH o servicios generales).
+4. Pilares de servicio obligatorios de JJ Paper (deben incluirse textualmente o de forma equivalente):
+   - "Le adjuntamos a este correo nuestra lista de precios oficial con más de 700 artículos disponibles para entrega inmediata."
+   - "Cotizaciones inmediatas en segundos adaptadas a su presupuesto."
+   - "Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución."
+   - "Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día."
+5. Llamado a la acción (CTA) de baja fricción:
+   - Invitar a revisar el PDF adjunto e indicar qué requerimiento o reposición tienen previsto para esta semana para enviarles la cotización formal en minutos.
+6. Firma corporativa obligatoria:
+Atentamente,
+
+${sellerName}
+Dirección Comercial | JJ Paper C.A.
+Teléfono / WhatsApp: ${sellerPhone}
+Caracas, Venezuela
+
+DIRECTRICES PARA WHATSAPP:
+- Estructura ágil de 10 a 14 líneas, separadas por doble salto de línea.
+- Spintax {opción 1|opción 2|opción 3} en saludos y preguntas de cierre para prevenir baneos.
+- Mencionar los 2 insumos core y el cross-selling con emojis sobrios (📦, 💲, 👉).
+- Recordar despacho gratuito en Caracas, factura fiscal a tasa oficial BCV (${rate.toFixed(2)} Bs) y contacto directo de ${sellerName} (${sellerPhone}).
+
+FORMATO DE RESPUESTA REQUERIDO (DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO SIN MARKDOWN):
+{
+  "sector_deducido": "Nombre del sector clasificado",
+  "dolor_operativo": "Resumen conciso (1-2 frases) del punto de dolor identificado en la cuenta",
+  "insumos_core": ["Insumo 1 con especificación/marca", "Insumo 2 con especificación/marca"],
+  "insumo_cross_sell": "Insumo 3 para área secundaria",
+  "angulo_seleccionado": "operativo_stock | optimizacion_costos | alianza_procura | linea_cajas",
+  "subject": "Asunto seleccionado y personalizado del banco",
+  "email_body": "Cuerpo completo del correo (130-180 palabras con saludo, viñetas, pilares y firma)",
+  "email_word_count": 155,
+  "wa_body": "Mensaje adaptado a WhatsApp con Spintax y formato móvil"
+}`;
+
+    const prompt = `
+DATOS DEL PROSPECTO A ANALIZAR:
+- Empresa: "${companyName}"
+- Sector reportado: "${sector || 'No especificado'}"
+- Contacto: "${contactName || 'No indicado'}"
+- Cargo / Departamento: "${contactRole || 'No indicado'}"
+- Dirección / Sede: "${address || 'Caracas, Venezuela'}"
+- Notas previas / Intereses: "${notes || 'Ninguna nota previa'}"
+
+Realiza el análisis de necesidades operativas de esta empresa y redacta el correo formal (130-180 palabras exactas) y el WhatsApp en JSON estricto:`;
+
+    try {
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 2000, mode: 'architect' });
+      const data = extractJSON(raw);
+      return data;
+    } catch (e) {
+      console.warn('Fallback analyzeAndDraftProspectB2B:', e);
+      // Fallback robusto con los datos directos
+      const salutation = contactName 
+        ? `Estimado(a) ${contactName}${contactRole ? `, ${contactRole}` : ''} en ${companyName}:`
+        : `Estimada Gerencia de Compras y Procura en ${companyName}:`;
+
+      const defSubject = `Propuesta de abastecimiento operativo y homologación para ${companyName}`;
+      const defBody = `${salutation}\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación y logística de sus sedes en ${city || 'Caracas'}, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nCon el propósito de garantizar la continuidad de sus operaciones y optimizar sus costos de procura, ponemos a su disposición nuestro suministro directo en insumos de alta rotación:\n• Rollos térmicos y consumibles para puntos de venta y facturación (cero quiebres de stock).\n• Carpetas de archivo reglamentarias, archivadores y resmas de papel Bond para resguardo documental.\n• Cintas de embalaje industrial de alto micraje para almacén y despacho.\n\nBeneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 700 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\n${sellerName}\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
+
+      const words = defBody.trim().split(/\s+/).length;
+
+      return {
+        sector_deducido: sector || 'Corporativo General',
+        dolor_operativo: 'Abastecimiento oportuno de suministros para continuidad operativa y control de costos de procura.',
+        insumos_core: ['Rollos térmicos para puntos de venta y facturación', 'Carpetas de fibra y papel Bond para archivo'],
+        insumo_cross_sell: 'Cintas de embalaje industrial para almacén y logística',
+        angulo_seleccionado: 'alianza_procura',
+        subject: defSubject,
+        email_body: defBody,
+        email_word_count: words,
+        wa_body: `{Hola|Buen día|Estimado(a)} ${contactName || 'responsable de compras de ' + companyName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} ${sellerName} de JJ Paper C.A. Somos distribuidores mayoristas de papelería corporativa, consumibles de caja y embalaje en Caracas.\n\nPonemos a su disposición disponibilidad inmediata en:\n*📦 Rollos térmicos POS y consumibles de caja*\n*📦 Carpetas reglamentarias y resmas de papel Bond*\n*📦 Cintas de empaque de alta resistencia*\n\n• Delivery gratuito en Caracas directamente en su sede o CD.\n• Facturación fiscal legal en bolívares a tasa oficial BCV (${rate.toFixed(2)} Bs).\n• Cotizaciones formales en PDF emitidas en segundos.\n\n👉 Puede revisar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le verifiquemos disponibilidad para su despacho de esta semana?|Quedo a su disposición para coordinar su requerimiento.}\n\nAtentamente,\n${sellerName} | Teléfono/WhatsApp: ${sellerPhone}\nJJ Paper C.A.`
+      };
     }
   }
 
@@ -1728,6 +1890,7 @@ Respond with ONLY the 1 English sentence.`;
     generateCampaignSpintax,
     draftCampaignMessage,
     draftEmail,
+    analyzeAndDraftProspectB2B,
     searchProductsLive,
     interpretQueryWithAI,
     detectProductType,

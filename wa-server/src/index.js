@@ -37,6 +37,16 @@ await new Promise((resolve, reject) => {
   });
 });
 
+// Desactivación preventiva de QuickEdit en consola de Windows:
+// Previene que clics o selecciones del ratón en la ventana negra suspendan
+// de forma síncrona la salida de stdout, congelando el bucle de eventos de Node.js.
+if (process.platform === 'win32') {
+  try {
+    const { exec } = await import('node:child_process');
+    exec('reg add "HKCU\\Console" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1 & powershell -NoProfile -ExecutionPolicy Bypass -File disable-quickedit.ps1 >nul 2>&1', { stdio: 'ignore' }, () => {});
+  } catch (_) {}
+}
+
 log.info('JJ Paper wa-server — puente WhatsApp ↔ Supabase');
 log.info('Los QR y los chats se manejan desde el panel web (admin/whatsapp.html · vendedor/whatsapp.html)');
 

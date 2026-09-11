@@ -53,7 +53,8 @@ async function gmailAccessToken(refresh) {
     body: new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
       refresh_token: refresh, grant_type: 'refresh_token'
-    })
+    }),
+    signal: AbortSignal.timeout(15_000)
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error_description || j.error || `token HTTP ${res.status}`);
@@ -70,13 +71,11 @@ function b64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Descarga los adjuntos → base64, con caché en memoria.
+// Descarga los adjuntos → base64, con caché en memoria (TTL 2 horas).
 // Un mismo archivo se descarga UNA sola vez (a RAM) y se reutiliza en todos
 // los envíos de la campaña, en vez de re-descargarlo por cada destinatario.
-// Acepta dos formatos de `a.path`:
-//   - URL pública completa (http…/jjp-products/…) → se baja con fetch
-//   - ruta dentro del bucket jjp-email-media           → se baja con Storage
 const attachCache = new Map();
+const ATTACH_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 
 // Acepta dos formatos de ítem:
 //   - { path, name, mime }  → archivo en Storage/URL (se baja UNA vez y se cachea en RAM)
@@ -85,6 +84,15 @@ const attachCache = new Map();
 //     (data:application/pdf;base64,xxxx) o en base64 puro.
 async function loadAttachments(list) {
   const out = [];
+  const now = Date.now();
+
+  // Limpieza periódica de attachCache para proteger memoria RAM
+  if (attachCache.size > 50) {
+    for (const [k, v] of attachCache.entries()) {
+      if (now - (v.cachedAt || 0) > ATTACH_CACHE_TTL_MS) attachCache.delete(k);
+    }
+  }
+
   for (const a of list || []) {
     if (!a) continue;
     let name = String(a.name || a.filename || 'archivo').replace(/[\r\n"]/g, '');
@@ -101,13 +109,14 @@ async function loadAttachments(list) {
 
     if (!a.path) continue;
     const key = String(a.path);
-    if (!attachCache.has(key)) {
+    const cached = attachCache.get(key);
+    if (!cached || (now - (cached.cachedAt || 0) > ATTACH_CACHE_TTL_MS)) {
       const buf = await fetchAttachmentBytes(key);
-      if (buf) attachCache.set(key, buf.toString('base64'));
+      if (buf) attachCache.set(key, { b64: buf.toString('base64'), cachedAt: now });
     }
-    const b64 = attachCache.get(key);
-    if (b64 === undefined) continue;
-    out.push({ name, mime, b64 });
+    const item = attachCache.get(key);
+    if (!item?.b64) continue;
+    out.push({ name, mime, b64: item.b64 });
   }
   return out;
 }
@@ -120,11 +129,11 @@ async function fetchAttachmentBytes(path) {
       cleanPath = cleanPath.replace('https://czzvsqnmxtjzqzioknnn.supabase.co', 'https://nmcamjxhyysmmvgxgabo.supabase.co');
     }
     if (/^https?:\/\//i.test(cleanPath)) {
-      let r = await fetch(cleanPath, { redirect: 'follow' });
+      let r = await fetch(cleanPath, { redirect: 'follow', signal: AbortSignal.timeout(20_000) });
       if (!r.ok && cleanPath.includes(SUPABASE_URL_CORE)) {
         // Intentar en Proyecto C (Inventario/Storage)
         const fallbackUrl = cleanPath.replace(SUPABASE_URL_CORE, 'https://nmcamjxhyysmmvgxgabo.supabase.co');
-        const r2 = await fetch(fallbackUrl, { redirect: 'follow' });
+        const r2 = await fetch(fallbackUrl, { redirect: 'follow', signal: AbortSignal.timeout(20_000) });
         if (r2.ok) return Buffer.from(await r2.arrayBuffer());
       }
       if (!r.ok) { log.warn({ err: `HTTP ${r.status}`, path }, 'adjunto no descargó'); return null; }
@@ -215,7 +224,8 @@ async function gmailApiSend(acct, m) {
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000)
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error?.message || `Gmail API HTTP ${res.status}`);
@@ -333,7 +343,7 @@ async function pollAccountInbound(acct) {
   const listRes = await fetch(
     'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=' +
     encodeURIComponent('in:inbox newer_than:2d'),
-    { headers: { Authorization: `Bearer ${token}` } });
+    { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) });
   if (!listRes.ok) {
     if (listRes.status === 403) log.warn({ email: acct.email }, 'sin permiso de lectura (re-vincular con Google)');
     return;
@@ -409,7 +419,7 @@ function extractAttachments(payload) {
 
 async function ingestMessage(acct, token, id) {
   const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
-    { headers: { Authorization: `Bearer ${token}` } });
+    { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) return;
   const msg = await res.json();
   const headers = msg.payload?.headers || [];
@@ -459,7 +469,7 @@ async function fetchAttachmentsFor(row) {
     if (a.path || !a.att_id) { out.push(a); continue; }
     try {
       const r = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${row.gmail_id}/attachments/${a.att_id}`,
-        { headers: { Authorization: `Bearer ${token}` } });
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) });
       const j = await r.json();
       if (!r.ok || !j.data) throw new Error(j.error?.message || 'sin datos');
       const buf = Buffer.from(j.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64');

@@ -407,3 +407,53 @@ No se detectaron tests.
 - **Actualización de Modelos Gemini y Generación Publicitaria de Estudio con IA**:
   - **Reemplazo de Modelos 404 por Versiones Activas**: Migrados `PRO_MODELS` y `FAST_MODELS` en `gemini-client.js` y `product-images.js` hacia `gemini-3.6-flash`, `gemini-3.1-flash-lite` y `gemini-3.5-flash-lite`, eliminando fallos 404 y reduciendo la latencia de respuesta a ~1.000 ms.
   - **Activación Real de Generación en Estudio IA**: Corregido `generateProductStudioPhoto` en `gemini-client.js` (que retornaba `imageUrl: null`), generando fotografías de producto de alta resolución con Pollinations Flux (`model=flux`) a partir de la ingeniería de prompts asistida por Gemini en inglés para packshots comerciales sobre fondo blanco puro o esmeralda institucional.
+
+## Blindaje del Servidor contra Congelamiento (QuickEdit) y Optimización Resiliente de Correo (10-09-2026)
+- **Diagnóstico del Congelamiento de ~38 min (12:14 - 12:54)**:
+  - **Causa Raíz en Windows Console**: En Windows, el Modo de Edición Rápida (`QuickEdit`) está activado por defecto (`HKCU\Console -> QuickEdit = 0x1`). Cuando un usuario hace clic dentro de la ventana negra de la consola de `START-SERVIDOR.bat`, Windows entra en modo de selección (`Seleccionar...`) y suspende sincrónicamente la escritura en `process.stdout` (`pino-pretty`). Esto congela por completo el hilo único de Node.js (detiene `setInterval`, latidos Realtime y envíos). Al presionar Enter, se sale del modo selección y el hilo se reactiva instantáneamente.
+- **Implementación de Soluciones**:
+  - **Desactivación de QuickEdit en Windows y Batch (`START-SERVIDOR.bat`, `disable-quickedit.ps1`)**:
+    - Se agregaron comandos automáticos en el arranque que fuerzan `QuickEdit = 0` en el Registro de Windows (`HKCU\Console` y `HKCU\Console\JJ Paper - Servidor`).
+    - Creado el script [`disable-quickedit.ps1`](file:///C:/Users/PC/Desktop/JJ%20PAPER/wa-server/disable-quickedit.ps1) que modifica el modo de la consola activa mediante la API Win32 (`SetConsoleMode`), retirando las banderas de selección por ratón (`ENABLE_QUICK_EDIT_MODE`).
+    - Guarda preventiva en `wa-server/src/index.js` para entornos Windows.
+  - **Timeouts Estrictos de Red (`wa-server/src/email.js`)**:
+    - Incorporado `AbortSignal.timeout(...)` en todos los puntos de contacto HTTP:
+      - Renovación de token Google OAuth: 15 segundos (`AbortSignal.timeout(15_000)`).
+      - Envío de correos por Gmail API: 30 segundos (`AbortSignal.timeout(30_000)`).
+      - Descarga de adjuntos y medios de Storage/Web: 20 segundos (`AbortSignal.timeout(20_000)`).
+      - Sondeo e ingesta de correos entrantes: 20 a 30 segundos.
+    - Garantiza que ninguna caída de red o socket lento de Google pueda paralizar el despachador de campañas.
+  - **Optimización de Memoria RAM (`attachCache`)**:
+    - Implementado TTL de 2 horas y tope de 50 ítems en la caché de adjuntos en memoria, evitando acumulación de buffers base64 durante ejecuciones de largo plazo.
+
+## Suite de Prospección B2B e Hiper-Personalización con IA (11-09-2026)
+- **Módulo Exclusivo para Administrador (`admin/prospectos.html`, `assets/js/admin/vprospectos.js`)**:
+  - Panel especializado en prospección corporativa y cuentas clave de Caracas y Venezuela.
+  - Visible estrictamente para rol `admin` (`requireAuth('admin')`); inaccesible para vendedores regulares en `sidenav.js`.
+  - Integrado en la barra de navegación bajo el grupo *Ventas* como `🎯 Prospectos B2B`.
+- **Base de Datos Core (`jjp_prospects`)**:
+  - Tabla creada en Proyecto A (`qxgdrfkobbhdzgtoiavv`) con índices por `status`, `sector` y `seller_id`.
+  - Soporta `company_name` único para sincronización continua sin duplicados (`ON CONFLICT (company_name) DO UPDATE`).
+  - Almacena campos ricos: `sector`, `contact_name`, `contact_role`, `phone_1` (CANTV/Fijo), `phone_2` (Celular/WhatsApp), `email`, `address`, `notes`, `ai_analysis` (JSONB), `suggested_subject`, `custom_email_body`, `custom_wa_body`, `status`, `contact_count`, `last_contact_at`.
+- **Sincronización Continua desde Google Sheets / Excel (`CRM AMPLIO.xlsx`)**:
+  - Importador dual: Carga de archivo `.xlsx` / `.csv` y pegado directo de celdas (`Ctrl+V`) desde Google Sheets.
+  - Poblada inicialmente con las **131 cuentas corporativas reales** de `CRM AMPLIO.xlsx` (Farmatodo, Gama, Plaza's, Central Madeirense, Forum, Traki, Banesco, Mercantil, Clínicas, etc.).
+- **Motor de Inteligencia de Negocios y Detección de Necesidades (`GeminiClient.analyzeAndDraftProspectB2B`)**:
+  - **Priorización Flash-Lite Ultrarrápida (<1.5s)**: Priorizado `gemini-3.1-flash-lite` como primer modelo en `PRO_MODELS` y `FAST_MODELS`, eliminando demoras por 503 en modelos congestionados.
+  - **Extracción Resiliente JSON (`extractJSON`)**: Sanitización automática de saltos de línea literales y caracteres de control dentro de strings generadas por LLMs.
+  - **Matriz de Razonamiento B2B por 24 Sectores**: Deducción de puntos de dolor operativos (ej: cero quiebres en líneas de cajas registradoras para retail/supermercados, auditoría SUDEBAN y resguardo a 10 años para banca/seguros, confidencialidad de historias médicas y placas para clínicas, embalaje resistente para logística).
+  - **Propuesta Comercial Exacta**:
+    - Selección obligatoria de **2 Insumos Core** + **1 Insumo Cross-Selling** de apoyo para otra área.
+    - Banco dinámico de 4 ángulos de asunto: Operativo/Stock, Optimización/Costos, Alianza/Procura, Crítico/Línea de Cajas.
+    - **Cuerpo del Correo Estricto (130 a 180 palabras)**: Saludo con nombre y cargo, reconocimiento operativo en Caracas, viñetas de los 3 insumos, **4 pilares obligatorios de JJ Paper** (lista 700+ artículos, cotización en segundos, delivery gratuito en Caracas, factura fiscal formal a tasa oficial BCV con RIF J-295375450), CTA de baja fricción y firma corporativa obligatoria:
+      ```
+      Atentamente,
+
+      Keyder José Salazar
+      Dirección Comercial | JJ Paper C.A.
+      Teléfono / WhatsApp: 0412-4676073
+      Caracas, Venezuela
+      ```
+    - **Mensaje WhatsApp con Spintax Anti-Baneo**: Estructura ágil de 10 a 14 líneas, variables dinámicas y contacto de Keyder Salazar.
+- **Flujo de Conversión Directa a Cartera (`jjp_customers`)**:
+  - Botón de conversión con 1 clic que traslada el prospecto ganado a la Zona 020 de Keyder Salazar sin pérdida de historial.

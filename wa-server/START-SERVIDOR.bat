@@ -8,6 +8,17 @@ REM ============================================================
 title JJ Paper - Servidor
 cd /d "%~dp0"
 
+REM ============================================================
+REM  DESACTIVAR QUICKEDIT EN WINDOWS:
+REM  Evita terminantemente que clics o selecciones del mouse
+REM  congelen el proceso de Node.js en la consola.
+REM ============================================================
+reg add "HKCU\Console" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1
+reg add "HKCU\Console\JJ Paper - Servidor" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1
+if exist disable-quickedit.ps1 (
+  powershell -NoProfile -ExecutionPolicy Bypass -File disable-quickedit.ps1 >nul 2>&1
+)
+
 :loop
 echo.
 echo [%date% %time%] Verificando conexion y ruta de MixNet...

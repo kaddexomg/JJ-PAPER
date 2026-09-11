@@ -10,7 +10,7 @@ ver regla 5 de [[Reglas de trabajo]].
 
 ## Arranque y control
 
-- `START-SERVIDOR.bat` — supervisor: relanza si el proceso muere.
+- `START-SERVIDOR.bat` — supervisor: relanza si el proceso muere; desactiva QuickEdit en consola (`HKCU\Console`) para prevenir bloqueos por clic.
 - `INSTALAR-INICIO-AUTOMATICO.bat` / `DESINSTALAR-…` — tarea de Windows al arrancar la PC.
 - Panel admin (`ajustes.html` → server-control): 🟢/🔴 por heartbeat (< 70 s),
   botones restart/stop (escriben en `jjp_server_control`, el server obedece).
@@ -33,7 +33,7 @@ ver regla 5 de [[Reglas de trabajo]].
 | `wa-presence.js`     | presencia saliente (leído/escribiendo)          | la ENTRANTE va por Realtime Broadcast, no DB                                                                                                                                         |
 | `wa-actions.js`      | citar/reaccionar/reenviar                       | cola `jjp_wa_actions`                                                                                                                                                                |
 | `campaigns.js`       | difusión WA                                     | throttle anti-baneo configurable, notifica al terminar                                                                                                                               |
-| `email.js`           | correo por usuario                              | Gmail API (OAuth `gmail.send`) o SMTP app-pass o `.env` de respaldo; recepción poll 2 min; adjuntos on-demand (`attach_state=requested`); verifica cuentas al arrancar               |
+| `email.js`           | correo por usuario                              | Gmail API (OAuth `gmail.send`) o SMTP app-pass o `.env` de respaldo; recepción poll 2 min; adjuntos on-demand (`attach_state=requested`); verificación de cuentas al arrancar; timeouts `AbortSignal` (15-30s) anti-colgado y caché RAM con TTL 2h |
 | `email-campaigns.js` | campañas de correo                              | gracias post-pedido + reactivación                                                                                                                                                   |
 | `invoices.js`        | cuentas por pagar                               | despacha avisos que genera el cron de la DB al WhatsApp del dueño (+584120100372)                                                                                                    |
 | `rates.js`           | tasas BCV/Binance/euro                          | escribe `jjp_settings` + historial `jjp_fx_rates`                                                                                                                                    |

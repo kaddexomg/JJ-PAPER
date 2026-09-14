@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
    JJ Paper — Editor Chat-Like de Campañas (WhatsApp & Email)
    assets/css/campaign-editor.css
    ============================================================================ */
@@ -502,3 +502,370 @@
     border-bottom: 1px solid #e2e8f0;
   }
 }
+
+/* ============================================================================
+   JJ Paper — Modo IA Hiper-Personalizado por Cliente
+   ============================================================================ */
+.ce-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.ce-mode-tab {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.ce-mode-tab.active {
+  background: #ffffff;
+  color: #16604A;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.ce-badge-pill {
+  background: #16604A;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+/* Barra de Flujo IA Superior */
+.ce-ai-flow-bar {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-bottom: 1px solid #bbf7d0;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ce-ai-analyze-btn {
+  background: #16604A;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(22, 96, 74, 0.25);
+  transition: all 0.15s ease;
+}
+
+.ce-ai-analyze-btn:hover {
+  background: #124e3c;
+  transform: translateY(-1px);
+}
+
+.ce-ai-analyze-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ce-progress-bar-wrap {
+  width: 100%;
+  background: #dcfce7;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 18px;
+  position: relative;
+  border: 1px solid #86efac;
+}
+
+.ce-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #16604A, #10b981);
+  transition: width 0.25s ease;
+}
+
+.ce-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #14532d;
+}
+
+/* Subpestañas Derechas (Simulador vs Lista de Prospectos) */
+.ce-right-subtabs {
+  display: flex;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 12px;
+  gap: 6px;
+}
+
+.ce-subtab {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ce-subtab.active {
+  color: #16604A;
+  border-bottom-color: #16604A;
+  font-weight: 700;
+}
+
+/* Lista de Prospectos Analizados */
+.ce-cards-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.ce-customer-ai-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ce-customer-ai-card.active-preview {
+  border-color: #16604A;
+  box-shadow: 0 0 0 2px rgba(22, 96, 74, 0.18);
+  background: #fafffc;
+}
+
+.ce-customer-ai-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ce-customer-ai-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.ce-customer-ai-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.ce-need-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.ce-customer-ai-preview {
+  font-size: 12px;
+  color: #334155;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid #f1f5f9;
+  max-height: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.ce-customer-ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ce-card-action-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ce-card-action-btn:hover {
+  background: #f1f5f9;
+  color: #16604A;
+  border-color: #16604A;
+}
+
+.ce-card-action-btn.primary {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.ce-card-action-btn.primary:hover {
+  background: #16604A;
+  color: #ffffff;
+  border-color: #16604A;
+}
+
+/* Modal Selector de Prospectos */
+.ce-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: campModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ce-picker-dialog {
+  background: #ffffff;
+  width: 100%;
+  max-width: 840px;
+  height: 85vh;
+  max-height: 680px;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ce-picker-header {
+  padding: 12px 18px;
+  background: #16604A;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ce-picker-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ce-picker-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ce-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ce-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.ce-picker-item:hover {
+  background: #f8fafc;
+}
+
+.ce-picker-item.selected {
+  background: #f0fdf4;
+}
+
+.ce-picker-footer {
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Stepper de Navegación en el Simulador */
+.ce-sim-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ce-stepper-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.ce-stepper-btn:hover {
+  background: #e2e8f0;
+}
+

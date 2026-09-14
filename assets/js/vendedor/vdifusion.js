@@ -780,14 +780,14 @@ async function openCampaignDetail(id) {
   openDModal('reportModal');
 
   const { data, error } = await sb.from('jjp_wa_campaign_targets')
-    .select('name,phone,status,error,sent_at,message_id')
+    .select('name,phone,status,error,sent_at,message_id,vars')
     .eq('campaign_id', id)
     .order('created_at', { ascending: true });
   if (error) { failList.innerHTML = '<span style="color:#b91c1c">Error cargando detalle: ' + escapeHTML(error.message) + '</span>'; return; }
   dReportTargets = data || [];
 
   const final = ['sent', 'enviado'].includes(camp.status) || !camp.total || dReportTargets.every(t => t.status !== 'en_cola' && t.status !== 'pending');
-  const badge = final ? '✅ Enviado' : '⏳ Enviado';
+  const badge = final ? '✅ Enviado' : '⏳ Enviando';
   const failedOnes = dReportTargets.filter(t => t.status === 'failed' || t.status === 'fallido');
   const skippedOnes = dReportTargets.filter(t => t.status === 'skipped' || t.status === 'omitido');
   const okOnes = dReportTargets.filter(t => t.status === 'sent' || t.status === 'enviado');
@@ -799,8 +799,6 @@ async function openCampaignDetail(id) {
       <table class="admin-table"><thead><tr><th>Contacto</th><th>Estado</th><th>Motivo</th></tr></thead><tbody>
       ${failedOnes.map(t => `<tr><td>${escapeHTML(t.name || '—')}<div class="td-sub">${escapeHTML(t.phone || '')}</div></td><td><span style="color:#b91c1c">❌</span></td><td style="color:#b91c1c;font-size:12px">${escapeHTML(t.error || 'Error desconocido')}</td></tr>`).join('')}
       </tbody></table></div>`;
-  } else {
-    html += `<p style="color:#15803d;font-weight:600">✔ Sin errores de envío</p>`;
   }
 
   if (skippedOnes.length) {
@@ -811,8 +809,15 @@ async function openCampaignDetail(id) {
       </tbody></table></div>`;
   }
 
-  if (!failedOnes.length && !skippedOnes.length) {
-    html += `<p style="color:#15803d;font-weight:600">✔ Todos los ${badge} correctamente: ${okOnes.length} destino(s)</p>`;
+  if (okOnes.length) {
+    html += `<div class="rd-subgroup" style="margin-top:10px">
+      <h4 style="margin:0 0 8px;color:#15803d;font-size:13px">✔ Entregados (${okOnes.length})</h4>
+      <table class="admin-table"><thead><tr><th>Contacto</th><th>Propuesta IA / Necesidad</th><th>Enviado</th></tr></thead><tbody>
+      ${okOnes.slice(0, 50).map(t => `<tr><td>${escapeHTML(t.name || '—')}<div class="td-sub">${escapeHTML(t.phone || '')}</div></td><td>${t.vars?.detected_need ? `<span style="font-size:11px;color:#166534;font-weight:600">🎯 ${escapeHTML(t.vars.detected_need)}</span>` : '<span style="color:#64748b;font-size:11px">Estándar</span>'}</td><td style="font-size:11px;color:#64748b">${t.sent_at ? new Date(t.sent_at).toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}) : '—'}</td></tr>`).join('')}
+      ${okOnes.length > 50 ? `<tr><td colspan="3" style="text-align:center;color:#64748b;font-size:11px">Mostrando 50 de ${okOnes.length} registros</td></tr>` : ''}
+      </tbody></table></div>`;
+  } else if (!failedOnes.length && !skippedOnes.length) {
+    html += `<p style="color:#64748b;font-size:13px">Despachando campaña en segundo plano...</p>`;
   }
 
   failList.innerHTML = html;
@@ -1031,7 +1036,13 @@ async function launchCampaignFromEditor(config) {
     phone: c.phone,
     name: c.name,
     status: 'en_cola',
-    vars: dSampleVars(c.name, extra)
+    vars: {
+      ...dSampleVars(c.name, extra),
+      custom_message: c._custom_message || null,
+      custom_body: c._custom_message || null,
+      detected_need: c._detected_need || null,
+      detected_sector: c._detected_sector || null
+    }
   }));
 
   for (let i = 0; i < targets.length; i += 100) {

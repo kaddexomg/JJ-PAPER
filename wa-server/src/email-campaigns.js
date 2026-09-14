@@ -66,9 +66,12 @@ async function step(camp, dailyLimit) {
         nombre: t.name || (t.vars || {}).nombre || '',
         empresa: (t.vars || {}).empresa || t.name || '',
       };
-      const subject = renderTemplate(camp.subject, realVars);
-      const body = renderTemplate(camp.body || camp.body_html || '', realVars);
-      const html = (camp.html || camp.body_html) ? renderTemplate(camp.html || camp.body_html, realVars) : null;
+      const subjTemplate = t.vars?.custom_subject || t.custom_subject || camp.subject || '';
+      const subject = renderTemplate(subjTemplate, realVars);
+      const bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';
+      const body = renderTemplate(bodyTemplate, realVars);
+      const htmlTemplate = t.vars?.custom_html || camp.html || camp.body_html || null;
+      const html = htmlTemplate ? renderTemplate(htmlTemplate, realVars) : null;
 
       const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
         to_addr: toAddr, subject, body, html, attachments: camp.attachments || []

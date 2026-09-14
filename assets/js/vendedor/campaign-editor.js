@@ -1,11 +1,21 @@
 /**
  * JJ Paper — Editor Chat-Like de Campañas (WhatsApp y Email)
  * assets/js/vendedor/campaign-editor.js
+ *
+ * Flujo Completo Asistido por IA:
+ * - Análisis prospecto por prospecto (detecta necesidad, rubro y qué ofrecerle)
+ * - Redacción hiper-personalizada por cliente (WhatsApp y Email)
+ * - Formato comercial de alto impacto (*Negritas*, emojis de negocio, viñetas, dobles saltos)
+ * - Mención y adjunto de la Lista de Precios Mayorista Oficial (PDF)
+ * - Variaciones anti-spam (Spintax) y ritmo humano (45-90s aleatorio + descansos)
+ * - Selección de prospectos individuales de la cartera con búsqueda y filtros
+ * - Revisión, edición manual y regeneración con IA cliente por cliente antes de enviar
  */
 
 window.CampaignEditor = (() => {
   let activeOverlay = null;
   let currentConfig = null;
+  let editorMode = 'ai'; // 'ai' | 'template'
   let selectedAudienceList = [];
   let selectedProductOrCombo = null;
   let generatedFlyerFile = null;
@@ -14,14 +24,21 @@ window.CampaignEditor = (() => {
   let cooldownHours = 0;
   let cooldownLoading = null;
 
+  // Estado del flujo IA
+  let activePreviewIdx = 0;
+  let activeRightTab = 'simulator'; // 'simulator' | 'prospects'
+  let isAnalyzingBatch = false;
+  let manualSelectedIds = null; // null = filtro automático; Set = selección manual de IDs
+  let pickerDraftIds = new Set();
+  let pickerSearchQuery = '';
+  let pickerQuickFilter = 'todos';
+  let editingCustomerIdx = -1;
+
   function normPhoneKey(p) {
     return String(p || '').replace(/\D/g, '').replace(/^0+/, '').slice(-11);
   }
 
-  // Descarga la lista de contactos a los que YA se les envió por campaña en las
-  // últimas N horas (email o WhatsApp) para NO repetirles mientras dure el
-  // cooldown. Página en rangos de 1.000 (PostgREST).
-  // También descarga los números que no tienen WhatsApp para excluirlos de inmediato.
+  // Descarga contactos con envíos recientes para respetar cooldown anti-spam
   async function reloadCooldown() {
     cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
     knownNoWaPhones = new Set();
@@ -92,7 +109,18 @@ window.CampaignEditor = (() => {
         <div class="ce-body">
           <!-- Config Panel (Left) -->
           <div class="ce-config-pane">
-            <div class="ce-section">
+            <!-- Selector de Modo de Creación -->
+            <div class="ce-mode-tabs">
+              <button type="button" class="ce-mode-tab active" id="ceTabModeAi" onclick="CampaignEditor.setEditorMode('ai')">
+                🤖 Modo IA Personalizado
+              </button>
+              <button type="button" class="ce-mode-tab" id="ceTabModeTpl" onclick="CampaignEditor.setEditorMode('template')">
+                📝 Plantilla Base
+              </button>
+            </div>
+
+            <!-- Plantilla Base (Visible en Modo Plantilla) -->
+            <div class="ce-section" id="ceSectionTemplate" style="display:none;">
               <div class="ce-section-title">
                 <span>📝 Plantilla Base</span>
               </div>
@@ -101,14 +129,15 @@ window.CampaignEditor = (() => {
               </div>
             </div>
 
+            <!-- Enfoque Comercial y Catálogo -->
             <div class="ce-section">
               <div class="ce-section-title">
-                <span>🎯 Tipo de Campaña y Catálogo</span>
+                <span>🎯 Enfoque Comercial y Catálogo</span>
               </div>
               <div class="ce-field-group">
                 <select class="ce-select" id="ceTypeSelect" onchange="CampaignEditor.onTypeChange()">
-                  <option value="general">📣 Campaña General / Toda Cartera</option>
-                  <option value="producto">📦 Promoción de un Producto Destacado</option>
+                  <option value="general">📣 General / Propuesta según Rubro del Cliente</option>
+                  <option value="producto">📦 Promoción de un Producto Específico</option>
                   <option value="combo">🎁 Promoción de un Combo / Oferta Especial</option>
                   <option value="reactivacion">😴 Reactivación de Clientes Inactivos</option>
                 </select>
@@ -126,6 +155,7 @@ window.CampaignEditor = (() => {
               <div id="ceSelectedCardWrap" style="display:none; margin-top:8px;"></div>
             </div>
 
+            <!-- Audiencia y Destinatarios -->
             <div class="ce-section">
               <div class="ce-section-title">
                 <span>📇 Audiencia y Destinatarios</span>
@@ -141,21 +171,29 @@ window.CampaignEditor = (() => {
               <div class="ce-field-group" id="ceTagWrap" style="display:none;">
                 <input type="text" class="ce-input" id="ceTagInput" placeholder="Ej: 004, mayoristas..." oninput="CampaignEditor.onAudienceChange()">
               </div>
+
+              <div style="margin-top:6px; display:flex; gap:6px;">
+                <button type="button" class="ce-var-btn" style="flex:1; background:#f8fafc; border-color:#cbd5e1; font-weight:700; padding:6px 10px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="CampaignEditor.openProspectPicker()">
+                  <span>👥 Seleccionar Prospectos</span>
+                  <span class="ce-badge-pill" id="ceSelectedProspectsBadge">0</span>
+                </button>
+              </div>
             </div>
 
+            <!-- Adjuntos de Campaña -->
             <div class="ce-section">
               <div class="ce-section-title">
                 <span>📎 Adjuntos de Campaña</span>
               </div>
               <div class="ce-field-group">
                 <div id="ceAttachCheckboxes" style="margin-top:2px;">
+                  <label style="display:flex;align-items:center;font-size:12.5px;color:#1e293b;padding:4px 0;cursor:pointer;font-weight:600">
+                    <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px" checked>
+                    <span>📄 Adjuntar Lista de Precios PDF Oficial (+700 arts)</span>
+                  </label>
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#334155;padding:3px 0;cursor:pointer">
                     <input type="checkbox" id="ceAttachImg" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
                     <span>🖼️ Ficha / Foto del Producto o Flyer</span>
-                  </label>
-                  <label style="display:flex;align-items:center;font-size:12.5px;color:#334155;padding:3px 0;cursor:pointer">
-                    <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
-                    <span>📄 Adjuntar Lista de Precios PDF Oficial</span>
                   </label>
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#334155;padding:3px 0;cursor:pointer">
                     <input type="checkbox" id="ceAttachFile" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
@@ -168,6 +206,7 @@ window.CampaignEditor = (() => {
               </div>
             </div>
 
+            <!-- Ritmo Humano y Anti-Baneo -->
             <div class="ce-section" id="ceSecuritySection">
               <div class="ce-section-title">
                 <span>🛡️ Ritmo Humano y Anti-Baneo WA</span>
@@ -202,11 +241,12 @@ window.CampaignEditor = (() => {
                   </select>
                 </div>
               </div>
-              <div style="font-size:11px;color:#6b7280;margin-top:4px;line-height:1.3">
-                💡 Incluye variación <code>{Hola|Buenos días|Saludos}</code> para que cada cliente reciba un texto único y no se detecte como spam.
+              <div style="font-size:11px;color:#166534;margin-top:4px;line-height:1.3;background:#f0fdf4;padding:6px 8px;border-radius:6px;border:1px solid #bbf7d0">
+                🛡️ <strong>Protección Anti-Baneo activa</strong>: Mensajes únicos generados por IA + Spintax dinámico + descansos humanos.
               </div>
             </div>
 
+            <!-- Programación Opcional -->
             <div class="ce-section" id="ceScheduleSection">
               <div class="ce-section-title">
                 <span>📅 Programar Envío (Opcional)</span>
@@ -215,63 +255,115 @@ window.CampaignEditor = (() => {
                 <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Fecha y hora de inicio:</label>
                 <input type="datetime-local" class="ce-input" id="ceScheduledAt" style="font-size:12px">
                 <div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.3">
-                  ⏰ Déjalo vacío para iniciar de inmediato. Si eliges fecha y hora futura, el servidor despachará automáticamente al llegar ese momento.
+                  ⏰ Déjalo vacío para iniciar de inmediato al despachar.
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Chat Simulator Pane (Right) -->
+          <!-- Panel Derecho: Simulador y Análisis IA -->
           <div class="ce-chat-pane" id="ceChatPane">
-            <div class="ce-chat-header">
-              <div class="ce-chat-avatar">👤</div>
-              <div class="ce-chat-meta">
-                <div class="ce-chat-client-name" id="cePreviewClientName">Librería El Saber, C.A.</div>
-                <div class="ce-chat-client-sub" id="cePreviewClientSub">Vista previa interactiva en tiempo real</div>
+            <!-- Barra de Flujo IA Superior -->
+            <div class="ce-ai-flow-bar" id="ceAiFlowBar">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:20px">✨</span>
+                  <div>
+                    <div style="font-weight:700;font-size:13px;color:#16604A">Análisis Inteligente por Cliente</div>
+                    <div style="font-size:11px;color:#475569" id="ceAiFlowStatusTxt">Examina el rubro de cada prospecto, detecta su necesidad y redacta su propuesta única.</div>
+                  </div>
+                </div>
+                <button type="button" class="ce-ai-analyze-btn" id="ceStartAiAnalysisBtn" onclick="CampaignEditor.startAiAnalysisBatch()">
+                  ⚡ Analizar y Redactar con IA (<span id="ceAnalyzeCountSpan">0</span>)
+                </button>
+              </div>
+              <div class="ce-progress-bar-wrap" id="ceAiProgressWrap" style="display:none;margin-top:6px;">
+                <div class="ce-progress-bar" id="ceAiProgressBar" style="width:0%"></div>
+                <div class="ce-progress-label" id="ceAiProgressLabel">Iniciando análisis...</div>
               </div>
             </div>
 
-            <div class="ce-chat-viewport" id="ceChatViewport">
-              <div class="ce-bubble-container">
-                <div class="ce-bubble" id="ceBubble">
-                  <div id="ceEmailSubjectHeader" class="ce-email-subject-badge" style="display:none;"></div>
-                  <div id="ceBubbleAttachment" class="ce-bubble-attachment-preview" style="display:none;"></div>
-                  <div class="ce-bubble-text" id="ceBubbleText"></div>
-                  <div class="ce-bubble-footer">
-                    <span id="ceBubbleTime">10:45 AM</span>
-                    <span class="ce-checkmarks" id="ceCheckmarks">✓✓</span>
+            <!-- Subpestañas Derechas (Simulador vs Lista de Prospectos) -->
+            <div class="ce-right-subtabs" id="ceRightSubtabs">
+              <button type="button" class="ce-subtab active" id="ceSubtabSim" onclick="CampaignEditor.switchRightTab('simulator')">
+                📱 Simulador en Vivo
+              </button>
+              <button type="button" class="ce-subtab" id="ceSubtabCards" onclick="CampaignEditor.switchRightTab('prospects')">
+                👥 Prospectos Analizados (<span id="ceAnalyzedCountBadge">0/0</span>)
+              </button>
+            </div>
+
+            <!-- Vista 1: Simulador -->
+            <div id="ceSimulatorWrap" style="display:flex;flex-direction:column;flex:1;min-height:0">
+              <!-- Stepper de Navegación de Clientes -->
+              <div class="ce-sim-stepper" id="ceSimStepper">
+                <button type="button" class="ce-stepper-btn" onclick="CampaignEditor.stepPreviewCustomer(-1)">◀ Anterior</button>
+                <span id="ceStepperLabel">Destinatario 1 de 1</span>
+                <button type="button" class="ce-stepper-btn" onclick="CampaignEditor.stepPreviewCustomer(1)">Siguiente ▶</button>
+              </div>
+
+              <div class="ce-chat-header">
+                <div class="ce-chat-avatar">👤</div>
+                <div class="ce-chat-meta">
+                  <div class="ce-chat-client-name" id="cePreviewClientName">Cliente JJ Paper</div>
+                  <div class="ce-chat-client-sub" id="cePreviewClientSub">Vista previa interactiva en tiempo real</div>
+                </div>
+                <div id="cePreviewNeedBadgeWrap"></div>
+              </div>
+
+              <div class="ce-chat-viewport" id="ceChatViewport">
+                <div class="ce-bubble-container">
+                  <div class="ce-bubble" id="ceBubble">
+                    <div id="ceEmailSubjectHeader" class="ce-email-subject-badge" style="display:none;"></div>
+                    <div id="ceBubbleAttachment" class="ce-bubble-attachment-preview" style="display:none;"></div>
+                    <div class="ce-bubble-text" id="ceBubbleText"></div>
+                    <div class="ce-bubble-footer">
+                      <span id="ceBubbleTime">10:45 AM</span>
+                      <span class="ce-checkmarks" id="ceCheckmarks">✓✓</span>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <!-- Acciones Rápidas para el Cliente Activo -->
+              <div id="ceActiveCustomerActions" style="padding:8px 14px;background:#ffffff;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="font-size:11.5px;color:#64748b" id="ceCustomerActionNote">💡 Mensaje personalizado único para este cliente.</span>
+                <div style="display:flex;gap:6px">
+                  <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.editActiveCustomerMessage()">✏️ Editar este mensaje</button>
+                  <button type="button" class="ce-card-action-btn primary" onclick="CampaignEditor.regenerateActiveCustomer()">🔄 Regenerar con IA</button>
+                </div>
+              </div>
+
+              <!-- Área de Redacción y Variables (Modo Plantilla) -->
+              <div class="ce-composer-area" id="ceComposerArea" style="display:none;">
+                <div class="ce-ai-toolbar" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                  <button type="button" id="ceAiDraftBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.aiDraftTemplate()" title="Redactar o personalizar plantilla con IA">🪄 Redactar con IA</button>
+                  <button type="button" id="ceAiSpintaxBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%);color:#991b1b;border-color:#fecaca;font-weight:700" onclick="CampaignEditor.aiAntiSpamSpintax()" title="Generar Spintax anti-baneo automático">🛡️ Variar Anti-Spam IA</button>
+                  <button type="button" id="ceAiFlyerBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);color:#1e40af;border-color:#bfdbfe;font-weight:700" onclick="CampaignEditor.aiDesignFlyer()" title="Diseñar Flyer gráfico del producto con IA">🎨 Diseñar Flyer con IA</button>
+                  <button type="button" id="ceAiSectorBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%);color:#6b21a8;border-color:#d8b4fe;font-weight:700" onclick="CampaignEditor.aiSectorPitch()" title="Generar propuesta estructurada por sector con IA">🎯 Abordaje B2B por Sector</button>
+                </div>
+
+                <div class="ce-variables-toolbar">
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('nombre')">👤 {{nombre}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('empresa')">🏢 {{empresa}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('vendedor')">💼 {{vendedor}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('producto')">📦 {{producto}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('precio')">💲 {{precio}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🏷️ {{descuento}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
+                  <button type="button" class="ce-var-btn" style="background:#fef3c7;color:#92400e;border-color:#fcd34d" onclick="CampaignEditor.insertSpintax()" title="Variar saludos para evitar bloqueos">🎲 Spintax</button>
+                </div>
+
+                <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
+                  <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.updatePreview()">
+                </div>
+
+                <textarea class="ce-textarea" id="ceMessageInput" placeholder="Escribe el mensaje de la campaña..." oninput="CampaignEditor.updatePreview()"></textarea>
+              </div>
             </div>
 
-            <!-- Composer Area -->
-            <div class="ce-composer-area">
-              <div class="ce-ai-toolbar" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                <button type="button" id="ceAiDraftBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.aiDraftTemplate()" title="Redactar o personalizar plantilla con IA">🪄 Redactar con IA</button>
-                <button type="button" id="ceAiSpintaxBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%);color:#991b1b;border-color:#fecaca;font-weight:700" onclick="CampaignEditor.aiAntiSpamSpintax()" title="Generar Spintax anti-baneo automático">🛡️ Variar Anti-Spam IA</button>
-                <button type="button" id="ceAiFlyerBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);color:#1e40af;border-color:#bfdbfe;font-weight:700" onclick="CampaignEditor.aiDesignFlyer()" title="Diseñar Flyer gráfico del producto con IA">🎨 Diseñar Flyer con IA</button>
-                <button type="button" id="ceAiSectorBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%);color:#6b21a8;border-color:#d8b4fe;font-weight:700" onclick="CampaignEditor.aiSectorPitch()" title="Generar propuesta estructurada por sector con IA">🎯 Abordaje B2B por Sector</button>
-              </div>
-
-              <div class="ce-variables-toolbar">
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('nombre')">👤 {{nombre}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('empresa')">🏢 {{empresa}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('vendedor')">💼 {{vendedor}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('producto')">📦 {{producto}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('precio')">💲 {{precio}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🏷️ {{descuento}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descripcion')">📝 {{descripcion}}</button>
-                <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
-                <button type="button" class="ce-var-btn" style="background:#fef3c7;color:#92400e;border-color:#fcd34d" onclick="CampaignEditor.insertSpintax()" title="Variar saludos para evitar bloqueos">🎲 Spintax</button>
-              </div>
-
-              <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
-                <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.updatePreview()">
-              </div>
-
-              <textarea class="ce-textarea" id="ceMessageInput" placeholder="Escribe el mensaje de la campaña..." oninput="CampaignEditor.updatePreview()"></textarea>
-            </div>
+            <!-- Vista 2: Lista de Tarjetas de Prospectos Analizados -->
+            <div id="ceCardsContainer" class="ce-cards-container" style="display:none;"></div>
           </div>
         </div>
 
@@ -291,11 +383,81 @@ window.CampaignEditor = (() => {
     activeOverlay = div;
   }
 
+  /* ---------------- GESTIÓN DE MODOS (IA vs PLANTILLA) ---------------- */
+  function setEditorMode(mode = 'ai') {
+    editorMode = mode;
+    const tabAi = document.getElementById('ceTabModeAi');
+    const tabTpl = document.getElementById('ceTabModeTpl');
+    const secTpl = document.getElementById('ceSectionTemplate');
+    const aiBar = document.getElementById('ceAiFlowBar');
+    const rightSubtabs = document.getElementById('ceRightSubtabs');
+    const simStepper = document.getElementById('ceSimStepper');
+    const activeActions = document.getElementById('ceActiveCustomerActions');
+    const composerArea = document.getElementById('ceComposerArea');
+
+    if (mode === 'ai') {
+      tabAi?.classList.add('active');
+      tabTpl?.classList.remove('active');
+      if (secTpl) secTpl.style.display = 'none';
+      if (aiBar) aiBar.style.display = 'flex';
+      if (rightSubtabs) rightSubtabs.style.display = 'flex';
+      if (simStepper) simStepper.style.display = 'flex';
+      if (activeActions) activeActions.style.display = 'flex';
+      if (composerArea) composerArea.style.display = 'none';
+      // Por defecto activar PDF oficial en modo IA
+      const pdfChk = document.getElementById('ceAttachPdf');
+      if (pdfChk && !pdfChk.checked) {
+        pdfChk.checked = true;
+        onAttachChange();
+      }
+    } else {
+      tabAi?.classList.remove('active');
+      tabTpl?.classList.add('active');
+      if (secTpl) secTpl.style.display = 'block';
+      if (aiBar) aiBar.style.display = 'none';
+      if (rightSubtabs) rightSubtabs.style.display = 'none';
+      if (simStepper) simStepper.style.display = 'none';
+      if (activeActions) activeActions.style.display = 'none';
+      if (composerArea) composerArea.style.display = 'flex';
+      switchRightTab('simulator');
+    }
+
+    updatePreview();
+  }
+
+  function switchRightTab(tab = 'simulator') {
+    activeRightTab = tab;
+    const subSim = document.getElementById('ceSubtabSim');
+    const subCards = document.getElementById('ceSubtabCards');
+    const simWrap = document.getElementById('ceSimulatorWrap');
+    const cardsWrap = document.getElementById('ceCardsContainer');
+
+    if (tab === 'simulator') {
+      subSim?.classList.add('active');
+      subCards?.classList.remove('active');
+      if (simWrap) simWrap.style.display = 'flex';
+      if (cardsWrap) cardsWrap.style.display = 'none';
+      updatePreview();
+    } else {
+      subSim?.classList.remove('active');
+      subCards?.classList.add('active');
+      if (simWrap) simWrap.style.display = 'none';
+      if (cardsWrap) cardsWrap.style.display = 'flex';
+      renderProspectCards();
+    }
+  }
+
+  /* ---------------- APERTURA Y CONFIGURACIÓN INICIAL ---------------- */
   async function open(config = {}) {
     initModal();
     currentConfig = config;
     selectedProductOrCombo = null;
     generatedFlyerFile = null;
+    activePreviewIdx = 0;
+    manualSelectedIds = null;
+    pickerDraftIds = new Set();
+    isAnalyzingBatch = false;
+
     if (document.getElementById('ceScheduledAt')) {
       document.getElementById('ceScheduledAt').value = '';
     }
@@ -311,10 +473,14 @@ window.CampaignEditor = (() => {
     document.getElementById('ceSecuritySection').style.display = isEmail ? 'none' : 'flex';
     document.getElementById('ceCheckmarks').style.display = isEmail ? 'none' : 'inline';
 
-    ['ceAttachPdf', 'ceAttachImg', 'ceAttachFile'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.checked = false;
-    });
+    // Restablecer casillas de adjuntos (PDF activo por defecto)
+    const pdfChk = document.getElementById('ceAttachPdf');
+    if (pdfChk) pdfChk.checked = true;
+    const imgChk = document.getElementById('ceAttachImg');
+    if (imgChk) imgChk.checked = false;
+    const fileChk = document.getElementById('ceAttachFile');
+    if (fileChk) fileChk.checked = false;
+
     const customWrap = document.getElementById('ceCustomFileWrap');
     if (customWrap) customWrap.style.display = 'none';
 
@@ -326,9 +492,13 @@ window.CampaignEditor = (() => {
     
     if (config.preTplId) {
       tplSel.value = config.preTplId;
+      setEditorMode('template');
+    } else {
+      // Por defecto abrir en Modo IA (Recomendado)
+      setEditorMode('ai');
     }
 
-    if (availableTpls.length > 0) {
+    if (availableTpls.length > 0 && config.preTplId) {
       onTemplateChange();
     } else {
       document.getElementById('ceMessageInput').value = isEmail 
@@ -482,6 +652,7 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
+  /* ---------------- AUDIENCIA Y FILTRO DE CONTACTOS ---------------- */
   async function onAudienceChange() {
     if (!cooldownLoading) cooldownLoading = reloadCooldown().finally(() => { cooldownLoading = null; });
     await cooldownLoading;
@@ -500,6 +671,7 @@ window.CampaignEditor = (() => {
 
     let excludedCount = 0;
     let nonMobileCount = 0;
+
     selectedAudienceList = contacts.filter(c => {
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
@@ -509,8 +681,7 @@ window.CampaignEditor = (() => {
         return false;
       }
 
-      // Para WhatsApp: verificar que sea un celular móvil venezolano o internacional válido
-      // Omitir teléfonos fijos CANTV (0212, 0241...) e identificadores que no reciben WhatsApp
+      // Validar móvil WhatsApp
       if (!isEmail) {
         let isMob = false;
         if (typeof parsePhoneInfo === 'function') {
@@ -531,6 +702,11 @@ window.CampaignEditor = (() => {
 
       if (hitCooldown(c)) { excludedCount++; return false; }
 
+      // Si el usuario aplicó una selección manual con checkboxes, priorizarla
+      if (manualSelectedIds && manualSelectedIds.size > 0) {
+        return manualSelectedIds.has(c.id);
+      }
+
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);
       if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0);
       if (aud === 'etiqueta' && tagVal) {
@@ -543,17 +719,37 @@ window.CampaignEditor = (() => {
       return true;
     });
 
+    // Ajustar índice de preview si se desborda
+    if (activePreviewIdx >= selectedAudienceList.length) {
+      activePreviewIdx = Math.max(0, selectedAudienceList.length - 1);
+    }
+
     let detailsTxt = '';
     if (!isEmail && nonMobileCount > 0) {
-      detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} omitidos: sin WhatsApp o fijos CANTV)</span>`;
+      detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} omitidos: fijos CANTV o sin WhatsApp)</span>`;
     }
     if (cooldownHours > 0 && excludedCount > 0) {
-      detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitido${excludedCount !== 1 ? 's' : ''} por envío reciente (<${cooldownHours}h)</span>`;
+      detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitidos por envío reciente (<${cooldownHours}h)</span>`;
     }
 
     const countLabel = isEmail ? `${selectedAudienceList.length} correos` : `${selectedAudienceList.length} móviles WhatsApp`;
     document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${countLabel}</strong>${detailsTxt}`;
     document.getElementById('ceLaunchBtn').disabled = selectedAudienceList.length === 0;
+
+    // Actualizar badges
+    const badgeEl = document.getElementById('ceSelectedProspectsBadge');
+    if (badgeEl) badgeEl.textContent = selectedAudienceList.length;
+    const analyzeCountEl = document.getElementById('ceAnalyzeCountSpan');
+    if (analyzeCountEl) analyzeCountEl.textContent = selectedAudienceList.length;
+
+    updateAnalyzedCountBadge();
+    updatePreview();
+  }
+
+  function updateAnalyzedCountBadge() {
+    const analyzedCount = selectedAudienceList.filter(c => c._custom_message).length;
+    const badge = document.getElementById('ceAnalyzedCountBadge');
+    if (badge) badge.textContent = `${analyzedCount}/${selectedAudienceList.length}`;
   }
 
   function onAttachChange() {
@@ -564,11 +760,10 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
-  // Soporta selección múltiple de adjuntos (PDF + foto/flyer + archivo propio) tanto para WhatsApp como para Email
   function currentAttachOpts() {
     const opts = [];
-    if (document.getElementById('ceAttachImg')?.checked) opts.push('prod_image');
     if (document.getElementById('ceAttachPdf')?.checked) opts.push('pdf_lista_precios');
+    if (document.getElementById('ceAttachImg')?.checked) opts.push('prod_image');
     if (document.getElementById('ceAttachFile')?.checked) opts.push('custom_file');
     return opts;
   }
@@ -577,112 +772,162 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
-  function insertVar(varName) {
-    const textarea = document.getElementById('ceMessageInput');
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const tag = `{{${varName}}}`;
-    textarea.value = text.substring(0, start) + tag + text.substring(end);
-    textarea.focus();
-    textarea.selectionStart = textarea.selectionEnd = start + tag.length;
-    updatePreview();
+  /* ---------------- MODAL DE SELECCIÓN MANUAL DE PROSPECTOS ---------------- */
+  function openProspectPicker() {
+    let picker = document.getElementById('campProspectPickerOverlay');
+    if (!picker) {
+      picker = document.createElement('div');
+      picker.id = 'campProspectPickerOverlay';
+      picker.className = 'ce-picker-overlay';
+      picker.innerHTML = `
+        <div class="ce-picker-dialog">
+          <div class="ce-picker-header">
+            <div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px">
+              <span>👥 Seleccionar Prospectos para la Campaña</span>
+            </div>
+            <button class="ce-close-btn" onclick="CampaignEditor.closeProspectPicker()" title="Cerrar">✕</button>
+          </div>
+          <div class="ce-picker-body">
+            <div class="ce-picker-toolbar">
+              <input type="text" id="cePickerSearchInput" class="ce-input" style="flex:1;min-width:200px" placeholder="🔍 Buscar por nombre, RIF, ciudad, notas..." oninput="CampaignEditor.filterProspectPicker(this.value)">
+              <button type="button" class="ce-card-action-btn primary" onclick="CampaignEditor.toggleAllProspects(true)">✓ Seleccionar Todos</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.toggleAllProspects(false)">✗ Desmarcar Todos</button>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:11px;font-weight:600;color:#64748b">Filtros rápidos:</span>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">Todos</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('con_compras')">Con Compras</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('nuevos')">Nuevos (Sin compras)</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('inactivos')">Inactivos (>30d)</button>
+            </div>
+            <div class="ce-picker-list" id="cePickerList"></div>
+          </div>
+          <div class="ce-picker-footer">
+            <div id="cePickerStats" style="font-size:12px;font-weight:600;color:#475569">0 seleccionados</div>
+            <div style="display:flex;gap:8px">
+              <button class="ce-btn-cancel" onclick="CampaignEditor.closeProspectPicker()">Cancelar</button>
+              <button class="ce-btn-launch" onclick="CampaignEditor.applyProspectSelection()">✓ Confirmar Selección</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(picker);
+    }
+
+    // Inicializar borrador con los IDs actualmente seleccionados
+    pickerDraftIds = new Set(selectedAudienceList.map(c => c.id));
+    pickerSearchQuery = '';
+    pickerQuickFilter = 'todos';
+    const searchInp = document.getElementById('cePickerSearchInput');
+    if (searchInp) searchInp.value = '';
+
+    renderProspectPickerList();
+    picker.style.display = 'flex';
   }
 
-  function insertSpintax() {
-    const textarea = document.getElementById('ceMessageInput');
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const spin = `{Hola|Buen día|Saludos|Qué tal}`;
-    textarea.value = text.substring(0, start) + spin + text.substring(end);
-    textarea.focus();
-    textarea.selectionStart = textarea.selectionEnd = start + spin.length;
-    updatePreview();
+  function closeProspectPicker() {
+    const picker = document.getElementById('campProspectPickerOverlay');
+    if (picker) picker.style.display = 'none';
   }
 
-  function updatePreview() {
-    const text = document.getElementById('ceMessageInput').value;
+  function filterProspectPicker(q = '') {
+    pickerSearchQuery = String(q || '').toLowerCase().trim();
+    renderProspectPickerList();
+  }
+
+  function setPickerQuickFilter(filter = 'todos') {
+    pickerQuickFilter = filter;
+    renderProspectPickerList();
+  }
+
+  function renderProspectPickerList() {
+    const listWrap = document.getElementById('cePickerList');
+    if (!listWrap) return;
+
+    const contacts = currentConfig?.contacts || [];
     const isEmail = currentConfig?.channel === 'email';
-    
-    // El link de venta debe apuntar SIEMPRE al dominio real en uso (jj-paper.pages.dev),
-    // nunca a un dominio viejo de Netlify. Para un producto se usa la FICHA directa
-    // (producto.html?id=<id del producto> — igual que la función fichaLink de ficha-producto.js);
-    // para un combo/oferta se enlaza la sección de promociones.
-    const publicBase = location.origin + location.pathname
-      .replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
-    const prodId = selectedProductOrCombo?.raw?.jjp_products?.id || selectedProductOrCombo?.product_id;
-    const isCombo = selectedProductOrCombo?.type === 'combo';
-    const link = selectedProductOrCombo
-      ? (isCombo
-          ? `${publicBase}/promociones.html`
-          : (prodId ? `${publicBase}/producto.html?id=${prodId}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`))
-      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo.html`) : `${publicBase}/catalogo.html`);
 
-    const sample = {
-      nombre: 'Librería El Saber',
-      empresa: 'Librería El Saber, C.A.',
-      vendedor: currentConfig?.seller?.name || 'Asesor JJ Paper',
-      producto: selectedProductOrCombo?.name || 'Cuaderno Universitario 100h',
-      precio: `$${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
-      descuento: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '15%',
-      descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta calidad con despacho directo.',
-      link
-    };
+    const filtered = contacts.filter(c => {
+      if (isEmail && !c.email) return false;
+      if (!isEmail && !c.phone) return false;
 
-    // Renderizar variables dobles PRIMERO ({{clave}} → valor), luego Spintax {A|B|C}.
-    // Antes se resolvía Spintax antes y con una regex de llave simple que destruía la
-    // llave interna de {{variable}} (la dejaba como {variable}), por eso las variables
-    // se veían rotas en el preview y no coincidían con lo que se envía.
-    let rendered = text.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
-      (_, k) => sample[k.trim().toLowerCase()] ?? '');
-    rendered = rendered.replace(/\{([^{}]*\|[^{}]*)\}/g, (_, choices) => {
-      const parts = choices.split('|');
-      return parts[0].trim();
+      // Filtro rápido
+      if (pickerQuickFilter === 'con_compras' && (!c.total_orders || c.total_orders === 0)) return false;
+      if (pickerQuickFilter === 'nuevos' && (c.total_orders && c.total_orders > 0)) return false;
+      if (pickerQuickFilter === 'inactivos' && (!c.total_orders || c.days_since_last <= 30)) return false;
+
+      // Búsqueda
+      if (pickerSearchQuery) {
+        const text = `${c.name || ''} ${c.rif || ''} ${c.city || ''} ${c.address || ''} ${c.notes || ''} ${c.phone || ''} ${c.email || ''}`.toLowerCase();
+        if (!text.includes(pickerSearchQuery)) return false;
+      }
+
+      return true;
     });
 
-    const attachOpts = currentAttachOpts();
-    const attachPreviewEl = document.getElementById('ceBubbleAttachment');
-    const previewItems = [];
-    if (generatedFlyerFile) {
-      try {
-        const flyerBlobUrl = URL.createObjectURL(generatedFlyerFile);
-        previewItems.push(`<div style="position:relative"><img src="${flyerBlobUrl}" alt="Flyer con IA" style="max-height:180px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(0,0,0,0.06)"><span style="position:absolute;top:6px;right:6px;background:#16604A;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700">🎨 Flyer IA</span></div>`);
-      } catch (e) {}
-    } else if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url) {
-      previewItems.push(`<img src="${selectedProductOrCombo.image_url}" alt="Preview" style="max-height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px">`);
-    }
-    if (attachOpts.includes('pdf_lista_precios')) {
-      previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_JJ_Paper.pdf (PDF Oficial)</div>`);
-    }
-    if (attachOpts.includes('custom_file') && !generatedFlyerFile) {
-      const file = document.getElementById('ceCustomFileInput')?.files?.[0];
-      if (file) {
-        previewItems.push(`<div class="ce-bubble-doc-card">📎 ${escapeHTML(file.name)} (${(file.size / 1024).toFixed(1)} KB)</div>`);
-      }
-    }
-    attachPreviewEl.style.display = previewItems.length ? 'block' : 'none';
-    attachPreviewEl.innerHTML = previewItems.join('');
-
-    if (isEmail) {
-      const subj = document.getElementById('ceSubjectInput').value || 'Sin asunto';
-      document.getElementById('ceEmailSubjectHeader').textContent = `Asunto: ${subj}`;
+    if (filtered.length === 0) {
+      listWrap.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b;font-size:13px">Ningún contacto coincide con la búsqueda.</div>';
+      updatePickerStats(0, filtered.length);
+      return;
     }
 
-    let formatted = escapeHTML(rendered);
-    formatted = formatted.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
-    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
-    formatted = formatted.replace(/\n/g, '<br>');
+    listWrap.innerHTML = filtered.map(c => {
+      const isChecked = pickerDraftIds.has(c.id);
+      const ordersInfo = (c.total_orders && c.total_orders > 0)
+        ? `<span style="color:#15803d;font-weight:600">${c.total_orders} pedidos ($${Number(c.total_usd || 0).toFixed(0)})</span>`
+        : '<span style="color:#64748b">Nuevo prospecto</span>';
 
-    document.getElementById('ceBubbleText').innerHTML = formatted;
-    document.getElementById('ceBubbleTime').textContent = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="ce-picker-item ${isChecked ? 'selected' : ''}" onclick="CampaignEditor.toggleProspect('${c.id}')">
+          <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); CampaignEditor.toggleProspect('${c.id}')">
+          <div style="flex:1; min-width:0">
+            <div style="font-size:13px; font-weight:700; color:#1e293b">${escapeHTML(c.name || 'Sin Nombre')}</div>
+            <div style="font-size:11px; color:#64748b">
+              ${c.rif ? `RIF: ${escapeHTML(c.rif)} · ` : ''}
+              ${c.city ? `📍 ${escapeHTML(c.city)} · ` : ''}
+              ${isEmail ? (c.email || 'Sin correo') : (c.phone || 'Sin teléfono')}
+            </div>
+            ${c.notes ? `<div style="font-size:10.5px; color:#475569; font-style:italic; margin-top:2px">📝 ${escapeHTML(c.notes)}</div>` : ''}
+          </div>
+          <div style="text-align:right; font-size:11px">
+            ${ordersInfo}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    updatePickerStats(pickerDraftIds.size, contacts.length);
   }
 
-  function escapeHTML(str) {
-    return (str || '').replace(/[&<>'"]/g, tag => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-    }[tag] || tag));
+  function toggleProspect(id) {
+    if (pickerDraftIds.has(id)) pickerDraftIds.delete(id);
+    else pickerDraftIds.add(id);
+    renderProspectPickerList();
+  }
+
+  function toggleAllProspects(checked = true) {
+    const contacts = currentConfig?.contacts || [];
+    if (checked) {
+      contacts.forEach(c => {
+        if (currentConfig?.channel === 'email' ? c.email : c.phone) {
+          pickerDraftIds.add(c.id);
+        }
+      });
+    } else {
+      pickerDraftIds.clear();
+    }
+    renderProspectPickerList();
+  }
+
+  function updatePickerStats(selectedCount, totalCount) {
+    const el = document.getElementById('cePickerStats');
+    if (el) el.textContent = `${selectedCount} prospectos seleccionados (de ${totalCount})`;
+  }
+
+  function applyProspectSelection() {
+    manualSelectedIds = new Set(pickerDraftIds);
+    closeProspectPicker();
+    onAudienceChange();
   }
 
   /* ---------------- MÉTODOS DE INTELIGENCIA ARTIFICIAL ---------------- */
@@ -701,23 +946,430 @@ window.CampaignEditor = (() => {
     });
   }
 
+  async function startAiAnalysisBatch() {
+    if (isAnalyzingBatch) return;
+    if (!selectedAudienceList.length) {
+      alert('Por favor selecciona primero los prospectos o clientes a los que dirigirás la campaña.');
+      return;
+    }
+
+    const btn = document.getElementById('ceStartAiAnalysisBtn');
+    const origBtnTxt = btn ? btn.innerHTML : '';
+    const progressWrap = document.getElementById('ceAiProgressWrap');
+    const progressBar = document.getElementById('ceAiProgressBar');
+    const progressLabel = document.getElementById('ceAiProgressLabel');
+    const statusTxt = document.getElementById('ceAiFlowStatusTxt');
+
+    isAnalyzingBatch = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Analizando...';
+    }
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressLabel) progressLabel.textContent = `Analizando 0 de ${selectedAudienceList.length}...`;
+    if (statusTxt) statusTxt.textContent = 'La IA está examinando el rubro y necesidades operativas de cada prospecto...';
+
+    try {
+      await ensureGeminiClient();
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+
+      const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
+      const channel = currentConfig?.channel || 'whatsapp';
+      const sName = currentConfig?.seller?.name || '';
+      const sPhone = currentConfig?.seller?.phone || '';
+
+      await window.GeminiClient.analyzeCustomersBatch({
+        customers: selectedAudienceList,
+        channel,
+        sellerName: sName,
+        sellerPhone: sPhone,
+        promoProductOrCombo: selectedProductOrCombo,
+        officialPdfIncluded: isPdf,
+        onProgress: ({ current, total, customer, result }) => {
+          const pct = Math.round((current / total) * 100);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          if (progressLabel) progressLabel.textContent = `Analizando ${current} de ${total}: ${customer.name || ''}... (${pct}%)`;
+          customer._custom_message = result.body;
+          customer._custom_subject = result.subject;
+          customer._detected_need = result.need;
+          customer._detected_sector = result.sector;
+          updateAnalyzedCountBadge();
+        }
+      });
+
+      if (progressBar) progressBar.style.width = '100%';
+      if (progressLabel) progressLabel.textContent = `✅ ¡Análisis completado para los ${selectedAudienceList.length} prospectos!`;
+      if (statusTxt) statusTxt.textContent = '¡Listo! Cada prospecto tiene su propuesta comercial personalizada y variaciones anti-spam.';
+
+      activePreviewIdx = 0;
+      updatePreview();
+      renderProspectCards();
+
+      setTimeout(() => {
+        if (progressWrap) progressWrap.style.display = 'none';
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `⚡ Re-analizar con IA (${selectedAudienceList.length})`;
+        }
+      }, 3500);
+
+    } catch (err) {
+      console.error('Error en análisis batch:', err);
+      alert('Aviso durante el análisis con IA: ' + err.message);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origBtnTxt;
+      }
+      if (progressWrap) progressWrap.style.display = 'none';
+    } finally {
+      isAnalyzingBatch = false;
+    }
+  }
+
+  function stepPreviewCustomer(delta = 1) {
+    if (!selectedAudienceList.length) return;
+    activePreviewIdx = (activePreviewIdx + delta + selectedAudienceList.length) % selectedAudienceList.length;
+    updatePreview();
+  }
+
+  function selectPreviewCustomer(idx) {
+    if (idx >= 0 && idx < selectedAudienceList.length) {
+      activePreviewIdx = idx;
+      switchRightTab('simulator');
+    }
+  }
+
+  async function regenerateActiveCustomer() {
+    const cust = selectedAudienceList[activePreviewIdx];
+    if (!cust) return;
+
+    const noteEl = document.getElementById('ceCustomerActionNote');
+    if (noteEl) noteEl.textContent = `⏳ Regenerando propuesta para ${cust.name}...`;
+
+    try {
+      await ensureGeminiClient();
+      const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
+      const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
+        customer: cust,
+        channel: currentConfig?.channel || 'whatsapp',
+        sellerName: currentConfig?.seller?.name || '',
+        sellerPhone: currentConfig?.seller?.phone || '',
+        promoProductOrCombo: selectedProductOrCombo,
+        officialPdfIncluded: isPdf
+      });
+
+      cust._custom_message = res.body;
+      cust._custom_subject = res.subject;
+      cust._detected_need = res.need;
+      cust._detected_sector = res.sector;
+
+      if (noteEl) noteEl.textContent = `✅ Propuesta regenerada exitosamente.`;
+      updatePreview();
+      renderProspectCards();
+    } catch (err) {
+      alert('Error regenerando propuesta: ' + err.message);
+      if (noteEl) noteEl.textContent = `💡 Mensaje personalizado único para este cliente.`;
+    }
+  }
+
+  function editActiveCustomerMessage() {
+    const cust = selectedAudienceList[activePreviewIdx];
+    if (!cust) return;
+    openCustomerEditModal(activePreviewIdx);
+  }
+
+  function openCustomerEditModal(idx) {
+    editingCustomerIdx = idx;
+    const cust = selectedAudienceList[idx];
+    if (!cust) return;
+
+    let modal = document.getElementById('campEditCustomerModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'campEditCustomerModal';
+      modal.className = 'ce-picker-overlay';
+      modal.innerHTML = `
+        <div class="ce-picker-dialog" style="max-width:650px; height:auto; max-height:85vh">
+          <div class="ce-picker-header">
+            <div style="font-weight:700;font-size:13.5px" id="ceEditModalTitle">✏️ Editar Mensaje Personalizado</div>
+            <button class="ce-close-btn" onclick="CampaignEditor.closeCustomerEditModal()" title="Cerrar">✕</button>
+          </div>
+          <div class="ce-picker-body" style="padding:16px">
+            <div id="ceEditSubjectGroup" style="display:none;margin-bottom:8px">
+              <label class="ce-label">Asunto del Correo:</label>
+              <input type="text" id="ceEditSubjectInput" class="ce-input" placeholder="Asunto personalizado...">
+            </div>
+            <div class="ce-field-group">
+              <label class="ce-label">Cuerpo del Mensaje (con *negritas*, viñetas y Spintax):</label>
+              <textarea id="ceEditBodyTextarea" class="ce-textarea" style="min-height:180px;font-size:13px"></textarea>
+            </div>
+          </div>
+          <div class="ce-picker-footer">
+            <button class="ce-btn-cancel" onclick="CampaignEditor.closeCustomerEditModal()">Cancelar</button>
+            <button class="ce-btn-launch" onclick="CampaignEditor.saveCustomerEdit()">✓ Guardar Mensaje</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    const isEmail = currentConfig?.channel === 'email';
+    document.getElementById('ceEditModalTitle').textContent = `✏️ Editar Mensaje para ${cust.name}`;
+    document.getElementById('ceEditSubjectGroup').style.display = isEmail ? 'block' : 'none';
+    if (isEmail) {
+      document.getElementById('ceEditSubjectInput').value = cust._custom_subject || document.getElementById('ceSubjectInput')?.value || '';
+    }
+    document.getElementById('ceEditBodyTextarea').value = cust._custom_message || document.getElementById('ceMessageInput')?.value || '';
+
+    modal.style.display = 'flex';
+  }
+
+  function closeCustomerEditModal() {
+    const modal = document.getElementById('campEditCustomerModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function saveCustomerEdit() {
+    if (editingCustomerIdx < 0 || editingCustomerIdx >= selectedAudienceList.length) return;
+    const cust = selectedAudienceList[editingCustomerIdx];
+    const isEmail = currentConfig?.channel === 'email';
+
+    cust._custom_message = document.getElementById('ceEditBodyTextarea')?.value.trim();
+    if (isEmail) {
+      cust._custom_subject = document.getElementById('ceEditSubjectInput')?.value.trim();
+    }
+
+    closeCustomerEditModal();
+    updatePreview();
+    renderProspectCards();
+  }
+
+  function renderProspectCards() {
+    const wrap = document.getElementById('ceCardsContainer');
+    if (!wrap) return;
+
+    if (!selectedAudienceList.length) {
+      wrap.innerHTML = '<div style="padding:24px;text-align:center;color:#64748b">No hay prospectos seleccionados en la audiencia.</div>';
+      return;
+    }
+
+    wrap.innerHTML = selectedAudienceList.map((c, idx) => {
+      const isCurrent = (idx === activePreviewIdx);
+      const needBadge = c._detected_need
+        ? `<span class="ce-need-badge">🎯 ${escapeHTML(c._detected_sector || 'Sector')} | ${escapeHTML(c._detected_need)}</span>`
+        : `<span style="font-size:10.5px;color:#b45309;background:#fef3c7;padding:2px 6px;border-radius:4px;font-weight:600">⏳ Pendiente de análisis IA</span>`;
+
+      const msgPreview = c._custom_message
+        ? escapeHTML(c._custom_message)
+        : '<em style="color:#94a3b8">Haz clic en "Analizar y Redactar con IA" para generar la propuesta única de este cliente.</em>';
+
+      return `
+        <div class="ce-customer-ai-card ${isCurrent ? 'active-preview' : ''}">
+          <div class="ce-customer-ai-header">
+            <div>
+              <div class="ce-customer-ai-title">
+                ${isCurrent ? '👉 ' : ''}${escapeHTML(c.name || 'Cliente')}
+              </div>
+              <div class="ce-customer-ai-meta">
+                ${c.city ? `📍 ${escapeHTML(c.city)} · ` : ''}
+                ${c.total_orders > 0 ? `<span style="color:#15803d;font-weight:600">${c.total_orders} pedidos</span>` : 'Prospecto nuevo'}
+              </div>
+            </div>
+            <div>${needBadge}</div>
+          </div>
+          <div class="ce-customer-ai-preview">${msgPreview}</div>
+          <div class="ce-customer-ai-actions">
+            <button type="button" class="ce-card-action-btn primary" onclick="CampaignEditor.selectPreviewCustomer(${idx})">👁️ Ver en Simulador</button>
+            <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.openCustomerEditModal(${idx})">✏️ Editar</button>
+            <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.selectPreviewCustomer(${idx}); CampaignEditor.regenerateActiveCustomer()">🔄 Regenerar IA</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /* ---------------- SIMULADOR INTERACTIVO Y PREVIEW ---------------- */
+  function updatePreview() {
+    const isEmail = currentConfig?.channel === 'email';
+    const currentCust = selectedAudienceList[activePreviewIdx];
+
+    // Stepper label
+    const stepperLabel = document.getElementById('ceStepperLabel');
+    if (stepperLabel) {
+      stepperLabel.textContent = selectedAudienceList.length > 0
+        ? `Destinatario ${activePreviewIdx + 1} de ${selectedAudienceList.length}`
+        : '0 destinatarios';
+    }
+
+    // Nombre y subtítulo del cliente activo
+    const nameEl = document.getElementById('cePreviewClientName');
+    const subEl = document.getElementById('cePreviewClientSub');
+    const badgeWrap = document.getElementById('cePreviewNeedBadgeWrap');
+
+    if (currentCust) {
+      if (nameEl) nameEl.textContent = currentCust.name || 'Cliente JJ Paper';
+      if (subEl) subEl.textContent = `${currentCust.city ? '📍 ' + currentCust.city + ' · ' : ''}${currentCust.total_orders > 0 ? currentCust.total_orders + ' pedidos registrados' : 'Prospecto Nuevo'}`;
+      if (badgeWrap) {
+        badgeWrap.innerHTML = currentCust._detected_need
+          ? `<span class="ce-need-badge" style="font-size:10px">🎯 ${escapeHTML(currentCust._detected_sector || 'Rubro')}</span>`
+          : '';
+      }
+    } else {
+      if (nameEl) nameEl.textContent = 'Librería El Saber, C.A.';
+      if (subEl) subEl.textContent = 'Vista previa interactiva en tiempo real';
+      if (badgeWrap) badgeWrap.innerHTML = '';
+    }
+
+    const publicBase = location.origin + location.pathname
+      .replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
+    const prodId = selectedProductOrCombo?.raw?.jjp_products?.id || selectedProductOrCombo?.product_id;
+    const isCombo = selectedProductOrCombo?.type === 'combo';
+    const link = selectedProductOrCombo
+      ? (isCombo
+          ? `${publicBase}/promociones.html`
+          : (prodId ? `${publicBase}/producto.html?id=${prodId}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`))
+      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo.html`) : `${publicBase}/catalogo.html`);
+
+    let rawText = '';
+    let subjectText = '';
+
+    if (editorMode === 'ai') {
+      if (currentCust?._custom_message) {
+        rawText = currentCust._custom_message;
+        subjectText = currentCust._custom_subject || 'Propuesta Comercial — JJ Paper C.A.';
+      } else {
+        // Vista previa representativa en vivo
+        const sName = currentConfig?.seller?.name || 'Asesor JJ Paper';
+        const sPhone = currentConfig?.seller?.phone || '0412-4676073';
+        const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
+        const cName = currentCust?.name || 'Librería El Saber';
+
+        if (isEmail) {
+          subjectText = `📋 Propuesta de Suministro Operativo y Lista de Precios — JJ Paper C.A.`;
+          rawText = `{Estimado(a)|Apreciado(a)|Hola} ${cName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de suministro directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Consumibles de línea de caja*: rollos térmicos para POS (80x70 y 57x40mm).\n• *Carpetas de fibra reglamentarias y archivadores* para resguardo documental.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.\n\n*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+        } else {
+          rawText = `{Hola|Buen día|Un gusto saludarle} ${cName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería, consumibles de caja y embalaje en Caracas.\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Rollos térmicos para puntos de venta (POS)*: 80x70 y 57x40mm garantizados.\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura.\n• *Cintas de embalaje industrial* y consumibles de alta rotación.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para entrega inmediata.\n\n*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal legal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+        }
+      }
+    } else {
+      rawText = document.getElementById('ceMessageInput')?.value || '';
+      subjectText = document.getElementById('ceSubjectInput')?.value || 'Sin asunto';
+    }
+
+    const sample = {
+      nombre: currentCust?.name || 'Librería El Saber',
+      empresa: currentCust?.name || 'Librería El Saber, C.A.',
+      vendedor: currentConfig?.seller?.name || 'Asesor JJ Paper',
+      producto: selectedProductOrCombo?.name || 'Cuaderno Universitario 100h',
+      precio: `$${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
+      descuento: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '15%',
+      descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta calidad con despacho directo.',
+      link
+    };
+
+    // Resolver variables dobles primero
+    let rendered = rawText.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
+      (_, k) => sample[k.trim().toLowerCase()] ?? '');
+
+    // Resolver Spintax
+    rendered = rendered.replace(/\{([^{}]*\|[^{}]*)\}/g, (_, choices) => {
+      const parts = choices.split('|');
+      return parts[0].trim();
+    });
+
+    // Adjuntos
+    const attachOpts = currentAttachOpts();
+    const attachPreviewEl = document.getElementById('ceBubbleAttachment');
+    const previewItems = [];
+
+    if (generatedFlyerFile) {
+      try {
+        const flyerBlobUrl = URL.createObjectURL(generatedFlyerFile);
+        previewItems.push(`<div style="position:relative"><img src="${flyerBlobUrl}" alt="Flyer con IA" style="max-height:180px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px;border:1px solid #e2e8f0;box-shadow:0 4px 10px rgba(0,0,0,0.06)"><span style="position:absolute;top:6px;right:6px;background:#16604A;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700">🎨 Flyer IA</span></div>`);
+      } catch (e) {}
+    } else if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url) {
+      previewItems.push(`<img src="${selectedProductOrCombo.image_url}" alt="Preview" style="max-height:160px;width:100%;object-fit:cover;border-radius:8px;margin-bottom:6px">`);
+    }
+
+    if (attachOpts.includes('pdf_lista_precios')) {
+      previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_Mayorista_JJ_Paper.pdf (PDF Oficial +700 arts)</div>`);
+    }
+
+    if (attachOpts.includes('custom_file') && !generatedFlyerFile) {
+      const file = document.getElementById('ceCustomFileInput')?.files?.[0];
+      if (file) {
+        previewItems.push(`<div class="ce-bubble-doc-card">📎 ${escapeHTML(file.name)} (${(file.size / 1024).toFixed(1)} KB)</div>`);
+      }
+    }
+
+    attachPreviewEl.style.display = previewItems.length ? 'block' : 'none';
+    attachPreviewEl.innerHTML = previewItems.join('');
+
+    if (isEmail) {
+      document.getElementById('ceEmailSubjectHeader').textContent = `Asunto: ${subjectText}`;
+    }
+
+    let formatted = escapeHTML(rendered);
+    formatted = formatted.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
+    formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
+    formatted = formatted.replace(/\n/g, '<br>');
+
+    document.getElementById('ceBubbleText').innerHTML = formatted;
+    document.getElementById('ceBubbleTime').textContent = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHTML(str) {
+    return (str || '').replace(/[&<>'"]/g, tag => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[tag] || tag));
+  }
+
+  function insertVar(varName) {
+    const textarea = document.getElementById('ceMessageInput');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const tag = `{{${varName}}}`;
+    textarea.value = text.substring(0, start) + tag + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+    updatePreview();
+  }
+
+  function insertSpintax() {
+    const textarea = document.getElementById('ceMessageInput');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const spin = `{Hola|Buen día|Saludos|Qué tal}`;
+    textarea.value = text.substring(0, start) + spin + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + spin.length;
+    updatePreview();
+  }
+
   async function aiDraftTemplate() {
     const isEmail = currentConfig?.channel === 'email';
     const defPrompt = selectedProductOrCombo 
       ? `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`
       : 'Actualización de condiciones mayoristas y reposición de inventario';
 
-    const obj = prompt('✨ ¿Qué requerimiento o propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Oferta mayorista con despacho inmediato en Caracas)', defPrompt);
+    const obj = prompt('✨ ¿Qué propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Rollos térmicos para cajas)', defPrompt);
     if (!obj || !obj.trim()) return;
 
     const btn = document.getElementById('ceAiDraftBtn');
-    const origText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Redactando con IA...';
+    const origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Redactando con IA...';
+    }
 
     try {
       await ensureGeminiClient();
-      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const result = await window.GeminiClient.draftCampaignMessage({
         objective: obj.trim(),
         product: selectedProductOrCombo,
@@ -735,13 +1387,17 @@ window.CampaignEditor = (() => {
       }
 
       updatePreview();
-      btn.disabled = false;
-      btn.textContent = '🪄 Redactado ✓';
-      setTimeout(() => { btn.textContent = origText; }, 2500);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🪄 Redactado ✓';
+        setTimeout(() => { btn.textContent = origText; }, 2500);
+      }
     } catch (err) {
       alert('Error redactando con IA: ' + err.message);
-      btn.disabled = false;
-      btn.textContent = origText;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
     }
   }
 
@@ -759,8 +1415,6 @@ window.CampaignEditor = (() => {
 
     try {
       await ensureGeminiClient();
-      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
-
       const result = await window.GeminiClient.analyzeAndDraftProspectB2B({
         companyName: '{{empresa}}',
         sector: sector,
@@ -806,24 +1460,29 @@ window.CampaignEditor = (() => {
     }
 
     const btn = document.getElementById('ceAiSpintaxBtn');
-    const origText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Generando Spintax...';
+    const origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando Spintax...';
+    }
 
     try {
       await ensureGeminiClient();
-      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const spintax = await window.GeminiClient.generateCampaignSpintax(text, currentConfig?.channel || 'whatsapp');
       textarea.value = spintax;
       updatePreview();
 
-      btn.disabled = false;
-      btn.textContent = '🛡️ Spintax Aplicado ✓';
-      setTimeout(() => { btn.textContent = origText; }, 2500);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🛡️ Spintax Aplicado ✓';
+        setTimeout(() => { btn.textContent = origText; }, 2500);
+      }
     } catch (err) {
       alert('Error generando Spintax: ' + err.message);
-      btn.disabled = false;
-      btn.textContent = origText;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
     }
   }
 
@@ -835,41 +1494,37 @@ window.CampaignEditor = (() => {
     }
 
     const btn = document.getElementById('ceAiFlyerBtn');
-    const origText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⏳ Diseñando Flyer...';
+    const origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Diseñando Flyer...';
+    }
 
     try {
       await ensureGeminiClient();
-      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
       const p = selectedProductOrCombo;
 
-      // Si el producto no tiene foto previa, buscar primero la foto comercial real y luego fallback a foto estudio
       if (!p._studio_photo_url && !p.image_url) {
-        btn.textContent = '🔍 Buscando Foto Comercial Real...';
+        if (btn) btn.textContent = '🔍 Buscando Foto Comercial Real...';
         try {
           const realPhoto = await window.GeminiClient.searchRealProductPhoto(p.name);
-          if (realPhoto) {
-            p._studio_photo_url = realPhoto;
-          }
+          if (realPhoto) p._studio_photo_url = realPhoto;
         } catch (photoSearchErr) {
           console.warn('Búsqueda web de foto comercial no disponible:', photoSearchErr);
         }
 
         if (!p._studio_photo_url) {
-          btn.textContent = '📸 Generando Foto Estudio IA...';
+          if (btn) btn.textContent = '📸 Generando Foto Estudio IA...';
           try {
             const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: p, theme: 'white' });
-            if (photoRes?.imageUrl) {
-              p._studio_photo_url = photoRes.imageUrl;
-            }
+            if (photoRes?.imageUrl) p._studio_photo_url = photoRes.imageUrl;
           } catch (photoErr) {
-            console.warn('Foto de estudio no pudo completarse antes del flyer:', photoErr);
+            console.warn('Foto de estudio no pudo completarse:', photoErr);
           }
         }
       }
 
-      btn.textContent = '🎨 Renderizando Flyer...';
+      if (btn) btn.textContent = '🎨 Renderizando Flyer...';
       const cvs = await window.GeminiClient.renderProductCard({
         product: p,
         customPriceUsd: p.final_price_usd || p.price_usd,
@@ -889,32 +1544,74 @@ window.CampaignEditor = (() => {
         if (chk) chk.checked = true;
 
         updatePreview();
-        btn.disabled = false;
-        btn.textContent = '🎨 Flyer Listo ✓';
-        setTimeout(() => { btn.textContent = origText; }, 2500);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🎨 Flyer Listo ✓';
+          setTimeout(() => { btn.textContent = origText; }, 2500);
+        }
       }, 'image/png');
 
     } catch (err) {
       alert('Error generando flyer: ' + err.message);
-      btn.disabled = false;
-      btn.textContent = origText;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
     }
   }
 
+  /* ---------------- DESPACHO Y LANZAMIENTO ---------------- */
   async function launch() {
     const name = document.getElementById('ceCampName').value.trim();
-    const body = document.getElementById('ceMessageInput').value.trim();
     const attachOpts = currentAttachOpts();
     const attachOpt = attachOpts.length ? attachOpts.join(',') : 'none';
     const speed = document.getElementById('ceSpeedSelect')?.value || 'human';
     const isEmail = currentConfig?.channel === 'email';
-    const subject = isEmail ? document.getElementById('ceSubjectInput').value.trim() : null;
+    let subject = isEmail ? document.getElementById('ceSubjectInput')?.value.trim() : null;
+    let body = document.getElementById('ceMessageInput')?.value.trim();
 
     if (!name) { alert('Ingresa un nombre para la campaña.'); return; }
-    if (!body) { alert('El mensaje no puede estar vacío.'); return; }
-    if (isEmail && !subject) { alert('El asunto del correo es obligatorio.'); return; }
-    await onAudienceChange();
     if (!selectedAudienceList.length) { alert('No hay destinatarios seleccionados.'); return; }
+
+    // Si estamos en Modo IA y hay prospectos sin analizar
+    if (editorMode === 'ai') {
+      const missingAnalysis = selectedAudienceList.filter(c => !c._custom_message);
+      if (missingAnalysis.length > 0) {
+        const doAnalyze = confirm(`Hay ${missingAnalysis.length} prospectos sin propuesta redactada por IA.\n\n¿Deseas analizarlos ahora para que cada cliente reciba su mensaje 100% personalizado y diferente?`);
+        if (doAnalyze) {
+          await startAiAnalysisBatch();
+        } else {
+          // Completar con generador heurístico para que nadie vaya vacío
+          await ensureGeminiClient();
+          const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
+          const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
+          missingAnalysis.forEach(c => {
+            const h = window.GeminiClient.analyzeCustomerAndDraftMessage({
+              customer: c,
+              channel: currentConfig.channel || 'whatsapp',
+              sellerName: currentConfig.seller?.name || '',
+              sellerPhone: currentConfig.seller?.phone || '',
+              promoProductOrCombo: selectedProductOrCombo,
+              officialPdfIncluded: isPdf
+            });
+            // Si retorna promesa o valor síncrono
+            if (h && typeof h.then === 'function') {
+              h.then(res => {
+                c._custom_message = res.body;
+                c._custom_subject = res.subject;
+                c._detected_need = res.need;
+                c._detected_sector = res.sector;
+              });
+            }
+          });
+        }
+      }
+      body = body || 'Propuesta personalizada por cliente asistida por IA';
+      if (isEmail && !subject) subject = 'Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
+    } else {
+      if (!body) { alert('El mensaje no puede estar vacío.'); return; }
+      if (isEmail && !subject) { alert('El asunto del correo es obligatorio.'); return; }
+    }
 
     const scheduledVal = document.getElementById('ceScheduledAt')?.value;
     let scheduled_at = null;
@@ -960,7 +1657,8 @@ window.CampaignEditor = (() => {
       delays,
       batchSize,
       batchPauseM,
-      scheduled_at
+      scheduled_at,
+      isAiMode: (editorMode === 'ai')
     };
 
     if (typeof currentConfig.onLaunch === 'function') {
@@ -982,6 +1680,40 @@ window.CampaignEditor = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, openCatalogPicker, onTypeChange, onTemplateChange, onAudienceChange, onAttachChange, onCustomFileChange, insertVar, insertSpintax, updatePreview, launch, aiDraftTemplate, aiSectorPitch, aiAntiSpamSpintax, aiDesignFlyer };
+  return {
+    open,
+    close,
+    setEditorMode,
+    switchRightTab,
+    openProspectPicker,
+    closeProspectPicker,
+    filterProspectPicker,
+    setPickerQuickFilter,
+    toggleProspect,
+    toggleAllProspects,
+    applyProspectSelection,
+    startAiAnalysisBatch,
+    stepPreviewCustomer,
+    selectPreviewCustomer,
+    regenerateActiveCustomer,
+    editActiveCustomerMessage,
+    openCustomerEditModal,
+    closeCustomerEditModal,
+    saveCustomerEdit,
+    renderProspectCards,
+    openCatalogPicker,
+    onTypeChange,
+    onTemplateChange,
+    onAudienceChange,
+    onAttachChange,
+    onCustomFileChange,
+    insertVar,
+    insertSpintax,
+    updatePreview,
+    launch,
+    aiDraftTemplate,
+    aiSectorPitch,
+    aiAntiSpamSpintax,
+    aiDesignFlyer
+  };
 })();
-

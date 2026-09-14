@@ -179,7 +179,8 @@ async function step(camp, dailyLimit) {
         nombre: t.name || (t.vars || {}).nombre || '',
         empresa: t.name || (t.vars || {}).empresa || '',
       };
-      const body = renderTemplate(camp.body || camp.message || '', realVars);
+      const msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.message || '';
+      const body = renderTemplate(msgTemplate, realVars);
 
       const msgPayload = {
         chat_id: chatId,

@@ -989,6 +989,273 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
   }
 
   /* --------------------------------------------------------------------------
+     4.4. Analizador de Clientes y Prospectos para Campañas Hiper-Personalizadas
+     Examina individualmente el perfil de cada cliente:
+     - Deduce su rubro / sector y necesidad operativa concreta.
+     - Selecciona la mejor propuesta o insumos clave de JJ Paper.
+     - Redacta un mensaje único y variado para cada cliente (WhatsApp o Email).
+     - Aplica formato estructurado: Títulos en negrita (*...*), viñetas claras,
+       dobles saltos de línea, emojis elegantes, mención a la Lista de Precios PDF
+       y Spintax anti-spam.
+     -------------------------------------------------------------------------- */
+  async function analyzeCustomerAndDraftMessage({
+    customer = {},
+    channel = 'whatsapp',
+    sellerName = '',
+    sellerPhone = '',
+    promoProductOrCombo = null,
+    officialPdfIncluded = true
+  }) {
+    const w = typeof window !== 'undefined' ? window : {};
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const sName = sellerName || w.CURRENT_PROFILE?.full_name || w.CURRENT_PROFILE?.name || 'Keyder José Salazar';
+    const sPhone = sellerPhone || w.CURRENT_PROFILE?.phone || '0412-4676073';
+
+    const custName = customer.name || customer.business_name || 'Estimado Cliente';
+    const custRif = customer.rif || '';
+    const custCity = customer.city || customer.address || 'Caracas';
+    const custNotes = customer.notes || '';
+    const custTags = Array.isArray(customer.tags) ? customer.tags.join(', ') : (customer.tags || '');
+    const custZone = customer.zone || '';
+    const ordersCount = Number(customer.total_orders || 0);
+    const lastOrder = customer.last_order_at ? new Date(customer.last_order_at).toLocaleDateString('es-VE') : '';
+
+    let promoContext = '';
+    if (promoProductOrCombo) {
+      const pPrice = Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0);
+      promoContext = `\nPRODUCTO/COMBO EN PROMOCIÓN ACTIVA:\n- Nombre: ${promoProductOrCombo.name}\n- Precio: $${pPrice.toFixed(2)} USD (Bs ${(pPrice * rate).toFixed(2)})\n- Detalles: ${promoProductOrCombo.description || ''}`;
+    }
+
+    const sys = getBusinessContext() + `
+Eres el Director de Estrategia Comercial B2B de JJ Paper C.A. en Caracas, Venezuela.
+Tu objetivo es analizar el perfil específico de un cliente/prospecto de nuestra base de datos, deducir su sector y necesidad operativa más crítica, y redactar un MENSAJE HIPER-PERSONALIZADO Y ÚNICO para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
+
+OBJETIVO CRÍTICO: CADA CLIENTE DEBE RECIBIR UN MENSAJE COMPLETAMENTE DIFERENTE, ADAPTADO A SU REALIDAD COMERCIAL.
+
+MATRIZ DE DEDUCCIÓN DE NECESIDAD POR RUBRO:
+1. Supermercados / Retail / Cajas / Farmacias / Tiendas / Bodegones:
+   - Necesidad: Insumos de línea de caja sin quiebres de inventario (rollos térmicos para POS y puntos de venta 80x70, 80x80, 57x40, cintas de empaque para cajas de despacho).
+2. Librerías / Papelerías / Bazares:
+   - Necesidad: Surtido mayorista de alta rotación (cuadernos engrapados y espiral, bolígrafos, lápices, colores, resmas) con margen de reventa y reposición rápida.
+3. Oficinas / Corporativos / Banca / Seguros / Firmas Legales y Contables:
+   - Necesidad: Resguardo documental formal (carpetas de fibra marrón con gancho, archivadores de palanca, resmas Bond Carta/Oficio de 75g/80g) y facturación legal a tasa oficial BCV.
+4. Clínicas / Centros de Salud / Laboratorios:
+   - Necesidad: Historias médicas, sobres radiografía gran formato (14x17), carpetas divisorias, pulcritud y confidencialidad.
+5. Colegios / Universidades / Institutos Educativos:
+   - Necesidad: Resmas para exámenes y guías pedagógicas, marcadores de pizarra recargables, útiles escolares al mayor.
+6. Logística / Transporte / Almacén / Ferretería:
+   - Necesidad: Embalaje resistente (cintas de 48mm x 100m/200m de alto micraje, marcadores industriales indelebles Servicio 80 / Sharpie, sobres packing list).
+7. Clientes Inactivos (sin compras recientes):
+   - Necesidad: Reactivación comercial amistosa, actualización de condiciones mayoristas y precios competitivos.
+8. Nuevos Prospectos (sin compras aún):
+   - Necesidad: Homologación de proveedor, generar confianza, envío de lista oficial y cotización rápida sin compromiso.
+
+DIRECTRICES DE FORMATO Y ESTRUCTURA DEL MENSAJE:
+1. *Títulos destacados en negrita* usando asteriscos (*...* en WhatsApp, o <strong> en email).
+2. Emojis comerciales bien dosificados y elegantes (👋, 📦, 📄, 💲, 🚚, 👉, ✨).
+3. Espacios y respiración: SIEMPRE utiliza doble salto de línea (\\n\\n) entre bloques.
+4. Viñetas con viñetas ordenadas (• o 🔹) para desglosar lo que se le ofrece.
+5. MENCIÓN OBLIGATORIA DE LA LISTA DE PRECIOS OFICIAL:
+   ${officialPdfIncluded ? '- Menciona explícitamente: "📄 Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF (con más de 700 productos disponibles para entrega inmediata)".' : ''}
+6. Pilares de servicio de JJ Paper:
+   - Delivery gratuito en Caracas directamente en su sede / envíos protegidos a nivel nacional.
+   - Facturación fiscal formal en bolívares a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
+   - Cotizaciones formales emitidas al instante.
+7. Variación Anti-Spam: Incluye Spintax {Hola|Buen día|Saludos cordiales} en el saludo y en el cierre.
+8. Enlace comercial: Incluye {{link}} para consultar catálogo digital.
+
+Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni \`\`\`json):
+{
+  "sector": "Sector deducido (ej: Retail y Supermercados, Librerías, Corporativo, etc.)",
+  "need": "Breve descripción de la necesidad operativa detectada",
+  "suggested_offering": "Insumos o propuesta recomendada para este cliente",
+  "subject": "Asunto de alto impacto para correo (si aplica canal email)",
+  "body": "Cuerpo del mensaje completo con negritas (*texto*), viñetas, saltos y Spintax",
+  "html": "Cuerpo formateado en HTML elegante para correo electrónico (si aplica)"
+}
+`;
+
+    const prompt = `
+DATOS DEL CLIENTE / PROSPECTO:
+- Nombre / Razón Social: "${custName}"
+- RIF: "${custRif || 'No indicado'}"
+- Ubicación / Ciudad: "${custCity}"
+- Zona / Segmento: "${custZone || custTags || 'General'}"
+- Historial: ${ordersCount > 0 ? `${ordersCount} pedidos registrados (último: ${lastOrder || 'hace tiempo'})` : 'Prospecto nuevo sin compras previas'}
+- Notas registradas: "${custNotes || 'Ninguna'}"
+- Canal de envío: ${channel}
+- Asesor comercial: ${sName} (${sPhone})
+${promoContext}
+
+Analiza este cliente y genera su propuesta y mensaje personalizado en JSON estricto:`;
+
+    try {
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.5, maxTokens: 1800, mode: 'architect' });
+      const res = extractJSON(raw);
+      if (res && res.body) return res;
+      throw new Error('Respuesta incompleta de IA');
+    } catch (e) {
+      console.warn('Fallback en analyzeCustomerAndDraftMessage:', e);
+      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, officialPdfIncluded });
+    }
+  }
+
+  function generateHeuristicCustomerMessage({
+    customer = {},
+    channel = 'whatsapp',
+    sName = 'Keyder José Salazar',
+    sPhone = '0412-4676073',
+    rate = 40,
+    promoProductOrCombo = null,
+    officialPdfIncluded = true
+  }) {
+    const custName = customer.name || customer.business_name || 'Estimado Cliente';
+    const low = (custName + ' ' + (customer.notes || '') + ' ' + (customer.tags || '')).toLowerCase();
+    const ordersCount = Number(customer.total_orders || 0);
+
+    let sector = 'Comercial General';
+    let need = 'Abastecimiento de papelería mayorista y consumibles para continuidad operativa';
+    let offering = 'Resmas de papel Bond, consumibles de oficina y embalaje';
+    let bulletPoints = '';
+
+    if (/farmacia|droguer[ií]a|farma/i.test(low)) {
+      sector = 'Farmacias y Salud';
+      need = 'Rollos térmicos para cajas POS y cintas de embalar para bultos';
+      offering = 'Rollos térmicos 80x70mm y 57x40mm + Cintas de empaque 48x100m';
+      bulletPoints = `• *Rollos térmicos para cajas POS* (80x70mm y 57x40mm) de alto rendimiento.\n• *Cintas de empaque resistentes* (48mm x 100m/200m) para embalaje de medicamentos y pedidos.\n• *Consumibles de oficina y marcadores* para control de stock.`;
+    } else if (/supermercado|abasto|comercial|bodeg[oó]n|charcuter[ií]a|panader[ií]a|inversiones|automercado|minimarket|tienda/i.test(low)) {
+      sector = 'Supermercados y Retail';
+      need = 'Cero quiebres de stock en cajas registradoras y embalaje para mercancía';
+      offering = 'Rollos térmicos de puntos de venta + Marcadores detectores de billetes';
+      bulletPoints = `• *Rollos térmicos POS* (80x70mm, 80x80mm y 57x40mm) garantizados.\n• *Marcadores detectores de billetes falsos* Kores y almohadillas dactilares.\n• *Cintas de embalaje industrial* transparentes y marrones de alto micraje.`;
+    } else if (/librer[ií]a|papeler[ií]a|bazar|variedades|copias/i.test(low)) {
+      sector = 'Librerías y Papelerías';
+      need = 'Surtido mayorista de alta rotación con margen de reventa';
+      offering = 'Cuadernos engrapados y espiral, resmas Bond y útiles escolares';
+      bulletPoints = `• *Cuadernos de alta demanda*: engrapados, cosidos y doble espiral.\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g) de máxima blancura.\n• *Artículos escolares y de oficina*: bolígrafos, lápices, colores, tijeras y pegamento.`;
+    } else if (/colegio|escuela|instituto|liceo|educaci[oó]n|educativo|universidad|acad[eé]mico/i.test(low)) {
+      sector = 'Instituciones Educativas';
+      need = 'Resmas para evaluaciones pedagógicas y dotación institucional';
+      offering = 'Resmas de papel Bond, marcadores de pizarra y material pedagógico';
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* de alta rotación para exámenes y guías.\n• *Marcadores de pizarra recargables* y borradores magnéticos.\n• *Carpetas de fibra y manila* para expedientes estudiantiles y archivo escolar.`;
+    } else if (/cl[ií]nica|salud|m[eé]dico|dental|laboratorio|hospital|consultorio/i.test(low)) {
+      sector = 'Clínicas y Salud';
+      need = 'Historias médicas, sobres radiografía y archivo confidencial';
+      offering = 'Sobres radiografía 14x17, carpetas de historias médicas y resmas';
+      bulletPoints = `• *Sobres de gran formato y radiografía* (14x17, Extra Oficio y Carta).\n• *Carpetas de historias médicas de fibra* con gancho y divisiones.\n• *Resmas de papel Bond y consumibles* para áreas administrativas y de admisión.`;
+    } else if (/transporte|log[ií]stica|env[ií]os|cargo|almac[eé]n|ferreter[ií]a|repuestos/i.test(low)) {
+      sector = 'Logística, Ferretería y Almacén';
+      need = 'Embalaje industrial de alta resistencia e identificación de bultos';
+      offering = 'Cintas de alto micraje 48x100m/200m y marcadores industriales';
+      bulletPoints = `• *Cintas de embalaje industrial* (48mm x 100m y 200m) de pegado extra fuerte.\n• *Marcadores industriales indelebles* (Servicio 80, Sharpie, Expo).\n• *Dispensadores tipo pistola, exactos* y sobres packing list para guías.`;
+    } else if (/banco|seguros|consultor|asesor|abogad|corporaci[oó]n|grupo/i.test(low)) {
+      sector = 'Corporativo, Finanzas y Legal';
+      need = 'Resguardo documental formal y archivo reglamentario a 10 años';
+      offering = 'Carpetas de fibra marrón, archivadores de palanca y resmas Bond';
+      bulletPoints = `• *Carpetas de fibra marrón reglamentarias* con gancho para expedientes auditables.\n• *Archivadores de palanca* de lomo ancho y fino con cantoneras metálicas.\n• *Resmas de papel Bond* (Carta y Oficio 75g y 80g HP/Report/Chamex).`;
+    } else {
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* con despacho inmediato.\n• *Artículos de papelería corporativa y archivo* con precios mayoristas.\n• *Rollos térmicos de cajas y consumibles* para soporte operativo.`;
+    }
+
+    if (promoProductOrCombo) {
+      bulletPoints = `• *📦 PROMOCIÓN ACTIVA: ${promoProductOrCombo.name}*\n  ${promoProductOrCombo.description ? `_${promoProductOrCombo.description}_\n  ` : ''}💲 *Precio mayorista: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd).toFixed(2)} USD*\n` + bulletPoints;
+    }
+
+    const isEmail = channel === 'email';
+    const pdfMention = officialPdfIncluded
+      ? `📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.\n\n`
+      : '';
+
+    const subject = promoProductOrCombo
+      ? `📦 Oferta Especial en ${promoProductOrCombo.name} — JJ Paper C.A.`
+      : `📋 Abastecimiento Operativo y Lista de Precios Oficial para ${custName} — JJ Paper C.A.`;
+
+    let body = '';
+    if (isEmail) {
+      body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nEn atención a los requerimientos y demanda diaria del sector *${sector}*, ponemos a su entera disposición condiciones preferenciales de suministro directo:\n\n*📦 PROPUESTA DE ABASTECIMIENTO:* \n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+    } else {
+      body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería, insumos de caja y consumibles en Caracas.\n\nPensando en el abastecimiento continuo de su negocio en el sector *${sector}*, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+    }
+
+    const htmlBody = body.replace(/\n/g, '<br>');
+    const html = `<div style="font-family:Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.6;max-width:620px;margin:0 auto;padding:20px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px">
+      <div style="background:#16604A;color:#ffffff;padding:14px 18px;border-radius:8px;font-size:16px;font-weight:700;margin-bottom:18px">
+        JJ Paper C.A. — Distribución Mayorista
+      </div>
+      <div>${htmlBody}</div>
+    </div>`;
+
+    return {
+      sector,
+      need,
+      suggested_offering: offering,
+      subject,
+      body,
+      html
+    };
+  }
+
+  /* --------------------------------------------------------------------------
+     4.5. Procesador en Lote de Clientes con Concurrencia Equilibrada y Failover
+     -------------------------------------------------------------------------- */
+  async function analyzeCustomersBatch({
+    customers = [],
+    channel = 'whatsapp',
+    sellerName = '',
+    sellerPhone = '',
+    promoProductOrCombo = null,
+    officialPdfIncluded = true,
+    onProgress = null
+  }) {
+    const results = [];
+    const total = customers.length;
+    let completed = 0;
+
+    // Procesar en chunks de 2 en paralelo para óptima velocidad sin exceder rate limits
+    const CONCURRENCY = 2;
+    for (let i = 0; i < customers.length; i += CONCURRENCY) {
+      const chunk = customers.slice(i, i + CONCURRENCY);
+      const chunkPromises = chunk.map(async (cust) => {
+        try {
+          const analysis = await analyzeCustomerAndDraftMessage({
+            customer: cust,
+            channel,
+            sellerName,
+            sellerPhone,
+            promoProductOrCombo,
+            officialPdfIncluded
+          });
+          completed++;
+          if (typeof onProgress === 'function') {
+            onProgress({ current: completed, total, customer: cust, result: analysis });
+          }
+          return { customer: cust, analysis };
+        } catch (err) {
+          completed++;
+          const fallbackAnalysis = generateHeuristicCustomerMessage({
+            customer: cust,
+            channel,
+            sName: sellerName,
+            sPhone: sellerPhone,
+            rate: 40,
+            promoProductOrCombo,
+            officialPdfIncluded
+          });
+          if (typeof onProgress === 'function') {
+            onProgress({ current: completed, total, customer: cust, result: fallbackAnalysis });
+          }
+          return { customer: cust, analysis: fallbackAnalysis };
+        }
+      });
+
+      const chunkResults = await Promise.all(chunkPromises);
+      results.push(...chunkResults);
+    }
+
+    return results;
+  }
+
+  /* --------------------------------------------------------------------------
      5. Copiloto JJ Paper (Chat Inteligente)
      -------------------------------------------------------------------------- */
   async function askCopilot({ message, chatHistory = [], userRole = 'vendedor', userName = '' }) {
@@ -1891,6 +2158,8 @@ Respond with ONLY the 1 English sentence.`;
     draftCampaignMessage,
     draftEmail,
     analyzeAndDraftProspectB2B,
+    analyzeCustomerAndDraftMessage,
+    analyzeCustomersBatch,
     searchProductsLive,
     interpretQueryWithAI,
     detectProductType,

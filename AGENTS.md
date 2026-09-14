@@ -467,3 +467,29 @@ No se detectaron tests.
 - **Integración en Editor de Campañas y Correo CRM (`campaign-editor.js`, `correo.js`)**:
   - Botón `🎯 Abordaje B2B por Sector` en la barra de IA de `CampaignEditor`.
   - Escenario `🎯 Abordaje B2B por Necesidades` en el redactor de correo CRM (`correo.js`).
+
+## Suite de Campañas Inteligentes con Flujo IA Prospecto por Prospecto (Septiembre 2026)
+- **Flujo Integral de Campañas con IA para WhatsApp y Correo (`campaign-editor.js`, `gemini-client.js`)**:
+  - **Selector de Modo en el Editor**: Conmutación transparente entre `🤖 Modo IA Personalizado` (Recomendado) y `📝 Modo Plantilla Base`.
+  - **Análisis y Detección de Necesidad por Cliente (`GeminiClient.analyzeCustomerAndDraftMessage`)**:
+    - Examina nombre comercial, RIF, ciudad, notas del CRM, historial de compras (`total_orders`, `total_usd`, fecha último pedido) y rubro deducido (Retail/Supermercados/Cajas, Librerías, Instituciones Educativas, Oficinas/Corporativo/Legal, Clínicas/Salud, Logística/Ferretería/Embalaje).
+    - Detecta el punto de dolor o necesidad operativa más crítica y recomienda la propuesta de insumos de JJ Paper más adecuada.
+  - **Redacción Hiper-Personalizada y Estructura Comercial de Alto Impacto**:
+    - **Cada cliente recibe un mensaje único y diferente** con copywriting consultivo B2B adaptado.
+    - Formato optimizado: Titulares en negrita (`*...*`), emojis profesionales dosificados (👋, 📦, 📄, 💲, 🚚, 👉, ✨), viñetas ordenadas (• o 🔹) y dobles saltos de línea (`\n\n`) para lectura cómoda en dispositivos móviles.
+    - **Mención y Adjunto Obligatorio de Lista de Precios Oficial (PDF)**:
+      * Casilla activada por defecto: `📄 Adjuntar Lista de Precios PDF Oficial (+700 arts)`.
+      * Mensaje incluye mención expresa a la lista de precios mayorista en PDF adjunta y ventajas institucionales de JJ Paper (delivery en Caracas / envíos nacionales, factura fiscal a Tasa Oficial BCV, cotizaciones en minutos).
+  - **Pausas y Variaciones Anti-Spam / Anti-Baneo**:
+    - Cada mensaje incorpora variaciones Spintax dinámicas `{Hola|Buen día|Saludos cordiales}` en saludos y cierres.
+    - Ritmo de despacho humano aleatorio (45-90s entre envíos) y descansos periódicos en lotes (pausa de 5 min cada 10 mensajes).
+  - **Selector y Filtro de Prospectos Individuales**:
+    - Modal `👥 Seleccionar Prospectos para la Campaña` con buscador en vivo por nombre, RIF, ciudad o notas, y filtros rápidos (`Todos`, `Con Compras`, `Nuevos`, `Inactivos >30d`).
+    - Permite marcar o desmarcar prospectos específicos para dirigir la campaña con precisión.
+  - **Barra de Progreso y Panel de Revisión / Edición Antes de Enviar**:
+    - Botón `⚡ Analizar y Redactar con IA (N prospectos)` con barra de progreso en vivo y contador de avance.
+    - Subpestañas: `📱 Simulador en Vivo` y `👥 Prospectos Analizados`.
+    - Tarjetas individuales de revisión con badge de necesidad detectada, preview del mensaje, botón de edición manual rápida (`✏️ Editar`) y regeneración individual con IA (`🔄 Regenerar IA`).
+    - Stepper interactivo (`◀ Anterior` `Destinatario X de Y` `Siguiente ▶`) para navegar en el simulador por los mensajes de todos los prospectos.
+  - **Despacho Backend en wa-server (`campaigns.js`, `email-campaigns.js`)**:
+    - Lee `t.vars?.custom_message` / `t.vars?.custom_subject` y despacha el mensaje único para cada contacto respetando sus pausas anti-baneo y adjuntos en WhatsApp y Gmail.

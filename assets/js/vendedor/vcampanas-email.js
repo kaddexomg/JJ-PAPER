@@ -614,7 +614,10 @@ function renderCampDetail() {
     else if (t.status === 'sending') stBadge = '<span class="d-tag" style="background:#e0f2fe;color:#0369a1">📤 Enviando</span>';
     
     return `<tr>
-      <td><strong>${escapeHTML(t.name || 'Cliente')}</strong></td>
+      <td>
+        <strong>${escapeHTML(t.name || 'Cliente')}</strong>
+        ${t.vars?.detected_need ? `<div style="font-size:11px;color:#166534;font-weight:600;margin-top:2px">🎯 ${escapeHTML(t.vars.detected_need)}</div>` : ''}
+      </td>
       <td>${escapeHTML(t.to_addr || '—')}</td>
       <td>${stBadge}</td>
       <td>${t.sent_at ? fmtDate(t.sent_at) : '—'}</td>
@@ -743,7 +746,14 @@ async function launchEmailCampaignFromEditor(config) {
     email: c.email,
     name: c.name,
     status: 'pending',
-    vars: ecSampleVars(c.name, extra)
+    vars: {
+      ...ecSampleVars(c.name, extra),
+      custom_subject: c._custom_subject || null,
+      custom_message: c._custom_message || null,
+      custom_body: c._custom_message || null,
+      detected_need: c._detected_need || null,
+      detected_sector: c._detected_sector || null
+    }
   }));
 
   for (let i = 0; i < targets.length; i += 100) {

@@ -882,6 +882,24 @@ async function saveManualProspect() {
    -------------------------------------------------------------------------- */
 let currentCampChannel = 'whatsapp';
 
+function isMobileNum(num) {
+  if (!num) return false;
+  const d = String(num).replace(/\D/g, '');
+  const isLandline = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
+  const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(d);
+  const isIntlMobile = d.length >= 11 && !d.startsWith('0') && !isLandline;
+  return (isVeMobile || isIntlMobile) && !isLandline;
+}
+
+function getBestMobilePhone(p) {
+  if (!p) return '';
+  if (typeof p === 'string') return p;
+  if (isMobileNum(p.phone_2)) return p.phone_2;
+  if (isMobileNum(p.phone_1)) return p.phone_1;
+  if (isMobileNum(p.phone)) return p.phone;
+  return p.phone_2 || p.phone_1 || p.phone || '';
+}
+
 function openProspectCampaignModal(channel = 'whatsapp') {
   currentCampChannel = channel;
   const isEmail = channel === 'email';
@@ -889,14 +907,58 @@ function openProspectCampaignModal(channel = 'whatsapp') {
   // Filtrar prospectos elegibles según canal
   const eligible = filteredProspects.filter(p => {
     if (isEmail) {
-      return p.email && p.email.includes('@');
+      return p.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim());
     } else {
-      const phone = (p.phone_2 || p.phone_1 || '').replace(/\D/g, '');
-      const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(phone);
-      const isIntlMobile = phone.length >= 11 && !phone.startsWith('0') && !/^(?:58|0)?(?:2\d{2})\d{7}$/.test(phone);
-      return (isVeMobile || isIntlMobile);
+      const best = getBestMobilePhone(p);
+      return isMobileNum(best);
     }
   });
+
+  if (window.CampaignEditor) {
+    const normContacts = eligible.map(p => ({
+      id: p.id,
+      name: p.company_name,
+      company_name: p.company_name,
+      sector: p.sector || 'Otro',
+      contact_name: p.contact_name || '',
+      contact_role: p.contact_role || '',
+      phone: getBestMobilePhone(p),
+      phone_1: p.phone_1,
+      phone_2: p.phone_2,
+      email: p.email ? p.email.trim() : '',
+      address: p.address || p.city || 'Caracas',
+      city: p.city || 'Caracas',
+      notes: p.notes || '',
+      status: p.status || 'nuevo',
+      is_prospect_b2b: true,
+      total_orders: 0,
+      tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
+      ai_analysis: p.ai_analysis || {},
+      suggested_subject: p.suggested_subject || null,
+      custom_email_body: p.custom_email_body || null,
+      custom_wa_body: p.custom_wa_body || null,
+      _custom_message: (isEmail ? p.custom_email_body : p.custom_wa_body) || null,
+      _custom_subject: p.suggested_subject || null,
+      _detected_need: p.ai_analysis?.dolor_operativo || null,
+      _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
+    }));
+
+    window.CampaignEditor.open({
+      channel,
+      contacts: normContacts,
+      preAudience: 'todos',
+      seller: {
+        id: 'bddc57dc-5bf9-4a72-9e1c-751d07b03164',
+        name: KEYDER_PROFILE.name,
+        phone: KEYDER_PROFILE.phone,
+        role: 'admin'
+      },
+      onLaunch: async (config) => {
+        await launchProspectsCampaignFromEditor(config);
+      }
+    });
+    return;
+  }
 
   document.getElementById('pcModalTitle').textContent = isEmail 
     ? '📣 Nueva Campaña de Email para Prospectos B2B' 
@@ -918,6 +980,302 @@ function openProspectCampaignModal(channel = 'whatsapp') {
   document.getElementById('pcBody').value = isEmail ? defaultEmail : defaultWa;
 
   document.getElementById('prospectCampaignModal').classList.add('op');
+}
+
+async function launchProspectsCampaignFromEditor(config) {
+  const { name, body, subject, audience, attachOpt, selectedProductOrCombo, customFile, generatedFlyerFile, delays, batchSize, batchPauseM, scheduled_at, isAiMode } = config;
+  const isEmail = currentCampChannel === 'email';
+  const ownerId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164'; // Keyder Salazar
+
+  if (!audience || audience.length === 0) {
+    showToast('No hay prospectos seleccionados', 'warn');
+    return;
+  }
+
+  const attachOpts = String(attachOpt || 'none').split(',').map(s => s.trim()).filter(Boolean);
+
+  if (!isEmail) {
+    let mediaPath = null, mediaType = null, mediaMime = null, mediaFilename = null, mediaSize = null;
+    let extraMediaPath = null, extraMediaType = null, extraMediaMime = null, extraMediaFilename = null, extraMediaSize = null;
+
+    function assignMedia(m) {
+      if (!mediaPath) {
+        mediaPath = m.path;
+        mediaType = m.type;
+        mediaMime = m.mime;
+        mediaFilename = m.filename;
+        mediaSize = m.size;
+      } else if (!extraMediaPath) {
+        extraMediaPath = m.path;
+        extraMediaType = m.type;
+        extraMediaMime = m.mime;
+        extraMediaFilename = m.filename;
+        extraMediaSize = m.size;
+      }
+    }
+
+    // 1. Flyer generado con IA o archivo propio subido
+    if (generatedFlyerFile) {
+      try {
+        const fName = generatedFlyerFile.name || `Flyer_${Date.now()}.png`;
+        const fPath = `${ownerId}/campaigns/${Date.now()}-${fName.replace(/[^\w.-]/g, '_')}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(fPath, generatedFlyerFile, { contentType: 'image/png', upsert: true });
+        if (!upErr) {
+          assignMedia({ path: fPath, type: 'image', mime: 'image/png', filename: fName, size: generatedFlyerFile.size });
+        }
+      } catch (err) {
+        console.warn('Error subiendo flyer:', err);
+      }
+    } else if (attachOpts.includes('custom_file') && customFile) {
+      try {
+        const fName = customFile.name;
+        const fMime = customFile.type || 'application/octet-stream';
+        const fType = customFile.type.startsWith('image/') ? 'image' : 'document';
+        const fPath = `${ownerId}/campaigns/${Date.now()}-${fName.replace(/[^\w.-]/g, '_')}`;
+        const { error: upErr } = await sb.storage.from('jjp-wa-media')
+          .upload(fPath, customFile, { contentType: fMime, upsert: true });
+        if (!upErr) {
+          assignMedia({ path: fPath, type: fType, mime: fMime, filename: fName, size: customFile.size });
+        }
+      } catch (err) {
+        console.warn('Error subiendo archivo propio:', err);
+      }
+    }
+
+    // 2. Imagen de producto
+    if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url && (!mediaPath || !extraMediaPath)) {
+      try {
+        const imgUrl = selectedProductOrCombo.image_url;
+        const imgResp = await fetch(imgUrl);
+        if (imgResp.ok) {
+          const imgBlob = await imgResp.blob();
+          const mime = imgBlob.type || 'image/jpeg';
+          const fName = (selectedProductOrCombo.name || 'producto').replace(/[^\w.-]/g, '_') + '.jpg';
+          const fPath = `${ownerId}/campaigns/${Date.now()}-${fName}`;
+          const { error: upErr } = await sb.storage.from('jjp-wa-media')
+            .upload(fPath, imgBlob, { contentType: mime, upsert: true });
+          if (!upErr) {
+            assignMedia({ path: fPath, type: 'image', mime, filename: fName, size: imgBlob.size });
+          }
+        }
+      } catch (err) {
+        console.warn('Error subiendo imagen de producto:', err);
+      }
+    }
+
+    // 3. Lista de precios oficial PDF
+    if (attachOpts.includes('pdf_lista_precios') && (!mediaPath || !extraMediaPath)) {
+      try {
+        if (typeof docPdfProductos === 'function') {
+          const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+          const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+          const pdfPath = `${ownerId}/campaigns/${Date.now()}-${pdfFilename}`;
+          const { error: upErr } = await sb.storage.from('jjp-wa-media')
+            .upload(pdfPath, blob, { contentType: 'application/pdf', upsert: true });
+          if (!upErr) {
+            assignMedia({ path: pdfPath, type: 'document', mime: 'application/pdf', filename: pdfFilename, size: blob.size });
+          }
+        }
+      } catch (err) {
+        console.warn('Error generando PDF de precios:', err);
+      }
+    }
+
+    // Crear campaña en jjp_wa_campaigns
+    const campPayload = {
+      owner_id: ownerId,
+      name: name,
+      kind: 'prospectos',
+      body: body,
+      message: body,
+      status: scheduled_at ? 'programada' : 'en_cola',
+      delay_min_s: delays?.min || 45,
+      delay_max_s: delays?.max || 90,
+      batch_size: batchSize || 10,
+      batch_pause_m: batchPauseM || 5,
+      total: audience.length,
+      scheduled_at: scheduled_at || null
+    };
+
+    if (mediaPath) {
+      campPayload.media_path = mediaPath;
+      campPayload.media_type = mediaType;
+      campPayload.media_mime = mediaMime;
+      campPayload.media_filename = mediaFilename;
+      campPayload.media_size = mediaSize;
+    }
+    if (extraMediaPath) {
+      campPayload.extra_media_path = extraMediaPath;
+      campPayload.extra_media_type = extraMediaType;
+      campPayload.extra_media_mime = extraMediaMime;
+      campPayload.extra_media_filename = extraMediaFilename;
+      campPayload.extra_media_size = extraMediaSize;
+    }
+
+    const { data: camp, error: cErr } = await sb.from('jjp_wa_campaigns').insert(campPayload).select('id').single();
+    if (cErr) throw cErr;
+
+    // Destinatarios
+    const targets = audience.map(p => {
+      const best = getBestMobilePhone(p);
+      const rawPhone = best.replace(/\D/g, '');
+      let norm = rawPhone;
+      if (norm.startsWith('0')) norm = '58' + norm.slice(1);
+      else if (!norm.startsWith('58')) norm = '58' + norm;
+
+      const targetMsg = p._custom_message || p.custom_wa_body || body;
+
+      return {
+        campaign_id: camp.id,
+        owner_id: ownerId,
+        customer_id: p.id || null,
+        phone: norm,
+        name: p.company_name || p.name,
+        vars: {
+          nombre: p.contact_name || p.company_name || p.name,
+          empresa: p.company_name || p.name,
+          vendedor: KEYDER_PROFILE.name,
+          link: 'https://jj-paper.pages.dev',
+          custom_message: targetMsg,
+          custom_body: targetMsg,
+          detected_need: p._detected_need || p.ai_analysis?.dolor_operativo || null,
+          detected_sector: p._detected_sector || p.sector || null
+        },
+        status: 'pending'
+      };
+    });
+
+    for (let i = 0; i < targets.length; i += 50) {
+      const chunk = targets.slice(i, i + 50);
+      await sb.from('jjp_wa_campaign_targets').insert(chunk);
+    }
+
+    // Actualizar estado en jjp_prospects
+    const pIds = audience.map(p => p.id).filter(Boolean);
+    if (pIds.length > 0) {
+      const updatePayload = {
+        contacted: true,
+        status: 'contactado_wa',
+        last_contact_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      for (const pid of pIds) {
+        sb.from('jjp_prospects').update(updatePayload).eq('id', pid).then(() => {}).catch(e => console.warn('Aviso prospecto:', e));
+      }
+    }
+
+    showToast(`¡Campaña de WhatsApp "${name}" encolada con éxito para ${audience.length} prospectos! 🚀`);
+    setTimeout(() => { if (typeof loadProspects === 'function') loadProspects(); }, 1000);
+  } else {
+    // Campaña de Correo
+    const attachments = [];
+
+    // PDF Lista de precios para email
+    if (attachOpts.includes('pdf_lista_precios')) {
+      try {
+        if (typeof docPdfProductos === 'function') {
+          const { blob, filename, base64 } = await docPdfProductos({
+            conStock: false, titulo: 'Lista de Precios Mayorista', returnBase64: true
+          });
+          const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+          const mediaPath = `${ownerId}/campaigns/${Date.now()}-${pdfFilename}`;
+          const { error: upErr } = await sb.storage.from('jjp-email-media')
+            .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
+          if (!upErr) {
+            attachments.push({ path: mediaPath, name: pdfFilename, mime: 'application/pdf', size: blob.size });
+          } else if (base64) {
+            attachments.push({ base64, name: pdfFilename, mime: 'application/pdf' });
+          }
+        }
+      } catch (err) {
+        console.warn('Error adjuntando PDF a campaña de email:', err);
+      }
+    }
+
+    // Flyer o archivo propio para email
+    const file = generatedFlyerFile || customFile;
+    if (file) {
+      try {
+        const mediaPath = `${ownerId}/campaigns/${Date.now()}-${(file.name || 'adjunto').replace(/[^\w.-]/g, '_')}`;
+        const { error: upErr } = await sb.storage.from('jjp-email-media')
+          .upload(mediaPath, file, { contentType: file.type || 'application/octet-stream', upsert: true });
+        if (!upErr) {
+          attachments.push({ path: mediaPath, name: file.name, mime: file.type, size: file.size });
+        }
+      } catch (err) {
+        console.warn('Error adjuntando archivo a campaña de email:', err);
+      }
+    }
+
+    const htmlContent = body.replace(/\n/g, '<br>');
+    const campPayload = {
+      owner_id: ownerId,
+      name: name,
+      kind: 'prospectos',
+      subject: subject || 'Propuesta de abastecimiento operativo | JJ Paper',
+      body: body,
+      html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px"><div>${htmlContent}</div></div>`,
+      body_html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px"><div>${htmlContent}</div></div>`,
+      status: scheduled_at ? 'scheduled' : 'running',
+      delay_min_s: delays?.min || 15,
+      delay_max_s: delays?.max || 45,
+      total: audience.length,
+      attachments,
+      scheduled_at: scheduled_at || null
+    };
+
+    const { data: camp, error: cErr } = await sb.from('jjp_email_campaigns').insert(campPayload).select('id').single();
+    if (cErr) throw cErr;
+
+    // Destinatarios
+    const targets = audience.map(p => {
+      const targetSubj = p._custom_subject || p.suggested_subject || subject;
+      const targetBody = p._custom_message || p.custom_email_body || body;
+
+      return {
+        campaign_id: camp.id,
+        owner_id: ownerId,
+        customer_id: p.id || null,
+        email: (p.email || '').toLowerCase().trim(),
+        to_addr: (p.email || '').toLowerCase().trim(),
+        name: p.company_name || p.name,
+        vars: {
+          nombre: p.contact_name || p.company_name || p.name,
+          empresa: p.company_name || p.name,
+          vendedor: KEYDER_PROFILE.name,
+          custom_subject: targetSubj,
+          custom_message: targetBody,
+          custom_body: targetBody,
+          detected_need: p._detected_need || p.ai_analysis?.dolor_operativo || null,
+          detected_sector: p._detected_sector || p.sector || null
+        },
+        status: 'pending'
+      };
+    });
+
+    for (let i = 0; i < targets.length; i += 50) {
+      const chunk = targets.slice(i, i + 50);
+      await sb.from('jjp_email_campaign_targets').insert(chunk);
+    }
+
+    // Actualizar estado en jjp_prospects
+    const pIds = audience.map(p => p.id).filter(Boolean);
+    if (pIds.length > 0) {
+      const updatePayload = {
+        contacted: true,
+        status: 'contactado_email',
+        last_contact_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      for (const pid of pIds) {
+        sb.from('jjp_prospects').update(updatePayload).eq('id', pid).then(() => {}).catch(e => console.warn('Aviso prospecto:', e));
+      }
+    }
+
+    showToast(`¡Campaña de Correo "${name}" iniciada con éxito para ${audience.length} prospectos! 🚀`);
+    setTimeout(() => { if (typeof loadProspects === 'function') loadProspects(); }, 1000);
+  }
 }
 
 function closeProspectCampaignModal() {

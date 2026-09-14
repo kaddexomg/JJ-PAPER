@@ -104,6 +104,21 @@ function setDTab(t) {
 }
 
 /* ================== CONTACTOS ================== */
+function getBestMobilePhone(p) {
+  if (!p) return '';
+  if (typeof p === 'string') return p;
+  if (typeof window.getBestMobilePhone === 'function') return window.getBestMobilePhone(p);
+  const isLand = (num) => /^(?:58|0)?(?:2\d{2})\d{7}$/.test(String(num).replace(/\D/g, ''));
+  const isMob = (num) => {
+    const d = String(num).replace(/\D/g, '');
+    return /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(d) || (d.length >= 11 && !d.startsWith('0') && !isLand(d));
+  };
+  if (isMob(p.phone_2)) return p.phone_2;
+  if (isMob(p.phone_1)) return p.phone_1;
+  if (isMob(p.phone)) return p.phone;
+  return p.phone_2 || p.phone_1 || p.phone || '';
+}
+
 async function loadDContacts() {
   const isAdm = SELLER?.role === 'admin';
   // Paginamos (PostgREST limita a 1.000 filas) para no perder contactos en difusión.
@@ -119,6 +134,49 @@ async function loadDContacts() {
     if (!data || data.length < PAGE || from > 12000) break;
     from += PAGE;
   }
+
+  // Si es Admin, cargar también la cartera de Prospectos B2B (jjp_prospects)
+  if (isAdm) {
+    try {
+      const { data: b2bProspects, error: pErr } = await sb.from('jjp_prospects')
+        .select('*')
+        .order('company_name');
+
+      if (!pErr && Array.isArray(b2bProspects)) {
+        const normProspects = b2bProspects.map(p => ({
+          id: p.id,
+          name: p.company_name,
+          company_name: p.company_name,
+          sector: p.sector || 'Otro',
+          contact_name: p.contact_name || '',
+          contact_role: p.contact_role || '',
+          phone: getBestMobilePhone(p),
+          phone_1: p.phone_1,
+          phone_2: p.phone_2,
+          email: p.email || '',
+          address: p.address || p.city || 'Caracas',
+          city: p.city || 'Caracas',
+          notes: p.notes || '',
+          status: p.status || 'nuevo',
+          is_prospect_b2b: true,
+          total_orders: 0,
+          tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
+          ai_analysis: p.ai_analysis || {},
+          suggested_subject: p.suggested_subject || null,
+          custom_email_body: p.custom_email_body || null,
+          custom_wa_body: p.custom_wa_body || null,
+          _custom_message: p.custom_wa_body || null,
+          _custom_subject: p.suggested_subject || null,
+          _detected_need: p.ai_analysis?.dolor_operativo || null,
+          _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
+        }));
+        dContacts.push(...normProspects);
+      }
+    } catch (pe) {
+      console.warn('Aviso cargando prospectos B2B para difusión:', pe);
+    }
+  }
+
   renderDTagChips();
   renderDContacts();
 }
@@ -1051,6 +1109,21 @@ async function launchCampaignFromEditor(config) {
       console.error('Error insertando destinatarios:', e2);
       showToast('Error cargando destinatarios: ' + e2.message, 'err');
       break;
+    }
+  }
+
+  // Actualizar estado en jjp_prospects si la campaña incluyó prospectos B2B
+  const b2bTargets = targets.filter(t => audience.find(a => a.id === t.customer_id && a.is_prospect_b2b));
+  if (b2bTargets.length > 0) {
+    const pIds = b2bTargets.map(t => t.customer_id).filter(Boolean);
+    const updatePayload = {
+      contacted: true,
+      status: 'contactado_wa',
+      last_contact_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    for (const pid of pIds) {
+      sb.from('jjp_prospects').update(updatePayload).eq('id', pid).then(() => {}).catch(e => console.warn('Aviso prospecto:', e));
     }
   }
 

@@ -218,6 +218,52 @@ async function loadEcContacts() {
     return;
   }
   ecContacts = (data || []).filter(c => !c.email_opt_out && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || ''));
+
+  // Si es Admin, cargar también los prospectos B2B con email válido
+  if (isAdm) {
+    try {
+      const { data: b2bProspects, error: pErr } = await sb.from('jjp_prospects')
+        .select('*')
+        .not('email', 'is', null)
+        .neq('email', '')
+        .order('company_name');
+
+      if (!pErr && Array.isArray(b2bProspects)) {
+        const normProspects = b2bProspects
+          .filter(p => p.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()))
+          .map(p => ({
+            id: p.id,
+            name: p.company_name,
+            company_name: p.company_name,
+            sector: p.sector || 'Otro',
+            contact_name: p.contact_name || '',
+            contact_role: p.contact_role || '',
+            phone: (window.getBestMobilePhone ? window.getBestMobilePhone(p) : (p.phone_2 || p.phone_1 || '')),
+            phone_1: p.phone_1,
+            phone_2: p.phone_2,
+            email: p.email.trim(),
+            address: p.address || p.city || 'Caracas',
+            city: p.city || 'Caracas',
+            notes: p.notes || '',
+            status: p.status || 'nuevo',
+            is_prospect_b2b: true,
+            total_orders: 0,
+            tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
+            ai_analysis: p.ai_analysis || {},
+            suggested_subject: p.suggested_subject || null,
+            custom_email_body: p.custom_email_body || null,
+            custom_wa_body: p.custom_wa_body || null,
+            _custom_message: p.custom_email_body || null,
+            _custom_subject: p.suggested_subject || null,
+            _detected_need: p.ai_analysis?.dolor_operativo || null,
+            _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
+          }));
+        ecContacts.push(...normProspects);
+      }
+    } catch (pe) {
+      console.warn('Aviso cargando prospectos B2B para emails:', pe);
+    }
+  }
 }
 
 /* ================== PLANTILLAS ================== */
@@ -762,6 +808,21 @@ async function launchEmailCampaignFromEditor(config) {
       console.error('Error insertando destinatarios de email:', e2);
       showToast('Error cargando destinatarios: ' + e2.message, 'err');
       break;
+    }
+  }
+
+  // Actualizar estado en jjp_prospects si la campaña incluyó prospectos B2B
+  const b2bTargets = targets.filter(t => audience.find(a => a.id === t.customer_id && a.is_prospect_b2b));
+  if (b2bTargets.length > 0) {
+    const pIds = b2bTargets.map(t => t.customer_id).filter(Boolean);
+    const updatePayload = {
+      contacted: true,
+      status: 'contactado_email',
+      last_contact_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    for (const pid of pIds) {
+      sb.from('jjp_prospects').update(updatePayload).eq('id', pid).then(() => {}).catch(e => console.warn('Aviso prospecto email:', e));
     }
   }
 

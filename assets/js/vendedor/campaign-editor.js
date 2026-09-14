@@ -34,6 +34,27 @@ window.CampaignEditor = (() => {
   let pickerQuickFilter = 'todos';
   let editingCustomerIdx = -1;
 
+  function isMobileNum(num) {
+    if (!num) return false;
+    const d = String(num).replace(/\D/g, '');
+    const isLandline = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
+    const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(d);
+    const isIntlMobile = d.length >= 11 && !d.startsWith('0') && !isLandline;
+    return (isVeMobile || isIntlMobile) && !isLandline;
+  }
+
+  function getBestMobilePhone(p) {
+    if (!p) return '';
+    if (typeof p === 'string') return p;
+    if (isMobileNum(p.phone_2)) return p.phone_2;
+    if (isMobileNum(p.phone_1)) return p.phone_1;
+    if (isMobileNum(p.phone)) return p.phone;
+    return p.phone_2 || p.phone_1 || p.phone || '';
+  }
+
+  window.isLikelyMobile = isMobileNum;
+  window.getBestMobilePhone = getBestMobilePhone;
+
   function normPhoneKey(p) {
     return String(p || '').replace(/\D/g, '').replace(/^0+/, '').slice(-11);
   }
@@ -162,11 +183,18 @@ window.CampaignEditor = (() => {
               </div>
               <div class="ce-field-group">
                 <select class="ce-select" id="ceAudienceSelect" onchange="CampaignEditor.onAudienceChange()">
-                  <option value="todos">Toda mi cartera de clientes</option>
+                  <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
+                  <option value="prospectos_b2b">🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
+                  <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
                   <option value="inactivos">😴 Inactivos (sin compras >30d)</option>
-                  <option value="prospectos">🆕 Prospectos (sin compras)</option>
+                  <option value="prospectos">🆕 Clientes sin compras</option>
+                  <option value="sector">🏢 Filtrar por Sector B2B...</option>
                   <option value="etiqueta">🏷️ Por etiqueta / zona...</option>
                 </select>
+              </div>
+              <div class="ce-field-group" id="ceSectorWrap" style="display:none; margin-top:4px;">
+                <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:2px">Selecciona el sector B2B:</label>
+                <select class="ce-select" id="ceSectorSelect" onchange="CampaignEditor.onAudienceChange()"></select>
               </div>
               <div class="ce-field-group" id="ceTagWrap" style="display:none;">
                 <input type="text" class="ce-input" id="ceTagInput" placeholder="Ej: 004, mayoristas..." oninput="CampaignEditor.onAudienceChange()">
@@ -458,6 +486,53 @@ window.CampaignEditor = (() => {
     pickerDraftIds = new Set();
     isAnalyzingBatch = false;
 
+    // Normalizar números móviles en contactos
+    if (Array.isArray(config.contacts)) {
+      config.contacts.forEach(c => {
+        if (!c.phone || (config.channel !== 'email' && !isMobileNum(c.phone))) {
+          const best = getBestMobilePhone(c);
+          if (best) c.phone = best;
+        }
+      });
+    }
+
+    // Auto-cargar catálogo (productos, combos y plantillas) si no fueron provistos
+    if ((!config.products || config.products.length === 0) && typeof sb !== 'undefined') {
+      try {
+        const { data: prods } = await sb.from('jjp_product_variants')
+          .select('id,sku,price_usd,variant_name,jjp_products(id,name,description,image_url),jjp_brands(name)')
+          .eq('active', true)
+          .order('price_usd', { ascending: false })
+          .limit(300);
+        config.products = prods || [];
+      } catch (e) {
+        console.warn('Aviso cargando productos en CampaignEditor:', e);
+      }
+    }
+    if ((!config.combos || config.combos.length === 0) && typeof sb !== 'undefined') {
+      try {
+        const { data: promos } = await sb.from('jjp_promos')
+          .select('*')
+          .eq('active', true)
+          .order('sort_order')
+          .limit(100);
+        config.combos = promos || [];
+      } catch (e) {
+        console.warn('Aviso cargando combos en CampaignEditor:', e);
+      }
+    }
+    if ((!config.templates || config.templates.length === 0) && typeof sb !== 'undefined') {
+      try {
+        const { data: tpls } = await sb.from('jjp_campaign_templates')
+          .select('*')
+          .eq('active', true)
+          .order('created_at', { ascending: false });
+        config.templates = tpls || [];
+      } catch (e) {
+        console.warn('Aviso cargando plantillas en CampaignEditor:', e);
+      }
+    }
+
     if (document.getElementById('ceScheduledAt')) {
       document.getElementById('ceScheduledAt').value = '';
     }
@@ -508,6 +583,26 @@ window.CampaignEditor = (() => {
 
     if (isEmail) {
       document.getElementById('ceSubjectInput').value = 'Ofertas y Novedades Especiales — JJ Paper';
+    }
+
+    // Poblar selector de sectores B2B con los sectores reales presentes en la cartera
+    const sectorSel = document.getElementById('ceSectorSelect');
+    if (sectorSel) {
+      const sectorsSet = new Set();
+      (config.contacts || []).forEach(c => {
+        if (c.sector && c.sector.trim() && c.sector.trim() !== 'Otro') sectorsSet.add(c.sector.trim());
+      });
+      const sortedSectors = Array.from(sectorsSet).sort();
+      if (sortedSectors.length > 0) {
+        sectorSel.innerHTML = sortedSectors.map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
+      } else {
+        sectorSel.innerHTML = '<option value="">Todos los sectores</option>';
+      }
+    }
+
+    if (config.preAudience) {
+      const audSel = document.getElementById('ceAudienceSelect');
+      if (audSel) audSel.value = config.preAudience;
     }
 
     await onAudienceChange();
@@ -656,9 +751,12 @@ window.CampaignEditor = (() => {
   async function onAudienceChange() {
     if (!cooldownLoading) cooldownLoading = reloadCooldown().finally(() => { cooldownLoading = null; });
     await cooldownLoading;
-    const aud = document.getElementById('ceAudienceSelect').value;
+    const aud = document.getElementById('ceAudienceSelect')?.value || 'todos';
     const tagWrap = document.getElementById('ceTagWrap');
-    tagWrap.style.display = aud === 'etiqueta' ? 'block' : 'none';
+    if (tagWrap) tagWrap.style.display = aud === 'etiqueta' ? 'block' : 'none';
+    const sectorWrap = document.getElementById('ceSectorWrap');
+    if (sectorWrap) sectorWrap.style.display = aud === 'sector' ? 'block' : 'none';
+    const sectorVal = document.getElementById('ceSectorSelect')?.value;
 
     const contacts = currentConfig?.contacts || [];
     const isEmail = currentConfig?.channel === 'email';
@@ -673,6 +771,10 @@ window.CampaignEditor = (() => {
     let nonMobileCount = 0;
 
     selectedAudienceList = contacts.filter(c => {
+      if (!isEmail && (!c.phone || !isMobileNum(c.phone))) {
+        const best = getBestMobilePhone(c);
+        if (best) c.phone = best;
+      }
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
       if (isEmail && c.email_opt_out) return false;
@@ -688,11 +790,7 @@ window.CampaignEditor = (() => {
           const pInfo = parsePhoneInfo(c.phone);
           isMob = pInfo.isValid && pInfo.isMobile && !pInfo.isLandline;
         } else {
-          const d = (c.phone || '').replace(/\D/g, '');
-          const isLandline = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
-          const isVeMobile = /^(?:58)?0?4(12|14|24|16|26)\d{7}$/.test(d);
-          const isIntlMobile = d.length >= 11 && !d.startsWith('0') && !isLandline;
-          isMob = (isVeMobile || isIntlMobile) && !isLandline;
+          isMob = isMobileNum(c.phone);
         }
         if (!isMob) {
           nonMobileCount++;
@@ -707,8 +805,13 @@ window.CampaignEditor = (() => {
         return manualSelectedIds.has(c.id);
       }
 
+      if (aud === 'prospectos_b2b') return Boolean(c.is_prospect_b2b);
+      if (aud === 'solo_clientes') return !c.is_prospect_b2b;
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);
-      if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0);
+      if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0) && !c.is_prospect_b2b;
+      if (aud === 'sector' && sectorVal) {
+        return c.sector === sectorVal || (Array.isArray(c.tags) && c.tags.includes(sectorVal.toLowerCase().replace(/\s+/g, '_')));
+      }
       if (aud === 'etiqueta' && tagVal) {
         const zoneMatch = c.zone && String(c.zone).toLowerCase().includes(tagVal);
         const tagMatch = Array.isArray(c.tags)
@@ -724,6 +827,15 @@ window.CampaignEditor = (() => {
       activePreviewIdx = Math.max(0, selectedAudienceList.length - 1);
     }
 
+    const b2bCount = selectedAudienceList.filter(c => c.is_prospect_b2b).length;
+    const clCount = selectedAudienceList.length - b2bCount;
+    let b2bTxt = '';
+    if (b2bCount > 0 && clCount > 0) {
+      b2bTxt = ` <span style="font-size:11px;color:#065f46">(${b2bCount} Prospectos B2B · ${clCount} Clientes)</span>`;
+    } else if (b2bCount > 0) {
+      b2bTxt = ` <span style="font-size:11px;color:#065f46">(${b2bCount} Prospectos B2B)</span>`;
+    }
+
     let detailsTxt = '';
     if (!isEmail && nonMobileCount > 0) {
       detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} omitidos: fijos CANTV o sin WhatsApp)</span>`;
@@ -733,7 +845,7 @@ window.CampaignEditor = (() => {
     }
 
     const countLabel = isEmail ? `${selectedAudienceList.length} correos` : `${selectedAudienceList.length} móviles WhatsApp`;
-    document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${countLabel}</strong>${detailsTxt}`;
+    document.getElementById('ceFooterSummary').innerHTML = `Destinatarios válidos: <strong>${countLabel}</strong>${b2bTxt}${detailsTxt}`;
     document.getElementById('ceLaunchBtn').disabled = selectedAudienceList.length === 0;
 
     // Actualizar badges
@@ -795,9 +907,11 @@ window.CampaignEditor = (() => {
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
               <span style="font-size:11px;font-weight:600;color:#64748b">Filtros rápidos:</span>
-              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">Todos</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">🌐 Todos</button>
+              <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Prospectos B2B</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('clientes')">👥 Solo Clientes</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('con_compras')">Con Compras</button>
-              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('nuevos')">Nuevos (Sin compras)</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('nuevos')">Nuevos</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('inactivos')">Inactivos (>30d)</button>
             </div>
             <div class="ce-picker-list" id="cePickerList"></div>
@@ -848,17 +962,23 @@ window.CampaignEditor = (() => {
     const isEmail = currentConfig?.channel === 'email';
 
     const filtered = contacts.filter(c => {
+      if (!isEmail && (!c.phone || !isMobileNum(c.phone))) {
+        const best = getBestMobilePhone(c);
+        if (best) c.phone = best;
+      }
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
 
-      // Filtro rápido
+      // Filtros rápidos
+      if (pickerQuickFilter === 'b2b' && !c.is_prospect_b2b) return false;
+      if (pickerQuickFilter === 'clientes' && c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'con_compras' && (!c.total_orders || c.total_orders === 0)) return false;
       if (pickerQuickFilter === 'nuevos' && (c.total_orders && c.total_orders > 0)) return false;
       if (pickerQuickFilter === 'inactivos' && (!c.total_orders || c.days_since_last <= 30)) return false;
 
       // Búsqueda
       if (pickerSearchQuery) {
-        const text = `${c.name || ''} ${c.rif || ''} ${c.city || ''} ${c.address || ''} ${c.notes || ''} ${c.phone || ''} ${c.email || ''}`.toLowerCase();
+        const text = `${c.name || ''} ${c.company_name || ''} ${c.contact_name || ''} ${c.contact_role || ''} ${c.sector || ''} ${c.rif || ''} ${c.city || ''} ${c.address || ''} ${c.notes || ''} ${c.phone || ''} ${c.email || ''}`.toLowerCase();
         if (!text.includes(pickerSearchQuery)) return false;
       }
 
@@ -873,21 +993,41 @@ window.CampaignEditor = (() => {
 
     listWrap.innerHTML = filtered.map(c => {
       const isChecked = pickerDraftIds.has(c.id);
+      const isB2B = Boolean(c.is_prospect_b2b);
+      const isAnalyzed = Boolean(c._custom_message || c.custom_wa_body || c.custom_email_body || (c.ai_analysis && c.ai_analysis.dolor_operativo));
+
+      const b2bBadge = isB2B
+        ? `<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px">🎯 Prospecto B2B · ${escapeHTML(c.sector || 'Rubro')}</span>`
+        : `<span style="background:#f1f5f9;color:#475569;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;margin-left:6px">👥 Cliente Cartera</span>`;
+
+      const aiBadge = isAnalyzed
+        ? `<span style="background:#f3e8ff;color:#6b21a8;font-size:10.5px;padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block;margin-top:2px">🧠 Analizado con IA ✓</span>`
+        : '';
+
       const ordersInfo = (c.total_orders && c.total_orders > 0)
         ? `<span style="color:#15803d;font-weight:600">${c.total_orders} pedidos ($${Number(c.total_usd || 0).toFixed(0)})</span>`
-        : '<span style="color:#64748b">Nuevo prospecto</span>';
+        : (isB2B ? '<span style="color:#059669;font-weight:600">Lead Corporativo</span>' : '<span style="color:#64748b">Nuevo cliente</span>');
+
+      const contactDetail = (c.contact_name || c.contact_role)
+        ? `<div style="font-size:11.5px;color:#1e293b;font-weight:600;margin-top:2px">👤 ${escapeHTML(c.contact_name || 'Sin contacto')} ${c.contact_role ? `<span style="color:#64748b;font-weight:400">(${escapeHTML(c.contact_role)})</span>` : ''}</div>`
+        : '';
 
       return `
         <div class="ce-picker-item ${isChecked ? 'selected' : ''}" onclick="CampaignEditor.toggleProspect('${c.id}')">
           <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); CampaignEditor.toggleProspect('${c.id}')">
           <div style="flex:1; min-width:0">
-            <div style="font-size:13px; font-weight:700; color:#1e293b">${escapeHTML(c.name || 'Sin Nombre')}</div>
-            <div style="font-size:11px; color:#64748b">
+            <div style="font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center; flex-wrap:wrap">
+              <span>${escapeHTML(c.name || 'Sin Nombre')}</span>
+              ${b2bBadge}
+            </div>
+            ${contactDetail}
+            <div style="font-size:11px; color:#64748b; margin-top:2px">
               ${c.rif ? `RIF: ${escapeHTML(c.rif)} · ` : ''}
               ${c.city ? `📍 ${escapeHTML(c.city)} · ` : ''}
               ${isEmail ? (c.email || 'Sin correo') : (c.phone || 'Sin teléfono')}
             </div>
             ${c.notes ? `<div style="font-size:10.5px; color:#475569; font-style:italic; margin-top:2px">📝 ${escapeHTML(c.notes)}</div>` : ''}
+            ${aiBadge}
           </div>
           <div style="text-align:right; font-size:11px">
             ${ordersInfo}
@@ -994,6 +1134,30 @@ window.CampaignEditor = (() => {
           customer._custom_subject = result.subject;
           customer._detected_need = result.need;
           customer._detected_sector = result.sector;
+
+          // Sincronizar con base de datos jjp_prospects si es un prospecto B2B
+          if (customer.is_prospect_b2b && customer.id && typeof sb !== 'undefined') {
+            const raw = result.raw_analysis || {};
+            const isEmail = (channel === 'email');
+            const updatePayload = {
+              status: customer.status === 'nuevo' ? 'analizado_ia' : customer.status,
+              ai_analysis: {
+                sector_deducido: result.sector || customer.sector,
+                dolor_operativo: result.need,
+                insumos_core: raw.insumos_core || [],
+                insumo_cross_sell: raw.insumo_cross_sell || '',
+                angulo_seleccionado: raw.angulo_seleccionado || ''
+              },
+              suggested_subject: result.subject,
+              custom_email_body: raw.email_body || (isEmail ? result.body : customer.custom_email_body),
+              custom_wa_body: raw.wa_body || (!isEmail ? result.body : customer.custom_wa_body),
+              updated_at: new Date().toISOString()
+            };
+            sb.from('jjp_prospects').update(updatePayload).eq('id', customer.id)
+              .then(() => {})
+              .catch(err => console.warn('Aviso guardando en jjp_prospects:', err));
+          }
+
           updateAnalyzedCountBadge();
         }
       });
@@ -1050,9 +1214,12 @@ window.CampaignEditor = (() => {
     try {
       await ensureGeminiClient();
       const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
+      const channel = currentConfig?.channel || 'whatsapp';
+      const isEmail = (channel === 'email');
+
       const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
         customer: cust,
-        channel: currentConfig?.channel || 'whatsapp',
+        channel,
         sellerName: currentConfig?.seller?.name || '',
         sellerPhone: currentConfig?.seller?.phone || '',
         promoProductOrCombo: selectedProductOrCombo,
@@ -1063,6 +1230,28 @@ window.CampaignEditor = (() => {
       cust._custom_subject = res.subject;
       cust._detected_need = res.need;
       cust._detected_sector = res.sector;
+
+      // Sincronizar con base de datos jjp_prospects
+      if (cust.is_prospect_b2b && cust.id && typeof sb !== 'undefined') {
+        const raw = res.raw_analysis || {};
+        const updatePayload = {
+          status: cust.status === 'nuevo' ? 'analizado_ia' : cust.status,
+          ai_analysis: {
+            sector_deducido: res.sector || cust.sector,
+            dolor_operativo: res.need,
+            insumos_core: raw.insumos_core || [],
+            insumo_cross_sell: raw.insumo_cross_sell || '',
+            angulo_seleccionado: raw.angulo_seleccionado || ''
+          },
+          suggested_subject: res.subject,
+          custom_email_body: raw.email_body || (isEmail ? res.body : cust.custom_email_body),
+          custom_wa_body: raw.wa_body || (!isEmail ? res.body : cust.custom_wa_body),
+          updated_at: new Date().toISOString()
+        };
+        sb.from('jjp_prospects').update(updatePayload).eq('id', cust.id)
+          .then(() => {})
+          .catch(err => console.warn('Aviso sincronizando regeneración en jjp_prospects:', err));
+      }
 
       if (noteEl) noteEl.textContent = `✅ Propuesta regenerada exitosamente.`;
       updatePreview();
@@ -1140,6 +1329,20 @@ window.CampaignEditor = (() => {
       cust._custom_subject = document.getElementById('ceEditSubjectInput')?.value.trim();
     }
 
+    // Persistir edición manual en base de datos si es prospecto B2B
+    if (cust.is_prospect_b2b && cust.id && typeof sb !== 'undefined') {
+      const updateData = { updated_at: new Date().toISOString() };
+      if (isEmail) {
+        updateData.custom_email_body = cust._custom_message;
+        if (cust._custom_subject) updateData.suggested_subject = cust._custom_subject;
+      } else {
+        updateData.custom_wa_body = cust._custom_message;
+      }
+      sb.from('jjp_prospects').update(updateData).eq('id', cust.id)
+        .then(() => {})
+        .catch(err => console.warn('Aviso guardando edición en jjp_prospects:', err));
+    }
+
     closeCustomerEditModal();
     updatePreview();
     renderProspectCards();
@@ -1157,7 +1360,7 @@ window.CampaignEditor = (() => {
     wrap.innerHTML = selectedAudienceList.map((c, idx) => {
       const isCurrent = (idx === activePreviewIdx);
       const needBadge = c._detected_need
-        ? `<span class="ce-need-badge">🎯 ${escapeHTML(c._detected_sector || 'Sector')} | ${escapeHTML(c._detected_need)}</span>`
+        ? `<span class="ce-need-badge">🎯 ${escapeHTML(c._detected_sector || c.sector || 'Sector')} | ${escapeHTML(c._detected_need)}</span>`
         : `<span style="font-size:10.5px;color:#b45309;background:#fef3c7;padding:2px 6px;border-radius:4px;font-weight:600">⏳ Pendiente de análisis IA</span>`;
 
       const msgPreview = c._custom_message
@@ -1170,10 +1373,12 @@ window.CampaignEditor = (() => {
             <div>
               <div class="ce-customer-ai-title">
                 ${isCurrent ? '👉 ' : ''}${escapeHTML(c.name || 'Cliente')}
+                ${c.is_prospect_b2b ? `<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;padding:2px 5px;border-radius:4px;font-weight:700;margin-left:6px">🎯 B2B</span>` : ''}
               </div>
               <div class="ce-customer-ai-meta">
+                ${c.is_prospect_b2b ? (c.contact_role ? `👤 ${escapeHTML(c.contact_role)} · ` : '') : ''}
                 ${c.city ? `📍 ${escapeHTML(c.city)} · ` : ''}
-                ${c.total_orders > 0 ? `<span style="color:#15803d;font-weight:600">${c.total_orders} pedidos</span>` : 'Prospecto nuevo'}
+                ${c.total_orders > 0 ? `<span style="color:#15803d;font-weight:600">${c.total_orders} pedidos</span>` : (c.is_prospect_b2b ? '<span style="color:#059669;font-weight:600">Lead Corporativo</span>' : 'Nuevo cliente')}
               </div>
             </div>
             <div>${needBadge}</div>
@@ -1209,10 +1414,16 @@ window.CampaignEditor = (() => {
 
     if (currentCust) {
       if (nameEl) nameEl.textContent = currentCust.name || 'Cliente JJ Paper';
-      if (subEl) subEl.textContent = `${currentCust.city ? '📍 ' + currentCust.city + ' · ' : ''}${currentCust.total_orders > 0 ? currentCust.total_orders + ' pedidos registrados' : 'Prospecto Nuevo'}`;
+      if (subEl) {
+        if (currentCust.is_prospect_b2b) {
+          subEl.innerHTML = `<span style="color:#065f46;font-weight:700">🎯 Prospecto B2B (${escapeHTML(currentCust.sector || 'General')})</span>${currentCust.contact_role ? ' · ' + escapeHTML(currentCust.contact_role) : ''} · 📍 ${escapeHTML(currentCust.city || 'Caracas')}`;
+        } else {
+          subEl.textContent = `${currentCust.city ? '📍 ' + currentCust.city + ' · ' : ''}${currentCust.total_orders > 0 ? currentCust.total_orders + ' pedidos registrados' : 'Cliente nuevo'}`;
+        }
+      }
       if (badgeWrap) {
         badgeWrap.innerHTML = currentCust._detected_need
-          ? `<span class="ce-need-badge" style="font-size:10px">🎯 ${escapeHTML(currentCust._detected_sector || 'Rubro')}</span>`
+          ? `<span class="ce-need-badge" style="font-size:10px">🎯 ${escapeHTML(currentCust._detected_sector || currentCust.sector || 'Rubro')}</span>`
           : '';
       }
     } else {

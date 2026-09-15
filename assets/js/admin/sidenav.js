@@ -39,6 +39,7 @@
     { section: 'Catálogo' },
     { group: 'Catálogo', ico: '📦', items: [
       { href: 'productos.html', ico: '📦', label: 'Productos' },
+      { href: 'listas-precios.html', ico: '📑', label: 'Listas & MixNet' },
       { href: 'precios.html',   ico: '💱', label: 'Precios' },
       { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },
       { href: 'marcas.html',    ico: '🏷️', label: 'Marcas' },

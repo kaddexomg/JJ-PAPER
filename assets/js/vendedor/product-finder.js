@@ -10,7 +10,7 @@ let PF_PRODUCTS = null;
 async function pfLoad(force) {
   if (PF_PRODUCTS && !force) return PF_PRODUCTS;
   const { data, error } = await sb.from('jjp_products')
-    .select('id,name,sku,price_usd,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,stock,min_qty,active,jjp_brands(name))')
+    .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
     .eq('active', true).order('name');
   if (error) { if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); return PF_PRODUCTS || []; }
   
@@ -103,10 +103,18 @@ function pfStockLabel(stock) {
   return `stock ${s}`;
 }
 
-// Precio USD + Bs a tasa viva
-function pfPriceHtml(usd) {
-  const bs = (typeof toBs === 'function') ? toBs(usd) : null;
-  return `${fmtPrice(usd)}${bs ? ` · Bs ${Number(bs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}` : ''}`;
+// Precio USD + Bs a tasa viva (soporta visualización multinivel A y B)
+function pfPriceHtml(usd, p) {
+  const pA = Number(p?.price_a) || 0;
+  const pB = Number(p?.price_b || usd) || 0;
+  const mainUsd = pB > 0 ? pB : (pA > 0 ? pA : Number(usd) || 0);
+  const bs = (typeof toBs === 'function') ? toBs(mainUsd) : null;
+  const bsStr = bs ? ` · Bs ${Number(bs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}` : '';
+  
+  if (pA > 0 && pB > 0 && Math.abs(pA - pB) > 0.005) {
+    return `⭐ <strong style="color:#0f5132">$${pB.toFixed(2)}</strong> <span style="font-size:10px;color:#666">(B)</span> · <span style="color:#555">$${pA.toFixed(2)}</span> <span style="font-size:10px;color:#666">(A)</span>${bsStr}`;
+  }
+  return `${fmtPrice(mainUsd)}${bsStr}`;
 }
 
 /* ---------- Puente teléfono → PC (teléfono como pistola de código) ---------- */

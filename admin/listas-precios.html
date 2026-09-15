@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listas de Precios & Comparativa MixNet | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+<style>
+.lp-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:20px; }
+.lp-card { background:#fff; border-radius:12px; padding:16px 18px; border:1px solid #e8e5de; box-shadow:0 2px 8px rgba(0,0,0,0.03); display:flex; flex-direction:column; justify-content:space-between; }
+.lp-card .num { font-size:24px; font-weight:800; color:var(--text-dark, #1c2826); line-height:1.2; }
+.lp-card .lbl { font-size:12px; color:var(--text-muted, #7c7c7c); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-top:4px; }
+.lp-tabs { display:flex; gap:8px; border-bottom:2px solid #eef0ea; margin-bottom:18px; overflow-x:auto; padding-bottom:4px; }
+.lp-tab { padding:8px 16px; border:none; background:transparent; font-size:13px; font-weight:600; color:#666; border-radius:8px; cursor:pointer; transition:all 0.2s; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.lp-tab:hover { background:#f5f4ef; color:#111; }
+.lp-tab.active { background:var(--gm, #0f5132); color:#fff; box-shadow:0 3px 10px rgba(15,81,50,0.25); }
+.lp-tab .badge-cnt { font-size:11px; padding:2px 7px; border-radius:10px; background:rgba(0,0,0,0.08); font-weight:700; }
+.lp-tab.active .badge-cnt { background:rgba(255,255,255,0.25); color:#fff; }
+
+.price-box { display:flex; flex-direction:column; gap:2px; font-size:12px; }
+.price-b-badge { background:#e8f5e9; color:#1b5e20; font-weight:800; padding:2px 6px; border-radius:6px; display:inline-block; border:1px solid #c8e6c9; }
+.price-a-badge { color:#455a64; font-weight:700; }
+.price-bs-badge { color:#d32f2f; font-weight:600; font-size:11px; }
+
+.status-tag { display:inline-block; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
+.tag-activo { background:#e8f5e9; color:#2e7d32; }
+.tag-soloprecio { background:#fff8e1; color:#f57f17; border:1px solid #ffe082; }
+.tag-inactivo { background:#ffebee; color:#c62828; }
+.tag-desconocido { background:#f5f5f5; color:#757575; }
+
+.diff-up { color:#2e7d32; font-weight:700; font-size:11px; }
+.diff-down { color:#d32f2f; font-weight:700; font-size:11px; }
+.diff-same { color:#757575; font-size:11px; }
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- Generado dinámicamente por sidenav.js -->
+    </nav>
+    <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Listas de Precios & Comparativa MixNet</h2>
+          <p>Gestión integral de precios A, B, C y D basados en el análisis real de la empresa</p>
+        </div>
+      </div>
+      <div class="topbar-right" style="display:flex;gap:10px;align-items:center">
+        <span class="badge" style="background:#e8f5e9;color:#2e7d32;font-weight:700;padding:6px 12px;border-radius:20px" id="bcvBadge">Tasa BCV: ...</span>
+        <button class="btn btn-secondary btn-sm" onclick="exportFilteredCSV()">📥 Exportar CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="syncPricesToDb()">⚡ Sincronizar Precios a BD</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      
+      <!-- Tarjetas de Métricas -->
+      <div class="lp-stats">
+        <div class="lp-card">
+          <div class="num" id="kpiOperativo" style="color:#0f5132">1.248</div>
+          <div class="lbl">🌟 Universo Operativo Real</div>
+          <span style="font-size:11px;color:#7c7c7c;margin-top:2px">1_Activos (902) + 3_Solo Precio (346)</span>
+        </div>
+        <div class="lp-card">
+          <div class="num" id="kpiActivos" style="color:#1b5e20">902</div>
+          <div class="lbl">🟢 Activos con Movimiento Real</div>
+          <span style="font-size:11px;color:#7c7c7c;margin-top:2px">Ventas, movimientos o pedidos desde jul-2025</span>
+        </div>
+        <div class="lp-card">
+          <div class="num" id="kpiSoloPrecio" style="color:#f57f17">346</div>
+          <div class="lbl">🟡 Solo Precio Actualizado</div>
+          <span style="font-size:11px;color:#7c7c7c;margin-top:2px">Precios vigentes sin ventas recientes</span>
+        </div>
+        <div class="lp-card">
+          <div class="num" id="kpiInactivos" style="color:#c62828">567</div>
+          <div class="lbl">🔴 Inactivos / Descontinuados</div>
+          <span style="font-size:11px;color:#7c7c7c;margin-top:2px">Sin movimiento ni existencia</span>
+        </div>
+      </div>
+
+      <!-- Barra de Pestañas de Listas -->
+      <div class="lp-tabs">
+        <button class="lp-tab active" data-tab="operativo" onclick="setTab('operativo')">
+          🌟 Universo Operativo <span class="badge-cnt" id="tabCntOperativo">1.248</span>
+        </button>
+        <button class="lp-tab" data-tab="activos" onclick="setTab('activos')">
+          🟢 1. Activos Reales <span class="badge-cnt" id="tabCntActivos">902</span>
+        </button>
+        <button class="lp-tab" data-tab="soloprecio" onclick="setTab('soloprecio')">
+          🟡 3. Solo Precio <span class="badge-cnt" id="tabCntSoloPrecio">346</span>
+        </button>
+        <button class="lp-tab" data-tab="inactivos" onclick="setTab('inactivos')">
+          🔴 2. Inactivos <span class="badge-cnt" id="tabCntInactivos">567</span>
+        </button>
+        <button class="lp-tab" data-tab="todos" onclick="setTab('todos')">
+          📑 Total MixNet <span class="badge-cnt" id="tabCntTodos">1.815</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="admin-table-wrap" style="padding:16px 18px;margin-bottom:18px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:10px;flex:1;min-width:280px">
+            <input type="text" id="searchInput" class="fi" placeholder="🔎 Buscar por código, SKU o descripción del producto..." oninput="onFilterChange()" style="flex:1">
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select id="filterStock" class="fi" onchange="onFilterChange()" style="width:auto">
+              <option value="all">Todos los stocks</option>
+              <option value="con_stock">Con existencia (&gt; 0)</option>
+              <option value="sin_stock">Sin existencia (= 0)</option>
+            </select>
+            <select id="filterPrice" class="fi" onchange="onFilterChange()" style="width:auto">
+              <option value="all">Todos los precios</option>
+              <option value="con_precio">Con precio (&gt; $0)</option>
+              <option value="sin_precio">Sin precio ($0)</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="resetFilters()">↺ Limpiar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla Principal -->
+      <div class="admin-table-wrap" style="padding:0">
+        <div style="padding:14px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#faf9f6">
+          <span style="font-size:13px;font-weight:600;color:#555" id="tableShowingLbl">Mostrando productos...</span>
+          <span style="font-size:12px;color:#888">Orden correlativo por Descripción</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table" style="width:100%;font-size:12px">
+            <thead>
+              <tr style="background:#f4f2eb;text-align:left">
+                <th style="width:110px">COD / SKU</th>
+                <th style="min-width:260px">DESCRIPCIÓN</th>
+                <th style="width:110px">ESTATUS</th>
+                <th style="width:110px;text-align:right">PRECIO A (US$)</th>
+                <th style="width:130px;text-align:right">⭐ PRECIO B (US$)</th>
+                <th style="width:130px;text-align:right">PRECIO C (Bs)</th>
+                <th style="width:130px;text-align:right">PRECIO D (Bs)</th>
+                <th style="width:90px;text-align:right">COSTO</th>
+                <th style="width:90px;text-align:center">STOCK</th>
+                <th style="width:110px;text-align:center">ÚLT. ACTIVIDAD</th>
+              </tr>
+            </thead>
+            <tbody id="productsTbody">
+              <tr>
+                <td colspan="10" style="text-align:center;padding:30px;color:#888">Cargando catálogo y listas de precios...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;background:#faf9f6;border-top:1px solid #eee">
+          <div style="font-size:12px;color:#777" id="pageInfo">Página 1</div>
+          <div style="display:flex;gap:6px" id="paginationControls"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/admin/sidenav.js"></script>
+<script src="../assets/js/admin/vlistas-precios.js"></script>
+</body>
+</html>

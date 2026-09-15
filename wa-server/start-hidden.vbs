@@ -6,13 +6,8 @@ Set WshShell = CreateObject("WScript.Shell")
 Set FSO = CreateObject("Scripting.FileSystemObject")
 
 strScriptDir = FSO.GetParentFolderName(WScript.ScriptFullName)
-strBatPath = strScriptDir & "\run-service.bat"
+WshShell.CurrentDirectory = strScriptDir
+WshShell.Run "cmd.exe /c run-service.bat", 0, False
 
-If FSO.FileExists(strBatPath) Then
-    ' WindowStyle 0 = Oculto / Invisible
-    ' WaitOnReturn False = No bloquear
-    WshShell.CurrentDirectory = strScriptDir
-    WshShell.Run Chr(34) & strBatPath & Chr(34), 0, False
-End If
 Set WshShell = Nothing
 Set FSO = Nothing

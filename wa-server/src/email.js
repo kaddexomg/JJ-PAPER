@@ -253,14 +253,15 @@ export async function sendEmailNow(ownerId, m) {
 }
 
 // Credenciales efectivas para un owner. Orden:
-//  1) su cuenta vinculada por Google (OAuth) — método principal, sin claves
+//  1) su cuenta vinculada por Google (OAuth) — si está activa y no reportada como inválida
 //  2) su cuenta por SMTP (si vinculó una con contraseña de app)
-//  3) respaldo .env por SMTP
+//  3) respaldo con cualquier otra cuenta verificada activa en la empresa (ej. admin)
+//  4) respaldo .env por SMTP
 async function accountFor(ownerId) {
   if (ownerId) {
     const { data } = await db.from('jjp_email_accounts')
-      .select('email,app_pass,oauth_refresh,from_name,enabled').eq('profile_id', ownerId).maybeSingle();
-    if (data?.enabled && data.email) {
+      .select('email,app_pass,oauth_refresh,from_name,enabled,verified').eq('profile_id', ownerId).maybeSingle();
+    if (data?.enabled && data.email && data.verified !== false) {
       const from = data.from_name ? `${data.from_name} <${data.email}>` : data.email;
       if (data.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
         return { email: data.email, refresh: data.oauth_refresh, from, source: 'oauth' };
@@ -268,8 +269,25 @@ async function accountFor(ownerId) {
       if (data.app_pass) return { email: data.email, pass: data.app_pass, from, source: 'smtp' };
     }
   }
+
+  // Respaldo empresarial: buscar una cuenta verificada activa de otro usuario (ej. admin)
+  try {
+    const { data: fbList } = await db.from('jjp_email_accounts')
+      .select('email,app_pass,oauth_refresh,from_name,enabled,verified')
+      .eq('enabled', true)
+      .eq('verified', true)
+      .limit(2);
+    for (const fb of fbList || []) {
+      const from = fb.from_name ? `${fb.from_name} <${fb.email}>` : fb.email;
+      if (fb.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+        return { email: fb.email, refresh: fb.oauth_refresh, from, source: 'oauth', isFallback: true };
+      }
+      if (fb.app_pass) return { email: fb.email, pass: fb.app_pass, from, source: 'smtp', isFallback: true };
+    }
+  } catch (_) {}
+
   if (GMAIL_USER && GMAIL_APP_PASS) {
-    return { email: GMAIL_USER, pass: GMAIL_APP_PASS, from: GMAIL_FROM || GMAIL_USER, source: 'smtp' };
+    return { email: GMAIL_USER, pass: GMAIL_APP_PASS, from: GMAIL_FROM || GMAIL_USER, source: 'smtp', isFallback: true };
   }
   return null;
 }
@@ -569,12 +587,50 @@ async function dispatch(row) {
 
   try {
     let messageId = null;
-    if (acct.source === 'oauth') {
-      messageId = await gmailApiSend(acct, row);           // API de Gmail (scope gmail.send)
+    let usedAcct = acct;
+    if (usedAcct.source === 'oauth') {
+      try {
+        messageId = await gmailApiSend(usedAcct, row);
+      } catch (oauthErr) {
+        if (/invalid_grant|token has been expired|revoked/i.test(oauthErr.message || '')) {
+          log.warn({ email: usedAcct.email }, 'Token OAuth revocado/expirado, marcando cuenta y probando cuenta verificada alternativa');
+          await db.from('jjp_email_accounts')
+            .update({ verified: false, last_error: 'Google revocó el permiso. Vuelve a vincular con Google.' })
+            .eq('email', usedAcct.email);
+          // Buscar cuenta verificada alternativa
+          const { data: fbList } = await db.from('jjp_email_accounts')
+            .select('email,app_pass,oauth_refresh,from_name,enabled,verified')
+            .eq('enabled', true)
+            .eq('verified', true)
+            .neq('email', usedAcct.email)
+            .limit(1);
+          if (fbList?.[0]) {
+            const fb = fbList[0];
+            const from = fb.from_name ? `${fb.from_name} <${fb.email}>` : fb.email;
+            usedAcct = fb.oauth_refresh ? { email: fb.email, refresh: fb.oauth_refresh, from, source: 'oauth' } : { email: fb.email, pass: fb.app_pass, from, source: 'smtp' };
+            if (usedAcct.source === 'oauth') {
+              messageId = await gmailApiSend(usedAcct, row);
+            } else {
+              const atts = await loadAttachments(row.attachments);
+              const info = await buildTxFromAcct(usedAcct).sendMail({
+                from: usedAcct.from, to: row.to_addr,
+                subject: row.subject || '(sin asunto)',
+                text: row.body || '', html: row.html || undefined,
+                attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
+              });
+              messageId = info.messageId || null;
+            }
+          } else {
+            throw oauthErr;
+          }
+        } else {
+          throw oauthErr;
+        }
+      }
     } else {
       const atts = await loadAttachments(row.attachments);
-      const info = await buildTxFromAcct(acct).sendMail({  // SMTP (app pass / .env)
-        from: acct.from, to: row.to_addr,
+      const info = await buildTxFromAcct(usedAcct).sendMail({  // SMTP (app pass / .env)
+        from: usedAcct.from, to: row.to_addr,
         subject: row.subject || '(sin asunto)',
         text: row.body || '', html: row.html || undefined,
         attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
@@ -583,9 +639,9 @@ async function dispatch(row) {
     }
     await db.from('jjp_emails').update({
       status: 'sent', message_id: messageId, error: null,
-      from_addr: acct.from, sent_at: new Date().toISOString()
+      from_addr: usedAcct.from, sent_at: new Date().toISOString()
     }).eq('id', row.id);
-    log.info({ id: row.id, to: row.to_addr, via: acct.source }, 'correo enviado');
+    log.info({ id: row.id, to: row.to_addr, via: usedAcct.source }, 'correo enviado');
   } catch (e) {
     const retries = (row.retry_count || 0) + 1;
     const failed = retries >= MAX_RETRIES;

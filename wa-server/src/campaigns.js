@@ -85,8 +85,15 @@ async function sweep() {
 async function step(camp, dailyLimit) {
   if (camp.scheduled_at && new Date(camp.scheduled_at).getTime() > Date.now()) return;
 
-  const session = manager.get(camp.owner_id);
-  if (!session?.isConnected()) return;
+  let session = manager.get(camp.owner_id);
+  if (!session?.isConnected()) {
+    const activeSessions = manager.all().filter(s => s.isConnected());
+    if (activeSessions.length > 0) {
+      session = activeSessions[0];
+    } else {
+      return;
+    }
+  }
 
   if (Date.now() < (nextSendAt.get(camp.owner_id) || 0)) return;
 

@@ -36,12 +36,16 @@ export function discoverMixnetEnvironment() {
   const foundDropDirs = new Set();
 
   for (const d of availableDrives) {
+    // Si la unidad es C:, ignorar carpetas auto-creadas previamente ya que el usuario aclaró que la info de MixNet está en la otra unidad
     const root = d + '\\';
     try {
       const topItems = fs.readdirSync(root, { withFileTypes: true });
       for (const it of topItems) {
         if (!it.isDirectory()) continue;
         const nameLower = it.name.toLowerCase();
+        if (d === 'C:' && ['cotizaciones jj', 'pedidos jj', 'jj-paper-mixer'].includes(nameLower)) {
+          continue; // Omitir carpetas locales no oficiales en C:
+        }
         if (dropKeywords.some(k => nameLower.includes(k))) {
           foundDropDirs.add(path.join(root, it.name));
         }
@@ -61,39 +65,55 @@ export function discoverMixnetEnvironment() {
     } catch (_) {}
   }
 
-  // Carpetas estándar que deben asegurarse si la unidad existe
+  // Carpetas estándar que SOLO se agregan si ya existen físicamente (NUNCA crear carpetas nuevas arbitrarias)
   const standardDropCandidates = [
-    'C:\\JJ-PAPER-MIXER',
-    'C:\\Pedidos JJ',
-    'C:\\Cotizaciones JJ',
+    '\\\\\\\\192.168.0.185\\\\comp01',
+    '\\\\\\\\192.168.0.185\\\\COMP01',
+    '\\\\\\\\192.168.0.185\\\\mixnet',
+    '\\\\\\\\192.168.0.172\\\\comp01',
+    '\\\\\\\\Supervisor-Pc\\\\comp01',
+    'M:\\comp01',
+    'M:\\COMP01',
     'M:\\mixnet',
     'M:\\pedidos',
     'M:\\cotizaciones',
-    'M:\\'
+    'M:\\',
+    'P:\\comp01',
+    'P:\\mixnet',
+    'P:\\pedidos',
+    'P:\\'
   ];
 
   for (const sc of standardDropCandidates) {
-    const driveLetter = sc.slice(0, 2);
-    if (availableDrives.includes(driveLetter)) {
-      try {
-        if (!fs.existsSync(sc)) {
-          fs.mkdirSync(sc, { recursive: true });
-        }
+    try {
+      if (fs.existsSync(sc)) {
         foundDropDirs.add(sc);
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
 
   // 2. Base de datos DBF de MixNet (comp01 con tablas MXCTAINV, PED, MXRENPED, etc.)
   let foundDbfDir = null;
   const dbfCandidates = [
+    '\\\\\\\\192.168.0.185\\\\comp01',
+    '\\\\\\\\192.168.0.185\\\\COMP01',
+    '\\\\\\\\192.168.0.185\\\\mixnet',
+    '\\\\\\\\192.168.0.185\\\\M\\\\comp01',
+    '\\\\\\\\192.168.0.172\\\\comp01',
+    '\\\\\\\\192.168.0.172\\\\mixnet',
+    '\\\\\\\\Supervisor-Pc\\\\comp01',
+    '\\\\\\\\Supervisor-Pc\\\\mixnet',
     'M:\\comp01',
     'M:\\COMP01',
+    'M:\\mixnet',
     'M:\\',
     'P:\\comp01',
     'P:\\Elias\\MIX\\MIX11\\comp01',
-    'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
+    'C:\\comp01',
     'C:\\MIXNET\\comp01',
+    'C:\\MIX11\\comp01',
+    'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
+    'D:\\comp01',
     'D:\\MIXNET\\comp01',
     'C:\\SISTEMAS\\comp01'
   ];
@@ -122,10 +142,28 @@ export function discoverMixnetEnvironment() {
   const dropList = Array.from(foundDropDirs);
 
   console.log('\n[!] Carpetas de intercambio de pedidos/cotizaciones detectadas:');
-  dropList.forEach((r, idx) => console.log('  ' + (idx + 1) + '. ' + r));
+  if (dropList.length === 0) {
+    console.log('  (Ninguna carpeta detectada en este equipo - verificando servidor de red 192.168.0.185 / unidad M:)');
+  } else {
+    dropList.forEach((r, idx) => console.log('  ' + (idx + 1) + '. ' + r));
+  }
 
-  const primaryDir = dropList[0] || 'C:\\JJ-PAPER-MIXER';
-  console.log('\n-> Carpeta principal de exportacion: ' + primaryDir);
+  let explicitDir = process.env.MIXNET_DIR || process.env.MIXER_EXPORT_DIR;
+  if (explicitDir && explicitDir.includes('JJ-PAPER-MIXER')) explicitDir = null;
+  if (!explicitDir && fs.existsSync(CONFIG_FILE)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      if (prev.primary_dir && !prev.primary_dir.includes('JJ-PAPER-MIXER') && fs.existsSync(prev.primary_dir)) explicitDir = prev.primary_dir;
+    } catch (_) {}
+  }
+
+  // La ruta principal es el directorio DBF real de MixNet (comp01) o la unidad mapeada M:
+  const primaryDir = explicitDir || foundDbfDir || dropList[0] || 'M:/comp01';
+  console.log('\n-> Carpeta principal de MixNet: ' + primaryDir);
+
+  if (primaryDir && fs.existsSync(primaryDir) && !dropList.includes(primaryDir)) {
+    dropList.unshift(primaryDir);
+  }
 
   // Guardar configuración consolidada en mixnet-config.json
   const configData = {

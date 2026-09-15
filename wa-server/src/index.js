@@ -83,20 +83,46 @@ startHeartbeat(
 );
 
 process.on('SIGINT', () => { log.info('apagando…'); process.exit(0); });
-process.on('unhandledRejection', e => log.error({ err: e?.message || e }, 'unhandledRejection'));
 
-// Antes esto solo se registraba y el proceso seguía vivo en un estado
-// indefinido: el panel decía 🟢 pero nada respondía. Ahora se sale con
-// código 1 y START-SERVIDOR.bat relanza limpio (el 2 es "detener a propósito").
+// Monitor de salud interno: auto-reinicio automático ante acumulación de errores
+let errorCount = 0;
+let lastErrorTime = Date.now();
+
+function handleFatalOrRepeatedError(reason, isCritical = false) {
+  const now = Date.now();
+  if (now - lastErrorTime > 60_000) {
+    errorCount = 1;
+  } else {
+    errorCount++;
+  }
+  lastErrorTime = now;
+
+  const errMsg = reason?.message || String(reason || '');
+  const isFatalType = isCritical || /EADDRINUSE|Bad MAC|Stream Errored|ECONNREFUSED|ENOTFOUND|WebSocket.*closed/i.test(errMsg);
+
+  if (isFatalType || errorCount >= 4) {
+    log.error({ err: errMsg, errorCount, fatal: isFatalType }, 'Auto-diagnóstico: detectado error crítico o repetitivo — reiniciando servidor automáticamente');
+    try {
+      import('./supabase.js').then(({ db: dbComm, dbCore }) => {
+        const payload = {
+          status: 'restarting',
+          modules: { crashed: true, error: errMsg, restarted_at: new Date().toISOString() }
+        };
+        dbComm.from('jjp_server_control').update(payload).eq('id', 1).then(() => {}).catch(() => {});
+        if (dbCore) dbCore.from('jjp_server_control').update(payload).eq('id', 1).then(() => {}).catch(() => {});
+      }).catch(() => {});
+    } catch (_) {}
+
+    setTimeout(() => process.exit(1), 600);
+  }
+}
+
+process.on('unhandledRejection', (e) => {
+  log.error({ err: e?.message || e }, 'unhandledRejection');
+  handleFatalOrRepeatedError(e, false);
+});
+
 process.on('uncaughtException', async (e) => {
-  log.error({ err: e?.message, stack: e?.stack }, 'uncaughtException — reiniciando el servidor');
-  // Marcar como caído en BD antes de morir (para que el panel no mienta)
-  try {
-    const { db: dbComm } = await import('./supabase.js');
-    await dbComm.from('jjp_server_control').update({
-      status: 'crashed', heartbeat: null, heartbeat_at: null,
-      modules: { crashed: true, error: e?.message }
-    }).eq('id', 1);
-  } catch (_) {}
-  setTimeout(() => process.exit(1), 500);   // deja que el log y la BD se actualicen
+  log.error({ err: e?.message, stack: e?.stack }, 'uncaughtException — reiniciando servidor automáticamente');
+  handleFatalOrRepeatedError(e, true);
 });

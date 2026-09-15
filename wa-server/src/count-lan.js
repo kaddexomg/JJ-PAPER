@@ -31,6 +31,7 @@ import {
   addMonitorSseClient, removeMonitorSseClient
 } from './monitor.js';
 import { searchProductImagesOnWeb, saveProductImageToStorage } from './product-images.js';
+import { getMixerStatus } from './mixer.js';
 
 // La cámara del teléfono SOLO funciona en HTTPS o en localhost. Por eso el
 // servidor sirve la misma app+API por HTTPS (cert propio persistido en disco,
@@ -563,6 +564,82 @@ async function getMixnetCotizaciones(req, res) {
   }
 }
 
+async function getMixnetProductos(req, res) {
+  try {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const format = parsedUrl.searchParams.get('format') || 'json';
+
+    const { data: prods, error: pErr } = await dbCore.from('jjp_products')
+      .select('id, name, sku, price_usd, cost_usd, stock, active')
+      .order('name');
+
+    if (pErr) throw pErr;
+
+    const { data: vars } = await dbCore.from('jjp_product_variants')
+      .select('id, product_id, variant_name, sku, price_usd, cost_usd, stock, active');
+
+    const varMap = new Map();
+    (vars || []).forEach(v => {
+      if (!varMap.has(v.product_id)) varMap.set(v.product_id, []);
+      varMap.get(v.product_id).push(v);
+    });
+
+    const items = [];
+    for (const p of prods || []) {
+      const pVars = varMap.get(p.id) || [];
+      if (pVars.length > 0) {
+        for (const v of pVars) {
+          items.push({
+            sku: v.sku || p.sku || '',
+            name: p.name,
+            variant: v.variant_name || '',
+            price_usd: v.price_usd ?? p.price_usd ?? 0,
+            cost_usd: v.cost_usd ?? p.cost_usd ?? 0,
+            stock: v.stock ?? p.stock ?? 0,
+            active: (v.active && p.active)
+          });
+        }
+      } else {
+        items.push({
+          sku: p.sku || '',
+          name: p.name,
+          variant: '',
+          price_usd: p.price_usd ?? 0,
+          cost_usd: p.cost_usd ?? 0,
+          stock: p.stock ?? 0,
+          active: p.active
+        });
+      }
+    }
+
+    if (format === 'csv') {
+      let csv = 'SKU,Producto,Variante,Precio_USD,Costo_USD,Stock,Activo\n';
+      for (const it of items) {
+        const row = [
+          `"${(it.sku || '').replace(/"/g, '""')}"`,
+          `"${(it.name || '').replace(/"/g, '""')}"`,
+          `"${(it.variant || '').replace(/"/g, '""')}"`,
+          it.price_usd,
+          it.cost_usd,
+          it.stock,
+          it.active ? 'SI' : 'NO'
+        ].join(',');
+        csv += row + '\n';
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename=productos_jjpaper_mixnet.csv'
+      });
+      return res.end(csv);
+    }
+
+    return sendJSON(res, 200, { ok: true, count: items.length, products: items });
+  } catch (e) {
+    log.error({ err: e.message }, 'mixnet: excepcion en getMixnetProductos');
+    return sendJSON(res, 500, { ok: false, error: e.message });
+  }
+}
+
 // ---- Rutas ----
 async function handle(req, res) {
   const { url, method } = req;
@@ -647,6 +724,14 @@ async function handle(req, res) {
 
     if (route === '/lan/mixnet/cotizaciones') {
       return getMixnetCotizaciones(req, res);
+    }
+
+    if (route === '/lan/mixnet/productos') {
+      return getMixnetProductos(req, res);
+    }
+
+    if (route === '/lan/mixnet/status') {
+      return sendJSON(res, 200, { ok: true, status: getMixerStatus() });
     }
 
     if (route === '/lan/products/search-images') {

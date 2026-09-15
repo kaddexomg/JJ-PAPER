@@ -43,8 +43,8 @@ let exportedOrders = new Set();
 let exportedQuotes = new Set();
 let importedHistory = new Set();
 
-let activePrimaryDir = 'C:/JJ-PAPER-MIXER';
-let activeDropDirs = ['C:/JJ-PAPER-MIXER', 'C:/Pedidos JJ'];
+let activePrimaryDir = null;
+let activeDropDirs = [];
 let activeDbfDir = null;
 
 let lastSweepTime = null;
@@ -94,18 +94,20 @@ function refreshEnvironmentConfig() {
 
     if (cfg) {
       activePrimaryDir = cfg.primary_dir || activePrimaryDir;
-      activeDropDirs = Array.isArray(cfg.drop_dirs) && cfg.drop_dirs.length > 0 ? cfg.drop_dirs : [activePrimaryDir];
+      activeDropDirs = Array.isArray(cfg.drop_dirs) ? cfg.drop_dirs : [];
       activeDbfDir = cfg.dbf_dir || null;
     }
 
-    // Asegurar que las carpetas existan
-    for (const d of activeDropDirs) {
-      try {
-        if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-      } catch (_) {}
+    // Mantener solo carpetas de intercambio que realmente existan físicamente
+    activeDropDirs = activeDropDirs.filter(d => fs.existsSync(d));
+    if (activeDbfDir && fs.existsSync(activeDbfDir) && !activeDropDirs.includes(activeDbfDir)) {
+      activeDropDirs.unshift(activeDbfDir);
+    }
+    if (activePrimaryDir && fs.existsSync(activePrimaryDir) && !activeDropDirs.includes(activePrimaryDir)) {
+      activeDropDirs.unshift(activePrimaryDir);
     }
 
-    log.info(`Puente Mixer: Rutas activas -> Principal: ${activePrimaryDir} | Drop dirs: [${activeDropDirs.join(', ')}] | DBF: ${activeDbfDir || 'No detectado'}`);
+    log.info(`Puente Mixer: Rutas activas -> Principal: ${activePrimaryDir || 'Pendiente'} | Drop dirs: [${activeDropDirs.join(', ') || 'Ninguna'}] | DBF: ${activeDbfDir || 'No detectado'}`);
   } catch (err) {
     log.warn({ err: err.message }, 'Puente Mixer: Error refrescando configuración de MixNet');
   }
@@ -125,13 +127,20 @@ function writeToAllDropDirs(filename, content) {
   let successCount = 0;
   for (const dir of activeDropDirs) {
     try {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      if (!fs.existsSync(dir)) continue; // NUNCA crear carpetas nuevas arbitrarias
       const targetPath = path.join(dir, filename);
       fs.writeFileSync(targetPath, content, 'utf8');
       successCount++;
     } catch (err) {
-      log.warn({ err: err.message, dir, filename }, 'Puente Mixer: Error escribiendo en carpeta de intercambio');
+      log.warn({ err: err.message, dir, filename }, 'Puente Mixer: Error escribiendo en carpeta de MixNet');
     }
+  }
+  // Si activeDbfDir está presente pero no estaba en activeDropDirs, escribir allí
+  if (successCount === 0 && activeDbfDir && fs.existsSync(activeDbfDir)) {
+    try {
+      fs.writeFileSync(path.join(activeDbfDir, filename), content, 'utf8');
+      successCount++;
+    } catch (_) {}
   }
   return successCount > 0;
 }
@@ -528,6 +537,11 @@ async function sweepIncomingFiles() {
           if (exportedQuotes.has(num)) continue;
         }
 
+        // Ignorar archivos de productos, catálogo o inventario (no son pedidos de caja)
+        if (base.startsWith('catalogo_') || base.startsWith('productos_') || base.startsWith('articulos_') || base.includes('catalogo') || base.includes('inventario') || base.includes('stock')) {
+          continue;
+        }
+
         const importKey = `file:${f}`;
         if (importedHistory.has(importKey)) continue;
 
@@ -765,6 +779,210 @@ async function sweepMixnetDbf() {
   }
 }
 
+/* ═══════════════ SINCRONIZACIÓN BIDIRECCIONAL DE PRODUCTOS ═══════════════ */
+
+// 1. JJ Paper ➔ MixNet: Exporta el catálogo consolidado (SKU, nombre, precio, stock)
+export async function exportCatalogToMixnet() {
+  try {
+    const { data: prods, error } = await dbCore.from('jjp_products')
+      .select('id, name, sku, price_usd, cost_usd, stock, active')
+      .order('name');
+    if (error || !prods) return false;
+
+    const { data: vars } = await dbCore.from('jjp_product_variants')
+      .select('id, product_id, variant_name, sku, price_usd, cost_usd, stock, active');
+
+    const varMap = new Map();
+    (vars || []).forEach(v => {
+      if (!varMap.has(v.product_id)) varMap.set(v.product_id, []);
+      varMap.get(v.product_id).push(v);
+    });
+
+    const headers = ['SKU', 'Producto', 'Variante', 'Precio_USD', 'Costo_USD', 'Stock', 'Activo'];
+    const rows = [];
+
+    for (const p of prods) {
+      const pVars = varMap.get(p.id) || [];
+      if (pVars.length > 0) {
+        for (const v of pVars) {
+          rows.push([
+            v.sku || p.sku || '',
+            p.name,
+            v.variant_name || '',
+            v.price_usd ?? p.price_usd ?? 0,
+            v.cost_usd ?? p.cost_usd ?? 0,
+            v.stock ?? p.stock ?? 0,
+            (v.active && p.active) ? 'SI' : 'NO'
+          ].map(escapeCSV).join(','));
+        }
+      } else {
+        rows.push([
+          p.sku || '',
+          p.name,
+          '',
+          p.price_usd ?? 0,
+          p.cost_usd ?? 0,
+          p.stock ?? 0,
+          p.active ? 'SI' : 'NO'
+        ].map(escapeCSV).join(','));
+      }
+    }
+
+    const csvContent = headers.join(',') + '\n' + rows.join('\n');
+    writeToAllDropDirs('catalogo_jjpaper.csv', csvContent);
+    writeToAllDropDirs('productos_jjpaper.csv', csvContent);
+    log.info(`Puente Mixer: Catálogo sincronizado y exportado hacia MixNet (${rows.length} líneas)`);
+    return true;
+  } catch (err) {
+    log.warn({ err: err.message }, 'Puente Mixer: Error exportando catálogo a MixNet');
+    return false;
+  }
+}
+
+// 2. MixNet ➔ JJ Paper: Lee existencias y precios desde tablas DBF o CSV de MixNet
+export async function sweepMixnetProducts() {
+  try {
+    let invDbfPath = null;
+    if (activeDbfDir && fs.existsSync(activeDbfDir)) {
+      for (const t of ['VICTAINV.DBF', 'MXCTAINV.DBF', 'victainv.dbf', 'mxctainv.dbf']) {
+        const fp = path.join(activeDbfDir, t);
+        if (fs.existsSync(fp)) { invDbfPath = fp; break; }
+      }
+    }
+
+    if (invDbfPath) {
+      const struct = readDbfStructure(invDbfPath);
+      if (struct && struct.numRecords > 0) {
+        const rows = readDbfRows(struct, 5000);
+        let updatedCount = 0;
+        for (const r of rows) {
+          const sku = String(r.codart || r.codigo || r.sku || '').trim();
+          if (!sku) continue;
+
+          const price = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
+          const stock = parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0;
+          const cost = parseFloat(String(r.costo || r.costo_rep || '0').replace(/,/g, '.')) || 0;
+
+          if (price > 0 || stock >= 0) {
+            const updateObj = {};
+            if (price > 0) updateObj.price_usd = price;
+            if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
+            if (cost > 0) updateObj.cost_usd = cost;
+
+            const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
+            const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
+            if (vUp?.length || pUp?.length) updatedCount++;
+          }
+        }
+        if (updatedCount > 0) {
+          log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde MixNet DBF.`);
+        }
+        return;
+      }
+    }
+
+    // 2. Respaldo HTTP: Consultar API de MixNet en la red local (192.168.0.185 o 192.168.0.172 en puerto 3000)
+    const httpCandidates = [
+      'http://192.168.0.185:3000/api/products?limit=2000',
+      'http://192.168.0.172:3000/api/products?limit=2000',
+      'http://localhost:3000/api/products?limit=2000'
+    ];
+
+    for (const apiUrl of httpCandidates) {
+      try {
+        const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(2500) });
+        if (resp.ok) {
+          const body = await resp.json();
+          const pList = body.products || [];
+          if (pList.length > 0) {
+            let updatedCount = 0;
+            for (const p of pList) {
+              const sku = String(p.codigo || '').trim();
+              if (!sku) continue;
+
+              const price = parseFloat(p.precio_cliente_usd || p.precio_mayor_usd || 0);
+              const stock = parseFloat(p.stock_actual || 0);
+              const cost = parseFloat(p.costo_usd || 0);
+
+              const updateObj = {};
+              if (price > 0) updateObj.price_usd = price;
+              if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
+              if (cost > 0) updateObj.cost_usd = cost;
+
+              if (Object.keys(updateObj).length > 0) {
+                const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
+                const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
+                if (vUp?.length || pUp?.length) updatedCount++;
+              }
+            }
+            if (updatedCount > 0) {
+              log.info(`Puente Mixer: Sincronizados ${updatedCount} productos desde API HTTP de MixNet (${apiUrl}).`);
+            }
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Si no hay DBF ni API activa, buscar archivos CSV de inventario/stock de MixNet en carpetas existentes
+    for (const dir of activeDropDirs) {
+      if (!fs.existsSync(dir)) continue;
+      let files = [];
+      try { files = fs.readdirSync(dir); } catch (_) { continue; }
+
+      for (const f of files) {
+        const ext = path.extname(f).toLowerCase();
+        if (ext !== '.csv') continue;
+        const base = path.basename(f, ext).toLowerCase();
+        if (base.startsWith('catalogo_jj') || base.startsWith('productos_jj') || base.startsWith('pedido_') || base.startsWith('cotizacion_')) continue;
+
+        if (base.includes('stock') || base.includes('articulo') || base.includes('producto') || base.includes('precio') || base.includes('existencia')) {
+          const filePath = path.join(dir, f);
+          const content = fs.readFileSync(filePath, 'utf8');
+          const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          if (lines.length < 2) continue;
+
+          const sep = lines[0].includes(';') ? ';' : ',';
+          const headers = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/^"+|"+$/g, ''));
+          const colSku = headers.findIndex(h => h.includes('cod') || h.includes('sku') || h.includes('art'));
+          const colPrice = headers.findIndex(h => h.includes('precio') || h.includes('price') || h.includes('pvp'));
+          const colStock = headers.findIndex(h => h.includes('stock') || h.includes('cant') || h.includes('exist'));
+          const colCost = headers.findIndex(h => h.includes('cost'));
+
+          if (colSku < 0) continue;
+
+          let updatedCount = 0;
+          for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(sep).map(p => p.trim().replace(/^"+|"+$/g, ''));
+            const sku = parts[colSku];
+            if (!sku) continue;
+
+            const price = colPrice >= 0 ? (parseFloat(parts[colPrice].replace(/,/g, '.')) || 0) : 0;
+            const stock = colStock >= 0 ? (parseFloat(parts[colStock].replace(/,/g, '.')) || 0) : 0;
+            const cost = colCost >= 0 ? (parseFloat(parts[colCost].replace(/,/g, '.')) || 0) : 0;
+
+            const updateObj = {};
+            if (price > 0) updateObj.price_usd = price;
+            if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
+            if (cost > 0) updateObj.cost_usd = cost;
+
+            if (Object.keys(updateObj).length > 0) {
+              const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
+              const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
+              if (vUp?.length || pUp?.length) updatedCount++;
+            }
+          }
+          if (updatedCount > 0) {
+            log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde archivo ${f}.`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    log.warn({ err: err.message }, 'Puente Mixer: Error en sincronización de productos');
+  }
+}
+
 /* ═══════════════ REALTIME LISTENERS ═══════════════ */
 function setupRealtimeListeners() {
   log.info('Puente Mixer: Suscribiendo canales Realtime para pedidos y cotizaciones...');
@@ -823,17 +1041,25 @@ export function startMixer() {
   refreshEnvironmentConfig();
   loadHistories();
 
-  // 1. Barrido inicial inmediato
+  // 1. Barrido inicial inmediato (pedidos, cotizaciones y catálogo)
   sweepRecentOutgoing().catch(() => {});
   sweepIncomingFiles().catch(() => {});
   sweepMixnetDbf().catch(() => {});
+  sweepMixnetProducts().catch(() => {});
+  exportCatalogToMixnet().catch(() => {});
 
-  // 2. Barrido periódico bidireccional cada 30 segundos
+  // 2. Barrido periódico de pedidos y cotizaciones cada 30 segundos
   setInterval(() => {
     sweepRecentOutgoing().catch(() => {});
     sweepIncomingFiles().catch(() => {});
     sweepMixnetDbf().catch(() => {});
   }, 30_000);
+
+  // 3. Sincronización periódica de productos y catálogo cada 5 minutos
+  setInterval(() => {
+    sweepMixnetProducts().catch(() => {});
+    exportCatalogToMixnet().catch(() => {});
+  }, 300_000);
 
   // 3. Re-chequeo del entorno de unidades (por si se monta M: o P: en red) cada 10 minutos
   setInterval(() => {

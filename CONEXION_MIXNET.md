@@ -1,85 +1,86 @@
 # Guía de Conexión y Configuración: Servidor Local ⇄ MixNet / Mixer
 
-Esta guía detalla el funcionamiento del puente bidireccional entre el servidor local (`wa-server`) y el facturador local **MixNet / Mixer** para la sincronización fluida de pedidos y cotizaciones de **JJ Paper**.
+Esta guía detalla la arquitectura de red y el funcionamiento del puente bidireccional entre el servidor de JJ Paper (`wa-server`) en la PC Supervisor y el facturador **MixNet** en la empresa.
 
 ---
 
-## 🗺️ Diagrama del Flujo de Datos Bidireccional
+## 🗺️ Topología de Red de la Empresa
 
 ```mermaid
-graph LR
-    subgraph JJ Paper
-        A[Tienda Web / POS / Cotizador] -->|Crea Pedido / Cotización| B(Supabase - Proyecto A Core)
-        B -->|Realtime / Barrido| C[wa-server Local]
+graph TD
+    subgraph Servidor JJ Paper ["PC Supervisor (192.168.0.172)"]
+        WS[wa-server Node.js]
+        MON[Monitor LAN :8787 / :8788]
+        WA[WhatsApp Baileys + Outbox]
+        EM[Gmail API + Campañas]
+        MIX[Puente Mixer Bidireccional]
     end
 
-    subgraph Carpetas de Intercambio
-        C -->|pedido_*.csv / .txt| D[C:/JJ-PAPER-MIXER]
-        C -->|cotizacion_*.csv / .txt| E[C:/Pedidos JJ / M:/mixnet]
+    subgraph Servidor MixNet ["Servidor Facturación MixNet (192.168.0.185)"]
+        DBF[Carpeta comp01 / Unidad M:]
+        TAB1[(VICTAINV.DBF - Inventario)]
+        TAB2[(MXCTAINV.DBF - Catálogo)]
+        TAB3[(PED.DBF / MXRENPED.DBF - Pedidos)]
+        TAB4[(PRESUP.DBF - Presupuestos)]
+        DBF --> TAB1 & TAB2 & TAB3 & TAB4
     end
 
-    subgraph MixNet Facturador
-        D & E -->|Procesa / Factura| F[MixNet Facturación / Caja]
-        F -->|Genera Pedidos / DBF / CSV| G[Caja / PED.DBF / PRESUP.DBF]
+    subgraph Supabase Nube ["Supabase Multi-Proyecto"]
+        DB_A[(Proyecto A: Core - jjp_orders, jjp_products, jjp_customers)]
+        DB_B[(Proyecto B: Comunicación - jjp_wa_*, jjp_emails)]
     end
 
-    G -->|Importación Automática| C
-    C -->|Registra en jjp_orders y jjp_quotes| B
+    WS <-->|Realtime & REST| DB_A
+    WS <-->|Realtime & REST| DB_B
+    MIX <-->|Lectura/Escritura SMB M:\comp01 o \\192.168.0.185\comp01| DBF
 ```
 
 ---
 
-## 🔄 Funcionamiento Bidireccional
+## 🔄 Funcionamiento Bidireccional Completo
 
-### 1. JJ Paper ➔ MixNet (Exportación Automática)
-* **Pedidos (`jjp_orders`)**: Cada pedido creado en el POS, Cotizador o Tienda Web se escribe al instante como `pedido_[NUMERO].csv` y `pedido_[NUMERO].txt`.
-* **Cotizaciones (`jjp_quotes`)**: Cada cotización se escribe como `cotizacion_[NUMERO].csv` y `cotizacion_[NUMERO].txt`.
-* **Espejo Multi-Carpeta**: Los archivos no se limitan a una sola ruta fija; el servidor detecta todas las carpetas disponibles (`C:\JJ-PAPER-MIXER`, `C:\Pedidos JJ`, `C:\Cotizaciones JJ`, `M:\mixnet`, etc.) y deposita los archivos en todas para que cualquier terminal de facturación o caja pueda leerlos.
-* **Historial Anti-Duplicados**: Se registra en `wa-server/exported-orders.json` y `wa-server/exported-quotes.json` para no re-escribir pedidos que MixNet ya haya eliminado tras procesar.
+### 1. Pedidos (JJ Paper ⇄ MixNet)
+* **JJ Paper ➔ MixNet**:
+  * Cada pedido aprobado en la Web, POS o Cotizador se registra en `jjp_orders`.
+  * El puente exporta de inmediato `pedido_[NUMERO].csv` y `pedido_[NUMERO].txt` directamente a la carpeta compartida de MixNet (`M:\comp01` o `\\192.168.0.185\comp01`).
+  * Historial persistente en `exported-orders.json` para evitar duplicaciones.
+* **MixNet ➔ JJ Paper**:
+  * El servidor vigila las tablas `PED.DBF` y `MXRENPED.DBF` de MixNet cada 30 segundos.
+  * Cualquier pedido facturado en caja se importa automáticamente a `jjp_orders` (código `MIX-[NUMERO]`), asociando el cliente por RIF o teléfono.
 
-### 2. MixNet ➔ JJ Paper (Importación Automática)
-* **Archivos Planos de Caja**: El servidor vigila las carpetas de intercambio cada 30 segundos. Cualquier archivo CSV generado por Caja o terminales de MixNet (ej. `caja_*.csv`, `ped_*.csv`, `factura_*.csv`, etc.) es parseado e importado automáticamente a `jjp_orders` o `jjp_quotes`.
-* **Conexión Directa DBF**: Si la unidad de red `M:\comp01` está conectada, el servidor lee directamente las tablas `PED.DBF` y `PRESUP.DBF` de MixNet sin necesidad de exportaciones manuales.
-* **Asignación Inteligente de Vendedor**: Al importar desde MixNet, el sistema cruza el RIF, teléfono o nombre del cliente contra la base de datos `jjp_customers`. Si el cliente pertenece a la cartera de un vendedor específico (ej. Marianela, Yovanni, Andreina, Keyder), la orden se asigna a su cuenta automáticamente.
+### 2. Cotizaciones y Presupuestos (JJ Paper ⇄ MixNet)
+* **JJ Paper ➔ MixNet**: Cada cotización de vendedor se deposita en la carpeta de MixNet como `cotizacion_[NUMERO].csv` y `cotizacion_[NUMERO].txt`.
+* **MixNet ➔ JJ Paper**: Lectura de presupuestos emitidos en MixNet para seguimiento de ventas.
 
----
-
-## 🚀 Inicio Automático y Segundo Plano (Windows 7 / 10 / 11)
-
-El servidor está preparado para funcionar **100% en segundo plano** sin molestas ventanas negras de consola y sin riesgo de que los operadores lo cierren por accidente.
-
-### 1. Instalación en 1 Clic
-1. En la PC del servidor (`Supervisor-Pc`), abre la carpeta `wa-server`.
-2. Haz doble clic en:
-   ```text
-   INSTALAR-INICIO-AUTOMATICO.bat
-   ```
-3. El configurador creará el enlace silencioso en la carpeta de inicio de Windows (`shell:startup`) y una tarea programada en Windows.
-4. **Listo**: El servidor arrancará automáticamente cada vez que se encienda la PC o inicie sesión.
-
-### 2. Ver Estado del Servidor
-Para verificar si el servidor está activo, su consumo de RAM y el estado de conexión con MixNet:
-* Haz doble clic en:
-  ```text
-  ESTADO-SERVIDOR.bat
-  ```
-  Mostrará en pantalla:
-  * 🟢 Estado en línea / PID del proceso Node / Uso de memoria RAM.
-  * 🌐 Enlace del Monitor Web LAN y endpoints locales.
-  * 📁 Rutas activas de MixNet y base de datos DBF.
-  * 📜 Últimas 15 líneas del registro `logs\wa-server.log`.
-
-### 3. Detener o Reiniciar
-* **Reiniciar**: Doble clic en `REINICIAR-SERVIDOR.bat`.
-* **Detener**: Doble clic en `DETENER-SERVIDOR.bat` (o botón "⏹️ Detener" en el panel web).
+### 3. Productos, Precios y Stock (JJ Paper ⇄ MixNet)
+* **MixNet ➔ JJ Paper**:
+  * Lee `VICTAINV.DBF` y `MXCTAINV.DBF` para actualizar en tiempo real el stock físico y los precios de venta en `jjp_products` y `jjp_product_variants`.
+  * Respaldo HTTP: Si la suite de bajo consumo de `archivos-pc` está activa en el puerto 3000 (`http://192.168.0.185:3000`), el servidor sincroniza productos vía API REST.
+* **JJ Paper ➔ MixNet**:
+  * Sincroniza `catalogo_jjpaper.csv` y `productos_jjpaper.csv` directamente en la unidad de red.
 
 ---
 
-## 🌐 Endpoints de Red LAN Local
+## 🚀 Inicio Automático y Segundo Plano en `Supervisor-Pc`
 
-Para sistemas o terminales que prefieran consumir datos vía HTTP en la red local:
-* **Monitor Web**: `http://192.168.0.172:8787/lan/monitor`
+El servidor está preparado para funcionar **100% en segundo plano** sin ventanas de consola visibles y con auto-reinicio ante errores:
+
+1. **Instalación en la PC del Supervisor (`192.168.0.172`)**:
+   * Ejecutar: `INSTALAR-INICIO-AUTOMATICO.bat` dentro de `wa-server`.
+   * El servicio queda enlazado en `shell:startup` y arrancará con Windows.
+2. **Supervisión de Salud**:
+   * Auto-diagnóstico: si ocurre un fallo de red o socket, el servidor se reinicia automáticamente en 2 segundos.
+   * Ejecutar `ESTADO-SERVIDOR.bat` para verificar PID, memoria RAM y rutas activas.
+
+---
+
+## 🌐 Endpoints de Red LAN Local (Disponibles en la red)
+
+* **Monitor de Salud y Cuotas**: `http://192.168.0.172:8787/lan/monitor`
 * **Pedidos Recientes (JSON)**: `http://192.168.0.172:8787/lan/mixnet/pedidos`
 * **Pedidos Recientes (CSV)**: `http://192.168.0.172:8787/lan/mixnet/pedidos?format=csv`
 * **Cotizaciones Recientes (JSON)**: `http://192.168.0.172:8787/lan/mixnet/cotizaciones`
 * **Cotizaciones Recientes (CSV)**: `http://192.168.0.172:8787/lan/mixnet/cotizaciones?format=csv`
+* **Catálogo de Productos para MixNet (JSON)**: `http://192.168.0.172:8787/lan/mixnet/productos`
+* **Catálogo de Productos para MixNet (CSV)**: `http://192.168.0.172:8787/lan/mixnet/productos?format=csv`
+* **Estado del Enlace MixNet**: `http://192.168.0.172:8787/lan/mixnet/status`

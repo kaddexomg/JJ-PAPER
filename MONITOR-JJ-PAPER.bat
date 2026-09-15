@@ -10,8 +10,8 @@ echo.
 set SERVER_IP=192.168.0.172
 set URL=http://%SERVER_IP%:8787/admin/monitor.html
 
-REM 1. Verificar si esta PC es el servidor dedicado (puerto 8786 activo)
-netstat -ano | findstr ":8786" >nul
+REM 1. Verificar si esta PC es el servidor dedicado (puerto 8786 activo localmente)
+netstat -ano | findstr ":8786" >nul 2>&1
 if %errorlevel% equ 0 (
     echo [OK] Servidor wa-server detectado en ejecucion local.
     set URL=http://localhost:8787/admin/monitor.html

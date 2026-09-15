@@ -36,14 +36,12 @@
 
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
-    'gemini-3.1-flash-lite',
     'gemini-3.5-flash-lite',
     'gemini-3.6-flash'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat
   const FAST_MODELS = [
-    'gemini-3.1-flash-lite',
     'gemini-3.5-flash-lite',
     'gemini-3.6-flash'
   ];

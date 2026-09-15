@@ -23,9 +23,6 @@ if exist "%LOGFILE%" (
   )
 )
 
-echo [%date% %time%] [SUPERVISOR] Sincronizando con GitHub... >> "%LOGFILE%"
-git pull origin main >> "%LOGFILE%" 2>&1
-
 echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
 node auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
 
@@ -47,7 +44,7 @@ if "%CODE%"=="3" (
   exit /b 0
 )
 
-REM Si el servidor se cayo o se pidio reiniciar (codigo 0 o 1), esperar 5s y relanzar
-echo [%date% %time%] [SUPERVISOR] Relanzando servidor en 5 segundos... >> "%LOGFILE%"
-timeout /t 5 /nobreak >nul
+REM Si el servidor se cayo o se pidio reiniciar (codigo 0 o 1), auto-relanzar de inmediato
+echo [%date% %time%] [SUPERVISOR] Relanzando servidor automaticamente en 2 segundos... >> "%LOGFILE%"
+timeout /t 2 /nobreak >nul
 goto loop

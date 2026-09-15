@@ -52,7 +52,14 @@ async function dispatch(row) {
   let session = manager.get(row.owner_id);
   let usedFallback = false;
   if (!session?.isConnected()) {
-    return; // queda pending hasta que la sesión del vendedor conecte
+    const activeSessions = manager.all().filter(s => s.isConnected());
+    if (activeSessions.length > 0) {
+      session = activeSessions[0];
+      usedFallback = true;
+      log.info({ originalOwner: row.owner_id, fallbackOwner: session.profileId }, 'Usando sesión fallback activa para envío de mensaje WA');
+    } else {
+      return; // queda pending hasta que al menos una sesión conecte
+    }
   }
 
   const jid = row.jjp_wa_chats?.jid;

@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <link rel="stylesheet" href="../assets/css/perf.css">
-<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260914_ai_flow">
+<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260916_fix_4">
 <link rel="stylesheet" href="../assets/css/product-picker.css">
 <script src="../assets/js/perf.js"></script>
 
@@ -386,6 +386,15 @@
         <button class="btn-o sm" style="margin-top:8px" onclick="handlePasteImport()">📥 Procesar Celdas Pegadas</button>
       </div>
 
+      <div style="background:#ecfdf5;padding:14px;border-radius:8px;border:1px solid #a7f3d0;margin-bottom:16px">
+        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción C: Cargar Directo desde Google Sheets (URL pública)</label>
+        <input class="fi" id="sheetsImportUrl" type="url" placeholder="Pega el enlace de la hoja (docs.google.com/spreadsheets/d/...)" style="margin-bottom:8px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn-p sm" onclick="handleSheetsUrlImport()">🌐 Leer y Procesar Desde Internet</button>
+          <span id="sheetsImportStatus" style="font-size:12px;color:#475569"></span>
+        </div>
+      </div>
+
       <div style="text-align:right">
         <button class="btn-o" onclick="closeImportModal()">Cerrar</button>
       </div>
@@ -490,7 +499,7 @@
 <script src="../assets/js/vendedor/vcommon.js?v=20260914_prospects"></script>
 <script src="../assets/js/vendedor/product-picker.js?v=20260914_prospects"></script>
 <script src="../assets/js/gemini-client.js?v=20260916_presentacion_b2b"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20260914_ai_flow"></script>
-<script src="../assets/js/admin/vprospectos.js?v=20260914_b2b_editor"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260916_fix_4"></script>
+<script src="../assets/js/admin/vprospectos.js?v=20260916_fix_4"></script>
 </body>
 </html>

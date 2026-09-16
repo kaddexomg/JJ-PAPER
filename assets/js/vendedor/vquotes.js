@@ -15,7 +15,7 @@ async function initQuoter() {
   const id = params.get('add');   // desde Consultar stock
   if (id) {
     const p = posProducts.find(x => x.id === id);
-    if (p) posAddResolved(p, (p.jjp_product_variants || []).filter(x => x.active)[0] || null);
+    if (p) posAddAndPick(p, (p.jjp_product_variants || []).filter(x => x.active)[0] || null);
   }
   // Viene con el cliente ya elegido (desde el chat de WhatsApp, el correo
   // o la ficha del cliente): sus datos entran solos.
@@ -53,7 +53,7 @@ function quotePickCustomer(c) {
 
 function posOnScan(code) {
   const hit = pfFindByCode(posProducts, code);
-  if (hit) { posAddResolved(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
+  if (hit) { posAddAndPick(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
   else showToast('📱 Código no está en el catálogo: ' + code, 'warn');
 }
 function posPhone() {
@@ -75,19 +75,35 @@ function posSearchKey(e) {
   if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
   if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
   if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
+  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
+  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
+  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
+  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
+  if (e.key === 'Escape') { clearQuote(); return; }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); quoteSubmit(); return; }
   if (e.key !== 'Enter') return;
   e.preventDefault();
   if (posCursor >= 0 && posCursor < posResultsList.length) { posPickIdx(); return; }
   const code = document.getElementById('posSearch').value.trim();
   const hit = pfFindByCode(posProducts, code);
-  if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); document.getElementById('posSearch').value = ''; posSearch(); }
+  if (hit) { posAddAndPick(hit.product, hit.variant); showToast('➕ ' + hit.product.name); document.getElementById('posSearch').value = ''; posSearch(); }
 }
 function posScanCam() {
   pfScanCamera(code => {
     const hit = pfFindByCode(posProducts, code);
-    if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
+    if (hit) { posAddAndPick(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
     else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
   });
+}
+
+// Vacía la cotización en curso (con confirmación si tiene líneas)
+function clearQuote() {
+  if (posTicket && Object.keys(posTicket).length && !confirm('¿Vaciar esta cotización?')) return;
+  posTicket = {};
+  posRenderTicket();
+  const se = document.getElementById('posSearch');
+  if (se) { se.value = ''; se.focus(); }
+  posSearch();
 }
 
 function posRenderResults(list) {
@@ -118,11 +134,21 @@ function posRenderResults(list) {
   }).join('');
 }
 
-// Navegación por teclado sobre los resultados (↑/↓)
+// Navegación por teclado sobre los resultados (↑/↓ / PgUp/PgDn / Home/End)
 function posNav(dir) {
   const rows = (document.getElementById('posResults')?.querySelectorAll('.pos-result')) || [];
   if (!rows.length) return;
   posCursor = (posCursor + dir + rows.length) % rows.length;
+  rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
+  rows[posCursor]?.scrollIntoView({ block: 'nearest' });
+}
+
+function posNavTo(idx) {
+  const rows = (document.getElementById('posResults')?.querySelectorAll('.pos-result')) || [];
+  if (!rows.length) return;
+  if (idx < 0) idx = 0;
+  if (idx >= rows.length) idx = rows.length - 1;
+  posCursor = idx;
   rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
   rows[posCursor]?.scrollIntoView({ block: 'nearest' });
 }

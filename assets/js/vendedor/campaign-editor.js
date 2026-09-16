@@ -1223,7 +1223,8 @@ window.CampaignEditor = (() => {
         sellerName: currentConfig?.seller?.name || '',
         sellerPhone: currentConfig?.seller?.phone || '',
         promoProductOrCombo: selectedProductOrCombo,
-        officialPdfIncluded: isPdf
+        officialPdfIncluded: isPdf,
+        forceRefresh: true
       });
 
       cust._custom_message = res.body;
@@ -1772,6 +1773,19 @@ window.CampaignEditor = (() => {
   }
 
   /* ---------------- DESPACHO Y LANZAMIENTO ---------------- */
+  function buildMinimalFallback(c, channel, sellerName, inclPdf) {
+    const sName = sellerName || 'Asesor JJ Paper';
+    const shown = (c ? c.name : null) || 'Estimado Cliente';
+    const pdf = inclPdf !== false
+      ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.'
+      : '';
+    const base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería, insumos de caja y consumibles en Caracas. Somos el aliado para el abastecimiento continuo de su negocio.\n\n*📦 TENEMOS DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje* y consumibles de papelería escolar y de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo a su disposición para apoyarle en lo que necesite.}`;
+    if (channel === 'email') {
+      return `${base}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nCaracas, Venezuela`;
+    }
+    return `${base}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${(typeof window !== 'undefined' && window.CURRENT_PROFILE?.phone) || '0412-4676073'}\nJJ Paper C.A.`;
+  }
+
   async function launch() {
     const name = document.getElementById('ceCampName').value.trim();
     const attachOpts = currentAttachOpts();
@@ -1792,32 +1806,33 @@ window.CampaignEditor = (() => {
         if (doAnalyze) {
           await startAiAnalysisBatch();
         } else {
-          // Completar con generador heurístico para que nadie vaya vacío
           await ensureGeminiClient();
-          const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
           const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
-          missingAnalysis.forEach(c => {
-            const h = window.GeminiClient.analyzeCustomerAndDraftMessage({
-              customer: c,
-              channel: currentConfig.channel || 'whatsapp',
-              sellerName: currentConfig.seller?.name || '',
-              sellerPhone: currentConfig.seller?.phone || '',
-              promoProductOrCombo: selectedProductOrCombo,
-              officialPdfIncluded: isPdf
-            });
-            // Si retorna promesa o valor síncrono
-            if (h && typeof h.then === 'function') {
-              h.then(res => {
-                c._custom_message = res.body;
-                c._custom_subject = res.subject;
-                c._detected_need = res.need;
-                c._detected_sector = res.sector;
+          await Promise.all(missingAnalysis.map(async c => {
+            try {
+              const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
+                customer: c,
+                channel: currentConfig.channel || 'whatsapp',
+                sellerName: currentConfig.seller?.name || '',
+                sellerPhone: currentConfig.seller?.phone || '',
+                promoProductOrCombo: selectedProductOrCombo,
+                officialPdfIncluded: isPdf
               });
+              c._custom_message = res.body;
+              c._custom_subject = res.subject;
+              c._detected_need = res.need;
+              c._detected_sector = res.sector;
+            } catch (e) {
+              console.warn('Fallback heurístico falló para', c.name, e);
+              const isPdfCited = document.getElementById('ceAttachPdf')?.checked !== false;
+              c._custom_message = c._custom_message || buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfCited);
             }
-          });
+          }));
         }
       }
-      body = body || 'Propuesta personalizada por cliente asistida por IA';
+      if (!body || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
+        body = buildMinimalFallback(null, currentConfig.channel || 'whatsapp', currentConfig.seller?.name, document.getElementById('ceAttachPdf')?.checked !== false);
+      }
       if (isEmail && !subject) subject = 'Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
     } else {
       if (!body) { alert('El mensaje no puede estar vacío.'); return; }

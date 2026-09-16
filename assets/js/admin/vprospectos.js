@@ -13,6 +13,8 @@ let currentSectorFilter = 'todos';
 let currentStatusFilter = 'todos';
 let activeProspectModal = null;
 let currentEditingProspectId = null;
+let prospectsPage = 1;
+const PROSPECTS_PER_PAGE = 100;
 
 const KEYDER_PROFILE = {
   name: 'Keyder José Salazar',
@@ -34,7 +36,7 @@ async function loadProspects() {
     const { data, error } = await sb.from('jjp_prospects')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .range(0, 1999);
 
     if (error) {
       console.error('Error cargando prospectos:', error);
@@ -43,6 +45,7 @@ async function loadProspects() {
     }
 
     prospectsList = data || [];
+    prospectsPage = 1;
     renderSectorFilterChips();
     applyProspectFilters();
     updateProspectKpis();
@@ -120,6 +123,7 @@ function applyProspectFilters() {
     return true;
   });
 
+  prospectsPage = 1;
   renderProspectsTable();
 }
 
@@ -157,8 +161,10 @@ function renderProspectsTable() {
     return;
   }
 
-  const MAX = 150;
-  const toShow = filteredProspects.slice(0, MAX);
+  const totalPages = Math.max(1, Math.ceil(filteredProspects.length / PROSPECTS_PER_PAGE));
+  if (prospectsPage > totalPages) prospectsPage = totalPages;
+  const startIdx = (prospectsPage - 1) * PROSPECTS_PER_PAGE;
+  const toShow = filteredProspects.slice(startIdx, startIdx + PROSPECTS_PER_PAGE);
 
   tbody.innerHTML = toShow.map(p => {
     const hasAi = Boolean(p.custom_email_body || (p.ai_analysis && p.ai_analysis.dolor_operativo));
@@ -246,9 +252,26 @@ function renderProspectsTable() {
     `;
   }).join('');
 
-  if (filteredProspects.length > MAX) {
-    tbody.innerHTML += `<tr><td colspan="7" style="text-align:center;padding:10px;background:#f8fafc;color:#64748b;font-size:12px">Mostrando primeros ${MAX} de ${filteredProspects.length} prospectos. Afina con el buscador o filtros arriba.</td></tr>`;
+  if (filteredProspects.length > PROSPECTS_PER_PAGE) {
+    const pageBtn = (label, target, disable) => `<button class="of-chip" ${disable ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''} onclick="prospectsGoPage(${target})">${label}</button>`;
+    tbody.innerHTML += `<tr><td colspan="7" style="text-align:center;padding:10px;background:#f8fafc">
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;font-size:12px;color:#64748b">
+        ${pageBtn('◀ Anterior', prospectsPage - 1, prospectsPage <= 1)}
+        <strong style="color:var(--dark)">Página ${prospectsPage} de ${totalPages}</strong>
+        <span style="margin:0 4px">(${filteredProspects.length} prospectos)</span>
+        ${pageBtn('Siguiente ▶', prospectsPage + 1, prospectsPage >= totalPages)}
+      </div>
+    </td></tr>`;
   }
+}
+
+function prospectsGoPage(p) {
+  const totalPages = Math.max(1, Math.ceil(filteredProspects.length / PROSPECTS_PER_PAGE));
+  if (p < 1 || p > totalPages) return;
+  prospectsPage = p;
+  const tbody = document.getElementById('prospectsTableBody');
+  if (tbody) tbody.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  renderProspectsTable();
 }
 
 /* --------------------------------------------------------------------------
@@ -706,11 +729,14 @@ async function processImportedRows(allRows) {
     return;
   }
 
+  // Normaliza acentos para detectar cabeceras escritas con o sin tilde.
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
   // Buscar fila de cabecera
   let headerIdx = -1;
   for (let i = 0; i < Math.min(10, allRows.length); i++) {
-    const r = allRows[i].map(c => String(c || '').toLowerCase().trim());
-    if (r.some(c => c.includes('empresa') || c.includes('cliente') || c.includes('razón'))) {
+    const r = allRows[i].map(c => norm(c));
+    if (r.some(c => ['empresa', 'cliente', 'ra zon', 'razon', 'compa', 'store', 'tienda'].some(k => c.includes(k)))) {
       headerIdx = i;
       break;
     }
@@ -721,18 +747,24 @@ async function processImportedRows(allRows) {
     return;
   }
 
-  const headers = allRows[headerIdx].map(h => String(h || '').toLowerCase().trim());
+  const headers = allRows[headerIdx].map(h => norm(h));
 
   const col = {
-    sector: headers.findIndex(h => h.includes('sector') || h.includes('rubro')),
-    empresa: headers.findIndex(h => h.includes('empresa') || h.includes('cliente') || h.includes('razón')),
-    contacto: headers.findIndex(h => h.includes('contacto') || h.includes('cargo') || h.includes('atención')),
-    tel1: headers.findIndex(h => (h.includes('tel') || h.includes('fijo')) && !h.includes('2')),
-    tel2: headers.findIndex(h => h.includes('teléfono 2') || h.includes('telefono 2') || h.includes('cel') || h.includes('whatsapp') || h.includes('movil')),
-    email: headers.findIndex(h => h.includes('correo') || h.includes('email')),
+    sector: headers.findIndex(h => h.includes('sector') || h.includes('rubro') || h.includes('tipo')),
+    empresa: headers.findIndex(h => h.includes('empresa') || h.includes('cliente') || h.includes('razon') || h.includes('compa')),
+    contacto: headers.findIndex(h => h.includes('contacto') || h.includes('atencion') || h.includes('persona')),
+    cargo: headers.findIndex(h => h.includes('cargo') || h.includes('rol') || h.includes('departamento')),
+    tel1: headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('telefonico')) && (!h.includes('cel') && !h.includes('wa') && !h.includes('whats'))),
+    tel2: headers.findIndex(h => h.includes('cel') || h.includes('whats') || h.includes('movil') || h.includes('movi') || (h.includes('tel') && h.includes('2'))),
+    email: headers.findIndex(h => h.includes('correo') || h.includes('email') || h.includes('mail')),
     direccion: headers.findIndex(h => h.includes('direcci') || h.includes('sede') || h.includes('ubicaci')),
-    notas: headers.findIndex(h => h.includes('nota') || h.includes('observaci'))
+    notas: headers.findIndex(h => h.includes('nota') || h.includes('observaci') || h.includes('comentario'))
   };
+
+  // Si no hay tel2 explícito, probar "teléfono 2" omitiéndose de tel1.
+  if (col.tel2 === -1) {
+    col.tel2 = headers.findIndex(h => (h.includes('tel') || h.includes('fijo')) && /\b2\b/.test(h) && !h.includes('cel'));
+  }
 
   if (col.empresa === -1) {
     showToast('No se pudo identificar la columna de Empresa', 'err');
@@ -741,6 +773,14 @@ async function processImportedRows(allRows) {
 
   let inserted = 0;
   let updated = 0;
+  let skipped = 0;
+
+  // Precarga de empresas existentes para distinguir insert vs update.
+  let existing = new Set();
+  try {
+    const { data: ex } = await sb.from('jjp_prospects').select('company_name');
+    existing = new Set((ex || []).map(x => norm(x.company_name)));
+  } catch (_) { /* mantener set vacío */ }
 
   showToast('Guardando prospectos en la base de datos… ⏳', 'info');
 
@@ -749,10 +789,10 @@ async function processImportedRows(allRows) {
     if (!r) continue;
 
     const rawCompany = String(r[col.empresa] || '').trim();
-    if (!rawCompany || rawCompany.toLowerCase() === 'empresa') continue;
+    if (!rawCompany || norm(rawCompany) === 'empresa') { skipped++; continue; }
 
     const sector = col.sector !== -1 && r[col.sector] ? String(r[col.sector]).trim() : 'Otro';
-    const rawContact = col.contacto !== -1 && r[col.contacto] ? String(r[col.contacto]).trim() : '';
+    const rawContact = (col.contacto !== -1 && r[col.contacto] ? String(r[col.contacto]).trim() : '') || (col.cargo !== -1 && r[col.cargo] ? String(r[col.cargo]).trim() : '');
 
     let contactName = rawContact;
     let contactRole = '';
@@ -765,9 +805,21 @@ async function processImportedRows(allRows) {
       contactName = '';
     }
 
-    const tel1 = col.tel1 !== -1 && r[col.tel1] ? String(r[col.tel1]).trim() : null;
-    const tel2 = col.tel2 !== -1 && r[col.tel2] ? String(r[col.tel2]).trim() : null;
-    const email = col.email !== -1 && r[col.email] ? String(r[col.email]).trim() : null;
+    const cellPhone = v => {
+      if (!v) return null;
+      let s = String(v).trim();
+      if (!s || s === '-' || s === '—' || /^-{1,2}$/.test(s)) return null;
+      // Llega como número Excel (8E+11 o 4121234567)
+      if (/^\d+\s*E\+\d+$/i.test(s)) return null;
+      s = s.replace(/[^\d+]/g, '');
+      return s || null;
+    };
+
+    const tel1 = col.tel1 !== -1 ? cellPhone(r[col.tel1]) : null;
+    const tel2 = col.tel2 !== -1 ? cellPhone(r[col.tel2]) : null;
+    // Si el "fijo" resultó ser un celular venezolano, normalizar al movil.
+    let email = col.email !== -1 && r[col.email] ? String(r[col.email]).trim() : null;
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) email = null;
     const address = col.direccion !== -1 && r[col.direccion] ? String(r[col.direccion]).trim() : null;
     const notes = col.notas !== -1 && r[col.notas] ? String(r[col.notas]).trim() : null;
 
@@ -784,16 +836,91 @@ async function processImportedRows(allRows) {
       updated_at: new Date().toISOString()
     };
 
+    const existed = existing.has(norm(rawCompany));
+
     // Upsert por company_name
     const { error: upsertErr } = await sb.from('jjp_prospects').upsert(payload, { onConflict: 'company_name' });
     if (!upsertErr) {
-      inserted++;
+      if (existed) updated++; else inserted++;
+      existing.add(norm(rawCompany));
+    } else {
+      skipped++;
     }
   }
 
-  showToast(`¡Importación finalizada! ${inserted} prospectos sincronizados con éxito ✔`);
+  showToast(`¡Importación finalizada! ✔ ${inserted} creados · ${updated} actualizados · ${skipped} omitidos. ${inserted + updated} prospectos sincronizados en total.`);
   closeImportModal();
   await loadProspects();
+}
+
+/* Importación directa desde una URL pública de Google Sheets.
+   Se resuelve en la nube (Cloudflare Pages Function) para evitar CORS. */
+async function handleSheetsUrlImport() {
+  const url = (document.getElementById('sheetsImportUrl')?.value || '').trim();
+  const statusEl = document.getElementById('sheetsImportStatus');
+  if (!url) { showToast('Pega el enlace de tu hoja de cálculo primero', 'warn'); return; }
+  if (statusEl) statusEl.textContent = 'Leyendo la hoja desde internet…';
+  try {
+    const res = await fetch('/api/sheets-import?url=' + encodeURIComponent(url));
+    const data = await res.json();
+    if (!data.ok) {
+      if (statusEl) statusEl.textContent = '❌ ' + (data.error || 'No se pudo leer la hoja.');
+      showToast(data.error || 'No se pudo leer la hoja', 'err');
+      return;
+    }
+    if (!Array.isArray(data.rows)) {
+      if (statusEl) statusEl.textContent = '❌ La hoja no devolvió filas.';
+      return;
+    }
+
+    // Convierte filas CSV (arrays) al formato esperado por processImportedRows
+    const headerKeys = data.headers.map((h, i) => {
+      const s = String(h || '').toUpperCase().trim();
+      if (s.includes('SECTOR') || s.includes('RUBRO')) return 'sector';
+      if (s.includes('EMPRESA') || s.includes('COMPA') || s.includes('RAZON')) return 'empresa';
+      if (s.includes('CONTACTO') || s.includes('NOMBRE')) return 'contacto';
+      if (s.includes('CARGO') || s.includes('ROL')) return 'cargo';
+      if (s.includes('FIJO') || (s.includes('TEL') && !s.includes('2'))) return 'tel1';
+      if (s.includes('CEL') || s.includes('WHAT') || s.includes('MOVIL') || s.includes('TEL') && s.includes('2')) return 'tel2';
+      if (s.includes('CORREO') || s.includes('EMAIL')) return 'email';
+      if (s.includes('DIRECC') || s.includes('SEDE')) return 'direccion';
+      if (s.includes('NOTA') || s.includes('OBSERV')) return 'notas';
+      return null;
+    });
+
+    const rows = data.rows.slice(1).map(r => {
+      const obj = {};
+      data.headers.forEach((h, i) => { obj[i] = r[i] != null ? String(r[i]) : ''; });
+      return obj;
+    });
+
+    const mapped = rows.map(r => {
+      const idx = (key) => headerKeys.indexOf(key);
+      return {
+        sector: idx('sector') !== -1 ? r[idx('sector')] : 'Otro',
+        empresa: idx('empresa') !== -1 ? r[idx('empresa')] : '',
+        contacto: idx('contacto') !== -1 ? r[idx('contacto')] : (idx('cargo') !== -1 ? r[idx('cargo')] : ''),
+        tel1: idx('tel1') !== -1 ? r[idx('tel1')] : '',
+        tel2: idx('tel2') !== -1 ? r[idx('tel2')] : '',
+        email: idx('email') !== -1 ? r[idx('email')] : '',
+        direccion: idx('direccion') !== -1 ? r[idx('direccion')] : '',
+        notas: idx('notas') !== -1 ? r[idx('notas')] : '',
+      };
+    }).filter(p => p.empresa && String(p.empresa).trim());
+
+    if (!mapped.length) {
+      if (statusEl) statusEl.textContent = '❌ No se identificaron filas con empresa.';
+      showToast('No se identificaron filas con empresa', 'err');
+      return;
+    }
+
+    if (statusEl) statusEl.textContent = `✔ ${mapped.length} filas leídas. Procesando…`;
+    await processImportedRows(mapped);
+  } catch (err) {
+    console.error('sheets-import:', err);
+    if (statusEl) statusEl.textContent = '❌ Error de red al cargar la hoja.';
+    showToast('Error de red al cargar la hoja', 'err');
+  }
 }
 
 /* --------------------------------------------------------------------------

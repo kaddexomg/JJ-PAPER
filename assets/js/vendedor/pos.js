@@ -19,6 +19,7 @@ async function initPos() {
   posRenderResults(pfMatch(posProducts, ''));
   posPrefillAdd();                        // ?add=<id> desde Consultar stock
   pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
+  posInitCustomerKeys();                  // teclado ↑/↓/Enter en resultados de cliente
 
   // prefill de cliente si viene desde el CRM (?tel=... o ?cliente=<id>)
   const params = new URLSearchParams(location.search);
@@ -54,22 +55,38 @@ function posSearch() {
 }
 
 // Enter en el buscador: añade el resultado resaltado, o si el texto es un
-// código exacto (lector físico) agrega directo con el precio actualizado.
+// código exacto (lector físico) agrega abriendo la lista de precio A/B/C/D.
 function posSearchKey(e) {
   if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
   if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
   if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
+  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
+  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
+  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
+  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
+  if (e.key === 'Escape') { clearPos(); return; }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); posSubmit(); return; }
   if (e.key !== 'Enter') return;
   e.preventDefault();
   if (posCursor >= 0 && posCursor < posResultsList.length) { posPickIdx(); return; }
   const code = document.getElementById('posSearch').value.trim();
   const hit = pfFindByCode(posProducts, code);
   if (hit) {
-    posAddResolved(hit.product, hit.variant);
+    posAddAndPick(hit.product, hit.variant);
     showToast('➕ ' + hit.product.name);
     document.getElementById('posSearch').value = '';
     posSearch();
   }
+}
+
+// Limpia el ticket actual (con confirmación si tiene líneas)
+function clearPos() {
+  if (posTicket && Object.keys(posTicket).length && !confirm('¿Vaciar el ticket actual?')) return;
+  posTicket = {};
+  posRenderTicket();
+  const se = document.getElementById('posSearch');
+  if (se) { se.value = ''; se.focus(); }
+  posSearch();
 }
 
 // Agrega el producto que llega por ?add=<id> (desde Consultar stock)
@@ -79,22 +96,22 @@ function posPrefillAdd() {
   const p = posProducts.find(x => x.id === id);
   if (!p) return;
   const v = (p.jjp_product_variants || []).filter(x => x.active)[0] || null;
-  posAddResolved(p, v);
+  posAddAndPick(p, v);
 }
 
 // Escanear con la cámara del propio dispositivo
 function posScanCam() {
   pfScanCamera(code => {
     const hit = pfFindByCode(posProducts, code);
-    if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
+    if (hit) { posAddAndPick(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
     else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
   });
 }
 
-// Código que llega del teléfono-escáner (puente) → agrega al ticket
+// Código que llega del teléfono-escáner (puente) → agrega al ticket con lista de precio
 function posOnScan(code) {
   const hit = pfFindByCode(posProducts, code);
-  if (hit) { posAddResolved(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
+  if (hit) { posAddAndPick(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
   else showToast('📱 Código no está en el catálogo: ' + code, 'warn');
 }
 
@@ -137,11 +154,21 @@ function posRenderResults(list) {
   }).join('');
 }
 
-// Navegación por teclado sobre los resultados (↑/↓)
+// Navegación por teclado sobre los resultados (↑/↓ / PgUp/PgDn / Home/End)
 function posNav(dir) {
   const rows = (document.getElementById('posResults')?.querySelectorAll('.pos-result')) || [];
   if (!rows.length) return;
   posCursor = (posCursor + dir + rows.length) % rows.length;
+  rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
+  rows[posCursor]?.scrollIntoView({ block: 'nearest' });
+}
+
+function posNavTo(idx) {
+  const rows = (document.getElementById('posResults')?.querySelectorAll('.pos-result')) || [];
+  if (!rows.length) return;
+  if (idx < 0) idx = 0;
+  if (idx >= rows.length) idx = rows.length - 1;
+  posCursor = idx;
   rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
   rows[posCursor]?.scrollIntoView({ block: 'nearest' });
 }
@@ -322,13 +349,47 @@ function posUpdatePrice(key, val) {
 
 /* ---------- Cliente (CRM) ---------- */
 let posCliTimer = null;
+let posCliResults = [];
+let posCliCursor = -1;
+
+function posInitCustomerKeys() {
+  const inp = document.getElementById('posCliSearch');
+  if (!inp || inp.__jjKeys) return;
+  inp.__jjKeys = true;
+  inp.addEventListener('keydown', e => {
+    if (document.querySelector('.pf-popup-mask')) return;
+    if (e.key === 'Escape') { document.getElementById('posCliResults').innerHTML = ''; return; }
+    const items = document.getElementById('posCliResults').querySelectorAll('.pos-result');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      posCliCursor = Math.min(posCliCursor + 1, items.length - 1);
+      paintCliCursor(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      posCliCursor = Math.max(posCliCursor - 1, 0);
+      paintCliCursor(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const c = posCliResults[posCliCursor];
+      if (c) posPickCustomer(c);
+    }
+  });
+}
+
+function paintCliCursor(items) {
+  items.forEach((el, i) => el.classList.toggle('on', i === posCliCursor));
+  items[posCliCursor]?.scrollIntoView({ block: 'nearest' });
+}
+
 function posSearchCustomer() {
   clearTimeout(posCliTimer);
   posCliTimer = setTimeout(async () => {
     const q = document.getElementById('posCliSearch').value.trim();
     const box = document.getElementById('posCliResults');
     posCustomer = null;
-    if (q.length < 3) { box.innerHTML = ''; return; }
+    posCliCursor = -1;
+    if (q.length < 3) { box.innerHTML = ''; posCliResults = []; return; }
     const sellerObj = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
     const sellerId = sellerObj?.id;
 
@@ -341,9 +402,10 @@ function posSearchCustomer() {
     }
 
     const { data } = await query.limit(5);
-    if (!data?.length) { box.innerHTML = '<p style="font-size:12px;color:var(--gr);margin:4px 0">No está en tu clientela asignada — completa sus datos abajo.</p>'; return; }
-    box.innerHTML = data.map(c => `
-      <div class="pos-result" style="cursor:pointer" onclick='posPickCustomer(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+    if (!data?.length) { box.innerHTML = '<p style="font-size:12px;color:var(--gr);margin:4px 0">No está en tu clientela asignada — completa sus datos abajo.</p>'; posCliResults = []; return; }
+    posCliResults = data;
+    box.innerHTML = data.map((c, i) => `
+      <div class="pos-result" data-i="${i}" style="cursor:pointer" onclick='posPickCustomer(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600">${escapeHTML(c.name)}</div>
           <div style="font-size:11px;color:var(--gr)">${escapeHTML(c.phone)} · ${c.total_orders} compras · ${fmtPrice(c.total_usd)}</div>

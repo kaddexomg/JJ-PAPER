@@ -331,9 +331,6 @@ function pfQtyPopup(l) {
       if (e.key === 'ArrowDown') { e.preventDefault(); change(e.shiftKey ? -10 : -1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); change(e.shiftKey ? 10 : 1); return; }
     });
-    btn(-1).addEventListener('click', () => change(-1));
-    btn(1).addEventListener('click', () => change(1));
-
     input.focus();
     input.select();
   });

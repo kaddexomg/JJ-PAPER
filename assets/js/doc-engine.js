@@ -665,11 +665,17 @@ async function docPdfDocumento(o, tipo = 'factura') {
   /* ============ Líneas ============
      Con código y alícuota por línea, como una factura formal. */
   const cuerpo = items.map(i => {
+    const lvlTag = (i.price_level && i.price_level !== 'B')
+      ? `  [nivel ${i.price_level === 'M' ? 'manual' : i.price_level}]`
+      : '';
+    const precioCelda = Number(i.price_bs) > 0
+      ? `$${Number(i.price_usd || 0).toFixed(2)}\n` + `Bs ${Number(i.price_bs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}`
+      : `$${Number(i.price_usd || 0).toFixed(2)}`;
     const fila = [
       i.sku || '—',
-      (i.name || i.product || '—') + (i.brand ? `  (${i.brand})` : ''),
+      (i.name || i.product || '—') + (i.brand ? `  (${i.brand})` : '') + lvlTag,
       `${i.qty} ${i.unit || ''}`.trim(),
-      `$${Number(i.price_usd || 0).toFixed(2)}`,
+      precioCelda,
     ];
     if (ivaPct > 0) fila.push(`${ivaPct}%`);
     fila.push(`$${Number((i.subtotal_usd ?? (i.price_usd * i.qty)) || 0).toFixed(2)}`);

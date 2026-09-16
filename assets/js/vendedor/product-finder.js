@@ -103,18 +103,23 @@ function pfStockLabel(stock) {
   return `stock ${s}`;
 }
 
-// Precio USD + Bs a tasa viva (soporta visualización multinivel A y B)
+// Precio USD + Bs a tasa viva (visualización multinivel: A/B en US$, C/D en Bs)
 function pfPriceHtml(usd, p) {
   const pA = Number(p?.price_a) || 0;
   const pB = Number(p?.price_b || usd) || 0;
+  const pC = Number(p?.price_c_bs) || 0;
+  const pD = Number(p?.price_d_bs) || 0;
   const mainUsd = pB > 0 ? pB : (pA > 0 ? pA : Number(usd) || 0);
   const bs = (typeof toBs === 'function') ? toBs(mainUsd) : null;
   const bsStr = bs ? ` · Bs ${Number(bs).toLocaleString('es-VE', { maximumFractionDigits: 2 })}` : '';
-  
+  const cdStr = (pC > 0 && pD > 0)
+    ? ` <span style="font-size:10px;color:#8a6d1a">· C: Bs ${pC.toLocaleString('es-VE', { maximumFractionDigits: 2 })} · D: Bs ${pD.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span>`
+    : '';
+
   if (pA > 0 && pB > 0 && Math.abs(pA - pB) > 0.005) {
-    return `⭐ <strong style="color:#0f5132">$${pB.toFixed(2)}</strong> <span style="font-size:10px;color:#666">(B)</span> · <span style="color:#555">$${pA.toFixed(2)}</span> <span style="font-size:10px;color:#666">(A)</span>${bsStr}`;
+    return `⭐ <strong style="color:#0f5132">$${pB.toFixed(2)}</strong> <span style="font-size:10px;color:#666">(B)</span> · <span style="color:#555">$${pA.toFixed(2)}</span> <span style="font-size:10px;color:#666">(A)</span>${bsStr}${cdStr}`;
   }
-  return `${fmtPrice(mainUsd)}${bsStr}`;
+  return `${fmtPrice(mainUsd)}${bsStr}${cdStr}`;
 }
 
 /* ---------- Puente teléfono → PC (teléfono como pistola de código) ---------- */

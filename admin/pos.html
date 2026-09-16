@@ -24,6 +24,10 @@
 .pos-line .qb { width:24px; height:24px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; }
 .pos-tot { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
 .pos-tot.big { font-size:17px; font-weight:800; border-top:2px solid #eee; padding-top:10px; margin-top:6px; }
+.lvl-seg { display:inline-flex; gap:3px; }
+.lvl-seg .pl { border:1px solid #ddd; border-radius:6px; background:#fff; color:#555; font-size:10px; font-weight:700; padding:2px 7px; cursor:pointer; line-height:1.4; }
+.lvl-seg .pl:hover { border-color:var(--gd); color:var(--gd); }
+.lvl-seg .pl.on { background:var(--gd); color:#fff; border-color:var(--gd); }
 .cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; background:#fff;
   border:1px solid #e5e5e5; border-radius:10px; box-shadow:0 10px 28px rgba(10,40,30,.14); display:none;
   max-height:270px; overflow:auto; }
@@ -152,11 +156,11 @@
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js"></script>
 <script src="../assets/js/vendedor/vcommon.js"></script>
-<script src="../assets/js/vendedor/product-finder.js"></script>
+<script src="../assets/js/vendedor/product-finder.js?v=20260916_abcd"></script>
 <script src="../assets/js/doc-engine.js"></script>
 <script src="../assets/js/send-hub.js"></script>
 <script src="../assets/js/vendedor/cust-autocomplete.js"></script>
-<script src="../assets/js/vendedor/pos.js"></script>
+<script src="../assets/js/vendedor/pos.js?v=20260916_abcd"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth('admin');

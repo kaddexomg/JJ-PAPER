@@ -100,7 +100,7 @@ function posRenderResults(list) {
       <div class="pr-img">${img}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${escapeHTML(p.name)}</div>
-        <div style="font-size:11px;color:var(--gr)">${pfPriceHtml(p.price_usd)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
+        <div style="font-size:11px;color:var(--gr)">${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
       </div>
       ${vSel}
       <button class="btn-p sm" onclick="posAdd('${p.id}')">＋</button>
@@ -123,15 +123,45 @@ function posAdd(pid) {
 function posAddResolved(p, variant) {
   const key = variant ? `${p.id}::${variant.id}` : p.id;
   if (posTicket[key]) posTicket[key].qty += 1;
-  else posTicket[key] = {
-    id: p.id, variant_id: variant?.id || null, name: p.name,
-    sku: (variant?.sku || p.sku || null),   // sale como "Código" en el presupuesto
-    brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
-    unit: p.unit || 'unid',
-    price_usd: Number(variant ? variant.price_usd : p.price_usd),
-    qty: Math.max(1, Number(p.min_qty) || 1),
-    stock: variant ? variant.stock : p.stock,
-  };
+  else {
+    const src = variant || p;
+    posTicket[key] = {
+      id: p.id, variant_id: variant?.id || null, name: p.name,
+      sku: (variant?.sku || p.sku || null),   // sale como "Código" en el presupuesto
+      brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
+      unit: p.unit || 'unid',
+      price_usd: Number(src.price_usd),
+      price_level: 'B',                        // A/B (US$) · C/D (Bs); default B
+      price_a: Number(src.price_a) || 0,
+      price_b: Number(src.price_b) || 0,
+      price_c_bs: Number(src.price_c_bs) || 0,
+      price_d_bs: Number(src.price_d_bs) || 0,
+      qty: Math.max(1, Number(p.min_qty) || 1),
+      stock: variant ? variant.stock : p.stock,
+    };
+  }
+  posRenderTicket();
+}
+
+function posLineBs(l) {
+  const rate = getRate();
+  if (l.price_level === 'C') return Number(l.price_c_bs) || 0;
+  if (l.price_level === 'D') return Number(l.price_d_bs) || 0;
+  return (Number(l.price_usd) || 0) * rate;
+}
+
+function posSetPriceLevel(key, level) {
+  const l = posTicket[key];
+  if (!l || !['A', 'B', 'C', 'D'].includes(level)) return;
+  const rate = getRate();
+  let usd = 0;
+  if (level === 'A') usd = Number(l.price_a) || 0;
+  else if (level === 'B') usd = Number(l.price_usd) || 0;
+  else if (level === 'C') usd = (Number(l.price_c_bs) || 0) / rate;
+  else if (level === 'D') usd = (Number(l.price_d_bs) || 0) / rate;
+  if (!(usd > 0)) { showToast('Este producto no tiene precio ' + level, 'warn'); return; }
+  l.price_level = level;
+  l.price_usd = +usd.toFixed(2);
   posRenderTicket();
 }
 
@@ -151,21 +181,29 @@ function posRenderTicket() {
     box.innerHTML = '<p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p>';
     tots.innerHTML = ''; return;
   }
-  box.innerHTML = lines.map(([k, l]) => `
+  box.innerHTML = lines.map(([k, l]) => {
+    const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
+    return `
     <div class="pos-line">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600">${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
+        <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
+          <span style="color:var(--gm)">Nivel</span>
+          <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
+        </div>
         <div style="font-size:11px;color:var(--gr);display:flex;align-items:center;gap:6px;margin-top:2px">
           <span>Precio:</span>
           <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:75px;font-size:11px;padding:2px 4px;margin:0;height:24px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
           <span>/${escapeHTML(l.unit)}</span>
+          <span style="color:#8a6d1a">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
       </div>
       <button class="qb" onclick="posQty('${k}',-1)">−</button>
       <strong style="min-width:22px;text-align:center">${l.qty}</strong>
       <button class="qb" onclick="posQty('${k}',1)">＋</button>
       <strong style="min-width:60px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
   const pct   = quoteDiscountPct();
@@ -188,6 +226,7 @@ function posUpdatePrice(key, val) {
   }
   const l = posTicket[key];
   if (!l) return;
+  l.price_level = 'M';   // precio digitado a mano
   l.price_usd = +price.toFixed(2);
   posRenderTicket();
 }
@@ -236,6 +275,8 @@ async function quoteSubmit() {
     items: lines.map(l => ({
       id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
       qty: l.qty, unit: l.unit, price_usd: l.price_usd,
+      price_level: l.price_level || 'B',
+      price_bs: posLineBs(l) || null,
       subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
     })),
     estimated_total_usd: total,

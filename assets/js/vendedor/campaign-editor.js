@@ -576,13 +576,15 @@ window.CampaignEditor = (() => {
     if (availableTpls.length > 0 && config.preTplId) {
       onTemplateChange();
     } else {
+      const sName = config.seller?.name || 'Asesor JJ Paper';
+      const sPhone = config.seller?.phone || '0412-4676073';
       document.getElementById('ceMessageInput').value = isEmail 
-        ? '{Hola|Estimado(a)|Saludos cordiales} {{nombre}},\n\nLe saludamos cordialmente de JJ Paper...\n\nAtentamente,\n{{vendedor}}'
-        : '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}';
+        ? `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, del equipo comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de suministro mayorista directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Consumibles de línea de caja*: rollos térmicos para POS y cajas registradoras (80x70 y 57x40mm).\n• *Carpetas de fibra, sobres y archivadores* para resguardo documental de oficina.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal adaptada a sus necesidades?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`
+        : `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋, le saluda *${sName}* de *JJ Paper C.A.*\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata al mayor en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Rollos térmicos para puntos de venta (POS)*: 80x70 y 57x40mm garantizados.\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura.\n• *Cintas de embalaje industrial* y papelería escolar y de oficina.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista en PDF* con más de 900 artículos disponibles.\n\n👉 Puede consultar nuestro catálogo digital aquí:\n{{link}}\n\n¿Desea que le verifiquemos disponibilidad o le preparemos una cotización formal?`;
     }
 
     if (isEmail) {
-      document.getElementById('ceSubjectInput').value = 'Ofertas y Novedades Especiales — JJ Paper';
+      document.getElementById('ceSubjectInput').value = '📋 Propuesta de Suministro Mayorista y Lista de Precios Oficial — JJ Paper C.A.';
     }
 
     // Poblar selector de sectores B2B con los sectores reales presentes en la cartera
@@ -1459,9 +1461,9 @@ window.CampaignEditor = (() => {
 
         if (isEmail) {
           subjectText = `📋 Propuesta de Suministro Operativo y Lista de Precios — JJ Paper C.A.`;
-          rawText = `{Estimado(a)|Apreciado(a)|Hola} ${cName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de suministro directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Consumibles de línea de caja*: rollos térmicos para POS (80x70 y 57x40mm).\n• *Carpetas de fibra reglamentarias y archivadores* para resguardo documental.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.\n\n*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+          rawText = `{Estimado(a)|Apreciado(a)|Hola} ${cName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de suministro directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Consumibles de línea de caja*: rollos térmicos para POS (80x70 y 57x40mm).\n• *Carpetas de fibra reglamentarias y archivadores* para resguardo documental.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
         } else {
-          rawText = `{Hola|Buen día|Un gusto saludarle} ${cName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería, consumibles de caja y embalaje en Caracas.\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Rollos térmicos para puntos de venta (POS)*: 80x70 y 57x40mm garantizados.\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura.\n• *Cintas de embalaje industrial* y consumibles de alta rotación.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para entrega inmediata.\n\n*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal legal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+          rawText = `{Hola|Buen día|Un gusto saludarle} ${cName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería, consumibles de caja y embalaje en Caracas.\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Rollos térmicos para puntos de venta (POS)*: 80x70 y 57x40mm garantizados.\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura.\n• *Cintas de embalaje industrial* y consumibles de alta rotación.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para entrega inmediata.\n\n*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal legal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
         }
       }
     } else {
@@ -1505,7 +1507,7 @@ window.CampaignEditor = (() => {
     }
 
     if (attachOpts.includes('pdf_lista_precios')) {
-      previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_Mayorista_JJ_Paper.pdf (PDF Oficial +700 arts)</div>`);
+      previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_Mayorista_JJ_Paper.pdf (PDF Oficial +900 arts)</div>`);
     }
 
     if (attachOpts.includes('custom_file') && !generatedFlyerFile) {
@@ -1777,7 +1779,7 @@ window.CampaignEditor = (() => {
     const sName = sellerName || 'Asesor JJ Paper';
     const shown = (c ? c.name : null) || 'Estimado Cliente';
     const pdf = inclPdf !== false
-      ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.'
+      ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.'
       : '';
     const base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería, insumos de caja y consumibles en Caracas. Somos el aliado para el abastecimiento continuo de su negocio.\n\n*📦 TENEMOS DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje* y consumibles de papelería escolar y de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo a su disposición para apoyarle en lo que necesite.}`;
     if (channel === 'email') {
@@ -1830,10 +1832,21 @@ window.CampaignEditor = (() => {
           }));
         }
       }
-      if (!body || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
+      if (!body || body.includes('Le saludamos cordialmente de JJ Paper...') || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
         body = buildMinimalFallback(null, currentConfig.channel || 'whatsapp', currentConfig.seller?.name, document.getElementById('ceAttachPdf')?.checked !== false);
       }
-      if (isEmail && !subject) subject = 'Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
+      if (isEmail && !subject) subject = '📋 Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
+
+      // Asegurar que cada contacto de la lista tenga su mensaje y asunto listos sin dejar ninguno vacío
+      const isPdfActive = document.getElementById('ceAttachPdf')?.checked !== false;
+      selectedAudienceList.forEach(c => {
+        if (!c._custom_message) {
+          c._custom_message = buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfActive);
+        }
+        if (isEmail && !c._custom_subject) {
+          c._custom_subject = subject;
+        }
+      });
     } else {
       if (!body) { alert('El mensaje no puede estar vacío.'); return; }
       if (isEmail && !subject) { alert('El asunto del correo es obligatorio.'); return; }

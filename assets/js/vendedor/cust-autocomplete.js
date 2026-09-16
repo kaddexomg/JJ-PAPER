@@ -89,11 +89,20 @@ function custAcHover(boxId, i) {
 function custAcPick(boxId, i) {
   const c = (custAc.results[boxId] || [])[i];
   custAcHide(boxId);
-  if (c && custAc.handlers && custAc.handlers[boxId]) custAc.handlers[boxId](c);
+  if (c && custAc.handlers && custAc.handlers[boxId]) {
+    custAc.handlers[boxId](c);
+    const se = document.getElementById('posSearch');
+    if (se) se.focus();
+  }
 }
 
 function custAcKey(e, opts) {
-  if (e.key === 'Escape') { custAcHide(opts.boxId); return; }
+  if (e.key === 'Escape') {
+    custAcHide(opts.boxId);
+    const se = document.getElementById('posSearch');
+    if (se) se.focus();
+    return;
+  }
   const items = document.getElementById(opts.boxId).querySelectorAll('.cust-ac-item');
   if (!items.length) return;
   if (e.key === 'ArrowDown') {
@@ -104,9 +113,10 @@ function custAcKey(e, opts) {
     e.preventDefault();
     custAc.sel = Math.max(custAc.sel - 1, 0);
     custAcHover(opts.boxId, custAc.sel);
-  } else if (e.key === 'Enter' && custAc.sel >= 0) {
+  } else if (e.key === 'Enter') {
     e.preventDefault();
-    custAcPick(opts.boxId, custAc.sel);
+    const idx = custAc.sel >= 0 ? custAc.sel : 0;
+    custAcPick(opts.boxId, idx);
   }
 }
 

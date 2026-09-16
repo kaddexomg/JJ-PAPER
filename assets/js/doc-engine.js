@@ -119,10 +119,11 @@ async function docLoadCatalogRows() {
   const [{ data: grupos }, { data: prods }] = await Promise.all([
     sb.from('jjp_category_groups').select('id,name,slug').order('sort_order'),
     sb.from('jjp_products')
-      .select('id,name,unit,price_usd,stock,essential,sort_order,jjp_categories(name,group_id),' +
-              'jjp_product_variants(variant_name,sku,price_usd,stock,active,sort_order,jjp_brands(name))')
+      .select('id,name,sku,unit,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,essential,sort_order,jjp_categories(name,group_id),' +
+              'jjp_product_variants(id,variant_name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,active,sort_order,jjp_brands(name))')
       .eq('active', true)
-      .order('sort_order'),
+      .order('sort_order')
+      .range(0, 4999),
   ]);
 
   const G = grupos || [];
@@ -141,21 +142,35 @@ async function docLoadCatalogRows() {
       essential: !!p.essential,
       unit: p.unit || 'unid',
     };
+    const pUsd = num(p.price_b || p.price_usd || p.price_a);
     const vars = (p.jjp_product_variants || []).filter(v => v.active);
     if (vars.length) {
-      vars.forEach(v => filas.push({
-        ...base, name: p.name || '—',
-        brand: v.jjp_brands?.name || '',
-        pres: v.variant_name || '',
-        sku: v.sku || '',
-        usd: num(v.price_usd), bs: num(v.price_usd) * rate,
-        stock: stockTxt(v.stock), stockNum: v.stock,
-      }));
-    } else {
+      vars.forEach(v => {
+        const vUsd = num(v.price_b || v.price_usd || v.price_a) || pUsd;
+        if (vUsd <= 0) return; // Omitir artículos de prueba o sin precio cargado
+        filas.push({
+          ...base,
+          name: p.name || '—',
+          brand: v.jjp_brands?.name || '',
+          pres: (v.variant_name && v.variant_name !== 'Estándar') ? v.variant_name : '',
+          sku: v.sku || p.sku || '',
+          usd: vUsd,
+          bs: vUsd * rate,
+          stock: stockTxt(v.stock != null ? v.stock : p.stock),
+          stockNum: v.stock != null ? v.stock : p.stock,
+        });
+      });
+    } else if (pUsd > 0) {
       filas.push({
-        ...base, name: p.name || '—', brand: '', pres: '', sku: '',
-        usd: num(p.price_usd), bs: num(p.price_usd) * rate,
-        stock: stockTxt(p.stock), stockNum: p.stock,
+        ...base,
+        name: p.name || '—',
+        brand: '',
+        pres: '',
+        sku: p.sku || '',
+        usd: pUsd,
+        bs: pUsd * rate,
+        stock: stockTxt(p.stock),
+        stockNum: p.stock,
       });
     }
   });
@@ -285,7 +300,7 @@ async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista'
   doc.setPage(1);
   doc.setTextColor(...C.main);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-  doc.text(`${filas.length} presentaciones  ·  ${cats.length} categorías`, 40, 96);
+  doc.text(`${filas.length} artículos disponibles  ·  ${cats.length} categorías mayoristas`, 40, 96);
   doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.setFontSize(8.5);
   doc.text('Pedidos al mayor por WhatsApp o en jj-paper.pages.dev', pageW - 40, 96, { align: 'right' });
 

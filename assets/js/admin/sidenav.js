@@ -221,6 +221,69 @@
       background:rgba(255,255,255,.15); color:#fff;
       border-right:3px solid var(--gm,#99CC33);
     }
+    .jjp-cmd-pill {
+      display:flex; align-items:center; justify-content:space-between;
+      margin:8px 16px 12px; padding:7px 12px; background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.12); border-radius:8px;
+      color:rgba(255,255,255,0.85); font-size:12px; cursor:pointer;
+      transition:all 0.2s ease;
+    }
+    .jjp-cmd-pill:hover { background:rgba(255,255,255,0.16); color:#fff; border-color:rgba(255,255,255,0.25); }
+    .jjp-cmd-pill kbd {
+      background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2);
+      border-radius:4px; padding:1px 5px; font-size:10px; font-family:monospace;
+    }
+    .jjp-palette-mask {
+      position:fixed; inset:0; background:rgba(15,23,42,0.65);
+      backdrop-filter:blur(4px); z-index:100000;
+      display:flex; align-items:flex-start; justify-content:center;
+      padding-top:12vh;
+    }
+    .jjp-palette-box {
+      width:100%; max-width:580px; background:#ffffff;
+      border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.25);
+      overflow:hidden; border:1px solid #e2e8f0; animation:jjpPop 0.15s ease-out;
+    }
+    @keyframes jjpPop { from { transform:scale(0.96); opacity:0; } to { transform:scale(1); opacity:1; } }
+    .jjp-palette-input-wrap {
+      display:flex; align-items:center; padding:14px 18px;
+      border-bottom:1px solid #e2e8f0; gap:12px; background:#fff;
+    }
+    .jjp-palette-search-icon { font-size:18px; opacity:0.6; }
+    #jjpPaletteInput {
+      flex:1; border:0; outline:0; font-size:15px; font-family:inherit; color:#0f172a;
+    }
+    .jjp-palette-badge {
+      font-size:11px; background:#f1f5f9; color:#64748b; padding:3px 7px;
+      border-radius:4px; font-weight:600;
+    }
+    .jjp-palette-list {
+      max-height:380px; overflow-y:auto; padding:8px;
+    }
+    .jjp-palette-item {
+      display:flex; align-items:center; gap:12px; padding:10px 14px;
+      border-radius:8px; cursor:pointer; transition:background 0.15s;
+    }
+    .jjp-palette-item.active {
+      background:#f0fdf4; color:#166534;
+    }
+    .jjp-palette-item-icon { font-size:18px; }
+    .jjp-palette-item-text { flex:1; min-width:0; }
+    .jjp-palette-item-title { font-weight:600; font-size:14px; color:#0f172a; }
+    .jjp-palette-item.active .jjp-palette-item-title { color:#15803d; }
+    .jjp-palette-item-sub { font-size:11.5px; color:#64748b; }
+    .jjp-palette-item-arrow { opacity:0.3; font-size:13px; }
+    .jjp-palette-item.active .jjp-palette-item-arrow { opacity:1; color:#15803d; }
+    .jjp-palette-footer {
+      display:flex; gap:16px; padding:10px 18px; background:#f8fafc;
+      border-top:1px solid #e2e8f0; font-size:11px; color:#64748b;
+    }
+    .jjp-palette-footer kbd {
+      background:#fff; border:1px solid #cbd5e1; border-radius:3px; padding:1px 4px;
+    }
+    .jjp-palette-empty {
+      padding:30px; text-align:center; color:#94a3b8; font-size:14px;
+    }
     @media (prefers-reduced-motion: reduce) {
       .aside-nav .nav-sub, .aside-nav .nav-caret { transition:none }
     }`;
@@ -251,7 +314,200 @@
     document.head.appendChild(s);
   }
 
-  function init() { injectCSS(); renderNav(); applyRole(); loadCopilot(); }
+  function initCommandPalette() {
+    if (window.__jjpCmdPaletteInit) return;
+    window.__jjpCmdPaletteInit = true;
+
+    // Inyectar botón pill en el header del sidebar
+    const aside = document.querySelector('aside.aside');
+    const asideLogo = aside?.querySelector('.aside-logo');
+    if (asideLogo && !document.getElementById('jjpCmdPill')) {
+      const pill = document.createElement('div');
+      pill.id = 'jjpCmdPill';
+      pill.className = 'jjp-cmd-pill';
+      pill.innerHTML = `<span>🧭 Ir a módulo...</span><kbd>Ctrl+K</kbd>`;
+      pill.onclick = openPalette;
+      asideLogo.parentNode.insertBefore(pill, asideLogo.nextSibling);
+    }
+
+    let modal = document.getElementById('jjpCmdPaletteModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'jjpCmdPaletteModal';
+      modal.className = 'jjp-palette-mask';
+      modal.style.display = 'none';
+      modal.innerHTML = `
+        <div class="jjp-palette-box" role="dialog" aria-modal="true" aria-label="Navegador Rápido">
+          <div class="jjp-palette-input-wrap">
+            <span class="jjp-palette-search-icon">🔍</span>
+            <input type="text" id="jjpPaletteInput" placeholder="Escribe para ir a cualquier módulo (ej. pos, cotizador, clientes, whatsapp)..." autocomplete="off">
+            <span class="jjp-palette-badge">ESC para cerrar</span>
+          </div>
+          <div class="jjp-palette-list" id="jjpPaletteList"></div>
+          <div class="jjp-palette-footer">
+            <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+            <span><kbd>Enter</kbd> abrir</span>
+            <span><kbd>Esc</kbd> cerrar</span>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      modal.addEventListener('click', e => {
+        if (e.target === modal) closePalette();
+      });
+
+      const inp = modal.querySelector('#jjpPaletteInput');
+      inp.addEventListener('input', renderPaletteItems);
+      inp.addEventListener('keydown', onPaletteKey);
+    }
+
+    let flatItems = [];
+    let curCursor = 0;
+
+    function buildFlatItems() {
+      flatItems = [];
+      NAV.forEach(n => {
+        if (n.group && n.items) {
+          n.items.forEach(it => {
+            if (it.action === 'logout') return;
+            flatItems.push({
+              title: it.label,
+              icon: it.ico || '📄',
+              group: n.group,
+              href: it.href ? absHref(it.href) : '#',
+              ext: !!it.ext
+            });
+          });
+        } else if (n.href && !n.section && n.action !== 'logout') {
+          flatItems.push({
+            title: n.label,
+            icon: n.ico || '📄',
+            group: 'Principal',
+            href: absHref(n.href),
+            ext: !!n.ext
+          });
+        }
+      });
+    }
+
+    function openPalette() {
+      buildFlatItems();
+      curCursor = 0;
+      modal.style.display = 'flex';
+      const inp = document.getElementById('jjpPaletteInput');
+      inp.value = '';
+      renderPaletteItems();
+      setTimeout(() => inp.focus(), 30);
+    }
+
+    function closePalette() {
+      modal.style.display = 'none';
+    }
+
+    window.__jjpOpenCommandPalette = openPalette;
+    window.__jjpCloseCommandPalette = closePalette;
+
+    function renderPaletteItems() {
+      const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
+      const listEl = document.getElementById('jjpPaletteList');
+      const filtered = flatItems.filter(it => 
+        !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
+      );
+
+      if (!filtered.length) {
+        listEl.innerHTML = `<div class="jjp-palette-empty">No se encontraron módulos con "${escapeHTML(q)}"</div>`;
+        return;
+      }
+
+      if (curCursor >= filtered.length) curCursor = 0;
+      if (curCursor < 0) curCursor = 0;
+
+      listEl.innerHTML = filtered.map((it, idx) => `
+        <div class="jjp-palette-item ${idx === curCursor ? 'active' : ''}" data-idx="${idx}">
+          <span class="jjp-palette-item-icon">${it.icon}</span>
+          <div class="jjp-palette-item-text">
+            <div class="jjp-palette-item-title">${escapeHTML(it.title)}</div>
+            <div class="jjp-palette-item-sub">${escapeHTML(it.group)}</div>
+          </div>
+          <span class="jjp-palette-item-arrow">↵</span>
+        </div>
+      `).join('');
+
+      const items = listEl.querySelectorAll('.jjp-palette-item');
+      items.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          curCursor = Number(el.dataset.idx);
+          items.forEach((x, i) => x.classList.toggle('active', i === curCursor));
+        });
+        el.addEventListener('click', () => {
+          executeItem(filtered[curCursor]);
+        });
+      });
+
+      items[curCursor]?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function executeItem(item) {
+      if (!item) return;
+      closePalette();
+      if (item.ext) window.open(item.href, '_blank');
+      else window.location.href = item.href;
+    }
+
+    function onPaletteKey(e) {
+      const q = (document.getElementById('jjpPaletteInput')?.value || '').trim().toLowerCase();
+      const filtered = flatItems.filter(it => 
+        !q || it.title.toLowerCase().includes(q) || it.group.toLowerCase().includes(q)
+      );
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePalette();
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (filtered.length) {
+          curCursor = (curCursor + 1) % filtered.length;
+          renderPaletteItems();
+        }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (filtered.length) {
+          curCursor = (curCursor - 1 + filtered.length) % filtered.length;
+          renderPaletteItems();
+        }
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filtered.length && filtered[curCursor]) {
+          executeItem(filtered[curCursor]);
+        }
+        return;
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      // Ctrl+K o Cmd+K o Alt+K abre la paleta de navegación desde cualquier pantalla
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (modal.style.display === 'flex') closePalette();
+        else openPalette();
+      }
+    });
+  }
+
+  function init() {
+    injectCSS();
+    renderNav();
+    applyRole();
+    loadCopilot();
+    initCommandPalette();
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();

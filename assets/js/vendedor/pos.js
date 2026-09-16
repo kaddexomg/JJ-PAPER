@@ -20,6 +20,7 @@ async function initPos() {
   posPrefillAdd();                        // ?add=<id> desde Consultar stock
   pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
   posInitCustomerKeys();                  // teclado ↑/↓/Enter en resultados de cliente
+  posInitGlobalKeys();                    // atajos globales (F1, F2, F3, F4, F8, F9, Esc)
 
   // prefill de cliente si viene desde el CRM (?tel=... o ?cliente=<id>)
   const params = new URLSearchParams(location.search);
@@ -64,11 +65,16 @@ function posSearchKey(e) {
   if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
   if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
   if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
-  if (e.key === 'Escape') { clearPos(); return; }
+  if (e.key === 'Escape') {
+    const se = document.getElementById('posSearch');
+    if (se && se.value.trim()) { se.value = ''; posSearch(); }
+    else clearPos();
+    return;
+  }
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); posSubmit(); return; }
   if (e.key !== 'Enter') return;
   e.preventDefault();
-  if (posCursor >= 0 && posCursor < posResultsList.length) { posPickIdx(); return; }
+
   const code = document.getElementById('posSearch').value.trim();
   const hit = pfFindByCode(posProducts, code);
   if (hit) {
@@ -76,6 +82,14 @@ function posSearchKey(e) {
     showToast('➕ ' + hit.product.name);
     document.getElementById('posSearch').value = '';
     posSearch();
+    return;
+  }
+
+  const targetIdx = posCursor >= 0 ? posCursor : (posResultsList.length > 0 ? 0 : -1);
+  if (targetIdx >= 0 && targetIdx < posResultsList.length) {
+    posCursor = targetIdx;
+    posPickIdx();
+    return;
   }
 }
 
@@ -202,19 +216,49 @@ function posAdd(pid) {
 // y luego la cantidad. Todo con teclado.
 function posAddAndPick(p, variant) {
   const key = variant ? `${p.id}::${variant.id}` : p.id;
+  const isNew = !posTicket[key];
+  const prevQty = isNew ? 0 : posTicket[key].qty;
+  const prevLevel = isNew ? null : posTicket[key].price_level;
+  const prevUsd = isNew ? null : posTicket[key].price_usd;
+
   posAddResolved(p, variant);
+
   pfPricePopup(posTicket[key]).then(choice => {
     const l = posTicket[key];
     if (!l) { posRenderTicket(); return; }
-    if (choice) {
-      if (choice.level) posSetPriceLevel(key, choice.level);
-      else if (choice.custom) posUpdatePrice(key, String(choice.custom));
-    }
-    // Siempre pide cantidad tras elegir el precio (captura en vivo de la toma).
-    pfQtyPopup(l).then(qty => {
-      if (qty && qty > 0) { l.qty = qty; posRenderTicket(); }
+
+    if (!choice) {
+      if (isNew) {
+        delete posTicket[key];
+      } else {
+        l.qty = prevQty;
+        l.price_level = prevLevel;
+        l.price_usd = prevUsd;
+      }
+      posRenderTicket();
       const se = document.getElementById('posSearch');
       if (se) { se.focus(); se.select(); }
+      return;
+    }
+
+    if (choice.level) posSetPriceLevel(key, choice.level);
+    else if (choice.custom) posUpdatePrice(key, String(choice.custom));
+
+    // Siempre pide cantidad tras elegir el precio (captura en vivo de la toma).
+    pfQtyPopup(l).then(qty => {
+      if (qty && qty > 0) {
+        l.qty = qty;
+        posRenderTicket();
+      } else if (!qty && isNew) {
+        delete posTicket[key];
+        posRenderTicket();
+      }
+      const se = document.getElementById('posSearch');
+      if (se) {
+        se.value = '';
+        posSearch();
+        se.focus();
+      }
     });
   });
 }
@@ -358,7 +402,12 @@ function posInitCustomerKeys() {
   inp.__jjKeys = true;
   inp.addEventListener('keydown', e => {
     if (document.querySelector('.pf-popup-mask')) return;
-    if (e.key === 'Escape') { document.getElementById('posCliResults').innerHTML = ''; return; }
+    if (e.key === 'Escape') {
+      document.getElementById('posCliResults').innerHTML = '';
+      const se = document.getElementById('posSearch');
+      if (se) se.focus();
+      return;
+    }
     const items = document.getElementById('posCliResults').querySelectorAll('.pos-result');
     if (!items.length) return;
     if (e.key === 'ArrowDown') {
@@ -371,8 +420,13 @@ function posInitCustomerKeys() {
       paintCliCursor(items);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const c = posCliResults[posCliCursor];
-      if (c) posPickCustomer(c);
+      const targetIdx = posCliCursor >= 0 ? posCliCursor : 0;
+      const c = posCliResults[targetIdx];
+      if (c) {
+        posPickCustomer(c);
+        const se = document.getElementById('posSearch');
+        if (se) se.focus();
+      }
     }
   });
 }
@@ -548,4 +602,133 @@ function posReset() {
   document.getElementById('posCliNameResults').innerHTML = '';
   document.getElementById('posCliNameResults').style.display = 'none';
   document.getElementById('posDoneModal').classList.remove('op');
+}
+
+/* ---------- Atajos de Teclado Globales del POS ---------- */
+function posInitGlobalKeys() {
+  if (window.__posGlobalKeysBound) return;
+  window.__posGlobalKeysBound = true;
+
+  window.addEventListener('keydown', e => {
+    if (document.querySelector('.pf-popup-mask')) return; // popups modal manejan sus teclas
+
+    // F1 o '?' (fuera de inputs): Ayuda visual de atajos
+    if (e.key === 'F1' || (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName))) {
+      e.preventDefault();
+      posShowHelpModal();
+      return;
+    }
+
+    // Escape: cerrar modal de ayuda, teléfono o volver al buscador
+    if (e.key === 'Escape') {
+      const helpModal = document.getElementById('posShortcutsHelpModal');
+      if (helpModal && helpModal.style.display !== 'none') {
+        helpModal.style.display = 'none';
+        return;
+      }
+      const doneModal = document.getElementById('posDoneModal');
+      if (doneModal && doneModal.classList.contains('op')) {
+        posReset();
+        return;
+      }
+      const phoneModal = document.getElementById('posPhoneModal');
+      if (phoneModal && phoneModal.classList.contains('op')) {
+        closePosPhone();
+        return;
+      }
+      const se = document.getElementById('posSearch');
+      if (document.activeElement !== se) {
+        if (se) { se.focus(); se.select(); }
+      }
+      return;
+    }
+
+    // F2 o '/' (fuera de inputs): enfocar búsqueda de productos
+    if (e.key === 'F2' || (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName))) {
+      e.preventDefault();
+      const se = document.getElementById('posSearch');
+      if (se) { se.focus(); se.select(); }
+      return;
+    }
+
+    // F3: enfocar búsqueda de cliente
+    if (e.key === 'F3') {
+      e.preventDefault();
+      const cli = document.getElementById('posCliSearch') || document.getElementById('posCliName');
+      if (cli) { cli.focus(); cli.select(); }
+      return;
+    }
+
+    // F4: enfocar campo de descuento
+    if (e.key === 'F4') {
+      e.preventDefault();
+      const disc = document.getElementById('posDisc');
+      if (disc) { disc.focus(); disc.select(); }
+      return;
+    }
+
+    // F8: enfocar selector de método de pago
+    if (e.key === 'F8') {
+      e.preventDefault();
+      const pm = document.getElementById('posMethod');
+      if (pm) pm.focus();
+      return;
+    }
+
+    // F9 o Ctrl+Enter: registrar venta
+    if (e.key === 'F9' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
+      e.preventDefault();
+      posSubmit();
+      return;
+    }
+  });
+}
+
+function posShowHelpModal() {
+  let modal = document.getElementById('posShortcutsHelpModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'posShortcutsHelpModal';
+    modal.className = 'modal-overlay op';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:540px;background:#fff;border-radius:12px;padding:22px;box-shadow:0 12px 36px rgba(0,0,0,0.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
+          <h3 style="margin:0;font-size:17px;color:#1e293b;display:flex;align-items:center;gap:8px">⌨️ Atajos de Teclado del POS</h3>
+          <button type="button" class="btn-g sm" onclick="document.getElementById('posShortcutsHelpModal').style.display='none'">✕ Esc</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;line-height:1.5;color:#334155">
+          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:4px">📦 Catálogo y Búsqueda</b>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Elegir producto</div>
+          </div>
+          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:4px">🏷️ Precios y Cantidad</b>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">D</kbd> Nivel directo</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Enter</kbd> Confirmar cantidad</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Esc</kbd> Cancelar selección</div>
+          </div>
+          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:4px">👤 Cliente y Descuento</b>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Aplicar descuento %</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> Método de pago</div>
+          </div>
+          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:4px">🚀 Venta y Acciones</b>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Cobrar</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Limpiar / Vaciar</div>
+            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Esta ayuda</div>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:14px">
+          <button type="button" class="btn-p sm" onclick="document.getElementById('posShortcutsHelpModal').style.display='none'">¡Entendido!</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
 }

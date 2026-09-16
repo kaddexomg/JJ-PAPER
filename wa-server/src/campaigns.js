@@ -186,7 +186,13 @@ async function step(camp, dailyLimit) {
         nombre: t.name || (t.vars || {}).nombre || '',
         empresa: t.name || (t.vars || {}).empresa || '',
       };
-      const msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.message || '';
+      let msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.message || '';
+      if (!msgTemplate || msgTemplate.includes('Le saludamos cordialmente de JJ Paper...') || msgTemplate === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
+        const sName = (t.vars && t.vars.vendedor) || 'Asesor JJ Paper';
+        const hasPdf = Boolean(camp.media_path && camp.media_type === 'document') || Boolean(camp.extra_media_path);
+        const pdfText = hasPdf ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.' : '';
+        msgTemplate = `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, distribuidores mayoristas de papelería, consumibles de caja y embalaje en Caracas.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje* y artículos de papelería escolar y oficina.${pdfText}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo a su entera disposición.}`;
+      }
       const body = renderTemplate(msgTemplate, realVars);
 
       const msgPayload = {

@@ -226,7 +226,16 @@ function pfPricePopup(l) {
 
     let sel = 0;
     let done = false;
-    const resolveOnce = v => { if (done) return; done = true; mask.remove(); resolve(v); };
+    const resolveOnce = v => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey, true);
+      mask.remove();
+      resolve(v);
+    };
+    mask.addEventListener('click', e => {
+      if (e.target === mask) resolveOnce(null);
+    });
     const pick = i => {
       const o = opts[i];
       if (!o.on) return;

@@ -536,3 +536,41 @@ En `pos.js` y `vquotes.js`:
 
 ### Nota de mantenimiento
 `pos.js` y `vquotes.js` comparten funciones casi idénticas (`posSearchKey`, `posOnScan`, `posScanCam`, `posNav`, `posNavTo`, `posAddAndPick`, `posAddResolved`, teclado cliente). Toda edición de flujo de agregado o teclado debe replicarse en ambos archivos.
+
+## Corrección Integral de Navegación por Teclado, Mensajes de Campañas y Catálogo +900 (16-09-2026)
+Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del sistema.
+
+### 1. Corrección Definitiva del Despacho de Mensajes en Campañas (Email y WhatsApp)
+- **Causa Raíz Identificada**:
+  1. En `email-campaigns.js`, `htmlTemplate` caía a `camp.html` porque `t.vars?.custom_html` no existía. Y `camp.html` había sido horneado en `vcampanas-email.js` con el texto inicial estático (`Estimado(a) ..., Le saludamos cordialmente de JJ Paper...`). Dado que los clientes de correo (Gmail, Outlook, móviles) muestran la parte HTML preferente del MIME multipart, **el texto personalizado del cliente en `body` se ignoraba por completo**.
+  2. En `campaign-editor.js`, el textarea inicial `#ceMessageInput` venía prellenado con la plantilla placeholder corta. Si el usuario no cambiaba el texto manual o la IA fallaba en un contacto, `launch()` solo validaba la cadena de WhatsApp pero no la de Email.
+- **Solución Implementada**:
+  - `wa-server/src/email-campaigns.js`: Si existe un mensaje personalizado para el target (`t.vars?.custom_message`), el HTML del correo se genera dinámicamente envolviendo dicho cuerpo personalizado, garantizando que el destinatario vea en su bandeja exactamente la propuesta comercial redactada.
+  - `wa-server/src/campaigns.js`: Protección análoga para WhatsApp; si el mensaje recibido es el placeholder genérico, se sustituye por la propuesta comercial mayorista estructurada.
+  - `assets/js/vendedor/campaign-editor.js`: Textarea inicial cargado con propuesta comercial completa de alta conversión; `launch()` verifica y asegura `_custom_message` y `_custom_subject` para cada uno de los contactos seleccionados sin dejar ninguno vacío.
+
+### 2. Lista de Precios PDF y Catálogo Real (+900 Productos MixNet)
+- **Causa Raíz**: `doc-engine.js` (`docLoadCatalogRows`) ejecutaba la consulta a `jjp_products` sin `.range(0, 4999)`, no consultaba las columnas `price_a, price_b, sku`, calculaba precio únicamente de `price_usd` (que podía estar desactualizado frente a MixNet B), y no filtraba productos de prueba con precio $0.00. Asimismo, los textos promocionales hardcodeaban "+700 artículos" cuando la cartera real cuenta con 902 productos activos.
+- **Solución Implementada**:
+  - `assets/js/doc-engine.js`: Consulta con `.range(0, 4999)` y selección de `price_a, price_b, sku`. Cálculo jerárquico del precio USD mayorista real (prioridad nivel B de MixNet, fallback a precio variante/producto). Filtro estricto que descarta productos con precio <= 0 (eliminando productos prueba como `JJ-A1` o `MORRAL`).
+  - Cabecera y textos dinámicos reflejan `897 artículos disponibles · 23 categorías mayoristas` y `más de 900 artículos disponibles para despacho inmediato` en todas las plantillas y vistas previas.
+
+### 3. Navegación Fluida por Teclado en POS, Cotizador y Sistema Completo
+- **Fuga de Memoria y Bloqueo Resueltos (`product-finder.js`)**:
+  - En `pfPricePopup`, el listener `document.addEventListener('keydown', onKey, true)` en modo captura nunca se removía al cerrar el popup. Cada producto añadido dejaba un listener fantasma que interceptaba las teclas 'A', 'B', 'C', 'D', Enter, Escape y flechas, corrompiendo la experiencia de teclado. Se implementó `document.removeEventListener` en `resolveOnce`.
+- **Flujo de Agregado y Cancelación Natural (`pos.js` y `vquotes.js`)**:
+  - Al pulsar `Escape` en el popup de precio: cancela la adición, revierte o retira el producto del ticket, **no** abre el popup de cantidad innecesariamente y devuelve el foco inmediatamente al buscador (`#posSearch`).
+  - Al pulsar `Enter` en el buscador: si el cursor está en -1 pero hay resultados, selecciona de inmediato el primer producto de la lista sin obligar al usuario a presionar flecha abajo.
+  - Al confirmar la cantidad con `Enter`: limpia el buscador (`posSearch.value = ''`), refresca la lista y reenfoca el campo para escanear o tipear el siguiente producto de corrido.
+- **Autocompletado de Clientes (`cust-autocomplete.js`)**:
+  - `Enter` sobre resultados de clientes selecciona el primer cliente sugerido si no se bajó con flechas, rellena los datos y transfiere el foco directamente a `#posSearch`.
+- **Atajos de Teclado del POS y Cotizador**:
+  - `F1` o `?`: Abre ventana modal de ayuda visual con todos los atajos.
+  - `F2` o `/`: Enfoca el buscador de productos y selecciona el texto.
+  - `F3`: Enfoca el buscador de clientes.
+  - `F4`: Enfoca el campo de descuento %.
+  - `F8`: Enfoca el método de pago en POS.
+  - `F9` o `Ctrl+Enter`: Cobra y registra la venta / guarda la cotización.
+  - `Escape`: Cancela modales, limpia búsqueda o vacía el ticket (con confirmación).
+- **Paleta de Comandos Global (`Ctrl+K` / `Alt+K` en `sidenav.js`)**:
+  - Implementado navegador rápido global en todo el panel de administración y vendedor. Permite tipear cualquier sección (ej. pos, cotizador, clientes, whatsapp, conteo, monitor) y saltar con las flechas y Enter sin tocar el ratón. Incluye botón pill en la barra lateral con indicador `Ctrl+K`.

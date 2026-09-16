@@ -70,8 +70,20 @@ async function step(camp, dailyLimit) {
       const subject = renderTemplate(subjTemplate, realVars);
       const bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';
       const body = renderTemplate(bodyTemplate, realVars);
-      const htmlTemplate = t.vars?.custom_html || camp.html || camp.body_html || null;
-      const html = htmlTemplate ? renderTemplate(htmlTemplate, realVars) : null;
+
+      let html = null;
+      if (t.vars?.custom_html) {
+        html = renderTemplate(t.vars.custom_html, realVars);
+      } else if (t.vars?.custom_message || t.vars?.custom_body || !camp.html || camp.html.includes('Le saludamos cordialmente de JJ Paper...')) {
+        // Generar HTML personalizado a partir del cuerpo renderizado único para este destinatario
+        const bodyWithBr = body.replace(/\n/g, '<br>');
+        const imgAtt = (camp.attachments || []).find(a => (a.mime && a.mime.startsWith('image/')) || (a.contentType && a.contentType.startsWith('image/')) || (a.path && a.path.includes('/campaigns/')));
+        const imgHtml = imgAtt?.path ? `<div style="margin:14px 0;text-align:center"><img src="${imgAtt.path}" style="max-width:380px;border-radius:10px;border:1px solid #e5e7eb"></div>` : '';
+        html = `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${bodyWithBr}</div></div>`;
+      } else {
+        const htmlTemplate = camp.html || camp.body_html || null;
+        html = htmlTemplate ? renderTemplate(htmlTemplate, realVars) : null;
+      }
 
       const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
         to_addr: toAddr, subject, body, html, attachments: camp.attachments || []

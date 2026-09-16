@@ -46,6 +46,7 @@ archivos-pc/
 
 # Backups y datos de negocio
 backups/
+CLIENTES/*.json
 *.docx
 *.zip
 *.bak

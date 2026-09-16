@@ -184,3 +184,110 @@ async function pfScanCamera(onCode) {
   };
   video.onloadedmetadata = () => tick();
 }
+
+/* ---------- Mini-lista de precio estilo MixNet ----------
+   Al seleccionar un producto se abre una lista para elegir el nivel de precio
+   A/B/C/D o un precio propio. Devuelve una promesa con:
+   { level:'A'|'B'|'C'|'D' } | { custom:number } | null (cancelado) */
+function pfPricePopup(l) {
+  return new Promise(resolve => {
+    const _n = v => Number(v || 0);
+    const _bs = v => _n(v).toLocaleString('es-VE', { maximumFractionDigits: 0 });
+    const rate = typeof getRate === 'function' ? _n(getRate()) : _n(window.RATE || 0);
+    const updatedUsd = _n(l.price_b || l.price_usd);   // ► precio actualizado (nivel B)
+    const usdOf = o => (o.k === 'C' || o.k === 'D') ? (rate > 0 ? _n(o.valBs) / rate : -1) : o.val;
+    const actTag = o => o.act ? ' <span class="pf-act">✓ actualizado</span>' : '';
+    const opts = [
+      { k: 'A', t: `A · <b>$${_n(l.price_a).toFixed(2)}</b> US$`, val: _n(l.price_a), on: _n(l.price_a) > 0 },
+      { k: 'B', t: `B · <b>$${updatedUsd.toFixed(2)}</b> US$`, val: updatedUsd, on: updatedUsd > 0, act: true },
+      { k: 'C', t: `C · <b>Bs ${_bs(l.price_c_bs)}</b>`, valBs: _n(l.price_c_bs), on: _n(l.price_c_bs) > 0 },
+      { k: 'D', t: `D · <b>Bs ${_bs(l.price_d_bs)}</b>`, valBs: _n(l.price_d_bs), on: _n(l.price_d_bs) > 0 },
+      { k: 'M', t: 'Precio propio…', val: null, on: true },
+    ];
+
+    const mask = document.createElement('div');
+    mask.className = 'pf-popup-mask';
+    mask.innerHTML = `
+      <div class="pf-popup" role="dialog" aria-label="Elegir precio">
+        <div class="pf-popup-title">${escapeHTML(l.name)}${l.brand ? ` <small>(${escapeHTML(l.brand)})</small>` : ''}</div>
+        <div class="pf-popup-opts"></div>
+        <div class="pf-popup-custom" style="display:none">
+          <input type="number" step="0.01" min="0" class="fi" placeholder="Precio en US$" style="flex:1">
+          <button type="button" class="btn-p sm">OK</button>
+        </div>
+        <div class="pf-popup-keys"><kbd>↑↓</kbd> mover · <kbd>Enter</kbd> elegir · <kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd> directo · <kbd>Esc</kbd> cancelar</div>
+      </div>`;
+    document.body.appendChild(mask);
+
+    const listBox = mask.querySelector('.pf-popup-opts');
+    const customBox = mask.querySelector('.pf-popup-custom');
+    const customIn = mask.querySelector('input');
+    const customBtn = mask.querySelector('button');
+
+    let sel = 0;
+    let done = false;
+    const resolveOnce = v => { if (done) return; done = true; mask.remove(); resolve(v); };
+    const pick = i => {
+      const o = opts[i];
+      if (!o.on) return;
+      if (o.k === 'M') { showCustom(); return; }
+      resolveOnce({ level: o.k });
+    };
+    const render = () => {
+      listBox.innerHTML = opts.map((o, i) => `
+        <button type="button" class="pf-popup-opt${i === sel ? ' on' : ''}${o.on ? '' : ' dis'}"
+          data-i="${i}" ${o.on ? '' : 'disabled'}>${o.t}${actTag(o)}</button>`).join('');
+    };
+    const showCustom = () => {
+      sel = -1; render();
+      listBox.style.display = 'none';
+      customBox.style.display = 'flex';
+      customIn.focus();
+    };
+    const confirmCustom = () => {
+      const v = parseFloat(customIn.value);
+      if (isNaN(v) || v < 0) { customIn.focus(); return; }
+      resolveOnce({ custom: +v.toFixed(2) });
+    };
+
+    listBox.addEventListener('click', e => {
+      const b = e.target.closest('.pf-popup-opt');
+      if (!b) return;
+      const i = Number(b.dataset.i);
+      sel = i; render();
+      pick(i);
+    });
+    customBtn.addEventListener('click', confirmCustom);
+    customIn.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); confirmCustom(); }
+      if (e.key === 'Escape') { e.stopPropagation(); listBox.style.display = ''; customBox.style.display = 'none'; sel = 0; render(); customIn.value = ''; listBox.querySelector('.pf-popup-opt')?.focus(); }
+    });
+
+    const onKey = e => {
+      if (customBox.style.display === 'flex') return; // el campo maneja sus propias teclas
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); resolveOnce(null); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); do { sel = (sel + 1) % opts.length; } while (!opts[sel].on); render(); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); do { sel = (sel - 1 + opts.length) % opts.length; } while (!opts[sel].on); render(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); pick(sel); return; }
+      const k = e.key.toLowerCase();
+      const idx = opts.findIndex(o => o.k === k);
+      if (idx >= 0) { e.preventDefault(); sel = idx; render(); pick(idx); return; }
+    };
+    document.addEventListener('keydown', onKey, true);
+
+    render();
+    // Preseleccionar el nivel que corresponde al "precio actualizado" (nivel B / price_usd),
+    // comparando los 4 niveles contra ese valor (USD directo; C/D convertidos con la tasa).
+    let curIdx = -1;
+    opts.forEach((o, i) => {
+      if (i >= 4 || !o.on) return;
+      const u = usdOf(o);
+      if (u >= 0 && Math.abs(u - updatedUsd) < 0.01) {
+        if (o.act || curIdx === -1) curIdx = i; // B (actualizado) tiene prioridad
+      }
+    });
+    if (curIdx === -1) curIdx = opts.findIndex(o => o.on);
+    sel = curIdx;
+    render();
+  });
+}

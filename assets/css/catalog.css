@@ -546,3 +546,43 @@
   color: #ffffff;
   border-color: var(--gd);
 }
+
+/* ── Popup de nivel de precio (MixNet style) ─────────────────────── */
+.pf-popup-mask {
+  position: fixed; inset: 0; z-index: 9500; background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn .12s ease;
+}
+.pf-popup {
+  background: #fff; border-radius: 14px; width: min(340px, 92vw); padding: 18px 20px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.25); text-align: left;
+}
+.pf-popup-title { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+.pf-popup-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.pf-popup-opt {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 10px; border-radius: 8px; border: 1px solid #cbd5e1;
+  font-size: 13px; cursor: pointer; background: #f8fafc; transition: .12s ease; width: 100%;
+}
+.pf-popup-opt:hover { border-color: var(--gd); background: #ecfdf5; }
+.pf-popup-opt.on { border-color: var(--gd); background: #d1fae5; font-weight: 600; }
+.pf-popup-opt.dis { opacity: .35; cursor: default; }
+.pf-popup-opt.dis:hover { background: #f8fafc; border-color: #cbd5e1; }
+.pf-act {
+  font-size: 11px; font-weight: 600; color: var(--gd); background: #d1fae5;
+  border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+}
+.pf-popup-custom { display: flex; gap: 8px; margin-bottom: 8px; }
+.pf-popup-custom input {
+  border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px; font-size: 13px;
+}
+.pf-popup-keys {
+  font-size: 11px; color: #64748b; text-align: center;
+}
+.pf-popup-keys kbd {
+  background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px;
+  padding: 1px 5px; font-size: 10px; font-family: monospace;
+}
+
+/* ── Resultado resaltado por teclado (MixNet style) ─────────────── */
+.pos-result.on { outline: 2px solid var(--gd); background: #ecfdf5; }

@@ -5,6 +5,8 @@
 
 let posProducts = [];
 let posTicket   = {};
+let posCursor = -1;        // índice del resultado resaltado por teclado
+let posResultsList = [];   // lista de resultados actualmente renderizada
 
 async function initQuoter() {
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
@@ -70,8 +72,12 @@ function posSearch() {
 }
 
 function posSearchKey(e) {
+  if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
+  if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
   if (e.key !== 'Enter') return;
   e.preventDefault();
+  if (posCursor >= 0 && posCursor < posResultsList.length) { posPickIdx(); return; }
   const code = document.getElementById('posSearch').value.trim();
   const hit = pfFindByCode(posProducts, code);
   if (hit) { posAddResolved(hit.product, hit.variant); showToast('➕ ' + hit.product.name); document.getElementById('posSearch').value = ''; posSearch(); }
@@ -86,8 +92,12 @@ function posScanCam() {
 
 function posRenderResults(list) {
   const box = document.getElementById('posResults');
-  if (!list.length) { box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:8px 0">Sin resultados.</p>'; return; }
-  box.innerHTML = list.map(p => {
+  if (!list.length) {
+    posResultsList = []; posCursor = -1;
+    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:8px 0">Sin resultados.</p>'; return;
+  }
+  posResultsList = list; posCursor = -1;
+  box.innerHTML = list.map((p, i) => {
     const variants = (p.jjp_product_variants || []).filter(v => v.active);
     const img = p.image_url
       ? `<img src="${optImg(p.image_url, 200)}" alt="" loading="lazy" decoding="async">`
@@ -96,7 +106,7 @@ function posRenderResults(list) {
       ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:5px 8px">
            ${variants.map(v => `<option value="${v.id}">${escapeHTML(v.jjp_brands?.name || v.variant_name || 'Variante')} · ${fmtPrice(v.price_usd)}</option>`).join('')}
          </select>` : '';
-    return `<div class="pos-result">
+    return `<div class="pos-result" data-idx="${i}">
       <div class="pr-img">${img}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${escapeHTML(p.name)}</div>
@@ -108,6 +118,28 @@ function posRenderResults(list) {
   }).join('');
 }
 
+// Navegación por teclado sobre los resultados (↑/↓)
+function posNav(dir) {
+  const rows = (document.getElementById('posResults')?.querySelectorAll('.pos-result')) || [];
+  if (!rows.length) return;
+  posCursor = (posCursor + dir + rows.length) % rows.length;
+  rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
+  rows[posCursor]?.scrollIntoView({ block: 'nearest' });
+}
+
+// Agrega el resultado seleccionado con el cursor (Enter)
+function posPickIdx() {
+  const p = posResultsList[posCursor];
+  if (!p) return;
+  const variants = (p.jjp_product_variants || []).filter(v => v.active);
+  let variant = null;
+  if (variants.length) {
+    const vid = document.getElementById(`pv-${p.id}`)?.value;
+    variant = variants.find(v => v.id === vid) || variants[0];
+  }
+  posAddAndPick(p, variant);
+}
+
 function posAdd(pid) {
   const p = posProducts.find(x => x.id === pid);
   if (!p) return;
@@ -117,7 +149,23 @@ function posAdd(pid) {
     const vid = document.getElementById(`pv-${pid}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
   }
+  posAddAndPick(p, variant);
+}
+
+// Agrega un producto y abre la mini-lista de precio (MixNet): A/B/C/D o precio propio
+function posAddAndPick(p, variant) {
+  const key = variant ? `${p.id}::${variant.id}` : p.id;
   posAddResolved(p, variant);
+  pfPricePopup(posTicket[key]).then(choice => {
+    const l = posTicket[key];
+    if (l && choice) {
+      if (choice.level) posSetPriceLevel(key, choice.level);
+      else if (choice.custom) posUpdatePrice(key, String(choice.custom));
+    }
+    posRenderTicket();
+    const se = document.getElementById('posSearch');
+    if (se) { se.focus(); se.select(); }
+  });
 }
 
 function posAddResolved(p, variant) {

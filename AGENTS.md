@@ -574,3 +574,29 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - `Escape`: Cancela modales, limpia búsqueda o vacía el ticket (con confirmación).
 - **Paleta de Comandos Global (`Ctrl+K` / `Alt+K` en `sidenav.js`)**:
   - Implementado navegador rápido global en todo el panel de administración y vendedor. Permite tipear cualquier sección (ej. pos, cotizador, clientes, whatsapp, conteo, monitor) y saltar con las flechas y Enter sin tocar el ratón. Incluye botón pill en la barra lateral con indicador `Ctrl+K`.
+
+## Estabilidad del Servidor, Resiliencia Bad MAC, Auto-Carga de IA y Flujo Cotización ➔ Venta (16-09-2026)
+
+### 1. Eliminación del Bucle de Muerte por Bad MAC en wa-server (`wa-server/src/index.js`)
+- **Causa Raíz**: `handleFatalOrRepeatedError` incluía el patrón `/Bad MAC|WebSocket.*closed|ECONNREFUSED|ENOTFOUND/` como error fatal. Ante cualquier mensaje entrante con error de desencriptación Signal (MAC desincronizada en un solo chat), el servidor se autoterminaba con `process.exit(1)`. El supervisor lo reiniciaba en 2 segundos, WhatsApp reenviaba el paquete no confirmado y el servidor caía en un bucle infinito de reinicios, tumbando WhatsApp, Realtime y despachos de correo.
+- **Solución y Autosanación Criptográfica**:
+  - Eliminado `Bad MAC` y desconexiones normales de red de la lista de errores fatales.
+  - Implementada función `healBadMacSession(err)`: detecta el número/JID en el stack del error Signal y purga de inmediato el archivo de sesión corrupto (`session-<jid>*.json`) en disco. Esto obliga a Baileys a solicitar un nuevo handshake limpio (PreKey bundle) a WhatsApp en la siguiente interacción sin interrumpir el servidor.
+  - El servidor permanece **100% activo en línea** sin cortes de servicio.
+
+### 2. Resiliencia de IA y Redacción de Correos (`assets/js/admin/correo.js`, `correo.html`)
+- **Causa Raíz**: En `correo.html`, las llamadas a `mailAiGenerate` fallaban si el script de `GeminiClient` no había terminado de inicializarse o si se invocaba con escenarios que llamaban a funciones no asíncronas.
+- **Solución Implementada**:
+  - Implementada función `ensureGeminiClient()` con inyección dinámica y espera reactiva (polling de hasta 3.5s) que garantiza la disponibilidad de `window.GeminiClient` antes de disparar la generación.
+  - Soporte robusto de todos los escenarios de correo (Propuesta B2B, Cotización, Despacho, Cobro, Promoción, Respuesta) con fallbacks contextualizados e inyección directa al compositor.
+
+### 3. Enlace y Flujo Fluido Cotización ➔ Venta POS (`pos.js`, `vquotes.js`, `vquotes-list.js`, `admin/quotes.js`)
+- **Carga de Cotizaciones en POS**:
+  - Soporte de parámetro URL `pos.html?quote=COT-XXXX` o `pos.html?cotizacion=COT-XXXX` que rellena automáticamente los datos del cliente, limpia y puebla el ticket con todos los productos, variantes, cantidades y niveles de precio cotizados.
+  - Botón interactivo `📋 Cargar Cotización` en la barra superior del POS (`admin/pos.html` y `vendedor/pos.html`) con buscador en vivo de presupuestos pendientes.
+  - Al procesar la venta en POS, si proviene de una cotización (`posLinkedQuoteId`), el estado de la cotización se actualiza automáticamente a `'convertido'`.
+  - Botón de acción directa `🛍️ Cobrar en POS` añadido en el modal de confirmación de cotizaciones (`vquotes.js`) y en las tablas de cotizaciones (`vquotes-list.js` y `admin/quotes.js`).
+- **Controles Mejorados en Tickets de POS y Cotizador**:
+  - Cantidad directamente editable mediante `<input type="number">` en cada línea del ticket, permitiendo ingresar cualquier número de unidades sin tener que hacer decenas de clics en el botón `+`.
+  - Botón de eliminación directa `🗑️` por fila (`posRemoveLine`) para retirar productos del ticket en 1 clic.
+  - Acceso seguro al perfil de usuario (`sellerId`) previniendo excepciones en modo administrador.

@@ -13,6 +13,7 @@ wa-server/logs/
 # Dependencias / temporales
 node_modules/
 *.log
+*.bundle
 
 # Sistema
 Thumbs.db

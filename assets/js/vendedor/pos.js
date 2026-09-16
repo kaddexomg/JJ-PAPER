@@ -8,6 +8,7 @@ let posCustomer = null;    // cliente elegido del CRM (o null si es nuevo)
 let posSubmitting = false;
 let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
+let posLinkedQuoteId = null; // ID de cotización origen si la venta proviene de una cotización
 
 async function initPos() {
   const isAdmin = (SELLER?.role === 'admin' || CURRENT_PROFILE?.role === 'admin');
@@ -31,6 +32,10 @@ async function initPos() {
   }
   const cliente = params.get('cliente');
   if (cliente) await posCargarCliente(cliente);
+
+  // Carga directa de cotización si viene por URL (?quote=COT-... o ?cotizacion=...)
+  const quoteParam = params.get('quote') || params.get('cotizacion');
+  if (quoteParam) await posLoadQuote(quoteParam);
 
   // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
   custAcBind({
@@ -324,8 +329,23 @@ function posQty(key, delta) {
   posRenderTicket();
 }
 
+function posSetQty(key, val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n <= 0) {
+    delete posTicket[key];
+  } else {
+    if (posTicket[key]) posTicket[key].qty = n;
+  }
+  posRenderTicket();
+}
+
+function posRemoveLine(key) {
+  delete posTicket[key];
+  posRenderTicket();
+}
+
 function posDiscount() {
-  const max = Number(SELLER.max_discount_pct) || 0;
+  const max = Number(SELLER?.max_discount_pct) || 0;
   let d = parseFloat(document.getElementById('posDisc').value) || 0;
   if (d < 0) d = 0;
   if (d > max) { d = max; document.getElementById('posDisc').value = max; }
@@ -344,7 +364,7 @@ function posRenderTicket() {
   box.innerHTML = lines.map(([k, l]) => {
     const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
     return `
-    <div class="pos-line">
+    <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px dashed #eee">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600">${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
         <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
@@ -358,10 +378,13 @@ function posRenderTicket() {
           <span style="color:#8a6d1a">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
       </div>
-      <button class="qb" onclick="posQty('${k}',-1)">−</button>
-      <strong style="min-width:22px;text-align:center">${l.qty}</strong>
-      <button class="qb" onclick="posQty('${k}',1)">＋</button>
-      <strong style="min-width:60px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
+      <div style="display:flex;align-items:center;gap:3px">
+        <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1">−</button>
+        <input type="number" min="1" class="fi" value="${l.qty}" style="width:48px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:700" onchange="posSetQty('${k}', this.value)" aria-label="Cantidad">
+        <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1">＋</button>
+      </div>
+      <strong style="min-width:55px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
+      <button type="button" class="btn-g sm" onclick="posRemoveLine('${k}')" title="Eliminar este producto del ticket" style="padding:2px 5px;color:#dc2626;border:none;background:transparent;cursor:pointer;font-size:14px;margin-left:4px">🗑️</button>
     </div>`;
   }).join('');
 
@@ -500,6 +523,8 @@ async function posSubmit() {
   const total    = +subtotal.toFixed(2);
   const payRef   = document.getElementById('posPayRef').value.trim() || null;
 
+  const sellerId = (typeof SELLER !== 'undefined' && SELLER?.id) ? SELLER.id : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE?.id : null);
+
   const order = {
     order_number: genOrderNumber(),
     client_name: name,
@@ -516,14 +541,14 @@ async function posSubmit() {
     subtotal_usd: +subtotal.toFixed(2),
     discount_pct: d,
     discount_status: d > 0 ? 'pending' : 'none',
-    discount_requested_by: d > 0 ? SELLER.id : null,
+    discount_requested_by: d > 0 ? sellerId : null,
     total_usd: total,
     exchange_rate: rate,
     total_bs: +(total * rate).toFixed(2),
     payment_method: document.getElementById('posMethod').value,
     payment_ref: payRef,
     notes: document.getElementById('posNotes').value.trim() || null,
-    seller_id: SELLER.id,
+    seller_id: sellerId,
     source: 'pos',
     status: payRef ? 'verificando' : 'pendiente_pago',
   };
@@ -535,6 +560,12 @@ async function posSubmit() {
     posSubmitting = false;
     btn.disabled = false; btn.textContent = '✅ Registrar venta';
     return;
+  }
+
+  // Si la venta provino de una cotización, marcar la cotización como convertida
+  if (posLinkedQuoteId) {
+    sb.from('jjp_quotes').update({ status: 'convertido' }).eq('id', posLinkedQuoteId).then(() => {}).catch(() => {});
+    posLinkedQuoteId = null;
   }
 
   posShowDone(order);
@@ -731,4 +762,151 @@ function posShowHelpModal() {
     document.body.appendChild(modal);
   }
   modal.style.display = 'flex';
+}
+
+/* ---------- Cargar Cotización en el POS ---------- */
+async function posLoadQuote(val) {
+  if (!val) return;
+  const qStr = String(val).trim();
+  const { data: q, error } = await sb.from('jjp_quotes')
+    .select('*')
+    .or(`quote_number.eq.${qStr},id.eq.${qStr}`)
+    .maybeSingle();
+
+  if (error || !q) {
+    showToast('No se encontró la cotización ' + qStr, 'warn');
+    return;
+  }
+
+  posLinkedQuoteId = q.id;
+
+  // 1. Cargar datos del cliente
+  const cliName = q.client_name || '';
+  const searchEl = document.getElementById('posCliSearch');
+  const nameEl = document.getElementById('posCliName');
+  const telEl = document.getElementById('posCliTel');
+  const rifEl = document.getElementById('posCliRif');
+  const cityEl = document.getElementById('posCliCity');
+  const resEl = document.getElementById('posCliResults');
+
+  if (searchEl) searchEl.value = cliName;
+  if (nameEl) nameEl.value = cliName;
+  if (telEl) telEl.value = q.phone || '';
+  if (rifEl) rifEl.value = q.rif || '';
+  if (cityEl) cityEl.value = q.city || '';
+  posCustomer = { name: cliName, phone: q.phone, rif: q.rif, city: q.city, id: q.customer_id || null };
+
+  if (resEl) {
+    resEl.innerHTML = `<p style="font-size:12px;color:var(--gm);margin:4px 0">📋 Cotización vinculada: <strong>${escapeHTML(q.quote_number)}</strong> (${escapeHTML(cliName)})</p>`;
+  }
+
+  // 2. Cargar productos en el ticket
+  posTicket = {};
+  const items = Array.isArray(q.items) ? q.items : [];
+  for (const item of items) {
+    const key = item.variant_id ? `${item.id}_${item.variant_id}` : String(item.id);
+    posTicket[key] = {
+      id: item.id,
+      variant_id: item.variant_id || null,
+      name: item.name,
+      brand: item.brand || '',
+      sku: item.sku || null,
+      qty: Number(item.qty) || 1,
+      unit: item.unit || 'UND',
+      price_usd: Number(item.price_usd) || 0,
+      price_level: item.price_level || 'B',
+      price_a: item.price_a || item.price_usd || 0,
+      price_c_bs: item.price_c_bs || null,
+      price_d_bs: item.price_d_bs || null,
+      stock: 999
+    };
+  }
+
+  // 3. Descuento y notas
+  if (q.discount_pct) {
+    const discEl = document.getElementById('posDisc');
+    if (discEl) discEl.value = q.discount_pct;
+  }
+  const notesEl = document.getElementById('posNotes');
+  if (notesEl) {
+    notesEl.value = `Cotización ${q.quote_number}${q.notes ? ' · ' + q.notes : ''}`;
+  }
+
+  posRenderTicket();
+  showToast(`✅ Cotización ${q.quote_number} cargada con ${items.length} producto(s)`, 'ok');
+}
+
+async function posOpenLoadQuoteModal() {
+  let ovl = document.getElementById('posLoadQuoteModalOvl');
+  if (!ovl) {
+    ovl = document.createElement('div');
+    ovl.id = 'posLoadQuoteModalOvl';
+    ovl.className = 'modal-overlay op';
+    ovl.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999;';
+    ovl.innerHTML = `
+      <div class="modal-box" style="max-width:640px;width:95%;background:#fff;border-radius:14px;padding:20px;box-shadow:0 12px 36px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px">
+          <h3 style="margin:0;font-size:16px;color:#1e293b;display:flex;align-items:center;gap:8px">📋 Cargar Cotización en el Ticket</h3>
+          <button type="button" class="btn-g sm" onclick="posCloseLoadQuoteModal()">✕ Cerrar</button>
+        </div>
+        <div style="margin-bottom:12px">
+          <input type="text" id="posQuoteSearchInput" class="fi" placeholder="Escribe el N° de cotización (COT-...) o nombre del cliente" style="width:100%" oninput="posSearchQuotesLive()">
+        </div>
+        <div id="posQuotesModalList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px">Cargando cotizaciones recientes…</p>
+        </div>
+      </div>
+    `;
+    ovl.onclick = posCloseLoadQuoteModal;
+    document.body.appendChild(ovl);
+  }
+  ovl.style.display = 'flex';
+  document.getElementById('posQuoteSearchInput').value = '';
+  await posSearchQuotesLive();
+}
+
+function posCloseLoadQuoteModal() {
+  const ovl = document.getElementById('posLoadQuoteModalOvl');
+  if (ovl) ovl.style.display = 'none';
+}
+
+async function posSearchQuotesLive() {
+  const box = document.getElementById('posQuotesModalList');
+  if (!box) return;
+  const qText = (document.getElementById('posQuoteSearchInput')?.value || '').trim();
+
+  let query = sb.from('jjp_quotes')
+    .select('id,quote_number,client_name,phone,estimated_total_usd,discount_pct,created_at,status,items')
+    .in('status', ['pendiente', 'contactado'])
+    .order('created_at', { ascending: false })
+    .limit(12);
+
+  if (qText) {
+    query = query.or(`quote_number.ilike.%${qText}%,client_name.ilike.%${qText}%`);
+  }
+
+  const { data: list, error } = await query;
+  if (error || !list?.length) {
+    box.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px">No hay cotizaciones pendientes que coincidan.</p>';
+    return;
+  }
+
+  box.innerHTML = list.map(q => {
+    const total = Number(q.estimated_total_usd) || 0;
+    const itemsCount = Array.isArray(q.items) ? q.items.length : 0;
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px;color:#0f172a">${escapeHTML(q.quote_number)} · <span style="font-weight:600;color:#334155">${escapeHTML(q.client_name)}</span></div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px">${itemsCount} producto(s) · ${fmtPrice(total)} ${q.discount_pct > 0 ? `· Descuento: ${q.discount_pct}%` : ''} · Tel: ${escapeHTML(q.phone || '—')}</div>
+        </div>
+        <button type="button" class="btn-p sm" onclick="posPickQuoteFromModal('${q.id}')" style="white-space:nowrap;padding:6px 12px">🛍️ Cargar al POS</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function posPickQuoteFromModal(id) {
+  posCloseLoadQuoteModal();
+  await posLoadQuote(id);
 }

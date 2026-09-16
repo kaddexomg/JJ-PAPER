@@ -1,4 +1,6 @@
 import net from 'node:net';
+import fs from 'node:fs';
+import path from 'node:path';
 import { log } from './logger.js';
 import * as manager from './session-manager.js';
 import { startOutbox } from './outbox.js';
@@ -84,11 +86,54 @@ startHeartbeat(
 
 process.on('SIGINT', () => { log.info('apagando…'); process.exit(0); });
 
-// Monitor de salud interno: auto-reinicio automático ante acumulación de errores
+// Autosanación de sesiones de cifrado Signal corruptas (Bad MAC)
+function healBadMacSession(err) {
+  try {
+    const str = (err?.stack || '') + ' ' + (err?.message || String(err || ''));
+    // Buscar JID o número en la pila de llamadas (ej: 584124676073 o 584124676073.0)
+    const match = str.match(/(\d{10,15})/);
+    const sessionsDir = path.resolve('sessions');
+    if (fs.existsSync(sessionsDir)) {
+      const profiles = fs.readdirSync(sessionsDir);
+      for (const p of profiles) {
+        const pDir = path.join(sessionsDir, p);
+        if (!fs.existsSync(pDir) || !fs.statSync(pDir).isDirectory()) continue;
+        const files = fs.readdirSync(pDir);
+        for (const f of files) {
+          if (match && f.includes(match[1])) {
+            log.warn({ file: f, profile: p, target: match[1] }, 'Autosanación Signal: eliminando archivo de sesión corrupto para forzar nuevo handshake');
+            try { fs.unlinkSync(path.join(pDir, f)); } catch (_) {}
+          }
+        }
+      }
+    }
+  } catch (e) {
+    log.warn({ err: e.message }, 'healBadMacSession error');
+  }
+}
+
+// Monitor de salud interno: auto-reinicio SOLO ante errores irrecuperables de proceso
 let errorCount = 0;
 let lastErrorTime = Date.now();
 
 function handleFatalOrRepeatedError(reason, isCritical = false) {
+  const errMsg = reason?.message || String(reason || '');
+
+  // 1. Errores de cifrado Signal (Bad MAC): NUNCA deben reiniciar el servidor.
+  // Son inherentes a un mensaje puntual de un contacto y se auto-sanan.
+  if (/Bad MAC/i.test(errMsg)) {
+    healBadMacSession(reason);
+    log.warn({ err: errMsg }, 'Aviso: Error Bad MAC interceptado y auto-sanado. El servidor permanece 100% activo.');
+    return;
+  }
+
+  // 2. Errores transitorios de red / WebSocket / fetch:
+  // Los clientes de Baileys, Realtime y Google API gestionan su propia reconexión.
+  if (/WebSocket.*closed|Stream Errored|ECONNRESET|ECONNREFUSED|ENOTFOUND|fetch failed/i.test(errMsg)) {
+    log.warn({ err: errMsg }, 'Aviso de red transitorio: gestionado automáticamente por los mecanismos de reconexión.');
+    return;
+  }
+
   const now = Date.now();
   if (now - lastErrorTime > 60_000) {
     errorCount = 1;
@@ -97,11 +142,10 @@ function handleFatalOrRepeatedError(reason, isCritical = false) {
   }
   lastErrorTime = now;
 
-  const errMsg = reason?.message || String(reason || '');
-  const isFatalType = isCritical || /EADDRINUSE|Bad MAC|Stream Errored|ECONNREFUSED|ENOTFOUND|WebSocket.*closed/i.test(errMsg);
+  const isFatalType = isCritical || /EADDRINUSE/i.test(errMsg);
 
-  if (isFatalType || errorCount >= 4) {
-    log.error({ err: errMsg, errorCount, fatal: isFatalType }, 'Auto-diagnóstico: detectado error crítico o repetitivo — reiniciando servidor automáticamente');
+  if (isFatalType || errorCount >= 6) {
+    log.error({ err: errMsg, errorCount, fatal: isFatalType }, 'Auto-diagnóstico: detectado error crítico irrecuperable — reiniciando servidor automáticamente');
     try {
       import('./supabase.js').then(({ db: dbComm, dbCore }) => {
         const payload = {
@@ -118,11 +162,24 @@ function handleFatalOrRepeatedError(reason, isCritical = false) {
 }
 
 process.on('unhandledRejection', (e) => {
-  log.error({ err: e?.message || e }, 'unhandledRejection');
+  const msg = e?.message || String(e || '');
+  if (/Bad MAC/i.test(msg)) {
+    healBadMacSession(e);
+    log.warn({ err: msg }, 'unhandledRejection [Bad MAC auto-sanado]');
+    return;
+  }
+  log.warn({ err: msg }, 'unhandledRejection');
   handleFatalOrRepeatedError(e, false);
 });
 
 process.on('uncaughtException', async (e) => {
-  log.error({ err: e?.message, stack: e?.stack }, 'uncaughtException — reiniciando servidor automáticamente');
+  const msg = e?.message || String(e || '');
+  if (/Bad MAC/i.test(msg)) {
+    healBadMacSession(e);
+    log.warn({ err: msg }, 'uncaughtException [Bad MAC auto-sanado]');
+    return;
+  }
+  log.error({ err: msg, stack: e?.stack }, 'uncaughtException');
   handleFatalOrRepeatedError(e, true);
 });
+

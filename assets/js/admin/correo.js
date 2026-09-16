@@ -780,6 +780,21 @@ async function mailReplyWithAi() {
 }
 window.mailReplyWithAi = mailReplyWithAi;
 
+async function ensureGeminiClient() {
+  if (window.GeminiClient) return window.GeminiClient;
+  if (!document.getElementById('geminiClientScript')) {
+    const s = document.createElement('script');
+    s.id = 'geminiClientScript';
+    s.src = '../assets/js/gemini-client.js?v=20260916_ai_v3';
+    document.head.appendChild(s);
+  }
+  for (let i = 0; i < 35; i++) {
+    if (window.GeminiClient) return window.GeminiClient;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  throw new Error('El módulo de IA no se pudo cargar. Revisa tu conexión.');
+}
+
 async function mailAiGenerate() {
   const scenario = document.getElementById('mailAiScenario').value;
   const to = (document.getElementById('mailAiTo')?.value || '').trim();
@@ -790,17 +805,18 @@ async function mailAiGenerate() {
   genBtn.textContent = 'Redactando con Gemini IA… ⏳';
 
   try {
+    const client = await ensureGeminiClient();
     const profile = window.CURRENT_PROFILE || window.MAIL_ME || {};
     let result;
     if (scenario === 'propuesta_b2b') {
-      result = await window.GeminiClient.analyzeAndDraftProspectB2B({
+      result = await client.analyzeAndDraftProspectB2B({
         companyName: to || 'Cliente Corporativo',
         notes,
         sellerName: profile.full_name || profile.name || 'Keyder José Salazar',
         sellerPhone: '0412-4676073'
       });
     } else {
-      result = await window.GeminiClient.draftEmail({
+      result = await client.draftEmail({
         scenario,
         toName: to,
         toEmail: to.includes('@') ? to : '',

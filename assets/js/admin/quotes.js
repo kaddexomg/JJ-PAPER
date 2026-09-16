@@ -206,7 +206,8 @@ function viewQuoteDetail(id) {
       <a class="btn-o" style="width:auto;padding:12px 20px;text-decoration:none" target="_blank"
         href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendBotonHTML(`quoteCtx('${q.id}')`)}
-      <button class="btn-p" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
+      <a class="btn-p" style="width:auto;padding:12px 20px;text-decoration:none;font-weight:700" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">🛍️ Cargar en POS</a>
+      <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
     </div>`;
 

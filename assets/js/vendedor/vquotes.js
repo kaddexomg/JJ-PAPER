@@ -301,6 +301,21 @@ function posQty(key, delta) {
   posRenderTicket();
 }
 
+function posSetQty(key, val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n <= 0) {
+    delete posTicket[key];
+  } else {
+    if (posTicket[key]) posTicket[key].qty = n;
+  }
+  posRenderTicket();
+}
+
+function posRemoveLine(key) {
+  delete posTicket[key];
+  posRenderTicket();
+}
+
 function posRenderTicket() {
   const box  = document.getElementById('posTicket');
   const tots = document.getElementById('posTotals');
@@ -312,7 +327,7 @@ function posRenderTicket() {
   box.innerHTML = lines.map(([k, l]) => {
     const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
     return `
-    <div class="pos-line">
+    <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px dashed #eee">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600">${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
         <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
@@ -326,10 +341,13 @@ function posRenderTicket() {
           <span style="color:#8a6d1a">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
       </div>
-      <button class="qb" onclick="posQty('${k}',-1)">−</button>
-      <strong style="min-width:22px;text-align:center">${l.qty}</strong>
-      <button class="qb" onclick="posQty('${k}',1)">＋</button>
-      <strong style="min-width:60px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
+      <div style="display:flex;align-items:center;gap:3px">
+        <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1">−</button>
+        <input type="number" min="1" class="fi" value="${l.qty}" style="width:48px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:700" onchange="posSetQty('${k}', this.value)" aria-label="Cantidad">
+        <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1">＋</button>
+      </div>
+      <strong style="min-width:55px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
+      <button type="button" class="btn-g sm" onclick="posRemoveLine('${k}')" title="Eliminar este producto del presupuesto" style="padding:2px 5px;color:#dc2626;border:none;background:transparent;cursor:pointer;font-size:14px;margin-left:4px">🗑️</button>
     </div>`;
   }).join('');
 
@@ -469,12 +487,14 @@ function quoteShowDone(q) {
       <div class="co-done-row"><span>Productos</span><strong>${q.items.length}</strong></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <a class="btn-p" style="width:auto;padding:9px 16px;background:#16604A;color:#fff;text-decoration:none;font-weight:700"
+         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">🛍️ Cobrar en POS</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendBotonHTML('quoteDoneCtx()')}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(q.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
-      <button class="btn-p" onclick="quoteReset()">📋 Nueva cotización</button>
+      <button class="btn-o" onclick="quoteReset()">📋 Nueva cotización</button>
     </div>`;
   document.getElementById('qDoneModal').classList.add('op');
 }

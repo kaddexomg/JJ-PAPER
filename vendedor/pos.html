@@ -73,6 +73,9 @@
           <p>Arma el pedido de tu cliente en segundos</p>
         </div>
       </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button type="button" class="btn-o sm" onclick="posOpenLoadQuoteModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#fff;border-color:#cbd5e1;color:#1e293b">📋 Cargar Cotización</button>
+      </div>
     </div>
 
     <div class="admin-content">
@@ -174,7 +177,7 @@
 <script src="../assets/js/doc-engine.js?v=20260819b"></script>
 <script src="../assets/js/send-hub.js?v=20260819b"></script>
 <script src="../assets/js/vendedor/cust-autocomplete.js?v=20260817"></script>
-<script src="../assets/js/vendedor/pos.js?v=20260916_fix_teclado_campanas"></script>
+<script src="../assets/js/vendedor/pos.js?v=20260916_flujo_cotizacion_v2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();

@@ -493,3 +493,46 @@ No se detectaron tests.
     - Stepper interactivo (`◀ Anterior` `Destinatario X de Y` `Siguiente ▶`) para navegar en el simulador por los mensajes de todos los prospectos.
   - **Despacho Backend en wa-server (`campaigns.js`, `email-campaigns.js`)**:
     - Lee `t.vars?.custom_message` / `t.vars?.custom_subject` y despacha el mensaje único para cada contacto respetando sus pausas anti-baneo y adjuntos en WhatsApp y Gmail.
+
+## Correcciones de las 4 Quejas del Usuario + Doble Incremento de Cantidad (16-09-2026)
+Commit `2e9308d` (push a `main`, deploy Cloudflare Pages automático). Cache-busting `?v=20260916_fix_4` en 10 páginas.
+
+### 1. Restauración de la Lista de Precio A/B/C/D en TODAS las rutas de agregado del POS/Cotizador
+- **Causa**: el usuario percibió que "se quitó la lista para seleccionar precio de venta". El popup de nivel de precio sí existía (`posAddAndPick` → `pfPricePopup`), pero las rutas de agregado por **escáner físico, cámara (`posScanCam`), puente de teléfono (`posOnScan`), código exacto con Enter y prefill `?add=<id>`** llamaban directo a `posAddResolved()`, saltándose el popup.
+- **Fix**: en `assets/js/vendedor/pos.js` y `assets/js/vendedor/vquotes.js` (funciones duplicadas entre ambos archivos — cualquier cambio futuro debe aplicarse en los dos):
+  - `posSearchKey` (código exacto) → `posAddAndPick(hit.product, hit.variant)`.
+  - `posPrefillAdd` → `posAddAndPick(...)`.
+  - `posScanCam` → `posAddAndPick(...)`.
+  - `posOnScan` → `posAddAndPick(...)`.
+  - Mismo cambio en el prefill del cotizador (`initQuoter`), que usaba `posAddResolved`.
+
+### 2. Teclado completo en POS y Cotizador
+En `pos.js` y `vquotes.js`:
+- **Productos**: PgUp/PgDn (salto ±5), Home/End (saltar a extremos vía nueva `posNavTo`), Escape (vaciar ticket/cotización con confirmación → nueva `clearPos`/`clearQuote`), Ctrl/Cmd+Enter (enviar venta/cotización → `posSubmit`/`quoteSubmit`).
+- **Cliente**: nueva `posInitCustomerKeys()` (corrida en `initPos`) + estado `posCliResults`/`posCliCursor` + `paintCliCursor()`: ↑/↓ recorren resultados de cliente, Enter selecciona el resaltado.
+
+### 3. Motor IA de Campañas enviaba solo la presentación (mensajes no personalizados)
+- **Causa raíz**: en `campaign-editor.js` `launch()`, la rama "No" del confirm (`¿Deseas analizarlos ahora…?`) disparaba `analyzeCustomerAndDraftMessage` con `.then()` sin `await`. Los targets se insertaban con `custom_message=null` y el despachador (`campaigns.js`) caía al `camp.body` (solo presentación). Además `updatePreview` hardcodeaba una vista previa "representativa" que no coincidía con lo enviado.
+- **Fix** `campaign-editor.js`:
+  - La rama heurística ahora hace `await Promise.all(missingAnalysis.map(...))` con try/catch; cada análizado asigna `_custom_message`, `_custom_subject`, `_detected_need`, `_detected_sector`.
+  - Nuevo helper `buildMinimalFallback(c, channel, sellerName, inclPdf)` (definido antes de `launch()`): genera un mensaje comercial completo (saludo spintax, presentación con nombre del asesor, 3 categorías con disponibilidad, mención de la Lista de Precios PDF si está activa, `{{link}}`, cierre consultivo) para WhatsApp y email (con firma corporativa). Se asigna en el catch de la rama heurística y como fallback del `body` en modo `ai` si está vacío o es la plantilla por defecto (`'{Hola|Saludos|Buen día} {{nombre}} 👋…'`).
+  - `regenerateActiveCustomer` ahora pasa `forceRefresh: true` para evitar responder con resultados cacheados.
+  - **Verificado**: la ruta email (`vampans-email.js` ~787/797-799) SÍ persiste `custom_subject`/`custom_message` por target, y la ruta WA (`vdifusion.js` 1099-1100) igual — compatible con el flujo corregido.
+
+### 4. Prospectos: solo 206/300, leía mal y sin carga real desde Google Sheets
+- **Causa**: `renderProspectsTable` cortaba el render con `MAX = 150`; `processImportedRows` tenía detección de cabeceras frágil (sin normalizar tildes, columnas de contacto/cargo mezcladas, teléfonos sin limpiar) y la importación **solo** aceptaba subir archivo o pegar celdas (sin conexión real a Google Sheets).
+- **Fix** `assets/js/admin/vprospectos.js`:
+  - **Paginación real**: `PROSPECTS_PER_PAGE = 100`, `prospectsPage`, `prospectsGoPage(p)` + controles ◀/▶ y contador en el footer de la tabla. `applyProspectFilters` reinicia a página 1. `loadProspects` usa `.range(0, 1999)`.
+  - **Parser robusto** (`processImportedRows`): normalización de acentos (`norm()`) para cabeceras con/sin tilde, detección de columna `cargo` separada de `contacto`, filtro anti-falsos-positivos en `tel1`/`tel2` (cel/WhatsApp/móvil van a phone_2), limpieza de teléfonos (`cellPhone`: elimina `E+11` de Excel, guiones), validación de email, y conteo correcto `inserted`/`updated`/`skipped` precargando `company_name` existentes (upsert por `company_name`).
+  - **Opción C en el modal de import (`admin/prospectos.html`)**: campo URL pública de Google Sheets + botón `🌐 Leer y Procesar Desde Internet` con estado en vivo.
+- **Nueva Cloudflare Pages Function `functions/api/sheets-import.js`**: GET `/?api/sheets-import?url=<enlace_o_id_de_sheets>` → normaliza cualquier URL de Google Sheets a su exportación CSV (`/export?format=csv`), la descarga server-side (evita CORS/Mixed Content), parsea el CSV respetando comillas y saltos (`parseCSV`), y devuelve `{ok, rowsCount, rows, headers}` (máx 2000 filas). `handleSheetsUrlImport` (en `vprospectos.js`) mapea las cabeceras a las claves esperadas y delega en `processImportedRows`.
+
+### 5. Doble incremento ±2 en el popup de cantidad (MixNet, `product-finder.js`)
+- **Causa**: en `pfQtyPopup` el listener de delegación del mask (`e.target.closest('.pf-qty-btn')` → `change`) se sumaba a los listeners individuales `btn(-1).addEventListener(...)`/`btn(1).addEventListener(...)`; cada clic disparaba dos veces → ±2.
+- **Fix**: se eliminaron los dos listeners por botón; queda únicamente la delegación por eventos del mask.
+
+### Archivos tocados (17)
+`admin/campanas-email.html`, `admin/cotizador.html`, `admin/difusion.html`, `admin/pos.html`, `admin/prospectos.html` (Opción C), `assets/js/vendedor/campaign-editor.js`, `assets/js/vendedor/vquotes.js`, `assets/js/vendedor/pos.js`, `assets/js/vendedor/product-finder.js`, `assets/js/admin/vprospectos.js`, `vendedor/campanas-email.html`, `vendedor/consulta.html`, `vendedor/cotizador.html`, `vendedor/difusion.html`, `vendedor/pos.html`, `vendedor/productos.html` (bumps `?v=`), `functions/api/sheets-import.js` (nuevo).
+
+### Nota de mantenimiento
+`pos.js` y `vquotes.js` comparten funciones casi idénticas (`posSearchKey`, `posOnScan`, `posScanCam`, `posNav`, `posNavTo`, `posAddAndPick`, `posAddResolved`, teclado cliente). Toda edición de flujo de agregado o teclado debe replicarse en ambos archivos.

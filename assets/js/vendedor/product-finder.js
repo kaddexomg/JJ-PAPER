@@ -291,3 +291,50 @@ function pfPricePopup(l) {
     render();
   });
 }
+
+/* ---------- Popup de cantidad estilo MixNet ----------
+   Se abre después de elegir el precio. Devuelve una promesa con la cantidad
+   (number) o null si se cancela (conserva la cantidad actual de la línea). */
+function pfQtyPopup(l) {
+  return new Promise(resolve => {
+    const mask = document.createElement('div');
+    mask.className = 'pf-popup-mask';
+    mask.innerHTML = `
+      <div class="pf-popup pf-qty" role="dialog" aria-label="Elegir cantidad">
+        <div class="pf-popup-title">${escapeHTML(l.name)}${l.unit ? ` <small>(${escapeHTML(l.unit)})</small>` : ''}</div>
+        <div class="pf-qty-body">
+          <button type="button" class="pf-qty-btn" data-d="-1" tabindex="-1">−</button>
+          <input type="number" step="1" min="1" value="${Math.max(1, Math.ceil(Number(l.qty) || 1))}" class="pf-qty-in">
+          <button type="button" class="pf-qty-btn" data-d="1" tabindex="-1">＋</button>
+        </div>
+        <div class="pf-popup-keys"><kbd>↑↓</kbd> ±1 · <kbd>Shift</kbd>+<kbd>↑↓</kbd> ±10 · <kbd>Enter</kbd> aceptar · <kbd>Esc</kbd> cancelar</div>
+      </div>`;
+    document.body.appendChild(mask);
+
+    const input = mask.querySelector('input');
+    const btn = (d) => mask.querySelector(`.pf-qty-btn[data-d="${d}"]`);
+    let done = false;
+    const resolveOnce = v => { if (done) return; done = true; mask.remove(); resolve(v); };
+    const clamp = v => Math.max(1, Math.round(Number(v) || 1));
+    const set = v => { input.value = clamp(v); input.focus(); };
+    const change = (step) => { const v = clamp(input.value) + step; if (v >= 1) set(v); };
+
+    mask.addEventListener('click', e => {
+      const b = e.target.closest('.pf-qty-btn');
+      if (b) { change(Number(b.dataset.d) || 0); return; }
+      if (e.target === mask) resolveOnce(null); // clic fuera: cancela, conserva actual
+    });
+    input.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); resolveOnce(clamp(input.value)); return; }
+      if (e.key === 'Escape') { e.preventDefault(); resolveOnce(null); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); change(e.shiftKey ? -10 : -1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); change(e.shiftKey ? 10 : 1); return; }
+    });
+    btn(-1).addEventListener('click', () => change(-1));
+    btn(1).addEventListener('click', () => change(1));
+
+    input.focus();
+    input.select();
+  });
+}

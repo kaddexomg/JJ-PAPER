@@ -584,5 +584,19 @@
   padding: 1px 5px; font-size: 10px; font-family: monospace;
 }
 
+/* ── Popup de cantidad (MixNet) ─────────────────────────────────── */
+.pf-qty-body { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pf-qty-btn {
+  width: 44px; height: 44px; font-size: 20px; font-weight: 700; color: #0f172a;
+  border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; cursor: pointer;
+  transition: .12s ease; flex: none;
+}
+.pf-qty-btn:hover { border-color: var(--gd); background: #ecfdf5; }
+.pf-qty-in {
+  flex: 1; min-width: 0; height: 46px; text-align: center; font-size: 22px; font-weight: 700;
+  border: 2px solid var(--gd); border-radius: 10px; outline: none; color: #0f172a;
+}
+.pf-qty-in:focus { box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
+
 /* ── Resultado resaltado por teclado (MixNet style) ─────────────── */
 .pos-result.on { outline: 2px solid var(--gd); background: #ecfdf5; }

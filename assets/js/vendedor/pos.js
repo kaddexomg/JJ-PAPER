@@ -171,19 +171,24 @@ function posAdd(pid) {
   posAddAndPick(p, variant);
 }
 
-// Agrega un producto y abre la mini-lista de precio (MixNet): A/B/C/D o precio propio
+// Agrega un producto y abre la mini-lista de precio (MixNet): A/B/C/D o precio propio,
+// y luego la cantidad. Todo con teclado.
 function posAddAndPick(p, variant) {
   const key = variant ? `${p.id}::${variant.id}` : p.id;
   posAddResolved(p, variant);
   pfPricePopup(posTicket[key]).then(choice => {
     const l = posTicket[key];
-    if (l && choice) {
+    if (!l) { posRenderTicket(); return; }
+    if (choice) {
       if (choice.level) posSetPriceLevel(key, choice.level);
       else if (choice.custom) posUpdatePrice(key, String(choice.custom));
     }
-    posRenderTicket();
-    const se = document.getElementById('posSearch');
-    if (se) { se.focus(); se.select(); }
+    // Siempre pide cantidad tras elegir el precio (captura en vivo de la toma).
+    pfQtyPopup(l).then(qty => {
+      if (qty && qty > 0) { l.qty = qty; posRenderTicket(); }
+      const se = document.getElementById('posSearch');
+      if (se) { se.focus(); se.select(); }
+    });
   });
 }
 

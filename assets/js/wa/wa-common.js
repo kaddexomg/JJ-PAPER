@@ -169,7 +169,8 @@ function waAvatarStyle(texto) {
 const WA_SESSION_LABEL = {
   disabled: '⛔ Deshabilitada', starting: '⏳ Iniciando…',
   pending_qr: '📷 Esperando escaneo de QR', pending_pairing: '🔢 Esperando código',
-  connected: '🟢 Conectado', disconnected: '🔴 Desconectado (¿wa-server apagado?)',
+  connected: '🟢 Conectado', reconnecting: '🔄 Reconectando…',
+  disconnected: '🔴 Desconectado (¿wa-server apagado?)',
   logged_out: '⚪ Sin vincular', error: '⚠️ Error'
 };
 

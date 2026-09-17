@@ -25,7 +25,12 @@ export async function boot() {
   const { data: rows, error } = await db.from('jjp_wa_sessions').select('*').eq('enabled', true);
   if (error) { log.error({ error: error.message }, 'no pude leer jjp_wa_sessions'); return; }
 
-  // Limpieza de sesiones zombie y vacías
+  // Limpieza de sesiones zombie y vacías.
+  // IMPORTANTE: NO purgar sesiones con credenciales reales (account, me, signalIdentities)
+  // aunque tengan registered:false — Baileys puede dejar ese campo en false durante
+  // la negociación post-QR y nunca actualizarlo si hubo un close transitorio.
+  // Solo se eliminan carpetas vacías, legacies sin datos y sesiones realmente huérfanas.
+  const enabledIds = new Set((rows || []).map(r => r.profile_id));
   try {
     const dirs = fs.readdirSync(SESSIONS_DIR);
     for (const dir of dirs) {
@@ -34,27 +39,36 @@ export async function boot() {
       
       const files = fs.readdirSync(dirPath);
       
-      if (files.length === 0 || dir === '0d850c1e-5220-410e-8972-9783f31787fa') {
-        log.warn({ profile: dir }, 'Limpiando directorio de sesión vacío o legacy');
+      // Carpetas vacías → limpiar
+      if (files.length === 0) {
+        log.warn({ profile: dir }, 'Limpiando directorio de sesión vacío');
         fs.rmSync(dirPath, { recursive: true, force: true });
         continue;
       }
       
-      if (dir === 'b3c1eae7-d88b-4a2e-95b5-b2d89eb260c8') {
-        log.warn({ profile: dir }, 'Sesión zombie (registered: false) específica detectada. Omitiendo.');
-        fs.rmSync(dirPath, { recursive: true, force: true });
-        continue;
-      }
+      // Si el perfil está habilitado en la BD, NUNCA purgar sus credenciales
+      if (enabledIds.has(dir)) continue;
       
+      // Perfil NO está en la BD → verificar si tiene credenciales válidas antes de purgar
       const credsPath = `${dirPath}/creds.json`;
       if (fs.existsSync(credsPath)) {
         try {
           const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+          // Si tiene account o me o signalIdentities, es una sesión REAL (no zombie)
+          const hasRealData = !!(creds.account || creds.me || (creds.signalIdentities && creds.signalIdentities.length > 0));
+          if (hasRealData) {
+            log.info({ profile: dir, registered: creds.registered }, 'Sesión huérfana con datos reales — preservada (no está habilitada en BD)');
+            continue;
+          }
           if (creds.registered === false) {
-            log.warn({ profile: dir }, 'Sesión zombie (registered: false) detectada. Saltando auto-conexión (purgando).');
+            log.warn({ profile: dir }, 'Sesión zombie real (sin account ni señal) — purgando');
             fs.rmSync(dirPath, { recursive: true, force: true });
           }
-        } catch (e) {}
+        } catch (e) {
+          // creds.json corrupto → limpiar
+          log.warn({ profile: dir, err: e.message }, 'creds.json corrupto — purgando sesión');
+          fs.rmSync(dirPath, { recursive: true, force: true });
+        }
       }
     }
   } catch(e) {

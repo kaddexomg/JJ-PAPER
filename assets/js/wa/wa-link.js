@@ -21,7 +21,7 @@ async function waLinkInit(profileId) {
   setInterval(async () => {
     const modal = document.getElementById('waLinkModal');
     const isModalOpen = modal?.classList.contains('op') || modal?.style?.display === 'block';
-    if (isModalOpen || WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr') {
+    if (isModalOpen || WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr' || WA_SESSION?.status === 'reconnecting') {
       await waLoadSession();
     }
   }, 3000);
@@ -87,8 +87,8 @@ function waRenderLink() {
         <li><strong>Vincular un dispositivo</strong> → <strong>Vincular con el número de teléfono</strong></li>
         <li>Escribe este código</li>
       </ol>`;
-  } else if (st === 'starting') {
-    html += '<p class="wa-link-note">Conectando con WhatsApp…</p>';
+  } else if (st === 'starting' || st === 'reconnecting') {
+    html += '<p class="wa-link-note">Conectando con WhatsApp… esto tomará unos segundos.</p>';
   } else {
     if (st === 'disconnected') {
       html += '<p class="wa-link-note">La sesión está vinculada pero el puente no responde. Verifica que el <strong>wa-server</strong> esté corriendo en la PC de la tienda (npm start).</p>';

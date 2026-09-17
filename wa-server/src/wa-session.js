@@ -397,7 +397,18 @@ export class WaSession {
         return;
       }
       if (this.stopped) return;
-      await this.setSession({ status: 'disconnected', last_error: lastDisconnect?.error?.message || null });
+      // Código 515 (restartRequired) es NORMAL tras escanear QR: Baileys necesita
+      // reiniciar para usar las credenciales recién negociadas. No confundir al
+      // frontend con "disconnected" — usar "reconnecting" que el UI mostrará
+      // como "Reconectando…" en vez de botones de "Generar QR".
+      const isExpectedRestart = code === DisconnectReason.restartRequired
+                             || code === DisconnectReason.connectionClosed
+                             || code === DisconnectReason.timedOut;
+      const uiStatus = isExpectedRestart ? 'reconnecting' : 'disconnected';
+      await this.setSession({ status: uiStatus, last_error: isExpectedRestart ? null : (lastDisconnect?.error?.message || null) });
+      if (isExpectedRestart) {
+        log.info({ profile: this.profileId, code }, 'reconexión esperada post-QR / transitoria — reconectando…');
+      }
       this.scheduleReconnect();
     }
   }
@@ -737,6 +748,8 @@ export class WaSession {
 
   async stop(statusRow = 'disabled') {
     this.stopped = true;
+    this.startingSince = 0;   // liberar guarda de arranque
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     if (this.storeSaveTimer) { clearTimeout(this.storeSaveTimer); this.storeSaveTimer = null; }
     await this.flushStoreToDisk().catch(() => {});
     try { this.sock?.end?.(new Error('detenida por el CRM')); } catch {}

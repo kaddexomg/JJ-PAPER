@@ -946,52 +946,108 @@ export async function exportCatalogToMixnet() {
 // 2. MixNet ➔ JJ Paper: Lee existencias y precios desde tablas DBF o CSV de MixNet
 export async function sweepMixnetProducts() {
   try {
-    let invDbfPath = null;
+    // Lee la tabla de precios vigente (MXCTAINV: maestro de precios actualizado
+    // continuamente, incluida la unidad M:) y el inventario real (VICTAINV).
+    // IMPORTANTE (17/09/2026): MXCTAINV.DBF es la fuente AUTORITATIVA de
+    // precios y stock (fecha_mod 2025/2026); VICTAINV.DBF quedó con precios
+    // congelados de 2024 (ej. LIBRETA FAMA TESIS CG-L100T: 1.13$ en MXCTAINV vs
+    // 1.01$ en VICTAINV). Se fusionan ambos por SKU dándole prioridad a MXCTAINV.
+    let masterRows = [];
+    let stockRows = [];
     if (activeDbfDir && fs.existsSync(activeDbfDir)) {
-      for (const t of ['VICTAINV.DBF', 'MXCTAINV.DBF', 'victainv.dbf', 'mxctainv.dbf']) {
-        const fp = path.join(activeDbfDir, t);
-        if (fs.existsSync(fp)) { invDbfPath = fp; break; }
+      const mxfp = path.join(activeDbfDir, 'MXCTAINV.DBF');
+      const mxfpL = path.join(activeDbfDir, 'mxctainv.dbf');
+      const vifp = path.join(activeDbfDir, 'VICTAINV.DBF');
+      const vifpL = path.join(activeDbfDir, 'victainv.dbf');
+
+      for (const fp of [mxfp, mxfpL]) {
+        if (fs.existsSync(fp)) {
+          const st = readDbfStructure(fp);
+          if (st && st.numRecords > 0) masterRows = readDbfRows(st, 5000);
+          break;
+        }
+      }
+      for (const fp of [vifp, vifpL]) {
+        if (fs.existsSync(fp)) {
+          const st = readDbfStructure(fp);
+          if (st && st.numRecords > 0) stockRows = readDbfRows(st, 5000);
+          break;
+        }
       }
     }
 
-    if (invDbfPath) {
-      const struct = readDbfStructure(invDbfPath);
-      if (struct && struct.numRecords > 0) {
-        const rows = readDbfRows(struct, 5000);
-        let updatedCount = 0;
-        for (const r of rows) {
-          const sku = String(r.codart || r.codigo || r.sku || '').trim();
-          if (!sku) continue;
+    if (masterRows.length > 0) {
+      let updatedCount = 0;
+      const stockBySku = new Map(stockRows.map(r => [String(r.codart || r.codigo || r.sku || '').trim(), r]));
+      for (const r of masterRows) {
+        const sku = String(r.codart || r.codigo || r.sku || '').trim();
+        if (!sku) continue;
 
-          const priceA = parseFloat(String(r.precio_a || '0').replace(/,/g, '.')) || 0;
-          const priceB = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
-          const priceCBs = parseFloat(String(r.precio_c || '0').replace(/,/g, '.')) || 0;
-          const priceDBs = parseFloat(String(r.precio_d || '0').replace(/,/g, '.')) || 0;
-          const stock = parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0;
-          const cost = parseFloat(String(r.costo || r.costo_rep || '0').replace(/,/g, '.')) || 0;
-
-          if (priceB > 0 || stock >= 0) {
-            const updateObj = {};
-            if (priceA > 0) updateObj.price_a = priceA;
-            if (priceB > 0) {
-              updateObj.price_b = priceB;
-              updateObj.price_usd = priceB;
-            }
-            if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
-            if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
-            if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
-            if (cost > 0) updateObj.cost_usd = cost;
-
-            const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
-            const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
-            if (vUp?.length || pUp?.length) updatedCount++;
+        const priceA = parseFloat(String(r.precio_a || '0').replace(/,/g, '.')) || 0;
+        const priceB = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
+        const priceCBs = parseFloat(String(r.precio_c || '0').replace(/,/g, '.')) || 0;
+        const priceDBs = parseFloat(String(r.precio_d || '0').replace(/,/g, '.')) || 0;
+        const cost = parseFloat(String(r.costo || r.costo_rep || r.ult_costo || '0').replace(/,/g, '.')) || 0;
+        let stock = parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0;
+        if (stock === 0) {
+          const sv = stockBySku.get(sku);
+          if (sv) {
+            stock = parseFloat(String(sv.existe_act || sv.existencia || sv.stock || '0').replace(/,/g, '.')) || 0;
           }
         }
-        if (updatedCount > 0) {
-          log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde MixNet DBF.`);
+
+        if (priceB > 0 || stock >= 0) {
+          const updateObj = {};
+          if (priceA > 0) updateObj.price_a = priceA;
+          if (priceB > 0) {
+            updateObj.price_b = priceB;
+            updateObj.price_usd = priceB;
+          }
+          if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
+          if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
+          if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
+          if (cost > 0) updateObj.cost_usd = cost;
+
+          const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
+          const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
+          if (vUp?.length || pUp?.length) updatedCount++;
         }
-        return;
       }
+      if (updatedCount > 0) {
+        log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde MXCTAINV.DBF (maestro vigente).`);
+      }
+      return;
+    }
+
+    // Respaldo: solo VICTAINV.DBF disponible (sin maestro de precios)
+    if (stockRows.length > 0) {
+      let updatedCount = 0;
+      for (const r of stockRows) {
+        const sku = String(r.codart || r.codigo || r.sku || '').trim();
+        if (!sku) continue;
+
+        const priceB = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
+        const stock = parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0;
+        const cost = parseFloat(String(r.costo || r.costo_rep || r.ult_costo || '0').replace(/,/g, '.')) || 0;
+
+        if (priceB > 0 || stock >= 0) {
+          const updateObj = {};
+          if (priceB > 0) {
+            updateObj.price_b = priceB;
+            updateObj.price_usd = priceB;
+          }
+          if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
+          if (cost > 0) updateObj.cost_usd = cost;
+
+          const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
+          const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
+          if (vUp?.length || pUp?.length) updatedCount++;
+        }
+      }
+      if (updatedCount > 0) {
+        log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde VICTAINV.DBF (respaldo).`);
+      }
+      return;
     }
 
     // 2. Respaldo HTTP: Consultar API de MixNet en la red local (192.168.0.185 o 192.168.0.172 en puerto 3000)

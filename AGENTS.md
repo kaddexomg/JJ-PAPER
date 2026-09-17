@@ -663,4 +663,19 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - **Inmunización de Sesiones WhatsApp contra Purgado Indebido (`session-manager.js` y `wa-session.js`)**:
   - `boot()` ya no purga sesiones con `registered: false` si contienen datos reales (`account`, `me`, `signalIdentities`), ya que Baileys NUNCA setea `registered = true` en flujo de escaneo QR. Los perfiles habilitados en BD quedan permanentemente protegidos.
   - Manejo de desconexiones transitorias post-QR: Baileys emite código 515 (`restartRequired`) tras escanear el QR, que ahora se reporta como `reconnecting` en lugar de `disconnected`, evitando que la interfaz vuelva a solicitar escaneo.
-  - `stop()` resetea `startingSince` y `reconnectTimer`, eliminando bloqueos en reconexiones dentro de la ventana de 90s.
+  - `stop()` resetea `startingSince` y `reconnectTimer`, eliminando bloqueos en reconexiones dentro de la ventana de 90s.
+
+## Corrección de Lista de Precios Imprimible y Saneamiento de Costos DBF (17-09-2026)
+- **Causa Raíz Identificada**:
+  1. En `lista_costos.html`, la consulta Supabase no seleccionaba `price_b`, `price_a`, `price_c_bs`, ni `price_d_bs`.
+  2. En MixNet DBF (`MXCTAINV`/`VICTAINV`), el campo `costo` / `costo_rep` está expresado en **Bolívares** (ej. 2,550 Bs para carpetas, 11,877 Bs para marcadores). Al sincronizar, `mixer.js` escribía ese monto en Bolívares directamente en `cost_usd`, inflando la lista interna y las valorizaciones de inventario en órdenes de magnitud absurdos.
+- **Resolución Aplicada**:
+  - `lista_costos.html`:
+    - Consulta actualizada para incluir explícitamente `price_b, price_a, price_c_bs, price_d_bs, cost_usd`.
+    - **Precio de Impresión**: Ajustado estrictamente al **Precio B (Mayorista USD)** como estándar oficial por defecto (con fallback a `price_usd` o `price_a`).
+    - **Selector de Nivel de Precio**: Añadido control en la barra de herramientas (`tbPriceLevel`) para alternar entre Precio B (Mayorista USD) [Default], Precio A (Detal USD), Precio D (Mayorista Bs) y Precio C (Detal Bs).
+    - **Cabeceras Dinámicas**: Títulos y etiquetas actualizados (`LISTA DE PRECIOS MAYORISTA (B)` y `Precio Mayorista ($)`).
+    - **Saneamiento en Caliente**: En modo costo (`?mode=cost`), si el costo excede el precio venta por un factor >2.5, se convierte automáticamente a USD dividiendo entre la tasa implícita o BCV.
+  - `wa-server/src/mixer.js`:
+    - Saneamiento en `sweepMixnetProducts()`: Si el costo en el DBF está en Bolívares (`cost > priceB * 2.5`), se divide automáticamente entre la tasa real de MixNet (`priceDBs / priceB`) antes de guardar en `cost_usd`.
+  - **Base de Datos Saneada**: 620 registros en `jjp_product_variants` y `jjp_products` con costos inflados en Bolívares fueron corregidos a sus valores reales en USD.

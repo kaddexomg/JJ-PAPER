@@ -21,7 +21,8 @@ async function initPos() {
   posPrefillAdd();                        // ?add=<id> desde Consultar stock
   pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
   posInitCustomerKeys();                  // teclado ↑/↓/Enter en resultados de cliente
-  posInitGlobalKeys();                    // atajos globales (F1, F2, F3, F4, F8, F9, Esc)
+  posInitGlobalKeys();                    // atajos globales (F1, F2, F3, F4, F6, F7, F8, F9, F10, F11, Esc)
+  posInitTabNav();                        // flujo secuencial ordenado con Tabulador
 
   // prefill de cliente si viene desde el CRM (?tel=... o ?cliente=<id>)
   const params = new URLSearchParams(location.search);
@@ -64,6 +65,14 @@ function posSearch() {
 // código exacto (lector físico) agrega abriendo la lista de precio A/B/C/D.
 function posSearchKey(e) {
   if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
+  
+  // Tabulador ordenado: salta limpiamente al siguiente campo del flujo de venta
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    posNavTab(e.shiftKey ? -1 : 1);
+    return;
+  }
+
   if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
   if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
   if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
@@ -80,22 +89,35 @@ function posSearchKey(e) {
   if (e.key !== 'Enter') return;
   e.preventDefault();
 
-  const code = document.getElementById('posSearch').value.trim();
+  const se = document.getElementById('posSearch');
+  const code = se.value.trim();
+  if (!code) {
+    // Si presiona Enter con buscador vacío, avanza al siguiente paso (cliente o ticket)
+    posNavTab(1);
+    return;
+  }
+
+  // 1. Intento por código exacto (código de barras o SKU de lector físico)
   const hit = pfFindByCode(posProducts, code);
   if (hit) {
     posAddAndPick(hit.product, hit.variant);
     showToast('➕ ' + hit.product.name);
-    document.getElementById('posSearch').value = '';
+    se.value = '';
     posSearch();
     return;
   }
 
+  // 2. Si no hubo match exacto por código, busca en los resultados por nombre/tokens
   const targetIdx = posCursor >= 0 ? posCursor : (posResultsList.length > 0 ? 0 : -1);
   if (targetIdx >= 0 && targetIdx < posResultsList.length) {
     posCursor = targetIdx;
     posPickIdx();
     return;
   }
+
+  // 3. Si no hay ningún resultado ni por código ni por nombre
+  showToast('⚠️ No se encontró producto con ese código ni nombre', 'warn');
+  se.select();
 }
 
 // Limpia el ticket actual (con confirmación si tiene líneas)
@@ -352,21 +374,28 @@ function posDiscount() {
   return d;
 }
 
+let posTicketCursor = -1;
+
 function posRenderTicket() {
   const box  = document.getElementById('posTicket');
   const tots = document.getElementById('posTotals');
   const lines = Object.entries(posTicket);
   if (!lines.length) {
+    posTicketCursor = -1;
     box.innerHTML = '<p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p>';
     tots.innerHTML = '';
     return;
   }
-  box.innerHTML = lines.map(([k, l]) => {
+  if (posTicketCursor >= lines.length) posTicketCursor = lines.length - 1;
+
+  box.innerHTML = lines.map(([k, l], i) => {
+    const isAct = (i === posTicketCursor);
+    const actStyle = isAct ? 'background:#ecfdf5;border:1px solid #10b981;border-radius:8px;padding:6px 8px;margin:3px 0;' : 'padding:8px 0;border-bottom:1px dashed #eee;';
     const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
     return `
-    <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px dashed #eee">
+    <div class="pos-line" data-idx="${i}" data-key="${k}" style="display:flex;align-items:center;gap:6px;transition:all .15s ease;${actStyle}">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600">${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
+        <div style="font-weight:600">${isAct ? '👉 ' : ''}${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
         <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
           <span style="color:var(--gm)">Nivel</span>
           <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
@@ -425,6 +454,11 @@ function posInitCustomerKeys() {
   inp.__jjKeys = true;
   inp.addEventListener('keydown', e => {
     if (document.querySelector('.pf-popup-mask')) return;
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      posNavTab(e.shiftKey ? -1 : 1);
+      return;
+    }
     if (e.key === 'Escape') {
       document.getElementById('posCliResults').innerHTML = '';
       const se = document.getElementById('posSearch');
@@ -432,7 +466,15 @@ function posInitCustomerKeys() {
       return;
     }
     const items = document.getElementById('posCliResults').querySelectorAll('.pos-result');
-    if (!items.length) return;
+    if (!items.length) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        // Si no hay resultados de búsqueda, avanza a posCliName para escribirlo manual
+        const nameInp = document.getElementById('posCliName');
+        if (nameInp) { nameInp.focus(); nameInp.select(); }
+      }
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       posCliCursor = Math.min(posCliCursor + 1, items.length - 1);
@@ -664,13 +706,129 @@ function posReset() {
   document.getElementById('posDoneModal').classList.remove('op');
 }
 
+/* ---------- Navegación Ordenada por Tabulador ---------- */
+const POS_NAV_SEQUENCE = [
+  'posSearch',
+  'posCliSearch',
+  'posCliName',
+  'posCliTel',
+  'posDisc',
+  'posMethod',
+  'posPayRef',
+  'posSubmitBtn'
+];
+
+function posNavTab(dir = 1) {
+  const curr = document.activeElement;
+  const currId = curr?.id;
+  let idx = POS_NAV_SEQUENCE.indexOf(currId);
+  if (idx === -1) {
+    idx = (dir > 0) ? -1 : 0;
+  }
+  let nextIdx = (idx + dir + POS_NAV_SEQUENCE.length) % POS_NAV_SEQUENCE.length;
+  let target = document.getElementById(POS_NAV_SEQUENCE[nextIdx]);
+  // Salta campos ocultos o deshabilitados
+  let attempts = 0;
+  while ((!target || target.disabled || target.offsetParent === null) && attempts < POS_NAV_SEQUENCE.length) {
+    nextIdx = (nextIdx + dir + POS_NAV_SEQUENCE.length) % POS_NAV_SEQUENCE.length;
+    target = document.getElementById(POS_NAV_SEQUENCE[nextIdx]);
+    attempts++;
+  }
+  if (target) {
+    target.focus();
+    if (typeof target.select === 'function') target.select();
+  }
+}
+
+function posInitTabNav() {
+  POS_NAV_SEQUENCE.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.__jjTabBound) return;
+    el.__jjTabBound = true;
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        posNavTab(e.shiftKey ? -1 : 1);
+      }
+    });
+  });
+}
+
+/* ---------- Control del Ticket con Teclado (F6 / Alt+T) ---------- */
+function posFocusTicket() {
+  const keys = Object.keys(posTicket);
+  if (!keys.length) {
+    showToast('El ticket está vacío. Agrega productos con F2', 'warn');
+    return;
+  }
+  posTicketCursor = 0;
+  posRenderTicket();
+  const firstLine = document.querySelector('#posTicket .pos-line');
+  if (firstLine) firstLine.scrollIntoView({ block: 'nearest' });
+  showToast('🧾 Modo ticket: ↑↓ navegar · +/- cantidad · A/B/C/D precio · Supr borrar · Esc salir');
+}
+
 /* ---------- Atajos de Teclado Globales del POS ---------- */
 function posInitGlobalKeys() {
   if (window.__posGlobalKeysBound) return;
   window.__posGlobalKeysBound = true;
 
+  // Interceptar Tab en los inputs clave del flujo para evitar saltar a botones irrelevantes
   window.addEventListener('keydown', e => {
-    if (document.querySelector('.pf-popup-mask')) return; // popups modal manejan sus teclas
+    if (document.querySelector('.pf-popup-mask')) return; // popups de MixNet manejan sus teclas
+
+    // Manejo de navegación en el ticket cuando posTicketCursor está activo
+    if (posTicketCursor >= 0 && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+      const keys = Object.keys(posTicket);
+      if (keys.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          posTicketCursor = Math.min(posTicketCursor + 1, keys.length - 1);
+          posRenderTicket();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          posTicketCursor = Math.max(posTicketCursor - 1, 0);
+          posRenderTicket();
+          return;
+        }
+        if (e.key === '+' || e.key === '=' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          posQty(keys[posTicketCursor], 1);
+          return;
+        }
+        if (e.key === '-' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          posQty(keys[posTicketCursor], -1);
+          return;
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          const targetKey = keys[posTicketCursor];
+          posRemoveLine(targetKey);
+          if (posTicketCursor >= Object.keys(posTicket).length) {
+            posTicketCursor = Object.keys(posTicket).length - 1;
+          }
+          posRenderTicket();
+          return;
+        }
+        const lvlKey = e.key.toUpperCase();
+        if (['A', 'B', 'C', 'D'].includes(lvlKey)) {
+          e.preventDefault();
+          posSetPriceLevel(keys[posTicketCursor], lvlKey);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'F2') {
+          e.preventDefault();
+          posTicketCursor = -1;
+          posRenderTicket();
+          const se = document.getElementById('posSearch');
+          if (se) { se.focus(); se.select(); }
+          return;
+        }
+      }
+    }
 
     // F1 o '?' (fuera de inputs): Ayuda visual de atajos
     if (e.key === 'F1' || (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName))) {
@@ -679,26 +837,66 @@ function posInitGlobalKeys() {
       return;
     }
 
-    // Escape: cerrar modal de ayuda, teléfono o volver al buscador
+    // Escape universal: cerrar cualquier modal, popup o regresar al buscador
     if (e.key === 'Escape') {
+      // 1. Modal de cotizaciones
+      const quoteModal = document.getElementById('posLoadQuoteModalOvl');
+      if (quoteModal && quoteModal.style.display !== 'none') {
+        posCloseLoadQuoteModal();
+        return;
+      }
+      // 2. Modal de atajos
       const helpModal = document.getElementById('posShortcutsHelpModal');
       if (helpModal && helpModal.style.display !== 'none') {
         helpModal.style.display = 'none';
         return;
       }
+      // 3. Modal de confirmación de venta
       const doneModal = document.getElementById('posDoneModal');
       if (doneModal && doneModal.classList.contains('op')) {
         posReset();
         return;
       }
+      // 4. Modal de teléfono
       const phoneModal = document.getElementById('posPhoneModal');
       if (phoneModal && phoneModal.classList.contains('op')) {
         closePosPhone();
         return;
       }
-      const se = document.getElementById('posSearch');
-      if (document.activeElement !== se) {
+      // 5. Cajas de autocompletado de cliente
+      const cliBox = document.getElementById('posCliNameResults');
+      if (cliBox && cliBox.style.display !== 'none') {
+        cliBox.style.display = 'none';
+        return;
+      }
+      const cliRes = document.getElementById('posCliResults');
+      if (cliRes && cliRes.children.length > 0) {
+        cliRes.innerHTML = '';
+      }
+      // 6. Si estaba editando el ticket con teclado, salir del modo ticket
+      if (posTicketCursor >= 0) {
+        posTicketCursor = -1;
+        posRenderTicket();
+        const se = document.getElementById('posSearch');
         if (se) { se.focus(); se.select(); }
+        return;
+      }
+      // 7. Si está en búsqueda con texto, limpiarlo
+      const se = document.getElementById('posSearch');
+      if (document.activeElement === se && se.value.trim()) {
+        se.value = '';
+        posSearch();
+        return;
+      }
+      // 8. Si está en otro campo, volver al buscador
+      if (document.activeElement !== se && se) {
+        se.focus();
+        se.select();
+        return;
+      }
+      // 9. Si el buscador ya está vacío y hay líneas, preguntar si desea vaciar ticket
+      if (posTicket && Object.keys(posTicket).length > 0) {
+        clearPos();
       }
       return;
     }
@@ -706,6 +904,8 @@ function posInitGlobalKeys() {
     // F2 o '/' (fuera de inputs): enfocar búsqueda de productos
     if (e.key === 'F2' || (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName))) {
       e.preventDefault();
+      posTicketCursor = -1;
+      posRenderTicket();
       const se = document.getElementById('posSearch');
       if (se) { se.focus(); se.select(); }
       return;
@@ -727,6 +927,20 @@ function posInitGlobalKeys() {
       return;
     }
 
+    // F6 o Alt+T: modo teclado sobre el ticket
+    if (e.key === 'F6' || (e.key.toLowerCase() === 't' && e.altKey)) {
+      e.preventDefault();
+      posFocusTicket();
+      return;
+    }
+
+    // F7 o Alt+L: limpiar/vaciar ticket
+    if (e.key === 'F7' || (e.key.toLowerCase() === 'l' && e.altKey)) {
+      e.preventDefault();
+      clearPos();
+      return;
+    }
+
     // F8: enfocar selector de método de pago
     if (e.key === 'F8') {
       e.preventDefault();
@@ -741,6 +955,28 @@ function posInitGlobalKeys() {
       posSubmit();
       return;
     }
+
+    // F10 o Ctrl+P: Imprimir comprobante / factura de la última venta
+    if (e.key === 'F10' || (e.key.toLowerCase() === 'p' && (e.ctrlKey || e.metaKey))) {
+      e.preventDefault();
+      if (posLastOrder && posLastOrder.order_number) {
+        window.open(`../comprobante.html?n=${encodeURIComponent(posLastOrder.order_number)}&t=ambos&print=1`, '_blank');
+        return;
+      }
+      if (Object.keys(posTicket).length > 0) {
+        showToast('ℹ️ Registra la venta con F9 o Ctrl+Enter para imprimir la factura oficial', 'info');
+      } else {
+        showToast('⚠️ Agrega productos al ticket antes de imprimir', 'warn');
+      }
+      return;
+    }
+
+    // F11 o Alt+C: Cargar cotización
+    if (e.key === 'F11' || (e.key.toLowerCase() === 'c' && e.altKey)) {
+      e.preventDefault();
+      posOpenLoadQuoteModal();
+      return;
+    }
   });
 }
 
@@ -752,42 +988,47 @@ function posShowHelpModal() {
     modal.className = 'modal-overlay op';
     modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
     modal.innerHTML = `
-      <div class="modal-box" style="max-width:540px;background:#fff;border-radius:12px;padding:22px;box-shadow:0 12px 36px rgba(0,0,0,0.2)">
+      <div class="modal-box" style="max-width:600px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
-          <h3 style="margin:0;font-size:17px;color:#1e293b;display:flex;align-items:center;gap:8px">⌨️ Atajos de Teclado del POS</h3>
+          <h3 style="margin:0;font-size:18px;color:#0f172a;display:flex;align-items:center;gap:8px">⌨️ Control Total de Teclado del POS</h3>
           <button type="button" class="btn-g sm" onclick="document.getElementById('posShortcutsHelpModal').style.display='none'">✕ Esc</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;line-height:1.5;color:#334155">
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">📦 Catálogo y Búsqueda</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Elegir producto</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;line-height:1.5;color:#334155">
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📦 Catálogo y Búsqueda</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Código exacto o elegir</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar al cliente / venta</div>
           </div>
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">🏷️ Precios y Cantidad</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">D</kbd> Nivel directo</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Enter</kbd> Confirmar cantidad</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Esc</kbd> Cancelar selección</div>
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">🧾 Edición del Ticket</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+T</kbd> Activar ticket</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑↓</kbd> Navegar · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Cantidad</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">D</kbd> Nivel precio</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Supr</kbd> Borrar fila · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Vaciar</div>
           </div>
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">👤 Cliente y Descuento</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Aplicar descuento %</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> Método de pago</div>
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">👤 Cliente y Condiciones</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente CRM</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Aplicar descuento %</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> Método de pago</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F11</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+C</kbd> Cargar cotiz.</div>
           </div>
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">🚀 Venta y Acciones</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Cobrar</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Limpiar / Vaciar</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Esta ayuda</div>
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">🚀 Cierre e Impresión</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Registrar</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F10</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+P</kbd> Imprimir</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Cerrar ventana / Parar</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Ver esta ayuda</div>
           </div>
         </div>
-        <div style="text-align:right;margin-top:14px">
-          <button type="button" class="btn-p sm" onclick="document.getElementById('posShortcutsHelpModal').style.display='none'">¡Entendido!</button>
+        <div style="text-align:right;margin-top:16px">
+          <button type="button" class="btn-p sm" onclick="document.getElementById('posShortcutsHelpModal').style.display='none'">¡Entendido! (Esc)</button>
         </div>
       </div>
     `;
+    modal.onclick = () => { modal.style.display = 'none'; };
     document.body.appendChild(modal);
   }
   modal.style.display = 'flex';

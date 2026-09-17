@@ -514,65 +514,77 @@ async function posSubmit() {
 
   posSubmitting = true;
   const btn = document.getElementById('posSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Registrando...';
+  if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
 
-  const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
-  const d        = posDiscount();
-  const rate     = getRate();
-  // Descuento solicitado → se cobra a precio lleno hasta que el admin lo apruebe.
-  const total    = +subtotal.toFixed(2);
-  const payRef   = document.getElementById('posPayRef').value.trim() || null;
+  try {
+    const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
+    const d        = posDiscount();
+    const rate     = getRate();
+    // Descuento solicitado → se cobra a precio lleno hasta que el admin lo apruebe.
+    const total    = +subtotal.toFixed(2);
+    const payRef   = document.getElementById('posPayRef')?.value.trim() || null;
 
-  const sellerId = (typeof SELLER !== 'undefined' && SELLER?.id) ? SELLER.id : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE?.id : null);
+    // Resolución segura del vendedor activo
+    const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
+      ? SELLER
+      : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
+          ? CURRENT_PROFILE
+          : ((typeof window !== 'undefined' && window.SELLER) ? window.SELLER : null));
+    const sellerId = activeSeller?.id || null;
+    const isAdmin = (activeSeller?.role === 'admin');
+    const dStatus = (d > 0) ? (isAdmin ? 'approved' : 'pending') : 'none';
 
-  const order = {
-    order_number: genOrderNumber(),
-    client_name: name,
-    phone: tel,
-    rif:  document.getElementById('posCliRif').value.trim()  || null,
-    city: document.getElementById('posCliCity').value.trim() || null,
-    items: lines.map(l => ({
-      id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
-      qty: l.qty, unit: l.unit, price_usd: l.price_usd,
-      price_level: l.price_level || 'B',
-      price_bs: posLineBs(l) || null,
-      subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
-    })),
-    subtotal_usd: +subtotal.toFixed(2),
-    discount_pct: d,
-    discount_status: d > 0 ? ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.role === 'admin') || (typeof SELLER !== 'undefined' && SELLER?.role === 'admin') ? 'approved' : 'pending') : 'none',
-    discount_requested_by: d > 0 ? sellerId : null,
-    total_usd: total,
-    exchange_rate: rate,
-    total_bs: +(total * rate).toFixed(2),
-    payment_method: document.getElementById('posMethod').value,
-    payment_ref: payRef,
-    notes: document.getElementById('posNotes').value.trim() || null,
-    seller_id: sellerId,
-    source: 'pos',
-    status: payRef ? 'verificando' : 'pendiente_pago',
-    quote_id: posLinkedQuoteId || null,
-    customer_id: posCustomer?.id || null,
-  };
+    const order = {
+      order_number: genOrderNumber(),
+      client_name: name,
+      phone: tel,
+      rif:  document.getElementById('posCliRif')?.value.trim()  || null,
+      city: document.getElementById('posCliCity')?.value.trim() || null,
+      items: lines.map(l => ({
+        id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
+        qty: l.qty, unit: l.unit, price_usd: l.price_usd,
+        price_level: l.price_level || 'B',
+        price_bs: posLineBs(l) || null,
+        subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
+      })),
+      subtotal_usd: +subtotal.toFixed(2),
+      discount_pct: d,
+      discount_status: dStatus,
+      discount_requested_by: d > 0 ? sellerId : null,
+      total_usd: total,
+      exchange_rate: rate,
+      total_bs: +(total * rate).toFixed(2),
+      payment_method: document.getElementById('posMethod')?.value || 'efectivo',
+      payment_ref: payRef,
+      notes: document.getElementById('posNotes')?.value.trim() || null,
+      seller_id: sellerId,
+      source: 'pos',
+      status: payRef ? 'verificando' : 'pendiente_pago',
+      quote_id: posLinkedQuoteId || null,
+      customer_id: posCustomer?.id || null,
+    };
 
-  const { error } = await sb.from('jjp_orders').insert(order);
-  if (error) {
-    console.error('pos insert:', error);
-    showToast('No se pudo registrar la venta', 'err');
+    const { error } = await sb.from('jjp_orders').insert(order);
+    if (error) {
+      console.error('pos insert error:', error);
+      showToast('No se pudo registrar la venta: ' + (error.message || 'Error en base de datos'), 'err');
+      return;
+    }
+
+    // Si la venta provino de una cotización, marcar la cotización como convertida
+    if (posLinkedQuoteId) {
+      sb.from('jjp_quotes').update({ status: 'convertido' }).eq('id', posLinkedQuoteId).then(() => {}).catch(() => {});
+      posLinkedQuoteId = null;
+    }
+
+    posShowDone(order);
+  } catch (err) {
+    console.error('Error al procesar la venta:', err);
+    showToast('Error inesperado al registrar la venta', 'err');
+  } finally {
     posSubmitting = false;
-    btn.disabled = false; btn.textContent = '✅ Registrar venta';
-    return;
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Registrar venta'; }
   }
-
-  // Si la venta provino de una cotización, marcar la cotización como convertida
-  if (posLinkedQuoteId) {
-    sb.from('jjp_quotes').update({ status: 'convertido' }).eq('id', posLinkedQuoteId).then(() => {}).catch(() => {});
-    posLinkedQuoteId = null;
-  }
-
-  posShowDone(order);
-  posSubmitting = false;
-  btn.disabled = false; btn.textContent = '✅ Registrar venta';
 }
 
 /* Contexto para el hub de envío: la venta recién registrada.
@@ -589,16 +601,31 @@ function posDoneCtx() {
 
 function posShowDone(o) {
   posLastOrder = o;
+
+  const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
+    ? SELLER
+    : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
+        ? CURRENT_PROFILE
+        : ((typeof window !== 'undefined' && window.SELLER) ? window.SELLER : null));
+  const sellerName = activeSeller?.name || 'JJ Paper';
+
   // El mensaje al cliente muestra el precio lleno (el descuento se confirma tras la aprobación del admin)
   const waMsg = `🛒 *PEDIDO ${o.order_number}* — JJ Paper\n\nHola ${o.client_name}, aquí está el resumen de tu compra:\n`
-    + o.items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
+    + (o.items || []).map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
     + `\n💰 *Total: ${fmtPrice(o.total_usd)}* (${fmtBsNum(o.total_bs)})`
     + `\n\n🔎 Rastrea tu pedido: ${location.origin}/rastreo.html?n=${encodeURIComponent(o.order_number)}`
-    + `\n\nAtendido por: ${SELLER.name} — JJ Paper 📄`;
+    + `\n\nAtendido por: ${sellerName} — JJ Paper 📄`;
 
   const discNote = o.discount_pct > 0
     ? `<div class="co-done-row" style="color:var(--gm)"><span>Descuento ${o.discount_pct}%</span><strong>⏳ pendiente de aprobación del admin</strong></div>`
     : '';
+
+  let sendHubHtml = '';
+  try {
+    if (typeof sendBotonHTML === 'function') sendHubHtml = sendBotonHTML('posDoneCtx()');
+  } catch (e) {
+    console.warn('sendBotonHTML error:', e);
+  }
 
   document.getElementById('posDoneBody').innerHTML = `
     <p style="text-align:center;font-size:15px">Pedido <strong>${escapeHTML(o.order_number)}</strong> registrado a nombre de <strong>${escapeHTML(o.client_name)}</strong>.</p>
@@ -616,7 +643,7 @@ function posShowDone(o) {
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">🧾 Solo factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Solo recibo</a>
-      ${sendBotonHTML('posDoneCtx()')}
+      ${sendHubHtml}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
       <button class="btn-p" onclick="posReset()">🛍️ Nueva venta</button>

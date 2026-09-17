@@ -30,6 +30,15 @@ import { fileURLToPath } from 'node:url';
 import { dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { discoverMixnetEnvironment } from '../auto-detect-mixnet.js';
+import {
+  readDbfStruct as dbfReadStruct,
+  readDbfRows as dbfReadRows,
+  buildDbfRecord as dbfBuildRecord,
+  appendDbfRecords as dbfAppend,
+  getNextSerial as dbfNextSerial,
+  findCliente as dbfFindCliente,
+  upsertCliente as dbfUpsertCliente
+} from './mixnet-dbf-writer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.join(__dirname, '..');
@@ -48,10 +57,11 @@ let importedHistory = new Set();
 const SELLERS_BY_CODVEN = new Map([
   ['95d5ad44-e844-4f4f-a9d0-2db7d162c8c6', ['004', '006']], // Yovanni Araujo
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],        // Marianela (marianela08)
-  ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']]         // Andreina (andreina)
+  ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],        // Andreina (andreina)
+  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['010', '020']]  // Keyder Salazar (admin, Zonas 010/020)
 ]);
 const CODVEN_HINT = new Map([
-  ['004', 'Yovanni'], ['006', 'Yovanni'], ['008', 'Marianela'], ['014', 'Andreina']
+  ['004', 'Yovanni'], ['006', 'Yovanni'], ['008', 'Marianela'], ['010', 'Keyder'], ['014', 'Andreina'], ['020', 'Keyder']
 ]);
 function sellerForCodven(codven) {
   const cv = String(codven || '').trim();
@@ -59,6 +69,13 @@ function sellerForCodven(codven) {
     if (codes.includes(cv)) return { seller_id: sid, hint: CODVEN_HINT.get(cv) || cv };
   }
   return { seller_id: null, hint: cv || 'Caja MixNet' };
+}
+function codvenForSeller(sellerId) {
+  if (!sellerId) return '010';
+  for (const [sid, codes] of SELLERS_BY_CODVEN.entries()) {
+    if (sid === sellerId) return codes[0];
+  }
+  return '010';
 }
 
 let activePrimaryDir = null;
@@ -166,7 +183,7 @@ function writeToAllDropDirs(filename, content) {
 /* ═══════════════ EXPORTACIÓN: JJ PAPER ➔ MIXNET ═══════════════ */
 
 // 1. Exportar Pedido (jjp_orders)
-export function exportOrder(o) {
+export async function exportOrder(o) {
   if (!o || !o.order_number) return false;
   if (exportedOrders.has(o.order_number)) return false;
 
@@ -248,6 +265,18 @@ export function exportOrder(o) {
   const okCsv = writeToAllDropDirs(`pedido_${o.order_number}.csv`, csvContent);
   const okTxt = writeToAllDropDirs(`pedido_${o.order_number}.txt`, txtContent);
 
+  // Escritura nativa en DBF MixNet (serial correlativo) — el canal primario
+  if (activeDbfDir && !o.order_number.startsWith('MIX-')) {
+    try {
+      const dbfRes = await exportOrderToDbf(o);
+      if (!dbfRes.ok && dbfRes.reason && dbfRes.reason !== 'no-dbf-dir') {
+        log.warn({ err: dbfRes.reason }, 'Puente Mixer: Fallo escritura DBF de pedido, se conserva CSV/TXT');
+      }
+    } catch (err) {
+      log.warn({ err: err.message }, 'Puente Mixer: Excepción escritura DBF de pedido');
+    }
+  }
+
   if (okCsv || okTxt) {
     exportedOrders.add(o.order_number);
     saveHistories();
@@ -258,7 +287,7 @@ export function exportOrder(o) {
 }
 
 // 2. Exportar Cotización (jjp_quotes)
-export function exportQuote(q) {
+export async function exportQuote(q) {
   if (!q || !q.quote_number) return false;
   if (exportedQuotes.has(q.quote_number)) return false;
 
@@ -340,6 +369,18 @@ export function exportQuote(q) {
   const okCsv = writeToAllDropDirs(`cotizacion_${q.quote_number}.csv`, csvContent);
   const okTxt = writeToAllDropDirs(`cotizacion_${q.quote_number}.txt`, txtContent);
 
+  // Escritura nativa en DBF MixNet (serial correlativo) — el canal primario
+  if (activeDbfDir && !q.quote_number.startsWith('MIX-')) {
+    try {
+      const dbfRes = await exportQuoteToDbf(q);
+      if (!dbfRes.ok && dbfRes.reason && dbfRes.reason !== 'no-dbf-dir') {
+        log.warn({ err: dbfRes.reason }, 'Puente Mixer: Fallo escritura DBF de cotización, se conserva CSV/TXT');
+      }
+    } catch (err) {
+      log.warn({ err: err.message }, 'Puente Mixer: Excepción escritura DBF de cotización');
+    }
+  }
+
   if (okCsv || okTxt) {
     exportedQuotes.add(q.quote_number);
     saveHistories();
@@ -347,6 +388,260 @@ export function exportQuote(q) {
     return true;
   }
   return false;
+}
+
+/* ═══════════════ EXPORTACIÓN NATIVA A DBF MIXNET (serial correlativo) ═══════════════ */
+
+// Construye el objeto de cliente para MXCTACLI a partir de una cotización/pedido JJ.
+function clienteForDoc(doc) {
+  const name = String(doc.client_name || '').trim();
+  const cif = String(doc.rif || '').trim();
+  const phone = String(doc.phone || '').trim();
+  const email = String(doc.email || '').trim();
+  const direccion = [doc.address, doc.city].filter(v => v && String(v).trim()).join(', ');
+  return { name, cif, phone, email, direccion, vendedor: codvenForSeller(doc.seller_id) };
+}
+
+// Fecha YYYYMMDD para campos D del DBF.
+function dbfYmd(date) {
+  const d = date ? new Date(date) : new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+}
+
+// Regresa el número de documento nuevo (NUMCOT/NUMPED) registrándolo en historiales
+// para que el importador DBF no lo reimporte como documento MIX-* (guard anti round-trip).
+function registerDbfExport(isQuote, serial) {
+  const dbfKey = isQuote ? `dbf:cot:${serial}` : `dbf:ped:${serial}`;
+  const finalNum = isQuote ? `MIX-COT-${serial}` : `MIX-${serial}`;
+  importedHistory.add(dbfKey);
+  if (isQuote) exportedQuotes.add(finalNum);
+  else exportedOrders.add(finalNum);
+  saveHistories();
+  return dbfKey;
+}
+
+// Crea un registro de cabecera de cotización para MXENCCOT.
+function buildQuoteHeaderRecord(encStruct, q, numcot, codcli) {
+  const today = dbfYmd(q.created_at || new Date());
+  const totalUSD = parseFloat(q.estimated_total_usd || 0).toFixed(2);
+  const rate = parseFloat(q.exchange_rate || 0).toFixed(2);
+  const sellerCodven = codvenForSeller(q.seller_id);
+  return dbfBuildRecord(encStruct, {
+    numcot: String(numcot).padStart(8, '0').slice(-8),
+    emision: today,
+    cliente: codcli,
+    codsuc: '',
+    codven: sellerCodven,
+    comen1: String(q.nombre_documento || q.notes || '').substring(0, 35),
+    comen2: '',
+    transp: '',
+    estatus: 'PE',
+    entrega: today,
+    tot_cot: totalUSD,
+    numrma: '',
+    cambio: rate,
+    moneda: 'US$',
+    nomcli: String(q.client_name || '').trim().substring(0, 60),
+    cif: String(q.rif || '').trim().substring(0, 15),
+    nit: String(q.rif || '').trim().substring(0, 15),
+    direc1: String(q.address || '').trim().substring(0, 25),
+    direc2: String(q.city || '').trim().substring(0, 25),
+    direc3: '',
+    direc4: '',
+    tlf1: String(q.phone || '').trim().substring(0, 15),
+    tlf2: '',
+    fax: '',
+    email: String(q.email || '').trim().substring(0, 50)
+  });
+}
+
+// Crea un renglón de detalle de cotización para MXRENCOT.
+function buildQuoteDetailRecord(detStruct, q, numcot, codcli, i) {
+  const today = dbfYmd(q.created_at || new Date());
+  const sellerCodven = codvenForSeller(q.seller_id);
+  const price = parseFloat(i.price_usd || 0).toFixed(2);
+  const qty = parseFloat(i.qty || 1);
+  const subtotal = parseFloat(((i.subtotal_usd ?? ((i.price_usd || 0) * (i.qty || 1))))).toFixed(2);
+  return dbfBuildRecord(detStruct, {
+    item: String(i.sku || i.name || '').substring(0, 15),
+    unidad: String(i.unit || 'UND').substring(0, 3).toUpperCase(),
+    bulto: '0',
+    cantidad: qty.toFixed(3),
+    descrip: String(i.name || '').trim().substring(0, 50),
+    numcot: String(numcot).padStart(8, '0').slice(-8),
+    emision: today,
+    estatus: 'PE',
+    despacho: '0',
+    desbulto: '0',
+    precio: price,
+    desc: '0.00',
+    tot_ren: subtotal,
+    iva: 'A',
+    cliente: codcli,
+    codven: sellerCodven,
+    codsuc: '',
+    codcon: '',
+    coddpto: '',
+    oferta: 'F',
+    num_cex: '',
+    numrma: ''
+  });
+}
+
+// Crea un registro de cabecera de pedido para MXENCPED.
+function buildOrderHeaderRecord(encStruct, o, numped, codcli) {
+  const today = dbfYmd(o.created_at || new Date());
+  const totalUSD = parseFloat(o.total_usd || 0).toFixed(2);
+  const rate = parseFloat(o.exchange_rate || 0).toFixed(2);
+  const sellerCodven = codvenForSeller(o.seller_id);
+  return dbfBuildRecord(encStruct, {
+    numped: String(numped).padStart(8, '0').slice(-8),
+    emision: today,
+    cliente: codcli,
+    codsuc: '',
+    codven: sellerCodven,
+    comen1: String(o.notes || '').substring(0, 35),
+    comen2: '',
+    transp: '',
+    estatus: 'PE',
+    entrega: today,
+    tot_ped: totalUSD,
+    autorizado: '',
+    id_autoriz: '',
+    cambio: rate,
+    moneda: 'US$'
+  });
+}
+
+// Crea un renglón de detalle de pedido para MXRENPED.
+function buildOrderDetailRecord(detStruct, o, numped, codcli, i) {
+  const today = dbfYmd(o.created_at || new Date());
+  const sellerCodven = codvenForSeller(o.seller_id);
+  const price = parseFloat(i.price_usd || 0).toFixed(2);
+  const qty = parseFloat(i.qty || 1);
+  const subtotal = parseFloat(((i.subtotal_usd ?? ((i.price_usd || 0) * (i.qty || 1))))).toFixed(2);
+  return dbfBuildRecord(detStruct, {
+    item: String(i.sku || i.name || '').substring(0, 15),
+    unidad: String(i.unit || 'UND').substring(0, 3).toUpperCase(),
+    bulto: '0',
+    cantidad: qty.toFixed(3),
+    descrip: String(i.name || '').trim().substring(0, 50),
+    numped: String(numped).padStart(8, '0').slice(-8),
+    emision: today,
+    estatus: 'PE',
+    despacho: '0',
+    desbulto: '0',
+    precio: price,
+    desc: '0.00',
+    tot_ren: subtotal,
+    iva: 'A',
+    cliente: codcli,
+    codven: sellerCodven,
+    codsuc: '',
+    numcot: '',
+    numodr: '',
+    codcon: '',
+    coddpto: '',
+    oferta: 'F'
+  });
+}
+
+// Ruta a un DBF dentro de activeDbfDir (o null si no hay directorio).
+function dbfPath(name, dbfDir) {
+  const dir = dbfDir || activeDbfDir;
+  if (!dir) return null;
+  return path.join(dir, name);
+}
+
+// Exporta una cotización JJ (jjp_quotes) al DBF nativo de MixNet: MXENCCOT + MXRENCOT.
+export async function exportQuoteToDbf(q, dbfDir) {
+  try {
+    const dir = dbfDir || activeDbfDir;
+    if (!dir) return { ok: false, reason: 'no-dbf-dir' };
+    const encPath = dbfPath('MXENCCOT.DBF', dir);
+    const detPath = dbfPath('MXRENCOT.DBF', dir);
+    const cliPath = dbfPath('MXCTACLI.DBF', dir);
+    if (!encPath || !detPath || !cliPath || !fs.existsSync(encPath) || !fs.existsSync(detPath) || !fs.existsSync(cliPath)) {
+      return { ok: false, reason: 'no-cot-dbf' };
+    }
+    const items = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
+    if (items.length === 0) return { ok: false, reason: 'no-items' };
+
+    // 1. Siguiente serial correlativo (NUMCOT)
+    const serial = dbfNextSerial(encPath, 'numcot');
+    if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+    const numcot = serial.nextFormatted;
+
+    // 2. Resolver/crear cliente en MXCTACLI
+    const cli = clienteForDoc(q);
+    const cliRes = await dbfUpsertCliente(cliPath, cli, dir);
+    if (!cliRes.ok) return { ok: false, reason: cliRes.error || 'no-cli' };
+    const codcli = cliRes.codcli;
+
+    // 3. Cabecera + renglones
+    const encStruct = dbfReadStruct(encPath);
+    const detStruct = dbfReadStruct(detPath);
+    const header = buildQuoteHeaderRecord(encStruct, q, numcot, codcli);
+    const details = items.map(i => buildQuoteDetailRecord(detStruct, q, numcot, codcli, i));
+
+    // 4. Append atómico con backup
+    const encRes = await dbfAppend(encPath, [header], { backupPrefix: 'backups/backup_MXENCCOT' });
+    if (!encRes.ok) return { ok: false, reason: `cabecera: ${encRes.error}` };
+    const detRes = await dbfAppend(detPath, details, { backupPrefix: 'backups/backup_MXRENCOT' });
+    if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
+
+    registerDbfExport(true, numcot);
+    log.info(`Puente Mixer (DBF): Cotización ${q.quote_number} → NUMCOT ${numcot} / cliente ${codcli} en ${dir}.`);
+    return { ok: true, serial: numcot, codcli, createdCli: !!cliRes.created };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
+// Exporta un pedido JJ (jjp_orders) al DBF nativo de MixNet: MXENCPED + MXRENPED.
+export async function exportOrderToDbf(o, dbfDir) {
+  try {
+    const dir = dbfDir || activeDbfDir;
+    if (!dir) return { ok: false, reason: 'no-dbf-dir' };
+    const encPath = dbfPath('MXENCPED.DBF', dir);
+    const detPath = dbfPath('MXRENPED.DBF', dir);
+    const cliPath = dbfPath('MXCTACLI.DBF', dir);
+    if (!encPath || !detPath || !cliPath || !fs.existsSync(encPath) || !fs.existsSync(detPath) || !fs.existsSync(cliPath)) {
+      return { ok: false, reason: 'no-ped-dbf' };
+    }
+    const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
+    if (items.length === 0) return { ok: false, reason: 'no-items' };
+
+    // 1. Siguiente serial correlativo (NUMPED)
+    const serial = dbfNextSerial(encPath, 'numped');
+    if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+    const numped = serial.nextFormatted;
+
+    // 2. Resolver/crear cliente en MXCTACLI
+    const cli = clienteForDoc(o);
+    const cliRes = await dbfUpsertCliente(cliPath, cli, dir);
+    if (!cliRes.ok) return { ok: false, reason: cliRes.error || 'no-cli' };
+    const codcli = cliRes.codcli;
+
+    // 3. Cabecera + renglones
+    const encStruct = dbfReadStruct(encPath);
+    const detStruct = dbfReadStruct(detPath);
+    const header = buildOrderHeaderRecord(encStruct, o, numped, codcli);
+    const details = items.map(i => buildOrderDetailRecord(detStruct, o, numped, codcli, i));
+
+    // 4. Append atómico con backup
+    const encRes = await dbfAppend(encPath, [header], { backupPrefix: 'backups/backup_MXENCPED' });
+    if (!encRes.ok) return { ok: false, reason: `cabecera: ${encRes.error}` };
+    const detRes = await dbfAppend(detPath, details, { backupPrefix: 'backups/backup_MXRENPED' });
+    if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
+
+    registerDbfExport(false, numped);
+    log.info(`Puente Mixer (DBF): Pedido ${o.order_number} → NUMPED ${numped} / cliente ${codcli} en ${dir}.`);
+    return { ok: true, serial: numped, codcli, createdCli: !!cliRes.created };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
 }
 
 // Barrido periódico saliente (JJ Paper ➔ MixNet)
@@ -367,7 +662,7 @@ async function sweepRecentOutgoing() {
         // Los MIX-* son documentos importados DESDE MixNet (DBF/CSV): no deben re-exportarse
         if (o.order_number && o.order_number.startsWith('MIX-')) continue;
         if (!exportedOrders.has(o.order_number)) {
-          if (exportOrder(o)) count++;
+          if (await exportOrder(o)) count++;
         }
       }
       if (count > 0) {
@@ -387,7 +682,7 @@ async function sweepRecentOutgoing() {
         // Los MIX-* son documentos importados DESDE MixNet (DBF/CSV): no deben re-exportarse
         if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
         if (!exportedQuotes.has(q.quote_number)) {
-          if (exportQuote(q)) count++;
+          if (await exportQuote(q)) count++;
         }
       }
       if (count > 0) {
@@ -648,7 +943,7 @@ async function sweepIncomingFiles() {
                 client_name: clientName,
                 rif: rif || null,
                 phone: phone || null,
-                items: JSON.stringify(items),
+                items,
                 estimated_total_usd: totalUsd,
                 exchange_rate: rate,
                 notes: `[MixNet Caja] Cotización importada automáticamente desde archivo ${f}`,
@@ -675,7 +970,7 @@ async function sweepIncomingFiles() {
                 client_name: clientName,
                 rif: rif || null,
                 phone: phone || null,
-                items: JSON.stringify(items),
+                items,
                 subtotal_usd: totalUsd,
                 total_usd: totalUsd,
                 exchange_rate: rate,
@@ -835,7 +1130,7 @@ async function sweepMixnetDbf() {
             client_name: clientName,
             rif: rif || null,
             phone: phone || null,
-            items: JSON.stringify(items),
+            items,
             estimated_total_usd: totalVal,
             exchange_rate: rate,
             notes: `[MixNet Caja] Cotización importada automáticamente desde ${encFile} (#${numDoc})${vendorNote}`,
@@ -855,7 +1150,7 @@ async function sweepMixnetDbf() {
             client_name: clientName,
             rif: rif || null,
             phone: phone || null,
-            items: JSON.stringify(items),
+            items,
             subtotal_usd: totalVal,
             total_usd: totalVal,
             exchange_rate: rate,
@@ -1182,16 +1477,16 @@ function setupRealtimeListeners() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_orders' },
       p => {
         log.info(`Puente Mixer: Recibida inserción de pedido ${p.new.order_number} por Realtime.`);
-        exportOrder(p.new);
+        exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido'));
       }
     )
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_orders' },
-      p => {
-        if (!exportedOrders.has(p.new.order_number)) {
-          log.info(`Puente Mixer: Recibida actualización de pedido no exportado ${p.new.order_number}. Exportando...`);
-          exportOrder(p.new);
+p => {
+          if (!exportedOrders.has(p.new.order_number)) {
+            log.info(`Puente Mixer: Recibida actualización de pedido no exportado ${p.new.order_number}. Exportando...`);
+            exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido (update)'));
+          }
         }
-      }
     )
     .subscribe(status => {
       log.info(`Puente Mixer: Canal Realtime de pedidos: ${status}`);
@@ -1202,7 +1497,7 @@ function setupRealtimeListeners() {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_quotes' },
       p => {
         log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
-        exportQuote(p.new);
+        exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
       }
     )
     .subscribe(status => {

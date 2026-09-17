@@ -27,7 +27,8 @@ const COMM_TABLES = new Set([
 ]);
 
 const COMM_RPCS = new Set([
-  'jjp_wa_ensure_chat', 'jjp_wa_delete_chat', 'jjp_wa_purge_chats'
+  'jjp_wa_ensure_chat', 'jjp_wa_delete_chat', 'jjp_wa_purge_chats',
+  'jjp_delete_campaign', 'jjp_delete_email_campaign'
 ]);
 
 // Proxy transparente en `sb`: Enruta automáticamente a Proyecto B o C según la tabla/RPC

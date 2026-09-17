@@ -631,4 +631,15 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 
 ### 4. Directrices de Agentes Compartidos y Mapa del Sistema
 - **`REGLAS_AGENTE.md`**: Reglas estrictas de operación, prohibiciones, convenciones de red (Laptop vs PC de Oficina con MixNet/Unidad M:), y metodología para agentes en ambos entornos.
-- **`MAPA_SISTEMA.md`**: Referencia integral de las 54 interfaces HTML, 69 módulos JS cliente, 25 módulos de `wa-server`, flujo de precios y esquema relacional de bases de datos.
+- **`MAPA_SISTEMA.md`**: Referencia integral de las 54 interfaces HTML, 69 módulos JS cliente, 25 módulos de `wa-server`, flujo de precios y esquema relacional de bases de datos.
+
+## Importador DBF MixNet → JJ Paper Verificado en Producción (17-09-2026)
+- **Doc completa**: `cerebro/Sistema/wa-server.md` → sección "Puente bidireccional MixNet (`mixer.js`)".
+- **Flujo por DBF (sin HTTP, API MixNet caída)**: lee `M:\comp01\MXENCPED.DBF` + `MXRENPED.DBF` (pedidos → `jjp_orders` como `MIX-<numped>`) y `MXENCCOT.DBF` + `MXRENCOT.DBF` (cotizaciones → `jjp_quotes` como `MIX-COT-<numcot>`), resolviendo cliente vía `MXCTACLI.DBF`.
+- **Estado verificado**: 251 pedidos `MIX-*` y 221 cotizaciones `MIX-COT-*` importados, dedup estable (historial en `wa-server/imported-mixnet.json`, `exported-orders.json`, `exported-quotes.json`).
+- **Ventana de recencia**: `MIXER_DBF_RECENT_DAYS` (default **7 días** desde 17-09; antes 30) — solo actividad reciente para no inundar con históricos.
+- **Vendedor detallado (`codven`)**: `004`/`006`→Yovanni, `008`→Marianela, `014`→Andreina (IDs en `SELLERS_BY_CODVEN` de `mixer.js`). Se asigna `seller_id` y se anota `Vendedor MixNet #<codven>` en `notes`/log.
+- **Guard anti round-trip**: `sweepRecentOutgoing` NO re-exporta números `MIX-*`/`MIX-COT-*` (ya vienen de MixNet) — evita que Caja reprocese duplicados.
+- **Cotizaciones JJ → MixNet verificadas**: `cotizacion_COT-*.csv/.txt` se exportan a los drop dirs; visibles desde MixNet y transformables a pedido desde Caja.
+- Corrección 16-09: `PED.DBF` no existe; los reales son `MXENCPED`/`MXRENPED`/`MXENCCOT`/`MXRENCOT`/`MXCTACLI`. Entrega 19:35Z 15-09 tuvo una orden fantasma `MIX-listapreciosrea` (cancelado, inofensiva).
+- Regla de mantenimiento: al tocar `mixer.js` reiniciar el proceso (supervisor `run-service.bat` relanza solo).

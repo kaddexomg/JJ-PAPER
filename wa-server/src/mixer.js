@@ -43,6 +43,24 @@ let exportedOrders = new Set();
 let exportedQuotes = new Set();
 let importedHistory = new Set();
 
+// Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
+// Referencia AGENTS.md: Yovanni (004/006), Marianela (008), Andreina (014)
+const SELLERS_BY_CODVEN = new Map([
+  ['95d5ad44-e844-4f4f-a9d0-2db7d162c8c6', ['004', '006']], // Yovanni Araujo
+  ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],        // Marianela (marianela08)
+  ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']]         // Andreina (andreina)
+]);
+const CODVEN_HINT = new Map([
+  ['004', 'Yovanni'], ['006', 'Yovanni'], ['008', 'Marianela'], ['014', 'Andreina']
+]);
+function sellerForCodven(codven) {
+  const cv = String(codven || '').trim();
+  for (const [sid, codes] of SELLERS_BY_CODVEN.entries()) {
+    if (codes.includes(cv)) return { seller_id: sid, hint: CODVEN_HINT.get(cv) || cv };
+  }
+  return { seller_id: null, hint: cv || 'Caja MixNet' };
+}
+
 let activePrimaryDir = null;
 let activeDropDirs = [];
 let activeDbfDir = null;
@@ -346,6 +364,8 @@ async function sweepRecentOutgoing() {
     if (!oErr && orders) {
       let count = 0;
       for (const o of orders) {
+        // Los MIX-* son documentos importados DESDE MixNet (DBF/CSV): no deben re-exportarse
+        if (o.order_number && o.order_number.startsWith('MIX-')) continue;
         if (!exportedOrders.has(o.order_number)) {
           if (exportOrder(o)) count++;
         }
@@ -364,6 +384,8 @@ async function sweepRecentOutgoing() {
     if (!qErr && quotes) {
       let count = 0;
       for (const q of quotes) {
+        // Los MIX-* son documentos importados DESDE MixNet (DBF/CSV): no deben re-exportarse
+        if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
         if (!exportedQuotes.has(q.quote_number)) {
           if (exportQuote(q)) count++;
         }
@@ -685,71 +707,151 @@ async function sweepIncomingFiles() {
   }
 }
 
-// 2. Barrido de tablas DBF activas de MixNet (PED.DBF / PRESUP.DBF)
+// 2. Barrido de tablas DBF activas de MixNet (MXENCPED/MXRENPED = pedidos, MXENCCOT/MXRENCOT = cotizaciones)
 async function sweepMixnetDbf() {
   if (!activeDbfDir || !fs.existsSync(activeDbfDir)) return;
 
-  try {
-    const pedPath = path.join(activeDbfDir, 'PED.DBF');
-    const renPedPath = path.join(activeDbfDir, 'MXRENPED.DBF');
+  // Ventana de importación: solo pedidos/cotizaciones recientes (evita inundar con históricos)
+  const recentDays = parseInt(process.env.MIXER_DBF_RECENT_DAYS || '7', 10) || 7;
+  const cutoffMs = Date.now() - (recentDays * 86400000);
 
-    if (fs.existsSync(pedPath)) {
-      const pedStruct = readDbfStructure(pedPath);
-      if (pedStruct && pedStruct.numRecords > 0) {
-        // Leer últimos 200 registros de PED.DBF
-        const pedRows = readDbfRows(pedStruct, 200);
-        let renRows = [];
-        if (fs.existsSync(renPedPath)) {
-          const renStruct = readDbfStructure(renPedPath);
-          if (renStruct) renRows = readDbfRows(renStruct, 2000);
+  try {
+    // Mapa de clientes MixNet (código -> ficha) para resolver cliente/cif/teléfono
+    const cliMap = new Map();
+    const cliPath = path.join(activeDbfDir, 'MXCTACLI.DBF');
+    if (fs.existsSync(cliPath)) {
+      const cliStruct = readDbfStructure(cliPath);
+      if (cliStruct && cliStruct.numRecords > 0) {
+        for (const c of readDbfRows(cliStruct, 20000)) {
+          const code = String(c.codcli || '').trim();
+          if (code) cliMap.set(code, c);
+        }
+      }
+    }
+
+    const rate = await getActiveExchangeRate();
+
+    const importHeader = async ({ encFile, detFile, kind }) => {
+      const encPath = path.join(activeDbfDir, encFile);
+      const detPath = path.join(activeDbfDir, detFile);
+      if (!fs.existsSync(encPath)) return;
+      const encStruct = readDbfStructure(encPath);
+      if (!encStruct || encStruct.numRecords <= 0) return;
+
+      const encRows = readDbfRows(encStruct, 25000);
+      const isQuote = kind === 'quote';
+
+      // Mapear campos reales de MixNet (usados en ambos encabezados/detalles)
+      const candidates = [];
+      for (const pr of encRows.slice().reverse()) { // Comenzar por los más recientes
+        const emisionStr = String(pr.emision || '').trim();
+        let numDoc = '';
+        let totalVal = 0;
+        if (isQuote) {
+          numDoc = String(pr.numcot || pr.numped || pr.numero || '').trim();
+          totalVal = parseFloat(String(pr.tot_cot || pr.tot_ped || pr.total || '0').replace(/,/g, '.')) || 0;
+        } else {
+          numDoc = String(pr.numped || pr.numero || pr.pedido || '').trim();
+          totalVal = parseFloat(String(pr.tot_ped || pr.total || '0').replace(/,/g, '.')) || 0;
+        }
+        if (!numDoc) continue;
+
+        // Filtro de recencia por fecha de emisión (formato YYYYMMDD)
+        if (emisionStr && /^\d{8}$/.test(emisionStr)) {
+          const d = new Date(+emisionStr.slice(0, 4), +emisionStr.slice(4, 6) - 1, +emisionStr.slice(6, 8));
+          if (d.getTime() < cutoffMs) continue;
         }
 
-        const rate = await getActiveExchangeRate();
+        const dbfKey = `dbf:${isQuote ? 'cot' : 'ped'}:${numDoc}`;
+        const finalNum = isQuote ? `MIX-COT-${numDoc}` : `MIX-${numDoc}`;
 
-        for (const pr of pedRows.reverse()) { // Comenzar por los más recientes
-          const numPed = String(pr.numped || pr.num_ped || pr.numero || pr.pedido || '').trim();
-          if (!numPed) continue;
+        if (importedHistory.has(dbfKey) || (isQuote ? exportedQuotes : exportedOrders).has(finalNum)) continue;
 
-          const dbfOrderKey = `dbf:ped:${numPed}`;
-          const finalOrderNum = `MIX-${numPed}`;
+        // Ya existe en Supabase?
+        const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
+        const numField = isQuote ? 'quote_number' : 'order_number';
+        const { data: existing } = await dbCore.from(table).select('id').eq(numField, finalNum).maybeSingle();
+        if (existing) {
+          importedHistory.add(dbfKey);
+          continue;
+        }
 
-          if (importedHistory.has(dbfOrderKey) || exportedOrders.has(finalOrderNum)) continue;
+        candidates.push({ pr, numDoc, totalVal, dbfKey, finalNum });
+      }
 
-          // Verificar si ya existe en Supabase
-          const { data: existing } = await dbCore.from('jjp_orders').select('id').eq('order_number', finalOrderNum).maybeSingle();
-          if (existing) {
-            importedHistory.add(dbfOrderKey);
-            continue;
+      if (candidates.length === 0) return;
+
+      // Solo leer el detalle si hay documentos nuevos (evita escanear 100K renglones en cada barrido)
+      let detMap = new Map();
+      if (fs.existsSync(detPath)) {
+        const detStruct = readDbfStructure(detPath);
+        if (detStruct) {
+          const detNumField = isQuote ? 'numcot' : 'numped';
+          const newestFound = candidates[candidates.length - 1].numDoc;
+          // Rebalse temprano: detener registro de docs si ya no aparecen los recientes
+          for (const rr of readDbfRows(detStruct, 300000)) {
+            const renNum = String(rr[detNumField] || rr.numped || rr.num_ped || '').trim();
+            if (!renNum || renNum < newestFound) continue;
+            if (!detMap.has(renNum)) detMap.set(renNum, []);
+            detMap.get(renNum).push(rr);
           }
+        }
+      }
 
-          const clientName = String(pr.nomcli || pr.nombre || pr.razon || 'Cliente Caja MixNet').trim();
-          const rif = String(pr.rif || pr.cif || pr.cifoih || '').trim();
-          const phone = String(pr.telefono || pr.tlf || '').trim();
-          const totalVal = parseFloat(String(pr.total || pr.totped || pr.monto || '0').replace(/,/g, '.')) || 0;
+      for (const { pr, numDoc, totalVal, dbfKey, finalNum } of candidates) {
+        // Resolver cliente desde la cabecera (puede ser código 003-409 o nombre directo)
+        const clientCode = String(pr.cliente || '').trim();
+        const cli = cliMap.get(clientCode) || null;
+        const clientName = String(pr.nomcli || (cli && cli.nomcli) || pr.nombre || pr.razon || 'Cliente Caja MixNet').trim();
+        const rif = String(pr.cif || (cli && cli.cif) || pr.rif || '').trim();
+        const phone = String(pr.tlf1 || (cli && cli.tlf1) || pr.telefono || pr.tlf || '').trim();
+        const moneda = String(pr.moneda || 'US$').trim();
 
-          // Buscar renglones
-          const items = [];
-          for (const rr of renRows) {
-            const renNum = String(rr.numped || rr.num_ped || '').trim();
-            if (renNum === numPed) {
-              const sku = String(rr.codart || rr.codigo || '').trim();
-              const name = String(rr.nomart || rr.descrip || 'Artículo').trim();
-              const qty = parseFloat(String(rr.cantidad || rr.cant || '1').replace(/,/g, '.')) || 1;
-              const price = parseFloat(String(rr.precio || rr.precio_b || '0').replace(/,/g, '.')) || 0;
-              const sub = parseFloat(String(rr.total || rr.subtotal || (qty * price)).replace(/,/g, '.')) || (qty * price);
-              items.push({ sku, name, brand: '', qty, price_usd: price, subtotal_usd: sub });
-            }
+        const items = (detMap.get(numDoc) || []).map(rr => {
+          const sku = String(rr.item || rr.codart || rr.codigo || '').trim();
+          const name = String(rr.descrip || rr.nomart || 'Artículo').trim();
+          const qty = parseFloat(String(rr.cantidad || rr.cant || '1').replace(/,/g, '.')) || 1;
+          const price = parseFloat(String(rr.precio || rr.precio_b || '0').replace(/,/g, '.')) || 0;
+          const sub = parseFloat(String(rr.tot_ren || rr.total || rr.subtotal || (qty * price)).replace(/,/g, '.')) || (qty * price);
+          return { sku, name, brand: '', qty, price_usd: price, subtotal_usd: sub };
+        });
+
+        if (items.length === 0 && totalVal > 0) {
+          items.push({ sku: 'MIX-CAJA', name: `Consumo MixNet #${numDoc}`, brand: '', qty: 1, price_usd: totalVal, subtotal_usd: totalVal });
+        }
+
+        const matchedCust = await matchCustomer(phone, rif, clientName);
+        const sellerId = matchedCust?.seller_id || null;
+
+        // Detallar el vendedor que realizó la operación en MixNet (codven)
+        const codven = String(pr.codven || '').trim();
+        const { seller_id: codvenSeller, hint: sellerHint } = sellerForCodven(codven);
+        const finalSellerId = codvenSeller || sellerId;
+        const vendorNote = codven ? ` · Vendedor MixNet #${codven} (${sellerHint})` : '';
+
+        if (isQuote) {
+          const { error } = await dbCore.from('jjp_quotes').insert({
+            quote_number: finalNum,
+            client_name: clientName,
+            rif: rif || null,
+            phone: phone || null,
+            items: JSON.stringify(items),
+            estimated_total_usd: totalVal,
+            exchange_rate: rate,
+            notes: `[MixNet Caja] Cotización importada automáticamente desde ${encFile} (#${numDoc})${vendorNote}`,
+            source: 'vendedor',
+            status: 'pendiente',
+            seller_id: finalSellerId
+          });
+          if (!error) {
+            log.info(`Puente Mixer: Cotización importada desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
+            importedHistory.add(dbfKey);
+            saveHistories();
+            lastImportTime = new Date().toISOString();
           }
-
-          if (items.length === 0 && totalVal > 0) {
-            items.push({ sku: 'MIX-CAJA', name: `Consumo Caja #${numPed}`, brand: '', qty: 1, price_usd: totalVal, subtotal_usd: totalVal });
-          }
-
-          const matchedCust = await matchCustomer(phone, rif, clientName);
-          const sellerId = matchedCust?.seller_id || null;
-
+        } else {
           const { error } = await dbCore.from('jjp_orders').insert({
-            order_number: finalOrderNum,
+            order_number: finalNum,
             client_name: clientName,
             rif: rif || null,
             phone: phone || null,
@@ -759,21 +861,23 @@ async function sweepMixnetDbf() {
             exchange_rate: rate,
             total_bs: rate > 0 ? (totalVal * rate).toFixed(2) : 0,
             payment_method: 'efectivo',
-            notes: `[MixNet Caja] Importado automáticamente desde PED.DBF (#${numPed})`,
+            notes: `[MixNet Caja] Importado automáticamente desde ${encFile} (#${numDoc}, ${moneda})${vendorNote}`,
             source: 'pos',
             status: 'pendiente_pago',
-            seller_id: sellerId
+            seller_id: finalSellerId
           });
-
           if (!error) {
-            log.info(`Puente Mixer: Pedido importado desde DBF de MixNet (${finalOrderNum} - $${totalVal.toFixed(2)})`);
-            importedHistory.add(dbfOrderKey);
+            log.info(`Puente Mixer: Pedido importado desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
+            importedHistory.add(dbfKey);
             saveHistories();
             lastImportTime = new Date().toISOString();
           }
         }
       }
-    }
+    };
+
+    await importHeader({ encFile: 'MXENCPED.DBF', detFile: 'MXRENPED.DBF', kind: 'order' });
+    await importHeader({ encFile: 'MXENCCOT.DBF', detFile: 'MXRENCOT.DBF', kind: 'quote' });
   } catch (err) {
     log.warn({ err: err.message }, 'Puente Mixer: Advertencia al leer DBF de MixNet');
   }

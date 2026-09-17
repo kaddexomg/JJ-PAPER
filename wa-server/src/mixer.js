@@ -53,16 +53,16 @@ let exportedQuotes = new Set();
 let importedHistory = new Set();
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
-// Referencia AGENTS.md: Yovanni (004/006), Marianela (008), Andreina (014)
-// NOTA: 010 y 020 en MixNet representan Caja Mostrador / Cartera General de Tienda.
-// NUNCA asignar 010/020 a Keyder Salazar (admin), las ventas de mostrador pertenecen a Caja Tienda (seller_id: null).
+// Referencia: Yovanni (004/006), Keyder (005), Marianela (008), Andreina (014)
+// NOTA: 010 y 020 en MixNet representan Caja Mostrador / Cartera General de Tienda (seller_id: null).
 const SELLERS_BY_CODVEN = new Map([
   ['95d5ad44-e844-4f4f-a9d0-2db7d162c8c6', ['004', '006']], // Yovanni Araujo
+  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005']],        // Keyder Salazar (005 en MixNet)
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],        // Marianela (marianela08)
   ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],        // Andreina (andreina)
 ]);
 const CODVEN_HINT = new Map([
-  ['004', 'Yovanni'], ['006', 'Yovanni'], ['008', 'Marianela'], ['014', 'Andreina']
+  ['004', 'Yovanni'], ['006', 'Yovanni'], ['005', 'Keyder'], ['008', 'Marianela'], ['014', 'Andreina']
 ]);
 function sellerForCodven(codven) {
   const cv = String(codven || '').trim();

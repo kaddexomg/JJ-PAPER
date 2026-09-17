@@ -644,6 +644,14 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - Corrección 16-09: `PED.DBF` no existe; los reales son `MXENCPED`/`MXRENPED`/`MXENCCOT`/`MXRENCOT`/`MXCTACLI`. Entrega 19:35Z 15-09 tuvo una orden fantasma `MIX-listapreciosrea` (cancelado, inofensiva).
 - Regla de mantenimiento: al tocar `mixer.js` reiniciar el proceso (supervisor `run-service.bat` relanza solo).
 
+## Precios MixNet: MXCTAINV.DBF es el Maestro Vigente (17-09-2026, PC Tienda)
+> **AVISO AL OTRO AGENTE (PC remota)**: verificar commits `5c56ebe` + merge `2cd9f9c`. Cambio en `sweepMixnetProducts()` de `wa-server/src/mixer.js`.
+- **NUNCA más** sincronizar precios desde `VICTAINV.DBF`: quedó **congelado en 2023/2024** (0 registros `fecha_mod` 2025/2026). Ej. `CG-L100T` LIBRETA FAMA TESIS: 1.01$/stock 23 en VICTAINV vs 1.13$/stock 281 en MXCTAINV.
+- `MXCTAINV.DBF` es la fuente **autotitativa** de precios y stock (1,108 registros actualizados en 2026; `fecha_mod` 2026-09-16).
+- `sweepMixnetProducts()` ahora lee **ambos** DBF y fusiona por SKU con prioridad MXCTAINV para `price_a/b/usd/c_bs/d_bs/cost/stock`; el stock de VICTAINV solo es respaldo si MXCTAINV trae 0.
+- **Resultado**: log `Sincronizados precios y stock de 901 productos desde MXCTAINV.DBF (maestro vigente)`. 👍
+- Nota: los precios Bs de MXCTAINV usan tasa ≈ 978 (no BCV 847). Son los valores oficiales de MixNet; no recalcular sin autorización.
+
 ## Estabilidad WhatsApp, Campañas y Protocolo Multi-Agente (17-09-2026)
 - **Protocolo de Coordinación Multi-Agente**: Documentado en detalle en `cerebro/Sistema/COORDINACION_MULTI_AGENTE.md`.
   - **REGLA CRÍTICA**: **UNA sola instancia activa de WhatsApp en el sistema**. No correr `wa-server` con la misma cuenta de WhatsApp en la laptop y en la tienda simultáneamente (provoca desincronización "Bad MAC" y expulsión forzosa). La PC de la tienda corre producción (MixNet unidad M:), la laptop remota se enfoca en frontend/lógica.

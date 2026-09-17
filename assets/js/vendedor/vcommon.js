@@ -9,6 +9,7 @@ async function initSellerPage() {
   const session = await requireAuth('vendedor');
   if (!session) return null;
   SELLER = CURRENT_PROFILE;
+  window.SELLER = SELLER;
 
   const el = document.getElementById('sellerName');
   if (el) el.textContent = SELLER.name || session.user.email;

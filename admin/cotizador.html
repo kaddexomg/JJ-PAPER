@@ -154,12 +154,13 @@
 <script src="../assets/js/doc-engine.js"></script>
 <script src="../assets/js/send-hub.js"></script>
 <script src="../assets/js/vendedor/cust-autocomplete.js"></script>
-<script src="../assets/js/vendedor/vquotes.js?v=20260916_flujo_cotizacion_v2"></script>
+<script src="../assets/js/vendedor/vquotes.js?v=20260916_fix_quote_save_v3"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth('admin');
   if (!session) return;
   const profile = await loadProfile();
+  if (typeof SELLER !== 'undefined') SELLER = profile;
   window.SELLER = profile;
   const emailEl = document.getElementById('adminUserEmail');
   if (emailEl) emailEl.textContent = profile.name || session.user.email;

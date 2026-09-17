@@ -7,6 +7,7 @@ let posProducts = [];
 let posTicket   = {};
 let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
+let quoteCustomer = null;  // cliente seleccionado para asociar ID
 
 async function initQuoter() {
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
@@ -34,8 +35,9 @@ async function initQuoter() {
 
 async function quoteCargarCliente(id) {
   const { data: c } = await sb.from('jjp_customers')
-    .select('name,phone,rif,city').eq('id', id).maybeSingle();
+    .select('id,name,phone,rif,city').eq('id', id).maybeSingle();
   if (!c) { showToast('No se encontró ese cliente', 'warn'); return; }
+  quoteCustomer = c;
   const set = (campo, v) => { const el = document.getElementById(campo); if (el && v) el.value = v; };
   set('qCliName', c.name); set('qCliTel', c.phone);
   set('qCliRif', c.rif);   set('qCliCity', c.city);
@@ -43,6 +45,7 @@ async function quoteCargarCliente(id) {
 }
 
 function quotePickCustomer(c) {
+  quoteCustomer = c;
   document.getElementById('qCliName').value = c.name || '';
   document.getElementById('qCliTel').value  = c.phone || '';
   document.getElementById('qCliRif').value  = c.rif || '';
@@ -407,42 +410,58 @@ async function quoteSubmit() {
 
   qSubmitting = true;
   const btn = document.getElementById('qSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Guardando...';
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
-  const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
-  const pct   = quoteDiscountPct();
-  const total = +(subtotal * (1 - pct / 100)).toFixed(2);
-  const quote = {
-    quote_number: genOrderNumber('COT'),
-    client_name: name,
-    phone: tel,
-    rif:  document.getElementById('qCliRif').value.trim()  || null,
-    city: document.getElementById('qCliCity').value.trim() || null,
-    items: lines.map(l => ({
-      id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
-      qty: l.qty, unit: l.unit, price_usd: l.price_usd,
-      price_level: l.price_level || 'B',
-      price_bs: posLineBs(l) || null,
-      subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
-    })),
-    estimated_total_usd: total,
-    discount_pct: pct,
-    exchange_rate: getRate(),
-    notes: document.getElementById('qNotes').value.trim() || null,
-    status: 'pendiente',
-    source: 'vendedor',
-    seller_id: SELLER.id,
-  };
+  try {
+    const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
+    const pct   = quoteDiscountPct();
+    const total = +(subtotal * (1 - pct / 100)).toFixed(2);
 
-  const { error } = await sb.from('jjp_quotes').insert(quote);
-  if (error) {
-    console.error('quote insert:', error);
-    showToast('No se pudo guardar la cotización', 'err');
-  } else {
-    quoteShowDone(quote);
+    // Resolución segura del vendedor activo
+    const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
+      ? SELLER
+      : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
+          ? CURRENT_PROFILE
+          : (window.SELLER || null));
+    const sellerId = activeSeller?.id || null;
+
+    const quote = {
+      quote_number: genOrderNumber('COT'),
+      client_name: name,
+      phone: tel,
+      rif:  document.getElementById('qCliRif')?.value.trim()  || null,
+      city: document.getElementById('qCliCity')?.value.trim() || null,
+      items: lines.map(l => ({
+        id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
+        qty: l.qty, unit: l.unit, price_usd: l.price_usd,
+        price_level: l.price_level || 'B',
+        price_bs: posLineBs(l) || null,
+        subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
+      })),
+      estimated_total_usd: total,
+      discount_pct: pct,
+      exchange_rate: getRate(),
+      notes: document.getElementById('qNotes')?.value.trim() || null,
+      status: 'pendiente',
+      source: 'vendedor',
+      seller_id: sellerId,
+      customer_id: (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null,
+    };
+
+    const { error } = await sb.from('jjp_quotes').insert(quote);
+    if (error) {
+      console.error('quote insert:', error);
+      showToast('No se pudo guardar la cotización: ' + (error.message || 'Error en base de datos'), 'err');
+    } else {
+      quoteShowDone(quote);
+    }
+  } catch (err) {
+    console.error('Error al procesar la cotización:', err);
+    showToast('Error inesperado al guardar la cotización', 'err');
+  } finally {
+    qSubmitting = false;
+    if (btn) { btn.disabled = false; btn.textContent = '📋 Guardar cotización'; }
   }
-  qSubmitting = false;
-  btn.disabled = false; btn.textContent = '📋 Guardar cotización';
 }
 
 /* Contexto para el hub de envío: la cotización recién guardada.
@@ -471,13 +490,28 @@ function quoteShowDone(q) {
   const discLines = q.discount_pct > 0
     ? `\n\nSubtotal: ${fmtPrice(subtotal)}\n🏷️ *Descuento ${q.discount_pct}%: −${fmtPrice(subtotal - q.estimated_total_usd)}*`
     : '';
+
+  const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
+    ? SELLER
+    : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
+        ? CURRENT_PROFILE
+        : (window.SELLER || null));
+  const sellerName = activeSeller?.name || 'JJ Paper';
+
   const waMsg = `📋 *COTIZACIÓN ${q.quote_number}* — JJ Paper\n\nHola ${q.client_name}, aquí está tu cotización:\n`
     + q.items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
     + discLines
     + `\n\n💰 *Total estimado: ${fmtPrice(q.estimated_total_usd)}* (${fmtBsNum(q.estimated_total_usd * q.exchange_rate)})`
     + `\n_Precios sujetos a cambio según tasa del día._`
     + (q.notes ? `\n\n📝 ${q.notes}` : '')
-    + `\n\nAtendido por: ${SELLER.name} — JJ Paper 📄`;
+    + `\n\nAtendido por: ${sellerName} — JJ Paper 📄`;
+
+  let sendHubHtml = '';
+  try {
+    if (typeof sendBotonHTML === 'function') sendHubHtml = sendBotonHTML('quoteDoneCtx()');
+  } catch (e) {
+    console.warn('sendBotonHTML error:', e);
+  }
 
   document.getElementById('qDoneBody').innerHTML = `
     <p style="text-align:center;font-size:15px">Cotización <strong>${escapeHTML(q.quote_number)}</strong> guardada para <strong>${escapeHTML(q.client_name)}</strong>.</p>
@@ -491,7 +525,7 @@ function quoteShowDone(q) {
          href="pos.html?quote=${encodeURIComponent(q.quote_number)}">🛍️ Cobrar en POS</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
-      ${sendBotonHTML('quoteDoneCtx()')}
+      ${sendHubHtml}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(q.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
       <button class="btn-o" onclick="quoteReset()">📋 Nueva cotización</button>
@@ -502,6 +536,7 @@ function quoteShowDone(q) {
 function quoteReset() {
   posTicket = {};
   posRenderTicket();
+  quoteCustomer = null;
   ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });

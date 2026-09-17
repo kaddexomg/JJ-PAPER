@@ -678,4 +678,30 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - **Saneamiento en Caliente**: En modo costo (`?mode=cost`), si el costo excede el precio venta por un factor >2.5, se convierte automáticamente a USD dividiendo entre la tasa implícita o BCV.
   - `wa-server/src/mixer.js`:
     - Saneamiento en `sweepMixnetProducts()`: Si el costo en el DBF está en Bolívares (`cost > priceB * 2.5`), se divide automáticamente entre la tasa real de MixNet (`priceDBs / priceB`) antes de guardar en `cost_usd`.
-  - **Base de Datos Saneada**: 620 registros en `jjp_product_variants` y `jjp_products` con costos inflados en Bolívares fueron corregidos a sus valores reales en USD.
+  - **Base de Datos Saneada**: 620 registros en `jjp_product_variants` y `jjp_products` con costos inflados en Bolívares fueron corregidos a sus valores reales en USD.
+
+## Historial de Compras 360° en CRM de Clientes y Métricas Reales de Vendedores (17-09-2026)
+- **Sincronización Atómica de Métricas en PostgreSQL Core (`jjp_customers`)**:
+  - Previamente, `total_orders = 0` y `total_usd = 0` en `jjp_customers` a pesar de existir 255 pedidos reales de MixNet (`MIX-*`).
+  - Ejecutada sincronización relacional agregando `total_orders`, `total_usd` y `last_order_at` en `jjp_customers` a partir de `jjp_orders`.
+  - Creada función almacenada `public.jjp_sync_customer_metrics(uuid)` y disparador `trg_order_sync_customer` en `jjp_orders`, manteniendo actualizadas las métricas del cliente de forma transparente ante cada nueva compra o actualización de pedido en MixNet / Web.
+- **RPC Maestro Ficha 360° (`public.jjp_customer_360(uuid)`)**:
+  - Retorna el perfil comercial consolidado: cliente (con asesor asignado, zona, RIF, teléfono, dirección, notas), KPIs (total invertido en USD y Bs, pedidos históricos, cotizaciones, fecha de última compra), y matrices completas de:
+    - **Pedidos (`pedidos`)**: Número de orden, fecha, estado, total USD/Bs, origen (MixNet Caja vs Web POS), método de pago, vendedor que atendió, y array completo de renglones (`items`: SKU, nombre del artículo, cantidad, precio unitario, subtotal).
+    - **Cotizaciones (`cotizaciones`)**: Número de presupuesto, fecha, estado, validez, total y renglones detallados.
+- **Componente Unificado Ficha e Historial 360° (`assets/js/customer-history.js`)**:
+  - Modal dinámico (`#customerHistoryModal`) con diseño responsivo, pestañas de navegación (Pedidos, Cotizaciones, Ficha & Contacto) y KPIs comerciales.
+  - Tabla de pedidos con insignias identificadoras (`MixNet Caja` / `Web POS`), selector desplegable para auditar cada renglón/ítem comprado y notas de factura.
+  - Acciones comerciales rápidas en pie de modal: "🛍️ Nueva Venta POS" (precarga el cliente en ticket), "📋 Nueva Cotización", "💬 WhatsApp" y "🧠 Flujo IA".
+  - Integrado transparentemente en:
+    - **Admin CRM (`admin/clientes.html` y `assets/js/admin/aclients.js`)**: Nombres de clientes y conteos de pedidos son enlaces interactivos que abren la ficha 360°; botón `📜 Historial` en la columna de acciones.
+    - **Vendedor CRM (`vendedor/clientes.html` y `assets/js/vendedor/vcustomers.js`)**: Enlaces directos a la ficha 360° y botón `📜` en acciones.
+- **Panel de Métricas del Equipo de Ventas (`admin/vendedores.html` y `assets/js/admin/sellers.js`)**:
+  - **Tarjetas Superiores de Rendimiento (KPIs)**:
+    - *Ventas Globales (30d)*: Total facturado consolidado en USD y Bs a tasa oficial BCV.
+    - *Pedidos Realizados (30d)*: Conteo consolidado de transacciones comerciales.
+    - *Cotizaciones (30d)*: Volumen de presupuestos emitidos.
+    - *Líder en Ventas*: Vendedor con mayor volumen facturado en el mes.
+  - **Corrección de Atributo de Ranking**: Corregido bug donde la tabla leía `stats.orders_count` en lugar de `stats.total_orders`, eliminando el texto `undefined pedidos` y reflejando las transacciones exactas.
+  - **Auditoría de Cartera por Vendedor**: Nueva columna *Cartera Clientes* en la tabla de vendedores mostrando la cantidad de clientes asignados y cotizaciones elaboradas.
+  - **Actualización de RPC `jjp_seller_ranking`**: Ahora evalúa pedidos con `status NOT IN ('cancelado', 'rechazado')`, permitiendo reflejar con exactitud las órdenes procedentes de MixNet Caja.

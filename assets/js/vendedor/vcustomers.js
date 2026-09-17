@@ -114,15 +114,25 @@ function renderCustomers() {
     const waReact  = `Hola ${c.name} 👋, le escribe ${sellerName} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${sellerRef ? '?ref=' + sellerRef : ''}`;
     return `<tr>
       <td>
-        <div class="td-name">${escapeHTML(c.name)} ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}</div>
+        <div class="td-name">
+          <a href="javascript:void(0)" onclick="openCustomerHistory('${c.id}')" style="color:inherit;text-decoration:none;cursor:pointer" onmouseover="this.style.color='var(--p)'" onmouseout="this.style.color='inherit'" title="Ver ficha 360° e historial de compras">
+            ${escapeHTML(c.name)} 📜
+          </a>
+          ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}
+        </div>
         <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${escapeHTML(c.city || '—')}</td>
-      <td style="text-align:center">${c.total_orders}</td>
+      <td style="text-align:center">
+        ${c.total_orders > 0
+          ? `<a href="javascript:void(0)" onclick="openCustomerHistory('${c.id}')" style="display:inline-block;padding:2px 8px;background:#e6f4ea;color:#137333;border-radius:12px;font-weight:700;text-decoration:none" title="Ver ${c.total_orders} compras">${c.total_orders}</a>`
+          : '<span style="color:#94a3b8">0</span>'}
+      </td>
       <td><strong>${fmtPrice(c.total_usd)}</strong></td>
       <td>${c.last_order_at ? fmtDate(c.last_order_at) : '<span style="color:#ccc">nunca</span>'}</td>
       <td><div class="td-actions">
+        <button class="btn-o sm" style="color:#16604A;border-color:#16604A;font-weight:700" onclick="openCustomerHistory('${c.id}')" title="Ver Ficha 360° e Historial de Compras">📜</button>
         ${!c.seller_id && !isAdmin ? `<button class="btn-o sm" onclick="claimCustomer('${c.id}')" title="Añadir a mi cartera">➕ Tomar</button>` : ''}
         ${mine ? `<button class="btn-p sm" onclick="openCustomerModal('${c.id}')">✏️</button>` : ''}
         <button class="btn-send sm" onclick="custCtxMenu(event, '${c.id}')"

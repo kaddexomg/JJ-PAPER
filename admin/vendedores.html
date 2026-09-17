@@ -58,6 +58,42 @@
     </div>
 
     <div class="admin-content">
+      <!-- Resumen de Métricas del Equipo de Ventas -->
+      <div class="stat-grid" style="margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-ico green">💰</div>
+          <div>
+            <div class="stat-n" id="stat-team-sales">—</div>
+            <div class="stat-l">Ventas Globales (30d)</div>
+            <div class="stat-d" id="stat-team-sales-sub">MixNet Caja + Web POS</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico yellow">🛒</div>
+          <div>
+            <div class="stat-n" id="stat-team-orders">—</div>
+            <div class="stat-l">Pedidos Realizados (30d)</div>
+            <div class="stat-d" id="stat-team-orders-sub">Todas las zonas</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico blue">📋</div>
+          <div>
+            <div class="stat-n" id="stat-team-quotes">—</div>
+            <div class="stat-l">Cotizaciones (30d)</div>
+            <div class="stat-d" id="stat-team-quotes-sub">Historial comercial</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico purple">🏆</div>
+          <div>
+            <div class="stat-n" id="stat-team-leader" style="font-size:15px;line-height:1.2;margin-top:2px;font-weight:700">—</div>
+            <div class="stat-l">Líder en Ventas</div>
+            <div class="stat-d" id="stat-team-leader-sub">Mayor rendimiento</div>
+          </div>
+        </div>
+      </div>
+
       <div class="admin-table-wrap">
         <div class="table-top">
           <h3>👥 Equipo de ventas</h3>
@@ -66,10 +102,10 @@
         <div style="overflow-x:auto">
           <table class="admin-table">
             <thead>
-              <tr><th>Vendedor</th><th>Código / Link</th><th>Ventas 30d</th><th>Meta mensual</th><th>Comisión</th><th>Estado</th><th>Acciones</th></tr>
+              <tr><th>Vendedor</th><th>Código / Link</th><th>Ventas (30d)</th><th>Cartera Clientes</th><th>Meta mensual</th><th>Comisión</th><th>Estado</th><th>Acciones</th></tr>
             </thead>
             <tbody id="sellersTableBody">
-              <tr><td colspan="7" class="table-empty">Cargando...</td></tr>
+              <tr><td colspan="8" class="table-empty">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -155,7 +191,7 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260828_cat_admin"></script>
-<script src="../assets/js/admin/sellers.js"></script>
+<script src="../assets/js/admin/sellers.js?v=20260917_crm_metrics"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth('admin');

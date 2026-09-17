@@ -77,16 +77,25 @@ function renderAdminCustomers() {
   const rows = toShow.map(c => `
     <tr>
       <td>
-        <div style="font-weight:600;color:var(--dark)">${escapeHTML(c.name)}</div>
+        <div style="font-weight:600;color:var(--dark)">
+          <a href="javascript:void(0)" onclick="openCustomerHistory('${c.id}')" style="color:inherit;text-decoration:none;cursor:pointer" onmouseover="this.style.color='var(--p)'" onmouseout="this.style.color='inherit'" title="Ver ficha 360° e historial de compras">
+            ${escapeHTML(c.name)} 📜
+          </a>
+        </div>
         <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${getSellerName(c.seller_id)}</td>
       <td>${escapeHTML(c.city || '—')}</td>
-      <td style="text-align:center">${c.total_orders}</td>
+      <td style="text-align:center">
+        ${c.total_orders > 0
+          ? `<a href="javascript:void(0)" onclick="openCustomerHistory('${c.id}')" style="display:inline-block;padding:2px 8px;background:#e6f4ea;color:#137333;border-radius:12px;font-weight:700;text-decoration:none" title="Ver ${c.total_orders} pedidos">${c.total_orders}</a>`
+          : '<span style="color:#94a3b8">0</span>'}
+      </td>
       <td><strong>${fmtPrice(c.total_usd)}</strong></td>
       <td>
         <div class="td-actions">
+          <button class="btn-o sm" style="color:#16604A;border-color:#16604A;font-weight:700" onclick="openCustomerHistory('${c.id}')" title="Ver Ficha 360° e Historial de Compras">📜 Historial</button>
           <button class="btn-o sm" style="color:#0f766e;border-color:#0f766e;font-weight:700" onclick="openCustomerAiFlow('${c.id}')" title="🧠 Flujo IA: Analizar necesidades, redactar y contactar">🧠 Flujo IA</button>
           <button class="btn-p sm" onclick="openAdminCustModal('${c.id}')" title="Editar cliente">✏️</button>
           <button class="btn-o sm" onclick="deleteAdminCustomer('${c.id}')" title="Eliminar cliente" style="color:var(--danger)">🗑️</button>

@@ -28,6 +28,13 @@ async function loadProfile() {
     .select('id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active')
     .eq('id', session.user.id).single();
   CURRENT_PROFILE = data || null;
+  if (typeof window !== 'undefined') {
+    window.CURRENT_PROFILE = CURRENT_PROFILE;
+    window.SELLER = CURRENT_PROFILE;
+  }
+  if (typeof SELLER !== 'undefined') {
+    try { SELLER = CURRENT_PROFILE; } catch (e) {}
+  }
   return CURRENT_PROFILE;
 }
 

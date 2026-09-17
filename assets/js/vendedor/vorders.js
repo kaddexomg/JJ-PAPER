@@ -31,7 +31,7 @@ function renderVOrders() {
     tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No tienes pedidos con este filtro.</td></tr>';
     return;
   }
-  const commPct = Number(SELLER.commission_pct) || 0;
+  const commPct = Number((typeof SELLER !== 'undefined' && SELLER?.commission_pct) ? SELLER.commission_pct : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.commission_pct) ? CURRENT_PROFILE.commission_pct : (window.SELLER?.commission_pct || 0))) || 0;
   tbody.innerHTML = vOrders.map(o => {
     const isPaid = V_PAID.includes(o.status);
     // La comisión es sobre los productos: el envío no comisiona

@@ -2,7 +2,7 @@
    JJ Paper Vendedor — utilidades compartidas del panel
    ====================================================== */
 
-let SELLER = null;   // perfil del vendedor logueado
+var SELLER = null;   // perfil del vendedor logueado (var se enlaza con window.SELLER)
 
 // Inicializa una página del panel vendedor: auth, barra, menú, badge
 async function initSellerPage() {

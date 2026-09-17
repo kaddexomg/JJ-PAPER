@@ -19,8 +19,16 @@ const ZONE_SELLER_MAP = {
   '020': { name: 'Keyder', code: '020' }
 };
 
+function getActiveSeller() {
+  if (typeof SELLER !== 'undefined' && SELLER) return SELLER;
+  if (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) return CURRENT_PROFILE;
+  if (typeof window !== 'undefined' && window.SELLER) return window.SELLER;
+  return { id: null, name: 'JJ Paper', role: 'vendedor' };
+}
+
 async function loadCustomers() {
-  const isAdmin = SELLER.role === 'admin' || SELLER.is_admin;
+  const seller = getActiveSeller();
+  const isAdmin = seller?.role === 'admin' || seller?.is_admin;
   vCustomers = [];
   const PAGE = 1000;
   let from = 0;
@@ -69,19 +77,23 @@ function renderCustomers() {
 
   let list = vCustomers;
   
-  // Si no es admin, la Zona 020 es invisible en todos los filtros y vistas
-  const isAdmin = SELLER.role === 'admin' || SELLER.is_admin;
+  const seller = getActiveSeller();
+  const isAdmin = seller?.role === 'admin' || seller?.is_admin;
+  const sellerId = seller?.id || null;
+  const sellerName = seller?.name || 'JJ Paper';
+  const sellerRef = seller?.ref_code || '';
+
   if (!isAdmin) {
     list = list.filter(c => c.zone !== '020');
-    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
+    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
-    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
+    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   } else {
     // Admin Keyder: tiene su PROPIA cartera (010 y 020) en 'Mi cartera' e 'Inactivos',
     // y conserva 'Todos' y 'Sin vendedor' para la gestión global.
-    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === SELLER.id);
+    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
-    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === SELLER.id && isInactive(c));
+    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   }
 
   if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')) || (c.zone || '').includes(q));
@@ -98,8 +110,8 @@ function renderCustomers() {
 
   const rows = toShow.map(c => {
     const inactive = isInactive(c);
-    const mine     = c.seller_id === SELLER.id || isAdmin;
-    const waReact  = `Hola ${c.name} 👋, le escribe ${SELLER.name} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${SELLER.ref_code ? '?ref=' + SELLER.ref_code : ''}`;
+    const mine     = c.seller_id === sellerId || isAdmin;
+    const waReact  = `Hola ${c.name} 👋, le escribe ${sellerName} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${sellerRef ? '?ref=' + sellerRef : ''}`;
     return `<tr>
       <td>
         <div class="td-name">${escapeHTML(c.name)} ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}</div>
@@ -141,8 +153,9 @@ function custCtxMenu(ev, id) {
 }
 
 async function claimCustomer(id) {
+  const sellerId = getActiveSeller()?.id || null;
   const { error } = await sb.from('jjp_customers')
-    .update({ seller_id: SELLER.id, updated_at: new Date().toISOString() })
+    .update({ seller_id: sellerId, updated_at: new Date().toISOString() })
     .eq('id', id).is('seller_id', null);
   if (error) { showToast('No se pudo asignar', 'err'); return; }
   showToast('Cliente añadido a tu cartera ✔');
@@ -173,6 +186,8 @@ async function saveCustomer() {
   const phone = document.getElementById('cu-phone').value.trim().replace(/\D/g, '');
   if (!name || !phone) { showToast('Nombre y teléfono son obligatorios', 'warn'); return; }
 
+  const sellerId = getActiveSeller()?.id || null;
+
   const fields = {
     name, phone,
     rif:     document.getElementById('cu-rif').value.trim()     || null,
@@ -188,7 +203,7 @@ async function saveCustomer() {
   if (editingCustId) {
     ({ error } = await sb.from('jjp_customers').update(fields).eq('id', editingCustId));
   } else {
-    ({ error } = await sb.from('jjp_customers').insert({ ...fields, seller_id: SELLER.id }));
+    ({ error } = await sb.from('jjp_customers').insert({ ...fields, seller_id: sellerId }));
   }
   if (error) {
     showToast(error.message?.includes('duplicate') ? 'Ya existe un cliente con ese teléfono' : 'Error guardando cliente', 'err');
@@ -264,9 +279,10 @@ async function custImportFile(input) {
         }).eq('id', existing.id);
         upd++;
       } else {
+        const sellerId = getActiveSeller()?.id || null;
         const { error } = await sb.from('jjp_customers').insert({
           name: r.name || 'Cliente', phone: r.phone || null, email: r.email || null,
-          city: r.city || null, zone: r.zone || null, rif: r.rif || null, seller_id: SELLER.id
+          city: r.city || null, zone: r.zone || null, rif: r.rif || null, seller_id: sellerId
         });
         if (error) fail++; else added++;
       }

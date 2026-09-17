@@ -27,8 +27,8 @@ async function scanSend(code) {
   if (!code) return;
   const now = Date.now();
   if (code === SCAN_LAST && now - SCAN_LASTAT < 1500) return;   // anti-doble lectura
-  SCAN_LAST = code; SCAN_LASTAT = now;
-  const { error } = await sb.from('jjp_pos_scans').insert({ owner_id: SELLER.id, code });
+  const sellerId = (typeof SELLER !== 'undefined' && SELLER?.id) ? SELLER.id : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id) ? CURRENT_PROFILE.id : (window.SELLER?.id || null));
+  const { error } = await sb.from('jjp_pos_scans').insert({ owner_id: sellerId, code });
   if (error) { showToast('No se pudo enviar: ' + error.message, 'err'); return; }
   SCAN_COUNT++;
   const c = document.getElementById('scanCount'); if (c) c.textContent = SCAN_COUNT;

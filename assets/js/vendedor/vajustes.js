@@ -15,19 +15,28 @@
    sql/2026-08-19-seller-settings.sql en el SQL editor de Supabase.
    ====================================================== */
 
+function getActiveSeller() {
+  if (typeof SELLER !== 'undefined' && SELLER) return SELLER;
+  if (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) return CURRENT_PROFILE;
+  if (typeof window !== 'undefined' && window.SELLER) return window.SELLER;
+  return { id: null, name: 'JJ Paper' };
+}
+
 /* ---------------- Utilidades de guardado ---------------- */
 
 async function vajUpsert(key, value) {
+  const sellerId = getActiveSeller()?.id || null;
   const { error } = await sb.from('jjp_seller_settings').upsert(
-    { seller_id: SELLER.id, key, value, updated_at: new Date().toISOString() },
+    { seller_id: sellerId, key, value, updated_at: new Date().toISOString() },
     { onConflict: 'seller_id,key' }
   );
   return error;
 }
 
 async function vajBorrar(key) {
+  const sellerId = getActiveSeller()?.id || null;
   const { error } = await sb.from('jjp_seller_settings')
-    .delete().eq('seller_id', SELLER.id).eq('key', key);
+    .delete().eq('seller_id', sellerId).eq('key', key);
   return error;
 }
 
@@ -134,10 +143,12 @@ async function vajFillPerfil() {
 
 async function vajGuardarPerfil() {
   const phone = document.getElementById('ajPhone').value.trim() || null;
+  const seller = getActiveSeller();
+  const sellerId = seller?.id || null;
   const { error } = await sb.from('jjp_profiles')
-    .update({ phone, updated_at: new Date().toISOString() }).eq('id', SELLER.id);
+    .update({ phone, updated_at: new Date().toISOString() }).eq('id', sellerId);
   if (error) return showToast('No se pudo guardar tu teléfono: ' + error.message, 'err');
-  SELLER.phone = phone;
+  if (typeof SELLER !== 'undefined' && SELLER) SELLER.phone = phone;
   if (CURRENT_PROFILE) CURRENT_PROFILE.phone = phone;
   showToast('✅ Teléfono actualizado');
 }

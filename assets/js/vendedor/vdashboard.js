@@ -2,7 +2,15 @@
    JJ Paper Vendedor — Dashboard (ventas, meta, ranking)
    ====================================================== */
 
+function getActiveSeller() {
+  if (typeof SELLER !== 'undefined' && SELLER) return SELLER;
+  if (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) return CURRENT_PROFILE;
+  if (typeof window !== 'undefined' && window.SELLER) return window.SELLER;
+  return { id: null, name: 'JJ Paper', commission_pct: 0, monthly_goal_usd: 0 };
+}
+
 async function initSellerDashboard() {
+  const seller = getActiveSeller();
   const monthStart = new Date();
   monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
@@ -21,7 +29,7 @@ async function initSellerDashboard() {
   const sales = paid.reduce((s, o) => s + Number(o.total_usd || 0), 0);
   // Comisión sobre productos: el envío no comisiona
   const commBase = paid.reduce((s, o) => s + Number(o.total_usd || 0) - Number(o.delivery_fee_usd || 0), 0);
-  const comm  = commBase * (Number(SELLER.commission_pct) || 0) / 100;
+  const comm  = commBase * (Number(seller.commission_pct) || 0) / 100;
 
   setV('v-sales',   fmtPrice(sales));
   setV('v-comm',    fmtPrice(comm));
@@ -38,7 +46,8 @@ async function initSellerDashboard() {
 function setV(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 
 function renderGoal(sales) {
-  const goal = Number(SELLER.monthly_goal_usd) || 0;
+  const seller = getActiveSeller();
+  const goal = Number(seller.monthly_goal_usd) || 0;
   const lbl  = document.getElementById('v-goal-label');
   const bar  = document.getElementById('v-goal-bar');
   if (!goal) {
@@ -74,11 +83,12 @@ function renderRanking(rows) {
   const box = document.getElementById('v-ranking');
   if (!box) return;
   if (!rows.length) { box.innerHTML = '<p style="color:#aaa;font-size:13px">Aún no hay datos del equipo.</p>'; return; }
+  const seller = getActiveSeller();
   const medals = ['🥇', '🥈', '🥉'];
   box.innerHTML = rows.slice(0, 8).map((r, i) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;
-                border-bottom:1px solid #f2f2f2;${r.seller_id === SELLER.id ? 'font-weight:700;color:var(--gd)' : ''}">
-      <span>${medals[i] || (i + 1) + '.'} ${escapeHTML(r.seller_name)}${r.seller_id === SELLER.id ? ' (tú)' : ''}</span>
+                border-bottom:1px solid #f2f2f2;${r.seller_id === seller.id ? 'font-weight:700;color:var(--gd)' : ''}">
+      <span>${medals[i] || (i + 1) + '.'} ${escapeHTML(r.seller_name)}${r.seller_id === seller.id ? ' (tú)' : ''}</span>
       <span>${fmtPrice(r.total_usd)} <small style="color:var(--gr)">· ${r.orders_count} ped.</small></span>
     </div>`).join('');
 }

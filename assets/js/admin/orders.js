@@ -367,15 +367,28 @@ async function deleteOrder(id) {
   const o = adminOrders.find(x => x.id === id);
   if (!o) return;
   if (!confirm(`¿Eliminar DEFINITIVAMENTE el pedido ${o.order_number}?\n\nEsto lo borra de la lista y no se puede deshacer.`)) return;
-  const { data, error } = await sb.rpc('jjp_delete_order', { p_order_id: id });
-  if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
-  if (data !== true) { showToast('El pedido ya no existe', 'warn'); }
-  adminOrders = adminOrders.filter(x => x.id !== id);
-  closeOrderModal();
-  renderOrdersTable();
-  renderOrdersStats();
-  if (typeof refreshAdminBadges === 'function') refreshAdminBadges();
-  showToast(`🗑️ Pedido ${o.order_number} eliminado`);
+  try {
+    let ok = false;
+    const { data, error } = await sb.rpc('jjp_delete_order', { p_order_id: id });
+    if (!error && data === true) {
+      ok = true;
+    } else {
+      const { error: e2 } = await sb.from('jjp_orders').delete().eq('id', id);
+      if (!e2) ok = true;
+    }
+    if (ok) {
+      adminOrders = adminOrders.filter(x => x.id !== id);
+      closeOrderModal();
+      renderOrdersTable();
+      renderOrdersStats();
+      if (typeof refreshAdminBadges === 'function') refreshAdminBadges();
+      showToast(`🗑️ Pedido ${o.order_number} eliminado`);
+    } else {
+      showToast('No se pudo eliminar el pedido', 'err');
+    }
+  } catch (e) {
+    showToast('Error al eliminar: ' + e.message, 'err');
+  }
 }
 
 // Atribuir/quitar vendedor de un pedido (la comisión sigue al pedido)

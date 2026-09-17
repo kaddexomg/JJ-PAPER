@@ -45,6 +45,7 @@ function renderVOrders() {
       <td><span class="status-badge st-${o.status}">${V_STATUS_LABEL[o.status] || o.status}</span></td>
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVOrder('${o.id}')">👁️ Ver</button>
+        ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteVOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vOrderCtx('${o.id}'))"
                 title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
       </div></td>
@@ -100,6 +101,7 @@ function viewVOrder(id) {
     </table>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       ${canDeliver ? `<button class="bulk-btn green" onclick="markVDelivered('${o.id}')">📦 Marcar entregado</button>` : ''}
+      ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteVOrder('${o.id}')" title="Borra el pedido definitivamente">🗑️ Eliminar</button>` : ''}
       <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
@@ -130,6 +132,33 @@ async function markVDelivered(id) {
   showToast('Pedido marcado como entregado ✔');
   closeVOrderModal();
   loadVOrders();
+}
+
+// Eliminar pedido cancelado o rechazado
+async function deleteVOrder(id) {
+  const o = vOrders.find(x => x.id === id);
+  if (!o) return;
+  if (!confirm(`¿Eliminar DEFINITIVAMENTE el pedido ${o.order_number}?\n\nEsto lo borra de la lista y no se puede deshacer.`)) return;
+  try {
+    let ok = false;
+    const { data, error } = await sb.rpc('jjp_delete_order', { p_order_id: id });
+    if (!error && data === true) {
+      ok = true;
+    } else {
+      const { error: e2 } = await sb.from('jjp_orders').delete().eq('id', id);
+      if (!e2) ok = true;
+    }
+    if (ok) {
+      vOrders = vOrders.filter(x => x.id !== id);
+      closeVOrderModal();
+      renderVOrders();
+      showToast(`🗑️ Pedido ${o.order_number} eliminado`);
+    } else {
+      showToast('No se pudo eliminar el pedido', 'err');
+    }
+  } catch (e) {
+    showToast('Error al eliminar: ' + e.message, 'err');
+  }
 }
 
 function closeVOrderModal() {

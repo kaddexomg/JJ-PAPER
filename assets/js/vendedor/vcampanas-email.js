@@ -572,13 +572,22 @@ async function cancelEcCampaign(id) {
 async function deleteEcCampaign(id, name) {
   if (!confirm(`¿Eliminar la campaña "${name}"?\n\nSe borrarán para siempre la campaña y su registro de destinatarios del sistema. Esta acción NO se puede deshacer.`)) return;
   try {
-    // Eliminar targets primero (si existen)
-    await sb.from('jjp_email_campaign_targets').delete().eq('campaign_id', id);
-    // Eliminar la campaña
-    const { error } = await sb.from('jjp_email_campaigns').delete().eq('id', id);
-    if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
-    showToast('Campaña eliminada 🗑️');
-    loadEcCampaigns();
+    let ok = false;
+    const { data, error } = await sb.rpc('jjp_delete_email_campaign', { p_campaign_id: id });
+    if (!error && data === true) {
+      ok = true;
+    } else {
+      await sb.from('jjp_email_campaign_targets').delete().eq('campaign_id', id);
+      const { error: e2 } = await sb.from('jjp_email_campaigns').delete().eq('id', id);
+      if (!e2) ok = true;
+    }
+    if (ok) {
+      showToast('Campaña de correo eliminada 🗑️');
+      if (ecViewingCamp?.id === id) setEcTab('campanas');
+      loadEcCampaigns();
+    } else {
+      showToast('No se pudo eliminar la campaña', 'err');
+    }
   } catch (e) {
     showToast('Error al eliminar: ' + e.message, 'err');
   }

@@ -795,11 +795,27 @@ async function cancelCampaign(id) {
 /* ---- Eliminación real (RPC con CASCADE de targets) ---- */
 async function deleteCampaign(id, name) {
   if (!confirm(`¿Eliminar la campaña "${name}"?\n\nSe borrarán para siempre la campaña y su registro de destinatarios del sistema. Esta acción NO se puede deshacer.`)) return;
-  const { data, error } = await sb.rpc('jjp_delete_campaign', { p_campaign_id: id });
-  if (error) { showToast('No se pudo eliminar: ' + error.message, 'err'); return; }
-  if (data === false) { showToast('No tienes permiso para eliminar esta campaña', 'err'); return; }
-  showToast('Campaña eliminada 🗑️');
-  loadDCampaigns();
+  try {
+    let ok = false;
+    const { data, error } = await sb.rpc('jjp_delete_campaign', { p_campaign_id: id });
+    if (!error && data === true) {
+      ok = true;
+    } else {
+      // Fallback a borrado directo de targets y campaña
+      await sb.from('jjp_wa_campaign_targets').delete().eq('campaign_id', id);
+      const { error: e2 } = await sb.from('jjp_wa_campaigns').delete().eq('id', id);
+      if (!e2) ok = true;
+    }
+    if (ok) {
+      showToast('Campaña eliminada 🗑️');
+      if (typeof closeDModal === 'function') closeDModal('reportModal');
+      loadDCampaigns();
+    } else {
+      showToast('No se pudo eliminar la campaña', 'err');
+    }
+  } catch (e) {
+    showToast('Error al eliminar: ' + e.message, 'err');
+  }
 }
 
 /* ---- Reporte de campaña (resumen) ---- */

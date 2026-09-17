@@ -1301,7 +1301,15 @@ export async function sweepMixnetProducts() {
           if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
           if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
           if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
-          if (cost > 0) updateObj.cost_usd = cost;
+          if (cost > 0) {
+            let costUsd = cost;
+            // Si el costo en DBF está en Bolívares (supera el precio USD), convertir a USD real
+            if (priceB > 0 && cost > priceB * 2.5) {
+              const rate = (priceDBs > 0) ? (priceDBs / priceB) : 847.44;
+              costUsd = Math.round((cost / rate) * 100) / 100;
+            }
+            updateObj.cost_usd = costUsd;
+          }
 
           const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
           const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
@@ -1332,7 +1340,13 @@ export async function sweepMixnetProducts() {
             updateObj.price_usd = priceB;
           }
           if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
-          if (cost > 0) updateObj.cost_usd = cost;
+          if (cost > 0) {
+            let costUsd = cost;
+            if (priceB > 0 && cost > priceB * 2.5) {
+              costUsd = Math.round((cost / 847.44) * 100) / 100;
+            }
+            updateObj.cost_usd = costUsd;
+          }
 
           const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
           const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
@@ -1380,7 +1394,14 @@ export async function sweepMixnetProducts() {
               if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
               if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
               if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
-              if (cost > 0) updateObj.cost_usd = cost;
+              if (cost > 0) {
+                let costUsd = cost;
+                if (priceB > 0 && cost > priceB * 2.5) {
+                  const rate = (priceDBs > 0) ? (priceDBs / priceB) : 847.44;
+                  costUsd = Math.round((cost / rate) * 100) / 100;
+                }
+                updateObj.cost_usd = costUsd;
+              }
 
               if (Object.keys(updateObj).length > 0) {
                 const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');

@@ -145,6 +145,17 @@
     </select>
   </label>
 
+  <!-- Nivel de Precio a imprimir / consultar -->
+  <label class="tb-field">
+    <span>Nivel</span>
+    <select id="tbPriceLevel" onchange="onPriceLevel(this.value)" aria-label="Nivel de precio">
+      <option value="B" selected>🏷️ Precio B (Mayorista USD) [Oficial]</option>
+      <option value="A">🏷️ Precio A (Detal USD)</option>
+      <option value="D">🇻🇪 Precio D (Mayorista Bs)</option>
+      <option value="C">🇻🇪 Precio C (Detal Bs)</option>
+    </select>
+  </label>
+
   <!-- Organización por Categoría, Segmento o Lista corrida -->
   <label class="tb-field">
     <span>Organizar</span>
@@ -230,21 +241,24 @@
 let ALL_VARIANTS = [];
 let FILTER_HIDE_ZERO = false;
 let FILTER_SEARCH = '';
+let PRICE_LEVEL = 'B';         // B (Mayorista USD - oficial) | A (Detal USD) | D (Mayorista Bs) | C (Detal Bs)
 let STOCK_MODE = 'pedido';     // oculta | pedido | numeros
 let GROUP_MODE = 'letra';      // letra | categoria | segmento | plano
 let PAGE_BREAK_MODE = 'auto';  // auto (óptimo 13-15 páginas) | hojas (extendido)
 let IS_ALPHA_SORT = true;      // true: A-Z | false: por orden de catálogo
 let GENERADA_EN = null;        // fecha/hora de la última lectura de la base
 
+function onPriceLevel(v) { PRICE_LEVEL = v; applyFilters(); }
+
 // Lee precios y existencias. Separado para poder REFRESCAR sin recargar la
 // página: la lista del día se actualiza con un botón.
 async function cargarVariantes(content) {
-  const selWithGroups = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
-    + 'jjp_products(name,jjp_categories(name,sort_order,jjp_category_groups(name,emoji,sort_order)))';
-  const selFallback = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
-    + 'jjp_products(name,jjp_categories(name,sort_order))';
-  const selBasic = 'id,sku,cost_usd,price_usd,stock,variant_name,jjp_brands(name),'
-    + 'jjp_products(name)';
+  const selWithGroups = 'id,sku,cost_usd,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,variant_name,jjp_brands(name),'
+    + 'jjp_products(name,price_usd,price_a,price_b,price_c_bs,price_d_bs,cost_usd,jjp_categories(name,sort_order,jjp_category_groups(name,emoji,sort_order)))';
+  const selFallback = 'id,sku,cost_usd,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,variant_name,jjp_brands(name),'
+    + 'jjp_products(name,price_usd,price_a,price_b,price_c_bs,price_d_bs,cost_usd,jjp_categories(name,sort_order))';
+  const selBasic = 'id,sku,cost_usd,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,variant_name,jjp_brands(name),'
+    + 'jjp_products(name,price_usd,price_a,price_b,price_c_bs,price_d_bs,cost_usd)';
 
   let activeSel = selWithGroups;
   const out = [], CHUNK = 1000;
@@ -380,8 +394,27 @@ function renderList(variants) {
   // Permite verificar si la URL solicita modo costo (?mode=cost) o por defecto precio público
   const params = new URLSearchParams(location.search);
   const isCostMode = params.get('mode') === 'cost';
-  const priceLabel = isCostMode ? 'Costo (USD)' : 'Precio (USD)';
-  const docTitle   = isCostMode ? 'LISTA DE COSTOS' : 'LISTA DE PRECIOS';
+  let priceLabel = 'Precio Mayorista ($)';
+  let docTitle   = 'LISTA DE PRECIOS MAYORISTA (B)';
+  let docTag     = 'PRECIOS MAYORISTA (B)';
+
+  if (isCostMode) {
+    priceLabel = 'Costo Real ($)';
+    docTitle   = 'LISTA DE COSTOS (INTERNA)';
+    docTag     = 'USO INTERNO';
+  } else if (PRICE_LEVEL === 'A') {
+    priceLabel = 'Precio Detal ($)';
+    docTitle   = 'LISTA DE PRECIOS DETAL (A)';
+    docTag     = 'PRECIOS DETAL (A)';
+  } else if (PRICE_LEVEL === 'D') {
+    priceLabel = 'Precio Mayorista (Bs)';
+    docTitle   = 'LISTA DE PRECIOS MAYORISTA EN BS (D)';
+    docTag     = 'PRECIOS MAYORISTA BS (D)';
+  } else if (PRICE_LEVEL === 'C') {
+    priceLabel = 'Precio Detal (Bs)';
+    docTitle   = 'LISTA DE PRECIOS DETAL EN BS (C)';
+    docTag     = 'PRECIOS DETAL BS (C)';
+  }
 
   // Tasas para conversión: BCV (Bs/USD) y euro BCV (Bs/EUR)
   const bcv = getBcvRate();
@@ -482,7 +515,40 @@ function renderList(variants) {
         : '';
 
       const sku = escapeHTML(i.sku || '—');
-      const valUSD = isCostMode ? (i.cost_usd || 0) : (i.price_usd || 0);
+
+      // Precios por nivel: Nivel B (Mayorista USD) tiene prioridad oficial
+      const pB = Number(i.price_b != null ? i.price_b : (i.jjp_products?.price_b != null ? i.jjp_products.price_b : (i.price_usd != null ? i.price_usd : i.jjp_products?.price_usd))) || 0;
+      const pA = Number(i.price_a != null ? i.price_a : (i.jjp_products?.price_a != null ? i.jjp_products.price_a : pB)) || pB;
+      const pDBs = Number(i.price_d_bs != null ? i.price_d_bs : (i.jjp_products?.price_d_bs != null ? i.jjp_products.price_d_bs : (bcv > 0 ? pB * bcv : 0))) || 0;
+      const pCBs = Number(i.price_c_bs != null ? i.price_c_bs : (i.jjp_products?.price_c_bs != null ? i.jjp_products.price_c_bs : (bcv > 0 ? pA * bcv : 0))) || 0;
+
+      // Costo saneado: si el costo supera ampliamente el precio de venta, fue extraído en Bolívares desde MixNet
+      let cUsd = Number(i.cost_usd != null ? i.cost_usd : i.jjp_products?.cost_usd) || 0;
+      if (cUsd > 0 && pB > 0 && cUsd > (pB * 2.5)) {
+        const implicitRate = (pDBs > 0) ? (pDBs / pB) : (bcv || 847.44);
+        cUsd = Math.round((cUsd / implicitRate) * 100) / 100;
+      }
+
+      let valDisplay = pB;
+      let valUSD = pB; // Para valorización de inventario en USD
+
+      if (isCostMode) {
+        valDisplay = cUsd;
+        valUSD = cUsd;
+      } else if (PRICE_LEVEL === 'A') {
+        valDisplay = pA;
+        valUSD = pA;
+      } else if (PRICE_LEVEL === 'D') {
+        valDisplay = pDBs;
+        valUSD = pB;
+      } else if (PRICE_LEVEL === 'C') {
+        valDisplay = pCBs;
+        valUSD = pA;
+      } else { // 'B' (Por defecto: Mayorista USD)
+        valDisplay = pB;
+        valUSD = pB;
+      }
+
       const stock = Number(i.stock) || 0;
       groupUnits += stock;
       groupValueUSD += valUSD * stock;
@@ -502,6 +568,12 @@ function renderList(variants) {
         return `<td class="c" style="color:${color};font-weight:700">${stock <= 0 ? 'Agotado' : stock}</td>`;
       })();
 
+      // Formato de celda de precio según moneda
+      const isBsLevel = (PRICE_LEVEL === 'D' || PRICE_LEVEL === 'C') && !isCostMode;
+      const formattedPriceCell = isBsLevel
+        ? `<td class="r" style="font-weight:700">${valDisplay > 0 ? 'Bs ' + valDisplay.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</td>`
+        : `<td class="r" style="font-weight:700">${valDisplay > 0 ? fmtPrice(valDisplay) : '—'}</td>`;
+
       // Bs y € solo en modo costo (interno). La lista de precios pública = solo USD.
       const bsEurCells = isCostMode
         ? `<td class="r" style="color:#555;font-weight:500">${fmtBs(valUSD)}</td>
@@ -512,7 +584,7 @@ function renderList(variants) {
         <td style="font-family:monospace;font-size:12px;color:#444">${sku}</td>
         <td>${pName}${bName}${vName}${catSubTag}</td>
         ${stockCell}
-        <td class="r">${fmtPrice(valUSD)}</td>
+        ${formattedPriceCell}
         ${bsEurCells}
       </tr>`;
     }).join('');
@@ -569,7 +641,7 @@ function renderList(variants) {
         </div>
       </div>
       <div class="cmp-doc">
-        <span class="tag">${docTitle}</span>
+        <span class="tag">${docTag}</span>
         <div class="date">${nowStr} · ${horaStr}</div>
         <div style="font-size:11px;color:#666;margin-top:2px">${isCostMode
           ? `${totalItems} artículos · ${totalUnits} unidades`
@@ -596,7 +668,7 @@ function renderList(variants) {
     ${htmlCategories || '<div class="err">No hay productos disponibles.</div>'}
 
     <div class="cmp-foot">
-      ${isCostMode ? 'Documento interno confidencial — Lista de costos y existencias' : 'Lista de precios en Divisas (USD)'} por categoría (${bizName})
+      ${isCostMode ? 'Documento interno confidencial — Lista de costos y existencias' : 'Lista oficial de precios'} (${bizName})
       ${(!isCostMode && STOCK_MODE === 'pedido')
         ? '<br><strong>A pedido</strong> = lo encargamos a nuestro proveedor y se lo confirmamos con la fecha de entrega. Consúltenos disponibilidad.'
         : ''}

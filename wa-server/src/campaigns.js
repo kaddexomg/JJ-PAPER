@@ -194,13 +194,15 @@ async function step(camp, dailyLimit) {
         nombre: t.name || (t.vars || {}).nombre || '',
         empresa: t.name || (t.vars || {}).empresa || '',
       };
+      // Resolver plantilla: prioridad custom_message del target > message de la campaña > fallback comercial
+      let msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.message || camp.body || '';
       const hasProductContent = msgTemplate.includes('•') || 
         (msgTemplate.includes('- ') && msgTemplate.includes('$')) ||
         msgTemplate.includes('Disponibilidad inmediata') ||
         msgTemplate.length > 300;
 
       if (!msgTemplate || (!hasProductContent && msgTemplate.length < 250)) {
-        msgTemplate = buildFullCommercialMessage(t.vars || {}, camp);
+        msgTemplate = buildFullCommercialMessage(realVars, camp);
       }
       
       const body = renderTemplate(msgTemplate, realVars);
@@ -354,7 +356,9 @@ export async function syncCounts(campaignId) {
 // aquí se liberan sus pendientes como 'skipped'
 async function releaseCancelled() {
   const { data: cancelled } = await db.from('jjp_wa_campaigns')
-    .select('id').eq('status', 'cancelada');
+    .select('id').eq('status', 'cancelada')
+    .gte('updated_at', new Date(Date.now() - 24 * 60 * 60_000).toISOString())
+    .limit(20);
   for (const c of cancelled || []) {
     await db.from('jjp_wa_campaign_targets')
       .update({ status: 'skipped', error: 'campaña cancelada' })

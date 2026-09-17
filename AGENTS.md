@@ -642,4 +642,17 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - **Guard anti round-trip**: `sweepRecentOutgoing` NO re-exporta números `MIX-*`/`MIX-COT-*` (ya vienen de MixNet) — evita que Caja reprocese duplicados.
 - **Cotizaciones JJ → MixNet verificadas**: `cotizacion_COT-*.csv/.txt` se exportan a los drop dirs; visibles desde MixNet y transformables a pedido desde Caja.
 - Corrección 16-09: `PED.DBF` no existe; los reales son `MXENCPED`/`MXRENPED`/`MXENCCOT`/`MXRENCOT`/`MXCTACLI`. Entrega 19:35Z 15-09 tuvo una orden fantasma `MIX-listapreciosrea` (cancelado, inofensiva).
-- Regla de mantenimiento: al tocar `mixer.js` reiniciar el proceso (supervisor `run-service.bat` relanza solo).
+- Regla de mantenimiento: al tocar `mixer.js` reiniciar el proceso (supervisor `run-service.bat` relanza solo).
+
+## Estabilidad WhatsApp, Campañas y Protocolo Multi-Agente (17-09-2026)
+- **Protocolo de Coordinación Multi-Agente**: Documentado en detalle en `cerebro/Sistema/COORDINACION_MULTI_AGENTE.md`.
+  - **REGLA CRÍTICA**: **UNA sola instancia activa de WhatsApp en el sistema**. No correr `wa-server` con la misma cuenta de WhatsApp en la laptop y en la tienda simultáneamente (provoca desincronización "Bad MAC" y expulsión forzosa). La PC de la tienda corre producción (MixNet unidad M:), la laptop remota se enfoca en frontend/lógica.
+  - **Git Pull Obligatorio**: Ejecutar `git pull origin main` y revisar `git log` antes de iniciar cualquier desarrollo.
+  - **Reinicio tras Cambios de Servidor**: Node.js no recarga archivos en memoria; terminar el proceso activo (`taskkill` o `Stop-Process`) para que el supervisor relance el nuevo código.
+- **Corrección Crítica en Despacho de Campañas WhatsApp (`campaigns.js`)**:
+  - Resuelto `ReferenceError: msgTemplate is not defined` (L197). La variable se inicializa ahora con jerarquía: `custom_message` individual del target > `message` de la campaña > propuesta comercial estructurada con viñetas y catálogo.
+  - Optimización de `releaseCancelled()`: filtrado a campañas canceladas en las últimas 24h para prevenir saturación de queries en la base de datos.
+- **Inmunización de Sesiones WhatsApp contra Purgado Indebido (`session-manager.js` y `wa-session.js`)**:
+  - `boot()` ya no purga sesiones con `registered: false` si contienen datos reales (`account`, `me`, `signalIdentities`), ya que Baileys NUNCA setea `registered = true` en flujo de escaneo QR. Los perfiles habilitados en BD quedan permanentemente protegidos.
+  - Manejo de desconexiones transitorias post-QR: Baileys emite código 515 (`restartRequired`) tras escanear el QR, que ahora se reporta como `reconnecting` en lugar de `disconnected`, evitando que la interfaz vuelva a solicitar escaneo.
+  - `stop()` resetea `startingSince` y `reconnectTimer`, eliminando bloqueos en reconexiones dentro de la ventana de 90s.

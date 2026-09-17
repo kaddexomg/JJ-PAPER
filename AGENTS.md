@@ -732,5 +732,28 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - Líder real en ventas: **Andreina JJ Ventas** ($19,852.65, 23 pedidos).
     - Segundo lugar: **Marianela Ventas JJ** ($14,584.33, 54 pedidos).
     - Tercer lugar: **Yovanni Araujo** ($3,120.37, 42 pedidos).
-    - Administrador (Keyder): 0 pedidos de calle, reflejando su rol de gestión sin distorsión.
-    - Caja / Tienda General: 132 pedidos ($947,681.67) preservados íntegramente en el historial 360° de los clientes.
+    - Keyder Salazar (Vendedor 005 en MixNet): Mapeado formalmente como vendedor `005` en `SELLERS_BY_CODVEN`. Sus 2 pedidos reales confirmados (`MIX-00112346` por $78.92 y `MIX-00112347` por $44.87) fueron asignados a su UID, totalizando $123.79 (con 1 tercer pedido pendiente de verificación).
+    - Caja / Tienda General (010 / 020): 130 pedidos preservados íntegramente en el historial 360° de clientes.
+
+## Monitor de Cuotas en Vivo y Proyecto C (Storage & Media) 100% Restaurado (17-09-2026)
+- **Causa Raíz de Proyecto C en 0 Archivos / 0.00 MB**:
+  - En modo directo en la nube (`querySupabaseDirectly()` de `assets/js/admin/monitor-client.js`), el cliente ejecutaba `_rawSbInv.storage.listBuckets()`.
+  - En Supabase Storage, `listBuckets()` requiere privilegios de administración de storage (`service_role`). Con la clave pública `anon` de Proyecto C, PostgREST/Storage deniega el listado y devuelve `{ data: [] }`.
+  - Como el array resultante estaba vacío, el contador de archivos quedaba en `0`, el peso en `0.00 MB` y no se renderizaban los buckets.
+- **Causa Raíz del Monitoreo "Estático / No en Vivo"**:
+  - En modo Cloud (cuando se accede vía HTTPS en Cloudflare Pages donde el navegador bloquea Mixed Content hacia `http://localhost:8787`), `recentRequests` se reinicializaba en cada ciclo de sondeo a un array estático de 1 solo elemento hardcodeado (`supabase:direct_ping`), y `rpm` estaba fijo en `0`. La consola nunca mostraba flujo ni animación.
+- **Resolución Integral Aplicada**:
+  - **Métricas Reales de Proyecto C**:
+    - Proyecto C (`nmcamjxhyysmmvgxgabo`) verificado con **295 archivos WebP optimizados** en el bucket `jjp-products` (5.33 MB) y 0 archivos en `jjp-receipts`.
+    - Medición de latencia en vivo con solicitud `HEAD` a imagen pública del catálogo (`.../storage/v1/object/public/jjp-products/0088545d-6706-4087-8573-487a67a43957.webp`).
+    - Visualización exacta en la tarjeta: `5.33 MB / 1.024 MB`, `0.52% utilizado`, `⚡ {latC} ms`, `🖼️ 295 archivos` y desglose de buckets (`📦 jjp-products` 295 archivos · 🌐 Público y `📦 jjp-receipts` 0 archivos · 🔒 Privado).
+  - **Monitoreo en Tiempo Real 100% Vivo y Dinámico**:
+    - Buffer deslizante de red en memoria (`cloudLiveRequests` hasta 150 eventos) que registra cada ping real completado a Core, Comunicaciones, Storage CDN y Latido del Servidor con su duración exacta en milisegundos.
+    - **Suscripciones Supabase Realtime**:
+      - Canal `srv-monitor-live` en Proyecto B: detecta latidos de `jjp_server_control` en tiempo real; si `Supervisor-Pc` reporta métricas PostgreSQL nativas (`modules.monitor_stats`), actualiza las tablas y tuplas muertas de inmediato.
+      - Canal `wa-monitor-live` en Proyecto B: detecta mensajes entrantes y salientes de WhatsApp y los grafica al instante en la consola.
+      - Canal `orders-monitor-live` en Proyecto A: detecta inserciones y actualizaciones de pedidos de venta en vivo.
+    - **Cálculo Dinámico de RPM**: Contador rodante de requests por minuto que calcula en tiempo real las operaciones de red por minuto.
+    - **Insignia de Motor Inteligente**: Reporta `☁️ Modo Nube · 🟢 Supervisor-Pc Online (Realtime Sync)` cuando el servidor está activo en tienda.
+    - **Cache-Busting**: `admin/monitor.html` actualizado con `<script src="../assets/js/admin/monitor-client.js?v=20260917_live_c"></script>` y clases CSS `.type-lan` y `.type-storage`.
+

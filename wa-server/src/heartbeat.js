@@ -34,6 +34,26 @@ function getLanIp() {
   return cands[0] || '127.0.0.1';
 }
 
+let lastStatsData = null;
+let lastStatsFetchTime = 0;
+
+async function fetchStatsForBeat() {
+  const now = Date.now();
+  if (lastStatsData && (now - lastStatsFetchTime < 25_000)) return lastStatsData;
+  try {
+    const { getSystemHealthAndStats } = await import('./monitor.js');
+    const s = await getSystemHealthAndStats(false);
+    if (s && s.recentRequests && s.recentRequests.length > 20) {
+      s.recentRequests = s.recentRequests.slice(0, 20);
+    }
+    lastStatsData = s;
+    lastStatsFetchTime = now;
+    return s;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function beat() {
   // El latido decía solo "el proceso vive". Ahora también dice si cada
   // WhatsApp está realmente sano, que es lo que le importa al panel.
@@ -53,13 +73,15 @@ async function beat() {
     lan_https_url: `https://${ip}:8788`
   };
 
+  const monitorStats = await fetchStatsForBeat();
+
   const now = new Date().toISOString();
   const payload = {
     heartbeat: now,
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra, ...lanInfo }
+    modules: { ...modulesRef, ...extra, ...lanInfo, ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
   };
 
   // 1. Actualizar Proyecto B (Comunicación)

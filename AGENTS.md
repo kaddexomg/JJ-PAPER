@@ -680,17 +680,16 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - Saneamiento en `sweepMixnetProducts()`: Si el costo en el DBF está en Bolívares (`cost > priceB * 2.5`), se divide automáticamente entre la tasa real de MixNet (`priceDBs / priceB`) antes de guardar en `cost_usd`.
   - **Base de Datos Saneada**: 620 registros en `jjp_product_variants` y `jjp_products` con costos inflados en Bolívares fueron corregidos a sus valores reales en USD.
 
-<<<<<<< HEAD
 ## Corrección de "Lista Mala" en Campañas WhatsApp/Correo y Cache-Busting Global (17-09-2026)
 - **Queja del Usuario**: "Las campañas de WhatsApp y correo siguen exportando la lista mala, no la lista acabada de actualizar" (la lista nueva con Precio B mayorista +900).
 - **Causa Raíz Identificada**: El fix de la lista de precios (Precio B mayorista, `.range(0,4999)`, descarte de productos de prueba y conteo dinámico) se aplicó al `assets/js/doc-engine.js` en el commit `ec94ad9`, **pero las páginas HTML seguían referenciándolo con versiones viejas** (`?v=20260908_cooldown`, `?v=20260819b`, etc.). Los navegadores de los usuarios cachearon esas URLs y seguían ejecutando el generador PDF antiguo → la lista generada en campañas salía vieja/mala.
-- **Solución Aplicada (commit `a???` pendiente)**:
+- **Solución Aplicada**:
   - **Cache-Busting Uniforme**: Toda referencia a `doc-engine.js` → `?v=20260917_lista_ok` en las 22 páginas: `admin/difusion.html`, `admin/campanas-email.html`, `admin/prospectos.html`, `admin/whatsapp.html`, `admin/correo.html`, `admin/pos.html`, `admin/cotizador.html`, `admin/pedidos.html`, `admin/cotizaciones.html`, `admin/catalogo.html`, `vendedor/*` equivalentes, `catalogo.html` e `index.html`.
   - Bump también de `gemini-client.js`, `campaign-editor.js` y `vprospectos.js` → `?v=20260917_lista_ok` en las páginas de campañas (el editor y los textos de IA también se recargan).
   - **Textos "+700" → "+900"**: Eliminados los restos desactualizados en `assets/js/vendedor/campaign-editor.js` (checkbox `📄 Adjuntar Lista de Precios PDF Oficial (+900 arts)`), `assets/js/gemini-client.js` (5 menciones de "+700/más de 700" en prompts y fallbacks de campañas/prospectos) y `assets/js/admin/vprospectos.js` (email por defecto de prospectos).
 - **Regla de Mantenimiento (CRÍTICA)**: Todo cambio en `doc-engine.js`, `gemini-client.js`, `campaign-editor.js`, `vdifusion.js`, `vcampanas-email.js` o `vprospectos.js` debe ir acompañado de **bump de `?v=`** en TODAS las páginas que los referencian; de lo contrario Cloudflare Pages sirve la versión cacheada por el navegador y los fixes no llegan al usuario. La herramienta `docPdfProductos()` genera el PDF de lista en vivo desde Supabase (Precio B), por lo que "la lista mala" casi siempre es caché del navegador: bumpear el `?v=` del script es el fix.
-- **Conteo Vigente**: 901 productos activos sincronizados desde MXCTAINV.DBF (maestro vigente, commit `5c56ebe`). Las listas/campañas deben hablar de "+900 artículos", nunca "+700".
-=======
+- **Conteo Vigente**: 901 productos activos sincronizados desde MXCTAINV.DBF (maestro vigente, commit `5c56ebe`). Las listas/campañas deben hablar de "+900 artículos", nunca "+700".
+
 ## Historial de Compras 360° en CRM de Clientes y Métricas Reales de Vendedores (17-09-2026)
 - **Sincronización Atómica de Métricas en PostgreSQL Core (`jjp_customers`)**:
   - Previamente, `total_orders = 0` y `total_usd = 0` en `jjp_customers` a pesar de existir 255 pedidos reales de MixNet (`MIX-*`).
@@ -715,5 +714,23 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - *Líder en Ventas*: Vendedor con mayor volumen facturado en el mes.
   - **Corrección de Atributo de Ranking**: Corregido bug donde la tabla leía `stats.orders_count` en lugar de `stats.total_orders`, eliminando el texto `undefined pedidos` y reflejando las transacciones exactas.
   - **Auditoría de Cartera por Vendedor**: Nueva columna *Cartera Clientes* en la tabla de vendedores mostrando la cantidad de clientes asignados y cotizaciones elaboradas.
-  - **Actualización de RPC `jjp_seller_ranking`**: Ahora evalúa pedidos con `status NOT IN ('cancelado', 'rechazado')`, permitiendo reflejar con exactitud las órdenes procedentes de MixNet Caja.
->>>>>>> 22b079c979c3f0a188b3edace167f3f20b74ee77
+
+## Corrección Definitiva de Atribución de Ventas de Caja / Mostrador y Saneamiento de Métricas (17-09-2026 Tarde)
+- **Causa Raíz de los >200 Pedidos y Cotizaciones en Keyder Salazar**:
+  1. En `SELLERS_BY_CODVEN` de `wa-server/src/mixer.js`, se habían incluido erróneamente los códigos `010` y `020` asociados al UUID de Keyder Salazar (`bddc57dc...`).
+  2. En MixNet DBF (`MXENCPED` / `MXENCCOT`), `010` es el código por defecto de **Caja Principal / Mostrador de Tienda**, y `020` representa la cartera libre institucional de MixNet. NO son comisiones personales de Keyder.
+  3. Adicionalmente, el fallback `finalSellerId = codvenSeller || matchedCust?.seller_id` asignaba a Keyder cualquier orden de clientes de Zona 020 (3.474 clientes cargados bajo el admin para protección de acceso).
+  4. Esto provocó que 105 pedidos de Caja Mostrador ($944k) y 128 cotizaciones de clientes institucionales se acreditaran indebidamente a Keyder en `jjp_seller_ranking`.
+- **Solución Implementada**:
+  - **Desacople en `mixer.js`**: Eliminada la entrada `010`/`020` de `SELLERS_BY_CODVEN`. Ahora `sellerForCodven('010')` devuelve `seller_id: null` (Caja MixNet).
+  - **Guarda Anti-Fallback para Administrador**: En `sweepMixnetDbf` y `sweepIncomingFiles`, si el cliente pertenece a la cartera administrativa de Keyder, `finalSellerId` permanece estrictamente como `null` a menos que exista un `codven` explícito de un vendedor de calle (004/006 Yovanni, 008 Marianela, 014 Andreina).
+  - **Reasignación Limpia en Base de Datos**:
+    - 105 órdenes `MIX-*` y 128 cotizaciones `MIX-COT-*` fueron reasignadas a `seller_id: null` (Caja Mostrador / Tienda).
+    - Neutralizadas las órdenes de prueba con cifras desproporcionadas (`JJP-260916-9063` y `COT-260916-8493`).
+    - Keyder Salazar conserva únicamente sus 5 cotizaciones y operaciones legítimas del Web POS.
+  - **Ranking de Vendedores Corregido**:
+    - Líder real en ventas: **Andreina JJ Ventas** ($19,852.65, 23 pedidos).
+    - Segundo lugar: **Marianela Ventas JJ** ($14,584.33, 54 pedidos).
+    - Tercer lugar: **Yovanni Araujo** ($3,120.37, 42 pedidos).
+    - Administrador (Keyder): 0 pedidos de calle, reflejando su rol de gestión sin distorsión.
+    - Caja / Tienda General: 132 pedidos ($947,681.67) preservados íntegramente en el historial 360° de los clientes.

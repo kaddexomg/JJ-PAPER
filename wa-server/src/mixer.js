@@ -54,14 +54,15 @@ let importedHistory = new Set();
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
 // Referencia AGENTS.md: Yovanni (004/006), Marianela (008), Andreina (014)
+// NOTA: 010 y 020 en MixNet representan Caja Mostrador / Cartera General de Tienda.
+// NUNCA asignar 010/020 a Keyder Salazar (admin), las ventas de mostrador pertenecen a Caja Tienda (seller_id: null).
 const SELLERS_BY_CODVEN = new Map([
   ['95d5ad44-e844-4f4f-a9d0-2db7d162c8c6', ['004', '006']], // Yovanni Araujo
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],        // Marianela (marianela08)
   ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],        // Andreina (andreina)
-  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['010', '020']]  // Keyder Salazar (admin, Zonas 010/020)
 ]);
 const CODVEN_HINT = new Map([
-  ['004', 'Yovanni'], ['006', 'Yovanni'], ['008', 'Marianela'], ['010', 'Keyder'], ['014', 'Andreina'], ['020', 'Keyder']
+  ['004', 'Yovanni'], ['006', 'Yovanni'], ['008', 'Marianela'], ['014', 'Andreina']
 ]);
 function sellerForCodven(codven) {
   const cv = String(codven || '').trim();
@@ -931,7 +932,8 @@ async function sweepIncomingFiles() {
 
           // Buscar cliente y vendedor asignado
           const matchedCust = await matchCustomer(phone, rif, clientName);
-          const sellerId = matchedCust?.seller_id || null;
+          const adminId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+          const sellerId = (matchedCust?.seller_id === adminId) ? null : (matchedCust?.seller_id || null);
           const rate = await getActiveExchangeRate();
 
           if (isQuote) {
@@ -1116,12 +1118,13 @@ async function sweepMixnetDbf() {
         }
 
         const matchedCust = await matchCustomer(phone, rif, clientName);
-        const sellerId = matchedCust?.seller_id || null;
+        const adminId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+        const effectiveCustSeller = (matchedCust?.seller_id === adminId) ? null : (matchedCust?.seller_id || null);
 
         // Detallar el vendedor que realizó la operación en MixNet (codven)
         const codven = String(pr.codven || '').trim();
         const { seller_id: codvenSeller, hint: sellerHint } = sellerForCodven(codven);
-        const finalSellerId = codvenSeller || sellerId;
+        const finalSellerId = codvenSeller || effectiveCustSeller;
         const vendorNote = codven ? ` · Vendedor MixNet #${codven} (${sellerHint})` : '';
 
         if (isQuote) {

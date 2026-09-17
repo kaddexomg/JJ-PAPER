@@ -67,12 +67,13 @@ Entidades que atraviesan TODO el sistema (los nodos del grafo):
 | Qué | Dónde |
 |---|---|
 | Sitio | **jj-paper.pages.dev** (Cloudflare Pages; Netlify obsoleto) |
-| Deploy | `git push` a `main` → build automático (`build.sh` → `dist/`) |
-| Base de datos | Supabase **`czzvsqnmxtjzqzioknnn`** (migrado 24-ago-2026; el anterior `oeiuczlt…` quedó bloqueado por storage) |
-| Servidor | `wa-server/` en la PC de la tienda; 🟢/🔴 por heartbeat en el panel |
+| Base de datos | Supabase Multi-Proyecto: **A (Core: `qxgdrfkobbhdzgtoiavv`)**, **B (Comm: `klcibjwleiqppedefpxw`)**, **C (Storage: `nmcamjxhyysmmvgxgabo`)**. |
+| Servidor | `wa-server/` en la PC de la tienda (Windows 7/10 en `192.168.0.172`); 🟢/🔴 por heartbeat en el panel |
+| MixNet | Sistema administrativo en comp01 (`\\192.168.0.185\comp01` / Unidad M:). |
+| Guías Clave | [[REGLAS_AGENTE.md]] (reglas para agentes IA) · [[MAPA_SISTEMA.md]] (mapa de 54 páginas y módulos) |
 | Repo | privado `github.com/kaddexomg/JJ-PAPER`, rama `main` |
 
-Detalle en [[Configuracion]].
+Detalle en [[Configuracion]], [[REGLAS_AGENTE.md]] y [[MAPA_SISTEMA.md]].
 
 ## Antes de escribir una sola línea
 

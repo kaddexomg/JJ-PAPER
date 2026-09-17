@@ -599,4 +599,36 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - **Controles Mejorados en Tickets de POS y Cotizador**:
   - Cantidad directamente editable mediante `<input type="number">` en cada línea del ticket, permitiendo ingresar cualquier número de unidades sin tener que hacer decenas de clics en el botón `+`.
   - Botón de eliminación directa `🗑️` por fila (`posRemoveLine`) para retirar productos del ticket en 1 clic.
-  - Acceso seguro al perfil de usuario (`sellerId`) previniendo excepciones en modo administrador.
+  - Acceso seguro al perfil de usuario (`sellerId`) previniendo excepciones en modo administrador.
+
+## Blindaje Integral de Ventas, Cotizaciones, Sincronización de Precios y Estabilidad del Servidor (16-09-2026 Noche)
+
+### 1. Inmunización Global de Guardado en Cotizador (`vquotes.js`) y POS (`pos.js`)
+- **Causa Raíz del Bloqueo (Botones "Guardando..." y "Registrando..." congelados)**:
+  1. **Conflicto de Alcance Léxico (`let SELLER` vs `window.SELLER`)**: En `vcommon.js`, `let SELLER = null;` residía en el ámbito léxico. En las páginas `/admin/` (`admin/pos.html` y `admin/cotizador.html`), el inicio de sesión asignaba a `window.SELLER = profile;`, lo que dejaba intacto el `SELLER` léxico en `null`.
+  2. **Excepciones No Capturadas (`TypeError`)**:
+     - En `vquotes.js`: `seller_id: SELLER.id` y `Atendido por: ${SELLER.name}` provocaban `Cannot read properties of null (reading 'id' / 'name')`.
+     - En `pos.js`: `posShowDone()` intentaba evaluar `${SELLER.name}` arrojando el mismo `TypeError`.
+     - Al no existir bloques `try / catch / finally`, la ejecución se interrumpía justo después de deshabilitar los botones (`btn.disabled = true; btn.textContent = 'Guardando...' / 'Registrando...'`), dejándolos congelados indefinidamente.
+  3. **Política RLS en Core (`jjp_quotes_ins`)**: La política anterior restringía inserciones exclusivamente a tokens `authenticated` con perfil activo. Si el token estaba en refresco o con rol anon temporal, PostgREST arrojaba `42501`.
+- **Solución Implementada**:
+  - **Estructura Robusta `try / catch / finally`**: Implementada en `quoteSubmit()` y `posSubmit()`. En caso de cualquier error (de red, validación o base de datos), el botón se restablece inmediatamente y se muestra una notificación Toast con el mensaje descriptivo del fallo.
+  - **Inmunización en el Núcleo de Autenticación (`assets/js/admin/auth.js`)**: `loadProfile()` asigna de forma simultánea `CURRENT_PROFILE`, `window.CURRENT_PROFILE`, `SELLER` y `window.SELLER`. Cualquier módulo del sistema tiene garantizado el perfil del usuario activo.
+  - **Declaración Acoplada en `vcommon.js`**: `var SELLER = null;` garantiza enlace directo a `window.SELLER`.
+  - **Resolución Defensiva `getActiveSeller()`**: Aplicada en `pos.js`, `vquotes.js`, `vcustomers.js`, `vdashboard.js`, `vorders.js`, `vajustes.js` y `scan.js`.
+  - **Enlace de Cliente en Cotizaciones**: Variable `quoteCustomer` añadida a `vquotes.js` para persistir `customer_id` al guardar.
+  - **Actualización DDL en Supabase Core**: Política `jjp_quotes_ins` actualizada para admitir inserción limpia con `status = 'pendiente'`.
+
+### 2. Estabilidad de Servidor y Criptografía Signal (`wa-server`)
+- **Autosanación Activa ante Bad MAC**: En `wa-server/src/index.js`, monkey-patch en `console.error` que intercepta fallos de desencriptación Signal (`libsignal`), purga selectivamente la sesión corrupta del JID implicado con limitación de frecuencia (máx. 1 purga cada 60s) y suprime advertencias repetitivas para no colapsar los logs.
+- **Limpieza de Sesiones Zombie (`session-manager.js`)**: En `boot()`, barrido que elimina directorios huérfanos o con `registered: false` (como `b3c1eae7` y `0d850c1e`).
+- **Rotación Activa de Logs (`logger.js`)**: Chequeo en arranque (10MB) y en ejecución cada 60s (50MB). Utiliza copia y truncado (`COPY + TRUNCATE`) para compatibilidad completa con Windows sin errores de archivo bloqueado (`EBUSY`).
+
+### 3. Sincronización Completa de Niveles de Precio MixNet (`mixer.js`)
+- `sweepMixnetProducts()` actualiza integralmente todas las columnas de precios: `price_a, price_b, price_usd, price_c_bs, price_d_bs` en `jjp_products` y `jjp_product_variants`.
+- El POS lee prioritariamente `price_b` (precio mayorista estándar), garantizando total coherencia entre MixNet y JJ Paper.
+- Palabras clave de listas de tarifas añadidas a la lista de exclusión en `sweepIncomingFiles` para evitar falsos pedidos.
+
+### 4. Directrices de Agentes Compartidos y Mapa del Sistema
+- **`REGLAS_AGENTE.md`**: Reglas estrictas de operación, prohibiciones, convenciones de red (Laptop vs PC de Oficina con MixNet/Unidad M:), y metodología para agentes en ambos entornos.
+- **`MAPA_SISTEMA.md`**: Referencia integral de las 54 interfaces HTML, 69 módulos JS cliente, 25 módulos de `wa-server`, flujo de precios y esquema relacional de bases de datos.

@@ -70,7 +70,12 @@ async function loadAdminProducts(search = '') {
     `id,name,description,price_usd,unit,unit_id,emoji,image_url,tag,active,featured,essential,stock,min_qty,category_id,jjp_categories(name),${VARIANTS_ADMIN_SELECT}`,
     q => {
       q = q.order('created_at', { ascending: false });
-      if (search) q = q.ilike('name', `%${search}%`);
+      if (search && search.trim()) {
+        const words = search.trim().split(/[\s,()\*\/+\-]+/).filter(w => w.length > 0);
+        for (const w of words) {
+          q = q.ilike('name', `%${w}%`);
+        }
+      }
       return q;
     });
   adminProducts = rows.map(p => {

@@ -1276,6 +1276,7 @@ export async function sweepMixnetProducts() {
 
     if (masterRows.length > 0) {
       let updatedCount = 0;
+      let insertedCount = 0;
       const stockBySku = new Map(stockRows.map(r => [String(r.codart || r.codigo || r.sku || '').trim(), r]));
       for (const r of masterRows) {
         const sku = String(r.codart || r.codigo || r.sku || '').trim();
@@ -1316,11 +1317,28 @@ export async function sweepMixnetProducts() {
 
           const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
           const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
-          if (vUp?.length || pUp?.length) updatedCount++;
+          if (vUp?.length || pUp?.length) {
+            updatedCount++;
+          } else {
+            // El artículo existe en MixNet pero aún no en JJ Paper: auto-importarlo
+            const nomart = String(r.nomart || r.nombre || r.descripcion || sku).trim();
+            if (nomart && sku) {
+              const newProd = {
+                name: nomart,
+                sku: sku,
+                ...updateObj,
+                active: true,
+                unit: String(r.unidad || 'und').trim().toLowerCase() || 'und',
+                mixnet_status: 'sincronizado'
+              };
+              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id');
+              if (ins?.length) insertedCount++;
+            }
+          }
         }
       }
-      if (updatedCount > 0) {
-        log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde MXCTAINV.DBF (maestro vigente).`);
+      if (updatedCount > 0 || insertedCount > 0) {
+        log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos (${insertedCount} nuevos importados) desde MXCTAINV.DBF (maestro vigente).`);
       }
       return;
     }
@@ -1328,6 +1346,7 @@ export async function sweepMixnetProducts() {
     // Respaldo: solo VICTAINV.DBF disponible (sin maestro de precios)
     if (stockRows.length > 0) {
       let updatedCount = 0;
+      let insertedCount = 0;
       for (const r of stockRows) {
         const sku = String(r.codart || r.codigo || r.sku || '').trim();
         if (!sku) continue;
@@ -1346,18 +1365,35 @@ export async function sweepMixnetProducts() {
           if (cost > 0) {
             let costUsd = cost;
             if (priceB > 0 && cost > priceB * 2.5) {
-              costUsd = Math.round((cost / 847.44) * 100) / 100;
+              const rate = 847.44;
+              costUsd = Math.round((cost / rate) * 100) / 100;
             }
             updateObj.cost_usd = costUsd;
           }
 
           const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
           const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
-          if (vUp?.length || pUp?.length) updatedCount++;
+          if (vUp?.length || pUp?.length) {
+            updatedCount++;
+          } else {
+            const nomart = String(r.nomart || r.nombre || r.descripcion || sku).trim();
+            if (nomart && sku) {
+              const newProd = {
+                name: nomart,
+                sku: sku,
+                ...updateObj,
+                active: true,
+                unit: String(r.unidad || 'und').trim().toLowerCase() || 'und',
+                mixnet_status: 'sincronizado'
+              };
+              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id');
+              if (ins?.length) insertedCount++;
+            }
+          }
         }
       }
-      if (updatedCount > 0) {
-        log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos desde VICTAINV.DBF (respaldo).`);
+      if (updatedCount > 0 || insertedCount > 0) {
+        log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos (${insertedCount} nuevos importados) desde VICTAINV.DBF (respaldo).`);
       }
       return;
     }

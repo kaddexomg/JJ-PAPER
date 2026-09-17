@@ -757,3 +757,18 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - **Insignia de Motor Inteligente**: Reporta `☁️ Modo Nube · 🟢 Supervisor-Pc Online (Realtime Sync)` cuando el servidor está activo en tienda.
     - **Cache-Busting**: `admin/monitor.html` actualizado con `<script src="../assets/js/admin/monitor-client.js?v=20260917_live_c"></script>` y clases CSS `.type-lan` y `.type-storage`.
 
+## Sincronización Total MixNet (Auto-Import de Productos Faltantes) y Buscador Inteligente Multi-Token (17-09-2026)
+- **Causa Raíz de Productos Faltantes (MixNet vs JJ Paper)**:
+  - En `wa-server/src/mixer.js` (`sweepMixnetProducts`), el importador solo ejecutaba queries `.update()` filtrando por `sku`. **NUNCA ejecutaba `.insert()`**.
+  - Si un producto existía en MixNet (`MXCTAINV.DBF`, con más de 1.108 a 2.000 registros) pero no formaba parte de los 902 productos del CSV inicial cargado en Supabase, el `.update()` retornaba 0 filas modificadas y el artículo quedaba completamente ignorado y descartado.
+  - **Resolución en `mixer.js`**: `sweepMixnetProducts()` ahora evalúa si el producto existe en `jjp_products` o `jjp_product_variants`; si no existe, lo **inserta automáticamente** en `jjp_products` con su nombre, SKU, unidad, precio B (mayorista USD), precio A, precios en Bs, costo y stock real desde `MXCTAINV.DBF`. La base de datos de JJ Paper alcanzará el 100% de paridad con MixNet en cada barrido.
+- **Causa Raíz de "No consigo plástico 44*66 (carnet) ni muchos otros"**:
+  - Los buscadores del sistema (`product-finder.js` en POS/Cotizador/Consulta, `catalog.js` en Catálogo web y `admin/products.js`) realizaban una búsqueda rígida de subcadena exacta contigua: `normTxt(p.name).includes(q)`.
+  - Si el usuario escribía `plastico carnet` o `plastico 44*66 (carnet)`, el buscador exigía que el texto estuviera escrito exactamente en esa secuencia sin ninguna palabra en medio. Dado que el producto en base de datos se titula `PLASTICO 67*99 (CARNET)(X100UND)175MICRONES` (con `67*99` en el medio), la búsqueda devolvía **0 resultados**, haciendo creer que el producto no existía. Lo mismo ocurría con `plastico 67 99`, `carnet plastico`, `cartulina negra`, `sobre manila carta`, etc.
+  - **Resolución del Motor de Búsqueda Inteligente (`pfMatch` y `getFiltered`)**:
+    - **Tokenización Inteligente**: Separa la consulta en palabras clave individuales ignorando símbolos (`*`, `(`, `)`, `/`, `-`, `,`, `+`).
+    - **Coincidencia Multi-Palabra (AND)**: Encuentra el producto sin importar el orden de las palabras (`carnet plastico` == `plastico carnet`).
+    - **Tolerancia a Medidas/Errores (Scoring)**: Si la búsqueda tiene 3 o más palabras (ej. `plastico 44*66 (carnet)`), identifica que `plastico` y `carnet` coinciden y muestra de inmediato los productos relevantes ordenados por relevancia (`PLASTICO 67*99 (CARNET)` y `PLASTICO CARNET X100 STUDMARK`).
+    - **Bumps de versión**: `product-finder.js?v=20260917_search_tokens` y `catalog.js?v=20260917_search_tokens` aplicados en todas las páginas del panel y catálogo.
+
+

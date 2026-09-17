@@ -182,13 +182,41 @@ function groupSlugOfProduct(p) {
 
 function getFiltered() {
   const q = normTxt(currentSearch);
+  const rawTokens = q ? q.split(/[\s,()\*\/+\-]+/).filter(t => t.length > 0) : [];
+
   let list = allProducts.filter(p => {
-    const grpOk  = currentGroup === 'todos' || groupSlugOfProduct(p) === currentGroup;
-    const catOk  = currentCat   === 'todos' || p.jjp_categories?.slug === currentCat;
-    const qOk    = !q || normTxt(p.name).includes(q) || normTxt(p.description).includes(q)
-                      || normTxt(p._brandNames).includes(q) || normTxt(p._skus).includes(q)
-                      || normTxt(p._varNames).includes(q);
-    return grpOk && catOk && qOk;
+    const grpOk = currentGroup === 'todos' || groupSlugOfProduct(p) === currentGroup;
+    const catOk = currentCat === 'todos' || p.jjp_categories?.slug === currentCat;
+    if (!grpOk || !catOk) return false;
+    if (!rawTokens.length) return true;
+
+    const pText = normTxt([
+      p.name,
+      p.description,
+      p._brandNames,
+      p._skus,
+      p._varNames
+    ].join(' '));
+
+    // Tokens coincidentes en el producto
+    const matchingTokens = rawTokens.filter(tok => {
+      if (tok.length <= 2) {
+        const re = new RegExp('(^|[^a-z0-9])' + tok + '([^a-z0-9]|$)', 'i');
+        return re.test(pText);
+      }
+      return pText.includes(tok);
+    });
+
+    // 1. Todos los tokens coinciden
+    if (matchingTokens.length === rawTokens.length) return true;
+
+    // 2. Coincidencia parcial para 3+ palabras si coinciden al menos 2 significativas
+    if (rawTokens.length >= 3 && matchingTokens.length >= 2) {
+      const significant = matchingTokens.filter(t => t.length >= 3).length;
+      if (significant >= 2) return true;
+    }
+
+    return false;
   });
 
   if      (currentSort === 'az')    list.sort((a,b) => a.name.localeCompare(b.name));

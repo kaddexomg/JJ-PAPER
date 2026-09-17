@@ -59,19 +59,55 @@ async function pfLoad(force) {
 
 function pfNorm(s) { return typeof normTxt === 'function' ? normTxt(String(s || '')) : String(s || '').toLowerCase(); }
 
-// Filtra por nombre / sku / código / marca
+// Filtra por nombre / sku / código / marca con búsqueda inteligente multi-token
 function pfMatch(list, term) {
-  const q = pfNorm(term);
-  if (!q) return (list || []).slice(0, 40);
+  if (!term || !term.trim()) return (list || []).slice(0, 40);
+  const normTerm = pfNorm(term);
+  const tokens = normTerm.split(/[\s,()\*\/+\-]+/).filter(t => t.length > 0);
+  if (tokens.length === 0) return (list || []).slice(0, 40);
+
   const lc = String(term || '').trim().toLowerCase();
-  return (list || []).filter(p => {
-    if (pfNorm(p.name).includes(q)) return true;
-    if ((p.sku || '').toLowerCase().includes(lc)) return true;
-    return (p.jjp_product_variants || []).some(v => v.active && (
-      (v.sku || '').toLowerCase().includes(lc) ||
-      (v.barcode || '').toLowerCase().includes(lc) ||
-      pfNorm(v.jjp_brands?.name || v.variant_name || '').includes(q)));
-  }).slice(0, 40);
+  const scored = [];
+
+  for (const p of (list || [])) {
+    const vars = p.jjp_product_variants || [];
+    const varText = vars.map(v => `${v.sku || ''} ${v.barcode || ''} ${v.variant_name || ''} ${v.jjp_brands?.name || ''}`).join(' ');
+    const fullText = pfNorm(`${p.name || ''} ${p.sku || ''} ${p.description || ''} ${varText}`);
+
+    // Tokens coincidentes en el producto
+    const matchingTokens = tokens.filter(tok => {
+      if (tok.length <= 2) {
+        const re = new RegExp('(^|[^a-z0-9])' + tok + '([^a-z0-9]|$)', 'i');
+        return re.test(fullText);
+      }
+      return fullText.includes(tok);
+    });
+
+    const matchCount = matchingTokens.length;
+    const matchRatio = matchCount / tokens.length;
+
+    // 1. Coincidencia completa: todos los tokens están presentes en el producto
+    if (matchRatio === 1) {
+      let score = 200;
+      if (fullText.includes(normTerm)) score += 150; // Frase exacta consecutiva
+      if ((p.sku || '').toLowerCase() === lc) score += 500; // Coincidencia exacta de SKU
+      if ((p.stock || 0) > 0) score += 50; // Prioridad si hay stock
+      scored.push({ p, score });
+    }
+    // 2. Coincidencia parcial para búsquedas de 3 o más palabras (tolera medidas o palabras extra)
+    // Ej. si el usuario busca "plastico 44*66 carnet", coincide "plastico" y "carnet"
+    else if (tokens.length >= 3 && matchCount >= 2) {
+      const significantMatches = matchingTokens.filter(t => t.length >= 3).length;
+      if (significantMatches >= 2) {
+        let score = (matchCount * 40) + (matchRatio * 50);
+        if ((p.stock || 0) > 0) score += 20;
+        scored.push({ p, score });
+      }
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map(s => s.p).slice(0, 40);
 }
 
 // Match EXACTO por código de barras o SKU (para escaneo). Devuelve {product, variant} o null.

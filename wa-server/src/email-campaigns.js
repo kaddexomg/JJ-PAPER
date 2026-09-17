@@ -78,7 +78,9 @@ async function step(camp, dailyLimit) {
         // Generar HTML personalizado a partir del cuerpo renderizado único para este destinatario
         const bodyWithBr = body.replace(/\n/g, '<br>');
         const imgAtt = (camp.attachments || []).find(a => (a.mime && a.mime.startsWith('image/')) || (a.contentType && a.contentType.startsWith('image/')) || (a.path && a.path.includes('/campaigns/')));
-        const imgHtml = imgAtt?.path ? `<div style="margin:14px 0;text-align:center"><img src="${imgAtt.path}" style="max-width:380px;border-radius:10px;border:1px solid #e5e7eb"></div>` : '';
+        const STORAGE_BASE = `https://nmcamjxhyysmmvgxgabo.supabase.co/storage/v1/object/public/`;
+        const imgUrl = imgAtt?.path ? (imgAtt.path.startsWith('http') ? imgAtt.path : `${STORAGE_BASE}${imgAtt.bucket || 'jjp-email-media'}/${imgAtt.path}`) : '';
+        const imgHtml = imgUrl ? `<div style="margin:14px 0;text-align:center"><img src="${imgUrl}" style="max-width:600px;border-radius:8px"></div>` : '';
         html = `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${bodyWithBr}</div></div>`;
       } else {
         const htmlTemplate = camp.html || camp.body_html || null;

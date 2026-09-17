@@ -9,6 +9,14 @@ import { normVePhone, localVePhone, phoneToJid, parsePhoneInfo } from './phone.j
 // El envío real lo hace outbox.js: aquí solo se crea el chat (si falta) y se
 // encola la fila 'pending' en jjp_wa_messages con la plantilla ya renderizada.
 
+function buildFullCommercialMessage(vars, camp) {
+  const sName = vars.vendedor || 'Asesor JJ Paper';
+  const hasPdf = Boolean(camp.media_path && camp.media_type === 'document') || Boolean(camp.extra_media_path);
+  const pdfText = hasPdf ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.' : '';
+  
+  return `{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe ${sName} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 🧾 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores${pdfText}\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con +900 artículos disponibles\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto\n3️⃣ 🚚 Delivery GRATIS en toda Caracas\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n${sName}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas`;
+}
+
 let manager = null;
 let running = false;
 const nextSendAt = new Map();   // owner_id → timestamp del próximo envío permitido
@@ -186,13 +194,15 @@ async function step(camp, dailyLimit) {
         nombre: t.name || (t.vars || {}).nombre || '',
         empresa: t.name || (t.vars || {}).empresa || '',
       };
-      let msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.message || '';
-      if (!msgTemplate || msgTemplate.includes('Le saludamos cordialmente de JJ Paper...') || msgTemplate === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
-        const sName = (t.vars && t.vars.vendedor) || 'Asesor JJ Paper';
-        const hasPdf = Boolean(camp.media_path && camp.media_type === 'document') || Boolean(camp.extra_media_path);
-        const pdfText = hasPdf ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.' : '';
-        msgTemplate = `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, distribuidores mayoristas de papelería, consumibles de caja y embalaje en Caracas.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje* y artículos de papelería escolar y oficina.${pdfText}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo a su entera disposición.}`;
+      const hasProductContent = msgTemplate.includes('•') || 
+        (msgTemplate.includes('- ') && msgTemplate.includes('$')) ||
+        msgTemplate.includes('Disponibilidad inmediata') ||
+        msgTemplate.length > 300;
+
+      if (!msgTemplate || (!hasProductContent && msgTemplate.length < 250)) {
+        msgTemplate = buildFullCommercialMessage(t.vars || {}, camp);
       }
+      
       const body = renderTemplate(msgTemplate, realVars);
 
       const msgPayload = {

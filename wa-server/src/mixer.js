@@ -538,7 +538,7 @@ async function sweepIncomingFiles() {
         }
 
         // Ignorar archivos de productos, catálogo o inventario (no son pedidos de caja)
-        if (base.startsWith('catalogo_') || base.startsWith('productos_') || base.startsWith('articulos_') || base.includes('catalogo') || base.includes('inventario') || base.includes('stock')) {
+        if (base.startsWith('catalogo_') || base.startsWith('productos_') || base.startsWith('articulos_') || base.includes('catalogo') || base.includes('inventario') || base.includes('stock') || base.includes('lista') || base.includes('precio') || base.includes('tarifa') || base.includes('costo')) {
           continue;
         }
 
@@ -859,13 +859,22 @@ export async function sweepMixnetProducts() {
           const sku = String(r.codart || r.codigo || r.sku || '').trim();
           if (!sku) continue;
 
-          const price = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
+          const priceA = parseFloat(String(r.precio_a || '0').replace(/,/g, '.')) || 0;
+          const priceB = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
+          const priceCBs = parseFloat(String(r.precio_c || '0').replace(/,/g, '.')) || 0;
+          const priceDBs = parseFloat(String(r.precio_d || '0').replace(/,/g, '.')) || 0;
           const stock = parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0;
           const cost = parseFloat(String(r.costo || r.costo_rep || '0').replace(/,/g, '.')) || 0;
 
-          if (price > 0 || stock >= 0) {
+          if (priceB > 0 || stock >= 0) {
             const updateObj = {};
-            if (price > 0) updateObj.price_usd = price;
+            if (priceA > 0) updateObj.price_a = priceA;
+            if (priceB > 0) {
+              updateObj.price_b = priceB;
+              updateObj.price_usd = priceB;
+            }
+            if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
+            if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
             if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
             if (cost > 0) updateObj.cost_usd = cost;
 
@@ -900,12 +909,21 @@ export async function sweepMixnetProducts() {
               const sku = String(p.codigo || '').trim();
               if (!sku) continue;
 
-              const price = parseFloat(p.precio_cliente_usd || p.precio_mayor_usd || 0);
+              const priceA = parseFloat(p.precio_a || p.precio_cliente_usd || p.precio_usd || 0);
+              const priceB = parseFloat(p.precio_b || p.precio_mayor_usd || p.precio_cliente_usd || 0);
+              const priceCBs = parseFloat(p.precio_c_bs || p.precio_c || 0);
+              const priceDBs = parseFloat(p.precio_d_bs || p.precio_d || 0);
               const stock = parseFloat(p.stock_actual || 0);
               const cost = parseFloat(p.costo_usd || 0);
 
               const updateObj = {};
-              if (price > 0) updateObj.price_usd = price;
+              if (priceA > 0) updateObj.price_a = priceA;
+              if (priceB > 0) {
+                updateObj.price_b = priceB;
+                updateObj.price_usd = priceB;
+              }
+              if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
+              if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
               if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
               if (cost > 0) updateObj.cost_usd = cost;
 
@@ -945,7 +963,10 @@ export async function sweepMixnetProducts() {
           const sep = lines[0].includes(';') ? ';' : ',';
           const headers = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/^"+|"+$/g, ''));
           const colSku = headers.findIndex(h => h.includes('cod') || h.includes('sku') || h.includes('art'));
-          const colPrice = headers.findIndex(h => h.includes('precio') || h.includes('price') || h.includes('pvp'));
+          const colPriceA = headers.findIndex(h => h === 'precio_a' || h === 'precio a');
+          const colPriceB = headers.findIndex(h => h === 'precio_b' || h === 'precio b' || h.includes('precio') || h.includes('price') || h.includes('pvp'));
+          const colPriceC = headers.findIndex(h => h === 'precio_c' || h === 'precio c');
+          const colPriceD = headers.findIndex(h => h === 'precio_d' || h === 'precio d');
           const colStock = headers.findIndex(h => h.includes('stock') || h.includes('cant') || h.includes('exist'));
           const colCost = headers.findIndex(h => h.includes('cost'));
 
@@ -957,12 +978,21 @@ export async function sweepMixnetProducts() {
             const sku = parts[colSku];
             if (!sku) continue;
 
-            const price = colPrice >= 0 ? (parseFloat(parts[colPrice].replace(/,/g, '.')) || 0) : 0;
+            const priceA = colPriceA >= 0 ? (parseFloat(parts[colPriceA].replace(/,/g, '.')) || 0) : 0;
+            const priceB = colPriceB >= 0 ? (parseFloat(parts[colPriceB].replace(/,/g, '.')) || 0) : 0;
+            const priceCBs = colPriceC >= 0 ? (parseFloat(parts[colPriceC].replace(/,/g, '.')) || 0) : 0;
+            const priceDBs = colPriceD >= 0 ? (parseFloat(parts[colPriceD].replace(/,/g, '.')) || 0) : 0;
             const stock = colStock >= 0 ? (parseFloat(parts[colStock].replace(/,/g, '.')) || 0) : 0;
             const cost = colCost >= 0 ? (parseFloat(parts[colCost].replace(/,/g, '.')) || 0) : 0;
 
             const updateObj = {};
-            if (price > 0) updateObj.price_usd = price;
+            if (priceA > 0) updateObj.price_a = priceA;
+            if (priceB > 0) {
+              updateObj.price_b = priceB;
+              updateObj.price_usd = priceB;
+            }
+            if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
+            if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
             if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
             if (cost > 0) updateObj.cost_usd = cost;
 

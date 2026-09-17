@@ -1453,17 +1453,11 @@ window.CampaignEditor = (() => {
         rawText = currentCust._custom_message;
         subjectText = currentCust._custom_subject || 'Propuesta Comercial — JJ Paper C.A.';
       } else {
-        // Vista previa representativa en vivo
-        const sName = currentConfig?.seller?.name || 'Asesor JJ Paper';
-        const sPhone = currentConfig?.seller?.phone || '0412-4676073';
-        const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
-        const cName = currentCust?.name || 'Librería El Saber';
-
-        if (isEmail) {
-          subjectText = `📋 Propuesta de Suministro Operativo y Lista de Precios — JJ Paper C.A.`;
-          rawText = `{Estimado(a)|Apreciado(a)|Hola} ${cName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de suministro directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Consumibles de línea de caja*: rollos térmicos para POS (80x70 y 57x40mm).\n• *Carpetas de fibra reglamentarias y archivadores* para resguardo documental.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
-        } else {
-          rawText = `{Hola|Buen día|Un gusto saludarle} ${cName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería, consumibles de caja y embalaje en Caracas.\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Rollos térmicos para puntos de venta (POS)*: 80x70 y 57x40mm garantizados.\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura.\n• *Cintas de embalaje industrial* y consumibles de alta rotación.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para entrega inmediata.\n\n*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal legal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+        rawText = document.getElementById('ceMessageInput')?.value || '';
+        subjectText = document.getElementById('ceSubjectInput')?.value || 'Sin asunto';
+        
+        if (badgeWrap) {
+          badgeWrap.innerHTML = '<span style="background-color: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #ffeeba;">⚠️ Sin análisis IA — se enviará la plantilla base</span>';
         }
       }
     } else {

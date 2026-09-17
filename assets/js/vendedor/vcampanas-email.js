@@ -104,21 +104,7 @@ JJ Paper C.A.`
     kind: 'general',
     owner_id: null,
     subject: 'Catálogo digital y lista de precios al día — JJ Paper',
-    body: `Estimados amigos de {{empresa}},
-
-Le saluda cordialmente {{vendedor}} de JJ Paper.
-
-Ponemos a su disposición nuestro catálogo digital completo con stock y precios actualizados en USD y Bolívares (tasa BCV):
-
-👉 Catálogo en línea: {{link}}
-
-Contamos con precios de fábrica, variedad en marcas líderes y despacho directo.
-
-Quedamos atentos a cualquier cotización que requieran.
-
-Atentamente,
-{{vendedor}}
-JJ Paper C.A.`
+    body: `<b>{Hola|Buen día|Saludos} {{nombre}} 👋</b><br><br>Le escribe <b>{{vendedor}}</b> de <b>JJ Paper C.A.</b>, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.<br><br>📦 <b>Tenemos disponibilidad inmediata en:</b><br><br><ul><li>🖨️ <b>Resmas de papel Bond</b> — Carta y Oficio, diferentes gramajes</li><li>🧾 <b>Rollos térmicos POS</b> — 80x70mm y 57x40mm para puntos de venta</li><li>📎 <b>Cintas de embalaje industrial</b> — 48x100m y 48x200m, alto micraje</li><li>📁 <b>Carpetas, archivadores y sobres</b> — Fibra marrón, manila, radiografía</li><li>✏️ <b>Material escolar y de escritorio</b> — Cuadernos, bolígrafos, marcadores</li></ul>✅ <b>¿Por qué elegirnos?</b><br>1️⃣ Catálogo con +900 artículos disponibles<br>2️⃣ Cotizaciones al instante adaptadas a su presupuesto<br>3️⃣ 🚚 Delivery GRATIS en toda Caracas<br>4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial<br><br>👉 <b>Catálogo digital:</b> <a href="{{link}}">{{link}}</a><br><br>{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.<br><br><b>{{vendedor}}</b><br>📞 0412-4676073<br><b>JJ Paper C.A.</b> — Distribución directa en Caracas`
   }
 ];
 

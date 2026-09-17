@@ -342,7 +342,7 @@ const DEFAULT_GLOBAL_TEMPLATES = [
     name: '🏢 Catálogo Digital y Lista de Precios B2B',
     kind: 'general',
     owner_id: null,
-    body: 'Estimados amigos de *{{empresa}}*,\n\nLe saluda {{vendedor}} de JJ Paper. Le compartimos nuestro catálogo digital actualizado con precios y existencias disponibles.\n\n👉 Enlace directo: {{link}}\n\nCualquier cotización que requiera, estamos a su completa disposición.'
+    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 🧾 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con +900 artículos disponibles\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto\n3️⃣ 🚚 Delivery GRATIS en toda Caracas\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
   }
 ];
 
@@ -1025,7 +1025,9 @@ async function launchCampaignFromEditor(config) {
         }
       }
     } catch (err) {
-      console.warn('Error generando PDF de precios:', err);
+      console.error('Error generando/subiendo adjunto:', err);
+      const continuar = confirm('⚠️ No se pudo generar el archivo adjunto.\n¿Desea continuar el envío sin adjunto?');
+      if (!continuar) return; // Abort campaign launch
     }
   }
 

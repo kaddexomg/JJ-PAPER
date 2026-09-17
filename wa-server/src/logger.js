@@ -13,25 +13,40 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_DIR   = path.join(__dirname, '..', 'logs');
 const LOG_FILE  = path.join(LOG_DIR, 'server.log');
-const MAX_BYTES = 5 * 1024 * 1024;   // 5 MB por archivo
+const MAX_BYTES_BOOT = 10 * 1024 * 1024;   // 10 MB por archivo al arranque
+const MAX_BYTES_RUNTIME = 50 * 1024 * 1024; // 50 MB en ejecución
 const KEEP      = 5;                 // server.1.log … server.5.log
 
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
-(function rotateOnBoot() {
+function rotateLog() {
   try {
     if (!fs.existsSync(LOG_FILE)) return;
-    if (fs.statSync(LOG_FILE).size < MAX_BYTES) return;
-    for (let i = KEEP - 1; i >= 1; i--) {
-      const from = path.join(LOG_DIR, `server.${i}.log`);
-      const to   = path.join(LOG_DIR, `server.${i + 1}.log`);
-      if (fs.existsSync(from)) fs.renameSync(from, to);
-    }
-    fs.renameSync(LOG_FILE, path.join(LOG_DIR, 'server.1.log'));
+    const oldPath = path.join(LOG_DIR, 'server.old.log');
+    fs.copyFileSync(LOG_FILE, oldPath);
+    fs.truncateSync(LOG_FILE, 0);
   } catch (e) {
     console.error('No pude rotar el log:', e.message);
   }
+}
+
+(function rotateOnBoot() {
+  try {
+    if (!fs.existsSync(LOG_FILE)) return;
+    if (fs.statSync(LOG_FILE).size < MAX_BYTES_BOOT) return;
+    rotateLog();
+  } catch (e) {}
 })();
+
+// Límite de 50MB en caliente
+setInterval(() => {
+  try {
+    if (!fs.existsSync(LOG_FILE)) return;
+    if (fs.statSync(LOG_FILE).size > MAX_BYTES_RUNTIME) {
+      rotateLog();
+    }
+  } catch (e) {}
+}, 60000);
 
 export const LOG_PATH = LOG_FILE;
 

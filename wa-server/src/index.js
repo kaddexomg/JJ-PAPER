@@ -86,31 +86,68 @@ startHeartbeat(
 
 process.on('SIGINT', () => { log.info('apagando…'); process.exit(0); });
 
-// Autosanación de sesiones de cifrado Signal corruptas (Bad MAC)
-function healBadMacSession(err) {
-  try {
-    const str = (err?.stack || '') + ' ' + (err?.message || String(err || ''));
-    // Buscar JID o número en la pila de llamadas (ej: 584124676073 o 584124676073.0)
-    const match = str.match(/(\d{10,15})/);
-    const sessionsDir = path.resolve('sessions');
-    if (fs.existsSync(sessionsDir)) {
-      const profiles = fs.readdirSync(sessionsDir);
-      for (const p of profiles) {
-        const pDir = path.join(sessionsDir, p);
-        if (!fs.existsSync(pDir) || !fs.statSync(pDir).isDirectory()) continue;
-        const files = fs.readdirSync(pDir);
-        for (const f of files) {
-          if (match && f.includes(match[1])) {
-            log.warn({ file: f, profile: p, target: match[1] }, 'Autosanación Signal: eliminando archivo de sesión corrupto para forzar nuevo handshake');
-            try { fs.unlinkSync(path.join(pDir, f)); } catch (_) {}
+// Autosanación de sesiones de cifrado Signal corruptas (Bad MAC) y filtro de logs
+const originalConsoleError = console.error;
+const signalState = { count: 0, lastSummary: Date.now(), suppressed: 0, jids: {} };
+
+console.error = function(...args) {
+  const str = args.map(a => String(a)).join(' ');
+  
+  if (str.includes('Bad MAC') || str.includes('Failed to decrypt message with any known session')) {
+    const now = Date.now();
+    
+    // Summary logic
+    if (now - signalState.lastSummary > 60000) {
+      if (signalState.suppressed > 0) {
+        log.warn(`[Signal] Suprimidos ${signalState.suppressed} errores de descifrado repetidos en el último minuto`);
+      }
+      signalState.count = 0;
+      signalState.suppressed = 0;
+      signalState.lastSummary = now;
+    }
+    
+    signalState.count++;
+    
+    // Auto-heal Bad MAC
+    if (str.includes('Bad MAC')) {
+      const match = str.match(/(\d{10,15})/);
+      if (match) {
+        const jid = match[1];
+        if (!signalState.jids[jid] || now - signalState.jids[jid] > 60000) {
+          signalState.jids[jid] = now;
+          try {
+            const sessionsDir = path.resolve('sessions');
+            if (fs.existsSync(sessionsDir)) {
+              for (const p of fs.readdirSync(sessionsDir)) {
+                const pDir = path.join(sessionsDir, p);
+                if (!fs.existsSync(pDir) || !fs.statSync(pDir).isDirectory()) continue;
+                for (const f of fs.readdirSync(pDir)) {
+                  if (f.includes(jid) && f.startsWith('session-')) {
+                    log.warn({ file: f, profile: p, target: jid }, 'Autosanación Signal: eliminando archivo de sesión corrupto para forzar nuevo handshake');
+                    try { fs.unlinkSync(path.join(pDir, f)); } catch (_) {}
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            log.warn({ err: e.message }, 'healBadMacSession error');
           }
         }
       }
     }
-  } catch (e) {
-    log.warn({ err: e.message }, 'healBadMacSession error');
+    
+    // Throttle
+    if (signalState.count > 3) {
+      signalState.suppressed++;
+      return;
+    }
   }
-}
+  
+  originalConsoleError.apply(console, args);
+};
+
+// Dummy para unhandledRejection y uncaughtException, ya que todo se maneja en console.error
+function healBadMacSession(err) {}
 
 // Monitor de salud interno: auto-reinicio SOLO ante errores irrecuperables de proceso
 let errorCount = 0;

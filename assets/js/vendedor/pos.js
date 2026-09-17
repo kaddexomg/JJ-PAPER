@@ -540,7 +540,7 @@ async function posSubmit() {
     })),
     subtotal_usd: +subtotal.toFixed(2),
     discount_pct: d,
-    discount_status: d > 0 ? 'pending' : 'none',
+    discount_status: d > 0 ? ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.role === 'admin') || (typeof SELLER !== 'undefined' && SELLER?.role === 'admin') ? 'approved' : 'pending') : 'none',
     discount_requested_by: d > 0 ? sellerId : null,
     total_usd: total,
     exchange_rate: rate,
@@ -551,6 +551,8 @@ async function posSubmit() {
     seller_id: sellerId,
     source: 'pos',
     status: payRef ? 'verificando' : 'pendiente_pago',
+    quote_id: posLinkedQuoteId || null,
+    customer_id: posCustomer?.id || null,
   };
 
   const { error } = await sb.from('jjp_orders').insert(order);
@@ -778,6 +780,11 @@ async function posLoadQuote(val) {
     return;
   }
 
+  if (q.status === 'convertido' || q.status === 'cancelado') {
+    alert(`No se puede cargar la cotización porque se encuentra en estado: ${q.status.toUpperCase()}`);
+    return;
+  }
+
   posLinkedQuoteId = q.id;
 
   // 1. Cargar datos del cliente
@@ -804,7 +811,7 @@ async function posLoadQuote(val) {
   posTicket = {};
   const items = Array.isArray(q.items) ? q.items : [];
   for (const item of items) {
-    const key = item.variant_id ? `${item.id}_${item.variant_id}` : String(item.id);
+    const key = item.variant_id ? `${item.id}::${item.variant_id}` : String(item.id);
     posTicket[key] = {
       id: item.id,
       variant_id: item.variant_id || null,

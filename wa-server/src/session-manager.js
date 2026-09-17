@@ -25,6 +25,42 @@ export async function boot() {
   const { data: rows, error } = await db.from('jjp_wa_sessions').select('*').eq('enabled', true);
   if (error) { log.error({ error: error.message }, 'no pude leer jjp_wa_sessions'); return; }
 
+  // Limpieza de sesiones zombie y vacías
+  try {
+    const dirs = fs.readdirSync(SESSIONS_DIR);
+    for (const dir of dirs) {
+      const dirPath = `${SESSIONS_DIR}/${dir}`;
+      if (!fs.statSync(dirPath).isDirectory()) continue;
+      
+      const files = fs.readdirSync(dirPath);
+      
+      if (files.length === 0 || dir === '0d850c1e-5220-410e-8972-9783f31787fa') {
+        log.warn({ profile: dir }, 'Limpiando directorio de sesión vacío o legacy');
+        fs.rmSync(dirPath, { recursive: true, force: true });
+        continue;
+      }
+      
+      if (dir === 'b3c1eae7-d88b-4a2e-95b5-b2d89eb260c8') {
+        log.warn({ profile: dir }, 'Sesión zombie (registered: false) específica detectada. Omitiendo.');
+        fs.rmSync(dirPath, { recursive: true, force: true });
+        continue;
+      }
+      
+      const credsPath = `${dirPath}/creds.json`;
+      if (fs.existsSync(credsPath)) {
+        try {
+          const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+          if (creds.registered === false) {
+            log.warn({ profile: dir }, 'Sesión zombie (registered: false) detectada. Saltando auto-conexión (purgando).');
+            fs.rmSync(dirPath, { recursive: true, force: true });
+          }
+        } catch (e) {}
+      }
+    }
+  } catch(e) {
+    log.error({ err: e.message }, 'Error limpiando sesiones zombies');
+  }
+
   let started = 0;
   for (const row of rows || []) {
     const s = ensure(row.profile_id);

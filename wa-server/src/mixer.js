@@ -651,11 +651,13 @@ async function sweepRecentOutgoing() {
     lastSweepTime = new Date().toISOString();
     const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-    // 1. Pedidos salientes
+    // 1. Pedidos salientes — solo los activos (no cancelados ni rechazados)
     const { data: orders, error: oErr } = await dbCore.from('jjp_orders')
       .select('*')
       .gte('created_at', windowStart)
+      .not('status', 'in', '("cancelado","rechazado")')
       .order('created_at', { ascending: true });
+
 
     if (!oErr && orders) {
       let count = 0;
@@ -671,25 +673,13 @@ async function sweepRecentOutgoing() {
       }
     }
 
-    // 2. Cotizaciones salientes
-    const { data: quotes, error: qErr } = await dbCore.from('jjp_quotes')
-      .select('*')
-      .gte('created_at', windowStart)
-      .order('created_at', { ascending: true });
+    // 2. Cotizaciones salientes — DESACTIVADO (17/09/2026)
+    // Las cotizaciones NO se exportan a MixNet directamente. Solo los PEDIDOS viajan
+    // a MixNet. Una cotización llegará allí únicamente cuando el vendedor la convierta
+    // en venta (POS → posSubmit → crea jjp_orders → sweepRecentOutgoing exporta el pedido).
+    // Exportar cotizaciones sin confirmar llenaba MixNet con documentos pendientes que
+    // el sistema de Caja no debería ver hasta ser pedidos reales.
 
-    if (!qErr && quotes) {
-      let count = 0;
-      for (const q of quotes) {
-        // Los MIX-* son documentos importados DESDE MixNet (DBF/CSV): no deben re-exportarse
-        if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
-        if (!exportedQuotes.has(q.quote_number)) {
-          if (await exportQuote(q)) count++;
-        }
-      }
-      if (count > 0) {
-        log.info(`Puente Mixer: Barrido saliente exportó ${count} cotizaciones pendientes.`);
-      }
-    }
   } catch (err) {
     log.error({ err: err.message }, 'Puente Mixer: Excepción en barrido saliente');
   }
@@ -1320,19 +1310,43 @@ export async function sweepMixnetProducts() {
           if (vUp?.length || pUp?.length) {
             updatedCount++;
           } else {
-            // El artículo existe en MixNet pero aún no en JJ Paper: auto-importarlo
+            // El artículo existe en MixNet pero aún no en JJ Paper: auto-importarlo.
+            // CRÍTICO (17/09/2026): Se debe crear TANTO el producto como su variante.
+            // Sin variante en jjp_product_variants el POS/buscador no puede encontrar el
+            // producto ni descontar stock (jjp_apply_order_stock usa variant_id).
             const nomart = String(r.nomart || r.nombre || r.descripcion || sku).trim();
             if (nomart && sku) {
+              const unit = String(r.unidad || 'und').trim().toLowerCase() || 'und';
               const newProd = {
                 name: nomart,
                 sku: sku,
                 ...updateObj,
                 active: true,
-                unit: String(r.unidad || 'und').trim().toLowerCase() || 'und',
+                unit,
                 mixnet_status: 'sincronizado'
               };
-              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id');
-              if (ins?.length) insertedCount++;
+              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id, sku');
+              if (ins?.length) {
+                insertedCount++;
+                const productId = ins[0].id;
+                // Crear variante principal para que el POS/buscador lo encuentre y pueda
+                // descontar stock al confirmar pago (jjp_apply_order_stock necesita variant_id).
+                const newVariant = {
+                  product_id: productId,
+                  variant_name: 'Unidad',
+                  sku: sku,
+                  ...updateObj,
+                  active: true,
+                  unit,
+                  mixnet_status: 'sincronizado'
+                };
+                const { error: varErr } = await dbCore.from('jjp_product_variants').insert(newVariant);
+                if (varErr) {
+                  log.warn({ err: varErr.message, sku }, 'Puente Mixer: Producto nuevo importado pero falló creación de variante.');
+                } else {
+                  log.info(`Puente Mixer: Producto nuevo importado con variante: ${sku} — ${nomart}`);
+                }
+              }
             }
           }
         }
@@ -1376,18 +1390,34 @@ export async function sweepMixnetProducts() {
           if (vUp?.length || pUp?.length) {
             updatedCount++;
           } else {
+            // Mismo fix Fase 1: crear producto + variante para visibilidad en POS
             const nomart = String(r.nomart || r.nombre || r.descripcion || sku).trim();
             if (nomart && sku) {
+              const unit = String(r.unidad || 'und').trim().toLowerCase() || 'und';
               const newProd = {
                 name: nomart,
                 sku: sku,
                 ...updateObj,
                 active: true,
-                unit: String(r.unidad || 'und').trim().toLowerCase() || 'und',
+                unit,
                 mixnet_status: 'sincronizado'
               };
-              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id');
-              if (ins?.length) insertedCount++;
+              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id, sku');
+              if (ins?.length) {
+                insertedCount++;
+                const { error: varErr } = await dbCore.from('jjp_product_variants').insert({
+                  product_id: ins[0].id,
+                  variant_name: 'Unidad',
+                  sku: sku,
+                  ...updateObj,
+                  active: true,
+                  unit,
+                  mixnet_status: 'sincronizado'
+                });
+                if (varErr) {
+                  log.warn({ err: varErr.message, sku }, 'Puente Mixer (VICTAINV): Falló creación de variante para nuevo producto.');
+                }
+              }
             }
           }
         }
@@ -1530,7 +1560,8 @@ export async function sweepMixnetProducts() {
 
 /* ═══════════════ REALTIME LISTENERS ═══════════════ */
 function setupRealtimeListeners() {
-  log.info('Puente Mixer: Suscribiendo canales Realtime para pedidos y cotizaciones...');
+  log.info('Puente Mixer: Suscribiendo canal Realtime de pedidos (cotizaciones desactivadas — solo pedidos viajan a MixNet)...');
+
 
   // 1. Pedidos
   dbCore.channel('mixer-orders')
@@ -1552,18 +1583,13 @@ p => {
       log.info(`Puente Mixer: Canal Realtime de pedidos: ${status}`);
     });
 
-  // 2. Cotizaciones
-  dbCore.channel('mixer-quotes')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_quotes' },
-      p => {
-        log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
-        exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
-      }
-    )
-    .subscribe(status => {
-      log.info(`Puente Mixer: Canal Realtime de cotizaciones: ${status}`);
-    });
+  // 2. Cotizaciones — Realtime DESACTIVADO (17/09/2026)
+  // Las cotizaciones NO se exportan a MixNet por Realtime. Solo van al crearse un
+  // PEDIDO (jjp_orders INSERT). El canal 'mixer-quotes' ya no dispara exportQuote().
+  // Si en el futuro se requiere exportar cotizaciones aprobadas, reactivar aquí
+  // filtrando por status === 'aprobado' o 'convertido'.
 }
+
 
 /* ═══════════════ ESTADO Y ARRANQUE DEL SERVICIO ═══════════════ */
 

@@ -217,7 +217,7 @@ window.CampaignEditor = (() => {
                 <div id="ceAttachCheckboxes" style="margin-top:2px;">
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#1e293b;padding:4px 0;cursor:pointer;font-weight:600">
                     <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px" checked>
-                    <span>📄 Adjuntar Lista de Precios PDF Oficial (+700 arts)</span>
+                    <span>📄 Adjuntar Lista de Precios PDF Oficial (+900 arts)</span>
                   </label>
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#334155;padding:3px 0;cursor:pointer">
                     <input type="checkbox" id="ceAttachImg" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">

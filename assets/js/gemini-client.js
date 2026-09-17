@@ -1071,7 +1071,7 @@ DIRECTRICES CRÍTICAS PARA WHATSAPP (ESTRUCTURA DE ALTA CONVERSIÓN):
    ${promoProductOrCombo ? '- La PRIMERA viñeta DEBE ser la promoción/producto seleccionado: *' + (promoProductOrCombo.name || 'Promoción') + '*.' : ''}
    - PROHIBIDO usar etiquetas técnicas como "Core 1:", "Core 2:" o "Cross-sell:". Redacta con tono fluido y comercial.
 5. Mención obligatoria de la Lista de Precios Oficial en PDF:
-   ${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* (+700 productos disponibles para entrega inmediata).' : ''}
+   ${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* (+900 productos disponibles para entrega inmediata).' : ''}
 6. Bloque de beneficios institucionales de JJ Paper:
    *VENTAJAS DE OPERAR CON JJ PAPER:*
    • 🚚 *Delivery directo y gratuito* a su sede en Caracas / despachos nacionales protegidos.
@@ -1103,7 +1103,7 @@ DIRECTRICES ESTRICTAS PARA EL CUERPO DEL CORREO (LONGITUD: 130 A 180 PALABRAS):
 3. Reconocimiento operativo (1-2 oraciones demostrando entender la exigencia diaria de sus sedes en ${city || 'Caracas'}).
 4. Viñetas de 3 insumos seleccionados (especificación + beneficio).
 5. 4 Pilares de JJ Paper:
-   - "Le adjuntamos a este correo nuestra lista de precios oficial con más de 700 artículos disponibles para entrega inmediata."
+   - "Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata."
    - "Cotizaciones inmediatas en segundos adaptadas a su presupuesto."
    - "Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución."
    - "Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día."
@@ -1170,7 +1170,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         bullet1 = `• *${promoProductOrCombo.name || 'Oferta Especial'}*: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD (disponibilidad inmediata).`;
       }
 
-      const defBody = `${salutation}\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación y logística de sus sedes en ${city || 'Caracas'}, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nCon el propósito de garantizar la continuidad de sus operaciones y optimizar sus costos de procura, ponemos a su disposición nuestro suministro directo en insumos de alta rotación:\n${bullet1}\n${bullet2}\n${bullet3}\n\nBeneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 700 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\n${sellerName}\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
+      const defBody = `${salutation}\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación y logística de sus sedes en ${city || 'Caracas'}, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nCon el propósito de garantizar la continuidad de sus operaciones y optimizar sus costos de procura, ponemos a su disposición nuestro suministro directo en insumos de alta rotación:\n${bullet1}\n${bullet2}\n${bullet3}\n\nBeneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\n${sellerName}\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
 
       const words = defBody.trim().split(/\s+/).length;
 
@@ -1180,7 +1180,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             ? `{Hola|Buen día} ${contactRole} de ${companyName} 👋, un cordial saludo.`
             : `{Hola|Buen día|Un gusto saludarle} estimados amigos de ${companyName} 👋, un cordial saludo.`);
 
-      const fallbackWa = `${waGreeting}\n\n{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería corporativa, consumibles de caja y embalaje en Caracas.\n\nPensando en la continuidad de sus operaciones, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 PROPUESTA DE ABASTECIMIENTO OPERATIVO:*\n${bullet1}\n${bullet2}\n${bullet3}\n\n${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.\n\n' : ''}*VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal con RIF (J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sellerName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
+      const fallbackWa = `${waGreeting}\n\n{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería corporativa, consumibles de caja y embalaje en Caracas.\n\nPensando en la continuidad de sus operaciones, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 PROPUESTA DE ABASTECIMIENTO OPERATIVO:*\n${bullet1}\n${bullet2}\n${bullet3}\n\n${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n' : ''}*VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal con RIF (J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sellerName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
 
       return {
         sector_deducido: sector || 'Corporativo General',
@@ -1358,7 +1358,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
 
     const isEmail = channel === 'email';
     const pdfMention = officialPdfIncluded
-      ? `📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 700 artículos disponibles para despacho inmediato.\n\n`
+      ? `📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n`
       : '';
 
     const subject = promoProductOrCombo

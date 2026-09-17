@@ -3,19 +3,81 @@
    ====================================================== */
 
 let sellers = [];
-let sellerRanking = {};   // id → { total_usd, orders_count } del mes
+let sellerRanking = {};        // id → { total_usd, total_orders } del mes
+let sellerCustomerCounts = {}; // id → count de clientes asignados
+let sellerQuoteCounts = {};    // id → count de cotizaciones
 let editingSellerId = null;
 
 async function loadSellers() {
-  const [{ data, error }, rank] = await Promise.all([
+  const [{ data, error }, rank, custs, quotes] = await Promise.all([
     sb.from('jjp_profiles').select('*').order('created_at'),
     sb.rpc('jjp_seller_ranking', { p_days: 30 }),
+    sb.from('jjp_customers').select('seller_id'),
+    sb.from('jjp_quotes').select('seller_id'),
   ]);
+
   if (error) { showToast('Error cargando vendedores', 'err'); return; }
   sellers = data || [];
+
   sellerRanking = {};
-  (rank.data || []).forEach(r => { sellerRanking[r.seller_id] = r; });
+  (rank.data || []).forEach(r => {
+    sellerRanking[r.seller_id] = {
+      total_usd: Number(r.total_usd || 0),
+      total_orders: Number(r.total_orders || r.orders_count || 0),
+    };
+  });
+
+  sellerCustomerCounts = {};
+  (custs.data || []).forEach(c => {
+    if (c.seller_id) {
+      sellerCustomerCounts[c.seller_id] = (sellerCustomerCounts[c.seller_id] || 0) + 1;
+    }
+  });
+
+  sellerQuoteCounts = {};
+  (quotes.data || []).forEach(q => {
+    if (q.seller_id) {
+      sellerQuoteCounts[q.seller_id] = (sellerQuoteCounts[q.seller_id] || 0) + 1;
+    }
+  });
+
+  renderSellersSummary(rank.data || [], quotes.data || []);
   renderSellersTable();
+}
+
+function renderSellersSummary(rankData, quotesData) {
+  let totalSalesUsd = 0;
+  let totalOrders = 0;
+  let topSeller = null;
+  let topSellerSales = -1;
+
+  rankData.forEach(r => {
+    const usd = Number(r.total_usd || 0);
+    const ords = Number(r.total_orders || r.orders_count || 0);
+    totalSalesUsd += usd;
+    totalOrders += ords;
+    if (usd > topSellerSales) {
+      topSellerSales = usd;
+      topSeller = r.name;
+    }
+  });
+
+  const rate = (typeof getRate === 'function') ? getRate() : 40;
+  const totalSalesBs = totalSalesUsd * rate;
+
+  const elSales = document.getElementById('stat-team-sales');
+  const elSalesSub = document.getElementById('stat-team-sales-sub');
+  const elOrders = document.getElementById('stat-team-orders');
+  const elQuotes = document.getElementById('stat-team-quotes');
+  const elLeader = document.getElementById('stat-team-leader');
+  const elLeaderSub = document.getElementById('stat-team-leader-sub');
+
+  if (elSales) elSales.textContent = fmtPrice(totalSalesUsd);
+  if (elSalesSub) elSalesSub.textContent = `Bs ${totalSalesBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })} (BCV)`;
+  if (elOrders) elOrders.textContent = totalOrders.toLocaleString('es-VE');
+  if (elQuotes) elQuotes.textContent = (quotesData.length || 0).toLocaleString('es-VE');
+  if (elLeader) elLeader.textContent = topSeller || '—';
+  if (elLeaderSub) elLeaderSub.textContent = topSeller ? `${fmtPrice(topSellerSales)} facturados` : 'Sin ventas registradas';
 }
 
 function renderSellersTable() {
@@ -29,34 +91,56 @@ function renderSellersTable() {
     `${rows.length - admins.length} vendedores · ${admins.length}/4 admin(s)`;
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Aún no hay vendedores. Crea el primero con el botón "＋ Nuevo vendedor".</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">Aún no hay vendedores. Crea el primero con el botón "＋ Nuevo vendedor".</td></tr>`;
     return;
   }
 
   tbody.innerHTML = rows.map(s => {
-    const stats = sellerRanking[s.id] || { total_usd: 0, orders_count: 0 };
+    const stats = sellerRanking[s.id] || { total_usd: 0, total_orders: 0 };
+    const ordersCount = stats.total_orders || 0;
+    const clientCount = sellerCustomerCounts[s.id] || 0;
+    const quoteCount  = sellerQuoteCounts[s.id] || 0;
+
     const goal  = Number(s.monthly_goal_usd) || 0;
     const pct   = goal > 0 ? Math.min(100, Math.round(stats.total_usd / goal * 100)) : null;
     const refLink = s.ref_code ? `${location.origin}/catalogo.html?ref=${encodeURIComponent(s.ref_code)}` : null;
+
     return `<tr style="${s.active ? '' : 'opacity:.5'}">
-      <td><div class="td-name">${escapeHTML(s.name || '—')}
-        ${s.role === 'admin' ? '<span class="pill" style="background:var(--gm);color:#fff;margin-left:6px">Admin</span>' : ''}</div>
-        <div class="td-sub">${escapeHTML(s.phone || '')}</div></td>
-      <td>${s.ref_code
+      <td>
+        <div class="td-name">
+          ${escapeHTML(s.name || '—')}
+          ${s.role === 'admin' ? '<span class="pill" style="background:var(--gm);color:#fff;margin-left:6px">Admin</span>' : ''}
+        </div>
+        <div class="td-sub">${escapeHTML(s.phone || '')}</div>
+      </td>
+      <td>
+        ${s.ref_code
           ? `<code style="font-size:12px">${escapeHTML(s.ref_code)}</code>
              <button class="btn-o sm" title="Copiar link de venta" onclick="copySellerLink('${escapeHTML(refLink)}')">🔗</button>`
-          : '<span style="color:#ccc">—</span>'}</td>
-      <td><strong>${fmtPrice(stats.total_usd)}</strong><div class="td-sub">${stats.orders_count} pedidos (30d)</div></td>
-      <td>${goal > 0
+          : '<span style="color:#ccc">—</span>'}
+      </td>
+      <td>
+        <strong>${fmtPrice(stats.total_usd)}</strong>
+        <div class="td-sub">${ordersCount} pedidos (30d)</div>
+      </td>
+      <td>
+        <div style="font-weight:700;color:var(--dark)">${clientCount} clientes</div>
+        <div class="td-sub">${quoteCount} cotizaciones</div>
+      </td>
+      <td>
+        ${goal > 0
           ? `<div style="min-width:90px"><strong>${pct}%</strong> de ${fmtPrice(goal)}
              <div style="background:#eee;border-radius:4px;height:6px;margin-top:4px"><div style="background:var(--gm);height:6px;border-radius:4px;width:${pct}%"></div></div></div>`
-          : '<span style="color:#ccc">Sin meta</span>'}</td>
+          : '<span style="color:#ccc">Sin meta</span>'}
+      </td>
       <td>${Number(s.commission_pct)}%<div class="td-sub">desc. máx ${Number(s.max_discount_pct)}%</div></td>
       <td><span class="pill ${s.active ? 'ok' : ''}" style="${s.active ? '' : 'background:#fdd;color:#a33'}">${s.active ? 'Activo' : 'Inactivo'}</span></td>
-      <td><div class="td-actions">
-        <button class="btn-p sm" onclick="openSellerModal('${s.id}')">✏️ Editar</button>
-        <button class="btn-o sm" onclick="toggleSellerActive('${s.id}', ${!s.active})">${s.active ? '⏸️' : '▶️'}</button>
-      </div></td>
+      <td>
+        <div class="td-actions">
+          <button class="btn-p sm" onclick="openSellerModal('${s.id}')">✏️ Editar</button>
+          <button class="btn-o sm" onclick="toggleSellerActive('${s.id}', ${!s.active})">${s.active ? '⏸️' : '▶️'}</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
 }

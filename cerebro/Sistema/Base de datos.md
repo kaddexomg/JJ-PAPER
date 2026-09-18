@@ -12,10 +12,10 @@ tags: [sistema, db]
 ## Tablas por dominio (todas las vistas en código)
 
 ### Catálogo
-- `jjp_products` — nombre, `description`, `price_usd`, `unit`, `emoji`, `image_url`,
-  `sku`, `stock`, `min_qty`, `active`, `featured`, `essential`, `tag`, `category_id`.
+- `jjp_products` — nombre, `description`, `price_usd`, `unit` (⚠️ la unidad de medida pertenece aquí, referenciando `unit_id`), `emoji`, `image_url`,
+  `sku`, `stock`, `min_qty`, `active`, `featured`, `essential`, `tag`, `category_id`, `price_a/b/c_bs/d_bs`.
 - `jjp_product_variants` — **precio/costo/stock POR MARCA** (`brand_id`,
-  `variant_name`, `sku`, `barcode`, `image_url`, `active`). Trigger sincroniza al padre.
+  `variant_name`, `sku`, `barcode`, `image_url`, `active`, `base_price_usd`, `price_a/b/c_bs/d_bs`, `mixnet_status`). ⚠️ **NO posee columna `unit`**. Trigger sincroniza al padre.
 - `jjp_brands` (con `logo_url`), `jjp_categories`, `jjp_category_groups`, `jjp_units`.
 - `jjp_promos` — feed de promociones con vigencia y CTA.
 - `jjp_missing_photos` (vista) — productos sin foto.

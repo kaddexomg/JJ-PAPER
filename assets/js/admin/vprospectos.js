@@ -732,30 +732,50 @@ async function processImportedRows(allRows) {
   // Normaliza acentos para detectar cabeceras escritas con o sin tilde.
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-  // Buscar fila de cabecera
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(10, allRows.length); i++) {
-    const r = allRows[i].map(c => norm(c));
-    if (r.some(c => ['empresa', 'cliente', 'ra zon', 'razon', 'compa', 'store', 'tienda'].some(k => c.includes(k)))) {
-      headerIdx = i;
-      break;
+  // Buscar fila de cabecera mediante scoring ponderado de palabras clave reales
+  let bestHeaderIdx = -1;
+  let bestScore = 0;
+
+  for (let i = 0; i < Math.min(15, allRows.length); i++) {
+    const row = allRows[i];
+    if (!row || !Array.isArray(row)) continue;
+    const r = row.map(c => norm(c));
+
+    // Si la fila contiene términos de tarjetas resumen/KPIs de dashboard, ignorar como cabecera
+    const isSummaryCard = r.some(c => c.includes('total clientes') || c.includes('total contactos') || c.includes('cuentas en cartera') || c.includes('% cobertura'));
+    if (isSummaryCard) continue;
+
+    let score = 0;
+    // Ponderación de cabeceras reales
+    if (r.some(c => (c.includes('empresa') || c.includes('razon') || c.includes('compa')) && !c.includes('total'))) score += 5;
+    if (r.some(c => c.includes('sector') || c.includes('rubro'))) score += 4;
+    if (r.some(c => (c.includes('contacto') || c.includes('persona') || c.includes('atencion')) && !c.includes('total'))) score += 3;
+    if (r.some(c => c.includes('cargo') || c.includes('rol') || c.includes('departamento'))) score += 2;
+    if (r.some(c => c.includes('tel') || c.includes('cel') || c.includes('fijo') || c.includes('movil'))) score += 3;
+    if (r.some(c => c.includes('correo') || c.includes('email') || c.includes('mail'))) score += 3;
+    if (r.some(c => c.includes('direcc') || c.includes('sede') || c.includes('ubicac'))) score += 3;
+
+    if (score > bestScore && score >= 5) {
+      bestScore = score;
+      bestHeaderIdx = i;
     }
   }
 
-  if (headerIdx === -1) {
-    showToast('No se encontró la cabecera (debe contener columna "Empresa" o "Cliente")', 'err');
+  if (bestHeaderIdx === -1) {
+    showToast('No se encontró la cabecera (debe contener columnas como "Empresa", "Sector", "Contacto")', 'err');
     return;
   }
 
+  const headerIdx = bestHeaderIdx;
   const headers = allRows[headerIdx].map(h => norm(h));
 
   const col = {
-    sector: headers.findIndex(h => h.includes('sector') || h.includes('rubro') || h.includes('tipo')),
-    empresa: headers.findIndex(h => h.includes('empresa') || h.includes('cliente') || h.includes('razon') || h.includes('compa')),
-    contacto: headers.findIndex(h => h.includes('contacto') || h.includes('atencion') || h.includes('persona')),
+    sector: headers.findIndex(h => h.includes('sector') || h.includes('rubro') || h.includes('tipo') || h.includes('categoria')),
+    empresa: headers.findIndex(h => (h.includes('empresa') || h.includes('razon') || h.includes('compa') || (h.includes('cliente') && !h.includes('total'))) && !h.includes('sector')),
+    contacto: headers.findIndex(h => (h.includes('contacto') || h.includes('atencion') || h.includes('persona')) && !h.includes('total')),
     cargo: headers.findIndex(h => h.includes('cargo') || h.includes('rol') || h.includes('departamento')),
-    tel1: headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('telefonico')) && (!h.includes('cel') && !h.includes('wa') && !h.includes('whats'))),
-    tel2: headers.findIndex(h => h.includes('cel') || h.includes('whats') || h.includes('movil') || h.includes('movi') || (h.includes('tel') && h.includes('2'))),
+    tel1: headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('telefonico')) && !h.includes('cel') && !h.includes('wa') && !h.includes('whats') && !/\b2\b/.test(h)),
+    tel2: headers.findIndex(h => h.includes('cel') || h.includes('whats') || h.includes('movil') || h.includes('movi') || (h.includes('tel') && /\b2\b/.test(h))),
     email: headers.findIndex(h => h.includes('correo') || h.includes('email') || h.includes('mail')),
     direccion: headers.findIndex(h => h.includes('direcci') || h.includes('sede') || h.includes('ubicaci')),
     notas: headers.findIndex(h => h.includes('nota') || h.includes('observaci') || h.includes('comentario'))
@@ -789,7 +809,10 @@ async function processImportedRows(allRows) {
     if (!r) continue;
 
     const rawCompany = String(r[col.empresa] || '').trim();
-    if (!rawCompany || norm(rawCompany) === 'empresa') { skipped++; continue; }
+    if (!rawCompany || norm(rawCompany) === 'empresa' || /^\d+$/.test(rawCompany) || norm(rawCompany) === 'sector' || norm(rawCompany) === 'total' || norm(rawCompany).includes('total clientes') || norm(rawCompany).includes('cuentas en cartera')) {
+      skipped++;
+      continue;
+    }
 
     const sector = col.sector !== -1 && r[col.sector] ? String(r[col.sector]).trim() : 'Otro';
     const rawContact = (col.contacto !== -1 && r[col.contacto] ? String(r[col.contacto]).trim() : '') || (col.cargo !== -1 && r[col.cargo] ? String(r[col.cargo]).trim() : '');
@@ -868,54 +891,13 @@ async function handleSheetsUrlImport() {
       showToast(data.error || 'No se pudo leer la hoja', 'err');
       return;
     }
-    if (!Array.isArray(data.rows)) {
+    if (!Array.isArray(data.rows) || data.rows.length === 0) {
       if (statusEl) statusEl.textContent = '❌ La hoja no devolvió filas.';
       return;
     }
 
-    // Convierte filas CSV (arrays) al formato esperado por processImportedRows
-    const headerKeys = data.headers.map((h, i) => {
-      const s = String(h || '').toUpperCase().trim();
-      if (s.includes('SECTOR') || s.includes('RUBRO')) return 'sector';
-      if (s.includes('EMPRESA') || s.includes('COMPA') || s.includes('RAZON')) return 'empresa';
-      if (s.includes('CONTACTO') || s.includes('NOMBRE')) return 'contacto';
-      if (s.includes('CARGO') || s.includes('ROL')) return 'cargo';
-      if (s.includes('FIJO') || (s.includes('TEL') && !s.includes('2'))) return 'tel1';
-      if (s.includes('CEL') || s.includes('WHAT') || s.includes('MOVIL') || s.includes('TEL') && s.includes('2')) return 'tel2';
-      if (s.includes('CORREO') || s.includes('EMAIL')) return 'email';
-      if (s.includes('DIRECC') || s.includes('SEDE')) return 'direccion';
-      if (s.includes('NOTA') || s.includes('OBSERV')) return 'notas';
-      return null;
-    });
-
-    const rows = data.rows.slice(1).map(r => {
-      const obj = {};
-      data.headers.forEach((h, i) => { obj[i] = r[i] != null ? String(r[i]) : ''; });
-      return obj;
-    });
-
-    const mapped = rows.map(r => {
-      const idx = (key) => headerKeys.indexOf(key);
-      return {
-        sector: idx('sector') !== -1 ? r[idx('sector')] : 'Otro',
-        empresa: idx('empresa') !== -1 ? r[idx('empresa')] : '',
-        contacto: idx('contacto') !== -1 ? r[idx('contacto')] : (idx('cargo') !== -1 ? r[idx('cargo')] : ''),
-        tel1: idx('tel1') !== -1 ? r[idx('tel1')] : '',
-        tel2: idx('tel2') !== -1 ? r[idx('tel2')] : '',
-        email: idx('email') !== -1 ? r[idx('email')] : '',
-        direccion: idx('direccion') !== -1 ? r[idx('direccion')] : '',
-        notas: idx('notas') !== -1 ? r[idx('notas')] : '',
-      };
-    }).filter(p => p.empresa && String(p.empresa).trim());
-
-    if (!mapped.length) {
-      if (statusEl) statusEl.textContent = '❌ No se identificaron filas con empresa.';
-      showToast('No se identificaron filas con empresa', 'err');
-      return;
-    }
-
-    if (statusEl) statusEl.textContent = `✔ ${mapped.length} filas leídas. Procesando…`;
-    await processImportedRows(mapped);
+    if (statusEl) statusEl.textContent = `✔ ${data.rows.length} filas leídas. Procesando…`;
+    await processImportedRows(data.rows);
   } catch (err) {
     console.error('sheets-import:', err);
     if (statusEl) statusEl.textContent = '❌ Error de red al cargar la hoja.';

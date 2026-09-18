@@ -1336,8 +1336,8 @@ export async function sweepMixnetProducts() {
                   variant_name: 'Unidad',
                   sku: sku,
                   ...updateObj,
+                  base_price_usd: updateObj.price_usd || updateObj.price_b || 0,
                   active: true,
-                  unit,
                   mixnet_status: 'sincronizado'
                 };
                 const { error: varErr } = await dbCore.from('jjp_product_variants').insert(newVariant);
@@ -1410,8 +1410,8 @@ export async function sweepMixnetProducts() {
                   variant_name: 'Unidad',
                   sku: sku,
                   ...updateObj,
+                  base_price_usd: updateObj.price_usd || updateObj.price_b || 0,
                   active: true,
-                  unit,
                   mixnet_status: 'sincronizado'
                 });
                 if (varErr) {

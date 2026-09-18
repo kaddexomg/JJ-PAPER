@@ -57,6 +57,7 @@ wa-server/
 - Vendedores actuales: Yovanni (004/006), Marianela (008), Andreina (014)
 - Zona 010 y Zona 020 (Keyder Salazar, admin): carteras propias (Zona 010 con 191 clientes y Zona 020 con 3.474 clientes de MixNet). Ambas son estrictamente exclusivas para Keyder: invisibles para otros vendedores (no se descargan en `loadCustomers` ni se muestran en `vcustomers.js`, ni en autocompletado de POS/cotizador para vendedores regulares). Keyder conserva rol `admin` (gestión global + distribución) y puede vender/cotizar directamente a su clientela. En `vcustomers.js`, "Mi cartera" para Keyder = `seller_id === SELLER.id` (agrupa sus 3.665 clientes).
 - Maestro MixNet `CLIENTES/mixnet_clientes_cartera_20260908_1205.csv` (NO subir a git): usado para enriquecer clientes globales e importar la cartera MixNet general a la Zona 020 de Keyder.
+- **Verificación Estricta de Esquemas DDL/DML**: Jamás asumir columnas por inferencia entre tablas padre/hijo. Por diseño en PostgreSQL, `unit` y `unit_id` pertenecen exclusivamente a `jjp_products`; la tabla `jjp_product_variants` **NO posee la columna `unit`**. Cualquier script SQL de migración o inserción debe ser contrastado contra el esquema real y probado en una transacción reversible (`BEGIN...ROLLBACK`) antes de ser entregado o ejecutado.
 
 ## Tests
 No se detectaron tests.

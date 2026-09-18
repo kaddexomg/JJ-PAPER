@@ -30,8 +30,8 @@ INSERT INTO public.jjp_product_variants (
   cost_usd,
   stock,
   active,
-  unit,
-  mixnet_status
+  mixnet_status,
+  base_price_usd
 )
 SELECT
   p.id                                              AS product_id,
@@ -45,14 +45,15 @@ SELECT
   COALESCE(p.cost_usd, 0)                          AS cost_usd,
   COALESCE(p.stock, 0)                             AS stock,
   p.active                                          AS active,
-  COALESCE(p.unit, 'und')                          AS unit,
-  COALESCE(p.mixnet_status, 'sincronizado')        AS mixnet_status
+  COALESCE(p.mixnet_status, 'sincronizado')        AS mixnet_status,
+  COALESCE(p.price_usd, p.price_b, 0)              AS base_price_usd
 FROM public.jjp_products p
 WHERE NOT EXISTS (
   SELECT 1 FROM public.jjp_product_variants v WHERE v.product_id = p.id
 )
   AND p.sku IS NOT NULL
-  AND p.sku <> '';
+  AND p.sku <> ''
+ON CONFLICT DO NOTHING;
 
 -- 3. Verificar resultado
 SELECT COUNT(*) AS variantes_creadas_total

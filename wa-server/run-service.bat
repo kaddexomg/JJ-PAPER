@@ -23,6 +23,9 @@ if exist "%LOGFILE%" (
   )
 )
 
+REM Auto-sincronizar cambios de main en cada reinicio
+git pull origin main >nul 2>&1
+
 echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
 node auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
 

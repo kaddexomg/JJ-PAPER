@@ -49,6 +49,7 @@ function waRenderChip() {
 
 function waRenderLink() {
   waRenderChip();
+  if (typeof waUpdateConnectionUI === 'function') waUpdateConnectionUI();
   const box = document.getElementById('waLinkBody');
   if (!box) return;
 

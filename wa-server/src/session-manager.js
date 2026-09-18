@@ -80,9 +80,13 @@ export async function boot() {
     const s = ensure(row.profile_id);
     // Solo auto-conectar sesiones ya vinculadas (con credenciales en disco);
     // las nuevas esperan a que el usuario pida 'connect' desde el panel
-    if (s.hasCreds()) { await s.start(); started++; }
-    else if (row.status !== 'disabled' && row.status !== 'logged_out') {
-      await s.setSession({ status: 'logged_out' });
+    if (s.hasCreds()) { 
+      await s.start(); 
+      started++; 
+    } else {
+      // Si este host no tiene credenciales en disco, NO sobreescribir status en la BD común
+      // para evitar que una instancia secundaria/desarrollo destruya la sesión en el servidor de tienda.
+      log.info({ profile: row.profile_id, status: row.status }, 'sesión sin credenciales locales en este host (se preserva estado en BD)');
     }
   }
   log.info({ habilitadas: rows?.length || 0, conectando: started }, 'sesiones al arranque');

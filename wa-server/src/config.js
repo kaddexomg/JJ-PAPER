@@ -52,7 +52,7 @@ export const REPO_ROOT         = path.join(__dirname, '..', '..');  // raíz del
 export const MIXER_EXPORT_DIR  = process.env.MIXER_EXPORT_DIR || path.join(REPO_ROOT, 'mixer_export');
 
 
-export const OUTBOX_SWEEP_MS   = 30_000;  // barrido de salientes pendientes
+export const OUTBOX_SWEEP_MS   = 5_000;   // barrido de salientes pendientes (latencia ultra-baja)
 export const SESSIONS_SWEEP_MS = 45_000;  // barrido de requested_action perdidos
 export const CAMPAIGN_SWEEP_MS = 30_000;  // tick del despachador de difusión
 export const INVOICE_SWEEP_MS  = 60_000;  // avisos de facturas por pagar (los genera el cron de la BD)

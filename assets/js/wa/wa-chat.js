@@ -509,8 +509,12 @@ function waMsgBubble(m, pos) {
     inner += `<div class="wa-media-miss">${WA_TYPE_ICON[m.type] || ''} ${WA_TYPE_LABEL[m.type] || ''}</div>`;
   }
   if (m.body) inner += `<div class="wa-body">${escapeHTML(m.body)}</div>`;
+  const isOfflinePending = m.status === 'pending' && !waSessionConnected();
+  const tickTitle = m.status === 'pending'
+    ? (isOfflinePending ? 'En espera (WhatsApp desconectado en el servidor)' : 'En cola (procesando envío...)')
+    : (WA_STATUS_LABEL[m.status] || m.status);
   const tick = out
-    ? `<span class="wa-tick ${m.status}" role="img" aria-label="${WA_STATUS_LABEL[m.status] || m.status}">${WA_STATUS_TICK[m.status] || ''}</span>`
+    ? `<span class="wa-tick ${m.status}${isOfflinePending ? ' wa-tick-offline' : ''}" role="img" aria-label="${tickTitle}" title="${tickTitle}">${WA_STATUS_TICK[m.status] || ''}</span>`
     : '';
   const failed = m.status === 'failed'
     ? `<div class="wa-failed">No se envió${m.error ? ': ' + escapeHTML(m.error) : ''} <button class="wa-retry" onclick="waRetry('${m.id}')">Reintentar</button></div>` : '';
@@ -764,7 +768,28 @@ function waGoOffline() {
   waSendAction('offline', 'self');
 }
 
+function waUpdateConnectionUI() {
+  const banner = document.getElementById('waDisconnBanner');
+  if (!banner) return;
+  const isConn = waSessionConnected();
+  if (isConn) {
+    banner.classList.add('wa-hide');
+  } else {
+    banner.classList.remove('wa-hide');
+    const st = WA_SESSION?.status || 'logged_out';
+    const reason = st === 'logged_out' ? 'La sesión está cerrada (requiere vincular con código QR).'
+                 : st === 'pending_qr' ? 'Esperando que escanees el código QR en tu teléfono.'
+                 : st === 'disconnected' ? 'El servidor no responde o está reconectando.'
+                 : 'Conexión no activa.';
+    const textEl = banner.querySelector('.wa-disconn-text');
+    if (textEl) {
+      textEl.innerHTML = `⚠️ <strong>WhatsApp no está conectado al servidor.</strong> ${reason} Los mensajes enviados quedarán en espera hasta que vincules tu cuenta.`;
+    }
+  }
+}
+
 function waRenderThread(scroll) {
+  waUpdateConnectionUI();
   const box = document.getElementById('waThread');
   if (!box) return;
   const prevH = box.scrollHeight;
@@ -933,7 +958,7 @@ async function waSendText() {
     showToast('No se pudo enviar: ' + error.message, 'err');
     input.value = body;
   } else if (!waSessionConnected()) {
-    showToast('Mensaje en cola: tu WhatsApp no está conectado ahora (saldrá al conectar)', 'warn');
+    showToast('⚠️ Mensaje en cola: tu WhatsApp no está conectado en el servidor (se enviará automáticamente al vincular)', 'warn');
   }
 }
 
@@ -969,6 +994,9 @@ async function waFileChosen(input) {
   if (reply?.wa_msg_id) { insert.reply_to_wa_id = reply.wa_msg_id; insert.reply_preview = reply.preview; insert.reply_from = reply.from; }
   const { error } = await sb.from('jjp_wa_messages').insert(insert);
   if (error) { showToast('No se pudo enviar: ' + error.message, 'err'); return; }
+  else if (!waSessionConnected()) {
+    showToast('⚠️ Archivo en cola: WhatsApp no está conectado en el servidor (se enviará al conectar)', 'warn');
+  }
   const ci = document.getElementById('waComposerInput'); if (ci) ci.value = '';
 }
 

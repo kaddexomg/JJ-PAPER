@@ -11,6 +11,7 @@ import { syncCounts } from './campaigns.js';
 
 let manager = null;
 let processing = false;
+let needsAnotherSweep = false;
 
 // Caché de media en memoria (Cambio 1)
 const mediaCache = new Map();
@@ -22,27 +23,63 @@ export function startOutbox(sessionManager) {
   db.channel('wa-server-outbox')
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'jjp_wa_messages', filter: 'status=eq.pending' },
-      () => sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló')))
+      () => triggerSweep())
     .on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'jjp_wa_messages', filter: 'status=eq.pending' },
-      () => sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló')))
+      () => triggerSweep())
     .subscribe(st => log.info({ st }, 'realtime outbox'));
 
-  setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló')), OUTBOX_SWEEP_MS);
-  sweep().catch(() => {});
+  setInterval(() => triggerSweep(), OUTBOX_SWEEP_MS);
+  triggerSweep();
+}
+
+export function triggerSweep() {
+  if (processing) {
+    needsAnotherSweep = true;
+    return;
+  }
+  sweep().catch(e => log.error({ err: e.message }, 'outbox sweep falló'));
 }
 
 async function sweep() {
-  if (processing) return;           // un despacho a la vez, en orden
+  if (processing) {
+    needsAnotherSweep = true;
+    return;
+  }
   processing = true;
+
   try {
-    const { data: rows, error } = await db.from('jjp_wa_messages')
-      .select('*, jjp_wa_chats(jid)')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(20);
-    if (error) { log.error({ error: error.message }, 'select pendientes falló'); return; }
-    for (const row of rows || []) await dispatch(row);
+    const anyConnected = manager && manager.all().some(s => s.isConnected());
+    if (!anyConnected) return;
+
+    let iterations = 0;
+    const maxIterations = 5;
+
+    do {
+      needsAnotherSweep = false;
+      iterations++;
+
+      // Priorizar mensajes frescos (retry_count = 0) y por orden de llegada
+      const { data: rows, error } = await db.from('jjp_wa_messages')
+        .select('*, jjp_wa_chats(jid)')
+        .eq('status', 'pending')
+        .order('retry_count', { ascending: true })
+        .order('created_at', { ascending: true })
+        .limit(25);
+
+      if (error) { log.error({ error: error.message }, 'select pendientes falló'); return; }
+      if (!rows || rows.length === 0) break;
+
+      let dispatchedCount = 0;
+      for (const row of rows) {
+        const ok = await dispatch(row);
+        if (ok) dispatchedCount++;
+      }
+
+      if (rows.length === 25 && dispatchedCount > 0 && iterations < maxIterations) {
+        needsAnotherSweep = true;
+      }
+    } while (needsAnotherSweep && iterations < maxIterations);
   } finally {
     processing = false;
   }
@@ -58,7 +95,7 @@ async function dispatch(row) {
       usedFallback = true;
       log.info({ originalOwner: row.owner_id, fallbackOwner: session.profileId }, 'Usando sesión fallback activa para envío de mensaje WA');
     } else {
-      return; // queda pending hasta que al menos una sesión conecte
+      return false; // queda pending hasta que al menos una sesión conecte
     }
   }
 
@@ -70,7 +107,7 @@ async function dispatch(row) {
       status: 'failed',
       error: 'Chat sin JID de WhatsApp válido'
     }).eq('id', row.id);
-    return;
+    return true;
   }
 
   // Backoff exponencial: si ya falló antes, esperar antes de reintentar
@@ -78,7 +115,7 @@ async function dispatch(row) {
   if (retries > 0) {
     const backoffMs = Math.min(retries * 30_000, 180_000); // 30s, 60s, 90s... max 3min
     const retryAfter = new Date(row.updated_at || row.created_at).getTime() + backoffMs;
-    if (Date.now() < retryAfter) return; // aún no es tiempo de reintentar
+    if (Date.now() < retryAfter) return false; // aún no es tiempo de reintentar
   }
 
   // Lock optimista: si otro ciclo ya lo tomó, no afecta filas
@@ -86,7 +123,7 @@ async function dispatch(row) {
     .update({ status: 'sending' })
     .eq('id', row.id).eq('status', 'pending')
     .select('id');
-  if (!locked?.length) return;
+  if (!locked?.length) return false;
 
   try {
     const content = await buildContent(row);
@@ -129,6 +166,7 @@ async function dispatch(row) {
       detail: `Mensaje WA despachado (${row.type})${usedFallback ? ' [vía sesión fallback]' : ''}`
     });
     log.info({ id: row.id, type: row.type, fallback: usedFallback }, 'mensaje enviado');
+    return true;
   } catch (e) {
     const newRetries = retries + 1;
     const failed = newRetries >= MAX_RETRIES;
@@ -151,6 +189,7 @@ async function dispatch(row) {
     }
 
     log.warn({ id: row.id, retries: newRetries, failed, err: e.message }, 'envío falló');
+    return true;
   }
 }
 

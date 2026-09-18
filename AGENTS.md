@@ -772,4 +772,23 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - **Tolerancia a Medidas/Errores (Scoring)**: Si la búsqueda tiene 3 o más palabras (ej. `plastico 44*66 (carnet)`), identifica que `plastico` y `carnet` coinciden y muestra de inmediato los productos relevantes ordenados por relevancia (`PLASTICO 67*99 (CARNET)` y `PLASTICO CARNET X100 STUDMARK`).
     - **Bumps de versión**: `product-finder.js?v=20260917_search_tokens` y `catalog.js?v=20260917_search_tokens` aplicados en todas las páginas del panel y catálogo.
 
+## Diagnóstico Forense y Optimización de Latencia en WhatsApp CRM / Outbox (18-09-2026)
+- **Causa Raíz de la Desconexión a las 10:28 AM (`status: 'logged_out'`)**:
+  - A las 10:28:13 AM (`14:28:13 UTC`), la sesión de WhatsApp del administrador (`bddc57dc-5bf9-4a72-9e1c-751d07b03164`) pasó a estado `'logged_out'`.
+  - **Conflicto por Doble Servidor Inadvertido**: En `LAPTOP-IIMASTKF`, el archivo `JJPaperServidor.vbs` en `shell:startup` inició una instancia secundaria de Node a las 8:46 AM (`PID 16668`). Como esta laptop no posee los archivos de sesión (`creds.json`), la línea 85 de `session-manager.js` ejecutaba incondicionalmente `await s.setSession({ status: 'logged_out' })`, compitiendo en tiempo real con `Supervisor-Pc` (la PC de tienda con IP `192.168.0.172`), consumiendo eventos Realtime y forzando desconexiones en la base de datos.
+  - **Parada de Procesos Fantasma en Laptop**: Se retiró `JJPaperServidor.vbs` de la carpeta de inicio de la laptop, se cerró el proceso duplicado y se blindó `session-manager.js` para que ninguna máquina secundaria sin credenciales sobreescriba el estado de la sesión en Supabase.
+- **Causa Raíz de "Veo que se envían en el frontend pero en WhatsApp salieron a las 10:27"**:
+  - **UI Optimista Silenciosa**: `assets/js/wa/wa-chat.js` inserta de inmediato una burbuja temporal en el hilo de conversación (`waMsgs.push(optimistic)`). Al confirmar la inserción en Supabase `jjp_wa_messages` con `status: 'pending'`, solo mostraba un toast fugaz si la sesión no estaba conectada, dejando el mensaje en pantalla con un icono de reloj diminuto. Para el usuario, parecía que el mensaje se había ido, pero en WhatsApp físico permanecía retenido.
+  - **Banner de Alerta Prominente**: Se implementó `<div class="wa-disconn-banner">` en `admin/whatsapp.html` y `vendedor/whatsapp.html` con aviso visual destacado en amarillo/ámbar indicando que la cuenta no está conectada y botón de 1 clic `📲 Vincular / Ver QR`.
+  - **Ticks Visuales Inteligentes**: Los mensajes en cola con sesión desconectada ahora lucen un reloj ámbar distintivo (`.wa-tick-offline`) con tooltip explícito: `En espera (WhatsApp desconectado en el servidor)`.
+- **Causa Raíz de la Latencia Excesiva ("Muy mal optimizado") en `outbox.js`**:
+  - **Descarte de Eventos Realtime por Bloqueo Booleano**: Si un mensaje interactivo llegaba vía Realtime `INSERT` mientras `sweep()` estaba en ejecución (`processing = true`), el evento se descartaba y el mensaje quedaba congelado esperando hasta **30 segundos** por el siguiente barrido de `setInterval`.
+  - **Inanición (Starvation) por Reintentos Viejos**: `order('created_at', { ascending: true }).limit(20)` traía repetidamente filas antiguas que estaban en backoff exponencial (`Date.now() < retryAfter`), bloqueando la cola e impidiendo que mensajes frescos y prioritarios del chat fueran seleccionados.
+  - **Resolución de Latencia Ultra-Baja (<500ms)**:
+    - Bucle continuo `needsAnotherSweep`: Si entran nuevos mensajes mientras el outbox procesa, se encadena inmediatamente la siguiente iteración sin esperas ni pausas.
+    - Priorización Correlativa: Consulta ordenada por `retry_count ASC` y `created_at ASC`, garantizando que cualquier mensaje nuevo (`retry_count = 0`) pase al frente absoluto de la cola.
+    - Barrido de respaldo reducido de 30s a **5 segundos** (`OUTBOX_SWEEP_MS = 5_000`).
+    - Auto-pull en reinicio (`git pull origin main`) integrado en `run-service.bat` de `Supervisor-Pc`.
+
+
 

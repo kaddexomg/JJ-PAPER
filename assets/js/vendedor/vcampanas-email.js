@@ -325,16 +325,28 @@ async function ensureGeminiClient() {
 }
 
 async function ecTplDraftWithAi() {
-  const currentName = document.getElementById('tp-name')?.value?.trim();
-  const currentSubj = document.getElementById('tp-subject')?.value?.trim();
-  const topic = prompt('✨ ¿Qué producto, combo o temática deseas promocionar en esta plantilla?\n(Ej: Oferta de resmas de papel por caja, Útiles escolares, Reactivación con entrega en Caracas)', currentName || currentSubj || 'Promoción especial de papelería al mayor');
+  const currentName = document.getElementById('tp-name')?.value?.trim() || document.getElementById('ec-tp-name')?.value?.trim() || '';
+  const currentSubj = document.getElementById('tp-subject')?.value?.trim() || document.getElementById('ec-tp-subject')?.value?.trim() || '';
+  
+  const topic = prompt('✨ ¿Cuál es el Objetivo Principal de este Correo?\n(Ej: Presentación de catálogo, Oferta de resmas, Seguimiento corporativo)', currentName || currentSubj || 'Cotización formal de suministros de papelería al mayor');
   if (!topic || !topic.trim()) return;
+
+  let tone = prompt('🎭 Elige el Tono / Personalidad de la IA para Email:\n1. Corporativo B2B (Alta Gerencia / Compras)\n2. Reactivación / Seguimiento Ejecutivo\n3. Propuesta de Valor (Promoción)\nEscribe el número o describe tu propio tono:', '2');
+  
+  const toneMap = {
+    '1': 'Corporativo B2B (Elegante, directo, Alta Gerencia / Jefatura de Compras)',
+    '2': 'Reactivación / Seguimiento Ejecutivo (Preguntar sobre la lista de precios enviada previamente, ofrecer asistencia)',
+    '3': 'Propuesta de Valor (Promocional y comercial, enfocado en ahorro y beneficios)'
+  };
+  tone = toneMap[tone?.trim()] || tone || 'Profesional y Corporativo (Ejecutivo B2B)';
+
+  const historyContext = prompt('📜 Contexto Histórico Adicional (Opcional):\n(Ej: Le enviamos la lista la semana pasada, hoy queremos hacer seguimiento)', 'Haciendo seguimiento a la lista de precios enviada la semana pasada.');
 
   const btn = document.getElementById('ecAiTplBtn');
   const origText = btn ? btn.textContent : '';
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '⏳ Redactando con IA...';
+    btn.textContent = '⏳ Redactando...';
   }
 
   try {
@@ -345,20 +357,25 @@ async function ecTplDraftWithAi() {
       objective: topic.trim(),
       channel: 'email',
       audience: 'todos',
-      sellerName: SELLER?.name || ''
+      sellerName: SELLER?.name || '',
+      tone: tone,
+      historyContext: historyContext || ''
     });
 
-    if (res.subject) {
-      document.getElementById('tp-subject').value = res.subject;
-      if (!document.getElementById('tp-name').value) {
-        document.getElementById('tp-name').value = res.subject.replace(/^[^\w\s]+/, '').slice(0, 45).trim();
-      }
+    const nameEl = document.getElementById('tp-name') || document.getElementById('ec-tp-name');
+    if (nameEl && !nameEl.value) {
+      nameEl.value = topic.slice(0, 35).trim();
     }
-    if (res.body) {
-      document.getElementById('tp-body').value = res.body;
+    const subjEl = document.getElementById('tp-subject') || document.getElementById('ec-tp-subject');
+    if (res.subject && subjEl) {
+      subjEl.value = res.subject;
+    }
+    const bodyEl = document.getElementById('tp-body') || document.getElementById('ec-tp-body');
+    if (res.body && bodyEl) {
+      bodyEl.value = res.body;
     }
     ecTplPreview();
-    if (typeof showToast === 'function') showToast('Plantilla redactada exitosamente con IA', 'success');
+    if (typeof showToast === 'function') showToast('Plantilla de correo estructurada con IA', 'success');
   } catch (err) {
     alert('Error al redactar plantilla con IA: ' + err.message);
   } finally {

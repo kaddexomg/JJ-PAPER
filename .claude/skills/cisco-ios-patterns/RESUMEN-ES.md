@@ -1,0 +1,25 @@
+---
+skill: cisco-ios-patterns
+idioma_original: en
+---
+
+# cisco-ios-patterns
+
+Este skill provee patrones de revisión para configuraciones Cisco IOS e IOS-XE. Su propósito es ayudar a revisar fragmentos de configuración antes de un cambio planificado, elegir comandos `show` de solo lectura para troubleshooting, armar checklists para ventanas de cambio, y explicar cómo recolectar evidencia de un router o switch sin empeorar un incidente.
+
+Se dispara cuando se está revisando config IOS/IOS-XE previo a un cambio, eligiendo comandos de solo lectura, chequeando máscaras wildcard de ACL y dirección de interfaz, explicando los modos de configuración (global, interfaz, proceso de ruteo, línea), o verificando que un cambio quedó aplicado en la running-config y fue guardado de forma intencional.
+
+Regla operativa central: tratar los ejemplos de IOS como patrones de referencia, no como configuración lista para pegar en producción. Antes de tocar un dispositivo real hay que confirmar la plataforma, los nombres de interfaz, la config actual, el camino de rollback y el acceso fuera de banda (out-of-band).
+
+El workflow recomendado tiene 5 pasos: 1) capturar el estado actual con comandos de solo lectura; 2) revisar la config candidata exacta; 3) confirmar que el acceso de gestión no puede quedar bloqueado; 4) aplicar el cambio más pequeño posible dentro de una ventana de mantenimiento; 5) releer el estado, compararlo contra la línea base, y recién ahí guardar, solo si la validación fue exitosa.
+
+Detalles técnicos clave:
+- Modos de IOS: se ilustra la secuencia enable → show running-config → configure terminal → interface → configuración de interfaz → end. Se aclara que `running-config` es memoria activa y `startup-config` es lo que persiste tras un reload; no hay que guardar solo porque un comando fue aceptado, sino validar el comportamiento primero y luego usar `copy running-config startup-config` si el cambio fue aprobado.
+- Recolección de solo lectura: lista de comandos `show` (show version, show inventory, show processes cpu sorted, show memory statistics, show logging, secciones de running-config filtradas, show ip interface brief, show interfaces, show vlan brief, show mac address-table, show spanning-tree, show ip route, show ip protocols, show ip access-lists, show route-map, show ip prefix-list, entre otros). Se recomienda recolectar solo la sección necesaria y no volcar la config completa en un ticket, ya que puede contener secretos, nombres de clientes o topología privada.
+- Máscaras wildcard: IOS usa máscaras wildcard (no de subred) en ACLs y ciertas sentencias de ruteo; se da una tabla de equivalencia (por ejemplo 255.255.255.0 ↔ 0.0.0.255) y se advierte que usar por error una máscara de subred como wildcard puede matchear mucho más tráfico del previsto. Incluye un ejemplo de ACL extendida con permit específico y un deny final logueado, recordando que toda ACL tiene un deny implícito al final, y que un deny explícito con log es útil para observar tráfico rechazado, siempre confirmando que el volumen de logging sea manejable.
+- Revisión de aplicación de ACL: antes de aplicar una ACL a una interfaz hay que responder preguntas como: dirección de filtrado (in/out), si el tráfico de management viene de un jump host o subred conocida, si existe permit explícito para tráfico necesario (ruteo, DNS, NTP, monitoreo, aplicaciones), si hay contadores de hits disponibles desde una fuente de prueba segura, y si existe un comando de rollback y acceso de consola u out-of-band activo. No se debe probar alcanzabilidad quitando protecciones de firewall/ACL; primero hay que leer contadores, logs y estado de rutas.
+- Higiene de interfaces: usar descripciones claras, modo de switchport explícito y VLAN nativa documentada (se muestra un ejemplo con trunk, VLANs permitidas y VLAN nativa). En interfaces ruteadas, confirmar máscara, direccionamiento del peer y proceso de ruteo antes de asumir que el estado del link implica que el forwarding funciona.
+- Verificación en ventana de cambio: usar chequeos antes/después que coincidan con el cambio real (show running-config de la interfaz, show interfaces, show logging filtrado, show ip route del prefijo, show ip access-lists del nombre). Para cambios de ruteo, también capturar estado de vecinos y tablas de rutas antes y después; para cambios de ACL, comparar contadores de hits desde una fuente de test planificada en vez de confiar en un ping genérico.
+- Antipatrones a evitar: aplicar una config generada sin diff específico del dispositivo; guardar configuración antes de que pasen los chequeos posteriores al cambio; usar máscara de subred donde IOS espera wildcard; aplicar una ACL en la dirección de interfaz incorrecta; hacer troubleshooting deshabilitando ACLs, políticas de ruteo o autenticación; y pegar configs completas en herramientas públicas sin sanitizar secretos y topología.
+
+El skill referencia además otros componentes relacionados: los agentes `network-config-reviewer` y `network-troubleshooter`, y los skills `network-config-validation` y `network-interface-health`.

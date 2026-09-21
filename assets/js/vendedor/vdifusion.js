@@ -417,9 +417,23 @@ async function ensureGeminiClient() {
 }
 
 async function tplDraftWithAi() {
-  const currentName = document.getElementById('tp-name')?.value?.trim();
-  const topic = prompt('✨ ¿Qué producto, combo o temática deseas promocionar en WhatsApp?\n(Ej: Súper oferta en resmas de papel, Combo escolar, Reactivación con entrega en Caracas)', currentName || 'Promoción especial de papelería al mayor');
+  const currentName = document.getElementById('tp-name')?.value?.trim() || '';
+  
+  // Custom prompt dialog
+  const topic = prompt('✨ ¿Cuál es el Objetivo Principal o Producto de esta Campaña?\n(Ej: Promoción de resmas de papel, Combo escolar, Reactivación)', currentName || 'Promoción especial de papelería al mayor');
   if (!topic || !topic.trim()) return;
+
+  let tone = prompt('🎭 Elige el Tono / Personalidad de la IA:\n1. Formal y Directo B2B (Corporativo)\n2. Reactivación / Seguimiento (Recordار listas previas)\n3. Urgencia / Oferta Limitada\n4. Bienvenida / Primer Contacto\nEscribe el número o describe tu propio tono:', '2');
+  
+  const toneMap = {
+    '1': 'Formal y Directo B2B (Corporativo)',
+    '2': 'Reactivación / Seguimiento (Recordar listas previas, ofrecer servicio)',
+    '3': 'Urgencia / Oferta Limitada (Sentido de urgencia, inventario limitado)',
+    '4': 'Bienvenida / Primer Contacto (Alegre, presentándose por primera vez)'
+  };
+  tone = toneMap[tone?.trim()] || tone || 'Profesional y Persuasivo (Vendedor Consultivo)';
+
+  const historyContext = prompt('📜 Contexto Histórico Adicional (Opcional):\n¿Qué ha pasado antes con estos clientes?\n(Ej: Ya les envié la lista de precios el viernes pasado, es para que la revisen)', 'Ya les envié la lista de precios la semana pasada.');
 
   const btn = document.getElementById('waAiTplBtn');
   const origText = btn ? btn.textContent : '';
@@ -436,7 +450,9 @@ async function tplDraftWithAi() {
       objective: topic.trim(),
       channel: 'whatsapp',
       audience: 'todos',
-      sellerName: SELLER?.name || ''
+      sellerName: SELLER?.name || '',
+      tone: tone,
+      historyContext: historyContext || ''
     });
 
     if (!document.getElementById('tp-name').value) {
@@ -446,7 +462,7 @@ async function tplDraftWithAi() {
       document.getElementById('tp-body').value = res.body;
     }
     tplPreview();
-    if (typeof showToast === 'function') showToast('Plantilla redactada exitosamente con IA', 'success');
+    if (typeof showToast === 'function') showToast('Plantilla estructurada exitosamente con IA', 'success');
   } catch (err) {
     alert('Error al redactar plantilla con IA: ' + err.message);
   } finally {

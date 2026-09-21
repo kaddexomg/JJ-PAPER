@@ -96,6 +96,13 @@ function pfMatch(list, term) {
       else if (normName.startsWith(normTerm)) score += 600;
       else if (normName.includes(normTerm)) score += 300;
       
+      // Bono por palabras individuales que coinciden al inicio de una palabra en el nombre
+      tokens.forEach(tok => {
+        if (new RegExp('(^|\\s)' + tok, 'i').test(normName)) {
+          score += 50;
+        }
+      });
+      
       if (fullText.includes(normTerm)) score += 150; // Frase exacta consecutiva en cualquier lado
       if ((p.sku || '').toLowerCase() === lc) score += 500; // Coincidencia exacta de SKU
       if ((p.stock || 0) > 0) score += 50; // Prioridad si hay stock

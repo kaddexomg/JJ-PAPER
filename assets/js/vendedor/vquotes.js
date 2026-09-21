@@ -103,10 +103,11 @@ function posSearchKey(e) {
     return;
   }
 
-  const targetIdx = posCursor >= 0 ? posCursor : (posResultsList.length > 0 ? 0 : -1);
-  if (targetIdx >= 0 && targetIdx < posResultsList.length) {
-    posCursor = targetIdx;
+  if (posCursor >= 0 && posCursor < posResultsList.length) {
     posPickIdx();
+    return;
+  } else if (posResultsList.length > 0) {
+    posNavTo(0);
     return;
   }
 }

@@ -108,10 +108,13 @@ function posSearchKey(e) {
   }
 
   // 2. Si no hubo match exacto por código, busca en los resultados por nombre/tokens
-  const targetIdx = posCursor >= 0 ? posCursor : (posResultsList.length > 0 ? 0 : -1);
-  if (targetIdx >= 0 && targetIdx < posResultsList.length) {
-    posCursor = targetIdx;
+  if (posCursor >= 0 && posCursor < posResultsList.length) {
+    // El usuario ya había navegado a un elemento específico con las flechas, o le dio Enter por segunda vez
     posPickIdx();
+    return;
+  } else if (posResultsList.length > 0) {
+    // Primera vez que presiona Enter después de escribir: sólo iluminar/seleccionar el primer resultado, sin agregarlo
+    posNavTo(0);
     return;
   }
 

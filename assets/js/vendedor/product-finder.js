@@ -9,12 +9,25 @@ let PF_PRODUCTS = null;
 
 async function pfLoad(force) {
   if (PF_PRODUCTS && !force) return PF_PRODUCTS;
-  const { data, error } = await sb.from('jjp_products')
-    .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
-    .eq('active', true).range(0, 1999).order('name');
-  if (error) { if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); return PF_PRODUCTS || []; }
   
-  let products = data || [];
+  let allData = [];
+  let from = 0;
+  const step = 999;
+  while (true) {
+    const { data, error } = await sb.from('jjp_products')
+      .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
+      .eq('active', true).range(from, from + step).order('name');
+    if (error) { 
+      if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); 
+      return PF_PRODUCTS || []; 
+    }
+    if (!data || data.length === 0) break;
+    allData.push(...data);
+    if (data.length <= step) break;
+    from += step + 1;
+  }
+  
+  let products = allData;
   
   // Cargar precios personalizados del vendedor si está logueado
   const sellerId = (typeof SELLER !== 'undefined' && SELLER?.id) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id);

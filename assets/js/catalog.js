@@ -157,13 +157,23 @@ async function loadProducts() {
     } catch (_) {}
   }
 
-  const { data, error } = await sb.from('jjp_products')
-    .select(`id,name,description,price_usd,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
-    .eq('active', true)
-    .range(0, 1999)
-    .order('sort_order');
-  if (error) { console.error(error); return; }
-  allProducts = (data || []).map(normalizeProduct);
+  let allData = [];
+  let from = 0;
+  const step = 999;
+  while (true) {
+    const { data, error } = await sb.from('jjp_products')
+      .select(`id,name,description,price_usd,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
+      .eq('active', true)
+      .range(from, from + step)
+      .order('sort_order');
+    if (error) { console.error(error); return; }
+    if (!data || data.length === 0) break;
+    allData.push(...data);
+    if (data.length <= step) break;
+    from += step + 1;
+  }
+  
+  allProducts = allData.map(normalizeProduct);
   // Populate lookup map for safe cart/modal calls from any page
   allProducts.forEach(p => { productMap[p.id] = p; });
   try {

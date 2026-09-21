@@ -11,7 +11,7 @@ async function pfLoad(force) {
   if (PF_PRODUCTS && !force) return PF_PRODUCTS;
   const { data, error } = await sb.from('jjp_products')
     .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
-    .eq('active', true).order('name');
+    .eq('active', true).range(0, 1999).order('name');
   if (error) { if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); return PF_PRODUCTS || []; }
   
   let products = data || [];
@@ -89,7 +89,14 @@ function pfMatch(list, term) {
     // 1. Coincidencia completa: todos los tokens están presentes en el producto
     if (matchRatio === 1) {
       let score = 200;
-      if (fullText.includes(normTerm)) score += 150; // Frase exacta consecutiva
+      const normName = pfNorm(p.name || '');
+      
+      // Coincidencia exacta o empieza con el término principal
+      if (normName === normTerm) score += 1000;
+      else if (normName.startsWith(normTerm)) score += 600;
+      else if (normName.includes(normTerm)) score += 300;
+      
+      if (fullText.includes(normTerm)) score += 150; // Frase exacta consecutiva en cualquier lado
       if ((p.sku || '').toLowerCase() === lc) score += 500; // Coincidencia exacta de SKU
       if ((p.stock || 0) > 0) score += 50; // Prioridad si hay stock
       scored.push({ p, score });

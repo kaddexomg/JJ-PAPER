@@ -143,6 +143,7 @@ function viewVQuote(id) {
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendBotonHTML(`vQuoteCtx('${q.id}')`)}
       ${closed ? '' : `
+        <a class="btn-o" style="width:auto;padding:9px 16px;text-decoration:none" href="cotizador.html?edit=${q.id}">✏️ Editar</a>
         <a class="btn-p" style="width:auto;padding:9px 16px;text-decoration:none;font-weight:700" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">🛍️ Cargar en POS</a>
         <button class="btn-o" onclick="convertVQuote('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
           style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">⚡ Venta directa</button>`}

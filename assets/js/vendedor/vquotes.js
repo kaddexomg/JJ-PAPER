@@ -5,6 +5,7 @@
 
 let posProducts = [];
 let posTicket   = {};
+let editingQuoteId = null;
 let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
 let quoteCustomer = null;  // cliente seleccionado para asociar ID
@@ -23,6 +24,11 @@ async function initQuoter() {
   const cliente = params.get('cliente');
   if (cliente) await quoteCargarCliente(cliente);
   pfPhoneBridge(posOnScan);   // teléfono → agrega a la cotización en vivo
+
+  editingQuoteId = params.get('edit');
+  if (editingQuoteId) {
+    await loadQuoteForEdit(editingQuoteId);
+  }
 
   // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
   custAcBind({
@@ -69,6 +75,69 @@ function posPhone() {
   document.getElementById('posPhoneModal')?.classList.add('op');
 }
 function closePosPhone() { document.getElementById('posPhoneModal')?.classList.remove('op'); }
+
+async function loadQuoteForEdit(id) {
+  const { data: q, error } = await sb.from('jjp_quotes').select('*').eq('id', id).single();
+  if (error || !q) {
+    showToast('Cotización no encontrada', 'err');
+    return;
+  }
+  
+  const cliName = document.getElementById('qCliName');
+  const cliTel = document.getElementById('qCliTel');
+  const cliRif = document.getElementById('qCliRif');
+  const cliCity = document.getElementById('qCliCity');
+  
+  if (cliName) cliName.value = q.client_name || '';
+  if (cliTel) cliTel.value = q.phone || '';
+  if (cliRif) cliRif.value = q.rif || '';
+  if (cliCity) cliCity.value = q.city || '';
+  
+  if (q.customer_id) {
+     quoteCustomer = { id: q.customer_id, name: q.client_name, rif: q.rif, phone: q.phone, city: q.city };
+  }
+  
+  const dscInput = document.getElementById('qDscPct');
+  if (dscInput && q.discount_pct) {
+    dscInput.value = q.discount_pct;
+  }
+  
+  const notes = document.getElementById('qNotes');
+  if (notes && q.notes) {
+    notes.value = q.notes;
+  }
+  
+  posTicket = {};
+  if (Array.isArray(q.items)) {
+    q.items.forEach(item => {
+      const pid = item.product_id || item.id;
+      const key = item.variant_id ? 'v::' + item.variant_id : 'p::' + pid;
+      posTicket[key] = {
+        id: pid,
+        product_id: pid,
+        variant_id: item.variant_id,
+        name: item.name,
+        sku: item.sku || '',
+        brand: item.brand || '',
+        price_usd: item.price_usd || item.unit_price || 0,
+        qty: item.qty || item.quantity || 1,
+        unit: item.unit || 'und',
+        price_level: item.price_level || 'A'
+      };
+    });
+  }
+  
+  posRenderTicket();
+  
+  const btn = document.getElementById('qSubmitBtn');
+  if (btn) btn.innerHTML = `💾 Guardar Cambios (${q.quote_number || 'Cotización'})`;
+}
+
+function posUpdateName(key, newName) {
+  if (posTicket[key] && newName.trim()) {
+    posTicket[key].name = newName.trim();
+  }
+}
 
 /* --- buscador (mismo patrón del POS) --- */
 function posSearch() {
@@ -333,7 +402,10 @@ function posRenderTicket() {
     return `
     <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px dashed #eee">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600">${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
+        <div style="font-weight:600;display:flex;align-items:center;gap:4px">
+          <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:600; font-size:13px; padding:2px 4px; margin:0; flex:1; height:24px" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
+          ${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}
+        </div>
         <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
           <span style="color:var(--gm)">Nivel</span>
           <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
@@ -427,13 +499,12 @@ async function quoteSubmit() {
     const sellerId = activeSeller?.id || null;
 
     const quote = {
-      quote_number: genOrderNumber('COT'),
       client_name: name,
       phone: tel,
       rif:  document.getElementById('qCliRif')?.value.trim()  || null,
       city: document.getElementById('qCliCity')?.value.trim() || null,
       items: lines.map(l => ({
-        id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
+        id: l.product_id || l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
         qty: l.qty, unit: l.unit, price_usd: l.price_usd,
         price_level: l.price_level || 'B',
         price_bs: posLineBs(l) || null,
@@ -443,15 +514,25 @@ async function quoteSubmit() {
       discount_pct: pct,
       exchange_rate: getRate(),
       notes: document.getElementById('qNotes')?.value.trim() || null,
-      status: 'pendiente',
-      source: 'vendedor',
-      seller_id: sellerId,
       customer_id: (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null,
     };
+      
+    let error;
+    if (editingQuoteId) {
+      quote.updated_at = new Date().toISOString();
+      const res = await sb.from('jjp_quotes').update(quote).eq('id', editingQuoteId);
+      error = res.error;
+    } else {
+      quote.quote_number = genOrderNumber('COT');
+      quote.status = 'pendiente';
+      quote.source = 'vendedor';
+      quote.seller_id = sellerId;
+      const res = await sb.from('jjp_quotes').insert(quote);
+      error = res.error;
+    }
 
-    const { error } = await sb.from('jjp_quotes').insert(quote);
     if (error) {
-      console.error('quote insert:', error);
+      console.error('quote save error:', error);
       showToast('No se pudo guardar la cotización: ' + (error.message || 'Error en base de datos'), 'err');
     } else {
       quoteShowDone(quote);

@@ -76,10 +76,7 @@ function pfMatch(list, term) {
 
     // Tokens coincidentes en el producto
     const matchingTokens = tokens.filter(tok => {
-      if (tok.length <= 2) {
-        const re = new RegExp('(^|[^a-z0-9])' + tok + '([^a-z0-9]|$)', 'i');
-        return re.test(fullText);
-      }
+      // Para cualquier longitud, permitimos coincidencia parcial para que filtre a medida que teclean
       return fullText.includes(tok);
     });
 

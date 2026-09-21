@@ -171,7 +171,8 @@
   @media print {
     html, body { height:100%; }
     body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    @page { margin:10mm; }
+    @page { margin: 0; } /* Forzar al navegador a no imprimir la url ni fecha */
+    .sheet { padding-top: 15mm; padding-bottom: 15mm; } /* Padding manual para simular el margen */
 
     /* Cada documento ocupa UNA página completa y ni un milímetro más.
        Antes la hoja crecía libre y una factura con pocas líneas se comía
@@ -367,9 +368,9 @@ function sheet(o, docType) {
   // IVA desglosado sobre precios IVA-incluido (jjp_settings.iva_pct; 0 = no desglosar).
   // El precio de lista YA trae el impuesto: se calcula hacia atrás, así que el
   // cliente paga lo mismo con o sin desglose.
-  const ivaPct = s.iva_pct !== undefined && s.iva_pct !== '' ? parseFloat(s.iva_pct) : 16;
-  const base   = ivaPct > 0 ? total / (1 + ivaPct / 100) : total;
-  const iva    = total - base;
+  const ivaPct = 0;
+  const base   = total;
+  const iva    = 0;
 
   // El monto del descuento se calcula sobre el subtotal de productos:
   // total puede incluir el envío y restar (subtotal - total) daría mal.

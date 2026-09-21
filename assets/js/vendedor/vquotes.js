@@ -519,7 +519,6 @@ async function quoteSubmit() {
       
     let error;
     if (editingQuoteId) {
-      quote.updated_at = new Date().toISOString();
       const res = await sb.from('jjp_quotes').update(quote).eq('id', editingQuoteId);
       error = res.error;
     } else {

@@ -115,6 +115,11 @@ export async function onRequest(context) {
     }
 
     const text = await res.text();
+    
+    if (text.trim().toLowerCase().startsWith('<html') || text.includes('Sign in - Google Accounts') || text.includes('<title>Meet Google Drive</title>')) {
+      return new Response(JSON.stringify({ ok: false, error: 'Google bloqueó el acceso. Asegúrate de que la hoja de Google Sheets esté configurada como "Cualquier persona con el enlace puede leer".' }), { headers: corsHeaders, status: 403 });
+    }
+
     const rows = parseCSV(text);
 
     if (!rows.length) {

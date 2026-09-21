@@ -781,19 +781,19 @@ async function processImportedRows(allRows) {
 
   const col = {
     sector: headers.findIndex(h => h.includes('sector') || h.includes('rubro') || h.includes('tipo') || h.includes('categoria')),
-    empresa: headers.findIndex(h => (h.includes('empresa') || h.includes('razon') || h.includes('compa') || (h.includes('cliente') && !h.includes('total'))) && !h.includes('sector')),
+    empresa: headers.findIndex(h => (h.includes('empresa') || h.includes('razon') || h.includes('compa') || (h.includes('cliente') && !h.includes('total')) || h.includes('nombre') || h.includes('prospecto') || h.includes('cuenta')) && !h.includes('sector')),
     contacto: headers.findIndex(h => (h.includes('contacto') || h.includes('atencion') || h.includes('persona')) && !h.includes('total')),
-    cargo: headers.findIndex(h => h.includes('cargo') || h.includes('rol') || h.includes('departamento')),
-    tel1: headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('telefonico')) && !h.includes('cel') && !h.includes('wa') && !h.includes('whats') && !/\b2\b/.test(h)),
+    cargo: headers.findIndex(h => h.includes('cargo') || h.includes('rol') || h.includes('departamento') || h.includes('puesto')),
+    tel1: headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('telefonico') || h.includes('nro') || h.includes('numero')) && !h.includes('cel') && !h.includes('wa') && !h.includes('whats') && !/\b2\b/.test(h)),
     tel2: headers.findIndex(h => h.includes('cel') || h.includes('whats') || h.includes('movil') || h.includes('movi') || (h.includes('tel') && /\b2\b/.test(h))),
     email: headers.findIndex(h => h.includes('correo') || h.includes('email') || h.includes('mail')),
-    direccion: headers.findIndex(h => h.includes('direcci') || h.includes('sede') || h.includes('ubicaci')),
-    notas: headers.findIndex(h => h.includes('nota') || h.includes('observaci') || h.includes('comentario'))
+    direccion: headers.findIndex(h => h.includes('direcci') || h.includes('sede') || h.includes('ubicaci') || h.includes('lugar')),
+    notas: headers.findIndex(h => h.includes('nota') || h.includes('observaci') || h.includes('comentario') || h.includes('descripc') || h.includes('inscripc') || h.includes('detalle'))
   };
 
   // Si no hay tel2 explícito, probar "teléfono 2" omitiéndose de tel1.
   if (col.tel2 === -1) {
-    col.tel2 = headers.findIndex(h => (h.includes('tel') || h.includes('fijo')) && /\b2\b/.test(h) && !h.includes('cel'));
+    col.tel2 = headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('nro') || h.includes('numero')) && /\b2\b/.test(h) && !h.includes('cel'));
   }
 
   if (col.empresa === -1) {
@@ -852,7 +852,7 @@ async function processImportedRows(allRows) {
     const tel1 = col.tel1 !== -1 ? cellPhone(r[col.tel1]) : null;
     const tel2 = col.tel2 !== -1 ? cellPhone(r[col.tel2]) : null;
     let email = col.email !== -1 && r[col.email] ? String(r[col.email]).trim() : null;
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) email = null;
+    if (email && (!email.includes('@') || !email.includes('.'))) email = null;
     const address = col.direccion !== -1 && r[col.direccion] ? String(r[col.direccion]).trim() : null;
     const notes = col.notas !== -1 && r[col.notas] ? String(r[col.notas]).trim() : null;
 

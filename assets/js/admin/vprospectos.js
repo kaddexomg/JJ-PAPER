@@ -284,6 +284,9 @@ async function analyzeSingleProspect(prospectId) {
   showToast(`Analizando a ${p.company_name} con IA… 🧠`, 'info');
 
   try {
+    const aiPersonality = document.getElementById('aiPersonality')?.value || 'Profesional / Formal';
+    const aiMessageType = document.getElementById('aiMessageType')?.value || 'Presentación Inicial';
+
     const result = await GeminiClient.analyzeAndDraftProspectB2B({
       companyName: p.company_name,
       sector: p.sector,
@@ -293,7 +296,9 @@ async function analyzeSingleProspect(prospectId) {
       notes: p.notes,
       city: p.city || 'Caracas',
       sellerName: KEYDER_PROFILE.name,
-      sellerPhone: KEYDER_PROFILE.phone
+      sellerPhone: KEYDER_PROFILE.phone,
+      personality: aiPersonality,
+      messageType: aiMessageType
     });
 
     // Actualizar en base de datos
@@ -349,6 +354,9 @@ async function analyzeBatchProspects(count = 5) {
     const p = pending[i];
     if (btn) btn.textContent = `Analizando ${i + 1}/${pending.length} (${p.company_name})… ⏳`;
 
+    const aiPersonality = document.getElementById('aiPersonality')?.value || 'Profesional / Formal';
+    const aiMessageType = document.getElementById('aiMessageType')?.value || 'Presentación Inicial';
+
     try {
       const result = await GeminiClient.analyzeAndDraftProspectB2B({
         companyName: p.company_name,
@@ -359,7 +367,9 @@ async function analyzeBatchProspects(count = 5) {
         notes: p.notes,
         city: p.city || 'Caracas',
         sellerName: KEYDER_PROFILE.name,
-        sellerPhone: KEYDER_PROFILE.phone
+        sellerPhone: KEYDER_PROFILE.phone,
+        personality: aiPersonality,
+        messageType: aiMessageType
       });
 
       const updatePayload = {
@@ -802,7 +812,9 @@ async function processImportedRows(allRows) {
     existing = new Set((ex || []).map(x => norm(x.company_name)));
   } catch (_) { /* mantener set vacío */ }
 
-  showToast('Guardando prospectos en la base de datos… ⏳', 'info');
+  showToast('Preparando y procesando prospectos… ⏳', 'info');
+
+  const toUpsertMap = new Map(); // Para evitar duplicados en el mismo lote
 
   for (let i = headerIdx + 1; i < allRows.length; i++) {
     const r = allRows[i];
@@ -832,7 +844,6 @@ async function processImportedRows(allRows) {
       if (!v) return null;
       let s = String(v).trim();
       if (!s || s === '-' || s === '—' || /^-{1,2}$/.test(s)) return null;
-      // Llega como número Excel (8E+11 o 4121234567)
       if (/^\d+\s*E\+\d+$/i.test(s)) return null;
       s = s.replace(/[^\d+]/g, '');
       return s || null;
@@ -840,7 +851,6 @@ async function processImportedRows(allRows) {
 
     const tel1 = col.tel1 !== -1 ? cellPhone(r[col.tel1]) : null;
     const tel2 = col.tel2 !== -1 ? cellPhone(r[col.tel2]) : null;
-    // Si el "fijo" resultó ser un celular venezolano, normalizar al movil.
     let email = col.email !== -1 && r[col.email] ? String(r[col.email]).trim() : null;
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) email = null;
     const address = col.direccion !== -1 && r[col.direccion] ? String(r[col.direccion]).trim() : null;
@@ -859,15 +869,26 @@ async function processImportedRows(allRows) {
       updated_at: new Date().toISOString()
     };
 
-    const existed = existing.has(norm(rawCompany));
+    toUpsertMap.set(norm(rawCompany), payload);
+  }
 
-    // Upsert por company_name
-    const { error: upsertErr } = await sb.from('jjp_prospects').upsert(payload, { onConflict: 'company_name' });
+  const payloadsArray = Array.from(toUpsertMap.values());
+  showToast(`Guardando ${payloadsArray.length} prospectos en BD... 🚀`, 'info');
+
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < payloadsArray.length; i += BATCH_SIZE) {
+    const chunk = payloadsArray.slice(i, i + BATCH_SIZE);
+    const { error: upsertErr } = await sb.from('jjp_prospects').upsert(chunk, { onConflict: 'company_name' });
+    
     if (!upsertErr) {
-      if (existed) updated++; else inserted++;
-      existing.add(norm(rawCompany));
+      chunk.forEach(p => {
+        if (existing.has(norm(p.company_name))) updated++;
+        else inserted++;
+        existing.add(norm(p.company_name));
+      });
     } else {
-      skipped++;
+      console.error('Error en lote:', upsertErr);
+      skipped += chunk.length;
     }
   }
 

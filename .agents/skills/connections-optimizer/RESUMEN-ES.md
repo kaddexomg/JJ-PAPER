@@ -1,0 +1,30 @@
+---
+skill: connections-optimizer
+idioma_original: en
+---
+
+# connections-optimizer
+
+Este skill reorganiza la red de contactos del usuario en X (Twitter) y LinkedIn, tratando el trabajo sobre la red como algo bidireccional y no como una simple lista de prospección saliente. Cubre limpieza y expansión de a quién se sigue en X, análisis de seguidos/conexiones en LinkedIn, colas de poda con revisión previa, recomendaciones de a quién agregar o seguir, identificación de "warm paths" (contactos puente/cálidos) y generación de borradores de mensajes (Apple Mail, DM de X, mensajes de LinkedIn) redactados con la voz real del usuario.
+
+Se activa cuando el usuario quiere podar su lista de seguidos en X, rebalancear a quién sigue o con quién sigue conectado, o cuando pide frases como "limpiá mi red", "a quién debería dejar de seguir", "a quién debería seguir" o "con quién debería reconectar". También aplica cuando la calidad del outreach depende de la estructura de la red y no solo de generar una lista fría de contactos.
+
+Antes de operar, el skill recopila o infiere: las prioridades y trabajo activo actual del usuario, roles/industrias/geografías/ecosistemas objetivo, la plataforma a trabajar (X, LinkedIn o ambas), una lista de "no tocar" y un modo de operación: `light-pass`, `default` o `aggressive` (si no se especifica, usa `default`).
+
+En cuanto a herramientas, prefiere `x-api` para inspección del grafo de X y actividad reciente, `lead-intelligence` para descubrimiento de objetivos y ranking de warm-paths, `social-graph-ranker` cuando se quiere puntuar el valor de puente de forma independiente, búsqueda profunda/Exa para enriquecer datos de personas y empresas, y `brand-voice` antes de redactar cualquier mensaje saliente. Como fallback usa control de navegador para LinkedIn (y para X si el acceso a la API es limitado) y automatización de escritorio para redactar en Apple Mail/Mail.app.
+
+Los principios de seguridad son estrictos: el modo por defecto es siempre "revisión primero", nunca poda automática a ciegas. En X solo se puede podar cuentas que el usuario sigue, nunca a sus seguidores. En LinkedIn, eliminar una conexión de primer grado se trata como algo que requiere revisión manual. Nunca se envían DMs, invitaciones o correos de forma automática: el skill siempre entrega un plan de acción priorizado y borradores antes de cualquier paso de aplicación real.
+
+Reglas específicas por plataforma: en X, los "mutuals" (seguimiento recíproco) son más resistentes a la poda que los seguimientos unidireccionales; las cuentas que no siguen de vuelta pueden podarse más agresivamente; las cuentas inactivas o desaparecidas deben detectarse rápido; importan más el engagement, la calidad de señal y el valor de puente que el número bruto de seguidores. En LinkedIn, se prioriza el acceso por API si existe, con flujo por navegador como respaldo; se distingue entre "follows" salientes (podables con más libertad) y conexiones de primer grado aceptadas (por defecto van a revisión, no a eliminación automática).
+
+Los tres modos definen distinta intensidad: `light-pass` solo poda seguimientos unidireccionales de bajo valor con alta confianza y genera una lista pequeña de nuevos seguidos/agregados, dejando el resto para revisión; `default` produce una cola de poda balanceada, una lista de "keep" balanceada, una cola de agregar/seguir priorizada y borradores de intros o outreach directo donde tenga sentido; `aggressive` amplía la cola de poda y baja la tolerancia a seguimientos unidireccionales inactivos, pero sigue exigiendo revisión antes de aplicar cambios.
+
+El modelo de scoring usa señales positivas (reciprocidad, actividad reciente, alineación con prioridades actuales, valor de puente en la red, relevancia de rol, historial real de engagement, presencia y capacidad de respuesta reciente) y señales negativas (cuenta desaparecida o abandonada, seguimiento unidireccional obsoleto, cluster temático fuera de prioridad, ruido de bajo valor, falta repetida de respuesta, ausencia de reciprocidad cuando existen mejores reemplazos). Los mutuals y los verdaderos puentes cálidos se penalizan menos que los seguimientos unidireccionales simples.
+
+El workflow tiene ocho pasos: 1) capturar prioridades, restricciones de "no tocar" y plataformas seleccionadas; 2) traer el inventario actual de seguidos/conexiones; 3) puntuar candidatos a poda con razones explícitas; 4) puntuar candidatos a mantener con razones explícitas; 5) usar `lead-intelligence` más superficies de investigación para rankear candidatos de expansión; 6) elegir el canal correcto (DM de X para contacto social rápido y cálido, mensaje de LinkedIn para adyacencia profesional, borrador de Apple Mail para intros u outreach de mayor contexto); 7) ejecutar `brand-voice` antes de redactar los mensajes; 8) devolver un "review pack" (paquete de revisión) antes de cualquier paso de aplicación.
+
+El formato del review pack es un reporte de texto estructurado con secciones: Mode, Platforms, Priority Set, Prune Queue (con razón, confianza y acción por cada handle/perfil), Review Queue (razón y riesgo), Keep/Protect (valor de puente), Add/Follow Targets (por qué ahora, warm path, canal preferido) y Drafts (borradores de X DM, LinkedIn y Apple Mail).
+
+Las reglas de outbound remarcan que el canal de correo por defecto es la creación de borradores en Apple Mail/Mail.app, que nunca se envía nada automáticamente, que el canal se elige según calidez, relevancia y profundidad de contexto (sin forzar un DM cuando lo correcto es un email o directamente no hacer outreach), y que los borradores deben sonar como el usuario, no como copy de ventas automatizado.
+
+Finalmente, el skill lista skills relacionados: `brand-voice` para el perfil de voz reutilizable, `social-graph-ranker` para el cálculo independiente de puntaje de puente y warm-path, `lead-intelligence` para descubrimiento ponderado de objetivos y warm-paths, `x-api` para acceso al grafo de X, redacción y flujos opcionales de aplicación, y `content-engine` cuando el usuario también quiere contenido público de lanzamiento alrededor de estos movimientos de red.

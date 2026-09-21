@@ -188,7 +188,23 @@
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-o" style="color:#059669;border-color:#059669;font-weight:700" onclick="openProspectCampaignModal('whatsapp')" title="Lanzar difusión masiva por WhatsApp con ritmos humanos">📢 Campaña WhatsApp</button>
+          <div style="display:flex; gap:10px; align-items:center; background:#f1f5f9; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; flex-basis: 100%; margin-bottom: 4px;">
+            <strong style="font-size:12px; color:#475569">🧠 Parámetros de Redacción IA:</strong>
+            <select id="aiPersonality" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px; outline:none; cursor:pointer;">
+              <option value="Profesional / Formal">Profesional / Formal</option>
+              <option value="Directo / Ejecutivo">Directo / Ejecutivo</option>
+              <option value="Cercano / Cordial">Cercano / Cordial</option>
+              <option value="Persuasivo / Comercial">Persuasivo / Comercial</option>
+              <option value="Para prospecto Desconfiado / Reticente">Para prospecto Desconfiado</option>
+            </select>
+            <select id="aiMessageType" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px; outline:none; cursor:pointer;">
+              <option value="Presentación / Bienvenida">Presentación / Bienvenida</option>
+              <option value="Seguimiento de Contacto Previo">Seguimiento de Contacto Previo</option>
+              <option value="Recordatorio de Insumos">Recordatorio de Insumos</option>
+              <option value="Reactivación / Recuperación">Reactivación / Recuperación</option>
+            </select>
+          </div>
+          <button class="btn-o" style="color:#059669;border-color:#059669;font-weight:700" onclick="openProspectCampaignModal('whatsapp')" title="Lanzar difusión masiva por WhatsApp con ritmos humanos">📢 Campaña WhatsApp</button>
         <button class="btn-o" style="color:#2563eb;border-color:#2563eb;font-weight:700" onclick="openProspectCampaignModal('email')" title="Lanzar campaña masiva por Correo Gmail API">📣 Campaña Email</button>
         <button class="btn-o" id="btnBatchAnalyze" onclick="analyzeBatchProspects(5)" title="Analiza con IA las siguientes cuentas sin copy">⚡ Analizar Lote con IA</button>
         <button class="btn-o" onclick="openImportModal()" title="Sincronizar archivo de Google Sheets o pegar celdas">⬆️ Importar Google Sheets</button>

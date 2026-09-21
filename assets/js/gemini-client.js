@@ -759,7 +759,9 @@ REGLAS ESTRICTAS DE CONSTRUCCIÓN SPINTAX:
     audience = 'todos',
     channel = 'whatsapp',
     customNotes = '',
-    sellerName = ''
+    sellerName = '',
+    tone = 'Profesional y Persuasivo (Vendedor Consultivo)',
+    historyContext = ''
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
@@ -788,65 +790,54 @@ ${pDesc ? `- Descripción técnica: ${pDesc}` : ''}
 
     const sys = getBusinessContext() + `
 Eres el Especialista y Redactor Comercial B2B Sénior de JJ Paper C.A., empresa distribuidora mayorista y corporativa de papelería, útiles y suministros en Caracas, Venezuela.
-Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte seriedad, confianza, calidez y actitud de socio estratégico de compras corporativas.
+Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte seriedad, confianza, calidez y actitud de socio estratégico.
 
 ESTÁNDARES DE COPYWRITING B2B CON ACTITUD Y ESTRUCTURA:
-1. ACTITUD DE SOCIO MAYORISTA (NO SPAMMER, NO TELETIENDA):
-   - Prohibido terminantemente sonar como un anuncio publicitario masivo, bot barato o vendedor invasivo.
-   - El mensaje debe sentirse como si el asesor comercial de JJ Paper estuviera escribiendo personalmente al encargado de compras, administración, librería o institución educativa.
-   - Tono formal, educado, sumamente profesional pero cercano y cordial (venezolano corporativo respetuoso).
+1. TONO Y PERSONALIDAD:
+   - Aplica estrictamente este tono: "${tone}".
+   - Si el contexto indica reactivación o seguimiento ("enviamos lista la semana pasada"), asume una actitud de servicio y disposición a ayudar ("¿pudieron revisar la lista?", "estamos a la orden para surtirlos", etc.).
 
-2. PARÁMETROS DE CONTENIDO Y ESPECIFICACIONES CONCRETAS:
-   - No hagas mensajes vacíos ni telegramas de 3 líneas que carecen de especificaciones.
-   - Destaca siempre características concretas: marcas reconocidas (Kores, Printon, Mr. Bobina, etc.), formato/presentación (cajas x 12, resmas de 500 hojas, bultos, blister, Carta u Oficio).
-   - Comunica claramente las condiciones operativas y ventajas institucionales de comprar con JJ Paper:
-     • Despacho ágil y puntual directo a la sede del cliente en Caracas.
-     • Envíos protegidos y asegurados a nivel nacional (Tealca, MRW, Zoom).
-     • Facturación 100% legal con Factura Fiscal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
-     • Cotizaciones formales en PDF de entrega inmediata.
-     • Posibilidad de crédito corporativo para clientes frecuentes.
+2. ESTRUCTURA VISUAL OBLIGATORIA DEL MENSAJE (¡MUY IMPORTANTE!):
+   - **SALUDO DINÁMICO (SPINTAX)**: Usa {Hola|Qué tal|Buen día|Saludos} {{nombre}}.
+   - **TÍTULO PRINCIPAL**: Un título atractivo en negritas (Ej: *🔥 Gran Oferta en Papelería*).
+   - **CUERPO DEL MENSAJE**: Párrafos cortos. Usa subtítulos en negrita si es necesario.
+   - **VIÑETAS**: Si describes productos/servicios, usa emojis de check (✔️) o viñetas (🔹).
+   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta de cierre (Ej: "¿Te apartamos mercancía?").
+   - **DESPEDIDA Y FIRMA**: DEBES incluir una firma profesional al final usando la variable {{vendedor}} (Ej: "Atentamente, {{vendedor}} | Asesor JJ Paper | {{link}}").
 
-3. ESTRUCTURA VISUAL IMPECABLE (10 a 16 líneas bien aireadas):
-   - Separa SIEMPRE cada bloque temático con DOBLE salto de línea (\\n\\n) para que el mensaje respire y sea muy cómodo de leer en teléfonos móviles.
-   - Usa negritas con asteriscos (*Texto Destacado*) para el título del producto o beneficio clave, y viñetas (• o 🔹) para desglosar especificaciones y condiciones.
-   - Emojis sobrios y estratégicos (máximo 3 o 4 en todo el texto: 👋, 📦, 💲, 👉).
+3. PARÁMETROS DE CONTENIDO:
+   - Destaca características concretas: marcas, formatos (resmas, bultos, cajas).
+   - Recuerda nuestras ventajas: Despacho a sede (Caracas), envíos nacionales seguros, Factura Fiscal a Tasa BCV Oficial, Cotizaciones inmediatas.
+   - NO suenes como un robot publicitario ni exageres. Sé un asesor venezolano corporativo.
 
-4. MECÁNICA ANTI-BANEO CON SPINTAX NATURAL:
-   - Para WhatsApp: DEBES incluir Spintax {opción 1|opción 2|opción 3} en el saludo inicial y en la pregunta de cierre consultiva.
-   - Enlace al catálogo digital: Incluye siempre {{link}} como canal de consulta rápida.
-
-5. PRESERVACIÓN ESTRICTA DE VARIABLES:
-   - Conserva exactamente {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}, y si aplica: {{producto}}, {{precio}}. NO quites las llaves dobles ni inventes variables nuevas.
+4. PRESERVACIÓN ESTRICTA DE VARIABLES:
+   - Conserva exactamente {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}. NO inventes variables nuevas. Si aplicas producto/precio en plantilla, usa {{producto}} y {{precio}}.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin etiquetas markdown exteriores ni \`\`\`json):
-- Si channel === 'email': { "subject": "Asunto profesional de alto impacto", "body": "Cuerpo completo con variables y formato" }
-- Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp" }
+- Si channel === 'email': { "subject": "Asunto profesional de alto impacto", "body": "Cuerpo completo con formato HTML o texto con saltos de línea y firma" }
+- Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, _cursivas_, viñetas, firma al final)" }
 `;
 
     const prompt = `
 Propósito o Requerimiento del Asesor: ${objective}
+Contexto Histórico / Relación: ${historyContext || 'Sin contexto especial'}
+Personalidad / Tono Requerido: ${tone}
 Canal: ${channel}
 Segmento de Audiencia: ${audience}
 ${prodSpecs}
-Descuento / Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'}
-Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato, inventario disponible'}
+Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'}
+Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato'}
 Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
 
-Genera el mensaje comercial con especificaciones reales, actitud B2B y formato JSON estricto:`;
+Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, viñetas, firma al final) y el formato JSON solicitado:`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.55 });
       return extractJSON(raw);
     } catch (e) {
       console.warn('Fallback draftCampaignMessage:', e);
       if (channel === 'email') {
         return {
-          subject: product ? `📦 Suministro Mayorista: ${product.name} — JJ Paper C.A.` : '📋 Catálogo y Lista de Precios Mayorista — JJ Paper C.A.',
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que todo marche excelente en su empresa. Le saluda atentamente {{vendedor}} del departamento comercial de JJ Paper C.A.\n\nNos comunicamos para poner a su disposición excelentes condiciones comerciales y disponibilidad inmediata en:\n\n*📦 ${product ? product.name : 'Papelería Corporativa y Suministros de Oficina al Mayor'}*\n${product ? `💲 Precio especial mayorista: *{{precio}}*\n` : ''}• Facturación fiscal legal calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• Despacho directo y puntual a su sede en Caracas.\n• Envíos asegurados a todo el territorio nacional.\n• Emisión de cotizaciones formales inmediatas y planes de crédito para clientes recurrentes.\n\n👉 Puede revisar nuestro catálogo digital completo y realizar requerimientos aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le apartemos disponibilidad para el despacho de esta semana?|Quedamos a su entera disposición para coordinar su pedido.}\n\nAtentamente,\n\n{{vendedor}}\nJJ Paper C.A. | Caracas, Venezuela`
-        };
-      } else {
-        return {
-          body: `{Hola|Buen día|Estimado(a)} {{nombre}} 👋, un cordial saludo.\n\n{Le escribe|Le saluda|Se comunica} {{vendedor}} de JJ Paper C.A. Somos distribuidores mayoristas de papelería corporativa, consumibles y útiles escolares en Caracas.\n\nPonemos a su disposición disponibilidad inmediata y precios especiales en:\n\n*📦 ${product ? product.name : 'Suministros de Papelería al Mayor'}*\n${product ? `💲 Precio especial: *{{precio}}*\n` : ''}• Despacho directo a su sede en Caracas y envíos nacionales.\n• Facturación 100% a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• Emisión de cotización formal y opciones de crédito corporativo.\n\n👉 Puede consultar nuestro catálogo digital aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo atento a su respuesta para apoyarle en lo que necesite.}\n\nAtentamente,\n\n{{vendedor}}\nJJ Paper C.A. | Caracas, Venezuela`
         };
       }
     }
@@ -945,7 +936,9 @@ Genera el mensaje comercial con especificaciones reales, actitud B2B y formato J
     officialPdfIncluded = true,
     channel = 'both',
     customerFull = null,
-    orderHistory = ''
+    orderHistory = '',
+    personality = 'Profesional / Formal',
+    messageType = 'Presentación Inicial'
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
@@ -1133,6 +1126,10 @@ DATOS DEL CLIENTE A ANALIZAR:
 - Ciudad: "${city || 'Caracas'}"
 - Notas previas / Intereses: "${notes || 'Ninguna nota previa'}"
 
+CONFIGURACIÓN DE REDACCIÓN SELECCIONADA POR EL ASESOR:
+- Tono / Personalidad del Prospecto: "${personality}" (Adapta tu nivel de confianza, formalidad y psicología de ventas a este perfil).
+- Tipo de Mensaje: "${messageType}" (Si es Seguimiento/Recordatorio, ajusta la apertura asumiendo que ya se le contactó antes. Si es Presentación/Bienvenida, preséntate como el primer contacto).
+
 HISTORIAL DE COMPRAS EN JJ PAPER:
 ${histTxt}
 
@@ -1204,10 +1201,12 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
   async function analyzeCustomerAndDraftMessage({
     customer = {},
     channel = 'whatsapp',
-    sellerName = '',
+    sellerName = 'Tu Asesor',
     sellerPhone = '',
     promoProductOrCombo = null,
     officialPdfIncluded = true,
+    personality = 'Profesional / Formal',
+    messageType = 'Presentación Inicial',
     forceRefresh = false
   }) {
     const w = typeof window !== 'undefined' ? window : {};
@@ -1271,7 +1270,9 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         officialPdfIncluded,
         channel,
         customerFull: customer,
-        orderHistory
+        orderHistory,
+        personality,
+        messageType
       });
 
       const isEmail = (channel === 'email');
@@ -1726,6 +1727,28 @@ Respuesta del Copiloto JJ:`;
   const _realPhotoCache = new Map();
   async function searchRealProductPhoto(productName) {
     if (!productName) return null;
+
+    // AI Wholesale-to-Retail Interpretation
+    let optimizedSearchQuery = productName;
+    try {
+      if (typeof callGemini === 'function') {
+        const sys = `Eres un experto analista de catálogo de JJ Paper. TRADUCE nombres de inventario mayorista a términos de búsqueda limpios para buscar imágenes en Google.
+REGLAS ESTRICTAS:
+- Limita tu universo a: Papelería, Artículos de Oficina, Limpieza, Escolares.
+- Elimina cantidades (ej. "3 por 12", "Caja 12", "Docena", "PQTE", "CJA").
+- TRADUCE TÉRMINOS MAYORISTAS:
+  * "Goma en barra" -> Pega en barra
+  * "Goma de borrar" -> Borrador Nata
+  * "Papel R Bont" -> Resma de Papel Bond
+  * "Papel R fotocopia" -> Resma de papel
+  * "Marcador resalta" -> Marcador resaltador
+- Devuelve SOLO el nombre limpio comercial, la marca y el color (si lo tiene). Ejemplo: "Marcador resaltador amarillo Expo". NADA MÁS.`;
+        const translated = await callGemini({ prompt: `Traduce a término de búsqueda comercial exacto: "${productName}"`, systemInstruction: sys, temperature: 0.1 });
+        if (translated && !translated.includes('Error') && translated.length < 50) {
+           optimizedSearchQuery = translated.replace(/^["'`]|["'`]$/g, '').trim();
+        }
+      }
+    } catch (_) {}
     
     const cacheKey = productName.toLowerCase().trim();
     if (_realPhotoCache.has(cacheKey)) {
@@ -1738,15 +1761,15 @@ Respuesta del Copiloto JJ:`;
     try {
       const loc = typeof window !== 'undefined' ? window.location : { hostname: 'localhost', protocol: 'http:' };
       const urlsToTry = [
-        `/api/search-images?q=${encodeURIComponent(productName)}`,
-        `/lan/products/search-images?q=${encodeURIComponent(productName)}`
+        `/api/search-images?q=${encodeURIComponent(optimizedSearchQuery)}`,
+        `/lan/products/search-images?q=${encodeURIComponent(optimizedSearchQuery)}`
       ];
       if (loc.hostname !== 'localhost' && loc.hostname !== '127.0.0.1' && /^(192\.168\.|10\.|172\.)/.test(loc.hostname)) {
-        urlsToTry.push(`${loc.protocol}//${loc.hostname}:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`);
+        urlsToTry.push(`${loc.protocol}//${loc.hostname}:8787/lan/products/search-images?q=${encodeURIComponent(optimizedSearchQuery)}`);
       }
       if (loc.protocol === 'http:' || loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') {
-        urlsToTry.push(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`);
-        urlsToTry.push(`http://127.0.0.1:8787/lan/products/search-images?q=${encodeURIComponent(productName)}`);
+        urlsToTry.push(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(optimizedSearchQuery)}`);
+        urlsToTry.push(`http://127.0.0.1:8787/lan/products/search-images?q=${encodeURIComponent(optimizedSearchQuery)}`);
       }
 
       for (const endpoint of urlsToTry) {
@@ -1807,17 +1830,20 @@ Respuesta del Copiloto JJ:`;
     let englishSubject = '';
     try {
       if (typeof callGemini === 'function') {
-        const sys = 'You are an expert commercial advertising packshot photographer specializing in stationery, office supplies and retail packaging catalogs.';
+        const sys = 'You are an expert commercial advertising packshot photographer specializing ONLY in physical office supplies, stationery, and retail packaging.';
         const q = `Translate this Venezuelan stationery product title into a clear, professional 1-sentence English retail packshot description: "${name}".
 Brand: ${brand || 'standard'}
 Color: ${color || 'standard'}
 Format/Specs: ${measures || 'standard'}
 Packaging/Presentation: ${presentation || 'standard'}
-CRITICAL PHOTO GUIDELINES:
-- Describe the physical merchandise in its authentic retail packaging (e.g. "retail hanging blister card with euro-slot of stainless steel office scissors, blue rubber grip", "colorful printed paper wrap of 500-sheet copy paper ream", "vibrant illustrated retail folding carton box of 6 modeling clay bars").
-- Only describe the product object itself and its packaging. Do NOT describe rooms, furniture, desks or people.
-Respond with ONLY the 1 English sentence.`;
-        const translated = await callGemini({ prompt: q, systemInstruction: sys, temperature: 0.2 });
+
+CRITICAL PHOTO GUIDELINES (STRICT NEGATIVE PROMPT):
+- BE LITERAL. If the product is a "Carpeta Manila", it means "Manila folder (stationery file folder)". If it says "oficio" it means "legal size paper format". 
+- DO NOT under any circumstance mention or describe video games (like Assassin's Creed), fictional characters, weapons, clothing, rooms, or people.
+- ONLY describe the physical office supply object itself and its packaging (e.g. "retail hanging blister card with euro-slot of stainless steel office scissors, blue rubber grip").
+- If the item is ambiguous, default to basic office stationery.
+Respond with ONLY the 1 English sentence describing the object.`;
+        const translated = await callGemini({ prompt: q, systemInstruction: sys, temperature: 0.1 });
         if (translated && translated.length > 5 && !translated.includes('Error')) {
           englishSubject = translated.replace(/^["'`]|["'`]$/g, '').trim();
         }
@@ -1832,7 +1858,7 @@ Respond with ONLY the 1 English sentence.`;
       ? 'isolated product packshot on seamless pure solid white background #FFFFFF, commercial studio softbox lighting, soft natural contact shadow at base'
       : 'isolated product packshot on luxury deep emerald green #0B3327 background, subtle center backlight halo, soft natural contact shadow at base';
 
-    const photoPrompt = `Commercial retail packshot of ${englishSubject}, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
+    const photoPrompt = `Commercial retail packshot of ${englishSubject}, office supplies and stationery product, NO PEOPLE, NO CHARACTERS, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
 
     // Generar imagen con Pollinations Flux (motor de IA publicitaria)
     const cleanPrompt = photoPrompt.slice(0, 450);
@@ -1869,108 +1895,54 @@ Respond with ONLY the 1 English sentence.`;
     sellerName = '',
     sellerPhone = '',
     customNote = '',
-    theme = 'emerald', // 'emerald' | 'white'
+    theme = 'white', // 'emerald' | 'white'
     headline = '',
     canvas = null
   }) {
+    // Rediseñado para generar SOLO LA FOTOGRAFÍA ESTUDIO del producto, 800x800px.
+    // Sin textos publicitarios ni precios ("flyer"), por solicitud del usuario, para uso directo en catálogo.
     const cvs = canvas || document.createElement('canvas');
-    cvs.width = 1200;
-    cvs.height = 1200;
+    cvs.width = 800;
+    cvs.height = 800;
     const ctx = cvs.getContext('2d');
 
-    const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
-    const priceUsd = customPriceUsd !== null ? parseFloat(customPriceUsd) : parseFloat(product.price_usd || 0);
-    const priceBs = (priceUsd * rate).toFixed(2);
     const isWhite = (theme === 'white');
 
-    // 1. Fondo Estudio Fotográfico
+    // 1. Fondo Estudio Fotográfico 800x800
     if (isWhite) {
-      // Fondo Blanco Puro de Estudio Comercial con Suave Degradado Ciclomara
-      const whiteGrad = ctx.createLinearGradient(0, 0, 0, 1200);
+      const whiteGrad = ctx.createLinearGradient(0, 0, 0, 800);
       whiteGrad.addColorStop(0, '#FFFFFF');
       whiteGrad.addColorStop(0.65, '#FFFFFF');
       whiteGrad.addColorStop(1, '#F1F5F9');
       ctx.fillStyle = whiteGrad;
-      ctx.fillRect(0, 0, 1200, 1200);
+      ctx.fillRect(0, 0, 800, 800);
 
-      // Suave halo de luz de estudio central
-      const softGlow = ctx.createRadialGradient(600, 480, 50, 600, 480, 480);
+      const softGlow = ctx.createRadialGradient(400, 400, 50, 400, 400, 380);
       softGlow.addColorStop(0, 'rgba(241, 245, 249, 0.9)');
       softGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = softGlow;
-      ctx.fillRect(0, 0, 1200, 1200);
-
-      // Línea de horizonte de piso de estudio
-      ctx.fillStyle = 'rgba(226, 232, 240, 0.45)';
-      ctx.fillRect(60, 718, 1080, 1.5);
+      ctx.fillRect(0, 0, 800, 800);
     } else {
-      // Fondo Verde Esmeralda Corporativo JJ Paper con Iluminación de Estudio Spotlight
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, 1200);
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, 800);
       bgGrad.addColorStop(0, '#062017');
       bgGrad.addColorStop(0.5, '#0B3327');
       bgGrad.addColorStop(1, '#020F0A');
       ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, 1200, 1200);
+      ctx.fillRect(0, 0, 800, 800);
 
-      const radialGlow = ctx.createRadialGradient(600, 460, 40, 600, 460, 500);
+      const radialGlow = ctx.createRadialGradient(400, 400, 40, 400, 400, 350);
       radialGlow.addColorStop(0, 'rgba(22, 96, 74, 0.6)');
       radialGlow.addColorStop(0.65, 'rgba(16, 185, 129, 0.15)');
       radialGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = radialGlow;
-      ctx.fillRect(0, 0, 1200, 1200);
+      ctx.fillRect(0, 0, 800, 800);
     }
 
-    // 2. Cabecera Institucional JJ Paper con Logotipo Oficial
-    ctx.fillStyle = isWhite ? '#16604A' : '#EAB308';
-    ctx.fillRect(60, 46, 1080, 3.5);
-
-    // Isotipo Vectorial JJ Paper (Hojas de papel estilizadas en verde lima)
-    ctx.save();
-    ctx.translate(62, 70);
-    ctx.fillStyle = '#99CC33';
-    ctx.beginPath();
-    ctx.moveTo(0, 36);
-    ctx.bezierCurveTo(0, 12, 14, 0, 36, 0);
-    ctx.bezierCurveTo(36, 24, 22, 36, 0, 36);
-    ctx.fill();
-
-    ctx.fillStyle = '#16604A';
-    ctx.beginPath();
-    ctx.moveTo(14, 38);
-    ctx.bezierCurveTo(24, 18, 38, 10, 50, 10);
-    ctx.bezierCurveTo(50, 28, 38, 38, 14, 38);
-    ctx.fill();
-    ctx.restore();
-
-    // Logotipo Tipográfico
-    ctx.fillStyle = isWhite ? '#0B3327' : '#FFFFFF';
-    ctx.font = '900 42px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('JJ PAPER', 125, 96);
-
-    ctx.fillStyle = isWhite ? '#16604A' : '#A3E635';
-    ctx.font = '800 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('DISTRIBUIDORA & PAPELERÍA MAYORISTA · CARACAS', 125, 118);
-
-    // Badge Superior Derecho (Titular Publicitario)
-    const topBadgeText = headline || '🔥 OFERTA AL MAYOR';
-    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const topBadgeW = Math.max(220, ctx.measureText(topBadgeText).width + 36);
-    const topBadgeX = 1140 - topBadgeW;
-
-    ctx.fillStyle = isWhite ? '#0B3327' : '#DC2626';
-    roundRect(ctx, topBadgeX, 64, topBadgeW, 46, 23);
-    ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textAlign = 'center';
-    ctx.fillText(topBadgeText, topBadgeX + topBadgeW / 2, 93);
-    ctx.textAlign = 'left';
-
-    // 3. EL ESCENARIO CENTRAL DEL PRODUCTO
-    const stageCenterX = 600;
-    const stageCenterY = 430;
-    const maxImgW = 760;
-    const maxImgH = 460;
+    // 2. EL ESCENARIO CENTRAL DEL PRODUCTO
+    const stageCenterX = 400;
+    const stageCenterY = 400;
+    const maxImgW = 660;
+    const maxImgH = 660;
 
     let imageRendered = false;
     let imgToLoad = product.image_url;
@@ -1983,7 +1955,7 @@ Respond with ONLY the 1 English sentence.`;
           product.image_url = realPhoto;
         }
       } catch (e) {
-        console.warn('Fallo búsqueda de foto real para flyer:', e);
+        console.warn('Fallo búsqueda de foto real para fotografía comercial:', e);
       }
     }
 
@@ -1997,7 +1969,7 @@ Respond with ONLY the 1 English sentence.`;
             product._studio_photo_url = imgToLoad;
           }
         } catch (e) {
-          console.warn('No se pudo pregenerar foto de estudio para flyer:', e);
+          console.warn('No se pudo pregenerar foto de estudio:', e);
         }
       }
     }
@@ -2005,7 +1977,6 @@ Respond with ONLY the 1 English sentence.`;
     if (imgToLoad) {
       try {
         let img = await loadImageSafe(imgToLoad);
-        // Si la foto del catálogo falló, intentar de inmediato generar la foto de estudio fotográfica
         if (!img && imgToLoad !== product._studio_photo_url) {
           try {
             const studioRes = await generateProductStudioPhoto({ product, theme });
@@ -2017,13 +1988,13 @@ Respond with ONLY the 1 English sentence.`;
         }
 
         if (img && img.width > 10 && img.height > 10) {
-          const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1.15);
+          const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1);
           const dw = img.width * scale;
           const dh = img.height * scale;
           const dx = stageCenterX - dw / 2;
-          const dy = stageCenterY - dh / 2 + 10;
+          const dy = stageCenterY - dh / 2;
 
-          // Sombra de contacto realista en el suelo
+          // Sombra de contacto
           ctx.save();
           ctx.beginPath();
           ctx.ellipse(stageCenterX, dy + dh - 4, dw * 0.32, 10, 0, 0, Math.PI * 2);
@@ -2036,7 +2007,6 @@ Respond with ONLY the 1 English sentence.`;
           ctx.fill();
           ctx.restore();
 
-          // Fotografía comercial del producto en el centro
           ctx.drawImage(img, dx, dy, dw, dh);
           imageRendered = true;
         }
@@ -2045,139 +2015,10 @@ Respond with ONLY the 1 English sentence.`;
       }
     }
 
-    // Fallback de seguridad si no hay conexión o falló la imagen
     if (!imageRendered) {
+      // Si todo falla, dibujar un cuadro genérico 3D de producto
       renderCommercial3dProduct(ctx, product, stageCenterX, stageCenterY, isWhite);
     }
-
-    // 4. Bloque de Datos Comerciales del Producto (Y: 730 a 830)
-    const titleY = 745;
-    ctx.fillStyle = isWhite ? '#0B3327' : '#FFFFFF';
-    ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    
-    // Limpiar nombre de códigos numéricos de bodega
-    const rawName = product.name || 'Producto Oficial JJ Paper';
-    const displayTitle = rawName.replace(/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g, '').replace(/\s+/g, ' ').trim();
-    const titleLines = wrapText(ctx, displayTitle, 1080);
-    ctx.fillText(titleLines[0], 60, titleY);
-    if (titleLines.length > 1) {
-      ctx.fillText(titleLines[1], 60, titleY + 42);
-    }
-
-    // Pastilla de Atributos de Valor (Marca, Medida, Color, Presentación)
-    const metaY = titleLines.length > 1 ? titleY + 84 : titleY + 46;
-    let metaItems = [];
-    const brand = product.brand || product.brands || product.brand_name;
-    if (brand) metaItems.push(`🏷️ Marca: ${brand}`);
-
-    const mMatch = product.measures || rawName.match(/(\d+\s*x\s*\d+\s*(?:mm|cm|m|mts|pulg)?|\d+\s*(?:mm|cm|m|gr|g|kg|micras|ml|litros|hojas|piezas|und|unidades)\b|carta|oficio|extra\s*oficio|tabloide|a4|a3|1\/2\s*pliego|pliego)/i)?.[0];
-    if (mMatch && mMatch.toUpperCase() !== 'MEDIDA ESTÁNDAR') metaItems.push(`📏 Medida: ${mMatch.toUpperCase()}`);
-
-    const cMatch = product.color || rawName.match(/\b(transparente|marron|blanco|azul|negro|rojo|verde|amarillo|dorado|plateado|surtido|multicolor|kraft)\b/i)?.[0];
-    if (cMatch) metaItems.push(`🎨 Color: ${cMatch.charAt(0).toUpperCase() + cMatch.slice(1).toLowerCase()}`);
-
-    if (product.presentation || product.unit) metaItems.push(`📦 ${product.presentation || product.unit}`);
-    const metaStr = metaItems.length > 0 ? metaItems.join('   ·   ') : '✓ Garantía Oficial de Fábrica';
-
-    ctx.fillStyle = isWhite ? '#475569' : '#94A3B8';
-    ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(metaStr, 60, metaY);
-
-    // 5. Bloque Hero de Precios (Doble Moneda USD / Bs Oficial BCV)
-    const priceBoxY = metaY + 24;
-    const priceBoxH = 160;
-
-    const pBoxGrad = ctx.createLinearGradient(60, priceBoxY, 1140, priceBoxY + priceBoxH);
-    if (isWhite) {
-      pBoxGrad.addColorStop(0, '#0B3327');
-      pBoxGrad.addColorStop(1, '#051C14');
-    } else {
-      pBoxGrad.addColorStop(0, '#16604A');
-      pBoxGrad.addColorStop(1, '#0B3327');
-    }
-    ctx.fillStyle = pBoxGrad;
-    roundRect(ctx, 60, priceBoxY, 1080, priceBoxH, 22);
-    ctx.fill();
-
-    ctx.strokeStyle = '#99CC33';
-    ctx.lineWidth = 2.5;
-    roundRect(ctx, 60, priceBoxY, 1080, priceBoxH, 22);
-    ctx.stroke();
-
-    // Columna Izquierda: Precio USD
-    ctx.fillStyle = '#99CC33';
-    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('PRECIO OFICIAL DE DISTRIBUIDORA', 95, priceBoxY + 46);
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '900 64px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const formattedUsd = `$${priceUsd.toFixed(2)}`;
-    ctx.fillText(formattedUsd, 95, priceBoxY + 116);
-
-    ctx.fillStyle = '#E2E8F0';
-    ctx.font = '700 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('USD', 95 + ctx.measureText(formattedUsd).width + 12, priceBoxY + 112);
-
-    // Columna Derecha: Tarjeta al cambio oficial en Bolívares
-    const bsBoxW = 440, bsBoxH = 114;
-    const bsBoxX = 1140 - bsBoxW - 25;
-    const bsBoxY = priceBoxY + 23;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    roundRect(ctx, bsBoxX, bsBoxY, bsBoxW, bsBoxH, 16);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)';
-    ctx.lineWidth = 1.5;
-    roundRect(ctx, bsBoxX, bsBoxY, bsBoxW, bsBoxH, 16);
-    ctx.stroke();
-
-    ctx.fillStyle = '#E2E8F0';
-    ctx.font = '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`CAMBIO OFICIAL BCV (Bs. ${rate.toFixed(2)})`, bsBoxX + bsBoxW / 2, bsBoxY + 36);
-
-    ctx.fillStyle = '#FDE047';
-    ctx.font = '900 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`Bs ${Number(priceBs).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, bsBoxX + bsBoxW / 2, bsBoxY + 84);
-    ctx.textAlign = 'left';
-
-    // 6. Tres Pilares de Confianza
-    const pillarY = priceBoxY + priceBoxH + 28;
-    const pillars = [
-      '⚡ Despacho Rápido Caracas',
-      '🛡️ Factura Fiscal & Garantía',
-      '🚚 Envíos a Toda Venezuela'
-    ];
-    ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    const pillW = 340, pillH = 38;
-    pillars.forEach((p, idx) => {
-      const px = 60 + idx * (pillW + 30);
-      ctx.fillStyle = isWhite ? '#E2E8F0' : 'rgba(255, 255, 255, 0.08)';
-      roundRect(ctx, px, pillarY, pillW, pillH, 19);
-      ctx.fill();
-      ctx.fillStyle = isWhite ? '#0F172A' : '#E2E8F0';
-      ctx.textAlign = 'center';
-      ctx.fillText(p, px + pillW / 2, pillarY + 25);
-      ctx.textAlign = 'left';
-    });
-
-    // 7. Pie de Página Comercial y Contacto
-    const footerY = 1145;
-    ctx.fillStyle = isWhite ? '#CBD5E1' : 'rgba(255, 255, 255, 0.15)';
-    ctx.fillRect(60, footerY - 22, 1080, 1.5);
-
-    const advisorStr = sellerName ? `Atendido por: ${sellerName}` : 'Dpto. de Ventas y Distribución';
-    const phoneStr = sellerPhone ? `📱 WhatsApp: ${sellerPhone}` : '📱 Pedidos directos en tienda y almacén';
-
-    ctx.fillStyle = isWhite ? '#0B3327' : '#FFFFFF';
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(`${advisorStr}   ·   ${phoneStr}`, 60, footerY + 14);
-
-    ctx.fillStyle = isWhite ? '#16604A' : '#A3E635';
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('JJ PAPER C.A.', 1140, footerY + 14);
-    ctx.textAlign = 'left';
 
     return cvs;
   }

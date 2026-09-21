@@ -1,0 +1,201 @@
+{
+  "main": {
+    "id": "709db9a83f8561b6",
+    "type": "split",
+    "children": [
+      {
+        "id": "b974dedf8c340b66",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4538df805e388772",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Categorías/Category - AI & Agentic Systems.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Category - AI & Agentic Systems"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "223676f98190d2d0",
+    "type": "split",
+    "children": [
+      {
+        "id": "bb4e6e870be59c6c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "133f901c8c955c6e",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de archivos"
+            }
+          },
+          {
+            "id": "455aadd276c6b11c",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Buscar"
+            }
+          },
+          {
+            "id": "e1d19391529b6779",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "482d9365e1688077",
+    "type": "split",
+    "children": [
+      {
+        "id": "c18e1ae831f185d1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9e8f60bfe27a7f27",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Categorías/Category - Workflows & Tooling.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Enlaces entrantes de Category - Workflows & Tooling"
+            }
+          },
+          {
+            "id": "500b5f5e4d055cdd",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Categorías/Category - Workflows & Tooling.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Enlaces salientes de Category - Workflows & Tooling"
+            }
+          },
+          {
+            "id": "2ce5dcad6d2101ca",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "d7ea7e03c50bf5a2",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas las propiedades"
+            }
+          },
+          {
+            "id": "a855524cb7ce4222",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Categorías/Category - Workflows & Tooling.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Esquema de Category - Workflows & Tooling"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir selector rápido": false,
+      "graph:Abrir vista gráfica": false,
+      "canvas:Crear nuevo lienzo": false,
+      "daily-notes:Abrir la nota de hoy": false,
+      "templates:Insertar plantilla": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Crear nueva base": false
+    }
+  },
+  "active": "4538df805e388772",
+  "lastOpenFiles": [
+    "Inicio.md",
+    "Sin título 1.base",
+    "Skills/backend-patterns.md",
+    "cerebro.md",
+    "Categorías/Category - Backend & Databases.md",
+    "Skills/angular-developer.md",
+    "Sin título.base",
+    "Categorías/Category - Workflows & Tooling.md",
+    "Categorías/Category - AI & Agentic Systems.md",
+    "Categorías/Category - Testing & QA.md",
+    "00_Estudio_de_Conexiones.md",
+    "Skills/accessibility.md"
+  ]
+}

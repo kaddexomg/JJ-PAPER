@@ -68,62 +68,89 @@
     <div class="admin-content">
       <div class="pos-grid">
 
-        <!-- Columna izquierda: buscador de productos -->
-        <div class="admin-table-wrap" style="padding:16px 18px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <h3 style="margin:0">🔎 Buscar productos</h3>
-            <button type="button" class="btn-o sm" onclick="posOpenCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F12 o Alt+I)">➕ Ítem Libre (Alt+I)</button>
+        <!-- Columna izquierda: Sección 1 - Catálogo y Buscador -->
+        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">1</span>
+              <h3 style="margin:0;font-size:16px;color:#0f172a">Catálogo de Productos</h3>
+            </div>
+            <button type="button" class="btn-o sm" onclick="posOpenCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F12 o Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px">➕ Ítem Libre / Servicio</button>
           </div>
           <div style="display:flex;gap:8px">
-            <input class="fi" id="posSearch" placeholder="Nombre, código de barras o SKU…" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1">
-            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara">📷</button>
-            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner">📱</button>
+            <input class="fi" id="posSearch" placeholder="Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:8px">
+            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📷</button>
+            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📱</button>
           </div>
-          <div id="posResults" style="max-height:520px;overflow-y:auto;margin-top:8px">
-            <p style="color:#aaa;font-size:13px;padding:8px 0">Cargando catálogo...</p>
+          <div id="posResults" style="max-height:560px;overflow-y:auto;margin-top:12px">
+            <p style="color:#aaa;font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
           </div>
         </div>
 
-        <!-- Columna derecha: ticket -->
-        <div class="admin-table-wrap" style="padding:16px 18px">
-          <h3 style="margin:0 0 10px">🧾 Ticket de venta</h3>
-          <div id="posTicket"><p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p></div>
+        <!-- Columna derecha: Secciones 2, 3 y 4 -->
+        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:16px">
+          
+          <!-- Sección 2: Ticket de Venta -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">2</span>
+                <h3 style="margin:0;font-size:16px;color:#0f172a">Ticket de Venta</h3>
+              </div>
+              <button type="button" class="btn-g sm" onclick="clearPos()" style="font-size:11px;color:#64748b">Vaciar</button>
+            </div>
+            
+            <div id="posTicket" style="max-height:360px;overflow-y:auto">
+              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
+            </div>
 
-          <div style="margin:12px 0">
-            <label class="fl">Descuento % <span id="posDiscMax" style="color:var(--gr);font-weight:400"></span></label>
-            <input class="fi" type="number" id="posDisc" min="0" step="0.5" value="0" oninput="posRenderTicket()">
+            <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0">
+              <label class="fl" for="posDisc" style="margin:0;font-size:12px">Descuento % <span id="posDiscMax" style="color:var(--gr);font-weight:400"></span></label>
+              <input class="fi" type="number" id="posDisc" min="0" step="0.5" value="0" oninput="posRenderTicket()" style="width:65px;height:30px;padding:2px 6px;text-align:center;font-weight:800;font-size:13px">
+            </div>
+
+            <div id="posTotals"></div>
           </div>
 
-          <div id="posTotals"></div>
-
-          <div class="divider" style="margin:14px 0"></div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <h3 style="margin:0">👤 Cliente (Mi Clientela)</h3>
-            <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic">⚡ Consumidor Final</button>
+          <!-- Sección 3: Datos del Cliente -->
+          <div style="border-top:1px solid #e2e8f0;padding-top:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">3</span>
+                <h3 style="margin:0;font-size:15px;color:#0f172a">Datos del Cliente</h3>
+              </div>
+              <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
+            </div>
+            <input class="fi" id="posCliSearch" placeholder="Buscar cliente por nombre o teléfono..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px;height:36px">
+            <div id="posCliResults"></div>
+            <div style="position:relative;margin:6px 0 8px">
+              <input class="fi" id="posCliName" placeholder="Nombre completo o razón social *" style="width:100%;height:38px;padding:8px 12px">
+              <div id="posCliNameResults" class="cust-ac-box"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <input class="fi" id="posCliTel" placeholder="Teléfono *" style="height:36px">
+              <input class="fi" id="posCliRif" placeholder="RIF / CI" style="height:36px">
+              <input class="fi" id="posCliCity" placeholder="Ciudad" style="grid-column:span 2;height:36px">
+            </div>
           </div>
-          <input class="fi" id="posCliSearch" placeholder="Buscar cliente por nombre o teléfono..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px">
-          <div id="posCliResults"></div>
-          <div style="position:relative;margin:6px 0 8px">
-            <input class="fi" id="posCliName" placeholder="Nombre / empresa *" style="width:100%">
-            <div id="posCliNameResults" class="cust-ac-box"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input class="fi" id="posCliTel" placeholder="Teléfono *">
-            <input class="fi" id="posCliRif" placeholder="RIF / CI">
-            <input class="fi" id="posCliCity" placeholder="Ciudad">
+
+          <!-- Sección 4: Pago y Registro -->
+          <div style="border-top:1px solid #e2e8f0;padding-top:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">4</span>
+              <h3 style="margin:0;font-size:15px;color:#0f172a">Método de Pago y Registro</h3>
+            </div>
+            <select class="fi" id="posMethod" style="height:38px">
+              <option value="efectivo">💵 Efectivo</option>
+              <option value="pago_movil">📲 Pago Móvil</option>
+              <option value="transferencia">🏦 Transferencia</option>
+            </select>
+            <input class="fi" id="posPayRef" placeholder="N° de referencia del pago (si aplica)" style="margin-top:8px;height:36px">
+            <textarea class="fi" id="posNotes" placeholder="Notas del pedido (opcional)" rows="2" style="margin-top:8px;width:100%"></textarea>
+
+            <button class="btn-p" id="posSubmitBtn" onclick="posSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:44px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">✅ Registrar Venta (Ctrl + Enter)</button>
           </div>
 
-          <div class="divider" style="margin:14px 0"></div>
-          <h3 style="margin:0 0 10px">💳 Pago</h3>
-          <select class="fi" id="posMethod">
-            <option value="efectivo">💵 Efectivo</option>
-            <option value="pago_movil">📲 Pago Móvil</option>
-            <option value="transferencia">🏦 Transferencia</option>
-          </select>
-          <input class="fi" id="posPayRef" placeholder="N° de referencia del pago (si aplica)" style="margin-top:8px">
-          <textarea class="fi" id="posNotes" placeholder="Notas del pedido (opcional)" rows="2" style="margin-top:8px"></textarea>
-
-          <button class="btn-p" id="posSubmitBtn" onclick="posSubmit()" style="width:100%;justify-content:center;margin-top:14px">✅ Registrar venta</button>
         </div>
 
       </div>

@@ -249,26 +249,28 @@ function posRenderResults(list) {
   const box = document.getElementById('posResults');
   if (!list.length) {
     posResultsList = []; posCursor = -1;
-    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:8px 0">Sin resultados.</p>'; return;
+    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:12px;text-align:center">Sin resultados coincidentes.</p>'; return;
   }
   posResultsList = list; posCursor = -1;
   box.innerHTML = list.map((p, i) => {
     const variants = (p.jjp_product_variants || []).filter(v => v.active);
     const img = p.image_url
       ? `<img src="${optImg(p.image_url, 200)}" alt="" loading="lazy" decoding="async">`
-      : `<span style="font-size:20px">${p.emoji || '📦'}</span>`;
+      : `<span style="font-size:22px">${p.emoji || '📦'}</span>`;
     const vSel = variants.length
-      ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:5px 8px">
+      ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:4px 8px;margin-right:6px" onclick="event.stopPropagation()">
            ${variants.map(v => `<option value="${v.id}">${escapeHTML(v.jjp_brands?.name || v.variant_name || 'Variante')} · ${fmtPrice(v.price_usd)}</option>`).join('')}
          </select>` : '';
-    return `<div class="pos-result" data-idx="${i}">
-      <div class="pr-img">${img}</div>
+    return `<div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:6px;background:#fff;transition:all .15s ease">
+      <div class="pr-img" style="flex:none">${img}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600">${escapeHTML(p.name)}</div>
-        <div style="font-size:11px;color:var(--gr)">${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
+        <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.3">${escapeHTML(p.name)}</div>
+        <div style="font-size:11px;color:var(--gr);margin-top:2px">${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
       </div>
-      ${vSel}
-      <button class="btn-p sm" onclick="posAdd('${p.id}')">＋</button>
+      <div style="display:flex;align-items:center;flex:none">
+        ${vSel}
+        <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:6px 12px;font-weight:700;background:#16604a;color:#fff;border-radius:6px;display:inline-flex;align-items:center;gap:4px">Elegir Precio ➔</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -292,16 +294,57 @@ function posNavTo(idx) {
   rows[posCursor]?.scrollIntoView({ block: 'nearest' });
 }
 
-// Agrega el resultado seleccionado directamente sin popups intrusivos (Nivel B oficial)
+// Agrega o abre el selector de precio unificado para el producto/variante
+function posAddAndPick(p, variant) {
+  if (!p) return;
+  const key = variant ? `${p.id}::${variant.id}` : p.id;
+  const src = variant || p;
+  const existing = posTicket[key];
+
+  const tempLine = {
+    id: p.id,
+    product_id: p.id,
+    variant_id: variant?.id || null,
+    name: p.name,
+    sku: variant?.sku || p.sku || '',
+    brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
+    unit: p.unit || 'unid',
+    price_usd: Number(src.price_usd || src.price_b || 0),
+    price_level: existing?.price_level || 'B',
+    price_a: Number(src.price_a) || 0,
+    price_b: Number(src.price_b) || Number(src.price_usd) || 0,
+    price_c_bs: Number(src.price_c_bs) || 0,
+    price_d_bs: Number(src.price_d_bs) || 0,
+    qty: existing ? existing.qty : Math.max(1, Number(p.min_qty) || 1),
+    stock: variant ? variant.stock : p.stock,
+  };
+
+  pfOpenProductModal(tempLine).then(choice => {
+    if (!choice) {
+      const se = document.getElementById('posSearch');
+      if (se) { se.focus(); se.select(); }
+      return;
+    }
+
+    tempLine.price_level = choice.level;
+    tempLine.price_usd = Number(choice.price_usd);
+    tempLine.qty = Number(choice.qty);
+
+    posTicket[key] = tempLine;
+    posRenderTicket();
+    showToast(`✅ ${tempLine.name} agregado (Nivel ${tempLine.price_level} · x${tempLine.qty})`);
+
+    const se = document.getElementById('posSearch');
+    if (se) {
+      se.value = '';
+      posSearch();
+      se.focus();
+    }
+  });
+}
+
 function posAddDirect(p, variant) {
-  posAddResolved(p, variant);
-  showToast(`➕ ${p.name} (Nivel B)`);
-  const se = document.getElementById('posSearch');
-  if (se) {
-    se.value = '';
-    posSearch();
-    se.focus();
-  }
+  posAddAndPick(p, variant);
 }
 
 // Agrega el resultado seleccionado con el cursor (Enter)
@@ -314,7 +357,7 @@ function posPickIdx() {
     const vid = document.getElementById(`pv-${p.id}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
   }
-  posAddDirect(p, variant);
+  posAddAndPick(p, variant);
 }
 
 function posAdd(pid) {
@@ -326,58 +369,7 @@ function posAdd(pid) {
     const vid = document.getElementById(`pv-${pid}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
   }
-  posAddDirect(p, variant);
-}
-
-// Agrega un producto y abre la mini-lista de precio (MixNet): A/B/C/D o precio propio,
-// y luego la cantidad. Todo con teclado.
-function posAddAndPick(p, variant) {
-  const key = variant ? `${p.id}::${variant.id}` : p.id;
-  const isNew = !posTicket[key];
-  const prevQty = isNew ? 0 : posTicket[key].qty;
-  const prevLevel = isNew ? null : posTicket[key].price_level;
-  const prevUsd = isNew ? null : posTicket[key].price_usd;
-
-  posAddResolved(p, variant);
-
-  pfPricePopup(posTicket[key]).then(choice => {
-    const l = posTicket[key];
-    if (!l) { posRenderTicket(); return; }
-
-    if (!choice) {
-      if (isNew) {
-        delete posTicket[key];
-      } else {
-        l.qty = prevQty;
-        l.price_level = prevLevel;
-        l.price_usd = prevUsd;
-      }
-      posRenderTicket();
-      const se = document.getElementById('posSearch');
-      if (se) { se.focus(); se.select(); }
-      return;
-    }
-
-    if (choice.level) posSetPriceLevel(key, choice.level);
-    else if (choice.custom) posUpdatePrice(key, String(choice.custom));
-
-    // Siempre pide cantidad tras elegir el precio (captura en vivo de la toma).
-    pfQtyPopup(l).then(qty => {
-      if (qty && qty > 0) {
-        l.qty = qty;
-        posRenderTicket();
-      } else if (!qty && isNew) {
-        delete posTicket[key];
-        posRenderTicket();
-      }
-      const se = document.getElementById('posSearch');
-      if (se) {
-        se.value = '';
-        posSearch();
-        se.focus();
-      }
-    });
-  });
+  posAddAndPick(p, variant);
 }
 
 function posAddResolved(p, variant) {
@@ -458,36 +450,56 @@ function posRenderTicket() {
   }
   box.innerHTML = lines.map(([k, l], idx) => {
     const isCursor = (quoteTicketCursor === idx);
-    const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
-    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:4px">LIBRE</span>' : '';
+    const lvlBtn = (lv, lbl) => {
+      const isAct = (l.price_level === lv);
+      const bg = isAct ? '#16604a' : '#f1f5f9';
+      const col = isAct ? '#ffffff' : '#475569';
+      const bdr = isAct ? '#16604a' : '#cbd5e1';
+      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
+    };
+    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
     const levelSelector = l.is_custom ? '' : `
-        <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
-          <span style="color:var(--gm)">Nivel</span>
-          <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
+        <div style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:4px">
+          <span style="font-weight:700;color:#334155">Nivel:</span>
+          <div style="display:flex;gap:3px">
+            ${lvlBtn('A', 'Precio A (Detal / Menor)')}
+            ${lvlBtn('B', 'Precio B (Mayorista Frecuente ⭐)')}
+            ${lvlBtn('C', 'Precio C (Bs Oficial)')}
+            ${lvlBtn('D', 'Precio D (Bs Mayor)')}
+          </div>
         </div>`;
     return `
-    <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 6px;border-bottom:1px dashed #eee;border-radius:6px;background:${isCursor ? 'rgba(22,96,74,0.08)' : 'transparent'};border-left:${isCursor ? '3px solid #16604a' : '3px solid transparent'}">
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;display:flex;align-items:center;gap:4px">
-          <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:600; font-size:13px; padding:2px 4px; margin:0; flex:1; height:24px" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
-          ${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}
-          ${isCustomBadge}
+    <div class="pos-line" style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid ${isCursor ? '#10b981' : '#e2e8f0'};border-radius:10px;background:${isCursor ? '#f0fdf4' : '#ffffff'};margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.03);transition:all .12s ease">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px;color:#0f172a;display:flex;align-items:center;gap:4px">
+            <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:#0f172a;padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid #cbd5e1';this.style.background='#fff'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
+            ${l.brand ? `<small style="color:#64748b;font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
+            ${isCustomBadge}
+          </div>
+          ${levelSelector}
         </div>
-        ${levelSelector}
-        <div style="font-size:11px;color:var(--gr);display:flex;align-items:center;gap:6px;margin-top:2px">
+        <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar este producto" style="padding:4px 6px;color:#ef4444;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:6px;transition:background .1s" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed #f1f5f9;margin-top:2px">
+        <div style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px">
           <span>Precio:</span>
-          <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:75px;font-size:11px;padding:2px 4px;margin:0;height:24px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
+          <span style="font-weight:700;color:#0f172a">$</span>
+          <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
           <span>/${escapeHTML(l.unit)}</span>
-          <span style="color:#8a6d1a">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
+          <span style="color:#047857;font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="display:flex;align-items:center;gap:3px">
+            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">−</button>
+            <input type="number" min="1" class="fi" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" aria-label="Cantidad">
+            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">＋</button>
+          </div>
+          <strong style="min-width:65px;text-align:right;font-size:14px;color:#0f172a">${fmtPrice(l.price_usd * l.qty)}</strong>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:3px">
-        <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1">−</button>
-        <input type="number" min="1" class="fi" value="${l.qty}" style="width:48px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:700" onchange="posSetQty('${k}', this.value)" aria-label="Cantidad">
-        <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1">＋</button>
-      </div>
-      <strong style="min-width:55px;text-align:right">${fmtPrice(l.price_usd * l.qty)}</strong>
-      <button type="button" class="btn-g sm" onclick="posRemoveLine('${k}')" title="Eliminar este producto del presupuesto" style="padding:2px 5px;color:#dc2626;border:none;background:transparent;cursor:pointer;font-size:14px;margin-left:4px">🗑️</button>
     </div>`;
   }).join('');
 
@@ -496,11 +508,26 @@ function posRenderTicket() {
   const total = subtotal * (1 - pct / 100);
   const rate  = getRate();
   tots.innerHTML = `
-    ${pct > 0 ? `
-      <div class="pos-tot"><span>Subtotal</span><span>${fmtPrice(subtotal)}</span></div>
-      <div class="pos-tot" style="color:var(--gm)"><span>Descuento ${pct}%</span><span>−${fmtPrice(subtotal - total)}</span></div>` : ''}
-    <div class="pos-tot big"><span>Total estimado</span><span>${fmtPrice(total)}</span></div>
-    ${sellerShowBs() ? `<div class="pos-tot" style="color:var(--gr)"><span>En bolívares (tasa ${rate.toFixed(2)})</span><span>${fmtBsNum(total * rate)}</span></div>` : ''}`;
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569">
+        <span>Subtotal</span>
+        <strong style="color:#0f172a">${fmtPrice(subtotal)}</strong>
+      </div>
+      ${pct > 0 ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#166534">
+          <span>Descuento propuesto (${pct}%)</span>
+          <strong>−${fmtPrice(subtotal - total)}</strong>
+        </div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid #cbd5e1;margin-top:2px">
+        <span style="font-size:14px;font-weight:800;color:#0f172a">Total estimado</span>
+        <span style="font-size:19px;font-weight:900;color:#16604a">${fmtPrice(total)}</span>
+      </div>
+      ${sellerShowBs() ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#047857;font-weight:700">
+          <span>En bolívares (tasa ${rate.toFixed(2)})</span>
+          <span>Bs ${fmtBsNum(total * rate)}</span>
+        </div>` : ''}
+    </div>`;
 }
 
 function posUpdatePrice(key, val) {

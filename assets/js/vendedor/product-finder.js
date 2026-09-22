@@ -272,7 +272,329 @@ async function pfScanCamera(onCode) {
   video.onloadedmetadata = () => tick();
 }
 
-/* ---------- Mini-lista de precio estilo MixNet ----------
+/* ---------- Selector Unificado de Precio y Cantidad (Moderno, Rápido y Visual) ----------
+   Reemplaza la secuencia de popups con un único diálogo moderno, limpio y profesional:
+   - Muestra de inmediato todos los niveles de precio disponibles (A, B, C, D) y opción manual.
+   - Muestra precios en USD ($) y conversión oficial en Bs (BCV).
+   - Permite ajustar la cantidad en la misma pantalla (+ / - / input directo).
+   - Calcula el subtotal en vivo en USD y Bs.
+   - Confirma con Enter o clic en "Agregar al Ticket", o cancela con Esc.
+   Devuelve Promise<{ level, price_usd, qty } | null>.
+*/
+function pfOpenProductModal(l) {
+  return new Promise(resolve => {
+    document.querySelectorAll('.pf-product-modal-mask, .pf-popup-mask').forEach(m => m.remove());
+
+    const _n = v => Number(v || 0);
+    const rate = (typeof getRate === 'function') ? _n(getRate()) : (_n(window.RATE) || 1);
+
+    const pA = _n(l.price_a);
+    const pB = _n(l.price_b || l.price_usd);
+    const pC_bs = _n(l.price_c_bs);
+    const pD_bs = _n(l.price_d_bs);
+
+    const pC_usd = (rate > 0 && pC_bs > 0) ? +(pC_bs / rate).toFixed(2) : 0;
+    const pD_usd = (rate > 0 && pD_bs > 0) ? +(pD_bs / rate).toFixed(2) : 0;
+
+    let activeLevel = l.price_level || (pB > 0 ? 'B' : (pA > 0 ? 'A' : 'B'));
+    let customUsd = (activeLevel === 'M') ? _n(l.price_usd) : null;
+    let qty = Math.max(1, Math.round(_n(l.qty) || 1));
+
+    const priceCards = [
+      {
+        k: 'B',
+        letter: 'B',
+        title: 'Mayor Frecuente ⭐',
+        subtitle: 'Recomendado',
+        usd: pB,
+        bs: pB * rate,
+        available: pB > 0
+      },
+      {
+        k: 'A',
+        letter: 'A',
+        title: 'Detal / Detal',
+        subtitle: 'Precio Estándar',
+        usd: pA,
+        bs: pA * rate,
+        available: pA > 0
+      },
+      {
+        k: 'C',
+        letter: 'C',
+        title: 'Precio C (Bs)',
+        subtitle: 'Fijado en Bs',
+        usd: pC_usd,
+        bs: pC_bs,
+        available: pC_bs > 0
+      },
+      {
+        k: 'D',
+        letter: 'D',
+        title: 'Precio D (Bs Mayor)',
+        subtitle: 'Mayor en Bs',
+        usd: pD_usd,
+        bs: pD_bs,
+        available: pD_bs > 0
+      },
+      {
+        k: 'M',
+        letter: 'M',
+        title: 'Precio Propio',
+        subtitle: 'Digitar monto libre',
+        usd: customUsd || 0,
+        bs: (customUsd || 0) * rate,
+        available: true
+      }
+    ];
+
+    if (!priceCards.find(c => c.k === activeLevel && c.available)) {
+      const firstAvail = priceCards.find(c => c.available);
+      if (firstAvail) activeLevel = firstAvail.k;
+    }
+
+    const mask = document.createElement('div');
+    mask.className = 'pf-product-modal-mask';
+    mask.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .15s ease;';
+
+    const stockNum = Number(l.stock) || 0;
+    const stockBadge = stockNum > 0
+      ? `<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px">✔ Stock: ${stockNum} ${escapeHTML(l.unit || 'unid')}</span>`
+      : `<span style="background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px">⚠ Sin Stock / Pedido</span>`;
+
+    mask.innerHTML = `
+      <div class="pf-product-modal-box" style="background:#ffffff;border-radius:18px;width:100%;max-width:490px;box-shadow:0 24px 60px rgba(0,0,0,0.25);overflow:hidden;border:1px solid #cbd5e1;display:flex;flex-direction:column;animation:scaleUp .15s ease;" onclick="event.stopPropagation()">
+        
+        <!-- Cabecera -->
+        <div style="background:#f8fafc;padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:10px;font-weight:800;color:#16604a;background:#ecfdf5;padding:2px 6px;border-radius:4px;border:1px solid #a7f3d0">SELECCIÓN DE PRECIO</span>
+              ${stockBadge}
+            </div>
+            <h3 style="margin:0;font-size:16px;font-weight:800;color:#0f172a;line-height:1.3;white-space:normal">${escapeHTML(l.name)}</h3>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">${l.brand ? `<strong style="color:#334155">${escapeHTML(l.brand)}</strong> · ` : ''}Unidad: <strong>${escapeHTML(l.unit || 'unid')}</strong>${l.sku ? ` · SKU: ${escapeHTML(l.sku)}` : ''}</div>
+          </div>
+          <button type="button" id="pfModalCloseBtn" style="border:none;background:#e2e8f0;color:#475569;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:700">✕</button>
+        </div>
+
+        <!-- Cuerpo -->
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;max-height:75vh;overflow-y:auto">
+          
+          <!-- Sección 1: Niveles de Precio -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <label style="font-size:12px;font-weight:700;color:#334155;margin:0">1. Selecciona el Nivel de Precio:</label>
+              <span style="font-size:11px;color:#64748b">Pulsa <b>A, B, C, D</b> o haz clic</span>
+            </div>
+            <div id="pfPriceCardsBox" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+            
+            <!-- Campo de precio personalizado (solo si elige M) -->
+            <div id="pfCustomPriceRow" style="display:none;margin-top:8px;background:#f8fafc;padding:10px 12px;border-radius:10px;border:1px solid #cbd5e1">
+              <label style="display:block;font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">Digita el precio unitario especial en US$:</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-weight:700;color:#334155">$</span>
+                <input type="number" step="0.01" min="0" id="pfCustomPriceInput" class="fi" placeholder="0.00" value="${customUsd || ''}" style="flex:1;font-size:14px;font-weight:700;padding:6px 10px;height:36px">
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección 2: Cantidad -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <label style="font-size:12px;font-weight:700;color:#334155;display:block">2. Cantidad (${escapeHTML(l.unit || 'unid')}):</label>
+              <span style="font-size:11px;color:#64748b">Usa + / - o escribe la cantidad</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button type="button" id="pfQtyMinusBtn" style="width:38px;height:38px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-size:18px;font-weight:700;color:#0f172a;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s">−</button>
+              <input type="number" min="1" step="1" id="pfQtyInput" value="${qty}" style="width:65px;height:38px;border-radius:8px;border:2px solid #16604a;background:#fff;text-align:center;font-size:16px;font-weight:800;color:#0f172a;outline:none">
+              <button type="button" id="pfQtyPlusBtn" style="width:38px;height:38px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-size:18px;font-weight:700;color:#0f172a;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s">＋</button>
+            </div>
+          </div>
+
+          <!-- Sección 3: Subtotal en vivo -->
+          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <span style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:0.5px">Subtotal de esta línea</span>
+              <div id="pfLiveTotalUsd" style="font-size:18px;font-weight:900;color:#065f46">$0.00 USD</div>
+            </div>
+            <div id="pfLiveTotalBs" style="text-align:right;font-size:13px;font-weight:700;color:#047857">≈ Bs 0.00</div>
+          </div>
+
+        </div>
+
+        <!-- Acciones Footer -->
+        <div style="background:#f8fafc;padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;align-items:center">
+          <button type="button" id="pfModalCancelBtn" class="btn-o" style="padding:9px 16px;font-size:13px;border-radius:8px">Cancelar (Esc)</button>
+          <button type="button" id="pfModalConfirmBtn" class="btn-p" style="padding:10px 22px;font-size:14px;font-weight:800;border-radius:8px;background:#16604a;color:#fff;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(22,96,74,0.25)">➕ Agregar al Ticket (Enter)</button>
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(mask);
+
+    const cardsBox = mask.querySelector('#pfPriceCardsBox');
+    const customRow = mask.querySelector('#pfCustomPriceRow');
+    const customIn = mask.querySelector('#pfCustomPriceInput');
+    const qtyIn = mask.querySelector('#pfQtyInput');
+    const minusBtn = mask.querySelector('#pfQtyMinusBtn');
+    const plusBtn = mask.querySelector('#pfQtyPlusBtn');
+    const liveUsd = mask.querySelector('#pfLiveTotalUsd');
+    const liveBs = mask.querySelector('#pfLiveTotalBs');
+    const confirmBtn = mask.querySelector('#pfModalConfirmBtn');
+    const cancelBtn = mask.querySelector('#pfModalCancelBtn');
+    const closeBtn = mask.querySelector('#pfModalCloseBtn');
+
+    let done = false;
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', handleKey, true);
+      mask.remove();
+      resolve(result);
+    };
+
+    const getActivePriceUsd = () => {
+      if (activeLevel === 'M') {
+        const v = parseFloat(customIn.value);
+        return (!isNaN(v) && v >= 0) ? v : 0;
+      }
+      const card = priceCards.find(c => c.k === activeLevel);
+      return card ? card.usd : 0;
+    };
+
+    const updateCalculations = () => {
+      const q = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+      const unitUsd = getActivePriceUsd();
+      const subtotalUsd = unitUsd * q;
+      const subtotalBs = subtotalUsd * rate;
+      liveUsd.textContent = `$${subtotalUsd.toFixed(2)} USD`;
+      liveBs.textContent = `≈ Bs ${subtotalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const renderCards = () => {
+      cardsBox.innerHTML = priceCards.map(c => {
+        const isSel = (c.k === activeLevel);
+        const cardBg = isSel ? '#ecfdf5' : '#ffffff';
+        const cardBorder = isSel ? '2px solid #10b981' : '1px solid #cbd5e1';
+        const isCustom = (c.k === 'M');
+        const priceTxt = isCustom 
+          ? '<span style="font-size:12px;color:#0f172a;font-weight:700">Digitar a mano</span>'
+          : `<span style="font-size:15px;font-weight:900;color:#0f172a">$${c.usd.toFixed(2)}</span>`;
+        const bsTxt = (!isCustom && c.bs > 0)
+          ? `<span style="font-size:11px;color:#047857;font-weight:600">≈ Bs ${c.bs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span>`
+          : `<span style="font-size:11px;color:#64748b">${c.subtitle}</span>`;
+        const opacity = c.available ? '1' : '0.4';
+        const pointer = c.available ? 'pointer' : 'not-allowed';
+        const check = isSel ? '<span style="color:#10b981;font-weight:900;font-size:13px">✔</span>' : '';
+
+        return `
+          <div class="pf-price-card" data-k="${c.k}" style="background:${cardBg};border:${cardBorder};border-radius:10px;padding:9px 12px;cursor:${pointer};opacity:${opacity};display:flex;flex-direction:column;gap:2px;position:relative;transition:all .12s;box-shadow:${isSel ? '0 4px 12px rgba(16,185,129,0.18)' : 'none'}">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:10px;font-weight:800;color:${isSel ? '#16604a' : '#475569'};background:${isSel ? '#d1fae5' : '#f1f5f9'};padding:1px 5px;border-radius:4px">NIVEL ${c.letter}</span>
+              ${check}
+            </div>
+            <div style="margin-top:2px">${priceTxt}</div>
+            <div>${bsTxt}</div>
+          </div>
+        `;
+      }).join('');
+
+      customRow.style.display = (activeLevel === 'M') ? 'block' : 'none';
+      if (activeLevel === 'M') customIn.focus();
+      updateCalculations();
+    };
+
+    cardsBox.addEventListener('click', e => {
+      const card = e.target.closest('.pf-price-card');
+      if (!card) return;
+      const k = card.dataset.k;
+      const opt = priceCards.find(c => c.k === k);
+      if (!opt || !opt.available) return;
+      activeLevel = k;
+      renderCards();
+    });
+
+    minusBtn.addEventListener('click', () => {
+      const cur = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+      if (cur > 1) { qtyIn.value = cur - 1; updateCalculations(); }
+    });
+
+    plusBtn.addEventListener('click', () => {
+      const cur = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+      qtyIn.value = cur + 1;
+      updateCalculations();
+    });
+
+    qtyIn.addEventListener('input', updateCalculations);
+    customIn.addEventListener('input', updateCalculations);
+
+    const confirmSelection = () => {
+      const q = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+      let finalPriceUsd = getActivePriceUsd();
+      if (activeLevel === 'M') {
+        const v = parseFloat(customIn.value);
+        if (isNaN(v) || v < 0) {
+          showToast('Ingresa un precio válido', 'warn');
+          customIn.focus();
+          return;
+        }
+        finalPriceUsd = +v.toFixed(2);
+      }
+      finish({
+        level: activeLevel,
+        price_usd: finalPriceUsd,
+        qty: q
+      });
+    };
+
+    confirmBtn.addEventListener('click', confirmSelection);
+    cancelBtn.addEventListener('click', () => finish(null));
+    closeBtn.addEventListener('click', () => finish(null));
+    mask.addEventListener('click', e => { if (e.target === mask) finish(null); });
+
+    const handleKey = e => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        finish(null);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        confirmSelection();
+        return;
+      }
+      if (['INPUT'].includes(e.target.tagName)) return;
+
+      const k = e.key.toUpperCase();
+      if (['A', 'B', 'C', 'D', 'M'].includes(k)) {
+        const opt = priceCards.find(c => c.k === k);
+        if (opt && opt.available) {
+          e.preventDefault();
+          activeLevel = k;
+          renderCards();
+        }
+      }
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        plusBtn.click();
+      }
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        minusBtn.click();
+      }
+    };
+
+    document.addEventListener('keydown', handleKey, true);
+    renderCards();
+    setTimeout(() => { qtyIn.focus(); qtyIn.select(); }, 60);
+  });
+}
+
+/* ---------- Mini-lista de precio estilo MixNet (Legado) ----------
    Al seleccionar un producto se abre una lista para elegir el nivel de precio
    A/B/C/D o un precio propio. Devuelve una promesa con:
    { level:'A'|'B'|'C'|'D' } | { custom:number } | null (cancelado) */

@@ -77,50 +77,84 @@
     <div class="admin-content">
       <div class="pos-grid">
 
-        <div class="admin-table-wrap" style="padding:16px 18px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <h3 style="margin:0">🔎 Buscar productos</h3>
-            <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F8 o Alt+I)">➕ Ítem Libre (F8)</button>
+        <!-- Columna izquierda: Sección 1 - Catálogo y Buscador -->
+        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">1</span>
+              <h3 style="margin:0;font-size:16px;color:#0f172a">Catálogo de Productos</h3>
+            </div>
+            <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F8 o Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px">➕ Ítem Libre / Servicio</button>
           </div>
           <div style="display:flex;gap:8px">
-            <input class="fi" id="posSearch" placeholder="Nombre, código de barras o SKU…" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1">
-            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara">📷</button>
-            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner">📱</button>
+            <input class="fi" id="posSearch" placeholder="Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:8px">
+            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📷</button>
+            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📱</button>
           </div>
-          <div id="posResults" style="max-height:520px;overflow-y:auto;margin-top:8px">
-            <p style="color:#aaa;font-size:13px;padding:8px 0">Cargando catálogo...</p>
+          <div id="posResults" style="max-height:560px;overflow-y:auto;margin-top:12px">
+            <p style="color:#aaa;font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
           </div>
         </div>
 
-        <div class="admin-table-wrap" style="padding:16px 18px">
-          <h3 style="margin:0 0 10px">📋 Cotización</h3>
-          <div id="posTicket"><p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p></div>
-          <div id="posTotals"></div>
-
-          <div class="divider" style="margin:14px 0"></div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <h3 style="margin:0">👤 Cliente</h3>
-            <button type="button" class="btn-o sm" onclick="setConsumidorFinal()" title="Venta rápida / mostrador en 1 clic">⚡ Consumidor Final</button>
-          </div>
-          <div style="position:relative">
-            <input class="fi" id="qCliName" placeholder="Nombre / empresa *" style="width:100%">
-            <div id="qCliNameResults" class="cust-ac-box"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-            <input class="fi" id="qCliTel" placeholder="Teléfono *">
-            <input class="fi" id="qCliRif" placeholder="RIF / CI">
-            <input class="fi" id="qCliCity" placeholder="Ciudad">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;align-items:center">
-            <div>
-              <label class="fl" for="qDisc">Descuento propuesto (%)</label>
-              <input class="fi" id="qDisc" type="number" min="0" max="100" step="1" value="0" oninput="posRenderTicket()">
+        <!-- Columna derecha: Secciones 2, 3 y 4 -->
+        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:16px">
+          
+          <!-- Sección 2: Resumen del Ticket -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">2</span>
+                <h3 style="margin:0;font-size:16px;color:#0f172a">Resumen de Cotización</h3>
+              </div>
+              <button type="button" class="btn-g sm" onclick="clearQuote()" style="font-size:11px;color:#64748b">Vaciar</button>
             </div>
-            <small id="qDiscHint" style="color:#888;padding-top:16px"></small>
-          </div>
-          <textarea class="fi" id="qNotes" placeholder="Notas / condiciones (opcional)" rows="2" style="margin-top:8px"></textarea>
+            
+            <div id="posTicket" style="max-height:360px;overflow-y:auto">
+              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
+            </div>
 
-          <button class="btn-p" id="qSubmitBtn" onclick="quoteSubmit()" style="width:100%;justify-content:center;margin-top:14px">📋 Guardar cotización</button>
+            <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0">
+              <label class="fl" for="qDisc" style="margin:0;font-size:12px">Descuento propuesto (%)</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input class="fi" type="number" id="qDisc" min="0" max="100" step="1" value="0" oninput="posRenderTicket()" style="width:65px;height:30px;padding:2px 6px;text-align:center;font-weight:800;font-size:13px">
+                <small id="qDiscHint" style="color:#888"></small>
+              </div>
+            </div>
+
+            <div id="posTotals"></div>
+          </div>
+
+          <!-- Sección 3: Datos del Cliente -->
+          <div style="border-top:1px solid #e2e8f0;padding-top:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">3</span>
+                <h3 style="margin:0;font-size:15px;color:#0f172a">Datos del Cliente</h3>
+              </div>
+              <button type="button" class="btn-o sm" onclick="setConsumidorFinal()" title="Venta rápida / mostrador en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
+            </div>
+            <div style="position:relative;margin-bottom:8px">
+              <input class="fi" id="qCliName" placeholder="Nombre completo o razón social *" style="width:100%;height:38px;padding:8px 12px">
+              <div id="qCliNameResults" class="cust-ac-box"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <input class="fi" id="qCliTel" placeholder="Teléfono (opcional para mostrador)" style="height:36px">
+              <input class="fi" id="qCliRif" placeholder="RIF / CI" style="height:36px">
+              <input class="fi" id="qCliCity" placeholder="Ciudad / Destino" style="grid-column:span 2;height:36px">
+            </div>
+          </div>
+
+          <!-- Sección 4: Condiciones y Cierre -->
+          <div style="border-top:1px solid #e2e8f0;padding-top:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">4</span>
+              <h3 style="margin:0;font-size:15px;color:#0f172a">Notas y Envío</h3>
+            </div>
+            <textarea class="fi" id="qNotes" placeholder="Validez de la oferta (ej. 3 días), condiciones de entrega..." rows="2" style="width:100%"></textarea>
+
+            <button class="btn-p" id="qSubmitBtn" onclick="quoteSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:44px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">📋 Guardar Cotización (Ctrl + Enter)</button>
+          </div>
+
         </div>
 
       </div>

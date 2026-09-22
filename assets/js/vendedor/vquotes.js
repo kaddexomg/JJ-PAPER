@@ -39,6 +39,7 @@ async function initQuoter() {
   });
   quoteInitGlobalKeys();
   quoteInitTabNav();
+  updateQuoteHeaderStatus();
 }
 
 async function quoteCargarCliente(id) {
@@ -170,6 +171,7 @@ async function loadQuoteForEdit(id) {
   
   const btn = document.getElementById('qSubmitBtn');
   if (btn) btn.innerHTML = `💾 Guardar Cambios (${q.quote_number || 'Cotización'})`;
+  updateQuoteHeaderStatus();
   showToast(`Editando cotización ${q.quote_number || ''} ✏️`);
 }
 
@@ -740,6 +742,7 @@ function quoteReset() {
   const disc = document.getElementById('qDisc'); if (disc) disc.value = 0;
   const hint = document.getElementById('qDiscHint'); if (hint) hint.textContent = '';
   document.getElementById('qDoneModal')?.classList.remove('op');
+  updateQuoteHeaderStatus();
 }
 
 /* ---------- Control del Ticket con Teclado (F6 / Alt+T) ---------- */
@@ -930,13 +933,270 @@ function addCustomItemToTicket() {
   showToast(`➕ Agregado: ${name}`);
 }
 
+/* ---------- Control de Cabecera y Estado de Cotización Activa ---------- */
+function updateQuoteHeaderStatus() {
+  const ind = document.getElementById('quoteActiveIndicator');
+  const act = document.getElementById('quoteActiveActions');
+  const rate = getRate();
+  const rateHtml = rate > 0 ? `<span style="background:#f1f5f9;color:#334155;font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px;border:1px solid #cbd5e1">💵 Tasa BCV: <b>Bs ${rate.toFixed(2)}</b></span>` : '';
+  
+  if (editingQuoteId && editingQuoteNumber) {
+    const cliName = document.getElementById('qCliName')?.value || '—';
+    if (ind) {
+      ind.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:12px;font-weight:900;padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:6px">
+            ✏️ EDITANDO: <strong style="font-family:monospace;font-size:13px">${escapeHTML(editingQuoteNumber)}</strong>
+          </span>
+          <span style="font-size:12px;color:#475569;font-weight:600">👤 ${escapeHTML(cliName)}</span>
+          ${rateHtml}
+        </div>
+      `;
+    }
+    if (act) {
+      act.innerHTML = `
+        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Facturar o cobrar en POS (F7)" style="background:#0284c7;color:#fff;border-radius:8px;font-weight:700;padding:6px 12px;box-shadow:0 2px 6px rgba(2,132,199,0.3)">🛒 Facturar en POS <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd></button>
+        <button type="button" class="btn-o sm" onclick="quotePrintPdf()" title="Ver presupuesto PDF oficial (F10)" style="border-radius:8px;font-weight:700;padding:6px 12px">🖨️ Presupuesto PDF <kbd style="background:#f1f5f9;border:1px solid #cbd5e1;padding:1px 5px;border-radius:4px;font-size:11px">F10</kbd></button>
+        <button type="button" class="btn-g sm" onclick="quoteReset()" title="Salir del modo edición y crear una nueva (Alt+N)" style="border-radius:8px;color:#dc2626;border-color:#fecaca;padding:6px 12px">✕ Cancelar Edición <kbd style="background:#fef2f2;border:1px solid #fca5a5;padding:1px 5px;border-radius:4px;font-size:11px">Alt+N</kbd></button>
+      `;
+    }
+  } else {
+    if (ind) {
+      ind.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="background:#ecfdf5;color:#16604a;border:1px solid #a7f3d0;font-size:12px;font-weight:900;padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:6px">
+            🆕 Nueva Cotización
+          </span>
+          ${rateHtml}
+        </div>
+      `;
+    }
+    if (act) {
+      act.innerHTML = '';
+    }
+  }
+}
+
+function quoteConvertToPos() {
+  if (editingQuoteNumber) {
+    window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
+    return;
+  }
+  const lines = Object.values(posTicket || {});
+  if (!lines.length) {
+    showToast('La cotización está vacía. Agrega productos primero', 'warn');
+    return;
+  }
+  showToast('Guardando cotización para facturar en POS...');
+  quoteSubmit().then(() => {
+    if (editingQuoteNumber) {
+      window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
+    }
+  });
+}
+
+function quotePrintPdf() {
+  if (editingQuoteNumber) {
+    window.open(`../comprobante.html?q=${encodeURIComponent(editingQuoteNumber)}&print=1`, '_blank');
+  } else {
+    showToast('Guarda la cotización primero para generar el presupuesto PDF oficial', 'warn');
+  }
+}
+
+function goToAllQuotes() {
+  window.location.href = 'cotizaciones.html';
+}
+
+/* ---------- Buscador de Cotizaciones Existentes (F4) ---------- */
+let qsQuotesList = [];
+let qsCursor = 0;
+
+async function openQuoteSearchModal() {
+  let modal = document.getElementById('quoteSearchModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'quoteSearchModal';
+    modal.className = 'modal-overlay op';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:720px;width:95%;background:#fff;border-radius:14px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:13px;padding:3px 8px;border-radius:6px">F4</span>
+            <h3 style="margin:0;font-size:18px;color:#0f172a">📂 Cargar / Abrir Cotización Existente</h3>
+          </div>
+          <button type="button" class="btn-g sm" onclick="closeQuoteSearchModal()">✕ Esc</button>
+        </div>
+        <div style="margin-bottom:12px">
+          <input class="fi" id="qsInput" placeholder="Escribe N° Cotización (ej: COT-00123 o 123), nombre de cliente, RIF o teléfono..." style="width:100%;height:42px;font-size:14px;padding:8px 12px;border-radius:8px" oninput="filterQuotesInModal()" onkeydown="qsKeyNav(event)">
+        </div>
+        <div id="qsResults" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px">
+          <p style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">Cargando cotizaciones recientes...</p>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:12px;color:#64748b;padding-top:8px;border-top:1px solid #f1f5f9">
+          <span>Usa <kbd style="background:#f1f5f9;padding:1px 5px;border-radius:4px;border:1px solid #cbd5e1">↑</kbd> <kbd style="background:#f1f5f9;padding:1px 5px;border-radius:4px;border:1px solid #cbd5e1">↓</kbd> para navegar · <kbd style="background:#f1f5f9;padding:1px 5px;border-radius:4px;border:1px solid #cbd5e1">Enter</kbd> para cargar · <kbd style="background:#f1f5f9;padding:1px 5px;border-radius:4px;border:1px solid #cbd5e1">Esc</kbd> cerrar</span>
+          <button type="button" class="btn-o sm" onclick="closeQuoteSearchModal();goToAllQuotes()" style="font-size:11px">📋 Ver Todas las Cotizaciones (F8)</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  modal.classList.add('op');
+  modal.style.display = 'flex';
+  const input = document.getElementById('qsInput');
+  if (input) {
+    input.value = '';
+    setTimeout(() => input.focus(), 60);
+  }
+  await fetchRecentQuotesForModal();
+}
+
+function closeQuoteSearchModal() {
+  const modal = document.getElementById('quoteSearchModal');
+  if (modal) {
+    modal.classList.remove('op');
+    modal.style.display = 'none';
+  }
+}
+
+async function fetchRecentQuotesForModal() {
+  const container = document.getElementById('qsResults');
+  if (!container) return;
+  container.innerHTML = '<p style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">Buscando cotizaciones...</p>';
+  
+  try {
+    const activeSeller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) ? CURRENT_PROFILE : window.SELLER);
+    const isAdmin = activeSeller?.role === 'admin';
+    
+    let query = sb.from('jjp_quotes')
+      .select('id, quote_number, client_name, phone, rif, city, estimated_total_usd, discount_pct, status, created_at, seller_id')
+      .order('created_at', { ascending: false })
+      .limit(30);
+      
+    if (!isAdmin && activeSeller?.id) {
+      query = query.eq('seller_id', activeSeller.id);
+    }
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    qsQuotesList = data || [];
+    qsCursor = 0;
+    renderQuotesInModal(qsQuotesList);
+  } catch (err) {
+    console.error('Error fetching quotes for modal:', err);
+    container.innerHTML = '<p style="text-align:center;padding:20px;color:#ef4444;font-size:13px">Error al cargar cotizaciones: ' + (err.message || 'Error de red') + '</p>';
+  }
+}
+
+function renderQuotesInModal(list) {
+  const container = document.getElementById('qsResults');
+  if (!container) return;
+  if (!list.length) {
+    container.innerHTML = '<p style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">No se encontraron cotizaciones.</p>';
+    return;
+  }
+  
+  const rate = getRate();
+  container.innerHTML = list.map((q, idx) => {
+    const dateStr = q.created_at ? new Date(q.created_at).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+    const totalUsd = Number(q.estimated_total_usd) || 0;
+    const totalBs = (totalUsd * rate).toFixed(2);
+    const isSelected = idx === qsCursor;
+    return `
+      <div class="qs-item" data-id="${q.id}" onclick="selectQuoteFromModal('${q.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #f1f5f9;cursor:pointer;background:${isSelected ? '#ecfdf5' : '#fff'};transition:background 0.15s ease">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1">
+          <span style="font-family:monospace;font-weight:900;background:#0f172a;color:#fff;padding:3px 8px;border-radius:6px;font-size:12px">${escapeHTML(q.quote_number || 'S/N')}</span>
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(q.client_name || 'Sin nombre')}</div>
+            <div style="font-size:11px;color:#64748b">${dateStr} ${q.phone ? '· 📞 ' + escapeHTML(q.phone) : ''} ${q.city ? '· 📍 ' + escapeHTML(q.city) : ''}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+          <div style="text-align:right">
+            <div style="font-weight:900;font-size:13px;color:#16604a">${fmtPrice(totalUsd)}</div>
+            <div style="font-size:11px;color:#059669">Bs ${fmtBsNum(totalBs)}</div>
+          </div>
+          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : '#fef3c7;color:#b45309'}">${q.status || 'pendiente'}</span>
+          <button type="button" class="btn-p sm" onclick="event.stopPropagation();selectQuoteFromModal('${q.id}')" style="padding:4px 10px;font-size:11px;background:#16604a;color:#fff;border-radius:6px">✏️ Cargar</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectQuoteFromModal(id) {
+  closeQuoteSearchModal();
+  loadQuoteForEdit(id);
+}
+
+function filterQuotesInModal() {
+  const q = document.getElementById('qsInput')?.value.trim().toLowerCase() || '';
+  if (!q) {
+    renderQuotesInModal(qsQuotesList);
+    return;
+  }
+  const filtered = qsQuotesList.filter(item => {
+    const num = (item.quote_number || '').toLowerCase();
+    const cli = (item.client_name || '').toLowerCase();
+    const tel = (item.phone || '').toLowerCase();
+    const rif = (item.rif || '').toLowerCase();
+    return num.includes(q) || cli.includes(q) || tel.includes(q) || rif.includes(q);
+  });
+  qsCursor = 0;
+  renderQuotesInModal(filtered);
+}
+
+function qsKeyNav(e) {
+  const container = document.getElementById('qsResults');
+  const items = container?.querySelectorAll('.qs-item');
+  if (!items || !items.length) {
+    if (e.key === 'Escape') closeQuoteSearchModal();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    qsCursor = Math.min(qsCursor + 1, items.length - 1);
+    items.forEach((it, i) => it.style.background = (i === qsCursor ? '#ecfdf5' : '#fff'));
+    items[qsCursor]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    qsCursor = Math.max(qsCursor - 1, 0);
+    items.forEach((it, i) => it.style.background = (i === qsCursor ? '#ecfdf5' : '#fff'));
+    items[qsCursor]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const target = items[qsCursor];
+    if (target) {
+      const id = target.getAttribute('data-id');
+      if (id) selectQuoteFromModal(id);
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeQuoteSearchModal();
+  }
+}
+
 /* ---------- Atajos de Teclado Globales de Cotizador ---------- */
 function quoteInitGlobalKeys() {
   if (window.__quoteGlobalKeysBound) return;
   window.__quoteGlobalKeysBound = true;
 
   window.addEventListener('keydown', e => {
-    if (document.querySelector('.pf-popup-mask')) return; // popups modal manejan sus teclas
+    if (document.querySelector('.pf-popup-mask')) return; // selector de producto maneja sus teclas
+    
+    // Modal de búsqueda de cotizaciones abierto
+    const qsModal = document.getElementById('quoteSearchModal');
+    if (qsModal && qsModal.style.display !== 'none' && qsModal.classList.contains('op')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeQuoteSearchModal();
+        return;
+      }
+      return; // permitir que qsKeyNav maneje el input
+    }
+
     const customModal = document.getElementById('customItemModal');
     if (customModal && customModal.style.display !== 'none' && customModal.classList.contains('op')) {
       if (e.key === 'Escape') {
@@ -1041,9 +1301,6 @@ function quoteInitGlobalKeys() {
         se.select();
         return;
       }
-      if (posTicket && Object.keys(posTicket).length > 0) {
-        clearQuote();
-      }
       return;
     }
 
@@ -1065,11 +1322,10 @@ function quoteInitGlobalKeys() {
       return;
     }
 
-    // F4: enfocar campo de descuento
-    if (e.key === 'F4') {
+    // F4 o (Alt+O): abrir buscador de cotizaciones existentes
+    if (e.key === 'F4' || (e.key.toLowerCase() === 'o' && e.altKey)) {
       e.preventDefault();
-      const disc = document.getElementById('qDisc');
-      if (disc) { disc.focus(); disc.select(); }
+      openQuoteSearchModal();
       return;
     }
 
@@ -1080,24 +1336,54 @@ function quoteInitGlobalKeys() {
       return;
     }
 
-    // F7 o Alt+L: limpiar/vaciar cotización
-    if (e.key === 'F7' || (e.key.toLowerCase() === 'l' && e.altKey)) {
+    // F7: Facturar / Cobrar en POS
+    if (e.key === 'F7') {
       e.preventDefault();
-      clearQuote();
+      quoteConvertToPos();
       return;
     }
 
-    // F8 o Alt+I: abrir modal de ítem libre / personalizado
-    if (e.key === 'F8' || (e.key.toLowerCase() === 'i' && e.altKey)) {
+    // F8 o (Alt+C): ir al listado de cotizaciones
+    if (e.key === 'F8' || (e.key.toLowerCase() === 'c' && e.altKey)) {
+      e.preventDefault();
+      goToAllQuotes();
+      return;
+    }
+
+    // F9 o Ctrl+Enter: guardar cotización / guardar cambios
+    if (e.key === 'F9' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
+      e.preventDefault();
+      quoteSubmit();
+      return;
+    }
+
+    // F10 o Ctrl+P: ver o imprimir presupuesto PDF
+    if (e.key === 'F10' || (e.key.toLowerCase() === 'p' && (e.ctrlKey || e.metaKey))) {
+      e.preventDefault();
+      quotePrintPdf();
+      return;
+    }
+
+    // Alt+I: abrir modal de ítem libre / personalizado
+    if (e.key.toLowerCase() === 'i' && e.altKey) {
       e.preventDefault();
       openCustomItemModal();
       return;
     }
 
-    // F9 o Ctrl+Enter: guardar cotización
-    if (e.key === 'F9' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
+    // Alt+N: nueva cotización / limpiar edición
+    if (e.key.toLowerCase() === 'n' && e.altKey) {
       e.preventDefault();
-      quoteSubmit();
+      quoteReset();
+      showToast('⚡ Nueva cotización lista');
+      return;
+    }
+
+    // Alt+D: enfocar campo de descuento
+    if (e.key.toLowerCase() === 'd' && e.altKey) {
+      e.preventDefault();
+      const disc = document.getElementById('qDisc');
+      if (disc) { disc.focus(); disc.select(); }
       return;
     }
   });
@@ -1111,37 +1397,41 @@ function quoteShowHelpModal() {
     modal.className = 'modal-overlay op';
     modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
     modal.innerHTML = `
-      <div class="modal-box" style="max-width:560px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25)">
+      <div class="modal-box" style="max-width:640px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
-          <h3 style="margin:0;font-size:18px;color:#0f172a;display:flex;align-items:center;gap:8px">⌨️ Control Total de Teclado del Cotizador</h3>
+          <h3 style="margin:0;font-size:18px;color:#0f172a;display:flex;align-items:center;gap:8px">⌨️ Centro de Atajos de Teclado del Cotizador</h3>
           <button type="button" class="btn-g sm" onclick="document.getElementById('quoteShortcutsHelpModal').style.display='none'">✕ Esc</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;line-height:1.5;color:#334155">
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:6px">📦 Catálogo y Búsqueda</b>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Agregar directo (Nivel B)</div>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar al cliente / notas</div>
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📂 Cotizaciones y Gestión</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+O</kbd> Abrir cotización existente</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+C</kbd> Ver todas las cotizaciones</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Facturar / Cobrar en POS</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F10</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Ctrl+P</kbd> Ver / Imprimir PDF</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+N</kbd> Nueva cotización / limpiar</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:6px">🧾 Edición del Ticket</b>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+T</kbd> Activar ticket</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑↓</kbd> Navegar · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Cantidad</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">D</kbd> Nivel precio</div>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Supr</kbd> Borrar fila · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Vaciar</div>
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📦 Búsqueda y Selección</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en catálogo</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Elegir precio y cantidad</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A/B/C/D</kbd> Nivel de precio en modal</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+I</kbd> Ítem Libre / Servicio</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
             <b style="color:#0f172a;display:block;margin-bottom:6px">👤 Cliente y Descuento</b>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Descuento propuesto %</div>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+I</kbd> Ítem Libre</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente en cartera</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+D</kbd> Descuento propuesto %</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar entre secciones</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:6px">📋 Guardar y Acciones</b>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Guardar</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Limpiar / Regresar</div>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Esta ayuda</div>
+            <b style="color:#0f172a;display:block;margin-bottom:6px">🧾 Edición del Ticket</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+T</kbd> Activar ticket</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Ajustar cantidad</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A/B/C/D</kbd> Cambiar nivel de precio</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Supr</kbd> Borrar fila activa</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Guardar</div>
           </div>
         </div>
         <div style="text-align:right;margin-top:16px">

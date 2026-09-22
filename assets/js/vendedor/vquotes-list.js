@@ -26,7 +26,9 @@ const VQ_STATUS_LABEL = {
 
 async function loadVQuotes(statusFilter = vQuotesFilter) {
   vQuotesFilter = statusFilter;
-  let q = sb.from('jjp_quotes').select('*').order('created_at', { ascending: false });
+  let q = sb.from('jjp_quotes')
+    .select('id,quote_number,client_name,phone,rif,email,city,estimated_total_usd,discount_pct,status,source,created_at,customer_id,seller_id,items,notes,exchange_rate')
+    .order('created_at', { ascending: false });
   if (statusFilter) q = q.eq('status', statusFilter);
   const { data, error } = await q;
   if (error) { showToast('Error cargando cotizaciones', 'err'); return; }
@@ -76,11 +78,13 @@ function renderVQuotes() {
         ${q.discount_pct > 0 ? `<div class="td-sub">desc. ${q.discount_pct}%</div>` : ''}</td>
       <td><span class="status-badge st-${escapeHTML(q.status || '')}">${VQ_STATUS_LABEL[q.status] || q.status}</span></td>
       <td><div class="td-actions">
-        <button class="btn-p sm" onclick="viewVQuote('${q.id}')">👁️ Ver</button>
+        <button class="btn-p sm" onclick="viewVQuote('${q.id}')" title="Ver detalle">👁️ Ver</button>
+        <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
+        <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">🛍️</a>
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vQuoteCtx('${q.id}'))"
                 title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
         <a class="btn-o sm" style="width:auto;padding:7px 10px" target="_blank"
-           href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️</a>
+           href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1" title="Imprimir">🖨️</a>
       </div></td>
     </tr>`;
   }).join('');

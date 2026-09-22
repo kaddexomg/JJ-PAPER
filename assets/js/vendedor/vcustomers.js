@@ -26,15 +26,48 @@ function getActiveSeller() {
   return { id: null, name: 'JJ Paper', role: 'vendedor' };
 }
 
-async function loadCustomers() {
+const CUST_CACHE_KEY  = 'jjp_vcust_cache_v1';
+const CUST_CACHE_TIME = 'jjp_vcust_cache_v1_time';
+const CUST_TTL        = 7 * 60 * 1000; // 7 minutos de vigencia
+
+function _getCustCache() {
+  try {
+    const raw = sessionStorage.getItem(CUST_CACHE_KEY);
+    const time = sessionStorage.getItem(CUST_CACHE_TIME);
+    if (!raw || !time) return null;
+    if (Date.now() - parseInt(time, 10) > CUST_TTL) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch (_) { return null; }
+}
+
+function _setCustCache(data) {
+  try {
+    sessionStorage.setItem(CUST_CACHE_KEY, JSON.stringify(data));
+    sessionStorage.setItem(CUST_CACHE_TIME, String(Date.now()));
+  } catch (_) {}
+}
+
+async function loadCustomers(force = false) {
   const seller = getActiveSeller();
   const isAdmin = seller?.role === 'admin' || seller?.is_admin;
+
+  if (!force) {
+    const cached = _getCustCache();
+    if (cached) {
+      vCustomers = cached;
+      renderCustomers();
+      return;
+    }
+  }
+
   vCustomers = [];
   const PAGE = 1000;
   let from = 0;
+  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags';
   for (;;) {
     let query = sb.from('jjp_customers')
-      .select('*').order('last_order_at', { ascending: false, nullsFirst: false });
+      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
 
     // La Zona 020 es estrictamente exclusiva del Admin Keyder (no se descarga para otros vendedores)
     if (!isAdmin) {
@@ -47,6 +80,7 @@ async function loadCustomers() {
     if (!data || data.length < PAGE || from > 12000) break;
     from += PAGE;
   }
+  _setCustCache(vCustomers);
   renderCustomers();
 }
 
@@ -169,7 +203,14 @@ async function claimCustomer(id) {
     .eq('id', id).is('seller_id', null);
   if (error) { showToast('No se pudo asignar', 'err'); return; }
   showToast('Cliente añadido a tu cartera ✔');
-  loadCustomers();
+  const target = vCustomers.find(x => x.id === id);
+  if (target) {
+    target.seller_id = sellerId;
+    _setCustCache(vCustomers);
+    renderCustomers();
+  } else {
+    loadCustomers(true);
+  }
 }
 
 /* ---- Crear / editar ---- */
@@ -209,11 +250,13 @@ async function saveCustomer() {
     updated_at: new Date().toISOString(),
   };
 
-  let error;
+  let error, insertedRow;
   if (editingCustId) {
     ({ error } = await sb.from('jjp_customers').update(fields).eq('id', editingCustId));
   } else {
-    ({ error } = await sb.from('jjp_customers').insert({ ...fields, seller_id: sellerId }));
+    const res = await sb.from('jjp_customers').insert({ ...fields, seller_id: sellerId }).select('id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags').maybeSingle();
+    error = res.error;
+    insertedRow = res.data;
   }
   if (error) {
     showToast(error.message?.includes('duplicate') ? 'Ya existe un cliente con ese teléfono' : 'Error guardando cliente', 'err');
@@ -221,7 +264,22 @@ async function saveCustomer() {
   }
   showToast('Cliente guardado ✔');
   closeCustomerModal();
-  loadCustomers();
+
+  if (editingCustId) {
+    const target = vCustomers.find(x => x.id === editingCustId);
+    if (target) {
+      Object.assign(target, fields);
+      _setCustCache(vCustomers);
+      renderCustomers();
+      return;
+    }
+  } else if (insertedRow) {
+    vCustomers.unshift(insertedRow);
+    _setCustCache(vCustomers);
+    renderCustomers();
+    return;
+  }
+  loadCustomers(true);
 }
 
 function custPhoneNorm(p) {
@@ -299,5 +357,5 @@ async function custImportFile(input) {
     } catch (e) { fail++; }
   }
   showToast(`Importado: ${added} nuevos · ${upd} actualizados${fail ? ` · ${fail} con error` : ''}`, fail ? 'warn' : 'ok', 6000);
-  loadCustomers();
+  loadCustomers(true);
 }

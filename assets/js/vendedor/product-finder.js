@@ -6,28 +6,55 @@
    ====================================================== */
 
 let PF_PRODUCTS = null;
+const PF_CACHE_KEY  = 'jjp_pf_products_v2';
+const PF_CACHE_TIME = 'jjp_pf_products_v2_time';
+const PF_TTL        = 5 * 60 * 1000; // 5 minutos
 
 async function pfLoad(force) {
   if (PF_PRODUCTS && !force) return PF_PRODUCTS;
   
   let allData = [];
-  let from = 0;
-  const step = 999;
-  while (true) {
-    const { data, error } = await sb.from('jjp_products')
-      .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
-      .eq('active', true).range(from, from + step).order('name');
-    if (error) { 
-      if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); 
-      return PF_PRODUCTS || []; 
+  const now = Date.now();
+
+  if (!force) {
+    try {
+      const cached = sessionStorage.getItem(PF_CACHE_KEY);
+      const cachedTime = sessionStorage.getItem(PF_CACHE_TIME);
+      if (cached && cachedTime && (now - parseInt(cachedTime, 10) < PF_TTL)) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          allData = parsed;
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (!allData.length) {
+    let from = 0;
+    const step = 999;
+    while (true) {
+      const { data, error } = await sb.from('jjp_products')
+        .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
+        .eq('active', true).range(from, from + step).order('name');
+      if (error) { 
+        if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); 
+        return PF_PRODUCTS || []; 
+      }
+      if (!data || data.length === 0) break;
+      allData.push(...data);
+      if (data.length <= step) break;
+      from += step + 1;
     }
-    if (!data || data.length === 0) break;
-    allData.push(...data);
-    if (data.length <= step) break;
-    from += step + 1;
+
+    if (allData.length > 0) {
+      try {
+        sessionStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
+        sessionStorage.setItem(PF_CACHE_TIME, String(now));
+      } catch (_) {}
+    }
   }
   
-  let products = allData;
+  let products = JSON.parse(JSON.stringify(allData));
   
   // Cargar precios personalizados del vendedor si está logueado
   const sellerId = (typeof SELLER !== 'undefined' && SELLER?.id) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id);

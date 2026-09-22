@@ -6,6 +6,7 @@
 let posProducts = [];
 let posTicket   = {};
 let editingQuoteId = null;
+let editingQuoteNumber = null;
 let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
 let quoteCustomer = null;  // cliente seleccionado para asociar ID
@@ -37,6 +38,7 @@ async function initQuoter() {
     onPick: quotePickCustomer,
   });
   quoteInitGlobalKeys();
+  quoteInitTabNav();
 }
 
 async function quoteCargarCliente(id) {
@@ -61,6 +63,23 @@ function quotePickCustomer(c) {
   document.getElementById('qCliNameResults').style.display = 'block';
 }
 
+function setConsumidorFinal() {
+  const nameEl = document.getElementById('qCliName');
+  const telEl  = document.getElementById('qCliTel');
+  const rifEl  = document.getElementById('qCliRif');
+  const cityEl = document.getElementById('qCliCity');
+
+  if (nameEl) nameEl.value = 'Consumidor Final';
+  if (telEl)  telEl.value  = '00000000000';
+  if (rifEl)  rifEl.value  = 'V-00000000';
+  if (cityEl) cityEl.value = 'Mostrador';
+
+  quoteCustomer = null;
+  const res = document.getElementById('qCliNameResults');
+  if (res) res.style.display = 'none';
+  showToast('⚡ Cliente Mostrador / Consumidor Final aplicado');
+}
+
 function posOnScan(code) {
   const hit = pfFindByCode(posProducts, code);
   if (hit) { posAddAndPick(hit.product, hit.variant); showToast('📱➕ ' + hit.product.name); }
@@ -83,23 +102,27 @@ async function loadQuoteForEdit(id) {
     return;
   }
   
+  editingQuoteId = id;
+  editingQuoteNumber = q.quote_number;
+  
   const cliName = document.getElementById('qCliName');
-  const cliTel = document.getElementById('qCliTel');
-  const cliRif = document.getElementById('qCliRif');
+  const cliTel  = document.getElementById('qCliTel');
+  const cliRif  = document.getElementById('qCliRif');
   const cliCity = document.getElementById('qCliCity');
   
   if (cliName) cliName.value = q.client_name || '';
-  if (cliTel) cliTel.value = q.phone || '';
-  if (cliRif) cliRif.value = q.rif || '';
+  if (cliTel)  cliTel.value  = q.phone || '';
+  if (cliRif)  cliRif.value  = q.rif || '';
   if (cliCity) cliCity.value = q.city || '';
   
   if (q.customer_id) {
-     quoteCustomer = { id: q.customer_id, name: q.client_name, rif: q.rif, phone: q.phone, city: q.city };
+    quoteCustomer = { id: q.customer_id, name: q.client_name, rif: q.rif, phone: q.phone, city: q.city };
   }
   
-  const dscInput = document.getElementById('qDscPct');
-  if (dscInput && q.discount_pct) {
-    dscInput.value = q.discount_pct;
+  // Persistir descuento usando el ID exacto del DOM 'qDisc'
+  const dscInput = document.getElementById('qDisc') || document.getElementById('qDscPct');
+  if (dscInput) {
+    dscInput.value = Number(q.discount_pct) || 0;
   }
   
   const notes = document.getElementById('qNotes');
@@ -111,18 +134,34 @@ async function loadQuoteForEdit(id) {
   if (Array.isArray(q.items)) {
     q.items.forEach(item => {
       const pid = item.product_id || item.id;
-      const key = item.variant_id ? 'v::' + item.variant_id : 'p::' + pid;
+      const vid = item.variant_id || null;
+      const key = vid ? `${pid}::${vid}` : pid;
+
+      // Buscar el producto y variante original en posProducts para reinyectar precios A/B/C/D y stock
+      const p = posProducts.find(x => x.id === pid);
+      let variant = null;
+      if (p && vid && p.jjp_product_variants) {
+        variant = p.jjp_product_variants.find(v => v.id === vid);
+      }
+      const src = variant || p;
+
       posTicket[key] = {
         id: pid,
         product_id: pid,
-        variant_id: item.variant_id,
-        name: item.name,
-        sku: item.sku || '',
-        brand: item.brand || '',
-        price_usd: item.price_usd || item.unit_price || 0,
-        qty: item.qty || item.quantity || 1,
-        unit: item.unit || 'und',
-        price_level: item.price_level || 'A'
+        variant_id: vid,
+        name: item.name || p?.name || '—',
+        sku: item.sku || variant?.sku || p?.sku || '',
+        brand: item.brand || (variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null),
+        unit: item.unit || p?.unit || 'unid',
+        price_usd: Number(item.price_usd ?? src?.price_usd ?? 0),
+        price_level: item.price_level || 'B',
+        price_a: Number(src?.price_a ?? 0),
+        price_b: Number(src?.price_b ?? 0),
+        price_c_bs: Number(src?.price_c_bs ?? 0),
+        price_d_bs: Number(src?.price_d_bs ?? 0),
+        qty: Number(item.qty || item.quantity || 1),
+        stock: variant ? variant.stock : (p ? p.stock : 0),
+        is_custom: item.is_custom || false,
       };
     });
   }
@@ -131,6 +170,7 @@ async function loadQuoteForEdit(id) {
   
   const btn = document.getElementById('qSubmitBtn');
   if (btn) btn.innerHTML = `💾 Guardar Cambios (${q.quote_number || 'Cotización'})`;
+  showToast(`Editando cotización ${q.quote_number || ''} ✏️`);
 }
 
 function posUpdateName(key, newName) {
@@ -146,6 +186,11 @@ function posSearch() {
 
 function posSearchKey(e) {
   if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    quoteNavTab(e.shiftKey ? -1 : 1);
+    return;
+  }
   if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
   if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
   if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
@@ -163,12 +208,13 @@ function posSearchKey(e) {
   e.preventDefault();
 
   const code = document.getElementById('posSearch').value.trim();
+  if (!code) {
+    quoteNavTab(1);
+    return;
+  }
   const hit = pfFindByCode(posProducts, code);
   if (hit) {
-    posAddAndPick(hit.product, hit.variant);
-    showToast('➕ ' + hit.product.name);
-    document.getElementById('posSearch').value = '';
-    posSearch();
+    posAddDirect(hit.product, hit.variant);
     return;
   }
 
@@ -177,13 +223,14 @@ function posSearchKey(e) {
     return;
   } else if (posResultsList.length > 0) {
     posNavTo(0);
+    posPickIdx();
     return;
   }
 }
 function posScanCam() {
   pfScanCamera(code => {
     const hit = pfFindByCode(posProducts, code);
-    if (hit) { posAddAndPick(hit.product, hit.variant); showToast('➕ ' + hit.product.name); }
+    if (hit) { posAddDirect(hit.product, hit.variant); }
     else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
   });
 }
@@ -245,6 +292,18 @@ function posNavTo(idx) {
   rows[posCursor]?.scrollIntoView({ block: 'nearest' });
 }
 
+// Agrega el resultado seleccionado directamente sin popups intrusivos (Nivel B oficial)
+function posAddDirect(p, variant) {
+  posAddResolved(p, variant);
+  showToast(`➕ ${p.name} (Nivel B)`);
+  const se = document.getElementById('posSearch');
+  if (se) {
+    se.value = '';
+    posSearch();
+    se.focus();
+  }
+}
+
 // Agrega el resultado seleccionado con el cursor (Enter)
 function posPickIdx() {
   const p = posResultsList[posCursor];
@@ -255,7 +314,7 @@ function posPickIdx() {
     const vid = document.getElementById(`pv-${p.id}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
   }
-  posAddAndPick(p, variant);
+  posAddDirect(p, variant);
 }
 
 function posAdd(pid) {
@@ -267,7 +326,7 @@ function posAdd(pid) {
     const vid = document.getElementById(`pv-${pid}`)?.value;
     variant = variants.find(v => v.id === vid) || variants[0];
   }
-  posAddAndPick(p, variant);
+  posAddDirect(p, variant);
 }
 
 // Agrega un producto y abre la mini-lista de precio (MixNet): A/B/C/D o precio propio,
@@ -353,11 +412,11 @@ function posLineBs(l) {
 
 function posSetPriceLevel(key, level) {
   const l = posTicket[key];
-  if (!l || !['A', 'B', 'C', 'D'].includes(level)) return;
+  if (!l || l.is_custom || !['A', 'B', 'C', 'D'].includes(level)) return;
   const rate = getRate();
   let usd = 0;
   if (level === 'A') usd = Number(l.price_a) || 0;
-  else if (level === 'B') usd = Number(l.price_usd) || 0;
+  else if (level === 'B') usd = Number(l.price_b) || Number(l.price_usd) || 0;
   else if (level === 'C') usd = (Number(l.price_c_bs) || 0) / rate;
   else if (level === 'D') usd = (Number(l.price_d_bs) || 0) / rate;
   if (!(usd > 0)) { showToast('Este producto no tiene precio ' + level, 'warn'); return; }
@@ -397,19 +456,24 @@ function posRenderTicket() {
     box.innerHTML = '<p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p>';
     tots.innerHTML = ''; return;
   }
-  box.innerHTML = lines.map(([k, l]) => {
+  box.innerHTML = lines.map(([k, l], idx) => {
+    const isCursor = (quoteTicketCursor === idx);
     const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
+    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:4px">LIBRE</span>' : '';
+    const levelSelector = l.is_custom ? '' : `
+        <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
+          <span style="color:var(--gm)">Nivel</span>
+          <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
+        </div>`;
     return `
-    <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px dashed #eee">
+    <div class="pos-line" style="display:flex;align-items:center;gap:6px;padding:8px 6px;border-bottom:1px dashed #eee;border-radius:6px;background:${isCursor ? 'rgba(22,96,74,0.08)' : 'transparent'};border-left:${isCursor ? '3px solid #16604a' : '3px solid transparent'}">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;display:flex;align-items:center;gap:4px">
           <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:600; font-size:13px; padding:2px 4px; margin:0; flex:1; height:24px" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
           ${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}
+          ${isCustomBadge}
         </div>
-        <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
-          <span style="color:var(--gm)">Nivel</span>
-          <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
-        </div>
+        ${levelSelector}
         <div style="font-size:11px;color:var(--gr);display:flex;align-items:center;gap:6px;margin-top:2px">
           <span>Precio:</span>
           <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:75px;font-size:11px;padding:2px 4px;margin:0;height:24px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
@@ -477,9 +541,12 @@ async function quoteSubmit() {
   if (qSubmitting) return;
   const lines = Object.values(posTicket);
   const name  = document.getElementById('qCliName').value.trim();
-  const tel   = document.getElementById('qCliTel').value.trim();
+  let tel     = document.getElementById('qCliTel').value.trim();
   if (!lines.length) { showToast('La cotización está vacía', 'warn'); return; }
-  if (!name || !tel) { showToast('Nombre y teléfono del cliente son obligatorios', 'warn'); return; }
+  if (!name) { showToast('El nombre del cliente es obligatorio', 'warn'); return; }
+  if (!tel) {
+    tel = '00000000000'; // Default para mostrador / consumidor final
+  }
 
   qSubmitting = true;
   const btn = document.getElementById('qSubmitBtn');
@@ -504,11 +571,12 @@ async function quoteSubmit() {
       rif:  document.getElementById('qCliRif')?.value.trim()  || null,
       city: document.getElementById('qCliCity')?.value.trim() || null,
       items: lines.map(l => ({
-        id: l.product_id || l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
+        id: l.product_id || l.id || null, variant_id: l.variant_id || null, name: l.name, brand: l.brand, sku: l.sku || null,
         qty: l.qty, unit: l.unit, price_usd: l.price_usd,
         price_level: l.price_level || 'B',
         price_bs: posLineBs(l) || null,
         subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
+        is_custom: !!l.is_custom,
       })),
       estimated_total_usd: total,
       discount_pct: pct,
@@ -521,6 +589,7 @@ async function quoteSubmit() {
     if (editingQuoteId) {
       const res = await sb.from('jjp_quotes').update(quote).eq('id', editingQuoteId);
       error = res.error;
+      quote.quote_number = editingQuoteNumber; // <--- This fixes quoteShowDone(quote)
     } else {
       quote.quote_number = genOrderNumber('COT');
       quote.status = 'pendiente';
@@ -534,6 +603,13 @@ async function quoteSubmit() {
       console.error('quote save error:', error);
       showToast('No se pudo guardar la cotización: ' + (error.message || 'Error en base de datos'), 'err');
     } else {
+      if (editingQuoteId && window.location.search) {
+        try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
+      }
+      editingQuoteId = null;
+      editingQuoteNumber = null;
+      const subBtn = document.getElementById('qSubmitBtn');
+      if (subBtn) subBtn.innerHTML = '📋 Guardar Cotización';
       quoteShowDone(quote);
     }
   } catch (err) {
@@ -541,7 +617,7 @@ async function quoteSubmit() {
     showToast('Error inesperado al guardar la cotización', 'err');
   } finally {
     qSubmitting = false;
-    if (btn) { btn.disabled = false; btn.textContent = '📋 Guardar cotización'; }
+    if (btn) { btn.disabled = false; if (!editingQuoteId) btn.textContent = '📋 Guardar Cotización'; }
   }
 }
 
@@ -615,6 +691,17 @@ function quoteShowDone(q) {
 }
 
 function quoteReset() {
+  editingQuoteId = null;
+  editingQuoteNumber = null;
+  if (window.location.search) {
+    try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
+  }
+  const btn = document.getElementById('qSubmitBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '📋 Guardar Cotización';
+  }
+
   posTicket = {};
   posRenderTicket();
   quoteCustomer = null;
@@ -624,7 +711,196 @@ function quoteReset() {
   document.getElementById('qCliNameResults').innerHTML = '';
   document.getElementById('qCliNameResults').style.display = 'none';
   const disc = document.getElementById('qDisc'); if (disc) disc.value = 0;
-  document.getElementById('qDoneModal').classList.remove('op');
+  const hint = document.getElementById('qDiscHint'); if (hint) hint.textContent = '';
+  document.getElementById('qDoneModal')?.classList.remove('op');
+}
+
+/* ---------- Control del Ticket con Teclado (F6 / Alt+T) ---------- */
+let quoteTicketCursor = -1;
+
+function quoteFocusTicket() {
+  const keys = Object.keys(posTicket);
+  if (!keys.length) {
+    showToast('El ticket está vacío. Agrega productos con F2', 'warn');
+    return;
+  }
+  quoteTicketCursor = 0;
+  posRenderTicket();
+  const firstLine = document.querySelector('#posTicket .pos-line');
+  if (firstLine) firstLine.scrollIntoView({ block: 'nearest' });
+  showToast('🧾 Modo ticket: ↑↓ navegar · +/- cantidad · A/B/C/D precio · Supr borrar · Esc salir');
+}
+
+/* ---------- Navegación Secuencial por Tabulador ---------- */
+const QUOTE_NAV_SEQUENCE = [
+  'posSearch',
+  'qCliName',
+  'qCliTel',
+  'qDisc',
+  'qNotes',
+  'qSubmitBtn'
+];
+
+function quoteNavTab(dir = 1) {
+  const curr = document.activeElement;
+  const currId = curr?.id;
+  let idx = QUOTE_NAV_SEQUENCE.indexOf(currId);
+  if (idx === -1) idx = (dir > 0) ? -1 : 0;
+  let nextIdx = (idx + dir + QUOTE_NAV_SEQUENCE.length) % QUOTE_NAV_SEQUENCE.length;
+  let target = document.getElementById(QUOTE_NAV_SEQUENCE[nextIdx]);
+  let attempts = 0;
+  while ((!target || target.disabled || target.offsetParent === null) && attempts < QUOTE_NAV_SEQUENCE.length) {
+    nextIdx = (nextIdx + dir + QUOTE_NAV_SEQUENCE.length) % QUOTE_NAV_SEQUENCE.length;
+    target = document.getElementById(QUOTE_NAV_SEQUENCE[nextIdx]);
+    attempts++;
+  }
+  if (target) {
+    target.focus();
+    if (typeof target.select === 'function') target.select();
+  }
+}
+
+function quoteInitTabNav() {
+  QUOTE_NAV_SEQUENCE.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.__jjTabBound) return;
+    el.__jjTabBound = true;
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        quoteNavTab(e.shiftKey ? -1 : 1);
+      }
+    });
+  });
+}
+
+/* ---------- Módulo de Ítem Libre / Personalizado (F8 / Alt+I) ---------- */
+function openCustomItemModal() {
+  let modal = document.getElementById('customItemModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'customItemModal';
+    modal.className = 'modal-overlay op';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:440px;background:#fff;border-radius:14px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid #e2e8f0;padding-bottom:10px">
+          <h3 style="margin:0;font-size:17px;color:#0f172a;display:flex;align-items:center;gap:6px">➕ Ítem Libre / Personalizado</h3>
+          <button type="button" class="btn-g sm" onclick="closeCustomItemModal()">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label class="fl">Descripción / Servicio / Flete *</label>
+            <input class="fi" id="ciName" placeholder="Ej: Flete Caracas, Servicio Guillotinado..." style="width:100%" onkeydown="if(event.key==='Enter')document.getElementById('ciPriceUsd').focus()">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="fl">Cantidad *</label>
+              <input class="fi" id="ciQty" type="number" min="1" step="1" value="1" style="width:100%">
+            </div>
+            <div>
+              <label class="fl">Unidad de Medida</label>
+              <input class="fi" id="ciUnit" value="serv" placeholder="serv, und, kg..." style="width:100%">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="fl">Precio en USD ($) *</label>
+              <input class="fi" id="ciPriceUsd" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%" oninput="ciCalcFromUsd()" onkeydown="if(event.key==='Enter')addCustomItemToTicket()">
+            </div>
+            <div>
+              <label class="fl">Precio en Bs (BCV)</label>
+              <input class="fi" id="ciPriceBs" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%" oninput="ciCalcFromBs()" onkeydown="if(event.key==='Enter')addCustomItemToTicket()">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button type="button" class="btn-o" onclick="closeCustomItemModal()">Cancelar</button>
+            <button type="button" class="btn-p" onclick="addCustomItemToTicket()" style="background:#16604a;color:#fff">➕ Agregar al Ticket</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  document.getElementById('ciName').value = '';
+  document.getElementById('ciQty').value = '1';
+  document.getElementById('ciUnit').value = 'serv';
+  document.getElementById('ciPriceUsd').value = '';
+  document.getElementById('ciPriceBs').value = '';
+  modal.classList.add('op');
+  modal.style.display = 'flex';
+  setTimeout(() => { document.getElementById('ciName')?.focus(); }, 80);
+}
+
+function closeCustomItemModal() {
+  const modal = document.getElementById('customItemModal');
+  if (modal) {
+    modal.classList.remove('op');
+    modal.style.display = 'none';
+  }
+}
+
+function ciCalcFromUsd() {
+  const rate = getRate();
+  const usd = parseFloat(document.getElementById('ciPriceUsd')?.value) || 0;
+  const bsEl = document.getElementById('ciPriceBs');
+  if (bsEl) bsEl.value = (usd > 0) ? (usd * rate).toFixed(2) : '';
+}
+
+function ciCalcFromBs() {
+  const rate = getRate();
+  const bs = parseFloat(document.getElementById('ciPriceBs')?.value) || 0;
+  const usdEl = document.getElementById('ciPriceUsd');
+  if (usdEl) usdEl.value = (bs > 0 && rate > 0) ? (bs / rate).toFixed(2) : '';
+}
+
+function addCustomItemToTicket() {
+  const name = document.getElementById('ciName')?.value.trim();
+  const qty = parseInt(document.getElementById('ciQty')?.value, 10) || 1;
+  const unit = document.getElementById('ciUnit')?.value.trim() || 'serv';
+  let priceUsd = parseFloat(document.getElementById('ciPriceUsd')?.value) || 0;
+
+  if (!name) {
+    showToast('Ingresa una descripción para el ítem libre', 'warn');
+    document.getElementById('ciName')?.focus();
+    return;
+  }
+  if (priceUsd <= 0) {
+    const bs = parseFloat(document.getElementById('ciPriceBs')?.value) || 0;
+    const rate = getRate();
+    if (bs > 0 && rate > 0) priceUsd = +(bs / rate).toFixed(2);
+  }
+  if (priceUsd <= 0) {
+    showToast('Ingresa un precio válido en USD o Bs', 'warn');
+    document.getElementById('ciPriceUsd')?.focus();
+    return;
+  }
+
+  const key = 'custom_' + Date.now();
+  const rate = getRate();
+  posTicket[key] = {
+    id: null,
+    product_id: null,
+    variant_id: null,
+    name: name,
+    sku: 'LIBRE',
+    brand: 'Personalizado',
+    unit: unit,
+    price_usd: priceUsd,
+    price_level: 'M',
+    price_a: priceUsd,
+    price_b: priceUsd,
+    price_c_bs: +(priceUsd * rate).toFixed(2),
+    price_d_bs: +(priceUsd * rate).toFixed(2),
+    qty: qty,
+    stock: 9999,
+    is_custom: true
+  };
+
+  closeCustomItemModal();
+  posRenderTicket();
+  showToast(`➕ Agregado: ${name}`);
 }
 
 /* ---------- Atajos de Teclado Globales de Cotizador ---------- */
@@ -634,6 +910,67 @@ function quoteInitGlobalKeys() {
 
   window.addEventListener('keydown', e => {
     if (document.querySelector('.pf-popup-mask')) return; // popups modal manejan sus teclas
+    const customModal = document.getElementById('customItemModal');
+    if (customModal && customModal.style.display !== 'none' && customModal.classList.contains('op')) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeCustomItemModal();
+        return;
+      }
+    }
+
+    // Manejo de navegación en el ticket cuando quoteTicketCursor está activo
+    if (quoteTicketCursor >= 0 && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+      const keys = Object.keys(posTicket);
+      if (keys.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          quoteTicketCursor = Math.min(quoteTicketCursor + 1, keys.length - 1);
+          posRenderTicket();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          quoteTicketCursor = Math.max(quoteTicketCursor - 1, 0);
+          posRenderTicket();
+          return;
+        }
+        if (e.key === '+' || e.key === '=' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          posQty(keys[quoteTicketCursor], 1);
+          return;
+        }
+        if (e.key === '-' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          posQty(keys[quoteTicketCursor], -1);
+          return;
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          const targetKey = keys[quoteTicketCursor];
+          posRemoveLine(targetKey);
+          if (quoteTicketCursor >= Object.keys(posTicket).length) {
+            quoteTicketCursor = Object.keys(posTicket).length - 1;
+          }
+          posRenderTicket();
+          return;
+        }
+        const lvlKey = e.key.toUpperCase();
+        if (['A', 'B', 'C', 'D'].includes(lvlKey)) {
+          e.preventDefault();
+          posSetPriceLevel(keys[quoteTicketCursor], lvlKey);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'F2') {
+          e.preventDefault();
+          quoteTicketCursor = -1;
+          posRenderTicket();
+          const se = document.getElementById('posSearch');
+          if (se) { se.focus(); se.select(); }
+          return;
+        }
+      }
+    }
 
     // F1 o '?' (fuera de inputs): Ayuda visual de atajos
     if (e.key === 'F1' || (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName))) {
@@ -642,7 +979,7 @@ function quoteInitGlobalKeys() {
       return;
     }
 
-    // Escape: cerrar modal de ayuda, teléfono o volver al buscador
+    // Escape universal: cerrar modal de ayuda, teléfono o volver al buscador
     if (e.key === 'Escape') {
       const helpModal = document.getElementById('quoteShortcutsHelpModal');
       if (helpModal && helpModal.style.display !== 'none') {
@@ -659,9 +996,26 @@ function quoteInitGlobalKeys() {
         closePosPhone();
         return;
       }
-      const se = document.getElementById('posSearch');
-      if (document.activeElement !== se) {
+      if (quoteTicketCursor >= 0) {
+        quoteTicketCursor = -1;
+        posRenderTicket();
+        const se = document.getElementById('posSearch');
         if (se) { se.focus(); se.select(); }
+        return;
+      }
+      const se = document.getElementById('posSearch');
+      if (document.activeElement === se && se.value.trim()) {
+        se.value = '';
+        posSearch();
+        return;
+      }
+      if (document.activeElement !== se && se) {
+        se.focus();
+        se.select();
+        return;
+      }
+      if (posTicket && Object.keys(posTicket).length > 0) {
+        clearQuote();
       }
       return;
     }
@@ -669,6 +1023,8 @@ function quoteInitGlobalKeys() {
     // F2 o '/' (fuera de inputs): enfocar búsqueda de productos
     if (e.key === 'F2' || (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName))) {
       e.preventDefault();
+      quoteTicketCursor = -1;
+      posRenderTicket();
       const se = document.getElementById('posSearch');
       if (se) { se.focus(); se.select(); }
       return;
@@ -690,6 +1046,27 @@ function quoteInitGlobalKeys() {
       return;
     }
 
+    // F6 o Alt+T: modo teclado sobre el ticket
+    if (e.key === 'F6' || (e.key.toLowerCase() === 't' && e.altKey)) {
+      e.preventDefault();
+      quoteFocusTicket();
+      return;
+    }
+
+    // F7 o Alt+L: limpiar/vaciar cotización
+    if (e.key === 'F7' || (e.key.toLowerCase() === 'l' && e.altKey)) {
+      e.preventDefault();
+      clearQuote();
+      return;
+    }
+
+    // F8 o Alt+I: abrir modal de ítem libre / personalizado
+    if (e.key === 'F8' || (e.key.toLowerCase() === 'i' && e.altKey)) {
+      e.preventDefault();
+      openCustomItemModal();
+      return;
+    }
+
     // F9 o Ctrl+Enter: guardar cotización
     if (e.key === 'F9' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
@@ -707,38 +1084,40 @@ function quoteShowHelpModal() {
     modal.className = 'modal-overlay op';
     modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
     modal.innerHTML = `
-      <div class="modal-box" style="max-width:540px;background:#fff;border-radius:12px;padding:22px;box-shadow:0 12px 36px rgba(0,0,0,0.2)">
+      <div class="modal-box" style="max-width:560px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
-          <h3 style="margin:0;font-size:17px;color:#1e293b;display:flex;align-items:center;gap:8px">📋 Atajos de Teclado del Cotizador</h3>
+          <h3 style="margin:0;font-size:18px;color:#0f172a;display:flex;align-items:center;gap:8px">⌨️ Control Total de Teclado del Cotizador</h3>
           <button type="button" class="btn-g sm" onclick="document.getElementById('quoteShortcutsHelpModal').style.display='none'">✕ Esc</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;line-height:1.5;color:#334155">
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">📦 Catálogo y Búsqueda</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Elegir producto</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;line-height:1.5;color:#334155">
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📦 Catálogo y Búsqueda</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Agregar directo (Nivel B)</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar al cliente / notas</div>
           </div>
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">🏷️ Precios y Cantidad</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">D</kbd> Nivel directo</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Enter</kbd> Confirmar cantidad</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Esc</kbd> Cancelar selección</div>
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">🧾 Edición del Ticket</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+T</kbd> Activar ticket</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑↓</kbd> Navegar · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Cantidad</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">D</kbd> Nivel precio</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Supr</kbd> Borrar fila · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Vaciar</div>
           </div>
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">👤 Cliente y Descuento</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Descuento cotización %</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Esc</kbd> Limpiar / Cancelar</div>
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">👤 Cliente y Descuento</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Descuento propuesto %</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+I</kbd> Ítem Libre</div>
           </div>
-          <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:4px">📋 Cotización y Guardar</b>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Guardar</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Vaciar cotización</div>
-            <div style="margin-top:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Esta ayuda</div>
+          <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📋 Guardar y Acciones</b>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Guardar</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Limpiar / Regresar</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Esta ayuda</div>
           </div>
         </div>
-        <div style="text-align:right;margin-top:14px">
+        <div style="text-align:right;margin-top:16px">
           <button type="button" class="btn-p sm" onclick="document.getElementById('quoteShortcutsHelpModal').style.display='none'">¡Entendido!</button>
         </div>
       </div>

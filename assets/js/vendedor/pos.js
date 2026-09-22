@@ -329,14 +329,14 @@ function posLineBs(l) {
   return (Number(l.price_usd) || 0) * rate;
 }
 
-// Cambia el nivel de precio de una línea: A/B en US$, C/D en Bs (default B).
+/// Cambia el nivel de precio de una línea: A/B en US$, C/D en Bs (default B).
 function posSetPriceLevel(key, level) {
   const l = posTicket[key];
-  if (!l || !['A', 'B', 'C', 'D'].includes(level)) return;
+  if (!l || l.is_custom || !['A', 'B', 'C', 'D'].includes(level)) return;
   const rate = getRate();
   let usd = 0;
   if (level === 'A') usd = Number(l.price_a) || 0;
-  else if (level === 'B') usd = Number(l.price_usd) || 0;   // precio efectivo (incluye precio personalizado del vendedor)
+  else if (level === 'B') usd = Number(l.price_b) || Number(l.price_usd) || 0;   // precio efectivo (incluye precio personalizado del vendedor)
   else if (level === 'C') usd = (Number(l.price_c_bs) || 0) / rate;
   else if (level === 'D') usd = (Number(l.price_d_bs) || 0) / rate;
   if (!(usd > 0)) { showToast('Este producto no tiene precio ' + level, 'warn'); return; }
@@ -395,14 +395,17 @@ function posRenderTicket() {
     const isAct = (i === posTicketCursor);
     const actStyle = isAct ? 'background:#ecfdf5;border:1px solid #10b981;border-radius:8px;padding:6px 8px;margin:3px 0;' : 'padding:8px 0;border-bottom:1px dashed #eee;';
     const lvlBtn = (lv, lbl) => `<button type="button" class="pl${l.price_level === lv ? ' on' : ''}" onclick="posSetPriceLevel('${k}','${lv}')" title="${lbl}">${lv}</button>`;
-    return `
-    <div class="pos-line" data-idx="${i}" data-key="${k}" style="display:flex;align-items:center;gap:6px;transition:all .15s ease;${actStyle}">
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600">${isAct ? '👉 ' : ''}${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}</div>
+    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:4px">LIBRE</span>' : '';
+    const levelSelector = l.is_custom ? '' : `
         <div style="font-size:10px;color:var(--gr);display:flex;align-items:center;gap:5px;margin-top:2px">
           <span style="color:var(--gm)">Nivel</span>
           <span class="lvl-seg">${lvlBtn('A', 'Precio A (US$)')}${lvlBtn('B', 'Precio B (US$) — mayor frecuente')}${lvlBtn('C', 'Precio C (Bs)')}${lvlBtn('D', 'Precio D (Bs)')}</span>
-        </div>
+        </div>`;
+    return `
+    <div class="pos-line" data-idx="${i}" data-key="${k}" style="display:flex;align-items:center;gap:6px;transition:all .15s ease;${actStyle}">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600">${isAct ? '👉 ' : ''}${escapeHTML(l.name)}${l.brand ? ` <small style="color:var(--gm)">(${escapeHTML(l.brand)})</small>` : ''}${isCustomBadge}</div>
+        ${levelSelector}
         <div style="font-size:11px;color:var(--gr);display:flex;align-items:center;gap:6px;margin-top:2px">
           <span>Precio:</span>
           <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:75px;font-size:11px;padding:2px 4px;margin:0;height:24px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
@@ -548,14 +551,36 @@ function posPickCustomer(c) {
     `<p style="font-size:12px;color:var(--gm);margin:4px 0">✔ Cliente frecuente seleccionado: <strong>${escapeHTML(c.name)}</strong></p>`;
 }
 
+function posSetConsumidorFinal() {
+  posCustomer = null;
+  const sEl = document.getElementById('posCliSearch');
+  const nEl = document.getElementById('posCliName');
+  const tEl = document.getElementById('posCliTel');
+  const rEl = document.getElementById('posCliRif');
+  const cEl = document.getElementById('posCliCity');
+  if (sEl) sEl.value = 'Consumidor Final';
+  if (nEl) nEl.value = 'Consumidor Final';
+  if (tEl) tEl.value = '00000000000';
+  if (rEl) rEl.value = 'V-00000000';
+  if (cEl) cEl.value = 'Mostrador';
+  const res = document.getElementById('posCliResults');
+  if (res) res.innerHTML = '';
+  const nameRes = document.getElementById('posCliNameResults');
+  if (nameRes) nameRes.style.display = 'none';
+  showToast('⚡ Cliente Mostrador / Consumidor Final aplicado');
+}
+
 /* ---------- Registrar venta ---------- */
 async function posSubmit() {
   if (posSubmitting) return;
   const lines = Object.values(posTicket);
   const name  = document.getElementById('posCliName').value.trim();
-  const tel   = document.getElementById('posCliTel').value.trim();
+  let tel     = document.getElementById('posCliTel').value.trim();
   if (!lines.length) { showToast('El ticket está vacío', 'warn'); return; }
-  if (!name || !tel) { showToast('Nombre y teléfono del cliente son obligatorios', 'warn'); return; }
+  if (!name) { showToast('El nombre del cliente es obligatorio', 'warn'); return; }
+  if (!tel) {
+    tel = '00000000000'; // Default para mostrador / consumidor final
+  }
 
   posSubmitting = true;
   const btn = document.getElementById('posSubmitBtn');
@@ -586,11 +611,12 @@ async function posSubmit() {
       rif:  document.getElementById('posCliRif')?.value.trim()  || null,
       city: document.getElementById('posCliCity')?.value.trim() || null,
       items: lines.map(l => ({
-        id: l.id, variant_id: l.variant_id, name: l.name, brand: l.brand, sku: l.sku || null,
+        id: l.id || null, variant_id: l.variant_id || null, name: l.name, brand: l.brand, sku: l.sku || null,
         qty: l.qty, unit: l.unit, price_usd: l.price_usd,
         price_level: l.price_level || 'B',
         price_bs: posLineBs(l) || null,
         subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
+        is_custom: !!l.is_custom,
       })),
       subtotal_usd: +subtotal.toFixed(2),
       discount_pct: d,
@@ -850,6 +876,17 @@ function posInitGlobalKeys() {
       }
       // 2. Modal de atajos
       const helpModal = document.getElementById('posShortcutsHelpModal');
+      // 2. Modales flotantes (cotizaciones, ítem libre, ayuda)
+      const ciModal = document.getElementById('posCustomItemModal');
+      if (ciModal && ciModal.style.display !== 'none') {
+        posCloseCustomItemModal();
+        return;
+      }
+      const quoteOvl = document.getElementById('posLoadQuoteModalOvl');
+      if (quoteOvl && quoteOvl.style.display !== 'none') {
+        posCloseLoadQuoteModal();
+        return;
+      }
       if (helpModal && helpModal.style.display !== 'none') {
         helpModal.style.display = 'none';
         return;
@@ -980,6 +1017,13 @@ function posInitGlobalKeys() {
       posOpenLoadQuoteModal();
       return;
     }
+
+    // F12 o Alt+I: Ítem Libre / Personalizado (flete, embalaje, servicios)
+    if (e.key === 'F12' || (e.key.toLowerCase() === 'i' && e.altKey)) {
+      e.preventDefault();
+      posOpenCustomItemModal();
+      return;
+    }
   });
 }
 
@@ -1016,7 +1060,8 @@ function posShowHelpModal() {
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente CRM</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Aplicar descuento %</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> Método de pago</div>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F11</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+C</kbd> Cargar cotiz.</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F11</kbd> / <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+C</kbd> Cargar cotiz.</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F12</kbd> / <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+I</kbd> Ítem Libre</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
             <b style="color:#0f172a;display:block;margin-bottom:6px">🚀 Cierre e Impresión</b>
@@ -1188,3 +1233,131 @@ async function posPickQuoteFromModal(id) {
   posCloseLoadQuoteModal();
   await posLoadQuote(id);
 }
+
+/* ======================================================
+   ÍTEM PERSONALIZADO / LIBRE (Fletes, servicios, combos, etc.)
+   ====================================================== */
+function posOpenCustomItemModal() {
+  let modal = document.getElementById('posCustomItemModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'posCustomItemModal';
+    modal.className = 'modal-overlay op';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:480px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid #e2e8f0;padding-bottom:10px">
+          <h3 style="margin:0;font-size:17px;color:#0f172a;display:flex;align-items:center;gap:8px">➕ Agregar Ítem Libre al Ticket</h3>
+          <button type="button" class="btn-g sm" onclick="posCloseCustomItemModal()">✕ Cerrar</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin:0 0 14px 0">Para fletes, embalajes, servicios especiales o productos no registrados en catálogo.</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label class="fl">Descripción / Concepto *</label>
+            <input class="fi" id="posCiName" placeholder="Ej: Flete delivery express, Embalaje especial..." style="width:100%" onkeydown="if(event.key==='Enter')document.getElementById('posCiPriceUsd')?.focus()">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="fl">Cantidad *</label>
+              <input class="fi" id="posCiQty" type="number" min="1" value="1" style="width:100%" onkeydown="if(event.key==='Enter')document.getElementById('posCiPriceUsd')?.focus()">
+            </div>
+            <div>
+              <label class="fl">Unidad de Medida</label>
+              <input class="fi" id="posCiUnit" value="serv" placeholder="serv, und, kg..." style="width:100%">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="fl">Precio en USD ($) *</label>
+              <input class="fi" id="posCiPriceUsd" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%" oninput="posCiCalcFromUsd()" onkeydown="if(event.key==='Enter')posAddCustomItemToTicket()">
+            </div>
+            <div>
+              <label class="fl">Precio en Bs (BCV)</label>
+              <input class="fi" id="posCiPriceBs" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%" oninput="posCiCalcFromBs()" onkeydown="if(event.key==='Enter')posAddCustomItemToTicket()">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button type="button" class="btn-o" onclick="posCloseCustomItemModal()">Cancelar</button>
+            <button type="button" class="btn-p" onclick="posAddCustomItemToTicket()" style="background:#16604a;color:#fff">➕ Agregar al Ticket</button>
+          </div>
+        </div>
+      </div>
+    `;
+    modal.onclick = posCloseCustomItemModal;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('posCiName').value = '';
+  document.getElementById('posCiQty').value = '1';
+  document.getElementById('posCiUnit').value = 'serv';
+  document.getElementById('posCiPriceUsd').value = '';
+  document.getElementById('posCiPriceBs').value = '';
+  modal.classList.add('op');
+  modal.style.display = 'flex';
+  setTimeout(() => { document.getElementById('posCiName')?.focus(); }, 80);
+}
+
+function posCloseCustomItemModal() {
+  const modal = document.getElementById('posCustomItemModal');
+  if (modal) {
+    modal.classList.remove('op');
+    modal.style.display = 'none';
+  }
+}
+
+function posCiCalcFromUsd() {
+  const rate = getRate();
+  const usd = parseFloat(document.getElementById('posCiPriceUsd')?.value) || 0;
+  const bsEl = document.getElementById('posCiPriceBs');
+  if (bsEl) bsEl.value = (usd > 0) ? (usd * rate).toFixed(2) : '';
+}
+
+function posCiCalcFromBs() {
+  const rate = getRate();
+  const bs = parseFloat(document.getElementById('posCiPriceBs')?.value) || 0;
+  const usdEl = document.getElementById('posCiPriceUsd');
+  if (usdEl) usdEl.value = (bs > 0 && rate > 0) ? (bs / rate).toFixed(2) : '';
+}
+
+function posAddCustomItemToTicket() {
+  const name = document.getElementById('posCiName')?.value.trim();
+  const qty = parseInt(document.getElementById('posCiQty')?.value, 10) || 1;
+  const unit = document.getElementById('posCiUnit')?.value.trim() || 'und';
+  const usd = parseFloat(document.getElementById('posCiPriceUsd')?.value);
+
+  if (!name) {
+    showToast('Ingresa la descripción del ítem libre', 'warn');
+    document.getElementById('posCiName')?.focus();
+    return;
+  }
+  if (isNaN(usd) || usd < 0) {
+    showToast('Ingresa un precio válido en USD', 'warn');
+    document.getElementById('posCiPriceUsd')?.focus();
+    return;
+  }
+
+  const customKey = 'custom_' + Date.now();
+  posTicket[customKey] = {
+    id: null,
+    variant_id: null,
+    name: name,
+    brand: 'LIBRE',
+    qty: qty,
+    unit: unit,
+    price_usd: +usd.toFixed(2),
+    price_level: 'M',
+    stock: 9999,
+    min_qty: 1,
+    is_custom: true
+  };
+
+  posRenderTicket();
+  posCloseCustomItemModal();
+  showToast(`✅ "${name}" agregado al ticket`);
+}
+
+window.posOpenCustomItemModal = posOpenCustomItemModal;
+window.posCloseCustomItemModal = posCloseCustomItemModal;
+window.openCustomItemModal = posOpenCustomItemModal;
+window.closeCustomItemModal = posCloseCustomItemModal;
+

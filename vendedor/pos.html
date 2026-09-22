@@ -83,7 +83,10 @@
 
         <!-- Columna izquierda: buscador de productos -->
         <div class="admin-table-wrap" style="padding:16px 18px">
-          <h3 style="margin:0 0 10px">🔎 Buscar productos</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <h3 style="margin:0">🔎 Buscar productos</h3>
+            <button type="button" class="btn-o sm" onclick="posOpenCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F12 o Alt+I)">➕ Ítem Libre (Alt+I)</button>
+          </div>
           <div style="display:flex;gap:8px">
             <input class="fi" id="posSearch" placeholder="Nombre, código de barras o SKU…" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1">
             <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara">📷</button>
@@ -107,7 +110,10 @@
           <div id="posTotals"></div>
 
           <div class="divider" style="margin:14px 0"></div>
-          <h3 style="margin:0 0 10px">👤 Cliente</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <h3 style="margin:0">👤 Cliente</h3>
+            <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic">⚡ Consumidor Final</button>
+          </div>
           <input class="fi" id="posCliSearch" placeholder="Buscar cliente por nombre o teléfono..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px">
           <div id="posCliResults"></div>
           <div style="position:relative;margin:6px 0 8px">

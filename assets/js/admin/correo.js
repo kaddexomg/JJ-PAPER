@@ -172,7 +172,8 @@ let _mailTimer = null;
 function mailLoadDebounced() { clearTimeout(_mailTimer); _mailTimer = setTimeout(mailLoad, 500); }
 
 async function mailLoad() {
-  let q = sb.from('jjp_emails').select('*').order('created_at', { ascending: false }).limit(100);
+  const MAIL_COLS = 'id,direction,status,is_read,from_addr,to_addr,subject,snippet,attachments,attach_state,error,created_at,customer_id,owner_id';
+  let q = sb.from('jjp_emails').select(MAIL_COLS).order('created_at', { ascending: false }).limit(100);
   if (!MAIL_IS_ADMIN && MAIL_ME?.id) {
     q = q.eq('owner_id', MAIL_ME.id);
   }
@@ -250,6 +251,15 @@ async function mailOpen(id) {
   mailReadId = id;
   const inbound = m.direction === 'in';
   if (inbound && !m.is_read) { m.is_read = true; sb.from('jjp_emails').update({ is_read: true }).eq('id', id).then(() => {}); }
+
+  // Carga on-demand de cuerpo y html para no descargar megabytes en el listado
+  if (m.html === undefined && m.body === undefined) {
+    const { data: fullMail } = await sb.from('jjp_emails').select('body, html').eq('id', id).maybeSingle();
+    if (fullMail) {
+      m.body = fullMail.body;
+      m.html = fullMail.html;
+    }
+  }
 
   document.getElementById('mailReadSubject').textContent = m.subject || '(sin asunto)';
   document.getElementById('mailReadFrom').textContent = (inbound ? 'De: ' : 'Para: ') + (inbound ? (m.from_addr || '—') : (m.to_addr || '—'));

@@ -8,24 +8,56 @@ let adminProfiles  = [];
 let currentZoneFilter = 'todos';
 let editingAdminCustId = null;
 
-async function loadAdminCustomers() {
+const ADMIN_CUST_CACHE_KEY  = 'jjp_admin_cust_cache_v1';
+const ADMIN_CUST_CACHE_TIME = 'jjp_admin_cust_cache_v1_time';
+const ADMIN_CUST_TTL        = 7 * 60 * 1000; // 7 minutos de vigencia
+
+function _getAdminCustCache() {
+  try {
+    const raw = sessionStorage.getItem(ADMIN_CUST_CACHE_KEY);
+    const time = sessionStorage.getItem(ADMIN_CUST_CACHE_TIME);
+    if (!raw || !time) return null;
+    if (Date.now() - parseInt(time, 10) > ADMIN_CUST_TTL) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch (_) { return null; }
+}
+
+function _setAdminCustCache(data) {
+  try {
+    sessionStorage.setItem(ADMIN_CUST_CACHE_KEY, JSON.stringify(data));
+    sessionStorage.setItem(ADMIN_CUST_CACHE_TIME, String(Date.now()));
+  } catch (_) {}
+}
+
+async function loadAdminCustomers(force = false) {
   const { data: profs } = await sb.from('jjp_profiles').select('id, name, role');
   adminProfiles = profs || [];
 
+  if (!force) {
+    const cached = _getAdminCustCache();
+    if (cached) {
+      adminCustomers = cached;
+      renderAdminCustomers();
+      return;
+    }
+  }
+
   // PostgREST corta en 1.000 filas: paginamos para cargar TODA la cartera global
-  // (zona 010 quedaba fuera porque sus clientes no tienen last_order_at y caen al final del orden).
   adminCustomers = [];
   const PAGE = 1000;
   let from = 0;
+  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags';
   for (;;) {
     const { data, error } = await sb.from('jjp_customers')
-      .select('*').order('last_order_at', { ascending: false, nullsFirst: false })
+      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false })
       .range(from, from + PAGE - 1);
     if (error) { showToast('Error cargando clientes', 'err'); return; }
     adminCustomers.push(...(data || []));
     if (!data || data.length < PAGE || from > 12000) break;
     from += PAGE;
   }
+  _setAdminCustCache(adminCustomers);
   renderAdminCustomers();
 }
 
@@ -161,11 +193,13 @@ async function saveAdminCustomer() {
     updated_at: new Date().toISOString(),
   };
 
-  let error;
+  let error, insertedRow;
   if (editingAdminCustId) {
     ({ error } = await sb.from('jjp_customers').update(fields).eq('id', editingAdminCustId));
   } else {
-    ({ error } = await sb.from('jjp_customers').insert(fields));
+    const res = await sb.from('jjp_customers').insert(fields).select('id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags').maybeSingle();
+    error = res.error;
+    insertedRow = res.data;
   }
   if (error) {
     showToast(error.message?.includes('duplicate') ? 'Ya existe un cliente con ese teléfono' : 'Error guardando cliente', 'err');
@@ -173,7 +207,22 @@ async function saveAdminCustomer() {
   }
   showToast('Cliente guardado con éxito ✔');
   closeAdminCustModal();
-  loadAdminCustomers();
+
+  if (editingAdminCustId) {
+    const target = adminCustomers.find(x => x.id === editingAdminCustId);
+    if (target) {
+      Object.assign(target, fields);
+      _setAdminCustCache(adminCustomers);
+      renderAdminCustomers();
+      return;
+    }
+  } else if (insertedRow) {
+    adminCustomers.unshift(insertedRow);
+    _setAdminCustCache(adminCustomers);
+    renderAdminCustomers();
+    return;
+  }
+  loadAdminCustomers(true);
 }
 
 async function deleteAdminCustomer(id) {
@@ -181,7 +230,14 @@ async function deleteAdminCustomer(id) {
   const { error } = await sb.from('jjp_customers').delete().eq('id', id);
   if (error) { showToast('No se pudo eliminar', 'err'); return; }
   showToast('Cliente eliminado ✔');
-  loadAdminCustomers();
+  const idx = adminCustomers.findIndex(x => x.id === id);
+  if (idx !== -1) {
+    adminCustomers.splice(idx, 1);
+    _setAdminCustCache(adminCustomers);
+    renderAdminCustomers();
+  } else {
+    loadAdminCustomers(true);
+  }
 }
 
 /* ---- Importación masiva CSV consolidado (Optimizada por lotes) ---- */
@@ -273,7 +329,7 @@ async function adminCustImportFile(input) {
   }
 
   showToast(`Importación finalizada: ${successCount} procesados con éxito${errorCount ? ` · ${errorCount} con error` : ''}`, 'ok', 6000);
-  loadAdminCustomers();
+  loadAdminCustomers(true);
 }
 
 /* ==========================================================================

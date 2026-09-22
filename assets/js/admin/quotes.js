@@ -8,7 +8,7 @@ const QUOTES_PER = 20;
 
 async function loadQuotes(statusFilter = '') {
   let query = sb.from('jjp_quotes')
-    .select('*')
+    .select('id,quote_number,client_name,phone,rif,email,city,estimated_total_usd,discount_pct,status,source,created_at,customer_id,seller_id,items,notes')
     .order('created_at', { ascending: false });
   if (statusFilter) query = query.eq('status', statusFilter);
   const { data, error } = await query;
@@ -71,7 +71,9 @@ function renderQuotesTable() {
       </td>
       <td>
         <div class="td-actions">
-          <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')">👁️ Ver</button>
+          <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
+          <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
+          <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">🛍️</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
                   title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
         </div>

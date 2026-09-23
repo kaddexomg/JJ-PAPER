@@ -771,6 +771,7 @@ window.CampaignEditor = (() => {
 
     let excludedCount = 0;
     let nonMobileCount = 0;
+    let bouncedCount = 0;
 
     selectedAudienceList = contacts.filter(c => {
       if (!isEmail && (!c.phone || !isMobileNum(c.phone))) {
@@ -780,6 +781,13 @@ window.CampaignEditor = (() => {
       if (isEmail && !c.email) return false;
       if (!isEmail && !c.phone) return false;
       if (isEmail && c.email_opt_out) return false;
+      
+      // Filtro anti-rebotes
+      if (isEmail && (c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft')) {
+        bouncedCount++;
+        return false;
+      }
+
       if (!isEmail && (c.opt_out || c.wa_opt_out || knownNoWaPhones.has(normPhoneKey(c.phone)))) {
         nonMobileCount++;
         return false;
@@ -844,6 +852,9 @@ window.CampaignEditor = (() => {
     }
     if (cooldownHours > 0 && excludedCount > 0) {
       detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitidos por envío reciente (<${cooldownHours}h)</span>`;
+    }
+    if (isEmail && bouncedCount > 0) {
+      detailsTxt += ` <span style="color:#ef4444;font-size:11px">(${bouncedCount} omitidos por rebote duro)</span>`;
     }
 
     const countLabel = isEmail ? `${selectedAudienceList.length} correos` : `${selectedAudienceList.length} móviles WhatsApp`;

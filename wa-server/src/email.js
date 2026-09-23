@@ -445,15 +445,46 @@ async function ingestMessage(acct, token, id) {
   const subject = headerVal(headers, 'subject');
   const ts = msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : new Date().toISOString();
   const atts = extractAttachments(msg.payload);
+  const bodyText = extractBody(msg.payload);
 
   const { data: cust } = await dbCore.from('jjp_customers')
     .select('id').ilike('email', from.email).limit(1).maybeSingle();
+
+  const fromLower = from.email.toLowerCase();
+  const subjLower = (subject || '').toLowerCase();
+  const isBounce = fromLower.includes('mailer-daemon') || subjLower.includes('delivery status notification') || subjLower.includes('undelivered mail');
+
+  if (isBounce) {
+    const bouncedEmailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (bouncedEmailMatch) {
+      const bouncedEmail = bouncedEmailMatch[0].toLowerCase();
+      try {
+        await dbCore.from('jjp_email_suppression_list').upsert({
+          email: bouncedEmail,
+          reason: bodyText.slice(0, 300),
+          bounce_type: 'hard',
+          source: 'bounce_inbox',
+          created_at: new Date().toISOString()
+        }, { onConflict: 'email' });
+        
+        await dbCore.from('jjp_customers').update({
+          email_status: 'bounced',
+          bounce_reason: 'Mailer Daemon / DSN',
+          bounced_at: new Date().toISOString()
+        }).ilike('email', bouncedEmail);
+        
+        log.info({ bouncedEmail }, 'Rebote procesado y añadido a suppression list');
+      } catch (err) {
+        log.error({ err: err.message }, 'Error al procesar rebote en ingestMessage');
+      }
+    }
+  }
 
   const { error } = await db.from('jjp_emails').insert({
     owner_id: acct.profile_id, direction: 'in', status: 'received',
     from_addr: from.name ? `${from.name} <${from.email}>` : from.email,
     to_addr: acct.email, subject: subject || '(sin asunto)',
-    body: extractBody(msg.payload), html: extractHtml(msg.payload) || null,
+    body: bodyText, html: extractHtml(msg.payload) || null,
     snippet: msg.snippet || null,
     gmail_id: id, thread_id: msg.threadId || null,
     attachments: atts, attach_state: atts.length ? 'pending' : 'none',

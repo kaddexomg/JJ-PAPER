@@ -1453,11 +1453,25 @@ async function waHandleParams() {
   const params = new URLSearchParams(location.search);
   const custId = params.get('cust');
   const tel = params.get('tel');
+  const textParam = params.get('text');
+
   if (custId) {
     const { data: c } = await sb.from('jjp_customers').select('id,phone').eq('id', custId).maybeSingle();
     if (c?.phone) await waStartChat(c.phone, c.id);
   } else if (tel && normVePhone(tel).length === 12) {
     await waStartChat(tel, null);
+  }
+
+  if (textParam && waActive) {
+    const ci = document.getElementById('waComposerInput');
+    if (ci) {
+      ci.value = textParam;
+      // Trigger input event to adjust size and button state
+      ci.dispatchEvent(new Event('input'));
+      ci.focus();
+      // Remove text from URL to prevent duplicate on reload
+      window.history.replaceState({}, document.title, window.location.pathname + (custId ? '?cust=' + custId : (tel ? '?tel=' + tel : '')));
+    }
   }
 }
 

@@ -66,6 +66,14 @@ async function step(camp, dailyLimit) {
         nombre: t.name || (t.vars || {}).nombre || '',
         empresa: (t.vars || {}).empresa || t.name || '',
       };
+      
+      // CHECK SUPPRESSION LIST BEFORE SENDING
+      const { data: bounceCheck } = await dbCore.from('jjp_email_suppression_list').select('id').eq('email', toAddr).maybeSingle();
+      if (bounceCheck) {
+        await skip(camp, t, 'correo rebotado (suppression list)');
+        continue;
+      }
+
       const subjTemplate = t.vars?.custom_subject || t.custom_subject || camp.subject || '';
       const subject = renderTemplate(subjTemplate, realVars);
       const bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';
@@ -109,6 +117,10 @@ async function step(camp, dailyLimit) {
       nextSendAt.set(camp.owner_id, Date.now() + delayMs);
       log.info({ campaign: camp.name, to: t.to_addr, nextInS: Math.round(delayMs / 1000) }, 'campaña correo: enviado');
     } catch (e) {
+      if (e.message && e.message.toLowerCase().includes('limit for sending mail')) {
+         await db.from('jjp_email_campaigns').update({ status: 'paused', error: 'Límite de Gmail alcanzado' }).eq('id', camp.id);
+         log.warn({ campaign: camp.name, target: t.id }, 'Campaña auto-pausada por límite de envío');
+      }
       await db.from('jjp_email_campaign_targets').update({ status: 'failed', error: e.message }).eq('id', t.id);
       await syncCounts(camp.id);
       log.warn({ campaign: camp.name, target: t.id, err: e.message }, 'campaña correo: target falló');

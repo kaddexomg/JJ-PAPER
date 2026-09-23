@@ -203,7 +203,12 @@ async function loadEcContacts() {
     showToast('Error cargando audiencia: ' + (error.message || error), 'err');
     return;
   }
-  ecContacts = (data || []).filter(c => !c.email_opt_out && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || ''));
+  ecContacts = (data || []).filter(c => 
+    !c.email_opt_out && 
+    c.email_status !== 'bounced_hard' && 
+    c.email_status !== 'bounced_soft' && 
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || '')
+  );
 
   // Si es Admin, cargar también los prospectos B2B con email válido
   if (isAdm) {
@@ -216,7 +221,7 @@ async function loadEcContacts() {
 
       if (!pErr && Array.isArray(b2bProspects)) {
         const normProspects = b2bProspects
-          .filter(p => p.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()))
+          .filter(p => p.email && p.email_status !== 'bounced_hard' && p.email_status !== 'bounced_soft' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()))
           .map(p => ({
             id: p.id,
             name: p.company_name,

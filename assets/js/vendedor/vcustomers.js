@@ -64,7 +64,7 @@ async function loadCustomers(force = false) {
   vCustomers = [];
   const PAGE = 1000;
   let from = 0;
-  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags';
+  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,email_status,address,notes,tags';
   for (;;) {
     let query = sb.from('jjp_customers')
       .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
@@ -146,6 +146,8 @@ function renderCustomers() {
     const inactive = isInactive(c);
     const mine     = c.seller_id === sellerId || isAdmin;
     const waReact  = `Hola ${c.name} 👋, le escribe ${sellerName} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${sellerRef ? '?ref=' + sellerRef : ''}`;
+    const isMobile = c.phone && (c.phone.includes('041') || c.phone.includes('042') || c.phone.includes('584'));
+    const showRescueBtn = mine && c.email_status === 'bounced_hard' && isMobile;
     return `<tr>
       <td>
         <div class="td-name">
@@ -154,7 +156,7 @@ function renderCustomers() {
           </a>
           ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}
         </div>
-        <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}</div>
+        <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}${c.email_status === 'bounced_hard' ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${escapeHTML(c.city || '—')}</td>
@@ -169,6 +171,7 @@ function renderCustomers() {
         <button class="btn-o sm" style="color:#16604A;border-color:#16604A;font-weight:700" onclick="openCustomerHistory('${c.id}')" title="Ver Ficha 360° e Historial de Compras">📜</button>
         ${!c.seller_id && !isAdmin ? `<button class="btn-o sm" onclick="claimCustomer('${c.id}')" title="Añadir a mi cartera">➕ Tomar</button>` : ''}
         ${mine ? `<button class="btn-p sm" onclick="openCustomerModal('${c.id}')">✏️</button>` : ''}
+        ${showRescueBtn ? `<button class="btn-o sm" style="color:#d32f2f;border-color:#d32f2f" onclick="rescueEmailByWa('${c.id}')" title="🤖 Rescatar Email por WhatsApp (rebotó: ${escapeHTML(c.email || '')})">🤖</button>` : ''}
         <button class="btn-send sm" onclick="custCtxMenu(event, '${c.id}')"
                 title="Enviar catálogo o lista de precios" aria-haspopup="menu">📤</button>
         <a class="btn-o sm" href="pos.html?cliente=${encodeURIComponent(c.id)}" title="Nueva venta a este cliente">🛍️</a>
@@ -194,6 +197,45 @@ function custCtxMenu(ev, id) {
     nombre: c.name, telefono: c.phone, email: c.email,
     customerId: c.id, docs: ['catalogo', 'lista'],
   });
+}
+
+async function rescueEmailByWa(custId) {
+  const c = vCustomers.find(x => x.id === custId);
+  if (!c || !c.phone) return;
+  const oldEmail = c.email || 'el anterior';
+  const seller = getActiveSeller();
+  const sellerName = seller?.name || 'JJ Paper';
+  
+  showToast('🤖 Redactando mensaje con IA...', 'info');
+  
+  try {
+    const prompt = `Eres el asistente de JJ Paper. Redacta un mensaje MUY BREVE y persuasivo por WhatsApp para el cliente "${c.name}".
+Tu nombre es ${sellerName}.
+Dile amablemente que el correo que tenemos registrado (${oldEmail}) rebotó al intentar enviarle la Lista de Precios o Catálogo.
+Pídele que por favor nos facilite un correo actualizado para enviarle la información.
+Usa emojis y un tono cordial, directo y profesional. No incluyas variables sin llenar.`;
+    
+    let msg = '';
+    if (window.GeminiClient && window.GeminiClient.callGemini) {
+      msg = await window.GeminiClient.callGemini(prompt, 0.7);
+    }
+    
+    if (!msg || !msg.trim()) {
+      msg = `Hola ${c.name} 👋, le escribe ${sellerName} de JJ Paper. Intentamos enviarle nuestra Lista de Precios pero el correo que tenemos registrado (${oldEmail}) nos rebotó. ¿Podría facilitarnos un correo actualizado para hacerle llegar la información? ¡Gracias!`;
+    }
+    
+    msg = msg.trim();
+    
+    const isAdmin = seller?.role === 'admin' || seller?.is_admin;
+    const path = isAdmin ? 'whatsapp.html' : 'whatsapp.html'; 
+    // They are in their respective dirs, so just relative path is fine since vcustomers.js is in vendedor/
+    // Wait, vcustomers.js might be loaded from admin/ too. Let's just use 'whatsapp.html' assuming relative to current file HTML
+    
+    window.location.href = `whatsapp.html?cust=${encodeURIComponent(c.id)}&text=${encodeURIComponent(msg)}`;
+  } catch (err) {
+    showToast('Error generando mensaje con IA', 'err');
+    console.error(err);
+  }
 }
 
 async function claimCustomer(id) {
@@ -223,7 +265,25 @@ function openCustomerModal(id = null) {
   document.getElementById('cu-rif').value     = c?.rif || '';
   document.getElementById('cu-city').value    = c?.city || '';
   document.getElementById('cu-zone').value    = c?.zone || '';
-  document.getElementById('cu-email').value   = c?.email || '';
+  
+  const emailInput = document.getElementById('cu-email');
+  emailInput.value   = c?.email || '';
+  emailInput.dataset.originalEmail = c?.email || '';
+  emailInput.dataset.originalStatus = c?.email_status || '';
+  
+  let warnEl = document.getElementById('cu-email-warn');
+  if (!warnEl) {
+    warnEl = document.createElement('div');
+    warnEl.id = 'cu-email-warn';
+    warnEl.style = 'color:#d32f2f;font-size:12px;margin-top:4px;font-weight:bold;';
+    emailInput.parentNode.appendChild(warnEl);
+  }
+  if (c?.email_status === 'bounced_hard') {
+    warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas, se habilitará de nuevo para envíos.';
+  } else {
+    warnEl.textContent = '';
+  }
+
   document.getElementById('cu-address').value = c?.address || '';
   document.getElementById('cu-notes').value   = c?.notes || '';
   document.getElementById('custModal').classList.add('op');
@@ -238,17 +298,28 @@ async function saveCustomer() {
   if (!name || !phone) { showToast('Nombre y teléfono son obligatorios', 'warn'); return; }
 
   const sellerId = getActiveSeller()?.id || null;
+  
+  const emailInput = document.getElementById('cu-email');
+  const emailVal = emailInput.value.trim() || null;
+  const originalEmail = emailInput.dataset.originalEmail || null;
+  const originalStatus = emailInput.dataset.originalStatus || null;
 
   const fields = {
     name, phone,
     rif:     document.getElementById('cu-rif').value.trim()     || null,
     city:    document.getElementById('cu-city').value.trim()    || null,
     zone:    document.getElementById('cu-zone').value.trim()    || null,
-    email:   document.getElementById('cu-email').value.trim()   || null,
+    email:   emailVal,
     address: document.getElementById('cu-address').value.trim() || null,
     notes:   document.getElementById('cu-notes').value.trim()   || null,
     updated_at: new Date().toISOString(),
   };
+  
+  if (editingCustId && originalStatus === 'bounced_hard' && emailVal && emailVal !== originalEmail) {
+    fields.email_status = 'valid';
+    fields.bounce_reason = null;
+    fields.bounced_at = null;
+  }
 
   let error, insertedRow;
   if (editingCustId) {

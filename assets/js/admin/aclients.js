@@ -114,7 +114,7 @@ function renderAdminCustomers() {
             ${escapeHTML(c.name)} 📜
           </a>
         </div>
-        <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}</div>
+        <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}${c.email_status === 'bounced_hard' ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${getSellerName(c.seller_id)}</td>
@@ -153,7 +153,25 @@ function openAdminCustModal(id = null) {
   document.getElementById('ac-rif').value     = c?.rif || '';
   document.getElementById('ac-zone').value    = c?.zone || '';
   document.getElementById('ac-city').value    = c?.city || '';
-  document.getElementById('ac-email').value   = c?.email || '';
+  
+  const emailInput = document.getElementById('ac-email');
+  emailInput.value   = c?.email || '';
+  emailInput.dataset.originalEmail = c?.email || '';
+  emailInput.dataset.originalStatus = c?.email_status || '';
+  
+  let warnEl = document.getElementById('ac-email-warn');
+  if (!warnEl) {
+    warnEl = document.createElement('div');
+    warnEl.id = 'ac-email-warn';
+    warnEl.style = 'color:#d32f2f;font-size:12px;margin-top:4px;font-weight:bold;';
+    emailInput.parentNode.appendChild(warnEl);
+  }
+  if (c?.email_status === 'bounced_hard') {
+    warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas, se habilitará de nuevo para envíos.';
+  } else {
+    warnEl.textContent = '';
+  }
+
   document.getElementById('ac-address').value = c?.address || '';
   document.getElementById('ac-notes').value   = c?.notes || '';
   document.getElementById('adminCustModal').classList.add('op');
@@ -181,17 +199,28 @@ async function saveAdminCustomer() {
   } else if (zone === '010' || zone === '020') {
     seller_id = findSeller(/keyder|salazar/) || adminProfiles.find(x => x.role === 'admin')?.id || null;
   }
+  
+  const emailInput = document.getElementById('ac-email');
+  const emailVal = emailInput.value.trim() || null;
+  const originalEmail = emailInput.dataset.originalEmail || null;
+  const originalStatus = emailInput.dataset.originalStatus || null;
 
   const fields = {
     name, phone, seller_id,
     rif:     document.getElementById('ac-rif').value.trim()     || null,
     zone:    zone,
     city:    document.getElementById('ac-city').value.trim()    || null,
-    email:   document.getElementById('ac-email').value.trim()   || null,
+    email:   emailVal,
     address: document.getElementById('ac-address').value.trim() || null,
     notes:   document.getElementById('ac-notes').value.trim()   || null,
     updated_at: new Date().toISOString(),
   };
+  
+  if (editingAdminCustId && originalStatus === 'bounced_hard' && emailVal && emailVal !== originalEmail) {
+    fields.email_status = 'valid';
+    fields.bounce_reason = null;
+    fields.bounced_at = null;
+  }
 
   let error, insertedRow;
   if (editingAdminCustId) {

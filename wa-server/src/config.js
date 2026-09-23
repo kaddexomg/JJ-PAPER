@@ -54,7 +54,7 @@ export const MIXER_EXPORT_DIR  = process.env.MIXER_EXPORT_DIR || path.join(REPO_
 
 export const OUTBOX_SWEEP_MS   = 5_000;   // barrido de salientes pendientes (latencia ultra-baja)
 export const SESSIONS_SWEEP_MS = 45_000;  // barrido de requested_action perdidos
-export const CAMPAIGN_SWEEP_MS = 30_000;  // tick del despachador de difusión
+export const CAMPAIGN_SWEEP_MS = 42_000;  // tick asimétrico del despachador de difusión
 export const INVOICE_SWEEP_MS  = 60_000;  // avisos de facturas por pagar (los genera el cron de la BD)
 export const EMAIL_SWEEP_MS    = 60_000;  // barrido de correos pendientes (Gmail SMTP)
 export const MAX_RETRIES       = 3;

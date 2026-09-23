@@ -970,7 +970,7 @@ async function sweepIncomingFiles() {
                 payment_method: 'efectivo',
                 notes: `[MixNet Caja] Pedido importado automáticamente desde archivo ${f}`,
                 source: 'pos',
-                status: 'pendiente_pago',
+                status: 'pagado',
                 seller_id: sellerId
               });
 
@@ -1151,7 +1151,7 @@ async function sweepMixnetDbf() {
             payment_method: 'efectivo',
             notes: `[MixNet Caja] Importado automáticamente desde ${encFile} (#${numDoc}, ${moneda})${vendorNote}`,
             source: 'pos',
-            status: 'pendiente_pago',
+            status: 'pagado',
             seller_id: finalSellerId
           });
           if (!error) {

@@ -720,17 +720,15 @@ Extrae los atributos del producto. JSON estricto:`;
 Eres un especialista sénior en Copywriting Comercial B2B y prevención algorítmica de bloqueos (Anti-Spam) para envíos por ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
 Tu objetivo es transformar el mensaje en una plantilla viva, humana, sumamente cordial y variada utilizando Spintax {opción 1|opción 2|opción 3}.
 
-ESTÁNDARES DE COPYWRITING B2B HUMANO:
-- Evita sonar como un bot automatizado o anuncio de telemarketing barato.
-- El mensaje debe leerse como escrito individualmente por un asesor comercial atento a su cliente.
-- Usa lenguaje venezolano formal y cálido ("Estimado(a)", "Un gusto saludarle", "Es un placer ponernos en contacto").
-- Nunca uses signos de exclamación excesivos (¡¡¡ !!!) ni más de 1 o 2 emojis sobrios.
+CRÍTICO PARA EVITAR RESTRICCIONES DE WHATSAPP:
+No solo cambies una o dos palabras. Debes generar una **variación estructural profunda**.
+El algoritmo de WhatsApp detecta patrones de similitud. Si todos los mensajes tienen la misma longitud y estructura, bloquearán la cuenta.
 
-REGLAS ESTRICTAS DE CONSTRUCCIÓN SPINTAX:
-1. Variaciones en Saludos: {Estimado(a) {{nombre}}, un gusto saludarle|Hola {{nombre}}, un cordial saludo|Apreciado(a) {{nombre}}, esperamos se encuentre muy bien}.
-2. Variaciones en la Presentación del Asesor: {le contacta {{vendedor}} de JJ Paper|le escribe {{vendedor}} del departamento comercial de JJ Paper|se comunica atentamente {{vendedor}} de JJ Paper}.
-3. Variaciones en la Propuesta de Valor: {queremos poner a su disposición excelentes opciones en|le informamos disponibilidad inmediata y precios especiales en|le compartimos nuestras mejores condiciones comerciales en|tenemos disponible para despacho inmediato}.
-4. Variaciones en Cierre y Llamado a la Acción (B2B sin presión): {¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|¿Cuántas unidades o bultos estima para esta semana?|Quedamos a su disposición para coordinar su despacho}.
+ESTÁNDARES DE CONSTRUCCIÓN SPINTAX PROFUNDO:
+1. Variación Estructural del Inicio: {¡Hola! Espero que estés excelente. Te habla {{vendedor}}...|Buen día {{nombre}}, un gusto saludarle de parte de {{vendedor}}...|Saludos cordiales {{nombre}}, le escribe {{vendedor}}...}
+2. Variación de Párrafos: Intercala párrafos enteros, usa { | | } para incluir o no incluir ciertas frases accesorias que rompan el tamaño en bytes del mensaje.
+3. Variación de Llamados a la Acción: {¿Gusta que le envíe el catálogo completo?|Quedo atento por si necesita una cotización formal.|Me avisa cualquier duda y le cotizo sin compromiso.|¿Le aparto algún producto en inventario?}
+4. Emoticones aleatorios: Haz que los emojis aparezcan solo a veces. Ejemplo: {📦 |📦 |}{Tenemos stock|Inventario disponible|Listos para despachar}.
 5. PRESERVACIÓN ABSOLUTA DE VARIABLES: Conserva exactamente {{nombre}}, {{empresa}}, {{vendedor}}, {{producto}}, {{precio}}, {{descuento}}, {{link}}, etc. NO las alteres, no les quites las llaves dobles ni las traduzcas.
 6. Mantén enlaces, montos numéricos y condiciones operativas intactos.
 7. Devuelve ÚNICAMENTE el texto resultante en Spintax, sin explicaciones ni bloques de código.`;
@@ -746,6 +744,35 @@ REGLAS ESTRICTAS DE CONSTRUCCIÓN SPINTAX:
         return `{Estimado(a) {{nombre}}, un cordial saludo|Hola {{nombre}}, un gusto saludarle|Buen día {{nombre}}} ` + baseText;
       }
       return baseText;
+    }
+  }
+
+  async function parseProspectsText(rawText) {
+    if (!rawText || !rawText.trim()) return [];
+    const prompt = `Analiza el siguiente texto crudo (que puede provenir de Google Maps, de un copy-paste de WhatsApp, etc.) y extrae todos los posibles clientes/prospectos (empresas o negocios).
+    
+Devuelve ÚNICAMENTE un JSON válido que sea un arreglo de objetos. Cada objeto debe tener:
+- "company_name": El nombre de la empresa (string, o "Desconocido").
+- "phone": El número de teléfono (string, formateado si es posible, o vacío).
+- "city": La ciudad (string, o vacío).
+- "source_link": Si hay un link de Google Maps, Instagram, etc. asociado (string, o vacío).
+
+Texto a analizar:
+${rawText}
+    `;
+
+    try {
+      const resp = await callGemini({ prompt, temperature: 0.2 });
+      let t = resp.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const firstBrace = t.indexOf('[');
+      const lastBrace = t.lastIndexOf(']');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        t = t.substring(firstBrace, lastBrace + 1);
+      }
+      return JSON.parse(t);
+    } catch (e) {
+      console.error('Error parseando prospectos con IA', e);
+      return [];
     }
   }
 
@@ -2198,6 +2225,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
     analyzeAndDraftProspectB2B,
     analyzeCustomerAndDraftMessage,
     analyzeCustomersBatch,
+    parseProspectsText,
     searchProductsLive,
     interpretQueryWithAI,
     detectProductType,

@@ -196,12 +196,8 @@ async function step(camp, dailyLimit) {
       };
       // Resolver plantilla: prioridad custom_message del target > message de la campaña > fallback comercial
       let msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.message || camp.body || '';
-      const hasProductContent = msgTemplate.includes('•') || 
-        (msgTemplate.includes('- ') && msgTemplate.includes('$')) ||
-        msgTemplate.includes('Disponibilidad inmediata') ||
-        msgTemplate.length > 300;
 
-      if (!msgTemplate || (!hasProductContent && msgTemplate.length < 250)) {
+      if (!msgTemplate) {
         msgTemplate = buildFullCommercialMessage(realVars, camp);
       }
       

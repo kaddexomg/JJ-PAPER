@@ -301,7 +301,7 @@ window.CampaignEditor = (() => {
                     <div style="font-size:11px;color:#475569" id="ceAiFlowStatusTxt">Examina el rubro de cada prospecto, detecta su necesidad y redacta su propuesta única.</div>
                   </div>
                 </div>
-                <button type="button" class="ce-ai-analyze-btn" id="ceStartAiAnalysisBtn" onclick="CampaignEditor.startAiAnalysisBatch()">
+                <button type="button" class="ce-ai-analyze-btn" id="ceStartAiAnalysisBtn" onclick="CampaignEditor.openAiToneModal()">
                   ⚡ Analizar y Redactar con IA (<span id="ceAnalyzeCountSpan">0</span>)
                 </button>
               </div>
@@ -1088,7 +1088,71 @@ window.CampaignEditor = (() => {
     });
   }
 
-  async function startAiAnalysisBatch() {
+  function openAiToneModal() {
+    let modal = document.getElementById('campAiToneModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'campAiToneModal';
+      modal.className = 'ce-picker-overlay';
+      modal.innerHTML = `
+        <div class="ce-picker-dialog" style="max-width:500px; height:auto">
+          <div class="ce-picker-header">
+            <h3>🤖 Actitud y Enfoque de la IA</h3>
+            <button type="button" class="ce-btn-close" onclick="document.getElementById('campAiToneModal').classList.remove('op')">✕</button>
+          </div>
+          <div style="padding:20px; font-size:14px; color:#334155;">
+            <p style="margin-top:0; margin-bottom:15px;">¿Qué tipo de mensaje debe redactar la IA para estos prospectos?</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                <input type="radio" name="ai_tone" value="presentacion" checked style="margin-top:3px">
+                <div>
+                  <strong>🚀 Presentación Comercial (Primer contacto)</strong><br>
+                  <span style="font-size:12px; color:#64748b">Presenta a JJ Paper desde cero y enfoca el catálogo en las necesidades de su rubro.</span>
+                </div>
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                <input type="radio" name="ai_tone" value="seguimiento" style="margin-top:3px">
+                <div>
+                  <strong>👀 Seguimiento (Warm up)</strong><br>
+                  <span style="font-size:12px; color:#64748b">Retoma el contacto de forma cordial preguntando cómo le ha ido con su inventario.</span>
+                </div>
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                <input type="radio" name="ai_tone" value="recordatorio" style="margin-top:3px">
+                <div>
+                  <strong>⏰ Recordatorio de Compra</strong><br>
+                  <span style="font-size:12px; color:#64748b">Directo al punto: recuerda que estamos listos para despachar su próximo pedido.</span>
+                </div>
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                <input type="radio" name="ai_tone" value="oferta" style="margin-top:3px">
+                <div>
+                  <strong>🔥 Oferta Relámpago</strong><br>
+                  <span style="font-size:12px; color:#64748b">Crea urgencia sobre una promoción o producto específico con alta disponibilidad.</span>
+                </div>
+              </label>
+            </div>
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+              <button type="button" class="ce-btn btn-sec" onclick="document.getElementById('campAiToneModal').classList.remove('op')">Cancelar</button>
+              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiTone">Empezar Análisis ⚡</button>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('btnConfirmAiTone').addEventListener('click', () => {
+        const tone = document.querySelector('input[name="ai_tone"]:checked').value;
+        modal.classList.remove('op');
+        startAiAnalysisBatch(tone);
+      });
+    }
+
+    document.querySelector('input[name="ai_tone"][value="presentacion"]').checked = true;
+    requestAnimationFrame(() => modal.classList.add('op'));
+  }
+
+  async function startAiAnalysisBatch(selectedTone = 'presentacion') {
     if (isAnalyzingBatch) return;
     if (!selectedAudienceList.length) {
       alert('Por favor selecciona primero los prospectos o clientes a los que dirigirás la campaña.');
@@ -1128,6 +1192,7 @@ window.CampaignEditor = (() => {
         sellerPhone: sPhone,
         promoProductOrCombo: selectedProductOrCombo,
         officialPdfIncluded: isPdf,
+        attitude: selectedTone,
         onProgress: ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -1800,7 +1865,8 @@ window.CampaignEditor = (() => {
       if (missingAnalysis.length > 0) {
         const doAnalyze = confirm(`Hay ${missingAnalysis.length} prospectos sin propuesta redactada por IA.\n\n¿Deseas analizarlos ahora para que cada cliente reciba su mensaje 100% personalizado y diferente?`);
         if (doAnalyze) {
-          await startAiAnalysisBatch();
+          openAiToneModal();
+          return;
         } else {
           await ensureGeminiClient();
           const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
@@ -1925,6 +1991,7 @@ window.CampaignEditor = (() => {
     toggleProspect,
     toggleAllProspects,
     applyProspectSelection,
+    openAiToneModal,
     startAiAnalysisBatch,
     stepPreviewCustomer,
     selectPreviewCustomer,

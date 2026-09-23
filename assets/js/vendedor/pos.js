@@ -711,7 +711,7 @@ async function posSubmit() {
       notes: document.getElementById('posNotes')?.value.trim() || null,
       seller_id: sellerId,
       source: 'pos',
-      status: payRef ? 'verificando' : 'pendiente_pago',
+      status: payRef ? 'verificando' : 'pagado',
       quote_id: posLinkedQuoteId || null,
       customer_id: posCustomer?.id || null,
     };

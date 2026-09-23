@@ -722,14 +722,46 @@ async function handleImportFileInput(input) {
 async function handlePasteImport() {
   const text = document.getElementById('pasteImportTextarea')?.value || '';
   if (!text.trim()) {
-    showToast('Pega los datos de las celdas de Google Sheets en el área de texto', 'warn');
+    showToast('Pega los datos de prospectos en el área de texto', 'warn');
     return;
   }
 
-  const lines = text.trim().split(/\r?\n/);
-  const rows = lines.map(line => line.split('\t'));
+  // Si tiene tabuladores, asumimos que viene de Sheets/Excel
+  if (text.includes('\t')) {
+    const lines = text.trim().split(/\r?\n/);
+    const rows = lines.map(line => line.split('\t'));
+    await processImportedRows(rows);
+  } else {
+    // Si es texto crudo sin formato (ej. Maps, WhatsApp), usamos Gemini
+    showToast('Analizando texto libre con IA...', 'info');
+    const aiBtn = document.getElementById('btnPasteImport');
+    if (aiBtn) { aiBtn.disabled = true; aiBtn.innerHTML = 'Analizando...'; }
+    try {
+      if (typeof GeminiClient === 'undefined') await ensureGeminiClient();
+      const extracted = await GeminiClient.parseProspectsText(text);
+      if (!extracted || extracted.length === 0) {
+        showToast('No se detectaron prospectos válidos en el texto.', 'err');
+      } else {
+        // Convertirlo a un array bidimensional compatible con processImportedRows:
+        // [Empresa, Teléfono, Email (vacio), Ciudad, Link, Notas, ID]
+        const rows = extracted.map(e => [
+          e.company_name || 'Desconocido',
+          e.phone || '',
+          '',
+          e.city || '',
+          e.source_link || '',
+          ''
+        ]);
+        await processImportedRows(rows);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error de IA al analizar el texto.', 'err');
+    } finally {
+      if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = 'Importar Pegado'; }
+    }
+  }
 
-  await processImportedRows(rows);
   document.getElementById('pasteImportTextarea').value = '';
 }
 

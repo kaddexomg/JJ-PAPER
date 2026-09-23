@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atajos de Teclado JJ Paper | Hoja Única</title>
+<link rel="icon" href="assets/img/logo.svg">
+<style>
+  /* ==========================================================================
+     HOJA ULTRA-COMPACTA DE ATAJOS DE TECLADO JJ PAPER (1 SOLA PÁGINA GARANTIZADA)
+     Optimizada estrictamente para impresión en Blanco y Negro / Escala de Grises.
+     Ajuste milimétrico a 1 sola hoja Carta/A4 con 2 columnas perfectamente equilibradas.
+     ========================================================================== */
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root {
+    --ink: #000000;
+    --ink-dark: #1a1a1a;
+    --ink-dim: #444444;
+    --border: #000000;
+    --border-light: #cccccc;
+    --bg-header: #f2f2f2;
+    --bg-alt: #f9f9f9;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--ink);
+    background: #eef1ef;
+    padding: 16px 10px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Barra de herramientas para pantalla (Oculta al imprimir) */
+  .no-print {
+    max-width: 860px;
+    margin: 0 auto 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: 1px solid #c2c9c5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .no-print .txt {
+    font-size: 13px;
+    font-weight: 700;
+    color: #16604A;
+  }
+  .no-print .btn-p {
+    background: #16604A;
+    color: #ffffff;
+    border: 0;
+    border-radius: 5px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .no-print .btn-p:hover { background: #0f4636; }
+
+  /* Hoja imprimible (Formato Carta estricto) */
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 14px 18px 12px;
+    border: 1px solid #b8beb9;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+
+  /* Cabecera institucional ultra-compacta */
+  .hdr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+  .hdr-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .hdr-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    filter: grayscale(100%) contrast(180%);
+  }
+  .hdr-titles h1 {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+  .hdr-titles .sub {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--ink-dim);
+    letter-spacing: 0.3px;
+  }
+  .hdr-badge {
+    border: 1.5px solid var(--border);
+    padding: 3px 8px;
+    text-align: right;
+    border-radius: 3px;
+    background: #fafafa;
+  }
+  .hdr-badge .t1 {
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .hdr-badge .t2 {
+    font-size: 8px;
+    font-weight: 600;
+    color: var(--ink-dim);
+  }
+
+  /* Grilla de 2 columnas balanceadas */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+  }
+
+  /* Bloque / Tarjeta de Sección */
+  .card {
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .card-h {
+    background: var(--bg-header);
+    border-bottom: 1.5px solid var(--border);
+    padding: 3px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-h h2 {
+    font-size: 9.5px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--ink);
+  }
+  .card-h .tag {
+    font-size: 7.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  /* Tabla de atajos */
+  table.tb {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.8px;
+    line-height: 1.15;
+  }
+  table.tb thead th {
+    background: #ffffff;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 2.5px 5px;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink-dark);
+  }
+  table.tb thead th.k { width: 110px; text-align: center; }
+  table.tb tbody tr {
+    border-bottom: 1px solid #e2e2e2;
+  }
+  table.tb tbody tr:last-child { border-bottom: 0; }
+  table.tb tbody tr:nth-child(even) { background: var(--bg-alt); }
+  table.tb td {
+    padding: 2.2px 5px;
+    vertical-align: middle;
+  }
+  table.tb td.k {
+    text-align: center;
+    white-space: nowrap;
+    padding-right: 4px;
+  }
+  table.tb td.act {
+    font-weight: 700;
+    color: var(--ink);
+  }
+  table.tb td.det {
+    font-size: 8px;
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+
+  /* Teclas virtuales KBD de alto impacto */
+  kbd {
+    display: inline-block;
+    padding: 1px 4.5px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 8.5px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: #000000;
+    background: #ffffff;
+    border: 1.3px solid #000000;
+    border-radius: 2.5px;
+    box-shadow: 0 1px 0 #000000;
+    margin: 0 1px;
+    vertical-align: middle;
+  }
+  .o { font-size: 7.5px; font-weight: 700; color: #555; margin: 0 2px; }
+  .p { font-size: 7.5px; font-weight: 700; color: #222; margin: 0 1px; }
+
+  /* Flujo de Venta Rápida (Pie superior) */
+  .flow {
+    border: 1.5px solid var(--border);
+    background: #ffffff;
+    border-radius: 3px;
+    padding: 4px 8px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .flow-title {
+    font-size: 8.5px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .flow-box {
+    background: #f1f1f1;
+    border: 1px solid #888;
+    padding: 1px 5px;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .flow-arr { font-weight: 900; color: #000; font-size: 9px; }
+
+  /* Pie institucional inferior */
+  .ftr {
+    margin-top: 6px;
+    border-top: 1.2px solid var(--border);
+    padding-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5px;
+    font-weight: 700;
+    color: var(--ink-dim);
+  }
+
+  /* ==========================================================================
+     REGLAS ESTRICTAS DE IMPRESIÓN (BLANCO Y NEGRO, EXACTAMENTE 1 PÁGINA)
+     ========================================================================== */
+  @media print {
+    @page {
+      size: letter portrait;
+      margin: 4mm 6mm 4mm 6mm !important;
+    }
+    html, body {
+      background: #ffffff !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      height: 100% !important;
+      overflow: hidden !important;
+    }
+    .no-print {
+      display: none !important;
+    }
+    .page {
+      border: 0 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+    .hdr {
+      padding-bottom: 4px !important;
+      margin-bottom: 6px !important;
+      border-bottom: 2px solid #000 !important;
+    }
+    .hdr-logo {
+      filter: grayscale(100%) contrast(250%) !important;
+    }
+    .card {
+      border: 1.4px solid #000000 !important;
+      margin-bottom: 5px !important;
+    }
+    .card-h {
+      background: #ededed !important;
+      border-bottom: 1.4px solid #000000 !important;
+      padding: 2.5px 5px !important;
+    }
+    table.tb thead th {
+      border-bottom: 1.4px solid #000000 !important;
+      background: #ffffff !important;
+      padding: 2px 4px !important;
+    }
+    table.tb tbody tr:nth-child(even) {
+      background: #f7f7f7 !important;
+    }
+    table.tb td {
+      padding: 1.8px 4px !important;
+      font-size: 8.5px !important;
+    }
+    kbd {
+      border: 1.3px solid #000000 !important;
+      box-shadow: 0 1px 0 #000000 !important;
+      background: #ffffff !important;
+      color: #000000 !important;
+      padding: 0.5px 3.5px !important;
+      font-size: 8px !important;
+    }
+    .flow {
+      border: 1.4px solid #000000 !important;
+      padding: 3px 6px !important;
+      margin-top: 3px !important;
+    }
+    .flow-box {
+      background: #eeeeee !important;
+      border: 1px solid #555555 !important;
+    }
+    .ftr {
+      margin-top: 4px !important;
+      padding-top: 3px !important;
+      border-top: 1.2px solid #000000 !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Barra en pantalla para control del operador -->
+  <div class="no-print">
+    <div class="txt">
+      📄 <strong>Atajos de Teclado JJ Paper</strong> — Formato ultra-compacto ajustado a <strong>1 sola página estricta</strong>
+    </div>
+    <div>
+      <button class="btn-p" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Imprimir Hoja (Ctrl + P)
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenedor único de página física -->
+  <div class="page">
+
+    <!-- Membrete superior -->
+    <header class="hdr">
+      <div class="hdr-left">
+        <img src="assets/img/logo.svg" alt="JJ" class="hdr-logo" onerror="this.style.display='none'">
+        <div class="hdr-titles">
+          <h1>JJ PAPER C.A. · CENTRO DE ATAJOS DE TECLADO</h1>
+          <div class="sub">GUÍA OPERATIVA RÁPIDA · PUNTOS DE VENTA, COTIZACIONES Y CAJA</div>
+        </div>
+      </div>
+      <div class="hdr-badge">
+        <div class="t1">HOJA DE REFERENCIA RÁPIDA</div>
+        <div class="t2">USO INTERNO DE MOSTRADOR</div>
+      </div>
+    </header>
+
+    <!-- Grilla de 2 columnas balanceadas -->
+    <main class="grid">
+
+      <!-- ================= COLUMNA IZQUIERDA ================= -->
+      <div class="col">
+
+        <!-- 1. PUNTO DE VENTA (POS) -->
+        <div class="card">
+          <div class="card-h">
+            <h2>🛒 1. Punto de Venta (POS) & Caja</h2>
+            <span class="tag">Facturación</span>
+          </div>
+          <table class="tb">
+            <thead>
+              <tr>
+                <th class="k">Teclas</th>
+                <th>Acción</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="k"><kbd>F2</kbd><span class="o">o</span><kbd>/</kbd></td>
+                <td class="act">Buscar Producto</td>
+                <td class="det">Enfoca y selecciona el buscador</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F3</kbd></td>
+                <td class="act">Buscar Cliente</td>
+                <td class="det">Autocompletado CRM (RIF o Nombre)</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F4</kbd></td>
+                <td class="act">Descuento %</td>
+                <td class="det">Enfoca campo de descuento general</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F8</kbd></td>
+                <td class="act">Método de Pago</td>
+                <td class="det">Efectivo, Transf., Pago Móvil, etc.</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F9</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>Enter</kbd></td>
+                <td class="act">REGISTRAR VENTA</td>
+                <td class="det">Procesa y emite la orden de venta</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F10</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>P</kbd></td>
+                <td class="act">Imprimir Factura</td>
+                <td class="det">Abre comprobante oficial última venta</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F11</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>C</kbd></td>
+                <td class="act">Cargar Cotización</td>
+                <td class="det">Convierte presupuesto a venta</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F12</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>I</kbd></td>
+                <td class="act">Ítem Libre / Flete</td>
+                <td class="det">Servicio o concepto sin catálogo</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F7</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>L</kbd></td>
+                <td class="act">Limpiar Ticket</td>
+                <td class="det">Vacía todos los renglones</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 2. COTIZADOR DE VENTAS -->
+        <div class="card">
+          <div class="card-h">
+            <h2>📋 2. Cotizador de Presupuestos</h2>
+            <span class="tag">Presupuestos</span>
+          </div>
+          <table class="tb">
+            <thead>
+              <tr>
+                <th class="k">Teclas</th>
+                <th>Acción</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="k"><kbd>F4</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>O</kbd></td>
+                <td class="act">Buscar Cotización</td>
+                <td class="det">Abre modal para clonar o editar</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F7</kbd></td>
+                <td class="act">Facturar en POS</td>
+                <td class="det">Pasa el presupuesto directo a caja</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F8</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>C</kbd></td>
+                <td class="act">Ver Cotizaciones</td>
+                <td class="det">Abre listado general de presupuestos</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F9</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>Enter</kbd></td>
+                <td class="act">GUARDAR COTIZACIÓN</td>
+                <td class="det">Registra o actualiza el presupuesto</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>F10</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>P</kbd></td>
+                <td class="act">Generar PDF Formal</td>
+                <td class="det">Descarga presupuesto institucional</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Alt</kbd><span class="p">+</span><kbd>N</kbd></td>
+                <td class="act">Nueva Cotización</td>
+                <td class="det">Limpia campos para nuevo cliente</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- ================= COLUMNA DERECHA ================= -->
+      <div class="col">
+
+        <!-- 3. EDICIÓN DEL TICKET (SIN RATÓN) -->
+        <div class="card">
+          <div class="card-h">
+            <h2>🧾 3. Edición del Ticket (Sin Ratón)</h2>
+            <span class="tag">Modo Rápido</span>
+          </div>
+          <table class="tb">
+            <thead>
+              <tr>
+                <th class="k">Teclas</th>
+                <th>Acción</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="k"><kbd>F6</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>T</kbd></td>
+                <td class="act">Modo Teclado Ticket</td>
+                <td class="det">Enfoca cursor en el renglón activo</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>↑</kbd><kbd>↓</kbd></td>
+                <td class="act">Navegar Renglones</td>
+                <td class="det">Sube o baja entre filas del ticket</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>+</kbd><span class="o">o</span><kbd>→</kbd> / <kbd>-</kbd><span class="o">o</span><kbd>←</kbd></td>
+                <td class="act">Cantidad (+ / -)</td>
+                <td class="det">Incrementa o disminuye en 1 unidad</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd></td>
+                <td class="act">Nivel de Precio</td>
+                <td class="det">Asigna nivel instantáneo al ítem</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Supr</kbd><span class="o">o</span><kbd>Backspace</kbd></td>
+                <td class="act">Eliminar Renglón</td>
+                <td class="det">Quita el producto del ticket</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Enter</kbd><span class="o">o</span><kbd>Esc</kbd></td>
+                <td class="act">Salir del Ticket</td>
+                <td class="det">Regresa el cursor al buscador (<kbd>F2</kbd>)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 4. SELECTOR DE PRECIOS Y CANTIDAD (MIXNET) -->
+        <div class="card">
+          <div class="card-h">
+            <h2>🏷️ 4. Selector MixNet (Precios y Cantidad)</h2>
+            <span class="tag">Popup</span>
+          </div>
+          <table class="tb">
+            <thead>
+              <tr>
+                <th class="k">Teclas</th>
+                <th>Acción</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="k"><kbd>↑</kbd><kbd>↓</kbd></td>
+                <td class="act">Moverse en Opciones</td>
+                <td class="det">Navega verticalmente entre precios</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd></td>
+                <td class="act">Nivel Directo</td>
+                <td class="det">A: Mayor · B: USD Act · C/D: Bs BCV</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>M</kbd></td>
+                <td class="act">Precio Manual</td>
+                <td class="det">Permite escribir precio libre en US$</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>+</kbd> / <kbd>-</kbd> · <kbd>Enter</kbd></td>
+                <td class="act">Cantidad y Confirmar</td>
+                <td class="det">Ajusta cantidad y agrega al ticket</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 5. NAVEGACIÓN GLOBAL Y MENSAJERÍA -->
+        <div class="card">
+          <div class="card-h">
+            <h2>🌐 5. Sistema Global & Navegación</h2>
+            <span class="tag">Todo el Sistema</span>
+          </div>
+          <table class="tb">
+            <thead>
+              <tr>
+                <th class="k">Teclas</th>
+                <th>Acción</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="k"><kbd>Ctrl</kbd><span class="p">+</span><kbd>K</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>K</kbd></td>
+                <td class="act">Paleta de Navegación</td>
+                <td class="det">Buscador universal a cualquier módulo</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Esc</kbd></td>
+                <td class="act">Escape Universal</td>
+                <td class="det">Cierra cualquier ventana, modal o filtro</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Tab</kbd> / <kbd>Shift</kbd><span class="p">+</span><kbd>Tab</kbd></td>
+                <td class="act">Salto Secuencial</td>
+                <td class="det">Buscador → Cliente → Desc. → Cobrar</td>
+              </tr>
+              <tr>
+                <td class="k"><kbd>Enter</kbd><span class="o">/</span><kbd>Shift</kbd><span class="p">+</span><kbd>Enter</kbd></td>
+                <td class="act">Enviar en WhatsApp</td>
+                <td class="det">Enter despacha mensaje; Shift salto línea</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Barra de flujo de venta en 5 segundos -->
+    <section class="flow">
+      <div class="flow-title">⚡ Flujo Rápido (Sin Ratón):</div>
+      <div class="flow-steps">
+        <span class="flow-box"><kbd>F2</kbd> Buscar</span>
+        <span class="flow-arr">→</span>
+        <span class="flow-box"><kbd>Enter</kbd> Elegir</span>
+        <span class="flow-arr">→</span>
+        <span class="flow-box"><kbd>B</kbd> USD / <kbd>C</kbd> Bs</span>
+        <span class="flow-arr">→</span>
+        <span class="flow-box"><kbd>Enter</kbd> Al Ticket</span>
+        <span class="flow-arr">→</span>
+        <span class="flow-box"><kbd>F9</kbd> Registrar Venta</span>
+        <span class="flow-arr">→</span>
+        <span class="flow-box"><kbd>F10</kbd> Imprimir</span>
+      </div>
+    </section>
+
+    <!-- Pie institucional compacto -->
+    <footer class="ftr">
+      <div>JJ PAPER C.A. · Sistema de Gestión Comercial</div>
+      <div>Hoja Oficial de Atajos de Teclado · 1 Sola Página Garantizada (B&W)</div>
+      <div>Uso Operativo de Mostrador</div>
+    </footer>
+
+  </div>
+
+</body>
+</html>

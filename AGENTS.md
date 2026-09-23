@@ -790,5 +790,45 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - Barrido de respaldo reducido de 30s a **5 segundos** (`OUTBOX_SWEEP_MS = 5_000`).
     - Auto-pull en reinicio (`git pull origin main`) integrado en `run-service.bat` de `Supervisor-Pc`.
 
+## Optimización Radical de Egress, Ciclo de Vida de Cotizador y Libertad Operativa POS (22-09-2026)
+- **Caché Inteligente de Clientes con Revalidación en Memoria (`sessionStorage`)**:
+  - `assets/js/vendedor/vcustomers.js` y `assets/js/admin/aclients.js` implementan `jjp_customers_cache_v1` con TTL de 5 a 10 minutos.
+  - Actualizaciones reactivas locales (*Zero Egress Re-fetch*): al crear, editar o asignar clientes (`claimCustomer`, `saveCustomer`), se actualiza el objeto localmente en memoria y en caché sin volver a descargar los 3.665 clientes de la base de datos.
+- **Cirugía de Columnas en Consultas Masivas (Eliminación de `SELECT *`)**:
+  - `quotes.js`: el listado solo consulta columnas de resumen (`id, quote_number, client_name, phone, city, estimated_total_usd, discount_pct, status, source, created_at, customer_id`). La data pesada (`items`, `notes`) solo se descarga bajo demanda al abrir o editar.
+  - `correo.js`: no solicita `html` ni `body` en la bandeja general de 100 correos, ahorrando megabytes en cada recarga.
+- **Módulo de "Ítem Libre / Personalizado" (`pos.js`, `vquotes.js`)**:
+  - Botón directo y atajo de teclado (`F12` o `Alt+I` en POS, `Alt+I` en Cotizador).
+  - Permite ingresar fletes, embalaje o servicios con descripción y precio manual en USD o Bs sin exigir SKU o variante de catálogo.
+  - Cálculos y emisión de comprobantes integrados transparentemente.
+- **Cliente Rápido de Mostrador / Consumidor Final**:
+  - Botón de 1 toque `⚡ Consumidor Final` que precarga datos básicos sin exigir teléfono obligatorio para presupuestos rápidos en mostrador.
+- **Blindaje del Ciclo de Vida en Cotizador (`vquotes.js`)**:
+  - Eliminada la columna inexistente `updated_at` en mutaciones hacia `jjp_quotes`.
+  - Erradicado el estado zombie `editingQuoteId` al pulsar "Nueva cotización", limpiar o guardar.
+  - Claves de ítems estandarizadas `${product_id}::${variant_id}` para re-inyectar `price_a, price_b, price_c_bs, price_d_bs` en modo edición, permitiendo cambiar niveles de precio A/B/C/D sin alertas de error.
+  - ID de elemento DOM de descuento corregido a `qDisc`.
+- **Selector Unificado de Precio y Cantidad (Popup MixNet UI en `product-finder.js`)**:
+  - Modal estructurado con selección de niveles A, B, C, D vía teclado directo, precio manual `M`, modificación de cantidades con `+` y `-`, y confirmación con `Enter`.
+- **Barra de Control Rápido e Interconexión Cotizador ➔ POS**:
+  - Buscador de cotizaciones guardadas con `F4` / `Alt+O`.
+  - Conversión instantánea a venta en caja POS con `F7`.
+  - Atajo `F8` / `Alt+C` para acceder al listado general de cotizaciones.
+  - Carga inversa en POS con `F11` para absorber presupuestos en caja y marcarlos como `convertido` al cobrar.
+
+## Centro de Atajos de Teclado y Hoja de Impresión Monocromática (23-09-2026)
+- **Hoja Oficial de Atajos Imprimible (`atajos_teclado_jj.html`)**:
+  - Documento standalone y hoja de referencia rápida para operadores y vendedores.
+  - Calibrado con `@media print` para ajuste exacto a **1 sola página (Carta / A4)**.
+  - **Optimización para Impresión en Blanco y Negro (B&W / Láser / Inyección)**: Cero bloques oscuros que gasten tinta/tóner; bordes de alto contraste (1.5px) y teclas virtuales `<kbd>` delineadas con doble relieve.
+  - **Organización Estructurada en 5 Secciones**:
+    1. *Punto de Venta (POS) & Caja*: `F2` (buscar), `F3` (cliente), `F4` (descuento), `F8` (pago), `F9`/`Ctrl+Enter` (registrar venta), `F10`/`Ctrl+P` (imprimir factura), `F11`/`Alt+C` (cargar cotización), `F12`/`Alt+I` (ítem libre), `F7`/`Alt+L` (limpiar ticket).
+    2. *Edición Rápida del Ticket*: `F6`/`Alt+T` (activar modo ticket), flechas `↑`/`↓` (navegar), `+`/`-` (cantidades), `A`/`B`/`C`/`D` (nivel de precio), `Supr`/`Backspace` (eliminar fila), `Enter`/`Esc` (volver al buscador), `Tab` (salto de campos).
+    3. *Selector de Precios MixNet*: flechas `↑`/`↓`, teclas directas `A`, `B`, `C`, `D`, precio propio `M`, `+`/`-` y `Enter`.
+    4. *Cotizador de Ventas*: `F4`/`Alt+O` (buscar cotizaciones), `F7` (facturar en POS), `F8`/`Alt+C` (ver cotizaciones), `F9` (guardar), `F10` (imprimir PDF presupuesto), `Alt+N` (nueva cotización).
+    5. *Navegación Global*: `Ctrl+K` / `Alt+K` (Paleta de navegación / Command Palette), `Esc` (cancelador universal), `Enter`/`Shift+Enter` (mensajes WhatsApp).
+  - Incluye guía del flujo de venta rápida sin ratón en 5 segundos.
+
+
 
 

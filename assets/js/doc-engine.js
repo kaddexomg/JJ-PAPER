@@ -678,7 +678,7 @@ async function docPdfDocumento(o, tipo = 'factura') {
   }
 
   /* ============ Líneas ============
-     Sin IVA por línea, se muestra globalmente. */
+     Con código y alícuota por línea, como una factura formal. */
   const cuerpo = items.map(i => {
     const lvlTag = (i.price_level && i.price_level !== 'B')
       ? `  [nivel ${i.price_level === 'M' ? 'manual' : i.price_level}]`
@@ -691,19 +691,27 @@ async function docPdfDocumento(o, tipo = 'factura') {
       (i.name || i.product || '—') + (i.brand ? `  (${i.brand})` : '') + lvlTag,
       `${i.qty} ${i.unit || ''}`.trim(),
       precioCelda,
-      `$${Number((i.subtotal_usd ?? (i.price_usd * i.qty)) || 0).toFixed(2)}`
     ];
+    if (ivaPct > 0) fila.push(`${ivaPct}%`);
+    fila.push(`$${Number((i.subtotal_usd ?? (i.price_usd * i.qty)) || 0).toFixed(2)}`);
     return fila;
   });
-  const cabecera = ['Código', 'Descripción', 'Cant.', 'Precio Unit.', 'Total'];
+  const cabecera = ['Código', 'Descripción', 'Cant.', 'Precio Unit.'];
+  if (ivaPct > 0) cabecera.push('Alíc.');
+  cabecera.push('Total');
 
   const colsBase = {
     0: { cellWidth: 72, halign: 'center', textColor: [140, 140, 140], fontSize: 7 },
     1: { cellWidth: 'auto' },
     2: { cellWidth: 58, halign: 'center' },
     3: { cellWidth: 68, halign: 'right' },
-    4: { cellWidth: 74, halign: 'right', fontStyle: 'bold' }
   };
+  if (ivaPct > 0) {
+    colsBase[4] = { cellWidth: 40, halign: 'center', textColor: [110, 110, 110] };
+    colsBase[5] = { cellWidth: 74, halign: 'right', fontStyle: 'bold' };
+  } else {
+    colsBase[4] = { cellWidth: 74, halign: 'right', fontStyle: 'bold' };
+  }
 
   doc.autoTable({
     head: [cabecera],
@@ -719,7 +727,6 @@ async function docPdfDocumento(o, tipo = 'factura') {
   });
 
   /* ============ Totales ============ */
-  let granTotalUsd = total;
   let ty = doc.lastAutoTable.finalY + 13;
   const totX = pageW - M - 250;             // ancho del bloque de totales
   const lineaTotal = (etiqueta, valor, opts = {}) => {
@@ -743,14 +750,11 @@ async function docPdfDocumento(o, tipo = 'factura') {
       Number(o.delivery_fee_usd) > 0 ? `$${Number(o.delivery_fee_usd).toFixed(2)}` : 'Gratis');
   }
   if (ivaPct > 0) {
-    const base = total;
-    const montoIva = base * (ivaPct / 100);
-    granTotalUsd = base + montoIva;
-
+    const base = total / (1 + ivaPct / 100);
     doc.setDrawColor(223, 230, 226); doc.setLineWidth(0.7);
     doc.line(totX + 10, ty - 10, pageW - M - 10, ty - 10);
-    lineaTotal('Base imponible (Subtotal)', `$${base.toFixed(2)}`);
-    lineaTotal(`IVA (${ivaPct}%)`, `$${montoIva.toFixed(2)}`);
+    lineaTotal('Base imponible', `$${base.toFixed(2)}`);
+    lineaTotal(`IVA (${ivaPct}%)`, `$${(total - base).toFixed(2)}`);
   }
 
   // Total a pagar: banda verde, el dato que el cliente busca primero
@@ -759,12 +763,12 @@ async function docPdfDocumento(o, tipo = 'factura') {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(223, 240, 231);
   doc.text('TOTAL A PAGAR (USD)', totX + 10, ty + 4);
   doc.setFontSize(14); doc.setTextColor(255);
-  doc.text(`$${granTotalUsd.toFixed(2)}`, pageW - M - 10, ty + 5, { align: 'right' });
+  doc.text(`$${total.toFixed(2)}`, pageW - M - 10, ty + 5, { align: 'right' });
   ty += 30;
 
   if (s.doc_show_bs !== '0') {
     lineaTotal('TOTAL (Bs)',
-      'Bs ' + (granTotalUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      'Bs ' + (total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       { color: C.acc, colorVal: C.acc, fuerte: true, tam: 10 });
     lineaTotal('Tasa BCV del día', `Bs ${rate.toFixed(2)} / $`, { color: [140, 140, 140], colorVal: [140, 140, 140], tam: 7.5 });
   }

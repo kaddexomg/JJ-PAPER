@@ -832,3 +832,11 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 
 
 
+
+## Mejoras Estructurales y de Operatividad (23-09-2026)
+- **Corrección de Estado de Pedidos**: Las ventas directas desde POS (ssets/js/vendedor/pos.js) y los pedidos de MixNet (wa-server/src/mixer.js) ahora inician en estado `pagado` en lugar de `pendiente_pago`, registrándose automáticamente como completados/facturados y rebajando inventario.
+- **Suite Anti-Spam de Campañas Reforzada**: Se implementó una variación profunda de spintax por IA en `gemini-client.js` (variación de párrafos, estructura y emojis al azar, no solo sinónimos) y se inyectaron retrasos asimétricos (1500ms extra en outbox para adjuntos compuestos, y el cron de campañas subió a 42s) para evadir los algoritmos restrictivos de Meta.
+- **Inteligencia de Lectura en Prospectos**: Se habilitó una función en `assets/js/admin/vprospectos.js` que permite pegar texto crudo (ej. datos de Google Maps, listas sin formato o chats). Gemini 3.5 lo escanea, lo transforma a JSON estructurado y lo inserta. La base de datos actual de prospectos fue vaciada por petición.
+- **Selector de Actitud de IA para Campañas**: El envío de campañas ahora despliega un modal visual (antes del análisis masivo) con 4 intenciones ("Presentación Comercial", "Seguimiento", "Recordatorio", "Oferta Relámpago") instruyendo a la IA sobre el tono exacto para redactar.
+- **Reemplazo Directo de Ítems en Carrito (Swap)**: El botón 🔄 (Reemplazar) en `vquotes.js` y `pos.js` ahora funciona perfectamente. Pone el foco en el input `posSearch`, preserva la cantidad original en memoria y, al confirmar el nuevo producto, reconstruye el carrito (ticket) dejando el ítem nuevo en la misma posición (índice) que ocupaba el viejo, manteniendo el orden visual del usuario.
+- **Rediseño de Comprobantes**: Se reescribió el CSS de `comprobante.html` eliminando colores de marca para lograr un diseño "Premium B/N" optimizado para impresoras térmicas/láser en formato A4 ancho.

@@ -375,24 +375,53 @@ function posAdd(pid) {
 }
 
 function posAddResolved(p, variant) {
-  const key = variant ? `${p.id}::${variant.id}` : p.id;
-  if (posTicket[key]) posTicket[key].qty += 1;
-  else {
-    const src = variant || p;
-    posTicket[key] = {
-      id: p.id, variant_id: variant?.id || null, name: p.name,
-      sku: (variant?.sku || p.sku || null),   // sale como "Código" en el presupuesto
-      brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
-      unit: p.unit || 'unid',
-      price_usd: Number(src.price_usd),
-      price_level: 'B',                        // A/B (US$) · C/D (Bs); default B
-      price_a: Number(src.price_a) || 0,
-      price_b: Number(src.price_b) || 0,
-      price_c_bs: Number(src.price_c_bs) || 0,
-      price_d_bs: Number(src.price_d_bs) || 0,
-      qty: Math.max(1, Number(p.min_qty) || 1),
-      stock: variant ? variant.stock : p.stock,
-    };
+  const newKey = variant ? `${p.id}::${variant.id}` : p.id;
+  
+  if (posSwapTargetKey) {
+    if (newKey !== posSwapTargetKey) {
+      const newTicket = {};
+      for (const k in posTicket) {
+        if (k === posSwapTargetKey) {
+          const src = variant || p;
+          newTicket[newKey] = {
+            id: p.id, variant_id: variant?.id || null, name: p.name,
+            sku: (variant?.sku || p.sku || null),
+            brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
+            unit: p.unit || 'unid',
+            price_usd: Number(src.price_usd),
+            price_level: posTicket[posSwapTargetKey].price_level || 'B',
+            price_a: Number(src.price_a) || 0, price_b: Number(src.price_b) || 0,
+            price_c_bs: Number(src.price_c_bs) || 0, price_d_bs: Number(src.price_d_bs) || 0,
+            qty: posTicket[posSwapTargetKey].qty || Math.max(1, Number(p.min_qty) || 1),
+            stock: variant ? variant.stock : p.stock,
+            is_custom: false
+          };
+        } else {
+          newTicket[k] = posTicket[k];
+        }
+      }
+      posTicket = newTicket;
+    }
+    posSwapTargetKey = null;
+  } else {
+    if (posTicket[newKey]) posTicket[newKey].qty += 1;
+    else {
+      const src = variant || p;
+      posTicket[newKey] = {
+        id: p.id, variant_id: variant?.id || null, name: p.name,
+        sku: (variant?.sku || p.sku || null),
+        brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
+        unit: p.unit || 'unid',
+        price_usd: Number(src.price_usd),
+        price_level: 'B',
+        price_a: Number(src.price_a) || 0,
+        price_b: Number(src.price_b) || 0,
+        price_c_bs: Number(src.price_c_bs) || 0,
+        price_d_bs: Number(src.price_d_bs) || 0,
+        qty: Math.max(1, Number(p.min_qty) || 1),
+        stock: variant ? variant.stock : p.stock,
+      };
+    }
   }
   posRenderTicket();
 }
@@ -435,6 +464,16 @@ function posSetQty(key, val) {
     if (posTicket[key]) posTicket[key].qty = n;
   }
   posRenderTicket();
+}
+
+let posSwapTargetKey = null;
+
+function posSwapLine(key) {
+  posSwapTargetKey = key;
+  document.getElementById('posSearchInput').value = '';
+  posSearch(); // Limpia resultados
+  document.getElementById('posSearchModal').classList.add('op');
+  document.getElementById('posSearchInput').focus();
 }
 
 function posRemoveLine(key) {
@@ -481,7 +520,10 @@ function posRenderTicket() {
           </div>
           ${levelSelector}
         </div>
-        <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar este producto" style="padding:4px 6px;color:#ef4444;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:6px;transition:background .1s" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+        <div style="display:flex; gap:4px">
+          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar este producto" style="padding:4px 6px;color:#0284c7;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:6px;transition:background .1s" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='transparent'">🔄</button>
+          <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar este producto" style="padding:4px 6px;color:#ef4444;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:6px;transition:background .1s" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+        </div>
       </div>
 
       <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed #f1f5f9;margin-top:2px">

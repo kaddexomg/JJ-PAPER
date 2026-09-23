@@ -303,6 +303,11 @@ function posAddAndPick(p, variant) {
   const src = variant || p;
   const existing = posTicket[key];
 
+  let initialQty = existing ? existing.qty : Math.max(1, Number(p.min_qty) || 1);
+  if (posSwapTargetKey && posTicket[posSwapTargetKey]) {
+    initialQty = posTicket[posSwapTargetKey].qty;
+  }
+
   const tempLine = {
     id: p.id,
     product_id: p.id,
@@ -317,12 +322,15 @@ function posAddAndPick(p, variant) {
     price_b: Number(src.price_b) || Number(src.price_usd) || 0,
     price_c_bs: Number(src.price_c_bs) || 0,
     price_d_bs: Number(src.price_d_bs) || 0,
-    qty: existing ? existing.qty : Math.max(1, Number(p.min_qty) || 1),
+    qty: initialQty,
     stock: variant ? variant.stock : p.stock,
   };
 
   pfOpenProductModal(tempLine).then(choice => {
     if (!choice) {
+      if (posSwapTargetKey) {
+        posSwapTargetKey = null; // abortó el reemplazo
+      }
       const se = document.getElementById('posSearch');
       if (se) { se.focus(); se.select(); }
       return;
@@ -332,14 +340,33 @@ function posAddAndPick(p, variant) {
     tempLine.price_usd = Number(choice.price_usd);
     tempLine.qty = Number(choice.qty);
 
-    posTicket[key] = tempLine;
+    if (posSwapTargetKey) {
+      if (key !== posSwapTargetKey) {
+        const newTicket = {};
+        for (const k in posTicket) {
+          if (k === posSwapTargetKey) {
+            newTicket[key] = tempLine;
+          } else {
+            newTicket[k] = posTicket[k];
+          }
+        }
+        posTicket = newTicket;
+      } else {
+        // Mismo producto, solo actualiza
+        posTicket[key] = tempLine;
+      }
+      posSwapTargetKey = null;
+    } else {
+      posTicket[key] = tempLine;
+    }
+
     posRenderTicket();
     showToast(`✅ ${tempLine.name} agregado (Nivel ${tempLine.price_level} · x${tempLine.qty})`);
 
     const se = document.getElementById('posSearch');
     if (se) {
       se.value = '';
-      posSearch();
+      if (typeof posSearch === 'function') posSearch();
       se.focus();
     }
   });
@@ -374,57 +401,7 @@ function posAdd(pid) {
   posAddAndPick(p, variant);
 }
 
-function posAddResolved(p, variant) {
-  const newKey = variant ? `${p.id}::${variant.id}` : p.id;
-  
-  if (posSwapTargetKey) {
-    if (newKey !== posSwapTargetKey) {
-      const newTicket = {};
-      for (const k in posTicket) {
-        if (k === posSwapTargetKey) {
-          const src = variant || p;
-          newTicket[newKey] = {
-            id: p.id, variant_id: variant?.id || null, name: p.name,
-            sku: (variant?.sku || p.sku || null),
-            brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
-            unit: p.unit || 'unid',
-            price_usd: Number(src.price_usd),
-            price_level: posTicket[posSwapTargetKey].price_level || 'B',
-            price_a: Number(src.price_a) || 0, price_b: Number(src.price_b) || 0,
-            price_c_bs: Number(src.price_c_bs) || 0, price_d_bs: Number(src.price_d_bs) || 0,
-            qty: posTicket[posSwapTargetKey].qty || Math.max(1, Number(p.min_qty) || 1),
-            stock: variant ? variant.stock : p.stock,
-            is_custom: false
-          };
-        } else {
-          newTicket[k] = posTicket[k];
-        }
-      }
-      posTicket = newTicket;
-    }
-    posSwapTargetKey = null;
-  } else {
-    if (posTicket[newKey]) posTicket[newKey].qty += 1;
-    else {
-      const src = variant || p;
-      posTicket[newKey] = {
-        id: p.id, variant_id: variant?.id || null, name: p.name,
-        sku: (variant?.sku || p.sku || null),
-        brand: variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null,
-        unit: p.unit || 'unid',
-        price_usd: Number(src.price_usd),
-        price_level: 'B',
-        price_a: Number(src.price_a) || 0,
-        price_b: Number(src.price_b) || 0,
-        price_c_bs: Number(src.price_c_bs) || 0,
-        price_d_bs: Number(src.price_d_bs) || 0,
-        qty: Math.max(1, Number(p.min_qty) || 1),
-        stock: variant ? variant.stock : p.stock,
-      };
-    }
-  }
-  posRenderTicket();
-}
+
 
 function posLineBs(l) {
   const rate = getRate();
@@ -470,10 +447,16 @@ let posSwapTargetKey = null;
 
 function posSwapLine(key) {
   posSwapTargetKey = key;
-  document.getElementById('posSearchInput').value = '';
-  posSearch(); // Limpia resultados
-  document.getElementById('posSearchModal').classList.add('op');
-  document.getElementById('posSearchInput').focus();
+  const se = document.getElementById('posSearch');
+  if (se) {
+    se.value = '';
+    se.focus();
+    se.select();
+  }
+  if (typeof posSearch === 'function') {
+    posSearch(); // Actualiza/limpia resultados
+  }
+  showToast('Busca y selecciona el producto para reemplazarlo', 'info');
 }
 
 function posRemoveLine(key) {

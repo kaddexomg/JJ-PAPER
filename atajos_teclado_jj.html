@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atajos de Teclado JJ Paper | Hoja Única</title>
+<title>Atajos de Teclado JJ Paper | Hoja Horizontal</title>
 <link rel="icon" href="assets/img/logo.svg">
 <style>
   /* ==========================================================================
-     HOJA ULTRA-COMPACTA DE ATAJOS DE TECLADO JJ PAPER (1 SOLA PÁGINA GARANTIZADA)
-     Optimizada estrictamente para impresión en Blanco y Negro / Escala de Grises.
-     Ajuste milimétrico a 1 sola hoja Carta/A4 con 2 columnas perfectamente equilibradas.
+     HOJA PANORÁMICA HORIZONTAL (LANDSCAPE) — CENTRO DE ATAJOS JJ PAPER
+     Diseñada para máxima visibilidad, legibilidad a distancia y elegancia gráfica.
+     Optimizada para impresión en Blanco y Negro (B&W) en 1 sola hoja Carta apaisada.
      ========================================================================== */
 
   *, *::before, *::after {
@@ -19,342 +19,402 @@
   }
 
   :root {
-    --ink: #000000;
-    --ink-dark: #1a1a1a;
+    --ink-black: #000000;
+    --ink-dark: #1c1c1c;
     --ink-dim: #444444;
-    --border: #000000;
+    --border-strong: #000000;
+    --border-med: #555555;
     --border-light: #cccccc;
-    --bg-header: #f2f2f2;
-    --bg-alt: #f9f9f9;
+    --bg-header: #eeeeee;
+    --bg-alt: #f8f8f8;
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    color: var(--ink);
-    background: #eef1ef;
-    padding: 16px 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink-black);
+    background: #e2e7e4;
+    padding: 18px 14px 40px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* Barra de herramientas para pantalla (Oculta al imprimir) */
+  /* Barra de herramientas superior en pantalla */
   .no-print {
-    max-width: 860px;
-    margin: 0 auto 12px;
+    max-width: 1100px;
+    margin: 0 auto 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: #ffffff;
-    padding: 10px 16px;
-    border-radius: 6px;
+    padding: 10px 18px;
+    border-radius: 8px;
     border: 1px solid #c2c9c5;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.09);
   }
-  .no-print .txt {
-    font-size: 13px;
+  .no-print .info {
+    font-size: 13.5px;
     font-weight: 700;
     color: #16604A;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .no-print .btn-p {
+  .no-print .actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn-print {
     background: #16604A;
     color: #ffffff;
     border: 0;
-    border-radius: 5px;
-    padding: 7px 14px;
-    font-size: 13px;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-size: 13.5px;
     font-weight: 700;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
+    transition: background 0.15s ease;
   }
-  .no-print .btn-p:hover { background: #0f4636; }
+  .btn-print:hover { background: #0e4434; }
+  .btn-back {
+    background: #eaeeec;
+    color: #2b3a33;
+    border: 1px solid #cbd5cf;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-  /* Hoja imprimible (Formato Carta estricto) */
-  .page {
-    max-width: 860px;
+  /* Hoja horizontal (Carta Landscape) */
+  .sheet {
+    max-width: 1100px;
     margin: 0 auto;
     background: #ffffff;
-    padding: 14px 18px 12px;
-    border: 1px solid #b8beb9;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    padding: 16px 20px 12px;
+    border: 1.5px solid #b8c0bc;
+    border-radius: 4px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12);
   }
 
-  /* Cabecera institucional ultra-compacta */
-  .hdr {
+  /* Encabezado panorámico */
+  .doc-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid var(--border);
-    padding-bottom: 6px;
-    margin-bottom: 8px;
+    border-bottom: 2.5px solid var(--border-strong);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
   }
-  .hdr-left {
+  .biz-block {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
-  .hdr-logo {
-    width: 32px;
-    height: 32px;
+  .biz-logo {
+    width: 44px;
+    height: 44px;
     object-fit: contain;
-    filter: grayscale(100%) contrast(180%);
+    filter: grayscale(100%) contrast(220%);
   }
-  .hdr-titles h1 {
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 0.4px;
-    line-height: 1.1;
-    text-transform: uppercase;
-  }
-  .hdr-titles .sub {
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--ink-dim);
-    letter-spacing: 0.3px;
-  }
-  .hdr-badge {
-    border: 1.5px solid var(--border);
-    padding: 3px 8px;
-    text-align: right;
-    border-radius: 3px;
-    background: #fafafa;
-  }
-  .hdr-badge .t1 {
-    font-size: 9px;
+  .biz-info h1 {
+    font-size: 17px;
     font-weight: 900;
     letter-spacing: 0.6px;
+    line-height: 1.15;
     text-transform: uppercase;
   }
-  .hdr-badge .t2 {
-    font-size: 8px;
-    font-weight: 600;
+  .biz-info .desc {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ink-dim);
+    letter-spacing: 0.4px;
+    margin-top: 2px;
+  }
+  .doc-badge {
+    border: 2px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 4px 10px;
+    background: #fafafa;
+    text-align: right;
+  }
+  .doc-badge .b-tag {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .doc-badge .b-sub {
+    font-size: 8.5px;
+    font-weight: 700;
     color: var(--ink-dim);
   }
 
-  /* Grilla de 2 columnas balanceadas */
-  .grid {
+  /* Grilla panorámica de 3 columnas principales */
+  .grid-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px 10px;
+    grid-template-columns: 1.05fr 1fr 1fr;
+    gap: 10px;
+    align-items: start;
   }
 
-  /* Bloque / Tarjeta de Sección */
-  .card {
-    border: 1.5px solid var(--border);
-    border-radius: 3px;
+  /* Tarjeta de Sección */
+  .sec-card {
+    border: 1.8px solid var(--border-strong);
+    border-radius: 4px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .card-h {
+  .sec-card:last-child {
+    margin-bottom: 0;
+  }
+  .sec-head {
     background: var(--bg-header);
-    border-bottom: 1.5px solid var(--border);
-    padding: 3px 6px;
+    border-bottom: 1.8px solid var(--border-strong);
+    padding: 4.5px 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .card-h h2 {
-    font-size: 9.5px;
+  .sec-head h2 {
+    font-size: 11px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
-    color: var(--ink);
+    letter-spacing: 0.4px;
+    color: var(--ink-black);
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
-  .card-h .tag {
-    font-size: 7.5px;
+  .sec-head .badge {
+    font-size: 8.5px;
     font-weight: 800;
     text-transform: uppercase;
     color: var(--ink-dim);
+    letter-spacing: 0.3px;
   }
 
-  /* Tabla de atajos */
-  table.tb {
+  /* Tabla de Atajos */
+  table.sh-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 8.8px;
-    line-height: 1.15;
+    font-size: 10px;
+    line-height: 1.22;
   }
-  table.tb thead th {
+  table.sh-table thead th {
     background: #ffffff;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 900;
     text-transform: uppercase;
+    letter-spacing: 0.3px;
     text-align: left;
-    padding: 2.5px 5px;
-    border-bottom: 1px solid var(--border);
-    color: var(--ink-dark);
+    padding: 3.5px 6px;
+    border-bottom: 1.2px solid var(--border-strong);
+    color: var(--ink-black);
   }
-  table.tb thead th.k { width: 110px; text-align: center; }
-  table.tb tbody tr {
-    border-bottom: 1px solid #e2e2e2;
+  table.sh-table thead th.c-keys {
+    width: 115px;
+    text-align: center;
   }
-  table.tb tbody tr:last-child { border-bottom: 0; }
-  table.tb tbody tr:nth-child(even) { background: var(--bg-alt); }
-  table.tb td {
-    padding: 2.2px 5px;
+  table.sh-table tbody tr {
+    border-bottom: 1px solid #dedede;
+  }
+  table.sh-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  table.sh-table tbody tr:nth-child(even) {
+    background: var(--bg-alt);
+  }
+  table.sh-table td {
+    padding: 3.2px 6px;
     vertical-align: middle;
   }
-  table.tb td.k {
+  table.sh-table td.c-keys {
     text-align: center;
     white-space: nowrap;
     padding-right: 4px;
   }
-  table.tb td.act {
-    font-weight: 700;
-    color: var(--ink);
+  table.sh-table td.c-act {
+    font-weight: 800;
+    color: var(--ink-black);
   }
-  table.tb td.det {
-    font-size: 8px;
+  table.sh-table td.c-det {
+    font-size: 9px;
     color: var(--ink-dim);
     font-weight: 500;
   }
 
-  /* Teclas virtuales KBD de alto impacto */
+  /* Teclas KBD de alto impacto visual */
   kbd {
     display: inline-block;
-    padding: 1px 4.5px;
-    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-    font-size: 8.5px;
+    padding: 1.5px 5.5px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 9.5px;
     font-weight: 900;
     line-height: 1.15;
     color: #000000;
-    background: #ffffff;
-    border: 1.3px solid #000000;
-    border-radius: 2.5px;
-    box-shadow: 0 1px 0 #000000;
+    background-color: #ffffff;
+    border: 1.5px solid #000000;
+    border-radius: 3px;
+    box-shadow: 0 1.5px 0 #000000;
     margin: 0 1px;
     vertical-align: middle;
   }
-  .o { font-size: 7.5px; font-weight: 700; color: #555; margin: 0 2px; }
-  .p { font-size: 7.5px; font-weight: 700; color: #222; margin: 0 1px; }
+  .ko {
+    font-size: 8px;
+    font-weight: 800;
+    color: #555555;
+    margin: 0 2px;
+  }
+  .kp {
+    font-size: 8px;
+    font-weight: 800;
+    color: #111111;
+    margin: 0 1px;
+  }
 
-  /* Flujo de Venta Rápida (Pie superior) */
-  .flow {
-    border: 1.5px solid var(--border);
+  /* Franja inferior: Flujo de venta rápida panorámico */
+  .flow-banner {
+    margin-top: 10px;
+    border: 1.8px solid var(--border-strong);
     background: #ffffff;
-    border-radius: 3px;
-    padding: 4px 8px;
-    margin-top: 4px;
+    border-radius: 4px;
+    padding: 6px 12px;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    align-items: center;
+    gap: 12px;
   }
   .flow-title {
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
+    color: #000000;
     white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .flow-steps {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 8px;
-    font-weight: 700;
+    flex-wrap: nowrap;
+    gap: 6px;
   }
-  .flow-box {
-    background: #f1f1f1;
-    border: 1px solid #888;
-    padding: 1px 5px;
-    border-radius: 2px;
+  .flow-node {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 5px;
+    background: #f1f3f2;
+    border: 1.2px solid #555555;
+    padding: 2.5px 8px;
+    border-radius: 3px;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #000000;
   }
-  .flow-arr { font-weight: 900; color: #000; font-size: 9px; }
+  .flow-arrow {
+    font-weight: 900;
+    font-size: 12px;
+    color: #000000;
+  }
 
   /* Pie institucional inferior */
-  .ftr {
-    margin-top: 6px;
-    border-top: 1.2px solid var(--border);
+  .doc-foot {
+    margin-top: 8px;
+    border-top: 1.5px solid var(--border-strong);
     padding-top: 4px;
     display: flex;
     justify-content: space-between;
-    font-size: 7.5px;
+    align-items: center;
+    font-size: 8.5px;
     font-weight: 700;
     color: var(--ink-dim);
   }
 
   /* ==========================================================================
-     REGLAS ESTRICTAS DE IMPRESIÓN (BLANCO Y NEGRO, EXACTAMENTE 1 PÁGINA)
+     CONFIGURACIÓN ESTRICTA DE IMPRESIÓN (CARTA HORIZONTAL / 1 HOJA EXACTA)
      ========================================================================== */
   @media print {
     @page {
-      size: letter portrait;
-      margin: 4mm 6mm 4mm 6mm !important;
+      size: letter landscape;
+      margin: 5mm 7mm 5mm 7mm !important;
     }
     html, body {
       background: #ffffff !important;
       padding: 0 !important;
       margin: 0 !important;
+      width: 100% !important;
       height: 100% !important;
       overflow: hidden !important;
     }
     .no-print {
       display: none !important;
     }
-    .page {
+    .sheet {
       border: 0 !important;
       box-shadow: none !important;
       padding: 0 !important;
       max-width: 100% !important;
       width: 100% !important;
     }
-    .hdr {
-      padding-bottom: 4px !important;
-      margin-bottom: 6px !important;
-      border-bottom: 2px solid #000 !important;
+    .doc-head {
+      padding-bottom: 6px !important;
+      margin-bottom: 8px !important;
+      border-bottom: 2.2px solid #000000 !important;
     }
-    .hdr-logo {
+    .biz-logo {
       filter: grayscale(100%) contrast(250%) !important;
     }
-    .card {
-      border: 1.4px solid #000000 !important;
-      margin-bottom: 5px !important;
+    .sec-card {
+      border: 1.8px solid #000000 !important;
+      margin-bottom: 6px !important;
     }
-    .card-h {
-      background: #ededed !important;
-      border-bottom: 1.4px solid #000000 !important;
+    .sec-head {
+      background: #eeeeee !important;
+      border-bottom: 1.8px solid #000000 !important;
+      padding: 3.5px 6px !important;
+    }
+    table.sh-table thead th {
+      border-bottom: 1.2px solid #000000 !important;
+      background: #ffffff !important;
       padding: 2.5px 5px !important;
     }
-    table.tb thead th {
-      border-bottom: 1.4px solid #000000 !important;
-      background: #ffffff !important;
-      padding: 2px 4px !important;
+    table.sh-table tbody tr:nth-child(even) {
+      background: #f6f6f6 !important;
     }
-    table.tb tbody tr:nth-child(even) {
-      background: #f7f7f7 !important;
-    }
-    table.tb td {
-      padding: 1.8px 4px !important;
-      font-size: 8.5px !important;
+    table.sh-table td {
+      padding: 2.8px 5px !important;
+      font-size: 9.5px !important;
     }
     kbd {
-      border: 1.3px solid #000000 !important;
-      box-shadow: 0 1px 0 #000000 !important;
+      border: 1.4px solid #000000 !important;
+      box-shadow: 0 1.2px 0 #000000 !important;
       background: #ffffff !important;
       color: #000000 !important;
-      padding: 0.5px 3.5px !important;
-      font-size: 8px !important;
+      padding: 1px 4.5px !important;
+      font-size: 9px !important;
     }
-    .flow {
-      border: 1.4px solid #000000 !important;
-      padding: 3px 6px !important;
-      margin-top: 3px !important;
+    .flow-banner {
+      border: 1.8px solid #000000 !important;
+      padding: 4px 8px !important;
+      margin-top: 6px !important;
     }
-    .flow-box {
+    .flow-node {
       background: #eeeeee !important;
-      border: 1px solid #555555 !important;
+      border: 1.2px solid #222222 !important;
     }
-    .ftr {
-      margin-top: 4px !important;
+    .doc-foot {
+      margin-top: 5px !important;
       padding-top: 3px !important;
-      border-top: 1.2px solid #000000 !important;
+      border-top: 1.5px solid #000000 !important;
     }
   }
 </style>
@@ -363,149 +423,196 @@
 
   <!-- Barra en pantalla para control del operador -->
   <div class="no-print">
-    <div class="txt">
-      📄 <strong>Atajos de Teclado JJ Paper</strong> — Formato ultra-compacto ajustado a <strong>1 sola página estricta</strong>
+    <div class="info">
+      📄 <strong>Centro de Atajos JJ Paper</strong> — Formato Panorámico Horizontal (1 Hoja Carta Landscape)
     </div>
-    <div>
-      <button class="btn-p" onclick="window.print()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        Imprimir Hoja (Ctrl + P)
+    <div class="actions">
+      <button class="btn-print" onclick="window.print()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Imprimir Hoja Horizontal (Ctrl + P)
       </button>
+      <button class="btn-back" onclick="window.close(); if(!window.closed) history.back();">Volver</button>
     </div>
   </div>
 
-  <!-- Contenedor único de página física -->
-  <div class="page">
+  <!-- Contenedor Principal de la Hoja Horizontal -->
+  <div class="sheet">
 
-    <!-- Membrete superior -->
-    <header class="hdr">
-      <div class="hdr-left">
-        <img src="assets/img/logo.svg" alt="JJ" class="hdr-logo" onerror="this.style.display='none'">
-        <div class="hdr-titles">
-          <h1>JJ PAPER C.A. · CENTRO DE ATAJOS DE TECLADO</h1>
-          <div class="sub">GUÍA OPERATIVA RÁPIDA · PUNTOS DE VENTA, COTIZACIONES Y CAJA</div>
+    <!-- Membrete Panorámico Superior -->
+    <header class="doc-head">
+      <div class="biz-block">
+        <img src="assets/img/logo.svg" alt="JJ Paper" class="biz-logo" onerror="this.style.display='none'">
+        <div class="biz-info">
+          <h1>JJ PAPER C.A. · TABLA MAESTRA DE ATAJOS DE TECLADO</h1>
+          <div class="desc">GUÍA OPERATIVA DE ALTA VELOCIDAD · PUNTOS DE VENTA, COTIZACIONES Y CAJA</div>
         </div>
       </div>
-      <div class="hdr-badge">
-        <div class="t1">HOJA DE REFERENCIA RÁPIDA</div>
-        <div class="t2">USO INTERNO DE MOSTRADOR</div>
+      <div class="doc-badge">
+        <div class="b-tag">HOJA DE MOSTRADOR</div>
+        <div class="b-sub">1 PÁGINA HORIZONTAL · B&W</div>
       </div>
     </header>
 
-    <!-- Grilla de 2 columnas balanceadas -->
-    <main class="grid">
+    <!-- Grilla Panorámica de 3 Columnas -->
+    <main class="grid-layout">
 
-      <!-- ================= COLUMNA IZQUIERDA ================= -->
-      <div class="col">
-
-        <!-- 1. PUNTO DE VENTA (POS) -->
-        <div class="card">
-          <div class="card-h">
+      <!-- ================= COLUMNA 1: POS & FACTURACIÓN ================= -->
+      <div class="col-box">
+        <div class="sec-card">
+          <div class="sec-head">
             <h2>🛒 1. Punto de Venta (POS) & Caja</h2>
-            <span class="tag">Facturación</span>
+            <span class="badge">Facturación</span>
           </div>
-          <table class="tb">
+          <table class="sh-table">
             <thead>
               <tr>
-                <th class="k">Teclas</th>
+                <th class="c-keys">Teclas</th>
                 <th>Acción</th>
-                <th>Detalle</th>
+                <th>Detalle Operativo</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="k"><kbd>F2</kbd><span class="o">o</span><kbd>/</kbd></td>
-                <td class="act">Buscar Producto</td>
-                <td class="det">Enfoca y selecciona el buscador</td>
+                <td class="c-keys"><kbd>F2</kbd><span class="ko">o</span><kbd>/</kbd></td>
+                <td class="c-act">Buscar Producto</td>
+                <td class="c-det">Enfoca y selecciona el buscador</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F3</kbd></td>
-                <td class="act">Buscar Cliente</td>
-                <td class="det">Autocompletado CRM (RIF o Nombre)</td>
+                <td class="c-keys"><kbd>F3</kbd></td>
+                <td class="c-act">Buscar Cliente</td>
+                <td class="c-det">Autocompletado CRM (RIF o Nombre)</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F4</kbd></td>
-                <td class="act">Descuento %</td>
-                <td class="det">Enfoca campo de descuento general</td>
+                <td class="c-keys"><kbd>F4</kbd></td>
+                <td class="c-act">Descuento %</td>
+                <td class="c-det">Aplica % descuento a la venta</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F8</kbd></td>
-                <td class="act">Método de Pago</td>
-                <td class="det">Efectivo, Transf., Pago Móvil, etc.</td>
+                <td class="c-keys"><kbd>F8</kbd></td>
+                <td class="c-act">Método de Pago</td>
+                <td class="c-det">Efectivo, Transf., Pago Móvil, etc.</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F9</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>Enter</kbd></td>
-                <td class="act">REGISTRAR VENTA</td>
-                <td class="det">Procesa y emite la orden de venta</td>
+                <td class="c-keys"><kbd>F9</kbd><span class="ko">o</span><kbd>Ctrl</kbd><span class="kp">+</span><kbd>Enter</kbd></td>
+                <td class="c-act">REGISTRAR VENTA</td>
+                <td class="c-det">Procesa y emite la orden de venta</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F10</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>P</kbd></td>
-                <td class="act">Imprimir Factura</td>
-                <td class="det">Abre comprobante oficial última venta</td>
+                <td class="c-keys"><kbd>F10</kbd><span class="ko">o</span><kbd>Ctrl</kbd><span class="kp">+</span><kbd>P</kbd></td>
+                <td class="c-act">Imprimir Factura</td>
+                <td class="c-det">Abre comprobante oficial última venta</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F11</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>C</kbd></td>
-                <td class="act">Cargar Cotización</td>
-                <td class="det">Convierte presupuesto a venta</td>
+                <td class="c-keys"><kbd>F11</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>C</kbd></td>
+                <td class="c-act">Cargar Cotización</td>
+                <td class="c-det">Pasa presupuesto previo a caja</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F12</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>I</kbd></td>
-                <td class="act">Ítem Libre / Flete</td>
-                <td class="det">Servicio o concepto sin catálogo</td>
+                <td class="c-keys"><kbd>F12</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>I</kbd></td>
+                <td class="c-act">Ítem Libre / Flete</td>
+                <td class="c-det">Concepto o servicio sin catálogo</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F7</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>L</kbd></td>
-                <td class="act">Limpiar Ticket</td>
-                <td class="det">Vacía todos los renglones</td>
+                <td class="c-keys"><kbd>F7</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>L</kbd></td>
+                <td class="c-act">Limpiar Ticket</td>
+                <td class="c-det">Vacía todos los renglones</td>
+              </tr>
+              <tr>
+                <td class="c-keys"><kbd>F1</kbd><span class="ko">o</span><kbd>?</kbd></td>
+                <td class="c-act">Ayuda en Pantalla</td>
+                <td class="c-det">Abre modal de atajos en el POS</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= COLUMNA 2: TICKET & SELECTOR MIXNET ================= -->
+      <div class="col-box">
+
+        <!-- 2. EDICIÓN DEL TICKET SIN RATÓN -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <h2>🧾 2. Edición Ticket (Sin Ratón)</h2>
+            <span class="badge">Navegación</span>
+          </div>
+          <table class="sh-table">
+            <thead>
+              <tr>
+                <th class="c-keys">Teclas</th>
+                <th>Acción</th>
+                <th>Detalle Operativo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="c-keys"><kbd>F6</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>T</kbd></td>
+                <td class="c-act">Modo Teclado Ticket</td>
+                <td class="c-det">Activa cursor en el primer renglón</td>
+              </tr>
+              <tr>
+                <td class="c-keys"><kbd>↑</kbd><kbd>↓</kbd></td>
+                <td class="c-act">Navegar Renglones</td>
+                <td class="c-det">Sube o baja por los productos</td>
+              </tr>
+              <tr>
+                <td class="c-keys"><kbd>+</kbd><span class="ko">/</span><kbd>→</kbd> · <kbd>-</kbd><span class="ko">/</span><kbd>←</kbd></td>
+                <td class="c-act">Cantidad (+ / -)</td>
+                <td class="c-det">Aumenta o reduce unidades</td>
+              </tr>
+              <tr>
+                <td class="c-keys"><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd></td>
+                <td class="c-act">Nivel de Precio</td>
+                <td class="c-det">Aplica nivel instantáneo al ítem</td>
+              </tr>
+              <tr>
+                <td class="c-keys"><kbd>Supr</kbd><span class="ko">o</span><kbd>Backspace</kbd></td>
+                <td class="c-act">Eliminar Renglón</td>
+                <td class="c-det">Quita el producto del ticket</td>
+              </tr>
+              <tr>
+                <td class="c-keys"><kbd>Enter</kbd><span class="ko">o</span><kbd>Esc</kbd></td>
+                <td class="c-act">Salir del Ticket</td>
+                <td class="c-det">Regresa al buscador (<kbd>F2</kbd>)</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- 2. COTIZADOR DE VENTAS -->
-        <div class="card">
-          <div class="card-h">
-            <h2>📋 2. Cotizador de Presupuestos</h2>
-            <span class="tag">Presupuestos</span>
+        <!-- 3. SELECTOR MIXNET DE PRECIOS Y CANTIDAD -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <h2>🏷️ 3. Selector Precios MixNet</h2>
+            <span class="badge">Popup</span>
           </div>
-          <table class="tb">
+          <table class="sh-table">
             <thead>
               <tr>
-                <th class="k">Teclas</th>
+                <th class="c-keys">Teclas</th>
                 <th>Acción</th>
-                <th>Detalle</th>
+                <th>Detalle Operativo</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="k"><kbd>F4</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>O</kbd></td>
-                <td class="act">Buscar Cotización</td>
-                <td class="det">Abre modal para clonar o editar</td>
+                <td class="c-keys"><kbd>↑</kbd><kbd>↓</kbd></td>
+                <td class="c-act">Moverse en Opciones</td>
+                <td class="c-det">Navega por la lista de precios</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F7</kbd></td>
-                <td class="act">Facturar en POS</td>
-                <td class="det">Pasa el presupuesto directo a caja</td>
+                <td class="c-keys"><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd></td>
+                <td class="c-act">Nivel Directo</td>
+                <td class="c-det">A: Mayor · B: USD · C/D: Bs</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F8</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>C</kbd></td>
-                <td class="act">Ver Cotizaciones</td>
-                <td class="det">Abre listado general de presupuestos</td>
+                <td class="c-keys"><kbd>M</kbd></td>
+                <td class="c-act">Precio Manual</td>
+                <td class="c-det">Escribir precio en US$ personalizado</td>
               </tr>
               <tr>
-                <td class="k"><kbd>F9</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>Enter</kbd></td>
-                <td class="act">GUARDAR COTIZACIÓN</td>
-                <td class="det">Registra o actualiza el presupuesto</td>
-              </tr>
-              <tr>
-                <td class="k"><kbd>F10</kbd><span class="o">o</span><kbd>Ctrl</kbd><span class="p">+</span><kbd>P</kbd></td>
-                <td class="act">Generar PDF Formal</td>
-                <td class="det">Descarga presupuesto institucional</td>
-              </tr>
-              <tr>
-                <td class="k"><kbd>Alt</kbd><span class="p">+</span><kbd>N</kbd></td>
-                <td class="act">Nueva Cotización</td>
-                <td class="det">Limpia campos para nuevo cliente</td>
+                <td class="c-keys"><kbd>+</kbd><span class="ko">/</span><kbd>-</kbd> · <kbd>Enter</kbd></td>
+                <td class="c-act">Cantidad y Agregar</td>
+                <td class="c-det">Ajusta cantidad y envía al ticket</td>
               </tr>
             </tbody>
           </table>
@@ -513,131 +620,92 @@
 
       </div>
 
-      <!-- ================= COLUMNA DERECHA ================= -->
-      <div class="col">
+      <!-- ================= COLUMNA 3: COTIZADOR & SISTEMA GLOBAL ================= -->
+      <div class="col-box">
 
-        <!-- 3. EDICIÓN DEL TICKET (SIN RATÓN) -->
-        <div class="card">
-          <div class="card-h">
-            <h2>🧾 3. Edición del Ticket (Sin Ratón)</h2>
-            <span class="tag">Modo Rápido</span>
+        <!-- 4. COTIZADOR DE PRESUPUESTOS -->
+        <div class="sec-card">
+          <div class="sec-head">
+            <h2>📋 4. Cotizador de Presupuestos</h2>
+            <span class="badge">Presupuestos</span>
           </div>
-          <table class="tb">
+          <table class="sh-table">
             <thead>
               <tr>
-                <th class="k">Teclas</th>
+                <th class="c-keys">Teclas</th>
                 <th>Acción</th>
-                <th>Detalle</th>
+                <th>Detalle Operativo</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="k"><kbd>F6</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>T</kbd></td>
-                <td class="act">Modo Teclado Ticket</td>
-                <td class="det">Enfoca cursor en el renglón activo</td>
+                <td class="c-keys"><kbd>F4</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>O</kbd></td>
+                <td class="c-act">Buscar Cotización</td>
+                <td class="c-det">Abre panel para clonar o editar</td>
               </tr>
               <tr>
-                <td class="k"><kbd>↑</kbd><kbd>↓</kbd></td>
-                <td class="act">Navegar Renglones</td>
-                <td class="det">Sube o baja entre filas del ticket</td>
+                <td class="c-keys"><kbd>F7</kbd></td>
+                <td class="c-act">Facturar en POS</td>
+                <td class="c-det">Pasa presupuesto directo a caja</td>
               </tr>
               <tr>
-                <td class="k"><kbd>+</kbd><span class="o">o</span><kbd>→</kbd> / <kbd>-</kbd><span class="o">o</span><kbd>←</kbd></td>
-                <td class="act">Cantidad (+ / -)</td>
-                <td class="det">Incrementa o disminuye en 1 unidad</td>
+                <td class="c-keys"><kbd>F8</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>C</kbd></td>
+                <td class="c-act">Ver Cotizaciones</td>
+                <td class="c-det">Abre listado de presupuestos</td>
               </tr>
               <tr>
-                <td class="k"><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd></td>
-                <td class="act">Nivel de Precio</td>
-                <td class="det">Asigna nivel instantáneo al ítem</td>
+                <td class="c-keys"><kbd>F9</kbd><span class="ko">o</span><kbd>Ctrl</kbd><span class="kp">+</span><kbd>Enter</kbd></td>
+                <td class="c-act">GUARDAR COTIZACIÓN</td>
+                <td class="c-det">Guarda o actualiza presupuesto</td>
               </tr>
               <tr>
-                <td class="k"><kbd>Supr</kbd><span class="o">o</span><kbd>Backspace</kbd></td>
-                <td class="act">Eliminar Renglón</td>
-                <td class="det">Quita el producto del ticket</td>
+                <td class="c-keys"><kbd>F10</kbd><span class="ko">o</span><kbd>Ctrl</kbd><span class="kp">+</span><kbd>P</kbd></td>
+                <td class="c-act">Generar PDF Formal</td>
+                <td class="c-det">Descarga presupuesto en PDF</td>
               </tr>
               <tr>
-                <td class="k"><kbd>Enter</kbd><span class="o">o</span><kbd>Esc</kbd></td>
-                <td class="act">Salir del Ticket</td>
-                <td class="det">Regresa el cursor al buscador (<kbd>F2</kbd>)</td>
+                <td class="c-keys"><kbd>Alt</kbd><span class="kp">+</span><kbd>N</kbd></td>
+                <td class="c-act">Nueva Cotización</td>
+                <td class="c-det">Limpia campos para nuevo cliente</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <!-- 4. SELECTOR DE PRECIOS Y CANTIDAD (MIXNET) -->
-        <div class="card">
-          <div class="card-h">
-            <h2>🏷️ 4. Selector MixNet (Precios y Cantidad)</h2>
-            <span class="tag">Popup</span>
-          </div>
-          <table class="tb">
-            <thead>
-              <tr>
-                <th class="k">Teclas</th>
-                <th>Acción</th>
-                <th>Detalle</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="k"><kbd>↑</kbd><kbd>↓</kbd></td>
-                <td class="act">Moverse en Opciones</td>
-                <td class="det">Navega verticalmente entre precios</td>
-              </tr>
-              <tr>
-                <td class="k"><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd><kbd>D</kbd></td>
-                <td class="act">Nivel Directo</td>
-                <td class="det">A: Mayor · B: USD Act · C/D: Bs BCV</td>
-              </tr>
-              <tr>
-                <td class="k"><kbd>M</kbd></td>
-                <td class="act">Precio Manual</td>
-                <td class="det">Permite escribir precio libre en US$</td>
-              </tr>
-              <tr>
-                <td class="k"><kbd>+</kbd> / <kbd>-</kbd> · <kbd>Enter</kbd></td>
-                <td class="act">Cantidad y Confirmar</td>
-                <td class="det">Ajusta cantidad y agrega al ticket</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 5. NAVEGACIÓN GLOBAL Y MENSAJERÍA -->
-        <div class="card">
-          <div class="card-h">
+        <!-- 5. SISTEMA GLOBAL Y MENSAJERÍA -->
+        <div class="sec-card">
+          <div class="sec-head">
             <h2>🌐 5. Sistema Global & Navegación</h2>
-            <span class="tag">Todo el Sistema</span>
+            <span class="badge">Todas las Pantallas</span>
           </div>
-          <table class="tb">
+          <table class="sh-table">
             <thead>
               <tr>
-                <th class="k">Teclas</th>
+                <th class="c-keys">Teclas</th>
                 <th>Acción</th>
-                <th>Detalle</th>
+                <th>Detalle Operativo</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="k"><kbd>Ctrl</kbd><span class="p">+</span><kbd>K</kbd><span class="o">o</span><kbd>Alt</kbd><span class="p">+</span><kbd>K</kbd></td>
-                <td class="act">Paleta de Navegación</td>
-                <td class="det">Buscador universal a cualquier módulo</td>
+                <td class="c-keys"><kbd>Ctrl</kbd><span class="kp">+</span><kbd>K</kbd><span class="ko">o</span><kbd>Alt</kbd><span class="kp">+</span><kbd>K</kbd></td>
+                <td class="c-act">Paleta Navegación</td>
+                <td class="c-det">Buscador universal a cualquier módulo</td>
               </tr>
               <tr>
-                <td class="k"><kbd>Esc</kbd></td>
-                <td class="act">Escape Universal</td>
-                <td class="det">Cierra cualquier ventana, modal o filtro</td>
+                <td class="c-keys"><kbd>Esc</kbd></td>
+                <td class="c-act">Escape Universal</td>
+                <td class="c-det">Cierra cualquier ventana modal o filtro</td>
               </tr>
               <tr>
-                <td class="k"><kbd>Tab</kbd> / <kbd>Shift</kbd><span class="p">+</span><kbd>Tab</kbd></td>
-                <td class="act">Salto Secuencial</td>
-                <td class="det">Buscador → Cliente → Desc. → Cobrar</td>
+                <td class="c-keys"><kbd>Tab</kbd><span class="ko">/</span><kbd>Shift</kbd><span class="kp">+</span><kbd>Tab</kbd></td>
+                <td class="c-act">Salto Secuencial</td>
+                <td class="c-det">Buscador → Cliente → Desc. → Cobrar</td>
               </tr>
               <tr>
-                <td class="k"><kbd>Enter</kbd><span class="o">/</span><kbd>Shift</kbd><span class="p">+</span><kbd>Enter</kbd></td>
-                <td class="act">Enviar en WhatsApp</td>
-                <td class="det">Enter despacha mensaje; Shift salto línea</td>
+                <td class="c-keys"><kbd>Enter</kbd><span class="ko">/</span><kbd>Shift</kbd><span class="kp">+</span><kbd>Enter</kbd></td>
+                <td class="c-act">Enviar en WhatsApp</td>
+                <td class="c-det">Enter despacha mensaje; Shift salto línea</td>
               </tr>
             </tbody>
           </table>
@@ -647,29 +715,29 @@
 
     </main>
 
-    <!-- Barra de flujo de venta en 5 segundos -->
-    <section class="flow">
-      <div class="flow-title">⚡ Flujo Rápido (Sin Ratón):</div>
+    <!-- Franja Panorámica del Flujo de Venta Rápida (5 Segundos) -->
+    <section class="flow-banner">
+      <div class="flow-title">⚡ Flujo Recomendado de Venta Rápida (100% Teclado sin Ratón):</div>
       <div class="flow-steps">
-        <span class="flow-box"><kbd>F2</kbd> Buscar</span>
-        <span class="flow-arr">→</span>
-        <span class="flow-box"><kbd>Enter</kbd> Elegir</span>
-        <span class="flow-arr">→</span>
-        <span class="flow-box"><kbd>B</kbd> USD / <kbd>C</kbd> Bs</span>
-        <span class="flow-arr">→</span>
-        <span class="flow-box"><kbd>Enter</kbd> Al Ticket</span>
-        <span class="flow-arr">→</span>
-        <span class="flow-box"><kbd>F9</kbd> Registrar Venta</span>
-        <span class="flow-arr">→</span>
-        <span class="flow-box"><kbd>F10</kbd> Imprimir</span>
+        <div class="flow-node"><kbd>F2</kbd> Buscar Producto</div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-node"><kbd>Enter</kbd> Elegir</div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-node"><kbd>B</kbd> Nivel USD / <kbd>C</kbd> Bs</div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-node"><kbd>Enter</kbd> Al Ticket</div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-node"><kbd>F9</kbd> Registrar Venta</div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-node"><kbd>F10</kbd> Imprimir Factura</div>
       </div>
     </section>
 
-    <!-- Pie institucional compacto -->
-    <footer class="ftr">
+    <!-- Pie Institucional -->
+    <footer class="doc-foot">
       <div>JJ PAPER C.A. · Sistema de Gestión Comercial</div>
-      <div>Hoja Oficial de Atajos de Teclado · 1 Sola Página Garantizada (B&W)</div>
-      <div>Uso Operativo de Mostrador</div>
+      <div>Hoja de Referencia Rápida · Optimizada para Impresión en 1 Página Carta Horizontal (Landscape)</div>
+      <div>Uso Operativo Interno</div>
     </footer>
 
   </div>

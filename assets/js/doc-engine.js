@@ -743,11 +743,14 @@ async function docPdfDocumento(o, tipo = 'factura') {
       Number(o.delivery_fee_usd) > 0 ? `$${Number(o.delivery_fee_usd).toFixed(2)}` : 'Gratis');
   }
   if (ivaPct > 0) {
-    const base = total / (1 + ivaPct / 100);
+    const base = total;
+    const montoIva = base * (ivaPct / 100);
+    granTotalUsd = base + montoIva;
+
     doc.setDrawColor(223, 230, 226); doc.setLineWidth(0.7);
     doc.line(totX + 10, ty - 10, pageW - M - 10, ty - 10);
     lineaTotal('Base imponible (Subtotal)', `$${base.toFixed(2)}`);
-    lineaTotal(`IVA (${ivaPct}%)`, `$${(total - base).toFixed(2)}`);
+    lineaTotal(`IVA (${ivaPct}%)`, `$${montoIva.toFixed(2)}`);
   }
 
   // Total a pagar: banda verde, el dato que el cliente busca primero
@@ -756,12 +759,12 @@ async function docPdfDocumento(o, tipo = 'factura') {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(223, 240, 231);
   doc.text('TOTAL A PAGAR (USD)', totX + 10, ty + 4);
   doc.setFontSize(14); doc.setTextColor(255);
-  doc.text(`$${total.toFixed(2)}`, pageW - M - 10, ty + 5, { align: 'right' });
+  doc.text(`$${granTotalUsd.toFixed(2)}`, pageW - M - 10, ty + 5, { align: 'right' });
   ty += 30;
 
   if (s.doc_show_bs !== '0') {
     lineaTotal('TOTAL (Bs)',
-      'Bs ' + (total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      'Bs ' + (granTotalUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       { color: C.acc, colorVal: C.acc, fuerte: true, tam: 10 });
     lineaTotal('Tasa BCV del día', `Bs ${rate.toFixed(2)} / $`, { color: [140, 140, 140], colorVal: [140, 140, 140], tam: 7.5 });
   }

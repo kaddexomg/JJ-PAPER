@@ -217,7 +217,7 @@ Usa emojis y un tono cordial, directo y profesional. No incluyas variables sin l
     
     let msg = '';
     if (window.GeminiClient && window.GeminiClient.callGemini) {
-      msg = await window.GeminiClient.callGemini(prompt, 0.7);
+      msg = await window.GeminiClient.callGemini({ prompt, temperature: 0.7 });
     }
     
     if (!msg || !msg.trim()) {

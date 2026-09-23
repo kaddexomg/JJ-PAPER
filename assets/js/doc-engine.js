@@ -691,27 +691,19 @@ async function docPdfDocumento(o, tipo = 'factura') {
       (i.name || i.product || '—') + (i.brand ? `  (${i.brand})` : '') + lvlTag,
       `${i.qty} ${i.unit || ''}`.trim(),
       precioCelda,
+      `$${Number((i.subtotal_usd ?? (i.price_usd * i.qty)) || 0).toFixed(2)}`,
     ];
-    if (ivaPct > 0) fila.push(`${ivaPct}%`);
-    fila.push(`$${Number((i.subtotal_usd ?? (i.price_usd * i.qty)) || 0).toFixed(2)}`);
     return fila;
   });
-  const cabecera = ['Código', 'Descripción', 'Cant.', 'Precio Unit.'];
-  if (ivaPct > 0) cabecera.push('Alíc.');
-  cabecera.push('Total');
+  const cabecera = ['Código', 'Descripción', 'Cant.', 'Precio Unit.', 'Total'];
 
   const colsBase = {
     0: { cellWidth: 72, halign: 'center', textColor: [140, 140, 140], fontSize: 7 },
     1: { cellWidth: 'auto' },
     2: { cellWidth: 58, halign: 'center' },
     3: { cellWidth: 68, halign: 'right' },
+    4: { cellWidth: 74, halign: 'right', fontStyle: 'bold' },
   };
-  if (ivaPct > 0) {
-    colsBase[4] = { cellWidth: 40, halign: 'center', textColor: [110, 110, 110] };
-    colsBase[5] = { cellWidth: 74, halign: 'right', fontStyle: 'bold' };
-  } else {
-    colsBase[4] = { cellWidth: 74, halign: 'right', fontStyle: 'bold' };
-  }
 
   doc.autoTable({
     head: [cabecera],
@@ -740,21 +732,37 @@ async function docPdfDocumento(o, tipo = 'factura') {
     ty += opts.salto || 14;
   };
 
+  // Monto neto: suma de todos los productos (sin IVA)
+  const montoNeto = items.reduce((s, i) =>
+    s + Number(i.subtotal_usd ?? (Number(i.price_usd || 0) * Number(i.qty || 0))), 0);
+
+  // Aplicar descuento si fue aprobado
+  let baseAfterDiscount = montoNeto;
   if (o.discount_status === 'approved' && Number(o.discount_pct) > 0) {
-    lineaTotal('Subtotal', `$${Number(o.subtotal_usd || 0).toFixed(2)}`);
-    lineaTotal(`Descuento ${o.discount_pct}%`,
-      `−$${(Number(o.subtotal_usd || 0) * Number(o.discount_pct) / 100).toFixed(2)}`);
+    lineaTotal('Subtotal', `$${montoNeto.toFixed(2)}`);
+    const descMonto = montoNeto * Number(o.discount_pct) / 100;
+    lineaTotal(`Descuento ${o.discount_pct}%`, `−$${descMonto.toFixed(2)}`);
+    baseAfterDiscount = montoNeto - descMonto;
   }
+
+  // Costo de envío (se suma a la base antes del IVA)
+  let envio = 0;
   if (o.delivery_type === 'delivery') {
+    envio = Number(o.delivery_fee_usd) || 0;
     lineaTotal(`Envío${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}`,
-      Number(o.delivery_fee_usd) > 0 ? `$${Number(o.delivery_fee_usd).toFixed(2)}` : 'Gratis');
+      envio > 0 ? `$${envio.toFixed(2)}` : 'Gratis');
   }
+
+  // IVA aditivo: Base imponible + IVA% = Total a pagar
+  const baseImponible = baseAfterDiscount + envio;
+  const montoIva = ivaPct > 0 ? baseImponible * ivaPct / 100 : 0;
+  const totalConIva = baseImponible + montoIva;
+
   if (ivaPct > 0) {
-    const base = total / (1 + ivaPct / 100);
     doc.setDrawColor(223, 230, 226); doc.setLineWidth(0.7);
     doc.line(totX + 10, ty - 10, pageW - M - 10, ty - 10);
-    lineaTotal('Base imponible', `$${base.toFixed(2)}`);
-    lineaTotal(`IVA (${ivaPct}%)`, `$${(total - base).toFixed(2)}`);
+    lineaTotal('Base imponible (Subtotal)', `$${baseImponible.toFixed(2)}`);
+    lineaTotal(`IVA (${ivaPct}%)`, `$${montoIva.toFixed(2)}`);
   }
 
   // Total a pagar: banda verde, el dato que el cliente busca primero
@@ -763,12 +771,12 @@ async function docPdfDocumento(o, tipo = 'factura') {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(223, 240, 231);
   doc.text('TOTAL A PAGAR (USD)', totX + 10, ty + 4);
   doc.setFontSize(14); doc.setTextColor(255);
-  doc.text(`$${total.toFixed(2)}`, pageW - M - 10, ty + 5, { align: 'right' });
+  doc.text(`$${totalConIva.toFixed(2)}`, pageW - M - 10, ty + 5, { align: 'right' });
   ty += 30;
 
   if (s.doc_show_bs !== '0') {
     lineaTotal('TOTAL (Bs)',
-      'Bs ' + (total * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      'Bs ' + (totalConIva * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       { color: C.acc, colorVal: C.acc, fuerte: true, tam: 10 });
     lineaTotal('Tasa BCV del día', `Bs ${rate.toFixed(2)} / $`, { color: [140, 140, 140], colorVal: [140, 140, 140], tam: 7.5 });
   }

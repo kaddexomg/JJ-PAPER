@@ -412,7 +412,16 @@ function posLineBs(l) {
 
 function posSetPriceLevel(key, level) {
   const l = posTicket[key];
-  if (!l || l.is_custom || !['A', 'B', 'C', 'D'].includes(level)) return;
+  if (!l || l.is_custom || !['A', 'B', 'C', 'D', 'M'].includes(level)) return;
+  if (level === 'M') {
+    l.price_level = 'M';
+    posRenderTicket();
+    setTimeout(() => {
+      const inp = document.getElementById(`price-in-${key}`);
+      if (inp) { inp.focus(); inp.select(); }
+    }, 40);
+    return;
+  }
   const rate = getRate();
   let usd = 0;
   if (level === 'A') usd = Number(l.price_a) || 0;
@@ -490,6 +499,7 @@ function posRenderTicket() {
             ${lvlBtn('B', 'Precio B (Mayorista Frecuente ⭐)')}
             ${lvlBtn('C', 'Precio C (Bs Oficial)')}
             ${lvlBtn('D', 'Precio D (Bs Mayor)')}
+            ${lvlBtn('M', 'Precio M (Personalizado / Manual)')}
           </div>
         </div>`;
     return `
@@ -513,16 +523,16 @@ function posRenderTicket() {
         <div style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px">
           <span>Precio:</span>
           <span style="font-weight:700;color:#0f172a">$</span>
-          <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
+          <input type="number" step="0.01" id="price-in-${k}" class="fi" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
           <span>/${escapeHTML(l.unit)}</span>
           <span style="color:#047857;font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
 
         <div style="display:flex;align-items:center;gap:10px">
           <div style="display:flex;align-items:center;gap:3px">
-            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">−</button>
-            <input type="number" min="1" class="fi" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" aria-label="Cantidad">
-            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">＋</button>
+            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">−</button>
+            <input type="number" min="1" class="fi" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
+            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">＋</button>
           </div>
           <strong style="min-width:65px;text-align:right;font-size:14px;color:#0f172a">${fmtPrice(l.price_usd * l.qty)}</strong>
         </div>

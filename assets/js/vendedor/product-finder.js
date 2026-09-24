@@ -385,18 +385,12 @@ function pfOpenProductModal(l) {
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <label style="font-size:12px;font-weight:700;color:#334155;margin:0">1. Selecciona el Nivel de Precio:</label>
-              <span style="font-size:11px;color:#64748b">Pulsa <b>A, B, C, D</b> o haz clic</span>
+              <span style="font-size:11px;color:#64748b">Pulsa <b>A, B, C, D</b> o <b>M</b></span>
             </div>
+            <!-- Grid de 4 niveles estándar A, B, C, D -->
             <div id="pfPriceCardsBox" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
-            
-            <!-- Campo de precio personalizado (solo si elige M) -->
-            <div id="pfCustomPriceRow" style="display:none;margin-top:8px;background:#f8fafc;padding:10px 12px;border-radius:10px;border:1px solid #cbd5e1">
-              <label style="display:block;font-size:11px;font-weight:700;color:#0f172a;margin-bottom:4px">Digita el precio unitario especial en US$:</label>
-              <div style="display:flex;gap:8px;align-items:center">
-                <span style="font-weight:700;color:#334155">$</span>
-                <input type="number" step="0.01" min="0" id="pfCustomPriceInput" class="fi" placeholder="0.00" value="${customUsd || ''}" style="flex:1;font-size:14px;font-weight:700;padding:6px 10px;height:36px">
-              </div>
-            </div>
+            <!-- Tarjeta limpia y destacada para Nivel M (Precio Personalizado) -->
+            <div id="pfCustomCardContainer" style="margin-top:8px"></div>
           </div>
 
           <!-- Sección 2: Cantidad -->
@@ -435,8 +429,7 @@ function pfOpenProductModal(l) {
     document.body.appendChild(mask);
 
     const cardsBox = mask.querySelector('#pfPriceCardsBox');
-    const customRow = mask.querySelector('#pfCustomPriceRow');
-    const customIn = mask.querySelector('#pfCustomPriceInput');
+    const customContainer = mask.querySelector('#pfCustomCardContainer');
     const qtyIn = mask.querySelector('#pfQtyInput');
     const minusBtn = mask.querySelector('#pfQtyMinusBtn');
     const plusBtn = mask.querySelector('#pfQtyPlusBtn');
@@ -457,7 +450,8 @@ function pfOpenProductModal(l) {
 
     const getActivePriceUsd = () => {
       if (activeLevel === 'M') {
-        const v = parseFloat(customIn.value);
+        const inp = mask.querySelector('#pfCustomPriceInput');
+        const v = inp ? parseFloat(inp.value) : (customUsd || 0);
         return (!isNaN(v) && v >= 0) ? v : 0;
       }
       const card = priceCards.find(c => c.k === activeLevel);
@@ -474,39 +468,77 @@ function pfOpenProductModal(l) {
     };
 
     const renderCards = () => {
-      cardsBox.innerHTML = priceCards.map(c => {
+      // 1. Niveles estándar A, B, C, D
+      const stdCards = priceCards.filter(c => c.k !== 'M');
+      cardsBox.innerHTML = stdCards.map(c => {
         const isSel = (c.k === activeLevel);
         const cardBg = isSel ? '#ecfdf5' : '#ffffff';
         const cardBorder = isSel ? '2px solid #10b981' : '1px solid #cbd5e1';
-        const isCustom = (c.k === 'M');
-        const priceTxt = isCustom 
-          ? '<span style="font-size:12px;color:#0f172a;font-weight:700">Digitar a mano</span>'
-          : `<span style="font-size:15px;font-weight:900;color:#0f172a">$${c.usd.toFixed(2)}</span>`;
-        const bsTxt = (!isCustom && c.bs > 0)
-          ? `<span style="font-size:11px;color:#047857;font-weight:600">≈ Bs ${c.bs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span>`
-          : `<span style="font-size:11px;color:#64748b">${c.subtitle}</span>`;
         const opacity = c.available ? '1' : '0.4';
         const pointer = c.available ? 'pointer' : 'not-allowed';
-        const check = isSel ? '<span style="color:#10b981;font-weight:900;font-size:13px">✔</span>' : '';
+        const check = isSel ? '<span style="color:#10b981;font-weight:900;font-size:13px">✔ Activo</span>' : '';
+        const bsTxt = (!isSel && c.bs > 0)
+          ? `<span style="font-size:11px;color:#047857;font-weight:600">≈ Bs ${c.bs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span>`
+          : `<span style="font-size:11px;color:#64748b">${c.subtitle}</span>`;
 
         return `
           <div class="pf-price-card" data-k="${c.k}" style="background:${cardBg};border:${cardBorder};border-radius:10px;padding:9px 12px;cursor:${pointer};opacity:${opacity};display:flex;flex-direction:column;gap:2px;position:relative;transition:all .12s;box-shadow:${isSel ? '0 4px 12px rgba(16,185,129,0.18)' : 'none'}">
             <div style="display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:10px;font-weight:800;color:${isSel ? '#16604a' : '#475569'};background:${isSel ? '#d1fae5' : '#f1f5f9'};padding:1px 5px;border-radius:4px">NIVEL ${c.letter}</span>
+              <span style="font-size:10px;font-weight:800;color:${isSel ? '#16604a' : '#475569'};background:${isSel ? '#d1fae5' : '#f1f5f9'};padding:1px 6px;border-radius:4px">NIVEL ${c.letter}</span>
               ${check}
             </div>
-            <div style="margin-top:2px">${priceTxt}</div>
+            <div style="margin-top:2px"><span style="font-size:16px;font-weight:900;color:#0f172a">$${c.usd.toFixed(2)}</span></div>
             <div>${bsTxt}</div>
           </div>
         `;
       }).join('');
 
-      customRow.style.display = (activeLevel === 'M') ? 'block' : 'none';
-      if (activeLevel === 'M') customIn.focus();
+      // 2. Nivel M: Precio Personalizado (Tarjeta ancha destacada)
+      const isCustomSel = (activeLevel === 'M');
+      customContainer.innerHTML = `
+        <div class="pf-price-card" data-k="M" style="background:${isCustomSel ? '#ecfdf5' : '#f8fafc'};border:${isCustomSel ? '2px solid #10b981' : '1px solid #cbd5e1'};border-radius:10px;padding:10px 14px;cursor:pointer;transition:all .12s;box-shadow:${isCustomSel ? '0 4px 12px rgba(16,185,129,0.18)' : 'none'}">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;font-weight:800;color:${isCustomSel ? '#16604a' : '#475569'};background:${isCustomSel ? '#d1fae5' : '#e2e8f0'};padding:1px 6px;border-radius:4px">NIVEL M</span>
+              <span style="font-size:13px;font-weight:800;color:#0f172a">✏️ Precio Personalizado / Libre</span>
+            </div>
+            ${isCustomSel ? '<span style="color:#10b981;font-weight:900;font-size:13px">✔ Activo</span>' : '<span style="font-size:11px;color:#64748b;font-weight:600">Presiona M o clic</span>'}
+          </div>
+          <div id="pfCustomPriceRow" style="display:${isCustomSel ? 'block' : 'none'};margin-top:8px;padding-top:8px;border-top:1px dashed ${isCustomSel ? '#a7f3d0' : '#cbd5e1'}">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-weight:800;font-size:16px;color:#16604a">$</span>
+              <input type="number" step="0.01" min="0" id="pfCustomPriceInput" class="fi" placeholder="0.00" value="${customUsd !== null ? customUsd : ''}" style="flex:1;font-size:15px;font-weight:800;padding:6px 10px;height:38px;border:2px solid #16604a;border-radius:8px">
+              <span style="font-size:12px;color:#64748b;white-space:nowrap">USD / ${escapeHTML(l.unit || 'unid')}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Vincular eventos del input personalizado
+      const customIn = mask.querySelector('#pfCustomPriceInput');
+      if (customIn) {
+        customIn.addEventListener('input', e => {
+          customUsd = parseFloat(e.target.value) || 0;
+          updateCalculations();
+        });
+        customIn.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            confirmSelection();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            finish(null);
+          }
+        });
+        if (isCustomSel) {
+          setTimeout(() => { customIn.focus(); customIn.select(); }, 40);
+        }
+      }
+
       updateCalculations();
     };
 
-    cardsBox.addEventListener('click', e => {
+    mask.addEventListener('click', e => {
       const card = e.target.closest('.pf-price-card');
       if (!card) return;
       const k = card.dataset.k;
@@ -528,16 +560,60 @@ function pfOpenProductModal(l) {
     });
 
     qtyIn.addEventListener('input', updateCalculations);
-    customIn.addEventListener('input', updateCalculations);
+
+    // Atajos de teclado mientras se escribe en el input de Cantidad
+    qtyIn.addEventListener('keydown', e => {
+      if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
+        e.preventDefault();
+        const cur = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+        qtyIn.value = cur + 1;
+        updateCalculations();
+        return;
+      }
+      if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+        e.preventDefault();
+        const cur = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+        if (cur > 1) { qtyIn.value = cur - 1; updateCalculations(); }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const cur = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+        qtyIn.value = cur + 1;
+        updateCalculations();
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const cur = Math.max(1, parseInt(qtyIn.value, 10) || 1);
+        if (cur > 1) { qtyIn.value = cur - 1; updateCalculations(); }
+        return;
+      }
+      const k = e.key.toUpperCase();
+      if (['A', 'B', 'C', 'D', 'M'].includes(k)) {
+        e.preventDefault();
+        const opt = priceCards.find(c => c.k === k);
+        if (opt && opt.available) {
+          activeLevel = k;
+          renderCards();
+        }
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmSelection();
+      }
+    });
 
     const confirmSelection = () => {
       const q = Math.max(1, parseInt(qtyIn.value, 10) || 1);
       let finalPriceUsd = getActivePriceUsd();
       if (activeLevel === 'M') {
-        const v = parseFloat(customIn.value);
+        const inp = mask.querySelector('#pfCustomPriceInput');
+        const v = inp ? parseFloat(inp.value) : customUsd;
         if (isNaN(v) || v < 0) {
           showToast('Ingresa un precio válido', 'warn');
-          customIn.focus();
+          if (inp) inp.focus();
           return;
         }
         finalPriceUsd = +v.toFixed(2);
@@ -567,7 +643,9 @@ function pfOpenProductModal(l) {
         confirmSelection();
         return;
       }
-      if (['INPUT'].includes(e.target.tagName)) return;
+
+      // Si el foco está en un input que no sea qtyIn (ej: customPrice), dejar que escriba números
+      if (e.target.id === 'pfCustomPriceInput') return;
 
       const k = e.key.toUpperCase();
       if (['A', 'B', 'C', 'D', 'M'].includes(k)) {
@@ -576,13 +654,14 @@ function pfOpenProductModal(l) {
           e.preventDefault();
           activeLevel = k;
           renderCards();
+          return;
         }
       }
-      if (e.key === '+' || e.key === '=') {
+      if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
         e.preventDefault();
         plusBtn.click();
       }
-      if (e.key === '-' || e.key === '_') {
+      if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
         e.preventDefault();
         minusBtn.click();
       }

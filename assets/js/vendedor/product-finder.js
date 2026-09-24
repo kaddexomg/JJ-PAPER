@@ -524,9 +524,11 @@ function pfOpenProductModal(l) {
         customIn.addEventListener('keydown', e => {
           if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation();
             confirmSelection();
           } else if (e.key === 'Escape') {
             e.preventDefault();
+            e.stopPropagation();
             finish(null);
           }
         });
@@ -601,7 +603,9 @@ function pfOpenProductModal(l) {
       }
       if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         confirmSelection();
+        return;
       }
     });
 

@@ -211,7 +211,7 @@ function posSearchKey(e) {
 
   const code = document.getElementById('posSearch').value.trim();
   if (!code) {
-    quoteNavTab(1);
+    // Si el buscador está vacío, permanecer en el buscador de productos
     return;
   }
   const hit = pfFindByCode(posProducts, code);
@@ -367,7 +367,7 @@ function posAddAndPick(p, variant) {
     if (se) {
       se.value = '';
       if (typeof posSearch === 'function') posSearch();
-      se.focus();
+      setTimeout(() => { se.focus(); se.select(); }, 60);
     }
   });
 }

@@ -840,3 +840,20 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - **Selector de Actitud de IA para Campañas**: El envío de campañas ahora despliega un modal visual (antes del análisis masivo) con 4 intenciones ("Presentación Comercial", "Seguimiento", "Recordatorio", "Oferta Relámpago") instruyendo a la IA sobre el tono exacto para redactar.
 - **Reemplazo Directo de Ítems en Carrito (Swap)**: El botón 🔄 (Reemplazar) en `vquotes.js` y `pos.js` ahora funciona perfectamente. Pone el foco en el input `posSearch`, preserva la cantidad original en memoria y, al confirmar el nuevo producto, reconstruye el carrito (ticket) dejando el ítem nuevo en la misma posición (índice) que ocupaba el viejo, manteniendo el orden visual del usuario.
 - **Rediseño de Comprobantes**: Se reescribió el CSS de `comprobante.html` eliminando colores de marca para lograr un diseño "Premium B/N" optimizado para impresoras térmicas/láser en formato A4 ancho.
+
+## Restauración de Prospectos, Extracción Inteligente IA, Anti-Duplicados y Fix de Campañas (24-09-2026)
+- **Reparación del Puente MixNet (`wa-server/INSTRUCCIONES_REPARAR_MIXNET.md`)**:
+  - Directivas para el supervisor OpenCode en la PC remota del servidor JJ Paper.
+  - Sincronización SMB desatendida entre ambas máquinas (`\\SERVIDOR-MIXNET\JJ-PAPER-MIXER\`) con formato correlativo de pedidos y cotizaciones sin duplicación.
+- **Saneamiento Masivo de Emojis Rotos**:
+  - Reemplazados emojis incompatibles en 37 archivos HTML y JS (`🛍️`→`💰`, `🗂️`→`📂`, `🏷️`→`🔖`, `🗃️`→`📁`, `🧾`→`📃`, `🚪`→`🔓`, `✉️`→`📧`).
+- **Restauración de Base de Datos Core (`public.jjp_prospects`)**:
+  - Recuperado y reimportado el maestro de 282 cuentas corporativas B2B (Farmatodo, Plumrose, Luvebras, Clínicas, Seguros) en Supabase Core (`qxgdrfkobbhdzgtoiavv`).
+  - Entregado archivo maestro en el Escritorio: `C:\Users\PC\Desktop\CRM_Comercial_JJ_Paper.xlsx` (Pestaña 1: 284 cuentas; Pestaña 2: 447 cuentas correlativas CLI-001 a CLI-447).
+- **Módulo de Prospectos e Inteligencia Comercial (`admin/prospectos.html`, `vprospectos.js`, `campaign-editor.js`, `gemini-client.js`)**:
+  - **Corrección Crítica Modal Actitud IA (`campAiToneModal`)**: `.ce-picker-overlay` tenía `display: flex;` incondicional en CSS y no obedecía `.op`, quedando permanentemente congelado sobre la pantalla. Corregido en CSS (`display: none;` y `.ce-picker-overlay.op { display: flex !important; }`), handlers de cierre en botón Cancelar, ✕, backdrop click y Escape. El botón "Empezar Análisis ⚡" cierra el modal inmediatamente y arranca el procesamiento.
+  - **Mapeo de Actitud y Persistencia Asíncrona**: `analyzeCustomersBatch` mapea `attitude` a perfiles psicológicos (`personality`) y aperturas (`messageType`). El guardado en `jjp_prospects` ahora utiliza `await` y sincroniza las variables en memoria (`ai_analysis`, `suggested_subject`, `custom_email_body`, `custom_wa_body`) para garantizar trazabilidad.
+  - **Carga de Archivos TXT y Extracción con IA**: Selector de archivos acepta `.xlsx, .xls, .csv, .txt`. `GeminiClient.parseProspectsText` mejorado para extraer la ficha B2B completa.
+  - **Algoritmo Anti-Duplicados Multi-Criterio (`importExtractedProspects`)**: Indexa prospectos existentes por nombre normalizado (sin sufijos C.A./S.A.), email corporativo y últimos 7 dígitos de teléfono. Si una empresa ya existe, enriquece sus campos vacíos sin duplicar; si es nueva, la inserta.
+  - **Tema Oscuro Completo (`[data-theme="dark"]`)**: Tarjetas KPI, selectores de IA, tabla de prospectos y cajas modales conmutan a Obsidian (`#121824`, `#1c2638`) con tipografías de alto contraste (`#ffffff`, `#94a3b8`) sin textos negros invisibles.
+

@@ -54,5 +54,7 @@ CLIENTES/*.json
 wa-server/*.txt
 wa-server/*.json
 auditoria-productos.txt
+CLIENTES.txt
+CLIENTES/*.txt
 scripts/
 

@@ -363,19 +363,19 @@ function pfOpenProductModal(l) {
       : `<span style="background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px">⚠ Sin Stock / Pedido</span>`;
 
     mask.innerHTML = `
-      <div class="pf-product-modal-box" style="background:#ffffff;border-radius:18px;width:100%;max-width:490px;box-shadow:0 24px 60px rgba(0,0,0,0.25);overflow:hidden;border:1px solid #cbd5e1;display:flex;flex-direction:column;animation:scaleUp .15s ease;" onclick="event.stopPropagation()">
+      <div class="pf-product-modal-box" style="background:var(--theme-bg-surface-solid, #ffffff);border-radius:18px;width:100%;max-width:490px;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;border:1px solid var(--theme-border-subtle, #cbd5e1);display:flex;flex-direction:column;animation:scaleUp .15s ease;" onclick="event.stopPropagation()">
         
         <!-- Cabecera -->
-        <div style="background:#f8fafc;padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="background:var(--theme-bg-surface-solid, #f8fafc);padding:16px 20px;border-bottom:1px solid var(--theme-border-subtle, #e2e8f0);display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:800;color:#16604a;background:#ecfdf5;padding:2px 6px;border-radius:4px;border:1px solid #a7f3d0">SELECCIÓN DE PRECIO</span>
+              <span style="font-size:10px;font-weight:800;color:var(--theme-accent, #16604a);background:var(--theme-accent-soft, #ecfdf5);padding:2px 6px;border-radius:4px;border:1px solid var(--theme-border-accent, #a7f3d0)">SELECCIÓN DE PRECIO</span>
               ${stockBadge}
             </div>
-            <h3 style="margin:0;font-size:16px;font-weight:800;color:#0f172a;line-height:1.3;white-space:normal">${escapeHTML(l.name)}</h3>
-            <div style="font-size:12px;color:#64748b;margin-top:2px">${l.brand ? `<strong style="color:#334155">${escapeHTML(l.brand)}</strong> · ` : ''}Unidad: <strong>${escapeHTML(l.unit || 'unid')}</strong>${l.sku ? ` · SKU: ${escapeHTML(l.sku)}` : ''}</div>
+            <h3 style="margin:0;font-size:16px;font-weight:800;color:var(--theme-text-main, #0f172a);line-height:1.3;white-space:normal">${escapeHTML(l.name)}</h3>
+            <div style="font-size:12px;color:var(--theme-text-muted, #64748b);margin-top:2px">${l.brand ? `<strong style="color:var(--theme-text-main, #334155)">${escapeHTML(l.brand)}</strong> · ` : ''}Unidad: <strong>${escapeHTML(l.unit || 'unid')}</strong>${l.sku ? ` · SKU: ${escapeHTML(l.sku)}` : ''}</div>
           </div>
-          <button type="button" id="pfModalCloseBtn" style="border:none;background:#e2e8f0;color:#475569;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:700">✕</button>
+          <button type="button" id="pfModalCloseBtn" style="border:none;background:var(--theme-item-bg, #e2e8f0);color:var(--theme-text-muted, #475569);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:700">✕</button>
         </div>
 
         <!-- Cuerpo -->
@@ -384,8 +384,8 @@ function pfOpenProductModal(l) {
           <!-- Sección 1: Niveles de Precio -->
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <label style="font-size:12px;font-weight:700;color:#334155;margin:0">1. Selecciona el Nivel de Precio:</label>
-              <span style="font-size:11px;color:#64748b">Pulsa <b>A, B, C, D</b> o <b>M</b></span>
+              <label style="font-size:12px;font-weight:700;color:var(--theme-text-main, #334155);margin:0">1. Selecciona el Nivel de Precio:</label>
+              <span style="font-size:11px;color:var(--theme-text-muted, #64748b)">Pulsa <b>A, B, C, D</b> o <b>M</b></span>
             </div>
             <!-- Grid de 4 niveles estándar A, B, C, D -->
             <div id="pfPriceCardsBox" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
@@ -394,33 +394,33 @@ function pfOpenProductModal(l) {
           </div>
 
           <!-- Sección 2: Cantidad -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div style="background:var(--theme-bg-surface-solid, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
             <div>
-              <label style="font-size:12px;font-weight:700;color:#334155;display:block">2. Cantidad (${escapeHTML(l.unit || 'unid')}):</label>
-              <span style="font-size:11px;color:#64748b">Usa + / - o escribe la cantidad</span>
+              <label style="font-size:12px;font-weight:700;color:var(--theme-text-main, #334155);display:block">2. Cantidad (${escapeHTML(l.unit || 'unid')}):</label>
+              <span style="font-size:11px;color:var(--theme-text-muted, #64748b)">Usa + / - o escribe la cantidad</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-              <button type="button" id="pfQtyMinusBtn" style="width:38px;height:38px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-size:18px;font-weight:700;color:#0f172a;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s">−</button>
-              <input type="number" min="1" step="1" id="pfQtyInput" value="${qty}" style="width:65px;height:38px;border-radius:8px;border:2px solid #16604a;background:#fff;text-align:center;font-size:16px;font-weight:800;color:#0f172a;outline:none">
-              <button type="button" id="pfQtyPlusBtn" style="width:38px;height:38px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-size:18px;font-weight:700;color:#0f172a;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s">＋</button>
+              <button type="button" id="pfQtyMinusBtn" style="width:38px;height:38px;border-radius:8px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);font-size:18px;font-weight:700;color:var(--theme-text-main, #0f172a);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s">−</button>
+              <input type="number" min="1" step="1" id="pfQtyInput" value="${qty}" style="width:65px;height:38px;border-radius:8px;border:2px solid var(--theme-accent, #16604a);background:var(--theme-input-bg, #fff);text-align:center;font-size:16px;font-weight:800;color:var(--theme-text-main, #0f172a);outline:none">
+              <button type="button" id="pfQtyPlusBtn" style="width:38px;height:38px;border-radius:8px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);font-size:18px;font-weight:700;color:var(--theme-text-main, #0f172a);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s">＋</button>
             </div>
           </div>
 
           <!-- Sección 3: Subtotal en vivo -->
-          <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="background:var(--theme-accent-soft, #ecfdf5);border:1px solid var(--theme-border-accent, #a7f3d0);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
             <div>
-              <span style="font-size:10px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:0.5px">Subtotal de esta línea</span>
-              <div id="pfLiveTotalUsd" style="font-size:18px;font-weight:900;color:#065f46">$0.00 USD</div>
+              <span style="font-size:10px;font-weight:800;color:var(--theme-accent, #166534);text-transform:uppercase;letter-spacing:0.5px">Subtotal de esta línea</span>
+              <div id="pfLiveTotalUsd" style="font-size:18px;font-weight:900;color:var(--theme-accent, #065f46)">$0.00 USD</div>
             </div>
-            <div id="pfLiveTotalBs" style="text-align:right;font-size:13px;font-weight:700;color:#047857">≈ Bs 0.00</div>
+            <div id="pfLiveTotalBs" style="text-align:right;font-size:13px;font-weight:700;color:var(--theme-accent, #047857)">≈ Bs 0.00</div>
           </div>
 
         </div>
 
         <!-- Acciones Footer -->
-        <div style="background:#f8fafc;padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;align-items:center">
+        <div style="background:var(--theme-bg-surface-solid, #f8fafc);padding:14px 20px;border-top:1px solid var(--theme-border-subtle, #e2e8f0);display:flex;gap:10px;justify-content:flex-end;align-items:center">
           <button type="button" id="pfModalCancelBtn" class="btn-o" style="padding:9px 16px;font-size:13px;border-radius:8px">Cancelar (Esc)</button>
-          <button type="button" id="pfModalConfirmBtn" class="btn-p" style="padding:10px 22px;font-size:14px;font-weight:800;border-radius:8px;background:#16604a;color:#fff;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(22,96,74,0.25)">➕ Agregar al Ticket (Enter)</button>
+          <button type="button" id="pfModalConfirmBtn" class="btn-p" style="padding:10px 22px;font-size:14px;font-weight:800;border-radius:8px;background:var(--theme-accent, #16604a);color:#fff;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(22,96,74,0.25)">➕ Agregar al Ticket (Enter)</button>
         </div>
 
       </div>
@@ -472,22 +472,22 @@ function pfOpenProductModal(l) {
       const stdCards = priceCards.filter(c => c.k !== 'M');
       cardsBox.innerHTML = stdCards.map(c => {
         const isSel = (c.k === activeLevel);
-        const cardBg = isSel ? '#ecfdf5' : '#ffffff';
-        const cardBorder = isSel ? '2px solid #10b981' : '1px solid #cbd5e1';
+        const cardBg = isSel ? 'var(--theme-accent-soft, #ecfdf5)' : 'var(--theme-bg-surface-solid, #ffffff)';
+        const cardBorder = isSel ? '2px solid var(--theme-accent, #10b981)' : '1px solid var(--theme-border-subtle, #cbd5e1)';
         const opacity = c.available ? '1' : '0.4';
         const pointer = c.available ? 'pointer' : 'not-allowed';
-        const check = isSel ? '<span style="color:#10b981;font-weight:900;font-size:13px">✔ Activo</span>' : '';
+        const check = isSel ? '<span style="color:var(--theme-accent, #10b981);font-weight:900;font-size:13px">✔ Activo</span>' : '';
         const bsTxt = (!isSel && c.bs > 0)
-          ? `<span style="font-size:11px;color:#047857;font-weight:600">≈ Bs ${c.bs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span>`
-          : `<span style="font-size:11px;color:#64748b">${c.subtitle}</span>`;
+          ? `<span style="font-size:11px;color:var(--theme-accent, #047857);font-weight:600">≈ Bs ${c.bs.toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span>`
+          : `<span style="font-size:11px;color:var(--theme-text-muted, #64748b)">${c.subtitle}</span>`;
 
         return `
           <div class="pf-price-card" data-k="${c.k}" style="background:${cardBg};border:${cardBorder};border-radius:10px;padding:9px 12px;cursor:${pointer};opacity:${opacity};display:flex;flex-direction:column;gap:2px;position:relative;transition:all .12s;box-shadow:${isSel ? '0 4px 12px rgba(16,185,129,0.18)' : 'none'}">
             <div style="display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:10px;font-weight:800;color:${isSel ? '#16604a' : '#475569'};background:${isSel ? '#d1fae5' : '#f1f5f9'};padding:1px 6px;border-radius:4px">NIVEL ${c.letter}</span>
+              <span style="font-size:10px;font-weight:800;color:${isSel ? 'var(--theme-accent, #16604a)' : 'var(--theme-text-muted, #475569)'};background:${isSel ? 'var(--theme-accent-soft, #d1fae5)' : 'var(--theme-item-bg, #f1f5f9)'};padding:1px 6px;border-radius:4px">NIVEL ${c.letter}</span>
               ${check}
             </div>
-            <div style="margin-top:2px"><span style="font-size:16px;font-weight:900;color:#0f172a">$${c.usd.toFixed(2)}</span></div>
+            <div style="margin-top:2px"><span style="font-size:16px;font-weight:900;color:var(--theme-text-main, #0f172a)">$${c.usd.toFixed(2)}</span></div>
             <div>${bsTxt}</div>
           </div>
         `;
@@ -496,19 +496,19 @@ function pfOpenProductModal(l) {
       // 2. Nivel M: Precio Personalizado (Tarjeta ancha destacada)
       const isCustomSel = (activeLevel === 'M');
       customContainer.innerHTML = `
-        <div class="pf-price-card" data-k="M" style="background:${isCustomSel ? '#ecfdf5' : '#f8fafc'};border:${isCustomSel ? '2px solid #10b981' : '1px solid #cbd5e1'};border-radius:10px;padding:10px 14px;cursor:pointer;transition:all .12s;box-shadow:${isCustomSel ? '0 4px 12px rgba(16,185,129,0.18)' : 'none'}">
+        <div class="pf-price-card" data-k="M" style="background:${isCustomSel ? 'var(--theme-accent-soft, #ecfdf5)' : 'var(--theme-bg-surface-solid, #f8fafc)'};border:${isCustomSel ? '2px solid var(--theme-accent, #10b981)' : '1px solid var(--theme-border-subtle, #cbd5e1)'};border-radius:10px;padding:10px 14px;cursor:pointer;transition:all .12s;box-shadow:${isCustomSel ? '0 4px 12px rgba(16,185,129,0.18)' : 'none'}">
           <div style="display:flex;align-items:center;justify-content:space-between">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:10px;font-weight:800;color:${isCustomSel ? '#16604a' : '#475569'};background:${isCustomSel ? '#d1fae5' : '#e2e8f0'};padding:1px 6px;border-radius:4px">NIVEL M</span>
-              <span style="font-size:13px;font-weight:800;color:#0f172a">✏️ Precio Personalizado / Libre</span>
+              <span style="font-size:10px;font-weight:800;color:${isCustomSel ? 'var(--theme-accent, #16604a)' : 'var(--theme-text-muted, #475569)'};background:${isCustomSel ? 'var(--theme-accent-soft, #d1fae5)' : 'var(--theme-item-bg, #e2e8f0)'};padding:1px 6px;border-radius:4px">NIVEL M</span>
+              <span style="font-size:13px;font-weight:800;color:var(--theme-text-main, #0f172a)">✏️ Precio Personalizado / Libre</span>
             </div>
-            ${isCustomSel ? '<span style="color:#10b981;font-weight:900;font-size:13px">✔ Activo</span>' : '<span style="font-size:11px;color:#64748b;font-weight:600">Presiona M o clic</span>'}
+            ${isCustomSel ? '<span style="color:var(--theme-accent, #10b981);font-weight:900;font-size:13px">✔ Activo</span>' : '<span style="font-size:11px;color:var(--theme-text-muted, #64748b);font-weight:600">Presiona M o clic</span>'}
           </div>
-          <div id="pfCustomPriceRow" style="display:${isCustomSel ? 'block' : 'none'};margin-top:8px;padding-top:8px;border-top:1px dashed ${isCustomSel ? '#a7f3d0' : '#cbd5e1'}">
+          <div id="pfCustomPriceRow" style="display:${isCustomSel ? 'block' : 'none'};margin-top:8px;padding-top:8px;border-top:1px dashed ${isCustomSel ? 'var(--theme-border-accent, #a7f3d0)' : 'var(--theme-border-subtle, #cbd5e1)'}">
             <div style="display:flex;gap:8px;align-items:center">
-              <span style="font-weight:800;font-size:16px;color:#16604a">$</span>
-              <input type="number" step="0.01" min="0" id="pfCustomPriceInput" class="fi" placeholder="0.00" value="${customUsd !== null ? customUsd : ''}" style="flex:1;font-size:15px;font-weight:800;padding:6px 10px;height:38px;border:2px solid #16604a;border-radius:8px">
-              <span style="font-size:12px;color:#64748b;white-space:nowrap">USD / ${escapeHTML(l.unit || 'unid')}</span>
+              <span style="font-weight:800;font-size:16px;color:var(--theme-accent, #16604a)">$</span>
+              <input type="number" step="0.01" min="0" id="pfCustomPriceInput" class="fi" placeholder="0.00" value="${customUsd !== null ? customUsd : ''}" style="flex:1;font-size:15px;font-weight:800;padding:6px 10px;height:38px;border:2px solid var(--theme-accent, #16604a);border-radius:8px">
+              <span style="font-size:12px;color:var(--theme-text-muted, #64748b);white-space:nowrap">USD / ${escapeHTML(l.unit || 'unid')}</span>
             </div>
           </div>
         </div>

@@ -753,4 +753,153 @@ body.admin-body,
   transition: background-color .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease;
 }
 
+/* ===================================================================
+   COTIZADOR Y POS — Alto Contraste y Tipografía en Modo Oscuro
+   =================================================================== */
+[data-theme="dark"] .pos-grid h3,
+[data-theme="dark"] .admin-table-wrap h3,
+[data-theme="dark"] .ticket-wrap h3,
+[data-theme="dark"] .pos-grid [style*="color:#0f172a"],
+[data-theme="dark"] .admin-table-wrap [style*="color:#0f172a"] {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .admin-table-wrap div[style*="border-bottom:1px solid #f1f5f9"],
+[data-theme="dark"] .pos-grid div[style*="border-bottom:1px solid #f1f5f9"],
+[data-theme="dark"] .pos-grid div[style*="border-top:1px solid #e2e8f0"] {
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.08)) !important;
+}
+
+/* Resultados de búsqueda de catálogo */
+[data-theme="dark"] .pos-result {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pos-result:hover,
+[data-theme="dark"] .pos-result.on {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: var(--theme-accent, #34d399) !important;
+}
+[data-theme="dark"] .pos-result div[style*="color:#0f172a"] {
+  color: #ffffff !important;
+}
+
+/* Líneas de ticket de cotización / venta */
+[data-theme="dark"] .pos-line {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pos-line.on,
+[data-theme="dark"] .pos-line[style*="#f0fdf4"] {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border-color: var(--theme-accent, #34d399) !important;
+}
+[data-theme="dark"] .pos-line input[type="text"],
+[data-theme="dark"] .pos-line input.fi {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+[data-theme="dark"] .pos-line strong,
+[data-theme="dark"] .pos-line span[style*="color:#0f172a"] {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pos-line .qb,
+[data-theme="dark"] .pos-line button[style*="background:#fff"],
+[data-theme="dark"] button[style*="background:#fff"] {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  color: #ffffff !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.15)) !important;
+}
+[data-theme="dark"] .pos-line button[style*="background:#f1f5f9"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--theme-text-muted, #94a3b8) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+}
+
+/* Totales, descuentos y notas */
+[data-theme="dark"] #posTotals > div,
+[data-theme="dark"] div[style*="background:#f8fafc"],
+[data-theme="dark"] div[style*="background: #f8fafc"] {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] #posTotals strong,
+[data-theme="dark"] #posTotals span[style*="color:#0f172a"] {
+  color: #ffffff !important;
+}
+[data-theme="dark"] #posTotals div[style*="color:#475569"] {
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+
+/* Autocompletado de clientes */
+[data-theme="dark"] .cust-ac-box {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border: 1px solid var(--theme-border-subtle, rgba(255, 255, 255, 0.16)) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65) !important;
+  border-radius: 10px;
+}
+[data-theme="dark"] .cust-ac-item {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .cust-ac-item:hover,
+[data-theme="dark"] .cust-ac-item.on {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Modal Selector de Precios (product-finder) */
+[data-theme="dark"] #pfProductModal .modal-box,
+[data-theme="dark"] .pf-modal-box,
+[data-theme="dark"] .pf-product-modal-box {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--theme-border-subtle, rgba(255, 255, 255, 0.15)) !important;
+}
+[data-theme="dark"] #pfProductModal h3,
+[data-theme="dark"] #pfProductModal label,
+[data-theme="dark"] .pf-product-modal-box h3,
+[data-theme="dark"] .pf-product-modal-box label,
+[data-theme="dark"] #pfProductModal span[style*="color:#334155"],
+[data-theme="dark"] #pfProductModal span[style*="color:#0f172a"],
+[data-theme="dark"] #pfProductModal div[style*="color:#0f172a"],
+[data-theme="dark"] .pf-product-modal-box span[style*="color:#334155"],
+[data-theme="dark"] .pf-product-modal-box span[style*="color:#0f172a"],
+[data-theme="dark"] .pf-product-modal-box div[style*="color:#0f172a"] {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-price-card {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .pf-price-card [style*="color:#0f172a"] {
+  color: #ffffff !important;
+}
+[data-theme="dark"] #pfQtyMinusBtn,
+[data-theme="dark"] #pfQtyPlusBtn {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  color: #ffffff !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.15)) !important;
+}
+[data-theme="dark"] #pfQtyInput {
+  background: var(--theme-input-bg, #0d121c) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] #pfProductModal div[style*="background:#ecfdf5"],
+[data-theme="dark"] #pfProductModal div[style*="background: #ecfdf5"],
+[data-theme="dark"] .pf-product-modal-box div[style*="background:#ecfdf5"],
+[data-theme="dark"] .pf-product-modal-box div[style*="background: #ecfdf5"] {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+}
+[data-theme="dark"] #pfLiveTotalUsd {
+  color: #34d399 !important;
+}
+[data-theme="dark"] #pfLiveTotalBs {
+  color: #a7f3d0 !important;
+}
+
+
 

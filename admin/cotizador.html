@@ -94,10 +94,10 @@
           
           <!-- Sección 1: Datos del Cliente -->
           <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">1</span>
-                <h3 style="margin:0;font-size:16px;color:#0f172a">Datos del Cliente (Mi Cartera)</h3>
+                <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">1</span>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Datos del Cliente (Mi Cartera)</h3>
               </div>
               <button type="button" class="btn-o sm" onclick="setConsumidorFinal()" title="Venta rápida / mostrador en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
             </div>
@@ -114,12 +114,12 @@
 
           <!-- Sección 2: Catálogo y Búsqueda de Productos -->
           <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">2</span>
-                <h3 style="margin:0;font-size:16px;color:#0f172a">Catálogo de Productos</h3>
+                <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">2</span>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Catálogo de Productos</h3>
               </div>
-              <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;font-size:12px">➕ Ítem Libre <kbd style="background:#f1f5f9;border:1px solid #cbd5e1;padding:1px 4px;border-radius:3px;font-size:10px">Alt+I</kbd></button>
+              <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;font-size:12px">➕ Ítem Libre <kbd style="background:var(--theme-item-bg, #f1f5f9);border:1px solid var(--theme-border-subtle, #cbd5e1);padding:1px 4px;border-radius:3px;font-size:10px">Alt+I</kbd></button>
             </div>
             <div style="display:flex;gap:8px">
               <input class="fi" id="posSearch" placeholder="Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:8px">
@@ -127,7 +127,7 @@
               <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📱</button>
             </div>
             <div id="posResults" style="max-height:480px;overflow-y:auto;margin-top:12px">
-              <p style="color:#aaa;font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
+              <p style="color:var(--theme-text-muted, #aaa);font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
             </div>
           </div>
 
@@ -138,19 +138,19 @@
           
           <!-- Sección 3: Resumen del Ticket -->
           <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">3</span>
-                <h3 style="margin:0;font-size:16px;color:#0f172a">Resumen de Cotización</h3>
+                <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">3</span>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Resumen de Cotización</h3>
               </div>
-              <button type="button" class="btn-g sm" onclick="clearQuote()" style="font-size:11px;color:#64748b">Vaciar</button>
+              <button type="button" class="btn-g sm" onclick="clearQuote()" style="font-size:11px;color:var(--theme-text-muted, #64748b)">Vaciar</button>
             </div>
             
             <div id="posTicket" style="max-height:380px;overflow-y:auto">
-              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
+              <p style="color:var(--theme-text-muted, #aaa);font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
             </div>
 
-            <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0">
+            <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:var(--theme-bg-surface-solid, #f8fafc);padding:8px 12px;border-radius:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
               <label class="fl" for="qDisc" style="margin:0;font-size:12px">Descuento propuesto % (Alt+D)</label>
               <div style="display:flex;align-items:center;gap:8px">
                 <input class="fi" type="number" id="qDisc" min="0" max="100" step="0.5" value="0" oninput="posRenderTicket()" style="width:65px;height:30px;padding:2px 6px;text-align:center;font-weight:800;font-size:13px">
@@ -162,10 +162,10 @@
           </div>
 
           <!-- Sección 4: Condiciones y Cierre -->
-          <div style="border-top:1px solid #e2e8f0;padding-top:14px">
+          <div style="border-top:1px solid var(--theme-border-subtle, #e2e8f0);padding-top:14px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="background:#ecfdf5;color:#16604a;font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0">4</span>
-              <h3 style="margin:0;font-size:15px;color:#0f172a">Notas y Condiciones</h3>
+              <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">4</span>
+              <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Notas y Condiciones</h3>
             </div>
             <textarea class="fi" id="qNotes" placeholder="Validez de la oferta (ej. 3 días), condiciones de despacho, entrega en almacén..." rows="2" style="width:100%"></textarea>
 

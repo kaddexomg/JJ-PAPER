@@ -263,10 +263,10 @@ function posRenderResults(list) {
       ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:4px 8px;margin-right:6px" onclick="event.stopPropagation()">
            ${variants.map(v => `<option value="${v.id}">${escapeHTML(v.jjp_brands?.name || v.variant_name || 'Variante')} · ${fmtPrice(v.price_usd)}</option>`).join('')}
          </select>` : '';
-    return `<div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:6px;background:#fff;transition:all .15s ease">
+    return `<div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--theme-border-subtle, #e2e8f0);margin-bottom:6px;background:var(--theme-bg-surface-solid, #fff);transition:all .15s ease">
       <div class="pr-img" style="flex:none">${img}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.3">${escapeHTML(p.name)}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.3">${escapeHTML(p.name)}</div>
         <div style="font-size:11px;color:var(--gr);margin-top:2px">${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
       </div>
       <div style="display:flex;align-items:center;flex:none">
@@ -485,15 +485,15 @@ function posRenderTicket() {
     const isCursor = (quoteTicketCursor === idx);
     const lvlBtn = (lv, lbl) => {
       const isAct = (l.price_level === lv);
-      const bg = isAct ? '#16604a' : '#f1f5f9';
-      const col = isAct ? '#ffffff' : '#475569';
-      const bdr = isAct ? '#16604a' : '#cbd5e1';
+      const bg = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-item-bg, #f1f5f9)';
+      const col = isAct ? '#ffffff' : 'var(--theme-text-muted, #475569)';
+      const bdr = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-border-subtle, #cbd5e1)';
       return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
     };
     const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
     const levelSelector = l.is_custom ? '' : `
-        <div style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:4px">
-          <span style="font-weight:700;color:#334155">Nivel:</span>
+        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:6px;margin-top:4px">
+          <span style="font-weight:700;color:var(--theme-text-main, #334155)">Nivel:</span>
           <div style="display:flex;gap:3px">
             ${lvlBtn('A', 'Precio A (Detal / Menor)')}
             ${lvlBtn('B', 'Precio B (Mayorista Frecuente ⭐)')}
@@ -502,13 +502,16 @@ function posRenderTicket() {
             ${lvlBtn('M', 'Precio M (Personalizado / Manual)')}
           </div>
         </div>`;
+    const isDark = (document.documentElement.getAttribute('data-theme') === 'dark');
+    const lineBg = isCursor ? (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4') : 'var(--theme-bg-surface-solid, #ffffff)';
+    const lineBdr = isCursor ? 'var(--theme-accent, #10b981)' : 'var(--theme-border-subtle, #e2e8f0)';
     return `
-    <div class="pos-line" style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid ${isCursor ? '#10b981' : '#e2e8f0'};border-radius:10px;background:${isCursor ? '#f0fdf4' : '#ffffff'};margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.03);transition:all .12s ease">
+    <div class="pos-line" style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.03);transition:all .12s ease">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;color:#0f172a;display:flex;align-items:center;gap:4px">
-            <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:#0f172a;padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid #cbd5e1';this.style.background='#fff'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
-            ${l.brand ? `<small style="color:#64748b;font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
+          <div style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:4px">
+            <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-glass, #cbd5e1)';this.style.background='var(--theme-input-bg, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
+            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
           ${levelSelector}
@@ -525,22 +528,22 @@ function posRenderTicket() {
         </div>
       </div>
 
-      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed #f1f5f9;margin-top:2px">
-        <div style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed var(--theme-border-subtle, #f1f5f9);margin-top:2px">
+        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:4px">
           <span>Precio:</span>
-          <span style="font-weight:700;color:#0f172a">$</span>
+          <span style="font-weight:700;color:var(--theme-text-main, #0f172a)">$</span>
           <input type="number" step="0.01" id="price-in-${k}" class="fi" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
           <span>/${escapeHTML(l.unit)}</span>
-          <span style="color:#047857;font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
+          <span style="color:var(--theme-accent, #047857);font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
 
         <div style="display:flex;align-items:center;gap:10px">
           <div style="display:flex;align-items:center;gap:3px">
-            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">−</button>
+            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">−</button>
             <input type="number" min="1" class="fi" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
-            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700">＋</button>
+            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">＋</button>
           </div>
-          <strong style="min-width:65px;text-align:right;font-size:14px;color:#0f172a">${fmtPrice(l.price_usd * l.qty)}</strong>
+          <strong style="min-width:65px;text-align:right;font-size:14px;color:var(--theme-text-main, #0f172a)">${fmtPrice(l.price_usd * l.qty)}</strong>
         </div>
       </div>
     </div>`;
@@ -556,28 +559,28 @@ function posRenderTicket() {
   const total = +(baseImponible + montoIva).toFixed(2);
   const rate  = getRate();
   tots.innerHTML = `
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:10px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569">
+    <div style="background:var(--theme-bg-surface-solid, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--theme-text-muted, #475569)">
         <span>Subtotal neto</span>
-        <strong style="color:#0f172a">${fmtPrice(subtotal)}</strong>
+        <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(subtotal)}</strong>
       </div>
       ${pct > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#166534">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-accent, #166534)">
           <span>Descuento propuesto (${pct}%)</span>
           <strong>−${fmtPrice(descMonto)}</strong>
         </div>` : ''}
       ${ivaPct > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-text-muted, #475569)">
           <span>Base imponible</span>
-          <strong style="color:#0f172a">${fmtPrice(baseImponible)}</strong>
+          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(baseImponible)}</strong>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-text-muted, #475569)">
           <span>IVA (${ivaPct}%)</span>
-          <strong style="color:#0f172a">${fmtPrice(montoIva)}</strong>
+          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(montoIva)}</strong>
         </div>` : ''}
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid #cbd5e1;margin-top:2px">
-        <span style="font-size:14px;font-weight:800;color:#0f172a">Total estimado</span>
-        <span style="font-size:19px;font-weight:900;color:#16604a">${fmtPrice(total)}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--theme-border-subtle, #cbd5e1);margin-top:2px">
+        <span style="font-size:14px;font-weight:800;color:var(--theme-text-main, #0f172a)">Total estimado</span>
+        <span style="font-size:19px;font-weight:900;color:var(--theme-accent, #16604a)">${fmtPrice(total)}</span>
       </div>
       ${sellerShowBs() ? `
         <div style="display:flex;justify-content:space-between;font-size:12px;color:#047857;font-weight:700">

@@ -532,18 +532,32 @@ function posRenderTicket() {
 
   const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
   const pct   = quoteDiscountPct();
-  const total = subtotal * (1 - pct / 100);
+  const descMonto = subtotal * (pct / 100);
+  const baseImponible = subtotal - descMonto;
+  const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
+  const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
+  const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
+  const total = +(baseImponible + montoIva).toFixed(2);
   const rate  = getRate();
   tots.innerHTML = `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:10px">
       <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569">
-        <span>Subtotal</span>
+        <span>Subtotal neto</span>
         <strong style="color:#0f172a">${fmtPrice(subtotal)}</strong>
       </div>
       ${pct > 0 ? `
         <div style="display:flex;justify-content:space-between;font-size:12px;color:#166534">
           <span>Descuento propuesto (${pct}%)</span>
-          <strong>−${fmtPrice(subtotal - total)}</strong>
+          <strong>−${fmtPrice(descMonto)}</strong>
+        </div>` : ''}
+      ${ivaPct > 0 ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569">
+          <span>Base imponible</span>
+          <strong style="color:#0f172a">${fmtPrice(baseImponible)}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569">
+          <span>IVA (${ivaPct}%)</span>
+          <strong style="color:#0f172a">${fmtPrice(montoIva)}</strong>
         </div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid #cbd5e1;margin-top:2px">
         <span style="font-size:14px;font-weight:800;color:#0f172a">Total estimado</span>
@@ -609,7 +623,12 @@ async function quoteSubmit() {
   try {
     const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
     const pct   = quoteDiscountPct();
-    const total = +(subtotal * (1 - pct / 100)).toFixed(2);
+    const descMonto = subtotal * (pct / 100);
+    const baseImponible = subtotal - descMonto;
+    const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
+    const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
+    const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
+    const total = +(baseImponible + montoIva).toFixed(2);
 
     // Resolución segura del vendedor activo
     const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
@@ -697,10 +716,21 @@ function quoteDoneCtx() {
 
 function quoteShowDone(q) {
   quoteLast = q;
-  const subtotal = q.items.reduce((s, i) => s + i.subtotal_usd, 0);
-  const discLines = q.discount_pct > 0
-    ? `\n\nSubtotal: ${fmtPrice(subtotal)}\n🏷️ *Descuento ${q.discount_pct}%: −${fmtPrice(subtotal - q.estimated_total_usd)}*`
-    : '';
+  const subtotal = q.items.reduce((s, i) => s + (i.subtotal_usd || 0), 0);
+  const pct = Number(q.discount_pct) || 0;
+  const descMonto = pct > 0 ? (subtotal * pct / 100) : 0;
+  const baseImponible = subtotal - descMonto;
+  const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
+  const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
+  const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
+  const total = Number(q.estimated_total_usd) || +(baseImponible + montoIva).toFixed(2);
+
+  let fiscalLines = `\n\nSubtotal neto: ${fmtPrice(subtotal)}`;
+  if (pct > 0) fiscalLines += `\n🏷️ *Descuento ${pct}%: −${fmtPrice(descMonto)}*`;
+  if (ivaPct > 0) {
+    fiscalLines += `\nBase imponible: ${fmtPrice(baseImponible)}`;
+    fiscalLines += `\nIVA (${ivaPct}%): ${fmtPrice(montoIva)}`;
+  }
 
   const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
     ? SELLER
@@ -711,8 +741,8 @@ function quoteShowDone(q) {
 
   const waMsg = `📋 *COTIZACIÓN ${q.quote_number}* — JJ Paper\n\nHola ${q.client_name}, aquí está tu cotización:\n`
     + q.items.map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
-    + discLines
-    + `\n\n💰 *Total estimado: ${fmtPrice(q.estimated_total_usd)}* (${fmtBsNum(q.estimated_total_usd * q.exchange_rate)})`
+    + fiscalLines
+    + `\n\n💰 *Total estimado: ${fmtPrice(total)}* (${fmtBsNum(total * q.exchange_rate)})`
     + `\n_Precios sujetos a cambio según tasa del día._`
     + (q.notes ? `\n\n📝 ${q.notes}` : '')
     + `\n\nAtendido por: ${sellerName} — JJ Paper 📄`;
@@ -727,8 +757,11 @@ function quoteShowDone(q) {
   document.getElementById('qDoneBody').innerHTML = `
     <p style="text-align:center;font-size:15px">Cotización <strong>${escapeHTML(q.quote_number)}</strong> guardada para <strong>${escapeHTML(q.client_name)}</strong>.</p>
     <div class="co-done-box" style="margin:14px 0">
-      ${q.discount_pct > 0 ? `<div class="co-done-row"><span>Descuento propuesto</span><strong>${q.discount_pct}%</strong></div>` : ''}
-      <div class="co-done-row"><span>Total estimado</span><strong>${fmtPrice(q.estimated_total_usd)}</strong></div>
+      <div class="co-done-row"><span>Subtotal neto</span><strong>${fmtPrice(subtotal)}</strong></div>
+      ${pct > 0 ? `<div class="co-done-row"><span>Descuento propuesto (${pct}%)</span><strong>−${fmtPrice(descMonto)}</strong></div>` : ''}
+      <div class="co-done-row"><span>Base imponible</span><strong>${fmtPrice(baseImponible)}</strong></div>
+      ${ivaPct > 0 ? `<div class="co-done-row"><span>IVA (${ivaPct}%)</span><strong>${fmtPrice(montoIva)}</strong></div>` : ''}
+      <div class="co-done-row" style="border-top:1px solid #cbd5e1;padding-top:6px;margin-top:4px"><span style="font-weight:700">Total estimado</span><strong style="color:#16604a;font-size:16px">${fmtPrice(total)}</strong></div>
       <div class="co-done-row"><span>Productos</span><strong>${q.items.length}</strong></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">

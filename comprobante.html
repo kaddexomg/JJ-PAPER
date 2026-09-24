@@ -406,17 +406,22 @@ function sheet(o, docType) {
   // Documento sin validez: rechazado/cancelado/anulado/descartado → marca de agua
   const voided = ['rechazado','cancelado','anulado','descartado','descartada'].includes(String(o.status || '').toLowerCase());
 
-  // IVA desglosado sobre precios IVA-incluido (jjp_settings.iva_pct; 0 = no desglosar).
-  // El precio de lista YA trae el impuesto: se calcula hacia atrás, así que el
-  // cliente paga lo mismo con o sin desglose.
-  const ivaPct = 0;
-  const base   = total;
-  const iva    = 0;
+  // Monto neto de productos (sin IVA)
+  const montoNeto = items.reduce((sum, i) => sum + Number(i.subtotal_usd ?? ((Number(i.price_usd) || 0) * (Number(i.qty) || 0))), 0);
 
-  // El monto del descuento se calcula sobre el subtotal de productos:
-  // total puede incluir el envío y restar (subtotal - total) daría mal.
-  const descMonto = (o.discount_status === 'approved' && o.discount_pct > 0)
-    ? (Number(o.subtotal_usd) || 0) * Number(o.discount_pct) / 100 : 0;
+  // Descuento sobre monto neto
+  const descMonto = (o.discount_status === 'approved' && Number(o.discount_pct) > 0)
+    ? montoNeto * Number(o.discount_pct) / 100 : 0;
+  const baseAfterDiscount = montoNeto - descMonto;
+
+  // Costo de envío
+  const envio = (o.delivery_type === 'delivery') ? (Number(o.delivery_fee_usd) || 0) : 0;
+
+  // Base Imponible y cálculo de IVA aditivo (16% global)
+  const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
+  const baseImponible = baseAfterDiscount + envio;
+  const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
+  const totalConIva = baseImponible + montoIva;
 
   // Textos y logo personalizables
   const bizName  = s.business_name || s.site_name || 'JJ Paper';
@@ -445,7 +450,7 @@ function sheet(o, docType) {
   const method = { pago_movil:'Pago Móvil', transferencia:'Transferencia', efectivo:'Efectivo' }[o.payment_method] || o.payment_method || '—';
   const condicion = (o.payment_ref || ['pagado','preparando','entregado'].includes(o.status)) ? 'Contado' : 'Por confirmar';
 
-  // Una línea de la tabla. La alícuota va por línea, como en una factura formal.
+  // Una línea de la tabla (5 columnas limpias: Código, Descripción, Cant., Precio Unit., Total)
   const rows = items.map(i => {
     const sub = Number(i.subtotal_usd ?? i.price_usd * i.qty) || 0;
     return `<tr>
@@ -453,7 +458,6 @@ function sheet(o, docType) {
       <td>${escapeHTML(i.name || i.product || '—')}${i.brand ? ` <small style="color:#888">(${escapeHTML(i.brand)})</small>` : ''}</td>
       <td class="c">${i.qty} ${escapeHTML(i.unit || '')}</td>
       <td class="r">${fmtPrice(i.price_usd)}</td>
-      ${ivaPct > 0 ? `<td class="c" style="color:#666">${ivaPct}%</td>` : ''}
       <td class="r">${fmtPrice(sub)}</td>
     </tr>`;
   }).join('');
@@ -503,7 +507,6 @@ function sheet(o, docType) {
         <th>Descripción</th>
         <th class="c" style="width:82px">Cant.</th>
         <th class="r" style="width:92px">Precio Unit.</th>
-        ${ivaPct > 0 ? '<th class="c" style="width:56px">Alíc.</th>' : ''}
         <th class="r" style="width:104px">Total</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -512,17 +515,17 @@ function sheet(o, docType) {
     <div class="fisc-tot">
       <table>
         ${descMonto > 0 ? `
-        <tr><td class="et">Subtotal</td><td class="vl">${fmtPrice(Number(o.subtotal_usd) || 0)}</td></tr>
+        <tr><td class="et">Subtotal</td><td class="vl">${fmtPrice(montoNeto)}</td></tr>
         <tr><td class="et">Descuento ${o.discount_pct}%</td><td class="vl">−${fmtPrice(descMonto)}</td></tr>` : ''}
         ${o.delivery_type === 'delivery' ? `
         <tr><td class="et">Envío${o.delivery_distance_km ? ` (~${o.delivery_distance_km} km)` : ''}</td>
-            <td class="vl">${Number(o.delivery_fee_usd) > 0 ? fmtPrice(o.delivery_fee_usd) : 'Gratis'}</td></tr>` : ''}
+            <td class="vl">${envio > 0 ? fmtPrice(envio) : 'Gratis'}</td></tr>` : ''}
         ${ivaPct > 0 ? `
-        <tr class="sep"><td class="et">Base imponible</td><td class="vl">${fmtPrice(base)}</td></tr>
-        <tr><td class="et">IVA (${ivaPct}%)</td><td class="vl">${fmtPrice(iva)}</td></tr>` : ''}
-        <tr class="grand"><td class="et">TOTAL A PAGAR (USD)</td><td class="vl">${fmtPrice(total)}</td></tr>
+        <tr class="sep"><td class="et">Base imponible (Subtotal)</td><td class="vl">${fmtPrice(baseImponible)}</td></tr>
+        <tr><td class="et">IVA (${ivaPct}%)</td><td class="vl">${fmtPrice(montoIva)}</td></tr>` : ''}
+        <tr class="grand"><td class="et">TOTAL A PAGAR (USD)</td><td class="vl">${fmtPrice(totalConIva)}</td></tr>
         ${s.doc_show_bs === '0' ? '' : `
-        <tr class="bs"><td class="et">TOTAL (Bs)</td><td class="vl">${fmtBsNum(total * rate)}</td></tr>
+        <tr class="bs"><td class="et">TOTAL (Bs)</td><td class="vl">${fmtBsNum(totalConIva * rate)}</td></tr>
         <tr class="tasa"><td class="et">Tasa BCV del día</td><td class="vl" style="font-weight:400">Bs ${rate.toFixed(2)} / $</td></tr>`}
       </table>
     </div>

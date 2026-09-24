@@ -61,6 +61,13 @@ async function gmailAccessToken(refresh) {
   // Guardar en caché (expira 5 min antes del tiempo real, por defecto 3600s)
   const ttl = (j.expires_in ? Math.max(300, j.expires_in - 300) : 3000) * 1000;
   tokenCache.set(refresh, { token: j.access_token, expiresAt: Date.now() + ttl });
+  // Auto-sanar en base de datos si la cuenta estaba en verified: false
+  db.from('jjp_email_accounts')
+    .update({ verified: true, last_error: null })
+    .eq('oauth_refresh', refresh)
+    .eq('verified', false)
+    .then(() => {})
+    .catch(() => {});
   return j.access_token;
 }
 
@@ -261,7 +268,7 @@ async function accountFor(ownerId) {
   if (ownerId) {
     const { data } = await db.from('jjp_email_accounts')
       .select('email,app_pass,oauth_refresh,from_name,enabled,verified').eq('profile_id', ownerId).maybeSingle();
-    if (data?.enabled && data.email && data.verified !== false) {
+    if (data?.enabled && data.email && (data.oauth_refresh || data.app_pass)) {
       const from = data.from_name ? `${data.from_name} <${data.email}>` : data.email;
       if (data.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
         return { email: data.email, refresh: data.oauth_refresh, from, source: 'oauth' };

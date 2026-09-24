@@ -104,7 +104,7 @@ async function step(camp, dailyLimit) {
         owner_id: camp.owner_id, direction: 'out', status: 'sent',
         to_addr: toAddr, from_addr: from, subject, body, html,
         attachments: camp.attachments || [], customer_id: t.customer_id || null,
-        campaign_id: camp.id, message_id: msgId, sent_at: new Date().toISOString()
+        gmail_id: msgId, sent_at: new Date().toISOString()
       }).select('id').single();
 
       await db.from('jjp_email_campaign_targets')

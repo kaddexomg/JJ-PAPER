@@ -64,7 +64,7 @@ async function mailCaptureGmailLink() {
   }
   const { error } = await sb.from('jjp_email_accounts').upsert({
     profile_id: MAIL_ME.id, email, provider: 'google',
-    oauth_refresh: refresh, app_pass: null, enabled: true, verified: false, last_error: null
+    oauth_refresh: refresh, app_pass: null, enabled: true, verified: true, last_error: null
   }, { onConflict: 'profile_id' });
   if (error) { showToast('No se pudo guardar el vínculo: ' + error.message, 'err'); return; }
   showToast('Correo vinculado con Google ✅ (se verifica al prender el servidor)');

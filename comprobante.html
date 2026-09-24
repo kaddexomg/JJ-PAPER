@@ -284,10 +284,10 @@
   <select class="btn btn-g" id="docSel" onchange="setDocType(this.value)" style="display:none">
     <option value="factura">📄 Factura</option>
     <option value="recibo">📦 Orden de recibo</option>
-    <option value="comprobante">🧾 Comprobante</option>
+    <option value="comprobante">📃 Comprobante</option>
     <option value="ambos">📄+📦 Factura + Orden de recibo</option>
   </select>
-  <button class="btn btn-g" id="fmtBtn" onclick="toggleFormat()">🧾 Ver como ticket</button>
+  <button class="btn btn-g" id="fmtBtn" onclick="toggleFormat()">📃 Ver como ticket</button>
   <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir</button>
   <button class="btn btn-g" onclick="window.close()">Cerrar</button>
 </div>
@@ -382,7 +382,7 @@ function applyDocTheme() {
 function setFormat(ticket) {
   document.body.classList.toggle('ticket', ticket);
   const btn = document.getElementById('fmtBtn');
-  if (btn) btn.textContent = ticket ? '📄 Ver como carta' : '🧾 Ver como ticket';
+  if (btn) btn.textContent = ticket ? '📄 Ver como carta' : '📃 Ver como ticket';
   // En ticket, la hoja de impresión se ajusta al rollo térmico de 80mm
   const ps = document.getElementById('pageStyle');
   if (ps) ps.textContent = ticket ? '@media print{ @page{ size:80mm auto; margin:4mm 3mm } }' : '';

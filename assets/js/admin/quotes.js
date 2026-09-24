@@ -73,7 +73,7 @@ function renderQuotesTable() {
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
           <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
-          <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">🛍️</a>
+          <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
                   title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
         </div>
@@ -112,7 +112,7 @@ function buildPrefacturaMsg(q) {
   const items = quoteItemsOf(q);
   const rate  = getRate();
   let total = 0, pending = 0;
-  let msg = `🧾 *PRE-FACTURA JJ PAPER*\n*Cotización:* ${q.quote_number || ''}\n*Cliente:* ${q.client_name}\n\n*Detalle:*\n`;
+  let msg = `📃 *PRE-FACTURA JJ PAPER*\n*Cotización:* ${q.quote_number || ''}\n*Cliente:* ${q.client_name}\n\n*Detalle:*\n`;
   items.forEach((i, idx) => {
     if (i.price_usd) {
       const sub = i.price_usd * i.qty;
@@ -204,14 +204,14 @@ function viewQuoteDetail(id) {
     <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
       <a class="btn-wa" style="width:auto;padding:12px 20px"
         href="https://wa.me/${(q.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(buildPrefacturaMsg(q))}"
-        target="_blank">🧾 Enviar pre-factura por WhatsApp</a>
+        target="_blank">📃 Enviar pre-factura por WhatsApp</a>
       <a class="btn-o" style="width:auto;padding:12px 20px;text-decoration:none" target="_blank"
         href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendBotonHTML(`quoteCtx('${q.id}')`)}
       <a class="btn-o" style="width:auto;padding:12px 20px;text-decoration:none" 
 href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
       <a class="btn-p" style="width:auto;padding:12px 20px;text-decoration:none;font-weight:700" 
-href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">🛍️ Cargar en POS</a>
+href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
     </div>`;

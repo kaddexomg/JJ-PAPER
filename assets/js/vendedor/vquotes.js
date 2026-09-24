@@ -742,7 +742,7 @@ function quoteShowDone(q) {
   const total = Number(q.estimated_total_usd) || +(baseImponible + montoIva).toFixed(2);
 
   let fiscalLines = `\n\nSubtotal neto: ${fmtPrice(subtotal)}`;
-  if (pct > 0) fiscalLines += `\n🏷️ *Descuento ${pct}%: −${fmtPrice(descMonto)}*`;
+  if (pct > 0) fiscalLines += `\n🔖 *Descuento ${pct}%: −${fmtPrice(descMonto)}*`;
   if (ivaPct > 0) {
     fiscalLines += `\nBase imponible: ${fmtPrice(baseImponible)}`;
     fiscalLines += `\nIVA (${ivaPct}%): ${fmtPrice(montoIva)}`;
@@ -782,7 +782,7 @@ function quoteShowDone(q) {
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <a class="btn-p" style="width:auto;padding:9px 16px;background:#16604A;color:#fff;text-decoration:none;font-weight:700"
-         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">🛍️ Cobrar en POS</a>
+         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">💰 Cobrar en POS</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendHubHtml}
@@ -832,7 +832,7 @@ function quoteFocusTicket() {
   posRenderTicket();
   const firstLine = document.querySelector('#posTicket .pos-line');
   if (firstLine) firstLine.scrollIntoView({ block: 'nearest' });
-  showToast('🧾 Modo ticket: ↑↓ navegar · +/- cantidad · A/B/C/D precio · Supr borrar · Esc salir');
+  showToast('📃 Modo ticket: ↑↓ navegar · +/- cantidad · A/B/C/D precio · Supr borrar · Esc salir');
 }
 
 /* ---------- Navegación Secuencial por Tabulador ---------- */
@@ -1513,7 +1513,7 @@ function quoteShowHelpModal() {
             <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar entre secciones</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:6px">🧾 Edición del Ticket</b>
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📃 Edición del Ticket</b>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+T</kbd> Activar ticket</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Ajustar cantidad</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A/B/C/D</kbd> Cambiar nivel de precio</div>

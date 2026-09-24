@@ -22,10 +22,10 @@
     { section: 'Principal' },
     { href: 'index.html', ico: '📊', label: 'Dashboard' },
     { group: 'Ventas', ico: '🛒', items: [
-      { href: 'pos.html',          ico: '🛍️', label: 'Nueva Venta (POS)' },
+      { href: 'pos.html',          ico: '💰', label: 'Nueva Venta (POS)' },
       { href: 'cotizador.html',    ico: '📋', label: 'Nueva Cotización' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
-      { href: 'cotizaciones.html', ico: '🗂️', label: 'Cotizaciones' },
+      { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
       { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
       { href: 'promociones.html',  ico: '🔥', label: 'Promociones' },
       { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
@@ -34,7 +34,7 @@
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
-      { href: 'correo.html',   ico: '✉️', label: 'Correo' },
+      { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
     { section: 'Catálogo' },
     { group: 'Catálogo', ico: '📦', items: [
@@ -42,32 +42,32 @@
       { href: 'listas-precios.html', ico: '📑', label: 'Listas & MixNet' },
       { href: 'precios.html',   ico: '💱', label: 'Precios' },
       { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },
-      { href: 'marcas.html',    ico: '🏷️', label: 'Marcas' },
+      { href: 'marcas.html',    ico: '🔖', label: 'Marcas' },
       { href: 'unidades.html',  ico: '📐', label: 'Unidades' },
       { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
     ]},
-    { group: 'Inventario', ico: '🗃️', items: [
-      { href: 'inventario.html', ico: '🗃️', label: 'Inventario' },
+    { group: 'Inventario', ico: '📁', items: [
+      { href: 'inventario.html', ico: '📁', label: 'Inventario' },
       { href: 'conteo.html',     ico: '🔢', label: 'Control de conteo' },
       { href: 'escaner.html',    ico: '📷', label: 'Escáner' },
       { href: 'lan.html',        ico: '📡', label: 'Conteo WiFi (LAN)' },
     ]},
-    { href: 'facturas.html', ico: '🧾', label: 'Cuentas por Pagar' },
+    { href: 'facturas.html', ico: '📃', label: 'Cuentas por Pagar' },
     { section: 'Sistema' },
     { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
-    { href: 'ajustes.html',    ico: '⚙️', label: 'Ajustes' },
+    { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
     { href: '../index.html',   ico: '🌐', label: 'Ver Sitio', ext: true },
-    { action: 'logout', ico: '🚪', label: 'Cerrar Sesión' },
+    { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
   const VENDEDOR_NAV = [
     { section: 'Ventas' },
     { href: 'index.html', ico: '📊', label: 'Mi Panel' },
-    { group: 'Vender', ico: '🛍️', items: [
-      { href: 'pos.html',          ico: '🛍️', label: 'Nueva venta (POS)' },
+    { group: 'Vender', ico: '💰', items: [
+      { href: 'pos.html',          ico: '💰', label: 'Nueva venta (POS)' },
       { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
-      { href: 'cotizaciones.html', ico: '🗂️', label: 'Mis cotizaciones' },
+      { href: 'cotizaciones.html', ico: '📂', label: 'Mis cotizaciones' },
       { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
       { href: '../lista_costos.html', ico: '📄', label: 'Lista de precios', ext: true },
       { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
@@ -81,13 +81,13 @@
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
-      { href: 'correo.html',   ico: '✉️', label: 'Correo' },
+      { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
     { section: 'Mi cuenta' },
-    { href: 'ajustes.html', ico: '⚙️', label: 'Mis ajustes' },
+    { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },
     { section: 'Sitio' },
     { href: '../catalogo.html', ico: '🌐', label: 'Ver catálogo', ext: true },
-    { action: 'logout', ico: '🚪', label: 'Cerrar Sesión' },
+    { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
   // Dirección y nav según el ROL de la sesión, no según la URL. Antes se decidía

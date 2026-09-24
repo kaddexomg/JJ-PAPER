@@ -189,7 +189,7 @@ window.CampaignEditor = (() => {
                   <option value="inactivos">😴 Inactivos (sin compras >30d)</option>
                   <option value="prospectos">🆕 Clientes sin compras</option>
                   <option value="sector">🏢 Filtrar por Sector B2B...</option>
-                  <option value="etiqueta">🏷️ Por etiqueta / zona...</option>
+                  <option value="etiqueta">🔖 Por etiqueta / zona...</option>
                 </select>
               </div>
               <div class="ce-field-group" id="ceSectorWrap" style="display:none; margin-top:4px;">
@@ -377,7 +377,7 @@ window.CampaignEditor = (() => {
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('vendedor')">💼 {{vendedor}}</button>
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('producto')">📦 {{producto}}</button>
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('precio')">💲 {{precio}}</button>
-                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🏷️ {{descuento}}</button>
+                  <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🔖 {{descuento}}</button>
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
                   <button type="button" class="ce-var-btn" style="background:#fef3c7;color:#92400e;border-color:#fcd34d" onclick="CampaignEditor.insertSpintax()" title="Variar saludos para evitar bloqueos">🎲 Spintax</button>
                 </div>

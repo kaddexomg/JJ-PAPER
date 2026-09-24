@@ -174,7 +174,7 @@ function renderCustomers() {
         ${showRescueBtn ? `<button class="btn-o sm" style="color:#d32f2f;border-color:#d32f2f" onclick="rescueEmailByWa('${c.id}')" title="🤖 Rescatar Email por WhatsApp (rebotó: ${escapeHTML(c.email || '')})">🤖</button>` : ''}
         <button class="btn-send sm" onclick="custCtxMenu(event, '${c.id}')"
                 title="Enviar catálogo o lista de precios" aria-haspopup="menu">📤</button>
-        <a class="btn-o sm" href="pos.html?cliente=${encodeURIComponent(c.id)}" title="Nueva venta a este cliente">🛍️</a>
+        <a class="btn-o sm" href="pos.html?cliente=${encodeURIComponent(c.id)}" title="Nueva venta a este cliente">💰</a>
         <a class="btn-o sm" href="cotizador.html?cliente=${encodeURIComponent(c.id)}" title="Cotizarle">📋</a>
         ${mine ? `<a class="btn-o sm" href="whatsapp.html?cust=${c.id}" title="Abrir chat en el CRM">📨</a>` : ''}
         <a class="btn-wa sm" style="width:auto;padding:7px 10px" target="_blank" title="${inactive ? 'Reactivar por WhatsApp' : 'Escribir por WhatsApp'}"

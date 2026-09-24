@@ -6,7 +6,7 @@
 let vOrders = [];
 let vOrdersFilter = '';
 
-const V_SOURCE_LABEL = { web: '🌐 Web', pos: '🛍️ POS', ref: '🔗 Referido' };
+const V_SOURCE_LABEL = { web: '🌐 Web', pos: '💰 POS', ref: '🔗 Referido' };
 
 async function loadVOrders(statusFilter = vOrdersFilter) {
   vOrdersFilter = statusFilter;
@@ -105,7 +105,7 @@ function viewVOrder(id) {
       <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
-      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">🧾 Factura</a>
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">📃 Factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo">📦 Orden de recibo</a>
       ${sendBotonHTML(`vOrderCtx('${o.id}')`)}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"

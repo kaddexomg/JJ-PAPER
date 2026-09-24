@@ -30,7 +30,7 @@ window.ProductPicker = (() => {
           </div>
         </div>
         <div class="pp-discount-section" id="ppDiscountSec">
-          <span class="pp-discount-label">🏷️ Descuento especial de campaña (%):</span>
+          <span class="pp-discount-label">🔖 Descuento especial de campaña (%):</span>
           <input type="number" id="ppDiscountInput" class="pp-discount-input" min="0" max="80" value="0" oninput="ProductPicker.onDiscountChange()">
           <span id="ppPricePreview" style="font-size: 13px; font-weight: 700; color: #16604A;"></span>
         </div>

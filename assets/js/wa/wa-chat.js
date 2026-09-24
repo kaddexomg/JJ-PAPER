@@ -405,7 +405,7 @@ function waVerFicha() {
                                 : '<p class="c360-empty">Sin cotizaciones.</p>'}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <a class="btn-p" style="width:auto;padding:9px 14px;text-decoration:none"
-           href="${base}pos.html?cliente=${encodeURIComponent(waActive.customer_id)}">🛍️ Venderle ahora</a>
+           href="${base}pos.html?cliente=${encodeURIComponent(waActive.customer_id)}">💰 Venderle ahora</a>
         <a class="btn-o" style="width:auto;padding:9px 14px;text-decoration:none"
            href="${base}cotizador.html?cliente=${encodeURIComponent(waActive.customer_id)}">📋 Cotizarle</a>
       </div>
@@ -463,14 +463,14 @@ function waRenderThreadHeader() {
         title="Enviar catálogo, lista de precios o un documento" aria-label="Enviar documento" aria-haspopup="menu">📤</button>`}
     ${!mine ? ''
       : waActive.customer_id
-        ? `<a class="btn-o wa-cust-btn" href="${(WA_IS_ADMIN ? '../vendedor/' : '') + 'pos.html?tel=' + encodeURIComponent(waActive.phone)}" title="Nueva venta a este cliente">🛍️ Venta</a>`
+        ? `<a class="btn-o wa-cust-btn" href="${(WA_IS_ADMIN ? '../vendedor/' : '') + 'pos.html?tel=' + encodeURIComponent(waActive.phone)}" title="Nueva venta a este cliente">💰 Venta</a>`
         : `<button class="btn-o wa-cust-btn" onclick="waLinkCustomer()" title="Crear cliente en el CRM">＋ CRM</button>`}
     ${!mine ? '' : `<button class="btn-o wa-cust-btn" onclick="waVerFicha()"
         title="Historial de compras y cotizaciones" aria-label="Ficha del cliente">📇</button>`}
     ${(mine || WA_IS_ADMIN) ? `
       <button class="btn-o wa-cust-btn ${waActive.pinned ? 'on-pin' : ''}" onclick="waTogglePin()"
         title="${waActive.pinned ? 'Desanclar chat' : 'Anclar chat arriba'}" aria-label="Anclar chat">📌</button>
-      <button class="btn-o wa-cust-btn" onclick="waSetLabel()" title="Etiqueta del chat" aria-label="Etiqueta del chat">🏷️</button>
+      <button class="btn-o wa-cust-btn" onclick="waSetLabel()" title="Etiqueta del chat" aria-label="Etiqueta del chat">🔖</button>
       <button class="btn-o wa-cust-btn wa-del-btn" onclick="waDeleteChat()" title="Borrar chat del CRM" aria-label="Borrar chat">🗑️</button>` : ''}
   `;
   waSyncComposer('cabecera');
@@ -1263,7 +1263,7 @@ async function waSetLabel() {
   Object.assign(waActive, upd);
   waRenderThreadHeader();
   waRenderChatList();
-  showToast(clean ? `🏷️ Etiqueta: ${clean}` : 'Etiqueta quitada');
+  showToast(clean ? `🔖 Etiqueta: ${clean}` : 'Etiqueta quitada');
 }
 
 async function waRetry(msgId) {
@@ -1751,7 +1751,7 @@ window.waAiSearchPrice = waAiSearchPrice;
 function waAiInsertPriceProd(p) {
   const ci = document.getElementById('waComposerInput');
   if (ci) {
-    const textToInsert = `🛍️ *${p.name}* ${p.sku ? `(${p.sku})` : ''}\n💰 Precio: $${p.price_usd.toFixed(2)} USD (Bs ${p.price_bs.toFixed(2)} al cambio BCV) por ${p.unit}`;
+    const textToInsert = `💰 *${p.name}* ${p.sku ? `(${p.sku})` : ''}\n💰 Precio: $${p.price_usd.toFixed(2)} USD (Bs ${p.price_bs.toFixed(2)} al cambio BCV) por ${p.unit}`;
     ci.value = ci.value ? (ci.value + '\n\n' + textToInsert) : textToInsert;
     waComposerButtons();
     ci.focus();

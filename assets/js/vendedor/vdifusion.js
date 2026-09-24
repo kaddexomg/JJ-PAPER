@@ -216,7 +216,7 @@ function renderDTagChips() {
   const tags = Object.keys(counts).sort();
   if (!tags.length) { wrap.innerHTML = ''; return; }
   wrap.innerHTML = tags.map(t =>
-    `<button class="d-tag d-tag-click ${dActiveTag === t ? 'on' : ''}" onclick="toggleDTagFilter('${escapeHTML(t)}')">🏷️ ${escapeHTML(t)} <span style="opacity:.7">(${counts[t]})</span></button>`
+    `<button class="d-tag d-tag-click ${dActiveTag === t ? 'on' : ''}" onclick="toggleDTagFilter('${escapeHTML(t)}')">🔖 ${escapeHTML(t)} <span style="opacity:.7">(${counts[t]})</span></button>`
   ).join('') + (dActiveTag ? `<button class="d-tag d-tag-click" style="color:#b91c1c;background:#fee2e2" onclick="toggleDTagFilter(null)">✕ Quitar filtro</button>` : '');
 }
 
@@ -251,7 +251,7 @@ function renderDContacts() {
       <button class="btn-o sm" onclick="toggleOptOut('${c.id}')" aria-pressed="${c.wa_opt_out}"
         title="${c.wa_opt_out ? 'Excluido de difusiones — clic para incluir' : 'Incluido en difusiones — clic para excluir'}">
         ${c.wa_opt_out ? '🔕 Excluido' : '🔔 Incluido'}</button>
-      <button class="btn-o sm" onclick="editTags('${c.id}')" title="Editar etiquetas">🏷️</button>
+      <button class="btn-o sm" onclick="editTags('${c.id}')" title="Editar etiquetas">🔖</button>
     </div></td>
   </tr>`).join('');
 }
@@ -342,7 +342,7 @@ const DEFAULT_GLOBAL_TEMPLATES = [
     name: '🏢 Catálogo Digital y Lista de Precios B2B',
     kind: 'general',
     owner_id: null,
-    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 🧾 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con +900 artículos disponibles\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto\n3️⃣ 🚚 Delivery GRATIS en toda Caracas\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
+    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 📃 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con +900 artículos disponibles\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto\n3️⃣ 🚚 Delivery GRATIS en toda Caracas\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
   }
 ];
 

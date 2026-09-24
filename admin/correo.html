@@ -68,16 +68,16 @@
       <div class="divider"></div>
       <span class="a-section">Catalogo</span>
       <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
-      <a href="inventario.html"><span class="a-ico">🗃️</span> Inventario</a>
-      <a href="facturas.html"><span class="a-ico">🧾</span> Cuentas por Pagar</a>
-      <a href="marcas.html"><span class="a-ico">🏷️</span> Marcas</a>
+      <a href="inventario.html"><span class="a-ico">📁</span> Inventario</a>
+      <a href="facturas.html"><span class="a-ico">📃</span> Cuentas por Pagar</a>
+      <a href="marcas.html"><span class="a-ico">🔖</span> Marcas</a>
       <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
       <div class="divider"></div>
       <span class="a-section">Sistema</span>
       <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
       <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
       <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
-      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🔓</span> Cerrar Sesion</a>
     </nav>
     <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
   </aside>
@@ -93,13 +93,13 @@
       </div>
       <div class="wa-topbar-right">
         <span class="wa-chip" id="mailAcctChip" onclick="openMailAccount()" role="button" tabindex="0"
-              title="Configurar mi correo" style="cursor:pointer">✉️ Mi correo…</span>
+              title="Configurar mi correo" style="cursor:pointer">📧 Mi correo…</span>
         <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
               title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <button class="btn-o" id="mailCompanyBtn" onclick="openMailCompany()" style="display:none">🏢 Correo empresa</button>
         <button class="btn-o" onclick="openMailAccount()">⚙️ Mi correo</button>
         <button class="btn-o" onclick="openCampaigns()">📣 Campañas</button>
-        <button class="btn-p" onclick="openMailCompose()">✉️ Nuevo correo</button>
+        <button class="btn-p" onclick="openMailCompose()">📧 Nuevo correo</button>
       </div>
     </div>
 
@@ -120,7 +120,7 @@
 <div class="modal-overlay" id="mailModal" onclick="if(event.target===this)closeMailCompose()">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="mailTitle" style="max-width:560px">
     <div class="modal-hd">
-      <h3 id="mailTitle">✉️ Nuevo correo</h3>
+      <h3 id="mailTitle">📧 Nuevo correo</h3>
       <button class="modal-close" onclick="closeMailCompose()" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">
@@ -226,7 +226,7 @@
 <div class="modal-overlay" id="mailAcctModal" onclick="if(event.target===this)closeMailAccount()">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="acctTitle" style="max-width:520px">
     <div class="modal-hd">
-      <h3 id="acctTitle">✉️ Mi correo (Gmail)</h3>
+      <h3 id="acctTitle">📧 Mi correo (Gmail)</h3>
       <button class="modal-close" onclick="closeMailAccount()" aria-label="Cerrar">✕</button>
     </div>
     <div class="modal-body">

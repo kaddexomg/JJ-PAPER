@@ -773,13 +773,13 @@ function posShowDone(o) {
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">🧾 Solo factura</a>
+         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">📃 Solo factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Solo recibo</a>
       ${sendHubHtml}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
          href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
-      <button class="btn-p" onclick="posReset()">🛍️ Nueva venta</button>
+      <button class="btn-p" onclick="posReset()">💰 Nueva venta</button>
     </div>`;
   document.getElementById('posDoneModal').classList.add('op');
 }
@@ -856,7 +856,7 @@ function posFocusTicket() {
   posRenderTicket();
   const firstLine = document.querySelector('#posTicket .pos-line');
   if (firstLine) firstLine.scrollIntoView({ block: 'nearest' });
-  showToast('🧾 Modo ticket: ↑↓ navegar · +/- cantidad · A/B/C/D precio · Supr borrar · Esc salir');
+  showToast('📃 Modo ticket: ↑↓ navegar · +/- cantidad · A/B/C/D precio · Supr borrar · Esc salir');
 }
 
 /* ---------- Atajos de Teclado Globales del POS ---------- */
@@ -1111,7 +1111,7 @@ function posShowHelpModal() {
             <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar al cliente / venta</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:6px">🧾 Edición del Ticket</b>
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📃 Edición del Ticket</b>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+T</kbd> Activar ticket</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑↓</kbd> Navegar · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Cantidad</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">D</kbd> Nivel precio</div>
@@ -1285,7 +1285,7 @@ async function posSearchQuotesLive() {
           <div style="font-weight:700;font-size:13px;color:#0f172a">${escapeHTML(q.quote_number)} · <span style="font-weight:600;color:#334155">${escapeHTML(q.client_name)}</span></div>
           <div style="font-size:11px;color:#64748b;margin-top:2px">${itemsCount} producto(s) · ${fmtPrice(total)} ${q.discount_pct > 0 ? `· Descuento: ${q.discount_pct}%` : ''} · Tel: ${escapeHTML(q.phone || '—')}</div>
         </div>
-        <button type="button" class="btn-p sm" onclick="posPickQuoteFromModal('${q.id}')" style="white-space:nowrap;padding:6px 12px">🛍️ Cargar al POS</button>
+        <button type="button" class="btn-p sm" onclick="posPickQuoteFromModal('${q.id}')" style="white-space:nowrap;padding:6px 12px">💰 Cargar al POS</button>
       </div>
     `;
   }).join('');

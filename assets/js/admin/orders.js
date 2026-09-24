@@ -103,7 +103,7 @@ function renderOrdersTable() {
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
-      <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🏷️ desc. ${o.discount_pct}% por aprobar</div>` : ''}${o.delivery_type === 'delivery' && !o.delivery_fee_confirmed ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} por confirmar</div>` : o.delivery_type === 'delivery' ? `<div class="td-sub" style="color:var(--gm);font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} ✔</div>` : ''}</td>
+      <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🔖 desc. ${o.discount_pct}% por aprobar</div>` : ''}${o.delivery_type === 'delivery' && !o.delivery_fee_confirmed ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} por confirmar</div>` : o.delivery_type === 'delivery' ? `<div class="td-sub" style="color:var(--gm);font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} ✔</div>` : ''}</td>
       <td>
         <select class="status-sel st-${o.status}" onchange="updateOrderStatus('${o.id}', this.value)">
           ${ORDER_STATUSES.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
@@ -240,7 +240,7 @@ function viewOrder(id) {
     <div>
       <div class="ord-field"><label>Método de pago</label><p>${METHOD_LABEL[o.payment_method] || o.payment_method}</p></div>
       ${o.payment_ref ? `<div class="ord-field"><label>Referencia</label><p>${escapeHTML(o.payment_ref)}</p></div>` : ''}
-      <div class="ord-field"><label>Origen</label><p>${{ web: '🌐 Web', pos: '🛍️ POS vendedor', ref: '🔗 Link de vendedor' }[o.source] || o.source || '—'}</p></div>
+      <div class="ord-field"><label>Origen</label><p>${{ web: '🌐 Web', pos: '💰 POS vendedor', ref: '🔗 Link de vendedor' }[o.source] || o.source || '—'}</p></div>
       <div class="ord-field">
         <label>Vendedor asignado</label>
         <select class="fi" style="margin-top:4px" onchange="assignOrderSeller('${o.id}', this.value)">
@@ -285,7 +285,7 @@ function viewOrder(id) {
 
   ${o.discount_status === 'pending' ? `
   <div style="margin-top:16px;padding:14px;border:1px solid #e8c96b;background:#fff8e6;border-radius:12px">
-    <strong>🏷️ Descuento por aprobar: ${o.discount_pct}%</strong>
+    <strong>🔖 Descuento por aprobar: ${o.discount_pct}%</strong>
     <p style="font-size:13px;color:#555;margin:6px 0">Solicitado por el vendedor. Al aprobar, el total baja a <strong>${fmtPrice(o.subtotal_usd * (1 - o.discount_pct / 100) + Number(o.delivery_fee_usd || 0))}</strong>.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn-p" onclick="decideDiscount('${o.id}', true)">✅ Aprobar descuento</button>
@@ -308,7 +308,7 @@ function viewOrder(id) {
       <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
-      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">🧾 Factura</a>
+      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura">📃 Factura</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo">📦 Orden de recibo</a>
       ${sendBotonHTML(`ordCtx('${o.id}')`)}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"

@@ -149,8 +149,8 @@
   <label class="tb-field">
     <span>Nivel</span>
     <select id="tbPriceLevel" onchange="onPriceLevel(this.value)" aria-label="Nivel de precio">
-      <option value="B" selected>🏷️ Precio B (Mayorista USD) [Oficial]</option>
-      <option value="A">🏷️ Precio A (Detal USD)</option>
+      <option value="B" selected>🔖 Precio B (Mayorista USD) [Oficial]</option>
+      <option value="A">🔖 Precio A (Detal USD)</option>
       <option value="D">🇻🇪 Precio D (Mayorista Bs)</option>
       <option value="C">🇻🇪 Precio C (Detal Bs)</option>
     </select>
@@ -162,7 +162,7 @@
     <select id="tbGroup" onchange="onGroupMode(this.value)" aria-label="Cómo agrupar los productos">
       <option value="letra">🔤 Por Letra Inicial (A - Z)</option>
       <option value="categoria">📂 Por Categoría</option>
-      <option value="segmento">🏷️ Por Segmento / Familia</option>
+      <option value="segmento">🔖 Por Segmento / Familia</option>
       <option value="plano">📋 Lista continua (Sin agrupar)</option>
     </select>
   </label>
@@ -444,7 +444,7 @@ function renderList(variants) {
     } else if (GROUP_MODE === 'segmento') {
       const segObj = v.jjp_products?.jjp_categories?.jjp_category_groups;
       const segName = segObj?.name || 'Otros Segmentos';
-      const emoji = segObj?.emoji || '🏷️';
+      const emoji = segObj?.emoji || '🔖';
       gKey = segName;
       gTitle = `${emoji} ${segName}`;
       gSortOrder = segObj?.sort_order ?? 999;

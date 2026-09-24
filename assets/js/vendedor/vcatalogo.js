@@ -170,7 +170,7 @@ function vcCardHTML(p) {
     <div class="vc-body">
       <div class="vc-titulo">${escapeHTML(p.name)}</div>
       ${sku ? `<div class="vc-sku">Cód: ${escapeHTML(sku)}</div>` : ''}
-      ${marcas.length ? `<div class="vc-marca">🏷️ ${escapeHTML(marcas.join(', '))}</div>` : ''}
+      ${marcas.length ? `<div class="vc-marca">🔖 ${escapeHTML(marcas.join(', '))}</div>` : ''}
       ${p.description ? `<div class="vc-desc">${escapeHTML(vcCorta(p.description))}</div>` : ''}
     </div>
     <div class="vc-pie">

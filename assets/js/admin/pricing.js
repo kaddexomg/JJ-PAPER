@@ -171,7 +171,7 @@ function renderPricing() {
     if (prGroupMode === 'segmento') {
       const seg = r.jjp_products?.jjp_categories?.jjp_category_groups;
       gKey = seg?.name || 'Otros Segmentos';
-      gTitle = (seg?.emoji ? seg.emoji + ' ' : '🏷️ ') + gKey;
+      gTitle = (seg?.emoji ? seg.emoji + ' ' : '🔖 ') + gKey;
       gSortOrder = seg?.sort_order ?? 999;
     } else {
       const cat = r.jjp_products?.jjp_categories;

@@ -64,7 +64,7 @@ function consRender(list) {
         <div style="flex:1;min-width:0"><strong>${escapeHTML(p.name)}</strong>
           <div style="font-size:12px;color:var(--gr)">/${escapeHTML(p.unit || 'unid')}</div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <a class="btn-p sm" href="pos.html?add=${p.id}">🛍️ Vender</a>
+          <a class="btn-p sm" href="pos.html?add=${p.id}">💰 Vender</a>
           <a class="btn-o sm" href="cotizador.html?add=${p.id}">📋 Cotizar</a>
           <button class="btn-send sm" onclick="fichaAbrir(event,'${p.id}')"
                   title="Enviar foto + reseña + enlace de compra al cliente">📤 Ficha</button>

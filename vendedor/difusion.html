@@ -62,7 +62,7 @@
     <nav class="aside-nav">
       <span class="a-section">Ventas</span>
       <a href="index.html"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
-      <a href="pos.html"><span class="a-ico">🛍️</span> Nueva venta (POS)</a>
+      <a href="pos.html"><span class="a-ico">💰</span> Nueva venta (POS)</a>
       <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
       <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
       <a href="clientes.html"><span class="a-ico">👥</span> Mis clientes</a>
@@ -72,7 +72,7 @@
       <div class="divider"></div>
       <span class="a-section">Sitio</span>
       <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
-      <a href="#" onclick="adminLogout()"><span class="a-ico">🚪</span> Cerrar Sesion</a>
+      <a href="#" onclick="adminLogout()"><span class="a-ico">🔓</span> Cerrar Sesion</a>
     </nav>
     <div class="aside-ft">Vendedor: <strong id="sellerName" style="color:#fff">—</strong></div>
   </aside>
@@ -197,7 +197,7 @@
           <button type="button" class="btn-o sm" onclick="tplInsertVar('vendedor')">💼 {{vendedor}}</button>
           <button type="button" class="btn-o sm" onclick="tplInsertVar('producto')">📦 {{producto}}</button>
           <button type="button" class="btn-o sm" onclick="tplInsertVar('precio')">💲 {{precio}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">🏷️ {{descuento}}</button>
+          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">🔖 {{descuento}}</button>
           <button type="button" class="btn-o sm" onclick="tplInsertVar('link')">🔗 {{link}}</button>
           <button type="button" class="btn-o sm" onclick="tplInsertVar('descripcion')">📝 {{descripcion}}</button>
         </div>
@@ -272,7 +272,7 @@
             <option value="todos">Toda mi cartera</option>
             <option value="inactivos">😴 Solo inactivos</option>
             <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
-            <option value="etiqueta">🏷️ Por etiqueta</option>
+            <option value="etiqueta">🔖 Por etiqueta</option>
           </select></div>
       </div>
 

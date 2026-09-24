@@ -1099,6 +1099,14 @@ window.CampaignEditor = (() => {
     });
   }
 
+  function closeAiToneModal() {
+    const modal = document.getElementById('campAiToneModal');
+    if (modal) {
+      modal.classList.remove('op');
+      modal.style.display = 'none';
+    }
+  }
+
   function openAiToneModal() {
     let modal = document.getElementById('campAiToneModal');
     if (!modal) {
@@ -1109,7 +1117,7 @@ window.CampaignEditor = (() => {
         <div class="ce-picker-dialog" style="max-width:500px; height:auto">
           <div class="ce-picker-header">
             <h3>🤖 Actitud y Enfoque de la IA</h3>
-            <button type="button" class="ce-btn-close" onclick="document.getElementById('campAiToneModal').classList.remove('op')">✕</button>
+            <button type="button" class="ce-btn-close" id="btnCloseAiToneTop">✕</button>
           </div>
           <div style="padding:20px; font-size:14px; color:#334155;">
             <p style="margin-top:0; margin-bottom:15px;">¿Qué tipo de mensaje debe redactar la IA para estos prospectos?</p>
@@ -1144,22 +1152,31 @@ window.CampaignEditor = (() => {
               </label>
             </div>
             <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-              <button type="button" class="ce-btn btn-sec" onclick="document.getElementById('campAiToneModal').classList.remove('op')">Cancelar</button>
+              <button type="button" class="ce-btn btn-sec" id="btnCancelAiTone">Cancelar</button>
               <button type="button" class="ce-btn btn-pri" id="btnConfirmAiTone">Empezar Análisis ⚡</button>
             </div>
           </div>
         </div>
       `;
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeAiToneModal();
+      });
       document.body.appendChild(modal);
 
-      document.getElementById('btnConfirmAiTone').addEventListener('click', () => {
-        const tone = document.querySelector('input[name="ai_tone"]:checked').value;
-        modal.classList.remove('op');
+      document.getElementById('btnCloseAiToneTop').onclick = closeAiToneModal;
+      document.getElementById('btnCancelAiTone').onclick = closeAiToneModal;
+
+      document.getElementById('btnConfirmAiTone').onclick = () => {
+        const toneEl = document.querySelector('input[name="ai_tone"]:checked');
+        const tone = toneEl ? toneEl.value : 'presentacion';
+        closeAiToneModal();
         startAiAnalysisBatch(tone);
-      });
+      };
     }
 
-    document.querySelector('input[name="ai_tone"][value="presentacion"]').checked = true;
+    const firstRadio = document.querySelector('input[name="ai_tone"][value="presentacion"]');
+    if (firstRadio) firstRadio.checked = true;
+    modal.style.display = 'flex';
     requestAnimationFrame(() => modal.classList.add('op'));
   }
 
@@ -1204,21 +1221,22 @@ window.CampaignEditor = (() => {
         promoProductOrCombo: selectedProductOrCombo,
         officialPdfIncluded: isPdf,
         attitude: selectedTone,
-        onProgress: ({ current, total, customer, result }) => {
+        onProgress: async ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
-          if (progressLabel) progressLabel.textContent = `Analizando ${current} de ${total}: ${customer.name || ''}... (${pct}%)`;
+          const custName = customer.name || customer.company_name || '';
+          if (progressLabel) progressLabel.textContent = `Analizando ${current} de ${total}: ${custName}... (${pct}%)`;
           customer._custom_message = result.body;
           customer._custom_subject = result.subject;
           customer._detected_need = result.need;
           customer._detected_sector = result.sector;
 
           // Sincronizar con base de datos jjp_prospects si es un prospecto B2B
-          if (customer.is_prospect_b2b && customer.id && typeof sb !== 'undefined') {
+          if (customer.id && typeof sb !== 'undefined') {
             const raw = result.raw_analysis || {};
             const isEmail = (channel === 'email');
             const updatePayload = {
-              status: customer.status === 'nuevo' ? 'analizado_ia' : customer.status,
+              status: (customer.status === 'nuevo' || !customer.status) ? 'analizado_ia' : customer.status,
               ai_analysis: {
                 sector_deducido: result.sector || customer.sector,
                 dolor_operativo: result.need,
@@ -1231,9 +1249,24 @@ window.CampaignEditor = (() => {
               custom_wa_body: raw.wa_body || (!isEmail ? result.body : customer.custom_wa_body),
               updated_at: new Date().toISOString()
             };
-            sb.from('jjp_prospects').update(updatePayload).eq('id', customer.id)
-              .then(() => {})
-              .catch(err => console.warn('Aviso guardando en jjp_prospects:', err));
+
+            // Sincronizar memoria del objeto
+            customer.ai_analysis = updatePayload.ai_analysis;
+            customer.suggested_subject = updatePayload.suggested_subject;
+            customer.custom_email_body = updatePayload.custom_email_body;
+            customer.custom_wa_body = updatePayload.custom_wa_body;
+            customer.status = updatePayload.status;
+
+            if (typeof prospectsList !== 'undefined' && Array.isArray(prospectsList)) {
+              const pInList = prospectsList.find(x => x.id === customer.id);
+              if (pInList) Object.assign(pInList, updatePayload);
+            }
+
+            try {
+              await sb.from('jjp_prospects').update(updatePayload).eq('id', customer.id);
+            } catch (err) {
+              console.warn('Aviso guardando en jjp_prospects:', err);
+            }
           }
 
           updateAnalyzedCountBadge();
@@ -2003,6 +2036,7 @@ window.CampaignEditor = (() => {
     toggleAllProspects,
     applyProspectSelection,
     openAiToneModal,
+    closeAiToneModal,
     startAiAnalysisBatch,
     stepPreviewCustomer,
     selectPreviewCustomer,

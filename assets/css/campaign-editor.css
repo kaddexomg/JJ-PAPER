@@ -755,18 +755,21 @@
   border-color: #16604A;
 }
 
-/* Modal Selector de Prospectos */
+/* Modal Selector de Prospectos y Modales Emergentes */
 .ce-picker-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(3px);
   z-index: 10000;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 16px;
   animation: campModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ce-picker-overlay.op {
+  display: flex !important;
 }
 
 .ce-picker-dialog {
@@ -868,4 +871,113 @@
 .ce-stepper-btn:hover {
   background: #e2e8f0;
 }
+
+/* ====================================================
+   Tokens y Adaptación de Tema Oscuro para Campaign Editor
+   ==================================================== */
+[data-theme="dark"] .ce-overlay {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="dark"] .ce-dialog,
+[data-theme="dark"] .ce-picker-dialog {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  color: var(--theme-text-main, #ffffff) !important;
+  border: 1px solid var(--theme-border-subtle, rgba(255, 255, 255, 0.12));
+}
+
+[data-theme="dark"] .ce-dialog-body,
+[data-theme="dark"] .ce-config-pane,
+[data-theme="dark"] .ce-preview-pane,
+[data-theme="dark"] .ce-picker-body {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  color: var(--theme-text-main, #ffffff) !important;
+}
+
+[data-theme="dark"] .ce-section-title {
+  color: var(--theme-text-main, #ffffff) !important;
+}
+
+[data-theme="dark"] .ce-label,
+[data-theme="dark"] .ce-help-text,
+[data-theme="dark"] .ce-hint,
+[data-theme="dark"] #cePickerStats {
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+
+[data-theme="dark"] .ce-input,
+[data-theme="dark"] .ce-textarea,
+[data-theme="dark"] .ce-select {
+  background: var(--theme-input-bg, #0d121c) !important;
+  color: #ffffff !important;
+  border-color: var(--theme-input-border, rgba(255, 255, 255, 0.16)) !important;
+}
+
+[data-theme="dark"] .ce-sim-stepper {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .ce-stepper-btn {
+  background: #24324a !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-theme="dark"] .ce-card-action-btn {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .ce-card-action-btn:hover {
+  background: #2a3a54 !important;
+}
+
+[data-theme="dark"] .ce-picker-footer {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.1)) !important;
+}
+
+[data-theme="dark"] .ce-btn-cancel {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-theme="dark"] #campAiToneModal .ce-picker-dialog {
+  background: #121824 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] #campAiToneModal label {
+  background: #1a2332 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] #campAiToneModal label:hover {
+  border-color: #34d399 !important;
+  background: #202d40 !important;
+}
+
+[data-theme="dark"] #campAiToneModal label strong {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] #campAiToneModal label span {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] #campAiToneModal p {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .ce-preview-box {
+  background: #0d121c !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 

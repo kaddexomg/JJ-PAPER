@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <link rel="stylesheet" href="../assets/css/perf.css">
-<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260916_fix_teclado_campanas">
+<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260924_prospects_ai_v2">
 <link rel="stylesheet" href="../assets/css/product-picker.css">
 <script src="../assets/js/perf.js"></script>
 
@@ -160,6 +160,144 @@
   border-radius: 12px;
   display: inline-block;
 }
+
+/* ====================================================
+   Soporte Completo para Modo Oscuro en Prospectos B2B
+   ==================================================== */
+[data-theme="dark"] .kpi-prospect-card {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.08)) !important;
+}
+[data-theme="dark"] .kpi-prospect-card .num {
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .kpi-prospect-card .lbl {
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+[data-theme="dark"] .status-tabs .of-tab-btn {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.12)) !important;
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+[data-theme="dark"] .status-tabs .of-tab-btn:hover {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .status-tabs .of-tab-btn.active {
+  background: #0f766e !important;
+  color: #ffffff !important;
+  border-color: #0f766e !important;
+}
+[data-theme="dark"] .prospect-ai-params-bar {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.12)) !important;
+}
+[data-theme="dark"] .prospect-ai-params-lbl {
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .prospect-ai-select {
+  background: var(--theme-input-bg, #0d121c) !important;
+  color: #ffffff !important;
+  border-color: var(--theme-input-border, rgba(255,255,255,0.16)) !important;
+}
+[data-theme="dark"] .topbar-title h2,
+[data-theme="dark"] .topbar-title p {
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .topbar-title p {
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+[data-theme="dark"] .admin-table-wrap {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.08)) !important;
+}
+[data-theme="dark"] .table-top {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.08)) !important;
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .table-top div {
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .admin-table th {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  color: var(--theme-text-muted, #94a3b8) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.08)) !important;
+}
+[data-theme="dark"] .admin-table td {
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.06)) !important;
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .prospect-row:hover {
+  background: rgba(255,255,255,0.03) !important;
+}
+[data-theme="dark"] .prospect-row.row-analyzed {
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+[data-theme="dark"] .btn-action-icon {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.12)) !important;
+  color: var(--theme-text-main, #ffffff) !important;
+}
+[data-theme="dark"] .btn-action-icon:hover {
+  background: #24324a !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+[data-theme="dark"] .modal-box {
+  background: var(--theme-bg-surface-solid, #121824) !important;
+  color: var(--theme-text-main, #ffffff) !important;
+  border: 1px solid var(--theme-border-subtle, rgba(255,255,255,0.15)) !important;
+}
+[data-theme="dark"] .modal-hd {
+  border-bottom: 1px solid var(--theme-border-subtle, rgba(255,255,255,0.1)) !important;
+}
+[data-theme="dark"] .modal-hd h3 {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .modal-close {
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+[data-theme="dark"] .modal-close:hover {
+  color: #ffffff !important;
+}
+[data-theme="dark"] .modal-body,
+[data-theme="dark"] .modal-body div,
+[data-theme="dark"] .modal-body p,
+[data-theme="dark"] .modal-body strong,
+[data-theme="dark"] .modal-body span {
+  color: inherit;
+}
+[data-theme="dark"] .fi,
+[data-theme="dark"] select.fi,
+[data-theme="dark"] textarea.fi,
+[data-theme="dark"] input.fi {
+  background: var(--theme-input-bg, #0d121c) !important;
+  color: #ffffff !important;
+  border-color: var(--theme-input-border, rgba(255,255,255,0.16)) !important;
+}
+[data-theme="dark"] .fl {
+  color: var(--theme-text-muted, #94a3b8) !important;
+}
+[data-theme="dark"] .ai-box-insights {
+  background: rgba(6, 95, 70, 0.25) !important;
+  border-color: rgba(52, 211, 153, 0.4) !important;
+  color: #a7f3d0 !important;
+}
+[data-theme="dark"] .ai-box-insights div {
+  color: #a7f3d0 !important;
+}
+[data-theme="dark"] .badge-gray {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .import-opt-card {
+  background: var(--theme-bg-elevated, #1c2638) !important;
+  border-color: var(--theme-border-subtle, rgba(255,255,255,0.12)) !important;
+}
+[data-theme="dark"] .import-opt-card label {
+  color: #ffffff !important;
+}
 </style>
 </head>
 <body class="admin-body">
@@ -188,16 +326,16 @@
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div style="display:flex; gap:10px; align-items:center; background:#f1f5f9; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; flex-basis: 100%; margin-bottom: 4px;">
-            <strong style="font-size:12px; color:#475569">🧠 Parámetros de Redacción IA:</strong>
-            <select id="aiPersonality" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px; outline:none; cursor:pointer;">
+          <div class="prospect-ai-params-bar" style="display:flex; gap:10px; align-items:center; background:#f1f5f9; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; flex-basis: 100%; margin-bottom: 4px;">
+            <strong class="prospect-ai-params-lbl" style="font-size:12px; color:#475569">🧠 Parámetros de Redacción IA:</strong>
+            <select id="aiPersonality" class="prospect-ai-select" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px; outline:none; cursor:pointer;">
               <option value="Profesional / Formal">Profesional / Formal</option>
               <option value="Directo / Ejecutivo">Directo / Ejecutivo</option>
               <option value="Cercano / Cordial">Cercano / Cordial</option>
               <option value="Persuasivo / Comercial">Persuasivo / Comercial</option>
               <option value="Para prospecto Desconfiado / Reticente">Para prospecto Desconfiado</option>
             </select>
-            <select id="aiMessageType" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px; outline:none; cursor:pointer;">
+            <select id="aiMessageType" class="prospect-ai-select" style="padding:4px 8px; font-size:12px; border-radius:4px; border:1px solid #cbd5e1; min-width:160px; outline:none; cursor:pointer;">
               <option value="Presentación / Bienvenida">Presentación / Bienvenida</option>
               <option value="Seguimiento de Contacto Previo">Seguimiento de Contacto Previo</option>
               <option value="Recordatorio de Insumos">Recordatorio de Insumos</option>
@@ -390,16 +528,17 @@
         Sube el archivo de Google Sheets o pega directamente las celdas copiadas. El sistema realiza <strong>sincronización continua sin duplicar</strong> (actualiza datos si la empresa ya existe y agrega los nuevos).
       </p>
 
-      <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px dashed #cbd5e1;margin-bottom:16px;text-align:center">
-        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción A: Subir Archivo .XLSX o .CSV</label>
-        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFileInput(this)">
-        <button class="btn-p sm" onclick="document.getElementById('importFileInput').click()">📁 Seleccionar CRM AMPLIO.xlsx</button>
+      <div class="import-opt-card" style="background:#f8fafc;padding:14px;border-radius:8px;border:1px dashed #cbd5e1;margin-bottom:16px;text-align:center">
+        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción A: Subir Archivo (.XLSX, .CSV o .TXT)</label>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleImportFileInput(this)">
+        <button class="btn-p sm" onclick="document.getElementById('importFileInput').click()">📁 Seleccionar Archivo (.xlsx, .csv, .txt)</button>
+        <div style="font-size:11.5px;color:#64748b;margin-top:6px">Soporta Excel, CSV y archivos TXT crudos. Si no tiene cabeceras, la IA lo interpreta automáticamente sin duplicados.</div>
       </div>
 
-      <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px">
-        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción B: Pegar Celdas Directo de Google Sheets (Ctrl + V)</label>
-        <textarea class="fi" id="pasteImportTextarea" rows="4" placeholder="Copia las filas en tu hoja de cálculo y pégalas aquí..."></textarea>
-        <button class="btn-o sm" style="margin-top:8px" onclick="handlePasteImport()">📥 Procesar Celdas Pegadas</button>
+      <div class="import-opt-card" style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px">
+        <label style="display:block;font-weight:700;color:var(--dark);margin-bottom:6px">Opción B: Pegar Datos de Sheets o Texto Libre / WhatsApp (Extracción IA Anti-Duplicados)</label>
+        <textarea class="fi" id="pasteImportTextarea" rows="4" placeholder="Copia celdas de tu hoja de cálculo o pega notas desordenadas de WhatsApp, correos o listas. La IA reconocerá empresas, contactos, teléfonos y rubros sin duplicar existentes..."></textarea>
+        <button class="btn-o sm" id="btnPasteImport" style="margin-top:8px" onclick="handlePasteImport()">🧠 Procesar y Extraer con IA (Anti-Duplicados)</button>
       </div>
 
       <div style="background:#ecfdf5;padding:14px;border-radius:8px;border:1px solid #a7f3d0;margin-bottom:16px">
@@ -514,8 +653,8 @@
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260914_prospects"></script>
 <script src="../assets/js/vendedor/product-picker.js?v=20260914_prospects"></script>
-<script src="../assets/js/gemini-client.js?v=20260917_lista_ok"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20260917_lista_ok"></script>
-<script src="../assets/js/admin/vprospectos.js?v=20260917_lista_ok"></script>
+<script src="../assets/js/gemini-client.js?v=20260924_prospects_ai_v2"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260924_prospects_ai_v2"></script>
+<script src="../assets/js/admin/vprospectos.js?v=20260924_prospects_ai_v2"></script>
 </body>
 </html>

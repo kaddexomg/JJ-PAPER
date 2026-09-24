@@ -749,27 +749,37 @@ ESTÁNDARES DE CONSTRUCCIÓN SPINTAX PROFUNDO:
 
   async function parseProspectsText(rawText) {
     if (!rawText || !rawText.trim()) return [];
-    const prompt = `Analiza el siguiente texto crudo (que puede provenir de Google Maps, de un copy-paste de WhatsApp, etc.) y extrae todos los posibles clientes/prospectos (empresas o negocios).
-    
-Devuelve ÚNICAMENTE un JSON válido que sea un arreglo de objetos. Cada objeto debe tener:
-- "company_name": El nombre de la empresa (string, o "Desconocido").
-- "phone": El número de teléfono (string, formateado si es posible, o vacío).
-- "city": La ciudad (string, o vacío).
-- "source_link": Si hay un link de Google Maps, Instagram, etc. asociado (string, o vacío).
+    const prompt = `Eres un extractor experto de bases de datos B2B para JJ Paper C.A. en Caracas, Venezuela.
+Analiza el siguiente texto crudo (que puede ser un archivo TXT, un volcado de CRM, una lista desordenada sin columnas claras, o texto pegado) y extrae sistemáticamente todas las empresas y cuentas comerciales.
+
+Para CADA cuenta identificada, extrae o deduce con precisión:
+- "company_name": Razón social o nombre comercial limpio de la empresa (OBLIGATORIO, ej: "Locatel Venezuela", "Banesco Seguros", "Farmatodo").
+- "sector": Rubro o industria estimada (ej: "Farmacias y Retail", "Salud Privada y Clínicas", "Aseguradoras", "Supermercados", "Educación", "Logística y Transporte", etc.).
+- "contact_name": Nombre de la persona o interlocutor clave (si aparece, o null).
+- "contact_role": Cargo o departamento (ej: "Gerente de Compras", "Procura", "Administración", si aparece, o null).
+- "phone_1": Teléfono fijo, máster o principal (ej: "(0212) 955.80.00", o null).
+- "phone_2": Celular o WhatsApp corporativo (ej: "+58 414-226.37.26", o null).
+- "email": Correo electrónico corporativo o de compras (ej: "compras@empresa.com", o null).
+- "address": Dirección física, torre, urbanización o punto de referencia (ej: "Torre Banesco II, El Rosal, Caracas", o null).
+- "city": Ciudad (por defecto "Caracas", o la que indique el texto).
+- "notes": Criterio de compras, insumos requeridos o notas operativas (si aparece, o null).
+
+Devuelve ÚNICAMENTE un JSON válido que sea un arreglo de objetos [...] sin explicaciones ni markdown exterior.
 
 Texto a analizar:
-${rawText}
+${rawText.slice(0, 50000)}
     `;
 
     try {
-      const resp = await callGemini({ prompt, temperature: 0.2 });
+      const resp = await callGemini({ prompt, temperature: 0.1, maxTokens: 4000, mode: 'architect' });
       let t = resp.replace(/```json/gi, '').replace(/```/g, '').trim();
       const firstBrace = t.indexOf('[');
       const lastBrace = t.lastIndexOf(']');
       if (firstBrace !== -1 && lastBrace !== -1) {
         t = t.substring(firstBrace, lastBrace + 1);
       }
-      return JSON.parse(t);
+      const parsed = JSON.parse(t);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error('Error parseando prospectos con IA', e);
       return [];
@@ -1429,11 +1439,26 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     promoProductOrCombo = null,
     officialPdfIncluded = true,
     forceRefresh = true,
+    attitude = 'presentacion',
     onProgress = null
   }) {
     const results = [];
     const total = customers.length;
     let completed = 0;
+
+    // Mapeo de la actitud seleccionada a perfil psicológico y apertura
+    let personality = 'Profesional / Formal';
+    let messageType = 'Presentación Inicial';
+    if (attitude === 'seguimiento') {
+      personality = 'Cercano / Cordial';
+      messageType = 'Seguimiento de Contacto Previo';
+    } else if (attitude === 'recordatorio') {
+      personality = 'Directo / Ejecutivo';
+      messageType = 'Recordatorio de Insumos';
+    } else if (attitude === 'oferta') {
+      personality = 'Persuasivo / Comercial';
+      messageType = 'Reactivación / Oferta Especial';
+    }
 
     // Procesar en chunks de 2 en paralelo para óptima velocidad sin exceder rate limits
     const CONCURRENCY = 2;
@@ -1448,11 +1473,13 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             sellerPhone,
             promoProductOrCombo,
             officialPdfIncluded,
+            personality,
+            messageType,
             forceRefresh
           });
           completed++;
           if (typeof onProgress === 'function') {
-            onProgress({ current: completed, total, customer: cust, result: analysis });
+            await onProgress({ current: completed, total, customer: cust, result: analysis });
           }
           return { customer: cust, analysis };
         } catch (err) {
@@ -1467,7 +1494,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             officialPdfIncluded
           });
           if (typeof onProgress === 'function') {
-            onProgress({ current: completed, total, customer: cust, result: fallbackAnalysis });
+            await onProgress({ current: completed, total, customer: cust, result: fallbackAnalysis });
           }
           return { customer: cust, analysis: fallbackAnalysis };
         }

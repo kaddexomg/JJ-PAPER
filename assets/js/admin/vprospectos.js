@@ -692,13 +692,45 @@ function closeImportModal() {
   document.getElementById('importProspectsModal').classList.remove('op');
 }
 
-// Subida de archivo .xlsx o .csv
+// Subida de archivo .xlsx, .xls, .csv o .txt
 async function handleImportFileInput(input) {
   const file = input.files?.[0];
   if (!file) return;
 
-  showToast('Leyendo archivo de Google Sheets/Excel… 📄', 'info');
+  const fileName = (file.name || '').toLowerCase();
 
+  // Caso 1: Archivo de texto plano .txt (o volcado sin formato)
+  if (fileName.endsWith('.txt')) {
+    showToast('Leyendo archivo de texto plano con IA… 🧠', 'info');
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target.result;
+        if (!text || !text.trim()) {
+          showToast('El archivo TXT está vacío.', 'warn');
+          return;
+        }
+        if (typeof GeminiClient === 'undefined') await ensureGeminiClient();
+        showToast('Extrayendo empresas, contactos y teléfonos con IA… ⏳', 'info');
+        const extracted = await GeminiClient.parseProspectsText(text);
+        if (!extracted || extracted.length === 0) {
+          showToast('No se pudieron extraer empresas válidas del texto.', 'err');
+          return;
+        }
+        await importExtractedProspects(extracted);
+      } catch (err) {
+        console.error(err);
+        showToast('Error procesando TXT: ' + err.message, 'err');
+      } finally {
+        input.value = '';
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    return;
+  }
+
+  // Caso 2: Archivo Excel (.xlsx, .xls) o .csv
+  showToast('Leyendo archivo de Google Sheets/Excel… 📄', 'info');
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
@@ -718,7 +750,7 @@ async function handleImportFileInput(input) {
   reader.readAsArrayBuffer(file);
 }
 
-// Pegado directo (Ctrl+V) desde Google Sheets
+// Pegado directo (Ctrl+V) desde Google Sheets o texto desordenado
 async function handlePasteImport() {
   const text = document.getElementById('pasteImportTextarea')?.value || '';
   if (!text.trim()) {
@@ -726,43 +758,194 @@ async function handlePasteImport() {
     return;
   }
 
-  // Si tiene tabuladores, asumimos que viene de Sheets/Excel
+  // Si tiene tabuladores, asumimos que viene de Sheets/Excel con columnas
   if (text.includes('\t')) {
     const lines = text.trim().split(/\r?\n/);
     const rows = lines.map(line => line.split('\t'));
     await processImportedRows(rows);
   } else {
-    // Si es texto crudo sin formato (ej. Maps, WhatsApp), usamos Gemini
-    showToast('Analizando texto libre con IA...', 'info');
+    // Si es texto crudo sin formato (ej. Maps, WhatsApp, listas), usamos Gemini
+    showToast('Analizando y extrayendo cuentas con IA… 🧠', 'info');
     const aiBtn = document.getElementById('btnPasteImport');
-    if (aiBtn) { aiBtn.disabled = true; aiBtn.innerHTML = 'Analizando...'; }
+    if (aiBtn) { aiBtn.disabled = true; aiBtn.innerHTML = 'Analizando con IA… ⏳'; }
     try {
       if (typeof GeminiClient === 'undefined') await ensureGeminiClient();
       const extracted = await GeminiClient.parseProspectsText(text);
       if (!extracted || extracted.length === 0) {
         showToast('No se detectaron prospectos válidos en el texto.', 'err');
       } else {
-        // Convertirlo a un array bidimensional compatible con processImportedRows:
-        // [Empresa, Teléfono, Email (vacio), Ciudad, Link, Notas, ID]
-        const rows = extracted.map(e => [
-          e.company_name || 'Desconocido',
-          e.phone || '',
-          '',
-          e.city || '',
-          e.source_link || '',
-          ''
-        ]);
-        await processImportedRows(rows);
+        await importExtractedProspects(extracted);
       }
     } catch (err) {
       console.error(err);
-      showToast('Error de IA al analizar el texto.', 'err');
+      showToast('Error de IA al analizar el texto: ' + err.message, 'err');
     } finally {
-      if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = 'Importar Pegado'; }
+      if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = '📥 Procesar Celdas Pegadas'; }
     }
   }
 
   document.getElementById('pasteImportTextarea').value = '';
+}
+
+// Motor centralizado de importación con verificación y anti-duplicados estricto
+async function importExtractedProspects(extractedList = []) {
+  if (!extractedList || extractedList.length === 0) {
+    showToast('No hay prospectos para importar', 'warn');
+    return;
+  }
+
+  showToast(`Verificando anti-duplicados para ${extractedList.length} cuentas… 🛡️`, 'info');
+
+  // Normalización profunda de nombres para deduplicación insensible a C.A., S.A., acentos y puntuación
+  const cleanName = str => {
+    return String(str || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\b(c\.?a\.?|s\.?a\.?|s\.?r\.?l\.?|c\.? por a\.?|compania anonima|sociedad anonima|de venezuela|venezuela|sucursal|sede|corporacion|grupo)\b/gi, '')
+      .replace(/[^a-z0-9]/gi, '')
+      .trim();
+  };
+
+  const cleanPhone = str => {
+    if (!str) return '';
+    const digits = String(str).replace(/\D/g, '');
+    return digits.length >= 7 ? digits.slice(-7) : digits;
+  };
+
+  const cleanEmail = str => {
+    const e = String(str || '').toLowerCase().trim();
+    if (!e || !e.includes('@') || e.includes('gmail.') || e.includes('hotmail.') || e.includes('yahoo.') || e.includes('cantv.')) return '';
+    return e;
+  };
+
+  // Cargar todos los prospectos de la BD para deduplicar en memoria
+  let existingProspects = [];
+  try {
+    const { data: ex, error: exErr } = await sb.from('jjp_prospects')
+      .select('id, company_name, sector, contact_name, contact_role, phone_1, phone_2, email, address, notes, contacted, status');
+    if (!exErr && ex) existingProspects = ex;
+  } catch (e) {
+    console.warn('Error cargando prospectos existentes:', e);
+  }
+
+  const nameIndex = new Map();
+  const phoneIndex = new Map();
+  const emailIndex = new Map();
+
+  existingProspects.forEach(p => {
+    const cN = cleanName(p.company_name);
+    if (cN) nameIndex.set(cN, p);
+    const p1 = cleanPhone(p.phone_1);
+    if (p1) phoneIndex.set(p1, p);
+    const p2 = cleanPhone(p.phone_2);
+    if (p2) phoneIndex.set(p2, p);
+    const em = cleanEmail(p.email);
+    if (em) emailIndex.set(em, p);
+  });
+
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  const toInsert = [];
+  const toUpdate = [];
+
+  for (const item of extractedList) {
+    const rawCompany = String(item.company_name || '').trim();
+    const cN = cleanName(rawCompany);
+    if (!rawCompany || rawCompany.length < 2 || cN === 'empresa' || /^\d+$/.test(rawCompany) || cN === 'sector' || cN === 'total') {
+      skipped++;
+      continue;
+    }
+
+    const cTel1 = cleanPhone(item.phone_1 || item.phone);
+    const cTel2 = cleanPhone(item.phone_2);
+    const cMail = cleanEmail(item.email);
+
+    // Coincidencia por nombre normalizado, o por correo corporativo, o por teléfono
+    let match = nameIndex.get(cN);
+    if (!match && cMail) match = emailIndex.get(cMail);
+    if (!match && cTel1) match = phoneIndex.get(cTel1);
+    if (!match && cTel2) match = phoneIndex.get(cTel2);
+
+    if (match) {
+      // Coincidencia: ENRIQUECER datos existentes sin pisar lo ya guardado ni duplicar
+      const upd = {};
+      if ((!match.sector || match.sector === 'Otro') && item.sector) upd.sector = item.sector;
+      if (!match.contact_name && item.contact_name) upd.contact_name = item.contact_name;
+      if (!match.contact_role && item.contact_role) upd.contact_role = item.contact_role;
+      if (!match.phone_1 && (item.phone_1 || item.phone)) upd.phone_1 = item.phone_1 || item.phone;
+      if (!match.phone_2 && item.phone_2) upd.phone_2 = item.phone_2;
+      if (!match.email && item.email) upd.email = item.email;
+      if (!match.address && item.address) upd.address = item.address;
+      if (item.notes && (!match.notes || !match.notes.includes(item.notes.slice(0, 15)))) {
+        upd.notes = match.notes ? `${match.notes} · ${item.notes}` : item.notes;
+      }
+
+      if (Object.keys(upd).length > 0) {
+        upd.id = match.id;
+        upd.updated_at = new Date().toISOString();
+        toUpdate.push(upd);
+        Object.assign(match, upd);
+        updated++;
+      } else {
+        skipped++;
+      }
+    } else {
+      // Registro nuevo: INSERTAR
+      const newObj = {
+        company_name: rawCompany,
+        sector: item.sector || 'Otro',
+        contact_name: item.contact_name || null,
+        contact_role: item.contact_role || null,
+        phone_1: item.phone_1 || item.phone || null,
+        phone_2: item.phone_2 || null,
+        email: item.email || null,
+        address: item.address || null,
+        city: item.city || 'Caracas',
+        notes: item.notes || null,
+        status: 'nuevo',
+        contacted: false,
+        source: 'importacion',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      toInsert.push(newObj);
+      inserted++;
+
+      // Registrar en índices para evitar duplicación con filas siguientes del mismo archivo
+      nameIndex.set(cN, newObj);
+      if (cTel1) phoneIndex.set(cTel1, newObj);
+      if (cTel2) phoneIndex.set(cTel2, newObj);
+      if (cMail) emailIndex.set(cMail, newObj);
+    }
+  }
+
+  // Ejecutar inserciones en lotes
+  if (toInsert.length > 0) {
+    showToast(`Guardando ${toInsert.length} cuentas nuevas… 🚀`, 'info');
+    const BATCH = 50;
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const chunk = toInsert.slice(i, i + BATCH);
+      const { error: insErr } = await sb.from('jjp_prospects').insert(chunk);
+      if (insErr) {
+        console.warn('Fallback con upsert para lote:', insErr);
+        await sb.from('jjp_prospects').upsert(chunk, { onConflict: 'company_name' });
+      }
+    }
+  }
+
+  // Ejecutar actualizaciones individuales
+  for (const upd of toUpdate) {
+    const id = upd.id;
+    delete upd.id;
+    await sb.from('jjp_prospects').update(upd).eq('id', id);
+  }
+
+  showToast(`¡Sincronización completada! 🎯 ${inserted} nuevos agregados · ${updated} enriquecidos · ${skipped} preservados sin duplicar.`);
+  closeImportModal();
+  await loadProspects();
 }
 
 async function processImportedRows(allRows) {
@@ -771,10 +954,9 @@ async function processImportedRows(allRows) {
     return;
   }
 
-  // Normaliza acentos para detectar cabeceras escritas con o sin tilde.
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-  // Buscar fila de cabecera mediante scoring ponderado de palabras clave reales
+  // Buscar fila de cabecera mediante scoring ponderado
   let bestHeaderIdx = -1;
   let bestScore = 0;
 
@@ -783,12 +965,10 @@ async function processImportedRows(allRows) {
     if (!row || !Array.isArray(row)) continue;
     const r = row.map(c => norm(c));
 
-    // Si la fila contiene términos de tarjetas resumen/KPIs de dashboard, ignorar como cabecera
     const isSummaryCard = r.some(c => c.includes('total clientes') || c.includes('total contactos') || c.includes('cuentas en cartera') || c.includes('% cobertura'));
     if (isSummaryCard) continue;
 
     let score = 0;
-    // Ponderación de cabeceras reales
     if (r.some(c => (c.includes('empresa') || c.includes('razon') || c.includes('compa')) && !c.includes('total'))) score += 5;
     if (r.some(c => c.includes('sector') || c.includes('rubro'))) score += 4;
     if (r.some(c => (c.includes('contacto') || c.includes('persona') || c.includes('atencion')) && !c.includes('total'))) score += 3;
@@ -803,8 +983,21 @@ async function processImportedRows(allRows) {
     }
   }
 
+  // Si no se encuentra cabecera convencional, delegar a IA para interpretar las filas
   if (bestHeaderIdx === -1) {
-    showToast('No se encontró la cabecera (debe contener columnas como "Empresa", "Sector", "Contacto")', 'err');
+    showToast('Cabecera no convencional detectada. Interpretando con IA… 🧠', 'info');
+    try {
+      if (typeof GeminiClient === 'undefined') await ensureGeminiClient();
+      const rawText = allRows.map(r => Array.isArray(r) ? r.join(' | ') : String(r)).join('\n');
+      const extracted = await GeminiClient.parseProspectsText(rawText);
+      if (extracted && extracted.length > 0) {
+        await importExtractedProspects(extracted);
+        return;
+      }
+    } catch (err) {
+      console.warn('Fallback IA falló:', err);
+    }
+    showToast('No se encontró cabecera de datos (debe contener columnas como "Empresa", "Sector", "Contacto")', 'err');
     return;
   }
 
@@ -823,7 +1016,6 @@ async function processImportedRows(allRows) {
     notas: headers.findIndex(h => h.includes('nota') || h.includes('observaci') || h.includes('comentario') || h.includes('descripc') || h.includes('inscripc') || h.includes('detalle'))
   };
 
-  // Si no hay tel2 explícito, probar "teléfono 2" omitiéndose de tel1.
   if (col.tel2 === -1) {
     col.tel2 = headers.findIndex(h => (h.includes('tel') || h.includes('fijo') || h.includes('nro') || h.includes('numero')) && /\b2\b/.test(h) && !h.includes('cel'));
   }
@@ -833,20 +1025,7 @@ async function processImportedRows(allRows) {
     return;
   }
 
-  let inserted = 0;
-  let updated = 0;
-  let skipped = 0;
-
-  // Precarga de empresas existentes para distinguir insert vs update.
-  let existing = new Set();
-  try {
-    const { data: ex } = await sb.from('jjp_prospects').select('company_name');
-    existing = new Set((ex || []).map(x => norm(x.company_name)));
-  } catch (_) { /* mantener set vacío */ }
-
-  showToast('Preparando y procesando prospectos… ⏳', 'info');
-
-  const toUpsertMap = new Map(); // Para evitar duplicados en el mismo lote
+  const rawParsedList = [];
 
   for (let i = headerIdx + 1; i < allRows.length; i++) {
     const r = allRows[i];
@@ -854,7 +1033,6 @@ async function processImportedRows(allRows) {
 
     const rawCompany = String(r[col.empresa] || '').trim();
     if (!rawCompany || norm(rawCompany) === 'empresa' || /^\d+$/.test(rawCompany) || norm(rawCompany) === 'sector' || norm(rawCompany) === 'total' || norm(rawCompany).includes('total clientes') || norm(rawCompany).includes('cuentas en cartera')) {
-      skipped++;
       continue;
     }
 
@@ -888,7 +1066,7 @@ async function processImportedRows(allRows) {
     const address = col.direccion !== -1 && r[col.direccion] ? String(r[col.direccion]).trim() : null;
     const notes = col.notas !== -1 && r[col.notas] ? String(r[col.notas]).trim() : null;
 
-    const payload = {
+    rawParsedList.push({
       company_name: rawCompany,
       sector: sector || 'Otro',
       contact_name: contactName || null,
@@ -897,36 +1075,12 @@ async function processImportedRows(allRows) {
       phone_2: tel2,
       email: email,
       address: address,
-      notes: notes,
-      updated_at: new Date().toISOString()
-    };
-
-    toUpsertMap.set(norm(rawCompany), payload);
+      notes: notes
+    });
   }
 
-  const payloadsArray = Array.from(toUpsertMap.values());
-  showToast(`Guardando ${payloadsArray.length} prospectos en BD... 🚀`, 'info');
-
-  const BATCH_SIZE = 100;
-  for (let i = 0; i < payloadsArray.length; i += BATCH_SIZE) {
-    const chunk = payloadsArray.slice(i, i + BATCH_SIZE);
-    const { error: upsertErr } = await sb.from('jjp_prospects').upsert(chunk, { onConflict: 'company_name' });
-    
-    if (!upsertErr) {
-      chunk.forEach(p => {
-        if (existing.has(norm(p.company_name))) updated++;
-        else inserted++;
-        existing.add(norm(p.company_name));
-      });
-    } else {
-      console.error('Error en lote:', upsertErr);
-      skipped += chunk.length;
-    }
-  }
-
-  showToast(`¡Importación finalizada! ✔ ${inserted} creados · ${updated} actualizados · ${skipped} omitidos. ${inserted + updated} prospectos sincronizados en total.`);
-  closeImportModal();
-  await loadProspects();
+  // Pasar por el motor de deduplicación y guardado
+  await importExtractedProspects(rawParsedList);
 }
 
 /* Importación directa desde una URL pública de Google Sheets.

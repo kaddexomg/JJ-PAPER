@@ -513,9 +513,15 @@ function posRenderTicket() {
           </div>
           ${levelSelector}
         </div>
-        <div style="display:flex; gap:4px">
-          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar este producto" style="padding:4px 6px;color:#0284c7;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:6px;transition:background .1s" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='transparent'">🔄</button>
-          <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar este producto" style="padding:4px 6px;color:#ef4444;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:6px;transition:background .1s" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='transparent'">🗑️</button>
+        <div style="display:flex; gap:6px; align-items:center">
+          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 8px;color:#0284c7;border:1px solid rgba(2,132,199,0.3);background:var(--theme-bg-surface);cursor:pointer;font-size:11px;font-weight:700;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s" onmouseover="this.style.background='rgba(2,132,199,0.1)'" onmouseout="this.style.background='var(--theme-bg-surface)'" aria-label="Cambiar producto">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Cambiar
+          </button>
+          <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar producto" style="padding:4px 8px;color:#ef4444;border:1px solid rgba(239,68,68,0.3);background:var(--theme-bg-surface);cursor:pointer;font-size:11px;font-weight:700;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='var(--theme-bg-surface)'" aria-label="Quitar producto">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Quitar
+          </button>
         </div>
       </div>
 
@@ -1013,27 +1019,40 @@ function updateQuoteHeaderStatus() {
     if (ind) {
       ind.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:12px;font-weight:900;padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:6px">
-            ✏️ EDITANDO: <strong style="font-family:monospace;font-size:13px">${escapeHTML(editingQuoteNumber)}</strong>
+          <span style="background:rgba(245,158,11,0.15);color:#d97706;border:1px solid rgba(245,158,11,0.35);font-size:12px;font-weight:800;padding:5px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Editando: <strong style="font-family:monospace;font-size:13px">${escapeHTML(editingQuoteNumber)}</strong>
           </span>
-          <span style="font-size:12px;color:#475569;font-weight:600">👤 ${escapeHTML(cliName)}</span>
+          <span style="font-size:12px;color:var(--theme-text-main);font-weight:600;display:inline-flex;align-items:center;gap:5px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            ${escapeHTML(cliName)}
+          </span>
           ${rateHtml}
         </div>
       `;
     }
     if (act) {
       act.innerHTML = `
-        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Facturar o cobrar en POS (F7)" style="background:#0284c7;color:#fff;border-radius:8px;font-weight:700;padding:6px 12px;box-shadow:0 2px 6px rgba(2,132,199,0.3)">🛒 Facturar en POS <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd></button>
-        <button type="button" class="btn-o sm" onclick="quotePrintPdf()" title="Ver presupuesto PDF oficial (F10)" style="border-radius:8px;font-weight:700;padding:6px 12px">🖨️ Presupuesto PDF <kbd style="background:#f1f5f9;border:1px solid #cbd5e1;padding:1px 5px;border-radius:4px;font-size:11px">F10</kbd></button>
-        <button type="button" class="btn-g sm" onclick="quoteReset()" title="Salir del modo edición y crear una nueva (Alt+N)" style="border-radius:8px;color:#dc2626;border-color:#fecaca;padding:6px 12px">✕ Cancelar Edición <kbd style="background:#fef2f2;border:1px solid #fca5a5;padding:1px 5px;border-radius:4px;font-size:11px">Alt+N</kbd></button>
+        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Facturar o cobrar en POS (F7)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+          Facturar en POS <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd>
+        </button>
+        <button type="button" class="btn-o sm" onclick="quotePrintPdf()" title="Ver presupuesto oficial (F10)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Presupuesto PDF <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:1px 5px;border-radius:4px;font-size:11px">F10</kbd>
+        </button>
+        <button type="button" class="btn-g sm" onclick="quoteReset()" title="Salir del modo edición (Alt+N)" style="border-radius:999px;color:#dc2626;border:1px solid rgba(220,38,38,0.3);padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
+          ✕ Cancelar <kbd style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);padding:1px 5px;border-radius:4px;font-size:11px">Alt+N</kbd>
+        </button>
       `;
     }
   } else {
     if (ind) {
       ind.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="background:#ecfdf5;color:#16604a;border:1px solid #a7f3d0;font-size:12px;font-weight:900;padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:6px">
-            🆕 Nueva Cotización
+          <span style="background:rgba(16,185,129,0.12);color:var(--theme-accent);border:1px solid var(--theme-accent);font-size:12px;font-weight:800;padding:5px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            Nueva Cotización
           </span>
           ${rateHtml}
         </div>

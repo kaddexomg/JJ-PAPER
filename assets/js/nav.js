@@ -5,7 +5,7 @@
 const NAV_LINKS = [
   { label: 'Inicio',    href: 'index.html',    key: 'inicio'   },
   { label: 'Catálogo',  href: 'catalogo.html', key: 'catalogo' },
-  { label: '🔥 Promos', href: 'promociones.html', key: 'promos' },
+  { label: 'Promociones', href: 'promociones.html', key: 'promos' },
   { label: 'Pedidos',   href: 'pedidos.html',  key: 'pedidos'  },
   { label: 'Rastreo',   href: 'rastreo.html',  key: 'rastreo'  },
   { label: 'Nosotros',  href: 'index.html#nosotros', key: 'nosotros' },
@@ -32,7 +32,7 @@ function injectNav(activeKey = '') {
   <div class="n-links">${linksHTML}</div>
   <div class="n-acts">
     <button class="n-cart" id="openCartBtn" aria-label="Abrir carrito">
-      🛒 <span class="n-cart-lbl">Carrito</span> <span class="n-cbadge" id="cartBadge">0</span>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><span class="n-cart-lbl">Carrito</span> <span class="n-cbadge" id="cartBadge">0</span>
     </button>
     <button class="n-tog" id="menuTog" aria-label="Abrir menú" aria-expanded="false" aria-controls="mmenu">&#9776;</button>
   </div>
@@ -58,6 +58,11 @@ function injectNav(activeKey = '') {
   if (window.JJTheme && typeof window.JJTheme.mount === 'function') {
     window.JJTheme.mount();
   }
+
+  // Escanear y renderizar iconos vectoriales SVG para compatibilidad total con Windows 7
+  if (window.JJIcons && typeof window.JJIcons.scan === 'function') {
+    window.JJIcons.scan(document.getElementById('nav'));
+  }
 }
 
 // Cargar theme.js si aún no está presente
@@ -66,6 +71,14 @@ if (typeof window !== 'undefined' && !window.JJTheme && !document.querySelector(
   ts.src = 'assets/js/theme.js';
   ts.defer = true;
   document.head.appendChild(ts);
+}
+
+// Cargar icons.js si aún no está presente (Soporte Windows 7)
+if (typeof window !== 'undefined' && !window.JJIcons && !document.querySelector('script[src*="icons.js"]')) {
+  const is = document.createElement('script');
+  is.src = 'assets/js/icons.js';
+  is.defer = true;
+  document.head.appendChild(is);
 }
 
 function injectFooter() {

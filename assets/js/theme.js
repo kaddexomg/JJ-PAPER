@@ -40,6 +40,9 @@
     }
   };
 
+  const SUN_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+  const MOON_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+
   // Compatibilidad rápida
   window.toggleTheme = () => window.JJTheme.toggle();
 
@@ -50,7 +53,7 @@
       btn.setAttribute('title', isDark ? 'Cambiar a Modo Claro (Crystal Glass)' : 'Cambiar a Modo Oscuro (Obsidian Glass)');
       const icon = btn.querySelector('.theme-toggle-icon');
       if (icon) {
-        icon.textContent = isDark ? '🌙' : '☀️';
+        icon.innerHTML = isDark ? MOON_SVG : SUN_SVG;
       }
       const text = btn.querySelector('.theme-toggle-text');
       if (text) {
@@ -81,7 +84,7 @@
     btn.setAttribute('title', isDark ? 'Cambiar a Modo Claro (Crystal Glass)' : 'Cambiar a Modo Oscuro (Obsidian Glass)');
 
     btn.innerHTML = `
-      <span class="theme-toggle-icon" style="font-size:16px;line-height:1;transition:transform .3s ease">${isDark ? '🌙' : '☀️'}</span>
+      <span class="theme-toggle-icon" style="width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;line-height:1;transition:transform .3s ease">${isDark ? MOON_SVG : SUN_SVG}</span>
       <span class="theme-toggle-text" style="font-size:12px;font-weight:700;letter-spacing:0.3px">${isDark ? 'Oscuro' : 'Claro'}</span>
     `;
 

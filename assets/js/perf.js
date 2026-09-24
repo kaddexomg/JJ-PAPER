@@ -45,12 +45,20 @@
   } catch (e) {}
 
   // Inyectar theme.js si aún no está presente en la página
+  var isSubdir = window.location.pathname.includes('/admin/') || window.location.pathname.includes('/vendedor/');
   if (!window.JJTheme) {
     var themeScript = document.createElement('script');
-    var isSubdir = window.location.pathname.includes('/admin/') || window.location.pathname.includes('/vendedor/');
     themeScript.src = (isSubdir ? '../' : '') + 'assets/js/theme.js';
     themeScript.defer = true;
     document.head.appendChild(themeScript);
+  }
+
+  // Inyectar icons.js (Motor Universal SVG para Windows 7)
+  if (!window.JJIcons) {
+    var iconScript = document.createElement('script');
+    iconScript.src = (isSubdir ? '../' : '') + 'assets/js/icons.js';
+    iconScript.defer = true;
+    document.head.appendChild(iconScript);
   }
 
   window.JJPerf = {
@@ -59,7 +67,7 @@
       apply(on);
       try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {}
       if (typeof showToast === 'function') {
-        showToast(on ? 'Modo equipo lento activado (sin efectos)' : 'Efectos visuales activados');
+        showToast(on ? 'Modo equipo ligero activado (sin efectos)' : 'Efectos visuales activados');
       }
     },
     toggle: function () { window.JJPerf.set(!window.JJPerf.isLow()); }
@@ -74,12 +82,12 @@
     b.type = 'button';
     b.className = 'perf-toggle';
     b.setAttribute('aria-pressed', String(window.JJPerf.isLow()));
-    b.title = 'Apaga los efectos visuales para que el panel vuele en PCs viejas';
-    b.textContent = window.JJPerf.isLow() ? '⚡ Modo rápido' : '✨ Efectos';
+    b.title = 'Optimizar para PCs lentas o Windows 7';
+    b.innerHTML = window.JJPerf.isLow() ? '<span style="font-weight:700">Modo rápido</span>' : '<span style="font-weight:700">Efectos</span>';
     b.onclick = function () {
       window.JJPerf.toggle();
       b.setAttribute('aria-pressed', String(window.JJPerf.isLow()));
-      b.textContent = window.JJPerf.isLow() ? '⚡ Modo rápido' : '✨ Efectos';
+      b.innerHTML = window.JJPerf.isLow() ? '<span style="font-weight:700">Modo rápido</span>' : '<span style="font-weight:700">Efectos</span>';
     };
     bar.appendChild(b);
   }

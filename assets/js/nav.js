@@ -53,6 +53,19 @@ function injectNav(activeKey = '') {
 
   // El badge se inyecta después de cartLoad(): sincronizarlo con el carrito guardado
   if (typeof cartUpdateBadge === 'function') cartUpdateBadge();
+
+  // Montar botón de modo Claro / Oscuro Liquid Glass
+  if (window.JJTheme && typeof window.JJTheme.mount === 'function') {
+    window.JJTheme.mount();
+  }
+}
+
+// Cargar theme.js si aún no está presente
+if (typeof window !== 'undefined' && !window.JJTheme && !document.querySelector('script[src*="theme.js"]')) {
+  const ts = document.createElement('script');
+  ts.src = 'assets/js/theme.js';
+  ts.defer = true;
+  document.head.appendChild(ts);
 }
 
 function injectFooter() {

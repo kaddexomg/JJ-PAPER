@@ -46,6 +46,54 @@
   /* Spacing */
   --section-pad: 80px 5%;
   --max-w: 1200px;
+
+  /* ====================================================
+     Tokens de Tema: Liquid Glass (Modo Claro por Defecto)
+     ==================================================== */
+  --theme-bg-app:           #f8fafc;
+  --theme-bg-surface:       rgba(255, 255, 255, 0.78);
+  --theme-bg-surface-solid: #ffffff;
+  --theme-bg-elevated:      rgba(255, 255, 255, 0.94);
+  --theme-text-main:        #0f172a;
+  --theme-text-muted:       #64748b;
+  --theme-text-subtle:      #94a3b8;
+  --theme-border-glass:     rgba(255, 255, 255, 0.85);
+  --theme-border-subtle:    rgba(226, 232, 240, 0.85);
+  --theme-glass-shadow:     0 12px 36px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --theme-input-bg:         rgba(255, 255, 255, 0.92);
+  --theme-input-border:     #cbd5e1;
+  --theme-accent:           #16604a;
+  --theme-accent-glow:      rgba(22, 96, 74, 0.16);
+  --theme-sheen:            linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 50%);
+}
+
+/* ====================================================
+   Tokens de Tema: Obsidian Liquid Glass (Modo Oscuro)
+   ==================================================== */
+[data-theme="dark"] {
+  --theme-bg-app:           #070b12;
+  --theme-bg-surface:       rgba(15, 23, 42, 0.75);
+  --theme-bg-surface-solid: #0f172a;
+  --theme-bg-elevated:      rgba(30, 41, 59, 0.88);
+  --theme-text-main:        #f8fafc;
+  --theme-text-muted:       #94a3b8;
+  --theme-text-subtle:      #64748b;
+  --theme-border-glass:     rgba(255, 255, 255, 0.14);
+  --theme-border-subtle:    rgba(51, 65, 85, 0.65);
+  --theme-glass-shadow:     0 16px 44px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --theme-input-bg:         rgba(15, 23, 42, 0.88);
+  --theme-input-border:     #334155;
+  --theme-accent:           #10b981;
+  --theme-accent-glow:      rgba(16, 185, 129, 0.32);
+  --theme-sheen:            linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 50%);
+
+  /* Neutros adaptados */
+  --bk:                     #f8fafc;
+  --wh:                     #0f172a;
+  --gl:                     #0b0f19;
+  --gr:                     #94a3b8;
+  --gb:                     #1e293b;
+  --gx:                     #064e3b;
 }
 
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }

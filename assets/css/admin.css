@@ -1,8 +1,10 @@
+@import "glass.css";
+
 /* ======================================================
    JJ Paper — Admin Panel
    ====================================================== */
 
-body.admin-body { background:var(--gl) }
+body.admin-body { background:var(--theme-bg-app); color:var(--theme-text-main); transition:background .3s ease, color .3s ease }
 
 /* ---- Layout ---- */
 .admin-wrap { display:flex; min-height:100vh }
@@ -53,11 +55,15 @@ body.admin-body { background:var(--gl) }
 }
 
 .admin-topbar {
-  background:#fff; padding:8px 28px; min-height:62px;
+  background:var(--theme-bg-surface);
+  backdrop-filter:blur(24px) saturate(200%);
+  -webkit-backdrop-filter:blur(24px) saturate(200%);
+  padding:8px 28px; min-height:62px;
   display:flex; align-items:center; justify-content:space-between;
-  flex-wrap:wrap; gap:8px;   /* altura fija causaba botones montados sobre el contenido */
-  border-bottom:1px solid #eee; position:sticky; top:0; z-index:100;
-  box-shadow:0 1px 8px rgba(0,0,0,.06);
+  flex-wrap:wrap; gap:8px;
+  border-bottom:1px solid var(--theme-border-subtle); position:sticky; top:0; z-index:100;
+  box-shadow:0 1px 12px rgba(0,0,0,.06);
+  transition:background .3s ease, border-color .3s ease;
 }
 .topbar-left { display:flex; align-items:center; gap:12px }
 .topbar-title h2 { font-size:17px; font-weight:700; color:var(--bk) }

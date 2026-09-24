@@ -32,6 +32,27 @@
   var active = saved === null ? guessSlow() : saved === '1';
   apply(active);
 
+  // Autodetección y aplicación inmediata del tema (Claro / Oscuro) sin parpadeo (FOUC)
+  var THEME_KEY = 'jjp_theme';
+  try {
+    var savedTheme = localStorage.getItem(THEME_KEY);
+    if (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      savedTheme = 'dark';
+    }
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  } catch (e) {}
+
+  // Inyectar theme.js si aún no está presente en la página
+  if (!window.JJTheme) {
+    var themeScript = document.createElement('script');
+    var isSubdir = window.location.pathname.includes('/admin/') || window.location.pathname.includes('/vendedor/');
+    themeScript.src = (isSubdir ? '../' : '') + 'assets/js/theme.js';
+    themeScript.defer = true;
+    document.head.appendChild(themeScript);
+  }
+
   window.JJPerf = {
     isLow: function () { return document.documentElement.classList.contains('perf-low'); },
     set: function (on) {

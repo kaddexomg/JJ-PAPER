@@ -298,332 +298,443 @@
 }
 
 /* ===================================================================
-   LIQUID THEME TOGGLE — Botón interactivo de Modo Claro / Oscuro
+   LIQUID DYNAMIC ISLAND & FLOATING CAPSULES (Estilo iPhone iOS)
    =================================================================== */
+
+/* Ambient Aura Background en paneles: elimina el negro plano/ceniza */
+body.admin-body {
+  background: radial-gradient(circle at 18% 12%, rgba(22, 96, 74, 0.05) 0%, transparent 45%),
+              radial-gradient(circle at 82% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+              var(--theme-bg-app) !important;
+  color: var(--theme-text-main) !important;
+  min-height: 100vh;
+}
+
+[data-theme="dark"] body.admin-body {
+  background: radial-gradient(circle at 20% 15%, rgba(16, 185, 129, 0.12) 0%, transparent 48%),
+              radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.09) 0%, transparent 52%),
+              var(--theme-bg-app) !important;
+  color: var(--theme-text-main) !important;
+}
+
+/* Cápsula flotante genérica Dynamic Island */
+.liquid-island,
+.liquid-capsule,
 .liquid-theme-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--theme-bg-surface);
-  border: 1px solid var(--theme-border-glass);
-  box-shadow: var(--theme-glass-shadow);
-  backdrop-filter: blur(14px) saturate(180%);
-  -webkit-backdrop-filter: blur(14px) saturate(180%);
-  color: var(--theme-text-main);
+  gap: 8px;
+  padding: 7px 16px;
+  border-radius: 9999px !important;
+  background: var(--theme-bg-surface) !important;
+  border: 1px solid var(--theme-border-glass) !important;
+  box-shadow: var(--theme-glass-shadow) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  color: var(--theme-text-main) !important;
   cursor: pointer;
-  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+  transition: all .24s cubic-bezier(.34,1.56,.64,1);
   user-select: none;
   font-family: inherit;
   outline: none;
+  position: relative;
+  overflow: hidden;
 }
-.liquid-theme-toggle:hover {
-  transform: translateY(-1px) scale(1.03);
-  box-shadow: 0 6px 20px var(--theme-accent-glow), inset 0 1px 0 rgba(255,255,255,0.4);
-  border-color: var(--theme-accent);
+
+.liquid-theme-toggle:hover,
+.liquid-capsule:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  box-shadow: 0 10px 26px var(--theme-accent-glow), inset 0 1px 0 rgba(255,255,255,0.45) !important;
+  border-color: var(--theme-accent) !important;
 }
-.liquid-theme-toggle:active {
-  transform: scale(0.96);
+
+.liquid-theme-toggle:active,
+.liquid-capsule:active {
+  transform: scale(0.95) !important;
 }
 
 /* ===================================================================
-   LIQUID GLASS — Clases Modernas de Tarjetas y Paneles
+   PANELES Y TARJETAS FLOTANTES — Liquid Glass Universal
    =================================================================== */
-.liquid-glass {
+.stat-card,
+.dash-card,
+.form-panel,
+.admin-table-wrap,
+.card,
+.val,
+.pos-grid > div,
+.pos-left,
+.pos-right,
+.ticket-wrap {
   background: var(--theme-bg-surface) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
   border: 1px solid var(--theme-border-glass) !important;
+  border-radius: 22px !important;
   box-shadow: var(--theme-glass-shadow) !important;
   color: var(--theme-text-main) !important;
   position: relative;
-  isolation: isolate;
-  transition: background .25s ease, border-color .25s ease, box-shadow .25s ease;
+  transition: transform .24s cubic-bezier(.34,1.56,.64,1), box-shadow .24s ease, border-color .24s ease;
 }
 
-.liquid-glass::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 50% 0;
-  border-radius: inherit;
-  background: var(--theme-sheen);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.liquid-glass-interactive:hover {
-  transform: translateY(-2px);
+.stat-card:hover,
+.card:hover {
+  transform: translateY(-2px) scale(1.008);
   border-color: var(--theme-accent) !important;
-  box-shadow: 0 16px 38px var(--theme-accent-glow), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  box-shadow: 0 18px 40px var(--theme-accent-glow), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+}
+
+/* Topbar flotante de vidrio líquido */
+.admin-topbar {
+  background: var(--theme-bg-surface) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+.topbar-title h2 { color: var(--theme-text-main) !important; font-weight: 800; letter-spacing: -0.02em; }
+.topbar-title p  { color: var(--theme-text-muted) !important; }
+.topbar-user     {
+  background: var(--theme-bg-elevated);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--theme-border-glass);
+  color: var(--theme-text-main) !important;
+}
+
+/* Sidebar translúcida de vidrio ahumado en Modo Oscuro */
+[data-theme="dark"] .admin-aside {
+  background: rgba(11, 16, 25, 0.88) !important;
+  backdrop-filter: blur(34px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(200%) !important;
+  border-right: 1px solid var(--theme-border-glass);
+}
+.aside-nav a {
+  border-radius: 14px;
+  margin: 3px 12px;
+  padding: 10px 16px;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+}
+.aside-nav a:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(3px);
+}
+.aside-nav a.on {
+  background: var(--theme-accent) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 18px var(--theme-accent-glow);
+  border-right: none !important;
 }
 
 /* ===================================================================
-   MODO OSCURO — Estilos de Alto Contraste y Vidrio Ahumado
+   COTIZADOR & POS — Dinámica Flotante de iPhone
    =================================================================== */
-[data-theme="dark"] body.admin-body,
-[data-theme="dark"] body {
-  background: var(--theme-bg-app);
-  color: var(--theme-text-main);
-}
 
-[data-theme="dark"] .admin-topbar {
-  background: rgba(15, 23, 42, 0.82);
-  backdrop-filter: blur(24px) saturate(200%);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border-bottom: 1px solid var(--theme-border-subtle);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-
-[data-theme="dark"] .admin-topbar .topbar-title h2,
-[data-theme="dark"] .admin-topbar .topbar-user {
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .stat-card,
-[data-theme="dark"] .admin-table-wrap,
-[data-theme="dark"] .card {
-  background: var(--theme-bg-surface);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--theme-border-glass);
-  box-shadow: var(--theme-glass-shadow);
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .stat-n,
-[data-theme="dark"] .table-top h3,
-[data-theme="dark"] .td-name {
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .stat-l,
-[data-theme="dark"] .td-sub {
-  color: var(--theme-text-muted);
-}
-
-[data-theme="dark"] .table-top {
-  border-bottom: 1px solid var(--theme-border-subtle);
-}
-
-[data-theme="dark"] .admin-table th {
-  background: rgba(30, 41, 59, 0.7);
-  color: #94a3b8;
-  border-bottom: 1px solid var(--theme-border-subtle);
-}
-
-[data-theme="dark"] .admin-table td {
-  border-bottom: 1px solid var(--theme-border-subtle);
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .admin-table tr:hover td {
-  background: rgba(16, 185, 129, 0.08);
-}
-
-[data-theme="dark"] .fi,
-[data-theme="dark"] .fta,
-[data-theme="dark"] select.fi,
-[data-theme="dark"] .sort-sel,
-[data-theme="dark"] .status-sel {
+/* Buscador de productos flotante como barra Spotlight de iOS */
+#posSearch,
+.pos-search-wrap .fi {
+  border-radius: 9999px !important;
+  padding: 12px 22px !important;
+  font-size: 14px !important;
   background: var(--theme-input-bg) !important;
-  color: #f8fafc !important;
-  border-color: var(--theme-input-border) !important;
+  border: 1.5px solid var(--theme-input-border) !important;
+  color: var(--theme-text-main) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
 }
-
-[data-theme="dark"] .fi:focus,
-[data-theme="dark"] .fta:focus,
-[data-theme="dark"] select.fi:focus {
+#posSearch:focus,
+.pos-search-wrap .fi:focus {
   border-color: var(--theme-accent) !important;
-  box-shadow: 0 0 0 3px var(--theme-accent-glow) !important;
+  box-shadow: 0 0 0 4px var(--theme-accent-glow), 0 8px 24px rgba(0,0,0,0.06) !important;
+  transform: translateY(-1px);
 }
 
-[data-theme="dark"] .fl,
-[data-theme="dark"] .form-panel h3,
-[data-theme="dark"] .dash-card h3 {
-  color: #f8fafc;
+/* Fila de producto flotante interactiva */
+.pos-result {
+  border-radius: 16px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 6px !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+  background: var(--theme-item-bg) !important;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1) !important;
+  cursor: pointer;
+}
+.pos-result:hover {
+  background: var(--theme-bg-elevated) !important;
+  border-color: var(--theme-accent) !important;
+  transform: translateY(-1.5px) scale(1.008);
+  box-shadow: 0 8px 20px var(--theme-accent-glow);
+}
+.pos-result .pr-name {
+  color: var(--theme-text-main) !important;
+  font-weight: 700;
+}
+.pos-result .pr-sub {
+  color: var(--theme-text-muted) !important;
 }
 
-[data-theme="dark"] .form-panel,
-[data-theme="dark"] .dash-card {
-  background: var(--theme-bg-surface);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--theme-border-glass);
-  box-shadow: var(--theme-glass-shadow);
-  color: #f8fafc;
+/* Líneas de ticket en Cotizador / POS */
+.pos-line {
+  border-radius: 14px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 8px !important;
+  background: var(--theme-item-bg) !important;
+  border: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-main) !important;
+  transition: all .2s ease;
 }
-
-[data-theme="dark"] .f-info,
-[data-theme="dark"] .suggest-price,
-[data-theme="dark"] .import-hint-box {
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  color: #a7f3d0;
-}
-
-[data-theme="dark"] .csv-headers {
-  background: rgba(15, 23, 42, 0.9);
-  color: #34d399;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-[data-theme="dark"] .pos-line {
-  background: rgba(15, 23, 42, 0.75) !important;
+.pos-line:hover {
   border-color: var(--theme-border-glass) !important;
-  color: #f8fafc !important;
 }
 
-[data-theme="dark"] .pos-result {
-  background: rgba(15, 23, 42, 0.8) !important;
-  border-color: var(--theme-border-subtle) !important;
-  color: #f8fafc !important;
-}
-
-[data-theme="dark"] .pos-tot {
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .pos-tot.big {
-  border-top-color: var(--theme-border-subtle);
-  color: #34d399;
-}
-
-[data-theme="dark"] .pos-line .qb {
-  background: rgba(30, 41, 59, 0.85);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #f8fafc;
-}
-[data-theme="dark"] .pos-line .qb:hover {
-  background: var(--theme-accent);
-  border-color: var(--theme-accent);
-}
-
-[data-theme="dark"] .lvl-seg .pl {
-  background: rgba(30, 41, 59, 0.85);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
-}
-[data-theme="dark"] .lvl-seg .pl:hover {
-  border-color: var(--theme-accent);
-  color: #34d399;
-}
-[data-theme="dark"] .lvl-seg .pl.on {
-  background: var(--theme-accent);
-  border-color: var(--theme-accent);
-  color: #fff;
-}
-
-[data-theme="dark"] .cust-ac-box {
-  background: rgba(15, 23, 42, 0.96) !important;
+/* Botones flotantes táctiles de cantidad (+ y -) */
+.pos-line .qb {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--theme-bg-surface) !important;
   border: 1px solid var(--theme-border-glass) !important;
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.7) !important;
+  color: var(--theme-text-main) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+  cursor: pointer;
+  transition: all .16s cubic-bezier(.34,1.56,.64,1) !important;
 }
-[data-theme="dark"] .cust-ac-item {
-  color: #f8fafc;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-[data-theme="dark"] .cust-ac-item:hover,
-[data-theme="dark"] .cust-ac-item.on {
-  background: rgba(16, 185, 129, 0.16) !important;
-}
-
-/* Modales */
-[data-theme="dark"] .modal-box,
-[data-theme="dark"] .fac-modal-box {
-  background: rgba(15, 23, 42, 0.94) !important;
-  border: 1px solid var(--theme-border-glass) !important;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8) !important;
-  color: #f8fafc !important;
-}
-
-[data-theme="dark"] .modal-hd {
-  background: rgba(15, 23, 42, 0.88) !important;
-  border-bottom: 1px solid var(--theme-border-subtle) !important;
-  color: #f8fafc !important;
-}
-[data-theme="dark"] .modal-hd h3 {
-  color: #f8fafc !important;
-}
-[data-theme="dark"] .modal-close {
-  background: rgba(30, 41, 59, 0.8) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  color: #f8fafc !important;
-}
-[data-theme="dark"] .modal-close:hover {
+.pos-line .qb:hover {
   background: var(--theme-accent) !important;
-}
-[data-theme="dark"] .modal-ft {
-  border-top-color: var(--theme-border-subtle);
-}
-
-/* Selector de Precios & Finder */
-[data-theme="dark"] .pf-price-btn {
-  background: rgba(30, 41, 59, 0.7) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  color: #f8fafc !important;
-}
-[data-theme="dark"] .pf-price-btn:hover {
   border-color: var(--theme-accent) !important;
-  background: rgba(16, 185, 129, 0.15) !important;
+  color: #fff !important;
+  transform: scale(1.12);
+}
+.pos-line .qb:active {
+  transform: scale(0.88) !important;
 }
 
-/* Hub de envío y menús */
-[data-theme="dark"] .send-menu {
-  background: rgba(15, 23, 42, 0.96) !important;
+/* Segmentos de precio (A, B, C, D, M) tipo iOS Segment Control */
+.lvl-seg {
+  background: var(--theme-item-bg);
+  padding: 3px;
+  border-radius: 9999px;
+  border: 1px solid var(--theme-border-subtle);
+  display: inline-flex;
+  gap: 3px;
+}
+.lvl-seg .pl {
+  border-radius: 9999px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--theme-text-muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 3px 10px !important;
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.lvl-seg .pl:hover {
+  color: var(--theme-accent) !important;
+  transform: scale(1.05);
+}
+.lvl-seg .pl.on {
+  background: var(--theme-accent) !important;
+  color: #fff !important;
+  box-shadow: 0 3px 10px var(--theme-accent-glow) !important;
+  transform: scale(1.05);
+}
+
+/* Botón precio manual [M] en línea de ticket */
+.pos-line button[title*="precio manual"] {
+  border-radius: 9999px !important;
+  font-weight: 800 !important;
+  background: var(--theme-bg-surface) !important;
   border: 1px solid var(--theme-border-glass) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+  color: var(--theme-accent) !important;
+  transition: all .18s ease;
 }
-[data-theme="dark"] .send-row {
-  border-bottom-color: var(--theme-border-subtle);
-}
-[data-theme="dark"] .send-row-label {
-  color: #f8fafc;
-}
-[data-theme="dark"] .send-row-hint {
-  color: var(--theme-text-muted);
-}
-[data-theme="dark"] .send-menu-foot {
-  background: rgba(15, 23, 42, 0.9) !important;
-  border-top-color: var(--theme-border-subtle);
+.pos-line button[title*="precio manual"]:hover {
+  background: var(--theme-accent) !important;
+  color: #fff !important;
+  transform: scale(1.1);
 }
 
-/* Ficha 360 y Filas */
-[data-theme="dark"] .c360-item,
-[data-theme="dark"] .variant-row,
-[data-theme="dark"] .fac-sup-row {
-  background: rgba(30, 41, 59, 0.6) !important;
-  border-color: var(--theme-border-subtle) !important;
-  color: #f8fafc !important;
+/* Desplegable Autocomplete tipo Dynamic Island flotante */
+.cust-ac-box {
+  border-radius: 20px !important;
+  background: var(--theme-bg-elevated) !important;
+  backdrop-filter: blur(34px) saturate(210%) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(210%) !important;
+  border: 1px solid var(--theme-border-glass) !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.3) !important;
+  padding: 6px !important;
+  overflow: hidden;
+}
+.cust-ac-item {
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 2px !important;
+  color: var(--theme-text-main) !important;
+  transition: all .15s ease !important;
+}
+.cust-ac-item:hover,
+.cust-ac-item.on {
+  background: var(--theme-accent-glow) !important;
+  color: var(--theme-accent) !important;
+  transform: translateX(4px);
 }
 
-[data-theme="dark"] .of-chip {
-  background: rgba(30, 41, 59, 0.7);
-  border-color: var(--theme-border-subtle);
-  color: #cbd5e1;
+/* Totales del ticket */
+.pos-tot {
+  color: var(--theme-text-main) !important;
 }
-[data-theme="dark"] .of-chip:hover {
-  border-color: var(--theme-accent);
-  color: #34d399;
-}
-[data-theme="dark"] .of-chip.on {
-  background: var(--theme-accent);
-  border-color: var(--theme-accent);
-  color: #fff;
+.pos-tot.big {
+  border-top-color: var(--theme-border-subtle) !important;
+  color: var(--theme-accent) !important;
+  font-size: 18px !important;
 }
 
-[data-theme="dark"] .ost {
-  background: var(--theme-bg-surface);
-  border-color: var(--theme-border-glass);
-}
-[data-theme="dark"] .ost-n {
-  color: #f8fafc;
-}
-[data-theme="dark"] .ost-l {
-  color: var(--theme-text-muted);
+/* ===================================================================
+   FORMULARIOS, INPUTS Y SELECTS — Cápsulas de Alta Definición
+   =================================================================== */
+.fi,
+.fta,
+select.fi,
+.sort-sel,
+.status-sel {
+  border-radius: 14px !important;
+  background: var(--theme-input-bg) !important;
+  border: 1.5px solid var(--theme-input-border) !important;
+  color: var(--theme-text-main) !important;
+  padding: 10px 15px !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
 }
 
-/* Transiciones Globales Suaves */
+.fi:focus,
+.fta:focus,
+select.fi:focus {
+  border-color: var(--theme-accent) !important;
+  box-shadow: 0 0 0 3.5px var(--theme-accent-glow), 0 4px 16px rgba(0,0,0,0.05) !important;
+  transform: translateY(-1px);
+}
+
+.fl {
+  color: var(--theme-text-main) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+/* ===================================================================
+   MODALES — Tabletas Flotantes de Vidrio Traslúcido
+   =================================================================== */
+.modal-overlay {
+  background: rgba(8, 12, 20, 0.65) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+}
+
+.modal-box,
+.fac-modal-box {
+  border-radius: 26px !important;
+  background: var(--theme-bg-surface) !important;
+  backdrop-filter: blur(36px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(220%) !important;
+  border: 1px solid var(--theme-border-glass) !important;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  color: var(--theme-text-main) !important;
+  overflow: hidden;
+}
+
+.modal-hd {
+  background: var(--theme-bg-elevated) !important;
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-main) !important;
+  padding: 20px 26px !important;
+}
+.modal-hd h3 {
+  color: var(--theme-text-main) !important;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.modal-close {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 9999px !important;
+  background: var(--theme-item-bg) !important;
+  border: 1px solid var(--theme-border-glass) !important;
+  color: var(--theme-text-main) !important;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.modal-close:hover {
+  background: var(--theme-accent) !important;
+  color: #fff !important;
+  transform: rotate(90deg) scale(1.1);
+}
+
+.modal-ft {
+  background: var(--theme-bg-elevated) !important;
+  border-top: 1px solid var(--theme-border-subtle) !important;
+  padding: 16px 26px !important;
+}
+
+/* ===================================================================
+   TABLAS Y LISTADOS — Cristal de Alto Contraste
+   =================================================================== */
+.admin-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.admin-table th {
+  background: var(--theme-bg-elevated) !important;
+  color: var(--theme-text-muted) !important;
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 14px 18px !important;
+}
+.admin-table td {
+  border-bottom: 1px solid var(--theme-border-subtle) !important;
+  color: var(--theme-text-main) !important;
+  padding: 14px 18px !important;
+  transition: background .18s ease;
+}
+.admin-table tr:hover td {
+  background: var(--theme-accent-glow) !important;
+}
+.td-name {
+  color: var(--theme-text-main) !important;
+  font-weight: 700;
+}
+.td-sub {
+  color: var(--theme-text-muted) !important;
+}
+
+/* ===================================================================
+   SELECTOR DE PRECIOS MODAL (#pfPricePicker)
+   =================================================================== */
+.pf-price-btn {
+  border-radius: 16px !important;
+  background: var(--theme-bg-surface) !important;
+  border: 1.5px solid var(--theme-border-glass) !important;
+  box-shadow: var(--theme-glass-shadow) !important;
+  color: var(--theme-text-main) !important;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.pf-price-btn:hover {
+  border-color: var(--theme-accent) !important;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 24px var(--theme-accent-glow) !important;
+}
+
+/* ===================================================================
+   TRANSICIONES GLOBALES FLUIDAS (Spring Curves)
+   =================================================================== */
 body.admin-body,
 .admin-topbar,
 .admin-aside,
@@ -639,7 +750,7 @@ body.admin-body,
 .pos-result,
 .of-chip,
 .liquid-theme-toggle {
-  transition: background-color .24s ease, border-color .24s ease, color .24s ease, box-shadow .24s ease;
+  transition: background-color .25s ease, border-color .25s ease, color .25s ease, box-shadow .25s ease;
 }
 
 

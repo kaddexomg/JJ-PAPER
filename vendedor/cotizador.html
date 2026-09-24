@@ -16,22 +16,14 @@
 .pf-out{color:#dc3c3c;font-weight:600}
 .pos-grid { display:grid; grid-template-columns: 1.2fr 1fr; gap:18px; align-items:start; }
 @media (max-width: 900px) { .pos-grid { grid-template-columns: 1fr; } }
-.pos-result { display:flex; align-items:center; gap:10px; padding:9px 10px; border-bottom:1px solid #f1f1f1; }
-.pos-result .pr-img { width:38px; height:38px; border-radius:8px; background:#f5f2ea; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+.pos-result { display:flex; align-items:center; gap:10px; }
+.pos-result .pr-img { width:38px; height:38px; border-radius:10px; background:var(--theme-item-bg); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
 .pos-result .pr-img img { width:100%; height:100%; object-fit:cover; }
-.pos-line { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed #eee; font-size:13px; }
-.pos-line .qb { width:24px; height:24px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+.pos-line { display:flex; align-items:center; gap:8px; font-size:13px; }
 .pos-tot { display:flex; justify-content:space-between; font-size:13px; padding:4px 0; }
-.pos-tot.big { font-size:17px; font-weight:800; border-top:2px solid #eee; padding-top:10px; margin-top:6px; }
-.lvl-seg { display:inline-flex; gap:3px; }
-.lvl-seg .pl { border:1px solid #ddd; border-radius:6px; background:#fff; color:#555; font-size:10px; font-weight:700; padding:2px 7px; cursor:pointer; line-height:1.4; }
-.lvl-seg .pl:hover { border-color:var(--gd); color:var(--gd); }
-.lvl-seg .pl.on { background:var(--gd); color:#fff; border-color:var(--gd); }
-.cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; background:#fff;
-  border:1px solid #e5e5e5; border-radius:10px; box-shadow:0 10px 28px rgba(10,40,30,.14); display:none;
-  max-height:270px; overflow:auto; }
+.pos-tot.big { font-size:17px; font-weight:800; border-top:1px solid var(--theme-border-subtle); padding-top:10px; margin-top:6px; }
+.cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; display:none; max-height:270px; overflow:auto; }
 .cust-ac-item { cursor:pointer; }
-.cust-ac-item:hover, .cust-ac-item.on { background:#faf8f3; }
 </style>
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>

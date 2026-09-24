@@ -48,57 +48,72 @@
   --max-w: 1200px;
 
   /* ====================================================
-     Tokens de Tema: Liquid Glass (Modo Claro por Defecto)
+     Tokens de Tema: Liquid Glass (Modo Claro - iOS Style)
      ==================================================== */
-  --theme-bg-app:           #f8fafc;
-  --theme-bg-surface:       rgba(255, 255, 255, 0.78);
+  --theme-bg-app:           #f4f6f9;
+  --theme-bg-surface:       rgba(255, 255, 255, 0.76);
   --theme-bg-surface-solid: #ffffff;
-  --theme-bg-elevated:      rgba(255, 255, 255, 0.94);
-  --theme-text-main:        #0f172a;
+  --theme-bg-elevated:      rgba(255, 255, 255, 0.90);
+  --theme-item-bg:          rgba(0, 0, 0, 0.025);
+  --theme-text-main:        #111827;
   --theme-text-muted:       #64748b;
   --theme-text-subtle:      #94a3b8;
-  --theme-border-glass:     rgba(255, 255, 255, 0.85);
-  --theme-border-subtle:    rgba(226, 232, 240, 0.85);
-  --theme-glass-shadow:     0 12px 36px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --theme-input-bg:         rgba(255, 255, 255, 0.92);
-  --theme-input-border:     #cbd5e1;
+  --theme-border-glass:     rgba(255, 255, 255, 0.88);
+  --theme-border-subtle:    rgba(0, 0, 0, 0.07);
+  --theme-glass-shadow:     0 10px 32px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --theme-input-bg:         rgba(255, 255, 255, 0.88);
+  --theme-input-border:     rgba(0, 0, 0, 0.12);
   --theme-accent:           #16604a;
-  --theme-accent-glow:      rgba(22, 96, 74, 0.16);
-  --theme-sheen:            linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 50%);
+  --theme-accent-glow:      rgba(22, 96, 74, 0.18);
+  --theme-sheen:            linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0) 50%);
 }
 
 /* ====================================================
-   Tokens de Tema: Obsidian Liquid Glass (Modo Oscuro)
+   Tokens de Tema: Titanium Obsidian Liquid Glass (Apple Dark)
    ==================================================== */
 [data-theme="dark"] {
-  --theme-bg-app:           #070b12;
-  --theme-bg-surface:       rgba(15, 23, 42, 0.75);
-  --theme-bg-surface-solid: #0f172a;
-  --theme-bg-elevated:      rgba(30, 41, 59, 0.88);
-  --theme-text-main:        #f8fafc;
+  --theme-bg-app:           #090d16;
+  --theme-bg-surface:       rgba(20, 27, 40, 0.72);
+  --theme-bg-surface-solid: #121824;
+  --theme-bg-elevated:      rgba(28, 38, 56, 0.82);
+  --theme-item-bg:          rgba(255, 255, 255, 0.04);
+  --theme-text-main:        #ffffff;
   --theme-text-muted:       #94a3b8;
   --theme-text-subtle:      #64748b;
-  --theme-border-glass:     rgba(255, 255, 255, 0.14);
-  --theme-border-subtle:    rgba(51, 65, 85, 0.65);
-  --theme-glass-shadow:     0 16px 44px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  --theme-input-bg:         rgba(15, 23, 42, 0.88);
-  --theme-input-border:     #334155;
-  --theme-accent:           #10b981;
-  --theme-accent-glow:      rgba(16, 185, 129, 0.32);
-  --theme-sheen:            linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 50%);
+  --theme-border-glass:     rgba(255, 255, 255, 0.15);
+  --theme-border-subtle:    rgba(255, 255, 255, 0.08);
+  --theme-glass-shadow:     0 18px 45px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --theme-input-bg:         rgba(15, 22, 34, 0.88);
+  --theme-input-border:     rgba(255, 255, 255, 0.16);
+  --theme-accent:           #34d399;
+  --theme-accent-glow:      rgba(52, 211, 153, 0.30);
+  --theme-sheen:            linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 50%);
 
   /* Neutros adaptados */
-  --bk:                     #f8fafc;
-  --wh:                     #0f172a;
-  --gl:                     #0b0f19;
+  --bk:                     #ffffff;
+  --wh:                     #121824;
+  --gl:                     #0d121c;
   --gr:                     #94a3b8;
-  --gb:                     #1e293b;
-  --gx:                     #064e3b;
+  --gb:                     rgba(255, 255, 255, 0.12);
+  --gx:                     rgba(16, 185, 129, 0.14);
 }
 
-*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+*,*::before,*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 html { scroll-behavior:smooth; font-size:16px }
-body { font-family:'Montserrat',sans-serif; color:var(--bk); background:var(--wh); overflow-x:hidden; line-height:1.6 }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  color: var(--theme-text-main);
+  background: var(--theme-bg-app);
+  overflow-x: hidden;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
+}
 
 a  { text-decoration:none; color:inherit }
 ul { list-style:none }

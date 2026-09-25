@@ -116,14 +116,16 @@ function viewVQuote(id) {
   document.getElementById('vQuoteModalBody').innerHTML = `
     <div class="ord-grid">
       <div>
-        <div class="ord-field"><label>Cliente</label><p>${escapeHTML(q.client_name)}</p></div>
-        <div class="ord-field"><label>Teléfono</label><p>${escapeHTML(q.phone || '—')}</p></div>
-        <div class="ord-field"><label>RIF / CI</label><p>${escapeHTML(q.rif || '—')}</p></div>
+        <div class="ord-field"><label>Cliente</label><p><strong>${escapeHTML(q.client_name)}</strong></p></div>
+        <div class="ord-field"><label>RIF / CI</label><p id="vQModalRif"><strong>${escapeHTML(q.rif || '—')}</strong></p></div>
+        <div class="ord-field"><label>Domicilio Fiscal</label><p id="vQModalAddr">${escapeHTML(q.address || '—')}</p></div>
+        <div class="ord-field"><label>Teléfono</label><p id="vQModalPhone">${escapeHTML(q.phone || '—')}</p></div>
         ${q.notes ? `<div class="ord-field"><label>Notas</label><p>${escapeHTML(q.notes)}</p></div>` : ''}
       </div>
       <div>
         <div class="ord-field"><label>Estado</label><p><span class="status-badge st-${escapeHTML(q.status || '')}">${VQ_STATUS_LABEL[q.status] || q.status}</span></p></div>
-        <div class="ord-field"><label>Ciudad</label><p>${escapeHTML(q.city || '—')}</p></div>
+        <div class="ord-field"><label>Ciudad</label><p id="vQModalCity">${escapeHTML(q.city || '—')}</p></div>
+        <div class="ord-field"><label>Email</label><p id="vQModalEmail">${escapeHTML(q.email || '—')}</p></div>
         <div class="ord-field"><label>Cambiar estado</label>
           <select class="fi" onchange="updateVQuoteStatus('${q.id}', this.value)" ${closed ? 'disabled' : ''}>
             ${['pendiente','contactado','confirmado','cancelado'].map(s =>
@@ -156,6 +158,44 @@ function viewVQuote(id) {
     </div>`;
 
   document.getElementById('vQuoteModal').classList.add('op');
+
+  // Resolver domicilio fiscal real y datos del cliente si faltan en la cotización
+  (async () => {
+    try {
+      let cust = null;
+      if (q.customer_id) {
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email').eq('id', q.customer_id).maybeSingle();
+        if (data) cust = data;
+      }
+      if ((!cust || !cust.address) && q.rif) {
+        const rawRif = String(q.rif).trim();
+        const cleanRif = rawRif.replace(/[^a-zA-Z0-9]/g, '');
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+          .or(`rif.eq."${rawRif}",rif.eq."${cleanRif}"`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if ((!cust || !cust.address) && q.client_name) {
+        const qName = q.client_name.trim().slice(0, 18);
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+          .ilike('name', `%${qName}%`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if (cust) {
+        const addrEl  = document.getElementById('vQModalAddr');
+        const cityEl  = document.getElementById('vQModalCity');
+        const rifEl   = document.getElementById('vQModalRif');
+        const phoneEl = document.getElementById('vQModalPhone');
+        const emailEl = document.getElementById('vQModalEmail');
+        if (addrEl && cust.address && (!q.address || q.address === '—')) addrEl.textContent = cust.address;
+        if (cityEl && cust.city && (!q.city || q.city === '—')) cityEl.textContent = cust.city;
+        if (rifEl && cust.rif && (!q.rif || q.rif === '—')) rifEl.innerHTML = `<strong>${escapeHTML(cust.rif)}</strong>`;
+        if (phoneEl && cust.phone && (!q.phone || q.phone === '—')) phoneEl.textContent = cust.phone;
+        if (emailEl && cust.email && (!q.email || q.email === '—')) emailEl.textContent = cust.email;
+      }
+    } catch (_) {}
+  })();
 }
 
 function closeVQuoteModal() {

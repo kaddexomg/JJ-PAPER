@@ -243,12 +243,12 @@ function viewOrder(id) {
   body.innerHTML = `
   <div class="ord-grid">
     <div>
-      <div class="ord-field"><label>Cliente</label><p>${escapeHTML(o.client_name)}</p></div>
-      <div class="ord-field"><label>Teléfono</label><p>${escapeHTML(o.phone)}</p></div>
-      <div class="ord-field"><label>RIF / CI</label><p>${escapeHTML(o.rif || '—')}</p></div>
-      <div class="ord-field"><label>Email</label><p>${escapeHTML(o.email || '—')}</p></div>
-      <div class="ord-field"><label>Ciudad</label><p>${escapeHTML(o.city || '—')}</p></div>
-      <div class="ord-field"><label>Dirección</label><p>${escapeHTML(o.address || '—')}</p></div>
+      <div class="ord-field"><label>Cliente</label><p><strong>${escapeHTML(o.client_name)}</strong></p></div>
+      <div class="ord-field"><label>RIF / CI</label><p id="ordModalRif"><strong>${escapeHTML(o.rif || '—')}</strong></p></div>
+      <div class="ord-field"><label>Domicilio Fiscal</label><p id="ordModalAddr">${escapeHTML(o.address || '—')}</p></div>
+      <div class="ord-field"><label>Ciudad</label><p id="ordModalCity">${escapeHTML(o.city || '—')}</p></div>
+      <div class="ord-field"><label>Teléfono</label><p id="ordModalPhone">${escapeHTML(o.phone || '—')}</p></div>
+      <div class="ord-field"><label>Email</label><p id="ordModalEmail">${escapeHTML(o.email || '—')}</p></div>
       <div class="ord-field"><label>Entrega</label><p>${
         o.delivery_type === 'delivery'
           ? `🛵 Delivery${o.delivery_distance_km ? ` · ~${o.delivery_distance_km} km` : ''}${(o.delivery_lat && o.delivery_lng) ? ` · <a href="https://maps.google.com/?q=${o.delivery_lat},${o.delivery_lng}" target="_blank" rel="noopener" style="color:var(--gd);font-weight:700">📍 Ver punto en el mapa</a>` : ''}`
@@ -359,6 +359,44 @@ function viewOrder(id) {
   </div>`;
 
   modal.classList.add('op');
+
+  // Resolver domicilio fiscal real y datos del cliente si faltan en el pedido
+  (async () => {
+    try {
+      let cust = null;
+      if (o.customer_id) {
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email').eq('id', o.customer_id).maybeSingle();
+        if (data) cust = data;
+      }
+      if ((!cust || !cust.address) && o.rif) {
+        const rawRif = String(o.rif).trim();
+        const cleanRif = rawRif.replace(/[^a-zA-Z0-9]/g, '');
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+          .or(`rif.eq."${rawRif}",rif.eq."${cleanRif}"`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if ((!cust || !cust.address) && o.client_name) {
+        const qName = o.client_name.trim().slice(0, 18);
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+          .ilike('name', `%${qName}%`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if (cust) {
+        const addrEl  = document.getElementById('ordModalAddr');
+        const cityEl  = document.getElementById('ordModalCity');
+        const rifEl   = document.getElementById('ordModalRif');
+        const phoneEl = document.getElementById('ordModalPhone');
+        const emailEl = document.getElementById('ordModalEmail');
+        if (addrEl && cust.address && (!o.address || o.address === '—')) addrEl.textContent = cust.address;
+        if (cityEl && cust.city && (!o.city || o.city === '—')) cityEl.textContent = cust.city;
+        if (rifEl && cust.rif && (!o.rif || o.rif === '—')) rifEl.innerHTML = `<strong>${escapeHTML(cust.rif)}</strong>`;
+        if (phoneEl && cust.phone && (!o.phone || o.phone === '—')) phoneEl.textContent = cust.phone;
+        if (emailEl && cust.email && (!o.email || o.email === '—')) emailEl.textContent = cust.email;
+      }
+    } catch (_) {}
+  })();
 }
 
 function closeOrderModal() {

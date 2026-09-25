@@ -408,30 +408,33 @@
   }
 
   /* ==========================================================
-     ÁREA DE CONFORMIDAD Y FIRMAS (PERSONALIZADA, COMPACTA A4)
+     ÁREA DE CONFORMIDAD Y FIRMAS (ESTRUCTURADA: SELLO + FIRMA)
      ========================================================== */
   .fisc-sign-area { 
     display: grid; 
     grid-template-columns: 1fr 1fr; 
     gap: 10px; 
-    margin-top: 5px; 
+    margin-top: 6px; 
   }
   
   .fisc-sign-box { 
     border: 1.5px solid var(--b-dark); 
     border-radius: 4px; 
-    padding: 4.5px 8px; 
+    padding: 5px 8px; 
     background: #ffffff; 
     font-size: 8.5px; 
     line-height: 1.3; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
   
   .fisc-sign-box .box-tit { 
     font-weight: 900; 
     text-transform: uppercase; 
-    font-size: 8px; 
+    font-size: 8.5px; 
     letter-spacing: 0.5px; 
-    border-bottom: 1px solid var(--b-dark); 
+    border-bottom: 1.5px solid var(--b-dark); 
     padding-bottom: 2px; 
     margin-bottom: 3px; 
     color: var(--ink-dark); 
@@ -441,25 +444,65 @@
     margin-bottom: 2px; 
   }
 
-  /* Recuadro para sello húmedo y firma física delimitado */
-  .fisc-stamp-box { 
-    margin-top: 4px; 
-    height: 36px; 
-    border: 1.5px dashed var(--b-medium); 
-    border-radius: 4px; 
-    background: #fafafa; 
-    display: flex; 
-    align-items: flex-end; 
-    justify-content: center; 
-    padding-bottom: 3px; 
+  /* Zona dual de alta visibilidad: Sello Húmedo delimitado + Línea de Firma sólida */
+  .fisc-interactive-sign {
+    margin-top: 5px;
+    height: 52px;
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
   }
 
-  .fisc-stamp-box .stamp-prompt { 
-    font-size: 7.5px; 
-    color: #4b5563; 
-    font-weight: 800; 
-    text-transform: uppercase; 
-    letter-spacing: 0.5px; 
+  .fisc-interactive-sign .sign-col-stamp {
+    flex: 0 0 40%;
+    border: 1.5px dashed var(--b-medium);
+    border-radius: 3px;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3px;
+  }
+
+  .fisc-interactive-sign .sign-col-stamp .stamp-watermark {
+    font-size: 7.2px;
+    font-weight: 800;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    line-height: 1.2;
+  }
+
+  .fisc-interactive-sign .sign-col-sig {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    text-align: center;
+    padding-bottom: 2px;
+  }
+
+  .fisc-interactive-sign .sign-col-sig .sig-line {
+    width: 95%;
+    border-bottom: 1.5px solid #000000;
+    margin-bottom: 3px;
+  }
+
+  .fisc-interactive-sign .sign-col-sig .sig-label {
+    font-size: 7.8px;
+    font-weight: 900;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .fisc-interactive-sign .sign-col-sig .sig-hint {
+    font-size: 6.8px;
+    color: #4b5563;
+    font-weight: 600;
+    margin-top: 1px;
   }
 
   /* Aviso legal y pie de página */
@@ -539,7 +582,7 @@
   .sheet.density-medium .fisc-items-table tbody td { padding: 2px 4px; font-size: 9px; line-height: 1.15; }
   .sheet.density-medium .fisc-tot-wrap { margin-top: 4px; gap: 8px; }
   .sheet.density-medium .fisc-sign-area { margin-top: 4px; gap: 8px; }
-  .sheet.density-medium .fisc-stamp-box { height: 30px; margin-top: 3px; }
+  .sheet.density-medium .fisc-interactive-sign { height: 48px; }
 
   /* Modo Compacto (14 a 22 renglones) */
   .sheet.density-compact .fisc-head { padding-bottom: 3px; margin-bottom: 2px; }
@@ -562,7 +605,7 @@
   .sheet.density-compact .fisc-tot-table tr.grand-bs td { font-size: 12px; padding: 3px 6px; }
   .sheet.density-compact .fisc-sign-area { margin-top: 3px; gap: 6px; }
   .sheet.density-compact .fisc-sign-box { padding: 3px 6px; font-size: 8px; line-height: 1.2; }
-  .sheet.density-compact .fisc-stamp-box { height: 26px; margin-top: 2px; }
+  .sheet.density-compact .fisc-interactive-sign { height: 46px; }
   .sheet.density-compact .fisc-footer-note { margin-top: 3px; padding: 2px 5px; font-size: 7px; }
 
   /* Modo Ultra Compacto (23+ renglones) */
@@ -591,8 +634,7 @@
   .sheet.density-ultra-compact .fisc-sign-area { margin-top: 2px; gap: 5px; }
   .sheet.density-ultra-compact .fisc-sign-box { padding: 2.5px 5px; font-size: 7.5px; line-height: 1.15; }
   .sheet.density-ultra-compact .fisc-sign-box .box-tit { font-size: 7px; padding-bottom: 1px; margin-bottom: 2px; }
-  .sheet.density-ultra-compact .fisc-stamp-box { height: 22px; margin-top: 2px; padding-bottom: 1px; }
-  .sheet.density-ultra-compact .fisc-stamp-box .stamp-prompt { font-size: 6.8px; }
+  .sheet.density-ultra-compact .fisc-interactive-sign { height: 44px; }
   .sheet.density-ultra-compact .fisc-footer-note { margin-top: 2px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
 
   /* ==========================================================
@@ -1103,7 +1145,7 @@ function render(o) {
         </table>
       </div>
 
-      <!-- ÁREA DE FIRMAS Y CONFORMIDAD (PERSONALIZADA, COMPACTA A4) -->
+      <!-- ÁREA DE FIRMAS Y CONFORMIDAD (DESTACADA, CON ESPACIO CLARO PARA FIRMA Y SELLO) -->
       <div class="fisc-sign-area">
         <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
         <div class="fisc-sign-box">
@@ -1112,8 +1154,15 @@ function render(o) {
           <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
           <div class="data-line" style="margin-top:2px">Recibido por (Nombre y Apellido): ____________________________________</div>
           <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
-          <div class="fisc-stamp-box">
-            <div class="stamp-prompt">ESPACIO PARA SELLO HÚMEDO Y FIRMA DEL RECEPTOR</div>
+          <div class="fisc-interactive-sign">
+            <div class="sign-col-stamp">
+              <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
+            </div>
+            <div class="sign-col-sig">
+              <div class="sig-line"></div>
+              <div class="sig-label">FIRMA DE CONFORMIDAD RECEPTOR</div>
+              <div class="sig-hint">Recibí conforme a entera satisfacción</div>
+            </div>
           </div>
         </div>
 
@@ -1124,8 +1173,15 @@ function render(o) {
           <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
           <div class="data-line" style="margin-top:2px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
           <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
-          <div class="fisc-stamp-box">
-            <div class="stamp-prompt">ESPACIO PARA SELLO HÚMEDO Y FIRMA AUTORIZADA JJ PAPER</div>
+          <div class="fisc-interactive-sign">
+            <div class="sign-col-stamp">
+              <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
+            </div>
+            <div class="sign-col-sig">
+              <div class="sig-line"></div>
+              <div class="sig-label">FIRMA AUTORIZADA Y REVISIÓN</div>
+              <div class="sig-hint">Almacén Central y Facturación</div>
+            </div>
           </div>
         </div>
       </div>

@@ -38,12 +38,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Hoja de papel (Formato A4 optimizado a 1 página) */
+  /* Hoja de papel (Formato A4 - Punto Medio Equilibrado) */
   .sheet { 
-    max-width: 800px; 
+    max-width: 820px; 
     margin: 0 auto; 
     background: #ffffff; 
-    padding: 14px 18px; 
+    padding: 18px 22px; 
     border-radius: 4px; 
     box-shadow: 0 4px 16px rgba(0,0,0,0.08); 
     border: 1.5px solid #000000;
@@ -57,11 +57,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    opacity: 0.03;
+    opacity: 0.035;
     pointer-events: none;
     z-index: 1;
-    width: 280px;
-    height: 280px;
+    width: 290px;
+    height: 290px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -80,36 +80,36 @@
   }
 
   /* ==========================================================
-     CABECERA FISCAL PRINCIPAL (COMPACTA Y FORMAL A4)
+     CABECERA FISCAL PRINCIPAL (PUNTO MEDIO: ELEGANTE Y PROPORCIONADA)
      ========================================================== */
   .fisc-head { 
     display: flex; 
     justify-content: space-between; 
     align-items: stretch; 
-    gap: 12px;
+    gap: 14px;
     border-bottom: 2px solid var(--b-dark); 
-    padding-bottom: 6px; 
-    margin-bottom: 5px; 
+    padding-bottom: 7px; 
+    margin-bottom: 6px; 
   }
   
   .fisc-biz { 
     display: flex; 
-    gap: 10px; 
+    gap: 12px; 
     align-items: flex-start; 
     flex: 1; 
     min-width: 0; 
   }
   
   .fisc-biz img { 
-    width: 48px; 
-    height: 48px; 
+    width: 52px; 
+    height: 52px; 
     object-fit: contain; 
     flex-shrink: 0;
     filter: grayscale(100%) contrast(140%);
   }
   
   .fisc-biz .biz-name { 
-    font-size: 15px; 
+    font-size: 16px; 
     font-weight: 900; 
     color: var(--ink-dark); 
     line-height: 1.15;
@@ -118,7 +118,7 @@
   }
   
   .fisc-biz .biz-sub {
-    font-size: 8px;
+    font-size: 8.5px;
     font-weight: 800;
     color: #4b5563;
     text-transform: uppercase;
@@ -127,24 +127,24 @@
   }
 
   .fisc-biz .biz-rif { 
-    font-size: 11.5px; 
+    font-size: 12px; 
     font-weight: 900; 
     color: var(--ink-dark); 
-    margin-top: 1px; 
+    margin-top: 2px; 
     letter-spacing: 0.4px; 
   }
   
   .fisc-biz .biz-dir { 
-    font-size: 8.5px; 
+    font-size: 9px; 
     color: #1f2937; 
-    line-height: 1.3; 
+    line-height: 1.35; 
     margin-top: 2px; 
   }
   
   .fisc-biz .biz-dir strong { 
     color: var(--ink-dark); 
     text-transform: uppercase; 
-    font-size: 8px; 
+    font-size: 8.5px; 
     letter-spacing: 0.3px; 
   }
 
@@ -152,8 +152,8 @@
   .fisc-doc-box { 
     border: 1.5px solid var(--b-dark); 
     border-radius: 4px; 
-    min-width: 235px; 
-    max-width: 260px;
+    min-width: 245px; 
+    max-width: 270px;
     overflow: hidden; 
     background: #ffffff; 
   }
@@ -163,9 +163,9 @@
     color: #ffffff; 
     text-align: center; 
     font-weight: 900;
-    font-size: 11px; 
+    font-size: 11.5px; 
     letter-spacing: 1.2px; 
-    padding: 3.5px 6px; 
+    padding: 4px 6px; 
     text-transform: uppercase; 
   }
   
@@ -174,22 +174,22 @@
     justify-content: space-between; 
     align-items: center;
     gap: 4px; 
-    padding: 2.2px 6px;
-    font-size: 9.5px; 
+    padding: 2.8px 7px;
+    font-size: 10px; 
     border-bottom: 1px solid var(--b-subtle); 
   }
   
   .fisc-doc-box .doc-row:last-child { border-bottom: 0; }
-  .fisc-doc-box .doc-row .lbl { color: var(--ink-muted); font-weight: 700; font-size: 8.5px; text-transform: uppercase; }
+  .fisc-doc-box .doc-row .lbl { color: var(--ink-muted); font-weight: 700; font-size: 9px; text-transform: uppercase; }
   .fisc-doc-box .doc-row .val { font-weight: 800; color: var(--ink-dark); text-align: right; }
   
   .fisc-doc-box .doc-row.num-row { 
     background: var(--screen-banner); 
     border-bottom: 1.5px solid var(--b-dark);
-    padding: 3px 6px;
+    padding: 4px 7px;
   }
   .fisc-doc-box .doc-row.num-row .val { 
-    font-size: 13px; 
+    font-size: 13.5px; 
     font-family: "Courier New", Courier, monospace; 
     font-weight: 900; 
     letter-spacing: 0.5px;
@@ -199,33 +199,33 @@
     background: #ffffff;
     border-top: 1px solid var(--b-dark);
     border-bottom: 1px solid var(--b-dark);
-    padding: 2px 6px;
+    padding: 2.5px 7px;
   }
   .fisc-doc-box .doc-row.ctrl-row .val { 
-    font-size: 10.5px; 
+    font-size: 11px; 
     font-weight: 900; 
     font-family: "Courier New", Courier, monospace; 
     letter-spacing: 0.4px; 
   }
 
   /* ==========================================================
-     DATOS DEL CLIENTE / RECEPTOR (PERSONALIZADO Y COMPACTO)
+     DATOS DEL CLIENTE / RECEPTOR (PUNTO MEDIO: CLARO Y DETALLADO)
      ========================================================== */
   .fisc-client-box { 
     border: 1.5px solid var(--b-dark); 
     border-radius: 4px; 
     overflow: hidden; 
-    margin-top: 5px; 
+    margin-top: 6px; 
   }
   
   .fisc-client-box .box-header { 
     background: var(--screen-accent); 
     border-bottom: 1.5px solid var(--b-dark); 
     color: var(--ink-dark); 
-    font-size: 8.5px; 
+    font-size: 9px; 
     font-weight: 900; 
     letter-spacing: 0.6px; 
-    padding: 2.5px 8px; 
+    padding: 3px 8px; 
     text-transform: uppercase; 
     display: flex; 
     justify-content: space-between; 
@@ -235,7 +235,7 @@
   .fisc-client-box .box-header .code-badge { 
     background: #ffffff; 
     border: 1px solid var(--b-dark); 
-    padding: 1px 5px; 
+    padding: 1px 6px; 
     border-radius: 3px; 
     font-size: 8.5px; 
     font-weight: 900; 
@@ -245,16 +245,16 @@
   .fisc-client-box .box-body { 
     display: grid; 
     grid-template-columns: 2fr 1fr 1fr; 
-    gap: 2.5px 10px; 
-    padding: 4.5px 8px; 
+    gap: 3px 12px; 
+    padding: 6px 10px; 
     background: #ffffff; 
   }
   
   .fisc-client-box .f-field { 
-    font-size: 9.5px; 
-    line-height: 1.3; 
+    font-size: 10px; 
+    line-height: 1.35; 
     display: flex; 
-    gap: 4px; 
+    gap: 5px; 
     min-width: 0; 
   }
   
@@ -262,7 +262,7 @@
     color: var(--ink-muted); 
     flex-shrink: 0; 
     font-weight: 700; 
-    font-size: 8.5px; 
+    font-size: 9px; 
     text-transform: uppercase; 
   }
   
@@ -276,23 +276,23 @@
   .fisc-client-box .f-field.full { grid-column: 1 / -1; }
 
   /* ==========================================================
-     TABLA DE PRODUCTOS / RENGLONES (COMPACTA Y NÍTIDA A4)
+     TABLA DE PRODUCTOS / RENGLONES (PUNTO MEDIO: NÍTIDA Y PROPORCIONADA)
      ========================================================== */
   .fisc-items-table { 
     width: 100%; 
     border-collapse: collapse; 
-    margin-top: 5px; 
+    margin-top: 6px; 
     border: 1.5px solid var(--b-dark);
   }
   
   .fisc-items-table thead th { 
     background: var(--screen-accent); 
     color: var(--ink-dark); 
-    font-size: 8.5px; 
+    font-size: 9px; 
     font-weight: 900; 
     text-transform: uppercase; 
     text-align: left; 
-    padding: 3.5px 5px; 
+    padding: 4px 6px; 
     border-bottom: 1.5px solid var(--b-dark); 
     border-right: 1px solid var(--b-light); 
     letter-spacing: 0.2px; 
@@ -303,12 +303,12 @@
   .fisc-items-table thead th.c { text-align: center; }
   
   .fisc-items-table tbody td { 
-    padding: 2.8px 5px; 
+    padding: 3.8px 6px; 
     border-bottom: 1px solid var(--b-subtle); 
     border-right: 1px solid var(--b-subtle); 
-    font-size: 9.5px; 
+    font-size: 10px; 
     color: var(--ink-body); 
-    line-height: 1.25; 
+    line-height: 1.3; 
   }
   
   .fisc-items-table tbody tr:nth-child(even) td { 
@@ -319,7 +319,7 @@
   .fisc-items-table tbody tr:last-child td { border-bottom: 1.5px solid var(--b-dark); }
   .fisc-items-table tbody td.r { text-align: right; font-variant-numeric: tabular-nums; } 
   .fisc-items-table tbody td.c { text-align: center; }
-  .fisc-items-table tbody td.sku-cell { font-family: "Courier New", Courier, monospace; font-weight: 700; color: var(--ink-dark); font-size: 9px; }
+  .fisc-items-table tbody td.sku-cell { font-family: "Courier New", Courier, monospace; font-weight: 700; color: var(--ink-dark); font-size: 9.5px; }
 
   /* ==========================================================
      LIQUIDACIÓN DE TOTALES Y TASA BCV DISCRETA
@@ -328,16 +328,16 @@
     display: flex; 
     justify-content: space-between; 
     align-items: flex-end; 
-    margin-top: 5px; 
+    margin-top: 6px; 
     gap: 12px; 
   }
   
   .fisc-tot-notice { 
     flex: 1; 
-    font-size: 8.5px; 
+    font-size: 9px; 
     color: var(--ink-muted); 
     line-height: 1.35; 
-    padding: 3px 6px; 
+    padding: 3.5px 8px; 
     border-left: 2px solid var(--b-dark); 
     background: var(--screen-table); 
     border-radius: 0 3px 3px 0; 
@@ -346,7 +346,7 @@
 
   .fisc-tot-table { 
     width: auto; 
-    min-width: 310px; 
+    min-width: 320px; 
     margin: 0; 
     border-collapse: collapse; 
     border: 1.5px solid var(--b-dark); 
@@ -355,8 +355,8 @@
   }
   
   .fisc-tot-table td { 
-    padding: 2.5px 8px; 
-    font-size: 10px; 
+    padding: 3px 8px; 
+    font-size: 10.5px; 
     border: 0; 
     border-bottom: 1px solid var(--b-subtle); 
   }
@@ -367,25 +367,25 @@
     font-weight: 700; 
     background: var(--screen-banner); 
     border-right: 1.5px solid var(--b-light); 
-    font-size: 9px; 
+    font-size: 9.5px; 
     text-transform: uppercase; 
   }
   
   .fisc-tot-table td.val { 
     text-align: right; 
     font-weight: 800; 
-    min-width: 135px; 
+    min-width: 140px; 
     background: #ffffff; 
     color: var(--ink-dark); 
     font-variant-numeric: tabular-nums; 
   }
   
   .fisc-tot-table tr.grand-usd td { 
-    font-size: 12px; 
+    font-size: 12.5px; 
     color: #ffffff; 
     background: var(--screen-dark); 
     font-weight: 900; 
-    padding: 4px 8px; 
+    padding: 4.5px 8px; 
     border-bottom: 1px solid #ffffff; 
   }
   .fisc-tot-table tr.grand-usd td.lbl { 
@@ -395,11 +395,11 @@
   }
 
   .fisc-tot-table tr.grand-bs td { 
-    font-size: 13px; 
+    font-size: 13.5px; 
     color: var(--ink-dark); 
     background: var(--screen-accent); 
     font-weight: 900; 
-    padding: 4px 8px; 
+    padding: 4.5px 8px; 
     border-bottom: 1.5px solid var(--b-dark); 
   }
   .fisc-tot-table tr.grand-bs td.lbl { 
@@ -971,6 +971,24 @@ function render(o) {
     </tr>`;
   }).join('');
 
+  // Renglones de relleno sutiles (Punto Medio) para que facturas de pocos ítems llenen armónicamente la hoja
+  let emptyRows = '';
+  if (items.length < 6) {
+    const need = 6 - items.length;
+    for (let k = 0; k < need; k++) {
+      emptyRows += `<tr>
+        <td class="c" style="color:#d1d5db;font-size:8.5px">${String(items.length + k + 1).padStart(2, '0')}</td>
+        <td class="c" style="color:#e5e7eb">—</td>
+        <td style="color:#e5e7eb">·································································································</td>
+        <td class="c" style="color:#e5e7eb">—</td>
+        <td class="c" style="color:#e5e7eb">—</td>
+        <td class="r" style="color:#e5e7eb">—</td>
+        <td class="r" style="color:#e5e7eb">—</td>
+        <td class="r" style="color:#e5e7eb">—</td>
+      </tr>`;
+    }
+  }
+
   // Densidad adaptativa según cantidad de ítems para encajar siempre en 1 hoja A4
   const itemCount = items.length;
   let densityClass = 'density-normal';
@@ -1116,6 +1134,7 @@ function render(o) {
         </thead>
         <tbody>
           ${rows}
+          ${emptyRows}
         </tbody>
       </table>
 

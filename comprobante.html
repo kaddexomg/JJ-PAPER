@@ -7,8 +7,9 @@
 <link rel="icon" href="assets/img/logo.svg">
 <style>
   /* ==========================================================
-     DISEÑO FISCAL COMPACTO Y DE ALTA DENSIDAD (LÁSER B/N)
-     Formato formal corporativo optimizado para hojas tipo Carta.
+     DISEÑO FISCAL PROFESIONAL DE ALTA DEFINICIÓN (CARTA / A4)
+     Diseñado específicamente para impresión nítida en blanco y negro,
+     con detalles corporativos enriquecidos y personalización total.
      ========================================================== */
   :root { 
     --ink-dark: #000000;
@@ -33,72 +34,110 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
     color: var(--ink-body); 
     background: #e5e7eb; 
-    padding: 16px 10px; 
+    padding: 20px 10px; 
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Hoja de papel (Carta) */
+  /* Hoja de papel (Carta / A4) */
   .sheet { 
-    max-width: 820px; 
+    max-width: 850px; 
     margin: 0 auto; 
     background: #ffffff; 
-    padding: 18px 22px; 
-    border-radius: 3px; 
-    box-shadow: 0 4px 14px rgba(0,0,0,0.1); 
-    border: 1px solid #000000;
+    padding: 22px 26px; 
+    border-radius: 4px; 
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12); 
+    border: 1.5px solid #000000;
     position: relative;
+    overflow: hidden;
+  }
+
+  /* Marca de agua de seguridad institucional tenue */
+  .watermark-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 1;
+    width: 320px;
+    height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .watermark-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: grayscale(100%) contrast(150%);
+  }
+
+  /* Contenido por encima de la filigrana */
+  .sheet-inner {
+    position: relative;
+    z-index: 2;
   }
 
   /* ==========================================================
-     CABECERA FISCAL PRINCIPAL (COMPACTA)
+     CABECERA FISCAL PRINCIPAL (AMPLIA Y DETALLADA)
      ========================================================== */
   .fisc-head { 
     display: flex; 
     justify-content: space-between; 
     align-items: stretch; 
-    gap: 14px;
-    border-bottom: 1.5px solid var(--b-dark); 
-    padding-bottom: 8px; 
-    margin-bottom: 6px; 
+    gap: 16px;
+    border-bottom: 2px solid var(--b-dark); 
+    padding-bottom: 10px; 
+    margin-bottom: 8px; 
   }
   
   .fisc-biz { 
     display: flex; 
-    gap: 10px; 
+    gap: 12px; 
     align-items: flex-start; 
     flex: 1; 
     min-width: 0; 
   }
   
   .fisc-biz img { 
-    width: 46px; 
-    height: 46px; 
+    width: 56px; 
+    height: 56px; 
     object-fit: contain; 
     flex-shrink: 0;
     filter: grayscale(100%) contrast(140%);
   }
   
   .fisc-biz .biz-name { 
-    font-size: 15px; 
+    font-size: 17px; 
     font-weight: 900; 
     color: var(--ink-dark); 
     line-height: 1.15;
-    letter-spacing: 0.3px; 
+    letter-spacing: 0.4px; 
     text-transform: uppercase;
   }
   
+  .fisc-biz .biz-sub {
+    font-size: 8.5px;
+    font-weight: 800;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 1px;
+  }
+
   .fisc-biz .biz-rif { 
-    font-size: 11.5px; 
-    font-weight: 800; 
+    font-size: 12.5px; 
+    font-weight: 900; 
     color: var(--ink-dark); 
-    margin-top: 1px; 
+    margin-top: 2px; 
     letter-spacing: 0.5px; 
   }
   
   .fisc-biz .biz-dir { 
     font-size: 9.5px; 
     color: #1f2937; 
-    line-height: 1.35; 
+    line-height: 1.4; 
     margin-top: 3px; 
   }
   
@@ -113,8 +152,8 @@
   .fisc-doc-box { 
     border: 1.5px solid var(--b-dark); 
     border-radius: 4px; 
-    min-width: 250px; 
-    max-width: 275px;
+    min-width: 260px; 
+    max-width: 290px;
     overflow: hidden; 
     background: #ffffff;
   }
@@ -124,9 +163,9 @@
     color: #ffffff; 
     text-align: center; 
     font-weight: 900;
-    font-size: 12px; 
+    font-size: 12.5px; 
     letter-spacing: 1.5px; 
-    padding: 4px 6px; 
+    padding: 5px 8px; 
     text-transform: uppercase; 
   }
   
@@ -135,8 +174,8 @@
     justify-content: space-between; 
     align-items: center;
     gap: 6px; 
-    padding: 3px 8px;
-    font-size: 10px; 
+    padding: 3.5px 8px;
+    font-size: 10.5px; 
     border-bottom: 1px solid var(--b-subtle); 
   }
   
@@ -147,10 +186,10 @@
   .fisc-doc-box .doc-row.num-row { 
     background: var(--screen-banner); 
     border-bottom: 1.5px solid var(--b-dark);
-    padding: 4px 8px;
+    padding: 5px 8px;
   }
   .fisc-doc-box .doc-row.num-row .val { 
-    font-size: 13.5px; 
+    font-size: 14px; 
     font-family: "Courier New", Courier, monospace; 
     font-weight: 900; 
     letter-spacing: 0.5px;
@@ -162,49 +201,59 @@
     border-bottom: 1px solid var(--b-dark);
   }
   .fisc-doc-box .doc-row.ctrl-row .val {
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 900;
     font-family: "Courier New", Courier, monospace;
     letter-spacing: 0.5px;
   }
 
   /* ==========================================================
-     DATOS DEL CLIENTE / RECEPTOR (COMPACTO Y ESTRUCTURADO)
+     DATOS DEL CLIENTE / RECEPTOR (PERSONALIZADO Y COMPLETO)
      ========================================================== */
   .fisc-client-box { 
     border: 1.5px solid var(--b-dark); 
     border-radius: 4px; 
     overflow: hidden; 
-    margin-top: 6px; 
+    margin-top: 8px; 
   }
   
   .fisc-client-box .box-header { 
     background: var(--screen-accent); 
-    border-bottom: 1px solid var(--b-dark); 
+    border-bottom: 1.5px solid var(--b-dark); 
     color: var(--ink-dark); 
     font-size: 9.5px; 
     font-weight: 900;
     letter-spacing: 0.8px; 
-    padding: 3px 8px; 
+    padding: 4px 10px; 
     text-transform: uppercase; 
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
+
+  .fisc-client-box .box-header .code-badge {
+    background: #ffffff;
+    border: 1px solid var(--b-dark);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+  }
   
   .fisc-client-box .box-body { 
     display: grid; 
     grid-template-columns: 2fr 1fr 1fr; 
-    gap: 3px 12px; 
-    padding: 5px 8px; 
+    gap: 4px 14px; 
+    padding: 7px 10px; 
     background: #ffffff;
   }
   
   .fisc-client-box .f-field { 
-    font-size: 10px; 
+    font-size: 10.5px; 
     line-height: 1.35; 
     display: flex; 
-    gap: 5px; 
+    gap: 6px; 
     min-width: 0; 
   }
   
@@ -212,7 +261,7 @@
     color: var(--ink-muted); 
     flex-shrink: 0; 
     font-weight: 700; 
-    font-size: 9px;
+    font-size: 9.5px;
     text-transform: uppercase;
   }
   
@@ -231,19 +280,19 @@
   .fisc-items-table { 
     width: 100%; 
     border-collapse: collapse; 
-    margin-top: 6px; 
+    margin-top: 8px; 
     border: 1.5px solid var(--b-dark);
   }
   
   .fisc-items-table thead th { 
     background: var(--screen-accent); 
     color: var(--ink-dark); 
-    font-size: 9px; 
+    font-size: 9.5px; 
     font-weight: 900; 
     text-transform: uppercase;
     text-align: left; 
-    padding: 4px 5px; 
-    border-bottom: 1.5px solid var(--b-dark); 
+    padding: 5px 6px; 
+    border-bottom: 2px solid var(--b-dark); 
     border-right: 1px solid var(--b-light);
     letter-spacing: 0.2px;
   }
@@ -253,12 +302,12 @@
   .fisc-items-table thead th.c { text-align: center; }
   
   .fisc-items-table tbody td { 
-    padding: 3.5px 5px; 
+    padding: 4.5px 6px; 
     border-bottom: 1px solid var(--b-subtle); 
     border-right: 1px solid var(--b-subtle); 
-    font-size: 10px; 
+    font-size: 10.5px; 
     color: var(--ink-body); 
-    line-height: 1.25;
+    line-height: 1.3;
   }
   
   .fisc-items-table tbody tr:nth-child(even) td {
@@ -266,10 +315,11 @@
   }
   
   .fisc-items-table tbody td:last-child { border-right: none; }
-  .fisc-items-table tbody tr:last-child td { border-bottom: 1.5px solid var(--b-dark); }
+  .fisc-items-table tbody tr:last-child td { border-bottom: 2px solid var(--b-dark); }
   .fisc-items-table tbody td.r { text-align: right; font-variant-numeric: tabular-nums; } 
   .fisc-items-table tbody td.c { text-align: center; }
-  .fisc-items-table tbody td.sku-cell { font-family: "Courier New", Courier, monospace; font-weight: 700; color: var(--ink-dark); font-size: 9.5px; }
+  .fisc-items-table tbody td.sku-cell { font-family: "Courier New", Courier, monospace; font-weight: 700; color: var(--ink-dark); font-size: 10px; }
+  .fisc-items-table tbody td.brand-cell { font-size: 9.5px; font-weight: 700; color: #4b5563; }
 
   /* ==========================================================
      LIQUIDACIÓN DE TOTALES (DUAL MONEDA FISCAL)
@@ -277,27 +327,55 @@
   .fisc-tot-wrap { 
     display: flex; 
     justify-content: space-between; 
-    align-items: flex-start;
-    margin-top: 6px; 
-    gap: 12px;
+    align-items: stretch;
+    margin-top: 8px; 
+    gap: 14px;
   }
   
-  .fisc-tot-notes {
+  .fisc-tot-left {
     flex: 1;
-    font-size: 9.5px;
-    color: #374151;
-    line-height: 1.35;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
-  .fisc-tot-notes .rate-tag {
-    font-size: 9px;
-    color: #4b5563;
-    font-weight: 600;
+  .bcv-cert-card {
+    border: 1.5px solid var(--b-dark);
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bcv-cert-badge {
+    background: var(--screen-dark);
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    text-align: center;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .bcv-cert-text {
+    font-size: 10px;
+    line-height: 1.45;
+    color: var(--ink-body);
+  }
+
+  .bcv-cert-text strong {
+    font-size: 11px;
+    color: var(--ink-dark);
   }
 
   .fisc-tot-table { 
     width: auto; 
-    min-width: 330px; 
+    min-width: 350px; 
     margin: 0; 
     border-collapse: collapse;
     border: 1.5px solid var(--b-dark); 
@@ -306,8 +384,8 @@
   }
   
   .fisc-tot-table td { 
-    padding: 3px 8px; 
-    font-size: 10.5px; 
+    padding: 4px 10px; 
+    font-size: 11px; 
     border: 0; 
     border-bottom: 1px solid var(--b-subtle); 
   }
@@ -318,25 +396,25 @@
     font-weight: 700; 
     background: var(--screen-banner); 
     border-right: 1.5px solid var(--b-light); 
-    font-size: 9.5px;
+    font-size: 10px;
     text-transform: uppercase;
   }
   
   .fisc-tot-table td.val { 
     text-align: right; 
     font-weight: 800; 
-    min-width: 135px; 
+    min-width: 145px; 
     background: #ffffff; 
     color: var(--ink-dark);
     font-variant-numeric: tabular-nums;
   }
   
   .fisc-tot-table tr.grand-usd td { 
-    font-size: 12.5px; 
+    font-size: 13.5px; 
     color: #ffffff; 
     background: var(--screen-dark); 
     font-weight: 900;
-    padding: 5px 8px; 
+    padding: 6px 10px; 
     border-bottom: 1px solid #ffffff;
   }
   .fisc-tot-table tr.grand-usd td.lbl { 
@@ -346,11 +424,11 @@
   }
 
   .fisc-tot-table tr.grand-bs td { 
-    font-size: 13.5px; 
+    font-size: 14.5px; 
     color: var(--ink-dark); 
     background: var(--screen-accent); 
     font-weight: 900;
-    padding: 5px 8px; 
+    padding: 6px 10px; 
     border-bottom: 1.5px solid var(--b-dark);
   }
   .fisc-tot-table tr.grand-bs td.lbl { 
@@ -359,59 +437,70 @@
   }
 
   /* ==========================================================
-     ÁREA DE CONFORMIDAD Y FIRMAS (COMPACTA)
+     ÁREA DE CONFORMIDAD Y FIRMAS (AMPLIA, PERSONALIZADA Y CON ESPACIO)
      ========================================================== */
   .fisc-sign-area { 
     display: grid; 
     grid-template-columns: 1fr 1fr; 
-    gap: 12px; 
-    margin-top: 8px; 
+    gap: 14px; 
+    margin-top: 10px; 
   }
   
   .fisc-sign-box { 
-    border: 1px solid var(--b-dark); 
-    border-radius: 3px; 
-    padding: 5px 8px;
+    border: 1.5px solid var(--b-dark); 
+    border-radius: 4px; 
+    padding: 8px 12px;
     background: #ffffff;
-    font-size: 9.5px;
-    line-height: 1.4;
+    font-size: 10px;
+    line-height: 1.45;
   }
   
   .fisc-sign-box .box-tit {
     font-weight: 900;
     text-transform: uppercase;
-    font-size: 9px;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--b-subtle);
-    padding-bottom: 2px;
-    margin-bottom: 4px;
+    font-size: 9.5px;
+    letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--b-dark);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
     color: var(--ink-dark);
   }
-  
-  .fisc-sign-box .sign-line {
-    border-bottom: 1px dotted var(--b-medium);
-    margin-top: 20px;
+
+  .fisc-sign-box .data-line {
     margin-bottom: 3px;
   }
-  
-  .fisc-sign-box .sign-sub {
-    font-size: 8.5px;
-    color: var(--ink-muted);
-    font-weight: 700;
-    text-align: center;
+
+  /* Recuadro amplio y delimitado para sello húmedo y firma física */
+  .fisc-stamp-box {
+    margin-top: 8px;
+    height: 60px;
+    border: 1.5px dashed var(--b-medium);
+    border-radius: 4px;
+    background: #fafafa;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 5px;
+  }
+
+  .fisc-stamp-box .stamp-prompt {
+    font-size: 9px;
+    color: #4b5563;
+    font-weight: 800;
     text-transform: uppercase;
+    letter-spacing: 0.6px;
   }
 
   /* Aviso legal y pie de página */
   .fisc-footer-note { 
-    margin-top: 6px; 
+    margin-top: 8px; 
     border: 1px dashed var(--b-light); 
     background: var(--screen-table); 
     border-radius: 4px;
-    padding: 4px 8px; 
-    font-size: 8.5px; 
+    padding: 5px 10px; 
+    font-size: 9px; 
     color: var(--ink-muted); 
-    line-height: 1.35; 
+    line-height: 1.4; 
     text-align: center; 
   }
   
@@ -432,12 +521,12 @@
     z-index: 50; 
   }
   .voidmark span { 
-    font-size: 80px; 
+    font-size: 85px; 
     font-weight: 900; 
-    color: rgba(0,0,0,0.12); 
-    border: 6px solid rgba(0,0,0,0.12);
+    color: rgba(0,0,0,0.14); 
+    border: 7px solid rgba(0,0,0,0.14);
     border-radius: 14px; 
-    padding: 4px 24px; 
+    padding: 6px 28px; 
     transform: rotate(-20deg); 
     letter-spacing: 8px; 
     text-transform: uppercase; 
@@ -445,8 +534,8 @@
 
   /* Toolbar de navegación */
   .toolbar { 
-    max-width: 820px; 
-    margin: 0 auto 10px; 
+    max-width: 850px; 
+    margin: 0 auto 12px; 
     display: flex; 
     gap: 8px; 
     justify-content: flex-end; 
@@ -455,18 +544,18 @@
   .btn { 
     border: 1.5px solid var(--b-medium); 
     border-radius: 5px; 
-    padding: 6px 14px; 
-    font-size: 13px; 
+    padding: 7px 16px; 
+    font-size: 13.5px; 
     font-weight: 700; 
     cursor: pointer; 
     text-decoration: none; 
   }
   .btn-p { background: #000000; color: #ffffff; border-color: #000000; }
   .btn-g { background: #ffffff; color: #000000; }
-  .loading, .err { max-width: 820px; margin: 30px auto; text-align: center; color: var(--ink-dark); font-weight: 700; font-size: 14px; }
+  .loading, .err { max-width: 850px; margin: 30px auto; text-align: center; color: var(--ink-dark); font-weight: 700; font-size: 14.5px; }
 
   /* ==========================================================
-     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA (BLANCO Y NEGRO LÁSER)
+     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA (CARTA / A4 LÁSER B/N)
      ========================================================== */
   @media print { 
     * { 
@@ -479,7 +568,7 @@
     
     @page { 
       size: letter portrait;
-      margin: 6mm 7mm 6mm 7mm;
+      margin: 7mm 8mm 7mm 8mm;
     }
     
     .sheet { 
@@ -670,6 +759,14 @@ async function resolveCustomerFiscal(doc) {
   // Resolver cliente real
   docData.customer = await resolveCustomerFiscal(docData);
 
+  // Obtener vendedor si existe
+  if (docData.seller_id) {
+    try {
+      const { data: sRow } = await sbCore.from('jjp_profiles').select('name').eq('id', docData.seller_id).maybeSingle();
+      if (sRow?.name) docData.seller_name = sRow.name;
+    } catch (_) {}
+  }
+
   ORDER = docData;
   render(docData);
   document.getElementById('toolbar').style.display = 'flex';
@@ -689,7 +786,7 @@ function normalizeQuote(q) {
     order_number: q.quote_number,
     client_name: q.client_name, rif: q.rif, phone: q.phone, email: q.email,
     city: q.city, address: q.address,
-    customer_id: q.customer_id,
+    customer_id: q.customer_id, seller_id: q.seller_id,
     items, subtotal_usd: subtotal, total_usd: total,
     total_bs: total * (Number(q.exchange_rate) || getRate()),
     exchange_rate: Number(q.exchange_rate) || getRate(),
@@ -707,7 +804,7 @@ function setFormat(isTicket) {
   if (ps) {
     ps.textContent = isTicket
       ? '@page { size: 80mm auto; margin: 3mm; }'
-      : '@page { size: letter portrait; margin: 6mm 7mm 6mm 7mm; }';
+      : '@page { size: letter portrait; margin: 7mm 8mm 7mm 8mm; }';
   }
 }
 
@@ -729,7 +826,7 @@ function render(o) {
   const cust = o.customer || {
     name: o.client_name || 'CLIENTE GENERAL',
     rif: o.rif || 'V-00000000-0',
-    address: o.address || 'Caracas, Venezuela',
+    address: o.address || '',
     city: o.city || 'Caracas',
     phone: o.phone || '',
     email: o.email || '',
@@ -760,29 +857,31 @@ function render(o) {
 
     const sku = escapeHTML(i.sku || i.code || i.codigo || '—');
     const unit = escapeHTML(i.unit || 'UND');
-    const brand = i.brand ? ` <small style="color:#4b5563;font-weight:700">(${escapeHTML(i.brand)})</small>` : '';
+    const brand = i.brand ? escapeHTML(i.brand) : '—';
 
     return `<tr>
       <td class="c" style="font-weight:700;color:#6b7280">${String(idx + 1).padStart(2, '0')}</td>
       <td class="c sku-cell">${sku}</td>
-      <td><strong>${escapeHTML(i.name)}</strong>${brand}</td>
+      <td><strong>${escapeHTML(i.name)}</strong></td>
+      <td class="c brand-cell">${brand}</td>
       <td class="c"><strong>${qty}</strong></td>
-      <td class="c" style="font-size:9px">${unit}</td>
+      <td class="c" style="font-size:9.5px">${unit}</td>
       <td class="r">${fmtPrice(pUsd)}</td>
       <td class="r"><strong>${fmtPrice(subUsd)}</strong></td>
       <td class="r" style="font-weight:700">${fmtBsNum(subBs)}</td>
     </tr>`;
   }).join('');
 
-  // Renglones vacíos estéticos si hay muy pocos ítems para mantener la estructura sin ser gigantes
+  // Renglones vacíos estéticos si hay muy pocos ítems para mantener la estructura sin saturar
   let emptyRows = '';
   if (items.length < 3) {
     const need = 3 - items.length;
     for (let k = 0; k < need; k++) {
       emptyRows += `<tr>
-        <td class="c" style="color:#d1d5db;font-size:9px">${String(items.length + k + 1).padStart(2, '0')}</td>
+        <td class="c" style="color:#d1d5db;font-size:9.5px">${String(items.length + k + 1).padStart(2, '0')}</td>
         <td class="c" style="color:#e5e7eb">—</td>
         <td style="color:#e5e7eb">·································································································</td>
+        <td class="c" style="color:#e5e7eb">—</td>
         <td class="c" style="color:#e5e7eb">—</td>
         <td class="c" style="color:#e5e7eb">—</td>
         <td class="r" style="color:#e5e7eb">—</td>
@@ -835,153 +934,174 @@ function render(o) {
   <div class="sheet">
     ${voided ? '<div class="voidmark"><span>ANULADO</span></div>' : ''}
 
-    <!-- CABECERA -->
-    <div class="fisc-head">
-      <div class="fisc-biz">
-        <img src="${escapeHTML(logoUrl)}" alt="Logo JJ Paper">
-        <div>
-          <div class="biz-name">${escapeHTML(bizName)}</div>
-          <div class="biz-rif">R.I.F.: ${escapeHTML(bizRif)}</div>
-          <div class="biz-dir">
-            <strong>Domicilio Fiscal:</strong> ${escapeHTML(bizAddr)}<br>
-            <strong>Teléfonos:</strong> ${escapeHTML(bizPhone)} · <strong>Email:</strong> ${escapeHTML(bizEmail)}
+    <!-- FILIGRANA INSTITUCIONAL DE SEGURIDAD -->
+    <div class="watermark-bg">
+      <img src="${escapeHTML(logoUrl)}" alt="">
+    </div>
+
+    <div class="sheet-inner">
+      <!-- CABECERA -->
+      <div class="fisc-head">
+        <div class="fisc-biz">
+          <img src="${escapeHTML(logoUrl)}" alt="Logo JJ Paper">
+          <div>
+            <div class="biz-name">${escapeHTML(bizName)}</div>
+            <div class="biz-sub">Distribuidora de Papelería al Mayor · Suministros Corporativos</div>
+            <div class="biz-rif">R.I.F.: ${escapeHTML(bizRif)}</div>
+            <div class="biz-dir">
+              <strong>Domicilio Fiscal:</strong> ${escapeHTML(bizAddr)}<br>
+              <strong>Teléfonos:</strong> ${escapeHTML(bizPhone)} · <strong>Email:</strong> ${escapeHTML(bizEmail)}
+            </div>
+          </div>
+        </div>
+
+        <!-- CAJA FISCAL SENIAT -->
+        <div class="fisc-doc-box">
+          <div class="doc-title">${escapeHTML(docTitleHeader)}</div>
+          <div class="doc-row num-row">
+            <span class="lbl">${isInvoice ? 'FACTURA N°' : 'N° DE CONTROL'}</span>
+            <span class="val">${escapeHTML(docNumberMain)}</span>
+          </div>
+          ${controlNumber ? `
+          <div class="doc-row ctrl-row">
+            <span class="lbl">N° DE CONTROL SENIAT</span>
+            <span class="val">${escapeHTML(controlNumber)}</span>
+          </div>` : ''}
+          ${(isInvoice && o.order_number && o.order_number !== docNumberMain) ? `
+          <div class="doc-row">
+            <span class="lbl">N° PEDIDO / VENTA</span>
+            <span class="val">${escapeHTML(o.order_number)}</span>
+          </div>` : ''}
+          <div class="doc-row">
+            <span class="lbl">FECHA DE EMISIÓN</span>
+            <span class="val">${fmtDate(fechaEmision)}</span>
+          </div>
+          <div class="doc-row">
+            <span class="lbl">CONDICIÓN DE PAGO</span>
+            <span class="val">${escapeHTML(condicionPago)}</span>
           </div>
         </div>
       </div>
 
-      <!-- CAJA FISCAL SENIAT -->
-      <div class="fisc-doc-box">
-        <div class="doc-title">${escapeHTML(docTitleHeader)}</div>
-        <div class="doc-row num-row">
-          <span class="lbl">${isInvoice ? 'FACTURA N°' : 'N° DE CONTROL'}</span>
-          <span class="val">${escapeHTML(docNumberMain)}</span>
+      <!-- DATOS DEL CLIENTE / RECEPTOR (PERSONALIZADO CON CÓDIGO MIXNET) -->
+      <div class="fisc-client-box">
+        <div class="box-header">
+          <span>DATOS FISCALES DEL CLIENTE / RECEPTOR DE LA FACTURA</span>
+          ${cust.code ? `<span class="code-badge">CÓDIGO MIXNET: ${escapeHTML(cust.code)}</span>` : ''}
         </div>
-        ${controlNumber ? `
-        <div class="doc-row ctrl-row">
-          <span class="lbl">N° DE CONTROL SENIAT</span>
-          <span class="val">${escapeHTML(controlNumber)}</span>
-        </div>` : ''}
-        ${(isInvoice && o.order_number && o.order_number !== docNumberMain) ? `
-        <div class="doc-row">
-          <span class="lbl">N° PEDIDO / VENTA</span>
-          <span class="val">${escapeHTML(o.order_number)}</span>
-        </div>` : ''}
-        <div class="doc-row">
-          <span class="lbl">FECHA DE EMISIÓN</span>
-          <span class="val">${fmtDate(fechaEmision)}</span>
-        </div>
-        <div class="doc-row">
-          <span class="lbl">CONDICIÓN DE PAGO</span>
-          <span class="val">${escapeHTML(condicionPago)}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- DATOS DEL CLIENTE / RECEPTOR -->
-    <div class="fisc-client-box">
-      <div class="box-header">
-        <span>DATOS DEL CLIENTE / RECEPTOR DE LA FACTURA</span>
-        ${cust.code ? `<span>CÓDIGO CLIENTE MIXNET: <strong>${escapeHTML(cust.code)}</strong></span>` : ''}
-      </div>
-      <div class="box-body">
-        <div class="f-field">
-          <span class="f-lbl">Nombre / Razón Social:</span>
-          <span class="f-val" style="font-size:10.5px">${escapeHTML(cust.name)}</span>
-        </div>
-        <div class="f-field">
-          <span class="f-lbl">R.I.F. / C.I.:</span>
-          <span class="f-val">${escapeHTML(cust.rif)}</span>
-        </div>
-        <div class="f-field">
-          <span class="f-lbl">Teléfono(s):</span>
-          <span class="f-val">${escapeHTML(cust.phone || 'No registrado')}</span>
-        </div>
-        <div class="f-field span2">
-          <span class="f-lbl">Domicilio Fiscal:</span>
-          <span class="f-val">${escapeHTML(cust.address || cust.city || 'Caracas, Venezuela')}</span>
-        </div>
-        <div class="f-field">
-          <span class="f-lbl">Ciudad / Estado:</span>
-          <span class="f-val">${escapeHTML(cust.city || 'Caracas')}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- TABLA DE RENGLONES -->
-    <table class="fisc-items-table">
-      <thead>
-        <tr>
-          <th class="c" style="width:26px">#</th>
-          <th class="c" style="width:90px">Código</th>
-          <th>Descripción de la Mercancía</th>
-          <th class="c" style="width:44px">Cant.</th>
-          <th class="c" style="width:40px">Und.</th>
-          <th class="r" style="width:80px">P. Unit. ($)</th>
-          <th class="r" style="width:85px">Total ($)</th>
-          <th class="r" style="width:105px">Total (Bs.)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-        ${emptyRows}
-      </tbody>
-    </table>
-
-    <!-- TOTALES Y LIQUIDACIÓN -->
-    <div class="fisc-tot-wrap">
-      <div class="fisc-tot-notes">
-        <div class="rate-tag">
-          Tasa oficial BCV aplicada: <strong>Bs ${rate.toFixed(2)} por USD</strong> · Alícuota I.V.A.: <strong>16.00%</strong>
+        <div class="box-body">
+          <div class="f-field">
+            <span class="f-lbl">Razón Social:</span>
+            <span class="f-val" style="font-size:11px">${escapeHTML(cust.name)}</span>
+          </div>
+          <div class="f-field">
+            <span class="f-lbl">R.I.F. / C.I.:</span>
+            <span class="f-val">${escapeHTML(cust.rif)}</span>
+          </div>
+          <div class="f-field">
+            <span class="f-lbl">Teléfono(s):</span>
+            <span class="f-val">${escapeHTML(cust.phone || 'No registrado')}</span>
+          </div>
+          <div class="f-field span2">
+            <span class="f-lbl">Domicilio Fiscal:</span>
+            <span class="f-val">${escapeHTML(cust.address || cust.city || 'CARACAS, DISTRITO CAPITAL')}</span>
+          </div>
+          <div class="f-field">
+            <span class="f-lbl">Ciudad / Estado:</span>
+            <span class="f-val">${escapeHTML(cust.city || 'Caracas')}</span>
+          </div>
         </div>
       </div>
 
-      <table class="fisc-tot-table">
-        <tr>
-          <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
-          <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
-        </tr>
-        <tr>
-          <td class="lbl">I.V.A. (16.00%)</td>
-          <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
-        </tr>
-        <tr class="grand-usd">
-          <td class="lbl">TOTAL A PAGAR (USD)</td>
-          <td class="val">${fmtPrice(totalUsd)}</td>
-        </tr>
-        <tr class="grand-bs">
-          <td class="lbl">TOTAL FACTURA (Bs.)</td>
-          <td class="val">${fmtBsNum(totalBs)} Bs.</td>
-        </tr>
+      <!-- TABLA DE RENGLONES / PRODUCTOS CON MARCA Y DETALLES -->
+      <table class="fisc-items-table">
+        <thead>
+          <tr>
+            <th class="c" style="width:30px">#</th>
+            <th class="c" style="width:95px">Código</th>
+            <th>Descripción de la Mercancía</th>
+            <th class="c" style="width:75px">Marca</th>
+            <th class="c" style="width:45px">Cant.</th>
+            <th class="c" style="width:40px">Und.</th>
+            <th class="r" style="width:85px">P. Unit. ($)</th>
+            <th class="r" style="width:90px">Total ($)</th>
+            <th class="r" style="width:110px">Total (Bs.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          ${emptyRows}
+        </tbody>
       </table>
-    </div>
 
-    <!-- ÁREA DE FIRMAS Y CONFORMIDAD -->
-    <div class="fisc-sign-area">
-      <div class="fisc-sign-box">
-        <div class="box-tit">CONFORME CLIENTE / RECEPTOR DE MERCANCÍA</div>
-        <div>Nombre y Apellido: _____________________________________________</div>
-        <div style="margin-top:2px">C.I. / R.I.F.: ______________________ &nbsp; Fecha: ____________________</div>
-        <div class="sign-line"></div>
-        <div class="sign-sub">Firma de Conformidad del Receptor</div>
+      <!-- TOTALES Y LIQUIDACIÓN TRIBUTARIA FORMAL -->
+      <div class="fisc-tot-wrap">
+        <div class="fisc-tot-left">
+          <div class="bcv-cert-card">
+            <div class="bcv-cert-badge">TASA BCV OFICIAL</div>
+            <div class="bcv-cert-text">
+              Liquidación conforme a la tasa oficial del Banco Central de Venezuela: <strong>Bs ${rate.toFixed(2)} por USD</strong>.<br>
+              Alícuota general del I.V.A.: <strong>16.00%</strong> según Providencias Administrativas del SENIAT.
+            </div>
+          </div>
+        </div>
+
+        <table class="fisc-tot-table">
+          <tr>
+            <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
+            <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
+          </tr>
+          <tr>
+            <td class="lbl">I.V.A. (16.00%)</td>
+            <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
+          </tr>
+          <tr class="grand-usd">
+            <td class="lbl">TOTAL A PAGAR (USD)</td>
+            <td class="val">${fmtPrice(totalUsd)}</td>
+          </tr>
+          <tr class="grand-bs">
+            <td class="lbl">TOTAL FACTURA (Bs.)</td>
+            <td class="val">${fmtBsNum(totalBs)} Bs.</td>
+          </tr>
+        </table>
       </div>
 
-      <div class="fisc-sign-box">
-        <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y CAJA</div>
-        <div>Facturado y Despachado por: <strong>${escapeHTML(bizName)}</strong></div>
-        <div style="margin-top:2px">Departamento: Facturación, Caja y Almacén Central</div>
-        <div class="sign-line"></div>
-        <div class="sign-sub">Firma Autorizada y Sello de la Empresa</div>
-      </div>
-    </div>
+      <!-- ÁREA DE FIRMAS Y CONFORMIDAD (PERSONALIZADA CON ESPACIO VISIBLE DE SELLO) -->
+      <div class="fisc-sign-area">
+        <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
+        <div class="fisc-sign-box">
+          <div class="box-tit">CONFORME CLIENTE / RECEPCIÓN DE MERCANCÍA</div>
+          <div class="data-line"><strong>Empresa / Razón Social:</strong> <span style="font-weight:800;font-size:10.5px">${escapeHTML(cust.name)}</span></div>
+          <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
+          <div class="data-line" style="margin-top:4px">Recibido por (Nombre y Apellido): ____________________________________</div>
+          <div class="data-line" style="margin-top:4px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
+          <div class="fisc-stamp-box">
+            <div class="stamp-prompt">ESPACIO PARA SELLO HÚMEDO Y FIRMA DEL RECEPTOR</div>
+          </div>
+        </div>
 
-    <!-- PIE LEGAL SENIAT -->
-    <div class="fisc-footer-note">
-      ${isInvoice
-        ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema administrativo integrado JJ Paper & MixNet. Válida para fines tributarios y contables.`
-        : isQuote
-          ? `<strong>PRESUPUESTO COMERCIAL</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
-          : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
-      }
+        <!-- EMISOR JJ PAPER -->
+        <div class="fisc-sign-box">
+          <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y DESPACHO</div>
+          <div class="data-line"><strong>Facturado y Despachado por:</strong> <span style="font-weight:800;font-size:10.5px">${escapeHTML(bizName)}</span></div>
+          <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
+          <div class="data-line" style="margin-top:4px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
+          <div class="data-line" style="margin-top:4px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
+          <div class="fisc-stamp-box">
+            <div class="stamp-prompt">ESPACIO PARA SELLO HÚMEDO Y FIRMA AUTORIZADA JJ PAPER</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIE LEGAL SENIAT -->
+      <div class="fisc-footer-note">
+        ${isInvoice
+          ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema integrado JJ Paper & MixNet. Documento válido para fines tributarios y contables.`
+          : isQuote
+            ? `<strong>PRESUPUESTO COMERCIAL N° ${escapeHTML(docNumberMain)}</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
+            : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO N° ${escapeHTML(docNumberMain)}</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
+        }
+      </div>
     </div>
   </div>`;
 

@@ -55,6 +55,7 @@
     <div class="admin-content">
       <div class="of-chips">
         <button class="of-chip on" data-s="" onclick="setVOrdersFilter('')">Todos</button>
+        <button class="of-chip" data-s="facturado" onclick="setVOrdersFilter('facturado')" style="border-color:#10b981;font-weight:700">🧾 Facturados MixNet</button>
         <button class="of-chip" data-s="pendiente_pago" onclick="setVOrdersFilter('pendiente_pago')">Pendiente pago</button>
         <button class="of-chip" data-s="verificando" onclick="setVOrdersFilter('verificando')">Verificando</button>
         <button class="of-chip" data-s="pagado" onclick="setVOrdersFilter('pagado')">Pagado</button>
@@ -70,10 +71,10 @@
         <div style="overflow-x:auto">
           <table class="admin-table">
             <thead>
-              <tr><th>N° / Fecha</th><th>Cliente</th><th>Origen</th><th>Total</th><th>Comisión</th><th>Estado</th><th>Acciones</th></tr>
+              <tr><th>N° / Fecha</th><th style="min-width:130px">Factura MixNet</th><th>Cliente</th><th>Origen</th><th>Total</th><th>Comisión</th><th>Estado</th><th>Acciones</th></tr>
             </thead>
             <tbody id="vOrdersBody">
-              <tr><td colspan="7" class="table-empty">Cargando...</td></tr>
+              <tr><td colspan="8" class="table-empty">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -103,7 +104,7 @@
 <script src="../assets/js/vendedor/vcommon.js"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/send-hub.js?v=20260819b"></script>
-<script src="../assets/js/vendedor/vorders.js"></script>
+<script src="../assets/js/vendedor/vorders.js?v=20260925_facturas_ok"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();

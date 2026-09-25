@@ -11,7 +11,11 @@ const V_SOURCE_LABEL = { web: '🌐 Web', pos: '💰 POS', ref: '🔗 Referido' 
 async function loadVOrders(statusFilter = vOrdersFilter) {
   vOrdersFilter = statusFilter;
   let q = sb.from('jjp_orders').select('*').order('created_at', { ascending: false });
-  if (statusFilter) q = q.eq('status', statusFilter);
+  if (statusFilter === 'facturado') {
+    q = q.not('invoice_number', 'is', null);
+  } else if (statusFilter) {
+    q = q.eq('status', statusFilter);
+  }
   const { data, error } = await q;
   if (error) { showToast('Error cargando pedidos', 'err'); return; }
   vOrders = data || [];
@@ -28,7 +32,7 @@ function renderVOrders() {
   const count = document.getElementById('vOrdersCount');
   if (count) count.textContent = `${vOrders.length} pedidos`;
   if (!vOrders.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No tienes pedidos con este filtro.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No tienes pedidos con este filtro.</td></tr>';
     return;
   }
   const commPct = Number((typeof SELLER !== 'undefined' && SELLER?.commission_pct) ? SELLER.commission_pct : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.commission_pct) ? CURRENT_PROFILE.commission_pct : (window.SELLER?.commission_pct || 0))) || 0;
@@ -38,15 +42,17 @@ function renderVOrders() {
     const comm = isPaid ? (o.total_usd - Number(o.delivery_fee_usd || 0)) * commPct / 100 : 0;
     return `<tr>
       <td>
-        <strong>${escapeHTML(o.order_number)}</strong>
+        <strong style="font-size:13px;color:#0f172a">${escapeHTML(o.order_number)}</strong>
         <div class="td-sub">${fmtDate(o.created_at)}</div>
+      </td>
+      <td>
         ${o.invoice_number ? `
-          <div style="margin-top:4px">
-            <a href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:800;text-decoration:none" title="Ver Factura Fiscal MixNet">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <a href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1.5px solid #10b981;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:900;text-decoration:none" title="Ver / Imprimir Factura Fiscal MixNet">
               🧾 Fact. #${escapeHTML(o.invoice_number)}
             </a>
-            ${o.control_number ? `<div style="font-size:10px;color:#047857;font-weight:700">Ctrl: ${escapeHTML(o.control_number)}</div>` : ''}
-          </div>` : '<div style="font-size:10px;color:#94a3b8;margin-top:3px">⏳ Sin facturar</div>'}
+            ${o.control_number ? `<span style="font-size:10px;color:#047857;font-weight:700">Ctrl: ${escapeHTML(o.control_number)}</span>` : ''}
+          </div>` : '<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#f1f5f9;color:#94a3b8;font-size:11px">⏳ Pendiente</span>'}
       </td>
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone || '')}</div></td>
       <td>${V_SOURCE_LABEL[o.source] || o.source || '—'}</td>

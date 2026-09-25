@@ -28,7 +28,11 @@ async function loadOrders(statusFilter = ordersFilter) {
   // jjp_orders tiene 3 FKs hacia jjp_profiles (seller + descuentos): hay que
   // nombrar la relación o PostgREST devuelve 300 PGRST201 (embed ambiguo).
   let q = sb.from('jjp_orders').select('*, jjp_profiles!jjp_orders_seller_id_fkey(name)').order('created_at', { ascending: false });
-  if (statusFilter) q = q.eq('status', statusFilter);
+  if (statusFilter === 'facturado') {
+    q = q.not('invoice_number', 'is', null);
+  } else if (statusFilter) {
+    q = q.eq('status', statusFilter);
+  }
   const [{ data, error }, sellersRes] = await Promise.all([
     q,
     adminSellers.length ? Promise.resolve({ data: adminSellers })
@@ -66,13 +70,15 @@ function renderOrdersStats() {
   const box = document.getElementById('ordersStats');
   if (!box) return;
   // Always compute from a full fetch for accuracy
-  sb.from('jjp_orders').select('status,total_usd').then(({ data }) => {
+  sb.from('jjp_orders').select('status,total_usd,invoice_number').then(({ data }) => {
     const all = data || [];
     const sum = (arr) => arr.reduce((s, o) => s + Number(o.total_usd || 0), 0);
+    const invoiced = all.filter(o => o.invoice_number);
     const pend = all.filter(o => o.status === 'pendiente_pago' || o.status === 'verificando');
     const paid = all.filter(o => ['pagado', 'preparando', 'entregado'].includes(o.status));
     box.innerHTML = `
       <div class="ost"><span class="ost-n">${all.length}</span><span class="ost-l">Pedidos totales</span></div>
+      <div class="ost ok" style="border-left:4px solid #059669;cursor:pointer" onclick="setOrdersFilter('facturado')" title="Filtrar pedidos facturados en MixNet"><span class="ost-n" style="color:#059669">${invoiced.length}</span><span class="ost-l">🧾 Facturados MixNet</span></div>
       <div class="ost warn"><span class="ost-n">${pend.length}</span><span class="ost-l">Por verificar</span></div>
       <div class="ost ok"><span class="ost-n">${paid.length}</span><span class="ost-l">Confirmados</span></div>
       <div class="ost money"><span class="ost-n">${fmtPrice(sum(paid))}</span><span class="ost-l">Ventas confirmadas</span></div>`;
@@ -100,15 +106,18 @@ function renderOrdersTable() {
       : '<span style="color:#ccc;font-size:11px">—</span>';
     return `<tr>
       <td>
-        <strong>${escapeHTML(o.order_number)}</strong>
+        <strong style="font-size:13.5px;color:#0f172a">${escapeHTML(o.order_number)}</strong>
         <div class="td-sub">${fmtDate(o.created_at)}</div>
+      </td>
+      <td>
         ${o.invoice_number ? `
-          <div style="margin-top:4px">
-            <a href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:800;text-decoration:none" title="Ver Factura Fiscal MixNet">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <a href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1.5px solid #10b981;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:900;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.05)" title="Ver / Imprimir Factura Fiscal MixNet">
               🧾 Fact. #${escapeHTML(o.invoice_number)}
             </a>
-            ${o.control_number ? `<div style="font-size:10px;color:#047857;font-weight:700">Ctrl: ${escapeHTML(o.control_number)}</div>` : ''}
-          </div>` : '<div style="font-size:10px;color:#94a3b8;margin-top:3px">⏳ Sin facturar</div>'}
+            ${o.control_number ? `<span style="font-size:10.5px;color:#047857;font-weight:700">Ctrl: ${escapeHTML(o.control_number)}</span>` : ''}
+            <span style="font-size:10px;color:#64748b">${o.invoice_date ? fmtDate(o.invoice_date) : ''}</span>
+          </div>` : '<span style="display:inline-block;padding:2px 7px;border-radius:5px;background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:600">⏳ Sin facturar</span>'}
       </td>
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>

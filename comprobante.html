@@ -316,7 +316,8 @@ function docTypeList(t) { return DOC_TYPES[t] || [t]; }
   const params = new URLSearchParams(location.search);
   const orderNum = params.get('n');
   const quoteNum = params.get('q');   // ?q=<quote_number> → imprime PRESUPUESTO
-  if (!orderNum && !quoteNum) { content.innerHTML = '<div class="err">Falta el número de documento (?n=... o ?q=...)</div>'; return; }
+  const facNum   = params.get('fac'); // ?fac=<invoice_number> → busca por factura directamente
+  if (!orderNum && !quoteNum && !facNum) { content.innerHTML = '<div class="err">Falta el número de documento (?n=..., ?q=... o ?fac=...)</div>'; return; }
 
   // Formato inicial: ?f=ticket|carta manda; si no, el ajuste doc_paper
   const s = APP.SETTINGS || {};
@@ -332,11 +333,26 @@ function docTypeList(t) { return DOC_TYPES[t] || [t]; }
   } else {
     // ?t=factura|recibo|comprobante|ambos (por defecto comprobante).
     // 'factura+recibo' llega como 'factura recibo' (el + se decodifica a espacio).
-    let t = (params.get('t') || 'comprobante').toLowerCase().trim();
+    let t = (params.get('t') || (facNum ? 'factura' : 'comprobante')).toLowerCase().trim();
     if (/^factura[\s+,]+recibo$/.test(t)) t = 'ambos';
     DOC_TYPE = ['factura', 'recibo', 'comprobante', 'ambos'].includes(t) ? t : 'comprobante';
-    const { data: o, error } = await sb.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
-    if (error || !o) { content.innerHTML = '<div class="err">No se encontró el pedido ' + escapeHTML(orderNum) + '.</div>'; return; }
+
+    let o = null;
+    if (orderNum) {
+      const res = await sb.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
+      o = res.data;
+      if (!o) {
+        // Si no se halló por pedido, buscar si orderNum corresponde al número de factura
+        const facRes = await sb.from('jjp_orders').select('*').eq('invoice_number', orderNum).maybeSingle();
+        if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+      }
+    } else if (facNum) {
+      const facRes = await sb.from('jjp_orders').select('*').eq('invoice_number', facNum).maybeSingle();
+      o = facRes.data;
+      DOC_TYPE = 'factura';
+    }
+
+    if (!o) { content.innerHTML = '<div class="err">No se encontró el pedido o factura ' + escapeHTML(orderNum || facNum) + '.</div>'; return; }
     docData = o;
   }
 
@@ -541,8 +557,10 @@ function sheet(o, docType) {
     </div>
 
     <div class="fisc-aviso">
-      <strong>Documento sin valor fiscal.</strong>
-      ${escapeHTML(legalLimpio)}
+      ${(o.invoice_number && docType === 'factura')
+        ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(o.invoice_number)}</strong> — Documento fiscal emitido en Caja MixNet. Conforme a las providencias administrativas del SENIAT.`
+        : `<strong>Documento sin valor fiscal.</strong> ${escapeHTML(legalLimpio)}`
+      }
     </div>
 
     <div class="cmp-foot">

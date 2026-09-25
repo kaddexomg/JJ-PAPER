@@ -65,6 +65,7 @@
       <!-- Filter chips -->
       <div class="of-chips">
         <button class="of-chip on" data-s="" onclick="setOrdersFilter('')">Todos</button>
+        <button class="of-chip" data-s="facturado" onclick="setOrdersFilter('facturado')" style="border-color:#10b981;font-weight:700">🧾 Facturados MixNet</button>
         <button class="of-chip" data-s="pendiente_pago" onclick="setOrdersFilter('pendiente_pago')">Pendiente pago</button>
         <button class="of-chip" data-s="verificando" onclick="setOrdersFilter('verificando')">Verificando</button>
         <button class="of-chip" data-s="pagado" onclick="setOrdersFilter('pagado')">Pagado</button>
@@ -81,10 +82,10 @@
         <div style="overflow-x:auto">
           <table class="admin-table">
             <thead>
-              <tr><th>N° / Fecha</th><th>Cliente</th><th>Método</th><th>Comprobante</th><th>Total</th><th>Estado</th><th>Acciones</th></tr>
+              <tr><th>N° / Fecha</th><th style="min-width:140px">Factura MixNet</th><th>Cliente</th><th>Método</th><th>Comprobante</th><th>Total</th><th>Estado</th><th>Acciones</th></tr>
             </thead>
             <tbody id="ordersTableBody">
-              <tr><td colspan="7" class="table-empty">Cargando...</td></tr>
+              <tr><td colspan="8" class="table-empty">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -114,7 +115,7 @@
 <script src="../assets/js/admin/sidenav.js?v=20260828_cat_admin"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/send-hub.js?v=20260819b"></script>
-<script src="../assets/js/admin/orders.js"></script>
+<script src="../assets/js/admin/orders.js?v=20260925_facturas_ok"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();

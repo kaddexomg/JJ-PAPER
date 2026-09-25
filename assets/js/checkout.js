@@ -375,7 +375,9 @@ async function submitOrder() {
   const btn = document.getElementById('coSubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
 
-  const orderNumber = genOrderNumber();
+  const orderNumber = (typeof fetchNextDocSerial === 'function')
+    ? await fetchNextDocSerial('pedido')
+    : genOrderNumber();
   const order = buildOrder(orderNumber);
 
   const receiptUrl = await uploadReceipt(orderNumber);
@@ -401,7 +403,9 @@ async function submitOrderWA() {
   // Mismo guard que submitOrder: doble clic aquí insertaba dos pedidos
   if (coSubmitting || !validateCheckout()) return;
   coSubmitting = true;
-  const orderNumber = genOrderNumber();
+  const orderNumber = (typeof fetchNextDocSerial === 'function')
+    ? await fetchNextDocSerial('pedido')
+    : genOrderNumber();
   const order = buildOrder(orderNumber);
 
   const receiptUrl = await uploadReceipt(orderNumber);

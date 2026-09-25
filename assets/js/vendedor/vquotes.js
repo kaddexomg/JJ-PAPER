@@ -683,7 +683,9 @@ async function quoteSubmit() {
       error = res.error;
       quote.quote_number = editingQuoteNumber; // <--- This fixes quoteShowDone(quote)
     } else {
-      quote.quote_number = genOrderNumber('COT');
+      quote.quote_number = (typeof fetchNextDocSerial === 'function')
+        ? await fetchNextDocSerial('cotizacion')
+        : genOrderNumber('COT');
       quote.status = 'pendiente';
       quote.source = 'vendedor';
       quote.seller_id = sellerId;

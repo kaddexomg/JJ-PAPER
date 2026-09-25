@@ -99,7 +99,17 @@ function renderOrdersTable() {
       ? `<a href="${escapeHTML(o.receipt_url)}" target="_blank" class="td-receipt" title="Ver comprobante"><img src="${escapeHTML(o.receipt_url)}" alt="comprobante"></a>`
       : '<span style="color:#ccc;font-size:11px">—</span>';
     return `<tr>
-      <td><strong>${escapeHTML(o.order_number)}</strong><div class="td-sub">${fmtDate(o.created_at)}</div></td>
+      <td>
+        <strong>${escapeHTML(o.order_number)}</strong>
+        <div class="td-sub">${fmtDate(o.created_at)}</div>
+        ${o.invoice_number ? `
+          <div style="margin-top:4px">
+            <a href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="display:inline-flex;align-items:center;gap:3px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:800;text-decoration:none" title="Ver Factura Fiscal MixNet">
+              🧾 Fact. #${escapeHTML(o.invoice_number)}
+            </a>
+            ${o.control_number ? `<div style="font-size:10px;color:#047857;font-weight:700">Ctrl: ${escapeHTML(o.control_number)}</div>` : ''}
+          </div>` : '<div style="font-size:10px;color:#94a3b8;margin-top:3px">⏳ Sin facturar</div>'}
+      </td>
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
@@ -251,6 +261,29 @@ function viewOrder(id) {
       <div class="ord-field"><label>Comprobante</label>${receiptHTML}</div>
     </div>
   </div>
+
+  ${o.invoice_number ? `
+  <div style="margin-top:16px;padding:14px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:15px;font-weight:900;color:#166534;display:flex;align-items:center;gap:8px">
+        <span>🧾 Factura Fiscal MixNet #${escapeHTML(o.invoice_number)}</span>
+        <span style="font-size:11px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-weight:800;letter-spacing:0.5px">FACTURADO</span>
+      </div>
+      <div style="font-size:12.5px;color:#166534;margin-top:4px;line-height:1.5">
+        ${o.control_number ? `<strong>N° de Control SENIAT:</strong> ${escapeHTML(o.control_number)} · ` : ''}
+        ${o.invoice_date ? `<strong>Emisión:</strong> ${fmtDate(o.invoice_date)} · ` : ''}
+        ${o.invoice_rate ? `<strong>Tasa BCV Factura:</strong> Bs ${Number(o.invoice_rate).toFixed(2)} · ` : ''}
+        <strong>Total Factura:</strong> ${fmtBsNum(o.invoice_total_bs || o.total_bs)} (${fmtPrice(o.invoice_total_usd || o.total_usd)})
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn-p sm" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="background:#166534;border-color:#166534;padding:7px 14px;font-weight:700">👁️ Observar Factura</a>
+      <a class="btn-o sm" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1" target="_blank" style="padding:7px 14px;font-weight:700">🖨️ Imprimir Factura</a>
+    </div>
+  </div>` : `
+  <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:space-between">
+    <span>⏳ Este pedido aún no registra factura emitida en MixNet (al facturarse en caja se enlazará automáticamente).</span>
+  </div>`}
 
   <label class="fl" style="margin-top:18px">Productos</label>
   <table class="admin-table" style="margin-top:6px">

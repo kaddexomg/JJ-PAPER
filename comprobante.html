@@ -480,10 +480,15 @@ function sheet(o, docType) {
         </div>
       </div>
       <div class="fisc-doc">
-        <div class="tipo">${escapeHTML(docTitle)}</div>
-        <div class="fila"><span class="et">N°</span><span class="vl">${escapeHTML(o.order_number || '')}</span></div>
-        ${o.control_number ? `<div class="fila control"><span class="et">N° de Control</span><span class="vl">${escapeHTML(o.control_number)}</span></div>` : ''}
-        <div class="fila"><span class="et">Fecha de emisión</span><span class="vl">${fmtDate(o.created_at)}</span></div>
+        <div class="tipo">${o.invoice_number && docType === 'factura' ? 'FACTURA FISCAL' : escapeHTML(docTitle)}</div>
+        ${o.invoice_number ? `
+          <div class="fila"><span class="et">Factura N°</span><span class="vl" style="color:#0f172a;font-size:15px;font-weight:900">${escapeHTML(o.invoice_number)}</span></div>
+          <div class="fila"><span class="et">Pedido N°</span><span class="vl">${escapeHTML(o.order_number || '')}</span></div>
+        ` : `
+          <div class="fila"><span class="et">N°</span><span class="vl">${escapeHTML(o.order_number || '')}</span></div>
+        `}
+        ${o.control_number ? `<div class="fila control"><span class="et">N° de Control SENIAT</span><span class="vl">${escapeHTML(o.control_number)}</span></div>` : ''}
+        <div class="fila"><span class="et">Fecha de emisión</span><span class="vl">${fmtDate(o.invoice_date || o.created_at)}</span></div>
         ${isQuote ? '' : `<div class="fila"><span class="et">Condición</span><span class="vl">${condicion}</span></div>`}
       </div>
     </div>

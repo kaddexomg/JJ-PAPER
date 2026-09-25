@@ -668,9 +668,12 @@ async function posSubmit() {
     const sellerId = activeSeller?.id || null;
     const isAdmin = (activeSeller?.role === 'admin');
     const dStatus = (d > 0) ? (isAdmin ? 'approved' : 'pending') : 'none';
+    const orderNumber = (typeof fetchNextDocSerial === 'function')
+      ? await fetchNextDocSerial('pedido')
+      : genOrderNumber();
 
     const order = {
-      order_number: genOrderNumber(),
+      order_number: orderNumber,
       client_name: name,
       phone: tel,
       rif:  document.getElementById('posCliRif')?.value.trim()  || null,

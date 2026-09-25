@@ -526,6 +526,76 @@
   .loading, .err { max-width: 800px; margin: 30px auto; text-align: center; color: var(--ink-dark); font-weight: 700; font-size: 14.5px; }
 
   /* ==========================================================
+     DENSIDAD DINÁMICA ADAPTATIVA PARA MÁXIMA CAPACIDAD EN 1 HOJA A4
+     ========================================================== */
+  /* Modo Medio (9 a 13 renglones) */
+  .sheet.density-medium .fisc-head { padding-bottom: 4px; margin-bottom: 3px; }
+  .sheet.density-medium .fisc-biz img { width: 42px; height: 42px; }
+  .sheet.density-medium .fisc-biz .biz-name { font-size: 14px; }
+  .sheet.density-medium .fisc-client-box { margin-top: 4px; }
+  .sheet.density-medium .fisc-client-box .box-body { padding: 3px 6px; }
+  .sheet.density-medium .fisc-items-table { margin-top: 4px; }
+  .sheet.density-medium .fisc-items-table thead th { padding: 2.8px 4px; font-size: 8px; }
+  .sheet.density-medium .fisc-items-table tbody td { padding: 2px 4px; font-size: 9px; line-height: 1.15; }
+  .sheet.density-medium .fisc-tot-wrap { margin-top: 4px; gap: 8px; }
+  .sheet.density-medium .fisc-sign-area { margin-top: 4px; gap: 8px; }
+  .sheet.density-medium .fisc-stamp-box { height: 30px; margin-top: 3px; }
+
+  /* Modo Compacto (14 a 22 renglones) */
+  .sheet.density-compact .fisc-head { padding-bottom: 3px; margin-bottom: 2px; }
+  .sheet.density-compact .fisc-biz img { width: 36px; height: 36px; }
+  .sheet.density-compact .fisc-biz .biz-name { font-size: 13px; }
+  .sheet.density-compact .fisc-biz .biz-dir { font-size: 8px; line-height: 1.2; }
+  .sheet.density-compact .fisc-doc-box { min-width: 215px; max-width: 240px; }
+  .sheet.density-compact .fisc-doc-box .doc-title { font-size: 10px; padding: 2px 4px; }
+  .sheet.density-compact .fisc-doc-box .doc-row { padding: 1.5px 5px; font-size: 8.5px; }
+  .sheet.density-compact .fisc-client-box { margin-top: 3px; }
+  .sheet.density-compact .fisc-client-box .box-header { padding: 2px 6px; font-size: 8px; }
+  .sheet.density-compact .fisc-client-box .box-body { padding: 2.5px 6px; gap: 1px 8px; }
+  .sheet.density-compact .fisc-client-box .f-field { font-size: 8.5px; line-height: 1.2; }
+  .sheet.density-compact .fisc-items-table { margin-top: 3px; }
+  .sheet.density-compact .fisc-items-table thead th { padding: 2px 3.5px; font-size: 7.8px; }
+  .sheet.density-compact .fisc-items-table tbody td { padding: 1.5px 3.5px; font-size: 8.5px; line-height: 1.1; }
+  .sheet.density-compact .fisc-tot-wrap { margin-top: 3px; gap: 6px; }
+  .sheet.density-compact .fisc-tot-table td { padding: 1.8px 6px; font-size: 9px; }
+  .sheet.density-compact .fisc-tot-table tr.grand-usd td { font-size: 11px; padding: 3px 6px; }
+  .sheet.density-compact .fisc-tot-table tr.grand-bs td { font-size: 12px; padding: 3px 6px; }
+  .sheet.density-compact .fisc-sign-area { margin-top: 3px; gap: 6px; }
+  .sheet.density-compact .fisc-sign-box { padding: 3px 6px; font-size: 8px; line-height: 1.2; }
+  .sheet.density-compact .fisc-stamp-box { height: 26px; margin-top: 2px; }
+  .sheet.density-compact .fisc-footer-note { margin-top: 3px; padding: 2px 5px; font-size: 7px; }
+
+  /* Modo Ultra Compacto (23+ renglones) */
+  .sheet.density-ultra-compact .fisc-head { padding-bottom: 2px; margin-bottom: 2px; }
+  .sheet.density-ultra-compact .fisc-biz img { width: 30px; height: 30px; }
+  .sheet.density-ultra-compact .fisc-biz .biz-name { font-size: 12px; }
+  .sheet.density-ultra-compact .fisc-biz .biz-sub { display: none; }
+  .sheet.density-ultra-compact .fisc-biz .biz-dir { font-size: 7.5px; line-height: 1.15; margin-top: 1px; }
+  .sheet.density-ultra-compact .fisc-doc-box { min-width: 200px; max-width: 220px; }
+  .sheet.density-ultra-compact .fisc-doc-box .doc-title { font-size: 9px; padding: 2px 3px; }
+  .sheet.density-ultra-compact .fisc-doc-box .doc-row { padding: 1px 4px; font-size: 8px; }
+  .sheet.density-ultra-compact .fisc-doc-box .doc-row.num-row .val { font-size: 11.5px; }
+  .sheet.density-ultra-compact .fisc-client-box { margin-top: 2px; }
+  .sheet.density-ultra-compact .fisc-client-box .box-header { padding: 1.5px 5px; font-size: 7.5px; }
+  .sheet.density-ultra-compact .fisc-client-box .box-body { padding: 2px 5px; gap: 1px 6px; }
+  .sheet.density-ultra-compact .fisc-client-box .f-field { font-size: 8px; line-height: 1.15; }
+  .sheet.density-ultra-compact .fisc-items-table { margin-top: 2px; }
+  .sheet.density-ultra-compact .fisc-items-table thead th { padding: 1.5px 3px; font-size: 7.2px; }
+  .sheet.density-ultra-compact .fisc-items-table tbody td { padding: 1.1px 3px; font-size: 7.8px; line-height: 1.05; }
+  .sheet.density-ultra-compact .fisc-items-table tbody td.sku-cell { font-size: 7.5px; }
+  .sheet.density-ultra-compact .fisc-tot-wrap { margin-top: 2px; gap: 6px; }
+  .sheet.density-ultra-compact .fisc-tot-notice { font-size: 7.5px; padding: 2px 4px; }
+  .sheet.density-ultra-compact .fisc-tot-table td { padding: 1.5px 5px; font-size: 8.5px; }
+  .sheet.density-ultra-compact .fisc-tot-table tr.grand-usd td { font-size: 10px; padding: 2.5px 5px; }
+  .sheet.density-ultra-compact .fisc-tot-table tr.grand-bs td { font-size: 11px; padding: 2.5px 5px; }
+  .sheet.density-ultra-compact .fisc-sign-area { margin-top: 2px; gap: 5px; }
+  .sheet.density-ultra-compact .fisc-sign-box { padding: 2.5px 5px; font-size: 7.5px; line-height: 1.15; }
+  .sheet.density-ultra-compact .fisc-sign-box .box-tit { font-size: 7px; padding-bottom: 1px; margin-bottom: 2px; }
+  .sheet.density-ultra-compact .fisc-stamp-box { height: 22px; margin-top: 2px; padding-bottom: 1px; }
+  .sheet.density-ultra-compact .fisc-stamp-box .stamp-prompt { font-size: 6.8px; }
+  .sheet.density-ultra-compact .fisc-footer-note { margin-top: 2px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
+
+  /* ==========================================================
      OPTIMIZACIÓN DE IMPRESIÓN DIRECTA (A4 EXACTO 1 HOJA LÁSER B/N)
      ========================================================== */
   @media print { 
@@ -534,12 +604,18 @@
       print-color-adjust: exact !important; 
       color-adjust: exact !important; 
     }
-    html, body { background: #ffffff !important; padding: 0 !important; margin: 0 !important; }
+    html, body { 
+      background: #ffffff !important; 
+      padding: 0 !important; 
+      margin: 0 !important; 
+      height: auto !important;
+      overflow: visible !important;
+    }
     .toolbar { display: none !important; }
     
     @page { 
       size: a4 portrait; 
-      margin: 4mm 6mm 4mm 6mm; 
+      margin: 3.5mm 5mm 3.5mm 5mm; 
     }
     
     .sheet { 
@@ -552,6 +628,7 @@
       page-break-after: avoid !important; 
       page-break-inside: avoid !important; 
       break-inside: avoid !important; 
+      height: auto !important;
     }
     
     table, tr, td, th { 
@@ -852,20 +929,12 @@ function render(o) {
     </tr>`;
   }).join('');
 
-  // Renglones vacíos estéticos sólo si hay un único ítem para dar cuerpo sin sobrecargar
-  let emptyRows = '';
-  if (items.length === 1) {
-    emptyRows = `<tr>
-      <td class="c" style="color:#d1d5db;font-size:8.5px">02</td>
-      <td class="c" style="color:#e5e7eb">—</td>
-      <td style="color:#e5e7eb">·································································································</td>
-      <td class="c" style="color:#e5e7eb">—</td>
-      <td class="c" style="color:#e5e7eb">—</td>
-      <td class="r" style="color:#e5e7eb">—</td>
-      <td class="r" style="color:#e5e7eb">—</td>
-      <td class="r" style="color:#e5e7eb">—</td>
-    </tr>`;
-  }
+  // Densidad adaptativa según cantidad de ítems para encajar siempre en 1 hoja A4
+  const itemCount = items.length;
+  let densityClass = 'density-normal';
+  if (itemCount > 22) densityClass = 'density-ultra-compact';
+  else if (itemCount > 13) densityClass = 'density-compact';
+  else if (itemCount > 8) densityClass = 'density-medium';
 
   // Cálculos Fiscales
   let baseImponibleUsd, ivaUsd, totalUsd, baseImponibleBs, ivaBs, totalBs;
@@ -907,7 +976,7 @@ function render(o) {
   const logoUrl  = s.doc_logo_url || 'assets/img/logo.svg';
 
   const contentHtml = `
-  <div class="sheet">
+  <div class="sheet ${densityClass}">
     ${voided ? '<div class="voidmark"><span>ANULADO</span></div>' : ''}
 
     <!-- FILIGRANA INSTITUCIONAL DE SEGURIDAD -->
@@ -1005,7 +1074,6 @@ function render(o) {
         </thead>
         <tbody>
           ${rows}
-          ${emptyRows}
         </tbody>
       </table>
 

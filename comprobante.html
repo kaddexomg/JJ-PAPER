@@ -732,54 +732,61 @@ async function resolveCustomerFiscal(doc) {
   }
   const digits = rawRif.replace(/\D/g, '');
 
-  // 2. Si hay dígitos de RIF (mínimo 6 dígitos), buscar directamente cliente con DIRECCIÓN FISCAL REAL
-  if (digits.length >= 6) {
+  // 2. Prioridad 1: Buscar por customer_id exacto (si está vinculado al pedido/cotización)
+  if (doc.customer_id) {
+    try {
+      const { data } = await sbCore.from('jjp_customers').select('*').eq('id', doc.customer_id).maybeSingle();
+      if (data) cust = data;
+    } catch (_) {}
+  }
+
+  // 3. Prioridad 2: Buscar por RIF exacto con dirección (mínimo 6 dígitos)
+  if ((!cust || !cust.address) && digits.length >= 6) {
     try {
       const { data } = await sbCore.from('jjp_customers').select('*')
         .not('address', 'is', null)
         .ilike('rif', `%${digits}%`)
-        .limit(1);
-      if (data?.[0]?.address) cust = data[0];
+        .limit(5);
+      if (data && data.length) {
+        // Encontrar coincidencia exacta de dígitos para evitar falsos positivos
+        const exactMatch = data.find(c => (c.rif || '').replace(/\D/g, '') === digits);
+        if (exactMatch && exactMatch.address) {
+          cust = exactMatch;
+        } else if (data[0] && (data[0].rif || '').replace(/\D/g, '') === digits) {
+          cust = data[0];
+        }
+      }
     } catch (_) {}
   }
 
-  // 3. Buscar por Código de Cliente MixNet (ej. 003-057, 033-419) con dirección fiscal
+  // 4. Prioridad 3: Buscar por Código de Cliente MixNet exacto (ej. 003-057)
   if ((!cust || !cust.address) && mixnetCode) {
     try {
       const { data } = await sbCore.from('jjp_customers').select('*')
         .not('address', 'is', null)
         .ilike('notes', `%${mixnetCode}%`)
-        .limit(1);
-      if (data?.[0]?.address) cust = data[0];
-    } catch (_) {}
-  }
-
-  // 4. Buscar por customer_id directo si aún no se tiene dirección
-  if ((!cust || !cust.address) && doc.customer_id) {
-    try {
-      const { data } = await sbCore.from('jjp_customers').select('*').eq('id', doc.customer_id).maybeSingle();
-      if (data?.address) {
-        cust = data;
-      } else if (data && !cust) {
-        cust = data;
+        .limit(3);
+      if (data && data.length) {
+        const codeMatch = data.find(c => (c.notes || '').includes(mixnetCode));
+        if (codeMatch && codeMatch.address) cust = codeMatch;
       }
     } catch (_) {}
   }
 
-  // 5. Buscar por palabras clave de la razón social (filtrando genéricos)
-  const targetName = (inv.nomcli || doc.client_name || '').trim();
-  if ((!cust || !cust.address) && targetName) {
+  // 5. Prioridad 4: Coincidencia por nombre completo idéntico (sin palabras genéricas sueltas)
+  const targetName = (doc.client_name || inv.nomcli || '').trim();
+  if ((!cust || !cust.address) && targetName.length >= 6) {
     try {
       const cleanName = targetName.replace(/,\s*C\.?A\.?|\bC\.?A\.?\b|\bS\.?A\.?\b/gi, '').trim();
-      const words = cleanName.split(/\s+/).filter(w => w.length >= 4);
-      for (const w of words) {
-        if (['SERVICIOS', 'ADMINISTRADORA', 'GRUPO', 'EMPRESA', 'DISTRIBUIDORA', 'INVERSIONES'].includes(w.toUpperCase())) continue;
-        const { data } = await sbCore.from('jjp_customers').select('*').not('address', 'is', null).ilike('name', `%${w}%`).limit(1);
-        if (data?.[0]?.address) { cust = data[0]; break; }
-      }
-      if (!cust?.address && cleanName.length >= 4) {
-        const { data } = await sbCore.from('jjp_customers').select('*').not('address', 'is', null).ilike('name', `%${cleanName.slice(0, 16)}%`).limit(1);
-        if (data?.[0]?.address) cust = data[0];
+      if (cleanName.length >= 6) {
+        const { data } = await sbCore.from('jjp_customers').select('*')
+          .not('address', 'is', null)
+          .ilike('name', `${cleanName.slice(0, 18)}%`)
+          .limit(3);
+        if (data && data.length) {
+          const match = data.find(c => (c.name || '').toUpperCase().startsWith(cleanName.slice(0, 10).toUpperCase()));
+          if (match && match.address) cust = match;
+        }
       }
     } catch (_) {}
   }
@@ -791,12 +798,13 @@ async function resolveCustomerFiscal(doc) {
                        cust?.zone || 
                        '';
 
-  const fiscalName  = (cust?.business_name || cust?.name || inv.nomcli || doc.client_name || 'CLIENTE GENERAL').trim();
-  const fiscalRif   = (cust?.rif || (rawRif.length >= 7 ? rawRif : null) || 'V-00000000-0').trim();
-  const fiscalAddr  = (cust?.address || doc.address || inv.dircli || '').trim();
-  const fiscalCity  = (cust?.city || doc.city || 'Caracas').trim();
-  const fiscalPhone = (cust?.phone || (doc.phone && !/^[JVGE]-?\d+/i.test(doc.phone) ? doc.phone : '') || inv.telcli || '').trim();
-  const fiscalEmail = (cust?.email || doc.email || '').trim();
+  // LOS DATOS DEL DOCUMENTO SON SOBERANOS: El nombre y RIF del pedido JAMÁS se sobrescriben por otro cliente
+  const fiscalName  = (doc.client_name || inv.nomcli || cust?.business_name || cust?.name || 'CLIENTE GENERAL').trim();
+  const fiscalRif   = (rawRif.length >= 6 ? rawRif : (cust?.rif || 'V-00000000-0')).trim();
+  const fiscalAddr  = (doc.address || cust?.address || inv.dircli || 'CARACAS, DISTRITO CAPITAL').trim();
+  const fiscalCity  = (doc.city || cust?.city || 'Caracas').trim();
+  const fiscalPhone = (doc.phone && !/^[JVGE]-?\d+/i.test(doc.phone) ? doc.phone : (cust?.phone || inv.telcli || '')).trim();
+  const fiscalEmail = (doc.email || cust?.email || '').trim();
 
   return {
     name: fiscalName,

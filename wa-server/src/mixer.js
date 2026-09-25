@@ -720,12 +720,26 @@ async function sweepRecentOutgoing() {
       }
     }
 
-    // 2. Cotizaciones salientes — DESACTIVADO (17/09/2026)
-    // Las cotizaciones NO se exportan a MixNet directamente. Solo los PEDIDOS viajan
-    // a MixNet. Una cotización llegará allí únicamente cuando el vendedor la convierta
-    // en venta (POS → posSubmit → crea jjp_orders → sweepRecentOutgoing exporta el pedido).
-    // Exportar cotizaciones sin confirmar llenaba MixNet con documentos pendientes que
-    // el sistema de Caja no debería ver hasta ser pedidos reales.
+    // 2. Cotizaciones salientes — solo las activas (no canceladas ni rechazadas)
+    const { data: quotes, error: qErr } = await dbCore.from('jjp_quotes')
+      .select('*')
+      .gte('created_at', windowStart)
+      .not('status', 'in', '("cancelado","rechazado")')
+      .order('created_at', { ascending: true });
+
+    if (!qErr && quotes) {
+      let qCount = 0;
+      for (const q of quotes) {
+        if (q.source === 'mixnet') continue;
+        if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
+        if (!exportedQuotes.has(q.quote_number)) {
+          if (await exportQuote(q)) qCount++;
+        }
+      }
+      if (qCount > 0) {
+        log.info(`Puente Mixer: Barrido saliente exportó ${qCount} cotizaciones pendientes.`);
+      }
+    }
 
   } catch (err) {
     log.error({ err: err.message }, 'Puente Mixer: Excepción en barrido saliente');
@@ -1775,11 +1789,25 @@ p => {
       log.info(`Puente Mixer: Canal Realtime de pedidos: ${status}`);
     });
 
-  // 2. Cotizaciones — Realtime DESACTIVADO (17/09/2026)
-  // Las cotizaciones NO se exportan a MixNet por Realtime. Solo van al crearse un
-  // PEDIDO (jjp_orders INSERT). El canal 'mixer-quotes' ya no dispara exportQuote().
-  // Si en el futuro se requiere exportar cotizaciones aprobadas, reactivar aquí
-  // filtrando por status === 'aprobado' o 'convertido'.
+  // 2. Cotizaciones
+  dbCore.channel('mixer-quotes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_quotes' },
+      p => {
+        log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
+        exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
+      }
+    )
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_quotes' },
+      p => {
+        if (!exportedQuotes.has(p.new.quote_number)) {
+          log.info(`Puente Mixer: Recibida actualización de cotización no exportada ${p.new.quote_number}. Exportando...`);
+          exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización (update)'));
+        }
+      }
+    )
+    .subscribe(status => {
+      log.info(`Puente Mixer: Canal Realtime de cotizaciones: ${status}`);
+    });
 }
 
 

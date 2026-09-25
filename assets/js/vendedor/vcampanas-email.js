@@ -118,15 +118,19 @@ async function initEmailCampaigns() {
   ]);
   setEcTab('campanas');
 
-  // Realtime para actualizar progreso en vivo
+  // Realtime para actualizar progreso en vivo (con debounce para evitar ráfagas)
+  let _rtTimer = null;
   sb.channel('email-campaigns-progress')
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'jjp_email_campaigns' },
       () => {
-        loadEcCampaigns();
-        if (ecViewingCamp) {
-          loadCampTargets(ecViewingCamp.id);
-        }
+        if (_rtTimer) clearTimeout(_rtTimer);
+        _rtTimer = setTimeout(() => {
+          loadEcCampaigns(true);
+          if (ecViewingCamp) {
+            loadCampTargets(ecViewingCamp.id);
+          }
+        }, 350);
       })
     .subscribe();
 }
@@ -523,16 +527,33 @@ async function deleteEcTpl(id) {
 }
 
 /* ================== CAMPAÑAS ================== */
-async function loadEcCampaigns() {
-  const isAdm = SELLER?.role === 'admin';
-  let q = sb.from('jjp_email_campaigns').select('*').order('created_at', { ascending: false }).limit(50);
-  if (!isAdm && SELLER?.id) {
-    q = q.eq('owner_id', SELLER.id);
+let _loadingEcCampaigns = false;
+async function loadEcCampaigns(isBackground = false) {
+  if (_loadingEcCampaigns) return;
+  _loadingEcCampaigns = true;
+  try {
+    const isAdm = SELLER?.role === 'admin';
+    // Excluir attachments, body y body_html de la lista general para evitar transferir megabytes de base64 y prevenir timeouts
+    const fields = 'id, name, subject, kind, status, total, sent_count, failed_count, skipped_count, scheduled_at, created_at, delay_min_s, delay_max_s, owner_id';
+    let q = sb.from('jjp_email_campaigns').select(fields).order('created_at', { ascending: false }).limit(50);
+    if (!isAdm && SELLER?.id) {
+      q = q.eq('owner_id', SELLER.id);
+    }
+    const { data, error } = await q;
+    if (error) {
+      console.warn('Aviso cargando campañas de email:', error);
+      if (!isBackground && !ecCampaigns.length) {
+        showToast('Error cargando campañas de email', 'err');
+      }
+      return;
+    }
+    ecCampaigns = data || [];
+    renderEcCampaigns();
+  } catch (err) {
+    console.warn('Excepción cargando campañas:', err);
+  } finally {
+    _loadingEcCampaigns = false;
   }
-  const { data, error } = await q;
-  if (error) { showToast('Error cargando campañas de email', 'err'); return; }
-  ecCampaigns = data || [];
-  renderEcCampaigns();
 }
 
 function renderEcCampaigns() {

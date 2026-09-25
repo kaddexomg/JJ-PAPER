@@ -660,7 +660,8 @@ async function ecampCreate() {
 async function ecampLoadList() {
   const box = document.getElementById('ecampList');
   if (!box) return;
-  let q = sb.from('jjp_email_campaigns').select('*').order('created_at', { ascending: false }).limit(30);
+  const fields = 'id, name, status, kind, subject, total, sent_count, failed_count, created_at';
+  let q = sb.from('jjp_email_campaigns').select(fields).order('created_at', { ascending: false }).limit(30);
   const { data } = await q;
   if (!data?.length) { box.innerHTML = '<p class="wa-link-note">Sin campañas todavía.</p>'; return; }
   box.innerHTML = data.map(c => {

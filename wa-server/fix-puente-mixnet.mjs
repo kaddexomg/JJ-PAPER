@@ -26,20 +26,27 @@ if (fs.existsSync(ENV_FILE)) {
   console.error('[❌] No se encontró el archivo .env en wa-server.');
 }
 
-// 2. Modificar y forzar mixnet-config.json (evitando que el auto-detect lo sobreescriba erróneamente)
-if (fs.existsSync(CONFIG_FILE)) {
-  try {
-    const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    config.primary_dir = TARGET_DIR;
-    // Nos aseguramos de que M:/comp01 esté de primero en las opciones
-    if (!config.drop_dirs) config.drop_dirs = [];
-    config.drop_dirs = [TARGET_DIR, ...config.drop_dirs.filter(d => d !== TARGET_DIR && !d.toLowerCase().includes('c:/cotizaciones jj'))];
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
-    console.log('[✅] Caché mixnet-config.json re-enfocada a ' + TARGET_DIR);
-  } catch (e) {
-    console.error('[!] Error modificando mixnet-config.json:', e.message);
-  }
-}
+// 2. Modificar y forzar mixnet-config.json
+const dropDirs = [
+  TARGET_DIR,
+  'M:/pedidos',
+  'M:/cotizaciones',
+  'M:/mixnet'
+].filter(d => {
+  try { return fs.existsSync(d); } catch (_) { return false; }
+});
+
+const configData = {
+  updated_at: new Date().toISOString(),
+  primary_dir: TARGET_DIR,
+  drop_dirs: dropDirs.length > 0 ? dropDirs : [TARGET_DIR],
+  dbf_dir: TARGET_DIR,
+  available_drives: ['C:', 'M:']
+};
+
+fs.writeFileSync(CONFIG_FILE, JSON.stringify(configData, null, 2), 'utf8');
+console.log('[✅] Archivo mixnet-config.json configurado correctamente:');
+console.log(JSON.stringify(configData, null, 2));
 
 console.log('\n===================================================');
 console.log(' REPARACION EXITOSA. PROCEDA A REINICIAR EL SERVIDOR.');

@@ -134,6 +134,19 @@ function refreshEnvironmentConfig() {
       activeDbfDir = cfg.dbf_dir || null;
     }
 
+    // Auto-sanación: si activeDbfDir es null o no existe, verificar si M:/comp01 o primaryDir tienen DBFs
+    if (!activeDbfDir || !fs.existsSync(activeDbfDir)) {
+      const dbfCandidates = ['M:/comp01', 'M:\\comp01', activePrimaryDir, '//servidor/MIX11/comp01'].filter(Boolean);
+      for (const cand of dbfCandidates) {
+        try {
+          if (fs.existsSync(cand) && (fs.existsSync(path.join(cand, 'MXCTAINV.DBF')) || fs.existsSync(path.join(cand, 'mxctainv.dbf')))) {
+            activeDbfDir = cand.replace(/\\/g, '/');
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+
     // Mantener solo carpetas de intercambio que realmente existan físicamente
     activeDropDirs = activeDropDirs.filter(d => fs.existsSync(d));
     if (activeDbfDir && fs.existsSync(activeDbfDir) && !activeDropDirs.includes(activeDbfDir)) {

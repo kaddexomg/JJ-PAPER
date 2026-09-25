@@ -832,37 +832,57 @@ function readDbfRows(struct, maxLimit = 2000) {
 }
 
 // Búsqueda de cliente en jjp_customers para asignación de vendedor
+// Búsqueda de cliente en jjp_customers para asignación de vendedor y datos fiscales
 async function matchCustomer(phone, rif, name) {
   try {
-    if (phone) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.length >= 7) {
-        const { data } = await dbCore.from('jjp_customers')
-          .select('id, seller_id, name, phone, rif')
-          .ilike('phone', `%${cleanPhone.slice(-7)}%`)
-          .limit(1)
-          .maybeSingle();
-        if (data) return data;
+    // 1. Detectar si phone es en realidad un RIF venezolano
+    let effectiveRif = rif;
+    let effectivePhone = phone;
+    if (phone && /^[JVGE]-?\d+/i.test(phone.trim())) {
+      if (!rif || rif.includes('C.A') || rif.includes('CA') || !/^[JVGE]-?\d+/i.test(rif.trim())) {
+        effectiveRif = phone.trim();
+        effectivePhone = '';
       }
     }
-    if (rif) {
-      const cleanRif = rif.toUpperCase().replace(/[\s.-]/g, '');
-      if (cleanRif.length >= 5) {
+
+    if (effectiveRif) {
+      const cleanDigits = effectiveRif.replace(/\D/g, '');
+      if (cleanDigits.length >= 6) {
         const { data } = await dbCore.from('jjp_customers')
-          .select('id, seller_id, name, phone, rif')
-          .ilike('rif', `%${cleanRif}%`)
-          .limit(1)
-          .maybeSingle();
-        if (data) return data;
+          .select('id, seller_id, name, phone, rif, address, city')
+          .not('address', 'is', null)
+          .ilike('rif', `%${cleanDigits}%`)
+          .limit(1);
+        if (data?.[0]) return data[0];
+      }
+    }
+    if (effectivePhone) {
+      const cleanPhone = effectivePhone.replace(/[^0-9]/g, '');
+      if (cleanPhone.length >= 7) {
+        const { data } = await dbCore.from('jjp_customers')
+          .select('id, seller_id, name, phone, rif, address, city')
+          .ilike('phone', `%${cleanPhone.slice(-7)}%`)
+          .limit(1);
+        if (data?.[0]) return data[0];
       }
     }
     if (name && name.length >= 4) {
+      const cleanName = name.replace(/,\s*C\.?A\.?|\bC\.?A\.?\b|\bS\.?A\.?\b/gi, '').trim();
+      const words = cleanName.split(/\s+/).filter(w => w.length >= 4);
+      for (const w of words) {
+        if (['SERVICIOS', 'ADMINISTRADORA', 'GRUPO', 'EMPRESA', 'DISTRIBUIDORA', 'INVERSIONES'].includes(w.toUpperCase())) continue;
+        const { data } = await dbCore.from('jjp_customers')
+          .select('id, seller_id, name, phone, rif, address, city')
+          .not('address', 'is', null)
+          .ilike('name', `%${w}%`)
+          .limit(1);
+        if (data?.[0]) return data[0];
+      }
       const { data } = await dbCore.from('jjp_customers')
-        .select('id, seller_id, name, phone, rif')
-        .ilike('name', `%${name.trim()}%`)
-        .limit(1)
-        .maybeSingle();
-      if (data) return data;
+        .select('id, seller_id, name, phone, rif, address, city')
+        .ilike('name', `%${cleanName.slice(0, 16)}%`)
+        .limit(1);
+      if (data?.[0]) return data[0];
     }
   } catch (_) {}
   return null;
@@ -959,6 +979,13 @@ async function sweepIncomingFiles() {
             if (colRif >= 0 && rawParts[colRif]) rif = rawParts[colRif];
             if (colPhone >= 0 && rawParts[colPhone]) phone = rawParts[colPhone];
 
+            // Corrección ante coma sin comillas en razón social que desplace C.A hacia RIF y RIF hacia Teléfono
+            if (rif && /^(?:C\.?A\.?|S\.?A\.?)$/i.test(rif.trim()) && phone && /^[JVGE]-?\d+/i.test(phone.trim())) {
+              clientName = clientName + ', ' + rif.trim();
+              rif = phone.trim();
+              phone = '';
+            }
+
             const sku = colSku >= 0 ? rawParts[colSku] : '';
             const name = colProd >= 0 ? rawParts[colProd] : 'Artículo MixNet';
             const brand = colBrand >= 0 ? rawParts[colBrand] : '';
@@ -993,9 +1020,12 @@ async function sweepIncomingFiles() {
             if (!existingQuote) {
               const { error } = await dbCore.from('jjp_quotes').insert({
                 quote_number: orderNumber,
-                client_name: clientName,
-                rif: rif || null,
-                phone: phone || null,
+                client_name: matchedCust?.name || clientName,
+                rif: matchedCust?.rif || rif || null,
+                phone: matchedCust?.phone || phone || null,
+                customer_id: matchedCust?.id || null,
+                address: matchedCust?.address || null,
+                city: matchedCust?.city || null,
                 items,
                 estimated_total_usd: totalUsd,
                 exchange_rate: rate,
@@ -1020,9 +1050,12 @@ async function sweepIncomingFiles() {
             if (!existingOrder) {
               const { error } = await dbCore.from('jjp_orders').insert({
                 order_number: orderNumber,
-                client_name: clientName,
-                rif: rif || null,
-                phone: phone || null,
+                client_name: matchedCust?.name || clientName,
+                rif: matchedCust?.rif || rif || null,
+                phone: matchedCust?.phone || phone || null,
+                customer_id: matchedCust?.id || null,
+                address: matchedCust?.address || null,
+                city: matchedCust?.city || null,
                 items,
                 subtotal_usd: totalUsd,
                 total_usd: totalUsd,

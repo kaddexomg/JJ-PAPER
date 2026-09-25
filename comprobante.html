@@ -289,14 +289,6 @@
     line-height: 1.35;
   }
 
-  .fisc-tot-notes .notes-inner {
-    border: 1px dashed var(--b-light);
-    border-radius: 4px;
-    padding: 4px 8px;
-    background: var(--screen-table);
-    margin-bottom: 4px;
-  }
-
   .fisc-tot-notes .rate-tag {
     font-size: 9px;
     color: #4b5563;
@@ -543,45 +535,62 @@ async function resolveCustomerFiscal(doc) {
   const inv = doc.invoice_data || {};
   const mixnetCode = (inv.cliente || doc.client_code || '').trim();
 
-  // 1. Buscar por customer_id directo si existe
-  if (doc.customer_id) {
+  // 1. Detectar si el RIF viene en 'phone' (desfase común en CSV de MixNet) o en 'rif'
+  let rawRif = String(doc.rif || inv.cif || '').trim();
+  if (!/^[JVGE]-?\d+/i.test(rawRif) && doc.phone && /^[JVGE]-?\d+/i.test(doc.phone.trim())) {
+    rawRif = doc.phone.trim();
+  }
+  const digits = rawRif.replace(/\D/g, '');
+
+  // 2. Si hay dígitos de RIF (mínimo 6 dígitos), buscar directamente cliente con DIRECCIÓN FISCAL REAL
+  if (digits.length >= 6) {
     try {
-      const { data } = await sbCore.from('jjp_customers').select('*').eq('id', doc.customer_id).maybeSingle();
-      if (data) cust = data;
+      const { data } = await sbCore.from('jjp_customers').select('*')
+        .not('address', 'is', null)
+        .ilike('rif', `%${digits}%`)
+        .limit(1);
+      if (data?.[0]?.address) cust = data[0];
     } catch (_) {}
   }
 
-  // 2. Buscar por Código de Cliente MixNet (ej. 003-057, 033-419)
+  // 3. Buscar por Código de Cliente MixNet (ej. 003-057, 033-419) con dirección fiscal
   if ((!cust || !cust.address) && mixnetCode) {
     try {
       const { data } = await sbCore.from('jjp_customers').select('*')
+        .not('address', 'is', null)
         .ilike('notes', `%${mixnetCode}%`)
         .limit(1);
-      if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      if (data?.[0]?.address) cust = data[0];
     } catch (_) {}
   }
 
-  // 3. Buscar por RIF numérico (sin guiones ni letras) para máxima coincidencia
-  const rawRif = String(doc.rif || inv.cif || '').trim();
-  const digits = rawRif.replace(/\D/g, '');
-  if ((!cust || !cust.address) && digits.length >= 6) {
+  // 4. Buscar por customer_id directo si aún no se tiene dirección
+  if ((!cust || !cust.address) && doc.customer_id) {
     try {
-      const { data } = await sbCore.from('jjp_customers').select('*')
-        .ilike('rif', `%${digits}%`)
-        .limit(1);
-      if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      const { data } = await sbCore.from('jjp_customers').select('*').eq('id', doc.customer_id).maybeSingle();
+      if (data?.address) {
+        cust = data;
+      } else if (data && !cust) {
+        cust = data;
+      }
     } catch (_) {}
   }
 
-  // 4. Buscar por nombre o razón social aproximada
+  // 5. Buscar por palabras clave de la razón social (filtrando genéricos)
   const targetName = (inv.nomcli || doc.client_name || '').trim();
   if ((!cust || !cust.address) && targetName) {
     try {
-      const qName = targetName.slice(0, 18);
-      const { data } = await sbCore.from('jjp_customers').select('*')
-        .ilike('name', `%${qName}%`)
-        .limit(1);
-      if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      const cleanName = targetName.replace(/,\s*C\.?A\.?|\bC\.?A\.?\b|\bS\.?A\.?\b/gi, '').trim();
+      const words = cleanName.split(/\s+/).filter(w => w.length >= 4);
+      for (const w of words) {
+        if (['SERVICIOS', 'ADMINISTRADORA', 'GRUPO', 'EMPRESA', 'DISTRIBUIDORA', 'INVERSIONES'].includes(w.toUpperCase())) continue;
+        const { data } = await sbCore.from('jjp_customers').select('*').not('address', 'is', null).ilike('name', `%${w}%`).limit(1);
+        if (data?.[0]?.address) { cust = data[0]; break; }
+      }
+      if (!cust?.address && cleanName.length >= 4) {
+        const { data } = await sbCore.from('jjp_customers').select('*').not('address', 'is', null).ilike('name', `%${cleanName.slice(0, 16)}%`).limit(1);
+        if (data?.[0]?.address) cust = data[0];
+      }
     } catch (_) {}
   }
 
@@ -593,10 +602,10 @@ async function resolveCustomerFiscal(doc) {
                        '';
 
   const fiscalName  = (cust?.business_name || cust?.name || inv.nomcli || doc.client_name || 'CLIENTE GENERAL').trim();
-  const fiscalRif   = (cust?.rif || inv.cif || doc.rif || 'V-00000000-0').trim();
-  const fiscalAddr  = (cust?.address || doc.address || inv.dircli || 'AV. PRINCIPAL, CARACAS, DISTRITO CAPITAL').trim();
+  const fiscalRif   = (cust?.rif || (rawRif.length >= 7 ? rawRif : null) || 'V-00000000-0').trim();
+  const fiscalAddr  = (cust?.address || doc.address || inv.dircli || '').trim();
   const fiscalCity  = (cust?.city || doc.city || 'Caracas').trim();
-  const fiscalPhone = (cust?.phone || doc.phone || inv.telcli || '').trim();
+  const fiscalPhone = (cust?.phone || (doc.phone && !/^[JVGE]-?\d+/i.test(doc.phone) ? doc.phone : '') || inv.telcli || '').trim();
   const fiscalEmail = (cust?.email || doc.email || '').trim();
 
   return {
@@ -921,10 +930,6 @@ function render(o) {
     <!-- TOTALES Y LIQUIDACIÓN -->
     <div class="fisc-tot-wrap">
       <div class="fisc-tot-notes">
-        ${o.notes ? `
-        <div class="notes-inner">
-          <strong>Observaciones:</strong> ${escapeHTML(o.notes)}
-        </div>` : ''}
         <div class="rate-tag">
           Tasa oficial BCV aplicada: <strong>Bs ${rate.toFixed(2)} por USD</strong> · Alícuota I.V.A.: <strong>16.00%</strong>
         </div>

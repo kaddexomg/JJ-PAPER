@@ -51,17 +51,17 @@
     overflow: hidden;
   }
 
-  /* Marca de agua de seguridad institucional tenue */
+  /* Marca de agua de seguridad institucional (mayor presencia e intensidad equilibrada) */
   .watermark-bg {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    opacity: 0.035;
+    opacity: 0.08;
     pointer-events: none;
     z-index: 1;
-    width: 290px;
-    height: 290px;
+    width: 380px;
+    height: 380px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -70,7 +70,7 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    filter: grayscale(100%) contrast(150%);
+    filter: grayscale(100%) contrast(120%) brightness(1.04);
   }
 
   /* Contenido por encima de la filigrana */
@@ -312,7 +312,7 @@
   }
   
   .fisc-items-table tbody tr:nth-child(even) td { 
-    background: var(--screen-zebra); 
+    background: rgba(0, 0, 0, 0.018); 
   }
   
   .fisc-items-table tbody td:last-child { border-right: none; }
@@ -455,23 +455,25 @@
 
   .fisc-interactive-sign .sign-col-stamp {
     flex: 0 0 40%;
-    border: 1.5px dashed var(--b-medium);
-    border-radius: 3px;
-    background: #fafafa;
+    border: 1.5px dashed #4b5563;
+    border-radius: 4px;
+    background: #fcfcfc;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 3px;
+    padding: 3px 4px;
+    gap: 2px;
   }
 
   .fisc-interactive-sign .sign-col-stamp .stamp-watermark {
-    font-size: 7.2px;
+    font-size: 7.5px;
     font-weight: 800;
-    color: #6b7280;
+    color: #374151;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
-    line-height: 1.2;
+    letter-spacing: 0.45px;
+    line-height: 1.25;
   }
 
   .fisc-interactive-sign .sign-col-sig {
@@ -681,6 +683,12 @@
     .fisc-sign-area { 
       page-break-inside: avoid !important; 
       break-inside: avoid !important; 
+    }
+
+    .watermark-bg {
+      opacity: 0.075 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
   }
 
@@ -1183,6 +1191,9 @@ function render(o) {
           <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
           <div class="fisc-interactive-sign">
             <div class="sign-col-stamp">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
               <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
             </div>
             <div class="sign-col-sig">
@@ -1202,6 +1213,10 @@ function render(o) {
           <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
           <div class="fisc-interactive-sign">
             <div class="sign-col-stamp">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
               <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
             </div>
             <div class="sign-col-sig">

@@ -97,6 +97,7 @@
 
   function startTimer() {
     stopTimer();
+    window.JJPhoneAudio?.playConnected();
     callSeconds = 0;
     isCallActive = true;
     updateCallStatusUI();
@@ -107,6 +108,7 @@
   }
 
   function stopTimer() {
+    window.JJPhoneAudio?.stopRingback();
     if (callTimerInterval) {
       clearInterval(callTimerInterval);
       callTimerInterval = null;
@@ -601,6 +603,7 @@
     if (!input) return;
     input.value += char;
     onNumberChange(input.value);
+    window.JJPhoneAudio?.playDtmf(char);
   }
 
   function backspace() {
@@ -679,6 +682,9 @@
     if (btnCall) btnCall.style.display = 'none';
     if (btnHang) btnHang.style.display = 'inline-flex';
 
+    // Iniciar Tono de Timbrado en Headset
+    window.JJPhoneAudio?.startRingback();
+
     // Si el puente USB está activo, disparar la marcación real en el celular
     if (gsmBridgeStatus.connected) {
       try {
@@ -722,6 +728,7 @@
   }
 
   async function hangupCall() {
+    window.JJPhoneAudio?.playEnded();
     stopTimer();
 
     if (gsmBridgeStatus.connected) {

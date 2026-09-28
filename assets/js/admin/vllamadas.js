@@ -494,6 +494,9 @@ async function pageStartCall() {
   if (btnHang) btnHang.style.display = 'inline-flex';
   if (alertEl) alertEl.style.display = 'block';
 
+  // Iniciar Tono de Timbrado Telefónico (Ringback: tuuu... tuuu...) en el Headset de la PC
+  window.JJPhoneAudio?.startRingback();
+
   let clean = phone.replace(/[^\d+]/g, '');
 
   if (gsmBridgeConnected) {
@@ -547,6 +550,7 @@ function manualStartTimer() {
 }
 
 function startConversationTimer() {
+  window.JJPhoneAudio?.playConnected(); // Detiene timbrado y avisa en headset
   if (pageCallTimer) clearInterval(pageCallTimer);
   pageCallTimer = setInterval(() => {
     pageCallSeconds++;
@@ -572,6 +576,7 @@ function updateTimerDisplay() {
 }
 
 async function pageHangupCall(autoHangup = false) {
+  window.JJPhoneAudio?.playEnded(); // Reproduce tono de fin de llamada en headset
   pageStopTimer();
 
   const alertEl = document.getElementById('pageCallDialingAlert');
@@ -912,6 +917,7 @@ function pagePressKey(char) {
   if (!input) return;
   input.value += char;
   onPageNumberChange(input.value);
+  window.JJPhoneAudio?.playDtmf(char);
 }
 
 function pageBackspace() {

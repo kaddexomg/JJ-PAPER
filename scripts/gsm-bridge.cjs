@@ -238,6 +238,7 @@ async function makeCall(phone) {
 
   // 1. Despertar la pantalla del dispositivo e iluminar
   try {
+    await runAdb(`-s ${status.serial} shell cmd audio set-ringer-mode SILENT`); // Silenciar celular físico al 100%
     await runAdb(`-s ${status.serial} shell input keyevent 224`); // KEYCODE_WAKEUP
     await runAdb(`-s ${status.serial} shell wm dismiss-keyguard`);
   } catch (_) {}

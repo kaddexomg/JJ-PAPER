@@ -101,6 +101,31 @@ async function runCommand(cmd) {
   await db.from('jjp_server_control').update({ command: null }).eq('id', 1);
   try { await dbCore.from('jjp_server_control').update({ command: null }).eq('id', 1); } catch (_) {}
 
+  if (cmd && cmd.startsWith('call:')) {
+    const phone = cmd.replace(/^call:/, '').trim();
+    log.info({ phone }, 'comando de llamada GSM recibido vía Supabase');
+    try {
+      const { makeCall } = await import('./gsm.js');
+      await makeCall(phone);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error ejecutando llamada remota GSM');
+    }
+    handling = false;
+    return;
+  }
+
+  if (cmd === 'hangup') {
+    log.info('comando de colgado GSM recibido vía Supabase');
+    try {
+      const { hangupCall } = await import('./gsm.js');
+      await hangupCall();
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error ejecutando colgado remoto GSM');
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
     log.info({ cmd }, 'comando recibido — saliendo para recargar (el supervisor sincroniza y relanza)');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);

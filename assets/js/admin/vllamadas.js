@@ -13,6 +13,7 @@ let pageIsCallActive = false;
 let gsmBridgeConnected = false;
 let gsmMonitorInterval = null;
 let lastKnownGsmCallState = 0; // 0=IDLE, 1=RINGING, 2=OFFHOOK
+let isRemoteServerActive = false;
 
 // Estado del Motor de Cartera (Power Dialer)
 let rawCustomersList = [];
@@ -20,6 +21,8 @@ let filteredQueue = [];
 let queueIndex = 0;
 let isQueueRunning = false;
 let lastGeneratedWaMessage = '';
+let countdownTimer = null;
+let countdownSeconds = 3;
 
 document.addEventListener('DOMContentLoaded', async () => {
   // 1. Inicializar sesión y permisos
@@ -252,26 +255,81 @@ function startQueueExecution() {
     return;
   }
   isQueueRunning = true;
-  document.getElementById('btnQueueStart').style.display = 'none';
-  document.getElementById('btnQueuePause').style.display = 'inline-flex';
+  const btnStart = document.getElementById('btnQueueStart');
+  const btnPause = document.getElementById('btnQueuePause');
+  if (btnStart) btnStart.style.display = 'none';
+  if (btnPause) btnPause.style.display = 'inline-flex';
 
   loadCustomerAt(queueIndex);
   if (typeof showToast === 'function') {
-    showToast(`⚡ Cola iniciada: ${activeCallTarget?.company}. ¡Listo para llamar!`, 'info');
+    showToast(`⚡ Cola iniciada: ${activeCallTarget?.company}. Iniciando marcación...`, 'info');
   }
+  startCallCountdown();
 }
 
 function pauseQueueExecution() {
   isQueueRunning = false;
-  document.getElementById('btnQueueStart').style.display = 'inline-flex';
-  document.getElementById('btnQueuePause').style.display = 'none';
+  cancelCallCountdown();
+  const btnStart = document.getElementById('btnQueueStart');
+  const btnPause = document.getElementById('btnQueuePause');
+  if (btnStart) btnStart.style.display = 'inline-flex';
+  if (btnPause) btnPause.style.display = 'none';
   if (typeof showToast === 'function') showToast('Motor de llamadas en pausa.', 'info');
 }
 
+function startCallCountdown() {
+  cancelCallCountdown();
+  if (!isQueueRunning || !activeCallTarget || !activeCallTarget.phone) return;
+
+  const banner = document.getElementById('dialerCountdownBanner');
+  const nameEl = document.getElementById('countdownTargetName');
+  const timerEl = document.getElementById('countdownTimerText');
+
+  const compName = activeCallTarget.company || 'Cliente';
+  const cleanPhone = activeCallTarget.phone || '';
+
+  if (banner && nameEl && timerEl) {
+    nameEl.textContent = `⚡ Marcando a: ${compName} (${cleanPhone})`;
+    countdownSeconds = 3;
+    timerEl.textContent = `Iniciando llamada en ${countdownSeconds} segundos...`;
+    banner.style.display = 'flex';
+
+    countdownTimer = setInterval(() => {
+      countdownSeconds--;
+      if (countdownSeconds > 0) {
+        timerEl.textContent = `Iniciando llamada en ${countdownSeconds} segundo${countdownSeconds > 1 ? 's' : ''}...`;
+      } else {
+        cancelCallCountdown();
+        pageStartCall();
+      }
+    }, 1000);
+  } else {
+    pageStartCall();
+  }
+}
+
+function cancelCallCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  const banner = document.getElementById('dialerCountdownBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+function triggerCallNow() {
+  cancelCallCountdown();
+  pageStartCall();
+}
+
 function queueNext() {
+  cancelCallCountdown();
   if (queueIndex + 1 < filteredQueue.length) {
     queueIndex++;
     loadCustomerAt(queueIndex);
+    if (isQueueRunning) {
+      startCallCountdown();
+    }
   } else {
     if (typeof showToast === 'function') showToast('🎉 ¡Felicidades! Has completado todos los clientes de esta lista.', 'info');
     pauseQueueExecution();
@@ -279,6 +337,7 @@ function queueNext() {
 }
 
 function queuePrev() {
+  cancelCallCountdown();
   if (queueIndex - 1 >= 0) {
     queueIndex--;
     loadCustomerAt(queueIndex);
@@ -286,10 +345,14 @@ function queuePrev() {
 }
 
 function queueRandom() {
+  cancelCallCountdown();
   if (filteredQueue.length <= 1) return;
   const nextIdx = Math.floor(Math.random() * filteredQueue.length);
   queueIndex = nextIdx;
   loadCustomerAt(queueIndex);
+  if (isQueueRunning) {
+    startCallCountdown();
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -336,6 +399,14 @@ function loadCustomerAt(idx) {
   // Ocultar caja IA previa y limpiar notas
   document.getElementById('aiCallResultBox').style.display = 'none';
   document.getElementById('pageCallNotes').value = '';
+
+  // Actualizar botón directo de llamada
+  const btnDirect = document.getElementById('btnDirectCallCustomer');
+  if (btnDirect) {
+    const shortName = target.company ? (target.company.length > 20 ? target.company.slice(0, 18) + '...' : target.company) : 'Cliente';
+    btnDirect.innerHTML = `📞 Llamar a ${shortName}`;
+    btnDirect.title = `Llamar a ${target.company} (${target.phone || 'Sin número'})`;
+  }
 
   updateQueueUI();
 }
@@ -392,9 +463,9 @@ function openWhatsAppChatForCurrent() {
 // 5. ESTADO DEL PUENTE GSM Y LLAMADA TELEFÓNICA EN TIEMPO REAL
 // ----------------------------------------------------------------------------
 async function checkGsmBridgeOnPage() {
-  const statusEl = document.getElementById('pageBridgeStatus');
   const badgeEl = document.getElementById('pageBridgeBadge');
 
+  // 1. Intentar conexión directa por HTTP local (cuando wa-server corre en la misma PC)
   try {
     let res = await fetch('http://127.0.0.1:8789/status', { mode: 'cors' }).catch(() => null);
     if (!res || !res.ok) {
@@ -404,16 +475,17 @@ async function checkGsmBridgeOnPage() {
     if (res && res.ok) {
       const data = await res.json();
       gsmBridgeConnected = !!data.connected;
+      isRemoteServerActive = false;
       const callState = data.call_state || 0; // 0=IDLE, 1=RINGING, 2=OFFHOOK
 
       if (badgeEl) {
         if (data.connected) {
-          badgeEl.textContent = '🟢 Móvil USB Conectado';
+          badgeEl.textContent = '🟢 Móvil USB Conectado (Local)';
           badgeEl.className = 'of-chip on';
           badgeEl.style.background = '#dcfce7';
           badgeEl.style.color = '#15803d';
         } else if (data.adb_installed) {
-          badgeEl.textContent = '🟡 Esperando Celular';
+          badgeEl.textContent = '🟡 Esperando Celular USB';
           badgeEl.className = 'of-chip';
           badgeEl.style.background = '#fef3c7';
           badgeEl.style.color = '#b45309';
@@ -429,10 +501,39 @@ async function checkGsmBridgeOnPage() {
     }
   } catch (_) {}
 
+  // 2. Si falla en local (ej: Cloudflare Pages en HTTPS o servidor en la otra PC de la empresa)
+  if (typeof sb !== 'undefined') {
+    try {
+      const { data: srv } = await sb.from('jjp_server_control')
+        .select('status, heartbeat_at, is_running, updated_at')
+        .order('heartbeat_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (srv && srv.heartbeat_at) {
+        const diffSec = Math.round((Date.now() - new Date(srv.heartbeat_at).getTime()) / 1000);
+        if (diffSec < 75) {
+          gsmBridgeConnected = true;
+          isRemoteServerActive = true;
+          if (badgeEl) {
+            badgeEl.textContent = '🟢 Servidor GSM Online (Red JJ Paper)';
+            badgeEl.className = 'of-chip on';
+            badgeEl.style.background = '#dcfce7';
+            badgeEl.style.color = '#15803d';
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+  }
+
   gsmBridgeConnected = false;
+  isRemoteServerActive = false;
   if (badgeEl) {
     badgeEl.textContent = '⚪ Puente Desconectado';
     badgeEl.className = 'of-chip';
+    badgeEl.style.background = '#f1f5f9';
+    badgeEl.style.color = '#64748b';
   }
 }
 
@@ -498,8 +599,10 @@ async function pageStartCall() {
   window.JJPhoneAudio?.startRingback();
 
   let clean = phone.replace(/[^\d+]/g, '');
+  let sentDirect = false;
 
-  if (gsmBridgeConnected) {
+  // A. Intentar por HTTP Local
+  if (!isRemoteServerActive) {
     try {
       let res = await fetch('http://127.0.0.1:8789/call', {
         method: 'POST',
@@ -516,6 +619,7 @@ async function pageStartCall() {
       }
 
       if (res && res.ok) {
+        sentDirect = true;
         const d = await res.json();
         if (d.requires_manual_tap) {
           if (typeof showToast === 'function') {
@@ -531,9 +635,26 @@ async function pageStartCall() {
     } catch (_) {}
   }
 
-  // Fallback si no está el puente USB activo: permitir conteo manual
+  // B. Fallback a Supabase para Servidor en otra PC o Cloudflare Pages (HTTPS)
+  if (!sentDirect && typeof sb !== 'undefined') {
+    try {
+      await sb.from('jjp_server_control').update({
+        command: 'call:' + clean,
+        command_at: new Date().toISOString()
+      }).eq('id', 1);
+
+      if (typeof showToast === 'function') {
+        showToast(`📲 Comando enviado al servidor GSM... Marcando ${phone}. ¡Habla desde tu Headset!`, 'info');
+      }
+      return;
+    } catch (err) {
+      console.warn('Error enviando comando a Supabase:', err);
+    }
+  }
+
+  // C. Fallback para simulación o conteo manual
   if (typeof showToast === 'function') {
-    showToast(`📲 Iniciando marcación a ${phone}. Usa tu teléfono o pulsa "Iniciar Conteo" cuando contesten.`, 'info');
+    showToast(`📲 Marcando ${phone}. Pulsa "Iniciar Conteo" cuando el cliente conteste.`, 'info');
   }
 }
 
@@ -594,10 +715,21 @@ async function pageHangupCall(autoHangup = false) {
   if (btnStart) btnStart.style.display = 'inline-flex';
   if (btnHang) btnHang.style.display = 'none';
 
-  if (gsmBridgeConnected) {
+  // Intentar colgar local
+  if (!isRemoteServerActive) {
     try {
       await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
       await fetch('/lan/gsm/hangup', { method: 'POST' }).catch(() => null);
+    } catch (_) {}
+  }
+
+  // Colgar remoto vía Supabase
+  if (typeof sb !== 'undefined') {
+    try {
+      await sb.from('jjp_server_control').update({
+        command: 'hangup',
+        command_at: new Date().toISOString()
+      }).eq('id', 1);
     } catch (_) {}
   }
 

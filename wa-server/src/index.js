@@ -14,6 +14,7 @@ import { startHeartbeat } from './heartbeat.js';
 import { startWaActions } from './wa-actions.js';
 import { startRetention } from './retention.js';
 import { startMixer, getMixerStatus } from './mixer.js';
+import { startGsmBridge } from './gsm.js';
 
 // Candado de Instancia Única (Mutex de Red Local 127.0.0.1:8786):
 // Previene terminantemente la ejecución de dos instancias simultáneas de wa-server.
@@ -63,12 +64,13 @@ const emailOn = startEmail();   // envío + recepción de correos del CRM (Gmail
 startEmailCampaigns();          // campañas de correo (seguimiento/captación) con throttle
 startRetention();               // purga storage de correo/WA (adjuntos y html viejos → re-traíbles de Gmail)
 startMixer();                   // exportador de pedidos local para el Mixer de facturación
+startGsmBridge();               // servicio nativo de llamadas GSM por USB para centralita
 
 // Latido + control remoto (panel de admin ve estado y puede reiniciar/detener).
 // El segundo argumento informa la salud REAL de cada sesión de WhatsApp: antes
 // el panel decía 🟢 aunque una sesión estuviera colgada.
 startHeartbeat(
-  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn, mixer: true },
+  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn, mixer: true, gsm: true },
   () => {
     const sesiones = manager.all();
     return {

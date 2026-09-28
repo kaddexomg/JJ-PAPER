@@ -716,8 +716,23 @@
           return;
         }
       } catch (e) {
-        console.warn('Error llamando vía puente GSM:', e);
+        console.warn('Error llamando vía puente GSM local:', e);
       }
+    }
+
+    // Fallback remoto a Supabase si estamos en Cloudflare Pages (HTTPS) o servidor en otra PC
+    if (typeof sb !== 'undefined') {
+      try {
+        await sb.from('jjp_server_control').update({
+          command: 'call:' + cleanNumber,
+          command_at: new Date().toISOString()
+        }).eq('id', 1);
+
+        if (typeof showToast === 'function') {
+          showToast(`📲 Comando enviado al servidor GSM... Marcando ${phone}. ¡Habla desde tu Headset!`, 'info');
+        }
+        return;
+      } catch (_) {}
     }
 
     // Si no hay puente o es llamada manual, arrancar cronómetro
@@ -731,10 +746,17 @@
     window.JJPhoneAudio?.playEnded();
     stopTimer();
 
-    if (gsmBridgeStatus.connected) {
+    try {
+      await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
+      await fetch('/lan/gsm/hangup', { method: 'POST' }).catch(() => null);
+    } catch (_) {}
+
+    if (typeof sb !== 'undefined') {
       try {
-        await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
-        await fetch('/lan/gsm/hangup', { method: 'POST' }).catch(() => null);
+        await sb.from('jjp_server_control').update({
+          command: 'hangup',
+          command_at: new Date().toISOString()
+        }).eq('id', 1);
       } catch (_) {}
     }
 

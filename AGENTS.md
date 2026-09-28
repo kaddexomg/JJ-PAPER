@@ -918,5 +918,28 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - **Servidor Persistente en Segundo Plano**:
   - `wa-server` activo como daemon en Windows (PID 9264) escuchando en puertos 8786 (candado), 8787 (LAN/Proxy) y 8789 (GSM Bridge).
 
+## Suite de Cotizaciones con IA: Priorización Flash 3.6, Benchmark en Vivo y Presentación Corporativa B2B (28-09-2026)
+- **Corrección Crítica en Pre-armador de Cotizaciones (`gemini-client.js`, `vquotes.js`)**:
+  - **Causa del Error "Key rechazada o inválida (400)"**: `parseQuoteRequest` pasaba argumentos posicionales `callGemini(prompt, 'gemini-3.1-flash-lite')` mientras `callGemini` requería un objeto `{ prompt, ... }`. El parámetro `prompt` resultaba `undefined`, enviando a Google `parts: [{}]` que respondía con HTTP 400 (`INVALID_ARGUMENT`), catalogado erróneamente por el catch antiguo como fallo de API Key.
+  - **Firma Dual y Validación**: Se adaptó `callGemini` para aceptar tanto `callGemini({ prompt, ... })` como `callGemini(prompt, model)`. Validación estricta que impide el envío de payloads vacíos a Google.
+- **Benchmark en Vivo de Modelos Gemini (Auditoría de las 7 Llaves del Pool)**:
+  - Todas las 7 llaves del pool (`AIzaSy...` y `AQ.Ab8...`) están 100% activas y autorizadas.
+  - Modelos deprecados por Google: `gemini-1.5-flash`, `gemini-2.5-flash`, `gemini-2.5-flash-lite` devuelven HTTP 404 (retirados de la API v1beta).
+  - `gemini-3.1-flash-lite`: Presenta saturación intermitente con respuestas HTTP 503 o retardos de hasta 38s.
+  - **`gemini-3.6-flash`**: Se comprobó como el modelo más veloz y estable de Google AI, respondiendo en **1.7s a 3.0s** con HTTP 200 en todas las llaves del pool.
+  - Se reorganizó la cascada para que `gemini-3.6-flash` sea prioritario tanto en modo `fast` como `pro`, con fallback a `gemini-3.1-flash-lite`.
+  - Reintentos ante timeout o error de red: Usa `continue` para probar el siguiente modelo dentro de la misma clave antes de rotar de llave.
+  - Cache-busting actualizado a `?v=20260928_v2_ok` en `admin/cotizador.html` y `vendedor/cotizador.html`.
+  - Desplegado en Cloudflare Pages (`origin/main`, commit `d1e26e5`).
+- **Presentación Corporativa Oficial B2B (PDF, PPTX, DOCX) para Proveedores / Nestlé**:
+  - Documento ejecutivo apaisado (Landscape A4, 4 láminas) diseñado para homologación de proveedores y acuerdos de distribución mayorista.
+  - RIF oficial institucional: `J-29537545-0` (JJ Paper C.A., Caracas).
+  - Portafolio de marcas aliadas oficiales: 3M, Kores, HP, Epson, Celoven, Artesco, Caribe, Sharpie.
+  - Archivos generados y disponibles en el Escritorio del usuario:
+    - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.pdf`
+    - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.pptx`
+    - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.docx`
+
+
 
 

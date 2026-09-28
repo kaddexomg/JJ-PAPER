@@ -75,13 +75,19 @@ async function beat() {
 
   const monitorStats = await fetchStatsForBeat();
 
+  let gsmDevice = null;
+  try {
+    const { getDeviceStatus } = await import('./gsm.js');
+    gsmDevice = await getDeviceStatus();
+  } catch (_) {}
+
   const now = new Date().toISOString();
   const payload = {
     heartbeat: now,
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra, ...lanInfo, ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
+    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}), ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
   };
 
   // 1. Actualizar Proyecto B (Comunicación)

@@ -596,10 +596,15 @@ async function checkGsmBridgeOnPage() {
 
       if (badgeEl) {
         if (data.connected) {
-          badgeEl.textContent = '🟢 Móvil USB Conectado (Local)';
+          badgeEl.textContent = `🟢 Móvil Listo: ${data.model || 'Android'}`;
           badgeEl.className = 'of-chip on';
           badgeEl.style.background = '#dcfce7';
           badgeEl.style.color = '#15803d';
+        } else if (data.state === 'unauthorized') {
+          badgeEl.textContent = '🟡 Celular No Autorizado (Ver Pantalla)';
+          badgeEl.className = 'of-chip';
+          badgeEl.style.background = '#fef3c7';
+          badgeEl.style.color = '#b45309';
         } else if (data.adb_installed) {
           badgeEl.textContent = '🟡 Esperando Celular USB';
           badgeEl.className = 'of-chip';
@@ -608,6 +613,8 @@ async function checkGsmBridgeOnPage() {
         } else {
           badgeEl.textContent = '⚪ Puente Offline';
           badgeEl.className = 'of-chip';
+          badgeEl.style.background = '#f1f5f9';
+          badgeEl.style.color = '#64748b';
         }
       }
 
@@ -621,7 +628,7 @@ async function checkGsmBridgeOnPage() {
   if (typeof sb !== 'undefined') {
     try {
       const { data: srv } = await sb.from('jjp_server_control')
-        .select('status, heartbeat_at, is_running, updated_at')
+        .select('status, heartbeat_at, updated_at, modules')
         .order('heartbeat_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -629,13 +636,44 @@ async function checkGsmBridgeOnPage() {
       if (srv && srv.heartbeat_at) {
         const diffSec = Math.round((Date.now() - new Date(srv.heartbeat_at).getTime()) / 1000);
         if (diffSec < 75) {
-          gsmBridgeConnected = true;
           isRemoteServerActive = true;
-          if (badgeEl) {
-            badgeEl.textContent = '🟢 Servidor GSM Online (Red JJ Paper)';
-            badgeEl.className = 'of-chip on';
-            badgeEl.style.background = '#dcfce7';
-            badgeEl.style.color = '#15803d';
+          const gsmDevice = srv.modules?.gsm_device;
+
+          if (gsmDevice && gsmDevice.connected) {
+            gsmBridgeConnected = true;
+            if (badgeEl) {
+              badgeEl.textContent = `🟢 Celular Listo: ${gsmDevice.model || 'Android'}`;
+              badgeEl.className = 'of-chip on';
+              badgeEl.style.background = '#dcfce7';
+              badgeEl.style.color = '#15803d';
+            }
+            if (gsmDevice.callState !== undefined) {
+              handleGsmCallStateChange(gsmDevice.callState, gsmDevice);
+            }
+          } else if (gsmDevice && gsmDevice.state === 'unauthorized') {
+            gsmBridgeConnected = false;
+            if (badgeEl) {
+              badgeEl.textContent = '🟡 Celular No Autorizado (Ver Pantalla)';
+              badgeEl.className = 'of-chip';
+              badgeEl.style.background = '#fef3c7';
+              badgeEl.style.color = '#b45309';
+            }
+          } else if (gsmDevice && gsmDevice.adb_installed) {
+            gsmBridgeConnected = false;
+            if (badgeEl) {
+              badgeEl.textContent = '🟡 Esperando Celular USB';
+              badgeEl.className = 'of-chip';
+              badgeEl.style.background = '#fef3c7';
+              badgeEl.style.color = '#b45309';
+            }
+          } else {
+            gsmBridgeConnected = true;
+            if (badgeEl) {
+              badgeEl.textContent = '🟢 Servidor GSM Online (Red JJ Paper)';
+              badgeEl.className = 'of-chip on';
+              badgeEl.style.background = '#dcfce7';
+              badgeEl.style.color = '#15803d';
+            }
           }
           return;
         }

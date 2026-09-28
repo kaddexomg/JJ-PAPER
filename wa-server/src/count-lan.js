@@ -757,6 +757,30 @@ async function handle(req, res) {
       }
     }
 
+    if (route.startsWith('/lan/gsm/')) {
+      const gsmPath = route.replace(/^\/lan\/gsm/, '');
+      const gsmUrl = `http://127.0.0.1:8789${gsmPath}`;
+      try {
+        const proxyReq = http.request(gsmUrl, { method, headers: { 'Content-Type': 'application/json' } }, (proxyRes) => {
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          proxyRes.pipe(res);
+        });
+        proxyReq.on('error', () => {
+          sendJSON(res, 200, {
+            ok: true,
+            bridge_running: false,
+            connected: false,
+            message: 'Puente GSM no iniciado. Ejecuta iniciar-puente-gsm.bat en la PC.'
+          });
+        });
+        if (method === 'POST') req.pipe(proxyReq);
+        else proxyReq.end();
+      } catch (e) {
+        return sendJSON(res, 500, { ok: false, error: e.message });
+      }
+      return;
+    }
+
     if (route === '/lan/health')
       return sendJSON(res, 200, { ok: true, online, ip: lanIp(), port: COUNT_LAN_PORT, https_port: HTTPS_PORT,
         session: state.session, pending: state.pending.length, catalog: state.catalog.length,

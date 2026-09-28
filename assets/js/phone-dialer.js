@@ -2,7 +2,7 @@
  * ============================================================================
  * JJ Paper — Marcador Telefónico Comercial B2B, Keypad y Bitácora de Llamadas
  * Soporte Nativo para Windows 7 con Headset · Detección de Operador y Localidad
- * Conteo de Segundos de Llamada en Tiempo Real · $0 Inversión
+ * Conteo de Segundos de Llamada en Tiempo Real · Puente GSM Móvil USB · $0 Inversión
  * ============================================================================
  */
 
@@ -15,6 +15,8 @@
   let callSeconds = 0;
   let isCallActive = false;
   let currentTarget = null; // { id, name, company, phone, type: 'prospect'|'customer' }
+  let gsmBridgeStatus = { connected: false, running: false, model: '', serial: '', adb: false };
+  let gsmPollInterval = null;
 
   // 1. Mapeo de Prefijos Venezolanos: Operador y Localidad
   const VENEZUELA_PREFIXES = {
@@ -144,7 +146,62 @@
     }
   }
 
-  // 2. Apertura del Marcador Completo (Softphone Dialpad)
+  // 2. Comunicación con el Puente GSM USB
+  async function checkBridgeStatus() {
+    const bridgeBanner = document.getElementById('jjDialerBridgeBanner');
+    const bridgeStatusText = document.getElementById('jjDialerBridgeText');
+
+    try {
+      // 1. Probar en puerto nativo 8789
+      let res = await fetch('http://127.0.0.1:8789/status', { mode: 'cors' }).catch(() => null);
+      // 2. Si no, probar a través del proxy de wa-server
+      if (!res || !res.ok) {
+        res = await fetch('/lan/gsm/status').catch(() => null);
+      }
+
+      if (res && res.ok) {
+        const data = await res.json();
+        gsmBridgeStatus = {
+          connected: !!data.connected,
+          running: true,
+          model: data.model || 'Android',
+          serial: data.serial || '',
+          adb: !!data.adb_installed,
+          callState: data.call_state || 0
+        };
+
+        if (bridgeBanner && bridgeStatusText) {
+          if (gsmBridgeStatus.connected) {
+            bridgeBanner.style.background = '#ecfdf5';
+            bridgeBanner.style.borderColor = '#a7f3d0';
+            bridgeStatusText.innerHTML = `🟢 <strong>Móvil USB Conectado:</strong> ${escapeHTML(gsmBridgeStatus.model)} (SIM Lista)`;
+            bridgeStatusText.style.color = '#065f46';
+          } else if (gsmBridgeStatus.adb) {
+            bridgeBanner.style.background = '#fffbeb';
+            bridgeBanner.style.borderColor = '#fde68a';
+            bridgeStatusText.innerHTML = `🟡 <strong>Cable USB:</strong> Conecta tu celular y activa "Depuración USB".`;
+            bridgeStatusText.style.color = '#92400e';
+          } else {
+            bridgeBanner.style.background = '#f8fafc';
+            bridgeBanner.style.borderColor = '#e2e8f0';
+            bridgeStatusText.innerHTML = `⚪ <strong>Puente GSM Activo:</strong> Esperando dispositivo móvil...`;
+            bridgeStatusText.style.color = '#475569';
+          }
+        }
+        return;
+      }
+    } catch (_) {}
+
+    gsmBridgeStatus = { connected: false, running: false, model: '', serial: '', adb: false };
+    if (bridgeBanner && bridgeStatusText) {
+      bridgeBanner.style.background = '#f8fafc';
+      bridgeBanner.style.borderColor = '#e2e8f0';
+      bridgeStatusText.innerHTML = `⚪ <strong>Modo Directo / Headset:</strong> Inicia <code>iniciar-puente-gsm.bat</code> para marcar automáticamente por USB.`;
+      bridgeStatusText.style.color = '#64748b';
+    }
+  }
+
+  // 3. Apertura del Marcador Completo (Softphone Dialpad)
   function openDialer(target = {}) {
     currentTarget = target.id ? target : { id: null, name: 'Llamada Directa', company: 'Marcación Manual', phone: target.phone || '', type: 'manual' };
 
@@ -164,18 +221,24 @@
     const locInfo = detectPhoneLocation(initialPhone);
 
     modal.innerHTML = `
-      <div class="modal-box" style="max-width:440px;width:94%;background:var(--theme-bg-surface-solid, #ffffff);color:var(--theme-text-main, #0f172a);border-radius:20px;padding:20px 22px;box-shadow:0 25px 60px rgba(0,0,0,0.35);border:1px solid var(--theme-border-subtle, #e2e8f0);max-height:92vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <div class="modal-box" style="max-width:460px;width:94%;background:var(--theme-bg-surface-solid, #ffffff);color:var(--theme-text-main, #0f172a);border-radius:20px;padding:20px 22px;box-shadow:0 25px 60px rgba(0,0,0,0.35);border:1px solid var(--theme-border-subtle, #e2e8f0);max-height:92vh;overflow-y:auto" onclick="event.stopPropagation()">
         
         <!-- Header -->
         <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--theme-border-subtle, #e2e8f0);padding-bottom:10px;margin-bottom:12px">
           <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:22px;background:rgba(16,185,129,0.12);padding:6px;border-radius:10px">🎧</span>
+            <span style="font-size:24px;background:rgba(16,185,129,0.12);padding:6px;border-radius:10px">🎧</span>
             <div>
               <h3 style="margin:0;font-size:16.5px;font-weight:800;color:var(--theme-text-main, #0f172a)">Marcador Telefónico JJ Paper</h3>
               <div style="font-size:11px;color:var(--theme-accent, #047857);font-weight:700">Windows 7 + Headset · Línea Propia ($0 Inversión)</div>
             </div>
           </div>
           <button type="button" class="btn-g sm" onclick="window.JJDialer.close()" style="border-radius:8px">✕</button>
+        </div>
+
+        <!-- Barra de Estado del Puente USB -->
+        <div id="jjDialerBridgeBanner" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:11.5px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span id="jjDialerBridgeText" style="flex:1;color:#64748b">⚪ Verificando conexión USB...</span>
+          <button type="button" class="btn-o sm" onclick="window.JJDialer.checkBridge()" style="font-size:10.5px;padding:2px 7px" title="Reintentar conexión con celular USB">🔄 Probar</button>
         </div>
 
         <!-- Info del Destinatario -->
@@ -223,10 +286,10 @@
 
         <!-- Acciones de Llamada -->
         <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button type="button" id="jjDialerBtnStart" class="btn-p" onclick="window.JJDialer.startCall()" style="flex:1;padding:10px;font-size:14px;font-weight:800;background:#059669;border-color:#059669;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px">
+          <button type="button" id="jjDialerBtnStart" class="btn-p" onclick="window.JJDialer.startCall()" style="flex:1;padding:11px;font-size:14px;font-weight:800;background:#059669;border-color:#059669;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px">
             <span>📞 Llamar</span>
           </button>
-          <button type="button" id="jjDialerBtnHang" class="btn-p" onclick="window.JJDialer.hangupCall()" style="flex:1;padding:10px;font-size:14px;font-weight:800;background:#dc2626;border-color:#dc2626;display:none;align-items:center;justify-content:center;gap:6px;border-radius:10px">
+          <button type="button" id="jjDialerBtnHang" class="btn-p" onclick="window.JJDialer.hangupCall()" style="flex:1;padding:11px;font-size:14px;font-weight:800;background:#dc2626;border-color:#dc2626;display:none;align-items:center;justify-content:center;gap:6px;border-radius:10px">
             <span>🛑 Colgar / Fin</span>
           </button>
           <button type="button" class="btn-o" onclick="window.JJDialer.openInWhatsApp()" style="padding:10px 14px;border-radius:10px" title="Llamar o chatear por WhatsApp Web con Headset">
@@ -238,7 +301,18 @@
         <div style="display:flex;gap:6px;justify-content:center;margin-bottom:12px">
           <button type="button" class="btn-o sm" onclick="window.JJDialer.copyCurrentNumber()" style="font-size:11px;padding:3px 8px">📋 Copiar</button>
           <button type="button" class="btn-o sm" onclick="window.JJDialer.toggleQr()" style="font-size:11px;padding:3px 8px">📱 QR Móvil</button>
-          <button type="button" class="btn-o sm" onclick="window.JJDialer.triggerTelProtocol()" style="font-size:11px;padding:3px 8px">📟 tel: / MicroSIP</button>
+          <button type="button" class="btn-o sm" onclick="window.JJDialer.triggerTelProtocol()" style="font-size:11px;padding:3px 8px">📟 tel: / SIP</button>
+          <button type="button" class="btn-o sm" onclick="window.JJDialer.toggleAudioGuide()" style="font-size:11px;padding:3px 8px">🎧 Audio ($0)</button>
+        </div>
+
+        <!-- Guía Desplegable de Audio para Windows 7 ($0 Inversión) -->
+        <div id="jjDialerAudioGuide" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#166534">
+          <div style="font-weight:800;margin-bottom:4px;font-size:12px">🎧 ¿Cómo hablar desde tu Headset en Windows 7 ($0 Inversión)?</div>
+          <ul style="margin:0;padding-left:16px;line-height:1.5">
+            <li><strong>Opción A (Recomendada):</strong> Conecta tu celular por USB. El sistema marca y cuelga con 1 clic. Usa el altavoz/manos libres del celular en el escritorio mientras tomas notas en pantalla.</li>
+            <li><strong>Opción B (Cable 3.5mm Auxiliar):</strong> Conecta un cable jack de audio del celular a la entrada azul (Line-In) de la PC. En Windows 7 activa "Escuchar este dispositivo" y escucharás al cliente en tu Headset con nitidez perfecta.</li>
+            <li><strong>Opción C (WhatsApp Web):</strong> Llama gratis por WhatsApp desde el navegador usando el micrófono de la PC.</li>
+          </ul>
         </div>
 
         <div id="jjDialerQrBox" style="display:none;text-align:center;padding:10px;background:#f8fafc;border-radius:8px;margin-bottom:12px;border:1px solid #cbd5e1">
@@ -270,6 +344,11 @@
     setTimeout(() => {
       document.getElementById('jjDialerNumberInput')?.focus();
     }, 50);
+
+    checkBridgeStatus();
+    if (!gsmPollInterval) {
+      gsmPollInterval = setInterval(checkBridgeStatus, 4000);
+    }
   }
 
   function renderKeypadBtn(digit, sub) {
@@ -303,7 +382,7 @@
     }
   }
 
-  function startCall() {
+  async function startCall() {
     const input = document.getElementById('jjDialerNumberInput');
     const phone = input ? input.value.trim() : '';
     if (!phone) {
@@ -313,13 +392,48 @@
 
     startTimer();
     const cleanNumber = formatPhoneForDialing(phone);
+
+    // Si el puente USB está activo, disparar la marcación real en el celular
+    if (gsmBridgeStatus.connected) {
+      try {
+        let res = await fetch('http://127.0.0.1:8789/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: cleanNumber })
+        }).catch(() => null);
+
+        if (!res || !res.ok) {
+          res = await fetch('/lan/gsm/call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: cleanNumber })
+          }).catch(() => null);
+        }
+
+        if (typeof showToast === 'function') {
+          showToast(`📲 Marcando ${phone} desde tu celular por USB... ¡Habla desde tu Headset!`, 'info');
+        }
+        return;
+      } catch (e) {
+        console.warn('Error llamando vía puente GSM:', e);
+      }
+    }
+
     if (typeof showToast === 'function') {
       showToast(`Llamada en curso: ${phone}. Cronómetro activo ⏱️`, 'info');
     }
   }
 
-  function hangupCall() {
+  async function hangupCall() {
     stopTimer();
+
+    if (gsmBridgeStatus.connected) {
+      try {
+        await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
+        await fetch('/lan/gsm/hangup', { method: 'POST' }).catch(() => null);
+      } catch (_) {}
+    }
+
     if (typeof showToast === 'function') {
       showToast(`Llamada finalizada. Duración: ${callSeconds} segundos.`, 'info');
     }
@@ -375,6 +489,13 @@
     const telUri = `tel:+${clean}`;
     img.src = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(telUri)}`;
     box.style.display = 'block';
+  }
+
+  function toggleAudioGuide() {
+    const g = document.getElementById('jjDialerAudioGuide');
+    if (g) {
+      g.style.display = g.style.display === 'block' ? 'none' : 'block';
+    }
   }
 
   function selectOutcome(btn) {
@@ -434,6 +555,10 @@
 
   function close() {
     stopTimer();
+    if (gsmPollInterval) {
+      clearInterval(gsmPollInterval);
+      gsmPollInterval = null;
+    }
     const modal = document.getElementById('jjDialerModal');
     if (modal) {
       modal.classList.remove('op');
@@ -450,40 +575,43 @@
       .replace(/"/g, '&quot;');
   }
 
-  // 3. Inyección del Botón Flotante Permanente (FAB) en Pantalla
+  // 4. Inyección del Botón Flotante Permanente (Pill Button Alt+P)
   function injectFloatingDialerButton() {
     if (document.getElementById('jjp-dialer-fab')) return;
     const fab = document.createElement('div');
     fab.id = 'jjp-dialer-fab';
-    fab.title = 'Abrir Marcador Telefónico Comercial (Alt+P)';
-    fab.innerHTML = '📞';
+    fab.title = 'Abrir Marcador Telefónico Comercial con Headset (Alt+P)';
+    fab.innerHTML = `
+      <span style="width:10px;height:10px;border-radius:50%;background:#34d399;display:inline-block;box-shadow:0 0 8px #34d399"></span>
+      <span style="font-size:13.5px;font-weight:800;letter-spacing:0.3px;white-space:nowrap">📞 Marcador (Alt+P)</span>
+    `;
     fab.style.cssText = `
       position: fixed;
       bottom: 84px;
       right: 20px;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
+      padding: 10px 18px;
+      border-radius: 30px;
       background: linear-gradient(135deg, #059669, #047857);
       color: #ffffff;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
+      gap: 9px;
+      box-shadow: 0 6px 22px rgba(5, 150, 105, 0.5);
+      border: 1.5px solid #34d399;
       cursor: pointer;
-      z-index: 99990;
-      transition: transform .15s ease, box-shadow .15s ease;
+      z-index: 999999;
+      transition: all .2s ease;
       user-select: none;
+      font-family: inherit;
     `;
 
     fab.onmouseover = () => {
-      fab.style.transform = 'scale(1.1)';
-      fab.style.boxShadow = '0 6px 20px rgba(5, 150, 105, 0.6)';
+      fab.style.transform = 'translateY(-2px) scale(1.04)';
+      fab.style.boxShadow = '0 8px 26px rgba(5, 150, 105, 0.65)';
     };
     fab.onmouseout = () => {
-      fab.style.transform = 'scale(1)';
-      fab.style.boxShadow = '0 4px 14px rgba(5, 150, 105, 0.45)';
+      fab.style.transform = 'none';
+      fab.style.boxShadow = '0 6px 22px rgba(5, 150, 105, 0.5)';
     };
     fab.onclick = () => {
       openDialer();
@@ -523,7 +651,9 @@
     triggerTelProtocol,
     copyCurrentNumber,
     toggleQr,
+    toggleAudioGuide,
     selectOutcome,
-    saveCallLog
+    saveCallLog,
+    checkBridge: checkBridgeStatus
   };
 })();

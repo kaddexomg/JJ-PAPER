@@ -31,6 +31,7 @@
       { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
+      { action: 'dialer',      ico: '📞', label: 'Marcador / Llamadas' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
@@ -80,6 +81,7 @@
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
+      { action: 'dialer',      ico: '📞', label: 'Marcador / Llamadas' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
@@ -127,6 +129,17 @@
       a.addEventListener('click', (e) => {
         e.preventDefault();
         if (window.adminLogout) window.adminLogout();
+      });
+    }
+    if (it.action === 'dialer') {
+      a.href = '#';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (window.JJDialer) window.JJDialer.open();
+        else if (typeof loadPhoneDialer === 'function') {
+          loadPhoneDialer();
+          setTimeout(() => window.JJDialer?.open(), 100);
+        }
       });
     }
     if (isActive(it.href)) a.className = 'on';
@@ -284,6 +297,33 @@
     .jjp-palette-empty {
       padding:30px; text-align:center; color:#94a3b8; font-size:14px;
     }
+    .topbar-dialer-btn {
+      display:inline-flex; align-items:center; gap:8px;
+      background:linear-gradient(135deg, #059669, #047857);
+      color:#ffffff !important; border:1px solid #10b981;
+      padding:6px 14px; border-radius:9999px;
+      font-size:12.5px; font-weight:700; cursor:pointer;
+      box-shadow:0 2px 8px rgba(5, 150, 105, 0.35);
+      transition:all .2s ease; user-select:none; font-family:inherit;
+      margin-right:10px; text-decoration:none;
+    }
+    .topbar-dialer-btn:hover {
+      background:linear-gradient(135deg, #10b981, #059669);
+      transform:translateY(-1px);
+      box-shadow:0 4px 14px rgba(5, 150, 105, 0.55);
+      color:#ffffff !important;
+    }
+    .topbar-dialer-pulse {
+      width:8px; height:8px; border-radius:50%;
+      background:#34d399; display:inline-block;
+      box-shadow:0 0 0 0 rgba(52, 211, 153, 0.7);
+      animation:jjpPulseGreen 1.8s infinite;
+    }
+    @keyframes jjpPulseGreen {
+      0% { transform:scale(0.95); box-shadow:0 0 0 0 rgba(52, 211, 153, 0.7); }
+      70% { transform:scale(1); box-shadow:0 0 0 6px rgba(52, 211, 153, 0); }
+      100% { transform:scale(0.95); box-shadow:0 0 0 0 rgba(52, 211, 153, 0); }
+    }
     @media (prefers-reduced-motion: reduce) {
       .aside-nav .nav-sub, .aside-nav .nav-caret { transition:none }
     }`;
@@ -392,7 +432,8 @@
               icon: it.ico || '📄',
               group: n.group,
               href: it.href ? absHref(it.href) : '#',
-              ext: !!it.ext
+              ext: !!it.ext,
+              action: it.action
             });
           });
         } else if (n.href && !n.section && n.action !== 'logout') {
@@ -401,7 +442,8 @@
             icon: n.ico || '📄',
             group: 'Principal',
             href: absHref(n.href),
-            ext: !!n.ext
+            ext: !!n.ext,
+            action: n.action
           });
         }
       });
@@ -467,6 +509,14 @@
     function executeItem(item) {
       if (!item) return;
       closePalette();
+      if (item.action === 'dialer') {
+        if (window.JJDialer) window.JJDialer.open();
+        else if (typeof loadPhoneDialer === 'function') {
+          loadPhoneDialer();
+          setTimeout(() => window.JJDialer?.open(), 100);
+        }
+        return;
+      }
       if (item.ext) window.open(item.href, '_blank');
       else window.location.href = item.href;
     }
@@ -517,6 +567,32 @@
     });
   }
 
+  function injectTopbarDialerButton() {
+    const topbarRight = document.querySelector('.admin-topbar .topbar-right, .topbar-right, .admin-topbar');
+    if (!topbarRight || document.getElementById('topbarDialerBtn')) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'topbarDialerBtn';
+    btn.className = 'topbar-dialer-btn';
+    btn.title = 'Abrir Marcador Telefónico B2B con Headset (Alt+P)';
+    btn.innerHTML = `<span class="topbar-dialer-pulse"></span><span>📞 Marcador (Alt+P)</span>`;
+    btn.onclick = (e) => {
+      e.preventDefault();
+      if (window.JJDialer) window.JJDialer.open();
+      else if (typeof loadPhoneDialer === 'function') {
+        loadPhoneDialer();
+        setTimeout(() => window.JJDialer?.open(), 100);
+      }
+    };
+
+    if (topbarRight.firstChild) {
+      topbarRight.insertBefore(btn, topbarRight.firstChild);
+    } else {
+      topbarRight.appendChild(btn);
+    }
+  }
+
   function init() {
     injectCSS();
     renderNav();
@@ -525,6 +601,7 @@
     loadKeyboardNav();
     loadPhoneDialer();
     initCommandPalette();
+    injectTopbarDialerButton();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

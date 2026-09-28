@@ -64,9 +64,16 @@
       </div>
 
       <div class="admin-table-wrap">
-        <div class="table-top">
-          <h3>🛒 Pedidos</h3>
-          <span id="vOrdersCount" style="font-size:12px;color:var(--gr)">—</span>
+        <div class="table-top" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:10px">
+            <h3>🛒 Pedidos</h3>
+            <span id="vOrdersCount" style="font-size:12px;color:var(--gr)">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="search" id="vOrdersSearchInput" placeholder="🔍 Buscar por N° pedido, cliente, RIF..."
+                   style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;min-width:260px"
+                   oninput="onVOrdersSearch(this.value)">
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="admin-table">
@@ -104,7 +111,7 @@
 <script src="../assets/js/vendedor/vcommon.js"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/send-hub.js?v=20260819b"></script>
-<script src="../assets/js/vendedor/vorders.js?v=20260925_facturas_ok"></script>
+<script src="../assets/js/vendedor/vorders.js?v=20260928_search_orders"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();

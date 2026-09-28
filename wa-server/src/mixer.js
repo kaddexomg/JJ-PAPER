@@ -597,11 +597,8 @@ export async function exportQuoteToDbf(q, dbfDir) {
       }
     }
 
-    // Si difiere del número original en Supabase, actualizarlo para coherencia total
-    if (q.quote_number !== numcot && q.id) {
-      await dbCore.from('jjp_quotes').update({ quote_number: numcot }).eq('id', q.id);
-      q.quote_number = numcot;
-    }
+    // Preservar la soberanía del número de cotización web original (no sobreescribir quote_number)
+    // El correlativo DBF se asigna a numcot para el archivo físico de MixNet
 
     // 2. Resolver/crear cliente en MXCTACLI
     const cli = clienteForDoc(q);
@@ -658,11 +655,8 @@ export async function exportOrderToDbf(o, dbfDir) {
       }
     }
 
-    // Si difiere del número original en Supabase, actualizarlo para coherencia total
-    if (o.order_number !== numped && o.id) {
-      await dbCore.from('jjp_orders').update({ order_number: numped }).eq('id', o.id);
-      o.order_number = numped;
-    }
+    // Preservar la soberanía del número de pedido web original (no sobreescribir order_number)
+    // El correlativo DBF se asigna a numped para el archivo físico de MixNet
 
     // 2. Resolver/crear cliente en MXCTACLI
     const cli = clienteForDoc(o);
@@ -1149,10 +1143,13 @@ async function sweepMixnetDbf() {
 
         if (importedHistory.has(dbfKey) || (isQuote ? exportedQuotes : exportedOrders).has(finalNum)) continue;
 
-        // Ya existe en Supabase?
+        // Ya existe en Supabase por número o por nota de importación previa?
         const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
         const numField = isQuote ? 'quote_number' : 'order_number';
-        const { data: existing } = await dbCore.from(table).select('id').eq(numField, finalNum).maybeSingle();
+        const { data: existing } = await dbCore.from(table)
+          .select('id')
+          .or(`${numField}.eq.${finalNum},notes.ilike.*#${numDoc}*`)
+          .maybeSingle();
         if (existing) {
           importedHistory.add(dbfKey);
           continue;
@@ -1189,6 +1186,11 @@ async function sweepMixnetDbf() {
         const phone = String(pr.tlf1 || (cli && cli.tlf1) || pr.telefono || pr.tlf || '').trim();
         const moneda = String(pr.moneda || 'US$').trim();
 
+        const emisionStr = String(pr.emision || pr.fecha || '').trim();
+        const docCreatedAt = (emisionStr && /^\d{8}$/.test(emisionStr))
+          ? new Date(+emisionStr.slice(0, 4), +emisionStr.slice(4, 6) - 1, +emisionStr.slice(6, 8), 12, 0, 0).toISOString()
+          : new Date().toISOString();
+
         const items = (detMap.get(numDoc) || []).map(rr => {
           const sku = String(rr.item || rr.codart || rr.codigo || '').trim();
           const name = String(rr.descrip || rr.nomart || 'Artículo').trim();
@@ -1224,7 +1226,9 @@ async function sweepMixnetDbf() {
             notes: `[MixNet Caja] Cotización importada automáticamente desde ${encFile} (#${numDoc})${vendorNote}`,
             source: 'mixnet',
             status: 'pendiente',
-            seller_id: finalSellerId
+            seller_id: finalSellerId,
+            created_at: docCreatedAt,
+            updated_at: docCreatedAt
           });
           if (!error) {
             log.info(`Puente Mixer: Cotización importada desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
@@ -1251,7 +1255,9 @@ async function sweepMixnetDbf() {
             notes: `[MixNet Caja] Importado automáticamente desde ${encFile} (#${numDoc}, ${moneda})${vendorNote}`,
             source: 'mixnet',
             status: 'pagado',
-            seller_id: finalSellerId
+            seller_id: finalSellerId,
+            created_at: docCreatedAt,
+            updated_at: docCreatedAt
           });
           if (!error) {
             log.info(`Puente Mixer: Pedido importado desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);

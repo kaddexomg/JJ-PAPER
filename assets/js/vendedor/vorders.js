@@ -5,6 +5,7 @@
 
 let vOrders = [];
 let vOrdersFilter = '';
+let vOrdersSearch = '';
 
 const V_SOURCE_LABEL = { web: '🌐 Web', pos: '💰 POS', ref: '🔗 Referido' };
 
@@ -27,16 +28,35 @@ function setVOrdersFilter(status) {
   loadVOrders(status);
 }
 
+function onVOrdersSearch(val) {
+  vOrdersSearch = (val || '').trim();
+  renderVOrders();
+}
+
 function renderVOrders() {
   const tbody = document.getElementById('vOrdersBody');
   const count = document.getElementById('vOrdersCount');
-  if (count) count.textContent = `${vOrders.length} pedidos`;
-  if (!vOrders.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No tienes pedidos con este filtro.</td></tr>';
+
+  const q = vOrdersSearch.toLowerCase();
+  const filtered = q
+    ? vOrders.filter(o => {
+        return (o.order_number || '').toLowerCase().includes(q)
+          || (o.invoice_number || '').toLowerCase().includes(q)
+          || (o.control_number || '').toLowerCase().includes(q)
+          || (o.client_name || '').toLowerCase().includes(q)
+          || (o.rif || '').toLowerCase().includes(q)
+          || (o.phone || '').includes(q)
+          || (o.notes || '').toLowerCase().includes(q);
+      })
+    : vOrders;
+
+  if (count) count.textContent = `${filtered.length}${q ? ' de ' + vOrders.length : ''} pedidos`;
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${q ? 'No se encontraron pedidos coincidentes con "' + escapeHTML(vOrdersSearch) + '"' : 'No tienes pedidos con este filtro.'}</td></tr>`;
     return;
   }
   const commPct = Number((typeof SELLER !== 'undefined' && SELLER?.commission_pct) ? SELLER.commission_pct : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.commission_pct) ? CURRENT_PROFILE.commission_pct : (window.SELLER?.commission_pct || 0))) || 0;
-  tbody.innerHTML = vOrders.map(o => {
+  tbody.innerHTML = filtered.map(o => {
     const isPaid = V_PAID.includes(o.status);
     // La comisión es sobre los productos: el envío no comisiona
     const comm = isPaid ? (o.total_usd - Number(o.delivery_fee_usd || 0)) * commPct / 100 : 0;

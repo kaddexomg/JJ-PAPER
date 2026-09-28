@@ -6,6 +6,7 @@ let adminOrders = [];
 let ordersPage  = 1;
 const ORDERS_PER = 20;
 let ordersFilter = '';
+let ordersSearch = '';
 
 const ORDER_STATUSES = ['pendiente_pago', 'verificando', 'pagado', 'preparando', 'entregado', 'rechazado', 'cancelado'];
 const STATUS_LABEL = {
@@ -85,18 +86,39 @@ function renderOrdersStats() {
   });
 }
 
+function onOrdersSearch(val) {
+  ordersSearch = (val || '').trim();
+  ordersPage = 1;
+  renderOrdersTable();
+}
+
 function renderOrdersTable() {
   const tbody = document.getElementById('ordersTableBody');
   const count = document.getElementById('ordersCount');
   if (!tbody) return;
-  if (count) count.textContent = `${adminOrders.length} pedidos`;
+
+  const q = ordersSearch.toLowerCase();
+  const filtered = q
+    ? adminOrders.filter(o => {
+        return (o.order_number || '').toLowerCase().includes(q)
+          || (o.invoice_number || '').toLowerCase().includes(q)
+          || (o.control_number || '').toLowerCase().includes(q)
+          || (o.client_name || '').toLowerCase().includes(q)
+          || (o.rif || '').toLowerCase().includes(q)
+          || (o.phone || '').includes(q)
+          || (o.notes || '').toLowerCase().includes(q)
+          || (o.jjp_profiles?.name || '').toLowerCase().includes(q);
+      })
+    : adminOrders;
+
+  if (count) count.textContent = `${filtered.length}${q ? ' de ' + adminOrders.length : ''} pedidos`;
 
   const start = (ordersPage - 1) * ORDERS_PER;
-  const page  = adminOrders.slice(start, start + ORDERS_PER);
+  const page  = filtered.slice(start, start + ORDERS_PER);
 
   if (!page.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">No hay pedidos</td></tr>`;
-    renderOrdersPag();
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${q ? 'No se encontraron pedidos coincidentes con "' + escapeHTML(ordersSearch) + '"' : 'No hay pedidos'}</td></tr>`;
+    renderOrdersPag(filtered.length);
     return;
   }
 
@@ -139,12 +161,12 @@ function renderOrdersTable() {
     </tr>`;
   }).join('');
 
-  renderOrdersPag();
+  renderOrdersPag(filtered.length);
 }
 
-function renderOrdersPag() {
+function renderOrdersPag(totalItems = adminOrders.length) {
   const el    = document.getElementById('ordersPag');
-  const pages = Math.ceil(adminOrders.length / ORDERS_PER);
+  const pages = Math.ceil(totalItems / ORDERS_PER);
   if (!el || pages <= 1) { if (el) el.innerHTML = ''; return; }
   let html = '';
   if (ordersPage > 1) html += `<button class="pg arrow" onclick="ordersGoPage(${ordersPage-1})">‹</button>`;

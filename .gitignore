@@ -59,3 +59,8 @@ CLIENTES/*.txt
 scripts/
 !scripts/gsm-bridge.cjs
 
+# Herramientas binarias locales (ADB portable, ejecutables)
+tools/
+*.exe
+
+

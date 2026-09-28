@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Llamadas B2B & Centralita | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+<style>
+  .call-center-grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 20px;
+    align-items: start;
+    margin-top: 14px;
+  }
+  @media (max-width: 960px) {
+    .call-center-grid { grid-template-columns: 1fr; }
+  }
+  .call-card {
+    background: var(--card, #ffffff);
+    border: 1px solid var(--theme-border-subtle, #e2e8f0);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  }
+  .jj-keypad-grid button:hover {
+    background: #e2e8f0 !important;
+  }
+  .search-item:hover {
+    background: #f0fdf4 !important;
+  }
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <!-- Barra lateral auto-inyectada por sidenav.js?v=20260927_b2b_v2 -->
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav"></nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>📞 Llamadas B2B & Centralita</h2>
+          <p>Llamadas reales por Headset en Windows 7 · Puente GSM USB ($0 Inversión)</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="pageBridgeBadge" class="of-chip">⚪ Verificando USB...</span>
+        <button type="button" class="btn-o sm" onclick="checkGsmBridgeOnPage()">🔄 Probar USB</button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      
+      <!-- Banner Informativo del Puente USB -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">🎧</span>
+          <span id="pageBridgeStatus" style="font-size:12.5px;color:#475569">
+            ⚪ Conectando con puente GSM local (puerto 8789)...
+          </span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="btn-o sm" onclick="document.getElementById('pageAudioHelp').style.display = document.getElementById('pageAudioHelp').style.display === 'block' ? 'none' : 'block'">
+            🎧 Guía Audio Headset ($0)
+          </button>
+        </div>
+      </div>
+
+      <!-- Guía Desplegable de Audio para Windows 7 -->
+      <div id="pageAudioHelp" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:16px;font-size:12px;color:#166534">
+        <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:800">🎧 ¿Cómo hablar y escuchar desde tu Headset en Windows 7 ($0 Inversión y sin estar en la misma red WiFi)?</h4>
+        <ol style="margin:0;padding-left:18px;line-height:1.6">
+          <li><strong>Túnel Físico por Cable USB (Sin WiFi):</strong> El archivo <code>iniciar-puente-gsm.bat</code> corre localmente en tu PC. No necesita que la PC y el celular compartan WiFi ni internet: las órdenes de llamada viajan directamente por el cable USB.</li>
+          <li><strong>Audio Cristalino al Headset (Cable 3.5mm Auxiliar):</strong> Conecta un cable de audio 3.5mm macho-macho desde la salida de audífonos del teléfono a la entrada azul (Línea de entrada / Line-In) de la PC. En Windows 7 activa <em>"Escuchar este dispositivo"</em> y escucharás la voz del cliente en tus auriculares con calidad de estudio y 0 delay.</li>
+          <li><strong>Hablar por el Micrófono:</strong> Tu micrófono de diadema habla directamente al teléfono usando un splitter o tu manos libres en el escritorio.</li>
+          <li><strong>WhatsApp Web en PC:</strong> Con 1 clic en el botón <em>"💬 WhatsApp"</em> realizas llamadas por el navegador usando el micrófono de la PC.</li>
+        </ol>
+      </div>
+
+      <div class="call-center-grid">
+        
+        <!-- COLUMNA 1: MARCADOR TELEFÓNICO (SOFTPHONE) -->
+        <div class="call-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:15px;font-weight:800;color:#0f172a">Marcador Telefónico</h3>
+            <span id="pageCallStateBadge" style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:#f1f5f9;color:#64748b">⚪ En Espera</span>
+          </div>
+
+          <!-- Cronómetro de Llamada -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:center">
+            <div style="font-size:11px;color:#64748b;font-weight:700">TIEMPO DE LLAMADA:</div>
+            <div id="pageTimerDisplay" style="font-family:monospace;font-size:24px;font-weight:800;color:#0284c7">00:00 (0s)</div>
+          </div>
+
+          <!-- Destinatario Actual -->
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:11.5px;color:#166534">
+            <div id="pageTargetDisplay">Llamada Directa Manual</div>
+          </div>
+
+          <!-- Pantalla del Teléfono y Localidad -->
+          <div style="position:relative;margin-bottom:8px">
+            <input type="text" id="pageDialerInput" class="fi" placeholder="Escribe o marca el número..." style="font-size:20px;font-weight:800;text-align:center;padding:10px 40px 10px 12px;height:48px;border-radius:10px;width:100%" oninput="onPageNumberChange(this.value)">
+            <button type="button" onclick="pageBackspace()" style="position:absolute;right:8px;top:10px;background:none;border:none;color:#64748b;font-size:18px;cursor:pointer">⌫</button>
+          </div>
+          <div id="pageLocDisplay" style="font-size:11px;font-weight:700;color:#0369a1;background:#e0f2fe;padding:4px 8px;border-radius:6px;text-align:center;margin-bottom:12px">
+            📍 Ingresa el número a marcar
+          </div>
+
+          <!-- Teclado DTMF -->
+          <div class="jj-keypad-grid" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;margin-bottom:14px">
+            <button type="button" class="btn-g" onclick="pagePressKey('1')" style="font-size:18px;font-weight:800;padding:10px">1</button>
+            <button type="button" class="btn-g" onclick="pagePressKey('2')" style="font-size:18px;font-weight:800;padding:10px">2 <small style="display:block;font-size:9px;color:#64748b">ABC</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('3')" style="font-size:18px;font-weight:800;padding:10px">3 <small style="display:block;font-size:9px;color:#64748b">DEF</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('4')" style="font-size:18px;font-weight:800;padding:10px">4 <small style="display:block;font-size:9px;color:#64748b">GHI</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('5')" style="font-size:18px;font-weight:800;padding:10px">5 <small style="display:block;font-size:9px;color:#64748b">JKL</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('6')" style="font-size:18px;font-weight:800;padding:10px">6 <small style="display:block;font-size:9px;color:#64748b">MNO</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('7')" style="font-size:18px;font-weight:800;padding:10px">7 <small style="display:block;font-size:9px;color:#64748b">PQRS</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('8')" style="font-size:18px;font-weight:800;padding:10px">8 <small style="display:block;font-size:9px;color:#64748b">TUV</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('9')" style="font-size:18px;font-weight:800;padding:10px">9 <small style="display:block;font-size:9px;color:#64748b">WXYZ</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('*')" style="font-size:18px;font-weight:800;padding:10px">*</button>
+            <button type="button" class="btn-g" onclick="pagePressKey('0')" style="font-size:18px;font-weight:800;padding:10px">0 <small style="display:block;font-size:9px;color:#64748b">+</small></button>
+            <button type="button" class="btn-g" onclick="pagePressKey('#')" style="font-size:18px;font-weight:800;padding:10px">#</button>
+          </div>
+
+          <!-- Acciones de Marcación -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button type="button" id="pageBtnStart" class="btn-p" onclick="pageStartCall()" style="flex:1;padding:12px;font-size:15px;font-weight:800;background:#059669;border-color:#059669;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px">
+              <span>📞 Llamar</span>
+            </button>
+            <button type="button" id="pageBtnHang" class="btn-p" onclick="pageHangupCall()" style="flex:1;padding:12px;font-size:15px;font-weight:800;background:#dc2626;border-color:#dc2626;display:none;align-items:center;justify-content:center;gap:8px;border-radius:10px">
+              <span>🛑 Colgar / Fin</span>
+            </button>
+            <button type="button" class="btn-o" onclick="window.open('https://wa.me/' + document.getElementById('pageDialerInput').value.replace(/\\D/g,''), '_blank')" style="padding:12px 14px;border-radius:10px" title="Llamar o chatear por WhatsApp Web">
+              💬 WhatsApp
+            </button>
+          </div>
+
+          <div style="display:flex;gap:6px;justify-content:center">
+            <button type="button" class="btn-o sm" onclick="navigator.clipboard.writeText(document.getElementById('pageDialerInput').value);showToast('Copiado');" style="font-size:11px">📋 Copiar</button>
+            <button type="button" class="btn-o sm" onclick="pageClearNumber()" style="font-size:11px">🧹 Limpiar</button>
+          </div>
+        </div>
+
+        <!-- COLUMNA 2: TIPIFICADOR B2B Y AGENDA -->
+        <div class="call-card" id="tipificadorSection">
+          <h3 style="margin:0 0 12px 0;font-size:15px;font-weight:800;color:#0f172a">Tipificador B2B de Llamadas & Agenda</h3>
+
+          <!-- Buscador de Cliente para Vincular -->
+          <div style="position:relative;margin-bottom:14px">
+            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Vincular a Prospecto / Cliente CRM:</label>
+            <input type="text" id="pageCustomerSearchInput" class="fi" placeholder="Escribe el nombre de la empresa o cliente..." autocomplete="off">
+            <div id="pageCustomerSearchResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid #cbd5e1;border-radius:8px;max-height:180px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,0.1)"></div>
+          </div>
+
+          <!-- 1. Tipificación / Resultado -->
+          <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:6px">1. Resultado de la Llamada:</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:6px;margin-bottom:14px">
+            <button type="button" class="of-chip on" data-outcome="interesado" onclick="selectPageOutcome(this)">✅ Interesado / Venta</button>
+            <button type="button" class="of-chip" data-outcome="cotizacion" onclick="selectPageOutcome(this)">📋 Pidió Cotización</button>
+            <button type="button" class="of-chip" data-outcome="rellamar" onclick="selectPageOutcome(this)">⏳ Agendar Rellamada</button>
+            <button type="button" class="of-chip" data-outcome="encargado" onclick="selectPageOutcome(this)">👤 Hablar con Encargado</button>
+            <button type="button" class="of-chip" data-outcome="no_contesta" onclick="selectPageOutcome(this)">🚫 No Contesta / Buzón</button>
+            <button type="button" class="of-chip" data-outcome="no_interesa" onclick="selectPageOutcome(this)">❌ No le Interesa</button>
+            <button type="button" class="of-chip" data-outcome="equivocado" onclick="selectPageOutcome(this)">⚠️ Número Equivocado</button>
+          </div>
+
+          <!-- 2. Argumentos del Cliente (1 Clic) -->
+          <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:6px">2. Argumentos u Objeciones del Cliente:</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide descuento o mejor precio por bulto">🏷️ Pide descuento / mejor precio</button>
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide crédito a 15 o 30 días">💳 Pide crédito (15/30 días)</button>
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Tiene suficiente inventario por ahora">📦 Tiene stock por ahora</button>
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide enviar catálogo por WhatsApp">📲 Enviar catálogo por WA</button>
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide cotización formal por correo">📧 Enviar lista por Correo</button>
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="El encargado solo atiende en la mañana">⏰ Atiende solo en la mañana</button>
+            <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Consulta condiciones de despacho y flete">🚚 Pregunta por despacho/flete</button>
+          </div>
+
+          <!-- 3. Agendamiento de Rellamada -->
+          <div id="pageCallbackBox" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-weight:800;font-size:12px;color:#0f172a">⏰ Agendar Próxima Llamada:</span>
+              <label style="font-size:11px;display:flex;align-items:center;gap:4px">
+                <input type="checkbox" id="pageEnableCallback" checked> Activar agenda
+              </label>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <button type="button" class="btn-o sm" onclick="setPagePreset('2h')" style="font-size:10.5px">+2 Horas</button>
+              <button type="button" class="btn-o sm" onclick="setPagePreset('tomorrow_am')" style="font-size:10.5px">Mañana 9 AM</button>
+              <button type="button" class="btn-o sm" onclick="setPagePreset('tomorrow_pm')" style="font-size:10.5px">Mañana 2:30 PM</button>
+              <button type="button" class="btn-o sm" onclick="setPagePreset('2d')" style="font-size:10.5px">En 2 Días</button>
+              <button type="button" class="btn-o sm" onclick="setPagePreset('next_week')" style="font-size:10.5px">Próxima Semana</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label style="font-size:10.5px;color:#64748b;display:block">Fecha y Hora:</label>
+                <input type="datetime-local" id="pageCallbackDateTime" class="fi" style="font-size:11.5px;height:34px;width:100%">
+              </div>
+              <div>
+                <label style="font-size:10.5px;color:#64748b;display:block">Motivo de la Rellamada:</label>
+                <input type="text" id="pageCallbackReason" class="fi" placeholder="Ej: Confirmar cotización..." style="font-size:11.5px;height:34px;width:100%">
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Notas y Guardado -->
+          <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:4px">Notas de la Conversación:</label>
+          <textarea id="pageCallNotes" class="fi" rows="3" placeholder="Detalles de lo acordado con el cliente..." style="width:100%;font-size:12.5px;margin-bottom:12px"></textarea>
+
+          <div style="display:flex;justify-content:flex-end">
+            <button type="button" class="btn-p" onclick="savePageCallLog()" style="background:#16604A;font-weight:800;padding:10px 20px;font-size:14px">
+              💾 Guardar y Registrar en Bitácora CRM
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SECCIÓN INFERIOR: AGENDA DE RELLAMADAS E HISTORIAL -->
+      <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        
+        <!-- Agenda de Rellamadas -->
+        <div class="call-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:14px;font-weight:800;color:#0f172a">⏰ Rellamadas Agendadas</h3>
+            <button type="button" class="btn-o sm" onclick="loadCallbacksList()">🔄 Refrescar</button>
+          </div>
+          <div id="pageCallbacksList" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+
+        <!-- Historial de Llamadas Recientes -->
+        <div class="call-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:14px;font-weight:800;color:#0f172a">📜 Historial de Llamadas Recientes</h3>
+            <button type="button" class="btn-o sm" onclick="loadCallHistory()">🔄 Refrescar</button>
+          </div>
+          <div id="pageHistoryList" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/phone-dialer.js?v=20260927_b2b_v1"></script>
+<script src="../assets/js/admin/vllamadas.js?v=20260927_b2b_v1"></script>
+<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+
+</body>
+</html>

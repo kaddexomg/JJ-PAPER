@@ -31,7 +31,7 @@
       { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
-      { action: 'dialer',      ico: '📞', label: 'Marcador / Llamadas' },
+      { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
@@ -81,7 +81,7 @@
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
-      { action: 'dialer',      ico: '📞', label: 'Marcador / Llamadas' },
+      { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
@@ -571,20 +571,12 @@
     const topbarRight = document.querySelector('.admin-topbar .topbar-right, .topbar-right, .admin-topbar');
     if (!topbarRight || document.getElementById('topbarDialerBtn')) return;
 
-    const btn = document.createElement('button');
-    btn.type = 'button';
+    const btn = document.createElement('a');
     btn.id = 'topbarDialerBtn';
+    btn.href = 'llamadas.html';
     btn.className = 'topbar-dialer-btn';
-    btn.title = 'Abrir Marcador Telefónico B2B con Headset (Alt+P)';
-    btn.innerHTML = `<span class="topbar-dialer-pulse"></span><span>📞 Marcador (Alt+P)</span>`;
-    btn.onclick = (e) => {
-      e.preventDefault();
-      if (window.JJDialer) window.JJDialer.open();
-      else if (typeof loadPhoneDialer === 'function') {
-        loadPhoneDialer();
-        setTimeout(() => window.JJDialer?.open(), 100);
-      }
-    };
+    btn.title = 'Ir a Centralita de Llamadas B2B (o presiona Alt+P para marcador rápido)';
+    btn.innerHTML = `<span class="topbar-dialer-pulse"></span><span>📞 Llamadas B2B</span>`;
 
     if (topbarRight.firstChild) {
       topbarRight.insertBefore(btn, topbarRight.firstChild);

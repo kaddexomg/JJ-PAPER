@@ -179,6 +179,13 @@ async function getDeviceStatus() {
     if (modelRes.ok && modelRes.stdout) model = modelRes.stdout;
   } catch (_) {}
 
+  if (state === 'device') {
+    // Túnel automático USB para audio bidireccional (AudioRelay / Headset) sin necesidad de WiFi común
+    try {
+      runAdb(`-s ${serial} reverse tcp:59100 tcp:59100`);
+    } catch (_) {}
+  }
+
   // Verificar estado de llamada en telecom / telephony
   let callState = 0;
   try {

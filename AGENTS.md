@@ -905,5 +905,18 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
      - Sintaxis validada con `node -c`, cache busters actualizados a `?v=20260928_clean_prospects` en `admin/llamadas.html` y `admin/prospectos.html`.
      - Código desplegado en `origin main` (commit `29813c1` y `b7c...`).
 
+## Reparación Conexión Real GSM, Blindaje de Correlativos y Buscador en Pedidos (28-09-2026)
+- **Instalación Oficial de ADB y Activación del Puente GSM**:
+  - Instalado Google Platform-Tools (ADB 1.0.41) en `tools/adb/adb.exe`.
+  - Puerto nativo `127.0.0.1:8789` y proxy LAN `http://192.168.0.172:8787/lan/gsm/status` 100% operativos. Al conectar el celular Android con cable USB y depuración activada, el puente responde `connected: true` permitiendo discar llamadas reales por la línea telefónica física mientras el audio opera por el headset de la PC.
+- **Blindaje de Correlativos en `mixer.js`**:
+  - Eliminada la mutación de `order_number` y `quote_number` en Supabase al exportar a DBF. Los identificadores creados por el usuario o generados en la web son inmutables.
+  - Inyección de fecha real de emisión (`docCreatedAt`) en `sweepMixnetDbf` parseando `pr.emision` (`YYYYMMDD`), evitando que importaciones masivas inunden la cola de pedidos de hoy.
+  - Filtro anti-duplicados reforzado verificando `order_number` y `#numDoc` en notas.
+- **Buscador Reactivo en Tiempo Real**:
+  - Incorporada barra de búsqueda instantánea en `admin/pedidos.html` y `vendedor/pedidos.html` (`?v=20260928_search_orders`) con filtrado multidimensional por número, cliente, RIF, notas o asesor.
+- **Servidor Persistente en Segundo Plano**:
+  - `wa-server` activo como daemon en Windows (PID 9264) escuchando en puertos 8786 (candado), 8787 (LAN/Proxy) y 8789 (GSM Bridge).
+
 
 

@@ -36,8 +36,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (gsmMonitorInterval) clearInterval(gsmMonitorInterval);
   gsmMonitorInterval = setInterval(checkGsmBridgeOnPage, 3500);
 
-  // 3. Cargar Cartera Inicial (por defecto Zona 010 para Keyder/Admin)
-  await loadQueueFromSource('zona_010');
+  // 3. Cargar Cartera Inicial según la selección del select HTML
+  const initialSource = document.getElementById('queueSourceSelect')?.value || 'zona_010';
+  await loadQueueFromSource(initialSource);
 
   // 4. Cargar Historial y Agenda Local
   loadCallbacksList();
@@ -89,7 +90,7 @@ async function onQueueSourceChange() {
 
 async function loadQueueFromSource(source) {
   const progressText = document.getElementById('queueProgressText');
-  if (progressText) progressText.textContent = 'Cargando clientes...';
+  if (progressText) progressText.textContent = 'Cargando clientes de la base de datos...';
 
   rawCustomersList = [];
 
@@ -123,7 +124,7 @@ async function loadQueueFromSource(source) {
     if (typeof sb !== 'undefined') {
       try {
         const { data, error } = await sb.from('jjp_prospects')
-          .select('id, company_name, contact_name, phone, email, address, city, notes, status, last_contact_at, last_contact_channel, contact_count')
+          .select('id,company_name,contact_name,phone,email,address,city,notes,status,last_contact_at,last_contact_channel,contact_count')
           .order('company_name', { ascending: true })
           .limit(1000);
         if (data && !error) {
@@ -155,37 +156,100 @@ async function loadQueueFromSource(source) {
     return;
   }
 
-  // C. Cartera de Clientes Supabase (Zona 010, Zona 020, Mi Cartera, Todos)
+  // C. Cartera de Clientes Supabase con paginación por lotes (010, 020, 008, 014, 004, 006, etc.)
   if (typeof sb !== 'undefined') {
     try {
-      const CUST_COLS = 'id, name, rif, phone, zone, city, address, email, total_orders, total_usd, last_order_at, notes, seller_id';
-      let query = sb.from('jjp_customers').select(CUST_COLS);
-
       const seller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (window.SELLER || null);
-      const isAdmin = seller?.role === 'admin' || seller?.is_admin || true; // Keyder / Admin
+      const isAdmin = seller?.role === 'admin' || seller?.is_admin;
+      const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes';
 
-      if (source === 'zona_010') {
-        query = query.eq('zone', '010');
-      } else if (source === 'zona_020') {
-        query = query.eq('zone', '020');
-      } else if (source === 'mi_cartera') {
-        if (isAdmin) {
-          query = query.or('zone.eq.010,zone.eq.020');
-        } else if (seller?.id) {
-          query = query.eq('seller_id', seller.id);
+      // 1. Verificar si ya tenemos la cartera en caché de sesión para carga inmediata (<10ms)
+      let cachedPool = null;
+      try {
+        const rawAdmin = sessionStorage.getItem('jjp_admin_cust_cache_v1');
+        const rawV = sessionStorage.getItem('jjp_vcust_cache_v1');
+        const pool = rawAdmin ? JSON.parse(rawAdmin) : (rawV ? JSON.parse(rawV) : null);
+        if (Array.isArray(pool) && pool.length > 50) {
+          cachedPool = pool;
         }
-      } else if (source === 'todos_clientes') {
-        if (!isAdmin) {
-          query = query.neq('zone', '020'); // Zona 020 exclusiva de Keyder
+      } catch (_) {}
+
+      let allData = [];
+
+      if (cachedPool && cachedPool.length > 0) {
+        // Filtrar desde caché si está disponible
+        if (source === 'zona_010') {
+          allData = cachedPool.filter(c => c.zone === '010');
+        } else if (source === 'zona_020') {
+          allData = cachedPool.filter(c => c.zone === '020');
+        } else if (source === 'zona_008') {
+          allData = cachedPool.filter(c => c.zone === '008');
+        } else if (source === 'zona_014') {
+          allData = cachedPool.filter(c => c.zone === '014');
+        } else if (source === 'zona_006') {
+          allData = cachedPool.filter(c => c.zone === '006');
+        } else if (source === 'zona_004') {
+          allData = cachedPool.filter(c => c.zone === '004');
+        } else if (source === 'mi_cartera') {
+          if (isAdmin) {
+            allData = cachedPool.filter(c => c.zone === '010' || c.zone === '020');
+          } else if (seller?.id) {
+            allData = cachedPool.filter(c => c.seller_id === seller.id);
+          } else {
+            allData = cachedPool;
+          }
+        } else {
+          allData = cachedPool;
         }
       }
 
-      const { data, error } = await query.order('name', { ascending: true }).range(0, 3999);
-      if (error) {
-        console.warn('Error en consulta de clientes:', error);
+      // 2. Si no estaba en caché o la caché vino vacía para esa zona, consultar directamente a Supabase con paginación
+      if (!allData || allData.length === 0) {
+        const PAGE = 1000;
+        let from = 0;
+        allData = [];
+
+        for (;;) {
+          let query = sb.from('jjp_customers').select(CUST_COLS).order('name', { ascending: true });
+
+          if (source === 'zona_010') {
+            query = query.eq('zone', '010');
+          } else if (source === 'zona_020') {
+            query = query.eq('zone', '020');
+          } else if (source === 'zona_008') {
+            query = query.eq('zone', '008');
+          } else if (source === 'zona_014') {
+            query = query.eq('zone', '014');
+          } else if (source === 'zona_006') {
+            query = query.eq('zone', '006');
+          } else if (source === 'zona_004') {
+            query = query.eq('zone', '004');
+          } else if (source === 'mi_cartera') {
+            if (isAdmin) {
+              query = query.or('zone.eq.010,zone.eq.020');
+            } else if (seller?.id) {
+              query = query.eq('seller_id', seller.id);
+            }
+          } else if (source === 'todos_clientes') {
+            if (!isAdmin) {
+              query = query.neq('zone', '020');
+            }
+          }
+
+          const { data, error } = await query.range(from, from + PAGE - 1);
+          if (error) {
+            console.warn('Error en consulta de clientes:', error);
+            break;
+          }
+          if (!data || data.length === 0) break;
+          allData.push(...data);
+          if (data.length < PAGE || from > 8000) break;
+          from += PAGE;
+        }
       }
-      if (data && !error) {
-        rawCustomersList = data.map(c => {
+
+      if (allData && allData.length > 0) {
+        rawCustomersList = allData.map(c => {
           const notesStr = c.notes || '';
           const hasCallNote = notesStr.includes('[Llamada');
           return {
@@ -363,24 +427,25 @@ function triggerCallNow() {
 
 function queueNext() {
   cancelCallCountdown();
-  if (queueIndex + 1 < filteredQueue.length) {
-    queueIndex++;
-    loadCustomerAt(queueIndex);
-    if (isQueueRunning) {
-      startCallCountdown();
-    }
-  } else {
-    if (typeof showToast === 'function') showToast('🎉 ¡Felicidades! Has completado todos los clientes de esta lista.', 'info');
-    pauseQueueExecution();
+  if (!filteredQueue.length) {
+    if (typeof showToast === 'function') showToast('No hay clientes disponibles en esta lista.', 'warn');
+    return;
+  }
+  queueIndex = (queueIndex + 1) % filteredQueue.length;
+  loadCustomerAt(queueIndex);
+  if (isQueueRunning) {
+    startCallCountdown();
   }
 }
 
 function queuePrev() {
   cancelCallCountdown();
-  if (queueIndex - 1 >= 0) {
-    queueIndex--;
-    loadCustomerAt(queueIndex);
+  if (!filteredQueue.length) {
+    if (typeof showToast === 'function') showToast('No hay clientes disponibles en esta lista.', 'warn');
+    return;
   }
+  queueIndex = (queueIndex - 1 + filteredQueue.length) % filteredQueue.length;
+  loadCustomerAt(queueIndex);
 }
 
 function queueRandom() {
@@ -452,9 +517,13 @@ function loadCustomerAt(idx) {
 
 function clearDossierView() {
   activeCallTarget = null;
-  document.getElementById('dossierCompanyName').textContent = 'No hay clientes que coincidan con el filtro';
+  const totalRaw = (rawCustomersList || []).length;
+  const msg = totalRaw > 0 
+    ? `Esta lista tiene ${totalRaw} cliente(s), pero ninguno coincide con el filtro o tiene teléfono.`
+    : 'No hay clientes registrados en esta cartera.';
+  document.getElementById('dossierCompanyName').textContent = msg;
   document.getElementById('dossierZoneBadge').textContent = 'Zona —';
-  document.getElementById('dossierRifLine').textContent = 'Prueba cambiando el filtro de contacto o la cartera.';
+  document.getElementById('dossierRifLine').textContent = 'Prueba cambiando el filtro de contacto o seleccionando otra cartera.';
   document.getElementById('dossierContact').textContent = '—';
   document.getElementById('dossierPhone').textContent = '—';
   document.getElementById('dossierEmail').textContent = '—';
@@ -1263,3 +1332,21 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+// Atajos de teclado para navegar entre clientes sin tocar el ratón
+window.addEventListener('keydown', (e) => {
+  const activeTag = document.activeElement?.tagName?.toLowerCase();
+  const isTyping = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select';
+  
+  // Alt+Right o ArrowRight (si no está escribiendo): Siguiente cliente
+  if ((e.altKey && e.key === 'ArrowRight') || (!isTyping && e.key === 'ArrowRight')) {
+    e.preventDefault();
+    queueNext();
+  }
+  // Alt+Left o ArrowLeft (si no está escribiendo): Cliente anterior
+  if ((e.altKey && e.key === 'ArrowLeft') || (!isTyping && e.key === 'ArrowLeft')) {
+    e.preventDefault();
+    queuePrev();
+  }
+});
+

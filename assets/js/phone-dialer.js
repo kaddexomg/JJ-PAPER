@@ -1016,6 +1016,8 @@
     dialScheduledCustomer,
     deleteScheduledCallback: removeStoredCallback,
     saveCallLog,
-    checkBridge: checkBridgeStatus
+    checkBridge: checkBridgeStatus,
+    detectPhoneLocation,
+    formatPhoneForDialing
   };
 })();

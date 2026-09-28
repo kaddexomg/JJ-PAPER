@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#005A9C"/>
+  <circle cx="36" cy="32" r="16" fill="#FACC15"/>
+  <path d="M 36 20 A 12 12 0 1 0 46 38" fill="none" stroke="#005A9C" stroke-width="4.5" stroke-linecap="round"/>
+  <text x="124" y="43" font-family="'Arial Black', 'Montserrat', Impact, sans-serif" font-size="25" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">CELOVEN</text>
+</svg>

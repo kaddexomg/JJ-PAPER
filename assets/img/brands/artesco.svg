@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.5"/>
+  <text x="105" y="44" font-family="'Montserrat', 'Arial Black', sans-serif" font-size="30" font-weight="900" fill="#E85D04" text-anchor="middle" letter-spacing="2">artesco</text>
+  <circle cx="178" cy="22" r="5.5" fill="#0077B6"/>
+</svg>

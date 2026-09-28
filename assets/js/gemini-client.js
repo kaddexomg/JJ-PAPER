@@ -36,14 +36,14 @@
 
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
-    'gemini-3.5-flash-lite',
-    'gemini-3.6-flash'
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite'
   ];
 
-  // Modelos ultrarrápidos para sugerencias en vivo en chat
+  // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
-    'gemini-3.5-flash-lite',
-    'gemini-3.6-flash'
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -100,17 +100,34 @@
   }
 
   /* --------------------------------------------------------------------------
-     Llamada Base a la API con enrutamiento inteligente (Pro para Arquitectura, Fast para chat)
+     Llamada Base a la API con enrutamiento inteligente (Soporta objeto {prompt,...} o (prompt, model))
      -------------------------------------------------------------------------- */
-  async function callGemini({
-    prompt,
-    systemInstruction = '',
-    temperature = 0.7,
-    maxTokens = 1500,
-    model = null,
-    mode = 'fast' // 'architect' | 'pro' | 'fast'
-  }) {
+  async function callGemini(options, fallbackModel = null) {
     _totalCalls++;
+
+    let prompt = '';
+    let systemInstruction = '';
+    let temperature = 0.7;
+    let maxTokens = 1500;
+    let model = null;
+    let mode = 'fast';
+
+    if (typeof options === 'string') {
+      prompt = options;
+      model = fallbackModel;
+    } else if (options && typeof options === 'object') {
+      prompt = options.prompt || '';
+      systemInstruction = options.systemInstruction || '';
+      temperature = options.temperature !== undefined ? options.temperature : 0.7;
+      maxTokens = options.maxTokens || 1500;
+      model = options.model || fallbackModel || null;
+      mode = options.mode || 'fast';
+    }
+
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      throw new Error('El prompt enviado a Gemini AI está vacío o no es una cadena válida.');
+    }
+
     const isArchitect = (mode === 'architect' || mode === 'pro');
     const keyPool = isArchitect ? [...PRO_KEYS, ...GEMINI_KEYS.filter(k => !PRO_KEYS.includes(k))] : GEMINI_KEYS;
     const modelsToTry = model
@@ -162,24 +179,29 @@
           const errBody = await res.json().catch(() => ({}));
           const errMsg = errBody.error?.message || `HTTP ${status}`;
 
-          // Si es límite de cuota (429) o sobrecargado (503), probar siguiente modelo
+          // Si es límite de cuota (429) o sobrecargado (503) o 404
           if (status === 429 || status === 503 || status === 404) {
-            lastError = new Error(`Modelo no disponible o rate limit (${status}): ${errMsg}`);
+            lastError = new Error(`Modelo ${m} no disponible (${status}): ${errMsg}`);
             continue; // probar siguiente modelo
           }
 
-          // Si clave no autorizada (403) o error de solicitud (400)
-          if (status === 403 || status === 400) {
+          // Si clave no autorizada (403) o error explícito de API key
+          if (status === 403 || (status === 400 && (errMsg.toLowerCase().includes('api_key') || errMsg.toLowerCase().includes('key not valid')))) {
             _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
             lastError = new Error(`Key rechazada o inválida (${status}): ${errMsg}`);
             break; // Cambiar de llave
+          }
+
+          if (status === 400) {
+            lastError = new Error(`Error en solicitud a IA (400): ${errMsg}`);
+            continue;
           }
 
           lastError = new Error(`Error en API (${status}): ${errMsg}`);
         } catch (netErr) {
           clearTimeout(timeoutId);
           lastError = netErr;
-          break; // Timeout o fallo de red, probar siguiente llave
+          continue; // Si un modelo da timeout, probar siguiente modelo
         }
       }
     }
@@ -2304,7 +2326,7 @@ TEXTO CRUDO DE LA SOLICITUD DEL CLIENTE:
 ${rawText}
 """`;
 
-    const rawResponse = await callGemini(prompt, 'gemini-3.1-flash-lite');
+    const rawResponse = await callGemini(prompt, 'gemini-3.6-flash');
     let parsed;
     try {
       const cleaned = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();

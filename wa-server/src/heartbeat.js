@@ -39,7 +39,7 @@ let lastStatsFetchTime = 0;
 
 async function fetchStatsForBeat() {
   const now = Date.now();
-  if (lastStatsData && (now - lastStatsFetchTime < 25_000)) return lastStatsData;
+  if (lastStatsData && (now - lastStatsFetchTime < 300_000)) return lastStatsData;
   try {
     const { getSystemHealthAndStats } = await import('./monitor.js');
     const s = await getSystemHealthAndStats(false);

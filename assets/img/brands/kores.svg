@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#E30613"/>
+  <text x="110" y="45" font-family="'Arial Black', 'Montserrat', Impact, sans-serif" font-weight="900" font-size="36" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">Kores</text>
+  <circle cx="195" cy="22" r="4" fill="#FFFFFF"/>
+</svg>

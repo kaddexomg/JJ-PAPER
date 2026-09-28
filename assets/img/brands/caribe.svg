@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1.5"/>
+  <text x="110" y="42" font-family="'Playfair Display', Georgia, serif" font-size="34" font-weight="800" font-style="italic" fill="#0077B6" text-anchor="middle" letter-spacing="1">Caribe</text>
+  <path d="M 45 49 Q 110 54 175 49" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

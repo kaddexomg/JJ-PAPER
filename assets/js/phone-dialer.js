@@ -1055,6 +1055,127 @@
     injectFloatingDialerButton();
   }
 
+  // --------------------------------------------------------------------------
+  // WIDGET FLOTANTE GLOBAL DE LLAMADA ACTIVA (PERSISTE EN TODAS LAS PÁGINAS)
+  // --------------------------------------------------------------------------
+  let globalCallWidgetTimer = null;
+
+  function initGlobalCallWidget() {
+    if (globalCallWidgetTimer) clearInterval(globalCallWidgetTimer);
+    globalCallWidgetTimer = setInterval(updateGlobalCallWidget, 1000);
+    updateGlobalCallWidget();
+  }
+
+  function updateGlobalCallWidget() {
+    const isCallPage = window.location.pathname.includes('llamadas.html');
+    let session = null;
+    try {
+      const raw = localStorage.getItem('jjp_active_call_session');
+      if (raw) session = JSON.parse(raw);
+    } catch (_) {}
+
+    const widget = document.getElementById('jjFloatingCallWidget');
+
+    // Si no hay llamada o estamos en la centralita completa de llamadas.html, ocultar widget
+    if (!session || !session.is_active || isCallPage) {
+      if (widget) widget.style.display = 'none';
+      return;
+    }
+
+    const elapsed = Math.floor((Date.now() - session.started_at) / 1000);
+    if (elapsed > 3600) {
+      // Expirar sesión si supera 1 hora
+      localStorage.removeItem('jjp_active_call_session');
+      if (widget) widget.style.display = 'none';
+      return;
+    }
+
+    const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const secs = (elapsed % 60).toString().padStart(2, '0');
+    const compName = session.company ? (session.company.length > 20 ? session.company.slice(0, 18) + '...' : session.company) : (session.phone || 'Cliente');
+
+    if (!widget) {
+      const el = document.createElement('div');
+      el.id = 'jjFloatingCallWidget';
+      el.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        left: 24px;
+        z-index: 9999999;
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        color: #ffffff;
+        border-radius: 30px;
+        padding: 9px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        border: 2px solid #10b981;
+        font-family: system-ui, -apple-system, sans-serif;
+        user-select: none;
+      `;
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981"></span>
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#ffffff;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="floatingWidgetCompany">${escapeHTML(compName)}</div>
+            <div style="font-size:11px;font-family:monospace;color:#34d399;font-weight:700" id="floatingWidgetTimer">${mins}:${secs} (${elapsed}s)</div>
+          </div>
+        </div>
+        <button type="button" onclick="window.JJDialer.openFullCallCenter()" style="background:#0284c7;color:#fff;border:none;border-radius:20px;padding:6px 12px;font-size:11.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+          📋 Tipificar
+        </button>
+        <button type="button" onclick="window.JJDialer.hangupFromFloatingWidget()" style="background:#dc2626;color:#fff;border:none;border-radius:20px;padding:6px 10px;font-size:11.5px;font-weight:800;cursor:pointer" title="Colgar llamada">
+          🛑 Colgar
+        </button>
+      `;
+      document.body.appendChild(el);
+    } else {
+      widget.style.display = 'flex';
+      const compEl = document.getElementById('floatingWidgetCompany');
+      const timeEl = document.getElementById('floatingWidgetTimer');
+      if (compEl) compEl.textContent = compName;
+      if (timeEl) timeEl.textContent = `${mins}:${secs} (${elapsed}s)`;
+    }
+  }
+
+  function openFullCallCenter() {
+    const isAdmin = window.location.pathname.includes('/admin/');
+    const path = isAdmin ? 'llamadas.html' : '../vendedor/llamadas.html';
+    window.location.href = path;
+  }
+
+  async function hangupFromFloatingWidget() {
+    window.JJPhoneAudio?.playEnded();
+    localStorage.removeItem('jjp_active_call_session');
+    const widget = document.getElementById('jjFloatingCallWidget');
+    if (widget) widget.style.display = 'none';
+
+    try {
+      await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
+      await fetch('/lan/gsm/hangup', { method: 'POST' }).catch(() => null);
+    } catch (_) {}
+
+    if (typeof sb !== 'undefined') {
+      try {
+        await sb.from('jjp_server_control').update({
+          command: 'hangup',
+          command_at: new Date().toISOString()
+        }).eq('id', 1);
+      } catch (_) {}
+    }
+
+    if (typeof showToast === 'function') {
+      showToast('Llamada finalizada desde el widget.', 'info');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGlobalCallWidget);
+  } else {
+    initGlobalCallWidget();
+  }
+
   window.JJDialer = {
     open: openDialer,
     close,
@@ -1077,6 +1198,8 @@
     saveCallLog,
     checkBridge: checkBridgeStatus,
     detectPhoneLocation,
-    formatPhoneForDialing
+    formatPhoneForDialing,
+    openFullCallCenter,
+    hangupFromFloatingWidget
   };
 })();

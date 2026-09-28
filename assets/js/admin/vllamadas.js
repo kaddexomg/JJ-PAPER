@@ -45,6 +45,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 5. Configurar preset inicial de fecha en tipificador
   setPagePreset('tomorrow_am');
+
+  // 6. Restaurar llamada activa si el usuario recargó o volvió de otra pestaña
+  try {
+    const saved = localStorage.getItem('jjp_active_call_session');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.is_active && parsed.started_at) {
+        const elapsed = Math.floor((Date.now() - parsed.started_at) / 1000);
+        if (elapsed < 3600) {
+          pageCallSeconds = elapsed;
+          pageIsCallActive = true;
+          startConversationTimer();
+          const badgeEl = document.getElementById('pageCallStateBadge');
+          if (badgeEl) {
+            badgeEl.textContent = '🟢 En Llamada Activa';
+            badgeEl.style.background = '#dcfce7';
+            badgeEl.style.color = '#15803d';
+          }
+          const btnStart = document.getElementById('pageBtnStart');
+          const btnHang = document.getElementById('pageBtnHang');
+          if (btnStart) btnStart.style.display = 'none';
+          if (btnHang) btnHang.style.display = 'inline-flex';
+          const alertEl = document.getElementById('pageCallDialingAlert');
+          if (alertEl) alertEl.style.display = 'none';
+          const dialerInput = document.getElementById('pageDialerInput');
+          if (dialerInput && parsed.phone) dialerInput.value = parsed.phone;
+        } else {
+          localStorage.removeItem('jjp_active_call_session');
+        }
+      }
+    }
+  } catch (_) {}
 });
 
 // ----------------------------------------------------------------------------
@@ -126,8 +158,8 @@ async function loadQueueFromSource(source) {
   // C. Cartera de Clientes Supabase (Zona 010, Zona 020, Mi Cartera, Todos)
   if (typeof sb !== 'undefined') {
     try {
-      let query = sb.from('jjp_customers')
-        .select('id, name, rif, phone, zone, city, address, email, total_orders, total_usd, last_order_at, notes, last_contact_at, last_contact_channel, contact_count, seller_id');
+      const CUST_COLS = 'id, name, rif, phone, zone, city, address, email, total_orders, total_usd, last_order_at, notes, seller_id';
+      let query = sb.from('jjp_customers').select(CUST_COLS);
 
       const seller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (window.SELLER || null);
       const isAdmin = seller?.role === 'admin' || seller?.is_admin || true; // Keyder / Admin
@@ -149,27 +181,34 @@ async function loadQueueFromSource(source) {
       }
 
       const { data, error } = await query.order('name', { ascending: true }).range(0, 3999);
+      if (error) {
+        console.warn('Error en consulta de clientes:', error);
+      }
       if (data && !error) {
-        rawCustomersList = data.map(c => ({
-          id: c.id,
-          company: c.name || 'Cliente',
-          name: '',
-          rif: c.rif || '',
-          phone: c.phone || '',
-          zone: c.zone || 'Sin zona',
-          city: c.city || 'Venezuela',
-          address: c.address || '',
-          email: c.email || '',
-          total_orders: c.total_orders || 0,
-          total_usd: Number(c.total_usd || 0),
-          last_order_at: c.last_order_at,
-          notes: c.notes || '',
-          last_contact_at: c.last_contact_at,
-          last_contact_channel: c.last_contact_channel || '',
-          contact_count: c.contact_count || 0,
-          seller_id: c.seller_id,
-          type: 'customer'
-        }));
+        rawCustomersList = data.map(c => {
+          const notesStr = c.notes || '';
+          const hasCallNote = notesStr.includes('[Llamada');
+          return {
+            id: c.id,
+            company: c.name || 'Cliente',
+            name: '',
+            rif: c.rif || '',
+            phone: c.phone || '',
+            zone: c.zone || 'Sin zona',
+            city: c.city || 'Caracas',
+            address: c.address || '',
+            email: c.email || '',
+            total_orders: c.total_orders || 0,
+            total_usd: Number(c.total_usd || 0),
+            last_order_at: c.last_order_at,
+            notes: notesStr,
+            last_contact_at: hasCallNote ? c.last_order_at : null,
+            last_contact_channel: hasCallNote ? 'llamada_gsm' : '',
+            contact_count: hasCallNote ? 1 : 0,
+            seller_id: c.seller_id,
+            type: 'customer'
+          };
+        });
       }
     } catch (err) {
       console.error('Error cargando cartera en el motor de llamadas:', err);
@@ -183,7 +222,7 @@ async function loadQueueFromSource(source) {
 // 2. FILTRADO Y GESTIÓN DE LA COLA DEL MOTOR DE LLAMADAS
 // ----------------------------------------------------------------------------
 function applyQueueFilters() {
-  const filterType = document.getElementById('queueFilterSelect')?.value || 'pendientes';
+  const filterType = document.getElementById('queueFilterSelect')?.value || 'todos';
   const searchTerm = (document.getElementById('queueSearchInput')?.value || '').trim().toLowerCase();
 
   const now = new Date();
@@ -599,6 +638,19 @@ async function pageStartCall() {
   window.JJPhoneAudio?.startRingback();
 
   let clean = phone.replace(/[^\d+]/g, '');
+
+  try {
+    const sessionData = {
+      phone: clean,
+      company: activeCallTarget?.company || phone,
+      started_at: Date.now(),
+      is_active: true,
+      targetId: activeCallTarget?.id || null,
+      zone: activeCallTarget?.zone || ''
+    };
+    localStorage.setItem('jjp_active_call_session', JSON.stringify(sessionData));
+  } catch (_) {}
+
   let sentDirect = false;
 
   // A. Intentar por HTTP Local
@@ -699,6 +751,8 @@ function updateTimerDisplay() {
 async function pageHangupCall(autoHangup = false) {
   window.JJPhoneAudio?.playEnded(); // Reproduce tono de fin de llamada en headset
   pageStopTimer();
+
+  try { localStorage.removeItem('jjp_active_call_session'); } catch (_) {}
 
   const alertEl = document.getElementById('pageCallDialingAlert');
   if (alertEl) alertEl.style.display = 'none';

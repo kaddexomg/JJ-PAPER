@@ -322,6 +322,14 @@
     document.head.appendChild(s);
   }
 
+  function loadPhoneDialer() {
+    if (document.getElementById('jjp-dialer-script') || window.JJDialer) return;
+    const s = document.createElement('script');
+    s.id = 'jjp-dialer-script';
+    s.src = '../assets/js/phone-dialer.js?v=20260927_keypad_v2';
+    document.head.appendChild(s);
+  }
+
   function initCommandPalette() {
     if (window.__jjpCmdPaletteInit) return;
     window.__jjpCmdPaletteInit = true;
@@ -515,6 +523,7 @@
     applyRole();
     loadCopilot();
     loadKeyboardNav();
+    loadPhoneDialer();
     initCommandPalette();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

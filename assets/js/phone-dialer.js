@@ -73,7 +73,7 @@
             <span style="font-size:22px;background:rgba(16,185,129,0.12);padding:6px;border-radius:10px">🎧</span>
             <div>
               <h3 style="margin:0;font-size:17px;font-weight:800;color:var(--theme-text-main, #0f172a)">Marcador Comercial JJ Paper</h3>
-              <div style="font-size:11.5px;color:var(--theme-accent, #047857);font-weight:600">Llamada con Headset (0% Costo / $0 Inversión)</div>
+              <div style="font-size:11.5px;color:var(--theme-accent, #047857);font-weight:600">Llamadas con Headset (Windows 7 Compatible · $0 Inversión)</div>
             </div>
           </div>
           <button type="button" class="btn-g sm" onclick="window.JJDialer.close()" style="border-radius:8px">✕</button>
@@ -89,17 +89,29 @@
           </div>
         </div>
 
-        <!-- Disparadores de Llamada Gratuita -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-          <button type="button" class="btn-p" onclick="window.JJDialer.triggerTelCall('${cleanNumber}')" style="background:#0284c7;border-color:#0284c7;padding:10px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
-            <span>📞 Llamar con Headset</span>
-          </button>
+        <!-- Disparadores de Llamada Gratuita Windows 7 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <button type="button" class="btn-p" onclick="window.JJDialer.triggerWaCall('${cleanNumber}')" style="background:#059669;border-color:#059669;padding:10px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
-            <span>💬 Abrir WhatsApp</span>
+            <span>💬 Llamar / WhatsApp Web</span>
+          </button>
+          <button type="button" class="btn-p" onclick="window.JJDialer.triggerTelCall('${cleanNumber}')" style="background:#0284c7;border-color:#0284c7;padding:10px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
+            <span>📞 Marcar (MicroSIP / tel:)</span>
           </button>
         </div>
-        <div style="font-size:11px;color:#64748b;margin-top:-8px;margin-bottom:14px;text-align:center">
-          💡 "Llamar con Headset" abre el marcador oficial de Windows (Enlace Móvil / Celular). No requiere saldo extra.
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px">
+          <button type="button" class="btn-o sm" onclick="window.JJDialer.copyNumber('${displayPhone}')" style="font-size:11.5px;padding:4px 10px">
+            📋 Copiar Número
+          </button>
+          <button type="button" class="btn-o sm" onclick="window.JJDialer.showQr('${cleanNumber}')" style="font-size:11.5px;padding:4px 10px">
+            📱 QR para Celular
+          </button>
+        </div>
+        <div id="jjDialerQrBox" style="display:none;text-align:center;padding:10px;background:#f8fafc;border-radius:8px;margin-bottom:12px;border:1px solid #cbd5e1">
+          <img id="jjDialerQrImg" src="" alt="QR Teléfono" style="width:140px;height:140px;border-radius:8px">
+          <div style="font-size:11px;color:#64748b;margin-top:4px">Apunta la cámara del celular para marcar sin teclear</div>
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:-6px;margin-bottom:14px;text-align:center">
+          💡 En Windows 7, usa tu headset con WhatsApp Web en el navegador o vincula un softphone gratuito (MicroSIP).
         </div>
 
         <!-- Registro de Resultado de Llamada -->
@@ -231,11 +243,35 @@
       .replace(/"/g, '&quot;');
   }
 
+  function copyNumber(num) {
+    if (!num) return;
+    navigator.clipboard.writeText(num).then(() => {
+      if (typeof showToast === 'function') showToast(`Número ${num} copiado al portapapeles. 📋`);
+    });
+  }
+
+  function showQr(cleanPhone) {
+    const box = document.getElementById('jjDialerQrBox');
+    const img = document.getElementById('jjDialerQrImg');
+    if (!box || !img) return;
+
+    if (box.style.display === 'block') {
+      box.style.display = 'none';
+      return;
+    }
+
+    const telUri = `tel:+${cleanPhone}`;
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(telUri)}`;
+    box.style.display = 'block';
+  }
+
   window.JJDialer = {
     open: openDialer,
     close,
     triggerTelCall,
     triggerWaCall,
+    copyNumber,
+    showQr,
     selectOutcome,
     saveCallLog
   };

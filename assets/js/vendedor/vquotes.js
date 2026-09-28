@@ -683,7 +683,20 @@ async function quoteSubmit() {
       error = res.error;
       quote.quote_number = editingQuoteNumber; // <--- This fixes quoteShowDone(quote)
     } else {
-      quote.quote_number = genOrderNumber('COT');
+      let qNum = null;
+      if (typeof fetchNextDocSerial === 'function') {
+        qNum = await fetchNextDocSerial('cotizacion');
+      }
+      if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
+        try {
+          const { data: sData } = await sb.rpc('jjp_next_doc_serial', { p_type: 'cotizacion' });
+          if (sData) qNum = String(sData).padStart(8, '0').slice(-8);
+        } catch (_) {}
+      }
+      if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
+        qNum = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
+      }
+      quote.quote_number = qNum;
       quote.status = 'pendiente';
       quote.source = 'vendedor';
       quote.seller_id = sellerId;

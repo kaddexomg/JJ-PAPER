@@ -84,9 +84,16 @@ export async function boot() {
       await s.start(); 
       started++; 
     } else {
-      // Si este host no tiene credenciales en disco, NO sobreescribir status en la BD común
-      // para evitar que una instancia secundaria/desarrollo destruya la sesión en el servidor de tienda.
-      log.info({ profile: row.profile_id, status: row.status }, 'sesión sin credenciales locales en este host (se preserva estado en BD)');
+      // Si este host no tiene credenciales locales y la fila en BD quedó con un QR viejo o estado transitorio,
+      // se limpia para que el panel no quede congelado con un código caducado.
+      if (row.status === 'pending_qr' || row.status === 'starting' || row.status === 'reconnecting') {
+        log.info({ profile: row.profile_id }, 'Limpiando estado QR huérfano de sesión anterior');
+        await db.from('jjp_wa_sessions')
+          .update({ status: 'disconnected', qr_data: null, pairing_code: null, last_error: null })
+          .eq('profile_id', row.profile_id);
+      } else {
+        log.info({ profile: row.profile_id, status: row.status }, 'sesión sin credenciales locales en este host (se preserva estado en BD)');
+      }
     }
   }
   log.info({ habilitadas: rows?.length || 0, conectando: started }, 'sesiones al arranque');
@@ -185,11 +192,15 @@ async function execAction(profileId, row) {
   log.info({ profile: row.profile_id, action }, 'acción pedida desde el panel');
   if (action === 'connect') {
     s.pairingPhone = null;
+    s.qrTimeouts = 0;
+    s.reconnectMs = 2000;
     if (!s.stopped) await s.stop('starting');
     await s.start();
   } else if (action === 'request_pairing') {
     const phone = normVePhone(row.pairing_phone);
-    if (!phone) { await s.setSession({ status: 'error', last_error: 'Teléfono de emparejamiento inválido' }); return; }
+    if (!phone) { await s.setSession({ status: 'error', last_error: 'Teléfono de emparejamiento inválido', qr_data: null }); return; }
+    s.qrTimeouts = 0;
+    s.reconnectMs = 2000;
     if (!s.stopped) await s.stop('starting');
     s.pairingPhone = phone;
     await s.start();

@@ -7,7 +7,8 @@ Set FSO = CreateObject("Scripting.FileSystemObject")
 
 strScriptDir = FSO.GetParentFolderName(WScript.ScriptFullName)
 WshShell.CurrentDirectory = strScriptDir
-WshShell.Run "cmd.exe /c run-service.bat", 0, False
+cmdLine = "cmd.exe /c " & Chr(34) & Chr(34) & strScriptDir & "\run-service.bat" & Chr(34) & Chr(34)
+WshShell.Run cmdLine, 0, False
 
 Set WshShell = Nothing
 Set FSO = Nothing

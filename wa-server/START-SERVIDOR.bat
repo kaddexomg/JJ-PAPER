@@ -1,65 +1,116 @@
 @echo off
 REM ============================================================
-REM  JJ Paper - Servidor (WhatsApp + tasas + correo + conteo)
-REM  Doble clic para PRENDER el servidor. Deja esta ventana abierta.
-REM  - Desde el panel de admin puedes REINICIAR (relanza aqui solo)
-REM    o DETENER (esta ventana se cierra).
+REM  JJ Paper - Lanzador del Servidor en Segundo Plano
+REM  Inicia el servidor de forma independiente y silenciosa.
+REM  - Si cierras esta ventana, la terminal o Antigravity:
+REM    EL SERVIDOR SEGUIRA CORRIENDO EN SEGUNDO PLANO.
 REM ============================================================
 title JJ Paper - Servidor
 cd /d "%~dp0"
 
-REM ============================================================
-REM  DESACTIVAR QUICKEDIT EN WINDOWS:
-REM  Evita terminantemente que clics o selecciones del mouse
-REM  congelen el proceso de Node.js en la consola.
-REM ============================================================
+REM 1. Desactivar QuickEdit para evitar bloqueos por clic
 reg add "HKCU\Console" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1
 reg add "HKCU\Console\JJ Paper - Servidor" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1
-if exist disable-quickedit.ps1 (
-  powershell -NoProfile -ExecutionPolicy Bypass -File disable-quickedit.ps1 >nul 2>&1
+
+REM 2. Verificar si ya esta activo (puerto candado 8786)
+set IS_RUNNING=0
+set SERVER_PID=
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8786" ^| findstr "LISTENING"') do (
+  set IS_RUNNING=1
+  set SERVER_PID=%%P
 )
 
-:loop
-echo.
-echo [%date% %time%] Verificando conexion y ruta de MixNet...
-node auto-detect-mixnet.js
-echo.
-echo [%date% %time%] Iniciando servidor JJ Paper...
-node src/index.js
+if "%IS_RUNNING%"=="1" goto already_running
 
-REM Codigo 3 = Ya hay una instancia corriendo en el sistema
-if "%errorlevel%"=="3" (
+REM 3. No esta corriendo -> Iniciar en segundo plano
+echo ============================================================
+echo   JJ PAPER -- INICIANDO SERVIDOR EN SEGUNDO PLANO
+echo ============================================================
+echo.
+echo  Lanzando supervisor independiente silencioso...
+wscript start-hidden.vbs
+
+echo  Esperando confirmacion de enlace...
+timeout /t 3 /nobreak >nul
+
+REM Verificar nuevamente
+set IS_RUNNING=0
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8786" ^| findstr "LISTENING"') do (
+  set IS_RUNNING=1
+  set SERVER_PID=%%P
+)
+
+echo.
+if "%IS_RUNNING%"=="1" (
+  goto started_ok
+) else (
+  echo  [i] El servidor esta terminando de inicializar en segundo plano.
+  echo  Puedes verificar su progreso en cualquier momento con:
+  echo  ESTADO-SERVIDOR.bat
   echo.
-  echo ============================================================
-  echo  [AVISO] Ya hay una instancia del servidor en ejecucion.
-  echo ============================================================
-  echo  1. Si deseas CERRAR la instancia previa y REINICIAR:
-  echo     Escribe R y presiona Enter.
-  echo  2. Para salir dejando el servidor actual corriendo:
-  echo     Presiona Enter.
-  echo.
-  set /p ACT="Opcion [R = Reiniciar / Enter = Salir]: "
-  if /i "%ACT%"=="R" (
-    echo.
-    echo [%date% %time%] Cerrando procesos node previos...
-    taskkill /F /IM node.exe >nul 2>&1
-    timeout /t 2 /nobreak >nul
-    goto loop
-  )
+  timeout /t 4 /nobreak >nul
   exit /b 0
 )
 
-REM Codigo 2 = DETENER pedido desde el panel -> no relanzar
-if "%errorlevel%"=="2" goto end
-
+:already_running
+echo ============================================================
+echo      JJ PAPER -- SERVIDOR ACTIVO EN SEGUNDO PLANO
+echo ============================================================
 echo.
-echo [%date% %time%] El servidor se detuvo (codigo %errorlevel%). Relanzando en 3s...
-echo    (para apagarlo del todo cierra esta ventana o usa DETENER en el panel)
-timeout /t 3 /nobreak >nul
-goto loop
+echo  [ESTADO]  🟢 SERVIDOR EN LINEA (Activo en segundo plano)
+echo  [PID]     Proceso Node.js: %SERVER_PID%
+goto show_menu
 
-:end
+:started_ok
+echo ============================================================
+echo   🟢 SERVIDOR INICIADO EN SEGUNDO PLANO CON EXITO!
+echo ============================================================
 echo.
-echo [%date% %time%] Servidor DETENIDO desde el panel. Puedes cerrar esta ventana.
-echo    Para volver a prenderlo: doble clic a START-SERVIDOR.bat
-pause
+echo  [PID] Proceso Node.js: %SERVER_PID%
+echo.
+echo  ============================================================
+echo   IMPORTANTE:
+echo   El servidor corre como un proceso independiente en Windows.
+echo   Puedes CERRAR esta ventana, cerrar la terminal o Antigravity:
+echo   EL SERVIDOR SEGUIRA OPERANDO EN SEGUNDO PLANO SIN INTERRUPCION.
+echo  ============================================================
+echo.
+
+:show_menu
+echo ------------------------------------------------------------
+echo  Opciones:
+echo   [L] Ver registros en vivo (Live Log)
+echo   [R] Reiniciar servidor
+echo   [D] Detener servidor
+echo   [S] Salir (Cerrar ventana - el servidor sigue corriendo)
+echo ------------------------------------------------------------
+echo  Esta ventana se cerrara automaticamente en 8 segundos
+echo  dejando el servidor funcionando en segundo plano.
+echo.
+choice /C LRDS /N /T 8 /D S /M "Selecciona una tecla [L / R / D / S]: "
+set CODE=%errorlevel%
+
+if "%CODE%"=="1" goto view_log
+if "%CODE%"=="2" goto restart_server
+if "%CODE%"=="3" goto stop_server
+if "%CODE%"=="4" exit /b 0
+exit /b 0
+
+:view_log
+cls
+echo ============================================================
+echo   VISOR DE REGISTROS EN VIVO (logs\wa-server.log)
+echo   Puedes cerrar esta ventana cuando quieras con la X:
+echo   EL SERVIDOR SEGUIRA FUNCIONANDO EN SEGUNDO PLANO.
+echo ============================================================
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Path 'logs\wa-server.log' -Tail 50 -Wait"
+exit /b 0
+
+:restart_server
+call REINICIAR-SERVIDOR.bat
+exit /b 0
+
+:stop_server
+call DETENER-SERVIDOR.bat
+exit /b 0

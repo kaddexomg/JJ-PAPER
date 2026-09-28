@@ -15,8 +15,12 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8786" ^| findstr "LISTENING
   taskkill /F /PID %%P >nul 2>&1
 )
 
-REM 2. Detener procesos node adicionales que ejecuten index.js
+REM 2. Detener el supervisor de segundo plano (run-service.bat)
+wmic process where "name='cmd.exe' and commandline like '%%run-service.bat%%'" call terminate >nul 2>&1
+
+REM 3. Detener procesos node adicionales que ejecuten index.js
 wmic process where "name='node.exe' and commandline like '%%src/index.js%%'" call terminate >nul 2>&1
+wmic process where "name='node.exe' and commandline like '%%src\\index.js%%'" call terminate >nul 2>&1
 
 echo.
 if "%FOUND%"=="1" (
@@ -24,5 +28,4 @@ if "%FOUND%"=="1" (
 ) else (
   echo  [i] No habia ninguna instancia activa en el puerto 8786.
 )
-echo.
-timeout /t 2 /nobreak >nul
+ping -n 3 127.0.0.1 >nul

@@ -674,9 +674,22 @@ async function posSubmit() {
     const sellerId = activeSeller?.id || null;
     const isAdmin = (activeSeller?.role === 'admin');
     const dStatus = (d > 0) ? (isAdmin ? 'approved' : 'pending') : 'none';
+    let orderNumber = null;
+    if (typeof fetchNextDocSerial === 'function') {
+      orderNumber = await fetchNextDocSerial('pedido');
+    }
+    if (!orderNumber || !/^\d{8}$/.test(String(orderNumber).trim())) {
+      try {
+        const { data: sData } = await sb.rpc('jjp_next_doc_serial', { p_type: 'pedido' });
+        if (sData) orderNumber = String(sData).padStart(8, '0').slice(-8);
+      } catch (_) {}
+    }
+    if (!orderNumber || !/^\d{8}$/.test(String(orderNumber).trim())) {
+      orderNumber = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
+    }
 
     const order = {
-      order_number: genOrderNumber(),
+      order_number: orderNumber,
       client_name: name,
       phone: tel,
       rif:  document.getElementById('posCliRif')?.value.trim()  || null,

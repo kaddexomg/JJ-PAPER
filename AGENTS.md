@@ -857,3 +857,20 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - **Algoritmo Anti-Duplicados Multi-Criterio (`importExtractedProspects`)**: Indexa prospectos existentes por nombre normalizado (sin sufijos C.A./S.A.), email corporativo y últimos 7 dígitos de teléfono. Si una empresa ya existe, enriquece sus campos vacíos sin duplicar; si es nueva, la inserta.
   - **Tema Oscuro Completo (`[data-theme="dark"]`)**: Tarjetas KPI, selectores de IA, tabla de prospectos y cajas modales conmutan a Obsidian (`#121824`, `#1c2638`) con tipografías de alto contraste (`#ffffff`, `#94a3b8`) sin textos negros invisibles.
 
+## Blindaje de Comprobantes Fiscales, Soberanía de Datos y Rediseño A4 Punto Medio (25-09-2026)
+- **Principio de Soberanía Absoluta del Documento (`comprobante.html`)**:
+  - `doc.client_name` / `inv.nomcli` y `doc.rif` son inmutables y soberanos. Ningún lookup auxiliar en `jjp_customers` puede sobrescribir el cliente de un comprobante.
+  - Erradicado el bug crítico de coincidencia por palabras sueltas (`for (const w of words) ilike('name', %${w}%)`).
+  - La resolución de dirección fiscal real ahora es estricta: `customer_id` exacto, coincidencia limpia de dígitos de RIF (`cleanDigits(rif) === digits`), o código MixNet exacto en notas.
+- **Rediseño Proporcional "Punto Medio" en Hoja A4**:
+  - Factura calibrada para cubrir armónicamente el 70% - 80% de la hoja A4 sin desbordar a página 2 ni parecer un ticket encogido.
+  - Inserción de hasta 6 renglones guía sutiles para facturas de pocos ítems. Facturas de 6+ productos usan sus filas naturales sin espacios vacíos.
+  - Eliminada la columna "Marca". Tasa oficial BCV integrada de forma compacta y elegante al pie de los totales.
+  - Área de firmas estructurada con 40% para sello húmedo (borde punteado `#4b5563`, fondo `#fcfcfc`, sellos vectoriales) y 60% para firma y conformidad (54px de altura).
+- **Optimización de Marcas de Agua (Filigrana Institucional)**:
+  - Opacidad del logo central JJ Paper ajustada a `0.08` (8%) con diámetro ampliado a `380px`.
+  - Contraste superior a 17:1 sobre textos negros garantizando total legibilidad sin interferencias ni confusión visual.
+  - Rayado cebra de la tabla transformado a `rgba(0,0,0,0.018)` translúcido para no cortar la filigrana.
+  - Directivas en `@media print` fijando `opacity: 0.075 !important;` y `print-color-adjust: exact !important;` para impresión física láser y PDF de alta fidelidad.
+
+

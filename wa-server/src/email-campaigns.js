@@ -118,7 +118,7 @@ async function step(camp, dailyLimit) {
       log.info({ campaign: camp.name, to: t.to_addr, nextInS: Math.round(delayMs / 1000) }, 'campaña correo: enviado');
     } catch (e) {
       if (e.message && e.message.toLowerCase().includes('limit for sending mail')) {
-         await db.from('jjp_email_campaigns').update({ status: 'paused', error: 'Límite de Gmail alcanzado' }).eq('id', camp.id);
+         await db.from('jjp_email_campaigns').update({ status: 'paused', pause_reason: 'Límite de Gmail alcanzado' }).eq('id', camp.id);
          log.warn({ campaign: camp.name, target: t.id }, 'Campaña auto-pausada por límite de envío');
       }
       await db.from('jjp_email_campaign_targets').update({ status: 'failed', error: e.message }).eq('id', t.id);

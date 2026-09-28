@@ -8,7 +8,7 @@ echo ============================================================
 echo.
 echo [%date% %time%] Deteniendo servidor...
 call DETENER-SERVIDOR.bat
-timeout /t 2 /nobreak >nul
+ping -n 3 127.0.0.1 >nul
 
 echo [%date% %time%] Arrancando servidor en segundo plano...
 wscript start-hidden.vbs
@@ -17,4 +17,4 @@ echo.
 echo  [OK] El servidor ha sido reiniciado en segundo plano.
 echo  Puedes consultar su estado con ESTADO-SERVIDOR.bat
 echo.
-timeout /t 3 /nobreak >nul
+ping -n 4 127.0.0.1 >nul

@@ -28,7 +28,11 @@ async function loadOrders(statusFilter = ordersFilter) {
   // jjp_orders tiene 3 FKs hacia jjp_profiles (seller + descuentos): hay que
   // nombrar la relación o PostgREST devuelve 300 PGRST201 (embed ambiguo).
   let q = sb.from('jjp_orders').select('*, jjp_profiles!jjp_orders_seller_id_fkey(name)').order('created_at', { ascending: false });
-  if (statusFilter) q = q.eq('status', statusFilter);
+  if (statusFilter === 'facturado') {
+    q = q.not('invoice_number', 'is', null);
+  } else if (statusFilter) {
+    q = q.eq('status', statusFilter);
+  }
   const [{ data, error }, sellersRes] = await Promise.all([
     q,
     adminSellers.length ? Promise.resolve({ data: adminSellers })
@@ -66,13 +70,15 @@ function renderOrdersStats() {
   const box = document.getElementById('ordersStats');
   if (!box) return;
   // Always compute from a full fetch for accuracy
-  sb.from('jjp_orders').select('status,total_usd').then(({ data }) => {
+  sb.from('jjp_orders').select('status,total_usd,invoice_number').then(({ data }) => {
     const all = data || [];
     const sum = (arr) => arr.reduce((s, o) => s + Number(o.total_usd || 0), 0);
+    const invoiced = all.filter(o => o.invoice_number);
     const pend = all.filter(o => o.status === 'pendiente_pago' || o.status === 'verificando');
     const paid = all.filter(o => ['pagado', 'preparando', 'entregado'].includes(o.status));
     box.innerHTML = `
       <div class="ost"><span class="ost-n">${all.length}</span><span class="ost-l">Pedidos totales</span></div>
+      <div class="ost ok" style="border-left:4px solid #059669;cursor:pointer" onclick="setOrdersFilter('facturado')" title="Filtrar pedidos facturados en MixNet"><span class="ost-n" style="color:#059669">${invoiced.length}</span><span class="ost-l">🧾 Facturados MixNet</span></div>
       <div class="ost warn"><span class="ost-n">${pend.length}</span><span class="ost-l">Por verificar</span></div>
       <div class="ost ok"><span class="ost-n">${paid.length}</span><span class="ost-l">Confirmados</span></div>
       <div class="ost money"><span class="ost-n">${fmtPrice(sum(paid))}</span><span class="ost-l">Ventas confirmadas</span></div>`;
@@ -99,7 +105,20 @@ function renderOrdersTable() {
       ? `<a href="${escapeHTML(o.receipt_url)}" target="_blank" class="td-receipt" title="Ver comprobante"><img src="${escapeHTML(o.receipt_url)}" alt="comprobante"></a>`
       : '<span style="color:#ccc;font-size:11px">—</span>';
     return `<tr>
-      <td><strong>${escapeHTML(o.order_number)}</strong><div class="td-sub">${fmtDate(o.created_at)}</div></td>
+      <td>
+        <strong style="font-size:13.5px;color:#0f172a">${escapeHTML(o.order_number)}</strong>
+        <div class="td-sub">${fmtDate(o.created_at)}</div>
+      </td>
+      <td>
+        ${o.invoice_number ? `
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <a href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;color:#065f46;border:1.5px solid #10b981;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:900;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.05)" title="Ver / Imprimir Factura Fiscal MixNet">
+              🧾 Fact. #${escapeHTML(o.invoice_number)}
+            </a>
+            ${o.control_number ? `<span style="font-size:10.5px;color:#047857;font-weight:700">Ctrl: ${escapeHTML(o.control_number)}</span>` : ''}
+            <span style="font-size:10px;color:#64748b">${o.invoice_date ? fmtDate(o.invoice_date) : ''}</span>
+          </div>` : '<span style="display:inline-block;padding:2px 7px;border-radius:5px;background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:600">⏳ Sin facturar</span>'}
+      </td>
       <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
@@ -224,12 +243,12 @@ function viewOrder(id) {
   body.innerHTML = `
   <div class="ord-grid">
     <div>
-      <div class="ord-field"><label>Cliente</label><p>${escapeHTML(o.client_name)}</p></div>
-      <div class="ord-field"><label>Teléfono</label><p>${escapeHTML(o.phone)}</p></div>
-      <div class="ord-field"><label>RIF / CI</label><p>${escapeHTML(o.rif || '—')}</p></div>
-      <div class="ord-field"><label>Email</label><p>${escapeHTML(o.email || '—')}</p></div>
-      <div class="ord-field"><label>Ciudad</label><p>${escapeHTML(o.city || '—')}</p></div>
-      <div class="ord-field"><label>Dirección</label><p>${escapeHTML(o.address || '—')}</p></div>
+      <div class="ord-field"><label>Cliente</label><p><strong>${escapeHTML(o.client_name)}</strong></p></div>
+      <div class="ord-field"><label>RIF / CI</label><p id="ordModalRif"><strong>${escapeHTML(o.rif || '—')}</strong></p></div>
+      <div class="ord-field"><label>Domicilio Fiscal</label><p id="ordModalAddr">${escapeHTML(o.address || '—')}</p></div>
+      <div class="ord-field"><label>Ciudad</label><p id="ordModalCity">${escapeHTML(o.city || '—')}</p></div>
+      <div class="ord-field"><label>Teléfono</label><p id="ordModalPhone">${escapeHTML(o.phone || '—')}</p></div>
+      <div class="ord-field"><label>Email</label><p id="ordModalEmail">${escapeHTML(o.email || '—')}</p></div>
       <div class="ord-field"><label>Entrega</label><p>${
         o.delivery_type === 'delivery'
           ? `🛵 Delivery${o.delivery_distance_km ? ` · ~${o.delivery_distance_km} km` : ''}${(o.delivery_lat && o.delivery_lng) ? ` · <a href="https://maps.google.com/?q=${o.delivery_lat},${o.delivery_lng}" target="_blank" rel="noopener" style="color:var(--gd);font-weight:700">📍 Ver punto en el mapa</a>` : ''}`
@@ -251,6 +270,29 @@ function viewOrder(id) {
       <div class="ord-field"><label>Comprobante</label>${receiptHTML}</div>
     </div>
   </div>
+
+  ${o.invoice_number ? `
+  <div style="margin-top:16px;padding:14px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:15px;font-weight:900;color:#166534;display:flex;align-items:center;gap:8px">
+        <span>🧾 Factura Fiscal MixNet #${escapeHTML(o.invoice_number)}</span>
+        <span style="font-size:11px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-weight:800;letter-spacing:0.5px">FACTURADO</span>
+      </div>
+      <div style="font-size:12.5px;color:#166534;margin-top:4px;line-height:1.5">
+        ${o.control_number ? `<strong>N° de Control SENIAT:</strong> ${escapeHTML(o.control_number)} · ` : ''}
+        ${o.invoice_date ? `<strong>Emisión:</strong> ${fmtDate(o.invoice_date)} · ` : ''}
+        ${o.invoice_rate ? `<strong>Tasa BCV Factura:</strong> Bs ${Number(o.invoice_rate).toFixed(2)} · ` : ''}
+        <strong>Total Factura:</strong> ${fmtBsNum(o.invoice_total_bs || o.total_bs)} (${fmtPrice(o.invoice_total_usd || o.total_usd)})
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn-p sm" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura" target="_blank" style="background:#166534;border-color:#166534;padding:7px 14px;font-weight:700">👁️ Observar Factura</a>
+      <a class="btn-o sm" href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1" target="_blank" style="padding:7px 14px;font-weight:700">🖨️ Imprimir Factura</a>
+    </div>
+  </div>` : `
+  <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:space-between">
+    <span>⏳ Este pedido aún no registra factura emitida en MixNet (al facturarse en caja se enlazará automáticamente).</span>
+  </div>`}
 
   <label class="fl" style="margin-top:18px">Productos</label>
   <table class="admin-table" style="margin-top:6px">
@@ -317,6 +359,52 @@ function viewOrder(id) {
   </div>`;
 
   modal.classList.add('op');
+
+  // Resolver domicilio fiscal real y datos del cliente si faltan en el pedido
+  (async () => {
+    try {
+      let cust = null;
+      if (o.customer_id) {
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone').eq('id', o.customer_id).maybeSingle();
+        if (data) cust = data;
+      }
+      const inv = o.invoice_data || {};
+      const mixnetCode = (inv.cliente || '').trim();
+      if ((!cust || !cust.address) && mixnetCode) {
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone')
+          .ilike('notes', `%${mixnetCode}%`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      const rawRif = String(o.rif || inv.cif || '').trim();
+      const digits = rawRif.replace(/\D/g, '');
+      if ((!cust || !cust.address) && digits.length >= 6) {
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone')
+          .ilike('rif', `%${digits}%`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if ((!cust || !cust.address) && o.client_name) {
+        const qName = o.client_name.trim().slice(0, 18);
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone')
+          .ilike('name', `%${qName}%`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if (cust) {
+        const addrEl  = document.getElementById('ordModalAddr');
+        const cityEl  = document.getElementById('ordModalCity');
+        const rifEl   = document.getElementById('ordModalRif');
+        const phoneEl = document.getElementById('ordModalPhone');
+        const emailEl = document.getElementById('ordModalEmail');
+        if (addrEl && cust.address && (!o.address || o.address === '—')) addrEl.textContent = cust.address;
+        if (cityEl && cust.city && (!o.city || o.city === '—')) cityEl.textContent = cust.city;
+        if (rifEl && cust.rif && (!o.rif || o.rif === '—')) rifEl.innerHTML = `<strong>${escapeHTML(cust.rif)}</strong>`;
+        if (phoneEl && cust.phone && (!o.phone || o.phone === '—')) phoneEl.textContent = cust.phone;
+        if (emailEl && cust.email && (!o.email || o.email === '—')) emailEl.textContent = cust.email;
+      }
+    } catch (_) {}
+  })();
 }
 
 function closeOrderModal() {

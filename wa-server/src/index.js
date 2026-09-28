@@ -164,9 +164,9 @@ function handleFatalOrRepeatedError(reason, isCritical = false) {
     return;
   }
 
-  // 2. Errores transitorios de red / WebSocket / fetch:
-  // Los clientes de Baileys, Realtime y Google API gestionan su propia reconexión.
-  if (/WebSocket.*closed|Stream Errored|ECONNRESET|ECONNREFUSED|ENOTFOUND|fetch failed/i.test(errMsg)) {
+  // 2. Errores transitorios de red / WebSocket / fetch / Postgres pooler:
+  // Los clientes de Baileys, Realtime, Supabase y Google API gestionan su propia reconexión.
+  if (/WebSocket.*closed|Stream Errored|ECONNRESET|ECONNREFUSED|ENOTFOUND|fetch failed|timeout expired|ETIMEDOUT|Connection terminated/i.test(errMsg)) {
     log.warn({ err: errMsg }, 'Aviso de red transitorio: gestionado automáticamente por los mecanismos de reconexión.');
     return;
   }

@@ -174,11 +174,12 @@ function viewQuoteDetail(id) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <div><label class="fl">N° Cotización</label><p>${escapeHTML(q.quote_number || '—')} ${q.source === 'chat' ? ' <span class="badge badge-blue">🤖 chat</span>' : ''}</p></div>
       <div><label class="fl">Fecha</label><p>${fmtDate(q.created_at)}</p></div>
-      <div><label class="fl">Cliente</label><p>${escapeHTML(q.client_name)}</p></div>
-      <div><label class="fl">RIF/CI</label><p>${escapeHTML(q.rif || '—')}</p></div>
-      <div><label class="fl">Teléfono</label><p>${escapeHTML(q.phone)}</p></div>
-      <div><label class="fl">Ciudad</label><p>${escapeHTML(q.city || '—')}</p></div>
-      <div class="full"><label class="fl">Email</label><p>${escapeHTML(q.email || '—')}</p></div>
+      <div><label class="fl">Cliente</label><p><strong>${escapeHTML(q.client_name)}</strong></p></div>
+      <div><label class="fl">RIF/CI</label><p id="qModalRif"><strong>${escapeHTML(q.rif || '—')}</strong></p></div>
+      <div><label class="fl">Domicilio Fiscal</label><p id="qModalAddr">${escapeHTML(q.address || '—')}</p></div>
+      <div><label class="fl">Ciudad</label><p id="qModalCity">${escapeHTML(q.city || '—')}</p></div>
+      <div><label class="fl">Teléfono</label><p id="qModalPhone">${escapeHTML(q.phone || '—')}</p></div>
+      <div><label class="fl">Email</label><p id="qModalEmail">${escapeHTML(q.email || '—')}</p></div>
     </div>
     <label class="fl">Productos solicitados</label>
     <table class="admin-table" style="margin-top:8px">
@@ -217,6 +218,44 @@ href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar 
     </div>`;
 
   modal.classList.add('op');
+
+  // Resolver domicilio fiscal real y datos del cliente si faltan en la cotización
+  (async () => {
+    try {
+      let cust = null;
+      if (q.customer_id) {
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email').eq('id', q.customer_id).maybeSingle();
+        if (data) cust = data;
+      }
+      if ((!cust || !cust.address) && q.rif) {
+        const rawRif = String(q.rif).trim();
+        const cleanRif = rawRif.replace(/[^a-zA-Z0-9]/g, '');
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+          .or(`rif.eq."${rawRif}",rif.eq."${cleanRif}"`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if ((!cust || !cust.address) && q.client_name) {
+        const qName = q.client_name.trim().slice(0, 18);
+        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+          .ilike('name', `%${qName}%`)
+          .limit(1);
+        if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
+      }
+      if (cust) {
+        const addrEl  = document.getElementById('qModalAddr');
+        const cityEl  = document.getElementById('qModalCity');
+        const rifEl   = document.getElementById('qModalRif');
+        const phoneEl = document.getElementById('qModalPhone');
+        const emailEl = document.getElementById('qModalEmail');
+        if (addrEl && cust.address && (!q.address || q.address === '—')) addrEl.textContent = cust.address;
+        if (cityEl && cust.city && (!q.city || q.city === '—')) cityEl.textContent = cust.city;
+        if (rifEl && cust.rif && (!q.rif || q.rif === '—')) rifEl.innerHTML = `<strong>${escapeHTML(cust.rif)}</strong>`;
+        if (phoneEl && cust.phone && (!q.phone || q.phone === '—')) phoneEl.textContent = cust.phone;
+        if (emailEl && cust.email && (!q.email || q.email === '—')) emailEl.textContent = cust.email;
+      }
+    } catch (_) {}
+  })();
 }
 
 function closeQuoteDetail() {

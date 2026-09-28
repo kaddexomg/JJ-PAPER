@@ -685,61 +685,15 @@
     // Iniciar Tono de Timbrado en Headset
     window.JJPhoneAudio?.startRingback();
 
-    // Si el puente USB está activo, disparar la marcación real en el celular
-    if (gsmBridgeStatus.connected) {
-      try {
-        let res = await fetch('http://127.0.0.1:8789/call', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: cleanNumber })
-        }).catch(() => null);
-
-        if (!res || !res.ok) {
-          res = await fetch('/lan/gsm/call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: cleanNumber })
-          }).catch(() => null);
-        }
-
-        if (res && res.ok) {
-          const d = await res.json();
-          if (d.requires_manual_tap) {
-            if (typeof showToast === 'function') {
-              showToast('📲 Número colocado en tu teléfono. Toca el botón verde en tu celular para hablar.', 'info');
-            }
-          } else {
-            if (typeof showToast === 'function') {
-              showToast(`📲 Marcando ${phone} desde tu celular por USB... ¡Habla desde tu Headset!`, 'info');
-            }
-          }
-          return;
-        }
-      } catch (e) {
-        console.warn('Error llamando vía puente GSM local:', e);
-      }
-    }
-
-    // Fallback remoto a Supabase si estamos en Cloudflare Pages (HTTPS) o servidor en otra PC
-    if (typeof sb !== 'undefined') {
-      try {
-        await sb.from('jjp_server_control').update({
-          command: 'call:' + cleanNumber,
-          command_at: new Date().toISOString()
-        }).eq('id', 1);
-
-        if (typeof showToast === 'function') {
-          showToast(`📲 Comando enviado al servidor GSM... Marcando ${phone}. ¡Habla desde tu Headset!`, 'info');
-        }
-        return;
-      } catch (_) {}
-    }
-
-    // Si no hay puente o es llamada manual, arrancar cronómetro
+    // Llamar vía protocolo SIP (MicroSIP lo interceptará en Windows 7)
+    window.location.href = `sip:${cleanNumber}`;
     startTimer();
+    
     if (typeof showToast === 'function') {
-      showToast(`Llamada en curso: ${phone}. Cronómetro activo ⏱️`, 'info');
+      showToast(`📞 Iniciando llamada SIP a ${cleanNumber} mediante MicroSIP...`, 'info');
     }
+
+
   }
 
   async function hangupCall() {

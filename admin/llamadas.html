@@ -50,12 +50,20 @@
     50% { transform: scale(1.02); opacity: 1; }
     100% { transform: scale(0.98); opacity: 0.9; }
   }
+  .call-card {
+    background: var(--theme-bg-surface-solid, #ffffff);
+    border: 1px solid var(--theme-border-subtle, #e2e8f0);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    color: var(--theme-text-main, #0f172a);
+  }
   .customer-dossier-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--theme-item-bg, #f8fafc);
+    border: 1px solid var(--theme-border-subtle, #e2e8f0);
     border-radius: 12px;
     padding: 14px;
     margin-bottom: 16px;
@@ -68,13 +76,144 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #64748b;
+    color: var(--theme-text-muted, #64748b);
     margin-bottom: 2px;
   }
   .dossier-val {
     font-weight: 700;
-    color: #0f172a;
+    color: var(--theme-text-main, #0f172a);
     word-break: break-word;
+  }
+  .jj-keypad-grid .btn-g {
+    background: var(--theme-bg-elevated, #f8fafc);
+    border: 1px solid var(--theme-border-subtle, #e2e8f0);
+    color: var(--theme-text-main, #0f172a);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .jj-keypad-grid .btn-g:hover {
+    background: var(--theme-accent-glow, rgba(22,96,74,0.12));
+    border-color: var(--theme-accent, #16604a);
+  }
+
+  /* Modo Oscuro Robusto y Completo (data-theme="dark" o clase dark) */
+  [data-theme="dark"], body.dark, .dark {
+    --theme-bg-app: #090d16;
+    --theme-bg-surface-solid: #111827;
+    --theme-bg-elevated: #1e293b;
+    --theme-item-bg: #1a2234;
+    --theme-text-main: #f8fafc;
+    --theme-text-muted: #94a3b8;
+    --theme-border-subtle: #334155;
+    --theme-input-bg: #1e293b;
+    --theme-input-border: #334155;
+  }
+  [data-theme="dark"] .call-card, body.dark .call-card {
+    background: #111827 !important;
+    border-color: #1f2937 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4) !important;
+  }
+  [data-theme="dark"] .customer-dossier-grid, body.dark .customer-dossier-grid {
+    background: #151e2e !important;
+    border-color: #27354a !important;
+  }
+  [data-theme="dark"] .dossier-val, body.dark .dossier-val {
+    color: #f3f4f6 !important;
+  }
+  [data-theme="dark"] .dossier-label, body.dark .dossier-label {
+    color: #94a3b8 !important;
+  }
+  [data-theme="dark"] .fi, 
+  [data-theme="dark"] select.fi, 
+  [data-theme="dark"] input.fi, 
+  [data-theme="dark"] textarea.fi,
+  body.dark .fi, body.dark select.fi, body.dark input.fi, body.dark textarea.fi {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+  }
+  [data-theme="dark"] .jj-keypad-grid .btn-g, body.dark .jj-keypad-grid .btn-g {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+  }
+  [data-theme="dark"] .jj-keypad-grid .btn-g:hover, body.dark .jj-keypad-grid .btn-g:hover {
+    background: #0f766e !important;
+    border-color: #34d399 !important;
+  }
+  [data-theme="dark"] .timer-box-theme, body.dark .timer-box-theme {
+    background: #151e2e !important;
+    border-color: #27354a !important;
+  }
+  [data-theme="dark"] .schedule-box-theme, body.dark .schedule-box-theme {
+    background: #151e2e !important;
+    border-color: #27354a !important;
+    color: #f8fafc !important;
+  }
+  [data-theme="dark"] .of-chip:not(.on), body.dark .of-chip:not(.on) {
+    background: #1e293b !important;
+    color: #94a3b8 !important;
+    border-color: #334155 !important;
+  }
+  [data-theme="dark"] .of-chip.on, body.dark .of-chip.on {
+    background: #065f46 !important;
+    color: #6ee7b7 !important;
+    border-color: #10b981 !important;
+  }
+  [data-theme="dark"] .theme-heading, body.dark .theme-heading {
+    color: #f8fafc !important;
+  }
+  [data-theme="dark"] .btn-o, body.dark .btn-o {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+  }
+  [data-theme="dark"] .btn-o:hover, body.dark .btn-o:hover {
+    background: #334155 !important;
+    border-color: #64748b !important;
+  }
+  [data-theme="dark"] #aiCallResultBox, body.dark #aiCallResultBox {
+    background: #1e1333 !important;
+    border-color: #581c87 !important;
+    color: #f3e8ff !important;
+  }
+  [data-theme="dark"] #aiCallResultBox > div > div, body.dark #aiCallResultBox > div > div {
+    background: #120b20 !important;
+    border-color: #3b0764 !important;
+  }
+  [data-theme="dark"] #aiSummaryText, body.dark #aiSummaryText {
+    color: #e9d5ff !important;
+  }
+  [data-theme="dark"] #aiWaMessagePreview, body.dark #aiWaMessagePreview {
+    color: #f8fafc !important;
+  }
+  [data-theme="dark"] #pageAudioHelp, body.dark #pageAudioHelp {
+    background: #062419 !important;
+    border-color: #047857 !important;
+    color: #a7f3d0 !important;
+  }
+  [data-theme="dark"] #dialerCountdownBanner, body.dark #dialerCountdownBanner {
+    background: #062419 !important;
+    border-color: #10b981 !important;
+  }
+  [data-theme="dark"] #pageCallDialingAlert, body.dark #pageCallDialingAlert {
+    background: #0b1d3a !important;
+    border-color: #1d4ed8 !important;
+    color: #93c5fd !important;
+  }
+  [data-theme="dark"] #pageLocDisplay, body.dark #pageLocDisplay {
+    background: #082035 !important;
+    color: #38bdf8 !important;
+  }
+  [data-theme="dark"] #dossierZoneBadge, body.dark #dossierZoneBadge {
+    background: #082035 !important;
+    color: #38bdf8 !important;
+  }
+  [data-theme="dark"] #aiInterestBadge, body.dark #aiInterestBadge {
+    background: #4c1d95 !important;
+    color: #d8b4fe !important;
   }
 </style>
 </head>
@@ -143,7 +282,7 @@
           <!-- 1. Cartera / Lista -->
           <div>
             <label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;opacity:0.9">1. Seleccionar Cartera / Base:</label>
-            <select id="queueSourceSelect" class="fi" onchange="onQueueSourceChange()" style="font-size:12.5px;font-weight:700;background:#ffffff;color:#0f172a;height:36px;width:100%">
+            <select id="queueSourceSelect" class="fi" onchange="onQueueSourceChange()" style="font-size:12.5px;font-weight:700;height:36px;width:100%">
               <option value="zona_010" selected>👑 Zona 010 — Keyder Salazar (191 clientes)</option>
               <option value="zona_020">📦 Zona 020 — MixNet Keyder (3.474 clientes)</option>
               <option value="mi_cartera">🌟 Mi Cartera Completa (010 + 020)</option>
@@ -156,7 +295,7 @@
           <!-- 2. Filtro de Estado -->
           <div>
             <label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;opacity:0.9">2. Filtro de Contacto:</label>
-            <select id="queueFilterSelect" class="fi" onchange="applyQueueFilters()" style="font-size:12.5px;background:#ffffff;color:#0f172a;height:36px;width:100%">
+            <select id="queueFilterSelect" class="fi" onchange="applyQueueFilters()" style="font-size:12.5px;height:36px;width:100%">
               <option value="todos" selected>👥 Todos con teléfono en esta lista</option>
               <option value="pendientes">⏳ Pendientes por llamar (Sin llamadas previas)</option>
               <option value="sin_contacto_30d">📆 Sin contacto en los últimos 30 días</option>
@@ -168,7 +307,7 @@
           <!-- 3. Buscador en la Lista -->
           <div>
             <label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;opacity:0.9">3. Buscar en Lista:</label>
-            <input type="text" id="queueSearchInput" class="fi" placeholder="Filtrar por nombre, RIF o ciudad..." oninput="applyQueueFilters()" style="font-size:12.5px;background:#ffffff;color:#0f172a;height:36px;width:100%">
+            <input type="text" id="queueSearchInput" class="fi" placeholder="Filtrar por nombre, RIF o ciudad..." oninput="applyQueueFilters()" style="font-size:12.5px;height:36px;width:100%">
           </div>
         </div>
 
@@ -226,12 +365,12 @@
         <!-- COLUMNA 1: MARCADOR TELEFÓNICO (SOFTPHONE) -->
         <div class="call-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:15px;font-weight:800;color:#0f172a">Marcador Telefónico</h3>
+            <h3 class="theme-heading" style="margin:0;font-size:15px;font-weight:800">Marcador Telefónico</h3>
             <span id="pageCallStateBadge" style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;background:#f1f5f9;color:#64748b">⚪ En Espera</span>
           </div>
 
           <!-- Cronómetro de Llamada -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:center">
+          <div class="timer-box-theme" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:center">
             <div style="font-size:11px;color:#64748b;font-weight:700">TIEMPO DE LLAMADA (HABLANDO):</div>
             <div id="pageTimerDisplay" style="font-family:monospace;font-size:26px;font-weight:800;color:#0284c7">00:00 (0s)</div>
             <div id="pageTimerSubtext" style="font-size:10.5px;color:#94a3b8;margin-top:2px">El conteo inicia al conectar</div>
@@ -297,13 +436,13 @@
         <div class="call-card" id="tipificadorSection">
           
           <!-- CABECERA DE LA FICHA DEL CLIENTE EN VIVO -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;border-bottom:1px solid var(--theme-border-subtle, #e2e8f0);padding-bottom:12px">
             <div>
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-                <h3 id="dossierCompanyName" style="margin:0;font-size:18px;font-weight:800;color:#0f172a">Selecciona un cliente o inicia la cola</h3>
+                <h3 id="dossierCompanyName" class="theme-heading" style="margin:0;font-size:18px;font-weight:800">Selecciona un cliente o inicia la cola</h3>
                 <span id="dossierZoneBadge" class="of-chip" style="font-size:11px;font-weight:800;background:#e0f2fe;color:#0369a1">Zona —</span>
               </div>
-              <div id="dossierRifLine" style="font-size:12px;color:#64748b">RIF: — · Cartera: —</div>
+              <div id="dossierRifLine" style="font-size:12px;color:var(--theme-text-muted, #64748b)">RIF: — · Cartera: —</div>
             </div>
 
             <!-- Acciones Rápidas con el Cliente -->
@@ -311,13 +450,13 @@
               <button type="button" id="btnDirectCallCustomer" class="btn-p sm" onclick="pageStartCall()" style="font-size:12px;font-weight:800;background:#059669;border-color:#059669;padding:6px 14px;box-shadow:0 2px 4px rgba(5,150,105,0.25)">
                 📞 Llamar a este Cliente
               </button>
-              <button type="button" class="btn-o sm" onclick="openQuoteForCurrentCustomer()" style="font-size:11.5px;font-weight:700;color:#16604a;border-color:#a7f3d0;background:#ecfdf5">
+              <button type="button" class="btn-o sm" onclick="openQuoteForCurrentCustomer()" style="font-size:11.5px;font-weight:700">
                 📋 Cotizar
               </button>
-              <button type="button" class="btn-o sm" onclick="openPosForCurrentCustomer()" style="font-size:11.5px;font-weight:700;color:#0369a1;border-color:#bae6fd;background:#f0f9ff">
+              <button type="button" class="btn-o sm" onclick="openPosForCurrentCustomer()" style="font-size:11.5px;font-weight:700">
                 🛒 POS
               </button>
-              <button type="button" class="btn-o sm" onclick="openWhatsAppChatForCurrent()" style="font-size:11.5px;font-weight:700;color:#15803d;border-color:#bbf7d0;background:#f0fdf4">
+              <button type="button" class="btn-o sm" onclick="openWhatsAppChatForCurrent()" style="font-size:11.5px;font-weight:700">
                 💬 WhatsApp
               </button>
             </div>
@@ -351,12 +490,12 @@
             </div>
             <div class="dossier-item" style="grid-column: 1 / -1">
               <div class="dossier-label">Último Contacto Omnicanal</div>
-              <div class="dossier-val" id="dossierLastContact" style="color:#475569">Nunca contactado</div>
+              <div class="dossier-val" id="dossierLastContact">Nunca contactado</div>
             </div>
           </div>
 
           <!-- 1. Tipificación / Resultado Principal -->
-          <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:6px">1. Resultado de la Llamada:</label>
+          <label class="theme-heading" style="font-size:12px;font-weight:800;display:block;margin-bottom:6px">1. Resultado de la Llamada:</label>
           <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:6px;margin-bottom:14px">
             <button type="button" class="of-chip on" data-outcome="interesado" onclick="selectPageOutcome(this)">✅ Interesado / Venta</button>
             <button type="button" class="of-chip" data-outcome="cotizacion" onclick="selectPageOutcome(this)">📋 Pidió Cotización</button>
@@ -368,7 +507,7 @@
           </div>
 
           <!-- 2. Argumentos y Objeciones del Cliente -->
-          <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:6px">2. Argumentos u Objeciones del Cliente:</label>
+          <label class="theme-heading" style="font-size:12px;font-weight:800;display:block;margin-bottom:6px">2. Argumentos u Objeciones del Cliente:</label>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
             <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide descuento o mejor precio por bulto">🏷️ Pide descuento / mejor precio</button>
             <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide crédito a 15 o 30 días">💳 Pide crédito (15/30 días)</button>
@@ -380,9 +519,9 @@
           </div>
 
           <!-- 3. Agendamiento de Rellamada (Fecha y Hora) -->
-          <div id="pageCallbackBox" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:14px">
+          <div id="pageCallbackBox" class="schedule-box-theme" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-weight:800;font-size:12px;color:#0f172a">⏰ Agendar Próxima Llamada:</span>
+              <span class="theme-heading" style="font-weight:800;font-size:12px">⏰ Agendar Próxima Llamada:</span>
               <label style="font-size:11px;display:flex;align-items:center;gap:4px">
                 <input type="checkbox" id="pageEnableCallback" checked> Activar agenda
               </label>
@@ -396,11 +535,11 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
               <div>
-                <label style="font-size:10.5px;color:#64748b;display:block">Fecha y Hora:</label>
+                <label style="font-size:10.5px;color:var(--theme-text-muted, #64748b);display:block">Fecha y Hora:</label>
                 <input type="datetime-local" id="pageCallbackDateTime" class="fi" style="font-size:11.5px;height:34px;width:100%">
               </div>
               <div>
-                <label style="font-size:10.5px;color:#64748b;display:block">Motivo de la Rellamada:</label>
+                <label style="font-size:10.5px;color:var(--theme-text-muted, #64748b);display:block">Motivo de la Rellamada:</label>
                 <input type="text" id="pageCallbackReason" class="fi" placeholder="Ej: Confirmar cotización..." style="font-size:11.5px;height:34px;width:100%">
               </div>
             </div>
@@ -408,8 +547,8 @@
 
           <!-- 4. Notas de la Conversación + Asistente IA Comercial -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <label style="font-size:12px;font-weight:800;color:#0f172a">Notas de la Conversación:</label>
-            <button type="button" id="btnAiAnalyzeCall" class="btn-o sm" onclick="analyzeCallWithAi()" style="font-size:11px;font-weight:700;color:#7c3aed;border-color:#ddd6fe;background:#f5f3ff">
+            <label class="theme-heading" style="font-size:12px;font-weight:800">Notas de la Conversación:</label>
+            <button type="button" id="btnAiAnalyzeCall" class="btn-o sm" onclick="analyzeCallWithAi()" style="font-size:11px;font-weight:700">
               🪄 Resumir & Tipificar con IA
             </button>
           </div>
@@ -458,7 +597,7 @@
         <!-- Agenda de Rellamadas -->
         <div class="call-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:14px;font-weight:800;color:#0f172a">⏰ Rellamadas Agendadas</h3>
+            <h3 class="theme-heading" style="margin:0;font-size:14px;font-weight:800">⏰ Rellamadas Agendadas</h3>
             <button type="button" class="btn-o sm" onclick="loadCallbacksList()">🔄 Refrescar</button>
           </div>
           <div id="pageCallbacksList" style="max-height:300px;overflow-y:auto"></div>
@@ -467,7 +606,7 @@
         <!-- Historial de Llamadas Recientes -->
         <div class="call-card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:14px;font-weight:800;color:#0f172a">📜 Historial de Llamadas Recientes</h3>
+            <h3 class="theme-heading" style="margin:0;font-size:14px;font-weight:800">📜 Historial de Llamadas Recientes</h3>
             <button type="button" class="btn-o sm" onclick="loadCallHistory()">🔄 Refrescar</button>
           </div>
           <div id="pageHistoryList" style="max-height:300px;overflow-y:auto"></div>
@@ -488,8 +627,8 @@
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/gemini-client.js?v=20260927_ai_dialer"></script>
 <script src="../assets/js/phone-audio-engine.js?v=20260927_audio_v1"></script>
-<script src="../assets/js/phone-dialer.js?v=20260927_b2b_v4"></script>
-<script src="../assets/js/admin/vllamadas.js?v=20260927_b2b_v4"></script>
+<script src="../assets/js/phone-dialer.js?v=20260927_b2b_v5"></script>
+<script src="../assets/js/admin/vllamadas.js?v=20260927_b2b_v5"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
 
 </body>

@@ -11,6 +11,32 @@
   .login-or{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--gr,#8a8a8a);font-size:12px}
   .login-or::before,.login-or::after{content:"";flex:1;height:1px;background:rgba(0,0,0,.12)}
   #googleBtn{align-items:center}
+  
+  [data-theme="dark"] .login-box, body.dark .login-box {
+    background: #111827 !important;
+    border: 1px solid #1f2937 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+  }
+  [data-theme="dark"] .login-box h2, body.dark .login-box h2 {
+    color: #ffffff !important;
+  }
+  [data-theme="dark"] .login-box p, body.dark .login-box p {
+    color: #94a3b8 !important;
+  }
+  [data-theme="dark"] .login-or::before, [data-theme="dark"] .login-or::after,
+  body.dark .login-or::before, body.dark .login-or::after {
+    background: rgba(255,255,255,0.15) !important;
+  }
+  [data-theme="dark"] #googleBtn, body.dark #googleBtn {
+    background: #1e293b !important;
+    color: #ffffff !important;
+    border: 1px solid #334155 !important;
+  }
+  [data-theme="dark"] #googleBtn:hover, body.dark #googleBtn:hover {
+    background: #334155 !important;
+    border-color: #475569 !important;
+  }
 </style>
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>

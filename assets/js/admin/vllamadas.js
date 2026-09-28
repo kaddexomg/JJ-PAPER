@@ -1203,15 +1203,15 @@ function loadCallbacksList() {
     }
 
     return `
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div style="background:var(--theme-item-bg, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-weight:700;font-size:12.5px;color:#0f172a">${escapeHTML(cb.company)} <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${badgeBg};color:${badgeColor};font-weight:800">${badge}</span></div>
-          <div style="font-size:11px;color:#64748b">📞 <strong>${escapeHTML(cb.phone)}</strong> · ⏰ ${cb.callback_at ? new Date(cb.callback_at).toLocaleString('es-VE') : ''}</div>
-          ${cb.reason ? `<div style="font-size:10.5px;color:#0369a1;margin-top:2px"><em>${escapeHTML(cb.reason)}</em></div>` : ''}
+          <div style="font-weight:700;font-size:12.5px;color:var(--theme-text-main, #0f172a)">${escapeHTML(cb.company)} <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${badgeBg};color:${badgeColor};font-weight:800">${badge}</span></div>
+          <div style="font-size:11px;color:var(--theme-text-muted, #64748b)">📞 <strong>${escapeHTML(cb.phone)}</strong> · ⏰ ${cb.callback_at ? new Date(cb.callback_at).toLocaleString('es-VE') : ''}</div>
+          ${cb.reason ? `<div style="font-size:10.5px;color:#0284c7;margin-top:2px"><em>${escapeHTML(cb.reason)}</em></div>` : ''}
         </div>
         <div style="display:flex;gap:6px">
           <button type="button" class="btn-p sm" onclick="loadSingleCustomerToDialer('${escapeHTML(cb.phone)}', '${escapeHTML(cb.company)}', '${escapeHTML(cb.name || '')}', '${cb.targetId || ''}')" style="background:#059669;padding:4px 8px;font-size:11px;font-weight:800">📞 Marcar</button>
-          <button type="button" class="btn-g sm" onclick="deleteCallback('${cb.id}')" style="padding:4px 6px;font-size:11px">✕</button>
+          <button type="button" class="btn-o sm" onclick="deleteCallback('${cb.id}')" style="padding:4px 6px;font-size:11px">✕</button>
         </div>
       </div>
     `;
@@ -1224,19 +1224,19 @@ function loadCallHistory() {
 
   const history = JSON.parse(localStorage.getItem('jjp_call_history_v1') || '[]');
   if (!history.length) {
-    container.innerHTML = '<div style="padding:20px;text-align:center;color:#64748b;font-size:12px">No hay llamadas registradas hoy.</div>';
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--theme-text-muted, #64748b);font-size:12px">No hay llamadas registradas hoy.</div>';
     return;
   }
 
   container.innerHTML = history.slice(0, 15).map(h => `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+    <div style="background:var(--theme-item-bg, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:10px;padding:10px 12px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-        <span style="font-weight:700;font-size:12px;color:#0f172a">${escapeHTML(h.company || 'Directo')} (${escapeHTML(h.phone)})</span>
+        <span style="font-weight:700;font-size:12px;color:var(--theme-text-main, #0f172a)">${escapeHTML(h.company || 'Directo')} (${escapeHTML(h.phone)})</span>
         <span style="font-size:11px;font-weight:800;color:#0284c7">${h.duration_seconds}s</span>
       </div>
-      <div style="font-size:11px;color:#16a34a;font-weight:700">${escapeHTML(h.outcome_text || 'Llamada')}</div>
-      ${h.notes ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${escapeHTML(h.notes)}</div>` : ''}
-      <div style="font-size:10px;color:#94a3b8;margin-top:4px">${new Date(h.created_at).toLocaleTimeString('es-VE')}</div>
+      <div style="font-size:11px;color:#10b981;font-weight:700">${escapeHTML(h.outcome_text || 'Llamada')}</div>
+      ${h.notes ? `<div style="font-size:11px;color:var(--theme-text-muted, #64748b);margin-top:2px">${escapeHTML(h.notes)}</div>` : ''}
+      <div style="font-size:10px;color:var(--theme-text-muted, #94a3b8);margin-top:4px">${new Date(h.created_at).toLocaleTimeString('es-VE')}</div>
     </div>
   `).join('');
 }

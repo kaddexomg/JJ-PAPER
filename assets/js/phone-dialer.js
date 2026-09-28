@@ -549,20 +549,20 @@
       const formattedDate = cb.callback_at ? new Date(cb.callback_at).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha';
 
       return `
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="background:var(--theme-item-bg, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
           <div style="min-width:0;flex:1">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-              <span style="font-weight:800;font-size:12.5px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              <span style="font-weight:800;font-size:12.5px;color:var(--theme-text-main, #0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                 ${escapeHTML(cb.company || 'Empresa')}
               </span>
               <span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;background:${badgeBg};color:${badgeColor}">
                 ${badge}
               </span>
             </div>
-            <div style="font-size:11px;color:#64748b">
+            <div style="font-size:11px;color:var(--theme-text-muted, #64748b)">
               👤 ${escapeHTML(cb.name || 'Sin contacto')} · 📞 <strong>${escapeHTML(cb.phone || '')}</strong>
             </div>
-            <div style="font-size:10.5px;color:#0369a1;margin-top:2px">
+            <div style="font-size:10.5px;color:#0284c7;margin-top:2px">
               ⏰ ${formattedDate} ${cb.reason ? `· <em>${escapeHTML(cb.reason)}</em>` : ''}
             </div>
           </div>
@@ -570,7 +570,7 @@
             <button type="button" class="btn-p sm" onclick="window.JJDialer.dialScheduledCustomer('${escapeHTML(cb.phone)}', '${escapeHTML(cb.company)}', '${escapeHTML(cb.name)}', '${cb.targetId || ''}')" style="background:#059669;padding:4px 8px;font-size:11px;font-weight:800" title="Cargar y marcar">
               📞 Marcar
             </button>
-            <button type="button" class="btn-g sm" onclick="window.JJDialer.deleteScheduledCallback('${cb.id}')" style="padding:4px 6px;font-size:11px" title="Completada / Eliminar de agenda">
+            <button type="button" class="btn-o sm" onclick="window.JJDialer.deleteScheduledCallback('${cb.id}')" style="padding:4px 6px;font-size:11px" title="Completada / Eliminar de agenda">
               ✕
             </button>
           </div>
@@ -1140,9 +1140,12 @@
   }
 
   function openFullCallCenter() {
-    const isAdmin = window.location.pathname.includes('/admin/');
-    const path = isAdmin ? 'llamadas.html' : '../vendedor/llamadas.html';
-    window.location.href = path;
+    const isVendedor = window.location.pathname.includes('/vendedor/');
+    let target = isVendedor ? 'llamadas.html' : 'llamadas.html';
+    if (typeof siteURL === 'function') {
+      target = siteURL(isVendedor ? 'vendedor/llamadas.html' : 'admin/llamadas.html');
+    }
+    window.location.href = target;
   }
 
   async function hangupFromFloatingWidget() {
@@ -1170,10 +1173,11 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initGlobalCallWidget);
-  } else {
+  // Iniciar widget inmediatamente si document.body ya existe, sin esperar DOMContentLoaded
+  if (document.body) {
     initGlobalCallWidget();
+  } else {
+    document.addEventListener('DOMContentLoaded', initGlobalCallWidget);
   }
 
   window.JJDialer = {

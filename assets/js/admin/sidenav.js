@@ -366,7 +366,7 @@
     if (document.getElementById('jjp-dialer-script') || window.JJDialer) return;
     const s = document.createElement('script');
     s.id = 'jjp-dialer-script';
-    s.src = '../assets/js/phone-dialer.js?v=20260927_keypad_v2';
+    s.src = '../assets/js/phone-dialer.js?v=20260927_b2b_v5';
     document.head.appendChild(s);
   }
 

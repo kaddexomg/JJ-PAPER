@@ -221,32 +221,66 @@ async function getDeviceStatus() {
 // 5. Iniciar Llamada Celular
 async function makeCall(phone) {
   if (!phone) return { ok: false, error: 'Número de teléfono requerido' };
-  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  let cleanPhone = phone.replace(/[^\d+]/g, '');
 
   const status = await getDeviceStatus();
   if (!status.connected) {
     return { ok: false, error: status.message || 'Celular no conectado por USB' };
   }
 
-  activeCallStartTime = Date.now();
+  // Si el número no tiene formato nacional ni internacional válido, ajustar
+  if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('0') && cleanPhone.startsWith('58')) {
+    cleanPhone = '+' + cleanPhone;
+  }
+
+  activeCallStartTime = null;
   activeCallPhone = cleanPhone;
 
-  // Intento 1: Disparo directo de acción CALL
+  // 1. Despertar la pantalla del dispositivo e iluminar
+  try {
+    await runAdb(`-s ${status.serial} shell input keyevent 224`); // KEYCODE_WAKEUP
+    await runAdb(`-s ${status.serial} shell wm dismiss-keyguard`);
+  } catch (_) {}
+
+  // 2. Intento 1: Disparo directo de acción CALL
   let res = await runAdb(`-s ${status.serial} shell am start -a android.intent.action.CALL -d tel:${cleanPhone}`);
   
-  // Intento 2: Si el fabricante bloquea CALL directo, abrir DIAL y presionar KEYCODE_CALL (5)
+  // 3. Intento 2: Si el fabricante (Xiaomi/HyperOS) bloquea CALL directo, abrir DIAL y simular tecla
+  let manualTap = false;
   if (!res.ok || (res.stdout && res.stdout.includes('SecurityException'))) {
-    console.log('⚠️ Acción CALL directa restringida. Usando marcación y simulación de llamada...');
+    console.log('⚠️ Acción CALL directa restringida. Abriendo marcador en pantalla con número listo...');
     await runAdb(`-s ${status.serial} shell am start -a android.intent.action.DIAL -d tel:${cleanPhone}`);
     await new Promise(r => setTimeout(r, 600));
-    await runAdb(`-s ${status.serial} shell input keyevent 5`);
+    const keyRes = await runAdb(`-s ${status.serial} shell input keyevent 5`); // KEYCODE_CALL
+    if (!keyRes.ok || (keyRes.stdout && keyRes.stdout.includes('SecurityException'))) {
+      manualTap = true;
+    }
+  }
+
+  // 4. Comprobar estado real en telephony.registry
+  let currentCallState = 0;
+  try {
+    const dumpRes = await runAdb(`-s ${status.serial} shell dumpsys telephony.registry`);
+    if (dumpRes.ok) {
+      const match = dumpRes.stdout.match(/mCallState=(\d)/);
+      if (match) currentCallState = parseInt(match[1], 10);
+    }
+  } catch (_) {}
+
+  if (currentCallState === 2) {
+    activeCallStartTime = Date.now();
   }
 
   return {
     ok: true,
     phone: cleanPhone,
-    status: 'dialing',
-    started_at: new Date().toISOString()
+    status: currentCallState === 2 ? 'active' : (currentCallState === 1 ? 'ringing' : 'dialpad_ready'),
+    call_state: currentCallState,
+    requires_manual_tap: manualTap || currentCallState === 0,
+    started_at: new Date().toISOString(),
+    message: currentCallState > 0
+      ? '📲 Llamada conectando en el celular...'
+      : '📲 Número cargado en el teléfono. Si no llama solo, pulsa el botón verde en tu celular.'
   };
 }
 

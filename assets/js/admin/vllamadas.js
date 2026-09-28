@@ -1,6 +1,9 @@
 /**
- * JJ Paper — Controlador de Pantalla Completa para Llamadas B2B y Centralita
- * Windows 7 + Headset · Puente GSM USB · Tipificador y Agenda de Rellamadas
+ * ============================================================================
+ * JJ Paper — Motor de Llamadas B2B, Cartera y Centralita Comercial
+ * Compatible con Windows 7 · Headset · Puente GSM USB ($0 Inversión)
+ * Soporta Carteras 010 y 020 · Cola Secuencial (Power Dialer) · Asistente IA
+ * ============================================================================
  */
 
 let activeCallTarget = null;
@@ -8,46 +11,392 @@ let pageCallSeconds = 0;
 let pageCallTimer = null;
 let pageIsCallActive = false;
 let gsmBridgeConnected = false;
+let gsmMonitorInterval = null;
+let lastKnownGsmCallState = 0; // 0=IDLE, 1=RINGING, 2=OFFHOOK
+
+// Estado del Motor de Cartera (Power Dialer)
+let rawCustomersList = [];
+let filteredQueue = [];
+let queueIndex = 0;
+let isQueueRunning = false;
+let lastGeneratedWaMessage = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  initLlamadasPage();
+  // 1. Inicializar sesión y permisos
+  if (typeof requireAuth === 'function') {
+    const session = await requireAuth(['admin', 'vendedor']).catch(() => null);
+    if (session && typeof renderUserBar === 'function') renderUserBar(session);
+  }
+
+  // 2. Inicializar Puente GSM
   checkGsmBridgeOnPage();
-  setInterval(checkGsmBridgeOnPage, 4000);
+  if (gsmMonitorInterval) clearInterval(gsmMonitorInterval);
+  gsmMonitorInterval = setInterval(checkGsmBridgeOnPage, 3500);
+
+  // 3. Cargar Cartera Inicial (por defecto Zona 010 para Keyder/Admin)
+  await loadQueueFromSource('zona_010');
+
+  // 4. Cargar Historial y Agenda Local
   loadCallbacksList();
   loadCallHistory();
-  initCustomerSearch();
+
+  // 5. Configurar preset inicial de fecha en tipificador
+  setPagePreset('tomorrow_am');
 });
 
-function initLlamadasPage() {
-  // Pre-cargar número de la URL si viene con ?phone=...
-  const params = new URLSearchParams(window.location.search);
-  const phoneParam = params.get('phone');
-  const nameParam = params.get('name');
-  const companyParam = params.get('company');
-  const idParam = params.get('id');
+// ----------------------------------------------------------------------------
+// 1. CARGA DE CARTERAS Y LISTAS DE CLIENTES
+// ----------------------------------------------------------------------------
+async function onQueueSourceChange() {
+  const source = document.getElementById('queueSourceSelect')?.value || 'zona_010';
+  await loadQueueFromSource(source);
+}
 
-  if (phoneParam) {
-    document.getElementById('pageDialerInput').value = phoneParam;
-    onPageNumberChange(phoneParam);
-    if (companyParam || nameParam) {
-      setPageCallTarget({
-        id: idParam || null,
-        company: companyParam || 'Cliente',
-        name: nameParam || '',
-        phone: phoneParam,
-        type: idParam ? 'prospect' : 'manual'
-      });
+async function loadQueueFromSource(source) {
+  const progressText = document.getElementById('queueProgressText');
+  if (progressText) progressText.textContent = 'Cargando clientes...';
+
+  rawCustomersList = [];
+
+  // A. Rellamadas Agendadas
+  if (source === 'rellamadas') {
+    const callbacks = JSON.parse(localStorage.getItem('jjp_callbacks_agenda_v1') || '[]');
+    rawCustomersList = callbacks.map(cb => ({
+      id: cb.targetId || null,
+      company: cb.company || 'Cliente',
+      name: cb.name || '',
+      phone: cb.phone || '',
+      zone: 'Agenda',
+      city: 'Rellamada',
+      address: cb.reason || 'Rellamada programada',
+      email: '',
+      total_orders: 0,
+      total_usd: 0,
+      last_order_at: null,
+      notes: cb.reason || '',
+      last_contact_at: cb.callback_at,
+      last_contact_channel: 'agenda',
+      contact_count: 1,
+      type: 'callback'
+    }));
+    applyQueueFilters();
+    return;
+  }
+
+  // B. Prospectos B2B
+  if (source === 'prospectos_b2b') {
+    if (typeof sb !== 'undefined') {
+      try {
+        const { data, error } = await sb.from('jjp_prospects')
+          .select('id, company_name, contact_name, phone, email, address, city, notes, status, last_contact_at, last_contact_channel, contact_count')
+          .order('company_name', { ascending: true })
+          .limit(1000);
+        if (data && !error) {
+          rawCustomersList = data.map(p => ({
+            id: p.id,
+            company: p.company_name || 'Empresa B2B',
+            name: p.contact_name || '',
+            rif: 'J-PROSPECT',
+            phone: p.phone || '',
+            zone: 'B2B',
+            city: p.city || 'Venezuela',
+            address: p.address || '',
+            email: p.email || '',
+            total_orders: 0,
+            total_usd: 0,
+            last_order_at: null,
+            notes: p.notes || '',
+            last_contact_at: p.last_contact_at,
+            last_contact_channel: p.last_contact_channel || '',
+            contact_count: p.contact_count || 0,
+            type: 'prospect'
+          }));
+        }
+      } catch (e) {
+        console.warn('Error cargando prospectos:', e);
+      }
     }
+    applyQueueFilters();
+    return;
+  }
+
+  // C. Cartera de Clientes Supabase (Zona 010, Zona 020, Mi Cartera, Todos)
+  if (typeof sb !== 'undefined') {
+    try {
+      let query = sb.from('jjp_customers')
+        .select('id, name, rif, phone, zone, city, address, email, total_orders, total_usd, last_order_at, notes, last_contact_at, last_contact_channel, contact_count, seller_id');
+
+      const seller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (window.SELLER || null);
+      const isAdmin = seller?.role === 'admin' || seller?.is_admin || true; // Keyder / Admin
+
+      if (source === 'zona_010') {
+        query = query.eq('zone', '010');
+      } else if (source === 'zona_020') {
+        query = query.eq('zone', '020');
+      } else if (source === 'mi_cartera') {
+        if (isAdmin) {
+          query = query.or('zone.eq.010,zone.eq.020');
+        } else if (seller?.id) {
+          query = query.eq('seller_id', seller.id);
+        }
+      } else if (source === 'todos_clientes') {
+        if (!isAdmin) {
+          query = query.neq('zone', '020'); // Zona 020 exclusiva de Keyder
+        }
+      }
+
+      const { data, error } = await query.order('name', { ascending: true }).range(0, 3999);
+      if (data && !error) {
+        rawCustomersList = data.map(c => ({
+          id: c.id,
+          company: c.name || 'Cliente',
+          name: '',
+          rif: c.rif || '',
+          phone: c.phone || '',
+          zone: c.zone || 'Sin zona',
+          city: c.city || 'Venezuela',
+          address: c.address || '',
+          email: c.email || '',
+          total_orders: c.total_orders || 0,
+          total_usd: Number(c.total_usd || 0),
+          last_order_at: c.last_order_at,
+          notes: c.notes || '',
+          last_contact_at: c.last_contact_at,
+          last_contact_channel: c.last_contact_channel || '',
+          contact_count: c.contact_count || 0,
+          seller_id: c.seller_id,
+          type: 'customer'
+        }));
+      }
+    } catch (err) {
+      console.error('Error cargando cartera en el motor de llamadas:', err);
+    }
+  }
+
+  applyQueueFilters();
+}
+
+// ----------------------------------------------------------------------------
+// 2. FILTRADO Y GESTIÓN DE LA COLA DEL MOTOR DE LLAMADAS
+// ----------------------------------------------------------------------------
+function applyQueueFilters() {
+  const filterType = document.getElementById('queueFilterSelect')?.value || 'pendientes';
+  const searchTerm = (document.getElementById('queueSearchInput')?.value || '').trim().toLowerCase();
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+
+  filteredQueue = rawCustomersList.filter(item => {
+    // 1. Debe tener teléfono para poder llamar
+    if (!item.phone || item.phone.trim().length < 6) return false;
+
+    // 2. Filtro por Estado
+    if (filterType === 'pendientes') {
+      // Sin llamadas o nunca contactado
+      if (item.contact_count && item.contact_count > 0) return false;
+      if (item.notes && item.notes.includes('[Llamada')) return false;
+    } else if (filterType === 'sin_contacto_30d') {
+      if (item.last_contact_at) {
+        const lastDate = new Date(item.last_contact_at);
+        if (lastDate > thirtyDaysAgo) return false;
+      }
+    } else if (filterType === 'interesados') {
+      const n = (item.notes || '').toLowerCase();
+      if (!n.includes('interesado') && !n.includes('cotización') && !n.includes('cotizacion')) return false;
+    } else if (filterType === 'no_contesta') {
+      const n = (item.notes || '').toLowerCase();
+      if (!n.includes('no contesta') && !n.includes('buzón')) return false;
+    }
+
+    // 3. Filtro por Buscador de Texto
+    if (searchTerm) {
+      const matchComp = (item.company || '').toLowerCase().includes(searchTerm);
+      const matchRif = (item.rif || '').toLowerCase().includes(searchTerm);
+      const matchPhone = (item.phone || '').toLowerCase().includes(searchTerm);
+      const matchCity = (item.city || '').toLowerCase().includes(searchTerm);
+      if (!matchComp && !matchRif && !matchPhone && !matchCity) return false;
+    }
+
+    return true;
+  });
+
+  queueIndex = 0;
+  updateQueueUI();
+
+  if (filteredQueue.length > 0) {
+    loadCustomerAt(0);
+  } else {
+    clearDossierView();
   }
 }
 
-// 1. Verificación del Puente GSM
+function updateQueueUI() {
+  const total = filteredQueue.length;
+  const current = total > 0 ? queueIndex + 1 : 0;
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+
+  const textEl = document.getElementById('queueProgressText');
+  const barEl = document.getElementById('queueProgressBar');
+
+  if (textEl) {
+    textEl.textContent = `Contacto ${current} de ${total} (${pct}%)`;
+  }
+  if (barEl) {
+    barEl.style.width = `${pct}%`;
+  }
+}
+
+function startQueueExecution() {
+  if (!filteredQueue.length) {
+    if (typeof showToast === 'function') showToast('La lista seleccionada no tiene contactos pendientes.', 'warn');
+    return;
+  }
+  isQueueRunning = true;
+  document.getElementById('btnQueueStart').style.display = 'none';
+  document.getElementById('btnQueuePause').style.display = 'inline-flex';
+
+  loadCustomerAt(queueIndex);
+  if (typeof showToast === 'function') {
+    showToast(`⚡ Cola iniciada: ${activeCallTarget?.company}. ¡Listo para llamar!`, 'info');
+  }
+}
+
+function pauseQueueExecution() {
+  isQueueRunning = false;
+  document.getElementById('btnQueueStart').style.display = 'inline-flex';
+  document.getElementById('btnQueuePause').style.display = 'none';
+  if (typeof showToast === 'function') showToast('Motor de llamadas en pausa.', 'info');
+}
+
+function queueNext() {
+  if (queueIndex + 1 < filteredQueue.length) {
+    queueIndex++;
+    loadCustomerAt(queueIndex);
+  } else {
+    if (typeof showToast === 'function') showToast('🎉 ¡Felicidades! Has completado todos los clientes de esta lista.', 'info');
+    pauseQueueExecution();
+  }
+}
+
+function queuePrev() {
+  if (queueIndex - 1 >= 0) {
+    queueIndex--;
+    loadCustomerAt(queueIndex);
+  }
+}
+
+function queueRandom() {
+  if (filteredQueue.length <= 1) return;
+  const nextIdx = Math.floor(Math.random() * filteredQueue.length);
+  queueIndex = nextIdx;
+  loadCustomerAt(queueIndex);
+}
+
+// ----------------------------------------------------------------------------
+// 3. CARGA DE LA FICHA EN VIVO (DOSSIER DEL CLIENTE)
+// ----------------------------------------------------------------------------
+function loadCustomerAt(idx) {
+  if (idx < 0 || idx >= filteredQueue.length) return;
+  const target = filteredQueue[idx];
+  activeCallTarget = target;
+
+  // Actualizar Marcador
+  const dialerInput = document.getElementById('pageDialerInput');
+  if (dialerInput) {
+    dialerInput.value = target.phone || '';
+    onPageNumberChange(target.phone || '');
+  }
+
+  // Actualizar Dossier
+  document.getElementById('dossierCompanyName').textContent = target.company || 'Cliente';
+  document.getElementById('dossierZoneBadge').textContent = `Zona ${target.zone || '—'}`;
+  document.getElementById('dossierRifLine').textContent = `RIF: ${target.rif || 'Sin RIF'} · Ciudad: ${target.city || 'Caracas'}`;
+  document.getElementById('dossierContact').textContent = target.name || 'Sin contacto registrado';
+  document.getElementById('dossierPhone').textContent = target.phone || '—';
+  document.getElementById('dossierEmail').textContent = target.email || 'Sin correo';
+  document.getElementById('dossierCity').textContent = target.city || 'Caracas';
+  document.getElementById('dossierAddress').textContent = target.address || 'Sin dirección fiscal registrada';
+
+  const purchasesText = target.total_orders > 0
+    ? `${target.total_orders} pedido(s) · $${target.total_usd.toFixed(2)} USD comprados ${target.last_order_at ? `(Último: ${target.last_order_at})` : ''}`
+    : 'Sin compras previas registradas';
+  document.getElementById('dossierPurchases').textContent = purchasesText;
+
+  // Contacto Omnicanal
+  let lastContactStr = 'Nunca contactado previamente';
+  if (target.last_contact_at) {
+    const formattedDate = new Date(target.last_contact_at).toLocaleDateString('es-VE');
+    const channelLabel = target.last_contact_channel === 'llamada_gsm' ? '📞 Llamada B2B' :
+                         (target.last_contact_channel === 'whatsapp' ? '💬 WhatsApp' :
+                         (target.last_contact_channel === 'email' ? '📧 Correo' : target.last_contact_channel));
+    lastContactStr = `Último: ${formattedDate} vía ${channelLabel} (${target.contact_count || 1} contacto(s) en total)`;
+  }
+  document.getElementById('dossierLastContact').textContent = lastContactStr;
+
+  // Ocultar caja IA previa y limpiar notas
+  document.getElementById('aiCallResultBox').style.display = 'none';
+  document.getElementById('pageCallNotes').value = '';
+
+  updateQueueUI();
+}
+
+function clearDossierView() {
+  activeCallTarget = null;
+  document.getElementById('dossierCompanyName').textContent = 'No hay clientes que coincidan con el filtro';
+  document.getElementById('dossierZoneBadge').textContent = 'Zona —';
+  document.getElementById('dossierRifLine').textContent = 'Prueba cambiando el filtro de contacto o la cartera.';
+  document.getElementById('dossierContact').textContent = '—';
+  document.getElementById('dossierPhone').textContent = '—';
+  document.getElementById('dossierEmail').textContent = '—';
+  document.getElementById('dossierCity').textContent = '—';
+  document.getElementById('dossierAddress').textContent = '—';
+  document.getElementById('dossierPurchases').textContent = '—';
+  document.getElementById('dossierLastContact').textContent = '—';
+}
+
+// ----------------------------------------------------------------------------
+// 4. ACCIONES RÁPIDAS CON EL CLIENTE ACTUAL
+// ----------------------------------------------------------------------------
+function openQuoteForCurrentCustomer() {
+  if (!activeCallTarget) {
+    if (typeof showToast === 'function') showToast('Selecciona un cliente primero.', 'warn');
+    return;
+  }
+  const url = `cotizador.html?customer_id=${encodeURIComponent(activeCallTarget.id || '')}&name=${encodeURIComponent(activeCallTarget.company || '')}&phone=${encodeURIComponent(activeCallTarget.phone || '')}&rif=${encodeURIComponent(activeCallTarget.rif || '')}`;
+  window.open(url, '_blank');
+}
+
+function openPosForCurrentCustomer() {
+  if (!activeCallTarget) {
+    if (typeof showToast === 'function') showToast('Selecciona un cliente primero.', 'warn');
+    return;
+  }
+  const url = `pos.html?customer_id=${encodeURIComponent(activeCallTarget.id || '')}&name=${encodeURIComponent(activeCallTarget.company || '')}`;
+  window.open(url, '_blank');
+}
+
+function openWhatsAppChatForCurrent() {
+  const phone = document.getElementById('pageDialerInput')?.value || activeCallTarget?.phone || '';
+  if (!phone) {
+    if (typeof showToast === 'function') showToast('Ingresa un número telefónico.', 'warn');
+    return;
+  }
+  let clean = phone.replace(/\D/g, '');
+  if (clean.startsWith('0')) clean = '58' + clean.substring(1);
+  else if (!clean.startsWith('58') && clean.length === 10) clean = '58' + clean;
+
+  window.open(`https://wa.me/${clean}`, '_blank');
+}
+
+// ----------------------------------------------------------------------------
+// 5. ESTADO DEL PUENTE GSM Y LLAMADA TELEFÓNICA EN TIEMPO REAL
+// ----------------------------------------------------------------------------
 async function checkGsmBridgeOnPage() {
   const statusEl = document.getElementById('pageBridgeStatus');
   const badgeEl = document.getElementById('pageBridgeBadge');
 
   try {
-    let res = await fetch('http://127.0.0.1:8789/status').catch(() => null);
+    let res = await fetch('http://127.0.0.1:8789/status', { mode: 'cors' }).catch(() => null);
     if (!res || !res.ok) {
       res = await fetch('/lan/gsm/status').catch(() => null);
     }
@@ -55,46 +404,507 @@ async function checkGsmBridgeOnPage() {
     if (res && res.ok) {
       const data = await res.json();
       gsmBridgeConnected = !!data.connected;
+      const callState = data.call_state || 0; // 0=IDLE, 1=RINGING, 2=OFFHOOK
 
-      if (data.connected) {
-        if (statusEl) statusEl.innerHTML = `🟢 <strong>Móvil USB Conectado:</strong> ${escapeHTML(data.model || 'Android')} (SIM Lista)`;
-        if (badgeEl) {
-          badgeEl.textContent = '🟢 Conectado por USB';
+      if (badgeEl) {
+        if (data.connected) {
+          badgeEl.textContent = '🟢 Móvil USB Conectado';
           badgeEl.className = 'of-chip on';
           badgeEl.style.background = '#dcfce7';
           badgeEl.style.color = '#15803d';
-        }
-        return;
-      } else if (data.adb_installed) {
-        if (statusEl) statusEl.innerHTML = `🟡 <strong>Cable USB:</strong> Conecta tu celular y activa "Depuración USB"`;
-        if (badgeEl) {
+        } else if (data.adb_installed) {
           badgeEl.textContent = '🟡 Esperando Celular';
           badgeEl.className = 'of-chip';
+          badgeEl.style.background = '#fef3c7';
+          badgeEl.style.color = '#b45309';
+        } else {
+          badgeEl.textContent = '⚪ Puente Offline';
+          badgeEl.className = 'of-chip';
         }
-        return;
       }
+
+      // Sincronización del estado de llamada
+      handleGsmCallStateChange(callState, data);
+      return;
     }
   } catch (_) {}
 
   gsmBridgeConnected = false;
-  if (statusEl) statusEl.innerHTML = `⚪ <strong>Modo Directo / Headset:</strong> Inicia <code>iniciar-puente-gsm.bat</code> para control por USB`;
   if (badgeEl) {
-    badgeEl.textContent = '⚪ Puente Offline';
+    badgeEl.textContent = '⚪ Puente Desconectado';
     badgeEl.className = 'of-chip';
   }
 }
 
-// 2. Control Numérico y DTMF
-function onPageNumberChange(val) {
-  const locInfo = window.JJDialer ? window.JJDialer.detectPhoneLocation?.(val) : null;
-  const locEl = document.getElementById('pageLocDisplay');
-  if (locEl) {
-    if (locInfo && locInfo.label) {
-      locEl.textContent = `📍 ${locInfo.label}`;
-    } else {
-      locEl.textContent = 'Ingresa el número a marcar';
+function handleGsmCallStateChange(newState, data) {
+  const badgeEl = document.getElementById('pageCallStateBadge');
+  const btnStart = document.getElementById('pageBtnStart');
+  const btnHang = document.getElementById('pageBtnHang');
+  const alertEl = document.getElementById('pageCallDialingAlert');
+
+  // Transición 1: Llamada conectada y hablando (OFFHOOK = 2)
+  if (newState === 2 && !pageIsCallActive) {
+    pageIsCallActive = true;
+    startConversationTimer();
+    if (alertEl) alertEl.style.display = 'none';
+
+    if (badgeEl) {
+      badgeEl.textContent = '🟢 En Llamada Activa';
+      badgeEl.style.background = '#dcfce7';
+      badgeEl.style.color = '#15803d';
+    }
+    if (btnStart) btnStart.style.display = 'none';
+    if (btnHang) btnHang.style.display = 'inline-flex';
+  }
+
+  // Transición 2: El teléfono cuelga (estaba en 2 y pasa a 0)
+  if (newState === 0 && lastKnownGsmCallState === 2 && pageIsCallActive) {
+    pageHangupCall(true); // Terminar automáticamente
+  }
+
+  lastKnownGsmCallState = newState;
+}
+
+// ----------------------------------------------------------------------------
+// 6. INICIO Y FIN DE LLAMADA
+// ----------------------------------------------------------------------------
+async function pageStartCall() {
+  const input = document.getElementById('pageDialerInput');
+  const phone = input ? input.value.trim() : '';
+  if (!phone) {
+    if (typeof showToast === 'function') showToast('Ingresa un número antes de iniciar la llamada.', 'warn');
+    return;
+  }
+
+  pageStopTimer();
+  pageCallSeconds = 0;
+  updateTimerDisplay();
+
+  const badgeEl = document.getElementById('pageCallStateBadge');
+  const btnStart = document.getElementById('pageBtnStart');
+  const btnHang = document.getElementById('pageBtnHang');
+  const alertEl = document.getElementById('pageCallDialingAlert');
+
+  if (badgeEl) {
+    badgeEl.textContent = '🟡 Marcando...';
+    badgeEl.style.background = '#fef3c7';
+    badgeEl.style.color = '#b45309';
+  }
+  if (btnStart) btnStart.style.display = 'none';
+  if (btnHang) btnHang.style.display = 'inline-flex';
+  if (alertEl) alertEl.style.display = 'block';
+
+  let clean = phone.replace(/[^\d+]/g, '');
+
+  if (gsmBridgeConnected) {
+    try {
+      let res = await fetch('http://127.0.0.1:8789/call', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: clean })
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        res = await fetch('/lan/gsm/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: clean })
+        }).catch(() => null);
+      }
+
+      if (res && res.ok) {
+        const d = await res.json();
+        if (d.requires_manual_tap) {
+          if (typeof showToast === 'function') {
+            showToast('📲 Número colocado en tu teléfono. Toca el botón verde en tu celular para hablar.', 'info');
+          }
+        } else {
+          if (typeof showToast === 'function') {
+            showToast(`📲 Marcando ${phone} por tu celular... ¡Habla desde tu Headset!`, 'info');
+          }
+        }
+        return;
+      }
+    } catch (_) {}
+  }
+
+  // Fallback si no está el puente USB activo: permitir conteo manual
+  if (typeof showToast === 'function') {
+    showToast(`📲 Iniciando marcación a ${phone}. Usa tu teléfono o pulsa "Iniciar Conteo" cuando contesten.`, 'info');
+  }
+}
+
+function manualStartTimer() {
+  document.getElementById('pageCallDialingAlert').style.display = 'none';
+  pageIsCallActive = true;
+  startConversationTimer();
+  const badgeEl = document.getElementById('pageCallStateBadge');
+  if (badgeEl) {
+    badgeEl.textContent = '🟢 En Llamada Activa';
+    badgeEl.style.background = '#dcfce7';
+    badgeEl.style.color = '#15803d';
+  }
+}
+
+function startConversationTimer() {
+  if (pageCallTimer) clearInterval(pageCallTimer);
+  pageCallTimer = setInterval(() => {
+    pageCallSeconds++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function pageStopTimer() {
+  if (pageCallTimer) {
+    clearInterval(pageCallTimer);
+    pageCallTimer = null;
+  }
+  pageIsCallActive = false;
+}
+
+function updateTimerDisplay() {
+  const timerEl = document.getElementById('pageTimerDisplay');
+  if (timerEl) {
+    const mins = Math.floor(pageCallSeconds / 60).toString().padStart(2, '0');
+    const secs = (pageCallSeconds % 60).toString().padStart(2, '0');
+    timerEl.textContent = `${mins}:${secs} (${pageCallSeconds}s)`;
+  }
+}
+
+async function pageHangupCall(autoHangup = false) {
+  pageStopTimer();
+
+  const alertEl = document.getElementById('pageCallDialingAlert');
+  if (alertEl) alertEl.style.display = 'none';
+
+  const badgeEl = document.getElementById('pageCallStateBadge');
+  if (badgeEl) {
+    badgeEl.textContent = `⏹️ Finalizada (${pageCallSeconds}s)`;
+    badgeEl.style.background = '#f1f5f9';
+    badgeEl.style.color = '#64748b';
+  }
+
+  const btnStart = document.getElementById('pageBtnStart');
+  const btnHang = document.getElementById('pageBtnHang');
+  if (btnStart) btnStart.style.display = 'inline-flex';
+  if (btnHang) btnHang.style.display = 'none';
+
+  if (gsmBridgeConnected) {
+    try {
+      await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
+      await fetch('/lan/gsm/hangup', { method: 'POST' }).catch(() => null);
+    } catch (_) {}
+  }
+
+  if (typeof showToast === 'function') {
+    showToast(autoHangup 
+      ? `Llamada finalizada por el celular (${pageCallSeconds}s). Procede a tipificar.`
+      : `Llamada colgada (${pageCallSeconds}s). Procede a tipificar.`, 'info');
+  }
+
+  // Scroll suave hacia la sección de notas y tipificador
+  document.getElementById('tipificadorSection')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ----------------------------------------------------------------------------
+// 7. ASISTENTE IA PARA LLAMADA (RESUMEN, INTERÉS Y PERSUASIÓN)
+// ----------------------------------------------------------------------------
+async function analyzeCallWithAi() {
+  const notes = (document.getElementById('pageCallNotes')?.value || '').trim();
+  const btn = document.getElementById('btnAiAnalyzeCall');
+  const resultBox = document.getElementById('aiCallResultBox');
+  const badgeEl = document.getElementById('aiInterestBadge');
+  const summaryEl = document.getElementById('aiSummaryText');
+  const waPreviewEl = document.getElementById('aiWaMessagePreview');
+
+  if (!notes || notes.length < 5) {
+    if (typeof showToast === 'function') {
+      showToast('Escribe algunas notas de lo conversado antes de analizar con IA.', 'warn');
+    }
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Analizando con IA...';
+  }
+
+  const customerName = activeCallTarget?.company || 'Cliente';
+  const duration = pageCallSeconds;
+
+  try {
+    let aiResult = null;
+
+    // A. Si GeminiClient está disponible
+    if (typeof GeminiClient !== 'undefined' && typeof GeminiClient.callGemini === 'function') {
+      const prompt = `Actúa como Director Comercial de JJ Paper (Distribuidora de Papelería Mayorista en Venezuela).
+Analiza las siguientes notas de una llamada telefónica B2B recién sostenida con el cliente "${customerName}" (Duración: ${duration} segundos).
+
+NOTAS DE LA LLAMADA:
+"""
+${notes}
+"""
+
+Responde ESTRICTAMENTE con un objeto JSON sin markdown exterior con esta estructura:
+{
+  "interest_level": "alto" | "medio" | "bajo",
+  "recommended_outcome": "interesado" | "cotizacion" | "rellamar" | "encargado" | "no_interesa",
+  "detected_objections": ["Pide descuento o mejor precio por bulto", "Pide crédito a 15 o 30 días", "Tiene suficiente inventario por ahora", "Pide enviar catálogo por WhatsApp", "Pide cotización formal por correo", "El encargado solo atiende en la mañana", "Consulta condiciones de despacho y flete"],
+  "executive_summary": "Resumen ejecutivo en 1-2 oraciones de lo acordado para el CRM.",
+  "whatsapp_message": "Mensaje cordial y persuasivo para enviar por WhatsApp al cliente retomando lo conversado, confirmando disponibilidad de productos y ofreciendo cotización formal."
+}`;
+
+      const respText = await GeminiClient.callGemini({ prompt, maxTokens: 800, temperature: 0.3 });
+      if (respText) {
+        const cleanJson = respText.replace(/```json/g, '').replace(/```/g, '').trim();
+        aiResult = JSON.parse(cleanJson);
+      }
+    }
+
+    // B. Heurística de respaldo si no hay conexión externa
+    if (!aiResult) {
+      aiResult = heuristicAnalyzeCall(notes, customerName);
+    }
+
+    // Aplicar tipificación sugerida
+    if (aiResult.recommended_outcome) {
+      const chip = document.querySelector(`#tipificadorSection [data-outcome="${aiResult.recommended_outcome}"]`);
+      if (chip) selectPageOutcome(chip);
+    }
+
+    // Activar argumentos detectados
+    if (Array.isArray(aiResult.detected_objections)) {
+      document.querySelectorAll('#tipificadorSection [data-arg]').forEach(btn => {
+        const argText = btn.dataset.arg;
+        if (aiResult.detected_objections.includes(argText)) {
+          btn.classList.add('on');
+          btn.style.background = '#dbeafe';
+          btn.style.borderColor = '#3b82f6';
+          btn.style.color = '#1d4ed8';
+        }
+      });
+    }
+
+    // Mostrar Tarjeta Visual de Resultados IA
+    if (resultBox && badgeEl && summaryEl && waPreviewEl) {
+      const lvl = (aiResult.interest_level || 'medio').toLowerCase();
+      if (lvl === 'alto') {
+        badgeEl.textContent = '🔥 INTERÉS COMERCIAL: ALTO (CALIENTE)';
+        badgeEl.style.background = '#fee2e2';
+        badgeEl.style.color = '#991b1b';
+      } else if (lvl === 'medio') {
+        badgeEl.textContent = '⚡ INTERÉS COMERCIAL: MEDIO (TIBIO)';
+        badgeEl.style.background = '#fef3c7';
+        badgeEl.style.color = '#92400e';
+      } else {
+        badgeEl.textContent = '❄️ INTERÉS COMERCIAL: BAJO / FRÍO';
+        badgeEl.style.background = '#f1f5f9';
+        badgeEl.style.color = '#475569';
+      }
+
+      summaryEl.textContent = aiResult.executive_summary || 'Resumen registrado.';
+      waPreviewEl.textContent = aiResult.whatsapp_message || '';
+      lastGeneratedWaMessage = aiResult.whatsapp_message || '';
+      resultBox.style.display = 'block';
+    }
+
+    if (typeof showToast === 'function') {
+      showToast('✨ Notas analizadas con IA: Tipificación y mensaje listos.', 'info');
+    }
+
+  } catch (err) {
+    console.warn('Error en análisis IA:', err);
+    if (typeof showToast === 'function') showToast('Análisis heurístico aplicado.', 'info');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🪄 Resumir & Tipificar con IA';
     }
   }
+}
+
+function heuristicAnalyzeCall(notes, customerName) {
+  const n = notes.toLowerCase();
+  let interest = 'medio';
+  let outcome = 'interesado';
+  const objections = [];
+
+  if (n.includes('compr') || n.includes('factur') || n.includes('apart') || n.includes('precio') || n.includes('caja') || n.includes('bulto')) {
+    interest = 'alto';
+    outcome = 'interesado';
+  } else if (n.includes('no') && (n.includes('interesa') || n.includes('tenemos') || n.includes('proveedor'))) {
+    interest = 'bajo';
+    outcome = 'no_interesa';
+  }
+
+  if (n.includes('cotiz') || n.includes('presupuesto')) outcome = 'cotizacion';
+  if (n.includes('descuento') || n.includes('rebaja') || n.includes('mejor precio')) objections.push('Pide descuento o mejor precio por bulto');
+  if (n.includes('crédito') || n.includes('credito') || n.includes('días') || n.includes('dias')) objections.push('Pide crédito a 15 o 30 días');
+  if (n.includes('stock') || n.includes('inventario')) objections.push('Tiene suficiente inventario por ahora');
+  if (n.includes('whatsapp') || n.includes('catálogo') || n.includes('catalogo')) objections.push('Pide enviar catálogo por WhatsApp');
+  if (n.includes('flete') || n.includes('despacho') || n.includes('envío') || n.includes('envio')) objections.push('Consulta condiciones de despacho y flete');
+
+  return {
+    interest_level: interest,
+    recommended_outcome: outcome,
+    detected_objections: objections,
+    executive_summary: `Contacto con ${customerName}: ${notes.slice(0, 120)}...`,
+    whatsapp_message: `Hola ${customerName}, un gusto saludarte. Conforme a lo conversado hace un momento, con gusto te compartimos nuestra disponibilidad y cotización formal de JJ Paper con despacho directo. ¡Quedamos atentos a tus comentarios!`
+  };
+}
+
+function copyAiWaMessage() {
+  if (!lastGeneratedWaMessage) return;
+  navigator.clipboard.writeText(lastGeneratedWaMessage).then(() => {
+    if (typeof showToast === 'function') showToast('Mensaje de seguimiento copiado al portapapeles. 📋');
+  });
+}
+
+function sendAiFollowupViaWa() {
+  const phone = document.getElementById('pageDialerInput')?.value || activeCallTarget?.phone || '';
+  if (!phone || !lastGeneratedWaMessage) {
+    if (typeof showToast === 'function') showToast('Falta teléfono o mensaje para enviar.', 'warn');
+    return;
+  }
+  let clean = phone.replace(/\D/g, '');
+  if (clean.startsWith('0')) clean = '58' + clean.substring(1);
+  else if (!clean.startsWith('58') && clean.length === 10) clean = '58' + clean;
+
+  const url = `https://wa.me/${clean}?text=${encodeURIComponent(lastGeneratedWaMessage)}`;
+  window.open(url, '_blank');
+}
+
+// ----------------------------------------------------------------------------
+// 8. GUARDADO OMNICANAL EN BITÁCORA Y AUTO-AVANCE
+// ----------------------------------------------------------------------------
+async function savePageCallLog() {
+  const selectedBtn = document.querySelector('#tipificadorSection .of-chip.on');
+  const outcomeCode = selectedBtn ? selectedBtn.dataset.outcome : 'interesado';
+  const outcomeText = selectedBtn ? selectedBtn.textContent.trim() : 'Llamada realizada';
+  const rawNotes = (document.getElementById('pageCallNotes')?.value || '').trim();
+  const phone = (document.getElementById('pageDialerInput')?.value || '').trim();
+
+  const activeArgs = Array.from(document.querySelectorAll('#tipificadorSection [data-arg].on')).map(c => c.dataset.arg);
+  const argsText = activeArgs.length ? ` [Argumentos: ${activeArgs.join('; ')}]` : '';
+
+  const hasCallback = document.getElementById('pageEnableCallback')?.checked;
+  const cbDate = hasCallback ? document.getElementById('pageCallbackDateTime')?.value : null;
+  const cbReason = hasCallback ? document.getElementById('pageCallbackReason')?.value.trim() : '';
+
+  pageStopTimer();
+
+  const target = activeCallTarget || {
+    id: null,
+    company: 'Cliente Directo',
+    name: '',
+    phone,
+    type: 'manual'
+  };
+
+  const timestamp = new Date().toLocaleString('es-VE');
+  const summaryEntry = `[Llamada B2B ${timestamp} | ${pageCallSeconds}s]: ${outcomeText}.${argsText} ${rawNotes}${cbDate ? ` | Próxima Rellamada: ${new Date(cbDate).toLocaleString('es-VE')}` : ''}`;
+
+  // 1. Guardar en Historial Local
+  const history = JSON.parse(localStorage.getItem('jjp_call_history_v1') || '[]');
+  history.unshift({
+    id: 'call_' + Date.now(),
+    phone,
+    company: target.company,
+    name: target.name,
+    duration_seconds: pageCallSeconds,
+    outcome: outcomeCode,
+    outcome_text: outcomeText,
+    arguments: activeArgs,
+    notes: rawNotes,
+    callback_at: cbDate,
+    created_at: new Date().toISOString()
+  });
+  localStorage.setItem('jjp_call_history_v1', JSON.stringify(history.slice(0, 300)));
+
+  // 2. Guardar en Agenda de Rellamadas
+  if (hasCallback && cbDate) {
+    const callbacks = JSON.parse(localStorage.getItem('jjp_callbacks_agenda_v1') || '[]');
+    callbacks.unshift({
+      id: 'cb_' + Date.now(),
+      targetId: target.id,
+      phone,
+      company: target.company,
+      name: target.name,
+      callback_at: cbDate,
+      reason: cbReason || outcomeText
+    });
+    localStorage.setItem('jjp_callbacks_agenda_v1', JSON.stringify(callbacks.slice(0, 200)));
+  }
+
+  // 3. Persistir en Supabase (jjp_customers o jjp_prospects)
+  try {
+    if (target.id && typeof sb !== 'undefined') {
+      const table = target.type === 'prospect' ? 'jjp_prospects' : 'jjp_customers';
+      const { data: record } = await sb.from(table).select('notes, contact_count').eq('id', target.id).single();
+      const currentNotes = (record && record.notes) ? record.notes : '';
+      const newNotes = currentNotes ? `${summaryEntry}\n${currentNotes}` : summaryEntry;
+
+      const updateData = {
+        notes: newNotes,
+        last_contact_at: new Date().toISOString(),
+        last_contact_channel: 'llamada_gsm',
+        contact_count: ((record && record.contact_count) || 0) + 1
+      };
+
+      if (table === 'jjp_prospects') {
+        updateData.status = outcomeCode === 'interesado' ? 'interesado' : (outcomeCode === 'cotizacion' ? 'cotizacion_solicitada' : 'contactado_llamada');
+        updateData.contacted = true;
+      }
+      if (cbDate) updateData.scheduled_callback_at = new Date(cbDate).toISOString();
+
+      await sb.from(table).update(updateData).eq('id', target.id);
+    }
+  } catch (err) {
+    console.warn('Error sincronizando bitácora con Supabase:', err);
+  }
+
+  if (typeof showToast === 'function') {
+    showToast(`✅ Llamada de ${pageCallSeconds}s registrada en la bitácora.`);
+  }
+
+  // Refrescar widgets de historial
+  loadCallbacksList();
+  loadCallHistory();
+
+  // Reset del cronómetro y notas
+  pageCallSeconds = 0;
+  updateTimerDisplay();
+  document.getElementById('pageCallNotes').value = '';
+  document.getElementById('aiCallResultBox').style.display = 'none';
+
+  // 4. Auto-avanzar al siguiente cliente si está activado
+  const autoAdvance = document.getElementById('queueAutoAdvance')?.checked;
+  if (autoAdvance) {
+    queueNext();
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 9. FUNCIONES AUXILIARES DE TECLADO Y TIPIFICACIÓN
+// ----------------------------------------------------------------------------
+function onPageNumberChange(val) {
+  const locInfo = window.JJDialer?.detectPhoneLocation ? window.JJDialer.detectPhoneLocation(val) : detectPhoneLocationLocal(val);
+  const locEl = document.getElementById('pageLocDisplay');
+  if (locEl) {
+    locEl.textContent = locInfo?.label ? `📍 ${locInfo.label}` : 'Ingresa el número a marcar';
+  }
+}
+
+function detectPhoneLocationLocal(raw) {
+  if (!raw) return { label: 'Sin número' };
+  const d = raw.replace(/\D/g, '');
+  if (d.includes('414') || d.includes('424')) return { label: 'Móvil Movistar Venezuela' };
+  if (d.includes('412')) return { label: 'Móvil Digitel Venezuela' };
+  if (d.includes('416') || d.includes('426')) return { label: 'Móvil Movilnet Venezuela' };
+  if (d.includes('212')) return { label: 'Fijo Caracas / La Guaira' };
+  if (d.includes('241') || d.includes('242')) return { label: 'Fijo Carabobo' };
+  if (d.includes('243') || d.includes('244')) return { label: 'Fijo Aragua' };
+  return { label: 'Línea Telefónica Nacional' };
 }
 
 function pagePressKey(char) {
@@ -118,177 +928,6 @@ function pageClearNumber() {
   onPageNumberChange('');
 }
 
-// 3. Inicio y Colgado de Llamada
-async function pageStartCall() {
-  const input = document.getElementById('pageDialerInput');
-  const phone = input ? input.value.trim() : '';
-  if (!phone) {
-    if (typeof showToast === 'function') showToast('Ingresa un número antes de iniciar la llamada.', 'warn');
-    return;
-  }
-
-  pageStopTimer();
-  pageCallSeconds = 0;
-  pageIsCallActive = true;
-  updatePageCallUI();
-
-  pageCallTimer = setInterval(() => {
-    pageCallSeconds++;
-    updatePageCallUI();
-  }, 1000);
-
-  const cleanNumber = phone.replace(/[^\d+]/g, '');
-
-  if (gsmBridgeConnected) {
-    try {
-      await fetch('http://127.0.0.1:8789/call', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanNumber })
-      }).catch(() => null);
-
-      if (typeof showToast === 'function') {
-        showToast(`📲 Marcando ${phone} desde tu celular por USB... ¡Habla desde tu Headset!`, 'info');
-      }
-      return;
-    } catch (_) {}
-  }
-
-  if (typeof showToast === 'function') {
-    showToast(`Llamada en curso: ${phone}. Cronómetro activo ⏱️`, 'info');
-  }
-}
-
-async function pageHangupCall() {
-  pageStopTimer();
-
-  if (gsmBridgeConnected) {
-    try {
-      await fetch('http://127.0.0.1:8789/hangup', { method: 'POST' }).catch(() => null);
-    } catch (_) {}
-  }
-
-  if (typeof showToast === 'function') {
-    showToast(`Llamada finalizada. Duración: ${pageCallSeconds} segundos. Procede a tipificar.`, 'info');
-  }
-
-  // Hacer scroll suave hacia la sección de tipificación
-  document.getElementById('tipificadorSection')?.scrollIntoView({ behavior: 'smooth' });
-}
-
-function pageStopTimer() {
-  if (pageCallTimer) {
-    clearInterval(pageCallTimer);
-    pageCallTimer = null;
-  }
-  pageIsCallActive = false;
-  updatePageCallUI();
-}
-
-function updatePageCallUI() {
-  const timerEl = document.getElementById('pageTimerDisplay');
-  const badgeEl = document.getElementById('pageCallStateBadge');
-  const btnStart = document.getElementById('pageBtnStart');
-  const btnHang = document.getElementById('pageBtnHang');
-
-  if (timerEl) {
-    const mins = Math.floor(pageCallSeconds / 60).toString().padStart(2, '0');
-    const secs = (pageCallSeconds % 60).toString().padStart(2, '0');
-    timerEl.textContent = `${mins}:${secs} (${pageCallSeconds}s)`;
-  }
-
-  if (badgeEl) {
-    if (pageIsCallActive) {
-      badgeEl.textContent = '🟢 En Llamada Activa';
-      badgeEl.style.background = '#dcfce7';
-      badgeEl.style.color = '#15803d';
-    } else if (pageCallSeconds > 0) {
-      badgeEl.textContent = `⏹️ Finalizada (${pageCallSeconds}s)`;
-      badgeEl.style.background = '#fef3c7';
-      badgeEl.style.color = '#b45309';
-    } else {
-      badgeEl.textContent = '⚪ En Espera';
-      badgeEl.style.background = '#f1f5f9';
-      badgeEl.style.color = '#64748b';
-    }
-  }
-
-  if (btnStart && btnHang) {
-    if (pageIsCallActive) {
-      btnStart.style.display = 'none';
-      btnHang.style.display = 'inline-flex';
-    } else {
-      btnStart.style.display = 'inline-flex';
-      btnHang.style.display = 'none';
-    }
-  }
-}
-
-// 4. Búsqueda y Selección de Clientes/Prospectos
-function initCustomerSearch() {
-  const searchInput = document.getElementById('pageCustomerSearchInput');
-  const resultsBox = document.getElementById('pageCustomerSearchResults');
-  if (!searchInput || !resultsBox) return;
-
-  searchInput.addEventListener('input', async (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    if (q.length < 2) {
-      resultsBox.style.display = 'none';
-      return;
-    }
-
-    let matches = [];
-    if (typeof sb !== 'undefined') {
-      try {
-        const { data: prospects } = await sb.from('jjp_prospects')
-          .select('id, company_name, contact_name, phone, city')
-          .or(`company_name.ilike.%${q}%,contact_name.ilike.%${q}%,phone.ilike.%${q}%`)
-          .limit(6);
-        if (prospects) {
-          matches = prospects.map(p => ({
-            id: p.id,
-            company: p.company_name,
-            name: p.contact_name,
-            phone: p.phone,
-            type: 'prospect'
-          }));
-        }
-      } catch (_) {}
-    }
-
-    if (!matches.length) {
-      resultsBox.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:#64748b">No se encontraron clientes</div>';
-      resultsBox.style.display = 'block';
-      return;
-    }
-
-    resultsBox.innerHTML = matches.map(m => `
-      <div class="search-item" onclick="selectSearchCustomer('${m.id}', '${escapeHTML(m.company)}', '${escapeHTML(m.name)}', '${escapeHTML(m.phone)}')" style="padding:8px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:12px">
-        <div style="font-weight:700;color:#0f172a">${escapeHTML(m.company)}</div>
-        <div style="color:#64748b;font-size:11px">👤 ${escapeHTML(m.name || 'Sin nombre')} · 📞 ${escapeHTML(m.phone || 'Sin tel')}</div>
-      </div>
-    `).join('');
-    resultsBox.style.display = 'block';
-  });
-}
-
-function selectSearchCustomer(id, company, name, phone) {
-  document.getElementById('pageCustomerSearchResults').style.display = 'none';
-  document.getElementById('pageCustomerSearchInput').value = company;
-  document.getElementById('pageDialerInput').value = phone;
-  onPageNumberChange(phone);
-  setPageCallTarget({ id, company, name, phone, type: 'prospect' });
-}
-
-function setPageCallTarget(target) {
-  activeCallTarget = target;
-  const labelEl = document.getElementById('pageTargetDisplay');
-  if (labelEl) {
-    labelEl.innerHTML = `<strong>${escapeHTML(target.company)}</strong> · 👤 ${escapeHTML(target.name || 'Sin contacto')} · 📞 ${escapeHTML(target.phone)}`;
-  }
-}
-
-// 5. Argumentos y Tipificación
 function togglePageArg(btn) {
   btn.classList.toggle('on');
   if (btn.classList.contains('on')) {
@@ -344,95 +983,11 @@ function setPagePreset(preset) {
   dtInput.value = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}T${pad(targetDate.getHours())}:${pad(targetDate.getMinutes())}`;
 }
 
-// 6. Guardado en CRM & Agenda
-async function savePageCallLog() {
-  const selectedBtn = document.querySelector('#tipificadorSection .of-chip.on');
-  const outcomeCode = selectedBtn ? selectedBtn.dataset.outcome : 'interesado';
-  const outcomeText = selectedBtn ? selectedBtn.textContent.trim() : 'Llamada realizada';
-  const notes = (document.getElementById('pageCallNotes')?.value || '').trim();
-  const phone = (document.getElementById('pageDialerInput')?.value || '').trim();
-
-  const activeArgs = Array.from(document.querySelectorAll('#tipificadorSection [data-arg].on')).map(c => c.dataset.arg);
-  const argsText = activeArgs.length ? ` [Argumentos: ${activeArgs.join('; ')}]` : '';
-
-  const hasCallback = document.getElementById('pageEnableCallback')?.checked;
-  const cbDate = hasCallback ? document.getElementById('pageCallbackDateTime')?.value : null;
-  const cbReason = hasCallback ? document.getElementById('pageCallbackReason')?.value.trim() : '';
-
-  pageStopTimer();
-
-  const target = activeCallTarget || {
-    id: null,
-    company: document.getElementById('pageCustomerSearchInput')?.value || 'Directo',
-    name: '',
-    phone
-  };
-
-  const timestamp = new Date().toLocaleString('es-VE');
-  const summary = `[Llamada ${timestamp} | ${pageCallSeconds}s]: ${outcomeText}.${argsText} ${notes}${cbDate ? ` | Rellamada: ${new Date(cbDate).toLocaleString('es-VE')}` : ''}`;
-
-  // 1. Guardar en LocalStorage
-  const history = JSON.parse(localStorage.getItem('jjp_call_history_v1') || '[]');
-  history.unshift({
-    id: 'call_' + Date.now(),
-    phone,
-    company: target.company,
-    name: target.name,
-    duration_seconds: pageCallSeconds,
-    outcome: outcomeCode,
-    outcome_text: outcomeText,
-    arguments: activeArgs,
-    notes,
-    callback_at: cbDate,
-    created_at: new Date().toISOString()
-  });
-  localStorage.setItem('jjp_call_history_v1', JSON.stringify(history.slice(0, 300)));
-
-  if (hasCallback && cbDate) {
-    const callbacks = JSON.parse(localStorage.getItem('jjp_callbacks_agenda_v1') || '[]');
-    callbacks.unshift({
-      id: 'cb_' + Date.now(),
-      targetId: target.id,
-      phone,
-      company: target.company,
-      name: target.name,
-      callback_at: cbDate,
-      reason: cbReason || outcomeText
-    });
-    localStorage.setItem('jjp_callbacks_agenda_v1', JSON.stringify(callbacks.slice(0, 200)));
-  }
-
-  // 2. Guardar en Supabase si está enlazado a un prospecto
-  try {
-    if (target.id && typeof sb !== 'undefined') {
-      const { data: p } = await sb.from('jjp_prospects').select('notes, contact_count').eq('id', target.id).single();
-      const currentNotes = (p && p.notes) ? p.notes : '';
-      const updateData = {
-        notes: currentNotes ? `${summary}\n${currentNotes}` : summary,
-        status: outcomeCode === 'interesado' ? 'interesado' : (outcomeCode === 'cotizacion' ? 'cotizacion_solicitada' : 'contactado_llamada'),
-        contacted: true,
-        contact_count: ((p && p.contact_count) || 0) + 1,
-        last_contact_at: new Date().toISOString(),
-        last_contact_channel: 'llamada_headset'
-      };
-      if (cbDate) updateData.scheduled_callback_at = new Date(cbDate).toISOString();
-      await sb.from('jjp_prospects').update(updateData).eq('id', target.id);
-    }
-  } catch (e) {
-    console.warn('Error sincronizando con Supabase:', e);
-  }
-
-  if (typeof showToast === 'function') {
-    showToast(`✅ Llamada de ${pageCallSeconds}s guardada exitosamente.`);
-  }
-
-  // Reset y refresco
-  loadCallbacksList();
-  loadCallHistory();
-  document.getElementById('pageCallNotes').value = '';
+function toggleAudioGuide() {
+  const g = document.getElementById('pageAudioHelp');
+  if (g) g.style.display = g.style.display === 'block' ? 'none' : 'block';
 }
 
-// 7. Renderizado de Agenda e Historial
 function loadCallbacksList() {
   const container = document.getElementById('pageCallbacksList');
   if (!container) return;
@@ -463,7 +1018,7 @@ function loadCallbacksList() {
           ${cb.reason ? `<div style="font-size:10.5px;color:#0369a1;margin-top:2px"><em>${escapeHTML(cb.reason)}</em></div>` : ''}
         </div>
         <div style="display:flex;gap:6px">
-          <button type="button" class="btn-p sm" onclick="loadCustomerToDialer('${escapeHTML(cb.phone)}', '${escapeHTML(cb.company)}', '${escapeHTML(cb.name)}', '${cb.targetId || ''}')" style="background:#059669;padding:4px 8px;font-size:11px;font-weight:800">📞 Marcar</button>
+          <button type="button" class="btn-p sm" onclick="loadSingleCustomerToDialer('${escapeHTML(cb.phone)}', '${escapeHTML(cb.company)}', '${escapeHTML(cb.name || '')}', '${cb.targetId || ''}')" style="background:#059669;padding:4px 8px;font-size:11px;font-weight:800">📞 Marcar</button>
           <button type="button" class="btn-g sm" onclick="deleteCallback('${cb.id}')" style="padding:4px 6px;font-size:11px">✕</button>
         </div>
       </div>
@@ -494,10 +1049,11 @@ function loadCallHistory() {
   `).join('');
 }
 
-function loadCustomerToDialer(phone, company, name, id) {
-  document.getElementById('pageDialerInput').value = phone;
+function loadSingleCustomerToDialer(phone, company, name, id) {
+  const dialerInput = document.getElementById('pageDialerInput');
+  if (dialerInput) dialerInput.value = phone;
   onPageNumberChange(phone);
-  setPageCallTarget({ id, company, name, phone, type: id ? 'prospect' : 'manual' });
+  activeCallTarget = { id, company, name, phone, type: id ? 'customer' : 'manual' };
   pageStartCall();
 }
 

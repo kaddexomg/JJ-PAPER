@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Llamadas B2B & Centralita | JJ Paper Admin</title>
+<title>Llamadas B2B & Motor de Cartera | JJ Paper Vendedor</title>
 <link rel="stylesheet" href="../assets/css/variables.css">
 <link rel="stylesheet" href="../assets/css/components.css">
 <link rel="stylesheet" href="../assets/css/catalog.css">
@@ -12,14 +12,21 @@
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
 <style>
+  .power-dialer-bar {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 10px 25px -5px rgba(6, 78, 59, 0.3);
+  }
   .call-center-grid {
     display: grid;
-    grid-template-columns: 420px 1fr;
+    grid-template-columns: 360px 1fr;
     gap: 20px;
     align-items: start;
-    margin-top: 14px;
   }
-  @media (max-width: 960px) {
+  @media (max-width: 1040px) {
     .call-center-grid { grid-template-columns: 1fr; }
   }
   .call-card {
@@ -35,12 +42,46 @@
   .search-item:hover {
     background: #f0fdf4 !important;
   }
+  .pulse-dialing {
+    animation: pulseRing 1.5s infinite;
+  }
+  @keyframes pulseRing {
+    0% { transform: scale(0.98); opacity: 0.9; }
+    50% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(0.98); opacity: 0.9; }
+  }
+  .customer-dossier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .dossier-item {
+    font-size: 12px;
+  }
+  .dossier-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    margin-bottom: 2px;
+  }
+  .dossier-val {
+    font-weight: 700;
+    color: #0f172a;
+    word-break: break-word;
+  }
 </style>
 </head>
 <body class="admin-body">
 
 <div class="admin-wrap">
-  <!-- Barra lateral auto-inyectada por sidenav.js?v=20260927_b2b_v2 -->
+  <!-- Barra lateral auto-inyectada por sidenav.js -->
   <aside class="admin-aside" id="adminAside">
     <div class="aside-brand">
       <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
@@ -55,44 +96,111 @@
       <div class="topbar-left">
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
-          <h2>📞 Llamadas B2B & Centralita</h2>
-          <p>Llamadas reales por Headset en Windows 7 · Puente GSM USB ($0 Inversión)</p>
+          <h2>📞 Motor de Llamadas B2B & Centralita</h2>
+          <p>Marcación continua de cartera (010 y 020) · Headset Windows 7 · Puente GSM USB ($0 Inversión)</p>
         </div>
       </div>
       <div class="topbar-right">
         <span id="pageBridgeBadge" class="of-chip">⚪ Verificando USB...</span>
         <button type="button" class="btn-o sm" onclick="checkGsmBridgeOnPage()">🔄 Probar USB</button>
+        <button type="button" class="btn-o sm" onclick="toggleAudioGuide()">🎧 Guía Headset ($0)</button>
       </div>
     </div>
 
     <div class="admin-content">
       
-      <!-- Banner Informativo del Puente USB -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:22px">🎧</span>
-          <span id="pageBridgeStatus" style="font-size:12.5px;color:#475569">
-            ⚪ Conectando con puente GSM local (puerto 8789)...
-          </span>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button type="button" class="btn-o sm" onclick="document.getElementById('pageAudioHelp').style.display = document.getElementById('pageAudioHelp').style.display === 'block' ? 'none' : 'block'">
-            🎧 Guía Audio Headset ($0)
-          </button>
-        </div>
-      </div>
-
       <!-- Guía Desplegable de Audio para Windows 7 -->
       <div id="pageAudioHelp" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:16px;font-size:12px;color:#166534">
-        <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:800">🎧 ¿Cómo hablar y escuchar desde tu Headset en Windows 7 ($0 Inversión y sin estar en la misma red WiFi)?</h4>
+        <h4 style="margin:0 0 6px 0;font-size:13px;font-weight:800">🎧 ¿Cómo hablar y escuchar desde tu Headset en Windows 7 ($0 Inversión y sin depender de WiFi)?</h4>
         <ol style="margin:0;padding-left:18px;line-height:1.6">
-          <li><strong>Túnel Físico por Cable USB (Sin WiFi):</strong> El archivo <code>iniciar-puente-gsm.bat</code> corre localmente en tu PC. No necesita que la PC y el celular compartan WiFi ni internet: las órdenes de llamada viajan directamente por el cable USB.</li>
-          <li><strong>Audio Cristalino al Headset (Cable 3.5mm Auxiliar):</strong> Conecta un cable de audio 3.5mm macho-macho desde la salida de audífonos del teléfono a la entrada azul (Línea de entrada / Line-In) de la PC. En Windows 7 activa <em>"Escuchar este dispositivo"</em> y escucharás la voz del cliente en tus auriculares con calidad de estudio y 0 delay.</li>
-          <li><strong>Hablar por el Micrófono:</strong> Tu micrófono de diadema habla directamente al teléfono usando un splitter o tu manos libres en el escritorio.</li>
-          <li><strong>WhatsApp Web en PC:</strong> Con 1 clic en el botón <em>"💬 WhatsApp"</em> realizas llamadas por el navegador usando el micrófono de la PC.</li>
+          <li><strong>Túnel Físico USB:</strong> El archivo <code>iniciar-puente-gsm.bat</code> conecta tu celular por USB directamente a la PC. No requiere que compartan WiFi.</li>
+          <li><strong>Audio Nítido al Headset (Cable Auxiliar 3.5mm):</strong> Conecta un cable jack de 3.5mm desde la salida de audífonos del teléfono a la entrada azul (Línea de entrada / Line-In) de la PC. En Windows 7: <em>Panel de Control ➔ Sonido ➔ Pestaña Grabar ➔ Línea de entrada ➔ Propiedades ➔ Pestaña Escuchar ➔ Marca "Escuchar este dispositivo"</em> y selecciona tus audífonos.</li>
+          <li><strong>Hablar al Micrófono:</strong> Tu diadema o micrófono de escritorio transmite tu voz al cliente con 0 latencia y sin costo alguno de telefonía VoIP de pago.</li>
+          <li><strong>Permisos Xiaomi / HyperOS para marcación 100% desatendida:</strong> En tu celular ve a <em>Ajustes ➔ Opciones de desarrollador ➔ Activa "Depuración USB (Ajustes de seguridad)"</em>. Con esto el sistema pulsa el botón de llamada automáticamente. Si no lo activas, el sistema abre la pantalla con el número listo y solo tocas el botón verde en tu teléfono.</li>
         </ol>
       </div>
 
+      <!-- MOTOR DE LLAMADAS CONTINUAS / POWER DIALER -->
+      <div class="power-dialer-bar">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:24px">⚡</span>
+            <div>
+              <div style="font-size:14px;font-weight:800;letter-spacing:0.3px">MOTOR DE LLAMADAS DE CARTERA (POWER DIALER)</div>
+              <div style="font-size:11.5px;opacity:0.9">Llama secuencialmente a tu clientela sin perder tiempo buscando contactos</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:11.5px;display:flex;align-items:center;gap:6px;cursor:pointer;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:20px">
+              <input type="checkbox" id="queueAutoAdvance" checked style="accent-color:#34d399">
+              <span>Auto-avanzar al siguiente al guardar tipificación</span>
+            </label>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-bottom:12px">
+          <!-- 1. Cartera / Lista -->
+          <div>
+            <label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;opacity:0.9">1. Seleccionar Cartera / Base:</label>
+            <select id="queueSourceSelect" class="fi" onchange="onQueueSourceChange()" style="font-size:12.5px;font-weight:700;background:#ffffff;color:#0f172a;height:36px;width:100%">
+              <option value="zona_010" selected>👑 Zona 010 — Keyder Salazar (191 clientes)</option>
+              <option value="zona_020">📦 Zona 020 — MixNet Keyder (3.474 clientes)</option>
+              <option value="mi_cartera">🌟 Mi Cartera Completa (010 + 020)</option>
+              <option value="prospectos_b2b">🏢 Prospectos B2B (Empresas)</option>
+              <option value="rellamadas">⏰ Rellamadas Agendadas (Pendientes)</option>
+              <option value="todos_clientes">👥 Todos los Clientes (CRM Global)</option>
+            </select>
+          </div>
+
+          <!-- 2. Filtro de Estado -->
+          <div>
+            <label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;opacity:0.9">2. Filtro de Contacto:</label>
+            <select id="queueFilterSelect" class="fi" onchange="applyQueueFilters()" style="font-size:12.5px;background:#ffffff;color:#0f172a;height:36px;width:100%">
+              <option value="todos">Todos en esta lista</option>
+              <option value="pendientes" selected>⏳ Pendientes por llamar (Sin llamadas registradas)</option>
+              <option value="sin_contacto_30d">📆 Sin contacto en los últimos 30 días</option>
+              <option value="interesados">🔥 Interesados / Pidieron Cotización</option>
+              <option value="no_contesta">🚫 No contestó previamente (Reintentar)</option>
+            </select>
+          </div>
+
+          <!-- 3. Buscador en la Lista -->
+          <div>
+            <label style="font-size:11px;font-weight:700;display:block;margin-bottom:3px;opacity:0.9">3. Buscar en Lista:</label>
+            <input type="text" id="queueSearchInput" class="fi" placeholder="Filtrar por nombre, RIF o ciudad..." oninput="applyQueueFilters()" style="font-size:12.5px;background:#ffffff;color:#0f172a;height:36px;width:100%">
+          </div>
+        </div>
+
+        <!-- Controles de Reproducción de la Cola -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(0,0,0,0.2);padding:10px 14px;border-radius:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button type="button" id="btnQueueStart" class="btn-p sm" onclick="startQueueExecution()" style="background:#10b981;border-color:#10b981;font-weight:800;padding:6px 16px">
+              ▶ Iniciar Cola Secuencial
+            </button>
+            <button type="button" id="btnQueuePause" class="btn-o sm" onclick="pauseQueueExecution()" style="display:none;background:rgba(255,255,255,0.2);color:#fff;border-color:#fff">
+              ⏸ Pausar Cola
+            </button>
+            <button type="button" class="btn-o sm" onclick="queuePrev()" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)">
+              ⏮ Anterior
+            </button>
+            <button type="button" class="btn-o sm" onclick="queueNext()" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)">
+              ⏭ Siguiente / Omitir
+            </button>
+            <button type="button" class="btn-o sm" onclick="queueRandom()" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)" title="Saltar a un cliente al azar">
+              🎲 Azar
+            </button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;flex:1;max-width:360px">
+            <span id="queueProgressText" style="font-size:12px;font-weight:700;white-space:nowrap">0 de 0 (0%)</span>
+            <div style="flex:1;background:rgba(255,255,255,0.2);height:8px;border-radius:4px;overflow:hidden">
+              <div id="queueProgressBar" style="width:0%;height:100%;background:#34d399;transition:width .3s ease"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRID PRINCIPAL DE LLAMADA -->
       <div class="call-center-grid">
         
         <!-- COLUMNA 1: MARCADOR TELEFÓNICO (SOFTPHONE) -->
@@ -104,13 +212,20 @@
 
           <!-- Cronómetro de Llamada -->
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:center">
-            <div style="font-size:11px;color:#64748b;font-weight:700">TIEMPO DE LLAMADA:</div>
-            <div id="pageTimerDisplay" style="font-family:monospace;font-size:24px;font-weight:800;color:#0284c7">00:00 (0s)</div>
+            <div style="font-size:11px;color:#64748b;font-weight:700">TIEMPO DE LLAMADA (HABLANDO):</div>
+            <div id="pageTimerDisplay" style="font-family:monospace;font-size:26px;font-weight:800;color:#0284c7">00:00 (0s)</div>
+            <div id="pageTimerSubtext" style="font-size:10.5px;color:#94a3b8;margin-top:2px">El conteo inicia al conectar</div>
           </div>
 
-          <!-- Destinatario Actual -->
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:11.5px;color:#166534">
-            <div id="pageTargetDisplay">Llamada Directa Manual</div>
+          <!-- Cartel de Aviso de Marcación en Teléfono -->
+          <div id="pageCallDialingAlert" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11.5px;color:#1e40af">
+            <div style="font-weight:800;margin-bottom:2px">📲 Número enviado a tu celular...</div>
+            <div style="font-size:11px;line-height:1.4">
+              Si la llamada no suena automáticamente, <strong>pulsa el botón verde en tu teléfono</strong>. Habla y escucha desde tu Headset.
+            </div>
+            <button type="button" class="btn-p sm" onclick="manualStartTimer()" style="margin-top:6px;font-size:10.5px;padding:3px 8px;background:#2563eb">
+              ▶ Ya contestó / Iniciar Conteo
+            </button>
           </div>
 
           <!-- Pantalla del Teléfono y Localidad -->
@@ -146,7 +261,7 @@
             <button type="button" id="pageBtnHang" class="btn-p" onclick="pageHangupCall()" style="flex:1;padding:12px;font-size:15px;font-weight:800;background:#dc2626;border-color:#dc2626;display:none;align-items:center;justify-content:center;gap:8px;border-radius:10px">
               <span>🛑 Colgar / Fin</span>
             </button>
-            <button type="button" class="btn-o" onclick="window.open('https://wa.me/' + document.getElementById('pageDialerInput').value.replace(/\\D/g,''), '_blank')" style="padding:12px 14px;border-radius:10px" title="Llamar o chatear por WhatsApp Web">
+            <button type="button" class="btn-o" onclick="openWhatsAppChatForCurrent()" style="padding:12px 14px;border-radius:10px" title="Abrir Chat o Llamar por WhatsApp Web">
               💬 WhatsApp
             </button>
           </div>
@@ -154,23 +269,72 @@
           <div style="display:flex;gap:6px;justify-content:center">
             <button type="button" class="btn-o sm" onclick="navigator.clipboard.writeText(document.getElementById('pageDialerInput').value);showToast('Copiado');" style="font-size:11px">📋 Copiar</button>
             <button type="button" class="btn-o sm" onclick="pageClearNumber()" style="font-size:11px">🧹 Limpiar</button>
+            <button type="button" class="btn-o sm" onclick="checkGsmBridgeOnPage()" style="font-size:11px">🔄 Estado USB</button>
           </div>
         </div>
 
-        <!-- COLUMNA 2: TIPIFICADOR B2B Y AGENDA -->
+        <!-- COLUMNA 2: FICHA EN VIVO DEL CLIENTE + TIPIFICADOR & IA -->
         <div class="call-card" id="tipificadorSection">
-          <h3 style="margin:0 0 12px 0;font-size:15px;font-weight:800;color:#0f172a">Tipificador B2B de Llamadas & Agenda</h3>
+          
+          <!-- CABECERA DE LA FICHA DEL CLIENTE EN VIVO -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <h3 id="dossierCompanyName" style="margin:0;font-size:18px;font-weight:800;color:#0f172a">Selecciona un cliente o inicia la cola</h3>
+                <span id="dossierZoneBadge" class="of-chip" style="font-size:11px;font-weight:800;background:#e0f2fe;color:#0369a1">Zona —</span>
+              </div>
+              <div id="dossierRifLine" style="font-size:12px;color:#64748b">RIF: — · Cartera: —</div>
+            </div>
 
-          <!-- Buscador de Cliente para Vincular -->
-          <div style="position:relative;margin-bottom:14px">
-            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px">Vincular a Prospecto / Cliente CRM:</label>
-            <input type="text" id="pageCustomerSearchInput" class="fi" placeholder="Escribe el nombre de la empresa o cliente..." autocomplete="off">
-            <div id="pageCustomerSearchResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid #cbd5e1;border-radius:8px;max-height:180px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,0.1)"></div>
+            <!-- Acciones Rápidas con el Cliente -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button type="button" class="btn-o sm" onclick="openQuoteForCurrentCustomer()" style="font-size:11.5px;font-weight:700;color:#16604a;border-color:#a7f3d0;background:#ecfdf5">
+                📋 Cotizar (Abrir Cotizador)
+              </button>
+              <button type="button" class="btn-o sm" onclick="openPosForCurrentCustomer()" style="font-size:11.5px;font-weight:700;color:#0369a1;border-color:#bae6fd;background:#f0f9ff">
+                🛒 Facturar (POS)
+              </button>
+              <button type="button" class="btn-o sm" onclick="openWhatsAppChatForCurrent()" style="font-size:11.5px;font-weight:700;color:#15803d;border-color:#bbf7d0;background:#f0fdf4">
+                💬 WhatsApp
+              </button>
+            </div>
           </div>
 
-          <!-- 1. Tipificación / Resultado -->
+          <!-- DOSSIER COMPLETO (DATOS DEL CLIENTE) -->
+          <div class="customer-dossier-grid">
+            <div class="dossier-item">
+              <div class="dossier-label">Persona de Contacto</div>
+              <div class="dossier-val" id="dossierContact">Sin contacto</div>
+            </div>
+            <div class="dossier-item">
+              <div class="dossier-label">Teléfono Principal</div>
+              <div class="dossier-val" id="dossierPhone">—</div>
+            </div>
+            <div class="dossier-item">
+              <div class="dossier-label">Correo Electrónico</div>
+              <div class="dossier-val" id="dossierEmail">—</div>
+            </div>
+            <div class="dossier-item">
+              <div class="dossier-label">Ciudad / Ubicación</div>
+              <div class="dossier-val" id="dossierCity">Caracas</div>
+            </div>
+            <div class="dossier-item">
+              <div class="dossier-label">Dirección Fiscal / Despacho</div>
+              <div class="dossier-val" id="dossierAddress">—</div>
+            </div>
+            <div class="dossier-item">
+              <div class="dossier-label">Historial de Compras</div>
+              <div class="dossier-val" id="dossierPurchases" style="color:#059669">0 pedidos ($0.00 USD)</div>
+            </div>
+            <div class="dossier-item" style="grid-column: 1 / -1">
+              <div class="dossier-label">Último Contacto Omnicanal</div>
+              <div class="dossier-val" id="dossierLastContact" style="color:#475569">Nunca contactado</div>
+            </div>
+          </div>
+
+          <!-- 1. Tipificación / Resultado Principal -->
           <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:6px">1. Resultado de la Llamada:</label>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:6px;margin-bottom:14px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:6px;margin-bottom:14px">
             <button type="button" class="of-chip on" data-outcome="interesado" onclick="selectPageOutcome(this)">✅ Interesado / Venta</button>
             <button type="button" class="of-chip" data-outcome="cotizacion" onclick="selectPageOutcome(this)">📋 Pidió Cotización</button>
             <button type="button" class="of-chip" data-outcome="rellamar" onclick="selectPageOutcome(this)">⏳ Agendar Rellamada</button>
@@ -180,7 +344,7 @@
             <button type="button" class="of-chip" data-outcome="equivocado" onclick="selectPageOutcome(this)">⚠️ Número Equivocado</button>
           </div>
 
-          <!-- 2. Argumentos del Cliente (1 Clic) -->
+          <!-- 2. Argumentos y Objeciones del Cliente -->
           <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:6px">2. Argumentos u Objeciones del Cliente:</label>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
             <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Pide descuento o mejor precio por bulto">🏷️ Pide descuento / mejor precio</button>
@@ -192,7 +356,7 @@
             <button type="button" class="btn-o sm" onclick="togglePageArg(this)" data-arg="Consulta condiciones de despacho y flete">🚚 Pregunta por despacho/flete</button>
           </div>
 
-          <!-- 3. Agendamiento de Rellamada -->
+          <!-- 3. Agendamiento de Rellamada (Fecha y Hora) -->
           <div id="pageCallbackBox" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <span style="font-weight:800;font-size:12px;color:#0f172a">⏰ Agendar Próxima Llamada:</span>
@@ -219,15 +383,48 @@
             </div>
           </div>
 
-          <!-- 4. Notas y Guardado -->
-          <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:4px">Notas de la Conversación:</label>
-          <textarea id="pageCallNotes" class="fi" rows="3" placeholder="Detalles de lo acordado con el cliente..." style="width:100%;font-size:12.5px;margin-bottom:12px"></textarea>
-
-          <div style="display:flex;justify-content:flex-end">
-            <button type="button" class="btn-p" onclick="savePageCallLog()" style="background:#16604A;font-weight:800;padding:10px 20px;font-size:14px">
-              💾 Guardar y Registrar en Bitácora CRM
+          <!-- 4. Notas de la Conversación + Asistente IA Comercial -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <label style="font-size:12px;font-weight:800;color:#0f172a">Notas de la Conversación:</label>
+            <button type="button" id="btnAiAnalyzeCall" class="btn-o sm" onclick="analyzeCallWithAi()" style="font-size:11px;font-weight:700;color:#7c3aed;border-color:#ddd6fe;background:#f5f3ff">
+              🪄 Resumir & Tipificar con IA
             </button>
           </div>
+          <textarea id="pageCallNotes" class="fi" rows="3" placeholder="Escribe detalles rápidos de lo hablado (ej: Le interesó resma chamex y dispensador, pide precio especial por 50 bultos y cotización por WhatsApp)..." style="width:100%;font-size:12.5px;margin-bottom:10px"></textarea>
+
+          <!-- Tarjeta de Resultado y Seguimiento IA (Oculta por defecto) -->
+          <div id="aiCallResultBox" style="display:none;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span id="aiInterestBadge" style="font-weight:800;padding:2px 8px;border-radius:6px;font-size:11px;background:#f3e8ff;color:#6b21a8">
+                🔥 INTERÉS: ALTO
+              </span>
+              <span style="font-size:11px;color:#7e22ce;font-weight:700">Asistente Comercial IA</span>
+            </div>
+            <div id="aiSummaryText" style="color:#3b0764;margin-bottom:8px;line-height:1.4"></div>
+            
+            <div style="background:#ffffff;border:1px solid #e9d5ff;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+              <div style="font-size:10.5px;font-weight:800;color:#6b21a8;margin-bottom:3px">MENSAJE DE SEGUIMIENTO SUGERIDO (WHATSAPP):</div>
+              <div id="aiWaMessagePreview" style="font-size:11.5px;color:#1e293b;white-space:pre-wrap"></div>
+            </div>
+
+            <div style="display:flex;gap:6px;justify-content:flex-end">
+              <button type="button" class="btn-o sm" onclick="copyAiWaMessage()" style="font-size:11px">📋 Copiar Mensaje</button>
+              <button type="button" class="btn-p sm" onclick="sendAiFollowupViaWa()" style="background:#15803d;border-color:#15803d;font-weight:800;font-size:11px">
+                📲 Enviar por WhatsApp
+              </button>
+            </div>
+          </div>
+
+          <!-- Botón de Guardado Principal -->
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <div style="font-size:11px;color:#64748b" id="autoAdvanceHint">
+              ⚡ Al guardar se registrará en la bitácora y se avanzará al siguiente cliente.
+            </div>
+            <button type="button" class="btn-p" onclick="savePageCallLog()" style="background:#16604A;font-weight:800;padding:10px 22px;font-size:14px;border-radius:10px">
+              💾 Guardar Llamada y Avanzar ⏭
+            </button>
+          </div>
+
         </div>
 
       </div>
@@ -259,10 +456,16 @@
   </main>
 </div>
 
+<div class="toast-c" id="toastC"></div>
+
+<!-- LIBRERÍAS Y SCRIPTS ESENCIALES -->
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
 <script src="../assets/js/config.js"></script>
+<script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
-<script src="../assets/js/phone-dialer.js?v=20260927_b2b_v1"></script>
-<script src="../assets/js/admin/vllamadas.js?v=20260927_b2b_v1"></script>
+<script src="../assets/js/gemini-client.js?v=20260927_ai_dialer"></script>
+<script src="../assets/js/phone-dialer.js?v=20260927_b2b_v3"></script>
+<script src="../assets/js/admin/vllamadas.js?v=20260927_b2b_v3"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
 
 </body>

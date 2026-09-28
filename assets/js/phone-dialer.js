@@ -176,6 +176,15 @@
           callState: data.call_state || 0
         };
 
+        // Si el celular contestó (call_state === 2), arrancar cronómetro
+        if (data.call_state === 2 && !isCallActive) {
+          startTimer();
+        }
+        // Si el celular colgó (call_state === 0 tras estar activa), terminar
+        if (data.call_state === 0 && isCallActive && callSeconds > 2) {
+          hangupCall();
+        }
+
         if (bridgeBanner && bridgeStatusText) {
           if (gsmBridgeStatus.connected) {
             bridgeBanner.style.background = '#ecfdf5';
@@ -657,8 +666,18 @@
       return;
     }
 
-    startTimer();
     const cleanNumber = formatPhoneForDialing(phone);
+    const badgeEl = document.getElementById('jjDialerCallStateBadge');
+    const btnCall = document.getElementById('jjDialerBtnStart');
+    const btnHang = document.getElementById('jjDialerBtnHang');
+
+    if (badgeEl) {
+      badgeEl.textContent = '🟡 Marcando...';
+      badgeEl.style.background = '#fef3c7';
+      badgeEl.style.color = '#b45309';
+    }
+    if (btnCall) btnCall.style.display = 'none';
+    if (btnHang) btnHang.style.display = 'inline-flex';
 
     // Si el puente USB está activo, disparar la marcación real en el celular
     if (gsmBridgeStatus.connected) {
@@ -677,15 +696,26 @@
           }).catch(() => null);
         }
 
-        if (typeof showToast === 'function') {
-          showToast(`📲 Marcando ${phone} desde tu celular por USB... ¡Habla desde tu Headset!`, 'info');
+        if (res && res.ok) {
+          const d = await res.json();
+          if (d.requires_manual_tap) {
+            if (typeof showToast === 'function') {
+              showToast('📲 Número colocado en tu teléfono. Toca el botón verde en tu celular para hablar.', 'info');
+            }
+          } else {
+            if (typeof showToast === 'function') {
+              showToast(`📲 Marcando ${phone} desde tu celular por USB... ¡Habla desde tu Headset!`, 'info');
+            }
+          }
+          return;
         }
-        return;
       } catch (e) {
         console.warn('Error llamando vía puente GSM:', e);
       }
     }
 
+    // Si no hay puente o es llamada manual, arrancar cronómetro
+    startTimer();
     if (typeof showToast === 'function') {
       showToast(`Llamada en curso: ${phone}. Cronómetro activo ⏱️`, 'info');
     }

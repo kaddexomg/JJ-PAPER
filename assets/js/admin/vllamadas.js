@@ -119,34 +119,42 @@ async function loadQueueFromSource(source) {
     return;
   }
 
-  // B. Prospectos B2B
+  // B. Prospectos B2B (Empresas y Cuentas Clave de Keyder)
   if (source === 'prospectos_b2b') {
     if (typeof sb !== 'undefined') {
       try {
         const { data, error } = await sb.from('jjp_prospects')
-          .select('id,company_name,contact_name,phone,email,address,city,notes,status,last_contact_at,last_contact_channel,contact_count')
+          .select('id,company_name,contact_name,phone_1,phone_2,email,address,city,sector,notes,status,last_contact_at,contact_count')
           .order('company_name', { ascending: true })
           .limit(1000);
+        if (error) {
+          console.warn('Error cargando prospectos de Supabase:', error);
+        }
         if (data && !error) {
-          rawCustomersList = data.map(p => ({
-            id: p.id,
-            company: p.company_name || 'Empresa B2B',
-            name: p.contact_name || '',
-            rif: 'J-PROSPECT',
-            phone: p.phone || '',
-            zone: 'B2B',
-            city: p.city || 'Venezuela',
-            address: p.address || '',
-            email: p.email || '',
-            total_orders: 0,
-            total_usd: 0,
-            last_order_at: null,
-            notes: p.notes || '',
-            last_contact_at: p.last_contact_at,
-            last_contact_channel: p.last_contact_channel || '',
-            contact_count: p.contact_count || 0,
-            type: 'prospect'
-          }));
+          rawCustomersList = data.map(p => {
+            const primaryPhone = (p.phone_1 || p.phone_2 || '').trim();
+            const altPhone = (p.phone_1 && p.phone_2 && p.phone_1 !== p.phone_2) ? p.phone_2.trim() : '';
+            return {
+              id: p.id,
+              company: p.company_name || 'Empresa Prospecto',
+              name: p.contact_name ? `${p.contact_name}${altPhone ? ` (Alt: ${altPhone})` : ''}` : (altPhone ? `Alt: ${altPhone}` : ''),
+              rif: p.sector || 'B2B',
+              phone: primaryPhone,
+              alt_phone: altPhone,
+              zone: p.sector || 'Prospecto',
+              city: p.city || 'Caracas',
+              address: p.address || 'Venezuela',
+              email: p.email || '',
+              total_orders: 0,
+              total_usd: 0,
+              last_order_at: null,
+              notes: p.notes || (altPhone ? `Teléfono alternativo: ${altPhone}` : ''),
+              last_contact_at: p.last_contact_at,
+              last_contact_channel: 'prospect_b2b',
+              contact_count: p.contact_count || 0,
+              type: 'prospect'
+            };
+          });
         }
       } catch (e) {
         console.warn('Error cargando prospectos:', e);

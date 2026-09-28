@@ -209,8 +209,10 @@ function renderProspectsTable() {
 
     const contactDisplay = p.contact_name || (p.contact_role ? `<em>${escapeHTML(p.contact_role)}</em>` : '<span style="color:#94a3b8">No indicado</span>');
     const roleDisplay = p.contact_name && p.contact_role ? `<div style="font-size:11.5px;color:#64748b">${escapeHTML(p.contact_role)}</div>` : '';
-    const phoneDisplay = p.phone_2 || p.phone_1 || '—';
-    const emailDisplay = p.email ? `<div style="font-size:11.5px;color:#2563eb">${escapeHTML(p.email)}</div>` : '';
+    const p1Html = p.phone_1 ? `<div style="font-weight:700;font-size:12px"><span style="font-size:11px;opacity:0.7">📞</span> ${escapeHTML(p.phone_1)}</div>` : '';
+    const p2Html = p.phone_2 ? `<div style="font-weight:700;font-size:12px;color:#059669;margin-top:2px"><span style="font-size:11px;opacity:0.7">📱</span> ${escapeHTML(p.phone_2)}</div>` : '';
+    const phoneDisplay = (p1Html || p2Html) ? `${p1Html}${p2Html}` : '<span style="color:#94a3b8">Sin teléfono</span>';
+    const emailDisplay = p.email ? `<div style="font-size:11.5px;color:#2563eb;margin-top:2px">${escapeHTML(p.email)}</div>` : '';
 
     return `
       <tr class="prospect-row ${hasAi ? 'row-analyzed' : ''}">
@@ -229,7 +231,7 @@ function renderProspectsTable() {
           ${roleDisplay}
         </td>
         <td>
-          <div style="font-weight:600;font-size:12.5px">${escapeHTML(phoneDisplay)}</div>
+          ${phoneDisplay}
           ${emailDisplay}
         </td>
         <td>

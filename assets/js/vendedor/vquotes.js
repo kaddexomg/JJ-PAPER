@@ -510,7 +510,7 @@ function posRenderTicket() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:4px">
-            <input type="text" class="fi" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-glass, #cbd5e1)';this.style.background='var(--theme-input-bg, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
+            <input type="text" class="fi ticket-nav-input" id="name-in-${k}" data-ticket-field="name" data-ticket-idx="${idx}" data-ticket-key="${k}" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-glass, #cbd5e1)';this.style.background='var(--theme-input-bg, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
             ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
@@ -532,7 +532,7 @@ function posRenderTicket() {
         <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:4px">
           <span>Precio:</span>
           <span style="font-weight:700;color:var(--theme-text-main, #0f172a)">$</span>
-          <input type="number" step="0.01" id="price-in-${k}" class="fi" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
+          <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
           <span>/${escapeHTML(l.unit)}</span>
           <span style="color:var(--theme-accent, #047857);font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
@@ -540,7 +540,7 @@ function posRenderTicket() {
         <div style="display:flex;align-items:center;gap:10px">
           <div style="display:flex;align-items:center;gap:3px">
             <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">−</button>
-            <input type="number" min="1" class="fi" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
+            <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
             <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">＋</button>
           </div>
           <strong style="min-width:65px;text-align:right;font-size:14px;color:var(--theme-text-main, #0f172a)">${fmtPrice(l.price_usd * l.qty)}</strong>
@@ -1008,6 +1008,193 @@ function addCustomItemToTicket() {
   closeCustomItemModal();
   posRenderTicket();
   showToast(`➕ Agregado: ${name}`);
+}
+
+/* ---------- Pre-armador Inteligente de Cotizaciones con IA ---------- */
+function openAiQuoteModal() {
+  let modal = document.getElementById('jjAiQuoteModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'jjAiQuoteModal';
+    modal.className = 'modal-overlay op';
+    modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;background:rgba(15,23,42,0.7);backdrop-filter:blur(4px);';
+    document.body.appendChild(modal);
+  } else {
+    modal.style.display = 'flex';
+    modal.classList.add('op');
+  }
+
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:580px;width:92%;background:var(--theme-bg-surface-solid, #ffffff);color:var(--theme-text-main, #0f172a);border-radius:16px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.3);border:1px solid var(--theme-border-subtle, #e2e8f0)" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--theme-border-subtle, #e2e8f0);padding-bottom:10px">
+        <h3 style="margin:0;font-size:17px;font-weight:800;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:6px">
+          ⚡ Pre-armador de Cotización con IA
+        </h3>
+        <button type="button" class="btn-g sm" onclick="closeAiQuoteModal()">✕</button>
+      </div>
+
+      <p style="font-size:12.5px;color:var(--theme-text-muted, #64748b);margin:0 0 10px 0;line-height:1.4">
+        Pega abajo el correo electrónico, mensaje de WhatsApp o requerimiento recibido del cliente. La IA detectará la empresa, contacto, productos y cantidades para cargarlos de inmediato al cotizador:
+      </p>
+
+      <textarea id="aiQuoteRawInput" class="fi" rows="6" placeholder="Ejemplo:
+Buenas tardes, por favor cotizar para Farmacia La Paz RIF J-30123456-7 a nombre de Lic. Carlos:
+- 20 resmas de papel carta Report
+- 10 cajas de bolígrafos negros
+- 4 rollos térmicos para punto de venta
+- 2 cintas de embalar transparente
+Entrega en Los Ruices..." style="width:100%;font-size:13px;resize:vertical;font-family:inherit;margin-bottom:12px"></textarea>
+
+      <div id="aiQuotePreviewBox" style="display:none;background:var(--theme-item-bg, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:10px;padding:12px;margin-bottom:12px;font-size:12.5px">
+        <div style="font-weight:700;color:var(--theme-accent, #16604a);margin-bottom:6px">📋 Acuse de Recibo Inmediato Generado:</div>
+        <div id="aiQuoteAckText" style="white-space:pre-wrap;color:var(--theme-text-main, #334155);font-size:12px;background:#fff;padding:8px;border-radius:6px;border:1px solid #cbd5e1;max-height:100px;overflow-y:auto"></div>
+        <button type="button" class="btn-o sm" onclick="copyAiQuoteAck()" style="margin-top:6px;font-size:11px">📋 Copiar Acuse al Portapapeles</button>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+        <button type="button" class="btn-g" onclick="closeAiQuoteModal()">Cancelar</button>
+        <button type="button" id="btnProcessAiQuote" class="btn-p" onclick="processAiQuoteRequest()" style="padding:8px 18px;font-size:13px;font-weight:800;background:var(--theme-accent, #16604a)">
+          Analizar y Cargar al Cotizador 🚀
+        </button>
+      </div>
+    </div>
+  `;
+
+  setTimeout(() => document.getElementById('aiQuoteRawInput')?.focus(), 50);
+}
+
+function closeAiQuoteModal() {
+  const modal = document.getElementById('jjAiQuoteModal');
+  if (modal) {
+    modal.classList.remove('op');
+    modal.style.display = 'none';
+  }
+}
+
+async function processAiQuoteRequest() {
+  const text = (document.getElementById('aiQuoteRawInput')?.value || '').trim();
+  if (!text) {
+    showToast('Por favor escribe o pega el requerimiento del cliente.', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('btnProcessAiQuote');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Analizando requerimientos con IA… 🧠';
+  }
+
+  try {
+    if (typeof GeminiClient === 'undefined' || !GeminiClient.parseQuoteRequest) {
+      throw new Error('Módulo GeminiClient no disponible. Por favor recarga la página.');
+    }
+
+    const parsed = await GeminiClient.parseQuoteRequest(text, posProducts);
+    
+    // 1. Llenar datos de cliente si se detectaron
+    if (parsed.customer) {
+      if (parsed.customer.client_name) {
+        const cName = document.getElementById('qCliName');
+        if (cName) cName.value = parsed.customer.client_name;
+      }
+      if (parsed.customer.rif) {
+        const cRif = document.getElementById('qCliRif');
+        if (cRif) cRif.value = parsed.customer.rif;
+      }
+      if (parsed.customer.phone) {
+        const cTel = document.getElementById('qCliTel');
+        if (cTel) cTel.value = parsed.customer.phone;
+      }
+      if (parsed.customer.city) {
+        const cCity = document.getElementById('qCliCity');
+        if (cCity) cCity.value = parsed.customer.city;
+      }
+    }
+
+    // 2. Agregar ítems al ticket
+    let addedCount = 0;
+    if (Array.isArray(parsed.items)) {
+      parsed.items.forEach(it => {
+        const qty = Math.max(1, parseInt(it.qty, 10) || 1);
+        if (it.matched && it.product_id) {
+          const key = it.variant_id ? `${it.product_id}::${it.variant_id}` : it.product_id;
+          if (posTicket[key]) {
+            posTicket[key].qty += qty;
+          } else {
+            posTicket[key] = {
+              id: it.product_id,
+              product_id: it.product_id,
+              variant_id: it.variant_id || null,
+              name: it.catalog_name || it.product_name,
+              sku: it.sku || '',
+              brand: it.brand || null,
+              unit: it.unit || 'unid',
+              price_usd: Number(it.price_usd || it.price_b || it.price_a || 0),
+              price_level: 'B',
+              price_a: Number(it.price_a || 0),
+              price_b: Number(it.price_b || 0),
+              price_c: Number(it.price_c || 0),
+              price_d: Number(it.price_d || 0),
+              qty: qty,
+              is_custom: false
+            };
+          }
+          addedCount++;
+        } else {
+          const customKey = 'cust_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          posTicket[customKey] = {
+            id: customKey,
+            product_id: null,
+            variant_id: null,
+            name: it.product_name || it.raw_query || 'Ítem solicitado',
+            sku: 'SOLICITADO',
+            brand: null,
+            unit: it.unit || 'unid',
+            price_usd: 0,
+            price_level: 'M',
+            qty: qty,
+            is_custom: true
+          };
+          addedCount++;
+        }
+      });
+    }
+
+    posRenderTicket();
+
+    if (parsed.ack_message) {
+      window.__lastAiAckMessage = parsed.ack_message;
+      const previewBox = document.getElementById('aiQuotePreviewBox');
+      const ackTextEl = document.getElementById('aiQuoteAckText');
+      if (previewBox && ackTextEl) {
+        ackTextEl.textContent = parsed.ack_message;
+        previewBox.style.display = 'block';
+      }
+    }
+
+    showToast(`¡Cotización pre-armada! Se cargaron ${addedCount} productos al ticket. ✨`);
+    setTimeout(() => {
+      closeAiQuoteModal();
+      const firstQty = document.querySelector('input[data-ticket-field="qty"]');
+      if (firstQty) firstQty.focus();
+    }, 1200);
+
+  } catch (err) {
+    console.error('Error pre-armando cotización con IA:', err);
+    showToast('Error analizando requerimiento: ' + err.message, 'err');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Analizar y Cargar al Cotizador 🚀';
+    }
+  }
+}
+
+function copyAiQuoteAck() {
+  if (!window.__lastAiAckMessage) return;
+  navigator.clipboard.writeText(window.__lastAiAckMessage).then(() => {
+    showToast('Acuse de recibo copiado al portapapeles. Listo para enviar al cliente. 📋');
+  });
 }
 
 /* ---------- Control de Cabecera y Estado de Cotización Activa ---------- */

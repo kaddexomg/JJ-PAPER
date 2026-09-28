@@ -344,6 +344,7 @@
           </div>
           <button class="btn-o" style="color:#059669;border-color:#059669;font-weight:700" onclick="openProspectCampaignModal('whatsapp')" title="Lanzar difusión masiva por WhatsApp con ritmos humanos">📢 Campaña WhatsApp</button>
         <button class="btn-o" style="color:#2563eb;border-color:#2563eb;font-weight:700" onclick="openProspectCampaignModal('email')" title="Lanzar campaña masiva por Correo Gmail API">📣 Campaña Email</button>
+        <button class="btn-o" style="color:#dc2626;border-color:#dc2626;font-weight:700" onclick="escalateBouncedToWhatsapp()" title="Transferir automáticamente cuentas con rebote de email a WhatsApp">📲 Escalar Rebotados a WA</button>
         <button class="btn-o" id="btnBatchAnalyze" onclick="analyzeBatchProspects(5)" title="Analiza con IA las siguientes cuentas sin copy">⚡ Analizar Lote con IA</button>
         <button class="btn-o" onclick="openImportModal()" title="Sincronizar archivo de Google Sheets o pegar celdas">⬆️ Importar Google Sheets</button>
         <button class="btn-p" onclick="openNewProspectModal()">＋ Nuevo Prospecto</button>
@@ -378,9 +379,11 @@
       <!-- Pestañas de Estado -->
       <div class="status-tabs" id="statusFilterTabs">
         <button class="of-tab-btn active" data-status="todos" onclick="setStatusFilter('todos')">Todos</button>
-        <button class="of-tab-btn" data-status="nuevo" onclick="setStatusFilter('nuevo')">🆕 Nuevos / Pendientes</button>
+        <button class="of-tab-btn" data-status="nuevo" onclick="setStatusFilter('nuevo')">🆕 Nuevos / Sin Contacto</button>
         <button class="of-tab-btn" data-status="analizado" onclick="setStatusFilter('analizado')">🧠 Analizados con IA</button>
         <button class="of-tab-btn" data-status="contactado" onclick="setStatusFilter('contactado')">💬 Contactados</button>
+        <button class="of-tab-btn" data-status="seguimiento" onclick="setStatusFilter('seguimiento')">⏰ Requieren Seguimiento (>48h)</button>
+        <button class="of-tab-btn" data-status="rebotado" onclick="setStatusFilter('rebotado')">🔴 Rebotados / Escalar WA</button>
         <button class="of-tab-btn" data-status="ganado" onclick="setStatusFilter('ganado')">⭐ Ganados (Clientes)</button>
       </div>
 
@@ -655,6 +658,8 @@
 <script src="../assets/js/vendedor/product-picker.js?v=20260914_prospects"></script>
 <script src="../assets/js/gemini-client.js?v=20260924_prospects_ai_v2"></script>
 <script src="../assets/js/vendedor/campaign-editor.js?v=20260924_prospects_ai_v2"></script>
-<script src="../assets/js/admin/vprospectos.js?v=20260924_prospects_ai_v2"></script>
+<script src="../assets/js/phone-dialer.js?v=20260927_free"></script>
+<script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
+<script src="../assets/js/admin/vprospectos.js?v=20260927_prospects_lifecycle"></script>
 </body>
 </html>

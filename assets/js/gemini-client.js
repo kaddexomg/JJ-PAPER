@@ -2242,6 +2242,122 @@ Respond with ONLY the 1 English sentence describing the object.`;
     lines.push(currentLine);
     return lines;
   }
+
+  /**
+   * --------------------------------------------------------------------------
+   * 15. Parser y Pre-armador Inteligente de Cotizaciones con IA
+   * Analiza correos o WhatsApps entrantes, extrae cliente e ítems y genera acuse
+   * --------------------------------------------------------------------------
+   */
+  async function parseQuoteRequest(rawText, catalog = []) {
+    if (!rawText || !rawText.trim()) throw new Error('El texto de la solicitud está vacío.');
+
+    const prompt = `Actúa como el cotizador inteligente y analista comercial senior de JJ Paper C.A. (distribuidora mayorista de papelería, consumibles de oficina y embalaje en Caracas, Venezuela).
+
+El usuario te entrega el TEXTO CRUDO de una solicitud de cotización recibida de un cliente por Correo Electrónico o WhatsApp.
+
+TU MISIÓN:
+1. Extraer los datos del cliente si existen en el texto:
+   - "client_name": Nombre de la empresa o cliente (o null si no se menciona).
+   - "rif": RIF venezolano (J-, V-, G-, E-) si aparece (o null).
+   - "contact": Persona de contacto / solicitante (o null).
+   - "phone": Teléfono (o null).
+   - "email": Correo (o null).
+   - "city": Ciudad o sede (por defecto "Caracas" si no se indica).
+
+2. Extraer la lista de productos solicitados ("items"):
+   - "raw_query": El texto exacto como lo pidió el cliente (ej: "20 resmas de papel carta Report").
+   - "product_name": Nombre comercial estándar normalizado (ej: "Papel Fotocopia Carta 75g Report Resma").
+   - "qty": Cantidad numérica solicitada (ej: 20). Si no indica, asume 1.
+   - "unit": Unidad deducida (resma, caja, unidad, rollo, paquete, docena, etc.).
+   - "notes": Especificación adicional si hay (color, marca, gramaje).
+
+3. Generar un "ack_message" (Acuse de Recibo Inmediato y Profesional):
+   - Redactado en tono formal, cortés y de alta confiabilidad en nombre de "JJ Paper C.A.".
+   - Agradece la solicitud e informa que su cotización formal está siendo procesada en este momento con disponibilidad y mejores precios para su entrega en Caracas.
+   - Longitud: 3 a 5 líneas con saludo personalizado.
+
+DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
+{
+  "customer": {
+    "client_name": "Nombre o null",
+    "rif": "RIF o null",
+    "contact": "Contacto o null",
+    "phone": "Teléfono o null",
+    "email": "Email o null",
+    "city": "Caracas"
+  },
+  "items": [
+    {
+      "raw_query": "texto del cliente",
+      "product_name": "nombre normalizado",
+      "qty": 10,
+      "unit": "unidad",
+      "notes": ""
+    }
+  ],
+  "ack_message": "Texto del acuse de recibo..."
+}
+
+TEXTO CRUDO DE LA SOLICITUD DEL CLIENTE:
+"""
+${rawText}
+"""`;
+
+    const rawResponse = await callGemini(prompt, 'gemini-3.1-flash-lite');
+    let parsed;
+    try {
+      const cleaned = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      const m = rawResponse.match(/\{[\s\S]*\}/);
+      if (m) parsed = JSON.parse(m[0]);
+      else throw new Error('No se pudo estructurar la respuesta de la IA.');
+    }
+
+    if (Array.isArray(catalog) && catalog.length > 0 && Array.isArray(parsed.items)) {
+      parsed.items = parsed.items.map(it => {
+        const query = (it.product_name || it.raw_query || '').toLowerCase();
+        let matched = null;
+        let bestScore = 0;
+        const words = query.split(/\s+/).filter(w => w.length > 2);
+
+        for (const prod of catalog) {
+          const prodName = (prod.name || '').toLowerCase();
+          let score = 0;
+          for (const w of words) {
+            if (prodName.includes(w)) score++;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            matched = prod;
+          }
+        }
+
+        if (matched && bestScore >= 1) {
+          return {
+            ...it,
+            matched: true,
+            product_id: matched.id,
+            catalog_name: matched.name,
+            price_usd: matched.price_usd || matched.price_a || 0,
+            price_a: matched.price_a || matched.price_usd || 0,
+            price_b: matched.price_b || matched.price_usd || 0,
+            unit: matched.unit || it.unit || 'unid',
+            brand: matched.brand || (matched.jjp_brands?.name) || null
+          };
+        }
+        return {
+          ...it,
+          matched: false,
+          price_usd: 0
+        };
+      });
+    }
+
+    return parsed;
+  }
+
   return {
     callGemini,
     suggestWhatsAppReplies,
@@ -2253,6 +2369,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
     analyzeCustomerAndDraftMessage,
     analyzeCustomersBatch,
     parseProspectsText,
+    parseQuoteRequest,
     searchProductsLive,
     interpretQueryWithAI,
     detectProductType,

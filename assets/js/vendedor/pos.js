@@ -437,7 +437,7 @@ function posRenderTicket() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:4px">
-            <span style="line-height:1.3">${escapeHTML(l.name)}</span>
+            <input type="text" class="fi ticket-nav-input" id="pos-name-in-${k}" data-ticket-field="name" data-ticket-idx="${idx}" data-ticket-key="${k}" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-glass, #cbd5e1)';this.style.background='var(--theme-input-bg, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
             ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
@@ -453,7 +453,7 @@ function posRenderTicket() {
         <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:4px">
           <span>Precio:</span>
           <span style="font-weight:700;color:var(--theme-text-main, #0f172a)">$</span>
-          <input type="number" step="0.01" class="fi" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
+          <input type="number" step="0.01" id="pos-price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
           <span>/${escapeHTML(l.unit)}</span>
           <span style="color:var(--theme-accent, #047857);font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
         </div>
@@ -461,7 +461,7 @@ function posRenderTicket() {
         <div style="display:flex;align-items:center;gap:10px">
           <div style="display:flex;align-items:center;gap:3px">
             <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">−</button>
-            <input type="number" min="1" class="fi" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" aria-label="Cantidad">
+            <input type="number" min="1" id="pos-qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
             <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">＋</button>
           </div>
           <strong style="min-width:65px;text-align:right;font-size:14px;color:var(--theme-text-main, #0f172a)">${fmtPrice(l.price_usd * l.qty)}</strong>
@@ -512,6 +512,12 @@ function posUpdatePrice(key, val) {
   l.price_level = 'M';   // precio digitado a mano
   l.price_usd = +price.toFixed(2);
   posRenderTicket();
+}
+
+function posUpdateName(key, newName) {
+  if (posTicket[key] && newName.trim()) {
+    posTicket[key].name = newName.trim();
+  }
 }
 
 /* ---------- Cliente (CRM) ---------- */

@@ -119,7 +119,10 @@
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">2</span>
                 <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Catálogo de Productos</h3>
               </div>
-              <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;font-size:12px">➕ Ítem Libre <kbd style="background:var(--theme-item-bg, #f1f5f9);border:1px solid var(--theme-border-subtle, #cbd5e1);padding:1px 4px;border-radius:3px;font-size:10px">Alt+I</kbd></button>
+              <div style="display:flex;gap:6px;align-items:center">
+                <button type="button" class="btn-p sm" onclick="openAiQuoteModal()" title="Pegar correo o requerimiento y pre-armar cotización con IA" style="font-weight:800;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-size:12px;background:var(--theme-accent, #16604a)">⚡ Pre-armar con IA</button>
+                <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;font-size:12px">➕ Ítem Libre <kbd style="background:var(--theme-item-bg, #f1f5f9);border:1px solid var(--theme-border-subtle, #cbd5e1);padding:1px 4px;border-radius:3px;font-size:10px">Alt+I</kbd></button>
+              </div>
             </div>
             <div style="display:flex;gap:8px">
               <input class="fi" id="posSearch" placeholder="Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:8px">
@@ -218,7 +221,10 @@
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/send-hub.js"></script>
 <script src="../assets/js/vendedor/cust-autocomplete.js"></script>
+<script src="../assets/js/gemini-client.js?v=20260927_ai_quote"></script>
+<script src="../assets/js/phone-dialer.js?v=20260927_free"></script>
 <script src="../assets/js/vendedor/vquotes.js?v=20260921_edit2"></script>
+<script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth('admin');

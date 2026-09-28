@@ -314,6 +314,14 @@
     document.head.appendChild(s);
   }
 
+  function loadKeyboardNav() {
+    if (document.getElementById('jjp-keyboard-nav-script') || window.__JJ_KEYBOARD_NAV_INITIALIZED__) return;
+    const s = document.createElement('script');
+    s.id = 'jjp-keyboard-nav-script';
+    s.src = '../assets/js/keyboard-nav.js?v=20260927_hub';
+    document.head.appendChild(s);
+  }
+
   function initCommandPalette() {
     if (window.__jjpCmdPaletteInit) return;
     window.__jjpCmdPaletteInit = true;
@@ -506,6 +514,7 @@
     renderNav();
     applyRole();
     loadCopilot();
+    loadKeyboardNav();
     initCommandPalette();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -102,9 +102,15 @@ function applyProspectFilters() {
 
     // Filtro de estado
     if (currentStatusFilter !== 'todos') {
-      if (currentStatusFilter === 'nuevo' && p.status !== 'nuevo' && p.status !== 'pendiente') return false;
+      if (currentStatusFilter === 'nuevo' && (p.status !== 'nuevo' && p.status !== 'pendiente' && (p.contact_count > 0 || p.contacted))) return false;
       if (currentStatusFilter === 'analizado' && p.status !== 'analizado_ia' && p.status !== 'borrador_creado') return false;
-      if (currentStatusFilter === 'contactado' && !p.status.startsWith('contactado') && !p.contacted) return false;
+      if (currentStatusFilter === 'contactado' && !p.status?.startsWith('contactado') && !p.contacted && (p.contact_count || 0) === 0) return false;
+      if (currentStatusFilter === 'seguimiento') {
+        const isContacted = Boolean(p.contacted || p.status?.startsWith('contactado') || (p.contact_count || 0) > 0);
+        const isWon = Boolean(p.status === 'ganado' || p.converted_customer_id);
+        if (!isContacted || isWon) return false;
+      }
+      if (currentStatusFilter === 'rebotado' && p.status !== 'rebotado' && p.email_status !== 'bounced' && !(p.notes && p.notes.toLowerCase().includes('rebot'))) return false;
       if (currentStatusFilter === 'ganado' && p.status !== 'ganado' && !p.converted_customer_id) return false;
     }
 
@@ -133,7 +139,7 @@ function applyProspectFilters() {
 function updateProspectKpis() {
   const total = prospectsList.length;
   const analizados = prospectsList.filter(p => p.status === 'analizado_ia' || p.status === 'borrador_creado' || (p.ai_analysis && p.ai_analysis.dolor_operativo)).length;
-  const contactados = prospectsList.filter(p => p.contacted || (p.status && p.status.startsWith('contactado'))).length;
+  const contactados = prospectsList.filter(p => p.contacted || (p.status && p.status.startsWith('contactado')) || (p.contact_count || 0) > 0).length;
   const pendientes = total - contactados;
   const ganados = prospectsList.filter(p => p.status === 'ganado' || p.converted_customer_id).length;
 
@@ -169,18 +175,33 @@ function renderProspectsTable() {
   tbody.innerHTML = toShow.map(p => {
     const hasAi = Boolean(p.custom_email_body || (p.ai_analysis && p.ai_analysis.dolor_operativo));
     
-    // Insignia de estado
+    // Insignia de estado según ciclo de vida
     let badgeClass = 'badge-gray';
-    let badgeTxt = 'Nuevo';
+    let badgeTxt = '🆕 Sin Contactar';
     if (p.status === 'ganado' || p.converted_customer_id) {
       badgeClass = 'badge-green';
       badgeTxt = '⭐ Ganado / Cliente';
+    } else if (p.status === 'rebotado' || p.email_status === 'bounced') {
+      badgeClass = 'badge-red';
+      badgeTxt = '🔴 Rebotó Email';
+    } else if (p.status === 'escalado_wa') {
+      badgeClass = 'badge-emerald';
+      badgeTxt = '📲 Escalado a WA';
+    } else if (p.status === 'contactado_llamada') {
+      badgeClass = 'badge-blue';
+      badgeTxt = '📞 Llamada Headset';
+    } else if (p.status === 'interesado') {
+      badgeClass = 'badge-amber';
+      badgeTxt = '📋 Solicitó Cotización';
     } else if (p.status === 'contactado_wa') {
       badgeClass = 'badge-emerald';
       badgeTxt = '💬 Contactado WA';
     } else if (p.status === 'contactado_email') {
       badgeClass = 'badge-blue';
       badgeTxt = '✉️ Contactado Correo';
+    } else if (p.contact_count > 0 || p.contacted) {
+      badgeClass = 'badge-orange';
+      badgeTxt = '⏰ Requiere Seguimiento';
     } else if (hasAi || p.status === 'analizado_ia' || p.status === 'borrador_creado') {
       badgeClass = 'badge-purple';
       badgeTxt = '🧠 Analizado con IA';
@@ -229,6 +250,9 @@ function renderProspectsTable() {
         </td>
         <td style="text-align:right">
           <div class="prospect-actions">
+            <button class="btn-action-icon" style="color:#0284c7" onclick="openPhoneDialerForProspect('${p.id}')" title="Llamar con Headset o WhatsApp (0% Costo / $0 Inversión)">
+              📞
+            </button>
             <button class="btn-action-icon" onclick="openProspectDetailModal('${p.id}')" title="Ver análisis y opciones de contacto">
               👁️
             </button>
@@ -275,8 +299,57 @@ function prospectsGoPage(p) {
 }
 
 /* --------------------------------------------------------------------------
-   5. Motor Inteligente de Análisis IA (Individual y Masivo)
+   5. Motor Inteligente de Análisis IA (Individual y Masivo) y Acciones
    -------------------------------------------------------------------------- */
+function openPhoneDialerForProspect(prospectId) {
+  const p = prospectsList.find(x => x.id === prospectId);
+  if (!p) return;
+  if (typeof JJDialer !== 'undefined') {
+    JJDialer.open({
+      id: p.id,
+      name: p.contact_name,
+      company: p.company_name,
+      phone: p.phone_1 || p.phone_2,
+      type: 'prospect'
+    });
+  } else {
+    showToast('Marcador telefónico no disponible.', 'warn');
+  }
+}
+
+async function escalateBouncedToWhatsapp() {
+  const bounced = prospectsList.filter(p => (p.status === 'rebotado' || p.email_status === 'bounced' || (p.notes && p.notes.toLowerCase().includes('rebot'))) && (p.phone_1 || p.phone_2));
+  if (bounced.length === 0) {
+    showToast('No se detectaron prospectos con rebote de email y teléfono disponible.', 'info');
+    return;
+  }
+
+  if (!confirm(`Se encontraron ${bounced.length} cuentas con email rebotado que poseen teléfono móvil. ¿Deseas escalarlas automáticamente al canal de WhatsApp?`)) {
+    return;
+  }
+
+  showToast(`Escalando ${bounced.length} cuentas a WhatsApp… 📲`, 'info');
+  let count = 0;
+
+  for (const p of bounced) {
+    p.status = 'escalado_wa';
+    p.notes = (p.notes ? `${p.notes}\n` : '') + `[${new Date().toLocaleDateString('es-VE')}]: Escalado a WhatsApp por rebote de correo.`;
+    
+    if (typeof sb !== 'undefined') {
+      await sb.from('jjp_prospects').update({
+        status: 'escalado_wa',
+        notes: p.notes,
+        updated_at: new Date().toISOString()
+      }).eq('id', p.id);
+    }
+    count++;
+  }
+
+  applyProspectFilters();
+  updateProspectKpis();
+  showToast(`¡${count} cuentas escaladas con éxito a WhatsApp! ✅`);
+}
+
 async function analyzeSingleProspect(prospectId) {
   const p = prospectsList.find(x => x.id === prospectId);
   if (!p) return;
@@ -285,7 +358,21 @@ async function analyzeSingleProspect(prospectId) {
 
   try {
     const aiPersonality = document.getElementById('aiPersonality')?.value || 'Profesional / Formal';
-    const aiMessageType = document.getElementById('aiMessageType')?.value || 'Presentación Inicial';
+    
+    // Resolución dinámica de actitud según el estado real de ciclo de vida
+    const isNew = (!p.contacted && (!p.contact_count || p.contact_count === 0) && (!p.status || p.status === 'nuevo' || p.status === 'pendiente'));
+    const isBounced = (p.status === 'rebotado' || p.email_status === 'bounced');
+    const hasPreviousContact = (p.contact_count > 0 || p.contacted || (p.status && p.status.startsWith('contactado')));
+
+    let resolvedMessageType = document.getElementById('aiMessageType')?.value || 'Presentación Inicial';
+
+    if (isNew) {
+      resolvedMessageType = 'Presentación Inicial / Bienvenida';
+    } else if (isBounced) {
+      resolvedMessageType = 'Contacto Alternativo / Rescate por WhatsApp (Email Rebotado)';
+    } else if (hasPreviousContact && resolvedMessageType.includes('Presentación')) {
+      resolvedMessageType = 'Seguimiento de Contacto Previo';
+    }
 
     const result = await GeminiClient.analyzeAndDraftProspectB2B({
       companyName: p.company_name,
@@ -298,7 +385,7 @@ async function analyzeSingleProspect(prospectId) {
       sellerName: KEYDER_PROFILE.name,
       sellerPhone: KEYDER_PROFILE.phone,
       personality: aiPersonality,
-      messageType: aiMessageType
+      messageType: resolvedMessageType
     });
 
     // Actualizar en base de datos
@@ -355,7 +442,19 @@ async function analyzeBatchProspects(count = 5) {
     if (btn) btn.textContent = `Analizando ${i + 1}/${pending.length} (${p.company_name})… ⏳`;
 
     const aiPersonality = document.getElementById('aiPersonality')?.value || 'Profesional / Formal';
-    const aiMessageType = document.getElementById('aiMessageType')?.value || 'Presentación Inicial';
+    let resolvedMessageType = document.getElementById('aiMessageType')?.value || 'Presentación Inicial';
+
+    const isNew = (!p.contacted && (!p.contact_count || p.contact_count === 0) && (!p.status || p.status === 'nuevo' || p.status === 'pendiente'));
+    const isBounced = (p.status === 'rebotado' || p.email_status === 'bounced');
+    const hasPreviousContact = (p.contact_count > 0 || p.contacted || (p.status && p.status.startsWith('contactado')));
+
+    if (isNew) {
+      resolvedMessageType = 'Presentación Inicial / Bienvenida';
+    } else if (isBounced) {
+      resolvedMessageType = 'Contacto Alternativo / Rescate por WhatsApp (Email Rebotado)';
+    } else if (hasPreviousContact && resolvedMessageType.includes('Presentación')) {
+      resolvedMessageType = 'Seguimiento de Contacto Previo';
+    }
 
     try {
       const result = await GeminiClient.analyzeAndDraftProspectB2B({
@@ -369,7 +468,7 @@ async function analyzeBatchProspects(count = 5) {
         sellerName: KEYDER_PROFILE.name,
         sellerPhone: KEYDER_PROFILE.phone,
         personality: aiPersonality,
-        messageType: aiMessageType
+        messageType: resolvedMessageType
       });
 
       const updatePayload = {

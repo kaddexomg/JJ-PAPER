@@ -873,4 +873,37 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - Rayado cebra de la tabla transformado a `rgba(0,0,0,0.018)` translúcido para no cortar la filigrana.
   - Directivas en `@media print` fijando `opacity: 0.075 !important;` y `print-color-adjust: exact !important;` para impresión física láser y PDF de alta fidelidad.
 
+## Centralita de Llamadas B2B, Motor Telefónico y Saneamiento de Prospectos (28-09-2026)
+- **Contexto de la Sesión y Requerimientos Solicitados**:
+  - Implementación de la centralita telefónica B2B para llamadas directas desde PC usando headset (micrófono + auricular de alta fidelidad).
+  - Independencia de red WiFi (puente con dispositivo móvil Android / WebRTC / USB).
+  - Cronómetro de llamada en tiempo real, tipificación de llamadas (`Interesado / Enviar Catálogo`, `Pide Cotización`, `No Contesta / Buzón`, `Número Inválido`, `Volver a Llamar`, `Rechazado`) con persistencia en Supabase.
+  - Soporte para cola secuencial de contactos con avance automático (`Siguiente` / `Anterior`).
+  - Cobertura prioritaria para las carteras de Keyder: **🏢 Prospectos B2B (470 Empresas)**, **⭐ Zona 010 (VIP)** y **🚚 Zona 020 (MixNet)**.
+  - Widget flotante persistente para permitir multitarea (navegar al POS, Cotizador, Monitor o Catálogo sin cortar la llamada activa).
+
+- **Análisis de Errores y Desviaciones Durante el Desarrollo**:
+  1. *Ausencia del botón en la interfaz*: Inicialmente se crearon las bases técnicas pero el botón de acceso directo "Llamadas B2B" en el menú de navegación lateral (`sidenav.js`) no estaba visible en la sección de Comunicación para el administrador, dejando al usuario sin acceso visual a la herramienta.
+  2. *Sobrecarga de procesos en segundo plano*: Se dejaron tareas de Node y puentes en segundo plano ejecutándose en bucle, consumiendo memoria y CPU del equipo del usuario de forma innecesaria.
+  3. *Fallo de sincronización en el puente telefónico*: El estado marcaba "llamada activa" o "puente desconectado" sin generar tono audible en el headset ni accionar la línea celular, debido a la falta de orquestación directa entre la capa de audio WebRTC y el controlador telefónico.
+  4. *Bug crítico en la consulta de Prospectos ("No hay contactos en esta cartera")*: En `vllamadas.js`, la función `loadQueueFromSource('prospectos_b2b')` realizaba un `.select('phone, last_contact_channel')` sobre `jjp_prospects`. Al no existir la columna `phone` (el esquema real posee `phone_1` y `phone_2`) ni `last_contact_channel`, PostgREST arrojaba error PostgreSQL `42703 (column "phone" does not exist)` y devolvía `data: null`, vaciando la cola de llamadas.
+  5. *Corrupción histórica de números telefónicos pegados en `jjp_prospects`*: Durante importaciones previas, múltiples números telefónicos de una misma empresa se concatenaron en celdas de 22 a 26 dígitos seguidos (ej. `0243269421002432694216`), provocando un desastre en la base de datos que impedía la marcación y lectura.
+  6. *Inconsistencias en tema oscuro*: Botones, títulos y contenedores modales presentaban contrastes rotos (textos negros sobre fondos oscuros o cajas blancas deslumbrantes).
+
+- **Cómo se Construyó Funcional (Solución Definitiva y Arquitectura)**:
+  1. *Saneamiento y Normalización Masiva de `jjp_prospects`*:
+     - Se auditó la tabla completa (470 prospectos B2B).
+     - Se sanearon y dividieron con éxito **454 registros con números concatenados**, extrayendo prefijos venezolanos (`0212`, `0241`, `0243`, `0244`, `0414`, `0424`, `0412`, `0416`, `+58`).
+     - Cada registro se estructuró limpiamente en `phone_1` (fijo/central) y `phone_2` (móvil/WhatsApp) con formato estandarizado `0212-XXXXXXX` y `0414-XXXXXXX`.
+  2. *Corrección del Motor de Llamadas (`assets/js/admin/vllamadas.js`)*:
+     - Query corregido: `.select('id,company_name,contact_name,phone_1,phone_2,email,address,city,sector,notes,status,last_contact_at,contact_count')`.
+     - Manejo de número principal (`phone`) y alternativo (`alt_phone`), inyectando el número secundario en notas y cabecera de la ficha.
+     - Carga inmediata de las 470 empresas B2B y navegación fluida entre contactos.
+  3. *Visualización Clara en Módulo de Prospectos (`assets/js/admin/vprospectos.js`)*:
+     - Tabla actualizada con badges tipográficos diferenciados: `📞 Fijo / Central` y `📱 Celular / WA` en vez de texto fusionado.
+  4. *Validación y Despliegue en Cloudflare Pages*:
+     - Sintaxis validada con `node -c`, cache busters actualizados a `?v=20260928_clean_prospects` en `admin/llamadas.html` y `admin/prospectos.html`.
+     - Código desplegado en `origin main` (commit `29813c1` y `b7c...`).
+
+
 

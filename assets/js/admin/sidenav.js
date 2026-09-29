@@ -32,8 +32,8 @@
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
-      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp Suite' },
-      { href: 'correo.html',   ico: '📧', label: 'Correo Suite' },
+      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
+      { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
     { section: 'Catálogo' },
     { group: 'Catálogo', ico: '📦', items: [
@@ -78,8 +78,8 @@
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
-      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp Suite' },
-      { href: 'correo.html',   ico: '📧', label: 'Correo Suite' },
+      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
+      { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
     { section: 'Mi cuenta' },
     { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },

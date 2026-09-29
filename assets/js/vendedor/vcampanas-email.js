@@ -658,18 +658,22 @@ async function loadCampTargets(campId) {
   if (error) { showToast('Error cargando destinatarios: ' + error.message, 'err'); return; }
   
   // Cruzar con clientes/prospectos para traer el teléfono
-  const custIds = data.map(t => t.customer_id).filter(Boolean);
-  const prosIds = data.map(t => t.prospect_id).filter(Boolean);
+  // Batches de 200 para evitar truncamiento de PostgREST con .in()
+  const custIds = [...new Set(data.map(t => t.customer_id).filter(Boolean))];
+  const prosIds = [...new Set(data.map(t => t.prospect_id).filter(Boolean))];
   
   let custMap = {};
-  if (custIds.length) {
-    const { data: cData } = await sb.from('jjp_customers').select('id, phone').in('id', custIds);
-    if (cData) cData.forEach(c => custMap[c.id] = c.phone);
+  for (let i = 0; i < custIds.length; i += 200) {
+    const batch = custIds.slice(i, i + 200);
+    const { data: cData } = await sb.from('jjp_customers').select('id, phone').in('id', batch);
+    if (cData) cData.forEach(c => { custMap[c.id] = c.phone; });
   }
+  // jjp_prospects usa phone_1 (fijo) y phone_2 (móvil) — NO tiene columna "phone"
   let prosMap = {};
-  if (prosIds.length) {
-    const { data: pData } = await sb.from('jjp_prospects').select('id, phone').in('id', prosIds);
-    if (pData) pData.forEach(p => prosMap[p.id] = p.phone);
+  for (let i = 0; i < prosIds.length; i += 200) {
+    const batch = prosIds.slice(i, i + 200);
+    const { data: pData } = await sb.from('jjp_prospects').select('id, phone_1, phone_2').in('id', batch);
+    if (pData) pData.forEach(p => { prosMap[p.id] = p.phone_2 || p.phone_1 || null; });
   }
 
   ecDetailTargets = data.map(t => ({
@@ -819,15 +823,15 @@ function toggleAllFailedEmails(master) {
 }
 
 function rescueFailedToWaAutomated() {
-  const regexWa = /^(\+?58|0)?(412|414|424|416|426)\d{7}$/;
+  const regexWa = /^(58)?(412|414|424|416|426)\d{7}$/;
   const failedWa = ecDetailTargets.filter(t => {
     if (t.status !== 'failed') return false;
-    const cleanPhone = (t.phone || '').replace(/[\s-]/g, '');
+    const cleanPhone = (t.phone || '').replace(/\D/g, ''); // quita TODO lo que no sea dígito
     return regexWa.test(cleanPhone);
   });
   
   if (!failedWa.length) {
-    showToast('No hay contactos válidos para WhatsApp.', 'err');
+    showToast(`No hay correos rebotados con móvil válido (${ecDetailTargets.filter(t => t.status === 'failed').length} fallidos, pero sin teléfono móvil asociado).`, 'err');
     return;
   }
   

@@ -951,17 +951,19 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - `mixer.js` poseía filtros naive como `if (exportedOrders.has(num)) return false;` que impedían sincronizar cambios de pedidos existentes hacia MixNet.
   - En sentido inverso, `sweepMixnetDbf` ignoraba actualizaciones hechas en MixNet porque el número ya residía en `exportedOrders`.
   - La ejecución de `wa-server` moría al cerrarse la sesión de Antigravity debido a que corría como subproceso hijo del agente.
-- **Implementación Arquitectónica "Un Solo Cuerpo"**:
-  1. **Motor In-Place DBF (`wa-server/src/mixnet-dbf-writer.js`)**:
-     - `upsertDbfHeader`: Localiza el registro en `MXENCPED.DBF` o `MXENCCOT.DBF` por `numped`/`numcot`. Si existe, sobrescribe exactamente sus bytes en su posición física original sin desplazar ni duplicar registros. Si es nuevo, lo anexa.
-     - `replaceDbfDetails`: Sobrescribe renglones en `MXRENPED.DBF` / `MXRENCOT.DBF`. Si la nueva versión contiene menos renglones, marca los sobrantes como borrados con el flag estándar dBase III `0x2A` (`'*'`) (MixNet omite nativamente registros con `0x2A`). Si contiene más renglones, anexa los sobrantes actualizando el contador de cabecera.
-  2. **Huellas Digitales Deterministas (`computeDocFingerprint`) en `mixer.js`**:
-     - Genera un hash determinista: `num|total|cliente|items(sku:qty@price)|notas|status`.
-     - Detecta modificaciones reales tanto en JJ Paper como en MixNet.
-     - Erradica loops infinitos (anti-ping-pong). Persiste en `exported-orders-fp.json` y `exported-quotes-fp.json`.
-  3. **Preservación Estricta de Correlativos**:
-     - Al editar un documento existente, **`MXNUMPED.DBF`, `MXNUMCOT.DBF` y `jjp_settings` NO se incrementan**. Se conserva el serial correlativo de 8 dígitos original.
-     - Solo documentos nuevos avanzan las tablas de control.
+- **Lección Crítica: Prohibición de Escritura Binaria Directa en DBF (`wa-server/src/mixer.js`)**:
+  1. **Desincronización de Índices Clipper (`.NTX`)**:
+     - Las tablas de MixNet operan bajo arquitectura Clipper/Harbour. Modificar bytes directamente en los `.DBF` desde Node.js (`fs.writeSync`) sin recompilar simultáneamente los índices `.NTX` corrompe los árboles de punteros B-Tree.
+     - Esto ocasiona que los browse de MixNet entren en bucle, repitan registros fantasmas en cascada y crucen reportes de nómina y comisiones.
+     - **Regla Estricta**: Queda terminantemente prohibida la escritura binaria directa en los `.DBF` de producción de MixNet desde Node.js. `exportOrderToDbf` y `exportQuoteToDbf` están permanentemente desactivadas.
+  2. **Mapeo Riguroso de Vendedores y Nómina**:
+     - `005` es exclusivo de Jose (mostrador de tienda física). **JAMÁS debe asignarse como fallback a Keyder Salazar**.
+     - Keyder Salazar es estrictamente `010` (Zona 010) y `020` (Zona 020).
+     - Las comisiones en MixNet se liquidan agrupando por `codven`; cualquier cruce destruye la nómina.
+  3. **Huellas Digitales y Filtro Anti-Eco**:
+     - Filtros estrictos en barridos y Realtime (`source !== 'mixnet'`, `!order_number.startsWith('MIX-')`, notas sin `[MixNet`) impiden re-exportar documentos creados en MixNet.
+  4. **Canal Saliente Seguro**:
+     - La integración JJ Paper ➔ MixNet se realiza exclusivamente mediante buzón de archivos limpios (CSV/TXT estructurados en carpetas de intercambio `M:\pedidos`, `M:\cotizaciones`) o módulos CLI nativos en Harbour que abran las tablas con sus índices correspondientes.
   4. **Edición Directa en POS (`assets/js/vendedor/pos.js`)**:
      - Soporta `?order=[NUM]`, `?pedido=[NUM]`, `?edit=[NUM]`.
      - Corrección de cast UUID (`isUuid ? eq('id') : eq('order_number')`) para prevenir error PostgreSQL 400.
@@ -992,10 +994,27 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - En POS y Cotizador no existía selector para atribuir ventas o cotizaciones a Keyder Salazar o a otros vendedores.
 - **Solución Consolidada**:
   1. **Mapeo DBF Exhaustivo (`wa-server/src/mixer.js`)**:
-     - `SELLERS_BY_CODVEN` ampliado con: `005/010/020` (Keyder), `004/006` (Yovanni), `008` (Marianela), `014` (Andreina), `002` (Luis Alarcon), `001` (Mary Garcia), `025` (Ana Barajas), `026`, `032`, `003`, `033`.
-     - Prioridad irrefutable al vendedor de MixNet (`codven`). Prohibido atribuir clientes generales a Keyder sin código explícito de Keyder.
+     - `SELLERS_BY_CODVEN` ajustado estrictamente: `010/020` (Keyder), `005` (Jose en tienda física), `004/006` (Yovanni), `008` (Marianela), `014` (Andreina), `002` (Luis Alarcon), `001` (Mary Garcia), `025` (Ana Barajas), `026`, `032`, `003`, `033`.
+     - Prioridad irrefutable al vendedor de MixNet (`codven`). Prohibido atribuir clientes generales a Keyder sin código explícito de Keyder (`010`/`020`).
   2. **Re-adjudicación en BD**: Corregidos 6 pedidos y 2 cotizaciones históricas mal asociadas a Keyder, vinculándolas a su vendedor real Luis Alarcon (`002`).
   3. **Perfiles Sincronizados**: Creados y actualizados perfiles en `jjp_profiles` vinculados a `auth.users` para todo el equipo.
   4. **Selector Dinámico en POS y Cotizador**: Añadidos `#posSellerSelect` y `#qSellerSelect` en cabeceras de `pos.html` y `cotizador.html` (tanto en `/admin/` como en `/vendedor/`), permitiendo a los administradores registrar y adjudicar ventas/cotizaciones a Keyder Salazar o a cualquier vendedor.
   5. **Búsqueda Global para Administradores**: Actualizado `cust-autocomplete.js` y `pos.js` (`posSearchCustomer`) para que los administradores busquen y facturen a cualquier cliente de la base de datos sin restricción de cartera.
   6. **Atribución en Pedidos y Cotizaciones**: Keyder Salazar (`role: 'admin'`) y todos los vendedores activos ahora están disponibles en los modales de detalle de pedidos y cotizaciones para reasignación manual inmediata.
+
+## Protocolo Maestro y Purga Definitiva de MixNet ERP (29-09-2026)
+- **Documento Maestro**: Consultar [ARQUITECTURA_Y_COMPORTAMIENTO_MIXNET.md](file:///C:/Users/Supervisor/Desktop/JJ-PAPER/ARQUITECTURA_Y_COMPORTAMIENTO_MIXNET.md).
+- **Diagnóstico del Incidente**:
+  - Al inyectar registros en `MXENCPED.DBF` y `MXENCCOT.DBF` desde Node.js sin actualizar los archivos de índices Clipper `.NTX`, los árboles B-Tree se desalinearon provocando bucles en pantalla de MixNet y multiplicando visualmente registros con `005`.
+  - Se descubrió que entre el 23 y el 25 de septiembre se habían inyectado 138 pedidos cabecera y 12 cotizaciones con comentarios como `Cotización COT-260923-2866` y `[MixNet Caja]`.
+- **Purga Quirúrgica Realizada**:
+  - Copias de seguridad en `M:\comp01\backups\CLEAN_PURGE_*.DBF`.
+  - Marcados como borrados (`0x2A` / `'*'`) 138 pedidos en `MXENCPED.DBF` y 790 renglones en `MXRENPED.DBF`.
+  - Marcadas como borradas 12 cotizaciones en `MXENCCOT.DBF` y 78 renglones en `MXRENCOT.DBF`.
+  - En `MXCTACLI.DBF` se restauró el vendedor de los clientes afectados.
+  - Resultado verificado: **0 registros activos con comentarios JJ o `[MixNet]`, 0 pedidos fantasma de `005`**. Todos los pedidos reales (Luis Alarcón `002`, Marianela `008`, Andreina `014`, Yovanni `006`, `032`) permanecen 100% íntegros.
+- **Acción Obligatoria en MixNet**:
+  - Ejecutar en MixNet: **`Mantenimiento` ➔ `Reindexar Archivos` (u `Organizar Archivos`)** para que Clipper regenere los `.NTX` descartando los registros borrados y saneando las pantallas.
+- **Canal de Integración Autorizado**:
+  - **Lectura**: 100% segura para sincronizar stock (`MXCTAINV`), facturas fiscales SENIAT (`MXENCFAC`/`MXRENFAC`) y ventas de tienda.
+  - **Escritura**: Prohibida la escritura binaria directa en DBF. La salida de JJ Paper se realiza exclusivamente por buzón de intercambio CSV/TXT en `M:\pedidos` para importación nativa en MixNet.

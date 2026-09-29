@@ -37,25 +37,24 @@ graph TD
 
 ---
 
-## 🔄 Funcionamiento Bidireccional Completo ("Un Solo Cuerpo")
+## 🔄 Funcionamiento de Integración Seguro ("Lectura Directa + Intercambio No Invasivo")
+
+> Para la especificación técnica completa de tablas, campos, índices `.NTX` y nómina de MixNet, consultar el documento maestro:  
+> 📄 [ARQUITECTURA_Y_COMPORTAMIENTO_MIXNET.md](file:///C:/Users/Supervisor/Desktop/JJ-PAPER/ARQUITECTURA_Y_COMPORTAMIENTO_MIXNET.md).
 
 ### 1. Pedidos (JJ Paper ⇄ MixNet)
-* **JJ Paper ➔ MixNet**:
-  * Cada pedido aprobado en la Web, POS o Cotizador se registra en `jjp_orders` con su número correlativo real de 8 dígitos (ej. `00112468`).
-  * El puente exporta de inmediato `pedido_[NUMERO].csv` y `pedido_[NUMERO].txt` a las carpetas compartidas (`M:\comp01`, `M:\pedidos`, etc.) y escribe nativamente en `MXENCPED.DBF` y `MXRENPED.DBF`.
-  * **Modo Edición In-Place**: Si un vendedor o administrador modifica un pedido existente desde el POS (`pos.html?order=00112468`):
-    - `upsertDbfHeader` sobrescribe en su posición exacta de bytes el registro en `MXENCPED.DBF` sin alterar el archivo ni duplicar.
-    - `replaceDbfDetails` actualiza los renglones en `MXRENPED.DBF`, marcando renglones suprimidos con `0x2A` ('*') de dBase III y anexando líneas nuevas si aumentaron.
-    - **`MXNUMPED.DBF` y `jjp_settings` NO se incrementan**; el número del pedido se mantiene idéntico.
-  * Huella digital determinista (`computeDocFingerprint`) previene bucles de eco entre sistemas.
-* **MixNet ➔ JJ Paper**:
-  * El servidor vigila las tablas `MXENCPED.DBF` y `MXRENPED.DBF` cada 30 segundos.
-  * Si un pedido es creado o editado en MixNet, actualiza el registro en `jjp_orders` (`UPDATE` sobre el mismo `id`), sincronizando montos, ítems y cliente.
+* **JJ Paper ➔ MixNet (Canal Saliente No Invasivo)**:
+  * Cada pedido aprobado en la Web, POS o Cotizador se registra en `jjp_orders`.
+  * El puente exporta de inmediato `pedido_[NUMERO].csv` y `pedido_[NUMERO].txt` a las carpetas de intercambio compartidas (`M:\pedidos`, `M:\comp01`, etc.).
+  * **PROHIBICIÓN ESTRICTA**: Está terminantemente prohibida la escritura binaria directa en los archivos `.DBF` de MixNet sin recomposición nativa de índices `.NTX`. La integración saliente se realiza exclusivamente por buzón de intercambio o importador nativo de MixNet.
+  * Huella digital determinista (`computeDocFingerprint`) y filtros por origen (`source !== 'mixnet'`) previenen bucles de re-exportación.
+* **MixNet ➔ JJ Paper (Canal Entrante de Solo Lectura)**:
+  * El servidor lee de forma segura las tablas `MXENCPED.DBF` y `MXRENPED.DBF` para reflejar las ventas hechas en caja en tiempo real.
+  * Si un pedido es facturado en MixNet, el módulo de facturas (`MXENCFAC.DBF`) sincroniza automáticamente el Nro de Factura y Nro de Control Fiscal SENIAT.
 
 ### 2. Cotizaciones y Presupuestos (JJ Paper ⇄ MixNet)
 * **JJ Paper ➔ MixNet**:
-  * Cada cotización de vendedor se deposita como `cotizacion_[NUMERO].csv` y `.txt`, y se escribe en `MXENCCOT.DBF` y `MXRENCOT.DBF` con serial correlativo real de 8 dígitos (ej. `00053327`).
-  * Si se edita desde el Cotizador (`cotizador.html?edit=00053327`), se actualiza en lugar en el DBF sin incrementar `MXNUMCOT.DBF`.
+  * Cada cotización de vendedor se deposita como archivo estructurado `cotizacion_[NUMERO].csv` y `.txt` en la bandeja de red.
 * **MixNet ➔ JJ Paper**:
   * Lectura periódica de presupuestos emitidos en MixNet para seguimiento de ventas en `jjp_quotes`.
 

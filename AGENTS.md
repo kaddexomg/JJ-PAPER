@@ -1024,3 +1024,19 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 - **Canal de Integración Autorizado**:
   - **Lectura**: 100% segura para sincronizar stock (`MXCTAINV`), facturas fiscales SENIAT (`MXENCFAC`/`MXRENFAC`) y ventas de tienda.
   - **Escritura**: Prohibida la escritura binaria directa en DBF. La salida de JJ Paper se realiza exclusivamente por buzón de intercambio CSV/TXT en `M:\pedidos` para importación nativa en MixNet.
+
+## Saneamiento Quirúrgico Definitivo y Calibración de Correlativos MixNet (29-09-2026 - Noche)
+- **Colisión Resuelta en Cotización `#00053315`**:
+  - Identificada duplicidad en `MXENCCOT.DBF`: Rec 9934 (fantasma CASHEA `$3736.34` con 305 agendas) vs Rec 9935 (real Luis Alarcón `002`, `$257.53` para U.N.E. Marítima con tóners `VS-T115A`).
+  - Purga aplicada: marcado borrado Rec 9934 y sus renglones en `MXRENCOT.DBF`. Preservada 100% intacta la cotización real de Luis Alarcón.
+- **Limpieza de Duplicados Restantes**:
+  - Purgados registros inyectados `#00053324` (Rec 9944), `#00053326` (Rec 9947), `#00112428` (Rec 2445) y `#00112544` (Rec 2606 CASHEA).
+  - Preservadas las cotizaciones y pedidos reales legítimos de tienda y vendedores.
+  - Todos los comentarios de registros borrados fueron rellenados con espacios (`0x20`), logrando **0 huellas `[MixNet]` y 0 registros fantasma activos**.
+- **Calibración Crítica de Correlativos**:
+  - `MXNUMPED.DBF`: Calibrado a **`00112546`** (el pedido real más alto emitido hoy fue `#00112545` de Luis Alarcón para ARCOOP SUPLIDORES).
+  - `MXNUMCOT.DBF`: Calibrado a **`00053331`** (siguiente correlativo tras `#00053330`).
+- **Mapeo de Rutas de Red**:
+  - Raíz MixNet: `Z:\` (`\\servidor\MIX11`) con base de datos en `Z:\comp01\`.
+  - Unidad alternativa: `M:\` (`\\servidor\d`) con base de datos en `M:\MIX11\comp01\`.
+

@@ -154,6 +154,7 @@ async function loadDContacts() {
           phone_1: p.phone_1,
           phone_2: p.phone_2,
           email: p.email || '',
+          email_status: p.email_status || null,
           address: p.address || p.city || 'Caracas',
           city: p.city || 'Caracas',
           notes: p.notes || '',
@@ -1192,10 +1193,16 @@ function ncAudience() {
       : { isMobile: !/^(?:58|0)?(?:2\d{2})\d{7}$/.test((c.phone || '').replace(/\D/g, '')) && (c.phone || '').replace(/\D/g, '').length >= 10 };
     return pInfo.isMobile;
   });
-  if (aud === 'inactivos')  list = list.filter(c => c.total_orders > 0 && c.last_order_at &&
+  if (aud === 'email_bounced') {
+    list = list.filter(c => {
+      const hasBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
+      const noEmail = !c.email || !String(c.email).trim();
+      return (hasBounced || noEmail);
+    });
+  } else if (aud === 'inactivos')  list = list.filter(c => c.total_orders > 0 && c.last_order_at &&
       (Date.now() - new Date(c.last_order_at).getTime()) > inactDays * 86400e3);
-  if (aud === 'prospectos') list = list.filter(c => !c.total_orders);
-  if (aud === 'etiqueta')   list = list.filter(c => (c.tags || []).map(t => t.toLowerCase()).includes(tag));
+  else if (aud === 'prospectos') list = list.filter(c => !c.total_orders);
+  else if (aud === 'etiqueta')   list = list.filter(c => (c.tags || []).map(t => t.toLowerCase()).includes(tag));
   return list;
 }
 

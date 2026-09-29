@@ -686,7 +686,7 @@ function renderCampDetail() {
   if (!tbody) return;
   
   if (!ecDetailTargets.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Cargando destinatarios...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Cargando destinatarios...</td></tr>';
     return;
   }
   
@@ -703,6 +703,7 @@ function renderCampDetail() {
         ${t.vars?.detected_need ? `<div style="font-size:11px;color:#166534;font-weight:600;margin-top:2px">🎯 ${escapeHTML(t.vars.detected_need)}</div>` : ''}
       </td>
       <td>${escapeHTML(t.to_addr || '—')}</td>
+      <td style="font-size:12.5px;color:#334155">${t.phone ? `<span style="font-family:monospace;font-weight:600">📱 ${escapeHTML(t.phone)}</span>` : '<span style="color:#94a3b8">—</span>'}</td>
       <td>${stBadge}</td>
       <td>${t.sent_at ? fmtDate(t.sent_at) : '—'}</td>
       <td style="font-size:12px;color:#b91c1c">${escapeHTML(t.error || '')}</td>
@@ -828,6 +829,7 @@ async function launchEmailCampaignFromEditor(config) {
     customer_id: c.id || null,
     to_addr: c.email,
     email: c.email,
+    phone: c.phone || c.phone_2 || c.phone_1 || null,
     name: c.name,
     status: 'pending',
     vars: {
@@ -1045,6 +1047,7 @@ async function launchEcCampaign() {
     customer_id: c.id || null,
     to_addr: c.email,
     email: c.email,
+    phone: c.phone || c.phone_2 || c.phone_1 || null,
     name: c.name || 'Cliente',
     status: 'pending',
     vars: ecSampleVars(c.name, extra),

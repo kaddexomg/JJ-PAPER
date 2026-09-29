@@ -124,6 +124,32 @@ async function step(camp, dailyLimit) {
       await db.from('jjp_email_campaign_targets').update({ status: 'failed', error: e.message }).eq('id', t.id);
       await syncCounts(camp.id);
       log.warn({ campaign: camp.name, target: t.id, err: e.message }, 'campaña correo: target falló');
+      
+      const errMsg = String(e.message || '').toLowerCase();
+      if (errMsg.includes('recipient address rejected') || errMsg.includes('550') || errMsg.includes('user unknown') || errMsg.includes('mailbox not found') || errMsg.includes('does not exist')) {
+        try {
+          await dbCore.from('jjp_email_suppression_list').upsert({
+            email: toAddr.toLowerCase(),
+            reason: e.message.slice(0, 300),
+            bounce_type: 'hard',
+            source: 'smtp_error',
+            created_at: new Date().toISOString()
+          }, { onConflict: 'email' });
+          await Promise.allSettled([
+            dbCore.from('jjp_customers').update({
+              email_status: 'bounced',
+              bounce_reason: e.message.slice(0, 200),
+              bounced_at: new Date().toISOString()
+            }).ilike('email', toAddr),
+            dbCore.from('jjp_prospects').update({
+              email_status: 'bounced',
+              bounce_reason: e.message.slice(0, 200),
+              bounced_at: new Date().toISOString()
+            }).ilike('email', toAddr)
+          ]);
+        } catch (_) {}
+      }
+
       // Si es fallo de credenciales, no reintentar en bucle rápido
       nextSendAt.set(camp.owner_id, Date.now() + 30_000);
     }

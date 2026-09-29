@@ -474,13 +474,20 @@ async function ingestMessage(acct, token, id) {
           created_at: new Date().toISOString()
         }, { onConflict: 'email' });
         
-        await dbCore.from('jjp_customers').update({
-          email_status: 'bounced',
-          bounce_reason: 'Mailer Daemon / DSN',
-          bounced_at: new Date().toISOString()
-        }).ilike('email', bouncedEmail);
+        await Promise.allSettled([
+          dbCore.from('jjp_customers').update({
+            email_status: 'bounced',
+            bounce_reason: 'Mailer Daemon / DSN',
+            bounced_at: new Date().toISOString()
+          }).ilike('email', bouncedEmail),
+          dbCore.from('jjp_prospects').update({
+            email_status: 'bounced',
+            bounce_reason: 'Mailer Daemon / DSN',
+            bounced_at: new Date().toISOString()
+          }).ilike('email', bouncedEmail)
+        ]);
         
-        log.info({ bouncedEmail }, 'Rebote procesado y añadido a suppression list');
+        log.info({ bouncedEmail }, 'Rebote procesado en suppression list, jjp_customers y jjp_prospects');
       } catch (err) {
         log.error({ err: err.message }, 'Error al procesar rebote en ingestMessage');
       }

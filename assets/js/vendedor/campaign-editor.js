@@ -188,6 +188,7 @@ window.CampaignEditor = (() => {
                   <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
                   <option value="inactivos">😴 Inactivos (sin compras >30d)</option>
                   <option value="prospectos">🆕 Clientes sin compras</option>
+                  <option value="email_bounced">⚠️ Clientes con Email Rebotado / Sin Email</option>
                   <option value="sector">🏢 Filtrar por Sector B2B...</option>
                   <option value="etiqueta">🔖 Por etiqueta / zona...</option>
                 </select>
@@ -538,6 +539,8 @@ window.CampaignEditor = (() => {
     }
 
     const isEmail = config.channel === 'email';
+    const bouncedOpt = document.querySelector('#ceAudienceSelect option[value="email_bounced"]');
+    if (bouncedOpt) bouncedOpt.style.display = isEmail ? 'none' : '';
     const badge = document.getElementById('ceBadge');
     badge.textContent = isEmail ? '📧 Email' : '📱 WhatsApp';
     badge.className = 'ce-channel-badge ' + (isEmail ? 'email' : '');
@@ -815,6 +818,11 @@ window.CampaignEditor = (() => {
         return manualSelectedIds.has(c.id);
       }
 
+      if (aud === 'email_bounced') {
+        const hasBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
+        const noEmail = !c.email || !String(c.email).trim();
+        return (hasBounced || noEmail);
+      }
       if (aud === 'prospectos_b2b') return Boolean(c.is_prospect_b2b);
       if (aud === 'solo_clientes') return !c.is_prospect_b2b;
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);

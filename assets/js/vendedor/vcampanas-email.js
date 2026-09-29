@@ -707,6 +707,75 @@ function renderCampDetail() {
     btnRescate.style.display = failed > 0 ? 'inline-block' : 'none';
   }
 
+  // Lógica del Motor de Rescate Inteligente
+  const regexWa = /^(\+?58|0)?(412|414|424|416|426)\d{7}$/;
+  const failedWa = [];
+  const failedCall = [];
+  ecDetailTargets.filter(t => t.status === 'failed').forEach(t => {
+    const cleanPhone = (t.phone || '').replace(/[\s-]/g, '');
+    if (regexWa.test(cleanPhone)) {
+      failedWa.push(t);
+    } else {
+      failedCall.push(t);
+    }
+  });
+
+  const rescueWaBox = document.getElementById('rescueWaBox');
+  if (rescueWaBox) {
+    if (failedWa.length > 0) {
+      rescueWaBox.style.display = 'block';
+      rescueWaBox.innerHTML = `
+        <div style="background:#dcfce7; padding:10px; border-radius:6px; margin-bottom:10px;">
+          <h4 style="margin:0; color:#15803d;">Rescate Automático a WhatsApp</h4>
+          <p style="margin:4px 0 8px 0; font-size:13px;">${failedWa.length} correos rebotados tienen móvil válido.</p>
+          <button class="btn-p sm" onclick="rescueFailedToWaAutomated()">Rescatar por WA</button>
+        </div>
+      `;
+    } else {
+      rescueWaBox.style.display = 'none';
+    }
+  }
+
+  const rescueCallBox = document.getElementById('rescueCallBox');
+  if (rescueCallBox) {
+    if (failedCall.length > 0) {
+      rescueCallBox.style.display = 'block';
+      rescueCallBox.innerHTML = `
+        <div style="background:#fee2e2; padding:10px; border-radius:6px; margin-bottom:10px;">
+          <h4 style="margin:0; color:#b91c1c;">Llamadas Requeridas</h4>
+          <p style="margin:4px 0 8px 0; font-size:13px;">${failedCall.length} correos rebotados sin móvil (fijo o vacío).</p>
+          <button class="btn-o sm" onclick="alert('Agendando llamadas (En desarrollo)')">Agendar Llamadas</button>
+        </div>
+      `;
+    } else {
+      rescueCallBox.style.display = 'none';
+    }
+  }
+
+  // Gráficos con Chart.js
+  if (window.Chart) {
+    const ctx = document.getElementById('campChart');
+    if (ctx) {
+      if (window.campChartInstance) {
+        window.campChartInstance.destroy();
+      }
+      window.campChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Enviados', 'Fallidos', 'Pendientes', 'Omitidos'],
+          datasets: [{
+            data: [sent, failed, pending, skipped],
+            backgroundColor: ['#15803d', '#b91c1c', '#d97706', '#6b7280']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+  }
+
   const tbody = document.getElementById('detTargetsBody');
   if (!tbody) return;
   
@@ -747,6 +816,43 @@ function renderCampDetail() {
 
 function toggleAllFailedEmails(master) {
   document.querySelectorAll('.chk-failed').forEach(chk => chk.checked = master.checked);
+}
+
+function rescueFailedToWaAutomated() {
+  const regexWa = /^(\+?58|0)?(412|414|424|416|426)\d{7}$/;
+  const failedWa = ecDetailTargets.filter(t => {
+    if (t.status !== 'failed') return false;
+    const cleanPhone = (t.phone || '').replace(/[\s-]/g, '');
+    return regexWa.test(cleanPhone);
+  });
+  
+  if (!failedWa.length) {
+    showToast('No hay contactos válidos para WhatsApp.', 'err');
+    return;
+  }
+  
+  const contacts = failedWa.map(t => ({
+    id: t.customer_id,
+    name: t.name,
+    phone: t.phone,
+    is_prospect: !!t.prospect_id
+  }));
+  
+  if (window.CampaignEditor) {
+    window.CampaignEditor.open({
+      channel: 'whatsapp',
+      contacts: contacts,
+      seller: SELLER,
+      onLaunch: async (config) => {
+        showToast('Abriendo motor de campañas de WhatsApp...', 'ok');
+        sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
+        window.location.href = 'difusion.html?rescue=1';
+      }
+    });
+  } else {
+    sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
+    window.location.href = 'difusion.html?rescue=1';
+  }
 }
 
 function rescueFailedToWa() {

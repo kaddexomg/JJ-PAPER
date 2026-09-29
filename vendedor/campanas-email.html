@@ -35,6 +35,7 @@
 </style>
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260916_fix_teclado_campanas">
   <link rel="stylesheet" href="../assets/css/product-picker.css">
 </head>
@@ -131,10 +132,21 @@
             </div>
           </div>
           
-          <div class="d-prog" style="height:12px;margin-bottom:8px">
-            <div class="d-prog-fill" id="detProgFill" style="width:0%"></div>
+          <div class="dashboard-container" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+            <div style="flex:1;min-width:300px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;text-align:center;">
+              <canvas id="campChart" width="400" height="200"></canvas>
+            </div>
+            <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:12px;">
+              <div id="rescueWaBox" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;">
+                <h4 style="margin:0 0 6px;color:#166534;">📲 Rescate vía WhatsApp</h4>
+                <p style="margin:0;font-size:12px;color:#15803d;">Contactos con móvil válido listos para rescate.</p>
+              </div>
+              <div id="rescueCallBox" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px;">
+                <h4 style="margin:0 0 6px;color:#92400e;">📞 Rescate vía Llamada</h4>
+                <p style="margin:0;font-size:12px;color:#b45309;">Contactos de teléfono fijo o sin móvil.</p>
+              </div>
+            </div>
           </div>
-          <div id="detProgLabel" style="font-size:12px;color:#666;margin-bottom:12px;font-weight:600"></div>
           
           <div class="ec-stats">
             <div class="ec-stat">

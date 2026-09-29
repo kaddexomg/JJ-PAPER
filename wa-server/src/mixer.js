@@ -74,9 +74,9 @@ function computeDocFingerprint(doc) {
 }
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
-// Referencia: Keyder (005/010/020), Yovanni (004/006), Marianela (008), Andreina (014), Luis Alarcon (002), etc.
+// Referencia: Keyder (010/020), Jose (005), Yovanni (004/006), Marianela (008), Andreina (014), Luis Alarcon (002), etc.
 const SELLERS_BY_CODVEN = new Map([
-  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005', '010', '020']], // Keyder Salazar (005, 010, 020 en MixNet)
+  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['010', '020']],        // Keyder Salazar (010, 020 en MixNet)
   ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006']],        // Yovanni Araujo
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],               // Marianela (marianela08)
   ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],               // Andreina (andreina)
@@ -89,7 +89,8 @@ const SELLERS_BY_CODVEN = new Map([
   ['485e3fde-f95d-4857-9175-147051a54748', ['033']],               // JJ Paper 33 (033 en MixNet)
 ]);
 const CODVEN_HINT = new Map([
-  ['005', 'Keyder'], ['010', 'Keyder (Zona 010)'], ['020', 'Keyder (Zona 020)'],
+  ['005', 'Jose (005)'],
+  ['010', 'Keyder (Zona 010)'], ['020', 'Keyder (Zona 020)'],
   ['004', 'Yovanni'], ['006', 'Yovanni'],
   ['008', 'Marianela'], ['014', 'Andreina'],
   ['002', 'Luis Alarcon (002)'],
@@ -249,6 +250,8 @@ function writeToAllDropDirs(filename, content) {
 // 1. Exportar Pedido (jjp_orders)
 export async function exportOrder(o) {
   if (!o || !o.order_number) return false;
+  if (o.order_number.startsWith('MIX-')) return false;
+  if (o.source === 'mixnet' || String(o.notes || '').includes('[MixNet')) return false;
   const fp = computeDocFingerprint(o);
   if (orderFingerprints.get(o.order_number) === fp) return false;
 
@@ -330,7 +333,8 @@ export async function exportOrder(o) {
   const okCsv = writeToAllDropDirs(`pedido_${o.order_number}.csv`, csvContent);
   const okTxt = writeToAllDropDirs(`pedido_${o.order_number}.txt`, txtContent);
 
-  // Escritura nativa en DBF MixNet (serial correlativo) — el canal primario
+  // Escritura nativa en DBF MixNet desactivada por seguridad para proteger índices NTX e integridad
+  /*
   if (activeDbfDir && !o.order_number.startsWith('MIX-')) {
     try {
       const dbfRes = await exportOrderToDbf(o);
@@ -341,6 +345,7 @@ export async function exportOrder(o) {
       log.warn({ err: err.message }, 'Puente Mixer: Excepción escritura DBF de pedido');
     }
   }
+  */
 
   if (okCsv || okTxt) {
     exportedOrders.add(o.order_number);
@@ -355,6 +360,8 @@ export async function exportOrder(o) {
 // 2. Exportar Cotización (jjp_quotes)
 export async function exportQuote(q) {
   if (!q || !q.quote_number) return false;
+  if (q.quote_number.startsWith('MIX-')) return false;
+  if (q.source === 'mixnet' || String(q.notes || '').includes('[MixNet')) return false;
   const fp = computeDocFingerprint(q);
   if (quoteFingerprints.get(q.quote_number) === fp) return false;
 
@@ -436,7 +443,8 @@ export async function exportQuote(q) {
   const okCsv = writeToAllDropDirs(`cotizacion_${q.quote_number}.csv`, csvContent);
   const okTxt = writeToAllDropDirs(`cotizacion_${q.quote_number}.txt`, txtContent);
 
-  // Escritura nativa en DBF MixNet (serial correlativo) — el canal primario
+  // Escritura nativa en DBF MixNet desactivada por seguridad para proteger índices NTX e integridad
+  /*
   if (activeDbfDir && !q.quote_number.startsWith('MIX-')) {
     try {
       const dbfRes = await exportQuoteToDbf(q);
@@ -447,6 +455,7 @@ export async function exportQuote(q) {
       log.warn({ err: err.message }, 'Puente Mixer: Excepción escritura DBF de cotización');
     }
   }
+  */
 
   if (okCsv || okTxt) {
     exportedQuotes.add(q.quote_number);
@@ -625,138 +634,14 @@ function dbfPath(name, dbfDir) {
 
 // Exporta una cotización JJ (jjp_quotes) al DBF nativo de MixNet: MXENCCOT + MXRENCOT.
 export async function exportQuoteToDbf(q, dbfDir) {
-  try {
-    const dir = dbfDir || activeDbfDir;
-    if (!dir) return { ok: false, reason: 'no-dbf-dir' };
-    const encPath = dbfPath('MXENCCOT.DBF', dir);
-    const detPath = dbfPath('MXRENCOT.DBF', dir);
-    const cliPath = dbfPath('MXCTACLI.DBF', dir);
-    if (!encPath || !detPath || !cliPath || !fs.existsSync(encPath) || !fs.existsSync(detPath) || !fs.existsSync(cliPath)) {
-      return { ok: false, reason: 'no-cot-dbf' };
-    }
-    const items = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
-    if (items.length === 0) return { ok: false, reason: 'no-items' };
-
-    // 1. Siguiente serial correlativo (NUMCOT) desde tabla de control MXNUMCOT o fallback
-    let numcot = null;
-    const numcotPath = dbfPath('MXNUMCOT.DBF', dir);
-    const is8Digit = /^\d{8}$/.test(String(q.quote_number || '').trim());
-    if (is8Digit) {
-      numcot = String(q.quote_number).trim().padStart(8, '0').slice(-8);
-    } else {
-      const ctrlSerial = numcotPath ? dbfGetControlSerial(numcotPath, 'numero') : null;
-      if (ctrlSerial && ctrlSerial.num > 0) {
-        numcot = ctrlSerial.formatted;
-      } else {
-        const serial = dbfNextSerial(encPath, 'numcot');
-        if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
-        numcot = serial.nextFormatted;
-      }
-    }
-
-    // 2. Resolver/crear cliente en MXCTACLI
-    const cli = clienteForDoc(q);
-    const cliRes = await dbfUpsertCliente(cliPath, cli, dir);
-    if (!cliRes.ok) return { ok: false, reason: cliRes.error || 'no-cli' };
-    const codcli = cliRes.codcli;
-
-    // 3. Cabecera + renglones
-    const encStruct = dbfReadStruct(encPath);
-    const detStruct = dbfReadStruct(detPath);
-    const header = buildQuoteHeaderRecord(encStruct, q, numcot, codcli);
-    const details = items.map(i => buildQuoteDetailRecord(detStruct, q, numcot, codcli, i));
-
-    // 4. In-place Upsert con backup
-    const encRes = await dbfUpsertHeader(encPath, 'numcot', numcot, header, { backupPrefix: 'backups/backup_MXENCCOT' });
-    if (!encRes.ok) return { ok: false, reason: `cabecera: ${encRes.error}` };
-    const detRes = await dbfReplaceDetails(detPath, 'numcot', numcot, details, { backupPrefix: 'backups/backup_MXRENCOT' });
-    if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
-
-    registerDbfExport(true, numcot);
-    if (!encRes.updated) {
-      const nextCotNum = parseInt(numcot, 10) + 1;
-      if (numcotPath) dbfSetSerial(numcotPath, nextCotNum);
-      try {
-        await dbCore.from('jjp_settings').upsert({
-          key: 'mixnet_next_quote_serial',
-          value: String(nextCotNum),
-          updated_at: new Date().toISOString()
-        });
-      } catch (_) {}
-    }
-    log.info(`Puente Mixer (DBF): Cotización ${q.quote_number} → NUMCOT ${numcot} (${encRes.updated ? 'MODIFICADA EN LUGAR' : 'NUEVA'}) / cliente ${codcli} en ${dir}.`);
-    return { ok: true, serial: numcot, codcli, createdCli: !!cliRes.created, updated: !!encRes.updated };
-  } catch (err) {
-    return { ok: false, reason: err.message };
-  }
+  // Blindado por seguridad: jamás escribir directamente sobre DBFs de producción de MixNet
+  return { ok: false, reason: 'dbf-direct-write-disabled-for-safety' };
 }
 
 // Exporta un pedido JJ (jjp_orders) al DBF nativo de MixNet: MXENCPED + MXRENPED.
 export async function exportOrderToDbf(o, dbfDir) {
-  try {
-    const dir = dbfDir || activeDbfDir;
-    if (!dir) return { ok: false, reason: 'no-dbf-dir' };
-    const encPath = dbfPath('MXENCPED.DBF', dir);
-    const detPath = dbfPath('MXRENPED.DBF', dir);
-    const cliPath = dbfPath('MXCTACLI.DBF', dir);
-    if (!encPath || !detPath || !cliPath || !fs.existsSync(encPath) || !fs.existsSync(detPath) || !fs.existsSync(cliPath)) {
-      return { ok: false, reason: 'no-ped-dbf' };
-    }
-    const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
-    if (items.length === 0) return { ok: false, reason: 'no-items' };
-
-    // 1. Siguiente serial correlativo (NUMPED) desde tabla de control MXNUMPED o fallback
-    let numped = null;
-    const numpedPath = dbfPath('MXNUMPED.DBF', dir);
-    const is8Digit = /^\d{8}$/.test(String(o.order_number || '').trim());
-    if (is8Digit) {
-      numped = String(o.order_number).trim().padStart(8, '0').slice(-8);
-    } else {
-      const ctrlSerial = numpedPath ? dbfGetControlSerial(numpedPath, 'numero') : null;
-      if (ctrlSerial && ctrlSerial.num > 0) {
-        numped = ctrlSerial.formatted;
-      } else {
-        const serial = dbfNextSerial(encPath, 'numped');
-        if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
-        numped = serial.nextFormatted;
-      }
-    }
-
-    // 2. Resolver/crear cliente en MXCTACLI
-    const cli = clienteForDoc(o);
-    const cliRes = await dbfUpsertCliente(cliPath, cli, dir);
-    if (!cliRes.ok) return { ok: false, reason: cliRes.error || 'no-cli' };
-    const codcli = cliRes.codcli;
-
-    // 3. Cabecera + renglones
-    const encStruct = dbfReadStruct(encPath);
-    const detStruct = dbfReadStruct(detPath);
-    const header = buildOrderHeaderRecord(encStruct, o, numped, codcli);
-    const details = items.map(i => buildOrderDetailRecord(detStruct, o, numped, codcli, i));
-
-    // 4. In-place Upsert con backup
-    const encRes = await dbfUpsertHeader(encPath, 'numped', numped, header, { backupPrefix: 'backups/backup_MXENCPED' });
-    if (!encRes.ok) return { ok: false, reason: `cabecera: ${encRes.error}` };
-    const detRes = await dbfReplaceDetails(detPath, 'numped', numped, details, { backupPrefix: 'backups/backup_MXRENPED' });
-    if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
-
-    registerDbfExport(false, numped);
-    if (!encRes.updated) {
-      const nextPedNum = parseInt(numped, 10) + 1;
-      if (numpedPath) dbfSetSerial(numpedPath, nextPedNum);
-      try {
-        await dbCore.from('jjp_settings').upsert({
-          key: 'mixnet_next_order_serial',
-          value: String(nextPedNum),
-          updated_at: new Date().toISOString()
-        });
-      } catch (_) {}
-    }
-    log.info(`Puente Mixer (DBF): Pedido ${o.order_number} → NUMPED ${numped} (${encRes.updated ? 'MODIFICADO EN LUGAR' : 'NUEVO'}) / cliente ${codcli} en ${dir}.`);
-    return { ok: true, serial: numped, codcli, createdCli: !!cliRes.created, updated: !!encRes.updated };
-  } catch (err) {
-    return { ok: false, reason: err.message };
-  }
+  // Blindado por seguridad: jamás escribir directamente sobre DBFs de producción de MixNet
+  return { ok: false, reason: 'dbf-direct-write-disabled-for-safety' };
 }
 
 // Barrido periódico saliente (JJ Paper ➔ MixNet)
@@ -777,6 +662,7 @@ async function sweepRecentOutgoing() {
       let count = 0;
       for (const o of orders) {
         if (o.order_number && o.order_number.startsWith('MIX-')) continue;
+        if (o.source === 'mixnet' || String(o.notes || '').includes('[MixNet')) continue;
         const fp = computeDocFingerprint(o);
         if (orderFingerprints.get(o.order_number) !== fp) {
           if (await exportOrder(o)) count++;
@@ -798,6 +684,7 @@ async function sweepRecentOutgoing() {
       let qCount = 0;
       for (const q of quotes) {
         if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
+        if (q.source === 'mixnet' || String(q.notes || '').includes('[MixNet')) continue;
         const fp = computeDocFingerprint(q);
         if (quoteFingerprints.get(q.quote_number) !== fp) {
           if (await exportQuote(q)) qCount++;
@@ -1938,12 +1825,18 @@ function setupRealtimeListeners() {
   dbCore.channel('mixer-orders')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_orders' },
       p => {
+        if (!p?.new) return;
+        if (p.new.order_number && p.new.order_number.startsWith('MIX-')) return;
+        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
         log.info(`Puente Mixer: Recibida inserción de pedido ${p.new.order_number} por Realtime.`);
         exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido'));
       }
     )
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_orders' },
       p => {
+        if (!p?.new) return;
+        if (p.new.order_number && p.new.order_number.startsWith('MIX-')) return;
+        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
         log.info(`Puente Mixer: Recibida actualización de pedido ${p.new.order_number} por Realtime.`);
         exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido (update)'));
       }
@@ -1956,12 +1849,18 @@ function setupRealtimeListeners() {
   dbCore.channel('mixer-quotes')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_quotes' },
       p => {
+        if (!p?.new) return;
+        if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
+        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
         log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
         exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
       }
     )
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_quotes' },
       p => {
+        if (!p?.new) return;
+        if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
+        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
         log.info(`Puente Mixer: Recibida actualización de cotización ${p.new.quote_number} por Realtime.`);
         exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización (update)'));
       }

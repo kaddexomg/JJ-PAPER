@@ -66,7 +66,12 @@ function docEnsurePdfLib() {
   const cargar = src => new Promise((ok, fail) => {
     const s = document.createElement('script');
     s.src = src; s.async = true;
-    s.onload = ok; s.onerror = () => fail(new Error('no cargó ' + src));
+    const t = setTimeout(() => {
+      s.onload = s.onerror = null;
+      fail(new Error('timeout cargando ' + src));
+    }, 8000);
+    s.onload = () => { clearTimeout(t); ok(); };
+    s.onerror = () => { clearTimeout(t); fail(new Error('no cargó ' + src)); };
     document.head.appendChild(s);
   });
   _docPdfLib = (async () => {

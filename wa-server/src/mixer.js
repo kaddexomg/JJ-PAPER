@@ -56,7 +56,7 @@ let importedHistory = new Set();
 // Referencia: Yovanni (004/006), Keyder (005), Marianela (008), Andreina (014)
 // NOTA: 010 y 020 en MixNet representan Caja Mostrador / Cartera General de Tienda (seller_id: null).
 const SELLERS_BY_CODVEN = new Map([
-  ['95d5ad44-e844-4f4f-a9d0-2db7d162c8c6', ['004', '006']], // Yovanni Araujo
+  ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006']], // Yovanni Araujo
   ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005']],        // Keyder Salazar (005 en MixNet)
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],        // Marianela (marianela08)
   ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],        // Andreina (andreina)
@@ -1141,14 +1141,15 @@ async function sweepMixnetDbf() {
         const dbfKey = `dbf:${isQuote ? 'cot' : 'ped'}:${numDoc}`;
         const finalNum = numDoc;
 
-        if (importedHistory.has(dbfKey) || (isQuote ? exportedQuotes : exportedOrders).has(finalNum)) continue;
+        // Evitar reimportar documentos originados en JJ Paper y ya exportados a MixNet
+        if ((isQuote ? exportedQuotes : exportedOrders).has(finalNum)) continue;
 
         // Ya existe en Supabase por número o por nota de importación previa?
         const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
         const numField = isQuote ? 'quote_number' : 'order_number';
         const { data: existing } = await dbCore.from(table)
           .select('id')
-          .or(`${numField}.eq.${finalNum},notes.ilike.*#${numDoc}*`)
+          .or(`${numField}.eq.${finalNum},notes.ilike.%#${numDoc}%`)
           .maybeSingle();
         if (existing) {
           importedHistory.add(dbfKey);
@@ -1215,6 +1216,7 @@ async function sweepMixnetDbf() {
         const vendorNote = codven ? ` · Vendedor MixNet #${codven} (${sellerHint})` : '';
 
         if (isQuote) {
+          // NOTA: jjp_quotes NO posee columna updated_at
           const { error } = await dbCore.from('jjp_quotes').insert({
             quote_number: finalNum,
             client_name: clientName,
@@ -1227,10 +1229,11 @@ async function sweepMixnetDbf() {
             source: 'mixnet',
             status: 'pendiente',
             seller_id: finalSellerId,
-            created_at: docCreatedAt,
-            updated_at: docCreatedAt
+            created_at: docCreatedAt
           });
-          if (!error) {
+          if (error) {
+            log.error({ err: error.message, quote: finalNum }, 'Puente Mixer: Error al insertar cotización en jjp_quotes');
+          } else {
             log.info(`Puente Mixer: Cotización importada desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
             importedHistory.add(dbfKey);
             saveHistories();
@@ -1259,7 +1262,9 @@ async function sweepMixnetDbf() {
             created_at: docCreatedAt,
             updated_at: docCreatedAt
           });
-          if (!error) {
+          if (error) {
+            log.error({ err: error.message, order: finalNum }, 'Puente Mixer: Error al insertar pedido en jjp_orders');
+          } else {
             log.info(`Puente Mixer: Pedido importado desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
             importedHistory.add(dbfKey);
             saveHistories();
@@ -1271,6 +1276,7 @@ async function sweepMixnetDbf() {
           }
         }
       }
+
     };
 
     await importHeader({ encFile: 'MXENCPED.DBF', detFile: 'MXRENPED.DBF', kind: 'order' });

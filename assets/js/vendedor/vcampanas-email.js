@@ -749,7 +749,10 @@ function newEcCampaign(preTplId = null) {
 }
 
 async function launchEmailCampaignFromEditor(config) {
-  const { name, body, subject, audience, attachOpt, selectedProductOrCombo, customFile, delays } = config;
+  const { name, body, subject, audience, attachOpt, selectedProductOrCombo, customFile, delays, updateStatus } = config;
+  const setStatus = (msg) => {
+    if (typeof updateStatus === 'function') updateStatus(msg);
+  };
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
 
@@ -758,9 +761,12 @@ async function launchEmailCampaignFromEditor(config) {
   let imgSrc = '';
 
   if (attachOpts.includes('pdf_lista_precios')) {
+    setStatus('📄 Generando lista de precios PDF...');
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { base64, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista', returnBase64: true });
+      const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista', returnBase64: true });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 10000));
+      const { base64, filename } = await Promise.race([pdfPromise, timeoutPromise]);
       attachments.push({
         filename: filename || 'Lista_de_Precios_JJ_Paper.pdf',
         contentType: 'application/pdf',
@@ -781,6 +787,7 @@ async function launchEmailCampaignFromEditor(config) {
   }
 
   if (attachOpts.includes('custom_file') && customFile) {
+    setStatus('📎 Subiendo archivo adjunto...');
     try {
       if (!/\.(pdf|png|jpe?g|webp)$/i.test(customFile.name)) {
         throw new Error('Formato no permitido (usa PDF o imagen).');
@@ -822,6 +829,7 @@ async function launchEmailCampaignFromEditor(config) {
     payload.scheduled_at = config.scheduled_at;
   }
 
+  setStatus('💾 Guardando campaña...');
   let { data: camp, error } = await sb.from('jjp_email_campaigns').insert(payload).select('id').single();
   if (error) {
     console.error('Error creando campaña de email:', error);
@@ -854,6 +862,7 @@ async function launchEmailCampaignFromEditor(config) {
   }));
 
   for (let i = 0; i < targets.length; i += 100) {
+    setStatus(`👥 Guardando destinatarios (${Math.min(i + 100, targets.length)} de ${targets.length})...`);
     let { error: e2 } = await sb.from('jjp_email_campaign_targets').insert(targets.slice(i, i + 100));
     if (e2) {
       console.error('Error insertando destinatarios de email:', e2);
@@ -861,6 +870,7 @@ async function launchEmailCampaignFromEditor(config) {
       break;
     }
   }
+
 
   // Actualizar estado en jjp_prospects si la campaña incluyó prospectos B2B
   const b2bTargets = targets.filter(t => audience.find(a => a.id === t.customer_id && a.is_prospect_b2b));

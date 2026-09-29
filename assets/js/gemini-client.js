@@ -1564,8 +1564,8 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
       messageType = 'Reactivación / Oferta Especial';
     }
 
-    // Procesar en chunks de 2 en paralelo para óptima velocidad sin exceder rate limits
-    const CONCURRENCY = 2;
+    // Procesar en chunks de 3 en paralelo con pool balanceado de 7 API keys
+    const CONCURRENCY = 3;
     for (let i = 0; i < customers.length; i += CONCURRENCY) {
       const chunk = customers.slice(i, i + CONCURRENCY);
       const chunkPromises = chunk.map(async (cust) => {

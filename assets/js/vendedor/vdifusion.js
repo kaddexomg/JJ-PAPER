@@ -971,7 +971,10 @@ function newCampaign(preTplId = null) {
 }
 
 async function launchCampaignFromEditor(config) {
-  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, generatedFlyerFile, delays, batchSize, batchPauseM } = config;
+  const { name, body, audience, attachOpt, selectedProductOrCombo, customFile, generatedFlyerFile, delays, batchSize, batchPauseM, updateStatus } = config;
+  const setStatus = (msg) => {
+    if (typeof updateStatus === 'function') updateStatus(msg);
+  };
   const sessionUser = (await sb.auth.getUser())?.data?.user;
   const ownerId = sessionUser?.id || SELLER?.id;
 
@@ -998,6 +1001,7 @@ async function launchCampaignFromEditor(config) {
 
   // 1. Flyer generado con IA o archivo propio subido
   if (generatedFlyerFile) {
+    setStatus('🎨 Subiendo flyer promocional...');
     try {
       const fName = generatedFlyerFile.name || `Flyer_${Date.now()}.png`;
       const fPath = `${SELLER.id}/campaigns/${Date.now()}-${fName.replace(/[^\w.-]/g, '_')}`;
@@ -1010,6 +1014,7 @@ async function launchCampaignFromEditor(config) {
       console.warn('Error subiendo flyer:', err);
     }
   } else if (attachOpts.includes('custom_file') && customFile) {
+    setStatus('📎 Subiendo archivo adjunto...');
     try {
       const fName = customFile.name;
       const fMime = customFile.type || 'application/octet-stream';
@@ -1027,6 +1032,7 @@ async function launchCampaignFromEditor(config) {
 
   // 2. Imagen / foto de producto o combo
   if (attachOpts.includes('prod_image') && selectedProductOrCombo?.image_url && (!mediaPath || !extraMediaPath)) {
+    setStatus('🖼️ Preparando foto del producto...');
     try {
       const imgUrl = selectedProductOrCombo.image_url;
       const imgResp = await fetch(imgUrl);
@@ -1055,9 +1061,12 @@ async function launchCampaignFromEditor(config) {
 
   // 3. Lista de precios oficial PDF
   if (attachOpts.includes('pdf_lista_precios') && (!mediaPath || !extraMediaPath)) {
+    setStatus('📄 Generando lista de precios PDF...');
     try {
       if (typeof docPdfProductos === 'function') {
-        const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+        const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 10000));
+        const { blob, filename } = await Promise.race([pdfPromise, timeoutPromise]);
         const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
         const pdfPath = `${SELLER.id}/campaigns/${Date.now()}-${pdfFilename}`;
         const { error: upErr } = await sb.storage.from('jjp-wa-media')
@@ -1069,7 +1078,7 @@ async function launchCampaignFromEditor(config) {
     } catch (err) {
       console.error('Error generando/subiendo adjunto:', err);
       const continuar = confirm('⚠️ No se pudo generar el archivo adjunto.\n¿Desea continuar el envío sin adjunto?');
-      if (!continuar) return; // Abort campaign launch
+      if (!continuar) throw new Error('Envío cancelado por el usuario.');
     }
   }
 
@@ -1107,6 +1116,7 @@ async function launchCampaignFromEditor(config) {
     payload.extra_media_size = extraMediaSize;
   }
 
+  setStatus('💾 Guardando campaña...');
   let { data: camp, error } = await sb.from('jjp_wa_campaigns').insert(payload).select('id').single();
   if (error) {
     console.error('Error insertando campaña:', error);
@@ -1148,6 +1158,7 @@ async function launchCampaignFromEditor(config) {
   }));
 
   for (let i = 0; i < targets.length; i += 100) {
+    setStatus(`👥 Guardando destinatarios (${Math.min(i + 100, targets.length)} de ${targets.length})...`);
     let { error: e2 } = await sb.from('jjp_wa_campaign_targets').insert(targets.slice(i, i + 100));
     if (e2) {
       console.error('Error insertando destinatarios:', e2);
@@ -1155,6 +1166,7 @@ async function launchCampaignFromEditor(config) {
       break;
     }
   }
+
 
   // Actualizar estado en jjp_prospects si la campaña incluyó prospectos B2B
   const b2bTargets = targets.filter(t => audience.find(a => a.id === t.customer_id && a.is_prospect_b2b));

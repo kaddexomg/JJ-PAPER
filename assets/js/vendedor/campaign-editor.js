@@ -1305,16 +1305,10 @@ window.CampaignEditor = (() => {
             customer.custom_wa_body = updatePayload.custom_wa_body;
             customer.status = updatePayload.status;
 
-            if (typeof prospectsList !== 'undefined' && Array.isArray(prospectsList)) {
-              const pInList = prospectsList.find(x => x.id === customer.id);
-              if (pInList) Object.assign(pInList, updatePayload);
-            }
-
-            try {
-              await sb.from('jjp_prospects').update(updatePayload).eq('id', customer.id);
-            } catch (err) {
-              console.warn('Aviso guardando en jjp_prospects:', err);
-            }
+            // Guardar en jjp_prospects en segundo plano sin bloquear el avance
+            sb.from('jjp_prospects').update(updatePayload).eq('id', customer.id)
+              .then(() => {})
+              .catch(err => console.warn('Aviso guardando en jjp_prospects:', err));
           }
 
           updateAnalyzedCountBadge();
@@ -1955,33 +1949,12 @@ window.CampaignEditor = (() => {
     if (editorMode === 'ai') {
       const missingAnalysis = selectedAudienceList.filter(c => !c._custom_message);
       if (missingAnalysis.length > 0) {
-        const doAnalyze = confirm(`Hay ${missingAnalysis.length} prospectos sin propuesta redactada por IA.\n\n¿Deseas analizarlos ahora para que cada cliente reciba su mensaje 100% personalizado y diferente?`);
+        const doAnalyze = confirm(`Hay ${missingAnalysis.length} prospectos sin propuesta redactada por IA.\n\n¿Deseas analizarlos ahora para que cada cliente reciba su mensaje 100% personalizado y diferente?\n(Si cancelas, se despachará de inmediato con el mensaje actual o plantilla comercial).`);
         if (doAnalyze) {
           openAiToneModal();
           return;
         } else {
-          await ensureGeminiClient();
-          const isPdf = document.getElementById('ceAttachPdf')?.checked !== false;
-          await Promise.all(missingAnalysis.map(async c => {
-            try {
-              const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
-                customer: c,
-                channel: currentConfig.channel || 'whatsapp',
-                sellerName: currentConfig.seller?.name || '',
-                sellerPhone: currentConfig.seller?.phone || '',
-                promoProductOrCombo: selectedProductOrCombo,
-                officialPdfIncluded: isPdf
-              });
-              c._custom_message = res.body;
-              c._custom_subject = res.subject;
-              c._detected_need = res.need;
-              c._detected_sector = res.sector;
-            } catch (e) {
-              console.warn('Fallback heurístico falló para', c.name, e);
-              const isPdfCited = document.getElementById('ceAttachPdf')?.checked !== false;
-              c._custom_message = c._custom_message || buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfCited);
-            }
-          }));
+          console.log(`[CampaignEditor] Despachando ${missingAnalysis.length} prospectos con mensaje base para envío inmediato.`);
         }
       }
       if (!body || body.includes('Le saludamos cordialmente de JJ Paper...') || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
@@ -1993,10 +1966,10 @@ window.CampaignEditor = (() => {
       const isPdfActive = document.getElementById('ceAttachPdf')?.checked !== false;
       selectedAudienceList.forEach(c => {
         if (!c._custom_message) {
-          c._custom_message = buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfActive);
+          c._custom_message = (body && body.length > 10) ? body : buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfActive);
         }
         if (isEmail && !c._custom_subject) {
-          c._custom_subject = subject;
+          c._custom_subject = subject || '📋 Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
         }
       });
     } else {
@@ -2054,17 +2027,25 @@ window.CampaignEditor = (() => {
 
     if (typeof currentConfig.onLaunch === 'function') {
       const btn = document.getElementById('ceLaunchBtn');
-      btn.disabled = true;
-      btn.textContent = 'Encolando campaña...';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Encolando campaña...';
+      }
       try {
-        await currentConfig.onLaunch(launchConfig);
+        await currentConfig.onLaunch({
+          ...launchConfig,
+          updateStatus: (msg) => { if (btn) btn.textContent = msg; }
+        });
         close();
       } catch (err) {
         alert('Error al lanzar: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = '🚀 Lanzar Campaña';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🚀 Lanzar Campaña';
+        }
       }
     }
+
   }
 
   function close() {

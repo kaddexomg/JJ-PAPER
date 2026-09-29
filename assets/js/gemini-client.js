@@ -1025,17 +1025,61 @@ ATENCIÓN - PRODUCTO / OFERTA COMERCIAL SELECCIONADA POR EL ASESOR:
 - Descripción: "${promoProductOrCombo.description || 'Disponibilidad inmediata al mayor'}"
 DIRECTIVA DE OFERTA: Este producto/combo DEBE ser el PRIMER ítem destacado en la propuesta operativa, combinado armónicamente con 2 insumos complementarios según el sector de la empresa.` : '';
 
+    const isAlreadyContacted = Boolean(
+      customerFull?.contacted ||
+      customerFull?.last_contact_at ||
+      (customerFull?.status && String(customerFull.status).startsWith('contactado')) ||
+      Number(customerFull?.total_orders) > 0 ||
+      messageType.includes('Seguimiento') ||
+      messageType.includes('Recordatorio') ||
+      messageType.includes('Oferta')
+    );
+
+    let openingStrategy = '';
+    if (promoProductOrCombo) {
+      openingStrategy = `
+ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTO / DISPONIBILIDAD INMEDIATA
+El mensaje gira 100% en torno a la cotización y despacho del producto/combo seleccionado: "${promoProductOrCombo.name || promoProductOrCombo.title}".
+1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
+2. Apertura directa: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la alta demanda de insumos en sus operaciones de ${city || 'Caracas'}, hoy queríamos compartirle disponibilidad inmediata y precio preferencial en: *${promoProductOrCombo.name || promoProductOrCombo.title}*."
+3. Presentar este producto como primer ítem destacado con su precio exacto ($${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD / Bs a tasa BCV ${rate.toFixed(2)} Bs) y sumar 2 insumos complementarios de su rubro.
+4. ¡PROHIBIDO decir "vinimos a presentarnos" o redactar una carta introductoria general!`;
+    } else if (messageType.includes('Seguimiento') || isAlreadyContacted) {
+      openingStrategy = `
+ESTRUCTURA DE APERTURA: SEGUIMIENTO COMERCIAL (ESTA CUENTA YA FUE CONTACTADA ANTERIORMENTE)
+¡ATENCIÓN CRÍTICA! Esta empresa YA RECIBIÓ una presentación previa de JJ Paper. ¡ESTRICTAMENTE PROHIBIDO VOLVER A PRESENTARSE DESDE CERO! Prohibido decir "vinimos a presentarnos", "le escribimos para darnos a conocer", etc.
+1. Saludo: "{Hola|Buen día|Un gusto saludarle de nuevo} {contacto o empresa} 👋. Esperamos que todo marche excelente en sus operaciones."
+2. Reconocimiento de seguimiento: "{Le saluda atentamente|Le escribe nuevamente} *${sellerName}* de *JJ Paper C.A.* En seguimiento a nuestra propuesta anterior / Quería consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana."
+3. Propuesta de abastecimiento: "{Pensando en sus requerimientos de reposición continua|Para apoyar la logística de ${companyName}}, tenemos despacho garantizado en 24h en:" presentar 3 insumos de alta rotación para su sector con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
+4. Cierre: "{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su entrega.}"`;
+    } else if (messageType.includes('Recordatorio')) {
+      openingStrategy = `
+ESTRUCTURA DE APERTURA: RECORDATORIO DE REPOSICIÓN OPERATIVA
+1. Saludo: "{Hola|Buen día} {contacto o empresa} 👋, un cordial saludo."
+2. Recordatorio directo: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Pasamos por aquí brevemente para coordinar la reposición de papelería, consumibles de caja y embalaje para ${companyName} de esta quincena."
+3. 3 insumos clave para reposición con precio BCV ${rate.toFixed(2)} Bs.
+4. Cierre: "{¿Nos indica qué insumos requieren reponer esta semana para procesar su cotización formal?|¿Desea que le confirmemos despacho para mañana?}"`;
+    } else if (messageType.includes('Oferta')) {
+      openingStrategy = `
+ESTRUCTURA DE APERTURA: OFERTA RELÁMPAGO / CONDICIONES PREFERENCIALES
+1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋."
+2. Oportunidad: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Queríamos compartirle una oportunidad de abastecimiento mayorista con entrega prioritaria para ${companyName}:"
+3. 3 productos destacados con precio especial en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.`;
+    } else {
+      openingStrategy = `
+ESTRUCTURA DE APERTURA: PRESENTACIÓN COMERCIAL INSTITUCIONAL (PRIMER CONTACTO - CUENTA NUEVA)
+1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
+2. Presentación institucional: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje en Caracas. {Le contactamos|Nos acercamos} con el propósito de abastecer cada necesidad operativa de ${companyName} con entrega en 24h, precios de distribuidor y facturación formal legal."
+3. 3 productos acordes a su giro de negocio con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.`;
+    }
+
     const sys = getBusinessContext() + `
 Eres el Director y Estratega Comercial B2B Sénior de "JJ Paper C.A." en Caracas, Venezuela.
 Tu objetivo es analizar minuciosamente el perfil corporativo de un cliente o prospecto B2B y desarrollar una propuesta de abordaje comercial hiper-personalizada, de alta conversión y con variaciones anti-bloqueo.
 
 OBJETIVO CRÍTICO: CADA CLIENTE DEBE RECIBIR UN MENSAJE ÚNICO, HUMANO Y 100% ADAPTADO A SU REALIDAD Y SECTOR OPERATIVO. PROHIBIDO GENERAR MENSAJES GENÉRICOS O USAR LA FRASE "estimado cliente".
 
-FORMATO DE PRESENTACIÓN OBLIGATORIO (APLICA A WHATSAPP Y CORREO):
-Todo mensaje DEBE abrir presentándonos formalmente: quién escribe, de qué empresa viene y a qué viene. Estructura de apertura irreemplazable:
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
-2. Presentación institucional y propósito: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje en Caracas. {Vinimos|Estamos aquí|Le contactamos} con un propósito muy claro: abastecer cada necesidad operativa de ${companyName} con entrega rápida, precios mayoristas y facturación formal."
-3. Propuesta concreta: presentar 3 productos de la CATÁLOGO REAL (nombre en negrita *...*, especificación breve y precio exacto en USD + Bs a Tasa Oficial BCV ${rate.toFixed(2)} Bs), siempre conectados con el giro de la empresa (ej: negocio de caja → rollos térmicos POS; clínica → sobres de radiografía 14x17 y carpetas de historias médicas; colegio → resmas y marcadores de pizarra; logística → cintas industriales y marcadores indelebles).
+${openingStrategy}
 REGLAS DE REDACCIÓN OBLIGATORIAS:
 - Negritas *...* SOLO para títulos de sección, nombres de productos y precios. Nunca en oraciones completas.
 - Ortografía impecable: comas, puntos, tildes y redacción fluida y natural.
@@ -1272,8 +1316,19 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     const sName = sellerName || w.CURRENT_PROFILE?.full_name || w.CURRENT_PROFILE?.name || 'Keyder José Salazar';
     const sPhone = sellerPhone || w.CURRENT_PROFILE?.phone || '0412-4676073';
 
+    const isAlreadyContacted = Boolean(
+      customer.contacted ||
+      customer.last_contact_at ||
+      (customer.status && String(customer.status).startsWith('contactado')) ||
+      Number(customer.total_orders) > 0 ||
+      messageType.includes('Seguimiento') ||
+      messageType.includes('Recordatorio') ||
+      messageType.includes('Oferta')
+    );
+
     // Si no se fuerza refresco y no hay promoción específica seleccionada, reutilizar si ya tiene copy guardado
-    if (!forceRefresh && !promoProductOrCombo) {
+    // EXCEPCIÓN VITAL: Si el contacto ya fue contactado, NO reutilizar un copy de presentación guardado previamente
+    if (!forceRefresh && !promoProductOrCombo && !isAlreadyContacted) {
       if (channel === 'whatsapp' && customer.custom_wa_body && customer.custom_wa_body.length > 50) {
         return {
           sector: customer.ai_analysis?.sector_deducido || customer.sector || 'Comercial',
@@ -1294,6 +1349,17 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
           raw_analysis: customer.ai_analysis || {}
         };
       }
+    }
+
+    // Adaptación dinámica de enfoque si la cuenta ya fue alcanzada o hay producto activo
+    let effectiveMessageType = messageType;
+    let effectivePersonality = personality;
+    if (promoProductOrCombo) {
+      effectiveMessageType = 'Oferta Especial';
+      effectivePersonality = 'Persuasivo / Comercial';
+    } else if (isAlreadyContacted && (messageType === 'Presentación Inicial' || messageType === 'presentacion')) {
+      effectiveMessageType = 'Seguimiento de Contacto Previo';
+      effectivePersonality = 'Cercano / Cordial';
     }
 
     // Extraer datos del cliente o prospecto B2B
@@ -1330,8 +1396,8 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         channel,
         customerFull: customer,
         orderHistory,
-        personality,
-        messageType
+        personality: effectivePersonality,
+        messageType: effectiveMessageType
       });
 
       const isEmail = (channel === 'email');
@@ -1349,7 +1415,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     } catch (err) {
       console.warn('Fallback en analyzeCustomerAndDraftMessage:', err);
       const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
-      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, officialPdfIncluded });
+      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, officialPdfIncluded, isAlreadyContacted });
     }
   }
 
@@ -1362,7 +1428,8 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     sPhone = '0412-4676073',
     rate = 40,
     promoProductOrCombo = null,
-    officialPdfIncluded = true
+    officialPdfIncluded = true,
+    isAlreadyContacted = false
   }) {
     const custName = customer.name || customer.business_name || 'Estimado Cliente';
     const low = (custName + ' ' + (customer.notes || '') + ' ' + (customer.tags || '')).toLowerCase();
@@ -1423,13 +1490,25 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
 
     const subject = promoProductOrCombo
       ? `📦 Oferta Especial en ${promoProductOrCombo.name} — JJ Paper C.A.`
-      : `📋 Abastecimiento Operativo y Lista de Precios Oficial para ${custName} — JJ Paper C.A.`;
+      : (isAlreadyContacted ? `🤝 Seguimiento Operativo y Reposición para ${custName} — JJ Paper C.A.` : `📋 Abastecimiento Operativo y Lista de Precios Oficial para ${custName} — JJ Paper C.A.`);
 
     let body = '';
     if (isEmail) {
-      body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le escribe atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje. Nuestro propósito es claro: abastecer cada necesidad operativa de *${custName}* en el sector *${sector}* con entrega rápida, precios mayoristas y facturación formal.\n\nEn atención a ese compromiso, ponemos a su entera disposición condiciones preferenciales de suministro directo:\n\n*📦 PROPUESTA DE ABASTECIMIENTO:* \n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+      if (promoProductOrCombo) {
+        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda cordialmente *${sName}* de *JJ Paper C.A.* Conociendo la continua actividad de sus sedes en ${customer.city || 'Caracas'}, hoy queríamos compartirle disponibilidad inmediata y condiciones comerciales preferenciales en:\n\n*📦 OFERTA DE PRODUCTO DESTACADO:*\n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le confirmemos disponibilidad para su despacho de esta semana?|¿Gusta que le reservemos inventario de este producto para su empresa?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+      } else if (isAlreadyContacted) {
+        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda nuevamente *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nPara apoyar la continuidad de sus operaciones en el sector *${sector}*, ponemos a su entera disposición despacho garantizado en 24h y precios mayoristas directos en:\n\n*📦 PROPUESTA DE REPOSICIÓN OPERATIVA:*\n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+      } else {
+        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le escribe atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje. Nuestro propósito es claro: abastecer cada necesidad operativa de *${custName}* en el sector *${sector}* con entrega rápida, precios mayoristas y facturación formal.\n\nEn atención a ese compromiso, ponemos a su entera disposición condiciones preferenciales de suministro directo:\n\n*📦 PROPUESTA DE ABASTECIMIENTO:* \n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+      }
     } else {
-      body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería, insumos de caja y consumibles en Caracas. {Vinimos|Estamos aquí} con un propósito muy claro: abastecer las necesidades operativas de *${custName}* en el sector *${sector}* con entrega rápida, precios mayoristas y facturación formal.\n\nPensando en esa demanda diaria, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+      if (promoProductOrCombo) {
+        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le saluda|Le escribe} *${sName}* de *JJ Paper C.A.* Conociendo la rotación de insumos en su empresa, hoy le contactamos para compartirle disponibilidad inmediata y precio preferencial en: *${promoProductOrCombo.name}* ($${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD / Tasa BCV ${rate.toFixed(2)} Bs).\n\nPensando en su abastecimiento continuo, contamos con despacho prioritario en:\n\n*📦 PRODUCTOS Y COMPLEMENTOS:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le reservemos disponibilidad para despacho mañana?|¿Requiere que le preparemos la cotización formal de este producto?|Quedo a su disposición para coordinar su pedido.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+      } else if (isAlreadyContacted) {
+        body = `{Hola|Buen día|Un gusto saludarle de nuevo} ${custName} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles cómo están de inventario e insumos para sus sedes esta semana.\n\nContamos con despacho garantizado en 24h y precios preferenciales en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento que deseen cotizar esta semana?|¿Desea que le confirmemos despacho para mañana?|Quedo a su entera orden para apoyarles.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+      } else {
+        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería, insumos de caja y consumibles en Caracas. {Vinimos|Estamos aquí} con un propósito muy claro: abastecer las necesidades operativas de *${custName}* en el sector *${sector}* con entrega rápida, precios mayoristas y facturación formal.\n\nPensando en esa demanda diaria, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+      }
     }
 
     const htmlBody = body.replace(/\n/g, '<br>');
@@ -1471,7 +1550,10 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     // Mapeo de la actitud seleccionada a perfil psicológico y apertura
     let personality = 'Profesional / Formal';
     let messageType = 'Presentación Inicial';
-    if (attitude === 'seguimiento') {
+    if (promoProductOrCombo) {
+      personality = 'Persuasivo / Comercial';
+      messageType = 'Reactivación / Oferta Especial';
+    } else if (attitude === 'seguimiento') {
       personality = 'Cercano / Cordial';
       messageType = 'Seguimiento de Contacto Previo';
     } else if (attitude === 'recordatorio') {

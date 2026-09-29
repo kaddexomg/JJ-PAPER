@@ -1128,6 +1128,7 @@ window.CampaignEditor = (() => {
             <button type="button" class="ce-btn-close" id="btnCloseAiToneTop">✕</button>
           </div>
           <div style="padding:20px; font-size:14px; color:#334155;">
+            <div id="ceAiToneNotice" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:12.5px; line-height:1.45;"></div>
             <p style="margin-top:0; margin-bottom:15px;">¿Qué tipo de mensaje debe redactar la IA para estos prospectos?</p>
             <div style="display:flex; flex-direction:column; gap:10px;">
               <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
@@ -1182,8 +1183,41 @@ window.CampaignEditor = (() => {
       };
     }
 
-    const firstRadio = document.querySelector('input[name="ai_tone"][value="presentacion"]');
-    if (firstRadio) firstRadio.checked = true;
+    const totalSelected = selectedAudienceList.length;
+    const contactedCount = selectedAudienceList.filter(c => 
+      c.contacted || 
+      c.last_contact_at || 
+      (c.status && String(c.status).startsWith('contactado')) || 
+      Number(c.total_orders) > 0
+    ).length;
+
+    let defaultTone = 'presentacion';
+    let noticeHtml = '';
+
+    if (selectedProductOrCombo) {
+      defaultTone = 'oferta';
+      noticeHtml = `💡 <strong>Producto seleccionado:</strong> La IA redactará una oferta comercial directa de <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em> destacando disponibilidad inmediata en 24h y cotización oficial en Bs (Tasa BCV).`;
+    } else if (contactedCount > 0) {
+      defaultTone = 'seguimiento';
+      noticeHtml = `👀 <strong>Contactos previos detectados:</strong> ${contactedCount} de ${totalSelected} destinatarios ya recibieron un mensaje anterior. La IA redactará automáticamente un <em>Seguimiento cordial</em> de reposición sin repetir la presentación inicial.`;
+    }
+
+    const noticeEl = document.getElementById('ceAiToneNotice');
+    if (noticeEl) {
+      if (noticeHtml) {
+        noticeEl.innerHTML = noticeHtml;
+        noticeEl.style.display = 'block';
+        noticeEl.style.background = defaultTone === 'oferta' ? '#fef3c7' : '#e0f2fe';
+        noticeEl.style.border = defaultTone === 'oferta' ? '1px solid #fde68a' : '1px solid #bae6fd';
+        noticeEl.style.color = defaultTone === 'oferta' ? '#92400e' : '#0369a1';
+      } else {
+        noticeEl.style.display = 'none';
+      }
+    }
+
+    const targetRadio = document.querySelector(`input[name="ai_tone"][value="${defaultTone}"]`);
+    if (targetRadio) targetRadio.checked = true;
+
     modal.style.display = 'flex';
     requestAnimationFrame(() => modal.classList.add('op'));
   }
@@ -1229,6 +1263,7 @@ window.CampaignEditor = (() => {
         promoProductOrCombo: selectedProductOrCombo,
         officialPdfIncluded: isPdf,
         attitude: selectedTone,
+        forceRefresh: true,
         onProgress: async ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -1243,8 +1278,13 @@ window.CampaignEditor = (() => {
           if (customer.id && typeof sb !== 'undefined') {
             const raw = result.raw_analysis || {};
             const isEmail = (channel === 'email');
+            const isAlreadyContacted = Boolean(
+              customer.contacted ||
+              customer.last_contact_at ||
+              (customer.status && String(customer.status).startsWith('contactado'))
+            );
             const updatePayload = {
-              status: (customer.status === 'nuevo' || !customer.status) ? 'analizado_ia' : customer.status,
+              status: isAlreadyContacted ? customer.status : ((customer.status === 'nuevo' || !customer.status) ? 'analizado_ia' : customer.status),
               ai_analysis: {
                 sector_deducido: result.sector || customer.sector,
                 dolor_operativo: result.need,

@@ -1332,33 +1332,44 @@ function openProspectCampaignModal(channel = 'whatsapp') {
   });
 
   if (window.CampaignEditor) {
-    const normContacts = eligible.map(p => ({
-      id: p.id,
-      name: p.company_name,
-      company_name: p.company_name,
-      sector: p.sector || 'Otro',
-      contact_name: p.contact_name || '',
-      contact_role: p.contact_role || '',
-      phone: getBestMobilePhone(p),
-      phone_1: p.phone_1,
-      phone_2: p.phone_2,
-      email: p.email ? p.email.trim() : '',
-      address: p.address || p.city || 'Caracas',
-      city: p.city || 'Caracas',
-      notes: p.notes || '',
-      status: p.status || 'nuevo',
-      is_prospect_b2b: true,
-      total_orders: 0,
-      tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
-      ai_analysis: p.ai_analysis || {},
-      suggested_subject: p.suggested_subject || null,
-      custom_email_body: p.custom_email_body || null,
-      custom_wa_body: p.custom_wa_body || null,
-      _custom_message: (isEmail ? p.custom_email_body : p.custom_wa_body) || null,
-      _custom_subject: p.suggested_subject || null,
-      _detected_need: p.ai_analysis?.dolor_operativo || null,
-      _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
-    }));
+    const normContacts = eligible.map(p => {
+      const isAlreadyContacted = Boolean(
+        p.contacted || 
+        p.last_contact_at || 
+        (p.status && String(p.status).startsWith('contactado'))
+      );
+      return {
+        id: p.id,
+        name: p.company_name,
+        company_name: p.company_name,
+        sector: p.sector || 'Otro',
+        contact_name: p.contact_name || '',
+        contact_role: p.contact_role || '',
+        phone: getBestMobilePhone(p),
+        phone_1: p.phone_1,
+        phone_2: p.phone_2,
+        email: p.email ? p.email.trim() : '',
+        email_status: p.email_status || null,
+        bounce_reason: p.bounce_reason || null,
+        address: p.address || p.city || 'Caracas',
+        city: p.city || 'Caracas',
+        notes: p.notes || '',
+        status: p.status || 'nuevo',
+        contacted: isAlreadyContacted,
+        last_contact_at: p.last_contact_at || null,
+        is_prospect_b2b: true,
+        total_orders: 0,
+        tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
+        ai_analysis: p.ai_analysis || {},
+        suggested_subject: p.suggested_subject || null,
+        custom_email_body: p.custom_email_body || null,
+        custom_wa_body: p.custom_wa_body || null,
+        _custom_message: isAlreadyContacted ? null : ((isEmail ? p.custom_email_body : p.custom_wa_body) || null),
+        _custom_subject: isAlreadyContacted ? null : (p.suggested_subject || null),
+        _detected_need: p.ai_analysis?.dolor_operativo || null,
+        _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
+      };
+    });
 
     window.CampaignEditor.open({
       channel,

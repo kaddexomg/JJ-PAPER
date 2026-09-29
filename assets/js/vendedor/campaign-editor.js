@@ -496,41 +496,45 @@ window.CampaignEditor = (() => {
       });
     }
 
-    // Auto-cargar catálogo (productos, combos y plantillas) si no fueron provistos
+    // Mostrar el modal de inmediato para retroalimentación instantánea
+    activeOverlay.classList.add('active');
+
+    // Auto-cargar catálogo (productos, combos y plantillas) en paralelo si no fueron provistos
+    const fetches = [];
     if ((!config.products || config.products.length === 0) && typeof sb !== 'undefined') {
-      try {
-        const { data: prods } = await sb.from('jjp_product_variants')
+      fetches.push(
+        sb.from('jjp_product_variants')
           .select('id,sku,price_usd,variant_name,jjp_products(id,name,description,image_url),jjp_brands(name)')
           .eq('active', true)
           .order('price_usd', { ascending: false })
-          .limit(300);
-        config.products = prods || [];
-      } catch (e) {
-        console.warn('Aviso cargando productos en CampaignEditor:', e);
-      }
+          .limit(300)
+          .then(({ data }) => { config.products = data || []; })
+          .catch(e => console.warn('Aviso cargando productos:', e))
+      );
     }
     if ((!config.combos || config.combos.length === 0) && typeof sb !== 'undefined') {
-      try {
-        const { data: promos } = await sb.from('jjp_promos')
+      fetches.push(
+        sb.from('jjp_promos')
           .select('*')
           .eq('active', true)
           .order('sort_order')
-          .limit(100);
-        config.combos = promos || [];
-      } catch (e) {
-        console.warn('Aviso cargando combos en CampaignEditor:', e);
-      }
+          .limit(100)
+          .then(({ data }) => { config.combos = data || []; })
+          .catch(e => console.warn('Aviso cargando combos:', e))
+      );
     }
     if ((!config.templates || config.templates.length === 0) && typeof sb !== 'undefined') {
-      try {
-        const { data: tpls } = await sb.from('jjp_campaign_templates')
+      fetches.push(
+        sb.from('jjp_campaign_templates')
           .select('*')
           .eq('active', true)
-          .order('created_at', { ascending: false });
-        config.templates = tpls || [];
-      } catch (e) {
-        console.warn('Aviso cargando plantillas en CampaignEditor:', e);
-      }
+          .order('created_at', { ascending: false })
+          .then(({ data }) => { config.templates = data || []; })
+          .catch(e => console.warn('Aviso cargando plantillas:', e))
+      );
+    }
+    if (fetches.length > 0) {
+      await Promise.all(fetches);
     }
 
     if (document.getElementById('ceScheduledAt')) {

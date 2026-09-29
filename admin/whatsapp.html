@@ -568,50 +568,52 @@
 <script src="../assets/js/gemini-client.js?v=20260921_personalidad_b2b"></script>
 <script src="../assets/js/wa/wa-chat.js?v=20260908_v3"></script>
 <script src="../assets/js/admin/server-control.js?v=20260908_v3"></script>
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await requireAuth();
-  if (!session) return;
-  renderUserBar(session);
-  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
-    document.getElementById('adminAside')?.classList.toggle('op');
-  });
-
-  if (window.location.hash === '#difusiones' || window.location.search.includes('rescue=1')) {
-    waSwitchMainTab('difusiones');
-  }
-
-  await loadSettings();
-  await waInit({ me: CURRENT_PROFILE });
-  srvInit();   // chip 🟢/🔴 del servidor + control
-});
-</script>
+<script src="../assets/js/vendedor/vcommon.js?v=20260928_unified"></script>
+<script src="../assets/js/vendedor/product-picker.js?v=20260928_unified"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260928_unified"></script>
+<script src="../assets/js/vendedor/vdifusion.js?v=20260928_unified"></script>
 
 <script>
 let _difusionInited = false;
-function waSwitchMainTab(tab) {
-  if (tab === 'chats') {
-    document.getElementById('tabBtnChats').classList.add('on');
-    document.getElementById('tabBtnDifusiones').classList.remove('on');
-    document.getElementById('tabChats').style.display = 'flex';
-    document.getElementById('tabDifusiones').style.display = 'none';
-    const btn = document.getElementById('newCampaignBtn');
-    if (btn) btn.style.display = 'none';
-    window.location.hash = '';
-  } else {
-    document.getElementById('tabBtnChats').classList.remove('on');
-    document.getElementById('tabBtnDifusiones').classList.add('on');
-    document.getElementById('tabChats').style.display = 'none';
-    document.getElementById('tabDifusiones').style.display = 'block';
-    const btn = document.getElementById('newCampaignBtn');
-    if (btn) btn.style.display = 'inline-block';
-    window.location.hash = 'difusiones';
-    
-    if (!_difusionInited) {
-      _difusionInited = true;
-      if (typeof loadDifusionTemplates === 'function') loadDifusionTemplates();
-      if (typeof loadDifusionCampaigns === 'function') loadDifusionCampaigns();
+async function ensureDifusionLoaded() {
+  if (_difusionInited) return;
+  _difusionInited = true;
+  if (!window.SELLER && window.CURRENT_PROFILE) {
+    window.SELLER = CURRENT_PROFILE;
+  }
+  if (typeof initDifusion === 'function') {
+    try {
+      await initDifusion();
+    } catch (e) {
+      console.error('Error inicializando difusion:', e);
     }
+  }
+}
+
+function waSwitchMainTab(tab) {
+  const btnC = document.getElementById('tabBtnChats');
+  const btnD = document.getElementById('tabBtnDifusiones');
+  const tChats = document.getElementById('tabChats');
+  const tDif = document.getElementById('tabDifusiones');
+  const btnNewCamp = document.getElementById('newCampaignBtn');
+
+  if (tab === 'chats') {
+    btnC.classList.add('on');
+    btnD.classList.remove('on');
+    tChats.style.display = 'flex';
+    tDif.style.display = 'none';
+    if (btnNewCamp) btnNewCamp.style.display = 'none';
+    if (window.location.hash === '#difusiones') {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  } else {
+    btnC.classList.remove('on');
+    btnD.classList.add('on');
+    tChats.style.display = 'none';
+    tDif.style.display = 'block';
+    if (btnNewCamp) btnNewCamp.style.display = 'inline-block';
+    window.location.hash = 'difusiones';
+    ensureDifusionLoaded();
   }
 }
 
@@ -622,11 +624,26 @@ window.addEventListener('hashchange', () => {
     waSwitchMainTab('chats');
   }
 });
-</script>
 
-<script src="../assets/js/vendedor/vdifusion.js?v=20260928_unified"></script>
-<script src="../assets/js/vendedor/vcommon.js?v=20260827_v1"></script>
-<script src="../assets/js/vendedor/product-picker.js"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20260917_lista_ok"></script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  if (!window.SELLER && window.CURRENT_PROFILE) {
+    window.SELLER = CURRENT_PROFILE;
+  }
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
+    document.getElementById('adminAside')?.classList.toggle('op');
+  });
+
+  await loadSettings();
+  await waInit({ me: CURRENT_PROFILE });
+  srvInit();   // chip 🟢/🔴 del servidor + control
+
+  if (window.location.hash === '#difusiones' || window.location.search.includes('rescue=1')) {
+    setTimeout(() => waSwitchMainTab('difusiones'), 50);
+  }
+});
+</script>
 </body>
 </html>

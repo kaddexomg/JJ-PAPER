@@ -495,10 +495,10 @@
 <script src="../assets/js/gemini-client.js?v=20260921_personalidad_b2b"></script>
 <script src="../assets/js/admin/correo.js?v=20260916_ai_resiliente"></script>
 <script src="../assets/js/admin/server-control.js?v=20260908_v3"></script>
-<script src="../assets/js/vendedor/vcommon.js?v=20260928_unified"></script>
-<script src="../assets/js/vendedor/product-picker.js?v=20260928_unified"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20260928_unified"></script>
-<script src="../assets/js/vendedor/vcampanas-email.js?v=20260928_unified"></script>
+<script src="../assets/js/vendedor/vcommon.js?v=20260928_unified_v3"></script>
+<script src="../assets/js/vendedor/product-picker.js?v=20260928_unified_v3"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260928_unified_v3"></script>
+<script src="../assets/js/vendedor/vcampanas-email.js?v=20260928_unified_v3"></script>
 <script>
 function switchMainTab(tab) {
   const tb = document.getElementById('tabBandeja');
@@ -518,11 +518,9 @@ function switchMainTab(tab) {
     topTitle.textContent = '📣 Campañas de Email (Gmail)';
     topDesc.textContent = 'Crea campañas masivas por correo';
     if(btnNewMail) btnNewMail.style.display = 'none';
-    if(btnNewCamp) btnNewCamp.style.display = 'inline-block';
-    if (!window.ecLoaded) {
-      if(typeof loadEcTemplates === 'function') loadEcTemplates();
-      if(typeof loadEcCampaigns === 'function') loadEcCampaigns();
+    if (!window.ecLoaded && typeof initEmailCampaigns === 'function') {
       window.ecLoaded = true;
+      initEmailCampaigns().catch(e => console.error('Error init campañas:', e));
     }
   } else {
     tb.style.display = 'block';

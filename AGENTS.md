@@ -63,6 +63,12 @@ wa-server/
   Esto corre `run-service.bat` de forma invisible bajo el Session Manager de Windows con rotación de logs en `logs\wa-server.log` y auto-reinicio ante caídas.
 - **Unificación de Datos vs Integraciones Parche**: PROHIBIDO crear funciones o botones postizos aislados para manejar datos que ya existen en el sistema. La entidad "Contacto" (cliente o prospecto) es una sola verdad compartida: su teléfono, su correo y el estado de entrega (`email_status = 'bounced'`) deben consumirse directamente en los filtros de audiencia nativos de cada canal, no mediante scripts ad-hoc en memoria.
 - **Páginas de Comunicación Nativas e Independientes**: Mantener estrictamente aisladas sus responsabilidades: `whatsapp.html` (chats directos), `difusion.html` (campañas WhatsApp), `correo.html` (bandeja de correo) y `campanas-email.html` (campañas masivas de email). NO intentar fusionarlas en una sola página con pestañas ni forzar redirects.
+- **Protocolo Mandatorio MixNet ERP (29-09-2026)**:
+  - **Consultar Antes de Modificar**: Antes de escribir o tocar cualquier archivo o tabla DBF de MixNet, el agente DEBE leer `MANUAL_Y_GUIA_REPARACION_MIXNET_EMPRESA.md` y contrastar contra el repositorio de código fuente original de MixNet en GitHub (`kaddexomg`).
+  - **Reparación Previa Indispensable**: Antes de activar sincronizadores, MixNet debe sanearse en `M:\comp01` (limpieza de comentarios `COMEN1`/`COMEN2` contaminados con `[MixNet` o `COT-`, alineación de renglones vacíos, calibración de correlativos `MXNUMPED`/`MXNUMCOT` y reindexación nativa de `.NTX` en menú de MixNet).
+  - **Cero Cruce de Vendedores / Nómina Sagrada**: El campo `CODVEN` define comisiones y nómina. Luis Alarcón (`002`), Yovanni (`004/006`), Marianela (`008`), Andreina (`014`), Keyder (`010/020`), Jose (`005` solo mostrador físico). Prohibido reasignar ventas por la zona del cliente. Si en MixNet dice `002`, en JJ Paper es Luis Alarcón irrefutablemente.
+  - **Escritura 100% Indetectable**: Cero huellas, cero firmas, cero notas técnicas. Si no hay comentarios de despacho del cliente, `COMEN1` y `COMEN2` se dejan en blanco (espacios). Clientes no registrados en MixNet usan el código oficial `00` con nombre `CUENTA RECUPERADA`.
+  - **Índices Clipper .NTX**: Prohibido escribir bytes en `.DBF` sin actualizar `.NTX`. Usar el micro-conector nativo en Harbour (`DBFNTX`) que actualiza los árboles B-Tree en tiempo real para evitar pantallas trabadas y bucles en caja.
 
 ## Tests
 No se detectaron tests.

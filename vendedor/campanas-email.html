@@ -71,10 +71,16 @@
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
           <h2>📣 Campañas de Email (Gmail)</h2>
-          <p>Crea campañas masivas por correo: escoge plantilla, producto y audiencia — envío automático</p>
+          <p>Crea campañas masivas por correo</p>
         </div>
       </div>
-      <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wa-chip-group" style="display:flex;gap:4px">
+          <button class="btn-o" style="border-radius:20px;padding:4px 14px" onclick="location.href='correo.html'">📧 Bandeja Gmail</button>
+          <button class="btn-p" style="border-radius:20px;padding:4px 14px" onclick="location.href='campanas-email.html'">📣 Campañas Masivas</button>
+        </div>
+        <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      </div>
     </div>
 
     <div class="admin-content">
@@ -119,7 +125,10 @@
               <h3 id="detCampName" style="margin:0 0 4px">Detalle de Campaña</h3>
               <p id="detCampSub" style="margin:0;font-size:12px;color:#777"></p>
             </div>
-            <button class="btn-o" onclick="backToCampaigns()">← Volver a campañas</button>
+            <div style="display:flex;gap:10px">
+              <button class="btn-o" id="btnRescateWa" onclick="rescueFailedToWa()" style="color:#d97706;border-color:#d97706;display:none;font-weight:600">📲 Rescatar fallidos en WA</button>
+              <button class="btn-o" onclick="backToCampaigns()">← Volver a campañas</button>
+            </div>
           </div>
           
           <div class="d-prog" style="height:12px;margin-bottom:8px">

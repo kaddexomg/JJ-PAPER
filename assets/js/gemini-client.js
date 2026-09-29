@@ -2290,14 +2290,22 @@ TU MISIÓN:
 2. Extraer la lista de productos solicitados ("items"):
    - "raw_query": El texto exacto como lo pidió el cliente (ej: "20 resmas de papel carta Report").
    - "product_name": Nombre comercial estándar normalizado (ej: "Papel Fotocopia Carta 75g Report Resma").
+     *APLICA ESTOS SINÓNIMOS VENEZOLANOS:*
+     "tirro" = Cinta de Enmascarar / Masking Tape.
+     "celoven" = Cinta Adhesiva Transparente.
+     "tipex" = Corrector Líquido / Cinta Correctora.
+     "resmas chamex / hp / report" = Papel Fotocopia Carta / Oficio 75g.
+     "silicon liquido" = Pega Líquida de Silicón.
+     "marcador acrilico" = Marcador para Pizarra Blanca.
+     "hojas de examen" = Papel Ministro.
    - "qty": Cantidad numérica solicitada (ej: 20). Si no indica, asume 1.
    - "unit": Unidad deducida (resma, caja, unidad, rollo, paquete, docena, etc.).
+   - "unit_type": ESTRUCTURA VITAL PARA EL PRECIO. Si el cliente pide bultos, embalajes mayores o cajas master, pon "bulk". Si pide empaques de consumo (resmas, paquetes, docenas, unidades, cajas pequeñas), pon "unit".
    - "notes": Especificación adicional si hay (color, marca, gramaje).
 
-3. Generar un "ack_message" (Acuse de Recibo Inmediato y Profesional):
-   - Redactado en tono formal, cortés y de alta confiabilidad en nombre de "JJ Paper C.A.".
-   - Agradece la solicitud e informa que su cotización formal está siendo procesada en este momento con disponibilidad y mejores precios para su entrega en Caracas.
-   - Longitud: 3 a 5 líneas con saludo personalizado.
+3. "cross_selling_ideas": Array de strings con 2 o 3 productos complementarios generales que deberíamos ofrecerle para aumentar la venta (ej: si pide papel, ofrecer grapas y carpetas; si pide cajas, ofrecer cinta de embalaje).
+
+4. Generar un "ack_message" (Acuse de Recibo Inmediato y Profesional).
 
 DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
 {
@@ -2315,9 +2323,11 @@ DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES
       "product_name": "nombre normalizado",
       "qty": 10,
       "unit": "unidad",
+      "unit_type": "unit",
       "notes": ""
     }
   ],
+  "cross_selling_ideas": ["Grapas 26/6", "Bolígrafos Azules"],
   "ack_message": "Texto del acuse de recibo..."
 }
 
@@ -2340,16 +2350,25 @@ ${rawText}
     if (Array.isArray(catalog) && catalog.length > 0 && Array.isArray(parsed.items)) {
       parsed.items = parsed.items.map(it => {
         const query = (it.product_name || it.raw_query || '').toLowerCase();
+        const requestedBulk = it.unit_type === 'bulk';
         let matched = null;
         let bestScore = 0;
         const words = query.split(/\s+/).filter(w => w.length > 2);
 
         for (const prod of catalog) {
           const prodName = (prod.name || '').toLowerCase();
+          const prodUnit = (prod.unit || '').toLowerCase();
+          const isBulkProduct = prodName.includes('bulto') || prodUnit.includes('bulto') || prodName.includes('master');
+          
+          // Fuerte penalización si la unidad no coincide con lo que pide
+          if (!requestedBulk && isBulkProduct) continue; // Si no pide bulto, y es bulto, lo ignoramos de entrada
+          if (requestedBulk && !isBulkProduct) continue; // Si pide bulto, y no es bulto, lo ignoramos
+
           let score = 0;
           for (const w of words) {
             if (prodName.includes(w)) score++;
           }
+          
           if (score > bestScore) {
             bestScore = score;
             matched = prod;

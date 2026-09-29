@@ -1175,22 +1175,51 @@ async function processAiQuoteRequest() {
 
     posRenderTicket();
 
-    if (parsed.ack_message) {
-      window.__lastAiAckMessage = parsed.ack_message;
-      const previewBox = document.getElementById('aiQuotePreviewBox');
-      const ackTextEl = document.getElementById('aiQuoteAckText');
-      if (previewBox && ackTextEl) {
-        ackTextEl.textContent = parsed.ack_message;
-        previewBox.style.display = 'block';
+    let hasSuggestions = false;
+    if (parsed.cross_selling_ideas && parsed.cross_selling_ideas.length > 0) {
+      hasSuggestions = true;
+      const suggestionsHTML = parsed.cross_selling_ideas.map(item => `
+        <span style="display:inline-block;background:rgba(22,96,74,0.1);color:#16604a;padding:4px 8px;border-radius:12px;font-size:12px;margin:4px;font-weight:600;border:1px solid rgba(22,96,74,0.2)">+ ${item}</span>
+      `).join('');
+      
+      const suggestionsHtmlBlock = `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #ccc">
+          <strong style="font-size:13px;color:#16604a;display:block;margin-bottom:6px">💡 IA Sugiere ofrecer:</strong>
+          ${suggestionsHTML}
+        </div>
+      `;
+      
+      if (parsed.ack_message) {
+        window.__lastAiAckMessage = parsed.ack_message;
+        const previewBox = document.getElementById('aiQuotePreviewBox');
+        const ackTextEl = document.getElementById('aiQuoteAckText');
+        if (previewBox && ackTextEl) {
+          ackTextEl.innerHTML = parsed.ack_message + suggestionsHtmlBlock;
+          previewBox.style.display = 'block';
+        }
+      }
+    } else {
+      if (parsed.ack_message) {
+        window.__lastAiAckMessage = parsed.ack_message;
+        const previewBox = document.getElementById('aiQuotePreviewBox');
+        const ackTextEl = document.getElementById('aiQuoteAckText');
+        if (previewBox && ackTextEl) {
+          ackTextEl.textContent = parsed.ack_message;
+          previewBox.style.display = 'block';
+        }
       }
     }
 
     showToast(`¡Cotización pre-armada! Se cargaron ${addedCount} productos al ticket. ✨`);
-    setTimeout(() => {
-      closeAiQuoteModal();
-      const firstQty = document.querySelector('input[data-ticket-field="qty"]');
-      if (firstQty) firstQty.focus();
-    }, 1200);
+    
+    // Si hay sugerencias, no cerramos automáticamente para que el vendedor las lea
+    if (!hasSuggestions) {
+      setTimeout(() => {
+        closeAiQuoteModal();
+        const firstQty = document.querySelector('input[data-ticket-field="qty"]');
+        if (firstQty) firstQty.focus();
+      }, 1200);
+    }
 
   } catch (err) {
     console.error('Error pre-armando cotización con IA:', err);

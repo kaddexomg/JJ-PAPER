@@ -82,11 +82,17 @@
       <div class="topbar-left">
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
-          <h2>📣 Campañas de Ofertas WhatsApp</h2>
-          <p>Carga contactos, crea plantillas y automatiza tus envíos de ofertas 1 a 1</p>
+          <h2>📣 Difusión WhatsApp</h2>
+          <p>Envío masivo automático 1 a 1</p>
         </div>
       </div>
-      <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="wa-chip-group" style="display:flex;gap:4px">
+          <button class="btn-o" style="border-radius:20px;padding:4px 14px" onclick="location.href='whatsapp.html'">💬 CRM Chats</button>
+          <button class="btn-p" style="border-radius:20px;padding:4px 14px" onclick="location.href='difusion.html'">📢 Difusión masiva</button>
+        </div>
+        <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      </div>
     </div>
 
     <div class="admin-content">

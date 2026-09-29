@@ -45,6 +45,30 @@ async function initDifusion() {
         });
       })
     .subscribe();
+
+  // Chequeo de Rescue
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('rescue') === '1') {
+    const rawData = sessionStorage.getItem('jjp_rescue_contacts');
+    if (rawData) {
+      try {
+        const parsedRescue = JSON.parse(rawData);
+        sessionStorage.removeItem('jjp_rescue_contacts');
+        if (window.CampaignEditor) {
+          window.CampaignEditor.open({
+            channel: 'whatsapp',
+            contacts: parsedRescue, // Lista filtrada y cruzada de rebotados
+            seller: SELLER,
+            onLaunch: async (config) => {
+              await launchWaCampaignFromEditor(config);
+            }
+          });
+          // Quitar query de url limpia
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch(e) { console.error('Error parseando rescate', e); }
+    }
+  }
 }
 
 async function loadDProductsAndCombos() {

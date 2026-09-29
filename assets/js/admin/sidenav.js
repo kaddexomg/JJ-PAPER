@@ -32,10 +32,8 @@
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
-      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
-      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
-      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
-      { href: 'correo.html',   ico: '📧', label: 'Correo' },
+      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp Suite' },
+      { href: 'correo.html',   ico: '📧', label: 'Correo Suite' },
     ]},
     { section: 'Catálogo' },
     { group: 'Catálogo', ico: '📦', items: [
@@ -77,13 +75,11 @@
     ]},
     { group: 'Clientes', ico: '👥', items: [
       { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },
-      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
-      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
-      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
-      { href: 'correo.html',   ico: '📧', label: 'Correo' },
+      { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp Suite' },
+      { href: 'correo.html',   ico: '📧', label: 'Correo Suite' },
     ]},
     { section: 'Mi cuenta' },
     { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },

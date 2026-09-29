@@ -651,12 +651,32 @@ async function viewCampaignDetail(id) {
 
 async function loadCampTargets(campId) {
   const { data, error } = await sb.from('jjp_email_campaign_targets')
-    .select('*')
+    .select('*, customer_id, prospect_id')
     .eq('campaign_id', campId)
     .order('created_at');
     
   if (error) { showToast('Error cargando destinatarios: ' + error.message, 'err'); return; }
-  ecDetailTargets = data || [];
+  
+  // Cruzar con clientes/prospectos para traer el teléfono
+  const custIds = data.map(t => t.customer_id).filter(Boolean);
+  const prosIds = data.map(t => t.prospect_id).filter(Boolean);
+  
+  let custMap = {};
+  if (custIds.length) {
+    const { data: cData } = await sb.from('jjp_customers').select('id, phone').in('id', custIds);
+    if (cData) cData.forEach(c => custMap[c.id] = c.phone);
+  }
+  let prosMap = {};
+  if (prosIds.length) {
+    const { data: pData } = await sb.from('jjp_prospects').select('id, phone').in('id', prosIds);
+    if (pData) pData.forEach(p => prosMap[p.id] = p.phone);
+  }
+
+  ecDetailTargets = data.map(t => ({
+    ...t,
+    phone: (t.customer_id ? custMap[t.customer_id] : prosMap[t.prospect_id]) || null
+  }));
+  
   renderCampDetail();
 }
 
@@ -682,14 +702,25 @@ function renderCampDetail() {
   if (progFill) progFill.style.width = pct + '%';
   document.getElementById('detProgLabel').textContent = `${pct}% completado (${sent}/${total} enviados)`;
   
+  const btnRescate = document.getElementById('btnRescateWa');
+  if (btnRescate) {
+    btnRescate.style.display = failed > 0 ? 'inline-block' : 'none';
+  }
+
   const tbody = document.getElementById('detTargetsBody');
   if (!tbody) return;
   
   if (!ecDetailTargets.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Cargando destinatarios...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Cargando destinatarios...</td></tr>';
     return;
   }
   
+  // Cambiamos Thead para agregar checkbox
+  const thead = tbody.parentElement.querySelector('thead tr');
+  if (thead && !thead.querySelector('.sel-all')) {
+    thead.innerHTML = '<th style="width:40px"><input type="checkbox" class="sel-all" onclick="toggleAllFailedEmails(this)"></th>' + thead.innerHTML;
+  }
+
   tbody.innerHTML = ecDetailTargets.map(t => {
     let stBadge = '<span class="d-tag" style="background:#fef3c7;color:#92400e">⏳ En cola</span>';
     if (t.status === 'sent') stBadge = '<span class="d-tag" style="background:#dcfce7;color:#15803d">✅ Enviado</span>';
@@ -697,17 +728,61 @@ function renderCampDetail() {
     else if (t.status === 'skipped') stBadge = '<span class="d-tag" style="background:#f3f4f6;color:#6b7280">⏭️ Omitido</span>';
     else if (t.status === 'sending') stBadge = '<span class="d-tag" style="background:#e0f2fe;color:#0369a1">📤 Enviando</span>';
     
+    const canRescue = t.status === 'failed' && t.phone;
+    const checkboxHtml = canRescue ? `<input type="checkbox" class="chk-failed" value="${t.id}">` : `<input type="checkbox" disabled title="No rebotó o no tiene teléfono">`;
+    
     return `<tr>
+      <td>${checkboxHtml}</td>
       <td>
         <strong>${escapeHTML(t.name || 'Cliente')}</strong>
-        ${t.vars?.detected_need ? `<div style="font-size:11px;color:#166534;font-weight:600;margin-top:2px">🎯 ${escapeHTML(t.vars.detected_need)}</div>` : ''}
+        ${t.phone ? `<div style="font-size:11px;color:#0284c7;font-weight:600;margin-top:2px">📱 ${t.phone}</div>` : ''}
       </td>
       <td>${escapeHTML(t.to_addr || '—')}</td>
       <td>${stBadge}</td>
       <td>${t.sent_at ? fmtDate(t.sent_at) : '—'}</td>
-      <td style="font-size:12px;color:#b91c1c">${escapeHTML(t.error || '')}</td>
+      <td style="font-size:12px;color:#b91c1c;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(t.error || '')}">${escapeHTML(t.error || '')}</td>
     </tr>`;
   }).join('');
+}
+
+function toggleAllFailedEmails(master) {
+  document.querySelectorAll('.chk-failed').forEach(chk => chk.checked = master.checked);
+}
+
+function rescueFailedToWa() {
+  const selectedIds = Array.from(document.querySelectorAll('.chk-failed:checked')).map(chk => chk.value);
+  if (!selectedIds.length) {
+    showToast('Selecciona al menos un correo fallido para rescatar por WhatsApp.', 'err');
+    return;
+  }
+  
+  const rescueTargets = ecDetailTargets.filter(t => selectedIds.includes(t.id));
+  
+  // Guardamos en sessionStorage para que la página de difusión los recoja si es necesario, 
+  // o si no, abrimos CampaignEditor directo en modal!
+  const contacts = rescueTargets.map(t => ({
+    id: t.customer_id,
+    name: t.name,
+    phone: t.phone,
+    is_prospect: !!t.prospect_id
+  }));
+  
+  if (window.CampaignEditor) {
+    window.CampaignEditor.open({
+      channel: 'whatsapp',
+      contacts: contacts,
+      seller: SELLER,
+      onLaunch: async (config) => {
+        // Redirigir a Difusion.html o lanzar api? Difusión maneja su propia launchWaCampaignFromEditor
+        showToast('Abriendo motor de campañas de WhatsApp...', 'ok');
+        sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
+        window.location.href = 'difusion.html?rescue=1';
+      }
+    });
+  } else {
+    sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
+    window.location.href = 'difusion.html?rescue=1';
+  }
 }
 
 function backToCampaigns() {

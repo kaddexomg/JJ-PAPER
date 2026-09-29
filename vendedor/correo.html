@@ -97,13 +97,16 @@
         </div>
       </div>
       <div class="wa-topbar-right">
-        <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
-              title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
+        <div class="wa-chip-group" style="display:flex;gap:4px;margin-right:12px">
+          <button class="btn-p" style="border-radius:20px;padding:4px 14px" onclick="location.href='correo.html'">📧 Bandeja Gmail</button>
+          <button class="btn-o" style="border-radius:20px;padding:4px 14px" onclick="location.href='campanas-email.html'">📣 Campañas Masivas</button>
+        </div>
         <span class="wa-chip" id="mailAcctChip" onclick="openMailAccount()" role="button" tabindex="0"
               title="Configurar mi correo" style="cursor:pointer">📧 Mi correo…</span>
-        <button class="btn-o" onclick="openMailAccount()">⚙️ Mi correo</button>
-        <button class="btn-o" onclick="openCampaigns()">📣 Campañas</button>
-        <button class="btn-p" onclick="openMailCompose()">📧 Nuevo correo</button>
+        <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
+              title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
+        <button class="btn-o" onclick="openMailAccount()">⚙️ Ajustes</button>
+        <button class="btn-p" onclick="openMailCompose()">＋ Nuevo correo</button>
       </div>
     </div>
 

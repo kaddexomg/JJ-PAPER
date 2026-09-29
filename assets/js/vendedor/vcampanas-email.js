@@ -651,36 +651,12 @@ async function viewCampaignDetail(id) {
 
 async function loadCampTargets(campId) {
   const { data, error } = await sb.from('jjp_email_campaign_targets')
-    .select('*, customer_id, prospect_id')
+    .select('*')
     .eq('campaign_id', campId)
     .order('created_at');
     
   if (error) { showToast('Error cargando destinatarios: ' + error.message, 'err'); return; }
-  
-  // Cruzar con clientes/prospectos para traer el teléfono
-  // Batches de 200 para evitar truncamiento de PostgREST con .in()
-  const custIds = [...new Set(data.map(t => t.customer_id).filter(Boolean))];
-  const prosIds = [...new Set(data.map(t => t.prospect_id).filter(Boolean))];
-  
-  let custMap = {};
-  for (let i = 0; i < custIds.length; i += 200) {
-    const batch = custIds.slice(i, i + 200);
-    const { data: cData } = await sb.from('jjp_customers').select('id, phone').in('id', batch);
-    if (cData) cData.forEach(c => { custMap[c.id] = c.phone; });
-  }
-  // jjp_prospects usa phone_1 (fijo) y phone_2 (móvil) — NO tiene columna "phone"
-  let prosMap = {};
-  for (let i = 0; i < prosIds.length; i += 200) {
-    const batch = prosIds.slice(i, i + 200);
-    const { data: pData } = await sb.from('jjp_prospects').select('id, phone_1, phone_2').in('id', batch);
-    if (pData) pData.forEach(p => { prosMap[p.id] = p.phone_2 || p.phone_1 || null; });
-  }
-
-  ecDetailTargets = data.map(t => ({
-    ...t,
-    phone: (t.customer_id ? custMap[t.customer_id] : prosMap[t.prospect_id]) || null
-  }));
-  
+  ecDetailTargets = data || [];
   renderCampDetail();
 }
 
@@ -706,94 +682,14 @@ function renderCampDetail() {
   if (progFill) progFill.style.width = pct + '%';
   document.getElementById('detProgLabel').textContent = `${pct}% completado (${sent}/${total} enviados)`;
   
-  const btnRescate = document.getElementById('btnRescateWa');
-  if (btnRescate) {
-    btnRescate.style.display = failed > 0 ? 'inline-block' : 'none';
-  }
-
-  // Lógica del Motor de Rescate Inteligente
-  const regexWa = /^(\+?58|0)?(412|414|424|416|426)\d{7}$/;
-  const failedWa = [];
-  const failedCall = [];
-  ecDetailTargets.filter(t => t.status === 'failed').forEach(t => {
-    const cleanPhone = (t.phone || '').replace(/[\s-]/g, '');
-    if (regexWa.test(cleanPhone)) {
-      failedWa.push(t);
-    } else {
-      failedCall.push(t);
-    }
-  });
-
-  const rescueWaBox = document.getElementById('rescueWaBox');
-  if (rescueWaBox) {
-    if (failedWa.length > 0) {
-      rescueWaBox.style.display = 'block';
-      rescueWaBox.innerHTML = `
-        <div style="background:#dcfce7; padding:10px; border-radius:6px; margin-bottom:10px;">
-          <h4 style="margin:0; color:#15803d;">Rescate Automático a WhatsApp</h4>
-          <p style="margin:4px 0 8px 0; font-size:13px;">${failedWa.length} correos rebotados tienen móvil válido.</p>
-          <button class="btn-p sm" onclick="rescueFailedToWaAutomated()">Rescatar por WA</button>
-        </div>
-      `;
-    } else {
-      rescueWaBox.style.display = 'none';
-    }
-  }
-
-  const rescueCallBox = document.getElementById('rescueCallBox');
-  if (rescueCallBox) {
-    if (failedCall.length > 0) {
-      rescueCallBox.style.display = 'block';
-      rescueCallBox.innerHTML = `
-        <div style="background:#fee2e2; padding:10px; border-radius:6px; margin-bottom:10px;">
-          <h4 style="margin:0; color:#b91c1c;">Llamadas Requeridas</h4>
-          <p style="margin:4px 0 8px 0; font-size:13px;">${failedCall.length} correos rebotados sin móvil (fijo o vacío).</p>
-          <button class="btn-o sm" onclick="alert('Agendando llamadas (En desarrollo)')">Agendar Llamadas</button>
-        </div>
-      `;
-    } else {
-      rescueCallBox.style.display = 'none';
-    }
-  }
-
-  // Gráficos con Chart.js
-  if (window.Chart) {
-    const ctx = document.getElementById('campChart');
-    if (ctx) {
-      if (window.campChartInstance) {
-        window.campChartInstance.destroy();
-      }
-      window.campChartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Enviados', 'Fallidos', 'Pendientes', 'Omitidos'],
-          datasets: [{
-            data: [sent, failed, pending, skipped],
-            backgroundColor: ['#15803d', '#b91c1c', '#d97706', '#6b7280']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false
-        }
-      });
-    }
-  }
-
   const tbody = document.getElementById('detTargetsBody');
   if (!tbody) return;
   
   if (!ecDetailTargets.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Cargando destinatarios...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Cargando destinatarios...</td></tr>';
     return;
   }
   
-  // Cambiamos Thead para agregar checkbox
-  const thead = tbody.parentElement.querySelector('thead tr');
-  if (thead && !thead.querySelector('.sel-all')) {
-    thead.innerHTML = '<th style="width:40px"><input type="checkbox" class="sel-all" onclick="toggleAllFailedEmails(this)"></th>' + thead.innerHTML;
-  }
-
   tbody.innerHTML = ecDetailTargets.map(t => {
     let stBadge = '<span class="d-tag" style="background:#fef3c7;color:#92400e">⏳ En cola</span>';
     if (t.status === 'sent') stBadge = '<span class="d-tag" style="background:#dcfce7;color:#15803d">✅ Enviado</span>';
@@ -801,98 +697,17 @@ function renderCampDetail() {
     else if (t.status === 'skipped') stBadge = '<span class="d-tag" style="background:#f3f4f6;color:#6b7280">⏭️ Omitido</span>';
     else if (t.status === 'sending') stBadge = '<span class="d-tag" style="background:#e0f2fe;color:#0369a1">📤 Enviando</span>';
     
-    const canRescue = t.status === 'failed' && t.phone;
-    const checkboxHtml = canRescue ? `<input type="checkbox" class="chk-failed" value="${t.id}">` : `<input type="checkbox" disabled title="No rebotó o no tiene teléfono">`;
-    
     return `<tr>
-      <td>${checkboxHtml}</td>
       <td>
         <strong>${escapeHTML(t.name || 'Cliente')}</strong>
-        ${t.phone ? `<div style="font-size:11px;color:#0284c7;font-weight:600;margin-top:2px">📱 ${t.phone}</div>` : ''}
+        ${t.vars?.detected_need ? `<div style="font-size:11px;color:#166534;font-weight:600;margin-top:2px">🎯 ${escapeHTML(t.vars.detected_need)}</div>` : ''}
       </td>
       <td>${escapeHTML(t.to_addr || '—')}</td>
       <td>${stBadge}</td>
       <td>${t.sent_at ? fmtDate(t.sent_at) : '—'}</td>
-      <td style="font-size:12px;color:#b91c1c;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(t.error || '')}">${escapeHTML(t.error || '')}</td>
+      <td style="font-size:12px;color:#b91c1c">${escapeHTML(t.error || '')}</td>
     </tr>`;
   }).join('');
-}
-
-function toggleAllFailedEmails(master) {
-  document.querySelectorAll('.chk-failed').forEach(chk => chk.checked = master.checked);
-}
-
-function rescueFailedToWaAutomated() {
-  const regexWa = /^(58)?(412|414|424|416|426)\d{7}$/;
-  const failedWa = ecDetailTargets.filter(t => {
-    if (t.status !== 'failed') return false;
-    const cleanPhone = (t.phone || '').replace(/\D/g, ''); // quita TODO lo que no sea dígito
-    return regexWa.test(cleanPhone);
-  });
-  
-  if (!failedWa.length) {
-    showToast(`No hay correos rebotados con móvil válido (${ecDetailTargets.filter(t => t.status === 'failed').length} fallidos, pero sin teléfono móvil asociado).`, 'err');
-    return;
-  }
-  
-  const contacts = failedWa.map(t => ({
-    id: t.customer_id,
-    name: t.name,
-    phone: t.phone,
-    is_prospect: !!t.prospect_id
-  }));
-  
-  if (window.CampaignEditor) {
-    window.CampaignEditor.open({
-      channel: 'whatsapp',
-      contacts: contacts,
-      seller: SELLER,
-      onLaunch: async (config) => {
-        showToast('Abriendo motor de campañas de WhatsApp...', 'ok');
-        sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
-        window.location.href = 'difusion.html?rescue=1';
-      }
-    });
-  } else {
-    sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
-    window.location.href = 'difusion.html?rescue=1';
-  }
-}
-
-function rescueFailedToWa() {
-  const selectedIds = Array.from(document.querySelectorAll('.chk-failed:checked')).map(chk => chk.value);
-  if (!selectedIds.length) {
-    showToast('Selecciona al menos un correo fallido para rescatar por WhatsApp.', 'err');
-    return;
-  }
-  
-  const rescueTargets = ecDetailTargets.filter(t => selectedIds.includes(t.id));
-  
-  // Guardamos en sessionStorage para que la página de difusión los recoja si es necesario, 
-  // o si no, abrimos CampaignEditor directo en modal!
-  const contacts = rescueTargets.map(t => ({
-    id: t.customer_id,
-    name: t.name,
-    phone: t.phone,
-    is_prospect: !!t.prospect_id
-  }));
-  
-  if (window.CampaignEditor) {
-    window.CampaignEditor.open({
-      channel: 'whatsapp',
-      contacts: contacts,
-      seller: SELLER,
-      onLaunch: async (config) => {
-        // Redirigir a Difusion.html o lanzar api? Difusión maneja su propia launchWaCampaignFromEditor
-        showToast('Abriendo motor de campañas de WhatsApp...', 'ok');
-        sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
-        window.location.href = 'difusion.html?rescue=1';
-      }
-    });
-  } else {
-    sessionStorage.setItem('jjp_rescue_contacts', JSON.stringify(contacts));
-    window.location.href = 'difusion.html?rescue=1';
-  }
 }
 
 function backToCampaigns() {

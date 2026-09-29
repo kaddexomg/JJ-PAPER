@@ -12,9 +12,6 @@
 <link rel="stylesheet" href="../assets/css/wa.css?v=20260725b">
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
-
-  <link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260916_fix_teclado_campanas">
-  <link rel="stylesheet" href="../assets/css/product-picker.css">
 </head>
 <body class="admin-body">
 
@@ -34,6 +31,7 @@
       <a href="whatsapp.html" class="on"><span class="a-ico">💬</span> WhatsApp</a>
       <a href="correo.html"><span class="a-ico">📧</span> Correo</a>
       <a href="campanas-email.html"><span class="a-ico">📣</span> Campañas Email</a>
+      <a href="difusion.html"><span class="a-ico">📢</span> Difusión WA</a>
       <div class="divider"></div>
       <span class="a-section">Sitio</span>
       <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
@@ -51,9 +49,7 @@
           <p>Chatea con tus clientes desde tu propia cuenta</p>
         </div>
       </div>
-      <div class="wa-topbar-right" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn-p" id="newCampaignBtn" onclick="newCampaign()" style="display:none">＋ Nueva campaña</button>
-        
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
               title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <span class="wa-chip" id="waStatusChip">Cargando…</span>
@@ -63,14 +59,6 @@
     </div>
 
     <div class="admin-content">
-
-      <div class="wa-main-tabs">
-        <button class="wa-main-tab on" id="tabBtnChats" onclick="waSwitchMainTab('chats')">💬 Chats</button>
-        <button class="wa-main-tab" id="tabBtnDifusiones" onclick="waSwitchMainTab('difusiones')">📣 Difusiones</button>
-      </div>
-
-      <div id="tabChats" style="display:flex;flex-direction:column;flex:1 1 auto;min-height:0">
-
       <div class="wa-wrap" id="waWrap">
         <div class="wa-list-pane">
           <div class="wa-list-head">
@@ -110,62 +98,6 @@
           <input type="file" id="waFileInput" style="display:none" onchange="waFileChosen(this)"
                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
         </div>
-      </div>
-    
-      </div>
-      <div id="tabDifusiones" style="display:none;padding:16px">
-<div class="of-chips" role="tablist" aria-label="Secciones de difusión">
-        <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setDTab('campanas')">📣 Campañas</button>
-        <button class="of-chip"    role="tab" data-tab="contactos" aria-selected="false" onclick="setDTab('contactos')">📇 Contactos</button>
-        <button class="of-chip"    role="tab" data-tab="plantillas" aria-selected="false" onclick="setDTab('plantillas')">📝 Plantillas</button>
-      </div>
-
-      <!-- ===== Campañas ===== -->
-      <section data-panel="campanas">
-        <div class="admin-table-wrap">
-          <div class="table-top">
-            <h3>📣 Mis campañas</h3>
-            <span style="font-size:12px;color:#777">Los mensajes salen uno a uno con pausa aleatoria (protege tu número). La reactivación de inactivos se crea sola cada día.</span>
-          </div>
-          <div style="overflow-x:auto">
-            <table class="admin-table">
-              <thead><tr><th>Campaña</th><th>Estado</th><th>Progreso</th><th>Destinatarios</th><th>Reporte</th><th>Acciones</th></tr></thead>
-              <tbody id="dCampBody"><tr><td colspan="6" class="table-empty">Cargando...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== Contactos ===== -->
-      <section data-panel="contactos" style="display:none">
-        <div class="admin-table-wrap">
-          <div class="table-top">
-            <h3>📇 Contactos <span id="dContactCount" style="font-size:12px;color:#777;font-weight:400"></span></h3>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <input class="fi" id="dContactSearch" placeholder="Buscar nombre, teléfono o etiqueta..." oninput="renderDContacts()" style="max-width:240px;font-size:13px">
-              <button class="btn-p" onclick="openImportModal()">📥 Importar lista</button>
-            </div>
-          </div>
-          <div id="dTagChips" class="d-tag-chips" style="padding:10px 20px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #f0f0f0"></div>
-          <div style="overflow-x:auto">
-            <table class="admin-table">
-              <thead><tr><th>Contacto</th><th>Etiquetas</th><th>Compras</th><th>Última compra</th><th>Difusión</th></tr></thead>
-              <tbody id="dContactsBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== Plantillas ===== -->
-      <section data-panel="plantillas" style="display:none">
-        <div class="admin-table-wrap">
-          <div class="table-top">
-            <h3>📝 Plantillas de mensaje</h3>
-            <button class="btn-p" onclick="openTplModal()">＋ Nueva plantilla</button>
-          </div>
-          <div class="d-tpl-grid" id="dTplList"></div>
-        </div>
-      </section>
       </div>
     </div>
   </main>
@@ -228,251 +160,6 @@
   </div>
 </div>
 
-</div>
-
-<!-- Modal: importar contactos -->
-<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeDModal('importModal')">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="importTitle">
-    <div class="modal-hd">
-      <h3 id="importTitle">📥 Importar lista de contactos</h3>
-      <button class="modal-close" onclick="closeDModal('importModal')" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:#666;margin-top:0">Pega tu avance de datos (una línea por contacto: <code>Nombre o empresa, teléfono</code>) o sube un CSV.</p>
-      <div class="fg">
-        <label class="fl" for="di-text">Lista de contactos</label>
-        <textarea class="fi" id="di-text" rows="7" oninput="diParse()" placeholder="Librería El Saber, 04121234567&#10;Oficina Torre Delta, 0424-555.66.77&#10;Colegio San José, +58 412 9998877"></textarea>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fg">
-          <label class="fl" for="di-file">O sube un archivo CSV</label>
-          <input class="fi" id="di-file" type="file" accept=".csv,.txt" onchange="diFileChosen(this)">
-        </div>
-        <div class="fg">
-          <label class="fl" for="di-tag">Etiqueta para este lote (opcional)</label>
-          <input class="fi" id="di-tag" placeholder="ej: librerías, zona norte" oninput="diParse()">
-        </div>
-      </div>
-      <div id="diPreview" style="font-size:13px" aria-live="polite"></div>
-      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn-o" onclick="closeDModal('importModal')">Cancelar</button>
-        <button class="btn-p" id="diConfirmBtn" onclick="diConfirm()" disabled>📥 Importar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: plantilla -->
-<div class="modal-overlay" id="tplModal" onclick="if(event.target===this)closeDModal('tplModal')">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tplModalTitle" style="max-width:680px">
-    <div class="modal-hd">
-      <h3 id="tplModalTitle">Nueva plantilla</h3>
-      <button class="modal-close" onclick="closeDModal('tplModal')" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="fg"><label class="fl" for="tp-name">Nombre de la plantilla *</label>
-        <input class="fi" id="tp-name" placeholder="ej: Oferta resmas mayorista o Promo Combo Escolar"></div>
-      
-      <div class="fg">
-        <label class="fl" style="font-weight:700">Variables dinámicas (haz clic para insertar en el texto):</label>
-        <div class="d-varchips" aria-label="Insertar variable">
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('empresa')">🏢 {{empresa}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('nombre')">👤 {{nombre}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('vendedor')">💼 {{vendedor}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('producto')">📦 {{producto}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('precio')">💲 {{precio}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('descuento')">🔖 {{descuento}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('link')">🔗 {{link}}</button>
-          <button type="button" class="btn-o sm" onclick="tplInsertVar('descripcion')">📝 {{descripcion}}</button>
-        </div>
-      </div>
-
-      <div class="fg">
-        <label class="fl" for="tp-body">Mensaje *</label>
-        <textarea class="fi" id="tp-body" rows="7" oninput="tplPreview()" placeholder="Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.&#10;&#10;Tenemos en promoción: *{{producto}}* por tan solo *{{precio}}*.&#10;&#10;👉 Ver catálogo aquí: {{link}}"></textarea>
-      </div>
-
-      <!-- Asistente rápido para autocompletar plantilla de producto/combo -->
-      <div style="background:#f0f7f4;border:1px dashed #2d7a5b;border-radius:8px;padding:10px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div style="font-size:12px;font-weight:700;color:#16604A">💡 ¿Quieres armar una plantilla rápida de oferta?</div>
-          <button type="button" class="btn-p sm" id="waAiTplBtn" style="background:#8b5cf6;border-color:#7c3aed;color:#fff;font-weight:600;padding:4px 10px;" onclick="tplDraftWithAi()">✨ Redactar con IA</button>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('promo_producto')">📦 Plantilla de Producto</button>
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('promo_combo')">🎁 Plantilla de Combo</button>
-          <button type="button" class="btn-o sm" onclick="tplApplyPreset('reactivacion')">🔄 Plantilla Reactivación</button>
-        </div>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Vista previa del mensaje (con datos de muestra)</label>
-        <div class="d-preview" id="tplPreview" aria-live="polite"></div>
-      </div>
-      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn-o" onclick="closeDModal('tplModal')">Cancelar</button>
-        <button class="btn-p" onclick="saveTpl()">💾 Guardar plantilla</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: nueva campaña -->
-<div class="modal-overlay" id="campModal" onclick="if(event.target===this)closeDModal('campModal')">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="campModalTitle" style="max-width:680px">
-    <div class="modal-hd">
-      <h3 id="campModalTitle">📣 Nueva campaña de WhatsApp</h3>
-      <button class="modal-close" onclick="closeDModal('campModal')" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fg"><label class="fl" for="nc-name">Nombre de la campaña *</label>
-          <input class="fi" id="nc-name"></div>
-        <div class="fg"><label class="fl" for="nc-type">Tipo de Difusión</label>
-          <select class="fi" id="nc-type" onchange="ncOnTypeChange()">
-            <option value="general">📣 General / Cartera</option>
-            <option value="producto">📦 Promoción de un Producto</option>
-            <option value="combo">🎁 Promoción de un Combo / Oferta</option>
-          </select></div>
-      </div>
-
-      <!-- Selector de producto específico -->
-      <div class="fg" id="nc-prod-wrap" style="display:none;background:#f9fbf9;border:1px solid #cddcd4;border-radius:8px;padding:10px">
-        <label class="fl" for="nc-prod-select">Selecciona el Producto a Promocionar:</label>
-        <select class="fi" id="nc-prod-select" onchange="ncRefresh()"></select>
-      </div>
-
-      <!-- Selector de combo / promoción del feed -->
-      <div class="fg" id="nc-combo-wrap" style="display:none;background:#fdf9f4;border:1px solid #eedec4;border-radius:8px;padding:10px">
-        <label class="fl" for="nc-combo-select">Selecciona el Combo u Oferta a Promocionar:</label>
-        <select class="fi" id="nc-combo-select" onchange="ncRefresh()"></select>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
-        <div class="fg"><label class="fl" for="nc-tpl">Plantilla de Mensaje *</label>
-          <select class="fi" id="nc-tpl" onchange="ncRefresh()"></select></div>
-        <div class="fg"><label class="fl" for="nc-aud">Audiencia</label>
-          <select class="fi" id="nc-aud" onchange="ncRefresh()">
-            <option value="todos">Toda mi cartera</option>
-            <option value="inactivos">😴 Solo inactivos</option>
-            <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
-            <option value="etiqueta">🔖 Por etiqueta</option>
-          </select></div>
-      </div>
-
-      <div class="fg" id="nc-tag-wrap" style="display:none"><label class="fl" for="nc-tag">Etiqueta de clientes</label>
-        <input class="fi" id="nc-tag" placeholder="ej: librerías, zona norte" oninput="ncRefresh()"></div>
-
-      <p id="ncCount" style="font-size:13px;font-weight:700;color:#16604A" aria-live="polite"></p>
-      
-      <!-- Adjunto opcional: Catálogo / Lista de Precios PDF o Ficha de Producto -->
-      <div class="fg" style="background:#f0f7f4;border:1px solid #c9e3d5;border-radius:8px;padding:12px;margin-top:6px">
-        <label class="fl" style="font-weight:700;color:#16604A">📎 Archivo Adjunto (Opcional):</label>
-        <select class="fi" id="nc-attach-opt" onchange="ncOnAttachChange()">
-          <option value="none">❌ Sin archivo adjunto (Solo mensaje de texto)</option>
-          <option value="pdf_lista_precios">📄 Generar y Adjuntar Lista de Precios en PDF (Oficial JJ Paper)</option>
-          <option value="prod_image">🖼️ Adjuntar Foto / Imagen del Producto Seleccionado</option>
-          <option value="custom_file">📁 Subir Archivo Personalizado (PDF o Imagen)</option>
-        </select>
-        <div id="nc-custom-file-wrap" style="display:none;margin-top:8px">
-          <input class="fi" id="nc-custom-file" type="file" accept=".pdf,image/*">
-        </div>
-        <div id="nc-attach-status" style="font-size:12px;color:#16604A;margin-top:6px;font-weight:600"></div>
-      </div>
-
-      <!-- Configuración Anti-bloqueo y Velocidad de Envío -->
-      <div class="fg" style="background:#fffaf0;border:1px solid #fbd38d;border-radius:8px;padding:12px;margin-top:6px">
-        <label class="fl" style="font-weight:700;color:#c05621">🛡️ Configuración Anti-Bloqueo (Seguridad WhatsApp):</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
-          <div>
-            <label class="fl" style="font-size:11px" for="nc-speed-mode">Velocidad / Pausa entre mensajes:</label>
-            <select class="fi" id="nc-speed-mode" onchange="ncOnSpeedChange()">
-              <option value="safe" selected>🐢 Modo Seguro (15 - 35 seg)</option>
-              <option value="ultra_safe">🛡️ Modo Ultra Seguro (30 - 60 seg)</option>
-              <option value="moderate">⚡ Modo Rápido / Moderado (8 - 18 seg)</option>
-              <option value="custom">⚙️ Personalizar segundos...</option>
-            </select>
-          </div>
-          <div id="nc-custom-speed-wrap" style="display:none;grid-template-columns:1fr 1fr;gap:6px">
-            <div>
-              <label class="fl" style="font-size:11px" for="nc-delay-min">Mín (seg)</label>
-              <input type="number" min="5" max="300" class="fi" id="nc-delay-min" value="15">
-            </div>
-            <div>
-              <label class="fl" style="font-size:11px" for="nc-delay-max">Máx (seg)</label>
-              <input type="number" min="5" max="300" class="fi" id="nc-delay-max" value="35">
-            </div>
-          </div>
-        </div>
-        <p style="font-size:11px;color:#7b341e;margin:6px 0 0">Soporta <strong>Spintax</strong> en plantillas: usa <code>{Hola|Buenos días|Estimado/a}</code> para rotar palabras y evitar patrones repetitivos.</p>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Vista previa del mensaje a enviar:</label>
-        <div class="d-preview" id="ncPreview"></div>
-      </div>
-      
-      <p style="font-size:12px;color:#888">Los contactos excluidos (🔕) y sin teléfono válido se omiten automáticamente. Envío seguro espaciado con pausas aleatorias y control anti-bloqueo.</p>
-      <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn-o" onclick="closeDModal('campModal')">Cancelar</button>
-        <button class="btn-p" id="ncLaunchBtn" onclick="launchCampaign()">🚀 Lanzar campaña</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: reporte / detalle de campaña -->
-<div class="modal-overlay" id="reportModal" onclick="if(event.target===this)closeDModal('reportModal')">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="reportTitle" style="max-width:720px">
-    <div class="modal-hd">
-      <h3 id="reportTitle">📊 Reporte de campaña</h3>
-      <button class="modal-close" onclick="closeDModal('reportModal')" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="rd-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div>
-          <div style="font-size:17px;font-weight:800" id="rd-name">—</div>
-          <div style="font-size:12px;color:#777">Creada: <span id="rd-created">—</span></div>
-        </div>
-        <span id="rd-status" style="font-weight:700;font-size:13px">—</span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0">
-        <div class="rd-field"><span>⚙️ Ritmo de envío</span><strong id="rd-speed">—</strong></div>
-        <div class="rd-field"><span>📎 Adjunto</span><strong id="rd-attach">—</strong></div>
-      </div>
-
-      <!-- Live countdown banner para campañas activas -->
-      <div id="rd-live-timer-wrap" class="rd-live-timer interval" style="display:none">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="rd-live-timer-icon" style="font-size:18px">⏳</span>
-          <span id="rd-live-timer-label" style="font-weight:600">Próximo mensaje en:</span>
-        </div>
-        <strong id="rd-live-timer-digits" style="font-size:18px;font-family:monospace;letter-spacing:1px">--:--</strong>
-      </div>
-
-      <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:12px;color:#777">
-        <span>Progreso total</span><span id="rd-pct">0%</span>
-      </div>
-      <div class="d-prog" style="height:12px;margin-bottom:18px"><div class="d-prog-fill" id="rd-prog" style="width:0%"></div></div>
-
-      <div class="rd-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">
-        <div class="rd-stat rd-ok"><span class="rd-n" id="rd-sent">0</span><span class="rd-l">✅ Enviados</span></div>
-        <div class="rd-stat rd-err"><span class="rd-n" id="rd-failed">0</span><span class="rd-l">❌ Fallidos</span></div>
-        <div class="rd-stat rd-skip"><span class="rd-n" id="rd-skipped">0</span><span class="rd-l">⏭️ Omitidos</span></div>
-        <div class="rd-stat rd-pend"><span class="rd-n" id="rd-pending">0</span><span class="rd-l">⏳ Pendientes</span></div>
-      </div>
-
-      <div class="rd-failed-block" id="rd-failed-list"></div>
-
-      <div style="margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn-o" onclick="closeDModal('reportModal')">Cerrar</button>
-        <button class="btn-o" onclick="exportCampaignReport(currentReportCampaignId)">⬇️ Exportar (CSV)</button>
-        <button class="btn-p d-btn-del" onclick="deleteCampaignFromReport(currentReportCampaignId, document.getElementById('rd-name').textContent)">🗑️ Eliminar campaña</button>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
@@ -488,68 +175,12 @@
 <script src="../assets/js/gemini-client.js?v=20260921_personalidad_b2b"></script>
 <script src="../assets/js/wa/wa-chat.js?v=20260908_v3"></script>
 <script src="../assets/js/admin/server-control.js?v=20260908_v3"></script>
-<script src="../assets/js/vendedor/product-picker.js?v=20260928_unified"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20260928_unified"></script>
-<script src="../assets/js/vendedor/vdifusion.js?v=20260928_unified"></script>
-
 <script>
-let _difusionInited = false;
-async function ensureDifusionLoaded() {
-  if (_difusionInited) return;
-  _difusionInited = true;
-  if (typeof initDifusion === 'function') {
-    try {
-      await initDifusion();
-    } catch (e) {
-      console.error('Error inicializando difusion:', e);
-    }
-  }
-}
-
-function waSwitchMainTab(tab) {
-  const btnC = document.getElementById('tabBtnChats');
-  const btnD = document.getElementById('tabBtnDifusiones');
-  const tChats = document.getElementById('tabChats');
-  const tDif = document.getElementById('tabDifusiones');
-  const btnNewCamp = document.getElementById('newCampaignBtn');
-
-  if (tab === 'chats') {
-    btnC.classList.add('on');
-    btnD.classList.remove('on');
-    tChats.style.display = 'flex';
-    tDif.style.display = 'none';
-    if (btnNewCamp) btnNewCamp.style.display = 'none';
-    if (window.location.hash === '#difusiones') {
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-  } else {
-    btnC.classList.remove('on');
-    btnD.classList.add('on');
-    tChats.style.display = 'none';
-    tDif.style.display = 'block';
-    if (btnNewCamp) btnNewCamp.style.display = 'inline-block';
-    window.location.hash = 'difusiones';
-    ensureDifusionLoaded();
-  }
-}
-
-window.addEventListener('hashchange', () => {
-  if (window.location.hash === '#difusiones') {
-    waSwitchMainTab('difusiones');
-  } else {
-    waSwitchMainTab('chats');
-  }
-});
-
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();
   if (!seller) return;
   await waInit({ me: seller });
   srvInit();
-
-  if (window.location.hash === '#difusiones' || window.location.search.includes('rescue=1')) {
-    setTimeout(() => waSwitchMainTab('difusiones'), 50);
-  }
 });
 </script>
 </body>

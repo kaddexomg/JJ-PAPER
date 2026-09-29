@@ -33,6 +33,8 @@
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
+      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
+      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
       { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
     { section: 'Catálogo' },
@@ -75,6 +77,8 @@
     ]},
     { group: 'Clientes', ico: '👥', items: [
       { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },
+      { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
+      { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },

@@ -1,1 +1,329 @@
-<script>window.location.replace("correo.html#campanas");</script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campañas de Email (Gmail) | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/catalog.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<style>
+  .d-tag{display:inline-block;background:#e8f3ee;color:#16604A;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600}
+  .d-prog{height:8px;border-radius:6px;background:#e5e7eb;overflow:hidden}
+  .d-prog-fill{height:100%;background:linear-gradient(90deg,#16604A,#99CC33);transition:width .4s}
+  .d-tpl-card{border:1px solid #e5e7eb;border-radius:12px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:8px}
+  .d-tpl-hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .d-tpl-body{white-space:pre-wrap;font-family:inherit;font-size:13px;color:#444;background:#f8faf9;border-radius:8px;padding:10px;margin:0;max-height:150px;overflow:auto}
+  .d-tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+  .d-preview{white-space:pre-wrap;background:#e7f6e9;border-radius:12px;padding:12px;font-size:13px;border:1px solid #c9e8cd}
+  .d-varchips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+  .d-varchips button{font-size:12px}
+
+  /* Email campaign specific styles */
+  .ec-stats { display: flex; gap: 14px; margin-top: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .ec-stat { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; text-align: center; flex: 1; min-width: 120px; background: #fff; }
+  .ec-stat-num { font-size: 28px; font-weight: 700; color: #16604A; }
+  .ec-stat-label { font-size: 12px; color: #777; margin-top: 4px; }
+  .ec-detail-header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .ec-badge { display: inline-block; border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .ec-badge.success { background: #dcfce7; color: #166534; }
+  .ec-badge.pending { background: #fef08a; color: #854d0e; }
+  .ec-badge.failed { background: #fee2e2; color: #991b1b; }
+  .ec-badge.skipped { background: #f3f4f6; color: #374151; }
+</style>
+<link rel="stylesheet" href="../assets/css/perf.css">
+<script src="../assets/js/perf.js"></script>
+<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20260916_fix_teclado_campanas">
+<link rel="stylesheet" href="../assets/css/product-picker.css">
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav">
+      <!-- sidenav.js?v=20260927_b2b_v2 inyecta la barra lateral unificada de admin -->
+    </nav>
+    <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>📣 Campañas de Email (Gmail)</h2>
+          <p>Crea campañas masivas por correo: escoge plantilla, producto y audiencia — envío automático</p>
+        </div>
+      </div>
+      <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+    </div>
+
+    <div class="admin-content">
+      <div class="of-chips" role="tablist" aria-label="Secciones de campañas de email">
+        <button class="of-chip on" role="tab" data-tab="campanas"  aria-selected="true"  onclick="setEcTab('campanas')">📣 Campañas</button>
+        <button class="of-chip"    role="tab" data-tab="plantillas" aria-selected="false" onclick="setEcTab('plantillas')">📝 Plantillas de Email</button>
+        <button class="of-chip"    role="tab" data-tab="detalle" aria-selected="false" onclick="setEcTab('detalle')" id="tabDetalle" style="display:none">📊 Detalle</button>
+      </div>
+
+      <!-- ===== Campañas ===== -->
+      <section data-panel="campanas">
+        <div class="admin-table-wrap">
+          <div class="table-top">
+            <h3>📣 Mis campañas</h3>
+            <span style="font-size:12px;color:#777">Los correos se envían usando la cuenta de Gmail conectada (límite de hasta 500 envíos/día).</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="admin-table">
+              <thead><tr><th>Campaña</th><th>Tipo</th><th>Estado</th><th>Progreso</th><th>Destinatarios</th><th>Acciones</th></tr></thead>
+              <tbody id="ecCampBody"><tr><td colspan="6" class="table-empty">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Plantillas ===== -->
+      <section data-panel="plantillas" style="display:none">
+        <div class="admin-table-wrap">
+          <div class="table-top">
+            <h3>📝 Plantillas de Email</h3>
+            <button class="btn-p" onclick="openEcTplModal()">＋ Nueva plantilla</button>
+          </div>
+          <div class="d-tpl-grid" id="ecTplList"></div>
+        </div>
+      </section>
+
+      <!-- ===== Detalle de Campaña ===== -->
+      <section data-panel="detalle" style="display:none">
+        <div class="admin-table-wrap" id="detailWrap">
+          <div class="ec-detail-header">
+            <div>
+              <h3 id="detCampName" style="margin:0 0 4px">Detalle de Campaña</h3>
+              <p id="detCampSub" style="margin:0;font-size:12px;color:#777"></p>
+            </div>
+            <button class="btn-o" onclick="backToCampaigns()">← Volver a campañas</button>
+          </div>
+          
+          <div class="d-prog" style="height:12px;margin-bottom:8px">
+            <div class="d-prog-fill" id="detProgFill" style="width:0%"></div>
+          </div>
+          <div id="detProgLabel" style="font-size:12px;color:#666;margin-bottom:12px;font-weight:600"></div>
+          
+          <div class="ec-stats">
+            <div class="ec-stat">
+              <div class="ec-stat-num" id="statTotal">0</div>
+              <div class="ec-stat-label">Total</div>
+            </div>
+            <div class="ec-stat">
+              <div class="ec-stat-num" id="statSent">0</div>
+              <div class="ec-stat-label">Enviados</div>
+            </div>
+            <div class="ec-stat">
+              <div class="ec-stat-num" id="statFailed">0</div>
+              <div class="ec-stat-label">Fallidos</div>
+            </div>
+            <div class="ec-stat">
+              <div class="ec-stat-num" id="statPending">0</div>
+              <div class="ec-stat-label">En Cola</div>
+            </div>
+            <div class="ec-stat">
+              <div class="ec-stat-num" id="statSkipped">0</div>
+              <div class="ec-stat-label">Omitidos</div>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="admin-table">
+              <thead><tr><th>Destinatario</th><th>Email</th><th>Estado</th><th>Fecha envío</th><th>Error</th></tr></thead>
+              <tbody id="detTargetsBody"><tr><td colspan="5" class="table-empty">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Nueva Plantilla de Email -->
+<div class="modal-overlay" id="tplModal" onclick="if(event.target===this)closeEcModal('tplModal')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tplModalTitle" style="max-width:680px">
+    <div class="modal-hd">
+      <h3 id="tplModalTitle">Nueva plantilla de Email</h3>
+      <button class="modal-close" onclick="closeEcModal('tplModal')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl" for="tp-name">Nombre de la plantilla *</label>
+        <input class="fi" id="tp-name" placeholder="ej: Oferta resmas mayorista o Promo Combo Escolar"></div>
+      
+      <div class="fg"><label class="fl" for="tp-subject">Asunto del correo *</label>
+        <input class="fi" id="tp-subject" placeholder="ej: ¡Aprovecha nuestra nueva oferta en {{producto}}!"></div>
+      
+      <div class="fg">
+        <label class="fl" style="font-weight:700">Variables dinámicas (haz clic para insertar en el texto):</label>
+        <div class="d-varchips" aria-label="Insertar variable">
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('empresa')">🏢 {{empresa}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('nombre')">👤 {{nombre}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('vendedor')">💼 {{vendedor}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('producto')">📦 {{producto}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('precio')">💲 {{precio}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('descuento')">🔖 {{descuento}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('link')">🔗 {{link}}</button>
+          <button type="button" class="btn-o sm" onclick="ecTplInsertVar('descripcion')">📝 {{descripcion}}</button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label class="fl" for="tp-body">Cuerpo del correo (Soporta HTML básico) *</label>
+        <textarea class="fi" id="tp-body" rows="7" oninput="ecTplPreview()" placeholder="Hola {{nombre}}, le saluda {{vendedor}} de JJ Paper.&#10;&#10;Tenemos en promoción: {{producto}} por tan solo {{precio}}.&#10;&#10;Ver catálogo aquí: {{link}}"></textarea>
+      </div>
+
+      <!-- Asistente rápido para autocompletar plantilla de producto/combo -->
+      <div style="background:#f0f7f4;border:1px dashed #2d7a5b;border-radius:8px;padding:10px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:700;color:#16604A">💡 ¿Quieres armar una plantilla rápida?</div>
+          <button type="button" class="btn-p sm" id="ecAiTplBtn" style="background:#8b5cf6;border-color:#7c3aed;color:#fff;font-weight:600;padding:4px 10px;" onclick="ecTplDraftWithAi()">✨ Redactar con IA</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('producto')">📦 Producto</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('combo')">🎁 Combo</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('reactivacion')">🔄 Reactivación</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('general')">🏢 Catálogo B2B</button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label class="fl">Vista previa del correo (con datos de muestra)</label>
+        <div class="d-preview" id="tplPreview" aria-live="polite"></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeEcModal('tplModal')">Cancelar</button>
+        <button class="btn-p" onclick="saveEcTpl()">💾 Guardar plantilla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Campaña -->
+<div class="modal-overlay" id="campModal" onclick="if(event.target===this)closeEcModal('campModal')">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="campModalTitle" style="max-width:680px">
+    <div class="modal-hd">
+      <h3 id="campModalTitle">📣 Nueva campaña de Email</h3>
+      <button class="modal-close" onclick="closeEcModal('campModal')" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="fl" for="nc-name">Nombre de la campaña *</label>
+          <input class="fi" id="nc-name"></div>
+        <div class="fg"><label class="fl" for="nc-type">Tipo de Campaña</label>
+          <select class="fi" id="nc-type" onchange="ecOnTypeChange()">
+            <option value="general">📣 General / Cartera</option>
+            <option value="producto">📦 Promoción de un Producto</option>
+            <option value="combo">🎁 Promoción de un Combo / Oferta</option>
+          </select></div>
+      </div>
+
+      <!-- Selector de producto específico -->
+      <div class="fg" id="nc-prod-wrap" style="display:none;background:#f9fbf9;border:1px solid #cddcd4;border-radius:8px;padding:10px">
+        <label class="fl" for="nc-prod-select">Selecciona el Producto a Promocionar:</label>
+        <select class="fi" id="nc-prod-select" onchange="ecRefresh()"></select>
+      </div>
+
+      <!-- Selector de combo / promoción del feed -->
+      <div class="fg" id="nc-combo-wrap" style="display:none;background:#fdf9f4;border:1px solid #eedec4;border-radius:8px;padding:10px">
+        <label class="fl" for="nc-combo-select">Selecciona el Combo u Oferta a Promocionar:</label>
+        <select class="fi" id="nc-combo-select" onchange="ecRefresh()"></select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+        <div class="fg"><label class="fl" for="nc-tpl">Plantilla de Email *</label>
+          <select class="fi" id="nc-tpl" onchange="ecRefresh()"></select></div>
+        <div class="fg"><label class="fl" for="nc-aud">Audiencia</label>
+          <select class="fi" id="nc-aud" onchange="ecRefresh()">
+            <option value="todos">Toda mi cartera</option>
+            <option value="inactivos">😴 Solo inactivos</option>
+            <option value="prospectos">🆕 Solo prospectos (sin compras)</option>
+            <option value="etiqueta">🔖 Por etiqueta</option>
+          </select></div>
+      </div>
+
+      <div class="fg" id="nc-tag-wrap" style="display:none"><label class="fl" for="nc-tag">Etiqueta de clientes</label>
+        <input class="fi" id="nc-tag" placeholder="ej: librerías, zona norte" oninput="ecRefresh()"></div>
+
+      <p id="ncCount" style="font-size:13px;font-weight:700;color:#16604A" aria-live="polite"></p>
+      
+      <!-- Adjuntos Múltiples -->
+      <div class="fg" style="background:#f0f7f4;border:1px solid #c9e3d5;border-radius:8px;padding:12px;margin-top:6px">
+        <label class="fl" style="font-weight:700;color:#16604A">📎 Archivos Adjuntos (Múltiples permitidos):</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="nc-attach-pdf" onchange="ecOnAttachChange()">
+            <span>📄 Generar y adjuntar <strong>Lista de Precios Oficial (PDF)</strong></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="nc-attach-prod" onchange="ecOnAttachChange()">
+            <span>🖼️ Adjuntar <strong>Foto / Flyer del Producto</strong></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="nc-attach-custom" onchange="ecOnAttachChange()">
+            <span>📁 Adjuntar <strong>Archivo Propio desde tu Computadora</strong></span>
+          </label>
+        </div>
+        <div id="nc-custom-file-wrap" style="display:none;margin-top:10px">
+          <input class="fi" id="nc-custom-file" type="file" accept=".pdf,image/*">
+        </div>
+        <div id="nc-attach-status" style="font-size:12px;color:#16604A;margin-top:6px;font-weight:600"></div>
+      </div>
+
+      <div class="fg">
+        <label class="fl">Vista previa del correo a enviar:</label>
+        <div class="d-preview" id="ncPreview"></div>
+      </div>
+      
+      <p style="font-size:12px;color:#888;background:#fffaf0;border:1px solid #fbd38d;border-radius:8px;padding:8px;margin-top:12px">
+        <strong>Nota sobre límites de Gmail:</strong> Google permite hasta 500 correos diarios en cuentas regulares. Planifica tu campaña para no exceder este límite diario.
+      </p>
+      
+      <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-o" onclick="closeEcModal('campModal')">Cancelar</button>
+        <button class="btn-p" id="ncLaunchBtn" onclick="launchEcCampaign()">🚀 Lanzar campaña de email</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-c" id="toastC"></div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js?v=20260828_v3"></script>
+<script src="../assets/js/toast.js?v=20260828_v3"></script>
+<script src="../assets/js/admin/auth.js?v=20260828_v3"></script>
+<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+<script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
+<script src="../assets/js/vendedor/vcommon.js?v=20260828_v3"></script>
+<script src="../assets/js/vendedor/product-picker.js?v=20260828_v3"></script>
+<script src="../assets/js/gemini-client.js?v=20260921_personalidad_b2b"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260917_lista_ok"></script>
+<script src="../assets/js/vendedor/vcampanas-email.js?v=20260925_fast_load"></script>
+<script>
+function newCampaign() {
+  newEcCampaign();
+}
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+  const seller = await initSellerPage();
+  if (!seller) return;
+  if (typeof initEmailCampaigns === 'function') {
+    await initEmailCampaigns();
+  }
+});
+</script>
+</body>
+</html>

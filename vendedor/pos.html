@@ -64,7 +64,13 @@
           <p>Arma el pedido de tu cliente en segundos</p>
         </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div id="posSellerSelectWrap" style="display:inline-flex;align-items:center;gap:6px">
+          <label style="font-size:12px;font-weight:700;color:var(--theme-text-muted, #64748b)">🧑‍💼 Vendedor:</label>
+          <select id="posSellerSelect" class="sort-sel" style="padding:6px 12px;font-size:12.5px;font-weight:700;border-radius:8px;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);color:var(--theme-text-main, #0f172a)">
+            <option value="">Cargando vendedores...</option>
+          </select>
+        </div>
         <button type="button" class="btn-o sm" onclick="posOpenLoadQuoteModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:7px 14px">📋 Cargar Cotización</button>
       </div>
     </div>
@@ -199,9 +205,8 @@
 <script src="../assets/js/vendedor/vcommon.js"></script>
 <script src="../assets/js/vendedor/product-finder.js?v=20260921_pf_pag"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
-<script src="../assets/js/send-hub.js?v=20260819b"></script>
-<script src="../assets/js/vendedor/cust-autocomplete.js?v=20260817"></script>
-<script src="../assets/js/vendedor/pos.js?v=20260925_correlativo"></script>
+<script src="../assets/js/vendedor/cust-autocomplete.js?v=20260929_seller_assign"></script>
+<script src="../assets/js/vendedor/pos.js?v=20260929_seller_assign"></script>
 <script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

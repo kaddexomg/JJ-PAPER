@@ -11,7 +11,37 @@ let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
 let quoteCustomer = null;  // cliente seleccionado para asociar ID
 
+async function quoteInitSellerSelector() {
+  const sel = document.getElementById('qSellerSelect');
+  if (!sel) return;
+  const currentSeller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
+  const isAdmin = currentSeller?.role === 'admin' || currentSeller?.is_admin;
+
+  try {
+    const { data: profs } = await sb.from('jjp_profiles')
+      .select('id,name,role,ref_code')
+      .eq('active', true)
+      .order('name');
+
+    const sellers = profs || [];
+    sel.innerHTML = sellers.map(s => {
+      const isMe = currentSeller && s.id === currentSeller.id;
+      const prefix = s.role === 'admin' ? '👑 ' : '🧑‍💼 ';
+      const suffix = s.role === 'admin' ? ' (Admin)' : (s.ref_code ? ` (${s.ref_code})` : '');
+      return `<option value="${s.id}" ${isMe ? 'selected' : ''}>${prefix}${escapeHTML(s.name)}${suffix}</option>`;
+    }).join('');
+
+    if (!isAdmin && currentSeller?.id) {
+      sel.value = currentSeller.id;
+      sel.disabled = true;
+    }
+  } catch (err) {
+    console.error('Error inicializando selector de vendedor en Cotizador:', err);
+  }
+}
+
 async function initQuoter() {
+  await quoteInitSellerSelector();
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
   posRenderResults(pfMatch(posProducts, ''));
   const params = new URLSearchParams(location.search);
@@ -132,6 +162,9 @@ async function loadQuoteForEdit(val) {
   
   if (q.customer_id) {
     quoteCustomer = { id: q.customer_id, name: q.client_name, rif: q.rif, phone: q.phone, city: q.city };
+  }
+  if (q.seller_id && document.getElementById('qSellerSelect')) {
+    document.getElementById('qSellerSelect').value = q.seller_id;
   }
   
   // Persistir descuento usando el ID exacto del DOM 'qDisc'
@@ -663,13 +696,14 @@ async function quoteSubmit() {
     const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
     const total = +(baseImponible + montoIva).toFixed(2);
 
-    // Resolución segura del vendedor activo
+    // Resolución segura del vendedor activo o seleccionado en Cotizador
+    const selectedSellerId = document.getElementById('qSellerSelect')?.value;
     const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
       ? SELLER
       : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
           ? CURRENT_PROFILE
           : (window.SELLER || null));
-    const sellerId = activeSeller?.id || null;
+    const sellerId = selectedSellerId || activeSeller?.id || null;
 
     const quote = {
       client_name: name,
@@ -688,6 +722,7 @@ async function quoteSubmit() {
       discount_pct: pct,
       exchange_rate: getRate(),
       notes: document.getElementById('qNotes')?.value.trim() || null,
+      seller_id: sellerId,
       customer_id: (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null,
     };
       

@@ -982,3 +982,20 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - [ ] **Prueba de ciclo completo en caja física**: Realizar una venta en el POS editando un pedido existente y corroborar que el cajero de MixNet visualice de inmediato los ítems actualizados en `M:\comp01\MXENCPED.DBF` / `MXRENPED.DBF`.
   - [ ] **Mapeo persistente de unidad M:**: Verificar que la unidad de red `M:\comp01` se reconecte automáticamente al reiniciar la PC sin requerir ingreso manual de credenciales de Windows.
   - [ ] **Auditoría de estatus facturado**: Comprobar que al facturar en MixNet un pedido modificado, el sweep de facturas (`sweepMixnetInvoices`) enlace el número de factura fiscal SENIAT sin inconsistencias de montos.
+
+## Corrección de Adjudicación de Vendedores MixNet y Ventas Manuales para Keyder Salazar (29-09-2026)
+- **Problema de Adjudicación Fantasma a Keyder Salazar**:
+  - Pedidos y cotizaciones importados desde MixNet con `codven = '002'` (Luis Alarcon en MixNet) o códigos sin mapear caían en fallback a `effectiveCustSeller`.
+  - Como los 3.474 clientes de MixNet fueron importados en Zona 020 asignados inicialmente a Keyder Salazar (`bddc57dc...`), los pedidos de Luis Alarcon y otros vendedores de tienda se le atribuían falsamente a Keyder en JJ Paper.
+  - Además, en `jjp_profiles` faltaban perfiles de Core (Yovanni, Marianela, Luis Alarcon).
+  - En el panel administrativo de pedidos (`admin/orders.js`), la lista filtraba solo `.eq('role', 'vendedor')`, dejando a Keyder fuera de la lista de selección manual.
+  - En POS y Cotizador no existía selector para atribuir ventas o cotizaciones a Keyder Salazar o a otros vendedores.
+- **Solución Consolidada**:
+  1. **Mapeo DBF Exhaustivo (`wa-server/src/mixer.js`)**:
+     - `SELLERS_BY_CODVEN` ampliado con: `005/010/020` (Keyder), `004/006` (Yovanni), `008` (Marianela), `014` (Andreina), `002` (Luis Alarcon), `001` (Mary Garcia), `025` (Ana Barajas), `026`, `032`, `003`, `033`.
+     - Prioridad irrefutable al vendedor de MixNet (`codven`). Prohibido atribuir clientes generales a Keyder sin código explícito de Keyder.
+  2. **Re-adjudicación en BD**: Corregidos 6 pedidos y 2 cotizaciones históricas mal asociadas a Keyder, vinculándolas a su vendedor real Luis Alarcon (`002`).
+  3. **Perfiles Sincronizados**: Creados y actualizados perfiles en `jjp_profiles` vinculados a `auth.users` para todo el equipo.
+  4. **Selector Dinámico en POS y Cotizador**: Añadidos `#posSellerSelect` y `#qSellerSelect` en cabeceras de `pos.html` y `cotizador.html` (tanto en `/admin/` como en `/vendedor/`), permitiendo a los administradores registrar y adjudicar ventas/cotizaciones a Keyder Salazar o a cualquier vendedor.
+  5. **Búsqueda Global para Administradores**: Actualizado `cust-autocomplete.js` y `pos.js` (`posSearchCustomer`) para que los administradores busquen y facturen a cualquier cliente de la base de datos sin restricción de cartera.
+  6. **Atribución en Pedidos y Cotizaciones**: Keyder Salazar (`role: 'admin'`) y todos los vendedores activos ahora están disponibles en los modales de detalle de pedidos y cotizaciones para reasignación manual inmediata.

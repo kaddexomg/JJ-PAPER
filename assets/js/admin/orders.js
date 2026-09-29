@@ -37,7 +37,7 @@ async function loadOrders(statusFilter = ordersFilter) {
   const [{ data, error }, sellersRes] = await Promise.all([
     q,
     adminSellers.length ? Promise.resolve({ data: adminSellers })
-      : sb.from('jjp_profiles').select('id,name').eq('role', 'vendedor').eq('active', true).order('name'),
+      : sb.from('jjp_profiles').select('id,name,role').eq('active', true).order('name'),
   ]);
   if (error) { showToast('Error cargando pedidos', 'err'); return; }
   adminOrders  = data || [];
@@ -287,7 +287,7 @@ function viewOrder(id) {
         <label>Vendedor asignado</label>
         <select class="fi" style="margin-top:4px" onchange="assignOrderSeller('${o.id}', this.value)">
           <option value="">— Sin vendedor —</option>
-          ${adminSellers.map(s => `<option value="${s.id}" ${o.seller_id === s.id ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
+          ${adminSellers.map(s => `<option value="${s.id}" ${o.seller_id === s.id ? 'selected' : ''}>${s.role === 'admin' ? '👑 ' : '🧑‍💼 '}${escapeHTML(s.name)}${s.role === 'admin' ? ' (Admin)' : ''}</option>`).join('')}
         </select>
       </div>
       <div class="ord-field"><label>Comprobante</label>${receiptHTML}</div>

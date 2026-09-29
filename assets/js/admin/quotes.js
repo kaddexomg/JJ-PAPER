@@ -3,6 +3,7 @@
    ====================================================== */
 
 let adminQuotes  = [];
+let quoteSellers = [];
 let quotePage    = 1;
 const QUOTES_PER = 20;
 
@@ -11,9 +12,14 @@ async function loadQuotes(statusFilter = '') {
     .select('id,quote_number,client_name,phone,rif,email,city,estimated_total_usd,discount_pct,status,source,created_at,customer_id,seller_id,items,notes')
     .order('created_at', { ascending: false });
   if (statusFilter) query = query.eq('status', statusFilter);
-  const { data, error } = await query;
+  const [{ data, error }, sellersRes] = await Promise.all([
+    query,
+    quoteSellers.length ? Promise.resolve({ data: quoteSellers })
+      : sb.from('jjp_profiles').select('id,name,role').eq('active', true).order('name')
+  ]);
   if (error) { showToast('Error cargando cotizaciones', 'err'); return; }
-  adminQuotes = data || [];
+  adminQuotes  = data || [];
+  quoteSellers = sellersRes.data || [];
   renderQuotesTable();
 }
 
@@ -189,6 +195,13 @@ function viewQuoteDetail(id) {
       <div><label class="fl">Ciudad</label><p id="qModalCity">${escapeHTML(q.city || '—')}</p></div>
       <div><label class="fl">Teléfono</label><p id="qModalPhone">${escapeHTML(q.phone || '—')}</p></div>
       <div><label class="fl">Email</label><p id="qModalEmail">${escapeHTML(q.email || '—')}</p></div>
+      <div style="grid-column: span 2">
+        <label class="fl">Vendedor Asignado</label>
+        <select class="sort-sel" style="width:100%;max-width:320px;padding:6px 10px;font-size:12px;margin-top:4px" onchange="assignQuoteSeller('${q.id}', this.value)">
+          <option value="">— Sin vendedor asignado —</option>
+          ${quoteSellers.map(s => `<option value="${s.id}" ${q.seller_id === s.id ? 'selected' : ''}>${s.role === 'admin' ? '👑 ' : '🧑‍💼 '}${escapeHTML(s.name)}${s.role === 'admin' ? ' (Admin)' : ''}</option>`).join('')}
+        </select>
+      </div>
     </div>
     <label class="fl">Productos solicitados</label>
     <table class="admin-table" style="margin-top:8px">
@@ -269,6 +282,16 @@ href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar 
 
 function closeQuoteDetail() {
   document.getElementById('quoteDetailModal')?.classList.remove('op');
+}
+
+async function assignQuoteSeller(id, sellerId) {
+  const { error } = await sb.from('jjp_quotes')
+    .update({ seller_id: sellerId || null })
+    .eq('id', id);
+  if (error) { showToast('No se pudo asignar el vendedor a la cotización', 'err'); return; }
+  const q = adminQuotes.find(x => x.id === id);
+  if (q) q.seller_id = sellerId || null;
+  showToast(sellerId ? 'Vendedor asignado a la cotización ✔' : 'Cotización sin vendedor asignado');
 }
 
 /* Contexto para el hub de envío: la cotización se manda en PDF, no como

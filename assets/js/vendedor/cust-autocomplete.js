@@ -46,8 +46,8 @@ async function custAcSearch(nameId, boxId, opts) {
       .select('id,name,phone,rif,city,total_orders,total_usd,seller_id,zone')
       .or(or);
 
-    // En ventas y cotizaciones se filtra por la clientela asignada del usuario activo
-    if (sellerId && opts?.sellerOnly !== false) {
+    // En ventas y cotizaciones los vendedores regulares se restringen a su clientela asignada; los administradores tienen acceso global
+    if (sellerId && opts?.sellerOnly !== false && !isAdmin) {
       query = query.eq('seller_id', sellerId);
     }
 

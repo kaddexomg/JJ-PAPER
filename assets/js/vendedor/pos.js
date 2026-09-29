@@ -12,12 +12,42 @@ let posLinkedQuoteId = null; // ID de cotización origen si la venta proviene de
 let posEditingOrderId = null; // ID de pedido en modo edición (modificación directa)
 let posEditingOrderNumber = null; // Número de pedido original que se está modificando
 
+async function posInitSellerSelector() {
+  const sel = document.getElementById('posSellerSelect');
+  if (!sel) return;
+  const currentSeller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
+  const isAdmin = currentSeller?.role === 'admin' || currentSeller?.is_admin;
+
+  try {
+    const { data: profs } = await sb.from('jjp_profiles')
+      .select('id,name,role,ref_code')
+      .eq('active', true)
+      .order('name');
+
+    const sellers = profs || [];
+    sel.innerHTML = sellers.map(s => {
+      const isMe = currentSeller && s.id === currentSeller.id;
+      const prefix = s.role === 'admin' ? '👑 ' : '🧑‍💼 ';
+      const suffix = s.role === 'admin' ? ' (Admin)' : (s.ref_code ? ` (${s.ref_code})` : '');
+      return `<option value="${s.id}" ${isMe ? 'selected' : ''}>${prefix}${escapeHTML(s.name)}${suffix}</option>`;
+    }).join('');
+
+    if (!isAdmin && currentSeller?.id) {
+      sel.value = currentSeller.id;
+      sel.disabled = true;
+    }
+  } catch (err) {
+    console.error('Error inicializando selector de vendedor en POS:', err);
+  }
+}
+
 async function initPos() {
   const isAdmin = (SELLER?.role === 'admin' || CURRENT_PROFILE?.role === 'admin');
   const max = isAdmin ? 100 : (Number(SELLER?.max_discount_pct) || 0);
   document.getElementById('posDiscMax').textContent = isAdmin ? '(Admin)' : `(máx ${max}%)`;
   document.getElementById('posDisc').max = max;
 
+  await posInitSellerSelector();
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
   posRenderResults(pfMatch(posProducts, ''));
   posPrefillAdd();                        // ?add=<id> desde Consultar stock
@@ -594,12 +624,13 @@ function posSearchCustomer() {
     if (q.length < 3) { box.innerHTML = ''; posCliResults = []; return; }
     const sellerObj = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
     const sellerId = sellerObj?.id;
+    const isAdmin = (sellerObj?.role === 'admin' || sellerObj?.is_admin);
 
     let query = sb.from('jjp_customers')
       .select('id,name,phone,rif,city,total_orders,total_usd,seller_id')
       .or(`name.ilike.%${q}%,phone.ilike.%${q.replace(/\D/g, '') || q}%`);
 
-    if (sellerId) {
+    if (sellerId && !isAdmin) {
       query = query.eq('seller_id', sellerId);
     }
 
@@ -671,13 +702,14 @@ async function posSubmit() {
     const total    = +subtotal.toFixed(2);
     const payRef   = document.getElementById('posPayRef')?.value.trim() || null;
 
-    // Resolución segura del vendedor activo
+    // Resolución segura del vendedor activo o seleccionado en POS
+    const selectedSellerId = document.getElementById('posSellerSelect')?.value;
     const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
       ? SELLER
       : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
           ? CURRENT_PROFILE
           : ((typeof window !== 'undefined' && window.SELLER) ? window.SELLER : null));
-    const sellerId = activeSeller?.id || null;
+    const sellerId = selectedSellerId || activeSeller?.id || null;
     const isAdmin = (activeSeller?.role === 'admin');
     const dStatus = (d > 0) ? (isAdmin ? 'approved' : 'pending') : 'none';
 
@@ -706,6 +738,7 @@ async function posSubmit() {
         payment_method: document.getElementById('posMethod')?.value || 'efectivo',
         payment_ref: payRef,
         notes: document.getElementById('posNotes')?.value.trim() || null,
+        seller_id: sellerId,
         customer_id: posCustomer?.id || null,
         updated_at: new Date().toISOString()
       };
@@ -1251,6 +1284,9 @@ async function posLoadQuote(val) {
   if (rifEl) rifEl.value = q.rif || '';
   if (cityEl) cityEl.value = q.city || '';
   posCustomer = { name: cliName, phone: q.phone, rif: q.rif, city: q.city, id: q.customer_id || null };
+  if (q.seller_id && document.getElementById('posSellerSelect')) {
+    document.getElementById('posSellerSelect').value = q.seller_id;
+  }
 
   if (resEl) {
     resEl.innerHTML = `<p style="font-size:12px;color:var(--gm);margin:4px 0">📋 Cotización vinculada: <strong>${escapeHTML(q.quote_number)}</strong> (${escapeHTML(cliName)})</p>`;
@@ -1335,6 +1371,9 @@ async function posLoadOrderForEdit(val) {
   if (rifEl) rifEl.value = o.rif || '';
   if (cityEl) cityEl.value = o.city || '';
   posCustomer = { name: cliName, phone: o.phone, rif: o.rif, city: o.city, id: o.customer_id || null };
+  if (o.seller_id && document.getElementById('posSellerSelect')) {
+    document.getElementById('posSellerSelect').value = o.seller_id;
+  }
 
   if (resEl) {
     resEl.innerHTML = `<p style="font-size:12px;color:#d97706;margin:4px 0">✏️ Pedido a modificar: <strong>${escapeHTML(o.order_number)}</strong> (${escapeHTML(cliName)})</p>`;

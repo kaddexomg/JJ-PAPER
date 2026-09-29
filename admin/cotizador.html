@@ -51,6 +51,14 @@
           <p>Arma presupuestos y cotizaciones para tu clientela asignada</p>
         </div>
       </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div id="qSellerSelectWrap" style="display:inline-flex;align-items:center;gap:6px">
+          <label style="font-size:12px;font-weight:700;color:var(--theme-text-muted, #64748b)">🧑‍💼 Vendedor:</label>
+          <select id="qSellerSelect" class="sort-sel" style="padding:6px 12px;font-size:12.5px;font-weight:700;border-radius:8px;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);color:var(--theme-text-main, #0f172a)">
+            <option value="">Cargando vendedores...</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <div class="admin-content">
@@ -220,10 +228,10 @@
 <script src="../assets/js/vendedor/product-finder.js?v=20260921_pf_pag"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/send-hub.js"></script>
-<script src="../assets/js/vendedor/cust-autocomplete.js"></script>
+<script src="../assets/js/vendedor/cust-autocomplete.js?v=20260929_seller_assign"></script>
 <script src="../assets/js/gemini-client.js?v=20260928_v2_ok"></script>
 <script src="../assets/js/phone-dialer.js?v=20260927_free"></script>
-<script src="../assets/js/vendedor/vquotes.js?v=20260928_v2_ok"></script>
+<script src="../assets/js/vendedor/vquotes.js?v=20260929_seller_assign"></script>
 <script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

@@ -26,9 +26,9 @@ async function initQuoter() {
   if (cliente) await quoteCargarCliente(cliente);
   pfPhoneBridge(posOnScan);   // teléfono → agrega a la cotización en vivo
 
-  editingQuoteId = params.get('edit');
-  if (editingQuoteId) {
-    await loadQuoteForEdit(editingQuoteId);
+  const editParam = params.get('edit') || params.get('quote') || params.get('cotizacion') || params.get('id');
+  if (editParam) {
+    await loadQuoteForEdit(editParam);
   }
 
   // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
@@ -96,14 +96,28 @@ function posPhone() {
 }
 function closePosPhone() { document.getElementById('posPhoneModal')?.classList.remove('op'); }
 
-async function loadQuoteForEdit(id) {
-  const { data: q, error } = await sb.from('jjp_quotes').select('*').eq('id', id).single();
+async function loadQuoteForEdit(val) {
+  if (!val) return;
+  const qStr = String(val).trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(qStr);
+  const qQuery = sb.from('jjp_quotes').select('*');
+  const { data: q, error } = await (isUuid ? qQuery.eq('id', qStr) : qQuery.eq('quote_number', qStr)).maybeSingle();
   if (error || !q) {
-    showToast('Cotización no encontrada', 'err');
+    showToast('Cotización no encontrada: ' + qStr, 'err');
+    return;
+  }
+
+  // Permisos: vendedor solo puede editar sus propias cotizaciones
+  const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
+    ? SELLER
+    : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) ? CURRENT_PROFILE : (window.SELLER || null));
+  const isAdmin = (activeSeller?.role === 'admin');
+  if (!isAdmin && q.seller_id && activeSeller?.id && q.seller_id !== activeSeller.id) {
+    alert('Esta cotización pertenece a otro vendedor. Solo puedes modificar cotizaciones de tu propia cartera.');
     return;
   }
   
-  editingQuoteId = id;
+  editingQuoteId = q.id;
   editingQuoteNumber = q.quote_number;
   
   const cliName = document.getElementById('qCliName');

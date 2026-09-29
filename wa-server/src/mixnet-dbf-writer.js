@@ -345,3 +345,121 @@ export async function upsertCliente(mxctacliPath, { cif = '', phone = '', name =
   if (!res.ok) return res;
   return { ok: true, codcli: codeRes.code, created: true, added: res.added };
 }
+
+// Actualiza un registro existente por campo de búsqueda o lo anexa si no existe.
+export async function upsertDbfHeader(filePath, matchField, matchValue, newRecordBuffer, { backupPrefix = null } = {}) {
+  const chk = ensureWritable(filePath);
+  if (!chk.ok) return { ok: false, error: chk.error };
+
+  const struct = readDbfStruct(filePath);
+  if (!struct) return { ok: false, error: `Estructura DBF inválida en ${filePath}` };
+
+  const fields = readDbfFields(struct.buf, struct.headerLen);
+  const f = fields.find(x => x.name === matchField.toLowerCase());
+  if (!f) return { ok: false, error: `Campo ${matchField} no encontrado en ${filePath}` };
+
+  const targetVal = String(matchValue).trim().toLowerCase();
+  let foundIndex = -1;
+  const maxDataEnd = Math.min(struct.headerLen + (struct.numRecords * struct.recordLen), struct.buf.length);
+  let pos = struct.headerLen;
+  let idx = 0;
+
+  while (pos + struct.recordLen <= maxDataEnd && idx < struct.numRecords) {
+    const val = decodeRaw(struct.buf, pos + f.pos, f.len).toLowerCase();
+    if (val === targetVal) {
+      foundIndex = idx;
+      break;
+    }
+    pos += struct.recordLen;
+    idx++;
+  }
+
+  // Si existe, sobrescribir en su posición exacta
+  if (foundIndex >= 0) {
+    const fd = fs.openSync(filePath, 'r+');
+    try {
+      const writePos = struct.headerLen + (foundIndex * struct.recordLen);
+      fs.writeSync(fd, newRecordBuffer, 0, newRecordBuffer.length, writePos);
+      fs.closeSync(fd);
+      return { ok: true, updated: true, index: foundIndex };
+    } catch (e) {
+      try { fs.closeSync(fd); } catch (_) {}
+      return { ok: false, error: e.message };
+    }
+  }
+
+  // Si no existe, anexo normal
+  return await appendDbfRecords(filePath, [newRecordBuffer], { backupPrefix });
+}
+
+// Reemplaza o sincroniza los renglones de detalle (MXRENPED / MXRENCOT) para un documento
+export async function replaceDbfDetails(detPath, numField, numDoc, newDetailBuffers, { backupPrefix = null } = {}) {
+  const chk = ensureWritable(detPath);
+  if (!chk.ok) return { ok: false, error: chk.error };
+
+  const struct = readDbfStruct(detPath);
+  if (!struct) return { ok: false, error: `Estructura DBF inválida en ${detPath}` };
+
+  const fields = readDbfFields(struct.buf, struct.headerLen);
+  const f = fields.find(x => x.name === numField.toLowerCase());
+  if (!f) return { ok: false, error: `Campo ${numField} no encontrado en ${detPath}` };
+
+  const targetVal = String(numDoc).trim().padStart(8, '0').slice(-8).toLowerCase();
+  const existingIndices = [];
+  const maxDataEnd = Math.min(struct.headerLen + (struct.numRecords * struct.recordLen), struct.buf.length);
+  let pos = struct.headerLen;
+  let idx = 0;
+
+  while (pos + struct.recordLen <= maxDataEnd && idx < struct.numRecords) {
+    const val = decodeRaw(struct.buf, pos + f.pos, f.len).padStart(8, '0').slice(-8).toLowerCase();
+    if (val === targetVal) {
+      existingIndices.push(idx);
+    }
+    pos += struct.recordLen;
+    idx++;
+  }
+
+  const fd = fs.openSync(detPath, 'r+');
+  try {
+    const existingCount = existingIndices.length;
+    const newCount = newDetailBuffers.length;
+
+    // 1. Reemplazar slots existentes
+    const minCount = Math.min(existingCount, newCount);
+    for (let i = 0; i < minCount; i++) {
+      const writePos = struct.headerLen + (existingIndices[i] * struct.recordLen);
+      fs.writeSync(fd, newDetailBuffers[i], 0, newDetailBuffers[i].length, writePos);
+    }
+
+    // 2. Si habían más registros antes que ahora, marcar los sobrantes como borrados (0x2A '*')
+    if (existingCount > newCount) {
+      const delFlag = Buffer.from([0x2A]);
+      for (let i = newCount; i < existingCount; i++) {
+        const writePos = struct.headerLen + (existingIndices[i] * struct.recordLen);
+        fs.writeSync(fd, delFlag, 0, 1, writePos);
+      }
+    }
+
+    // 3. Si hay más registros nuevos que los que existían, anexar los sobrantes al final
+    if (newCount > existingCount) {
+      const remainder = newDetailBuffers.slice(existingCount);
+      const totalBytes = Buffer.concat(remainder);
+      const writePos = struct.headerLen + (struct.numRecords * struct.recordLen);
+
+      // Actualizar total de registros en cabecera (offset 4)
+      const newTotalRecords = struct.numRecords + remainder.length;
+      const countBuf = Buffer.alloc(4, 0);
+      countBuf.writeUInt32LE(newTotalRecords, 0);
+      fs.writeSync(fd, countBuf, 0, 4, 4);
+
+      // Escribir nuevos registros al final
+      fs.writeSync(fd, totalBytes, 0, totalBytes.length, writePos);
+    }
+
+    fs.closeSync(fd);
+    return { ok: true, existingReused: minCount, deletedExcess: Math.max(0, existingCount - newCount), appended: Math.max(0, newCount - existingCount) };
+  } catch (e) {
+    try { fs.closeSync(fd); } catch (_) {}
+    return { ok: false, error: e.message };
+  }
+}

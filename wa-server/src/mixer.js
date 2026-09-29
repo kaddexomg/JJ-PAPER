@@ -39,7 +39,9 @@ import {
   getDbfControlSerial as dbfGetControlSerial,
   setDbfSerial as dbfSetSerial,
   findCliente as dbfFindCliente,
-  upsertCliente as dbfUpsertCliente
+  upsertCliente as dbfUpsertCliente,
+  upsertDbfHeader as dbfUpsertHeader,
+  replaceDbfDetails as dbfReplaceDetails
 } from './mixnet-dbf-writer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,11 +50,28 @@ const CONFIG_FILE = path.join(ROOT_DIR, 'mixnet-config.json');
 const HISTORY_ORDERS_FILE = path.join(ROOT_DIR, 'exported-orders.json');
 const HISTORY_QUOTES_FILE = path.join(ROOT_DIR, 'exported-quotes.json');
 const HISTORY_IMPORTED_FILE = path.join(ROOT_DIR, 'imported-mixnet.json');
+const HISTORY_ORDERS_FP_FILE = path.join(ROOT_DIR, 'exported-orders-fp.json');
+const HISTORY_QUOTES_FP_FILE = path.join(ROOT_DIR, 'exported-quotes-fp.json');
 
 // Estados en memoria y conjuntos de duplicados
 let exportedOrders = new Set();
 let exportedQuotes = new Set();
 let importedHistory = new Set();
+let orderFingerprints = new Map(); // order_number → fingerprint
+let quoteFingerprints = new Map(); // quote_number → fingerprint
+
+// Genera una huella digital determinista del documento para detectar cambios reales
+function computeDocFingerprint(doc) {
+  if (!doc) return '';
+  const num = String(doc.order_number || doc.quote_number || '').trim();
+  const tot = parseFloat(doc.total_usd ?? doc.estimated_total_usd ?? 0).toFixed(2);
+  const items = Array.isArray(doc.items) ? doc.items : (typeof doc.items === 'string' ? JSON.parse(doc.items || '[]') : []);
+  const itemsSummary = items.map(i => `${String(i.sku || i.name || '').trim()}:${Number(i.qty || 1)}@${Number(i.price_usd || 0).toFixed(2)}`).join(';');
+  const client = String(doc.client_name || '').trim().toLowerCase();
+  const notes = String(doc.notes || '').trim().toLowerCase();
+  const status = String(doc.status || '').trim().toLowerCase();
+  return `${num}|${tot}|${client}|${itemsSummary}|${notes}|${status}`;
+}
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
 // Referencia: Yovanni (004/006), Keyder (005/010/020), Marianela (008), Andreina (014)
@@ -105,7 +124,19 @@ function loadHistories() {
       const data = JSON.parse(fs.readFileSync(HISTORY_IMPORTED_FILE, 'utf8'));
       importedHistory = new Set(data || []);
     }
-    log.info(`Puente Mixer: Historiales cargados (Pedidos exportados: ${exportedOrders.size}, Cotizaciones exportadas: ${exportedQuotes.size}, Importados: ${importedHistory.size})`);
+    if (fs.existsSync(HISTORY_ORDERS_FP_FILE)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(HISTORY_ORDERS_FP_FILE, 'utf8'));
+        orderFingerprints = new Map(Object.entries(data || {}));
+      } catch (_) {}
+    }
+    if (fs.existsSync(HISTORY_QUOTES_FP_FILE)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(HISTORY_QUOTES_FP_FILE, 'utf8'));
+        quoteFingerprints = new Map(Object.entries(data || {}));
+      } catch (_) {}
+    }
+    log.info(`Puente Mixer: Historiales cargados (Pedidos: ${exportedOrders.size} [${orderFingerprints.size} huellas], Cotizaciones: ${exportedQuotes.size} [${quoteFingerprints.size} huellas], Importados: ${importedHistory.size})`);
   } catch (err) {
     log.warn({ err: err.message }, 'Puente Mixer: Advertencia cargando historiales');
   }
@@ -116,6 +147,8 @@ function saveHistories() {
     fs.writeFileSync(HISTORY_ORDERS_FILE, JSON.stringify(Array.from(exportedOrders), null, 2), 'utf8');
     fs.writeFileSync(HISTORY_QUOTES_FILE, JSON.stringify(Array.from(exportedQuotes), null, 2), 'utf8');
     fs.writeFileSync(HISTORY_IMPORTED_FILE, JSON.stringify(Array.from(importedHistory), null, 2), 'utf8');
+    fs.writeFileSync(HISTORY_ORDERS_FP_FILE, JSON.stringify(Object.fromEntries(orderFingerprints), null, 2), 'utf8');
+    fs.writeFileSync(HISTORY_QUOTES_FP_FILE, JSON.stringify(Object.fromEntries(quoteFingerprints), null, 2), 'utf8');
   } catch (err) {
     log.error({ err: err.message }, 'Puente Mixer: Error guardando historiales');
   }
@@ -202,7 +235,8 @@ function writeToAllDropDirs(filename, content) {
 // 1. Exportar Pedido (jjp_orders)
 export async function exportOrder(o) {
   if (!o || !o.order_number) return false;
-  if (exportedOrders.has(o.order_number)) return false;
+  const fp = computeDocFingerprint(o);
+  if (orderFingerprints.get(o.order_number) === fp) return false;
 
   const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
 
@@ -296,6 +330,7 @@ export async function exportOrder(o) {
 
   if (okCsv || okTxt) {
     exportedOrders.add(o.order_number);
+    orderFingerprints.set(o.order_number, fp);
     saveHistories();
     log.info(`Puente Mixer: Pedido ${o.order_number} exportado correctamente a carpetas de intercambio.`);
     return true;
@@ -306,7 +341,8 @@ export async function exportOrder(o) {
 // 2. Exportar Cotización (jjp_quotes)
 export async function exportQuote(q) {
   if (!q || !q.quote_number) return false;
-  if (exportedQuotes.has(q.quote_number)) return false;
+  const fp = computeDocFingerprint(q);
+  if (quoteFingerprints.get(q.quote_number) === fp) return false;
 
   const items = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
 
@@ -400,6 +436,7 @@ export async function exportQuote(q) {
 
   if (okCsv || okTxt) {
     exportedQuotes.add(q.quote_number);
+    quoteFingerprints.set(q.quote_number, fp);
     saveHistories();
     log.info(`Puente Mixer: Cotización ${q.quote_number} exportada correctamente a carpetas de intercambio.`);
     return true;
@@ -589,27 +626,19 @@ export async function exportQuoteToDbf(q, dbfDir) {
     // 1. Siguiente serial correlativo (NUMCOT) desde tabla de control MXNUMCOT o fallback
     let numcot = null;
     const numcotPath = dbfPath('MXNUMCOT.DBF', dir);
-    const ctrlSerial = numcotPath ? dbfGetControlSerial(numcotPath, 'numero') : null;
-    if (ctrlSerial && ctrlSerial.num > 0) {
-      numcot = ctrlSerial.formatted;
-    } else {
-      const serial = dbfNextSerial(encPath, 'numcot');
-      if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
-      numcot = serial.nextFormatted;
-    }
-    
-    // Si la cotización ya trae un serial numérico de 8 dígitos y no colisiona hacia atrás con el DBF, usarlo
     const is8Digit = /^\d{8}$/.test(String(q.quote_number || '').trim());
     if (is8Digit) {
-      const qNum = parseInt(q.quote_number, 10);
-      const curNum = parseInt(numcot, 10);
-      if (qNum >= curNum) {
-        numcot = String(qNum).padStart(8, '0').slice(-8);
+      numcot = String(q.quote_number).trim().padStart(8, '0').slice(-8);
+    } else {
+      const ctrlSerial = numcotPath ? dbfGetControlSerial(numcotPath, 'numero') : null;
+      if (ctrlSerial && ctrlSerial.num > 0) {
+        numcot = ctrlSerial.formatted;
+      } else {
+        const serial = dbfNextSerial(encPath, 'numcot');
+        if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+        numcot = serial.nextFormatted;
       }
     }
-
-    // Preservar la soberanía del número de cotización web original (no sobreescribir quote_number)
-    // El correlativo DBF se asigna a numcot para el archivo físico de MixNet
 
     // 2. Resolver/crear cliente en MXCTACLI
     const cli = clienteForDoc(q);
@@ -623,24 +652,26 @@ export async function exportQuoteToDbf(q, dbfDir) {
     const header = buildQuoteHeaderRecord(encStruct, q, numcot, codcli);
     const details = items.map(i => buildQuoteDetailRecord(detStruct, q, numcot, codcli, i));
 
-    // 4. Append atómico con backup
-    const encRes = await dbfAppend(encPath, [header], { backupPrefix: 'backups/backup_MXENCCOT' });
+    // 4. In-place Upsert con backup
+    const encRes = await dbfUpsertHeader(encPath, 'numcot', numcot, header, { backupPrefix: 'backups/backup_MXENCCOT' });
     if (!encRes.ok) return { ok: false, reason: `cabecera: ${encRes.error}` };
-    const detRes = await dbfAppend(detPath, details, { backupPrefix: 'backups/backup_MXRENCOT' });
+    const detRes = await dbfReplaceDetails(detPath, 'numcot', numcot, details, { backupPrefix: 'backups/backup_MXRENCOT' });
     if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
 
     registerDbfExport(true, numcot);
-    const nextCotNum = parseInt(numcot, 10) + 1;
-    if (numcotPath) dbfSetSerial(numcotPath, nextCotNum);
-    try {
-      await dbCore.from('jjp_settings').upsert({
-        key: 'mixnet_next_quote_serial',
-        value: String(nextCotNum),
-        updated_at: new Date().toISOString()
-      });
-    } catch (_) {}
-    log.info(`Puente Mixer (DBF): Cotización ${q.quote_number} → NUMCOT ${numcot} / cliente ${codcli} en ${dir}.`);
-    return { ok: true, serial: numcot, codcli, createdCli: !!cliRes.created };
+    if (!encRes.updated) {
+      const nextCotNum = parseInt(numcot, 10) + 1;
+      if (numcotPath) dbfSetSerial(numcotPath, nextCotNum);
+      try {
+        await dbCore.from('jjp_settings').upsert({
+          key: 'mixnet_next_quote_serial',
+          value: String(nextCotNum),
+          updated_at: new Date().toISOString()
+        });
+      } catch (_) {}
+    }
+    log.info(`Puente Mixer (DBF): Cotización ${q.quote_number} → NUMCOT ${numcot} (${encRes.updated ? 'MODIFICADA EN LUGAR' : 'NUEVA'}) / cliente ${codcli} en ${dir}.`);
+    return { ok: true, serial: numcot, codcli, createdCli: !!cliRes.created, updated: !!encRes.updated };
   } catch (err) {
     return { ok: false, reason: err.message };
   }
@@ -663,27 +694,19 @@ export async function exportOrderToDbf(o, dbfDir) {
     // 1. Siguiente serial correlativo (NUMPED) desde tabla de control MXNUMPED o fallback
     let numped = null;
     const numpedPath = dbfPath('MXNUMPED.DBF', dir);
-    const ctrlSerial = numpedPath ? dbfGetControlSerial(numpedPath, 'numero') : null;
-    if (ctrlSerial && ctrlSerial.num > 0) {
-      numped = ctrlSerial.formatted;
-    } else {
-      const serial = dbfNextSerial(encPath, 'numped');
-      if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
-      numped = serial.nextFormatted;
-    }
-
-    // Si el pedido ya trae un serial numérico de 8 dígitos y no colisiona hacia atrás con el DBF, usarlo
     const is8Digit = /^\d{8}$/.test(String(o.order_number || '').trim());
     if (is8Digit) {
-      const oNum = parseInt(o.order_number, 10);
-      const curNum = parseInt(numped, 10);
-      if (oNum >= curNum) {
-        numped = String(oNum).padStart(8, '0').slice(-8);
+      numped = String(o.order_number).trim().padStart(8, '0').slice(-8);
+    } else {
+      const ctrlSerial = numpedPath ? dbfGetControlSerial(numpedPath, 'numero') : null;
+      if (ctrlSerial && ctrlSerial.num > 0) {
+        numped = ctrlSerial.formatted;
+      } else {
+        const serial = dbfNextSerial(encPath, 'numped');
+        if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+        numped = serial.nextFormatted;
       }
     }
-
-    // Preservar la soberanía del número de pedido web original (no sobreescribir order_number)
-    // El correlativo DBF se asigna a numped para el archivo físico de MixNet
 
     // 2. Resolver/crear cliente en MXCTACLI
     const cli = clienteForDoc(o);
@@ -697,24 +720,26 @@ export async function exportOrderToDbf(o, dbfDir) {
     const header = buildOrderHeaderRecord(encStruct, o, numped, codcli);
     const details = items.map(i => buildOrderDetailRecord(detStruct, o, numped, codcli, i));
 
-    // 4. Append atómico con backup
-    const encRes = await dbfAppend(encPath, [header], { backupPrefix: 'backups/backup_MXENCPED' });
+    // 4. In-place Upsert con backup
+    const encRes = await dbfUpsertHeader(encPath, 'numped', numped, header, { backupPrefix: 'backups/backup_MXENCPED' });
     if (!encRes.ok) return { ok: false, reason: `cabecera: ${encRes.error}` };
-    const detRes = await dbfAppend(detPath, details, { backupPrefix: 'backups/backup_MXRENPED' });
+    const detRes = await dbfReplaceDetails(detPath, 'numped', numped, details, { backupPrefix: 'backups/backup_MXRENPED' });
     if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
 
     registerDbfExport(false, numped);
-    const nextPedNum = parseInt(numped, 10) + 1;
-    if (numpedPath) dbfSetSerial(numpedPath, nextPedNum);
-    try {
-      await dbCore.from('jjp_settings').upsert({
-        key: 'mixnet_next_order_serial',
-        value: String(nextPedNum),
-        updated_at: new Date().toISOString()
-      });
-    } catch (_) {}
-    log.info(`Puente Mixer (DBF): Pedido ${o.order_number} → NUMPED ${numped} / cliente ${codcli} en ${dir}.`);
-    return { ok: true, serial: numped, codcli, createdCli: !!cliRes.created };
+    if (!encRes.updated) {
+      const nextPedNum = parseInt(numped, 10) + 1;
+      if (numpedPath) dbfSetSerial(numpedPath, nextPedNum);
+      try {
+        await dbCore.from('jjp_settings').upsert({
+          key: 'mixnet_next_order_serial',
+          value: String(nextPedNum),
+          updated_at: new Date().toISOString()
+        });
+      } catch (_) {}
+    }
+    log.info(`Puente Mixer (DBF): Pedido ${o.order_number} → NUMPED ${numped} (${encRes.updated ? 'MODIFICADO EN LUGAR' : 'NUEVO'}) / cliente ${codcli} en ${dir}.`);
+    return { ok: true, serial: numped, codcli, createdCli: !!cliRes.created, updated: !!encRes.updated };
   } catch (err) {
     return { ok: false, reason: err.message };
   }
@@ -737,15 +762,14 @@ async function sweepRecentOutgoing() {
     if (!oErr && orders) {
       let count = 0;
       for (const o of orders) {
-        // Los documentos originados en MixNet (DBF/CSV) no deben re-exportarse
-        if (o.source === 'mixnet') continue;
         if (o.order_number && o.order_number.startsWith('MIX-')) continue;
-        if (!exportedOrders.has(o.order_number)) {
+        const fp = computeDocFingerprint(o);
+        if (orderFingerprints.get(o.order_number) !== fp) {
           if (await exportOrder(o)) count++;
         }
       }
       if (count > 0) {
-        log.info(`Puente Mixer: Barrido saliente exportó ${count} pedidos pendientes.`);
+        log.info(`Puente Mixer: Barrido saliente exportó ${count} pedidos pendientes/modificados.`);
       }
     }
 
@@ -759,14 +783,14 @@ async function sweepRecentOutgoing() {
     if (!qErr && quotes) {
       let qCount = 0;
       for (const q of quotes) {
-        if (q.source === 'mixnet') continue;
         if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
-        if (!exportedQuotes.has(q.quote_number)) {
+        const fp = computeDocFingerprint(q);
+        if (quoteFingerprints.get(q.quote_number) !== fp) {
           if (await exportQuote(q)) qCount++;
         }
       }
       if (qCount > 0) {
-        log.info(`Puente Mixer: Barrido saliente exportó ${qCount} cotizaciones pendientes.`);
+        log.info(`Puente Mixer: Barrido saliente exportó ${qCount} cotizaciones pendientes/modificadas.`);
       }
     }
 
@@ -1181,9 +1205,6 @@ async function sweepMixnetDbf() {
         const dbfKey = `dbf:${isQuote ? 'cot' : 'ped'}:${numDoc}`;
         const finalNum = numDoc;
 
-        // Evitar reimportar documentos originados en JJ Paper y ya exportados a MixNet
-        if ((isQuote ? exportedQuotes : exportedOrders).has(finalNum)) continue;
-
         // Ya existe en Supabase por número o por nota de importación previa?
         const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
         const numField = isQuote ? 'quote_number' : 'order_number';
@@ -1308,6 +1329,8 @@ async function sweepMixnetDbf() {
           } else {
             log.info(`Puente Mixer: Cotización ${existingId ? 'actualizada' : 'importada'} desde DBF (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
             importedHistory.add(dbfKey);
+            exportedQuotes.add(finalNum);
+            quoteFingerprints.set(finalNum, computeDocFingerprint(quotePayload));
             saveHistories();
             lastImportTime = new Date().toISOString();
           }
@@ -1339,6 +1362,8 @@ async function sweepMixnetDbf() {
           } else {
             log.info(`Puente Mixer: Pedido ${existingId ? 'actualizado' : 'importado'} desde DBF (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
             importedHistory.add(dbfKey);
+            exportedOrders.add(finalNum);
+            orderFingerprints.set(finalNum, computeDocFingerprint(orderPayload));
             saveHistories();
             lastImportTime = new Date().toISOString();
           }
@@ -1891,12 +1916,10 @@ function setupRealtimeListeners() {
       }
     )
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_orders' },
-p => {
-          if (!exportedOrders.has(p.new.order_number)) {
-            log.info(`Puente Mixer: Recibida actualización de pedido no exportado ${p.new.order_number}. Exportando...`);
-            exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido (update)'));
-          }
-        }
+      p => {
+        log.info(`Puente Mixer: Recibida actualización de pedido ${p.new.order_number} por Realtime.`);
+        exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido (update)'));
+      }
     )
     .subscribe(status => {
       log.info(`Puente Mixer: Canal Realtime de pedidos: ${status}`);
@@ -1912,10 +1935,8 @@ p => {
     )
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_quotes' },
       p => {
-        if (!exportedQuotes.has(p.new.quote_number)) {
-          log.info(`Puente Mixer: Recibida actualización de cotización no exportada ${p.new.quote_number}. Exportando...`);
-          exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización (update)'));
-        }
+        log.info(`Puente Mixer: Recibida actualización de cotización ${p.new.quote_number} por Realtime.`);
+        exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización (update)'));
       }
     )
     .subscribe(status => {

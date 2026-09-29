@@ -148,14 +148,23 @@ async function convertQuoteToOrder(id) {
     ? `\n\nIncluye ${q.discount_pct}% de descuento propuesto — al convertir queda APROBADO.` : '';
   if (!confirm(`¿Crear un pedido a partir de la cotización ${q.quote_number}?${discNote}`)) return;
 
+  const realOrderNumber = (typeof fetchNextDocSerial === 'function')
+    ? await fetchNextDocSerial('pedido')
+    : null;
+
   const { data, error } = await sb.rpc('jjp_convert_quote', { p_quote: id });
   if (error) { console.error(error); showToast('No se pudo convertir: ' + error.message, 'err'); return; }
   const order = Array.isArray(data) ? data[0] : data;
 
+  if (order && order.id && realOrderNumber) {
+    await sb.from('jjp_orders').update({ order_number: realOrderNumber }).eq('id', order.id);
+    order.order_number = realOrderNumber;
+  }
+
   q.status = 'convertido';
   renderQuotesTable();
   closeQuoteDetail();
-  showToast(`✅ Pedido ${order?.order_number || ''} creado desde la cotización`);
+  showToast(`✅ Pedido #${order?.order_number || ''} creado desde la cotización`);
 }
 
 function viewQuoteDetail(id) {

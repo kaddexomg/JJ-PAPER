@@ -945,6 +945,40 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
     - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.pptx`
     - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.docx`
 
+## Conexión Bidireccional Real y Edición "Un Solo Cuerpo" de Pedidos y Cotizaciones JJ Paper ⇄ MixNet (29-09-2026)
+- **Diagnóstico y Problemas Resueltos**:
+  - Los pedidos o cotizaciones no se podían modificar sin duplicarse en MixNet/JJ Paper o generar números artificiales (`JJP-YYMMDD-XXXX`).
+  - `mixer.js` poseía filtros naive como `if (exportedOrders.has(num)) return false;` que impedían sincronizar cambios de pedidos existentes hacia MixNet.
+  - En sentido inverso, `sweepMixnetDbf` ignoraba actualizaciones hechas en MixNet porque el número ya residía en `exportedOrders`.
+  - La ejecución de `wa-server` moría al cerrarse la sesión de Antigravity debido a que corría como subproceso hijo del agente.
+- **Implementación Arquitectónica "Un Solo Cuerpo"**:
+  1. **Motor In-Place DBF (`wa-server/src/mixnet-dbf-writer.js`)**:
+     - `upsertDbfHeader`: Localiza el registro en `MXENCPED.DBF` o `MXENCCOT.DBF` por `numped`/`numcot`. Si existe, sobrescribe exactamente sus bytes en su posición física original sin desplazar ni duplicar registros. Si es nuevo, lo anexa.
+     - `replaceDbfDetails`: Sobrescribe renglones en `MXRENPED.DBF` / `MXRENCOT.DBF`. Si la nueva versión contiene menos renglones, marca los sobrantes como borrados con el flag estándar dBase III `0x2A` (`'*'`) (MixNet omite nativamente registros con `0x2A`). Si contiene más renglones, anexa los sobrantes actualizando el contador de cabecera.
+  2. **Huellas Digitales Deterministas (`computeDocFingerprint`) en `mixer.js`**:
+     - Genera un hash determinista: `num|total|cliente|items(sku:qty@price)|notas|status`.
+     - Detecta modificaciones reales tanto en JJ Paper como en MixNet.
+     - Erradica loops infinitos (anti-ping-pong). Persiste en `exported-orders-fp.json` y `exported-quotes-fp.json`.
+  3. **Preservación Estricta de Correlativos**:
+     - Al editar un documento existente, **`MXNUMPED.DBF`, `MXNUMCOT.DBF` y `jjp_settings` NO se incrementan**. Se conserva el serial correlativo de 8 dígitos original.
+     - Solo documentos nuevos avanzan las tablas de control.
+  4. **Edición Directa en POS (`assets/js/vendedor/pos.js`)**:
+     - Soporta `?order=[NUM]`, `?pedido=[NUM]`, `?edit=[NUM]`.
+     - Corrección de cast UUID (`isUuid ? eq('id') : eq('order_number')`) para prevenir error PostgreSQL 400.
+     - Activa banner informativo `✏️ Modo Modificación: Pedido #[NUM]`, botón `💾 Guardar Cambios en Pedido #[NUM]` y cancelación limpia.
+     - Realiza `UPDATE` en `jjp_orders` manteniendo el mismo ID y `order_number`.
+  5. **Edición Directa en Cotizador (`assets/js/vendedor/vquotes.js`)**:
+     - Soporta `?edit=...`, `?quote=...`, `?cotizacion=...` tanto por UUID como por correlativo de 8 dígitos.
+     - Carga ítems y cliente en el ticket. Actualiza `jjp_quotes` conservando el mismo número.
+     - Aislamiento estricto por vendedor: solo puede editar cotizaciones de su cartera asignada (`seller_id === activeSeller.id`), admin conserva control global.
+  6. **UI de Acceso Rápido**:
+     - Añadidos botones `✏️` en tablas y modales de pedidos y cotizaciones tanto en `/admin/` como en `/vendedor/`.
+  7. **Desacoplamiento Total de `wa-server` al Segundo Plano de Windows**:
+     - Invocado mediante WMI de Windows (`Invoke-CimMethod -ClassName Win32_Process -MethodName Create` ejecutando `wscript.exe start-hidden.vbs`).
+     - Árbol de procesos independiente: `WmiPrvSE.exe` ➔ `cmd.exe /c run-service.bat` (PID `3684`) ➔ `node.exe src/index.js` (PID `4760`).
+     - **0 tareas activas en Antigravity**: el servidor permanece 24/7 en Windows, con rotación de logs en `wa-server/logs/wa-server.log`.
 
-
-
+- **Bitácora de Pendientes**:
+  - [ ] **Prueba de ciclo completo en caja física**: Realizar una venta en el POS editando un pedido existente y corroborar que el cajero de MixNet visualice de inmediato los ítems actualizados en `M:\comp01\MXENCPED.DBF` / `MXRENPED.DBF`.
+  - [ ] **Mapeo persistente de unidad M:**: Verificar que la unidad de red `M:\comp01` se reconecte automáticamente al reiniciar la PC sin requerir ingreso manual de credenciales de Windows.
+  - [ ] **Auditoría de estatus facturado**: Comprobar que al facturar en MixNet un pedido modificado, el sweep de facturas (`sweepMixnetInvoices`) enlace el número de factura fiscal SENIAT sin inconsistencias de montos.

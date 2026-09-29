@@ -153,6 +153,7 @@ function renderOrdersTable() {
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewOrder('${o.id}')">👁️ Ver</button>
+          <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, ordCtx('${o.id}'))"
                   title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
           ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
@@ -369,6 +370,8 @@ function viewOrder(id) {
       <button class="bulk-btn green" onclick="updateOrderStatus('${o.id}','pagado'); document.getElementById('ordModalStatus').value='pagado'">✅ Confirmar pago</button>
       <button class="bulk-btn red" onclick="updateOrderStatus('${o.id}','rechazado'); document.getElementById('ordModalStatus').value='rechazado'">✕ Rechazar</button>
       ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteOrder('${o.id}')" title="Borra el pedido definitivamente de la lista">🗑️ Eliminar</button>` : ''}
+      <a class="btn-o" style="width:auto;padding:9px 16px;background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:700"
+         href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️ Editar Pedido</a>
       <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>

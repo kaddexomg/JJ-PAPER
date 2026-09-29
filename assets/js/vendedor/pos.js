@@ -9,6 +9,8 @@ let posSubmitting = false;
 let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
 let posLinkedQuoteId = null; // ID de cotización origen si la venta proviene de una cotización
+let posEditingOrderId = null; // ID de pedido en modo edición (modificación directa)
+let posEditingOrderNumber = null; // Número de pedido original que se está modificando
 
 async function initPos() {
   const isAdmin = (SELLER?.role === 'admin' || CURRENT_PROFILE?.role === 'admin');
@@ -37,6 +39,10 @@ async function initPos() {
   // Carga directa de cotización si viene por URL (?quote=COT-... o ?cotizacion=...)
   const quoteParam = params.get('quote') || params.get('cotizacion');
   if (quoteParam) await posLoadQuote(quoteParam);
+
+  // Carga directa de pedido para modificación (?order=... o ?pedido=... o ?edit_order=... o ?edit=...)
+  const orderParam = params.get('order') || params.get('pedido') || params.get('edit_order') || params.get('edit');
+  if (orderParam) await posLoadOrderForEdit(orderParam);
 
   // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
   custAcBind({
@@ -674,6 +680,49 @@ async function posSubmit() {
     const sellerId = activeSeller?.id || null;
     const isAdmin = (activeSeller?.role === 'admin');
     const dStatus = (d > 0) ? (isAdmin ? 'approved' : 'pending') : 'none';
+
+    // Si estamos editando un pedido existente, actualizarlo en jjp_orders conservando el mismo número
+    if (posEditingOrderId) {
+      const updatedOrder = {
+        client_name: name,
+        phone: tel,
+        rif:  document.getElementById('posCliRif')?.value.trim()  || null,
+        city: document.getElementById('posCliCity')?.value.trim() || null,
+        items: lines.map(l => ({
+          id: l.id || null, variant_id: l.variant_id || null, name: l.name, brand: l.brand, sku: l.sku || null,
+          qty: l.qty, unit: l.unit, price_usd: l.price_usd,
+          price_level: l.price_level || 'B',
+          price_bs: posLineBs(l) || null,
+          subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
+          is_custom: !!l.is_custom,
+        })),
+        subtotal_usd: +subtotal.toFixed(2),
+        discount_pct: d,
+        discount_status: dStatus,
+        discount_requested_by: d > 0 ? sellerId : null,
+        total_usd: total,
+        exchange_rate: rate,
+        total_bs: +(total * rate).toFixed(2),
+        payment_method: document.getElementById('posMethod')?.value || 'efectivo',
+        payment_ref: payRef,
+        notes: document.getElementById('posNotes')?.value.trim() || null,
+        customer_id: posCustomer?.id || null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await sb.from('jjp_orders').update(updatedOrder).eq('id', posEditingOrderId);
+      if (error) {
+        console.error('pos update error:', error);
+        showToast('No se pudo guardar la modificación del pedido: ' + (error.message || 'Error en base de datos'), 'err');
+        return;
+      }
+
+      const editedOrderNumber = posEditingOrderNumber;
+      showToast(`✅ Pedido #${editedOrderNumber} actualizado exitosamente`, 'ok');
+      posCancelOrderEdit();
+      return;
+    }
+
     let orderNumber = null;
     if (typeof fetchNextDocSerial === 'function') {
       orderNumber = await fetchNextDocSerial('pedido');
@@ -1241,6 +1290,142 @@ async function posLoadQuote(val) {
 
   posRenderTicket();
   showToast(`✅ Cotización ${q.quote_number} cargada con ${items.length} producto(s)`, 'ok');
+}
+
+/* ============================================================
+   MODO EDICIÓN DE PEDIDO (Modificación directa sin duplicar)
+   ============================================================ */
+async function posLoadOrderForEdit(val) {
+  if (!val) return;
+  const oStr = String(val).trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(oStr);
+  const q = sb.from('jjp_orders').select('*');
+  const { data: o, error } = await (isUuid ? q.eq('id', oStr) : q.eq('order_number', oStr)).maybeSingle();
+
+  if (error || !o) {
+    showToast('No se encontró el pedido ' + oStr, 'warn');
+    return;
+  }
+
+  // Permisos: vendedor solo puede editar sus propios pedidos
+  const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
+    ? SELLER
+    : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) ? CURRENT_PROFILE : (window.SELLER || null));
+  const isAdmin = (activeSeller?.role === 'admin');
+  if (!isAdmin && o.seller_id && activeSeller?.id && o.seller_id !== activeSeller.id) {
+    alert('Este pedido pertenece a otro vendedor. Solo puedes modificar pedidos de tu propia cartera.');
+    return;
+  }
+
+  posEditingOrderId = o.id;
+  posEditingOrderNumber = o.order_number;
+
+  // 1. Cargar datos del cliente
+  const cliName = o.client_name || '';
+  const searchEl = document.getElementById('posCliSearch');
+  const nameEl = document.getElementById('posCliName');
+  const telEl = document.getElementById('posCliTel');
+  const rifEl = document.getElementById('posCliRif');
+  const cityEl = document.getElementById('posCliCity');
+  const resEl = document.getElementById('posCliResults');
+
+  if (searchEl) searchEl.value = cliName;
+  if (nameEl) nameEl.value = cliName;
+  if (telEl) telEl.value = o.phone || '';
+  if (rifEl) rifEl.value = o.rif || '';
+  if (cityEl) cityEl.value = o.city || '';
+  posCustomer = { name: cliName, phone: o.phone, rif: o.rif, city: o.city, id: o.customer_id || null };
+
+  if (resEl) {
+    resEl.innerHTML = `<p style="font-size:12px;color:#d97706;margin:4px 0">✏️ Pedido a modificar: <strong>${escapeHTML(o.order_number)}</strong> (${escapeHTML(cliName)})</p>`;
+  }
+
+  // 2. Cargar productos en el ticket
+  posTicket = {};
+  const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
+  for (const item of items) {
+    const key = item.variant_id ? `${item.id}::${item.variant_id}` : (item.id ? String(item.id) : (item.sku || item.name));
+    posTicket[key] = {
+      id: item.id || null,
+      variant_id: item.variant_id || null,
+      name: item.name,
+      brand: item.brand || '',
+      sku: item.sku || null,
+      qty: Number(item.qty) || 1,
+      unit: item.unit || 'UND',
+      price_usd: Number(item.price_usd) || 0,
+      price_level: item.price_level || 'B',
+      price_a: item.price_a || item.price_usd || 0,
+      price_c_bs: item.price_c_bs || null,
+      price_d_bs: item.price_d_bs || null,
+      stock: 999,
+      is_custom: !!item.is_custom
+    };
+  }
+
+  // 3. Descuento, método y notas
+  if (o.discount_pct) {
+    const discEl = document.getElementById('posDisc');
+    if (discEl) discEl.value = o.discount_pct;
+  }
+  if (o.payment_method) {
+    const methEl = document.getElementById('posMethod');
+    if (methEl) methEl.value = o.payment_method;
+  }
+  if (o.payment_ref) {
+    const refEl = document.getElementById('posPayRef');
+    if (refEl) refEl.value = o.payment_ref;
+  }
+  if (o.notes) {
+    const notesEl = document.getElementById('posNotes');
+    if (notesEl) notesEl.value = o.notes;
+  }
+
+  posRenderTicket();
+  posShowEditOrderBanner();
+  showToast(`✏️ Editando pedido #${posEditingOrderNumber} con ${items.length} producto(s)`, 'ok');
+}
+
+function posShowEditOrderBanner() {
+  let b = document.getElementById('posEditOrderBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'posEditOrderBanner';
+    const container = document.querySelector('.pos-ticket') || document.querySelector('.pos-right') || document.getElementById('posTicketItems')?.parentElement;
+    if (container) container.insertBefore(b, container.firstChild);
+  }
+  b.style.cssText = 'background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;padding:10px 14px;border-radius:10px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(245,158,11,0.15);';
+  b.innerHTML = `
+    <div>
+      <div style="font-weight:900;font-size:14px;display:flex;align-items:center;gap:6px">
+        <span>✏️ Modo Modificación: Pedido #${escapeHTML(posEditingOrderNumber)}</span>
+      </div>
+      <div style="font-size:12px;color:#78350f;margin-top:2px">Los cambios se guardarán sobre este mismo pedido sin duplicarlo en MixNet ni JJ Paper.</div>
+    </div>
+    <button type="button" class="btn-o sm" onclick="posCancelOrderEdit()" style="background:#fff;border-color:#d97706;color:#b45309;font-weight:700">✖ Cancelar</button>
+  `;
+
+  const btn = document.getElementById('posSubmitBtn');
+  if (btn) {
+    btn.innerHTML = `💾 Guardar Cambios en Pedido #${escapeHTML(posEditingOrderNumber)}`;
+    btn.style.background = '#d97706';
+  }
+}
+
+function posCancelOrderEdit() {
+  posEditingOrderId = null;
+  posEditingOrderNumber = null;
+  const b = document.getElementById('posEditOrderBanner');
+  if (b) b.remove();
+  const btn = document.getElementById('posSubmitBtn');
+  if (btn) {
+    btn.innerHTML = '✅ Registrar Venta (Ctrl + Enter)';
+    btn.style.background = '#16604a';
+  }
+  posClear();
+  if (window.location.search) {
+    try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
+  }
 }
 
 async function posOpenLoadQuoteModal() {

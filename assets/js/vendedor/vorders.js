@@ -81,6 +81,7 @@ function renderVOrders() {
       <td><span class="status-badge st-${o.status}">${V_STATUS_LABEL[o.status] || o.status}</span></td>
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVOrder('${o.id}')">👁️ Ver</button>
+        <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
         ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteVOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vOrderCtx('${o.id}'))"
                 title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -161,6 +162,8 @@ function viewVOrder(id) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       ${canDeliver ? `<button class="bulk-btn green" onclick="markVDelivered('${o.id}')">📦 Marcar entregado</button>` : ''}
       ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteVOrder('${o.id}')" title="Borra el pedido definitivamente">🗑️ Eliminar</button>` : ''}
+      <a class="btn-o" style="width:auto;padding:9px 16px;background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:700"
+         href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️ Editar Pedido</a>
       <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
          title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>

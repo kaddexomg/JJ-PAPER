@@ -63,8 +63,12 @@ function decodeRaw(buf, start, len) {
 
 // Lee maxLimit filas (solo campos indicados si se provee names[]).
 export function readDbfRows(struct, names, maxLimit = 400000) {
+  if (typeof names === 'number') {
+    maxLimit = names;
+    names = null;
+  }
   const fields = readDbfFields(struct.buf, struct.headerLen);
-  const want = names ? new Set(names.map(n => n.toLowerCase())) : null;
+  const want = (names && Array.isArray(names)) ? new Set(names.map(n => n.toLowerCase())) : null;
   const rows = [];
   const maxDataEnd = Math.min(struct.headerLen + (struct.numRecords * struct.recordLen), struct.buf.length);
   let pos = struct.headerLen;
@@ -208,6 +212,49 @@ export function getNextSerial(filePath, fieldName) {
   }
   const next = max + 1;
   return { ok: true, current: max, next, nextFormatted: String(next).padStart(f.len, '0').slice(-f.len) };
+}
+
+// Obtiene el número correlativo actual desde tablas de control de 1 registro (MXNUMPED / MXNUMCOT)
+export function getDbfControlSerial(filePath, fieldName = 'numero') {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const struct = readDbfStruct(filePath);
+    if (!struct || struct.numRecords < 1) return null;
+    const rows = readDbfRows(struct, [fieldName], 1);
+    if (rows && rows.length > 0) {
+      const raw = String(rows[0][fieldName.toLowerCase()] || '').trim();
+      const num = parseInt(raw, 10);
+      if (!isNaN(num) && num > 0) {
+        return { num, formatted: String(num).padStart(8, '0').slice(-8) };
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Actualiza el número correlativo en tablas de control de 1 registro (MXNUMPED / MXNUMCOT)
+export function setDbfSerial(filePath, nextSerial) {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const struct = readDbfStruct(filePath);
+    if (!struct || struct.numRecords < 1) return false;
+    const fd = fs.openSync(filePath, 'r+');
+    try {
+      const serialStr = String(nextSerial).padStart(8, '0').slice(-8);
+      const buf = Buffer.from(serialStr, 'latin1');
+      // Primer registro comienza en headerLen + 1 (después del byte flag 0x20)
+      fs.writeSync(fd, buf, 0, 8, struct.headerLen + 1);
+      fs.closeSync(fd);
+      return true;
+    } catch (e) {
+      try { fs.closeSync(fd); } catch (_) {}
+      return false;
+    }
+  } catch (_) {
+    return false;
+  }
 }
 
 // Busca un cliente en MXCTACLI por CIF, nombre o teléfono. Devuelve la fila codcli.

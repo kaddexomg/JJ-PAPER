@@ -63,4 +63,13 @@ scripts/
 tools/
 *.exe
 
+# Scripts temporales de generación de documentos
+build_perfect_pdf.cjs
+create_docx.py
+create_presentation.py
+generate_presentation.cjs
+logos_b64.json
+read_docx.ps1
+
+
 

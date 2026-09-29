@@ -36,6 +36,8 @@ import {
   buildDbfRecord as dbfBuildRecord,
   appendDbfRecords as dbfAppend,
   getNextSerial as dbfNextSerial,
+  getDbfControlSerial as dbfGetControlSerial,
+  setDbfSerial as dbfSetSerial,
   findCliente as dbfFindCliente,
   upsertCliente as dbfUpsertCliente
 } from './mixnet-dbf-writer.js';
@@ -53,16 +55,17 @@ let exportedQuotes = new Set();
 let importedHistory = new Set();
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
-// Referencia: Yovanni (004/006), Keyder (005), Marianela (008), Andreina (014)
-// NOTA: 010 y 020 en MixNet representan Caja Mostrador / Cartera General de Tienda (seller_id: null).
+// Referencia: Yovanni (004/006), Keyder (005/010/020), Marianela (008), Andreina (014)
 const SELLERS_BY_CODVEN = new Map([
-  ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006']], // Yovanni Araujo
-  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005']],        // Keyder Salazar (005 en MixNet)
-  ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],        // Marianela (marianela08)
-  ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],        // Andreina (andreina)
+  ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006']],        // Yovanni Araujo
+  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005', '010', '020']], // Keyder Salazar (005, 010, 020 en MixNet)
+  ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],               // Marianela (marianela08)
+  ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],               // Andreina (andreina)
 ]);
 const CODVEN_HINT = new Map([
-  ['004', 'Yovanni'], ['006', 'Yovanni'], ['005', 'Keyder'], ['008', 'Marianela'], ['014', 'Andreina']
+  ['004', 'Yovanni'], ['006', 'Yovanni'],
+  ['005', 'Keyder'], ['010', 'Keyder (Zona 010)'], ['020', 'Keyder (Zona 020)'],
+  ['008', 'Marianela'], ['014', 'Andreina']
 ]);
 function sellerForCodven(codven) {
   const cv = String(codven || '').trim();
@@ -583,16 +586,24 @@ export async function exportQuoteToDbf(q, dbfDir) {
     const items = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
     if (items.length === 0) return { ok: false, reason: 'no-items' };
 
-    // 1. Siguiente serial correlativo (NUMCOT)
-    const serial = dbfNextSerial(encPath, 'numcot');
-    if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+    // 1. Siguiente serial correlativo (NUMCOT) desde tabla de control MXNUMCOT o fallback
+    let numcot = null;
+    const numcotPath = dbfPath('MXNUMCOT.DBF', dir);
+    const ctrlSerial = numcotPath ? dbfGetControlSerial(numcotPath, 'numero') : null;
+    if (ctrlSerial && ctrlSerial.num > 0) {
+      numcot = ctrlSerial.formatted;
+    } else {
+      const serial = dbfNextSerial(encPath, 'numcot');
+      if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+      numcot = serial.nextFormatted;
+    }
     
     // Si la cotización ya trae un serial numérico de 8 dígitos y no colisiona hacia atrás con el DBF, usarlo
     const is8Digit = /^\d{8}$/.test(String(q.quote_number || '').trim());
-    let numcot = serial.nextFormatted;
     if (is8Digit) {
       const qNum = parseInt(q.quote_number, 10);
-      if (qNum >= serial.next) {
+      const curNum = parseInt(numcot, 10);
+      if (qNum >= curNum) {
         numcot = String(qNum).padStart(8, '0').slice(-8);
       }
     }
@@ -619,7 +630,15 @@ export async function exportQuoteToDbf(q, dbfDir) {
     if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
 
     registerDbfExport(true, numcot);
-    try { await dbCore.rpc('jjp_sync_max_serial', { p_type: 'cotizacion', p_max_serial: parseInt(numcot, 10) }); } catch (_) {}
+    const nextCotNum = parseInt(numcot, 10) + 1;
+    if (numcotPath) dbfSetSerial(numcotPath, nextCotNum);
+    try {
+      await dbCore.from('jjp_settings').upsert({
+        key: 'mixnet_next_quote_serial',
+        value: String(nextCotNum),
+        updated_at: new Date().toISOString()
+      });
+    } catch (_) {}
     log.info(`Puente Mixer (DBF): Cotización ${q.quote_number} → NUMCOT ${numcot} / cliente ${codcli} en ${dir}.`);
     return { ok: true, serial: numcot, codcli, createdCli: !!cliRes.created };
   } catch (err) {
@@ -641,16 +660,24 @@ export async function exportOrderToDbf(o, dbfDir) {
     const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
     if (items.length === 0) return { ok: false, reason: 'no-items' };
 
-    // 1. Siguiente serial correlativo (NUMPED)
-    const serial = dbfNextSerial(encPath, 'numped');
-    if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+    // 1. Siguiente serial correlativo (NUMPED) desde tabla de control MXNUMPED o fallback
+    let numped = null;
+    const numpedPath = dbfPath('MXNUMPED.DBF', dir);
+    const ctrlSerial = numpedPath ? dbfGetControlSerial(numpedPath, 'numero') : null;
+    if (ctrlSerial && ctrlSerial.num > 0) {
+      numped = ctrlSerial.formatted;
+    } else {
+      const serial = dbfNextSerial(encPath, 'numped');
+      if (!serial.ok) return { ok: false, reason: serial.error || 'no-serial' };
+      numped = serial.nextFormatted;
+    }
 
     // Si el pedido ya trae un serial numérico de 8 dígitos y no colisiona hacia atrás con el DBF, usarlo
     const is8Digit = /^\d{8}$/.test(String(o.order_number || '').trim());
-    let numped = serial.nextFormatted;
     if (is8Digit) {
       const oNum = parseInt(o.order_number, 10);
-      if (oNum >= serial.next) {
+      const curNum = parseInt(numped, 10);
+      if (oNum >= curNum) {
         numped = String(oNum).padStart(8, '0').slice(-8);
       }
     }
@@ -677,7 +704,15 @@ export async function exportOrderToDbf(o, dbfDir) {
     if (!detRes.ok) return { ok: false, reason: `detalle: ${detRes.error}` };
 
     registerDbfExport(false, numped);
-    try { await dbCore.rpc('jjp_sync_max_serial', { p_type: 'pedido', p_max_serial: parseInt(numped, 10) }); } catch (_) {}
+    const nextPedNum = parseInt(numped, 10) + 1;
+    if (numpedPath) dbfSetSerial(numpedPath, nextPedNum);
+    try {
+      await dbCore.from('jjp_settings').upsert({
+        key: 'mixnet_next_order_serial',
+        value: String(nextPedNum),
+        updated_at: new Date().toISOString()
+      });
+    } catch (_) {}
     log.info(`Puente Mixer (DBF): Pedido ${o.order_number} → NUMPED ${numped} / cliente ${codcli} en ${dir}.`);
     return { ok: true, serial: numped, codcli, createdCli: !!cliRes.created };
   } catch (err) {
@@ -1118,6 +1153,7 @@ async function sweepMixnetDbf() {
 
       // Mapear campos reales de MixNet (usados en ambos encabezados/detalles)
       const candidates = [];
+      const seenNums = new Set();
       for (const pr of encRows.slice().reverse()) { // Comenzar por los más recientes
         const emisionStr = String(pr.emision || '').trim();
         let rawNum = '';
@@ -1131,6 +1167,10 @@ async function sweepMixnetDbf() {
         }
         if (!rawNum) continue;
         const numDoc = rawNum.padStart(8, '0').slice(-8);
+
+        // Si ya procesamos la versión más reciente de este documento en el barrido, ignorar las anteriores
+        if (seenNums.has(numDoc)) continue;
+        seenNums.add(numDoc);
 
         // Filtro de recencia por fecha de emisión (formato YYYYMMDD)
         if (emisionStr && /^\d{8}$/.test(emisionStr)) {
@@ -1147,42 +1187,70 @@ async function sweepMixnetDbf() {
         // Ya existe en Supabase por número o por nota de importación previa?
         const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
         const numField = isQuote ? 'quote_number' : 'order_number';
-        const { data: existing } = await dbCore.from(table)
-          .select('id')
-          .or(`${numField}.eq.${finalNum},notes.ilike.%#${numDoc}%`)
-          .maybeSingle();
-        if (existing) {
-          importedHistory.add(dbfKey);
-          continue;
+        const selectCols = isQuote
+          ? 'id, estimated_total_usd, client_name, source, notes, created_at, seller_id'
+          : 'id, total_usd, client_name, source, notes, created_at, seller_id';
+        let existing = null;
+        const { data: byNum } = await dbCore.from(table)
+          .select(selectCols)
+          .eq(numField, finalNum)
+          .limit(1);
+        if (byNum && byNum.length > 0) {
+          existing = byNum[0];
+        } else {
+          const { data: byNotes } = await dbCore.from(table)
+            .select(selectCols)
+            .ilike('notes', `%#${numDoc}%`)
+            .limit(1);
+          if (byNotes && byNotes.length > 0) {
+            existing = byNotes[0];
+          }
         }
 
-        candidates.push({ pr, numDoc, totalVal, dbfKey, finalNum });
+        const clientCode = String(pr.cliente || '').trim();
+        const cli = cliMap.get(clientCode) || null;
+        const clientName = String(pr.nomcli || (cli && cli.nomcli) || pr.nombre || pr.razon || 'Cliente Caja MixNet').trim();
+
+        let existingId = null;
+        if (existing) {
+          const currentTotal = isQuote ? (existing.estimated_total_usd || 0) : (existing.total_usd || 0);
+          const totalMatches = Math.abs(currentTotal - totalVal) <= 0.05;
+          const currentName = (existing.client_name || '').trim().toLowerCase();
+          const targetName = clientName.toLowerCase();
+          const nameMatches = (currentName === targetName) || (currentName.length > 0 && targetName === 'cliente caja mixnet');
+
+          if (totalMatches && nameMatches) {
+            importedHistory.add(dbfKey);
+            continue;
+          }
+          existingId = existing.id;
+        }
+
+        candidates.push({ pr, numDoc, totalVal, dbfKey, finalNum, existingId, clientCode, cli, clientName });
       }
 
       if (candidates.length === 0) return;
 
-      // Solo leer el detalle si hay documentos nuevos (evita escanear 100K renglones en cada barrido)
+      // Indexar detalle por renNum_cliente y por renNum
       let detMap = new Map();
       if (fs.existsSync(detPath)) {
         const detStruct = readDbfStructure(detPath);
         if (detStruct) {
           const detNumField = isQuote ? 'numcot' : 'numped';
-          const newestFound = candidates[candidates.length - 1].numDoc;
-          // Rebalse temprano: detener registro de docs si ya no aparecen los recientes
-          for (const rr of readDbfRows(detStruct, 300000)) {
-            const renNum = String(rr[detNumField] || rr.numped || rr.num_ped || '').trim();
-            if (!renNum || renNum < newestFound) continue;
+          for (const rr of readDbfRows(detStruct, 400000)) {
+            const renNum = String(rr[detNumField] || rr.numped || rr.num_ped || '').trim().padStart(8, '0').slice(-8);
+            if (!renNum) continue;
+            const renCli = String(rr.cliente || '').trim();
+            const keyCli = `${renNum}_${renCli}`;
+            if (!detMap.has(keyCli)) detMap.set(keyCli, []);
+            detMap.get(keyCli).push(rr);
             if (!detMap.has(renNum)) detMap.set(renNum, []);
             detMap.get(renNum).push(rr);
           }
         }
       }
 
-      for (const { pr, numDoc, totalVal, dbfKey, finalNum } of candidates) {
-        // Resolver cliente desde la cabecera (puede ser código 003-409 o nombre directo)
-        const clientCode = String(pr.cliente || '').trim();
-        const cli = cliMap.get(clientCode) || null;
-        const clientName = String(pr.nomcli || (cli && cli.nomcli) || pr.nombre || pr.razon || 'Cliente Caja MixNet').trim();
+      for (const { pr, numDoc, totalVal, dbfKey, finalNum, existingId, clientCode, cli, clientName } of candidates) {
         const rif = String(pr.cif || (cli && cli.cif) || pr.rif || '').trim();
         const phone = String(pr.tlf1 || (cli && cli.tlf1) || pr.telefono || pr.tlf || '').trim();
         const moneda = String(pr.moneda || 'US$').trim();
@@ -1192,7 +1260,8 @@ async function sweepMixnetDbf() {
           ? new Date(+emisionStr.slice(0, 4), +emisionStr.slice(4, 6) - 1, +emisionStr.slice(6, 8), 12, 0, 0).toISOString()
           : new Date().toISOString();
 
-        const items = (detMap.get(numDoc) || []).map(rr => {
+        const rawItemRows = (clientCode && detMap.get(`${numDoc}_${clientCode}`)) || detMap.get(numDoc) || [];
+        const items = rawItemRows.map(rr => {
           const sku = String(rr.item || rr.codart || rr.codigo || '').trim();
           const name = String(rr.descrip || rr.nomart || 'Artículo').trim();
           const qty = parseFloat(String(rr.cantidad || rr.cant || '1').replace(/,/g, '.')) || 1;
@@ -1206,8 +1275,7 @@ async function sweepMixnetDbf() {
         }
 
         const matchedCust = await matchCustomer(phone, rif, clientName);
-        const adminId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
-        const effectiveCustSeller = (matchedCust?.seller_id === adminId) ? null : (matchedCust?.seller_id || null);
+        const effectiveCustSeller = matchedCust?.seller_id || null;
 
         // Detallar el vendedor que realizó la operación en MixNet (codven)
         const codven = String(pr.codven || '').trim();
@@ -1217,7 +1285,7 @@ async function sweepMixnetDbf() {
 
         if (isQuote) {
           // NOTA: jjp_quotes NO posee columna updated_at
-          const { error } = await dbCore.from('jjp_quotes').insert({
+          const quotePayload = {
             quote_number: finalNum,
             client_name: clientName,
             rif: rif || null,
@@ -1230,21 +1298,21 @@ async function sweepMixnetDbf() {
             status: 'pendiente',
             seller_id: finalSellerId,
             created_at: docCreatedAt
-          });
+          };
+          const { error } = existingId
+            ? await dbCore.from('jjp_quotes').update(quotePayload).eq('id', existingId)
+            : await dbCore.from('jjp_quotes').insert(quotePayload);
+
           if (error) {
-            log.error({ err: error.message, quote: finalNum }, 'Puente Mixer: Error al insertar cotización en jjp_quotes');
+            log.error({ err: error.message, quote: finalNum }, 'Puente Mixer: Error al guardar cotización en jjp_quotes');
           } else {
-            log.info(`Puente Mixer: Cotización importada desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
+            log.info(`Puente Mixer: Cotización ${existingId ? 'actualizada' : 'importada'} desde DBF (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
             importedHistory.add(dbfKey);
             saveHistories();
             lastImportTime = new Date().toISOString();
-            const nInt = parseInt(numDoc, 10);
-            if (!isNaN(nInt) && nInt > 0) {
-              try { await dbCore.rpc('jjp_sync_max_serial', { p_type: 'cotizacion', p_max_serial: nInt }); } catch (_) {}
-            }
           }
         } else {
-          const { error } = await dbCore.from('jjp_orders').insert({
+          const orderPayload = {
             order_number: finalNum,
             client_name: clientName,
             rif: rif || null,
@@ -1261,18 +1329,18 @@ async function sweepMixnetDbf() {
             seller_id: finalSellerId,
             created_at: docCreatedAt,
             updated_at: docCreatedAt
-          });
+          };
+          const { error } = existingId
+            ? await dbCore.from('jjp_orders').update(orderPayload).eq('id', existingId)
+            : await dbCore.from('jjp_orders').insert(orderPayload);
+
           if (error) {
-            log.error({ err: error.message, order: finalNum }, 'Puente Mixer: Error al insertar pedido en jjp_orders');
+            log.error({ err: error.message, order: finalNum }, 'Puente Mixer: Error al guardar pedido en jjp_orders');
           } else {
-            log.info(`Puente Mixer: Pedido importado desde DBF de MixNet (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
+            log.info(`Puente Mixer: Pedido ${existingId ? 'actualizado' : 'importado'} desde DBF (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
             importedHistory.add(dbfKey);
             saveHistories();
             lastImportTime = new Date().toISOString();
-            const nInt = parseInt(numDoc, 10);
-            if (!isNaN(nInt) && nInt > 0) {
-              try { await dbCore.rpc('jjp_sync_max_serial', { p_type: 'pedido', p_max_serial: nInt }); } catch (_) {}
-            }
           }
         }
       }
@@ -1407,9 +1475,9 @@ export async function sweepMixnetInvoices() {
       }
 
       if (numcot && numcot !== '00000000') {
-        const { data: q } = await dbCore.from('jjp_quotes').select('id, status').eq('quote_number', numcot).maybeSingle();
-        if (q && q.status !== 'convertido') {
-          await dbCore.from('jjp_quotes').update({ status: 'convertido', updated_at: new Date().toISOString() }).eq('id', q.id);
+        const { data: qList } = await dbCore.from('jjp_quotes').select('id, status').eq('quote_number', numcot).limit(1);
+        if (qList && qList.length > 0 && qList[0].status !== 'convertido') {
+          await dbCore.from('jjp_quotes').update({ status: 'convertido' }).eq('id', qList[0].id);
         }
       }
     }
@@ -1872,22 +1940,33 @@ export function getMixerStatus() {
   };
 }
 
-// Sincroniza el correlativo máximo desde los archivos DBF de MixNet hacia Supabase
+// Sincroniza el correlativo exacto desde los archivos de control DBF de MixNet hacia Supabase
 export async function syncCorrelativesFromDbf() {
   try {
+    if (!activeDbfDir || !fs.existsSync(activeDbfDir)) {
+      refreshEnvironmentConfig();
+    }
     if (!activeDbfDir || !fs.existsSync(activeDbfDir)) return;
-    const pedPath = path.join(activeDbfDir, 'MXENCPED.DBF');
-    const cotPath = path.join(activeDbfDir, 'MXENCCOT.DBF');
+    const pedPath = path.join(activeDbfDir, 'MXNUMPED.DBF');
+    const cotPath = path.join(activeDbfDir, 'MXNUMCOT.DBF');
     if (fs.existsSync(pedPath)) {
-      const s = dbfNextSerial(pedPath, 'numped');
-      if (s.ok && s.current > 0) {
-        await dbCore.rpc('jjp_sync_max_serial', { p_type: 'pedido', p_max_serial: s.current });
+      const s = dbfGetControlSerial(pedPath, 'numero');
+      if (s && s.num > 0) {
+        await dbCore.from('jjp_settings').upsert({
+          key: 'mixnet_next_order_serial',
+          value: String(s.num),
+          updated_at: new Date().toISOString()
+        });
       }
     }
     if (fs.existsSync(cotPath)) {
-      const s = dbfNextSerial(cotPath, 'numcot');
-      if (s.ok && s.current > 0) {
-        await dbCore.rpc('jjp_sync_max_serial', { p_type: 'cotizacion', p_max_serial: s.current });
+      const s = dbfGetControlSerial(cotPath, 'numero');
+      if (s && s.num > 0) {
+        await dbCore.from('jjp_settings').upsert({
+          key: 'mixnet_next_quote_serial',
+          value: String(s.num),
+          updated_at: new Date().toISOString()
+        });
       }
     }
   } catch (err) {

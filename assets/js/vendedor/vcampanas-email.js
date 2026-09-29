@@ -764,16 +764,24 @@ async function launchEmailCampaignFromEditor(config) {
     setStatus('📄 Generando lista de precios PDF...');
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista', returnBase64: true });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 10000));
-      const { base64, filename } = await Promise.race([pdfPromise, timeoutPromise]);
+      const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 30000));
+      const { blob, filename } = await Promise.race([pdfPromise, timeoutPromise]);
+      const mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
+      const mediaPath = `${ownerId}/campaigns/${Date.now()}-${mediaFilename}`;
+      setStatus('☁️ Subiendo lista de precios a almacenamiento...');
+      const { error: upErr } = await sb.storage.from('jjp-email-media')
+        .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw new Error('No se pudo subir PDF a Storage: ' + upErr.message);
       attachments.push({
-        filename: filename || 'Lista_de_Precios_JJ_Paper.pdf',
-        contentType: 'application/pdf',
-        base64: base64
+        path: mediaPath,
+        name: mediaFilename,
+        mime: 'application/pdf',
+        size: blob.size
       });
     } catch (e) {
-      console.warn('PDF inline attachment notice:', e);
+      console.warn('PDF attachment error/notice:', e);
+      if (typeof showToast === 'function') showToast('Aviso: ' + (e.message || 'Error al procesar PDF'), 'err');
     }
   }
 

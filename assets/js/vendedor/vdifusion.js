@@ -1065,7 +1065,7 @@ async function launchCampaignFromEditor(config) {
     try {
       if (typeof docPdfProductos === 'function') {
         const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 10000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 30000));
         const { blob, filename } = await Promise.race([pdfPromise, timeoutPromise]);
         const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
         const pdfPath = `${SELLER.id}/campaigns/${Date.now()}-${pdfFilename}`;

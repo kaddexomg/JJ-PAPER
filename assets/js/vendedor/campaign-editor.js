@@ -207,6 +207,12 @@ window.CampaignEditor = (() => {
                   <span class="ce-badge-pill" id="ceSelectedProspectsBadge">0</span>
                 </button>
               </div>
+              <div style="margin-top:8px; padding-top:6px; border-top:1px dashed #e2e8f0;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;cursor:pointer;">
+                  <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
+                  <span>🛡️ Excluir envíos recientes (Cooldown 48h)</span>
+                </label>
+              </div>
             </div>
 
             <!-- Adjuntos de Campaña -->
@@ -811,11 +817,15 @@ window.CampaignEditor = (() => {
         }
       }
 
-      if (hitCooldown(c)) { excludedCount++; return false; }
-
-      // Si el usuario aplicó una selección manual con checkboxes, priorizarla
+      // Si el usuario aplicó una selección manual con checkboxes, priorizarla absolutamente
       if (manualSelectedIds && manualSelectedIds.size > 0) {
         return manualSelectedIds.has(c.id);
+      }
+
+      const applyCooldown = document.getElementById('ceApplyCooldown') ? document.getElementById('ceApplyCooldown').checked : true;
+      if (applyCooldown && hitCooldown(c)) {
+        excludedCount++;
+        return false;
       }
 
       if (aud === 'email_bounced') {
@@ -1922,11 +1932,28 @@ window.CampaignEditor = (() => {
   /* ---------------- DESPACHO Y LANZAMIENTO ---------------- */
   function buildMinimalFallback(c, channel, sellerName, inclPdf) {
     const sName = sellerName || 'Asesor JJ Paper';
-    const shown = (c ? c.name : null) || 'Estimado Cliente';
+    const shown = (c ? (c.company_name || c.name) : null) || 'Estimado Cliente';
+    const isContacted = Boolean(
+      c && (
+        c.contacted ||
+        c.last_contact_at ||
+        c.contactado_email ||
+        c.contactado_wa ||
+        (c.status && String(c.status).startsWith('contactado')) ||
+        Number(c.total_orders) > 0
+      )
+    );
     const pdf = inclPdf !== false
       ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.'
       : '';
-    const base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería, insumos de caja y consumibles en Caracas. Somos el aliado para el abastecimiento continuo de su negocio.\n\n*📦 TENEMOS DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje* y consumibles de papelería escolar y de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal?|Quedo a su disposición para apoyarle en lo que necesite.}`;
+
+    let base = '';
+    if (isContacted) {
+      base = `{Hola|Buen día|Un gusto saludarle de nuevo} ${shown} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nSomos distribuidores mayoristas de papelería corporativa, consumibles de oficina, insumos de caja y productos de limpieza. Además, *si requiere algún insumo especial que no visualice en nuestra lista de precios, nosotros se lo conseguimos y gestionamos directamente* para garantizar el abastecimiento continuo de su negocio.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje industrial*, consumibles de oficina y artículos de limpieza institucional.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedo a su disposición para coordinar lo que necesite.}`;
+    } else {
+      base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista en Caracas de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza. Además, *si requiere cualquier otro producto que no esté en la lista de precios, nosotros se lo conseguimos directamente* para apoyar la operatividad de su empresa.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje industrial*, consumibles de oficina y artículos de limpieza institucional.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}`;
+    }
+
     if (channel === 'email') {
       return `${base}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nCaracas, Venezuela`;
     }
@@ -1965,11 +1992,16 @@ window.CampaignEditor = (() => {
       // Asegurar que cada contacto de la lista tenga su mensaje y asunto listos sin dejar ninguno vacío
       const isPdfActive = document.getElementById('ceAttachPdf')?.checked !== false;
       selectedAudienceList.forEach(c => {
+        const isContacted = Boolean(
+          c && (c.contacted || c.last_contact_at || c.contactado_email || c.contactado_wa || (c.status && String(c.status).startsWith('contactado')) || Number(c.total_orders) > 0)
+        );
         if (!c._custom_message) {
-          c._custom_message = (body && body.length > 10) ? body : buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfActive);
+          c._custom_message = buildMinimalFallback(c, currentConfig?.channel || 'whatsapp', currentConfig?.seller?.name, isPdfActive);
         }
         if (isEmail && !c._custom_subject) {
-          c._custom_subject = subject || '📋 Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
+          c._custom_subject = isContacted
+            ? `🤝 Seguimiento Operativo y Reposición para ${c.name || 'su empresa'} — JJ Paper C.A.`
+            : (subject || '📋 Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.');
         }
       });
     } else {

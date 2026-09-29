@@ -7,7 +7,6 @@ REM  - Relanza automaticamente ante caidas o reinicios
 REM  - Respeta senales de parada limpia (exit code 2 o 3)
 REM ============================================================
 cd /d "%~dp0"
-echo [%date% %time%] TEST START > "%~dp0test_run.txt"
 
 if not exist logs mkdir logs
 
@@ -24,8 +23,7 @@ if exist "%LOGFILE%" (
   )
 )
 
-REM Auto-sincronizar cambios de main en cada reinicio
-git pull origin main >nul 2>&1
+REM Verificando entorno de MixNet...
 
 echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
 node auto-detect-mixnet.js >> "%LOGFILE%" 2>&1

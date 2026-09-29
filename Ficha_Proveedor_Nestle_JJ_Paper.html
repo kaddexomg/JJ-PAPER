@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Proveedor - JJ Paper C.A.</title>
+    <style>
+        :root {
+            --brand-primary: #16604A; /* Verde JJ Paper */
+            --brand-secondary: #0f4535;
+            --brand-accent: #A7D7A0; /* Verde claro */
+            --text-dark: #1f2937;
+            --text-light: #4b5563;
+            --bg-gray: #f3f4f6;
+            --border-color: #d1d5db;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap');
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #e5e7eb;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .page {
+            width: 216mm; /* Letter size approx */
+            height: 279mm; /* Letter size approx */
+            background-color: white;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            padding: 12mm 15mm;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 3px solid var(--brand-primary);
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+
+        .logo-box {
+            width: 130px;
+            height: auto;
+        }
+        .logo-box img {
+            width: 100%;
+            display: block;
+        }
+
+        .company-header {
+            text-align: right;
+        }
+        .company-header h1 {
+            font-family: 'Playfair Display', serif;
+            color: var(--brand-primary);
+            font-size: 26px;
+            margin: 0 0 4px 0;
+            letter-spacing: 1px;
+        }
+        .company-header .rif {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        .company-header p {
+            margin: 2px 0;
+            font-size: 10.5px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        /* TITLE BANNER */
+        .title-banner {
+            background: linear-gradient(90deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .subtitle {
+            text-align: right;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--brand-primary);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        /* DYNAMIC GRID LAYOUT */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .full-width {
+            grid-column: span 2;
+        }
+
+        .card {
+            border: 1px solid var(--brand-accent);
+            border-radius: 6px;
+            overflow: hidden;
+            background-color: white;
+        }
+        
+        .card-header {
+            background-color: var(--bg-gray);
+            border-bottom: 1px solid var(--brand-accent);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--brand-primary);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-header::before {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 6px;
+            background-color: var(--brand-primary);
+            margin-right: 8px;
+            border-radius: 50%;
+        }
+
+        .card-body {
+            padding: 10px 12px;
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: var(--text-dark);
+            text-align: justify;
+        }
+
+        /* HIGHLIGHT BOX */
+        .sourcing-box {
+            background-color: #f0fdf4;
+            border-left: 4px solid var(--brand-primary);
+            padding: 8px 10px;
+            font-size: 10.5px;
+            font-weight: 500;
+            color: var(--brand-secondary);
+            margin-top: 6px;
+            border-radius: 0 4px 4px 0;
+            line-height: 1.45;
+        }
+
+        /* CATEGORY PILLS */
+        .cat-pills {
+            display: flex;
+            gap: 6px;
+            margin: 6px 0;
+            flex-wrap: wrap;
+        }
+        .cat-pill {
+            background-color: #f0fdf4;
+            border: 1px solid var(--brand-accent);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--brand-primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* INFO LISTS */
+        .info-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .info-list li {
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+        }
+        .info-list li strong {
+            width: 100px;
+            color: var(--text-light);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .info-list li span {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* BRANDS */
+        .brand-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .brand-tag {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            padding: 4px 10px;
+            font-size: 10.5px;
+            font-weight: 800;
+            color: var(--brand-primary);
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        /* CLIENTS */
+        .client-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .client-item {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--brand-primary);
+            padding: 8px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+        }
+        .client-item strong {
+            color: var(--text-dark);
+            display: block;
+        }
+        .client-item span {
+            font-size: 9px;
+            color: var(--text-light);
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* FOOTER */
+        .footer {
+            position: absolute;
+            bottom: 12mm;
+            left: 15mm;
+            right: 15mm;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 8px;
+            font-size: 9px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        @media print {
+            @page { size: letter; margin: 0; }
+            body { background: none; padding: 0; }
+            .page { 
+                box-shadow: none; 
+                width: 100%; 
+                height: 100vh;
+                page-break-after: avoid; 
+                page-break-inside: avoid;
+            }
+            .title-banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .card-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .sourcing-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .cat-pill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .brand-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .client-item { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo-box">
+            <!-- Logo Oficial JJ Paper -->
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+DQogIDwhLS0gSkogUGFwZXIg4oCUIGxvZ28gb2ZpY2lhbCAocsOpcGxpY2EgYmFkZ2UgSUcpLiBEaXNjbyB2ZXJkZSwgYW5pbGxvIGNsYXJvLA0KICAgICAgIG1vbm9ncmFtYSBKSiAocGF0aHMpLCBQQVBFUiBzZXJpZiwgdGFnbGluZSAiVFUgTUVKT1IgT1BDScOTTiIuIC0tPg0KICA8IS0tIEFuaWxsbyB2ZXJkZSBjbGFybyAtLT4NCiAgPGNpcmNsZSBjeD0iMjU2IiBjeT0iMjU2IiByPSIyNDQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0E3RDdBMCIgc3Ryb2tlLXdpZHRoPSI5Ii8+DQogIDwhLS0gRGlzY28gdmVyZGUgLS0+DQogIDxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iMjMwIiBmaWxsPSIjMTY2MDRBIi8+DQogIDwhLS0gTW9ub2dyYW1hIEpKIC0tPg0KICA8ZyBmaWxsPSIjRkZGRkZGIj4NCiAgICA8IS0tIEogcGVxdWXDsWEgKGl6cXVpZXJkYSwgbcOhcyBiYWphLCBnYW5jaG8gcXVlIGN1cmxhIGFycmliYSBlbiBwdW50YSkgLS0+DQogICAgPHBhdGggZD0iTTIwOCAxNTIgTDI1NCAxNTIgTDI1NCAyNTINCiAgICAgICAgICAgICBDMjU0IDI5OCAyMjQgMzE4IDE4NCAzMTgNCiAgICAgICAgICAgICBDMTU2IDMxOCAxMzYgMzA2IDEyOCAyODYNCiAgICAgICAgICAgICBMMTI2IDI3Mg0KICAgICAgICAgICAgIEMxNDAgMjg0IDE2MiAyOTAgMTgyIDI4Nw0KICAgICAgICAgICAgIEMyMDIgMjgzIDIwOCAyNzAgMjA4IDI1MiBaIi8+DQogICAgPCEtLSBKIGdyYW5kZSAoZGVyZWNoYSwgbcOhcyBhbHRhLCBnYW5jaG8gYW1wbGlvIHF1ZSBiYXJyZSBwb3IgZGViYWpvKSAtLT4NCiAgICA8cGF0aCBkPSJNMjg2IDkyIEwzNDQgOTIgTDM0NCAyNDgNCiAgICAgICAgICAgICBDMzQ0IDMzMCAzMDAgMzY2IDIzMCAzNjYNCiAgICAgICAgICAgICBDMTk2IDM2NiAxNjggMzUyIDE1NCAzMzANCiAgICAgICAgICAgICBMMTUwIDMxNA0KICAgICAgICAgICAgIEMxNjYgMzMyIDE5NCAzNDIgMjI2IDMzOA0KICAgICAgICAgICAgIEMyNzIgMzMyIDI4NiAzMDAgMjg2IDI0OCBaIi8+DQogIDwvZz4NCiAgPCEtLSBQQVBFUiAoeCBjb21wZW5zYSBlbCBsZXR0ZXItc3BhY2luZyBmaW5hbCBjb24gdGV4dC1hbmNob3I6bWlkZGxlKSAtLT4NCiAgPHRleHQgeD0iMjYxIiB5PSI0MTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNGRkZGRkYiDQogICAgICAgIGZvbnQtZmFtaWx5PSInUGxheWZhaXIgRGlzcGxheScsIFByYXRhLCBHZW9yZ2lhLCAnVGltZXMgTmV3IFJvbWFuJywgc2VyaWYiDQogICAgICAgIGZvbnQtd2VpZ2h0PSI2MDAiIGZvbnQtc2l6ZT0iNjIiIGxldHRlci1zcGFjaW5nPSIxMCI+UEFQRVI8L3RleHQ+DQogIDwhLS0gVGFnbGluZSAtLT4NCiAgPGcgc3Ryb2tlPSIjQTdEN0EwIj4NCiAgICA8bGluZSB4MT0iMTA2IiB5MT0iNDQ0IiB4Mj0iMTMwIiB5Mj0iNDQ0IiBzdHJva2Utd2lkdGg9IjIiLz4NCiAgICA8bGluZSB4MT0iMzg2IiB5MT0iNDQ0IiB4Mj0iNDEwIiB5Mj0iNDQ0IiBzdHJva2Utd2lkdGg9IjIiLz4NCiAgPC9nPg0KICA8dGV4dCB4PSIyNTgiIHk9IjQ1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI0E3RDdBMCINCiAgICAgICAgZm9udC1mYW1pbHk9Ik1vbnRzZXJyYXQsIEFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iNjAwIg0KICAgICAgICBmb250LXNpemU9IjE3IiBsZXR0ZXItc3BhY2luZz0iNCI+VFUgTUVKT1IgT1BDScOTTjwvdGV4dD4NCjwvc3ZnPg==" alt="Logo JJ Paper">
+        </div>
+        <div class="company-header">
+            <h1>JJ PAPER C.A.</h1>
+            <div class="rif">RIF: J-29537545-0</div>
+            <p>Av. El Cortijo, Quinta Neverí #58. Urb. Los Rosales.</p>
+            <p>Caracas, Distrito Capital.</p>
+            <p><strong>Teléfono:</strong> (0212) 690-0011 &nbsp; | &nbsp; <strong>Email:</strong> PICOJ386@GMAIL.COM</p>
+        </div>
+    </div>
+
+    <!-- TITULO -->
+    <div class="title-banner">Ficha Técnica de Proveedor Corporativo</div>
+    <div class="subtitle">Dirigido a: NESTLÉ VENEZUELA S.A.</div>
+
+    <div class="grid-container">
+        
+        <!-- ACTIVIDAD COMERCIAL (FULL) -->
+        <div class="card full-width">
+            <div class="card-header">1. Perfil y Actividad Comercial</div>
+            <div class="card-body">
+                <strong>Distribución al mayor y consumibles</strong> de papelería, artículos de oficina y limpieza institucional.
+                
+                <div class="sourcing-box">
+                    <strong>💡 Sourcing & Procura:</strong> Si requiere cualquier producto o insumo que no se encuentre en nuestra lista de precios, nosotros lo conseguimos y suministramos directamente.
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTACTO OPERATIVO (MITAD) -->
+        <div class="card">
+            <div class="card-header">2. Asistencia y Atención</div>
+            <div class="card-body">
+                <ul class="info-list">
+                    <li><strong>Asesores:</strong> <span>Yetzelia García / José Salazar</span></li>
+                    <li><strong>Móvil 1:</strong> <span>(0414) 279-9204</span></li>
+                    <li><strong>Móvil 2:</strong> <span>(0412) 467-6073</span></li>
+                    <li><strong>Atención:</strong> <span>Lunes a Viernes (8am - 5pm)</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- CONDICIONES (MITAD) -->
+        <div class="card">
+            <div class="card-header">3. Cobertura y Operaciones</div>
+            <div class="card-body">
+                <ul class="info-list">
+                    <li><strong>Cobertura:</strong> <span>Gran Caracas, Guarenas, Guatire, Miranda, Valles del Tuy y Vargas.</span></li>
+                    <li><strong>Pagos:</strong> <span>Transferencia, Pago Móvil, Contado.</span></li>
+                    <li><strong>Despacho:</strong> <span>Logística propia programada.</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MARCAS (FULL) -->
+        <div class="card full-width">
+            <div class="card-header">4. Portafolio de Marcas Distribuidas</div>
+            <div class="card-body">
+                <div class="brand-grid">
+                    <div class="brand-tag">KORES</div>
+                    <div class="brand-tag">ARTESCO</div>
+                    <div class="brand-tag">CARIBE</div>
+                    <div class="brand-tag">MAYKA</div>
+                    <div class="brand-tag">SHARPIE</div>
+                    <div class="brand-tag">CELOVEN</div>
+                    <div class="brand-tag">PRINTA</div>
+                    <div class="brand-tag">HP</div>
+                    <div class="brand-tag">EPSON</div>
+                    <div class="brand-tag">3M</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLIENTES (FULL) -->
+        <div class="card full-width">
+            <div class="card-header">5. Referencias Institucionales y Comerciales</div>
+            <div class="card-body">
+                <div class="client-grid">
+                    <div class="client-item">
+                        <div>
+                            <strong>Banca y Finanzas</strong>
+                            <span>Banco Banesco y Entidades de Banca Privada/Pública</span>
+                        </div>
+                    </div>
+                    <div class="client-item">
+                        <div>
+                            <strong>Sector Salud</strong>
+                            <span>Red de Clínicas y Centros de Salud Especializados</span>
+                        </div>
+                    </div>
+                    <div class="client-item">
+                        <div>
+                            <strong>Sector Educativo</strong>
+                            <span>Universidad Metropolitana (UNIMET)</span>
+                        </div>
+                    </div>
+                    <div class="client-item">
+                        <div>
+                            <strong>Sector Deportivo</strong>
+                            <span>Federación Venezolana de Fútbol (FVF)</span>
+                        </div>
+                    </div>
+                    <div class="client-item">
+                        <div>
+                            <strong>Sector Industrial</strong>
+                            <span>COPOSA (Consorcio Oleaginoso Portuguesa)</span>
+                        </div>
+                    </div>
+                    <div class="client-item">
+                        <div>
+                            <strong>Sector Empresarial</strong>
+                            <span>Suministro a Pymes y Grandes Superficies</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        Firma y Sello Digital: JJ PAPER C.A. | Documento emitido para evaluación de proveedor.<br>
+        Todos los derechos reservados © 2026
+    </div>
+
+</div>
+
+</body>
+</html>

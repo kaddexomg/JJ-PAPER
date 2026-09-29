@@ -57,7 +57,10 @@ let _docPdfLib = null;
 function docEnsurePdfLib() {
   if (window.jspdf?.jsPDF && window.jspdf.jsPDF.API?.autoTable) return Promise.resolve();
   if (_docPdfLib) return _docPdfLib;
+  const base = (typeof location !== 'undefined' && (location.pathname.includes('/admin/') || location.pathname.includes('/vendedor/'))) ? '../' : '';
   const espejos = [
+    [base + 'assets/vendor/jspdf.umd.min.js',
+     base + 'assets/vendor/jspdf.plugin.autotable.min.js'],
     ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
      'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'],
     ['https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',

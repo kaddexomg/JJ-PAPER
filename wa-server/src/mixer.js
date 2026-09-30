@@ -76,9 +76,9 @@ function computeDocFingerprint(doc) {
 }
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
-// Referencia: Keyder (010/020), Jose (005), Yovanni (004/006), Marianela (008), Andreina (014), Luis Alarcon (002), etc.
+// En MixNet es estrictamente 005 (010 y 020 son segmentaciones de cartera en JJ Paper que corresponden a 005)
 const SELLERS_BY_CODVEN = new Map([
-  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['010', '020']],        // Keyder Salazar (010, 020 en MixNet)
+  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005', '010', '020']],        // Keyder Salazar (005 en MixNet)
   ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006']],        // Yovanni Araujo
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],               // Marianela (marianela08)
   ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],               // Andreina (andreina)
@@ -91,7 +91,7 @@ const SELLERS_BY_CODVEN = new Map([
   ['485e3fde-f95d-4857-9175-147051a54748', ['033']],               // JJ Paper 33 (033 en MixNet)
 ]);
 const CODVEN_HINT = new Map([
-  ['005', 'Jose (005)'],
+  ['005', 'Keyder Salazar (005)'],
   ['010', 'Keyder (Zona 010)'], ['020', 'Keyder (Zona 020)'],
   ['004', 'Yovanni'], ['006', 'Yovanni'],
   ['008', 'Marianela'], ['014', 'Andreina'],
@@ -111,11 +111,11 @@ function sellerForCodven(codven) {
   return { seller_id: null, hint: cv || 'Caja MixNet' };
 }
 function codvenForSeller(sellerId) {
-  if (!sellerId) return '010';
+  if (!sellerId || sellerId === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return '005';
   for (const [sid, codes] of SELLERS_BY_CODVEN.entries()) {
     if (sid === sellerId) return codes[0];
   }
-  return '010';
+  return '005';
 }
 
 let activePrimaryDir = null;
@@ -977,7 +977,7 @@ async function sweepIncomingFiles() {
           // Buscar cliente y vendedor asignado
           const matchedCust = await matchCustomer(phone, rif, clientName);
           const adminId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
-          const sellerId = (matchedCust?.seller_id === adminId) ? null : (matchedCust?.seller_id || null);
+          const sellerId = matchedCust?.seller_id || adminId;
           const rate = await getActiveExchangeRate();
           const cleanDocNotes = (fileNotes && !fileNotes.includes('[MixNet') && !fileNotes.includes('COT-')) ? fileNotes : null;
 
@@ -1217,18 +1217,7 @@ async function sweepMixnetDbf() {
         const { seller_id: codvenSeller, hint: sellerHint } = sellerForCodven(codven);
         
         // Prioridad estricta al vendedor que ejecutó la venta/cotización en MixNet
-        let finalSellerId = codvenSeller;
-        if (!finalSellerId) {
-          // Si el documento en MixNet no trajo código de vendedor, verificar si el cliente pertenece a una cartera específica (Zonas 004, 006, 008, 014, 010)
-          // NUNCA adjudicar a Keyder si el cliente está en Zona 020 (MixNet general) sin codven propio de Keyder (005, 010, 020)
-          if (effectiveCustSeller && effectiveCustSeller !== 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') {
-            finalSellerId = effectiveCustSeller;
-          } else if (effectiveCustSeller === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164' && matchedCust?.zone === '010') {
-            finalSellerId = effectiveCustSeller;
-          } else {
-            finalSellerId = null;
-          }
-        }
+        let finalSellerId = codvenSeller || effectiveCustSeller || null;
         // Extraer comentarios legítimos del documento en MixNet (COMEN1, COMEN2), sin marcas artificiales
         const rawComen = [pr.comen1, pr.comen2]
           .map(c => String(c || '').trim())

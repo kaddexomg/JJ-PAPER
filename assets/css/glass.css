@@ -650,7 +650,7 @@ select.fi:focus {
   color: var(--theme-text-main) !important;
   display: flex !important;
   flex-direction: column !important;
-  max-height: min(90vh, calc(100dvh - 32px)) !important;
+  max-height: min(84vh, 660px) !important;
   overflow: hidden !important;
   margin: auto !important;
 }
@@ -663,7 +663,7 @@ select.fi:focus {
   border: 1px solid var(--theme-border-glass) !important;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
   color: var(--theme-text-main) !important;
-  max-height: min(90vh, calc(100dvh - 32px)) !important;
+  max-height: min(84vh, 660px) !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
 }
@@ -673,11 +673,11 @@ select.fi:focus {
   background: var(--theme-bg-elevated) !important;
   border-bottom: 1px solid var(--theme-border-subtle) !important;
   color: var(--theme-text-main) !important;
-  padding: 18px 24px !important;
+  padding: 16px 22px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  z-index: 2 !important;
+  z-index: 5 !important;
 }
 .modal-hd h3 {
   color: var(--theme-text-main) !important;
@@ -688,12 +688,12 @@ select.fi:focus {
 .modal-body {
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  max-height: 100% !important;
   overflow-y: auto !important;
-  overflow-x: auto !important;
+  overflow-x: hidden !important;
   -webkit-overflow-scrolling: touch !important;
-  overscroll-behavior: contain !important;
-  padding: 20px 24px 28px 24px !important;
+  touch-action: pan-y !important;
+  overscroll-behavior-y: contain !important;
+  padding: 18px 22px 26px 22px !important;
 }
 
 /* Scrollbar estilizada y fluida para el cuerpo del modal */

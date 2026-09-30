@@ -87,11 +87,11 @@
   .prod-grid { grid-template-columns:repeat(2,1fr); gap:14px }
   .pc-img    { height:180px }
 
-  /* Modales: aprovechar la pantalla completa sin desbordarla */
-  .modal-overlay { padding:8px !important; }
-  .modal-box     { max-height:calc(100dvh - 16px) !important; border-radius:18px !important; }
+  /* Modales: escala cómoda y flotante sin desbordar bordes de pantalla */
+  .modal-overlay { padding:14px 10px !important; }
+  .modal-box     { max-height:min(88vh, calc(100dvh - 24px)) !important; border-radius:16px !important; width:96% !important; }
   .modal-hd      { padding:14px 16px !important; }
-  .modal-body    { padding:16px 14px 24px 14px !important; }
+  .modal-body    { padding:16px 14px 22px 14px !important; }
   .modal-ft      { padding:12px 14px !important; }
 
   /* Forms */

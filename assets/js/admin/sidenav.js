@@ -585,6 +585,19 @@
     }
   }
 
+  function initModalScrollBridge() {
+    // Redirigir el scroll del ratón hacia el cuerpo del modal si el cursor está sobre la cabecera o el overlay
+    document.addEventListener('wheel', (e) => {
+      const overlay = e.target.closest('.modal-overlay.op, .modal-overlay.open');
+      if (!overlay) return;
+      const body = overlay.querySelector('.modal-body');
+      if (!body) return;
+      if (e.target.closest('.modal-hd') || e.target === overlay) {
+        body.scrollTop += e.deltaY;
+      }
+    }, { passive: true });
+  }
+
   function init() {
     injectCSS();
     renderNav();
@@ -594,6 +607,7 @@
     loadPhoneDialer();
     initCommandPalette();
     injectTopbarDialerButton();
+    initModalScrollBridge();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();

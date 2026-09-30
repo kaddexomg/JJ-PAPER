@@ -1481,7 +1481,7 @@ async function posOpenLoadQuoteModal() {
           <button type="button" class="btn-g sm" onclick="posCloseLoadQuoteModal()">✕ Cerrar</button>
         </div>
         <div style="margin-bottom:12px">
-          <input type="text" id="posQuoteSearchInput" class="fi" placeholder="Escribe el N° de cotización (COT-...) o nombre del cliente" style="width:100%" oninput="posSearchQuotesLive()">
+          <input type="text" id="posQuoteSearchInput" class="fi" placeholder="Escribe el N° de cotización (ej: 00053333) o nombre del cliente" style="width:100%" oninput="posSearchQuotesLive()">
         </div>
         <div id="posQuotesModalList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
           <p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px">Cargando cotizaciones recientes…</p>

@@ -431,7 +431,7 @@ function cbBack() {
   if (cbTrack.active) {
     if (cbTrack.step === 'phone') {
       cbTrack.step = 'num';
-      cbBotMsg(`Ok, escríbeme de nuevo tu número de pedido o cotización (ej: <em>JJP-260701-1234</em>):
+      cbBotMsg(`Ok, escríbeme de nuevo tu número de pedido o cotización (ej: <em>00112550</em> o <em>00053333</em>):
         <span class="cb-acts"><button class="cb-act" onclick="cbMenu()">🏠 Menú</button></span>`, 250);
       return;
     }
@@ -916,7 +916,7 @@ function cbTrackStart(num = '') {
   cbTrack = { active: true, step: num ? 'phone' : 'num', num };
   cbBotMsg((num
     ? `Vi el número <b>${escapeHTML(num)}</b> 👀. Confírmame el teléfono con el que registraste el pedido/cotización 📱:`
-    : 'Claro 🔎. Escríbeme tu número de pedido o cotización (ej: <em>JJP-260701-1234</em>):')
+    : 'Claro 🔎. Escríbeme tu número de pedido o cotización (ej: <em>00112550</em> o <em>00053333</em>):')
     + `<span class="cb-acts"><button class="cb-act" onclick="cbMenu()">🏠 Menú</button></span>`);
 }
 
@@ -926,8 +926,8 @@ async function cbTrackHandle(text) {
   if (/^(cancelar|salir)$/i.test(t)) { cbTrack.active = false; cbBotMsg('Listo, cancelado.'); return; }
 
   if (cbTrack.step === 'num') {
-    const m = /JJP-\d{6}-\d{4}/i.exec(t);
-    if (!m) { cbBotMsg('Ese número no tiene el formato <em>JJP-XXXXXX-XXXX</em>. Revísalo 🙏'); return; }
+    const m = /(?:\b\d{5,8}\b|JJP-\d{6}-\d{4})/i.exec(t);
+    if (!m) { cbBotMsg('Ese número no tiene un formato válido (ej: <em>00112550</em>). Revísalo 🙏'); return; }
     cbTrack.num = m[0].toUpperCase();
     cbTrack.step = 'phone';
     cbBotMsg(`Perfecto. Ahora el teléfono con el que lo registraste 📱:
@@ -1012,7 +1012,7 @@ async function cbProcess(text) {
   if (cbNavCommand(text)) return;
 
   // 1) Número de pedido/cotización pegado directamente
-  const numMatch = /JJP-\d{6}-\d{4}/i.exec(text);
+  const numMatch = /(?:\b\d{6,8}\b|JJP-\d{6}-\d{4})/i.exec(text);
   if (numMatch) { cbTrackStart(numMatch[0].toUpperCase()); return; }
 
   // 1.5) Lista grande pegada directamente → arranca cotización con la lista

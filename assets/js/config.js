@@ -343,12 +343,10 @@ function escapeHTML(str) {
   }[c]));
 }
 
-// Generate a human-friendly order number: JJP-YYMMDD-XXXX (fallback legacy)
-function genOrderNumber(prefix = 'JJP') {
-  const d = new Date();
-  const ymd = `${String(d.getFullYear()).slice(2)}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}-${ymd}-${rand}`;
+// Generador de respaldo de 8 dígitos correlativos
+function genOrderNumber() {
+  const rnd = Math.floor(10000000 + Math.random() * 89999999);
+  return String(rnd).slice(0, 8);
 }
 
 // Generador atómico de correlativo unificado JJ Paper ⇄ MixNet (8 dígitos: ej. 00112450)

@@ -1396,7 +1396,7 @@ async function openQuoteSearchModal() {
           <button type="button" class="btn-g sm" onclick="closeQuoteSearchModal()">✕ Esc</button>
         </div>
         <div style="margin-bottom:12px">
-          <input class="fi" id="qsInput" placeholder="Escribe N° Cotización (ej: COT-00123 o 123), nombre de cliente, RIF o teléfono..." style="width:100%;height:42px;font-size:14px;padding:8px 12px;border-radius:8px" oninput="filterQuotesInModal()" onkeydown="qsKeyNav(event)">
+          <input class="fi" id="qsInput" placeholder="Escribe N° Cotización (ej: 00053333), nombre de cliente, RIF o teléfono..." style="width:100%;height:42px;font-size:14px;padding:8px 12px;border-radius:8px" oninput="filterQuotesInModal()" onkeydown="qsKeyNav(event)">
         </div>
         <div id="qsResults" style="max-height:380px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px">
           <p style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">Cargando cotizaciones recientes...</p>

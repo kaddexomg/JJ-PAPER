@@ -128,26 +128,38 @@
   position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:3000;
   display:flex; align-items:center; justify-content:center; padding:20px;
   opacity:0; pointer-events:none; transition:opacity .25s ease; backdrop-filter:blur(3px);
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
 }
-.modal-overlay.op { opacity:1; pointer-events:all }
+.modal-overlay.op,
+.modal-overlay.open { opacity:1; pointer-events:all }
 .modal-box {
-  background:#fff; border-radius:var(--r); max-width:720px; width:100%;
-  max-height:90vh; overflow-y:auto; box-shadow:var(--sxl);
+  background:#fff; border-radius:var(--r); max-width:740px; width:100%;
+  max-height:min(90vh, calc(100dvh - 32px)); box-shadow:var(--sxl);
   transform:scale(.96); transition:transform .25s ease;
+  display:flex; flex-direction:column; overflow:hidden; margin:auto;
 }
-.modal-overlay.op .modal-box { transform:scale(1) }
+.modal-overlay.op .modal-box,
+.modal-overlay.open .modal-box { transform:scale(1) }
 .modal-hd {
-  position:sticky; top:0; background:#fff; padding:20px 24px; border-bottom:1px solid #f0f0f0;
-  display:flex; align-items:center; justify-content:space-between; z-index:1;
+  flex-shrink:0; position:sticky; top:0; background:#fff; padding:18px 24px; border-bottom:1px solid #f0f0f0;
+  display:flex; align-items:center; justify-content:space-between; z-index:2;
 }
 .modal-hd h3 { font-size:16px; font-weight:700 }
 .modal-close {
   width:32px; height:32px; border-radius:50%; background:var(--gl);
   display:flex; align-items:center; justify-content:center; font-size:18px;
-  transition:var(--tr); flex-shrink:0;
+  transition:var(--tr); flex-shrink:0; cursor:pointer;
 }
 .modal-close:hover { background:var(--gd); color:#fff }
-.modal-body { padding:24px }
+.modal-body {
+  padding:20px 24px 28px; flex:1 1 auto; min-height:0; max-height:100%;
+  overflow-y:auto; overflow-x:auto; -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+.modal-ft {
+  flex-shrink:0; padding:16px 24px; border-top:1px solid #eee;
+  display:flex; gap:10px; justify-content:flex-end; z-index:2;
+}
 
 /* ---- Toast ---- */
 .toast-c  { position:fixed; top:78px; right:18px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none }

@@ -88,9 +88,11 @@
   .pc-img    { height:180px }
 
   /* Modales: aprovechar la pantalla completa sin desbordarla */
-  .modal-overlay { padding:12px }
-  .modal-box     { max-height:calc(100dvh - 24px) }
-  .modal-body    { padding:18px 16px }
+  .modal-overlay { padding:8px !important; }
+  .modal-box     { max-height:calc(100dvh - 16px) !important; border-radius:18px !important; }
+  .modal-hd      { padding:14px 16px !important; }
+  .modal-body    { padding:16px 14px 24px 14px !important; }
+  .modal-ft      { padding:12px 14px !important; }
 
   /* Forms */
   .f-grid { grid-template-columns:1fr }

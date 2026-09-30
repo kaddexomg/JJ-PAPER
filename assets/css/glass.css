@@ -636,9 +636,25 @@ select.fi:focus {
   background: rgba(8, 12, 20, 0.65) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
-.modal-box,
+.modal-box {
+  border-radius: 26px !important;
+  background: var(--theme-bg-surface) !important;
+  backdrop-filter: blur(36px) saturate(220%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(220%) !important;
+  border: 1px solid var(--theme-border-glass) !important;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  color: var(--theme-text-main) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: min(90vh, calc(100dvh - 32px)) !important;
+  overflow: hidden !important;
+  margin: auto !important;
+}
+
 .fac-modal-box {
   border-radius: 26px !important;
   background: var(--theme-bg-surface) !important;
@@ -647,19 +663,56 @@ select.fi:focus {
   border: 1px solid var(--theme-border-glass) !important;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
   color: var(--theme-text-main) !important;
-  overflow: hidden;
+  max-height: min(90vh, calc(100dvh - 32px)) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .modal-hd {
+  flex-shrink: 0 !important;
   background: var(--theme-bg-elevated) !important;
   border-bottom: 1px solid var(--theme-border-subtle) !important;
   color: var(--theme-text-main) !important;
-  padding: 20px 26px !important;
+  padding: 18px 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  z-index: 2 !important;
 }
 .modal-hd h3 {
   color: var(--theme-text-main) !important;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+.modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding: 20px 24px 28px 24px !important;
+}
+
+/* Scrollbar estilizada y fluida para el cuerpo del modal */
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+  background-clip: padding-box;
 }
 
 .modal-close {
@@ -670,6 +723,7 @@ select.fi:focus {
   border: 1px solid var(--theme-border-glass) !important;
   color: var(--theme-text-main) !important;
   transition: all .2s cubic-bezier(.34,1.56,.64,1) !important;
+  flex-shrink: 0 !important;
 }
 .modal-close:hover {
   background: var(--theme-accent) !important;
@@ -678,9 +732,14 @@ select.fi:focus {
 }
 
 .modal-ft {
+  flex-shrink: 0 !important;
   background: var(--theme-bg-elevated) !important;
   border-top: 1px solid var(--theme-border-subtle) !important;
-  padding: 16px 26px !important;
+  padding: 16px 24px !important;
+  display: flex !important;
+  gap: 10px !important;
+  justify-content: flex-end !important;
+  z-index: 2 !important;
 }
 
 /* ===================================================================

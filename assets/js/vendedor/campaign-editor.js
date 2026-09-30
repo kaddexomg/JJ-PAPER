@@ -278,7 +278,7 @@ window.CampaignEditor = (() => {
                   <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
                   <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
                   <option value="respondieron">💬 Clientes/Prospectos que han Respondido</option>
-                  <option value="inactivos">😴 Inactivos (sin compras >30d)</option>
+                  <option value="inactivos">😴 Inactivos (sin compras &gt;30d)</option>
                   <option value="prospectos">🆕 Clientes sin compras</option>
                   <option value="email_bounced">⚠️ Clientes con Email Rebotado / Sin Email</option>
                   <option value="sector">🏢 Filtrar por Sector B2B...</option>
@@ -320,10 +320,9 @@ window.CampaignEditor = (() => {
                   </select>
                   <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#0369a1;cursor:pointer;margin-top:2px;">
                     <input type="checkbox" id="ceExcludeQuoted" onchange="CampaignEditor.onAudienceChange()">
-                    <span>📑 Omitir clientes con cotización reciente (<30d)</span>
+                    <span>📑 Omitir clientes con cotización reciente (&lt;30d)</span>
                   </label>
                 </div>
-              </div>
               </div>
             </div>
 
@@ -1091,11 +1090,11 @@ window.CampaignEditor = (() => {
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">🌐 Todos</button>
               <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Prospectos B2B</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('clientes')">👥 Solo Clientes</button>
-              <button type="button" class="ce-card-action-btn" style="color:#0369a1;background:#f0f9ff;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('con_cotizacion')">📑 Con Cotización (<30d)</button>
+              <button type="button" class="ce-card-action-btn" style="color:#0369a1;background:#f0f9ff;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('con_cotizacion')">📑 Con Cotización (&lt;30d)</button>
               <button type="button" class="ce-card-action-btn" style="color:#15803d;background:#f0fdf4;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('respondieron')">💬 Respondieron</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('con_compras')">Con Compras</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('nuevos')">Nuevos</button>
-              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('inactivos')">Inactivos (>30d)</button>
+              <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('inactivos')">Inactivos (&gt;30d)</button>
             </div>
             <div class="ce-picker-list" id="cePickerList"></div>
           </div>

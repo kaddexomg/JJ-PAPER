@@ -260,7 +260,7 @@ function writeToAllDropDirs(filename, content) {
 export async function exportOrder(o) {
   if (!o || !o.order_number) return false;
   if (o.order_number.startsWith('MIX-')) return false;
-  if (o.source === 'mixnet' || String(o.notes || '').includes('[MixNet')) return false;
+  if (o.source === 'mixnet') return false;
   const fp = computeDocFingerprint(o);
   if (orderFingerprints.get(o.order_number) === fp) return false;
 
@@ -370,7 +370,7 @@ export async function exportOrder(o) {
 export async function exportQuote(q) {
   if (!q || !q.quote_number) return false;
   if (q.quote_number.startsWith('MIX-')) return false;
-  if (q.source === 'mixnet' || String(q.notes || '').includes('[MixNet')) return false;
+  if (q.source === 'mixnet') return false;
   const fp = computeDocFingerprint(q);
   if (quoteFingerprints.get(q.quote_number) === fp) return false;
 
@@ -671,7 +671,7 @@ async function sweepRecentOutgoing() {
       let count = 0;
       for (const o of orders) {
         if (o.order_number && o.order_number.startsWith('MIX-')) continue;
-        if (o.source === 'mixnet' || String(o.notes || '').includes('[MixNet')) continue;
+        if (o.source === 'mixnet') continue;
         const fp = computeDocFingerprint(o);
         if (orderFingerprints.get(o.order_number) !== fp) {
           if (await exportOrder(o)) count++;
@@ -693,7 +693,7 @@ async function sweepRecentOutgoing() {
       let qCount = 0;
       for (const q of quotes) {
         if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
-        if (q.source === 'mixnet' || String(q.notes || '').includes('[MixNet')) continue;
+        if (q.source === 'mixnet') continue;
         const fp = computeDocFingerprint(q);
         if (quoteFingerprints.get(q.quote_number) !== fp) {
           if (await exportQuote(q)) qCount++;
@@ -924,6 +924,7 @@ async function sweepIncomingFiles() {
           const colPrice = headers.findIndex(h => h.includes('precio') || h.includes('unit') || h.includes('punit'));
           const colSubtotal = headers.findIndex(h => h.includes('subtotal') || h.includes('linea'));
           const colTotal = headers.findIndex(h => h.includes('total'));
+          const colNotes = headers.findIndex(h => h.includes('nota') || h.includes('obs') || h.includes('comen'));
 
           // Agrupar filas
           const items = [];
@@ -931,6 +932,7 @@ async function sweepIncomingFiles() {
           let clientName = '';
           let rif = '';
           let phone = '';
+          let fileNotes = '';
           let totalUsd = 0;
 
           for (let i = 1; i < lines.length; i++) {
@@ -941,6 +943,7 @@ async function sweepIncomingFiles() {
             if (colClient >= 0 && rawParts[colClient]) clientName = rawParts[colClient];
             if (colRif >= 0 && rawParts[colRif]) rif = rawParts[colRif];
             if (colPhone >= 0 && rawParts[colPhone]) phone = rawParts[colPhone];
+            if (colNotes >= 0 && rawParts[colNotes] && !fileNotes) fileNotes = rawParts[colNotes];
 
             // Corrección ante coma sin comillas en razón social que desplace C.A hacia RIF y RIF hacia Teléfono
             if (rif && /^(?:C\.?A\.?|S\.?A\.?)$/i.test(rif.trim()) && phone && /^[JVGE]-?\d+/i.test(phone.trim())) {
@@ -976,6 +979,7 @@ async function sweepIncomingFiles() {
           const adminId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
           const sellerId = (matchedCust?.seller_id === adminId) ? null : (matchedCust?.seller_id || null);
           const rate = await getActiveExchangeRate();
+          const cleanDocNotes = (fileNotes && !fileNotes.includes('[MixNet') && !fileNotes.includes('COT-')) ? fileNotes : null;
 
           if (isQuote) {
             // Verificar si ya existe en Supabase
@@ -992,7 +996,7 @@ async function sweepIncomingFiles() {
                 items,
                 estimated_total_usd: totalUsd,
                 exchange_rate: rate,
-                notes: `[MixNet Caja] Cotización importada automáticamente desde archivo ${f}`,
+                notes: cleanDocNotes,
                 source: 'vendedor',
                 status: 'pendiente',
                 seller_id: sellerId
@@ -1025,7 +1029,7 @@ async function sweepIncomingFiles() {
                 exchange_rate: rate,
                 total_bs: rate > 0 ? (totalUsd * rate).toFixed(2) : 0,
                 payment_method: 'efectivo',
-                notes: `[MixNet Caja] Pedido importado automáticamente desde archivo ${f}`,
+                notes: cleanDocNotes,
                 source: 'pos',
                 status: 'pagado',
                 seller_id: sellerId
@@ -1225,7 +1229,12 @@ async function sweepMixnetDbf() {
             finalSellerId = null;
           }
         }
-        const vendorNote = codven ? ` · Vendedor MixNet #${codven} (${sellerHint})` : '';
+        // Extraer comentarios legítimos del documento en MixNet (COMEN1, COMEN2), sin marcas artificiales
+        const rawComen = [pr.comen1, pr.comen2]
+          .map(c => String(c || '').trim())
+          .filter(c => c && !c.includes('[MixNet') && !c.includes('COT-') && !c.includes('importad'))
+          .join(' - ');
+        const cleanDocNotes = rawComen || null;
 
         if (isQuote) {
           // NOTA: jjp_quotes NO posee columna updated_at
@@ -1237,7 +1246,7 @@ async function sweepMixnetDbf() {
             items,
             estimated_total_usd: totalVal,
             exchange_rate: rate,
-            notes: `[MixNet Caja] Cotización importada automáticamente desde ${encFile} (#${numDoc})${vendorNote}`,
+            notes: cleanDocNotes,
             source: 'mixnet',
             status: 'pendiente',
             seller_id: finalSellerId,
@@ -1269,7 +1278,7 @@ async function sweepMixnetDbf() {
             exchange_rate: rate,
             total_bs: rate > 0 ? (totalVal * rate).toFixed(2) : 0,
             payment_method: 'efectivo',
-            notes: `[MixNet Caja] Importado automáticamente desde ${encFile} (#${numDoc}, ${moneda})${vendorNote}`,
+            notes: cleanDocNotes,
             source: 'mixnet',
             status: 'pagado',
             seller_id: finalSellerId,
@@ -1844,7 +1853,7 @@ function setupRealtimeListeners() {
       p => {
         if (!p?.new) return;
         if (p.new.order_number && p.new.order_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
+        if (p.new.source === 'mixnet') return;
         log.info(`Puente Mixer: Recibida inserción de pedido ${p.new.order_number} por Realtime.`);
         exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido'));
       }
@@ -1853,7 +1862,7 @@ function setupRealtimeListeners() {
       p => {
         if (!p?.new) return;
         if (p.new.order_number && p.new.order_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
+        if (p.new.source === 'mixnet') return;
         log.info(`Puente Mixer: Recibida actualización de pedido ${p.new.order_number} por Realtime.`);
         exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido (update)'));
       }
@@ -1868,7 +1877,7 @@ function setupRealtimeListeners() {
       p => {
         if (!p?.new) return;
         if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
+        if (p.new.source === 'mixnet') return;
         log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
         exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
       }
@@ -1877,7 +1886,7 @@ function setupRealtimeListeners() {
       p => {
         if (!p?.new) return;
         if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet' || String(p.new.notes || '').includes('[MixNet')) return;
+        if (p.new.source === 'mixnet') return;
         log.info(`Puente Mixer: Recibida actualización de cotización ${p.new.quote_number} por Realtime.`);
         exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización (update)'));
       }

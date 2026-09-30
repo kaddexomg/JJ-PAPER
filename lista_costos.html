@@ -300,7 +300,14 @@ async function cargarVariantes(content) {
 
 async function refrescarLista() {
   const btn = document.getElementById('tbRefresh');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Actualizando…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sincronizando…'; }
+  try {
+    // Solicitar barrido fresco a la PC de MixNet si está disponible
+    await sb.from('jjp_server_control')
+      .update({ command: 'sync_mixnet', command_at: new Date().toISOString() })
+      .eq('id', 1);
+    await new Promise(r => setTimeout(r, 1200));
+  } catch (_) {}
   const ok = await cargarVariantes(null);
   if (btn) { btn.disabled = false; btn.textContent = '🔄 Actualizar'; }
   if (ok) applyFilters();

@@ -848,33 +848,36 @@ ${pDesc ? `- Descripción técnica: ${pDesc}` : ''}
     }
 
     const sys = getBusinessContext() + `
-Eres el Especialista y Redactor Comercial B2B Sénior de JJ Paper C.A., empresa distribuidora mayorista y corporativa de papelería, útiles y suministros en Caracas, Venezuela.
-Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte seriedad, confianza, calidez y actitud de socio estratégico.
+Eres el Especialista y Director Comercial B2B Sénior de JJ Paper C.A., empresa IMPORTADORA Y DISTRIBUIDORA DIRECTA mayorista en Caracas, Venezuela.
+Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte autoridad de importador directo, máxima seriedad corporativa, calidez, y sobre todo ACTITUD PROACTIVA DE SOCIO ESTRATÉGICO.
 
-ESTÁNDARES DE COPYWRITING B2B CON ACTITUD Y ESTRUCTURA:
-1. TONO Y PERSONALIDAD:
-   - Aplica estrictamente este tono: "${tone}".
-   - Si el contexto indica reactivación o seguimiento ("enviamos lista la semana pasada"), asume una actitud de servicio y disposición a ayudar ("¿pudieron revisar la lista?", "estamos a la orden para surtirlos", etc.).
+ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
+1. IDENTIDAD DE NEGOCIO Y AUTORIDAD (QUIÉNES SOMOS):
+   - JJ Paper C.A. es importador y distribuidor mayorista directo con almacén e inventario real para entrega inmediata en Caracas.
+   - NO somos revendedores ni intermediarios: ofrecemos precios directos de distribuidor (Precio B mayorista) y factura fiscal legal a Tasa Oficial BCV.
 
-2. ESTRUCTURA VISUAL OBLIGATORIA DEL MENSAJE (¡MUY IMPORTANTE!):
+2. TRATAMIENTO DE PRECIOS CON INTELIGENCIA COMERCIAL (¡NUNCA PRECIOS AISLADOS EN FRÍO!):
+   - ¡PROHIBIDO tirar precios secos o altos que ahuyenten al cliente! Un precio como "$40" o "$15" sin contexto parece costoso.
+   - Enmarca siempre el precio comercialmente:
+     * Aclara la presentación mayorista: "por bulto cerrado", "por caja x 50 unid", "paquete de 10 resmas", etc.
+     * Enfatiza que se trata de PRECIO DE LISTA MAYORISTA con condiciones preferenciales y escalas de descuento por volumen.
+     * Señala el ahorro tangible frente a compras al detal.
+     * Expresa siempre el valor en dólares y su equivalente en bolívares calculados a Tasa Oficial BCV.
+
+3. PROMESA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
+   - Deja claro que si el cliente necesita algún producto, formato, calibre o medida específica que no vea en la lista, *JJ Paper se lo ubica y cotiza directamente* con su red de importación.
+
+4. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
    - **SALUDO DINÁMICO (SPINTAX)**: Usa {Hola|Qué tal|Buen día|Saludos} {{nombre}}.
-   - **TÍTULO PRINCIPAL**: Un título atractivo en negritas (Ej: *🔥 Gran Oferta en Papelería*).
-   - **CUERPO DEL MENSAJE**: Párrafos cortos. Usa subtítulos en negrita si es necesario.
-   - **VIÑETAS**: Si describes productos/servicios, usa emojis de check (✔️) o viñetas (🔹).
-   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta de cierre (Ej: "¿Te apartamos mercancía?").
-   - **DESPEDIDA Y FIRMA**: DEBES incluir una firma profesional al final usando la variable {{vendedor}} (Ej: "Atentamente, {{vendedor}} | Asesor JJ Paper | {{link}}").
+   - **TÍTULO PRINCIPAL**: En negritas con actitud (Ej: *📦 Propuesta Mayorista Directa de Distribución*).
+   - **CUERPO DEL MENSAJE**: Párrafos cortos de máximo 2 líneas. Fluidez y dinamismo.
+   - **PROPUESTA COMERCIAL CLARA**: Viñetas con viñeta (•) y nombres destacados en negrita (*...*).
+   - **LLAMADO A LA ACCIÓN (CTA)**: Cierre de negocio directo (Ej: "¿Desea que le reservemos disponibilidad o le preparemos una cotización por volumen?").
+   - **DESPEDIDA Y FIRMA**: Firma profesional con {{vendedor}} | Asesor Comercial JJ Paper | {{link}}.
 
-3. PARÁMETROS DE CONTENIDO:
-   - Destaca características concretas: marcas, formatos (resmas, bultos, cajas).
-   - Recuerda nuestras ventajas: Despacho a sede (Caracas), envíos nacionales seguros, Factura Fiscal a Tasa BCV Oficial, Cotizaciones inmediatas.
-   - NO suenes como un robot publicitario ni exageres. Sé un asesor venezolano corporativo.
-
-4. PRESERVACIÓN ESTRICTA DE VARIABLES:
-   - Conserva exactamente {{nombre}}, {{empresa}}, {{vendedor}}, {{link}}. NO inventes variables nuevas. Si aplicas producto/precio en plantilla, usa {{producto}} y {{precio}}.
-
-Devuelve EXACTAMENTE un objeto JSON válido (sin etiquetas markdown exteriores ni \`\`\`json):
-- Si channel === 'email': { "subject": "Asunto profesional de alto impacto", "body": "Cuerpo completo con formato HTML o texto con saltos de línea y firma" }
-- Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, _cursivas_, viñetas, firma al final)" }
+Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni ```json):
+- Si channel === 'email': { "subject": "Asunto profesional de alto impacto", "body": "Cuerpo completo con formato estructurado, viñetas y firma" }
+- Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, viñetas, firma al final y Spintax {A|B|C})" }
 `;
 
     const prompt = `
@@ -997,10 +1000,34 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
     customerFull = null,
     orderHistory = '',
     personality = 'Profesional / Formal',
-    messageType = 'Presentación Inicial'
+    messageType = 'Presentación Inicial',
+    targetSector = 'auto',
+    commercialTone = 'socio_estrategico',
+    valueHook = 'importador_directo'
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+
+    const SECTOR_NAMES = {
+      colegios: 'Colegios, Universidades y Educación',
+      clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
+      oficinas: 'Empresas, Oficinas y Corporativo',
+      retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
+      logistica: 'Industrias, Almacenes y Logística de Distribución',
+      papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
+    };
+    const effectiveSector = (targetSector && targetSector !== 'auto' && SECTOR_NAMES[targetSector])
+      ? SECTOR_NAMES[targetSector]
+      : (sector || 'Sector Comercial B2B');
+
+    const VALUE_HOOK_DESCS = {
+      importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
+      escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
+      sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
+      despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
+      ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
+    };
+    const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
 
     // ── Catálogo REAL con precio actualizado (la IA escribe con datos reales, no inventados) ──
     let realProducts = [];
@@ -1164,17 +1191,22 @@ DIRECTRICES CRÍTICAS PARA WHATSAPP (ESTRUCTURA DE ALTA CONVERSIÓN):
    Menciona que le saluda *${sellerName}* de *JJ Paper C.A.* y reconoce de forma natural su actividad en ${city || 'Caracas'}.
 3. Título de sección en negrita destacada:
    *📦 PROPUESTA DE ABASTECIMIENTO OPERATIVO:*
-4. Viñetas de productos con nombre en negrita (*...*):
-   - MÁXIMO 3 viñetas con formato: • *Nombre del Producto o Insumo*: especificación técnica y beneficio operativo directo para ${companyName}.
-   ${promoProductOrCombo ? '- La PRIMERA viñeta DEBE ser la promoción/producto seleccionado: *' + (promoProductOrCombo.name || 'Promoción') + '*.' : ''}
-   - PROHIBIDO usar etiquetas técnicas como "Core 1:", "Core 2:" o "Cross-sell:". Redacta con tono fluido y comercial.
-5. Mención obligatoria de la Lista de Precios Oficial en PDF:
+4. Viñetas de productos con nombre en negrita (*...*) y enfoque comercial de volumen:
+   - MÁXIMO 3 viñetas con formato:
+     • *Nombre del Insumo*: Presentación/especificación · *Precio mayorista: $X.XX USD* (Bs. Y a tasa BCV) con escala preferencial por volumen/bulto y beneficio para ${companyName}.
+   ${promoProductOrCombo ? '- La PRIMERA viñeta DEBE ser la promoción/producto seleccionado: *' + (promoProductOrCombo.name || 'Promoción') + '* con su precio mayorista y descuento.' : ''}
+   - ¡PROHIBIDO poner precios en seco o que luzcan elevados sin explicar la presentación por bulto/caja/paquete!
+   - PROHIBIDO usar etiquetas técnicas como "Core 1:", "Core 2:" o "Cross-sell:". Redacta con dinamismo comercial.
+5. Mención obligatoria de la Lista de Precios Oficial en PDF y Procura Especial:
    ${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* (+900 productos disponibles para entrega inmediata).' : ''}
+   • 🔍 *¿Busca algún formato o insumo especial no listado?* Se lo ubicamos y cotizamos directamente con nuestra red de importación.
 6. Bloque de beneficios institucionales de JJ Paper:
    *VENTAJAS DE OPERAR CON JJ PAPER:*
+   • 🏭 *Importador y Distribuidor Directo en Caracas* — Cero intermediarios, inventario físico para entrega inmediata.
+   • 📦 *Condiciones preferenciales por volumen* — Escalas de precios y ahorro significativo frente a compras al detal.
    • 🚚 *Delivery directo y gratuito* a su sede en Caracas / despachos nacionales protegidos.
    • 🧾 *Facturación fiscal legal (RIF J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
-   • ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.
+   • ⚡ *Cotizaciones formales en segundos* adaptadas a su presupuesto operativo.
 7. Enlace interactivo al catálogo digital:
    👉 Puede revisar nuestro catálogo digital completo aquí:
    {{link}}
@@ -1224,7 +1256,7 @@ FORMATO DE RESPUESTA REQUERIDO (DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO SIN 
     const prompt = `
 DATOS DEL CLIENTE A ANALIZAR:
 - Empresa: "${companyName}"
-- Sector reportado: "${sector || 'No especificado'}"
+- Sector objetivo / rubro: "${effectiveSector}"
 - Contacto: "${contactName || 'No indicado'}"
 - Cargo / Departamento: "${contactRole || 'No indicado'}"
 - Dirección / Sede: "${address || 'Caracas, Venezuela'}"
@@ -1232,8 +1264,9 @@ DATOS DEL CLIENTE A ANALIZAR:
 - Notas previas / Intereses: "${notes || 'Ninguna nota previa'}"
 
 CONFIGURACIÓN DE REDACCIÓN SELECCIONADA POR EL ASESOR:
-- Tono / Personalidad del Prospecto: "${personality}" (Adapta tu nivel de confianza, formalidad y psicología de ventas a este perfil).
-- Tipo de Mensaje: "${messageType}" (Si es Seguimiento/Recordatorio, ajusta la apertura asumiendo que ya se le contactó antes. Si es Presentación/Bienvenida, preséntate como el primer contacto).
+- Tono / Actitud Comercial: "${personality}"
+- Tipo de Mensaje: "${messageType}"
+- Propuesta de Valor / Gancho de Negocio: "${effectiveHook}"
 
 HISTORIAL DE COMPRAS EN JJ PAPER:
 ${histTxt}
@@ -1312,6 +1345,9 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     officialPdfIncluded = true,
     personality = 'Profesional / Formal',
     messageType = 'Presentación Inicial',
+    targetSector = 'auto',
+    commercialTone = 'socio_estrategico',
+    valueHook = 'importador_directo',
     forceRefresh = false
   }) {
     const w = typeof window !== 'undefined' ? window : {};
@@ -1359,6 +1395,12 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     if (promoProductOrCombo) {
       effectiveMessageType = 'Oferta Especial';
       effectivePersonality = 'Persuasivo / Comercial';
+    } else if (commercialTone === 'oportunidad_mayorista') {
+      effectivePersonality = 'Oferta Mayorista / Oportunidad (Actitud de cierre comercial, escala por volumen)';
+    } else if (commercialTone === 'cercano_consultivo') {
+      effectivePersonality = 'Cercano / Asesor Resolutivo (Atención directa de confianza, búsqueda y sourcing)';
+    } else if (commercialTone === 'institucional_formal') {
+      effectivePersonality = 'Institucional / Formal (Procura corporativa y formalidad SENIAT)';
     } else if (isAlreadyContacted && (messageType === 'Presentación Inicial' || messageType === 'presentacion')) {
       effectiveMessageType = 'Seguimiento de Contacto Previo';
       effectivePersonality = 'Cercano / Cordial';
@@ -1399,7 +1441,11 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         customerFull: customer,
         orderHistory,
         personality: effectivePersonality,
-        messageType: effectiveMessageType
+        messageType: effectiveMessageType,
+        targetSector,
+        commercialTone,
+        valueHook
+      });
       });
 
       const isEmail = (channel === 'email');
@@ -1543,6 +1589,9 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     officialPdfIncluded = true,
     forceRefresh = true,
     attitude = 'presentacion',
+    targetSector = 'auto',
+    commercialTone = 'socio_estrategico',
+    valueHook = 'importador_directo',
     onProgress = null
   }) {
     const results = [];
@@ -1555,15 +1604,18 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     if (promoProductOrCombo) {
       personality = 'Persuasivo / Comercial';
       messageType = 'Reactivación / Oferta Especial';
-    } else if (attitude === 'seguimiento') {
-      personality = 'Cercano / Cordial';
-      messageType = 'Seguimiento de Contacto Previo';
+    } else if (commercialTone === 'oportunidad_mayorista' || attitude === 'oferta') {
+      personality = 'Oferta Mayorista / Oportunidad (Actitud de cierre comercial, escala por volumen)';
+      messageType = 'Oportunidad de Abastecimiento Mayorista';
+    } else if (commercialTone === 'cercano_consultivo' || attitude === 'seguimiento') {
+      personality = 'Cercano / Asesor Resolutivo (Atención directa de confianza, búsqueda y sourcing)';
+      messageType = 'Seguimiento y Procura de Insumos';
+    } else if (commercialTone === 'institucional_formal') {
+      personality = 'Institucional / Formal (Procura corporativa y formalidad SENIAT)';
+      messageType = 'Presentación Corporativa Formal';
     } else if (attitude === 'recordatorio') {
       personality = 'Directo / Ejecutivo';
       messageType = 'Recordatorio de Insumos';
-    } else if (attitude === 'oferta') {
-      personality = 'Persuasivo / Comercial';
-      messageType = 'Reactivación / Oferta Especial';
     }
 
     // Procesar en chunks de 3 en paralelo con pool balanceado de 7 API keys
@@ -1581,6 +1633,9 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             officialPdfIncluded,
             personality,
             messageType,
+            targetSector,
+            commercialTone,
+            valueHook,
             forceRefresh
           });
           completed++;

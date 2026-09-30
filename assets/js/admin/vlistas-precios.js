@@ -303,7 +303,27 @@ function exportFilteredCSV() {
 }
 
 async function syncPricesToDb() {
-  if (typeof showToast === 'function') showToast('Refrescando catálogo desde la base de datos...', 'info');
+  const btn = document.querySelector('button[onclick="syncPricesToDb()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sincronizando MixNet…'; }
+  if (typeof showToast === 'function') showToast('⚡ Enviando orden de sincronización a la PC del supervisor...', 'info');
+
+  try {
+    const { error: cmdErr } = await sb.from('jjp_server_control')
+      .update({ command: 'sync_mixnet', command_at: new Date().toISOString(), command_by: CURRENT_PROFILE?.id || null })
+      .eq('id', 1);
+
+    if (cmdErr) {
+      console.warn('Aviso enviando comando a jjp_server_control:', cmdErr.message);
+    } else {
+      if (typeof showToast === 'function') showToast('🔄 MixNet procesando precios vigentes (MXCTAINV.DBF)...', 'info');
+      // Pausa breve para permitir que el proceso local aplique cambios
+      await new Promise(r => setTimeout(r, 2500));
+    }
+  } catch (err) {
+    console.warn('Aviso al solicitar sync_mixnet:', err);
+  }
+
   await loadProducts();
-  if (typeof showToast === 'function') showToast('Catálogo y precios actualizados en pantalla', 'ok');
+  if (btn) { btn.disabled = false; btn.textContent = '⚡ Sincronizar Precios a BD'; }
+  if (typeof showToast === 'function') showToast('✅ Catálogo y precios sincronizados con éxito', 'ok');
 }

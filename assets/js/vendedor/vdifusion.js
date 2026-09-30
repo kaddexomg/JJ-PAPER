@@ -328,31 +328,80 @@ async function diConfirm() {
 const DEFAULT_GLOBAL_TEMPLATES = [
   {
     id: 'tpl-promo-prod',
-    name: '📦 Promoción de Producto Destacado',
+    name: '📦 Propuesta Mayorista: Producto Destacado',
     kind: 'producto',
     owner_id: null,
-    body: 'Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nLe escribimos para presentarle una excelente oferta en:\n📦 *{{producto}}*\n💲 Precio especial: *{{precio}}*\n\n👉 Consulte disponibilidad o haga su pedido directo aquí: {{link}}\n\n¿Desea que le reservemos inventario de este rubro?'
+    body: '{Hola|Buen día|Qué tal} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos presentarle disponibilidad inmediata y precio preferencial en:\n\n📦 *{{producto}}*\n📝 {{descripcion}}\n💲 *Precio lista mayorista: {{precio}}*\n_(Condiciones comerciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario real sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *Procura especial:* si requiere algún formato o insumo que no esté en lista, se lo conseguimos.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?'
   },
   {
     id: 'tpl-promo-combo',
-    name: '🎁 Oferta Combo / Pack Especial',
+    name: '🎁 Combo Operativo con Ahorro por Lote',
     kind: 'combo',
     owner_id: null,
-    body: '¡Saludos cordiales {{nombre}}! 🌟\n\nDesde JJ Paper queremos compartirle nuestro combo del mes:\n🎁 *{{producto}}*\n📝 Incluye: {{descripcion}}\n💲 Precio de oportunidad: *{{precio}}*\n\n👉 Vea todos los detalles y haga su pedido en: {{link}}\n\n¡Quedamos a su orden para coordinar despacho inmediato!'
+    body: '{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Armamos este combo especial pensado para optimizar la reposición de su empresa con precio directo de importador:\n\n*🎁 COMBO OPERATIVO: {{producto}}*\n📝 {{descripcion}}\n💲 *Inversión del combo: {{precio}}*\n_(Ahorro directo frente a compras al detal)_\n\n• 🏭 *Importador directo en Caracas*\n• 🚚 *Despacho garantizado en 24h*\n• 🧾 *Facturación formal a Tasa Oficial BCV*\n\n👉 Ver detalles o confirmar pedido directo: {{link}}\n\n¿Le reservamos este combo antes de agotar existencia del lote?'
+  },
+  {
+    id: 'tpl-sector-colegios',
+    name: '🏫 Colegios & Universidades — Dotación y Evaluaciones',
+    kind: 'sector_colegios',
+    owner_id: null,
+    body: '{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores directos en Caracas, apoyamos la operatividad académica de su institución con precios mayoristas sin intermediarios.\n\n📚 *Propuesta especial para su institución:*\n• 📄 *Resmas de papel Bond (Carta y Oficio)* — Blancura y gramaje óptimo para guías y evaluaciones masivas sin atascos.\n• 🖍️ *Marcadores de pizarra acrílica y borradores* — Alta duración y colores vivos para el cuerpo docente.\n• 📁 *Carpetas de expediente estudiantil y archivo* — Para resguardo reglamentario de matrículas.\n\n💡 *Condición comercial:* Manejamos escala de precios por volumen/bulto y si necesita algún material didáctico o escolar especial fuera de lista, se lo ubicamos directamente.\n\n🚚 Despacho a su sede en Caracas y factura fiscal a tasa BCV.\n\n👉 Catálogo digital: {{link}}\n\n¿Desea que le preparemos una cotización para su próximo ciclo o evaluación?'
+  },
+  {
+    id: 'tpl-sector-clinicas',
+    name: '🏥 Clínicas, Salud & Archivo Médico',
+    kind: 'sector_salud',
+    owner_id: null,
+    body: '{Hola|Buen día|Saludos cordiales} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Somos distribuidores directos en Caracas especializados en suministros continuos para el sector salud y administrativo.\n\n🏥 *Disponibilidad prioritaria para su sede:*\n• 🗂️ *Sobres de radiografía 14x17 y manila* — Gran formato, alta resistencia para resguardo y entrega de estudios médicos.\n• 📁 *Carpetas de historias médicas con divisiones y gancho* — Cumplimiento reglamentario y archivo a largo plazo.\n• 🧾 *Rollos térmicos certificados libre de polvillo* — 80x70 y 57x40 para cajas, admisiones y equipos de laboratorio.\n\n⚡ Cotización formal al instante, factura fiscal a tasa oficial BCV y despacho express en Caracas.\n\n👉 Revise nuestro inventario mayorista aquí: {{link}}\n\n¿En qué insumos o formatos médicos podemos coordinarles cotización o despacho?'
+  },
+  {
+    id: 'tpl-sector-oficinas',
+    name: '🏢 Empresas & Oficinas — Archivo SENIAT y Dotación',
+    kind: 'sector_oficinas',
+    owner_id: null,
+    body: '{Hola|Buen día|Estimado equipo} de {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.*, su aliado mayorista directo para el abastecimiento corporativo en Caracas.\n\n🏢 *Soluciones clave para sus operaciones:*\n• 📁 *Archivadores de palanca y carpetas de fibra marrón* — Protección y resguardo reglamentario de contabilidad a 10 años (exigencia SENIAT/SUDEBAN).\n• 🖨️ *Resmas Bond de alto rendimiento* — Impresiones corporativas nítidas en Carta y Oficio.\n• 📦 *Consumibles de oficina y escritorio* — Bolígrafos por caja, grapas 26/6, notas adhesivas y tijeras.\n\n💼 *Respaldo JJ Paper:* Como importadores, garantizamos precios mayoristas de lista B, factura fiscal legal y delivery gratuito en Caracas.\n\n👉 Catálogo completo: {{link}}\n\n¿Gusta que revisemos su lista de reposición mensual para prepararle una propuesta con ahorro por volumen?'
+  },
+  {
+    id: 'tpl-sector-retail',
+    name: '🛒 Supermercados, Comercios & Cajas POS',
+    kind: 'sector_retail',
+    owner_id: null,
+    body: '{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Nos especializamos en garantizar que su línea de cajas y despacho opere al 100% sin quiebres de inventario.\n\n🛒 *Insumos críticos para su comercio:*\n• 🧾 *Rollos térmicos de alta definición (80x70mm / 80x80mm / 57x40mm)* — Papel térmico puro para cajas fiscales y puntos de venta.\n• 📦 *Cintas de embalaje industrial (48x100m y 48x200m)* — Pegado extrafuerte que no se levanta.\n• 💵 *Marcadores detectores de billetes falsos Kores* — Seguridad en punto de cobro.\n\n💰 Precios directos por caja/bulto cerrado con entrega inmediata en Caracas.\n\n👉 Ver catálogo y precios: {{link}}\n\n¿Cuántas cajas o bultos de rollos/cintas estima para su reposición de esta quincena?'
+  },
+  {
+    id: 'tpl-sector-logistica',
+    name: '📦 Industrias, Logística & Almacenes',
+    kind: 'sector_logistica',
+    owner_id: null,
+    body: '{Hola|Buen día|Un saludo} {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.* Suministramos a centros de distribución y empresas de logística materiales de empaque y rotulación de alto rendimiento.\n\n📦 *Línea de embalaje pesado:*\n• 📦 *Cintas de embalaje industrial marrón y transparente* — 48mm x 100m y 200m de alto micraje, agarre inmediato sobre cartón corrugado.\n• 🖊️ *Marcadores industriales Servicio 80 y Sharpie* — Tinta indeleble resistente a intemperie y roce.\n• ✂️ *Dispensadores tipo pistola y exactos de trabajo pesado* — Agilizan el cerrado de paletas y paquetes.\n\n🚚 Precios al mayor por bulto cerrado y despacho a su galpón en Caracas.\n\n👉 Catálogo digital: {{link}}\n\n¿Desea que le hagamos llegar una muestra o cotización formal por volumen?'
+  },
+  {
+    id: 'tpl-sector-papelerias',
+    name: '📚 Papelerías y Comercios (Mayorista Reventa)',
+    kind: 'sector_reventa',
+    owner_id: null,
+    body: '{Hola|Buen día|Qué tal} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Somos importadores directos, lo que le asegura el margen de ganancia que su papelería o tienda necesita para competir y ganar.\n\n📚 *Condiciones de reventa mayorista:*\n• 💵 *Precios oficiales de lista B (distribuidor)* — Acceda a costo mayorista por bulto cerrado.\n• 📦 *Marcas líderes de alta demanda* — Kores, Solita, Sabonis, Report, HP, Chamex, Bic.\n• 🔍 *Sourcing a medida:* Si sus clientes le piden un producto específico que no ve en el mercado, se lo gestionamos.\n\n🚚 Despacho directo a su local en Caracas con factura a tasa oficial BCV.\n\n👉 Consulte la lista mayorista: {{link}}\n\n¿Le reservamos mercancía de alta rotación para su inventario de esta semana?'
+  },
+  {
+    id: 'tpl-sourcing-especial',
+    name: '🔍 Búsqueda de Insumos Especiales (Procura)',
+    kind: 'sourcing',
+    owner_id: null,
+    body: '{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nAdemás de nuestro catálogo regular (+900 artículos en resmas, consumibles de caja, archivo y embalaje), ponemos a su disposición nuestro *Servicio de Procura Especial*:\n\n🔍 *¿Requiere un insumo, medida o formato específico para su empresa?*\nSi no lo encuentra en el mercado o no está en nuestra lista de precios, *nuestro equipo de importación se lo ubica y cotiza directamente* con las mejores condiciones comerciales.\n\n• 🚚 Entrega en su sede en Caracas\n• 🧾 Facturación fiscal legal a Tasa Oficial BCV\n• ⚡ Respuesta y cotización en tiempo récord\n\n👉 Revise nuestro catálogo base: {{link}}\n\n¿Qué requerimiento o material tiene abierto actualmente en el que podamos apoyarle?'
   },
   {
     id: 'tpl-reactivacion',
-    name: '🔄 Reactivación de Clientes con Descuento',
+    name: '🔄 Reactivación: Condiciones Mayoristas Preferenciales',
     kind: 'reactivacion',
     owner_id: null,
-    body: 'Hola {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nEsperamos que todo marche excelente en su negocio. Le informamos que tiene activo un *{{descuento}}% de descuento* en su próximo pedido.\n\n👉 Vea el catálogo actualizado con precios al día aquí: {{link}}\n\n¿En qué podemos apoyarle esta semana?'
+    body: '{Hola|Buen día|Saludos} {{nombre}} 👋, le saluda {{vendedor}} de *JJ Paper C.A.*\n\nEsperamos que todo marche excelente en su empresa. Pasamos por aquí brevemente para comentarle que tenemos activas *condiciones preferenciales y descuentos por volumen* en su próxima reposición.\n\n📄 Contamos con inventario actualizado de más de 900 productos listos para despacho (resmas, rollos térmicos, cintas de empaque y archivo).\n\n👉 Vea el catálogo actualizado con precios al día aquí: {{link}}\n\n¿En qué podemos apoyarle para coordinar su próximo despacho?'
   },
   {
     id: 'tpl-catalogo-general',
     name: '🏢 Catálogo Digital y Lista de Precios B2B',
     kind: 'general',
     owner_id: null,
-    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 📃 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con +900 artículos disponibles\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto\n3️⃣ 🚚 Delivery GRATIS en toda Caracas\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
+    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 📃 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con +900 artículos disponibles con precios de lista B (distribuidor)\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto y requerimiento\n3️⃣ 🚚 Delivery GRATIS en toda Caracas a su sede\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n5️⃣ 🔍 Si no ve un producto en lista, nuestro equipo de procura se lo ubica directamente\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
   }
 ];
 

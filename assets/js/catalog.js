@@ -67,7 +67,7 @@ function catsOfGroup(groupSlug) {
 }
 
 // Select de variantes reutilizado por catálogo, modal y producto.html
-const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price_usd,stock,min_qty,image_url,active,sort_order,jjp_brands(name,logo_url))';
+const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,image_url,active,sort_order,jjp_brands(name,logo_url))';
 
 // Etiqueta de una variante: "Marca · Presentación" (lo que exista)
 function variantLabel(v) {
@@ -77,7 +77,7 @@ function variantLabel(v) {
 // Un producto puede venir en varias MARCAS (variantes), cada una con su
 // precio y stock. Esto agrega los datos que las cards/modal necesitan:
 //   variants   → variantes activas ordenadas
-//   _minPrice/_maxPrice → rango de precios ("desde $X")
+//   _minPrice/_maxPrice → rango de precios ("desde $X") [Prioridad oficial: Precio B]
 //   _stock     → -1 si alguna variante es sin-control; si no, suma
 //   _brands    → marcas únicas disponibles
 function normalizeProduct(p) {
@@ -87,14 +87,15 @@ function normalizeProduct(p) {
       || String(a.jjp_brands?.name || '').localeCompare(String(b.jjp_brands?.name || '')));
   p.variants = vs;
   if (vs.length) {
-    const prices = vs.map(v => +v.price_usd);
-    p._minPrice = Math.min(...prices);
-    p._maxPrice = Math.max(...prices);
+    const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd != null ? v.price_usd : (v.price_a != null ? v.price_a : 0)))).filter(x => x > 0);
+    p._minPrice = prices.length ? Math.min(...prices) : 0;
+    p._maxPrice = prices.length ? Math.max(...prices) : 0;
     p._stock    = vs.some(v => v.stock == null || v.stock < 0)
-      ? -1 : vs.reduce((s, v) => s + v.stock, 0);
+      ? -1 : vs.reduce((s, v) => s + (Number(v.stock) || 0), 0);
   } else {
-    p._minPrice = p._maxPrice = +p.price_usd;
-    p._stock    = (p.stock == null) ? -1 : p.stock;
+    const baseP = Number(p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : (p.price_a != null ? p.price_a : 0)));
+    p._minPrice = p._maxPrice = baseP;
+    p._stock    = (p.stock == null) ? -1 : (Number(p.stock) || 0);
   }
   p._brands = [...new Map(
     vs.filter(v => v.jjp_brands?.name).map(v => [v.jjp_brands.name, v.jjp_brands])
@@ -162,7 +163,7 @@ async function loadProducts() {
   const step = 999;
   while (true) {
     const { data, error } = await sb.from('jjp_products')
-      .select(`id,name,description,price_usd,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
+      .select(`id,name,description,price_usd,price_a,price_b,price_c_bs,price_d_bs,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
       .eq('active', true)
       .range(from, from + step)
       .order('sort_order');
@@ -177,7 +178,7 @@ async function loadProducts() {
   // Populate lookup map for safe cart/modal calls from any page
   allProducts.forEach(p => { productMap[p.id] = p; });
   try {
-    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+    sessionStorage.setItem(cacheKey, JSON.stringify(allData));
     sessionStorage.setItem(cacheTimeKey, String(now));
   } catch (_) {}
 }

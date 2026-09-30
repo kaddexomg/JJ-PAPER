@@ -11,9 +11,10 @@ export const db = createClient(SUPABASE_URL_COMM, SERVICE_KEY_COMM, {
   realtime: { params: { eventsPerSecond: 20 } }
 });
 
-// dbCore para lectura y actualización de datos centrales (Settings, Clientes, Catálogo, FX Rates)
+// dbCore para lectura y actualización de datos centrales (Settings, Clientes, Catálogo, FX Rates, Control)
 export const dbCore = createClient(SUPABASE_URL_CORE, SERVICE_KEY_CORE, {
-  auth: { persistSession: false, autoRefreshToken: false }
+  auth: { persistSession: false, autoRefreshToken: false },
+  realtime: { params: { eventsPerSecond: 20 } }
 });
 
 // dbInv para Storage e Inventario (Proyecto C: fotos WebP de catálogo y comprobantes)

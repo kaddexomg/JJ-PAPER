@@ -174,6 +174,41 @@ window.CampaignEditor = (() => {
               </div>
 
               <div id="ceSelectedCardWrap" style="display:none; margin-top:8px;"></div>
+
+              <!-- Estrategia B2B: Sector, Tono y Gancho de Propuesta Comercial -->
+              <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #cbd5e1; display:flex; flex-direction:column; gap:8px;">
+                <div>
+                  <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">🏢 Sector / Rubro Objetivo:</label>
+                  <select class="ce-select" id="ceTargetSector" onchange="CampaignEditor.onSectorStrategyChange()">
+                    <option value="auto" selected>🎯 Detección Inteligente (según cada cuenta)</option>
+                    <option value="colegios">🏫 Colegios, Universidades & Educación</option>
+                    <option value="clinicas">🏥 Clínicas, Salud & Archivo Médico</option>
+                    <option value="oficinas">🏢 Empresas, Oficinas & Corporativo</option>
+                    <option value="retail">🛒 Supermercados, Abastos & Cajas POS</option>
+                    <option value="logistica">📦 Industrias, Almacenes & Logística</option>
+                    <option value="papelerias">📚 Papelerías & Comercios (Mayorista Reventa)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">🎭 Tono & Actitud Comercial:</label>
+                  <select class="ce-select" id="ceCommercialTone">
+                    <option value="socio_estrategico" selected>💼 Ejecutivo & Socio Estratégico (Seguridad y Factura BCV)</option>
+                    <option value="oportunidad_mayorista">🔥 Oferta Mayorista & Volumen (Actitud de Cierre y Ahorro)</option>
+                    <option value="cercano_consultivo">🤝 Cercano, Asesor y Resolutivo (Atención directa y Sourcing)</option>
+                    <option value="institucional_formal">🏢 Institucional Formal (Procura y Compras)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">⭐ Propuesta de Valor / Gancho Principal:</label>
+                  <select class="ce-select" id="ceValueHook">
+                    <option value="importador_directo" selected>🏭 Importador Directo en Caracas (Mejores precios sin intermediarios)</option>
+                    <option value="escala_volumen">📦 Escala y Descuento por Volumen (Ahorro por bulto/caja)</option>
+                    <option value="sourcing_especial">🔍 Búsqueda de Insumos Especiales ("Te conseguimos lo que no esté en lista")</option>
+                    <option value="despacho_express">🚚 Despacho Express 24h + Facturación Fiscal BCV</option>
+                    <option value="ahorro_mensual">💰 Optimización de Presupuesto Mensual de Suministros</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <!-- Audiencia y Destinatarios -->
@@ -724,13 +759,15 @@ window.CampaignEditor = (() => {
     if (!selectedProductOrCombo) return;
     const p = selectedProductOrCombo;
     const isEmail = currentConfig?.channel === 'email';
+    const priceUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0).toFixed(2);
+    const unitStr = p.unit ? ` (${escapeHTML(p.unit)})` : '';
 
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Hola|Apreciado(a)} {{nombre}},\n\nEspero se encuentre muy bien. Le escribe {{vendedor}} del equipo comercial de JJ Paper.\n\nQueremos presentarle una alternativa destacada para abastecer su inventario con entrega garantizada:\n\n*📦 ${p.name}*\n${p.description ? '📝 ' + p.description + '\n' : ''}*💲 Precio especial: $${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' (Descuento del ' + p.discount_pct + '% aplicado)' : ''}\n\n👉 Puede revisar la ficha técnica y gestionar su pedido en línea en el siguiente enlace:\n{{link}}\n\nQuedo atento si desea una cotización formal o reservar cantidades para despacho.\n\nUn cordial saludo,\n{{vendedor}}\nJJ Paper C.A.`;
-      document.getElementById('ceSubjectInput').value = `📦 Oferta Especial en ${p.name} — JJ Paper`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nQueremos presentarle una propuesta directa de abastecimiento mayorista con disponibilidad inmediata en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? '📝 ' + p.description + '\n' : ''}*💲 Precio de Lista Mayorista: $${priceUsd} USD*${p.discount_pct > 0 ? ' _(Descuento comercial del ' + p.discount_pct + '% aplicado)_' : ' _(Condiciones preferenciales y ahorro por volumen / bulto cerrado)_'}\n\n*VENTAJAS DIRECTAS CON JJ PAPER:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 ¿Busca alguna medida o insumo especial fuera de lista? Nuestro equipo de procura se lo ubica de inmediato.\n\n👉 Puede revisar la ficha técnica y confirmar su requerimiento aquí:\n{{link}}\n\n¿Gusta que le reservemos disponibilidad o le preparemos una cotización por volumen para su empresa?\n\nAtentamente,\n{{vendedor}}\nDirección Comercial | JJ Paper C.A.`;
+      document.getElementById('ceSubjectInput').value = `📦 Propuesta Mayorista: ${p.name} — JJ Paper C.A.`;
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, espero estés muy bien 👋\n\nTe escribe {{vendedor}} de JJ Paper. Quería pasarte esta opción de alta rotación para tu negocio:\n\n*📦 ${p.name}*\n${p.description ? p.description + '\n' : ''}*💲 Precio especial: $${Number(p.final_price_usd).toFixed(2)} USD*${p.discount_pct > 0 ? ' _(' + p.discount_pct + '% de descuento)_' : ''}\n\n👉 Puedes chequear detalles o hacer tu pedido aquí:\n{{link}}\n\n¿Te aparto unas unidades para tu próximo despacho?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos compartirle disponibilidad inmediata y precio preferencial en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? p.description + '\n' : ''}*💲 Precio lista mayorista: $${priceUsd} USD*\n_(Condiciones preferenciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario físico sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *Procura especial:* si requiere algún formato o insumo que no esté en lista, se lo conseguimos.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     const imgChk1 = document.getElementById('ceAttachImg');
@@ -743,13 +780,14 @@ window.CampaignEditor = (() => {
     if (!selectedProductOrCombo) return;
     const c = selectedProductOrCombo;
     const isEmail = currentConfig?.channel === 'email';
+    const priceUsd = Number(c.final_price_usd || c.price_b || c.price_usd || 0).toFixed(2);
 
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Hola|Apreciado(a)} {{nombre}},\n\nEspero se encuentre muy bien. Le escribe {{vendedor}} de JJ Paper.\n\nPreparamos este combo especial pensado para surtir el inventario de su negocio al mejor costo:\n\n*🎁 COMBO: ${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}*💲 Precio del combo: $${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Puede ver el detalle completo y confirmar su pedido aquí:\n{{link}}\n\n¡Contamos con despacho inmediato y asesoría personalizada!\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
-      document.getElementById('ceSubjectInput').value = `🎁 Combo en Promoción: ${c.name} — JJ Paper`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nDiseñamos este combo de alta rotación para optimizar el presupuesto y flujo operativo de su empresa:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}*💲 Inversión mayorista preferencial: $${priceUsd} USD*\n_(Ahorro integrado por lote frente a compras individuales)_\n\n*VENTAJAS CLAVE:*\n• 🏭 Precios directos de distribuidor en Caracas.\n• 🚚 Entrega garantizada en su sede en 24h.\n• 🧾 Facturación fiscal en bolívares a Tasa Oficial BCV.\n• 🔍 ¿Requiere ajustar cantidades o sumar insumos? Lo adaptamos a su medida.\n\n👉 Ver detalle del combo y gestionar pedido: {{link}}\n\n¿Desea que le confirmemos despacho de este lote para su sede esta semana?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      document.getElementById('ceSubjectInput').value = `🎁 Combo Mayorista Especial: ${c.name} — JJ Paper C.A.`;
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarte 👋\n\nTe escribe {{vendedor}} de JJ Paper. Armamos este combo especial pensado para surtir tu negocio:\n\n*🎁 COMBO: ${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}*💲 Precio del combo: $${Number(c.final_price_usd).toFixed(2)} USD*\n\n👉 Ver detalles o pedir directamente aquí:\n{{link}}\n\n¿Te apartamos este combo antes de agotar existencia?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Armamos este combo especial pensado para optimizar la reposición de su empresa con precio directo de importador:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}*💲 Inversión del combo: $${priceUsd} USD*\n_(Ahorro directo frente a compras al detal)_\n\n• 🏭 *Importador directo en Caracas*\n• 🚚 *Despacho garantizado en 24h*\n• 🧾 *Facturación formal a Tasa Oficial BCV*\n\n👉 Ver detalles o confirmar pedido directo: {{link}}\n\n¿Le reservamos este combo antes de agotar existencia del lote?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     const imgChk2 = document.getElementById('ceAttachImg');
@@ -1264,6 +1302,9 @@ window.CampaignEditor = (() => {
       const channel = currentConfig?.channel || 'whatsapp';
       const sName = currentConfig?.seller?.name || '';
       const sPhone = currentConfig?.seller?.phone || '';
+      const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
+      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+      const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
 
       await window.GeminiClient.analyzeCustomersBatch({
         customers: selectedAudienceList,
@@ -1273,6 +1314,9 @@ window.CampaignEditor = (() => {
         promoProductOrCombo: selectedProductOrCombo,
         officialPdfIncluded: isPdf,
         attitude: selectedTone,
+        targetSector,
+        commercialTone,
+        valueHook,
         forceRefresh: true,
         onProgress: async ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
@@ -1380,6 +1424,10 @@ window.CampaignEditor = (() => {
       const channel = currentConfig?.channel || 'whatsapp';
       const isEmail = (channel === 'email');
 
+      const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
+      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+      const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+
       const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
         customer: cust,
         channel,
@@ -1387,6 +1435,9 @@ window.CampaignEditor = (() => {
         sellerPhone: currentConfig?.seller?.phone || '',
         promoProductOrCombo: selectedProductOrCombo,
         officialPdfIncluded: isPdf,
+        targetSector,
+        commercialTone,
+        valueHook,
         forceRefresh: true
       });
 
@@ -1739,13 +1790,20 @@ window.CampaignEditor = (() => {
 
     try {
       await ensureGeminiClient();
+      const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
+      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+      const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+
       const result = await window.GeminiClient.draftCampaignMessage({
         objective: obj.trim(),
         product: selectedProductOrCombo,
         discount: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '',
         audience: document.getElementById('ceAudienceSelect')?.value || 'todos',
         channel: currentConfig?.channel || 'whatsapp',
-        sellerName: currentConfig?.seller?.name || ''
+        sellerName: currentConfig?.seller?.name || '',
+        targetSector,
+        tone: commercialTone,
+        valueHook
       });
 
       if (isEmail && result.subject && document.getElementById('ceSubjectInput')) {

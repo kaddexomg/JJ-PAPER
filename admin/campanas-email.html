@@ -189,9 +189,16 @@
           <div style="font-size:12px;font-weight:700;color:#16604A">💡 ¿Quieres armar una plantilla rápida?</div>
           <button type="button" class="btn-p sm" id="ecAiTplBtn" style="background:#8b5cf6;border-color:#7c3aed;color:#fff;font-weight:600;padding:4px 10px;" onclick="ecTplDraftWithAi()">✨ Redactar con IA</button>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('producto')">📦 Producto</button>
           <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('combo')">🎁 Combo</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sector_colegios')">🏫 Colegios</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sector_salud')">🏥 Clínicas</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sector_oficinas')">🏢 Oficinas</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sector_retail')">🛒 Retail/POS</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sector_logistica')">📦 Logística</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sector_reventa')">📚 Papelerías</button>
+          <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('sourcing')">🔍 Procura</button>
           <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('reactivacion')">🔄 Reactivación</button>
           <button type="button" class="btn-o sm" onclick="ecTplApplyPreset('general')">🏢 Catálogo B2B</button>
         </div>
@@ -307,9 +314,9 @@
 <script src="../assets/js/doc-engine.js?v=20260929_launch_sync_ok"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260828_v3"></script>
 <script src="../assets/js/vendedor/product-picker.js?v=20260828_v3"></script>
-<script src="../assets/js/gemini-client.js?v=20260929_launch_sync_ok"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20260929_launch_sync_ok"></script>
-<script src="../assets/js/vendedor/vcampanas-email.js?v=20260930_v2"></script>
+<script src="../assets/js/gemini-client.js?v=20260930_precios_ia"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20260930_precios_ia"></script>
+<script src="../assets/js/vendedor/vcampanas-email.js?v=20260930_precios_ia"></script>
 <script>
 function newCampaign() {
   newEcCampaign();

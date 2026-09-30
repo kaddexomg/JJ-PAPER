@@ -1,5 +1,5 @@
 import os from 'node:os';
-import { db } from './supabase.js';
+import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 
 // Latido + control remoto del wa-server.
@@ -93,15 +93,22 @@ async function beat() {
   };
 
   // 1. Actualizar Proyecto B (Comunicación)
-  const { error } = await db.from('jjp_server_control').update(payload).eq('id', 1);
-  if (error) log.warn({ err: error.message }, 'heartbeat falló en Proyecto B');
+  const { error: errB } = await db.from('jjp_server_control').update(payload).eq('id', 1);
+  if (errB) log.warn({ err: errB.message }, 'heartbeat falló en Proyecto B');
+
+  // 2. Actualizar Proyecto A (Core)
+  const { error: errA } = await dbCore.from('jjp_server_control').update(payload).eq('id', 1);
+  if (errA) log.warn({ err: errA.message }, 'heartbeat falló en Proyecto A');
 }
 
 async function runCommand(cmd) {
   if (handling) return;
   handling = true;
-  // Limpiar el comando ANTES de ejecutarlo (evita re-disparos)
-  await db.from('jjp_server_control').update({ command: null }).eq('id', 1);
+  // Limpiar el comando ANTES de ejecutarlo en ambos proyectos (evita re-disparos)
+  await Promise.allSettled([
+    db.from('jjp_server_control').update({ command: null }).eq('id', 1),
+    dbCore.from('jjp_server_control').update({ command: null }).eq('id', 1)
+  ]);
 
   if (cmd === 'sync_mixnet' || cmd === 'sync_catalog') {
     log.info('comando de sincronización manual de MixNet recibido vía Supabase');
@@ -182,20 +189,33 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   db.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
     if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto B');
   });
+  dbCore.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
+    if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto A');
+  });
 
   beatTimer = setInterval(() => beat().catch(() => {}), HEARTBEAT_MS);
 
-  // Comandos en vivo
-  db.channel('wa-server-control')
+  // Comandos en vivo (Escuchar en Proyecto B y Proyecto A)
+  db.channel('wa-server-control-b')
     .on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'jjp_server_control', filter: 'id=eq.1' },
-      p => { if (p.new?.command) runCommand(p.new.command).catch(e => log.error({ err: e.message }, 'runCommand falló')); })
-    .subscribe(st => log.info({ st }, 'realtime control'));
+      p => { if (p.new?.command) runCommand(p.new.command).catch(e => log.error({ err: e.message }, 'runCommand B falló')); })
+    .subscribe(st => log.info({ st }, 'realtime control B'));
 
-  // Respaldo: por si el Realtime se cae, revisar el comando periódicamente
+  dbCore.channel('wa-server-control-a')
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'jjp_server_control', filter: 'id=eq.1' },
+      p => { if (p.new?.command) runCommand(p.new.command).catch(e => log.error({ err: e.message }, 'runCommand A falló')); })
+    .subscribe(st => log.info({ st }, 'realtime control A'));
+
+  // Respaldo: por si el Realtime se cae, revisar el comando periódicamente en ambos proyectos
   pollTimer = setInterval(async () => {
-    const { data } = await db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle();
-    if (data?.command) await runCommand(data.command).catch(() => {});
+    const [{ data: dataB }, { data: dataA }] = await Promise.all([
+      db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle().catch(() => ({ data: null })),
+      dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle().catch(() => ({ data: null }))
+    ]);
+    const cmd = dataB?.command || dataA?.command;
+    if (cmd) await runCommand(cmd).catch(() => {});
   }, POLL_MS);
 
   log.info('heartbeat + control activos (jjp_server_control)');

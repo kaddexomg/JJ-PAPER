@@ -39,7 +39,7 @@ async function vcCargar() {
     sb.from('jjp_categories').select('id,name,slug,group_id,sort_order').order('sort_order'),
     sb.from('jjp_products')
       .select('id,name,description,sku,price_usd,unit,emoji,image_url,stock,min_qty,category_id,' +
-              'jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,stock,min_qty,active,image_url,jjp_brands(name))')
+              'jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_b,price_a,price_c_bs,price_d_bs,stock,min_qty,active,image_url,jjp_brands(name))')
       .eq('active', true),
     (SELLER?.id
       ? sb.from('jjp_seller_prices').select('product_id,variant_id,price_usd').eq('seller_id', SELLER.id)
@@ -57,9 +57,15 @@ async function vcCargar() {
     mapa[k] = p.price_usd;
   });
   products.forEach(p => {
-    if (mapa[`p::${p.id}`] !== undefined) p.price_usd = mapa[`p::${p.id}`];
+    if (mapa[`p::${p.id}`] !== undefined) {
+      p.price_usd = mapa[`p::${p.id}`];
+      p.custom_price = true;
+    }
     (p.jjp_product_variants || []).forEach(v => {
-      if (mapa[`v::${v.id}`] !== undefined) v.price_usd = mapa[`v::${v.id}`];
+      if (mapa[`v::${v.id}`] !== undefined) {
+        v.price_usd = mapa[`v::${v.id}`];
+        v.custom_price = true;
+      }
     });
   });
 
@@ -104,7 +110,11 @@ function vcPrecio(p) {
   const key = 'p::' + p.id;
   if (VCAT.overrides[key] !== undefined) return VCAT.overrides[key];
   const vs = (p.jjp_product_variants || []).filter(v => v.active);
-  const de = vs.map(v => +v.price_usd).filter(n => n > 0);
+  const de = vs.map(v => {
+    if (v.custom_price) return +v.price_usd;
+    const raw = (v.price_b !== undefined && v.price_b !== null && +v.price_b > 0) ? +v.price_b : (+v.price_usd || +v.price_a || 0);
+    return raw;
+  }).filter(n => n > 0);
   return de.length ? Math.min(...de) : (+p.price_usd || 0);
 }
 

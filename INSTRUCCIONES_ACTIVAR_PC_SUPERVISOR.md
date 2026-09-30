@@ -30,6 +30,12 @@ Para que el servidor se levante automáticamente cada vez que se encienda la PC 
 * Hacer doble clic en:
   **`wa-server\INSTALAR-EN-ARRANQUE-WINDOWS.bat`**
 
+### Paso 5: Configurar Enlace Remoto para el Administrador (Laptop)
+Para permitir que el administrador se conecte desde su Laptop (por Escritorio Remoto, terminal y lectura de MixNet sin importar dónde se encuentre):
+* Clic derecho en **`wa-server\CONFIGURAR-ACCESO-REMOTO-SUPERVISOR.bat`** y elegir **"Ejecutar como Administrador"**.
+* El script configurará Tailscale, activará RDP, compartirá la carpeta de MixNet y mostrará la IP privada (`100.x.y.z`).
+* **Envía esa IP privada al administrador en la Laptop.** (Ver guía completa en `docs/GUIA_ACCESO_REMOTO_SUPERVISOR.md`).
+
 ---
 
 ## 2. Verificación de Funcionamiento

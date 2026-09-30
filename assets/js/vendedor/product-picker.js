@@ -103,6 +103,7 @@ window.ProductPicker = (() => {
     `).join('');
   }
 
+  let searchDebounce = null;
   function onSearch(query) {
     const q = (query || '').toLowerCase().trim();
     if (!q) {
@@ -115,6 +116,65 @@ window.ProductPicker = (() => {
       (it.sku && it.sku.toLowerCase().includes(q))
     );
     renderGrid(filtered);
+
+    // Si hay menos de 6 resultados y el término tiene al menos 3 caracteres, buscar directamente en el servidor Supabase
+    if (filtered.length < 6 && q.length >= 3 && typeof sb !== 'undefined') {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(async () => {
+        try {
+          const { data: serverProds } = await sb.from('jjp_products')
+            .select('id,sku,name,price_b,price_usd,image_url,description,stock,jjp_product_variants(id,sku,variant_name,price_b,price_usd,stock,jjp_brands(name))')
+            .ilike('name', `%${q}%`)
+            .eq('active', true)
+            .limit(25);
+          if (serverProds && serverProds.length > 0) {
+            const mappedServer = [];
+            serverProds.forEach(p => {
+              const vars = p.jjp_product_variants || [];
+              if (vars.length > 0) {
+                vars.forEach(v => {
+                  mappedServer.push({
+                    id: v.id,
+                    name: p.name + (v.variant_name && v.variant_name !== 'Unidad' ? ` (${v.variant_name})` : ''),
+                    brand: v.jjp_brands?.name || '',
+                    price_usd: v.price_b || v.price_usd || p.price_b || p.price_usd || 0,
+                    image_url: p.image_url || 'assets/img/logo.svg',
+                    description: p.description || '',
+                    sku: v.sku || p.sku || '',
+                    raw: { ...v, jjp_products: p },
+                    type: 'product'
+                  });
+                });
+              } else {
+                mappedServer.push({
+                  id: p.id,
+                  name: p.name,
+                  brand: '',
+                  price_usd: p.price_b || p.price_usd || 0,
+                  image_url: p.image_url || 'assets/img/logo.svg',
+                  description: p.description || '',
+                  sku: p.sku || '',
+                  raw: p,
+                  type: 'product'
+                });
+              }
+            });
+
+            // Combinar evitando duplicados
+            const existingIds = new Set(filtered.map(x => x.id));
+            let added = false;
+            mappedServer.forEach(m => {
+              if (!existingIds.has(m.id)) {
+                filtered.push(m);
+                currentItems.push(m);
+                added = true;
+              }
+            });
+            if (added) renderGrid(filtered);
+          }
+        } catch (_) {}
+      }, 250);
+    }
   }
 
   function selectItem(id) {

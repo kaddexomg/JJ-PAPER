@@ -620,10 +620,10 @@ window.CampaignEditor = (() => {
     if ((!config.products || config.products.length === 0) && typeof sb !== 'undefined') {
       try {
         const { data: prods } = await sb.from('jjp_product_variants')
-          .select('id,sku,price_usd,variant_name,jjp_products(id,name,description,image_url),jjp_brands(name)')
+          .select('id,sku,price_usd,price_b,variant_name,stock,jjp_products(id,name,description,image_url),jjp_brands(name)')
           .eq('active', true)
-          .order('price_usd', { ascending: false })
-          .limit(300);
+          .order('stock', { ascending: false })
+          .limit(600);
         config.products = prods || [];
       } catch (e) {
         console.warn('Aviso cargando productos en CampaignEditor:', e);

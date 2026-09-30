@@ -74,7 +74,7 @@
 ### Supabase — 3 Proyectos
 | Proyecto | ID | Rol | URL |
 |---|---|---|---|
-| **A (Core)** | `qxgdrfkobbhdzgtoiavv` | Clientes, Productos, Pedidos, Cotizaciones, Inventario | `https://qxgdrfkobbhdzgtoiavv.supabase.co` |
+| **A (Core)** | `wwcdxqpibequfohbgejs` | Clientes, Productos, Pedidos, Cotizaciones, Inventario | `https://wwcdxqpibequfohbgejs.supabase.co` |
 | **B (Comunicación)** | `klcibjwleiqppedefpxw` | WhatsApp, Email, Campañas, Control del Servidor | `https://klcibjwleiqppedefpxw.supabase.co` |
 | **C (Storage)** | `nmcamjxhyysmmvgxgabo` | Imágenes de productos (WebP), Comprobantes | `https://nmcamjxhyysmmvgxgabo.supabase.co` |
 

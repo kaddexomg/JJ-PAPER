@@ -63,7 +63,7 @@ Cuando se modifica código en `wa-server/src/`:
 ## 5. 🗄️ Arquitectura Multi-Proyecto Supabase
 
 El sistema está dividido en 3 proyectos Supabase (Free Tier desacoplado):
-- **Proyecto A (Core)** (`qxgdrfkobbhdzgtoiavv`):
+- **Proyecto A (Core)** (`wwcdxqpibequfohbgejs`):
   - Clientes (`jjp_customers`), Catálogo y Precios (`jjp_products`, `jjp_product_variants`), Pedidos (`jjp_orders`), Cotizaciones (`jjp_quotes`), Ajustes/Tasas (`jjp_settings`).
 - **Proyecto B (Comunicación)** (`klcibjwleiqppedefpxw`):
   - Sesiones WA (`jjp_wa_sessions`), Mensajes (`jjp_wa_messages`), Chats (`jjp_wa_chats`), Campañas (`jjp_wa_campaigns`, `jjp_wa_campaign_targets`), Correos (`jjp_emails`), Control de Servidor (`jjp_server_control`).

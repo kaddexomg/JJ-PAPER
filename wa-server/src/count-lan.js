@@ -417,7 +417,12 @@ function serveStatic(req, res, urlPath) {
 
   fs.stat(full, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); return res.end('no encontrado'); }
-    res.writeHead(200, { 'Content-Type': MIME[ext], 'X-Content-Type-Options': 'nosniff' });
+    const cacheHeader = (ext === '.js' || ext === '.html') ? 'no-cache, must-revalidate' : 'public, max-age=86400';
+    res.writeHead(200, {
+      'Content-Type': MIME[ext],
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': cacheHeader
+    });
     fs.createReadStream(full).pipe(res);
   });
 }

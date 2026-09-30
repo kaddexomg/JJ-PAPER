@@ -153,7 +153,7 @@ Al crear pedido en JJ Paper:
 
 ### Frontend (`assets/js/config.js` — hardcodeado)
 ```javascript
-SUPABASE_A_URL = 'https://qxgdrfkobbhdzgtoiavv.supabase.co'
+SUPABASE_A_URL = 'https://wwcdxqpibequfohbgejs.supabase.co'
 SUPABASE_B_URL = 'https://klcibjwleiqppedefpxw.supabase.co'
 SUPABASE_C_URL = 'https://nmcamjxhyysmmvgxgabo.supabase.co'
 // Anon keys están en el mismo archivo
@@ -161,7 +161,7 @@ SUPABASE_C_URL = 'https://nmcamjxhyysmmvgxgabo.supabase.co'
 
 ### Backend (`wa-server/.env`)
 ```env
-SUPABASE_URL=https://qxgdrfkobbhdzgtoiavv.supabase.co
+SUPABASE_URL_CORE=https://wwcdxqpibequfohbgejs.supabase.co
 SUPABASE_KEY=<service_role_key_A>
 SUPABASE_COMM_URL=https://klcibjwleiqppedefpxw.supabase.co
 SUPABASE_COMM_KEY=<service_role_key_B>

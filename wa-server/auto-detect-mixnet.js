@@ -65,6 +65,12 @@ export function discoverMixnetEnvironment() {
     } catch (_) {}
   }
 
+  // Función de chequeo seguro: evita congelar el proceso síncrono durante 25s por cada ruta UNC de red inaccesible
+  function safeExistsSync(p) {
+    if (p.startsWith('\\\\')) return false; // Evita bloqueo SMB en red si la máquina no existe
+    try { return fs.existsSync(p); } catch (_) { return false; }
+  }
+
   // Carpetas estándar que SOLO se agregan si ya existen físicamente (NUNCA crear carpetas nuevas arbitrarias)
   const standardDropCandidates = [
     'M:\\comp01',
@@ -73,13 +79,6 @@ export function discoverMixnetEnvironment() {
     'M:\\cotizaciones',
     'M:\\mixnet',
     'M:\\',
-    '\\\\servidor\\MIX11\\comp01',
-    '\\\\servidor\\MIX11',
-    '\\\\192.168.0.185\\comp01',
-    '\\\\192.168.0.185\\COMP01',
-    '\\\\192.168.0.185\\mixnet',
-    '\\\\192.168.0.172\\comp01',
-    '\\\\Supervisor-Pc\\comp01',
     'P:\\comp01',
     'P:\\mixnet',
     'P:\\pedidos',
@@ -87,11 +86,9 @@ export function discoverMixnetEnvironment() {
   ];
 
   for (const sc of standardDropCandidates) {
-    try {
-      if (fs.existsSync(sc)) {
-        foundDropDirs.add(sc);
-      }
-    } catch (_) {}
+    if (safeExistsSync(sc)) {
+      foundDropDirs.add(sc);
+    }
   }
 
   // 2. Base de datos DBF de MixNet (comp01 con tablas MXCTAINV, PED, MXRENPED, etc.)
@@ -99,15 +96,6 @@ export function discoverMixnetEnvironment() {
   const dbfCandidates = [
     'M:\\comp01',
     'M:\\COMP01',
-    '\\\\servidor\\MIX11\\comp01',
-    '\\\\192.168.0.185\\comp01',
-    '\\\\192.168.0.185\\COMP01',
-    '\\\\192.168.0.185\\mixnet',
-    '\\\\192.168.0.185\\M\\comp01',
-    '\\\\192.168.0.172\\comp01',
-    '\\\\192.168.0.172\\mixnet',
-    '\\\\Supervisor-Pc\\comp01',
-    '\\\\Supervisor-Pc\\mixnet',
     'M:\\mixnet',
     'M:\\',
     'P:\\comp01',
@@ -124,22 +112,20 @@ export function discoverMixnetEnvironment() {
   const dbfKeyTables = ['MXCTAINV.DBF', 'VICTAINV.DBF', 'MXCTACLI.DBF', 'PED.DBF', 'MXRENPED.DBF', 'YPENCFAC.DBF'];
 
   for (const dc of dbfCandidates) {
-    try {
-      if (fs.existsSync(dc)) {
-        let hasDbFiles = false;
-        for (const t of dbfKeyTables) {
-          if (fs.existsSync(path.join(dc, t)) || fs.existsSync(path.join(dc, t.toLowerCase()))) {
-            hasDbFiles = true;
-            break;
-          }
-        }
-        if (hasDbFiles) {
-          foundDbfDir = dc;
-          console.log('\n[!] Base de datos activa de MixNet encontrada en: ' + foundDbfDir);
+    if (safeExistsSync(dc)) {
+      let hasDbFiles = false;
+      for (const t of dbfKeyTables) {
+        if (safeExistsSync(path.join(dc, t)) || safeExistsSync(path.join(dc, t.toLowerCase()))) {
+          hasDbFiles = true;
           break;
         }
       }
-    } catch (_) {}
+      if (hasDbFiles) {
+        foundDbfDir = dc;
+        console.log('\n[!] Base de datos activa de MixNet encontrada en: ' + foundDbfDir);
+        break;
+      }
+    }
   }
 
   const dropList = Array.from(foundDropDirs);

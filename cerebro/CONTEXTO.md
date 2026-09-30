@@ -67,7 +67,7 @@ Entidades que atraviesan TODO el sistema (los nodos del grafo):
 | Qué | Dónde |
 |---|---|
 | Sitio | **jj-paper.pages.dev** (Cloudflare Pages; Netlify obsoleto) |
-| Base de datos | Supabase Multi-Proyecto: **A (Core: `qxgdrfkobbhdzgtoiavv`)**, **B (Comm: `klcibjwleiqppedefpxw`)**, **C (Storage: `nmcamjxhyysmmvgxgabo`)**. |
+| Base de datos | Supabase Multi-Proyecto: **A (Core: `wwcdxqpibequfohbgejs`)**, **B (Comm: `klcibjwleiqppedefpxw`)**, **C (Storage: `nmcamjxhyysmmvgxgabo`)**. |
 | Servidor | `wa-server/` en la PC de la tienda (Windows 7/10 en `192.168.0.172`); 🟢/🔴 por heartbeat en el panel |
 | MixNet | Sistema administrativo en comp01 (`\\192.168.0.185\comp01` / Unidad M:). |
 | Guías Clave | [[REGLAS_AGENTE.md]] (reglas para agentes IA) · [[MAPA_SISTEMA.md]] (mapa de 54 páginas y módulos) |

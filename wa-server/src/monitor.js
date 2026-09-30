@@ -296,7 +296,7 @@ export async function getSystemHealthAndStats(force = false) {
       core: {
         name: 'Proyecto A (Core)',
         role: 'Ventas, Catálogo, Clientes & POS',
-        ref: 'qxgdrfkobbhdzgtoiavv',
+        ref: 'wwcdxqpibequfohbgejs',
         ...statsA
       },
       comm: {

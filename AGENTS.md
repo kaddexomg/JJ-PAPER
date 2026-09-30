@@ -74,7 +74,7 @@ wa-server/
 No se detectaron tests.
 
 ## Migración a 3 Proyectos Supabase (Septiembre 2026)
-- **Estrategia**: El proyecto original (czzvsqnmxtjzqzioknnn) excedió su cuota. Se migró exitosamente el Core a Proyecto A (`qxgdrfkobbhdzgtoiavv`). Las credenciales multi-proyecto residen en `.env.supabase-multi`.
+- **Estrategia**: El proyecto anterior excedió su cuota de egress. Se migró exitosamente el Core al nuevo Proyecto A (`wwcdxqpibequfohbgejs`). Las credenciales multi-proyecto residen en `wa-server/.env` y `assets/js/config.js`.
 - **Estado Actual (07-09-2026)**:
   - **Proyecto A (Core)**: 100% ACTIVO en producción (`assets/js/config.js`, `_headers`, `wa-server/.env`).
   - **Proyecto B (Comunicación)**: WhatsApp, CRM, Sesiones y emails enrutados. Tablas `jjp_server_control` y `jjp_emails` sincronizadas en DDL con Proyecto B.

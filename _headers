@@ -17,3 +17,10 @@
 # Esto es lo que hace que el panel abra rápido en las PCs viejas de la tienda.
 /assets/vendor/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Configuración crítica y autenticación: siempre frescos, sin caché obsoleta
+/assets/js/config.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/js/admin/auth.js
+  Cache-Control: no-cache, no-store, must-revalidate

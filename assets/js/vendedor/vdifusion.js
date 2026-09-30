@@ -126,7 +126,7 @@ async function loadDContacts() {
   const PAGE = 1000;
   let from = 0;
   for (;;) {
-    let q = sb.from('jjp_customers').select('id,name,phone,email,zone,tags,seller_id,wa_opt_out,company_name,email_status').order('name').range(from, from + PAGE - 1);
+    let q = sb.from('jjp_customers').select('id,name,phone,email,zone,tags,seller_id,wa_opt_out,email_status').order('name').range(from, from + PAGE - 1);
     if (!isAdm && SELLER?.id) q = q.eq('seller_id', SELLER.id);
     const { data, error } = await q;
     if (error) { showToast('Error cargando contactos', 'err'); return; }
@@ -139,7 +139,7 @@ async function loadDContacts() {
   if (isAdm) {
     try {
       const { data: b2bProspects, error: pErr } = await sb.from('jjp_prospects')
-        .select('id,company_name,phone,email,sector,status,contacted,last_contact_at,email_status')
+        .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body')
         .order('company_name');
 
       if (!pErr && Array.isArray(b2bProspects)) {

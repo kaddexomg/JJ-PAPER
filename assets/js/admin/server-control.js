@@ -73,6 +73,9 @@ function srvRenderModal() {
       <strong>📁 Puente MixNet Activo:</strong> <code>${escapeHTML(mixerInfo.primary_dir || 'C:/JJ-PAPER-MIXER')}</code><br>
       <span>📤 Pedidos exportados: <b>${mixerInfo.exported_orders_count || 0}</b> · Cotizaciones: <b>${mixerInfo.exported_quotes_count || 0}</b> · 📥 Importados: <b>${mixerInfo.imported_count || 0}</b></span>
       ${mixerInfo.dbf_dir ? `<br><span>💾 Base de datos DBF conectada: <code>${escapeHTML(mixerInfo.dbf_dir)}</code></span>` : ''}
+      <div style="margin-top:6px;display:flex;gap:8px;">
+        <button type="button" style="background:#15803d;color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;" onclick="srvSyncMixnetNow()">🔄 Sincronizar Existencias y Precios Ahora</button>
+      </div>
     </div>` : ''}
     ${CURRENT_PROFILE?.role === 'admin' ? `<div class="srv-actions">
       <button class="btn-p" onclick="srvCommand('restart')" ${on ? '' : 'disabled'}>🔄 Reiniciar</button>
@@ -83,6 +86,15 @@ function srvRenderModal() {
         ? 'Reiniciar = vuelve a levantar el puente solo (útil si un chat se traba). Detener = lo apaga; para prenderlo de nuevo hay que ir a la PC de la tienda.'
         : '⚠️ Para <strong>PRENDER</strong> el servidor no basta con la web: en la PC de la tienda haz doble clic en <code>wa-server/START-SERVIDOR.bat</code> (o déjalo en arranque automático de Windows). Mientras esté apagado, los mensajes escritos quedan en cola y salen al reconectar.'}
     </div>`;
+}
+
+async function srvSyncMixnetNow() {
+  if (!srvOnline(_srvRow)) { showToast('El servidor de la PC debe estar encendido para sincronizar con MixNet', 'warn'); return; }
+  const { error } = await sb.from('jjp_server_control')
+    .update({ command: 'sync_mixnet', command_at: new Date().toISOString(), command_by: CURRENT_PROFILE?.id || null })
+    .eq('id', 1);
+  if (error) { showToast('Error enviando sincronización: ' + error.message, 'err'); return; }
+  showToast('Iniciando sincronización de catálogo y precios MixNet...', 'ok');
 }
 
 async function srvCommand(cmd) {

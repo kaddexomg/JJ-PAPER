@@ -125,13 +125,13 @@ function rebuildIndex() {
 async function detectOwner() {
   if (state.ownerId) return;
   const { data } = await withTimeout(
-    db.from('jjp_count_tally').select('owner_id').eq('session_key', state.session).limit(1), 6000);
+    dbCore.from('jjp_count_tally').select('owner_id').eq('session_key', state.session).limit(1), 6000);
   if (data?.[0]?.owner_id) { state.ownerId = data[0].owner_id; saveBuffer(); }
 }
 
 async function refreshCatalog() {
   let data, error;
-  try { ({ data, error } = await withTimeout(db.rpc('jjp_count_catalog', { p_only_active: true }), 12000)); }
+  try { ({ data, error } = await withTimeout(dbCore.rpc('jjp_count_catalog', { p_only_active: true }), 12000)); }
   catch (e) { markProbe(false, e); return false; }
   if (error) { markProbe(false, error); return false; }
   markProbe(true);
@@ -274,7 +274,7 @@ async function syncNow() {
     for (const [dev, map] of Object.entries(byDevice)) {
       if (netDown) { for (const [v, d] of Object.entries(map)) failed.push({ v, d, by: dev, at: Date.now() }); continue; }
       try {
-        const { data, error } = await withTimeout(db.rpc('jjp_count_apply_batch', {
+        const { data, error } = await withTimeout(dbCore.rpc('jjp_count_apply_batch', {
           p_owner: state.ownerId, p_session: state.session, p_by: dev, p_items: Object.entries(map).map(([v, d]) => ({ v, d }))
         }), 9000);
         if (error) {
@@ -893,9 +893,8 @@ export async function startCountLan() {
   await detectOwner().catch(() => {});
   await refreshCatalog().catch(() => {});
   
-  // Escribir el archivo mixnet inicialmente y luego cada 60s
+  // Escribir el archivo mixnet de respaldo una sola vez al arrancar (la sincronización continua la maneja mixer.js por Realtime)
   exportMixnetFile().catch(() => {});
-  setInterval(() => exportMixnetFile().catch(() => {}), 60_000);
 
   const onReq = (req, res) => { handle(req, res).catch(e => {
     try { sendJSON(res, 500, { ok: false, error: e?.message || 'error' }); } catch (_) {}

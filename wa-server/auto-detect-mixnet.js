@@ -170,7 +170,7 @@ export function discoverMixnetEnvironment() {
     console.error('[!] Error guardando mixnet-config.json:', e.message);
   }
 
-  // Actualizar .env con la ruta principal
+  // Actualizar y auto-sanear .env
   if (fs.existsSync(ENV_FILE)) {
     try {
       let envContent = fs.readFileSync(ENV_FILE, 'utf8');
@@ -180,6 +180,20 @@ export function discoverMixnetEnvironment() {
       } else {
         envContent += '\nMIXER_EXPORT_DIR=' + normalizedPath + '\n';
       }
+
+      // Auto-reparación si apunta al Core viejo suspendido (qxgdrfkobbhdzgtoiavv)
+      if (envContent.includes('qxgdrfkobbhdzgtoiavv')) {
+        console.log('[!] Detectada referencia al Core viejo en .env. Auto-migrando a nuevo Core activo...');
+        envContent = envContent.replace(/https:\/\/qxgdrfkobbhdzgtoiavv\.supabase\.co/g, 'https://wwcdxqpibequfohbgejs.supabase.co');
+        envContent = envContent.replace(/qxgdrfkobbhdzgtoiavv/g, 'wwcdxqpibequfohbgejs');
+        // Asegurar la clave de service_role correcta de Proyecto A Core
+        const coreKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg';
+        envContent = envContent.replace(/SUPABASE_SERVICE_ROLE_KEY_CORE=.*/g, 'SUPABASE_SERVICE_ROLE_KEY_CORE=' + coreKey);
+        envContent = envContent.replace(/PG_PASS_CORE=.*/g, 'PG_PASS_CORE=Samily*2030909109');
+        envContent = envContent.replace(/PG_HOST_CORE=.*/g, 'PG_HOST_CORE=aws-0-ca-central-1.pooler.supabase.com');
+        console.log('[OK] .env actualizado exitosamente con nuevo Proyecto A Core.');
+      }
+
       fs.writeFileSync(ENV_FILE, envContent, 'utf8');
       console.log('[OK] Archivo .env sincronizado con MIXER_EXPORT_DIR=' + normalizedPath);
     } catch (e) {

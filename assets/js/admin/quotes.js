@@ -246,20 +246,20 @@ href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar 
     try {
       let cust = null;
       if (q.customer_id) {
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email').eq('id', q.customer_id).maybeSingle();
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email').eq('id', q.customer_id).maybeSingle();
         if (data) cust = data;
       }
       if ((!cust || !cust.address) && q.rif) {
         const rawRif = String(q.rif).trim();
         const cleanRif = rawRif.replace(/[^a-zA-Z0-9]/g, '');
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email')
           .or(`rif.eq."${rawRif}",rif.eq."${cleanRif}"`)
           .limit(1);
         if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
       }
       if ((!cust || !cust.address) && q.client_name) {
         const qName = q.client_name.trim().slice(0, 18);
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email')
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email')
           .ilike('name', `%${qName}%`)
           .limit(1);
         if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];

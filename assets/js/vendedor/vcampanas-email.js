@@ -193,7 +193,7 @@ function setEcTab(t) {
 async function loadEcContacts() {
   const isAdm = SELLER?.role === 'admin';
   let q = sb.from('jjp_customers')
-    .select('id,name,phone,email,zone,tags,seller_id,company_name,email_status,email_opt_out')
+    .select('id,name,phone,email,zone,tags,seller_id,email_status,email_opt_out')
     .not('email', 'is', null)
     .neq('email', '')
     .order('name');
@@ -218,7 +218,7 @@ async function loadEcContacts() {
   if (isAdm) {
     try {
       const { data: b2bProspects, error: pErr } = await sb.from('jjp_prospects')
-        .select('id,company_name,phone,email,sector,status,contacted,last_contact_at,email_status')
+        .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body,bounce_reason')
         .not('email', 'is', null)
         .neq('email', '')
         .order('company_name');

@@ -11,8 +11,16 @@ dotenv.config(); // fallback estándar
 export const SUPABASE_URL = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
 export const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const SUPABASE_URL_CORE = process.env.SUPABASE_URL_CORE || process.env.SUPABASE_URL;
-export const SERVICE_KEY_CORE  = process.env.SUPABASE_SERVICE_ROLE_KEY_CORE || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const RAW_URL_CORE = process.env.SUPABASE_URL_CORE || process.env.SUPABASE_URL || '';
+const IS_STALE_CORE = RAW_URL_CORE.includes('qxgdrfkobbhdzgtoiavv');
+
+export const SUPABASE_URL_CORE = IS_STALE_CORE
+  ? 'https://wwcdxqpibequfohbgejs.supabase.co'
+  : (RAW_URL_CORE || 'https://wwcdxqpibequfohbgejs.supabase.co');
+
+export const SERVICE_KEY_CORE = IS_STALE_CORE
+  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg'
+  : (process.env.SUPABASE_SERVICE_ROLE_KEY_CORE || process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
 export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;

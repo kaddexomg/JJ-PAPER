@@ -55,6 +55,7 @@
         </div>
       </div>
       <div class="topbar-right">
+        <button class="btn-ghost" style="color:#15803d;font-weight:700" onclick="syncMixnetNow()" title="Sincronizar existencias y precios desde MixNet">🔄 Sincronizar MixNet</button>
         <button class="btn-ghost" onclick="recalcPrices('all')" title="Recalcular precios según tasas actuales">🔄 Recalcular precios</button>
         <button class="btn-ghost" onclick="openImportModal()">📥 Importar CSV</button>
         <button class="btn-p"     onclick="openNewProduct()">+ Nuevo Producto</button>
@@ -254,8 +255,24 @@
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
 <script src="../assets/js/send-hub.js?v=20260819b"></script>
 <script src="../assets/js/ficha-producto.js?v=20260727"></script>
-<script src="../assets/js/admin/products.js"></script>
+<script src="../assets/js/admin/products.js?v=20260930_v2"></script>
 <script>
+async function syncMixnetNow() {
+  showToast('Solicitando sincronización de productos y precios con MixNet...', 'ok');
+  try {
+    const { error } = await sb.from('jjp_server_control')
+      .update({ command: 'sync_mixnet', command_at: new Date().toISOString(), command_by: CURRENT_PROFILE?.id || null })
+      .eq('id', 1);
+    if (error) {
+      showToast('Error al solicitar sincronización: ' + error.message, 'err');
+      return;
+    }
+    showToast('Sincronización MixNet enviada al servidor de la tienda.', 'ok');
+  } catch (e) {
+    showToast('Error: ' + e.message, 'err');
+  }
+}
+
 function syncUnitText(sel) {
   const txt = sel.options[sel.selectedIndex]?.text.match(/\(([^)]+)\)/)?.[1] || '';
   if (txt) document.getElementById('f-prod-unit').value = txt;

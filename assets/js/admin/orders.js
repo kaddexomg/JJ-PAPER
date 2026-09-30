@@ -390,13 +390,13 @@ function viewOrder(id) {
     try {
       let cust = null;
       if (o.customer_id) {
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone').eq('id', o.customer_id).maybeSingle();
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email,notes,zone').eq('id', o.customer_id).maybeSingle();
         if (data) cust = data;
       }
       const inv = o.invoice_data || {};
       const mixnetCode = (inv.cliente || '').trim();
       if ((!cust || !cust.address) && mixnetCode) {
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone')
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email,notes,zone')
           .ilike('notes', `%${mixnetCode}%`)
           .limit(1);
         if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
@@ -404,14 +404,14 @@ function viewOrder(id) {
       const rawRif = String(o.rif || inv.cif || '').trim();
       const digits = rawRif.replace(/\D/g, '');
       if ((!cust || !cust.address) && digits.length >= 6) {
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone')
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email,notes,zone')
           .ilike('rif', `%${digits}%`)
           .limit(1);
         if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];
       }
       if ((!cust || !cust.address) && o.client_name) {
         const qName = o.client_name.trim().slice(0, 18);
-        const { data } = await sb.from('jjp_customers').select('name,business_name,rif,address,city,phone,email,notes,zone')
+        const { data } = await sb.from('jjp_customers').select('name,rif,address,city,phone,email,notes,zone')
           .ilike('name', `%${qName}%`)
           .limit(1);
         if (data?.[0]) cust = cust ? { ...data[0], ...cust, address: data[0].address || cust.address } : data[0];

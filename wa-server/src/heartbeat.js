@@ -35,6 +35,27 @@ function getLanIp() {
 }
 
 
+let lastStatsData = null;
+let lastStatsFetchTime = 0;
+const STATS_BEAT_TTL = 300_000; // Recalcular métricas de Postgres cada 5 minutos
+
+async function fetchStatsForBeat() {
+  const now = Date.now();
+  if (lastStatsData && (now - lastStatsFetchTime < STATS_BEAT_TTL)) return lastStatsData;
+  try {
+    const { getSystemHealthAndStats } = await import('./monitor.js');
+    const s = await getSystemHealthAndStats(false);
+    if (s && s.recentRequests && s.recentRequests.length > 20) {
+      s.recentRequests = s.recentRequests.slice(0, 20);
+    }
+    lastStatsData = s;
+    lastStatsFetchTime = now;
+    return s;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function beat() {
   // El latido decía solo "el proceso vive". Ahora también dice si cada
   // WhatsApp está realmente sano, que es lo que le importa al panel.
@@ -60,13 +81,15 @@ async function beat() {
     gsmDevice = await getDeviceStatus();
   } catch (_) {}
 
+  const monitorStats = await fetchStatsForBeat();
+
   const now = new Date().toISOString();
   const payload = {
     heartbeat: now,
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}) }
+    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}), ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
   };
 
   // 1. Actualizar Proyecto B (Comunicación)
@@ -79,6 +102,19 @@ async function runCommand(cmd) {
   handling = true;
   // Limpiar el comando ANTES de ejecutarlo (evita re-disparos)
   await db.from('jjp_server_control').update({ command: null }).eq('id', 1);
+
+  if (cmd === 'sync_mixnet' || cmd === 'sync_catalog') {
+    log.info('comando de sincronización manual de MixNet recibido vía Supabase');
+    try {
+      const { sweepMixnetProducts } = await import('./mixer.js');
+      await sweepMixnetProducts();
+      log.info('Sincronización manual de MixNet completada.');
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error ejecutando sincronización manual de MixNet');
+    }
+    handling = false;
+    return;
+  }
 
   if (cmd && cmd.startsWith('call:')) {
     const phone = cmd.replace(/^call:/, '').trim();

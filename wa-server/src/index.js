@@ -192,7 +192,6 @@ function handleFatalOrRepeatedError(reason, isCritical = false) {
           modules: { crashed: true, error: errMsg, restarted_at: new Date().toISOString() }
         };
         dbComm.from('jjp_server_control').update(payload).eq('id', 1).then(() => {}).catch(() => {});
-        if (dbCore) dbCore.from('jjp_server_control').update(payload).eq('id', 1).then(() => {}).catch(() => {});
       }).catch(() => {});
     } catch (_) {}
 

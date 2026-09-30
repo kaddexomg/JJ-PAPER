@@ -88,10 +88,10 @@
   .pc-img    { height:180px }
 
   /* Modales: escala cómoda y flotante sin desbordar bordes de pantalla */
-  .modal-overlay { padding:14px 10px !important; }
-  .modal-box     { max-height:min(88vh, calc(100dvh - 24px)) !important; border-radius:16px !important; width:96% !important; }
+  .modal-overlay { padding:14px 10px !important; align-items:flex-start !important; }
+  .modal-box     { max-height:calc(100dvh - 28px) !important; border-radius:16px !important; width:96% !important; margin:auto 0 !important; }
   .modal-hd      { padding:14px 16px !important; }
-  .modal-body    { padding:16px 14px 22px 14px !important; }
+  .modal-body    { padding:16px 14px 34px 14px !important; }
   .modal-ft      { padding:12px 14px !important; }
 
   /* Forms */

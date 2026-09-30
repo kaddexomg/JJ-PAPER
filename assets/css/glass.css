@@ -633,15 +633,19 @@ select.fi:focus {
    MODALES — Tabletas Flotantes de Vidrio Traslúcido
    =================================================================== */
 .modal-overlay {
-  background: rgba(8, 12, 20, 0.65) !important;
+  background: rgba(8, 12, 20, 0.70) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding: 20px 16px !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
 }
 
 .modal-box {
-  border-radius: 26px !important;
+  border-radius: 24px !important;
   background: var(--theme-bg-surface) !important;
   backdrop-filter: blur(36px) saturate(220%) !important;
   -webkit-backdrop-filter: blur(36px) saturate(220%) !important;
@@ -650,9 +654,9 @@ select.fi:focus {
   color: var(--theme-text-main) !important;
   display: flex !important;
   flex-direction: column !important;
-  max-height: min(84vh, 660px) !important;
+  max-height: calc(100vh - 40px) !important;
   overflow: hidden !important;
-  margin: auto !important;
+  margin: auto 0 !important;
 }
 
 .fac-modal-box {
@@ -663,7 +667,7 @@ select.fi:focus {
   border: 1px solid var(--theme-border-glass) !important;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.3) !important;
   color: var(--theme-text-main) !important;
-  max-height: min(84vh, 660px) !important;
+  max-height: calc(100vh - 40px) !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
 }
@@ -693,7 +697,7 @@ select.fi:focus {
   -webkit-overflow-scrolling: touch !important;
   touch-action: pan-y !important;
   overscroll-behavior-y: contain !important;
-  padding: 18px 22px 26px 22px !important;
+  padding: 18px 22px 36px 22px !important;
 }
 
 /* Scrollbar estilizada y fluida para el cuerpo del modal */

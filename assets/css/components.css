@@ -125,8 +125,8 @@
 
 /* ---- Modal ---- */
 .modal-overlay {
-  position:fixed; inset:0; background:rgba(0,0,0,.62); z-index:3000;
-  display:flex; align-items:center; justify-content:center; padding:24px 16px;
+  position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:3000;
+  display:flex; align-items:flex-start; justify-content:center; padding:20px 16px;
   opacity:0; pointer-events:none; transition:opacity .2s ease;
   backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
   overflow-y:auto; -webkit-overflow-scrolling:touch;
@@ -135,9 +135,9 @@
 .modal-overlay.open { opacity:1; pointer-events:all }
 .modal-box {
   background:#fff; border-radius:18px; max-width:680px; width:95%;
-  max-height:min(82vh, 660px); box-shadow:0 24px 70px rgba(0,0,0,.35), 0 4px 16px rgba(0,0,0,.15);
+  max-height:calc(100vh - 40px); box-shadow:0 24px 70px rgba(0,0,0,.35), 0 4px 16px rgba(0,0,0,.15);
   transform:scale(.96); transition:transform .2s cubic-bezier(.34,1.4,.64,1);
-  display:flex; flex-direction:column; overflow:hidden; margin:auto;
+  display:flex; flex-direction:column; overflow:hidden; margin:auto 0;
   position:relative;
 }
 .modal-overlay.op .modal-box,
@@ -155,7 +155,7 @@
 }
 .modal-close:hover { background:var(--gd); color:#fff; border-color:var(--gd) }
 .modal-body {
-  padding:18px 22px 26px; flex:1 1 auto; min-height:0;
+  padding:18px 22px 36px; flex:1 1 auto; min-height:0;
   overflow-y:auto !important; overflow-x:hidden; -webkit-overflow-scrolling:touch;
   touch-action:pan-y; overscroll-behavior-y:contain;
   scrollbar-width:thin; scrollbar-color:#94a3b8 #f8fafc;
@@ -167,11 +167,6 @@
 .modal-ft {
   flex-shrink:0; padding:14px 22px; border-top:1px solid #e2e8f0; background:#f8fafc;
   display:flex; gap:10px; justify-content:flex-end; align-items:center; z-index:5;
-}
-
-@media (max-height: 650px) {
-  .modal-overlay { align-items: flex-start; padding-top: 16px; }
-  .modal-box { max-height: calc(100vh - 32px); }
 }
 
 /* ---- Toast ---- */

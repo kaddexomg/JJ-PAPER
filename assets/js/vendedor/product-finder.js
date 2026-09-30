@@ -8,7 +8,7 @@
 let PF_PRODUCTS = null;
 const PF_CACHE_KEY  = 'jjp_pf_products_v2';
 const PF_CACHE_TIME = 'jjp_pf_products_v2_time';
-const PF_TTL        = 5 * 60 * 1000; // 5 minutos
+const PF_TTL        = 60 * 60 * 1000; // 60 minutos
 
 async function pfLoad(force) {
   if (PF_PRODUCTS && !force) return PF_PRODUCTS;

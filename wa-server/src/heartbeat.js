@@ -1,5 +1,5 @@
 import os from 'node:os';
-import { db, dbCore } from './supabase.js';
+import { db } from './supabase.js';
 import { log } from './logger.js';
 
 // Latido + control remoto del wa-server.
@@ -8,8 +8,8 @@ import { log } from './logger.js';
 // (Arrancar desde apagado NO se puede por web: eso lo hace run-forever.bat
 //  en la PC de la tienda, o el arranque automático de Windows.)
 
-const HEARTBEAT_MS = 30_000;   // cada cuánto late
-const POLL_MS      = 30_000;   // respaldo si Realtime está caído
+const HEARTBEAT_MS = 60_000;   // cada cuánto late
+const POLL_MS      = 120_000;  // respaldo si Realtime está caído
 
 let modulesRef = {};
 let liveFn = null;      // devuelve estado en vivo (p. ej. salud de cada WhatsApp)
@@ -34,25 +34,6 @@ function getLanIp() {
   return cands[0] || '127.0.0.1';
 }
 
-let lastStatsData = null;
-let lastStatsFetchTime = 0;
-
-async function fetchStatsForBeat() {
-  const now = Date.now();
-  if (lastStatsData && (now - lastStatsFetchTime < 300_000)) return lastStatsData;
-  try {
-    const { getSystemHealthAndStats } = await import('./monitor.js');
-    const s = await getSystemHealthAndStats(false);
-    if (s && s.recentRequests && s.recentRequests.length > 20) {
-      s.recentRequests = s.recentRequests.slice(0, 20);
-    }
-    lastStatsData = s;
-    lastStatsFetchTime = now;
-    return s;
-  } catch (_) {
-    return null;
-  }
-}
 
 async function beat() {
   // El latido decía solo "el proceso vive". Ahora también dice si cada
@@ -73,8 +54,6 @@ async function beat() {
     lan_https_url: `https://${ip}:8788`
   };
 
-  const monitorStats = await fetchStatsForBeat();
-
   let gsmDevice = null;
   try {
     const { getDeviceStatus } = await import('./gsm.js');
@@ -87,17 +66,12 @@ async function beat() {
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}), ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
+    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}) }
   };
 
   // 1. Actualizar Proyecto B (Comunicación)
   const { error } = await db.from('jjp_server_control').update(payload).eq('id', 1);
   if (error) log.warn({ err: error.message }, 'heartbeat falló en Proyecto B');
-
-  // 2. Latido dual a Proyecto A (Core) para compatibilidad total de navegadores
-  try {
-    await dbCore.from('jjp_server_control').update(payload).eq('id', 1);
-  } catch (_) {}
 }
 
 async function runCommand(cmd) {
@@ -105,7 +79,6 @@ async function runCommand(cmd) {
   handling = true;
   // Limpiar el comando ANTES de ejecutarlo (evita re-disparos)
   await db.from('jjp_server_control').update({ command: null }).eq('id', 1);
-  try { await dbCore.from('jjp_server_control').update({ command: null }).eq('id', 1); } catch (_) {}
 
   if (cmd && cmd.startsWith('call:')) {
     const phone = cmd.replace(/^call:/, '').trim();
@@ -135,7 +108,6 @@ async function runCommand(cmd) {
   if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
     log.info({ cmd }, 'comando recibido — saliendo para recargar (el supervisor sincroniza y relanza)');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);
-    try { await dbCore.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1); } catch (_) {}
     process.exit(0);   // código 0 → el supervisor relanza con git pull
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
@@ -146,7 +118,6 @@ async function runCommand(cmd) {
       modules: { stopped: true }
     };
     await db.from('jjp_server_control').update(stopPayload).eq('id', 1);
-    try { await dbCore.from('jjp_server_control').update(stopPayload).eq('id', 1); } catch (_) {}
     process.exit(2);   // código 2 → run-forever.bat NO relanza (parada intencional)
   }
   handling = false;
@@ -175,9 +146,6 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   db.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
     if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto B');
   });
-  try {
-    dbCore.from('jjp_server_control').update(startPayload).eq('id', 1).then();
-  } catch (_) {}
 
   beatTimer = setInterval(() => beat().catch(() => {}), HEARTBEAT_MS);
 

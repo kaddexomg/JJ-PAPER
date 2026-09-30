@@ -28,7 +28,7 @@ function getActiveSeller() {
 
 const CUST_CACHE_KEY  = 'jjp_vcust_cache_v1';
 const CUST_CACHE_TIME = 'jjp_vcust_cache_v1_time';
-const CUST_TTL        = 7 * 60 * 1000; // 7 minutos de vigencia
+const CUST_TTL        = 60 * 60 * 1000; // 60 minutos de vigencia
 
 function _getCustCache() {
   try {

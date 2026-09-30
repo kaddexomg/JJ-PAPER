@@ -10,7 +10,7 @@ let editingAdminCustId = null;
 
 const ADMIN_CUST_CACHE_KEY  = 'jjp_admin_cust_cache_v1';
 const ADMIN_CUST_CACHE_TIME = 'jjp_admin_cust_cache_v1_time';
-const ADMIN_CUST_TTL        = 7 * 60 * 1000; // 7 minutos de vigencia
+const ADMIN_CUST_TTL        = 60 * 60 * 1000; // 60 minutos de vigencia
 
 function _getAdminCustCache() {
   try {

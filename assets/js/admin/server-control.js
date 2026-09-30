@@ -25,7 +25,7 @@ function srvAgo(iso) {
 }
 
 async function srvLoad() {
-  const { data } = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+  const { data } = await sb.from('jjp_server_control').select('id,status,heartbeat_at,host,modules,started_at,command').eq('id', 1).maybeSingle();
   _srvRow = data;
   srvRenderChip();
   srvRenderModal();
@@ -113,8 +113,8 @@ function closeSrvModal() {
 
 function srvInit() {
   srvLoad();
-  // Refresco del chip cada 20s (el "hace Xs" y el 🟢/🔴 se recalculan)
-  _srvTimer = setInterval(srvLoad, 20_000);
+  // Refresco del chip cada 2 min (el "hace Xs" y el 🟢/🔴 se recalculan; los cambios reales vienen por Realtime)
+  _srvTimer = setInterval(srvLoad, 120_000);
   // Cambios en vivo (arranque, comandos, módulos)
   sb.channel('srv-ui')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_server_control', filter: 'id=eq.1' },

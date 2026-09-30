@@ -35,7 +35,7 @@ async function mailInit(me) {
     });
     if (error) { localStorage.removeItem('jjp_link_gmail'); showToast('No se pudo abrir Google: ' + error.message, 'err'); }
   };
-  sb.channel('mail-ui-' + MAIL_ME.id)
+  sb.channel('email-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },
       () => mailLoadDebounced())
     // Se re-consulta en vez de usar el payload: así el navegador nunca recibe

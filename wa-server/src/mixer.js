@@ -52,6 +52,7 @@ const HISTORY_QUOTES_FILE = path.join(ROOT_DIR, 'exported-quotes.json');
 const HISTORY_IMPORTED_FILE = path.join(ROOT_DIR, 'imported-mixnet.json');
 const HISTORY_ORDERS_FP_FILE = path.join(ROOT_DIR, 'exported-orders-fp.json');
 const HISTORY_QUOTES_FP_FILE = path.join(ROOT_DIR, 'exported-quotes-fp.json');
+const HISTORY_PRODUCTS_FP_FILE = path.join(ROOT_DIR, 'product-sync-fp.json');
 
 // Estados en memoria y conjuntos de duplicados
 let exportedOrders = new Set();
@@ -59,6 +60,7 @@ let exportedQuotes = new Set();
 let importedHistory = new Set();
 let orderFingerprints = new Map(); // order_number → fingerprint
 let quoteFingerprints = new Map(); // quote_number → fingerprint
+let productSyncFingerprints = new Map(); // sku → fingerprint (Dirty Check 0 egress)
 
 // Genera una huella digital determinista del documento para detectar cambios reales
 function computeDocFingerprint(doc) {
@@ -151,7 +153,13 @@ function loadHistories() {
         quoteFingerprints = new Map(Object.entries(data || {}));
       } catch (_) {}
     }
-    log.info(`Puente Mixer: Historiales cargados (Pedidos: ${exportedOrders.size} [${orderFingerprints.size} huellas], Cotizaciones: ${exportedQuotes.size} [${quoteFingerprints.size} huellas], Importados: ${importedHistory.size})`);
+    if (fs.existsSync(HISTORY_PRODUCTS_FP_FILE)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(HISTORY_PRODUCTS_FP_FILE, 'utf8'));
+        productSyncFingerprints = new Map(Object.entries(data || {}));
+      } catch (_) {}
+    }
+    log.info(`Puente Mixer: Historiales cargados (Pedidos: ${exportedOrders.size} [${orderFingerprints.size} huellas], Cotizaciones: ${exportedQuotes.size} [${quoteFingerprints.size} huellas], Catálogo: ${productSyncFingerprints.size} huellas, Importados: ${importedHistory.size})`);
   } catch (err) {
     log.warn({ err: err.message }, 'Puente Mixer: Advertencia cargando historiales');
   }
@@ -164,6 +172,7 @@ function saveHistories() {
     fs.writeFileSync(HISTORY_IMPORTED_FILE, JSON.stringify(Array.from(importedHistory), null, 2), 'utf8');
     fs.writeFileSync(HISTORY_ORDERS_FP_FILE, JSON.stringify(Object.fromEntries(orderFingerprints), null, 2), 'utf8');
     fs.writeFileSync(HISTORY_QUOTES_FP_FILE, JSON.stringify(Object.fromEntries(quoteFingerprints), null, 2), 'utf8');
+    fs.writeFileSync(HISTORY_PRODUCTS_FP_FILE, JSON.stringify(Object.fromEntries(productSyncFingerprints), null, 2), 'utf8');
   } catch (err) {
     log.error({ err: err.message }, 'Puente Mixer: Error guardando historiales');
   }
@@ -1544,6 +1553,12 @@ export async function sweepMixnetProducts() {
         }
 
         if (priceB > 0 || stock >= 0) {
+          const fp = `${priceA}|${priceB}|${priceCBs}|${priceDBs}|${stock}|${cost}`;
+          if (productSyncFingerprints.get(sku) === fp) {
+            // DIRTY CHECK: El producto no ha cambiado en el DBF local. CERO consumo de egress.
+            continue;
+          }
+
           const updateObj = {};
           if (priceA > 0) updateObj.price_a = priceA;
           if (priceB > 0) {
@@ -1567,6 +1582,7 @@ export async function sweepMixnetProducts() {
           const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
           if (vUp?.length || pUp?.length) {
             updatedCount++;
+            productSyncFingerprints.set(sku, fp);
           } else {
             // El artículo existe en MixNet pero aún no en JJ Paper: auto-importarlo.
             // CRÍTICO (17/09/2026): Se debe crear TANTO el producto como su variante.
@@ -1610,6 +1626,7 @@ export async function sweepMixnetProducts() {
         }
       }
       if (updatedCount > 0 || insertedCount > 0) {
+        saveHistories();
         log.info(`Puente Mixer: Sincronizados precios y stock de ${updatedCount} productos (${insertedCount} nuevos importados) desde MXCTAINV.DBF (maestro vigente).`);
       }
       return;
@@ -1944,11 +1961,12 @@ export function startMixer() {
     sweepMixnetInvoices().catch(() => {});
   }, 30_000);
 
-  // 3. Sincronización periódica de productos y catálogo cada 5 minutos
+  // 3. Sincronización periódica de productos y catálogo cada 24 horas (86.400.000 ms)
+  // Nota: Además se puede disparar manualmente en cualquier momento desde el panel
   setInterval(() => {
     sweepMixnetProducts().catch(() => {});
     exportCatalogToMixnet().catch(() => {});
-  }, 300_000);
+  }, 86_400_000);
 
   // 3. Re-chequeo del entorno de unidades (por si se monta M: o P: en red) cada 10 minutos
   setInterval(() => {

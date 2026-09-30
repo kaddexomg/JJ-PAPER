@@ -79,17 +79,24 @@ export async function updateRates() {
   // cobrando en Bs a BCV, el ingreso real (en USDT) mantenga el margen. = Binance/BCV.
   const factor  = rateBcv > 0 ? rateBin / rateBcv : 1;
 
+  // Consolidar todas las tasas en un solo upsert batch
   const nowIso = new Date().toISOString();
-  await setSetting('exchange_rate',     rateBcv.toFixed(2));   // COBRO en Bs = BCV (legal). La usa todo el sitio.
-  await setSetting('rate_bcv',          rateBcv.toFixed(2));
-  await setSetting('usdt_rate',         rateBin.toFixed(2));   // Binance P2P real (reposición)
-  await setSetting('rate_binance',      rateBin.toFixed(2));
-  if (rateMon) await setSetting('rate_monitor', rateMon.toFixed(2));
-  if (eur)     await setSetting('rate_eur',     eur.toFixed(2));     // Bs por EURO (BCV oficial)
-  await setSetting('rate_gap_pct',      gap.toFixed(1));       // brecha BCV↔Binance
-  await setSetting('rate_factor',       factor.toFixed(4));    // multiplicador para proteger margen
-  await setSetting('rates_updated_iso', nowIso);
-  await setSetting('rates_updated_at',  nowIso);
+  const settingsRows = [
+    { key: 'exchange_rate',     value: rateBcv.toFixed(2) },
+    { key: 'rate_bcv',          value: rateBcv.toFixed(2) },
+    { key: 'usdt_rate',         value: rateBin.toFixed(2) },
+    { key: 'rate_binance',      value: rateBin.toFixed(2) },
+    { key: 'rate_gap_pct',      value: gap.toFixed(1) },
+    { key: 'rate_factor',       value: factor.toFixed(4) },
+    { key: 'rates_updated_iso', value: nowIso },
+    { key: 'rates_updated_at',  value: nowIso }
+  ].map(r => ({ ...r, updated_at: nowIso }));
+  if (rateMon) settingsRows.push({ key: 'rate_monitor', value: rateMon.toFixed(2), updated_at: nowIso });
+  if (eur)     settingsRows.push({ key: 'rate_eur',     value: eur.toFixed(2), updated_at: nowIso });
+
+  const { error: sErr } = await dbCore.from('jjp_settings')
+    .upsert(settingsRows, { onConflict: 'key' });
+  if (sErr) log.error({ error: sErr.message }, 'upsert batch de tasas falló');
 
   // Historial para ver la tendencia diaria (tabla jjp_fx_rates en Core)
   const { error: hErr } = await dbCore.from('jjp_fx_rates')

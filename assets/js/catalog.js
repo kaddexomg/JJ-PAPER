@@ -146,7 +146,7 @@ async function loadProducts() {
   const cached = sessionStorage.getItem(cacheKey);
   const cachedTime = sessionStorage.getItem(cacheTimeKey);
   const now = Date.now();
-  if (cached && cachedTime && (now - parseInt(cachedTime, 10) < 180000)) {
+  if (cached && cachedTime && (now - parseInt(cachedTime, 10) < 3600000)) {
     try {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {

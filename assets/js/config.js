@@ -2,8 +2,8 @@
    JJ Paper — Supabase Config & App Constants
    ====================================================== */
 
-const SUPABASE_URL = 'https://qxgdrfkobbhdzgtoiavv.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4Z2RyZmtvYmJoZHpndG9pYXZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MzcxOTIsImV4cCI6MjEwMzUxMzE5Mn0.TWZz5LhFUq-89SLS-qpGMdWecHX31oFAG4tG6EQvt0c';
+const SUPABASE_URL = 'https://wwcdxqpibequfohbgejs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MzAwNzQsImV4cCI6MjEwNjMwNjA3NH0.LpAugyhm57WO669WjiWKdekDYgB8l8rxFLTk0gsC0fk';
 
 // Proyecto B — Comunicación (WhatsApp, Email, Difusión)
 const SUPABASE_URL_COMM = 'https://klcibjwleiqppedefpxw.supabase.co';

@@ -601,7 +601,7 @@ async function querySupabaseDirectly() {
       core: {
         name: 'Proyecto A (Core)',
         role: 'Ventas, Catálogo, Clientes & POS',
-        ref: 'qxgdrfkobbhdzgtoiavv',
+        ref: 'wwcdxqpibequfohbgejs',
         online: true,
         latency: latA,
         sizeMb: estSizeA_Mb,

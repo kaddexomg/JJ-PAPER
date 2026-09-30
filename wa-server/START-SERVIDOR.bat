@@ -31,7 +31,7 @@ echo  Lanzando supervisor independiente silencioso...
 wscript start-hidden.vbs
 
 echo  Esperando confirmacion de enlace...
-timeout /t 3 /nobreak >nul
+ping -n 4 127.0.0.1 >nul
 
 REM Verificar nuevamente
 set IS_RUNNING=0
@@ -48,7 +48,7 @@ if "%IS_RUNNING%"=="1" (
   echo  Puedes verificar su progreso en cualquier momento con:
   echo  ESTADO-SERVIDOR.bat
   echo.
-  timeout /t 4 /nobreak >nul
+  ping -n 5 127.0.0.1 >nul
   exit /b 0
 )
 

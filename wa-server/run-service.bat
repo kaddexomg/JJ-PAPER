@@ -43,10 +43,10 @@ if "%CODE%"=="2" (
 REM Codigo 3 = Candado activo (ya hay otra instancia de wa-server corriendo)
 if "%CODE%"=="3" (
   echo [%date% %time%] [SUPERVISOR] Candado activo detectado (puerto 8786 ocupado). >> "%LOGFILE%"
-  REM Verificar si realmente hay otro proceso node con src/index.js corriendo
-  wmic process where "name='node.exe' and commandline like '%%src/index.js%%'" get ProcessId 2>nul | findstr /R "[0-9]" >nul 2>&1
+  REM Verificar si realmente hay otro proceso escuchando en el puerto mutex 8786
+  netstat -ano | findstr /R ":8786 .*LISTENING" >nul 2>&1
   if not errorlevel 1 (
-    echo [%date% %time%] [SUPERVISOR] Otra instancia activa confirmada. Saliendo sin duplicar. >> "%LOGFILE%"
+    echo [%date% %time%] [SUPERVISOR] Otra instancia activa confirmada (puerto 8786 en escucha). Saliendo sin duplicar. >> "%LOGFILE%"
     exit /b 0
   )
   REM Si no hay otra instancia activa, el puerto esta liberandose (TIME_WAIT). Reintentar en 4s

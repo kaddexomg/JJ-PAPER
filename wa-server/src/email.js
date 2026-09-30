@@ -387,6 +387,42 @@ async function pollAccountInbound(acct) {
   }
 }
 
+// Sondeo manual forzado invocado por jjp_server_control o UI
+export async function pollInboundNow() {
+  log.info('iniciando sincronización forzada con Gmail...');
+  let totalNew = 0;
+  const { data: accts } = await db.from('jjp_email_accounts')
+    .select('profile_id,email,oauth_refresh,enabled').eq('enabled', true).not('oauth_refresh', 'is', null);
+  for (const a of accts || []) {
+    try {
+      let token = await gmailAccessToken(a.oauth_refresh);
+      const listRes = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&q=' +
+        encodeURIComponent('in:inbox newer_than:7d'),
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) });
+      if (!listRes.ok) continue;
+      const ids = ((await listRes.json()).messages || []).map(m => m.id);
+      if (!ids.length) continue;
+      const { data: have } = await db.from('jjp_emails')
+        .select('gmail_id').eq('owner_id', a.profile_id).in('gmail_id', ids);
+      const known = new Set((have || []).map(r => r.gmail_id));
+      const missing = ids.filter(id => !known.has(id));
+      for (const id of missing) {
+        try {
+          await ingestMessage(a, token, id);
+          totalNew++;
+        } catch (err) {
+          log.warn({ err: err.message, id }, 'ingesta manual falló');
+        }
+      }
+    } catch (e) {
+      log.warn({ err: e.message, email: a.email }, 'sondeo manual de cuenta falló');
+    }
+  }
+  log.info({ totalNew }, 'sincronización forzada con Gmail completada');
+  return totalNew;
+}
+
 function headerVal(headers, name) {
   return (headers || []).find(h => h.name?.toLowerCase() === name)?.value || '';
 }
@@ -455,7 +491,14 @@ async function ingestMessage(acct, token, id) {
   const bodyText = extractBody(msg.payload);
 
   const { data: cust } = await dbCore.from('jjp_customers')
-    .select('id').ilike('email', from.email).limit(1).maybeSingle();
+    .select('id, name').ilike('email', from.email).limit(1).maybeSingle();
+
+  let prospect = null;
+  if (!cust?.id) {
+    const { data: pros } = await dbCore.from('jjp_prospects')
+      .select('id, name, company').ilike('email', from.email).limit(1).maybeSingle();
+    prospect = pros || null;
+  }
 
   const fromLower = from.email.toLowerCase();
   const subjLower = (subject || '').toLowerCase();
@@ -492,6 +535,49 @@ async function ingestMessage(acct, token, id) {
         log.error({ err: err.message }, 'Error al procesar rebote en ingestMessage');
       }
     }
+  } else {
+    // 1. Marcar interacción activa en cliente o prospecto B2B
+    if (cust?.id) {
+      await dbCore.from('jjp_customers').update({
+        last_contact_at: ts,
+        updated_at: new Date().toISOString()
+      }).eq('id', cust.id).catch(() => {});
+    } else if (prospect?.id) {
+      await dbCore.from('jjp_prospects').update({
+        status: 'respondio_email',
+        contacted: true,
+        last_contact_at: ts,
+        updated_at: new Date().toISOString()
+      }).eq('id', prospect.id).catch(() => {});
+    }
+
+    // 2. Marcar en campañas de email que este destinatario respondió
+    try {
+      const { data: cTargets } = await db.from('jjp_email_campaign_targets')
+        .select('id, vars')
+        .ilike('to_addr', from.email)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      for (const ct of cTargets || []) {
+        const v = ct.vars || {};
+        v.has_replied = true;
+        v.replied_at = ts;
+        v.reply_subject = subject;
+        await db.from('jjp_email_campaign_targets').update({ vars: v }).eq('id', ct.id);
+      }
+    } catch (_) {}
+
+    // 3. Notificación al asesor / usuario de la cuenta
+    try {
+      const senderName = cust?.name || prospect?.name || prospect?.company || from.name || from.email;
+      await dbCore.from('jjp_notifications').insert({
+        user_id: acct.profile_id,
+        type: 'email_reply',
+        title: `📩 Respuesta de ${senderName}`,
+        body: `"${subject || 'Sin asunto'}" — ${(bodyText || '').slice(0, 120)}...`,
+        link: '/vendedor/correo.html'
+      });
+    } catch (_) {}
   }
 
   const { error } = await db.from('jjp_emails').insert({

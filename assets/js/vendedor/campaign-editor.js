@@ -19,10 +19,14 @@ window.CampaignEditor = (() => {
   let selectedAudienceList = [];
   let selectedProductOrCombo = null;
   let generatedFlyerFile = null;
-  let cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
+  let cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set(), details: new Map() };
+  let recentQuotesMap = new Map();   // customer_id | phone | email -> quote
+  let recentRepliesMap = new Map();  // customer_id | phone | email -> reply
   let knownNoWaPhones = new Set();
-  let cooldownHours = 0;
+  let cooldownHours = 72;
   let cooldownLoading = null;
+  let currentLoadedCooldownHours = null;
+  let currentLoadedChannel = null;
 
   // Estado del flujo IA
   let activePreviewIdx = 0;
@@ -59,54 +63,105 @@ window.CampaignEditor = (() => {
     return String(p || '').replace(/\D/g, '').replace(/^0+/, '').slice(-11);
   }
 
-  // Descarga contactos con envíos recientes para respetar cooldown anti-spam
-  async function reloadCooldown() {
-    cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set() };
-    knownNoWaPhones = new Set();
-    cooldownHours = 0;
+  // Descarga contactos con envíos recientes para respetar cooldown anti-spam,
+  // cotizaciones activas de los últimos 30 días y respuestas recibidas
+  async function reloadCooldown(force = false) {
     const isEmail = currentConfig?.channel === 'email';
+    const hoursSelectVal = document.getElementById('ceCooldownHours')?.value;
+    const hours = hoursSelectVal !== undefined ? parseInt(hoursSelectVal, 10) : parseInt(APP?.SETTINGS?.[isEmail ? 'email_camp_cooldown_h' : 'wa_camp_cooldown_h'] || 72, 10);
+    cooldownHours = hours;
 
-    if (!isEmail) {
+    if (!force && currentLoadedCooldownHours === hours && currentLoadedChannel === currentConfig?.channel && cooldownExcluded.customer.size > 0) {
+      return;
+    }
+    currentLoadedCooldownHours = hours;
+    currentLoadedChannel = currentConfig?.channel;
+
+    cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set(), details: new Map() };
+    recentQuotesMap = new Map();
+    recentRepliesMap = new Map();
+    knownNoWaPhones = new Set();
+
+    // 1. Cargar envíos recientes de campañas si cooldown está activo (> 0 horas)
+    if (hours > 0) {
+      const cutoff = new Date(Date.now() - hours * 3600e3).toISOString();
+      const table = isEmail ? 'jjp_email_campaign_targets' : 'jjp_wa_campaign_targets';
+      const valueField = isEmail ? 'to_addr' : 'phone';
       try {
-        const { data: noWa } = await sb.from('jjp_wa_campaign_targets')
-          .select('phone')
-          .eq('status', 'skipped')
-          .ilike('error', '%sin WhatsApp%')
-          .limit(2000);
-        for (const row of noWa || []) {
-          if (row.phone) knownNoWaPhones.add(normPhoneKey(row.phone));
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await sb.from(table)
+            .select(`customer_id, ${valueField}, sent_at, created_at, status`)
+            .gte('created_at', cutoff)
+            .range(from, from + 999);
+          if (error) break;
+          for (const r of data || []) {
+            const timeAt = r.sent_at || r.created_at;
+            if (r.customer_id) {
+              cooldownExcluded.customer.add(r.customer_id);
+              cooldownExcluded.details.set(r.customer_id, { at: timeAt, channel: isEmail ? 'email' : 'wa' });
+            }
+            if (isEmail && r.to_addr) {
+              const ek = String(r.to_addr).toLowerCase().trim();
+              cooldownExcluded.email.add(ek);
+              cooldownExcluded.details.set(ek, { at: timeAt, channel: 'email' });
+            } else if (!isEmail && r.phone) {
+              const pk = normPhoneKey(r.phone);
+              cooldownExcluded.phone.add(pk);
+              cooldownExcluded.details.set(pk, { at: timeAt, channel: 'wa' });
+            }
+          }
+          if (!data || data.length < 1000) break;
         }
-      } catch (e) {}
+      } catch (ce) {
+        console.warn('Aviso cargando cooldown de campañas:', ce);
+      }
     }
 
-    const key = isEmail ? 'email_camp_cooldown_h' : 'wa_camp_cooldown_h';
-    const hours = parseInt(APP?.SETTINGS?.[key] || 48, 10);
-    if (!hours || hours <= 0) return;
-    const ownerId = currentConfig?.seller?.id;
-    if (!ownerId) return;
-    const cutoff = new Date(Date.now() - hours * 3600e3).toISOString();
-    const table = isEmail ? 'jjp_email_campaign_targets' : 'jjp_wa_campaign_targets';
-    const valueField = isEmail ? 'to_addr' : 'phone';
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await sb.from(table)
-        .select(`customer_id, ${valueField}, sent_at`)
-        .eq('owner_id', ownerId)
-        .eq('status', 'sent')
-        .gte('sent_at', cutoff)
-        .order('sent_at', { ascending: false })
-        .range(from, from + 999);
-      if (error) break;
-      for (const r of data || []) {
-        if (r.customer_id) cooldownExcluded.customer.add(r.customer_id);
-        if (isEmail) {
-          if (r.to_addr) cooldownExcluded.email.add(String(r.to_addr).toLowerCase().trim());
-        } else if (r.phone) {
-          cooldownExcluded.phone.add(normPhoneKey(r.phone));
+    // 2. Cargar cotizaciones de los últimos 30 días para saber a quién se le ha cotizado
+    try {
+      const quoteCutoff = new Date(Date.now() - 30 * 24 * 3600e3).toISOString();
+      const { data: qData } = await sb.from('jjp_quotes')
+        .select('id, quote_number, client_name, customer_id, phone, email, estimated_total_usd, status, created_at')
+        .gte('created_at', quoteCutoff)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      for (const q of qData || []) {
+        if (q.customer_id && !recentQuotesMap.has(q.customer_id)) recentQuotesMap.set(q.customer_id, q);
+        if (q.phone) {
+          const pk = normPhoneKey(q.phone);
+          if (!recentQuotesMap.has(pk)) recentQuotesMap.set(pk, q);
+        }
+        if (q.email) {
+          const ek = String(q.email).toLowerCase().trim();
+          if (!recentQuotesMap.has(ek)) recentQuotesMap.set(ek, q);
         }
       }
-      if (!data || data.length < 1000) break;
+    } catch (qe) {
+      console.warn('Aviso cargando cotizaciones recientes:', qe);
     }
-    cooldownHours = hours;
+
+    // 3. Cargar respuestas recientes (Gmail y WhatsApp) de los últimos 30 días
+    try {
+      const replyCutoff = new Date(Date.now() - 30 * 24 * 3600e3).toISOString();
+      const { data: eReplies } = await sb.from('jjp_emails')
+        .select('id, customer_id, from_addr, to_addr, subject, snippet, created_at')
+        .eq('direction', 'in')
+        .gte('created_at', replyCutoff)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      for (const er of eReplies || []) {
+        if (er.customer_id && !recentRepliesMap.has(er.customer_id)) {
+          recentRepliesMap.set(er.customer_id, { channel: 'email', subject: er.subject, at: er.created_at, snippet: er.snippet });
+        }
+        const m = /<([^>]+)>/.exec(er.from_addr || '');
+        const addr = (m ? m[1] : er.from_addr || '').toLowerCase().trim();
+        if (addr && !recentRepliesMap.has(addr)) {
+          recentRepliesMap.set(addr, { channel: 'email', subject: er.subject, at: er.created_at, snippet: er.snippet });
+        }
+      }
+    } catch (re) {
+      console.warn('Aviso cargando respuestas de correo:', re);
+    }
   }
 
   function initModal() {
@@ -221,6 +276,8 @@ window.CampaignEditor = (() => {
                   <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
                   <option value="prospectos_b2b">🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
                   <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
+                  <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
+                  <option value="respondieron">💬 Clientes/Prospectos que han Respondido</option>
                   <option value="inactivos">😴 Inactivos (sin compras >30d)</option>
                   <option value="prospectos">🆕 Clientes sin compras</option>
                   <option value="email_bounced">⚠️ Clientes con Email Rebotado / Sin Email</option>
@@ -238,15 +295,35 @@ window.CampaignEditor = (() => {
 
               <div style="margin-top:6px; display:flex; gap:6px;">
                 <button type="button" class="ce-var-btn" style="flex:1; background:#f8fafc; border-color:#cbd5e1; font-weight:700; padding:6px 10px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="CampaignEditor.openProspectPicker()">
-                  <span>👥 Seleccionar Prospectos</span>
+                  <span>👥 Seleccionar / Ver Destinatarios</span>
                   <span class="ce-badge-pill" id="ceSelectedProspectsBadge">0</span>
                 </button>
               </div>
-              <div style="margin-top:8px; padding-top:6px; border-top:1px dashed #e2e8f0;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;cursor:pointer;">
-                  <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
-                  <span>🛡️ Excluir envíos recientes (Cooldown 48h)</span>
-                </label>
+              
+              <!-- Filtro Anti-Fatiga y Cooldown Avanzado -->
+              <div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
+                <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+                  <span>🛡️ Filtro Anti-Fatiga y Cooldown</span>
+                  <span class="ce-badge-pill" id="ceCooldownBadge" style="background:#fee2e2;color:#991b1b;display:none;">0 omitidos</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#1e293b;cursor:pointer;font-weight:600;">
+                    <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
+                    <span>Omitir contactados recientemente:</span>
+                  </label>
+                  <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onAudienceChange()" style="font-size:12px; padding:4px 8px; background:#fff;">
+                    <option value="24">⏱️ En las últimas 24 horas (1 día)</option>
+                    <option value="72" selected>⏱️ En los últimos 3 días (72h — Recomendado)</option>
+                    <option value="168">⏱️ En los últimos 7 días (1 semana)</option>
+                    <option value="360">⏱️ En los últimos 15 días (2 semanas)</option>
+                    <option value="720">⏱️ En los últimos 30 días (1 mes)</option>
+                  </select>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#0369a1;cursor:pointer;margin-top:2px;">
+                    <input type="checkbox" id="ceExcludeQuoted" onchange="CampaignEditor.onAudienceChange()">
+                    <span>📑 Omitir clientes con cotización reciente (<30d)</span>
+                  </label>
+                </div>
+              </div>
               </div>
             </div>
 
@@ -527,6 +604,8 @@ window.CampaignEditor = (() => {
     manualSelectedIds = null;
     pickerDraftIds = new Set();
     isAnalyzingBatch = false;
+    currentLoadedCooldownHours = null;
+    currentLoadedChannel = null;
 
     // Normalizar números móviles en contactos
     if (Array.isArray(config.contacts)) {
@@ -816,6 +895,21 @@ window.CampaignEditor = (() => {
       ex.customer.has(c.id) ||
       (isEmail ? ex.email.has(String(c.email || '').toLowerCase().trim()) : ex.phone.has(normPhoneKey(c.phone)));
 
+    const isQuoted = (c) => {
+      if (c.id && recentQuotesMap.has(c.id)) return true;
+      if (c.email && recentQuotesMap.has(String(c.email).toLowerCase().trim())) return true;
+      if (c.phone && recentQuotesMap.has(normPhoneKey(c.phone))) return true;
+      return false;
+    };
+
+    const isReplied = (c) => {
+      if (c.status === 'respondio_email' || c.status === 'respondio_wa') return true;
+      if (c.id && recentRepliesMap.has(c.id)) return true;
+      if (c.email && recentRepliesMap.has(String(c.email).toLowerCase().trim())) return true;
+      if (c.phone && recentRepliesMap.has(normPhoneKey(c.phone))) return true;
+      return false;
+    };
+
     let excludedCount = 0;
     let nonMobileCount = 0;
     let bouncedCount = 0;
@@ -866,6 +960,14 @@ window.CampaignEditor = (() => {
         return false;
       }
 
+      const excludeQuoted = document.getElementById('ceExcludeQuoted') ? document.getElementById('ceExcludeQuoted').checked : false;
+      if (excludeQuoted && isQuoted(c)) {
+        excludedCount++;
+        return false;
+      }
+
+      if (aud === 'con_cotizacion') return isQuoted(c);
+      if (aud === 'respondieron') return isReplied(c);
       if (aud === 'email_bounced') {
         const hasBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
         const noEmail = !c.email || !String(c.email).trim();
@@ -906,8 +1008,8 @@ window.CampaignEditor = (() => {
     if (!isEmail && nonMobileCount > 0) {
       detailsTxt += ` <span style="color:#64748b;font-size:11px">(${nonMobileCount} omitidos: fijos CANTV o sin WhatsApp)</span>`;
     }
-    if (cooldownHours > 0 && excludedCount > 0) {
-      detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitidos por envío reciente (<${cooldownHours}h)</span>`;
+    if (excludedCount > 0) {
+      detailsTxt += ` · <span style="color:#b45309;font-size:11px">${excludedCount} omitidos (cooldown / cotización reciente)</span>`;
     }
     if (isEmail && bouncedCount > 0) {
       detailsTxt += ` <span style="color:#ef4444;font-size:11px">(${bouncedCount} omitidos por rebote duro)</span>`;
@@ -922,6 +1024,16 @@ window.CampaignEditor = (() => {
     if (badgeEl) badgeEl.textContent = selectedAudienceList.length;
     const analyzeCountEl = document.getElementById('ceAnalyzeCountSpan');
     if (analyzeCountEl) analyzeCountEl.textContent = selectedAudienceList.length;
+
+    const cooldownBadge = document.getElementById('ceCooldownBadge');
+    if (cooldownBadge) {
+      if (excludedCount > 0) {
+        cooldownBadge.textContent = `${excludedCount} omitidos`;
+        cooldownBadge.style.display = 'inline-block';
+      } else {
+        cooldownBadge.style.display = 'none';
+      }
+    }
 
     updateAnalyzedCountBadge();
     updatePreview();
@@ -979,6 +1091,8 @@ window.CampaignEditor = (() => {
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">🌐 Todos</button>
               <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Prospectos B2B</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('clientes')">👥 Solo Clientes</button>
+              <button type="button" class="ce-card-action-btn" style="color:#0369a1;background:#f0f9ff;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('con_cotizacion')">📑 Con Cotización (<30d)</button>
+              <button type="button" class="ce-card-action-btn" style="color:#15803d;background:#f0fdf4;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('respondieron')">💬 Respondieron</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('con_compras')">Con Compras</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('nuevos')">Nuevos</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('inactivos')">Inactivos (>30d)</button>
@@ -1041,6 +1155,14 @@ window.CampaignEditor = (() => {
       // Filtros rápidos
       if (pickerQuickFilter === 'b2b' && !c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'clientes' && c.is_prospect_b2b) return false;
+      if (pickerQuickFilter === 'con_cotizacion') {
+        const hasQuote = (c.id && recentQuotesMap.has(c.id)) || (c.email && recentQuotesMap.has(String(c.email).toLowerCase().trim())) || (c.phone && recentQuotesMap.has(normPhoneKey(c.phone)));
+        if (!hasQuote) return false;
+      }
+      if (pickerQuickFilter === 'respondieron') {
+        const isReplied = (c.status === 'respondio_email' || c.status === 'respondio_wa') || (c.id && recentRepliesMap.has(c.id)) || (c.email && recentRepliesMap.has(String(c.email).toLowerCase().trim())) || (c.phone && recentRepliesMap.has(normPhoneKey(c.phone)));
+        if (!isReplied) return false;
+      }
       if (pickerQuickFilter === 'con_compras' && (!c.total_orders || c.total_orders === 0)) return false;
       if (pickerQuickFilter === 'nuevos' && (c.total_orders && c.total_orders > 0)) return false;
       if (pickerQuickFilter === 'inactivos' && (!c.total_orders || c.days_since_last <= 30)) return false;
@@ -1069,6 +1191,24 @@ window.CampaignEditor = (() => {
         ? `<span style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px">🎯 Prospecto B2B · ${escapeHTML(c.sector || 'Rubro')}</span>`
         : `<span style="background:#f1f5f9;color:#475569;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;margin-left:6px">👥 Cliente Cartera</span>`;
 
+      const recentQuote = (c.id && recentQuotesMap.get(c.id)) || (c.email && recentQuotesMap.get(String(c.email).toLowerCase().trim())) || (c.phone && recentQuotesMap.get(normPhoneKey(c.phone)));
+      const quoteBadge = recentQuote
+        ? `<span style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="Cotización reciente #${recentQuote.quote_number || recentQuote.id.slice(0,6)} ($${Number(recentQuote.estimated_total_usd || 0).toFixed(0)})">📑 Cot #${recentQuote.quote_number || recentQuote.id.slice(0,6)} ($${Number(recentQuote.estimated_total_usd || 0).toFixed(0)})</span>`
+        : '';
+
+      const recentReply = (c.id && recentRepliesMap.get(c.id)) || (c.email && recentRepliesMap.get(String(c.email).toLowerCase().trim())) || (c.phone && recentRepliesMap.get(normPhoneKey(c.phone)));
+      const isRepliedStatus = c.status === 'respondio_email' || c.status === 'respondio_wa';
+      const replyBadge = (recentReply || isRepliedStatus)
+        ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="${escapeHTML(recentReply?.snippet || 'Respuesta reciente recibida')}">💬 Respondió</span>`
+        : '';
+
+      const isCooling = cooldownExcluded.customer.has(c.id) ||
+        (isEmail ? cooldownExcluded.email.has(String(c.email || '').toLowerCase().trim()) : cooldownExcluded.phone.has(normPhoneKey(c.phone)));
+      const cooldownDetail = isCooling ? (cooldownExcluded.details.get(c.id) || (isEmail ? cooldownExcluded.details.get(String(c.email || '').toLowerCase().trim()) : cooldownExcluded.details.get(normPhoneKey(c.phone)))) : null;
+      const cooldownBadge = isCooling
+        ? `<span style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="Envío reciente ${cooldownDetail?.at ? new Date(cooldownDetail.at).toLocaleString() : ''}">⏳ Contactado (<${cooldownHours}h)</span>`
+        : '';
+
       const aiBadge = isAnalyzed
         ? `<span style="background:#f3e8ff;color:#6b21a8;font-size:10.5px;padding:2px 6px;border-radius:4px;font-weight:700;display:inline-block;margin-top:2px">🧠 Analizado con IA ✓</span>`
         : '';
@@ -1085,9 +1225,12 @@ window.CampaignEditor = (() => {
         <div class="ce-picker-item ${isChecked ? 'selected' : ''}" onclick="CampaignEditor.toggleProspect('${c.id}')">
           <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); CampaignEditor.toggleProspect('${c.id}')">
           <div style="flex:1; min-width:0">
-            <div style="font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center; flex-wrap:wrap">
+            <div style="font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center; flex-wrap:wrap; gap:4px">
               <span>${escapeHTML(c.name || 'Sin Nombre')}</span>
               ${b2bBadge}
+              ${quoteBadge}
+              ${replyBadge}
+              ${cooldownBadge}
             </div>
             ${contactDetail}
             <div style="font-size:11px; color:#64748b; margin-top:2px">

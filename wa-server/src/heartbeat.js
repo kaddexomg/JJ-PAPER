@@ -123,6 +123,19 @@ async function runCommand(cmd) {
     return;
   }
 
+  if (cmd === 'sync_gmail' || cmd === 'poll_gmail') {
+    log.info('comando de sincronización forzada de Gmail recibido vía Supabase');
+    try {
+      const { pollInboundNow } = await import('./email.js');
+      const count = await pollInboundNow();
+      log.info({ count }, 'Sincronización manual de Gmail completada.');
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error ejecutando sincronización manual de Gmail');
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd && cmd.startsWith('call:')) {
     const phone = cmd.replace(/^call:/, '').trim();
     log.info({ phone }, 'comando de llamada GSM recibido vía Supabase');

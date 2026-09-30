@@ -101,6 +101,7 @@
               title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <span class="wa-chip" id="mailAcctChip" onclick="openMailAccount()" role="button" tabindex="0"
               title="Configurar mi correo" style="cursor:pointer">📧 Mi correo…</span>
+        <button class="btn-o" id="syncGmailBtn" onclick="syncGmailNow()" title="Sincronizar bandeja con Gmail en tiempo real">🔄 Sincronizar Gmail</button>
         <button class="btn-o" onclick="openMailAccount()">⚙️ Mi correo</button>
         <button class="btn-o" onclick="openCampaigns()">📣 Campañas</button>
         <button class="btn-p" onclick="openMailCompose()">📧 Nuevo correo</button>
@@ -112,6 +113,7 @@
         <div class="mail-tabs">
           <button class="mail-tab on" data-f="all" onclick="setMailFilter('all')">Todos</button>
           <button class="mail-tab" data-f="in" onclick="setMailFilter('in')">📥 Recibidos <span id="mailInBadge" class="mail-badge"></span></button>
+          <button class="mail-tab" data-f="replies" onclick="setMailFilter('replies')">💬 Respuestas Clientes</button>
           <button class="mail-tab" data-f="out" onclick="setMailFilter('out')">📤 Enviados</button>
         </div>
         <div class="mail-list" id="mailList"><div class="wa-empty">Cargando…</div></div>

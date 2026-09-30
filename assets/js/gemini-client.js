@@ -875,7 +875,7 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
    - **LLAMADO A LA ACCIÓN (CTA)**: Cierre de negocio directo (Ej: "¿Desea que le reservemos disponibilidad o le preparemos una cotización por volumen?").
    - **DESPEDIDA Y FIRMA**: Firma profesional con {{vendedor}} | Asesor Comercial JJ Paper | {{link}}.
 
-Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni ```json):
+Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de código json):
 - Si channel === 'email': { "subject": "Asunto profesional de alto impacto", "body": "Cuerpo completo con formato estructurado, viñetas y firma" }
 - Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, viñetas, firma al final y Spintax {A|B|C})" }
 `;
@@ -1445,7 +1445,6 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         targetSector,
         commercialTone,
         valueHook
-      });
       });
 
       const isEmail = (channel === 'email');

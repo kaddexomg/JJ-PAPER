@@ -171,15 +171,74 @@ async function mailSaveAccount() {
 let _mailTimer = null;
 function mailLoadDebounced() { clearTimeout(_mailTimer); _mailTimer = setTimeout(mailLoad, 500); }
 
+let mailQuoteMap = new Map();
+let mailCustomerMap = new Map();
+
+function mailCleanAddr(str) {
+  const m = /<([^>]+)>/.exec(str || '');
+  return (m ? m[1] : (str || '')).toLowerCase().trim();
+}
+
+async function syncGmailNow() {
+  const btn = document.getElementById('syncGmailBtn');
+  const orig = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Sincronizando…'; }
+  showToast('Solicitando sincronización a Gmail en segundo plano… 📥');
+  try {
+    await Promise.allSettled([
+      sb.from('jjp_server_control').update({ command: 'sync_gmail' }).eq('id', 1),
+      _rawSbCore.from('jjp_server_control').update({ command: 'sync_gmail' }).eq('id', 1)
+    ]);
+    setTimeout(async () => {
+      await mailLoad();
+      showToast('Bandeja de correo sincronizada con Gmail ✔');
+      if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+    }, 4000);
+  } catch (e) {
+    showToast('Error al solicitar sincronización: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+  }
+}
+
 async function mailLoad() {
   const MAIL_COLS = 'id,direction,status,is_read,from_addr,to_addr,subject,snippet,attachments,attach_state,error,created_at,customer_id,owner_id';
-  let q = sb.from('jjp_emails').select(MAIL_COLS).order('created_at', { ascending: false }).limit(100);
+  let q = sb.from('jjp_emails').select(MAIL_COLS).order('created_at', { ascending: false }).limit(150);
   if (!MAIL_IS_ADMIN && MAIL_ME?.id) {
     q = q.eq('owner_id', MAIL_ME.id);
   }
   const { data, error } = await q;
   if (error) { showToast('Error cargando correos: ' + error.message, 'err'); return; }
   mailRows = data || [];
+
+  // Cargar cotizaciones y clientes vinculados para enriquecer la vista
+  try {
+    const [qRes, cRes] = await Promise.all([
+      _rawSbCore.from('jjp_quotes')
+        .select('id, quote_number, client_name, customer_id, email, phone, estimated_total_usd, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(300),
+      _rawSbCore.from('jjp_customers')
+        .select('id, name, email')
+        .not('email', 'is', null)
+        .limit(500)
+    ]);
+    mailQuoteMap.clear();
+    for (const q of qRes.data || []) {
+      if (q.customer_id && !mailQuoteMap.has(q.customer_id)) mailQuoteMap.set(q.customer_id, q);
+      if (q.email) {
+        const ek = q.email.toLowerCase().trim();
+        if (!mailQuoteMap.has(ek)) mailQuoteMap.set(ek, q);
+      }
+    }
+    mailCustomerMap.clear();
+    for (const c of cRes.data || []) {
+      if (c.email) mailCustomerMap.set(c.email.toLowerCase().trim(), c);
+      if (c.id) mailCustomerMap.set(c.id, c);
+    }
+  } catch (err) {
+    console.warn('Aviso cargando cotizaciones/clientes para correo:', err);
+  }
+
   mailRender();
   // Si el lector está abierto y el server terminó de bajar adjuntos, refréscalos
   if (mailReadId && document.getElementById('mailReadModal')?.classList.contains('op')) {
@@ -188,7 +247,7 @@ async function mailLoad() {
   }
 }
 
-let mailFilter = 'all';   // 'all' | 'in' | 'out'
+let mailFilter = 'all';   // 'all' | 'in' | 'out' | 'replies'
 let mailExpanded = null;
 
 function setMailFilter(f) {
@@ -209,20 +268,41 @@ function mailRender() {
   mailRenderTabs();
   const box = document.getElementById('mailList');
   if (!box) return;
-  const rows = mailRows.filter(m => mailFilter === 'all' || m.direction === mailFilter);
+  const rows = mailRows.filter(m => {
+    if (mailFilter === 'all') return true;
+    if (mailFilter === 'in') return m.direction === 'in';
+    if (mailFilter === 'out') return m.direction === 'out';
+    if (mailFilter === 'replies') {
+      const addr = mailCleanAddr(m.from_addr);
+      return m.direction === 'in' && (m.customer_id || mailQuoteMap.has(addr) || mailCustomerMap.has(addr));
+    }
+    return true;
+  });
   if (!rows.length) {
-    box.innerHTML = '<div class="wa-empty">Sin correos en esta vista. Usa <strong>✉️ Nuevo correo</strong>.</div>';
+    box.innerHTML = '<div class="wa-empty">Sin correos en esta vista. Usa <strong>✉️ Nuevo correo</strong> o <strong>🔄 Sincronizar Gmail</strong>.</div>';
     return;
   }
   box.innerHTML = rows.map(m => {
     const inbound = m.direction === 'in';
-    const who = inbound ? (m.from_addr || '—') : (m.to_addr || '—');
+    const rawWho = inbound ? (m.from_addr || '—') : (m.to_addr || '—');
+    const addr = mailCleanAddr(rawWho);
     const unread = inbound && !m.is_read;
     const preview = escapeHTML((m.snippet || m.body || '').slice(0, 160));
+
+    // Vincular cliente o prospecto si existe
+    const cust = m.customer_id ? mailCustomerMap.get(m.customer_id) : mailCustomerMap.get(addr);
+    const matchedQuote = m.customer_id ? mailQuoteMap.get(m.customer_id) : mailQuoteMap.get(addr);
+
+    const whoDisplay = cust ? `👤 ${escapeHTML(cust.name)} <span style="font-size:11px;opacity:.7">(${escapeHTML(addr)})</span>` : escapeHTML(rawWho);
+
+    const quotePill = matchedQuote
+      ? `<span class="mail-quote-pill" style="display:inline-flex;align-items:center;gap:4px;background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:6px;border:1px solid #bae6fd" title="Cotización activa vinculada">📑 Cot #${escapeHTML(matchedQuote.quote_number)} ($${Number(matchedQuote.estimated_total_usd || 0).toFixed(2)})</span>`
+      : '';
+
     return `
     <div class="mail-item mail-${m.status}${unread ? ' mail-unread' : ''}" onclick="mailOpen('${m.id}')" style="cursor:pointer">
       <div class="mail-top">
-        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${escapeHTML(who)}</span>
+        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${whoDisplay}${quotePill}</span>
         <span class="mail-st">${inbound ? (unread ? '🟢 Nuevo' : 'Recibido') : (MAIL_STATUS[m.status] || m.status)}</span>
       </div>
       <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}${(m.attachments && m.attachments.length) ? ` <span style="font-size:11px;color:var(--gr,#888)">📎 ${m.attachments.length}</span>` : ''}</div>

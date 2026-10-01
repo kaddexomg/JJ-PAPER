@@ -2522,8 +2522,12 @@ ${rawText}
             price_usd: matched.price_usd || matched.price_a || 0,
             price_a: matched.price_a || matched.price_usd || 0,
             price_b: matched.price_b || matched.price_usd || 0,
+            price_c_bs: matched.price_c_bs || 0,
+            price_d_bs: matched.price_d_bs || 0,
             unit: matched.unit || it.unit || 'unid',
-            brand: matched.brand || (matched.jjp_brands?.name) || null
+            brand: matched.brand || (matched.jjp_brands?.name) || null,
+            sku: matched.sku,
+            variant_id: matched.variant_id || matched.id
           };
         }
         return {
@@ -2562,3 +2566,4 @@ ${rawText}
     getTotalKeys: () => GEMINI_KEYS.length
   };
 });
+

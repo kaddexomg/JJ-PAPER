@@ -1195,8 +1195,8 @@ async function processAiQuoteRequest() {
               price_level: 'B',
               price_a: Number(it.price_a || 0),
               price_b: Number(it.price_b || 0),
-              price_c: Number(it.price_c || 0),
-              price_d: Number(it.price_d || 0),
+              price_c_bs: Number(it.price_c_bs || 0),
+              price_d_bs: Number(it.price_d_bs || 0),
               qty: qty,
               is_custom: false
             };

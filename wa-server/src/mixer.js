@@ -111,11 +111,12 @@ function sellerForCodven(codven) {
   return { seller_id: null, hint: cv || 'Caja MixNet' };
 }
 function codvenForSeller(sellerId) {
-  if (!sellerId || sellerId === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return '005';
+  if (!sellerId) return '';
+  if (sellerId === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return '005';
   for (const [sid, codes] of SELLERS_BY_CODVEN.entries()) {
     if (sid === sellerId) return codes[0];
   }
-  return '005';
+  return '';
 }
 
 let activePrimaryDir = null;
@@ -1248,7 +1249,7 @@ async function sweepMixnetDbf() {
           if (error) {
             log.error({ err: error.message, quote: finalNum }, 'Puente Mixer: Error al guardar cotización en jjp_quotes');
           } else {
-            log.info(`Puente Mixer: Cotización ${existingId ? 'actualizada' : 'importada'} desde DBF (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
+            log.info(`Puente Mixer: Cotización ${existingId ? 'actualizada' : 'importada'} desde DBF (${finalNum} - $${totalVal.toFixed(2)})`);
             importedHistory.add(dbfKey);
             exportedQuotes.add(finalNum);
             quoteFingerprints.set(finalNum, computeDocFingerprint(quotePayload));
@@ -1281,7 +1282,7 @@ async function sweepMixnetDbf() {
           if (error) {
             log.error({ err: error.message, order: finalNum }, 'Puente Mixer: Error al guardar pedido en jjp_orders');
           } else {
-            log.info(`Puente Mixer: Pedido ${existingId ? 'actualizado' : 'importado'} desde DBF (${finalNum} - $${totalVal.toFixed(2)}${vendorNote})`);
+            log.info(`Puente Mixer: Pedido ${existingId ? 'actualizado' : 'importado'} desde DBF (${finalNum} - $${totalVal.toFixed(2)})`);
             importedHistory.add(dbfKey);
             exportedOrders.add(finalNum);
             orderFingerprints.set(finalNum, computeDocFingerprint(orderPayload));
@@ -1959,12 +1960,6 @@ export function startMixer() {
     sweepMixnetInvoices().catch(() => {});
   }, 30_000);
 
-  // 3. Sincronización periódica de productos y catálogo cada 24 horas (86.400.000 ms)
-  // Nota: Además se puede disparar manualmente en cualquier momento desde el panel
-  setInterval(() => {
-    sweepMixnetProducts().catch(() => {});
-    exportCatalogToMixnet().catch(() => {});
-  }, 86_400_000);
 
   // 3. Re-chequeo del entorno de unidades (por si se monta M: o P: en red) cada 10 minutos
   setInterval(() => {

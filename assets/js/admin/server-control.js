@@ -126,10 +126,11 @@ function closeSrvModal() {
 function srvInit() {
   srvLoad();
   // Refresco del chip cada 2 min (el "hace Xs" y el 🟢/🔴 se recalculan; los cambios reales vienen por Realtime)
-  _srvTimer = setInterval(srvLoad, 120_000);
+  _srvTimer = setInterval(srvLoad, 300_000);
   // Cambios en vivo (arranque, comandos, módulos)
   sb.channel('srv-ui')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_server_control', filter: 'id=eq.1' },
       p => { _srvRow = p.new; srvRenderChip(); srvRenderModal(); })
     .subscribe();
 }
+

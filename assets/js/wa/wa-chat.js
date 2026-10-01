@@ -1612,7 +1612,8 @@ async function waAiSuggestReply() {
       chatHistory: waMsgs,
       lastMessage: lastIn,
       clientName,
-      sellerName
+      sellerName,
+      customerProfile: waFicha // Fase 4.1 Inyectando ficha del cliente
     });
 
     document.getElementById('waAiSuggestLoading').style.display = 'none';
@@ -1829,4 +1830,5 @@ window.waCloseAiModal = waCloseAiModal;
 function escapeJs(str) {
   return String(str || '').replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
 }
+
 

@@ -736,12 +736,17 @@ async function convertProspectToCustomer(prospectId) {
 
   if (!confirm(`¿Deseas convertir a "${p.company_name}" en cliente oficial de tu cartera (Zona 020 / Keyder Salazar)?`)) return;
 
-  const targetPhone = (p.phone_2 || p.phone_1 || '').replace(/\D/g, '') || ('sn-' + Date.now().toString().slice(-8));
+  const targetPhone = (p.phone_2 || p.phone_1 || '').replace(/\D/g, '') || null;
+
+  let orQuery = `name.ilike.%${p.company_name}%`;
+  if (targetPhone) {
+    orQuery = `phone.eq.${targetPhone},` + orQuery;
+  }
 
   // Verificar si ya existe en jjp_customers por teléfono o nombre
   const { data: existing } = await sb.from('jjp_customers')
     .select('id, name')
-    .or(`phone.eq.${targetPhone},name.ilike.%${p.company_name}%`)
+    .or(orQuery)
     .limit(1);
 
   let customerId = existing?.[0]?.id;

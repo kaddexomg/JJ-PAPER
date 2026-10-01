@@ -453,7 +453,8 @@ async function loadEcContacts() {
     .select('id,name,phone,email,zone,tags,seller_id,email_status,email_opt_out')
     .not('email', 'is', null)
     .neq('email', '')
-    .order('name');
+    .order('name')
+    .range(0, 1999);
     
   if (!isAdm && SELLER?.id) {
     q = q.eq('seller_id', SELLER.id);
@@ -468,7 +469,7 @@ async function loadEcContacts() {
     !c.email_opt_out && 
     c.email_status !== 'bounced_hard' && 
     c.email_status !== 'bounced_soft' && 
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || '')
+    (c.email || '').includes('@')
   );
 
   // Si es Admin, cargar también los prospectos B2B con email válido
@@ -478,11 +479,12 @@ async function loadEcContacts() {
         .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body,bounce_reason')
         .not('email', 'is', null)
         .neq('email', '')
-        .order('company_name');
+        .order('company_name')
+        .range(0, 1999);
 
       if (!pErr && Array.isArray(b2bProspects)) {
         const normProspects = b2bProspects
-          .filter(p => p.email && p.email_status !== 'bounced_hard' && p.email_status !== 'bounced_soft' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()))
+          .filter(p => p.email && p.email_status !== 'bounced_hard' && p.email_status !== 'bounced_soft' && p.email.includes('@'))
           .map(p => {
             const isAlreadyContacted = Boolean(
               p.contacted || 

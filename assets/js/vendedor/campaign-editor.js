@@ -60,7 +60,7 @@ window.CampaignEditor = (() => {
   window.getBestMobilePhone = getBestMobilePhone;
 
   function normPhoneKey(p) {
-    return String(p || '').replace(/\D/g, '').replace(/^0+/, '').slice(-11);
+    return String(p || '').replace(/\D/g, '').replace(/^0+/, '');
   }
 
   // Descarga contactos con envíos recientes para respetar cooldown anti-spam,

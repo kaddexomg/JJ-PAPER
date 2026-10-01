@@ -953,3 +953,4 @@ function mailAiApplyToComposer() {
 }
 window.mailAiApplyToComposer = mailAiApplyToComposer;
 
+

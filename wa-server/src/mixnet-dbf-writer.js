@@ -74,7 +74,7 @@ export function readDbfRows(struct, names, maxLimit = 400000) {
   let pos = struct.headerLen;
   while (pos + struct.recordLen <= maxDataEnd && rows.length < maxLimit) {
     const flag = struct.buf[pos];
-    if (flag !== 0x2A && flag === 0x20) {
+    if (flag !== 0x2A) {
       const row = {};
       for (const f of fields) {
         if (want && !want.has(f.name)) continue;
@@ -207,11 +207,12 @@ export function getNextSerial(filePath, fieldName) {
   const names = new Set([f.name]);
   const rows = readDbfRows(struct, [f.name], 500000);
   for (const r of rows) {
-    const v = parseInt(r[f.name] || '0', 10);
+    const rawVal = String(r[f.name] || '0').trim().replace(/^(COT-|PED-)/i, '');
+    const v = parseInt(rawVal, 10);
     if (!isNaN(v) && v > max) max = v;
   }
   const next = max + 1;
-  return { ok: true, current: max, next, nextFormatted: String(next).padStart(f.len, '0').slice(-f.len) };
+  return { ok: true, current: max, next, nextFormatted: String(next).padStart(8, '0').slice(-8) };
 }
 
 // Obtiene el número correlativo actual desde tablas de control de 1 registro (MXNUMPED / MXNUMCOT)
@@ -222,7 +223,7 @@ export function getDbfControlSerial(filePath, fieldName = 'numero') {
     if (!struct || struct.numRecords < 1) return null;
     const rows = readDbfRows(struct, [fieldName], 1);
     if (rows && rows.length > 0) {
-      const raw = String(rows[0][fieldName.toLowerCase()] || '').trim();
+      const raw = String(rows[0][fieldName.toLowerCase()] || '').trim().replace(/^(COT-|PED-)/i, '');
       const num = parseInt(raw, 10);
       if (!isNaN(num) && num > 0) {
         return { num, formatted: String(num).padStart(8, '0').slice(-8) };

@@ -91,13 +91,19 @@ async function dispatch(row) {
   let session = manager.get(row.owner_id);
   let usedFallback = false;
   if (!session?.isConnected()) {
-    const activeSessions = manager.all().filter(s => s.isConnected());
-    if (activeSessions.length > 0) {
-      session = activeSessions[0];
-      usedFallback = true;
-      log.info({ originalOwner: row.owner_id, fallbackOwner: session.profileId }, 'Usando sesión fallback activa para envío de mensaje WA');
+    // Fase 5.3: Solo hacer fallback si es campaña
+    if (row.campaign_target_id) {
+      const activeSessions = manager.all().filter(s => s.isConnected());
+      if (activeSessions.length > 0) {
+        session = activeSessions[0];
+        usedFallback = true;
+        log.info({ originalOwner: row.owner_id, fallbackOwner: session.profileId }, 'Usando sesión fallback para envío de campaña WA');
+      } else {
+        return false;
+      }
     } else {
-      return false; // queda pending hasta que al menos una sesión conecte
+      // Mensaje directo (CRM), se queda pending hasta que el dueño reconecte
+      return false;
     }
   }
 
@@ -233,3 +239,4 @@ async function buildContent(row) {
     default: throw new Error('tipo no soportado para envío: ' + row.type);
   }
 }
+

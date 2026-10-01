@@ -1294,7 +1294,7 @@ async function posLoadQuote(val) {
 
   // 2. Cargar productos en el ticket
   posTicket = {};
-  const items = Array.isArray(q.items) ? q.items : [];
+  const items = typeof q.items === 'string' ? JSON.parse(q.items) : (Array.isArray(q.items) ? q.items : []);
   for (const item of items) {
     const key = item.variant_id ? `${item.id}::${item.variant_id}` : String(item.id);
     posTicket[key] = {

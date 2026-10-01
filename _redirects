@@ -4,3 +4,11 @@
 /sql/*        /404.html  404
 /.claude/*    /404.html  404
 /*.md         /404.html  404
+
+/checkout* /catalogo.html 301
+/pedidos* /catalogo.html 301
+/rastreo* /catalogo.html 301
+/promociones* /catalogo.html 301
+/producto* /catalogo.html 301
+/comprobante* /catalogo.html 301
+/ /catalogo.html 301

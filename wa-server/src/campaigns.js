@@ -26,6 +26,15 @@ const onWaCache = new Map();    // norm_phone → { exists: boolean, ts: number 
 export function startCampaigns(sessionManager) {
   manager = sessionManager;
   setInterval(() => sweep().catch(e => log.error({ err: e.message }, 'campaign sweep falló')), CAMPAIGN_SWEEP_MS);
+  
+  // Limpieza de memoria (Garbage Collection) para onWaCache cada hora
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of onWaCache.entries()) {
+      if (now - val.ts > 24 * 60 * 60 * 1000) onWaCache.delete(key);
+    }
+    if (onWaCache.size > 50000) onWaCache.clear(); // Safety cap adicional
+  }, 60 * 60 * 1000);
   sweep().catch(() => {});
 }
 
@@ -376,3 +385,4 @@ async function getDailyLimit() {
   const n = parseInt(data?.value, 10);
   return Number.isFinite(n) && n > 0 ? n : 150;
 }
+

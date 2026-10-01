@@ -517,20 +517,18 @@ async function querySupabaseDirectly() {
   }
 
   // Si Supervisor-Pc envió estadísticas ricas vía heartbeat, usarlas como base
+  // Si Supervisor-Pc envió estadísticas ricas vía heartbeat, usarlas como base
   const srvStats = srvData?.modules?.monitor_stats;
   const isSrvStatsFresh = srvStats && (Date.now() - new Date(srvStats.timestamp || 0).getTime() < 120_000);
 
-  const estSizeA_Mb = isSrvStatsFresh ? parseFloat(srvStats.projects.core.sizeMb || 21.14) : 21.14;
-  const estSizeB_Mb = isSrvStatsFresh ? parseFloat(srvStats.projects.comm.sizeMb || 12.96) : 12.96;
-  const totalFilesC = isSrvStatsFresh ? (srvStats.projects.storage.totalFiles || 295) : 295;
-  const estSizeC_Mb = isSrvStatsFresh ? (srvStats.projects.storage.sizeMb || '5.33') : '5.33';
+  const estSizeA_Mb = isSrvStatsFresh && srvStats.projects?.core?.sizeMb ? parseFloat(srvStats.projects.core.sizeMb) : null;
+  const estSizeB_Mb = isSrvStatsFresh && srvStats.projects?.comm?.sizeMb ? parseFloat(srvStats.projects.comm.sizeMb) : null;
+  const totalFilesC = isSrvStatsFresh && srvStats.projects?.storage?.totalFiles !== undefined ? srvStats.projects.storage.totalFiles : null;
+  const estSizeC_Mb = isSrvStatsFresh && srvStats.projects?.storage?.sizeMb ? srvStats.projects.storage.sizeMb : null;
 
-  const cBuckets = isSrvStatsFresh && srvStats.projects.storage.buckets?.length ? srvStats.projects.storage.buckets : [
-    { id: 'jjp-products', name: 'jjp-products', fileCount: 295, public: true, sizeBytes: 5593662, sizePretty: '5.33 MB' },
-    { id: 'jjp-receipts', name: 'jjp-receipts', fileCount: 0, public: false, sizeBytes: 0, sizePretty: '0 KB' }
-  ];
+  const cBuckets = isSrvStatsFresh && srvStats.projects?.storage?.buckets?.length ? srvStats.projects.storage.buckets : [];
 
-  // Inyectar en el feed de red en vivo las llamadas reales que acaban de ocurrir
+  // Inyectar en el feed de red en vivo únicamente las operaciones reales de sondeo
   const timeStr = new Date().toLocaleTimeString('es-VE', { hour12: false });
   
   handleLiveRequestIncoming({
@@ -538,11 +536,11 @@ async function querySupabaseDirectly() {
     timestamp: new Date().toISOString(),
     timeStr,
     type: 'HTTP',
-    method: 'REST',
-    path: 'rest/v1/jjp_customers',
+    method: 'COUNT',
+    path: 'jjp_customers',
     status: 200,
     durationMs: latA,
-    detail: `${countCust.toLocaleString()} clientes sincr`
+    detail: `Sondeo monitor: ${countCust.toLocaleString()} clientes sincr`
   });
 
   handleLiveRequestIncoming({
@@ -550,23 +548,23 @@ async function querySupabaseDirectly() {
     timestamp: new Date().toISOString(),
     timeStr,
     type: 'WA',
-    method: 'SYNC',
-    path: 'rest/v1/jjp_wa_messages',
+    method: 'COUNT',
+    path: 'jjp_wa_messages',
     status: 200,
     durationMs: latB,
-    detail: `${countMsgs} mensajes CRM`
+    detail: `Sondeo monitor: ${countMsgs} mensajes CRM`
   });
 
   handleLiveRequestIncoming({
     id: ++cloudReqIdCounter,
     timestamp: new Date().toISOString(),
     timeStr,
-    type: 'HTTP',
+    type: 'STORAGE',
     method: 'HEAD',
-    path: 'storage/v1/jjp-products/catalog.webp',
+    path: 'jjp-products/CDN',
     status: 200,
     durationMs: latC,
-    detail: 'CDN WebP Catálogo activo'
+    detail: 'Sondeo monitor: Latencia CDN WebP'
   });
 
   if (srvData) {
@@ -591,6 +589,9 @@ async function querySupabaseDirectly() {
   });
 
   const liveRpm = getCloudRPM();
+  const hasDbSizes = estSizeA_Mb !== null && estSizeB_Mb !== null;
+  const totalDbMbVal = hasDbSizes ? (estSizeA_Mb + estSizeB_Mb).toFixed(2) : null;
+  const totalDbPctVal = hasDbSizes ? (((estSizeA_Mb + estSizeB_Mb) / 1000) * 100).toFixed(1) : null;
 
   return {
     timestamp: new Date().toISOString(),
@@ -606,13 +607,13 @@ async function querySupabaseDirectly() {
         latency: latA,
         sizeMb: estSizeA_Mb,
         quotaMb: 500,
-        usagePercent: ((estSizeA_Mb / 500) * 100).toFixed(1),
-        connections: isSrvStatsFresh ? (srvStats.projects.core.connections || 13) : 13,
+        usagePercent: estSizeA_Mb !== null ? ((estSizeA_Mb / 500) * 100).toFixed(1) : null,
+        connections: isSrvStatsFresh ? (srvStats.projects.core.connections || 0) : 0,
         totalDeadTuples: isSrvStatsFresh ? (srvStats.projects.core.totalDeadTuples || 0) : 0,
         tables: isSrvStatsFresh && srvStats.projects.core.tables?.length ? srvStats.projects.core.tables : [
-          { name: 'jjp_customers', liveRows: countCust, deadTuples: 0, pretty: '1.1 MB' },
-          { name: 'jjp_products', liveRows: countProd, deadTuples: 0, pretty: '544 kB' },
-          { name: 'jjp_orders', liveRows: countOrders, deadTuples: 0, pretty: '120 kB' }
+          { name: 'jjp_customers', liveRows: countCust, deadTuples: 0, pretty: 'N/D' },
+          { name: 'jjp_products', liveRows: countProd, deadTuples: 0, pretty: 'N/D' },
+          { name: 'jjp_orders', liveRows: countOrders, deadTuples: 0, pretty: 'N/D' }
         ]
       },
       comm: {
@@ -623,13 +624,13 @@ async function querySupabaseDirectly() {
         latency: latB,
         sizeMb: estSizeB_Mb,
         quotaMb: 500,
-        usagePercent: ((estSizeB_Mb / 500) * 100).toFixed(1),
-        connections: isSrvStatsFresh ? (srvStats.projects.comm.connections || 13) : 13,
+        usagePercent: estSizeB_Mb !== null ? ((estSizeB_Mb / 500) * 100).toFixed(1) : null,
+        connections: isSrvStatsFresh ? (srvStats.projects.comm.connections || 0) : 0,
         totalDeadTuples: isSrvStatsFresh ? (srvStats.projects.comm.totalDeadTuples || 0) : 0,
         tables: isSrvStatsFresh && srvStats.projects.comm.tables?.length ? srvStats.projects.comm.tables : [
-          { name: 'jjp_wa_messages', liveRows: countMsgs, deadTuples: 0, pretty: '152 kB' },
-          { name: 'jjp_wa_chats', liveRows: countChats, deadTuples: 0, pretty: '48 kB' },
-          { name: 'jjp_email_campaigns', liveRows: countCamps, deadTuples: 0, pretty: '408 kB' }
+          { name: 'jjp_wa_messages', liveRows: countMsgs, deadTuples: 0, pretty: 'N/D' },
+          { name: 'jjp_wa_chats', liveRows: countChats, deadTuples: 0, pretty: 'N/D' },
+          { name: 'jjp_email_campaigns', liveRows: countCamps, deadTuples: 0, pretty: 'N/D' }
         ],
         storage: { buckets: [], totalFiles: 0 }
       },
@@ -641,16 +642,16 @@ async function querySupabaseDirectly() {
         latency: latC,
         sizeMb: estSizeC_Mb,
         quotaMb: 1024,
-        usagePercent: ((parseFloat(estSizeC_Mb) / 1024) * 100).toFixed(2),
+        usagePercent: estSizeC_Mb !== null ? ((parseFloat(estSizeC_Mb) / 1024) * 100).toFixed(2) : null,
         totalFiles: totalFilesC,
         buckets: cBuckets
       }
     },
     summary: {
-      totalDbMb: (estSizeA_Mb + estSizeB_Mb).toFixed(2),
+      totalDbMb: totalDbMbVal,
       totalDbQuotaMb: 1000,
-      totalDbUsagePercent: (((estSizeA_Mb + estSizeB_Mb) / 1000) * 100).toFixed(1),
-      totalDeadTuples: isSrvStatsFresh ? (srvStats.summary.totalDeadTuples || 0) : 0,
+      totalDbUsagePercent: totalDbPctVal,
+      totalDeadTuples: isSrvStatsFresh ? (srvStats.summary?.totalDeadTuples || 0) : 0,
       overallHealth: 'OPTIMAL',
       avgLatencyMs: Math.round((latA + latB + latC) / 3)
     },
@@ -672,7 +673,7 @@ function updateEngineBadge(isOnline, isSse = false, hostInfo = null) {
     badge.innerHTML = `☁️ Modo Nube · 🟢 ${hostInfo.host || 'Supervisor-Pc'} Online (${hostInfo.waSanas || 1} WA Activo)`;
   } else {
     badge.className = 'engine-badge cloud';
-    badge.innerHTML = '☁️ Modo Directo Cloud (Supabase REST & Storage)';
+    badge.innerHTML = '⚠️ Servidor local offline — datos de cuota física no disponibles';
   }
 }
 
@@ -703,17 +704,35 @@ function renderKpis(data) {
   const elRpm = document.getElementById('kpiLiveRpm');
   const elLat = document.getElementById('kpiAvgLatency');
 
-  if (elDb) elDb.innerHTML = `${s.totalDbMb || '34.1'} <small>MB</small> <span class="sub-kpi">de 1.000 MB (${s.totalDbUsagePercent || '3.4'}%)</span>`;
+  if (elDb) {
+    if (s.totalDbMb !== null && s.totalDbMb !== undefined && s.totalDbMb !== 'N/D') {
+      elDb.innerHTML = `${s.totalDbMb} <small>MB</small> <span class="sub-kpi">de 1.000 MB (${s.totalDbUsagePercent || '0'}%)</span>`;
+    } else {
+      elDb.innerHTML = `N/D <small>MB</small> <span class="sub-kpi">Requiere wa-server local</span>`;
+    }
+  }
   
-  const cSize = data.projects?.storage?.sizeMb || '5.33';
-  const cPct = data.projects?.storage?.usagePercent || '0.52';
-  if (elStore) elStore.innerHTML = `${cSize} <small>MB</small> <span class="sub-kpi">de 1.024 MB (${cPct}%)</span>`;
+  const cSize = data.projects?.storage?.sizeMb;
+  const cPct = data.projects?.storage?.usagePercent;
+  if (elStore) {
+    if (cSize !== null && cSize !== undefined && cSize !== 'N/D') {
+      elStore.innerHTML = `${cSize} <small>MB</small> <span class="sub-kpi">de 1.024 MB (${cPct}%)</span>`;
+    } else {
+      elStore.innerHTML = `N/D <small>MB</small> <span class="sub-kpi">Requiere wa-server local</span>`;
+    }
+  }
 
-  const freePct = (100 - parseFloat(s.totalDbUsagePercent || 3.4)).toFixed(1);
-  if (elMargin) elMargin.innerHTML = `${freePct}% <small>LIBRE</small> <span class="sub-kpi badge-green">Margen Seguro</span>`;
+  if (elMargin) {
+    if (s.totalDbUsagePercent !== null && s.totalDbUsagePercent !== undefined && s.totalDbUsagePercent !== 'N/D') {
+      const freePct = (100 - parseFloat(s.totalDbUsagePercent)).toFixed(1);
+      elMargin.innerHTML = `${freePct}% <small>LIBRE</small> <span class="sub-kpi badge-green">Margen Seguro</span>`;
+    } else {
+      elMargin.innerHTML = `— <small>LIBRE</small> <span class="sub-kpi">Requiere wa-server local</span>`;
+    }
+  }
 
   if (elRpm) elRpm.innerHTML = `${data.rpm !== undefined ? data.rpm : getCloudRPM()} <small>RPM</small> <span class="sub-kpi">Llamadas / min</span>`;
-  if (elLat) elLat.innerHTML = `${s.avgLatencyMs || 250} <small>ms</small> <span class="sub-kpi">Ping medio</span>`;
+  if (elLat) elLat.innerHTML = `${s.avgLatencyMs || 0} <small>ms</small> <span class="sub-kpi">Ping medio</span>`;
 }
 
 function renderProjectCards(p) {
@@ -731,7 +750,8 @@ function renderProjectCards(p) {
 
 function renderCard(key, proj, quotaLabel, subtitle) {
   if (!proj) return;
-  const pct = parseFloat(proj.usagePercent || 0);
+  const hasSize = proj.sizeMb !== null && proj.sizeMb !== undefined && proj.sizeMb !== 'N/D';
+  const pct = hasSize ? parseFloat(proj.usagePercent || 0) : 0;
   const colorClass = pct > 80 ? 'danger' : pct > 60 ? 'warning' : 'optimal';
 
   const bar = document.getElementById(`${key}ProgressBar`);
@@ -741,13 +761,17 @@ function renderCard(key, proj, quotaLabel, subtitle) {
   const connBadge = document.getElementById(`${key}Conn`);
 
   if (bar) {
-    bar.style.width = `${Math.min(100, Math.max(2, pct))}%`;
+    bar.style.width = hasSize ? `${Math.min(100, Math.max(2, pct))}%` : '0%';
     bar.className = `progress-fill ${colorClass}`;
   }
-  if (txtUsed) txtUsed.innerText = `${proj.sizeMb} MB / ${quotaLabel}`;
-  if (txtPct) txtPct.innerText = `${pct}% utilizado`;
+  if (txtUsed) {
+    txtUsed.innerText = hasSize ? `${proj.sizeMb} MB / ${quotaLabel}` : `Cuota: Requiere wa-server local`;
+  }
+  if (txtPct) {
+    txtPct.innerText = hasSize ? `${pct}% utilizado` : `Tamaño físico N/D offline`;
+  }
   if (latBadge) latBadge.innerText = `⚡ ${proj.latency} ms`;
-  if (connBadge) connBadge.innerText = `🔌 ${proj.connections || 0} conex`;
+  if (connBadge) connBadge.innerText = (proj.connections > 0) ? `🔌 ${proj.connections} conex` : `🔌 Conex: N/D`;
 
   // Tabla de desglose
   const tblBody = document.getElementById(`${key}TableList`);
@@ -757,7 +781,7 @@ function renderCard(key, proj, quotaLabel, subtitle) {
         <span class="tbl-name" title="${t.name}">📄 ${t.name}</span>
         <span class="tbl-rows">${(t.liveRows || 0).toLocaleString()} filas</span>
         ${t.deadTuples > 0 ? `<span class="tbl-dead" title="Tuplas muertas recuperables con VACUUM">⚠️ ${t.deadTuples} muertas</span>` : ''}
-        <span class="tbl-size">${t.pretty || (t.bytes ? (t.bytes/1024).toFixed(0) + ' KB' : '—')}</span>
+        <span class="tbl-size">${t.pretty || (t.bytes ? (t.bytes/1024).toFixed(0) + ' KB' : 'N/D')}</span>
       </div>
     `).join('');
   }
@@ -765,7 +789,8 @@ function renderCard(key, proj, quotaLabel, subtitle) {
 
 function renderCardStorage(key, proj) {
   if (!proj) return;
-  const pct = parseFloat(proj.usagePercent || 0);
+  const hasSize = proj.sizeMb !== null && proj.sizeMb !== undefined && proj.sizeMb !== 'N/D';
+  const pct = hasSize ? parseFloat(proj.usagePercent || 0) : 0;
   const colorClass = pct > 80 ? 'danger' : pct > 60 ? 'warning' : 'optimal';
 
   const bar = document.getElementById('storageProgressBar');
@@ -775,24 +800,34 @@ function renderCardStorage(key, proj) {
   const filesBadge = document.getElementById('storageFilesCount');
 
   if (bar) {
-    bar.style.width = `${Math.min(100, Math.max(2, pct))}%`;
+    bar.style.width = hasSize ? `${Math.min(100, Math.max(2, pct))}%` : '0%';
     bar.className = `progress-fill ${colorClass}`;
   }
-  if (txtUsed) txtUsed.innerText = `${proj.sizeMb} MB / 1.024 MB`;
-  if (txtPct) txtPct.innerText = `${pct}% utilizado`;
+  if (txtUsed) {
+    txtUsed.innerText = hasSize ? `${proj.sizeMb} MB / 1.024 MB` : `Cuota: Requiere wa-server local`;
+  }
+  if (txtPct) {
+    txtPct.innerText = hasSize ? `${pct}% utilizado` : `Tamaño físico N/D offline`;
+  }
   if (latBadge) latBadge.innerText = `⚡ ${proj.latency} ms`;
-  if (filesBadge) filesBadge.innerText = `🖼️ ${(proj.totalFiles || 295).toLocaleString()} archivos`;
+  if (filesBadge) {
+    filesBadge.innerText = (proj.totalFiles !== null && proj.totalFiles !== undefined)
+      ? `🖼️ ${proj.totalFiles.toLocaleString()} archivos`
+      : `🖼️ Archivos: N/D`;
+  }
 
   // Buckets
   const bList = document.getElementById('storageBucketsList');
-  if (bList && proj.buckets) {
-    bList.innerHTML = proj.buckets.map(b => `
-      <div class="table-row-item">
-        <span class="tbl-name">📦 ${b.id}</span>
-        <span class="tbl-rows">${b.fileCount !== undefined ? b.fileCount.toLocaleString() : '—'} archivos</span>
-        <span class="tbl-size">${b.public ? '🌐 Público' : '🔒 Privado'} ${b.sizePretty ? '· ' + b.sizePretty : (b.sizeBytes ? '· ' + (b.sizeBytes/(1024*1024)).toFixed(2) + ' MB' : '')}</span>
-      </div>
-    `).join('');
+  if (bList) {
+    if (proj.buckets && proj.buckets.length > 0) {
+      bList.innerHTML = proj.buckets.map(b => `
+        <div class="table-row-item">
+          <span class="tbl-name">📦 ${b.id}</span>
+          <span class="tbl-rows">${b.fileCount !== undefined ? b.fileCount.toLocaleString() : '—'} archivos</span>
+          <span class="tbl-size">${b.public ? '🌐 Público' : '🔒 Privado'} ${b.sizePretty ? '· ' + b.sizePretty : (b.sizeBytes ? '· ' + (b.sizeBytes/(1024*1024)).toFixed(2) + ' MB' : '')}</span>
+        </div>
+      `).join('');
+    }
   }
 }
 

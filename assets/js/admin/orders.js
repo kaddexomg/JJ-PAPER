@@ -7,6 +7,7 @@ let ordersPage  = 1;
 const ORDERS_PER = 20;
 let ordersFilter = '';
 let ordersSearch = '';
+let ordersSellerFilter = '';
 
 const ORDER_STATUSES = ['pendiente_pago', 'verificando', 'pagado', 'preparando', 'entregado', 'rechazado', 'cancelado'];
 const STATUS_LABEL = {
@@ -42,9 +43,31 @@ async function loadOrders(statusFilter = ordersFilter) {
   if (error) { showToast('Error cargando pedidos', 'err'); return; }
   adminOrders  = data || [];
   adminSellers = sellersRes.data || [];
+  updateOrdersSellerOptions();
   await signReceipts(adminOrders);
   ordersPage = 1;
   renderOrdersStats();
+  renderOrdersTable();
+}
+
+function updateOrdersSellerOptions() {
+  const sel = document.getElementById('ordersSellerSelect');
+  if (!sel) return;
+  const currentVal = sel.value || ordersSellerFilter;
+  let html = `<option value="">🧑‍💼 Todos los vendedores</option>
+<option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Ventas)</option>
+<option value="mostrador">🏪 Mostrador / Caja (005)</option>`;
+  (adminSellers || []).forEach(s => {
+    if (s.id === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return;
+    html += `<option value="${s.id}">${escapeHTML(s.name || 'Vendedor')}</option>`;
+  });
+  sel.innerHTML = html;
+  if (currentVal) sel.value = currentVal;
+}
+
+function onOrdersSellerChange(val) {
+  ordersSellerFilter = val || '';
+  ordersPage = 1;
   renderOrdersTable();
 }
 
@@ -97,27 +120,34 @@ function renderOrdersTable() {
   const count = document.getElementById('ordersCount');
   if (!tbody) return;
 
-  const q = ordersSearch.toLowerCase();
-  const filtered = q
-    ? adminOrders.filter(o => {
-        return (o.order_number || '').toLowerCase().includes(q)
-          || (o.invoice_number || '').toLowerCase().includes(q)
-          || (o.control_number || '').toLowerCase().includes(q)
-          || (o.client_name || '').toLowerCase().includes(q)
-          || (o.rif || '').toLowerCase().includes(q)
-          || (o.phone || '').includes(q)
-          || (o.notes || '').toLowerCase().includes(q)
-          || (o.jjp_profiles?.name || '').toLowerCase().includes(q);
-      })
-    : adminOrders;
+  let filtered = adminOrders;
+  if (ordersSellerFilter === 'mostrador') {
+    filtered = filtered.filter(o => !o.seller_id);
+  } else if (ordersSellerFilter) {
+    filtered = filtered.filter(o => o.seller_id === ordersSellerFilter);
+  }
 
-  if (count) count.textContent = `${filtered.length}${q ? ' de ' + adminOrders.length : ''} pedidos`;
+  const q = ordersSearch.toLowerCase();
+  if (q) {
+    filtered = filtered.filter(o => {
+      return (o.order_number || '').toLowerCase().includes(q)
+        || (o.invoice_number || '').toLowerCase().includes(q)
+        || (o.control_number || '').toLowerCase().includes(q)
+        || (o.client_name || '').toLowerCase().includes(q)
+        || (o.rif || '').toLowerCase().includes(q)
+        || (o.phone || '').includes(q)
+        || (o.notes || '').toLowerCase().includes(q)
+        || (o.jjp_profiles?.name || '').toLowerCase().includes(q);
+    });
+  }
+
+  if (count) count.textContent = `${filtered.length}${q || ordersSellerFilter ? ' de ' + adminOrders.length : ''} pedidos`;
 
   const start = (ordersPage - 1) * ORDERS_PER;
   const page  = filtered.slice(start, start + ORDERS_PER);
 
   if (!page.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${q ? 'No se encontraron pedidos coincidentes con "' + escapeHTML(ordersSearch) + '"' : 'No hay pedidos'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${q || ordersSellerFilter ? 'No se encontraron pedidos coincidentes con los filtros seleccionados' : 'No hay pedidos'}</td></tr>`;
     renderOrdersPag(filtered.length);
     return;
   }
@@ -141,7 +171,7 @@ function renderOrdersTable() {
             <span style="font-size:10px;color:#64748b">${o.invoice_date ? fmtDate(o.invoice_date) : ''}</span>
           </div>` : '<span style="display:inline-block;padding:2px 7px;border-radius:5px;background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:600">⏳ Sin facturar</span>'}
       </td>
-      <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ''}</div></td>
+      <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ' · 🏪 Mostrador (005)'}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
       <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🔖 desc. ${o.discount_pct}% por aprobar</div>` : ''}${o.delivery_type === 'delivery' && !o.delivery_fee_confirmed ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} por confirmar</div>` : o.delivery_type === 'delivery' ? `<div class="td-sub" style="color:var(--gm);font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} ✔</div>` : ''}</td>

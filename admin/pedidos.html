@@ -80,9 +80,15 @@
             <h3>🛒 Pedidos</h3>
             <span id="ordersCount" style="font-size:12px;color:var(--gr)">—</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="ordersSellerSelect" onchange="onOrdersSellerChange(this.value)"
+                    style="padding:7px 10px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;background:#fff;cursor:pointer">
+              <option value="">🧑‍💼 Todos los vendedores</option>
+              <option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Ventas)</option>
+              <option value="mostrador">🏪 Mostrador / Caja (005)</option>
+            </select>
             <input type="search" id="ordersSearchInput" placeholder="🔍 Buscar por N° pedido, cliente, RIF..."
-                   style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;min-width:260px"
+                   style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;min-width:240px"
                    oninput="onOrdersSearch(this.value)">
           </div>
         </div>

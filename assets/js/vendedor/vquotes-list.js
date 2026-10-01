@@ -29,6 +29,10 @@ async function loadVQuotes(statusFilter = vQuotesFilter) {
   let q = sb.from('jjp_quotes')
     .select('id,quote_number,client_name,phone,rif,email,city,estimated_total_usd,discount_pct,status,source,created_at,customer_id,seller_id,items,notes,exchange_rate')
     .order('created_at', { ascending: false });
+  const sid = (typeof SELLER !== 'undefined' && SELLER?.id) ? SELLER.id : (window.SELLER?.id || CURRENT_PROFILE?.id);
+  if (sid) {
+    q = q.eq('seller_id', sid);
+  }
   if (statusFilter) q = q.eq('status', statusFilter);
   const { data, error } = await q;
   if (error) { showToast('Error cargando cotizaciones', 'err'); return; }

@@ -6,10 +6,13 @@ let adminQuotes  = [];
 let quoteSellers = [];
 let quotePage    = 1;
 const QUOTES_PER = 20;
+let quotesSellerFilter = '';
+let currentQuotesStatusFilter = '';
 
-async function loadQuotes(statusFilter = '') {
+async function loadQuotes(statusFilter = currentQuotesStatusFilter) {
+  currentQuotesStatusFilter = statusFilter;
   let query = sb.from('jjp_quotes')
-    .select('id,quote_number,client_name,phone,rif,email,city,estimated_total_usd,discount_pct,status,source,created_at,customer_id,seller_id,items,notes')
+    .select('id,quote_number,client_name,phone,rif,email,city,estimated_total_usd,discount_pct,status,source,created_at,customer_id,seller_id,items,notes,jjp_profiles(name)')
     .order('created_at', { ascending: false });
   if (statusFilter) query = query.eq('status', statusFilter);
   const [{ data, error }, sellersRes] = await Promise.all([
@@ -20,6 +23,29 @@ async function loadQuotes(statusFilter = '') {
   if (error) { showToast('Error cargando cotizaciones', 'err'); return; }
   adminQuotes  = data || [];
   quoteSellers = sellersRes.data || [];
+  updateQuotesSellerOptions();
+  quotePage = 1;
+  renderQuotesTable();
+}
+
+function updateQuotesSellerOptions() {
+  const sel = document.getElementById('quotesSellerSelect');
+  if (!sel) return;
+  const currentVal = sel.value || quotesSellerFilter;
+  let html = `<option value="">🧑‍💼 Todos los vendedores</option>
+<option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Cotizaciones)</option>
+<option value="mostrador">🏪 Mostrador / Sin asignar</option>`;
+  (quoteSellers || []).forEach(s => {
+    if (s.id === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return;
+    html += `<option value="${s.id}">${escapeHTML(s.name || 'Vendedor')}</option>`;
+  });
+  sel.innerHTML = html;
+  if (currentVal) sel.value = currentVal;
+}
+
+function onQuotesSellerChange(val) {
+  quotesSellerFilter = val || '';
+  quotePage = 1;
   renderQuotesTable();
 }
 
@@ -41,13 +67,22 @@ function renderQuotesTable() {
   const tbody = document.getElementById('quotesTableBody');
   const count = document.getElementById('quotesCount');
   if (!tbody) return;
-  if (count) count.textContent = `${adminQuotes.length} cotizaciones`;
+
+  let filtered = adminQuotes;
+  if (quotesSellerFilter === 'mostrador') {
+    filtered = filtered.filter(q => !q.seller_id);
+  } else if (quotesSellerFilter) {
+    filtered = filtered.filter(q => q.seller_id === quotesSellerFilter);
+  }
+
+  if (count) count.textContent = `${filtered.length}${quotesSellerFilter ? ' de ' + adminQuotes.length : ''} cotizaciones`;
 
   const start = (quotePage - 1) * QUOTES_PER;
-  const page  = adminQuotes.slice(start, start + QUOTES_PER);
+  const page  = filtered.slice(start, start + QUOTES_PER);
 
   if (!page.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">No hay cotizaciones</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${quotesSellerFilter ? 'No se encontraron cotizaciones para el filtro de vendedor seleccionado' : 'No hay cotizaciones'}</td></tr>`;
+    renderQuotesPag(filtered.length);
     return;
   }
 
@@ -63,7 +98,10 @@ function renderQuotesTable() {
         <div class="td-name">${escapeHTML(q.client_name)}</div>
         <div class="td-sub">${escapeHTML(q.city || '')}</div>
       </td>
-      <td>${escapeHTML(q.phone)}</td>
+      <td>
+        <div>${escapeHTML(q.phone || '—')}</div>
+        <div class="td-sub">${q.jjp_profiles?.name ? `🧑‍💼 ${escapeHTML(q.jjp_profiles.name)}` : '<span style="color:#94a3b8">🏪 Sin asignar</span>'}</div>
+      </td>
       <td style="max-width:170px;font-size:11px;color:var(--gr)">${itemsPreview}</td>
       <td>${est > 0 ? `<strong>${fmtPrice(est)}</strong>` : '<span style="color:#bbb">—</span>'}</td>
       <td>${fmtDate(q.created_at)}</td>

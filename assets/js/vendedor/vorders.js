@@ -12,6 +12,10 @@ const V_SOURCE_LABEL = { web: '🌐 Web', pos: '💰 POS', ref: '🔗 Referido' 
 async function loadVOrders(statusFilter = vOrdersFilter) {
   vOrdersFilter = statusFilter;
   let q = sb.from('jjp_orders').select('*').order('created_at', { ascending: false });
+  const sid = (typeof SELLER !== 'undefined' && SELLER?.id) ? SELLER.id : (window.SELLER?.id || CURRENT_PROFILE?.id);
+  if (sid) {
+    q = q.eq('seller_id', sid);
+  }
   if (statusFilter === 'facturado') {
     q = q.not('invoice_number', 'is', null);
   } else if (statusFilter) {

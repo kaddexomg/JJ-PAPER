@@ -63,12 +63,20 @@
     <div class="admin-content">
 
       <!-- Filters -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-        <button class="cf on" onclick="filterQuotes('',this)">Todas</button>
-        <button class="cf" onclick="filterQuotes('pendiente',this)">⏳ Pendiente</button>
-        <button class="cf" onclick="filterQuotes('contactado',this)">📞 Contactado</button>
-        <button class="cf" onclick="filterQuotes('confirmado',this)">✅ Confirmado</button>
-        <button class="cf" onclick="filterQuotes('cancelado',this)">❌ Cancelado</button>
+      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="cf on" onclick="filterQuotes('',this)">Todas</button>
+          <button class="cf" onclick="filterQuotes('pendiente',this)">⏳ Pendiente</button>
+          <button class="cf" onclick="filterQuotes('contactado',this)">📞 Contactado</button>
+          <button class="cf" onclick="filterQuotes('confirmado',this)">✅ Confirmado</button>
+          <button class="cf" onclick="filterQuotes('cancelado',this)">❌ Cancelado</button>
+        </div>
+        <select id="quotesSellerSelect" onchange="onQuotesSellerChange(this.value)"
+                style="padding:7px 10px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;background:#fff;cursor:pointer">
+          <option value="">🧑‍💼 Todos los vendedores</option>
+          <option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Cotizaciones)</option>
+          <option value="mostrador">🏪 Mostrador / Sin asignar</option>
+        </select>
       </div>
 
       <div class="admin-table-wrap">

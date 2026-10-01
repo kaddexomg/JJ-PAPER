@@ -1379,26 +1379,42 @@ DATOS DEL CLIENTE A ANALIZAR:
 - Cargo / Departamento: "${contactRole || 'No indicado'}"
 - Dirección / Sede: "${address || 'Caracas, Venezuela'}"
 - Ciudad: "${city || 'Caracas'}"
-- Notas previas / Intereses: "${notes || 'Ninguna nota previa'}"
+- Historial en JJ Paper: ${histTxt}
 
 CONFIGURACIÓN DE REDACCIÓN SELECCIONADA POR EL ASESOR:
 - Tono / Actitud Comercial: "${personality}"
-- Tipo de Mensaje: "${messageType}"
 - Propuesta de Valor / Gancho de Negocio: "${effectiveHook}"
 
-HISTORIAL DE COMPRAS EN JJ PAPER:
-${histTxt}
+${prodsList.length > 0 ? `
+========================================================================
+¡DIRECTIVA MANDATORIA - CAMPAÑA DE OFERTAS SELECCIONADAS (${prodsList.length} ARTÍCULOS)!
+========================================================================
+El asesor preparó esta campaña con este listado específico de productos en oferta:
+${prodsList.map((p, idx) => {
+  const pName = p.name || 'Artículo';
+  const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+  const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+  return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* | Bs. ${pPriceBs}`;
+}).join('\n')}
 
-CATÁLOGO REAL DISPONIBLE (USA EXCLUSIVAMENTE ESTOS PRODUCTOS CON SUS PRECIOS EXACTOS; PROHIBIDO INVENTAR PRODUCTOS O MONTOS QUE NO APAREZCAN AQUÍ):
+REGLAS DE ORO INMUTABLES:
+1. ¡PROHIBIDO REEMPLAZAR O SUSTITUIR ESTOS PRODUCTOS! La lista de ofertas en el cuerpo del mensaje DEBE SER EXACTAMENTE ESTA, con CADA UNO de los ${prodsList.length} artículos en este mismo orden correlativo.
+2. Aclara antes del listado: "_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_".
+3. Adapta el saludo y la apertura a ${companyName} reconociendo su presencia en ${city || 'Caracas'} y su rubro (${effectiveSector}).
+4. Incluye la promesa obligatoria de búsqueda: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato."
+5. Incluye las ventajas de JJ Paper (importador directo, delivery 24h, factura SENIAT con RIF), mención de lista PDF y firma con ${sellerName}.
+` : `
+CATÁLOGO REAL DISPONIBLE:
 ${realProdInfo}
 
-FLUJO DE ANÁLISIS OBLIGATORIO:
+FLUJO DE ANÁLISIS DE PROSPECCIÓN (SIN OFERTAS ESPECÍFICAS PREVIAS):
 1. LEE al cliente: analiza nombre, sector, notas, ciudad e historial para determinar con precisión a qué se dedica.
 2. DEDUCE su giro y su punto de dolor operativo (ej: negocio de caja → rollos térmicos POS y detectores de billetes; clínica → sobres radiografía 14x17 y carpetas de historias médicas; colegio → resmas y marcadores de pizarra; logística → cintas industriales y marcadores indelebles).
 3. OFRECE exactamente 3 productos de la CATÁLOGO REAL alineados con ese giro (máximo 1 de apoyo), siempre con su precio exacto en USD y su equivalente en Bs a Tasa Oficial BCV.
-4. REDACTA el mensaje final respetando estrictamente el FORMATO DE PRESENTACIÓN OBLIGATORIO del system prompt.
+`}
 
-Realiza el análisis de necesidades operativas de esta empresa y redacta el correo formal (130-180 palabras exactas) y el WhatsApp en JSON estricto:`;
+Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`;
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 2000, mode: 'architect' });

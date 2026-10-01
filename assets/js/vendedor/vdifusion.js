@@ -49,12 +49,24 @@ async function initDifusion() {
 
 async function loadDProductsAndCombos() {
   try {
-    // Cargar productos para el selector de promociones
-    const { data: prods } = await sb.from('jjp_product_variants')
-      .select('id,sku,price_usd,variant_name,jjp_products(id,name,description,image_url),jjp_brands(name)')
-      .eq('active', true)
-      .order('price_usd', { ascending: false })
-      .limit(300);
+    // Cargar catálogo completo para el selector y editor de campañas
+    let prods = [];
+    if (typeof DataService !== 'undefined' && DataService.getProducts) {
+      prods = await DataService.getProducts();
+    }
+    if (!prods || prods.length < 1200) {
+      let paged = [];
+      let from = 0;
+      const step = 999;
+      while (true) {
+        const { data, error } = await sb.from('jjp_catalog_flat').select('*').range(from, from + step);
+        if (error || !data || data.length === 0) break;
+        paged.push(...data);
+        if (data.length <= step) break;
+        from += step + 1;
+      }
+      if (paged.length > 0) prods = paged;
+    }
     dProducts = prods || [];
 
     // Cargar promociones / combos activos
@@ -76,8 +88,9 @@ function renderProductAndComboSelects() {
   if (pSel) {
     pSel.innerHTML = '<option value="">-- Selecciona un producto del catálogo --</option>' +
       dProducts.map(p => {
-        const title = [p.jjp_products?.name, p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
-        return `<option value="${p.id}">${escapeHTML(title)} — $${(+p.price_usd).toFixed(2)}</option>`;
+        const title = [p.name || p.jjp_products?.name, p.brand || p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
+        const price = Number(p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : 0)).toFixed(2);
+        return `<option value="${p.id}">${escapeHTML(title)} — $${price}</option>`;
       }).join('');
   }
 

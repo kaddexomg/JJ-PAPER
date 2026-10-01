@@ -850,7 +850,7 @@ window.CampaignEditor = (() => {
     if (type === 'multi_oferta' && selectedProductsList.length > 0) {
       cardWrap.style.display = 'block';
       const itemsHtml = selectedProductsList.map((p, idx) => {
-        const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0).toFixed(2);
+        const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0)).toFixed(2);
         return `
           <div style="display:inline-flex; align-items:center; gap:6px; background:#fff7ed; border:1px solid #fed7aa; padding:4px 8px; border-radius:6px; font-size:11px; margin:2px;">
             <strong style="color:#c2410c;">#${idx + 1}</strong>
@@ -859,10 +859,10 @@ window.CampaignEditor = (() => {
               $
               <input type="number" step="0.01" min="0" value="${pUsd}"
                      title="Modificar precio de oferta ($)"
-                     onchange="CampaignEditor.updateMultiProductPrice('${p.id}', this.value)"
+                     onchange="CampaignEditor.updateMultiProductPrice(${idx}, this.value)"
                      style="width:58px; padding:2px 4px; font-size:11px; font-weight:700; border:1px solid #10b981; border-radius:4px; color:#065f46; text-align:center; background:#fff;">
             </span>
-            <button type="button" style="border:none; background:transparent; color:#9a3412; cursor:pointer; font-weight:700;" onclick="CampaignEditor.removeMultiProduct('${p.id}')">✕</button>
+            <button type="button" style="border:none; background:transparent; color:#9a3412; cursor:pointer; font-weight:700;" onclick="CampaignEditor.removeMultiProduct(${idx})">✕</button>
           </div>
         `;
       }).join('');
@@ -907,10 +907,10 @@ window.CampaignEditor = (() => {
     `;
   }
 
-  function updateMultiProductPrice(id, newPrice) {
+  function updateMultiProductPrice(idx, newPrice) {
     const val = parseFloat(newPrice);
     if (isNaN(val) || val < 0) return;
-    const it = selectedProductsList.find(x => x.id === id);
+    const it = selectedProductsList[idx];
     if (it) {
       const base = Number(it.price_b || it.price_usd || val);
       const disc = (base > 0 && val < base) ? Math.max(0, Math.min(99, Math.round(((base - val) / base) * 100))) : 0;
@@ -933,8 +933,12 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
-  function removeMultiProduct(id) {
-    selectedProductsList = selectedProductsList.filter(x => x.id !== id);
+  function removeMultiProduct(idx) {
+    if (typeof idx === 'number' && idx >= 0 && idx < selectedProductsList.length) {
+      selectedProductsList.splice(idx, 1);
+    } else {
+      selectedProductsList = selectedProductsList.filter(x => x.id !== idx);
+    }
     selectedProductOrCombo = selectedProductsList[0] || null;
     if (selectedProductsList.length === 0) {
       const typeSel = document.getElementById('ceTypeSelect');
@@ -950,36 +954,25 @@ window.CampaignEditor = (() => {
     const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
 
     const itemsWaLines = selectedProductsList.map((p, idx) => {
-      const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0);
-      const baseUsd = Number(p.price_b || p.price_usd || pUsd);
-      const pBs = (pUsd * rate).toFixed(2);
-      const disc = (p.discount_pct > 0 && baseUsd > pUsd)
-        ? `\n   🏷️ _(Antes $${baseUsd.toFixed(2)} · Ahorro -${p.discount_pct}%)_`
-        : '';
-      const unitStr = p.unit ? ` (${p.unit})` : '';
-      const skuStr = p.sku ? ` [${p.sku}]` : '';
-
-      return `${idx + 1}️⃣ *${p.name}*${unitStr}${skuStr}\n   💵 *Precio Especial:* _$${pUsd.toFixed(2)} USD_ · *Bs ${Number(pBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}*${disc}`;
-    }).join('\n\n');
+      const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
+      const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
+      const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+      return `• *${p.name}*${unitStr}: *$${pUsd.toFixed(2)} USD* | Bs. ${pBs}`;
+    }).join('\n');
 
     const itemsEmailLines = selectedProductsList.map((p, idx) => {
-      const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0);
-      const baseUsd = Number(p.price_b || p.price_usd || pUsd);
-      const pBs = (pUsd * rate).toFixed(2);
-      const disc = (p.discount_pct > 0 && baseUsd > pUsd)
-        ? ` — (Antes $${baseUsd.toFixed(2)} · Descuento Especial -${p.discount_pct}%)`
-        : '';
-      const unitStr = p.unit ? ` [${p.unit}]` : '';
-
-      return `  • ${idx + 1}. ${p.name}${unitStr}: $${pUsd.toFixed(2)} USD (Bs. ${Number(pBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })})${disc}`;
+      const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
+      const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
+      const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+      return `  • ${p.name}${unitStr} — $${pUsd.toFixed(2)} USD (Bs. ${pBs})`;
     }).join('\n');
 
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y reposición de su empresa esta semana, hemos preparado una selección especial de artículos de alta rotación con *precios preferenciales de importador*:\n\n*🔥 LISTADO DE OFERTAS Y DISPONIBILIDAD INMEDIATA:*\n─────────────────────────────\n${itemsEmailLines}\n─────────────────────────────\n\n*CONDICIONES Y BENEFICIOS OPERATIVOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede / almacén.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 📦 Escala de descuentos adicionales por volumen o bulto cerrado.\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y abastecimiento de su empresa esta semana, le presentamos nuestra selección de *ofertas especiales de inventario físico* con precios preferenciales de importador:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER:*\n─────────────────────────────\n${itemsEmailLines}\n─────────────────────────────\n\n*CONDICIONES Y BENEFICIOS OPERATIVOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express garantizado en Caracas a su sede / almacén.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 Servicio de Procura Especial: si requiere algún insumo, medida o formato específico fuera de lista, ¡se lo ubicamos y cotizamos de inmediato!\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Queremos presentarle nuestro lote seleccionado de *ofertas mayoristas* con inventario físico para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsWaLines}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su empresa / sede\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 📦 *Escala de ahorros adicionales* por volumen o bulto cerrado\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Compartimos con usted nuestro lote de *ofertas mayoristas destacadas* con disponibilidad física para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsWaLines}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su sede / comercio\n• 🧾 *Facturación fiscal legal* al cambio oficial BCV\n• 🔍 *Servicio de Procura:* si requiere cualquier otro producto o marca que no vea en lista, ¡se lo conseguimos de inmediato!\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     onAttachChange();
@@ -1088,22 +1081,30 @@ window.CampaignEditor = (() => {
     try {
       let itemsToMatch = [];
 
-      // 1. Intento inteligente vía Gemini AI si está disponible (usando cascada de modelos estable)
-      if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
+      // 1. Cargar cliente Gemini AI y consultar
+      await ensureGeminiClient();
+      const ai = window.GeminiClient;
+
+      if (ai && ai.callGemini) {
         const prompt = `Actúa como clasificador y normalizador de catálogo para JJ Paper C.A. (distribuidora mayorista en Caracas).
 El usuario te entrega una lista o texto con artículos de oficina y papelería para una campaña de promociones.
 Muchos nombres contienen errores de tipeo, jerga comercial o marcas abreviadas:
-- "injoy" -> "InkJoy"
+- "injoy" o "ink joy" -> "InkJoy / Paper Mate"
 - "tol" -> "Estol"
-- "giromaica" -> "Giro / Sinfonía"
+- "giromaica" o "sinfonia giro mayka" -> "Archivador Sinfonia Giro Printa / Mayka"
 - "sinfonia" -> "Sinfonía / Giro"
-- "kiss be" o "kiss" -> "Shark / Kores punta fina"
-- "fimax" -> "Filmax / Kores / Estol"
+- "cisvi" o "kiss be" o "kiss" -> "Crisvi / Shark punta fina"
+- "fimax" o "ofimax" -> "Ofimax"
 - "poligrafo" -> "bolígrafo"
 - "manita" -> "manila"
+- "archicomodo" o "archicomodos" -> "archicomodos plasticos"
 
-TU MISIÓN:
-Extraer cada uno de los productos de la lista en un array de ítems JSON.
+INSTRUCCIÓN VITAL:
+Si una línea contiene varios colores o presentaciones entre paréntesis o separados por comas (por ejemplo: "Bolígrafos Ink Joy *12 (Azul, Negro) - $2,70" o "Bolígrafos Levo *12 (Azul, Rojo, Negro) - $1,81"), DEBES DESGLOSARLA en un ítem separado para CADA color con su respectivo precio y color:
+- Ítem 1: query: "boligrafo inkjoy azul x12", color: "azul", offer_price_usd: 2.70
+- Ítem 2: query: "boligrafo inkjoy negro x12", color: "negro", offer_price_usd: 2.70
+
+Los precios pueden venir con coma (ej: $2,70 -> 2.70, $54,50 -> 54.50). Conviértelos siempre a números con punto decimal.
 Separa el color (azul, negro, rojo), tamaño (carta, oficio), presentación/cantidad (x12, x25, x100, 10 unidades) y marca si se mencionan.
 
 DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
@@ -1113,7 +1114,7 @@ DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXT
       "query": "boligrafo inkjoy azul",
       "qty": 1,
       "discount_pct": null,
-      "offer_price_usd": null,
+      "offer_price_usd": 2.70,
       "color": "azul",
       "size": null,
       "brand": "inkjoy"
@@ -1127,7 +1128,7 @@ ${rawText}
 """`;
 
         try {
-          const res = await GeminiClient.callGemini({ prompt, temperature: 0.1 });
+          const res = await ai.callGemini({ prompt, temperature: 0.1 });
           const cleaned = res.replace(/```json/gi, '').replace(/```/g, '').trim();
           let parsed = null;
           try {
@@ -1151,49 +1152,90 @@ ${rawText}
           const discMatch = line.match(/(?:-|desc(?:uento)?\s*:?\s*)?(\d{1,2})\s*%/i);
           const itemDisc = discMatch ? parseFloat(discMatch[1]) : null;
 
-          const priceMatch = line.match(/(?:\$|usd\s*|precio\s*:?\s*\$?)(\d+(?:\.\d{1,2})?)/i);
-          const itemPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
+          const priceMatch = line.match(/(?:\$|usd\s*|precio\s*:?\s*\$?)\s*([0-9]+(?:[.,][0-9]{1,2})?)/i);
+          const itemPrice = priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : null;
 
-          const qtyMatch = line.match(/^(\d+)\s*(?:resmas?|cajas?|paquetes?|bultos?|unidades?|und|uds?)?\s+(?:de\s+)?(.+)/i)
-                        || line.match(/^[-*•]\s*(?:(\d+)\s+)?(.+)/i);
-          let qty = 1;
-          let cleanQuery = line.replace(/[-*•]/g, '').replace(/(?:-|desc(?:uento)?\s*:?\s*)?\d{1,2}\s*%/ig, '').trim();
-          if (qtyMatch) {
-            qty = parseInt(qtyMatch[1], 10) || 1;
-            cleanQuery = (qtyMatch[2] || line).replace(/(?:-|desc(?:uento)?\s*:?\s*)?\d{1,2}\s*%/ig, '').trim();
+          const parenM = line.match(/\(([^)]+)\)/);
+          const cleanBase = line.replace(/(?:\$|usd\s*|precio\s*:?\s*\$?)\s*[0-9]+(?:[.,][0-9]{1,2})?/gi, '').replace(/[-–—]/g, '').trim();
+
+          if (parenM) {
+            const inside = parenM[1].toLowerCase();
+            const possibleColors = ['azul', 'negro', 'rojo', 'verde', 'amarillo'];
+            const foundCols = possibleColors.filter(c => inside.includes(c));
+            if (foundCols.length > 1) {
+              const withoutParen = cleanBase.replace(/\([^)]+\)/, '').trim();
+              for (const col of foundCols) {
+                itemsToMatch.push({
+                  query: withoutParen + ' ' + col,
+                  qty: 1,
+                  discount_pct: itemDisc,
+                  offer_price_usd: itemPrice,
+                  forcedColor: col,
+                  color: col
+                });
+              }
+              continue;
+            }
           }
-          if (cleanQuery.length >= 3) {
+
+          if (cleanBase.length >= 3) {
             itemsToMatch.push({
-              query: cleanQuery,
-              qty,
+              query: cleanBase,
+              qty: 1,
               discount_pct: itemDisc,
               offer_price_usd: itemPrice,
-              notes: ''
+              forcedColor: null
             });
           }
         }
       }
 
-      // 3. Obtener catálogo completo
+      // 3. Obtener catálogo completo (+1200 productos garantizados sin límite de 1000)
       let allCatalog = currentConfig?.products || [];
-      if ((!allCatalog || allCatalog.length === 0) && typeof DataService !== 'undefined') {
-        allCatalog = await DataService.getProducts();
-        if (allCatalog && allCatalog.length > 0) currentConfig.products = allCatalog;
+      if ((!allCatalog || allCatalog.length < 1200) && typeof DataService !== 'undefined' && DataService.getProducts) {
+        try {
+          const dsProds = await DataService.getProducts();
+          if (dsProds && dsProds.length >= 1200) allCatalog = dsProds;
+        } catch (_) {}
+      }
+      if ((!allCatalog || allCatalog.length < 1200) && typeof sb !== 'undefined') {
+        try {
+          let paged = [];
+          let from = 0;
+          const step = 999;
+          while (true) {
+            const { data, error } = await sb.from('jjp_catalog_flat').select('*').range(from, from + step);
+            if (error || !data || data.length === 0) break;
+            paged.push(...data);
+            if (data.length <= step) break;
+            from += step + 1;
+          }
+          if (paged.length > 0) allCatalog = paged;
+        } catch (_) {}
+      }
+      if (allCatalog && allCatalog.length > 0 && currentConfig) {
+        currentConfig.products = allCatalog;
       }
 
-      // Normalizador de términos y diccionario de sinónimos de papelería
+      // Diccionario de sinónimos fonéticos y comerciales
       const SYNONYMS = {
+        'ink joy': 'inkjoy',
         'injoy': 'inkjoy',
+        'paper mate': 'inkjoy paper km',
         'tol': 'estol',
-        'giromaica': 'giro sinfonia',
-        'sinfonia': 'sinfonia giro',
-        'fimax': 'filmax',
-        'kiss': 'kores shark punta fina',
-        'kiss be': 'kores shark punta fina',
-        'archi como de plastico': 'archivador sinfonia plastico',
+        'cisvi': 'crisvi',
+        'crisvi': 'crisvi',
+        'kiss be': 'shark',
+        'fimax': 'ofimax',
+        'ofimax': 'ofimax',
         'poligrafo': 'boligrafo',
-        'carpeta manita': 'carpetas manila',
-        'manita': 'manila'
+        'manita': 'manila',
+        'archicomodo': 'archicomodos',
+        'archicomodos plasticos': 'archicomodos plasticos',
+        'mayka': 'mayka',
+        'giro mayka': 'giro mayka',
+        'sinfonia giro mayka': 'archivador sinfonia giro',
+        'sinfonia': 'sinfonia giro'
       };
 
       function normalizeSearchStr(s) {
@@ -1205,10 +1247,11 @@ ${rawText}
           const reg = new RegExp('\\b' + k + '\\b', 'gi');
           str = str.replace(reg, v);
         }
+        str = str.replace(/\b(az)\b/gi, 'azul').replace(/\b(ne)\b/gi, 'negro').replace(/\b(ro)\b/gi, 'rojo');
         return str;
       }
 
-      // 4. Aplanar candidatos del catálogo (cada variante o producto padre es un candidato único)
+      // 4. Aplanar candidatos del catálogo (variantes y productos base)
       const candidates = [];
       for (const p of (allCatalog || [])) {
         const pName = p.name || p.jjp_products?.name || '';
@@ -1231,7 +1274,7 @@ ${rawText}
             description: pDesc,
             unit: pUnit,
             raw: p,
-            searchTarget: normalizeSearchStr(`${pName} ${pBrand} ${pDesc} ${p.sku || ''} ${pUnit}`)
+            searchTarget: normalizeSearchStr(`${pName} ${pBrand} ${p.sku || ''} ${pDesc} ${pUnit}`)
           });
         } else {
           for (const v of vars) {
@@ -1257,8 +1300,8 @@ ${rawText}
         }
       }
 
-      function scoreCandidate(queryNorm, cand) {
-        const qWords = queryNorm.split(/\s+/).filter(w => w.length > 1);
+      function scoreCandidate(queryNorm, cand, forcedCol) {
+        const qWords = queryNorm.split(/\s+/).filter(w => w.length > 1 || /\d/.test(w));
         const target = cand.searchTarget;
         let score = 0;
 
@@ -1267,18 +1310,25 @@ ${rawText}
             score += (w.length >= 4 ? 6 : 3);
           }
         }
-
         if (target.includes(queryNorm)) score += 20;
 
-        // Modificadores de COLOR (azul, negro, rojo, etc.)
+        // Modificadores de COLOR
         const colors = ['azul', 'negro', 'rojo', 'verde', 'amarillo'];
-        for (const col of colors) {
-          const qHasCol = qWords.includes(col);
-          const candHasCol = target.includes(col);
-          if (qHasCol && candHasCol) score += 25;
-          else if (qHasCol && !candHasCol) {
-            const otherCols = colors.filter(c => c !== col);
-            if (otherCols.some(oc => target.includes(oc))) score -= 30;
+        if (forcedCol) {
+          if (target.includes(forcedCol)) score += 50;
+          else {
+            const otherCols = colors.filter(c => c !== forcedCol);
+            if (otherCols.some(oc => target.includes(oc))) score -= 50;
+          }
+        } else {
+          for (const col of colors) {
+            const qHasCol = qWords.includes(col);
+            const candHasCol = target.includes(col);
+            if (qHasCol && candHasCol) score += 35;
+            else if (qHasCol && !candHasCol) {
+              const otherCols = colors.filter(c => c !== col);
+              if (otherCols.some(oc => target.includes(oc))) score -= 35;
+            }
           }
         }
 
@@ -1287,20 +1337,20 @@ ${rawText}
         for (const sz of sizes) {
           const qHasSz = qWords.includes(sz);
           const candHasSz = target.includes(sz);
-          if (qHasSz && candHasSz) score += 20;
+          if (qHasSz && candHasSz) score += 25;
           else if (qHasSz && !candHasSz) {
             const otherSz = sizes.filter(s => s !== sz);
-            if (otherSz.some(os => target.includes(os))) score -= 25;
+            if (otherSz.some(os => target.includes(os))) score -= 30;
           }
         }
 
-        // Presentación numérica (25, 100, 12, etc.)
-        ['25', '100', '12', '10'].forEach(num => {
+        // Números (25, 100, 12, 10, 300, 2)
+        ['25', '100', '12', '10', '300', '2'].forEach(num => {
           if (qWords.includes(num) && target.includes(num)) score += 10;
         });
 
         // Marcas prioritarias
-        const brands = ['printon', 'hp', 'artesco', 'kores', 'levo', 'inkjoy', 'marfil', 'estol', 'caribe', 'shark', 'reprograf', 'lider', 'sinfonia'];
+        const brands = ['printon', 'hp', 'artesco', 'kores', 'levo', 'inkjoy', 'marfil', 'estol', 'caribe', 'shark', 'reprograf', 'lider', 'sinfonia', 'ofimax', 'crisvi', 'prismacolor', 'mayka'];
         for (const b of brands) {
           if (qWords.includes(b) && target.includes(b)) {
             score += 40;
@@ -1312,33 +1362,86 @@ ${rawText}
         const isPaperCand = target.includes('fotocopia') || target.includes('resma') || target.includes('pacc') || target.includes('pafo') || target.includes('reprograf') || target.includes('printon');
         if (isPaperQ && isPaperCand) {
           score += 50;
-        } else if (isPaperQ && (target.includes('boligrafo') || target.includes('cartulina') || target.includes('carbon') || target.includes('funda'))) {
+          if (qWords.includes('hp') && (target.includes('hp') || target.includes('pacc'))) score += 40;
+          if (qWords.includes('printon') && target.includes('printon')) score += 40;
+        } else if (isPaperQ && (target.includes('boligrafo') || target.includes('cartulina') || target.includes('carbon') || target.includes('higuinico') || target.includes('funda'))) {
           score -= 80;
         }
 
+        // Barrera Marcador vs Bolígrafo
+        if (qWords.includes('marcador') && (target.includes('boligrafo') || target.includes('bolsn') || target.includes('b100'))) {
+          score -= 60;
+        }
+        if ((qWords.includes('boligrafo') || qWords.includes('boligrafos')) && target.includes('marcador')) {
+          score -= 60;
+        }
+
         // Categoría Bolígrafo
-        const isPenQ = qWords.includes('boligrafo') || qWords.includes('poligrafo') || qWords.includes('pluma');
-        const isPenCand = target.includes('boligrafo') || target.includes('bolsn') || target.includes('b100') || target.includes('semi-gel') || target.includes('inkjoy') || target.includes('opaco') || target.includes('transp');
-        if (isPenQ && isPenCand) score += 30;
-        else if (isPenQ && !isPenCand) score -= 60;
+        const isPenQ = qWords.includes('boligrafo') || qWords.includes('boligrafos');
+        const isPenCand = target.includes('boligrafo') || target.includes('bolsn') || target.includes('b100') || target.includes('semi-gel') || target.includes('inkjoy');
+        if (isPenQ && isPenCand) {
+          score += 30;
+          if (qWords.includes('inkjoy') && (target.includes('inkjoy') || target.includes('paper km') || target.includes('pm'))) score += 50;
+          if (qWords.includes('levo') && (target.includes('levo') || target.includes('l-ink'))) score += 50;
+          if (qWords.includes('marfil') && target.includes('marfil')) score += 50;
+          if (qWords.includes('ofimax') && target.includes('ofimax')) score += 50;
+          if (qWords.includes('estol') && target.includes('estol')) score += 50;
+        } else if (isPenQ && !isPenCand) score -= 60;
 
         // Categoría Carpeta
         const isFolderQ = qWords.includes('carpeta') || qWords.includes('carpetas');
         const isFolderCand = target.includes('carpeta') || target.includes('carpetas');
-        if (isFolderQ && isFolderCand) score += 30;
-        else if (isFolderQ && !isFolderCand) score -= 50;
+        if (isFolderQ && isFolderCand) {
+          score += 30;
+          if (qWords.includes('fibra') && target.includes('fibra')) score += 40;
+          if (qWords.includes('manila') && target.includes('manila')) score += 40;
+        } else if (isFolderQ && !isFolderCand) score -= 50;
+
+        // Categoría Archicomodos
+        if (qWords.includes('archicomodo') || qWords.includes('archicomodos')) {
+          if (target.includes('archicomodo') || target.includes('archicomodos')) score += 70;
+          if (target.includes('plastico') || target.includes('plasticos')) score += 20;
+          if (target.includes('archivador')) score -= 60;
+        }
 
         // Categoría Archivador
-        const isArchQ = qWords.includes('archivador') || qWords.includes('archivadores');
-        const isArchCand = target.includes('archivador') || target.includes('archivadores');
-        if (isArchQ && isArchCand) score += 30;
-        else if (isArchQ && !isArchCand) score -= 50;
+        const isArchQ = (qWords.includes('archivador') || qWords.includes('archivadores')) && !qWords.includes('archicomodo');
+        const isArchCand = (target.includes('archivador') || target.includes('archivadores')) && !target.includes('archicomodo');
+        if (isArchQ && isArchCand) {
+          score += 30;
+          if (qWords.includes('sinfonia') && target.includes('sinfonia')) score += 40;
+          if (qWords.includes('giro') && target.includes('giro')) score += 30;
+          if (qWords.includes('mayka') && (target.includes('mayka') || target.includes('sinfonia'))) score += 30;
+        } else if (isArchQ && !isArchCand) score -= 50;
 
         // Categoría Lápiz
         const isPencilQ = qWords.includes('lapiz') || qWords.includes('grafito');
-        const isPencilCand = target.includes('lapiz') || target.includes('grafito');
-        if (isPencilQ && isPencilCand) score += 30;
-        else if (isPencilQ && !isPencilCand) score -= 50;
+        const isPencilCand = (target.includes('lapiz') || target.includes('grafito') || target.includes('turquoise')) && !target.includes('corrector');
+        if (isPencilQ && isPencilCand) {
+          score += 30;
+          if (qWords.includes('prismacolor') && (target.includes('prismacolor') || target.includes('turquoise'))) score += 50;
+          if (qWords.includes('artesco') && target.includes('artesco')) score += 50;
+          if ((qWords.includes('hb') || qWords.includes('grafito')) && (target.includes('bicolor') || target.includes('cheq'))) {
+            score -= 60;
+          }
+        } else if (isPencilQ && !isPencilCand) score -= 50;
+
+        // Categoría Libro Contabilidad
+        const isBookQ = qWords.includes('libro') || qWords.includes('libros') || qWords.includes('contabilidad');
+        const isBookCand = target.includes('libro') || target.includes('libros') || target.includes('contab');
+        if (isBookQ && isBookCand) {
+          score += 40;
+          if (qWords.includes('300') && target.includes('300')) score += 30;
+          if (qWords.includes('2') || qWords.includes('dos')) {
+            if (target.includes('2 col') || target.includes('2col') || target.includes('2')) score += 40;
+            if (target.includes('3 col') || target.includes('4 col')) score -= 40;
+          }
+        }
+
+        // Penalizaciones por marcas ausentes
+        if (qWords.includes('levo') && !target.includes('levo') && !target.includes('l-ink')) score -= 60;
+        if (qWords.includes('ofimax') && !target.includes('ofimax')) score -= 60;
+        if (qWords.includes('marfil') && !target.includes('marfil')) score -= 60;
 
         return score;
       }
@@ -1352,12 +1455,13 @@ ${rawText}
 
         let bestCand = null;
         let bestScore = 0;
+        const forcedColor = item.forcedColor || item.color || null;
 
         for (const cand of candidates) {
           const candKey = cand.variant_id ? `${cand.id}_${cand.variant_id}` : cand.id;
           if (usedKeys.has(candKey)) continue;
 
-          const sc = scoreCandidate(normQ, cand);
+          const sc = scoreCandidate(normQ, cand, forcedColor);
           if (sc > bestScore) {
             bestScore = sc;
             bestCand = cand;
@@ -1401,7 +1505,7 @@ ${rawText}
 
       if (matchedOffers.length === 0) {
         if (typeof showToast === 'function') {
-          showToast('No se encontraron coincidencias exactas en el catálogo. Revisa los nombres.', 'warn');
+          showToast('No se encontraron coincidencias en el catálogo. Revisa los nombres.', 'warn');
         } else {
           alert('No se encontraron coincidencias en el catálogo.');
         }

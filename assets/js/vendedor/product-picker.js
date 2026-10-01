@@ -121,48 +121,97 @@ window.ProductPicker = (() => {
       (products || []).forEach(p => {
         const vs = p.jjp_product_variants || p.variants || [];
         const baseName = p.name || p.jjp_products?.name || p.variant_name || 'Producto';
-        const baseBrand = p.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
-        const baseSku = p.sku || vs[0]?.sku || '';
+        const baseBrand = p.brand || p.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
         const basePrice = p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : (vs[0]?.price_b || vs[0]?.price_usd || 0));
         const baseImg = p.image_url || p.jjp_products?.image_url || vs[0]?.image_url || 'assets/img/no-img.svg';
         const baseDesc = p.description || p.jjp_products?.description || '';
+        const baseSku = p.sku || vs[0]?.sku || '';
 
-        currentItems.push({
-          id: p.id,
-          product_id: p.product_id || p.id,
-          name: baseName,
-          brand: baseBrand,
-          price_usd: Number(basePrice) || 0,
-          image_url: baseImg,
-          description: baseDesc,
-          sku: baseSku,
-          raw: p,
-          type: 'product'
-        });
+        if (!vs.length || vs.length === 1) {
+          const v = vs[0];
+          const vName = v?.variant_name && v.variant_name !== 'Estándar' ? ` (${v.variant_name})` : '';
+          currentItems.push({
+            id: v?.id ? `${p.id}_${v.id}` : p.id,
+            product_id: p.id,
+            variant_id: v?.id || null,
+            name: baseName + vName,
+            brand: v?.jjp_brands?.name || baseBrand,
+            price_usd: Number(v?.price_b || v?.price_usd || basePrice) || 0,
+            image_url: v?.image_url || baseImg,
+            description: baseDesc,
+            sku: v?.sku || baseSku,
+            unit: p.unit || 'unid',
+            raw: p,
+            type: 'product'
+          });
+        } else {
+          vs.forEach(v => {
+            const vName = v.variant_name && v.variant_name !== 'Estándar' ? ` (${v.variant_name})` : '';
+            currentItems.push({
+              id: `${p.id}_${v.id}`,
+              product_id: p.id,
+              variant_id: v.id,
+              name: baseName + vName,
+              brand: v.jjp_brands?.name || baseBrand,
+              price_usd: Number(v.price_b || v.price_usd || basePrice) || 0,
+              image_url: v.image_url || baseImg,
+              description: baseDesc,
+              sku: v.sku || baseSku,
+              unit: p.unit || 'unid',
+              raw: p,
+              type: 'product'
+            });
+          });
+        }
       });
     } else {
       titleEl.innerHTML = '📦 Seleccionar Producto del Catálogo';
-      currentItems = (products || []).map(p => {
+      currentItems = [];
+      (products || []).forEach(p => {
         const vs = p.jjp_product_variants || p.variants || [];
         const baseName = p.name || p.jjp_products?.name || p.variant_name || 'Producto';
-        const baseBrand = p.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
-        const baseSku = p.sku || vs[0]?.sku || '';
+        const baseBrand = p.brand || p.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
         const basePrice = p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : (vs[0]?.price_b || vs[0]?.price_usd || 0));
         const baseImg = p.image_url || p.jjp_products?.image_url || vs[0]?.image_url || 'assets/img/no-img.svg';
         const baseDesc = p.description || p.jjp_products?.description || '';
+        const baseSku = p.sku || vs[0]?.sku || '';
 
-        return {
-          id: p.id,
-          product_id: p.product_id || p.id,
-          name: baseName,
-          brand: baseBrand,
-          price_usd: Number(basePrice) || 0,
-          image_url: baseImg,
-          description: baseDesc,
-          sku: baseSku,
-          raw: p,
-          type: 'product'
-        };
+        if (!vs.length || vs.length === 1) {
+          const v = vs[0];
+          const vName = v?.variant_name && v.variant_name !== 'Estándar' ? ` (${v.variant_name})` : '';
+          currentItems.push({
+            id: v?.id ? `${p.id}_${v.id}` : p.id,
+            product_id: p.id,
+            variant_id: v?.id || null,
+            name: baseName + vName,
+            brand: v?.jjp_brands?.name || baseBrand,
+            price_usd: Number(v?.price_b || v?.price_usd || basePrice) || 0,
+            image_url: v?.image_url || baseImg,
+            description: baseDesc,
+            sku: v?.sku || baseSku,
+            unit: p.unit || 'unid',
+            raw: p,
+            type: 'product'
+          });
+        } else {
+          vs.forEach(v => {
+            const vName = v.variant_name && v.variant_name !== 'Estándar' ? ` (${v.variant_name})` : '';
+            currentItems.push({
+              id: `${p.id}_${v.id}`,
+              product_id: p.id,
+              variant_id: v.id,
+              name: baseName + vName,
+              brand: v.jjp_brands?.name || baseBrand,
+              price_usd: Number(v.price_b || v.price_usd || basePrice) || 0,
+              image_url: v.image_url || baseImg,
+              description: baseDesc,
+              sku: v.sku || baseSku,
+              unit: p.unit || 'unid',
+              raw: p,
+              type: 'product'
+            });
+          });
+        }
       });
     }
 

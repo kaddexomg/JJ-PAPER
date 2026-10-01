@@ -955,8 +955,23 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
       return extractJSON(raw);
     } catch (e) {
       console.warn('Fallback draftCampaignMessage:', e);
-      if (channel === 'email') {
+      const isEmail = channel === 'email';
+      const itemsLines = prodsList.map((p, idx) => {
+        const pName = p.name || 'Artículo';
+        const priceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+        const priceBs = priceUsd > 0 ? (priceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+        const unit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+        return `• *${pName}*${unit}: *$${priceUsd.toFixed(2)} USD* | Bs. ${priceBs}`;
+      }).join('\n');
+
+      if (isEmail) {
         return {
+          subject: prodsList.length === 1 ? `Propuesta Mayorista: ${prodsList[0].name} — JJ Paper C.A.` : `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`,
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n${itemsLines || '• ' + objective}\n\n*VENTAJAS DIRECTAS:*\n• 🏭 Precios directos de distribuidor en Caracas.\n• 🚚 Delivery garantizado a su sede.\n• 🧾 Facturación formal a Tasa Oficial BCV.\n• 🔍 Servicio de Procura Especial para cualquier otro requerimiento.\n\n👉 Catálogo digital: {{link}}\n\n¿Desea que le reservemos inventario o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+        };
+      } else {
+        return {
+          body: `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Queremos presentarle nuestro lote seleccionado de *ofertas mayoristas* con inventario físico para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsLines || '• ' + objective}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su empresa / sede\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🔍 *Servicio de Procura:* si requiere cualquier otro producto o marca, ¡se lo conseguimos!\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`
         };
       }
     }

@@ -423,11 +423,23 @@ async function initEmailCampaigns() {
 
 async function loadEcProductsAndCombos() {
   try {
-    const { data: prods } = await sb.from('jjp_product_variants')
-      .select('id,sku,price_usd,price_b,price_a,price_c_bs,price_d_bs,variant_name,jjp_products(id,name,description,image_url),jjp_brands(name)')
-      .eq('active', true)
-      .order('price_usd', { ascending: false })
-      .limit(300);
+    let prods = [];
+    if (typeof DataService !== 'undefined' && DataService.getProducts) {
+      prods = await DataService.getProducts();
+    }
+    if (!prods || prods.length < 1200) {
+      let paged = [];
+      let from = 0;
+      const step = 999;
+      while (true) {
+        const { data, error } = await sb.from('jjp_catalog_flat').select('*').range(from, from + step);
+        if (error || !data || data.length === 0) break;
+        paged.push(...data);
+        if (data.length <= step) break;
+        from += step + 1;
+      }
+      if (paged.length > 0) prods = paged;
+    }
     ecProducts = prods || [];
 
     const { data: promos } = await sb.from('jjp_promos')
@@ -448,7 +460,7 @@ function renderEcProductAndComboSelects() {
   if (pSel) {
     pSel.innerHTML = '<option value="">-- Selecciona un producto del catálogo --</option>' +
       ecProducts.map(p => {
-        const title = [p.jjp_products?.name, p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
+        const title = [p.name || p.jjp_products?.name, p.brand || p.jjp_brands?.name, p.variant_name].filter(Boolean).join(' · ');
         const rawPrice = (p.price_b !== undefined && p.price_b !== null && +p.price_b > 0) ? +p.price_b : (+p.price_usd || +p.price_a || 0);
         return `<option value="${p.id}">${escapeHTML(title)} — Mayorista B: $${rawPrice.toFixed(2)}</option>`;
       }).join('');

@@ -6,8 +6,8 @@
    ====================================================== */
 
 let PF_PRODUCTS = null;
-const PF_CACHE_KEY  = 'jjp_pf_products_v2';
-const PF_CACHE_TIME = 'jjp_pf_products_v2_time';
+const PF_CACHE_KEY  = 'jjp_pf_products_v3';
+const PF_CACHE_TIME = 'jjp_pf_products_v3_time';
 const PF_TTL        = 60 * 60 * 1000; // 60 minutos
 
 async function pfLoad(force) {

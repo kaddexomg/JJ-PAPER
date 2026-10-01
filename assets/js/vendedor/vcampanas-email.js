@@ -696,11 +696,14 @@ function ecSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
       const priceUsd = Number(rawPrice) || 0;
       prodPrice = `$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '');
       prodDesc = p.jjp_products?.description || '';
-      // Ficha directa del producto en el dominio real (nunca Netlify)
+      // Ficha directa del producto en el dominio real
       const fb = location.origin + location.pathname.replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
-      prodLink = p.jjp_products?.id
-        ? `${fb}/producto.html?id=${p.jjp_products.id}`
-        : `${fb}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`;
+      const pSku = p.sku || p.jjp_products?.sku;
+      prodLink = pSku
+        ? `${fb}/catalogo.html?producto=${encodeURIComponent(pSku)}`
+        : (p.jjp_products?.id
+            ? `${fb}/catalogo.html?producto=${encodeURIComponent(p.jjp_products.id)}`
+            : `${fb}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`);
     }
   } else if (extraContext.type === 'combo' && extraContext.comboId) {
     const c = ecCombos.find(x => x.id === extraContext.comboId);

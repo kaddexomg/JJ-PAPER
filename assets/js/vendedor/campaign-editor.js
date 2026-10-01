@@ -1792,11 +1792,12 @@ window.CampaignEditor = (() => {
     const publicBase = location.origin + location.pathname
       .replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
     const prodId = selectedProductOrCombo?.raw?.jjp_products?.id || selectedProductOrCombo?.product_id;
+    const prodSku = selectedProductOrCombo?.sku || selectedProductOrCombo?.raw?.sku;
     const isCombo = selectedProductOrCombo?.type === 'combo';
     const link = selectedProductOrCombo
       ? (isCombo
-          ? `${publicBase}/promociones.html`
-          : (prodId ? `${publicBase}/producto.html?id=${prodId}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`))
+          ? `${publicBase}/catalogo.html`
+          : (prodSku ? `${publicBase}/catalogo.html?producto=${encodeURIComponent(prodSku)}` : (prodId ? `${publicBase}/catalogo.html?producto=${encodeURIComponent(prodId)}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`)))
       : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo.html`) : `${publicBase}/catalogo.html`);
 
     let rawText = '';

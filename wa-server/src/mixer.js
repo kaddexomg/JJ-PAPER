@@ -1542,92 +1542,101 @@ export async function sweepMixnetProducts() {
     if (masterRows.length > 0) {
       let updatedCount = 0;
       let insertedCount = 0;
-      const stockBySku = new Map(stockRows.map(r => [String(r.codart || r.codigo || r.sku || '').trim(), r]));
       for (const r of masterRows) {
-        const sku = String(r.codart || r.codigo || r.sku || '').trim();
-        if (!sku) continue;
+        const rawSku = String(r.codart || r.codigo || r.sku || '').trim();
+        if (!rawSku) continue;
+        const skuUpper = rawSku.toUpperCase();
 
         const priceA = parseFloat(String(r.precio_a || '0').replace(/,/g, '.')) || 0;
         const priceB = parseFloat(String(r.precio_b || r.precio_a || r.precio || '0').replace(/,/g, '.')) || 0;
         const priceCBs = parseFloat(String(r.precio_c || '0').replace(/,/g, '.')) || 0;
         const priceDBs = parseFloat(String(r.precio_d || '0').replace(/,/g, '.')) || 0;
         const cost = parseFloat(String(r.costo || r.costo_rep || r.ult_costo || '0').replace(/,/g, '.')) || 0;
-        let stock = parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0;
-        if (stock === 0) {
-          const sv = stockBySku.get(sku);
-          if (sv) {
-            stock = parseFloat(String(sv.existe_act || sv.existencia || sv.stock || '0').replace(/,/g, '.')) || 0;
-          }
+        const stock = Math.max(0, Math.floor(parseFloat(String(r.existe_act || r.existencia || r.stock || '0').replace(/,/g, '.')) || 0));
+        const estatus = String(r.estatus || '').trim();
+
+        let costUsd = cost;
+        if (priceB > 0 && cost > priceB * 2.5) {
+          const rate = (priceDBs > 0) ? (priceDBs / priceB) : 859.0;
+          costUsd = Math.round((cost / rate) * 100) / 100;
         }
 
-        if (priceB > 0 || stock >= 0) {
-          const fp = `${priceA}|${priceB}|${priceCBs}|${priceDBs}|${stock}|${cost}`;
-          if (productSyncFingerprints.get(sku) === fp) {
-            // DIRTY CHECK: El producto no ha cambiado en el DBF local. CERO consumo de egress.
-            continue;
-          }
+        const hasPrice = (priceB > 0 || priceA > 0);
+        let mixnetStatus = 'INACTIVO';
+        let active = false;
 
-          const updateObj = {};
-          if (priceA > 0) updateObj.price_a = priceA;
-          if (priceB > 0) {
-            updateObj.price_b = priceB;
-            updateObj.price_usd = priceB;
-          }
-          if (priceCBs > 0) updateObj.price_c_bs = priceCBs;
-          if (priceDBs > 0) updateObj.price_d_bs = priceDBs;
-          if (stock >= 0) updateObj.stock = Math.max(0, Math.floor(stock));
-          if (cost > 0) {
-            let costUsd = cost;
-            // Si el costo en DBF está en Bolívares (supera el precio USD), convertir a USD real
-            if (priceB > 0 && cost > priceB * 2.5) {
-              const rate = (priceDBs > 0) ? (priceDBs / priceB) : 847.44;
-              costUsd = Math.round((cost / rate) * 100) / 100;
-            }
-            updateObj.cost_usd = costUsd;
-          }
+        if (estatus === '1') {
+          mixnetStatus = 'INACTIVO';
+          active = false;
+        } else if (hasPrice && stock > 0) {
+          mixnetStatus = 'ACTIVO';
+          active = true;
+        } else if (hasPrice && stock <= 0) {
+          mixnetStatus = 'SOLO_PRECIO';
+          active = true;
+        } else {
+          mixnetStatus = 'INACTIVO';
+          active = false;
+        }
 
-          const { data: vUp } = await dbCore.from('jjp_product_variants').update(updateObj).eq('sku', sku).select('id');
-          const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).eq('sku', sku).select('id');
-          if (vUp?.length || pUp?.length) {
-            updatedCount++;
-            productSyncFingerprints.set(sku, fp);
-          } else {
-            // El artículo existe en MixNet pero aún no en JJ Paper: auto-importarlo.
-            // CRÍTICO (17/09/2026): Se debe crear TANTO el producto como su variante.
-            // Sin variante en jjp_product_variants el POS/buscador no puede encontrar el
-            // producto ni descontar stock (jjp_apply_order_stock usa variant_id).
-            const nomart = String(r.nomart || r.nombre || r.descripcion || sku).trim();
-            if (nomart && sku) {
-              const unit = String(r.unidad || 'und').trim().toLowerCase() || 'und';
-              const newProd = {
-                name: nomart,
-                sku: sku,
+        const priceUsd = priceB > 0 ? priceB : priceA;
+
+        const fp = `${priceA}|${priceB}|${priceCBs}|${priceDBs}|${stock}|${costUsd}|${mixnetStatus}|${active}`;
+        if (productSyncFingerprints.get(skuUpper) === fp) {
+          // DIRTY CHECK: El producto no ha cambiado en el DBF local. CERO consumo de egress.
+          continue;
+        }
+
+        const updateObj = {
+          price_a: priceA,
+          price_b: priceB,
+          price_usd: priceUsd,
+          price_c_bs: priceCBs,
+          price_d_bs: priceDBs,
+          stock,
+          cost_usd: costUsd,
+          mixnet_status: mixnetStatus,
+          active
+        };
+
+        const { data: vUp } = await dbCore.from('jjp_product_variants').update({
+          ...updateObj,
+          base_price_usd: priceUsd
+        }).ilike('sku', skuUpper).select('id');
+
+        const { data: pUp } = await dbCore.from('jjp_products').update(updateObj).ilike('sku', skuUpper).select('id');
+
+        if (vUp?.length || pUp?.length) {
+          updatedCount++;
+          productSyncFingerprints.set(skuUpper, fp);
+        } else {
+          // El artículo existe en MixNet pero aún no en JJ Paper: auto-importarlo.
+          const nomart = String(r.nomart || r.nombre || r.descripcion || rawSku).trim();
+          if (nomart && rawSku) {
+            const unit = String(r.unidad || 'und').trim().toLowerCase() || 'und';
+            const newProd = {
+              name: nomart,
+              sku: skuUpper,
+              ...updateObj,
+              unit
+            };
+            const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id, sku');
+            if (ins?.length) {
+              insertedCount++;
+              const productId = ins[0].id;
+              const newVariant = {
+                product_id: productId,
+                variant_name: 'Unidad',
+                sku: skuUpper,
                 ...updateObj,
-                active: true,
-                unit,
-                mixnet_status: 'sincronizado'
+                base_price_usd: priceUsd
               };
-              const { data: ins } = await dbCore.from('jjp_products').insert(newProd).select('id, sku');
-              if (ins?.length) {
-                insertedCount++;
-                const productId = ins[0].id;
-                // Crear variante principal para que el POS/buscador lo encuentre y pueda
-                // descontar stock al confirmar pago (jjp_apply_order_stock necesita variant_id).
-                const newVariant = {
-                  product_id: productId,
-                  variant_name: 'Unidad',
-                  sku: sku,
-                  ...updateObj,
-                  base_price_usd: updateObj.price_usd || updateObj.price_b || 0,
-                  active: true,
-                  mixnet_status: 'sincronizado'
-                };
-                const { error: varErr } = await dbCore.from('jjp_product_variants').insert(newVariant);
-                if (varErr) {
-                  log.warn({ err: varErr.message, sku }, 'Puente Mixer: Producto nuevo importado pero falló creación de variante.');
-                } else {
-                  log.info(`Puente Mixer: Producto nuevo importado con variante: ${sku} — ${nomart}`);
-                }
+              const { error: varErr } = await dbCore.from('jjp_product_variants').insert(newVariant);
+              if (varErr) {
+                log.warn({ err: varErr.message, sku: skuUpper }, 'Puente Mixer: Producto nuevo importado pero falló creación de variante.');
+              } else {
+                log.info(`Puente Mixer: Producto nuevo importado con variante: ${skuUpper} — ${nomart}`);
+                productSyncFingerprints.set(skuUpper, fp);
               }
             }
           }
@@ -1970,7 +1979,12 @@ export function startMixer() {
   }, 30_000);
 
 
-  // 3. Re-chequeo del entorno de unidades (por si se monta M: o P: en red) cada 10 minutos
+  // 3. Barrido periódico de precios y stock de productos cada 3 minutos
+  setInterval(() => {
+    sweepMixnetProducts().catch(() => {});
+  }, 180_000);
+
+  // 4. Re-chequeo del entorno de unidades (por si se monta M: o P: en red) cada 10 minutos
   setInterval(() => {
     refreshEnvironmentConfig();
   }, 600_000);

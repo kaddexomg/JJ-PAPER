@@ -142,8 +142,8 @@ function normalizeProduct(p) {
 }
 
 async function loadProducts() {
-  const cacheKey = 'jjp_products_cache_v4';
-  const cacheTimeKey = 'jjp_products_cache_v4_time';
+  const cacheKey = 'jjp_products_cache_v5';
+  const cacheTimeKey = 'jjp_products_cache_v5_time';
   const cached = sessionStorage.getItem(cacheKey);
   const cachedTime = sessionStorage.getItem(cacheTimeKey);
   const now = Date.now();

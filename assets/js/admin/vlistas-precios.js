@@ -60,10 +60,13 @@ function updateKpis() {
   let cntInactivos = 0;
 
   for (const p of ALL_PRODUCTS) {
-    const st = p.mixnet_status || 'ACTIVO';
+    let st = (p.mixnet_status || 'ACTIVO').toUpperCase();
+    if (st === 'SINCRONIZADO') {
+      st = (Number(p.stock) || 0) > 0 ? 'ACTIVO' : 'SOLO_PRECIO';
+    }
     if (st === 'ACTIVO') cntActivos++;
     else if (st === 'SOLO_PRECIO') cntSoloPrecio++;
-    else if (st === 'INACTIVO') cntInactivos++;
+    else if (st === 'INACTIVO' || st === 'DESCONOCIDO') cntInactivos++;
     else cntActivos++; // Default
   }
 
@@ -120,13 +123,16 @@ function applyFilters() {
   const fPrice = document.getElementById('filterPrice')?.value || 'all';
 
   FILTERED_PRODUCTS = ALL_PRODUCTS.filter(p => {
-    const st = p.mixnet_status || 'ACTIVO';
+    let st = (p.mixnet_status || 'ACTIVO').toUpperCase();
+    if (st === 'SINCRONIZADO') {
+      st = (Number(p.stock) || 0) > 0 ? 'ACTIVO' : 'SOLO_PRECIO';
+    }
     
     // Filtro de pestaña
     if (CURRENT_TAB === 'operativo' && st !== 'ACTIVO' && st !== 'SOLO_PRECIO') return false;
     if (CURRENT_TAB === 'activos' && st !== 'ACTIVO') return false;
     if (CURRENT_TAB === 'soloprecio' && st !== 'SOLO_PRECIO') return false;
-    if (CURRENT_TAB === 'inactivos' && st !== 'INACTIVO') return false;
+    if (CURRENT_TAB === 'inactivos' && st !== 'INACTIVO' && st !== 'DESCONOCIDO') return false;
 
     // Filtro de stock
     const stock = Number(p.stock) || 0;

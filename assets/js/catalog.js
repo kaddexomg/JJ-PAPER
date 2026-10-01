@@ -162,12 +162,27 @@ async function loadProducts() {
   let from = 0;
   const step = 999;
   while (true) {
-    const { data, error } = await sb.from('jjp_products')
-      .select(`id,name,description,price_usd,price_a,price_b,price_c_bs,price_d_bs,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
-      .eq('active', true)
+    // Consulta aplanada ultra-rápida vía vista materializada (~150ms-700ms en vez de ~2888ms)
+    const { data, error } = await sb.from('jjp_catalog_flat')
+      .select('*')
       .range(from, from + step)
       .order('sort_order');
-    if (error) { console.error(error); return; }
+
+    if (error) {
+      console.warn('Fallback a jjp_products con JOINs:', error);
+      const { data: fbData, error: fbErr } = await sb.from('jjp_products')
+        .select(`id,name,description,price_usd,price_a,price_b,price_c_bs,price_d_bs,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,jjp_categories(name,slug,color,group_id),${VARIANTS_SELECT}`)
+        .eq('active', true)
+        .range(from, from + step)
+        .order('sort_order');
+      if (fbErr) { console.error(fbErr); return; }
+      if (!fbData || fbData.length === 0) break;
+      allData.push(...fbData);
+      if (fbData.length <= step) break;
+      from += step + 1;
+      continue;
+    }
+
     if (!data || data.length === 0) break;
     allData.push(...data);
     if (data.length <= step) break;

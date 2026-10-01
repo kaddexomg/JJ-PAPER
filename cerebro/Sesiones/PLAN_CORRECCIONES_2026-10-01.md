@@ -1,25 +1,25 @@
-# 🔴 PLAN MAESTRO DE CORRECCIONES — JJ PAPER
+# 🟢 PLAN MAESTRO DE CORRECCIONES — JJ PAPER
 **Fecha:** 01 de Octubre de 2026  
 **Agente:** Antigravity (PC Principal — Análisis y Plan)  
 **Ejecutor:** Agente de la PC Supervisora  
-**Estado:** Para Ejecución Inmediata  
+**Estado:** ✅ 100% COMPLETADO Y DESPLEGADO  
 
-> [!CAUTION]
-> Este plan fue generado tras un análisis real del código fuente actual (post git-pull commit `d0b8f92`). Cada problema tiene archivos, líneas exactas y causa raíz verificada. NO es especulación.
+> [!NOTE]
+> Todas las correcciones de este plan han sido implementadas, probadas y subidas a la rama `main` de GitHub.
 
 ---
 
 ## RESUMEN EJECUTIVO
 
-| # | Problema | Severidad | Causa Raíz |
-|---|----------|-----------|------------|
-| **0** | **Comprobante / impresión de cotizaciones y pedidos ELIMINADO** | **🔴 URGENTE** | **`comprobante.html` fue borrado en commit `41c61b8` y `_redirects` lo manda a `catalogo.html` (roto)** |
-| 1 | Pre-armar cotizaciones con IA no funciona | 🔴 CRÍTICO | Modelos Gemini inexistentes (`gemini-3.6-flash`, `gemini-3.1-flash-lite`) devuelven 404 — keys están bien |
-| 2 | Campañas multi-producto para ofertas no existen | 🔴 CRÍTICO | Nunca se implementó. El picker solo acepta 1 producto |
-| 3 | Monitor de cuotas muestra datos falsos/estáticos | 🟡 MEDIO | Datos hardcodeados como fallback (21.14 MB, 12.96 MB, 5.33 MB) en vez de datos reales |
-| 4 | Request `jjp_products` lentísima (2888ms) | 🟡 MEDIO | JOIN de 3 niveles en PostgREST sin vista materializada + descarga total sin paginación |
-| 5 | Vista web / tienda muerta con enlaces rotos | 🟡 MEDIO | `cart.js`, `nav.js`, `product-modal.js` con enlaces a páginas eliminadas |
-| 6 | Cada módulo parece manejar datos diferentes | 🟠 ARQUITECTÓNICO | Cada módulo carga datos de forma independiente con queries distintas, sin capa de datos compartida |
+| # | Problema | Severidad | Estado | Commit |
+|---|----------|-----------|--------|--------|
+| **0** | **Comprobante / impresión de cotizaciones y pedidos ELIMINADO** | **🔴 URGENTE** | ✅ **Completado** | `83c025d` |
+| 1 | Pre-armar cotizaciones con IA no funciona | 🔴 CRÍTICO | ✅ **Completado** | `7e50923` |
+| 2 | Campañas multi-producto para ofertas no existen | 🔴 CRÍTICO | ✅ **Completado** | `6321d2d` |
+| 3 | Monitor de cuotas muestra datos falsos/estáticos | 🟡 MEDIO | ✅ **Completado** | `8f5057c` |
+| 4 | Request `jjp_products` lentísima (2888ms) | 🟡 MEDIO | ✅ **Completado** | `f31514e` |
+| 5 | Vista web / tienda muerta con enlaces rotos | 🟡 MEDIO | ✅ **Completado** | `a10b61a` |
+| 6 | Cada módulo parece manejar datos diferentes | 🟠 ARQUITECTÓNICO | ✅ **Completado** | `8113eba` |
 
 ---
 

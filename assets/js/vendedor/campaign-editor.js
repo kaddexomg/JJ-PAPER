@@ -215,20 +215,23 @@ window.CampaignEditor = (() => {
                 <select class="ce-select" id="ceTypeSelect" onchange="CampaignEditor.onTypeChange()">
                   <option value="general">📣 General / Propuesta según Rubro del Cliente</option>
                   <option value="producto">📦 Promoción de un Producto Específico</option>
-                  <option value="multi_oferta">🔥 Ofertas / Catálogo Multi-Producto (hasta 15)</option>
+                  <option value="multi_oferta">🔥 Ofertas / Catálogo Multi-Producto (Sin límite)</option>
                   <option value="combo">🎁 Promoción de un Combo / Oferta Especial</option>
                   <option value="reactivacion">😴 Reactivación de Clientes Inactivos</option>
                 </select>
               </div>
               
               <div id="cePickerTriggerWrap" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:130px; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('product')">
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:115px; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('product')">
                   📦 1 Producto
                 </button>
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:145px; background:#fff7ed; color:#c2410c; border-color:#fed7aa; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('multi')">
-                  🔥 Multi-Ofertas (hasta 15)
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:125px; background:#fff7ed; color:#c2410c; border-color:#fed7aa; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('multi')">
+                  🔥 Multi-Ofertas
                 </button>
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:130px; background:#fdf2f8; color:#9d174d; border-color:#fbcfe8; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('combo')">
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:180px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:700; padding:6px 10px;" onclick="CampaignEditor.openAiOfferBuilderModal()">
+                  🤖 Cargar con IA / Archivo
+                </button>
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:115px; background:#fdf2f8; color:#9d174d; border-color:#fbcfe8; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('combo')">
                   🎁 Combo / Promo
                 </button>
               </div>
@@ -621,15 +624,22 @@ window.CampaignEditor = (() => {
       });
     }
 
-    // Auto-cargar catálogo (productos, combos y plantillas) si no fueron provistos
+    // Auto-cargar catálogo completo usando DataService (o fallback sin límite restrictivo)
     if ((!config.products || config.products.length === 0) && typeof sb !== 'undefined') {
       try {
-        const { data: prods } = await sb.from('jjp_product_variants')
-          .select('id,sku,price_usd,price_b,variant_name,stock,jjp_products(id,name,description,image_url),jjp_brands(name)')
-          .eq('active', true)
-          .order('stock', { ascending: false })
-          .limit(600);
-        config.products = prods || [];
+        if (typeof DataService !== 'undefined' && DataService.getProducts) {
+          const dsProds = await DataService.getProducts();
+          if (dsProds && dsProds.length > 0) {
+            config.products = dsProds;
+          }
+        }
+        if (!config.products || config.products.length === 0) {
+          const { data: prods } = await sb.from('jjp_products')
+            .select('id,sku,name,price_usd,price_b,price_c_bs,price_d_bs,unit,description,image_url,stock,jjp_product_variants(id,sku,variant_name,price_usd,price_b,stock,active,jjp_brands(name))')
+            .eq('active', true)
+            .order('name');
+          config.products = prods || [];
+        }
       } catch (e) {
         console.warn('Aviso cargando productos en CampaignEditor:', e);
       }
@@ -900,23 +910,328 @@ window.CampaignEditor = (() => {
   function applyMultiOfertaTemplate() {
     if (!selectedProductsList || !selectedProductsList.length) return;
     const isEmail = currentConfig?.channel === 'email';
+    const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
 
-    const itemsLines = selectedProductsList.map((p, idx) => {
-      const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0).toFixed(2);
-      const disc = p.discount_pct > 0 ? ` · *-${p.discount_pct}% OFF*` : '';
-      return `  • *${p.name}*: _$${pUsd} USD_${disc}`;
+    const itemsWaLines = selectedProductsList.map((p, idx) => {
+      const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0);
+      const baseUsd = Number(p.price_b || p.price_usd || pUsd);
+      const pBs = (pUsd * rate).toFixed(2);
+      const disc = (p.discount_pct > 0 && baseUsd > pUsd)
+        ? `\n   🏷️ _(Antes $${baseUsd.toFixed(2)} · Ahorro -${p.discount_pct}%)_`
+        : '';
+      const unitStr = p.unit ? ` (${p.unit})` : '';
+      const skuStr = p.sku ? ` [${p.sku}]` : '';
+
+      return `${idx + 1}️⃣ *${p.name}*${unitStr}${skuStr}\n   💵 *Precio Especial:* _$${pUsd.toFixed(2)} USD_ · *Bs ${Number(pBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}*${disc}`;
+    }).join('\n\n');
+
+    const itemsEmailLines = selectedProductsList.map((p, idx) => {
+      const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0);
+      const baseUsd = Number(p.price_b || p.price_usd || pUsd);
+      const pBs = (pUsd * rate).toFixed(2);
+      const disc = (p.discount_pct > 0 && baseUsd > pUsd)
+        ? ` — (Antes $${baseUsd.toFixed(2)} · Descuento Especial -${p.discount_pct}%)`
+        : '';
+      const unitStr = p.unit ? ` [${p.unit}]` : '';
+
+      return `  • ${idx + 1}. ${p.name}${unitStr}: $${pUsd.toFixed(2)} USD (Bs. ${Number(pBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })})${disc}`;
     }).join('\n');
 
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y reposición de su empresa esta semana, hemos preparado una selección especial de artículos de alta rotación con *precios preferenciales de importador*:\n\n*🔥 LISTADO DE OFERTAS Y DISPONIBILIDAD INMEDIATA:*\n${itemsLines}\n\n*CONDICIONES Y BENEFICIOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 📦 Escala de descuentos adicionales por volumen o bulto cerrado.\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y reposición de su empresa esta semana, hemos preparado una selección especial de artículos de alta rotación con *precios preferenciales de importador*:\n\n*🔥 LISTADO DE OFERTAS Y DISPONIBILIDAD INMEDIATA:*\n─────────────────────────────\n${itemsEmailLines}\n─────────────────────────────\n\n*CONDICIONES Y BENEFICIOS OPERATIVOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede / almacén.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 📦 Escala de descuentos adicionales por volumen o bulto cerrado.\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Queremos compartirle nuestro lote de ofertas mayoristas con inventario físico disponible para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DE LA SEMANA — JJ PAPER*\n${itemsLines}\n\n• 🏭 *Importador directo en Caracas* (sin intermediarios)\n• 🚚 *Despacho garantizado* a su sede\n• 🧾 *Facturación formal* a Tasa Oficial BCV\n\n👉 Ver catálogo digital y hacer pedido directo: {{link}}\n\n¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Queremos presentarle nuestro lote seleccionado de *ofertas mayoristas* con inventario físico para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsWaLines}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su empresa / sede\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 📦 *Escala de ahorros adicionales* por volumen o bulto cerrado\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
     }
     document.getElementById('ceMessageInput').value = msg;
     onAttachChange();
     updatePreview();
+  }
+
+  /* ---------- ARMADOR INTELIGENTE DE OFERTAS CON IA O ARCHIVO ---------- */
+  function openAiOfferBuilderModal() {
+    let modal = document.getElementById('jjAiOfferModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'jjAiOfferModal';
+      modal.className = 'modal-overlay op';
+      modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:99999;background:rgba(15,23,42,0.7);backdrop-filter:blur(4px);';
+      document.body.appendChild(modal);
+    } else {
+      modal.style.display = 'flex';
+      modal.classList.add('op');
+    }
+
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:620px;width:92%;background:#ffffff;color:#0f172a;border-radius:16px;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.3);border:1px solid #e2e8f0;" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid #e2e8f0;padding-bottom:10px">
+          <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:6px">
+            🤖 Armador Inteligente de Ofertas con IA & Archivo
+          </h3>
+          <button type="button" class="btn-g sm" onclick="CampaignEditor.closeAiOfferModal()" style="font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;">✕</button>
+        </div>
+
+        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px 0;line-height:1.4">
+          Pega abajo una lista de productos en oferta (de WhatsApp, correo, notas de almacén) o sube un archivo (<strong>.txt, .csv</strong>). La IA detectará los productos, buscará en el catálogo de JJ Paper y armará el lote de ofertas automáticamente:
+        </p>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+          <input type="file" id="aiOfferFileInput" accept=".txt,.csv,.json,.tsv" style="display:none" onchange="CampaignEditor.handleAiOfferFileUpload(event)">
+          <button type="button" class="ce-var-btn" style="background:#f8fafc;border-color:#cbd5e1;font-weight:600;font-size:12px;padding:6px 12px;cursor:pointer;" onclick="document.getElementById('aiOfferFileInput').click()">
+            📁 Cargar Archivo (.txt, .csv)
+          </button>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <label style="font-size:11.5px;color:#475569;font-weight:600;">Descuento por defecto:</label>
+            <input type="number" id="ceAiOfferDefaultDiscount" value="10" min="0" max="80" style="width:55px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;text-align:center;">
+            <span style="font-size:12px;color:#64748b;">%</span>
+          </div>
+        </div>
+
+        <textarea id="ceAiOfferRawInput" class="fi" rows="7" placeholder="Ejemplo:
+🔥 OFERTAS DE ESTA SEMANA:
+- 10 Resmas de papel fotocopia carta Report 75g con 10% de descuento
+- Lapiz dibujo artesco HB caja x12
+- Cinta de embalar transparente 48x100
+- 5 Cuadernos 1 linea 100h
+- Goma en barra artesco 8gr
+- Creyones triangulares artesco x48" style="width:100%;font-size:13px;resize:vertical;font-family:inherit;margin-bottom:12px;border:1px solid #cbd5e1;border-radius:8px;padding:10px;box-sizing:border-box;"></textarea>
+
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+          <button type="button" class="btn-g" onclick="CampaignEditor.closeAiOfferModal()" style="padding:8px 14px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;">Cancelar</button>
+          <button type="button" id="btnProcessAiOffers" class="btn-p" onclick="CampaignEditor.processAiOffersRequest()" style="padding:8px 18px;font-size:13px;font-weight:800;background:#15803d;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+            Analizar con IA y Armar Oferta 🚀
+          </button>
+        </div>
+      </div>
+    `;
+    setTimeout(() => document.getElementById('ceAiOfferRawInput')?.focus(), 60);
+  }
+
+  function closeAiOfferModal() {
+    const modal = document.getElementById('jjAiOfferModal');
+    if (modal) {
+      modal.classList.remove('op');
+      modal.style.display = 'none';
+    }
+  }
+
+  function handleAiOfferFileUpload(e) {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result;
+      const ta = document.getElementById('ceAiOfferRawInput');
+      if (ta && content) {
+        ta.value = content;
+        if (typeof showToast === 'function') {
+          showToast(`Archivo "${file.name}" cargado (${file.size} bytes) 📄`);
+        }
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function processAiOffersRequest() {
+    const rawText = (document.getElementById('ceAiOfferRawInput')?.value || '').trim();
+    if (!rawText) {
+      if (typeof showToast === 'function') showToast('Por favor escribe, pega o carga una lista de productos.', 'warn');
+      else alert('Por favor escribe, pega o carga una lista de productos.');
+      return;
+    }
+
+    const defaultDisc = parseFloat(document.getElementById('ceAiOfferDefaultDiscount')?.value) || 0;
+    const btn = document.getElementById('btnProcessAiOffers');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Analizando con IA y Catálogo... 🧠';
+    }
+
+    try {
+      let itemsToMatch = [];
+
+      // 1. Intento inteligente vía Gemini AI si está disponible
+      if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
+        const prompt = `Actúa como el clasificador de catálogo de JJ Paper C.A. (distribuidora mayorista en Caracas).
+El usuario te entrega una lista o texto de productos para una campaña de ofertas o promociones.
+
+TU MISIÓN:
+Extraer cada uno de los productos de la lista en un array de ítems JSON.
+
+Para cada producto extrae:
+- "query": El nombre o término clave limpio de búsqueda para encontrarlo en el catálogo (ej: "papel carta report", "lapiz dibujo artesco hb", "cinta embalaje transparente", "cuaderno 1 linea", "goma en barra artesco").
+- "qty": Cantidad numérica si se indica (por defecto 1).
+- "discount_pct": Porcentaje de descuento si se menciona para ese producto (ej: 10, 15, 20). Si no se indica, coloca null.
+- "notes": Si indica gramaje, color, o presentación.
+
+DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
+{
+  "items": [
+    {
+      "query": "lapiz dibujo artesco hb",
+      "qty": 1,
+      "discount_pct": 10,
+      "notes": "caja x12"
+    }
+  ]
+}
+
+TEXTO DE ENTRADA:
+"""
+${rawText}
+"""`;
+
+        try {
+          const res = await GeminiClient.callGemini({ prompt, model: 'gemini-2.5-flash', temperature: 0.1 });
+          const cleaned = res.replace(/```json/gi, '').replace(/```/g, '').trim();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(cleaned);
+          } catch (e) {
+            const m = cleaned.match(/\{[\s\S]*\}/);
+            if (m) parsed = JSON.parse(m[0]);
+          }
+          if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+            itemsToMatch = parsed.items;
+          }
+        } catch (aiErr) {
+          console.warn('[AI Offer Builder] Fallo en Gemini AI, usando fallback heurístico:', aiErr);
+        }
+      }
+
+      // 2. Fallback heurístico local si no se obtuvieron ítems de la IA
+      if (!itemsToMatch || itemsToMatch.length === 0) {
+        const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        for (const line of lines) {
+          const discMatch = line.match(/(?:-|desc(?:uento)?\s*:?\s*)?(\d{1,2})\s*%/i);
+          const itemDisc = discMatch ? parseFloat(discMatch[1]) : null;
+
+          const qtyMatch = line.match(/^(\d+)\s*(?:resmas?|cajas?|paquetes?|bultos?|unidades?|und|uds?)?\s+(?:de\s+)?(.+)/i)
+                        || line.match(/^[-*•]\s*(?:(\d+)\s+)?(.+)/i);
+          let qty = 1;
+          let cleanQuery = line.replace(/[-*•]/g, '').replace(/(?:-|desc(?:uento)?\s*:?\s*)?\d{1,2}\s*%/ig, '').trim();
+          if (qtyMatch) {
+            qty = parseInt(qtyMatch[1], 10) || 1;
+            cleanQuery = (qtyMatch[2] || line).replace(/(?:-|desc(?:uento)?\s*:?\s*)?\d{1,2}\s*%/ig, '').trim();
+          }
+          if (cleanQuery.length >= 3) {
+            itemsToMatch.push({
+              query: cleanQuery,
+              qty,
+              discount_pct: itemDisc,
+              notes: ''
+            });
+          }
+        }
+      }
+
+      // 3. Obtener catálogo completo
+      let allCatalog = currentConfig?.products || [];
+      if ((!allCatalog || allCatalog.length === 0) && typeof DataService !== 'undefined') {
+        allCatalog = await DataService.getProducts();
+        if (allCatalog && allCatalog.length > 0) currentConfig.products = allCatalog;
+      }
+
+      function normalizeSearchStr(s) {
+        return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').trim();
+      }
+
+      const matchedOffers = [];
+      const existingIds = new Set(selectedProductsList.map(p => p.id));
+
+      for (const item of itemsToMatch) {
+        const normQ = normalizeSearchStr(item.query);
+        if (!normQ) continue;
+        const words = normQ.split(/\s+/).filter(w => w.length > 1);
+        if (!words.length) continue;
+
+        let bestProd = null;
+        let bestScore = 0;
+
+        for (const p of allCatalog) {
+          const vs = p.jjp_product_variants || p.variants || [];
+          const pName = p.name || p.jjp_products?.name || '';
+          const pBrand = p.brand || p.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
+          const pSku = p.sku || vs[0]?.sku || '';
+          const pDesc = p.description || p.jjp_products?.description || '';
+
+          const target = normalizeSearchStr(`${pName} ${pBrand} ${pSku} ${pDesc}`);
+          let score = 0;
+          for (const w of words) {
+            if (target.includes(w)) score += 2;
+          }
+          if (target.includes(normQ)) score += 5; // Frase exacta
+          if (normalizeSearchStr(pSku) === normQ) score += 10; // Coincidencia exacta de SKU
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestProd = p;
+          }
+        }
+
+        if (bestProd && bestScore >= 2 && !existingIds.has(bestProd.id)) {
+          existingIds.add(bestProd.id);
+          const vs = bestProd.jjp_product_variants || bestProd.variants || [];
+          const baseName = bestProd.name || bestProd.jjp_products?.name || 'Producto';
+          const baseBrand = bestProd.brand || bestProd.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
+          const baseSku = bestProd.sku || vs[0]?.sku || '';
+          const basePrice = Number(bestProd.price_b != null ? bestProd.price_b : (bestProd.price_usd != null ? bestProd.price_usd : (vs[0]?.price_b || vs[0]?.price_usd || 0)));
+          const baseImg = bestProd.image_url || bestProd.jjp_products?.image_url || vs[0]?.image_url || 'assets/img/no-img.svg';
+          const baseDesc = bestProd.description || bestProd.jjp_products?.description || '';
+
+          const disc = (item.discount_pct != null && !isNaN(item.discount_pct)) ? Number(item.discount_pct) : defaultDisc;
+          const finalPrice = Math.max(0, basePrice * (1 - (disc / 100)));
+
+          matchedOffers.push({
+            id: bestProd.id,
+            product_id: bestProd.product_id || bestProd.id,
+            name: baseName,
+            brand: baseBrand,
+            price_usd: basePrice,
+            final_price_usd: finalPrice,
+            discount_pct: disc,
+            image_url: baseImg,
+            description: baseDesc,
+            sku: baseSku,
+            unit: bestProd.unit || 'unid',
+            raw: bestProd,
+            type: 'product'
+          });
+        }
+      }
+
+      if (matchedOffers.length === 0) {
+        if (typeof showToast === 'function') {
+          showToast('No se encontraron coincidencias exactas en el catálogo. Revisa los nombres.', 'warn');
+        } else {
+          alert('No se encontraron coincidencias en el catálogo.');
+        }
+        return;
+      }
+
+      selectedProductsList = [...selectedProductsList, ...matchedOffers];
+      selectedProductOrCombo = selectedProductsList[0] || null;
+
+      const typeSel = document.getElementById('ceTypeSelect');
+      if (typeSel) typeSel.value = 'multi_oferta';
+
+      renderSelectedCard();
+      applyMultiOfertaTemplate();
+      closeAiOfferModal();
+
+      if (typeof showToast === 'function') {
+        showToast(`🎉 ¡Lote de ofertas preparado! Se incorporaron ${matchedOffers.length} productos a la campaña. ✨`);
+      }
+    } catch (err) {
+      console.error('Error armando ofertas con IA:', err);
+      if (typeof showToast === 'function') showToast('Error procesando ofertas: ' + err.message, 'err');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Analizar con IA y Armar Oferta 🚀';
+      }
+    }
   }
 
   function applyProductTemplate() {
@@ -2397,6 +2712,10 @@ window.CampaignEditor = (() => {
     openCatalogPicker,
     removeMultiProduct,
     applyMultiOfertaTemplate,
+    openAiOfferBuilderModal,
+    closeAiOfferModal,
+    handleAiOfferFileUpload,
+    processAiOffersRequest,
     onTypeChange,
     onTemplateChange,
     onAudienceChange,

@@ -91,6 +91,36 @@ Saludos cordiales,
 JJ Paper C.A.`
   },
   {
+    id: 'tpl-email-multi-ofertas',
+    name: '🔥 Catálogo de Ofertas Mayoristas Especiales',
+    kind: 'multi_oferta',
+    owner_id: null,
+    subject: '🔥 Ofertas y Disponibilidad Mayorista Inmediata — JJ Paper C.A.',
+    body: `Estimado(a) {{nombre}},
+
+Espero se encuentre muy bien. Le saluda {{vendedor}} de JJ Paper C.A., su aliado de distribución mayorista directa en Caracas.
+
+Para apoyar la reposición y operatividad de su empresa esta semana, hemos preparado una selección especial de artículos de alta rotación con precios preferenciales de importador:
+
+🔥 LISTADO DE OFERTAS Y DISPONIBILIDAD INMEDIATA:
+{{productos_oferta}}
+
+CONDICIONES Y BENEFICIOS OPERATIVOS:
+• 🏭 Precios directos de importador en Caracas sin intermediarios.
+• 🚚 Delivery express gratuito en Caracas a su sede / almacén.
+• 🧾 Facturación fiscal formal a Tasa Oficial BCV.
+• 📦 Escala de descuentos adicionales por volumen o bulto cerrado.
+
+👉 Puede consultar detalles y gestionar su pedido en línea:
+{{link}}
+
+¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?
+
+Atentamente,
+{{vendedor}}
+JJ Paper C.A. — Distribución Directa en Caracas`
+  },
+  {
     id: 'tpl-email-colegios',
     name: '🏫 Colegios & Universidades — Dotación y Evaluaciones',
     kind: 'sector_colegios',
@@ -726,6 +756,8 @@ function ecSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
     precio:      prodPrice,
     descripcion: prodDesc,
     link:        prodLink,
+    productos_oferta: extraContext.multiOffersText ||
+      '• Resma Carta Report 75g: $4.95 USD (Bs. 198,00)\n• Cuaderno 1 Línea 100h: $0.85 USD (Bs. 34,00)\n• Marcadores Acrílicos x4: $2.10 USD (Bs. 84,00)',
   };
 }
 

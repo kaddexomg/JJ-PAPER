@@ -191,12 +191,11 @@ function renderModalBody() {
           📋 Cotizar al mayor
         </button>
         <button class="btn-wa" onclick="modalOrderWA()">
-          💬 Consultar
+          💬 Consultar WhatsApp
         </button>
       </div>
       <div class="pm-links">
-        <a class="pm-link" href="producto.html?id=${p.id}">📄 Ver ficha completa →</a>
-        <button class="pm-link" onclick="modalShare()">🔗 Compartir</button>
+        <button class="pm-link" onclick="modalShare()">🔗 Compartir producto</button>
       </div>
     </div>
   </div>
@@ -287,14 +286,15 @@ function modalQuoteWS() {
   window.location.href = `pedidos.html?${qs}`;
 }
 
-// Compartir: enlace a la ficha del producto (share nativo o copiar)
+// Compartir: enlace a la ficha del producto en el catálogo (share nativo o copiar)
 function modalShare() {
   if (!modalProduct) return;
-  const url = new URL(`producto.html?id=${modalProduct.id}`, location.href).href;
+  const prodKey = modalProduct.sku || modalProduct.id;
+  const url = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
   if (navigator.share) {
     navigator.share({ title: modalProduct.name, url }).catch(() => {});
   } else if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(url).then(() => showToast('Enlace copiado 🔗'));
+    navigator.clipboard.writeText(url).then(() => showToast('Enlace copiado al portapapeles 🔗'));
   } else {
     prompt('Copia el enlace:', url);
   }

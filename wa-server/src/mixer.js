@@ -509,6 +509,15 @@ function registerDbfExport(isQuote, serial) {
   return dbfKey;
 }
 
+// Sanitiza comentarios hacia MixNet: deja en blanco si no es una nota real de despacho
+function sanitizeMixnetComment(str) {
+  if (!str) return '';
+  let clean = String(str).trim();
+  if (/^(\[MixNet|Cotizaci[oó]n|Pedido|JJP-|COT-|PED-|Importad)/i.test(clean)) return '';
+  clean = clean.replace(/\[MixNet[^\]]*\]/gi, '').replace(/\b(COT|PED)-\d+-\d+\b/gi, '').trim();
+  return clean.substring(0, 35);
+}
+
 // Crea un registro de cabecera de cotización para MXENCCOT.
 function buildQuoteHeaderRecord(encStruct, q, numcot, codcli) {
   const today = dbfYmd(q.created_at || new Date());
@@ -521,7 +530,7 @@ function buildQuoteHeaderRecord(encStruct, q, numcot, codcli) {
     cliente: codcli,
     codsuc: '',
     codven: sellerCodven,
-    comen1: String(q.nombre_documento || q.notes || '').substring(0, 35),
+    comen1: sanitizeMixnetComment(q.notes),
     comen2: '',
     transp: '',
     estatus: 'PE',
@@ -589,7 +598,7 @@ function buildOrderHeaderRecord(encStruct, o, numped, codcli) {
     cliente: codcli,
     codsuc: '',
     codven: sellerCodven,
-    comen1: String(o.notes || '').substring(0, 35),
+    comen1: sanitizeMixnetComment(o.notes),
     comen2: '',
     transp: '',
     estatus: 'PE',

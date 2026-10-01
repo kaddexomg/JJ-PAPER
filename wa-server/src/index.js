@@ -64,13 +64,13 @@ const emailOn = startEmail();   // envío + recepción de correos del CRM (Gmail
 startEmailCampaigns();          // campañas de correo (seguimiento/captación) con throttle
 startRetention();               // purga storage de correo/WA (adjuntos y html viejos → re-traíbles de Gmail)
 startMixer();                   // exportador de pedidos local para el Mixer de facturación
-startGsmBridge();               // servicio nativo de llamadas GSM por USB para centralita
+// startGsmBridge();            // Conexión GSM para móvil desactivada (no se está utilizando)
 
 // Latido + control remoto (panel de admin ve estado y puede reiniciar/detener).
 // El segundo argumento informa la salud REAL de cada sesión de WhatsApp: antes
 // el panel decía 🟢 aunque una sesión estuviera colgada.
 startHeartbeat(
-  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn, mixer: true, gsm: true },
+  { whatsapp: true, outbox: true, campaigns: true, invoices: true, rates: true, countLan: true, email: emailOn, mixer: true, gsm: false },
   () => {
     const sesiones = manager.all();
     return {

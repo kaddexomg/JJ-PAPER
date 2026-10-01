@@ -37,10 +37,16 @@ window.ProductPicker = (() => {
             <div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 20px;">Cargando catálogo...</div>
           </div>
         </div>
-        <div class="pp-discount-section" id="ppDiscountSec">
-          <span class="pp-discount-label">🔖 Descuento especial de campaña (%):</span>
-          <input type="number" id="ppDiscountInput" class="pp-discount-input" min="0" max="80" value="0" oninput="ProductPicker.onDiscountChange()">
-          <span id="ppPricePreview" style="font-size: 13px; font-weight: 700; color: #16604A;"></span>
+        <div class="pp-discount-section" id="ppDiscountSec" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#f8fafc; padding:10px 14px; border-top:1px solid #e2e8f0;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label style="font-size:12px; font-weight:700; color:#0f172a;">🏷️ Precio Oferta ($):</label>
+            <input type="number" step="0.01" min="0" id="ppOfferPriceInput" placeholder="0.00" oninput="ProductPicker.onOfferPriceChange()" style="width:95px; padding:6px 10px; border:1.5px solid #10b981; border-radius:6px; font-weight:700; color:#065f46; font-size:14px; background:#fff;">
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label style="font-size:12px; font-weight:700; color:#64748b;">o Descuento (%):</label>
+            <input type="number" id="ppDiscountInput" class="pp-discount-input" min="0" max="90" value="0" oninput="ProductPicker.onDiscountChange()" style="width:65px; padding:6px 8px; border:1.5px solid #cbd5e1; border-radius:6px; font-weight:700; font-size:13px;">
+          </div>
+          <span id="ppPricePreview" style="font-size: 13px; font-weight: 700; color: #16604A; margin-left:auto;"></span>
         </div>
         <div class="pp-footer" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <span id="ppMultiCount" style="display:none; font-weight:700; color:#166534; font-size:13px;">0 seleccionados</span>
@@ -270,24 +276,43 @@ window.ProductPicker = (() => {
     const clicked = all.find(el => el.getAttribute('onclick')?.includes(id));
     if (clicked) clicked.classList.add('selected');
     document.getElementById('ppConfirmBtn').disabled = false;
-    onDiscountChange();
+
+    const base = Number(selectedItem?.price_usd) || 0;
+    const offerInp = document.getElementById('ppOfferPriceInput');
+    const discInp = document.getElementById('ppDiscountInput');
+    if (offerInp && (!offerInp.value || parseFloat(offerInp.value) === 0)) {
+      offerInp.value = base.toFixed(2);
+      if (discInp) discInp.value = '0';
+    }
+    if (offerInp && parseFloat(offerInp.value) > 0 && parseFloat(offerInp.value) !== base) {
+      onOfferPriceChange();
+    } else {
+      onDiscountChange();
+    }
   }
 
   function toggleMultiItem(id) {
     const it = currentItems.find(x => x.id === id);
     if (!it) return;
 
-    const disc = parseFloat(document.getElementById('ppDiscountInput').value) || 0;
     const base = Number(it.price_usd) || 0;
-    const finalPrice = Math.max(0, base * (1 - (disc / 100)));
+    const offerInp = document.getElementById('ppOfferPriceInput');
+    const discInp = document.getElementById('ppDiscountInput');
+    const disc = parseFloat(discInp?.value) || 0;
+    const offerVal = parseFloat(offerInp?.value);
+    const finalPrice = (offerVal != null && !isNaN(offerVal) && offerVal > 0)
+      ? offerVal
+      : Math.max(0, base * (1 - (disc / 100)));
+    const calculatedDisc = (base > 0 && finalPrice < base)
+      ? Math.max(0, Math.min(99, Math.round(((base - finalPrice) / base) * 100)))
+      : disc;
 
     if (selectedMultiItems.has(id)) {
       selectedMultiItems.delete(id);
     } else {
-      // Sin límite artificial: el usuario puede seleccionar las ofertas que necesite
       selectedMultiItems.set(id, {
         ...it,
-        discount_pct: disc,
+        discount_pct: calculatedDisc,
         final_price_usd: finalPrice
       });
     }
@@ -304,8 +329,53 @@ window.ProductPicker = (() => {
     onSearch(searchVal);
   }
 
+  function onOfferPriceChange() {
+    const offerInp = document.getElementById('ppOfferPriceInput');
+    const discInp = document.getElementById('ppDiscountInput');
+    const prevEl = document.getElementById('ppPricePreview');
+    const offerPrice = parseFloat(offerInp?.value) || 0;
+
+    if (isMultiMode) {
+      for (const [id, it] of selectedMultiItems.entries()) {
+        const base = Number(it.price_usd) || 0;
+        const disc = (base > 0 && offerPrice < base && offerPrice > 0)
+          ? Math.max(0, Math.min(99, Math.round(((base - offerPrice) / base) * 100)))
+          : 0;
+        selectedMultiItems.set(id, {
+          ...it,
+          discount_pct: disc,
+          final_price_usd: offerPrice > 0 ? offerPrice : base
+        });
+      }
+      if (discInp && offerPrice > 0) {
+        discInp.value = '';
+      }
+      if (prevEl) {
+        prevEl.innerHTML = offerPrice > 0
+          ? `Precio oferta: <strong>$${offerPrice.toFixed(2)}</strong> aplicado a los ${selectedMultiItems.size} productos`
+          : `Precios regulares de lista mayorista`;
+      }
+      return;
+    }
+
+    if (!selectedItem) return;
+    const base = Number(selectedItem.price_usd) || 0;
+    let disc = 0;
+    if (base > 0 && offerPrice < base && offerPrice > 0) {
+      disc = Math.max(0, Math.min(99, Math.round(((base - offerPrice) / base) * 100)));
+    }
+    if (discInp) discInp.value = disc;
+
+    if (offerPrice > 0 && offerPrice < base) {
+      prevEl.innerHTML = `Precio Promo: <strong>$${offerPrice.toFixed(2)}</strong> <span style="text-decoration: line-through; color: #94a3b8; font-size: 11px;">$${base.toFixed(2)}</span> <span style="color:#15803d; font-size:11px; font-weight:700;">(-${disc}%)</span>`;
+    } else {
+      prevEl.innerHTML = `Precio: <strong>$${(offerPrice || base).toFixed(2)}</strong>`;
+    }
+  }
+
   function onDiscountChange() {
     const disc = parseFloat(document.getElementById('ppDiscountInput').value) || 0;
+    const offerInp = document.getElementById('ppOfferPriceInput');
     const prevEl = document.getElementById('ppPricePreview');
 
     if (isMultiMode) {
@@ -329,8 +399,9 @@ window.ProductPicker = (() => {
     if (!selectedItem) return;
     const base = Number(selectedItem.price_usd) || 0;
     const finalPrice = Math.max(0, base * (1 - (disc / 100)));
+    if (offerInp) offerInp.value = finalPrice.toFixed(2);
     if (disc > 0) {
-      prevEl.innerHTML = `Precio Promo: <strong>$${finalPrice.toFixed(2)}</strong> <span style="text-decoration: line-through; color: #94a3b8; font-size: 11px;">$${base.toFixed(2)}</span>`;
+      prevEl.innerHTML = `Precio Promo: <strong>$${finalPrice.toFixed(2)}</strong> <span style="text-decoration: line-through; color: #94a3b8; font-size: 11px;">$${base.toFixed(2)}</span> <span style="color:#15803d; font-size:11px; font-weight:700;">(-${disc}%)</span>`;
     } else {
       prevEl.innerHTML = `Precio: <strong>$${base.toFixed(2)}</strong>`;
     }
@@ -347,9 +418,14 @@ window.ProductPicker = (() => {
     }
 
     if (!selectedItem) return;
-    const disc = parseFloat(document.getElementById('ppDiscountInput').value) || 0;
+    const offerInp = document.getElementById('ppOfferPriceInput');
+    const discInp = document.getElementById('ppDiscountInput');
     const base = Number(selectedItem.price_usd) || 0;
-    const finalPrice = Math.max(0, base * (1 - (disc / 100)));
+    const offerVal = parseFloat(offerInp?.value);
+    const finalPrice = (offerVal != null && !isNaN(offerVal) && offerVal > 0)
+      ? offerVal
+      : Math.max(0, base * (1 - ((parseFloat(discInp?.value) || 0) / 100)));
+    const disc = base > 0 ? Math.max(0, Math.min(99, Math.round(((base - finalPrice) / base) * 100))) : 0;
 
     if (typeof onSelectCallback === 'function') {
       onSelectCallback({
@@ -365,6 +441,6 @@ window.ProductPicker = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, onSearch, selectItem, toggleMultiItem, onDiscountChange, confirm, triggerAiModal };
+  return { open, close, onSearch, selectItem, toggleMultiItem, onOfferPriceChange, onDiscountChange, confirm, triggerAiModal };
 })();
 

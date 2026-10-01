@@ -1226,10 +1226,34 @@ async function sweepMixnetDbf() {
         const codven = String(pr.codven || '').trim();
         const { seller_id: codvenSeller, hint: sellerHint } = sellerForCodven(codven);
         
-        // REGLA SAGRADA: El vendedor del pedido/cotización lo define estrictamente CODVEN de MixNet.
-        // NUNCA atribuir a la cartera del cliente (effectiveCustSeller).
-        // Si no hay CODVEN o es 005 (Mostrador), finalSellerId es null.
-        let finalSellerId = codvenSeller || null;
+        const KEYDER_ID = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+        const clientNorm = String(clientName || '').toLowerCase();
+        
+        // 1. Cuentas y ventas directas de Keyder Salazar:
+        // - Colegio Agustiniano Cristo Rey (incluso si en MixNet se registró bajo Andreina 014)
+        // - Colegio Eugenia Ravasco
+        // - Cahersi Motors / Multiservicios
+        // - Calzado Rindal
+        // - Clientes de cartera directa Zona 010
+        let finalSellerId = null;
+        if (
+          clientNorm.includes('agustiniano') || clientNorm.includes('cristo rey') ||
+          clientNorm.includes('eugenia ravasco') || clientNorm.includes('ravasco') ||
+          clientNorm.includes('cahersi') ||
+          clientNorm.includes('rindal') ||
+          matchedCust?.zone === '010'
+        ) {
+          finalSellerId = KEYDER_ID;
+        } else if (codvenSeller) {
+          // 2. Vendedor explícito por CODVEN de MixNet (002, 004, 006, 008, 014, 010, etc.)
+          finalSellerId = codvenSeller;
+        } else if (matchedCust?.seller_id && ['002', '004', '006', '008', '014'].includes(matchedCust?.zone)) {
+          // 3. Vendedores regulares según su zona exclusiva (Luis 002, Yovanni 004/006, Marianela 008, Andreina 014)
+          finalSellerId = matchedCust.seller_id;
+        } else {
+          // 4. Mostrador Físico / Caja de tienda (005) o cartera administrativa general
+          finalSellerId = null;
+        }
         // Extraer comentarios legítimos del documento en MixNet (COMEN1, COMEN2), sin marcas artificiales
         const rawComen = [pr.comen1, pr.comen2]
           .map(c => String(c || '').trim())

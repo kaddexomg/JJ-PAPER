@@ -855,7 +855,13 @@ window.CampaignEditor = (() => {
           <div style="display:inline-flex; align-items:center; gap:6px; background:#fff7ed; border:1px solid #fed7aa; padding:4px 8px; border-radius:6px; font-size:11px; margin:2px;">
             <strong style="color:#c2410c;">#${idx + 1}</strong>
             <span style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</span>
-            <strong style="color:#15803d;">$${pUsd}</strong>
+            <span style="display:inline-flex; align-items:center; gap:2px; font-weight:700; color:#15803d;">
+              $
+              <input type="number" step="0.01" min="0" value="${pUsd}"
+                     title="Modificar precio de oferta ($)"
+                     onchange="CampaignEditor.updateMultiProductPrice('${p.id}', this.value)"
+                     style="width:58px; padding:2px 4px; font-size:11px; font-weight:700; border:1px solid #10b981; border-radius:4px; color:#065f46; text-align:center; background:#fff;">
+            </span>
             <button type="button" style="border:none; background:transparent; color:#9a3412; cursor:pointer; font-weight:700;" onclick="CampaignEditor.removeMultiProduct('${p.id}')">✕</button>
           </div>
         `;
@@ -864,10 +870,10 @@ window.CampaignEditor = (() => {
       cardWrap.innerHTML = `
         <div style="background:#fff; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:12px; font-weight:700; color:#c2410c;">🔥 ${selectedProductsList.length} Ofertas Seleccionadas</span>
-            <button type="button" class="ce-var-btn" style="font-size:11px; padding:3px 8px;" onclick="CampaignEditor.openCatalogPicker('multi')">Editar Ofertas</button>
+            <span style="font-size:12px; font-weight:700; color:#c2410c;">🔥 ${selectedProductsList.length} Ofertas Seleccionadas (Puedes ajustar el precio de oferta directamente en cada caja)</span>
+            <button type="button" class="ce-var-btn" style="font-size:11px; padding:3px 8px;" onclick="CampaignEditor.openCatalogPicker('multi')">Buscar Más</button>
           </div>
-          <div style="display:flex; flex-wrap:wrap; gap:4px; max-height:120px; overflow-y:auto;">
+          <div style="display:flex; flex-wrap:wrap; gap:4px; max-height:140px; overflow-y:auto;">
             ${itemsHtml}
           </div>
         </div>
@@ -880,20 +886,51 @@ window.CampaignEditor = (() => {
       return;
     }
 
+    const singlePrice = Number(selectedProductOrCombo.final_price_usd || selectedProductOrCombo.price_b || selectedProductOrCombo.price_usd || 0).toFixed(2);
     cardWrap.style.display = 'block';
     cardWrap.innerHTML = `
       <div class="ce-selected-card">
         <img src="${selectedProductOrCombo.image_url}" alt="${selectedProductOrCombo.name}">
         <div class="ce-selected-info">
           <div class="ce-selected-name">${selectedProductOrCombo.name}</div>
-          <div class="ce-selected-price">
-            $${Number(selectedProductOrCombo.final_price_usd || selectedProductOrCombo.price_usd).toFixed(2)}
-            ${selectedProductOrCombo.discount_pct > 0 ? `<span style="color:#e11d48; font-size:11px;">(-${selectedProductOrCombo.discount_pct}%)</span>` : ''}
+          <div class="ce-selected-price" style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+            <span style="font-size:11px; color:#64748b; font-weight:600;">Precio Oferta ($):</span>
+            <input type="number" step="0.01" min="0" value="${singlePrice}"
+                   title="Modificar precio de oferta"
+                   onchange="CampaignEditor.updateSingleProductPrice(this.value)"
+                   style="width:75px; padding:3px 6px; font-size:12px; font-weight:700; border:1.5px solid #10b981; border-radius:4px; color:#065f46; background:#fff;">
+            ${selectedProductOrCombo.discount_pct > 0 ? `<span style="color:#e11d48; font-size:11px; font-weight:700;">(-${selectedProductOrCombo.discount_pct}%)</span>` : ''}
           </div>
         </div>
         <button type="button" class="ce-var-btn" onclick="CampaignEditor.onTypeChange()">Cambiar</button>
       </div>
     `;
+  }
+
+  function updateMultiProductPrice(id, newPrice) {
+    const val = parseFloat(newPrice);
+    if (isNaN(val) || val < 0) return;
+    const it = selectedProductsList.find(x => x.id === id);
+    if (it) {
+      const base = Number(it.price_b || it.price_usd || val);
+      const disc = (base > 0 && val < base) ? Math.max(0, Math.min(99, Math.round(((base - val) / base) * 100))) : 0;
+      it.final_price_usd = val;
+      it.discount_pct = disc;
+      applyMultiOfertaTemplate();
+      updatePreview();
+    }
+  }
+
+  function updateSingleProductPrice(newPrice) {
+    const val = parseFloat(newPrice);
+    if (isNaN(val) || val < 0 || !selectedProductOrCombo) return;
+    const base = Number(selectedProductOrCombo.price_b || selectedProductOrCombo.price_usd || val);
+    const disc = (base > 0 && val < base) ? Math.max(0, Math.min(99, Math.round(((base - val) / base) * 100))) : 0;
+    selectedProductOrCombo.final_price_usd = val;
+    selectedProductOrCombo.discount_pct = disc;
+    renderSelectedCard();
+    applyProductTemplate();
+    updatePreview();
   }
 
   function removeMultiProduct(id) {
@@ -2711,6 +2748,8 @@ ${rawText}
     renderProspectCards,
     openCatalogPicker,
     removeMultiProduct,
+    updateMultiProductPrice,
+    updateSingleProductPrice,
     applyMultiOfertaTemplate,
     openAiOfferBuilderModal,
     closeAiOfferModal,

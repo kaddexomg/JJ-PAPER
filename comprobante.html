@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprobante Fiscal | JJ Paper</title>
+<link rel="icon" href="assets/img/logo.svg">
+<style>
+  /* ==========================================================
+     DISEÑO FISCAL PROFESIONAL DE ALTA DEFINICIÓN (CARTA / A4)
+     Diseñado específicamente para impresión nítida en blanco y negro,
+     con detalles corporativos enriquecidos y personalización total.
+     ========================================================== */
+  :root { 
+    --ink-dark: #000000;
+    --ink-body: #111827;
+    --ink-muted: #374151;
+    --ink-subtle: #6b7280;
+    
+    --b-dark: #000000;
+    --b-medium: #4b5563;
+    --b-light: #9ca3af;
+    --b-subtle: #e5e7eb;
+    
+    --screen-dark: #000000;
+    --screen-banner: #f3f4f6;
+    --screen-table: #f9fafb;
+    --screen-zebra: #fafafa;
+    --screen-accent: #e5e7eb;
+  }
+  
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+    color: var(--ink-body); 
+    background: #e5e7eb; 
+    padding: 20px 10px; 
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Hoja de papel (Formato A4 - Punto Medio Equilibrado) */
+  .sheet { 
+    max-width: 820px; 
+    margin: 0 auto; 
+    background: #ffffff; 
+    padding: 18px 22px; 
+    border-radius: 4px; 
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08); 
+    border: 1.5px solid #000000;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Marca de agua de seguridad institucional (mayor presencia e intensidad equilibrada) */
+  .watermark-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 1;
+    width: 380px;
+    height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .watermark-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: grayscale(100%) contrast(120%) brightness(1.04);
+  }
+
+  /* Contenido por encima de la filigrana */
+  .sheet-inner {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ==========================================================
+     CABECERA FISCAL PRINCIPAL (PUNTO MEDIO: ELEGANTE Y PROPORCIONADA)
+     ========================================================== */
+  .fisc-head { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: stretch; 
+    gap: 14px;
+    border-bottom: 2px solid var(--b-dark); 
+    padding-bottom: 7px; 
+    margin-bottom: 6px; 
+  }
+  
+  .fisc-biz { 
+    display: flex; 
+    gap: 12px; 
+    align-items: flex-start; 
+    flex: 1; 
+    min-width: 0; 
+  }
+  
+  .fisc-biz img { 
+    width: 52px; 
+    height: 52px; 
+    object-fit: contain; 
+    flex-shrink: 0;
+    filter: grayscale(100%) contrast(140%);
+  }
+  
+  .fisc-biz .biz-name { 
+    font-size: 16px; 
+    font-weight: 900; 
+    color: var(--ink-dark); 
+    line-height: 1.15;
+    letter-spacing: 0.4px; 
+    text-transform: uppercase;
+  }
+  
+  .fisc-biz .biz-sub {
+    font-size: 8.5px;
+    font-weight: 800;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 1px;
+  }
+
+  .fisc-biz .biz-rif { 
+    font-size: 12px; 
+    font-weight: 900; 
+    color: var(--ink-dark); 
+    margin-top: 2px; 
+    letter-spacing: 0.4px; 
+  }
+  
+  .fisc-biz .biz-dir { 
+    font-size: 9px; 
+    color: #1f2937; 
+    line-height: 1.35; 
+    margin-top: 2px; 
+  }
+  
+  .fisc-biz .biz-dir strong { 
+    color: var(--ink-dark); 
+    text-transform: uppercase; 
+    font-size: 8.5px; 
+    letter-spacing: 0.3px; 
+  }
+
+  /* Recuadro de Documento Fiscal (Caja SENIAT de Alta Definición) */
+  .fisc-doc-box { 
+    border: 1.5px solid var(--b-dark); 
+    border-radius: 4px; 
+    min-width: 245px; 
+    max-width: 270px;
+    overflow: hidden; 
+    background: #ffffff; 
+  }
+  
+  .fisc-doc-box .doc-title { 
+    background: var(--screen-dark); 
+    color: #ffffff; 
+    text-align: center; 
+    font-weight: 900;
+    font-size: 11.5px; 
+    letter-spacing: 1.2px; 
+    padding: 4px 6px; 
+    text-transform: uppercase; 
+  }
+  
+  .fisc-doc-box .doc-row { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    gap: 4px; 
+    padding: 2.8px 7px;
+    font-size: 10px; 
+    border-bottom: 1px solid var(--b-subtle); 
+  }
+  
+  .fisc-doc-box .doc-row:last-child { border-bottom: 0; }
+  .fisc-doc-box .doc-row .lbl { color: var(--ink-muted); font-weight: 700; font-size: 9px; text-transform: uppercase; }
+  .fisc-doc-box .doc-row .val { font-weight: 800; color: var(--ink-dark); text-align: right; }
+  
+  .fisc-doc-box .doc-row.num-row { 
+    background: var(--screen-banner); 
+    border-bottom: 1.5px solid var(--b-dark);
+    padding: 4px 7px;
+  }
+  .fisc-doc-box .doc-row.num-row .val { 
+    font-size: 13.5px; 
+    font-family: "Courier New", Courier, monospace; 
+    font-weight: 900; 
+    letter-spacing: 0.5px;
+  }
+
+  .fisc-doc-box .doc-row.ctrl-row {
+    background: #ffffff;
+    border-top: 1px solid var(--b-dark);
+    border-bottom: 1px solid var(--b-dark);
+    padding: 2.5px 7px;
+  }
+  .fisc-doc-box .doc-row.ctrl-row .val { 
+    font-size: 11px; 
+    font-weight: 900; 
+    font-family: "Courier New", Courier, monospace; 
+    letter-spacing: 0.4px; 
+  }
+
+  /* ==========================================================
+     DATOS DEL CLIENTE / RECEPTOR (PUNTO MEDIO: CLARO Y DETALLADO)
+     ========================================================== */
+  .fisc-client-box { 
+    border: 1.5px solid var(--b-dark); 
+    border-radius: 4px; 
+    overflow: hidden; 
+    margin-top: 6px; 
+  }
+  
+  .fisc-client-box .box-header { 
+    background: var(--screen-accent); 
+    border-bottom: 1.5px solid var(--b-dark); 
+    color: var(--ink-dark); 
+    font-size: 9px; 
+    font-weight: 900; 
+    letter-spacing: 0.6px; 
+    padding: 3px 8px; 
+    text-transform: uppercase; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+  }
+
+  .fisc-client-box .box-header .code-badge { 
+    background: #ffffff; 
+    border: 1px solid var(--b-dark); 
+    padding: 1px 6px; 
+    border-radius: 3px; 
+    font-size: 8.5px; 
+    font-weight: 900; 
+    letter-spacing: 0.4px; 
+  }
+  
+  .fisc-client-box .box-body { 
+    display: grid; 
+    grid-template-columns: 2fr 1fr 1fr; 
+    gap: 3px 12px; 
+    padding: 6px 10px; 
+    background: #ffffff; 
+  }
+  
+  .fisc-client-box .f-field { 
+    font-size: 10px; 
+    line-height: 1.35; 
+    display: flex; 
+    gap: 5px; 
+    min-width: 0; 
+  }
+  
+  .fisc-client-box .f-field .f-lbl { 
+    color: var(--ink-muted); 
+    flex-shrink: 0; 
+    font-weight: 700; 
+    font-size: 9px; 
+    text-transform: uppercase; 
+  }
+  
+  .fisc-client-box .f-field .f-val { 
+    font-weight: 800; 
+    color: var(--ink-dark); 
+    overflow-wrap: anywhere; 
+  }
+  
+  .fisc-client-box .f-field.span2 { grid-column: span 2; }
+  .fisc-client-box .f-field.full { grid-column: 1 / -1; }
+
+  /* ==========================================================
+     TABLA DE PRODUCTOS / RENGLONES (PUNTO MEDIO: NÍTIDA Y PROPORCIONADA)
+     ========================================================== */
+  .fisc-items-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 6px; 
+    border: 1.5px solid var(--b-dark);
+  }
+  
+  .fisc-items-table thead th { 
+    background: var(--screen-accent); 
+    color: var(--ink-dark); 
+    font-size: 9px; 
+    font-weight: 900; 
+    text-transform: uppercase; 
+    text-align: left; 
+    padding: 4px 6px; 
+    border-bottom: 1.5px solid var(--b-dark); 
+    border-right: 1px solid var(--b-light); 
+    letter-spacing: 0.2px; 
+  }
+  
+  .fisc-items-table thead th:last-child { border-right: none; }
+  .fisc-items-table thead th.r { text-align: right; } 
+  .fisc-items-table thead th.c { text-align: center; }
+  
+  .fisc-items-table tbody td { 
+    padding: 3.8px 6px; 
+    border-bottom: 1px solid var(--b-subtle); 
+    border-right: 1px solid var(--b-subtle); 
+    font-size: 10px; 
+    color: var(--ink-body); 
+    line-height: 1.3; 
+  }
+  
+  .fisc-items-table tbody tr:nth-child(even) td { 
+    background: rgba(0, 0, 0, 0.018); 
+  }
+  
+  .fisc-items-table tbody td:last-child { border-right: none; }
+  .fisc-items-table tbody tr:last-child td { border-bottom: 1.5px solid var(--b-dark); }
+  .fisc-items-table tbody td.r { text-align: right; font-variant-numeric: tabular-nums; } 
+  .fisc-items-table tbody td.c { text-align: center; }
+  .fisc-items-table tbody td.sku-cell { font-family: "Courier New", Courier, monospace; font-weight: 700; color: var(--ink-dark); font-size: 9.5px; }
+
+  /* ==========================================================
+     LIQUIDACIÓN DE TOTALES Y TASA BCV DISCRETA
+     ========================================================== */
+  .fisc-tot-wrap { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    margin-top: 6px; 
+    gap: 12px; 
+  }
+  
+  .fisc-tot-notice { 
+    flex: 1; 
+    font-size: 9px; 
+    color: var(--ink-muted); 
+    line-height: 1.35; 
+    padding: 3.5px 8px; 
+    border-left: 2px solid var(--b-dark); 
+    background: var(--screen-table); 
+    border-radius: 0 3px 3px 0; 
+  }
+  .fisc-tot-notice strong { color: var(--ink-dark); }
+
+  .fisc-tot-table { 
+    width: auto; 
+    min-width: 320px; 
+    margin: 0; 
+    border-collapse: collapse; 
+    border: 1.5px solid var(--b-dark); 
+    border-radius: 4px; 
+    overflow: hidden; 
+  }
+  
+  .fisc-tot-table td { 
+    padding: 3px 8px; 
+    font-size: 10.5px; 
+    border: 0; 
+    border-bottom: 1px solid var(--b-subtle); 
+  }
+  
+  .fisc-tot-table td.lbl { 
+    text-align: right; 
+    color: var(--ink-muted); 
+    font-weight: 700; 
+    background: var(--screen-banner); 
+    border-right: 1.5px solid var(--b-light); 
+    font-size: 9.5px; 
+    text-transform: uppercase; 
+  }
+  
+  .fisc-tot-table td.val { 
+    text-align: right; 
+    font-weight: 800; 
+    min-width: 140px; 
+    background: #ffffff; 
+    color: var(--ink-dark); 
+    font-variant-numeric: tabular-nums; 
+  }
+  
+  .fisc-tot-table tr.grand-usd td { 
+    font-size: 12.5px; 
+    color: #ffffff; 
+    background: var(--screen-dark); 
+    font-weight: 900; 
+    padding: 4.5px 8px; 
+    border-bottom: 1px solid #ffffff; 
+  }
+  .fisc-tot-table tr.grand-usd td.lbl { 
+    color: #ffffff; 
+    background: var(--screen-dark); 
+    border-right: 1px solid #555; 
+  }
+
+  .fisc-tot-table tr.grand-bs td { 
+    font-size: 13.5px; 
+    color: var(--ink-dark); 
+    background: var(--screen-accent); 
+    font-weight: 900; 
+    padding: 4.5px 8px; 
+    border-bottom: 1.5px solid var(--b-dark); 
+  }
+  .fisc-tot-table tr.grand-bs td.lbl { 
+    background: var(--screen-accent); 
+    border-right: 1.5px solid var(--b-dark); 
+  }
+
+  /* ==========================================================
+     ÁREA DE CONFORMIDAD Y FIRMAS (ESTRUCTURADA: SELLO + FIRMA)
+     ========================================================== */
+  .fisc-sign-area { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 10px; 
+    margin-top: 6px; 
+  }
+  
+  .fisc-sign-box { 
+    border: 1.5px solid var(--b-dark); 
+    border-radius: 4px; 
+    padding: 5px 8px; 
+    background: #ffffff; 
+    font-size: 8.5px; 
+    line-height: 1.3; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  .fisc-sign-box .box-tit { 
+    font-weight: 900; 
+    text-transform: uppercase; 
+    font-size: 8.5px; 
+    letter-spacing: 0.5px; 
+    border-bottom: 1.5px solid var(--b-dark); 
+    padding-bottom: 2px; 
+    margin-bottom: 3px; 
+    color: var(--ink-dark); 
+  }
+
+  .fisc-sign-box .data-line { 
+    margin-bottom: 2px; 
+  }
+
+  /* Zona dual de alta visibilidad: Sello Húmedo delimitado + Línea de Firma sólida */
+  .fisc-interactive-sign {
+    margin-top: 5px;
+    height: 52px;
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .fisc-interactive-sign .sign-col-stamp {
+    flex: 0 0 40%;
+    border: 1.5px dashed #4b5563;
+    border-radius: 4px;
+    background: #fcfcfc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3px 4px;
+    gap: 2px;
+  }
+
+  .fisc-interactive-sign .sign-col-stamp .stamp-watermark {
+    font-size: 7.5px;
+    font-weight: 800;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.45px;
+    line-height: 1.25;
+  }
+
+  .fisc-interactive-sign .sign-col-sig {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    text-align: center;
+    padding-bottom: 2px;
+  }
+
+  .fisc-interactive-sign .sign-col-sig .sig-line {
+    width: 95%;
+    border-bottom: 1.5px solid #000000;
+    margin-bottom: 3px;
+  }
+
+  .fisc-interactive-sign .sign-col-sig .sig-label {
+    font-size: 7.8px;
+    font-weight: 900;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .fisc-interactive-sign .sign-col-sig .sig-hint {
+    font-size: 6.8px;
+    color: #4b5563;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+
+  /* Aviso legal y pie de página */
+  .fisc-footer-note { 
+    margin-top: 5px; 
+    border: 1px dashed var(--b-light); 
+    background: var(--screen-table); 
+    border-radius: 4px; 
+    padding: 3px 6px; 
+    font-size: 7.5px; 
+    color: var(--ink-muted); 
+    line-height: 1.3; 
+    text-align: center; 
+  }
+  
+  .fisc-footer-note strong { 
+    color: var(--ink-dark); 
+    font-weight: 800; 
+    text-transform: uppercase; 
+  }
+
+  /* Marca de agua ANULADO */
+  .voidmark { 
+    position: absolute; 
+    inset: 0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    pointer-events: none; 
+    z-index: 50; 
+  }
+  .voidmark span { 
+    font-size: 75px; 
+    font-weight: 900; 
+    color: rgba(0,0,0,0.14); 
+    border: 6px solid rgba(0,0,0,0.14); 
+    border-radius: 12px; 
+    padding: 4px 24px; 
+    transform: rotate(-20deg); 
+    letter-spacing: 6px; 
+    text-transform: uppercase; 
+  }
+
+  /* Toolbar de navegación */
+  .toolbar { 
+    max-width: 800px; 
+    margin: 0 auto 10px; 
+    display: flex; 
+    gap: 8px; 
+    justify-content: flex-end; 
+    flex-wrap: wrap; 
+  }
+  .btn { 
+    border: 1.5px solid var(--b-medium); 
+    border-radius: 4px; 
+    padding: 6px 14px; 
+    font-size: 13px; 
+    font-weight: 700; 
+    cursor: pointer; 
+    text-decoration: none; 
+  }
+  .btn-p { background: #000000; color: #ffffff; border-color: #000000; }
+  .btn-g { background: #ffffff; color: #000000; }
+  .loading, .err { max-width: 800px; margin: 30px auto; text-align: center; color: var(--ink-dark); font-weight: 700; font-size: 14.5px; }
+
+  /* ==========================================================
+     DENSIDAD DINÁMICA ADAPTATIVA PARA MÁXIMA CAPACIDAD EN 1 HOJA A4
+     ========================================================== */
+  /* Modo Medio (9 a 13 renglones) */
+  .sheet.density-medium .fisc-head { padding-bottom: 4px; margin-bottom: 3px; }
+  .sheet.density-medium .fisc-biz img { width: 42px; height: 42px; }
+  .sheet.density-medium .fisc-biz .biz-name { font-size: 14px; }
+  .sheet.density-medium .fisc-client-box { margin-top: 4px; }
+  .sheet.density-medium .fisc-client-box .box-body { padding: 3px 6px; }
+  .sheet.density-medium .fisc-items-table { margin-top: 4px; }
+  .sheet.density-medium .fisc-items-table thead th { padding: 2.8px 4px; font-size: 8px; }
+  .sheet.density-medium .fisc-items-table tbody td { padding: 2px 4px; font-size: 9px; line-height: 1.15; }
+  .sheet.density-medium .fisc-tot-wrap { margin-top: 4px; gap: 8px; }
+  .sheet.density-medium .fisc-sign-area { margin-top: 4px; gap: 8px; }
+  .sheet.density-medium .fisc-interactive-sign { height: 48px; }
+
+  /* Modo Compacto (14 a 22 renglones) */
+  .sheet.density-compact .fisc-head { padding-bottom: 3px; margin-bottom: 2px; }
+  .sheet.density-compact .fisc-biz img { width: 36px; height: 36px; }
+  .sheet.density-compact .fisc-biz .biz-name { font-size: 13px; }
+  .sheet.density-compact .fisc-biz .biz-dir { font-size: 8px; line-height: 1.2; }
+  .sheet.density-compact .fisc-doc-box { min-width: 215px; max-width: 240px; }
+  .sheet.density-compact .fisc-doc-box .doc-title { font-size: 10px; padding: 2px 4px; }
+  .sheet.density-compact .fisc-doc-box .doc-row { padding: 1.5px 5px; font-size: 8.5px; }
+  .sheet.density-compact .fisc-client-box { margin-top: 3px; }
+  .sheet.density-compact .fisc-client-box .box-header { padding: 2px 6px; font-size: 8px; }
+  .sheet.density-compact .fisc-client-box .box-body { padding: 2.5px 6px; gap: 1px 8px; }
+  .sheet.density-compact .fisc-client-box .f-field { font-size: 8.5px; line-height: 1.2; }
+  .sheet.density-compact .fisc-items-table { margin-top: 3px; }
+  .sheet.density-compact .fisc-items-table thead th { padding: 2px 3.5px; font-size: 7.8px; }
+  .sheet.density-compact .fisc-items-table tbody td { padding: 1.5px 3.5px; font-size: 8.5px; line-height: 1.1; }
+  .sheet.density-compact .fisc-tot-wrap { margin-top: 3px; gap: 6px; }
+  .sheet.density-compact .fisc-tot-table td { padding: 1.8px 6px; font-size: 9px; }
+  .sheet.density-compact .fisc-tot-table tr.grand-usd td { font-size: 11px; padding: 3px 6px; }
+  .sheet.density-compact .fisc-tot-table tr.grand-bs td { font-size: 12px; padding: 3px 6px; }
+  .sheet.density-compact .fisc-sign-area { margin-top: 3px; gap: 6px; }
+  .sheet.density-compact .fisc-sign-box { padding: 3px 6px; font-size: 8px; line-height: 1.2; }
+  .sheet.density-compact .fisc-interactive-sign { height: 46px; }
+  .sheet.density-compact .fisc-footer-note { margin-top: 3px; padding: 2px 5px; font-size: 7px; }
+
+  /* Modo Ultra Compacto (23+ renglones) */
+  .sheet.density-ultra-compact .fisc-head { padding-bottom: 2px; margin-bottom: 2px; }
+  .sheet.density-ultra-compact .fisc-biz img { width: 30px; height: 30px; }
+  .sheet.density-ultra-compact .fisc-biz .biz-name { font-size: 12px; }
+  .sheet.density-ultra-compact .fisc-biz .biz-sub { display: none; }
+  .sheet.density-ultra-compact .fisc-biz .biz-dir { font-size: 7.5px; line-height: 1.15; margin-top: 1px; }
+  .sheet.density-ultra-compact .fisc-doc-box { min-width: 200px; max-width: 220px; }
+  .sheet.density-ultra-compact .fisc-doc-box .doc-title { font-size: 9px; padding: 2px 3px; }
+  .sheet.density-ultra-compact .fisc-doc-box .doc-row { padding: 1px 4px; font-size: 8px; }
+  .sheet.density-ultra-compact .fisc-doc-box .doc-row.num-row .val { font-size: 11.5px; }
+  .sheet.density-ultra-compact .fisc-client-box { margin-top: 2px; }
+  .sheet.density-ultra-compact .fisc-client-box .box-header { padding: 1.5px 5px; font-size: 7.5px; }
+  .sheet.density-ultra-compact .fisc-client-box .box-body { padding: 2px 5px; gap: 1px 6px; }
+  .sheet.density-ultra-compact .fisc-client-box .f-field { font-size: 8px; line-height: 1.15; }
+  .sheet.density-ultra-compact .fisc-items-table { margin-top: 2px; }
+  .sheet.density-ultra-compact .fisc-items-table thead th { padding: 1.5px 3px; font-size: 7.2px; }
+  .sheet.density-ultra-compact .fisc-items-table tbody td { padding: 1.1px 3px; font-size: 7.8px; line-height: 1.05; }
+  .sheet.density-ultra-compact .fisc-items-table tbody td.sku-cell { font-size: 7.5px; }
+  .sheet.density-ultra-compact .fisc-tot-wrap { margin-top: 2px; gap: 6px; }
+  .sheet.density-ultra-compact .fisc-tot-notice { font-size: 7.5px; padding: 2px 4px; }
+  .sheet.density-ultra-compact .fisc-tot-table td { padding: 1.5px 5px; font-size: 8.5px; }
+  .sheet.density-ultra-compact .fisc-tot-table tr.grand-usd td { font-size: 10px; padding: 2.5px 5px; }
+  .sheet.density-ultra-compact .fisc-tot-table tr.grand-bs td { font-size: 11px; padding: 2.5px 5px; }
+  .sheet.density-ultra-compact .fisc-sign-area { margin-top: 2px; gap: 5px; }
+  .sheet.density-ultra-compact .fisc-sign-box { padding: 2.5px 5px; font-size: 7.5px; line-height: 1.15; }
+  .sheet.density-ultra-compact .fisc-sign-box .box-tit { font-size: 7px; padding-bottom: 1px; margin-bottom: 2px; }
+  .sheet.density-ultra-compact .fisc-interactive-sign { height: 44px; }
+  .sheet.density-ultra-compact .fisc-footer-note { margin-top: 2px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
+
+  /* ==========================================================
+     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA (A4 EXACTO 1 HOJA LÁSER B/N)
+     ========================================================== */
+  @media print { 
+    * { 
+      -webkit-print-color-adjust: exact !important; 
+      print-color-adjust: exact !important; 
+      color-adjust: exact !important; 
+    }
+    html, body { 
+      background: #ffffff !important; 
+      padding: 0 !important; 
+      margin: 0 !important; 
+      height: auto !important;
+      overflow: visible !important;
+    }
+    .toolbar { display: none !important; }
+    
+    @page { 
+      size: a4 portrait; 
+      margin: 3.5mm 5mm 3.5mm 5mm; 
+    }
+    
+    .sheet { 
+      box-shadow: none !important; 
+      border: none !important; 
+      padding: 0 !important; 
+      max-width: 100% !important; 
+      width: 100% !important; 
+      border-radius: 0 !important; 
+      page-break-after: avoid !important; 
+      page-break-inside: avoid !important; 
+      break-inside: avoid !important; 
+      height: auto !important;
+    }
+    
+    table, tr, td, th { 
+      page-break-inside: avoid !important; 
+      break-inside: avoid !important; 
+    }
+
+    .fisc-sign-area { 
+      page-break-inside: avoid !important; 
+      break-inside: avoid !important; 
+    }
+
+    .watermark-bg {
+      opacity: 0.075 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+
+  /* Formato ticket térmico (80mm) */
+  body.ticket .sheet { max-width: 320px; padding: 10px 8px; border: 1.5px solid #000; font-size: 11px; }
+  body.ticket .fisc-head { flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+  body.ticket .fisc-biz { flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+  body.ticket .fisc-doc-box { min-width: 0; width: 100%; }
+  body.ticket .fisc-client-box .box-body { grid-template-columns: 1fr; gap: 3px; }
+  body.ticket .fisc-tot-wrap { flex-direction: column; }
+  body.ticket .fisc-tot-table { width: 100%; min-width: 0; }
+  body.ticket .fisc-sign-area { grid-template-columns: 1fr; }
+</style>
+<style id="pageStyle"></style>
+</head>
+<body>
+
+<div class="toolbar" id="toolbar" style="display:none">
+  <select class="btn btn-g" id="docSel" onchange="setDocType(this.value)" style="display:none">
+    <option value="factura">📄 Factura Fiscal</option>
+    <option value="recibo">📦 Orden de Entrega / Recibo</option>
+    <option value="presupuesto">📑 Presupuesto</option>
+    <option value="comprobante">📃 Comprobante Interno</option>
+  </select>
+  <button class="btn btn-g" id="fmtBtn" onclick="toggleFormat()">📃 Ver como ticket</button>
+  <button class="btn btn-p" onclick="window.print()">🖨️ Imprimir Documento</button>
+  <button class="btn btn-g" onclick="window.close()">Cerrar</button>
+</div>
+
+<div id="content"><div class="loading">Cargando comprobante fiscal…</div></div>
+
+<script src="assets/vendor/supabase-2.58.0.js"></script>
+<script src="assets/js/config.js?v=20260930_core"></script>
+<script src="assets/js/admin/auth.js"></script>
+<script>
+let ORDER = null;
+let DOC_TYPE = 'comprobante';
+
+// Resuelve la información fiscal real y completa del cliente sincronizada con MixNet y Supabase
+async function resolveCustomerFiscal(doc) {
+  let cust = null;
+  const inv = doc.invoice_data || {};
+  const mixnetCode = (inv.cliente || doc.client_code || '').trim();
+
+  // 1. Detectar si el RIF viene en 'phone' (desfase común en CSV de MixNet) o en 'rif'
+  let rawRif = String(doc.rif || inv.cif || '').trim();
+  if (!/^[JVGE]-?\d+/i.test(rawRif) && doc.phone && /^[JVGE]-?\d+/i.test(doc.phone.trim())) {
+    rawRif = doc.phone.trim();
+  }
+  const digits = rawRif.replace(/\D/g, '');
+
+  // 2. Prioridad 1: Buscar por customer_id exacto (si está vinculado al pedido/cotización)
+  if (doc.customer_id) {
+    try {
+      const { data } = await sbCore.from('jjp_customers').select('*').eq('id', doc.customer_id).maybeSingle();
+      if (data) cust = data;
+    } catch (_) {}
+  }
+
+  // 3. Prioridad 2: Buscar por RIF exacto con dirección (mínimo 6 dígitos)
+  if ((!cust || !cust.address) && digits.length >= 6) {
+    try {
+      const { data } = await sbCore.from('jjp_customers').select('*')
+        .not('address', 'is', null)
+        .ilike('rif', `%${digits}%`)
+        .limit(5);
+      if (data && data.length) {
+        // Encontrar coincidencia exacta de dígitos para evitar falsos positivos
+        const exactMatch = data.find(c => (c.rif || '').replace(/\D/g, '') === digits);
+        if (exactMatch && exactMatch.address) {
+          cust = exactMatch;
+        } else if (data[0] && (data[0].rif || '').replace(/\D/g, '') === digits) {
+          cust = data[0];
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 4. Prioridad 3: Buscar por Código de Cliente MixNet exacto (ej. 003-057)
+  if ((!cust || !cust.address) && mixnetCode) {
+    try {
+      const { data } = await sbCore.from('jjp_customers').select('*')
+        .not('address', 'is', null)
+        .ilike('notes', `%${mixnetCode}%`)
+        .limit(3);
+      if (data && data.length) {
+        const codeMatch = data.find(c => (c.notes || '').includes(mixnetCode));
+        if (codeMatch && codeMatch.address) cust = codeMatch;
+      }
+    } catch (_) {}
+  }
+
+  // 5. Prioridad 4: Coincidencia por nombre completo idéntico (sin palabras genéricas sueltas)
+  const targetName = (doc.client_name || inv.nomcli || '').trim();
+  if ((!cust || !cust.address) && targetName.length >= 6) {
+    try {
+      const cleanName = targetName.replace(/,\s*C\.?A\.?|\bC\.?A\.?\b|\bS\.?A\.?\b/gi, '').trim();
+      if (cleanName.length >= 6) {
+        const { data } = await sbCore.from('jjp_customers').select('*')
+          .not('address', 'is', null)
+          .ilike('name', `${cleanName.slice(0, 18)}%`)
+          .limit(3);
+        if (data && data.length) {
+          const match = data.find(c => (c.name || '').toUpperCase().startsWith(cleanName.slice(0, 10).toUpperCase()));
+          if (match && match.address) cust = match;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Extracción del código MixNet desde notas o zona
+  const detectedCode = mixnetCode || 
+                       cust?.notes?.match(/(?:Codigo\s*MixNet:\s*|MixNet:\s*)([0-9A-Za-z-]+)/i)?.[1] || 
+                       cust?.notes?.match(/Zona:\s*(\w+)/)?.[1] || 
+                       cust?.zone || 
+                       '';
+
+  // LOS DATOS DEL DOCUMENTO SON SOBERANOS: El nombre y RIF del pedido JAMÁS se sobrescriben por otro cliente
+  const fiscalName  = (doc.client_name || inv.nomcli || cust?.business_name || cust?.name || 'CLIENTE GENERAL').trim();
+  const fiscalRif   = (rawRif.length >= 6 ? rawRif : (cust?.rif || 'V-00000000-0')).trim();
+  const fiscalAddr  = (doc.address || cust?.address || inv.dircli || 'CARACAS, DISTRITO CAPITAL').trim();
+  const fiscalCity  = (doc.city || cust?.city || 'Caracas').trim();
+  const fiscalPhone = (doc.phone && !/^[JVGE]-?\d+/i.test(doc.phone) ? doc.phone : (cust?.phone || inv.telcli || '')).trim();
+  const fiscalEmail = (doc.email || cust?.email || '').trim();
+
+  return {
+    name: fiscalName,
+    rif: fiscalRif,
+    address: fiscalAddr,
+    city: fiscalCity,
+    phone: fiscalPhone,
+    email: fiscalEmail,
+    code: detectedCode
+  };
+}
+
+(async () => {
+  const content = document.getElementById('content');
+  const session = await requireAuth('vendedor');
+  if (!session) return;
+  await loadSettings();
+
+  const params = new URLSearchParams(location.search);
+  const orderNum = params.get('n');
+  const quoteNum = params.get('q');
+  const facNum   = params.get('fac');
+
+  if (!orderNum && !quoteNum && !facNum) { 
+    content.innerHTML = '<div class="err">Falta el número de documento (?n=..., ?q=... o ?fac=...)</div>'; 
+    return; 
+  }
+
+  const s = APP.SETTINGS || {};
+  const f = params.get('f') || s.doc_paper || 'carta';
+  setFormat(f === 'ticket');
+
+  let docData;
+  if (quoteNum) {
+    DOC_TYPE = 'presupuesto';
+    const { data: q, error } = await sbCore.from('jjp_quotes').select('*').eq('quote_number', quoteNum).maybeSingle();
+    if (error || !q) { content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; return; }
+    docData = normalizeQuote(q);
+  } else {
+    let t = (params.get('t') || (facNum ? 'factura' : 'comprobante')).toLowerCase().trim();
+    DOC_TYPE = ['factura', 'recibo', 'comprobante', 'presupuesto'].includes(t) ? t : 'comprobante';
+
+    let o = null;
+    if (orderNum) {
+      const res = await sbCore.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
+      o = res.data;
+      if (!o) {
+        const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', orderNum).maybeSingle();
+        if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+      }
+    } else if (facNum) {
+      const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', facNum).maybeSingle();
+      o = facRes.data;
+      DOC_TYPE = 'factura';
+    }
+
+    if (!o) { content.innerHTML = '<div class="err">No se encontró el pedido o factura ' + escapeHTML(orderNum || facNum) + '.</div>'; return; }
+    docData = o;
+  }
+
+  // Resolver cliente real
+  docData.customer = await resolveCustomerFiscal(docData);
+
+  // Obtener vendedor si existe
+  if (docData.seller_id) {
+    try {
+      const { data: sRow } = await sbCore.from('jjp_profiles').select('name').eq('id', docData.seller_id).maybeSingle();
+      if (sRow?.name) docData.seller_name = sRow.name;
+    } catch (_) {}
+  }
+
+  ORDER = docData;
+  render(docData);
+  document.getElementById('toolbar').style.display = 'flex';
+  
+  const ds = document.getElementById('docSel');
+  if (ds && DOC_TYPE !== 'presupuesto') { ds.value = DOC_TYPE; ds.style.display = ''; }
+  if (params.get('print') === '1') setTimeout(() => window.print(), 400);
+})();
+
+function setDocType(t) { DOC_TYPE = t; if (ORDER) render(ORDER); }
+
+function normalizeQuote(q) {
+  const items = typeof q.items === 'string' ? JSON.parse(q.items) : (q.items || []);
+  const subtotal = items.reduce((sum, i) => sum + Number(i.subtotal_usd ?? ((Number(i.price_usd) || 0) * (Number(i.qty) || 0))), 0);
+  const total = Number(q.estimated_total_usd) || subtotal;
+  return {
+    order_number: q.quote_number,
+    client_name: q.client_name, rif: q.rif, phone: q.phone, email: q.email,
+    city: q.city, address: q.address,
+    customer_id: q.customer_id, seller_id: q.seller_id,
+    items, subtotal_usd: subtotal, total_usd: total,
+    total_bs: total * (Number(q.exchange_rate) || getRate()),
+    exchange_rate: Number(q.exchange_rate) || getRate(),
+    discount_pct: Number(q.discount_pct) || 0,
+    discount_status: Number(q.discount_pct) > 0 ? 'approved' : 'none',
+    status: q.status, notes: q.notes, created_at: q.created_at,
+  };
+}
+
+function setFormat(isTicket) {
+  document.body.classList.toggle('ticket', isTicket);
+  const btn = document.getElementById('fmtBtn');
+  if (btn) btn.textContent = isTicket ? '📄 Ver como carta' : '📃 Ver como ticket';
+  const ps = document.getElementById('pageStyle');
+  if (ps) {
+    ps.textContent = isTicket
+      ? '@page { size: 80mm auto; margin: 3mm; }'
+      : '@page { size: letter portrait; margin: 7mm 8mm 7mm 8mm; }';
+  }
+}
+
+function toggleFormat() {
+  setFormat(!document.body.classList.contains('ticket'));
+}
+
+function render(o) {
+  const s = APP.SETTINGS || {};
+  const isInvoice = DOC_TYPE === 'factura' || !!o.invoice_number;
+  const isQuote   = DOC_TYPE === 'presupuesto';
+  const isReceipt = DOC_TYPE === 'recibo';
+  const voided    = ['rechazado', 'cancelado'].includes(o.status);
+
+  // Tasa oficial aplicada
+  const rate = Number(o.invoice_rate || o.exchange_rate || s.rate_bcv || s.exchange_rate) || getRate() || 1;
+
+  // Datos del Cliente Resuelto
+  const cust = o.customer || {
+    name: o.client_name || 'CLIENTE GENERAL',
+    rif: o.rif || 'V-00000000-0',
+    address: o.address || '',
+    city: o.city || 'Caracas',
+    phone: o.phone || '',
+    email: o.email || '',
+    code: ''
+  };
+
+  // Ítems y Renglones
+  const inv = o.invoice_data || {};
+  let items = [];
+  if (inv.items && Array.isArray(inv.items) && inv.items.length) {
+    items = inv.items;
+  } else {
+    items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+  }
+
+  const rows = items.map((i, idx) => {
+    const qty = Number(i.qty || 1);
+    let pUsd = Number(i.price_usd || 0);
+    let subUsd = Number(i.subtotal_usd ?? (pUsd * qty));
+    let subBs = subUsd * rate;
+
+    // Si viene de MixNet con precios en Bs
+    if (inv.cambio && i.subtotal_usd && i.subtotal_usd > 1000 && !i.price_usd_is_clean) {
+      subBs = Number(i.subtotal_usd);
+      subUsd = subBs / rate;
+      pUsd = subUsd / qty;
+    }
+
+    const sku = escapeHTML(i.sku || i.code || i.codigo || '—');
+    const unit = escapeHTML(i.unit || 'UND');
+
+    return `<tr>
+      <td class="c" style="font-weight:700;color:#6b7280">${String(idx + 1).padStart(2, '0')}</td>
+      <td class="c sku-cell">${sku}</td>
+      <td><strong>${escapeHTML(i.name)}</strong></td>
+      <td class="c"><strong>${qty}</strong></td>
+      <td class="c" style="font-size:9px">${unit}</td>
+      <td class="r">${fmtPrice(pUsd)}</td>
+      <td class="r"><strong>${fmtPrice(subUsd)}</strong></td>
+      <td class="r" style="font-weight:700">${fmtBsNum(subBs)}</td>
+    </tr>`;
+  }).join('');
+
+  // Renglones de relleno sutiles (Punto Medio) para que facturas de pocos ítems llenen armónicamente la hoja
+  let emptyRows = '';
+  if (items.length < 6) {
+    const need = 6 - items.length;
+    for (let k = 0; k < need; k++) {
+      emptyRows += `<tr>
+        <td class="c" style="color:#d1d5db;font-size:8.5px">${String(items.length + k + 1).padStart(2, '0')}</td>
+        <td class="c" style="color:#e5e7eb">—</td>
+        <td style="color:#e5e7eb">·································································································</td>
+        <td class="c" style="color:#e5e7eb">—</td>
+        <td class="c" style="color:#e5e7eb">—</td>
+        <td class="r" style="color:#e5e7eb">—</td>
+        <td class="r" style="color:#e5e7eb">—</td>
+        <td class="r" style="color:#e5e7eb">—</td>
+      </tr>`;
+    }
+  }
+
+  // Densidad adaptativa según cantidad de ítems para encajar siempre en 1 hoja A4
+  const itemCount = items.length;
+  let densityClass = 'density-normal';
+  if (itemCount > 22) densityClass = 'density-ultra-compact';
+  else if (itemCount > 13) densityClass = 'density-compact';
+  else if (itemCount > 8) densityClass = 'density-medium';
+
+  // Cálculos Fiscales
+  let baseImponibleUsd, ivaUsd, totalUsd, baseImponibleBs, ivaBs, totalBs;
+  if (inv.tot_fac_bs && inv.tot_fac_usd) {
+    baseImponibleBs = Number(inv.base_imponible_bs || (inv.tot_fac_bs / 1.16));
+    ivaBs = Number(inv.imp_iva_bs || (inv.tot_fac_bs - baseImponibleBs));
+    totalBs = Number(inv.tot_fac_bs);
+    baseImponibleUsd = baseImponibleBs / rate;
+    ivaUsd = ivaBs / rate;
+    totalUsd = Number(inv.tot_fac_usd);
+  } else {
+    const rawNeto = items.reduce((sum, i) => sum + Number(i.subtotal_usd ?? ((Number(i.price_usd) || 0) * (Number(i.qty) || 0))), 0);
+    const descMonto = (o.discount_status === 'approved' && Number(o.discount_pct) > 0) ? (rawNeto * Number(o.discount_pct) / 100) : 0;
+    baseImponibleUsd = rawNeto - descMonto;
+    ivaUsd = baseImponibleUsd * 0.16;
+    totalUsd = baseImponibleUsd + ivaUsd;
+    baseImponibleBs = baseImponibleUsd * rate;
+    ivaBs = ivaUsd * rate;
+    totalBs = totalUsd * rate;
+  }
+
+  // Encabezados dinámicos
+  let docTitleHeader = 'COMPROBANTE';
+  if (isInvoice) docTitleHeader = 'FACTURA FISCAL';
+  else if (isQuote) docTitleHeader = 'PRESUPUESTO';
+  else if (isReceipt) docTitleHeader = 'ORDEN DE ENTREGA';
+
+  const docNumberMain = o.invoice_number || o.order_number || 'S/N';
+  const controlNumber = o.control_number || inv.ncontrol || null;
+  const fechaEmision = o.invoice_date || o.created_at;
+  const condicionPago = (isInvoice || o.status === 'pagado') ? 'CONTADO' : 'POR CONFIRMAR';
+
+  // Datos Institucionales Reales JJ Paper
+  const bizName = s.business_name || 'JJ PAPER, C.A.';
+  const bizRif = s.rif || 'J-29537545-0';
+  const bizAddr = s.address || 'AV. EL CORTIJO. QTA NEVERI N 58. URB. LOS ROSALES CARACAS DISTRITO FEDERAL';
+  const bizPhone = s.phone_display || '+58 412 2830185 / 0212 7531777';
+  const bizEmail = s.email || 'jjpaper1@gmail.com';
+  const logoUrl  = s.doc_logo_url || 'assets/img/logo.svg';
+
+  const contentHtml = `
+  <div class="sheet ${densityClass}">
+    ${voided ? '<div class="voidmark"><span>ANULADO</span></div>' : ''}
+
+    <!-- FILIGRANA INSTITUCIONAL DE SEGURIDAD -->
+    <div class="watermark-bg">
+      <img src="${escapeHTML(logoUrl)}" alt="">
+    </div>
+
+    <div class="sheet-inner">
+      <!-- CABECERA -->
+      <div class="fisc-head">
+        <div class="fisc-biz">
+          <img src="${escapeHTML(logoUrl)}" alt="Logo JJ Paper">
+          <div>
+            <div class="biz-name">${escapeHTML(bizName)}</div>
+            <div class="biz-sub">Distribuidora de Papelería al Mayor · Suministros Corporativos</div>
+            <div class="biz-rif">R.I.F.: ${escapeHTML(bizRif)}</div>
+            <div class="biz-dir">
+              <strong>Domicilio Fiscal:</strong> ${escapeHTML(bizAddr)}<br>
+              <strong>Teléfonos:</strong> ${escapeHTML(bizPhone)} · <strong>Email:</strong> ${escapeHTML(bizEmail)}
+            </div>
+          </div>
+        </div>
+
+        <!-- CAJA FISCAL SENIAT -->
+        <div class="fisc-doc-box">
+          <div class="doc-title">${escapeHTML(docTitleHeader)}</div>
+          <div class="doc-row num-row">
+            <span class="lbl">${isInvoice ? 'FACTURA N°' : 'N° DE CONTROL'}</span>
+            <span class="val">${escapeHTML(docNumberMain)}</span>
+          </div>
+          ${controlNumber ? `
+          <div class="doc-row ctrl-row">
+            <span class="lbl">N° DE CONTROL SENIAT</span>
+            <span class="val">${escapeHTML(controlNumber)}</span>
+          </div>` : ''}
+          ${(isInvoice && o.order_number && o.order_number !== docNumberMain) ? `
+          <div class="doc-row">
+            <span class="lbl">N° PEDIDO / VENTA</span>
+            <span class="val">${escapeHTML(o.order_number)}</span>
+          </div>` : ''}
+          <div class="doc-row">
+            <span class="lbl">FECHA DE EMISIÓN</span>
+            <span class="val">${fmtDate(fechaEmision)}</span>
+          </div>
+          <div class="doc-row">
+            <span class="lbl">CONDICIÓN DE PAGO</span>
+            <span class="val">${escapeHTML(condicionPago)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATOS DEL CLIENTE / RECEPTOR (PERSONALIZADO CON CÓDIGO MIXNET) -->
+      <div class="fisc-client-box">
+        <div class="box-header">
+          <span>DATOS FISCALES DEL CLIENTE / RECEPTOR DE LA FACTURA</span>
+          ${cust.code ? `<span class="code-badge">CÓDIGO MIXNET: ${escapeHTML(cust.code)}</span>` : ''}
+        </div>
+        <div class="box-body">
+          <div class="f-field">
+            <span class="f-lbl">Razón Social:</span>
+            <span class="f-val" style="font-size:11px">${escapeHTML(cust.name)}</span>
+          </div>
+          <div class="f-field">
+            <span class="f-lbl">R.I.F. / C.I.:</span>
+            <span class="f-val">${escapeHTML(cust.rif)}</span>
+          </div>
+          <div class="f-field">
+            <span class="f-lbl">Teléfono(s):</span>
+            <span class="f-val">${escapeHTML(cust.phone || 'No registrado')}</span>
+          </div>
+          <div class="f-field span2">
+            <span class="f-lbl">Domicilio Fiscal:</span>
+            <span class="f-val">${escapeHTML(cust.address || cust.city || 'CARACAS, DISTRITO CAPITAL')}</span>
+          </div>
+          <div class="f-field">
+            <span class="f-lbl">Ciudad / Estado:</span>
+            <span class="f-val">${escapeHTML(cust.city || 'Caracas')}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE RENGLONES / PRODUCTOS -->
+      <table class="fisc-items-table">
+        <thead>
+          <tr>
+            <th class="c" style="width:26px">#</th>
+            <th class="c" style="width:90px">Código</th>
+            <th>Descripción de la Mercancía</th>
+            <th class="c" style="width:42px">Cant.</th>
+            <th class="c" style="width:38px">Und.</th>
+            <th class="r" style="width:80px">P. Unit. ($)</th>
+            <th class="r" style="width:85px">Total ($)</th>
+            <th class="r" style="width:105px">Total (Bs.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          ${emptyRows}
+        </tbody>
+      </table>
+
+      <!-- TOTALES Y LIQUIDACIÓN TRIBUTARIA FORMAL -->
+      <div class="fisc-tot-wrap">
+        <div class="fisc-tot-notice">
+          <strong>Tasa oficial BCV:</strong> Bs ${rate.toFixed(2)} por USD · <strong>Alícuota I.V.A.:</strong> 16.00% según Providencias Administrativas SENIAT.
+        </div>
+
+        <table class="fisc-tot-table">
+          <tr>
+            <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
+            <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
+          </tr>
+          <tr>
+            <td class="lbl">I.V.A. (16.00%)</td>
+            <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
+          </tr>
+          <tr class="grand-usd">
+            <td class="lbl">TOTAL A PAGAR (USD)</td>
+            <td class="val">${fmtPrice(totalUsd)}</td>
+          </tr>
+          <tr class="grand-bs">
+            <td class="lbl">TOTAL FACTURA (Bs.)</td>
+            <td class="val">${fmtBsNum(totalBs)} Bs.</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ÁREA DE FIRMAS Y CONFORMIDAD (DESTACADA, CON ESPACIO CLARO PARA FIRMA Y SELLO) -->
+      <div class="fisc-sign-area">
+        <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
+        <div class="fisc-sign-box">
+          <div class="box-tit">CONFORME CLIENTE / RECEPCIÓN DE MERCANCÍA</div>
+          <div class="data-line"><strong>Empresa / Razón Social:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(cust.name)}</span></div>
+          <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
+          <div class="data-line" style="margin-top:2px">Recibido por (Nombre y Apellido): ____________________________________</div>
+          <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
+          <div class="fisc-interactive-sign">
+            <div class="sign-col-stamp">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
+            </div>
+            <div class="sign-col-sig">
+              <div class="sig-line"></div>
+              <div class="sig-label">FIRMA DE CONFORMIDAD RECEPTOR</div>
+              <div class="sig-hint">Recibí conforme a entera satisfacción</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EMISOR JJ PAPER -->
+        <div class="fisc-sign-box">
+          <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y DESPACHO</div>
+          <div class="data-line"><strong>Facturado y Despachado por:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(bizName)}</span></div>
+          <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
+          <div class="data-line" style="margin-top:2px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
+          <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
+          <div class="fisc-interactive-sign">
+            <div class="sign-col-stamp">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+              <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
+            </div>
+            <div class="sign-col-sig">
+              <div class="sig-line"></div>
+              <div class="sig-label">FIRMA AUTORIZADA Y REVISIÓN</div>
+              <div class="sig-hint">Almacén Central y Facturación</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIE LEGAL SENIAT -->
+      <div class="fisc-footer-note">
+        ${isInvoice
+          ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema integrado JJ Paper & MixNet. Documento válido para fines tributarios y contables.`
+          : isQuote
+            ? `<strong>PRESUPUESTO COMERCIAL N° ${escapeHTML(docNumberMain)}</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
+            : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO N° ${escapeHTML(docNumberMain)}</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
+        }
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('content').innerHTML = contentHtml;
+}
+</script>
+</body>
+</html>

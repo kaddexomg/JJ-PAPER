@@ -14,7 +14,7 @@
 | # | Problema | Severidad | Causa Raíz |
 |---|----------|-----------|------------|
 | **0** | **Comprobante / impresión de cotizaciones y pedidos ELIMINADO** | **🔴 URGENTE** | **`comprobante.html` fue borrado en commit `41c61b8` y `_redirects` lo manda a `catalogo.html` (roto)** |
-| 1 | Pre-armar cotizaciones con IA no funciona | 🔴 CRÍTICO | Modelos Gemini inexistentes (`gemini-3.6-flash`, `gemini-3.1-flash-lite`) + 5 de 7 API keys inválidas |
+| 1 | Pre-armar cotizaciones con IA no funciona | 🔴 CRÍTICO | Modelos Gemini inexistentes (`gemini-3.6-flash`, `gemini-3.1-flash-lite`) devuelven 404 — keys están bien |
 | 2 | Campañas multi-producto para ofertas no existen | 🔴 CRÍTICO | Nunca se implementó. El picker solo acepta 1 producto |
 | 3 | Monitor de cuotas muestra datos falsos/estáticos | 🟡 MEDIO | Datos hardcodeados como fallback (21.14 MB, 12.96 MB, 5.33 MB) en vez de datos reales |
 | 4 | Request `jjp_products` lentísima (2888ms) | 🟡 MEDIO | JOIN de 3 niveles en PostgREST sin vista materializada + descarga total sin paginación |
@@ -84,22 +84,9 @@ git push origin main
    - `gemini-3.6-flash` → 404 NOT_FOUND
    - `gemini-3.1-flash-lite` → 404 NOT_FOUND
    - El bucle de `callGemini` (L140-206) prueba ambos modelos para cada key, recibe 404 en ambos, pasa a la siguiente key, y así las 7 keys → agota todo y lanza excepción.
+   - **ESTA ES LA CAUSA PRINCIPAL.** Las 7 API keys pueden estar perfectamente bien (el usuario las sacó de Google AI Studio), pero como los modelos no existen, todas las keys fallan con 404 sin importar cuál se use.
 
-2. **5 de 7 API Keys son INVÁLIDAS** (`gemini-client.js:27-35`):
-   ```javascript
-   const GEMINI_KEYS = [
-     'AIzaSyAMnb_...',       // ✅ Válida (formato AIzaSy...)
-     'AIzaSyABK4e...',       // ✅ Válida (formato AIzaSy...)
-     'AQ.Ab8RN6Is...',       // ❌ NO ES API KEY (formato Vertex AI / OAuth)
-     'AQ.Ab8RN6LO...',       // ❌ NO ES API KEY
-     'AQ.Ab8RN6I3...',       // ❌ NO ES API KEY
-     'AQ.Ab8RN6K7...',       // ❌ NO ES API KEY
-     'AQ.Ab8RN6L0...',       // ❌ NO ES API KEY
-   ];
-   ```
-   Las llaves que comienzan con `AQ.Ab8RN6` son tokens de OAuth/Vertex AI, NO API keys de Google AI Studio.
-
-3. **Sin fallback heurístico** — `parseQuoteRequest` no tiene bloque `catch` inteligente como otras funciones (ej: `analyzeCustomerAndDraftMessage` que tiene fallback con `generateHeuristicCustomerMessage`).
+2. **Sin fallback heurístico** — `parseQuoteRequest` no tiene bloque `catch` inteligente como otras funciones (ej: `analyzeCustomerAndDraftMessage` que tiene fallback con `generateHeuristicCustomerMessage`).
 
 ### Solución Exacta
 
@@ -108,15 +95,11 @@ git push origin main
 const PRO_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 const FAST_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
-// gemini-client.js L27-35 → LIMPIAR keys inválidas:
-const GEMINI_KEYS = [
-  'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-  'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
-  // Agregar SOLO keys nuevas que empiecen con AIzaSy...
-];
-
 // gemini-client.js L2524 → CAMBIAR modelo de parseQuoteRequest:
 const rawResponse = await callGemini(prompt, 'gemini-2.5-flash');
+
+// NO tocar las API keys — las 7 son válidas (sacadas de Google AI Studio).
+// El problema es exclusivamente que los modelos no existen.
 
 // vquotes.js L1149-1282 → AGREGAR fallback heurístico en catch:
 // Si la IA falla, parsear el texto línea por línea con regex:

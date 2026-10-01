@@ -56,7 +56,7 @@ function updateOrdersSellerOptions() {
   const currentVal = sel.value || ordersSellerFilter;
   let html = `<option value="">🧑‍💼 Todos los vendedores</option>
 <option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Ventas)</option>
-<option value="mostrador">🏪 Mostrador / Caja (005)</option>`;
+<option value="mostrador">🏪 Caja General / Mostrador</option>`;
   (adminSellers || []).forEach(s => {
     if (s.id === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return;
     html += `<option value="${s.id}">${escapeHTML(s.name || 'Vendedor')}</option>`;
@@ -171,7 +171,7 @@ function renderOrdersTable() {
             <span style="font-size:10px;color:#64748b">${o.invoice_date ? fmtDate(o.invoice_date) : ''}</span>
           </div>` : '<span style="display:inline-block;padding:2px 7px;border-radius:5px;background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:600">⏳ Sin facturar</span>'}
       </td>
-      <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ' · 🏪 Mostrador (005)'}</div></td>
+      <td><div class="td-name">${escapeHTML(o.client_name)}</div><div class="td-sub">${escapeHTML(o.phone)}${o.jjp_profiles?.name ? ` · 🧑‍💼 ${escapeHTML(o.jjp_profiles.name)}` : ' · 🏪 Caja General'}</div></td>
       <td>${METHOD_LABEL[o.payment_method] || o.payment_method}</td>
       <td>${receipt}</td>
       <td><strong>${fmtPrice(o.total_usd)}</strong><div class="td-sub">${fmtBsNum(o.total_bs)}</div>${o.discount_status === 'pending' ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🔖 desc. ${o.discount_pct}% por aprobar</div>` : ''}${o.delivery_type === 'delivery' && !o.delivery_fee_confirmed ? `<div class="td-sub" style="color:#c08a00;font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} por confirmar</div>` : o.delivery_type === 'delivery' ? `<div class="td-sub" style="color:var(--gm);font-weight:700">🛵 envío ${fmtPrice(o.delivery_fee_usd || 0)} ✔</div>` : ''}</td>

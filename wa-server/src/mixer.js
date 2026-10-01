@@ -1241,6 +1241,9 @@ async function sweepMixnetDbf() {
           clientNorm.includes('eugenia ravasco') || clientNorm.includes('ravasco') ||
           clientNorm.includes('cahersi') ||
           clientNorm.includes('rindal') ||
+          clientNorm.includes('catuv') || clientNorm.includes('c.a.t.u') ||
+          clientNorm.includes('cashea') ||
+          clientNorm.includes('lindo sol') ||
           matchedCust?.zone === '010'
         ) {
           finalSellerId = KEYDER_ID;

@@ -13,12 +13,51 @@
 
 | # | Problema | Severidad | Causa Raíz |
 |---|----------|-----------|------------|
+| **0** | **Comprobante / impresión de cotizaciones y pedidos ELIMINADO** | **🔴 URGENTE** | **`comprobante.html` fue borrado en commit `41c61b8` y `_redirects` lo manda a `catalogo.html` (roto)** |
 | 1 | Pre-armar cotizaciones con IA no funciona | 🔴 CRÍTICO | Modelos Gemini inexistentes (`gemini-3.6-flash`, `gemini-3.1-flash-lite`) + 5 de 7 API keys inválidas |
 | 2 | Campañas multi-producto para ofertas no existen | 🔴 CRÍTICO | Nunca se implementó. El picker solo acepta 1 producto |
 | 3 | Monitor de cuotas muestra datos falsos/estáticos | 🟡 MEDIO | Datos hardcodeados como fallback (21.14 MB, 12.96 MB, 5.33 MB) en vez de datos reales |
 | 4 | Request `jjp_products` lentísima (2888ms) | 🟡 MEDIO | JOIN de 3 niveles en PostgREST sin vista materializada + descarga total sin paginación |
 | 5 | Vista web / tienda muerta con enlaces rotos | 🟡 MEDIO | `cart.js`, `nav.js`, `product-modal.js` con enlaces a páginas eliminadas |
 | 6 | Cada módulo parece manejar datos diferentes | 🟠 ARQUITECTÓNICO | Cada módulo carga datos de forma independiente con queries distintas, sin capa de datos compartida |
+
+---
+
+## PROBLEMA 0: COMPROBANTE / IMPRESIÓN DE COTIZACIONES Y PEDIDOS — ELIMINADO POR ERROR
+
+### Diagnóstico Exacto
+
+**El archivo `comprobante.html` fue eliminado en commit `41c61b8` (Implementación Fases 0-5 del Plan Maestro).** Este archivo NUNCA debió eliminarse — es la página de impresión de presupuestos, cotizaciones, pedidos y facturas.
+
+**Consecuencia actual:** Cuando un vendedor/admin hace clic en "🖨️ Imprimir presupuesto" o presiona F10 en el cotizador, el sistema abre `../comprobante.html?q=XXXXX&print=1`. Cloudflare Pages intercepta esa URL con `_redirects` línea 13 (`/comprobante* /catalogo.html 301`) y lo manda al catálogo público (que además está roto por el código zombie de cart.js).
+
+**Archivos afectados:**
+- `comprobante.html` — **ELIMINADO** del repo, existe en git history en commit `41c61b8~1`
+- `_redirects` L13: `/comprobante* /catalogo.html 301` — **REDIRECT ERRÓNEO** que debe eliminarse
+- `assets/js/vendedor/vquotes.js` — L1370: `window.open('../comprobante.html?q=...')` — referencia correcta, el archivo es el que falta
+- `assets/js/vendedor/vorders.js` o similar — pueden tener referencias a comprobante para pedidos
+
+### Solución (5 minutos)
+
+```bash
+# Paso 1: Restaurar comprobante.html desde git history
+git checkout 41c61b8~1 -- comprobante.html
+
+# Paso 2: Eliminar la línea de _redirects que redirige /comprobante* a catalogo
+# En _redirects, BORRAR la línea 13:
+# /comprobante* /catalogo.html 301
+
+# Paso 3: Verificar que el archivo se cargue correctamente:
+# - Abrir admin/cotizador.html
+# - Crear cotización con productos
+# - Presionar F10 o clic en "Presupuesto PDF"
+# - Debe abrir comprobante.html con el presupuesto renderizado
+
+# Paso 4: Commit
+git add comprobante.html _redirects
+git commit -m "fix(urgent): restaurar comprobante.html eliminado por error, quitar redirect roto"
+git push origin main
+```
 
 ---
 
@@ -340,6 +379,7 @@ Luego todos los módulos consumen `DataService.getProducts()` en vez de hacer su
 
 | Prioridad | Tarea | Tiempo Est. | Impacto |
 |-----------|-------|-------------|---------|
+| 🔴 **0** | **Restaurar `comprobante.html` desde git + quitar redirect en `_redirects`** | **5 min** | **Se puede imprimir cotizaciones/pedidos otra vez** |
 | 🔴 1 | Corregir modelos Gemini y limpiar keys inválidas | 15 min | Pre-armar cotizaciones con IA funciona |
 | 🔴 2 | Implementar campañas multi-producto (picker multi + plantilla oferta) | 2-3 horas | El vendedor puede crear campañas de ofertas |
 | 🟡 3 | Limpiar código zombie de tienda web en catalogo.html | 30 min | No más enlaces rotos |

@@ -76,7 +76,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Si estamos en la nube o PC remota, leer la IP del servidor desde jjp_server_control
   try {
-    const { data: srvData } = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    let srvData = null;
+    try {
+      const resB = await _rawSbComm.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+      if (resB && resB.data) srvData = resB.data;
+    } catch (_) {}
+    if (!srvData) {
+      const resA = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+      if (resA && resA.data) srvData = resA.data;
+    }
     if (srvData?.modules?.lan_url) {
       localServerUrl = srvData.modules.lan_url;
     }
@@ -459,12 +467,22 @@ async function querySupabaseDirectly() {
   let srvData = null;
   let isServerOnlineInCloud = false;
   try {
-    const { data: sRow } = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+    // Consultar Proyecto B (Comunicaciones) prioritariamente donde Supervisor-Pc reporta
+    let sRow = null;
+    try {
+      const resB = await _rawSbComm.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+      if (resB && resB.data) sRow = resB.data;
+    } catch (_) {}
+    if (!sRow) {
+      const resA = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+      if (resA && resA.data) sRow = resA.data;
+    }
     latSync = Date.now() - tS0;
     if (sRow) {
       srvData = sRow;
       const lastBeat = new Date(sRow.heartbeat_at || sRow.heartbeat || 0).getTime();
-      isServerOnlineInCloud = (Date.now() - lastBeat) < 90_000;
+      // Tolerancia amplia de 5 minutos para absorber posibles desfases de reloj de Windows
+      isServerOnlineInCloud = Math.abs(Date.now() - lastBeat) < 300_000 || sRow.status === 'online';
     }
   } catch (_) {}
 

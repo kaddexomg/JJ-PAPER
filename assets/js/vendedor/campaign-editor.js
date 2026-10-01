@@ -953,28 +953,25 @@ window.CampaignEditor = (() => {
     const isEmail = currentConfig?.channel === 'email';
     const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
 
-    const itemsWaLines = selectedProductsList.map((p, idx) => {
+    const itemsLines = selectedProductsList.map((p, idx) => {
       const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
       const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
       const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
       return `• *${p.name}*${unitStr}: *$${pUsd.toFixed(2)} USD* | Bs. ${pBs}`;
     }).join('\n');
 
-    const itemsEmailLines = selectedProductsList.map((p, idx) => {
-      const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
-      const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
-      const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
-      return `  • ${p.name}${unitStr} — $${pUsd.toFixed(2)} USD (Bs. ${pBs})`;
-    }).join('\n');
-
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y abastecimiento de su empresa esta semana, le presentamos nuestra selección de *ofertas especiales de inventario físico* con precios preferenciales de importador:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER:*\n─────────────────────────────\n${itemsEmailLines}\n─────────────────────────────\n\n*CONDICIONES Y BENEFICIOS OPERATIVOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express garantizado en Caracas a su sede / almacén.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 Servicio de Procura Especial: si requiere algún insumo, medida o formato específico fuera de lista, ¡se lo ubicamos y cotizamos de inmediato!\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
-      document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      if (document.getElementById('ceSubjectInput')) {
+        document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
+      }
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Compartimos con usted nuestro lote de *ofertas mayoristas destacadas* con disponibilidad física para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsWaLines}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su sede / comercio\n• 🧾 *Facturación fiscal legal* al cambio oficial BCV\n• 🔍 *Servicio de Procura:* si requiere cualquier otro producto o marca que no vea en lista, ¡se lo conseguimos de inmediato!\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
+      msg = `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos lista oficial con +900 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`;
     }
-    document.getElementById('ceMessageInput').value = msg;
+    if (document.getElementById('ceMessageInput')) {
+      document.getElementById('ceMessageInput').value = msg;
+    }
     onAttachChange();
     updatePreview();
   }

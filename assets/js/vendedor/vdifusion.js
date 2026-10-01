@@ -345,6 +345,13 @@ const DEFAULT_GLOBAL_TEMPLATES = [
     body: '{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Armamos este combo especial pensado para optimizar la reposición de su empresa con precio directo de importador:\n\n*🎁 COMBO OPERATIVO: {{producto}}*\n📝 {{descripcion}}\n💲 *Inversión del combo: {{precio}}*\n_(Ahorro directo frente a compras al detal)_\n\n• 🏭 *Importador directo en Caracas*\n• 🚚 *Despacho garantizado en 24h*\n• 🧾 *Facturación formal a Tasa Oficial BCV*\n\n👉 Ver detalles o confirmar pedido directo: {{link}}\n\n¿Le reservamos este combo antes de agotar existencia del lote?'
   },
   {
+    id: 'tpl-multi-ofertas',
+    name: '🔥 Volante de Ofertas Quincenales (Multi-Producto)',
+    kind: 'multi_oferta',
+    owner_id: null,
+    body: '{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.* Armamos una selección exclusiva de ofertas mayoristas con inventario físico para entrega inmediata en Caracas:\n\n*🔥 OFERTAS DESTACADAS DE LA SEMANA:*\n{{productos_oferta}}\n\n• 🏭 Precios directos de importador en Caracas\n• 🚚 Delivery garantizado a su sede\n• 🧾 Facturación fiscal formal a Tasa BCV\n\n👉 Catálogo digital completo: {{link}}\n\n¿Le reservamos disponibilidad de estos artículos para su despacho?'
+  },
+  {
     id: 'tpl-sector-colegios',
     name: '🏫 Colegios & Universidades — Dotación y Evaluaciones',
     kind: 'sector_colegios',
@@ -565,19 +572,19 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
   // producto/precio/descripción SIEMPRE sean los reales, sin depender de que el id
   // coincida con dProducts/dCombos.
   const direct = extraContext.selected;
-  // Base pública del sitio en uso (jj-paper.pages.dev) — nunca un dominio de Netlify
+  // Base pública del sitio en uso
   const base = location.origin + location.pathname
     .replace(/\/(admin|vendedor)\/.*$/, '').replace(/\/[^/]*$/, '');
-  const ficha = (prodId) => `${base}/producto.html?id=${prodId}`;
+  const ficha = (prodId) => `${base}/catalogo.html?producto=${encodeURIComponent(prodId)}`;
   if (direct) {
     const type = extraContext.type;
     prodName = direct.name || direct.variant_name || direct.title || prodName;
     const priceUsd = Number(direct.final_price_usd ?? direct.price_usd) || 0;
     prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
     prodDesc = direct.description || prodDesc;
-    const prodId = direct.raw?.jjp_products?.id || direct.product_id;
+    const prodId = direct.sku || direct.raw?.sku || direct.raw?.jjp_products?.id || direct.product_id;
     prodLink = type === 'combo'
-      ? `${base}/promociones.html`
+      ? `${base}/catalogo.html`
       : (prodId ? ficha(prodId) : `${base}/catalogo.html?q=${encodeURIComponent(direct.name || '')}`);
     if (direct.discount_pct) discount = String(direct.discount_pct);
   } else if (extraContext.type === 'producto' && extraContext.productId) {
@@ -587,7 +594,7 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
       const priceUsd = Number(p.price_usd) || 0;
       prodPrice = `$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '');
       prodDesc = p.jjp_products?.description || '';
-      prodLink = p.jjp_products?.id ? ficha(p.jjp_products.id) : `${base}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`;
+      prodLink = p.sku ? ficha(p.sku) : (p.jjp_products?.id ? ficha(p.jjp_products.id) : `${base}/catalogo.html?q=${encodeURIComponent(p.jjp_products?.name || '')}`);
     }
   } else if (extraContext.type === 'combo' && extraContext.comboId) {
     const c = dCombos.find(x => x.id === extraContext.comboId);
@@ -596,20 +603,24 @@ function dSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
       const priceUsd = Number(c.price_usd) || 0;
       prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
       prodDesc = c.description || '';
-      prodLink = `${base}/promociones.html`;
+      prodLink = `${base}/catalogo.html`;
       if (c.badge) discount = c.badge;
     }
   }
 
+  const multiOffersText = extraContext.multiOffersText ||
+    '• Resma Carta Report 75g: $4.95 USD\n• Cuaderno 1 Línea 100h: $0.85 USD\n• Marcadores Acrílicos x4: $2.10 USD';
+
   return {
-    nombre:      name,
-    empresa:     name,
-    vendedor:    SELLER.name || 'su asesor comercial JJ Paper',
-    descuento:   discount,
-    producto:    prodName,
-    precio:      prodPrice,
-    descripcion: prodDesc,
-    link:        prodLink,
+    nombre:           name,
+    empresa:          name,
+    vendedor:         SELLER.name || 'su asesor comercial JJ Paper',
+    descuento:        discount,
+    producto:         prodName,
+    precio:           prodPrice,
+    descripcion:      prodDesc,
+    link:             prodLink,
+    productos_oferta: multiOffersText,
   };
 }
 

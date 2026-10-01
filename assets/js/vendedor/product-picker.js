@@ -1,12 +1,17 @@
 /**
  * JJ Paper — Selector Inteligente de Catálogo y Combos
  * assets/js/vendedor/product-picker.js
+ *
+ * Soporta selección individual (producto / combo) y multi-selección
+ * para campañas de ofertas (hasta 15 artículos).
  */
 
 window.ProductPicker = (() => {
   let activeOverlay = null;
   let currentItems = [];
   let selectedItem = null;
+  let isMultiMode = false;
+  let selectedMultiItems = new Map(); // id -> item
   let onSelectCallback = null;
 
   function initModal() {
@@ -34,9 +39,12 @@ window.ProductPicker = (() => {
           <input type="number" id="ppDiscountInput" class="pp-discount-input" min="0" max="80" value="0" oninput="ProductPicker.onDiscountChange()">
           <span id="ppPricePreview" style="font-size: 13px; font-weight: 700; color: #16604A;"></span>
         </div>
-        <div class="pp-footer">
-          <button class="ce-btn-cancel" onclick="ProductPicker.close()">Cancelar</button>
-          <button class="ce-btn-launch" id="ppConfirmBtn" onclick="ProductPicker.confirm()" disabled>Seleccionar y aplicar</button>
+        <div class="pp-footer" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <span id="ppMultiCount" style="display:none; font-weight:700; color:#166534; font-size:13px;">0 de 15 seleccionados</span>
+          <div style="display:flex; gap:8px; margin-left:auto;">
+            <button class="ce-btn-cancel" onclick="ProductPicker.close()">Cancelar</button>
+            <button class="ce-btn-launch" id="ppConfirmBtn" onclick="ProductPicker.confirm()" disabled>Seleccionar y aplicar</button>
+          </div>
         </div>
       </div>
     `;
@@ -46,13 +54,34 @@ window.ProductPicker = (() => {
 
   async function open(options = {}) {
     initModal();
-    const { mode = 'product', products = [], combos = [], onSelect } = options;
+    const { mode = 'product', products = [], combos = [], selectedList = [], onSelect } = options;
     onSelectCallback = onSelect;
+    isMultiMode = (mode === 'multi');
     selectedItem = null;
-    document.getElementById('ppConfirmBtn').disabled = true;
+    selectedMultiItems = new Map();
+
     document.getElementById('ppSearch').value = '';
     document.getElementById('ppDiscountInput').value = '0';
     document.getElementById('ppPricePreview').textContent = '';
+
+    const multiCountEl = document.getElementById('ppMultiCount');
+    const confirmBtn = document.getElementById('ppConfirmBtn');
+
+    if (isMultiMode) {
+      multiCountEl.style.display = 'inline-block';
+      if (Array.isArray(selectedList) && selectedList.length > 0) {
+        selectedList.forEach(it => {
+          if (it?.id) selectedMultiItems.set(it.id, it);
+        });
+      }
+      multiCountEl.textContent = `${selectedMultiItems.size} de 15 seleccionados`;
+      confirmBtn.disabled = selectedMultiItems.size === 0;
+      confirmBtn.textContent = `Confirmar Selección (${selectedMultiItems.size})`;
+    } else {
+      multiCountEl.style.display = 'none';
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Seleccionar y aplicar';
+    }
 
     const titleEl = document.getElementById('ppTitle');
     if (mode === 'combo') {
@@ -67,13 +96,26 @@ window.ProductPicker = (() => {
         raw: c,
         type: 'combo'
       }));
+    } else if (isMultiMode) {
+      titleEl.innerHTML = '🔥 Seleccionar Ofertas Multi-Producto (hasta 15)';
+      currentItems = (products || []).map(p => ({
+        id: p.id,
+        name: p.jjp_products?.name || p.name || p.variant_name || 'Producto',
+        brand: p.jjp_brands?.name || '',
+        price_usd: p.price_b || p.price_usd || p.base_price_usd || 0,
+        image_url: p.jjp_products?.image_url || p.image_url || 'assets/img/no-img.svg',
+        description: p.jjp_products?.description || '',
+        sku: p.sku || '',
+        raw: p,
+        type: 'product'
+      }));
     } else {
       titleEl.innerHTML = '📦 Seleccionar Producto del Catálogo';
       currentItems = (products || []).map(p => ({
         id: p.id,
         name: p.jjp_products?.name || p.name || p.variant_name || 'Producto',
         brand: p.jjp_brands?.name || '',
-        price_usd: p.price_usd || p.base_price_usd || 0,
+        price_usd: p.price_b || p.price_usd || p.base_price_usd || 0,
         image_url: p.jjp_products?.image_url || p.image_url || 'assets/img/no-img.svg',
         description: p.jjp_products?.description || '',
         sku: p.sku || '',
@@ -93,14 +135,23 @@ window.ProductPicker = (() => {
       return;
     }
 
-    grid.innerHTML = items.map(it => `
-      <div class="pp-card ${selectedItem?.id === it.id ? 'selected' : ''}" onclick="ProductPicker.selectItem('${it.id}')">
-        <img class="pp-card-img" src="${it.image_url}" alt="${it.name}" onerror="this.src='../assets/img/logo.svg'">
-        <div class="pp-card-name" title="${it.name}">${it.name}</div>
-        ${it.brand ? `<div class="pp-card-brand">${it.brand}</div>` : ''}
-        <div class="pp-card-price">$${Number(it.price_usd).toFixed(2)}</div>
-      </div>
-    `).join('');
+    grid.innerHTML = items.map(it => {
+      const isSelected = isMultiMode ? selectedMultiItems.has(it.id) : (selectedItem?.id === it.id);
+      const clickFn = isMultiMode ? `ProductPicker.toggleMultiItem('${it.id}')` : `ProductPicker.selectItem('${it.id}')`;
+      const badgeHTML = isMultiMode
+        ? `<div class="pp-multi-badge" style="position:absolute; top:6px; right:6px; background:${isSelected ? '#166534' : '#e2e8f0'}; color:${isSelected ? '#ffffff' : '#64748b'}; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,0.1);">${isSelected ? '✓' : '+'}</div>`
+        : '';
+
+      return `
+        <div class="pp-card ${isSelected ? 'selected' : ''}" onclick="${clickFn}" style="position:relative;">
+          ${badgeHTML}
+          <img class="pp-card-img" src="${it.image_url}" alt="${it.name}" onerror="this.src='../assets/img/logo.svg'">
+          <div class="pp-card-name" title="${it.name}">${it.name}</div>
+          ${it.brand ? `<div class="pp-card-brand">${it.brand}</div>` : ''}
+          <div class="pp-card-price">$${Number(it.price_usd).toFixed(2)}</div>
+        </div>
+      `;
+    }).join('');
   }
 
   let searchDebounce = null;
@@ -117,7 +168,7 @@ window.ProductPicker = (() => {
     );
     renderGrid(filtered);
 
-    // Si hay menos de 6 resultados y el término tiene al menos 3 caracteres, buscar directamente en el servidor Supabase
+    // Búsqueda remota en servidor si hay pocos resultados
     if (filtered.length < 6 && q.length >= 3 && typeof sb !== 'undefined') {
       clearTimeout(searchDebounce);
       searchDebounce = setTimeout(async () => {
@@ -160,7 +211,6 @@ window.ProductPicker = (() => {
               }
             });
 
-            // Combinar evitando duplicados
             const existingIds = new Set(filtered.map(x => x.id));
             let added = false;
             mappedServer.forEach(m => {
@@ -187,12 +237,66 @@ window.ProductPicker = (() => {
     onDiscountChange();
   }
 
-  function onDiscountChange() {
-    if (!selectedItem) return;
+  function toggleMultiItem(id) {
+    const it = currentItems.find(x => x.id === id);
+    if (!it) return;
+
     const disc = parseFloat(document.getElementById('ppDiscountInput').value) || 0;
+    const base = Number(it.price_usd) || 0;
+    const finalPrice = Math.max(0, base * (1 - (disc / 100)));
+
+    if (selectedMultiItems.has(id)) {
+      selectedMultiItems.delete(id);
+    } else {
+      if (selectedMultiItems.size >= 15) {
+        if (typeof showToast === 'function') showToast('Máximo 15 ofertas permitidas por campaña', 'warn');
+        else alert('Puedes seleccionar hasta 15 productos como máximo.');
+        return;
+      }
+      selectedMultiItems.set(id, {
+        ...it,
+        discount_pct: disc,
+        final_price_usd: finalPrice
+      });
+    }
+
+    const multiCountEl = document.getElementById('ppMultiCount');
+    const confirmBtn = document.getElementById('ppConfirmBtn');
+    if (multiCountEl) multiCountEl.textContent = `${selectedMultiItems.size} de 15 seleccionados`;
+    if (confirmBtn) {
+      confirmBtn.disabled = selectedMultiItems.size === 0;
+      confirmBtn.textContent = `Confirmar Selección (${selectedMultiItems.size})`;
+    }
+
+    const searchVal = document.getElementById('ppSearch')?.value;
+    onSearch(searchVal);
+  }
+
+  function onDiscountChange() {
+    const disc = parseFloat(document.getElementById('ppDiscountInput').value) || 0;
+    const prevEl = document.getElementById('ppPricePreview');
+
+    if (isMultiMode) {
+      for (const [id, it] of selectedMultiItems.entries()) {
+        const base = Number(it.price_usd) || 0;
+        const finalPrice = Math.max(0, base * (1 - (disc / 100)));
+        selectedMultiItems.set(id, {
+          ...it,
+          discount_pct: disc,
+          final_price_usd: finalPrice
+        });
+      }
+      if (prevEl) {
+        prevEl.innerHTML = disc > 0
+          ? `Descuento global del <strong>${disc}%</strong> aplicado a los ${selectedMultiItems.size} productos`
+          : `Precios regulares de lista mayorista`;
+      }
+      return;
+    }
+
+    if (!selectedItem) return;
     const base = Number(selectedItem.price_usd) || 0;
     const finalPrice = Math.max(0, base * (1 - (disc / 100)));
-    const prevEl = document.getElementById('ppPricePreview');
     if (disc > 0) {
       prevEl.innerHTML = `Precio Promo: <strong>$${finalPrice.toFixed(2)}</strong> <span style="text-decoration: line-through; color: #94a3b8; font-size: 11px;">$${base.toFixed(2)}</span>`;
     } else {
@@ -201,6 +305,15 @@ window.ProductPicker = (() => {
   }
 
   function confirm() {
+    if (isMultiMode) {
+      if (selectedMultiItems.size === 0) return;
+      if (typeof onSelectCallback === 'function') {
+        onSelectCallback(Array.from(selectedMultiItems.values()));
+      }
+      close();
+      return;
+    }
+
     if (!selectedItem) return;
     const disc = parseFloat(document.getElementById('ppDiscountInput').value) || 0;
     const base = Number(selectedItem.price_usd) || 0;
@@ -220,5 +333,5 @@ window.ProductPicker = (() => {
     if (activeOverlay) activeOverlay.classList.remove('active');
   }
 
-  return { open, close, onSearch, selectItem, onDiscountChange, confirm };
+  return { open, close, onSearch, selectItem, toggleMultiItem, onDiscountChange, confirm };
 })();

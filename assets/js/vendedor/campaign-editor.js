@@ -18,6 +18,7 @@ window.CampaignEditor = (() => {
   let editorMode = 'ai'; // 'ai' | 'template'
   let selectedAudienceList = [];
   let selectedProductOrCombo = null;
+  let selectedProductsList = [];
   let generatedFlyerFile = null;
   let cooldownExcluded = { customer: new Set(), email: new Set(), phone: new Set(), details: new Map() };
   let recentQuotesMap = new Map();   // customer_id | phone | email -> quote
@@ -214,17 +215,21 @@ window.CampaignEditor = (() => {
                 <select class="ce-select" id="ceTypeSelect" onchange="CampaignEditor.onTypeChange()">
                   <option value="general">📣 General / Propuesta según Rubro del Cliente</option>
                   <option value="producto">📦 Promoción de un Producto Específico</option>
+                  <option value="multi_oferta">🔥 Ofertas / Catálogo Multi-Producto (hasta 15)</option>
                   <option value="combo">🎁 Promoción de un Combo / Oferta Especial</option>
                   <option value="reactivacion">😴 Reactivación de Clientes Inactivos</option>
                 </select>
               </div>
               
-              <div id="cePickerTriggerWrap" style="margin-top:6px; display:flex; gap:6px;">
-                <button type="button" class="ce-var-btn" style="flex:1; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('product')">
-                  📦 Elegir Producto del Catálogo
+              <div id="cePickerTriggerWrap" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:130px; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('product')">
+                  📦 1 Producto
                 </button>
-                <button type="button" class="ce-var-btn" style="flex:1; background:#fdf2f8; color:#9d174d; border-color:#fbcfe8; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('combo')">
-                  🎁 Elegir Combo / Promoción
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:145px; background:#fff7ed; color:#c2410c; border-color:#fed7aa; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('multi')">
+                  🔥 Multi-Ofertas (hasta 15)
+                </button>
+                <button type="button" class="ce-var-btn" style="flex:1; min-width:130px; background:#fdf2f8; color:#9d174d; border-color:#fbcfe8; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('combo')">
+                  🎁 Combo / Promo
                 </button>
               </div>
 
@@ -776,8 +781,22 @@ window.CampaignEditor = (() => {
         combos: currentConfig.combos || [],
         onSelect: (combo) => {
           selectedProductOrCombo = combo;
+          selectedProductsList = [combo];
           renderSelectedCard();
           applyComboTemplate();
+        }
+      });
+    } else if (mode === 'multi') {
+      if (typeSel) typeSel.value = 'multi_oferta';
+      window.ProductPicker.open({
+        mode: 'multi',
+        products: currentConfig.products || [],
+        selectedList: selectedProductsList,
+        onSelect: (list) => {
+          selectedProductsList = Array.isArray(list) ? list : [list];
+          selectedProductOrCombo = selectedProductsList[0] || null;
+          renderSelectedCard();
+          applyMultiOfertaTemplate();
         }
       });
     } else {
@@ -787,6 +806,7 @@ window.CampaignEditor = (() => {
         products: currentConfig.products || [],
         onSelect: (prod) => {
           selectedProductOrCombo = prod;
+          selectedProductsList = [prod];
           renderSelectedCard();
           applyProductTemplate();
         }
@@ -800,10 +820,13 @@ window.CampaignEditor = (() => {
 
     if (type === 'producto') {
       openCatalogPicker('product');
+    } else if (type === 'multi_oferta') {
+      openCatalogPicker('multi');
     } else if (type === 'combo') {
       openCatalogPicker('combo');
     } else {
       selectedProductOrCombo = null;
+      selectedProductsList = [];
       cardWrap.style.display = 'none';
       cardWrap.innerHTML = '';
     }
@@ -812,6 +835,36 @@ window.CampaignEditor = (() => {
 
   function renderSelectedCard() {
     const cardWrap = document.getElementById('ceSelectedCardWrap');
+    const type = document.getElementById('ceTypeSelect')?.value;
+
+    if (type === 'multi_oferta' && selectedProductsList.length > 0) {
+      cardWrap.style.display = 'block';
+      const itemsHtml = selectedProductsList.map((p, idx) => {
+        const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0).toFixed(2);
+        return `
+          <div style="display:inline-flex; align-items:center; gap:6px; background:#fff7ed; border:1px solid #fed7aa; padding:4px 8px; border-radius:6px; font-size:11px; margin:2px;">
+            <strong style="color:#c2410c;">#${idx + 1}</strong>
+            <span style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</span>
+            <strong style="color:#15803d;">$${pUsd}</strong>
+            <button type="button" style="border:none; background:transparent; color:#9a3412; cursor:pointer; font-weight:700;" onclick="CampaignEditor.removeMultiProduct('${p.id}')">✕</button>
+          </div>
+        `;
+      }).join('');
+
+      cardWrap.innerHTML = `
+        <div style="background:#fff; border:1px solid #fed7aa; border-radius:8px; padding:8px 10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:12px; font-weight:700; color:#c2410c;">🔥 ${selectedProductsList.length} Ofertas Seleccionadas</span>
+            <button type="button" class="ce-var-btn" style="font-size:11px; padding:3px 8px;" onclick="CampaignEditor.openCatalogPicker('multi')">Editar Ofertas</button>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; max-height:120px; overflow-y:auto;">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
     if (!selectedProductOrCombo) {
       cardWrap.style.display = 'none';
       return;
@@ -831,6 +884,39 @@ window.CampaignEditor = (() => {
         <button type="button" class="ce-var-btn" onclick="CampaignEditor.onTypeChange()">Cambiar</button>
       </div>
     `;
+  }
+
+  function removeMultiProduct(id) {
+    selectedProductsList = selectedProductsList.filter(x => x.id !== id);
+    selectedProductOrCombo = selectedProductsList[0] || null;
+    if (selectedProductsList.length === 0) {
+      const typeSel = document.getElementById('ceTypeSelect');
+      if (typeSel) typeSel.value = 'general';
+    }
+    renderSelectedCard();
+    applyMultiOfertaTemplate();
+  }
+
+  function applyMultiOfertaTemplate() {
+    if (!selectedProductsList || !selectedProductsList.length) return;
+    const isEmail = currentConfig?.channel === 'email';
+
+    const itemsLines = selectedProductsList.map((p, idx) => {
+      const pUsd = Number(p.final_price_usd || p.price_b || p.price_usd || 0).toFixed(2);
+      const disc = p.discount_pct > 0 ? ` · *-${p.discount_pct}% OFF*` : '';
+      return `  • *${p.name}*: _$${pUsd} USD_${disc}`;
+    }).join('\n');
+
+    let msg = '';
+    if (isEmail) {
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y reposición de su empresa esta semana, hemos preparado una selección especial de artículos de alta rotación con *precios preferenciales de importador*:\n\n*🔥 LISTADO DE OFERTAS Y DISPONIBILIDAD INMEDIATA:*\n${itemsLines}\n\n*CONDICIONES Y BENEFICIOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 📦 Escala de descuentos adicionales por volumen o bulto cerrado.\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
+    } else {
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Queremos compartirle nuestro lote de ofertas mayoristas con inventario físico disponible para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DE LA SEMANA — JJ PAPER*\n${itemsLines}\n\n• 🏭 *Importador directo en Caracas* (sin intermediarios)\n• 🚚 *Despacho garantizado* a su sede\n• 🧾 *Facturación formal* a Tasa Oficial BCV\n\n👉 Ver catálogo digital y hacer pedido directo: {{link}}\n\n¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
+    }
+    document.getElementById('ceMessageInput').value = msg;
+    onAttachChange();
+    updatePreview();
   }
 
   function applyProductTemplate() {
@@ -2309,6 +2395,8 @@ window.CampaignEditor = (() => {
     saveCustomerEdit,
     renderProspectCards,
     openCatalogPicker,
+    removeMultiProduct,
+    applyMultiOfertaTemplate,
     onTypeChange,
     onTemplateChange,
     onAudienceChange,

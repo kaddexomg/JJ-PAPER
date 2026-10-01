@@ -2621,15 +2621,18 @@ ${rawText}
   }
 
   async function aiDraftTemplate() {
-    const isEmail = currentConfig?.channel === 'email';
-    const defPrompt = (selectedProductsList && selectedProductsList.length > 1)
-      ? `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`
-      : selectedProductOrCombo
-      ? `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`
-      : 'Actualización de condiciones mayoristas y reposición de inventario';
-
-    const obj = prompt('✨ ¿Qué propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Rollos térmicos para cajas)', defPrompt);
-    if (!obj || !obj.trim()) return;
+    const hasSpecificProducts = (selectedProductsList && selectedProductsList.length > 0) || Boolean(selectedProductOrCombo);
+    let obj = '';
+    if (selectedProductsList && selectedProductsList.length > 0) {
+      obj = `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`;
+    } else if (selectedProductOrCombo) {
+      obj = `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`;
+    } else {
+      // Solo pedir propuesta personalizada si no se seleccionaron productos específicos
+      const defPrompt = 'Actualización de condiciones mayoristas y reposición de inventario';
+      obj = prompt('✨ ¿Qué propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Rollos térmicos para cajas)', defPrompt);
+      if (!obj || !obj.trim()) return;
+    }
 
     const btn = document.getElementById('ceAiDraftBtn');
     const origText = btn ? btn.textContent : '';

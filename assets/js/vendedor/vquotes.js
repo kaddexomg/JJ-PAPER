@@ -1271,7 +1271,81 @@ async function processAiQuoteRequest() {
     }
 
   } catch (err) {
-    console.error('Error pre-armando cotización con IA:', err);
+    console.warn('Fallo en IA principal para cotización, intentando fallback heurístico local:', err);
+    try {
+      let addedCount = 0;
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        const qtyMatch = line.match(/^(\d+)\s*(?:resmas?|cajas?|paquetes?|bultos?|unidades?|und|uds?)?\s+(?:de\s+)?(.+)/i) 
+                      || line.match(/^(.+?)\s*[-:]\s*(\d+)\s*(?:resmas?|cajas?|paquetes?|bultos?|unidades?|und|uds?)?$/i);
+        let qty = 1;
+        let searchName = line;
+        if (qtyMatch) {
+          if (/^\d+$/.test(qtyMatch[1])) {
+            qty = parseInt(qtyMatch[1], 10) || 1;
+            searchName = qtyMatch[2] || line;
+          } else {
+            searchName = qtyMatch[1] || line;
+            qty = parseInt(qtyMatch[2], 10) || 1;
+          }
+        }
+        searchName = searchName.replace(/[^\w\s]/gi, ' ').trim().toLowerCase();
+        if (searchName.length < 3) continue;
+
+        const words = searchName.split(/\s+/).filter(w => w.length > 2);
+        let bestProd = null;
+        let bestScore = 0;
+
+        for (const p of (posProducts || [])) {
+          const pName = (p.name || '').toLowerCase();
+          const pSku = (p.sku || '').toLowerCase();
+          let score = 0;
+          for (const w of words) {
+            if (pSku.includes(w)) score += 3;
+            if (pName.includes(w)) score += 1;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestProd = p;
+          }
+        }
+
+        if (bestProd && bestScore >= Math.min(2, words.length)) {
+          const key = bestProd.id;
+          if (posTicket[key]) {
+            posTicket[key].qty += qty;
+          } else {
+            posTicket[key] = {
+              id: bestProd.id,
+              product_id: bestProd.id,
+              variant_id: null,
+              name: bestProd.name,
+              sku: bestProd.sku || '',
+              brand: null,
+              unit: bestProd.unit || 'unid',
+              price_usd: Number(bestProd.price_usd || bestProd.price_b || bestProd.price_a || 0),
+              price_level: 'B',
+              price_a: Number(bestProd.price_a || 0),
+              price_b: Number(bestProd.price_b || 0),
+              price_c_bs: Number(bestProd.price_c_bs || 0),
+              price_d_bs: Number(bestProd.price_d_bs || 0),
+              qty: qty,
+              active: true
+            };
+          }
+          addedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        posRenderTicket();
+        showToast(`Cotización pre-armada por coincidencia local (${addedCount} productos cargados) ✨`);
+        setTimeout(() => closeAiQuoteModal(), 1200);
+        return;
+      }
+    } catch (e2) {
+      console.error('Error en fallback heurístico:', e2);
+    }
     showToast('Error analizando requerimiento: ' + err.message, 'err');
   } finally {
     if (btn) {

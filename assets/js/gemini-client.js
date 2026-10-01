@@ -36,14 +36,16 @@
 
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
-    'gemini-3.6-flash',
-    'gemini-3.1-flash-lite'
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
-    'gemini-3.6-flash',
-    'gemini-3.1-flash-lite'
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -2521,7 +2523,7 @@ TEXTO CRUDO DE LA SOLICITUD DEL CLIENTE:
 ${rawText}
 """`;
 
-    const rawResponse = await callGemini(prompt, 'gemini-3.6-flash');
+    const rawResponse = await callGemini(prompt, 'gemini-2.5-flash');
     let parsed;
     try {
       const cleaned = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();

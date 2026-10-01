@@ -219,6 +219,36 @@
     const sellerName = seller.full_name || seller.name || 'Asesor JJ Paper';
     const sellerRef = seller.ref_code || '';
 
+    // Top 20 productos de mayor rotación con precios de referencia (Fase 4.6)
+    const top20Products = `
+TOP PRODUCTOS DE MAYOR ROTACIÓN Y PRECIOS MAYORISTAS DE REFERENCIA:
+1. Resma Papel Carta 75g HP / Report / Chamex (~$5.20-$5.45)
+2. Resma Papel Oficio 75g (~$5.80-$6.10)
+3. Cuaderno 1 Línea Engrapado 100h Caribe (~$0.85-$0.95)
+4. Cuaderno Doble Espiral 1 Línea 100h (~$1.15-$1.30)
+5. Bolígrafo Kores K1 / Kilométrico caja x12 (~$3.85-$4.20)
+6. Goma en Barra Kores 20g / 40g (~$1.35-$2.95)
+7. Marcador Acrílico Recargable / Pizarra (~$1.20-$1.50)
+8. Cinta Embalaje Transparente 48mm x 100m (~$1.80-$2.10)
+9. Rollos Térmicos para Punto 57mm / 80mm (~$0.65-$0.90)
+10. Carpetas Manila Carta / Oficio paquete x100 (~$10.50-$12.00)
+11. Lápiz Grafito HB x12 Artesco / Mongol (~$2.50-$3.10)
+12. Resaltadores Kores / Pelikan set x4 (~$3.20-$3.80)
+13. Tijera Escolar y Oficina 5" / 7" (~$0.95-$1.60)
+14. Silicon Líquido 100ml / 250ml (~$1.10-$2.30)
+15. Grapas 26/6 caja 5000 (~$1.20-$1.50) y Engrapadoras de oficina
+16. Clips Mariposa y Estándar N° 1 (~$0.75-$1.10)
+17. Sobres Manila y Blancos Carta/Oficio x50
+18. Papel Carbón Kores x100h (~$6.50)
+19. Calculadoras de Mesa Casio/Citizen 12 dígitos
+20. Archivadores de Palanca Carta y Oficio lomo ancho (~$3.50-$4.20)
+
+MATRIZ DE CROSS-SELL COMERCIAL (Sugerir activamente):
+- Si cotiza Resmas de Papel -> Ofrecer Carpetas Manila, Clips y Archivadores de palanca.
+- Si cotiza Rollos Térmicos -> Ofrecer Cinta de Embalaje y Marcadores permanentes.
+- Si cotiza Cuadernos o Escolares -> Ofrecer Lápices HB, Bolígrafos y Borradores/Sacapuntas.
+- Si cotiza Consumibles de Facturación -> Ofrecer Bolígrafos y Almohadillas dactilares.`;
+
     return `
 Eres el Asistente Experto de Comunicación Comercial B2B de "JJ Paper C.A." en Caracas, Venezuela.
 - JJ Paper es una distribuidora mayorista y detal de papelería, útiles escolares, consumibles de oficina y papelería corporativa.
@@ -227,37 +257,54 @@ Eres el Asistente Experto de Comunicación Comercial B2B de "JJ Paper C.A." en C
 - Asesor comercial activo: ${sellerName} ${sellerRef ? `(Código: ${sellerRef})` : ''}.
 - Medios de pago: Dólares USD en efectivo, Zelle, Banesco Panamá, Bolívares por Pago Móvil y Transferencias bancarias nacionales al cambio BCV.
 - Despachos: Entregas directas en Caracas con rutas diarias y envíos asegurados a toda Venezuela por Tealca, MRW y Zoom.
+${top20Products}
 
 DIRECTRICES DE TONO Y ESTILO B2B (HUMANO, PROFESIONAL Y RESPETUOSO):
 1. NO USES TONO DE ANUNCIO AGRESIVO O BOT: Prohibido sonar a teletienda, usar mayúsculas sostenidas exageradas, promesas vacías o saturación de signos de exclamación o emojis (máximo 1 o 2 emojis elegantes por mensaje).
 2. TRATO B2B CONSULTIVO: Habla como un asesor comercial humano que se dirige a gerentes de compras, administradores de oficinas, dueños de colegios o librerías. Sé cordial, empático y profesional ("Estimado/a", "Un gusto saludarle", "Esperamos que todo marche excelente en su empresa").
 3. CONCISIÓN Y VALOR REAL: Ve al grano. Destaca disponibilidad de inventario listo, precio mayorista transparente, factura fiscal y rapidez de despacho.
-4. LLAMADOS A LA ACCIÓN NATURALES: En lugar de "¡COMPRA YA!", usa cierres amables y abiertos ("¿Desea que le verifiquemos disponibilidad?", "¿Requiere una cotización formal para su empresa?", "¿Cuántas unidades o bultos estima para este pedido?").
+4. LLAMADOS A LA ACCIÓN (CTA) OBLIGATORIOS Y ESTRICTOS:
+   - Todo mensaje DEBE cerrar con una pregunta de baja fricción que avance la venta.
+   - Ejemplos válidos: "¿Para qué zona de Caracas sería el despacho?", "¿Desea que le reserve las cajas disponibles?", "¿Cuántas unidades o bultos estima para este pedido?", "¿Le armo la cotización formal con factura?".
+   - PROHIBIDO terminar con frases muertas pasivas como "Quedo a su disposición", "Estamos para servirle", "Cualquier duda a la orden".
 `;
   }
 
   /* --------------------------------------------------------------------------
      1. WhatsApp: Sugerencias Inteligentes de Respuesta
      -------------------------------------------------------------------------- */
-  async function suggestWhatsAppReplies({ chatHistory = [], lastMessage = '', clientName = '', sellerName = '' }) {
+  async function suggestWhatsAppReplies({ chatHistory = [], lastMessage = '', clientName = '', sellerName = '', customerProfile = null }) {
     const sys = getBusinessContext() + `
 Tu tarea es sugerir 3 respuestas listas para enviar a este cliente en WhatsApp.
-- Analiza la consulta o último mensaje del cliente.
+- Analiza la consulta o último mensaje del cliente y el contexto de su perfil comercial si está disponible.
+- Respeta la regla de CTA obligatorio al final de cada opción (pregunta de avance comercial).
 - Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni \`\`\`json) con esta estructura:
 {
-  "opcion_directa": "Respuesta corta, precisa y al punto (máx 2 líneas)",
-  "opcion_cordial": "Respuesta cálida, saludando con su nombre si está disponible y llamada a la acción",
-  "opcion_comercial": "Respuesta orientada a la venta, cierre o consulta de cantidades/despacho"
+  "opcion_directa": "Respuesta corta, precisa y al punto con CTA (máx 2 líneas)",
+  "opcion_cordial": "Respuesta cálida, saludando con su nombre si está disponible y llamada a la acción de baja fricción",
+  "opcion_comercial": "Respuesta orientada a la venta/cierre mayorista o cross-sell con pregunta de cantidad/despacho"
 }`;
+
+    let profileSnippet = '';
+    if (customerProfile) {
+      const cli = customerProfile.cliente || customerProfile;
+      const recentPeds = Array.isArray(customerProfile.pedidos) ? customerProfile.pedidos.slice(0, 3) : [];
+      profileSnippet = `
+Perfil CRM del Cliente:
+- Razón Social: ${cli.name || clientName || 'N/A'}
+- RIF: ${cli.rif || 'N/A'}
+- Zona / Ciudad: ${cli.zone || cli.city || 'N/A'}
+- Historial reciente: ${recentPeds.length ? recentPeds.map(p => `#${p.order_number} ($${p.total_usd || 0})`).join(', ') : 'Primer contacto / sin compras recientes'}`;
+    }
 
     const prompt = `
 Cliente: ${clientName || 'Cliente'}
-Vendedor: ${sellerName || 'Asesor de Ventas'}
+Vendedor: ${sellerName || 'Asesor de Ventas'}${profileSnippet}
 Último mensaje recibido del cliente: "${lastMessage || '(Sin mensaje previo, iniciar conversación)'}"
 Historial reciente:
 ${chatHistory.slice(-5).map(m => `${m.direction === 'out' ? 'Vendedor' : 'Cliente'}: ${m.body || '[adjunto]'}`).join('\n')}
 
-Genera las 3 opciones en formato JSON estricto.`;
+Genera las 3 opciones en formato JSON estricto cumpliendo con las directivas comerciales y CTAs.`;
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.65 });
@@ -266,9 +313,9 @@ Genera las 3 opciones en formato JSON estricto.`;
       // Fallback inteligente
       const nameGreet = clientName ? `Hola ${clientName}, ` : '¡Hola! ';
       return {
-        opcion_directa: `${nameGreet}con gusto le atendemos. ¿Qué cantidad necesita para cotizarle?`,
-        opcion_cordial: `${nameGreet}un gusto saludarle desde JJ Paper. Con gusto le ayudamos con su requerimiento. ¿Desea que le verifiquemos disponibilidad y precios?`,
-        opcion_comercial: `${nameGreet}tenemos disponibilidad inmediata al mejor precio mayorista. ¿Para cuántas unidades o bultos desea el presupuesto?`
+        opcion_directa: `${nameGreet}con gusto le confirmamos disponibilidad inmediata. ¿Cuántas unidades necesita cotizar hoy?`,
+        opcion_cordial: `${nameGreet}un gusto saludarle desde JJ Paper. Con gusto le verificamos precios al cambio oficial BCV. ¿Para qué zona sería la entrega?`,
+        opcion_comercial: `${nameGreet}tenemos excelente precio mayorista en bultos con despacho prioritario. ¿Desea que le prepare la cotización formal?`
       };
     }
   }

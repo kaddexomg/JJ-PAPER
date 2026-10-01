@@ -32,6 +32,7 @@
 | 6 | **NO reescribas archivos completos** | Haz cambios quirúrgicos, función por función |
 | 7 | **NO modifiques `assets/js/config.js`** a menos que sea estrictamente necesario | Es el núcleo de enrutamiento multi-proyecto |
 | 8 | **NO elimines comentarios ni docstrings existentes** | Preserva la documentación inline |
+| 9 | **NO des por hecha una migración de proyecto Supabase** | `wa-server/.env` está en `.gitignore`: un `git pull` **nunca** actualiza las credenciales del servidor. Si cambias de proyecto, edita `wa-server/.env` **a mano** en cada PC que corra `wa-server` y valida con `http://localhost:8787/lan/monitor/stats` (`projects.core.ref`) + `0` coincidencias de `exceed_egress_quota` en el log. Ver `cerebro/Sesiones/2026-09-30.md` §7 |
 
 ---
 

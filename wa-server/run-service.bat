@@ -14,8 +14,8 @@ set LOGFILE=logs\wa-server.log
 
 :loop
 REM Rotacion simple si el log supera los 10 MB (10485760 bytes)
-if exist "%LOGFILE%" (
-  for %%F in ("%LOGFILE%") do (
+if exist %LOGFILE% (
+  for %%F in (%LOGFILE%) do (
     if %%~zF GTR 10485760 (
       del "%LOGFILE%.old" 2>nul
       ren "%LOGFILE%" wa-server.log.old 2>nul

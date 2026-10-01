@@ -244,12 +244,16 @@ function renderDContacts() {
                                  (c.tags || []).some(t => normTxt(t).includes(q)));
   if (dActiveTag) list = list.filter(c => (c.tags || []).includes(dActiveTag));
 
-  document.getElementById('dContactCount').textContent = `${list.length} de ${dContacts.length} contacto(s)${dActiveTag ? ` con etiqueta "${dActiveTag}"` : ''}`;
+  const MAX_DISPLAY = 100;
+  const isTruncated = list.length > MAX_DISPLAY;
+  const displayList = list.slice(0, MAX_DISPLAY);
+
+  document.getElementById('dContactCount').textContent = `${list.length} de ${dContacts.length} contacto(s)${dActiveTag ? ` con etiqueta "${dActiveTag}"` : ''}${isTruncated ? ` (mostrando primeros ${MAX_DISPLAY})` : ''}`;
   if (!list.length) {
     tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Sin contactos. Usa "Importar lista" para cargar tu avance de datos. 📇</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map(c => `<tr>
+  tbody.innerHTML = displayList.map(c => `<tr>
     <td>
       <div class="td-name">${escapeHTML(c.name)}</div>
       <div class="td-sub">${escapeHTML(c.phone || '')}</div>
@@ -263,7 +267,7 @@ function renderDContacts() {
         ${c.wa_opt_out ? '🔕 Excluido' : '🔔 Incluido'}</button>
       <button class="btn-o sm" onclick="editTags('${c.id}')" title="Editar etiquetas">🔖</button>
     </div></td>
-  </tr>`).join('');
+  </tr>`).join('') + (isTruncated ? `<tr><td colspan="5" style="text-align:center;padding:12px;color:#6b7280;font-size:12px;background:#f9fafb;">Mostrando 100 de ${list.length} contactos. Usa el buscador superior para filtrar contactos específicos.</td></tr>` : '');
 }
 
 /* ---- Import masivo ---- */

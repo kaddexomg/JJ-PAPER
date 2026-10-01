@@ -73,6 +73,7 @@ export function discoverMixnetEnvironment() {
 
   // Carpetas estándar que SOLO se agregan si ya existen físicamente (NUNCA crear carpetas nuevas arbitrarias)
   const standardDropCandidates = [
+    'M:\\MIX11\\comp01',
     'M:\\comp01',
     'M:\\COMP01',
     'M:\\pedidos',
@@ -94,8 +95,10 @@ export function discoverMixnetEnvironment() {
   // 2. Base de datos DBF de MixNet (comp01 con tablas MXCTAINV, PED, MXRENPED, etc.)
   let foundDbfDir = null;
   const dbfCandidates = [
+    'M:\\MIX11\\comp01',
     'M:\\comp01',
     'M:\\COMP01',
+    '//servidor/MIX11/comp01',
     'M:\\mixnet',
     'M:\\',
     'P:\\comp01',

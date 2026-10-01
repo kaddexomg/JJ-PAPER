@@ -898,11 +898,22 @@ async function mailAiGenerate() {
   try {
     const client = await ensureGeminiClient();
     const profile = window.CURRENT_PROFILE || window.MAIL_ME || {};
+    let enrichedNotes = notes;
+    const cid = _mailAiReplyContext?.customerId;
+    if (cid && window.sb) {
+      try {
+        const { data: cust } = await sb.from('jjp_customers').select('id, name, zone, tags, notes').eq('id', cid).maybeSingle();
+        if (cust) {
+          enrichedNotes = (enrichedNotes ? enrichedNotes + '\n' : '') + `[Datos CRM: ${cust.name} | Zona: ${cust.zone || 'N/A'} | Notas previas: ${cust.notes || 'Ninguna'}]`;
+        }
+      } catch (_) {}
+    }
+
     let result;
     if (scenario === 'propuesta_b2b') {
       result = await client.analyzeAndDraftProspectB2B({
         companyName: to || 'Cliente Corporativo',
-        notes,
+        notes: enrichedNotes,
         sellerName: profile.full_name || profile.name || 'Keyder José Salazar',
         sellerPhone: '0412-4676073'
       });
@@ -911,7 +922,7 @@ async function mailAiGenerate() {
         scenario,
         toName: to,
         toEmail: to.includes('@') ? to : '',
-        notes,
+        notes: enrichedNotes,
         originalEmail: _mailAiReplyContext?.originalText || '',
         sellerName: profile.full_name || profile.name || 'Asesor JJ Paper'
       });

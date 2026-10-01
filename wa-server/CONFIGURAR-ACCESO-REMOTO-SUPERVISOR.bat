@@ -6,6 +6,14 @@ REM ============================================================
 title JJ Paper - Enlace Remoto Supervisor
 cd /d "%~dp0"
 
+REM Verificar y solicitar elevacion como Administrador
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [i] Solicitando permisos de Administrador...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process cmd -ArgumentList '/c cd /d `\"%~dp0`\" && `\"%~f0`\"' -Verb RunAs"
+    exit /b
+)
+
 echo ============================================================
 echo   JJ PAPER -- CONFIGURACION DE ACCESO REMOTO PARA SUPERVISOR
 echo ============================================================

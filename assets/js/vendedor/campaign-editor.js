@@ -1088,28 +1088,35 @@ window.CampaignEditor = (() => {
     try {
       let itemsToMatch = [];
 
-      // 1. Intento inteligente vía Gemini AI si está disponible
+      // 1. Intento inteligente vía Gemini AI si está disponible (usando cascada de modelos estable)
       if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
-        const prompt = `Actúa como el clasificador de catálogo de JJ Paper C.A. (distribuidora mayorista en Caracas).
-El usuario te entrega una lista o texto de productos para una campaña de ofertas o promociones.
+        const prompt = `Actúa como clasificador y normalizador de catálogo para JJ Paper C.A. (distribuidora mayorista en Caracas).
+El usuario te entrega una lista o texto con artículos de oficina y papelería para una campaña de promociones.
+Muchos nombres contienen errores de tipeo, jerga comercial o marcas abreviadas:
+- "injoy" -> "InkJoy"
+- "tol" -> "Estol"
+- "giromaica" -> "Giro / Sinfonía"
+- "sinfonia" -> "Sinfonía / Giro"
+- "kiss be" o "kiss" -> "Shark / Kores punta fina"
+- "fimax" -> "Filmax / Kores / Estol"
+- "poligrafo" -> "bolígrafo"
+- "manita" -> "manila"
 
 TU MISIÓN:
 Extraer cada uno de los productos de la lista en un array de ítems JSON.
+Separa el color (azul, negro, rojo), tamaño (carta, oficio), presentación/cantidad (x12, x25, x100, 10 unidades) y marca si se mencionan.
 
-Para cada producto extrae:
-- "query": El nombre o término clave limpio de búsqueda para encontrarlo en el catálogo (ej: "papel carta report", "lapiz dibujo artesco hb", "cinta embalaje transparente", "cuaderno 1 linea", "goma en barra artesco").
-- "qty": Cantidad numérica si se indica (por defecto 1).
-- "discount_pct": Porcentaje de descuento si se menciona para ese producto (ej: 10, 15, 20). Si no se indica, coloca null.
-- "notes": Si indica gramaje, color, o presentación.
-
-DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
+DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
 {
   "items": [
     {
-      "query": "lapiz dibujo artesco hb",
+      "query": "boligrafo inkjoy azul",
       "qty": 1,
-      "discount_pct": 10,
-      "notes": "caja x12"
+      "discount_pct": null,
+      "offer_price_usd": null,
+      "color": "azul",
+      "size": null,
+      "brand": "inkjoy"
     }
   ]
 }
@@ -1120,7 +1127,7 @@ ${rawText}
 """`;
 
         try {
-          const res = await GeminiClient.callGemini({ prompt, model: 'gemini-2.5-flash', temperature: 0.1 });
+          const res = await GeminiClient.callGemini({ prompt, temperature: 0.1 });
           const cleaned = res.replace(/```json/gi, '').replace(/```/g, '').trim();
           let parsed = null;
           try {
@@ -1144,6 +1151,9 @@ ${rawText}
           const discMatch = line.match(/(?:-|desc(?:uento)?\s*:?\s*)?(\d{1,2})\s*%/i);
           const itemDisc = discMatch ? parseFloat(discMatch[1]) : null;
 
+          const priceMatch = line.match(/(?:\$|usd\s*|precio\s*:?\s*\$?)(\d+(?:\.\d{1,2})?)/i);
+          const itemPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
+
           const qtyMatch = line.match(/^(\d+)\s*(?:resmas?|cajas?|paquetes?|bultos?|unidades?|und|uds?)?\s+(?:de\s+)?(.+)/i)
                         || line.match(/^[-*•]\s*(?:(\d+)\s+)?(.+)/i);
           let qty = 1;
@@ -1157,6 +1167,7 @@ ${rawText}
               query: cleanQuery,
               qty,
               discount_pct: itemDisc,
+              offer_price_usd: itemPrice,
               notes: ''
             });
           }
@@ -1170,69 +1181,219 @@ ${rawText}
         if (allCatalog && allCatalog.length > 0) currentConfig.products = allCatalog;
       }
 
+      // Normalizador de términos y diccionario de sinónimos de papelería
+      const SYNONYMS = {
+        'injoy': 'inkjoy',
+        'tol': 'estol',
+        'giromaica': 'giro sinfonia',
+        'sinfonia': 'sinfonia giro',
+        'fimax': 'filmax',
+        'kiss': 'kores shark punta fina',
+        'kiss be': 'kores shark punta fina',
+        'archi como de plastico': 'archivador sinfonia plastico',
+        'poligrafo': 'boligrafo',
+        'carpeta manita': 'carpetas manila',
+        'manita': 'manila'
+      };
+
       function normalizeSearchStr(s) {
-        return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').trim();
+        let str = String(s || '').toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ').trim();
+        for (const [k, v] of Object.entries(SYNONYMS)) {
+          const reg = new RegExp('\\b' + k + '\\b', 'gi');
+          str = str.replace(reg, v);
+        }
+        return str;
+      }
+
+      // 4. Aplanar candidatos del catálogo (cada variante o producto padre es un candidato único)
+      const candidates = [];
+      for (const p of (allCatalog || [])) {
+        const pName = p.name || p.jjp_products?.name || '';
+        const pDesc = p.description || p.jjp_products?.description || '';
+        const pUnit = p.unit || p.jjp_products?.unit || 'unid';
+        const pBrand = p.brand || p.jjp_brands?.name || '';
+        const pImg = p.image_url || p.jjp_products?.image_url || 'assets/img/no-img.svg';
+        const vars = p.jjp_product_variants || p.variants || [];
+
+        if (!vars || vars.length === 0) {
+          const price = Number(p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : 0));
+          candidates.push({
+            id: p.id,
+            variant_id: null,
+            name: pName,
+            brand: pBrand,
+            sku: p.sku || '',
+            price_usd: price,
+            image_url: pImg,
+            description: pDesc,
+            unit: pUnit,
+            raw: p,
+            searchTarget: normalizeSearchStr(`${pName} ${pBrand} ${pDesc} ${p.sku || ''} ${pUnit}`)
+          });
+        } else {
+          for (const v of vars) {
+            const vName = v.variant_name && v.variant_name !== 'Estándar' ? v.variant_name : '';
+            const fullTitle = vName ? `${pName} (${vName})` : pName;
+            const price = Number(v.price_b != null ? v.price_b : (v.price_usd != null ? v.price_usd : (p.price_b || p.price_usd || 0)));
+            const vSku = v.sku || p.sku || '';
+            const vImg = v.image_url || pImg;
+            candidates.push({
+              id: p.id,
+              variant_id: v.id,
+              name: fullTitle,
+              brand: pBrand || v.jjp_brands?.name || '',
+              sku: vSku,
+              price_usd: price,
+              image_url: vImg,
+              description: pDesc,
+              unit: pUnit,
+              raw: p,
+              searchTarget: normalizeSearchStr(`${pName} ${vName} ${pBrand} ${vSku} ${pDesc} ${pUnit}`)
+            });
+          }
+        }
+      }
+
+      function scoreCandidate(queryNorm, cand) {
+        const qWords = queryNorm.split(/\s+/).filter(w => w.length > 1);
+        const target = cand.searchTarget;
+        let score = 0;
+
+        for (const w of qWords) {
+          if (target.includes(w)) {
+            score += (w.length >= 4 ? 6 : 3);
+          }
+        }
+
+        if (target.includes(queryNorm)) score += 20;
+
+        // Modificadores de COLOR (azul, negro, rojo, etc.)
+        const colors = ['azul', 'negro', 'rojo', 'verde', 'amarillo'];
+        for (const col of colors) {
+          const qHasCol = qWords.includes(col);
+          const candHasCol = target.includes(col);
+          if (qHasCol && candHasCol) score += 25;
+          else if (qHasCol && !candHasCol) {
+            const otherCols = colors.filter(c => c !== col);
+            if (otherCols.some(oc => target.includes(oc))) score -= 30;
+          }
+        }
+
+        // Modificadores de TAMAÑO (carta vs oficio)
+        const sizes = ['carta', 'oficio'];
+        for (const sz of sizes) {
+          const qHasSz = qWords.includes(sz);
+          const candHasSz = target.includes(sz);
+          if (qHasSz && candHasSz) score += 20;
+          else if (qHasSz && !candHasSz) {
+            const otherSz = sizes.filter(s => s !== sz);
+            if (otherSz.some(os => target.includes(os))) score -= 25;
+          }
+        }
+
+        // Presentación numérica (25, 100, 12, etc.)
+        ['25', '100', '12', '10'].forEach(num => {
+          if (qWords.includes(num) && target.includes(num)) score += 10;
+        });
+
+        // Marcas prioritarias
+        const brands = ['printon', 'hp', 'artesco', 'kores', 'levo', 'inkjoy', 'marfil', 'estol', 'caribe', 'shark', 'reprograf', 'lider', 'sinfonia'];
+        for (const b of brands) {
+          if (qWords.includes(b) && target.includes(b)) {
+            score += 40;
+          }
+        }
+
+        // Categoría Papel Fotocopia / Resma
+        const isPaperQ = qWords.includes('papel') && (qWords.includes('carta') || qWords.includes('oficio') || qWords.includes('resma') || qWords.includes('fotocopia'));
+        const isPaperCand = target.includes('fotocopia') || target.includes('resma') || target.includes('pacc') || target.includes('pafo') || target.includes('reprograf') || target.includes('printon');
+        if (isPaperQ && isPaperCand) {
+          score += 50;
+        } else if (isPaperQ && (target.includes('boligrafo') || target.includes('cartulina') || target.includes('carbon') || target.includes('funda'))) {
+          score -= 80;
+        }
+
+        // Categoría Bolígrafo
+        const isPenQ = qWords.includes('boligrafo') || qWords.includes('poligrafo') || qWords.includes('pluma');
+        const isPenCand = target.includes('boligrafo') || target.includes('bolsn') || target.includes('b100') || target.includes('semi-gel') || target.includes('inkjoy') || target.includes('opaco') || target.includes('transp');
+        if (isPenQ && isPenCand) score += 30;
+        else if (isPenQ && !isPenCand) score -= 60;
+
+        // Categoría Carpeta
+        const isFolderQ = qWords.includes('carpeta') || qWords.includes('carpetas');
+        const isFolderCand = target.includes('carpeta') || target.includes('carpetas');
+        if (isFolderQ && isFolderCand) score += 30;
+        else if (isFolderQ && !isFolderCand) score -= 50;
+
+        // Categoría Archivador
+        const isArchQ = qWords.includes('archivador') || qWords.includes('archivadores');
+        const isArchCand = target.includes('archivador') || target.includes('archivadores');
+        if (isArchQ && isArchCand) score += 30;
+        else if (isArchQ && !isArchCand) score -= 50;
+
+        // Categoría Lápiz
+        const isPencilQ = qWords.includes('lapiz') || qWords.includes('grafito');
+        const isPencilCand = target.includes('lapiz') || target.includes('grafito');
+        if (isPencilQ && isPencilCand) score += 30;
+        else if (isPencilQ && !isPencilCand) score -= 50;
+
+        return score;
       }
 
       const matchedOffers = [];
-      const existingIds = new Set(selectedProductsList.map(p => p.id));
+      const usedKeys = new Set(selectedProductsList.map(p => p.variant_id ? `${p.id}_${p.variant_id}` : p.id));
 
       for (const item of itemsToMatch) {
         const normQ = normalizeSearchStr(item.query);
         if (!normQ) continue;
-        const words = normQ.split(/\s+/).filter(w => w.length > 1);
-        if (!words.length) continue;
 
-        let bestProd = null;
+        let bestCand = null;
         let bestScore = 0;
 
-        for (const p of allCatalog) {
-          const vs = p.jjp_product_variants || p.variants || [];
-          const pName = p.name || p.jjp_products?.name || '';
-          const pBrand = p.brand || p.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
-          const pSku = p.sku || vs[0]?.sku || '';
-          const pDesc = p.description || p.jjp_products?.description || '';
+        for (const cand of candidates) {
+          const candKey = cand.variant_id ? `${cand.id}_${cand.variant_id}` : cand.id;
+          if (usedKeys.has(candKey)) continue;
 
-          const target = normalizeSearchStr(`${pName} ${pBrand} ${pSku} ${pDesc}`);
-          let score = 0;
-          for (const w of words) {
-            if (target.includes(w)) score += 2;
-          }
-          if (target.includes(normQ)) score += 5; // Frase exacta
-          if (normalizeSearchStr(pSku) === normQ) score += 10; // Coincidencia exacta de SKU
-
-          if (score > bestScore) {
-            bestScore = score;
-            bestProd = p;
+          const sc = scoreCandidate(normQ, cand);
+          if (sc > bestScore) {
+            bestScore = sc;
+            bestCand = cand;
           }
         }
 
-        if (bestProd && bestScore >= 2 && !existingIds.has(bestProd.id)) {
-          existingIds.add(bestProd.id);
-          const vs = bestProd.jjp_product_variants || bestProd.variants || [];
-          const baseName = bestProd.name || bestProd.jjp_products?.name || 'Producto';
-          const baseBrand = bestProd.brand || bestProd.jjp_brands?.name || (vs[0]?.jjp_brands?.name) || '';
-          const baseSku = bestProd.sku || vs[0]?.sku || '';
-          const basePrice = Number(bestProd.price_b != null ? bestProd.price_b : (bestProd.price_usd != null ? bestProd.price_usd : (vs[0]?.price_b || vs[0]?.price_usd || 0)));
-          const baseImg = bestProd.image_url || bestProd.jjp_products?.image_url || vs[0]?.image_url || 'assets/img/no-img.svg';
-          const baseDesc = bestProd.description || bestProd.jjp_products?.description || '';
+        if (bestCand && bestScore >= 12) {
+          const candKey = bestCand.variant_id ? `${bestCand.id}_${bestCand.variant_id}` : bestCand.id;
+          usedKeys.add(candKey);
 
-          const disc = (item.discount_pct != null && !isNaN(item.discount_pct)) ? Number(item.discount_pct) : defaultDisc;
-          const finalPrice = Math.max(0, basePrice * (1 - (disc / 100)));
+          let finalPrice = bestCand.price_usd;
+          let disc = (item.discount_pct != null && !isNaN(item.discount_pct)) ? Number(item.discount_pct) : defaultDisc;
+
+          if (item.offer_price_usd != null && !isNaN(item.offer_price_usd) && Number(item.offer_price_usd) > 0) {
+            finalPrice = Number(item.offer_price_usd);
+            if (bestCand.price_usd > 0) {
+              disc = Math.max(0, Math.round(((bestCand.price_usd - finalPrice) / bestCand.price_usd) * 100));
+            }
+          } else if (disc > 0) {
+            finalPrice = Math.max(0, bestCand.price_usd * (1 - (disc / 100)));
+          }
 
           matchedOffers.push({
-            id: bestProd.id,
-            product_id: bestProd.product_id || bestProd.id,
-            name: baseName,
-            brand: baseBrand,
-            price_usd: basePrice,
+            id: bestCand.id,
+            variant_id: bestCand.variant_id || null,
+            product_id: bestCand.id,
+            name: bestCand.name,
+            brand: bestCand.brand,
+            price_usd: bestCand.price_usd,
             final_price_usd: finalPrice,
             discount_pct: disc,
-            image_url: baseImg,
-            description: baseDesc,
-            sku: baseSku,
-            unit: bestProd.unit || 'unid',
-            raw: bestProd,
+            image_url: bestCand.image_url,
+            description: bestCand.description,
+            sku: bestCand.sku,
+            unit: bestCand.unit,
+            raw: bestCand.raw,
             type: 'product'
           });
         }
@@ -2355,7 +2516,9 @@ ${rawText}
 
   async function aiDraftTemplate() {
     const isEmail = currentConfig?.channel === 'email';
-    const defPrompt = selectedProductOrCombo 
+    const defPrompt = (selectedProductsList && selectedProductsList.length > 1)
+      ? `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`
+      : selectedProductOrCombo
       ? `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`
       : 'Actualización de condiciones mayoristas y reposición de inventario';
 
@@ -2378,6 +2541,7 @@ ${rawText}
       const result = await window.GeminiClient.draftCampaignMessage({
         objective: obj.trim(),
         product: selectedProductOrCombo,
+        products: selectedProductsList,
         discount: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '',
         audience: document.getElementById('ceAudienceSelect')?.value || 'todos',
         channel: currentConfig?.channel || 'whatsapp',

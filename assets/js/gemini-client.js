@@ -863,6 +863,7 @@ ${rawText.slice(0, 50000)}
   async function draftCampaignMessage({
     objective = 'promocion',
     product = null,
+    products = [],
     discount = '',
     audience = 'todos',
     channel = 'whatsapp',
@@ -874,26 +875,22 @@ ${rawText.slice(0, 50000)}
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
-    // Extracción de especificaciones técnicas y comerciales del producto o combo
+    // Extracción de especificaciones técnicas y comerciales del producto o combo / listado múltiple
     let prodSpecs = '';
-    if (product) {
-      const pName = product.name || 'Artículo de Catálogo';
-      const pBrand = product.brands || (product.brand ? product.brand.name : '') || '';
-      const pUnit = product.unit || 'unidad';
-      const pSku = product.sku ? `SKU/Código: ${product.sku}` : '';
-      const pPriceUsd = Number(product.final_price_usd || product.price_usd || 0);
-      const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toFixed(2) : '';
-      const pDesc = product.description ? `Detalles: ${product.description}` : '';
-      
+    const prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
+    if (prodsList.length > 0) {
       prodSpecs = `
-PRODUCTO O SERVICIO SELECCIONADO:
-- Nombre: ${pName}
-${pBrand ? `- Marca oficial: ${pBrand}` : ''}
-${pUnit ? `- Unidad de presentación / Empaque: ${pUnit}` : ''}
-${pSku ? `- Referencia: ${pSku}` : ''}
-${pPriceUsd > 0 ? `- Precio mayorista oficial: $${pPriceUsd.toFixed(2)} USD (equivalente a Bs. ${pPriceBs} a tasa BCV)` : ''}
-${pDesc ? `- Descripción técnica: ${pDesc}` : ''}
-`;
+LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artículos):
+` + prodsList.map((p, idx) => {
+        const pName = p.name || 'Artículo de Catálogo';
+        const pBrand = p.brand || p.brands || (p.brand && typeof p.brand === 'object' ? p.brand.name : '') || '';
+        const pUnit = p.unit || 'unidad';
+        const pSku = p.sku ? `(Ref: ${p.sku})` : '';
+        const priceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+        const priceBs = priceUsd > 0 ? (priceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+        const disc = p.discount_pct ? `[${p.discount_pct}% desc.]` : '';
+        return `• ${pName} ${pBrand ? `· Marca: ${pBrand}` : ''} ${pSku} | Presentación: ${pUnit} | Precio Oferta: $${priceUsd.toFixed(2)} USD (Bs. ${priceBs}) ${disc}`;
+      }).join('\n') + '\n';
     }
 
     const sys = getBusinessContext() + `
@@ -916,16 +913,27 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
 3. PROMESA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
    - Deja claro que si el cliente necesita algún producto, formato, calibre o medida específica que no vea en la lista, *JJ Paper se lo ubica y cotiza directamente* con su red de importación.
 
-4. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
+4. PRESENTACIÓN DE OFERTAS Y MÚLTIPLES PRODUCTOS (CATÁLOGO):
+   - Si se incluye un listado oficial de productos en oferta, DEBES listar CADA producto con su viñeta (•), su nombre destacado en negritas (*...*), su presentación/empaque y su precio de oferta exacto en USD ($) y Bs. a Tasa BCV. Ejemplo:
+     • *Bolígrafo Paper Mate InkJoy Azul (Caja x 12)*: *$2.88* | Bs. 2.464,30
+   - ¡PROHIBIDO inventar o cambiar los precios o productos! Usa con estricta fidelidad los nombres y precios oficiales en USD y Bs. provistos en la lista.
+   - Si hay más de 5 productos, organízalos con elegancia (puedes usar subtítulos temáticos como 🖊️ *Escritura*, 📁 *Carpetas y Archivo*, 📄 *Papel y Resmas*) para que el mensaje sea un deleite visual y comercial.
+   - Beneficios clave destacados:
+     ✓ Precios mayoristas con Factura Fiscal Legal a Tasa Oficial BCV
+     ✓ Despacho inmediato y logística directa en Caracas
+     ✓ Servicio de Procura: si necesita cualquier otro insumo para su empresa o colegio, ¡se lo ubicamos y cotizamos de inmediato!
+
+5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
    - **SALUDO DINÁMICO (SPINTAX)**: Usa {Hola|Qué tal|Buen día|Saludos} {{nombre}}.
-   - **TÍTULO PRINCIPAL**: En negritas con actitud (Ej: *📦 Propuesta Mayorista Directa de Distribución*).
-   - **CUERPO DEL MENSAJE**: Párrafos cortos de máximo 2 líneas. Fluidez y dinamismo.
-   - **PROPUESTA COMERCIAL CLARA**: Viñetas con viñeta (•) y nombres destacados en negrita (*...*).
-   - **LLAMADO A LA ACCIÓN (CTA)**: Cierre de negocio directo (Ej: "¿Desea que le reservemos disponibilidad o le preparemos una cotización por volumen?").
-   - **DESPEDIDA Y FIRMA**: Firma profesional con {{vendedor}} | Asesor Comercial JJ Paper | {{link}}.
+   - **TÍTULO PRINCIPAL**: En negritas con actitud comercial (Ej: *🔥 Oportunidad Mayorista Exclusiva · JJ Paper C.A.*).
+   - **INTRODUCCIÓN**: 2 líneas directas destacando la ventaja mayorista directa.
+   - **LISTADO DE OFERTAS**: Viñetas impecables con producto, empaque y precio en USD y Bs.
+   - **BENEFICIOS Y PROCURA**: 3 viñetas con (✓) destacando BCV, factura y despacho.
+   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta directa de cierre (Ej: "¿Desea que le reservemos disponibilidad o preparamos su despacho hoy?").
+   - **DESPEDIDA Y FIRMA**: {{vendedor}} | Asesor Comercial JJ Paper C.A. | {{link}}.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de código json):
-- Si channel === 'email': { "subject": "Asunto profesional de alto impacto", "body": "Cuerpo completo con formato estructurado, viñetas y firma" }
+- Si channel === 'email': { "subject": "Asunto profesional de alto impacto con nombre de producto u oferta", "body": "Cuerpo completo con formato estructurado, viñetas, precios y firma" }
 - Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, viñetas, firma al final y Spintax {A|B|C})" }
 `;
 

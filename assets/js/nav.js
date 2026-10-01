@@ -3,13 +3,8 @@
    ====================================================== */
 
 const NAV_LINKS = [
-  { label: 'Inicio',    href: 'index.html',    key: 'inicio'   },
   { label: 'Catálogo',  href: 'catalogo.html', key: 'catalogo' },
-  { label: 'Promociones', href: 'promociones.html', key: 'promos' },
-  { label: 'Pedidos',   href: 'pedidos.html',  key: 'pedidos'  },
-  { label: 'Rastreo',   href: 'rastreo.html',  key: 'rastreo'  },
-  { label: 'Nosotros',  href: 'index.html#nosotros', key: 'nosotros' },
-  { label: 'Contacto',  href: 'index.html#contacto', key: 'contacto' },
+  { label: 'Contacto',  href: '#contacto',     key: 'contacto' },
 ];
 
 const BRAND_LOGO = 'assets/img/logo.svg';
@@ -25,15 +20,16 @@ function injectNav(activeKey = '') {
 
   const html = `
 <nav id="nav">
-  <a class="n-brand" href="index.html">
+  <a class="n-brand" href="catalogo.html">
     <img class="n-logo-img" src="${BRAND_LOGO}" alt="JJ Paper" width="38" height="38">
     <div class="n-name">JJ <em>Paper</em></div>
   </a>
   <div class="n-links">${linksHTML}</div>
   <div class="n-acts">
-    <button class="n-cart" id="openCartBtn" aria-label="Abrir carrito">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><span class="n-cart-lbl">Carrito</span> <span class="n-cbadge" id="cartBadge">0</span>
-    </button>
+    <a class="n-wa-btn" id="navWaBtn" href="https://wa.me/584121234567" target="_blank" rel="noopener" aria-label="Atención por WhatsApp" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;padding:6px 13px;border-radius:20px;font-size:13px;font-weight:700;text-decoration:none;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+      <span>WhatsApp</span>
+    </a>
     <button class="n-tog" id="menuTog" aria-label="Abrir menú" aria-expanded="false" aria-controls="mmenu">&#9776;</button>
   </div>
 </nav>
@@ -44,15 +40,9 @@ function injectNav(activeKey = '') {
 
   // Wire up events after injection
   document.getElementById('menuTog')?.addEventListener('click', toggleMenu);
-  document.getElementById('openCartBtn')?.addEventListener('click', () => {
-    if (typeof openCart === 'function') openCart();
-  });
   document.querySelectorAll('.m-menu a').forEach(a =>
     a.addEventListener('click', () => closeMenu())
   );
-
-  // El badge se inyecta después de cartLoad(): sincronizarlo con el carrito guardado
-  if (typeof cartUpdateBadge === 'function') cartUpdateBadge();
 
   // Montar botón de modo Claro / Oscuro Liquid Glass
   if (window.JJTheme && typeof window.JJTheme.mount === 'function') {
@@ -98,7 +88,7 @@ function injectFooter() {
   const year = new Date().getFullYear();
 
   const html = `
-<footer>
+<footer id="contacto">
   <div class="ft-in">
     <div class="ft-brand">
       <div class="ft-logo">
@@ -144,6 +134,10 @@ function injectFooter() {
 function refreshContactUI() {
   const s = (typeof APP !== 'undefined' && APP.SETTINGS) || {};
   const wa = document.getElementById('ftWa');
+  const navWa = document.getElementById('navWaBtn');
+  if (s.whatsapp_number) {
+    if (navWa) navWa.href = `https://wa.me/${s.whatsapp_number}`;
+  }
   if (wa && (s.whatsapp_number || s.phone_display)) {
     if (s.whatsapp_number) wa.href = `https://wa.me/${s.whatsapp_number}`;
     wa.textContent = `📱 ${s.phone_display || '+' + s.whatsapp_number}`;

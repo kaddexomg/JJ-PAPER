@@ -376,13 +376,6 @@ function productCardHTML(p) {
   const name    = escapeHTML(p.name);
   const soldOut = p._stock === 0;
   const multi   = (p.variants?.length || 0) > 1;
-  const inCart  = (typeof cartQtyForProduct === 'function') ? cartQtyForProduct(p.id) : 0;
-  // Con 1 variante el stepper opera directo; con varias, se elige marca en el modal.
-  // Si hay un item viejo en el carrito (clave = producto), usar esa clave.
-  const cartKey = (typeof cart !== 'undefined' &&
-    Object.keys(cart).find(k => (cart[k].product_id || cart[k].id) === p.id))
-    || p.variants?.[0]?.id || p.id;
-
   const tagHTML = p.tag
     ? `<span class="pc-tag">${escapeHTML(p.tag)}</span>` : '';
 
@@ -406,15 +399,7 @@ function productCardHTML(p) {
 
   const ctrlHTML = soldOut
     ? `<span class="pc-out" style="position:static">Agotado</span>`
-    : multi
-    ? `<button class="add-btn" title="Elegir marca" aria-label="Elegir marca de ${name}" onclick="openProductModal('${p.id}')">${inCart > 0 ? `<span class="add-btn-badge">${inCart}</span>` : ''}+</button>`
-    : inCart > 0
-    ? `<div class="pc-ctrl">
-         <button class="qb" onclick="updateCartQty('${cartKey}',-1)" aria-label="Quitar una unidad de ${name}">−</button>
-         <span class="qn" aria-label="Cantidad en carrito">${inCart}</span>
-         <button class="qb" onclick="updateCartQty('${cartKey}',1)" aria-label="Agregar una unidad de ${name}">+</button>
-       </div>`
-    : `<button class="add-btn" title="Agregar al carrito" aria-label="Agregar ${name} al carrito" onclick="addCartById('${p.id}')">+</button>`;
+    : `<button class="add-btn" title="Ver detalle y consultar" aria-label="Ver detalle de ${name}" onclick="openProductModal('${p.id}')">👁</button>`;
 
   return `<div class="pc rv${soldOut ? ' is-out' : ''}">
     <div class="pc-img${p.image_url ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"

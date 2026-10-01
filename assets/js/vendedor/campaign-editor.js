@@ -2157,6 +2157,7 @@ ${rawText}
         sellerName: sName,
         sellerPhone: sPhone,
         promoProductOrCombo: selectedProductOrCombo,
+        products: selectedProductsList,
         officialPdfIncluded: isPdf,
         attitude: selectedTone,
         targetSector,
@@ -2279,6 +2280,7 @@ ${rawText}
         sellerName: currentConfig?.seller?.name || '',
         sellerPhone: currentConfig?.seller?.phone || '',
         promoProductOrCombo: selectedProductOrCombo,
+        products: selectedProductsList,
         officialPdfIncluded: isPdf,
         targetSector,
         commercialTone,
@@ -2763,8 +2765,9 @@ ${rawText}
   }
 
   async function aiDesignFlyer() {
-    if (!selectedProductOrCombo) {
-      alert('Por favor selecciona primero un producto o combo en el panel izquierdo.');
+    const hasMultiple = Array.isArray(selectedProductsList) && selectedProductsList.length > 0;
+    if (!selectedProductOrCombo && !hasMultiple) {
+      alert('Por favor selecciona primero un producto, combo o lista de productos en el panel izquierdo.');
       openCatalogPicker('product');
       return;
     }
@@ -2779,41 +2782,38 @@ ${rawText}
     try {
       await ensureGeminiClient();
       const p = selectedProductOrCombo;
+      const prods = (selectedProductsList && selectedProductsList.length > 0)
+        ? selectedProductsList
+        : (p?.products ? p.products : (p ? [p] : []));
 
-      if (!p._studio_photo_url && !p.image_url) {
+      // Si es un solo producto y no tiene foto, intentar buscar foto comercial real
+      if (prods.length === 1 && !prods[0]._studio_photo_url && !prods[0].image_url) {
         if (btn) btn.textContent = '🔍 Buscando Foto Comercial Real...';
         try {
-          const realPhoto = await window.GeminiClient.searchRealProductPhoto(p.name);
-          if (realPhoto) p._studio_photo_url = realPhoto;
+          const realPhoto = await window.GeminiClient.searchRealProductPhoto(prods[0].name);
+          if (realPhoto) prods[0]._studio_photo_url = realPhoto;
         } catch (photoSearchErr) {
           console.warn('Búsqueda web de foto comercial no disponible:', photoSearchErr);
         }
-
-        if (!p._studio_photo_url) {
-          if (btn) btn.textContent = '📸 Generando Foto Estudio IA...';
-          try {
-            const photoRes = await window.GeminiClient.generateProductStudioPhoto({ product: p, theme: 'white' });
-            if (photoRes?.imageUrl) p._studio_photo_url = photoRes.imageUrl;
-          } catch (photoErr) {
-            console.warn('Foto de estudio no pudo completarse:', photoErr);
-          }
-        }
       }
 
-      if (btn) btn.textContent = '🎨 Renderizando Flyer...';
-      const cvs = await window.GeminiClient.renderProductCard({
+      if (btn) btn.textContent = '🎨 Renderizando Flyer con Fotos Reales...';
+      const isMulti = prods.length > 1;
+      const cvs = await window.GeminiClient.renderMarketingFlyer({
         product: p,
-        customPriceUsd: p.final_price_usd || p.price_usd,
+        products: prods,
+        customPriceUsd: p?.final_price_usd || p?.price_usd,
         sellerName: currentConfig?.seller?.name || '',
         sellerPhone: currentConfig?.seller?.phone || '',
-        customNote: '🔥 ¡Promoción exclusiva por tiempo limitado!',
+        customNote: isMulti ? '🔥 Suministros mayoristas garantizados con entrega en 24h' : '🔥 Promoción exclusiva al mayor',
         theme: 'white',
-        headline: '🔥 OFERTA AL MAYOR'
+        headline: isMulti ? '🔥 COMBO / LOTE MAYORISTA DESTACADO' : '🔥 OFERTA AL MAYOR'
       });
 
       cvs.toBlob(async (blob) => {
         if (!blob) throw new Error('No se pudo generar el archivo de imagen.');
-        const fileName = `Flyer_${(p.name || 'producto').replace(/[^\w.-]/g, '_')}.png`;
+        const baseName = (p?.name || (prods[0]?.name ? `Lote_${prods[0].name}` : 'Oferta_Mayorista')).replace(/[^\w.-]/g, '_');
+        const fileName = `Flyer_${baseName}.png`;
         generatedFlyerFile = new File([blob], fileName, { type: 'image/png' });
 
         const chk = document.getElementById('ceAttachFile');

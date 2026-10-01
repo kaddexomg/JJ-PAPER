@@ -36,16 +36,17 @@
 
   // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
   const PRO_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite',
+    'gemini-flash-latest',
+    'gemini-3.5-flash'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite',
+    'gemini-flash-latest'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -910,26 +911,29 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
      * Señala el ahorro tangible frente a compras al detal.
      * Expresa siempre el valor en dólares y su equivalente en bolívares calculados a Tasa Oficial BCV.
 
-3. PROMESA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
-   - Deja claro que si el cliente necesita algún producto, formato, calibre o medida específica que no vea en la lista, *JJ Paper se lo ubica y cotiza directamente* con su red de importación.
+3. PROMESA MANDATORIA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
+   - DEBES incluir de forma clara y destacada que si el cliente busca o necesita cualquier otro producto, formato o marca que no vea en la lista o catálogo, *JJ Paper se lo ubica, cotiza y despacha de inmediato*:
+     "💡 *¿Busca algún producto o marca que no vea en este listado?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha directamente a su empresa."
 
 4. PRESENTACIÓN DE OFERTAS Y MÚLTIPLES PRODUCTOS (CATÁLOGO):
    - Si se incluye un listado oficial de productos en oferta, DEBES listar CADA producto con su viñeta (•), su nombre destacado en negritas (*...*), su presentación/empaque y su precio de oferta exacto en USD ($) y Bs. a Tasa BCV. Ejemplo:
      • *Bolígrafo Paper Mate InkJoy Azul (Caja x 12)*: *$2.88* | Bs. 2.464,30
    - ¡PROHIBIDO inventar o cambiar los precios o productos! Usa con estricta fidelidad los nombres y precios oficiales en USD y Bs. provistos en la lista.
-   - Si hay más de 5 productos, organízalos con elegancia (puedes usar subtítulos temáticos como 🖊️ *Escritura*, 📁 *Carpetas y Archivo*, 📄 *Papel y Resmas*) para que el mensaje sea un deleite visual y comercial.
-   - Beneficios clave destacados:
-     ✓ Precios mayoristas con Factura Fiscal Legal a Tasa Oficial BCV
-     ✓ Despacho inmediato y logística directa en Caracas
-     ✓ Servicio de Procura: si necesita cualquier otro insumo para su empresa o colegio, ¡se lo ubicamos y cotizamos de inmediato!
+   - Si hay más de 4 productos, organízalos con elegancia usando subtítulos temáticos con emojis (ej. 🖊️ *Escritura y Bolígrafos*, 📁 *Carpetas y Archivo*, 📄 *Papel y Resmas*) para que el mensaje sea impecable y fácil de leer.
+   - Beneficios clave destacados con emojis:
+     • 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios, precio mayorista real)
+     • 🧾 *Facturación Fiscal Legal* en bolívares calculados a Tasa Oficial BCV
+     • 🚚 *Despacho Inmediato* y logística directa en Caracas a su empresa o colegio
+     • 🔍 *Servicio de Procura:* si necesita cualquier otro insumo, ¡se lo ubicamos y cotizamos de inmediato!
 
 5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
+   - **TÍTULO DESTACADO**: En negritas con actitud comercial (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*).
+   - **SEPARADOR**: Línea estética de separación (━━━━━━━━━━━━━━━━━━━━━━━━━━).
    - **SALUDO DINÁMICO (SPINTAX)**: Usa {Hola|Qué tal|Buen día|Saludos} {{nombre}}.
-   - **TÍTULO PRINCIPAL**: En negritas con actitud comercial (Ej: *🔥 Oportunidad Mayorista Exclusiva · JJ Paper C.A.*).
-   - **INTRODUCCIÓN**: 2 líneas directas destacando la ventaja mayorista directa.
+   - **INTRODUCCIÓN**: 2 líneas directas destacando la ventaja mayorista directa en Caracas.
    - **LISTADO DE OFERTAS**: Viñetas impecables con producto, empaque y precio en USD y Bs.
-   - **BENEFICIOS Y PROCURA**: 3 viñetas con (✓) destacando BCV, factura y despacho.
-   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta directa de cierre (Ej: "¿Desea que le reservemos disponibilidad o preparamos su despacho hoy?").
+   - **BENEFICIOS Y PROCURA**: 3-4 viñetas con emojis destacando BCV, factura, entrega inmediata y servicio de búsqueda especial.
+   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta directa de cierre comercial.
    - **DESPEDIDA Y FIRMA**: {{vendedor}} | Asesor Comercial JJ Paper C.A. | {{link}}.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de código json):
@@ -967,11 +971,11 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
       if (isEmail) {
         return {
           subject: prodsList.length === 1 ? `Propuesta Mayorista: ${prodsList[0].name} — JJ Paper C.A.` : `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`,
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n${itemsLines || '• ' + objective}\n\n*VENTAJAS DIRECTAS:*\n• 🏭 Precios directos de distribuidor en Caracas.\n• 🚚 Delivery garantizado a su sede.\n• 🧾 Facturación formal a Tasa Oficial BCV.\n• 🔍 Servicio de Procura Especial para cualquier otro requerimiento.\n\n👉 Catálogo digital: {{link}}\n\n¿Desea que le reservemos inventario o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN OFERTA:*\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato:* Logística y delivery prioritario a su sede.\n• 🔍 *Servicio de Procura Especial:* Si requiere cualquier otro artículo, formato o marca que no visualice en esta lista, nosotros se lo ubicamos y cotizamos de inmediato.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
         };
       } else {
         return {
-          body: `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Queremos presentarle nuestro lote seleccionado de *ofertas mayoristas* con inventario físico para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsLines || '• ' + objective}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su empresa / sede\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🔍 *Servicio de Procura:* si requiere cualquier otro producto o marca, ¡se lo conseguimos!\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`
+          body: `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 DETALLE DE ARTÍCULOS EN OFERTA:*\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario* en Caracas directamente a su empresa o colegio\n\n💡 *¿Busca algún producto o marca que no vea en este listado?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
         };
       }
     }
@@ -1067,6 +1071,7 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
     sellerName = 'Keyder José Salazar',
     sellerPhone = '0412-4676073',
     promoProductOrCombo = null,
+    products = [],
     officialPdfIncluded = true,
     channel = 'both',
     customerFull = null,
@@ -1079,6 +1084,10 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+
+    const prodsList = (Array.isArray(products) && products.length > 0)
+      ? products
+      : (promoProductOrCombo ? (Array.isArray(promoProductOrCombo.products) ? promoProductOrCombo.products : [promoProductOrCombo]) : []);
 
     const SECTOR_NAMES = {
       colegios: 'Colegios, Universidades y Educación',
@@ -1101,7 +1110,7 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
     };
     const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
 
-    // ── Catálogo REAL con precio actualizado (la IA escribe con datos reales, no inventados) ──
+    // ── Catálogo REAL con precio actualizado ──
     let realProducts = [];
     try { realProducts = await fetchRealPortfolioProducts(); } catch (e) { console.warn('Catálogo real no disponible:', e); }
 
@@ -1117,12 +1126,19 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
           ? `${customerFull.total_orders} pedido(s) por $${Number(customerFull.total_usd || 0).toFixed(2)} USD${customerFull.last_order_at ? ` (último: ${customerFull.last_order_at})` : ''}`
           : 'Sin compras registradas (cliente nuevo o prospecto)');
 
-    const promoInfo = promoProductOrCombo ? `
-ATENCIÓN - PRODUCTO / OFERTA COMERCIAL SELECCIONADA POR EL ASESOR:
-- Nombre: "${promoProductOrCombo.name || promoProductOrCombo.title || 'Insumo destacado'}"
-- Precio especial: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD (equivalente a ${(Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0) * rate).toFixed(2)} Bs a Tasa Oficial BCV)
-- Descripción: "${promoProductOrCombo.description || 'Disponibilidad inmediata al mayor'}"
-DIRECTIVA DE OFERTA: Este producto/combo DEBE ser el PRIMER ítem destacado en la propuesta operativa, combinado armónicamente con 2 insumos complementarios según el sector de la empresa.` : '';
+    let promoInfo = '';
+    if (prodsList.length > 0) {
+      promoInfo = `
+ATENCIÓN CRÍTICA - OFERTA / PRODUCTOS COMERCIALES SELECCIONADOS POR EL ASESOR (${prodsList.length} artículos):
+` + prodsList.map((p, idx) => {
+        const pName = p.name || 'Artículo de Catálogo';
+        const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+        const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+        const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+        return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
+      }).join('\n') + `
+DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENTE estos productos con sus precios. NO sustituyas estos productos por otros artículos ni inventes precios. Personaliza el saludo y conecta con la actividad de ${companyName}, pero mantén esta oferta intacta como el centro de la propuesta.`;
+    }
 
     const isAlreadyContacted = Boolean(
       customerFull?.contacted ||
@@ -1135,14 +1151,26 @@ DIRECTIVA DE OFERTA: Este producto/combo DEBE ser el PRIMER ítem destacado en l
     );
 
     let openingStrategy = '';
-    if (promoProductOrCombo) {
+    if (prodsList.length > 0) {
+      const itemsFormatted = prodsList.map(p => {
+        const pName = p.name || 'Artículo';
+        const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+        const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+        const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+        return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* | Bs. ${pPriceBs}`;
+      }).join('\n');
+
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTO / DISPONIBILIDAD INMEDIATA
-El mensaje gira 100% en torno a la cotización y despacho del producto/combo seleccionado: "${promoProductOrCombo.name || promoProductOrCombo.title}".
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
-2. Apertura directa: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la alta demanda de insumos en sus operaciones de ${city || 'Caracas'}, hoy queríamos compartirle disponibilidad inmediata y precio preferencial en: *${promoProductOrCombo.name || promoProductOrCombo.title}*."
-3. Presentar este producto como primer ítem destacado con su precio exacto ($${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD / Bs a tasa BCV ${rate.toFixed(2)} Bs) y sumar 2 insumos complementarios de su rubro.
-4. ¡PROHIBIDO decir "vinimos a presentarnos" o redactar una carta introductoria general!`;
+ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTOS / COMBO PREPARADO POR EL ASESOR
+El mensaje gira 100% en torno a presentar la oferta de insumos seleccionada:
+${itemsFormatted}
+
+DIRECTIVAS ESTRICTAS DE REDACCIÓN:
+1. Saludo: "{Hola|Buen día|Un gusto saludarle} ${contactName || companyName} 👋, un cordial saludo."
+2. Apertura directa: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:"
+3. Presentar los productos con sus viñetas (•), nombres en negrita (*...*) y precios oficiales en USD y Bs BCV.
+4. Cláusula obligatoria de procura: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato."
+5. Cierre: Pregunta directa para coordinar pedido o despacho formal.`;
     } else if (messageType.includes('Seguimiento') || isAlreadyContacted) {
       openingStrategy = `
 ESTRUCTURA DE APERTURA: SEGUIMIENTO COMERCIAL (ESTA CUENTA YA FUE CONTACTADA ANTERIORMENTE)
@@ -1365,19 +1393,40 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         ? `Estimado(a) ${contactName}${contactRole ? `, ${contactRole}` : ''} en ${companyName}:`
         : `Estimada Gerencia de Compras y Procura en ${companyName}:`;
 
+      const hasCustomOffer = (Array.isArray(prodsList) && prodsList.length > 0);
+
       const defSubject = promoProductOrCombo
         ? `📦 Oferta Especial en ${promoProductOrCombo.name || 'Papelería'} para ${companyName} | JJ Paper`
+        : hasCustomOffer
+        ? `📦 Propuesta Mayorista de Suministros para ${companyName} | JJ Paper`
         : `Propuesta de abastecimiento operativo y homologación para ${companyName}`;
 
       let bullet1 = '• *Rollos térmicos y consumibles para puntos de venta y facturación* (cero quiebres de stock).';
       let bullet2 = '• *Carpetas de archivo reglamentarias, archivadores y resmas de papel Bond* para resguardo documental.';
       let bullet3 = '• *Cintas de embalaje industrial de alto micraje* para almacén y despacho.';
 
-      if (promoProductOrCombo) {
+      let formattedBullets = '';
+      if (hasCustomOffer) {
+        formattedBullets = prodsList.slice(0, 10).map(p => {
+          const pName = p.name || 'Artículo';
+          const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+          const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+          const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+          return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
+        }).join('\n');
+        if (prodsList.length > 10) {
+          formattedBullets += `\n• _...y ${prodsList.length - 10} artículos más disponibles en este lote mayorista._`;
+        }
+      } else if (promoProductOrCombo) {
         bullet1 = `• *${promoProductOrCombo.name || 'Oferta Especial'}*: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD (disponibilidad inmediata).`;
+        formattedBullets = `${bullet1}\n${bullet2}\n${bullet3}`;
+      } else {
+        formattedBullets = `${bullet1}\n${bullet2}\n${bullet3}`;
       }
 
-      const defBody = `${salutation}\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación y logística de sus sedes en ${city || 'Caracas'}, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nCon el propósito de garantizar la continuidad de sus operaciones y optimizar sus costos de procura, ponemos a su disposición nuestro suministro directo en insumos de alta rotación:\n${bullet1}\n${bullet2}\n${bullet3}\n\nBeneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\n${sellerName}\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
+      const sourcingPromise = `💡 *¿Busca algún formato o insumo especial no listado?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n`;
+
+      const defBody = `${salutation}\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación y logística de sus sedes en ${city || 'Caracas'}, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nCon el propósito de garantizar la continuidad de sus operaciones y optimizar sus costos de procura, ponemos a su disposición nuestro suministro directo en insumos de alta rotación:\n${formattedBullets}\n\n${sourcingPromise}Beneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\n${sellerName}\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
 
       const words = defBody.trim().split(/\s+/).length;
 
@@ -1387,13 +1436,13 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             ? `{Hola|Buen día} ${contactRole} de ${companyName} 👋, un cordial saludo.`
             : `{Hola|Buen día|Un gusto saludarle} estimados amigos de ${companyName} 👋, un cordial saludo.`);
 
-      const fallbackWa = `${waGreeting}\n\n{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería corporativa, consumibles de caja y embalaje en Caracas.\n\nPensando en la continuidad de sus operaciones, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 PROPUESTA DE ABASTECIMIENTO OPERATIVO:*\n${bullet1}\n${bullet2}\n${bullet3}\n\n${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n' : ''}*VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal con RIF (J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sellerName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
+      const fallbackWa = `${waGreeting}\n\n{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería corporativa, consumibles de caja y embalaje en Caracas.\n\nPensando en la continuidad de sus operaciones, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 PROPUESTA MAYORISTA DE SUMINISTROS:*\n${formattedBullets}\n\n${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n' : ''}${sourcingPromise}*VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal con RIF (J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sellerName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
 
       return {
         sector_deducido: sector || 'Corporativo General',
         dolor_operativo: 'Abastecimiento oportuno de suministros para continuidad operativa y control de costos de procura.',
-        insumos_core: [bullet1.replace(/^•\s*\*/, '').replace(/\*.*$/, ''), bullet2.replace(/^•\s*\*/, '').replace(/\*.*$/, '')],
-        insumo_cross_sell: bullet3.replace(/^•\s*\*/, '').replace(/\*.*$/, ''),
+        insumos_core: hasCustomOffer ? prodsList.slice(0, 2).map(p => p.name) : [bullet1.replace(/^•\s*\*/, '').replace(/\*.*$/, ''), bullet2.replace(/^•\s*\*/, '').replace(/\*.*$/, '')],
+        insumo_cross_sell: hasCustomOffer ? (prodsList[2]?.name || '') : bullet3.replace(/^•\s*\*/, '').replace(/\*.*$/, ''),
         angulo_seleccionado: 'alianza_procura',
         subject: defSubject,
         email_body: defBody,
@@ -1414,6 +1463,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     sellerName = 'Tu Asesor',
     sellerPhone = '',
     promoProductOrCombo = null,
+    products = [],
     officialPdfIncluded = true,
     personality = 'Profesional / Formal',
     messageType = 'Presentación Inicial',
@@ -1436,9 +1486,11 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
       messageType.includes('Oferta')
     );
 
+    const hasCustomOffer = Boolean(promoProductOrCombo || (Array.isArray(products) && products.length > 0));
+
     // Si no se fuerza refresco y no hay promoción específica seleccionada, reutilizar si ya tiene copy guardado
     // EXCEPCIÓN VITAL: Si el contacto ya fue contactado, NO reutilizar un copy de presentación guardado previamente
-    if (!forceRefresh && !promoProductOrCombo && !isAlreadyContacted) {
+    if (!forceRefresh && !hasCustomOffer && !isAlreadyContacted) {
       if (channel === 'whatsapp' && customer.custom_wa_body && customer.custom_wa_body.length > 50) {
         return {
           sector: customer.ai_analysis?.sector_deducido || customer.sector || 'Comercial',
@@ -1464,7 +1516,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     // Adaptación dinámica de enfoque si la cuenta ya fue alcanzada o hay producto activo
     let effectiveMessageType = messageType;
     let effectivePersonality = personality;
-    if (promoProductOrCombo) {
+    if (hasCustomOffer) {
       effectiveMessageType = 'Oferta Especial';
       effectivePersonality = 'Persuasivo / Comercial';
     } else if (commercialTone === 'oportunidad_mayorista') {
@@ -1508,6 +1560,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         sellerName: sName,
         sellerPhone: sPhone,
         promoProductOrCombo,
+        products,
         officialPdfIncluded,
         channel,
         customerFull: customer,
@@ -1534,7 +1587,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     } catch (err) {
       console.warn('Fallback en analyzeCustomerAndDraftMessage:', err);
       const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
-      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, officialPdfIncluded, isAlreadyContacted });
+      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, products, officialPdfIncluded, isAlreadyContacted });
     }
   }
 
@@ -1547,6 +1600,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     sPhone = '0412-4676073',
     rate = 40,
     promoProductOrCombo = null,
+    products = [],
     officialPdfIncluded = true,
     isAlreadyContacted = false
   }) {
@@ -1559,7 +1613,23 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     let offering = 'Resmas de papel Bond, consumibles de oficina y embalaje';
     let bulletPoints = '';
 
-    if (/farmacia|droguer[ií]a|farma/i.test(low)) {
+    const hasMultiOffer = Array.isArray(products) && products.length > 0;
+
+    if (hasMultiOffer) {
+      sector = 'Comercial e Insumos Mayoristas';
+      need = 'Suministro mayorista preferencial de insumos seleccionados con entrega inmediata';
+      offering = products.slice(0, 3).map(p => p.name).join(' · ');
+      bulletPoints = products.slice(0, 10).map(p => {
+        const pName = p.name || 'Artículo';
+        const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+        const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+        const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+        return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
+      }).join('\n');
+      if (products.length > 10) {
+        bulletPoints += `\n• _...y ${products.length - 10} artículos más disponibles en este lote mayorista._`;
+      }
+    } else if (/farmacia|droguer[ií]a|farma/i.test(low)) {
       sector = 'Farmacias y Salud';
       need = 'Rollos térmicos para cajas POS y cintas de embalar para bultos';
       offering = 'Rollos térmicos 80x70mm y 57x40mm + Cintas de empaque 48x100m';
@@ -1598,7 +1668,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
       bulletPoints = `• *Resmas de papel Bond Carta y Oficio* con despacho inmediato.\n• *Artículos de papelería corporativa y archivo* con precios mayoristas.\n• *Rollos térmicos de cajas y consumibles* para soporte operativo.`;
     }
 
-    if (promoProductOrCombo) {
+    if (!hasMultiOffer && promoProductOrCombo) {
       bulletPoints = `• *📦 PROMOCIÓN ACTIVA: ${promoProductOrCombo.name}*\n  ${promoProductOrCombo.description ? `_${promoProductOrCombo.description}_\n  ` : ''}💲 *Precio mayorista: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd).toFixed(2)} USD*\n` + bulletPoints;
     }
 
@@ -1607,26 +1677,30 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
       ? `📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n`
       : '';
 
+    const sourcingPromise = `💡 *¿Busca algún formato o producto especial no listado?* ¡Pídanoslo con total confianza! Se lo ubicamos, cotizamos y despachamos de inmediato.\n\n`;
+
     const subject = promoProductOrCombo
       ? `📦 Oferta Especial en ${promoProductOrCombo.name} — JJ Paper C.A.`
+      : hasMultiOffer
+      ? `📦 Propuesta Mayorista de Suministros para ${custName} — JJ Paper C.A.`
       : (isAlreadyContacted ? `🤝 Seguimiento Operativo y Reposición para ${custName} — JJ Paper C.A.` : `📋 Abastecimiento Operativo y Lista de Precios Oficial para ${custName} — JJ Paper C.A.`);
 
     let body = '';
     if (isEmail) {
-      if (promoProductOrCombo) {
-        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda cordialmente *${sName}* de *JJ Paper C.A.* Conociendo la continua actividad de sus sedes en ${customer.city || 'Caracas'}, hoy queríamos compartirle disponibilidad inmediata y condiciones comerciales preferenciales en:\n\n*📦 OFERTA DE PRODUCTO DESTACADO:*\n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🏢 *Distribución integral*: Papelería corporativa, consumibles de oficina, insumos de caja/facturación y artículos de limpieza.\n• 🔍 *Servicio de abastecimiento especial*: Si requiere cualquier producto que no esté en nuestra lista de precios, nosotros se lo conseguimos y gestionamos directamente.\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le confirmemos disponibilidad para su despacho de esta semana?|¿Gusta que le reservemos inventario de este producto para su empresa?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+      if (hasMultiOffer || promoProductOrCombo) {
+        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda cordialmente *${sName}* de *JJ Paper C.A.* Conociendo la continua actividad de sus sedes en ${customer.city || 'Caracas'}, hoy queríamos compartirle disponibilidad inmediata y condiciones comerciales preferenciales en:\n\n*📦 PROPUESTA MAYORISTA DE SUMINISTROS:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🏢 *Distribución integral*: Papelería corporativa, consumibles de oficina, insumos de caja/facturación y artículos de limpieza.\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le confirmemos disponibilidad para su despacho de esta semana?|¿Gusta que le reservemos inventario de este lote para su empresa?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
       } else if (isAlreadyContacted) {
-        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda nuevamente *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nSomos distribuidores mayoristas de papelería corporativa, consumibles de oficina, insumos de caja y productos de limpieza. Además, *si requiere algún insumo especial que no visualice en nuestra lista de precios, nosotros se lo conseguimos y gestionamos directamente* para su total comodidad.\n\n*📦 PROPUESTA DE REPOSICIÓN OPERATIVA:*\n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda nuevamente *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\n*📦 PROPUESTA DE REPOSICIÓN OPERATIVA:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
       } else {
-        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le escribe atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas, su distribuidor mayorista de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza institucional. Además, *si requiere cualquier otro producto que no esté en la lista de precios, nosotros se lo conseguimos directamente* para apoyar la continuidad operativa de *${custName}*.\n\nEn atención a ese compromiso, ponemos a su entera disposición condiciones preferenciales de suministro directo:\n\n*📦 PROPUESTA DE ABASTECIMIENTO:* \n${bulletPoints}\n\n${pdfMention}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le escribe atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas, su distribuidor mayorista de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza institucional.\n\nEn atención a ese compromiso, ponemos a su entera disposición condiciones preferenciales de suministro directo:\n\n*📦 PROPUESTA DE ABASTECIMIENTO:* \n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
       }
     } else {
-      if (promoProductOrCombo) {
-        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le saluda|Le escribe} *${sName}* de *JJ Paper C.A.* Conociendo la rotación de insumos en su empresa, hoy le contactamos para compartirle disponibilidad inmediata y precio preferencial en: *${promoProductOrCombo.name}* ($${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD / Tasa BCV ${rate.toFixed(2)} Bs).\n\nPensando en su abastecimiento continuo, contamos con despacho prioritario en:\n\n*📦 PRODUCTOS Y COMPLEMENTOS:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🏢 *Portafolio integral*: Papelería, consumibles de oficina, insumos de caja y limpieza.\n• 🔍 *Búsqueda a medida*: Si necesita un producto que no esté en la lista, se lo conseguimos.\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le reservemos disponibilidad para despacho mañana?|¿Requiere que le preparemos la cotización formal de este producto?|Quedo a su disposición para coordinar su pedido.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+      if (hasMultiOffer || promoProductOrCombo) {
+        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le saluda|Le escribe} *${sName}* de *JJ Paper C.A.* Conociendo la rotación de insumos en su empresa, hoy le contactamos para compartirle disponibilidad inmediata y precios mayoristas preferenciales en nuestro lote seleccionado:\n\n*📦 PROPUESTA MAYORISTA DE SUMINISTROS:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*NUESTRO SERVICIO INCLUYE:*\n• 🏢 *Portafolio integral*: Papelería, consumibles de oficina, insumos de caja y embalaje.\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le reservemos disponibilidad para despacho mañana?|¿Requiere que le preparemos la cotización formal de estos productos?|Quedo a su disposición para coordinar su pedido.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
       } else if (isAlreadyContacted) {
-        body = `{Hola|Buen día|Un gusto saludarle de nuevo} ${custName} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles cómo están de inventario e insumos para sus sedes esta semana.\n\nSomos distribuidores mayoristas de papelería, consumibles de oficina, insumos de caja y limpieza. Si requiere cualquier producto especial que no esté en nuestra lista de precios, nosotros se lo conseguimos y gestionamos directamente.\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento que deseen cotizar esta semana?|¿Desea que le confirmemos despacho para mañana?|Quedo a su entera orden para apoyarles.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+        body = `{Hola|Buen día|Un gusto saludarle de nuevo} ${custName} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles cómo están de inventario e insumos para sus sedes esta semana.\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento que deseen cotizar esta semana?|¿Desea que le confirmemos despacho para mañana?|Quedo a su entera orden para apoyarles.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
       } else {
-        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza en Caracas. Además, *si requiere cualquier otro producto que no esté en la lista de precios, nosotros se lo conseguimos directamente* para asegurar el abastecimiento de su empresa.\n\nPensando en esa demanda diaria, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza en Caracas.\n\nPensando en esa demanda diaria, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
       }
     }
 
@@ -1657,6 +1731,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     sellerName = '',
     sellerPhone = '',
     promoProductOrCombo = null,
+    products = [],
     officialPdfIncluded = true,
     forceRefresh = true,
     attitude = 'presentacion',
@@ -1669,10 +1744,12 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     const total = customers.length;
     let completed = 0;
 
+    const hasCustomOffer = Boolean(promoProductOrCombo || (Array.isArray(products) && products.length > 0));
+
     // Mapeo de la actitud seleccionada a perfil psicológico y apertura
     let personality = 'Profesional / Formal';
     let messageType = 'Presentación Inicial';
-    if (promoProductOrCombo) {
+    if (hasCustomOffer) {
       personality = 'Persuasivo / Comercial';
       messageType = 'Reactivación / Oferta Especial';
     } else if (commercialTone === 'oportunidad_mayorista' || attitude === 'oferta') {
@@ -1701,6 +1778,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             sellerName,
             sellerPhone,
             promoProductOrCombo,
+            products,
             officialPdfIncluded,
             personality,
             messageType,
@@ -1723,6 +1801,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             sPhone: sellerPhone,
             rate: 40,
             promoProductOrCombo,
+            products,
             officialPdfIncluded
           });
           if (typeof onProgress === 'function') {
@@ -2172,21 +2251,13 @@ Respond with ONLY the 1 English sentence describing the object.`;
   }
 
   /* --------------------------------------------------------------------------
-     6. Generador Visual de Flyer Publicitario de Estudio (Canvas Ultra-HD 1200x1200)
-     Soporta Fondo Blanco Estudio y Fondo Verde Esmeralda JJ Paper
+     6. Generador Visual de Packshot de Estudio Puro (Fondo Limpio Catálogo 800x800)
      -------------------------------------------------------------------------- */
-  async function renderProductCard({
+  async function renderProductStudioPackshot({
     product,
-    customPriceUsd = null,
-    sellerName = '',
-    sellerPhone = '',
-    customNote = '',
-    theme = 'white', // 'emerald' | 'white'
-    headline = '',
+    theme = 'white', // 'white' | 'emerald'
     canvas = null
   }) {
-    // Rediseñado para generar SOLO LA FOTOGRAFÍA ESTUDIO del producto, 800x800px.
-    // Sin textos publicitarios ni precios ("flyer"), por solicitud del usuario, para uso directo en catálogo.
     const cvs = canvas || document.createElement('canvas');
     cvs.width = 800;
     cvs.height = 800;
@@ -2231,9 +2302,9 @@ Respond with ONLY the 1 English sentence describing the object.`;
     const maxImgH = 660;
 
     let imageRendered = false;
-    let imgToLoad = product.image_url;
+    let imgToLoad = product?.image_url;
     
-    if (!imgToLoad) {
+    if (!imgToLoad && product?.name) {
       try {
         const realPhoto = await searchRealProductPhoto(product.name);
         if (realPhoto) {
@@ -2245,7 +2316,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
       }
     }
 
-    if (!imgToLoad) {
+    if (!imgToLoad && product) {
       imgToLoad = product._studio_photo_url;
       if (!imgToLoad) {
         try {
@@ -2263,7 +2334,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
     if (imgToLoad) {
       try {
         let img = await loadImageSafe(imgToLoad);
-        if (!img && imgToLoad !== product._studio_photo_url) {
+        if (!img && imgToLoad !== product?._studio_photo_url && product) {
           try {
             const studioRes = await generateProductStudioPhoto({ product, theme });
             if (studioRes?.imageUrl) {
@@ -2297,16 +2368,416 @@ Respond with ONLY the 1 English sentence describing the object.`;
           imageRendered = true;
         }
       } catch (err) {
-        console.warn('Fallo cargando imagen en renderProductCard:', err);
+        console.warn('Fallo cargando imagen en packshot:', err);
       }
     }
 
-    if (!imageRendered) {
-      // Si todo falla, dibujar un cuadro genérico 3D de producto
+    if (!imageRendered && product) {
       renderCommercial3dProduct(ctx, product, stageCenterX, stageCenterY, isWhite);
     }
 
     return cvs;
+  }
+
+  /* --------------------------------------------------------------------------
+     6.2. Generador Visual de Flyer Publicitario Comercial (Canvas 800x800)
+     Soporta Producto Individual y Combos / Grilla Multi-Producto con Fotos Reales
+     -------------------------------------------------------------------------- */
+  async function renderMarketingFlyer({
+    product = null,
+    products = [],
+    customPriceUsd = null,
+    sellerName = 'Keyder José Salazar',
+    sellerPhone = '0412-4676073',
+    customNote = '',
+    theme = 'white',
+    headline = '',
+    canvas = null
+  }) {
+    const w = typeof window !== 'undefined' ? window : {};
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const cvs = canvas || document.createElement('canvas');
+    cvs.width = 800;
+    cvs.height = 800;
+    const ctx = cvs.getContext('2d');
+
+    const prodsList = (Array.isArray(products) && products.length > 0)
+      ? products
+      : (product?.products ? product.products : (product ? [product] : []));
+
+    const isWhite = (theme === 'white');
+    const isMulti = prodsList.length > 1;
+
+    // 1. Fondo Principal
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, 800);
+    bgGrad.addColorStop(0, '#0F172A');
+    bgGrad.addColorStop(0.12, '#16604A');
+    bgGrad.addColorStop(0.13, '#F8FAFC');
+    bgGrad.addColorStop(1, '#EEF2F6');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 800, 800);
+
+    // 2. Encabezado Institucional JJ Paper (0 - 95px)
+    ctx.fillStyle = '#16604A';
+    ctx.fillRect(0, 0, 800, 95);
+
+    // Borde inferior dorado en header
+    ctx.fillStyle = '#EAB308';
+    ctx.fillRect(0, 92, 800, 3);
+
+    // Logo / Nombre JJ Paper
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('JJ PAPER, C.A.', 30, 42);
+
+    ctx.fillStyle = '#A7F3D0';
+    ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('DISTRIBUIDOR MAYORISTA EN CARACAS · RIF J-295375450', 30, 62);
+
+    ctx.fillStyle = '#FDE68A';
+    ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('PAPELERÍA · CONSUMIBLES POS · EMBALAJE · SUMINISTROS', 30, 78);
+
+    // Píldora de Tasa Oficial BCV a la derecha
+    const bcvBoxW = 210, bcvBoxH = 46, bcvBoxX = 560, bcvBoxY = 24;
+    ctx.fillStyle = '#062017';
+    roundRect(ctx, bcvBoxX, bcvBoxY, bcvBoxW, bcvBoxH, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#10B981';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#6EE7B7';
+    ctx.font = '700 10px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🏛️ TASA OFICIAL BCV DEL DÍA', bcvBoxX + bcvBoxW / 2, bcvBoxY + 16);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 16px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(`1 USD = Bs. ${rate.toFixed(2)}`, bcvBoxX + bcvBoxW / 2, bcvBoxY + 36);
+    ctx.textAlign = 'left';
+
+    // 3. Cinta / Ribbon de Campaña (95 - 145px)
+    const effectiveHeadline = headline || (isMulti ? '🔥 COMBO / LOTE MAYORISTA DESTACADO' : '🔥 OFERTA ESPECIAL AL MAYOR');
+    ctx.fillStyle = '#0F172A';
+    roundRect(ctx, 30, 105, 740, 38, 8);
+    ctx.fill();
+
+    ctx.fillStyle = '#FBBF24';
+    ctx.font = '900 14px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(effectiveHeadline, 45, 129);
+
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '600 11px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(customNote || 'Disponibilidad inmediata para empresas y colegios', 755, 128);
+    ctx.textAlign = 'left';
+
+    // 4. Contenido Central (y: 155 a 685px)
+    if (!isMulti) {
+      // ══════ MODO MONOPRODUCTO ══════
+      const single = prodsList[0] || product || { name: 'Producto Mayorista' };
+      const pPriceUsd = Number(customPriceUsd != null ? customPriceUsd : (single.final_price_usd || single.price_usd || 0));
+      const pPriceBs = pPriceUsd * rate;
+
+      // Caja Blanca Principal para Escenario de Producto
+      ctx.fillStyle = '#FFFFFF';
+      roundRect(ctx, 30, 155, 420, 515, 14);
+      ctx.fill();
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Sombra de piso
+      ctx.beginPath();
+      ctx.ellipse(240, 580, 140, 14, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+      ctx.fill();
+
+      // Carga y renderizado de foto real del producto
+      let imgObj = null;
+      const imgUrl = single.image_url || single._studio_photo_url;
+      if (imgUrl) {
+        try { imgObj = await loadImageSafe(imgUrl); } catch (_) {}
+      }
+
+      if (imgObj && imgObj.width > 10 && imgObj.height > 10) {
+        const maxW = 380, maxH = 380;
+        const scale = Math.min(maxW / imgObj.width, maxH / imgObj.height, 1);
+        const dw = imgObj.width * scale;
+        const dh = imgObj.height * scale;
+        const dx = 240 - dw / 2;
+        const dy = 370 - dh / 2;
+        ctx.drawImage(imgObj, dx, dy, dw, dh);
+      } else {
+        renderCommercial3dProduct(ctx, single, 240, 370, true);
+      }
+
+      // Badge flotante sobre la foto
+      ctx.fillStyle = '#DC2626';
+      roundRect(ctx, 45, 170, 140, 26, 6);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '800 11px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⭐ PRECIO MAYORISTA', 115, 187);
+      ctx.textAlign = 'left';
+
+      // Panel Lateral Derecho: Datos, Precio Hero y Beneficios (x: 465, y: 155, w: 305)
+      // Nombre del producto
+      ctx.fillStyle = '#0F172A';
+      ctx.font = '900 20px -apple-system, BlinkMacSystemFont, sans-serif';
+      const titleLines = wrapText(ctx, single.name || 'Artículo Comercial', 295);
+      let curY = 185;
+      titleLines.slice(0, 3).forEach(line => {
+        ctx.fillText(line, 470, curY);
+        curY += 25;
+      });
+
+      // Especificaciones
+      curY += 5;
+      ctx.fillStyle = '#64748B';
+      ctx.font = '600 12px -apple-system, sans-serif';
+      if (single.brand) {
+        ctx.fillText(`🏷️ Marca: ${single.brand}`, 470, curY);
+        curY += 18;
+      }
+      if (single.unit) {
+        ctx.fillText(`📦 Presentación: ${single.unit}`, 470, curY);
+        curY += 18;
+      }
+      if (single.sku) {
+        ctx.fillText(`🔖 SKU / Código: ${single.sku}`, 470, curY);
+        curY += 20;
+      }
+
+      // Hero Price Box
+      const priceBoxY = Math.max(curY + 5, 290);
+      const priceBoxH = 150;
+      ctx.fillStyle = '#ECFDF5';
+      roundRect(ctx, 465, priceBoxY, 305, priceBoxH, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#059669';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#065F46';
+      ctx.font = '800 11px -apple-system, sans-serif';
+      ctx.fillText('INVERSIÓN MAYORISTA PREFERENCIAL', 485, priceBoxY + 26);
+
+      ctx.fillStyle = '#047857';
+      ctx.font = '900 38px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(`$${pPriceUsd.toFixed(2)}`, 485, priceBoxY + 68);
+
+      ctx.font = '700 16px -apple-system, sans-serif';
+      ctx.fillText('USD', 485 + ctx.measureText(`$${pPriceUsd.toFixed(2)} `).width, priceBoxY + 66);
+
+      ctx.fillStyle = '#065F46';
+      ctx.font = '800 18px -apple-system, sans-serif';
+      ctx.fillText(`Bs. ${pPriceBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 485, priceBoxY + 98);
+
+      ctx.fillStyle = '#047857';
+      ctx.font = '600 11px -apple-system, sans-serif';
+      ctx.fillText('Facturado a Tasa Oficial BCV del día', 485, priceBoxY + 124);
+
+      // Ventajas rápidas debajo del precio
+      let perkY = priceBoxY + priceBoxH + 20;
+      const perks = [
+        '🚚 Despacho gratuito en Caracas',
+        '⚡ Entrega rápida garantizada 24h',
+        '🧾 Factura fiscal SENIAT legal'
+      ];
+      ctx.fillStyle = '#334155';
+      ctx.font = '700 12px -apple-system, sans-serif';
+      perks.forEach(pk => {
+        ctx.fillText(pk, 470, perkY);
+        perkY += 22;
+      });
+
+    } else {
+      // ══════ MODO COMBO / GRILLA MULTI-PRODUCTO (2 A 8 ÍTEMS) ══════
+      const items = prodsList.slice(0, 6); // Grilla óptima 2x3 o 3x2
+      const cols = items.length <= 4 ? 2 : 3;
+      const rows = Math.ceil(items.length / cols);
+      const cardW = cols === 2 ? 355 : 235;
+      const cardH = rows === 2 ? 220 : 155;
+      const startX = 30;
+      const startY = 155;
+      const gapX = cols === 2 ? 30 : 17;
+      const gapY = 14;
+
+      // Cargar imágenes de los productos en paralelo
+      const loadedImgs = await Promise.all(
+        items.map(async (it) => {
+          const u = it.image_url || it._studio_photo_url;
+          if (!u) return null;
+          try { return await loadImageSafe(u); } catch (_) { return null; }
+        })
+      );
+
+      for (let idx = 0; idx < items.length; idx++) {
+        const it = items[idx];
+        const img = loadedImgs[idx];
+        const r = Math.floor(idx / cols);
+        const c = idx % cols;
+        const x = startX + c * (cardW + gapX);
+        const y = startY + r * (cardH + gapY);
+
+        // Tarjeta blanca para cada producto
+        ctx.fillStyle = '#FFFFFF';
+        roundRect(ctx, x, y, cardW, cardH, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#E2E8F0';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Mini foto / thumbnail a la izquierda
+        const thumbBoxW = cols === 2 ? 110 : 80;
+        const thumbBoxH = cardH - 20;
+        const thumbCenterX = x + 10 + thumbBoxW / 2;
+        const thumbCenterY = y + cardH / 2;
+
+        if (img && img.width > 10) {
+          const sc = Math.min((thumbBoxW - 10) / img.width, (thumbBoxH - 10) / img.height, 1);
+          const dw = img.width * sc;
+          const dh = img.height * sc;
+          ctx.drawImage(img, thumbCenterX - dw / 2, thumbCenterY - dh / 2, dw, dh);
+        } else {
+          ctx.font = '36px -apple-system, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(it.emoji || '📦', thumbCenterX, thumbCenterY + 12);
+          ctx.textAlign = 'left';
+        }
+
+        // Datos del producto a la derecha del thumbnail
+        const textX = x + thumbBoxW + 18;
+        const maxTextW = cardW - thumbBoxW - 25;
+        let tY = y + 26;
+
+        ctx.fillStyle = '#0F172A';
+        ctx.font = '800 13px -apple-system, BlinkMacSystemFont, sans-serif';
+        const lines = wrapText(ctx, it.name || 'Artículo', maxTextW);
+        lines.slice(0, 2).forEach(l => {
+          ctx.fillText(l, textX, tY);
+          tY += 16;
+        });
+
+        // Unidad / Presentación
+        if (it.unit && it.unit !== 'unid') {
+          ctx.fillStyle = '#64748B';
+          ctx.font = '600 10px -apple-system, sans-serif';
+          ctx.fillText(`(${it.unit})`, textX, tY);
+          tY += 14;
+        }
+
+        // Precio individual
+        const prUsd = Number(it.final_price_usd != null ? it.final_price_usd : (it.price_usd || 0));
+        const prBs = prUsd * rate;
+
+        tY = Math.max(tY + 4, y + cardH - 36);
+        ctx.fillStyle = '#059669';
+        ctx.font = '900 16px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(`$${prUsd.toFixed(2)} USD`, textX, tY);
+
+        ctx.fillStyle = '#065F46';
+        ctx.font = '700 11px -apple-system, sans-serif';
+        ctx.fillText(`Bs. ${prBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, textX, tY + 14);
+      }
+
+      // Si hay precio total de combo o customPriceUsd
+      if (customPriceUsd || product?.final_price_usd) {
+        const totalComboUsd = Number(customPriceUsd || product?.final_price_usd || 0);
+        if (totalComboUsd > 0) {
+          const totalComboBs = totalComboUsd * rate;
+          // Píldora de precio total
+          const totY = 635;
+          ctx.fillStyle = '#16604A';
+          roundRect(ctx, 30, totY, 740, 42, 8);
+          ctx.fill();
+
+          ctx.fillStyle = '#FDE68A';
+          ctx.font = '900 14px -apple-system, sans-serif';
+          ctx.fillText('✨ TOTAL DE LA OFERTA / COMBO:', 45, totY + 26);
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = '900 18px -apple-system, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(`$${totalComboUsd.toFixed(2)} USD (Bs. ${totalComboBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`, 755, totY + 27);
+          ctx.textAlign = 'left';
+        }
+      }
+    }
+
+    // 5. Pie de Página Comercial e Institucional (695 - 800px)
+    ctx.fillStyle = '#062017';
+    ctx.fillRect(0, 695, 800, 105);
+
+    // Barra de Promesa de Sourcing Especial (¡MANDATORIA!)
+    ctx.fillStyle = '#0B3327';
+    ctx.fillRect(0, 695, 800, 32);
+    ctx.fillStyle = '#A3E635';
+    ctx.font = '800 11px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💡 ¿BUSCA ALGÚN PRODUCTO O MARCA QUE NO VEA AQUÍ? ¡PÍDALO! SE LO UBICAMOS Y COTIZAMOS DIRECTAMENTE', 400, 715);
+    ctx.textAlign = 'left';
+
+    // Línea divisoria sutil
+    ctx.fillStyle = '#16604A';
+    ctx.fillRect(30, 728, 740, 1);
+
+    // Datos del Asesor y Condiciones
+    ctx.fillStyle = '#E2E8F0';
+    ctx.font = '600 11px -apple-system, sans-serif';
+    ctx.fillText('🚚 Entrega Inmediata en Caracas · Facturación SENIAT en Bolívares (Tasa BCV)', 30, 755);
+
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '500 10px -apple-system, sans-serif';
+    ctx.fillText('Precios al mayor válidos para empresas, comercios y colegios · RIF J-295375450', 30, 775);
+
+    // Asesor Comercial a la derecha
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#FDE68A';
+    ctx.font = '800 13px -apple-system, sans-serif';
+    ctx.fillText(`👤 Asesor: ${sellerName}`, 770, 755);
+
+    ctx.fillStyle = '#6EE7B7';
+    ctx.font = '800 12px -apple-system, sans-serif';
+    ctx.fillText(`📞 Pedidos / WhatsApp: ${sellerPhone}`, 770, 775);
+    ctx.textAlign = 'left';
+
+    return cvs;
+  }
+
+  /* --------------------------------------------------------------------------
+     6.3. Enrutador Maestro de Tarjetas y Flyers de Productos
+     -------------------------------------------------------------------------- */
+  async function renderProductCard({
+    product = null,
+    products = [],
+    customPriceUsd = null,
+    sellerName = '',
+    sellerPhone = '',
+    customNote = '',
+    theme = 'white',
+    headline = '',
+    canvas = null,
+    mode = 'flyer'
+  }) {
+    if (mode === 'photo') {
+      return renderProductStudioPackshot({ product, theme, canvas });
+    }
+    return renderMarketingFlyer({
+      product,
+      products,
+      customPriceUsd,
+      sellerName,
+      sellerPhone,
+      customNote,
+      theme,
+      headline,
+      canvas
+    });
   }
 
   /**
@@ -2634,6 +3105,8 @@ ${rawText}
     searchRealProductPhoto,
     askCopilot,
     renderProductCard,
+    renderMarketingFlyer,
+    renderProductStudioPackshot,
     getCurrentKeyIndex: () => _keyIndex,
     getTotalKeys: () => GEMINI_KEYS.length
   };

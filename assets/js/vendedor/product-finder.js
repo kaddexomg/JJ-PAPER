@@ -33,12 +33,25 @@ async function pfLoad(force) {
     let from = 0;
     const step = 999;
     while (true) {
-      const { data, error } = await sb.from('jjp_products')
-        .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
-        .eq('active', true).range(from, from + step).order('name');
-      if (error) { 
-        if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); 
-        return PF_PRODUCTS || []; 
+      // 1. Intento rápido vía vista materializada plana compartida (jjp_catalog_flat)
+      const { data, error } = await sb.from('jjp_catalog_flat')
+        .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants')
+        .range(from, from + step).order('name');
+      
+      if (error) {
+        console.warn('[pfLoad] Fallback a jjp_products con JOINs:', error);
+        const { data: fbData, error: fbErr } = await sb.from('jjp_products')
+          .select('id,name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,emoji,image_url,stock,min_qty,jjp_product_variants(id,brand_id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,active,jjp_brands(name))')
+          .eq('active', true).range(from, from + step).order('name');
+        if (fbErr) { 
+          if (typeof showToast === 'function') showToast('Error cargando productos', 'err'); 
+          return PF_PRODUCTS || []; 
+        }
+        if (!fbData || fbData.length === 0) break;
+        allData.push(...fbData);
+        if (fbData.length <= step) break;
+        from += step + 1;
+        continue;
       }
       if (!data || data.length === 0) break;
       allData.push(...data);

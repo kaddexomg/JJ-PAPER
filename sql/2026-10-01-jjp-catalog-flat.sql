@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Migración: Vista Materializada jjp_catalog_flat para Acelerar Catálogo Web
+-- Migración: Vista Materializada jjp_catalog_flat para Acelerar Catálogo Web, POS y Campañas
 -- Fecha: 01 de Octubre de 2026
 -- Proyecto A (Core)
 -- ==============================================================================
@@ -16,6 +16,7 @@ SELECT
   p.price_b,
   p.price_c_bs, 
   p.price_d_bs, 
+  p.mixnet_status,
   p.unit, 
   p.image_url, 
   p.emoji, 
@@ -25,6 +26,7 @@ SELECT
   p.stock, 
   p.min_qty, 
   p.category_id, 
+  p.sku,
   p.sort_order,
   jsonb_build_object(
     'name', c.name, 
@@ -38,6 +40,7 @@ SELECT
         'id', v.id, 
         'variant_name', v.variant_name, 
         'sku', v.sku, 
+        'barcode', v.barcode,
         'price_usd', v.price_usd,
         'price_a', v.price_a, 
         'price_b', v.price_b, 

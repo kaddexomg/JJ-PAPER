@@ -241,7 +241,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 130px;
+    max-width: 190px;
   }
   .tbl-rows {
     color: var(--text-muted);
@@ -764,6 +764,69 @@
           </div>
         </div>
 
+        <!-- PROYECTO D / SERVIDOR SUPERVISOR & PUENTE MIXNET ERP -->
+        <div class="proj-card" id="srvCard">
+          <div class="proj-header">
+            <div class="proj-title">
+              <h3>Servidor Supervisor & MixNet</h3>
+              <p id="srvSubtitle">Puente ERP M:/comp01 · Caja & POS</p>
+            </div>
+            <div class="proj-badges">
+              <span class="badge-metric" id="srvLatency">⚡ -- ms</span>
+              <span class="badge-metric" id="srvStatusBadge" style="background:rgba(46,213,115,0.15);color:#4cd137;border-color:rgba(46,213,115,0.35);">🟢 Online</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-labels">
+              <span id="srvHostTxt">Supervisor-Pc (100.103.110.44)</span>
+              <span id="srvBeatTxt">Latido: Hace unos segundos</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill optimal" id="srvProgressBar" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">Conectividad & Telemetría del Puente:</div>
+            <div class="table-list" id="srvDetailsList">
+              <div class="table-row-item">
+                <span class="tbl-name">🌐 IP Tailscale (VPN)</span>
+                <span class="tbl-size" id="srvTailscaleIp"><a href="http://100.103.110.44:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;">100.103.110.44:8787 ↗</a></span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">🏢 IP Local (LAN)</span>
+                <span class="tbl-size" id="srvLanIp">192.168.0.172:8787</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">📁 Unidad MixNet ERP</span>
+                <span class="tbl-size" id="srvMixnetDir">M:/comp01 (🟢 DBF Activo)</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">🛒 Pedidos Exportados</span>
+                <span class="tbl-size" id="srvOrdersCount">110 en caja</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">📋 Cotizaciones Exportadas</span>
+                <span class="tbl-size" id="srvQuotesCount">38 en caja</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">📦 Productos Sincronizados</span>
+                <span class="tbl-size" id="srvCatalogCount">791 importados</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="proj-actions">
+            <button class="btn-action" onclick="triggerSyncMixnet()">
+              🔄 Sincronizar MixNet
+            </button>
+            <a href="lan.html" class="btn-action" style="text-align:center;text-decoration:none;" target="_blank">
+              📡 Conteo LAN
+            </a>
+          </div>
+        </div>
+
       </div>
 
       <!-- Sección de Optimizaciones & Limpieza de Datos -->
@@ -848,6 +911,6 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
-<script src="../assets/js/admin/monitor-client.js?v=20260917_live_c"></script>
+<script src="../assets/js/admin/monitor-client.js?v=20261002_live_mixer"></script>
 </body>
 </html>

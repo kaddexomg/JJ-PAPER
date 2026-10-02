@@ -352,6 +352,8 @@ const MIME = {
 // servidor por LAN y localhost.
 const ALLOWED_ORIGINS = [
   'https://jj-paper.pages.dev',
+  'https://jjpaper.lat',
+  'https://www.jjpaper.lat',
   'http://localhost:8787', 'https://localhost:8788',
   'http://127.0.0.1:8787', 'https://127.0.0.1:8788',
 ];
@@ -359,10 +361,10 @@ function corsOrigin(req) {
   const o = req?.headers?.origin;
   if (!o) return '*';                                   // petición interna o sin origen
   if (ALLOWED_ORIGINS.includes(o)) return o;
-  if (o.endsWith('.pages.dev') || o.endsWith('pages.dev')) return o;
+  if (o.endsWith('.pages.dev') || o.endsWith('pages.dev') || o.endsWith('jjpaper.lat')) return o;
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) return o;
-  // El teléfono entra por la IP de la PC en la red local (192.168.x / 10.x)
-  if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
+  // El teléfono o PC entra por la IP en la red local o VPN Tailscale (192.168.x / 10.x / 172.x / 100.x)
+  if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.\d{1,3}\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
   return null;
 }
 // Se marca la respuesta UNA vez al entrar la petición (handle) y de ahí en

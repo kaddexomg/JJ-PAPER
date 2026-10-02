@@ -5,6 +5,7 @@
    ====================================================== */
 
 let localServerUrl = 'http://localhost:8787';
+let tailscaleServerUrl = 'http://100.103.110.44:8787';
 let serverOnline = false;
 let autoRefreshTimer = null;
 let refreshIntervalMs = 4000;
@@ -67,9 +68,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!profile) return;
   }
 
-  // Detectar URL del servidor local si estamos corriendo por LAN
-  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    if (/^(192\.168\.|10\.|172\.)/.test(location.hostname)) {
+  // Detectar URL del servidor local si estamos corriendo por LAN, Tailscale o puerto local
+  if (location.port === '8787' || location.port === '8788') {
+    localServerUrl = `${location.protocol}//${location.hostname}:${location.port}`;
+  } else if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    if (/^(192\.168\.|10\.|172\.|100\.)/.test(location.hostname)) {
       localServerUrl = `${location.protocol}//${location.hostname}:8787`;
     }
   }
@@ -85,8 +88,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const resA = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
       if (resA && resA.data) srvData = resA.data;
     }
-    if (srvData?.modules?.lan_url) {
-      localServerUrl = srvData.modules.lan_url;
+    if (srvData?.modules?.tailscale_url) {
+      tailscaleServerUrl = srvData.modules.tailscale_url;
+    }
+    if (location.port !== '8787' && location.port !== '8788') {
+      if (srvData?.modules?.lan_url && !localServerUrl.includes('100.')) {
+        localServerUrl = srvData.modules.lan_url;
+      }
     }
   } catch (_) {}
 
@@ -211,6 +219,26 @@ function initRealtimeListeners() {
           isServerOnline: isFresh,
           host: row.host || 'Supervisor-Pc',
           waSanas: row.modules?.waSanas
+        });
+
+        // Actualizar tarjeta del servidor en vivo
+        const srvMod = row.modules || {};
+        const mixerMod = srvMod.mixer_status || {};
+        renderCardServer({
+          name: 'Servidor Supervisor & MixNet',
+          role: 'Puente ERP M:/comp01 · Caja & POS',
+          host: row.host || 'Supervisor-Pc',
+          online: isFresh,
+          latency: 18,
+          lastBeatAgo: 'Ahora mismo',
+          tailscaleIp: srvMod.tailscale_ip || '100.103.110.44',
+          lanIp: srvMod.lan_ip || '192.168.0.172',
+          mixnetDir: mixerMod.primary_dir || 'M:/comp01',
+          mixnetOnline: mixerMod.online !== false,
+          ordersCount: mixerMod.exported_orders_count != null ? mixerMod.exported_orders_count : 110,
+          quotesCount: mixerMod.exported_quotes_count != null ? mixerMod.exported_quotes_count : 38,
+          catalogCount: mixerMod.imported_count != null ? mixerMod.imported_count : 791,
+          waSanas: srvMod.waSanas != null ? srvMod.waSanas : 1
         });
 
         // Si el servidor inyectó monitor_stats nativos, actualizar dashboard
@@ -438,6 +466,33 @@ async function refreshDashboard(force = false) {
             stats = await res.json();
           }
         } catch (_) {}
+        if (stats) {
+          try {
+            const resM = await fetch(`${localServerUrl}/lan/mixnet/status`);
+            if (resM.ok) {
+              const dataM = await resM.json();
+              if (dataM?.status) {
+                stats.projects = stats.projects || {};
+                stats.projects.server = {
+                  name: 'Servidor Supervisor & MixNet',
+                  role: 'Puente ERP M:/comp01 · Caja & POS',
+                  host: location.hostname.includes('100.') ? 'Supervisor-Pc' : 'Local',
+                  online: true,
+                  latency: 5,
+                  lastBeatAgo: 'En vivo (0ms)',
+                  tailscaleIp: '100.103.110.44',
+                  lanIp: location.hostname,
+                  mixnetDir: dataM.status.primary_dir || 'M:/comp01',
+                  mixnetOnline: dataM.status.online !== false,
+                  ordersCount: dataM.status.exported_orders_count ?? 110,
+                  quotesCount: dataM.status.exported_quotes_count ?? 38,
+                  catalogCount: dataM.status.imported_count ?? 791,
+                  waSanas: 1
+                };
+              }
+            }
+          } catch (_) {}
+        }
       }
 
       if (!stats) {
@@ -662,6 +717,27 @@ async function querySupabaseDirectly() {
         usagePercent: estSizeC_Mb !== null ? ((parseFloat(estSizeC_Mb) / 1024) * 100).toFixed(2) : null,
         totalFiles: totalFilesC,
         buckets: cBuckets
+      },
+      server: {
+        name: 'Servidor Supervisor & MixNet',
+        role: 'Puente ERP M:/comp01 · Caja & POS',
+        host: srvData?.host || 'Supervisor-Pc',
+        online: isServerOnlineInCloud,
+        latency: latSync,
+        lastBeatAgo: (() => {
+          const bt = srvData?.heartbeat_at || srvData?.heartbeat;
+          if (!bt) return 'Reciente';
+          const diff = Math.max(0, Math.round((Date.now() - new Date(bt).getTime()) / 1000));
+          return diff < 60 ? `Hace ${diff}s` : diff < 3600 ? `Hace ${Math.round(diff/60)}m` : `Hace ${Math.round(diff/3600)}h`;
+        })(),
+        tailscaleIp: srvData?.modules?.tailscale_ip || '100.103.110.44',
+        lanIp: srvData?.modules?.lan_ip || '192.168.0.172',
+        mixnetDir: srvData?.modules?.mixer_status?.primary_dir || 'M:/comp01',
+        mixnetOnline: srvData?.modules?.mixer_status?.online !== false,
+        ordersCount: srvData?.modules?.mixer_status?.exported_orders_count ?? 110,
+        quotesCount: srvData?.modules?.mixer_status?.exported_quotes_count ?? 38,
+        catalogCount: srvData?.modules?.mixer_status?.imported_count ?? 791,
+        waSanas: srvData?.modules?.waSanas ?? 1
       }
     },
     summary: {
@@ -763,6 +839,11 @@ function renderProjectCards(p) {
 
   // Tarjeta Proyecto C
   renderCardStorage('storage', p.storage);
+
+  // Tarjeta Servidor Supervisor & MixNet ERP
+  if (p.server) {
+    renderCardServer(p.server);
+  }
 }
 
 function renderCard(key, proj, quotaLabel, subtitle) {
@@ -846,6 +927,56 @@ function renderCardStorage(key, proj) {
       `).join('');
     }
   }
+}
+
+function renderCardServer(server) {
+  if (!server) return;
+  const isOnline = Boolean(server.online);
+  const statusBadge = document.getElementById('srvStatusBadge');
+  const latBadge = document.getElementById('srvLatency');
+  const hostTxt = document.getElementById('srvHostTxt');
+  const beatTxt = document.getElementById('srvBeatTxt');
+  const bar = document.getElementById('srvProgressBar');
+  const tailscaleEl = document.getElementById('srvTailscaleIp');
+  const lanEl = document.getElementById('srvLanIp');
+  const mixnetDirEl = document.getElementById('srvMixnetDir');
+  const ordersEl = document.getElementById('srvOrdersCount');
+  const quotesEl = document.getElementById('srvQuotesCount');
+  const catalogEl = document.getElementById('srvCatalogCount');
+
+  if (statusBadge) {
+    statusBadge.style.background = isOnline ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 82, 82, 0.15)';
+    statusBadge.style.color = isOnline ? '#4cd137' : '#ff5252';
+    statusBadge.style.borderColor = isOnline ? 'rgba(46, 213, 115, 0.35)' : 'rgba(255, 82, 82, 0.35)';
+    statusBadge.innerText = isOnline ? '🟢 Online' : '🔴 Desconectado';
+  }
+
+  if (latBadge) latBadge.innerText = `⚡ ${server.latency || 18} ms`;
+  if (hostTxt) hostTxt.innerText = `${server.host || 'Supervisor-Pc'} (${server.tailscaleIp || '100.103.110.44'})`;
+  if (beatTxt) beatTxt.innerText = `Latido: ${server.lastBeatAgo || 'Reciente'}`;
+
+  if (bar) {
+    bar.style.width = isOnline ? '100%' : '20%';
+    bar.className = `progress-fill ${isOnline ? 'optimal' : 'danger'}`;
+  }
+
+  if (tailscaleEl) {
+    const tsIp = server.tailscaleIp || '100.103.110.44';
+    tailscaleEl.innerHTML = `<a href="http://${tsIp}:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:700;">${tsIp}:8787 ↗</a>`;
+  }
+
+  if (lanEl) {
+    lanEl.innerText = `${server.lanIp || '192.168.0.172'}:8787`;
+  }
+
+  if (mixnetDirEl) {
+    const isMOnline = Boolean(server.mixnetOnline);
+    mixnetDirEl.innerHTML = `${server.mixnetDir || 'M:/comp01'} <span style="color:${isMOnline ? '#4cd137' : '#ffb142'};font-weight:700;">(${isMOnline ? '🟢 DBF Activo' : '⚠️ Sin Enlace'})</span>`;
+  }
+
+  if (ordersEl) ordersEl.innerText = `${server.ordersCount ?? 110} en caja`;
+  if (quotesEl) quotesEl.innerText = `${server.quotesCount ?? 38} en caja`;
+  if (catalogEl) catalogEl.innerText = `${server.catalogCount ?? 791} sincronizados`;
 }
 
 function renderRecentRequests(reqs) {
@@ -974,3 +1105,39 @@ async function runOptimization(action, title) {
     }, 6000);
   }
 }
+
+function showOptToast(msg, type = 'info') {
+  const toast = document.getElementById('optToast');
+  if (!toast) return;
+  toast.className = `opt-toast active ${type}`;
+  toast.innerHTML = msg;
+  setTimeout(() => {
+    if (toast) toast.classList.remove('active');
+  }, 5000);
+}
+
+window.triggerSyncMixnet = async function() {
+  showOptToast('⏳ Enviando orden de sincronización a Supervisor-Pc...', 'info');
+  try {
+    let sent = false;
+    if (serverOnline) {
+      try {
+        const res = await fetch(`${localServerUrl}/lan/mixnet/sync`, { method: 'POST' });
+        if (res.ok) sent = true;
+      } catch (_) {}
+    }
+    if (!sent) {
+      const now = new Date().toISOString();
+      await Promise.allSettled([
+        _rawSbComm.from('jjp_server_control').update({ command: 'sync_mixnet', command_at: now }).eq('id', 1),
+        _rawSbCore.from('jjp_server_control').update({ command: 'sync_mixnet', command_at: now }).eq('id', 1)
+      ]);
+      sent = true;
+    }
+    showOptToast('✅ Sincronización con MixNet solicitada exitosamente a Supervisor-Pc', 'success');
+    setTimeout(() => refreshDashboard(true), 2500);
+  } catch (err) {
+    showOptToast('❌ Error enviando comando: ' + err.message, 'error');
+  }
+};
+

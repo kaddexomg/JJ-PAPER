@@ -35,6 +35,20 @@ function getLanIp() {
 }
 
 
+function getTailscaleIp() {
+  try {
+    const ifaces = os.networkInterfaces();
+    for (const name of Object.keys(ifaces)) {
+      if (/tailscale/i.test(name)) {
+        for (const i of ifaces[name] || []) {
+          if (i.family === 'IPv4' && !i.internal) return i.address;
+        }
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
 let lastStatsData = null;
 let lastStatsFetchTime = 0;
 const STATS_BEAT_TTL = 300_000; // Recalcular métricas de Postgres cada 5 minutos
@@ -69,11 +83,21 @@ async function beat() {
   if (waSesiones > 0 && waSanas === 0) serverStatus = 'degraded';
 
   const ip = getLanIp();
+  const tsIp = getTailscaleIp();
   const lanInfo = {
     lan_ip: ip,
     lan_url: `http://${ip}:8787`,
-    lan_https_url: `https://${ip}:8788`
+    lan_https_url: `https://${ip}:8788`,
+    tailscale_ip: tsIp,
+    tailscale_url: tsIp ? `http://${tsIp}:8787` : null,
+    tailscale_https_url: tsIp ? `https://${tsIp}:8788` : null
   };
+
+  let mixerStatus = null;
+  try {
+    const { getMixerStatus } = await import('./mixer.js');
+    mixerStatus = getMixerStatus();
+  } catch (_) {}
 
   let gsmDevice = null;
   try {
@@ -89,7 +113,14 @@ async function beat() {
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}), ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
+    modules: {
+      ...modulesRef,
+      ...extra,
+      ...lanInfo,
+      ...(mixerStatus ? { mixer_status: mixerStatus } : {}),
+      ...(gsmDevice ? { gsm_device: gsmDevice } : {}),
+      ...(monitorStats ? { monitor_stats: monitorStats } : {})
+    }
   };
 
   // 1. Actualizar Proyecto B (Comunicación)

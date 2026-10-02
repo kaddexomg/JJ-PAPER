@@ -92,6 +92,20 @@
         <a href="ajustes.html" class="btn-ghost">⚙️ Configurar pagos</a>
       </div>
 
+      <!-- Banner de Estado Servidor & MixNet -->
+      <div id="serverStatusBar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 18px;background:#07231a;border:1px solid #1a4535;border-radius:12px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="dashSrvDot" style="width:10px;height:10px;border-radius:50%;background:#2ed573;display:inline-block;box-shadow:0 0 8px #2ed573;"></span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#eaf5ee;" id="dashSrvTitle">Servidor Supervisor: En Línea · MixNet M:/comp01 Activo</div>
+            <div style="font-size:11px;color:#8fb5a2;" id="dashSrvSub">IP Tailscale: 100.103.110.44:8787 | Conexión directa a caja y base de datos</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <a href="monitor.html" class="btn-ghost" style="padding:6px 14px;font-size:12px;border-color:#2c5647;color:#99CC33;font-weight:700;text-decoration:none;">⚡ Ver Monitor de Conexiones →</a>
+        </div>
+      </div>
+
       <!-- Notificaciones -->
       <div class="admin-table-wrap" style="margin-bottom:24px">
         <div class="table-top">
@@ -168,6 +182,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadSettings();
   await initDashboard();
+
+  // Comprobar estado en vivo de Supervisor-Pc
+  try {
+    const { data: srv } = await sb.from('jjp_server_control').select('status, host, heartbeat_at, modules').eq('id', 1).maybeSingle();
+    if (srv) {
+      const isOnline = (Date.now() - new Date(srv.heartbeat_at || 0).getTime()) < 120_000 || srv.status === 'online';
+      const dot = document.getElementById('dashSrvDot');
+      const title = document.getElementById('dashSrvTitle');
+      const sub = document.getElementById('dashSrvSub');
+      if (dot) {
+        dot.style.background = isOnline ? '#2ed573' : '#ff5252';
+        dot.style.boxShadow = isOnline ? '0 0 8px #2ed573' : '0 0 8px #ff5252';
+      }
+      if (title) {
+        title.textContent = isOnline ? `Servidor Supervisor (${srv.host || 'Supervisor-Pc'}): En Línea · MixNet M:/comp01 Activo` : 'Servidor Supervisor: Desconectado o Reiniciando';
+      }
+      if (sub) {
+        const tsIp = srv.modules?.tailscale_ip || '100.103.110.44';
+        sub.textContent = isOnline ? `IP Privada Tailscale: ${tsIp}:8787 | Conexión directa a caja y base de datos` : 'Esperando latido de red local...';
+      }
+    }
+  } catch (_) {}
 });
 </script>
 </body>

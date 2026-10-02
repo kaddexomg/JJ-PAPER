@@ -1132,6 +1132,41 @@ function readFileAnyFormat(filePath) {
       };
     }
 
+    // Si es archivo binario de Office o PDF (XLS, DOC, PDF)
+    if (['.xls', '.xlsx', '.doc', '.docx', '.pdf'].indexOf(ext) !== -1) {
+      try {
+        var buf = fs.readFileSync(filePath);
+        var cleanStrings = [];
+        var curStr = '';
+        for (var bi = 0; bi < Math.min(buf.length, 500000); bi++) {
+          var byte = buf[bi];
+          if ((byte >= 32 && byte <= 126) || (byte >= 160 && byte <= 255)) {
+            curStr += String.fromCharCode(byte);
+          } else {
+            if (curStr.length >= 4 && !/^\s+$/.test(curStr)) {
+              cleanStrings.push(curStr.trim());
+            }
+            curStr = '';
+          }
+          if (cleanStrings.length >= 600) break;
+        }
+        return {
+          success: true,
+          type: 'binary_preview',
+          ext: ext,
+          path: filePath,
+          size: st.size,
+          mtime: st.mtime,
+          content: '=== VISTA PREVIA EXTRAÍDA DE ARCHIVO ' + ext.toUpperCase() + ' ===\n' +
+                   'Ruta: ' + filePath + ' (' + Math.round(st.size/1024) + ' KB)\n' +
+                   'Nota: Para ver el documento original completo con formato, usa el botón "Descargar Archivo".\n\n' +
+                   '--- TEXTO Y DATOS DETECTADOS ---\n' + cleanStrings.join('\n')
+        };
+      } catch (binErr) {
+        return { success: false, error: 'Error extrayendo texto del binario: ' + binErr.message };
+      }
+    }
+
     // Si es archivo de texto (PRG, INI, TXT, CSV, JSON, BAT, LOG)
     if (st.size > 5 * 1024 * 1024) {
       return { success: false, error: 'Archivo demasiado grande para editar (>5MB).' };
@@ -1315,6 +1350,16 @@ var server = http.createServer(function(req, res) {
     return sendJSON(res, 200, { ok: true, accesses: config.accesos_sistema });
   }
 
+  if (pathname === '/api/credentials') {
+    return sendJSON(res, 200, {
+      ok: true,
+      credentials: config.claves_y_credenciales_recuperadas || {},
+      archivos_bancarios: config.archivos_bancarios_red || [],
+      accesses: config.accesos_sistema || {},
+      cuentas_oficiales: config.cuentas_bancarias_empresa || []
+    });
+  }
+
   // --- API DE EXPLORADOR Y EDITOR DE ARCHIVOS ---
   if (pathname === '/api/files/browse') {
     var browseRes = browseDirectory(parsed.query.dir);
@@ -1329,6 +1374,29 @@ var server = http.createServer(function(req, res) {
   if (pathname === '/api/files/read') {
     var readRes = readFileAnyFormat(parsed.query.path);
     return sendJSON(res, readRes.success ? 200 : 400, readRes);
+  }
+
+  if (pathname === '/api/files/download') {
+    var dlPath = parsed.query.path;
+    if (!dlPath || !fs.existsSync(dlPath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Archivo no encontrado: ' + dlPath);
+    }
+    try {
+      var dlStat = fs.statSync(dlPath);
+      var dlFilename = path.basename(dlPath);
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'attachment; filename="' + encodeURIComponent(dlFilename) + '"',
+        'Content-Length': dlStat.size
+      });
+      var dlStream = fs.createReadStream(dlPath);
+      dlStream.pipe(res);
+      return;
+    } catch (dlErr) {
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Error leyendo archivo para descarga: ' + dlErr.message);
+    }
   }
 
   if (pathname === '/api/files/write' && req.method === 'POST') {
@@ -1367,10 +1435,14 @@ var server = http.createServer(function(req, res) {
           return c.nombre + ': Saldo ' + c.saldo + ' ' + c.moneda + ' (Resp: ' + c.responsable + ')';
         });
 
+        var archsContext = (config.archivos_bancarios_red || []).map(function(a) {
+          return a.nombre + ' (' + a.tipo + '): ' + a.ruta + ' -> ' + a.descripcion;
+        });
+
         // Resumen completo en vivo de todos los módulos del ERP
         var sysPrompt = [
           "Eres el Copiloto Ejecutivo y Director Financiero/Operativo de JJ Paper C.A.",
-          "Tienes ACCESO TOTAL, LIBRE Y ADOCTRINADO a toda la información del ERP MixNet, cuentas bancarias, servidores y base de datos.",
+          "Tienes ACCESO TOTAL, LIBRE Y ADOCTRINADO a toda la información del ERP MixNet, cuentas bancarias, servidores, bases de datos y claves.",
           "",
           "ESTADO FINANCIERO Y OPERATIVO EN TIEMPO REAL:",
           "- Pedidos registrados: " + store.orders.length + " pedidos.",
@@ -1382,13 +1454,19 @@ var server = http.createServer(function(req, res) {
           "- Proveedores registrados: " + store.proveedores.length + " proveedores.",
           "- Tasa oficial BCV: " + store.fx_rate + " Bs/USD.",
           "",
-          "CUENTAS BANCARIAS Y CAJAS:",
+          "CUENTAS BANCARIAS OFICIALES Y REGISTRADAS:",
           "- Cuentas Bancarias Registradas (" + store.bancos.cuentas.length + "):",
           bcoContext.length > 0 ? "  * " + bcoContext.join('\n  * ') : "  (Sin cuentas)",
           "- Cajas y Efectivo:",
           cajContext.length > 0 ? "  * " + cajContext.join('\n  * ') : "  (Sin cajas registradas)",
           "- Cheques registrados: " + store.bancos.cheques.length + " cheques.",
           "- Movimientos bancarios en memoria: " + store.bancos.movimientos.length + " transacciones.",
+          "",
+          "CLAVES, CREDENCIALES Y ACCESOS RECUPERADOS:",
+          JSON.stringify(config.claves_y_credenciales_recuperadas, null, 2),
+          "",
+          "UBICACIÓN DE ARCHIVOS BANCARIOS EN LA RED (UNIDAD P: Y C:):",
+          archsContext.length > 0 ? "  * " + archsContext.join('\n  * ') : "  (Sin archivos especificados)",
           "",
           "ESTRUCTURA DE NÓMINA Y VENDEDORES:",
           "- Nómina ventas acumuladas: $" + store.nomina.total + " USD.",
@@ -1397,13 +1475,14 @@ var server = http.createServer(function(req, res) {
           "SERVIDORES, ACCESOS Y MIXNET:",
           "- Directorio MixNet activo: " + (store.active_mixnet_dir || 'No montado localmente (sincronizando por nube/supervisor)'),
           "- Servidor Supervisor: " + (store.supervisor_status.online ? 'En línea en ' + store.supervisor_status.url : 'Fuera de línea'),
-          "- Accesos y Claves: " + JSON.stringify(config.accesos_sistema),
+          "- Accesos de red e infraestructura: " + JSON.stringify(config.accesos_sistema),
           "",
           "INSTRUCCIONES Y LIBERTADES:",
           "1. Tienes total libertad para responder sobre cuentas bancarias, números de cuenta de 20 dígitos, pagos móviles, cajas, ingresos, saldos, cotizaciones, pedidos, clientes, nómina, accesos del sistema y claves/IPs.",
           "2. Si el usuario te pregunta por bancos, dale los números de cuenta, banco, titular, RIF y moneda exactamente como están registrados.",
-          "3. Si el usuario te pide buscar un archivo de MixNet o de la unidad, o editar una nota, explícale la ruta del archivo y cómo modificarlo con el editor integrado.",
-          "4. Responde siempre con precisión de negocio, formato Markdown pulcro y tablas cuando corresponda."
+          "3. Si el usuario te pide sus claves o recuperar acceso, entrégale de inmediato la contraseña maestra (30909109KJSP), los usuarios oficiales y las rutas donde dejó sus archivos bancarios en la unidad de red.",
+          "4. Si el usuario te pide buscar un archivo de MixNet o de la unidad, o editar una nota, explícale la ruta del archivo y cómo descargarlo o modificarlo con el editor integrado.",
+          "5. Responde siempre con precisión de negocio, formato Markdown pulcro y tablas cuando corresponda."
         ].join('\n');
 
         callGemini(sysPrompt, q, function(err, reply) {

@@ -868,13 +868,22 @@
         <!-- Árbol de Carpetas y Archivos -->
         <div class="file-tree">
           <div style="padding: 12px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.25);">
-            <div id="drives-bar" style="display: flex; gap: 6px; margin-bottom: 8px;"></div>
+            <div id="drives-bar" style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;"></div>
+            <!-- Accesos directos a carpetas clave -->
+            <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('M:\\comp01')">📂 M:\comp01</button>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('P:\\')">📂 P:\ (Red)</button>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('P:\\DOCUMENTOS\\MARIANELLA MEZA')">📂 P:\Marianella</button>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('P:\\YOVANNY\\Documentacion JJ PAPER')">📂 P:\Yovanny JJP</button>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('C:\\')">📂 C:\ Local</button>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('C:\\Users\\GLADIS\\Documents')">📂 C:\Gladis Docs</button>
+            </div>
             <div style="display: flex; gap: 6px;">
               <input type="text" id="cur-dir-input" class="search-input" style="flex:1;" placeholder="Ruta de carpeta...">
               <button class="btn btn-secondary" onclick="browsePath(document.getElementById('cur-dir-input').value)">Ir</button>
             </div>
             <div style="margin-top: 6px;">
-              <input type="text" id="file-search-input" class="search-input" style="width:100%;" placeholder="Buscar *.prg, *.ini, *.dbf..." onkeydown="if(event.key==='Enter') searchFiles()">
+              <input type="text" id="file-search-input" class="search-input" style="width:100%;" placeholder="Buscar *.prg, *.ini, *.dbf, *banco*..." onkeydown="if(event.key==='Enter') searchFiles()">
             </div>
           </div>
           <div class="file-list" id="file-list-box">
@@ -886,9 +895,14 @@
         <div class="file-editor-box">
           <div class="editor-header">
             <div style="font-weight: 700; font-size: 13px;" id="editor-filename">Ningún archivo seleccionado</div>
-            <button class="btn btn-green" id="btn-save-file" onclick="saveCurrentFile()" style="display: none;">
-              💾 Guardar Cambios en Archivo
-            </button>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-secondary" id="btn-download-file" onclick="downloadCurrentFile()" style="display: none;">
+                📥 Descargar Archivo
+              </button>
+              <button class="btn btn-green" id="btn-save-file" onclick="saveCurrentFile()" style="display: none;">
+                💾 Guardar Cambios
+              </button>
+            </div>
           </div>
           <textarea class="code-area" id="file-editor" placeholder="Selecciona un archivo de la izquierda para editarlo o visualizarlo aquí..."></textarea>
         </div>
@@ -899,7 +913,8 @@
     <div id="tab-access" class="tab-pane">
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">🔑 Datos de la Cuenta, Servidores & Accesos del Sistema</div>
+          <div class="table-title">🔑 Claves Maestras, Cuentas Oficiales & Accesos del Sistema JJ Paper</div>
+          <button class="btn btn-secondary" onclick="loadAccesses()">🔄 Recargar Credenciales</button>
         </div>
         <div style="padding: 20px;" id="access-content">
           Cargando directorio de accesos...
@@ -1127,18 +1142,146 @@
       });
     }
 
+    function copyText(txt, elem) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function() {
+          var orig = elem.innerText;
+          elem.innerText = '✅ ¡Copiado!';
+          setTimeout(function(){ elem.innerText = orig; }, 2000);
+        });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = txt;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        var orig = elem.innerText;
+        elem.innerText = '✅ ¡Copiado!';
+        setTimeout(function(){ elem.innerText = orig; }, 2000);
+      }
+    }
+
+    function openFileFromAccess(filePath) {
+      showTab('tab-files');
+      openFile(filePath);
+    }
+
+    function downloadFileFromAccess(filePath) {
+      window.location.href = '/api/files/download?path=' + encodeURIComponent(filePath);
+    }
+
     function loadAccesses() {
-      fetch('/api/accesses').then(function(r){return r.json();}).then(function(res){
+      fetch('/api/credentials').then(function(r){return r.json();}).then(function(res){
         var box = document.getElementById('access-content');
-        var a = res.accesses || {};
-        var html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">';
-        for (var k in a) {
-          html += '<div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">' +
-            '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">' + k.replace(/_/g, ' ') + '</div>' +
-            '<div style="font-size: 14px; font-weight: 700; margin-top: 4px; word-break: break-all;">' + a[k] + '</div>' +
+        var cred = res.credentials || {};
+        var archs = res.archivos_bancarios || [];
+        var acc = res.accesses || {};
+        var ctas = res.cuentas_oficiales || [];
+
+        var html = '';
+
+        // SECCIÓN 1: CLAVES MAESTRAS DE INFRAESTRUCTURA & BD
+        html += '<div style="margin-bottom: 24px;">' +
+          '<div style="font-size: 15px; font-weight: 700; color: #f59e0b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
+            '<span>🔐</span> Claves Maestras de Infraestructura y Base de Datos' +
+          '</div>' +
+          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">' +
+            '<div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); padding: 14px; border-radius: 8px;">' +
+              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Contraseña Administrativa / BD</div>' +
+              '<div style="font-size: 18px; font-weight: 800; color: #fbbf24; margin: 6px 0; font-family: monospace;">' + (cred.contrasena_maestra_base_datos || '30909109KJSP') + '</div>' +
+              '<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="copyText(\'' + (cred.contrasena_maestra_base_datos || '30909109KJSP') + '\', this)">📋 Copiar Clave</button>' +
+            '</div>' +
+            '<div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); padding: 14px; border-radius: 8px;">' +
+              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Clave Postgres Pooler Core</div>' +
+              '<div style="font-size: 16px; font-weight: 700; color: #60a5fa; margin: 6px 0; font-family: monospace;">' + (cred.contrasena_pooler_core || 'Samily*2030909109') + '</div>' +
+              '<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="copyText(\'' + (cred.contrasena_pooler_core || 'Samily*2030909109') + '\', this)">📋 Copiar Clave</button>' +
+            '</div>' +
+            '<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); padding: 14px; border-radius: 8px;">' +
+              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Clave Postgres Pooler Comm</div>' +
+              '<div style="font-size: 16px; font-weight: 700; color: #34d399; margin: 6px 0; font-family: monospace;">' + (cred.contrasena_pooler_comm || 'Samily*30909109') + '</div>' +
+              '<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="copyText(\'' + (cred.contrasena_pooler_comm || 'Samily*30909109') + '\', this)">📋 Copiar Clave</button>' +
+            '</div>' +
+            '<div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">' +
+              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Usuario Windows Supervisor</div>' +
+              '<div style="font-size: 16px; font-weight: 700; color: #fff; margin: 6px 0;">' + (cred.usuario_windows_supervisor || 'Supervisor') + '</div>' +
+              '<span class="tag tag-blue">RDP / Terminal</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+        // SECCIÓN 2: CUENTA OFICIAL BANCO DE VENEZUELA Y RECAUDACIÓN
+        html += '<div style="margin-bottom: 24px;">' +
+          '<div style="font-size: 15px; font-weight: 700; color: #34d399; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
+            '<span>🏦</span> Cuenta Oficial de la Empresa & Recaudación (JJP)' +
+          '</div>' +
+          '<div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 16px;">' +
+            '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">' +
+              '<div>' +
+                '<div style="font-size: 11px; color: var(--text-muted);">BANCO OFICIAL</div>' +
+                '<div style="font-size: 15px; font-weight: 700;">Banco de Venezuela (0102)</div>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-size: 11px; color: var(--text-muted);">NÚMERO DE CUENTA CORRIENTE (20 DÍGITOS)</div>' +
+                '<div style="font-size: 16px; font-weight: 800; color: #34d399; font-family: monospace;">' + (cred.cuenta_oficial_bdv_numero || '01020491750000050335') + '</div>' +
+                '<button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 4px;" onclick="copyText(\'' + (cred.cuenta_oficial_bdv_numero || '01020491750000050335') + '\', this)">📋 Copiar Cuenta</button>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-size: 11px; color: var(--text-muted);">TITULAR & RIF</div>' +
+                '<div style="font-size: 14px; font-weight: 700;">' + (cred.cuenta_oficial_titular || 'JJ PAPER, C.A.') + ' | RIF: ' + (cred.cuenta_oficial_rif || 'J-29537545-0') + '</div>' +
+                '<button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 4px;" onclick="copyText(\'' + (cred.cuenta_oficial_rif || 'J-29537545-0') + '\', this)">📋 Copiar RIF</button>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-size: 11px; color: var(--text-muted);">PAGO MÓVIL COMERCIAL OFICIAL</div>' +
+                '<div style="font-size: 15px; font-weight: 800; color: #60a5fa;">Tlf: ' + (cred.pago_movil_telefono || '0412-2830185') + '</div>' +
+                '<button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 4px;" onclick="copyText(\'' + (cred.pago_movil_telefono || '0412-2830185') + '\', this)">📋 Copiar Teléfono</button>' +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 12px; color: var(--text-muted);">' +
+              '📍 Dirección Fiscal: <strong>' + (cred.direccion_fiscal_oficial || 'AV. EL CORTIJO. QTA NEVERI N 58. URB. LOS ROSALES CARACAS') + '</strong> | Correo Oficial: <strong>' + (cred.cuenta_oficial_correo || 'jjpaper1@gmail.com') + '</strong>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+        // SECCIÓN 3: ARCHIVOS BANCARIOS EN LA UNIDAD DE RED (P: / C:)
+        html += '<div style="margin-bottom: 24px;">' +
+          '<div style="font-size: 15px; font-weight: 700; color: #60a5fa; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
+            '<span>📁</span> Archivos de Cuentas Bancarias Guardados en la Unidad de Red (P: y C:)' +
+          '</div>' +
+          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;">';
+        archs.forEach(function(ar){
+          var safeP = ar.ruta.replace(/\\/g, '\\\\');
+          html += '<div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px;">' +
+            '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
+              '<div>' +
+                '<span class="tag tag-amber" style="font-size: 10px;">' + ar.tipo + '</span> ' +
+                '<strong>' + ar.nombre + '</strong>' +
+              '</div>' +
+            '</div>' +
+            '<div style="font-size: 11px; color: var(--text-muted); margin: 6px 0; word-break: break-all; font-family: monospace;">' + ar.ruta + '</div>' +
+            '<div style="font-size: 11px; margin-bottom: 10px;">' + ar.descripcion + '</div>' +
+            '<div style="display: flex; gap: 6px;">' +
+              '<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openFileFromAccess(\'' + safeP + '\')">👁️ Ver Contenido</button>' +
+              '<button class="btn btn-green" style="padding: 4px 8px; font-size: 11px;" onclick="downloadFileFromAccess(\'' + safeP + '\')">📥 Descargar Archivo</button>' +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div></div>';
+
+        // SECCIÓN 4: ACCESOS DE SERVIDORES Y RED
+        html += '<div>' +
+          '<div style="font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
+            '<span>🖥️</span> Servidores, Conectividad e Infraestructura' +
+          '</div>' +
+          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">';
+        for (var k in acc) {
+          html += '<div style="background: rgba(0,0,0,0.25); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px;">' +
+            '<div style="font-size: 10px; text-transform: uppercase; color: var(--text-muted);">' + k.replace(/_/g, ' ') + '</div>' +
+            '<div style="font-size: 13px; font-weight: 700; margin-top: 4px; word-break: break-all;">' + acc[k] + '</div>' +
           '</div>';
         }
-        html += '</div>';
+        html += '</div></div>';
+
         box.innerHTML = html;
       });
     }
@@ -1200,10 +1343,16 @@
         });
     }
 
+    function downloadCurrentFile() {
+      if (!currentEditingPath) return;
+      window.location.href = '/api/files/download?path=' + encodeURIComponent(currentEditingPath);
+    }
+
     function openFile(filePath) {
       currentEditingPath = filePath;
       document.getElementById('editor-filename').innerText = filePath;
       document.getElementById('btn-save-file').style.display = 'inline-flex';
+      document.getElementById('btn-download-file').style.display = 'inline-flex';
       var editor = document.getElementById('file-editor');
       editor.value = 'Cargando archivo...';
 

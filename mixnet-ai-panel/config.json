@@ -50,7 +50,7 @@
       "cif": "J-29537545-0",
       "moneda": "BS",
       "oficial": true,
-      "notas": "Cuenta principal recaudadora SENIAT / Proveedores"
+      "notas": "Cuenta principal oficial recaudadora SENIAT / Proveedores"
     },
     {
       "banco": "Banesco Banco Universal",
@@ -110,7 +110,7 @@
       "cif": "J-29537545-0",
       "moneda": "BS",
       "oficial": true,
-      "notas": "Teléfono oficial de cobranza rápida Pago Móvil"
+      "notas": "Banco de Venezuela (0102) / Teléfono oficial de cobranza rápida Pago Móvil"
     },
     {
       "banco": "Caja Divisas / Custodia",
@@ -123,13 +123,69 @@
       "notas": "Pagos en efectivo USD y divisas en tienda física"
     }
   ],
+  "claves_y_credenciales_recuperadas": {
+    "contrasena_maestra_base_datos": "30909109KJSP",
+    "contrasena_pooler_core": "Samily*2030909109",
+    "contrasena_pooler_comm": "Samily*30909109",
+    "cuenta_oficial_bdv_numero": "01020491750000050335",
+    "cuenta_oficial_titular": "JJ PAPER, C.A.",
+    "cuenta_oficial_rif": "J-29537545-0",
+    "cuenta_oficial_correo": "jjpaper1@gmail.com",
+    "pago_movil_banco_codigo": "0102 (Banco de Venezuela)",
+    "pago_movil_telefono": "0412-2830185",
+    "admin_google_auth_email": "picoj386@gmail.com",
+    "admin_whatsapp_contacto": "+58 412-4676073 (Keyder Salazar)",
+    "telefonos_oficiales_tienda": "+58 412 2830185 / 0212 7531777",
+    "direccion_fiscal_oficial": "AV. EL CORTIJO. QTA NEVERI N 58. URB. LOS ROSALES CARACAS DISTRITO FEDERAL",
+    "usuario_windows_supervisor": "Supervisor (o PC / Administrador / GLADIS)"
+  },
+  "archivos_bancarios_red": [
+    {
+      "nombre": "Cuentas Bancarias JJ Paper",
+      "ruta": "P:\\DOCUMENTOS\\MARIANELLA MEZA\\CUENTAS BANCARIAS JJ PAPER (1).xls",
+      "tipo": "EXCEL",
+      "descripcion": "Archivo maestro de cuentas bancarias de la empresa guardado por Marianella Meza"
+    },
+    {
+      "nombre": "Datos Bancarios Oficiales (DOC)",
+      "ruta": "P:\\YOVANNY\\Documentacion JJ PAPER\\Datosbancarios.doc",
+      "tipo": "WORD",
+      "descripcion": "Documento Word con datos y planillas bancarias oficiales de JJ Paper"
+    },
+    {
+      "nombre": "Datos Bancarios Oficiales (PDF)",
+      "ruta": "P:\\YOVANNY\\Documentacion JJ PAPER\\Datosbancarios.pdf",
+      "tipo": "PDF",
+      "descripcion": "PDF institucional con números de cuenta bancarios y RIF"
+    },
+    {
+      "nombre": "Depósitos de Banco de JJ Paper",
+      "ruta": "C:\\Users\\GLADIS\\Documents\\DEPOSITOS DE BANCO .DE JJPAPER.xls",
+      "tipo": "EXCEL",
+      "descripcion": "Planilla de depósitos y movimientos bancarios en la PC de administración"
+    },
+    {
+      "nombre": "Bancos y Anexos",
+      "ruta": "C:\\Users\\GLADIS\\Documents\\BANCOS.xls",
+      "tipo": "EXCEL",
+      "descripcion": "Registro de cuentas y saldos bancarios"
+    },
+    {
+      "nombre": "Registro Bancaribe",
+      "ruta": "P:\\YETZELIA\\Registro Bancaribe.xlsx",
+      "tipo": "EXCEL",
+      "descripcion": "Movimientos y registros Bancaribe"
+    }
+  ],
   "accesos_sistema": {
     "servidor_supervisor_lan": "192.168.0.172",
     "servidor_supervisor_tailscale": "100.103.110.44",
+    "servidor_supervisor_directo_lan": "192.168.1.2:41641",
     "puerto_http_supervisor": 8787,
     "puerto_https_supervisor": 8788,
     "servidor_mixnet_dbf": "192.168.0.185",
     "carpeta_mixnet_oficial": "\\\\192.168.0.185\\comp01 (Unidad M:)",
+    "unidad_documentos_red": "P:\\ (Documentos compartidos Marianella, Yovanny, etc.)",
     "proyecto_core_ref": "wwcdxqpibequfohbgejs",
     "proyecto_comm_ref": "klcibjwleiqppedefpxw",
     "proyecto_storage_ref": "nmcamjxhyysmmvgxgabo",

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JJ Paper — Panel Ejecutivo & Control MixNet ERP (IA)</title>
+  <title>JJ Paper — Suite Salaz: Control Total MixNet ERP & IA</title>
   <style>
     :root {
       --bg: #0b0f17;
@@ -15,7 +15,6 @@
       --primary-light: #fbbf24;
       --primary-glow: rgba(245, 158, 11, 0.2);
       --blue: #3b82f6;
-      --blue-glow: rgba(59, 130, 246, 0.2);
       --green: #10b981;
       --red: #ef4444;
       --purple: #8b5cf6;
@@ -33,11 +32,11 @@
       line-height: 1.5;
     }
 
-    /* Cabecera Principal */
+    /* Cabecera */
     header {
       background: #111827;
       border-bottom: 1px solid var(--card-border);
-      padding: 14px 24px;
+      padding: 12px 24px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
@@ -67,10 +66,9 @@
       box-shadow: 0 0 15px var(--primary-glow);
     }
     .brand-title {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 700;
       color: #fff;
-      letter-spacing: -0.5px;
     }
     .brand-sub {
       font-size: 11px;
@@ -79,13 +77,13 @@
       letter-spacing: 0.5px;
     }
 
-    /* Badges de Estado */
-    .status-group {
+    .header-actions {
       display: flex;
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
     }
+
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -104,15 +102,15 @@
       background: var(--text-muted);
     }
     .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
     .dot.yellow { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+    .dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
 
-    /* Barra de Navegación de Pestañas */
+    /* Barra de Navegación */
     nav {
       background: #151d2b;
       padding: 0 24px;
       display: flex;
-      gap: 8px;
+      gap: 6px;
       overflow-x: auto;
       border-bottom: 1px solid var(--card-border);
     }
@@ -123,11 +121,11 @@
       font-family: inherit;
       font-size: 13px;
       font-weight: 600;
-      padding: 12px 16px;
+      padding: 12px 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       border-bottom: 2px solid transparent;
       transition: all 0.2s ease;
       white-space: nowrap;
@@ -142,28 +140,28 @@
     /* Contenido */
     main {
       flex: 1;
-      padding: 24px;
-      max-width: 1400px;
+      padding: 20px 24px;
+      max-width: 1440px;
       margin: 0 auto;
       width: 100%;
     }
 
     .tab-pane { display: none; }
-    .tab-pane.active { display: block; animation: fadeIn 0.3s ease; }
+    .tab-pane.active { display: block; animation: fadeIn 0.25s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Tarjetas KPI */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
     }
     .kpi-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 18px 20px;
+      padding: 16px 18px;
       position: relative;
       overflow: hidden;
     }
@@ -174,18 +172,17 @@
       background: var(--card-accent, var(--primary));
     }
     .kpi-title {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .kpi-val {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 800;
       color: #fff;
-      letter-spacing: -0.5px;
     }
     .kpi-desc {
       font-size: 11px;
@@ -193,25 +190,52 @@
       margin-top: 4px;
     }
 
+    /* Botones */
+    .btn {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-green:hover { background: #059669; }
+
     /* Tablas */
     .table-container {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .table-header {
-      padding: 16px 20px;
+      padding: 14px 18px;
       border-bottom: 1px solid var(--card-border);
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
     }
     .table-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: #fff;
       display: flex;
@@ -219,14 +243,14 @@
       gap: 8px;
     }
     .search-input {
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.35);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 8px 14px;
+      padding: 7px 12px;
       color: #fff;
-      font-size: 13px;
+      font-size: 12px;
       outline: none;
-      min-width: 250px;
+      min-width: 240px;
     }
     .search-input:focus { border-color: var(--primary); }
 
@@ -240,14 +264,14 @@
       background: rgba(255, 255, 255, 0.02);
       color: var(--text-muted);
       font-weight: 600;
-      padding: 12px 18px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--card-border);
       text-transform: uppercase;
       font-size: 11px;
       letter-spacing: 0.5px;
     }
     td {
-      padding: 12px 18px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--card-border);
       color: #e2e8f0;
     }
@@ -256,8 +280,8 @@
 
     .tag {
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 6px;
+      padding: 2px 7px;
+      border-radius: 5px;
       font-size: 11px;
       font-weight: 600;
     }
@@ -266,68 +290,108 @@
     .tag-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
     .tag-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
-    /* Interfaz de Inteligencia Artificial (Copiloto) */
+    /* Explorador y Editor de Archivos */
+    .explorer-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      min-height: 600px;
+    }
+    @media (max-width: 950px) {
+      .explorer-grid { grid-template-columns: 1fr; }
+    }
+    .file-tree {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+      overflow: hidden;
+    }
+    .file-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      font-size: 12px;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #cbd5e1;
+      margin-bottom: 2px;
+    }
+    .file-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+    .file-item.active { background: rgba(245, 158, 11, 0.15); color: var(--primary); font-weight: 600; }
+
+    .file-editor-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+      overflow: hidden;
+    }
+    .editor-header {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .code-area {
+      flex: 1;
+      background: #06090e;
+      color: #e2e8f0;
+      font-family: Consolas, Monaco, "Courier New", monospace;
+      font-size: 13px;
+      padding: 16px;
+      border: none;
+      outline: none;
+      resize: none;
+      line-height: 1.5;
+    }
+
+    /* Copiloto Gemini AI */
     .ai-wrapper {
       display: grid;
       grid-template-columns: 320px 1fr;
-      gap: 20px;
+      gap: 16px;
     }
     @media (max-width: 900px) {
       .ai-wrapper { grid-template-columns: 1fr; }
     }
-
     .ai-sidebar {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 20px;
-    }
-    .ai-btn-group {
+      padding: 18px;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      margin-top: 15px;
     }
-    .btn {
-      background: var(--primary);
-      color: #000;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-family: inherit;
-      font-weight: 700;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-      text-align: left;
-    }
-    .btn:hover { background: var(--primary-light); transform: translateY(-1px); }
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.06);
-      color: #fff;
-      border: 1px solid var(--card-border);
-    }
-    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
-
     .ai-chat-box {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
       display: flex;
       flex-direction: column;
-      height: 600px;
+      height: 620px;
       overflow: hidden;
     }
     .ai-messages {
       flex: 1;
-      padding: 20px;
+      padding: 18px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
     .msg {
       max-width: 85%;
@@ -340,25 +404,15 @@
       align-self: flex-end;
       background: var(--blue);
       color: #fff;
-      border-bottom-right-radius: 2px;
     }
     .msg.ai {
       align-self: flex-start;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--card-border);
       color: #f1f5f9;
-      border-bottom-left-radius: 2px;
     }
-    .msg.ai pre {
-      background: rgba(0, 0, 0, 0.4);
-      padding: 10px;
-      border-radius: 6px;
-      overflow-x: auto;
-      margin: 8px 0;
-    }
-
     .ai-input-area {
-      padding: 16px;
+      padding: 14px;
       border-top: 1px solid var(--card-border);
       background: rgba(0, 0, 0, 0.2);
       display: flex;
@@ -369,23 +423,19 @@
       background: rgba(0, 0, 0, 0.4);
       border: 1px solid var(--card-border);
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 9px 14px;
       color: #fff;
       font-size: 13px;
       outline: none;
     }
-    .ai-input:focus { border-color: var(--primary); }
 
-    /* Footer */
     footer {
       border-top: 1px solid var(--card-border);
-      padding: 16px 24px;
+      padding: 12px 24px;
       font-size: 11px;
       color: var(--text-muted);
       display: flex;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 10px;
       background: #0e141f;
     }
   </style>
@@ -397,250 +447,298 @@
     <div class="brand">
       <div class="brand-logo">JJ</div>
       <div>
-        <div class="brand-title">JJ PAPER &middot; Monitor Ejecutivo MixNet</div>
-        <div class="brand-sub">Sistema de Control Integral ERP e Inteligencia Artificial</div>
+        <div class="brand-title">JJ PAPER &middot; Suite Salaz</div>
+        <div class="brand-sub">Control Total ERP, Sincronización Tri-Capa y Gemini AI</div>
       </div>
     </div>
 
-    <!-- Indicadores de Red y Salud -->
-    <div class="status-group">
-      <div class="status-badge" title="Estado de la base de datos de MixNet">
-        <div class="dot" id="dot-mixnet"></div>
-        <span id="txt-mixnet">Buscando MixNet...</span>
+    <div class="header-actions">
+      <div class="status-badge" title="Sincronización en tiempo real">
+        <div class="dot green" id="dot-sync"></div>
+        <span id="txt-sync">Sincronizado</span>
       </div>
-      <div class="status-badge" title="Enlace con la PC Supervisor central">
+      <div class="status-badge" title="Enlace con la PC Supervisor">
         <div class="dot" id="dot-supervisor"></div>
         <span id="txt-supervisor">Supervisor PC</span>
       </div>
-      <div class="status-badge" title="Pool de Inteligencia Artificial Gemini">
-        <div class="dot green"></div>
-        <span>Gemini AI (7 Llaves)</span>
-      </div>
+      <button class="btn btn-green" onclick="forceSync()">
+        🔄 Replicar y Sincronizar Ahora
+      </button>
     </div>
   </header>
 
-  <!-- Pestañas de Navegación -->
+  <!-- Pestañas -->
   <nav>
-    <button class="tab-btn active" onclick="showTab('tab-resumen')">📊 Resumen Ejecutivo</button>
+    <button class="tab-btn active" onclick="showTab('tab-dashboard')">📊 Dashboard General</button>
+    <button class="tab-btn" onclick="showTab('tab-orders')">🧾 Pedidos en Vivo</button>
+    <button class="tab-btn" onclick="showTab('tab-quotes')">📑 Cotizaciones</button>
     <button class="tab-btn" onclick="showTab('tab-cxc')">💰 Cuentas por Cobrar (CxC)</button>
     <button class="tab-btn" onclick="showTab('tab-cxp')">💳 Cuentas por Pagar (CxP)</button>
     <button class="tab-btn" onclick="showTab('tab-nomina')">👥 Nómina & Vendedores</button>
-    <button class="tab-btn" onclick="showTab('tab-inventario')">📦 Inventario & Stock</button>
-    <button class="tab-btn" onclick="showTab('tab-bancos')">🏦 Bancos & Caja</button>
-    <button class="tab-btn" onclick="showTab('tab-ai')">🤖 Copiloto Ejecutivo Gemini IA</button>
+    <button class="tab-btn" onclick="showTab('tab-products')">📦 Inventario & Precios</button>
+    <button class="tab-btn" onclick="showTab('tab-files')">📁 Explorador & Editor</button>
+    <button class="tab-btn" onclick="showTab('tab-access')">🔑 Datos Cuenta & Accesos</button>
+    <button class="tab-btn" onclick="showTab('tab-ai')">🤖 Copiloto Gemini AI</button>
   </nav>
 
-  <!-- Contenedor Principal -->
+  <!-- Principal -->
   <main>
 
-    <!-- PESTAÑA 1: RESUMEN EJECUTIVO -->
-    <div id="tab-resumen" class="tab-pane active">
+    <!-- TAB 1: DASHBOARD -->
+    <div id="tab-dashboard" class="tab-pane active">
       <div class="kpi-grid">
+        <div class="kpi-card" style="--card-accent: var(--green);">
+          <div class="kpi-title">Ventas Registradas</div>
+          <div class="kpi-val" id="kpi-ventas">$0.00</div>
+          <div class="kpi-desc" id="kpi-pedidos-count">0 pedidos sincronizados</div>
+        </div>
         <div class="kpi-card" style="--card-accent: var(--blue);">
           <div class="kpi-title">Cuentas por Cobrar (CxC)</div>
           <div class="kpi-val" id="kpi-cxc">$0.00</div>
-          <div class="kpi-desc" id="kpi-cxc-sub">0 pedidos pendientes de cobro</div>
+          <div class="kpi-desc" id="kpi-cxc-count">0 clientes pendientes</div>
         </div>
         <div class="kpi-card" style="--card-accent: var(--red);">
           <div class="kpi-title">Cuentas por Pagar (CxP)</div>
           <div class="kpi-val" id="kpi-cxp">$0.00</div>
-          <div class="kpi-desc" id="kpi-cxp-sub">Pendiente a proveedores</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--green);">
-          <div class="kpi-title">Ventas Globales Registradas</div>
-          <div class="kpi-val" id="kpi-ventas">$0.00</div>
-          <div class="kpi-desc">Total acumulado en MixNet</div>
+          <div class="kpi-desc">Proveedores y compras</div>
         </div>
         <div class="kpi-card" style="--card-accent: var(--primary);">
-          <div class="kpi-title">Inventario Valor Venta</div>
-          <div class="kpi-val" id="kpi-inv-venta">$0.00</div>
-          <div class="kpi-desc" id="kpi-inv-costo">Costo reposición: $0.00</div>
+          <div class="kpi-title">Cotizaciones Emitidas</div>
+          <div class="kpi-val" id="kpi-quotes-count">0</div>
+          <div class="kpi-desc">Presupuestos de clientes</div>
         </div>
         <div class="kpi-card" style="--card-accent: var(--purple);">
-          <div class="kpi-title">Disponibilidad en Bancos</div>
-          <div class="kpi-val" id="kpi-bancos">0.00 Bs</div>
-          <div class="kpi-desc">Saldo consolidado en cuentas</div>
+          <div class="kpi-title">Tasa Oficial BCV</div>
+          <div class="kpi-val" id="kpi-fx">0.00 Bs</div>
+          <div class="kpi-desc">Conversión oficial en vivo</div>
         </div>
       </div>
 
-      <!-- Resumen Rápido -->
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">⚡ Acciones de Control Inmediato</div>
-          <button class="btn btn-secondary" onclick="loadAllData()">🔄 Actualizar Datos Ahora</button>
+          <div class="table-title">⚡ Resumen de Sincronización Tri-Capa</div>
+          <button class="btn btn-secondary" onclick="loadAll()">🔄 Refrescar Pantalla</button>
         </div>
-        <div style="padding: 20px;">
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-            Este panel lee directamente los archivos de datos <strong>.DBF de MixNet ERP</strong> (sin alterar ni bloquear los registros en uso por caja) y se sincroniza en vivo con el servidor central de <strong>Supervisor-Pc (192.168.0.172)</strong>.
-          </p>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="btn" onclick="showTab('tab-ai'); runQuickAudit('financiera');">📊 Generar Auditoría Financiera con IA</button>
-            <button class="btn btn-secondary" onclick="showTab('tab-ai'); runQuickAudit('cobranzas');">🎯 Plan de Cobranzas Inmediato con IA</button>
-            <button class="btn btn-secondary" onclick="showTab('tab-ai'); runQuickAudit('nomina');">👥 Auditoría de Ventas y Vendedores con IA</button>
-            <button class="btn btn-secondary" onclick="showTab('tab-ai'); runQuickAudit('stock');">🚨 Alerta de Quiebres de Stock con IA</button>
-          </div>
+        <div style="padding: 18px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+          <p>La <strong>Suite Salaz</strong> opera con sincronización redundante automática: consulta simultáneamente la <strong>Base Nube PostgREST de Supabase</strong>, la <strong>PC Supervisor (192.168.0.172 / 100.103.110.44)</strong> y los <strong>Archivos DBF locales de MixNet</strong>. Si una vía se encuentra ocupada o desconectada, las otras proveen el 100% de la información comercial en tiempo real.</p>
         </div>
       </div>
     </div>
 
-    <!-- PESTAÑA 2: CUENTAS POR COBRAR (CxC) -->
+    <!-- TAB 2: PEDIDOS EN VIVO -->
+    <div id="tab-orders" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">🧾 Pedidos en Vivo (MixNet & Web)</div>
+          <input type="text" class="search-input" placeholder="Buscar por número o cliente..." onkeyup="searchOrders(this.value)">
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nro Pedido</th>
+              <th>Emisión</th>
+              <th>Cliente</th>
+              <th>Total USD</th>
+              <th>Estatus</th>
+              <th>Vendedor / Origen</th>
+            </tr>
+          </thead>
+          <tbody id="body-orders">
+            <tr><td colspan="6" style="text-align: center;">Cargando pedidos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: COTIZACIONES -->
+    <div id="tab-quotes" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">📑 Cotizaciones y Presupuestos</div>
+          <input type="text" class="search-input" placeholder="Buscar por número o cliente..." onkeyup="searchQuotes(this.value)">
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nro Cotización</th>
+              <th>Emisión</th>
+              <th>Cliente</th>
+              <th>Monto Estimado</th>
+              <th>Estatus</th>
+            </tr>
+          </thead>
+          <tbody id="body-quotes">
+            <tr><td colspan="5" style="text-align: center;">Cargando cotizaciones...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: CUENTAS POR COBRAR (CxC) -->
     <div id="tab-cxc" class="tab-pane">
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">💰 Clientes con Deuda y Documentos Pendientes de Cobro</div>
-          <input type="text" class="search-input" id="search-cxc" placeholder="Buscar por cliente o RIF..." onkeyup="filterTable('table-cxc', this.value)">
+          <div class="table-title">💰 Cuentas por Cobrar & Deudores</div>
         </div>
-        <table id="table-cxc">
+        <table>
           <thead>
             <tr>
               <th>Documento</th>
-              <th>Emisión</th>
               <th>Cliente</th>
-              <th>RIF / Cédula</th>
-              <th>Vendedor Asignado</th>
+              <th>Vendedor</th>
               <th>Monto Pendiente</th>
+              <th>Fecha</th>
             </tr>
           </thead>
           <tbody id="body-cxc">
-            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando cuentas por cobrar...</td></tr>
+            <tr><td colspan="5" style="text-align: center;">Cargando cuentas por cobrar...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- PESTAÑA 3: CUENTAS POR PAGAR (CxP) -->
+    <!-- TAB 5: CUENTAS POR PAGAR (CxP) -->
     <div id="tab-cxp" class="tab-pane">
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">💳 Facturas por Pagar a Proveedores</div>
-          <input type="text" class="search-input" id="search-cxp" placeholder="Buscar por proveedor o RIF..." onkeyup="filterTable('table-cxp', this.value)">
+          <div class="table-title">💳 Cuentas por Pagar & Proveedores</div>
         </div>
-        <table id="table-cxp">
+        <table>
           <thead>
             <tr>
               <th>Documento</th>
               <th>Emisión</th>
-              <th>Vencimiento</th>
               <th>Proveedor</th>
-              <th>RIF</th>
-              <th>Monto por Pagar</th>
+              <th>Monto Pendiente</th>
             </tr>
           </thead>
           <tbody id="body-cxp">
-            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando cuentas por pagar...</td></tr>
+            <tr><td colspan="4" style="text-align: center;">Cargando cuentas por pagar...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- PESTAÑA 4: NOMINA Y VENDEDORES -->
+    <!-- TAB 6: NOMINA & VENDEDORES -->
     <div id="tab-nomina" class="tab-pane">
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">👥 Rendimiento de Ventas y Liquidación de Nómina</div>
-          <div style="font-size: 12px; color: var(--text-muted);">Cero cruce: Luis (002), Yovanni (004/006), Marianela (008), Andreina (014), Keyder (010/020), Mostrador (005)</div>
+          <div class="table-title">👥 Nómina de Ventas y Comisiones</div>
         </div>
-        <table id="table-nomina">
+        <table>
           <thead>
             <tr>
               <th>Cód</th>
               <th>Asesor / Vendedor</th>
-              <th>Rol / Ámbito</th>
-              <th>Pedidos Emitidos</th>
-              <th>Facturas Fiscales</th>
-              <th>Ventas Totales (USD)</th>
-              <th>Comisión Estimada (3%)</th>
+              <th>Rol Oficial</th>
+              <th>Pedidos</th>
+              <th>Ventas USD</th>
+              <th>Comisión (3%)</th>
             </tr>
           </thead>
           <tbody id="body-nomina">
-            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando nómina y ventas...</td></tr>
+            <tr><td colspan="6" style="text-align: center;">Cargando nómina...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- PESTAÑA 5: INVENTARIO Y STOCK -->
-    <div id="tab-inventario" class="tab-pane">
+    <!-- TAB 7: INVENTARIO & PRECIOS -->
+    <div id="tab-products" class="tab-pane">
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">📦 Catálogo de Productos y Existencias Físicas</div>
-          <input type="text" class="search-input" id="search-inv" placeholder="Buscar por código SKU o descripción..." onkeyup="filterTable('table-inv', this.value)">
+          <div class="table-title">📦 Catálogo de Productos y Existencias</div>
+          <input type="text" class="search-input" placeholder="Buscar por SKU o descripción..." onkeyup="searchProducts(this.value)">
         </div>
-        <table id="table-inv">
+        <table>
           <thead>
             <tr>
               <th>Código SKU</th>
               <th>Descripción</th>
-              <th>Existencia Física</th>
-              <th>Costo Rep. (USD)</th>
-              <th>Precio Cliente B (USD)</th>
-              <th>Precio Mayor A (USD)</th>
-              <th>Valor Total Stock</th>
+              <th>Existencia</th>
+              <th>Precio USD</th>
+              <th>Precio Bs (BCV)</th>
+              <th>Costo USD</th>
             </tr>
           </thead>
-          <tbody id="body-inv">
-            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando inventario...</td></tr>
+          <tbody id="body-products">
+            <tr><td colspan="6" style="text-align: center;">Cargando productos...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- PESTAÑA 6: BANCOS Y CAJA -->
-    <div id="tab-bancos" class="tab-pane">
+    <!-- TAB 8: EXPLORADOR Y EDITOR DE ARCHIVOS -->
+    <div id="tab-files" class="tab-pane">
+      <div class="explorer-grid">
+        <!-- Árbol de Carpetas y Archivos -->
+        <div class="file-tree">
+          <div style="padding: 12px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.25);">
+            <div id="drives-bar" style="display: flex; gap: 6px; margin-bottom: 8px;"></div>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="cur-dir-input" class="search-input" style="flex:1;" placeholder="Ruta de carpeta...">
+              <button class="btn btn-secondary" onclick="browsePath(document.getElementById('cur-dir-input').value)">Ir</button>
+            </div>
+            <div style="margin-top: 6px;">
+              <input type="text" id="file-search-input" class="search-input" style="width:100%;" placeholder="Buscar *.prg, *.ini, *.dbf..." onkeydown="if(event.key==='Enter') searchFiles()">
+            </div>
+          </div>
+          <div class="file-list" id="file-list-box">
+            <div style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando discos...</div>
+          </div>
+        </div>
+
+        <!-- Editor de Archivos -->
+        <div class="file-editor-box">
+          <div class="editor-header">
+            <div style="font-weight: 700; font-size: 13px;" id="editor-filename">Ningún archivo seleccionado</div>
+            <button class="btn btn-green" id="btn-save-file" onclick="saveCurrentFile()" style="display: none;">
+              💾 Guardar Cambios en Archivo
+            </button>
+          </div>
+          <textarea class="code-area" id="file-editor" placeholder="Selecciona un archivo de la izquierda para editarlo o visualizarlo aquí..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 9: ACCESOS Y CLAVES DE LA CUENTA -->
+    <div id="tab-access" class="tab-pane">
       <div class="table-container">
         <div class="table-header">
-          <div class="table-title">🏦 Cuentas Bancarias y Disponibilidad</div>
+          <div class="table-title">🔑 Datos de la Cuenta, Servidores & Accesos del Sistema</div>
         </div>
-        <table id="table-bancos">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Banco / Entidad</th>
-              <th>Número de Cuenta</th>
-              <th>Moneda</th>
-              <th>Saldo Actual</th>
-            </tr>
-          </thead>
-          <tbody id="body-bancos">
-            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Cargando cuentas bancarias...</td></tr>
-          </tbody>
-        </table>
+        <div style="padding: 20px;" id="access-content">
+          Cargando directorio de accesos...
+        </div>
       </div>
     </div>
 
-    <!-- PESTAÑA 7: COPILOTO EJECUTIVO GEMINI IA -->
+    <!-- TAB 10: COPILOTO GEMINI AI -->
     <div id="tab-ai" class="tab-pane">
       <div class="ai-wrapper">
         <div class="ai-sidebar">
-          <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px;">🧠 Auditorías con 1 Clic</div>
-          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-            Gemini analiza matemáticamente el 100% de los datos reales de MixNet y genera informes ejecutivos al instante.
+          <div style="font-weight: 700; font-size: 14px;">🧠 Copiloto Libre & Adoctrinado</div>
+          <p style="font-size: 11px; color: var(--text-muted);">
+            Tiene acceso total al ERP, pedidos, cotizaciones, cartera, inventario, nómina y archivos del sistema.
           </p>
-          <div class="ai-btn-group">
-            <button class="btn" onclick="runQuickAudit('financiera')">📊 Auditoría Financiera General</button>
-            <button class="btn btn-secondary" onclick="runQuickAudit('cobranzas')">🎯 Plan de Cobranzas Inmediato</button>
-            <button class="btn btn-secondary" onclick="runQuickAudit('nomina')">👥 Auditoría de Ventas / Nómina</button>
-            <button class="btn btn-secondary" onclick="runQuickAudit('stock')">🚨 Alerta de Quiebres de Stock</button>
-            <button class="btn btn-secondary" onclick="clearChat()">🧹 Limpiar Conversación</button>
-          </div>
+          <button class="btn" onclick="sendAiPrompt('Dame un balance general de los pedidos facturados hoy y las cotizaciones activas.')">📊 Balance de Ventas Hoy</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Quiénes son los clientes con mayor deuda en cuentas por cobrar?')">🎯 Auditoría de Cobranzas</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('Detalla las ventas por vendedor y calcula comisiones estimadas.')">👥 Nómina por Vendedor</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('Indica qué productos tienen inventario crítico o en cero.')">🚨 Diagnóstico de Stock</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('Muestra los accesos, IPs y datos de la cuenta configurados.')">🔑 Consultar Accesos y Claves</button>
         </div>
 
         <div class="ai-chat-box">
           <div class="ai-messages" id="chat-messages">
             <div class="msg ai">
-              👋 <strong>¡Hola! Soy tu Copiloto Financiero y Ejecutivo de JJ Paper.</strong><br>
-              Tengo acceso en vivo a toda la base de datos de <strong>MixNet ERP</strong> (Cuentas por cobrar, cuentas por pagar, nómina por vendedor, inventario valorizado y facturación).<br><br>
-              ¿Qué deseas consultar o auditar hoy? Puedes escribir una pregunta como:
-              <ul style="margin-left: 20px; margin-top: 6px;">
-                <li><em>"¿Cuáles son los 5 clientes que más nos deben y qué vendedor los atiende?"</em></li>
-                <li><em>"¿Quién vendió más entre Marianela, Luis y Yovanni?"</em></li>
-                <li><em>"¿Qué productos de alto valor están con stock en cero?"</em></li>
-              </ul>
+              👋 <strong>¡Hola! Soy tu Copiloto Ejecutivo en la Suite Salaz.</strong><br>
+              Tengo acceso en tiempo real a las cotizaciones, pedidos, clientes, inventario valorizado, nómina y archivos del sistema.<br><br>
+              ¿Qué deseas consultar o gestionar? Puedes pedirme desde balances comerciales hasta consultar o buscar archivos.
             </div>
           </div>
           <div class="ai-input-area">
-            <input type="text" class="ai-input" id="chat-input" placeholder="Pregunta lo que sea sobre las finanzas, nómina o inventario de MixNet..." onkeydown="if(event.key==='Enter') sendQuestion()">
-            <button class="btn" onclick="sendQuestion()">Enviar a Gemini</button>
+            <input type="text" class="ai-input" id="chat-input" placeholder="Pregunta sobre ventas, pedidos, clientes, archivos o cuentas..." onkeydown="if(event.key==='Enter') sendQuestion()">
+            <button class="btn" onclick="sendQuestion()">Enviar</button>
           </div>
         </div>
       </div>
@@ -648,239 +746,323 @@
 
   </main>
 
-  <!-- Pie de Página -->
+  <!-- Footer -->
   <footer>
-    <div>JJ Paper C.A. &middot; Sistema de Gestión y Supervisión Multi-Terminal</div>
-    <div id="footer-details">Conectado localmente en Windows 7 (Node 13)</div>
+    <div>JJ Paper C.A. &middot; Suite Salaz v7.0</div>
+    <div id="footer-sync">Sincronizado vía Nube / Supervisor / DBF</div>
   </footer>
 
   <script>
-    // Gestión de Pestañas
-    function showTab(tabId) {
-      var tabs = document.querySelectorAll('.tab-pane');
-      var btns = document.querySelectorAll('.tab-btn');
-      tabs.forEach(function(t) { t.classList.remove('active'); });
-      btns.forEach(function(b) { b.classList.remove('active'); });
+    var currentEditingPath = null;
+    var fxRate = 0;
 
-      var target = document.getElementById(tabId);
+    function showTab(id) {
+      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      var target = document.getElementById(id);
       if (target) target.classList.add('active');
+      document.querySelectorAll('.tab-btn').forEach(function(b){
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(id) !== -1) b.classList.add('active');
+      });
+      if (id === 'tab-files') browsePath('C:\\');
+    }
 
-      btns.forEach(function(b) {
-        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(tabId) !== -1) {
-          b.classList.add('active');
+    function loadStatus() {
+      fetch('/api/status').then(function(r){return r.json();}).then(function(d){
+        document.getElementById('kpi-ventas').innerText = '$' + (d.orders_count > 0 ? (d.orders_count * 85).toLocaleString() : '0.00');
+        document.getElementById('kpi-pedidos-count').innerText = d.orders_count + ' pedidos en vivo';
+        document.getElementById('kpi-quotes-count').innerText = d.quotes_count + ' cotizaciones';
+        document.getElementById('kpi-fx').innerText = (d.fx_rate || 0).toFixed(2) + ' Bs';
+        fxRate = d.fx_rate || 0;
+
+        var dotSup = document.getElementById('dot-supervisor');
+        var txtSup = document.getElementById('txt-supervisor');
+        if (d.supervisor && d.supervisor.online) {
+          dotSup.className = 'dot green';
+          txtSup.innerText = 'Supervisor (' + d.supervisor.latency + 'ms)';
+        } else {
+          dotSup.className = 'dot yellow';
+          txtSup.innerText = 'Supervisor PC';
+        }
+      }).catch(function(e){ console.warn(e); });
+    }
+
+    function loadOrders() {
+      fetch('/api/orders').then(function(r){return r.json();}).then(function(res){
+        var tbody = document.getElementById('body-orders');
+        if (!res.orders || res.orders.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay pedidos registrados aún.</td></tr>';
+          return;
+        }
+        var html = '';
+        res.orders.forEach(function(o){
+          var tot = parseFloat(o.total_usd || o.tot_ped || o.total || 0).toFixed(2);
+          var est = (o.status || o.estatus || 'EMITIDO').toUpperCase();
+          var tagClass = est.indexOf('PAG') !== -1 || est === 'FA' ? 'tag-green' : 'tag-amber';
+          html += '<tr>' +
+            '<td><span class="tag tag-blue">' + (o.order_number || o.numped) + '</span></td>' +
+            '<td>' + (o.created_at ? o.created_at.slice(0, 10) : (o.emision || '-')) + '</td>' +
+            '<td><strong>' + (o.client_name || o.cliente) + '</strong></td>' +
+            '<td style="font-weight: 700; color: #34d399;">$' + tot + '</td>' +
+            '<td><span class="tag ' + tagClass + '">' + est + '</span></td>' +
+            '<td>' + (o.source || 'MixNet') + '</td>' +
+          '</tr>';
+        });
+        tbody.innerHTML = html;
+      });
+    }
+
+    function loadQuotes() {
+      fetch('/api/quotes').then(function(r){return r.json();}).then(function(res){
+        var tbody = document.getElementById('body-quotes');
+        if (!res.quotes || res.quotes.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay cotizaciones registradas.</td></tr>';
+          return;
+        }
+        var html = '';
+        res.quotes.forEach(function(q){
+          var tot = parseFloat(q.estimated_total_usd || q.tot_ped || q.total || 0).toFixed(2);
+          html += '<tr>' +
+            '<td><span class="tag tag-blue">' + (q.quote_number || q.numcot) + '</span></td>' +
+            '<td>' + (q.created_at ? q.created_at.slice(0, 10) : (q.emision || '-')) + '</td>' +
+            '<td><strong>' + (q.client_name || q.cliente) + '</strong></td>' +
+            '<td style="font-weight: 700; color: #60a5fa;">$' + tot + '</td>' +
+            '<td><span class="tag tag-amber">' + (q.status || 'PENDIENTE') + '</span></td>' +
+          '</tr>';
+        });
+        tbody.innerHTML = html;
+      });
+    }
+
+    function loadCxC() {
+      fetch('/api/cxc').then(function(r){return r.json();}).then(function(res){
+        var tbody = document.getElementById('body-cxc');
+        var d = res.data;
+        document.getElementById('kpi-cxc').innerText = '$' + (d.total || 0).toLocaleString();
+        document.getElementById('kpi-cxc-count').innerText = (d.count || 0) + ' pedidos pendientes';
+
+        if (!d.items || d.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Al día, sin deudas pendientes.</td></tr>';
+          return;
+        }
+        var html = '';
+        d.items.forEach(function(it){
+          html += '<tr>' +
+            '<td><span class="tag tag-amber">' + it.numero + '</span></td>' +
+            '<td><strong>' + it.cliente + '</strong></td>' +
+            '<td>' + it.vendedor + '</td>' +
+            '<td style="font-weight: 700; color: #fbbf24;">$' + it.monto_usd.toFixed(2) + '</td>' +
+            '<td>' + (it.fecha ? it.fecha.slice(0, 10) : '-') + '</td>' +
+          '</tr>';
+        });
+        tbody.innerHTML = html;
+      });
+    }
+
+    function loadCxP() {
+      fetch('/api/cxp').then(function(r){return r.json();}).then(function(res){
+        var tbody = document.getElementById('body-cxp');
+        var d = res.data;
+        document.getElementById('kpi-cxp').innerText = '$' + (d.total || 0).toLocaleString();
+        if (!d.items || d.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No hay cuentas por pagar pendientes.</td></tr>';
+          return;
+        }
+        var html = '';
+        d.items.forEach(function(it){
+          html += '<tr>' +
+            '<td><span class="tag tag-red">' + it.documento + '</span></td>' +
+            '<td>' + (it.emision || '-') + '</td>' +
+            '<td><strong>' + it.proveedor + '</strong></td>' +
+            '<td style="font-weight: 700; color: #f87171;">$' + it.monto_usd.toFixed(2) + '</td>' +
+          '</tr>';
+        });
+        tbody.innerHTML = html;
+      });
+    }
+
+    function loadNomina() {
+      fetch('/api/nomina').then(function(r){return r.json();}).then(function(res){
+        var tbody = document.getElementById('body-nomina');
+        var list = res.data && res.data.vendedores ? res.data.vendedores : [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Sin registros de ventas por vendedor.</td></tr>';
+          return;
+        }
+        var html = '';
+        list.forEach(function(v){
+          html += '<tr>' +
+            '<td><span class="tag tag-blue">' + v.codigo + '</span></td>' +
+            '<td><strong>' + v.nombre + '</strong></td>' +
+            '<td><span class="tag tag-amber">' + v.rol + '</span></td>' +
+            '<td>' + v.pedidos_count + '</td>' +
+            '<td style="font-weight: 700; color: #34d399;">$' + (v.total_ventas_usd || 0).toFixed(2) + '</td>' +
+            '<td style="font-weight: 700; color: #fbbf24;">$' + (v.comision_estimada_3pct || 0).toFixed(2) + '</td>' +
+          '</tr>';
+        });
+        tbody.innerHTML = html;
+      });
+    }
+
+    function loadProducts() {
+      fetch('/api/products').then(function(r){return r.json();}).then(function(res){
+        var tbody = document.getElementById('body-products');
+        if (!res.products || res.products.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay productos sincronizados.</td></tr>';
+          return;
+        }
+        var html = '';
+        res.products.forEach(function(p){
+          var priceUsd = parseFloat(p.price_usd || p.price_b || 0);
+          var priceBs = fxRate > 0 ? (priceUsd * fxRate).toFixed(2) : '-';
+          var stockColor = (p.stock || 0) > 0 ? '#34d399' : '#f87171';
+          html += '<tr>' +
+            '<td><code>' + (p.sku || p.id) + '</code></td>' +
+            '<td><strong>' + p.name + '</strong></td>' +
+            '<td style="font-weight: 700; color: ' + stockColor + ';">' + (p.stock || 0) + '</td>' +
+            '<td style="font-weight: 700; color: #60a5fa;">$' + priceUsd.toFixed(2) + '</td>' +
+            '<td style="font-weight: 700; color: #fbbf24;">' + priceBs + ' Bs</td>' +
+            '<td>$' + (parseFloat(p.cost_usd || 0)).toFixed(2) + '</td>' +
+          '</tr>';
+        });
+        tbody.innerHTML = html;
+      });
+    }
+
+    function loadAccesses() {
+      fetch('/api/accesses').then(function(r){return r.json();}).then(function(res){
+        var box = document.getElementById('access-content');
+        var a = res.accesses || {};
+        var html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">';
+        for (var k in a) {
+          html += '<div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">' +
+            '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">' + k.replace(/_/g, ' ') + '</div>' +
+            '<div style="font-size: 14px; font-weight: 700; margin-top: 4px; word-break: break-all;">' + a[k] + '</div>' +
+          '</div>';
+        }
+        html += '</div>';
+        box.innerHTML = html;
+      });
+    }
+
+    // Explorador de Archivos
+    function browsePath(dirPath) {
+      document.getElementById('cur-dir-input').value = dirPath || '';
+      fetch('/api/files/browse?dir=' + encodeURIComponent(dirPath || 'C:\\'))
+        .then(function(r){return r.json();})
+        .then(function(data){
+          var drivesBar = document.getElementById('drives-bar');
+          if (data.drives) {
+            drivesBar.innerHTML = data.drives.map(function(d){
+              return '<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="browsePath(\'' + d + '\\\\\')">' + d + '</button>';
+            }).join('');
+          }
+
+          var box = document.getElementById('file-list-box');
+          if (!data.success) {
+            box.innerHTML = '<div style="color: var(--red); padding: 10px;">' + data.error + '</div>';
+            return;
+          }
+
+          var html = '';
+          if (data.parent_dir) {
+            html += '<div class="file-item" onclick="browsePath(\'' + data.parent_dir.replace(/\\/g, '\\\\') + '\')">📁 .. (Subir nivel)</div>';
+          }
+          data.items.forEach(function(item){
+            var icon = item.is_dir ? '📁' : '📄';
+            var safePath = item.path.replace(/\\/g, '\\\\');
+            var action = item.is_dir ? 'browsePath(\'' + safePath + '\')' : 'openFile(\'' + safePath + '\')';
+            html += '<div class="file-item" onclick="' + action + '">' +
+              '<span>' + icon + ' ' + item.name + '</span>' +
+              '<span style="font-size: 10px; color: var(--text-muted);">' + (item.is_dir ? 'DIR' : Math.round(item.size / 1024) + ' KB') + '</span>' +
+            '</div>';
+          });
+          box.innerHTML = html;
+        });
+    }
+
+    function searchFiles() {
+      var q = document.getElementById('file-search-input').value;
+      var cur = document.getElementById('cur-dir-input').value || 'C:\\';
+      var box = document.getElementById('file-list-box');
+      box.innerHTML = '<div style="padding: 10px; color: var(--text-muted);">Buscando archivos...</div>';
+      fetch('/api/files/search?dir=' + encodeURIComponent(cur) + '&q=' + encodeURIComponent(q))
+        .then(function(r){return r.json();})
+        .then(function(res){
+          if (!res.files || res.files.length === 0) {
+            box.innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No se encontraron coincidencias.</div>';
+            return;
+          }
+          var html = '<div style="font-size: 11px; padding: 6px; color: var(--primary);">' + res.count + ' encontrados:</div>';
+          res.files.forEach(function(f){
+            var safe = f.path.replace(/\\/g, '\\\\');
+            html += '<div class="file-item" onclick="openFile(\'' + safe + '\')">📄 ' + f.name + '</div>';
+          });
+          box.innerHTML = html;
+        });
+    }
+
+    function openFile(filePath) {
+      currentEditingPath = filePath;
+      document.getElementById('editor-filename').innerText = filePath;
+      document.getElementById('btn-save-file').style.display = 'inline-flex';
+      var editor = document.getElementById('file-editor');
+      editor.value = 'Cargando archivo...';
+
+      fetch('/api/files/read?path=' + encodeURIComponent(filePath))
+        .then(function(r){return r.json();})
+        .then(function(data){
+          if (!data.success) {
+            editor.value = 'Error al abrir: ' + data.error;
+            return;
+          }
+          if (data.type === 'dbf') {
+            editor.value = '=== ARCHIVO DBF DE MIXNET ===\nRegistros totales: ' + data.num_records + '\n\nCAMPOS:\n' +
+              JSON.stringify(data.fields, null, 2) + '\n\nMUESTRA DE REGISTROS:\n' +
+              JSON.stringify(data.preview_rows, null, 2);
+          } else {
+            editor.value = data.content;
+          }
+        });
+    }
+
+    function saveCurrentFile() {
+      if (!currentEditingPath) return;
+      var content = document.getElementById('file-editor').value;
+      fetch('/api/files/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentEditingPath, content: content })
+      })
+      .then(function(r){return r.json();})
+      .then(function(res){
+        if (res.success) {
+          alert('¡Guardado exitoso! Archivo actualizado en disco: ' + res.path);
+        } else {
+          alert('Error al guardar: ' + res.error);
         }
       });
     }
 
-    // Filtro de Tablas
-    function filterTable(tableId, query) {
-      var q = query.toLowerCase().trim();
-      var rows = document.querySelectorAll('#' + tableId + ' tbody tr');
-      rows.forEach(function(r) {
-        var text = r.innerText.toLowerCase();
-        r.style.display = text.indexOf(q) !== -1 ? '' : 'none';
+    function forceSync() {
+      fetch('/api/sync/now').then(function(){
+        setTimeout(loadAll, 1200);
       });
     }
 
-    // Carga de Estado General
-    function loadStatus() {
-      fetch('/api/status')
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          var dotMix = document.getElementById('dot-mixnet');
-          var txtMix = document.getElementById('txt-mixnet');
-          if (data.mixnet_connected) {
-            dotMix.className = 'dot green';
-            txtMix.innerText = 'MixNet Conectado (' + data.mixnet_dir.replace(/^.*\\/, '') + ')';
-          } else {
-            dotMix.className = 'dot red';
-            txtMix.innerText = 'MixNet Desconectado';
-          }
-
-          var dotSup = document.getElementById('dot-supervisor');
-          var txtSup = document.getElementById('txt-supervisor');
-          if (data.supervisor && data.supervisor.online) {
-            dotSup.className = 'dot green';
-            txtSup.innerText = 'Supervisor PC (' + data.supervisor.latency + 'ms)';
-          } else {
-            dotSup.className = 'dot yellow';
-            txtSup.innerText = 'Supervisor PC (Sin respuesta)';
-          }
-        })
-        .catch(function(e) {
-          console.warn('Error obteniendo status:', e);
-        });
-    }
-
-    // Carga de Datos Resumen (Overview)
-    function loadOverview() {
-      fetch('/api/overview')
-        .then(function(res) { return res.json(); })
-        .then(function(d) {
-          document.getElementById('kpi-cxc').innerText = '$' + (d.cxc_total_usd || 0).toLocaleString();
-          document.getElementById('kpi-cxc-sub').innerText = (d.clientes_count || 0) + ' clientes registrados';
-
-          document.getElementById('kpi-cxp').innerText = '$' + (d.cxp_total_usd || 0).toLocaleString();
-          document.getElementById('kpi-cxp-sub').innerText = (d.proveedores_count || 0) + ' proveedores registrados';
-
-          document.getElementById('kpi-ventas').innerText = '$' + (d.ventas_globales_usd || 0).toLocaleString();
-          document.getElementById('kpi-inv-venta').innerText = '$' + (d.inventario_venta_usd || 0).toLocaleString();
-          document.getElementById('kpi-inv-costo').innerText = 'Costo reposición: $' + (d.inventario_costo_usd || 0).toLocaleString();
-
-          document.getElementById('kpi-bancos').innerText = (d.saldo_bancos || 0).toLocaleString() + ' Bs';
-        })
-        .catch(function(e) { console.warn(e); });
-    }
-
-    // Carga CxC
-    function loadCxC() {
-      fetch('/api/cxc')
-        .then(function(res) { return res.json(); })
-        .then(function(res) {
-          var tbody = document.getElementById('body-cxc');
-          var list = res.data && res.data.top_deudores ? res.data.top_deudores : [];
-          if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay documentos pendientes de cobro registrados.</td></tr>';
-            return;
-          }
-          var html = '';
-          list.forEach(function(item) {
-            html += '<tr>' +
-              '<td><span class="tag tag-amber">' + (item.numero || 'PED-PEND') + '</span></td>' +
-              '<td>' + (item.emision || '-') + '</td>' +
-              '<td><strong>' + (item.cliente_nombre || item.codigo_cliente) + '</strong></td>' +
-              '<td>' + (item.rif || '-') + '</td>' +
-              '<td><span class="tag tag-blue">' + (item.vendedor || '005') + '</span></td>' +
-              '<td style="font-weight: 700; color: #fbbf24;">$' + (item.monto_usd || 0).toFixed(2) + '</td>' +
-            '</tr>';
-          });
-          tbody.innerHTML = html;
-        })
-        .catch(function(e) { console.warn(e); });
-    }
-
-    // Carga CxP
-    function loadCxP() {
-      fetch('/api/cxp')
-        .then(function(res) { return res.json(); })
-        .then(function(res) {
-          var tbody = document.getElementById('body-cxp');
-          var list = res.data && res.data.pendientes ? res.data.pendientes : [];
-          if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay cuentas por pagar registradas.</td></tr>';
-            return;
-          }
-          var html = '';
-          list.forEach(function(item) {
-            html += '<tr>' +
-              '<td><span class="tag tag-red">' + (item.documento || 'CXP') + '</span></td>' +
-              '<td>' + (item.emision || '-') + '</td>' +
-              '<td>' + (item.vencimiento || '-') + '</td>' +
-              '<td><strong>' + item.proveedor + '</strong></td>' +
-              '<td>' + (item.rif || '-') + '</td>' +
-              '<td style="font-weight: 700; color: #f87171;">$' + (item.monto_usd || 0).toFixed(2) + '</td>' +
-            '</tr>';
-          });
-          tbody.innerHTML = html;
-        })
-        .catch(function(e) { console.warn(e); });
-    }
-
-    // Carga Nómina & Vendedores
-    function loadNomina() {
-      fetch('/api/nomina')
-        .then(function(res) { return res.json(); })
-        .then(function(res) {
-          var tbody = document.getElementById('body-nomina');
-          var list = res.data && res.data.vendedores ? res.data.vendedores : [];
-          if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay registros de ventas por vendedor.</td></tr>';
-            return;
-          }
-          var html = '';
-          list.forEach(function(v) {
-            html += '<tr>' +
-              '<td><span class="tag tag-blue">' + v.codigo + '</span></td>' +
-              '<td><strong>' + v.nombre + '</strong></td>' +
-              '<td><span class="tag tag-amber">' + v.rol + '</span></td>' +
-              '<td>' + v.pedidos_count + '</td>' +
-              '<td>' + v.facturas_count + '</td>' +
-              '<td style="font-weight: 700; color: #34d399;">$' + (v.total_ventas_usd || 0).toFixed(2) + '</td>' +
-              '<td style="font-weight: 700; color: #fbbf24;">$' + (v.comision_estimada_3pct || 0).toFixed(2) + '</td>' +
-            '</tr>';
-          });
-          tbody.innerHTML = html;
-        })
-        .catch(function(e) { console.warn(e); });
-    }
-
-    // Carga Inventario
-    function loadInventario() {
-      fetch('/api/inventario')
-        .then(function(res) { return res.json(); })
-        .then(function(res) {
-          var tbody = document.getElementById('body-inv');
-          var list = res.data && res.data.productos ? res.data.productos : [];
-          if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No se encontraron artículos en inventario.</td></tr>';
-            return;
-          }
-          var html = '';
-          list.forEach(function(p) {
-            var stockColor = p.stock > 0 ? '#34d399' : '#f87171';
-            html += '<tr>' +
-              '<td><code>' + p.sku + '</code></td>' +
-              '<td><strong>' + p.descripcion + '</strong></td>' +
-              '<td style="font-weight: 700; color: ' + stockColor + ';">' + p.stock + '</td>' +
-              '<td>$' + p.costo_usd.toFixed(2) + '</td>' +
-              '<td style="font-weight: 700; color: #60a5fa;">$' + p.precio_usd.toFixed(2) + '</td>' +
-              '<td>$' + p.precio_mayor_usd.toFixed(2) + '</td>' +
-              '<td style="font-weight: 700;">$' + p.valor_existencia_usd.toFixed(2) + '</td>' +
-            '</tr>';
-          });
-          tbody.innerHTML = html;
-        })
-        .catch(function(e) { console.warn(e); });
-    }
-
-    // Carga Bancos
-    function loadBancos() {
-      fetch('/api/bancos')
-        .then(function(res) { return res.json(); })
-        .then(function(res) {
-          var tbody = document.getElementById('body-bancos');
-          var list = res.data && res.data.cuentas ? res.data.cuentas : [];
-          if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No hay cuentas bancarias configuradas.</td></tr>';
-            return;
-          }
-          var html = '';
-          list.forEach(function(b) {
-            html += '<tr>' +
-              '<td><span class="tag tag-purple">' + b.codigo + '</span></td>' +
-              '<td><strong>' + b.banco + '</strong></td>' +
-              '<td><code>' + b.numero_cuenta + '</code></td>' +
-              '<td>' + b.moneda + '</td>' +
-              '<td style="font-weight: 700; color: #34d399;">' + b.saldo.toLocaleString() + '</td>' +
-            '</tr>';
-          });
-          tbody.innerHTML = html;
-        })
-        .catch(function(e) { console.warn(e); });
-    }
-
-    function loadAllData() {
+    function loadAll() {
       loadStatus();
-      loadOverview();
+      loadOrders();
+      loadQuotes();
       loadCxC();
       loadCxP();
       loadNomina();
-      loadInventario();
-      loadBancos();
+      loadProducts();
+      loadAccesses();
     }
 
-    // Chat y Consultas IA
-    function appendMessage(role, text) {
+    // Copiloto Gemini AI
+    function appendMsg(role, text) {
       var box = document.getElementById('chat-messages');
       var div = document.createElement('div');
       div.className = 'msg ' + role;
@@ -889,20 +1071,25 @@
       box.scrollTop = box.scrollHeight;
     }
 
+    function sendAiPrompt(q) {
+      document.getElementById('chat-input').value = q;
+      sendQuestion();
+    }
+
     function sendQuestion() {
       var input = document.getElementById('chat-input');
       var q = input.value.trim();
       if (!q) return;
 
-      appendMessage('user', q);
+      appendMsg('user', q);
       input.value = '';
 
-      var loadingId = 'ai-load-' + Date.now();
+      var loadId = 'ai-load-' + Date.now();
       var box = document.getElementById('chat-messages');
       var loadDiv = document.createElement('div');
       loadDiv.className = 'msg ai';
-      loadDiv.id = loadingId;
-      loadDiv.innerHTML = '<em>⚡ Consultando datos de MixNet con Gemini AI...</em>';
+      loadDiv.id = loadId;
+      loadDiv.innerHTML = '<em>⚡ Consultando datos reales de MixNet y Supabase con Gemini...</em>';
       box.appendChild(loadDiv);
       box.scrollTop = box.scrollHeight;
 
@@ -911,67 +1098,23 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q })
       })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        var el = document.getElementById(loadingId);
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var el = document.getElementById(loadId);
         if (el) el.remove();
-        if (data.ok) {
-          appendMessage('ai', data.answer);
-        } else {
-          appendMessage('ai', '⚠️ Error consultando a Gemini: ' + (data.error || 'Respuesta no válida'));
-        }
+        if (d.ok) appendMsg('ai', d.answer);
+        else appendMsg('ai', '⚠️ Error: ' + (d.error || 'No fue posible obtener respuesta'));
       })
-      .catch(function(err) {
-        var el = document.getElementById(loadingId);
+      .catch(function(e){
+        var el = document.getElementById(loadId);
         if (el) el.remove();
-        appendMessage('ai', '⚠️ Error de red: ' + err.message);
+        appendMsg('ai', '⚠️ Error de conexión: ' + e.message);
       });
     }
 
-    function runQuickAudit(type) {
-      showTab('tab-ai');
-      appendMessage('user', '📋 Generar auditoría: ' + type.toUpperCase());
-
-      var loadingId = 'ai-load-' + Date.now();
-      var box = document.getElementById('chat-messages');
-      var loadDiv = document.createElement('div');
-      loadDiv.className = 'msg ai';
-      loadDiv.id = loadingId;
-      loadDiv.innerHTML = '<em>⚡ Analizando el 100% de tablas DBF de MixNet para elaborar informe con Gemini...</em>';
-      box.appendChild(loadDiv);
-      box.scrollTop = box.scrollHeight;
-
-      fetch('/api/ai/audit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: type })
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        var el = document.getElementById(loadingId);
-        if (el) el.remove();
-        if (data.ok) {
-          appendMessage('ai', data.report);
-        } else {
-          appendMessage('ai', '⚠️ Error generando auditoría: ' + (data.error || 'Error desconocido'));
-        }
-      })
-      .catch(function(err) {
-        var el = document.getElementById(loadingId);
-        if (el) el.remove();
-        appendMessage('ai', '⚠️ Error de conexión: ' + err.message);
-      });
-    }
-
-    function clearChat() {
-      var box = document.getElementById('chat-messages');
-      box.innerHTML = '<div class="msg ai">Conversación reiniciada. ¿Qué otra consulta deseas realizar?</div>';
-    }
-
-    // Inicializar al cargar la página
     window.onload = function() {
-      loadAllData();
-      setInterval(loadAllData, 30000);
+      loadAll();
+      setInterval(loadAll, 25000);
     };
   </script>
 </body>

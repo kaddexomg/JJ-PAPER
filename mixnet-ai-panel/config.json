@@ -4,19 +4,23 @@
     "M:\\MIX11\\comp01",
     "M:\\comp01",
     "M:\\COMP01",
-    "\\\\192.168.0.185\\comp01",
-    "\\\\192.168.0.172\\comp01",
     "P:\\comp01",
     "P:\\MIX11\\comp01",
     "Z:\\comp01",
-    "C:\\MIXNET\\comp01"
+    "C:\\MIXNET\\comp01",
+    "C:\\comp01"
   ],
   "supervisor_urls": [
     "http://192.168.0.172:8787",
     "https://192.168.0.172:8788",
     "https://100.103.110.44:8788"
   ],
-  "gemini_keys": [],
+  "supabase": {
+    "core_url": "https://wwcdxqpibequfohbgejs.supabase.co",
+    "core_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MzAwNzQsImV4cCI6MjEwNjMwNjA3NH0.LpAugyhm57WO669WjiWKdekDYgB8l8rxFLTk0gsC0fk",
+    "comm_url": "https://klcibjwleiqppedefpxw.supabase.co",
+    "comm_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsY2liandsZWlxcHBlZGVmcHh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NTE3OTYsImV4cCI6MjEwMzMyNzc5Nn0.eE2UYJSX9yKK-1u2sv2aF-G1Rp7yho1Myz1-kSttz6g"
+  },
   "gemini_models": [
     "gemini-3.1-flash-lite",
     "gemini-3.5-flash-lite",
@@ -36,5 +40,18 @@
     "025": { "nombre": "Ana Barajas", "rol": "Ventas" },
     "032": { "nombre": "Caja 32", "rol": "Caja Auxiliar" },
     "033": { "nombre": "Caja 33", "rol": "Caja Auxiliar" }
+  },
+  "accesos_sistema": {
+    "servidor_supervisor_lan": "192.168.0.172",
+    "servidor_supervisor_tailscale": "100.103.110.44",
+    "puerto_http_supervisor": 8787,
+    "puerto_https_supervisor": 8788,
+    "servidor_mixnet_dbf": "192.168.0.185",
+    "carpeta_mixnet_oficial": "\\\\192.168.0.185\\comp01 (Unidad M:)",
+    "proyecto_core_ref": "wwcdxqpibequfohbgejs",
+    "proyecto_comm_ref": "klcibjwleiqppedefpxw",
+    "proyecto_storage_ref": "nmcamjxhyysmmvgxgabo",
+    "usuario_admin_principal": "picoj386@gmail.com",
+    "whatsapp_admin": "+58 412-4676073 (Keyder Salazar)"
   }
 }

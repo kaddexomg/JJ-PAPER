@@ -1,4 +1,5 @@
 import os from 'node:os';
+import { execSync } from 'node:child_process';
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 
@@ -193,9 +194,15 @@ async function runCommand(cmd) {
   }
 
   if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
-    log.info({ cmd }, 'comando recibido — saliendo para recargar (el supervisor sincroniza y relanza)');
+    log.info({ cmd }, 'comando recibido — actualizando via git y reiniciando servicio');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);
-    process.exit(0);   // código 0 → el supervisor relanza con git pull
+    try {
+      execSync('git pull origin main', { stdio: 'ignore', timeout: 20000 });
+      log.info('git pull completado exitosamente antes de reiniciar.');
+    } catch (e) {
+      log.warn({ err: e.message }, 'git pull fallo o timed out, reiniciando igualmente');
+    }
+    process.exit(0);   // código 0 → el supervisor relanza
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
     const stopPayload = {

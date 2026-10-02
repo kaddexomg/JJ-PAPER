@@ -472,10 +472,12 @@
     <button class="tab-btn active" onclick="showTab('tab-dashboard')">📊 Dashboard General</button>
     <button class="tab-btn" onclick="showTab('tab-orders')">🧾 Pedidos en Vivo</button>
     <button class="tab-btn" onclick="showTab('tab-quotes')">📑 Cotizaciones</button>
+    <button class="tab-btn" onclick="showTab('tab-bancos')">🏦 Bancos & Finanzas</button>
     <button class="tab-btn" onclick="showTab('tab-cxc')">💰 Cuentas por Cobrar (CxC)</button>
     <button class="tab-btn" onclick="showTab('tab-cxp')">💳 Cuentas por Pagar (CxP)</button>
     <button class="tab-btn" onclick="showTab('tab-nomina')">👥 Nómina & Vendedores</button>
     <button class="tab-btn" onclick="showTab('tab-products')">📦 Inventario & Precios</button>
+    <button class="tab-btn" onclick="showTab('tab-dbf')">🔍 Tablas Unidad MixNet (DBF)</button>
     <button class="tab-btn" onclick="showTab('tab-files')">📁 Explorador & Editor</button>
     <button class="tab-btn" onclick="showTab('tab-access')">🔑 Datos Cuenta & Accesos</button>
     <button class="tab-btn" onclick="showTab('tab-ai')">🤖 Copiloto Gemini AI</button>
@@ -574,6 +576,123 @@
       </div>
     </div>
 
+    <!-- TAB BANCOS Y FINANZAS -->
+    <div id="tab-bancos" class="tab-pane">
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--card-accent: var(--blue);">
+          <div class="kpi-title">Bancos en Bolívares (Bs)</div>
+          <div class="kpi-val" id="kpi-bancos-bs">0.00 Bs</div>
+          <div class="kpi-desc" id="kpi-bancos-ctas-count">0 cuentas activas</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--green);">
+          <div class="kpi-title">Bancos / Divisas (USD)</div>
+          <div class="kpi-val" id="kpi-bancos-usd">$0.00</div>
+          <div class="kpi-desc">Cuentas custodia y divisas</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--primary);">
+          <div class="kpi-title">Cajas y Efectivo</div>
+          <div class="kpi-val" id="kpi-cajas-total">$0.00</div>
+          <div class="kpi-desc" id="kpi-cajas-count">Cajas registradas</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--purple);">
+          <div class="kpi-title">Movimientos & Cheques</div>
+          <div class="kpi-val" id="kpi-movs-count">0</div>
+          <div class="kpi-desc">Transacciones en memoria</div>
+        </div>
+      </div>
+
+      <!-- Cuentas Bancarias Registradas -->
+      <div class="table-container" style="margin-bottom: 24px;">
+        <div class="table-header">
+          <div class="table-title">🏦 Cuentas Bancarias Registradas & Oficiales</div>
+          <button class="btn btn-secondary" onclick="loadBancos()">🔄 Actualizar Bancos</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Banco</th>
+              <th>Número de Cuenta (20 dígitos)</th>
+              <th>Titular / RIF</th>
+              <th>Tipo</th>
+              <th>Moneda</th>
+              <th>Saldo en Libros</th>
+              <th>Saldo Conciliado</th>
+              <th>Origen</th>
+            </tr>
+          </thead>
+          <tbody id="body-bancos-cuentas">
+            <tr><td colspan="8" style="text-align: center;">Cargando cuentas bancarias...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Movimientos Bancarios Recientes (MXTRABAN) -->
+      <div class="table-container" style="margin-bottom: 24px;">
+        <div class="table-header">
+          <div class="table-title">📋 Movimientos Bancarios Recientes (MXTRABAN)</div>
+          <input type="text" class="search-input" placeholder="Buscar por referencia o concepto..." onkeyup="filterMovimientos(this.value)">
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Banco</th>
+              <th>Referencia / Comprobante</th>
+              <th>Tipo</th>
+              <th>Concepto</th>
+              <th>Monto</th>
+              <th>Saldo Resultante</th>
+            </tr>
+          </thead>
+          <tbody id="body-bancos-movs">
+            <tr><td colspan="7" style="text-align: center;">Sin movimientos bancarios en la unidad.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Cajas de la Empresa (MXCTACAJ) & Cheques (MXCHEQUE) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-title">💵 Cajas de la Empresa (MXCTACAJ)</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Cód</th>
+                <th>Nombre de Caja</th>
+                <th>Responsable</th>
+                <th>Saldo Actual</th>
+              </tr>
+            </thead>
+            <tbody id="body-bancos-cajas">
+              <tr><td colspan="4" style="text-align: center;">Cargando cajas...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-title">🎫 Cheques Registrados (MXCHEQUE)</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nro Cheque</th>
+                <th>Banco</th>
+                <th>Beneficiario</th>
+                <th>Monto</th>
+                <th>Estatus</th>
+              </tr>
+            </thead>
+            <tbody id="body-bancos-cheques">
+              <tr><td colspan="5" style="text-align: center;">Sin cheques registrados.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB 4: CUENTAS POR COBRAR (CxC) -->
     <div id="tab-cxc" class="tab-pane">
       <div class="table-container">
@@ -597,23 +716,47 @@
       </div>
     </div>
 
-    <!-- TAB 5: CUENTAS POR PAGAR (CxP) -->
+    <!-- TAB 5: CUENTAS POR PAGAR (CxP) & PROVEEDORES -->
     <div id="tab-cxp" class="tab-pane">
-      <div class="table-container">
+      <div class="table-container" style="margin-bottom: 24px;">
         <div class="table-header">
-          <div class="table-title">💳 Cuentas por Pagar & Proveedores</div>
+          <div class="table-title">💳 Documentos por Pagar & Facturas Pendientes (MXTRAPAG)</div>
         </div>
         <table>
           <thead>
             <tr>
               <th>Documento</th>
               <th>Emisión</th>
+              <th>Vence</th>
               <th>Proveedor</th>
+              <th>Concepto</th>
               <th>Monto Pendiente</th>
             </tr>
           </thead>
           <tbody id="body-cxp">
-            <tr><td colspan="4" style="text-align: center;">Cargando cuentas por pagar...</td></tr>
+            <tr><td colspan="6" style="text-align: center;">Cargando cuentas por pagar...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">🏭 Directorio Maestro de Proveedores (MXCTAPRO)</div>
+          <input type="text" class="search-input" placeholder="Buscar proveedor por RIF o nombre..." onkeyup="filterProveedores(this.value)">
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Cód</th>
+              <th>Razón Social / Proveedor</th>
+              <th>RIF</th>
+              <th>Teléfono</th>
+              <th>Dirección</th>
+              <th>Saldo Adeudado</th>
+            </tr>
+          </thead>
+          <tbody id="body-proveedores">
+            <tr><td colspan="6" style="text-align: center;">Cargando directorio de proveedores...</td></tr>
           </tbody>
         </table>
       </div>
@@ -665,6 +808,57 @@
             <tr><td colspan="6" style="text-align: center;">Cargando productos...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- TAB VISOR UNIVERSAL DE TABLAS DBF DE LA UNIDAD -->
+    <div id="tab-dbf" class="tab-pane">
+      <div class="table-container" style="margin-bottom: 20px;">
+        <div class="table-header" style="flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
+            <div class="table-title">🔍 Tablas DBF de la Unidad MixNet</div>
+            <select id="dbf-table-select" class="search-input" style="min-width: 240px; font-weight: 700; background: #1f293d; color: #fff;" onchange="onSelectDbfTable(this.value)">
+              <option value="">Seleccione una tabla DBF...</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadDbfTables()">🔄 Escanear Unidad</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-green" id="btn-export-dbf" onclick="exportCurrentDbf()" style="display: none;">
+              📥 Exportar Tabla a Excel (.CSV)
+            </button>
+          </div>
+        </div>
+
+        <!-- Barra de información de tabla seleccionada -->
+        <div id="dbf-meta-bar" style="display: none; padding: 12px 18px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--card-border); font-size: 12px; gap: 20px; flex-wrap: wrap;">
+          <div><strong>Tabla:</strong> <span id="meta-dbf-name" class="tag tag-amber">-</span></div>
+          <div><strong>Registros:</strong> <span id="meta-dbf-records" style="font-weight: 700; color: #34d399;">0</span></div>
+          <div><strong>Tamaño:</strong> <span id="meta-dbf-size">0 KB</span></div>
+          <div><strong>Campos:</strong> <span id="meta-dbf-fields-count">0 columnas</span></div>
+          <div><strong>Última Modificación:</strong> <span id="meta-dbf-mtime">-</span></div>
+          <div style="flex: 1; text-align: right; color: var(--text-muted);"><code id="meta-dbf-path">-</code></div>
+        </div>
+
+        <div style="padding: 10px 18px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02);">
+          <input type="text" id="dbf-filter-input" class="search-input" style="max-width: 350px;" placeholder="Buscar en cualquier columna de la tabla..." onkeydown="if(event.key==='Enter') searchDbfRows()">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-secondary" onclick="prevDbfPage()">⬅ Anterior</button>
+            <span id="dbf-page-info" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Página 1</span>
+            <button class="btn btn-secondary" onclick="nextDbfPage()">Siguiente ➡</button>
+          </div>
+        </div>
+
+        <!-- Contenedor dinámico de tabla con scroll horizontal -->
+        <div style="overflow-x: auto; max-height: 580px;">
+          <table id="dbf-dynamic-table">
+            <thead id="dbf-dynamic-thead">
+              <tr><th>Seleccione una tabla arriba para inspeccionar sus datos</th></tr>
+            </thead>
+            <tbody id="dbf-dynamic-tbody">
+              <tr><td style="text-align: center; padding: 30px; color: var(--text-muted);">Todas las tablas de la unidad (MXCTABAN, MXTRABAN, MXCTACAJ, MXCTAPRO, MXTRAINV, etc.) están accesibles sin restricciones.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -722,9 +916,13 @@
             Tiene acceso total al ERP, pedidos, cotizaciones, cartera, inventario, nómina y archivos del sistema.
           </p>
           <button class="btn" onclick="sendAiPrompt('Dame un balance general de los pedidos facturados hoy y las cotizaciones activas.')">📊 Balance de Ventas Hoy</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Cuáles son las cuentas bancarias oficiales y registradas en MixNet, números de cuenta de 20 dígitos y saldos?')">🏦 Cuentas Bancarias y Saldos</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Cuánto dinero hay disponible en las cajas de la empresa y efectivo?')">💵 Cajas y Efectivo</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Qué movimientos bancarios recientes hay registrados en la unidad?')">📋 Movimientos Bancarios</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Cuáles son las principales deudas a proveedores (CxP) y cheques pendientes?')">💳 Deudas Proveedores (CxP)</button>
           <button class="btn btn-secondary" onclick="sendAiPrompt('¿Quiénes son los clientes con mayor deuda en cuentas por cobrar?')">🎯 Auditoría de Cobranzas</button>
           <button class="btn btn-secondary" onclick="sendAiPrompt('Detalla las ventas por vendedor y calcula comisiones estimadas.')">👥 Nómina por Vendedor</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('Indica qué productos tienen inventario crítico o en cero.')">🚨 Diagnóstico de Stock</button>
+          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Qué tablas DBF existen en la unidad de MixNet y qué información contienen?')">🔍 Tablas de la Unidad MixNet</button>
           <button class="btn btn-secondary" onclick="sendAiPrompt('Muestra los accesos, IPs y datos de la cuenta configurados.')">🔑 Consultar Accesos y Claves</button>
         </div>
 
@@ -1044,6 +1242,297 @@
       });
     }
 
+    var rawBancosMovs = [];
+    var rawProveedores = [];
+    var currentDbfTable = null;
+    var currentDbfOffset = 0;
+    var currentDbfLimit = 50;
+    var currentDbfTotal = 0;
+
+    function loadBancos() {
+      fetch('/api/bancos').then(function(r){return r.json();}).then(function(res){
+        var b = res.data || {};
+        var ctas = b.cuentas || [];
+        var movs = b.movimientos || [];
+        var cajas = b.cajas || [];
+        var cheques = b.cheques || [];
+        rawBancosMovs = movs;
+
+        document.getElementById('kpi-bancos-bs').innerText = (b.total_bancos_bs || 0).toLocaleString() + ' Bs';
+        document.getElementById('kpi-bancos-usd').innerText = '$' + (b.total_bancos_usd || 0).toFixed(2);
+        document.getElementById('kpi-bancos-ctas-count').innerText = ctas.length + ' cuentas registradas';
+        document.getElementById('kpi-cajas-total').innerText = (b.total_cajas_bs || 0).toLocaleString() + ' Bs' + (b.total_cajas_usd ? ' / $' + b.total_cajas_usd : '');
+        document.getElementById('kpi-cajas-count').innerText = cajas.length + ' cajas activas';
+        document.getElementById('kpi-movs-count').innerText = movs.length + ' movs / ' + cheques.length + ' cheques';
+
+        // Cuentas
+        var tbodyCtas = document.getElementById('body-bancos-cuentas');
+        if (ctas.length === 0) {
+          tbodyCtas.innerHTML = '<tr><td colspan="8" style="text-align: center;">Sin cuentas bancarias registradas.</td></tr>';
+        } else {
+          var h = '';
+          ctas.forEach(function(c){
+            var saldoBs = c.moneda === 'BS' ? c.saldo.toLocaleString() + ' Bs' : '-';
+            var saldoUsd = c.moneda === 'USD' ? '$' + c.saldo.toFixed(2) : '-';
+            h += '<tr>' +
+              '<td><strong>' + c.banco + '</strong></td>' +
+              '<td><code style="font-size: 13px; font-weight: 700; color: #60a5fa;">' + (c.cuenta || 'N/A') + '</code></td>' +
+              '<td>' + c.titular + (c.cif ? '<br><small style="color:var(--text-muted);">' + c.cif + '</small>' : '') + '</td>' +
+              '<td><span class="tag tag-blue">' + (c.tipo || 'Corriente') + '</span></td>' +
+              '<td><span class="tag ' + (c.moneda === 'USD' ? 'tag-green' : 'tag-amber') + '">' + c.moneda + '</span></td>' +
+              '<td style="font-weight: 700; color: #34d399;">' + (c.moneda === 'USD' ? saldoUsd : saldoBs) + '</td>' +
+              '<td>' + (c.saldo_conciliado ? c.saldo_conciliado.toLocaleString() : '-') + '</td>' +
+              '<td><span class="tag tag-amber">' + (c.origen || 'MixNet') + '</span></td>' +
+            '</tr>';
+          });
+          tbodyCtas.innerHTML = h;
+        }
+
+        // Movimientos
+        renderBancosMovs(movs.slice(0, 100));
+
+        // Cajas
+        var tbodyCaj = document.getElementById('body-bancos-cajas');
+        if (cajas.length === 0) {
+          tbodyCaj.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin cajas registradas en DBF.</td></tr>';
+        } else {
+          var hc = '';
+          cajas.forEach(function(cj){
+            hc += '<tr>' +
+              '<td><span class="tag tag-blue">' + cj.codigo + '</span></td>' +
+              '<td><strong>' + cj.nombre + '</strong></td>' +
+              '<td>' + cj.responsable + '</td>' +
+              '<td style="font-weight: 700; color: #34d399;">' + (cj.moneda === 'USD' ? '$' + cj.saldo.toFixed(2) : cj.saldo.toLocaleString() + ' Bs') + '</td>' +
+            '</tr>';
+          });
+          tbodyCaj.innerHTML = hc;
+        }
+
+        // Cheques
+        var tbodyChq = document.getElementById('body-bancos-cheques');
+        if (cheques.length === 0) {
+          tbodyChq.innerHTML = '<tr><td colspan="5" style="text-align: center;">Sin cheques emitidos o pendientes.</td></tr>';
+        } else {
+          var hch = '';
+          cheques.slice(0, 50).forEach(function(ch){
+            hch += '<tr>' +
+              '<td><span class="tag tag-amber">' + ch.numero + '</span></td>' +
+              '<td>' + ch.banco + '</td>' +
+              '<td><strong>' + ch.beneficiario + '</strong></td>' +
+              '<td style="font-weight: 700; color: #f87171;">$' + ch.monto.toFixed(2) + '</td>' +
+              '<td><span class="tag tag-green">' + ch.estatus + '</span></td>' +
+            '</tr>';
+          });
+          tbodyChq.innerHTML = hch;
+        }
+      });
+    }
+
+    function renderBancosMovs(list) {
+      var tbody = document.getElementById('body-bancos-movs');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Sin transacciones registradas.</td></tr>';
+        return;
+      }
+      var h = '';
+      list.forEach(function(m){
+        var col = m.monto >= 0 ? '#34d399' : '#f87171';
+        h += '<tr>' +
+          '<td>' + (m.fecha || '-') + '</td>' +
+          '<td><span class="tag tag-blue">' + (m.banco || '-') + '</span></td>' +
+          '<td><code>' + (m.referencia || '-') + '</code></td>' +
+          '<td><span class="tag tag-amber">' + (m.tipo || 'TR') + '</span></td>' +
+          '<td>' + (m.concepto || '-') + '</td>' +
+          '<td style="font-weight: 700; color: ' + col + ';">' + m.monto.toLocaleString() + '</td>' +
+          '<td>' + (m.saldo ? m.saldo.toLocaleString() : '-') + '</td>' +
+        '</tr>';
+      });
+      tbody.innerHTML = h;
+    }
+
+    function filterMovimientos(q) {
+      q = (q || '').toLowerCase();
+      if (!q) return renderBancosMovs(rawBancosMovs.slice(0, 100));
+      var filtered = rawBancosMovs.filter(function(m){
+        return (m.referencia && m.referencia.toLowerCase().indexOf(q) !== -1) ||
+               (m.concepto && m.concepto.toLowerCase().indexOf(q) !== -1) ||
+               (m.banco && m.banco.toLowerCase().indexOf(q) !== -1);
+      });
+      renderBancosMovs(filtered.slice(0, 100));
+    }
+
+    function loadProveedores() {
+      fetch('/api/proveedores').then(function(r){return r.json();}).then(function(res){
+        rawProveedores = res.data || [];
+        renderProveedores(rawProveedores);
+      });
+    }
+
+    function renderProveedores(list) {
+      var tbody = document.getElementById('body-proveedores');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Sin proveedores registrados en DBF.</td></tr>';
+        return;
+      }
+      var h = '';
+      list.forEach(function(p){
+        h += '<tr>' +
+          '<td><span class="tag tag-blue">' + p.codigo + '</span></td>' +
+          '<td><strong>' + p.nombre + '</strong></td>' +
+          '<td><code>' + (p.rif || '-') + '</code></td>' +
+          '<td>' + (p.telefono || '-') + '</td>' +
+          '<td>' + (p.direccion || '-') + '</td>' +
+          '<td style="font-weight: 700; color: #f87171;">$' + (p.saldo_usd || 0).toFixed(2) + '</td>' +
+        '</tr>';
+      });
+      tbody.innerHTML = h;
+    }
+
+    function filterProveedores(q) {
+      q = (q || '').toLowerCase();
+      if (!q) return renderProveedores(rawProveedores);
+      var f = rawProveedores.filter(function(p){
+        return (p.nombre && p.nombre.toLowerCase().indexOf(q) !== -1) ||
+               (p.rif && p.rif.toLowerCase().indexOf(q) !== -1) ||
+               (p.codigo && p.codigo.toLowerCase().indexOf(q) !== -1);
+      });
+      renderProveedores(f);
+    }
+
+    // --- VISOR UNIVERSAL DE TABLAS DBF ---
+    function loadDbfTables() {
+      fetch('/api/dbf/tables').then(function(r){return r.json();}).then(function(res){
+        var sel = document.getElementById('dbf-table-select');
+        var tables = res.tables || [];
+        if (tables.length === 0) {
+          sel.innerHTML = '<option value="">No se encontraron tablas DBF en la unidad</option>';
+          return;
+        }
+        var h = '<option value="">-- Seleccionar tabla (' + tables.length + ' disponibles) --</option>';
+        var lastCat = '';
+        tables.forEach(function(t){
+          if (t.category !== lastCat) {
+            if (lastCat) h += '</optgroup>';
+            h += '<optgroup label="' + t.category + '">';
+            lastCat = t.category;
+          }
+          h += '<option value="' + t.name + '">' + t.name + ' (' + t.records + ' reg · ' + t.size_kb + ' KB)</option>';
+        });
+        if (lastCat) h += '</optgroup>';
+        sel.innerHTML = h;
+
+        // Auto-seleccionar MXCTABAN si existe
+        if (!currentDbfTable) {
+          var hasBan = tables.find(function(t){ return t.name === 'MXCTABAN'; });
+          if (hasBan) {
+            sel.value = 'MXCTABAN';
+            onSelectDbfTable('MXCTABAN');
+          }
+        }
+      });
+    }
+
+    function onSelectDbfTable(tblName) {
+      if (!tblName) {
+        document.getElementById('dbf-meta-bar').style.display = 'none';
+        document.getElementById('btn-export-dbf').style.display = 'none';
+        return;
+      }
+      currentDbfTable = tblName;
+      currentDbfOffset = 0;
+      document.getElementById('dbf-filter-input').value = '';
+      document.getElementById('btn-export-dbf').style.display = 'inline-flex';
+      queryDbf(tblName, 0, '');
+    }
+
+    function queryDbf(tblName, offset, search) {
+      var thead = document.getElementById('dbf-dynamic-thead');
+      var tbody = document.getElementById('dbf-dynamic-tbody');
+      tbody.innerHTML = '<tr><td style="text-align: center; padding: 20px;">Cargando registros de ' + tblName + '...</td></tr>';
+
+      fetch('/api/dbf/query?table=' + encodeURIComponent(tblName) + '&limit=' + currentDbfLimit + '&offset=' + offset + '&q=' + encodeURIComponent(search || ''))
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+          if (!res.ok) {
+            tbody.innerHTML = '<tr><td style="text-align: center; color: #f87171;">' + (res.error || 'Error al abrir tabla') + '</td></tr>';
+            return;
+          }
+
+          currentDbfTotal = res.matched_count || res.total_records || 0;
+          document.getElementById('dbf-meta-bar').style.display = 'flex';
+          document.getElementById('meta-dbf-name').innerText = res.table;
+          document.getElementById('meta-dbf-records').innerText = res.total_records + ' registros en tabla' + (search ? ' (' + res.matched_count + ' coincidentes)' : '');
+          document.getElementById('meta-dbf-fields-count').innerText = (res.fields || []).length + ' campos';
+          document.getElementById('meta-dbf-path').innerText = res.path || '-';
+
+          var page = Math.floor(offset / currentDbfLimit) + 1;
+          var totalPages = Math.ceil(currentDbfTotal / currentDbfLimit) || 1;
+          document.getElementById('dbf-page-info').innerText = 'Página ' + page + ' de ' + totalPages + ' (' + currentDbfTotal + ' registros)';
+
+          // Armar Thead
+          var thHtml = '<tr><th>#</th>';
+          (res.fields || []).forEach(function(f){
+            thHtml += '<th>' + f.name.toUpperCase() + ' <small style="color:var(--text-muted);">(' + f.type + ')</small></th>';
+          });
+          thHtml += '</tr>';
+          thead.innerHTML = thHtml;
+
+          // Armar Tbody
+          var rows = res.rows || [];
+          if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="' + ((res.fields || []).length + 1) + '" style="text-align: center; padding: 20px;">No se encontraron registros.</td></tr>';
+            return;
+          }
+
+          var tbHtml = '';
+          rows.forEach(function(r){
+            tbHtml += '<tr>';
+            tbHtml += '<td style="color: var(--text-muted); font-size: 11px;">' + (r._rec || '-') + '</td>';
+            (res.fields || []).forEach(function(f){
+              var val = r[f.name] !== undefined ? r[f.name] : '';
+              tbHtml += '<td>' + escapeHtml(val) + '</td>';
+            });
+            tbHtml += '</tr>';
+          });
+          tbody.innerHTML = tbHtml;
+        })
+        .catch(function(err){
+          tbody.innerHTML = '<tr><td style="text-align: center; color: #f87171;">Error al consultar: ' + err.message + '</td></tr>';
+        });
+    }
+
+    function searchDbfRows() {
+      if (!currentDbfTable) return;
+      var q = document.getElementById('dbf-filter-input').value.trim();
+      currentDbfOffset = 0;
+      queryDbf(currentDbfTable, 0, q);
+    }
+
+    function prevDbfPage() {
+      if (!currentDbfTable || currentDbfOffset <= 0) return;
+      currentDbfOffset = Math.max(0, currentDbfOffset - currentDbfLimit);
+      var q = document.getElementById('dbf-filter-input').value.trim();
+      queryDbf(currentDbfTable, currentDbfOffset, q);
+    }
+
+    function nextDbfPage() {
+      if (!currentDbfTable) return;
+      if (currentDbfOffset + currentDbfLimit >= currentDbfTotal) return;
+      currentDbfOffset += currentDbfLimit;
+      var q = document.getElementById('dbf-filter-input').value.trim();
+      queryDbf(currentDbfTable, currentDbfOffset, q);
+    }
+
+    function exportCurrentDbf() {
+      if (!currentDbfTable) return;
+      window.location.href = '/api/dbf/export?table=' + encodeURIComponent(currentDbfTable);
+    }
+
+    function escapeHtml(s) {
+      if (typeof s !== 'string') return String(s);
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function forceSync() {
       fetch('/api/sync/now').then(function(){
         setTimeout(loadAll, 1200);
@@ -1054,10 +1543,13 @@
       loadStatus();
       loadOrders();
       loadQuotes();
+      loadBancos();
       loadCxC();
       loadCxP();
+      loadProveedores();
       loadNomina();
       loadProducts();
+      loadDbfTables();
       loadAccesses();
     }
 

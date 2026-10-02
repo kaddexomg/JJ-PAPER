@@ -268,8 +268,19 @@ var store = {
   fx_rate: 0,
   cxc: { total: 0, count: 0, items: [] },
   cxp: { total: 0, count: 0, items: [] },
+  proveedores: [],
   nomina: { total: 0, vendedores: [] },
-  bancos: { total: 0, cuentas: [], movimientos: [] },
+  bancos: {
+    total_bancos_bs: 0,
+    total_bancos_usd: 0,
+    total_cajas_bs: 0,
+    total_cajas_usd: 0,
+    cuentas: [],
+    movimientos: [],
+    cajas: [],
+    movimientos_caja: [],
+    cheques: []
+  },
   last_sync: null,
   active_mixnet_dir: null,
   supervisor_status: { online: false, url: null, latency: null }
@@ -428,6 +439,25 @@ function syncFromSupervisor(callback) {
 
 // Capa 3: Lectura Directa de Tablas DBF de MixNet
 function syncFromLocalDbf() {
+  // Inicializar siempre con cuentas bancarias institucionales configuradas
+  if (config.cuentas_bancarias_empresa && config.cuentas_bancarias_empresa.length > 0 && store.bancos.cuentas.length === 0) {
+    config.cuentas_bancarias_empresa.forEach(function(ofic) {
+      store.bancos.cuentas.push({
+        codigo: ofic.banco.substring(0, 3).toUpperCase(),
+        banco: ofic.banco,
+        cuenta: ofic.numero,
+        titular: ofic.titular,
+        cif: ofic.cif,
+        saldo: 0,
+        saldo_conciliado: 0,
+        moneda: ofic.moneda || 'BS',
+        tipo: ofic.tipo,
+        notas: ofic.notas,
+        origen: 'Institucional Oficial'
+      });
+    });
+  }
+
   var dir = detectMixnetDir();
   if (!dir) return;
 
@@ -474,57 +504,422 @@ function syncFromLocalDbf() {
     });
   }
 
-  // Cuentas por Pagar (Proveedores)
-  var prvPath = findTable('MXCTAPRV');
-  var pagPath = findTable('MXTRAPAG') || findTable('MXENCOM');
-  if (prvPath || pagPath) {
-    var prvMap = {};
-    if (prvPath) {
-      var stPrv = readDbfStructure(prvPath);
-      readDbfRows(stPrv, 2000).forEach(function(pr) {
-        prvMap[pr.codprv || pr.codigo] = pr.nomprv || pr.nombre;
+  // --- PROVEEDORES Y CUENTAS POR PAGAR (CxP) ---
+  var prvPath = findTable('MXCTAPRO') || findTable('MXCTAPRV');
+  var prvList = [];
+  var prvMap = {};
+  if (prvPath) {
+    var stPrv = readDbfStructure(prvPath);
+    readDbfRows(stPrv, 2000).forEach(function(pr) {
+      var cod = (pr.codprv || pr.codigo || '').trim();
+      var nom = (pr.nomprv || pr.nombre || '').trim();
+      var rif = (pr.cif || pr.rif || '').trim();
+      var sal = parseFloat(pr.saldo || 0) || 0;
+      if (cod) {
+        prvMap[cod] = nom || cod;
+        prvList.push({
+          codigo: cod,
+          nombre: nom || 'Proveedor ' + cod,
+          rif: rif,
+          telefono: (pr.telefono || pr.telef || '').trim(),
+          direccion: (pr.direc1 || pr.direccion || '').trim(),
+          saldo_usd: sal
+        });
+      }
+    });
+    store.proveedores = prvList;
+  }
+
+  var pagPath = findTable('MXTRAPAG') || findTable('MXHISPAG') || findTable('MXENCOM');
+  if (pagPath) {
+    var stPag = readDbfStructure(pagPath);
+    var cxpList = [];
+    var totalCxp = 0;
+    readDbfRows(stPag, 1500).forEach(function(pag) {
+      var monto = parseFloat(pag.saldo || pag.monto || pag.tot_fac || pag.totfac || 0) || 0;
+      if (monto > 0) {
+        totalCxp += monto;
+        var pCod = (pag.codprv || pag.proveedor || '').trim();
+        cxpList.push({
+          documento: (pag.numfac || pag.numcom || pag.numdoc || pag.documento || '').trim(),
+          emision: (pag.emision || pag.fecha || '').trim(),
+          vence: (pag.vence || '').trim(),
+          proveedor: prvMap[pCod] || pCod || 'Proveedor General',
+          concepto: (pag.concep || pag.concepto || '').trim(),
+          monto_usd: monto
+        });
+      }
+    });
+    store.cxp = { total: Math.round(totalCxp * 100) / 100, count: cxpList.length, items: cxpList };
+  }
+
+  // --- BANCOS Y FINANZAS (MXCTABAN, MXTRABAN, MXCTACAJ, MXTRACAJ, MXCHEQUE) ---
+  var bcoPath = findTable('MXCTABAN') || findTable('MXBANCO');
+  var bcoList = [];
+  var totalBcoBs = 0;
+  var totalBcoUsd = 0;
+
+  if (bcoPath) {
+    var stBco = readDbfStructure(bcoPath);
+    readDbfRows(stBco, 200).forEach(function(b) {
+      var s = parseFloat(b.saldo || b.salact || b.salant || 0) || 0;
+      var monRaw = String(b.moneda || 'BS').toUpperCase();
+      var mon = (monRaw.indexOf('US') !== -1 || monRaw.indexOf('$') !== -1) ? 'USD' : 'BS';
+      if (mon === 'USD') totalBcoUsd += s;
+      else totalBcoBs += s;
+
+      bcoList.push({
+        codigo: (b.codban || b.codigo || '').trim(),
+        banco: (b.nomban || b.nombre || b.banco || 'Banco ' + (b.codban || '')).trim(),
+        cuenta: (b.numcta || b.cuenta || b.cta || '').trim(),
+        titular: (b.titular || b.nomcta || b.benefi || 'JJ PAPER, C.A.').trim(),
+        saldo: s,
+        saldo_conciliado: parseFloat(b.salcon || b.conciliado || 0) || 0,
+        moneda: mon,
+        tipo: (b.tipo || 'Corriente').trim(),
+        origen: 'MixNet DBF'
       });
+    });
+  }
+
+  // Si no hay cuentas o para complementar con cuentas oficiales configuradas
+  if (config.cuentas_bancarias_empresa && config.cuentas_bancarias_empresa.length > 0) {
+    var existingCtas = new Set(bcoList.map(function(c) { return String(c.cuenta || '').trim(); }));
+    config.cuentas_bancarias_empresa.forEach(function(ofic) {
+      var ctaNum = String(ofic.numero || '').trim();
+      if (!existingCtas.has(ctaNum)) {
+        bcoList.push({
+          codigo: ofic.banco.substring(0, 3).toUpperCase(),
+          banco: ofic.banco,
+          cuenta: ofic.numero,
+          titular: ofic.titular,
+          cif: ofic.cif,
+          saldo: 0,
+          saldo_conciliado: 0,
+          moneda: ofic.moneda || 'BS',
+          tipo: ofic.tipo,
+          notas: ofic.notas,
+          origen: 'Institucional Oficial'
+        });
+      }
+    });
+  }
+  store.bancos.cuentas = bcoList;
+  store.bancos.total_bancos_bs = totalBcoBs;
+  store.bancos.total_bancos_usd = totalBcoUsd;
+
+  // Movimientos Bancarios: MXTRABAN.DBF
+  var traBanPath = findTable('MXTRABAN');
+  if (traBanPath) {
+    var stTraBan = readDbfStructure(traBanPath);
+    var movs = [];
+    readDbfRows(stTraBan, 500).forEach(function(tb) {
+      movs.push({
+        banco: (tb.codban || '').trim(),
+        fecha: (tb.fecha || '').trim(),
+        referencia: (tb.numref || tb.ref || tb.compro || tb.numdoc || '').trim(),
+        tipo: (tb.tipmov || tb.tipo || '').trim(),
+        concepto: (tb.concep || tb.concepto || tb.descrip || '').trim(),
+        monto: parseFloat(tb.monto || tb.debe || tb.haber || 0) || 0,
+        signo: (tb.signo || '').trim(),
+        saldo: parseFloat(tb.saldo || 0) || 0
+      });
+    });
+    store.bancos.movimientos = movs.reverse();
+  }
+
+  // Cajas: MXCTACAJ.DBF
+  var cajPath = findTable('MXCTACAJ');
+  var cajList = [];
+  var totalCajBs = 0;
+  var totalCajUsd = 0;
+  if (cajPath) {
+    var stCaj = readDbfStructure(cajPath);
+    readDbfRows(stCaj, 50).forEach(function(c) {
+      var s = parseFloat(c.saldo || c.salact || 0) || 0;
+      var monRaw = String(c.moneda || 'BS').toUpperCase();
+      var mon = (monRaw.indexOf('US') !== -1 || monRaw.indexOf('$') !== -1) ? 'USD' : 'BS';
+      if (mon === 'USD') totalCajUsd += s;
+      else totalCajBs += s;
+      cajList.push({
+        codigo: (c.codcaj || '').trim(),
+        nombre: (c.nomcaj || c.nombre || 'Caja ' + (c.codcaj || '')).trim(),
+        saldo: s,
+        responsable: (c.respon || c.cajero || 'Encargado').trim(),
+        moneda: mon
+      });
+    });
+    store.bancos.cajas = cajList;
+    store.bancos.total_cajas_bs = totalCajBs;
+    store.bancos.total_cajas_usd = totalCajUsd;
+  }
+
+  // Movimientos de Caja: MXTRACAJ.DBF
+  var traCajPath = findTable('MXTRACAJ');
+  if (traCajPath) {
+    var stTraCaj = readDbfStructure(traCajPath);
+    var movsCaj = [];
+    readDbfRows(stTraCaj, 300).forEach(function(tc) {
+      movsCaj.push({
+        caja: (tc.codcaj || '').trim(),
+        fecha: (tc.fecha || '').trim(),
+        concepto: (tc.concep || tc.concepto || '').trim(),
+        tipo: (tc.tipmov || '').trim(),
+        monto: parseFloat(tc.monto || 0) || 0,
+        documento: (tc.numdoc || '').trim()
+      });
+    });
+    store.bancos.movimientos_caja = movsCaj.reverse();
+  }
+
+  // Cheques: MXCHEQUE.DBF
+  var chqPath = findTable('MXCHEQUE');
+  if (chqPath) {
+    var stChq = readDbfStructure(chqPath);
+    var chqList = [];
+    readDbfRows(stChq, 200).forEach(function(ch) {
+      chqList.push({
+        numero: (ch.numche || ch.numero || '').trim(),
+        banco: (ch.codban || '').trim(),
+        fecha: (ch.fecha || '').trim(),
+        beneficiario: (ch.benef || ch.nombre || '').trim(),
+        monto: parseFloat(ch.monto || 0) || 0,
+        estatus: (ch.estatus || 'Emitido').trim()
+      });
+    });
+    store.bancos.cheques = chqList.reverse();
+  }
+
+  // Cobranzas: MXTRACOB.DBF / MXHISCOB.DBF
+  var cobPath = findTable('MXTRACOB') || findTable('MXHISCOB');
+  if (cobPath && store.cxc.items.length === 0) {
+    var stCob = readDbfStructure(cobPath);
+    var cxcCobList = [];
+    var totalCob = 0;
+    readDbfRows(stCob, 1000).forEach(function(cob) {
+      var s = parseFloat(cob.saldo || cob.monto || 0) || 0;
+      if (s > 0) {
+        totalCob += s;
+        cxcCobList.push({
+          order_number: (cob.numfac || cob.numdoc || '').trim(),
+          date: (cob.fecha || '').trim(),
+          customer_name: (cob.nomcli || cob.codcli || 'Cliente').trim(),
+          amount_usd: s
+        });
+      }
+    });
+    if (cxcCobList.length > 0) {
+      store.cxc = { total: Math.round(totalCob * 100) / 100, count: cxcCobList.length, items: cxcCobList };
     }
-    if (pagPath) {
-      var stPag = readDbfStructure(pagPath);
-      var cxpList = [];
-      var totalCxp = 0;
-      readDbfRows(stPag, 1000).forEach(function(pag) {
-        var monto = parseFloat(pag.monto || pag.saldo || pag.tot_fac || 0) || 0;
-        if (monto > 0) {
-          totalCxp += monto;
-          cxpList.push({
-            documento: pag.numcom || pag.numfac || pag.documento,
-            emision: pag.emision || pag.fecha,
-            proveedor: prvMap[pag.codprv || pag.proveedor] || pag.codprv,
-            monto_usd: monto
-          });
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INSPECTOR Y VISOR UNIVERSAL DE TABLAS DBF DE LA UNIDAD
+   ══════════════════════════════════════════════════════════════════════════ */
+function listDbfTables(customDir) {
+  var dirsToScan = [];
+  if (customDir && safeExistsSync(customDir)) {
+    dirsToScan.push(customDir);
+  } else {
+    var detected = detectMixnetDir();
+    if (detected && safeExistsSync(detected)) {
+      dirsToScan.push(detected);
+    }
+    config.mixnet_candidates.forEach(function(cand) {
+      if (safeExistsSync(cand) && dirsToScan.indexOf(cand) === -1) {
+        dirsToScan.push(cand);
+      }
+    });
+  }
+
+  if (dirsToScan.length === 0) return [];
+  var result = [];
+  var seenFiles = new Set();
+
+  dirsToScan.forEach(function(dir) {
+    try {
+      var files = fs.readdirSync(dir);
+      for (var i = 0; i < files.length; i++) {
+        var fn = files[i];
+        if (fn.toUpperCase().indexOf('.DBF') !== -1 && fn.indexOf('.') !== 0) {
+          var fullPath = path.join(dir, fn);
+          if (seenFiles.has(fullPath)) continue;
+          seenFiles.add(fullPath);
+
+          var st = readDbfStructure(fullPath);
+          if (st) {
+            var base = fn.replace(/\.dbf$/i, '').toUpperCase();
+            var cat = 'General';
+            if (/BAN|CHEQ/i.test(base)) cat = 'Bancos & Finanzas';
+            else if (/CAJ|POS|TPV/i.test(base)) cat = 'Cajas & Efectivo';
+            else if (/PRV|PRO|PAG/i.test(base)) cat = 'Proveedores & CxP';
+            else if (/CLI|COB/i.test(base)) cat = 'Clientes & CxC';
+            else if (/INV|ART/i.test(base)) cat = 'Inventario & Kardex';
+            else if (/PED|COT|FAC|REM|GUI/i.test(base)) cat = 'Ventas & Facturación';
+            else if (/VDD|VEN|NOM/i.test(base)) cat = 'Vendedores & Nómina';
+            else if (/CON|ASI|NUM/i.test(base)) cat = 'Contabilidad & Control';
+
+            result.push({
+              name: base,
+              fileName: fn,
+              path: fullPath,
+              dir: dir,
+              records: st.numRecords,
+              size_kb: Math.round(st.size / 1024),
+              mtime: st.mtime,
+              fields_count: st.fields.length,
+              fields: st.fields.map(function(f) { return f.name + ' (' + f.type + (f.dec ? ',' + f.dec : '') + ')'; }),
+              category: cat
+            });
+          }
         }
-      });
-      store.cxp = { total: Math.round(totalCxp * 100) / 100, count: cxpList.length, items: cxpList };
+      }
+    } catch (e) {}
+  });
+
+  result.sort(function(a, b) {
+    if (a.category !== b.category) return a.category.localeCompare(b.category);
+    return a.name.localeCompare(b.name);
+  });
+  return result;
+}
+
+function queryDbfTable(tableNameOrPath, limit, offset, search) {
+  var fullPath = tableNameOrPath;
+  if (!fullPath) return { ok: false, error: 'Debe especificar el nombre o ruta de la tabla DBF' };
+
+  if (!path.isAbsolute(fullPath)) {
+    var dir = detectMixnetDir();
+    if (dir) {
+      var cand1 = path.join(dir, tableNameOrPath.toUpperCase() + '.DBF');
+      var cand2 = path.join(dir, tableNameOrPath.toLowerCase() + '.dbf');
+      if (safeExistsSync(cand1)) fullPath = cand1;
+      else if (safeExistsSync(cand2)) fullPath = cand2;
     }
   }
 
-  // Bancos DBF
-  var bcoPath = findTable('MXBANCO');
-  if (bcoPath) {
-    var stBco = readDbfStructure(bcoPath);
-    var bcoList = [];
-    var totalBco = 0;
-    readDbfRows(stBco, 50).forEach(function(b) {
-      var s = parseFloat(b.saldo || 0) || 0;
-      totalBco += s;
-      bcoList.push({
-        codigo: b.codban || b.codigo,
-        banco: b.nomban || b.nombre,
-        cuenta: b.numcta || b.cuenta,
-        saldo: s,
-        moneda: b.moneda || 'BS'
-      });
-    });
-    store.bancos.cuentas = bcoList;
-    store.bancos.total = totalBco;
+  if (!fullPath || !safeExistsSync(fullPath)) {
+    return { ok: false, error: 'Tabla DBF no encontrada: ' + tableNameOrPath };
   }
+
+  var st = readDbfStructure(fullPath);
+  if (!st) return { ok: false, error: 'Estructura DBF no válida o corrupta: ' + fullPath };
+
+  var lim = Math.min(200, Math.max(1, parseInt(limit || 50, 10)));
+  var off = Math.max(0, parseInt(offset || 0, 10));
+  var q = (search || '').trim().toLowerCase();
+
+  var rows = [];
+  var matchedCount = 0;
+
+  try {
+    var fd = fs.openSync(st.path, 'r');
+    var recBuf = Buffer.alloc(st.recordLen);
+    var total = st.numRecords;
+
+    for (var r = 0; r < total; r++) {
+      var pos = st.headerLen + (r * st.recordLen);
+      var n = fs.readSync(fd, recBuf, 0, st.recordLen, pos);
+      if (n < st.recordLen) break;
+
+      var flag = recBuf[0];
+      if (flag === 0x20) { // Registro activo
+        var row = { _rec: r + 1 };
+        var fOff = 1;
+        var rowText = '';
+        for (var fi = 0; fi < st.fields.length; fi++) {
+          var f = st.fields[fi];
+          var val = decodeStr(recBuf, fOff, f.len);
+          row[f.name] = val;
+          rowText += ' ' + val.toLowerCase();
+          fOff += f.len;
+        }
+
+        if (!q || rowText.indexOf(q) !== -1) {
+          if (matchedCount >= off && rows.length < lim) {
+            rows.push(row);
+          }
+          matchedCount++;
+        }
+      }
+    }
+    fs.closeSync(fd);
+  } catch (e) {
+    return { ok: false, error: 'Error leyendo tabla DBF: ' + e.message };
+  }
+
+  return {
+    ok: true,
+    table: st.fileName.replace(/\.dbf$/i, ''),
+    path: st.path,
+    total_records: st.numRecords,
+    matched_count: matchedCount,
+    limit: lim,
+    offset: off,
+    fields: st.fields,
+    rows: rows
+  };
+}
+
+function exportDbfToCsv(tableNameOrPath, res) {
+  var fullPath = tableNameOrPath;
+  if (!path.isAbsolute(fullPath)) {
+    var dir = detectMixnetDir();
+    if (dir) {
+      var cand1 = path.join(dir, tableNameOrPath.toUpperCase() + '.DBF');
+      var cand2 = path.join(dir, tableNameOrPath.toLowerCase() + '.dbf');
+      if (safeExistsSync(cand1)) fullPath = cand1;
+      else if (safeExistsSync(cand2)) fullPath = cand2;
+    }
+  }
+
+  if (!fullPath || !safeExistsSync(fullPath)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Tabla DBF no encontrada');
+  }
+
+  var st = readDbfStructure(fullPath);
+  if (!st) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Error al leer estructura DBF');
+  }
+
+  var baseName = path.basename(fullPath).replace(/\.dbf$/i, '');
+  res.writeHead(200, {
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': 'attachment; filename="' + baseName + '_export.csv"'
+  });
+
+  // UTF-8 BOM para que Excel abra sin problemas de codificación
+  res.write('\uFEFF');
+
+  var header = st.fields.map(function(f) { return '"' + f.name.replace(/"/g, '""') + '"'; }).join(',');
+  res.write(header + '\r\n');
+
+  try {
+    var fd = fs.openSync(st.path, 'r');
+    var recBuf = Buffer.alloc(st.recordLen);
+    for (var r = 0; r < st.numRecords; r++) {
+      var pos = st.headerLen + (r * st.recordLen);
+      var n = fs.readSync(fd, recBuf, 0, st.recordLen, pos);
+      if (n < st.recordLen) break;
+      if (recBuf[0] === 0x20) {
+        var vals = [];
+        var fOff = 1;
+        for (var fi = 0; fi < st.fields.length; fi++) {
+          var f = st.fields[fi];
+          var v = decodeStr(recBuf, fOff, f.len);
+          vals.push('"' + v.replace(/"/g, '""') + '"');
+          fOff += f.len;
+        }
+        res.write(vals.join(',') + '\r\n');
+      }
+    }
+    fs.closeSync(fd);
+  } catch (e) {}
+
+  res.end();
 }
 
 function recalculateNominaAndCxC() {
@@ -892,6 +1287,30 @@ var server = http.createServer(function(req, res) {
     return sendJSON(res, 200, { ok: true, data: store.bancos });
   }
 
+  if (pathname === '/api/proveedores') {
+    return sendJSON(res, 200, { ok: true, count: store.proveedores.length, data: store.proveedores });
+  }
+
+  // --- API DE INSPECCIÓN UNIVERSAL DE TABLAS DBF DE LA UNIDAD ---
+  if (pathname === '/api/dbf/tables') {
+    var tablesList = listDbfTables(parsed.query.dir);
+    return sendJSON(res, 200, {
+      ok: true,
+      dir: store.active_mixnet_dir || parsed.query.dir || 'No montado localmente',
+      count: tablesList.length,
+      tables: tablesList
+    });
+  }
+
+  if (pathname === '/api/dbf/query') {
+    var qRes = queryDbfTable(parsed.query.table || parsed.query.path, parsed.query.limit, parsed.query.offset, parsed.query.q);
+    return sendJSON(res, qRes.ok ? 200 : 400, qRes);
+  }
+
+  if (pathname === '/api/dbf/export') {
+    return exportDbfToCsv(parsed.query.table || parsed.query.path, res);
+  }
+
   if (pathname === '/api/accesses') {
     return sendJSON(res, 200, { ok: true, accesses: config.accesos_sistema });
   }
@@ -930,7 +1349,7 @@ var server = http.createServer(function(req, res) {
     return;
   }
 
-  // --- COPILOTO GEMINI AI ADOCTRINADO CON LIBERTAD DE ACCIÓN ---
+  // --- COPILOTO GEMINI AI ADOCTRINADO CON LIBERTAD DE ACCIÓN Y DATOS FINANCIEROS ---
   if (pathname === '/api/ai/ask' && req.method === 'POST') {
     var aBody = '';
     req.on('data', function(c) { aBody += c; });
@@ -939,29 +1358,52 @@ var server = http.createServer(function(req, res) {
         var aPayload = JSON.parse(aBody);
         var q = aPayload.question || '';
 
+        // Formato claro de cuentas bancarias para el contexto de la IA
+        var bcoContext = store.bancos.cuentas.map(function(b) {
+          return b.banco + ' (' + (b.tipo || 'CC') + '): Cta ' + (b.cuenta || 'N/A') + ' | Titular: ' + b.titular + (b.saldo ? ' | Saldo: ' + b.saldo + ' ' + b.moneda : '');
+        });
+
+        var cajContext = store.bancos.cajas.map(function(c) {
+          return c.nombre + ': Saldo ' + c.saldo + ' ' + c.moneda + ' (Resp: ' + c.responsable + ')';
+        });
+
         // Resumen completo en vivo de todos los módulos del ERP
         var sysPrompt = [
           "Eres el Copiloto Ejecutivo y Director Financiero/Operativo de JJ Paper C.A.",
-          "Tienes ACCESO TOTAL, LIBRE Y ADOCTRINADO a toda la información del ERP MixNet, servidores y base de datos.",
+          "Tienes ACCESO TOTAL, LIBRE Y ADOCTRINADO a toda la información del ERP MixNet, cuentas bancarias, servidores y base de datos.",
           "",
-          "ESTADO DEL SISTEMA EN TIEMPO REAL:",
+          "ESTADO FINANCIERO Y OPERATIVO EN TIEMPO REAL:",
           "- Pedidos registrados: " + store.orders.length + " pedidos.",
           "- Cotizaciones activas: " + store.quotes.length + " cotizaciones.",
           "- Cartera de clientes: " + store.customers.length + " clientes.",
           "- Catálogo de productos: " + store.products.length + " artículos.",
-          "- Total Cuentas por Cobrar (CxC): $" + store.cxc.total + " USD (" + store.cxc.count + " documentos).",
-          "- Total Cuentas por Pagar (CxP): $" + store.cxp.total + " USD.",
-          "- Ventas acumuladas en nómina: $" + store.nomina.total + " USD.",
-          "- Tasa de cambio oficial BCV: " + store.fx_rate + " Bs/USD.",
-          "- Servidor Supervisor: " + (store.supervisor_status.online ? 'En línea en ' + store.supervisor_status.url : 'Fuera de línea'),
+          "- Cuentas por Cobrar (CxC): $" + store.cxc.total + " USD (" + store.cxc.count + " documentos).",
+          "- Cuentas por Pagar (CxP): $" + store.cxp.total + " USD (" + store.cxp.count + " documentos).",
+          "- Proveedores registrados: " + store.proveedores.length + " proveedores.",
+          "- Tasa oficial BCV: " + store.fx_rate + " Bs/USD.",
+          "",
+          "CUENTAS BANCARIAS Y CAJAS:",
+          "- Cuentas Bancarias Registradas (" + store.bancos.cuentas.length + "):",
+          bcoContext.length > 0 ? "  * " + bcoContext.join('\n  * ') : "  (Sin cuentas)",
+          "- Cajas y Efectivo:",
+          cajContext.length > 0 ? "  * " + cajContext.join('\n  * ') : "  (Sin cajas registradas)",
+          "- Cheques registrados: " + store.bancos.cheques.length + " cheques.",
+          "- Movimientos bancarios en memoria: " + store.bancos.movimientos.length + " transacciones.",
+          "",
+          "ESTRUCTURA DE NÓMINA Y VENDEDORES:",
+          "- Nómina ventas acumuladas: $" + store.nomina.total + " USD.",
+          "- Vendedores: " + JSON.stringify(store.nomina.vendedores.map(function(v){ return v.codigo + ' ' + v.nombre + ': $' + v.total_ventas_usd; })),
+          "",
+          "SERVIDORES, ACCESOS Y MIXNET:",
           "- Directorio MixNet activo: " + (store.active_mixnet_dir || 'No montado localmente (sincronizando por nube/supervisor)'),
-          "- Vendedores y nómina: " + JSON.stringify(store.nomina.vendedores.map(function(v){ return v.codigo + ' ' + v.nombre + ': $' + v.total_ventas_usd; })),
-          "- Accesos y Claves del Sistema: " + JSON.stringify(config.accesos_sistema),
+          "- Servidor Supervisor: " + (store.supervisor_status.online ? 'En línea en ' + store.supervisor_status.url : 'Fuera de línea'),
+          "- Accesos y Claves: " + JSON.stringify(config.accesos_sistema),
           "",
           "INSTRUCCIONES Y LIBERTADES:",
-          "1. Tienes total libertad para responder sobre cotizaciones, pedidos, clientes, nómina, cuentas bancarias, ingresos, accesos del sistema y contraseñas/direcciones IP configuradas.",
-          "2. Si el usuario te pide buscar un archivo, editar una nota o cambiar algo, indícale exactamente la ruta del archivo y explica el cambio.",
-          "3. Responde siempre con precisión de negocio, formato Markdown pulcro y profesional."
+          "1. Tienes total libertad para responder sobre cuentas bancarias, números de cuenta de 20 dígitos, pagos móviles, cajas, ingresos, saldos, cotizaciones, pedidos, clientes, nómina, accesos del sistema y claves/IPs.",
+          "2. Si el usuario te pregunta por bancos, dale los números de cuenta, banco, titular, RIF y moneda exactamente como están registrados.",
+          "3. Si el usuario te pide buscar un archivo de MixNet o de la unidad, o editar una nota, explícale la ruta del archivo y cómo modificarlo con el editor integrado.",
+          "4. Responde siempre con precisión de negocio, formato Markdown pulcro y tablas cuando corresponda."
         ].join('\n');
 
         callGemini(sysPrompt, q, function(err, reply) {

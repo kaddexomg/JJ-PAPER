@@ -41,6 +41,88 @@
     "032": { "nombre": "Caja 32", "rol": "Caja Auxiliar" },
     "033": { "nombre": "Caja 33", "rol": "Caja Auxiliar" }
   },
+  "cuentas_bancarias_empresa": [
+    {
+      "banco": "Banco de Venezuela",
+      "tipo": "Cuenta Corriente",
+      "numero": "01020491750000050335",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Cuenta principal recaudadora SENIAT / Proveedores"
+    },
+    {
+      "banco": "Banesco Banco Universal",
+      "tipo": "Cuenta Corriente",
+      "numero": "0134-0000-00-0000000000",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Recepción de transferencias y Pago Móvil comercial"
+    },
+    {
+      "banco": "Banco Mercantil",
+      "tipo": "Cuenta Corriente",
+      "numero": "0105-0000-00-0000000000",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Cuenta operativa y pagos de nómina"
+    },
+    {
+      "banco": "Banco Fondo Común (BFC)",
+      "tipo": "Cuenta Corriente",
+      "numero": "0151-0000-00-0000000000",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Cuenta BFC ventas al mayor y tienda"
+    },
+    {
+      "banco": "Banco Exterior",
+      "tipo": "Cuenta Corriente",
+      "numero": "0115-0000-00-0000000000",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Cuenta Exterior operaciones mayoristas"
+    },
+    {
+      "banco": "Banco Plaza",
+      "tipo": "Cuenta Corriente",
+      "numero": "0138-0000-00-0000000000",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Cobranzas comerciales y mayoristas"
+    },
+    {
+      "banco": "Pago Móvil Comercial",
+      "tipo": "Pago Móvil Interbancario",
+      "numero": "0412-2830185",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "BS",
+      "oficial": true,
+      "notas": "Teléfono oficial de cobranza rápida Pago Móvil"
+    },
+    {
+      "banco": "Caja Divisas / Custodia",
+      "tipo": "Efectivo / Divisas",
+      "numero": "CUSTODIA-USD",
+      "titular": "JJ PAPER, C.A.",
+      "cif": "J-29537545-0",
+      "moneda": "USD",
+      "oficial": true,
+      "notas": "Pagos en efectivo USD y divisas en tienda física"
+    }
+  ],
   "accesos_sistema": {
     "servidor_supervisor_lan": "192.168.0.172",
     "servidor_supervisor_tailscale": "100.103.110.44",

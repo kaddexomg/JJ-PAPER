@@ -42,18 +42,10 @@ if "%CODE%"=="2" (
   exit /b 0
 )
 
-REM Codigo 3 = Candado activo (ya hay otra instancia de wa-server corriendo)
+REM Codigo 3 = Candado activo o socket en liberacion
 if "%CODE%"=="3" (
-  echo [%date% %time%] [SUPERVISOR] Candado activo detectado (puerto 8786 ocupado). >> "%LOGFILE%"
-  REM Verificar si realmente hay otro proceso escuchando en el puerto mutex 8786
-  netstat -ano | findstr /R ":8786 .*LISTENING" >nul 2>&1
-  if not errorlevel 1 (
-    echo [%date% %time%] [SUPERVISOR] Otra instancia activa confirmada (puerto 8786 en escucha). Saliendo sin duplicar. >> "%LOGFILE%"
-    exit /b 0
-  )
-  REM Si no hay otra instancia activa, el puerto esta liberandose (TIME_WAIT). Reintentar en 4s
-  echo [%date% %time%] [SUPERVISOR] No hay otro proceso activo. Puerto en liberacion, reintentando en 4 segundos... >> "%LOGFILE%"
-  ping -n 5 127.0.0.1 >nul
+  echo [%date% %time%] [SUPERVISOR] Candado activo o socket en liberacion (puerto 8786). Reintentando en 6 segundos... >> "%LOGFILE%"
+  ping -n 7 127.0.0.1 >nul
   goto loop
 )
 

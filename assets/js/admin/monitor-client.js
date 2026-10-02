@@ -62,8 +62,12 @@ const QUOTA_LIMITS = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Verificar autenticación admin
-  if (typeof requireAuth === 'function') {
+  // En red privada (Tailscale, LAN, localhost o puerto 8787), no forzar requireAuth de Google
+  // para evitar bloqueos de redirect_uri_mismatch en IPs privadas
+  const isPrivateNet = location.port === '8787' || location.port === '8788' ||
+    /^(100\.|192\.168\.|10\.|172\.|localhost|127\.0\.0\.1)/.test(location.hostname);
+
+  if (!isPrivateNet && typeof requireAuth === 'function') {
     const profile = await requireAuth('admin');
     if (!profile) return;
   }

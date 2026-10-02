@@ -130,10 +130,15 @@ routeIfSession();
 async function loginWithGoogle() {
   const btn = document.getElementById('googleBtn');
   if (btn) { btn.disabled = true; btn.style.opacity = .6; btn.textContent = 'Abriendo Google…'; }
+  const isPublicDomain = window.location.origin.includes('pages.dev') || window.location.origin.includes('jjpaper');
+  const redirectTarget = isPublicDomain
+    ? window.location.origin + '/admin/login.html'
+    : 'https://jj-paper.pages.dev/admin/login.html';
+
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/admin/login.html'
+      redirectTo: redirectTarget
     }
   });
   if (error) {

@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJ Paper — Panel Ejecutivo & Control MixNet ERP (IA)</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --card-bg: rgba(21, 29, 43, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f0f4f8;
+      --text-muted: #8b9bb4;
+      --primary: #f59e0b;
+      --primary-light: #fbbf24;
+      --primary-glow: rgba(245, 158, 11, 0.2);
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.2);
+      --green: #10b981;
+      --red: #ef4444;
+      --purple: #8b5cf6;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Cabecera Principal */
+    header {
+      background: #111827;
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), #d97706);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #000;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Badges de Estado */
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .dot.yellow { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+
+    /* Barra de Navegación de Pestañas */
+    nav {
+      background: #151d2b;
+      padding: 0 24px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 12px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: rgba(245, 158, 11, 0.05);
+    }
+
+    /* Contenido */
+    main {
+      flex: 1;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Tarjetas KPI */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: var(--card-accent, var(--primary));
+    }
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .kpi-val {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    .kpi-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Tablas */
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .table-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .search-input {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      min-width: 250px;
+    }
+    .search-input:focus { border-color: var(--primary); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--card-border);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--card-border);
+      color: #e2e8f0;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .tag-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .tag-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .tag-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .tag-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+    /* Interfaz de Inteligencia Artificial (Copiloto) */
+    .ai-wrapper {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .ai-wrapper { grid-template-columns: 1fr; }
+    }
+
+    .ai-sidebar {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .ai-btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .btn {
+      background: var(--primary);
+      color: #000;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .btn:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .ai-chat-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+      overflow: hidden;
+    }
+    .ai-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--blue);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+    .msg.ai {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #f1f5f9;
+      border-bottom-left-radius: 2px;
+    }
+    .msg.ai pre {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+
+    .ai-input-area {
+      padding: 16px;
+      border-top: 1px solid var(--card-border);
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      gap: 10px;
+    }
+    .ai-input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+    }
+    .ai-input:focus { border-color: var(--primary); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 16px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: #0e141f;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cabecera -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">JJ</div>
+      <div>
+        <div class="brand-title">JJ PAPER &middot; Monitor Ejecutivo MixNet</div>
+        <div class="brand-sub">Sistema de Control Integral ERP e Inteligencia Artificial</div>
+      </div>
+    </div>
+
+    <!-- Indicadores de Red y Salud -->
+    <div class="status-group">
+      <div class="status-badge" title="Estado de la base de datos de MixNet">
+        <div class="dot" id="dot-mixnet"></div>
+        <span id="txt-mixnet">Buscando MixNet...</span>
+      </div>
+      <div class="status-badge" title="Enlace con la PC Supervisor central">
+        <div class="dot" id="dot-supervisor"></div>
+        <span id="txt-supervisor">Supervisor PC</span>
+      </div>
+      <div class="status-badge" title="Pool de Inteligencia Artificial Gemini">
+        <div class="dot green"></div>
+        <span>Gemini AI (7 Llaves)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Pestañas de Navegación -->
+  <nav>
+    <button class="tab-btn active" onclick="showTab('tab-resumen')">📊 Resumen Ejecutivo</button>
+    <button class="tab-btn" onclick="showTab('tab-cxc')">💰 Cuentas por Cobrar (CxC)</button>
+    <button class="tab-btn" onclick="showTab('tab-cxp')">💳 Cuentas por Pagar (CxP)</button>
+    <button class="tab-btn" onclick="showTab('tab-nomina')">👥 Nómina & Vendedores</button>
+    <button class="tab-btn" onclick="showTab('tab-inventario')">📦 Inventario & Stock</button>
+    <button class="tab-btn" onclick="showTab('tab-bancos')">🏦 Bancos & Caja</button>
+    <button class="tab-btn" onclick="showTab('tab-ai')">🤖 Copiloto Ejecutivo Gemini IA</button>
+  </nav>
+
+  <!-- Contenedor Principal -->
+  <main>
+
+    <!-- PESTAÑA 1: RESUMEN EJECUTIVO -->
+    <div id="tab-resumen" class="tab-pane active">
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--card-accent: var(--blue);">
+          <div class="kpi-title">Cuentas por Cobrar (CxC)</div>
+          <div class="kpi-val" id="kpi-cxc">$0.00</div>
+          <div class="kpi-desc" id="kpi-cxc-sub">0 pedidos pendientes de cobro</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--red);">
+          <div class="kpi-title">Cuentas por Pagar (CxP)</div>
+          <div class="kpi-val" id="kpi-cxp">$0.00</div>
+          <div class="kpi-desc" id="kpi-cxp-sub">Pendiente a proveedores</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--green);">
+          <div class="kpi-title">Ventas Globales Registradas</div>
+          <div class="kpi-val" id="kpi-ventas">$0.00</div>
+          <div class="kpi-desc">Total acumulado en MixNet</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--primary);">
+          <div class="kpi-title">Inventario Valor Venta</div>
+          <div class="kpi-val" id="kpi-inv-venta">$0.00</div>
+          <div class="kpi-desc" id="kpi-inv-costo">Costo reposición: $0.00</div>
+        </div>
+        <div class="kpi-card" style="--card-accent: var(--purple);">
+          <div class="kpi-title">Disponibilidad en Bancos</div>
+          <div class="kpi-val" id="kpi-bancos">0.00 Bs</div>
+          <div class="kpi-desc">Saldo consolidado en cuentas</div>
+        </div>
+      </div>
+
+      <!-- Resumen Rápido -->
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">⚡ Acciones de Control Inmediato</div>
+          <button class="btn btn-secondary" onclick="loadAllData()">🔄 Actualizar Datos Ahora</button>
+        </div>
+        <div style="padding: 20px;">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Este panel lee directamente los archivos de datos <strong>.DBF de MixNet ERP</strong> (sin alterar ni bloquear los registros en uso por caja) y se sincroniza en vivo con el servidor central de <strong>Supervisor-Pc (192.168.0.172)</strong>.
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn" onclick="showTab('tab-ai'); runQuickAudit('financiera');">📊 Generar Auditoría Financiera con IA</button>
+            <button class="btn btn-secondary" onclick="showTab('tab-ai'); runQuickAudit('cobranzas');">🎯 Plan de Cobranzas Inmediato con IA</button>
+            <button class="btn btn-secondary" onclick="showTab('tab-ai'); runQuickAudit('nomina');">👥 Auditoría de Ventas y Vendedores con IA</button>
+            <button class="btn btn-secondary" onclick="showTab('tab-ai'); runQuickAudit('stock');">🚨 Alerta de Quiebres de Stock con IA</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 2: CUENTAS POR COBRAR (CxC) -->
+    <div id="tab-cxc" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">💰 Clientes con Deuda y Documentos Pendientes de Cobro</div>
+          <input type="text" class="search-input" id="search-cxc" placeholder="Buscar por cliente o RIF..." onkeyup="filterTable('table-cxc', this.value)">
+        </div>
+        <table id="table-cxc">
+          <thead>
+            <tr>
+              <th>Documento</th>
+              <th>Emisión</th>
+              <th>Cliente</th>
+              <th>RIF / Cédula</th>
+              <th>Vendedor Asignado</th>
+              <th>Monto Pendiente</th>
+            </tr>
+          </thead>
+          <tbody id="body-cxc">
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando cuentas por cobrar...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 3: CUENTAS POR PAGAR (CxP) -->
+    <div id="tab-cxp" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">💳 Facturas por Pagar a Proveedores</div>
+          <input type="text" class="search-input" id="search-cxp" placeholder="Buscar por proveedor o RIF..." onkeyup="filterTable('table-cxp', this.value)">
+        </div>
+        <table id="table-cxp">
+          <thead>
+            <tr>
+              <th>Documento</th>
+              <th>Emisión</th>
+              <th>Vencimiento</th>
+              <th>Proveedor</th>
+              <th>RIF</th>
+              <th>Monto por Pagar</th>
+            </tr>
+          </thead>
+          <tbody id="body-cxp">
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Cargando cuentas por pagar...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 4: NOMINA Y VENDEDORES -->
+    <div id="tab-nomina" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">👥 Rendimiento de Ventas y Liquidación de Nómina</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Cero cruce: Luis (002), Yovanni (004/006), Marianela (008), Andreina (014), Keyder (010/020), Mostrador (005)</div>
+        </div>
+        <table id="table-nomina">
+          <thead>
+            <tr>
+              <th>Cód</th>
+              <th>Asesor / Vendedor</th>
+              <th>Rol / Ámbito</th>
+              <th>Pedidos Emitidos</th>
+              <th>Facturas Fiscales</th>
+              <th>Ventas Totales (USD)</th>
+              <th>Comisión Estimada (3%)</th>
+            </tr>
+          </thead>
+          <tbody id="body-nomina">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando nómina y ventas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 5: INVENTARIO Y STOCK -->
+    <div id="tab-inventario" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">📦 Catálogo de Productos y Existencias Físicas</div>
+          <input type="text" class="search-input" id="search-inv" placeholder="Buscar por código SKU o descripción..." onkeyup="filterTable('table-inv', this.value)">
+        </div>
+        <table id="table-inv">
+          <thead>
+            <tr>
+              <th>Código SKU</th>
+              <th>Descripción</th>
+              <th>Existencia Física</th>
+              <th>Costo Rep. (USD)</th>
+              <th>Precio Cliente B (USD)</th>
+              <th>Precio Mayor A (USD)</th>
+              <th>Valor Total Stock</th>
+            </tr>
+          </thead>
+          <tbody id="body-inv">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Cargando inventario...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 6: BANCOS Y CAJA -->
+    <div id="tab-bancos" class="tab-pane">
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">🏦 Cuentas Bancarias y Disponibilidad</div>
+        </div>
+        <table id="table-bancos">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Banco / Entidad</th>
+              <th>Número de Cuenta</th>
+              <th>Moneda</th>
+              <th>Saldo Actual</th>
+            </tr>
+          </thead>
+          <tbody id="body-bancos">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Cargando cuentas bancarias...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 7: COPILOTO EJECUTIVO GEMINI IA -->
+    <div id="tab-ai" class="tab-pane">
+      <div class="ai-wrapper">
+        <div class="ai-sidebar">
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px;">🧠 Auditorías con 1 Clic</div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+            Gemini analiza matemáticamente el 100% de los datos reales de MixNet y genera informes ejecutivos al instante.
+          </p>
+          <div class="ai-btn-group">
+            <button class="btn" onclick="runQuickAudit('financiera')">📊 Auditoría Financiera General</button>
+            <button class="btn btn-secondary" onclick="runQuickAudit('cobranzas')">🎯 Plan de Cobranzas Inmediato</button>
+            <button class="btn btn-secondary" onclick="runQuickAudit('nomina')">👥 Auditoría de Ventas / Nómina</button>
+            <button class="btn btn-secondary" onclick="runQuickAudit('stock')">🚨 Alerta de Quiebres de Stock</button>
+            <button class="btn btn-secondary" onclick="clearChat()">🧹 Limpiar Conversación</button>
+          </div>
+        </div>
+
+        <div class="ai-chat-box">
+          <div class="ai-messages" id="chat-messages">
+            <div class="msg ai">
+              👋 <strong>¡Hola! Soy tu Copiloto Financiero y Ejecutivo de JJ Paper.</strong><br>
+              Tengo acceso en vivo a toda la base de datos de <strong>MixNet ERP</strong> (Cuentas por cobrar, cuentas por pagar, nómina por vendedor, inventario valorizado y facturación).<br><br>
+              ¿Qué deseas consultar o auditar hoy? Puedes escribir una pregunta como:
+              <ul style="margin-left: 20px; margin-top: 6px;">
+                <li><em>"¿Cuáles son los 5 clientes que más nos deben y qué vendedor los atiende?"</em></li>
+                <li><em>"¿Quién vendió más entre Marianela, Luis y Yovanni?"</em></li>
+                <li><em>"¿Qué productos de alto valor están con stock en cero?"</em></li>
+              </ul>
+            </div>
+          </div>
+          <div class="ai-input-area">
+            <input type="text" class="ai-input" id="chat-input" placeholder="Pregunta lo que sea sobre las finanzas, nómina o inventario de MixNet..." onkeydown="if(event.key==='Enter') sendQuestion()">
+            <button class="btn" onclick="sendQuestion()">Enviar a Gemini</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Pie de Página -->
+  <footer>
+    <div>JJ Paper C.A. &middot; Sistema de Gestión y Supervisión Multi-Terminal</div>
+    <div id="footer-details">Conectado localmente en Windows 7 (Node 13)</div>
+  </footer>
+
+  <script>
+    // Gestión de Pestañas
+    function showTab(tabId) {
+      var tabs = document.querySelectorAll('.tab-pane');
+      var btns = document.querySelectorAll('.tab-btn');
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      btns.forEach(function(b) { b.classList.remove('active'); });
+
+      var target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+
+      btns.forEach(function(b) {
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(tabId) !== -1) {
+          b.classList.add('active');
+        }
+      });
+    }
+
+    // Filtro de Tablas
+    function filterTable(tableId, query) {
+      var q = query.toLowerCase().trim();
+      var rows = document.querySelectorAll('#' + tableId + ' tbody tr');
+      rows.forEach(function(r) {
+        var text = r.innerText.toLowerCase();
+        r.style.display = text.indexOf(q) !== -1 ? '' : 'none';
+      });
+    }
+
+    // Carga de Estado General
+    function loadStatus() {
+      fetch('/api/status')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var dotMix = document.getElementById('dot-mixnet');
+          var txtMix = document.getElementById('txt-mixnet');
+          if (data.mixnet_connected) {
+            dotMix.className = 'dot green';
+            txtMix.innerText = 'MixNet Conectado (' + data.mixnet_dir.replace(/^.*\\/, '') + ')';
+          } else {
+            dotMix.className = 'dot red';
+            txtMix.innerText = 'MixNet Desconectado';
+          }
+
+          var dotSup = document.getElementById('dot-supervisor');
+          var txtSup = document.getElementById('txt-supervisor');
+          if (data.supervisor && data.supervisor.online) {
+            dotSup.className = 'dot green';
+            txtSup.innerText = 'Supervisor PC (' + data.supervisor.latency + 'ms)';
+          } else {
+            dotSup.className = 'dot yellow';
+            txtSup.innerText = 'Supervisor PC (Sin respuesta)';
+          }
+        })
+        .catch(function(e) {
+          console.warn('Error obteniendo status:', e);
+        });
+    }
+
+    // Carga de Datos Resumen (Overview)
+    function loadOverview() {
+      fetch('/api/overview')
+        .then(function(res) { return res.json(); })
+        .then(function(d) {
+          document.getElementById('kpi-cxc').innerText = '$' + (d.cxc_total_usd || 0).toLocaleString();
+          document.getElementById('kpi-cxc-sub').innerText = (d.clientes_count || 0) + ' clientes registrados';
+
+          document.getElementById('kpi-cxp').innerText = '$' + (d.cxp_total_usd || 0).toLocaleString();
+          document.getElementById('kpi-cxp-sub').innerText = (d.proveedores_count || 0) + ' proveedores registrados';
+
+          document.getElementById('kpi-ventas').innerText = '$' + (d.ventas_globales_usd || 0).toLocaleString();
+          document.getElementById('kpi-inv-venta').innerText = '$' + (d.inventario_venta_usd || 0).toLocaleString();
+          document.getElementById('kpi-inv-costo').innerText = 'Costo reposición: $' + (d.inventario_costo_usd || 0).toLocaleString();
+
+          document.getElementById('kpi-bancos').innerText = (d.saldo_bancos || 0).toLocaleString() + ' Bs';
+        })
+        .catch(function(e) { console.warn(e); });
+    }
+
+    // Carga CxC
+    function loadCxC() {
+      fetch('/api/cxc')
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('body-cxc');
+          var list = res.data && res.data.top_deudores ? res.data.top_deudores : [];
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay documentos pendientes de cobro registrados.</td></tr>';
+            return;
+          }
+          var html = '';
+          list.forEach(function(item) {
+            html += '<tr>' +
+              '<td><span class="tag tag-amber">' + (item.numero || 'PED-PEND') + '</span></td>' +
+              '<td>' + (item.emision || '-') + '</td>' +
+              '<td><strong>' + (item.cliente_nombre || item.codigo_cliente) + '</strong></td>' +
+              '<td>' + (item.rif || '-') + '</td>' +
+              '<td><span class="tag tag-blue">' + (item.vendedor || '005') + '</span></td>' +
+              '<td style="font-weight: 700; color: #fbbf24;">$' + (item.monto_usd || 0).toFixed(2) + '</td>' +
+            '</tr>';
+          });
+          tbody.innerHTML = html;
+        })
+        .catch(function(e) { console.warn(e); });
+    }
+
+    // Carga CxP
+    function loadCxP() {
+      fetch('/api/cxp')
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('body-cxp');
+          var list = res.data && res.data.pendientes ? res.data.pendientes : [];
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No hay cuentas por pagar registradas.</td></tr>';
+            return;
+          }
+          var html = '';
+          list.forEach(function(item) {
+            html += '<tr>' +
+              '<td><span class="tag tag-red">' + (item.documento || 'CXP') + '</span></td>' +
+              '<td>' + (item.emision || '-') + '</td>' +
+              '<td>' + (item.vencimiento || '-') + '</td>' +
+              '<td><strong>' + item.proveedor + '</strong></td>' +
+              '<td>' + (item.rif || '-') + '</td>' +
+              '<td style="font-weight: 700; color: #f87171;">$' + (item.monto_usd || 0).toFixed(2) + '</td>' +
+            '</tr>';
+          });
+          tbody.innerHTML = html;
+        })
+        .catch(function(e) { console.warn(e); });
+    }
+
+    // Carga Nómina & Vendedores
+    function loadNomina() {
+      fetch('/api/nomina')
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('body-nomina');
+          var list = res.data && res.data.vendedores ? res.data.vendedores : [];
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No hay registros de ventas por vendedor.</td></tr>';
+            return;
+          }
+          var html = '';
+          list.forEach(function(v) {
+            html += '<tr>' +
+              '<td><span class="tag tag-blue">' + v.codigo + '</span></td>' +
+              '<td><strong>' + v.nombre + '</strong></td>' +
+              '<td><span class="tag tag-amber">' + v.rol + '</span></td>' +
+              '<td>' + v.pedidos_count + '</td>' +
+              '<td>' + v.facturas_count + '</td>' +
+              '<td style="font-weight: 700; color: #34d399;">$' + (v.total_ventas_usd || 0).toFixed(2) + '</td>' +
+              '<td style="font-weight: 700; color: #fbbf24;">$' + (v.comision_estimada_3pct || 0).toFixed(2) + '</td>' +
+            '</tr>';
+          });
+          tbody.innerHTML = html;
+        })
+        .catch(function(e) { console.warn(e); });
+    }
+
+    // Carga Inventario
+    function loadInventario() {
+      fetch('/api/inventario')
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('body-inv');
+          var list = res.data && res.data.productos ? res.data.productos : [];
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No se encontraron artículos en inventario.</td></tr>';
+            return;
+          }
+          var html = '';
+          list.forEach(function(p) {
+            var stockColor = p.stock > 0 ? '#34d399' : '#f87171';
+            html += '<tr>' +
+              '<td><code>' + p.sku + '</code></td>' +
+              '<td><strong>' + p.descripcion + '</strong></td>' +
+              '<td style="font-weight: 700; color: ' + stockColor + ';">' + p.stock + '</td>' +
+              '<td>$' + p.costo_usd.toFixed(2) + '</td>' +
+              '<td style="font-weight: 700; color: #60a5fa;">$' + p.precio_usd.toFixed(2) + '</td>' +
+              '<td>$' + p.precio_mayor_usd.toFixed(2) + '</td>' +
+              '<td style="font-weight: 700;">$' + p.valor_existencia_usd.toFixed(2) + '</td>' +
+            '</tr>';
+          });
+          tbody.innerHTML = html;
+        })
+        .catch(function(e) { console.warn(e); });
+    }
+
+    // Carga Bancos
+    function loadBancos() {
+      fetch('/api/bancos')
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('body-bancos');
+          var list = res.data && res.data.cuentas ? res.data.cuentas : [];
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No hay cuentas bancarias configuradas.</td></tr>';
+            return;
+          }
+          var html = '';
+          list.forEach(function(b) {
+            html += '<tr>' +
+              '<td><span class="tag tag-purple">' + b.codigo + '</span></td>' +
+              '<td><strong>' + b.banco + '</strong></td>' +
+              '<td><code>' + b.numero_cuenta + '</code></td>' +
+              '<td>' + b.moneda + '</td>' +
+              '<td style="font-weight: 700; color: #34d399;">' + b.saldo.toLocaleString() + '</td>' +
+            '</tr>';
+          });
+          tbody.innerHTML = html;
+        })
+        .catch(function(e) { console.warn(e); });
+    }
+
+    function loadAllData() {
+      loadStatus();
+      loadOverview();
+      loadCxC();
+      loadCxP();
+      loadNomina();
+      loadInventario();
+      loadBancos();
+    }
+
+    // Chat y Consultas IA
+    function appendMessage(role, text) {
+      var box = document.getElementById('chat-messages');
+      var div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.innerHTML = text.replace(/\n/g, '<br>');
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function sendQuestion() {
+      var input = document.getElementById('chat-input');
+      var q = input.value.trim();
+      if (!q) return;
+
+      appendMessage('user', q);
+      input.value = '';
+
+      var loadingId = 'ai-load-' + Date.now();
+      var box = document.getElementById('chat-messages');
+      var loadDiv = document.createElement('div');
+      loadDiv.className = 'msg ai';
+      loadDiv.id = loadingId;
+      loadDiv.innerHTML = '<em>⚡ Consultando datos de MixNet con Gemini AI...</em>';
+      box.appendChild(loadDiv);
+      box.scrollTop = box.scrollHeight;
+
+      fetch('/api/ai/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var el = document.getElementById(loadingId);
+        if (el) el.remove();
+        if (data.ok) {
+          appendMessage('ai', data.answer);
+        } else {
+          appendMessage('ai', '⚠️ Error consultando a Gemini: ' + (data.error || 'Respuesta no válida'));
+        }
+      })
+      .catch(function(err) {
+        var el = document.getElementById(loadingId);
+        if (el) el.remove();
+        appendMessage('ai', '⚠️ Error de red: ' + err.message);
+      });
+    }
+
+    function runQuickAudit(type) {
+      showTab('tab-ai');
+      appendMessage('user', '📋 Generar auditoría: ' + type.toUpperCase());
+
+      var loadingId = 'ai-load-' + Date.now();
+      var box = document.getElementById('chat-messages');
+      var loadDiv = document.createElement('div');
+      loadDiv.className = 'msg ai';
+      loadDiv.id = loadingId;
+      loadDiv.innerHTML = '<em>⚡ Analizando el 100% de tablas DBF de MixNet para elaborar informe con Gemini...</em>';
+      box.appendChild(loadDiv);
+      box.scrollTop = box.scrollHeight;
+
+      fetch('/api/ai/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var el = document.getElementById(loadingId);
+        if (el) el.remove();
+        if (data.ok) {
+          appendMessage('ai', data.report);
+        } else {
+          appendMessage('ai', '⚠️ Error generando auditoría: ' + (data.error || 'Error desconocido'));
+        }
+      })
+      .catch(function(err) {
+        var el = document.getElementById(loadingId);
+        if (el) el.remove();
+        appendMessage('ai', '⚠️ Error de conexión: ' + err.message);
+      });
+    }
+
+    function clearChat() {
+      var box = document.getElementById('chat-messages');
+      box.innerHTML = '<div class="msg ai">Conversación reiniciada. ¿Qué otra consulta deseas realizar?</div>';
+    }
+
+    // Inicializar al cargar la página
+    window.onload = function() {
+      loadAllData();
+      setInterval(loadAllData, 30000);
+    };
+  </script>
+</body>
+</html>

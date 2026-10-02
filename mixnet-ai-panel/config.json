@@ -1,0 +1,40 @@
+{
+  "port": 3300,
+  "mixnet_candidates": [
+    "M:\\MIX11\\comp01",
+    "M:\\comp01",
+    "M:\\COMP01",
+    "\\\\192.168.0.185\\comp01",
+    "\\\\192.168.0.172\\comp01",
+    "P:\\comp01",
+    "P:\\MIX11\\comp01",
+    "Z:\\comp01",
+    "C:\\MIXNET\\comp01"
+  ],
+  "supervisor_urls": [
+    "http://192.168.0.172:8787",
+    "https://192.168.0.172:8788",
+    "https://100.103.110.44:8788"
+  ],
+  "gemini_keys": [],
+  "gemini_models": [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.5-flash"
+  ],
+  "vendedores": {
+    "002": { "nombre": "Luis Alarcón", "rol": "Ventas Mayor / Calle" },
+    "004": { "nombre": "Yovanni Araujo", "rol": "Ventas Institucionales" },
+    "006": { "nombre": "Yovanni Araujo", "rol": "Ventas Institucionales" },
+    "008": { "nombre": "Marianela", "rol": "Ventas / Cartera" },
+    "014": { "nombre": "Andreina", "rol": "Ventas / Cartera" },
+    "010": { "nombre": "Keyder Salazar", "rol": "Zona 010 (Admin / Cartera)" },
+    "020": { "nombre": "Keyder Salazar", "rol": "Zona 020 (MixNet Admin)" },
+    "005": { "nombre": "Caja Principal", "rol": "Mostrador Físico / Tienda" },
+    "001": { "nombre": "Mary Garcia", "rol": "Ventas Mostrador" },
+    "025": { "nombre": "Ana Barajas", "rol": "Ventas" },
+    "032": { "nombre": "Caja 32", "rol": "Caja Auxiliar" },
+    "033": { "nombre": "Caja 33", "rol": "Caja Auxiliar" }
+  }
+}

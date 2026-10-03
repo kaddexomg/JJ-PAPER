@@ -870,15 +870,47 @@ ${rawText.slice(0, 50000)}
     channel = 'whatsapp',
     customNotes = '',
     sellerName = '',
-    tone = 'Profesional y Persuasivo (Vendedor Consultivo)',
-    historyContext = ''
+    tone = 'socio_estrategico',
+    historyContext = '',
+    targetSector = 'auto',
+    valueHook = 'importador_directo'
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
+    let prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
+    if (prodsList.length === 0) {
+      try {
+        const fetched = await fetchRealPortfolioProducts(4);
+        if (fetched && fetched.length > 0) {
+          prodsList = fetched;
+        }
+      } catch (_) {}
+    }
+
+    const SECTOR_NAMES = {
+      colegios: 'Colegios, Universidades y Educación',
+      clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
+      oficinas: 'Empresas, Oficinas y Corporativo',
+      retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
+      logistica: 'Industrias, Almacenes y Logística de Distribución',
+      papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
+    };
+    const effectiveSector = (targetSector && targetSector !== 'auto' && SECTOR_NAMES[targetSector])
+      ? SECTOR_NAMES[targetSector]
+      : (targetSector !== 'auto' ? targetSector : 'Empresas y Comercios B2B');
+
+    const VALUE_HOOK_DESCS = {
+      importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
+      escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
+      sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
+      despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
+      ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
+    };
+    const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
+
     // Extracción de especificaciones técnicas y comerciales del producto o combo / listado múltiple
     let prodSpecs = '';
-    const prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
     if (prodsList.length > 0) {
       prodSpecs = `
 LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artículos):
@@ -896,59 +928,47 @@ LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artícu
 
     const sys = getBusinessContext() + `
 Eres el Especialista y Director Comercial B2B Sénior de JJ Paper C.A., empresa IMPORTADORA Y DISTRIBUIDORA DIRECTA mayorista en Caracas, Venezuela.
-Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte autoridad de importador directo, máxima seriedad corporativa, calidez, y sobre todo ACTITUD PROACTIVA DE SOCIO ESTRATÉGICO.
+Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte autoridad de importador directo, máxima seriedad corporativa, frescura, calidez y ACTITUD PROACTIVA DE SOCIO ESTRATÉGICO.
 
 ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
 1. IDENTIDAD DE NEGOCIO Y AUTORIDAD (QUIÉNES SOMOS):
    - JJ Paper C.A. es importador y distribuidor mayorista directo con almacén e inventario real para entrega inmediata en Caracas.
-   - NO somos revendedores ni intermediarios: ofrecemos precios directos de distribuidor (Precio B mayorista) y factura fiscal legal a Tasa Oficial BCV.
+   - NO somos revendedores ni intermediarios: ofrecemos precios directos de distribuidor (Precio B mayorista) y factura fiscal legal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
 
 2. TRATAMIENTO DE PRECIOS CON INTELIGENCIA COMERCIAL (¡NUNCA PRECIOS AISLADOS EN FRÍO!):
-   - ¡PROHIBIDO tirar precios secos o altos que ahuyenten al cliente! Un precio como "$40" o "$15" sin contexto parece costoso.
-   - Enmarca siempre el precio comercialmente:
-     * Aclara la presentación mayorista: "por bulto cerrado", "por caja x 50 unid", "paquete de 10 resmas", etc.
-     * Enfatiza que se trata de PRECIO DE LISTA MAYORISTA con condiciones preferenciales y escalas de descuento por volumen.
-     * Señala el ahorro tangible frente a compras al detal.
-     * Expresa siempre el valor en dólares y su equivalente en bolívares calculados a Tasa Oficial BCV.
+   - ¡PROHIBIDO tirar precios secos o altos que ahuyenten al cliente! Enmarca siempre el precio comercialmente.
+   - Aclara la presentación mayorista ("por bulto cerrado", "por caja", "paquete de 10 resmas", etc.).
+   - Enfatiza que se trata de PRECIO DE LISTA MAYORISTA con condiciones preferenciales y escalas de descuento por volumen.
+   - Expresa siempre el valor en dólares ($) y su equivalente en bolívares (Bs.) calculados con la Tasa Oficial BCV.
 
 3. PROMESA MANDATORIA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
    - DEBES incluir de forma clara y destacada que si el cliente busca o necesita cualquier otro producto, formato o marca que no vea en la lista o catálogo, *JJ Paper se lo ubica, cotiza y despacha de inmediato*:
-     "💡 *¿Busca algún producto o marca que no vea en este listado?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha directamente a su empresa."
+     "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha directamente a su empresa."
 
-4. PRESENTACIÓN DE OFERTAS Y MÚLTIPLES PRODUCTOS (CATÁLOGO):
-   - Si se incluye un listado oficial de productos en oferta, DEBES listar ABSOLUTAMENTE TODOS los productos en el ESTRICTO ORDEN secuencial en que fueron suministrados. ¡ESTRICTAMENTE PROHIBIDO agruparlos bajo subtítulos temáticos, reordenarlos, omitir productos o recortar la lista! Cada producto suministrado debe aparecer con su propia viñeta (•).
-   - Formato obligatorio de cada viñeta:
-     • *Nombre del Producto* (Presentación o Empaque): *$X.XX USD* | Bs. Y,YY
-     Ejemplo:
-     • *Bolígrafos Ink Joy x 12 (Azul, Negro)*: *$2.70 USD* | Bs. 2.464,30
+4. PRESENTACIÓN DE OFERTAS Y ARTÍCULOS EN PROMOCIÓN:
+   - Presenta cada producto suministrado con su propia viñeta (•).
+   - Formato obligatorio: • *Nombre del Producto* (Presentación o Empaque): *$X.XX USD* | Bs. Y,YY
    - ¡PROHIBIDO inventar o alterar precios o presentaciones! Usa con estricta fidelidad los datos oficiales provistos.
-   - Aclara de forma explícita antes del listado que son precios unitarios promocionales y no un paquete forzado:
-     "(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)"
 
-5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN EN WHATSAPP:
-   - **TÍTULO DESTACADO**: En negritas con actitud comercial (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*).
+5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
+   - **TÍTULO DESTACADO**: OBLIGATORIO en negritas con actitud comercial (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.* o *📦 SUMINISTRO DIRECTO PARA EMPRESAS · JJ PAPER C.A.*).
    - **SEPARADOR**: Línea estética de separación (━━━━━━━━━━━━━━━━━━━━━━━━━━).
    - **SALUDO DINÁMICO (SPINTAX)**: {Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋
-   - **INTRODUCCIÓN**: {Le saluda|Le escribe} *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas. Con inventario físico para entrega inmediata en 24h:
-   - **ENCABEZADO DE PROMOCIÓN**:
-     *📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*
-     _(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_
-   - **LISTA COMPLETA DE PRODUCTOS**: Todos y cada uno de los productos en orden estricto correlativo, con viñeta (•), negrita (*...*), empaque y precios en USD y Bs. a Tasa BCV.
-   - **PROMESA MANDATORIA DE SOURCING**:
-     💡 *¿Busca algún producto o marca que no vea en esta lista?*
-     ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.
+   - **PROPUESTA COMERCIAL**: Conecta con el sector (${effectiveSector}), presenta la solución de abastecimiento y la ventaja (${effectiveHook}).
+   - **LISTA COMPLETA DE PRODUCTOS**: Con viñeta (•), negrita (*...*), empaque y precios en USD y Bs. a Tasa BCV.
+   - **CLÁUSULA DE SOURCING**: Promesa de búsqueda y cotización de cualquier insumo adicional.
    - **VENTAJAS OPERATIVAS CON JJ PAPER**:
      • 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios, precio mayorista real)
      • 🧾 *Facturación Fiscal Legal (RIF J-295375450)* en bolívares calculados a Tasa Oficial BCV
-     • 🚚 *Despacho Inmediato 24h* directamente a su empresa o colegio
-     • 📄 *Lista de Precios Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 artículos disponibles.
-   - **CATÁLOGO DIGITAL**:
-     👉 Ver catálogo digital y pedidos en línea: {{link}}
-   - **LLAMADO A LA ACCIÓN (CTA)**:
-     💬 {¿Desea que le reservemos inventario de alguno de estos insumos o le preparemos una cotización formal?|¿Gusta que le reservemos disponibilidad para su próximo despacho?}
-   - **FIRMA CORPORATIVA**:
-     Atentamente,
-     *{{vendedor}}* | Asesor Comercial JJ Paper C.A.
+     • 🚚 *Despacho Inmediato 24h* directamente a su sede corporativa o comercio
+     • 📄 *Lista de Precios Oficial en PDF:* Más de 900 insumos disponibles en catálogo
+   - **CATÁLOGO DIGITAL**: 👉 Ver catálogo digital y pedidos en línea: {{link}}
+   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta directa y amable para coordinar pedido o cotización formal.
+   - **FIRMA CORPORATIVA**: Atentamente, *{{vendedor}}* | Asesor Comercial JJ Paper C.A.
+
+6. CERO REPETICIÓN / CREATIVIDAD DINÁMICA:
+   - NO uses plantillas robóticas idénticas ni la frase "Estimado cliente".
+   - Utiliza Spintax rico en saludos y llamados a la acción ({A|B|C}) para que cada destinatario reciba un mensaje único.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de código json):
 - Si channel === 'email': { "subject": "Asunto profesional de alto impacto con nombre de producto u oferta", "body": "Cuerpo completo con formato estructurado, viñetas, precios y firma" }
@@ -956,6 +976,8 @@ Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de
 `;
 
     const prompt = `
+Sector Objetivo: ${effectiveSector}
+Enfoque de Valor Principal: ${effectiveHook}
 Propósito o Requerimiento del Asesor: ${objective}
 Contexto Histórico / Relación: ${historyContext || 'Sin contexto especial'}
 Personalidad / Tono Requerido: ${tone}
@@ -966,10 +988,10 @@ Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'
 Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato'}
 Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
 
-Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, viñetas, firma al final) y el formato JSON solicitado:`;
+Redacta el mensaje comercial siguiendo estrictamente la estructura (Título en negrita, viñetas de artículos con USD y Bs BCV, propuesta comercial y firma) y el formato JSON solicitado:`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.55 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.75 });
       return extractJSON(raw);
     } catch (e) {
       console.warn('Fallback draftCampaignMessage:', e);
@@ -985,11 +1007,11 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, vi�
       if (isEmail) {
         return {
           subject: prodsList.length === 1 ? `Propuesta Mayorista: ${prodsList[0].name} — JJ Paper C.A.` : `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`,
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
         };
       } else {
         return {
-          body: `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos lista oficial con +900 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
+          body: `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV (${rate.toFixed(2)} Bs)\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos lista oficial con +900 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
         };
       }
     }

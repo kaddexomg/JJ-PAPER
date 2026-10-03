@@ -29,7 +29,6 @@
       { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
-      { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
@@ -79,7 +78,6 @@
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
-      { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
@@ -127,17 +125,6 @@
       a.addEventListener('click', (e) => {
         e.preventDefault();
         if (window.adminLogout) window.adminLogout();
-      });
-    }
-    if (it.action === 'dialer') {
-      a.href = '#';
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (window.JJDialer) window.JJDialer.open();
-        else if (typeof loadPhoneDialer === 'function') {
-          loadPhoneDialer();
-          setTimeout(() => window.JJDialer?.open(), 100);
-        }
       });
     }
     if (isActive(it.href)) a.className = 'on';
@@ -360,14 +347,6 @@
     document.head.appendChild(s);
   }
 
-  function loadPhoneDialer() {
-    if (document.getElementById('jjp-dialer-script') || window.JJDialer) return;
-    const s = document.createElement('script');
-    s.id = 'jjp-dialer-script';
-    s.src = '../assets/js/phone-dialer.js?v=20260927_b2b_v5';
-    document.head.appendChild(s);
-  }
-
   function initCommandPalette() {
     if (window.__jjpCmdPaletteInit) return;
     window.__jjpCmdPaletteInit = true;
@@ -507,14 +486,6 @@
     function executeItem(item) {
       if (!item) return;
       closePalette();
-      if (item.action === 'dialer') {
-        if (window.JJDialer) window.JJDialer.open();
-        else if (typeof loadPhoneDialer === 'function') {
-          loadPhoneDialer();
-          setTimeout(() => window.JJDialer?.open(), 100);
-        }
-        return;
-      }
       if (item.ext) window.open(item.href, '_blank');
       else window.location.href = item.href;
     }
@@ -565,24 +536,6 @@
     });
   }
 
-  function injectTopbarDialerButton() {
-    const topbarRight = document.querySelector('.admin-topbar .topbar-right, .topbar-right, .admin-topbar');
-    if (!topbarRight || document.getElementById('topbarDialerBtn')) return;
-
-    const btn = document.createElement('a');
-    btn.id = 'topbarDialerBtn';
-    btn.href = 'llamadas.html';
-    btn.className = 'topbar-dialer-btn';
-    btn.title = 'Ir a Centralita de Llamadas B2B (o presiona Alt+P para marcador rápido)';
-    btn.innerHTML = `<span class="topbar-dialer-pulse"></span><span>📞 Llamadas B2B</span>`;
-
-    if (topbarRight.firstChild) {
-      topbarRight.insertBefore(btn, topbarRight.firstChild);
-    } else {
-      topbarRight.appendChild(btn);
-    }
-  }
-
   function initModalScrollBridge() {
     // Redirigir el scroll del ratón hacia el cuerpo del modal si el cursor está sobre la cabecera, pie o el overlay
     document.addEventListener('wheel', (e) => {
@@ -602,9 +555,7 @@
     applyRole();
     loadCopilot();
     loadKeyboardNav();
-    loadPhoneDialer();
     initCommandPalette();
-    injectTopbarDialerButton();
     initModalScrollBridge();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

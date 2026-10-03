@@ -91,7 +91,8 @@ function renderAdminCustomers() {
 
   let list = adminCustomers;
   if (currentZoneFilter !== 'todos') {
-    if (currentZoneFilter === 'sin') list = list.filter(c => !c.zone);
+    if (currentZoneFilter === 'rebotados') list = list.filter(c => c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft');
+    else if (currentZoneFilter === 'sin') list = list.filter(c => !c.zone);
     else list = list.filter(c => c.zone === currentZoneFilter);
   }
   if (q) {
@@ -114,7 +115,7 @@ function renderAdminCustomers() {
             ${escapeHTML(c.name)} 📜
           </a>
         </div>
-        <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}${c.email_status === 'bounced_hard' ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
+        <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}${(c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${getSellerName(c.seller_id)}</td>

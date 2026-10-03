@@ -120,12 +120,14 @@ function renderCustomers() {
   if (!isAdmin) {
     list = list.filter(c => c.zone !== '020');
     if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
+    if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') && c.seller_id === sellerId);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   } else {
     // Admin Keyder: tiene su PROPIA cartera (010 y 020) en 'Mi cartera' e 'Inactivos',
     // y conserva 'Todos' y 'Sin vendedor' para la gestión global.
     if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
+    if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft'));
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   }
@@ -134,7 +136,8 @@ function renderCustomers() {
 
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${
-      custFilter === 'mios' ? 'Aún no tienes clientes en tu cartera. Toma los "Sin vendedor" o crea nuevos. 💪' : 'Sin resultados.'
+      custFilter === 'mios' ? 'Aún no tienes clientes en tu cartera. Toma los "Sin vendedor" o crea nuevos. 💪' : 
+      (custFilter === 'rebotados' ? 'No tienes clientes con email rebotado. ¡Todo al día! 🎉' : 'Sin resultados.')
     }</td></tr>`;
     return;
   }
@@ -147,7 +150,8 @@ function renderCustomers() {
     const mine     = c.seller_id === sellerId || isAdmin;
     const waReact  = `Hola ${c.name} 👋, le escribe ${sellerName} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${sellerRef ? '?ref=' + sellerRef : ''}`;
     const isMobile = c.phone && (c.phone.includes('041') || c.phone.includes('042') || c.phone.includes('584'));
-    const showRescueBtn = mine && c.email_status === 'bounced_hard' && isMobile;
+    const isBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
+    const showRescueBtn = mine && isBounced && isMobile;
     return `<tr>
       <td>
         <div class="td-name">
@@ -156,7 +160,7 @@ function renderCustomers() {
           </a>
           ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}
         </div>
-        <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}${c.email_status === 'bounced_hard' ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
+        <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}${isBounced ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${escapeHTML(c.city || '—')}</td>
@@ -278,8 +282,8 @@ function openCustomerModal(id = null) {
     warnEl.style = 'color:#d32f2f;font-size:12px;margin-top:4px;font-weight:bold;';
     emailInput.parentNode.appendChild(warnEl);
   }
-  if (c?.email_status === 'bounced_hard') {
-    warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas, se habilitará de nuevo para envíos.';
+  if (c?.email_status === 'bounced_hard' || c?.email_status === 'bounced' || c?.email_status === 'bounced_soft') {
+    warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas con una dirección válida, se habilitará de nuevo para envíos.';
   } else {
     warnEl.textContent = '';
   }
@@ -315,10 +319,16 @@ async function saveCustomer() {
     updated_at: new Date().toISOString(),
   };
   
-  if (editingCustId && originalStatus === 'bounced_hard' && emailVal && emailVal !== originalEmail) {
+  const wasBounced = originalStatus === 'bounced_hard' || originalStatus === 'bounced' || originalStatus === 'bounced_soft';
+  if (editingCustId && wasBounced && emailVal && emailVal !== originalEmail) {
     fields.email_status = 'valid';
     fields.bounce_reason = null;
     fields.bounced_at = null;
+    try {
+      if (originalEmail) {
+        sb.from('jjp_email_suppression_list').delete().eq('email', originalEmail);
+      }
+    } catch (_) {}
   }
 
   let error, insertedRow;

@@ -505,9 +505,22 @@ async function ingestMessage(acct, token, id) {
   const isBounce = fromLower.includes('mailer-daemon') || subjLower.includes('delivery status notification') || subjLower.includes('undelivered mail');
 
   if (isBounce) {
-    const bouncedEmailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (bouncedEmailMatch) {
-      const bouncedEmail = bouncedEmailMatch[0].toLowerCase();
+    // Extraer el destinatario que realmente falló (excluyendo mailer-daemon y remitentes internos)
+    let bouncedEmail = null;
+    const finalRecip = bodyText.match(/(?:Final-Recipient|Original-Recipient|Recipient):\s*(?:rfc822;\s*)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+    if (finalRecip) {
+      bouncedEmail = finalRecip[1].toLowerCase();
+    } else {
+      const allEmails = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+      for (const em of allEmails) {
+        const lower = em.toLowerCase();
+        if (lower.includes('mailer-daemon') || lower.includes('postmaster') || lower.includes('googlemail') || lower.includes('notifications@') || lower.includes('ventasjj')) continue;
+        bouncedEmail = lower;
+        break;
+      }
+    }
+
+    if (bouncedEmail) {
       try {
         await dbCore.from('jjp_email_suppression_list').upsert({
           email: bouncedEmail,
@@ -519,12 +532,12 @@ async function ingestMessage(acct, token, id) {
         
         await Promise.allSettled([
           dbCore.from('jjp_customers').update({
-            email_status: 'bounced',
+            email_status: 'bounced_hard',
             bounce_reason: 'Mailer Daemon / DSN',
             bounced_at: new Date().toISOString()
           }).ilike('email', bouncedEmail),
           dbCore.from('jjp_prospects').update({
-            email_status: 'bounced',
+            email_status: 'bounced_hard',
             bounce_reason: 'Mailer Daemon / DSN',
             bounced_at: new Date().toISOString()
           }).ilike('email', bouncedEmail)

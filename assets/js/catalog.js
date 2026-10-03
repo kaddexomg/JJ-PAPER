@@ -621,9 +621,6 @@ async function initCatalog() {
   if (urlCat) setCat(urlCat);
   else renderProds();
 
-  // Fase 6.1: Cargar y renderizar promociones destacadas de jjp_promos
-  loadAndRenderPromos();
-
   // Fase 6.3: Enlace directo a producto por SKU o ID (?producto=SKU123)
   const urlProd = qs.get('producto') || qs.get('sku') || qs.get('p');
   if (urlProd) {
@@ -636,47 +633,6 @@ async function initCatalog() {
     if (found && typeof openProductModal === 'function') {
       setTimeout(() => openProductModal(found.id), 250);
     }
-  }
-}
-
-async function loadAndRenderPromos() {
-  const wrap = document.getElementById('promoBanner');
-  if (!wrap) return;
-  try {
-    const { data: promos, error } = await sb.from('jjp_promos')
-      .select('*')
-      .eq('active', true)
-      .order('sort_order', { ascending: true })
-      .limit(6);
-
-    if (error || !promos || !promos.length) {
-      wrap.style.display = 'none';
-      return;
-    }
-
-    wrap.innerHTML = `
-      <div style="background:linear-gradient(135deg,#0d4b38,#16604a);color:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 4px 15px rgba(22,96,74,0.15);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-          <div style="font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;">
-            <span>🔥</span> Ofertas y Promociones Especiales
-          </div>
-          <span style="font-size:12px;background:rgba(255,255,255,0.15);padding:3px 10px;border-radius:20px;">Precios en Bs al cambio oficial BCV</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
-          ${promos.map(pr => `
-            <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.2s;"
-                 onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'"
-                 onclick="${pr.product_id ? `openProductModal('${pr.product_id}')` : ''}">
-              <span style="display:inline-block;background:#fbbf24;color:#78350f;font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;margin-bottom:6px;">${escapeHTML(pr.badge || 'OFERTA')}</span>
-              <div style="font-weight:600;font-size:14px;color:#fff;">${escapeHTML(pr.title)}</div>
-              <div style="font-size:12px;color:#d1fae5;margin-top:4px;">${escapeHTML(pr.description || '')}</div>
-            </div>
-          `).join('')}
-        </div>
-      </div>`;
-    wrap.style.display = 'block';
-  } catch (_) {
-    wrap.style.display = 'none';
   }
 }
 

@@ -285,7 +285,16 @@ export class WaSession {
           }
           return message;
         },
-        syncFullHistory: true,
+        syncFullHistory: false,
+        shouldSyncHistoryMessage: (msg) => {
+          const ts = Number(msg?.messageTimestamp || 0);
+          const now = Math.floor(Date.now() / 1000);
+          if (ts && (now - ts > 7 * 86400)) return false;
+          const jid = msg?.key?.remoteJid || '';
+          if (!jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) return false;
+          return true;
+        },
+        shouldIgnoreJid: (jid) => !jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter'),
         markOnlineOnConnect: false,
         msgRetryCounterCache: new RetryCounterCache(),
         getMessage: async (key) => {
@@ -560,7 +569,9 @@ export class WaSession {
   // el hilo la muestra como "📷 Foto/🎥 Video…". Los mensajes nuevos sí traen media completa.
   async onHistory({ messages }) {
     if (!messages?.length) return;
-    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial…');
+    const nowSec = Math.floor(Date.now() / 1000);
+    const MAX_HISTORY_SEC = 7 * 86400; // Máximo 7 días de mensajes anteriores
+    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial (máx 7 días)…');
     const chats = new Map();   // jid -> { chat, ts, preview, from }
     let batch = [];
     let saved = 0;
@@ -575,6 +586,8 @@ export class WaSession {
         jid = alt;
       }
       if (!key.id) continue;                 // sin id no se puede deduplicar
+      const tsSec = Number(msg.messageTimestamp || 0);
+      if (tsSec && (nowSec - tsSec > MAX_HISTORY_SEC)) continue; // descartar mensaje si tiene más de 7 días
       if (msg.message) this.saveMessageToStore(key.id, msg.message);
       const parsed = parseMessage(msg);
       if (!parsed) continue;
@@ -588,7 +601,6 @@ export class WaSession {
       }
 
       const fromMe = !!key.fromMe;
-      const tsSec = Number(msg.messageTimestamp || 0);
       batch.push({
         chat_id: entry.chat.id,
         owner_id: this.profileId,

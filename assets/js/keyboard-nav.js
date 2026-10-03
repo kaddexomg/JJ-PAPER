@@ -30,8 +30,7 @@
     '3': 'prospectos.html',
     '4': 'clientes.html',
     '5': 'whatsapp.html',
-    '6': 'campanas-email.html',
-    '7': 'llamadas.html'
+    '6': 'campanas-email.html'
   };
 
   // Helper para detectar si el elemento actual es un campo de escritura editable
@@ -63,7 +62,6 @@
       '#posCustomItemModal:not([style*="display: none"])',
       '#quoteShortcutsHelpModal:not([style*="display: none"])',
       '#posShortcutsHelpModal:not([style*="display: none"])',
-      '#jjDialerModal.op',
       '#jjAiQuoteModal.op'
     ];
 
@@ -176,8 +174,6 @@
                 <div style="display:flex;justify-content:space-between"><span>Clientes / Cartera</span><kbd class="jj-kbd">Alt + 4</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>WhatsApp</span><kbd class="jj-kbd">Alt + 5</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Campañas Email</span><kbd class="jj-kbd">Alt + 6</kbd></div>
-                <div style="display:flex;justify-content:space-between"><span>Centralita Llamadas</span><kbd class="jj-kbd">Alt + 7</kbd></div>
-                <div style="display:flex;justify-content:space-between"><span>Marcador Softphone</span><kbd class="jj-kbd">Alt + P</kbd></div>
                 <div style="display:flex;justify-content:space-between"><span>Paleta de Comandos</span><kbd class="jj-kbd">Ctrl + K</kbd></div>
               </div>
             </div>

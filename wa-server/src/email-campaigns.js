@@ -137,12 +137,12 @@ async function step(camp, dailyLimit) {
           }, { onConflict: 'email' });
           await Promise.allSettled([
             dbCore.from('jjp_customers').update({
-              email_status: 'bounced',
+              email_status: 'bounced_hard',
               bounce_reason: e.message.slice(0, 200),
               bounced_at: new Date().toISOString()
             }).ilike('email', toAddr),
             dbCore.from('jjp_prospects').update({
-              email_status: 'bounced',
+              email_status: 'bounced_hard',
               bounce_reason: e.message.slice(0, 200),
               bounced_at: new Date().toISOString()
             }).ilike('email', toAddr)

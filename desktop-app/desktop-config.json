@@ -1,0 +1,6 @@
+{
+  "startUrl": "http://localhost:3300",
+  "fallbackUrl": "https://jj-paper.pages.dev",
+  "kioskMode": false,
+  "zoomFactor": 1.0
+}

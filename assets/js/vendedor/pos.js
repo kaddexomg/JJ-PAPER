@@ -801,7 +801,7 @@ async function posSubmit() {
       customer_id: posCustomer?.id || null,
     };
 
-    const { error } = await sb.from('jjp_orders').insert(order);
+    const { data: createdOrder, error } = await sb.from('jjp_orders').insert(order).select().maybeSingle();
     if (error) {
       console.error('pos insert error:', error);
       showToast('No se pudo registrar la venta: ' + (error.message || 'Error en base de datos'), 'err');
@@ -810,11 +810,18 @@ async function posSubmit() {
 
     // Si la venta provino de una cotización, marcar la cotización como convertida
     if (posLinkedQuoteId) {
-      sb.from('jjp_quotes').update({ status: 'convertido' }).eq('id', posLinkedQuoteId).then(() => {}).catch(() => {});
+      try {
+        await sb.from('jjp_quotes').update({
+          status: 'convertido',
+          updated_at: new Date().toISOString()
+        }).eq('id', posLinkedQuoteId);
+      } catch (qErr) {
+        console.warn('Error actualizando cotización a convertida:', qErr);
+      }
       posLinkedQuoteId = null;
     }
 
-    posShowDone(order);
+    posShowDone(createdOrder || order);
   } catch (err) {
     console.error('Error al procesar la venta:', err);
     showToast('Error inesperado al registrar la venta', 'err');
@@ -1508,9 +1515,9 @@ async function posSearchQuotesLive() {
 
   let query = sb.from('jjp_quotes')
     .select('id,quote_number,client_name,phone,estimated_total_usd,discount_pct,created_at,status,items')
-    .in('status', ['pendiente', 'contactado'])
+    .not('status', 'in', '("convertido","cancelado","rechazado")')
     .order('created_at', { ascending: false })
-    .limit(12);
+    .limit(16);
 
   if (qText) {
     query = query.or(`quote_number.ilike.%${qText}%,client_name.ilike.%${qText}%`);

@@ -27,8 +27,6 @@
       { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
       { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
-      { href: 'promociones.html',  ico: '🔥', label: 'Promociones' },
-      { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },

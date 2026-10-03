@@ -17,14 +17,38 @@ async function waLinkInit(profileId) {
       payload => { WA_SESSION = payload.new; waRenderLink(); })
     .subscribe();
 
-  // Sondeo de respaldo: si Realtime sufre lag en WebSocket, refrescar cada 3s si está conectando o esperando QR
-  setInterval(async () => {
+  // Sondeo de respaldo inteligente: solo sondea si la ventana está activa, con retroceso y límite máximo
+  let _waPollAttempts = 0;
+  let _waPollInterval = null;
+
+  function scheduleNextPoll() {
+    if (_waPollInterval) clearTimeout(_waPollInterval);
     const modal = document.getElementById('waLinkModal');
     const isModalOpen = modal?.classList.contains('op') || modal?.style?.display === 'block';
-    if (isModalOpen || WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr' || WA_SESSION?.status === 'reconnecting') {
-      await waLoadSession();
+    const isActivelyConnecting = WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr' || WA_SESSION?.status === 'reconnecting';
+
+    if (!isModalOpen && !isActivelyConnecting) {
+      _waPollAttempts = 0;
+      return;
     }
-  }, 3000);
+
+    _waPollAttempts++;
+    // Si ya pasaron más de 15 intentos (~2 minutos) sin respuesta, pausar el sondeo
+    if (_waPollAttempts > 15) {
+      console.warn('[wa-link] Sondeo pausado: el servidor no responde tras múltiples intentos.');
+      return;
+    }
+
+    // Intervalo progresivo: 3s los primeros 5 intentos, luego 10s
+    const delay = _waPollAttempts <= 5 ? 3000 : 10000;
+    _waPollInterval = setTimeout(async () => {
+      await waLoadSession();
+      scheduleNextPoll();
+    }, delay);
+  }
+
+  // Iniciar sondeo inicial controlado
+  scheduleNextPoll();
 }
 
 async function waLoadSession() {
@@ -206,6 +230,10 @@ async function waRequestConnect() {
     WA_SESSION.qr_data = null;
     WA_SESSION.qr_updated_at = null;
     waRenderLink();
+  }
+  if (typeof scheduleNextPoll === 'function') {
+    _waPollAttempts = 0;
+    scheduleNextPoll();
   }
   if (await _waAction({ requested_action: 'connect' }, 'Generando código QR…')) {
     // el servidor procesará la acción y emitirá el nuevo QR

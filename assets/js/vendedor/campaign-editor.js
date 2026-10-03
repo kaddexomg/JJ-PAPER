@@ -658,10 +658,9 @@ window.CampaignEditor = (() => {
     }
     if ((!config.templates || config.templates.length === 0) && typeof sb !== 'undefined') {
       try {
-        const { data: tpls } = await sb.from('jjp_campaign_templates')
+        const { data: tpls } = await sb.from('jjp_wa_templates')
           .select('*')
-          .eq('active', true)
-          .order('created_at', { ascending: false });
+          .order('name', { ascending: true });
         config.templates = tpls || [];
       } catch (e) {
         console.warn('Aviso cargando plantillas en CampaignEditor:', e);

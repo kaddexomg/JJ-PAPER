@@ -355,10 +355,30 @@ async function fetchNextDocSerial(type = 'pedido') {
     const { data, error } = await sbCore.rpc('jjp_next_doc_serial', { p_type: type });
     if (!error && data) return String(data).padStart(8, '0').slice(-8);
   } catch (e) {
-    console.warn('fetchNextDocSerial error:', e);
+    console.warn('fetchNextDocSerial RPC error:', e);
   }
-  const rnd = Math.floor(10000000 + Math.random() * 89999999);
-  return String(rnd).slice(0, 8);
+
+  // Fallback seguro 1: consultar y avanzar jjp_settings directamente sin inventar números aleatorios
+  try {
+    const isQuote = (type === 'cotizacion' || type === 'quote');
+    const key = isQuote ? 'mixnet_next_quote_serial' : 'mixnet_next_order_serial';
+    const { data: sRow } = await sbCore.from('jjp_settings').select('value').eq('key', key).maybeSingle();
+    const curr = parseInt(sRow?.value || (isQuote ? '53355' : '112589'), 10);
+    await sbCore.from('jjp_settings').update({ value: String(curr + 1), updated_at: new Date().toISOString() }).eq('key', key);
+    return String(curr).padStart(8, '0').slice(-8);
+  } catch (_) {}
+
+  // Fallback seguro 2: consultar el último correlativo real emitido en la tabla
+  try {
+    const isQuote = (type === 'cotizacion' || type === 'quote');
+    const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
+    const col = isQuote ? 'quote_number' : 'order_number';
+    const { data: maxRow } = await sbCore.from(table).select(col).order(col, { ascending: false }).limit(1).maybeSingle();
+    const maxNum = parseInt(maxRow?.[col] || (isQuote ? '53355' : '112589'), 10);
+    return String(maxNum + 1).padStart(8, '0').slice(-8);
+  } catch (_) {}
+
+  return String(Date.now()).slice(-8);
 }
 
 /* ======================================================

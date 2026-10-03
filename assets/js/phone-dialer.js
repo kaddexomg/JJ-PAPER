@@ -210,6 +210,12 @@
     } catch (_) {}
 
     gsmBridgeStatus = { connected: false, running: false, model: '', serial: '', adb: false };
+    if (!window._gsmFailCount) window._gsmFailCount = 0;
+    window._gsmFailCount++;
+    if (window._gsmFailCount >= 3 && gsmPollInterval) {
+      clearInterval(gsmPollInterval);
+      gsmPollInterval = null;
+    }
     if (bridgeBanner && bridgeStatusText) {
       bridgeBanner.style.background = '#f8fafc';
       bridgeBanner.style.borderColor = '#e2e8f0';

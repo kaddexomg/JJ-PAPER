@@ -57,13 +57,13 @@ echo ============================================================
 echo      JJ PAPER -- SERVIDOR ACTIVO EN SEGUNDO PLANO
 echo ============================================================
 echo.
-echo  [ESTADO]  🟢 SERVIDOR EN LINEA (Activo en segundo plano)
+echo  [ESTADO]  [ACTIVO] SERVIDOR EN LINEA (Activo en segundo plano)
 echo  [PID]     Proceso Node.js: %SERVER_PID%
 goto show_menu
 
 :started_ok
 echo ============================================================
-echo   🟢 SERVIDOR INICIADO EN SEGUNDO PLANO CON EXITO!
+echo   [OK] SERVIDOR INICIADO EN SEGUNDO PLANO CON EXITO!
 echo ============================================================
 echo.
 echo  [PID] Proceso Node.js: %SERVER_PID%

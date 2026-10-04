@@ -18,14 +18,14 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8786" ^| findstr "LISTENING
 )
 
 if "%IS_RUNNING%"=="1" (
-  echo  [ESTADO]  🟢 SERVIDOR EN LINEA (Activo en segundo plano)
+  echo  [ESTADO]  [ACTIVO] SERVIDOR EN LINEA (Activo en segundo plano)
   echo  [PID]     Proceso Node.js: %SERVER_PID%
   REM Consultar consumo de memoria
   for /f "tokens=1,2,3,4,5" %%A in ('tasklist /FI "PID eq %SERVER_PID%" /NH 2^>nul') do (
     echo  [MEMORIA] Uso de RAM: %%E
   )
 ) else (
-  echo  [ESTADO]  🔴 SERVIDOR DETENIDO / APAGADO
+  echo  [ESTADO]  [DETENIDO] SERVIDOR DETENIDO / APAGADO
 )
 
 echo.

@@ -24,9 +24,6 @@ if exist %LOGFILE% (
 )
 
 REM Verificando entorno de MixNet...
-echo [%date% %time%] [SUPERVISOR] Verificando actualizaciones de GitHub... >> "%LOGFILE%"
-git pull origin main >> "%LOGFILE%" 2>&1
-
 echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
 node auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
 

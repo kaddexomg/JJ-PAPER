@@ -7,6 +7,7 @@ REM  - Relanza automaticamente ante caidas o reinicios
 REM  - Respeta senales de parada limpia (exit code 2 o 3)
 REM ============================================================
 cd /d "%~dp0"
+set PATH=C:\Program Files\nodejs;%PATH%
 
 if not exist logs mkdir logs
 

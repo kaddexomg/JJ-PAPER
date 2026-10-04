@@ -847,7 +847,7 @@ function quoteShowDone(q) {
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <a class="btn-p" style="width:auto;padding:9px 16px;background:#16604A;color:#fff;text-decoration:none;font-weight:700"
-         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">💰 Cobrar en POS</a>
+         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">📋 Procesar como Pedido</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendHubHtml}
@@ -1388,9 +1388,9 @@ function updateQuoteHeaderStatus() {
     }
     if (act) {
       act.innerHTML = `
-        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Facturar o cobrar en POS (F7)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
+        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Pasar a pedido y procesar (F7)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-          Facturar en POS <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd>
+          Pasar a Pedido <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd>
         </button>
         <button type="button" class="btn-o sm" onclick="quotePrintPdf()" title="Ver presupuesto oficial (F10)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
@@ -1429,7 +1429,7 @@ function quoteConvertToPos() {
     showToast('La cotización está vacía. Agrega productos primero', 'warn');
     return;
   }
-  showToast('Guardando cotización para facturar en POS...');
+  showToast('Guardando cotización para procesar pedido...');
   quoteSubmit().then(() => {
     if (editingQuoteNumber) {
       window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
@@ -1849,7 +1849,7 @@ function quoteShowHelpModal() {
             <b style="color:#0f172a;display:block;margin-bottom:6px">📂 Cotizaciones y Gestión</b>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+O</kbd> Abrir cotización existente</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+C</kbd> Ver todas las cotizaciones</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Facturar / Cobrar en POS</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Pasar a Pedido</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F10</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Ctrl+P</kbd> Ver / Imprimir PDF</div>
             <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+N</kbd> Nueva cotización / limpiar</div>
           </div>

@@ -678,31 +678,30 @@ function posSetConsumidorFinal() {
   showToast('⚡ Cliente Mostrador / Consumidor Final aplicado');
 }
 
-/* ---------- Registrar venta ---------- */
+/* ---------- Procesar Pedido Oficial ---------- */
 async function posSubmit() {
   if (posSubmitting) return;
   const lines = Object.values(posTicket);
   const name  = document.getElementById('posCliName').value.trim();
   let tel     = document.getElementById('posCliTel').value.trim();
-  if (!lines.length) { showToast('El ticket está vacío', 'warn'); return; }
+  if (!lines.length) { showToast('El pedido no tiene ningún producto agregado', 'warn'); return; }
   if (!name) { showToast('El nombre del cliente es obligatorio', 'warn'); return; }
   if (!tel) {
-    tel = '00000000000'; // Default para mostrador / consumidor final
+    tel = '00000000000'; // Default para pedidos de mostrador / cliente rápido
   }
 
   posSubmitting = true;
   const btn = document.getElementById('posSubmitBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Registrando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando Pedido...'; }
 
   try {
     const subtotal = lines.reduce((s, l) => s + l.price_usd * l.qty, 0);
     const d        = posDiscount();
     const rate     = getRate();
-    // Descuento solicitado → se cobra a precio lleno hasta que el admin lo apruebe.
     const total    = +subtotal.toFixed(2);
     const payRef   = document.getElementById('posPayRef')?.value.trim() || null;
 
-    // Resolución segura del vendedor activo o seleccionado en POS
+    // Resolución segura del vendedor activo o seleccionado en el pedido
     const selectedSellerId = document.getElementById('posSellerSelect')?.value;
     const activeSeller = (typeof SELLER !== 'undefined' && SELLER)
       ? SELLER
@@ -735,7 +734,7 @@ async function posSubmit() {
         total_usd: total,
         exchange_rate: rate,
         total_bs: +(total * rate).toFixed(2),
-        payment_method: document.getElementById('posMethod')?.value || 'efectivo',
+        payment_method: document.getElementById('posMethod')?.value || 'por_convenir',
         payment_ref: payRef,
         notes: document.getElementById('posNotes')?.value.trim() || null,
         seller_id: sellerId,
@@ -791,12 +790,12 @@ async function posSubmit() {
       total_usd: total,
       exchange_rate: rate,
       total_bs: +(total * rate).toFixed(2),
-      payment_method: document.getElementById('posMethod')?.value || 'efectivo',
+      payment_method: document.getElementById('posMethod')?.value || 'por_convenir',
       payment_ref: payRef,
       notes: document.getElementById('posNotes')?.value.trim() || null,
       seller_id: sellerId,
-      source: 'pos',
-      status: payRef ? 'verificando' : 'pagado',
+      source: posLinkedQuoteId ? 'cotizacion_convertida' : 'pos',
+      status: 'pendiente_pago', // Entra como pedido pendiente oficial para armar y facturar en MixNet
       quote_id: posLinkedQuoteId || null,
       customer_id: posCustomer?.id || null,
     };
@@ -804,11 +803,11 @@ async function posSubmit() {
     const { data: createdOrder, error } = await sb.from('jjp_orders').insert(order).select().maybeSingle();
     if (error) {
       console.error('pos insert error:', error);
-      showToast('No se pudo registrar la venta: ' + (error.message || 'Error en base de datos'), 'err');
+      showToast('No se pudo registrar el pedido: ' + (error.message || 'Error en base de datos'), 'err');
       return;
     }
 
-    // Si la venta provino de una cotización, marcar la cotización como convertida
+    // Si el pedido provino de una cotización, marcar la cotización como convertida
     if (posLinkedQuoteId) {
       try {
         const { error: qErr } = await sb.from('jjp_quotes').update({
@@ -825,17 +824,18 @@ async function posSubmit() {
 
     posShowDone(createdOrder || order);
   } catch (err) {
-    console.error('Error al procesar la venta:', err);
-    showToast('Error inesperado al registrar la venta', 'err');
+    console.error('Error al procesar el pedido:', err);
+    showToast('Error inesperado al registrar el pedido', 'err');
   } finally {
     posSubmitting = false;
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Registrar venta'; }
+    if (btn) { 
+      btn.disabled = false; 
+      btn.innerHTML = '📋 Procesar Pedido (Ctrl + Enter)'; 
+    }
   }
 }
 
-/* Contexto para el hub de envío: la venta recién registrada.
-   Antes el único botón abría wa.me con texto pelado; ahora la factura
-   sale en PDF por el CRM y queda en el historial del cliente. */
+/* Contexto para el hub de envío: el pedido recién procesado */
 let posLastOrder = null;
 function posDoneCtx() {
   const o = posLastOrder || {};
@@ -855,10 +855,9 @@ function posShowDone(o) {
         : ((typeof window !== 'undefined' && window.SELLER) ? window.SELLER : null));
   const sellerName = activeSeller?.name || 'JJ Paper';
 
-  // El mensaje al cliente muestra el precio lleno (el descuento se confirma tras la aprobación del admin)
-  const waMsg = `🛒 *PEDIDO ${o.order_number}* — JJ Paper\n\nHola ${o.client_name}, aquí está el resumen de tu compra:\n`
+  const waMsg = `🛒 *PEDIDO ${o.order_number}* — JJ Paper\n\nHola ${o.client_name}, tu pedido ha sido procesado exitosamente:\n`
     + (o.items || []).map(i => `• ${i.name}${i.brand ? ` (${i.brand})` : ''} x${i.qty} = ${fmtPrice(i.subtotal_usd)}`).join('\n')
-    + `\n💰 *Total: ${fmtPrice(o.total_usd)}* (${fmtBsNum(o.total_bs)})`
+    + `\n💰 *Total Pedido: ${fmtPrice(o.total_usd)}* (${fmtBsNum(o.total_bs)})`
     + `\n\n🔎 Rastrea tu pedido: ${location.origin}/rastreo.html?n=${encodeURIComponent(o.order_number)}`
     + `\n\nAtendido por: ${sellerName} — JJ Paper 📄`;
 
@@ -873,42 +872,58 @@ function posShowDone(o) {
     console.warn('sendBotonHTML error:', e);
   }
 
-  document.getElementById('posDoneBody').innerHTML = `
-    <p style="text-align:center;font-size:15px">Pedido <strong>${escapeHTML(o.order_number)}</strong> registrado a nombre de <strong>${escapeHTML(o.client_name)}</strong>.</p>
-    <div class="co-done-box" style="margin:14px 0">
-      <div class="co-done-row"><span>Total a cobrar</span><strong>${fmtPrice(o.total_usd)}</strong></div>
-      <div class="co-done-row"><span>En bolívares</span><strong>${fmtBsNum(o.total_bs)}</strong></div>
-      ${discNote}
-      <div class="co-done-row"><span>Estado</span><strong>${o.status === 'verificando' ? 'Verificando pago' : 'Pendiente de pago'}</strong></div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-      <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
-         title="Imprime la factura y la orden de recibo de una sola vez">🖨️ Factura + Recibo</a>
-      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=factura&print=1">📃 Solo factura</a>
-      <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
-         href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Solo recibo</a>
-      ${sendHubHtml}
-      <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
-         href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Solo el resumen</a>
-      <button class="btn-p" onclick="posReset()">💰 Nueva venta</button>
-    </div>`;
-  document.getElementById('posDoneModal').classList.add('op');
+  const doneBody = document.getElementById('posDoneBody');
+  if (doneBody) {
+    doneBody.innerHTML = `
+      <p style="text-align:center;font-size:15px;margin:0 0 8px 0">Pedido <strong>#${escapeHTML(o.order_number)}</strong> registrado a nombre de <strong>${escapeHTML(o.client_name)}</strong>.</p>
+      <div style="text-align:center;margin-bottom:12px">
+        <span style="background:#fef3c7;color:#92400e;font-size:11.5px;font-weight:800;padding:4px 12px;border-radius:20px;border:1px solid #fde68a;display:inline-block">⏳ PENDIENTE POR ARMAR Y FACTURAR EN MIXNET</span>
+      </div>
+      <div class="co-done-box" style="margin:14px 0">
+        <div class="co-done-row"><span>Total del Pedido</span><strong>${fmtPrice(o.total_usd)}</strong></div>
+        <div class="co-done-row"><span>En bolívares (BCV)</span><strong>${fmtBsNum(o.total_bs)}</strong></div>
+        ${discNote}
+        <div class="co-done-row"><span>Condición de Pago</span><strong>${escapeHTML(o.payment_method || 'Por convenir')}</strong></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <a class="btn-p" style="width:auto;padding:9px 16px" target="_blank"
+           href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=ambos&print=1"
+           title="Imprime la factura y la orden de despacho">🖨️ Factura + Orden de Despacho</a>
+        <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
+           href="../comprobante.html?n=${encodeURIComponent(o.order_number)}&t=recibo&print=1">📦 Solo Orden de Despacho</a>
+        ${sendHubHtml}
+        <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
+           href="https://wa.me/${(o.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}">💬 Enviar Resumen WhatsApp</a>
+        <button class="btn-p" onclick="posReset()" style="background:#16604a">📋 Crear Otro Pedido</button>
+      </div>`;
+  }
+  const modal = document.getElementById('posDoneModal');
+  if (modal) modal.classList.add('op');
 }
 
 function posReset() {
-  posTicket = {}; posCustomer = null;
+  posTicket = {}; 
+  posCustomer = null;
+  posLinkedQuoteId = null;
+  posEditingOrderId = null;
+  posEditingOrderNumber = null;
   posRenderTicket();
   ['posCliSearch', 'posCliName', 'posCliTel', 'posCliRif', 'posCliCity', 'posPayRef', 'posNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  document.getElementById('posDisc').value = 0;
-  document.getElementById('posCliResults').innerHTML = '';
-  document.getElementById('posCliNameResults').innerHTML = '';
-  document.getElementById('posCliNameResults').style.display = 'none';
-  document.getElementById('posDoneModal').classList.remove('op');
+  const disc = document.getElementById('posDisc');
+  if (disc) disc.value = 0;
+  const res = document.getElementById('posCliResults');
+  if (res) res.innerHTML = '';
+  const nameRes = document.getElementById('posCliNameResults');
+  if (nameRes) { nameRes.innerHTML = ''; nameRes.style.display = 'none'; }
+  const doneModal = document.getElementById('posDoneModal');
+  if (doneModal) doneModal.classList.remove('op');
+  const searchInput = document.getElementById('posSearch');
+  if (searchInput) { searchInput.value = ''; searchInput.focus(); }
+  if (typeof posSearch === 'function') posSearch();
 }
+window.posClear = clearPos;
 
 /* ---------- Navegación Ordenada por Tabulador ---------- */
 const POS_NAV_SEQUENCE = [
@@ -1179,9 +1194,9 @@ function posInitGlobalKeys() {
         return;
       }
       if (Object.keys(posTicket).length > 0) {
-        showToast('ℹ️ Registra la venta con F9 o Ctrl+Enter para imprimir la factura oficial', 'info');
+        showToast('ℹ️ Procesa el pedido con F9 o Ctrl+Enter para imprimir los comprobantes oficiales', 'info');
       } else {
-        showToast('⚠️ Agrega productos al ticket antes de imprimir', 'warn');
+        showToast('⚠️ Agrega productos al pedido antes de imprimir', 'warn');
       }
       return;
     }
@@ -1212,7 +1227,7 @@ function posShowHelpModal() {
     modal.innerHTML = `
       <div class="modal-box" style="max-width:600px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px">
-          <h3 style="margin:0;font-size:18px;color:#0f172a;display:flex;align-items:center;gap:8px">⌨️ Control Total de Teclado del POS</h3>
+          <h3 style="margin:0;font-size:18px;color:#0f172a;display:flex;align-items:center;gap:8px">⌨️ Control Total de Teclado del Pedido</h3>
           <button type="button" class="btn-g sm" onclick="document.getElementById('posShortcutsHelpModal').style.display='none'">✕ Esc</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;line-height:1.5;color:#334155">
@@ -1221,10 +1236,10 @@ function posShowHelpModal() {
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">/</kbd> Buscar producto</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↓</kbd> Moverse en resultados</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Enter</kbd> Código exacto o elegir</div>
-            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar al cliente / venta</div>
+            <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Tab</kbd> Saltar al cliente / pedido</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
-            <b style="color:#0f172a;display:block;margin-bottom:6px">📃 Edición del Ticket</b>
+            <b style="color:#0f172a;display:block;margin-bottom:6px">📃 Renglones del Pedido</b>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F6</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+T</kbd> Activar ticket</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">↑↓</kbd> Navegar · <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">+ -</kbd> Cantidad</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">A</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">B</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">C</kbd> <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">D</kbd> Nivel precio</div>
@@ -1234,13 +1249,13 @@ function posShowHelpModal() {
             <b style="color:#0f172a;display:block;margin-bottom:6px">👤 Cliente y Condiciones</b>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F3</kbd> Buscar cliente CRM</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> Aplicar descuento %</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> Método de pago</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> Condición de pago</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F11</kbd> / <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+C</kbd> Cargar cotiz.</div>
             <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F12</kbd> / <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+I</kbd> Ítem Libre</div>
           </div>
           <div style="background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #e2e8f0">
             <b style="color:#0f172a;display:block;margin-bottom:6px">🚀 Cierre e Impresión</b>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Registrar</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F9</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+Enter</kbd> Procesar pedido</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F10</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Ctrl+P</kbd> Imprimir</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Esc</kbd> Cerrar ventana / Parar</div>
             <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F1</kbd> Ver esta ayuda</div>
@@ -1257,7 +1272,7 @@ function posShowHelpModal() {
   modal.style.display = 'flex';
 }
 
-/* ---------- Cargar Cotización en el POS ---------- */
+/* ---------- Cargar Cotización en el Pedido ---------- */
 async function posLoadQuote(val) {
   if (!val) return;
   const qStr = String(val).trim();
@@ -1271,9 +1286,10 @@ async function posLoadQuote(val) {
     return;
   }
 
-  if (q.status === 'convertido' || q.status === 'cancelado') {
-    alert(`No se puede cargar la cotización porque se encuentra en estado: ${q.status.toUpperCase()}`);
-    return;
+  if (q.status === 'cancelado' || q.status === 'rechazado') {
+    showToast(`⚠️ Esta cotización está ${q.status.toUpperCase()}, pero puedes cargar sus productos para un nuevo pedido`, 'info');
+  } else if (q.status === 'convertido') {
+    showToast('ℹ️ Cotización previamente convertida — cargando productos para un nuevo pedido', 'info');
   }
 
   posLinkedQuoteId = q.id;
@@ -1292,36 +1308,65 @@ async function posLoadQuote(val) {
   if (telEl) telEl.value = q.phone || '';
   if (rifEl) rifEl.value = q.rif || '';
   if (cityEl) cityEl.value = q.city || '';
-  posCustomer = { name: cliName, phone: q.phone, rif: q.rif, city: q.city, id: q.customer_id || null };
+  posCustomer = { name: cliName, phone: q.phone || '', rif: q.rif || '', city: q.city || '', id: q.customer_id || null };
   if (q.seller_id && document.getElementById('posSellerSelect')) {
-    document.getElementById('posSellerSelect').value = q.seller_id;
+    const selEl = document.getElementById('posSellerSelect');
+    if (selEl.querySelector(`option[value="${q.seller_id}"]`)) {
+      selEl.value = q.seller_id;
+    }
   }
 
   if (resEl) {
     resEl.innerHTML = `<p style="font-size:12px;color:var(--gm);margin:4px 0">📋 Cotización vinculada: <strong>${escapeHTML(q.quote_number)}</strong> (${escapeHTML(cliName)})</p>`;
   }
 
-  // 2. Cargar productos en el ticket
+  // 2. Cargar productos en el ticket con claves únicas garantizadas (cero colisiones)
   posTicket = {};
   const items = typeof q.items === 'string' ? JSON.parse(q.items) : (Array.isArray(q.items) ? q.items : []);
-  for (const item of items) {
-    const key = item.variant_id ? `${item.id}::${item.variant_id}` : String(item.id);
+  
+  items.forEach((item, idx) => {
+    const baseId = item.id || item.product_id || null;
+    const baseKey = item.variant_id 
+      ? `${baseId || 'v'}::${item.variant_id}` 
+      : (baseId ? String(baseId) : (item.sku ? `sku_${item.sku}` : `item_${idx + 1}`));
+    
+    let key = baseKey;
+    let counter = 1;
+    while (posTicket[key]) {
+      key = `${baseKey}_${counter++}`;
+    }
+
+    const qty = Math.max(1, Number(item.qty) || 1);
+    const priceUsd = Number(item.price_usd) || 0;
+    const isCustom = !!(item.is_custom || (!baseId && !item.sku));
+
     posTicket[key] = {
-      id: item.id,
+      id: baseId,
       variant_id: item.variant_id || null,
-      name: item.name,
+      name: item.name || 'Producto sin nombre',
       brand: item.brand || '',
       sku: item.sku || null,
-      qty: Number(item.qty) || 1,
+      qty: qty,
       unit: item.unit || 'UND',
-      price_usd: Number(item.price_usd) || 0,
+      price_usd: +priceUsd.toFixed(2),
       price_level: item.price_level || 'B',
-      price_a: item.price_a || item.price_usd || 0,
-      price_c_bs: item.price_c_bs || null,
-      price_d_bs: item.price_d_bs || null,
-      stock: 999
+      price_a: Number(item.price_a) || priceUsd,
+      price_b: Number(item.price_b) || priceUsd,
+      price_c_bs: item.price_c_bs ? Number(item.price_c_bs) : null,
+      price_d_bs: item.price_d_bs ? Number(item.price_d_bs) : null,
+      stock: item.stock || 9999,
+      is_custom: isCustom
     };
-  }
+
+    // Intentar asociar ID/unidad con el catálogo local si faltaba
+    if (!posTicket[key].id && posTicket[key].sku && Array.isArray(posProducts)) {
+      const match = posProducts.find(p => p.sku === item.sku || (p.jjp_product_variants && p.jjp_product_variants.some(v => v.sku === item.sku)));
+      if (match) {
+        posTicket[key].id = match.id;
+        if (match.unit) posTicket[key].unit = match.unit;
+      }
+    }
+  });
 
   // 3. Descuento y notas
   if (q.discount_pct) {
@@ -1330,11 +1375,11 @@ async function posLoadQuote(val) {
   }
   const notesEl = document.getElementById('posNotes');
   if (notesEl) {
-    notesEl.value = `Cotización ${q.quote_number}${q.notes ? ' · ' + q.notes : ''}`;
+    notesEl.value = q.notes ? q.notes : `Cotización ${q.quote_number}`;
   }
 
   posRenderTicket();
-  showToast(`✅ Cotización ${q.quote_number} cargada con ${items.length} producto(s)`, 'ok');
+  showToast(`✅ Cotización ${q.quote_number} cargada con ${items.length} renglón(es)`, 'ok');
 }
 
 /* ============================================================
@@ -1388,28 +1433,42 @@ async function posLoadOrderForEdit(val) {
     resEl.innerHTML = `<p style="font-size:12px;color:#d97706;margin:4px 0">✏️ Pedido a modificar: <strong>${escapeHTML(o.order_number)}</strong> (${escapeHTML(cliName)})</p>`;
   }
 
-  // 2. Cargar productos en el ticket
+  // 2. Cargar productos en el ticket con claves únicas garantizadas
   posTicket = {};
   const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
-  for (const item of items) {
-    const key = item.variant_id ? `${item.id}::${item.variant_id}` : (item.id ? String(item.id) : (item.sku || item.name));
+  items.forEach((item, idx) => {
+    const baseId = item.id || null;
+    const baseKey = item.variant_id 
+      ? `${baseId || 'v'}::${item.variant_id}` 
+      : (baseId ? String(baseId) : (item.sku ? `sku_${item.sku}` : `item_${idx + 1}`));
+    
+    let key = baseKey;
+    let counter = 1;
+    while (posTicket[key]) {
+      key = `${baseKey}_${counter++}`;
+    }
+
+    const qty = Math.max(1, Number(item.qty) || 1);
+    const priceUsd = Number(item.price_usd) || 0;
+
     posTicket[key] = {
-      id: item.id || null,
+      id: baseId,
       variant_id: item.variant_id || null,
-      name: item.name,
+      name: item.name || 'Producto',
       brand: item.brand || '',
       sku: item.sku || null,
-      qty: Number(item.qty) || 1,
+      qty: qty,
       unit: item.unit || 'UND',
-      price_usd: Number(item.price_usd) || 0,
+      price_usd: +priceUsd.toFixed(2),
       price_level: item.price_level || 'B',
-      price_a: item.price_a || item.price_usd || 0,
-      price_c_bs: item.price_c_bs || null,
-      price_d_bs: item.price_d_bs || null,
-      stock: 999,
+      price_a: item.price_a || priceUsd,
+      price_b: item.price_b || priceUsd,
+      price_c_bs: item.price_c_bs ? Number(item.price_c_bs) : null,
+      price_d_bs: item.price_d_bs ? Number(item.price_d_bs) : null,
+      stock: 9999,
       is_custom: !!item.is_custom
     };
-  }
+  });
 
   // 3. Descuento, método y notas
   if (o.discount_pct) {
@@ -1467,10 +1526,10 @@ function posCancelOrderEdit() {
   if (b) b.remove();
   const btn = document.getElementById('posSubmitBtn');
   if (btn) {
-    btn.innerHTML = '✅ Registrar Venta (Ctrl + Enter)';
+    btn.innerHTML = '📋 Procesar Pedido (Ctrl + Enter)';
     btn.style.background = '#16604a';
   }
-  posClear();
+  clearPos();
   if (window.location.search) {
     try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
   }
@@ -1478,36 +1537,51 @@ function posCancelOrderEdit() {
 
 async function posOpenLoadQuoteModal() {
   let ovl = document.getElementById('posLoadQuoteModalOvl');
+  if (ovl && ovl.style.display !== 'none') {
+    posCloseLoadQuoteModal();
+    return;
+  }
   if (!ovl) {
     ovl = document.createElement('div');
     ovl.id = 'posLoadQuoteModalOvl';
     ovl.className = 'modal-overlay op';
     ovl.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999;';
     ovl.innerHTML = `
-      <div class="modal-box" style="max-width:640px;width:95%;background:#fff;border-radius:14px;padding:20px;box-shadow:0 12px 36px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+      <div class="modal-box" style="max-width:680px;width:95%;background:#fff;border-radius:14px;padding:20px;box-shadow:0 12px 36px rgba(0,0,0,0.25)" onclick="event.stopPropagation()">
         <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px">
-          <h3 style="margin:0;font-size:16px;color:#1e293b;display:flex;align-items:center;gap:8px">📋 Cargar Cotización en el Ticket</h3>
-          <button type="button" class="btn-g sm" onclick="posCloseLoadQuoteModal()">✕ Cerrar</button>
+          <h3 style="margin:0;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px">📋 Cargar Cotización al Pedido <small style="font-size:11px;color:#64748b;font-weight:400">(F11 / Esc)</small></h3>
+          <button type="button" class="btn-g sm" onclick="posCloseLoadQuoteModal()" style="font-weight:700">✕ Cerrar</button>
         </div>
-        <div style="margin-bottom:12px">
-          <input type="text" id="posQuoteSearchInput" class="fi" placeholder="Escribe el N° de cotización (ej: 00053333) o nombre del cliente" style="width:100%" oninput="posSearchQuotesLive()">
+        <div style="margin-bottom:12px;display:flex;gap:8px">
+          <input type="text" id="posQuoteSearchInput" class="fi" placeholder="Escribe el N° de cotización (ej: 00053353) o cliente... (Enter para cargar)" style="flex:1;height:38px" oninput="posSearchQuotesLive()" onkeydown="if(event.key==='Enter'){event.preventDefault();posPickFirstQuoteFromModal();}">
+          <button type="button" class="btn-p sm" onclick="posSearchQuotesLive()" style="white-space:nowrap;padding:0 14px">🔍 Buscar</button>
         </div>
-        <div id="posQuotesModalList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
-          <p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px">Cargando cotizaciones recientes…</p>
+        <div id="posQuotesModalList" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px">Cargando cotizaciones recientes…</p>
         </div>
       </div>
     `;
-    ovl.onclick = posCloseLoadQuoteModal;
+    ovl.onclick = (e) => {
+      if (e.target === ovl) posCloseLoadQuoteModal();
+    };
     document.body.appendChild(ovl);
   }
+  ovl.classList.add('op');
   ovl.style.display = 'flex';
-  document.getElementById('posQuoteSearchInput').value = '';
+  const inp = document.getElementById('posQuoteSearchInput');
+  if (inp) {
+    inp.value = '';
+    setTimeout(() => inp.focus(), 60);
+  }
   await posSearchQuotesLive();
 }
 
 function posCloseLoadQuoteModal() {
   const ovl = document.getElementById('posLoadQuoteModalOvl');
-  if (ovl) ovl.style.display = 'none';
+  if (ovl) {
+    ovl.classList.remove('op');
+    ovl.style.display = 'none';
+  }
 }
 
 async function posSearchQuotesLive() {
@@ -1516,39 +1590,67 @@ async function posSearchQuotesLive() {
   const qText = (document.getElementById('posQuoteSearchInput')?.value || '').trim();
 
   let query = sb.from('jjp_quotes')
-    .select('id,quote_number,client_name,phone,estimated_total_usd,discount_pct,created_at,status,items')
-    .not('status', 'in', '("convertido","cancelado","rechazado")')
+    .select('id,quote_number,client_name,phone,rif,city,estimated_total_usd,discount_pct,created_at,status,items,seller_id,notes')
     .order('created_at', { ascending: false })
-    .limit(16);
+    .limit(20);
 
   if (qText) {
-    query = query.or(`quote_number.ilike.%${qText}%,client_name.ilike.%${qText}%`);
+    query = query.or(`quote_number.ilike.%${qText}%,client_name.ilike.%${qText}%,phone.ilike.%${qText}%`);
   }
 
   const { data: list, error } = await query;
   if (error || !list?.length) {
-    box.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px">No hay cotizaciones pendientes que coincidan.</p>';
+    box.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px">No hay cotizaciones que coincidan con la búsqueda.</p>';
     return;
   }
 
   box.innerHTML = list.map(q => {
     const total = Number(q.estimated_total_usd) || 0;
-    const itemsCount = Array.isArray(q.items) ? q.items.length : 0;
+    const rawItems = typeof q.items === 'string' ? JSON.parse(q.items || '[]') : (Array.isArray(q.items) ? q.items : []);
+    const itemsCount = rawItems.length;
+    const isConverted = (q.status === 'convertido');
+    const badgeStatus = isConverted 
+      ? '<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-weight:700">CONVERTIDO</span>'
+      : (q.status === 'cancelado' 
+          ? '<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:2px 6px;border-radius:4px;font-weight:700">CANCELADO</span>'
+          : '<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:4px;font-weight:700">PENDIENTE</span>');
+
     return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;gap:12px;cursor:pointer;transition:all .15s ease" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'" onclick="posPickQuoteFromModal('${q.id}')">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;color:#0f172a">${escapeHTML(q.quote_number)} · <span style="font-weight:600;color:#334155">${escapeHTML(q.client_name)}</span></div>
-          <div style="font-size:11px;color:#64748b;margin-top:2px">${itemsCount} producto(s) · ${fmtPrice(total)} ${q.discount_pct > 0 ? `· Descuento: ${q.discount_pct}%` : ''} · Tel: ${escapeHTML(q.phone || '—')}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-weight:800;font-size:13px;color:#0f172a">${escapeHTML(q.quote_number)}</span>
+            ${badgeStatus}
+            <span style="font-weight:700;color:#334155;font-size:13px">· ${escapeHTML(q.client_name)}</span>
+          </div>
+          <div style="font-size:11.5px;color:#64748b;margin-top:3px">
+            📦 <strong>${itemsCount}</strong> renglón(es) · Total: <strong style="color:#16604a">${fmtPrice(total)}</strong> ${q.discount_pct > 0 ? `· Desc: <strong>${q.discount_pct}%</strong>` : ''} · Tel: ${escapeHTML(q.phone || '—')}
+          </div>
         </div>
-        <button type="button" class="btn-p sm" onclick="posPickQuoteFromModal('${q.id}')" style="white-space:nowrap;padding:6px 12px">💰 Cargar al POS</button>
+        <button type="button" class="btn-p sm" onclick="event.stopPropagation();posPickQuoteFromModal('${q.id}')" style="white-space:nowrap;padding:7px 14px;font-weight:700">📋 Cargar al Pedido</button>
       </div>
     `;
   }).join('');
 }
 
+function posPickFirstQuoteFromModal() {
+  const box = document.getElementById('posQuotesModalList');
+  const firstItem = box?.querySelector('[onclick*="posPickQuoteFromModal"]');
+  if (firstItem) {
+    firstItem.click();
+  }
+}
+
 async function posPickQuoteFromModal(id) {
-  posCloseLoadQuoteModal();
-  await posLoadQuote(id);
+  try {
+    posCloseLoadQuoteModal();
+    await posLoadQuote(id);
+  } catch (err) {
+    console.error('Error al cargar cotización seleccionada:', err);
+    showToast('Error al cargar la cotización: ' + (err.message || 'Error inesperado'), 'err');
+  } finally {
+    posCloseLoadQuoteModal();
+  }
 }
 
 /* ======================================================

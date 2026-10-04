@@ -272,7 +272,7 @@ function viewQuoteDetail(id) {
       <a class="btn-o" style="width:auto;padding:12px 20px;text-decoration:none" 
 href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
       <a class="btn-p" style="width:auto;padding:12px 20px;text-decoration:none;font-weight:700" 
-href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
+href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">📋 Pasar a Pedido</a>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
     </div>`;

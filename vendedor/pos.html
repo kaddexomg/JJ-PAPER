@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nueva Venta (POS) | JJ Paper Vendedor</title>
+<title>Crear / Procesar Pedido | JJ Paper Vendedor</title>
 <link rel="stylesheet" href="../assets/css/variables.css">
 <link rel="stylesheet" href="../assets/css/components.css">
 <link rel="stylesheet" href="../assets/css/catalog.css">
@@ -39,7 +39,7 @@
     <nav class="aside-nav">
       <span class="a-section">Ventas</span>
       <a href="index.html"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
-      <a href="pos.html" class="on"><span class="a-ico">💰</span> Nueva venta (POS)</a>
+      <a href="pos.html" class="on"><span class="a-ico">📋</span> Crear Pedido</a>
       <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
       <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
       <a href="clientes.html"><span class="a-ico">👥</span> Mis clientes</a>
@@ -60,8 +60,8 @@
       <div class="topbar-left">
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
-          <h2>Nueva venta</h2>
-          <p>Arma el pedido de tu cliente en segundos</p>
+          <h2>Crear / Procesar Pedido</h2>
+          <p>Carga cotizaciones o arma pedidos directos para almacén y MixNet</p>
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -71,7 +71,7 @@
             <option value="">Cargando vendedores...</option>
           </select>
         </div>
-        <button type="button" class="btn-o sm" onclick="posOpenLoadQuoteModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:7px 14px">📋 Cargar Cotización</button>
+        <button type="button" class="btn-p sm" onclick="posOpenLoadQuoteModal()" style="font-weight:800;display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:var(--theme-accent, #16604a);color:#fff;box-shadow:0 2px 8px rgba(22,96,74,0.3)">📋 Cargar desde Cotización (F11)</button>
       </div>
     </div>
 
@@ -83,7 +83,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">1</span>
-              <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Catálogo de Productos</h3>
+              <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">📦 Catálogo y Búsqueda de Productos</h3>
             </div>
             <button type="button" class="btn-o sm" onclick="posOpenCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F12 o Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px">➕ Ítem Libre / Servicio</button>
           </div>
@@ -100,18 +100,18 @@
         <!-- Columna derecha: Secciones 2, 3 y 4 -->
         <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:16px">
           
-          <!-- Sección 2: Ticket de Venta -->
+          <!-- Sección 2: Renglones del Pedido -->
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">2</span>
-                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Ticket de Venta</h3>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">🛒 Renglones del Pedido</h3>
               </div>
               <button type="button" class="btn-g sm" onclick="clearPos()" style="font-size:11px;color:var(--theme-text-muted, #64748b)">Vaciar</button>
             </div>
             
             <div id="posTicket" style="max-height:360px;overflow-y:auto">
-              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
+              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el catálogo o carga una cotización.</p>
             </div>
 
             <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:var(--theme-bg-surface-solid, #f8fafc);padding:8px 12px;border-radius:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
@@ -122,12 +122,12 @@
             <div id="posTotals"></div>
           </div>
 
-          <!-- Sección 3: Datos del Cliente -->
+          <!-- Sección 3: Datos del Cliente y Despacho -->
           <div style="border-top:1px solid var(--theme-border-subtle, #e2e8f0);padding-top:14px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">3</span>
-                <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Datos del Cliente</h3>
+                <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">👤 Datos del Cliente y Despacho</h3>
               </div>
               <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
             </div>
@@ -144,21 +144,23 @@
             </div>
           </div>
 
-          <!-- Sección 4: Pago y Registro -->
+          <!-- Sección 4: Condiciones y Procesamiento -->
           <div style="border-top:1px solid var(--theme-border-subtle, #e2e8f0);padding-top:14px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">4</span>
-              <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Método de Pago y Registro</h3>
+              <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Condiciones y Procesamiento del Pedido</h3>
             </div>
             <select class="fi" id="posMethod" style="height:38px">
-              <option value="efectivo">💵 Efectivo</option>
+              <option value="por_convenir">🤝 Acuerdo comercial / Por convenir</option>
+              <option value="transferencia">🏦 Transferencia bancaria</option>
               <option value="pago_movil">📲 Pago Móvil</option>
-              <option value="transferencia">🏦 Transferencia</option>
+              <option value="efectivo">💵 Efectivo</option>
+              <option value="credito">⏳ Crédito comercial</option>
             </select>
-            <input class="fi" id="posPayRef" placeholder="N° de referencia del pago (si aplica)" style="margin-top:8px;height:36px">
-            <textarea class="fi" id="posNotes" placeholder="Notas del pedido (opcional)" rows="2" style="margin-top:8px;width:100%"></textarea>
+            <input class="fi" id="posPayRef" placeholder="N° de referencia / comprobante de pago (opcional)" style="margin-top:8px;height:36px">
+            <textarea class="fi" id="posNotes" placeholder="Observaciones de entrega, transporte o despacho (opcional)" rows="2" style="margin-top:8px;width:100%"></textarea>
 
-            <button class="btn-p" id="posSubmitBtn" onclick="posSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:44px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">✅ Registrar Venta (Ctrl + Enter)</button>
+            <button class="btn-p" id="posSubmitBtn" onclick="posSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:46px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">📋 Procesar Pedido (Ctrl + Enter)</button>
           </div>
 
         </div>
@@ -188,9 +190,9 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="posDoneModal">
+<div class="modal-overlay" id="posDoneModal" onclick="if(event.target===this)posReset()">
   <div class="modal-box">
-    <div class="modal-hd"><h3>✅ Venta registrada</h3><button class="modal-close" onclick="posReset()">✕</button></div>
+    <div class="modal-hd"><h3>✅ Pedido Procesado</h3><button class="modal-close" onclick="posReset()">✕</button></div>
     <div class="modal-body" id="posDoneBody"></div>
   </div>
 </div>

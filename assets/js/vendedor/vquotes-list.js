@@ -84,7 +84,7 @@ function renderVQuotes() {
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVQuote('${q.id}')" title="Ver detalle">👁️ Ver</button>
         <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
-        <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
+        <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Pasar a Pedido">📋</a>
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vQuoteCtx('${q.id}'))"
                 title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
         <a class="btn-o sm" style="width:auto;padding:7px 10px" target="_blank"
@@ -154,7 +154,7 @@ function viewVQuote(id) {
       ${sendBotonHTML(`vQuoteCtx('${q.id}')`)}
       ${closed ? '' : `
         <a class="btn-o" style="width:auto;padding:9px 16px;text-decoration:none" href="cotizador.html?edit=${q.id}">✏️ Editar</a>
-        <a class="btn-p" style="width:auto;padding:9px 16px;text-decoration:none;font-weight:700" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
+        <a class="btn-p" style="width:auto;padding:9px 16px;text-decoration:none;font-weight:700" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">📋 Pasar a Pedido</a>
         <button class="btn-o" onclick="convertVQuote('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
           style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">⚡ Venta directa</button>`}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"

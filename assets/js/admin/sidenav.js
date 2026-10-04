@@ -22,7 +22,7 @@
     { section: 'Principal' },
     { href: 'index.html', ico: '📊', label: 'Dashboard' },
     { group: 'Ventas', ico: '🛒', items: [
-      { href: 'pos.html',          ico: '💰', label: 'Nueva Venta (POS)' },
+      { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
       { href: 'cotizador.html',    ico: '📋', label: 'Nueva Cotización' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
@@ -63,7 +63,7 @@
     { section: 'Ventas' },
     { href: 'index.html', ico: '📊', label: 'Mi Panel' },
     { group: 'Vender', ico: '💰', items: [
-      { href: 'pos.html',          ico: '💰', label: 'Nueva venta (POS)' },
+      { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
       { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Mis cotizaciones' },
       { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },

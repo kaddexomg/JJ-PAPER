@@ -496,8 +496,21 @@ export class WaSession {
       if (jid.endsWith('@lid')) {
         // jid anónimo: usar el número real si Baileys lo trae
         const alt = key.senderPn || key.participantPn || key.remoteJidAlt;
-        if (!alt) { log.warn({ jid }, 'mensaje @lid sin número real, ignorado'); continue; }
+        if (!alt) {
+          if (!this.warnedLids) this.warnedLids = new Set();
+          if (!this.warnedLids.has(jid)) {
+            this.warnedLids.add(jid);
+            log.debug({ jid }, 'mensaje @lid sin número real, ignorado');
+          }
+          continue;
+        }
         jid = alt;
+      }
+
+      // Descartar mensajes si tienen más de 5 días (evita re-ingreso de histórico viejo en reconexión)
+      const tsSec = Number(msg.messageTimestamp || 0);
+      if (tsSec && (Math.floor(Date.now() / 1000) - tsSec > 5 * 86400)) {
+        continue;
       }
 
       // Reacción entrante (👍❤️…): no es un mensaje nuevo, actualiza el reaccionado
@@ -569,8 +582,8 @@ export class WaSession {
   async onHistory({ messages }) {
     if (!messages?.length) return;
     const nowSec = Math.floor(Date.now() / 1000);
-    const MAX_HISTORY_SEC = 7 * 86400; // Máximo 7 días de mensajes anteriores
-    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial (máx 7 días)…');
+    const MAX_HISTORY_SEC = 5 * 86400; // Máximo 5 días de mensajes anteriores
+    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial (máx 5 días)…');
     const chats = new Map();   // jid -> { chat, ts, preview, from }
     let batch = [];
     let saved = 0;

@@ -1212,21 +1212,33 @@ async function launchCampaignFromEditor(config) {
     const d = String(c.phone).replace(/\D/g, '');
     const isLand = /^(?:58|0)?(?:2\d{2})\d{7}$/.test(d);
     return !isLand && d.length >= 10;
-  }).map(c => ({
-    campaign_id: camp.id,
-    owner_id: ownerId,
-    customer_id: c.id || null,
-    phone: c.phone,
-    name: c.name,
-    status: 'en_cola',
-    vars: {
-      ...dSampleVars(c.name, extra),
-      custom_message: c._custom_message || null,
-      custom_body: c._custom_message || null,
-      detected_need: c._detected_need || null,
-      detected_sector: c._detected_sector || null
+  }).map(c => {
+    let finalPhone = c.phone;
+    if (typeof parsePhoneInfo === 'function') {
+      const p = parsePhoneInfo(c.phone);
+      if (p.isValid && p.norm) finalPhone = p.norm;
     }
-  }));
+    return {
+      campaign_id: camp.id,
+      owner_id: ownerId,
+      customer_id: c.id || null,
+      phone: finalPhone,
+      name: c.name,
+      status: 'en_cola',
+      vars: {
+        ...dSampleVars(c.name, extra),
+        custom_message: c._custom_message || null,
+        custom_body: c._custom_message || null,
+        detected_need: c._detected_need || null,
+        detected_sector: c._detected_sector || null
+      }
+    };
+  });
+
+  // Calibrar total real tras filtro estricto
+  if (targets.length !== payload.total) {
+    await sb.from('jjp_wa_campaigns').update({ total: targets.length }).eq('id', camp.id);
+  }
 
   for (let i = 0; i < targets.length; i += 100) {
     setStatus(`👥 Guardando destinatarios (${Math.min(i + 100, targets.length)} de ${targets.length})...`);

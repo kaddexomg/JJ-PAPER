@@ -903,7 +903,7 @@ function renderEcCampaigns() {
         ${active ? `<button class="btn-o sm" onclick="setCampStatus('${c.id}','paused')">⏸️ Pausar</button>` : ''}
         ${c.status === 'paused' ? `<button class="btn-p sm" onclick="setCampStatus('${c.id}','running')">▶️ Reanudar</button>` : ''}
         ${(active || c.status === 'paused') ? `<button class="btn-o sm" onclick="cancelEcCampaign('${c.id}')" title="Cancelar campaña">✕</button>` : ''}
-        ${['completed','cancelled','paused','completada','cancelada','pausada','programada'].includes(c.status) ? `<button class="btn-o sm d-btn-del" onclick="deleteEcCampaign('${c.id}','${escapeHTML(c.name)}')" title="Eliminar campaña del sistema">🗑️</button>` : ''}
+        ${['completed','cancelled','paused','completada','cancelada','pausada','programada','done','finished'].includes(c.status) || (!active) ? `<button class="btn-o sm d-btn-del" onclick="deleteEcCampaign('${c.id}','${escapeHTML(c.name)}')" title="Eliminar campaña del sistema">🗑️</button>` : ''}
       </div></td>
     </tr>`;
   }).join('');
@@ -1151,12 +1151,20 @@ async function launchEmailCampaignFromEditor(config) {
     type: selectedProductOrCombo?.type || 'general'
   };
 
-  const targets = audience.map(c => ({
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const targets = audience.filter(c => {
+    if (!c.email) return false;
+    const cleanEm = String(c.email).trim().toLowerCase();
+    if (!emailRegex.test(cleanEm)) return false;
+    if (c.email_opt_out) return false;
+    if (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') return false;
+    return true;
+  }).map(c => ({
     campaign_id: camp.id,
     owner_id: ownerId,
     customer_id: c.id || null,
-    to_addr: c.email,
-    email: c.email,
+    to_addr: String(c.email).trim().toLowerCase(),
+    email: String(c.email).trim().toLowerCase(),
     phone: c.phone || c.phone_2 || c.phone_1 || null,
     name: c.name,
     status: 'pending',
@@ -1169,6 +1177,11 @@ async function launchEmailCampaignFromEditor(config) {
       detected_sector: c._detected_sector || null
     }
   }));
+
+  // Calibrar total real tras filtro estricto
+  if (targets.length !== payload.total) {
+    await sb.from('jjp_email_campaigns').update({ total: targets.length }).eq('id', camp.id);
+  }
 
   for (let i = 0; i < targets.length; i += 100) {
     setStatus(`👥 Guardando destinatarios (${Math.min(i + 100, targets.length)} de ${targets.length})...`);

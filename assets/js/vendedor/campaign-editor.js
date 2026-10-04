@@ -1602,27 +1602,33 @@ ${rawText}
     let bouncedCount = 0;
 
     selectedAudienceList = contacts.filter(c => {
-      if (!isEmail && (!c.phone || !isMobileNum(c.phone))) {
-        const best = getBestMobilePhone(c);
-        if (best) c.phone = best;
-      }
-      if (isEmail && !c.email) return false;
-      if (!isEmail && !c.phone) return false;
-      if (isEmail && c.email_opt_out) return false;
-      
-      // Filtro anti-rebotes
-      if (isEmail && (c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft')) {
-        bouncedCount++;
-        return false;
-      }
-
-      if (!isEmail && (c.opt_out || c.wa_opt_out || knownNoWaPhones.has(normPhoneKey(c.phone)))) {
-        nonMobileCount++;
-        return false;
+      // 1. Validaciones técnicas estrictas de canal (Email)
+      if (isEmail) {
+        if (!c.email) return false;
+        const cleanEm = String(c.email).trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEm)) return false;
+        if (c.email_opt_out) return false;
+        
+        // Filtro anti-rebotes riguroso (bounced, bounced_hard, bounced_soft)
+        const isBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
+        if (isBounced) {
+          bouncedCount++;
+          return false;
+        }
       }
 
-      // Validar móvil WhatsApp
+      // 2. Validaciones técnicas estrictas de canal (WhatsApp)
       if (!isEmail) {
+        if (!c.phone || !isMobileNum(c.phone)) {
+          const best = getBestMobilePhone(c);
+          if (best) c.phone = best;
+        }
+        if (!c.phone) return false;
+        if (c.opt_out || c.wa_opt_out || knownNoWaPhones.has(normPhoneKey(c.phone))) {
+          nonMobileCount++;
+          return false;
+        }
+
         let isMob = false;
         if (typeof parsePhoneInfo === 'function') {
           const pInfo = parsePhoneInfo(c.phone);
@@ -1636,7 +1642,7 @@ ${rawText}
         }
       }
 
-      // Si el usuario aplicó una selección manual con checkboxes, priorizarla absolutamente
+      // Si el usuario aplicó una selección manual con checkboxes, priorizarla (ya pasó filtros técnicos)
       if (manualSelectedIds && manualSelectedIds.size > 0) {
         return manualSelectedIds.has(c.id);
       }

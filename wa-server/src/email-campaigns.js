@@ -99,11 +99,18 @@ async function step(camp, dailyLimit) {
         to_addr: toAddr, subject, body, html, attachments: camp.attachments || []
       });
 
-      // Historial en jjp_emails (aparece en "Enviados")
+      // Historial en jjp_emails (aparece en "Enviados"). 
+      // Mantiene la BD liviana: NUNCA copia payloads base64 gigantes a cada fila.
+      const safeAttachments = (camp.attachments || []).map(a => {
+        if (!a) return a;
+        const { data, base64, content, ...clean } = a;
+        return clean;
+      });
+
       const { data: em } = await db.from('jjp_emails').insert({
         owner_id: camp.owner_id, direction: 'out', status: 'sent',
         to_addr: toAddr, from_addr: from, subject, body, html,
-        attachments: camp.attachments || [], customer_id: t.customer_id || null,
+        attachments: safeAttachments, customer_id: t.customer_id || null,
         gmail_id: msgId, sent_at: new Date().toISOString()
       }).select('id').single();
 

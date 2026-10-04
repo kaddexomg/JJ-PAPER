@@ -101,22 +101,70 @@ async function purgeOrphanEmailFiles() {
   log.info({ n: rootFiles.length }, 'retención: archivos sueltos en raíz de email-media borrados');
 }
 
-async function purgeWAMedia() {
-  const WA_MEDIA_TTL_DAYS = 5; // 5 días de retención para multimedia WA
-  const cutoff = new Date(Date.now() - WA_MEDIA_TTL_DAYS * 86_400_000).toISOString();
-  const { data, error } = await db.from('jjp_wa_messages')
-    .select('id, media_path')
-    .not('media_path', 'is', null)
-    .lt('created_at', cutoff)
-    .limit(300);
-  if (error) { log.warn({ err: error.message }, 'retención: select WA media falló'); return; }
+// 5) Purgar multimedia y MENSAJES de WhatsApp con más de 5 días (PostgreSQL y Storage)
+async function purgeWAMessages() {
+  const WA_TTL_DAYS = 5; // 5 días de retención estricta para WhatsApp
+  const cutoff = new Date(Date.now() - WA_TTL_DAYS * 86_400_000).toISOString();
 
-  const paths = (data || []).map(r => r.media_path).filter(Boolean);
-  if (!paths.length) return;
-  await removeFromBucket('jjp-wa-media', paths);
-  const ids = data.map(r => r.id);
-  await db.from('jjp_wa_messages').update({ media_path: null }).in('id', ids);
-  log.info({ n: paths.length }, 'retención: multimedia vieja de WhatsApp borrada (5+ días)');
+  // A. Primero liberar binarios de Storage si existen
+  try {
+    const { data: mediaRows, error: mErr } = await db.from('jjp_wa_messages')
+      .select('id, media_path')
+      .not('media_path', 'is', null)
+      .or(`wa_timestamp.lt.${cutoff},and(wa_timestamp.is.null,created_at.lt.${cutoff})`)
+      .limit(300);
+    if (!mErr && mediaRows?.length) {
+      const paths = mediaRows.map(r => r.media_path).filter(Boolean);
+      if (paths.length) await removeFromBucket('jjp-wa-media', paths);
+    }
+  } catch (e) {
+    log.warn({ err: e.message }, 'retención: liberar media WA falló');
+  }
+
+  // B. ELIMINAR definitivamente los registros de mensajes en PostgreSQL
+  try {
+    const { data: deleted, error: dErr } = await db.from('jjp_wa_messages')
+      .delete()
+      .or(`wa_timestamp.lt.${cutoff},and(wa_timestamp.is.null,created_at.lt.${cutoff})`)
+      .select('id');
+    if (dErr) {
+      log.warn({ err: dErr.message }, 'retención: delete mensajes WA falló');
+    } else if (deleted && deleted.length > 0) {
+      log.info({ n: deleted.length }, 'retención: mensajes de WhatsApp con más de 5 días purgados');
+    }
+  } catch (e) {
+    log.warn({ err: e.message }, 'retención: excepción purgando mensajes WA');
+  }
+}
+
+// 6) Purgar base64 residual en attachments de jjp_emails
+async function purgeResidualEmailBase64() {
+  try {
+    const { data, error } = await db.from('jjp_emails')
+      .select('id, attachments')
+      .not('attachments', 'is', null)
+      .limit(100);
+    if (error || !data) return;
+
+    for (const row of data) {
+      const atts = row.attachments;
+      if (!Array.isArray(atts) || !atts.length) continue;
+      let changed = false;
+      const cleaned = atts.map(a => {
+        if (a && (a.data || a.base64 || a.content)) {
+          changed = true;
+          const { data, base64, content, ...cleanAtt } = a;
+          return cleanAtt;
+        }
+        return a;
+      });
+      if (changed) {
+        await db.from('jjp_emails').update({ attachments: cleaned }).eq('id', row.id);
+      }
+    }
+  } catch (e) {
+    log.warn({ err: e.message }, 'retención: limpieza base64 emails falló');
+  }
 }
 
 async function sweep() {
@@ -124,11 +172,12 @@ async function sweep() {
   try { await purgeOutboundAttachments(); } catch (e) { log.warn({ err: e.message }, 'retención outbound'); }
   try { await trimOldHtml(); } catch (e) { log.warn({ err: e.message }, 'retención html'); }
   try { await purgeOrphanEmailFiles(); } catch (e) { log.warn({ err: e.message }, 'retención huérfanos'); }
-  try { await purgeWAMedia(); } catch (e) { log.warn({ err: e.message }, 'retención wa_media'); }
+  try { await purgeWAMessages(); } catch (e) { log.warn({ err: e.message }, 'retención wa_messages'); }
+  try { await purgeResidualEmailBase64(); } catch (e) { log.warn({ err: e.message }, 'retención residual_email_b64'); }
 }
 
 export function startRetention() {
-  log.info('retención de storage activa (barrido cada 6 h · TTL adjuntos 7d · html 30d)');
+  log.info('retención de storage y BD activa (barrido cada 6 h · WA máx 5d · adjuntos 7d · html 30d)');
   setTimeout(() => sweep().catch(() => {}), 30_000);   // primer barrido 30 s tras arrancar
   setInterval(() => sweep().catch(() => {}), SWEEP_MS);
   return true;

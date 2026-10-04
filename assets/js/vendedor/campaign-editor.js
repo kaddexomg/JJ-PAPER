@@ -96,6 +96,10 @@ window.CampaignEditor = (() => {
             .range(from, from + 999);
           if (error) break;
           for (const r of data || []) {
+            // EXCLUSIÓN ESTRICTA: Solo entran en cooldown destinatarios a quienes REALMENTE se les envió el mensaje
+            const isSent = (r.status === 'sent' || r.status === 'enviado' || Boolean(r.sent_at));
+            if (!isSent) continue;
+
             const timeAt = r.sent_at || r.created_at;
             if (r.customer_id) {
               cooldownExcluded.customer.add(r.customer_id);
@@ -254,16 +258,17 @@ window.CampaignEditor = (() => {
                 </div>
                 <div>
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">🎭 Tono & Actitud Comercial:</label>
-                  <select class="ce-select" id="ceCommercialTone">
+                  <select class="ce-select" id="ceCommercialTone" onchange="CampaignEditor.onSectorStrategyChange()">
                     <option value="socio_estrategico" selected>💼 Ejecutivo & Socio Estratégico (Seguridad y Factura BCV)</option>
                     <option value="oportunidad_mayorista">🔥 Oferta Mayorista & Volumen (Actitud de Cierre y Ahorro)</option>
                     <option value="cercano_consultivo">🤝 Cercano, Asesor y Resolutivo (Atención directa y Sourcing)</option>
                     <option value="institucional_formal">🏢 Institucional Formal (Procura y Compras)</option>
+                    <option value="fidelizado_reactivacion">💎 Cliente VIP / Fidelizado (Trato Preferencial y Confianza)</option>
                   </select>
                 </div>
                 <div>
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">⭐ Propuesta de Valor / Gancho Principal:</label>
-                  <select class="ce-select" id="ceValueHook">
+                  <select class="ce-select" id="ceValueHook" onchange="CampaignEditor.onSectorStrategyChange()">
                     <option value="importador_directo" selected>🏭 Importador Directo en Caracas (Mejores precios sin intermediarios)</option>
                     <option value="escala_volumen">📦 Escala y Descuento por Volumen (Ahorro por bulto/caja)</option>
                     <option value="sourcing_especial">🔍 Búsqueda de Insumos Especiales ("Te conseguimos lo que no esté en lista")</option>
@@ -271,6 +276,7 @@ window.CampaignEditor = (() => {
                     <option value="ahorro_mensual">💰 Optimización de Presupuesto Mensual de Suministros</option>
                   </select>
                 </div>
+                <div id="ceStrategyStatus" style="font-size:11px; color:#0369a1; background:#e0f2fe; padding:5px 8px; border-radius:6px; display:none;"></div>
               </div>
             </div>
 
@@ -320,7 +326,7 @@ window.CampaignEditor = (() => {
                     <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
                     <span>Omitir contactados recientemente:</span>
                   </label>
-                  <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onAudienceChange()" style="font-size:12px; padding:4px 8px; background:#fff;">
+                  <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onCooldownHoursChange()" style="font-size:12px; padding:4px 8px; background:#fff;">
                     <option value="24">⏱️ En las últimas 24 horas (1 día)</option>
                     <option value="72" selected>⏱️ En los últimos 3 días (72h — Recomendado)</option>
                     <option value="168">⏱️ En los últimos 7 días (1 semana)</option>
@@ -830,6 +836,44 @@ window.CampaignEditor = (() => {
       cardWrap.innerHTML = '';
     }
     updatePreview();
+  }
+
+  function onSectorStrategyChange() {
+    const sec = document.getElementById('ceTargetSector')?.value || 'auto';
+    const tone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const hook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+
+    const toneNames = {
+      socio_estrategico: '💼 Socio Estratégico',
+      oportunidad_mayorista: '🔥 Oferta Mayorista',
+      cercano_consultivo: '🤝 Cercano y Consultivo',
+      institucional_formal: '🏢 Institucional Formal',
+      fidelizado_reactivacion: '💎 Cliente VIP / Fidelizado'
+    };
+
+    const statusEl = document.getElementById('ceStrategyStatus');
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `✨ <strong>Estrategia Activa:</strong> ${toneNames[tone] || tone} · Sector: ${sec.toUpperCase()}`;
+    }
+
+    const aud = document.getElementById('ceAudienceSelect')?.value;
+    if (aud === 'sector' && sec !== 'auto') {
+      const secSel = document.getElementById('ceSectorSelect');
+      if (secSel && secSel.value !== sec) {
+        secSel.value = sec;
+        onAudienceChange();
+      }
+    }
+  }
+
+  async function onCooldownHoursChange() {
+    const hoursSelectVal = document.getElementById('ceCooldownHours')?.value;
+    const hours = hoursSelectVal !== undefined ? parseInt(hoursSelectVal, 10) : 72;
+    cooldownHours = hours;
+    currentLoadedCooldownHours = null;
+    await reloadCooldown(true);
+    await onAudienceChange();
   }
 
   function renderSelectedCard() {
@@ -2079,8 +2123,15 @@ ${rawText}
               <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
                 <input type="radio" name="ai_tone" value="oferta" style="margin-top:3px">
                 <div>
-                  <strong>🔥 Oferta Relámpago</strong><br>
-                  <span style="font-size:12px; color:#64748b">Crea urgencia sobre una promoción o producto específico con alta disponibilidad.</span>
+                  <strong>🔥 Oferta Relámpago / Oportunidad Mayorista</strong><br>
+                  <span style="font-size:12px; color:#64748b">Crea urgencia comercial, destaca precios de importador directo y ahorro por volumen.</span>
+                </div>
+              </label>
+              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                <input type="radio" name="ai_tone" value="fidelizado" style="margin-top:3px">
+                <div>
+                  <strong>💎 Cliente VIP / Fidelizado (Reactivación de la Casa)</strong><br>
+                  <span style="font-size:12px; color:#64748b">Trato preferencial exclusivo: agradece la preferencia, destaca precios oficiales BCV y entrega prioritaria.</span>
                 </div>
               </label>
             </div>
@@ -2115,15 +2166,33 @@ ${rawText}
       Number(c.total_orders) > 0
     ).length;
 
+    const commTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const targetSec = document.getElementById('ceTargetSector')?.value || 'auto';
+
     let defaultTone = 'presentacion';
+    if (commTone === 'fidelizado_reactivacion') defaultTone = 'fidelizado';
+    else if (commTone === 'oportunidad_mayorista') defaultTone = 'oferta';
+    else if (commTone === 'cercano_consultivo') defaultTone = 'seguimiento';
+    else if (selectedProductOrCombo) defaultTone = 'oferta';
+    else if (contactedCount > 0) defaultTone = 'seguimiento';
+
+    const toneNames = {
+      socio_estrategico: '💼 Socio Estratégico',
+      oportunidad_mayorista: '🔥 Oferta Mayorista',
+      cercano_consultivo: '🤝 Cercano y Consultivo',
+      institucional_formal: '🏢 Institucional Formal',
+      fidelizado_reactivacion: '💎 Cliente VIP / Fidelizado'
+    };
+
+    let stratPill = `<div style="margin-bottom:8px; font-weight:700; color:#0369a1; background:#f0f9ff; padding:4px 8px; border-radius:6px; font-size:12px;">🎯 Estrategia Activa: <u>${toneNames[commTone] || commTone}</u> · Sector: <u>${targetSec.toUpperCase()}</u></div>`;
     let noticeHtml = '';
 
     if (selectedProductOrCombo) {
-      defaultTone = 'oferta';
-      noticeHtml = `💡 <strong>Producto seleccionado:</strong> La IA redactará una oferta comercial directa de <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em> destacando disponibilidad inmediata en 24h y cotización oficial en Bs (Tasa BCV).`;
+      noticeHtml = `${stratPill}💡 <strong>Producto seleccionado:</strong> La IA redactará una oferta comercial directa de <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em> con el tono <strong>${toneNames[commTone] || commTone}</strong>, destacando disponibilidad en 24h y cotización en Bs (Tasa BCV).`;
     } else if (contactedCount > 0) {
-      defaultTone = 'seguimiento';
-      noticeHtml = `👀 <strong>Contactos previos detectados:</strong> ${contactedCount} de ${totalSelected} destinatarios ya recibieron un mensaje anterior. La IA redactará automáticamente un <em>Seguimiento cordial</em> de reposición sin repetir la presentación inicial.`;
+      noticeHtml = `${stratPill}👀 <strong>Contactos previos detectados:</strong> ${contactedCount} de ${totalSelected} destinatarios ya recibieron un mensaje anterior. La IA redactará un <em>Seguimiento cordial</em> sin repetir la presentación inicial.`;
+    } else {
+      noticeHtml = `${stratPill}🚀 <strong>Nuevos destinatarios:</strong> La IA analizará la actividad de cada cuenta y adaptará el mensaje con el tono <strong>${toneNames[commTone] || commTone}</strong>.`;
     }
 
     const noticeEl = document.getElementById('ceAiToneNotice');
@@ -3058,6 +3127,8 @@ ${rawText}
     handleAiOfferFileUpload,
     processAiOffersRequest,
     onTypeChange,
+    onSectorStrategyChange,
+    onCooldownHoursChange,
     onTemplateChange,
     onAudienceChange,
     onAttachChange,

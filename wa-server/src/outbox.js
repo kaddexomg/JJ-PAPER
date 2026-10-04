@@ -74,8 +74,9 @@ async function sweep() {
       for (const row of rows) {
         const ok = await dispatch(row);
         if (ok) dispatchedCount++;
-        // Prevenir ráfagas ultrarrápidas de 0ms que alarman el anti-spam de WhatsApp (ej. Flyer + PDF juntos)
-        await new Promise(r => setTimeout(r, 1500));
+        // Pausa natural con jitter humano entre mensajes consecutivos en cola (ej: Flyer + PDF para el mismo contacto)
+        const interMessageMs = 3500 + Math.floor(Math.random() * 2500); // 3.5s a 6.0s
+        await new Promise(r => setTimeout(r, interMessageMs));
       }
 
       if (rows.length === 25 && dispatchedCount > 0 && iterations < maxIterations) {

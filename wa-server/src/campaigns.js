@@ -250,17 +250,19 @@ async function step(camp, dailyLimit) {
         .update({ status: 'enviando', message_id: msg.id, error: null })
         .eq('id', t.id);
 
-      const minS = Number(camp.delay_min_s) || 45;
-      const maxS = Number(camp.delay_max_s) || 90;
-      let delayMs = 1000 * (minS + Math.random() * Math.max(1, maxS - minS));
+      // Piso de seguridad estricto anti-baneo para WhatsApp: nunca despachar a menos de 35s
+      const minS = Math.max(35, Number(camp.delay_min_s) || 45);
+      const maxS = Math.max(minS + 15, Number(camp.delay_max_s) || 90);
+      let delayMs = 1000 * (minS + Math.random() * (maxS - minS));
 
-      const batchSize = Number(camp.batch_size) || 0;
-      const batchPauseM = Number(camp.batch_pause_m) || 5;
+      // Protección por lotes: si no se configuró, aplicar descanso humano por defecto cada 18 mensajes
+      const batchSize = Number(camp.batch_size) > 0 ? Number(camp.batch_size) : 18;
+      const batchPauseM = Number(camp.batch_pause_m) > 0 ? Number(camp.batch_pause_m) : 5;
       const currentSent = (camp.sent_count || 0) + 1;
 
       const isBatchPause = (batchSize > 0 && currentSent % batchSize === 0);
       if (isBatchPause) {
-        const longPauseMs = batchPauseM * 60 * 1000;
+        const longPauseMs = (batchPauseM * 60 * 1000) + Math.floor(Math.random() * 60000); // 5m + jitter
         delayMs = longPauseMs;
         log.info({ campaign: camp.name, sent: currentSent, pauseMin: batchPauseM }, 'difusión: pausa de lote (descanso humano anti-bloqueo)');
       }
@@ -300,11 +302,128 @@ async function ensureChat(ownerId, norm, target) {
   return chat.id;
 }
 
+// Diccionario de clusters de sinónimos para intercalar variaciones humanas automáticas
+const LEXICAL_SYNONYMS = [
+  {
+    regex: /\b(buen día|buenos días)\b/gi,
+    variants: ['buen día', 'un cordial saludo', 'excelente día', 'saludos cordiales', 'un placer saludarle']
+  },
+  {
+    regex: /\b(hola|qué tal)\b/gi,
+    variants: ['hola', 'qué tal', 'un gusto saludarle', 'un cordial saludo']
+  },
+  {
+    regex: /\b(le saluda|le escribe)\b/gi,
+    variants: ['le saluda', 'le escribe', 'por aquí le contacta', 'se comunica con usted']
+  },
+  {
+    regex: /\b(su distribuidor directo|su distribuidora directa)\b/gi,
+    variants: ['su distribuidor directo', 'su aliado mayorista', 'su proveedor directo', 'importador y distribuidor mayorista directo']
+  },
+  {
+    regex: /\b(tenemos disponibilidad inmediata en|contamos con disponibilidad inmediata en)\b/gi,
+    variants: [
+      'tenemos disponibilidad inmediata en',
+      'contamos con inventario listo para despacho en',
+      'disponemos de stock para entrega inmediata en',
+      'le ofrecemos disponibilidad inmediata en'
+    ]
+  },
+  {
+    regex: /\b(precios mayoristas|precios de mayorista|precios de distribuidor)\b/gi,
+    variants: [
+      'precios mayoristas',
+      'precios directos de distribuidor',
+      'condiciones especiales al mayor',
+      'tarifas preferenciales de importador'
+    ]
+  },
+  {
+    regex: /\b(a tasa oficial bcv|al cambio oficial bcv|según tasa bcv)\b/gi,
+    variants: [
+      'a tasa oficial BCV',
+      'al cambio oficial del BCV',
+      'calculados a tasa oficial BCV',
+      'según la tasa oficial publicada por el BCV'
+    ]
+  },
+  {
+    regex: /\b(facturación fiscal legal|factura fiscal formal|factura formal legal)\b/gi,
+    variants: [
+      'facturación fiscal legal (RIF J-295375450)',
+      'factura legal formal con RIF',
+      'facturación formal SENIAT con RIF J-295375450'
+    ]
+  },
+  {
+    regex: /\b(delivery gratis en toda caracas|despacho gratuito en caracas)\b/gi,
+    variants: [
+      'delivery GRATIS en toda Caracas',
+      'despacho gratuito en el área metropolitana de Caracas',
+      'entrega directa sin costo en toda Caracas'
+    ]
+  },
+  {
+    regex: /\b(quedo a su orden|estamos para servirle|a su completa disposición|a su entera orden)\b/gi,
+    variants: [
+      'quedo a su completa orden',
+      'estamos para servirle con total gusto',
+      'a su entera disposición para apoyarle',
+      'atentos a sus requerimientos'
+    ]
+  },
+  {
+    regex: /\b(¿desea que le preparemos una cotización\?|¿desea que le enviemos una cotización\?)\b/gi,
+    variants: [
+      '¿Desea que le preparemos una cotización formal?',
+      '¿Gusta que le reservemos disponibilidad para su despacho de esta semana?',
+      '¿En qué requerimientos o reposición de insumos podemos apoyarle hoy?',
+      '¿Le gustaría recibir una cotización formal ajustada a su empresa?'
+    ]
+  }
+];
+
+export function applyLexicalPermutations(text) {
+  if (!text || typeof text !== 'string') return text;
+  let res = text;
+
+  // 1. Sustitución estocástica de sinónimos clave de negocio
+  for (const item of LEXICAL_SYNONYMS) {
+    if (item.regex.test(res)) {
+      item.regex.lastIndex = 0;
+      res = res.replace(item.regex, (match) => {
+        if (Math.random() < 0.75) {
+          return item.variants[Math.floor(Math.random() * item.variants.length)];
+        }
+        return match;
+      });
+    }
+  }
+
+  // 2. Alternancia de viñetas dinámicas (•, ▪️, 🔹) para romper similitud visual
+  const bulletSymbols = ['•', '▪️', '🔹'];
+  const chosenBullet = bulletSymbols[Math.floor(Math.random() * bulletSymbols.length)];
+  if (chosenBullet !== '•') {
+    res = res.replace(/^[ \t]*• /gm, `${chosenBullet} `);
+  }
+
+  // 3. Inserción de caracter invisible de espaciado único (\u200B o \u200C)
+  // en una posición aleatoria para alterar el checksum y hash binario del mensaje
+  const zwChars = ['\u200B', '\u200C', '\uFEFF'];
+  const zw = zwChars[Math.floor(Math.random() * zwChars.length)];
+  const words = res.split(' ');
+  if (words.length > 5) {
+    const insertIdx = Math.floor(Math.random() * (words.length - 2)) + 1;
+    words[insertIdx] = words[insertIdx] + zw;
+    res = words.join(' ');
+  }
+
+  return res;
+}
+
 // Procesa variables {{nombre}}, {{link}}, etc. PRIMERO, luego Spintax {Hola|Buenos días}.
-// Orden invertido: las variables usan doble llave y deben resolverse antes de que
-// la regex de Spintax (llave simple) toque el texto. Antes la regex de Spintax
-// capturaba la llave interna de {{var}}, destruyendo la marca de variable.
-function renderTemplate(body, vars) {
+// Por último, aplica el motor anti-baneo de permutaciones léxicas para que cada envío sea 100% único.
+export function renderTemplate(body, vars) {
   // 1) Variables: {{clave}} → valor real del target
   let str = String(body || '').replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
     (_, k) => vars[k.trim().toLowerCase()] ?? '');
@@ -313,6 +432,8 @@ function renderTemplate(body, vars) {
     const parts = choices.split('|');
     return parts[Math.floor(Math.random() * parts.length)].trim();
   });
+  // 3) Motor Anti-Baneo / Permutaciones Léxicas Dinámicas
+  str = applyLexicalPermutations(str);
   return str;
 }
 

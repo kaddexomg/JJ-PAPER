@@ -747,17 +747,34 @@ export class WaSession {
       }
     }
 
-    // 2. Presencia composing humana
+    // 2. Presencia humana realista (Anti-Baneo de WhatsApp):
     try {
-      await this.sock.sendPresenceUpdate('composing', jid);
-      await new Promise(r => setTimeout(r, 600));
+      if (this.sock?.sendPresenceUpdate) {
+        await this.sock.sendPresenceUpdate('composing', jid);
+        const textPayload = (content && (content.text || content.caption)) || '';
+        const len = typeof textPayload === 'string' ? textPayload.length : 0;
+        let humanDelayMs;
+        if (len === 0) {
+          // Documento o archivo multimedia sin texto: simular tiempo de selección y adjunto
+          humanDelayMs = 2500 + Math.floor(Math.random() * 1800); // 2.5s a 4.3s
+        } else if (len < 80) {
+          humanDelayMs = 1800 + Math.floor(Math.random() * 1500); // 1.8s a 3.3s
+        } else if (len < 400) {
+          humanDelayMs = 3200 + Math.floor(Math.random() * 2200); // 3.2s a 5.4s
+        } else {
+          humanDelayMs = 4500 + Math.floor(Math.random() * 3200); // 4.5s a 7.7s
+        }
+        await new Promise(r => setTimeout(r, humanDelayMs));
+      }
     } catch (_) {}
 
     const res = await this.sock.sendMessage(jid, content, options);
 
     // Detener estado composing
     try {
-      await this.sock.sendPresenceUpdate('paused', jid);
+      if (this.sock?.sendPresenceUpdate) {
+        await this.sock.sendPresenceUpdate('paused', jid);
+      }
     } catch (_) {}
 
     if (res?.key?.id && res?.message) {

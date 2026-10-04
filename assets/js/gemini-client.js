@@ -1001,6 +1001,64 @@ ${rawText.slice(0, 50000)}
   }
 
   /* --------------------------------------------------------------------------
+     4.1. Taxonomías y Directivas de Negocio (Tonos, Sectores y Ganchos B2B)
+     -------------------------------------------------------------------------- */
+  const COMMERCIAL_TONE_DIRECTIVES = {
+    socio_estrategico: {
+      name: '💼 Ejecutivo & Socio Estratégico (Seguridad y Factura BCV)',
+      attitude: 'Alianza corporativa a largo plazo, seriedad absoluta, solvencia institucional y confianza.',
+      style: 'Formal, respetuoso y ejecutivo. Se enfoca en la continuidad operativa de las sedes del cliente, despacho directo garantizado y facturación legal SENIAT a tasa oficial BCV.',
+      opening: '{Hola|Buen día|Un cordial saludo} {{nombre}}, un gusto saludarle.',
+      closing: 'Quedamos a su entera disposición para coordinar sus requerimientos operativos o formalizar su cotización formal.'
+    },
+    oportunidad_mayorista: {
+      name: '🔥 Oferta Mayorista & Volumen (Actitud de Cierre y Ahorro)',
+      attitude: 'Comercial directa, dinámica, orientada al margen de ganancia, ahorro tangible por bulto/caja y cierre asertivo.',
+      style: 'Enérgico y enfocado en la rentabilidad. Destaca el precio de importador directo, el ahorro por escala cerrada y la conveniencia económica frente a compras al detal.',
+      opening: '{Hola|Buen día} {{nombre}} 👋, le contactamos con una excelente oportunidad de abastecimiento mayorista.',
+      closing: '¿Cuántas cajas o bultos le apartamos para su despacho de esta semana?'
+    },
+    cercano_consultivo: {
+      name: '🤝 Cercano, Asesor y Resolutivo (Atención Directa y Sourcing)',
+      attitude: 'Cálida, cordial, de asesor personal accesible que busca resolver cualquier necesidad ("te conseguimos lo que necesites").',
+      style: 'Amistoso, atento y servicial. Hace hincapié en que si el cliente busca una marca, gramaje o medida que no esté listada, JJ Paper se lo ubica y cotiza de inmediato.',
+      opening: '{Hola|Qué tal} {{nombre}} 👋, ¡un gran gusto saludarte!',
+      closing: '¿Qué insumos o papelería estás necesitando en tu sede para apoyarte y pasarte opciones hoy mismo?'
+    },
+    institucional_formal: {
+      name: '🏢 Institucional Formal (Procura y Compras)',
+      attitude: 'Protocolar, sobria y orientada a comités de compras, licitaciones, homologación de proveedores y administración.',
+      style: 'Estrictamente profesional y sobrio. Pone de relieve la documentación fiscal en regla (RIF J-295375450), cotizaciones formales membretadas y estándares de archivo reglamentario.',
+      opening: 'Estimada Gerencia y Dpto. de Compras de {{empresa}}, un cordial saludo.',
+      closing: 'Quedamos a la disposición de su departamento de compras para consignar nuestra cotización formal membretada.'
+    },
+    fidelizado_reactivacion: {
+      name: '💎 Cliente VIP / Fidelizado (Trato Preferencial y Confianza)',
+      attitude: 'Agradecida, cordial, exclusiva y de reencuentro con un cliente de la casa ("es un placer volver a atenderles").',
+      style: 'Afectuoso y distinguido. Trata al cliente como cuenta prioritaria con beneficios exclusivos: reserva de inventario, delivery prioritario bonificado y precios congelados a tasa oficial BCV.',
+      opening: '{Hola|Buen día|Un placer saludarle de nuevo} {{nombre}} 👋, es un gusto reencontrarnos.',
+      closing: '¿Cómo se encuentran de inventario para esta quincena? Con gusto le coordinamos su entrega con prioridad.'
+    }
+  };
+
+  const SECTOR_NAMES = {
+    colegios: 'Colegios, Universidades y Educación',
+    clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
+    oficinas: 'Empresas, Oficinas y Corporativo',
+    retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
+    logistica: 'Industrias, Almacenes y Logística de Distribución',
+    papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
+  };
+
+  const VALUE_HOOK_DESCS = {
+    importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
+    escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
+    sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
+    despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
+    ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
+  };
+
+  /* --------------------------------------------------------------------------
      4.2. Redactor Inteligente de Campañas Comerciales B2B (WhatsApp y Email)
      -------------------------------------------------------------------------- */
   async function draftCampaignMessage({
@@ -1030,26 +1088,12 @@ ${rawText.slice(0, 50000)}
       } catch (_) {}
     }
 
-    const SECTOR_NAMES = {
-      colegios: 'Colegios, Universidades y Educación',
-      clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
-      oficinas: 'Empresas, Oficinas y Corporativo',
-      retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
-      logistica: 'Industrias, Almacenes y Logística de Distribución',
-      papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
-    };
     const effectiveSector = (targetSector && targetSector !== 'auto' && SECTOR_NAMES[targetSector])
       ? SECTOR_NAMES[targetSector]
       : (targetSector !== 'auto' ? targetSector : 'Empresas y Comercios B2B');
 
-    const VALUE_HOOK_DESCS = {
-      importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
-      escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
-      sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
-      despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
-      ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
-    };
     const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[tone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
 
     // Extracción de especificaciones técnicas y comerciales del producto o combo / listado múltiple
     let prodSpecs = '';
@@ -1070,7 +1114,14 @@ LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artícu
 
     const sys = getBusinessContext() + `
 Eres el Especialista y Director Comercial B2B Sénior de JJ Paper C.A., empresa IMPORTADORA Y DISTRIBUIDORA DIRECTA mayorista en Caracas, Venezuela.
-Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte autoridad de importador directo, máxima seriedad corporativa, frescura, calidez y ACTITUD PROACTIVA DE SOCIO ESTRATÉGICO.
+Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte fielmente la actitud: "${toneConfig.name}".
+
+DIRECTIVA SUPREMA DE TONO Y ACTITUD COMERCIAL:
+- ACTITUD REQUERIDA: ${toneConfig.attitude}
+- ESTILO Y PSICOLOGÍA DE REDACCIÓN: ${toneConfig.style}
+- EJEMPLO DE APERTURA ESPERADA: ${toneConfig.opening}
+- EJEMPLO DE CIERRE ESPERADO: ${toneConfig.closing}
+MANDATORIO: El mensaje DEBE adoptar plenamente esta actitud comercial. Si el tono es "VIP / Fidelizado", agradece la preferencia y ofrece trato prioritario de la casa; si es "Oferta Mayorista", enfócate con dinamismo en el ahorro por volumen y cierre directo; si es "Cercano", sé cálido y enfatiza el sourcing personalizado; si es "Institucional", sé protocolar y formal.
 
 ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
 1. IDENTIDAD DE NEGOCIO Y AUTORIDAD (QUIÉNES SOMOS):
@@ -1093,9 +1144,9 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
    - ¡PROHIBIDO inventar o alterar precios o presentaciones! Usa con estricta fidelidad los datos oficiales provistos.
 
 5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
-   - **TÍTULO DESTACADO**: OBLIGATORIO en negritas con actitud comercial (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.* o *📦 SUMINISTRO DIRECTO PARA EMPRESAS · JJ PAPER C.A.*).
+   - **TÍTULO DESTACADO**: OBLIGATORIO en negritas con actitud comercial según el tono (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.* o *💎 CONDICIONES ESPECIALES DE LA CASA · JJ PAPER C.A.* o *📦 SUMINISTRO DIRECTO PARA EMPRESAS · JJ PAPER C.A.*).
    - **SEPARADOR**: Línea estética de separación (━━━━━━━━━━━━━━━━━━━━━━━━━━).
-   - **SALUDO DINÁMICO (SPINTAX)**: {Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋
+   - **SALUDO DINÁMICO (SPINTAX)**: Adaptado al tono (${toneConfig.opening}) 👋
    - **PROPUESTA COMERCIAL**: Conecta con el sector (${effectiveSector}), presenta la solución de abastecimiento y la ventaja (${effectiveHook}).
    - **LISTA COMPLETA DE PRODUCTOS**: Con viñeta (•), negrita (*...*), empaque y precios en USD y Bs. a Tasa BCV.
    - **CLÁUSULA DE SOURCING**: Promesa de búsqueda y cotización de cualquier insumo adicional.
@@ -1105,7 +1156,7 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
      • 🚚 *Despacho Inmediato 24h* directamente a su sede corporativa o comercio
      • 📄 *Lista de Precios Oficial en PDF:* Más de 900 insumos disponibles en catálogo
    - **CATÁLOGO DIGITAL**: 👉 Ver catálogo digital y pedidos en línea: {{link}}
-   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta directa y amable para coordinar pedido o cotización formal.
+   - **LLAMADO A LA ACCIÓN (CTA)**: Adaptado al tono (${toneConfig.closing}).
    - **FIRMA CORPORATIVA**: Atentamente, *{{vendedor}}* | Asesor Comercial JJ Paper C.A.
 
 6. CERO REPETICIÓN / CREATIVIDAD DINÁMICA:
@@ -1113,16 +1164,16 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
    - Utiliza Spintax rico en saludos y llamados a la acción ({A|B|C}) para que cada destinatario reciba un mensaje único.
 
 Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de código json):
-- Si channel === 'email': { "subject": "Asunto profesional de alto impacto con nombre de producto u oferta", "body": "Cuerpo completo con formato estructurado, viñetas, precios y firma" }
+- Si channel === 'email': { "subject": "Asunto profesional de alto impacto adaptado al tono y producto", "body": "Cuerpo completo con formato estructurado, viñetas, precios y firma" }
 - Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, viñetas, firma al final y Spintax {A|B|C})" }
 `;
 
     const prompt = `
 Sector Objetivo: ${effectiveSector}
-Enfoque de Valor Principal: ${effectiveHook}
+Propuesta de Valor / Gancho Principal: ${effectiveHook}
+Tono y Actitud Comercial: ${toneConfig.name} (${toneConfig.style})
 Propósito o Requerimiento del Asesor: ${objective}
 Contexto Histórico / Relación: ${historyContext || 'Sin contexto especial'}
-Personalidad / Tono Requerido: ${tone}
 Canal: ${channel}
 Segmento de Audiencia: ${audience}
 ${prodSpecs}
@@ -1130,7 +1181,7 @@ Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'
 Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato'}
 Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
 
-Redacta el mensaje comercial siguiendo estrictamente la estructura (Título en negrita, viñetas de artículos con USD y Bs BCV, propuesta comercial y firma) y el formato JSON solicitado:`;
+Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}", el sector "${effectiveSector}" y el gancho "${effectiveHook}". Formato JSON solicitado:`;
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.75 });
@@ -1267,26 +1318,12 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título en n
       ? products
       : (promoProductOrCombo ? (Array.isArray(promoProductOrCombo.products) ? promoProductOrCombo.products : [promoProductOrCombo]) : []);
 
-    const SECTOR_NAMES = {
-      colegios: 'Colegios, Universidades y Educación',
-      clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
-      oficinas: 'Empresas, Oficinas y Corporativo',
-      retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
-      logistica: 'Industrias, Almacenes y Logística de Distribución',
-      papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
-    };
     const effectiveSector = (targetSector && targetSector !== 'auto' && SECTOR_NAMES[targetSector])
       ? SECTOR_NAMES[targetSector]
       : (sector || 'Sector Comercial B2B');
 
-    const VALUE_HOOK_DESCS = {
-      importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
-      escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
-      sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
-      despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
-      ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
-    };
     const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
 
     // ── Catálogo REAL con precio actualizado ──
     let realProducts = [];
@@ -1315,7 +1352,7 @@ ATENCIÓN CRÍTICA - OFERTA / PRODUCTOS COMERCIALES SELECCIONADOS POR EL ASESOR 
         const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
         return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
       }).join('\n') + `
-DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENTE estos productos con sus precios. NO sustituyas estos productos por otros artículos ni inventes precios. Personaliza el saludo y conecta con la actividad de ${companyName}, pero mantén esta oferta intacta como el centro de la propuesta.`;
+DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENTE estos productos con sus precios bajo el tono "${toneConfig.name}". NO sustituyas estos productos por otros artículos ni inventes precios. Personaliza el saludo y conecta con la actividad de ${companyName}, pero mantén esta oferta intacta como el centro de la propuesta.`;
     }
 
     const isAlreadyContacted = Boolean(
@@ -1338,44 +1375,68 @@ DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENT
         return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* | Bs. ${pPriceBs}`;
       }).join('\n');
 
+      let toneGreeting = `{Hola|Buen día|Un gusto saludarle} ${contactName || companyName} 👋, un cordial saludo.`;
+      let toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:`;
+      let toneClosing = `{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su pedido.}`;
+
+      if (commercialTone === 'fidelizado_reactivacion') {
+        toneGreeting = `{Hola|Buen día|Un placer saludarle de nuevo} ${contactName || companyName} 👋, ¡un gran gusto saludarles de nuevo!`;
+        toneOpening = `{Le escribe|Le contacta} *${sellerName}* de *JJ Paper C.A.* Como cuenta preferencial y de la casa, pasamos por aquí para presentarle en exclusiva este lote de insumos con condiciones preferenciales y flete prioritario:`;
+        toneClosing = `{¿Cómo se encuentran de inventario en sus sedes para esta quincena? Con gusto le reservamos disponibilidad inmediata.|¿Gusta que le preparemos su despacho con las condiciones preferenciales de su cuenta?}`;
+      } else if (commercialTone === 'oportunidad_mayorista') {
+        toneGreeting = `{Hola|Buen día} ${contactName || companyName} 👋, un saludo comercial.`;
+        toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo el volumen y consumo de ${companyName} en ${city || 'Caracas'}, hoy le presentamos una oportunidad mayorista con precios de escala cerrada y entrega inmediata:`;
+        toneClosing = `{¿Cuántos bultos o cajas le apartamos para su entrega de esta semana?|¿Desea que le facturemos a tasa oficial BCV (${rate.toFixed(2)} Bs) para despacho mañana?}`;
+      } else if (commercialTone === 'cercano_consultivo') {
+        toneGreeting = `{Hola|Qué tal} ${contactName || companyName} 👋, ¡un gran saludo!`;
+        toneOpening = `Por aquí te escribe *${sellerName}* de *JJ Paper C.A.* Quería saludarte y pasarte de primera mano estas opciones que tenemos listas para despacharte en tu sede:`;
+        toneClosing = `{¿Qué insumos estás necesitando reponer en tu sede para apoyarte hoy mismo? Recuerda que si buscas algo que no veas en lista te lo conseguimos de inmediato.|¿Te preparo la cotización formal en bolívares a tasa BCV?}`;
+      } else if (commercialTone === 'institucional_formal') {
+        toneGreeting = `Estimada Gerencia de Compras y Administración en ${companyName}:`;
+        toneOpening = `Le saluda atentamente *${sellerName}* de *JJ Paper C.A.* En atención a las operaciones y suministro de sus sedes en ${city || 'Caracas'}, ponemos a su disposición el siguiente lote mayorista con disponibilidad para entrega inmediata:`;
+        toneClosing = `Quedamos a la disposición de su departamento de compras para consignar nuestra cotización formal membretada y atender su orden de compra.`;
+      }
+
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTOS / COMBO PREPARADO POR EL ASESOR
-El mensaje gira 100% en torno a presentar la oferta de insumos seleccionada:
+ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTOS (${toneConfig.name})
+El mensaje gira 100% en torno a presentar la oferta de insumos seleccionada bajo el tono "${toneConfig.name}":
 ${itemsFormatted}
 
-DIRECTIVAS ESTRICTAS DE REDACCIÓN:
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} ${contactName || companyName} 👋, un cordial saludo."
-2. Apertura directa: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:"
-3. Presentar los productos con sus viñetas (•), nombres en negrita (*...*) y precios oficiales en USD y Bs BCV.
+DIRECTIVAS ESTRICTAS DE REDACCIÓN SEGÚN EL TONO SELECCIONADO:
+1. Saludo: "${toneGreeting}"
+2. Apertura directa: "${toneOpening}"
+3. Presentar los productos con sus viñetas (•), nombres en negrita (*...*) y precios oficiales en USD y Bs BCV (${rate.toFixed(2)} Bs).
 4. Cláusula obligatoria de procura: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato."
-5. Cierre: Pregunta directa para coordinar pedido o despacho formal.`;
+5. Cierre según tono: "${toneClosing}"`;
     } else if (messageType.includes('Seguimiento') || isAlreadyContacted) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: SEGUIMIENTO COMERCIAL (ESTA CUENTA YA FUE CONTACTADA ANTERIORMENTE)
+ESTRUCTURA DE APERTURA: SEGUIMIENTO COMERCIAL (${toneConfig.name})
 ¡ATENCIÓN CRÍTICA! Esta empresa YA RECIBIÓ una presentación previa de JJ Paper. ¡ESTRICTAMENTE PROHIBIDO VOLVER A PRESENTARSE DESDE CERO! Prohibido decir "vinimos a presentarnos", "le escribimos para darnos a conocer", etc.
 1. Saludo: "{Hola|Buen día|Un gusto saludarle de nuevo} {contacto o empresa} 👋. Esperamos que todo marche excelente en sus operaciones."
 2. Reconocimiento de seguimiento: "{Le saluda atentamente|Le escribe nuevamente} *${sellerName}* de *JJ Paper C.A.* En seguimiento a nuestra propuesta anterior / Quería consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana."
 3. Propuesta de abastecimiento: "{Pensando en sus requerimientos de reposición continua|Para apoyar la logística de ${companyName}}, tenemos despacho garantizado en 24h en:" presentar 3 insumos de alta rotación para su sector con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
-4. Cierre: "{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su entrega.}"`;
+4. Cierre según tono: "${toneConfig.closing}"`;
     } else if (messageType.includes('Recordatorio')) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: RECORDATORIO DE REPOSICIÓN OPERATIVA
+ESTRUCTURA DE APERTURA: RECORDATORIO DE REPOSICIÓN OPERATIVA (${toneConfig.name})
 1. Saludo: "{Hola|Buen día} {contacto o empresa} 👋, un cordial saludo."
 2. Recordatorio directo: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Pasamos por aquí brevemente para coordinar la reposición de papelería, consumibles de caja y embalaje para ${companyName} de esta quincena."
 3. 3 insumos clave para reposición con precio BCV ${rate.toFixed(2)} Bs.
-4. Cierre: "{¿Nos indica qué insumos requieren reponer esta semana para procesar su cotización formal?|¿Desea que le confirmemos despacho para mañana?}"`;
+4. Cierre según tono: "${toneConfig.closing}"`;
     } else if (messageType.includes('Oferta')) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA RELÁMPAGO / CONDICIONES PREFERENCIALES
+ESTRUCTURA DE APERTURA: OFERTA RELÁMPAGO / CONDICIONES PREFERENCIALES (${toneConfig.name})
 1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋."
 2. Oportunidad: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Queríamos compartirle una oportunidad de abastecimiento mayorista con entrega prioritaria para ${companyName}:"
-3. 3 productos destacados con precio especial en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.`;
+3. 3 productos destacados con precio especial en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
+4. Cierre según tono: "${toneConfig.closing}"`;
     } else {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: PRESENTACIÓN COMERCIAL INSTITUCIONAL (PRIMER CONTACTO - CUENTA NUEVA)
+ESTRUCTURA DE APERTURA: PRESENTACIÓN COMERCIAL INSTITUCIONAL (${toneConfig.name})
 1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
 2. Presentación institucional: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje en Caracas. {Le contactamos|Nos acercamos} con el propósito de abastecer cada necesidad operativa de ${companyName} con entrega en 24h, precios de distribuidor y facturación formal legal."
-3. 3 productos acordes a su giro de negocio con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.`;
+3. 3 productos acordes a su giro de negocio con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
+4. Cierre según tono: "${toneConfig.closing}"`;
     }
 
     const sys = getBusinessContext() + `
@@ -1546,8 +1607,9 @@ DATOS DEL CLIENTE A ANALIZAR:
 - Historial en JJ Paper: ${histTxt}
 
 CONFIGURACIÓN DE REDACCIÓN SELECCIONADA POR EL ASESOR:
-- Tono / Actitud Comercial: "${personality}"
+- Tono / Actitud Comercial Requerida: "${toneConfig.name}" (${toneConfig.attitude} — ${toneConfig.style})
 - Propuesta de Valor / Gancho de Negocio: "${effectiveHook}"
+- Sector Objetivo: "${effectiveSector}"
 
 ${prodsList.length > 0 ? `
 ========================================================================
@@ -1710,20 +1772,14 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
 
     // Adaptación dinámica de enfoque si la cuenta ya fue alcanzada o hay producto activo
     let effectiveMessageType = messageType;
-    let effectivePersonality = personality;
     if (hasCustomOffer) {
       effectiveMessageType = 'Oferta Especial';
-      effectivePersonality = 'Persuasivo / Comercial';
-    } else if (commercialTone === 'oportunidad_mayorista') {
-      effectivePersonality = 'Oferta Mayorista / Oportunidad (Actitud de cierre comercial, escala por volumen)';
-    } else if (commercialTone === 'cercano_consultivo') {
-      effectivePersonality = 'Cercano / Asesor Resolutivo (Atención directa de confianza, búsqueda y sourcing)';
-    } else if (commercialTone === 'institucional_formal') {
-      effectivePersonality = 'Institucional / Formal (Procura corporativa y formalidad SENIAT)';
     } else if (isAlreadyContacted && (messageType === 'Presentación Inicial' || messageType === 'presentacion')) {
       effectiveMessageType = 'Seguimiento de Contacto Previo';
-      effectivePersonality = 'Cercano / Cordial';
     }
+
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
+    let effectivePersonality = toneConfig.name;
 
     // Extraer datos del cliente o prospecto B2B
     const compName = customer.company_name || customer.name || customer.business_name || 'Empresa';
@@ -1938,24 +1994,20 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
 
     const hasCustomOffer = Boolean(promoProductOrCombo || (Array.isArray(products) && products.length > 0));
 
-    // Mapeo de la actitud seleccionada a perfil psicológico y apertura
-    let personality = 'Profesional / Formal';
+    // Mapeo de la actitud y tono comercial seleccionados
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
+    let personality = toneConfig.name;
     let messageType = 'Presentación Inicial';
     if (hasCustomOffer) {
-      personality = 'Persuasivo / Comercial';
-      messageType = 'Reactivación / Oferta Especial';
-    } else if (commercialTone === 'oportunidad_mayorista' || attitude === 'oferta') {
-      personality = 'Oferta Mayorista / Oportunidad (Actitud de cierre comercial, escala por volumen)';
+      messageType = 'Oferta Especial';
+    } else if (attitude === 'oferta') {
       messageType = 'Oportunidad de Abastecimiento Mayorista';
-    } else if (commercialTone === 'cercano_consultivo' || attitude === 'seguimiento') {
-      personality = 'Cercano / Asesor Resolutivo (Atención directa de confianza, búsqueda y sourcing)';
+    } else if (attitude === 'seguimiento') {
       messageType = 'Seguimiento y Procura de Insumos';
-    } else if (commercialTone === 'institucional_formal') {
-      personality = 'Institucional / Formal (Procura corporativa y formalidad SENIAT)';
-      messageType = 'Presentación Corporativa Formal';
     } else if (attitude === 'recordatorio') {
-      personality = 'Directo / Ejecutivo';
       messageType = 'Recordatorio de Insumos';
+    } else if (attitude === 'fidelizado') {
+      messageType = 'Reactivación VIP / Fidelizado';
     }
 
     // Procesar en chunks de 3 en paralelo con pool balanceado de 7 API keys
@@ -3298,6 +3350,9 @@ ${rawText}
     askCopilot,
     renderProductCard,
     draftStrategicSalesMessage,
+    COMMERCIAL_TONE_DIRECTIVES,
+    SECTOR_NAMES,
+    VALUE_HOOK_DESCS,
     syncKeysFromSettings,
     setKeys: (newKeys) => { if (Array.isArray(newKeys) && newKeys.length > 0) GEMINI_KEYS = newKeys; },
     getKeys: () => [...GEMINI_KEYS],

@@ -210,9 +210,9 @@ async function mailLoad() {
   if (error) { showToast('Error cargando correos: ' + error.message, 'err'); return; }
   mailRows = data || [];
 
-  // Cargar cotizaciones y clientes vinculados para enriquecer la vista
+  // Cargar cotizaciones, clientes y contactos destacados para enriquecer la vista
   try {
-    const [qRes, cRes] = await Promise.all([
+    const [qRes, cRes, prosRes, custStarredRes] = await Promise.all([
       _rawSbCore.from('jjp_quotes')
         .select('id, quote_number, client_name, customer_id, email, phone, estimated_total_usd, status, created_at')
         .order('created_at', { ascending: false })
@@ -220,7 +220,15 @@ async function mailLoad() {
       _rawSbCore.from('jjp_customers')
         .select('id, name, email')
         .not('email', 'is', null)
-        .limit(500)
+        .limit(500),
+      _rawSbCore.from('jjp_prospects')
+        .select('email')
+        .or('source.eq.gmail_destacado,status.eq.destacado,notes.ilike.%Destacado en Gmail%')
+        .limit(300),
+      _rawSbCore.from('jjp_customers')
+        .select('email')
+        .contains('tags', ['destacado_gmail'])
+        .limit(300)
     ]);
     mailQuoteMap.clear();
     for (const q of qRes.data || []) {
@@ -235,8 +243,15 @@ async function mailLoad() {
       if (c.email) mailCustomerMap.set(c.email.toLowerCase().trim(), c);
       if (c.id) mailCustomerMap.set(c.id, c);
     }
+    mailStarredSet.clear();
+    for (const p of prosRes?.data || []) {
+      if (p.email) mailStarredSet.add(p.email.toLowerCase().trim());
+    }
+    for (const c of custStarredRes?.data || []) {
+      if (c.email) mailStarredSet.add(c.email.toLowerCase().trim());
+    }
   } catch (err) {
-    console.warn('Aviso cargando cotizaciones/clientes para correo:', err);
+    console.warn('Aviso cargando cotizaciones/clientes/destacados para correo:', err);
   }
 
   mailRender();
@@ -247,8 +262,9 @@ async function mailLoad() {
   }
 }
 
-let mailFilter = 'all';   // 'all' | 'in' | 'out' | 'replies'
+let mailFilter = 'all';   // 'all' | 'in' | 'out' | 'replies' | 'starred'
 let mailExpanded = null;
+const mailStarredSet = new Set();
 
 function setMailFilter(f) {
   mailFilter = f;
@@ -262,7 +278,28 @@ function mailRenderTabs() {
   const n = mailUnreadCount();
   const badge = document.getElementById('mailInBadge');
   if (badge) { badge.textContent = n || ''; badge.style.display = n ? 'inline-block' : 'none'; }
+
+  const starCount = mailRows.filter(m => {
+    const fromA = mailCleanAddr(m.from_addr);
+    const toA = mailCleanAddr(m.to_addr);
+    return (fromA && mailStarredSet.has(fromA)) || (toA && mailStarredSet.has(toA));
+  }).length;
+  const starBadge = document.getElementById('mailStarredBadge');
+  if (starBadge) {
+    starBadge.textContent = starCount || '';
+    starBadge.style.display = starCount ? 'inline-block' : 'none';
+  }
+  const starCampBtn = document.getElementById('mailCampStarredBtn');
+  if (starCampBtn) {
+    starCampBtn.style.display = (mailFilter === 'starred') ? 'inline-block' : 'none';
+  }
 }
+
+function launchCampaignForStarred() {
+  const page = MAIL_IS_ADMIN ? 'campanas-email.html' : 'campanas-email.html';
+  window.location.href = `${page}?audience=gmail_starred`;
+}
+window.launchCampaignForStarred = launchCampaignForStarred;
 
 function mailRender() {
   mailRenderTabs();
@@ -272,6 +309,11 @@ function mailRender() {
     if (mailFilter === 'all') return true;
     if (mailFilter === 'in') return m.direction === 'in';
     if (mailFilter === 'out') return m.direction === 'out';
+    if (mailFilter === 'starred') {
+      const fromA = mailCleanAddr(m.from_addr);
+      const toA = mailCleanAddr(m.to_addr);
+      return (fromA && mailStarredSet.has(fromA)) || (toA && mailStarredSet.has(toA));
+    }
     if (mailFilter === 'replies') {
       const addr = mailCleanAddr(m.from_addr);
       return m.direction === 'in' && (m.customer_id || mailQuoteMap.has(addr) || mailCustomerMap.has(addr));
@@ -292,6 +334,7 @@ function mailRender() {
     // Vincular cliente o prospecto si existe
     const cust = m.customer_id ? mailCustomerMap.get(m.customer_id) : mailCustomerMap.get(addr);
     const matchedQuote = m.customer_id ? mailQuoteMap.get(m.customer_id) : mailQuoteMap.get(addr);
+    const isStarredMsg = (addr && mailStarredSet.has(addr));
 
     const whoDisplay = cust ? `👤 ${escapeHTML(cust.name)} <span style="font-size:11px;opacity:.7">(${escapeHTML(addr)})</span>` : escapeHTML(rawWho);
 
@@ -299,10 +342,14 @@ function mailRender() {
       ? `<span class="mail-quote-pill" style="display:inline-flex;align-items:center;gap:4px;background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:6px;border:1px solid #bae6fd" title="Cotización activa vinculada">📑 Cot #${escapeHTML(matchedQuote.quote_number)} ($${Number(matchedQuote.estimated_total_usd || 0).toFixed(2)})</span>`
       : '';
 
+    const starPill = isStarredMsg
+      ? `<span class="mail-star-pill" style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#b45309;font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;margin-left:6px;border:1px solid #fde68a" title="Contacto destacado de Gmail">⭐ Destacado</span>`
+      : '';
+
     return `
     <div class="mail-item mail-${m.status}${unread ? ' mail-unread' : ''}" onclick="mailOpen('${m.id}')" style="cursor:pointer">
       <div class="mail-top">
-        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${whoDisplay}${quotePill}</span>
+        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${whoDisplay}${quotePill}${starPill}</span>
         <span class="mail-st">${inbound ? (unread ? '🟢 Nuevo' : 'Recibido') : (MAIL_STATUS[m.status] || m.status)}</span>
       </div>
       <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}${(m.attachments && m.attachments.length) ? ` <span style="font-size:11px;color:var(--gr,#888)">📎 ${m.attachments.length}</span>` : ''}</div>

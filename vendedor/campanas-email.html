@@ -74,7 +74,10 @@
           <p>Crea campañas masivas por correo: escoge plantilla, producto y audiencia — envío automático</p>
         </div>
       </div>
-      <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-o" id="ecSyncStarredBtn" onclick="syncGmailStarredContacts()" title="Sincronizar contactos con estrella de Gmail" style="font-weight:700">⭐ Sincronizar Destacados</button>
+        <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      </div>
     </div>
 
     <div class="admin-content">

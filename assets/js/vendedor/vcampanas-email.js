@@ -419,6 +419,13 @@ async function initEmailCampaigns() {
         }, 350);
       })
     .subscribe();
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('audience') === 'gmail_starred') {
+    setTimeout(() => {
+      newEcCampaign(null, 'gmail_starred');
+    }, 450);
+  }
 }
 
 async function loadEcProductsAndCombos() {
@@ -506,66 +513,123 @@ async function loadEcContacts() {
     c.email_status !== 'bounced_hard' && 
     c.email_status !== 'bounced_soft' && 
     (c.email || '').includes('@')
-  );
+  ).map(c => {
+    if (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) {
+      c.is_gmail_starred = true;
+    }
+    return c;
+  });
 
-  // Si es Admin, cargar también los prospectos B2B con email válido
-  if (isAdm) {
-    try {
-      const { data: b2bProspects, error: pErr } = await sb.from('jjp_prospects')
-        .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body,bounce_reason')
-        .not('email', 'is', null)
-        .neq('email', '')
-        .order('company_name')
-        .range(0, 1999);
+  // Cargar también los prospectos B2B con email válido (Admin o destacados/asignados)
+  try {
+    let pQuery = sb.from('jjp_prospects')
+      .select('id,company_name,phone_1,phone_2,email,sector,status,contacted,last_contact_at,email_status,contact_name,contact_role,address,city,notes,ai_analysis,suggested_subject,custom_wa_body,custom_email_body,bounce_reason,source,seller_id')
+      .not('email', 'is', null)
+      .neq('email', '')
+      .order('company_name')
+      .range(0, 1999);
 
-      if (!pErr && Array.isArray(b2bProspects)) {
-        const normProspects = b2bProspects
-          .filter(p => p.email && p.email_status !== 'bounced_hard' && p.email_status !== 'bounced_soft' && p.email.includes('@'))
-          .map(p => {
-            const isAlreadyContacted = Boolean(
-              p.contacted || 
-              p.last_contact_at || 
-              (p.status && String(p.status).startsWith('contactado'))
-            );
-            return {
-              id: p.id,
-              name: p.company_name,
-              company_name: p.company_name,
-              sector: p.sector || 'Otro',
-              contact_name: p.contact_name || '',
-              contact_role: p.contact_role || '',
-              phone: (window.getBestMobilePhone ? window.getBestMobilePhone(p) : (p.phone_2 || p.phone_1 || '')),
-              phone_1: p.phone_1,
-              phone_2: p.phone_2,
-              email: p.email.trim(),
-              email_status: p.email_status || null,
-              bounce_reason: p.bounce_reason || null,
-              address: p.address || p.city || 'Caracas',
-              city: p.city || 'Caracas',
-              notes: p.notes || '',
-              status: p.status || 'nuevo',
-              contacted: isAlreadyContacted,
-              last_contact_at: p.last_contact_at || null,
-              is_prospect_b2b: true,
-              total_orders: 0,
-              tags: ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'],
-              ai_analysis: p.ai_analysis || {},
-              suggested_subject: p.suggested_subject || null,
-              custom_email_body: p.custom_email_body || null,
-              custom_wa_body: p.custom_wa_body || null,
-              _custom_message: isAlreadyContacted ? null : (p.custom_email_body || null),
-              _custom_subject: isAlreadyContacted ? null : (p.suggested_subject || null),
-              _detected_need: p.ai_analysis?.dolor_operativo || null,
-              _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
-            };
-          });
-        ecContacts.push(...normProspects);
-      }
-    } catch (pe) {
-      console.warn('Aviso cargando prospectos B2B para emails:', pe);
+    if (!isAdm && SELLER?.id) {
+      pQuery = pQuery.or(`seller_id.eq.${SELLER.id},source.eq.gmail_destacado,status.eq.destacado`);
+    }
+
+    const { data: b2bProspects, error: pErr } = await pQuery;
+
+    if (!pErr && Array.isArray(b2bProspects)) {
+      const normProspects = b2bProspects
+        .filter(p => p.email && p.email_status !== 'bounced_hard' && p.email_status !== 'bounced_soft' && p.email.includes('@'))
+        .map(p => {
+          const isAlreadyContacted = Boolean(
+            p.contacted || 
+            p.last_contact_at || 
+            (p.status && String(p.status).startsWith('contactado'))
+          );
+          const isStarred = Boolean(
+            p.source === 'gmail_destacado' ||
+            p.status === 'destacado' ||
+            p.ai_analysis?.destacado_gmail ||
+            (typeof p.notes === 'string' && p.notes.includes('Destacado en Gmail'))
+          );
+          const pTags = ['prospecto_b2b', p.sector ? p.sector.toLowerCase().replace(/\s+/g, '_') : 'otro'];
+          if (isStarred) pTags.push('destacado_gmail');
+
+          return {
+            id: p.id,
+            name: p.company_name,
+            company_name: p.company_name,
+            sector: p.sector || 'Otro',
+            contact_name: p.contact_name || '',
+            contact_role: p.contact_role || '',
+            phone: (window.getBestMobilePhone ? window.getBestMobilePhone(p) : (p.phone_2 || p.phone_1 || '')),
+            phone_1: p.phone_1,
+            phone_2: p.phone_2,
+            email: p.email.trim(),
+            email_status: p.email_status || null,
+            bounce_reason: p.bounce_reason || null,
+            address: p.address || p.city || 'Caracas',
+            city: p.city || 'Caracas',
+            notes: p.notes || '',
+            status: p.status || 'nuevo',
+            contacted: isAlreadyContacted,
+            last_contact_at: p.last_contact_at || null,
+            is_prospect_b2b: true,
+            is_gmail_starred: isStarred,
+            source: p.source || null,
+            total_orders: 0,
+            tags: pTags,
+            ai_analysis: p.ai_analysis || {},
+            suggested_subject: p.suggested_subject || null,
+            custom_email_body: p.custom_email_body || null,
+            custom_wa_body: p.custom_wa_body || null,
+            _custom_message: isAlreadyContacted ? null : (p.custom_email_body || null),
+            _custom_subject: isAlreadyContacted ? null : (p.suggested_subject || null),
+            _detected_need: p.ai_analysis?.dolor_operativo || null,
+            _detected_sector: p.ai_analysis?.sector_deducido || p.sector || null
+          };
+        });
+      ecContacts.push(...normProspects);
+    }
+  } catch (pe) {
+    console.warn('Aviso cargando prospectos B2B para emails:', pe);
+  }
+}
+
+async function syncGmailStarredContacts() {
+  const btn = document.getElementById('ecSyncStarredBtn');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Sincronizando...';
+  }
+  showToast('Conectando con Gmail para sincronizar contactos destacados ⭐...');
+  try {
+    const sessionUser = (await sb.auth.getUser())?.data?.user;
+    const profileId = sessionUser?.id || SELLER?.id;
+    
+    // Disparar comando al servidor central wa-server
+    await sb.from('jjp_server_control').update({
+      command: `sync_gmail_starred:${profileId || ''}`,
+      command_at: new Date().toISOString(),
+      command_by: profileId
+    }).eq('id', 1);
+
+    // Esperar respuesta o consultar recarga
+    await new Promise(r => setTimeout(r, 2500));
+    await loadEcContacts();
+    
+    const starredCount = ecContacts.filter(c => c.is_gmail_starred || (Array.isArray(c.tags) && c.tags.includes('destacado_gmail'))).length;
+    showToast(`✅ ${starredCount} contactos destacados sincronizados desde Gmail`, 'ok', 5000);
+  } catch (err) {
+    console.error('Error sincronizando destacados de Gmail:', err);
+    showToast('Error al sincronizar con Gmail: ' + (err.message || err), 'err');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml || '⭐ Sincronizar Destacados';
     }
   }
 }
+window.syncGmailStarredContacts = syncGmailStarredContacts;
 
 /* ================== PLANTILLAS ================== */
 async function loadEcTemplates() {
@@ -1029,7 +1093,7 @@ function backToCampaigns() {
 }
 
 /* ================== NUEVA CAMPAÑA ================== */
-function newEcCampaign(preTplId = null) {
+function newEcCampaign(preTplId = null, defaultAudience = null) {
   setEcTab('campanas');
   if (window.CampaignEditor) {
     window.CampaignEditor.open({
@@ -1044,6 +1108,15 @@ function newEcCampaign(preTplId = null) {
         await launchEmailCampaignFromEditor(config);
       }
     });
+    if (defaultAudience) {
+      setTimeout(() => {
+        const audSel = document.getElementById('ceAudienceSelect');
+        if (audSel) {
+          audSel.value = defaultAudience;
+          if (window.CampaignEditor.onAudienceChange) window.CampaignEditor.onAudienceChange();
+        }
+      }, 100);
+    }
     return;
   }
   openEcModal('campModal');

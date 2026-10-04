@@ -110,11 +110,13 @@
 
     <div class="admin-content">
       <div class="mail-wrap">
-        <div class="mail-tabs">
+        <div class="mail-tabs" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="mail-tab on" data-f="all" onclick="setMailFilter('all')">Todos</button>
           <button class="mail-tab" data-f="in" onclick="setMailFilter('in')">📥 Recibidos <span id="mailInBadge" class="mail-badge"></span></button>
+          <button class="mail-tab" data-f="starred" onclick="setMailFilter('starred')">⭐ Destacados <span id="mailStarredBadge" class="mail-badge" style="background:#b45309;color:#fff"></span></button>
           <button class="mail-tab" data-f="replies" onclick="setMailFilter('replies')">💬 Respuestas Clientes</button>
           <button class="mail-tab" data-f="out" onclick="setMailFilter('out')">📤 Enviados</button>
+          <button class="btn-o sm" id="mailCampStarredBtn" onclick="launchCampaignForStarred()" style="margin-left:auto;font-size:12px;font-weight:700;padding:5px 12px;display:none" title="Crear campaña de seguimiento para contactos destacados">📣 Campaña a Destacados</button>
         </div>
         <div class="mail-list" id="mailList"><div class="wa-empty">Cargando…</div></div>
       </div>

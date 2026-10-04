@@ -284,6 +284,7 @@ window.CampaignEditor = (() => {
                   <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
                   <option value="prospectos_b2b">🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
                   <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
+                  <option value="gmail_starred">⭐ Destacados en Gmail (Clientes y Cuentas Prioritarias)</option>
                   <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
                   <option value="respondieron">💬 Clientes/Prospectos que han Respondido</option>
                   <option value="inactivos">😴 Inactivos (sin compras &gt;30d)</option>
@@ -1668,6 +1669,16 @@ ${rawText}
       }
       if (aud === 'prospectos_b2b') return Boolean(c.is_prospect_b2b);
       if (aud === 'solo_clientes') return !c.is_prospect_b2b;
+      if (aud === 'gmail_starred') {
+        return Boolean(
+          c.is_gmail_starred ||
+          (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) ||
+          c.source === 'gmail_destacado' ||
+          c.status === 'destacado' ||
+          c.ai_analysis?.destacado_gmail ||
+          (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail'))
+        );
+      }
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);
       if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0) && !c.is_prospect_b2b;
       if (aud === 'sector' && sectorVal) {
@@ -1782,6 +1793,7 @@ ${rawText}
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
               <span style="font-size:11px;font-weight:600;color:#64748b">Filtros rápidos:</span>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">🌐 Todos</button>
+              <button type="button" class="ce-card-action-btn" style="color:#b45309;background:#fef3c7;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('destacados_gmail')">⭐ Destacados Gmail</button>
               <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Prospectos B2B</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('clientes')">👥 Solo Clientes</button>
               <button type="button" class="ce-card-action-btn" style="color:#0369a1;background:#f0f9ff;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('con_cotizacion')">📑 Con Cotización (&lt;30d)</button>
@@ -1846,6 +1858,17 @@ ${rawText}
       if (!isEmail && !c.phone) return false;
 
       // Filtros rápidos
+      if (pickerQuickFilter === 'destacados_gmail') {
+        const isStarred = Boolean(
+          c.is_gmail_starred ||
+          (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) ||
+          c.source === 'gmail_destacado' ||
+          c.status === 'destacado' ||
+          c.ai_analysis?.destacado_gmail ||
+          (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail'))
+        );
+        if (!isStarred) return false;
+      }
       if (pickerQuickFilter === 'b2b' && !c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'clientes' && c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'con_cotizacion') {
@@ -1895,6 +1918,21 @@ ${rawText}
         ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="${escapeHTML(recentReply?.snippet || 'Respuesta reciente recibida')}">💬 Respondió</span>`
         : '';
 
+      const isStarredContact = Boolean(
+        c.is_gmail_starred ||
+        (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) ||
+        c.source === 'gmail_destacado' ||
+        c.status === 'destacado' ||
+        c.ai_analysis?.destacado_gmail ||
+        (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail'))
+      );
+      const starredBadge = isStarredContact
+        ? `<span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="Contacto destacado con estrella en Gmail">⭐ Destacado Gmail</span>`
+        : '';
+      const starredNote = isStarredContact && (c.suggested_subject || (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail')))
+        ? `<div style="font-size:11px;color:#b45309;font-weight:600;margin-top:2px">⭐ Seguimiento: ${escapeHTML(c.suggested_subject || c.notes.split('\n')[0].replace('⭐ Destacado en Gmail:', '').trim())}</div>`
+        : '';
+
       const isCooling = cooldownExcluded.customer.has(c.id) ||
         (isEmail ? cooldownExcluded.email.has(String(c.email || '').toLowerCase().trim()) : cooldownExcluded.phone.has(normPhoneKey(c.phone)));
       const cooldownDetail = isCooling ? (cooldownExcluded.details.get(c.id) || (isEmail ? cooldownExcluded.details.get(String(c.email || '').toLowerCase().trim()) : cooldownExcluded.details.get(normPhoneKey(c.phone)))) : null;
@@ -1921,11 +1959,13 @@ ${rawText}
             <div style="font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center; flex-wrap:wrap; gap:4px">
               <span>${escapeHTML(c.name || 'Sin Nombre')}</span>
               ${b2bBadge}
+              ${starredBadge}
               ${quoteBadge}
               ${replyBadge}
               ${cooldownBadge}
             </div>
             ${contactDetail}
+            ${starredNote}
             <div style="font-size:11px; color:#64748b; margin-top:2px">
               ${c.rif ? `RIF: ${escapeHTML(c.rif)} · ` : ''}
               ${c.city ? `📍 ${escapeHTML(c.city)} · ` : ''}

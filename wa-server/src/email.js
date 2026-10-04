@@ -420,7 +420,231 @@ export async function pollInboundNow() {
     }
   }
   log.info({ totalNew }, 'sincronización forzada con Gmail completada');
+  try { await syncGmailStarred(); } catch (_) {}
   return totalNew;
+}
+
+// Sincronización de contactos destacados con estrella en Gmail
+export async function syncGmailStarred(specificProfileId = null) {
+  log.info({ specificProfileId }, 'Sincronizando contactos destacados de Gmail...');
+  let query = db.from('jjp_email_accounts')
+    .select('profile_id,email,oauth_refresh,enabled')
+    .eq('enabled', true)
+    .not('oauth_refresh', 'is', null);
+  if (specificProfileId) {
+    query = query.eq('profile_id', specificProfileId);
+  }
+  const { data: accts, error } = await query;
+  if (error || !accts?.length) {
+    log.info('No hay cuentas Gmail OAuth activas para sincronizar destacados.');
+    return { syncedCount: 0, contacts: [] };
+  }
+
+  let totalSynced = 0;
+  const allSyncedContacts = [];
+
+  for (const acct of accts) {
+    try {
+      const token = await gmailAccessToken(acct.oauth_refresh);
+      const starredRes = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&q=' + encodeURIComponent('is:starred'),
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(25_000) }
+      );
+      if (!starredRes.ok) {
+        log.warn({ email: acct.email, status: starredRes.status }, 'Error al listar destacados de Gmail');
+        continue;
+      }
+      const starredData = await starredRes.json();
+      const messages = starredData.messages || [];
+      if (!messages.length) continue;
+
+      const myEmail = String(acct.email).toLowerCase().trim();
+      const contactsMap = new Map();
+
+      for (const m of messages) {
+        try {
+          const msgRes = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
+            { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) }
+          );
+          if (!msgRes.ok) continue;
+          const msgData = await msgRes.json();
+          const headers = msgData.payload?.headers || [];
+          const fromH = headerVal(headers, 'from');
+          const toH = headerVal(headers, 'to');
+          const subject = headerVal(headers, 'subject');
+          const dateH = headerVal(headers, 'date');
+
+          const fromObj = parseFrom(fromH);
+          const toObj = parseFrom(toH);
+
+          let target = null;
+          if (fromObj.email && fromObj.email !== myEmail) {
+            target = fromObj;
+          } else if (toObj.email && toObj.email !== myEmail) {
+            target = toObj;
+          }
+
+          if (!target || !target.email || !target.email.includes('@')) continue;
+          const targetEmail = target.email.toLowerCase().trim();
+
+          // Excluir rebotes y cuentas del sistema
+          if (
+            targetEmail.includes('mailer-daemon') ||
+            targetEmail.includes('googlemail') ||
+            targetEmail.includes('postmaster') ||
+            targetEmail.includes('noreply') ||
+            targetEmail.includes('no-reply') ||
+            targetEmail.includes('notifications@')
+          ) {
+            continue;
+          }
+
+          if (!contactsMap.has(targetEmail)) {
+            contactsMap.set(targetEmail, {
+              email: targetEmail,
+              name: target.name || targetEmail,
+              subject: subject || '',
+              date: dateH || null,
+              messageId: m.id
+            });
+          }
+        } catch (msgErr) {
+          log.warn({ err: msgErr.message, id: m.id }, 'Error leyendo metadatos de mensaje destacado');
+        }
+      }
+
+      log.info({ email: acct.email, count: contactsMap.size }, 'Contactos únicos destacados extraídos de Gmail');
+
+      // Sincronizar en dbCore (Proyecto A) respetando la entidad única de Contacto
+      for (const [em, info] of contactsMap.entries()) {
+        try {
+          // 1. ¿Existe en jjp_customers?
+          const { data: existingCust } = await dbCore.from('jjp_customers')
+            .select('id, name, tags, email')
+            .ilike('email', em)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingCust?.id) {
+            let tags = Array.isArray(existingCust.tags) ? existingCust.tags : [];
+            if (!tags.includes('destacado_gmail')) {
+              tags.push('destacado_gmail');
+              await dbCore.from('jjp_customers').update({ tags }).eq('id', existingCust.id);
+            }
+            totalSynced++;
+            allSyncedContacts.push({
+              id: existingCust.id,
+              name: existingCust.name || info.name,
+              email: em,
+              type: 'customer',
+              subject: info.subject,
+              is_starred: true
+            });
+            continue;
+          }
+
+          // 2. ¿Existe en jjp_prospects?
+          const { data: existingPros } = await dbCore.from('jjp_prospects')
+            .select('id, company_name, contact_name, notes, email, status, ai_analysis')
+            .ilike('email', em)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingPros?.id) {
+            let notes = existingPros.notes || '';
+            if (!notes.includes('⭐ Destacado en Gmail')) {
+              notes = `⭐ Destacado en Gmail: ${info.subject || 'Seguimiento'}\n` + notes;
+            }
+            const aiAnalysis = existingPros.ai_analysis && typeof existingPros.ai_analysis === 'object' ? existingPros.ai_analysis : {};
+            aiAnalysis.destacado_gmail = true;
+
+            await dbCore.from('jjp_prospects').update({
+              notes: notes.slice(0, 1000),
+              suggested_subject: info.subject || existingPros.suggested_subject || null,
+              status: existingPros.status === 'nuevo' ? 'destacado' : existingPros.status,
+              ai_analysis: aiAnalysis,
+              updated_at: new Date().toISOString()
+            }).eq('id', existingPros.id);
+
+            totalSynced++;
+            allSyncedContacts.push({
+              id: existingPros.id,
+              name: existingPros.company_name || info.name,
+              email: em,
+              type: 'prospect',
+              subject: info.subject,
+              is_starred: true
+            });
+            continue;
+          }
+
+          // 3. Registrar nuevo prospecto en jjp_prospects
+          let cleanComp = info.name;
+          if (!cleanComp || cleanComp === em) {
+            cleanComp = em.split('@')[0].replace(/[._-]/g, ' ').toUpperCase();
+          }
+
+          const newProspect = {
+            company_name: cleanComp,
+            contact_name: info.name && info.name !== cleanComp ? info.name : cleanComp,
+            email: em,
+            source: 'gmail_destacado',
+            status: 'destacado',
+            seller_id: acct.profile_id,
+            city: 'Caracas',
+            notes: `⭐ Contacto destacado en Gmail (${info.subject || 'Sin asunto'})`,
+            suggested_subject: info.subject ? (info.subject.startsWith('Re:') || info.subject.startsWith('Fwd:') ? info.subject : `Seguimiento: ${info.subject}`) : 'Seguimiento y propuesta comercial | JJ Paper',
+            ai_analysis: {
+              dolor_operativo: 'Abastecimiento de papel y consumibles de oficina',
+              sector_deducido: 'Corporativo B2B',
+              destacado_gmail: true
+            },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: inserted, error: insErr } = await dbCore.from('jjp_prospects')
+            .insert(newProspect)
+            .select('id, company_name, email')
+            .single();
+
+          if (!insErr && inserted) {
+            totalSynced++;
+            allSyncedContacts.push({
+              id: inserted.id,
+              name: inserted.company_name,
+              email: inserted.email,
+              type: 'new_prospect',
+              subject: info.subject,
+              is_starred: true
+            });
+          }
+        } catch (cErr) {
+          log.warn({ err: cErr.message, email: em }, 'Error sincronizando contacto destacado en base de datos');
+        }
+      }
+    } catch (acctErr) {
+      log.warn({ err: acctErr.message, email: acct.email }, 'Error procesando cuenta para destacados de Gmail');
+    }
+  }
+
+  // Guardar metadata en Proyecto B jjp_server_control para consulta rápida
+  try {
+    const { data: ctl } = await db.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    const modules = ctl?.modules || {};
+    modules.gmail_starred = {
+      count: allSyncedContacts.length,
+      last_sync_at: new Date().toISOString(),
+      contacts: allSyncedContacts.slice(0, 50)
+    };
+    await db.from('jjp_server_control').update({ modules }).eq('id', 1);
+  } catch (mErr) {
+    log.warn({ err: mErr.message }, 'No se pudo actualizar metadata gmail_starred en jjp_server_control');
+  }
+
+  log.info({ totalSynced }, 'Sincronización de destacados de Gmail finalizada con éxito');
+  return { syncedCount: totalSynced, contacts: allSyncedContacts };
 }
 
 function headerVal(headers, name) {

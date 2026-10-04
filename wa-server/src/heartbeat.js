@@ -164,6 +164,26 @@ async function runCommand(cmd) {
     return;
   }
 
+  if (cmd === 'sync_gmail_starred' || (cmd && cmd.startsWith('sync_gmail_starred:'))) {
+    const profileId = cmd.includes(':') ? cmd.split(':')[1].trim() : null;
+    log.info({ profileId }, 'comando de sincronización de contactos destacados de Gmail recibido vía Supabase');
+    try {
+      const { syncGmailStarred } = await import('./email.js');
+      const res = await syncGmailStarred(profileId);
+      log.info({ count: res.syncedCount }, 'Sincronización de destacados de Gmail completada.');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, count: res.syncedCount, at: new Date().toISOString() }
+      }).eq('id', 1);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error ejecutando sincronización de destacados de Gmail');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd && cmd.startsWith('call:')) {
     const phone = cmd.replace(/^call:/, '').trim();
     log.info({ phone }, 'comando de llamada GSM recibido vía Supabase');

@@ -34,6 +34,7 @@ export function discoverMixnetEnvironment() {
   ];
 
   const foundDropDirs = new Set();
+  let foundDbfDir = null;
 
   for (const d of availableDrives) {
     // Si la unidad es C:, ignorar carpetas auto-creadas previamente ya que el usuario aclaró que la info de MixNet está en la otra unidad

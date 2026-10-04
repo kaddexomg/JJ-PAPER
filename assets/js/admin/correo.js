@@ -842,13 +842,15 @@ function openMailAiComposer(prefillReply = null) {
         <div class="fg">
           <label class="fl" style="font-weight:700;font-size:12px">Tipo o Intención del Correo</label>
           <select id="mailAiScenario" class="fi" style="width:100%">
-            <option value="propuesta_b2b" ${prefillReply ? '' : 'selected'}>🎯 Abordaje B2B por Necesidades (130-180 palabras | 4 Pilares)</option>
-            <option value="cotizacion">📄 Cotización / Presupuesto Formal</option>
-            <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
+            <option value="cotizacion_seguimiento" ${prefillReply ? 'selected' : ''}>📑 Acuse y Seguimiento de Cotización (Recepción inmediata / Pre-cierre)</option>
+            <option value="oferta_producto">📦 Oferta de Producto Específico (Con precios $ y Bs oficiales)</option>
+            <option value="reactivacion">🤝 Reactivación de Cliente Inactivo (Historial + beneficio flete)</option>
+            <option value="combo">🎁 Combo o Paquete Comercial (Ahorro destacado por lote)</option>
+            <option value="presentacion_b2b" ${prefillReply ? '' : 'selected'}>🏢 Presentación Corporativa B2B por Primera Vez</option>
             <option value="cobro">💳 Recordatorio Amistoso de Cobro / Pago</option>
-            <option value="promo">📣 Promoción de Catálogo / Novedades</option>
-            <option value="respuesta" ${prefillReply ? 'selected' : ''}>↩️ Respuesta Profesional a Consulta</option>
-            <option value="libre">✍️ Asunto Libre</option>
+            <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
+            <option value="respuesta">↩️ Respuesta Profesional a Consulta General</option>
+            <option value="libre">✍️ Redacción Libre</option>
           </select>
         </div>
 
@@ -923,7 +925,7 @@ async function ensureGeminiClient() {
   if (!document.getElementById('geminiClientScript')) {
     const s = document.createElement('script');
     s.id = 'geminiClientScript';
-    s.src = '../assets/js/gemini-client.js?v=20260916_ai_v3';
+    s.src = '../assets/js/gemini-client.js?v=20261004_gemini38_v1';
     document.head.appendChild(s);
   }
   for (let i = 0; i < 35; i++) {
@@ -944,25 +946,66 @@ async function mailAiGenerate() {
 
   try {
     const client = await ensureGeminiClient();
+    if (typeof client.syncKeysFromSettings === 'function') await client.syncKeysFromSettings();
     const profile = window.CURRENT_PROFILE || window.MAIL_ME || {};
     let enrichedNotes = notes;
-    const cid = _mailAiReplyContext?.customerId;
-    if (cid && window.sb) {
+    let historySummary = '';
+    let targetCid = _mailAiReplyContext?.customerId;
+
+    // Buscar cliente e inyectar historial comercial si está disponible
+    if (window.sb) {
       try {
-        const { data: cust } = await sb.from('jjp_customers').select('id, name, zone, tags, notes').eq('id', cid).maybeSingle();
+        let cust = null;
+        if (targetCid) {
+          const { data } = await sb.from('jjp_customers').select('id, name, zone, tags, notes, email').eq('id', targetCid).maybeSingle();
+          cust = data;
+        } else if (to && to.includes('@')) {
+          const { data } = await sb.from('jjp_customers').select('id, name, zone, tags, notes, email').eq('email', to).maybeSingle();
+          cust = data;
+          if (cust) targetCid = cust.id;
+        }
+
         if (cust) {
           enrichedNotes = (enrichedNotes ? enrichedNotes + '\n' : '') + `[Datos CRM: ${cust.name} | Zona: ${cust.zone || 'N/A'} | Notas previas: ${cust.notes || 'Ninguna'}]`;
+          
+          // Buscar historial de compras en jjp_orders
+          const { data: pastOrders } = await sb.from('jjp_orders').select('order_num, total, items, created_at').eq('customer_id', cust.id).order('created_at', { ascending: false }).limit(3);
+          if (pastOrders && pastOrders.length > 0) {
+            const itemsList = [];
+            pastOrders.forEach(o => {
+              if (Array.isArray(o.items)) {
+                o.items.forEach(it => { if (it.name || it.product_name) itemsList.push(it.name || it.product_name); });
+              }
+            });
+            const topItems = [...new Set(itemsList)].slice(0, 4).join(', ');
+            historySummary = `Cliente recurrente con ${pastOrders.length} pedido(s) previo(s). Suele comprar: ${topItems || 'papelería general'}. Última orden: N° ${pastOrders[0].order_num || 'S/N'}.`;
+          }
         }
       } catch (_) {}
     }
 
     let result;
-    if (scenario === 'propuesta_b2b') {
+    const strategicModes = ['oferta_producto', 'reactivacion', 'combo', 'presentacion_b2b', 'cotizacion_seguimiento'];
+    if (strategicModes.includes(scenario) && typeof client.draftStrategicSalesMessage === 'function') {
+      result = await client.draftStrategicSalesMessage({
+        mode: scenario,
+        channel: 'email',
+        customer: {
+          name: to,
+          company: to,
+          email: to.includes('@') ? to : '',
+          historySummary
+        },
+        notes: enrichedNotes + (_mailAiReplyContext?.originalText ? `\n[Respondiendo al correo entrante:\n"${_mailAiReplyContext.originalText.slice(0, 300)}"]` : ''),
+        sellerName: profile.full_name || profile.name || 'Keyder Salazar',
+        sellerPhone: profile.phone || '0412-4676073'
+      });
+    } else if (scenario === 'propuesta_b2b') {
       result = await client.analyzeAndDraftProspectB2B({
         companyName: to || 'Cliente Corporativo',
         notes: enrichedNotes,
-        sellerName: profile.full_name || profile.name || 'Keyder José Salazar',
-        sellerPhone: '0412-4676073'
+        sellerName: profile.full_name || profile.name || 'Keyder Salazar',
+        sellerPhone: profile.phone || '0412-4676073'
       });
     } else {
       result = await client.draftEmail({
@@ -971,7 +1014,7 @@ async function mailAiGenerate() {
         toEmail: to.includes('@') ? to : '',
         notes: enrichedNotes,
         originalEmail: _mailAiReplyContext?.originalText || '',
-        sellerName: profile.full_name || profile.name || 'Asesor JJ Paper'
+        sellerName: profile.full_name || profile.name || 'Keyder Salazar'
       });
     }
 

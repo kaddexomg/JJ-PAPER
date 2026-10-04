@@ -553,7 +553,6 @@
     injectCSS();
     renderNav();
     applyRole();
-    loadCopilot();
     loadKeyboardNav();
     initCommandPalette();
     initModalScrollBridge();

@@ -16,37 +16,53 @@
   }
 })(typeof window !== 'undefined' ? window : this, function () {
 
-  // Pool oficial de 7 API Keys proporcionadas por el usuario
-  // Pool oficial de 7 API Keys proporcionadas por el usuario
-  // Con prioridad a las llaves Pro identificadas para tareas arquitectónicas
-  const PRO_KEYS = [
-    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-    'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E'
-  ];
+  // Pool dinámico de API Keys de Google Gemini.
+  // Protegido: Las claves se sincronizan dinámicamente desde la base de datos (jjp_settings: 'ai_gemini_keys')
+  // y se respaldan en caché local. NUNCA se comitean en texto plano en Git para evitar revocaciones de Google.
+  let GEMINI_KEYS = [];
 
-  const GEMINI_KEYS = [
-    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-    'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
-    'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
-    'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
-    'AQ.Ab8RN6I3nhWx1f54n5rcLa1nJv238N-IqJoIRWljUjZmg3nl-Q',
-    'AQ.Ab8RN6K7DB2-YqkZma3jsV8EfCqHel0UnR07oY-r8qquxgKTsA',
-    'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
-  ];
+  // En entorno Node (servidor o pruebas), cargar desde process.env si está disponible
+  if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEYS) {
+    try {
+      const parsed = JSON.parse(process.env.GEMINI_API_KEYS);
+      if (Array.isArray(parsed) && parsed.length > 0) GEMINI_KEYS = parsed;
+    } catch (_) {}
+  }
 
-  // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
+  // Sincronización dinámica de keys desde base de datos / cache local
+  async function syncKeysFromSettings() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const cached = localStorage.getItem('jjp_gemini_keys_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) GEMINI_KEYS = parsed;
+        }
+      }
+      if (typeof window !== 'undefined' && window.sb) {
+        const { data } = await window.sb.from('jjp_settings').select('value').eq('key', 'ai_gemini_keys').maybeSingle();
+        if (data && data.value) {
+          const parsed = JSON.parse(data.value);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            GEMINI_KEYS = parsed;
+            if (window.localStorage) localStorage.setItem('jjp_gemini_keys_cache', JSON.stringify(parsed));
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  if (typeof window !== 'undefined') setTimeout(syncKeysFromSettings, 50);
+
+  // Modelos oficiales Google Gemini en producción (Octubre 2026)
   const PRO_MODELS = [
-    'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
-    'gemini-flash-latest',
-    'gemini-3.5-flash'
+    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
-    'gemini-3.1-flash-lite',
     'gemini-3.5-flash-lite',
-    'gemini-flash-latest'
+    'gemini-3.8-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -132,7 +148,13 @@
     }
 
     const isArchitect = (mode === 'architect' || mode === 'pro');
-    const keyPool = isArchitect ? [...PRO_KEYS, ...GEMINI_KEYS.filter(k => !PRO_KEYS.includes(k))] : GEMINI_KEYS;
+    if (!GEMINI_KEYS || GEMINI_KEYS.length === 0) {
+      await syncKeysFromSettings();
+    }
+    const keyPool = (GEMINI_KEYS && GEMINI_KEYS.length > 0) ? GEMINI_KEYS : [];
+    if (keyPool.length === 0) {
+      throw new Error('No hay API Keys de Gemini configuradas en el sistema. Regístralas en Ajustes.');
+    }
     const modelsToTry = model
       ? [model, ...(isArchitect ? PRO_MODELS : FAST_MODELS).filter(m => m !== model)]
       : (isArchitect ? PRO_MODELS : FAST_MODELS);
@@ -212,12 +234,24 @@
     throw lastError || new Error('No se pudo comunicar con el servicio de IA tras rotar las 7 claves.');
   }
 
+  function getEffectiveRate() {
+    const w = typeof window !== 'undefined' ? window : {};
+    let r = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 0);
+    if (!r || r < 100) {
+      try {
+        const cached = (typeof localStorage !== 'undefined') ? (localStorage.getItem('jjp_exchange_rate') || localStorage.getItem('jjp_rate_bcv')) : null;
+        if (cached && Number(cached) > 100) r = Number(cached);
+      } catch (_) {}
+    }
+    return (r && r > 100) ? r : 866.56;
+  }
+
   /* --------------------------------------------------------------------------
      Contexto Maestro del Negocio (JJ Paper)
      -------------------------------------------------------------------------- */
   function getBusinessContext() {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const seller = w.CURRENT_PROFILE || w.WA_ME || w.MAIL_ME || {};
     const sellerName = seller.full_name || seller.name || 'Asesor JJ Paper';
     const sellerRef = seller.ref_code || '';
@@ -368,7 +402,7 @@ Devuelve EXACTAMENTE un objeto JSON válido con esta estructura:
      -------------------------------------------------------------------------- */
   async function draftEmail({ scenario = 'cotizacion', toName = '', toEmail = '', notes = '', originalEmail = '', sellerName = '' }) {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const sys = getBusinessContext() + `
 Eres el redactor oficial de correspondencia comercial de JJ Paper C.A.
 Redactas correos impecables, respetuosos y altamente persuasivos para clientes corporativos, librerías, oficinas y comercios.
@@ -399,6 +433,114 @@ Genera el asunto y cuerpo en JSON estricto.`;
       return {
         subject: `Cotización de Productos — JJ Paper C.A.`,
         body: `Estimado(a) ${toName || 'Cliente'},\n\nEs un placer saludarle desde JJ Paper C.A.\n\nEn atención a su solicitud, ponemos a su disposición nuestra cotización con los mejores precios del mercado y disponibilidad inmediata.\n\n${notes ? notes + '\n\n' : ''}Nuestras operaciones se calculan a tasa oficial BCV (${rate.toFixed(2)} Bs/USD). Contamos con despacho directo en Caracas y envíos nacionales.\n\nQuedamos a su entera disposición para procesar su pedido.\n\nAtentamente,\n${sellerName || 'Dpto. de Ventas'}\nJJ Paper C.A.`
+      };
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     3.1. SUITE DE 5 MODOS ESTRATÉGICOS DE VENTAS (JJ PAPER)
+     1. oferta_producto: Oferta de Producto Específico
+     2. reactivacion: Reactivación de Clientes Inactivos
+     3. combo: Combo o Paquete Comercial
+     4. presentacion_b2b: Presentación Corporativa B2B por Primera Vez
+     5. cotizacion_seguimiento: Respuesta Rápida y Cierre de Cotización
+     -------------------------------------------------------------------------- */
+  async function draftStrategicSalesMessage({
+    mode = 'oferta_producto',
+    channel = 'email', // 'email' o 'whatsapp'
+    customer = {},     // { name, company, email, phone, tags, notes, historySummary }
+    product = {},      // { name, price_usd, price_bs, unit, brand, sku, description }
+    combo = {},        // { name, items, price_usd, price_bs, savings_usd }
+    quote = {},        // { quote_num, items, total_usd, total_bs, validity_days }
+    notes = '',        // Notas libres del vendedor
+    sellerName = 'Equipo Comercial JJ Paper',
+    sellerPhone = '0412-2830185'
+  }) {
+    const w = typeof window !== 'undefined' ? window : {};
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 866.56);
+    
+    const clientName = customer.name || customer.company || 'Estimado Cliente';
+    const isWa = channel === 'whatsapp';
+
+    let modeInstructions = '';
+    if (mode === 'oferta_producto') {
+      const prodName = product.name || 'Producto Destacado';
+      const pUsd = (product.price_usd || 0).toFixed(2);
+      const pBs = (product.price_bs || (product.price_usd || 0) * rate).toFixed(2);
+      const unit = product.unit || 'unidad';
+      modeInstructions = `MODO: Oferta de Producto Específico.
+- Producto: ${prodName} ${product.brand ? `(Marca: ${product.brand})` : ''}
+- Presentación / Unidad: ${unit}
+- Precio Oficial: $${pUsd} USD (Bs ${pBs} a tasa oficial BCV de ${rate.toFixed(2)} Bs).
+- Beneficios a destacar: Disponibilidad inmediata en almacén, calidad garantizada, despacho directo en Caracas o envíos nacionales con factura fiscal SENIAT.
+- Objetivo: Presentar el producto de forma contundente y cerrar el pedido o consultar cuántas unidades apartar.`;
+    } else if (mode === 'reactivacion') {
+      modeInstructions = `MODO: Reactivación de Cliente Inactivo.
+- Historial / Notas del Cliente: ${customer.historySummary || customer.notes || 'Cliente recurrente que hace un tiempo no repone inventario con nosotros.'}
+- Beneficio de Reactivación: Flete preferencial o bonificado en Caracas a partir de compras mínimas, precios congelados a tasa oficial BCV (${rate.toFixed(2)} Bs).
+- Tono: Muy cordial, humano y cercano. Reconocer la relación previa sin reproches ni sonar insistente.
+- Objetivo: Consultar cómo están de stock de papelería/suministros esta semana y ofrecer enviar lista de precios o cotización formal.`;
+    } else if (mode === 'combo') {
+      const comboName = combo.name || 'Combo Especial JJ Paper';
+      const comboItems = combo.items || 'Suministros varios de oficina y papelería';
+      const comboUsd = (combo.price_usd || 0).toFixed(2);
+      const comboBs = (combo.price_bs || (combo.price_usd || 0) * rate).toFixed(2);
+      modeInstructions = `MODO: Combo o Paquete Comercial.
+- Nombre del Combo: ${comboName}
+- Contenido incluido: ${comboItems}
+- Precio especial combo: $${comboUsd} USD (Bs ${comboBs} a tasa BCV).
+- Ahorro destacado: Ahorro comprobado vs compra individual ${combo.savings_usd ? `(Ahorras aprox $${combo.savings_usd})` : ''}.
+- Objetivo: Mostrar el desglose con viñetas limpias, urgencia por cupos/lotes limitados y botón de reserva.`;
+    } else if (mode === 'presentacion_b2b') {
+      modeInstructions = `MODO: Presentación Corporativa B2B por Primera Vez (Prospección).
+- Empresa / Contacto: ${clientName}
+- Perfil / Rubro: ${customer.rubro || customer.company || 'Empresa / Institución'}
+- Pilares JJ Paper C.A.: Mayoristas directos de papelería, oficina y escolar en Caracas; facturación fiscal SENIAT; despacho directo; tasa oficial BCV sin sobreprecio; crédito corporativo sujeto a evaluación.
+- Tono: Corporativo, respetuoso, enfocado en solucionar abastecimiento y optimizar presupuestos.
+- Objetivo: Invitar cordialmente a enviarnos una lista de insumos de uso frecuente para emitirles una cotización comparativa sin compromiso.`;
+    } else if (mode === 'cotizacion_seguimiento') {
+      modeInstructions = `MODO: Respuesta Rápida y Seguimiento a Cotización.
+- Datos de Cotización: ${quote.quote_num ? `Cotización N° ${quote.quote_num}` : 'Cotización de materiales'} ${quote.total_usd ? `por un total de $${quote.total_usd.toFixed(2)} USD (Bs ${(quote.total_usd * rate).toFixed(2)})` : ''}.
+- Puntos: Confirmar disponibilidad en almacén, validez de precios a tasa oficial BCV (${rate.toFixed(2)} Bs), y tiempos de entrega estimada.
+- Objetivo: Acelerar la confirmación de la orden de compra o responder cualquier duda para proceder al despacho.`;
+    }
+
+    const sys = getBusinessContext() + `
+Eres el Director Comercial Senior de JJ Paper C.A.
+Generas correspondencia comercial de altísimo nivel, persuasiva, limpia, orientada al cierre y respetuosa.
+
+CANAL: ${isWa ? 'WhatsApp (mensajes directos, con viñetas, negritas con asteriscos, emojis bien dosificados, máx 120-150 palabras)' : 'Email Corporativo (asunto potente y cuerpo formal con saludo, introducción, desglose, términos y firma)'}.
+
+${modeInstructions}
+
+Notas adicionales del asesor: "${notes || 'Sin notas adicionales'}"
+Vendedor responsable: ${sellerName} | Teléfono: ${sellerPhone}
+
+Devuelve EXACTAMENTE un objeto JSON válido:
+{
+  "subject": "${isWa ? '' : 'Asunto profesional y atractivo para el correo'}",
+  "body": "Texto completo del mensaje listo para enviar al cliente",
+  "spintax": "Versión alternativa con Spintax {A|B} para envíos masivos anti-bloqueo"
+}`;
+
+    const prompt = `Genera la propuesta en formato JSON estricto para ${clientName}.`;
+
+    try {
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.65 });
+      const parsed = extractJSON(raw);
+      return {
+        subject: parsed.subject || (isWa ? '' : `Propuesta Comercial — JJ Paper C.A.`),
+        body: parsed.body || '',
+        spintax: parsed.spintax || parsed.body || ''
+      };
+    } catch (e) {
+      console.warn('Fallback en draftStrategicSalesMessage:', e.message);
+      return {
+        subject: isWa ? '' : `Propuesta de Papelería y Suministros — JJ Paper C.A.`,
+        body: isWa
+          ? `¡Hola, ${clientName}! 👋 Te saluda ${sellerName} de JJ Paper C.A.\n\nQueremos poner a tu disposición nuestra lista mayorista con entrega directa en Caracas y tasa oficial BCV (${rate.toFixed(2)} Bs).\n\n¿Deseas que te compartamos nuestro catálogo o coticemos algún producto en específico?\n\n¡Quedo atento!`
+          : `Estimado(a) ${clientName},\n\nEs un placer saludarle de parte de JJ Paper C.A., distribuidores mayoristas de papelería y suministros de oficina en Caracas.\n\nPonenemos a su disposición nuestras mejores condiciones comerciales con facturación SENIAT, tasa oficial BCV (${rate.toFixed(2)} Bs) y despacho directo.\n\nQuedamos a su entera disposición para cotizar los materiales que requiera su empresa.\n\nAtentamente,\n${sellerName}\nJJ Paper C.A. | ${sellerPhone}`,
+        spintax: ''
       };
     }
   }
@@ -568,7 +710,7 @@ Extrae los atributos del producto. JSON estricto:`;
     const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'para', 'con', 'sin', 'por', 'dame', 'busca', 'quiero', 'necesito', 'muestra', 'imagen', 'flyer', 'foto']);
     const tokens = rawTokens.filter(t => !STOPWORDS.has(t));
     const searchTokens = tokens.length > 0 ? tokens : rawTokens;
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
 
     // ══════ PASO 1: Interpretar la consulta con IA (lanzar en paralelo) ══════
     let aiInterpretation = null;
@@ -876,7 +1018,7 @@ ${rawText.slice(0, 50000)}
     valueHook = 'importador_directo'
   }) {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
 
     let prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
     if (prodsList.length === 0) {
@@ -1050,7 +1192,7 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título en n
       }
     }
 
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
     // Familias de alta rotación que cubren el portafolio real de JJ Paper
@@ -1119,7 +1261,7 @@ Redacta el mensaje comercial siguiendo estrictamente la estructura (Título en n
     valueHook = 'importador_directo'
   }) {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
 
     const prodsList = (Array.isArray(products) && products.length > 0)
       ? products
@@ -1639,7 +1781,7 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
       };
     } catch (err) {
       console.warn('Fallback en analyzeCustomerAndDraftMessage:', err);
-      const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+      const rate = getEffectiveRate();
       return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, products, officialPdfIncluded, isAlreadyContacted });
     }
   }
@@ -1885,7 +2027,7 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     }
 
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const sys = getBusinessContext() + `
 Eres el Asistente Oficial y Copiloto Comercial de JJ Paper para el personal (${userRole}).
 - Responde de forma concisa, útil, respetuosa y comercial.
@@ -2445,7 +2587,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
     canvas = null
   }) {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const cvs = canvas || document.createElement('canvas');
     cvs.width = 800;
     cvs.height = 800;
@@ -3155,8 +3297,10 @@ ${rawText}
     searchRealProductPhoto,
     askCopilot,
     renderProductCard,
-    renderMarketingFlyer,
-    renderProductStudioPackshot,
+    draftStrategicSalesMessage,
+    syncKeysFromSettings,
+    setKeys: (newKeys) => { if (Array.isArray(newKeys) && newKeys.length > 0) GEMINI_KEYS = newKeys; },
+    getKeys: () => [...GEMINI_KEYS],
     getCurrentKeyIndex: () => _keyIndex,
     getTotalKeys: () => GEMINI_KEYS.length
   };

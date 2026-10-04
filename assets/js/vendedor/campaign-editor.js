@@ -2090,54 +2090,104 @@ ${rawText}
       modal.id = 'campAiToneModal';
       modal.className = 'ce-picker-overlay';
       modal.innerHTML = `
-        <div class="ce-picker-dialog" style="max-width:500px; height:auto">
+        <div class="ce-picker-dialog">
           <div class="ce-picker-header">
-            <h3>🤖 Actitud y Enfoque de la IA</h3>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:20px;">🤖</span>
+              <div>
+                <h3 style="margin:0; font-size:16px; font-weight:700;">Actitud, Enfoque y Control de la IA</h3>
+                <span style="font-size:11.5px; color:#64748b;">Configura cómo la IA redactará y personalizará la propuesta para cada cuenta</span>
+              </div>
+            </div>
             <button type="button" class="ce-btn-close" id="btnCloseAiToneTop">✕</button>
           </div>
-          <div style="padding:20px; font-size:14px; color:#334155;">
+          <div class="ce-picker-body">
             <div id="ceAiToneNotice" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:12.5px; line-height:1.45;"></div>
-            <p style="margin-top:0; margin-bottom:15px;">¿Qué tipo de mensaje debe redactar la IA para estos prospectos?</p>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="presentacion" checked style="margin-top:3px">
-                <div>
-                  <strong>🚀 Presentación Comercial (Primer contacto)</strong><br>
-                  <span style="font-size:12px; color:#64748b">Presenta a JJ Paper desde cero y enfoca el catálogo en las necesidades de su rubro.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="seguimiento" style="margin-top:3px">
-                <div>
-                  <strong>👀 Seguimiento (Warm up)</strong><br>
-                  <span style="font-size:12px; color:#64748b">Retoma el contacto de forma cordial preguntando cómo le ha ido con su inventario.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="recordatorio" style="margin-top:3px">
-                <div>
-                  <strong>⏰ Recordatorio de Compra</strong><br>
-                  <span style="font-size:12px; color:#64748b">Directo al punto: recuerda que estamos listos para despachar su próximo pedido.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="oferta" style="margin-top:3px">
-                <div>
-                  <strong>🔥 Oferta Relámpago / Oportunidad Mayorista</strong><br>
-                  <span style="font-size:12px; color:#64748b">Crea urgencia comercial, destaca precios de importador directo y ahorro por volumen.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="fidelizado" style="margin-top:3px">
-                <div>
-                  <strong>💎 Cliente VIP / Fidelizado (Reactivación de la Casa)</strong><br>
-                  <span style="font-size:12px; color:#64748b">Trato preferencial exclusivo: agradece la preferencia, destaca precios oficiales BCV y entrega prioritaria.</span>
-                </div>
-              </label>
+            
+            <div style="margin-bottom:16px;">
+              <label style="display:block; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:6px;">1. Enfoque / Actitud de la Comunicación</label>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="presentacion" checked style="margin-top:3px">
+                  <div>
+                    <strong>🚀 Presentación Comercial (Primer contacto)</strong><br>
+                    <span style="font-size:12px; color:#64748b">Presenta a JJ Paper desde cero y enfoca el catálogo en las necesidades de su rubro.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="seguimiento" style="margin-top:3px">
+                  <div>
+                    <strong>👀 Seguimiento (Warm up)</strong><br>
+                    <span style="font-size:12px; color:#64748b">Retoma el contacto de forma cordial preguntando cómo le ha ido con su inventario.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="recordatorio" style="margin-top:3px">
+                  <div>
+                    <strong>⏰ Recordatorio de Compra</strong><br>
+                    <span style="font-size:12px; color:#64748b">Directo al punto: recuerda que estamos listos para despachar su próximo pedido.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="oferta" style="margin-top:3px">
+                  <div>
+                    <strong>🔥 Oferta Relámpago / Oportunidad Mayorista</strong><br>
+                    <span style="font-size:12px; color:#64748b">Crea urgencia comercial, destaca precios de importador directo y ahorro por volumen.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="fidelizado" style="margin-top:3px">
+                  <div>
+                    <strong>💎 Cliente VIP / Fidelizado (Reactivación de la Casa)</strong><br>
+                    <span style="font-size:12px; color:#64748b">Trato preferencial exclusivo: agradece la preferencia, destaca precios oficiales BCV y entrega prioritaria.</span>
+                  </div>
+                </label>
+              </div>
             </div>
-            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+
+            <div style="margin-bottom:16px;">
+              <label style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:6px;">
+                <span>2. Instrucciones Específicas / Petición del Asesor <span style="font-weight:normal; font-size:11px; color:#64748b;">(Opcional pero prioritario)</span></span>
+              </label>
+              <textarea id="ceAiCustomInstructionsBatch" rows="2" placeholder="Ej: Menciona despacho gratis hoy, ofrece crédito a 7 días, o haz énfasis en que somos distribuidores directos de resmas..." style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:12.5px; border:1px solid #cbd5e1; border-radius:8px; resize:vertical; line-height:1.4; font-family:inherit;"></textarea>
+              <span style="display:block; font-size:11px; color:#64748b; margin-top:3px;">La IA obedecerá estas indicaciones de forma estricta al generar cada mensaje.</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">📏 Longitud</label>
+                <select id="ceAiMsgLengthBatch" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="balanced" selected>Equilibrado (B2B)</option>
+                  <option value="short">Ultra-Conciso (3-5 lín)</option>
+                  <option value="detailed">Detallado y Formal</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">💰 Manejo Precios</label>
+                <select id="ceAiPriceModeBatch" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="with_prices" selected>Con Precios ($ / Bs)</option>
+                  <option value="no_prices">Solo Disponibilidad</option>
+                  <option value="bulk_only">Enfocar por Bulto</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">🎯 Llamado Acción</label>
+                <select id="ceAiCtaGoalBatch" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="quote" selected>Pedir Cotización</option>
+                  <option value="inventory">Reponer Inventario</option>
+                  <option value="catalog">Solicitar Catálogo</option>
+                  <option value="meeting">Coordinar Asesoría</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="ce-picker-footer">
+            <div style="font-size:12px; color:#64748b;">
+              <span id="ceAiBatchCountHint"></span>
+            </div>
+            <div style="display:flex; gap:10px;">
               <button type="button" class="ce-btn btn-sec" id="btnCancelAiTone">Cancelar</button>
-              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiTone">Empezar Análisis ⚡</button>
+              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiTone" style="background:#16604A; border-color:#16604A;">Empezar Análisis ⚡</button>
             </div>
           </div>
         </div>
@@ -2153,8 +2203,18 @@ ${rawText}
       document.getElementById('btnConfirmAiTone').onclick = () => {
         const toneEl = document.querySelector('input[name="ai_tone"]:checked');
         const tone = toneEl ? toneEl.value : 'presentacion';
+        const customInstructions = document.getElementById('ceAiCustomInstructionsBatch')?.value || '';
+        const msgLength = document.getElementById('ceAiMsgLengthBatch')?.value || 'balanced';
+        const priceMode = document.getElementById('ceAiPriceModeBatch')?.value || 'with_prices';
+        const ctaGoal = document.getElementById('ceAiCtaGoalBatch')?.value || 'quote';
         closeAiToneModal();
-        startAiAnalysisBatch(tone);
+        startAiAnalysisBatch({
+          selectedTone: tone,
+          customInstructions,
+          msgLength,
+          priceMode,
+          ctaGoal
+        });
       };
     }
 
@@ -2165,6 +2225,11 @@ ${rawText}
       (c.status && String(c.status).startsWith('contactado')) || 
       Number(c.total_orders) > 0
     ).length;
+
+    const hintEl = document.getElementById('ceAiBatchCountHint');
+    if (hintEl) {
+      hintEl.textContent = `🎯 ${totalSelected} destinatario${totalSelected === 1 ? '' : 's'} seleccionado${totalSelected === 1 ? '' : 's'}`;
+    }
 
     const commTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
     const targetSec = document.getElementById('ceTargetSector')?.value || 'auto';
@@ -2215,12 +2280,19 @@ ${rawText}
     requestAnimationFrame(() => modal.classList.add('op'));
   }
 
-  async function startAiAnalysisBatch(selectedTone = 'presentacion') {
+  async function startAiAnalysisBatch(opts = {}) {
     if (isAnalyzingBatch) return;
     if (!selectedAudienceList.length) {
       alert('Por favor selecciona primero los prospectos o clientes a los que dirigirás la campaña.');
       return;
     }
+
+    const options = (typeof opts === 'string') ? { selectedTone: opts } : (opts || {});
+    const selectedTone = options.selectedTone || 'presentacion';
+    const customInstructions = options.customInstructions || '';
+    const msgLength = options.msgLength || 'balanced';
+    const priceMode = options.priceMode || 'with_prices';
+    const ctaGoal = options.ctaGoal || 'quote';
 
     const btn = document.getElementById('ceStartAiAnalysisBtn');
     const origBtnTxt = btn ? btn.innerHTML : '';
@@ -2263,6 +2335,10 @@ ${rawText}
         targetSector,
         commercialTone,
         valueHook,
+        customInstructions,
+        msgLength,
+        priceMode,
+        ctaGoal,
         forceRefresh: true,
         onProgress: async ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
@@ -2373,6 +2449,10 @@ ${rawText}
       const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
       const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
       const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+      const customInstructions = document.getElementById('ceAiCustomInstructionsBatch')?.value || '';
+      const msgLength = document.getElementById('ceAiMsgLengthBatch')?.value || 'balanced';
+      const priceMode = document.getElementById('ceAiPriceModeBatch')?.value || 'with_prices';
+      const ctaGoal = document.getElementById('ceAiCtaGoalBatch')?.value || 'quote';
 
       const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
         customer: cust,
@@ -2385,6 +2465,10 @@ ${rawText}
         targetSector,
         commercialTone,
         valueHook,
+        customInstructions,
+        msgLength,
+        priceMode,
+        ctaGoal,
         forceRefresh: true
       });
 
@@ -2720,20 +2804,191 @@ ${rawText}
     updatePreview();
   }
 
-  async function aiDraftTemplate() {
-    const hasSpecificProducts = (selectedProductsList && selectedProductsList.length > 0) || Boolean(selectedProductOrCombo);
-    let obj = '';
-    if (selectedProductsList && selectedProductsList.length > 0) {
-      obj = `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`;
-    } else if (selectedProductOrCombo) {
-      obj = `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`;
-    } else {
-      // Solo pedir propuesta personalizada si no se seleccionaron productos específicos
-      const defPrompt = 'Actualización de condiciones mayoristas y reposición de inventario';
-      obj = prompt('✨ ¿Qué propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Rollos térmicos para cajas)', defPrompt);
-      if (!obj || !obj.trim()) return;
+  function closeAiDraftModal() {
+    const modal = document.getElementById('campAiDraftModal');
+    if (modal) {
+      modal.classList.remove('op');
+      modal.style.display = 'none';
+    }
+  }
+
+  function openAiDraftModal() {
+    let modal = document.getElementById('campAiDraftModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'campAiDraftModal';
+      modal.className = 'ce-picker-overlay';
+      modal.innerHTML = `
+        <div class="ce-picker-dialog">
+          <div class="ce-picker-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:20px;">🪄</span>
+              <div>
+                <h3 style="margin:0; font-size:16px; font-weight:700;">Redactar Propuesta Comercial con IA</h3>
+                <span style="font-size:11.5px; color:#64748b;">Control total de redacción, argumentos comerciales y personalización</span>
+              </div>
+            </div>
+            <button type="button" class="ce-btn-close" id="btnCloseAiDraftTop">✕</button>
+          </div>
+          <div class="ce-picker-body">
+            <!-- Info contextual -->
+            <div id="ceAiDraftContextBox" style="margin-bottom:14px; padding:10px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; font-size:12.5px; color:#0369a1;"></div>
+
+            <!-- 1. Objetivo / Propuesta Base -->
+            <div style="margin-bottom:14px;">
+              <label style="display:block; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:5px;">1. Objetivo o Propuesta Comercial a Presentar</label>
+              <input type="text" id="ceAiDraftObjective" style="width:100%; box-sizing:border-box; padding:8px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px;" placeholder="Ej: Actualización de precios de resmas, reposición para oficina, oferta escolar...">
+            </div>
+
+            <!-- 2. Instrucciones Personalizadas (Control Total) -->
+            <div style="margin-bottom:14px;">
+              <label style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:5px;">
+                <span>2. Instrucciones Específicas / Petición del Asesor <span style="font-weight:normal; font-size:11px; color:#64748b;">(Opcional pero prioritario)</span></span>
+              </label>
+              <textarea id="ceAiDraftCustomInstructions" rows="3" placeholder="Ej: Haz énfasis en entrega en 24h a toda Caracas, resalta que emitimos factura fiscal y tasa BCV, o menciona que tenemos bultos cerrados a precio especial..." style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:12.5px; border:1px solid #cbd5e1; border-radius:8px; resize:vertical; line-height:1.4; font-family:inherit;"></textarea>
+              <span style="display:block; font-size:11px; color:#64748b; margin-top:3px;">La IA obedecerá fielmente tus directivas sin añadir rellenos innecesarios.</span>
+            </div>
+
+            <!-- 3. Parámetros Estratégicos -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">💼 Tono Comercial</label>
+                <select id="ceAiDraftTone" style="width:100%; box-sizing:border-box; padding:7px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="socio_estrategico">💼 Socio Estratégico (Profesional B2B)</option>
+                  <option value="oportunidad_mayorista">🔥 Oferta Mayorista (Oportunidad y ahorro)</option>
+                  <option value="cercano_consultivo">🤝 Cercano y Consultivo (Asesor amigo)</option>
+                  <option value="institucional_formal">🏢 Institucional Formal (Corporativo)</option>
+                  <option value="fidelizado_reactivacion">💎 Cliente VIP / Fidelizado</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">🎯 Sector Objetivo</label>
+                <select id="ceAiDraftSector" style="width:100%; box-sizing:border-box; padding:7px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="auto">🌐 Detectar / Adaptar Automático</option>
+                  <option value="oficinas">🏢 Oficinas y Empresas</option>
+                  <option value="colegios">🏫 Colegios e Institutos</option>
+                  <option value="papelerias">📚 Papelerías y Librerías</option>
+                  <option value="clinicas">🏥 Clínicas y Salud</option>
+                  <option value="restaurantes">🍽️ Restaurantes y Alimentos</option>
+                  <option value="retail">🛒 Supermercados y Retail</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 4. Ajustes Finos de Estructura -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">📏 Longitud</label>
+                <select id="ceAiDraftLength" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="balanced" selected>Equilibrado (B2B)</option>
+                  <option value="short">Ultra-Conciso (3-5 lín)</option>
+                  <option value="detailed">Detallado y Formal</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">💰 Precios</label>
+                <select id="ceAiDraftPriceMode" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="with_prices" selected>Con Precios ($ y Bs BCV)</option>
+                  <option value="no_prices">Solo Disponibilidad (Sin precios)</option>
+                  <option value="bulk_only">Enfocar Precios por Bulto</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">🎯 Llamado Acción</label>
+                <select id="ceAiDraftCta" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="quote" selected>Pedir Cotización</option>
+                  <option value="inventory">Reponer Inventario</option>
+                  <option value="catalog">Solicitar Catálogo</option>
+                  <option value="meeting">Coordinar Asesoría</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="ce-picker-footer">
+            <div style="font-size:11.5px; color:#64748b;">
+              <span>Se insertará automáticamente en el editor con soporte Spintax</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" class="ce-btn btn-sec" id="btnCancelAiDraft">Cancelar</button>
+              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiDraft" style="background:#16604A; border-color:#16604A;">Redactar Mensaje 🪄</button>
+            </div>
+          </div>
+        </div>
+      `;
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeAiDraftModal();
+      });
+      document.body.appendChild(modal);
+
+      document.getElementById('btnCloseAiDraftTop').onclick = closeAiDraftModal;
+      document.getElementById('btnCancelAiDraft').onclick = closeAiDraftModal;
+
+      document.getElementById('btnConfirmAiDraft').onclick = () => {
+        const objective = document.getElementById('ceAiDraftObjective')?.value?.trim() || '';
+        const customInstructions = document.getElementById('ceAiDraftCustomInstructions')?.value?.trim() || '';
+        const tone = document.getElementById('ceAiDraftTone')?.value || 'socio_estrategico';
+        const targetSector = document.getElementById('ceAiDraftSector')?.value || 'auto';
+        const msgLength = document.getElementById('ceAiDraftLength')?.value || 'balanced';
+        const priceMode = document.getElementById('ceAiDraftPriceMode')?.value || 'with_prices';
+        const ctaGoal = document.getElementById('ceAiDraftCta')?.value || 'quote';
+
+        // Sincronizar selectores principales de la pantalla si el usuario los cambió en el modal
+        const mainTone = document.getElementById('ceCommercialTone');
+        if (mainTone && tone) mainTone.value = tone;
+        const mainSec = document.getElementById('ceTargetSector');
+        if (mainSec && targetSector) mainSec.value = targetSector;
+        onSectorStrategyChange();
+
+        closeAiDraftModal();
+        executeAiDraftTemplate({
+          objective,
+          customInstructions,
+          tone,
+          targetSector,
+          msgLength,
+          priceMode,
+          ctaGoal
+        });
+      };
     }
 
+    // Context box y valores por defecto
+    const contextBox = document.getElementById('ceAiDraftContextBox');
+    const objInput = document.getElementById('ceAiDraftObjective');
+    const toneSelect = document.getElementById('ceAiDraftTone');
+    const secSelect = document.getElementById('ceAiDraftSector');
+
+    const activeTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const activeSec = document.getElementById('ceTargetSector')?.value || 'auto';
+    if (toneSelect) toneSelect.value = activeTone;
+    if (secSelect) secSelect.value = activeSec;
+
+    let defaultObj = '';
+    let contextHtml = '';
+    if (selectedProductsList && selectedProductsList.length > 0) {
+      defaultObj = `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`;
+      contextHtml = `📦 <strong>${selectedProductsList.length} artículos seleccionados</strong> en el editor. La IA incluirá sus especificaciones y precios actualizados.`;
+    } else if (selectedProductOrCombo) {
+      defaultObj = `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name || selectedProductOrCombo.title}`;
+      contextHtml = `💡 <strong>Producto seleccionado:</strong> <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em>. La IA lo destacará como protagonista comercial.`;
+    } else {
+      defaultObj = 'Actualización de condiciones mayoristas y reposición de inventario';
+      contextHtml = `🚀 <strong>Catálogo General JJ Paper:</strong> La IA redactará una propuesta corporativa destacando nuestro rol como importador directo y despacho en 24h.`;
+    }
+
+    if (objInput) objInput.value = defaultObj;
+    if (contextBox) contextBox.innerHTML = contextHtml;
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('op'));
+  }
+
+  function aiDraftTemplate() {
+    openAiDraftModal();
+  }
+
+  async function executeAiDraftTemplate(params = {}) {
+    const isEmail = currentConfig?.channel === 'email';
     const btn = document.getElementById('ceAiDraftBtn');
     const origText = btn ? btn.textContent : '';
     if (btn) {
@@ -2743,21 +2998,26 @@ ${rawText}
 
     try {
       await ensureGeminiClient();
-      const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
-      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+
       const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
 
       const result = await window.GeminiClient.draftCampaignMessage({
-        objective: obj.trim(),
+        objective: (params.objective || 'Actualización de condiciones mayoristas y reposición de inventario').trim(),
+        customInstructions: params.customInstructions || '',
         product: selectedProductOrCombo,
         products: selectedProductsList,
         discount: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '',
         audience: document.getElementById('ceAudienceSelect')?.value || 'todos',
         channel: currentConfig?.channel || 'whatsapp',
         sellerName: currentConfig?.seller?.name || '',
-        targetSector,
-        tone: commercialTone,
-        valueHook
+        targetSector: params.targetSector || 'auto',
+        tone: params.tone || 'socio_estrategico',
+        valueHook,
+        msgLength: params.msgLength || 'balanced',
+        priceMode: params.priceMode || 'with_prices',
+        ctaGoal: params.ctaGoal || 'quote',
+        includeSourcing: true
       });
 
       if (isEmail && result.subject && document.getElementById('ceSubjectInput')) {
@@ -3138,6 +3398,9 @@ ${rawText}
     updatePreview,
     launch,
     aiDraftTemplate,
+    openAiDraftModal,
+    closeAiDraftModal,
+    executeAiDraftTemplate,
     aiSectorPitch,
     aiAntiSpamSpintax,
     aiDesignFlyer

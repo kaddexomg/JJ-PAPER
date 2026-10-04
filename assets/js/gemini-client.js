@@ -1069,11 +1069,16 @@ ${rawText.slice(0, 50000)}
     audience = 'todos',
     channel = 'whatsapp',
     customNotes = '',
+    customInstructions = '',
     sellerName = '',
     tone = 'socio_estrategico',
     historyContext = '',
     targetSector = 'auto',
-    valueHook = 'importador_directo'
+    valueHook = 'importador_directo',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
+    includeSourcing = true
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = getEffectiveRate();
@@ -1095,8 +1100,39 @@ ${rawText.slice(0, 50000)}
     const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
     const toneConfig = COMMERCIAL_TONE_DIRECTIVES[tone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
 
+    // Directivas de control del usuario
+    let customDirectives = '';
+    const userDirectives = (customInstructions || customNotes || '').trim();
+    if (userDirectives) {
+      customDirectives += `\n⭐ INSTRUCCIONES ESPECÍFICAS Y MANDATORIAS DEL ASESOR (MÁXIMA PRIORIDAD):\n"${userDirectives}"\nDEBES CUMPLIR ESTAS INDICACIONES ESTRICTAMENTE EN EL MENSAJE.\n`;
+    }
+    if (msgLength === 'short') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: ULTRA-CONCISO (máximo 4 a 6 renglones en WhatsApp, o menos de 75 palabras en Email). Sin introducciones largas, ve directo al grano.\n`;
+    } else if (msgLength === 'detailed') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: DETALLADO Y COMPLETO. Desarrolla a fondo beneficios, especificaciones de los insumos y formalidades operativas.\n`;
+    } else {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: EQUILIBRADO B2B. Estructura comercial estándar, ágil y ejecutiva.\n`;
+    }
+    if (priceMode === 'no_prices') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: ¡ESTRICTAMENTE PROHIBIDO COLOCAR PRECIOS NUMÉRICOS! Solo menciona la disponibilidad de los artículos y ofrece cotizar a medida según su consumo o volumen.\n`;
+    } else if (priceMode === 'bulk_only') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: Enfatiza los precios y descuentos por bulto cerrado o caja master.\n`;
+    } else {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: Expresa el precio oficial en USD y su equivalente en Bs a Tasa Oficial BCV.\n`;
+    }
+    if (ctaGoal === 'quote') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Ofrecer consignar una cotización formal membretada de inmediato.\n`;
+    } else if (ctaGoal === 'inventory') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Preguntar de forma consultiva por su reposición quincenal de inventario.\n`;
+    } else if (ctaGoal === 'catalog') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Invitar a revisar el catálogo digital o la lista PDF oficial.\n`;
+    } else if (ctaGoal === 'meeting') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Proponer coordinar una llamada breve o una visita con muestras en su sede corporativa.\n`;
+    }
+
     // Extracción de especificaciones técnicas y comerciales del producto o combo / listado múltiple
     let prodSpecs = '';
+    const showPrices = (priceMode !== 'no_prices');
     if (prodsList.length > 0) {
       prodSpecs = `
 LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artículos):
@@ -1108,7 +1144,8 @@ LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artícu
         const priceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
         const priceBs = priceUsd > 0 ? (priceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
         const disc = p.discount_pct ? `[${p.discount_pct}% desc.]` : '';
-        return `• ${pName} ${pBrand ? `· Marca: ${pBrand}` : ''} ${pSku} | Presentación: ${pUnit} | Precio Oferta: $${priceUsd.toFixed(2)} USD (Bs. ${priceBs}) ${disc}`;
+        const priceTxt = showPrices ? `Precio Oferta: $${priceUsd.toFixed(2)} USD (Bs. ${priceBs}) ${disc}` : `Disponibilidad inmediata para cotización formal`;
+        return `• ${pName} ${pBrand ? `· Marca: ${pBrand}` : ''} ${pSku} | Presentación: ${pUnit} | ${priceTxt}`;
       }).join('\n') + '\n';
     }
 
@@ -1128,28 +1165,18 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
    - JJ Paper C.A. es importador y distribuidor mayorista directo con almacén e inventario real para entrega inmediata en Caracas.
    - NO somos revendedores ni intermediarios: ofrecemos precios directos de distribuidor (Precio B mayorista) y factura fiscal legal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
 
-2. TRATAMIENTO DE PRECIOS CON INTELIGENCIA COMERCIAL (¡NUNCA PRECIOS AISLADOS EN FRÍO!):
-   - ¡PROHIBIDO tirar precios secos o altos que ahuyenten al cliente! Enmarca siempre el precio comercialmente.
-   - Aclara la presentación mayorista ("por bulto cerrado", "por caja", "paquete de 10 resmas", etc.).
-   - Enfatiza que se trata de PRECIO DE LISTA MAYORISTA con condiciones preferenciales y escalas de descuento por volumen.
-   - Expresa siempre el valor en dólares ($) y su equivalente en bolívares (Bs.) calculados con la Tasa Oficial BCV.
+2. TRATAMIENTO DE PRECIOS CON INTELIGENCIA COMERCIAL:
+   ${priceMode === 'no_prices' ? '- ¡ESTRICTAMENTE PROHIBIDO COLOCAR MONTOS NUMÉRICOS! Solo invita a pedir cotización formal.' : '- Enmarca el precio comercialmente. Aclara empaque mayorista y expresa en USD y Bs tasa BCV.'}
 
-3. PROMESA MANDATORIA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
-   - DEBES incluir de forma clara y destacada que si el cliente busca o necesita cualquier otro producto, formato o marca que no vea en la lista o catálogo, *JJ Paper se lo ubica, cotiza y despacha de inmediato*:
-     "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha directamente a su empresa."
+3. PROMESA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
+   ${includeSourcing ? '- DEBES incluir: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha directamente a su empresa."' : ''}
 
-4. PRESENTACIÓN DE OFERTAS Y ARTÍCULOS EN PROMOCIÓN:
-   - Presenta cada producto suministrado con su propia viñeta (•).
-   - Formato obligatorio: • *Nombre del Producto* (Presentación o Empaque): *$X.XX USD* | Bs. Y,YY
-   - ¡PROHIBIDO inventar o alterar precios o presentaciones! Usa con estricta fidelidad los datos oficiales provistos.
-
-5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
-   - **TÍTULO DESTACADO**: OBLIGATORIO en negritas con actitud comercial según el tono (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.* o *💎 CONDICIONES ESPECIALES DE LA CASA · JJ PAPER C.A.* o *📦 SUMINISTRO DIRECTO PARA EMPRESAS · JJ PAPER C.A.*).
+4. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
+   - **TÍTULO DESTACADO**: OBLIGATORIO en negritas con actitud comercial según el tono.
    - **SEPARADOR**: Línea estética de separación (━━━━━━━━━━━━━━━━━━━━━━━━━━).
    - **SALUDO DINÁMICO (SPINTAX)**: Adaptado al tono (${toneConfig.opening}) 👋
    - **PROPUESTA COMERCIAL**: Conecta con el sector (${effectiveSector}), presenta la solución de abastecimiento y la ventaja (${effectiveHook}).
-   - **LISTA COMPLETA DE PRODUCTOS**: Con viñeta (•), negrita (*...*), empaque y precios en USD y Bs. a Tasa BCV.
-   - **CLÁUSULA DE SOURCING**: Promesa de búsqueda y cotización de cualquier insumo adicional.
+   - **LISTA DE PRODUCTOS**: Con viñeta (•), negrita (*...*), empaque${showPrices ? ' y precios en USD y Bs a Tasa BCV' : ''}.
    - **VENTAJAS OPERATIVAS CON JJ PAPER**:
      • 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios, precio mayorista real)
      • 🧾 *Facturación Fiscal Legal (RIF J-295375450)* en bolívares calculados a Tasa Oficial BCV
@@ -1159,7 +1186,7 @@ ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
    - **LLAMADO A LA ACCIÓN (CTA)**: Adaptado al tono (${toneConfig.closing}).
    - **FIRMA CORPORATIVA**: Atentamente, *{{vendedor}}* | Asesor Comercial JJ Paper C.A.
 
-6. CERO REPETICIÓN / CREATIVIDAD DINÁMICA:
+5. CERO REPETICIÓN / CREATIVIDAD DINÁMICA:
    - NO uses plantillas robóticas idénticas ni la frase "Estimado cliente".
    - Utiliza Spintax rico en saludos y llamados a la acción ({A|B|C}) para que cada destinatario reciba un mensaje único.
 
@@ -1178,10 +1205,10 @@ Canal: ${channel}
 Segmento de Audiencia: ${audience}
 ${prodSpecs}
 Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'}
-Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato'}
 Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
+${customDirectives}
 
-Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}", el sector "${effectiveSector}" y el gancho "${effectiveHook}". Formato JSON solicitado:`;
+Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}", el sector "${effectiveSector}", el gancho "${effectiveHook}" y las directivas solicitadas. Formato JSON:`;
 
     try {
       const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.75 });
@@ -1309,7 +1336,11 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
     messageType = 'Presentación Inicial',
     targetSector = 'auto',
     commercialTone = 'socio_estrategico',
-    valueHook = 'importador_directo'
+    valueHook = 'importador_directo',
+    customInstructions = '',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote'
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = getEffectiveRate();
@@ -1596,6 +1627,33 @@ FORMATO DE RESPUESTA REQUERIDO (DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO SIN 
   "wa_body": "Mensaje adaptado a WhatsApp con negritas (*...*), viñetas (•), dobles saltos, PDF adjunto y Spintax {A|B|C}"
 }`;
 
+    let customDirectives = '';
+    const userDirectives = (customInstructions || notes || '').trim();
+    if (userDirectives) {
+      customDirectives += `\n⭐ INSTRUCCIONES ESPECÍFICAS Y MANDATORIAS DEL ASESOR (MÁXIMA PRIORIDAD):\n"${userDirectives}"\nDEBES CUMPLIR ESTAS INDICACIONES ESTRICTAMENTE EN EL MENSAJE.\n`;
+    }
+    if (msgLength === 'short') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: ULTRA-CONCISO (máximo 4 a 6 renglones en WhatsApp, o menos de 75 palabras en Email). Sin introducciones largas, ve directo al grano.\n`;
+    } else if (msgLength === 'detailed') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: DETALLADO Y COMPLETO. Desarrolla a fondo beneficios, especificaciones de los insumos y formalidades operativas.\n`;
+    } else {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: EQUILIBRADO B2B. Estructura comercial estándar, ágil y ejecutiva.\n`;
+    }
+    if (priceMode === 'no_prices') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: ¡ESTRICTAMENTE PROHIBIDO COLOCAR PRECIOS NUMÉRICOS! Solo menciona la disponibilidad de los artículos y ofrece cotizar a medida según su consumo o volumen.\n`;
+    } else if (priceMode === 'bulk_only') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: Enfatiza los precios y descuentos por bulto cerrado o caja master.\n`;
+    }
+    if (ctaGoal === 'quote') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Ofrecer consignar una cotización formal membretada de inmediato.\n`;
+    } else if (ctaGoal === 'inventory') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Preguntar de forma consultiva por su reposición quincenal de inventario.\n`;
+    } else if (ctaGoal === 'catalog') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Invitar a revisar el catálogo digital o la lista PDF oficial.\n`;
+    } else if (ctaGoal === 'meeting') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Proponer coordinar una llamada breve o una visita con muestras en su sede corporativa.\n`;
+    }
+
     const prompt = `
 DATOS DEL CLIENTE A ANALIZAR:
 - Empresa: "${companyName}"
@@ -1610,6 +1668,7 @@ CONFIGURACIÓN DE REDACCIÓN SELECCIONADA POR EL ASESOR:
 - Tono / Actitud Comercial Requerida: "${toneConfig.name}" (${toneConfig.attitude} — ${toneConfig.style})
 - Propuesta de Valor / Gancho de Negocio: "${effectiveHook}"
 - Sector Objetivo: "${effectiveSector}"
+${customDirectives}
 
 ${prodsList.length > 0 ? `
 ========================================================================
@@ -1727,6 +1786,10 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     targetSector = 'auto',
     commercialTone = 'socio_estrategico',
     valueHook = 'importador_directo',
+    customInstructions = '',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
     forceRefresh = false
   }) {
     const w = typeof window !== 'undefined' ? window : {};
@@ -1820,7 +1883,11 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
         messageType: effectiveMessageType,
         targetSector,
         commercialTone,
-        valueHook
+        valueHook,
+        customInstructions,
+        msgLength,
+        priceMode,
+        ctaGoal
       });
 
       const isEmail = (channel === 'email');
@@ -1986,6 +2053,10 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     targetSector = 'auto',
     commercialTone = 'socio_estrategico',
     valueHook = 'importador_directo',
+    customInstructions = '',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
     onProgress = null
   }) {
     const results = [];
@@ -2029,6 +2100,10 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
             targetSector,
             commercialTone,
             valueHook,
+            customInstructions,
+            msgLength,
+            priceMode,
+            ctaGoal,
             forceRefresh
           });
           completed++;

@@ -1040,3 +1040,16 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - Raíz MixNet: `Z:\` (`\\servidor\MIX11`) con base de datos en `Z:\comp01\`.
   - Unidad alternativa: `M:\` (`\\servidor\d`) con base de datos en `M:\MIX11\comp01\`.
 
+## Control Granular de Redacción IA, Reparación de Modales y Arquitectura Maestra (04-10-2026)
+- **Reparación del Scroll en Modal "Actitud y Enfoque" (`campAiToneModal`)**:
+  - Causa raíz: `.ce-picker-dialog` poseía una altura fija sin scroll en el contenedor hijo, truncando el modal tras "Cliente VIP" en pantallas <= 800px o con escalado de Windows (125%/150%) y ocultando los botones de acción.
+  - Solución: Reestructuración en 3 capas (`.ce-picker-header` fijo, `.ce-picker-body` con `max-height: calc(90vh - 130px); overflow-y: auto; -webkit-overflow-scrolling: touch;`, y `.ce-picker-footer` fijo anclado).
+- **Control Total y Granular de Redacción con IA**:
+  - `gemini-client.js`: Nuevos parámetros `customInstructions`, `msgLength`, `priceMode`, `ctaGoal` inyectados en `draftCampaignMessage`, `analyzeAndDraftProspectB2B`, `analyzeCustomerAndDraftMessage` y `analyzeCustomersBatch`.
+  - `campaign-editor.js`: Nuevo modal `campAiDraftModal` (`openAiDraftModal`) que reemplaza el primitivo `prompt()`, permitiendo configurar directivas del asesor, longitud (equilibrado / ultra-conciso / detallado), manejo de precios (con precios $ y Bs / solo disponibilidad / por bulto) y llamado a la acción (cotización / inventario / catálogo / visita).
+  - Sincronización en tiempo real con los selectores de pantalla `ceCommercialTone`, `ceTargetSector`, `ceValueHook`.
+- **Manual Maestro de Arquitectura Total y Prevención de Fallas**:
+  - Consolidado [`ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md`](file:///C:/Users/PC/Desktop/JJ%20PAPER/ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md) (y copia en `C:\Users\PC\Desktop\ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md`).
+  - Documenta la topología de red completa con Mermaid, contraste Frontend vs Backend (`wa-server`) vs Nube (Supabase Multi-proyecto), matriz de las 8 fallas operativas y plan de migración a VPS.
+
+

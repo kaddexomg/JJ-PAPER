@@ -69,14 +69,8 @@ async function loadDProductsAndCombos() {
     }
     dProducts = prods || [];
 
-    // Cargar promociones / combos activos
-    const { data: promos } = await sb.from('jjp_promos')
-      .select('*')
-      .eq('active', true)
-      .order('sort_order')
-      .limit(100);
-    dCombos = promos || [];
-
+    // Combos / promociones purgados
+    dCombos = [];
     renderProductAndComboSelects();
   } catch (e) {
     console.warn('Error cargando catálogo para difusión:', e);

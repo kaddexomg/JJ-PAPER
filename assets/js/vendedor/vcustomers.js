@@ -326,7 +326,10 @@ async function saveCustomer() {
     fields.bounced_at = null;
     try {
       if (originalEmail) {
-        sb.from('jjp_email_suppression_list').delete().eq('email', originalEmail);
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', originalEmail);
+      }
+      if (emailVal) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', emailVal);
       }
     } catch (_) {}
   }

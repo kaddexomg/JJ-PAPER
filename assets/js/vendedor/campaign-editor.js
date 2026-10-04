@@ -644,18 +644,7 @@ window.CampaignEditor = (() => {
         console.warn('Aviso cargando productos en CampaignEditor:', e);
       }
     }
-    if ((!config.combos || config.combos.length === 0) && typeof sb !== 'undefined') {
-      try {
-        const { data: promos } = await sb.from('jjp_promos')
-          .select('*')
-          .eq('active', true)
-          .order('sort_order')
-          .limit(100);
-        config.combos = promos || [];
-      } catch (e) {
-        console.warn('Aviso cargando combos en CampaignEditor:', e);
-      }
-    }
+    config.combos = [];
     if ((!config.templates || config.templates.length === 0) && typeof sb !== 'undefined') {
       try {
         const { data: tpls } = await sb.from('jjp_wa_templates')

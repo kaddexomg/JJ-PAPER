@@ -217,10 +217,19 @@ async function saveAdminCustomer() {
     updated_at: new Date().toISOString(),
   };
   
-  if (editingAdminCustId && originalStatus === 'bounced_hard' && emailVal && emailVal !== originalEmail) {
+  const wasBounced = originalStatus === 'bounced_hard' || originalStatus === 'bounced' || originalStatus === 'bounced_soft';
+  if (editingAdminCustId && wasBounced && emailVal && emailVal !== originalEmail) {
     fields.email_status = 'valid';
     fields.bounce_reason = null;
     fields.bounced_at = null;
+    try {
+      if (originalEmail) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', originalEmail);
+      }
+      if (emailVal) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', emailVal);
+      }
+    } catch (_) {}
   }
 
   let error, insertedRow;

@@ -442,13 +442,7 @@ async function loadEcProductsAndCombos() {
     }
     ecProducts = prods || [];
 
-    const { data: promos } = await sb.from('jjp_promos')
-      .select('*')
-      .eq('active', true)
-      .order('sort_order')
-      .limit(100);
-    ecCombos = promos || [];
-
+    ecCombos = [];
     renderEcProductAndComboSelects();
   } catch (e) {
     console.warn('Error cargando catálogo para campañas de email:', e);
@@ -754,7 +748,7 @@ function ecSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
       const priceUsd = Number(c.price_usd) || 0;
       prodPrice = priceUsd ? (`$${priceUsd.toFixed(2)} USD` + (bcv ? ` (Bs ${ (priceUsd * bcv).toFixed(2) })` : '')) : 'Consultar';
       prodDesc = c.description || '';
-      prodLink = `${location.origin}/promociones.html`;
+      prodLink = `${location.origin}/catalogo.html`;
       if (c.badge) discount = c.badge;
     }
   }

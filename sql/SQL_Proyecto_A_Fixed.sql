@@ -4268,4 +4268,29 @@ NOTIFY pgrst, 'reload schema';
 ALTER TABLE public.jjp_wa_campaigns
   ADD COLUMN IF NOT EXISTS skipped_count INTEGER NOT NULL DEFAULT 0;
 
+-- =========================================
+-- GENERADOR ATÓMICO DE CORRELATIVOS (MIXNET PARITY)
+-- =========================================
+CREATE SEQUENCE IF NOT EXISTS public.jjp_order_serial_seq START WITH 112590;
+CREATE SEQUENCE IF NOT EXISTS public.jjp_quote_serial_seq START WITH 53356;
+
+CREATE OR REPLACE FUNCTION public.jjp_next_doc_serial(p_type text)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_next bigint;
+BEGIN
+  IF p_type = 'cotizacion' OR p_type = 'quote' THEN
+    SELECT nextval('public.jjp_quote_serial_seq') INTO v_next;
+  ELSE
+    SELECT nextval('public.jjp_order_serial_seq') INTO v_next;
+  END IF;
+  RETURN lpad(v_next::text, 8, '0');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.jjp_next_doc_serial(text) TO authenticated, anon, service_role;
+
 NOTIFY pgrst, 'reload schema';

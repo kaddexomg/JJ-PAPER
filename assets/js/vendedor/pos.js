@@ -811,12 +811,14 @@ async function posSubmit() {
     // Si la venta provino de una cotización, marcar la cotización como convertida
     if (posLinkedQuoteId) {
       try {
-        await sb.from('jjp_quotes').update({
-          status: 'convertido',
-          updated_at: new Date().toISOString()
+        const { error: qErr } = await sb.from('jjp_quotes').update({
+          status: 'convertido'
         }).eq('id', posLinkedQuoteId);
+        if (qErr) {
+          console.warn('Error actualizando cotización a convertida:', qErr.message);
+        }
       } catch (qErr) {
-        console.warn('Error actualizando cotización a convertida:', qErr);
+        console.warn('Excepción actualizando cotización a convertida:', qErr);
       }
       posLinkedQuoteId = null;
     }

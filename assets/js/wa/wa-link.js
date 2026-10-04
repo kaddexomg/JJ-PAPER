@@ -6,6 +6,36 @@
 let WA_SESSION = null;   // mi fila de jjp_wa_sessions
 let _waLinkMe = null;
 
+// Sondeo de respaldo inteligente: solo sondea si la ventana está activa, con retroceso y límite máximo
+let _waPollAttempts = 0;
+let _waPollInterval = null;
+
+function scheduleNextPoll() {
+  if (_waPollInterval) clearTimeout(_waPollInterval);
+  const modal = document.getElementById('waLinkModal');
+  const isModalOpen = modal?.classList.contains('op') || modal?.style?.display === 'block';
+  const isActivelyConnecting = WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr' || WA_SESSION?.status === 'reconnecting';
+
+  if (!isModalOpen && !isActivelyConnecting) {
+    _waPollAttempts = 0;
+    return;
+  }
+
+  _waPollAttempts++;
+  // Si ya pasaron más de 15 intentos (~2 minutos) sin respuesta, pausar el sondeo
+  if (_waPollAttempts > 15) {
+    console.warn('[wa-link] Sondeo pausado: el servidor no responde tras múltiples intentos.');
+    return;
+  }
+
+  // Intervalo progresivo: 3s los primeros 5 intentos, luego 10s
+  const delay = _waPollAttempts <= 5 ? 3000 : 10000;
+  _waPollInterval = setTimeout(async () => {
+    await waLoadSession();
+    scheduleNextPoll();
+  }, delay);
+}
+
 async function waLinkInit(profileId) {
   _waLinkMe = profileId;
   await waLoadSession();
@@ -16,36 +46,6 @@ async function waLinkInit(profileId) {
       { event: 'UPDATE', schema: 'public', table: 'jjp_wa_sessions', filter: `profile_id=eq.${profileId}` },
       payload => { WA_SESSION = payload.new; waRenderLink(); })
     .subscribe();
-
-  // Sondeo de respaldo inteligente: solo sondea si la ventana está activa, con retroceso y límite máximo
-  let _waPollAttempts = 0;
-  let _waPollInterval = null;
-
-  function scheduleNextPoll() {
-    if (_waPollInterval) clearTimeout(_waPollInterval);
-    const modal = document.getElementById('waLinkModal');
-    const isModalOpen = modal?.classList.contains('op') || modal?.style?.display === 'block';
-    const isActivelyConnecting = WA_SESSION?.status === 'starting' || WA_SESSION?.status === 'pending_qr' || WA_SESSION?.status === 'reconnecting';
-
-    if (!isModalOpen && !isActivelyConnecting) {
-      _waPollAttempts = 0;
-      return;
-    }
-
-    _waPollAttempts++;
-    // Si ya pasaron más de 15 intentos (~2 minutos) sin respuesta, pausar el sondeo
-    if (_waPollAttempts > 15) {
-      console.warn('[wa-link] Sondeo pausado: el servidor no responde tras múltiples intentos.');
-      return;
-    }
-
-    // Intervalo progresivo: 3s los primeros 5 intentos, luego 10s
-    const delay = _waPollAttempts <= 5 ? 3000 : 10000;
-    _waPollInterval = setTimeout(async () => {
-      await waLoadSession();
-      scheduleNextPoll();
-    }, delay);
-  }
 
   // Iniciar sondeo inicial controlado
   scheduleNextPoll();

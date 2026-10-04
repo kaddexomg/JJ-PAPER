@@ -355,18 +355,16 @@ function quoteCtx(id) {
 
 // Dashboard stats
 async function loadDashboardStats() {
-  const [{ count: totalProds }, { count: totalQuotes }, { count: pendingQuotes }, { count: pendingRevs }] =
+  const [{ count: totalProds }, { count: totalQuotes }, { count: pendingQuotes }] =
     await Promise.all([
       sb.from('jjp_products').select('id', { count:'exact', head:true }),
       sb.from('jjp_quotes').select('id',   { count:'exact', head:true }),
       sb.from('jjp_quotes').select('id',   { count:'exact', head:true }).eq('status','pendiente'),
-      sb.from('jjp_reviews').select('id',  { count:'exact', head:true }).eq('approved', false),
     ]);
 
   setText('stat-products', totalProds ?? 0);
   setText('stat-quotes',   totalQuotes ?? 0);
   setText('stat-pending',  pendingQuotes ?? 0);
-  setText('stat-reviews',  pendingRevs ?? 0);
 
   // Recent quotes
   const { data: recent } = await sb.from('jjp_quotes')
@@ -389,38 +387,4 @@ async function loadDashboardStats() {
 function setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
-}
-
-// Admin reviews
-async function loadAdminReviews() {
-  const { data } = await sb.from('jjp_reviews')
-    .select('*').order('created_at', { ascending: false });
-  const tbody = document.getElementById('reviewsTableBody');
-  if (!tbody || !data) return;
-  tbody.innerHTML = data.map(r => `<tr>
-    <td>${r.name}</td>
-    <td>${'★'.repeat(r.stars)}</td>
-    <td style="max-width:200px;font-size:12px">${r.text}</td>
-    <td>${fmtDate(r.created_at)}</td>
-    <td><span class="badge ${r.approved?'badge-green':'badge-yellow'}">${r.approved?'Aprobada':'Pendiente'}</span></td>
-    <td>
-      <div class="td-actions">
-        ${!r.approved ? `<button class="btn-p sm" onclick="approveReview('${r.id}')">✅ Aprobar</button>` : ''}
-        <button class="btn-danger" onclick="deleteReview('${r.id}')">🗑️</button>
-      </div>
-    </td>
-  </tr>`).join('');
-}
-
-async function approveReview(id) {
-  await sb.from('jjp_reviews').update({ approved: true }).eq('id', id);
-  showToast('Resena aprobada');
-  loadAdminReviews();
-}
-
-async function deleteReview(id) {
-  if (!confirm('¿Eliminar resena?')) return;
-  await sb.from('jjp_reviews').delete().eq('id', id);
-  showToast('Resena eliminada');
-  loadAdminReviews();
 }

@@ -286,12 +286,11 @@ export class WaSession {
           return message;
         },
         syncFullHistory: false,
-        shouldSyncHistoryMessage: (msg) => {
-          const ts = Number(msg?.messageTimestamp || 0);
-          const now = Math.floor(Date.now() / 1000);
-          if (ts && (now - ts > 7 * 86400)) return false;
-          const jid = msg?.key?.remoteJid || '';
-          if (!jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter')) return false;
+        shouldSyncHistoryMessage: (historyMsg) => {
+          // Si el tipo de sincronización es FULL (historial completo de meses/años), descartarlo
+          // proto.HistorySync.HistorySyncType.FULL = 2
+          if (historyMsg?.syncType === 2) return false;
+          // Permitir sincronización RECENT/BOOTSTRAP (el filtrado a 7 días y exclusión de grupos se hace en onHistory)
           return true;
         },
         shouldIgnoreJid: (jid) => !jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter'),

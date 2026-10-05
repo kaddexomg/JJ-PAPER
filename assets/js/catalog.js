@@ -7,27 +7,7 @@ function observeReveal(root = document) {
   try {
     const elements = root.querySelectorAll ? root.querySelectorAll('.rv, .rv-up, .rv-left, .rv-right, .rv-zoom') : [];
     if (!elements || !elements.length) return;
-    if (!window.IntersectionObserver) {
-      elements.forEach(el => el.classList.add('vi'));
-      return;
-    }
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add('vi');
-          io.unobserve(e.target);
-        }
-      });
-    }, { threshold: 0.05 });
-    elements.forEach(el => {
-      if (!el.classList.contains('vi')) io.observe(el);
-    });
-    // Fallback de seguridad: asegura que todas las tarjetas sean visibles aún si el observer se demora
-    setTimeout(() => {
-      elements.forEach(el => {
-        if (!el.classList.contains('vi')) el.classList.add('vi');
-      });
-    }, 600);
+    elements.forEach(el => el.classList.add('vi'));
   } catch (err) {
     console.warn('observeReveal fallback error:', err);
   }
@@ -175,27 +155,37 @@ function normalizeProduct(p) {
 }
 
 async function loadProducts() {
-  const cacheKey = 'jjp_products_cache_v6';
-  const cacheTimeKey = 'jjp_products_cache_v6_time';
-  const cached = sessionStorage.getItem(cacheKey);
-  const cachedTime = sessionStorage.getItem(cacheTimeKey);
+  const cacheKey = 'jjp_products_cache_v7';
+  const cacheTimeKey = 'jjp_products_cache_v7_time';
   const now = Date.now();
-  if (cached && cachedTime && (now - parseInt(cachedTime, 10) < 3600000)) {
+
+  // 1. Revisar caché persistente (localStorage primero para carga instantánea 0ms)
+  let cached = null;
+  let cachedTime = null;
+  try {
+    cached = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey);
+    cachedTime = localStorage.getItem(cacheTimeKey) || sessionStorage.getItem(cacheTimeKey);
+  } catch (_) {}
+
+  if (cached) {
     try {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
         allProducts = parsed.map(normalizeProduct);
         allProducts.forEach(p => { productMap[p.id] = p; });
-        return;
+        // Si el caché tiene menos de 2 horas, usar directamente
+        if (cachedTime && (now - parseInt(cachedTime, 10) < 7200000)) {
+          return;
+        }
       }
     } catch (_) {}
   }
 
+  // 2. Consulta a Supabase
   let allData = [];
   let from = 0;
   const step = 999;
   while (true) {
-    // Consulta aplanada ultra-rápida vía vista materializada (~150ms-700ms en vez de ~2888ms)
     const { data, error } = await sb.from('jjp_catalog_flat')
       .select('*')
       .range(from, from + step)
@@ -208,7 +198,11 @@ async function loadProducts() {
         .eq('active', true)
         .range(from, from + step)
         .order('sort_order');
-      if (fbErr) { console.error(fbErr); return; }
+      if (fbErr) {
+        console.error(fbErr);
+        if (allProducts.length > 0) return;
+        break;
+      }
       if (!fbData || fbData.length === 0) break;
       allData.push(...fbData);
       if (fbData.length <= step) break;
@@ -222,13 +216,16 @@ async function loadProducts() {
     from += step + 1;
   }
   
-  allProducts = allData.map(normalizeProduct);
-  // Populate lookup map for safe cart/modal calls from any page
-  allProducts.forEach(p => { productMap[p.id] = p; });
-  try {
-    sessionStorage.setItem(cacheKey, JSON.stringify(allData));
-    sessionStorage.setItem(cacheTimeKey, String(now));
-  } catch (_) {}
+  if (allData.length > 0) {
+    allProducts = allData.map(normalizeProduct);
+    allProducts.forEach(p => { productMap[p.id] = p; });
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(allData));
+      localStorage.setItem(cacheTimeKey, String(now));
+      sessionStorage.setItem(cacheKey, JSON.stringify(allData));
+      sessionStorage.setItem(cacheTimeKey, String(now));
+    } catch (_) {}
+  }
 }
 
 // ---- Filter + Sort ----
@@ -421,6 +418,40 @@ function renderProds() {
   observeReveal(grid);
 }
 
+// ---- WhatsApp Direct Share Bridge ----
+function shareProductToWA(productId, e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+  const p = (typeof productMap !== 'undefined' && productMap[productId]) ||
+            allProducts.find(x => x.id === productId);
+  if (!p) return;
+
+  const rawImg = p.image_url || (p.variants && p.variants.find(v => v.image_url)?.image_url) || null;
+  const brand = p._brands?.length ? p._brands.map(b => b.name).join(', ') : '';
+  const priceUsd = fmtPrice(p._minPrice);
+  const priceBs  = fmtBs(p._minPrice);
+  const prodKey = p.sku || p.id;
+  const prodUrl = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+
+  let msg = `👋 *Hola JJ Paper, me interesa este producto del catálogo:*\n\n` +
+            `📦 *${p.name}*${brand ? `\n🏷️ Marca: ${brand}` : ''}\n` +
+            `💰 *Precio:* ${priceUsd} (${priceBs})\n` +
+            `🔗 *Ver en Catálogo:* ${prodUrl}\n`;
+
+  if (rawImg && rawImg.trim()) {
+    msg += `🖼️ *Foto oficial:* ${rawImg}\n`;
+  }
+  msg += `\n¿Tienen disponibilidad para despacho?`;
+
+  if (typeof openWA === 'function') {
+    openWA(msg);
+  } else {
+    window.open(`https://wa.me/${APP.WA_NUM || '584121234567'}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+}
+
 function productCardHTML(p) {
   if (p._minPrice === undefined) normalizeProduct(p);
   const cat     = p.jjp_categories || {};
@@ -453,10 +484,15 @@ function productCardHTML(p) {
     ? `<span class="price-from">desde</span> ` : '';
 
   const ctrlHTML = soldOut
-    ? `<span class="pc-out" style="position:static">Agotado</span>`
-    : `<button class="add-btn" title="Ver detalle y consultar" aria-label="Ver detalle de ${name}" onclick="openProductModal('${p.id}')">👁</button>`;
+    ? `<div class="pc-actions-row"><span class="pc-out" style="position:static">Agotado</span></div>`
+    : `<div class="pc-actions-row">
+         <button class="pc-wa-quick" title="Consultar por WhatsApp con foto y enlace" aria-label="Consultar por WhatsApp" onclick="shareProductToWA('${p.id}', event)">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+         </button>
+         <button class="add-btn" title="Ver detalle y fotos" aria-label="Ver detalle de ${name}" onclick="openProductModal('${p.id}')">👁</button>
+       </div>`;
 
-  return `<div class="pc rv${soldOut ? ' is-out' : ''}">
+  return `<div class="pc rv vi${soldOut ? ' is-out' : ''}">
     <div class="pc-img${hasImg ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
          role="button" tabindex="0" aria-label="Ver detalle de ${name}"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProductModal('${p.id}')}">
@@ -639,8 +675,22 @@ async function initCatalog() {
 
   grid.innerHTML = skeletonGridHTML(APP.PER_PAGE);
 
-  await loadSettings();
-  await Promise.all([loadCatGroups(), loadCategories(), loadProducts()]);
+  try {
+    await loadSettings();
+    await Promise.all([loadCatGroups(), loadCategories(), loadProducts()]);
+  } catch (err) {
+    console.error('Error cargando catálogo:', err);
+    if (!allProducts || !allProducts.length) {
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:50px 20px;background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin:20px 0;">
+          <div style="font-size:42px;margin-bottom:12px;">📡</div>
+          <h3 style="color:#2d3748;margin-bottom:8px;">No se pudo conectar al catálogo</h3>
+          <p style="color:#718096;font-size:14px;max-width:420px;margin:0 auto 18px;">Hubo un problema de conexión al cargar los productos. Por favor recarga la página o verifica tu conexión.</p>
+          <button class="btn-p" style="padding:10px 24px;font-weight:700;cursor:pointer;" onclick="location.reload()">🔄 Recargar catálogo</button>
+        </div>`;
+      return;
+    }
+  }
 
   // Params de entrada: ?grupo= (familia), ?cat= (categoría fina) y ?q= (búsqueda).
   // ?cat= abre además su familia — lo resuelve setCat().

@@ -250,12 +250,22 @@ function modalOrderWA() {
   const unit  = escapeHTML(p.jjp_units?.name || p.unit || 'unid');
   const subUsd = price * modalQty;
   const subBs  = fmtBs(subUsd);
-  const msg   = `📦 *Hola JJ Paper, me interesa este producto:*\n\n` +
-                `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
-                (modalVariant?.sku || p.sku ? `• *Código:* ${modalVariant?.sku || p.sku}\n` : '') +
-                `• *Cantidad:* ${modalQty} ${unit}\n` +
-                `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n\n` +
-                `¿Tienen disponibilidad para despacho?`;
+  const prodKey = modalVariant?.sku || p.sku || p.id;
+  const prodUrl = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+  const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) || modalVariant?.image_url || p.image_url;
+
+  let msg = `📦 *Hola JJ Paper, me interesa este producto:*\n\n` +
+            `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
+            (modalVariant?.sku || p.sku ? `• *Código/SKU:* ${modalVariant?.sku || p.sku}\n` : '') +
+            `• *Cantidad:* ${modalQty} ${unit}\n` +
+            `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n` +
+            `• *Ficha en Catálogo:* ${prodUrl}\n`;
+
+  if (imgUrl && imgUrl.trim()) {
+    msg += `• *Foto oficial:* ${imgUrl}\n`;
+  }
+
+  msg += `\n¿Tienen disponibilidad para despacho?`;
   openWA(msg);
 }
 

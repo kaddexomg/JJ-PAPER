@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css?v=20260717">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20261005_wa_v2">
 <link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css?v=20260717">
 <link rel="stylesheet" href="assets/css/glass.css?v=20260717">
@@ -109,15 +109,22 @@
 <script src="assets/js/config.js?v=20261001_v1"></script>
 <script src="assets/js/toast.js"></script>
 <script src="assets/js/nav.js"></script>
-<script src="assets/js/catalog.js?v=20261005_reveal_fix"></script>
+<script src="assets/js/catalog.js?v=20261005_wa_cache_v2"></script>
 <script src="assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="assets/js/export.js?v=20260726"></script>
-<script src="assets/js/product-modal.js?v=20261001_v1"></script>
+<script src="assets/js/product-modal.js?v=20261005_wa_v2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   injectNav('catalogo');
   injectFooter();
   await initCatalog();
+
+  // Registro del Service Worker para guardar imágenes y recursos en caché de PC y móvil
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.warn('SW registration info:', err);
+    });
+  }
 });
 </script>
 <script src="assets/js/fx-buttons.js?v=20260717b"></script>

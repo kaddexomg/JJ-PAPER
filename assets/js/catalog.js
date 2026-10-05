@@ -103,6 +103,7 @@ function normalizeProduct(p) {
   p._brandNames = p._brands.map(b => b.name).join(' ');
   p._skus = vs.map(v => v.sku).filter(Boolean).join(' ');
   p._varNames = vs.map(v => v.variant_name).filter(Boolean).join(' ');
+  p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
 
   // Auto-generate a short emoji description if missing
   if (!p.description || p.description.trim() === '') {
@@ -142,8 +143,8 @@ function normalizeProduct(p) {
 }
 
 async function loadProducts() {
-  const cacheKey = 'jjp_products_cache_v5';
-  const cacheTimeKey = 'jjp_products_cache_v5_time';
+  const cacheKey = 'jjp_products_cache_v6';
+  const cacheTimeKey = 'jjp_products_cache_v6_time';
   const cached = sessionStorage.getItem(cacheKey);
   const cachedTime = sessionStorage.getItem(cacheTimeKey);
   const now = Date.now();
@@ -245,13 +246,17 @@ function getFiltered() {
     return false;
   });
 
-  if      (currentSort === 'az')    list.sort((a,b) => a.name.localeCompare(b.name));
+  if      (currentSort === 'con_foto') list = list.filter(p => p._hasPhoto);
+  else if (currentSort === 'az')    list.sort((a,b) => a.name.localeCompare(b.name));
   else if (currentSort === 'za')    list.sort((a,b) => b.name.localeCompare(a.name));
   else if (currentSort === 'pasc')  list.sort((a,b) => a._minPrice - b._minPrice);
   else if (currentSort === 'pdesc') list.sort((a,b) => b._minPrice - a._minPrice);
-  // Orden por defecto: los esenciales copan la página 1. El sort es estable,
-  // así que dentro de cada bloque se respeta el sort_order de la consulta.
-  else list.sort((a,b) => (b.essential ? 1 : 0) - (a.essential ? 1 : 0));
+  // Orden por defecto: los productos con foto oficial copan la página 1 primero, luego esenciales
+  else list.sort((a,b) => {
+    const photoDiff = (b._hasPhoto ? 1 : 0) - (a._hasPhoto ? 1 : 0);
+    if (photoDiff !== 0) return photoDiff;
+    return (b.essential ? 1 : 0) - (a.essential ? 1 : 0);
+  });
   return list;
 }
 
@@ -394,8 +399,11 @@ function productCardHTML(p) {
   const tagHTML = p.tag
     ? `<span class="pc-tag">${escapeHTML(p.tag)}</span>` : '';
 
-  const imgHTML = p.image_url
-    ? `<img src="${optImg(p.image_url, 400)}" alt="${name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'pc-img-emoji\\'>${productIcon(p)}</span>'">`
+  const rawImg = p.image_url || (p.variants && p.variants.find(v => v.image_url)?.image_url) || null;
+  const hasImg = Boolean(rawImg && rawImg.trim());
+
+  const imgHTML = hasImg
+    ? `<img src="${optImg(rawImg, 400)}" alt="${name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'pc-img-emoji\\'>${productIcon(p)}</span>'">`
     : `<span class="pc-img-emoji">${productIcon(p)}</span>`;
 
   // Marcas disponibles: 1 → nombre+logo; varias → chip "N marcas"
@@ -417,7 +425,7 @@ function productCardHTML(p) {
     : `<button class="add-btn" title="Ver detalle y consultar" aria-label="Ver detalle de ${name}" onclick="openProductModal('${p.id}')">👁</button>`;
 
   return `<div class="pc rv${soldOut ? ' is-out' : ''}">
-    <div class="pc-img${p.image_url ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
+    <div class="pc-img${hasImg ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
          role="button" tabindex="0" aria-label="Ver detalle de ${name}"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProductModal('${p.id}')}">
       ${imgHTML}

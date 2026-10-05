@@ -18,55 +18,85 @@ set "NODE="
 where node >nul 2>nul
 if %errorlevel%==0 (
     set "NODE=node"
-    goto EJECUTAR
+    goto DETECTADO
 )
 
 if exist "C:\Program Files\nodejs\node.exe" (
     set "NODE=C:\Program Files\nodejs\node.exe"
-    goto EJECUTAR
+    goto DETECTADO
 )
 if exist "C:\Program Files (x86)\nodejs\node.exe" (
     set "NODE=C:\Program Files (x86)\nodejs\node.exe"
-    goto EJECUTAR
+    goto DETECTADO
 )
 if exist "C:\nodejs\node.exe" (
     set "NODE=C:\nodejs\node.exe"
-    goto EJECUTAR
+    goto DETECTADO
 )
 if exist "C:\node\node.exe" (
     set "NODE=C:\node\node.exe"
-    goto EJECUTAR
+    goto DETECTADO
+)
+if exist "%USERPROFILE%\AppData\Local\Programs\nodejs\node.exe" (
+    set "NODE=%USERPROFILE%\AppData\Local\Programs\nodejs\node.exe"
+    goto DETECTADO
 )
 
 echo [ERROR] No se encontro Node.js en este equipo.
-echo Por favor instala Node.js v13 para ejecutar el panel.
+echo Por favor asegurese de tener Node.js instalado (v13 o superior).
 echo.
 pause
 exit /b 1
 
-:EJECUTAR
+:DETECTADO
 echo [OK] Node.js detectado: %NODE%
 echo.
-echo  Verificando que el puerto 3300 este libre...
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr :3300 ^| findstr LISTENING') do (
-    echo  [AVISO] Cerrando instancia anterior que ocupaba el puerto (PID %%p)...
+
+set "SERVER_JS="
+set "APP_DIR="
+
+if exist "%~dp0mixnet-ai-panel\server.js" (
+    set "SERVER_JS=%~dp0mixnet-ai-panel\server.js"
+    set "APP_DIR=%~dp0mixnet-ai-panel"
+) else if exist "%~dp0server.js" (
+    set "SERVER_JS=%~dp0server.js"
+    set "APP_DIR=%~dp0"
+) else (
+    echo [ERROR] No se encontro el archivo server.js en:
+    echo   - %~dp0mixnet-ai-panel\server.js
+    echo   - %~dp0server.js
+    pause
+    exit /b 1
+)
+
+echo  Liberando puertos 3300 y 3301 antes de arrancar...
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3300"') do (
+    echo   [AVISO] Cerrando proceso previo en puerto 3300 (PID %%p)...
+    taskkill /F /PID %%p >nul 2>nul
+)
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3301"') do (
     taskkill /F /PID %%p >nul 2>nul
 )
 timeout /t 1 /nobreak >nul
 
 echo.
-echo  Abriendo Antigravity Micro-Node en tu navegador (http://localhost:3300)...
-echo  Los pedidos de la nube caeran automaticamente en C:\pedidos
+echo  Iniciando Antigravity Micro-Node...
+echo  Abriendo navegador en http://localhost:3300...
 echo.
 
 start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:3300"
 
 :loop
-"%NODE%" "%~dp0mixnet-ai-panel\server.js"
+cd /d "%APP_DIR%"
+"%NODE%" "%SERVER_JS%"
+set "ERR=%errorlevel%"
+
 echo.
-echo [ALERTA] El proceso del panel se detuvo. Liberando puerto y reiniciando en 3 segundos...
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr :3300 ^| findstr LISTENING') do (
-    taskkill /F /PID %%p >nul 2>nul
-)
+echo ====================================================================
+echo  [ALERTA] El proceso del micro-nodo se detuvo (Codigo: %ERR%).
+echo  Liberando puerto y reiniciando en 3 segundos...
+echo ====================================================================
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3300"') do taskkill /F /PID %%p >nul 2>nul
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3301"') do taskkill /F /PID %%p >nul 2>nul
 timeout /t 3 >nul
 goto loop

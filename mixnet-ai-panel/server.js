@@ -2125,55 +2125,85 @@ var server = http.createServer(function(req, res) {
 });
 
 var PORT = config.port || 3300;
+var syncIntervalHandle = null;
 
-server.on('error', function(err) {
-  if (err.code === 'EADDRINUSE') {
-    console.error('\n[ALERTA] El puerto ' + PORT + ' ya está en uso por una instancia previa.');
-    console.error('Liberando el puerto 3300 automáticamente en Windows...');
-    exec('netstat -ano', function(e, stdout) {
-      if (!e && stdout) {
-        var lines = stdout.split('\n');
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i];
-          if (line.indexOf(':' + PORT) !== -1 && line.indexOf('LISTENING') !== -1) {
-            var parts = line.trim().split(/\s+/);
-            var pid = parts[parts.length - 1];
-            if (pid && pid != process.pid) {
-              try { exec('taskkill /F /PID ' + pid); } catch (_) {}
-            }
+function freePortPids(targetPort, cb) {
+  exec('netstat -ano', function(e, stdout) {
+    if (!e && stdout) {
+      var lines = stdout.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (line.indexOf(':' + targetPort) !== -1) {
+          var parts = line.trim().split(/\s+/);
+          var pid = parts[parts.length - 1];
+          if (pid && pid != process.pid && /^\d+$/.test(pid)) {
+            try { exec('taskkill /F /PID ' + pid); } catch (_) {}
           }
         }
       }
-      setTimeout(function() {
-        process.exit(1);
-      }, 1500);
-    });
-  } else {
-    console.error('[ERROR]', err);
-    process.exit(1);
-  }
-});
+    }
+    if (typeof cb === 'function') setTimeout(cb, 800);
+  });
+}
 
-server.listen(PORT, '0.0.0.0', function() {
-  console.log('========================================================================');
-  console.log('  JJ PAPER — ANTIGRAVITY MICRO-NODE (WINDOWS 7 EDITION)                ');
-  console.log('========================================================================');
-  console.log('  [OK] Agente activo en puerto:  ' + PORT);
-  console.log('  [OK] Consola web local:        http://localhost:' + PORT);
-  console.log('  [OK] Acceso desde red LAN:     http://' + (getLanIp() || '127.0.0.1') + ':' + PORT);
-  console.log('  [SYNC] Enlace Nube:            PostgREST Cloud (HTTPS directo)');
-  console.log('  [DROP] Depósito de Pedidos:    C:\\pedidos (txt & csv)');
-  console.log('  [IA]   Copiloto Gemini:        7 Llaves listas con motor agéntico');
-  console.log('========================================================================\n');
+function startListening(portToTry, attempts) {
+  attempts = attempts || 0;
+  server.removeAllListeners('error');
 
-  addAgentLog('BOOT', 'Antigravity Micro-Node iniciado en ' + os.hostname() + ' (' + process.version + ')');
+  server.on('error', function(err) {
+    if (err.code === 'EADDRINUSE') {
+      console.warn('\n[AVISO] El puerto ' + portToTry + ' esta ocupado por un proceso previo.');
+      console.warn('Liberando puerto ' + portToTry + ' automaticamente (intento ' + (attempts + 1) + '/3)...');
 
-  // Primer barrido completo
-  fullSync();
+      freePortPids(portToTry, function() {
+        if (attempts < 2) {
+          setTimeout(function() {
+            startListening(portToTry, attempts + 1);
+          }, 1200);
+        } else {
+          var altPort = portToTry === 3300 ? 3301 : portToTry + 1;
+          console.warn('[AVISO] Conmutando a puerto alternativo: ' + altPort);
+          PORT = altPort;
+          startListening(altPort, 0);
+        }
+      });
+    } else {
+      console.error('[SERVER ERROR]', err);
+    }
+  });
 
-  // Sondeo continuo en segundo plano cada 20 segundos
-  setInterval(fullSync, 20000);
-});
+  server.listen(portToTry, '0.0.0.0', function() {
+    PORT = portToTry;
+
+    try {
+      fs.writeFileSync(path.join(__dirname, 'active_port.txt'), String(PORT), 'utf8');
+      fs.writeFileSync(path.join(__dirname, 'active_url.txt'), 'http://localhost:' + PORT, 'utf8');
+    } catch (_) {}
+
+    console.log('========================================================================');
+    console.log('  JJ PAPER — ANTIGRAVITY MICRO-NODE (WINDOWS 7 EDITION)                ');
+    console.log('========================================================================');
+    console.log('  [OK] Agente activo en puerto:  ' + PORT);
+    console.log('  [OK] Consola web local:        http://localhost:' + PORT);
+    console.log('  [OK] Acceso desde red LAN:     http://' + (getLanIp() || '127.0.0.1') + ':' + PORT);
+    console.log('  [SYNC] Enlace Nube:            PostgREST Cloud (HTTPS directo)');
+    console.log('  [DROP] Deposito de Pedidos:    C:\\pedidos (txt & csv)');
+    console.log('  [IA]   Copiloto Gemini:        7 Llaves listas con motor agentico');
+    console.log('========================================================================\n');
+
+    addAgentLog('BOOT', 'Antigravity Micro-Node iniciado en ' + os.hostname() + ' (' + process.version + ') en puerto ' + PORT);
+
+    // Primer barrido completo
+    fullSync();
+
+    // Sondeo continuo en segundo plano cada 20 segundos
+    if (!syncIntervalHandle) {
+      syncIntervalHandle = setInterval(fullSync, 20000);
+    }
+  });
+}
+
+startListening(PORT, 0);
 
 function getLanIp() {
   var ifaces = os.networkInterfaces();

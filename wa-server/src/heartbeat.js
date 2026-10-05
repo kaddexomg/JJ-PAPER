@@ -277,12 +277,14 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
 
   // Respaldo: por si el Realtime se cae, revisar el comando periódicamente en ambos proyectos
   pollTimer = setInterval(async () => {
-    const [{ data: dataB }, { data: dataA }] = await Promise.all([
-      db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle().catch(() => ({ data: null })),
-      dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle().catch(() => ({ data: null }))
-    ]);
-    const cmd = dataB?.command || dataA?.command;
-    if (cmd) await runCommand(cmd).catch(() => {});
+    try {
+      const [{ data: dataB } = {}, { data: dataA } = {}] = await Promise.all([
+        Promise.resolve(db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle()).catch(() => ({ data: null })),
+        Promise.resolve(dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle()).catch(() => ({ data: null }))
+      ]);
+      const cmd = dataB?.command || dataA?.command;
+      if (cmd) await runCommand(cmd).catch(() => {});
+    } catch (_) {}
   }, POLL_MS);
 
   log.info('heartbeat + control activos (jjp_server_control)');

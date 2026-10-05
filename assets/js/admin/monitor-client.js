@@ -540,8 +540,8 @@ async function querySupabaseDirectly() {
     if (sRow) {
       srvData = sRow;
       const lastBeat = new Date(sRow.heartbeat_at || sRow.heartbeat || 0).getTime();
-      // Tolerancia amplia de 5 minutos para absorber posibles desfases de reloj de Windows
-      isServerOnlineInCloud = Math.abs(Date.now() - lastBeat) < 300_000 || sRow.status === 'online';
+      // Considerar online solo si el latido ocurrió en los últimos 90 segundos y el estado no es offline
+      isServerOnlineInCloud = Math.abs(Date.now() - lastBeat) < 90_000 && (sRow.status === 'online' || sRow.status === 'degraded');
     }
   } catch (_) {}
 

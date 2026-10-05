@@ -16,6 +16,7 @@ var fs = require('fs');
 var path = require('path');
 var os = require('os');
 var url = require('url');
+var exec = require('child_process').exec;
 
 // Cargar configuración
 var CONFIG_FILE = path.join(__dirname, 'config.json');
@@ -344,6 +345,214 @@ function fetchJSON(targetUrl, headers, timeoutMs, callback) {
 
 var DEFAULT_SB_CORE_KEY = Buffer.from('ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW5kM1kyUjRjWEJwWW1WeGRXWnZhR0puWldweklpd2ljbTlzWlNJNkluTmxjblpwWTJWZmNtOXNaU0lzSW1saGRDSTZNVGM1TURjek1EQTNOQ3dpWlhod0lqb3lNVEEyTXpBMk1EYzBmUS5GaFFqdjVBeTZQRjZDbEw0amx3Vl85a1lpX1huS2plekFROEw2cEQwNHpn', 'base64').toString('utf8');
 
+// Depósito automático de pedidos en C:\pedidos para la caja de MixNet
+function dropOrdersToPedidosFolder(orders) {
+  var pedidosDir = 'C:\\pedidos';
+  if (!fs.existsSync(pedidosDir)) {
+    try { fs.mkdirSync(pedidosDir, { recursive: true }); } catch (_) {}
+  }
+  if (!Array.isArray(orders)) return;
+  for (var i = 0; i < orders.length; i++) {
+    var ord = orders[i];
+    if (ord.status === 'cancelado' || ord.status === 'rechazado') continue;
+    var num = ord.order_number || String(ord.id).slice(0, 8);
+    var txtPath = path.join(pedidosDir, 'pedido_' + num + '.txt');
+    if (!fs.existsSync(txtPath)) {
+      var items = Array.isArray(ord.items) ? ord.items : [];
+      if (typeof ord.items === 'string') {
+        try { items = JSON.parse(ord.items || '[]'); } catch (_) { items = []; }
+      }
+      var lines = [
+        '================================================',
+        'PEDIDO JJ PAPER TIENDA: ' + num,
+        'Fecha: ' + (ord.created_at ? new Date(ord.created_at).toLocaleString('es-VE') : 'Hoy'),
+        'Cliente: ' + (ord.client_name || 'MOSTRADOR / CAJA'),
+        ord.rif ? 'RIF/CI:  ' + ord.rif : '',
+        ord.phone ? 'Telefono: ' + ord.phone : '',
+        'Estado: ' + String(ord.status || 'PENDIENTE').toUpperCase(),
+        '================================================',
+        'Cant.   Producto                     P.Unit   Subtotal',
+        '------------------------------------------------'
+      ].filter(Boolean);
+
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        var n = (it.name || it.sku || '').substring(0, 28).padEnd(28, ' ');
+        var qty = String(it.qty || 1).padStart(4, ' ');
+        var pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
+        var sub = parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2).padStart(8, ' ');
+        lines.push(qty + ' x ' + n + ' ' + pu + ' ' + sub);
+      }
+      lines.push('------------------------------------------------');
+      lines.push('TOTAL USD: $' + parseFloat(ord.total_usd || 0).toFixed(2));
+      if (ord.exchange_rate) {
+        lines.push('Tasa oficial: ' + parseFloat(ord.exchange_rate).toFixed(2) + ' Bs/$');
+        lines.push('TOTAL BS:  ' + (parseFloat(ord.total_usd || 0) * parseFloat(ord.exchange_rate)).toFixed(2) + ' Bs');
+      }
+      lines.push('================================================');
+      try {
+        fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
+        process.stdout.write('\x07');
+        console.log('[AUTO-DESPACHO] Pedido #' + num + ' generado en ' + pedidosDir);
+      } catch (_) {}
+    }
+  }
+}
+
+function dropQuotesToPedidosFolder(quotes) {
+  var pedidosDir = 'C:\\pedidos';
+  if (!fs.existsSync(pedidosDir)) {
+    try { fs.mkdirSync(pedidosDir, { recursive: true }); } catch (_) {}
+  }
+  if (!Array.isArray(quotes)) return;
+  for (var i = 0; i < quotes.length; i++) {
+    var q = quotes[i];
+    if (q.status === 'cancelado' || q.status === 'rechazado') continue;
+    var num = q.quote_number || String(q.id).slice(0, 8);
+    var txtPath = path.join(pedidosDir, 'cotizacion_' + num + '.txt');
+    if (!fs.existsSync(txtPath)) {
+      var items = Array.isArray(q.items) ? q.items : [];
+      if (typeof q.items === 'string') {
+        try { items = JSON.parse(q.items || '[]'); } catch (_) { items = []; }
+      }
+      var lines = [
+        '================================================',
+        'COTIZACION JJ PAPER: ' + num,
+        'Fecha: ' + (q.created_at ? new Date(q.created_at).toLocaleString('es-VE') : 'Hoy'),
+        'Cliente: ' + (q.client_name || 'MOSTRADOR / CAJA'),
+        q.rif ? 'RIF/CI:  ' + q.rif : '',
+        q.phone ? 'Telefono: ' + q.phone : '',
+        'Estado: ' + String(q.status || 'PENDIENTE').toUpperCase(),
+        '================================================',
+        'Cant.   Producto                     P.Unit   Subtotal',
+        '------------------------------------------------'
+      ].filter(Boolean);
+
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        var n = (it.name || it.sku || '').substring(0, 28).padEnd(28, ' ');
+        var qty = String(it.qty || 1).padStart(4, ' ');
+        var pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
+        var sub = parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2).padStart(8, ' ');
+        lines.push(qty + ' x ' + n + ' ' + pu + ' ' + sub);
+      }
+      lines.push('------------------------------------------------');
+      lines.push('TOTAL ESTIMADO USD: $' + parseFloat(q.estimated_total_usd || 0).toFixed(2));
+      lines.push('================================================');
+      try {
+        fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
+        console.log('[AUTO-COTIZACION] Cotización #' + num + ' generada en ' + pedidosDir);
+      } catch (_) {}
+    }
+  }
+}
+
+// Medición de estabilidad de conexión y red
+function testNetworkStability(callback) {
+  var tStart = Date.now();
+  var sbUrl = (config.supabase && config.supabase.core_url) || 'https://wwcdxqpibequfohbgejs.supabase.co';
+  var parsed = new (require('url').URL)(sbUrl);
+  var req = https.request({
+    hostname: parsed.hostname,
+    port: 443,
+    path: '/rest/v1/',
+    method: 'GET',
+    headers: { 'apikey': (config.supabase && config.supabase.core_key) || DEFAULT_SB_CORE_KEY },
+    timeout: 6000
+  }, function(res) {
+    var latCloud = Date.now() - tStart;
+    exec('ping 8.8.8.8 -n 2', { timeout: 6000 }, function(err, stdout) {
+      var pingOk = !err;
+      var quality = 'Excelente';
+      if (latCloud > 400) quality = 'Aceptable';
+      if (latCloud > 900) quality = 'Lenta';
+      if (!pingOk) quality = 'Inestable / Paquetes perdidos';
+      callback(null, {
+        ok: true,
+        cloud_latency_ms: latCloud,
+        google_dns_ping: pingOk,
+        quality: quality,
+        status: quality === 'Excelente' ? '🟢 Conexión Rápida y Estable' : '🟡 Conexión con Latencia (' + latCloud + 'ms)',
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+  req.on('error', function(e) {
+    callback(null, {
+      ok: false,
+      error: e.message,
+      quality: 'Desconectado',
+      status: '🔴 Sin Conexión a la Nube (' + e.message + ')',
+      timestamp: new Date().toISOString()
+    });
+  });
+  req.on('timeout', function() {
+    req.destroy();
+    callback(null, {
+      ok: false,
+      error: 'Timeout',
+      quality: 'Muy Lenta / Timeout',
+      status: '🔴 Timeout de Conexión a la Nube (>6000ms)',
+      timestamp: new Date().toISOString()
+    });
+  });
+  req.end();
+}
+
+// Motor de Ejecución de Tareas Agénticas
+function handleAgentAction(action, params, callback) {
+  params = params || {};
+  if (action === 'check_network') {
+    testNetworkStability(function(err, res) {
+      callback(null, res);
+    });
+  } else if (action === 'sync_db') {
+    syncFromSupabase(function() {
+      syncFromLocalDbf();
+      callback(null, {
+        ok: true,
+        message: 'Base de datos sincronizada exitosamente con la nube y MixNet',
+        orders_total: store.orders.length,
+        products_total: store.products.length,
+        customers_total: store.customers.length,
+        bcv_rate: store.fx_rate,
+        timestamp: new Date().toISOString()
+      });
+    });
+  } else if (action === 'copy_file') {
+    var src = params.src;
+    var dst = params.dst;
+    if (!src || !dst) return callback(new Error('Faltan parametros src y dst'));
+    if (!fs.existsSync(src)) return callback(new Error('El archivo origen no existe: ' + src));
+    var dstDir = path.dirname(dst);
+    if (!fs.existsSync(dstDir)) {
+      try { fs.mkdirSync(dstDir, { recursive: true }); } catch (_) {}
+    }
+    try {
+      fs.copyFileSync(src, dst);
+      callback(null, { ok: true, message: 'Archivo copiado con exito de ' + src + ' a ' + dst });
+    } catch (e) {
+      callback(e);
+    }
+  } else if (action === 'run_command') {
+    var cmd = params.command;
+    if (!cmd) return callback(new Error('Falta parametro command'));
+    if (/(format\s|del\s+\/s|rmdir\s+\/s)/i.test(cmd)) {
+      return callback(new Error('Comando bloqueado por seguridad del sistema'));
+    }
+    exec(cmd, { timeout: 20000, maxBuffer: 1024 * 1024 }, function(err, stdout, stderr) {
+      callback(null, {
+        ok: !err,
+        error: err ? err.message : null,
+        stdout: (stdout || '').trim(),
+        stderr: (stderr || '').trim()
+      });
+    });
+  } else {
+    callback(new Error('Accion desconocida: ' + action));
+  }
+}
+
 // Capa 1: Sincronización con Supabase Cloud PostgREST
 function syncFromSupabase(callback) {
   var baseUrl = (config.supabase && config.supabase.core_url) || 'https://wwcdxqpibequfohbgejs.supabase.co';
@@ -358,12 +567,14 @@ function syncFromSupabase(callback) {
     if (!err && Array.isArray(orders)) {
       store.orders = orders;
       recalculateNominaAndCxC();
+      dropOrdersToPedidosFolder(orders);
     }
 
     // 2. Cotizaciones
     fetchJSON(baseUrl + '/rest/v1/jjp_quotes?select=*&order=created_at.desc&limit=100', headers, 5000, function(err2, quotes) {
       if (!err2 && Array.isArray(quotes)) {
         store.quotes = quotes;
+        dropQuotesToPedidosFolder(quotes);
       }
 
       // 3. Clientes
@@ -1417,6 +1628,24 @@ var server = http.createServer(function(req, res) {
     return;
   }
 
+  // --- MOTOR AGÉNTICO: EJECUCIÓN DIRECTA DE ACCIONES EN WINDOWS 7 ---
+  if (pathname === '/api/agent/exec' && req.method === 'POST') {
+    var exBody = '';
+    req.on('data', function(c) { exBody += c; });
+    req.on('end', function() {
+      try {
+        var p = JSON.parse(exBody);
+        handleAgentAction(p.action, p.params || p, function(err, result) {
+          if (err) return sendJSON(res, 500, { ok: false, error: err.message });
+          return sendJSON(res, 200, result);
+        });
+      } catch (e) {
+        return sendJSON(res, 400, { ok: false, error: 'JSON inválido: ' + e.message });
+      }
+    });
+    return;
+  }
+
   // --- COPILOTO GEMINI AI ADOCTRINADO CON LIBERTAD DE ACCIÓN Y DATOS FINANCIEROS ---
   if (pathname === '/api/ai/ask' && req.method === 'POST') {
     var aBody = '';
@@ -1441,7 +1670,7 @@ var server = http.createServer(function(req, res) {
 
         // Resumen completo en vivo de todos los módulos del ERP
         var sysPrompt = [
-          "Eres el Copiloto Ejecutivo y Director Financiero/Operativo de JJ Paper C.A.",
+          "Eres el Copiloto Agéntico Ejecutivo y Director Operativo de JJ Paper C.A.",
           "Tienes ACCESO TOTAL, LIBRE Y ADOCTRINADO a toda la información del ERP MixNet, cuentas bancarias, servidores, bases de datos y claves.",
           "",
           "ESTADO FINANCIERO Y OPERATIVO EN TIEMPO REAL:",
@@ -1477,17 +1706,45 @@ var server = http.createServer(function(req, res) {
           "- Servidor Supervisor: " + (store.supervisor_status.online ? 'En línea en ' + store.supervisor_status.url : 'Fuera de línea'),
           "- Accesos de red e infraestructura: " + JSON.stringify(config.accesos_sistema),
           "",
+          "CAPACIDADES AGÉNTICAS REALES EN ESTA PC CON WINDOWS 7:",
+          "Puedes ejecutar acciones reales en el sistema operativo si el usuario te lo pide.",
+          "Para ejecutar una acción, incluye al final de tu respuesta:",
+          "- Para verificar la estabilidad de red: [ACTION:check_network:{}]",
+          "- Para sincronizar la base de datos con la nube y MixNet: [ACTION:sync_db:{}]",
+          "- Para copiar un archivo: [ACTION:copy_file:{\"src\":\"ruta_origen\",\"dst\":\"ruta_destino\"}]",
+          "- Para correr un comando del sistema: [ACTION:run_command:{\"command\":\"comando\"}]",
+          "",
           "INSTRUCCIONES Y LIBERTADES:",
           "1. Tienes total libertad para responder sobre cuentas bancarias, números de cuenta de 20 dígitos, pagos móviles, cajas, ingresos, saldos, cotizaciones, pedidos, clientes, nómina, accesos del sistema y claves/IPs.",
           "2. Si el usuario te pregunta por bancos, dale los números de cuenta, banco, titular, RIF y moneda exactamente como están registrados.",
-          "3. Si el usuario te pide sus claves o recuperar acceso, entrégale de inmediato la contraseña maestra (30909109KJSP), los usuarios oficiales y las rutas donde dejó sus archivos bancarios en la unidad de red.",
-          "4. Si el usuario te pide buscar un archivo de MixNet o de la unidad, o editar una nota, explícale la ruta del archivo y cómo descargarlo o modificarlo con el editor integrado.",
-          "5. Responde siempre con precisión de negocio, formato Markdown pulcro y tablas cuando corresponda."
+          "3. Si el usuario te pide ejecutar una tarea o revisar la red, incluye la etiqueta [ACTION:...] correspondiente para que el servidor la ejecute de inmediato.",
+          "4. Responde siempre con precisión de negocio, formato Markdown pulcro y tablas cuando corresponda."
         ].join('\n');
 
         callGemini(sysPrompt, q, function(err, reply) {
           if (err) return sendJSON(res, 500, { ok: false, error: err.message });
-          return sendJSON(res, 200, { ok: true, answer: reply.text, model: reply.model });
+          var replyText = reply.text || '';
+
+          // Detectar si la respuesta contiene una acción agéntica a ejecutar
+          var actionMatch = replyText.match(/\[ACTION:([a-z_]+):(\{.*?\})\]/i);
+          if (actionMatch) {
+            var actName = actionMatch[1];
+            var actParams = {};
+            try { actParams = JSON.parse(actionMatch[2]); } catch (_) {}
+            var cleanText = replyText.replace(/\[ACTION:[a-z_]+:\{.*?\}\]/gi, '').trim();
+
+            handleAgentAction(actName, actParams, function(actErr, actRes) {
+              var execSummary = '';
+              if (actErr) {
+                execSummary = '\n\n---\n❌ **Error ejecutando acción (' + actName + '):** ' + actErr.message;
+              } else {
+                execSummary = '\n\n---\n⚡ **Acción Agéntica Completada (' + actName + '):**\n```json\n' + JSON.stringify(actRes, null, 2) + '\n```';
+              }
+              return sendJSON(res, 200, { ok: true, answer: cleanText + execSummary, model: reply.model, action_executed: actName });
+            });
+          } else {
+            return sendJSON(res, 200, { ok: true, answer: replyText, model: reply.model });
+          }
         });
       } catch (err) {
         return sendJSON(res, 400, { ok: false, error: 'Error procesando consulta' });
@@ -1532,6 +1789,18 @@ server.listen(PORT, '0.0.0.0', function() {
   console.log('  [SYNC] Sincronizacion activa:  PostgREST Cloud + Supervisor + DBF');
   console.log('  [IA]   Copiloto Gemini:        7 Llaves listas con libertad total');
   console.log('========================================================================\n');
+
+  // Primer barrido inmediato de datos de la nube y DBF
+  syncFromSupabase(function() {
+    syncFromLocalDbf();
+  });
+
+  // Sondeo continuo en segundo plano cada 25 segundos
+  setInterval(function() {
+    syncFromSupabase(function() {
+      syncFromLocalDbf();
+    });
+  }, 25000);
 });
 
 function getLanIp() {

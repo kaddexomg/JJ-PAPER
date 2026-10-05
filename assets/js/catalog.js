@@ -2,6 +2,37 @@
    JJ Paper — Catalog (Supabase + filter/sort/paginate)
    ====================================================== */
 
+// Fallback / safe reveal observer for cards (.rv)
+function observeReveal(root = document) {
+  try {
+    const elements = root.querySelectorAll ? root.querySelectorAll('.rv, .rv-up, .rv-left, .rv-right, .rv-zoom') : [];
+    if (!elements || !elements.length) return;
+    if (!window.IntersectionObserver) {
+      elements.forEach(el => el.classList.add('vi'));
+      return;
+    }
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('vi');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.05 });
+    elements.forEach(el => {
+      if (!el.classList.contains('vi')) io.observe(el);
+    });
+    // Fallback de seguridad: asegura que todas las tarjetas sean visibles aún si el observer se demora
+    setTimeout(() => {
+      elements.forEach(el => {
+        if (!el.classList.contains('vi')) el.classList.add('vi');
+      });
+    }, 600);
+  } catch (err) {
+    console.warn('observeReveal fallback error:', err);
+  }
+}
+
 let allProducts  = [];
 let categories   = [];
 let catGroups    = [];
@@ -10,6 +41,7 @@ let currentCat   = 'todos';
 let currentPage  = 1;
 let currentSearch= '';
 let currentSort  = '';
+
 
 // ---- Load data ----
 // El catálogo tiene 2 niveles: 8 familias (jjp_category_groups) que agrupan

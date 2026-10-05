@@ -1,102 +1,110 @@
 @echo off
-rem ====================================================================
-rem JJ PAPER -- Suite Ejecutiva MixNet ERP con Copiloto IA (Windows 7)
-rem ====================================================================
-title JJ PAPER -- Panel Ejecutivo MixNet AI & Agente
+title JJ PAPER -- Antigravity Micro-Node (Win7)
 color 0b
 cls
 
 echo ====================================================================
-echo    JJ PAPER -- CONTROL TOTAL MIXNET ERP & ENTORNO AGENTICO IA
+echo    JJ PAPER -- ANTIGRAVITY MICRO-NODE ^& COPILOTO IA (WINDOWS 7)
 echo ====================================================================
 echo.
-echo  Buscando Node.js en esta PC con Windows 7...
-echo.
 
-set "NODE="
+echo [1/3] Verificando instalacion de Node.js...
 
-where node >nul 2>nul
-if %errorlevel%==0 (
-    set "NODE=node"
-    goto DETECTADO
+set "NODE_CMD="
+
+node -v >nul 2>nul
+if not errorlevel 1 (
+    set "NODE_CMD=node"
+    goto :NODE_OK
 )
 
 if exist "C:\Program Files\nodejs\node.exe" (
-    set "NODE=C:\Program Files\nodejs\node.exe"
-    goto DETECTADO
-)
-if exist "C:\Program Files (x86)\nodejs\node.exe" (
-    set "NODE=C:\Program Files (x86)\nodejs\node.exe"
-    goto DETECTADO
-)
-if exist "C:\nodejs\node.exe" (
-    set "NODE=C:\nodejs\node.exe"
-    goto DETECTADO
-)
-if exist "C:\node\node.exe" (
-    set "NODE=C:\node\node.exe"
-    goto DETECTADO
-)
-if exist "%USERPROFILE%\AppData\Local\Programs\nodejs\node.exe" (
-    set "NODE=%USERPROFILE%\AppData\Local\Programs\nodejs\node.exe"
-    goto DETECTADO
+    set "NODE_CMD=C:\Program Files\nodejs\node.exe"
+    goto :NODE_OK
 )
 
-echo [ERROR] No se encontro Node.js en este equipo.
-echo Por favor asegurese de tener Node.js instalado (v13 o superior).
+if exist "C:\Program Files (x86)\nodejs\node.exe" (
+    set "NODE_CMD=C:\Program Files (x86)\nodejs\node.exe"
+    goto :NODE_OK
+)
+
+if exist "C:\nodejs\node.exe" (
+    set "NODE_CMD=C:\nodejs\node.exe"
+    goto :NODE_OK
+)
+
+if exist "C:\node\node.exe" (
+    set "NODE_CMD=C:\node\node.exe"
+    goto :NODE_OK
+)
+
+:NODE_FAIL
+color 0c
+echo ====================================================================
+echo [ERROR] No se encontro Node.js en esta PC con Windows 7.
+echo ====================================================================
+echo Por favor asegurese de tener Node.js instalado en la PC.
 echo.
 pause
 exit /b 1
 
-:DETECTADO
-echo [OK] Node.js detectado: %NODE%
+:NODE_OK
+echo [OK] Node.js detectado: %NODE_CMD%
+"%NODE_CMD%" -v
 echo.
 
-set "SERVER_JS="
-set "APP_DIR="
+echo [2/3] Localizando archivo del servidor...
+set "TARGET_DIR="
+set "SERVER_FILE="
 
 if exist "%~dp0mixnet-ai-panel\server.js" (
-    set "SERVER_JS=%~dp0mixnet-ai-panel\server.js"
-    set "APP_DIR=%~dp0mixnet-ai-panel"
-) else if exist "%~dp0server.js" (
-    set "SERVER_JS=%~dp0server.js"
-    set "APP_DIR=%~dp0"
-) else (
-    echo [ERROR] No se encontro el archivo server.js en:
-    echo   - %~dp0mixnet-ai-panel\server.js
-    echo   - %~dp0server.js
-    pause
-    exit /b 1
+    set "TARGET_DIR=%~dp0mixnet-ai-panel"
+    set "SERVER_FILE=%~dp0mixnet-ai-panel\server.js"
+    goto :SERVER_OK
 )
 
-echo  Liberando puertos 3300 y 3301 antes de arrancar...
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3300"') do (
-    echo   [AVISO] Cerrando proceso previo en puerto 3300 (PID %%p)...
-    taskkill /F /PID %%p >nul 2>nul
+if exist "%~dp0server.js" (
+    set "TARGET_DIR=%~dp0"
+    set "SERVER_FILE=%~dp0server.js"
+    goto :SERVER_OK
 )
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3301"') do (
-    taskkill /F /PID %%p >nul 2>nul
-)
-timeout /t 1 /nobreak >nul
 
+:SERVER_FAIL
+color 0c
+echo ====================================================================
+echo [ERROR] No se encontro el archivo server.js
+echo ====================================================================
+echo Carpeta actual: %~dp0
 echo.
-echo  Iniciando Antigravity Micro-Node...
-echo  Abriendo navegador en http://localhost:3300...
+echo Asegurate de haber EXTRAIDO el archivo ZIP en tu Escritorio.
+echo Si haces doble clic al archivo dentro del ZIP sin extraerlo,
+echo Windows no puede cargar los demas archivos.
+echo.
+pause
+exit /b 1
+
+:SERVER_OK
+echo [OK] Directorio de aplicacion: %TARGET_DIR%
 echo.
 
-start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:3300"
-
-:loop
-cd /d "%APP_DIR%"
-"%NODE%" "%SERVER_JS%"
-set "ERR=%errorlevel%"
+echo [3/3] Liberando puerto 3300...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3300') do taskkill /F /PID %%a >nul 2>nul
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3301') do taskkill /F /PID %%a >nul 2>nul
 
 echo.
 echo ====================================================================
-echo  [ALERTA] El proceso del micro-nodo se detuvo (Codigo: %ERR%).
-echo  Liberando puerto y reiniciando en 3 segundos...
+echo  INICIANDO ANTIGRAVITY MICRO-NODE EN PUERTO 3300...
+echo  Abriendo navegador en http://localhost:3300
 echo ====================================================================
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3300"') do taskkill /F /PID %%p >nul 2>nul
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3301"') do taskkill /F /PID %%p >nul 2>nul
-timeout /t 3 >nul
-goto loop
+echo.
+
+start http://localhost:3300
+
+cd /d "%TARGET_DIR%"
+"%NODE_CMD%" "%SERVER_FILE%"
+
+echo.
+echo ====================================================================
+echo [ATENCION] El servidor se cerro con codigo: %errorlevel%
+echo ====================================================================
+pause

@@ -24,12 +24,21 @@ echo  [OK] Version de Node detectada: %NODE_VERSION%
 echo  [OK] Iniciando servidor ligero de control...
 echo.
 
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :3300 ^| findstr LISTENING') do (
+    echo  [AVISO] Cerrando instancia anterior que ocupaba el puerto 3300 (PID %%p)...
+    taskkill /F /PID %%p >nul 2>nul
+)
+timeout /t 1 /nobreak >nul
+
 :: Abrir el navegador automaticamente tras 1.5 segundos
 start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:3300"
 
 :loop
 node server.js
 echo.
-echo [ALERTA] El servidor se cerro inesperadamente. Reiniciando en 3 segundos...
+echo [ALERTA] El servidor se cerro inesperadamente. Liberando puerto 3300...
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :3300 ^| findstr LISTENING') do (
+    taskkill /F /PID %%p >nul 2>nul
+)
 timeout /t 3 >nul
 goto loop

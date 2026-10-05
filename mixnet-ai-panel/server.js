@@ -1982,6 +1982,35 @@ var server = http.createServer(function(req, res) {
 });
 
 var PORT = config.port || 3300;
+
+server.on('error', function(err) {
+  if (err.code === 'EADDRINUSE') {
+    console.error('\n[ALERTA] El puerto ' + PORT + ' ya está en uso por una instancia previa.');
+    console.error('Liberando el puerto 3300 automáticamente en Windows...');
+    exec('netstat -ano', function(e, stdout) {
+      if (!e && stdout) {
+        var lines = stdout.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (line.indexOf(':' + PORT) !== -1 && line.indexOf('LISTENING') !== -1) {
+            var parts = line.trim().split(/\s+/);
+            var pid = parts[parts.length - 1];
+            if (pid && pid != process.pid) {
+              try { exec('taskkill /F /PID ' + pid); } catch (_) {}
+            }
+          }
+        }
+      }
+      setTimeout(function() {
+        process.exit(1);
+      }, 1500);
+    });
+  } else {
+    console.error('[ERROR]', err);
+    process.exit(1);
+  }
+});
+
 server.listen(PORT, '0.0.0.0', function() {
   console.log('========================================================================');
   console.log('  JJ PAPER — ANTIGRAVITY MICRO-NODE (WINDOWS 7 EDITION)                ');

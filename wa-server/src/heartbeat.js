@@ -127,6 +127,13 @@ async function beat() {
   // 1. Actualizar Proyecto B (Comunicación - donde el frontend consulta jjp_server_control)
   const { error: errB } = await db.from('jjp_server_control').update(payload).eq('id', 1);
   if (errB) log.warn({ err: errB.message }, 'heartbeat falló en Proyecto B');
+
+  // 2. Actualizar Proyecto A (Core - para mantener ambos proyectos sincronizados)
+  try {
+    const payloadCore = { ...payload };
+    delete payloadCore.heartbeat;
+    await dbCore.from('jjp_server_control').update(payloadCore).eq('id', 1);
+  } catch (_) {}
 }
 
 async function runCommand(cmd) {

@@ -284,8 +284,19 @@ var store = {
   },
   last_sync: null,
   active_mixnet_dir: null,
-  supervisor_status: { online: false, url: null, latency: null }
+  cloud_status: { online: false, latency: null, last_beat: null },
+  dropped_orders_count: 0,
+  dropped_quotes_count: 0
 };
+
+var agentLogs = [];
+function addAgentLog(tag, msg) {
+  var tStr = new Date().toLocaleTimeString('es-VE', { hour12: false });
+  var entry = { time: tStr, tag: tag, message: msg };
+  agentLogs.push(entry);
+  if (agentLogs.length > 250) agentLogs.shift();
+  console.log('[' + tStr + '] [' + tag + '] ' + msg);
+}
 
 function safeExistsSync(p) {
   if (!p || p.indexOf('\\\\') === 0) return false;
@@ -362,18 +373,38 @@ function dropOrdersToPedidosFolder(orders) {
       if (typeof ord.items === 'string') {
         try { items = JSON.parse(ord.items || '[]'); } catch (_) { items = []; }
       }
+
+      // Mapeo canónico de Vendedor MixNet (Nómina Sagrada JJ Paper)
+      var sellerCode = '005';
+      var sellerName = 'Caja Mostrador';
+      var sId = String(ord.seller_id || ord.created_by || '').toLowerCase();
+      if (sId.indexOf('002') !== -1 || sId.indexOf('alarcon') !== -1 || sId.indexOf('luis') !== -1) {
+        sellerCode = '002'; sellerName = 'Luis Alarcón';
+      } else if (sId.indexOf('004') !== -1 || sId.indexOf('006') !== -1 || sId.indexOf('yovanni') !== -1) {
+        sellerCode = '004'; sellerName = 'Yovanni Araujo';
+      } else if (sId.indexOf('008') !== -1 || sId.indexOf('marianela') !== -1) {
+        sellerCode = '008'; sellerName = 'Marianela';
+      } else if (sId.indexOf('014') !== -1 || sId.indexOf('andreina') !== -1) {
+        sellerCode = '014'; sellerName = 'Andreina';
+      } else if (sId.indexOf('010') !== -1 || sId.indexOf('020') !== -1 || sId.indexOf('keyder') !== -1) {
+        sellerCode = '010'; sellerName = 'Keyder Salazar';
+      }
+
       var lines = [
         '================================================',
-        'PEDIDO JJ PAPER TIENDA: ' + num,
+        'PEDIDO JJ PAPER TIENDA: #' + num,
         'Fecha: ' + (ord.created_at ? new Date(ord.created_at).toLocaleString('es-VE') : 'Hoy'),
         'Cliente: ' + (ord.client_name || 'MOSTRADOR / CAJA'),
         ord.rif ? 'RIF/CI:  ' + ord.rif : '',
         ord.phone ? 'Telefono: ' + ord.phone : '',
+        'VENDEDOR MIXNET: ' + sellerCode + ' (' + sellerName + ')',
         'Estado: ' + String(ord.status || 'PENDIENTE').toUpperCase(),
         '================================================',
         'Cant.   Producto                     P.Unit   Subtotal',
         '------------------------------------------------'
       ].filter(Boolean);
+
+      var csvLines = ['Cant,Codigo,Descripcion,Precio_USD,Subtotal_USD'];
 
       for (var j = 0; j < items.length; j++) {
         var it = items[j];
@@ -382,6 +413,7 @@ function dropOrdersToPedidosFolder(orders) {
         var pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
         var sub = parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2).padStart(8, ' ');
         lines.push(qty + ' x ' + n + ' ' + pu + ' ' + sub);
+        csvLines.push((it.qty || 1) + ',"' + (it.sku || '') + '","' + (it.name || '').replace(/"/g, '""') + '",' + (it.price_usd || 0) + ',' + (it.subtotal_usd || 0));
       }
       lines.push('------------------------------------------------');
       lines.push('TOTAL USD: $' + parseFloat(ord.total_usd || 0).toFixed(2));
@@ -392,8 +424,10 @@ function dropOrdersToPedidosFolder(orders) {
       lines.push('================================================');
       try {
         fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
+        fs.writeFileSync(path.join(pedidosDir, 'pedido_' + num + '.csv'), csvLines.join('\r\n'), 'utf8');
+        store.dropped_orders_count = (store.dropped_orders_count || 0) + 1;
         process.stdout.write('\x07');
-        console.log('[AUTO-DESPACHO] Pedido #' + num + ' generado en ' + pedidosDir);
+        addAgentLog('ORDERS', '📦 Pedido #' + num + ' generado en C:\\pedidos (' + sellerName + ' / ' + (ord.client_name || 'Cliente') + ')');
       } catch (_) {}
     }
   }
@@ -415,18 +449,37 @@ function dropQuotesToPedidosFolder(quotes) {
       if (typeof q.items === 'string') {
         try { items = JSON.parse(q.items || '[]'); } catch (_) { items = []; }
       }
+
+      var sellerCode = '005';
+      var sellerName = 'Caja Mostrador';
+      var sId = String(q.seller_id || q.created_by || '').toLowerCase();
+      if (sId.indexOf('002') !== -1 || sId.indexOf('alarcon') !== -1 || sId.indexOf('luis') !== -1) {
+        sellerCode = '002'; sellerName = 'Luis Alarcón';
+      } else if (sId.indexOf('004') !== -1 || sId.indexOf('006') !== -1 || sId.indexOf('yovanni') !== -1) {
+        sellerCode = '004'; sellerName = 'Yovanni Araujo';
+      } else if (sId.indexOf('008') !== -1 || sId.indexOf('marianela') !== -1) {
+        sellerCode = '008'; sellerName = 'Marianela';
+      } else if (sId.indexOf('014') !== -1 || sId.indexOf('andreina') !== -1) {
+        sellerCode = '014'; sellerName = 'Andreina';
+      } else if (sId.indexOf('010') !== -1 || sId.indexOf('020') !== -1 || sId.indexOf('keyder') !== -1) {
+        sellerCode = '010'; sellerName = 'Keyder Salazar';
+      }
+
       var lines = [
         '================================================',
-        'COTIZACION JJ PAPER: ' + num,
+        'COTIZACION JJ PAPER: #' + num,
         'Fecha: ' + (q.created_at ? new Date(q.created_at).toLocaleString('es-VE') : 'Hoy'),
         'Cliente: ' + (q.client_name || 'MOSTRADOR / CAJA'),
         q.rif ? 'RIF/CI:  ' + q.rif : '',
         q.phone ? 'Telefono: ' + q.phone : '',
+        'VENDEDOR MIXNET: ' + sellerCode + ' (' + sellerName + ')',
         'Estado: ' + String(q.status || 'PENDIENTE').toUpperCase(),
         '================================================',
         'Cant.   Producto                     P.Unit   Subtotal',
         '------------------------------------------------'
       ].filter(Boolean);
+
+      var csvLines = ['Cant,Codigo,Descripcion,Precio_USD,Subtotal_USD'];
 
       for (var j = 0; j < items.length; j++) {
         var it = items[j];
@@ -435,13 +488,16 @@ function dropQuotesToPedidosFolder(quotes) {
         var pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
         var sub = parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2).padStart(8, ' ');
         lines.push(qty + ' x ' + n + ' ' + pu + ' ' + sub);
+        csvLines.push((it.qty || 1) + ',"' + (it.sku || '') + '","' + (it.name || '').replace(/"/g, '""') + '",' + (it.price_usd || 0) + ',' + (it.subtotal_usd || 0));
       }
       lines.push('------------------------------------------------');
       lines.push('TOTAL ESTIMADO USD: $' + parseFloat(q.estimated_total_usd || 0).toFixed(2));
       lines.push('================================================');
       try {
         fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
-        console.log('[AUTO-COTIZACION] Cotización #' + num + ' generada en ' + pedidosDir);
+        fs.writeFileSync(path.join(pedidosDir, 'cotizacion_' + num + '.csv'), csvLines.join('\r\n'), 'utf8');
+        store.dropped_quotes_count = (store.dropped_quotes_count || 0) + 1;
+        addAgentLog('QUOTES', '📑 Cotización #' + num + ' generada en C:\\pedidos (' + sellerName + ' / ' + (q.client_name || 'Cliente') + ')');
       } catch (_) {}
     }
   }
@@ -603,49 +659,113 @@ function syncFromSupabase(callback) {
   });
 }
 
-// Capa 2: Sincronización con PC Supervisor (LAN o Tailscale)
-function syncFromSupervisor(callback) {
-  var urls = config.supervisor_urls;
-  var idx = 0;
+// Capa 2: Latido del Agente y Ejecución de Tareas Remotas vía Supabase
+function sendHeartbeatAndCheckTasks(callback) {
+  var baseUrl = (config.supabase && config.supabase.core_url) || 'https://wwcdxqpibequfohbgejs.supabase.co';
+  var key = DEFAULT_SB_CORE_KEY;
+  var parsed = url.parse(baseUrl);
 
-  function tryNext() {
-    if (idx >= urls.length) {
-      store.supervisor_status.online = false;
-      if (callback) callback();
-      return;
-    }
+  var payload = JSON.stringify({
+    key: 'win7_agent_status',
+    value: JSON.stringify({
+      host: os.hostname(),
+      lan_ip: getLanIp(),
+      status: 'online',
+      heartbeat_at: new Date().toISOString(),
+      node_version: process.version,
+      memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      pedidos_dir: 'C:\\pedidos',
+      orders_count: store.orders.length,
+      quotes_count: store.quotes.length,
+      dropped_orders_count: store.dropped_orders_count || 0,
+      dropped_quotes_count: store.dropped_quotes_count || 0,
+      active_mixnet_dir: store.active_mixnet_dir,
+      last_sync: store.last_sync
+    })
+  });
 
-    var target = urls[idx++];
-    var startT = Date.now();
-    fetchJSON(target + '/lan/mixnet/status', {}, 2000, function(err, data) {
-      if (!err && data && data.ok) {
-        store.supervisor_status.online = true;
-        store.supervisor_status.url = target;
-        store.supervisor_status.latency = Date.now() - startT;
-        store.supervisor_status.details = data.status;
+  var req = https.request({
+    protocol: parsed.protocol,
+    hostname: parsed.hostname,
+    port: parsed.port || 443,
+    path: '/rest/v1/jjp_settings?on_conflict=key',
+    method: 'POST',
+    headers: {
+      'apikey': key,
+      'Authorization': 'Bearer ' + key,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates,return=minimal',
+      'Content-Length': Buffer.byteLength(payload)
+    },
+    timeout: 5000,
+    rejectUnauthorized: false
+  }, function(res) {
+    store.cloud_status = {
+      online: res.statusCode >= 200 && res.statusCode < 300,
+      last_beat: new Date().toISOString()
+    };
+    addAgentLog('HEARTBEAT', 'Latido enviado a la nube Supabase (HTTP ' + res.statusCode + ')');
 
-        // Obtener pedidos recientes del supervisor si tiene
-        fetchJSON(target + '/lan/mixnet/pedidos?limit=50', {}, 2000, function(errP, pedData) {
-          if (!errP && pedData && Array.isArray(pedData.orders)) {
-            // Mergear pedidos si no están en store
-            var existingNums = new Set(store.orders.map(function(o) { return String(o.order_number || o.numped); }));
-            pedData.orders.forEach(function(po) {
-              var num = String(po.order_number || po.numped);
-              if (!existingNums.has(num)) {
-                store.orders.unshift(po);
-              }
+    // Revisar si hay tareas pendientes en jjp_settings (key: 'win7_agent_task')
+    fetchJSON(baseUrl + '/rest/v1/jjp_settings?key=eq.win7_agent_task&select=*', {
+      'apikey': key,
+      'Authorization': 'Bearer ' + key
+    }, 4000, function(errTask, taskRows) {
+      if (!errTask && Array.isArray(taskRows) && taskRows.length > 0) {
+        try {
+          var tObj = JSON.parse(taskRows[0].value || '{}');
+          if (tObj && tObj.status === 'pending') {
+            addAgentLog('TASK', '⚡ Tarea remota recibida: ' + (tObj.action || tObj.command));
+            handleAgentAction(tObj.action || 'run_command', tObj.params || tObj, function(actErr, actRes) {
+              var updatePayload = JSON.stringify({
+                key: 'win7_agent_task',
+                value: JSON.stringify({
+                  task_id: tObj.task_id || Date.now(),
+                  action: tObj.action || 'run_command',
+                  status: actErr ? 'error' : 'completed',
+                  result: actErr ? actErr.message : actRes,
+                  completed_at: new Date().toISOString()
+                })
+              });
+              var uReq = https.request({
+                protocol: parsed.protocol,
+                hostname: parsed.hostname,
+                port: parsed.port || 443,
+                path: '/rest/v1/jjp_settings?on_conflict=key',
+                method: 'POST',
+                headers: {
+                  'apikey': key,
+                  'Authorization': 'Bearer ' + key,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'resolution=merge-duplicates,return=minimal',
+                  'Content-Length': Buffer.byteLength(updatePayload)
+                },
+                timeout: 5000,
+                rejectUnauthorized: false
+              });
+              uReq.on('error', function() {});
+              uReq.write(updatePayload);
+              uReq.end();
+              addAgentLog('TASK', '✅ Tarea remota completada exitosamente');
             });
-            recalculateNominaAndCxC();
           }
-          if (callback) callback();
-        });
-      } else {
-        tryNext();
+        } catch (_) {}
       }
+      if (callback) callback();
     });
-  }
+  });
 
-  tryNext();
+  req.on('error', function(err) {
+    store.cloud_status = { online: false, error: err.message };
+    addAgentLog('WARN', 'Fallo conexión con la nube: ' + err.message);
+    if (callback) callback();
+  });
+  req.on('timeout', function() {
+    req.destroy();
+    if (callback) callback();
+  });
+  req.write(payload);
+  req.end();
 }
 
 // Capa 3: Lectura Directa de Tablas DBF de MixNet
@@ -1205,18 +1325,15 @@ function recalculateNominaAndCxC() {
   store.cxc = { total: Math.round(totalCxc * 100) / 100, count: cxcItems.length, items: cxcItems.slice(0, 100) };
 }
 
-function fullSync() {
+function fullSync(callback) {
   syncFromSupabase(function() {
-    syncFromSupervisor(function() {
+    sendHeartbeatAndCheckTasks(function() {
       syncFromLocalDbf();
       recalculateNominaAndCxC();
+      if (callback) callback();
     });
   });
 }
-
-// Barrido inicial y periódico
-fullSync();
-setInterval(fullSync, 30000);
 
 /* ══════════════════════════════════════════════════════════════════════════
    4. GESTOR Y EDITOR DE ARCHIVOS (EN CUALQUIER FORMATO Y DISCO)
@@ -1444,18 +1561,24 @@ var server = http.createServer(function(req, res) {
     return res.end();
   }
 
-  // --- API DE ESTADO Y SINCRONIZACIÓN ---
+  // --- API DE ESTADO Y TELEMETRÍA AGÉNTICA ---
   if (pathname === '/api/status') {
     return sendJSON(res, 200, {
       ok: true,
+      agent_role: 'Antigravity Micro-Node (Win7)',
+      host: os.hostname(),
+      lan_ip: getLanIp(),
+      cloud_status: store.cloud_status,
       last_sync: store.last_sync,
       orders_count: store.orders.length,
       quotes_count: store.quotes.length,
       customers_count: store.customers.length,
       products_count: store.products.length,
+      dropped_orders_count: store.dropped_orders_count || 0,
+      dropped_quotes_count: store.dropped_quotes_count || 0,
+      pedidos_dir: 'C:\\pedidos',
       mixnet_dir: store.active_mixnet_dir,
       mixnet_connected: store.active_mixnet_dir !== null,
-      supervisor: store.supervisor_status,
       fx_rate: store.fx_rate,
       node_version: process.version,
       platform: process.platform,
@@ -1464,8 +1587,87 @@ var server = http.createServer(function(req, res) {
   }
 
   if (pathname === '/api/sync/now') {
-    fullSync();
-    return sendJSON(res, 200, { ok: true, message: 'Sincronización forzada en curso a través de las 3 capas.' });
+    fullSync(function() {
+      addAgentLog('MANUAL', 'Sincronización forzada completada por el operador.');
+    });
+    return sendJSON(res, 200, { ok: true, message: 'Sincronización iniciada en segundo plano.' });
+  }
+
+  // --- API DE ARCHIVOS DE DESPACHO EN C:\pedidos ---
+  if (pathname === '/api/pedidos') {
+    var pDir = 'C:\\pedidos';
+    var pList = [];
+    if (fs.existsSync(pDir)) {
+      try {
+        var rawFiles = fs.readdirSync(pDir);
+        for (var pi = 0; pi < rawFiles.length; pi++) {
+          var pfn = rawFiles[pi];
+          var pfp = path.join(pDir, pfn);
+          var pst = fs.statSync(pfp);
+          pList.push({
+            name: pfn,
+            size: pst.size,
+            mtime: pst.mtime,
+            is_pedido: pfn.indexOf('pedido_') === 0,
+            is_cotizacion: pfn.indexOf('cotizacion_') === 0
+          });
+        }
+        pList.sort(function(a, b) { return new Date(b.mtime) - new Date(a.mtime); });
+      } catch (_) {}
+    }
+    return sendJSON(res, 200, { ok: true, count: pList.length, dir: pDir, files: pList });
+  }
+
+  if (pathname === '/api/pedidos/read') {
+    var reqF = parsed.query.file;
+    if (!reqF) return sendJSON(res, 400, { ok: false, error: 'Falta parámetro file' });
+    var targetF = path.join('C:\\pedidos', path.basename(reqF));
+    if (!fs.existsSync(targetF)) return sendJSON(res, 404, { ok: false, error: 'Archivo no encontrado' });
+    try {
+      var contentF = fs.readFileSync(targetF, 'utf8');
+      return sendJSON(res, 200, { ok: true, file: path.basename(targetF), content: contentF });
+    } catch (e) {
+      return sendJSON(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  if (pathname === '/api/pedidos/open-folder') {
+    exec('explorer.exe "C:\\pedidos"', function() {});
+    return sendJSON(res, 200, { ok: true, message: 'Carpeta C:\\pedidos abierta en Windows' });
+  }
+
+  // --- API DE TERMINAL Y LOGS AGÉNTICOS ---
+  if (pathname === '/api/terminal/logs') {
+    return sendJSON(res, 200, { ok: true, logs: agentLogs });
+  }
+
+  if (pathname === '/api/terminal/exec' && req.method === 'POST') {
+    var tBody = '';
+    req.on('data', function(c) { tBody += c; });
+    req.on('end', function() {
+      try {
+        var tp = JSON.parse(tBody);
+        var cmd = tp.command;
+        if (!cmd) return sendJSON(res, 400, { ok: false, error: 'Falta command' });
+        addAgentLog('SHELL', 'Ejecutando: ' + cmd);
+        exec(cmd, { timeout: 15000, maxBuffer: 512 * 1024 }, function(err, stdout, stderr) {
+          var out = (stdout || '').trim();
+          var errout = (stderr || '').trim();
+          if (err) addAgentLog('ERROR', 'Fallo comando: ' + err.message);
+          else addAgentLog('SHELL', 'Comando terminado con éxito.');
+          return sendJSON(res, 200, {
+            ok: !err,
+            command: cmd,
+            stdout: out,
+            stderr: errout,
+            error: err ? err.message : null
+          });
+        });
+      } catch (e) {
+        return sendJSON(res, 400, { ok: false, error: e.message });
+      }
+    });
+    return;
   }
 
   // --- API DE DATOS DE NEGOCIO ---
@@ -1702,8 +1904,9 @@ var server = http.createServer(function(req, res) {
           "- Vendedores: " + JSON.stringify(store.nomina.vendedores.map(function(v){ return v.codigo + ' ' + v.nombre + ': $' + v.total_ventas_usd; })),
           "",
           "SERVIDORES, ACCESOS Y MIXNET:",
-          "- Directorio MixNet activo: " + (store.active_mixnet_dir || 'No montado localmente (sincronizando por nube/supervisor)'),
-          "- Servidor Supervisor: " + (store.supervisor_status.online ? 'En línea en ' + store.supervisor_status.url : 'Fuera de línea'),
+          "- Directorio MixNet activo: " + (store.active_mixnet_dir || 'No montado localmente (sincronizando por nube)'),
+          "- Enlace Nube Supabase: " + (store.cloud_status.online ? 'En línea' : 'Desconectado'),
+          "- Carpeta de Pedidos: C:\\pedidos (" + store.dropped_orders_count + " pedidos depositados)",
           "- Accesos de red e infraestructura: " + JSON.stringify(config.accesos_sistema),
           "",
           "CAPACIDADES AGÉNTICAS REALES EN ESTA PC CON WINDOWS 7:",
@@ -1781,26 +1984,23 @@ var server = http.createServer(function(req, res) {
 var PORT = config.port || 3300;
 server.listen(PORT, '0.0.0.0', function() {
   console.log('========================================================================');
-  console.log('  JJ PAPER — SUITE SALAZ: CONTROL TOTAL MIXNET ERP & GEMINI AI          ');
+  console.log('  JJ PAPER — ANTIGRAVITY MICRO-NODE (WINDOWS 7 EDITION)                ');
   console.log('========================================================================');
-  console.log('  [OK] Servidor activo en puerto: ' + PORT);
-  console.log('  [OK] Acceso local:             http://localhost:' + PORT);
-  console.log('  [OK] Acceso desde la red LAN:  http://' + (getLanIp() || '127.0.0.1') + ':' + PORT);
-  console.log('  [SYNC] Sincronizacion activa:  PostgREST Cloud + Supervisor + DBF');
-  console.log('  [IA]   Copiloto Gemini:        7 Llaves listas con libertad total');
+  console.log('  [OK] Agente activo en puerto:  ' + PORT);
+  console.log('  [OK] Consola web local:        http://localhost:' + PORT);
+  console.log('  [OK] Acceso desde red LAN:     http://' + (getLanIp() || '127.0.0.1') + ':' + PORT);
+  console.log('  [SYNC] Enlace Nube:            PostgREST Cloud (HTTPS directo)');
+  console.log('  [DROP] Depósito de Pedidos:    C:\\pedidos (txt & csv)');
+  console.log('  [IA]   Copiloto Gemini:        7 Llaves listas con motor agéntico');
   console.log('========================================================================\n');
 
-  // Primer barrido inmediato de datos de la nube y DBF
-  syncFromSupabase(function() {
-    syncFromLocalDbf();
-  });
+  addAgentLog('BOOT', 'Antigravity Micro-Node iniciado en ' + os.hostname() + ' (' + process.version + ')');
 
-  // Sondeo continuo en segundo plano cada 25 segundos
-  setInterval(function() {
-    syncFromSupabase(function() {
-      syncFromLocalDbf();
-    });
-  }, 25000);
+  // Primer barrido completo
+  fullSync();
+
+  // Sondeo continuo en segundo plano cada 20 segundos
+  setInterval(fullSync, 20000);
 });
 
 function getLanIp() {

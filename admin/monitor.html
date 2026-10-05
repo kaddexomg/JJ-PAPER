@@ -764,12 +764,12 @@
           </div>
         </div>
 
-        <!-- PROYECTO D / SERVIDOR SUPERVISOR & PUENTE MIXNET ERP -->
+        <!-- INFRAESTRUCTURA DE NODOS & PUENTE MIXNET ERP -->
         <div class="proj-card" id="srvCard">
           <div class="proj-header">
             <div class="proj-title">
-              <h3>Servidor Supervisor & MixNet</h3>
-              <p id="srvSubtitle">Puente ERP M:/comp01 · Caja & POS</p>
+              <h3>Infraestructura & Nodos Activos</h3>
+              <p id="srvSubtitle">Laptop Central (wa-server) & PC Tienda (Antigravity Win7)</p>
             </div>
             <div class="proj-badges">
               <span class="badge-metric" id="srvLatency">⚡ -- ms</span>
@@ -779,8 +779,8 @@
 
           <div class="progress-wrap">
             <div class="progress-labels">
-              <span id="srvHostTxt">Supervisor-Pc (100.103.110.44)</span>
-              <span id="srvBeatTxt">Latido: Hace unos segundos</span>
+              <span id="srvHostTxt">Laptop (wa-server)</span>
+              <span id="srvBeatTxt">Latido: Reciente</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill optimal" id="srvProgressBar" style="width: 100%;"></div>
@@ -788,38 +788,42 @@
           </div>
 
           <div>
-            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">Conectividad & Telemetría del Puente:</div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">💻 Nodo 1: Servidor Central (Laptop wa-server):</div>
             <div class="table-list" id="srvDetailsList">
               <div class="table-row-item">
-                <span class="tbl-name">🌐 IP Tailscale (VPN)</span>
-                <span class="tbl-size" id="srvTailscaleIp"><a href="http://100.103.110.44:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;">100.103.110.44:8787 ↗</a></span>
+                <span class="tbl-name">🌐 IP VPN (Tailscale)</span>
+                <span class="tbl-size" id="srvTailscaleIp"><a href="http://100.67.139.121:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;">100.67.139.121:8787 ↗</a></span>
               </div>
               <div class="table-row-item">
-                <span class="tbl-name">🏢 IP Local (LAN)</span>
-                <span class="tbl-size" id="srvLanIp">192.168.0.172:8787</span>
+                <span class="tbl-name">🏢 IP Local (LAN Laptop)</span>
+                <span class="tbl-size" id="srvLanIp">192.168.1.11:8787</span>
               </div>
               <div class="table-row-item">
-                <span class="tbl-name">📁 Unidad MixNet ERP</span>
-                <span class="tbl-size" id="srvMixnetDir">M:/comp01 (🟢 DBF Activo)</span>
+                <span class="tbl-name">📱 Sesiones WhatsApp</span>
+                <span class="tbl-size" id="srvWaSanas">1 activa</span>
+              </div>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;margin:12px 0 6px 0;color:#00d2ff;">⚡ Nodo 2: Antigravity Micro-Node (PC Tienda Win7):</div>
+            <div class="table-list" id="win7DetailsList">
+              <div class="table-row-item">
+                <span class="tbl-name">🏢 IP Local (LAN Tienda)</span>
+                <span class="tbl-size" id="win7LanIp">192.168.0.127:3300</span>
               </div>
               <div class="table-row-item">
-                <span class="tbl-name">🛒 Pedidos Exportados</span>
-                <span class="tbl-size" id="srvOrdersCount">110 en caja</span>
+                <span class="tbl-name">📁 Carpeta Pedidos</span>
+                <span class="tbl-size" id="win7PedidosDir">C:\pedidos (🟢 Activa)</span>
               </div>
               <div class="table-row-item">
-                <span class="tbl-name">📋 Cotizaciones Exportadas</span>
-                <span class="tbl-size" id="srvQuotesCount">38 en caja</span>
-              </div>
-              <div class="table-row-item">
-                <span class="tbl-name">📦 Productos Sincronizados</span>
-                <span class="tbl-size" id="srvCatalogCount">791 importados</span>
+                <span class="tbl-name">💓 Estado & Latido</span>
+                <span class="tbl-size" id="win7StatusTxt">🟢 En línea</span>
               </div>
             </div>
           </div>
 
           <div class="proj-actions">
             <button class="btn-action" onclick="triggerSyncMixnet()">
-              🔄 Sincronizar MixNet
+              🔄 Sincronizar Nodos
             </button>
             <a href="lan.html" class="btn-action" style="text-align:center;text-decoration:none;" target="_blank">
               📡 Conteo LAN

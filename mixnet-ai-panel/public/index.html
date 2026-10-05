@@ -3,45 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JJ Paper — Suite Salaz: Control Total MixNet ERP & IA</title>
+  <title>Antigravity // Win-7 Micro-Node — JJ Paper Tienda</title>
   <style>
     :root {
-      --bg: #0b0f17;
-      --card-bg: rgba(21, 29, 43, 0.85);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --text: #f0f4f8;
-      --text-muted: #8b9bb4;
-      --primary: #f59e0b;
-      --primary-light: #fbbf24;
-      --primary-glow: rgba(245, 158, 11, 0.2);
-      --blue: #3b82f6;
+      --bg: #070a13;
+      --card-bg: #0c1220;
+      --card-border: #1b253b;
+      --text: #e2e8f0;
+      --text-muted: #8292ab;
+      --cyan: #00d2ff;
       --green: #10b981;
+      --amber: #f59e0b;
       --red: #ef4444;
-      --purple: #8b5cf6;
-      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --purple: #a855f7;
+      --mono: Consolas, Monaco, "Courier New", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: var(--font);
+      font-family: var(--sans);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      line-height: 1.5;
+      overflow-x: hidden;
     }
 
-    /* Cabecera */
+    /* Header */
     header {
-      background: #111827;
+      background: #090e1a;
       border-bottom: 1px solid var(--card-border);
-      padding: 12px 24px;
+      padding: 10px 20px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 15px;
+      gap: 12px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -50,191 +49,19 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
-    .brand-logo {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--primary), #d97706);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: 900;
+    .brand-badge {
+      background: linear-gradient(135deg, #00d2ff, #0066ff);
       color: #000;
-      box-shadow: 0 0 15px var(--primary-glow);
+      font-weight: 900;
+      font-size: 16px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+      box-shadow: 0 0 14px rgba(0, 210, 255, 0.35);
     }
     .brand-title {
-      font-size: 17px;
-      font-weight: 700;
-      color: #fff;
-    }
-    .brand-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--card-border);
-    }
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-muted);
-    }
-    .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .dot.yellow { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
-    .dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
-
-    /* Barra de Navegación */
-    nav {
-      background: #151d2b;
-      padding: 0 24px;
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      border-bottom: 1px solid var(--card-border);
-    }
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 12px 14px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-    .tab-btn:hover { color: #fff; }
-    .tab-btn.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
-      background: rgba(245, 158, 11, 0.05);
-    }
-
-    /* Contenido */
-    main {
-      flex: 1;
-      padding: 20px 24px;
-      max-width: 1440px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; animation: fadeIn 0.25s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* Tarjetas KPI */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-    .kpi-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 16px 18px;
-      position: relative;
-      overflow: hidden;
-    }
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 3px;
-      background: var(--card-accent, var(--primary));
-    }
-    .kpi-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .kpi-val {
-      font-size: 24px;
-      font-weight: 800;
-      color: #fff;
-    }
-    .kpi-desc {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    /* Botones */
-    .btn {
-      background: var(--primary);
-      color: #000;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-family: inherit;
-      font-weight: 700;
-      font-size: 12px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      text-decoration: none;
-    }
-    .btn:hover { background: var(--primary-light); transform: translateY(-1px); }
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-      border: 1px solid var(--card-border);
-    }
-    .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
-    .btn-green { background: var(--green); color: #fff; }
-    .btn-green:hover { background: #059669; }
-
-    /* Tablas */
-    .table-container {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-    .table-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--card-border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .table-title {
       font-size: 15px;
       font-weight: 700;
       color: #fff;
@@ -242,1521 +69,988 @@
       align-items: center;
       gap: 8px;
     }
-    .search-input {
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid var(--card-border);
-      border-radius: 8px;
-      padding: 7px 12px;
-      color: #fff;
-      font-size: 12px;
-      outline: none;
-      min-width: 240px;
-    }
-    .search-input:focus { border-color: var(--primary); }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      text-align: left;
-    }
-    th {
-      background: rgba(255, 255, 255, 0.02);
+    .brand-sub {
+      font-size: 11px;
       color: var(--text-muted);
-      font-weight: 600;
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--card-border);
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 0.5px;
+      font-family: var(--mono);
     }
-    td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--card-border);
-      color: #e2e8f0;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
-    .tag {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 5px;
-      font-size: 11px;
-      font-weight: 600;
+    .telemetry-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
-    .tag-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-    .tag-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .tag-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-    .tag-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-
-    /* Explorador y Editor de Archivos */
-    .explorer-grid {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 16px;
-      min-height: 600px;
-    }
-    @media (max-width: 950px) {
-      .explorer-grid { grid-template-columns: 1fr; }
-    }
-    .file-tree {
-      background: var(--card-bg);
+    .pill {
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #555;
+    }
+    .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot.amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .dot.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      background: rgba(0, 210, 255, 0.12);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 210, 255, 0.35);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-family: var(--mono);
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: var(--cyan);
+      color: #000;
+      box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+    }
+    .btn-green {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    .btn-green:hover {
+      background: var(--green);
+      color: #000;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      height: calc(100vh - 65px);
+    }
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    /* Columna Izquierda: Terminal Agéntico */
+    .terminal-card {
+      background: #080c14;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
-      height: 620px;
+      overflow: hidden;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+    .terminal-header {
+      background: #0d1424;
+      border-bottom: 1px solid var(--card-border);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .terminal-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cyan);
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .terminal-body {
+      flex: 1;
+      padding: 14px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.6;
+      background: #05080f;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .log-line {
+      display: flex;
+      gap: 8px;
+      word-break: break-all;
+    }
+    .log-time { color: #526078; flex-shrink: 0; }
+    .log-tag {
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .tag-BOOT { background: #3b82f6; color: #fff; }
+    .tag-CLOUD { background: #00d2ff; color: #000; }
+    .tag-ORDERS { background: #10b981; color: #000; font-weight: 800; }
+    .tag-QUOTES { background: #f59e0b; color: #000; }
+    .tag-HEARTBEAT { background: #6366f1; color: #fff; }
+    .tag-TASK { background: #ec4899; color: #fff; }
+    .tag-SHELL { background: #e2e8f0; color: #000; }
+    .tag-WARN { background: #f59e0b; color: #000; }
+    .tag-ERROR { background: #ef4444; color: #fff; }
+    .log-msg { color: #cbd5e1; flex: 1; }
+
+    /* Terminal Shortcuts & Prompt */
+    .terminal-shortcuts {
+      background: #090e1a;
+      padding: 6px 12px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    .btn-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-family: var(--mono);
+      cursor: pointer;
+    }
+    .btn-chip:hover {
+      background: rgba(0, 210, 255, 0.15);
+      color: var(--cyan);
+      border-color: var(--cyan);
+    }
+
+    .terminal-input-bar {
+      background: #090e1a;
+      border-top: 1px solid var(--card-border);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .prompt-label {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .cli-input {
+      flex: 1;
+      background: #05080f;
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      color: #00ff88;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+    }
+    .cli-input:focus { border-color: var(--cyan); }
+
+    /* Columna Derecha: Panel de Operaciones */
+    .ops-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
-    .file-list {
+    .ops-nav {
+      background: #0a0f1d;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active {
+      color: var(--cyan);
+      border-bottom-color: var(--cyan);
+      background: rgba(0, 210, 255, 0.05);
+    }
+
+    .ops-content {
       flex: 1;
       overflow-y: auto;
-      padding: 10px;
-      font-size: 12px;
+      padding: 16px;
     }
-    .file-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 7px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      color: #cbd5e1;
-      margin-bottom: 2px;
-    }
-    .file-item:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
-    .file-item.active { background: rgba(245, 158, 11, 0.15); color: var(--primary); font-weight: 600; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
 
-    .file-editor-box {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
+    /* Tab 1: Copiloto IA */
+    .ai-chat-container {
       display: flex;
       flex-direction: column;
-      height: 620px;
-      overflow: hidden;
+      height: 100%;
+      min-height: 480px;
     }
-    .editor-header {
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--card-border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.25);
-    }
-    .code-area {
+    .ai-messages-box {
       flex: 1;
-      background: #06090e;
-      color: #e2e8f0;
-      font-family: Consolas, Monaco, "Courier New", monospace;
-      font-size: 13px;
-      padding: 16px;
-      border: none;
-      outline: none;
-      resize: none;
-      line-height: 1.5;
-    }
-
-    /* Copiloto Gemini AI */
-    .ai-wrapper {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 16px;
-    }
-    @media (max-width: 900px) {
-      .ai-wrapper { grid-template-columns: 1fr; }
-    }
-    .ai-sidebar {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 18px;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 10px;
-    }
-    .ai-chat-box {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      height: 620px;
-      overflow: hidden;
-    }
-    .ai-messages {
-      flex: 1;
-      padding: 18px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      padding-bottom: 10px;
     }
     .msg {
-      max-width: 85%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 13px;
-      line-height: 1.6;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      max-width: 90%;
     }
     .msg.user {
       align-self: flex-end;
-      background: var(--blue);
+      background: #0284c7;
       color: #fff;
     }
     .msg.ai {
       align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      color: #e2e8f0;
+    }
+    .ai-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .chip {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--card-border);
-      color: #f1f5f9;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      color: #cbd5e1;
+      cursor: pointer;
     }
-    .ai-input-area {
-      padding: 14px;
-      border-top: 1px solid var(--card-border);
-      background: rgba(0, 0, 0, 0.2);
+    .chip:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+    .ai-input-wrap {
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
     .ai-input {
       flex: 1;
-      background: rgba(0, 0, 0, 0.4);
+      background: #070a13;
       border: 1px solid var(--card-border);
-      border-radius: 8px;
-      padding: 9px 14px;
+      border-radius: 6px;
+      padding: 8px 12px;
       color: #fff;
-      font-size: 13px;
+      font-size: 12px;
       outline: none;
     }
+    .ai-input:focus { border-color: var(--cyan); }
 
-    footer {
-      border-top: 1px solid var(--card-border);
-      padding: 12px 24px;
-      font-size: 11px;
+    /* Tab 2: Pedidos C:\pedidos */
+    .files-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .files-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: #090e1a;
       color: var(--text-muted);
+      border-bottom: 1px solid var(--card-border);
+      font-size: 11px;
+    }
+    .files-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .files-table tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+    /* Modal Visor */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.active { display: flex; }
+    .modal-box {
+      background: #0a0f1d;
+      border: 1px solid var(--cyan);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 650px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 25px rgba(0, 210, 255, 0.25);
+    }
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-border);
       display: flex;
       justify-content: space-between;
-      background: #0e141f;
+      align-items: center;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-weight: 700;
     }
+    .modal-body {
+      padding: 14px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: #cbd5e1;
+      background: #060911;
+      line-height: 1.5;
+    }
+    .modal-footer {
+      padding: 10px 16px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Buscador Productos */
+    .search-box {
+      width: 100%;
+      background: #060911;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: #fff;
+      font-size: 12px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .search-box:focus { border-color: var(--cyan); }
   </style>
 </head>
 <body>
 
-  <!-- Cabecera -->
+  <!-- Header -->
   <header>
     <div class="brand">
-      <div class="brand-logo">JJ</div>
+      <div class="brand-badge">⚡ AG</div>
       <div>
-        <div class="brand-title">JJ PAPER &middot; Suite Salaz</div>
-        <div class="brand-sub">Control Total ERP, Sincronización Tri-Capa y Gemini AI</div>
+        <div class="brand-title">
+          ANTIGRAVITY MICRO-NODE
+          <span style="font-size:10px;background:rgba(0,210,255,0.15);color:var(--cyan);padding:2px 6px;border-radius:4px;border:1px solid rgba(0,210,255,0.3);">v2.0 WIN7</span>
+        </div>
+        <div class="brand-sub" id="hdr-host-sub">Nodo Local: WIN7-TIENDA &middot; C:\pedidos</div>
       </div>
     </div>
 
+    <!-- Píldoras de Telemetría Real -->
+    <div class="telemetry-pills">
+      <div class="pill" title="Conexión HTTPS directa con Supabase Core">
+        <div class="dot green" id="dot-cloud"></div>
+        <span>Nube:</span>
+        <strong id="txt-cloud" style="color:#fff;">Conectado</strong>
+      </div>
+      <div class="pill" title="Latido agéntico reportado a la nube">
+        <div class="dot cyan" id="dot-beat"></div>
+        <span>Latido:</span>
+        <strong id="txt-beat" style="color:var(--cyan);">Activo (20s)</strong>
+      </div>
+      <div class="pill" title="Depósito de Pedidos para Caja MixNet">
+        📁 <span>C:\pedidos:</span>
+        <strong id="txt-pedidos-count" style="color:#00ff88;">0 listos</strong>
+      </div>
+      <div class="pill" title="Tasa oficial BCV en memoria">
+        💵 <span>BCV:</span>
+        <strong id="txt-bcv" style="color:var(--amber);">0.00 Bs</strong>
+      </div>
+      <div class="pill" title="Memoria RAM consumida por este proceso">
+        💻 <span>RAM:</span>
+        <strong id="txt-ram" style="color:#94a3b8;">~28 MB</strong>
+      </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
     <div class="header-actions">
-      <div class="status-badge" title="Sincronización en tiempo real">
-        <div class="dot green" id="dot-sync"></div>
-        <span id="txt-sync">Sincronizado</span>
-      </div>
-      <div class="status-badge" title="Enlace con la PC Supervisor">
-        <div class="dot" id="dot-supervisor"></div>
-        <span id="txt-supervisor">Supervisor PC</span>
-      </div>
-      <button class="btn btn-green" onclick="forceSync()">
-        🔄 Replicar y Sincronizar Ahora
+      <button class="btn btn-green" onclick="forceSync()" title="Forzar sincronización inmediata de la nube">
+        ⚡ Sincronizar
+      </button>
+      <button class="btn" onclick="testNetwork()" title="Medir latencia contra la nube">
+        🌐 Test Red
+      </button>
+      <button class="btn" onclick="openPedidosFolder()" title="Abrir carpeta C:\pedidos en Windows">
+        📂 C:\pedidos
       </button>
     </div>
   </header>
 
-  <!-- Pestañas -->
-  <nav>
-    <button class="tab-btn active" onclick="showTab('tab-dashboard')">📊 Dashboard General</button>
-    <button class="tab-btn" onclick="showTab('tab-orders')">🧾 Pedidos en Vivo</button>
-    <button class="tab-btn" onclick="showTab('tab-quotes')">📑 Cotizaciones</button>
-    <button class="tab-btn" onclick="showTab('tab-bancos')">🏦 Bancos & Finanzas</button>
-    <button class="tab-btn" onclick="showTab('tab-cxc')">💰 Cuentas por Cobrar (CxC)</button>
-    <button class="tab-btn" onclick="showTab('tab-cxp')">💳 Cuentas por Pagar (CxP)</button>
-    <button class="tab-btn" onclick="showTab('tab-nomina')">👥 Nómina & Vendedores</button>
-    <button class="tab-btn" onclick="showTab('tab-products')">📦 Inventario & Precios</button>
-    <button class="tab-btn" onclick="showTab('tab-dbf')">🔍 Tablas Unidad MixNet (DBF)</button>
-    <button class="tab-btn" onclick="showTab('tab-files')">📁 Explorador & Editor</button>
-    <button class="tab-btn" onclick="showTab('tab-access')">🔑 Datos Cuenta & Accesos</button>
-    <button class="tab-btn" onclick="showTab('tab-ai')">🤖 Copiloto Gemini AI</button>
-  </nav>
-
-  <!-- Principal -->
+  <!-- Contenedor Principal (Split Layout) -->
   <main>
 
-    <!-- TAB 1: DASHBOARD -->
-    <div id="tab-dashboard" class="tab-pane active">
-      <div class="kpi-grid">
-        <div class="kpi-card" style="--card-accent: var(--green);">
-          <div class="kpi-title">Ventas Registradas</div>
-          <div class="kpi-val" id="kpi-ventas">$0.00</div>
-          <div class="kpi-desc" id="kpi-pedidos-count">0 pedidos sincronizados</div>
+    <!-- COLUMNA IZQUIERDA: TERMINAL AGÉNTICO EN VIVO -->
+    <div class="terminal-card">
+      <div class="terminal-header">
+        <div class="terminal-title">
+          <span>>_</span> TERMINAL AGÉNTICO // ACTIVIDAD EN TIEMPO REAL
         </div>
-        <div class="kpi-card" style="--card-accent: var(--blue);">
-          <div class="kpi-title">Cuentas por Cobrar (CxC)</div>
-          <div class="kpi-val" id="kpi-cxc">$0.00</div>
-          <div class="kpi-desc" id="kpi-cxc-count">0 clientes pendientes</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--red);">
-          <div class="kpi-title">Cuentas por Pagar (CxP)</div>
-          <div class="kpi-val" id="kpi-cxp">$0.00</div>
-          <div class="kpi-desc">Proveedores y compras</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--primary);">
-          <div class="kpi-title">Cotizaciones Emitidas</div>
-          <div class="kpi-val" id="kpi-quotes-count">0</div>
-          <div class="kpi-desc">Presupuestos de clientes</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--purple);">
-          <div class="kpi-title">Tasa Oficial BCV</div>
-          <div class="kpi-val" id="kpi-fx">0.00 Bs</div>
-          <div class="kpi-desc">Conversión oficial en vivo</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:10px;color:var(--green);font-family:var(--mono);">🟢 STREAM ACTIVO</span>
+          <button class="btn-chip" onclick="clearLogs()" title="Limpiar pantalla del terminal">🧹 Limpiar</button>
         </div>
       </div>
 
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">⚡ Resumen de Sincronización Tri-Capa</div>
-          <button class="btn btn-secondary" onclick="loadAll()">🔄 Refrescar Pantalla</button>
+      <!-- Cuerpo del Terminal con Logs -->
+      <div class="terminal-body" id="terminal-body">
+        <div class="log-line">
+          <span class="log-time">[00:00:00]</span>
+          <span class="log-tag tag-BOOT">BOOT</span>
+          <span class="log-msg">Iniciando Antigravity Micro-Node para Windows 7...</span>
         </div>
-        <div style="padding: 18px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-          <p>La <strong>Suite Salaz</strong> opera con sincronización redundante automática: consulta simultáneamente la <strong>Base Nube PostgREST de Supabase</strong>, la <strong>PC Supervisor (192.168.0.172 / 100.103.110.44)</strong> y los <strong>Archivos DBF locales de MixNet</strong>. Si una vía se encuentra ocupada o desconectada, las otras proveen el 100% de la información comercial en tiempo real.</p>
-        </div>
+      </div>
+
+      <!-- Barra de accesos directos de comando -->
+      <div class="terminal-shortcuts">
+        <button class="btn-chip" onclick="runCliCmd('sync')">⚡ sync</button>
+        <button class="btn-chip" onclick="runCliCmd('net')">🌐 net</button>
+        <button class="btn-chip" onclick="runCliCmd('pedidos')">📁 dir C:\pedidos</button>
+        <button class="btn-chip" onclick="runCliCmd('bcv')">💵 bcv</button>
+        <button class="btn-chip" onclick="runCliCmd('ping 8.8.8.8 -n 2')">📡 ping</button>
+        <button class="btn-chip" onclick="runCliCmd('help')">❓ help</button>
+      </div>
+
+      <!-- Prompt Interactivo -->
+      <div class="terminal-input-bar">
+        <span class="prompt-label">antigravity@win7:~$</span>
+        <input type="text" class="cli-input" id="cli-input" placeholder="Escribe un comando o comando de Windows..." autocomplete="off">
+        <button class="btn" onclick="handleCliSubmit()">Ejecutar</button>
       </div>
     </div>
 
-    <!-- TAB 2: PEDIDOS EN VIVO -->
-    <div id="tab-orders" class="tab-pane">
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">🧾 Pedidos en Vivo (MixNet & Web)</div>
-          <input type="text" class="search-input" placeholder="Buscar por número o cliente..." onkeyup="searchOrders(this.value)">
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Nro Pedido</th>
-              <th>Emisión</th>
-              <th>Cliente</th>
-              <th>Total USD</th>
-              <th>Estatus</th>
-              <th>Vendedor / Origen</th>
-            </tr>
-          </thead>
-          <tbody id="body-orders">
-            <tr><td colspan="6" style="text-align: center;">Cargando pedidos...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 3: COTIZACIONES -->
-    <div id="tab-quotes" class="tab-pane">
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">📑 Cotizaciones y Presupuestos</div>
-          <input type="text" class="search-input" placeholder="Buscar por número o cliente..." onkeyup="searchQuotes(this.value)">
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Nro Cotización</th>
-              <th>Emisión</th>
-              <th>Cliente</th>
-              <th>Monto Estimado</th>
-              <th>Estatus</th>
-            </tr>
-          </thead>
-          <tbody id="body-quotes">
-            <tr><td colspan="5" style="text-align: center;">Cargando cotizaciones...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB BANCOS Y FINANZAS -->
-    <div id="tab-bancos" class="tab-pane">
-      <div class="kpi-grid">
-        <div class="kpi-card" style="--card-accent: var(--blue);">
-          <div class="kpi-title">Bancos en Bolívares (Bs)</div>
-          <div class="kpi-val" id="kpi-bancos-bs">0.00 Bs</div>
-          <div class="kpi-desc" id="kpi-bancos-ctas-count">0 cuentas activas</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--green);">
-          <div class="kpi-title">Bancos / Divisas (USD)</div>
-          <div class="kpi-val" id="kpi-bancos-usd">$0.00</div>
-          <div class="kpi-desc">Cuentas custodia y divisas</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--primary);">
-          <div class="kpi-title">Cajas y Efectivo</div>
-          <div class="kpi-val" id="kpi-cajas-total">$0.00</div>
-          <div class="kpi-desc" id="kpi-cajas-count">Cajas registradas</div>
-        </div>
-        <div class="kpi-card" style="--card-accent: var(--purple);">
-          <div class="kpi-title">Movimientos & Cheques</div>
-          <div class="kpi-val" id="kpi-movs-count">0</div>
-          <div class="kpi-desc">Transacciones en memoria</div>
-        </div>
+    <!-- COLUMNA DERECHA: PANEL DE OPERACIONES -->
+    <div class="ops-card">
+      <div class="ops-nav">
+        <button class="tab-btn active" onclick="switchTab('tab-ai')">🤖 Copiloto IA (Gemini)</button>
+        <button class="tab-btn" onclick="switchTab('tab-pedidos')">📦 Despacho C:\pedidos</button>
+        <button class="tab-btn" onclick="switchTab('tab-catalogo')">🔍 Consulta Precios ($ / Bs)</button>
+        <button class="tab-btn" onclick="switchTab('tab-telemetria')">⚡ Tareas & Sistema</button>
       </div>
 
-      <!-- Cuentas Bancarias Registradas -->
-      <div class="table-container" style="margin-bottom: 24px;">
-        <div class="table-header">
-          <div class="table-title">🏦 Cuentas Bancarias Registradas & Oficiales</div>
-          <button class="btn btn-secondary" onclick="loadBancos()">🔄 Actualizar Bancos</button>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Banco</th>
-              <th>Número de Cuenta (20 dígitos)</th>
-              <th>Titular / RIF</th>
-              <th>Tipo</th>
-              <th>Moneda</th>
-              <th>Saldo en Libros</th>
-              <th>Saldo Conciliado</th>
-              <th>Origen</th>
-            </tr>
-          </thead>
-          <tbody id="body-bancos-cuentas">
-            <tr><td colspan="8" style="text-align: center;">Cargando cuentas bancarias...</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <div class="ops-content">
 
-      <!-- Movimientos Bancarios Recientes (MXTRABAN) -->
-      <div class="table-container" style="margin-bottom: 24px;">
-        <div class="table-header">
-          <div class="table-title">📋 Movimientos Bancarios Recientes (MXTRABAN)</div>
-          <input type="text" class="search-input" placeholder="Buscar por referencia o concepto..." onkeyup="filterMovimientos(this.value)">
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Banco</th>
-              <th>Referencia / Comprobante</th>
-              <th>Tipo</th>
-              <th>Concepto</th>
-              <th>Monto</th>
-              <th>Saldo Resultante</th>
-            </tr>
-          </thead>
-          <tbody id="body-bancos-movs">
-            <tr><td colspan="7" style="text-align: center;">Sin movimientos bancarios en la unidad.</td></tr>
-          </tbody>
-        </table>
-      </div>
+        <!-- TAB 1: COPILOTO IA AGÉNTICO -->
+        <div id="tab-ai" class="tab-pane active">
+          <div class="ai-chat-container">
+            <div class="ai-chips">
+              <span class="chip" onclick="askAi('¿Cuál es la tasa oficial de hoy y precios en Bs?')">💵 Tasa Oficial Hoy</span>
+              <span class="chip" onclick="askAi('Verifica la estabilidad de la red y la conexión')">🌐 Probar Red</span>
+              <span class="chip" onclick="askAi('Sincroniza la base de datos completa con la nube')">⚡ Sincronizar Base Datos</span>
+              <span class="chip" onclick="askAi('¿Cuáles son las cuentas bancarias registradas?')">🏦 Ver Cuentas Bancarias</span>
+              <span class="chip" onclick="askAi('Muéstrame los pedidos recientes depositados en C:\\pedidos')">📦 Ver Pedidos Caja</span>
+            </div>
 
-      <!-- Cajas de la Empresa (MXCTACAJ) & Cheques (MXCHEQUE) -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div class="table-container">
-          <div class="table-header">
-            <div class="table-title">💵 Cajas de la Empresa (MXCTACAJ)</div>
+            <div class="ai-messages-box" id="ai-messages">
+              <div class="msg ai">
+                ¡Hola! Soy tu <strong>Copiloto Agéntico en Windows 7</strong>.<br>
+                Puedo ejecutar comandos del sistema, revisar la conexión, sincronizar pedidos en <code>C:\pedidos</code> y consultar cuentas o precios al instante.
+              </div>
+            </div>
+
+            <div class="ai-input-wrap">
+              <input type="text" class="ai-input" id="ai-input" placeholder="Pregúntale algo o pídele una tarea al agente..." autocomplete="off">
+              <button class="btn btn-green" id="btn-ai-send" onclick="handleAiSubmit()">Enviar</button>
+            </div>
           </div>
-          <table>
+        </div>
+
+        <!-- TAB 2: DESPACHO C:\pedidos -->
+        <div id="tab-pedidos" class="tab-pane">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+              <strong style="color:#fff;">Archivos de Despacho en C:\pedidos</strong>
+              <div style="font-size:11px;color:var(--text-muted);">Pedidos y cotizaciones listos para facturar en MixNet</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-green" onclick="loadPedidosFiles()">🔄 Actualizar</button>
+              <button class="btn" onclick="openPedidosFolder()">📂 Abrir en Windows</button>
+            </div>
+          </div>
+
+          <table class="files-table">
             <thead>
               <tr>
-                <th>Cód</th>
-                <th>Nombre de Caja</th>
-                <th>Responsable</th>
-                <th>Saldo Actual</th>
+                <th>Archivo</th>
+                <th>Tipo</th>
+                <th>Fecha Modificación</th>
+                <th>Tamaño</th>
+                <th>Acción</th>
               </tr>
             </thead>
-            <tbody id="body-bancos-cajas">
-              <tr><td colspan="4" style="text-align: center;">Cargando cajas...</td></tr>
+            <tbody id="pedidos-tbody">
+              <tr><td colspan="5" style="text-align:center;color:#666;">Cargando archivos...</td></tr>
             </tbody>
           </table>
         </div>
 
-        <div class="table-container">
-          <div class="table-header">
-            <div class="table-title">🎫 Cheques Registrados (MXCHEQUE)</div>
-          </div>
-          <table>
+        <!-- TAB 3: CONSULTA PRODUCTOS & PRECIOS -->
+        <div id="tab-catalogo" class="tab-pane">
+          <input type="text" class="search-box" id="prod-search" placeholder="🔍 Buscar por nombre o código de producto..." oninput="filterProducts()">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" id="prod-count-label">Cargando catálogo...</div>
+
+          <table class="files-table">
             <thead>
               <tr>
-                <th>Nro Cheque</th>
-                <th>Banco</th>
-                <th>Beneficiario</th>
-                <th>Monto</th>
-                <th>Estatus</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Precio USD</th>
+                <th>Precio Bs (BCV)</th>
               </tr>
             </thead>
-            <tbody id="body-bancos-cheques">
-              <tr><td colspan="5" style="text-align: center;">Sin cheques registrados.</td></tr>
+            <tbody id="catalogo-tbody">
+              <tr><td colspan="4" style="text-align:center;color:#666;">Cargando productos en memoria...</td></tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
 
-    <!-- TAB 4: CUENTAS POR COBRAR (CxC) -->
-    <div id="tab-cxc" class="tab-pane">
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">💰 Cuentas por Cobrar & Deudores</div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Documento</th>
-              <th>Cliente</th>
-              <th>Vendedor</th>
-              <th>Monto Pendiente</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody id="body-cxc">
-            <tr><td colspan="5" style="text-align: center;">Cargando cuentas por cobrar...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 5: CUENTAS POR PAGAR (CxP) & PROVEEDORES -->
-    <div id="tab-cxp" class="tab-pane">
-      <div class="table-container" style="margin-bottom: 24px;">
-        <div class="table-header">
-          <div class="table-title">💳 Documentos por Pagar & Facturas Pendientes (MXTRAPAG)</div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Documento</th>
-              <th>Emisión</th>
-              <th>Vence</th>
-              <th>Proveedor</th>
-              <th>Concepto</th>
-              <th>Monto Pendiente</th>
-            </tr>
-          </thead>
-          <tbody id="body-cxp">
-            <tr><td colspan="6" style="text-align: center;">Cargando cuentas por pagar...</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">🏭 Directorio Maestro de Proveedores (MXCTAPRO)</div>
-          <input type="text" class="search-input" placeholder="Buscar proveedor por RIF o nombre..." onkeyup="filterProveedores(this.value)">
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Cód</th>
-              <th>Razón Social / Proveedor</th>
-              <th>RIF</th>
-              <th>Teléfono</th>
-              <th>Dirección</th>
-              <th>Saldo Adeudado</th>
-            </tr>
-          </thead>
-          <tbody id="body-proveedores">
-            <tr><td colspan="6" style="text-align: center;">Cargando directorio de proveedores...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 6: NOMINA & VENDEDORES -->
-    <div id="tab-nomina" class="tab-pane">
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">👥 Nómina de Ventas y Comisiones</div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Cód</th>
-              <th>Asesor / Vendedor</th>
-              <th>Rol Oficial</th>
-              <th>Pedidos</th>
-              <th>Ventas USD</th>
-              <th>Comisión (3%)</th>
-            </tr>
-          </thead>
-          <tbody id="body-nomina">
-            <tr><td colspan="6" style="text-align: center;">Cargando nómina...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 7: INVENTARIO & PRECIOS -->
-    <div id="tab-products" class="tab-pane">
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">📦 Catálogo de Productos y Existencias</div>
-          <input type="text" class="search-input" placeholder="Buscar por SKU o descripción..." onkeyup="searchProducts(this.value)">
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Código SKU</th>
-              <th>Descripción</th>
-              <th>Existencia</th>
-              <th>Precio USD</th>
-              <th>Precio Bs (BCV)</th>
-              <th>Costo USD</th>
-            </tr>
-          </thead>
-          <tbody id="body-products">
-            <tr><td colspan="6" style="text-align: center;">Cargando productos...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB VISOR UNIVERSAL DE TABLAS DBF DE LA UNIDAD -->
-    <div id="tab-dbf" class="tab-pane">
-      <div class="table-container" style="margin-bottom: 20px;">
-        <div class="table-header" style="flex-wrap: wrap; gap: 12px;">
-          <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 300px;">
-            <div class="table-title">🔍 Tablas DBF de la Unidad MixNet</div>
-            <select id="dbf-table-select" class="search-input" style="min-width: 240px; font-weight: 700; background: #1f293d; color: #fff;" onchange="onSelectDbfTable(this.value)">
-              <option value="">Seleccione una tabla DBF...</option>
-            </select>
-            <button class="btn btn-secondary" onclick="loadDbfTables()">🔄 Escanear Unidad</button>
+        <!-- TAB 4: TAREAS AUTÓNOMAS & SISTEMA -->
+        <div id="tab-telemetria" class="tab-pane">
+          <div style="background:#080c14;border:1px solid var(--card-border);border-radius:8px;padding:14px;margin-bottom:14px;font-family:var(--mono);font-size:12px;">
+            <div style="color:var(--cyan);font-weight:700;margin-bottom:8px;">⚡ ESTADO DEL NODO LOCAL</div>
+            <div>- Hostname: <strong id="sys-host" style="color:#fff;">--</strong></div>
+            <div>- IP Local: <strong id="sys-ip" style="color:#fff;">--</strong></div>
+            <div>- Sistema Operativo: <strong id="sys-os" style="color:#fff;">Windows 7 (Node v13)</strong></div>
+            <div>- Consumo de RAM: <strong id="sys-ram" style="color:#00ff88;">-- MB</strong></div>
+            <div>- Enlace Nube: <strong id="sys-cloud-status" style="color:#00d2ff;">Activo</strong></div>
+            <div>- Carpeta Pedidos: <code>C:\pedidos</code></div>
+            <div>- Pedidos Generados: <strong id="sys-orders-dropped" style="color:#fff;">0</strong></div>
+            <div>- Cotizaciones Generadas: <strong id="sys-quotes-dropped" style="color:#fff;">0</strong></div>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-green" id="btn-export-dbf" onclick="exportCurrentDbf()" style="display: none;">
-              📥 Exportar Tabla a Excel (.CSV)
-            </button>
-          </div>
-        </div>
 
-        <!-- Barra de información de tabla seleccionada -->
-        <div id="dbf-meta-bar" style="display: none; padding: 12px 18px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--card-border); font-size: 12px; gap: 20px; flex-wrap: wrap;">
-          <div><strong>Tabla:</strong> <span id="meta-dbf-name" class="tag tag-amber">-</span></div>
-          <div><strong>Registros:</strong> <span id="meta-dbf-records" style="font-weight: 700; color: #34d399;">0</span></div>
-          <div><strong>Tamaño:</strong> <span id="meta-dbf-size">0 KB</span></div>
-          <div><strong>Campos:</strong> <span id="meta-dbf-fields-count">0 columnas</span></div>
-          <div><strong>Última Modificación:</strong> <span id="meta-dbf-mtime">-</span></div>
-          <div style="flex: 1; text-align: right; color: var(--text-muted);"><code id="meta-dbf-path">-</code></div>
-        </div>
-
-        <div style="padding: 10px 18px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02);">
-          <input type="text" id="dbf-filter-input" class="search-input" style="max-width: 350px;" placeholder="Buscar en cualquier columna de la tabla..." onkeydown="if(event.key==='Enter') searchDbfRows()">
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn btn-secondary" onclick="prevDbfPage()">⬅ Anterior</button>
-            <span id="dbf-page-info" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Página 1</span>
-            <button class="btn btn-secondary" onclick="nextDbfPage()">Siguiente ➡</button>
-          </div>
-        </div>
-
-        <!-- Contenedor dinámico de tabla con scroll horizontal -->
-        <div style="overflow-x: auto; max-height: 580px;">
-          <table id="dbf-dynamic-table">
-            <thead id="dbf-dynamic-thead">
-              <tr><th>Seleccione una tabla arriba para inspeccionar sus datos</th></tr>
-            </thead>
-            <tbody id="dbf-dynamic-tbody">
-              <tr><td style="text-align: center; padding: 30px; color: var(--text-muted);">Todas las tablas de la unidad (MXCTABAN, MXTRABAN, MXCTACAJ, MXCTAPRO, MXTRAINV, etc.) están accesibles sin restricciones.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 8: EXPLORADOR Y EDITOR DE ARCHIVOS -->
-    <div id="tab-files" class="tab-pane">
-      <div class="explorer-grid">
-        <!-- Árbol de Carpetas y Archivos -->
-        <div class="file-tree">
-          <div style="padding: 12px; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.25);">
-            <div id="drives-bar" style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;"></div>
-            <!-- Accesos directos a carpetas clave -->
-            <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
-              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('M:\\comp01')">📂 M:\comp01</button>
-              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('P:\\')">📂 P:\ (Red)</button>
-              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('P:\\DOCUMENTOS\\MARIANELLA MEZA')">📂 P:\Marianella</button>
-              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('P:\\YOVANNY\\Documentacion JJ PAPER')">📂 P:\Yovanny JJP</button>
-              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('C:\\')">📂 C:\ Local</button>
-              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="browsePath('C:\\Users\\GLADIS\\Documents')">📂 C:\Gladis Docs</button>
+          <div style="background:#080c14;border:1px solid var(--card-border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;">
+            <div style="color:var(--green);font-weight:700;margin-bottom:8px;">📡 COLA DE TAREAS REMOTAS (NUBE)</div>
+            <div style="color:var(--text-muted);font-size:11px;margin-bottom:10px;">
+              Este nodo escucha cada 20 segundos si otro agente o la laptop le asigna una tarea a través de Supabase Core.
             </div>
-            <div style="display: flex; gap: 6px;">
-              <input type="text" id="cur-dir-input" class="search-input" style="flex:1;" placeholder="Ruta de carpeta...">
-              <button class="btn btn-secondary" onclick="browsePath(document.getElementById('cur-dir-input').value)">Ir</button>
-            </div>
-            <div style="margin-top: 6px;">
-              <input type="text" id="file-search-input" class="search-input" style="width:100%;" placeholder="Buscar *.prg, *.ini, *.dbf, *banco*..." onkeydown="if(event.key==='Enter') searchFiles()">
+            <div id="tasks-status-box" style="background:#05080f;padding:10px;border-radius:4px;border:1px solid #1e293b;">
+              🟢 En espera de tareas remotas. Último barrido: <span id="sys-last-sync">Reciente</span>
             </div>
           </div>
-          <div class="file-list" id="file-list-box">
-            <div style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando discos...</div>
-          </div>
         </div>
 
-        <!-- Editor de Archivos -->
-        <div class="file-editor-box">
-          <div class="editor-header">
-            <div style="font-weight: 700; font-size: 13px;" id="editor-filename">Ningún archivo seleccionado</div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-secondary" id="btn-download-file" onclick="downloadCurrentFile()" style="display: none;">
-                📥 Descargar Archivo
-              </button>
-              <button class="btn btn-green" id="btn-save-file" onclick="saveCurrentFile()" style="display: none;">
-                💾 Guardar Cambios
-              </button>
-            </div>
-          </div>
-          <textarea class="code-area" id="file-editor" placeholder="Selecciona un archivo de la izquierda para editarlo o visualizarlo aquí..."></textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 9: ACCESOS Y CLAVES DE LA CUENTA -->
-    <div id="tab-access" class="tab-pane">
-      <div class="table-container">
-        <div class="table-header">
-          <div class="table-title">🔑 Claves Maestras, Cuentas Oficiales & Accesos del Sistema JJ Paper</div>
-          <button class="btn btn-secondary" onclick="loadAccesses()">🔄 Recargar Credenciales</button>
-        </div>
-        <div style="padding: 20px;" id="access-content">
-          Cargando directorio de accesos...
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 10: COPILOTO GEMINI AI -->
-    <div id="tab-ai" class="tab-pane">
-      <div class="ai-wrapper">
-        <div class="ai-sidebar">
-          <div style="font-weight: 700; font-size: 14px;">🧠 Copiloto Libre & Adoctrinado</div>
-          <p style="font-size: 11px; color: var(--text-muted);">
-            Tiene acceso total al ERP, pedidos, cotizaciones, cartera, inventario, nómina y archivos del sistema.
-          </p>
-          <button class="btn" onclick="sendAiPrompt('Dame un balance general de los pedidos facturados hoy y las cotizaciones activas.')">📊 Balance de Ventas Hoy</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Cuáles son las cuentas bancarias oficiales y registradas en MixNet, números de cuenta de 20 dígitos y saldos?')">🏦 Cuentas Bancarias y Saldos</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Cuánto dinero hay disponible en las cajas de la empresa y efectivo?')">💵 Cajas y Efectivo</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Qué movimientos bancarios recientes hay registrados en la unidad?')">📋 Movimientos Bancarios</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Cuáles son las principales deudas a proveedores (CxP) y cheques pendientes?')">💳 Deudas Proveedores (CxP)</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Quiénes son los clientes con mayor deuda en cuentas por cobrar?')">🎯 Auditoría de Cobranzas</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('Detalla las ventas por vendedor y calcula comisiones estimadas.')">👥 Nómina por Vendedor</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('¿Qué tablas DBF existen en la unidad de MixNet y qué información contienen?')">🔍 Tablas de la Unidad MixNet</button>
-          <button class="btn btn-secondary" onclick="sendAiPrompt('Muestra los accesos, IPs y datos de la cuenta configurados.')">🔑 Consultar Accesos y Claves</button>
-        </div>
-
-        <div class="ai-chat-box">
-          <div class="ai-messages" id="chat-messages">
-            <div class="msg ai">
-              👋 <strong>¡Hola! Soy tu Copiloto Ejecutivo en la Suite Salaz.</strong><br>
-              Tengo acceso en tiempo real a las cotizaciones, pedidos, clientes, inventario valorizado, nómina y archivos del sistema.<br><br>
-              ¿Qué deseas consultar o gestionar? Puedes pedirme desde balances comerciales hasta consultar o buscar archivos.
-            </div>
-          </div>
-          <div class="ai-input-area">
-            <input type="text" class="ai-input" id="chat-input" placeholder="Pregunta sobre ventas, pedidos, clientes, archivos o cuentas..." onkeydown="if(event.key==='Enter') sendQuestion()">
-            <button class="btn" onclick="sendQuestion()">Enviar</button>
-          </div>
-        </div>
       </div>
     </div>
 
   </main>
 
-  <!-- Footer -->
-  <footer>
-    <div>JJ Paper C.A. &middot; Suite Salaz v7.0</div>
-    <div id="footer-sync">Sincronizado vía Nube / Supervisor / DBF</div>
-  </footer>
+  <!-- Modal Visor de Archivo -->
+  <div class="modal-backdrop" id="modal-view">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="modal-filename">pedido_00053358.txt</span>
+        <button class="btn-chip" onclick="closeModal()">✕ Cerrar</button>
+      </div>
+      <div class="modal-body" id="modal-content"></div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
+  <!-- Script del Cliente Agéntico -->
   <script>
-    var currentEditingPath = null;
-    var fxRate = 0;
+    let currentTab = 'tab-ai';
+    let allProducts = [];
+    let bcvRate = 0;
 
-    function showTab(id) {
-      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
-      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
-      var target = document.getElementById(id);
-      if (target) target.classList.add('active');
-      document.querySelectorAll('.tab-btn').forEach(function(b){
-        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(id) !== -1) b.classList.add('active');
-      });
-      if (id === 'tab-files') browsePath('C:\\');
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      const targetPane = document.getElementById(tabId);
+      if (targetPane) targetPane.classList.add('active');
+      event.currentTarget.classList.add('active');
+      currentTab = tabId;
+
+      if (tabId === 'tab-pedidos') loadPedidosFiles();
+      if (tabId === 'tab-catalogo') loadProducts();
     }
 
-    function loadStatus() {
-      fetch('/api/status').then(function(r){return r.json();}).then(function(d){
-        document.getElementById('kpi-ventas').innerText = '$' + (d.orders_count > 0 ? (d.orders_count * 85).toLocaleString() : '0.00');
-        document.getElementById('kpi-pedidos-count').innerText = d.orders_count + ' pedidos en vivo';
-        document.getElementById('kpi-quotes-count').innerText = d.quotes_count + ' cotizaciones';
-        document.getElementById('kpi-fx').innerText = (d.fx_rate || 0).toFixed(2) + ' Bs';
-        fxRate = d.fx_rate || 0;
+    // Polling del estado cada 4 segundos
+    async function updateStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const st = await res.json();
+        if (st.ok) {
+          bcvRate = st.fx_rate || 0;
+          document.getElementById('txt-bcv').innerText = bcvRate.toFixed(2) + ' Bs';
+          document.getElementById('txt-ram').innerText = st.memory_mb + ' MB';
+          document.getElementById('txt-pedidos-count').innerText = (st.dropped_orders_count || 0) + ' listos';
+          document.getElementById('hdr-host-sub').innerText = 'Nodo Local: ' + (st.host || 'WIN7') + ' (' + (st.lan_ip || '127.0.0.1') + ') · C:\\pedidos';
 
-        var dotSup = document.getElementById('dot-supervisor');
-        var txtSup = document.getElementById('txt-supervisor');
-        if (d.supervisor && d.supervisor.online) {
-          dotSup.className = 'dot green';
-          txtSup.innerText = 'Supervisor (' + d.supervisor.latency + 'ms)';
-        } else {
-          dotSup.className = 'dot yellow';
-          txtSup.innerText = 'Supervisor PC';
+          // Telemetría Tab
+          document.getElementById('sys-host').innerText = st.host || 'WIN7';
+          document.getElementById('sys-ip').innerText = st.lan_ip || '127.0.0.1';
+          document.getElementById('sys-ram').innerText = st.memory_mb + ' MB';
+          document.getElementById('sys-orders-dropped').innerText = st.dropped_orders_count || 0;
+          document.getElementById('sys-quotes-dropped').innerText = st.dropped_quotes_count || 0;
+          document.getElementById('sys-last-sync').innerText = st.last_sync ? new Date(st.last_sync).toLocaleTimeString('es-VE') : 'Reciente';
+
+          // Nube pill
+          const isCloud = st.cloud_status && st.cloud_status.online;
+          document.getElementById('dot-cloud').className = 'dot ' + (isCloud ? 'green' : 'amber');
+          document.getElementById('txt-cloud').innerText = isCloud ? 'Conectado' : 'Offline';
         }
-      }).catch(function(e){ console.warn(e); });
+      } catch (_) {}
     }
 
-    function loadOrders() {
-      fetch('/api/orders').then(function(r){return r.json();}).then(function(res){
-        var tbody = document.getElementById('body-orders');
-        if (!res.orders || res.orders.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay pedidos registrados aún.</td></tr>';
-          return;
-        }
-        var html = '';
-        res.orders.forEach(function(o){
-          var tot = parseFloat(o.total_usd || o.tot_ped || o.total || 0).toFixed(2);
-          var est = (o.status || o.estatus || 'EMITIDO').toUpperCase();
-          var tagClass = est.indexOf('PAG') !== -1 || est === 'FA' ? 'tag-green' : 'tag-amber';
-          html += '<tr>' +
-            '<td><span class="tag tag-blue">' + (o.order_number || o.numped) + '</span></td>' +
-            '<td>' + (o.created_at ? o.created_at.slice(0, 10) : (o.emision || '-')) + '</td>' +
-            '<td><strong>' + (o.client_name || o.cliente) + '</strong></td>' +
-            '<td style="font-weight: 700; color: #34d399;">$' + tot + '</td>' +
-            '<td><span class="tag ' + tagClass + '">' + est + '</span></td>' +
-            '<td>' + (o.source || 'MixNet') + '</td>' +
-          '</tr>';
-        });
-        tbody.innerHTML = html;
-      });
-    }
-
-    function loadQuotes() {
-      fetch('/api/quotes').then(function(r){return r.json();}).then(function(res){
-        var tbody = document.getElementById('body-quotes');
-        if (!res.quotes || res.quotes.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay cotizaciones registradas.</td></tr>';
-          return;
-        }
-        var html = '';
-        res.quotes.forEach(function(q){
-          var tot = parseFloat(q.estimated_total_usd || q.tot_ped || q.total || 0).toFixed(2);
-          html += '<tr>' +
-            '<td><span class="tag tag-blue">' + (q.quote_number || q.numcot) + '</span></td>' +
-            '<td>' + (q.created_at ? q.created_at.slice(0, 10) : (q.emision || '-')) + '</td>' +
-            '<td><strong>' + (q.client_name || q.cliente) + '</strong></td>' +
-            '<td style="font-weight: 700; color: #60a5fa;">$' + tot + '</td>' +
-            '<td><span class="tag tag-amber">' + (q.status || 'PENDIENTE') + '</span></td>' +
-          '</tr>';
-        });
-        tbody.innerHTML = html;
-      });
-    }
-
-    function loadCxC() {
-      fetch('/api/cxc').then(function(r){return r.json();}).then(function(res){
-        var tbody = document.getElementById('body-cxc');
-        var d = res.data;
-        document.getElementById('kpi-cxc').innerText = '$' + (d.total || 0).toLocaleString();
-        document.getElementById('kpi-cxc-count').innerText = (d.count || 0) + ' pedidos pendientes';
-
-        if (!d.items || d.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Al día, sin deudas pendientes.</td></tr>';
-          return;
-        }
-        var html = '';
-        d.items.forEach(function(it){
-          html += '<tr>' +
-            '<td><span class="tag tag-amber">' + it.numero + '</span></td>' +
-            '<td><strong>' + it.cliente + '</strong></td>' +
-            '<td>' + it.vendedor + '</td>' +
-            '<td style="font-weight: 700; color: #fbbf24;">$' + it.monto_usd.toFixed(2) + '</td>' +
-            '<td>' + (it.fecha ? it.fecha.slice(0, 10) : '-') + '</td>' +
-          '</tr>';
-        });
-        tbody.innerHTML = html;
-      });
-    }
-
-    function loadCxP() {
-      fetch('/api/cxp').then(function(r){return r.json();}).then(function(res){
-        var tbody = document.getElementById('body-cxp');
-        var d = res.data;
-        document.getElementById('kpi-cxp').innerText = '$' + (d.total || 0).toLocaleString();
-        if (!d.items || d.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No hay cuentas por pagar pendientes.</td></tr>';
-          return;
-        }
-        var html = '';
-        d.items.forEach(function(it){
-          html += '<tr>' +
-            '<td><span class="tag tag-red">' + it.documento + '</span></td>' +
-            '<td>' + (it.emision || '-') + '</td>' +
-            '<td><strong>' + it.proveedor + '</strong></td>' +
-            '<td style="font-weight: 700; color: #f87171;">$' + it.monto_usd.toFixed(2) + '</td>' +
-          '</tr>';
-        });
-        tbody.innerHTML = html;
-      });
-    }
-
-    function loadNomina() {
-      fetch('/api/nomina').then(function(r){return r.json();}).then(function(res){
-        var tbody = document.getElementById('body-nomina');
-        var list = res.data && res.data.vendedores ? res.data.vendedores : [];
-        if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Sin registros de ventas por vendedor.</td></tr>';
-          return;
-        }
-        var html = '';
-        list.forEach(function(v){
-          html += '<tr>' +
-            '<td><span class="tag tag-blue">' + v.codigo + '</span></td>' +
-            '<td><strong>' + v.nombre + '</strong></td>' +
-            '<td><span class="tag tag-amber">' + v.rol + '</span></td>' +
-            '<td>' + v.pedidos_count + '</td>' +
-            '<td style="font-weight: 700; color: #34d399;">$' + (v.total_ventas_usd || 0).toFixed(2) + '</td>' +
-            '<td style="font-weight: 700; color: #fbbf24;">$' + (v.comision_estimada_3pct || 0).toFixed(2) + '</td>' +
-          '</tr>';
-        });
-        tbody.innerHTML = html;
-      });
-    }
-
-    function loadProducts() {
-      fetch('/api/products').then(function(r){return r.json();}).then(function(res){
-        var tbody = document.getElementById('body-products');
-        if (!res.products || res.products.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay productos sincronizados.</td></tr>';
-          return;
-        }
-        var html = '';
-        res.products.forEach(function(p){
-          var priceUsd = parseFloat(p.price_usd || p.price_b || 0);
-          var priceBs = fxRate > 0 ? (priceUsd * fxRate).toFixed(2) : '-';
-          var stockColor = (p.stock || 0) > 0 ? '#34d399' : '#f87171';
-          html += '<tr>' +
-            '<td><code>' + (p.sku || p.id) + '</code></td>' +
-            '<td><strong>' + p.name + '</strong></td>' +
-            '<td style="font-weight: 700; color: ' + stockColor + ';">' + (p.stock || 0) + '</td>' +
-            '<td style="font-weight: 700; color: #60a5fa;">$' + priceUsd.toFixed(2) + '</td>' +
-            '<td style="font-weight: 700; color: #fbbf24;">' + priceBs + ' Bs</td>' +
-            '<td>$' + (parseFloat(p.cost_usd || 0)).toFixed(2) + '</td>' +
-          '</tr>';
-        });
-        tbody.innerHTML = html;
-      });
-    }
-
-    function copyText(txt, elem) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(txt).then(function() {
-          var orig = elem.innerText;
-          elem.innerText = '✅ ¡Copiado!';
-          setTimeout(function(){ elem.innerText = orig; }, 2000);
-        });
-      } else {
-        var ta = document.createElement('textarea');
-        ta.value = txt;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        var orig = elem.innerText;
-        elem.innerText = '✅ ¡Copiado!';
-        setTimeout(function(){ elem.innerText = orig; }, 2000);
-      }
-    }
-
-    function openFileFromAccess(filePath) {
-      showTab('tab-files');
-      openFile(filePath);
-    }
-
-    function downloadFileFromAccess(filePath) {
-      window.location.href = '/api/files/download?path=' + encodeURIComponent(filePath);
-    }
-
-    function loadAccesses() {
-      fetch('/api/credentials').then(function(r){return r.json();}).then(function(res){
-        var box = document.getElementById('access-content');
-        var cred = res.credentials || {};
-        var archs = res.archivos_bancarios || [];
-        var acc = res.accesses || {};
-        var ctas = res.cuentas_oficiales || [];
-
-        var html = '';
-
-        // SECCIÓN 1: CLAVES MAESTRAS DE INFRAESTRUCTURA & BD
-        html += '<div style="margin-bottom: 24px;">' +
-          '<div style="font-size: 15px; font-weight: 700; color: #f59e0b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
-            '<span>🔐</span> Claves Maestras de Infraestructura y Base de Datos' +
-          '</div>' +
-          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">' +
-            '<div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); padding: 14px; border-radius: 8px;">' +
-              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Contraseña Administrativa / BD</div>' +
-              '<div style="font-size: 18px; font-weight: 800; color: #fbbf24; margin: 6px 0; font-family: monospace;">' + (cred.contrasena_maestra_base_datos || '30909109KJSP') + '</div>' +
-              '<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="copyText(\'' + (cred.contrasena_maestra_base_datos || '30909109KJSP') + '\', this)">📋 Copiar Clave</button>' +
-            '</div>' +
-            '<div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); padding: 14px; border-radius: 8px;">' +
-              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Clave Postgres Pooler Core</div>' +
-              '<div style="font-size: 16px; font-weight: 700; color: #60a5fa; margin: 6px 0; font-family: monospace;">' + (cred.contrasena_pooler_core || 'Samily*2030909109') + '</div>' +
-              '<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="copyText(\'' + (cred.contrasena_pooler_core || 'Samily*2030909109') + '\', this)">📋 Copiar Clave</button>' +
-            '</div>' +
-            '<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); padding: 14px; border-radius: 8px;">' +
-              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Clave Postgres Pooler Comm</div>' +
-              '<div style="font-size: 16px; font-weight: 700; color: #34d399; margin: 6px 0; font-family: monospace;">' + (cred.contrasena_pooler_comm || 'Samily*30909109') + '</div>' +
-              '<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="copyText(\'' + (cred.contrasena_pooler_comm || 'Samily*30909109') + '\', this)">📋 Copiar Clave</button>' +
-            '</div>' +
-            '<div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">' +
-              '<div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">Usuario Windows Supervisor</div>' +
-              '<div style="font-size: 16px; font-weight: 700; color: #fff; margin: 6px 0;">' + (cred.usuario_windows_supervisor || 'Supervisor') + '</div>' +
-              '<span class="tag tag-blue">RDP / Terminal</span>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-
-        // SECCIÓN 2: CUENTA OFICIAL BANCO DE VENEZUELA Y RECAUDACIÓN
-        html += '<div style="margin-bottom: 24px;">' +
-          '<div style="font-size: 15px; font-weight: 700; color: #34d399; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
-            '<span>🏦</span> Cuenta Oficial de la Empresa & Recaudación (JJP)' +
-          '</div>' +
-          '<div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 16px;">' +
-            '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">' +
-              '<div>' +
-                '<div style="font-size: 11px; color: var(--text-muted);">BANCO OFICIAL</div>' +
-                '<div style="font-size: 15px; font-weight: 700;">Banco de Venezuela (0102)</div>' +
-              '</div>' +
-              '<div>' +
-                '<div style="font-size: 11px; color: var(--text-muted);">NÚMERO DE CUENTA CORRIENTE (20 DÍGITOS)</div>' +
-                '<div style="font-size: 16px; font-weight: 800; color: #34d399; font-family: monospace;">' + (cred.cuenta_oficial_bdv_numero || '01020491750000050335') + '</div>' +
-                '<button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 4px;" onclick="copyText(\'' + (cred.cuenta_oficial_bdv_numero || '01020491750000050335') + '\', this)">📋 Copiar Cuenta</button>' +
-              '</div>' +
-              '<div>' +
-                '<div style="font-size: 11px; color: var(--text-muted);">TITULAR & RIF</div>' +
-                '<div style="font-size: 14px; font-weight: 700;">' + (cred.cuenta_oficial_titular || 'JJ PAPER, C.A.') + ' | RIF: ' + (cred.cuenta_oficial_rif || 'J-29537545-0') + '</div>' +
-                '<button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 4px;" onclick="copyText(\'' + (cred.cuenta_oficial_rif || 'J-29537545-0') + '\', this)">📋 Copiar RIF</button>' +
-              '</div>' +
-              '<div>' +
-                '<div style="font-size: 11px; color: var(--text-muted);">PAGO MÓVIL COMERCIAL OFICIAL</div>' +
-                '<div style="font-size: 15px; font-weight: 800; color: #60a5fa;">Tlf: ' + (cred.pago_movil_telefono || '0412-2830185') + '</div>' +
-                '<button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px; margin-top: 4px;" onclick="copyText(\'' + (cred.pago_movil_telefono || '0412-2830185') + '\', this)">📋 Copiar Teléfono</button>' +
-              '</div>' +
-            '</div>' +
-            '<div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 12px; color: var(--text-muted);">' +
-              '📍 Dirección Fiscal: <strong>' + (cred.direccion_fiscal_oficial || 'AV. EL CORTIJO. QTA NEVERI N 58. URB. LOS ROSALES CARACAS') + '</strong> | Correo Oficial: <strong>' + (cred.cuenta_oficial_correo || 'jjpaper1@gmail.com') + '</strong>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-
-        // SECCIÓN 3: ARCHIVOS BANCARIOS EN LA UNIDAD DE RED (P: / C:)
-        html += '<div style="margin-bottom: 24px;">' +
-          '<div style="font-size: 15px; font-weight: 700; color: #60a5fa; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
-            '<span>📁</span> Archivos de Cuentas Bancarias Guardados en la Unidad de Red (P: y C:)' +
-          '</div>' +
-          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;">';
-        archs.forEach(function(ar){
-          var safeP = ar.ruta.replace(/\\/g, '\\\\');
-          html += '<div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px;">' +
-            '<div style="display: flex; justify-content: space-between; align-items: flex-start;">' +
-              '<div>' +
-                '<span class="tag tag-amber" style="font-size: 10px;">' + ar.tipo + '</span> ' +
-                '<strong>' + ar.nombre + '</strong>' +
-              '</div>' +
-            '</div>' +
-            '<div style="font-size: 11px; color: var(--text-muted); margin: 6px 0; word-break: break-all; font-family: monospace;">' + ar.ruta + '</div>' +
-            '<div style="font-size: 11px; margin-bottom: 10px;">' + ar.descripcion + '</div>' +
-            '<div style="display: flex; gap: 6px;">' +
-              '<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openFileFromAccess(\'' + safeP + '\')">👁️ Ver Contenido</button>' +
-              '<button class="btn btn-green" style="padding: 4px 8px; font-size: 11px;" onclick="downloadFileFromAccess(\'' + safeP + '\')">📥 Descargar Archivo</button>' +
-            '</div>' +
-          '</div>';
-        });
-        html += '</div></div>';
-
-        // SECCIÓN 4: ACCESOS DE SERVIDORES Y RED
-        html += '<div>' +
-          '<div style="font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">' +
-            '<span>🖥️</span> Servidores, Conectividad e Infraestructura' +
-          '</div>' +
-          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">';
-        for (var k in acc) {
-          html += '<div style="background: rgba(0,0,0,0.25); border: 1px solid var(--card-border); padding: 12px; border-radius: 8px;">' +
-            '<div style="font-size: 10px; text-transform: uppercase; color: var(--text-muted);">' + k.replace(/_/g, ' ') + '</div>' +
-            '<div style="font-size: 13px; font-weight: 700; margin-top: 4px; word-break: break-all;">' + acc[k] + '</div>' +
-          '</div>';
-        }
-        html += '</div></div>';
-
-        box.innerHTML = html;
-      });
-    }
-
-    // Explorador de Archivos
-    function browsePath(dirPath) {
-      document.getElementById('cur-dir-input').value = dirPath || '';
-      fetch('/api/files/browse?dir=' + encodeURIComponent(dirPath || 'C:\\'))
-        .then(function(r){return r.json();})
-        .then(function(data){
-          var drivesBar = document.getElementById('drives-bar');
-          if (data.drives) {
-            drivesBar.innerHTML = data.drives.map(function(d){
-              return '<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="browsePath(\'' + d + '\\\\\')">' + d + '</button>';
-            }).join('');
+    // Polling de Logs del Terminal cada 2 segundos
+    let lastLogCount = 0;
+    async function pollTerminalLogs() {
+      try {
+        const res = await fetch('/api/terminal/logs');
+        const d = await res.json();
+        if (d.ok && Array.isArray(d.logs)) {
+          if (d.logs.length !== lastLogCount) {
+            renderLogs(d.logs);
+            lastLogCount = d.logs.length;
           }
-
-          var box = document.getElementById('file-list-box');
-          if (!data.success) {
-            box.innerHTML = '<div style="color: var(--red); padding: 10px;">' + data.error + '</div>';
-            return;
-          }
-
-          var html = '';
-          if (data.parent_dir) {
-            html += '<div class="file-item" onclick="browsePath(\'' + data.parent_dir.replace(/\\/g, '\\\\') + '\')">📁 .. (Subir nivel)</div>';
-          }
-          data.items.forEach(function(item){
-            var icon = item.is_dir ? '📁' : '📄';
-            var safePath = item.path.replace(/\\/g, '\\\\');
-            var action = item.is_dir ? 'browsePath(\'' + safePath + '\')' : 'openFile(\'' + safePath + '\')';
-            html += '<div class="file-item" onclick="' + action + '">' +
-              '<span>' + icon + ' ' + item.name + '</span>' +
-              '<span style="font-size: 10px; color: var(--text-muted);">' + (item.is_dir ? 'DIR' : Math.round(item.size / 1024) + ' KB') + '</span>' +
-            '</div>';
-          });
-          box.innerHTML = html;
-        });
-    }
-
-    function searchFiles() {
-      var q = document.getElementById('file-search-input').value;
-      var cur = document.getElementById('cur-dir-input').value || 'C:\\';
-      var box = document.getElementById('file-list-box');
-      box.innerHTML = '<div style="padding: 10px; color: var(--text-muted);">Buscando archivos...</div>';
-      fetch('/api/files/search?dir=' + encodeURIComponent(cur) + '&q=' + encodeURIComponent(q))
-        .then(function(r){return r.json();})
-        .then(function(res){
-          if (!res.files || res.files.length === 0) {
-            box.innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No se encontraron coincidencias.</div>';
-            return;
-          }
-          var html = '<div style="font-size: 11px; padding: 6px; color: var(--primary);">' + res.count + ' encontrados:</div>';
-          res.files.forEach(function(f){
-            var safe = f.path.replace(/\\/g, '\\\\');
-            html += '<div class="file-item" onclick="openFile(\'' + safe + '\')">📄 ' + f.name + '</div>';
-          });
-          box.innerHTML = html;
-        });
-    }
-
-    function downloadCurrentFile() {
-      if (!currentEditingPath) return;
-      window.location.href = '/api/files/download?path=' + encodeURIComponent(currentEditingPath);
-    }
-
-    function openFile(filePath) {
-      currentEditingPath = filePath;
-      document.getElementById('editor-filename').innerText = filePath;
-      document.getElementById('btn-save-file').style.display = 'inline-flex';
-      document.getElementById('btn-download-file').style.display = 'inline-flex';
-      var editor = document.getElementById('file-editor');
-      editor.value = 'Cargando archivo...';
-
-      fetch('/api/files/read?path=' + encodeURIComponent(filePath))
-        .then(function(r){return r.json();})
-        .then(function(data){
-          if (!data.success) {
-            editor.value = 'Error al abrir: ' + data.error;
-            return;
-          }
-          if (data.type === 'dbf') {
-            editor.value = '=== ARCHIVO DBF DE MIXNET ===\nRegistros totales: ' + data.num_records + '\n\nCAMPOS:\n' +
-              JSON.stringify(data.fields, null, 2) + '\n\nMUESTRA DE REGISTROS:\n' +
-              JSON.stringify(data.preview_rows, null, 2);
-          } else {
-            editor.value = data.content;
-          }
-        });
-    }
-
-    function saveCurrentFile() {
-      if (!currentEditingPath) return;
-      var content = document.getElementById('file-editor').value;
-      fetch('/api/files/write', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: currentEditingPath, content: content })
-      })
-      .then(function(r){return r.json();})
-      .then(function(res){
-        if (res.success) {
-          alert('¡Guardado exitoso! Archivo actualizado en disco: ' + res.path);
-        } else {
-          alert('Error al guardar: ' + res.error);
         }
-      });
+      } catch (_) {}
     }
 
-    var rawBancosMovs = [];
-    var rawProveedores = [];
-    var currentDbfTable = null;
-    var currentDbfOffset = 0;
-    var currentDbfLimit = 50;
-    var currentDbfTotal = 0;
-
-    function loadBancos() {
-      fetch('/api/bancos').then(function(r){return r.json();}).then(function(res){
-        var b = res.data || {};
-        var ctas = b.cuentas || [];
-        var movs = b.movimientos || [];
-        var cajas = b.cajas || [];
-        var cheques = b.cheques || [];
-        rawBancosMovs = movs;
-
-        document.getElementById('kpi-bancos-bs').innerText = (b.total_bancos_bs || 0).toLocaleString() + ' Bs';
-        document.getElementById('kpi-bancos-usd').innerText = '$' + (b.total_bancos_usd || 0).toFixed(2);
-        document.getElementById('kpi-bancos-ctas-count').innerText = ctas.length + ' cuentas registradas';
-        document.getElementById('kpi-cajas-total').innerText = (b.total_cajas_bs || 0).toLocaleString() + ' Bs' + (b.total_cajas_usd ? ' / $' + b.total_cajas_usd : '');
-        document.getElementById('kpi-cajas-count').innerText = cajas.length + ' cajas activas';
-        document.getElementById('kpi-movs-count').innerText = movs.length + ' movs / ' + cheques.length + ' cheques';
-
-        // Cuentas
-        var tbodyCtas = document.getElementById('body-bancos-cuentas');
-        if (ctas.length === 0) {
-          tbodyCtas.innerHTML = '<tr><td colspan="8" style="text-align: center;">Sin cuentas bancarias registradas.</td></tr>';
-        } else {
-          var h = '';
-          ctas.forEach(function(c){
-            var saldoBs = c.moneda === 'BS' ? c.saldo.toLocaleString() + ' Bs' : '-';
-            var saldoUsd = c.moneda === 'USD' ? '$' + c.saldo.toFixed(2) : '-';
-            h += '<tr>' +
-              '<td><strong>' + c.banco + '</strong></td>' +
-              '<td><code style="font-size: 13px; font-weight: 700; color: #60a5fa;">' + (c.cuenta || 'N/A') + '</code></td>' +
-              '<td>' + c.titular + (c.cif ? '<br><small style="color:var(--text-muted);">' + c.cif + '</small>' : '') + '</td>' +
-              '<td><span class="tag tag-blue">' + (c.tipo || 'Corriente') + '</span></td>' +
-              '<td><span class="tag ' + (c.moneda === 'USD' ? 'tag-green' : 'tag-amber') + '">' + c.moneda + '</span></td>' +
-              '<td style="font-weight: 700; color: #34d399;">' + (c.moneda === 'USD' ? saldoUsd : saldoBs) + '</td>' +
-              '<td>' + (c.saldo_conciliado ? c.saldo_conciliado.toLocaleString() : '-') + '</td>' +
-              '<td><span class="tag tag-amber">' + (c.origen || 'MixNet') + '</span></td>' +
-            '</tr>';
-          });
-          tbodyCtas.innerHTML = h;
-        }
-
-        // Movimientos
-        renderBancosMovs(movs.slice(0, 100));
-
-        // Cajas
-        var tbodyCaj = document.getElementById('body-bancos-cajas');
-        if (cajas.length === 0) {
-          tbodyCaj.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin cajas registradas en DBF.</td></tr>';
-        } else {
-          var hc = '';
-          cajas.forEach(function(cj){
-            hc += '<tr>' +
-              '<td><span class="tag tag-blue">' + cj.codigo + '</span></td>' +
-              '<td><strong>' + cj.nombre + '</strong></td>' +
-              '<td>' + cj.responsable + '</td>' +
-              '<td style="font-weight: 700; color: #34d399;">' + (cj.moneda === 'USD' ? '$' + cj.saldo.toFixed(2) : cj.saldo.toLocaleString() + ' Bs') + '</td>' +
-            '</tr>';
-          });
-          tbodyCaj.innerHTML = hc;
-        }
-
-        // Cheques
-        var tbodyChq = document.getElementById('body-bancos-cheques');
-        if (cheques.length === 0) {
-          tbodyChq.innerHTML = '<tr><td colspan="5" style="text-align: center;">Sin cheques emitidos o pendientes.</td></tr>';
-        } else {
-          var hch = '';
-          cheques.slice(0, 50).forEach(function(ch){
-            hch += '<tr>' +
-              '<td><span class="tag tag-amber">' + ch.numero + '</span></td>' +
-              '<td>' + ch.banco + '</td>' +
-              '<td><strong>' + ch.beneficiario + '</strong></td>' +
-              '<td style="font-weight: 700; color: #f87171;">$' + ch.monto.toFixed(2) + '</td>' +
-              '<td><span class="tag tag-green">' + ch.estatus + '</span></td>' +
-            '</tr>';
-          });
-          tbodyChq.innerHTML = hch;
-        }
-      });
+    function renderLogs(logs) {
+      const tb = document.getElementById('terminal-body');
+      tb.innerHTML = logs.map(l => `
+        <div class="log-line">
+          <span class="log-time">[${l.time}]</span>
+          <span class="log-tag tag-${l.tag}">${l.tag}</span>
+          <span class="log-msg">${escapeHtml(l.message)}</span>
+        </div>
+      `).join('');
+      tb.scrollTop = tb.scrollHeight;
     }
 
-    function renderBancosMovs(list) {
-      var tbody = document.getElementById('body-bancos-movs');
-      if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Sin transacciones registradas.</td></tr>';
+    function addLocalLog(tag, msg) {
+      const tStr = new Date().toLocaleTimeString('es-VE', { hour12: false });
+      const tb = document.getElementById('terminal-body');
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `
+        <span class="log-time">[${tStr}]</span>
+        <span class="log-tag tag-${tag}">${tag}</span>
+        <span class="log-msg">${escapeHtml(msg)}</span>
+      `;
+      tb.appendChild(div);
+      tb.scrollTop = tb.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('terminal-body').innerHTML = '';
+      addLocalLog('SHELL', 'Consola limpiada.');
+    }
+
+    // Ejecución de Comandos CLI
+    document.getElementById('cli-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleCliSubmit();
+    });
+
+    async function handleCliSubmit() {
+      const inp = document.getElementById('cli-input');
+      const cmd = inp.value.trim();
+      if (!cmd) return;
+      inp.value = '';
+      runCliCmd(cmd);
+    }
+
+    async function runCliCmd(cmd) {
+      addLocalLog('SHELL', 'antigravity@win7:~$ ' + cmd);
+
+      // Accesos directos integrados
+      if (cmd === 'sync') {
+        forceSync();
         return;
       }
-      var h = '';
-      list.forEach(function(m){
-        var col = m.monto >= 0 ? '#34d399' : '#f87171';
-        h += '<tr>' +
-          '<td>' + (m.fecha || '-') + '</td>' +
-          '<td><span class="tag tag-blue">' + (m.banco || '-') + '</span></td>' +
-          '<td><code>' + (m.referencia || '-') + '</code></td>' +
-          '<td><span class="tag tag-amber">' + (m.tipo || 'TR') + '</span></td>' +
-          '<td>' + (m.concepto || '-') + '</td>' +
-          '<td style="font-weight: 700; color: ' + col + ';">' + m.monto.toLocaleString() + '</td>' +
-          '<td>' + (m.saldo ? m.saldo.toLocaleString() : '-') + '</td>' +
-        '</tr>';
-      });
-      tbody.innerHTML = h;
-    }
-
-    function filterMovimientos(q) {
-      q = (q || '').toLowerCase();
-      if (!q) return renderBancosMovs(rawBancosMovs.slice(0, 100));
-      var filtered = rawBancosMovs.filter(function(m){
-        return (m.referencia && m.referencia.toLowerCase().indexOf(q) !== -1) ||
-               (m.concepto && m.concepto.toLowerCase().indexOf(q) !== -1) ||
-               (m.banco && m.banco.toLowerCase().indexOf(q) !== -1);
-      });
-      renderBancosMovs(filtered.slice(0, 100));
-    }
-
-    function loadProveedores() {
-      fetch('/api/proveedores').then(function(r){return r.json();}).then(function(res){
-        rawProveedores = res.data || [];
-        renderProveedores(rawProveedores);
-      });
-    }
-
-    function renderProveedores(list) {
-      var tbody = document.getElementById('body-proveedores');
-      if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Sin proveedores registrados en DBF.</td></tr>';
+      if (cmd === 'net') {
+        testNetwork();
         return;
       }
-      var h = '';
-      list.forEach(function(p){
-        h += '<tr>' +
-          '<td><span class="tag tag-blue">' + p.codigo + '</span></td>' +
-          '<td><strong>' + p.nombre + '</strong></td>' +
-          '<td><code>' + (p.rif || '-') + '</code></td>' +
-          '<td>' + (p.telefono || '-') + '</td>' +
-          '<td>' + (p.direccion || '-') + '</td>' +
-          '<td style="font-weight: 700; color: #f87171;">$' + (p.saldo_usd || 0).toFixed(2) + '</td>' +
-        '</tr>';
-      });
-      tbody.innerHTML = h;
-    }
-
-    function filterProveedores(q) {
-      q = (q || '').toLowerCase();
-      if (!q) return renderProveedores(rawProveedores);
-      var f = rawProveedores.filter(function(p){
-        return (p.nombre && p.nombre.toLowerCase().indexOf(q) !== -1) ||
-               (p.rif && p.rif.toLowerCase().indexOf(q) !== -1) ||
-               (p.codigo && p.codigo.toLowerCase().indexOf(q) !== -1);
-      });
-      renderProveedores(f);
-    }
-
-    // --- VISOR UNIVERSAL DE TABLAS DBF ---
-    function loadDbfTables() {
-      fetch('/api/dbf/tables').then(function(r){return r.json();}).then(function(res){
-        var sel = document.getElementById('dbf-table-select');
-        var tables = res.tables || [];
-        if (tables.length === 0) {
-          sel.innerHTML = '<option value="">No se encontraron tablas DBF en la unidad</option>';
-          return;
-        }
-        var h = '<option value="">-- Seleccionar tabla (' + tables.length + ' disponibles) --</option>';
-        var lastCat = '';
-        tables.forEach(function(t){
-          if (t.category !== lastCat) {
-            if (lastCat) h += '</optgroup>';
-            h += '<optgroup label="' + t.category + '">';
-            lastCat = t.category;
-          }
-          h += '<option value="' + t.name + '">' + t.name + ' (' + t.records + ' reg · ' + t.size_kb + ' KB)</option>';
-        });
-        if (lastCat) h += '</optgroup>';
-        sel.innerHTML = h;
-
-        // Auto-seleccionar MXCTABAN si existe
-        if (!currentDbfTable) {
-          var hasBan = tables.find(function(t){ return t.name === 'MXCTABAN'; });
-          if (hasBan) {
-            sel.value = 'MXCTABAN';
-            onSelectDbfTable('MXCTABAN');
-          }
-        }
-      });
-    }
-
-    function onSelectDbfTable(tblName) {
-      if (!tblName) {
-        document.getElementById('dbf-meta-bar').style.display = 'none';
-        document.getElementById('btn-export-dbf').style.display = 'none';
+      if (cmd === 'pedidos') {
+        loadPedidosFiles();
+        cmd = 'dir C:\\pedidos';
+      }
+      if (cmd === 'bcv') {
+        addLocalLog('INFO', `Tasa oficial BCV en memoria: ${bcvRate.toFixed(2)} Bs/USD`);
         return;
       }
-      currentDbfTable = tblName;
-      currentDbfOffset = 0;
-      document.getElementById('dbf-filter-input').value = '';
-      document.getElementById('btn-export-dbf').style.display = 'inline-flex';
-      queryDbf(tblName, 0, '');
-    }
+      if (cmd === 'help') {
+        addLocalLog('INFO', 'Comandos rápidos: sync, net, pedidos, bcv, clear, ping 8.8.8.8, o cualquier comando CMD.');
+        return;
+      }
+      if (cmd === 'clear' || cmd === 'cls') {
+        clearLogs();
+        return;
+      }
 
-    function queryDbf(tblName, offset, search) {
-      var thead = document.getElementById('dbf-dynamic-thead');
-      var tbody = document.getElementById('dbf-dynamic-tbody');
-      tbody.innerHTML = '<tr><td style="text-align: center; padding: 20px;">Cargando registros de ' + tblName + '...</td></tr>';
-
-      fetch('/api/dbf/query?table=' + encodeURIComponent(tblName) + '&limit=' + currentDbfLimit + '&offset=' + offset + '&q=' + encodeURIComponent(search || ''))
-        .then(function(r){ return r.json(); })
-        .then(function(res){
-          if (!res.ok) {
-            tbody.innerHTML = '<tr><td style="text-align: center; color: #f87171;">' + (res.error || 'Error al abrir tabla') + '</td></tr>';
-            return;
-          }
-
-          currentDbfTotal = res.matched_count || res.total_records || 0;
-          document.getElementById('dbf-meta-bar').style.display = 'flex';
-          document.getElementById('meta-dbf-name').innerText = res.table;
-          document.getElementById('meta-dbf-records').innerText = res.total_records + ' registros en tabla' + (search ? ' (' + res.matched_count + ' coincidentes)' : '');
-          document.getElementById('meta-dbf-fields-count').innerText = (res.fields || []).length + ' campos';
-          document.getElementById('meta-dbf-path').innerText = res.path || '-';
-
-          var page = Math.floor(offset / currentDbfLimit) + 1;
-          var totalPages = Math.ceil(currentDbfTotal / currentDbfLimit) || 1;
-          document.getElementById('dbf-page-info').innerText = 'Página ' + page + ' de ' + totalPages + ' (' + currentDbfTotal + ' registros)';
-
-          // Armar Thead
-          var thHtml = '<tr><th>#</th>';
-          (res.fields || []).forEach(function(f){
-            thHtml += '<th>' + f.name.toUpperCase() + ' <small style="color:var(--text-muted);">(' + f.type + ')</small></th>';
-          });
-          thHtml += '</tr>';
-          thead.innerHTML = thHtml;
-
-          // Armar Tbody
-          var rows = res.rows || [];
-          if (rows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="' + ((res.fields || []).length + 1) + '" style="text-align: center; padding: 20px;">No se encontraron registros.</td></tr>';
-            return;
-          }
-
-          var tbHtml = '';
-          rows.forEach(function(r){
-            tbHtml += '<tr>';
-            tbHtml += '<td style="color: var(--text-muted); font-size: 11px;">' + (r._rec || '-') + '</td>';
-            (res.fields || []).forEach(function(f){
-              var val = r[f.name] !== undefined ? r[f.name] : '';
-              tbHtml += '<td>' + escapeHtml(val) + '</td>';
-            });
-            tbHtml += '</tr>';
-          });
-          tbody.innerHTML = tbHtml;
-        })
-        .catch(function(err){
-          tbody.innerHTML = '<tr><td style="text-align: center; color: #f87171;">Error al consultar: ' + err.message + '</td></tr>';
+      try {
+        const res = await fetch('/api/terminal/exec', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd })
         });
+        const d = await res.json();
+        if (d.ok) {
+          if (d.stdout) addLocalLog('SHELL', d.stdout);
+          if (d.stderr) addLocalLog('WARN', d.stderr);
+        } else {
+          addLocalLog('ERROR', d.error || 'Error ejecutando comando');
+        }
+      } catch (err) {
+        addLocalLog('ERROR', err.message);
+      }
     }
 
-    function searchDbfRows() {
-      if (!currentDbfTable) return;
-      var q = document.getElementById('dbf-filter-input').value.trim();
-      currentDbfOffset = 0;
-      queryDbf(currentDbfTable, 0, q);
+    // Acciones de Cabecera
+    async function forceSync() {
+      addLocalLog('AGENT', 'Iniciando sincronización forzada con Supabase Core y DBF...');
+      try {
+        const res = await fetch('/api/sync/now');
+        const d = await res.json();
+        if (d.ok) addLocalLog('CLOUD', d.message);
+        setTimeout(updateStatus, 1500);
+      } catch (err) {
+        addLocalLog('ERROR', 'Fallo al solicitar sincronización: ' + err.message);
+      }
     }
 
-    function prevDbfPage() {
-      if (!currentDbfTable || currentDbfOffset <= 0) return;
-      currentDbfOffset = Math.max(0, currentDbfOffset - currentDbfLimit);
-      var q = document.getElementById('dbf-filter-input').value.trim();
-      queryDbf(currentDbfTable, currentDbfOffset, q);
+    async function testNetwork() {
+      addLocalLog('AGENT', 'Midiendo estabilidad de red y latencia hacia la nube...');
+      try {
+        const res = await fetch('/api/agent/exec', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_network' })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          addLocalLog('CLOUD', `Latencia Nube: ${d.cloud_latency_ms}ms · Calidad: ${d.quality} · ${d.status}`);
+        } else {
+          addLocalLog('ERROR', d.error || 'Error en prueba de red');
+        }
+      } catch (err) {
+        addLocalLog('ERROR', err.message);
+      }
     }
 
-    function nextDbfPage() {
-      if (!currentDbfTable) return;
-      if (currentDbfOffset + currentDbfLimit >= currentDbfTotal) return;
-      currentDbfOffset += currentDbfLimit;
-      var q = document.getElementById('dbf-filter-input').value.trim();
-      queryDbf(currentDbfTable, currentDbfOffset, q);
+    async function openPedidosFolder() {
+      try {
+        await fetch('/api/pedidos/open-folder');
+        addLocalLog('SHELL', 'Carpeta C:\\pedidos abierta en el Explorador de Windows.');
+      } catch (_) {}
     }
 
-    function exportCurrentDbf() {
-      if (!currentDbfTable) return;
-      window.location.href = '/api/dbf/export?table=' + encodeURIComponent(currentDbfTable);
+    // Copiloto IA (Gemini)
+    document.getElementById('ai-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAiSubmit();
+    });
+
+    function askAi(promptText) {
+      document.getElementById('ai-input').value = promptText;
+      handleAiSubmit();
     }
 
-    function escapeHtml(s) {
-      if (typeof s !== 'string') return String(s);
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function forceSync() {
-      fetch('/api/sync/now').then(function(){
-        setTimeout(loadAll, 1200);
-      });
-    }
-
-    function loadAll() {
-      loadStatus();
-      loadOrders();
-      loadQuotes();
-      loadBancos();
-      loadCxC();
-      loadCxP();
-      loadProveedores();
-      loadNomina();
-      loadProducts();
-      loadDbfTables();
-      loadAccesses();
-    }
-
-    // Copiloto Gemini AI
-    function appendMsg(role, text) {
-      var box = document.getElementById('chat-messages');
-      var div = document.createElement('div');
-      div.className = 'msg ' + role;
-      div.innerHTML = text.replace(/\n/g, '<br>');
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function sendAiPrompt(q) {
-      document.getElementById('chat-input').value = q;
-      sendQuestion();
-    }
-
-    function sendQuestion() {
-      var input = document.getElementById('chat-input');
-      var q = input.value.trim();
+    async function handleAiSubmit() {
+      const inp = document.getElementById('ai-input');
+      const q = inp.value.trim();
       if (!q) return;
+      inp.value = '';
 
-      appendMsg('user', q);
-      input.value = '';
-
-      var loadId = 'ai-load-' + Date.now();
-      var box = document.getElementById('chat-messages');
-      var loadDiv = document.createElement('div');
-      loadDiv.className = 'msg ai';
-      loadDiv.id = loadId;
-      loadDiv.innerHTML = '<em>⚡ Consultando datos reales de MixNet y Supabase con Gemini...</em>';
-      box.appendChild(loadDiv);
+      const box = document.getElementById('ai-messages');
+      box.innerHTML += `<div class="msg user">${escapeHtml(q)}</div>`;
       box.scrollTop = box.scrollHeight;
 
-      fetch('/api/ai/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q })
-      })
-      .then(function(r){return r.json();})
-      .then(function(d){
-        var el = document.getElementById(loadId);
-        if (el) el.remove();
-        if (d.ok) appendMsg('ai', d.answer);
-        else appendMsg('ai', '⚠️ Error: ' + (d.error || 'No fue posible obtener respuesta'));
-      })
-      .catch(function(e){
-        var el = document.getElementById(loadId);
-        if (el) el.remove();
-        appendMsg('ai', '⚠️ Error de conexión: ' + e.message);
-      });
+      const btn = document.getElementById('btn-ai-send');
+      btn.disabled = true;
+      btn.innerText = 'Pensando...';
+
+      addLocalLog('AI', 'Consultando al Copiloto Gemini: ' + q);
+
+      try {
+        const res = await fetch('/api/ai/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          box.innerHTML += `<div class="msg ai">${formatMarkdown(d.answer)}</div>`;
+          addLocalLog('AI', 'Respuesta recibida (' + (d.model || 'Gemini') + ')');
+        } else {
+          box.innerHTML += `<div class="msg ai" style="color:var(--red);">Error: ${escapeHtml(d.error || 'Fallo desconocido')}</div>`;
+          addLocalLog('ERROR', 'Error Gemini: ' + (d.error || 'Desconocido'));
+        }
+      } catch (err) {
+        box.innerHTML += `<div class="msg ai" style="color:var(--red);">Error de conexión: ${escapeHtml(err.message)}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Enviar';
+        box.scrollTop = box.scrollHeight;
+      }
     }
 
-    window.onload = function() {
-      loadAll();
-      setInterval(loadAll, 25000);
-    };
+    // Bandeja de Pedidos C:\pedidos
+    async function loadPedidosFiles() {
+      const tb = document.getElementById('pedidos-tbody');
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Leyendo C:\\pedidos...</td></tr>';
+      try {
+        const res = await fetch('/api/pedidos');
+        const d = await res.json();
+        if (d.ok && Array.isArray(d.files)) {
+          if (d.files.length === 0) {
+            tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">No hay archivos aún en C:\\pedidos. Llegarán solos cada 20s.</td></tr>';
+            return;
+          }
+          tb.innerHTML = d.files.map(f => {
+            const dateStr = new Date(f.mtime).toLocaleString('es-VE');
+            const typeBadge = f.is_pedido 
+              ? '<span style="background:rgba(16,185,129,0.2);color:var(--green);padding:2px 6px;border-radius:4px;font-weight:700;">PEDIDO</span>'
+              : (f.is_cotizacion ? '<span style="background:rgba(245,158,11,0.2);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:700;">COTIZACIÓN</span>' : 'ARCHIVO');
+            return `
+              <tr>
+                <td><strong>${escapeHtml(f.name)}</strong></td>
+                <td>${typeBadge}</td>
+                <td>${dateStr}</td>
+                <td>${(f.size / 1024).toFixed(1)} KB</td>
+                <td>
+                  <button class="btn-chip" onclick="viewFile('${escapeHtml(f.name)}')">👁️ Ver</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        tb.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function viewFile(fn) {
+      document.getElementById('modal-filename').innerText = fn;
+      document.getElementById('modal-content').innerText = 'Cargando contenido...';
+      document.getElementById('modal-view').classList.add('active');
+
+      try {
+        const res = await fetch('/api/pedidos/read?file=' + encodeURIComponent(fn));
+        const d = await res.json();
+        if (d.ok) {
+          document.getElementById('modal-content').innerText = d.content;
+        } else {
+          document.getElementById('modal-content').innerText = 'Error: ' + d.error;
+        }
+      } catch (e) {
+        document.getElementById('modal-content').innerText = 'Error: ' + e.message;
+      }
+    }
+    function closeModal() {
+      document.getElementById('modal-view').classList.remove('active');
+    }
+
+    // Catálogo & Búsqueda Instantánea
+    async function loadProducts() {
+      if (allProducts.length > 0) return;
+      try {
+        const res = await fetch('/api/products');
+        const d = await res.json();
+        if (d.ok && Array.isArray(d.products)) {
+          allProducts = d.products;
+          filterProducts();
+        }
+      } catch (_) {}
+    }
+
+    function filterProducts() {
+      const q = (document.getElementById('prod-search').value || '').toLowerCase().trim();
+      const filtered = q 
+        ? allProducts.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q)))
+        : allProducts.slice(0, 100);
+
+      document.getElementById('prod-count-label').innerText = `Mostrando ${filtered.length} de ${allProducts.length} productos`;
+
+      const tb = document.getElementById('catalogo-tbody');
+      if (filtered.length === 0) {
+        tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">No se encontraron productos coincidentes.</td></tr>';
+        return;
+      }
+      tb.innerHTML = filtered.map(p => {
+        const usd = parseFloat(p.price_usd || 0);
+        const bs = bcvRate > 0 ? (usd * bcvRate).toFixed(2) + ' Bs' : 'N/D';
+        return `
+          <tr>
+            <td><code>${escapeHtml(p.sku || '-')}</code></td>
+            <td><strong>${escapeHtml(p.name || '')}</strong></td>
+            <td style="color:#00ff88;font-weight:700;">$${usd.toFixed(2)}</td>
+            <td style="color:var(--amber);font-weight:700;">${bs}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Helpers
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      let t = escapeHtml(text);
+      t = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      t = t.replace(/```([a-z]*)\n([\s\S]*?)```/gi, '<pre style="background:#05080f;padding:10px;border-radius:6px;overflow-x:auto;margin:6px 0;border:1px solid #1e293b;"><code>$2</code></pre>');
+      t = t.replace(/`([^`]+)`/g, '<code style="background:#1e293b;padding:2px 4px;border-radius:4px;color:var(--cyan);">$1</code>');
+      t = t.replace(/\n/g, '<br>');
+      return t;
+    }
+
+    // Inicialización
+    updateStatus();
+    pollTerminalLogs();
+    setInterval(updateStatus, 4000);
+    setInterval(pollTerminalLogs, 2000);
   </script>
 </body>
 </html>

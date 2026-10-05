@@ -5,7 +5,7 @@
    ====================================================== */
 
 let localServerUrl = 'http://localhost:8787';
-let tailscaleServerUrl = 'http://100.103.110.44:8787';
+let tailscaleServerUrl = 'http://100.67.139.121:8787';
 let serverOnline = false;
 let autoRefreshTimer = null;
 let refreshIntervalMs = 4000;
@@ -213,35 +213,29 @@ function initRealtimeListeners() {
         recordCloudRequest({
           type: 'LAN',
           method: 'BEAT',
-          path: 'supervisor:heartbeat',
+          path: 'server:heartbeat',
           status: 200,
           durationMs: 14,
-          detail: `${row.host || 'Supervisor-Pc'}: ${isFresh ? '🟢 Online' : '⚪ Offline'} (${row.modules?.waSanas || 0} WA)`
+          detail: `${row.host || 'Laptop Central'}: ${isFresh ? '🟢 Online' : '⚪ Offline'} (${row.modules?.waSanas || 0} WA)`
         });
 
         updateEngineBadge(serverOnline, sseActive, {
           isServerOnline: isFresh,
-          host: row.host || 'Supervisor-Pc',
+          host: row.host || 'Laptop Central',
           waSanas: row.modules?.waSanas
         });
 
         // Actualizar tarjeta del servidor en vivo
         const srvMod = row.modules || {};
-        const mixerMod = srvMod.mixer_status || {};
         renderCardServer({
-          name: 'Servidor Supervisor & MixNet',
-          role: 'Puente ERP M:/comp01 · Caja & POS',
-          host: row.host || 'Supervisor-Pc',
+          name: 'Servidor Central & WhatsApp',
+          role: 'Core wa-server · APIs, Campañas & Sincronización',
+          host: row.host || 'Laptop Central',
           online: isFresh,
           latency: 18,
           lastBeatAgo: 'Ahora mismo',
-          tailscaleIp: srvMod.tailscale_ip || '100.103.110.44',
-          lanIp: srvMod.lan_ip || '192.168.0.172',
-          mixnetDir: mixerMod.primary_dir || 'M:/comp01',
-          mixnetOnline: mixerMod.online !== false,
-          ordersCount: mixerMod.exported_orders_count != null ? mixerMod.exported_orders_count : 110,
-          quotesCount: mixerMod.exported_quotes_count != null ? mixerMod.exported_quotes_count : 38,
-          catalogCount: mixerMod.imported_count != null ? mixerMod.imported_count : 791,
+          tailscaleIp: srvMod.tailscale_ip || '100.67.139.121',
+          lanIp: srvMod.lan_ip || '192.168.1.11',
           waSanas: srvMod.waSanas != null ? srvMod.waSanas : 1
         });
 
@@ -545,6 +539,15 @@ async function querySupabaseDirectly() {
     }
   } catch (_) {}
 
+  // 0b. Consultar telemetría del Nodo Windows 7 en jjp_settings
+  let win7Data = null;
+  try {
+    const { data: wRow } = await _rawSbCore.from('jjp_settings').select('value').eq('key', 'win7_agent_status').maybeSingle();
+    if (wRow && wRow.value) {
+      win7Data = typeof wRow.value === 'string' ? JSON.parse(wRow.value) : wRow.value;
+    }
+  } catch (_) {}
+
   // 1. Proyecto A (Core)
   const tA0 = Date.now();
   let latA = 999;
@@ -723,9 +726,9 @@ async function querySupabaseDirectly() {
         buckets: cBuckets
       },
       server: {
-        name: 'Servidor Supervisor & MixNet',
-        role: 'Puente ERP M:/comp01 · Caja & POS',
-        host: srvData?.host || 'Supervisor-Pc',
+        name: 'Servidor Central & WhatsApp',
+        role: 'Core wa-server · APIs, Campañas & Sincronización',
+        host: srvData?.host || 'Laptop (wa-server)',
         online: isServerOnlineInCloud,
         latency: latSync,
         lastBeatAgo: (() => {
@@ -734,14 +737,23 @@ async function querySupabaseDirectly() {
           const diff = Math.max(0, Math.round((Date.now() - new Date(bt).getTime()) / 1000));
           return diff < 60 ? `Hace ${diff}s` : diff < 3600 ? `Hace ${Math.round(diff/60)}m` : `Hace ${Math.round(diff/3600)}h`;
         })(),
-        tailscaleIp: srvData?.modules?.tailscale_ip || '100.103.110.44',
-        lanIp: srvData?.modules?.lan_ip || '192.168.0.172',
-        mixnetDir: srvData?.modules?.mixer_status?.primary_dir || 'M:/comp01',
-        mixnetOnline: srvData?.modules?.mixer_status?.online !== false,
-        ordersCount: srvData?.modules?.mixer_status?.exported_orders_count ?? 110,
-        quotesCount: srvData?.modules?.mixer_status?.exported_quotes_count ?? 38,
-        catalogCount: srvData?.modules?.mixer_status?.imported_count ?? 791,
-        waSanas: srvData?.modules?.waSanas ?? 1
+        tailscaleIp: srvData?.modules?.tailscale_ip || '100.67.139.121',
+        lanIp: srvData?.modules?.lan_ip || '192.168.1.11',
+        waSanas: srvData?.modules?.waSanas ?? 1,
+        win7: win7Data ? {
+          host: win7Data.host || 'WIN7-TIENDA',
+          lanIp: win7Data.lan_ip || '192.168.0.127',
+          online: Boolean(win7Data.heartbeat_at && (Date.now() - new Date(win7Data.heartbeat_at).getTime() < 120_000)),
+          pedidosDir: win7Data.pedidos_dir || 'C:\\pedidos',
+          ordersDropped: win7Data.orders_dropped || win7Data.dropped_orders_count || 0,
+          quotesDropped: win7Data.quotes_dropped || win7Data.dropped_quotes_count || 0,
+          lastBeatAgo: (() => {
+            const bt = win7Data.heartbeat_at;
+            if (!bt) return 'Reciente';
+            const diff = Math.max(0, Math.round((Date.now() - new Date(bt).getTime()) / 1000));
+            return diff < 60 ? `Hace ${diff}s` : diff < 3600 ? `Hace ${Math.round(diff/60)}m` : `Hace ${Math.round(diff/3600)}h`;
+          })()
+        } : null
       }
     },
     summary: {
@@ -767,7 +779,7 @@ function updateEngineBadge(isOnline, isSse = false, hostInfo = null) {
     badge.innerHTML = '🟢 Motor wa-server Activo (PostgreSQL & VACUUM)';
   } else if (hostInfo && hostInfo.isServerOnline) {
     badge.className = 'engine-badge online';
-    badge.innerHTML = `🟢 Servidor Online (${hostInfo.host || 'Supervisor-Pc'} activo · ${hostInfo.waSanas != null ? hostInfo.waSanas : 1} WA Activo)`;
+    badge.innerHTML = `🟢 Servidor Online (${hostInfo.host || 'Laptop Central'} activo · ${hostInfo.waSanas != null ? hostInfo.waSanas : 1} WA Activo)`;
   } else {
     badge.className = 'engine-badge cloud';
     badge.innerHTML = '⚠️ Servidor local offline — conectando con respaldo cloud';
@@ -956,7 +968,7 @@ function renderCardServer(server) {
   }
 
   if (latBadge) latBadge.innerText = `⚡ ${server.latency || 18} ms`;
-  if (hostTxt) hostTxt.innerText = `${server.host || 'Supervisor-Pc'} (${server.tailscaleIp || '100.103.110.44'})`;
+  if (hostTxt) hostTxt.innerText = `${server.host || 'Laptop Central'} (${server.tailscaleIp || '100.67.139.121'})`;
   if (beatTxt) beatTxt.innerText = `Latido: ${server.lastBeatAgo || 'Reciente'}`;
 
   if (bar) {
@@ -965,22 +977,35 @@ function renderCardServer(server) {
   }
 
   if (tailscaleEl) {
-    const tsIp = server.tailscaleIp || '100.103.110.44';
+    const tsIp = server.tailscaleIp || '100.67.139.121';
     tailscaleEl.innerHTML = `<a href="http://${tsIp}:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:700;">${tsIp}:8787 ↗</a>`;
   }
 
   if (lanEl) {
-    lanEl.innerText = `${server.lanIp || '192.168.0.172'}:8787`;
+    lanEl.innerText = `${server.lanIp || '192.168.1.11'}:8787`;
   }
 
-  if (mixnetDirEl) {
-    const isMOnline = Boolean(server.mixnetOnline);
-    mixnetDirEl.innerHTML = `${server.mixnetDir || 'M:/comp01'} <span style="color:${isMOnline ? '#4cd137' : '#ffb142'};font-weight:700;">(${isMOnline ? '🟢 DBF Activo' : '⚠️ Sin Enlace'})</span>`;
+  const waSanasEl = document.getElementById('srvWaSanas');
+  if (waSanasEl) {
+    waSanasEl.innerText = `${server.waSanas ?? 1} activa(s)`;
   }
 
-  if (ordersEl) ordersEl.innerText = `${server.ordersCount ?? 110} en caja`;
-  if (quotesEl) quotesEl.innerText = `${server.quotesCount ?? 38} en caja`;
-  if (catalogEl) catalogEl.innerText = `${server.catalogCount ?? 791} sincronizados`;
+  // Telemetría del Nodo Windows 7
+  const w7 = server.win7;
+  const win7LanEl = document.getElementById('win7LanIp');
+  const win7DirEl = document.getElementById('win7PedidosDir');
+  const win7StatusEl = document.getElementById('win7StatusTxt');
+
+  if (win7LanEl) {
+    win7LanEl.innerText = `${w7?.lanIp || '192.168.0.127'}:3300`;
+  }
+  if (win7DirEl) {
+    win7DirEl.innerHTML = `${w7?.pedidosDir || 'C:\\pedidos'} <span style="color:#4cd137;font-weight:700;">(🟢 Activa)</span>`;
+  }
+  if (win7StatusEl) {
+    const isW7Online = Boolean(w7 && w7.online);
+    win7StatusEl.innerHTML = `<span style="color:${isW7Online ? '#4cd137' : '#ffb142'};font-weight:700;">${isW7Online ? '🟢 Activo' : '⚪ Esperando latido'}</span> (${w7?.lastBeatAgo || 'Reciente'})`;
+  }
 }
 
 function renderRecentRequests(reqs) {

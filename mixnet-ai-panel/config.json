@@ -10,11 +10,6 @@
     "C:\\MIXNET\\comp01",
     "C:\\comp01"
   ],
-  "supervisor_urls": [
-    "http://192.168.0.172:8787",
-    "https://192.168.0.172:8788",
-    "https://100.103.110.44:8788"
-  ],
   "supabase": {
     "core_url": "https://wwcdxqpibequfohbgejs.supabase.co",
     "core_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MzAwNzQsImV4cCI6MjEwNjMwNjA3NH0.LpAugyhm57WO669WjiWKdekDYgB8l8rxFLTk0gsC0fk",

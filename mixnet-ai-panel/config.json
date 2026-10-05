@@ -1,14 +1,15 @@
 {
   "port": 3300,
   "mixnet_candidates": [
-    "M:\\MIX11\\comp01",
     "M:\\comp01",
     "M:\\COMP01",
+    "M:\\MIX11\\comp01",
     "P:\\comp01",
     "P:\\MIX11\\comp01",
     "Z:\\comp01",
     "C:\\MIXNET\\comp01",
-    "C:\\comp01"
+    "C:\\comp01",
+    "C:\\pedidos"
   ],
   "supabase": {
     "core_url": "https://wwcdxqpibequfohbgejs.supabase.co",
@@ -23,18 +24,18 @@
     "gemini-3.5-flash"
   ],
   "vendedores": {
-    "002": { "nombre": "Luis Alarcón", "rol": "Ventas Mayor / Calle" },
-    "004": { "nombre": "Yovanni Araujo", "rol": "Ventas Institucionales" },
-    "006": { "nombre": "Yovanni Araujo", "rol": "Ventas Institucionales" },
-    "008": { "nombre": "Marianela", "rol": "Ventas / Cartera" },
-    "014": { "nombre": "Andreina", "rol": "Ventas / Cartera" },
-    "010": { "nombre": "Keyder Salazar", "rol": "Zona 010 (Admin / Cartera)" },
-    "020": { "nombre": "Keyder Salazar", "rol": "Zona 020 (MixNet Admin)" },
-    "005": { "nombre": "Caja Principal", "rol": "Mostrador Físico / Tienda" },
-    "001": { "nombre": "Mary Garcia", "rol": "Ventas Mostrador" },
-    "025": { "nombre": "Ana Barajas", "rol": "Ventas" },
-    "032": { "nombre": "Caja 32", "rol": "Caja Auxiliar" },
-    "033": { "nombre": "Caja 33", "rol": "Caja Auxiliar" }
+    "002": { "nombre": "Luis Alarcón", "rol": "Ventas Mayor / Calle", "uuid": "e6957754-de00-4088-8e54-affcaa172247" },
+    "004": { "nombre": "Yovanni Araujo", "rol": "Ventas Institucionales", "uuid": "07540d9c-4ed9-46d2-95ce-0a0200be6083" },
+    "006": { "nombre": "Yovanni Araujo", "rol": "Ventas Institucionales", "uuid": "07540d9c-4ed9-46d2-95ce-0a0200be6083" },
+    "008": { "nombre": "Marianela", "rol": "Ventas / Cartera", "uuid": "3c9b7ddd-4b98-45c6-a646-5c557a2bc043" },
+    "014": { "nombre": "Andreina", "rol": "Ventas / Cartera", "uuid": "68c29cd3-760a-4282-8214-4e7c60413ec5" },
+    "010": { "nombre": "Keyder Salazar", "rol": "Zona 010 (Admin / Cartera)", "uuid": "bddc57dc-5bf9-4a72-9e1c-751d07b03164" },
+    "020": { "nombre": "Keyder Salazar", "rol": "Zona 020 (MixNet Admin)", "uuid": "bddc57dc-5bf9-4a72-9e1c-751d07b03164" },
+    "005": { "nombre": "Caja Principal", "rol": "Mostrador Físico / Tienda", "uuid": null },
+    "001": { "nombre": "Mary Garcia", "rol": "Ventas Mostrador", "uuid": "86b0ef8b-a41b-4385-a8f9-314a5052cb94" },
+    "025": { "nombre": "Ana Barajas", "rol": "Ventas", "uuid": "7eeb41f2-55e1-4e5e-b6c2-3da87582b51b" },
+    "032": { "nombre": "Caja 32", "rol": "Caja Auxiliar", "uuid": "9201071b-ab77-4de3-90a4-a79c93c4213c" },
+    "033": { "nombre": "Caja 33", "rol": "Caja Auxiliar", "uuid": "485e3fde-f95d-4857-9175-147051a54748" }
   },
   "cuentas_bancarias_empresa": [
     {
@@ -131,8 +132,7 @@
     "admin_google_auth_email": "picoj386@gmail.com",
     "admin_whatsapp_contacto": "+58 412-4676073 (Keyder Salazar)",
     "telefonos_oficiales_tienda": "+58 412 2830185 / 0212 7531777",
-    "direccion_fiscal_oficial": "AV. EL CORTIJO. QTA NEVERI N 58. URB. LOS ROSALES CARACAS DISTRITO FEDERAL",
-    "usuario_windows_supervisor": "Supervisor (o PC / Administrador / GLADIS)"
+    "direccion_fiscal_oficial": "AV. EL CORTIJO. QTA NEVERI N 58. URB. LOS ROSALES CARACAS DISTRITO FEDERAL"
   },
   "archivos_bancarios_red": [
     {
@@ -152,35 +152,14 @@
       "ruta": "P:\\YOVANNY\\Documentacion JJ PAPER\\Datosbancarios.pdf",
       "tipo": "PDF",
       "descripcion": "PDF institucional con números de cuenta bancarios y RIF"
-    },
-    {
-      "nombre": "Depósitos de Banco de JJ Paper",
-      "ruta": "C:\\Users\\GLADIS\\Documents\\DEPOSITOS DE BANCO .DE JJPAPER.xls",
-      "tipo": "EXCEL",
-      "descripcion": "Planilla de depósitos y movimientos bancarios en la PC de administración"
-    },
-    {
-      "nombre": "Bancos y Anexos",
-      "ruta": "C:\\Users\\GLADIS\\Documents\\BANCOS.xls",
-      "tipo": "EXCEL",
-      "descripcion": "Registro de cuentas y saldos bancarios"
-    },
-    {
-      "nombre": "Registro Bancaribe",
-      "ruta": "P:\\YETZELIA\\Registro Bancaribe.xlsx",
-      "tipo": "EXCEL",
-      "descripcion": "Movimientos y registros Bancaribe"
     }
   ],
   "accesos_sistema": {
-    "servidor_supervisor_lan": "192.168.0.172",
-    "servidor_supervisor_tailscale": "100.103.110.44",
-    "servidor_supervisor_directo_lan": "192.168.1.2:41641",
-    "puerto_http_supervisor": 8787,
-    "puerto_https_supervisor": 8788,
-    "servidor_mixnet_dbf": "192.168.0.185",
-    "carpeta_mixnet_oficial": "\\\\192.168.0.185\\comp01 (Unidad M:)",
-    "unidad_documentos_red": "P:\\ (Documentos compartidos Marianella, Yovanny, etc.)",
+    "servidor_mixnet_dbf": "M:\\comp01",
+    "carpeta_mixnet_oficial": "M:\\comp01 (Servidor MixNet ERP)",
+    "laptop_central_lan": "192.168.1.11:8080",
+    "nodo_tienda_win7": "192.168.0.127:3300 (COBRANZA)",
+    "unidad_documentos_red": "P:\\ (Documentos compartidos Marianella, Yovanni, etc.)",
     "proyecto_core_ref": "wwcdxqpibequfohbgejs",
     "proyecto_comm_ref": "klcibjwleiqppedefpxw",
     "proyecto_storage_ref": "nmcamjxhyysmmvgxgabo",

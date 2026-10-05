@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Antigravity // Win-7 Micro-Node — JJ Paper Tienda</title>
+  <title>JJ Paper — Antigravity Store Cockpit (Win-7)</title>
   <style>
     :root {
       --bg: #070a13;
@@ -142,56 +142,143 @@
     main {
       flex: 1;
       padding: 16px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      height: calc(100vh - 65px);
-    }
-    @media (max-width: 1024px) {
-      main {
-        grid-template-columns: 1fr;
-        height: auto;
-      }
-    }
-
-    /* Columna Izquierda: Terminal Agéntico */
-    .terminal-card {
-      background: #080c14;
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+      gap: 16px;
     }
-    .terminal-header {
-      background: #0d1424;
-      border-bottom: 1px solid var(--card-border);
-      padding: 10px 14px;
+
+    /* Navegación por pestañas superior */
+    .tabs-nav {
+      background: #090e1a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      overflow-x: auto;
+      padding: 4px;
+      gap: 4px;
     }
-    .terminal-title {
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 16px;
       font-size: 12px;
       font-weight: 700;
-      color: var(--cyan);
-      font-family: var(--mono);
+      cursor: pointer;
+      border-radius: 6px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s;
+      font-family: var(--sans);
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .tab-btn.active {
+      background: rgba(0, 210, 255, 0.15);
+      color: var(--cyan);
+      box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.2);
+    }
+    .badge-count {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--green);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-family: var(--mono);
+    }
+
+    /* Contenido de pestañas */
+    .tab-pane {
+      display: none;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: calc(100vh - 160px);
+    }
+    .tab-pane.active {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Tablas y Listas */
+    .data-table-container {
+      overflow-x: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      background: #080c14;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+    table.data-table th {
+      background: #0d1424;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--card-border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    table.data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    table.data-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 240px;
+      background: #080c14;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 12px;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--cyan);
+    }
+
+    /* Terminal Split Layout */
+    .terminal-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 480px;
+      background: #05080f;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      overflow: hidden;
+      font-family: var(--mono);
     }
     .terminal-body {
       flex: 1;
-      padding: 14px;
+      padding: 12px;
       overflow-y: auto;
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.6;
-      background: #05080f;
       display: flex;
       flex-direction: column;
       gap: 6px;
+      font-size: 12px;
+      line-height: 1.5;
     }
     .log-line {
       display: flex;
@@ -207,134 +294,55 @@
       flex-shrink: 0;
     }
     .tag-BOOT { background: #3b82f6; color: #fff; }
-    .tag-CLOUD { background: #00d2ff; color: #000; }
+    .tag-MIXNET { background: #00d2ff; color: #000; font-weight: 800; }
+    .tag-CLOUD { background: #6366f1; color: #fff; }
     .tag-ORDERS { background: #10b981; color: #000; font-weight: 800; }
-    .tag-QUOTES { background: #f59e0b; color: #000; }
-    .tag-HEARTBEAT { background: #6366f1; color: #fff; }
-    .tag-TASK { background: #ec4899; color: #fff; }
     .tag-SHELL { background: #e2e8f0; color: #000; }
     .tag-WARN { background: #f59e0b; color: #000; }
     .tag-ERROR { background: #ef4444; color: #fff; }
-    .log-msg { color: #cbd5e1; flex: 1; }
-
-    /* Terminal Shortcuts & Prompt */
-    .terminal-shortcuts {
-      background: #090e1a;
-      padding: 6px 12px;
-      border-top: 1px solid var(--card-border);
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-    }
-    .btn-chip {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #94a3b8;
-      border-radius: 4px;
-      padding: 3px 8px;
-      font-size: 10px;
-      font-family: var(--mono);
-      cursor: pointer;
-    }
-    .btn-chip:hover {
-      background: rgba(0, 210, 255, 0.15);
-      color: var(--cyan);
-      border-color: var(--cyan);
-    }
 
     .terminal-input-bar {
       background: #090e1a;
       border-top: 1px solid var(--card-border);
-      padding: 10px 14px;
+      padding: 8px 12px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .prompt-label {
       color: var(--cyan);
-      font-family: var(--mono);
       font-size: 12px;
       font-weight: 700;
     }
     .cli-input {
       flex: 1;
-      background: #05080f;
-      border: 1px solid var(--card-border);
-      border-radius: 4px;
+      background: transparent;
+      border: none;
       color: #00ff88;
       font-family: var(--mono);
       font-size: 12px;
-      padding: 6px 10px;
       outline: none;
     }
-    .cli-input:focus { border-color: var(--cyan); }
 
-    /* Columna Derecha: Panel de Operaciones */
-    .ops-card {
-      background: var(--card-bg);
+    /* Chat IA */
+    .chat-box {
+      flex: 1;
+      min-height: 400px;
+      background: #05080f;
       border: 1px solid var(--card-border);
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .ops-nav {
-      background: #0a0f1d;
-      border-bottom: 1px solid var(--card-border);
-      display: flex;
-      overflow-x: auto;
-    }
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 10px 16px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-      transition: all 0.2s;
-    }
-    .tab-btn:hover { color: #fff; }
-    .tab-btn.active {
-      color: var(--cyan);
-      border-bottom-color: var(--cyan);
-      background: rgba(0, 210, 255, 0.05);
-    }
-
-    .ops-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
-
-    /* Tab 1: Copiloto IA */
-    .ai-chat-container {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      min-height: 480px;
-    }
-    .ai-messages-box {
-      flex: 1;
+      border-radius: 6px;
+      padding: 12px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding-bottom: 10px;
     }
     .msg {
       padding: 10px 14px;
       border-radius: 8px;
       font-size: 12px;
       line-height: 1.5;
-      max-width: 90%;
+      max-width: 85%;
     }
     .msg.user {
       align-self: flex-end;
@@ -347,67 +355,13 @@
       border: 1px solid var(--card-border);
       color: #e2e8f0;
     }
-    .ai-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-    .chip {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--card-border);
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      color: #cbd5e1;
-      cursor: pointer;
-    }
-    .chip:hover {
-      border-color: var(--cyan);
-      color: var(--cyan);
-    }
-    .ai-input-wrap {
-      display: flex;
-      gap: 8px;
-    }
-    .ai-input {
-      flex: 1;
-      background: #070a13;
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 8px 12px;
-      color: #fff;
-      font-size: 12px;
-      outline: none;
-    }
-    .ai-input:focus { border-color: var(--cyan); }
-
-    /* Tab 2: Pedidos C:\pedidos */
-    .files-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-    .files-table th {
-      text-align: left;
-      padding: 8px 10px;
-      background: #090e1a;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--card-border);
-      font-size: 11px;
-    }
-    .files-table td {
-      padding: 8px 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    }
-    .files-table tr:hover { background: rgba(255, 255, 255, 0.02); }
 
     /* Modal Visor */
     .modal-backdrop {
       display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       z-index: 200;
       align-items: center;
       justify-content: center;
@@ -423,7 +377,7 @@
       max-height: 85vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 0 25px rgba(0, 210, 255, 0.25);
+      box-shadow: 0 0 30px rgba(0, 210, 255, 0.25);
     }
     .modal-header {
       padding: 12px 16px;
@@ -450,269 +404,296 @@
       border-top: 1px solid var(--card-border);
       display: flex;
       justify-content: flex-end;
+      gap: 8px;
     }
-
-    /* Buscador Productos */
-    .search-box {
-      width: 100%;
-      background: #060911;
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 8px 12px;
-      color: #fff;
-      font-size: 12px;
-      margin-bottom: 12px;
-      outline: none;
-    }
-    .search-box:focus { border-color: var(--cyan); }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Header Ejecutivo -->
   <header>
     <div class="brand">
       <div class="brand-badge">⚡ AG</div>
       <div>
         <div class="brand-title">
-          ANTIGRAVITY MICRO-NODE
-          <span style="font-size:10px;background:rgba(0,210,255,0.15);color:var(--cyan);padding:2px 6px;border-radius:4px;border:1px solid rgba(0,210,255,0.3);">v2.0 WIN7</span>
+          ANTIGRAVITY STORE COCKPIT
+          <span style="font-size:10px;background:rgba(0,210,255,0.15);color:var(--cyan);padding:2px 6px;border-radius:4px;border:1px solid rgba(0,210,255,0.3);">WIN-7</span>
         </div>
-        <div class="brand-sub" id="hdr-host-sub">Nodo Local: WIN7-TIENDA &middot; C:\pedidos</div>
+        <div class="brand-sub" id="hdr-host-sub">Nodo Tienda: COBRANZA &middot; MixNet ERP (M:\comp01)</div>
       </div>
     </div>
 
     <!-- Píldoras de Telemetría Real -->
     <div class="telemetry-pills">
-      <div class="pill" title="Conexión HTTPS directa con Supabase Core">
+      <div class="pill" title="Directorio DBF de MixNet ERP">
+        <div class="dot green" id="dot-mixnet"></div>
+        <span>MixNet:</span>
+        <strong id="txt-mixnet" style="color:#00ff88;">M:\comp01</strong>
+      </div>
+      <div class="pill" title="Enlace HTTPS Supabase Core">
         <div class="dot green" id="dot-cloud"></div>
         <span>Nube:</span>
         <strong id="txt-cloud" style="color:#fff;">Conectado</strong>
       </div>
-      <div class="pill" title="Latido agéntico reportado a la nube">
-        <div class="dot cyan" id="dot-beat"></div>
-        <span>Latido:</span>
-        <strong id="txt-beat" style="color:var(--cyan);">Activo (20s)</strong>
+      <div class="pill" title="Pedidos registrados hoy en la tienda">
+        📦 <span>Hoy:</span>
+        <strong id="txt-orders-today" style="color:var(--cyan);font-weight:800;">0 pedidos</strong>
       </div>
-      <div class="pill" title="Depósito de Pedidos para Caja MixNet">
-        📁 <span>C:\pedidos:</span>
-        <strong id="txt-pedidos-count" style="color:#00ff88;">0 listos</strong>
-      </div>
-      <div class="pill" title="Tasa oficial BCV en memoria">
+      <div class="pill" title="Tasa oficial del Banco Central de Venezuela">
         💵 <span>BCV:</span>
         <strong id="txt-bcv" style="color:var(--amber);">0.00 Bs</strong>
       </div>
-      <div class="pill" title="Memoria RAM consumida por este proceso">
+      <div class="pill" title="Memoria consumida por el proceso">
         💻 <span>RAM:</span>
-        <strong id="txt-ram" style="color:#94a3b8;">~28 MB</strong>
+        <strong id="txt-ram" style="color:#94a3b8;">-- MB</strong>
       </div>
     </div>
 
     <!-- Acciones Rápidas -->
     <div class="header-actions">
-      <button class="btn btn-green" onclick="forceSync()" title="Forzar sincronización inmediata de la nube">
+      <button class="btn btn-green" onclick="forceSync()" title="Forzar sincronización inmediata">
         ⚡ Sincronizar
       </button>
-      <button class="btn" onclick="testNetwork()" title="Medir latencia contra la nube">
-        🌐 Test Red
+      <button class="btn" onclick="openMixnetFolder()" title="Abrir carpeta de trabajo en Explorer">
+        📂 Abrir MixNet
       </button>
-      <button class="btn" onclick="openPedidosFolder()" title="Abrir carpeta C:\pedidos en Windows">
-        📂 C:\pedidos
+      <button class="btn" onclick="testNetwork()" title="Medir latencia">
+        🌐 Test Red
       </button>
     </div>
   </header>
 
-  <!-- Contenedor Principal (Split Layout) -->
+  <!-- Contenedor Principal -->
   <main>
 
-    <!-- COLUMNA IZQUIERDA: TERMINAL AGÉNTICO EN VIVO -->
-    <div class="terminal-card">
-      <div class="terminal-header">
-        <div class="terminal-title">
-          <span>>_</span> TERMINAL AGÉNTICO // ACTIVIDAD EN TIEMPO REAL
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <span style="font-size:10px;color:var(--green);font-family:var(--mono);">🟢 STREAM ACTIVO</span>
-          <button class="btn-chip" onclick="clearLogs()" title="Limpiar pantalla del terminal">🧹 Limpiar</button>
-        </div>
+    <!-- Navegación por pestañas -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('tab-orders')">
+        📦 Pedidos MixNet
+        <span class="badge-count" id="badge-orders">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-quotes')">
+        📑 Cotizaciones
+        <span class="badge-count" id="badge-quotes">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-despacho')">
+        📁 Archivos Despacho (M:\comp01)
+        <span class="badge-count" id="badge-files">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-catalog')">
+        🔍 Consulta Precios ($ / Bs)
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-ai')">
+        🤖 Copiloto Ejecutivo IA
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-terminal')">
+        💻 Terminal Agéntico
+      </button>
+    </div>
+
+    <!-- PESTAÑA 1: PEDIDOS MIXNET & CLOUD -->
+    <div id="tab-orders" class="tab-pane active">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="search-orders" placeholder="🔍 Buscar por número de pedido, cliente o vendedor..." oninput="filterOrders()">
+        <button class="btn" id="btn-filter-today" onclick="toggleTodayFilter()">📅 Ver Solo Hoy</button>
+        <button class="btn btn-green" onclick="openNewOrderModal()">➕ Crear Pedido a MixNet</button>
+        <button class="btn" onclick="loadOrders()">🔄 Recargar</button>
       </div>
 
-      <!-- Cuerpo del Terminal con Logs -->
-      <div class="terminal-body" id="terminal-body">
-        <div class="log-line">
-          <span class="log-time">[00:00:00]</span>
-          <span class="log-tag tag-BOOT">BOOT</span>
-          <span class="log-msg">Iniciando Antigravity Micro-Node para Windows 7...</span>
-        </div>
-      </div>
-
-      <!-- Barra de accesos directos de comando -->
-      <div class="terminal-shortcuts">
-        <button class="btn-chip" onclick="runCliCmd('sync')">⚡ sync</button>
-        <button class="btn-chip" onclick="runCliCmd('net')">🌐 net</button>
-        <button class="btn-chip" onclick="runCliCmd('pedidos')">📁 dir C:\pedidos</button>
-        <button class="btn-chip" onclick="runCliCmd('bcv')">💵 bcv</button>
-        <button class="btn-chip" onclick="runCliCmd('ping 8.8.8.8 -n 2')">📡 ping</button>
-        <button class="btn-chip" onclick="runCliCmd('help')">❓ help</button>
-      </div>
-
-      <!-- Prompt Interactivo -->
-      <div class="terminal-input-bar">
-        <span class="prompt-label">antigravity@win7:~$</span>
-        <input type="text" class="cli-input" id="cli-input" placeholder="Escribe un comando o comando de Windows..." autocomplete="off">
-        <button class="btn" onclick="handleCliSubmit()">Ejecutar</button>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th># Pedido</th>
+              <th>Emisión</th>
+              <th>Cliente</th>
+              <th>Vendedor</th>
+              <th>Renglones</th>
+              <th>Total USD</th>
+              <th>Total Bs</th>
+              <th>Estatus</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-orders">
+            <tr><td colspan="9" style="text-align:center;color:#666;">Cargando pedidos de MixNet...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <!-- COLUMNA DERECHA: PANEL DE OPERACIONES -->
-    <div class="ops-card">
-      <div class="ops-nav">
-        <button class="tab-btn active" onclick="switchTab('tab-ai')">🤖 Copiloto IA (Gemini)</button>
-        <button class="tab-btn" onclick="switchTab('tab-pedidos')">📦 Despacho C:\pedidos</button>
-        <button class="tab-btn" onclick="switchTab('tab-catalogo')">🔍 Consulta Precios ($ / Bs)</button>
-        <button class="tab-btn" onclick="switchTab('tab-telemetria')">⚡ Tareas & Sistema</button>
+    <!-- PESTAÑA 2: COTIZACIONES MIXNET -->
+    <div id="tab-quotes" class="tab-pane">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="search-quotes" placeholder="🔍 Buscar por cotización o cliente..." oninput="filterQuotes()">
+        <button class="btn btn-green" onclick="openNewQuoteModal()">➕ Crear Cotización a MixNet</button>
+        <button class="btn" onclick="loadQuotes()">🔄 Recargar</button>
       </div>
 
-      <div class="ops-content">
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th># Cotización</th>
+              <th>Emisión</th>
+              <th>Cliente</th>
+              <th>Vendedor</th>
+              <th>Total USD</th>
+              <th>Estatus</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-quotes">
+            <tr><td colspan="7" style="text-align:center;color:#666;">Cargando cotizaciones...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-        <!-- TAB 1: COPILOTO IA AGÉNTICO -->
-        <div id="tab-ai" class="tab-pane active">
-          <div class="ai-chat-container">
-            <div class="ai-chips">
-              <span class="chip" onclick="askAi('¿Cuál es la tasa oficial de hoy y precios en Bs?')">💵 Tasa Oficial Hoy</span>
-              <span class="chip" onclick="askAi('Verifica la estabilidad de la red y la conexión')">🌐 Probar Red</span>
-              <span class="chip" onclick="askAi('Sincroniza la base de datos completa con la nube')">⚡ Sincronizar Base Datos</span>
-              <span class="chip" onclick="askAi('¿Cuáles son las cuentas bancarias registradas?')">🏦 Ver Cuentas Bancarias</span>
-              <span class="chip" onclick="askAi('Muéstrame los pedidos recientes depositados en C:\\pedidos')">📦 Ver Pedidos Caja</span>
-            </div>
+    <!-- PESTAÑA 3: ARCHIVOS DE DESPACHO EN M:\comp01 -->
+    <div id="tab-despacho" class="tab-pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <strong style="color:#fff;">Archivos de Despacho en MixNet</strong>
+          <div style="font-size:11px;color:var(--text-muted);" id="lbl-despacho-path">Directorio: M:\comp01</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-green" onclick="loadDespachoFiles()">🔄 Actualizar</button>
+          <button class="btn" onclick="openMixnetFolder()">📂 Abrir en Windows</button>
+        </div>
+      </div>
 
-            <div class="ai-messages-box" id="ai-messages">
-              <div class="msg ai">
-                ¡Hola! Soy tu <strong>Copiloto Agéntico en Windows 7</strong>.<br>
-                Puedo ejecutar comandos del sistema, revisar la conexión, sincronizar pedidos en <code>C:\pedidos</code> y consultar cuentas o precios al instante.
-              </div>
-            </div>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Archivo</th>
+              <th>Tipo</th>
+              <th>Fecha Modificación</th>
+              <th>Tamaño</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-despacho">
+            <tr><td colspan="5" style="text-align:center;color:#666;">Cargando archivos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-            <div class="ai-input-wrap">
-              <input type="text" class="ai-input" id="ai-input" placeholder="Pregúntale algo o pídele una tarea al agente..." autocomplete="off">
-              <button class="btn btn-green" id="btn-ai-send" onclick="handleAiSubmit()">Enviar</button>
-            </div>
+    <!-- PESTAÑA 4: CATÁLOGO & PRECIOS -->
+    <div id="tab-catalog" class="tab-pane">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="search-prod" placeholder="🔍 Buscar por descripción o SKU en inventario..." oninput="filterProducts()">
+        <span style="font-size:11px;color:var(--text-muted);" id="lbl-catalog-count">Cargando inventario...</span>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código / SKU</th>
+              <th>Descripción</th>
+              <th>Existencia</th>
+              <th>Precio USD</th>
+              <th>Precio Bs (BCV)</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-catalog">
+            <tr><td colspan="5" style="text-align:center;color:#666;">Cargando catálogo...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 5: COPILOTO EJECUTIVO IA -->
+    <div id="tab-ai" class="tab-pane">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn" onclick="askAi('¿Cuál es la tasa oficial de hoy y precios en Bs?')">💵 Tasa Hoy</button>
+        <button class="btn" onclick="askAi('¿Cuántos pedidos se han facturado hoy en MixNet?')">📦 Pedidos de Hoy</button>
+        <button class="btn" onclick="askAi('¿Cuáles son las cuentas bancarias registradas de la empresa?')">🏦 Cuentas Bancarias</button>
+        <button class="btn" onclick="askAi('Verifica la estabilidad de la red y la conexión')">🌐 Probar Red</button>
+        <button class="btn" onclick="askAi('Sincroniza la base de datos completa con la nube')">⚡ Sincronizar Todo</button>
+      </div>
+
+      <div class="chat-box" id="ai-chat-box">
+        <div class="msg ai">
+          ¡Hola! Soy tu <strong>Copiloto Agéntico Ejecutivo</strong> en Windows 7.<br>
+          Tengo enlace directo a <strong>MixNet ERP (M:\comp01)</strong>, la nube Supabase y tus cuentas bancarias.<br>
+          Puedo redactar presupuestos, consultar stock, ejecutar comandos o verificar facturaciones al instante.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <input type="text" class="search-input" id="ai-prompt-input" placeholder="Pregúntale algo o pídele una tarea al copiloto..." autocomplete="off">
+        <button class="btn btn-green" id="btn-ai-send" onclick="handleAiSend()">Enviar</button>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 6: TERMINAL AGÉNTICO -->
+    <div id="tab-terminal" class="tab-pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--cyan);font-family:var(--mono);font-weight:700;">>_ CONSOLA DE EVENTOS Y ACCIONES DEL SISTEMA</span>
+        <button class="btn" onclick="clearLogs()">🧹 Limpiar Pantalla</button>
+      </div>
+
+      <div class="terminal-container">
+        <div class="terminal-body" id="terminal-stream">
+          <div class="log-line">
+            <span class="log-time">[00:00:00]</span>
+            <span class="log-tag tag-BOOT">BOOT</span>
+            <span>Antigravity Store Cockpit iniciado en Windows 7.</span>
           </div>
         </div>
 
-        <!-- TAB 2: DESPACHO C:\pedidos -->
-        <div id="tab-pedidos" class="tab-pane">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <div>
-              <strong style="color:#fff;">Archivos de Despacho en C:\pedidos</strong>
-              <div style="font-size:11px;color:var(--text-muted);">Pedidos y cotizaciones listos para facturar en MixNet</div>
-            </div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-green" onclick="loadPedidosFiles()">🔄 Actualizar</button>
-              <button class="btn" onclick="openPedidosFolder()">📂 Abrir en Windows</button>
-            </div>
-          </div>
-
-          <table class="files-table">
-            <thead>
-              <tr>
-                <th>Archivo</th>
-                <th>Tipo</th>
-                <th>Fecha Modificación</th>
-                <th>Tamaño</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody id="pedidos-tbody">
-              <tr><td colspan="5" style="text-align:center;color:#666;">Cargando archivos...</td></tr>
-            </tbody>
-          </table>
+        <div class="terminal-input-bar">
+          <span class="prompt-label">antigravity@win7:~$</span>
+          <input type="text" class="cli-input" id="cli-cmd-input" placeholder="Escribe un comando (sync, net, bcv, pedidos, o comando de Windows)..." autocomplete="off">
+          <button class="btn" onclick="handleCliCommand()">Ejecutar</button>
         </div>
-
-        <!-- TAB 3: CONSULTA PRODUCTOS & PRECIOS -->
-        <div id="tab-catalogo" class="tab-pane">
-          <input type="text" class="search-box" id="prod-search" placeholder="🔍 Buscar por nombre o código de producto..." oninput="filterProducts()">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" id="prod-count-label">Cargando catálogo...</div>
-
-          <table class="files-table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Descripción</th>
-                <th>Precio USD</th>
-                <th>Precio Bs (BCV)</th>
-              </tr>
-            </thead>
-            <tbody id="catalogo-tbody">
-              <tr><td colspan="4" style="text-align:center;color:#666;">Cargando productos en memoria...</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- TAB 4: TAREAS AUTÓNOMAS & SISTEMA -->
-        <div id="tab-telemetria" class="tab-pane">
-          <div style="background:#080c14;border:1px solid var(--card-border);border-radius:8px;padding:14px;margin-bottom:14px;font-family:var(--mono);font-size:12px;">
-            <div style="color:var(--cyan);font-weight:700;margin-bottom:8px;">⚡ ESTADO DEL NODO LOCAL</div>
-            <div>- Hostname: <strong id="sys-host" style="color:#fff;">--</strong></div>
-            <div>- IP Local: <strong id="sys-ip" style="color:#fff;">--</strong></div>
-            <div>- Sistema Operativo: <strong id="sys-os" style="color:#fff;">Windows 7 (Node v13)</strong></div>
-            <div>- Consumo de RAM: <strong id="sys-ram" style="color:#00ff88;">-- MB</strong></div>
-            <div>- Enlace Nube: <strong id="sys-cloud-status" style="color:#00d2ff;">Activo</strong></div>
-            <div>- Carpeta Pedidos: <code>C:\pedidos</code></div>
-            <div>- Pedidos Generados: <strong id="sys-orders-dropped" style="color:#fff;">0</strong></div>
-            <div>- Cotizaciones Generadas: <strong id="sys-quotes-dropped" style="color:#fff;">0</strong></div>
-          </div>
-
-          <div style="background:#080c14;border:1px solid var(--card-border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;">
-            <div style="color:var(--green);font-weight:700;margin-bottom:8px;">📡 COLA DE TAREAS REMOTAS (NUBE)</div>
-            <div style="color:var(--text-muted);font-size:11px;margin-bottom:10px;">
-              Este nodo escucha cada 20 segundos si otro agente o la laptop le asigna una tarea a través de Supabase Core.
-            </div>
-            <div id="tasks-status-box" style="background:#05080f;padding:10px;border-radius:4px;border:1px solid #1e293b;">
-              🟢 En espera de tareas remotas. Último barrido: <span id="sys-last-sync">Reciente</span>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
 
   </main>
 
-  <!-- Modal Visor de Archivo -->
-  <div class="modal-backdrop" id="modal-view">
+  <!-- Modal Visor de Archivo / Pedido -->
+  <div class="modal-backdrop" id="modal-viewer">
     <div class="modal-box">
       <div class="modal-header">
-        <span id="modal-filename">pedido_00053358.txt</span>
-        <button class="btn-chip" onclick="closeModal()">✕ Cerrar</button>
+        <span id="modal-title">Detalle del Pedido</span>
+        <button class="btn" style="padding:2px 8px;" onclick="closeModal()">✕</button>
       </div>
-      <div class="modal-body" id="modal-content"></div>
+      <div class="modal-body" id="modal-body-content">Cargando...</div>
       <div class="modal-footer">
+        <button class="btn" onclick="printModalContent()">🖨️ Imprimir Ticket</button>
         <button class="btn" onclick="closeModal()">Cerrar</button>
       </div>
     </div>
   </div>
 
-  <!-- Script del Cliente Agéntico -->
   <script>
-    let currentTab = 'tab-ai';
+    let allOrders = [];
+    let allQuotes = [];
     let allProducts = [];
+    let allFiles = [];
     let bcvRate = 0;
+    let onlyToday = false;
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      const targetPane = document.getElementById(tabId);
-      if (targetPane) targetPane.classList.add('active');
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
       event.currentTarget.classList.add('active');
-      currentTab = tabId;
 
-      if (tabId === 'tab-pedidos') loadPedidosFiles();
-      if (tabId === 'tab-catalogo') loadProducts();
+      if (tabId === 'tab-orders') loadOrders();
+      if (tabId === 'tab-quotes') loadQuotes();
+      if (tabId === 'tab-despacho') loadDespachoFiles();
+      if (tabId === 'tab-catalog') loadCatalog();
     }
 
-    // Polling del estado cada 4 segundos
-    async function updateStatus() {
+    // Actualización de Telemetría cada 4 segundos
+    async function updateTelemetry() {
       try {
         const res = await fetch('/api/status');
         const st = await res.json();
@@ -720,244 +701,222 @@
           bcvRate = st.fx_rate || 0;
           document.getElementById('txt-bcv').innerText = bcvRate.toFixed(2) + ' Bs';
           document.getElementById('txt-ram').innerText = st.memory_mb + ' MB';
-          document.getElementById('txt-pedidos-count').innerText = (st.dropped_orders_count || 0) + ' listos';
-          document.getElementById('hdr-host-sub').innerText = 'Nodo Local: ' + (st.host || 'WIN7') + ' (' + (st.lan_ip || '127.0.0.1') + ') · C:\\pedidos';
+          document.getElementById('txt-orders-today').innerText = (st.today_orders_count || 0) + ' hoy (' + (st.orders_count || 0) + ' tot)';
+          document.getElementById('badge-orders').innerText = st.today_orders_count ? `${st.today_orders_count} hoy` : (st.orders_count || 0);
+          document.getElementById('badge-quotes').innerText = st.quotes_count || 0;
+          document.getElementById('badge-files').innerText = st.dropped_orders_count || 0;
 
-          // Telemetría Tab
-          document.getElementById('sys-host').innerText = st.host || 'WIN7';
-          document.getElementById('sys-ip').innerText = st.lan_ip || '127.0.0.1';
-          document.getElementById('sys-ram').innerText = st.memory_mb + ' MB';
-          document.getElementById('sys-orders-dropped').innerText = st.dropped_orders_count || 0;
-          document.getElementById('sys-quotes-dropped').innerText = st.dropped_quotes_count || 0;
-          document.getElementById('sys-last-sync').innerText = st.last_sync ? new Date(st.last_sync).toLocaleTimeString('es-VE') : 'Reciente';
+          document.getElementById('txt-mixnet').innerText = st.mixnet_dir || 'M:\\comp01';
+          document.getElementById('lbl-despacho-path').innerText = 'Directorio: ' + (st.pedidos_dir || 'M:\\comp01');
+          document.getElementById('hdr-host-sub').innerText = 'Nodo Tienda: ' + (st.host || 'COBRANZA') + ' (' + (st.lan_ip || '127.0.0.1') + ') · MixNet (' + (st.mixnet_dir || 'M:\\comp01') + ')';
 
-          // Nube pill
           const isCloud = st.cloud_status && st.cloud_status.online;
           document.getElementById('dot-cloud').className = 'dot ' + (isCloud ? 'green' : 'amber');
-          document.getElementById('txt-cloud').innerText = isCloud ? 'Conectado' : 'Offline';
+          document.getElementById('txt-cloud').innerText = isCloud ? 'En Línea' : 'Offline';
         }
       } catch (_) {}
     }
 
-    // Polling de Logs del Terminal cada 2 segundos
-    let lastLogCount = 0;
-    async function pollTerminalLogs() {
+    // Cargar Pedidos
+    async function loadOrders() {
+      const tb = document.getElementById('tbody-orders');
       try {
-        const res = await fetch('/api/terminal/logs');
+        const res = await fetch('/api/orders');
         const d = await res.json();
-        if (d.ok && Array.isArray(d.logs)) {
-          if (d.logs.length !== lastLogCount) {
-            renderLogs(d.logs);
-            lastLogCount = d.logs.length;
-          }
-        }
-      } catch (_) {}
-    }
-
-    function renderLogs(logs) {
-      const tb = document.getElementById('terminal-body');
-      tb.innerHTML = logs.map(l => `
-        <div class="log-line">
-          <span class="log-time">[${l.time}]</span>
-          <span class="log-tag tag-${l.tag}">${l.tag}</span>
-          <span class="log-msg">${escapeHtml(l.message)}</span>
-        </div>
-      `).join('');
-      tb.scrollTop = tb.scrollHeight;
-    }
-
-    function addLocalLog(tag, msg) {
-      const tStr = new Date().toLocaleTimeString('es-VE', { hour12: false });
-      const tb = document.getElementById('terminal-body');
-      const div = document.createElement('div');
-      div.className = 'log-line';
-      div.innerHTML = `
-        <span class="log-time">[${tStr}]</span>
-        <span class="log-tag tag-${tag}">${tag}</span>
-        <span class="log-msg">${escapeHtml(msg)}</span>
-      `;
-      tb.appendChild(div);
-      tb.scrollTop = tb.scrollHeight;
-    }
-
-    function clearLogs() {
-      document.getElementById('terminal-body').innerHTML = '';
-      addLocalLog('SHELL', 'Consola limpiada.');
-    }
-
-    // Ejecución de Comandos CLI
-    document.getElementById('cli-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') handleCliSubmit();
-    });
-
-    async function handleCliSubmit() {
-      const inp = document.getElementById('cli-input');
-      const cmd = inp.value.trim();
-      if (!cmd) return;
-      inp.value = '';
-      runCliCmd(cmd);
-    }
-
-    async function runCliCmd(cmd) {
-      addLocalLog('SHELL', 'antigravity@win7:~$ ' + cmd);
-
-      // Accesos directos integrados
-      if (cmd === 'sync') {
-        forceSync();
-        return;
-      }
-      if (cmd === 'net') {
-        testNetwork();
-        return;
-      }
-      if (cmd === 'pedidos') {
-        loadPedidosFiles();
-        cmd = 'dir C:\\pedidos';
-      }
-      if (cmd === 'bcv') {
-        addLocalLog('INFO', `Tasa oficial BCV en memoria: ${bcvRate.toFixed(2)} Bs/USD`);
-        return;
-      }
-      if (cmd === 'help') {
-        addLocalLog('INFO', 'Comandos rápidos: sync, net, pedidos, bcv, clear, ping 8.8.8.8, o cualquier comando CMD.');
-        return;
-      }
-      if (cmd === 'clear' || cmd === 'cls') {
-        clearLogs();
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/terminal/exec', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: cmd })
-        });
-        const d = await res.json();
-        if (d.ok) {
-          if (d.stdout) addLocalLog('SHELL', d.stdout);
-          if (d.stderr) addLocalLog('WARN', d.stderr);
-        } else {
-          addLocalLog('ERROR', d.error || 'Error ejecutando comando');
+        if (d.ok && Array.isArray(d.orders)) {
+          allOrders = d.orders;
+          renderOrdersTable(allOrders);
         }
       } catch (err) {
-        addLocalLog('ERROR', err.message);
+        tb.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);">Error cargando pedidos: ${err.message}</td></tr>`;
       }
     }
 
-    // Acciones de Cabecera
-    async function forceSync() {
-      addLocalLog('AGENT', 'Iniciando sincronización forzada con Supabase Core y DBF...');
-      try {
-        const res = await fetch('/api/sync/now');
-        const d = await res.json();
-        if (d.ok) addLocalLog('CLOUD', d.message);
-        setTimeout(updateStatus, 1500);
-      } catch (err) {
-        addLocalLog('ERROR', 'Fallo al solicitar sincronización: ' + err.message);
+    function renderOrdersTable(list) {
+      const tb = document.getElementById('tbody-orders');
+      if (list.length === 0) {
+        tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;">No se encontraron pedidos.</td></tr>';
+        return;
       }
+      tb.innerHTML = list.map(o => {
+        const dateStr = o.created_at ? new Date(o.created_at).toLocaleDateString('es-VE') : 'Hoy';
+        const usd = parseFloat(o.total_usd || 0);
+        const bs = bcvRate > 0 ? (usd * bcvRate).toFixed(2) + ' Bs' : 'N/D';
+        const itemsCount = Array.isArray(o.items) ? o.items.length : 1;
+        const statusBadge = o.status === 'facturado'
+          ? '<span style="background:rgba(16,185,129,0.2);color:var(--green);padding:2px 6px;border-radius:4px;font-weight:700;">FACTURADO</span>'
+          : '<span style="background:rgba(245,158,11,0.2);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:700;">PENDIENTE</span>';
+
+        return `
+          <tr>
+            <td><strong style="color:var(--cyan);font-family:var(--mono);">${escapeHtml(o.order_number || '-')}</strong></td>
+            <td>${dateStr}</td>
+            <td><strong>${escapeHtml(o.client_name || 'Mostrador')}</strong></td>
+            <td>${escapeHtml(o.seller_name || o.codven || 'Caja')}</td>
+            <td>${itemsCount} art.</td>
+            <td style="color:#00ff88;font-weight:700;">$${usd.toFixed(2)}</td>
+            <td style="color:var(--amber);font-weight:700;">${bs}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <button class="btn" style="padding:2px 6px;" onclick="viewOrderDetail('${escapeHtml(o.order_number)}')">👁️ Ver</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
-    async function testNetwork() {
-      addLocalLog('AGENT', 'Midiendo estabilidad de red y latencia hacia la nube...');
+    function filterOrders() {
+      const q = (document.getElementById('search-orders').value || '').toLowerCase().trim();
+      let filtered = allOrders;
+      if (onlyToday) {
+        const todayPrefix = new Date().toISOString().slice(0, 10);
+        filtered = filtered.filter(o => o.created_at && o.created_at.indexOf(todayPrefix) === 0);
+      }
+      if (q) {
+        filtered = filtered.filter(o =>
+          (o.order_number && o.order_number.toLowerCase().includes(q)) ||
+          (o.client_name && o.client_name.toLowerCase().includes(q)) ||
+          (o.seller_name && o.seller_name.toLowerCase().includes(q))
+        );
+      }
+      renderOrdersTable(filtered);
+    }
+
+    function toggleTodayFilter() {
+      onlyToday = !onlyToday;
+      const btn = document.getElementById('btn-filter-today');
+      btn.className = onlyToday ? 'btn btn-green' : 'btn';
+      btn.innerText = onlyToday ? '📅 Mostrando Solo Hoy' : '📅 Ver Solo Hoy';
+      filterOrders();
+    }
+
+    function viewOrderDetail(orderNum) {
+      const ord = allOrders.find(o => o.order_number === orderNum);
+      if (!ord) return;
+      document.getElementById('modal-title').innerText = `Pedido #${ord.order_number} · ${ord.client_name}`;
+      
+      let lines = [
+        `================================================`,
+        `PEDIDO JJ PAPER TIENDA: #${ord.order_number}`,
+        `Fecha: ${ord.created_at ? new Date(ord.created_at).toLocaleString('es-VE') : 'Hoy'}`,
+        `Cliente: ${ord.client_name}`,
+        ord.rif ? `RIF/CI:  ${ord.rif}` : '',
+        ord.phone ? `Teléfono: ${ord.phone}` : '',
+        `Vendedor: ${ord.seller_name || ord.codven || 'Caja Mostrador'}`,
+        `Estado: ${String(ord.status || 'PENDIENTE').toUpperCase()}`,
+        `================================================`,
+        `Cant.   Producto                     P.Unit   Subtotal`,
+        `------------------------------------------------`
+      ].filter(Boolean);
+
+      const items = Array.isArray(ord.items) ? ord.items : [];
+      items.forEach(it => {
+        const qty = String(it.qty || 1).padStart(4, ' ');
+        const name = String(it.name || it.sku || '').padEnd(28, ' ').slice(0, 28);
+        const pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
+        const sub = parseFloat(it.subtotal_usd || (it.qty * it.price_usd) || 0).toFixed(2).padStart(8, ' ');
+        lines.push(`${qty} x ${name} ${pu} ${sub}`);
+      });
+
+      lines.push(`------------------------------------------------`);
+      lines.push(`TOTAL USD: $${parseFloat(ord.total_usd || 0).toFixed(2)}`);
+      if (bcvRate > 0) {
+        lines.push(`Tasa BCV:  ${bcvRate.toFixed(2)} Bs/$`);
+        lines.push(`TOTAL BS:  ${(parseFloat(ord.total_usd || 0) * bcvRate).toFixed(2)} Bs`);
+      }
+      lines.push(`================================================`);
+
+      document.getElementById('modal-body-content').innerText = lines.join('\n');
+      document.getElementById('modal-viewer').classList.add('active');
+    }
+
+    // Cargar Cotizaciones
+    async function loadQuotes() {
+      const tb = document.getElementById('tbody-quotes');
       try {
-        const res = await fetch('/api/agent/exec', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'check_network' })
-        });
+        const res = await fetch('/api/quotes');
         const d = await res.json();
-        if (d.ok) {
-          addLocalLog('CLOUD', `Latencia Nube: ${d.cloud_latency_ms}ms · Calidad: ${d.quality} · ${d.status}`);
-        } else {
-          addLocalLog('ERROR', d.error || 'Error en prueba de red');
+        if (d.ok && Array.isArray(d.quotes)) {
+          allQuotes = d.quotes;
+          renderQuotesTable(allQuotes);
         }
       } catch (err) {
-        addLocalLog('ERROR', err.message);
+        tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red);">Error cargando cotizaciones: ${err.message}</td></tr>`;
       }
     }
 
-    async function openPedidosFolder() {
-      try {
-        await fetch('/api/pedidos/open-folder');
-        addLocalLog('SHELL', 'Carpeta C:\\pedidos abierta en el Explorador de Windows.');
-      } catch (_) {}
+    function renderQuotesTable(list) {
+      const tb = document.getElementById('tbody-quotes');
+      if (list.length === 0) {
+        tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">No hay cotizaciones registradas.</td></tr>';
+        return;
+      }
+      tb.innerHTML = list.map(q => {
+        const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('es-VE') : 'Hoy';
+        const usd = parseFloat(q.estimated_total_usd || q.total_usd || 0);
+        return `
+          <tr>
+            <td><strong style="color:var(--cyan);font-family:var(--mono);">${escapeHtml(q.quote_number || '-')}</strong></td>
+            <td>${dateStr}</td>
+            <td><strong>${escapeHtml(q.client_name || 'Cliente')}</strong></td>
+            <td>${escapeHtml(q.seller_name || q.codven || 'Caja')}</td>
+            <td style="color:#00ff88;font-weight:700;">$${usd.toFixed(2)}</td>
+            <td><span style="background:rgba(245,158,11,0.2);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:700;">PENDIENTE</span></td>
+            <td>
+              <button class="btn" style="padding:2px 6px;" onclick="viewQuoteDetail('${escapeHtml(q.quote_number)}')">👁️ Ver</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
-    // Copiloto IA (Gemini)
-    document.getElementById('ai-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') handleAiSubmit();
-    });
-
-    function askAi(promptText) {
-      document.getElementById('ai-input').value = promptText;
-      handleAiSubmit();
+    function filterQuotes() {
+      const q = (document.getElementById('search-quotes').value || '').toLowerCase().trim();
+      const filtered = q ? allQuotes.filter(item =>
+        (item.quote_number && item.quote_number.toLowerCase().includes(q)) ||
+        (item.client_name && item.client_name.toLowerCase().includes(q))
+      ) : allQuotes;
+      renderQuotesTable(filtered);
     }
 
-    async function handleAiSubmit() {
-      const inp = document.getElementById('ai-input');
-      const q = inp.value.trim();
+    function viewQuoteDetail(quoteNum) {
+      const q = allQuotes.find(item => item.quote_number === quoteNum);
       if (!q) return;
-      inp.value = '';
-
-      const box = document.getElementById('ai-messages');
-      box.innerHTML += `<div class="msg user">${escapeHtml(q)}</div>`;
-      box.scrollTop = box.scrollHeight;
-
-      const btn = document.getElementById('btn-ai-send');
-      btn.disabled = true;
-      btn.innerText = 'Pensando...';
-
-      addLocalLog('AI', 'Consultando al Copiloto Gemini: ' + q);
-
-      try {
-        const res = await fetch('/api/ai/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q })
-        });
-        const d = await res.json();
-        if (d.ok) {
-          box.innerHTML += `<div class="msg ai">${formatMarkdown(d.answer)}</div>`;
-          addLocalLog('AI', 'Respuesta recibida (' + (d.model || 'Gemini') + ')');
-        } else {
-          box.innerHTML += `<div class="msg ai" style="color:var(--red);">Error: ${escapeHtml(d.error || 'Fallo desconocido')}</div>`;
-          addLocalLog('ERROR', 'Error Gemini: ' + (d.error || 'Desconocido'));
-        }
-      } catch (err) {
-        box.innerHTML += `<div class="msg ai" style="color:var(--red);">Error de conexión: ${escapeHtml(err.message)}</div>`;
-      } finally {
-        btn.disabled = false;
-        btn.innerText = 'Enviar';
-        box.scrollTop = box.scrollHeight;
-      }
+      document.getElementById('modal-title').innerText = `Cotización #${q.quote_number} · ${q.client_name}`;
+      document.getElementById('modal-body-content').innerText = [
+        `COTIZACIÓN JJ PAPER: #${q.quote_number}`,
+        `Cliente: ${q.client_name}`,
+        `Total Estimado: $${parseFloat(q.estimated_total_usd || 0).toFixed(2)} USD`,
+        `Vendedor: ${q.seller_name || q.codven || 'Caja'}`
+      ].join('\n');
+      document.getElementById('modal-viewer').classList.add('active');
     }
 
-    // Bandeja de Pedidos C:\pedidos
-    async function loadPedidosFiles() {
-      const tb = document.getElementById('pedidos-tbody');
-      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">Leyendo C:\\pedidos...</td></tr>';
+    // Archivos de Despacho (M:\comp01)
+    async function loadDespachoFiles() {
+      const tb = document.getElementById('tbody-despacho');
       try {
         const res = await fetch('/api/pedidos');
         const d = await res.json();
         if (d.ok && Array.isArray(d.files)) {
-          if (d.files.length === 0) {
-            tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">No hay archivos aún en C:\\pedidos. Llegarán solos cada 20s.</td></tr>';
+          allFiles = d.files;
+          if (allFiles.length === 0) {
+            tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">No hay archivos en la carpeta de MixNet aún.</td></tr>';
             return;
           }
-          tb.innerHTML = d.files.map(f => {
+          tb.innerHTML = allFiles.map(f => {
             const dateStr = new Date(f.mtime).toLocaleString('es-VE');
-            const typeBadge = f.is_pedido 
+            const badge = f.is_pedido
               ? '<span style="background:rgba(16,185,129,0.2);color:var(--green);padding:2px 6px;border-radius:4px;font-weight:700;">PEDIDO</span>'
-              : (f.is_cotizacion ? '<span style="background:rgba(245,158,11,0.2);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:700;">COTIZACIÓN</span>' : 'ARCHIVO');
+              : '<span style="background:rgba(245,158,11,0.2);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:700;">COTIZACIÓN</span>';
             return `
               <tr>
                 <td><strong>${escapeHtml(f.name)}</strong></td>
-                <td>${typeBadge}</td>
+                <td>${badge}</td>
                 <td>${dateStr}</td>
                 <td>${(f.size / 1024).toFixed(1)} KB</td>
                 <td>
-                  <button class="btn-chip" onclick="viewFile('${escapeHtml(f.name)}')">👁️ Ver</button>
+                  <button class="btn" style="padding:2px 6px;" onclick="viewFileContent('${escapeHtml(f.name)}')">👁️ Ver</button>
                 </td>
               </tr>
             `;
@@ -968,29 +927,22 @@
       }
     }
 
-    async function viewFile(fn) {
-      document.getElementById('modal-filename').innerText = fn;
-      document.getElementById('modal-content').innerText = 'Cargando contenido...';
-      document.getElementById('modal-view').classList.add('active');
-
+    async function viewFileContent(fn) {
+      document.getElementById('modal-title').innerText = fn;
+      document.getElementById('modal-body-content').innerText = 'Cargando archivo...';
+      document.getElementById('modal-viewer').classList.add('active');
       try {
         const res = await fetch('/api/pedidos/read?file=' + encodeURIComponent(fn));
         const d = await res.json();
-        if (d.ok) {
-          document.getElementById('modal-content').innerText = d.content;
-        } else {
-          document.getElementById('modal-content').innerText = 'Error: ' + d.error;
-        }
+        if (d.ok) document.getElementById('modal-body-content').innerText = d.content;
+        else document.getElementById('modal-body-content').innerText = 'Error: ' + d.error;
       } catch (e) {
-        document.getElementById('modal-content').innerText = 'Error: ' + e.message;
+        document.getElementById('modal-body-content').innerText = 'Error: ' + e.message;
       }
     }
-    function closeModal() {
-      document.getElementById('modal-view').classList.remove('active');
-    }
 
-    // Catálogo & Búsqueda Instantánea
-    async function loadProducts() {
+    // Catálogo
+    async function loadCatalog() {
       if (allProducts.length > 0) return;
       try {
         const res = await fetch('/api/products');
@@ -1003,25 +955,26 @@
     }
 
     function filterProducts() {
-      const q = (document.getElementById('prod-search').value || '').toLowerCase().trim();
-      const filtered = q 
+      const q = (document.getElementById('search-prod').value || '').toLowerCase().trim();
+      const filtered = q
         ? allProducts.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q)))
         : allProducts.slice(0, 100);
 
-      document.getElementById('prod-count-label').innerText = `Mostrando ${filtered.length} de ${allProducts.length} productos`;
-
-      const tb = document.getElementById('catalogo-tbody');
+      document.getElementById('lbl-catalog-count').innerText = `Mostrando ${filtered.length} de ${allProducts.length} productos`;
+      const tb = document.getElementById('tbody-catalog');
       if (filtered.length === 0) {
-        tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">No se encontraron productos coincidentes.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">No se encontraron productos coincidentes.</td></tr>';
         return;
       }
       tb.innerHTML = filtered.map(p => {
         const usd = parseFloat(p.price_usd || 0);
         const bs = bcvRate > 0 ? (usd * bcvRate).toFixed(2) + ' Bs' : 'N/D';
+        const stk = parseFloat(p.stock || 0);
         return `
           <tr>
             <td><code>${escapeHtml(p.sku || '-')}</code></td>
             <td><strong>${escapeHtml(p.name || '')}</strong></td>
+            <td style="color:${stk > 0 ? '#fff' : 'var(--red)'};">${stk}</td>
             <td style="color:#00ff88;font-weight:700;">$${usd.toFixed(2)}</td>
             <td style="color:var(--amber);font-weight:700;">${bs}</td>
           </tr>
@@ -1029,7 +982,176 @@
       }).join('');
     }
 
-    // Helpers
+    // Chat IA
+    document.getElementById('ai-prompt-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleAiSend();
+    });
+
+    function askAi(text) {
+      document.getElementById('ai-prompt-input').value = text;
+      handleAiSend();
+    }
+
+    async function handleAiSend() {
+      const inp = document.getElementById('ai-prompt-input');
+      const q = inp.value.trim();
+      if (!q) return;
+      inp.value = '';
+
+      const box = document.getElementById('ai-chat-box');
+      box.innerHTML += `<div class="msg user">${escapeHtml(q)}</div>`;
+      box.scrollTop = box.scrollHeight;
+
+      const btn = document.getElementById('btn-ai-send');
+      btn.disabled = true;
+      btn.innerText = 'Pensando...';
+
+      try {
+        const res = await fetch('/api/ai/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          box.innerHTML += `<div class="msg ai">${formatMarkdown(d.answer)}</div>`;
+        } else {
+          box.innerHTML += `<div class="msg ai" style="color:var(--red);">Error: ${escapeHtml(d.error || 'Fallo desconocido')}</div>`;
+        }
+      } catch (err) {
+        box.innerHTML += `<div class="msg ai" style="color:var(--red);">Error de conexión: ${escapeHtml(err.message)}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Enviar';
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+
+    // Terminal
+    let lastLogCount = 0;
+    async function pollLogs() {
+      try {
+        const res = await fetch('/api/terminal/logs');
+        const d = await res.json();
+        if (d.ok && Array.isArray(d.logs)) {
+          if (d.logs.length !== lastLogCount) {
+            const tb = document.getElementById('terminal-stream');
+            tb.innerHTML = d.logs.map(l => `
+              <div class="log-line">
+                <span class="log-time">[${l.time}]</span>
+                <span class="log-tag tag-${l.tag}">${l.tag}</span>
+                <span>${escapeHtml(l.message)}</span>
+              </div>
+            `).join('');
+            tb.scrollTop = tb.scrollHeight;
+            lastLogCount = d.logs.length;
+          }
+        }
+      } catch (_) {}
+    }
+
+    document.getElementById('cli-cmd-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleCliCommand();
+    });
+
+    async function handleCliCommand() {
+      const inp = document.getElementById('cli-cmd-input');
+      const cmd = inp.value.trim();
+      if (!cmd) return;
+      inp.value = '';
+
+      if (cmd === 'sync') { forceSync(); return; }
+      if (cmd === 'net') { testNetwork(); return; }
+      if (cmd === 'pedidos') { openMixnetFolder(); return; }
+      if (cmd === 'clear' || cmd === 'cls') { clearLogs(); return; }
+
+      try {
+        const res = await fetch('/api/terminal/exec', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd })
+        });
+        const d = await res.json();
+        setTimeout(pollLogs, 300);
+      } catch (_) {}
+    }
+
+    function clearLogs() {
+      document.getElementById('terminal-stream').innerHTML = '<div class="log-line"><span class="log-time">[00:00:00]</span><span class="log-tag tag-SHELL">SHELL</span><span>Consola limpiada.</span></div>';
+    }
+
+    // Acciones Generales
+    async function forceSync() {
+      try {
+        await fetch('/api/sync/now');
+        setTimeout(() => {
+          updateTelemetry();
+          loadOrders();
+        }, 1500);
+      } catch (_) {}
+    }
+
+    async function openMixnetFolder() {
+      try {
+        await fetch('/api/pedidos/open-folder');
+      } catch (_) {}
+    }
+
+    async function testNetwork() {
+      try {
+        const res = await fetch('/api/agent/exec', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_network' })
+        });
+        const d = await res.json();
+        alert(d.ok ? `Latencia Nube: ${d.cloud_latency_ms}ms · Calidad: ${d.quality}` : 'Fallo prueba de red');
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    function openNewOrderModal() {
+      const num = prompt('Ingrese número o correlativo de pedido (deje en blanco para auto-generar en MixNet):');
+      const client = prompt('Nombre del cliente:', 'CLIENTE MOSTRADOR');
+      if (!client) return;
+      const total = prompt('Monto Total USD:', '0.00');
+
+      fetch('/api/orders/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_number: num || null,
+          client_name: client,
+          total_usd: parseFloat(total || 0),
+          codven: '005',
+          items: [{ sku: 'MIX-TIENDA', name: 'Venta Mostrador', qty: 1, price_usd: parseFloat(total || 0) }]
+        })
+      }).then(r => r.json()).then(d => {
+        if (d.ok) {
+          alert('✅ ' + d.message + ' (Correlativo MixNet: #' + d.order_number + ')');
+          loadOrders();
+        } else {
+          alert('❌ Error: ' + d.error);
+        }
+      });
+    }
+
+    function openNewQuoteModal() {
+      alert('Para crear cotizaciones formales, use el cotizador web o redacte con el Copiloto IA.');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-viewer').classList.remove('active');
+    }
+
+    function printModalContent() {
+      const win = window.open('', '_blank');
+      win.document.write(`<pre style="font-family:monospace;font-size:12px;">${document.getElementById('modal-body-content').innerText}</pre>`);
+      win.document.close();
+      win.print();
+    }
+
     function escapeHtml(str) {
       if (!str) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1046,11 +1168,12 @@
       return t;
     }
 
-    // Inicialización
-    updateStatus();
-    pollTerminalLogs();
-    setInterval(updateStatus, 4000);
-    setInterval(pollTerminalLogs, 2000);
+    // Inicialización automática
+    updateTelemetry();
+    loadOrders();
+    pollLogs();
+    setInterval(updateTelemetry, 4000);
+    setInterval(pollLogs, 2000);
   </script>
 </body>
 </html>

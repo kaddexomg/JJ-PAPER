@@ -533,6 +533,16 @@ function writeQuoteToMixnetDbf(quote) {
   var totUsd = parseFloat(quote.estimated_total_usd || 0);
   var rate = parseFloat(quote.exchange_rate || 0);
 
+function cleanComment(notes) {
+  if (!notes) return '';
+  var str = String(notes).trim();
+  // Regla de Oro: Descartar cualquier rastro o firma técnica (ej. [MixNet], COT-, etc.)
+  if (/\[|\]|cot-|ped-|mixnet|agente|system|servidor/i.test(str)) return '';
+  // Limpiar caracteres extraños, dejar solo notas reales de despacho
+  str = str.replace(/[^\w\s.,\-#/]/gi, ' ').replace(/\s+/g, ' ').trim();
+  return str.substring(0, 40);
+}
+
   // 1. Cabecera MXENCCOT
   var headerValues = {
     numcot:  qNum,
@@ -540,7 +550,7 @@ function writeQuoteToMixnetDbf(quote) {
     cliente: codcli,
     codsuc:  '',
     codven:  codven,
-    comen1:  '', // Cero marcas técnicas (Protocolo Mandatorio)
+    comen1:  cleanComment(quote.notes), // Limpio de huellas técnicas
     comen2:  '',
     transp:  '',
     estatus: 'PE',
@@ -664,7 +674,7 @@ function writeOrderToMixnetDbf(order) {
     cliente: codcli,
     codsuc:  '',
     codven:  codven,
-    comen1:  '',
+    comen1:  cleanComment(order.notes), // Limpio de huellas técnicas
     comen2:  '',
     transp:  '',
     estatus: 'PE',
@@ -736,7 +746,7 @@ function writeOrderToMixnetDbf(order) {
   return { ok: true, num: oNum, itemsCount: renBuffers.length };
 }
 
-// ─── 8. CICLO DE SINCRONIZACIÓN TOTAL BIDIRECCIONAL ───
+// ─── 8. CICLO DE SINCRONIZACIÓN TOTAL BIDIRECCIONAL CON PROTECCIÓN ANTI-SATURACIÓN ───
 
 var isSyncing = false;
 var lastSyncStats = {
@@ -746,6 +756,16 @@ var lastSyncStats = {
   downOrders: 0,
   lastRun: null
 };
+
+// Caché en memoria (Memoria de Alta Densidad para Cero Egress redundante en Supabase)
+var knownCloudQuotes = {};
+var knownCloudOrders = {};
+var lastLocalCotRecords = -1;
+var lastLocalPedRecords = -1;
+var lastSyncedCotSerial = 0;
+var lastSyncedPedSerial = 0;
+var lastCloudPollQuotesIso = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+var lastCloudPollOrdersIso = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
 
 function logMsg(tag, text) {
   var d = new Date();
@@ -765,29 +785,35 @@ function runFullSyncCycle() {
     return;
   }
 
-  // ── PASO A: Sincronizar Correlativos (MixNet -> Cloud) ──
+  // ── PASO A: Sincronizar Correlativos (MixNet -> Cloud) solo si avanzó en MixNet ──
   var mixCot = getMixnetNextSerial('cotizacion');
   var mixPed = getMixnetNextSerial('pedido');
 
-  if (mixCot && mixCot.num > 0) {
+  if (mixCot && mixCot.num > lastSyncedCotSerial) {
     sbRequest('/rest/v1/jjp_settings?key=eq.mixnet_next_quote_serial&select=value', 'GET', null, function(err, res) {
       if (!err && Array.isArray(res) && res[0]) {
         var cloudVal = parseInt(res[0].value, 10) || 0;
         if (mixCot.num > cloudVal) {
           sbRequest('/rest/v1/jjp_settings?key=eq.mixnet_next_quote_serial', 'PATCH', { value: String(mixCot.num) }, function() {});
+          lastSyncedCotSerial = mixCot.num;
           logMsg('CORRELATIVO', 'Cotizaciones actualizado en Nube -> #' + mixCot.formatted);
+        } else {
+          lastSyncedCotSerial = Math.max(cloudVal, mixCot.num);
         }
       }
     });
   }
 
-  if (mixPed && mixPed.num > 0) {
+  if (mixPed && mixPed.num > lastSyncedPedSerial) {
     sbRequest('/rest/v1/jjp_settings?key=eq.mixnet_next_order_serial&select=value', 'GET', null, function(err, res) {
       if (!err && Array.isArray(res) && res[0]) {
         var cloudPedVal = parseInt(res[0].value, 10) || 0;
         if (mixPed.num > cloudPedVal) {
           sbRequest('/rest/v1/jjp_settings?key=eq.mixnet_next_order_serial', 'PATCH', { value: String(mixPed.num) }, function() {});
+          lastSyncedPedSerial = mixPed.num;
           logMsg('CORRELATIVO', 'Pedidos actualizado en Nube -> #' + mixPed.formatted);
+        } else {
+          lastSyncedPedSerial = Math.max(cloudPedVal, mixPed.num);
         }
       }
     });
@@ -805,16 +831,27 @@ function runFullSyncCycle() {
   });
 }
 
-// B. Subir desde MixNet a Cloud
+// B. Subir desde MixNet a Cloud (con Dirty-Check local de archivos DBF)
 function syncMixnetToCloud(doneCallback) {
   var encCotPath = path.join(activeCompDir, 'MXENCCOT.DBF');
   var encPedPath = path.join(activeCompDir, 'MXENCPED.DBF');
-  var renCotPath = path.join(activeCompDir, 'MXRENCOT.DBF');
-  var renPedPath = path.join(activeCompDir, 'MXRENPED.DBF');
+  if (!fs.existsSync(encCotPath)) encCotPath = path.join(activeCompDir, 'mxenccot.dbf');
+  if (!fs.existsSync(encPedPath)) encPedPath = path.join(activeCompDir, 'mxencped.dbf');
 
-  // 1. Cotizaciones MixNet -> jjp_quotes
-  var cotRows = readDbfRecentRows(encCotPath, 150);
-  var pedRows = readDbfRecentRows(encPedPath, 150);
+  var stCot = readDbfStruct(encCotPath);
+  var stPed = readDbfStruct(encPedPath);
+
+  var cotRecords = stCot ? stCot.numRecords : 0;
+  var pedRecords = stPed ? stPed.numRecords : 0;
+
+  // Si el contador de registros en disco no ha cambiado, no hay nuevos datos en MixNet
+  if (cotRecords === lastLocalCotRecords && pedRecords === lastLocalPedRecords && cotRecords > 0) {
+    if (doneCallback) doneCallback();
+    return;
+  }
+
+  lastLocalCotRecords = cotRecords;
+  lastLocalPedRecords = pedRecords;
 
   // Indexar renglones recientes
   var renCotMap = {};

@@ -44,6 +44,7 @@ cerebro/.obsidian/workspace.json
 
 # Repo secundario para herramientas locales de PC
 archivos-pc/
+config-puente.json
 
 # Backups y datos de negocio
 backups/

@@ -51,6 +51,7 @@ backups/
 CLIENTES/*.json
 *.docx
 *.zip
+!antigravity-win7.zip
 *.bak
 wa-server/*.txt
 wa-server/*.json

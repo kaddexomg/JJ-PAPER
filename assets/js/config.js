@@ -120,23 +120,35 @@ const APP = {
 
 // Load settings from Supabase, cache for session
 async function loadSettings() {
-  const cached = sessionStorage.getItem('jjp_settings');
+  const cached = localStorage.getItem('jjp_settings') || sessionStorage.getItem('jjp_settings');
   if (cached) {
-    const map = JSON.parse(cached);
-    applySettings(map);
-    await ensureFreshRate();
-    return map;
+    try {
+      const map = JSON.parse(cached);
+      applySettings(map);
+      ensureFreshRate().catch(() => {});
+      return map;
+    } catch (_) {}
   }
 
-  const { data, error } = await sb.from('jjp_settings').select('key,value');
-  if (error || !data) return {};
+  try {
+    const { data, error } = await sb.from('jjp_settings').select('key,value');
+    if (!error && data) {
+      const map = {};
+      data.forEach(r => { map[r.key] = r.value; });
+      try {
+        localStorage.setItem('jjp_settings', JSON.stringify(map));
+        sessionStorage.setItem('jjp_settings', JSON.stringify(map));
+      } catch (_) {}
+      applySettings(map);
+      ensureFreshRate().catch(() => {});
+      return map;
+    }
+  } catch (e) {
+    console.warn('loadSettings network warning:', e);
+  }
 
-  const map = {};
-  data.forEach(r => { map[r.key] = r.value; });
-  sessionStorage.setItem('jjp_settings', JSON.stringify(map));
-  applySettings(map);
-  await ensureFreshRate();
-  return map;
+  ensureFreshRate().catch(() => {});
+  return {};
 }
 
 // Expose settings on APP for the whole app

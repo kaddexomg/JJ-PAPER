@@ -212,6 +212,18 @@ async function loadProducts() {
 
     if (!data || data.length === 0) break;
     allData.push(...data);
+
+    // Renderizado progresivo inmediato: tan pronto llega el primer bloque, pintar productos
+    if (allProducts.length === 0 && allData.length > 0) {
+      allProducts = allData.map(normalizeProduct);
+      allProducts.forEach(p => { productMap[p.id] = p; });
+      try {
+        if (typeof renderProds === 'function' && document.getElementById('prodGrid')) {
+          renderProds();
+        }
+      } catch (_) {}
+    }
+
     if (data.length <= step) break;
     from += step + 1;
   }
@@ -224,6 +236,11 @@ async function loadProducts() {
       localStorage.setItem(cacheTimeKey, String(now));
       sessionStorage.setItem(cacheKey, JSON.stringify(allData));
       sessionStorage.setItem(cacheTimeKey, String(now));
+    } catch (_) {}
+    try {
+      if (typeof renderProds === 'function' && document.getElementById('prodGrid')) {
+        renderProds();
+      }
     } catch (_) {}
   }
 }
@@ -673,7 +690,24 @@ async function initCatalog() {
   const grid = document.getElementById('prodGrid');
   if (!grid) return;
 
-  grid.innerHTML = skeletonGridHTML(APP.PER_PAGE);
+  // 1. Carga instantánea de 0ms si hay caché en localStorage
+  const cacheKey = 'jjp_products_cache_v7';
+  try {
+    const cached = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        allProducts = parsed.map(normalizeProduct);
+        allProducts.forEach(p => { productMap[p.id] = p; });
+        renderProds();
+      }
+    }
+  } catch (_) {}
+
+  // Si no había datos previos en caché, mostrar skeleton elegante
+  if (!allProducts.length) {
+    grid.innerHTML = skeletonGridHTML(APP.PER_PAGE);
+  }
 
   try {
     await loadSettings();

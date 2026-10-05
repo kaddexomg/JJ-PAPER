@@ -29,30 +29,38 @@ var SUPABASE_KEY = Buffer.from('ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5
 var POLL_INTERVAL_MS = 15000; // Sondeo cada 15 segundos
 
 // Mapeo oficial de vendedores (Nómina Sagrada)
+// NOTA CLAVE: En MixNet, el usuario real de Keyder Salazar es 005.
+// Las carteras 010 y 020 son divisiones artificiales exclusivas de JJ Paper para prospección.
+// Toda venta o cotización hecha por 005 en MixNet pertenece a Keyder.
+// Y las ventas hechas por 002 (Luis), 008 (Marianela), 004/006 (Yovanni) a clientes de MixNet
+// pertenecen ESTRICTAMENTE a ellos, NUNCA se reasignan a Keyder por la cartera del cliente.
+var KEYDER_UUID = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+
 var VENDEDORES = {
-  '010': { nombre: 'Keyder Salazar', uuid: 'bddc57dc-5bf9-4a72-9e1c-751d07b03164' },
-  '020': { nombre: 'Keyder Salazar (Zona 020)', uuid: 'bddc57dc-5bf9-4a72-9e1c-751d07b03164' },
+  '005': { nombre: 'Keyder Salazar (MixNet)', uuid: KEYDER_UUID },
+  '010': { nombre: 'Keyder Salazar (Zona 010)', uuid: KEYDER_UUID },
+  '020': { nombre: 'Keyder Salazar (Zona 020)', uuid: KEYDER_UUID },
   '002': { nombre: 'Luis Alarcón', uuid: 'e6957754-de00-4088-8e54-affcaa172247' },
   '004': { nombre: 'Yovanni Araujo', uuid: '07540d9c-4ed9-46d2-95ce-0a0200be6083' },
   '006': { nombre: 'Yovanni Araujo (Inst)', uuid: '07540d9c-4ed9-46d2-95ce-0a0200be6083' },
   '008': { nombre: 'Marianela Meza', uuid: '3c9b7ddd-4b98-45c6-a646-5c557a2bc043' },
   '014': { nombre: 'Andreina', uuid: '68c29cd3-760a-4282-8214-4e7c60413ec5' },
-  '005': { nombre: 'Caja Principal / Mostrador', uuid: null },
   '001': { nombre: 'Mary Garcia', uuid: '86b0ef8b-a41b-4385-a8f9-314a5052cb94' },
   '025': { nombre: 'Ana Barajas', uuid: '7eeb41f2-55e1-4e5e-b6c2-3da87582b51b' },
-  '032': { nombre: 'Caja Auxiliar 32', uuid: null },
-  '033': { nombre: 'Caja Auxiliar 33', uuid: null }
+  '032': { nombre: 'Vendedor 032', uuid: null },
+  '033': { nombre: 'Vendedor 033', uuid: null }
 };
 
 function getSellerByCodven(cod) {
   var c = String(cod || '').trim();
   if (VENDEDORES[c]) return { code: c, name: VENDEDORES[c].nombre, uuid: VENDEDORES[c].uuid };
-  return { code: c || '005', name: c ? ('Vendedor ' + c) : 'Caja Mostrador', uuid: null };
+  return { code: c || '005', name: c ? ('Vendedor ' + c) : 'Vendedor 005', uuid: null };
 }
 
 function getCodvenBySellerId(uuid) {
   if (!uuid) return '005';
-  if (uuid === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return '010';
+  // En MixNet, la estación y usuario real de Keyder es 005
+  if (uuid === KEYDER_UUID) return '005';
   for (var k in VENDEDORES) {
     if (VENDEDORES[k].uuid === uuid) return k;
   }

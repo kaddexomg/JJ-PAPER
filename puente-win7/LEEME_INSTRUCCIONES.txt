@@ -1,0 +1,34 @@
+========================================================================
+   JJ PAPER -- PUENTE AUTONOMO MIXNET ERP ⇄ NUBE (WINDOWS 7)
+========================================================================
+
+¿QUÉ HACE ESTE PROGRAMA?
+Este es un sincronizador ultra-ligero (<25 MB RAM, 0% CPU en reposo).
+No requiere internet pesado, no abre ventanas de navegador ni consume recursos.
+
+FUNCIONES:
+1. MixNet -> JJ Paper:
+   - Cualquier pedido o cotización emitido en MixNet en esta PC se sube
+     inmediatamente a la plataforma web de JJ Paper.
+2. JJ Paper -> MixNet:
+   - Cualquier pedido o cotización emitido por Keyder o los vendedores en la web
+     se escribe de forma indetectable y nativa en las tablas DBF de MixNet
+     (MXENCPED, MXENCCOT, MXRENPED, MXRENCOT).
+   - Genera archivos de respaldo .txt y .csv en M:\comp01 y C:\pedidos.
+3. Correlativos:
+   - Sincroniza los números de cotización y pedidos con MixNet (MXNUMCOT y MXNUMPED)
+     para que no existan saltos ni colisiones entre la tienda y los vendedores.
+4. Nómina Sagrada:
+   - Respeta estrictamente los códigos de vendedor de MixNet (010 Keyder, 002 Luis,
+     004/006 Yovanni, 008 Marianela, 014 Andreina, 005 Caja).
+
+PASOS PARA USAR:
+1. Haz doble clic en: INICIAR-PUENTE.bat
+2. Verás una ventana negra con letras celestes que confirmará:
+   - Carpeta de MixNet detectada (M:\comp01 o similar)
+   - Conexión a la nube de JJ Paper
+   - Sincronización en tiempo real cada 15 segundos
+3. (Opcional) Si quieres que arranque solo cada vez que enciendes la PC:
+   - Haz doble clic en: INSTALAR-AUTO-ARRANQUE.bat
+
+========================================================================

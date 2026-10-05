@@ -18,15 +18,17 @@ var os = require('os');
 var url = require('url');
 var exec = require('child_process').exec;
 
-// Cargar configuración
-var CONFIG_FILE = path.join(__dirname, 'config.json');
+// Llave de Servicio Maestra para Supabase Core (wwcdxqpibequfohbgejs)
+var DEFAULT_SB_CORE_KEY = Buffer.from('ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW5kM1kyUjRjWEJwWW1WeGRXWnZhR0puWldweklpd2ljbTlzWlNJNkluTmxjblpwWTJWZmNtOXNaU0lzSW1saGRDSTZNVGM1TURjek1EQTNOQ3dpWlhod0lqb3lNVEEyTXpBMk1EYzBmUS5GaFFqdjVBeTZQRjZDbEw0amx3Vl85a1lpX1huS2plekFROEw2cEQwNHpn', 'base64').toString('utf8');
+
+// Cargar configuración (auto-detección resiliente)
 var config = {
   port: 3300,
-  mixnet_candidates: ['M:\\MIX11\\comp01', 'M:\\comp01', 'P:\\comp01', 'C:\\MIXNET\\comp01'],
+  mixnet_candidates: ['M:\\MIX11\\comp01', 'M:\\comp01', 'P:\\comp01', 'C:\\MIXNET\\comp01', 'C:\\comp01'],
   supervisor_urls: ['http://192.168.0.172:8787', 'https://192.168.0.172:8788', 'https://100.103.110.44:8788'],
   supabase: {
     core_url: 'https://wwcdxqpibequfohbgejs.supabase.co',
-    core_key: '',
+    core_key: DEFAULT_SB_CORE_KEY,
     comm_url: 'https://klcibjwleiqppedefpxw.supabase.co',
     comm_key: ''
   },
@@ -35,15 +37,29 @@ var config = {
   accesos_sistema: {}
 };
 
-try {
-  if (fs.existsSync(CONFIG_FILE)) {
-    var rawCfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    for (var k in rawCfg) {
-      if (rawCfg.hasOwnProperty(k)) config[k] = rawCfg[k];
+var configCandidatePaths = [
+  path.join(__dirname, 'config-puente.json'),
+  path.join(__dirname, '..', 'config-puente.json'),
+  path.join(os.homedir(), 'Desktop', 'config-puente.json'),
+  path.join(__dirname, 'config.json')
+];
+
+for (var ci = 0; ci < configCandidatePaths.length; ci++) {
+  var cPath = configCandidatePaths[ci];
+  try {
+    if (fs.existsSync(cPath)) {
+      var rawCfg = JSON.parse(fs.readFileSync(cPath, 'utf8'));
+      if (rawCfg.supabase_key) config.supabase.core_key = rawCfg.supabase_key;
+      if (rawCfg.supabase_url) config.supabase.core_url = rawCfg.supabase_url;
+      for (var ck in rawCfg) {
+        if (rawCfg.hasOwnProperty(ck)) config[ck] = rawCfg[ck];
+      }
+      console.log('[CONFIG] Cargada configuración desde: ' + cPath);
+      break;
     }
+  } catch (e) {
+    console.error('[CONFIG] Error leyendo ' + cPath + ':', e.message);
   }
-} catch (e) {
-  console.error('[CONFIG] Error cargando config.json:', e.message);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -320,43 +336,59 @@ function detectMixnetDir() {
   return null;
 }
 
-// Petición genérica HTTP/HTTPS compatible con Node 13
+// Petición genérica HTTP/HTTPS compatible estricto con Node 13 y Windows 7
 function fetchJSON(targetUrl, headers, timeoutMs, callback) {
   var isHttps = targetUrl.indexOf('https:') === 0;
   var parsed = url.parse(targetUrl);
   var mod = isHttps ? https : http;
 
-  var req = mod.get({
+  var opts = {
     protocol: parsed.protocol,
     hostname: parsed.hostname,
-    port: parsed.port,
+    port: parsed.port || (isHttps ? 443 : 80),
     path: parsed.path,
     headers: headers || {},
-    timeout: timeoutMs || 4000,
+    timeout: timeoutMs || 7000,
     rejectUnauthorized: false
-  }, function(res) {
+  };
+  if (isHttps) {
+    opts.servername = parsed.hostname;
+  }
+  if (!opts.headers['User-Agent']) {
+    opts.headers['User-Agent'] = 'JJ-Paper-Win7-Agent/1.0';
+  }
+  if (!opts.headers['Accept']) {
+    opts.headers['Accept'] = 'application/json';
+  }
+
+  var called = false;
+  function done(err, data) {
+    if (called) return;
+    called = true;
+    callback(err, data);
+  }
+
+  var req = mod.get(opts, function(res) {
     var data = '';
     res.on('data', function(c) { data += c; });
     res.on('end', function() {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         try {
-          return callback(null, JSON.parse(data));
+          return done(null, JSON.parse(data));
         } catch (e) {
-          return callback(e);
+          return done(e);
         }
       } else {
-        return callback(new Error('HTTP ' + res.statusCode));
+        return done(new Error('HTTP ' + res.statusCode));
       }
     });
   });
 
-  req.on('error', function(err) { callback(err); });
-  req.on('timeout', function() { req.destroy(); callback(new Error('Timeout')); });
+  req.on('error', function(err) { done(err); });
+  req.on('timeout', function() { req.destroy(); done(new Error('Timeout (' + (timeoutMs || 7000) + 'ms)')); });
 }
 
-var DEFAULT_SB_CORE_KEY = Buffer.from('ZXlKaGJHY2lPaUpJVXpJMU5pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SnBjM01pT2lKemRYQmhZbUZ6WlNJc0luSmxaaUk2SW5kM1kyUjRjWEJwWW1WeGRXWnZhR0puWldweklpd2ljbTlzWlNJNkluTmxjblpwWTJWZmNtOXNaU0lzSW1saGRDSTZNVGM1TURjek1EQTNOQ3dpWlhod0lqb3lNVEEyTXpBMk1EYzBmUS5GaFFqdjVBeTZQRjZDbEw0amx3Vl85a1lpX1huS2plekFROEw2cEQwNHpn', 'base64').toString('utf8');
-
-// Depósito automático de pedidos en C:\pedidos para la caja de MixNet
+// Depósito automático de pedidos en C:\pedidos y en MixNet
 function dropOrdersToPedidosFolder(orders) {
   var pedidosDir = 'C:\\pedidos';
   if (!fs.existsSync(pedidosDir)) {
@@ -365,9 +397,16 @@ function dropOrdersToPedidosFolder(orders) {
   if (!Array.isArray(orders)) return;
   for (var i = 0; i < orders.length; i++) {
     var ord = orders[i];
-    if (ord.status === 'cancelado' || ord.status === 'rechazado') continue;
     var num = ord.order_number || String(ord.id).slice(0, 8);
     var txtPath = path.join(pedidosDir, 'pedido_' + num + '.txt');
+    var csvPath = path.join(pedidosDir, 'pedido_' + num + '.csv');
+
+    if (ord.status === 'cancelado' || ord.status === 'rechazado') {
+      if (fs.existsSync(txtPath)) try { fs.unlinkSync(txtPath); } catch (_) {}
+      if (fs.existsSync(csvPath)) try { fs.unlinkSync(csvPath); } catch (_) {}
+      continue;
+    }
+
     if (!fs.existsSync(txtPath)) {
       var items = Array.isArray(ord.items) ? ord.items : [];
       if (typeof ord.items === 'string') {
@@ -423,8 +462,16 @@ function dropOrdersToPedidosFolder(orders) {
       }
       lines.push('================================================');
       try {
-        fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
-        fs.writeFileSync(path.join(pedidosDir, 'pedido_' + num + '.csv'), csvLines.join('\r\n'), 'utf8');
+        var txtBody = lines.join('\r\n');
+        var csvBody = csvLines.join('\r\n');
+        fs.writeFileSync(txtPath, txtBody, 'utf8');
+        fs.writeFileSync(csvPath, csvBody, 'utf8');
+        if (store.active_mixnet_dir && fs.existsSync(store.active_mixnet_dir)) {
+          try {
+            fs.writeFileSync(path.join(store.active_mixnet_dir, 'pedido_' + num + '.txt'), txtBody, 'utf8');
+            fs.writeFileSync(path.join(store.active_mixnet_dir, 'pedido_' + num + '.csv'), csvBody, 'utf8');
+          } catch (_) {}
+        }
         store.dropped_orders_count = (store.dropped_orders_count || 0) + 1;
         process.stdout.write('\x07');
         addAgentLog('ORDERS', '📦 Pedido #' + num + ' generado en C:\\pedidos (' + sellerName + ' / ' + (ord.client_name || 'Cliente') + ')');
@@ -441,9 +488,17 @@ function dropQuotesToPedidosFolder(quotes) {
   if (!Array.isArray(quotes)) return;
   for (var i = 0; i < quotes.length; i++) {
     var q = quotes[i];
-    if (q.status === 'cancelado' || q.status === 'rechazado') continue;
     var num = q.quote_number || String(q.id).slice(0, 8);
     var txtPath = path.join(pedidosDir, 'cotizacion_' + num + '.txt');
+    var csvPath = path.join(pedidosDir, 'cotizacion_' + num + '.csv');
+
+    // Si ya fue convertida o facturada en MixNet, o cancelada, remover de la carpeta de pendientes
+    if (q.status === 'cancelado' || q.status === 'rechazado' || q.status === 'convertido' || q.status === 'facturado') {
+      if (fs.existsSync(txtPath)) try { fs.unlinkSync(txtPath); } catch (_) {}
+      if (fs.existsSync(csvPath)) try { fs.unlinkSync(csvPath); } catch (_) {}
+      continue;
+    }
+
     if (!fs.existsSync(txtPath)) {
       var items = Array.isArray(q.items) ? q.items : [];
       if (typeof q.items === 'string') {
@@ -494,8 +549,16 @@ function dropQuotesToPedidosFolder(quotes) {
       lines.push('TOTAL ESTIMADO USD: $' + parseFloat(q.estimated_total_usd || 0).toFixed(2));
       lines.push('================================================');
       try {
-        fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
-        fs.writeFileSync(path.join(pedidosDir, 'cotizacion_' + num + '.csv'), csvLines.join('\r\n'), 'utf8');
+        var txtBody = lines.join('\r\n');
+        var csvBody = csvLines.join('\r\n');
+        fs.writeFileSync(txtPath, txtBody, 'utf8');
+        fs.writeFileSync(csvPath, csvBody, 'utf8');
+        if (store.active_mixnet_dir && fs.existsSync(store.active_mixnet_dir)) {
+          try {
+            fs.writeFileSync(path.join(store.active_mixnet_dir, 'cotizacion_' + num + '.txt'), txtBody, 'utf8');
+            fs.writeFileSync(path.join(store.active_mixnet_dir, 'cotizacion_' + num + '.csv'), csvBody, 'utf8');
+          } catch (_) {}
+        }
         store.dropped_quotes_count = (store.dropped_quotes_count || 0) + 1;
         addAgentLog('QUOTES', '📑 Cotización #' + num + ' generada en C:\\pedidos (' + sellerName + ' / ' + (q.client_name || 'Cliente') + ')');
       } catch (_) {}
@@ -507,14 +570,21 @@ function dropQuotesToPedidosFolder(quotes) {
 function testNetworkStability(callback) {
   var tStart = Date.now();
   var sbUrl = (config.supabase && config.supabase.core_url) || 'https://wwcdxqpibequfohbgejs.supabase.co';
-  var parsed = new (require('url').URL)(sbUrl);
+  var parsed = url.parse(sbUrl);
   var req = https.request({
     hostname: parsed.hostname,
-    port: 443,
+    servername: parsed.hostname,
+    port: parsed.port || 443,
     path: '/rest/v1/',
     method: 'GET',
-    headers: { 'apikey': (config.supabase && config.supabase.core_key) || DEFAULT_SB_CORE_KEY },
-    timeout: 6000
+    headers: {
+      'apikey': DEFAULT_SB_CORE_KEY,
+      'Authorization': 'Bearer ' + DEFAULT_SB_CORE_KEY,
+      'User-Agent': 'JJ-Paper-Win7-Agent/1.0',
+      'Accept': 'application/json'
+    },
+    timeout: 6000,
+    rejectUnauthorized: false
   }, function(res) {
     var latCloud = Date.now() - tStart;
     exec('ping 8.8.8.8 -n 2', { timeout: 6000 }, function(err, stdout) {
@@ -609,53 +679,101 @@ function handleAgentAction(action, params, callback) {
   }
 }
 
-// Capa 1: Sincronización con Supabase Cloud PostgREST
+// Capa 1: Sincronización con Supabase Cloud PostgREST (Paralela y Resiliente)
 function syncFromSupabase(callback) {
   var baseUrl = (config.supabase && config.supabase.core_url) || 'https://wwcdxqpibequfohbgejs.supabase.co';
-  var apiKey = (config.supabase && config.supabase.core_key && config.supabase.core_key.indexOf('service_role') !== -1)
+  var apiKey = (config.supabase && config.supabase.core_key && config.supabase.core_key.length > 50)
     ? config.supabase.core_key
     : DEFAULT_SB_CORE_KEY;
 
-  var headers = { 'apikey': apiKey, 'Authorization': 'Bearer ' + apiKey };
+  var headers = {
+    'apikey': apiKey,
+    'Authorization': 'Bearer ' + apiKey,
+    'User-Agent': 'JJ-Paper-Win7-Agent/1.0',
+    'Accept': 'application/json'
+  };
 
-  // 1. Pedidos
-  fetchJSON(baseUrl + '/rest/v1/jjp_orders?select=*&order=created_at.desc&limit=100', headers, 5000, function(err, orders) {
+  var pending = 5;
+  var successCount = 0;
+
+  function onDatasetDone(name, ok, count) {
+    if (ok) {
+      successCount++;
+      store.cloud_status.online = true;
+      store.cloud_status.last_beat = new Date().toISOString();
+    }
+    pending--;
+    if (pending <= 0) {
+      if (successCount > 0) {
+        store.cloud_status.online = true;
+        store.cloud_status.last_sync = new Date().toISOString();
+        store.last_sync = new Date().toISOString();
+        addAgentLog('CLOUD', '🟢 Sincronización Supabase completada (' + successCount + '/5 datasets ok)');
+      } else {
+        store.cloud_status.online = false;
+        addAgentLog('WARN', '🔴 No se pudo sincronizar ningún dataset con la nube Supabase');
+      }
+      if (callback) callback();
+    }
+  }
+
+  // 1. Pedidos (Últimos 100)
+  fetchJSON(baseUrl + '/rest/v1/jjp_orders?select=*&order=created_at.desc&limit=100', headers, 8000, function(err, orders) {
     if (!err && Array.isArray(orders)) {
       store.orders = orders;
       recalculateNominaAndCxC();
       dropOrdersToPedidosFolder(orders);
+      addAgentLog('ORDERS', '📦 ' + orders.length + ' pedidos sincronizados de la nube');
+      onDatasetDone('orders', true, orders.length);
+    } else {
+      if (err) addAgentLog('WARN', 'Error leyendo pedidos: ' + err.message);
+      onDatasetDone('orders', false, 0);
     }
+  });
 
-    // 2. Cotizaciones
-    fetchJSON(baseUrl + '/rest/v1/jjp_quotes?select=*&order=created_at.desc&limit=100', headers, 5000, function(err2, quotes) {
-      if (!err2 && Array.isArray(quotes)) {
-        store.quotes = quotes;
-        dropQuotesToPedidosFolder(quotes);
-      }
+  // 2. Cotizaciones (Últimas 100)
+  fetchJSON(baseUrl + '/rest/v1/jjp_quotes?select=*&order=created_at.desc&limit=100', headers, 8000, function(err2, quotes) {
+    if (!err2 && Array.isArray(quotes)) {
+      store.quotes = quotes;
+      dropQuotesToPedidosFolder(quotes);
+      addAgentLog('QUOTES', '📑 ' + quotes.length + ' cotizaciones sincronizadas');
+      onDatasetDone('quotes', true, quotes.length);
+    } else {
+      if (err2) addAgentLog('WARN', 'Error leyendo cotizaciones: ' + err2.message);
+      onDatasetDone('quotes', false, 0);
+    }
+  });
 
-      // 3. Clientes
-      fetchJSON(baseUrl + '/rest/v1/jjp_customers?select=id,name,rif,phone,seller_id,city,address,total_orders,total_usd,zone&order=name.asc&limit=1000', headers, 5000, function(err3, custs) {
-        if (!err3 && Array.isArray(custs)) {
-          store.customers = custs;
-        }
+  // 3. Clientes (Hasta 1500)
+  fetchJSON(baseUrl + '/rest/v1/jjp_customers?select=id,name,rif,phone,seller_id,city,address,total_orders,total_usd,zone&order=name.asc&limit=1500', headers, 8000, function(err3, custs) {
+    if (!err3 && Array.isArray(custs)) {
+      store.customers = custs;
+      onDatasetDone('customers', true, custs.length);
+    } else {
+      onDatasetDone('customers', false, 0);
+    }
+  });
 
-        // 4. Productos
-        fetchJSON(baseUrl + '/rest/v1/jjp_products?select=id,name,sku,price_usd,price_b,cost_usd,stock,active&order=name.asc&limit=1000', headers, 5000, function(err4, prods) {
-          if (!err4 && Array.isArray(prods)) {
-            store.products = prods;
-          }
+  // 4. Catálogo y Productos (Hasta 1500)
+  fetchJSON(baseUrl + '/rest/v1/jjp_products?select=id,name,sku,price_usd,price_b,cost_usd,stock,active&order=name.asc&limit=1500', headers, 8000, function(err4, prods) {
+    if (!err4 && Array.isArray(prods)) {
+      store.products = prods;
+      addAgentLog('CATALOG', '📦 Catálogo actualizado: ' + prods.length + ' productos en memoria');
+      onDatasetDone('products', true, prods.length);
+    } else {
+      onDatasetDone('products', false, 0);
+    }
+  });
 
-          // 5. Tasa BCV
-          fetchJSON(baseUrl + '/rest/v1/jjp_fx_rates?select=bcv&order=created_at.desc&limit=1', headers, 3000, function(err5, rates) {
-            if (!err5 && Array.isArray(rates) && rates[0]) {
-              store.fx_rate = parseFloat(rates[0].bcv) || 0;
-            }
-            store.last_sync = new Date().toISOString();
-            if (callback) callback();
-          });
-        });
-      });
-    });
+  // 5. Tasa Oficial BCV
+  fetchJSON(baseUrl + '/rest/v1/jjp_fx_rates?select=bcv&order=created_at.desc&limit=1', headers, 6000, function(err5, rates) {
+    if (!err5 && Array.isArray(rates) && rates[0]) {
+      store.fx_rate = parseFloat(rates[0].bcv) || 0;
+      addAgentLog('RATES', '💵 Tasa BCV oficial: ' + store.fx_rate + ' Bs/$');
+      onDatasetDone('rates', true, 1);
+    } else {
+      onDatasetDone('rates', false, 0);
+    }
   });
 }
 
@@ -677,6 +795,8 @@ function sendHeartbeatAndCheckTasks(callback) {
       pedidos_dir: 'C:\\pedidos',
       orders_count: store.orders.length,
       quotes_count: store.quotes.length,
+      products_count: store.products.length,
+      customers_count: store.customers.length,
       dropped_orders_count: store.dropped_orders_count || 0,
       dropped_quotes_count: store.dropped_quotes_count || 0,
       active_mixnet_dir: store.active_mixnet_dir,
@@ -684,7 +804,7 @@ function sendHeartbeatAndCheckTasks(callback) {
     })
   });
 
-  var req = https.request({
+  var opts = {
     protocol: parsed.protocol,
     hostname: parsed.hostname,
     port: parsed.port || 443,
@@ -695,16 +815,34 @@ function sendHeartbeatAndCheckTasks(callback) {
       'Authorization': 'Bearer ' + key,
       'Content-Type': 'application/json',
       'Prefer': 'resolution=merge-duplicates,return=minimal',
-      'Content-Length': Buffer.byteLength(payload)
+      'Content-Length': Buffer.byteLength(payload),
+      'User-Agent': 'JJ-Paper-Win7-Agent/1.0'
     },
-    timeout: 5000,
+    timeout: 6000,
     rejectUnauthorized: false
-  }, function(res) {
-    store.cloud_status = {
-      online: res.statusCode >= 200 && res.statusCode < 300,
-      last_beat: new Date().toISOString()
-    };
-    addAgentLog('HEARTBEAT', 'Latido enviado a la nube Supabase (HTTP ' + res.statusCode + ')');
+  };
+  if (parsed.protocol === 'https:') {
+    opts.servername = parsed.hostname;
+  }
+
+  var called = false;
+  function finish() {
+    if (called) return;
+    called = true;
+    if (callback) callback();
+  }
+
+  var req = https.request(opts, function(res) {
+    res.resume();
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      store.cloud_status = {
+        online: true,
+        last_beat: new Date().toISOString()
+      };
+      addAgentLog('HEARTBEAT', '🟢 Latido reportado a Supabase Core exitosamente (HTTP ' + res.statusCode + ')');
+    } else {
+      addAgentLog('WARN', 'Latido rechazado por Supabase (HTTP ' + res.statusCode + ')');
+    }
 
     // Revisar si hay tareas pendientes en jjp_settings (key: 'win7_agent_task')
     fetchJSON(baseUrl + '/rest/v1/jjp_settings?key=eq.win7_agent_task&select=*', {
@@ -727,7 +865,7 @@ function sendHeartbeatAndCheckTasks(callback) {
                   completed_at: new Date().toISOString()
                 })
               });
-              var uReq = https.request({
+              var uOpts = {
                 protocol: parsed.protocol,
                 hostname: parsed.hostname,
                 port: parsed.port || 443,
@@ -738,11 +876,14 @@ function sendHeartbeatAndCheckTasks(callback) {
                   'Authorization': 'Bearer ' + key,
                   'Content-Type': 'application/json',
                   'Prefer': 'resolution=merge-duplicates,return=minimal',
-                  'Content-Length': Buffer.byteLength(updatePayload)
+                  'Content-Length': Buffer.byteLength(updatePayload),
+                  'User-Agent': 'JJ-Paper-Win7-Agent/1.0'
                 },
                 timeout: 5000,
                 rejectUnauthorized: false
-              });
+              };
+              if (parsed.protocol === 'https:') uOpts.servername = parsed.hostname;
+              var uReq = https.request(uOpts, function(uRes) { uRes.resume(); });
               uReq.on('error', function() {});
               uReq.write(updatePayload);
               uReq.end();
@@ -751,18 +892,20 @@ function sendHeartbeatAndCheckTasks(callback) {
           }
         } catch (_) {}
       }
-      if (callback) callback();
+      finish();
     });
   });
 
   req.on('error', function(err) {
     store.cloud_status = { online: false, error: err.message };
     addAgentLog('WARN', 'Fallo conexión con la nube: ' + err.message);
-    if (callback) callback();
+    finish();
   });
   req.on('timeout', function() {
     req.destroy();
-    if (callback) callback();
+    store.cloud_status = { online: false, error: 'Timeout' };
+    addAgentLog('WARN', 'Timeout de conexión con la nube (>6000ms)');
+    finish();
   });
   req.write(payload);
   req.end();

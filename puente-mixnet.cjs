@@ -500,6 +500,16 @@ function writeDropFiles(docType, doc) {
 
 // ─── 7. ESCRITURA DIRECTA EN DBF DE MIXNET (COTIZACIONES Y PEDIDOS) ───
 
+function cleanComment(notes) {
+  if (!notes) return '';
+  var str = String(notes).trim();
+  // Regla de Oro: Descartar cualquier rastro o firma técnica (ej. [MixNet], COT-, etc.)
+  if (/\[|\]|cot-|ped-|mixnet|agente|system|servidor/i.test(str)) return '';
+  // Limpiar caracteres extraños, dejar solo notas reales de despacho
+  str = str.replace(/[^\w\s.,\-#/]/gi, ' ').replace(/\s+/g, ' ').trim();
+  return str.substring(0, 40);
+}
+
 function writeQuoteToMixnetDbf(quote) {
   if (!activeCompDir) return { ok: false, error: 'MixNet comp01 no disponible' };
   var encPath = path.join(activeCompDir, 'MXENCCOT.DBF');
@@ -541,15 +551,6 @@ function writeQuoteToMixnetDbf(quote) {
   var totUsd = parseFloat(quote.estimated_total_usd || 0);
   var rate = parseFloat(quote.exchange_rate || 0);
 
-function cleanComment(notes) {
-  if (!notes) return '';
-  var str = String(notes).trim();
-  // Regla de Oro: Descartar cualquier rastro o firma técnica (ej. [MixNet], COT-, etc.)
-  if (/\[|\]|cot-|ped-|mixnet|agente|system|servidor/i.test(str)) return '';
-  // Limpiar caracteres extraños, dejar solo notas reales de despacho
-  str = str.replace(/[^\w\s.,\-#/]/gi, ' ').replace(/\s+/g, ' ').trim();
-  return str.substring(0, 40);
-}
 
   // 1. Cabecera MXENCCOT
   var headerValues = {
@@ -860,6 +861,16 @@ function syncMixnetToCloud(doneCallback) {
 
   lastLocalCotRecords = cotRecords;
   lastLocalPedRecords = pedRecords;
+
+  // Rutas a archivos de renglones (detalle de ítems)
+  var renCotPath = path.join(activeCompDir, 'MXRENCOT.DBF');
+  var renPedPath = path.join(activeCompDir, 'MXRENPED.DBF');
+  if (!fs.existsSync(renCotPath)) renCotPath = path.join(activeCompDir, 'mxrencot.dbf');
+  if (!fs.existsSync(renPedPath)) renPedPath = path.join(activeCompDir, 'mxrenped.dbf');
+
+  // Leer filas recientes de encabezados (cotizaciones y pedidos)
+  var cotRows = readDbfRecentRows(encCotPath, 1500);
+  var pedRows = readDbfRecentRows(encPedPath, 1500);
 
   // Indexar renglones recientes
   var renCotMap = {};

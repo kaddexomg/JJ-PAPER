@@ -288,11 +288,11 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
       let cmdB = null;
       let cmdA = null;
       try {
-        const resB = await db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle();
+        const resB = await Promise.resolve(db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle());
         cmdB = resB?.data?.command;
       } catch (_) {}
       try {
-        const resA = await dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle();
+        const resA = await Promise.resolve(dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle());
         cmdA = resA?.data?.command;
       } catch (_) {}
       const cmd = cmdB || cmdA;

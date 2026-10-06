@@ -640,7 +640,39 @@
   .sheet.density-ultra-compact .fisc-footer-note { margin-top: 2px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
 
   /* ==========================================================
-     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA (A4 EXACTO 1 HOJA LÁSER B/N)
+     MODO MULTIPÁGINA INTELIGENTE (27+ renglones: 2 o más hojas limpias y continuas)
+     ========================================================== */
+  .sheet.density-multipage .fisc-head { padding-bottom: 2.5px; margin-bottom: 3px; }
+  .sheet.density-multipage .fisc-biz img { width: 36px; height: 36px; }
+  .sheet.density-multipage .fisc-biz .biz-name { font-size: 13px; }
+  .sheet.density-multipage .fisc-biz .biz-sub { font-size: 7.8px; }
+  .sheet.density-multipage .fisc-biz .biz-dir { font-size: 7.8px; line-height: 1.2; margin-top: 1px; }
+  .sheet.density-multipage .fisc-doc-box { min-width: 200px; max-width: 220px; }
+  .sheet.density-multipage .fisc-doc-box .doc-title { font-size: 9.5px; padding: 2px 4px; }
+  .sheet.density-multipage .fisc-doc-box .doc-row { padding: 1.2px 4px; font-size: 8px; }
+  .sheet.density-multipage .fisc-doc-box .doc-row.num-row .val { font-size: 11.5px; }
+  .sheet.density-multipage .fisc-client-box { margin-top: 2.5px; }
+  .sheet.density-multipage .fisc-client-box .box-header { padding: 2px 5px; font-size: 7.8px; }
+  .sheet.density-multipage .fisc-client-box .box-body { padding: 2px 5px; gap: 1px 6px; }
+  .sheet.density-multipage .fisc-client-box .f-field { font-size: 8px; line-height: 1.15; }
+  .sheet.density-multipage .fisc-items-table { margin-top: 3px; width: 100%; border-collapse: collapse; }
+  .sheet.density-multipage .fisc-items-table thead th { padding: 2px 3.5px; font-size: 7.8px; font-weight: 800; }
+  .sheet.density-multipage .fisc-items-table tbody td { padding: 1.4px 3.5px; font-size: 8px; line-height: 1.12; }
+  .sheet.density-multipage .fisc-items-table tbody td.sku-cell { font-size: 7.5px; }
+  .sheet.density-multipage .fisc-bottom-group { margin-top: 4px; }
+  .sheet.density-multipage .fisc-tot-wrap { margin-top: 2px; gap: 6px; }
+  .sheet.density-multipage .fisc-tot-notice { font-size: 7.8px; padding: 2px 4px; }
+  .sheet.density-multipage .fisc-tot-table td { padding: 1.6px 5px; font-size: 8.8px; }
+  .sheet.density-multipage .fisc-tot-table tr.grand-usd td { font-size: 10.5px; padding: 2.5px 5px; }
+  .sheet.density-multipage .fisc-tot-table tr.grand-bs td { font-size: 11.5px; padding: 2.5px 5px; }
+  .sheet.density-multipage .fisc-sign-area { margin-top: 3px; gap: 5px; }
+  .sheet.density-multipage .fisc-sign-box { padding: 2.5px 5px; font-size: 7.5px; line-height: 1.15; }
+  .sheet.density-multipage .fisc-sign-box .box-tit { font-size: 7.2px; padding-bottom: 1px; margin-bottom: 2px; }
+  .sheet.density-multipage .fisc-interactive-sign { height: 40px; }
+  .sheet.density-multipage .fisc-footer-note { margin-top: 2.5px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
+
+  /* ==========================================================
+     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA MULTIPÁGINA INTELIGENTE
      ========================================================== */
   @media print { 
     * { 
@@ -658,8 +690,8 @@
     .toolbar { display: none !important; }
     
     @page { 
-      size: a4 portrait; 
-      margin: 3.5mm 5mm 3.5mm 5mm; 
+      size: letter portrait; 
+      margin: 5mm 6mm 5mm 6mm; 
     }
     
     .sheet { 
@@ -669,15 +701,70 @@
       max-width: 100% !important; 
       width: 100% !important; 
       border-radius: 0 !important; 
-      page-break-after: avoid !important; 
-      page-break-inside: avoid !important; 
-      break-inside: avoid !important; 
+      overflow: visible !important;
+      page-break-after: auto !important; 
+      break-after: auto !important;
+      page-break-inside: auto !important; 
+      break-inside: auto !important; 
       height: auto !important;
     }
-    
-    table, tr, td, th { 
+
+    .sheet-inner {
+      overflow: visible !important;
+    }
+
+    /* La cabecera institucional y datos del cliente siempre juntos */
+    .fisc-head, .fisc-client-box { 
       page-break-inside: avoid !important; 
       break-inside: avoid !important; 
+    }
+
+    /* La tabla principal permite partición fluida entre páginas */
+    table.fisc-items-table { 
+      page-break-inside: auto !important; 
+      break-inside: auto !important; 
+      border-collapse: collapse !important;
+      width: 100% !important;
+    }
+
+    /* Repetir cabecera de la tabla al inicio de cada nueva página impresa */
+    table.fisc-items-table thead { 
+      display: table-header-group !important; 
+    }
+      table.fisc-items-table thead tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      table.fisc-items-table tbody { 
+        display: table-row-group !important; 
+      }
+
+      /* En modo multipágina permitir que las filas se corten con naturalidad */
+      .sheet.density-multipage table.fisc-items-table tbody tr {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+
+      /* Cada fila individual de producto no se corta horizontalmente (menos en multipágina) */
+      .sheet:not(.density-multipage) table.fisc-items-table tbody tr { 
+        page-break-inside: avoid !important; 
+        break-inside: avoid !important; 
+      }
+
+    /* Bloque final unificado: Totales, Firmas y Nota Legal protegidos */
+    .fisc-bottom-group {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    .fisc-tot-wrap { 
+      page-break-inside: avoid !important; 
+      break-inside: avoid !important; 
+    }
+
+    .fisc-tot-table {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
 
     .fisc-sign-area { 
@@ -685,8 +772,22 @@
       break-inside: avoid !important; 
     }
 
+    .fisc-footer-note {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    /* Filigrana tenue fija en cada hoja */
     .watermark-bg {
-      opacity: 0.075 !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      opacity: 0.04 !important;
+      pointer-events: none !important;
+      z-index: 0 !important;
+      width: 320px !important;
+      height: 320px !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
@@ -921,7 +1022,7 @@ function setFormat(isTicket) {
   if (ps) {
     ps.textContent = isTicket
       ? '@page { size: 80mm auto; margin: 3mm; }'
-      : '@page { size: letter portrait; margin: 7mm 8mm 7mm 8mm; }';
+      : '@page { size: letter portrait; margin: 5mm 6mm 5mm 6mm; }';
   }
 }
 
@@ -989,7 +1090,7 @@ function render(o) {
 
   // Renglones de relleno sutiles (Punto Medio) para que facturas de pocos ítems llenen armónicamente la hoja
   let emptyRows = '';
-  if (items.length < 6) {
+  if (itemCount <= 26 && items.length < 6) {
     const need = 6 - items.length;
     for (let k = 0; k < need; k++) {
       emptyRows += `<tr>
@@ -1005,10 +1106,11 @@ function render(o) {
     }
   }
 
-  // Densidad adaptativa según cantidad de ítems para encajar siempre en 1 hoja A4
+  // Densidad adaptativa según cantidad de ítems: 1 hoja limpia (hasta 26 ítems) o multipágina balanceada (27+ ítems)
   const itemCount = items.length;
   let densityClass = 'density-normal';
-  if (itemCount > 22) densityClass = 'density-ultra-compact';
+  if (itemCount > 26) densityClass = 'density-multipage';
+  else if (itemCount > 20) densityClass = 'density-ultra-compact';
   else if (itemCount > 13) densityClass = 'density-compact';
   else if (itemCount > 8) densityClass = 'density-medium';
 
@@ -1154,88 +1256,91 @@ function render(o) {
         </tbody>
       </table>
 
-      <!-- TOTALES Y LIQUIDACIÓN TRIBUTARIA FORMAL -->
-      <div class="fisc-tot-wrap">
-        <div class="fisc-tot-notice">
-          <strong>Tasa oficial BCV:</strong> Bs ${rate.toFixed(2)} por USD · <strong>Alícuota I.V.A.:</strong> 16.00% según Providencias Administrativas SENIAT.
+      <!-- BLOQUE FINAL UNIFICADO: TOTALES, FIRMAS Y NOTA LEGAL -->
+      <div class="fisc-bottom-group">
+        <!-- TOTALES Y LIQUIDACIÓN TRIBUTARIA FORMAL -->
+        <div class="fisc-tot-wrap">
+          <div class="fisc-tot-notice">
+            <strong>Tasa oficial BCV:</strong> Bs ${rate.toFixed(2)} por USD · <strong>Alícuota I.V.A.:</strong> 16.00% según Providencias Administrativas SENIAT.
+          </div>
+
+          <table class="fisc-tot-table">
+            <tr>
+              <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
+              <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
+            </tr>
+            <tr>
+              <td class="lbl">I.V.A. (16.00%)</td>
+              <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
+            </tr>
+            <tr class="grand-usd">
+              <td class="lbl">TOTAL A PAGAR (USD)</td>
+              <td class="val">${fmtPrice(totalUsd)}</td>
+            </tr>
+            <tr class="grand-bs">
+              <td class="lbl">TOTAL FACTURA (Bs.)</td>
+              <td class="val">${fmtBsNum(totalBs)} Bs.</td>
+            </tr>
+          </table>
         </div>
 
-        <table class="fisc-tot-table">
-          <tr>
-            <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
-            <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
-          </tr>
-          <tr>
-            <td class="lbl">I.V.A. (16.00%)</td>
-            <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
-          </tr>
-          <tr class="grand-usd">
-            <td class="lbl">TOTAL A PAGAR (USD)</td>
-            <td class="val">${fmtPrice(totalUsd)}</td>
-          </tr>
-          <tr class="grand-bs">
-            <td class="lbl">TOTAL FACTURA (Bs.)</td>
-            <td class="val">${fmtBsNum(totalBs)} Bs.</td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- ÁREA DE FIRMAS Y CONFORMIDAD (DESTACADA, CON ESPACIO CLARO PARA FIRMA Y SELLO) -->
-      <div class="fisc-sign-area">
-        <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
-        <div class="fisc-sign-box">
-          <div class="box-tit">CONFORME CLIENTE / RECEPCIÓN DE MERCANCÍA</div>
-          <div class="data-line"><strong>Empresa / Razón Social:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(cust.name)}</span></div>
-          <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
-          <div class="data-line" style="margin-top:2px">Recibido por (Nombre y Apellido): ____________________________________</div>
-          <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
-          <div class="fisc-interactive-sign">
-            <div class="sign-col-stamp">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-              <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
+        <!-- ÁREA DE FIRMAS Y CONFORMIDAD (DESTACADA, CON ESPACIO CLARO PARA FIRMA Y SELLO) -->
+        <div class="fisc-sign-area">
+          <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
+          <div class="fisc-sign-box">
+            <div class="box-tit">CONFORME CLIENTE / RECEPCIÓN DE MERCANCÍA</div>
+            <div class="data-line"><strong>Empresa / Razón Social:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(cust.name)}</span></div>
+            <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
+            <div class="data-line" style="margin-top:2px">Recibido por (Nombre y Apellido): ____________________________________</div>
+            <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
+            <div class="fisc-interactive-sign">
+              <div class="sign-col-stamp">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
+              </div>
+              <div class="sign-col-sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">FIRMA DE CONFORMIDAD RECEPTOR</div>
+                <div class="sig-hint">Recibí conforme a entera satisfacción</div>
+              </div>
             </div>
-            <div class="sign-col-sig">
-              <div class="sig-line"></div>
-              <div class="sig-label">FIRMA DE CONFORMIDAD RECEPTOR</div>
-              <div class="sig-hint">Recibí conforme a entera satisfacción</div>
+          </div>
+
+          <!-- EMISOR JJ PAPER -->
+          <div class="fisc-sign-box">
+            <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y DESPACHO</div>
+            <div class="data-line"><strong>Facturado y Despachado por:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(bizName)}</span></div>
+            <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
+            <div class="data-line" style="margin-top:2px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
+            <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
+            <div class="fisc-interactive-sign">
+              <div class="sign-col-stamp">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                  <circle cx="12" cy="12" r="9"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+                <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
+              </div>
+              <div class="sign-col-sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">FIRMA AUTORIZADA Y REVISIÓN</div>
+                <div class="sig-hint">Almacén Central y Facturación</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- EMISOR JJ PAPER -->
-        <div class="fisc-sign-box">
-          <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y DESPACHO</div>
-          <div class="data-line"><strong>Facturado y Despachado por:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(bizName)}</span></div>
-          <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
-          <div class="data-line" style="margin-top:2px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
-          <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
-          <div class="fisc-interactive-sign">
-            <div class="sign-col-stamp">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M9 12l2 2 4-4"/>
-              </svg>
-              <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
-            </div>
-            <div class="sign-col-sig">
-              <div class="sig-line"></div>
-              <div class="sig-label">FIRMA AUTORIZADA Y REVISIÓN</div>
-              <div class="sig-hint">Almacén Central y Facturación</div>
-            </div>
-          </div>
+        <!-- PIE LEGAL SENIAT -->
+        <div class="fisc-footer-note">
+          ${isInvoice
+            ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema integrado JJ Paper & MixNet. Documento válido para fines tributarios y contables.`
+            : isQuote
+              ? `<strong>PRESUPUESTO COMERCIAL N° ${escapeHTML(docNumberMain)}</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
+              : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO N° ${escapeHTML(docNumberMain)}</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
+          }
         </div>
-      </div>
-
-      <!-- PIE LEGAL SENIAT -->
-      <div class="fisc-footer-note">
-        ${isInvoice
-          ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema integrado JJ Paper & MixNet. Documento válido para fines tributarios y contables.`
-          : isQuote
-            ? `<strong>PRESUPUESTO COMERCIAL N° ${escapeHTML(docNumberMain)}</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
-            : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO N° ${escapeHTML(docNumberMain)}</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
-        }
       </div>
     </div>
   </div>`;

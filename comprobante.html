@@ -659,17 +659,17 @@
   .sheet.density-multipage .fisc-items-table thead th { padding: 2px 3.5px; font-size: 7.8px; font-weight: 800; }
   .sheet.density-multipage .fisc-items-table tbody td { padding: 1.4px 3.5px; font-size: 8px; line-height: 1.12; }
   .sheet.density-multipage .fisc-items-table tbody td.sku-cell { font-size: 7.5px; }
-  .sheet.density-multipage .fisc-bottom-group { margin-top: 4px; }
-  .sheet.density-multipage .fisc-tot-wrap { margin-top: 2px; gap: 6px; }
+  .sheet.density-multipage .fisc-bottom-group { margin-top: 2px; }
+  .sheet.density-multipage .fisc-tot-wrap { margin-top: 1px; gap: 4px; }
   .sheet.density-multipage .fisc-tot-notice { font-size: 7.8px; padding: 2px 4px; }
-  .sheet.density-multipage .fisc-tot-table td { padding: 1.6px 5px; font-size: 8.8px; }
-  .sheet.density-multipage .fisc-tot-table tr.grand-usd td { font-size: 10.5px; padding: 2.5px 5px; }
-  .sheet.density-multipage .fisc-tot-table tr.grand-bs td { font-size: 11.5px; padding: 2.5px 5px; }
-  .sheet.density-multipage .fisc-sign-area { margin-top: 3px; gap: 5px; }
-  .sheet.density-multipage .fisc-sign-box { padding: 2.5px 5px; font-size: 7.5px; line-height: 1.15; }
-  .sheet.density-multipage .fisc-sign-box .box-tit { font-size: 7.2px; padding-bottom: 1px; margin-bottom: 2px; }
-  .sheet.density-multipage .fisc-interactive-sign { height: 40px; }
-  .sheet.density-multipage .fisc-footer-note { margin-top: 2.5px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
+  .sheet.density-multipage .fisc-tot-table td { padding: 1.4px 4px; font-size: 8.8px; }
+  .sheet.density-multipage .fisc-tot-table tr.grand-usd td { font-size: 10.5px; padding: 2px 4px; }
+  .sheet.density-multipage .fisc-tot-table tr.grand-bs td { font-size: 11.2px; padding: 2px 4px; }
+  .sheet.density-multipage .fisc-sign-area { margin-top: 2px; gap: 4px; }
+  .sheet.density-multipage .fisc-sign-box { padding: 2px 4px; font-size: 7.2px; line-height: 1.14; }
+  .sheet.density-multipage .fisc-sign-box .box-tit { font-size: 7px; padding-bottom: 1px; margin-bottom: 1px; }
+  .sheet.density-multipage .fisc-interactive-sign { height: 36px; }
+  .sheet.density-multipage .fisc-footer-note { margin-top: 2px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
 
   /* ==========================================================
      OPTIMIZACIÓN DE IMPRESIÓN DIRECTA MULTIPÁGINA INTELIGENTE
@@ -745,6 +745,14 @@
         break-inside: auto !important;
       }
 
+      /* Permitir que la hoja completa se parta en multipágina (evita hojas en blanco) */
+      .sheet.density-multipage {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+
       /* Cada fila individual de producto no se corta horizontalmente (menos en multipágina) */
       .sheet:not(.density-multipage) table.fisc-items-table tbody tr { 
         page-break-inside: avoid !important; 
@@ -755,6 +763,9 @@
     .fisc-bottom-group {
       page-break-inside: avoid !important;
       break-inside: avoid !important;
+      page-break-before: avoid !important;
+      orphans: 10 !important;
+      widows: 10 !important;
     }
 
     .fisc-tot-wrap { 

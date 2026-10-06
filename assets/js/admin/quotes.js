@@ -108,8 +108,8 @@ function renderQuotesTable() {
       <td>
         <select class="sort-sel" style="min-width:120px;padding:6px 10px;font-size:12px"
           onchange="updateQuoteStatus('${q.id}',this.value)">
-          ${['pendiente','contactado','confirmado','convertido','cancelado'].map(s =>
-            `<option value="${s}" ${q.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+          ${['pendiente','contactado','confirmado','confirmado_mixnet','convertido','cancelado'].map(s =>
+            `<option value="${s}" ${q.status===s?'selected':''}>${s === 'confirmado_mixnet' ? '✅ Confirmar → MixNet' : s.charAt(0).toUpperCase()+s.slice(1)}</option>`
           ).join('')}
         </select>
       </td>
@@ -144,11 +144,18 @@ function renderQuotesPag() {
 function quotesGoPage(p) { quotePage = p; renderQuotesTable(); }
 
 async function updateQuoteStatus(id, status) {
+  if (status === 'confirmado_mixnet') {
+    if (!confirm('¿Confirmar esta cotización para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.')) {
+      renderQuotesTable();
+      return;
+    }
+  }
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
-  if (error) { showToast('Error actualizando estado', 'err'); return; }
+  if (error) { showToast('Error al actualizar estado'); renderQuotesTable(); return; }
   const q = adminQuotes.find(x => x.id === id);
   if (q) q.status = status;
-  showToast(`Estado → ${status}`);
+  showToast(status === 'confirmado_mixnet' ? '✅ Cotización confirmada · se enviará a MixNet' : `Estado → ${status}`);
+  renderQuotesTable();
 }
 
 // Pre-factura por WhatsApp con precios y totales en USD + Bs

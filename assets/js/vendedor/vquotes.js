@@ -1560,7 +1560,10 @@ function renderQuotesInModal(list) {
             <div style="font-weight:900;font-size:13px;color:#16604a">${fmtPrice(totalUsd)}</div>
             <div style="font-size:11px;color:#059669">Bs ${fmtBsNum(totalBs)}</div>
           </div>
-          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : '#fef3c7;color:#b45309'}">${q.status || 'pendiente'}</span>
+          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : (q.status === 'confirmado_mixnet' ? '#dbeafe;color:#1d4ed8' : '#fef3c7;color:#b45309')}">${q.status === 'confirmado_mixnet' ? '✅ En MixNet' : (q.status || 'pendiente')}</span>
+          ${q.status === 'confirmado_mixnet'
+            ? `<span style="font-size:11px;color:#1d4ed8;font-weight:700">Ya enviada a MixNet</span>`
+            : `<button type="button" class="btn-p sm" onclick="event.stopPropagation();confirmQuoteToMixnet('${q.id}','${(q.quote_number||'').replace(/'/g,'')}')" title="Marcar como confirmada para enviarla a MixNet" style="padding:4px 10px;font-size:11px;background:#1d4ed8;color:#fff;border-radius:6px">✅ Confirmar → MixNet</button>`}
           <button type="button" class="btn-p sm" onclick="event.stopPropagation();selectQuoteFromModal('${q.id}')" style="padding:4px 10px;font-size:11px;background:#16604a;color:#fff;border-radius:6px">✏️ Cargar</button>
         </div>
       </div>
@@ -1571,6 +1574,24 @@ function renderQuotesInModal(list) {
 function selectQuoteFromModal(id) {
   closeQuoteSearchModal();
   loadQuoteForEdit(id);
+}
+
+// Confirmar cotización para su envío a MixNet.
+// Solo al confirmar, el agente de la Win7 la escribe con el correlativo real de MixNet.
+async function confirmQuoteToMixnet(id, quoteNumber) {
+  if (!id) return;
+  const label = quoteNumber ? '#' + quoteNumber : 'esta cotización';
+  if (!confirm(`¿Confirmar ${label} para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.`)) return;
+  try {
+    const res = await sb.from('jjp_quotes').update({ status: 'confirmado_mixnet' }).eq('id', id);
+    if (res.error) throw res.error;
+    if (typeof toast === 'function') toast('✅ Cotización confirmada · se enviará a MixNet', 'success');
+    else alert('Cotización confirmada para MixNet.');
+    if (typeof loadQuotesInModal === 'function') loadQuotesInModal();
+    else if (typeof filterQuotesInModal === 'function') filterQuotesInModal();
+  } catch (e) {
+    alert('No se pudo confirmar: ' + (e.message || e));
+  }
 }
 
 function filterQuotesInModal() {

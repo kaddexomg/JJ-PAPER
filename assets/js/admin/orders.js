@@ -9,13 +9,15 @@ let ordersFilter = '';
 let ordersSearch = '';
 let ordersSellerFilter = '';
 
-const ORDER_STATUSES = ['pendiente_pago', 'verificando', 'pagado', 'preparando', 'entregado', 'rechazado', 'cancelado'];
+const ORDER_STATUSES = ['pendiente_pago', 'verificando', 'pagado', 'preparando', 'entregado', 'confirmado_mixnet', 'rechazado', 'cancelado'];
 const STATUS_LABEL = {
   pendiente_pago: 'Pendiente de pago',
   verificando:    'Verificando pago',
   pagado:         'Pagado',
   preparando:     'Preparando',
   entregado:      'Entregado',
+  confirmado_mixnet: '✅ Confirmar → MixNet',
+  mixnet_enviado: '📤 En MixNet',
   rechazado:      'Rechazado',
   cancelado:      'Cancelado',
 };
@@ -209,6 +211,9 @@ function renderOrdersPag(totalItems = adminOrders.length) {
 function ordersGoPage(p) { ordersPage = p; renderOrdersTable(); }
 
 async function updateOrderStatus(id, status) {
+  if (status === 'confirmado_mixnet') {
+    if (!confirm('¿Confirmar este pedido para enviarlo a MixNet?\n\nSe le asignará el número correlativo real de MixNet.')) { renderOrdersTable(); return; }
+  }
   const { error } = await sb.from('jjp_orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) { showToast('Error actualizando estado', 'err'); return; }
   const o = adminOrders.find(x => x.id === id);

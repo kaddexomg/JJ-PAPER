@@ -816,8 +816,32 @@
 
 <script src="assets/vendor/supabase-2.58.0.js"></script>
 <script src="assets/js/config.js?v=20260930_core"></script>
-<script src="assets/js/admin/auth.js"></script>
 <script>
+// Helpers de formateo con fallbacks inmediatos
+if (typeof window.escapeHTML !== 'function') {
+  window.escapeHTML = function(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+}
+if (typeof window.fmtPrice !== 'function') {
+  window.fmtPrice = function(usd) {
+    return '$' + (Number(usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+}
+if (typeof window.fmtBsNum !== 'function') {
+  window.fmtBsNum = function(bs) {
+    return (Number(bs) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+}
+if (typeof window.fmtDate !== 'function') {
+  window.fmtDate = function(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d) ? String(iso) : d.toLocaleDateString('es-VE');
+  };
+}
+
 let ORDER = null;
 let DOC_TYPE = 'comprobante';
 
@@ -922,15 +946,13 @@ async function resolveCustomerFiscal(doc) {
 (async () => {
   const content = document.getElementById('content');
   try {
-    try {
-      if (typeof requireAuth === 'function') {
-        await requireAuth('vendedor');
-      }
-    } catch (_) {}
-
+    // Carga de configuración no bloqueante con timeout
     try {
       if (typeof loadSettings === 'function') {
-        await loadSettings();
+        await Promise.race([
+          loadSettings(),
+          new Promise(r => setTimeout(r, 1200))
+        ]);
       }
     } catch (e) {
       console.warn('loadSettings warning:', e);
@@ -961,8 +983,26 @@ async function resolveCustomerFiscal(doc) {
     let docData;
     if (quoteNum) {
       DOC_TYPE = 'presupuesto';
-      const { data: q, error } = await sbCore.from('jjp_quotes').select('*').eq('quote_number', quoteNum).maybeSingle();
-      if (error || !q) { 
+      const cleanQ = quoteNum.trim();
+      const paddedQ = cleanQ.padStart(8, '0');
+
+      let q = null;
+      try {
+        const res = await sbCore.from('jjp_quotes').select('*').eq('quote_number', cleanQ).maybeSingle();
+        q = res.data;
+        if (!q && cleanQ !== paddedQ) {
+          const resP = await sbCore.from('jjp_quotes').select('*').eq('quote_number', paddedQ).maybeSingle();
+          q = resP.data;
+        }
+        if (!q && /^[0-9a-f-]{36}$/i.test(cleanQ)) {
+          const resId = await sbCore.from('jjp_quotes').select('*').eq('id', cleanQ).maybeSingle();
+          q = resId.data;
+        }
+      } catch (errQ) {
+        console.warn('Error consultando Supabase jjp_quotes:', errQ);
+      }
+
+      if (!q) { 
         content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; 
         return; 
       }
@@ -973,15 +1013,31 @@ async function resolveCustomerFiscal(doc) {
 
       let o = null;
       if (orderNum) {
-        const res = await sbCore.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
+        const cleanN = orderNum.trim();
+        const paddedN = cleanN.padStart(8, '0');
+        const res = await sbCore.from('jjp_orders').select('*').eq('order_number', cleanN).maybeSingle();
         o = res.data;
+        if (!o && cleanN !== paddedN) {
+          const resP = await sbCore.from('jjp_orders').select('*').eq('order_number', paddedN).maybeSingle();
+          o = resP.data;
+        }
         if (!o) {
-          const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', orderNum).maybeSingle();
+          let facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', cleanN).maybeSingle();
           if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+          else if (cleanN !== paddedN) {
+            facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', paddedN).maybeSingle();
+            if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+          }
         }
       } else if (facNum) {
-        const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', facNum).maybeSingle();
+        const cleanF = facNum.trim();
+        const paddedF = cleanF.padStart(8, '0');
+        let facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', cleanF).maybeSingle();
         o = facRes.data;
+        if (!o && cleanF !== paddedF) {
+          facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', paddedF).maybeSingle();
+          o = facRes.data;
+        }
         DOC_TYPE = 'factura';
       }
 
@@ -1033,14 +1089,15 @@ function normalizeQuote(q) {
   const items = typeof q.items === 'string' ? JSON.parse(q.items) : (q.items || []);
   const subtotal = items.reduce((sum, i) => sum + Number(i.subtotal_usd ?? ((Number(i.price_usd) || 0) * (Number(i.qty) || 0))), 0);
   const total = Number(q.estimated_total_usd) || subtotal;
+  const currentRate = Number(q.exchange_rate) || (typeof getRate === 'function' ? getRate() : (typeof APP !== 'undefined' && APP.EXCHANGE_RATE ? APP.EXCHANGE_RATE : 1));
   return {
     order_number: q.quote_number,
     client_name: q.client_name, rif: q.rif, phone: q.phone, email: q.email,
     city: q.city, address: q.address,
     customer_id: q.customer_id, seller_id: q.seller_id,
     items, subtotal_usd: subtotal, total_usd: total,
-    total_bs: total * (Number(q.exchange_rate) || getRate()),
-    exchange_rate: Number(q.exchange_rate) || getRate(),
+    total_bs: total * currentRate,
+    exchange_rate: currentRate,
     discount_pct: Number(q.discount_pct) || 0,
     discount_status: Number(q.discount_pct) > 0 ? 'approved' : 'none',
     status: q.status, notes: q.notes, created_at: q.created_at,
@@ -1064,14 +1121,15 @@ function toggleFormat() {
 }
 
 function render(o) {
-  const s = APP.SETTINGS || {};
+  const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
   const isInvoice = DOC_TYPE === 'factura' || !!o.invoice_number;
   const isQuote   = DOC_TYPE === 'presupuesto';
   const isReceipt = DOC_TYPE === 'recibo';
   const voided    = ['rechazado', 'cancelado'].includes(o.status);
 
   // Tasa oficial aplicada
-  const rate = Number(o.invoice_rate || o.exchange_rate || s.rate_bcv || s.exchange_rate) || getRate() || 1;
+  const defaultRate = (typeof getRate === 'function') ? getRate() : (typeof APP !== 'undefined' && APP.EXCHANGE_RATE ? APP.EXCHANGE_RATE : 1);
+  const rate = Number(o.invoice_rate || o.exchange_rate || s.rate_bcv || s.exchange_rate) || defaultRate || 1;
 
   // Datos del Cliente Resuelto
   const cust = o.customer || {

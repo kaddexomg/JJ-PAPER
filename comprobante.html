@@ -921,70 +921,110 @@ async function resolveCustomerFiscal(doc) {
 
 (async () => {
   const content = document.getElementById('content');
-  const session = await requireAuth('vendedor');
-  if (!session) return;
-  await loadSettings();
-
-  const params = new URLSearchParams(location.search);
-  const orderNum = params.get('n');
-  const quoteNum = params.get('q');
-  const facNum   = params.get('fac');
-
-  if (!orderNum && !quoteNum && !facNum) { 
-    content.innerHTML = '<div class="err">Falta el número de documento (?n=..., ?q=... o ?fac=...)</div>'; 
-    return; 
-  }
-
-  const s = APP.SETTINGS || {};
-  const f = params.get('f') || s.doc_paper || 'carta';
-  setFormat(f === 'ticket');
-
-  let docData;
-  if (quoteNum) {
-    DOC_TYPE = 'presupuesto';
-    const { data: q, error } = await sbCore.from('jjp_quotes').select('*').eq('quote_number', quoteNum).maybeSingle();
-    if (error || !q) { content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; return; }
-    docData = normalizeQuote(q);
-  } else {
-    let t = (params.get('t') || (facNum ? 'factura' : 'comprobante')).toLowerCase().trim();
-    DOC_TYPE = ['factura', 'recibo', 'comprobante', 'presupuesto'].includes(t) ? t : 'comprobante';
-
-    let o = null;
-    if (orderNum) {
-      const res = await sbCore.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
-      o = res.data;
-      if (!o) {
-        const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', orderNum).maybeSingle();
-        if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+  try {
+    try {
+      if (typeof requireAuth === 'function') {
+        await requireAuth('vendedor');
       }
-    } else if (facNum) {
-      const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', facNum).maybeSingle();
-      o = facRes.data;
-      DOC_TYPE = 'factura';
+    } catch (_) {}
+
+    try {
+      if (typeof loadSettings === 'function') {
+        await loadSettings();
+      }
+    } catch (e) {
+      console.warn('loadSettings warning:', e);
     }
 
-    if (!o) { content.innerHTML = '<div class="err">No se encontró el pedido o factura ' + escapeHTML(orderNum || facNum) + '.</div>'; return; }
-    docData = o;
-  }
+    const params = new URLSearchParams(location.search);
+    const orderNum = params.get('n');
+    const quoteNum = params.get('q');
+    const facNum   = params.get('fac');
 
-  // Resolver cliente real
-  docData.customer = await resolveCustomerFiscal(docData);
+    if (!orderNum && !quoteNum && !facNum) { 
+      content.innerHTML = `
+        <div class="err" style="margin:40px auto;max-width:520px;text-align:center;padding:24px;background:#fff;border-radius:8px;border:1.5px solid #000;box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+          <h3 style="margin-bottom:8px;color:#111;font-size:17px">Visualizador de Comprobantes JJ Paper</h3>
+          <p style="color:#666;font-size:13px;margin-bottom:16px">Indique el número de cotización o pedido para visualizarlo e imprimirlo:</p>
+          <form onsubmit="event.preventDefault(); location.search = '?q=' + encodeURIComponent(document.getElementById('docInput').value.trim());" style="display:flex;gap:8px;justify-content:center">
+            <input type="text" id="docInput" placeholder="Ej: 00053362" value="00053362" style="padding:8px 12px;border:1.5px solid #000;border-radius:4px;font-size:14px;font-weight:700">
+            <button type="submit" class="btn btn-p" style="padding:8px 16px;cursor:pointer">Cargar Documento</button>
+          </form>
+        </div>`; 
+      return; 
+    }
 
-  // Obtener vendedor si existe
-  if (docData.seller_id) {
+    const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
+    const f = params.get('f') || s.doc_paper || 'carta';
+    setFormat(f === 'ticket');
+
+    let docData;
+    if (quoteNum) {
+      DOC_TYPE = 'presupuesto';
+      const { data: q, error } = await sbCore.from('jjp_quotes').select('*').eq('quote_number', quoteNum).maybeSingle();
+      if (error || !q) { 
+        content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; 
+        return; 
+      }
+      docData = normalizeQuote(q);
+    } else {
+      let t = (params.get('t') || (facNum ? 'factura' : 'comprobante')).toLowerCase().trim();
+      DOC_TYPE = ['factura', 'recibo', 'comprobante', 'presupuesto'].includes(t) ? t : 'comprobante';
+
+      let o = null;
+      if (orderNum) {
+        const res = await sbCore.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
+        o = res.data;
+        if (!o) {
+          const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', orderNum).maybeSingle();
+          if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+        }
+      } else if (facNum) {
+        const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', facNum).maybeSingle();
+        o = facRes.data;
+        DOC_TYPE = 'factura';
+      }
+
+      if (!o) { 
+        content.innerHTML = '<div class="err">No se encontró el pedido o factura ' + escapeHTML(orderNum || facNum) + '.</div>'; 
+        return; 
+      }
+      docData = o;
+    }
+
+    // Resolver cliente real sin bloquear
     try {
-      const { data: sRow } = await sbCore.from('jjp_profiles').select('name').eq('id', docData.seller_id).maybeSingle();
-      if (sRow?.name) docData.seller_name = sRow.name;
-    } catch (_) {}
-  }
+      docData.customer = await resolveCustomerFiscal(docData);
+    } catch (e) {
+      console.warn('resolveCustomerFiscal error:', e);
+    }
 
-  ORDER = docData;
-  render(docData);
-  document.getElementById('toolbar').style.display = 'flex';
-  
-  const ds = document.getElementById('docSel');
-  if (ds && DOC_TYPE !== 'presupuesto') { ds.value = DOC_TYPE; ds.style.display = ''; }
-  if (params.get('print') === '1') setTimeout(() => window.print(), 400);
+    // Obtener vendedor si existe
+    if (docData.seller_id) {
+      try {
+        const { data: sRow } = await sbCore.from('jjp_profiles').select('name').eq('id', docData.seller_id).maybeSingle();
+        if (sRow?.name) docData.seller_name = sRow.name;
+      } catch (_) {}
+    }
+
+    ORDER = docData;
+    render(docData);
+    const tb = document.getElementById('toolbar');
+    if (tb) tb.style.display = 'flex';
+    
+    const ds = document.getElementById('docSel');
+    if (ds && DOC_TYPE !== 'presupuesto') { ds.value = DOC_TYPE; ds.style.display = ''; }
+    if (params.get('print') === '1') setTimeout(() => window.print(), 400);
+
+  } catch (err) {
+    console.error('CRITICAL ERROR in comprobante.html:', err);
+    content.innerHTML = `
+      <div class="err" style="margin:40px auto;max-width:600px;text-align:center;padding:24px;background:#fff;border-radius:8px;border:1.5px solid #b91c1c;box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+        <h3 style="color:#b91c1c;margin-bottom:8px">Error al cargar el comprobante</h3>
+        <p style="color:#374151;font-size:13px">${escapeHTML(err.message || String(err))}</p>
+        <button class="btn btn-p" onclick="location.reload()" style="margin-top:14px;cursor:pointer">Reintentar</button>
+      </div>`;
+  }
 })();
 
 function setDocType(t) { DOC_TYPE = t; if (ORDER) render(ORDER); }

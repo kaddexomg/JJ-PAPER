@@ -116,6 +116,9 @@ function renderQuotesTable() {
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
+          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado'
+            ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Confirmada para MixNet">✅ MixNet</span>`
+            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
           <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
           <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
@@ -282,6 +285,9 @@ href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
 href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">📋 Pasar a Pedido</a>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
+      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado'
+        ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">✅ Confirmada para MixNet</span>`
+        : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')">✅ Confirmar → MixNet</button>`}
     </div>`;
 
   modal.classList.add('op');

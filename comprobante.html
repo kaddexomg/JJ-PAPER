@@ -699,10 +699,12 @@
       box-shadow: none !important; 
       border: none !important; 
       padding: 0 !important; 
+      margin: 0 auto !important;
       max-width: 100% !important; 
       width: 100% !important; 
       border-radius: 0 !important; 
       overflow: visible !important;
+      position: static !important;
       page-break-after: auto !important; 
       break-after: auto !important;
       page-break-inside: auto !important; 
@@ -711,7 +713,9 @@
     }
 
     .sheet-inner {
+      position: static !important;
       overflow: visible !important;
+      z-index: auto !important;
     }
 
     /* La cabecera institucional y datos del cliente siempre juntos */
@@ -724,6 +728,8 @@
     table.fisc-items-table { 
       page-break-inside: auto !important; 
       break-inside: auto !important; 
+      page-break-before: auto !important;
+      break-before: auto !important;
       border-collapse: collapse !important;
       width: 100% !important;
     }
@@ -731,71 +737,37 @@
     /* Repetir cabecera de la tabla al inicio de cada nueva página impresa */
     table.fisc-items-table thead { 
       display: table-header-group !important; 
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
     }
-      table.fisc-items-table thead tr {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      table.fisc-items-table tbody { 
-        display: table-row-group !important; 
-      }
+    table.fisc-items-table thead tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    table.fisc-items-table tbody { 
+      display: table-row-group !important; 
+    }
 
-      /* En modo multipágina permitir que las filas se corten con naturalidad */
-      .sheet.density-multipage table.fisc-items-table tbody tr {
-        page-break-inside: auto !important;
-        break-inside: auto !important;
-      }
-
-      /* Permitir que la hoja completa se parta en multipágina (evita hojas en blanco) */
-      .sheet.density-multipage {
-        page-break-inside: auto !important;
-        break-inside: auto !important;
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
-
-      /* Cada fila individual de producto no se corta horizontalmente (menos en multipágina) */
-      .sheet:not(.density-multipage) table.fisc-items-table tbody tr { 
-        page-break-inside: avoid !important; 
-        break-inside: avoid !important; 
-      }
+    /* Cada fila individual de producto no se corta horizontalmente pero fluye entre páginas */
+    table.fisc-items-table tbody tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
 
     /* Bloque final unificado: Totales, Firmas y Nota Legal protegidos */
     .fisc-bottom-group {
       page-break-inside: avoid !important;
       break-inside: avoid !important;
-      page-break-before: avoid !important;
-      orphans: 10 !important;
-      widows: 10 !important;
-    }
-
-    /* En multipágina permitir que el bloque final fluya tras la tabla (evita hoja en blanco) */
-    .sheet.density-multipage .fisc-bottom-group {
       page-break-before: auto !important;
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-      orphans: 8 !important;
-      widows: 8 !important;
+      break-before: auto !important;
     }
 
-    .fisc-tot-wrap { 
+    .fisc-tot-wrap,
+    .fisc-tot-table,
+    .fisc-sign-area,
+    .fisc-footer-note { 
       page-break-inside: avoid !important; 
       break-inside: avoid !important; 
-    }
-
-    .fisc-tot-table {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
-    }
-
-    .fisc-sign-area { 
-      page-break-inside: avoid !important; 
-      break-inside: avoid !important; 
-    }
-
-    .fisc-footer-note {
-      page-break-inside: avoid !important;
-      break-inside: avoid !important;
     }
 
     /* Filigrana tenue fija en cada hoja */
@@ -1081,6 +1053,15 @@ function render(o) {
     items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
   }
 
+  const itemCount = items.length;
+
+  // Densidad adaptativa según cantidad de ítems: 1 hoja limpia (hasta 26 ítems) o multipágina balanceada (27+ ítems)
+  let densityClass = 'density-normal';
+  if (itemCount > 26) densityClass = 'density-multipage';
+  else if (itemCount > 20) densityClass = 'density-ultra-compact';
+  else if (itemCount > 13) densityClass = 'density-compact';
+  else if (itemCount > 8) densityClass = 'density-medium';
+
   const rows = items.map((i, idx) => {
     const qty = Number(i.qty || 1);
     let pUsd = Number(i.price_usd || 0);
@@ -1127,13 +1108,7 @@ function render(o) {
     }
   }
 
-  // Densidad adaptativa según cantidad de ítems: 1 hoja limpia (hasta 26 ítems) o multipágina balanceada (27+ ítems)
-  const itemCount = items.length;
-  let densityClass = 'density-normal';
-  if (itemCount > 26) densityClass = 'density-multipage';
-  else if (itemCount > 20) densityClass = 'density-ultra-compact';
-  else if (itemCount > 13) densityClass = 'density-compact';
-  else if (itemCount > 8) densityClass = 'density-medium';
+  // (Densidad ya calculada arriba con itemCount)
 
   // Cálculos Fiscales
   let baseImponibleUsd, ivaUsd, totalUsd, baseImponibleBs, ivaBs, totalBs;

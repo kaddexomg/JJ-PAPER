@@ -1,0 +1,7 @@
+{
+  "mixnet_dir": "M:/comp01",
+  "port": 3300,
+  "supabase_url": "https://wwcdxqpibequfohbgejs.supabase.co",
+  "supabase_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg",
+  "auto_sync_stock_minutes": 60
+}

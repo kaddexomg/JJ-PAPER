@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJ Paper — Puente Autónomo MixNet ERP</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --p: #0284c7;
+      --p-hover: #0369a1;
+      --success: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 20px; font-weight: 800; color: #0369a1; display: flex; align-items: center; gap: 8px; }
+    .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge.green { background: #dcfce7; color: #15803d; }
+    .badge.red { background: #fee2e2; color: #b91c1c; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .card-val { font-size: 24px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+    .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .btn { background: var(--p); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn:hover { background: var(--p-hover); }
+    .btn.green { background: var(--success); }
+    .btn.green:hover { background: #059669; }
+    .btn.sm { padding: 6px 12px; font-size: 11px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .tab { padding: 10px 18px; font-size: 14px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.on { color: var(--p); border-bottom-color: var(--p); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { padding: 12px 14px; background: #f1f5f9; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    tr:hover { background: #f8fafc; }
+    .terminal { background: #0f172a; color: #38bdf8; padding: 14px; border-radius: 10px; font-family: monospace; font-size: 12px; height: 140px; overflow-y: auto; margin-top: 24px; }
+    .term-line { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>📦 JJ Paper ⇄ MixNet ERP</h1>
+        <p style="font-size:12px;color:var(--muted);margin-top:2px">Puente Autónomo de Tienda — Windows 7</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span id="statusBadge" class="badge red">Consultando...</span>
+        <button class="btn green sm" onclick="syncStock()" id="btnSyncStock">⚡ Sincronizar Stock a la Nube</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Directorio MixNet</div>
+        <div class="card-val" id="mixDirVal" style="font-size:18px">M:\comp01</div>
+        <div class="card-sub" id="mixConnSub">Verificando conexión...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Próxima Cotización (MixNet)</div>
+        <div class="card-val" id="nextCotVal">--------</div>
+        <div class="card-sub">Tabla MXNUMCOT.DBF</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Próximo Pedido (MixNet)</div>
+        <div class="card-val" id="nextPedVal">--------</div>
+        <div class="card-sub">Tabla MXNUMPED.DBF</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones Web (<span id="countQuotes">0</span>)</div>
+      <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos Web (<span id="countOrders">0</span>)</div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <!-- Tabla Cotizaciones -->
+      <div id="viewQuotes">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente / RIF</th>
+              <th>Vendedor</th>
+              <th>Total USD</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyQuotes">
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando cotizaciones pendientes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tabla Pedidos -->
+      <div id="viewOrders" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente / RIF</th>
+              <th>Vendedor</th>
+              <th>Total USD</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyOrders">
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando pedidos pendientes...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="terminal" id="termLogs">
+      <div class="term-line">📌 [SISTEMA] Puente iniciado. Conectando a MixNet y Supabase...</div>
+    </div>
+  </div>
+
+  <script>
+    let pendingQuotes = [];
+    let pendingOrders = [];
+    let currentTab = 'quotes';
+
+    function log(msg) {
+      const term = document.getElementById('termLogs');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'term-line';
+      div.textContent = `[${time}] ${msg}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const b = document.getElementById('statusBadge');
+        if (data.connected) {
+          b.className = 'badge green';
+          b.textContent = '🟢 MixNet Conectado';
+          document.getElementById('mixConnSub').textContent = 'Conexión activa a base de datos DBF';
+        } else {
+          b.className = 'badge red';
+          b.textContent = '🔴 MixNet Desconectado';
+          document.getElementById('mixConnSub').textContent = 'No se encontró ' + data.mixnet_dir;
+        }
+        document.getElementById('mixDirVal').textContent = data.mixnet_dir;
+        document.getElementById('nextCotVal').textContent = data.cur_cotizacion || '--------';
+        document.getElementById('nextPedVal').textContent = data.cur_pedido || '--------';
+      } catch (e) {
+        log('Error consultando estado: ' + e.message);
+      }
+    }
+
+    async function loadPending() {
+      try {
+        const res = await fetch('/api/pending');
+        const data = await res.json();
+        pendingQuotes = data.quotes || [];
+        pendingOrders = data.orders || [];
+
+        document.getElementById('countQuotes').textContent = pendingQuotes.length;
+        document.getElementById('countOrders').textContent = pendingOrders.length;
+
+        renderQuotes();
+        renderOrders();
+      } catch (e) {
+        log('Error cargando pendientes: ' + e.message);
+      }
+    }
+
+    function renderQuotes() {
+      const tb = document.getElementById('tbodyQuotes');
+      if (!pendingQuotes.length) {
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No hay cotizaciones pendientes en la nube.</td></tr>';
+        return;
+      }
+      tb.innerHTML = pendingQuotes.map((q, i) => `
+        <tr>
+          <td><strong>${q.quote_number || q.id.substring(0,8)}</strong></td>
+          <td>
+            <div style="font-weight:600">${escapeHtml(q.client_name || 'Sin nombre')}</div>
+            <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(q.rif || '00')}</div>
+          </td>
+          <td>${escapeHtml(q.seller_id ? 'Asignado' : 'General')}</td>
+          <td style="font-weight:700;color:#0369a1">$${Number(q.estimated_total_usd || 0).toFixed(2)}</td>
+          <td>${(q.created_at || '').substring(0, 10)}</td>
+          <td>
+            <button class="btn sm" onclick="injectQuote(${i})">📥 Inyectar a MixNet</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderOrders() {
+      const tb = document.getElementById('tbodyOrders');
+      if (!pendingOrders.length) {
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No hay pedidos pendientes en la nube.</td></tr>';
+        return;
+      }
+      tb.innerHTML = pendingOrders.map((o, i) => `
+        <tr>
+          <td><strong>${o.order_number || o.id.substring(0,8)}</strong></td>
+          <td>
+            <div style="font-weight:600">${escapeHtml(o.client_name || 'Sin nombre')}</div>
+            <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(o.rif || '00')}</div>
+          </td>
+          <td>${escapeHtml(o.seller_id ? 'Asignado' : 'General')}</td>
+          <td style="font-weight:700;color:#10b981">$${Number(o.total_usd || 0).toFixed(2)}</td>
+          <td>${(o.created_at || '').substring(0, 10)}</td>
+          <td>
+            <button class="btn sm green" onclick="injectOrder(${i})">📥 Inyectar a MixNet</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function injectQuote(idx) {
+      const q = pendingQuotes[idx];
+      if (!q) return;
+      if (!confirm(`¿Inyectar Cotización para "${q.client_name}" a MixNet?`)) return;
+      log(`Inyectando cotización web "${q.quote_number || q.id}"...`);
+      try {
+        const res = await fetch('/api/inject-quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quote: q })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡ÉXITO! Cotización inyectada con correlativo oficial MixNet: ${data.official_number} (${data.items_count} renglones).`);
+          alert(`✔ Cotización grabada en MixNet con número oficial: ${data.official_number}`);
+          loadStatus();
+          loadPending();
+        } else {
+          log('❌ Error: ' + (data.error || 'Fallo desconocido'));
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción inyectando cotización: ' + e.message);
+      }
+    }
+
+    async function injectOrder(idx) {
+      const o = pendingOrders[idx];
+      if (!o) return;
+      if (!confirm(`¿Inyectar Pedido para "${o.client_name}" a MixNet?`)) return;
+      log(`Inyectando pedido web "${o.order_number || o.id}"...`);
+      try {
+        const res = await fetch('/api/inject-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: o })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡ÉXITO! Pedido inyectado con correlativo oficial MixNet: ${data.official_number} (${data.items_count} renglones).`);
+          alert(`✔ Pedido grabado en MixNet con número oficial: ${data.official_number}`);
+          loadStatus();
+          loadPending();
+        } else {
+          log('❌ Error: ' + (data.error || 'Fallo desconocido'));
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción inyectando pedido: ' + e.message);
+      }
+    }
+
+    async function syncStock() {
+      const btn = document.getElementById('btnSyncStock');
+      btn.disabled = true;
+      btn.textContent = '⏳ Leyendo MixNet...';
+      log('Iniciando sincronización de existencias desde MXCTAINV.DBF...');
+      try {
+        const res = await fetch('/api/sync-stock', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Existencias sincronizadas! Leídos: ${data.total_read} | Actualizados en la nube: ${data.updated}`);
+          alert(`✔ Existencias sincronizadas con éxito: ${data.updated} variantes actualizadas.`);
+        } else {
+          log('❌ Error sincronizando existencias: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Error de conexión: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Sincronizar Stock a la Nube';
+      }
+    }
+
+    function setTab(t) {
+      currentTab = t;
+      document.getElementById('tabQuotes').classList.toggle('on', t === 'quotes');
+      document.getElementById('tabOrders').classList.toggle('on', t === 'orders');
+      document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
+      document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Inicializar
+    loadStatus();
+    loadPending();
+    setInterval(loadStatus, 15000); // Refresca estado cada 15s
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+====================================================
+JJ PAPER — PUENTE AUTÓNOMO PARA WINDOWS 7 (MIXNET)
+====================================================
+
+Este módulo fue diseñado exclusivamente para la PC de Windows 7
+en la tienda que tiene acceso a la red de MixNet (M:\comp01).
+
+VENTAJAS:
+- Cero dependencias pesadas: corre con Node.js 13+ nativo de Windows 7.
+- Consume menos de 20 MB de memoria RAM.
+- No interfiere con WhatsApp, campañas ni la IA (esos corren en la nube).
+- Lee y escribe directamente en dBase III respetando la correlativa oficial
+  de MXNUMCOT.DBF y MXNUMPED.DBF de MixNet sin romper nada.
+
+INSTRUCCIONES DE USO:
+1. Copia toda esta carpeta "puente-win7" en un pendrive o en el disco C: de la PC de Windows 7 (ej. C:\puente-win7).
+2. Asegúrate de que la unidad de MixNet (M:\comp01) esté conectada y visible.
+3. Haz doble clic en "INICIAR-PUENTE.bat".
+4. Se abrirá automáticamente tu navegador en http://localhost:3300:
+   - Verás el semáforo verde: "MixNet Conectado".
+   - Verás el correlativo exacto en el que va MixNet hoy.
+   - Con el botón "⚡ Sincronizar Stock a la Nube", enviarás las existencias de almacén a Supabase para que los vendedores en la calle sepan qué hay disponible.
+   - En la lista de cotizaciones y pedidos pendientes, podrás hacer clic en "📥 Inyectar a MixNet" para registrar el documento con su número oficial y nómina intacta.
+
+CONFIGURACIÓN (config.json):
+Si la carpeta de MixNet no está en "M:/comp01", puedes abrir config.json con el Bloc de Notas y cambiar la ruta por la que uses en esa máquina (ej. "\\servidor\comp01" o "C:/comp01").

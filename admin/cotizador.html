@@ -105,12 +105,13 @@
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">1</span>
-                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Datos del Cliente (Mi Cartera)</h3>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" class="btn sm" onclick="setCuentaRecuperada()" title="Código oficial MixNet 00 para clientes sin registrar" style="font-weight:800;padding:4px 10px;font-size:11px;background:#f59e0b;color:#fff;border:none">⚡ [00] Cuenta Recuperada</button>
+                <button type="button" class="btn-o sm" onclick="setConsumidorFinal()" title="Venta rápida / mostrador en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">Mostrador</button>
               </div>
-              <button type="button" class="btn-o sm" onclick="setConsumidorFinal()" title="Venta rápida / mostrador en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
             </div>
             <div style="position:relative;margin-bottom:8px">
-              <input class="fi" id="qCliName" placeholder="Escribe para buscar cliente o razón social… (F3)" style="width:100%;height:38px;padding:8px 12px;font-size:13px;border-radius:8px">
+              <input class="fi" id="qCliName" placeholder="Buscar por RIF (J-...), Razón Social o Código MixNet (001-..., 00) — [F3]" style="width:100%;height:38px;padding:8px 12px;font-size:13px;border-radius:8px">
               <div id="qCliNameResults" class="cust-ac-box"></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">

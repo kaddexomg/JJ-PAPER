@@ -1,0 +1,15 @@
+========================================================================
+  JJ PAPER -- SERVIDOR DE TRANSFERENCIA DIRECTA POR RED (LAN)          
+========================================================================
+  [OK] Servidor de descarga listo en puerto: 8080
+  [OK] Abre este enlace desde la PC Windows 7:
+       http://192.168.1.11:8080
+========================================================================
+
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.
+[LAN DOWNLOAD] La PC descargo antigravity-win7.zip con exito.

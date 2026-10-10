@@ -29,6 +29,7 @@ dist/
 *.jpg
 *.code-workspace
 _archivo/
+_archive/
 
 # Sesiones alternativas de WhatsApp
 .wwebjs_auth/

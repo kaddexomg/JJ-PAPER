@@ -129,12 +129,15 @@
                 <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">3</span>
                 <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">👤 Datos del Cliente y Despacho</h3>
               </div>
-              <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" class="btn sm" onclick="posSetCuentaRecuperada()" title="Código oficial MixNet 00 para clientes sin registrar" style="font-weight:800;padding:4px 10px;font-size:11px;background:#f59e0b;color:#fff;border:none">⚡ [00] Cuenta Recuperada</button>
+                <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">Mostrador</button>
+              </div>
             </div>
-            <input class="fi" id="posCliSearch" placeholder="Buscar cliente por nombre o teléfono..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px;height:36px">
+            <input class="fi" id="posCliSearch" placeholder="Buscar cliente por RIF, Nombre o Código MixNet (001-..., 00)..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px;height:36px">
             <div id="posCliResults"></div>
             <div style="position:relative;margin:6px 0 8px">
-              <input class="fi" id="posCliName" placeholder="Nombre completo o razón social *" style="width:100%;height:38px;padding:8px 12px">
+              <input class="fi" id="posCliName" placeholder="Buscar por RIF (J-...), Razón Social o Código MixNet (001-..., 00) *" style="width:100%;height:38px;padding:8px 12px">
               <div id="posCliNameResults" class="cust-ac-box"></div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">

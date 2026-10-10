@@ -89,9 +89,43 @@ function quotePickCustomer(c) {
   document.getElementById('qCliTel').value  = c.phone || '';
   document.getElementById('qCliRif').value  = c.rif || '';
   document.getElementById('qCliCity').value = c.city || '';
+  const codeBadge = c.mixnet_code ? `[MixNet: ${escapeHTML(c.mixnet_code)}] ` : '';
+  const rifText = c.rif ? ` (RIF: ${escapeHTML(c.rif)})` : '';
   document.getElementById('qCliNameResults').innerHTML =
-    `<p style="font-size:12px;color:var(--gm);margin:8px 0">✔ Cliente frecuente seleccionado: <strong>${escapeHTML(c.name)}</strong></p>`;
+    `<p style="font-size:12px;color:var(--gm);margin:8px 0">✔ Cliente seleccionado: <strong>${codeBadge}${escapeHTML(c.name)}</strong>${rifText}</p>`;
   document.getElementById('qCliNameResults').style.display = 'block';
+}
+
+function setCuentaRecuperada() {
+  const nameEl = document.getElementById('qCliName');
+  const telEl  = document.getElementById('qCliTel');
+  const rifEl  = document.getElementById('qCliRif');
+  const cityEl = document.getElementById('qCliCity');
+
+  if (nameEl) nameEl.value = 'CUENTA RECUPERADA';
+  if (telEl)  telEl.value  = '00000000000';
+  if (rifEl)  rifEl.value  = '00';
+  if (cityEl) cityEl.value = 'Caracas';
+
+  quoteCustomer = {
+    id: null,
+    name: 'CUENTA RECUPERADA',
+    rif: '00',
+    phone: '00000000000',
+    city: 'Caracas',
+    notes: 'Cliente no registrado en MixNet (Código 00)',
+    mixnet_code: '00',
+    is_recuperada: true
+  };
+
+  const res = document.getElementById('qCliNameResults');
+  if (res) {
+    res.innerHTML = `<p style="font-size:12px;color:#d97706;font-weight:700;margin:8px 0">✔ Código Oficial MixNet [00] — CUENTA RECUPERADA (Cliente nuevo sin registrar)</p>`;
+    res.style.display = 'block';
+  }
+  showToast('⚡ Cliente 00 (Cuenta Recuperada) aplicado para MixNet');
+  const se = document.getElementById('posSearch');
+  if (se) se.focus();
 }
 
 function setConsumidorFinal() {

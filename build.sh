@@ -8,11 +8,11 @@ mkdir -p dist
 
 for item in *; do
   case "$item" in
-    wa-server|sql|dist|node_modules|scripts|mixnet-ai-panel)  continue ;;   # nunca publicar
-    docs|cerebro)                     continue ;;   # documentación interna del negocio
-    build.sh|skills-lock.json)       continue ;;   # herramientas del repo
-    *.md|*.code-workspace)           continue ;;   # docs / config de editor
-    *.pdf|*.xlsx|*.xls|*.csv|*.jpeg|*.jpg) continue ;; # datos de negocio sueltos
+    wa-server|sql|dist|node_modules|scripts|_archive|_archivo|backups|audits|CLIENTES|functions) continue ;; # nunca publicar
+    docs|cerebro|planes)             continue ;; # documentación interna del negocio
+    build.sh|skills-lock.json)       continue ;; # herramientas del repo
+    *.md|*.code-workspace|*.bat|*.vbs|*.zip|*.bundle) continue ;; # docs / launchers / zips
+    *.pdf|*.xlsx|*.xls|*.csv|*.jpeg|*.jpg|*.docx|*.txt) continue ;; # datos de negocio sueltos
     *) cp -r "$item" dist/ ;;
   esac
 done

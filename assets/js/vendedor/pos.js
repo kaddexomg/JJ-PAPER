@@ -655,8 +655,41 @@ function posPickCustomer(c) {
   document.getElementById('posCliTel').value  = c.phone || '';
   document.getElementById('posCliRif').value  = c.rif || '';
   document.getElementById('posCliCity').value = c.city || '';
+  const codeBadge = c.mixnet_code ? `[MixNet: ${escapeHTML(c.mixnet_code)}] ` : '';
+  const rifText = c.rif ? ` (RIF: ${escapeHTML(c.rif)})` : '';
   document.getElementById('posCliResults').innerHTML =
-    `<p style="font-size:12px;color:var(--gm);margin:4px 0">✔ Cliente frecuente seleccionado: <strong>${escapeHTML(c.name)}</strong></p>`;
+    `<p style="font-size:12px;color:var(--gm);margin:4px 0">✔ Cliente seleccionado: <strong>${codeBadge}${escapeHTML(c.name)}</strong>${rifText}</p>`;
+}
+
+function posSetCuentaRecuperada() {
+  posCustomer = {
+    id: null,
+    name: 'CUENTA RECUPERADA',
+    rif: '00',
+    phone: '00000000000',
+    city: 'Caracas',
+    notes: 'Cliente no registrado en MixNet (Código 00)',
+    mixnet_code: '00',
+    is_recuperada: true
+  };
+  const sEl = document.getElementById('posCliSearch');
+  const nEl = document.getElementById('posCliName');
+  const tEl = document.getElementById('posCliTel');
+  const rEl = document.getElementById('posCliRif');
+  const cEl = document.getElementById('posCliCity');
+  if (sEl) sEl.value = 'CUENTA RECUPERADA';
+  if (nEl) nEl.value = 'CUENTA RECUPERADA';
+  if (tEl) tEl.value = '00000000000';
+  if (rEl) rEl.value = '00';
+  if (cEl) cEl.value = 'Caracas';
+  const res = document.getElementById('posCliResults');
+  if (res) {
+    res.innerHTML = `<p style="font-size:12px;color:#d97706;font-weight:700;margin:4px 0">✔ Código Oficial MixNet [00] — CUENTA RECUPERADA (Cliente nuevo sin registrar)</p>`;
+    res.style.display = 'block';
+  }
+  showToast('⚡ Cliente 00 (Cuenta Recuperada) aplicado');
+  const se = document.getElementById('posSearch');
+  if (se) se.focus();
 }
 
 function posSetConsumidorFinal() {

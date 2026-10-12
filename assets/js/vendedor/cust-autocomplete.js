@@ -207,3 +207,78 @@ function custAcHide(boxId) {
   box.innerHTML = '';
   box.style.display = 'none';
 }
+
+/**
+ * Renderiza la tarjeta de cliente seleccionado en la vista
+ * Oculta el buscador y muestra la tarjeta con datos limpios
+ */
+function custAcRenderCard(c, opts) {
+  if (!opts) return;
+  const cardEl = document.getElementById(opts.cardId);
+  const wrapEl = document.getElementById(opts.inputWrapId);
+  if (!cardEl) return;
+
+  if (!c) {
+    cardEl.innerHTML = '';
+    cardEl.style.display = 'none';
+    if (wrapEl) wrapEl.style.display = 'block';
+    return;
+  }
+
+  const code = c.mixnet_code || (c.notes && c.notes.match(/(?:codigo\s*mixnet|mixnet):\s*([0-9A-Za-z-]+)/i)?.[1]) || (c.rif === '00' ? '00' : '');
+  const isRec = c.is_recuperada || code === '00' || c.rif === '00';
+  const badgeStyle = isRec
+    ? 'background:#fef3c7;color:#b45309;border:1px solid #fde68a'
+    : (code ? 'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd' : 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1');
+
+  const codeBadge = code ? `<span style="font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;${badgeStyle}">MixNet: [${escapeHTML(code)}]</span>` : `<span style="font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;${badgeStyle}">Cliente</span>`;
+
+  cardEl.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03)">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none">
+          ${isRec ? '⚡' : '🏢'}
+        </div>
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${codeBadge}
+            <strong style="font-size:14px;color:var(--theme-text-main, #0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(c.name || 'Sin nombre')}</strong>
+          </div>
+          <div style="font-size:12px;color:var(--theme-text-muted, #64748b);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">
+            ${c.rif ? `<span><strong>RIF:</strong> ${escapeHTML(c.rif)}</span>` : ''}
+            ${c.phone && c.phone !== '00000000000' ? `<span><strong>Tel:</strong> ${escapeHTML(c.phone)}</span>` : ''}
+            ${c.city ? `<span><strong>Ciudad:</strong> ${escapeHTML(c.city)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div style="flex:none">
+        <button type="button" class="btn-o sm" onclick="${opts.onResetFn || 'quoteResetCustomer()'}" title="Cambiar de cliente (Esc o F3)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:5px 12px">
+          ✏️ Cambiar <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:1px 5px;border-radius:4px;font-size:10px">Esc</kbd>
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (wrapEl) wrapEl.style.display = 'none';
+  cardEl.style.display = 'block';
+}
+
+/**
+ * Restaura el campo de búsqueda de cliente y le devuelve el foco
+ */
+function custAcShowInput(opts) {
+  if (!opts) return;
+  const cardEl = document.getElementById(opts.cardId);
+  const wrapEl = document.getElementById(opts.inputWrapId);
+  const inputEl = document.getElementById(opts.inputId);
+  if (cardEl) {
+    cardEl.innerHTML = '';
+    cardEl.style.display = 'none';
+  }
+  if (wrapEl) wrapEl.style.display = 'block';
+  if (inputEl) {
+    inputEl.value = '';
+    inputEl.focus();
+    inputEl.select();
+  }
+}

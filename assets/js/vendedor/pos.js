@@ -86,9 +86,9 @@ async function initPos() {
   const orderParam = params.get('order') || params.get('pedido') || params.get('edit_order') || params.get('edit');
   if (orderParam) await posLoadOrderForEdit(orderParam);
 
-  // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
+  // Autocompletado de cliente en el omni-buscador (código MixNet, RIF, nombre o teléfono)
   custAcBind({
-    nameId: 'posCliName',
+    nameId: 'posCliSearch',
     boxId: 'posCliNameResults',
     onPick: posPickCustomer,
     onChange: () => { posCustomer = null; },
@@ -687,15 +687,22 @@ function posSearchCustomer() {
 
 function posPickCustomer(c) {
   posCustomer = c;
-  document.getElementById('posCliSearch').value = c.name || '';
-  document.getElementById('posCliName').value = c.name || '';
-  document.getElementById('posCliTel').value  = c.phone || '';
-  document.getElementById('posCliRif').value  = c.rif || '';
-  document.getElementById('posCliCity').value = c.city || '';
-  const codeBadge = c.mixnet_code ? `[MixNet: ${escapeHTML(c.mixnet_code)}] ` : '';
-  const rifText = c.rif ? ` (RIF: ${escapeHTML(c.rif)})` : '';
-  document.getElementById('posCliResults').innerHTML =
-    `<p style="font-size:12px;color:var(--gm);margin:4px 0">✔ Cliente seleccionado: <strong>${codeBadge}${escapeHTML(c.name)}</strong>${rifText}</p>`;
+  const set = (campo, v) => { const el = document.getElementById(campo); if (el) el.value = v || ''; };
+  set('posCliSearch', c.name);
+  set('posCliName', c.name);
+  set('posCliTel', c.phone);
+  set('posCliRif', c.rif);
+  set('posCliCity', c.city);
+
+  if (typeof custAcRenderCard === 'function') {
+    custAcRenderCard(c, {
+      cardId: 'posCliSelectedCard',
+      inputWrapId: 'posCliSearchWrap',
+      onResetFn: 'posResetCustomer()'
+    });
+  }
+
+  showToast(`Cliente asignado: ${c.name}`);
 
   // Flujo secuencial MixNet: enfocar vendedor o renglones inmediatamente
   setTimeout(() => {
@@ -712,8 +719,26 @@ function posPickCustomer(c) {
   }, 100);
 }
 
+function posResetCustomer() {
+  posCustomer = null;
+  ['posCliName', 'posCliTel', 'posCliRif', 'posCliCity'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  if (typeof custAcShowInput === 'function') {
+    custAcShowInput({
+      cardId: 'posCliSelectedCard',
+      inputWrapId: 'posCliSearchWrap',
+      inputId: 'posCliSearch'
+    });
+  } else {
+    const sc = document.getElementById('posCliSelectedCard'); if (sc) sc.style.display = 'none';
+    const sw = document.getElementById('posCliSearchWrap'); if (sw) sw.style.display = 'block';
+    const cs = document.getElementById('posCliSearch'); if (cs) { cs.value = ''; cs.focus(); }
+  }
+}
+
 function posSetCuentaRecuperada() {
-  posCustomer = {
+  const c = {
     id: null,
     name: 'CUENTA RECUPERADA',
     rif: '00',
@@ -723,43 +748,23 @@ function posSetCuentaRecuperada() {
     mixnet_code: '00',
     is_recuperada: true
   };
-  const sEl = document.getElementById('posCliSearch');
-  const nEl = document.getElementById('posCliName');
-  const tEl = document.getElementById('posCliTel');
-  const rEl = document.getElementById('posCliRif');
-  const cEl = document.getElementById('posCliCity');
-  if (sEl) sEl.value = 'CUENTA RECUPERADA';
-  if (nEl) nEl.value = 'CUENTA RECUPERADA';
-  if (tEl) tEl.value = '00000000000';
-  if (rEl) rEl.value = '00';
-  if (cEl) cEl.value = 'Caracas';
-  const res = document.getElementById('posCliResults');
-  if (res) {
-    res.innerHTML = `<p style="font-size:12px;color:#d97706;font-weight:700;margin:4px 0">✔ Código Oficial MixNet [00] — CUENTA RECUPERADA (Cliente nuevo sin registrar)</p>`;
-    res.style.display = 'block';
-  }
+  posPickCustomer(c);
   showToast('⚡ Cliente 00 (Cuenta Recuperada) aplicado');
-  const se = document.getElementById('posSearch');
-  if (se) se.focus();
 }
 
 function posSetConsumidorFinal() {
-  posCustomer = null;
-  const sEl = document.getElementById('posCliSearch');
-  const nEl = document.getElementById('posCliName');
-  const tEl = document.getElementById('posCliTel');
-  const rEl = document.getElementById('posCliRif');
-  const cEl = document.getElementById('posCliCity');
-  if (sEl) sEl.value = 'Consumidor Final';
-  if (nEl) nEl.value = 'Consumidor Final';
-  if (tEl) tEl.value = '00000000000';
-  if (rEl) rEl.value = 'V-00000000';
-  if (cEl) cEl.value = 'Mostrador';
-  const res = document.getElementById('posCliResults');
-  if (res) res.innerHTML = '';
-  const nameRes = document.getElementById('posCliNameResults');
-  if (nameRes) nameRes.style.display = 'none';
-  showToast('⚡ Cliente Mostrador / Consumidor Final aplicado');
+  const c = {
+    id: null,
+    name: 'Consumidor Final',
+    rif: 'V-00000000',
+    phone: '00000000000',
+    city: 'Mostrador',
+    notes: 'Venta rápida de mostrador',
+    mixnet_code: '00',
+    is_recuperada: false
+  };
+  posPickCustomer(c);
+  showToast('⚡ Mostrador / Consumidor Final aplicado');
 }
 
 /* ---------- Procesar Pedido Oficial ---------- */
@@ -994,6 +999,7 @@ function posReset() {
   posEditingOrderId = null;
   posEditingOrderNumber = null;
   posRenderTicket();
+  posResetCustomer();
   ['posCliSearch', 'posCliName', 'posCliTel', 'posCliRif', 'posCliCity', 'posPayRef', 'posNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
@@ -1204,13 +1210,19 @@ function posInitGlobalKeys() {
         posSearch();
         return;
       }
-      // 8. Si está en otro campo, volver al buscador
+      // 8. Si el cliente está seleccionado y el usuario pulsa Esc en el buscador de productos vacío, cambiar cliente
+      const cardEl = document.getElementById('posCliSelectedCard');
+      if (cardEl && cardEl.style.display !== 'none' && (!se || !se.value.trim())) {
+        posResetCustomer();
+        return;
+      }
+      // 9. Si está en otro campo, volver al buscador
       if (document.activeElement !== se && se) {
         se.focus();
         se.select();
         return;
       }
-      // 9. Si el buscador ya está vacío y hay líneas, preguntar si desea vaciar ticket
+      // 10. Si el buscador ya está vacío y hay líneas, preguntar si desea vaciar ticket
       if (posTicket && Object.keys(posTicket).length > 0) {
         clearPos();
       }
@@ -1230,8 +1242,13 @@ function posInitGlobalKeys() {
     // F3: enfocar búsqueda de cliente
     if (e.key === 'F3') {
       e.preventDefault();
-      const cli = document.getElementById('posCliSearch') || document.getElementById('posCliName');
-      if (cli) { cli.focus(); cli.select(); }
+      const cardEl = document.getElementById('posCliSelectedCard');
+      if (cardEl && cardEl.style.display !== 'none') {
+        posResetCustomer();
+      } else {
+        const cli = document.getElementById('posCliSearch') || document.getElementById('posCliName');
+        if (cli) { cli.focus(); cli.select(); }
+      }
       return;
     }
 

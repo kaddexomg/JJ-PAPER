@@ -134,17 +134,23 @@
                 <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">Mostrador</button>
               </div>
             </div>
-            <input class="fi" id="posCliSearch" placeholder="Buscar cliente por RIF, Nombre o Código MixNet (001-..., 00)..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px;height:36px">
-            <div id="posCliResults"></div>
-            <div style="position:relative;margin:6px 0 8px">
-              <input class="fi" id="posCliName" placeholder="Buscar por RIF (J-...), Razón Social o Código MixNet (001-..., 00) *" style="width:100%;height:38px;padding:8px 12px">
-              <div id="posCliNameResults" class="cust-ac-box"></div>
+            <!-- Tarjeta de Cliente Activo en POS -->
+            <div id="posCliSelectedCard" style="display:none;margin-bottom:10px"></div>
+
+            <!-- Buscador Omni-canal de Cliente en POS -->
+            <div id="posCliSearchWrap" style="position:relative;margin-bottom:10px">
+              <div style="position:relative">
+                <input class="fi" id="posCliSearch" placeholder="🔍 Escribe Código MixNet, Razón Social o RIF del cliente... [F3]" autocomplete="off" style="width:100%;height:40px;font-size:13.5px;padding:8px 12px 8px 36px;border-radius:8px">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;opacity:0.6;pointer-events:none">👤</span>
+              </div>
+              <div id="posCliNameResults" class="cust-ac-box" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:999;max-height:260px;overflow-y:auto;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.18)"></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <input class="fi" id="posCliTel" placeholder="Teléfono *" style="height:36px">
-              <input class="fi" id="posCliRif" placeholder="RIF / CI" style="height:36px">
-              <input class="fi" id="posCliCity" placeholder="Ciudad" style="grid-column:span 2;height:36px">
-            </div>
+
+            <!-- Campos de persistencia del pedido -->
+            <input type="hidden" id="posCliName">
+            <input type="hidden" id="posCliTel">
+            <input type="hidden" id="posCliRif">
+            <input type="hidden" id="posCliCity">
           </div>
 
           <!-- Sección 4: Condiciones y Procesamiento -->

@@ -61,9 +61,9 @@ async function initQuoter() {
     await loadQuoteForEdit(editParam);
   }
 
-  // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
+  // Autocompletado de cliente en el omni-buscador (código MixNet, RIF, nombre o teléfono)
   custAcBind({
-    nameId: 'qCliName',
+    nameId: 'qCliSearch',
     boxId: 'qCliNameResults',
     onPick: quotePickCustomer,
   });
@@ -74,40 +74,55 @@ async function initQuoter() {
 
 async function quoteCargarCliente(id) {
   const { data: c } = await sb.from('jjp_customers')
-    .select('id,name,phone,rif,city').eq('id', id).maybeSingle();
+    .select('id,name,phone,rif,city,address,notes').eq('id', id).maybeSingle();
   if (!c) { showToast('No se encontró ese cliente', 'warn'); return; }
-  quoteCustomer = c;
-  const set = (campo, v) => { const el = document.getElementById(campo); if (el && v) el.value = v; };
-  set('qCliName', c.name); set('qCliTel', c.phone);
-  set('qCliRif', c.rif);   set('qCliCity', c.city);
+  quotePickCustomer(c);
   showToast(`Cotizando para ${c.name}`);
 }
 
 function quotePickCustomer(c) {
   quoteCustomer = c;
-  document.getElementById('qCliName').value = c.name || '';
-  document.getElementById('qCliTel').value  = c.phone || '';
-  document.getElementById('qCliRif').value  = c.rif || '';
-  document.getElementById('qCliCity').value = c.city || '';
-  const codeBadge = c.mixnet_code ? `[MixNet: ${escapeHTML(c.mixnet_code)}] ` : '';
-  const rifText = c.rif ? ` (RIF: ${escapeHTML(c.rif)})` : '';
-  document.getElementById('qCliNameResults').innerHTML =
-    `<p style="font-size:12px;color:var(--gm);margin:8px 0">✔ Cliente seleccionado: <strong>${codeBadge}${escapeHTML(c.name)}</strong>${rifText}</p>`;
-  document.getElementById('qCliNameResults').style.display = 'block';
+  const set = (campo, v) => { const el = document.getElementById(campo); if (el) el.value = v || ''; };
+  set('qCliName', c.name);
+  set('qCliTel', c.phone);
+  set('qCliRif', c.rif);
+  set('qCliCity', c.city);
+
+  if (typeof custAcRenderCard === 'function') {
+    custAcRenderCard(c, {
+      cardId: 'qCliSelectedCard',
+      inputWrapId: 'qCliSearchWrap',
+      onResetFn: 'quoteResetCustomer()'
+    });
+  }
+
+  showToast(`Cliente asignado: ${c.name}`);
+  const se = document.getElementById('posSearch');
+  if (se) {
+    setTimeout(() => { se.focus(); se.select(); }, 60);
+  }
+}
+
+function quoteResetCustomer() {
+  quoteCustomer = null;
+  ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  if (typeof custAcShowInput === 'function') {
+    custAcShowInput({
+      cardId: 'qCliSelectedCard',
+      inputWrapId: 'qCliSearchWrap',
+      inputId: 'qCliSearch'
+    });
+  } else {
+    const sc = document.getElementById('qCliSelectedCard'); if (sc) sc.style.display = 'none';
+    const sw = document.getElementById('qCliSearchWrap'); if (sw) sw.style.display = 'block';
+    const cs = document.getElementById('qCliSearch'); if (cs) { cs.value = ''; cs.focus(); }
+  }
 }
 
 function setCuentaRecuperada() {
-  const nameEl = document.getElementById('qCliName');
-  const telEl  = document.getElementById('qCliTel');
-  const rifEl  = document.getElementById('qCliRif');
-  const cityEl = document.getElementById('qCliCity');
-
-  if (nameEl) nameEl.value = 'CUENTA RECUPERADA';
-  if (telEl)  telEl.value  = '00000000000';
-  if (rifEl)  rifEl.value  = '00';
-  if (cityEl) cityEl.value = 'Caracas';
-
-  quoteCustomer = {
+  const cRec = {
     id: null,
     name: 'CUENTA RECUPERADA',
     rif: '00',
@@ -117,32 +132,23 @@ function setCuentaRecuperada() {
     mixnet_code: '00',
     is_recuperada: true
   };
-
-  const res = document.getElementById('qCliNameResults');
-  if (res) {
-    res.innerHTML = `<p style="font-size:12px;color:#d97706;font-weight:700;margin:8px 0">✔ Código Oficial MixNet [00] — CUENTA RECUPERADA (Cliente nuevo sin registrar)</p>`;
-    res.style.display = 'block';
-  }
+  quotePickCustomer(cRec);
   showToast('⚡ Cliente 00 (Cuenta Recuperada) aplicado para MixNet');
-  const se = document.getElementById('posSearch');
-  if (se) se.focus();
 }
 
 function setConsumidorFinal() {
-  const nameEl = document.getElementById('qCliName');
-  const telEl  = document.getElementById('qCliTel');
-  const rifEl  = document.getElementById('qCliRif');
-  const cityEl = document.getElementById('qCliCity');
-
-  if (nameEl) nameEl.value = 'Consumidor Final';
-  if (telEl)  telEl.value  = '00000000000';
-  if (rifEl)  rifEl.value  = 'V-00000000';
-  if (cityEl) cityEl.value = 'Mostrador';
-
-  quoteCustomer = null;
-  const res = document.getElementById('qCliNameResults');
-  if (res) res.style.display = 'none';
-  showToast('⚡ Cliente Mostrador / Consumidor Final aplicado');
+  const cFin = {
+    id: null,
+    name: 'Consumidor Final',
+    rif: 'V-00000000',
+    phone: '00000000000',
+    city: 'Mostrador',
+    notes: 'Mostrador / Consumidor Final',
+    mixnet_code: '00',
+    is_recuperada: true
+  };
+  quotePickCustomer(cFin);
+  showToast('Mostrador / Consumidor Final aplicado');
 }
 
 function posOnScan(code) {
@@ -262,100 +268,63 @@ function posUpdateName(key, newName) {
   }
 }
 
-/* --- buscador (mismo patrón del POS) --- */
+/* --- buscador de productos (Command Bar con Dropdown Flotante) --- */
 function posSearch() {
-  posRenderResults(pfMatch(posProducts, document.getElementById('posSearch').value.trim()));
-}
-
-function posSearchKey(e) {
-  if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    quoteNavTab(e.shiftKey ? -1 : 1);
-    return;
-  }
-  if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
-  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
-  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
-  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
-  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
-  if (e.key === 'Escape') {
-    const se = document.getElementById('posSearch');
-    if (se && se.value.trim()) { se.value = ''; posSearch(); }
-    else clearQuote();
-    return;
-  }
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); quoteSubmit(); return; }
-  if (e.key !== 'Enter') return;
-  e.preventDefault();
-
-  const code = document.getElementById('posSearch').value.trim();
-  if (!code) {
-    // Si el buscador está vacío, permanecer en el buscador de productos
-    return;
-  }
-  const hit = pfFindByCode(posProducts, code);
-  if (hit) {
-    posAddDirect(hit.product, hit.variant);
-    return;
-  }
-
-  if (posCursor >= 0 && posCursor < posResultsList.length) {
-    posPickIdx();
-    return;
-  } else if (posResultsList.length > 0) {
-    posNavTo(0);
-    posPickIdx();
-    return;
-  }
-}
-function posScanCam() {
-  pfScanCamera(code => {
-    const hit = pfFindByCode(posProducts, code);
-    if (hit) { posAddDirect(hit.product, hit.variant); }
-    else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
-  });
-}
-
-// Vacía la cotización en curso (con confirmación si tiene líneas)
-function clearQuote() {
-  if (posTicket && Object.keys(posTicket).length && !confirm('¿Vaciar esta cotización?')) return;
-  posTicket = {};
-  posRenderTicket();
   const se = document.getElementById('posSearch');
-  if (se) { se.value = ''; se.focus(); }
-  posSearch();
+  const q = se ? se.value.trim() : '';
+  const box = document.getElementById('posResults');
+  if (!q) {
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+    posResultsList = [];
+    posCursor = -1;
+    return;
+  }
+  const matched = pfMatch(posProducts, q);
+  posRenderResults(matched);
 }
 
 function posRenderResults(list) {
   const box = document.getElementById('posResults');
+  if (!box) return;
   if (!list.length) {
-    posResultsList = []; posCursor = -1;
-    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:12px;text-align:center">Sin resultados coincidentes.</p>'; return;
+    posResultsList = [];
+    posCursor = -1;
+    box.innerHTML = `
+      <div style="padding:16px;text-align:center;color:var(--theme-text-muted, #64748b)">
+        <p style="margin:0 0 8px;font-size:13px">Sin productos que coincidan.</p>
+        <button type="button" class="btn sm" onclick="openCustomItemModal()" style="font-size:12px;font-weight:700">➕ Crear como Ítem Libre (Alt+I)</button>
+      </div>`;
+    box.style.display = 'block';
+    return;
   }
-  posResultsList = list; posCursor = -1;
+  posResultsList = list;
+  posCursor = -1;
   box.innerHTML = list.map((p, i) => {
     const variants = (p.jjp_product_variants || []).filter(v => v.active);
     const img = p.image_url
-      ? `<img src="${optImg(p.image_url, 200)}" alt="" loading="lazy" decoding="async">`
-      : `<span style="font-size:22px">${p.emoji || '📦'}</span>`;
+      ? `<img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async" style="width:36px;height:36px;object-fit:cover;border-radius:6px">`
+      : `<span style="font-size:20px">${p.emoji || '📦'}</span>`;
     const vSel = variants.length
-      ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:4px 8px;margin-right:6px" onclick="event.stopPropagation()">
+      ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:11px;padding:3px 6px;margin-right:6px" onclick="event.stopPropagation()">
            ${variants.map(v => `<option value="${v.id}">${escapeHTML(v.jjp_brands?.name || v.variant_name || 'Variante')} · ${fmtPrice(v.price_usd)}</option>`).join('')}
          </select>` : '';
-    return `<div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--theme-border-subtle, #e2e8f0);margin-bottom:6px;background:var(--theme-bg-surface-solid, #fff);transition:all .15s ease">
-      <div class="pr-img" style="flex:none">${img}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.3">${escapeHTML(p.name)}</div>
-        <div style="font-size:11px;color:var(--gr);margin-top:2px">${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
-      </div>
-      <div style="display:flex;align-items:center;flex:none">
-        ${vSel}
-        <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:6px 12px;font-weight:700;background:#16604a;color:#fff;border-radius:6px;display:inline-flex;align-items:center;gap:4px">Elegir Precio ➔</button>
-      </div>
-    </div>`;
+    return `
+      <div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9);transition:background .1s ease" onmouseover="this.style.background='var(--theme-bg-surface-solid, #f8fafc)'" onmouseout="this.style.background='transparent'">
+        <div class="pr-img" style="width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.03);flex:none">${img}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(p.name)}</div>
+          <div style="font-size:11px;color:var(--theme-text-muted, #64748b);margin-top:2px">
+            <span style="font-family:monospace;color:var(--theme-text-muted, #475569);margin-right:6px">${escapeHTML(p.sku || '')}</span>
+            ${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;flex:none">
+          ${vSel}
+          <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:4px 10px;font-size:11.5px;font-weight:700;background:var(--theme-accent, #16604a);color:#fff;border-radius:6px">Elegir ➔</button>
+        </div>
+      </div>`;
   }).join('');
+  box.style.display = 'block';
 }
 
 // Navegación por teclado sobre los resultados (↑/↓ / PgUp/PgDn / Home/End)
@@ -375,6 +344,53 @@ function posNavTo(idx) {
   posCursor = idx;
   rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
   rows[posCursor]?.scrollIntoView({ block: 'nearest' });
+}
+
+function posSearchKey(e) {
+  if (document.querySelector('.pf-popup-mask')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
+  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
+  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
+  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
+  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
+  if (e.key === 'Escape') {
+    const se = document.getElementById('posSearch');
+    const box = document.getElementById('posResults');
+    if (box) box.style.display = 'none';
+    if (se && se.value.trim()) { se.value = ''; posSearch(); }
+    return;
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); quoteSubmit(); return; }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+
+  const se = document.getElementById('posSearch');
+  const code = se ? se.value.trim() : '';
+  if (!code) return;
+
+  if (typeof pfFindByCode === 'function') {
+    const hit = pfFindByCode(posProducts, code);
+    if (hit) {
+      posAddAndPick(hit.product, hit.variant);
+      showToast('➕ ' + hit.product.name);
+      se.value = '';
+      posSearch();
+      return;
+    }
+  }
+
+  if (posCursor >= 0 && posCursor < posResultsList.length) {
+    posPickIdx();
+    return;
+  } else if (posResultsList.length > 0) {
+    posCursor = 0;
+    posPickIdx();
+    return;
+  }
+
+  showToast('⚠️ No se encontró producto con ese código ni nombre', 'warn');
+  se.select();
 }
 
 // Agrega o abre el selector de precio unificado para el producto/variante
@@ -554,81 +570,127 @@ function posRemoveLine(key) {
   posRenderTicket();
 }
 
+function posToggleJja(key) {
+  const l = posTicket[key];
+  if (!l || l.is_custom) return;
+  if (!l.jja_code) {
+    l.jja_code = 'JJA-1';
+    showToast('⚡ Fraccionado MixNet: JJA-1 (Unidad individual)');
+  } else if (l.jja_code === 'JJA-1') {
+    l.jja_code = 'JJA-2';
+    showToast('⚡ Fraccionado MixNet: JJA-2 (Presentación secundaria)');
+  } else {
+    l.jja_code = null;
+    showToast('📦 Modo Estándar: Empaque completo');
+  }
+  posRenderTicket();
+}
+
 function posRenderTicket() {
   const box  = document.getElementById('posTicket');
   const tots = document.getElementById('posTotals');
   const lines = Object.entries(posTicket);
+
   if (!lines.length) {
-    box.innerHTML = '<p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p>';
-    tots.innerHTML = ''; return;
+    box.innerHTML = `
+      <div style="text-align:center;padding:48px 20px;color:var(--theme-text-muted, #94a3b8)">
+        <div style="font-size:38px;margin-bottom:8px">📄</div>
+        <p style="font-size:15px;font-weight:700;margin:0 0 6px;color:var(--theme-text-main, #334155)">La cotización está vacía</p>
+        <p style="font-size:13px;margin:0">Escribe en el buscador arriba o presiona <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> para agregar renglones.</p>
+      </div>`;
+    if (tots) tots.innerHTML = '';
+    return;
   }
-  box.innerHTML = lines.map(([k, l], idx) => {
+
+  const rate = getRate();
+
+  const rowsHtml = lines.map(([k, l], idx) => {
     const isCursor = (quoteTicketCursor === idx);
+    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
+
     const lvlBtn = (lv, lbl) => {
       const isAct = (l.price_level === lv);
       const bg = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-item-bg, #f1f5f9)';
       const col = isAct ? '#ffffff' : 'var(--theme-text-muted, #475569)';
       const bdr = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-border-subtle, #cbd5e1)';
-      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
+      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:4px;padding:2px 6px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
     };
-    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
-    const levelSelector = l.is_custom ? '' : `
-        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:6px;margin-top:4px">
-          <span style="font-weight:700;color:var(--theme-text-main, #334155)">Nivel:</span>
-          <div style="display:flex;gap:3px">
-            ${lvlBtn('A', 'Precio A (Detal / Menor)')}
-            ${lvlBtn('B', 'Precio B (Mayorista Frecuente ⭐)')}
-            ${lvlBtn('C', 'Precio C (Bs Oficial)')}
-            ${lvlBtn('D', 'Precio D (Bs Mayor)')}
-            ${lvlBtn('M', 'Precio M (Personalizado / Manual)')}
-          </div>
-        </div>`;
-    const isDark = (document.documentElement.getAttribute('data-theme') === 'dark');
-    const lineBg = isCursor ? (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4') : 'var(--theme-bg-surface-solid, #ffffff)';
-    const lineBdr = isCursor ? 'var(--theme-accent, #10b981)' : 'var(--theme-border-subtle, #e2e8f0)';
+
+    const levelSelector = l.is_custom ? '—' : `
+      <div style="display:inline-flex;gap:3px">
+        ${lvlBtn('A', 'Detal')}
+        ${lvlBtn('B', 'Mayor (⭐)')}
+        ${lvlBtn('C', 'Bs Oficial')}
+        ${lvlBtn('D', 'Bs Mayor')}
+        ${lvlBtn('M', 'Manual')}
+      </div>`;
+
+    const jjaLabel = l.jja_code ? (l.jja_code === 'JJA-1' ? '⚡ JJA-1' : '⚡ JJA-2') : `📦 ${escapeHTML(l.unit || 'unid')}`;
+    const jjaBtn = l.is_custom ? `<span>${escapeHTML(l.unit || 'unid')}</span>` : `
+      <button type="button" onclick="posToggleJja('${k}')" title="Alternar fraccionado MixNet (Estándar / JJA-1 / JJA-2)" style="background:${l.jja_code ? 'rgba(245,158,11,0.12)' : 'var(--theme-item-bg, #f1f5f9)'};color:${l.jja_code ? '#b45309' : 'var(--theme-text-main, #334155)'};border:1px solid ${l.jja_code ? '#f59e0b' : 'var(--theme-border-subtle, #cbd5e1)'};border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+        ${jjaLabel}
+      </button>`;
+
+    const rowBg = isCursor ? 'background:rgba(16,185,129,0.12);' : '';
+
     return `
-    <div class="pos-line" style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.03);transition:all .12s ease">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:4px">
-            <input type="text" class="fi ticket-nav-input" id="name-in-${k}" data-ticket-field="name" data-ticket-idx="${idx}" data-ticket-key="${k}" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-glass, #cbd5e1)';this.style.background='var(--theme-input-bg, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
-            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
+      <tr style="${rowBg}border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+        <td style="padding:10px 12px;font-weight:700;color:var(--theme-text-muted, #94a3b8);text-align:center;width:36px">${idx + 1}</td>
+        <td style="padding:10px 12px;font-family:monospace;font-size:11.5px;color:var(--theme-text-muted, #64748b);white-space:nowrap">${escapeHTML(l.sku || '—')}</td>
+        <td style="padding:10px 12px;min-width:220px">
+          <div style="font-weight:700;font-size:13.5px;color:var(--theme-text-main, #0f172a)">
+            ${escapeHTML(l.name)}
+            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600;margin-left:4px">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
-          ${levelSelector}
-        </div>
-        <div style="display:flex; gap:6px; align-items:center">
-          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 8px;color:#0284c7;border:1px solid rgba(2,132,199,0.3);background:var(--theme-bg-surface);cursor:pointer;font-size:11px;font-weight:700;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s" onmouseover="this.style.background='rgba(2,132,199,0.1)'" onmouseout="this.style.background='var(--theme-bg-surface)'" aria-label="Cambiar producto">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            Cambiar
-          </button>
-          <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar producto" style="padding:4px 8px;color:#ef4444;border:1px solid rgba(239,68,68,0.3);background:var(--theme-bg-surface);cursor:pointer;font-size:11px;font-weight:700;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='var(--theme-bg-surface)'" aria-label="Quitar producto">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            Quitar
-          </button>
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed var(--theme-border-subtle, #f1f5f9);margin-top:2px">
-        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:4px">
-          <span>Precio:</span>
-          <span style="font-weight:700;color:var(--theme-text-main, #0f172a)">$</span>
-          <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
-          <span>/${escapeHTML(l.unit)}</span>
-          <span style="color:var(--theme-accent, #047857);font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="display:flex;align-items:center;gap:3px">
-            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">−</button>
-            <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
-            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">＋</button>
+        </td>
+        <td style="padding:10px 12px;text-align:center">${jjaBtn}</td>
+        <td style="padding:10px 12px;text-align:center">${levelSelector}</td>
+        <td style="padding:10px 12px;text-align:center">
+          <div style="display:inline-flex;align-items:center;gap:3px">
+            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);cursor:pointer;font-weight:700">−</button>
+            <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:48px;height:26px;text-align:center;padding:2px 4px;font-size:13px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}">
+            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);cursor:pointer;font-weight:700">＋</button>
           </div>
-          <strong style="min-width:65px;text-align:right;font-size:14px;color:var(--theme-text-main, #0f172a)">${fmtPrice(l.price_usd * l.qty)}</strong>
-        </div>
-      </div>
-    </div>`;
+        </td>
+        <td style="padding:10px 12px;white-space:nowrap">
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-weight:700;color:var(--theme-text-muted, #64748b)">$</span>
+            <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:72px;font-size:12.5px;font-weight:700;padding:2px 6px;height:26px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)">
+          </div>
+          <div style="font-size:10.5px;color:var(--theme-accent, #047857);font-weight:600;margin-top:2px">≈ Bs ${fmtBsNum(posLineBs(l))}</div>
+        </td>
+        <td style="padding:10px 12px;text-align:right;white-space:nowrap;font-size:14px;font-weight:800;color:var(--theme-text-main, #0f172a)">
+          ${fmtPrice(l.price_usd * l.qty)}
+        </td>
+        <td style="padding:10px 12px;text-align:center;white-space:nowrap">
+          <div style="display:inline-flex;gap:4px">
+            <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 6px;color:#0284c7;border:1px solid rgba(2,132,199,0.3);background:transparent;cursor:pointer;font-size:12px;border-radius:6px">🔄</button>
+            <button type="button" onclick="posRemoveLine('${k}')" title="Quitar renglón" style="padding:4px 6px;color:#ef4444;border:1px solid rgba(239,68,68,0.3);background:transparent;cursor:pointer;font-size:12px;border-radius:6px">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
   }).join('');
+
+  box.innerHTML = `
+    <table class="admin-table" style="margin:0;width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--theme-bg-surface-solid, #f8fafc);border-bottom:1px solid var(--theme-border-subtle, #e2e8f0)">
+          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b);width:36px">#</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Código/SKU</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Descripción / Marca</th>
+          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Presentación</th>
+          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Nivel</th>
+          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Cantidad</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">P. Unit ($)</th>
+          <th style="padding:10px 12px;text-align:right;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Subtotal ($)</th>
+          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>`;
 
   const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
   const pct   = quoteDiscountPct();
@@ -638,37 +700,38 @@ function posRenderTicket() {
   const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
   const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
   const total = +(baseImponible + montoIva).toFixed(2);
-  const rate  = getRate();
-  tots.innerHTML = `
-    <div style="background:var(--theme-bg-surface-solid, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:10px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--theme-text-muted, #475569)">
-        <span>Subtotal neto</span>
-        <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(subtotal)}</strong>
-      </div>
-      ${pct > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-accent, #166534)">
-          <span>Descuento propuesto (${pct}%)</span>
-          <strong>−${fmtPrice(descMonto)}</strong>
-        </div>` : ''}
-      ${ivaPct > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-text-muted, #475569)">
-          <span>Base imponible</span>
-          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(baseImponible)}</strong>
+
+  if (tots) {
+    tots.innerHTML = `
+      <div style="background:var(--theme-bg-surface-solid, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--theme-text-muted, #475569)">
+          <span>Subtotal neto</span>
+          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(subtotal)}</strong>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-text-muted, #475569)">
-          <span>IVA (${ivaPct}%)</span>
-          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(montoIva)}</strong>
-        </div>` : ''}
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--theme-border-subtle, #cbd5e1);margin-top:2px">
-        <span style="font-size:14px;font-weight:800;color:var(--theme-text-main, #0f172a)">Total estimado</span>
-        <span style="font-size:19px;font-weight:900;color:var(--theme-accent, #16604a)">${fmtPrice(total)}</span>
-      </div>
-      ${sellerShowBs() ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#047857;font-weight:700">
-          <span>En bolívares (tasa ${rate.toFixed(2)})</span>
+        ${pct > 0 ? `
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--theme-accent, #166534)">
+            <span>Descuento propuesto (${pct}%)</span>
+            <strong>−${fmtPrice(descMonto)}</strong>
+          </div>` : ''}
+        ${ivaPct > 0 ? `
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--theme-text-muted, #475569)">
+            <span>Base imponible</span>
+            <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(baseImponible)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--theme-text-muted, #475569)">
+            <span>IVA (${ivaPct}%)</span>
+            <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(montoIva)}</strong>
+          </div>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1.5px solid var(--theme-border-subtle, #cbd5e1);margin-top:4px">
+          <span style="font-size:15px;font-weight:800;color:var(--theme-text-main, #0f172a)">Total estimado</span>
+          <span style="font-size:22px;font-weight:900;color:var(--theme-accent, #16604a)">${fmtPrice(total)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--theme-accent, #047857);font-weight:700">
+          <span>En bolívares (tasa BCV ${rate.toFixed(2)})</span>
           <span>Bs ${fmtBsNum(total * rate)}</span>
-        </div>` : ''}
-    </div>`;
+        </div>
+      </div>`;
+  }
 }
 
 function posUpdatePrice(key, val) {
@@ -1780,6 +1843,21 @@ function quoteInitGlobalKeys() {
         closePosPhone();
         return;
       }
+      const searchModal = document.getElementById('qSearchModal');
+      if (searchModal && searchModal.classList.contains('op')) {
+        closeQuoteSearchModal();
+        return;
+      }
+      const posRes = document.getElementById('posResults');
+      if (posRes && posRes.style.display === 'block') {
+        posRes.style.display = 'none';
+        return;
+      }
+      const custBox = document.getElementById('qCliNameResults');
+      if (custBox && custBox.style.display === 'block') {
+        custBox.style.display = 'none';
+        return;
+      }
       if (quoteTicketCursor >= 0) {
         quoteTicketCursor = -1;
         posRenderTicket();
@@ -1791,6 +1869,12 @@ function quoteInitGlobalKeys() {
       if (document.activeElement === se && se.value.trim()) {
         se.value = '';
         posSearch();
+        return;
+      }
+      // Si el cliente está seleccionado y el usuario pulsa Esc en el buscador de productos vacío, permite cambiar cliente
+      const cardEl = document.getElementById('qCliSelectedCard');
+      if (cardEl && cardEl.style.display !== 'none' && (!se || !se.value.trim())) {
+        quoteResetCustomer();
         return;
       }
       if (document.activeElement !== se && se) {
@@ -1814,8 +1898,13 @@ function quoteInitGlobalKeys() {
     // F3: enfocar búsqueda de cliente
     if (e.key === 'F3') {
       e.preventDefault();
-      const cli = document.getElementById('qCliName');
-      if (cli) { cli.focus(); cli.select(); }
+      const cardEl = document.getElementById('qCliSelectedCard');
+      if (cardEl && cardEl.style.display !== 'none') {
+        quoteResetCustomer();
+      } else {
+        const cli = document.getElementById('qCliSearch') || document.getElementById('qCliName');
+        if (cli) { cli.focus(); cli.select(); }
+      }
       return;
     }
 

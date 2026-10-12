@@ -36,6 +36,18 @@ async function posInitSellerSelector() {
       sel.value = currentSeller.id;
       sel.disabled = true;
     }
+
+    // Salto secuencial estilo MixNet: al pulsar Enter en vendedor, salta directo a renglones de producto
+    sel.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const searchInput = document.getElementById('posSearch');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    });
   } catch (err) {
     console.error('Error inicializando selector de vendedor en POS:', err);
   }
@@ -383,6 +395,22 @@ function posSetPriceLevel(key, level) {
   posRenderTicket();
 }
 
+function posToggleJja(key) {
+  const l = posTicket[key];
+  if (!l || l.is_custom) return;
+  if (!l.jja_code) {
+    l.jja_code = 'JJA-1';
+    showToast('⚡ Modo Fraccionado MixNet: JJA-1 (Unidad individual)');
+  } else if (l.jja_code === 'JJA-1') {
+    l.jja_code = 'JJA-2';
+    showToast('⚡ Modo Fraccionado MixNet: JJA-2 (Presentación secundaria)');
+  } else {
+    l.jja_code = null;
+    showToast('📦 Modo estándar MixNet: Empaque completo');
+  }
+  posRenderTicket();
+}
+
 /* ---------- Ticket ---------- */
 function posQty(key, delta) {
   const l = posTicket[key];
@@ -454,9 +482,16 @@ function posRenderTicket() {
       const bdr = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-border-subtle, #cbd5e1)';
       return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
     };
+    const jjaBtn = `
+      <button type="button" onclick="posToggleJja('${k}')" 
+        style="background:${l.jja_code ? '#fef3c7' : 'var(--theme-item-bg, #f1f5f9)'};color:${l.jja_code ? '#b45309' : 'var(--theme-text-muted, #475569)'};border:1px solid ${l.jja_code ? '#f59e0b' : 'var(--theme-border-subtle, #cbd5e1)'};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" 
+        title="Conmutar Fraccionamiento MixNet (Empaque normal / JJA-1 / JJA-2)">
+        ${l.jja_code ? '⚡ ' + l.jja_code : '📦 Empaque'}
+      </button>`;
+
     const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
     const levelSelector = l.is_custom ? '' : `
-        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:6px;margin-top:4px">
+        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:4px">
           <span style="font-weight:700;color:var(--theme-text-main, #334155)">Nivel:</span>
           <div style="display:flex;gap:3px">
             ${lvlBtn('A', 'Precio A (Detal / Menor)')}
@@ -464,6 +499,8 @@ function posRenderTicket() {
             ${lvlBtn('C', 'Precio C (Bs Oficial)')}
             ${lvlBtn('D', 'Precio D (Bs Mayor)')}
           </div>
+          <span style="color:var(--theme-border-subtle, #cbd5e1)">|</span>
+          ${jjaBtn}
         </div>`;
     const isDark = (document.documentElement.getAttribute('data-theme') === 'dark');
     const lineBg = isCursor ? (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4') : 'var(--theme-bg-surface-solid, #ffffff)';
@@ -659,6 +696,20 @@ function posPickCustomer(c) {
   const rifText = c.rif ? ` (RIF: ${escapeHTML(c.rif)})` : '';
   document.getElementById('posCliResults').innerHTML =
     `<p style="font-size:12px;color:var(--gm);margin:4px 0">✔ Cliente seleccionado: <strong>${codeBadge}${escapeHTML(c.name)}</strong>${rifText}</p>`;
+
+  // Flujo secuencial MixNet: enfocar vendedor o renglones inmediatamente
+  setTimeout(() => {
+    const selSeller = document.getElementById('posSellerSelect');
+    if (selSeller && !selSeller.disabled) {
+      selSeller.focus();
+    } else {
+      const se = document.getElementById('posSearch');
+      if (se) {
+        se.focus();
+        se.select();
+      }
+    }
+  }, 100);
 }
 
 function posSetCuentaRecuperada() {
@@ -759,6 +810,7 @@ async function posSubmit() {
           price_bs: posLineBs(l) || null,
           subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
           is_custom: !!l.is_custom,
+          jja_code: l.jja_code || null,
         })),
         subtotal_usd: +subtotal.toFixed(2),
         discount_pct: d,
@@ -815,6 +867,7 @@ async function posSubmit() {
         price_bs: posLineBs(l) || null,
         subtotal_usd: +(l.price_usd * l.qty).toFixed(2),
         is_custom: !!l.is_custom,
+        jja_code: l.jja_code || null,
       })),
       subtotal_usd: +subtotal.toFixed(2),
       discount_pct: d,

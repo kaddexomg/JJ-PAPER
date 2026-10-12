@@ -52,6 +52,7 @@
     ]},
     { href: 'facturas.html', ico: '📃', label: 'Cuentas por Pagar' },
     { section: 'Sistema' },
+    { href: 'mixnet.html',     ico: '🔌', label: 'Puente MixNet ERP' },
     { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },

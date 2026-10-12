@@ -18,8 +18,8 @@ async function pfLoad(force) {
 
   if (!force) {
     try {
-      const cached = sessionStorage.getItem(PF_CACHE_KEY);
-      const cachedTime = sessionStorage.getItem(PF_CACHE_TIME);
+      const cached = localStorage.getItem(PF_CACHE_KEY) || sessionStorage.getItem(PF_CACHE_KEY);
+      const cachedTime = localStorage.getItem(PF_CACHE_TIME) || sessionStorage.getItem(PF_CACHE_TIME);
       if (cached && cachedTime && (now - parseInt(cachedTime, 10) < PF_TTL)) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -61,9 +61,14 @@ async function pfLoad(force) {
 
     if (allData.length > 0) {
       try {
-        sessionStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
-        sessionStorage.setItem(PF_CACHE_TIME, String(now));
-      } catch (_) {}
+        localStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
+        localStorage.setItem(PF_CACHE_TIME, String(now));
+      } catch (_) {
+        try {
+          sessionStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
+          sessionStorage.setItem(PF_CACHE_TIME, String(now));
+        } catch (_) {}
+      }
     }
   }
   

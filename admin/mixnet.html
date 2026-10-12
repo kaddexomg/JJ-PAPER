@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puente MixNet ERP | JJ Paper Admin</title>
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<style>
+  .mixnet-card {
+    background: var(--theme-bg-surface-solid, #ffffff);
+    border: 1px solid var(--theme-border-subtle, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .mixnet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .status-online { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+  .status-offline { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  .status-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+  .console-box {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    border-radius: 8px;
+    padding: 14px 16px;
+    min-height: 240px;
+    max-height: 380px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    border: 1px solid #334155;
+    margin-top: 12px;
+  }
+  .cmd-bar {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .cmd-input {
+    flex: 1;
+    background: var(--theme-input-bg, #ffffff);
+    border: 1px solid var(--theme-border-subtle, #cbd5e1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--theme-text-main, #0f172a);
+    font-family: 'Consolas', monospace;
+  }
+  .quick-cmd-btn {
+    background: var(--theme-item-bg, #f1f5f9);
+    border: 1px solid var(--theme-border-subtle, #cbd5e1);
+    color: var(--theme-text-main, #334155);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .1s;
+  }
+  .quick-cmd-btn:hover {
+    background: var(--theme-accent, #047857);
+    color: #ffffff;
+    border-color: var(--theme-accent, #047857);
+  }
+  .tab-nav {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--theme-border-subtle, #e2e8f0);
+    margin-bottom: 16px;
+  }
+  .tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--theme-text-muted, #64748b);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active {
+    color: var(--theme-accent, #047857);
+    border-bottom-color: var(--theme-accent, #047857);
+  }
+  .snap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .snap-table th, .snap-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--theme-border-subtle, #e2e8f0);
+    text-align: left;
+  }
+  .snap-table th {
+    background: var(--theme-item-bg, #f8fafc);
+    color: var(--theme-text-muted, #475569);
+    font-weight: 700;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/admin/auth.js"></script>
+<script src="../assets/js/gemini-client.js"></script>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+      <span>JJ <em>Paper</em></span>
+    </div>
+    <nav class="aside-nav"></nav>
+    <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggleBtn">☰</button>
+        <div class="topbar-title">
+          <h2>Puente MixNet ERP & Centro de Operaciones</h2>
+          <p>Control bidireccional atómico con PC Cobranza (Win 7 / LAN Tienda), backups y permisos</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-o" onclick="refreshMixnetStatus()" title="Actualizar estado del puente">🔄 Actualizar</button>
+        <button class="btn-p" onclick="sendQuickCommand('crear_backup')" title="Crear snapshot preventivo inmediato">🛡️ Crear Backup</button>
+      </div>
+    </div>
+
+    <div class="admin-content" style="padding: 20px;">
+      
+      <!-- Tarjeta de Estado del Puente -->
+      <div class="mixnet-card">
+        <div class="mixnet-header">
+          <div>
+            <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Estado del Enlace Local (PC Cobranza)</h3>
+            <p style="margin:4px 0 0 0;font-size:12px;color:var(--theme-text-muted, #64748b)">Conexión nativa con archivos .DBF e índices .NTX en la unidad compartida</p>
+          </div>
+          <div id="bridgeStatusBadge" class="status-badge status-pending">
+            ⏳ Verificando puente...
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-top:10px">
+          <div style="padding:10px;background:var(--theme-item-bg, #f8fafc);border-radius:8px">
+            <div style="font-size:11px;color:var(--theme-text-muted, #64748b)">Estación Local:</div>
+            <strong style="font-size:14px;color:var(--theme-text-main, #0f172a)">PC Cobranza (Win 7)</strong>
+          </div>
+          <div style="padding:10px;background:var(--theme-item-bg, #f8fafc);border-radius:8px">
+            <div style="font-size:11px;color:var(--theme-text-muted, #64748b)">Unidad Detectada:</div>
+            <strong id="mixnetPathVal" style="font-size:14px;color:var(--theme-text-main, #0f172a)">M:\comp01</strong>
+          </div>
+          <div style="padding:10px;background:var(--theme-item-bg, #f8fafc);border-radius:8px">
+            <div style="font-size:11px;color:var(--theme-text-muted, #64748b)">Motor de Backup:</div>
+            <strong style="font-size:14px;color:#16a34a">Activo (Rollback 1-Clic)</strong>
+          </div>
+          <div style="padding:10px;background:var(--theme-item-bg, #f8fafc);border-radius:8px">
+            <div style="font-size:11px;color:var(--theme-text-muted, #64748b)">Cola de Tareas:</div>
+            <strong id="taskQueueVal" style="font-size:14px;color:var(--theme-text-main, #0f172a)">0 pendientes</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navegación por pestañas -->
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchMixnetTab('console')">💻 Consola & Asistente IA</button>
+        <button class="tab-btn" onclick="switchMixnetTab('users')">👥 Usuarios MixNet (MXUSUAR)</button>
+        <button class="tab-btn" onclick="switchMixnetTab('backups')">🛡️ Historial de Backups & Rollback</button>
+      </div>
+
+      <!-- Pestaña 1: Consola & Asistente IA -->
+      <div id="tab-console">
+        <div class="mixnet-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <span style="font-weight:700;font-size:14px;color:var(--theme-text-main, #0f172a)">Comandos Rápidos:</span>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="quick-cmd-btn" onclick="sendQuickCommand('list_users')">👥 Listar Usuarios</button>
+              <button class="quick-cmd-btn" onclick="sendQuickCommand('crear_backup')">🛡️ Backup Completo</button>
+              <button class="quick-cmd-btn" onclick="sendQuickCommand('status')">⚡ Diagnóstico LAN</button>
+              <button class="quick-cmd-btn" onclick="clearConsole()">🧹 Limpiar</button>
+            </div>
+          </div>
+
+          <div class="console-box" id="consoleOutput">JJ PAPER - TERMINAL DE CONTROL MIXNET ERP
+-----------------------------------------------------------
+Escribe un comando o una instrucción en lenguaje natural.
+Ejemplos:
+  - list_users
+  - backup_preventivo
+  - ¿Qué usuarios tienen permiso de anular en MixNet?
+-----------------------------------------------------------
+Listo para recibir órdenes...
+</div>
+
+          <div class="cmd-bar">
+            <input type="text" id="cmdInput" class="cmd-input" placeholder="Escribe comando o instrucción para la IA..." onkeydown="if(event.key==='Enter') executeCommand()">
+            <button class="btn-p" onclick="executeCommand()">Enviar</button>
+            <button class="btn-o" onclick="executeAiCommand()" title="Procesar con Gemini AI">✨ IA</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pestaña 2: Usuarios MixNet (MXUSUAR) -->
+      <div id="tab-users" style="display:none">
+        <div class="mixnet-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:15px">Usuarios y Permisos Administrativos (MXUSUAR.DBF)</h3>
+            <button class="btn-o sm" onclick="loadMixnetUsers()">🔄 Cargar Usuarios</button>
+          </div>
+          <div id="usersContainer" style="overflow-x:auto">
+            <p style="color:var(--theme-text-muted, #64748b);font-size:13px">Haz clic en 'Cargar Usuarios' para leer las cuentas directamente desde M:\comp01\MXUSUAR.DBF</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pestaña 3: Historial de Backups & Rollback -->
+      <div id="tab-backups" style="display:none">
+        <div class="mixnet-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:15px">Snapshots Preventivos & Restauración (Rollback)</h3>
+            <button class="btn-o sm" onclick="loadSnapshotsList()">🔄 Refrescar Lista</button>
+          </div>
+          <div id="snapshotsContainer" style="overflow-x:auto">
+            <p style="color:var(--theme-text-muted, #64748b);font-size:13px">Cargando snapshots...</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="../assets/js/admin/sidenav.js"></script>
+<script src="../assets/js/admin/mixnet.js"></script>
+</body>
+</html>

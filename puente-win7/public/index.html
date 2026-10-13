@@ -65,6 +65,7 @@
         <div style="display:flex;gap:6px;align-items:center;margin:6px 0">
           <input type="text" id="mixDirInput" value="M:\comp01" style="flex:1;padding:6px 8px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
           <button class="btn sm" onclick="saveMixDir()" title="Guardar y verificar ruta">💾 Probar</button>
+          <button class="btn sm" style="background:#475569" onclick="scanNetworkDrives()" id="btnScanNet" title="Escanear todas las unidades M:, C:, P:, D: en busca de MixNet">🔍 Auto-Detectar</button>
         </div>
         <div class="card-sub" id="mixConnSub">Verificando conexión...</div>
       </div>
@@ -241,6 +242,33 @@
         }
       } catch (e) {
         log('Error enviando ruta: ' + e.message);
+      }
+    }
+
+    async function scanNetworkDrives() {
+      const btn = document.getElementById('btnScanNet');
+      btn.disabled = true;
+      btn.textContent = '⏳ Escaneando...';
+      log('Iniciando escaneo universal de unidades de red y discos locales en busca de MixNet...');
+      try {
+        const res = await fetch('/api/scan-network', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok && data.found_count > 0) {
+          log(`✔ ¡MixNet detectado con éxito! Carpetas encontradas: ${data.directories.join(', ')}`);
+          log(`✔ Directorio activo configurado a: ${data.selected}`);
+          document.getElementById('mixDirInput').value = data.selected;
+          loadStatus();
+          loadUsers();
+          alert(`✔ MixNet detectado automáticamente en: ${data.selected}`);
+        } else {
+          log('⚠ No se encontraron bases de datos de MixNet en las unidades disponibles. Intenta montar la unidad de red.');
+          alert('No se detectaron carpetas con archivos DBF de MixNet en las unidades activas.');
+        }
+      } catch (e) {
+        log('❌ Error durante el escaneo: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Auto-Detectar';
       }
     }
 

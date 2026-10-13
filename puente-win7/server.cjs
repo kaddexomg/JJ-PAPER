@@ -105,7 +105,7 @@ function readDbfRows(struct, names = null, maxLimit = 50000) {
 
 function latin1Pad(str, len) {
   const b = Buffer.from(String(str || ''), 'latin1');
-  if (b.length >= len) return b.subarray(0, len);
+  if (b.length >= len) return b.slice(0, len);
   const out = Buffer.alloc(len, 0x20, 'latin1');
   b.copy(out, 0);
   return out;
@@ -539,10 +539,31 @@ const server = http.createServer(async (req, res) => {
 });
 
 const PORT = config.port || 3300;
+
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[ERROR] El puerto ${PORT} ya esta siendo utilizado por otro proceso.`);
+    console.error(`Cierra la otra ventana del puente o ejecuta: taskkill /F /IM node.exe\n`);
+  } else {
+    console.error(`\n[ERROR DE SERVIDOR]:`, err.message);
+  }
+  process.exit(1);
+});
+
+process.on('uncaughtException', err => {
+  console.error(`\n[EXCEPCION NO CAPTURADA]:`, err.message);
+  console.error(err.stack);
+});
+
+process.on('unhandledRejection', reason => {
+  console.error(`\n[PROMESA RECHAZADA]:`, reason);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
-  console.log(`  JJ PAPER — Micro-Puente MixNet ERP (Windows 7)`);
+  console.log(`  JJ PAPER -- Micro-Puente MixNet ERP (Windows 7)`);
   console.log(`  Escuchando en: http://localhost:${PORT}`);
   console.log(`  Ruta MixNet:  ${config.mixnet_dir}`);
   console.log(`====================================================`);
+  console.log(`[OK] Puente activo y listo para sincronizar.`);
 });

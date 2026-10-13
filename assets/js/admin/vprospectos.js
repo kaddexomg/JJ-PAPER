@@ -55,33 +55,176 @@ async function loadProspects() {
   }
 }
 
+let currentMacroSector = 'todos';
+
 /* --------------------------------------------------------------------------
-   2. Renderizado de Filtros y Chips de Sectores
+   Parser y Formateador Inteligente de Teléfonos Venezolanos
+   - Soporta teléfonos de 11 dígitos estándar (0212, 0244, 0414, 0412, etc.)
+   - Separa números concatenados de 22+ dígitos provenientes de hojas de cálculo
+   - Identifica líneas celulares venezolanas para WhatsApp con 1-clic
+   -------------------------------------------------------------------------- */
+function parseProspectPhones(p) {
+  if (!p) return [];
+  const rawList = [];
+  if (p.phone_1) rawList.push(String(p.phone_1));
+  if (p.phone_2) rawList.push(String(p.phone_2));
+  if (p.phone && p.phone !== p.phone_1 && p.phone !== p.phone_2) rawList.push(String(p.phone));
+
+  const cleaned = [];
+
+  for (const raw of rawList) {
+    // Si viene separado por /, comas, ; o texto
+    const parts = raw.split(/[\/,;|\n]+|\s+y\s+|\s*-\s*(?=[0-9]{4})/i);
+    for (let part of parts) {
+      part = part.trim();
+      if (!part) continue;
+
+      const digits = part.replace(/\D/g, '');
+      if (!digits) continue;
+
+      // Caso especial común en Sheets: 2 teléfonos venezolanos pegados (22 dígitos: "0244447800802444479208")
+      if (digits.length === 22 && digits.startsWith('0')) {
+        cleaned.push(digits.slice(0, 11));
+        cleaned.push(digits.slice(11, 22));
+        continue;
+      }
+      if (digits.length === 24 && digits.startsWith('58')) {
+        cleaned.push('0' + digits.slice(2, 12));
+        cleaned.push('0' + digits.slice(14, 24));
+        continue;
+      }
+      if (digits.length > 20) {
+        let offset = 0;
+        while (offset + 10 <= digits.length) {
+          const chunk = digits.slice(offset, offset + 11);
+          if (chunk.length >= 10) cleaned.push(chunk.startsWith('0') ? chunk : '0' + chunk);
+          offset += 11;
+        }
+        continue;
+      }
+
+      // Normalizar número individual
+      let norm = digits;
+      if (norm.startsWith('58') && norm.length === 12) {
+        norm = '0' + norm.slice(2);
+      } else if (norm.length === 10 && !norm.startsWith('0')) {
+        norm = '0' + norm;
+      }
+      if (norm.length >= 10) {
+        cleaned.push(norm);
+      }
+    }
+  }
+
+  // Deduplicar números
+  const unique = Array.from(new Set(cleaned));
+
+  return unique.map(num => {
+    // Es celular venezolano: 0412, 0414, 0424, 0416, 0426
+    const isMobile = /^0?4(12|14|24|16|26)\d{7}$/.test(num);
+    let display = num;
+    if (num.length === 11 && num.startsWith('0')) {
+      display = `${num.slice(0, 4)}-${num.slice(4)}`;
+    }
+
+    let intl = num;
+    if (intl.startsWith('0')) intl = '58' + intl.slice(1);
+    else if (!intl.startsWith('58')) intl = '58' + intl;
+
+    return {
+      raw: num,
+      display: display,
+      isMobile: isMobile,
+      waUrl: `https://wa.me/${intl}`,
+      telUrl: `tel:${num}`
+    };
+  });
+}
+
+/* Parser y Formateador Inteligente de Correos Electrónicos */
+function parseProspectEmails(emailStr) {
+  if (!emailStr) return [];
+  const parts = String(emailStr).split(/[\/,;|\s]+/);
+  const valid = [];
+  for (const part of parts) {
+    const cleaned = part.trim().toLowerCase();
+    if (cleaned && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) {
+      if (!valid.includes(cleaned)) valid.push(cleaned);
+    }
+  }
+  return valid;
+}
+
+/* Macro-Sectores para filtrado agrupado rápido */
+const MACRO_SECTORS = {
+  salud: ['salud', 'clinic', 'clínic', 'medic', 'médic', 'farmac', 'droguer', 'laborator', 'aps', 'odontol'],
+  industrial: ['industr', 'químic', 'fabric', 'manufact', 'agroindustr', 'empaque'],
+  banca: ['banc', 'segur', 'fintech', 'fianz', 'bpo', 'call center'],
+  educacion: ['educac', 'coleg', 'escuel', 'univers', 'institut', 'fe y alegría'],
+  comercio: ['comercio', 'retail', 'panader', 'supermerc', 'minimarket', 'restauran', 'franquicia'],
+  logistica: ['logístic', 'courier', 'transporte', 'carga', 'aduan', 'encomienda', 'zoom']
+};
+
+function matchesMacroSector(sectorName, macro) {
+  if (!macro || macro === 'todos') return true;
+  const keywords = MACRO_SECTORS[macro];
+  if (!keywords) return true;
+  const s = String(sectorName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return keywords.some(k => s.includes(k));
+}
+
+/* --------------------------------------------------------------------------
+   2. Renderizado de Filtros de Sectores
    -------------------------------------------------------------------------- */
 function renderSectorFilterChips() {
-  const container = document.getElementById('sectorChipsContainer');
-  if (!container) return;
+  populateSectorSelect();
+}
 
-  const sectors = new Set();
+function populateSectorSelect() {
+  const sel = document.getElementById('sectorSelect');
+  if (!sel) return;
+
+  const sectorCounts = {};
   prospectsList.forEach(p => {
-    if (p.sector && p.sector.trim()) sectors.add(p.sector.trim());
+    const s = (p.sector && p.sector.trim()) ? p.sector.trim() : 'Otro';
+    sectorCounts[s] = (sectorCounts[s] || 0) + 1;
   });
 
-  const sortedSectors = Array.from(sectors).sort();
+  const sortedSectors = Object.keys(sectorCounts).sort((a, b) => a.localeCompare(b));
 
-  let html = `<button class="of-chip ${currentSectorFilter === 'todos' ? 'on' : ''}" onclick="setSectorFilter('todos')">🌐 Todos (${prospectsList.length})</button>`;
-  
+  let html = `<option value="todos">🌐 Todos los Sectores (${prospectsList.length} cuentas)</option>`;
   sortedSectors.forEach(s => {
-    const count = prospectsList.filter(p => p.sector === s).length;
-    html += `<button class="of-chip ${currentSectorFilter === s ? 'on' : ''}" onclick="setSectorFilter('${escapeHTML(s)}')">${escapeHTML(s)} (${count})</button>`;
+    const isSelected = (currentSectorFilter === s);
+    html += `<option value="${escapeHTML(s)}" ${isSelected ? 'selected' : ''}>${escapeHTML(s)} (${sectorCounts[s]})</option>`;
   });
 
-  container.innerHTML = html;
+  sel.innerHTML = html;
+  sel.value = currentSectorFilter;
 }
 
 function setSectorFilter(sector) {
   currentSectorFilter = sector;
-  renderSectorFilterChips();
+  if (sector !== 'todos') {
+    currentMacroSector = 'todos';
+    document.querySelectorAll('#macroSectorChips .of-chip').forEach(c => c.classList.remove('on'));
+    document.querySelector('#macroSectorChips .of-chip[data-macro="todos"]')?.classList.add('on');
+  }
+  const sel = document.getElementById('sectorSelect');
+  if (sel) sel.value = sector;
+  applyProspectFilters();
+}
+
+function setMacroSector(macro) {
+  currentMacroSector = macro;
+  document.querySelectorAll('#macroSectorChips .of-chip').forEach(c => {
+    c.classList.toggle('on', c.dataset.macro === macro);
+  });
+
+  if (macro !== 'todos') {
+    currentSectorFilter = 'todos';
+    const sel = document.getElementById('sectorSelect');
+    if (sel) sel.value = 'todos';
+  }
   applyProspectFilters();
 }
 
@@ -97,10 +240,15 @@ function applyProspectFilters() {
   const q = (document.getElementById('prospectSearchInput')?.value || '').trim().toLowerCase();
 
   filteredProspects = prospectsList.filter(p => {
-    // Filtro de sector
+    // 1. Filtro por macro-sector (si está activo)
+    if (currentMacroSector !== 'todos' && !matchesMacroSector(p.sector, currentMacroSector)) {
+      return false;
+    }
+
+    // 2. Filtro de sector específico
     if (currentSectorFilter !== 'todos' && p.sector !== currentSectorFilter) return false;
 
-    // Filtro de estado
+    // 3. Filtro de estado
     if (currentStatusFilter !== 'todos') {
       if (currentStatusFilter === 'nuevo' && (p.status !== 'nuevo' && p.status !== 'pendiente' && (p.contact_count > 0 || p.contacted))) return false;
       if (currentStatusFilter === 'analizado' && p.status !== 'analizado_ia' && p.status !== 'borrador_creado') return false;
@@ -114,20 +262,28 @@ function applyProspectFilters() {
       if (currentStatusFilter === 'ganado' && p.status !== 'ganado' && !p.converted_customer_id) return false;
     }
 
-    // Buscador general
+    // 4. Buscador omni-canal
     if (q) {
       const matchComp = (p.company_name || '').toLowerCase().includes(q);
       const matchCont = (p.contact_name || '').toLowerCase().includes(q);
       const matchRole = (p.contact_role || '').toLowerCase().includes(q);
-      const matchTel = (p.phone_1 || '').includes(q) || (p.phone_2 || '').includes(q);
-      const matchEmail = (p.email || '').toLowerCase().includes(q);
+      const matchSect = (p.sector || '').toLowerCase().includes(q);
+      const phones = parseProspectPhones(p);
+      const matchTel = phones.some(ph => ph.raw.includes(q) || ph.display.includes(q));
+      const emails = parseProspectEmails(p.email);
+      const matchEmail = emails.some(em => em.includes(q));
       const matchAddr = (p.address || '').toLowerCase().includes(q);
       const matchNotes = (p.notes || '').toLowerCase().includes(q);
-      return matchComp || matchCont || matchRole || matchTel || matchEmail || matchAddr || matchNotes;
+      return matchComp || matchCont || matchRole || matchSect || matchTel || matchEmail || matchAddr || matchNotes;
     }
 
     return true;
   });
+
+  const countBadge = document.getElementById('prospectCountBadge');
+  if (countBadge) {
+    countBadge.textContent = `${filteredProspects.length} ${filteredProspects.length === 1 ? 'cuenta' : 'cuentas'}`;
+  }
 
   prospectsPage = 1;
   renderProspectsTable();
@@ -209,10 +365,47 @@ function renderProspectsTable() {
 
     const contactDisplay = p.contact_name || (p.contact_role ? `<em>${escapeHTML(p.contact_role)}</em>` : '<span style="color:#94a3b8">No indicado</span>');
     const roleDisplay = p.contact_name && p.contact_role ? `<div style="font-size:11.5px;color:#64748b">${escapeHTML(p.contact_role)}</div>` : '';
-    const p1Html = p.phone_1 ? `<div style="font-weight:700;font-size:12px"><span style="font-size:11px;opacity:0.7">📞</span> ${escapeHTML(p.phone_1)}</div>` : '';
-    const p2Html = p.phone_2 ? `<div style="font-weight:700;font-size:12px;color:#059669;margin-top:2px"><span style="font-size:11px;opacity:0.7">📱</span> ${escapeHTML(p.phone_2)}</div>` : '';
-    const phoneDisplay = (p1Html || p2Html) ? `${p1Html}${p2Html}` : '<span style="color:#94a3b8">Sin teléfono</span>';
-    const emailDisplay = p.email ? `<div style="font-size:11.5px;color:#2563eb;margin-top:2px">${escapeHTML(p.email)}</div>` : '';
+
+    // Teléfonos limpios y desglosados
+    const phones = parseProspectPhones(p);
+    let phoneDisplay = '';
+    if (phones.length > 0) {
+      phoneDisplay = phones.map(ph => {
+        if (ph.isMobile) {
+          return `
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+              <a href="${ph.telUrl}" style="font-weight:700;font-size:12px;color:#047857;text-decoration:none;display:inline-flex;align-items:center;gap:3px" title="Llamar a ${ph.display}">
+                <span>📱</span> ${escapeHTML(ph.display)}
+              </a>
+              <a href="${ph.waUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:2px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px;text-decoration:none" title="Abrir chat de WhatsApp directo">
+                WA
+              </a>
+            </div>`;
+        } else {
+          return `
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+              <a href="${ph.telUrl}" style="font-weight:700;font-size:12px;color:var(--theme-text-main, #334155);text-decoration:none;display:inline-flex;align-items:center;gap:3px" title="Llamar a ${ph.display}">
+                <span>📞</span> ${escapeHTML(ph.display)}
+              </a>
+            </div>`;
+        }
+      }).join('');
+    } else {
+      phoneDisplay = '<div style="color:#94a3b8;font-size:11.5px">Sin teléfono</div>';
+    }
+
+    // Correos limpios y desglosados
+    const emails = parseProspectEmails(p.email);
+    let emailDisplay = '';
+    if (emails.length > 0) {
+      emailDisplay = emails.map(em => `
+        <div style="margin-top:2px">
+          <a href="mailto:${em}" style="font-size:11.5px;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:3px;word-break:break-all" title="Escribir a ${em}">
+            <span>✉️</span> ${escapeHTML(em)}
+          </a>
+        </div>
+      `).join('');
+    }
 
     return `
       <tr class="prospect-row ${hasAi ? 'row-analyzed' : ''}">
@@ -306,12 +499,14 @@ function prospectsGoPage(p) {
 function openPhoneDialerForProspect(prospectId) {
   const p = prospectsList.find(x => x.id === prospectId);
   if (!p) return;
+  const phones = parseProspectPhones(p);
+  const targetPhone = phones[0]?.raw || p.phone_1 || p.phone_2;
   if (typeof JJDialer !== 'undefined') {
     JJDialer.open({
       id: p.id,
       name: p.contact_name,
       company: p.company_name,
-      phone: p.phone_1 || p.phone_2,
+      phone: targetPhone,
       type: 'prospect'
     });
   } else {
@@ -651,7 +846,9 @@ function openWaModalForProspect(prospectId) {
   currentEditingProspectId = prospectId;
   closeProspectDetailModal();
 
-  const phone = p.phone_2 || p.phone_1 || '';
+  const phones = parseProspectPhones(p);
+  const bestPhoneObj = phones.find(ph => ph.isMobile) || phones[0];
+  const phone = bestPhoneObj ? bestPhoneObj.raw : '';
   const body = p.custom_wa_body || `{Hola|Buen día} ${p.contact_name || 'responsable de compras'} 👋, un cordial saludo de ${KEYDER_PROFILE.name} de JJ Paper...`;
 
   document.getElementById('pwmPhone').value = phone;

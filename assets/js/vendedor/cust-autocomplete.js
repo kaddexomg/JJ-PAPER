@@ -1,12 +1,24 @@
 /* ======================================================
-   JJ Paper Vendedor — Autocompletado de cliente
-   Enlazado al campo "Nombre / empresa" del POS y del
-   cotizador: al escribir muestra abajo los clientes que
-   coinciden (por nombre o teléfono) y al elegir uno
-   rellena los demás campos vía el callback de cada página.
+   JJ Paper Vendedor — Autocompletado y Búsqueda de Cliente
+   Soporte nativo para Códigos MixNet (00, 008-872, etc.),
+   RIF, Razón Social/Nombre y Teléfono.
    ====================================================== */
 
 let custAc = { timer: null, results: {}, sel: -1 };
+
+/**
+ * Extrae el código MixNet desde el campo notes o propiedades del cliente
+ */
+function custAcExtractMixCode(c) {
+  if (!c) return '';
+  if (c.mixnet_code) return String(c.mixnet_code).trim();
+  if (c.rif === '00' || c.is_recuperada || /recuperad/i.test(c.name || '')) return '00';
+  if (c.notes) {
+    const m = c.notes.match(/(?:codigo\s*mixnet|mixnet):\s*([0-9A-Za-z-]+)/i);
+    if (m) return m[1].trim();
+  }
+  return '';
+}
 
 function custAcBind(opts) {
   const input = document.getElementById(opts.nameId);
@@ -21,7 +33,21 @@ function custAcBind(opts) {
     if (opts.onChange) opts.onChange();
   });
   input.addEventListener('keydown', e => custAcKey(e, opts));
-  input.addEventListener('blur', () => setTimeout(() => custAcHide(opts.boxId), 150));
+
+  // Evitar que mousedown en el dropdown o scrollbar desenfoque el input y cierre el menú
+  box.addEventListener('mousedown', e => {
+    e.stopPropagation();
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      // Solo ocultar si el foco no está dentro del dropdown
+      if (!box.contains(document.activeElement)) {
+        custAcHide(opts.boxId);
+      }
+    }, 220);
+  });
+
   document.addEventListener('mousedown', e => {
     if (e.target !== input && !box.contains(e.target)) custAcHide(opts.boxId);
   });
@@ -30,17 +56,26 @@ function custAcBind(opts) {
 async function custAcSearch(nameId, boxId, opts) {
   const input = document.getElementById(nameId);
   const box   = document.getElementById(boxId);
-  const q     = input.value.trim();
-  if (q.length < ((opts && opts.minLen) || 2)) { custAcHide(boxId); return; }
+  let rawQ    = (input?.value || '').trim();
+  // Limpiar corchetes que puedan venir del auto-relleno como "[003-251] LA LIBROTECA"
+  const bracketMatch = rawQ.match(/^\[([0-9A-Za-z-]+)\]\s*(.*)$/);
+  const q = (bracketMatch ? (bracketMatch[2] || bracketMatch[1]) : rawQ).trim();
+  const searchCode = bracketMatch ? bracketMatch[1] : q;
+
+  if (q.length < ((opts && opts.minLen) || 1)) { custAcHide(boxId); return; }
   clearTimeout(custAc.timer);
   custAc.timer = setTimeout(async () => {
     const digits = q.replace(/\D/g, '');
+    const cleanQ = q.replace(/[%_,[\]()]/g, ' ').trim();
     const orParts = [
-      `name.ilike.%${q}%`,
-      `rif.ilike.%${q}%`,
-      `notes.ilike.%${q}%`
+      `name.ilike.%${cleanQ}%`,
+      `rif.ilike.%${cleanQ}%`,
+      `notes.ilike.%${cleanQ}%`
     ];
-    if (digits && digits.length >= 3) {
+    if (searchCode && searchCode !== cleanQ) {
+      orParts.push(`notes.ilike.%${searchCode}%`);
+    }
+    if (digits && digits.length >= 2) {
       orParts.push(`phone.ilike.%${digits}%`);
     }
     const or = orParts.join(',');
@@ -63,23 +98,28 @@ async function custAcSearch(nameId, boxId, opts) {
       query = query.neq('zone', '020');
     }
 
-    const { data, error } = await query.limit((opts && opts.limit) || 8);
+    const { data, error } = await query.limit((opts && opts.limit) || 15);
     if (error) { console.error('autocompletado cliente:', error); custAcHide(boxId); return; }
-    
-    // Función auxiliar para extraer código MixNet de notes
-    const getMixCode = (notes) => {
-      if (!notes) return '';
-      const m = notes.match(/(?:codigo\s*mixnet|mixnet):\s*([0-9A-Za-z-]+)/i);
-      return m ? m[1].trim() : '';
-    };
 
-    const isRecuperadaQuery = q === '00' || /recuperad/i.test(q);
+    const isRecuperadaQuery = q === '00' || q === '0' || /recuperad/i.test(q);
     const results = (data || []).map(c => ({
       ...c,
-      mixnet_code: getMixCode(c.notes)
+      mixnet_code: custAcExtractMixCode(c)
     }));
 
-    // Si busca 00 o cuenta recuperada, o si no hay clientes, asegurar opción de Cuenta Recuperada
+    // Priorizar coincidencia exacta o por inicio de código MixNet
+    const targetCodeLow = (searchCode || q).toLowerCase();
+    results.sort((a, b) => {
+      const aCode = (a.mixnet_code || '').toLowerCase();
+      const bCode = (b.mixnet_code || '').toLowerCase();
+      if (aCode === targetCodeLow && bCode !== targetCodeLow) return -1;
+      if (bCode === targetCodeLow && aCode !== targetCodeLow) return 1;
+      if (aCode.startsWith(targetCodeLow) && !bCode.startsWith(targetCodeLow)) return -1;
+      if (bCode.startsWith(targetCodeLow) && !aCode.startsWith(targetCodeLow)) return 1;
+      return 0;
+    });
+
+    // Opción oficial MixNet de Cuenta Recuperada (Código 00)
     const cuentaRecuperadaOption = {
       id: null,
       name: 'CUENTA RECUPERADA',
@@ -101,11 +141,11 @@ async function custAcSearch(nameId, boxId, opts) {
 
     if (!results.length) {
       box.innerHTML = `
-        <div style="padding:10px 12px;font-size:12px;color:var(--gr)">
-          <div>No está en tu clientela asignada.</div>
-          <button type="button" class="btn sm" style="margin-top:6px;width:100%;background:var(--p);color:#fff"
+        <div style="padding:14px 16px;font-size:12.5px;color:var(--gr)">
+          <div>No se encontró ningún cliente registrado con ese código, RIF o nombre.</div>
+          <button type="button" class="btn sm" style="margin-top:10px;width:100%;background:var(--p, #16604a);color:#fff;font-weight:700"
                   onmousedown="custAcPickRecuperada('${boxId}')">
-            ⚡ Usar Cuenta Recuperada (Código 00 - MixNet)
+            ⚡ Usar Cuenta Recuperada (Código Oficial MixNet: [00])
           </button>
         </div>`;
       box.style.display = 'block';
@@ -113,31 +153,37 @@ async function custAcSearch(nameId, boxId, opts) {
     }
 
     box.innerHTML = results.map((c, i) => {
-      const codeBadge = c.mixnet_code ? `<span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;margin-right:6px">MixNet: ${escapeHTML(c.mixnet_code)}</span>` : '';
-      const rifBadge = c.rif ? `<span style="font-size:11px;color:var(--gm);font-weight:600;margin-right:6px">${escapeHTML(c.rif)}</span>` : '';
-      const isRec = c.is_recuperada || c.mixnet_code === '00';
+      const code = c.mixnet_code || (c.rif === '00' ? '00' : '');
+      const isRec = c.is_recuperada || code === '00' || c.rif === '00';
+      const badgeStyle = isRec
+        ? 'background:#fef3c7;color:#b45309;border:1px solid #fde68a'
+        : (code ? 'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd' : 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1');
+      const codeBadge = code ? `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:800;${badgeStyle}">MixNet: [${escapeHTML(code)}]</span>` : '';
+      const rifBadge = c.rif ? `<span style="font-size:11px;color:var(--gm, #475569);font-weight:700;margin-right:6px">RIF: ${escapeHTML(c.rif)}</span>` : '';
+
       return `
       <div class="pos-result cust-ac-item ${isRec ? 'recuperada-item' : ''}" data-i="${i}"
-           style="${isRec ? 'background:rgba(245, 158, 11, 0.08);border-left:3px solid #f59e0b;' : ''}"
+           style="cursor:pointer;padding:10px 14px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9);display:flex;align-items:center;gap:12px;transition:background .1s ease;${isRec ? 'background:rgba(245, 158, 11, 0.06);border-left:4px solid #f59e0b;' : ''}"
            onmouseover="custAcHover('${boxId}',${i})"
            onmousedown="custAcPick('${boxId}',${i})">
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px">
+        <div style="font-size:18px;flex:none">${isRec ? '⚡' : '🏢'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13.5px;font-weight:700;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             ${codeBadge}
-            <span>${escapeHTML(c.name)}</span>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(c.name)}</span>
           </div>
-          <div style="font-size:11px;color:var(--gr);margin-top:2px">
+          <div style="font-size:11.5px;color:var(--theme-text-muted, #64748b);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">
             ${rifBadge}
-            ${c.phone ? '· Tel: ' + escapeHTML(c.phone) : ''}
-            ${c.city ? ' · ' + escapeHTML(c.city) : ''}
+            ${c.phone && c.phone !== '00000000000' ? `<span>📞 ${escapeHTML(c.phone)}</span>` : ''}
+            ${c.city ? `<span>📍 ${escapeHTML(c.city)}</span>` : ''}
           </div>
         </div>
-        <span class="btn-o sm">${isRec ? '⚡ Usar 00' : 'Elegir'}</span>
+        <button type="button" class="btn-o sm" style="flex:none;font-weight:700;border-radius:6px;padding:3px 10px">${isRec ? 'Usar [00]' : 'Seleccionar'}</button>
       </div>`;
     }).join('');
 
     box.style.display = 'block';
-  }, 250);
+  }, 200);
 }
 
 function custAcPickRecuperada(boxId) {
@@ -163,8 +209,12 @@ function custAcPickRecuperada(boxId) {
 function custAcHover(boxId, i) {
   custAc.sel = i;
   const box = document.getElementById(boxId);
-  box.querySelectorAll('.cust-ac-item').forEach(el =>
-    el.classList.toggle('on', Number(el.dataset.i) === i));
+  if (!box) return;
+  box.querySelectorAll('.cust-ac-item').forEach(el => {
+    const isSelected = Number(el.dataset.i) === i;
+    el.classList.toggle('on', isSelected);
+    el.style.background = isSelected ? 'var(--theme-bg-surface-solid, #f1f5f9)' : '';
+  });
 }
 
 function custAcPick(boxId, i) {
@@ -173,31 +223,51 @@ function custAcPick(boxId, i) {
   if (c && custAc.handlers && custAc.handlers[boxId]) {
     custAc.handlers[boxId](c);
     const se = document.getElementById('posSearch');
-    if (se) se.focus();
+    if (se) {
+      setTimeout(() => { se.focus(); se.select(); }, 50);
+    }
   }
 }
 
 function custAcKey(e, opts) {
-  if (e.key === 'Escape') {
-    custAcHide(opts.boxId);
-    const se = document.getElementById('posSearch');
-    if (se) se.focus();
+  const box = document.getElementById(opts.boxId);
+  if (!box || box.style.display === 'none') {
+    if (e.key === 'ArrowDown') {
+      custAcSearch(opts.nameId, opts.boxId, opts);
+    }
     return;
   }
-  const items = document.getElementById(opts.boxId).querySelectorAll('.cust-ac-item');
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    custAcHide(opts.boxId);
+    return;
+  }
+
+  const items = box.querySelectorAll('.cust-ac-item');
   if (!items.length) return;
+
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     custAc.sel = Math.min(custAc.sel + 1, items.length - 1);
     custAcHover(opts.boxId, custAc.sel);
+    items[custAc.sel]?.scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     custAc.sel = Math.max(custAc.sel - 1, 0);
     custAcHover(opts.boxId, custAc.sel);
+    items[custAc.sel]?.scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'Enter') {
     e.preventDefault();
     const idx = custAc.sel >= 0 ? custAc.sel : 0;
     custAcPick(opts.boxId, idx);
+  } else if (e.key === 'Tab') {
+    if (custAc.sel >= 0) {
+      e.preventDefault();
+      custAcPick(opts.boxId, custAc.sel);
+    } else {
+      custAcHide(opts.boxId);
+    }
   }
 }
 
@@ -206,79 +276,4 @@ function custAcHide(boxId) {
   if (!box) return;
   box.innerHTML = '';
   box.style.display = 'none';
-}
-
-/**
- * Renderiza la tarjeta de cliente seleccionado en la vista
- * Oculta el buscador y muestra la tarjeta con datos limpios
- */
-function custAcRenderCard(c, opts) {
-  if (!opts) return;
-  const cardEl = document.getElementById(opts.cardId);
-  const wrapEl = document.getElementById(opts.inputWrapId);
-  if (!cardEl) return;
-
-  if (!c) {
-    cardEl.innerHTML = '';
-    cardEl.style.display = 'none';
-    if (wrapEl) wrapEl.style.display = 'block';
-    return;
-  }
-
-  const code = c.mixnet_code || (c.notes && c.notes.match(/(?:codigo\s*mixnet|mixnet):\s*([0-9A-Za-z-]+)/i)?.[1]) || (c.rif === '00' ? '00' : '');
-  const isRec = c.is_recuperada || code === '00' || c.rif === '00';
-  const badgeStyle = isRec
-    ? 'background:#fef3c7;color:#b45309;border:1px solid #fde68a'
-    : (code ? 'background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd' : 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1');
-
-  const codeBadge = code ? `<span style="font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;${badgeStyle}">MixNet: [${escapeHTML(code)}]</span>` : `<span style="font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px;${badgeStyle}">Cliente</span>`;
-
-  cardEl.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03)">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0">
-        <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none">
-          ${isRec ? '⚡' : '🏢'}
-        </div>
-        <div style="min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            ${codeBadge}
-            <strong style="font-size:14px;color:var(--theme-text-main, #0f172a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(c.name || 'Sin nombre')}</strong>
-          </div>
-          <div style="font-size:12px;color:var(--theme-text-muted, #64748b);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">
-            ${c.rif ? `<span><strong>RIF:</strong> ${escapeHTML(c.rif)}</span>` : ''}
-            ${c.phone && c.phone !== '00000000000' ? `<span><strong>Tel:</strong> ${escapeHTML(c.phone)}</span>` : ''}
-            ${c.city ? `<span><strong>Ciudad:</strong> ${escapeHTML(c.city)}</span>` : ''}
-          </div>
-        </div>
-      </div>
-      <div style="flex:none">
-        <button type="button" class="btn-o sm" onclick="${opts.onResetFn || 'quoteResetCustomer()'}" title="Cambiar de cliente (Esc o F3)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:5px 12px">
-          ✏️ Cambiar <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:1px 5px;border-radius:4px;font-size:10px">Esc</kbd>
-        </button>
-      </div>
-    </div>
-  `;
-
-  if (wrapEl) wrapEl.style.display = 'none';
-  cardEl.style.display = 'block';
-}
-
-/**
- * Restaura el campo de búsqueda de cliente y le devuelve el foco
- */
-function custAcShowInput(opts) {
-  if (!opts) return;
-  const cardEl = document.getElementById(opts.cardId);
-  const wrapEl = document.getElementById(opts.inputWrapId);
-  const inputEl = document.getElementById(opts.inputId);
-  if (cardEl) {
-    cardEl.innerHTML = '';
-    cardEl.style.display = 'none';
-  }
-  if (wrapEl) wrapEl.style.display = 'block';
-  if (inputEl) {
-    inputEl.value = '';
-    inputEl.focus();
-    inputEl.select();
-  }
 }

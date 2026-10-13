@@ -83,20 +83,35 @@ async function quoteCargarCliente(id) {
 function quotePickCustomer(c) {
   quoteCustomer = c;
   const set = (campo, v) => { const el = document.getElementById(campo); if (el) el.value = v || ''; };
-  set('qCliName', c.name);
-  set('qCliTel', c.phone);
-  set('qCliRif', c.rif);
-  set('qCliCity', c.city);
+  const mixCode = (typeof custAcExtractMixCode === 'function' ? custAcExtractMixCode(c) : '') || c.mixnet_code || (c.rif === '00' ? '00' : '');
 
-  if (typeof custAcRenderCard === 'function') {
-    custAcRenderCard(c, {
-      cardId: 'qCliSelectedCard',
-      inputWrapId: 'qCliSearchWrap',
-      onResetFn: 'quoteResetCustomer()'
-    });
+  set('qCliCode', mixCode);
+  set('qCliName', c.name || '');
+  set('qCliTel', (c.phone && c.phone !== '00000000000') ? c.phone : (c.rif === '00' ? '00000000000' : ''));
+  set('qCliRif', c.rif || '');
+  set('qCliCity', c.city || c.address || '');
+  set('qCliSearch', `${mixCode ? `[${mixCode}] ` : ''}${c.name || ''}`);
+
+  const badgeEl = document.getElementById('qCliBadge');
+  if (badgeEl) {
+    if (mixCode) {
+      badgeEl.textContent = `MixNet: [${mixCode}]`;
+      badgeEl.style.display = 'inline-block';
+      if (mixCode === '00') {
+        badgeEl.style.background = '#fef3c7';
+        badgeEl.style.color = '#b45309';
+        badgeEl.style.border = '1px solid #fde68a';
+      } else {
+        badgeEl.style.background = '#e0f2fe';
+        badgeEl.style.color = '#0369a1';
+        badgeEl.style.border = '1px solid #bae6fd';
+      }
+    } else {
+      badgeEl.style.display = 'none';
+    }
   }
 
-  showToast(`Cliente asignado: ${c.name}`);
+  showToast(`Cliente asignado: ${c.name} ${mixCode ? `[MixNet: ${mixCode}]` : ''}`);
   const se = document.getElementById('posSearch');
   if (se) {
     setTimeout(() => { se.focus(); se.select(); }, 60);
@@ -105,19 +120,42 @@ function quotePickCustomer(c) {
 
 function quoteResetCustomer() {
   quoteCustomer = null;
-  ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity'].forEach(id => {
+  ['qCliCode', 'qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qCliSearch'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  if (typeof custAcShowInput === 'function') {
-    custAcShowInput({
-      cardId: 'qCliSelectedCard',
-      inputWrapId: 'qCliSearchWrap',
-      inputId: 'qCliSearch'
-    });
-  } else {
-    const sc = document.getElementById('qCliSelectedCard'); if (sc) sc.style.display = 'none';
-    const sw = document.getElementById('qCliSearchWrap'); if (sw) sw.style.display = 'block';
-    const cs = document.getElementById('qCliSearch'); if (cs) { cs.value = ''; cs.focus(); }
+  const badgeEl = document.getElementById('qCliBadge');
+  if (badgeEl) badgeEl.style.display = 'none';
+  const cs = document.getElementById('qCliSearch');
+  if (cs) { cs.value = ''; cs.focus(); }
+}
+
+async function quoteOnCodeChange(val) {
+  const code = (val || '').trim();
+  if (!code) return;
+  if (code === '00' || code === '0') {
+    setCuentaRecuperada();
+    return;
+  }
+  // Intentar búsqueda directa del código en la base de datos
+  try {
+    const cleanCode = code.replace(/[%_,[\]()]/g, ' ').trim();
+    const { data: matches } = await sb.from('jjp_customers')
+      .select('id,name,phone,rif,city,address,notes,total_orders,total_usd,seller_id,zone')
+      .or(`notes.ilike.%${cleanCode}%,rif.ilike.%${cleanCode}%`)
+      .limit(5);
+
+    if (matches && matches.length === 1) {
+      quotePickCustomer(matches[0]);
+      return;
+    }
+  } catch (err) {
+    console.warn('Error en búsqueda directa de código de cliente:', err);
+  }
+
+  const cs = document.getElementById('qCliSearch');
+  if (cs) {
+    cs.value = code;
+    custAcSearch('qCliSearch', 'qCliNameResults', { minLen: 1 });
   }
 }
 
@@ -128,12 +166,13 @@ function setCuentaRecuperada() {
     rif: '00',
     phone: '00000000000',
     city: 'Caracas',
+    address: '',
     notes: 'Cliente no registrado en MixNet (Código 00)',
     mixnet_code: '00',
     is_recuperada: true
   };
   quotePickCustomer(cRec);
-  showToast('⚡ Cliente 00 (Cuenta Recuperada) aplicado para MixNet');
+  showToast('⚡ Cliente Oficial MixNet [00] (Cuenta Recuperada) aplicado');
 }
 
 function setConsumidorFinal() {
@@ -143,12 +182,12 @@ function setConsumidorFinal() {
     rif: 'V-00000000',
     phone: '00000000000',
     city: 'Mostrador',
-    notes: 'Mostrador / Consumidor Final',
+    notes: 'Venta rápida de mostrador',
     mixnet_code: '00',
-    is_recuperada: true
+    is_recuperada: false
   };
   quotePickCustomer(cFin);
-  showToast('Mostrador / Consumidor Final aplicado');
+  showToast('⚡ Mostrador / Consumidor Final aplicado');
 }
 
 function posOnScan(code) {
@@ -268,30 +307,31 @@ function posUpdateName(key, newName) {
   }
 }
 
-/* --- buscador de productos (Command Bar con Dropdown Flotante) --- */
+/* --- buscador de productos (Panel Integrado del Catálogo) --- */
 function posSearch() {
   const se = document.getElementById('posSearch');
   const q = se ? se.value.trim() : '';
   const box = document.getElementById('posResults');
+  if (!box) return;
   if (!q) {
-    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
-    posResultsList = [];
+    posResultsList = (posProducts || []).slice(0, 40);
     posCursor = -1;
+    posRenderResults(posResultsList, true);
     return;
   }
   const matched = pfMatch(posProducts, q);
-  posRenderResults(matched);
+  posRenderResults(matched, false);
 }
 
-function posRenderResults(list) {
+function posRenderResults(list, isInitial) {
   const box = document.getElementById('posResults');
   if (!box) return;
   if (!list.length) {
     posResultsList = [];
     posCursor = -1;
     box.innerHTML = `
-      <div style="padding:16px;text-align:center;color:var(--theme-text-muted, #64748b)">
-        <p style="margin:0 0 8px;font-size:13px">Sin productos que coincidan.</p>
+      <div style="padding:28px 16px;text-align:center;color:var(--theme-text-muted, #64748b)">
+        <p style="margin:0 0 8px;font-size:13.5px;font-weight:600">No se encontraron productos con esa búsqueda.</p>
         <button type="button" class="btn sm" onclick="openCustomItemModal()" style="font-size:12px;font-weight:700">➕ Crear como Ítem Libre (Alt+I)</button>
       </div>`;
     box.style.display = 'block';
@@ -299,7 +339,16 @@ function posRenderResults(list) {
   }
   posResultsList = list;
   posCursor = -1;
-  box.innerHTML = list.map((p, i) => {
+  const headerHtml = isInitial
+    ? `<div style="padding:6px 10px;font-size:11px;font-weight:700;color:var(--theme-text-muted, #64748b);border-bottom:1px solid var(--theme-border-subtle, #f1f5f9);display:flex;justify-content:space-between;align-items:center">
+         <span>📦 Catálogo Disponible (${(posProducts || []).length} ítems)</span>
+         <span>Escribe para filtrar o pulsa para agregar</span>
+       </div>`
+    : `<div style="padding:6px 10px;font-size:11px;font-weight:700;color:var(--theme-text-muted, #64748b);border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+         <span>Resultados encontrados: ${list.length} productos</span>
+       </div>`;
+
+  box.innerHTML = headerHtml + list.map((p, i) => {
     const variants = (p.jjp_product_variants || []).filter(v => v.active);
     const img = p.image_url
       ? `<img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async" style="width:36px;height:36px;object-fit:cover;border-radius:6px">`
@@ -320,7 +369,7 @@ function posRenderResults(list) {
         </div>
         <div style="display:flex;align-items:center;flex:none">
           ${vSel}
-          <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:4px 10px;font-size:11.5px;font-weight:700;background:var(--theme-accent, #16604a);color:#fff;border-radius:6px">Elegir ➔</button>
+          <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:4px 10px;font-size:11.5px;font-weight:700;background:var(--theme-accent, #16604a);color:#fff;border-radius:6px">➕ Agregar</button>
         </div>
       </div>`;
   }).join('');
@@ -589,15 +638,22 @@ function posToggleJja(key) {
 function posRenderTicket() {
   const box  = document.getElementById('posTicket');
   const tots = document.getElementById('posTotals');
+  const countEl = document.getElementById('posTicketCount');
   const lines = Object.entries(posTicket);
 
+  if (countEl) {
+    countEl.textContent = lines.length ? `(${lines.length} ${lines.length === 1 ? 'ítem' : 'ítems'})` : '';
+  }
+
   if (!lines.length) {
-    box.innerHTML = `
-      <div style="text-align:center;padding:48px 20px;color:var(--theme-text-muted, #94a3b8)">
-        <div style="font-size:38px;margin-bottom:8px">📄</div>
-        <p style="font-size:15px;font-weight:700;margin:0 0 6px;color:var(--theme-text-main, #334155)">La cotización está vacía</p>
-        <p style="font-size:13px;margin:0">Escribe en el buscador arriba o presiona <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:2px 6px;border-radius:4px;font-weight:700">F2</kbd> para agregar renglones.</p>
-      </div>`;
+    if (box) {
+      box.innerHTML = `
+        <div style="text-align:center;padding:36px 16px;color:var(--theme-text-muted, #94a3b8)">
+          <div style="font-size:32px;margin-bottom:6px">📄</div>
+          <p style="font-size:14px;font-weight:700;margin:0 0 4px;color:var(--theme-text-main, #334155)">La cotización está vacía</p>
+          <p style="font-size:12px;margin:0">Selecciona productos del catálogo a la izquierda para armar la cotización.</p>
+        </div>`;
+    }
     if (tots) tots.innerHTML = '';
     return;
   }
@@ -613,84 +669,79 @@ function posRenderTicket() {
       const bg = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-item-bg, #f1f5f9)';
       const col = isAct ? '#ffffff' : 'var(--theme-text-muted, #475569)';
       const bdr = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-border-subtle, #cbd5e1)';
-      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:4px;padding:2px 6px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
+      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:4px;padding:1px 5px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
     };
 
-    const levelSelector = l.is_custom ? '—' : `
-      <div style="display:inline-flex;gap:3px">
-        ${lvlBtn('A', 'Detal')}
-        ${lvlBtn('B', 'Mayor (⭐)')}
-        ${lvlBtn('C', 'Bs Oficial')}
-        ${lvlBtn('D', 'Bs Mayor')}
-        ${lvlBtn('M', 'Manual')}
+    const levelSelector = l.is_custom ? '' : `
+      <div style="display:inline-flex;align-items:center;gap:2px">
+        <span style="font-size:10.5px;color:var(--theme-text-muted, #64748b);font-weight:700;margin-right:2px">Nivel:</span>
+        ${lvlBtn('A', 'Precio A (Detal)')}
+        ${lvlBtn('B', 'Precio B (Mayorista ⭐)')}
+        ${lvlBtn('C', 'Precio C (Bs Oficial)')}
+        ${lvlBtn('D', 'Precio D (Bs Mayor)')}
+        ${lvlBtn('M', 'Precio M (Manual)')}
       </div>`;
 
     const jjaLabel = l.jja_code ? (l.jja_code === 'JJA-1' ? '⚡ JJA-1' : '⚡ JJA-2') : `📦 ${escapeHTML(l.unit || 'unid')}`;
     const jjaBtn = l.is_custom ? `<span>${escapeHTML(l.unit || 'unid')}</span>` : `
-      <button type="button" onclick="posToggleJja('${k}')" title="Alternar fraccionado MixNet (Estándar / JJA-1 / JJA-2)" style="background:${l.jja_code ? 'rgba(245,158,11,0.12)' : 'var(--theme-item-bg, #f1f5f9)'};color:${l.jja_code ? '#b45309' : 'var(--theme-text-main, #334155)'};border:1px solid ${l.jja_code ? '#f59e0b' : 'var(--theme-border-subtle, #cbd5e1)'};border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+      <button type="button" onclick="posToggleJja('${k}')" title="Alternar fraccionado MixNet (Estándar / JJA-1 / JJA-2)" style="background:${l.jja_code ? 'rgba(245,158,11,0.12)' : 'var(--theme-item-bg, #f1f5f9)'};color:${l.jja_code ? '#b45309' : 'var(--theme-text-main, #334155)'};border:1px solid ${l.jja_code ? '#f59e0b' : 'var(--theme-border-subtle, #cbd5e1)'};border-radius:4px;padding:1px 6px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap">
         ${jjaLabel}
       </button>`;
 
-    const rowBg = isCursor ? 'background:rgba(16,185,129,0.12);' : '';
+    const isDark = (document.documentElement.getAttribute('data-theme') === 'dark');
+    const lineBg = isCursor ? (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4') : 'var(--theme-bg-surface-solid, #ffffff)';
+    const lineBdr = isCursor ? 'var(--theme-accent, #10b981)' : 'var(--theme-border-subtle, #e2e8f0)';
 
     return `
-      <tr style="${rowBg}border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
-        <td style="padding:10px 12px;font-weight:700;color:var(--theme-text-muted, #94a3b8);text-align:center;width:36px">${idx + 1}</td>
-        <td style="padding:10px 12px;font-family:monospace;font-size:11.5px;color:var(--theme-text-muted, #64748b);white-space:nowrap">${escapeHTML(l.sku || '—')}</td>
-        <td style="padding:10px 12px;min-width:220px">
-          <div style="font-weight:700;font-size:13.5px;color:var(--theme-text-main, #0f172a)">
+      <div class="pos-ticket-row" style="padding:10px 14px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.02)">
+        <div style="font-size:11px;font-weight:900;color:var(--theme-accent, #16604a);background:rgba(16,185,129,0.12);padding:2px 4px;border-radius:4px;text-align:center">#${idx + 1}</div>
+        
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(l.name)}">
             ${escapeHTML(l.name)}
             ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600;margin-left:4px">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
-        </td>
-        <td style="padding:10px 12px;text-align:center">${jjaBtn}</td>
-        <td style="padding:10px 12px;text-align:center">${levelSelector}</td>
-        <td style="padding:10px 12px;text-align:center">
-          <div style="display:inline-flex;align-items:center;gap:3px">
-            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);cursor:pointer;font-weight:700">−</button>
-            <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:48px;height:26px;text-align:center;padding:2px 4px;font-size:13px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}">
-            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);cursor:pointer;font-weight:700">＋</button>
+          <div style="font-size:11px;font-family:monospace;color:var(--theme-text-muted, #64748b);margin-top:2px">
+            SKU: ${escapeHTML(l.sku || '—')} ${l.unit ? `· ${escapeHTML(l.unit)}` : ''}
           </div>
-        </td>
-        <td style="padding:10px 12px;white-space:nowrap">
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="font-weight:700;color:var(--theme-text-muted, #64748b)">$</span>
-            <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:72px;font-size:12.5px;font-weight:700;padding:2px 6px;height:26px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">
+          ${levelSelector}
+          ${jjaBtn}
+        </div>
+
+        <div style="display:inline-flex;align-items:center;gap:3px;justify-content:center">
+          <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);font-weight:800;cursor:pointer">−</button>
+          <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:48px;height:26px;text-align:center;padding:1px 3px;font-size:13px;font-weight:800;border-radius:6px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}">
+          <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);font-weight:800;cursor:pointer">＋</button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:3px">
+          <span style="font-size:11.5px;color:var(--theme-text-muted, #64748b);font-weight:700">$</span>
+          <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:100%;height:26px;font-size:12.5px;font-weight:800;padding:1px 6px;border-radius:6px;text-align:right" onchange="posUpdatePrice('${k}', this.value)">
+        </div>
+
+        <div style="text-align:right;min-width:0">
+          <div style="font-size:13.5px;font-weight:900;color:var(--theme-text-main, #0f172a)">
+            ${fmtPrice(l.price_usd * l.qty)}
           </div>
-          <div style="font-size:10.5px;color:var(--theme-accent, #047857);font-weight:600;margin-top:2px">≈ Bs ${fmtBsNum(posLineBs(l))}</div>
-        </td>
-        <td style="padding:10px 12px;text-align:right;white-space:nowrap;font-size:14px;font-weight:800;color:var(--theme-text-main, #0f172a)">
-          ${fmtPrice(l.price_usd * l.qty)}
-        </td>
-        <td style="padding:10px 12px;text-align:center;white-space:nowrap">
-          <div style="display:inline-flex;gap:4px">
-            <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 6px;color:#0284c7;border:1px solid rgba(2,132,199,0.3);background:transparent;cursor:pointer;font-size:12px;border-radius:6px">🔄</button>
-            <button type="button" onclick="posRemoveLine('${k}')" title="Quitar renglón" style="padding:4px 6px;color:#ef4444;border:1px solid rgba(239,68,68,0.3);background:transparent;cursor:pointer;font-size:12px;border-radius:6px">🗑️</button>
+          <div style="font-size:10.5px;color:var(--theme-accent, #047857);font-weight:700">
+            Bs ${fmtBsNum(posLineBs(l))}
           </div>
-        </td>
-      </tr>`;
+        </div>
+
+        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">
+          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(2,132,199,0.3);background:transparent;color:#0284c7;cursor:pointer;font-size:11px">🔄</button>
+          <button type="button" onclick="posRemoveLine('${k}')" title="Quitar renglón" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:11px">✕</button>
+        </div>
+      </div>`;
   }).join('');
 
-  box.innerHTML = `
-    <table class="admin-table" style="margin:0;width:100%;border-collapse:collapse">
-      <thead>
-        <tr style="background:var(--theme-bg-surface-solid, #f8fafc);border-bottom:1px solid var(--theme-border-subtle, #e2e8f0)">
-          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b);width:36px">#</th>
-          <th style="padding:10px 12px;text-align:left;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Código/SKU</th>
-          <th style="padding:10px 12px;text-align:left;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Descripción / Marca</th>
-          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Presentación</th>
-          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Nivel</th>
-          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Cantidad</th>
-          <th style="padding:10px 12px;text-align:left;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">P. Unit ($)</th>
-          <th style="padding:10px 12px;text-align:right;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Subtotal ($)</th>
-          <th style="padding:10px 12px;text-align:center;font-size:11.5px;font-weight:800;color:var(--theme-text-muted, #64748b)">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rowsHtml}
-      </tbody>
-    </table>`;
+  if (box) {
+    box.innerHTML = rowsHtml;
+  }
 
   const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
   const pct   = quoteDiscountPct();
@@ -970,11 +1021,13 @@ function quoteReset() {
   posTicket = {};
   posRenderTicket();
   quoteCustomer = null;
-  ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qNotes'].forEach(id => {
+  ['qCliCode', 'qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qCliSearch', 'qNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  document.getElementById('qCliNameResults').innerHTML = '';
-  document.getElementById('qCliNameResults').style.display = 'none';
+  const badgeEl = document.getElementById('qCliBadge');
+  if (badgeEl) badgeEl.style.display = 'none';
+  const nameRes = document.getElementById('qCliNameResults');
+  if (nameRes) { nameRes.innerHTML = ''; nameRes.style.display = 'none'; }
   const disc = document.getElementById('qDisc'); if (disc) disc.value = 0;
   const hint = document.getElementById('qDiscHint'); if (hint) hint.textContent = '';
   document.getElementById('qDoneModal')?.classList.remove('op');
@@ -1871,9 +1924,9 @@ function quoteInitGlobalKeys() {
         posSearch();
         return;
       }
-      // Si el cliente está seleccionado y el usuario pulsa Esc en el buscador de productos vacío, permite cambiar cliente
-      const cardEl = document.getElementById('qCliSelectedCard');
-      if (cardEl && cardEl.style.display !== 'none' && (!se || !se.value.trim())) {
+      const cli = document.getElementById('qCliSearch');
+      if (document.activeElement === cli && cli.value.trim()) {
+        cli.value = '';
         quoteResetCustomer();
         return;
       }
@@ -1898,13 +1951,8 @@ function quoteInitGlobalKeys() {
     // F3: enfocar búsqueda de cliente
     if (e.key === 'F3') {
       e.preventDefault();
-      const cardEl = document.getElementById('qCliSelectedCard');
-      if (cardEl && cardEl.style.display !== 'none') {
-        quoteResetCustomer();
-      } else {
-        const cli = document.getElementById('qCliSearch') || document.getElementById('qCliName');
-        if (cli) { cli.focus(); cli.select(); }
-      }
+      const cli = document.getElementById('qCliSearch') || document.getElementById('qCliName');
+      if (cli) { cli.focus(); cli.select(); }
       return;
     }
 

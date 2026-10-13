@@ -21,13 +21,40 @@
   // y se respaldan en caché local. NUNCA se comitean en texto plano en Git para evitar revocaciones de Google.
   let GEMINI_KEYS = [];
 
-  // En entorno Node (servidor o pruebas), cargar desde process.env si está disponible
-  if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEYS) {
-    try {
-      const parsed = JSON.parse(process.env.GEMINI_API_KEYS);
-      if (Array.isArray(parsed) && parsed.length > 0) GEMINI_KEYS = parsed;
-    } catch (_) {}
+  // En entorno Node (servidor o pruebas), cargar desde process.env o archivo .env si está disponible
+  function loadNodeEnvKeys() {
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env.GEMINI_API_KEYS) {
+        try {
+          const parsed = JSON.parse(process.env.GEMINI_API_KEYS);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (_) {}
+      }
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const envPaths = [
+          path.join(process.cwd(), 'wa-server', '.env'),
+          path.join(process.cwd(), '.env'),
+          path.join(__dirname || '', '..', '..', 'wa-server', '.env')
+        ];
+        for (const ep of envPaths) {
+          if (fs.existsSync(ep)) {
+            const content = fs.readFileSync(ep, 'utf8');
+            const match = content.match(/GEMINI_API_KEYS\s*=\s*(\[[\s\S]*?\])/);
+            if (match) {
+              const parsed = JSON.parse(match[1]);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    return [];
   }
+
+  const initialNodeKeys = loadNodeEnvKeys();
+  if (initialNodeKeys.length > 0) GEMINI_KEYS = initialNodeKeys;
 
   // Sincronización dinámica de keys desde base de datos / cache local
   async function syncKeysFromSettings() {
@@ -54,15 +81,22 @@
   if (typeof window !== 'undefined') setTimeout(syncKeysFromSettings, 50);
 
   // Modelos oficiales Google Gemini en producción (Octubre 2026)
+  // Ordenados por disponibilidad y menor tasa de 503/alta demanda
   const PRO_MODELS = [
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite',
     'gemini-3.8-flash',
-    'gemini-3.5-flash-lite'
+    'gemini-3.6-flash',
+    'gemini-flash-latest'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
+    'gemini-3.1-flash-lite',
     'gemini-3.5-flash-lite',
-    'gemini-3.8-flash'
+    'gemini-3.8-flash',
+    'gemini-3.6-flash',
+    'gemini-flash-latest'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -2140,9 +2174,28 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
   /* --------------------------------------------------------------------------
      5. Copiloto JJ Paper (Chat Inteligente)
      -------------------------------------------------------------------------- */
-  async function askCopilot({ message, chatHistory = [], userRole = 'vendedor', userName = '' }) {
+  async function askCopilot(param, extra = {}) {
+    let message = '';
+    let chatHistory = [];
+    let userRole = 'vendedor';
+    let userName = '';
+
+    if (typeof param === 'string') {
+      message = param;
+      if (extra && typeof extra === 'object') {
+        chatHistory = extra.chatHistory || [];
+        userRole = extra.userRole || 'vendedor';
+        userName = extra.userName || '';
+      }
+    } else if (param && typeof param === 'object') {
+      message = param.message || '';
+      chatHistory = param.chatHistory || [];
+      userRole = param.userRole || 'vendedor';
+      userName = param.userName || '';
+    }
+
     let productContext = '';
-    const keywords = message.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}/g) || [];
+    const keywords = (message || '').match(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}/g) || [];
     const searchTerms = keywords.filter(w => !['hola', 'precio', 'costo', 'tienen', 'cuanto', 'como', 'donde', 'para'].includes(w.toLowerCase()));
 
     if (searchTerms.length > 0) {

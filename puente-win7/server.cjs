@@ -305,9 +305,13 @@ function appendDbfRecords(filePath, records) {
 function getNextSerial(controlFilePath, fieldName = 'NUMCOT') {
   const struct = readDbfStruct(controlFilePath);
   if (!struct) return null;
-  const rows = readDbfRows(struct, [fieldName]);
+  const fields = readDbfFields(struct.buf, struct.headerLen);
+  // En MixNet, las tablas MXNUM*.DBF guardan el serial en el campo 'NUMERO' o en el nombre de la entidad
+  const targetField = fields.find(f => f.name === 'numero' || f.name === fieldName.toLowerCase() || f.name.includes('num'));
+  const fName = targetField ? targetField.name : fields[0].name;
+  const rows = readDbfRows(struct, [fName]);
   if (!rows.length) return null;
-  const raw = rows[0][fieldName.toLowerCase()] || rows[0][fieldName] || '';
+  const raw = rows[0][fName] || '';
   const num = parseInt(raw.replace(/\D/g, ''), 10);
   return isNaN(num) ? null : num;
 }
@@ -318,7 +322,7 @@ function incrementSerial(controlFilePath, fieldName = 'NUMCOT', nextVal) {
   const fd = fs.openSync(controlFilePath, 'r+');
   try {
     const fields = readDbfFields(struct.buf, struct.headerLen);
-    const f = fields.find(x => x.name === fieldName.toLowerCase());
+    const f = fields.find(x => x.name === 'numero' || x.name === fieldName.toLowerCase() || x.name.includes('num')) || fields[0];
     if (!f) return false;
     const pos = struct.headerLen + f.pos;
     const str = String(nextVal).padStart(f.len, '0');
@@ -495,33 +499,44 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const items = fs.readdirSync(dir);
-      const dbfs = [];
+      const fileList = [];
       for (const it of items) {
-        if (it.toUpperCase().endsWith('.DBF')) {
-          try {
-            const fp = path.join(dir, it);
-            const st = fs.statSync(fp);
+        try {
+          const fp = path.join(dir, it);
+          const st = fs.statSync(fp);
+          if (st.isDirectory()) continue;
+          const ext = path.extname(it).toUpperCase().replace('.', '') || 'SIN_EXT';
+          const isDbf = ext === 'DBF';
+          let records = 0;
+          let fieldsCount = 0;
+          if (isDbf) {
             const struct = readDbfStruct(fp);
-            dbfs.push({
-              name: it,
-              path: fp,
-              size: st.size,
-              records: struct ? struct.numRecords : 0,
-              fields_count: struct ? readDbfFields(struct.buf, struct.headerLen).length : 0,
-              modified: st.mtime.toISOString()
-            });
-          } catch (_) {}
-        }
+            if (struct) {
+              records = struct.numRecords;
+              fieldsCount = readDbfFields(struct.buf, struct.headerLen).length;
+            }
+          }
+          fileList.push({
+            name: it,
+            path: fp,
+            ext: ext,
+            is_dbf: isDbf,
+            size: st.size,
+            records: records,
+            fields_count: fieldsCount,
+            modified: st.mtime.toISOString()
+          });
+        } catch (_) {}
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, count: dbfs.length, directory: dir, files: dbfs }));
+      return res.end(JSON.stringify({ ok: true, count: fileList.length, directory: dir, files: fileList }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, error: e.message, files: [] }));
     }
   }
 
-  // 1.4 Inspeccionar tabla DBF (Estructura y Registros en Vivo)
+  // 1.4 Inspeccionar archivo o tabla (Soporta DBF en tabla interactiva, y TXT/INI/PRN/MEM/CFG/EXT en visor de texto)
   if (pathname === '/api/file-inspect' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -539,21 +554,51 @@ const server = http.createServer(async (req, res) => {
           throw new Error('Archivo no encontrado: ' + fileName);
         }
 
-        const struct = readDbfStruct(targetPath);
-        if (!struct) throw new Error('Cabecera DBF ilegible');
+        const ext = path.extname(targetPath).toUpperCase();
+        if (ext === '.DBF') {
+          const struct = readDbfStruct(targetPath);
+          if (!struct) throw new Error('Cabecera DBF ilegible');
 
-        const fields = readDbfFields(struct.buf, struct.headerLen);
-        const rows = readDbfRows(struct, null, 100);
+          const fields = readDbfFields(struct.buf, struct.headerLen);
+          const rows = readDbfRows(struct, null, 100);
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({
-          ok: true,
-          file: path.basename(targetPath),
-          path: targetPath,
-          records_count: struct.numRecords,
-          fields: fields.map(f => ({ name: f.name, type: f.type, len: f.len })),
-          rows: rows.slice(0, 100)
-        }));
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            ok: true,
+            is_dbf: true,
+            file: path.basename(targetPath),
+            path: targetPath,
+            records_count: struct.numRecords,
+            fields: fields.map(f => ({ name: f.name, type: f.type, len: f.len })),
+            rows: rows.slice(0, 100)
+          }));
+        } else {
+          // Archivo de texto, configuración, INI, PRN o MEM
+          const rawBuf = fs.readFileSync(targetPath);
+          const isBinary = ext === '.MEM' || ext === '.NTX' || ext === '.EXE' || ext === '.IDX';
+          let textContent = '';
+          if (isBinary) {
+            // Representación limpia de bytes y cadenas legibles
+            const readable = [];
+            for (let i = 0; i < Math.min(rawBuf.length, 4000); i++) {
+              const b = rawBuf[i];
+              readable.push((b >= 32 && b <= 126) ? String.fromCharCode(b) : '.');
+            }
+            textContent = `[FORMATO BINARIO ${ext}] Tamaño: ${rawBuf.length} bytes\nVista preliminar:\n` + readable.join('');
+          } else {
+            textContent = rawBuf.toString('latin1');
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            ok: true,
+            is_dbf: false,
+            file: path.basename(targetPath),
+            path: targetPath,
+            size: rawBuf.length,
+            content: textContent.substring(0, 50000)
+          }));
+        }
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -830,44 +875,45 @@ const server = http.createServer(async (req, res) => {
         'M:\\comp01\\MXCTAVDD.dbf'
       ].find(p => fs.existsSync(p));
 
-      // Catálogo de permisos estándar en MixNet (200+ opciones por módulos)
+      // Catálogo de permisos estándar en MixNet (agrupados por módulos)
+      // def: false para que un vendedor NO tenga 32 permisos por defecto, sino solo los mínimos operativos reales (2-3 permisos: crear cotización, ver stock)
       const PERMISSIONS_CATALOG = [
         // MÓDULO VENTAS & FACTURACIÓN
-        { id: 'FAC_CREAR', label: 'Crear Facturas', mod: 'Ventas', def: true },
+        { id: 'FAC_CREAR', label: 'Crear Facturas', mod: 'Ventas', def: false },
         { id: 'FAC_ANULAR', label: 'Anular Facturas Emitidas', mod: 'Ventas', def: false, critical: true },
         { id: 'FAC_MODIF_PRECIO', label: 'Modificar Precios de Venta en Renglón', mod: 'Ventas', def: false, critical: true },
         { id: 'FAC_DESC_MAX', label: 'Aplicar Descuentos Mayores al Máximo', mod: 'Ventas', def: false, critical: true },
         { id: 'FAC_VER_COSTO', label: 'Visualizar Costo Real de Artículos', mod: 'Ventas', def: false, critical: true },
         { id: 'FAC_CAMBIO_FECHA', label: 'Modificar Fecha de Emisión', mod: 'Ventas', def: false, critical: true },
-        { id: 'FAC_REIMPRIMIR', label: 'Reimprimir Facturas y Comprobantes', mod: 'Ventas', def: true },
+        { id: 'FAC_REIMPRIMIR', label: 'Reimprimir Facturas y Comprobantes', mod: 'Ventas', def: false },
 
-        // MÓDULO COTIZACIONES & PEDIDOS
+        // MÓDULO COTIZACIONES & PEDIDOS (Operaciones básicas de vendedor)
         { id: 'COT_CREAR', label: 'Crear Cotizaciones', mod: 'Cotizaciones', def: true },
-        { id: 'COT_MODIF', label: 'Modificar Cotizaciones Guardadas', mod: 'Cotizaciones', def: true },
+        { id: 'COT_MODIF', label: 'Modificar Cotizaciones Guardadas', mod: 'Cotizaciones', def: false },
         { id: 'COT_ANULAR', label: 'Anular Cotizaciones', mod: 'Cotizaciones', def: false, critical: true },
         { id: 'PED_CREAR', label: 'Crear Pedidos de Venta', mod: 'Pedidos', def: true },
-        { id: 'PED_MODIF', label: 'Modificar Pedidos Existentes', mod: 'Pedidos', def: true },
+        { id: 'PED_MODIF', label: 'Modificar Pedidos Existentes', mod: 'Pedidos', def: false },
         { id: 'PED_ANULAR', label: 'Anular Pedidos en Espera', mod: 'Pedidos', def: false, critical: true },
-        { id: 'PED_FACTURAR', label: 'Procesar / Facturar Pedidos', mod: 'Pedidos', def: true },
+        { id: 'PED_FACTURAR', label: 'Procesar / Facturar Pedidos', mod: 'Pedidos', def: false, critical: true },
 
         // MÓDULO INVENTARIO & ALMACÉN
         { id: 'INV_VER_STOCK', label: 'Consultar Existencias y Almacenes', mod: 'Inventario', def: true },
         { id: 'INV_AJUSTE_ENTRADA', label: 'Registrar Ajuste de Entrada (Suma)', mod: 'Inventario', def: false, critical: true },
         { id: 'INV_AJUSTE_SALIDA', label: 'Registrar Ajuste de Salida (Resta)', mod: 'Inventario', def: false, critical: true },
         { id: 'INV_CAMBIO_PRECIOS', label: 'Cambiar Precios en Lista Maestra', mod: 'Inventario', def: false, critical: true },
-        { id: 'INV_CREAR_ITEM', label: 'Crear Nuevos Artículos y Códigos', mod: 'Inventario', def: false },
+        { id: 'INV_CREAR_ITEM', label: 'Crear Nuevos Artículos y Códigos', mod: 'Inventario', def: false, critical: true },
         { id: 'INV_ELIMINAR_ITEM', label: 'Eliminar o Desactivar Artículos', mod: 'Inventario', def: false, critical: true },
 
         // MÓDULO CAJA & COBRANZAS
-        { id: 'CAJA_ABRIR', label: 'Apertura de Caja Diaria', mod: 'Caja', def: true },
-        { id: 'CAJA_CERRAR', label: 'Cierre y Arqueo de Caja', mod: 'Caja', def: true },
+        { id: 'CAJA_ABRIR', label: 'Apertura de Caja Diaria', mod: 'Caja', def: false, critical: true },
+        { id: 'CAJA_CERRAR', label: 'Cierre y Arqueo de Caja', mod: 'Caja', def: false, critical: true },
         { id: 'CAJA_EGRESO', label: 'Registrar Salidas de Dinero / Gastos', mod: 'Caja', def: false, critical: true },
-        { id: 'COB_CREAR', label: 'Registrar Cobranzas y Recibos', mod: 'Cobranzas', def: true },
+        { id: 'COB_CREAR', label: 'Registrar Cobranzas y Recibos', mod: 'Cobranzas', def: false },
         { id: 'COB_ANULAR', label: 'Anular Recibos de Cobro', mod: 'Cobranzas', def: false, critical: true },
 
         // MÓDULO CLIENTES
-        { id: 'CLI_CREAR', label: 'Registrar Clientes Nuevos', mod: 'Clientes', def: true },
-        { id: 'CLI_EDITAR', label: 'Modificar Datos y RIF de Clientes', mod: 'Clientes', def: true },
+        { id: 'CLI_CREAR', label: 'Registrar Clientes Nuevos', mod: 'Clientes', def: false },
+        { id: 'CLI_EDITAR', label: 'Modificar Datos y RIF de Clientes', mod: 'Clientes', def: false },
         { id: 'CLI_LIMITE_CRED', label: 'Modificar Límite de Crédito y Días', mod: 'Clientes', def: false, critical: true },
         { id: 'CLI_ASIGNAR_ZONA', label: 'Cambiar Zona o Vendedor Asignado', mod: 'Clientes', def: false, critical: true },
 
@@ -908,16 +954,18 @@ const server = http.createServer(async (req, res) => {
       // Si tenemos vendedores en nómina, mapear a cada uno como usuario del sistema
       if (vendors.length > 0) {
         userList = vendors.map((v, i) => {
-          // Determinar si es Administrador (001 JJ Paper, 005 Mostrador, 010/020 Keyder)
-          const isAdmin = ['001', '005', '010', '020'].includes(v.code) || v.name.toLowerCase().includes('admin') || v.name.toLowerCase().includes('paper');
+          // Determinar si es Administrador estricto (001 JJ Paper / Admin, o 010/020 Keyder Admin)
+          // Vendedores regulares (002 Luis, 004 Yovanni, 008 Marianela, 014 Andreina, 005 Caja) NO son administradores por defecto
+          const isAdmin = ['001', '010', '020'].includes(v.code) || v.name.toLowerCase().includes('administrador');
           
           // Matriz de permisos base
           const perms = {};
           PERMISSIONS_CATALOG.forEach(p => {
+            // Si es admin tiene todo, si es vendedor regular SOLO sus 3 permisos estándar (COT_CREAR, PED_CREAR, INV_VER_STOCK)
             perms[p.id] = isAdmin ? true : p.def;
           });
 
-          // Si el usuario tiene permisos personalizados guardados, sobreescribir
+          // Si el usuario tiene permisos personalizados guardados por el admin, sobreescribir exactamente
           if (savedPermsMap[v.code] && savedPermsMap[v.code].permissions) {
             Object.assign(perms, savedPermsMap[v.code].permissions);
           }
@@ -1093,6 +1141,7 @@ const server = http.createServer(async (req, res) => {
         const cotCtrlPath = path.join(mixDir, 'MXNUMCOT.DBF');
         const encCotPath = path.join(mixDir, 'MXENCCOT.DBF');
         const renCotPath = path.join(mixDir, 'MXRENCOT.DBF');
+        const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
 
         // 1. Obtener correlativo oficial
         const curSerial = getNextSerial(cotCtrlPath, 'NUMCOT');
@@ -1104,7 +1153,32 @@ const server = http.createServer(async (req, res) => {
         if (!encStruct) throw new Error('No se pudo abrir ' + encCotPath);
 
         const codVen = resolveCodVen(quote.seller_id || quote.seller_name);
-        const codCli = (quote.mixnet_code && quote.mixnet_code !== '00') ? quote.mixnet_code : '00';
+        
+        // Resolver cliente real en MixNet por RIF o código
+        let codCli = (quote.mixnet_code && quote.mixnet_code !== '00') ? quote.mixnet_code.trim() : '';
+        let nomCli = (quote.client_name || '').trim();
+        let cifCli = (quote.rif || '').trim();
+
+        if (!codCli && fs.existsSync(cliTablePath)) {
+          try {
+            const cliStruct = readDbfStruct(cliTablePath);
+            if (cliStruct) {
+              const cliRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif']);
+              const normRif = cifCli.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+              const foundCli = cliRows.find(c => {
+                const cRif = (c.cif || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                return normRif && cRif && cRif === normRif;
+              });
+              if (foundCli) {
+                codCli = foundCli.codcli;
+                nomCli = foundCli.nomcli || nomCli;
+                cifCli = foundCli.cif || cifCli;
+              }
+            }
+          } catch (_) {}
+        }
+        if (!codCli) codCli = '00';
+
         const now = new Date();
         const dateStr = now.toISOString().substring(0, 10).replace(/-/g, '');
 
@@ -1115,9 +1189,13 @@ const server = http.createServer(async (req, res) => {
           codven: codVen,
           comen1: ' '.repeat(35),
           comen2: ' '.repeat(35),
-          tot_cot: quote.estimated_total_usd || 0,
+          estatus: 'PE',
+          entrega: dateStr,
+          tot_cot: quote.estimated_total_usd || quote.total_usd || 0,
           cambio: quote.exchange_rate || 1,
-          moneda: 'US$'
+          moneda: 'US$',
+          nomcli: nomCli.substring(0, 60),
+          cif: cifCli.substring(0, 15)
         };
 
         const encRecord = buildDbfRecord(encStruct, encValues);
@@ -1126,20 +1204,29 @@ const server = http.createServer(async (req, res) => {
         const renStruct = readDbfStruct(renCotPath);
         if (!renStruct) throw new Error('No se pudo abrir ' + renCotPath);
 
-        const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items || '[]') : []);
+        const rawItems = quote.items || quote.lines || [];
+        const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
         const renRecords = [];
 
         for (const it of items) {
+          const sku = (it.sku || it.code || it.item || 'VAR-01').trim().substring(0, 15);
+          const name = (it.name || it.descrip || it.description || 'ITEM').trim().substring(0, 50);
+          const qty = parseFloat(it.qty || it.quantity || 1) || 1;
+          const price = parseFloat(it.price_usd || it.price || 0) || 0;
+          const tot = parseFloat(it.total_usd) || (qty * price);
+
           const renValues = {
             numcot: officialNum,
-            item: (it.sku || it.code || 'VAR-01').substring(0, 15),
-            descrip: (it.name || it.descrip || 'ITEM').substring(0, 50),
-            cantidad: it.qty || 1,
-            precio: it.price_usd || 0,
-            tot_ren: (it.qty || 1) * (it.price_usd || 0),
+            item: sku,
+            descrip: name,
+            cantidad: qty,
+            precio: price,
+            tot_ren: tot,
             iva: 'A',
             cliente: codCli,
-            codven: codVen
+            codven: codVen,
+            emision: dateStr,
+            estatus: 'PE'
           };
           renRecords.push(buildDbfRecord(renStruct, renValues));
         }
@@ -1187,6 +1274,7 @@ const server = http.createServer(async (req, res) => {
         const pedCtrlPath = path.join(mixDir, 'MXNUMPED.DBF');
         const encPedPath = path.join(mixDir, 'MXENCPED.DBF');
         const renPedPath = path.join(mixDir, 'MXRENPED.DBF');
+        const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
 
         // 1. Obtener correlativo oficial de pedido
         const curSerial = getNextSerial(pedCtrlPath, 'NUMPED');
@@ -1198,7 +1286,29 @@ const server = http.createServer(async (req, res) => {
         if (!encStruct) throw new Error('No se pudo abrir ' + encPedPath);
 
         const codVen = resolveCodVen(order.seller_id || order.seller_name);
-        const codCli = (order.mixnet_code && order.mixnet_code !== '00') ? order.mixnet_code : '00';
+        
+        // Resolver cliente real en MixNet por RIF o código
+        let codCli = (order.mixnet_code && order.mixnet_code !== '00') ? order.mixnet_code.trim() : '';
+        let cifCli = (order.rif || '').trim();
+
+        if (!codCli && fs.existsSync(cliTablePath)) {
+          try {
+            const cliStruct = readDbfStruct(cliTablePath);
+            if (cliStruct) {
+              const cliRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif']);
+              const normRif = cifCli.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+              const foundCli = cliRows.find(c => {
+                const cRif = (c.cif || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                return normRif && cRif && cRif === normRif;
+              });
+              if (foundCli) {
+                codCli = foundCli.codcli;
+              }
+            }
+          } catch (_) {}
+        }
+        if (!codCli) codCli = '00';
+
         const now = new Date();
         const dateStr = now.toISOString().substring(0, 10).replace(/-/g, '');
 
@@ -1211,6 +1321,7 @@ const server = http.createServer(async (req, res) => {
           comen2: ' '.repeat(35),
           tot_ped: order.total_usd || 0,
           estatus: 'PE', // Pendiente de facturar en tienda
+          entrega: dateStr,
           cambio: order.exchange_rate || 1,
           moneda: 'US$'
         };
@@ -1221,20 +1332,29 @@ const server = http.createServer(async (req, res) => {
         const renStruct = readDbfStruct(renPedPath);
         if (!renStruct) throw new Error('No se pudo abrir ' + renPedPath);
 
-        const items = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items || '[]') : []);
+        const rawItems = order.items || order.lines || [];
+        const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
         const renRecords = [];
 
         for (const it of items) {
+          const sku = (it.sku || it.code || it.item || 'VAR-01').trim().substring(0, 15);
+          const name = (it.name || it.descrip || it.description || 'ITEM').trim().substring(0, 50);
+          const qty = parseFloat(it.qty || it.quantity || 1) || 1;
+          const price = parseFloat(it.price_usd || it.price || 0) || 0;
+          const tot = parseFloat(it.total_usd) || (qty * price);
+
           const renValues = {
             numped: officialNum,
-            item: (it.sku || it.code || 'VAR-01').substring(0, 15),
-            descrip: (it.name || it.descrip || 'ITEM').substring(0, 50),
-            cantidad: it.qty || 1,
-            precio: it.price_usd || 0,
-            tot_ren: (it.qty || 1) * (it.price_usd || 0),
+            item: sku,
+            descrip: name,
+            cantidad: qty,
+            precio: price,
+            tot_ren: tot,
             iva: 'A',
             cliente: codCli,
-            codven: codVen
+            codven: codVen,
+            emision: dateStr,
+            estatus: 'PE'
           };
           renRecords.push(buildDbfRecord(renStruct, renValues));
         }

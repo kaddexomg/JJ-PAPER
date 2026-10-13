@@ -383,10 +383,10 @@
         setTab('users');
         await loadUsers();
         if (mixnetUsers.length > 0) {
-          log(`✔ Se cargaron ${mixnetUsers.length} usuarios desde MXUSUAR.DBF.`);
-          const anula = mixnetUsers.filter(u => String(u.anula || u.nivel || '').toUpperCase().includes('S') || String(u.nivel || '') === '1');
+          log(`✔ Se cargaron ${mixnetUsers.length} cuentas de usuario oficiales desde MixNet.`);
+          const anula = mixnetUsers.filter(u => u.can_void || u.is_admin);
           if (anula.length > 0) {
-            log(`🔑 Usuarios con permisos altos/anulación: ${anula.map(u => u.nombre || u.usuario).join(', ')}`);
+            log(`🔑 Usuarios autorizados para anular: ${anula.map(u => u.name + ' (' + u.code + ')').join(', ')}`);
           }
         }
         return;
@@ -463,17 +463,18 @@
           setAgentStatus('Error', '#ef4444', '#fee2e2');
         }
       } else if (tool === 'list_users_detailed') {
-        agentLog('⚡ [USUARIOS] Consultando tabla MXUSUAR.DBF...', '#38bdf8');
+        agentLog('⚡ [USUARIOS] Consultando nómina y permisos de usuarios de MixNet...', '#38bdf8');
         await loadUsers();
         if (mixnetUsers.length > 0) {
-          agentLog(`✔ ${mixnetUsers.length} usuarios encontrados en MXUSUAR.DBF:`, '#10b981');
+          agentLog(`✔ ${mixnetUsers.length} usuarios oficiales activos en MixNet:`, '#10b981');
           mixnetUsers.forEach(u => {
-            const esAdmin = String(u.nivel || '') === '1' || String(u.anula || '').toUpperCase().includes('S');
-            const icon = esAdmin ? '🔑 [ADMIN/ANULACIONES]' : '👤 [OPERADOR]';
-            agentLog(`   ${icon} #${u._record}: "${u.usuario || u.user}" (${u.nombre || '-'}) | Nivel: ${u.nivel} | Clave: ${u.clave || '***'}`, esAdmin ? '#f59e0b' : '#94a3b8');
+            const activeCount = u.permissions ? Object.values(u.permissions).filter(Boolean).length : 0;
+            const icon = u.is_admin ? '👑 [ADMINISTRADOR]' : '👤 [VENDEDOR/OPERADOR]';
+            const permDetail = u.can_void ? 'Autorizado para anular ✔' : 'Anulación denegada ✖';
+            agentLog(`   ${icon} Cód ${u.code}: "${u.username}" (${u.name}) | ${activeCount} permisos activos | ${permDetail}`, u.is_admin ? '#f59e0b' : '#94a3b8');
           });
         } else {
-          agentLog('⚠ No se pudieron leer usuarios de MXUSUAR.DBF.', '#f59e0b');
+          agentLog('⚠ No se pudieron leer usuarios de MixNet.', '#f59e0b');
         }
       } else if (tool === 'create_backup') {
         agentLog('⚡ [SEGURIDAD] Generando snapshot atómico inmediato de MixNet...', '#38bdf8');
@@ -594,40 +595,49 @@
         }
 
         // 3.2 Modificación de Permiso / Clave de usuario por instrucción
-        if ((lower.includes('cambia') || lower.includes('modifica') || lower.includes('pon') || lower.includes('asignar')) && (lower.includes('clave') || lower.includes('nivel') || lower.includes('permiso'))) {
-          agentLog(`🔧 [HERRAMIENTA]: Detectada intención de mutación en usuarios. Consultando lista actual...`, '#38bdf8');
+        if ((lower.includes('cambia') || lower.includes('modifica') || lower.includes('pon') || lower.includes('asignar') || lower.includes('quitar') || lower.includes('dar')) && (lower.includes('clave') || lower.includes('nivel') || lower.includes('permiso') || lower.includes('anular'))) {
+          agentLog(`🔧 [HERRAMIENTA]: Detectada intención de mutación de permisos. Consultando lista oficial de usuarios...`, '#38bdf8');
           await loadUsers();
-          const target = mixnetUsers.find(u => lower.includes(String(u.usuario || '').toLowerCase()) || lower.includes(String(u.nombre || '').toLowerCase()));
+          const target = mixnetUsers.find(u => lower.includes(String(u.code || '').toLowerCase()) || lower.includes(String(u.name || '').toLowerCase()) || lower.includes(String(u.username || '').toLowerCase()));
           if (target) {
-            let nuevoNivel = target.nivel;
-            let nuevaClave = target.clave;
-            if (lower.includes('anular') || lower.includes('admin') || lower.includes('nivel 1')) nuevoNivel = '1';
-            const passMatch = instruction.match(/clave\s*(?:a|es|de)?\s*([a-zA-Z0-9_\-\.]+)/i);
-            if (passMatch) nuevaClave = passMatch[1];
+            const updatedPerms = Object.assign({}, target.permissions || {});
+            const esActivar = lower.includes('dar') || lower.includes('pon') || lower.includes('activa') || lower.includes('asignar') || lower.includes('autorizar');
+            
+            if (lower.includes('anular') || lower.includes('anulacion') || lower.includes('anulación')) {
+              updatedPerms['FAC_ANULAR'] = esActivar;
+              updatedPerms['COT_ANULAR'] = esActivar;
+              updatedPerms['PED_ANULAR'] = esActivar;
+            }
+            if (lower.includes('precio') || lower.includes('precios')) {
+              updatedPerms['FAC_MODIF_PRECIO'] = esActivar;
+              updatedPerms['INV_CAMBIO_PRECIOS'] = esActivar;
+            }
+            if (lower.includes('admin') || lower.includes('administrador')) {
+              currentCatalog.forEach(p => { updatedPerms[p.id] = esActivar; });
+            }
 
-            agentLog(`🛡 Creando Snapshot atómico previo y aplicando cambios a "${target.usuario}"...`, '#f59e0b');
-            const res = await fetch('/api/file-update', {
+            agentLog(`🛡 Creando Snapshot atómico preventivo y guardando permisos para "${target.name}" (${target.code})...`, '#f59e0b');
+            const res = await fetch('/api/users/save-permissions', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                file_name: 'MXUSUAR.DBF',
-                record_index: target._record,
-                updates: { nivel: nuevoNivel, clave: nuevaClave }
+                user_code: target.code,
+                permissions: updatedPerms
               })
             });
             const data = await res.json();
             if (data.ok) {
-              agentLog(`✔ ¡ÉXITO! Usuario "${target.usuario}" actualizado (Nivel: ${nuevoNivel}, Clave: ${nuevaClave}).`, '#10b981');
+              agentLog(`✔ ¡ÉXITO! Permisos de "${target.name}" actualizados (${data.active_permissions_count} permisos activos).`, '#10b981');
               agentLog(`🛡 Snapshot de rollback creado: ${data.snapshot_id}`, '#0284c7');
               loadUsers();
               loadBackups();
-              setAgentStatus('Usuario Modificado', '#10b981', '#dcfce7');
+              setAgentStatus('Permisos Modificados', '#10b981', '#dcfce7');
             } else {
               agentLog(`❌ Error actualizando usuario: ${data.error}`, '#ef4444');
               setAgentStatus('Error', '#ef4444', '#fee2e2');
             }
           } else {
-            agentLog(`⚠ No se pudo identificar automáticamente el usuario en la instrucción. Usuarios disponibles: ${mixnetUsers.map(u => u.usuario).join(', ')}`, '#f59e0b');
+            agentLog(`⚠ No se pudo identificar al usuario en la orden. Usuarios activos en MixNet: ${mixnetUsers.map(u => u.name + ' (' + u.code + ')').join(', ')}`, '#f59e0b');
             setAgentStatus('Esperando Usuario', '#f59e0b', '#fef3c7');
           }
           return;
@@ -1303,11 +1313,14 @@
         document.getElementById('countFiles').textContent = dbfFilesList.length;
         const sel = document.getElementById('selDbfFile');
         if (sel) {
-          sel.innerHTML = '<option value="">-- Seleccionar tabla DBF --</option>' +
-            dbfFilesList.map(f => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)} (${f.records} reg | ${(f.size/1024).toFixed(0)} KB)</option>`).join('');
+          sel.innerHTML = '<option value="">-- Seleccionar archivo (.DBF, .INI, .PRN, .TXT, .MEM) --</option>' +
+            dbfFilesList.map(f => {
+              const info = f.is_dbf ? `${f.records} reg | ${(f.size/1024).toFixed(0)} KB` : `${f.ext} | ${(f.size/1024).toFixed(0)} KB`;
+              return `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)} (${info})</option>`;
+            }).join('');
         }
       } catch (e) {
-        log('Error listando archivos DBF: ' + e.message);
+        log('Error listando archivos: ' + e.message);
       }
     }
 
@@ -1319,7 +1332,7 @@
       const summary = document.getElementById('explorerSummary');
 
       summary.textContent = `Leyendo ${fileName}...`;
-      tbody.innerHTML = '<tr><td style="text-align:center;padding:20px;color:var(--muted)">Cargando registros...</td></tr>';
+      tbody.innerHTML = '<tr><td style="text-align:center;padding:20px;color:var(--muted)">Cargando contenido...</td></tr>';
 
       try {
         const res = await fetch('/api/file-inspect', {
@@ -1335,22 +1348,30 @@
         }
 
         currentInspectedData = data;
-        summary.innerHTML = `<strong>${data.file}</strong>: ${data.records_count} registros totales. Mostrando primeros ${data.rows.length}. <span style="color:#0369a1;font-weight:600">Doble clic en cualquier valor para editarlo.</span>`;
 
-        // Cabecera
-        thead.innerHTML = '<tr><th># Reg</th>' +
-          data.fields.map(f => `<th title="${f.type} (${f.len})">${escapeHtml(f.name)}</th>`).join('') +
-          '</tr>';
+        if (data.is_dbf) {
+          summary.innerHTML = `<strong>${data.file}</strong>: ${data.records_count} registros totales. Mostrando primeros ${data.rows.length}. <span style="color:#0369a1;font-weight:600">Doble clic en cualquier valor para editarlo.</span>`;
 
-        // Registros
-        tbody.innerHTML = data.rows.map((r, rowIdx) => {
-          const recNum = rowIdx + 1;
-          const tds = data.fields.map(f => {
-            const val = r[f.name] !== undefined ? r[f.name] : '';
-            return `<td style="cursor:pointer" ondblclick="editDbfCell('${escapeHtml(fileName)}', ${recNum}, '${escapeHtml(f.name)}', '${escapeHtml(String(val))}')" title="Doble clic para editar">${escapeHtml(String(val))}</td>`;
+          // Cabecera
+          thead.innerHTML = '<tr><th># Reg</th>' +
+            data.fields.map(f => `<th title="${f.type} (${f.len})">${escapeHtml(f.name)}</th>`).join('') +
+            '</tr>';
+
+          // Registros
+          tbody.innerHTML = data.rows.map((r, rowIdx) => {
+            const recNum = rowIdx + 1;
+            const tds = data.fields.map(f => {
+              const val = r[f.name] !== undefined ? r[f.name] : '';
+              return `<td style="cursor:pointer" ondblclick="editDbfCell('${escapeHtml(fileName)}', ${recNum}, '${escapeHtml(f.name)}', '${escapeHtml(String(val))}')" title="Doble clic para editar">${escapeHtml(String(val))}</td>`;
+            }).join('');
+            return `<tr><td><strong>#${recNum}</strong></td>${tds}</tr>`;
           }).join('');
-          return `<tr><td><strong>#${recNum}</strong></td>${tds}</tr>`;
-        }).join('');
+        } else {
+          // Archivo de texto / configuración / memoria
+          summary.innerHTML = `<strong>${data.file}</strong>: Formato de texto / configuración (${(data.size/1024).toFixed(1)} KB)`;
+          thead.innerHTML = '<tr><th>Contenido del Archivo</th></tr>';
+          tbody.innerHTML = `<tr><td style="padding:16px"><pre style="background:#0f172a;color:#38bdf8;padding:14px;border-radius:8px;font-family:monospace;font-size:12px;overflow:auto;max-height:400px;white-space:pre-wrap">${escapeHtml(data.content)}</pre></td></tr>`;
+        }
       } catch (e) {
         summary.textContent = '❌ Error: ' + e.message;
       }

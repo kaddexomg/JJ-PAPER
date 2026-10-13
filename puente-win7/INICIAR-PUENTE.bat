@@ -95,14 +95,14 @@ if not exist "%~dp0server.cjs" (
     exit /b 1
 )
 
-rem Cerrar proceso previo colgado en el puerto 3300 si existiera
-for /f "tokens=5" %%p in ('netstat -aon 2^>nul ^| findstr ":3300" ^| findstr "LISTENING"') do (
-    echo   - Liberando puerto 3300 (terminando PID %%p previo)...
-    taskkill /F /PID %%p >nul 2>nul
+rem Verificacion previa de puerto 3300 sin piping anidado
+netstat -ano | findstr ":3300" | findstr "LISTENING" >nul 2>nul
+if %errorlevel%==0 (
+    echo   - Puerto 3300 en uso. Se reusara o server.cjs reportara estado.
 )
 
 echo.
-echo [3/3] Iniciando Micro-Puente JJ Paper ⇄ MixNet...
+echo [3/3] Iniciando Micro-Puente JJ Paper <-> MixNet...
 echo       La interfaz web se abrira en: http://localhost:3300
 echo.
 echo ====================================================================
@@ -110,7 +110,8 @@ echo  PUENTE EN LINEA -- Deje esta ventana abierta mientras use el sistema.
 echo ====================================================================
 echo.
 
-start "" "http://localhost:3300"
+rem Abrir la interfaz web en el navegador
+explorer "http://localhost:3300"
 "%NODE_CMD%" "%~dp0server.cjs"
 
 set "EXIT_CODE=%errorlevel%"

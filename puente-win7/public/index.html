@@ -53,8 +53,9 @@
         <h1>📦 JJ Paper ⇄ MixNet ERP</h1>
         <p style="font-size:12px;color:var(--muted);margin-top:2px">Puente Autónomo de Tienda — Windows 7</p>
       </div>
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span id="statusBadge" class="badge red">Consultando...</span>
+        <button class="btn sm" style="background:#7c3aed" onclick="triggerReindexAll()" id="btnReindex" title="Verifica y calibra los árboles de índices .NTX de MixNet sin tocar datos">🗂️ Reindexar NTX MixNet</button>
         <button class="btn green sm" onclick="syncStock()" id="btnSyncStock">⚡ Sincronizar Stock a la Nube</button>
       </div>
     </header>
@@ -145,18 +146,44 @@
           <table>
             <thead id="theadUsers">
               <tr>
-                <th>Reg #</th>
+                <th>Cód</th>
                 <th>Usuario</th>
-                <th>Nombre</th>
-                <th>Nivel / Rol</th>
-                <th>Clave / Cód</th>
+                <th>Nombre en Nómina</th>
+                <th>Rol / Nivel</th>
+                <th>Permiso Anular</th>
+                <th>Permisos Activos</th>
                 <th>Acción</th>
               </tr>
             </thead>
             <tbody id="tbodyUsers">
-              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios...</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios y matriz de seguridad...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Modal de Edición de Permisos Granulares (200+ flags) -->
+      <div id="modalPermissions" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:999;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <div>
+              <h3 style="font-size:16px;font-weight:800;color:#0f172a" id="permModalTitle">Gestión de Permisos — Usuario</h3>
+              <p style="font-size:12px;color:var(--muted);margin-top:2px" id="permModalSubtitle">Configuración de flags de seguridad en MixNet ERP con Snapshot de respaldo</p>
+            </div>
+            <button onclick="closePermModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">&times;</button>
+          </div>
+          
+          <div style="padding:16px 20px;overflow-y:auto;flex:1" id="permModalBody">
+            <!-- Dynamic checkboxes grouped by module -->
+          </div>
+
+          <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <span style="font-size:11px;color:var(--muted)">🛡 Modificación protegida con Snapshot preventivo automático</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn sm" style="background:#64748b" onclick="closePermModal()">Cancelar</button>
+              <button class="btn sm green" id="btnSavePermissions" onclick="saveUserPermissions()">💾 Guardar Permisos en MixNet</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -504,24 +531,39 @@
 
         // 3.1 Petición de Usuarios / Permisos / Quién anula
         if (lower.includes('usuario') || lower.includes('quien') || lower.includes('quién') || lower.includes('anular') || lower.includes('permiso')) {
-          agentLog(`🔧 [HERRAMIENTA]: Consultando tabla de usuarios MXUSUAR.DBF...`, '#38bdf8');
+          agentLog(`🔧 [HERRAMIENTA]: Consultando matriz de seguridad MXSECURI.CFG y nómina de usuarios...`, '#38bdf8');
           await loadUsers();
           if (mixnetUsers.length > 0) {
-            const anulan = mixnetUsers.filter(u => String(u.nivel || '') === '1' || String(u.anula || '').toUpperCase().includes('S'));
-            agentLog(`✔ ACCIÓN COMPLETADA: Se encontraron ${mixnetUsers.length} usuarios en el sistema.`, '#10b981');
+            const anulan = mixnetUsers.filter(u => u.can_void || u.is_admin);
+            agentLog(`✔ ACCIÓN COMPLETADA: Se encontraron ${mixnetUsers.length} cuentas de usuario mapeadas en el sistema.`, '#10b981');
             if (anulan.length > 0) {
-              agentLog(`🔑 USUARIOS CON PERMISO DE ANULACIÓN / ADMIN (NIVEL 1):`, '#f59e0b');
+              agentLog(`🔑 USUARIOS CON PERMISOS DE ADMINISTRADOR / ANULACIÓN:`, '#f59e0b');
               anulan.forEach(a => {
-                agentLog(`   ▶ Usuario: "${a.usuario || a.user}" | Nombre: "${a.nombre || '-'}" | Clave: "${a.clave || '***'}"`, '#fef08a');
+                agentLog(`   ▶ Usuario: "${a.username}" (${a.name}) | Cód: ${a.code} | Rol: ${a.role} | Anulación: AUTORIZADO ✔`, '#fef08a');
               });
             } else {
-              agentLog(`ℹ Ningún usuario tiene nivel 1 estricto asignado actualmente.`, '#94a3b8');
+              agentLog(`ℹ Ningún usuario regular tiene permiso de anulación activo.`, '#94a3b8');
+            }
+            const regulares = mixnetUsers.filter(u => !u.can_void);
+            if (regulares.length > 0) {
+              agentLog(`👤 USUARIOS REGULARES (SIN PERMISO DE ANULAR):`, '#94a3b8');
+              regulares.forEach(r => {
+                agentLog(`   ▶ "${r.username}" (${r.name}) | Cód: ${r.code} | Anulación: DENEGADO ✖`, '#e2e8f0');
+              });
             }
             setAgentStatus('Usuarios Consultados', '#10b981', '#dcfce7');
           } else {
-            agentLog(`⚠ No se pudo leer MXUSUAR.DBF. Verifica si la unidad de red está montada o escanea la red.`, '#ef4444');
+            agentLog(`⚠ No se pudieron cargar usuarios de MixNet. Verifica la conexión a M:\\comp01.`, '#ef4444');
             setAgentStatus('Error Lectura', '#ef4444', '#fee2e2');
           }
+          return;
+        }
+
+        // 3.1b Reindexación de MixNet solicitada por lenguaje natural
+        if (lower.includes('reindex') || lower.includes('indice') || lower.includes('índice') || lower.includes('ntx')) {
+          agentLog(`🔧 [HERRAMIENTA]: Disparando reindexación y calibración de árboles NTX con snapshot...`, '#38bdf8');
+          await triggerReindexAll();
+          setAgentStatus('Reindexado', '#10b981', '#dcfce7');
           return;
         }
 
@@ -705,137 +747,200 @@
       }
     }
 
-    let currentUsersFile = 'MXUSUAR.DBF';
-    let currentUsersFields = [];
+    let currentCatalog = [];
+    let selectedUserForEdit = null;
 
     async function loadUsers() {
       try {
         const res = await fetch('/api/users');
         const data = await res.json();
         mixnetUsers = data.users || [];
+        currentCatalog = data.catalog || [];
         document.getElementById('countUsers').textContent = mixnetUsers.length;
         const tbody = document.getElementById('tbodyUsers');
-        const thead = document.getElementById('theadUsers');
         const srcLabel = document.getElementById('userTableSource');
 
-        if (data.file) {
-          currentUsersFile = data.fileName || data.file;
-          if (srcLabel) srcLabel.innerHTML = `Tabla origen: <strong style="color:#0369a1">${escapeHtml(data.file)}</strong> (${data.count} usuarios detectados)`;
-        } else if (srcLabel) {
-          srcLabel.textContent = 'No se localizó tabla de usuarios en rutas automáticas. Usa "Búsqueda Profunda" para escanear discos.';
+        if (srcLabel) {
+          srcLabel.innerHTML = `Orígenes activos: Seguridad <strong style="color:#0369a1">${escapeHtml(data.source_securi ? data.source_securi.split('\\').pop() : 'MXSECURI.CFG')}</strong> | Nómina <strong style="color:#10b981">${escapeHtml(data.source_vendedores ? data.source_vendedores.split('\\').pop() : 'MXCTAVDD.DBF')}</strong> (${mixnetUsers.length} cuentas mapeadas)`;
         }
 
         if (!data.ok || mixnetUsers.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios en la tabla activa'}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios detectados en el sistema'}</td></tr>`;
           return;
         }
 
-        currentUsersFields = data.fields || [];
-
-        // Cabecera dinámica si hay campos específicos
-        tbody.innerHTML = mixnetUsers.map(u => {
-          const userCode = u.usuario || u.user || u.codigo || u.login || u.id || '-';
-          const userName = u.nombre || u.nom || u.name || '-';
-          const nivel = u.nivel || u.rol || u.tipo || u.access || u.status || 'Operador';
-          const cod = u.clave || u.password || u.pass || u.pin || '******';
-          const esAdmin = String(nivel).toUpperCase() === '1' || String(u.anula || '').toUpperCase().includes('S');
+        tbody.innerHTML = mixnetUsers.map((u, idx) => {
+          const userCode = u.code || u.username || '-';
+          const userName = u.name || '-';
+          const role = u.role || 'Operador';
+          const esAdmin = u.is_admin || u.can_void;
+          const activePermsCount = u.permissions ? Object.values(u.permissions).filter(Boolean).length : 0;
           
           return `
             <tr style="${esAdmin ? 'background:#fefce8' : ''}">
-              <td><strong>#${u._record}</strong></td>
+              <td><strong style="font-family:monospace;color:#0369a1">${escapeHtml(userCode)}</strong></td>
               <td>
                 <span class="badge" style="background:${esAdmin ? '#fef08a;color:#854d0e' : '#e0f2fe;color:#0369a1'}">
-                  ${escapeHtml(userCode)} ${esAdmin ? '🔑' : ''}
+                  ${escapeHtml(u.username)} ${esAdmin ? '👑' : ''}
                 </span>
               </td>
               <td><strong>${escapeHtml(userName)}</strong></td>
               <td>
                 <span class="badge ${esAdmin ? 'green' : ''}" style="${!esAdmin ? 'background:#f1f5f9;color:#475569' : ''}">
-                  ${escapeHtml(nivel)} ${esAdmin ? '(Admin/Anula)' : ''}
+                  ${escapeHtml(role)}
                 </span>
               </td>
-              <td style="font-family:monospace;font-size:12px;color:#0f172a">
-                <strong>${escapeHtml(cod)}</strong>
+              <td>
+                <span class="badge ${u.can_void ? 'green' : 'red'}" style="font-size:11px">
+                  ${u.can_void ? '✔ SÍ (Autorizado)' : '✖ DENEGADO'}
+                </span>
               </td>
               <td>
-                <button class="btn sm" onclick="editMixnetUser(${u._record}, '${escapeHtml(userCode)}', '${escapeHtml(nivel)}', '${escapeHtml(cod)}')">
-                  ✏️ Modificar
+                <span style="font-size:12px;font-weight:700;color:${activePermsCount > 10 ? '#10b981' : '#f59e0b'}">
+                  ${activePermsCount} / ${currentCatalog.length || 30} flags
+                </span>
+              </td>
+              <td>
+                <button class="btn sm" style="background:#7c3aed" onclick="openUserPermissionsModal(${idx})">
+                  🛡️ Configurar Permisos
                 </button>
               </td>
             </tr>
           `;
         }).join('');
       } catch (e) {
-        document.getElementById('tbodyUsers').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)">Error cargando usuarios: ${escapeHtml(e.message)}</td></tr>`;
+        document.getElementById('tbodyUsers').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--danger)">Error cargando usuarios: ${escapeHtml(e.message)}</td></tr>`;
       }
     }
 
-    async function deepSearchUserTables() {
-      const term = prompt('Introduce el nombre o patrón de archivo a buscar en toda la PC y red (ej: USUAR, MXUSUAR, USERS, CLAVES, CTAINV):', 'USUAR');
-      if (!term) return;
-      log(`Iniciando búsqueda profunda en todas las unidades de: "${term}"...`);
-      setTab('agent');
-      agentLog(`🔍 [BÚSQUEDA PROFUNDA]: Escaneando discos C:, M:, P:, D:, etc. para "${term}"...`, '#38bdf8');
-      try {
-        const res = await fetch('/api/files/locate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pattern: term.endsWith('.DBF') ? term : term + '.DBF', max_depth: 4 })
+    function openUserPermissionsModal(userIndex) {
+      selectedUserForEdit = mixnetUsers[userIndex];
+      if (!selectedUserForEdit) return;
+
+      document.getElementById('permModalTitle').textContent = `🛡️ Permisos para: ${selectedUserForEdit.name} (${selectedUserForEdit.code})`;
+      document.getElementById('permModalSubtitle').textContent = `Rol: ${selectedUserForEdit.role} | Cuenta: ${selectedUserForEdit.username}`;
+
+      const modalBody = document.getElementById('permModalBody');
+      const userPerms = selectedUserForEdit.permissions || {};
+
+      // Agrupar por módulo
+      const groups = {};
+      currentCatalog.forEach(p => {
+        if (!groups[p.mod]) groups[p.mod] = [];
+        groups[p.mod].push(p);
+      });
+
+      let html = '';
+      for (const [modName, items] of Object.entries(groups)) {
+        html += `
+          <div style="margin-bottom:16px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px">
+            <div style="font-size:13px;font-weight:800;color:#0369a1;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+              <span>📁 Módulo: ${escapeHtml(modName)}</span>
+              <span style="font-size:11px;color:var(--muted)">${items.length} opciones</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:8px">
+        `;
+
+        items.forEach(item => {
+          const isChecked = userPerms[item.id] !== undefined ? userPerms[item.id] : item.def;
+          const isCrit = item.critical;
+          html += `
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-radius:6px;background:#fff;border:1px solid ${isCrit ? '#fef08a' : '#e2e8f0'};cursor:pointer">
+              <input type="checkbox" id="chk_perm_${item.id}" ${isChecked ? 'checked' : ''} style="margin-top:2px">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:${isCrit ? '#b45309' : '#0f172a'}">
+                  ${escapeHtml(item.label)} ${isCrit ? '⚠️' : ''}
+                </div>
+                <div style="font-size:10px;font-family:monospace;color:var(--muted)">Flag ID: ${escapeHtml(item.id)}</div>
+              </div>
+            </label>
+          `;
         });
-        const data = await res.json();
-        if (data.ok && data.matches.length > 0) {
-          agentLog(`✔ ¡Se encontraron ${data.matches.length} coincidencias exactas en el sistema!`, '#10b981');
-          data.matches.forEach((m, idx) => {
-            agentLog(`   ${idx + 1}. [${m.name}] en "${m.directory}" (${m.records_count !== undefined ? m.records_count + ' registros' : m.size_bytes + ' bytes'})`, '#fef08a');
-          });
-          const selectFirst = confirm(`Se encontró "${data.matches[0].name}" en "${data.matches[0].directory}".\n\n¿Deseas configurar "${data.matches[0].directory}" como la carpeta de trabajo activa?`);
-          if (selectFirst) {
-            document.getElementById('mixDirInput').value = data.matches[0].directory;
-            await saveMixDir();
-            setTab('users');
-            loadUsers();
-          }
-        } else {
-          agentLog(`⚠ No se encontraron archivos coincidentes con "${term}" en el escaneo de unidades.`, '#f59e0b');
-          alert('No se encontraron archivos con ese nombre.');
-        }
-      } catch (e) {
-        agentLog(`❌ Error en búsqueda profunda: ${e.message}`, '#ef4444');
+
+        html += `</div></div>`;
       }
+
+      modalBody.innerHTML = html;
+      document.getElementById('modalPermissions').style.display = 'flex';
     }
 
-    async function editMixnetUser(recIdx, userCode, curNivel, curClave) {
-      const nuevoNivel = prompt(`Modificar Nivel / Rol para "${userCode}" en [${currentUsersFile}]:\n(1 = Admin total / Anulaciones, 2 = Facturación, 3 = Caja/Venta):`, curNivel);
-      if (nuevoNivel === null) return;
-      const nuevaClave = prompt(`Modificar Clave / Contraseña de acceso para "${userCode}":`, curClave);
-      if (nuevaClave === null) return;
+    function closePermModal() {
+      document.getElementById('modalPermissions').style.display = 'none';
+      selectedUserForEdit = null;
+    }
 
-      log(`Actualizando permisos de usuario "${userCode}" en ${currentUsersFile}...`);
+    async function saveUserPermissions() {
+      if (!selectedUserForEdit) return;
+      const btn = document.getElementById('btnSavePermissions');
+      btn.disabled = true;
+      btn.textContent = '⏳ Guardando...';
+
+      const updatedPermissions = {};
+      currentCatalog.forEach(p => {
+        const chk = document.getElementById(`chk_perm_${p.id}`);
+        if (chk) {
+          updatedPermissions[p.id] = chk.checked;
+        }
+      });
+
+      log(`Guardando matriz de permisos para usuario "${selectedUserForEdit.code}" (${selectedUserForEdit.name})...`);
+
       try {
-        const res = await fetch('/api/file-update', {
+        const res = await fetch('/api/users/save-permissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            file_name: currentUsersFile,
-            record_index: recIdx,
-            updates: {
-              nivel: nuevoNivel,
-              clave: nuevaClave
-            }
+            user_code: selectedUserForEdit.code,
+            permissions: updatedPermissions
           })
         });
         const data = await res.json();
         if (data.ok) {
-          log(`✔ ¡Usuario "${userCode}" modificado! Snapshot preventivo creado: ${data.snapshot_id}`);
-          alert(`✔ Permisos de usuario guardados en MixNet.\nSnapshot de seguridad: ${data.snapshot_id}`);
+          log(`✔ ¡Permisos guardados! Snapshot creado: ${data.snapshot_id} (${data.active_permissions_count} flags activos).`);
+          alert(`✔ Permisos guardados con éxito en MixNet ERP.\nSnapshot de seguridad: ${data.snapshot_id}\nFlags activos: ${data.active_permissions_count}`);
+          closePermModal();
           loadUsers();
           loadBackups();
         } else {
-          log(`❌ Error: ${data.error}`);
+          log('❌ Error: ' + data.error);
           alert('Error: ' + data.error);
         }
       } catch (e) {
-        log(`❌ Error de red: ${e.message}`);
+        log('❌ Excepción guardando permisos: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Guardar Permisos en MixNet';
+      }
+    }
+
+    async function triggerReindexAll() {
+      if (!confirm('¿Deseas verificar y calibrar los árboles de índices .NTX de MixNet?\n\nEsta operación crea un Snapshot de respaldo preventivo automático y sincroniza los punteros B-Tree.')) return;
+      const btn = document.getElementById('btnReindex');
+      btn.disabled = true;
+      btn.textContent = '⏳ Reindexando...';
+      log('🗂️ Iniciando reindexación y calibración de árboles NTX en MixNet...');
+
+      try {
+        const res = await fetch('/api/reindex', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Reindexación completada! Índices verificados: ${data.total_indices} | Snapshot: ${data.snapshot_id}`);
+          alert(`✔ Reindexación NTX completada con éxito.\nSnapshot: ${data.snapshot_id}\nÍndices procesados: ${data.total_indices}`);
+          loadStatus();
+          loadBackups();
+        } else {
+          log('❌ Error reindexando: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Error de red: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🗂️ Reindexar NTX MixNet';
       }
     }
 

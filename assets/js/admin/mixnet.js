@@ -8,6 +8,21 @@
 let activeTab = 'console';
 let isBridgePolling = false;
 
+async function ensureGeminiClient() {
+  if (window.GeminiClient) return window.GeminiClient;
+  if (!document.getElementById('geminiClientScript')) {
+    const s = document.createElement('script');
+    s.id = 'geminiClientScript';
+    s.src = '../assets/js/gemini-client.js?v=' + Date.now();
+    document.head.appendChild(s);
+  }
+  for (let i = 0; i < 40; i++) {
+    if (window.GeminiClient) return window.GeminiClient;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return null;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (typeof requireAuth === 'function') await requireAuth('admin');
   initMixnetBridgePanel();

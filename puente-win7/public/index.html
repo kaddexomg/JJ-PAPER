@@ -172,11 +172,31 @@
       </div>
     </div>
 
+    <!-- Consola Interactiva de Comandos y Asistente IA -->
+    <div class="card" style="margin-top:16px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <strong style="font-size:13px;color:var(--text)">💻 Comandos Rápidos & Asistente IA:</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button class="btn sm" onclick="runQuickCmd('list_users')">👥 Listar Usuarios</button>
+          <button class="btn sm" onclick="createManualBackup()">🛡️ Snapshot Completo</button>
+          <button class="btn sm" onclick="scanNetworkDrives()">🔍 Escanear Red</button>
+          <button class="btn sm" style="background:#64748b" onclick="document.getElementById('termLogs').innerHTML=''">🧹 Limpiar Terminal</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="bridgeCmdInput" placeholder="Escribe un comando o pregunta a la IA (ej: ¿quiénes pueden anular?)..." style="flex:1;padding:8px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg)" onkeydown="if(event.key==='Enter') executeBridgeCommand()">
+        <button class="btn sm" onclick="executeBridgeCommand()">Enviar</button>
+        <button class="btn sm" style="background:#7c3aed" onclick="executeBridgeCommand(true)" title="Consultar con Google Gemini AI">✨ IA</button>
+      </div>
+    </div>
+
     <div class="terminal" id="termLogs">
       <div class="term-line">📌 [SISTEMA] Puente iniciado. Conectando a MixNet y Supabase...</div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/gemini-client.js"></script>
   <script>
     let pendingQuotes = [];
     let pendingOrders = [];
@@ -191,6 +211,63 @@
       div.textContent = `[${time}] ${msg}`;
       term.appendChild(div);
       term.scrollTop = term.scrollHeight;
+    }
+
+    async function runQuickCmd(cmd) {
+      if (cmd === 'list_users') {
+        setTab('users');
+        loadUsers();
+      }
+    }
+
+    async function executeBridgeCommand(forceAi = false) {
+      const input = document.getElementById('bridgeCmdInput');
+      const val = (input?.value || '').trim();
+      if (!val) return;
+      input.value = '';
+
+      log(`> ${val}`);
+
+      const lower = val.toLowerCase();
+      if (lower.includes('usuario') || lower.includes('users') || lower.includes('quien') || lower.includes('permiso')) {
+        setTab('users');
+        await loadUsers();
+        if (mixnetUsers.length > 0) {
+          log(`✔ Se cargaron ${mixnetUsers.length} usuarios desde MXUSUAR.DBF.`);
+          const anula = mixnetUsers.filter(u => String(u.anula || u.nivel || '').toUpperCase().includes('S') || String(u.nivel || '') === '1');
+          if (anula.length > 0) {
+            log(`🔑 Usuarios con permisos altos/anulación: ${anula.map(u => u.nombre || u.usuario).join(', ')}`);
+          }
+        }
+        return;
+      }
+
+      if (lower.includes('backup') || lower.includes('snapshot')) {
+        setTab('backups');
+        await createManualBackup();
+        return;
+      }
+
+      if (lower.includes('scan') || lower.includes('escanear') || lower.includes('red') || lower.includes('unidad')) {
+        await scanNetworkDrives();
+        return;
+      }
+
+      // Si se pulsa botón IA o es una pregunta libre
+      if (typeof GeminiClient !== 'undefined' && GeminiClient.askCopilot) {
+        log(`🤖 Consultando Asistente IA JJ Paper sobre: "${val}"...`);
+        try {
+          const resp = await GeminiClient.askCopilot(val, {
+            mixnet_dir: document.getElementById('mixDirInput')?.value,
+            users_count: mixnetUsers.length
+          });
+          log(`🤖 IA: ${resp}`);
+        } catch (e) {
+          log(`⚠ Asistente IA en espera de claves: ${e.message}`);
+        }
+      } else {
+        log(`Comando enviado al sistema.`);
+      }
     }
 
     async function loadStatus() {

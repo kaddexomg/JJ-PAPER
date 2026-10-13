@@ -83,6 +83,7 @@
     <div class="tabs">
       <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones Web (<span id="countQuotes">0</span>)</div>
       <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos Web (<span id="countOrders">0</span>)</div>
+      <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios MixNet (<span id="countUsers">0</span>)</div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">
@@ -123,6 +124,24 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Tabla Usuarios MixNet -->
+      <div id="viewUsers" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Reg #</th>
+              <th>Usuario</th>
+              <th>Nombre</th>
+              <th>Nivel / Rol</th>
+              <th>Clave / Cód</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyUsers">
+            <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios desde MXUSUAR.DBF...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="terminal" id="termLogs">
@@ -133,6 +152,7 @@
   <script>
     let pendingQuotes = [];
     let pendingOrders = [];
+    let mixnetUsers = [];
     let currentTab = 'quotes';
 
     function log(msg) {
@@ -168,6 +188,39 @@
       }
     }
 
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        mixnetUsers = data.users || [];
+        document.getElementById('countUsers').textContent = mixnetUsers.length;
+        const tbody = document.getElementById('tbodyUsers');
+
+        if (!data.ok || mixnetUsers.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios en MXUSUAR.DBF'}</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = mixnetUsers.map(u => {
+          const userCode = u.usuario || u.user || u.codigo || '-';
+          const userName = u.nombre || u.nom || '-';
+          const nivel = u.nivel || u.rol || u.tipo || 'Operador';
+          const cod = u.clave || u.password || '******';
+          return `
+            <tr>
+              <td><strong>#${u._record}</strong></td>
+              <td><span class="badge" style="background:#e0f2fe;color:#0369a1">${escapeHtml(userCode)}</span></td>
+              <td>${escapeHtml(userName)}</td>
+              <td>${escapeHtml(nivel)}</td>
+              <td style="font-family:monospace;color:var(--muted)">${escapeHtml(cod)}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('tbodyUsers').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--danger)">Error cargando usuarios: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
     async function saveMixDir() {
       const dir = document.getElementById('mixDirInput').value.trim();
       if (!dir) return;
@@ -182,6 +235,7 @@
         if (data.ok) {
           log(data.connected ? '✔ Ruta válida y conectada a MixNet.' : '⚠ Ruta guardada pero no se encontró MXCTAINV.DBF allí.');
           loadStatus();
+          loadUsers();
         } else {
           log('❌ Error: ' + (data.error || 'No se pudo guardar'));
         }
@@ -332,8 +386,11 @@
       currentTab = t;
       document.getElementById('tabQuotes').classList.toggle('on', t === 'quotes');
       document.getElementById('tabOrders').classList.toggle('on', t === 'orders');
+      document.getElementById('tabUsers').classList.toggle('on', t === 'users');
       document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
       document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
+      document.getElementById('viewUsers').style.display = t === 'users' ? 'block' : 'none';
+      if (t === 'users') loadUsers();
     }
 
     function escapeHtml(str) {
@@ -343,6 +400,7 @@
     // Inicializar
     loadStatus();
     loadPending();
+    loadUsers();
     setInterval(loadStatus, 15000); // Refresca estado cada 15s
   </script>
 </body>

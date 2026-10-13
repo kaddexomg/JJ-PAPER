@@ -334,6 +334,47 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 2.1 Usuarios de MixNet (MXUSUAR.DBF)
+  if (pathname === '/api/users' && req.method === 'GET') {
+    const mixDir = config.mixnet_dir;
+    let usuarPath = path.join(mixDir, 'MXUSUAR.DBF');
+    if (!fs.existsSync(usuarPath)) {
+      usuarPath = path.join(mixDir, 'mxusuar.dbf');
+    }
+    if (!fs.existsSync(usuarPath)) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: 'No se encontró MXUSUAR.DBF en ' + mixDir, users: [] }));
+    }
+
+    const struct = readDbfStruct(usuarPath);
+    if (!struct) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: 'Cabecera de MXUSUAR.DBF corrupta o inaccesible', users: [] }));
+    }
+
+    const fields = readDbfFields(struct.buf, struct.headerLen);
+    const users = [];
+    let pos = struct.headerLen;
+    const maxEnd = Math.min(struct.headerLen + (struct.numRecords * struct.recordLen), struct.buf.length);
+    let recIdx = 0;
+
+    while (pos + struct.recordLen <= maxEnd) {
+      recIdx++;
+      const isDeleted = (struct.buf[pos] === 0x2A);
+      if (!isDeleted) {
+        const u = { _record: recIdx };
+        for (const f of fields) {
+          u[f.name.toLowerCase()] = decodeField(struct.buf, pos + f.pos, f.len);
+        }
+        users.push(u);
+      }
+      pos += struct.recordLen;
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, count: users.length, users }));
+  }
+
   // 3. Sincronizar Existencias y Precios de MixNet a Supabase
   if (pathname === '/api/sync-stock' && req.method === 'POST') {
     const invPath = path.join(config.mixnet_dir, 'MXCTAINV.DBF');
@@ -346,28 +387,40 @@ const server = http.createServer(async (req, res) => {
     const rows = readDbfRows(struct, ['item', 'descrip', 'precio1', 'precio2', 'existen']);
     console.log(`Leídos ${rows.length} productos desde MixNet.`);
 
-    // Enviar a Supabase en lotes de 100
-    let updated = 0;
-    for (let i = 0; i < rows.length; i += 100) {
-      const batch = rows.slice(i, i + 100);
+    // Enviar a Supabase en lotes
+    let updatedVariants = 0;
+    let updatedProducts = 0;
+
+    for (let i = 0; i < rows.length; i += 50) {
+      const batch = rows.slice(i, i + 50);
       for (const item of batch) {
         const sku = (item.item || '').trim();
         const stock = parseFloat(item.existen) || 0;
         const p1 = parseFloat(item.precio1) || 0;
         if (!sku) continue;
 
-        // Actualizar stock en variantes de Supabase
-        await sbReq(`/rest/v1/jjp_product_variants?sku=eq.${encodeURIComponent(sku)}`, 'PATCH', {
+        // 1. Actualizar en variantes
+        const vRes = await sbReq(`/rest/v1/jjp_product_variants?sku=eq.${encodeURIComponent(sku)}`, 'PATCH', {
           stock,
           price_usd: p1,
           updated_at: new Date().toISOString()
         });
-        updated++;
+        if (vRes.status === 200 || vRes.status === 204) {
+          updatedVariants++;
+        }
+
+        // 2. Actualizar en producto base si coincide el sku/código
+        await sbReq(`/rest/v1/jjp_products?sku=eq.${encodeURIComponent(sku)}`, 'PATCH', {
+          stock,
+          price_usd: p1,
+          updated_at: new Date().toISOString()
+        });
+        updatedProducts++;
       }
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, total_read: rows.length, updated }));
+    return res.end(JSON.stringify({ ok: true, total_read: rows.length, updated_variants: updatedVariants, updated_products: updatedProducts }));
   }
 
   // 4. Inyectar Cotización Web en MixNet

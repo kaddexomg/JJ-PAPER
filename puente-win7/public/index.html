@@ -129,30 +129,35 @@
         </table>
       </div>
 
-      <!-- Tabla Usuarios MixNet -->
+      <!-- Tabla Usuarios y Credenciales MixNet -->
       <div id="viewUsers" style="display:none">
-        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
           <div>
-            <strong style="font-size:13px">👥 Cuentas y Permisos Administrativos (MXUSUAR.DBF)</strong>
-            <p style="font-size:11px;color:var(--muted)">Visualiza y modifica niveles de acceso, autorización de anulación y claves con respaldo preventivo.</p>
+            <strong style="font-size:13px">👥 Cuentas, Credenciales y Permisos Administrativos</strong>
+            <p style="font-size:11px;color:var(--muted)" id="userTableSource">Buscando tabla de usuarios en todas las unidades activas...</p>
           </div>
-          <button class="btn sm" onclick="loadUsers()">🔄 Refrescar Usuarios</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn sm" style="background:#7c3aed" onclick="deepSearchUserTables()">🔍 Búsqueda Profunda de Archivos</button>
+            <button class="btn sm" onclick="loadUsers()">🔄 Refrescar</button>
+          </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Reg #</th>
-              <th>Usuario</th>
-              <th>Nombre</th>
-              <th>Nivel / Rol</th>
-              <th>Clave / Cód</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyUsers">
-            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios desde MXUSUAR.DBF...</td></tr>
-          </tbody>
-        </table>
+        <div style="overflow-x:auto">
+          <table>
+            <thead id="theadUsers">
+              <tr>
+                <th>Reg #</th>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th>Nivel / Rol</th>
+                <th>Clave / Cód</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyUsers">
+              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Vista Explorador & Editor DBF -->
@@ -569,8 +574,36 @@
           return;
         }
 
-        // 3.4 Búsqueda de archivos / Escaneo de Unidades de Red
+        // 3.4 Búsqueda de archivos / Escaneo Profundo de Unidades de Red y Carpetas
         if (lower.includes('busca') || lower.includes('donde') || lower.includes('dónde') || lower.includes('escanear') || lower.includes('red') || lower.includes('archivo') || lower.includes('.dbf')) {
+          // Extraer nombre de archivo si el usuario preguntó por uno en específico
+          const fileMatch = instruction.match(/([a-zA-Z0-9_\-\*]+\.(?:dbf|ntx|txt|ini|csv|dat|bak))/i) || instruction.match(/(?:archivo|tabla|donde esta|dónde está)\s+([a-zA-Z0-9_\-]+)/i);
+          const targetName = fileMatch ? (fileMatch[1].includes('.') ? fileMatch[1] : fileMatch[1] + '.DBF') : null;
+
+          if (targetName) {
+            agentLog(`🔧 [HERRAMIENTA]: Buscando "${targetName}" en todas las unidades del sistema (C:, M:, P:, D:, etc.)...`, '#38bdf8');
+            const res = await fetch('/api/files/locate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pattern: targetName, max_depth: 4 })
+            });
+            const data = await res.json();
+            if (data.ok && data.matches.length > 0) {
+              agentLog(`✔ ¡Se encontraron ${data.matches.length} ubicaciones para "${targetName}"!`, '#10b981');
+              data.matches.forEach((m, idx) => {
+                const infoStr = m.records_count !== undefined ? `${m.records_count} registros` : `${m.size_bytes} bytes`;
+                agentLog(`   ${idx + 1}. [${m.name}] en "${m.directory}" (${infoStr})`, '#fef08a');
+                if (m.fields && m.fields.length) {
+                  agentLog(`      Campos: ${m.fields.map(f => f.name).join(', ')}`, '#94a3b8');
+                }
+              });
+              setAgentStatus('Archivo Localizado', '#10b981', '#dcfce7');
+              return;
+            } else {
+              agentLog(`⚠ No se encontró "${targetName}" en las unidades escaneadas. Probando escaneo general de carpetas ERP...`, '#f59e0b');
+            }
+          }
+
           agentLog(`🔧 [HERRAMIENTA]: Escaneando todas las unidades de red y discos locales...`, '#38bdf8');
           const res = await fetch('/api/scan-network', { method: 'POST' });
           const data = await res.json();
@@ -672,6 +705,9 @@
       }
     }
 
+    let currentUsersFile = 'MXUSUAR.DBF';
+    let currentUsersFields = [];
+
     async function loadUsers() {
       try {
         const res = await fetch('/api/users');
@@ -679,24 +715,48 @@
         mixnetUsers = data.users || [];
         document.getElementById('countUsers').textContent = mixnetUsers.length;
         const tbody = document.getElementById('tbodyUsers');
+        const thead = document.getElementById('theadUsers');
+        const srcLabel = document.getElementById('userTableSource');
+
+        if (data.file) {
+          currentUsersFile = data.fileName || data.file;
+          if (srcLabel) srcLabel.innerHTML = `Tabla origen: <strong style="color:#0369a1">${escapeHtml(data.file)}</strong> (${data.count} usuarios detectados)`;
+        } else if (srcLabel) {
+          srcLabel.textContent = 'No se localizó tabla de usuarios en rutas automáticas. Usa "Búsqueda Profunda" para escanear discos.';
+        }
 
         if (!data.ok || mixnetUsers.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios en MXUSUAR.DBF'}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios en la tabla activa'}</td></tr>`;
           return;
         }
 
+        currentUsersFields = data.fields || [];
+
+        // Cabecera dinámica si hay campos específicos
         tbody.innerHTML = mixnetUsers.map(u => {
-          const userCode = u.usuario || u.user || u.codigo || '-';
-          const userName = u.nombre || u.nom || '-';
-          const nivel = u.nivel || u.rol || u.tipo || 'Operador';
-          const cod = u.clave || u.password || '******';
+          const userCode = u.usuario || u.user || u.codigo || u.login || u.id || '-';
+          const userName = u.nombre || u.nom || u.name || '-';
+          const nivel = u.nivel || u.rol || u.tipo || u.access || u.status || 'Operador';
+          const cod = u.clave || u.password || u.pass || u.pin || '******';
+          const esAdmin = String(nivel).toUpperCase() === '1' || String(u.anula || '').toUpperCase().includes('S');
+          
           return `
-            <tr>
+            <tr style="${esAdmin ? 'background:#fefce8' : ''}">
               <td><strong>#${u._record}</strong></td>
-              <td><span class="badge" style="background:#e0f2fe;color:#0369a1">${escapeHtml(userCode)}</span></td>
-              <td>${escapeHtml(userName)}</td>
-              <td>${escapeHtml(nivel)}</td>
-              <td style="font-family:monospace;color:var(--muted)">${escapeHtml(cod)}</td>
+              <td>
+                <span class="badge" style="background:${esAdmin ? '#fef08a;color:#854d0e' : '#e0f2fe;color:#0369a1'}">
+                  ${escapeHtml(userCode)} ${esAdmin ? '🔑' : ''}
+                </span>
+              </td>
+              <td><strong>${escapeHtml(userName)}</strong></td>
+              <td>
+                <span class="badge ${esAdmin ? 'green' : ''}" style="${!esAdmin ? 'background:#f1f5f9;color:#475569' : ''}">
+                  ${escapeHtml(nivel)} ${esAdmin ? '(Admin/Anula)' : ''}
+                </span>
+              </td>
+              <td style="font-family:monospace;font-size:12px;color:#0f172a">
+                <strong>${escapeHtml(cod)}</strong>
+              </td>
               <td>
                 <button class="btn sm" onclick="editMixnetUser(${u._record}, '${escapeHtml(userCode)}', '${escapeHtml(nivel)}', '${escapeHtml(cod)}')">
                   ✏️ Modificar
@@ -710,19 +770,53 @@
       }
     }
 
+    async function deepSearchUserTables() {
+      const term = prompt('Introduce el nombre o patrón de archivo a buscar en toda la PC y red (ej: USUAR, MXUSUAR, USERS, CLAVES, CTAINV):', 'USUAR');
+      if (!term) return;
+      log(`Iniciando búsqueda profunda en todas las unidades de: "${term}"...`);
+      setTab('agent');
+      agentLog(`🔍 [BÚSQUEDA PROFUNDA]: Escaneando discos C:, M:, P:, D:, etc. para "${term}"...`, '#38bdf8');
+      try {
+        const res = await fetch('/api/files/locate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pattern: term.endsWith('.DBF') ? term : term + '.DBF', max_depth: 4 })
+        });
+        const data = await res.json();
+        if (data.ok && data.matches.length > 0) {
+          agentLog(`✔ ¡Se encontraron ${data.matches.length} coincidencias exactas en el sistema!`, '#10b981');
+          data.matches.forEach((m, idx) => {
+            agentLog(`   ${idx + 1}. [${m.name}] en "${m.directory}" (${m.records_count !== undefined ? m.records_count + ' registros' : m.size_bytes + ' bytes'})`, '#fef08a');
+          });
+          const selectFirst = confirm(`Se encontró "${data.matches[0].name}" en "${data.matches[0].directory}".\n\n¿Deseas configurar "${data.matches[0].directory}" como la carpeta de trabajo activa?`);
+          if (selectFirst) {
+            document.getElementById('mixDirInput').value = data.matches[0].directory;
+            await saveMixDir();
+            setTab('users');
+            loadUsers();
+          }
+        } else {
+          agentLog(`⚠ No se encontraron archivos coincidentes con "${term}" en el escaneo de unidades.`, '#f59e0b');
+          alert('No se encontraron archivos con ese nombre.');
+        }
+      } catch (e) {
+        agentLog(`❌ Error en búsqueda profunda: ${e.message}`, '#ef4444');
+      }
+    }
+
     async function editMixnetUser(recIdx, userCode, curNivel, curClave) {
-      const nuevoNivel = prompt(`Modificar Nivel / Rol para "${userCode}" (1 = Admin total / Anulaciones, 2 = Facturación, 3 = Caja/Venta):`, curNivel);
+      const nuevoNivel = prompt(`Modificar Nivel / Rol para "${userCode}" en [${currentUsersFile}]:\n(1 = Admin total / Anulaciones, 2 = Facturación, 3 = Caja/Venta):`, curNivel);
       if (nuevoNivel === null) return;
-      const nuevaClave = prompt(`Modificar Clave de acceso para "${userCode}":`, curClave);
+      const nuevaClave = prompt(`Modificar Clave / Contraseña de acceso para "${userCode}":`, curClave);
       if (nuevaClave === null) return;
 
-      log(`Actualizando permisos de usuario "${userCode}" en MXUSUAR.DBF...`);
+      log(`Actualizando permisos de usuario "${userCode}" en ${currentUsersFile}...`);
       try {
         const res = await fetch('/api/file-update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            file_name: 'MXUSUAR.DBF',
+            file_name: currentUsersFile,
             record_index: recIdx,
             updates: {
               nivel: nuevoNivel,

@@ -40,8 +40,83 @@ const CODVEN_MAP = {
   'mostrador': '005'
 };
 
-// --- MOTOR DE DETECCION UNIVERSAL DE RUTA MIXNET ---
+// --- MOTOR DE DETECCION UNIVERSAL Y CATALOGADOR DE DATOS MIXNET ---
 const ALL_DRIVES = ['M:', 'C:', 'D:', 'P:', 'E:', 'F:', 'G:', 'H:', 'Z:', 'Y:', 'X:'];
+
+function searchFileAnywhere(fileName, maxDepth = 4) {
+  const normTarget = fileName.toUpperCase().trim();
+  const found = [];
+
+  // 1. Probar directorio configurado y directorio actual primero
+  const priorityDirs = [config.mixnet_dir, process.cwd(), __dirname, path.join(__dirname, '..')];
+  for (const pDir of priorityDirs) {
+    if (pDir && fs.existsSync(pDir)) {
+      try {
+        const items = fs.readdirSync(pDir);
+        for (const it of items) {
+          if (it.toUpperCase() === normTarget || it.toUpperCase().includes(normTarget)) {
+            const p = path.join(pDir, it);
+            if (!found.includes(p)) found.push(p);
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 2. Rutas conocidas comunes
+  const standardPaths = [
+    'M:\\comp01', 'M:\\COMP01', 'M:\\MIX11\\comp01', 'M:\\',
+    'P:\\comp01', 'P:\\Elias\\MIX\\MIX11\\comp01', 'P:\\',
+    'C:\\comp01', 'C:\\MIXNET\\comp01', 'C:\\MIX11\\comp01', 'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
+    'C:\\CT', 'C:\\MIX', 'C:\\SISTEMAS\\MIX', 'C:\\SISTEMAS\\comp01',
+    'D:\\comp01', 'D:\\MIXNET\\comp01', 'D:\\MIX11\\comp01'
+  ];
+
+  for (const sp of standardPaths) {
+    try {
+      if (!fs.existsSync(sp)) continue;
+      const direct = path.join(sp, normTarget);
+      if (fs.existsSync(direct) && !found.includes(direct)) found.push(direct);
+      const items = fs.readdirSync(sp);
+      for (const it of items) {
+        if (it.toUpperCase() === normTarget) {
+          const full = path.join(sp, it);
+          if (!found.includes(full)) found.push(full);
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 3. Exploración recursiva acotada en todas las unidades disponibles
+  function scanDir(dirPath, currentDepth) {
+    if (currentDepth > maxDepth || found.length >= 10) return;
+    try {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      for (const ent of entries) {
+        const full = path.join(dirPath, ent.name);
+        if (ent.isDirectory()) {
+          // Evitar carpetas gigantes del sistema de Windows
+          const upper = ent.name.toUpperCase();
+          if (['WINDOWS', '$RECYCLE.BIN', 'RECYCLER', 'PROGRAM FILES', 'PROGRAM FILES (X86)', 'SYSTEM VOLUME INFORMATION', 'WINSXS', 'APPDATA', 'NODE_MODULES'].includes(upper)) {
+            continue;
+          }
+          scanDir(full, currentDepth + 1);
+        } else if (ent.name.toUpperCase() === normTarget) {
+          if (!found.includes(full)) found.push(full);
+        }
+      }
+    } catch (_) {}
+  }
+
+  for (const d of ALL_DRIVES) {
+    const root = d + '\\';
+    if (fs.existsSync(root)) {
+      scanDir(root, 1);
+    }
+  }
+
+  return found;
+}
 
 function findTableInCandidates(tableName, explicitDir = null) {
   const normTable = tableName.toUpperCase();
@@ -60,6 +135,7 @@ function findTableInCandidates(tableName, explicitDir = null) {
     'M:\\comp01', 'M:\\COMP01', 'M:\\MIX11\\comp01', 'M:\\',
     'P:\\comp01', 'P:\\Elias\\MIX\\MIX11\\comp01', 'P:\\',
     'C:\\comp01', 'C:\\MIXNET\\comp01', 'C:\\MIX11\\comp01', 'C:\\RESPAMIX\\MIX11 (servidor)\\comp01',
+    'C:\\CT', 'C:\\MIX', 'C:\\SISTEMAS\\comp01',
     'D:\\comp01', 'D:\\MIXNET\\comp01'
   ];
 
@@ -72,28 +148,9 @@ function findTableInCandidates(tableName, explicitDir = null) {
     }
   }
 
-  // 3. Escaneo rápido de unidades activas
-  for (const d of ALL_DRIVES) {
-    try {
-      const root = d + '\\';
-      if (!fs.existsSync(root)) continue;
-      // Chequeo en raíz
-      for (const v of variations) {
-        const pRoot = path.join(root, v);
-        if (fs.existsSync(pRoot)) return pRoot;
-      }
-      // Chequeo en subcarpetas de nivel 1
-      const entries = fs.readdirSync(root, { withFileTypes: true });
-      for (const ent of entries) {
-        if (!ent.isDirectory()) continue;
-        const sub = path.join(root, ent.name);
-        for (const v of variations) {
-          const pSub = path.join(sub, v);
-          if (fs.existsSync(pSub)) return pSub;
-        }
-      }
-    } catch (_) {}
-  }
+  // 3. Búsqueda profunda si aún no se encuentra
+  const deepMatches = searchFileAnywhere(tableName, 3);
+  if (deepMatches.length > 0) return deepMatches[0];
 
   return null;
 }
@@ -602,18 +659,100 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 2.1 Usuarios de MixNet (Búsqueda universal en MXUSUAR.DBF o tablas de usuarios)
+  // 1.5 Localizador y Analizador Profundo de Archivos en Todo el Sistema y Red
+  if (pathname === '/api/files/locate' && req.method === 'POST') {
+    let bodyStr = '';
+    req.on('data', chunk => bodyStr += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(bodyStr || '{}');
+        const pattern = (payload.pattern || '').trim();
+        const maxDepth = Number(payload.max_depth) || 3;
+
+        if (!pattern) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ ok: false, error: 'Patrón o nombre de archivo requerido' }));
+        }
+
+        const matches = searchFileAnywhere(pattern, maxDepth);
+        const detailedMatches = [];
+
+        for (const fp of matches) {
+          try {
+            const st = fs.statSync(fp);
+            const isDbf = fp.toUpperCase().endsWith('.DBF');
+            let info = {
+              path: fp,
+              name: path.basename(fp),
+              directory: path.dirname(fp),
+              size_bytes: st.size,
+              modified: st.mtime.toISOString(),
+              is_dbf: isDbf
+            };
+
+            if (isDbf) {
+              const struct = readDbfStruct(fp);
+              if (struct) {
+                const flds = readDbfFields(struct.buf, struct.headerLen);
+                info.records_count = struct.numRecords;
+                info.fields = flds.map(f => ({ name: f.name, type: f.type, len: f.len }));
+              }
+            }
+            detailedMatches.push(info);
+          } catch (_) {}
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          ok: true,
+          pattern,
+          count: detailedMatches.length,
+          matches: detailedMatches
+        }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // 2.1 Usuarios de MixNet (Búsqueda universal profunda en MXUSUAR.DBF y tablas candidatas)
   if (pathname === '/api/users' && req.method === 'GET') {
-    let usuarPath = findTableInCandidates('MXUSUAR.DBF', config.mixnet_dir);
-    if (!usuarPath) usuarPath = findTableInCandidates('USUAR.DBF', config.mixnet_dir);
-    if (!usuarPath) usuarPath = findTableInCandidates('USERS.DBF', config.mixnet_dir);
+    const candidateNames = ['MXUSUAR.DBF', 'USUAR.DBF', 'USERS.DBF', 'USER.DBF', 'CLAVES.DBF', 'ACCESO.DBF', 'OPERADOR.DBF', 'VENDEDOR.DBF'];
+    let usuarPath = null;
+    let checkedPaths = [];
+
+    // 1. Probar en carpeta configurada
+    for (const name of candidateNames) {
+      const p = path.join(config.mixnet_dir, name);
+      checkedPaths.push(p);
+      if (fs.existsSync(p)) { usuarPath = p; break; }
+    }
+
+    // 2. Probar candidatos en rutas conocidas
+    if (!usuarPath) {
+      for (const name of candidateNames) {
+        const found = findTableInCandidates(name, config.mixnet_dir);
+        if (found) { usuarPath = found; break; }
+      }
+    }
+
+    // 3. Si aún no está, búsqueda profunda en todas las unidades
+    if (!usuarPath) {
+      for (const name of candidateNames) {
+        const deepMatches = searchFileAnywhere(name, 3);
+        if (deepMatches.length > 0) { usuarPath = deepMatches[0]; break; }
+      }
+    }
 
     if (!usuarPath) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({
         ok: false,
-        error: 'No se encontró MXUSUAR.DBF en ninguna unidad activa (' + ALL_DRIVES.join(', ') + ')',
-        users: []
+        error: 'No se encontró archivo de usuarios (' + candidateNames.join(', ') + ') en unidades activas (' + ALL_DRIVES.join(', ') + ')',
+        users: [],
+        checked_drives: ALL_DRIVES
       }));
     }
 
@@ -643,7 +782,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, file: usuarPath, count: users.length, users }));
+    return res.end(JSON.stringify({
+      ok: true,
+      file: usuarPath,
+      fileName: path.basename(usuarPath),
+      directory: path.dirname(usuarPath),
+      count: users.length,
+      fields: fields.map(f => ({ name: f.name, type: f.type, len: f.len })),
+      users
+    }));
   }
 
   // 3. Sincronizar Existencias y Precios de MixNet a Supabase

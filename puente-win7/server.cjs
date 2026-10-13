@@ -642,20 +642,27 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 2. Cotizaciones y Pedidos Pendientes de la Web (excluye ventas históricas importadas de MixNet)
+  // 2. Cotizaciones y Pedidos (Carga integral para sincronización e inyección)
   if (pathname === '/api/pending' && req.method === 'GET') {
     try {
-      const quotesRes = await sbReq('/rest/v1/jjp_quotes?source=neq.mixnet&status=eq.pendiente&order=created_at.desc&limit=30');
-      const ordersRes = await sbReq('/rest/v1/jjp_orders?source=neq.mixnet&status=in.(pendiente,pendiente_pago,pagado)&order=created_at.desc&limit=30');
+      // Traer las cotizaciones y pedidos más recientes (tanto web/vendedor como POS y pendientes)
+      const quotesRes = await sbReq('/rest/v1/jjp_quotes?order=created_at.desc&limit=100');
+      const ordersRes = await sbReq('/rest/v1/jjp_orders?order=created_at.desc&limit=100');
+      
+      const quotes = quotesRes.data || [];
+      const orders = ordersRes.data || [];
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({
         ok: true,
-        quotes: quotesRes.data || [],
-        orders: ordersRes.data || []
+        quotes,
+        orders,
+        total_quotes: quotes.length,
+        total_orders: orders.length
       }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false, error: e.message }));
+      return res.end(JSON.stringify({ ok: false, error: e.message, quotes: [], orders: [] }));
     }
   }
 
@@ -733,15 +740,15 @@ const server = http.createServer(async (req, res) => {
 
         console.log(`[REINDEX] Iniciando verificación y reindexación de árboles NTX en "${baseDir}"...`);
 
-        // Tablas e índices oficiales de MixNet
+        // Tablas e índices oficiales reales de MixNet en M:\comp01
         const tableIndexMap = {
-          'MXENCPED': ['MXENCPED.NTX', 'MXENCP01.NTX', 'MXENCP02.NTX'],
-          'MXRENPED': ['MXRENPED.NTX', 'MXRENP01.NTX', 'MXRENP02.NTX'],
-          'MXENCCOT': ['MXENCCOT.NTX', 'MXENCC01.NTX', 'MXENCC02.NTX'],
-          'MXRENCOT': ['MXRENCOT.NTX', 'MXRENC01.NTX', 'MXRENC02.NTX'],
-          'MXCTAINV': ['MXCTAINV.NTX', 'MXCTAI01.NTX', 'MXCTAI02.NTX', 'MXCTAI03.NTX'],
-          'MXCTACLI': ['MXCTACLI.NTX', 'MXCTAC01.NTX', 'MXCTAC02.NTX'],
-          'MXCTAVDD': ['MXCTAVDD.NTX']
+          'MXENCPED': ['MXENPEX1.NTX', 'MXENPEX2.NTX', 'MXENPEX3.NTX', 'MXENCPX1.NTX', 'MXENCPX2.NTX', 'MXENCPX3.NTX', 'JJENCPX2.NTX'],
+          'MXRENPED': ['MXREPEX1.NTX', 'MXREPEX2.NTX', 'MXRECPX1.NTX', 'MXRECPX2.NTX', 'MXRECPX3.NTX', 'JJRECPX3.NTX'],
+          'MXENCCOT': ['MXENCOX1.NTX', 'MXENCZX1.NTX', 'MXENCZX2.NTX', 'MXENCZX3.NTX', 'MXCCCOX1.NTX'],
+          'MXRENCOT': ['MXRECOX1.NTX', 'MXRECOX2.NTX', 'MXRECZX1.NTX', 'MXRECZX2.NTX'],
+          'MXCTAINV': ['MXCTINX1.NTX', 'MXCTINX2.NTX', 'MXCTINX3.NTX', 'MXCTINX4.NTX', 'MXCTINX5.NTX', 'CTAINV.NTX', 'JJCTINX1.NTX', 'VICTAINV.NTX'],
+          'MXCTACLI': ['MXCTCLX1.NTX', 'MXCTCLX2.NTX', 'MXCTCLX3.NTX', 'MXACCLX1.NTX'],
+          'MXCTAVDD': ['MXCTVDX1.NTX']
         };
 
         const reindexed = [];
@@ -891,11 +898,11 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      // 2. Extraer usuarios de seguridad desde MXSECURI.CFG y MXCLA.MIX
-      let userList = [];
-      let rawSecuriText = '';
-      if (securiPath && fs.existsSync(securiPath)) {
-        try { rawSecuriText = fs.readFileSync(securiPath, 'utf8'); } catch (_) {}
+      // 2. Extraer y fusionar permisos guardados en JJ_USER_PERMISSIONS.json
+      const permStorageFile = path.join(baseDir, 'JJ_USER_PERMISSIONS.json');
+      let savedPermsMap = {};
+      if (fs.existsSync(permStorageFile)) {
+        try { savedPermsMap = JSON.parse(fs.readFileSync(permStorageFile, 'utf8')); } catch (_) {}
       }
 
       // Si tenemos vendedores en nómina, mapear a cada uno como usuario del sistema
@@ -904,11 +911,19 @@ const server = http.createServer(async (req, res) => {
           // Determinar si es Administrador (001 JJ Paper, 005 Mostrador, 010/020 Keyder)
           const isAdmin = ['001', '005', '010', '020'].includes(v.code) || v.name.toLowerCase().includes('admin') || v.name.toLowerCase().includes('paper');
           
-          // Matriz de permisos
+          // Matriz de permisos base
           const perms = {};
           PERMISSIONS_CATALOG.forEach(p => {
             perms[p.id] = isAdmin ? true : p.def;
           });
+
+          // Si el usuario tiene permisos personalizados guardados, sobreescribir
+          if (savedPermsMap[v.code] && savedPermsMap[v.code].permissions) {
+            Object.assign(perms, savedPermsMap[v.code].permissions);
+          }
+
+          const canVoid = perms['FAC_ANULAR'] !== undefined ? Boolean(perms['FAC_ANULAR']) : isAdmin;
+          const canModPrices = perms['FAC_MODIF_PRECIO'] !== undefined ? Boolean(perms['FAC_MODIF_PRECIO']) : isAdmin;
 
           return {
             _record: v._record,
@@ -917,8 +932,8 @@ const server = http.createServer(async (req, res) => {
             name: v.name,
             role: isAdmin ? 'Administrador' : 'Vendedor / Operador',
             is_admin: isAdmin,
-            can_void: isAdmin, // Permiso clave de anular
-            can_modify_prices: isAdmin,
+            can_void: canVoid,
+            can_modify_prices: canModPrices,
             password_masked: '••••••',
             permissions: perms
           };
@@ -933,6 +948,14 @@ const server = http.createServer(async (req, res) => {
           { _record: 5, code: '014', username: 'ANDREINA_014', name: 'ANDREINA', role: 'Vendedor', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} },
           { _record: 6, code: '005', username: 'CAJA_005', name: 'MOSTRADOR / CAJA', role: 'Cajero', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} }
         ];
+
+        userList.forEach(u => {
+          PERMISSIONS_CATALOG.forEach(p => { u.permissions[p.id] = u.is_admin ? true : p.def; });
+          if (savedPermsMap[u.code] && savedPermsMap[u.code].permissions) {
+            Object.assign(u.permissions, savedPermsMap[u.code].permissions);
+            if (u.permissions['FAC_ANULAR'] !== undefined) u.can_void = Boolean(u.permissions['FAC_ANULAR']);
+          }
+        });
       }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });

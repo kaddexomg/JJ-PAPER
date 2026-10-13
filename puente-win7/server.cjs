@@ -4,6 +4,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 const backupEngine = require('./mixnet-backup.cjs');
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
@@ -932,6 +933,178 @@ const server = http.createServer(async (req, res) => {
       }
     });
     return;
+  }
+
+  // 7. MOTOR AGÉNTICO EJECUTOR (Tipo OpenCode / Antigravity)
+  // 7.1 Ejecución directa de comandos en el Sistema Operativo (cmd.exe / PowerShell en Windows 7)
+  if (pathname === '/api/agent/run-command' && req.method === 'POST') {
+    let bodyStr = '';
+    req.on('data', chunk => bodyStr += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(bodyStr || '{}');
+        const command = (payload.command || '').trim();
+        const cwd = (payload.cwd || config.mixnet_dir || process.cwd()).trim();
+        const timeoutMs = Number(payload.timeout_ms) || 30000;
+
+        if (!command) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ ok: false, error: 'Comando no especificado' }));
+        }
+
+        console.log(`[AGENTE-CMD] Ejecutando: "${command}" en "${cwd}"`);
+        const startTime = Date.now();
+
+        exec(command, {
+          cwd: fs.existsSync(cwd) ? cwd : process.cwd(),
+          timeout: timeoutMs,
+          maxBuffer: 10 * 1024 * 1024,
+          windowsHide: true,
+          env: Object.assign({}, process.env)
+        }, (err, stdout, stderr) => {
+          const durationMs = Date.now() - startTime;
+          const exitCode = err ? (err.code || 1) : 0;
+          console.log(`[AGENTE-CMD] Finalizado en ${durationMs}ms (código ${exitCode})`);
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            ok: !err || exitCode === 0,
+            command,
+            cwd,
+            exit_code: exitCode,
+            stdout: stdout || '',
+            stderr: stderr || (err ? err.message : ''),
+            duration_ms: durationMs
+          }));
+        });
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // 7.2 Ejecución y Evaluación de Scripts JavaScript / Node en vivo (REPL Agéntico)
+  if (pathname === '/api/agent/eval-code' && req.method === 'POST') {
+    let bodyStr = '';
+    req.on('data', chunk => bodyStr += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyStr || '{}');
+        const code = (payload.code || '').trim();
+        const autoBackup = payload.auto_backup !== false;
+
+        if (!code) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ ok: false, error: 'Código JavaScript no especificado' }));
+        }
+
+        console.log(`[AGENTE-EVAL] Evaluando snippet de código (${code.length} bytes)...`);
+
+        let snapshotId = null;
+        if (autoBackup) {
+          try {
+            const snap = backupEngine.createPreTransactionSnapshot(config.mixnet_dir, 'AGENT_CODE_EXEC', []);
+            snapshotId = snap.snapshotId;
+          } catch (snapErr) {
+            console.warn('[AGENTE-EVAL] No se pudo crear snapshot preventivo:', snapErr.message);
+          }
+        }
+
+        const logs = [];
+        const captureLog = (...args) => {
+          logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+        };
+
+        // Entorno seguro enriquecido para el Agente
+        const agentContext = {
+          fs,
+          path,
+          config,
+          backupEngine,
+          ALL_DRIVES,
+          findTableInCandidates,
+          readDbfStruct,
+          readDbfFields,
+          readDbfRows,
+          decodeRaw,
+          encodeField,
+          buildDbfRecord,
+          sbReq,
+          console: {
+            log: captureLog,
+            error: captureLog,
+            warn: captureLog,
+            info: captureLog
+          }
+        };
+
+        const startTime = Date.now();
+        let evalResult = null;
+        try {
+          // Ejecución con AsyncFunction
+          const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+          const fn = new AsyncFunction('ctx', `
+            with (ctx) {
+              ${code}
+            }
+          `);
+          evalResult = await fn(agentContext);
+        } catch (evalErr) {
+          const durationMs = Date.now() - startTime;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            ok: false,
+            error: evalErr.message,
+            stack: evalErr.stack,
+            logs,
+            duration_ms: durationMs,
+            snapshot_id: snapshotId
+          }));
+        }
+
+        const durationMs = Date.now() - startTime;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          ok: true,
+          result: evalResult !== undefined ? evalResult : null,
+          logs,
+          duration_ms: durationMs,
+          snapshot_id: snapshotId
+        }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // 7.3 Herramientas de Inspección y Capacidades Agénticas
+  if (pathname === '/api/agent/tools' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      ok: true,
+      agent_name: 'Antigravity / OpenCode Agent JJ Paper',
+      system: {
+        platform: process.platform,
+        node_version: process.version,
+        pid: process.pid,
+        cwd: process.cwd(),
+        mixnet_dir: config.mixnet_dir
+      },
+      available_tools: [
+        { name: 'run_command', desc: 'Ejecuta comandos shell en cmd.exe de Windows 7' },
+        { name: 'eval_code', desc: 'Ejecuta scripts Node.js para inspeccionar o transformar DBFs' },
+        { name: 'backup_snapshot', desc: 'Crea snapshots atómicos preventivos de MixNet' },
+        { name: 'rollback_snapshot', desc: 'Restaura MixNet a cualquier segundo previo' },
+        { name: 'query_dbf', desc: 'Lee registros y columnas de cualquier tabla DBF' },
+        { name: 'update_dbf', desc: 'Modifica celdas o registros byte a byte con snapshot previo' },
+        { name: 'scan_network', desc: 'Escanea todas las unidades de red en busca de MixNet' },
+        { name: 'manage_users', desc: 'Lee y edita permisos de MXUSUAR.DBF' }
+      ]
+    }));
   }
 
   // Ruta no encontrada

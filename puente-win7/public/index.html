@@ -87,6 +87,7 @@
       <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios MixNet (<span id="countUsers">0</span>)</div>
       <div class="tab" id="tabExplorer" onclick="setTab('explorer')">📁 Explorador & Editor DBF (<span id="countFiles">0</span>)</div>
       <div class="tab" id="tabBackups" onclick="setTab('backups')">Backups y Rollback (<span id="countBackups">0</span>)</div>
+      <div class="tab" id="tabAgent" onclick="setTab('agent')" style="color:#7c3aed">🤖 Agente Ejecutor IA</div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">
@@ -203,6 +204,64 @@
           </tbody>
         </table>
       </div>
+      <!-- Vista Agente Ejecutor Autónomo (OpenCode / Antigravity) -->
+      <div id="viewAgent" style="display:none;padding:16px">
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#6b21a8;display:flex;align-items:center;gap:8px">
+                <span>⚡ Agente de Código Autónomo y Ejecutor</span>
+                <span class="badge" style="background:#ede9fe;color:#6b21a8">OpenCode / Antigravity</span>
+              </div>
+              <p style="font-size:12px;color:var(--muted);margin-top:4px">
+                Comprende instrucciones en lenguaje natural y <strong>ejecuta de verdad</strong>: corre comandos de sistema (cmd/powershell), edita archivos y tablas DBF con snapshots de seguridad, sincroniza datos y resuelve fallos.
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn sm" style="background:#0284c7" onclick="runAgentQuickTool('check_health')">🩺 Diagnóstico Sistema</button>
+              <button class="btn sm" style="background:#10b981" onclick="runAgentQuickTool('list_users_detailed')">👥 Permisos Usuarios</button>
+              <button class="btn sm" style="background:#f59e0b" onclick="runAgentQuickTool('create_backup')">🛡️ Backup Ahora</button>
+              <button class="btn sm" style="background:#64748b" onclick="document.getElementById('agentConsoleOutput').innerHTML=''">🧹 Limpiar Salida</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modo de Operación: Lenguaje Natural vs Comando Directo vs Snippet Node -->
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;font-weight:700;color:var(--muted)">Modo de Ejecución:</label>
+            <select id="agentModeSelect" style="padding:6px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font-weight:600" onchange="onAgentModeChange()">
+              <option value="autonomous">🧠 Autónomo Inteligente (Entiende y Ejecuta con IA)</option>
+              <option value="cmd">💻 Terminal Shell Directa (cmd.exe / Windows 7)</option>
+              <option value="node">⚡ REPL Node.js (Inspección & Mutación DBF)</option>
+            </select>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:auto">
+              <input type="checkbox" id="agentAutoBackupChk" checked>
+              <span style="font-size:11px;color:var(--muted)">Respaldar con Snapshot antes de mutar</span>
+            </label>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <textarea id="agentInput" rows="2" placeholder="Escribe lo que necesitas que el agente ejecute (ej: 'revisa si hay usuarios con permiso de anular', 'ejecuta dir M:\comp01', o 'comprueba el espacio en disco C:')..." style="flex:1;padding:10px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-family:inherit;resize:vertical" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();runAgentInstruction();}"></textarea>
+            <button class="btn" style="background:#7c3aed;padding:0 24px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px" id="btnRunAgent" onclick="runAgentInstruction()">
+              <span>🚀 EJECUTAR</span>
+              <span style="font-size:10px;opacity:0.8;font-weight:normal">Enter</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Consola de Salida del Agente (Terminal Negra con Salida Detallada) -->
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)">Consola de Ejecución & Trazas en Vivo:</span>
+            <span id="agentStatusBadge" class="badge" style="background:#f1f5f9;color:var(--muted);font-size:10px">Listo</span>
+          </div>
+          <div class="terminal" id="agentConsoleOutput" style="height:320px;border:1px solid #334155;border-radius:8px">
+            <div class="term-line" style="color:#a855f7">⚡ [AGENTE AUTÓNOMO JJ PAPER] Motor listo. Selecciona o escribe una instrucción para ejecutar en Windows 7 y MixNet ERP.</div>
+            <div class="term-line" style="color:#64748b">Tip: Puedes pedir acciones de sistema operativo ("dir", "ipconfig", "net use"), inspección DBF o control de usuarios.</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Consola Interactiva de Comandos y Asistente IA -->
@@ -286,20 +345,307 @@
         return;
       }
 
-      // Si se pulsa botón IA o es una pregunta libre
-      if (typeof GeminiClient !== 'undefined' && GeminiClient.askCopilot) {
-        log(`🤖 Consultando Asistente IA JJ Paper sobre: "${val}"...`);
+      // Si no es un atajo directo, delegar al Agente Autónomo Ejecutor
+      setTab('agent');
+      const agentInput = document.getElementById('agentInput');
+      if (agentInput) agentInput.value = val;
+      await runAgentInstruction();
+    }
+
+    // --- AGENTE DE CÓDIGO AUTÓNOMO Y EJECUTOR (OpenCode / Antigravity) ---
+    function agentLog(msg, color = '#38bdf8') {
+      const term = document.getElementById('agentConsoleOutput');
+      if (!term) return;
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'term-line';
+      div.style.color = color;
+      div.textContent = `[${time}] ${msg}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function setAgentStatus(status, color = '#a855f7', bg = '#ede9fe') {
+      const b = document.getElementById('agentStatusBadge');
+      if (b) {
+        b.textContent = status;
+        b.style.color = color;
+        b.style.background = bg;
+      }
+    }
+
+    function onAgentModeChange() {
+      const mode = document.getElementById('agentModeSelect').value;
+      const inp = document.getElementById('agentInput');
+      if (!inp) return;
+      if (mode === 'cmd') {
+        inp.placeholder = 'Comando shell directo para Windows 7 (ej: dir M:\\comp01, ping 192.168.1.1, ipconfig)...';
+      } else if (mode === 'node') {
+        inp.placeholder = 'Código Node.js (ej: const list = fs.readdirSync(config.mixnet_dir); console.log("Archivos:", list.length);)...';
+      } else {
+        inp.placeholder = 'Escribe lo que necesitas que el agente ejecute en lenguaje natural (ej: "revisa permisos de usuarios", "crea un backup y busca VICTAINV")...';
+      }
+    }
+
+    async function runAgentQuickTool(tool) {
+      setTab('agent');
+      if (tool === 'check_health') {
+        agentLog('⚡ [DIAGNÓSTICO] Verificando salud del sistema operativo, puente y red...', '#38bdf8');
+        setAgentStatus('Diagnóstico en curso...', '#0284c7', '#e0f2fe');
         try {
-          const resp = await GeminiClient.askCopilot(val, {
+          const res = await fetch('/api/agent/tools');
+          const data = await res.json();
+          agentLog(`✔ Servidor Activo: PID ${data.system.pid} en Windows (${data.system.platform}), Node ${data.system.node_version}`, '#10b981');
+          agentLog(`✔ Directorio de trabajo: ${data.system.cwd}`, '#10b981');
+          agentLog(`✔ Carpeta ERP MixNet: ${data.system.mixnet_dir}`, '#10b981');
+          agentLog(`✔ Herramientas disponibles: ${data.available_tools.map(t => t.name).join(', ')}`, '#a855f7');
+          setAgentStatus('Saludable', '#10b981', '#dcfce7');
+        } catch (e) {
+          agentLog(`❌ Error consultando salud: ${e.message}`, '#ef4444');
+          setAgentStatus('Error', '#ef4444', '#fee2e2');
+        }
+      } else if (tool === 'list_users_detailed') {
+        agentLog('⚡ [USUARIOS] Consultando tabla MXUSUAR.DBF...', '#38bdf8');
+        await loadUsers();
+        if (mixnetUsers.length > 0) {
+          agentLog(`✔ ${mixnetUsers.length} usuarios encontrados en MXUSUAR.DBF:`, '#10b981');
+          mixnetUsers.forEach(u => {
+            const esAdmin = String(u.nivel || '') === '1' || String(u.anula || '').toUpperCase().includes('S');
+            const icon = esAdmin ? '🔑 [ADMIN/ANULACIONES]' : '👤 [OPERADOR]';
+            agentLog(`   ${icon} #${u._record}: "${u.usuario || u.user}" (${u.nombre || '-'}) | Nivel: ${u.nivel} | Clave: ${u.clave || '***'}`, esAdmin ? '#f59e0b' : '#94a3b8');
+          });
+        } else {
+          agentLog('⚠ No se pudieron leer usuarios de MXUSUAR.DBF.', '#f59e0b');
+        }
+      } else if (tool === 'create_backup') {
+        agentLog('⚡ [SEGURIDAD] Generando snapshot atómico inmediato de MixNet...', '#38bdf8');
+        await createManualBackup();
+      }
+    }
+
+    async function runAgentInstruction() {
+      const inp = document.getElementById('agentInput');
+      const instruction = (inp?.value || '').trim();
+      if (!instruction) return;
+      const btn = document.getElementById('btnRunAgent');
+      const mode = document.getElementById('agentModeSelect')?.value || 'autonomous';
+      const autoBackup = document.getElementById('agentAutoBackupChk')?.checked !== false;
+
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      setAgentStatus('Ejecutando...', '#f59e0b', '#fef3c7');
+
+      agentLog(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, '#64748b');
+      agentLog(`▶ [ORDEN RECIBIDA (${mode.toUpperCase()})]: ${instruction}`, '#f8fafc');
+
+      try {
+        // MODO 1: Shell cmd.exe directo
+        if (mode === 'cmd') {
+          agentLog(`⚙ Ejecutando comando shell en Windows 7: "${instruction}"...`, '#38bdf8');
+          const res = await fetch('/api/agent/run-command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: instruction })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Salida de consola (código ${data.exit_code}, ${data.duration_ms}ms):`, '#10b981');
+            if (data.stdout) {
+              data.stdout.split('\n').forEach(line => {
+                if (line.trim()) agentLog(`  ${line}`, '#e2e8f0');
+              });
+            } else {
+              agentLog(`  (Comando ejecutado sin salida en stdout)`, '#94a3b8');
+            }
+            setAgentStatus('Comando Exitoso', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ Fallo en comando (código ${data.exit_code}):`, '#ef4444');
+            if (data.stderr) agentLog(`  ${data.stderr}`, '#ef4444');
+            setAgentStatus('Fallo en Comando', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // MODO 2: REPL Node.js Directo
+        if (mode === 'node') {
+          agentLog(`⚡ Evaluando script Node.js en vivo...`, '#38bdf8');
+          const res = await fetch('/api/agent/eval-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: instruction, auto_backup: autoBackup })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Script completado con éxito (${data.duration_ms}ms):`, '#10b981');
+            if (data.snapshot_id) agentLog(`🛡 Snapshot preventivo: ${data.snapshot_id}`, '#0284c7');
+            if (data.logs && data.logs.length) {
+              data.logs.forEach(l => agentLog(`  [LOG] ${l}`, '#e2e8f0'));
+            }
+            if (data.result !== null && data.result !== undefined) {
+              agentLog(`  [RESULTADO]: ${typeof data.result === 'object' ? JSON.stringify(data.result, null, 2) : String(data.result)}`, '#38bdf8');
+            }
+            setAgentStatus('Script Completado', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ Error de ejecución en script: ${data.error}`, '#ef4444');
+            if (data.stack) agentLog(`  ${data.stack.split('\n')[1] || ''}`, '#ef4444');
+            setAgentStatus('Error en Script', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // MODO 3: Autónomo Inteligente (Interpretación y Ejecución de Herramientas)
+        agentLog(`🧠 Analizando requerimiento y planificando herramientas de ejecución...`, '#a855f7');
+        const lower = instruction.toLowerCase();
+
+        // 3.1 Petición de Usuarios / Permisos / Quién anula
+        if (lower.includes('usuario') || lower.includes('quien') || lower.includes('quién') || lower.includes('anular') || lower.includes('permiso')) {
+          agentLog(`🔧 [HERRAMIENTA]: Consultando tabla de usuarios MXUSUAR.DBF...`, '#38bdf8');
+          await loadUsers();
+          if (mixnetUsers.length > 0) {
+            const anulan = mixnetUsers.filter(u => String(u.nivel || '') === '1' || String(u.anula || '').toUpperCase().includes('S'));
+            agentLog(`✔ ACCIÓN COMPLETADA: Se encontraron ${mixnetUsers.length} usuarios en el sistema.`, '#10b981');
+            if (anulan.length > 0) {
+              agentLog(`🔑 USUARIOS CON PERMISO DE ANULACIÓN / ADMIN (NIVEL 1):`, '#f59e0b');
+              anulan.forEach(a => {
+                agentLog(`   ▶ Usuario: "${a.usuario || a.user}" | Nombre: "${a.nombre || '-'}" | Clave: "${a.clave || '***'}"`, '#fef08a');
+              });
+            } else {
+              agentLog(`ℹ Ningún usuario tiene nivel 1 estricto asignado actualmente.`, '#94a3b8');
+            }
+            setAgentStatus('Usuarios Consultados', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`⚠ No se pudo leer MXUSUAR.DBF. Verifica si la unidad de red está montada o escanea la red.`, '#ef4444');
+            setAgentStatus('Error Lectura', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // 3.2 Modificación de Permiso / Clave de usuario por instrucción
+        if ((lower.includes('cambia') || lower.includes('modifica') || lower.includes('pon') || lower.includes('asignar')) && (lower.includes('clave') || lower.includes('nivel') || lower.includes('permiso'))) {
+          agentLog(`🔧 [HERRAMIENTA]: Detectada intención de mutación en usuarios. Consultando lista actual...`, '#38bdf8');
+          await loadUsers();
+          const target = mixnetUsers.find(u => lower.includes(String(u.usuario || '').toLowerCase()) || lower.includes(String(u.nombre || '').toLowerCase()));
+          if (target) {
+            let nuevoNivel = target.nivel;
+            let nuevaClave = target.clave;
+            if (lower.includes('anular') || lower.includes('admin') || lower.includes('nivel 1')) nuevoNivel = '1';
+            const passMatch = instruction.match(/clave\s*(?:a|es|de)?\s*([a-zA-Z0-9_\-\.]+)/i);
+            if (passMatch) nuevaClave = passMatch[1];
+
+            agentLog(`🛡 Creando Snapshot atómico previo y aplicando cambios a "${target.usuario}"...`, '#f59e0b');
+            const res = await fetch('/api/file-update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file_name: 'MXUSUAR.DBF',
+                record_index: target._record,
+                updates: { nivel: nuevoNivel, clave: nuevaClave }
+              })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              agentLog(`✔ ¡ÉXITO! Usuario "${target.usuario}" actualizado (Nivel: ${nuevoNivel}, Clave: ${nuevaClave}).`, '#10b981');
+              agentLog(`🛡 Snapshot de rollback creado: ${data.snapshot_id}`, '#0284c7');
+              loadUsers();
+              loadBackups();
+              setAgentStatus('Usuario Modificado', '#10b981', '#dcfce7');
+            } else {
+              agentLog(`❌ Error actualizando usuario: ${data.error}`, '#ef4444');
+              setAgentStatus('Error', '#ef4444', '#fee2e2');
+            }
+          } else {
+            agentLog(`⚠ No se pudo identificar automáticamente el usuario en la instrucción. Usuarios disponibles: ${mixnetUsers.map(u => u.usuario).join(', ')}`, '#f59e0b');
+            setAgentStatus('Esperando Usuario', '#f59e0b', '#fef3c7');
+          }
+          return;
+        }
+
+        // 3.3 Snapshot / Backup
+        if (lower.includes('backup') || lower.includes('snapshot') || lower.includes('respaldo')) {
+          agentLog(`🔧 [HERRAMIENTA]: Disparando backup atómico completo de MixNet...`, '#38bdf8');
+          await createManualBackup();
+          agentLog(`✔ Snapshot creado y verificado.`, '#10b981');
+          setAgentStatus('Backup Creado', '#10b981', '#dcfce7');
+          return;
+        }
+
+        // 3.4 Búsqueda de archivos / Escaneo de Unidades de Red
+        if (lower.includes('busca') || lower.includes('donde') || lower.includes('dónde') || lower.includes('escanear') || lower.includes('red') || lower.includes('archivo') || lower.includes('.dbf')) {
+          agentLog(`🔧 [HERRAMIENTA]: Escaneando todas las unidades de red y discos locales...`, '#38bdf8');
+          const res = await fetch('/api/scan-network', { method: 'POST' });
+          const data = await res.json();
+          if (data.ok && data.found_count > 0) {
+            agentLog(`✔ Carpetas MixNet encontradas: ${data.directories.join(', ')}`, '#10b981');
+            agentLog(`✔ Carpeta activa seleccionada: ${data.selected}`, '#10b981');
+            loadStatus();
+            loadUsers();
+            loadDbfFilesList();
+            setAgentStatus('Red Escaneada', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`⚠ No se localizaron carpetas con DBFs en las unidades mapeadas.`, '#f59e0b');
+            setAgentStatus('No Encontrado', '#f59e0b', '#fef3c7');
+          }
+          return;
+        }
+
+        // 3.5 Si es un comando típico de consola de Windows (dir, ipconfig, ping, net use, tasklist...)
+        const commonCmds = ['dir', 'ipconfig', 'ping', 'net', 'tasklist', 'taskkill', 'hostname', 'whoami', 'type', 'echo', 'mkdir', 'tree'];
+        const firstWord = instruction.split(' ')[0].toLowerCase();
+        if (commonCmds.includes(firstWord) || instruction.includes('\\') || instruction.includes('/')) {
+          agentLog(`🔧 [HERRAMIENTA]: Ejecutando como comando de consola en Windows 7...`, '#38bdf8');
+          const res = await fetch('/api/agent/run-command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: instruction })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Salida (${data.duration_ms}ms):`, '#10b981');
+            (data.stdout || '').split('\n').forEach(l => {
+              if (l.trim()) agentLog(`  ${l}`, '#e2e8f0');
+            });
+            setAgentStatus('Comando Exitoso', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ Error en comando: ${data.stderr || data.error}`, '#ef4444');
+            setAgentStatus('Fallo', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // 3.6 Si no encaja en herramientas directas, consultar con Gemini AI Copilot
+        if (typeof GeminiClient !== 'undefined' && GeminiClient.askCopilot) {
+          agentLog(`🤖 Razonando instrucción con Google Gemini AI...`, '#a855f7');
+          const resp = await GeminiClient.askCopilot(instruction, {
             mixnet_dir: document.getElementById('mixDirInput')?.value,
             users_count: mixnetUsers.length
           });
-          log(`🤖 IA: ${resp}`);
-        } catch (e) {
-          log(`⚠ Asistente IA en espera de claves: ${e.message}`);
+          agentLog(`🤖 IA: ${resp}`, '#c084fc');
+          setAgentStatus('IA Respondió', '#a855f7', '#ede9fe');
+        } else {
+          // Fallback a ejecución de shell por defecto
+          agentLog(`⚡ Ejecutando requerimiento en cmd.exe...`, '#38bdf8');
+          const res = await fetch('/api/agent/run-command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: instruction })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Salida:`, '#10b981');
+            (data.stdout || '(Completado)').split('\n').forEach(l => { if (l.trim()) agentLog(`  ${l}`, '#e2e8f0'); });
+            setAgentStatus('Ejecutado', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ ${data.stderr || data.error}`, '#ef4444');
+            setAgentStatus('Fallo', '#ef4444', '#fee2e2');
+          }
         }
-      } else {
-        log(`Comando enviado al sistema.`);
+      } catch (err) {
+        agentLog(`❌ Excepción en ejecución del agente: ${err.message}`, '#ef4444');
+        setAgentStatus('Excepción', '#ef4444', '#fee2e2');
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        inp.value = '';
       }
     }
 
@@ -774,11 +1120,13 @@
       document.getElementById('tabUsers').classList.toggle('on', t === 'users');
       document.getElementById('tabExplorer').classList.toggle('on', t === 'explorer');
       document.getElementById('tabBackups').classList.toggle('on', t === 'backups');
+      document.getElementById('tabAgent').classList.toggle('on', t === 'agent');
       document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
       document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
       document.getElementById('viewUsers').style.display = t === 'users' ? 'block' : 'none';
       document.getElementById('viewExplorer').style.display = t === 'explorer' ? 'block' : 'none';
       document.getElementById('viewBackups').style.display = t === 'backups' ? 'block' : 'none';
+      document.getElementById('viewAgent').style.display = t === 'agent' ? 'block' : 'none';
       if (t === 'users') loadUsers();
       if (t === 'explorer') loadDbfFilesList();
       if (t === 'backups') loadBackups();

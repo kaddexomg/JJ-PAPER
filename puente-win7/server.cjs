@@ -4,6 +4,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const backupEngine = require('./mixnet-backup.cjs');
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 let config = {
@@ -727,6 +728,50 @@ const server = http.createServer(async (req, res) => {
         console.error('Error inyectando pedido:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 6. Listar Backups y Snapshots
+  if (pathname === '/api/backups' && req.method === 'GET') {
+    try {
+      const list = backupEngine.listSnapshots(config.mixnet_dir);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: true, count: list.length, snapshots: list }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+  }
+
+  // 6.1 Crear Backup Manual Inmediato
+  if (pathname === '/api/backup-now' && req.method === 'POST') {
+    try {
+      const snap = backupEngine.createPreTransactionSnapshot(config.mixnet_dir, 'MANUAL_DASHBOARD', []);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(snap));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+  }
+
+  // 6.2 Rollback Atómico Inmediato
+  if (pathname === '/api/rollback' && req.method === 'POST') {
+    let bodyStr = '';
+    req.on('data', chunk => bodyStr += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(bodyStr || '{}');
+        const snapId = payload.snapshot_id;
+        if (!snapId) throw new Error('ID de snapshot requerido');
+        const resRoll = backupEngine.rollbackSnapshot(snapId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(resRoll));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: e.message }));
       }
     });
     return;

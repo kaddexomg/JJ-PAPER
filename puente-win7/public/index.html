@@ -85,6 +85,7 @@
       <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones Web (<span id="countQuotes">0</span>)</div>
       <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos Web (<span id="countOrders">0</span>)</div>
       <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios MixNet (<span id="countUsers">0</span>)</div>
+      <div class="tab" id="tabBackups" onclick="setTab('backups')">Backups y Rollback (<span id="countBackups">0</span>)</div>
     </div>
 
     <div class="card" style="padding:0;overflow:hidden">
@@ -140,6 +141,32 @@
           </thead>
           <tbody id="tbodyUsers">
             <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios desde MXUSUAR.DBF...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Vista Backups y Rollback -->
+      <div id="viewBackups" style="display:none">
+        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <strong style="font-size:13px">🛡️ Puntos de Restauración Inmediata (Snapshots Atómicos)</strong>
+            <p style="font-size:11px;color:var(--muted)">Copias byte a byte de archivos .DBF e índices .NTX antes de cada modificación.</p>
+          </div>
+          <button class="btn sm green" onclick="createManualBackup()">➕ Crear Snapshot Ahora</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Snapshot</th>
+              <th>Operación</th>
+              <th>Archivos Respaldados</th>
+              <th>Fecha / Hora</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyBackups">
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando lista de snapshots...</td></tr>
           </tbody>
         </table>
       </div>
@@ -410,15 +437,104 @@
       }
     }
 
+    let mixnetBackups = [];
+
+    async function loadBackups() {
+      try {
+        const res = await fetch('/api/backups');
+        const data = await res.json();
+        mixnetBackups = data.snapshots || [];
+        document.getElementById('countBackups').textContent = mixnetBackups.length;
+        const tbody = document.getElementById('tbodyBackups');
+
+        if (!data.ok || mixnetBackups.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No hay snapshots creados aún. Se generan automáticamente antes de cada inyección.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = mixnetBackups.map(s => {
+          const isRolled = s.status === 'rolled_back';
+          const fileCount = s.fileCount || (s.files ? s.files.length : 0);
+          const dateStr = s.createdAt ? new Date(s.createdAt).toLocaleString() : '-';
+          return `
+            <tr>
+              <td><strong style="font-family:monospace;font-size:12px">${escapeHtml(s.snapshotId)}</strong></td>
+              <td><span class="badge" style="background:#e0f2fe;color:#0369a1">${escapeHtml(s.label || 'OP')}</span></td>
+              <td>${fileCount} archivos (.DBF + .NTX)</td>
+              <td style="color:var(--muted);font-size:12px">${dateStr}</td>
+              <td>
+                <span class="badge ${isRolled ? 'red' : 'green'}">
+                  ${isRolled ? 'Restaurado (Rollback)' : 'Activo'}
+                </span>
+              </td>
+              <td>
+                <button class="btn sm" style="background:#f59e0b" onclick="triggerRollback('${escapeHtml(s.snapshotId)}')">
+                  ⏮ Rollback 1s
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('tbodyBackups').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)">Error cargando backups: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    async function createManualBackup() {
+      log('Creando snapshot manual byte a byte de MixNet ERP...');
+      try {
+        const res = await fetch('/api/backup-now', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Snapshot creado con éxito! ID: ${data.snapshotId} (${data.fileCount} archivos protegidos).`);
+          alert(`✔ Snapshot creado exitosamente.\nID: ${data.snapshotId}`);
+          loadBackups();
+        } else {
+          log('❌ Error creando snapshot: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Error de comunicación: ' + e.message);
+      }
+    }
+
+    async function triggerRollback(snapId) {
+      if (!confirm(`¿CONFIRMAR RESTAURACIÓN (ROLLBACK)?\n\nSe sobreescribirán byte a byte todos los archivos .DBF e índices .NTX a su estado exacto en ${snapId}.`)) return;
+      log(`Ejecutando Rollback inmediato hacia el snapshot "${snapId}"...`);
+      try {
+        const res = await fetch('/api/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ snapshot_id: snapId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡ROLLBACK EXITOSO! Se restauraron ${data.restoredCount} archivos originales.`);
+          alert(`✔ Restauración completada en 1 segundo.\n${data.restoredCount} archivos restaurados.`);
+          loadStatus();
+          loadBackups();
+          loadUsers();
+        } else {
+          log('❌ Error en rollback: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción durante el rollback: ' + e.message);
+      }
+    }
+
     function setTab(t) {
       currentTab = t;
       document.getElementById('tabQuotes').classList.toggle('on', t === 'quotes');
       document.getElementById('tabOrders').classList.toggle('on', t === 'orders');
       document.getElementById('tabUsers').classList.toggle('on', t === 'users');
+      document.getElementById('tabBackups').classList.toggle('on', t === 'backups');
       document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
       document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
       document.getElementById('viewUsers').style.display = t === 'users' ? 'block' : 'none';
+      document.getElementById('viewBackups').style.display = t === 'backups' ? 'block' : 'none';
       if (t === 'users') loadUsers();
+      if (t === 'backups') loadBackups();
     }
 
     function escapeHtml(str) {
@@ -429,6 +545,7 @@
     loadStatus();
     loadPending();
     loadUsers();
+    loadBackups();
     setInterval(loadStatus, 15000); // Refresca estado cada 15s
   </script>
 </body>

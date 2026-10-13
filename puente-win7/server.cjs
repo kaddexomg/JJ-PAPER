@@ -270,11 +270,15 @@ const server = http.createServer(async (req, res) => {
   // 1. Estado del puente
   if (pathname === '/api/status' && req.method === 'GET') {
     const mixDir = config.mixnet_dir;
-    const connected = fs.existsSync(path.join(mixDir, 'MXCTAINV.DBF'));
+    const invFile = path.join(mixDir, 'MXCTAINV.DBF');
+    const connected = fs.existsSync(invFile);
     let curCot = null;
     let curPed = null;
+    let articulosCount = 0;
 
     if (connected) {
+      const struct = readDbfStruct(invFile);
+      articulosCount = struct ? struct.numRecords : 0;
       curCot = getNextSerial(path.join(mixDir, 'MXNUMCOT.DBF'), 'NUMCOT');
       curPed = getNextSerial(path.join(mixDir, 'MXNUMPED.DBF'), 'NUMPED');
     }
@@ -284,17 +288,40 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       mixnet_dir: mixDir,
       connected,
+      articulos_count: articulosCount,
       cur_cotizacion: curCot ? String(curCot).padStart(8, '0') : null,
       cur_pedido: curPed ? String(curPed).padStart(8, '0') : null,
       timestamp: new Date().toISOString()
     }));
   }
 
-  // 2. Cotizaciones y Pedidos Pendientes de la Web
+  // 1.1 Configurar ruta de MixNet dinamicamente
+  if (pathname === '/api/set-dir' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const newDir = (payload.mixnet_dir || '').trim();
+        if (!newDir) throw new Error('Ruta vacía');
+        config.mixnet_dir = newDir;
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+        const connected = fs.existsSync(path.join(newDir, 'MXCTAINV.DBF'));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, mixnet_dir: newDir, connected }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 2. Cotizaciones y Pedidos Pendientes de la Web (excluye ventas históricas importadas de MixNet)
   if (pathname === '/api/pending' && req.method === 'GET') {
     try {
-      const quotesRes = await sbReq('/rest/v1/jjp_quotes?status=neq.convertido&status=neq.cancelado&order=id.desc&limit=25');
-      const ordersRes = await sbReq('/rest/v1/jjp_orders?status=neq.anulado&order=id.desc&limit=25');
+      const quotesRes = await sbReq('/rest/v1/jjp_quotes?source=neq.mixnet&status=eq.pendiente&order=created_at.desc&limit=30');
+      const ordersRes = await sbReq('/rest/v1/jjp_orders?source=neq.mixnet&status=in.(pendiente,pendiente_pago,pagado)&order=created_at.desc&limit=30');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({
         ok: true,

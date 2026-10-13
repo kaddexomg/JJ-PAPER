@@ -61,8 +61,11 @@
 
     <div class="grid">
       <div class="card">
-        <div class="card-title">Directorio MixNet</div>
-        <div class="card-val" id="mixDirVal" style="font-size:18px">M:\comp01</div>
+        <div class="card-title">Directorio MixNet ERP</div>
+        <div style="display:flex;gap:6px;align-items:center;margin:6px 0">
+          <input type="text" id="mixDirInput" value="M:\comp01" style="flex:1;padding:6px 8px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+          <button class="btn sm" onclick="saveMixDir()" title="Guardar y verificar ruta">💾 Probar</button>
+        </div>
         <div class="card-sub" id="mixConnSub">Verificando conexión...</div>
       </div>
       <div class="card">
@@ -150,17 +153,40 @@
         if (data.connected) {
           b.className = 'badge green';
           b.textContent = '🟢 MixNet Conectado';
-          document.getElementById('mixConnSub').textContent = 'Conexión activa a base de datos DBF';
+          document.getElementById('mixConnSub').textContent = 'Conexión activa a base de datos DBF (' + (data.articulos_count || '0') + ' artículos)';
         } else {
           b.className = 'badge red';
           b.textContent = '🔴 MixNet Desconectado';
           document.getElementById('mixConnSub').textContent = 'No se encontró ' + data.mixnet_dir;
         }
-        document.getElementById('mixDirVal').textContent = data.mixnet_dir;
+        const inp = document.getElementById('mixDirInput');
+        if (inp && document.activeElement !== inp) inp.value = data.mixnet_dir;
         document.getElementById('nextCotVal').textContent = data.cur_cotizacion || '--------';
         document.getElementById('nextPedVal').textContent = data.cur_pedido || '--------';
       } catch (e) {
         log('Error consultando estado: ' + e.message);
+      }
+    }
+
+    async function saveMixDir() {
+      const dir = document.getElementById('mixDirInput').value.trim();
+      if (!dir) return;
+      log('Actualizando ruta de MixNet a: ' + dir + '...');
+      try {
+        const res = await fetch('/api/set-dir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mixnet_dir: dir })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(data.connected ? '✔ Ruta válida y conectada a MixNet.' : '⚠ Ruta guardada pero no se encontró MXCTAINV.DBF allí.');
+          loadStatus();
+        } else {
+          log('❌ Error: ' + (data.error || 'No se pudo guardar'));
+        }
+      } catch (e) {
+        log('Error enviando ruta: ' + e.message);
       }
     }
 

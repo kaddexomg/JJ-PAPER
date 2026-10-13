@@ -427,6 +427,163 @@ const server = http.createServer(async (req, res) => {
     }));
   }
 
+  // 1.3 Listar todos los archivos DBF del directorio activo
+  if (pathname === '/api/files' && req.method === 'GET') {
+    const dir = config.mixnet_dir;
+    if (!dir || !fs.existsSync(dir)) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: 'Directorio inaccesible: ' + dir, files: [] }));
+    }
+
+    try {
+      const items = fs.readdirSync(dir);
+      const dbfs = [];
+      for (const it of items) {
+        if (it.toUpperCase().endsWith('.DBF')) {
+          try {
+            const fp = path.join(dir, it);
+            const st = fs.statSync(fp);
+            const struct = readDbfStruct(fp);
+            dbfs.push({
+              name: it,
+              path: fp,
+              size: st.size,
+              records: struct ? struct.numRecords : 0,
+              fields_count: struct ? readDbfFields(struct.buf, struct.headerLen).length : 0,
+              modified: st.mtime.toISOString()
+            });
+          } catch (_) {}
+        }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: true, count: dbfs.length, directory: dir, files: dbfs }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: e.message, files: [] }));
+    }
+  }
+
+  // 1.4 Inspeccionar tabla DBF (Estructura y Registros en Vivo)
+  if (pathname === '/api/file-inspect' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const fileName = (payload.file_name || '').trim();
+        if (!fileName) throw new Error('Nombre de archivo requerido');
+
+        let targetPath = path.join(config.mixnet_dir, fileName);
+        if (!fs.existsSync(targetPath)) {
+          targetPath = findTableInCandidates(fileName, config.mixnet_dir);
+        }
+        if (!targetPath || !fs.existsSync(targetPath)) {
+          throw new Error('Archivo no encontrado: ' + fileName);
+        }
+
+        const struct = readDbfStruct(targetPath);
+        if (!struct) throw new Error('Cabecera DBF ilegible');
+
+        const fields = readDbfFields(struct.buf, struct.headerLen);
+        const rows = readDbfRows(struct, null, 100);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          ok: true,
+          file: path.basename(targetPath),
+          path: targetPath,
+          records_count: struct.numRecords,
+          fields: fields.map(f => ({ name: f.name, type: f.type, len: f.len })),
+          rows: rows.slice(0, 100)
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 1.5 Editar Registro en DBF con Snapshot Preventivo
+  if (pathname === '/api/file-update' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const fileName = (payload.file_name || '').trim();
+        const recordIndex = parseInt(payload.record_index, 10);
+        const updates = payload.updates || {};
+
+        if (!fileName || isNaN(recordIndex) || recordIndex < 1) {
+          throw new Error('Parámetros inválidos (file_name, record_index requeridos)');
+        }
+
+        let targetPath = path.join(config.mixnet_dir, fileName);
+        if (!fs.existsSync(targetPath)) {
+          targetPath = findTableInCandidates(fileName, config.mixnet_dir);
+        }
+        if (!targetPath || !fs.existsSync(targetPath)) {
+          throw new Error('Archivo DBF no encontrado: ' + fileName);
+        }
+
+        const baseDir = path.dirname(targetPath);
+        const tableName = path.basename(targetPath).replace(/\.dbf$/i, '').toUpperCase();
+
+        // 1. Crear Snapshot Preventivo Automático
+        const snap = backupEngine.createPreTransactionSnapshot(baseDir, 'EDIT_' + tableName + '_REC_' + recordIndex, [tableName]);
+        if (!snap.ok) {
+          throw new Error('Fallo al crear snapshot de seguridad: ' + snap.error);
+        }
+
+        // 2. Modificar registro directamente en binario
+        const fd = fs.openSync(targetPath, 'r+');
+        try {
+          const header = Buffer.alloc(32);
+          fs.readSync(fd, header, 0, 32, 0);
+          const numRecords = header.readUInt32LE(4);
+          const headerLen = header.readUInt16LE(8);
+          const recordLen = header.readUInt16LE(10);
+
+          if (recordIndex > numRecords) throw new Error('Índice de registro excede el total de registros (' + numRecords + ')');
+
+          const fieldsBuf = Buffer.alloc(headerLen);
+          fs.readSync(fd, fieldsBuf, 0, headerLen, 0);
+          const fields = readDbfFields(fieldsBuf, headerLen);
+
+          const recOffset = headerLen + ((recordIndex - 1) * recordLen);
+          const recBuf = Buffer.alloc(recordLen);
+          fs.readSync(fd, recBuf, 0, recordLen, recOffset);
+
+          for (const [k, val] of Object.entries(updates)) {
+            const normKey = k.toLowerCase().trim();
+            const f = fields.find(x => x.name === normKey);
+            if (f) {
+              const enc = encodeField(f, val);
+              enc.copy(recBuf, f.pos);
+            }
+          }
+
+          fs.writeSync(fd, recBuf, 0, recordLen, recOffset);
+        } finally {
+          fs.closeSync(fd);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          ok: true,
+          message: 'Registro actualizado con éxito en ' + fileName,
+          snapshot_id: snap.snapshotId,
+          record_index: recordIndex
+        }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // 2. Cotizaciones y Pedidos Pendientes de la Web (excluye ventas históricas importadas de MixNet)
   if (pathname === '/api/pending' && req.method === 'GET') {
     try {

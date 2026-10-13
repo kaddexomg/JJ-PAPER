@@ -85,6 +85,7 @@
       <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones Web (<span id="countQuotes">0</span>)</div>
       <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos Web (<span id="countOrders">0</span>)</div>
       <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios MixNet (<span id="countUsers">0</span>)</div>
+      <div class="tab" id="tabExplorer" onclick="setTab('explorer')">📁 Explorador & Editor DBF (<span id="countFiles">0</span>)</div>
       <div class="tab" id="tabBackups" onclick="setTab('backups')">Backups y Rollback (<span id="countBackups">0</span>)</div>
     </div>
 
@@ -143,6 +144,30 @@
             <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios desde MXUSUAR.DBF...</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Vista Explorador & Editor DBF -->
+      <div id="viewExplorer" style="display:none">
+        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-weight:700;font-size:12px">Tabla DBF:</label>
+            <select id="selDbfFile" onchange="inspectSelectedDbf()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;font-weight:600">
+              <option value="">Seleccionar archivo...</option>
+            </select>
+            <button class="btn sm" onclick="loadDbfFilesList()">🔄 Recargar Lista</button>
+          </div>
+          <span id="explorerSummary" style="font-size:12px;color:var(--muted)">Selecciona una tabla para ver y editar registros</span>
+        </div>
+        <div style="max-height:450px;overflow:auto">
+          <table id="tblDbfInspect">
+            <thead id="theadDbf">
+              <tr><th>Selecciona una tabla DBF arriba</th></tr>
+            </thead>
+            <tbody id="tbodyDbf">
+              <tr><td style="text-align:center;padding:24px;color:var(--muted)">Ningún archivo seleccionado.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Vista Backups y Rollback -->
@@ -600,17 +625,114 @@
       }
     }
 
+    let dbfFilesList = [];
+    let currentInspectedData = null;
+
+    async function loadDbfFilesList() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        dbfFilesList = data.files || [];
+        document.getElementById('countFiles').textContent = dbfFilesList.length;
+        const sel = document.getElementById('selDbfFile');
+        if (sel) {
+          sel.innerHTML = '<option value="">-- Seleccionar tabla DBF --</option>' +
+            dbfFilesList.map(f => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)} (${f.records} reg | ${(f.size/1024).toFixed(0)} KB)</option>`).join('');
+        }
+      } catch (e) {
+        log('Error listando archivos DBF: ' + e.message);
+      }
+    }
+
+    async function inspectSelectedDbf() {
+      const fileName = document.getElementById('selDbfFile').value;
+      if (!fileName) return;
+      const thead = document.getElementById('theadDbf');
+      const tbody = document.getElementById('tbodyDbf');
+      const summary = document.getElementById('explorerSummary');
+
+      summary.textContent = `Leyendo ${fileName}...`;
+      tbody.innerHTML = '<tr><td style="text-align:center;padding:20px;color:var(--muted)">Cargando registros...</td></tr>';
+
+      try {
+        const res = await fetch('/api/file-inspect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_name: fileName })
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          summary.textContent = '❌ Error: ' + data.error;
+          tbody.innerHTML = `<tr><td style="color:var(--danger)">${escapeHtml(data.error)}</td></tr>`;
+          return;
+        }
+
+        currentInspectedData = data;
+        summary.innerHTML = `<strong>${data.file}</strong>: ${data.records_count} registros totales. Mostrando primeros ${data.rows.length}. <span style="color:#0369a1;font-weight:600">Doble clic en cualquier valor para editarlo.</span>`;
+
+        // Cabecera
+        thead.innerHTML = '<tr><th># Reg</th>' +
+          data.fields.map(f => `<th title="${f.type} (${f.len})">${escapeHtml(f.name)}</th>`).join('') +
+          '</tr>';
+
+        // Registros
+        tbody.innerHTML = data.rows.map((r, rowIdx) => {
+          const recNum = rowIdx + 1;
+          const tds = data.fields.map(f => {
+            const val = r[f.name] !== undefined ? r[f.name] : '';
+            return `<td style="cursor:pointer" ondblclick="editDbfCell('${escapeHtml(fileName)}', ${recNum}, '${escapeHtml(f.name)}', '${escapeHtml(String(val))}')" title="Doble clic para editar">${escapeHtml(String(val))}</td>`;
+          }).join('');
+          return `<tr><td><strong>#${recNum}</strong></td>${tds}</tr>`;
+        }).join('');
+      } catch (e) {
+        summary.textContent = '❌ Error: ' + e.message;
+      }
+    }
+
+    async function editDbfCell(fileName, recordIdx, fieldName, currentVal) {
+      const newVal = prompt(`Editar campo [${fieldName}] en ${fileName} (Registro #${recordIdx}):\n\n(Se creará un Snapshot atómico automático antes de guardar)`, currentVal);
+      if (newVal === null || newVal === currentVal) return;
+
+      log(`Modificando registro #${recordIdx} en ${fileName}: ${fieldName} = "${newVal}"...`);
+      try {
+        const res = await fetch('/api/file-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file_name: fileName,
+            record_index: recordIdx,
+            updates: { [fieldName]: newVal }
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Registro #${recordIdx} actualizado con éxito! Snapshot de seguridad: ${data.snapshot_id}`);
+          alert(`✔ Registro guardado correctamente.\nSnapshot preventivo creado: ${data.snapshot_id}`);
+          inspectSelectedDbf();
+          loadBackups();
+        } else {
+          log(`❌ Error actualizando registro: ${data.error}`);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log(`❌ Error: ${e.message}`);
+      }
+    }
+
     function setTab(t) {
       currentTab = t;
       document.getElementById('tabQuotes').classList.toggle('on', t === 'quotes');
       document.getElementById('tabOrders').classList.toggle('on', t === 'orders');
       document.getElementById('tabUsers').classList.toggle('on', t === 'users');
+      document.getElementById('tabExplorer').classList.toggle('on', t === 'explorer');
       document.getElementById('tabBackups').classList.toggle('on', t === 'backups');
       document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
       document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
       document.getElementById('viewUsers').style.display = t === 'users' ? 'block' : 'none';
+      document.getElementById('viewExplorer').style.display = t === 'explorer' ? 'block' : 'none';
       document.getElementById('viewBackups').style.display = t === 'backups' ? 'block' : 'none';
       if (t === 'users') loadUsers();
+      if (t === 'explorer') loadDbfFilesList();
       if (t === 'backups') loadBackups();
     }
 
@@ -623,6 +745,7 @@
     loadPending();
     loadUsers();
     loadBackups();
+    loadDbfFilesList();
     setInterval(loadStatus, 15000); // Refresca estado cada 15s
   </script>
 </body>

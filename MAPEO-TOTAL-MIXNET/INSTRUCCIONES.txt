@@ -1,0 +1,28 @@
+====================================================================
+JJ PAPER — PAQUETE DE MAPEO EXHAUSTIVO DE UNIDADES Y ARCHIVOS
+====================================================================
+
+Este paquete contiene todo lo necesario para escanear y mapear
+CADA CARPETA, CADA DIRECTORIO Y CADA ARCHIVO en la PC conectada a la red
+de la empresa, sin modificar ningún byte (100% Solo Lectura).
+
+ARCHIVOS INCLUIDOS:
+1. EJECUTAR-MAPEO-TOTAL.bat
+   Lanzador automático de 1 solo clic. Detecta Node.js e inicia el mapeo.
+2. mapeador-exhaustivo.cjs
+   Motor de catalogación universal que:
+   - Recorre cada archivo y carpeta en M:, P:, C:, D:, etc.
+   - Identifica formatos (.DBF, .NTX, .INI, .DAT, .PRG, .CSV, .TXT, etc.)
+   - Para tablas DBF: extrae número de registros, longitud, lista de campos
+     con su tipo (C/N/D/L/M) y detecta matrices de permisos (200+ flags).
+   - Genera los informes:
+       * MAPA_TOTAL_DIRECTORIOS.txt  (Texto claro y ordenado)
+       * MAPA_TOTAL_DIRECTORIOS.json (Estructura técnica para la IA)
+
+CÓMO EJECUTARLO EN LA PC CONECTADA A LA RED:
+1. Copia esta carpeta "MAPEO-TOTAL-MIXNET" a la PC conectada a la red
+   (o descomprime MAPEO-TOTAL-MIXNET.zip).
+2. Haz doble clic en "EJECUTAR-MAPEO-TOTAL.bat".
+3. Espera unos segundos a que termine el recorrido.
+4. Abre o copia el archivo "MAPA_TOTAL_DIRECTORIOS.txt".
+====================================================================

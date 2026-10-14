@@ -397,6 +397,64 @@ body {
     height: 56px !important;
   }
 }
+
+/* Optimización para Pantallas Móviles (< 768px) */
+@media screen and (max-width: 768px) {
+  body {
+    padding: 8px !important;
+  }
+  .screen-toolbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .tb-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .tb-input, .tb-select {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .catalog-sheet {
+    padding: 14px 12px;
+  }
+  .catalog-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .header-right {
+    text-align: left;
+  }
+  .editorial-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+  .item-card {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .item-img-box {
+    width: 68px;
+    height: 68px;
+    flex: 0 0 68px;
+  }
+  .item-name {
+    font-size: 12px;
+  }
+  .item-price-usd {
+    font-size: 14px;
+  }
+  .item-qr-box {
+    width: 56px;
+    flex: 0 0 56px;
+    padding-left: 4px;
+  }
+  .item-qr-box .qr-target, .item-qr-box canvas, .item-qr-box img {
+    width: 48px !important;
+    height: 48px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -474,9 +532,9 @@ body {
 
 </main>
 
-<!-- Dependencias -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/js/config.js?v=20261014_v1"></script>
+<!-- Dependencias Locales y Offline Resilientes -->
+<script src="assets/vendor/supabase-2.58.0.js"></script>
+<script src="assets/js/config.js?v=20261014_fix_client_view"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
 
 <script>

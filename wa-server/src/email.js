@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
+import { analyzeInboundEmail, matchQuoteItemsFromText } from './inbound-agent.js';
 import {
   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
   GMAIL_USER, GMAIL_APP_PASS, GMAIL_FROM, EMAIL_SWEEP_MS, MAX_RETRIES
@@ -804,14 +805,84 @@ async function ingestMessage(acct, token, id) {
       }
     } catch (_) {}
 
-    // 3. Notificación al asesor / usuario de la cuenta
+    // 3. Análisis Cognitivo con Agente de IA (Inbound Agent)
+    let aiMeta = null;
+    try {
+      aiMeta = await analyzeInboundEmail({
+        fromEmail: from.email,
+        fromName: from.name,
+        subject,
+        bodyText,
+        customerId: cust?.id || null
+      });
+
+      if (aiMeta) {
+        log.info({ from: from.email, aiMeta }, '🧠 Correo analizado por Agente Inbound');
+
+        // A. ¿El cliente indicó cambio de correo?
+        if (aiMeta.is_email_change && aiMeta.new_email && aiMeta.new_email.includes('@')) {
+          const newEm = aiMeta.new_email.toLowerCase().trim();
+          log.info({ old: from.email, new: newEm }, '⚡ ¡Detectado cambio de correo de cliente!');
+          
+          if (cust?.id) {
+            const oldNotes = cust.notes ? cust.notes + ' | ' : '';
+            await dbCore.from('jjp_customers').update({
+              email: newEm,
+              notes: `${oldNotes}Correo actualizado por IA el ${new Date().toLocaleDateString('es-VE')} (anterior: ${from.email})`,
+              email_status: 'valid',
+              updated_at: new Date().toISOString()
+            }).eq('id', cust.id);
+
+            // Retirar de la lista de supresión de rebotes si estaba allí
+            await dbCore.from('jjp_email_suppression_list').delete().eq('email', newEm);
+          } else if (prospect?.id) {
+            await dbCore.from('jjp_prospects').update({
+              email: newEm,
+              notes: `${prospect.notes || ''} [Email actualizado por IA de ${from.email} a ${newEm}]`,
+              email_status: 'valid',
+              updated_at: new Date().toISOString()
+            }).eq('id', prospect.id);
+          }
+        }
+
+        // B. ¿El cliente solicitó desuscripción?
+        if (aiMeta.is_opt_out) {
+          if (cust?.id) {
+            await dbCore.from('jjp_customers').update({ email_opt_out: true }).eq('id', cust.id);
+          } else if (prospect?.id) {
+            await dbCore.from('jjp_prospects').update({ email_status: 'opt_out' }).eq('id', prospect.id);
+          }
+        }
+
+        // C. ¿Es solicitud de cotización?
+        if (aiMeta.is_quote_request && Array.isArray(aiMeta.requested_items) && aiMeta.requested_items.length > 0) {
+          const matchedItems = await matchQuoteItemsFromText(aiMeta.requested_items);
+          aiMeta.matched_catalog_items = matchedItems;
+        }
+      }
+    } catch (aiErr) {
+      log.warn({ err: aiErr.message }, 'Aviso en análisis cognitivo de correo entrante');
+    }
+
+    // 4. Notificación enriquecida al asesor / usuario de la cuenta
     try {
       const senderName = cust?.name || prospect?.name || prospect?.company || from.name || from.email;
+      let notifTitle = `📩 Respuesta de ${senderName}`;
+      let notifBody = `"${subject || 'Sin asunto'}" — ${(bodyText || '').slice(0, 100)}...`;
+
+      if (aiMeta?.is_email_change) {
+        notifTitle = `🔄 ${senderName} cambió su correo`;
+        notifBody = `Nuevo correo actualizado: ${aiMeta.new_email}`;
+      } else if (aiMeta?.is_quote_request) {
+        notifTitle = `📋 Solicitud de cotización: ${senderName}`;
+        notifBody = `Pide: ${(aiMeta.requested_items || []).map(i => i.item).slice(0, 3).join(', ')}`;
+      }
+
       await dbCore.from('jjp_notifications').insert({
         user_id: acct.profile_id,
-        type: 'email_reply',
-        title: `📩 Respuesta de ${senderName}`,
-        body: `"${subject || 'Sin asunto'}" — ${(bodyText || '').slice(0, 120)}...`,
+        type: aiMeta?.is_quote_request ? 'quote_request' : 'email_reply',
+        title: notifTitle,
+        body: notifBody,
         link: '/vendedor/correo.html'
       });
     } catch (_) {}

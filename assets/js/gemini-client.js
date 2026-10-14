@@ -1463,45 +1463,43 @@ DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENT
       }
 
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTOS (${toneConfig.name})
-El mensaje gira 100% en torno a presentar la oferta de insumos seleccionada bajo el tono "${toneConfig.name}":
+ESTRATEGIA COGNITIVA DE COMUNICACIÓN (${toneConfig.name}):
+- Actitud y estilo: ${toneConfig.attitude} — ${toneConfig.style}.
+- Objetivo: Presentar la oferta comercial con máxima persuasión y naturalidad humana.
 ${itemsFormatted}
 
-DIRECTIVAS ESTRICTAS DE REDACCIÓN SEGÚN EL TONO SELECCIONADO:
-1. Saludo: "${toneGreeting}"
-2. Apertura directa: "${toneOpening}"
-3. Presentar los productos con sus viñetas (•), nombres en negrita (*...*) y precios oficiales en USD y Bs BCV (${rate.toFixed(2)} Bs).
-4. Cláusula obligatoria de procura: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato."
-5. Cierre según tono: "${toneClosing}"`;
+PAUTAS COGNITIVAS DE REDACCIÓN:
+1. Saludo y Apertura: Redacta un saludo y apertura ORIGINALES adaptados al rubro de ${companyName} y al tono "${toneConfig.name}". Prohibido repetir saludos robóticos o estructuras prefabricadas. Conecta con su operación real.
+2. Presentación de Oferta: Presenta los productos de la oferta con viñetas claras (•), destacando nombres y precios oficiales en USD y Bs a tasa BCV (${rate.toFixed(2)} Bs).
+3. Respaldo JJ Paper: Menciona de forma orgánica y fluida los beneficios clave (importador directo en Caracas, delivery a su sede, facturación fiscal formal).
+4. Cláusula de Procura: Indica de manera natural que si buscan alguna medida, gramaje o artículo fuera de lista, el equipo mayorista se lo localiza de inmediato.
+5. Cierre Comercial: Formula una pregunta de cierre persuasiva que invite a responder (ej. solicitar cotización formal, apartar disponibilidad o coordinar despacho).`;
     } else if (messageType.includes('Seguimiento') || isAlreadyContacted) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: SEGUIMIENTO COMERCIAL (${toneConfig.name})
-¡ATENCIÓN CRÍTICA! Esta empresa YA RECIBIÓ una presentación previa de JJ Paper. ¡ESTRICTAMENTE PROHIBIDO VOLVER A PRESENTARSE DESDE CERO! Prohibido decir "vinimos a presentarnos", "le escribimos para darnos a conocer", etc.
-1. Saludo: "{Hola|Buen día|Un gusto saludarle de nuevo} {contacto o empresa} 👋. Esperamos que todo marche excelente en sus operaciones."
-2. Reconocimiento de seguimiento: "{Le saluda atentamente|Le escribe nuevamente} *${sellerName}* de *JJ Paper C.A.* En seguimiento a nuestra propuesta anterior / Quería consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana."
-3. Propuesta de abastecimiento: "{Pensando en sus requerimientos de reposición continua|Para apoyar la logística de ${companyName}}, tenemos despacho garantizado en 24h en:" presentar 3 insumos de alta rotación para su sector con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
-4. Cierre según tono: "${toneConfig.closing}"`;
+ESTRATEGIA COGNITIVA: SEGUIMIENTO COMERCIAL (${toneConfig.name})
+¡ATENCIÓN! Esta empresa ya tiene relación previa con JJ Paper. Prohibido presentarse como desconocido.
+1. Saludo cordial reconociendo la relación continua con ${contactName || companyName}.
+2. Consulta ágil sobre reposición de inventario o seguimiento a propuestas previas.
+3. Propuesta de 3 insumos clave para su sector con precio exacto en USD y Bs BCV (${rate.toFixed(2)} Bs).
+4. Cierre enfocado en facilitar el pedido de esta semana.`;
     } else if (messageType.includes('Recordatorio')) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: RECORDATORIO DE REPOSICIÓN OPERATIVA (${toneConfig.name})
-1. Saludo: "{Hola|Buen día} {contacto o empresa} 👋, un cordial saludo."
-2. Recordatorio directo: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Pasamos por aquí brevemente para coordinar la reposición de papelería, consumibles de caja y embalaje para ${companyName} de esta quincena."
-3. 3 insumos clave para reposición con precio BCV ${rate.toFixed(2)} Bs.
-4. Cierre según tono: "${toneConfig.closing}"`;
+ESTRATEGIA COGNITIVA: RECORDATORIO DE REPOSICIÓN (${toneConfig.name})
+1. Enfoque ágil y proactivo para la reposición quincenal/mensual de ${companyName}.
+2. Presentar 3 insumos de alta rotación con precio exacto en USD y Bs BCV (${rate.toFixed(2)} Bs).
+3. Cierre directo para apartar stock antes de que agote lote.`;
     } else if (messageType.includes('Oferta')) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA RELÁMPAGO / CONDICIONES PREFERENCIALES (${toneConfig.name})
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋."
-2. Oportunidad: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Queríamos compartirle una oportunidad de abastecimiento mayorista con entrega prioritaria para ${companyName}:"
-3. 3 productos destacados con precio especial en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
-4. Cierre según tono: "${toneConfig.closing}"`;
+ESTRATEGIA COGNITIVA: OPORTUNIDAD MAYORISTA (${toneConfig.name})
+1. Enfoque de lote especial o escala preferencial para ${companyName}.
+2. Presentar los productos con ventajas de volumen y precio oficial.
+3. Cierre invitando a confirmar bultos o despacho prioritario.`;
     } else {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: PRESENTACIÓN COMERCIAL INSTITUCIONAL (${toneConfig.name})
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
-2. Presentación institucional: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje en Caracas. {Le contactamos|Nos acercamos} con el propósito de abastecer cada necesidad operativa de ${companyName} con entrega en 24h, precios de distribuidor y facturación formal legal."
-3. 3 productos acordes a su giro de negocio con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
-4. Cierre según tono: "${toneConfig.closing}"`;
+ESTRATEGIA COGNITIVA: PRESENTACIÓN INSTITUCIONAL DIRECTA (${toneConfig.name})
+1. Apertura institucional y respetuosa presentando a JJ Paper como importador y distribuidor directo en Caracas.
+2. Presentar 3 soluciones operativas esenciales para el rubro de ${companyName} con precios exactos en USD y Bs BCV (${rate.toFixed(2)} Bs).
+3. Cierre invitando a recibir catálogo completo o cotización formal membretada.`;
     }
 
     const sys = getBusinessContext() + `

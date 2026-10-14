@@ -85,7 +85,11 @@ function mpRender() {
         Number(r.usd_parado) > 0
           ? `<strong>${fmtPrice(r.usd_parado)}</strong>`
           : '<span style="color:var(--gr)">—</span>'}</td>
-      <td style="text-align:center">
+      <td style="text-align:center;white-space:nowrap">
+        <button class="btn-s" style="padding:6px 10px;font-size:12.5px;margin-right:6px;background:#065f46;color:#fff;border-radius:6px;border:none;cursor:pointer"
+                onclick="mpGenerarConIA('${r.variant_id}', '${escapeJsStr(r.producto)}')">
+          🤖 Generar IA
+        </button>
         <label class="btn-p" style="cursor:pointer;padding:6px 12px;font-size:13px;display:inline-block">
           📷 Foto
           <input type="file" accept="image/*" capture="environment" hidden
@@ -166,14 +170,116 @@ function mpOnSearch(v) { clearTimeout(mpTimer); mpTimer = setTimeout(() => { mpF
 function mpOnCat(v)    { mpCategoria = v; mpRender(); }
 function mpOnSolo(v)   { mpSoloContados = !!v; mpRender(); }
 
-function mpExportCSV() {
-  const rows = mpFiltradas();
-  const csv = ['SKU;PRODUCTO;CATEGORIA;STOCK;USD_PARADO',
-    ...rows.map(r => [r.sku, String(r.producto).replace(/;/g, ','), r.categoria,
-                      r.stock > 0 ? r.stock : '', r.usd_parado].join(';'))].join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'faltan-fotos.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
+function escapeJsStr(str) {
+  return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+/* ---------- Generación de Packshot con IA ---------- */
+async function mpGenerarConIA(variantId, productoNombre) {
+  const dato = mpRows.find(r => r.variant_id === variantId);
+  const fila = document.getElementById(`mp-row-${variantId}`);
+  if (fila) fila.style.opacity = '.6';
+
+  showToast(`🤖 Diseñando packshot para "${productoNombre}"...`, 'info');
+
+  try {
+    // 1. Obtener datos de la variante y producto
+    const { data: v, error: eVar } = await sb
+      .from('jjp_product_variants')
+      .select('id, product_id, sku, price_usd, jjp_products(name, description, brand_id, category_id)')
+      .eq('id', variantId)
+      .single();
+    if (eVar) throw eVar;
+
+    const prodId = v.product_id;
+    const prodName = v.jjp_products?.name || productoNombre;
+
+    // 2. Generar prompt fotográfico limpio
+    const cleanPrompt = `Commercial retail packshot of office stationery and supply: ${prodName}, isolated centered front hero angle on solid seamless pure white background #FFFFFF, soft natural contact shadow, crisp pristine commercial product packaging, professional advertising photography, 8k uhd`;
+    const seed = Math.abs(hashCode(prodName + '_' + variantId));
+    const aiImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt.slice(0, 380))}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
+
+    // 3. Modal de previsualización para aprobación del usuario
+    let modal = document.getElementById('mpAiModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'mpAiModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);';
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:20px;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 10px;font-size:16px;color:#1e293b">📸 Previsualización de Packshot IA</h3>
+        <p style="margin:0 0 14px;font-size:13px;color:#64748b">${escapeHTML(prodName)}</p>
+        <div style="position:relative;width:280px;height:280px;margin:0 auto 16px;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:center">
+          <img id="mpAiImgPreview" src="${aiImageUrl}" alt="Packshot IA" style="max-width:100%;max-height:100%;object-fit:contain"
+               onload="document.getElementById('mpAiConfirmBtn').disabled = false;"
+               onerror="this.alt='Error cargando imagen de IA. Intenta de nuevo.';">
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn-s" style="padding:8px 16px;background:#f1f5f9;color:#475569;border-radius:6px;border:none;cursor:pointer"
+                  onclick="document.getElementById('mpAiModal').style.display='none';">
+            Cancelar
+          </button>
+          <button id="mpAiConfirmBtn" class="btn-p" style="padding:8px 18px;background:#065f46;color:#fff;border-radius:6px;border:none;cursor:pointer;font-weight:600"
+                  onclick="mpGuardarPackshotIA('${variantId}', '${prodId}', '${escapeJsStr(aiImageUrl)}')">
+            ✅ Aprobar y Guardar
+          </button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'flex';
+  } catch (err) {
+    if (fila) fila.style.opacity = '';
+    showToast('Error generando imagen: ' + err.message, 'err');
+  }
+}
+
+async function mpGuardarPackshotIA(variantId, productId, imageUrl) {
+  const modal = document.getElementById('mpAiModal');
+  const btn = document.getElementById('mpAiConfirmBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando en catálogo… ⏳'; }
+
+  try {
+    // Descargar imagen generada como Blob
+    const resp = await fetch(imageUrl);
+    if (!resp.ok) throw new Error('No se pudo descargar la imagen generada de IA');
+    const blob = await resp.blob();
+
+    // Comprimir / normalizar a WebP
+    const { blob: webpBlob, ext } = await mpComprimir(new File([blob], 'packshot.jpg', { type: 'image/jpeg' }));
+    const path = `${productId}.${ext}`;
+
+    const { error: eUp } = await sb.storage.from('jjp-products')
+      .upload(path, webpBlob, { upsert: true, contentType: webpBlob.type });
+    if (eUp) throw eUp;
+
+    const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
+    const url = `${publicUrl}?v=${Date.now()}`;
+
+    // Actualizar producto y variante
+    const [rv, rp] = await Promise.all([
+      sb.from('jjp_product_variants').update({ image_url: url }).eq('id', variantId),
+      sb.from('jjp_products').update({ image_url: url }).eq('id', productId)
+    ]);
+    if (rv.error || rp.error) throw (rv.error || rp.error);
+
+    if (modal) modal.style.display = 'none';
+    mpRows = mpRows.filter(r => r.variant_id !== variantId);
+    mpRender();
+    showToast('🎉 ¡Packshot de IA guardado exitosamente en el catálogo!', 'ok');
+  } catch (e) {
+    alert('Error al guardar packshot en Supabase Storage: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Aprobar y Guardar'; }
+  }
+}
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
 }

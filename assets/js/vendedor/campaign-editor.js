@@ -1716,11 +1716,11 @@ ${rawText}
       if (aud === 'gmail_starred') {
         return Boolean(
           c.is_gmail_starred ||
-          (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) ||
+          (Array.isArray(c.tags) && (c.tags.includes('destacado_gmail') || c.tags.includes('vip') || c.tags.includes('cliente_activo'))) ||
           c.source === 'gmail_destacado' ||
           c.status === 'destacado' ||
           c.ai_analysis?.destacado_gmail ||
-          (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail'))
+          (typeof c.notes === 'string' && (c.notes.includes('Destacado en Gmail') || c.notes.includes('Compras activas verificadas')))
         );
       }
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);

@@ -510,11 +510,13 @@ async function loadEcContacts() {
   }
   ecContacts = (data || []).filter(c => 
     !c.email_opt_out && 
+    c.email_status !== 'bounced' && 
     c.email_status !== 'bounced_hard' && 
     c.email_status !== 'bounced_soft' && 
+    !(Array.isArray(c.tags) && c.tags.includes('archivado_duplicado')) &&
     (c.email || '').includes('@')
   ).map(c => {
-    if (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) {
+    if (Array.isArray(c.tags) && (c.tags.includes('destacado_gmail') || c.tags.includes('vip') || c.tags.includes('cliente_activo'))) {
       c.is_gmail_starred = true;
     }
     return c;

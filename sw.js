@@ -3,7 +3,7 @@
    Garantiza carga instantánea en PC, laptop y teléfono móvil.
    ====================================================== */
 
-const CACHE_NAME = 'jjp-static-v2';
+const CACHE_NAME = 'jjp-static-v3';
 const IMAGE_CACHE_NAME = 'jjp-images-v1';
 
 const STATIC_ASSETS = [

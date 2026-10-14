@@ -57,8 +57,8 @@
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
     { section: 'Sitio Público' },
-    { href: '/catalogo.html', ico: '🌐', label: 'Catálogo Cliente', ext: true },
-    { href: '/catalogo_impreso.html', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
+    { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+    { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
@@ -87,8 +87,8 @@
     { section: 'Mi cuenta' },
     { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },
     { section: 'Sitio Público' },
-    { href: '/catalogo.html', ico: '🌐', label: 'Catálogo Cliente', ext: true },
-    { href: '/catalogo_impreso.html', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
+    { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+    { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 

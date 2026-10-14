@@ -27,6 +27,7 @@
       { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
       { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
+      { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
@@ -69,6 +70,7 @@
       { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
       { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Mis cotizaciones' },
+      { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
       { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
       { href: '../lista_costos.html', ico: '📄', label: 'Lista de precios', ext: true },
       { href: 'productos.html',    ico: '💱', label: 'Mis precios' },

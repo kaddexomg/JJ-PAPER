@@ -360,6 +360,9 @@ window.CampaignEditor = (() => {
                     <input type="checkbox" id="ceAttachFile" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
                     <span>📁 Subir Archivo Propio (PDF / Imagen)</span>
                   </label>
+                  <div style="margin-top:6px;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #bbf7d0;font-size:11px;color:#166534;line-height:1.35">
+                    🌐 <strong>Catálogo Digital Público:</strong> Los enlaces <code>/catalogo</code> y <code>/producto</code> son 100% de libre acceso para sus clientes: abren al instante sin pedir inicio de sesión.
+                  </div>
                 </div>
               </div>
               <div id="ceCustomFileWrap" style="display:none; margin-top:6px;">
@@ -513,6 +516,8 @@ window.CampaignEditor = (() => {
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🔖 {{descuento}}</button>
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
                   <button type="button" class="ce-var-btn" style="background:#fef3c7;color:#92400e;border-color:#fcd34d" onclick="CampaignEditor.insertSpintax()" title="Variar saludos para evitar bloqueos">🎲 Spintax</button>
+                  <button type="button" class="ce-var-btn" style="background:#f0fdf4;color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.insertCatalogLink('web')" title="Insertar enlace directo al catálogo público y fichas (sin login)">🌐 Catálogo Web (Sin Login)</button>
+                  <button type="button" class="ce-var-btn" style="background:#fdf2f8;color:#9d174d;border-color:#fbcfe8;font-weight:700" onclick="CampaignEditor.insertCatalogLink('qr')" title="Insertar enlace al catálogo con códigos QR para imprimir/escanear">🖨️ Catálogo QR</button>
                 </div>
 
                 <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
@@ -2685,9 +2690,9 @@ ${rawText}
     const isCombo = selectedProductOrCombo?.type === 'combo';
     const link = selectedProductOrCombo
       ? (isCombo
-          ? `${publicBase}/catalogo.html`
-          : (prodSku ? `${publicBase}/catalogo.html?producto=${encodeURIComponent(prodSku)}` : (prodId ? `${publicBase}/catalogo.html?producto=${encodeURIComponent(prodId)}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`)))
-      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo.html`) : `${publicBase}/catalogo.html`);
+          ? `${publicBase}/catalogo`
+          : (prodId ? `${publicBase}/producto?id=${encodeURIComponent(prodId)}` : (prodSku ? `${publicBase}/producto?sku=${encodeURIComponent(prodSku)}` : `${publicBase}/catalogo`)))
+      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
 
     let rawText = '';
     let subjectText = '';
@@ -2801,6 +2806,24 @@ ${rawText}
     textarea.value = text.substring(0, start) + spin + text.substring(end);
     textarea.focus();
     textarea.selectionStart = textarea.selectionEnd = start + spin.length;
+    updatePreview();
+  }
+
+  function insertCatalogLink(type = 'web') {
+    const textarea = document.getElementById('ceMessageInput');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    let snippet = '';
+    if (type === 'qr') {
+      snippet = `\n\n📲 *Catálogo Interactivo con Códigos QR (para ver o imprimir):*\nhttps://jjpaper.pages.dev/catalogo_impreso\n`;
+    } else {
+      snippet = `\n\n👉 *Catálogo Digital Completo y Fichas Técnicas (Acceso libre sin registro):*\nhttps://jjpaper.pages.dev/catalogo\n`;
+    }
+    textarea.value = text.substring(0, start) + snippet + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
     updatePreview();
   }
 
@@ -3395,6 +3418,7 @@ ${rawText}
     onCustomFileChange,
     insertVar,
     insertSpintax,
+    insertCatalogLink,
     updatePreview,
     launch,
     aiDraftTemplate,

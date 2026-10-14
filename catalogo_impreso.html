@@ -578,6 +578,7 @@ async function loadGroups() {
 }
 
 async function loadCatalogProducts() {
+  const grid = document.getElementById('catalogGrid');
   try {
     let prods = [];
     let from = 0;
@@ -590,14 +591,22 @@ async function loadCatalogProducts() {
         .range(from, from + step)
         .order('sort_order');
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Error en bloque de catálogo:', error);
+        break;
+      }
       if (data && data.length > 0) {
-        prods = prods.concat(data);
-        if (data.length < step) break;
-        from += step;
+        prods.push(...data);
+        if (data.length <= step) break; // Menos o igual al límite, fin de datos
+        from += step + 1; // Siguiente página sin solapamiento
       } else {
         break;
       }
+    }
+
+    if (!prods.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">No se encontraron productos activos en el catálogo.</div>`;
+      return;
     }
 
     allItems = prods.map(p => {
@@ -615,11 +624,13 @@ async function loadCatalogProducts() {
 
   } catch (err) {
     console.error('Error cargando productos:', err);
-    document.getElementById('catalogGrid').innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:40px;color:#c62828">
-        Error al cargar el catálogo comercial. Intente recargar la página.
-      </div>
-    `;
+    if (grid) {
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:#c62828">
+          Error al cargar el catálogo comercial. Intente recargar la página.
+        </div>
+      `;
+    }
   }
 }
 
@@ -721,28 +732,58 @@ function renderCatalogGrid(items) {
         </div>
 
         <a href="${relativeUrl}" target="_blank" class="item-qr-box" style="text-decoration:none;color:inherit" title="Escanear o ver ficha digital">
-          <div id="qr-${idx}" class="qr-target"></div>
+          <div id="qr-${idx}" class="qr-target" data-id="${p.id}"></div>
           <div class="item-qr-hint">Ver Ficha</div>
         </a>
       </div>
     `;
   }).join('');
 
-  // Generar códigos QR para cada elemento
-  items.forEach((p, idx) => {
-    const container = document.getElementById(`qr-${idx}`);
-    if (container && typeof QRCode !== 'undefined') {
-      const prodUrl = `${baseUrl}/producto.html?id=${encodeURIComponent(p.id)}`;
-      new QRCode(container, {
-        text: prodUrl,
-        width: 52,
-        height: 52,
-        colorDark: "#16604A",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
+  // Generar códigos QR de forma progresiva con IntersectionObserver para ultra-rendimiento en móviles
+  if ('IntersectionObserver' in window && typeof QRCode !== 'undefined') {
+    const observer = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const target = entry.target;
+          obs.unobserve(target);
+          const prodId = target.dataset.id;
+          if (prodId && !target.hasChildNodes()) {
+            const prodUrl = `${baseUrl}/producto.html?id=${encodeURIComponent(prodId)}`;
+            try {
+              new QRCode(target, {
+                text: prodUrl,
+                width: 52,
+                height: 52,
+                colorDark: "#16604A",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+              });
+            } catch (err) {
+              console.warn('QR error:', err);
+            }
+          }
+        }
       });
-    }
-  });
+    }, { rootMargin: '200px 0px' });
+
+    document.querySelectorAll('.qr-target').forEach(el => observer.observe(el));
+  } else if (typeof QRCode !== 'undefined') {
+    // Fallback: renderizado inmediato para impresión o navegadores sin observer
+    items.forEach((p, idx) => {
+      const container = document.getElementById(`qr-${idx}`);
+      if (container && !container.hasChildNodes()) {
+        const prodUrl = `${baseUrl}/producto.html?id=${encodeURIComponent(p.id)}`;
+        new QRCode(container, {
+          text: prodUrl,
+          width: 52,
+          height: 52,
+          colorDark: "#16604A",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    });
+  }
 }
 
 function changeLayout(cols) {

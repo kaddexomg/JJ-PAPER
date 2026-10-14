@@ -818,14 +818,35 @@ export async function saveProductImageToStorage(productId, imageUrl) {
     throw new Error('El archivo de imagen está vacío o corrupto');
   }
 
-  const ext = contentType.includes('webp') ? 'webp' : (contentType.includes('png') ? 'png' : 'jpg');
+  // Optimización estricta con Sharp: Cuadrado max 800x800, WebP calidad 82 (peso < 150 KB)
+  let optimizedBuffer = buffer;
+  let finalContentType = contentType;
+  let ext = 'webp';
+
+  try {
+    const sharp = (await import('sharp')).default;
+    optimizedBuffer = await sharp(buffer)
+      .resize(800, 800, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: 82, effort: 4 })
+      .toBuffer();
+    finalContentType = 'image/webp';
+    ext = 'webp';
+    log.info({ originalBytes: buffer.length, optimizedBytes: optimizedBuffer.length }, 'Imagen optimizada a WebP con Sharp');
+  } catch (sharpErr) {
+    log.warn({ err: sharpErr.message }, 'Sharp no disponible o error procesando, usando buffer original');
+    ext = contentType.includes('webp') ? 'webp' : (contentType.includes('png') ? 'png' : 'jpg');
+  }
+
   const filePath = `${productId}.${ext}`;
 
   // 2. Subir al bucket jjp-products en Proyecto C (Inventario & Storage)
   const { error: uploadErr } = await dbInv.storage
     .from('jjp-products')
-    .upload(filePath, buffer, {
-      contentType,
+    .upload(filePath, optimizedBuffer, {
+      contentType: finalContentType,
       upsert: true
     });
 

@@ -419,12 +419,22 @@ async function mpStudioGenerarIA() {
   const imgEl = document.getElementById('mpAiImg');
   if (!imgEl) return;
 
-  imgEl.alt = 'Diseñando fotografía del producto con IA...';
+  // Análisis ontológico inteligente de empaque y presentación
+  const isCaja = /\b(X\s*12|DOCENA|DOC|C\/12|CAJA|X\s*24|PACK|SURT|SET)\b/i.test(prodName);
+  const isResma = /\b(RESMA|500\s*HJS|500\s*HOJAS|BOND)\b/i.test(prodName);
 
-  let objectPrompt = `A single ${prodName}, standalone physical stationery office product, isolated on pure solid white background #FFFFFF, sharp focus on branding, natural drop shadow, commercial product photography, 8k uhd, NO BOX, NO CARTON, NO PACKAGING, ONLY THE ITEM`;
+  let objectPrompt = `Commercial product photography of ${prodName}, authentic stationery item, on pure solid white background #FFFFFF, studio light, sharp focus, 8k`;
+  if (isCaja) {
+    objectPrompt = `Commercial product photography of the authentic official retail box packaging of ${prodName}, displaying official brand typography and logos, with one pen or marker placed next to the box, on pure solid white background #FFFFFF, sharp focus, commercial studio photo, 8k`;
+  } else if (isResma) {
+    objectPrompt = `Commercial product photography of a factory sealed ream packaging of ${prodName}, authentic paper wrapper with printed branding, on pure solid white background #FFFFFF, studio light, 8k`;
+  } else {
+    objectPrompt = `Commercial product photography of a single individual ${prodName}, isolated on pure solid white background #FFFFFF, sharp focus on branding, natural drop shadow, commercial product photography, 8k uhd, NO BOX`;
+  }
+
   try {
     if (window.GeminiClient) {
-      const sys = `You are a commercial catalog photographer. Output a 1-sentence prompt for Flux describing ONLY the physical stationery object itself on pure white background #FFFFFF. Strictly NO boxes, NO carton packaging, NO 3D render look. Pure real catalog photography.`;
+      const sys = `You are a commercial catalog photographer for an office supply company. Output a 1-sentence prompt for Flux describing the authentic commercial product photography on pure solid white background #FFFFFF. If the product name indicates a box or set of 12 (X12, docena, caja, set), describe the authentic retail box and packaging with clear brand graphics. If it is a single unit, describe ONLY the single item without packaging. Never produce generic 3D renders.`;
       const aiPrompt = await window.GeminiClient.callGemini({ prompt: prodName, systemInstruction: sys, temperature: 0.1 });
       if (aiPrompt && aiPrompt.length > 10 && !aiPrompt.includes('Error')) {
         objectPrompt = aiPrompt.replace(/^["'`]|["'`]$/g, '').trim();

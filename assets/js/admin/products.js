@@ -163,6 +163,7 @@ function renderAdminProdTable() {
       </td>
       <td>
         <div class="td-actions">
+          ${!p.image_url ? `<button class="btn-s sm" style="background:#065f46;color:#fff;border-radius:4px;padding:3px 6px;font-size:11px" onclick="prodGenerarFotoIA('${p.id}','${esc}')" title="Generar packshot con IA">🤖 IA</button>` : ''}
           <button class="btn-p sm" onclick="openEditProduct('${p.id}')">✏️</button>
           <button class="btn-send sm" onclick="fichaAbrir(event,'${p.id}')"
                   title="Enviar foto + reseña + enlace de compra al cliente">📤</button>
@@ -903,4 +904,99 @@ async function recalcPrices(scope = 'all') {
   showToast(err ? `${ok} actualizados · ${err} con error` : `✅ ${ok} precios recalculados`);
   selectedIds.clear();
   await loadAdminProducts();
+}
+
+/* ---------- Generación de Packshot con IA directa desde Productos ---------- */
+async function prodGenerarFotoIA(productId, prodName) {
+  showToast(`🤖 Diseñando packshot para "${prodName}"...`, 'info');
+
+  const cleanPrompt = `Commercial retail packshot of office stationery and supply: ${prodName}, isolated centered front hero angle on solid seamless pure white background #FFFFFF, soft natural contact shadow, crisp pristine commercial product packaging, professional advertising photography, 8k uhd`;
+  const seed = Math.abs(hashCode(prodName + '_' + productId));
+  const aiImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt.slice(0, 380))}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
+
+  let modal = document.getElementById('prodAiModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'prodAiModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);';
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:20px;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);">
+      <h3 style="margin:0 0 10px;font-size:16px;color:#1e293b">📸 Previsualización Packshot IA</h3>
+      <p style="margin:0 0 14px;font-size:13px;color:#64748b">${escapeHTML(prodName)}</p>
+      <div style="position:relative;width:280px;height:280px;margin:0 auto 16px;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:center">
+        <img id="prodAiImgPreview" src="${aiImageUrl}" alt="Packshot IA" style="max-width:100%;max-height:100%;object-fit:contain"
+             onload="document.getElementById('prodAiConfirmBtn').disabled = false;"
+             onerror="this.alt='Error cargando imagen. Intenta de nuevo.';">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn-ghost" style="padding:8px 16px"
+                onclick="document.getElementById('prodAiModal').style.display='none';">
+          Cancelar
+        </button>
+        <button id="prodAiConfirmBtn" class="btn-p" style="padding:8px 18px;background:#065f46"
+                onclick="prodGuardarPackshotIA('${productId}', '${escapeJsStr(aiImageUrl)}')">
+          ✅ Aprobar y Guardar
+        </button>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
+async function prodGuardarPackshotIA(productId, imageUrl) {
+  const modal = document.getElementById('prodAiModal');
+  const btn = document.getElementById('prodAiConfirmBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando… ⏳'; }
+
+  try {
+    const resp = await fetch(imageUrl);
+    if (!resp.ok) throw new Error('No se pudo descargar la imagen generada de IA');
+    const blob = await resp.blob();
+
+    // Comprimir a WebP
+    const bmp = await createImageBitmap(blob);
+    const escala = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * escala);
+    cv.height = Math.round(bmp.height * escala);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.85));
+
+    const path = `${productId}.webp`;
+    const { error: eUp } = await sb.storage.from('jjp-products')
+      .upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+    if (eUp) throw eUp;
+
+    const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
+    const url = `${publicUrl}?v=${Date.now()}`;
+
+    // Actualizar producto y variantes
+    await Promise.all([
+      sb.from('jjp_products').update({ image_url: url }).eq('id', productId),
+      sb.from('jjp_product_variants').update({ image_url: url }).eq('product_id', productId)
+    ]);
+
+    if (modal) modal.style.display = 'none';
+    showToast('🎉 ¡Packshot de IA guardado en el producto!', 'ok');
+    await loadAdminProducts();
+  } catch (e) {
+    alert('Error al guardar packshot: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Aprobar y Guardar'; }
+  }
+}
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+function escapeJsStr(str) {
+  return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
 }

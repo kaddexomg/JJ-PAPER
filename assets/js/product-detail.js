@@ -193,9 +193,9 @@ function renderProductView() {
   container.innerHTML = `
     <!-- Migas de Pan -->
     <nav class="prod-breadcrumb" aria-label="Breadcrumb">
-      <a href="catalogo.html">Catálogo</a>
+      <a href="/catalogo">Catálogo</a>
       <span class="sep">/</span>
-      <a href="catalogo.html?cat=${encodeURIComponent(cat.slug || '')}">${escapeHTML(cat.name)}</a>
+      <a href="/catalogo?cat=${encodeURIComponent(cat.slug || '')}">${escapeHTML(cat.name)}</a>
       <span class="sep">/</span>
       <span class="current" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</span>
     </nav>
@@ -359,7 +359,7 @@ function renderProductView() {
     <div class="related-prods-section" id="relatedSection" style="display:none">
       <div class="related-header">
         <h3>También te puede interesar en ${escapeHTML(cat.name)}</h3>
-        <a href="catalogo.html?cat=${encodeURIComponent(cat.slug || '')}">Ver todos →</a>
+        <a href="/catalogo?cat=${encodeURIComponent(cat.slug || '')}">Ver todos →</a>
       </div>
       <div class="related-grid" id="relatedGrid"></div>
     </div>
@@ -524,7 +524,7 @@ async function loadRelatedProducts(categoryId, excludeId) {
         const rpPrice = Number(rp.price_b != null ? rp.price_b : (rp.price_usd || 0));
         const rpImg = rp.image_url || rp.variants.find(v => v.image_url)?.image_url;
         return `
-          <div class="pc" style="background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,0.04);border:1px solid #eee;cursor:pointer" onclick="location.href='producto.html?id=${rp.id}'">
+          <div class="pc" style="background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,0.04);border:1px solid #eee;cursor:pointer" onclick="location.href='/producto?id=${rp.id}'">
             <div style="aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;background:#f9fbf9;border-radius:8px;overflow:hidden;margin-bottom:8px">
               ${rpImg ? `<img src="${optImg(rpImg, 300)}" alt="" style="max-width:85%;max-height:85%;object-fit:contain">` : `<span style="font-size:36px">📦</span>`}
             </div>
@@ -562,7 +562,7 @@ function setupKeyboardNavigation() {
       if (qm && qm.classList.contains('active')) {
         closeQuoteModal();
       } else {
-        window.location.href = 'catalogo.html';
+        window.location.href = '/catalogo';
       }
     }
   });
@@ -687,7 +687,7 @@ function renderNotFound(msg) {
         <div style="font-size:60px;margin-bottom:16px">📦</div>
         <h2 style="color:var(--gd,#16604A);font-size:24px;margin-bottom:10px">Producto no disponible</h2>
         <p style="color:#666;font-size:14px;margin-bottom:24px">${escapeHTML(msg)}</p>
-        <a href="catalogo.html" style="background:var(--gd,#16604A);color:#fff;padding:12px 24px;border-radius:24px;text-decoration:none;font-weight:700">Explorar el Catálogo</a>
+        <a href="/catalogo" style="background:var(--gd,#16604A);color:#fff;padding:12px 24px;border-radius:24px;text-decoration:none;font-weight:700">Explorar el Catálogo</a>
       </div>
     `;
   }

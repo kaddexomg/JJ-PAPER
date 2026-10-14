@@ -480,6 +480,9 @@ body {
 
   <div class="tb-group">
     <span class="tb-counter" id="itemCountDisplay">Cargando...</span>
+    <button type="button" class="tb-btn" onclick="shareImpresoToWhatsApp()" style="background:#25D366;">
+      📤 Compartir por WA
+    </button>
     <button type="button" class="tb-btn tb-btn-gold" onclick="window.print()">
       🖨️ Imprimir / Guardar PDF
     </button>
@@ -746,6 +749,15 @@ function changeLayout(cols) {
   currentLayout = cols;
   const grid = document.getElementById('catalogGrid');
   grid.classList.toggle('cols-3', cols === '3');
+}
+
+function shareImpresoToWhatsApp() {
+  const streetUrl = 'https://jjpaper.pages.dev/catalogo_impreso.html';
+  const msg = `📦 *Catálogo Comercial con Códigos QR | JJ Paper*\n\n` +
+              `📲 Puedes ver o imprimir nuestro catálogo con códigos QR directos para consultar cada producto:\n${streetUrl}\n\n` +
+              `✨ Cada QR te abre la ficha oficial con fotos, detalles y botón de cotización por WhatsApp.`;
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, '_blank');
 }
 </script>
 

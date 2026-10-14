@@ -56,7 +56,9 @@
     { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
-    { href: '../catalogo.html', ico: '🌐', label: 'Ver Sitio', ext: true },
+    { section: 'Sitio Público' },
+    { href: '/catalogo.html', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+    { href: '/catalogo_impreso.html', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
@@ -84,8 +86,9 @@
     ]},
     { section: 'Mi cuenta' },
     { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },
-    { section: 'Sitio' },
-    { href: '../catalogo.html', ico: '🌐', label: 'Ver catálogo', ext: true },
+    { section: 'Sitio Público' },
+    { href: '/catalogo.html', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+    { href: '/catalogo_impreso.html', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
@@ -100,10 +103,19 @@
   // los enlaces funcionen aunque estés viendo el panel de admin o el de vendedor
   // (siteURL respeta la raíz real, incluso con file:// o una subcarpeta de dominio).
   function absHref(href) {
-    if (!href || href === '#' || /^https?:/i.test(href) || href.startsWith('/')) return href;
+    if (!href || href === '#' || /^https?:/i.test(href)) return href;
+    // Si ya empieza con barra (ruta absoluta a la raíz del sitio), resolver con siteURL
+    if (href.startsWith('/')) {
+      if (typeof siteURL === 'function') return siteURL(href);
+      return href;
+    }
     let rel = href;
-    if (!rel.startsWith('..')) rel = DIR + '/' + rel;   // enlace relativo → dentro del panel del rol
-    else rel = rel.replace(/^\.\.\//, '');              // '../x' → sale del panel → raíz/x
+    if (!rel.startsWith('..')) {
+      rel = DIR + '/' + rel;   // enlace relativo dentro del panel
+    } else {
+      rel = rel.replace(/^\.\.\//, ''); // enlace que sube a la raíz
+      return typeof siteURL === 'function' ? siteURL(rel) : ('/' + rel);
+    }
     return typeof siteURL === 'function' ? siteURL(rel) : rel;
   }
 

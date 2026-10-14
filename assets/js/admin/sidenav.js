@@ -56,7 +56,7 @@
     { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
-    { href: '../index.html',   ico: '🌐', label: 'Ver Sitio', ext: true },
+    { href: '../catalogo.html', ico: '🌐', label: 'Ver Sitio', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 

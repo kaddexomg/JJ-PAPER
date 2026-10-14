@@ -3,19 +3,24 @@
    Garantiza carga instantánea en PC, laptop y teléfono móvil.
    ====================================================== */
 
-const CACHE_NAME = 'jjp-static-v1';
+const CACHE_NAME = 'jjp-static-v2';
 const IMAGE_CACHE_NAME = 'jjp-images-v1';
 
 const STATIC_ASSETS = [
   './',
   './catalogo.html',
+  './producto.html',
+  './catalogo_impreso.html',
   './index.html',
   './assets/css/catalog.css',
+  './assets/css/quote-drawer.css',
   './assets/css/variables.css',
   './assets/css/components.css',
   './assets/css/responsive.css',
   './assets/js/config.js',
   './assets/js/catalog.js',
+  './assets/js/quote-drawer.js',
+  './assets/js/product-detail.js',
   './assets/js/nav.js',
   './assets/js/product-modal.js',
   './assets/js/toast.js',

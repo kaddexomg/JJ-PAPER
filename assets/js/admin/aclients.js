@@ -415,6 +415,31 @@ async function openCustomerAiFlow(customerId) {
             </div>
           </div>
 
+          <!-- Alerta de Rebote y Recomendación de Recuperación -->
+          ${(c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') ? `
+            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px;display:flex;gap:10px;align-items:flex-start">
+              <span style="font-size:20px">🚨</span>
+              <div style="flex:1">
+                <div style="font-weight:700;color:#991b1b;font-size:12.5px">Email Inválido / Rebotado (${escapeHTML(c.email || 'Sin correo')})</div>
+                <div style="font-size:11.5px;color:#7f1d1d;margin-top:2px;line-height:1.4">
+                  ${c.phone ? `Recomendación: Contactar al cliente vía <strong>WhatsApp o Llamada al ${escapeHTML(c.phone)}</strong> para solicitar su nuevo correo electrónico y actualizarlo.` : 'El cliente no tiene teléfono registrado. Requiere actualización manual.'}
+                </div>
+                ${c.phone ? `
+                  <div style="margin-top:6px;display:flex;gap:8px">
+                    <button class="btn-s" style="padding:4px 10px;background:#059669;color:#fff;border-radius:4px;border:none;font-size:11px;cursor:pointer;font-weight:600" onclick="switchCustomerFlowTab('wa')">
+                      💬 Usar WhatsApp para Recuperar Email
+                    </button>
+                    ${c.phone.startsWith('02') || c.phone.startsWith('2') ? `
+                      <a href="tel:${escapeHTML(c.phone)}" style="display:inline-block;padding:4px 10px;background:#0284c7;color:#fff;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600">
+                        📞 Llamar a Oficina (${escapeHTML(c.phone)})
+                      </a>
+                    ` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          ` : ''}
+
           <!-- Pestañas de Vista: Correo vs WhatsApp -->
           <div style="display:flex;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px">
             <button id="cfTabEmail" class="btn-p sm" onclick="switchCustomerFlowTab('email')">✉️ Correo (130-180 palabras)</button>

@@ -174,6 +174,38 @@ function createPreTransactionSnapshot(dbfDir, operationLabel, tablesToBackup) {
       } catch (_) {}
     }
 
+    // 4. Respaldar archivos de seguridad y usuarios (MXSECURI.CFG, MXCLA.MIX, MXUSER*.EXT, JJ_USER_PERMISSIONS.json)
+    try {
+      var rootDir = path.dirname(dbfDir);
+      var dirsToCheck = [rootDir, dbfDir];
+      dirsToCheck.forEach(function(d) {
+        if (!fs.existsSync(d)) return;
+        try {
+          var fList = fs.readdirSync(d);
+          fList.forEach(function(fn) {
+            var upper = fn.toUpperCase();
+            if (upper === 'MXSECURI.CFG' || upper === 'MXCLA.MIX' || upper === 'JJ_USER_PERMISSIONS.JSON' || /^MXUSER\d+\.EXT$/i.test(fn)) {
+              var already = false;
+              for (var m = 0; m < backedUp.length; m++) {
+                if (backedUp[m].file.toLowerCase() === fn.toLowerCase()) { already = true; break; }
+              }
+              if (!already) {
+                var srcFile = path.join(d, fn);
+                var destFile = path.join(targetDir, fn);
+                fs.copyFileSync(srcFile, destFile);
+                backedUp.push({
+                  file: fn,
+                  originalPath: srcFile,
+                  size: fs.statSync(destFile).size,
+                  is_security_file: true
+                });
+              }
+            }
+          });
+        } catch (_) {}
+      });
+    } catch (_) {}
+
     // Escribir manifiesto del snapshot
     var manifest = {
       snapshotId: snapId,

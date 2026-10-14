@@ -851,7 +851,12 @@ async function quoteSubmit() {
       : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
           ? CURRENT_PROFILE
           : (window.SELLER || null));
+    // Validación estricta de UUID para seller_id y customer_id
     const sellerId = selectedSellerId || activeSeller?.id || null;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const cleanSellerId = (sellerId && uuidRegex.test(String(sellerId).trim())) ? String(sellerId).trim() : null;
+    const rawCustId = (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null;
+    const cleanCustId = (rawCustId && uuidRegex.test(String(rawCustId).trim())) ? String(rawCustId).trim() : null;
 
     const quote = {
       client_name: name,
@@ -870,40 +875,74 @@ async function quoteSubmit() {
       discount_pct: pct,
       exchange_rate: getRate(),
       notes: document.getElementById('qNotes')?.value.trim() || null,
-      seller_id: sellerId,
-      customer_id: (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null,
+      seller_id: cleanSellerId,
+      customer_id: cleanCustId,
     };
       
     let error;
+    let savedQuoteNumber = editingQuoteNumber;
+
     if (editingQuoteId) {
       const res = await sb.from('jjp_quotes').update(quote).eq('id', editingQuoteId);
       error = res.error;
-      quote.quote_number = editingQuoteNumber; // <--- This fixes quoteShowDone(quote)
+      quote.quote_number = editingQuoteNumber;
     } else {
-      let qNum = null;
-      if (typeof fetchNextDocSerial === 'function') {
-        qNum = await fetchNextDocSerial('cotizacion');
+      let insertSuccess = false;
+      let lastInsertError = null;
+
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        let qNum = null;
+        if (typeof fetchNextDocSerial === 'function') {
+          qNum = await fetchNextDocSerial('cotizacion');
+        }
+        if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
+          try {
+            const { data: sData } = await sb.rpc('jjp_next_doc_serial', { p_type: 'cotizacion' });
+            if (sData) qNum = String(sData).padStart(8, '0').slice(-8);
+          } catch (_) {}
+        }
+        if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
+          qNum = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
+        }
+
+        quote.quote_number = qNum;
+        savedQuoteNumber = qNum;
+        quote.status = 'pendiente';
+        quote.source = 'vendedor';
+        quote.seller_id = cleanSellerId;
+
+        const res = await sb.from('jjp_quotes').insert(quote).select('id, quote_number').maybeSingle();
+        if (!res.error) {
+          insertSuccess = true;
+          error = null;
+          if (res.data?.id) {
+            editingQuoteId = res.data.id;
+            editingQuoteNumber = res.data.quote_number || qNum;
+          }
+          break;
+        }
+
+        // Si es colisión de clave única (23505), reintentar automáticamente con el siguiente serial
+        const isDuplicate = res.error.code === '23505' ||
+          (res.error.message && res.error.message.toLowerCase().includes('duplicate key'));
+        if (isDuplicate && attempt < 5) {
+          console.warn(`[quoteSubmit] Intento ${attempt}: correlativo ${qNum} ya existe en base de datos. Reintentando con nuevo correlativo...`);
+          continue;
+        }
+
+        lastInsertError = res.error;
+        break;
       }
-      if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
-        try {
-          const { data: sData } = await sb.rpc('jjp_next_doc_serial', { p_type: 'cotizacion' });
-          if (sData) qNum = String(sData).padStart(8, '0').slice(-8);
-        } catch (_) {}
+
+      if (!insertSuccess) {
+        error = lastInsertError;
       }
-      if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
-        qNum = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
-      }
-      quote.quote_number = qNum;
-      quote.status = 'pendiente';
-      quote.source = 'vendedor';
-      quote.seller_id = sellerId;
-      const res = await sb.from('jjp_quotes').insert(quote);
-      error = res.error;
     }
 
     if (error) {
       console.error('quote save error:', error);
       showToast('No se pudo guardar la cotización: ' + (error.message || 'Error en base de datos'), 'err');
+      return null;
     } else {
       if (editingQuoteId && window.location.search) {
         try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
@@ -913,10 +952,12 @@ async function quoteSubmit() {
       const subBtn = document.getElementById('qSubmitBtn');
       if (subBtn) subBtn.innerHTML = '📋 Guardar Cotización';
       quoteShowDone(quote);
+      return savedQuoteNumber;
     }
   } catch (err) {
     console.error('Error al procesar la cotización:', err);
     showToast('Error inesperado al guardar la cotización', 'err');
+    return null;
   } finally {
     qSubmitting = false;
     if (btn) { btn.disabled = false; if (!editingQuoteId) btn.textContent = '📋 Guardar Cotización'; }
@@ -1569,7 +1610,7 @@ function updateQuoteHeaderStatus() {
   }
 }
 
-function quoteConvertToPos() {
+async function quoteConvertToPos() {
   if (editingQuoteNumber) {
     window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
     return;
@@ -1580,11 +1621,12 @@ function quoteConvertToPos() {
     return;
   }
   showToast('Guardando cotización para procesar pedido...');
-  quoteSubmit().then(() => {
-    if (editingQuoteNumber) {
-      window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
-    }
-  });
+  const num = await quoteSubmit();
+  if (num) {
+    window.location.href = `pos.html?quote=${encodeURIComponent(num)}`;
+  } else {
+    showToast('No se pudo convertir a pedido porque la cotización no se guardó', 'err');
+  }
 }
 
 function quotePrintPdf() {
@@ -1987,6 +2029,8 @@ function quoteInitGlobalKeys() {
     // F9 o Ctrl+Enter: guardar cotización / guardar cambios
     if (e.key === 'F9' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
+      const doneModal = document.getElementById('qDoneModal');
+      if (doneModal && doneModal.classList.contains('op')) return;
       quoteSubmit();
       return;
     }

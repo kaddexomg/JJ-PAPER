@@ -1163,10 +1163,31 @@ window.triggerSyncMixnet = async function() {
       ]);
       sent = true;
     }
-    showOptToast('✅ Sincronización con MixNet solicitada exitosamente a Supervisor-Pc', 'success');
-    setTimeout(() => refreshDashboard(true), 2500);
+window.triggerServerRemoteCmd = async function(cmd) {
+  const labels = {
+    restart: 'Reiniciar Servidor',
+    pull: 'Actualizar código desde GitHub y Reiniciar'
+  };
+  const label = labels[cmd] || cmd;
+  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor (VPS / Local)?\n\nEl servicio procesará el comando de inmediato mediante Supabase jjp_server_control.`)) return;
+
+  showOptToast(`⏳ Enviando orden "${label}" al servidor...`, 'info');
+  try {
+    const now = new Date().toISOString();
+    await Promise.allSettled([
+      _rawSbComm.from('jjp_server_control').update({ command: cmd, command_at: now }).eq('id', 1),
+      _rawSbCore.from('jjp_server_control').update({ command: cmd, command_at: now }).eq('id', 1)
+    ]);
+    showOptToast(`✔ Orden "${label}" enviada. El servidor se está reiniciando...`, 'success');
+    const badge = document.getElementById('srvStatusBadge');
+    if (badge) {
+      badge.textContent = '🟡 Reiniciando...';
+      badge.style.color = '#f59e0b';
+    }
+    setTimeout(() => refreshDashboard(true), 4000);
   } catch (err) {
     showOptToast('❌ Error enviando comando: ' + err.message, 'error');
   }
 };
+
 

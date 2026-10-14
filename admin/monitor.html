@@ -821,9 +821,15 @@
             </div>
           </div>
 
-          <div class="proj-actions">
+          <div class="proj-actions" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-action" onclick="triggerServerRemoteCmd('restart')" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid #f59e0b" title="Reiniciar proceso Node en VPS / Servidor">
+              🔄 Reiniciar
+            </button>
+            <button class="btn-action" onclick="triggerServerRemoteCmd('pull')" style="background:rgba(2,132,199,0.15);color:#38bdf8;border:1px solid #0284c7" title="Descargar último commit de GitHub y reiniciar">
+              ⚡ Git Pull
+            </button>
             <button class="btn-action" onclick="triggerSyncMixnet()">
-              🔄 Sincronizar Nodos
+              🔄 Sync MixNet
             </button>
             <a href="lan.html" class="btn-action" style="text-align:center;text-decoration:none;" target="_blank">
               📡 Conteo LAN

@@ -167,7 +167,7 @@ function openAdminCustModal(id = null) {
     warnEl.style = 'color:#d32f2f;font-size:12px;margin-top:4px;font-weight:bold;';
     emailInput.parentNode.appendChild(warnEl);
   }
-  if (c?.email_status === 'bounced_hard') {
+  if (c?.email_status === 'bounced_hard' || c?.email_status === 'bounced' || c?.email_status === 'bounced_soft') {
     warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas, se habilitará de nuevo para envíos.';
   } else {
     warnEl.textContent = '';

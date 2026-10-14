@@ -83,9 +83,10 @@
     </div>
 
     <div class="tabs">
-      <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones Web (<span id="countQuotes">0</span>)</div>
-      <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos Web (<span id="countOrders">0</span>)</div>
-      <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios MixNet (<span id="countUsers">0</span>)</div>
+      <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones (<span id="countQuotes">0</span>)</div>
+      <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos (<span id="countOrders">0</span>)</div>
+      <div class="tab" id="tabInvoices" onclick="setTab('invoices')">Facturación MixNet (<span id="countInvoices">0</span>)</div>
+      <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios & Vendedores (<span id="countUsers">0</span>)</div>
       <div class="tab" id="tabExplorer" onclick="setTab('explorer')">📁 Explorador & Editor DBF (<span id="countFiles">0</span>)</div>
       <div class="tab" id="tabBackups" onclick="setTab('backups')">Backups y Rollback (<span id="countBackups">0</span>)</div>
       <div class="tab" id="tabAgent" onclick="setTab('agent')" style="color:#7c3aed">🤖 Agente Ejecutor IA</div>
@@ -95,23 +96,33 @@
       <!-- Tabla Cotizaciones -->
       <div id="viewQuotes">
         <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:12px;font-weight:700;color:var(--muted)">Filtrar:</span>
-            <select id="selQuoteFilter" onchange="renderQuotes()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:600">
-              <option value="all">Todas las cotizaciones</option>
-              <option value="pendiente" selected>Solo Pendientes</option>
-              <option value="convertido">Convertidas / Aprobadas</option>
-              <option value="cancelado">Canceladas</option>
-            </select>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Origen:</span>
+              <select id="selQuoteSource" onchange="changeQuoteSource()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:700;background:#fff">
+                <option value="cloud" selected>🌐 Nube Web / POS</option>
+                <option value="mixnet">💾 MixNet DBF (MXENCCOT)</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Filtrar:</span>
+              <select id="selQuoteFilter" onchange="renderQuotes()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:600">
+                <option value="all">Todas</option>
+                <option value="pendiente" selected>Solo Pendientes</option>
+                <option value="convertido">Convertidas / Aprobadas</option>
+                <option value="cancelado">Canceladas</option>
+              </select>
+            </div>
           </div>
-          <button class="btn sm" onclick="loadPending()">🔄 Refrescar Nube</button>
+          <button class="btn sm" onclick="reloadQuotesCurrentSource()">🔄 Refrescar Cotizaciones</button>
         </div>
         <table>
           <thead>
             <tr>
               <th>Número</th>
               <th>Cliente / RIF</th>
-              <th>Origen / Vendedor</th>
+              <th>Vendedor / Origen</th>
+              <th>Renglones / Productos</th>
               <th>Estado</th>
               <th>Total USD</th>
               <th>Fecha</th>
@@ -119,7 +130,7 @@
             </tr>
           </thead>
           <tbody id="tbodyQuotes">
-            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Cargando cotizaciones...</td></tr>
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando cotizaciones...</td></tr>
           </tbody>
         </table>
       </div>
@@ -127,23 +138,33 @@
       <!-- Tabla Pedidos -->
       <div id="viewOrders" style="display:none">
         <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:12px;font-weight:700;color:var(--muted)">Filtrar:</span>
-            <select id="selOrderFilter" onchange="renderOrders()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:600">
-              <option value="all">Todos los pedidos</option>
-              <option value="pendiente" selected>Solo Pendientes</option>
-              <option value="pagado">Pagados / Listos para Facturar</option>
-              <option value="cancelado">Cancelados</option>
-            </select>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Origen:</span>
+              <select id="selOrderSource" onchange="changeOrderSource()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:700;background:#fff">
+                <option value="cloud" selected>🌐 Nube Web / POS</option>
+                <option value="mixnet">💾 MixNet DBF (MXENCPED)</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Filtrar:</span>
+              <select id="selOrderFilter" onchange="renderOrders()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:600">
+                <option value="all">Todos</option>
+                <option value="pendiente" selected>Solo Pendientes</option>
+                <option value="pagado">Pagados / Aprobados</option>
+                <option value="cancelado">Cancelados</option>
+              </select>
+            </div>
           </div>
-          <button class="btn sm" onclick="loadPending()">🔄 Refrescar Nube</button>
+          <button class="btn sm" onclick="reloadOrdersCurrentSource()">🔄 Refrescar Pedidos</button>
         </div>
         <table>
           <thead>
             <tr>
               <th>Número</th>
               <th>Cliente / RIF</th>
-              <th>Origen / Vendedor</th>
+              <th>Vendedor / Origen</th>
+              <th>Renglones / Productos</th>
               <th>Estado</th>
               <th>Total USD</th>
               <th>Fecha</th>
@@ -151,7 +172,35 @@
             </tr>
           </thead>
           <tbody id="tbodyOrders">
-            <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Cargando pedidos...</td></tr>
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando pedidos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tabla Facturación MixNet -->
+      <div id="viewInvoices" style="display:none">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:12px;font-weight:700;color:#0369a1">🧾 Facturación Fiscal Directa de MixNet (MXENCFAC / MXRENFAC)</span>
+            <span class="badge" style="background:#e0f2fe;color:#0369a1" id="badgeInvoiceCount">0 facturas</span>
+          </div>
+          <button class="btn sm" onclick="loadMixnetInvoices()">🔄 Refrescar Facturas</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>N° Factura</th>
+              <th>Cliente / RIF</th>
+              <th>Vendedor</th>
+              <th>Renglones / Productos</th>
+              <th>Estado</th>
+              <th>Total USD</th>
+              <th>Fecha Emisión</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInvoices">
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando facturas de MixNet...</td></tr>
           </tbody>
         </table>
       </div>
@@ -175,6 +224,8 @@
                 <th>Cód</th>
                 <th>Usuario</th>
                 <th>Nombre en Nómina</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
                 <th>Rol / Nivel</th>
                 <th>Permiso Anular</th>
                 <th>Permisos Activos</th>
@@ -182,7 +233,7 @@
               </tr>
             </thead>
             <tbody id="tbodyUsers">
-              <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios y matriz de seguridad...</td></tr>
+              <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios y matriz de seguridad...</td></tr>
             </tbody>
           </table>
         </div>
@@ -208,6 +259,45 @@
             <div style="display:flex;gap:8px">
               <button class="btn sm" style="background:#64748b" onclick="closePermModal()">Cancelar</button>
               <button class="btn sm green" id="btnSavePermissions" onclick="saveUserPermissions()">💾 Guardar Permisos en MixNet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Inspección de Renglones / Productos -->
+      <div id="modalItemsDetail" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:999;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:12px;max-width:850px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <div>
+              <h3 style="font-size:16px;font-weight:800;color:#0f172a" id="itemsModalTitle">📦 Renglones del Documento</h3>
+              <p style="font-size:12px;color:var(--muted);margin-top:2px" id="itemsModalSubtitle">Detalle de productos, cantidades, unidades y precios</p>
+            </div>
+            <button onclick="closeItemsModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">&times;</button>
+          </div>
+          
+          <div style="padding:16px 20px;overflow-y:auto;flex:1">
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="padding:8px">#</th>
+                  <th style="padding:8px">Código / SKU</th>
+                  <th style="padding:8px">Descripción</th>
+                  <th style="padding:8px;text-align:center">Cant</th>
+                  <th style="padding:8px;text-align:center">Unidad</th>
+                  <th style="padding:8px;text-align:right">Precio USD</th>
+                  <th style="padding:8px;text-align:right">Total USD</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyItemsDetail">
+                <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin renglones disponibles.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <span style="font-size:13px;font-weight:800;color:#0369a1" id="itemsModalTotal">Total: $0.00</span>
+            <div style="display:flex;gap:8px" id="itemsModalActions">
+              <button class="btn sm" style="background:#64748b" onclick="closeItemsModal()">Cerrar</button>
             </div>
           </div>
         </div>
@@ -350,6 +440,11 @@
   <script>
     let pendingQuotes = [];
     let pendingOrders = [];
+    let mixnetQuotes = [];
+    let mixnetOrders = [];
+    let mixnetInvoices = [];
+    let quoteSource = 'cloud';
+    let orderSource = 'cloud';
     let mixnetUsers = [];
     let currentTab = 'quotes';
 
@@ -797,11 +892,12 @@
         const srcLabel = document.getElementById('userTableSource');
 
         if (srcLabel) {
-          srcLabel.innerHTML = `Orígenes activos: Seguridad <strong style="color:#0369a1">${escapeHtml(data.source_securi ? data.source_securi.split('\\').pop() : 'MXSECURI.CFG')}</strong> | Nómina <strong style="color:#10b981">${escapeHtml(data.source_vendedores ? data.source_vendedores.split('\\').pop() : 'MXCTAVDD.DBF')}</strong> (${mixnetUsers.length} cuentas mapeadas)`;
+          const extCount = data.ext_files_found || 0;
+          srcLabel.innerHTML = `Orígenes activos: Seguridad <strong style="color:#0369a1">${escapeHtml(data.source_securi ? data.source_securi.split('\\').pop() : 'MXSECURI.CFG')}</strong> | Nómina <strong style="color:#10b981">${escapeHtml(data.source_vendedores ? data.source_vendedores.split('\\').pop() : 'MXCTAVDD.DBF')}</strong> (${mixnetUsers.length} cuentas mapeadas | ${extCount} archivos MXUSER*.EXT)`;
         }
 
         if (!data.ok || mixnetUsers.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios detectados en el sistema'}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios detectados en el sistema'}</td></tr>`;
           return;
         }
 
@@ -809,8 +905,10 @@
           const userCode = u.code || u.username || '-';
           const userName = u.name || '-';
           const role = u.role || 'Operador';
-          const esAdmin = u.is_admin || u.can_void;
+          const esAdmin = Boolean(u.is_admin);
           const activePermsCount = u.permissions ? Object.values(u.permissions).filter(Boolean).length : 0;
+          const isFloor = Boolean(u.is_floor);
+          const isActive = u.is_active !== false;
           
           return `
             <tr style="${esAdmin ? 'background:#fefce8' : ''}">
@@ -819,8 +917,19 @@
                 <span class="badge" style="background:${esAdmin ? '#fef08a;color:#854d0e' : '#e0f2fe;color:#0369a1'}">
                   ${escapeHtml(u.username)} ${esAdmin ? '👑' : ''}
                 </span>
+                ${u.ext_file ? `<div style="font-size:10px;color:#64748b;margin-top:2px;font-family:monospace">${escapeHtml(u.ext_file)}</div>` : ''}
               </td>
               <td><strong>${escapeHtml(userName)}</strong></td>
+              <td>
+                <span class="badge" style="${isFloor ? 'background:#dcfce7;color:#15803d' : 'background:#ede9fe;color:#6b21a8'}">
+                  ${isFloor ? '🏢 Piso / Tienda' : '💼 Calle / Mayor'}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${isActive ? 'green' : 'red'}" style="font-size:11px">
+                  ${isActive ? '🟢 Activo' : '🔴 Inactivo'}
+                </span>
+              </td>
               <td>
                 <span class="badge ${esAdmin ? 'green' : ''}" style="${!esAdmin ? 'background:#f1f5f9;color:#475569' : ''}">
                   ${escapeHtml(role)}
@@ -834,6 +943,7 @@
               <td>
                 <span style="font-size:12px;font-weight:700;color:${activePermsCount > 10 ? '#10b981' : '#f59e0b'}">
                   ${activePermsCount} / ${currentCatalog.length || 30} flags
+                  ${u.native_flags_count !== null && u.native_flags_count !== undefined ? `<span style="font-size:10px;color:#64748b;font-weight:normal;display:block">(${u.native_flags_count} en EXT)</span>` : ''}
                 </span>
               </td>
               <td>
@@ -845,7 +955,7 @@
           `;
         }).join('');
       } catch (e) {
-        document.getElementById('tbodyUsers').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--danger)">Error cargando usuarios: ${escapeHtml(e.message)}</td></tr>`;
+        document.getElementById('tbodyUsers').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--danger)">Error cargando usuarios: ${escapeHtml(e.message)}</td></tr>`;
       }
     }
 
@@ -1047,16 +1157,157 @@
       }
     }
 
+    async function loadMixnetQuotes() {
+      try {
+        const res = await fetch('/api/mixnet/documents?type=quotes');
+        const data = await res.json();
+        if (data.ok) {
+          mixnetQuotes = data.quotes || [];
+          renderQuotes();
+        }
+      } catch (e) {
+        log('Error cargando cotizaciones MixNet: ' + e.message);
+      }
+    }
+
+    async function loadMixnetOrders() {
+      try {
+        const res = await fetch('/api/mixnet/documents?type=orders');
+        const data = await res.json();
+        if (data.ok) {
+          mixnetOrders = data.orders || [];
+          renderOrders();
+        }
+      } catch (e) {
+        log('Error cargando pedidos MixNet: ' + e.message);
+      }
+    }
+
+    async function loadMixnetInvoices() {
+      const tb = document.getElementById('tbodyInvoices');
+      tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Leyendo facturas fiscales (MXENCFAC.DBF / MXRENFAC.DBF)...</td></tr>';
+      try {
+        const res = await fetch('/api/mixnet/documents?type=invoices');
+        const data = await res.json();
+        if (data.ok) {
+          mixnetInvoices = data.invoices || [];
+          document.getElementById('countInvoices').textContent = mixnetInvoices.length;
+          const badge = document.getElementById('badgeInvoiceCount');
+          if (badge) badge.textContent = `${mixnetInvoices.length} facturas`;
+
+          if (!mixnetInvoices.length) {
+            tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay facturas registradas en MixNet o tabla vacía.</td></tr>';
+            return;
+          }
+
+          tb.innerHTML = mixnetInvoices.map((inv, idx) => {
+            const items = inv.items || [];
+            return `
+              <tr>
+                <td><strong style="font-family:monospace;color:#0369a1">${escapeHtml(inv.numfac)}</strong></td>
+                <td>
+                  <div style="font-weight:600">${escapeHtml(inv.nomcli || inv.cliente || 'Consumidor Final')}</div>
+                  <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(inv.cif || inv.cliente || '00')}</div>
+                </td>
+                <td><span class="badge" style="background:#f1f5f9;color:#475569">Ven: ${escapeHtml(inv.codven || '005')}</span></td>
+                <td>
+                  <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Factura MixNet #' + '${escapeHtml(inv.numfac)}', 'invoices', ${idx})">
+                    📦 ${items.length} productos
+                  </button>
+                </td>
+                <td><span class="badge green">Emitida / Facturada</span></td>
+                <td style="font-weight:800;color:#10b981">$${Number(inv.tot_fac || 0).toFixed(2)}</td>
+                <td style="font-size:12px;color:var(--muted)">${escapeHtml(inv.emision || '-')}</td>
+                <td><span style="font-size:11px;color:var(--muted)">MixNet ERP</span></td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger)">${data.error || 'No se pudieron leer facturas'}</td></tr>`;
+        }
+      } catch (e) {
+        tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger)">Error: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function changeQuoteSource() {
+      quoteSource = document.getElementById('selQuoteSource')?.value || 'cloud';
+      if (quoteSource === 'mixnet' && (!mixnetQuotes || mixnetQuotes.length === 0)) {
+        loadMixnetQuotes();
+      } else {
+        renderQuotes();
+      }
+    }
+
+    function changeOrderSource() {
+      orderSource = document.getElementById('selOrderSource')?.value || 'cloud';
+      if (orderSource === 'mixnet' && (!mixnetOrders || mixnetOrders.length === 0)) {
+        loadMixnetOrders();
+      } else {
+        renderOrders();
+      }
+    }
+
+    function reloadQuotesCurrentSource() {
+      if (quoteSource === 'mixnet') {
+        loadMixnetQuotes();
+      } else {
+        loadPending();
+      }
+    }
+
+    function reloadOrdersCurrentSource() {
+      if (orderSource === 'mixnet') {
+        loadMixnetOrders();
+      } else {
+        loadPending();
+      }
+    }
+
     function renderQuotes() {
       const tb = document.getElementById('tbodyQuotes');
       const filter = document.getElementById('selQuoteFilter')?.value || 'all';
+
+      if (quoteSource === 'mixnet') {
+        document.getElementById('countQuotes').textContent = mixnetQuotes.length;
+        if (!mixnetQuotes.length) {
+          tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay cotizaciones registradas en MixNet (MXENCCOT.DBF).</td></tr>`;
+          return;
+        }
+        tb.innerHTML = mixnetQuotes.map((q, idx) => {
+          const items = q.items || [];
+          return `
+            <tr>
+              <td><strong style="font-family:monospace;color:#0369a1">${escapeHtml(q.numcot)}</strong></td>
+              <td>
+                <div style="font-weight:600">${escapeHtml(q.nomcli || q.cliente || 'Sin nombre')}</div>
+                <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(q.cif || q.cliente || '00')}</div>
+              </td>
+              <td><span class="badge" style="background:#ede9fe;color:#6b21a8">MixNet (Ven ${escapeHtml(q.codven || '-')})</span></td>
+              <td>
+                <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Cotización MixNet #' + '${escapeHtml(q.numcot)}', 'mixnet_quotes', ${idx})">
+                  📦 ${items.length} productos
+                </button>
+              </td>
+              <td><span class="badge green">${escapeHtml(q.estatus || 'REG')}</span></td>
+              <td style="font-weight:700;color:#0369a1">$${Number(q.tot_cot || 0).toFixed(2)}</td>
+              <td style="font-size:12px;color:var(--muted)">${escapeHtml(q.emision || '-')}</td>
+              <td><span style="font-size:11px;color:var(--muted)">Grabado en ERP</span></td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+
+      // Origen Cloud / Web
       let filtered = pendingQuotes;
       if (filter !== 'all') {
         filtered = pendingQuotes.filter(q => (q.status || '').toLowerCase() === filter);
       }
+      document.getElementById('countQuotes').textContent = pendingQuotes.length;
 
       if (!filtered.length) {
-        tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No hay cotizaciones que coincidan con el filtro "${filter}".</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay cotizaciones que coincidan con el filtro "${filter}".</td></tr>`;
         return;
       }
 
@@ -1068,6 +1319,7 @@
           'cancelado': 'background:#fee2e2;color:#b91c1c'
         };
         const stStyle = statusColors[q.status] || 'background:#e2e8f0;color:#334155';
+        const items = Array.isArray(q.items) ? q.items : [];
 
         return `
           <tr>
@@ -1078,8 +1330,13 @@
             </td>
             <td>
               <span style="font-size:11px;color:#475569">
-                ${escapeHtml(q.source || 'web')} (${escapeHtml(q.seller_name || q.seller_id ? 'Asignado' : 'General')})
+                ${escapeHtml(q.source || 'web')} (${escapeHtml(q.seller_name || (q.seller_id ? 'Asignado' : 'General'))})
               </span>
+            </td>
+            <td>
+              <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Cotización Web ' + '${escapeHtml(q.quote_number || q.id.substring(0,8))}', 'cloud_quotes', ${globalIdx})">
+                📦 ${items.length} productos
+              </button>
             </td>
             <td>
               <span class="badge" style="${stStyle}">${escapeHtml(q.status || 'pendiente')}</span>
@@ -1097,13 +1354,47 @@
     function renderOrders() {
       const tb = document.getElementById('tbodyOrders');
       const filter = document.getElementById('selOrderFilter')?.value || 'all';
+
+      if (orderSource === 'mixnet') {
+        document.getElementById('countOrders').textContent = mixnetOrders.length;
+        if (!mixnetOrders.length) {
+          tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay pedidos registrados en MixNet (MXENCPED.DBF).</td></tr>`;
+          return;
+        }
+        tb.innerHTML = mixnetOrders.map((o, idx) => {
+          const items = o.items || [];
+          return `
+            <tr>
+              <td><strong style="font-family:monospace;color:#10b981">${escapeHtml(o.numped)}</strong></td>
+              <td>
+                <div style="font-weight:600">${escapeHtml(o.cliente || 'Sin nombre')}</div>
+                <div style="font-size:11px;color:var(--muted)">Comentario: ${escapeHtml(o.comen1 || '-')}</div>
+              </td>
+              <td><span class="badge" style="background:#ede9fe;color:#6b21a8">MixNet (Ven ${escapeHtml(o.codven || '-')})</span></td>
+              <td>
+                <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Pedido MixNet #' + '${escapeHtml(o.numped)}', 'mixnet_orders', ${idx})">
+                  📦 ${items.length} productos
+                </button>
+              </td>
+              <td><span class="badge green">${escapeHtml(o.estatus || 'REG')}</span></td>
+              <td style="font-weight:700;color:#10b981">$${Number(o.tot_ped || 0).toFixed(2)}</td>
+              <td style="font-size:12px;color:var(--muted)">${escapeHtml(o.emision || '-')}</td>
+              <td><span style="font-size:11px;color:var(--muted)">Grabado en ERP</span></td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+
+      // Origen Cloud / POS
       let filtered = pendingOrders;
       if (filter !== 'all') {
         filtered = pendingOrders.filter(o => (o.status || '').toLowerCase() === filter);
       }
+      document.getElementById('countOrders').textContent = pendingOrders.length;
 
       if (!filtered.length) {
-        tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No hay pedidos que coincidan con el filtro "${filter}".</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay pedidos que coincidan con el filtro "${filter}".</td></tr>`;
         return;
       }
 
@@ -1115,6 +1406,7 @@
           'cancelado': 'background:#fee2e2;color:#b91c1c'
         };
         const stStyle = statusColors[o.status] || 'background:#e2e8f0;color:#334155';
+        const items = Array.isArray(o.items) ? o.items : [];
 
         return `
           <tr>
@@ -1125,8 +1417,13 @@
             </td>
             <td>
               <span style="font-size:11px;color:#475569">
-                ${escapeHtml(o.source || 'pos')} (${escapeHtml(o.seller_name || o.seller_id ? 'Asignado' : 'General')})
+                ${escapeHtml(o.source || 'pos')} (${escapeHtml(o.seller_name || (o.seller_id ? 'Asignado' : 'General'))})
               </span>
+            </td>
+            <td>
+              <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Pedido Web ' + '${escapeHtml(o.order_number || o.id.substring(0,8))}', 'cloud_orders', ${globalIdx})">
+                📦 ${items.length} productos
+              </button>
             </td>
             <td>
               <span class="badge" style="${stStyle}">${escapeHtml(o.status || 'pendiente')}</span>
@@ -1139,6 +1436,95 @@
           </tr>
         `;
       }).join('');
+    }
+
+    function openItemsModal(title, docType, index) {
+      const modal = document.getElementById('modalItemsDetail');
+      const titleEl = document.getElementById('itemsModalTitle');
+      const subtitleEl = document.getElementById('itemsModalSubtitle');
+      const tbody = document.getElementById('tbodyItemsDetail');
+      const totalEl = document.getElementById('itemsModalTotal');
+      const actionsEl = document.getElementById('itemsModalActions');
+
+      titleEl.textContent = title;
+
+      let items = [];
+      let totalAmount = 0;
+      let injectAction = null;
+
+      if (docType === 'cloud_quotes') {
+        const q = pendingQuotes[index];
+        items = q ? (Array.isArray(q.items) ? q.items : []) : [];
+        totalAmount = Number(q?.estimated_total_usd || 0);
+        subtitleEl.textContent = `Cliente: ${q?.client_name || '-'} | RIF: ${q?.rif || '00'} | Vendedor: ${q?.seller_name || 'General'}`;
+        injectAction = () => { closeItemsModal(); injectQuote(index); };
+      } else if (docType === 'cloud_orders') {
+        const o = pendingOrders[index];
+        items = o ? (Array.isArray(o.items) ? o.items : []) : [];
+        totalAmount = Number(o?.total_usd || 0);
+        subtitleEl.textContent = `Cliente: ${o?.client_name || '-'} | RIF: ${o?.rif || '00'} | Vendedor: ${o?.seller_name || 'General'}`;
+        injectAction = () => { closeItemsModal(); injectOrder(index); };
+      } else if (docType === 'mixnet_quotes') {
+        const q = mixnetQuotes[index];
+        items = q?.items || [];
+        totalAmount = Number(q?.tot_cot || 0);
+        subtitleEl.textContent = `Cliente: ${q?.nomcli || q?.cliente || '-'} | Emisión: ${q?.emision || '-'} | Vendedor: ${q?.codven || '-'}`;
+      } else if (docType === 'mixnet_orders') {
+        const o = mixnetOrders[index];
+        items = o?.items || [];
+        totalAmount = Number(o?.tot_ped || 0);
+        subtitleEl.textContent = `Cliente: ${o?.cliente || '-'} | Emisión: ${o?.emision || '-'} | Vendedor: ${o?.codven || '-'}`;
+      } else if (docType === 'invoices') {
+        const inv = mixnetInvoices[index];
+        items = inv?.items || [];
+        totalAmount = Number(inv?.tot_fac || 0);
+        subtitleEl.textContent = `Cliente: ${inv?.nomcli || inv?.cliente || '-'} | RIF: ${inv?.cif || '00'} | Vendedor: ${inv?.codven || '-'}`;
+      }
+
+      totalEl.textContent = `Total Documento: $${totalAmount.toFixed(2)}`;
+
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin renglones disponibles o detalle no cargado.</td></tr>';
+      } else {
+        tbody.innerHTML = items.map((it, idx) => {
+          const sku = it.sku || it.item || it.code || it.product_id || '-';
+          const name = it.name || it.descrip || it.description || it.product_name || 'Artículo sin nombre';
+          const qty = Number(it.quantity || it.qty || it.cantidad || 0);
+          const unit = it.unit || it.unidad || 'UND';
+          const price = Number(it.price || it.unit_price || it.precio || 0);
+          const subtotal = Number(it.subtotal || it.total || it.tot_ren || (qty * price));
+
+          return `
+            <tr>
+              <td style="padding:8px;color:var(--muted)">${idx + 1}</td>
+              <td style="padding:8px"><strong style="font-family:monospace;color:#0369a1">${escapeHtml(sku)}</strong></td>
+              <td style="padding:8px"><strong>${escapeHtml(name)}</strong></td>
+              <td style="padding:8px;text-align:center;font-weight:700">${qty}</td>
+              <td style="padding:8px;text-align:center"><span class="badge" style="background:#f1f5f9;color:#475569">${escapeHtml(unit)}</span></td>
+              <td style="padding:8px;text-align:right">$${price.toFixed(2)}</td>
+              <td style="padding:8px;text-align:right;font-weight:700;color:#10b981">$${subtotal.toFixed(2)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      let actionsHtml = '<button class="btn sm" style="background:#64748b" onclick="closeItemsModal()">Cerrar</button>';
+      if (injectAction) {
+        actionsHtml += ' <button class="btn sm green" id="btnModalInjectAction">📥 Inyectar a MixNet ERP</button>';
+      }
+      actionsEl.innerHTML = actionsHtml;
+
+      if (injectAction) {
+        const actBtn = document.getElementById('btnModalInjectAction');
+        if (actBtn) actBtn.onclick = injectAction;
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function closeItemsModal() {
+      const modal = document.getElementById('modalItemsDetail');
+      if (modal) modal.style.display = 'none';
     }
 
     async function injectQuote(idx) {
@@ -1411,16 +1797,19 @@
       currentTab = t;
       document.getElementById('tabQuotes').classList.toggle('on', t === 'quotes');
       document.getElementById('tabOrders').classList.toggle('on', t === 'orders');
+      document.getElementById('tabInvoices').classList.toggle('on', t === 'invoices');
       document.getElementById('tabUsers').classList.toggle('on', t === 'users');
       document.getElementById('tabExplorer').classList.toggle('on', t === 'explorer');
       document.getElementById('tabBackups').classList.toggle('on', t === 'backups');
       document.getElementById('tabAgent').classList.toggle('on', t === 'agent');
       document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
       document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
+      document.getElementById('viewInvoices').style.display = t === 'invoices' ? 'block' : 'none';
       document.getElementById('viewUsers').style.display = t === 'users' ? 'block' : 'none';
       document.getElementById('viewExplorer').style.display = t === 'explorer' ? 'block' : 'none';
       document.getElementById('viewBackups').style.display = t === 'backups' ? 'block' : 'none';
       document.getElementById('viewAgent').style.display = t === 'agent' ? 'block' : 'none';
+      if (t === 'invoices') loadMixnetInvoices();
       if (t === 'users') loadUsers();
       if (t === 'explorer') loadDbfFilesList();
       if (t === 'backups') loadBackups();
@@ -1433,6 +1822,7 @@
     // Inicializar
     loadStatus();
     loadPending();
+    loadMixnetInvoices();
     loadUsers();
     loadBackups();
     loadDbfFilesList();

@@ -1346,12 +1346,25 @@ function posShowHelpModal() {
 async function posLoadQuote(val) {
   if (!val) return;
   const qStr = String(val).trim();
-  const { data: q, error } = await sb.from('jjp_quotes')
-    .select('*')
-    .or(`quote_number.eq.${qStr},id.eq.${qStr}`)
-    .maybeSingle();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  let q = null;
+  let error = null;
 
-  if (error || !q) {
+  // 1. Intentar buscar por número de cotización (8 dígitos o texto)
+  const resNum = await sb.from('jjp_quotes').select('*').eq('quote_number', qStr).maybeSingle();
+  if (resNum.data) {
+    q = resNum.data;
+  } else if (uuidRegex.test(qStr)) {
+    // 2. Solo si el string tiene formato UUID válido, buscar por id
+    const resId = await sb.from('jjp_quotes').select('*').eq('id', qStr).maybeSingle();
+    q = resId.data;
+    error = resId.error;
+  } else {
+    error = resNum.error;
+  }
+
+  if (!q) {
     showToast('No se encontró la cotización ' + qStr, 'warn');
     return;
   }

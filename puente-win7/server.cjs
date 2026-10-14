@@ -30,14 +30,25 @@ if (fs.existsSync(CONFIG_FILE)) {
 const CODVEN_MAP = {
   'luis': '002',
   'luis alarcon': '002',
+  'alarcon': '002',
   'yovanni': '004',
   'yovanni araujo': '004',
+  'araujo': '004',
   'marianela': '008',
   'andreina': '014',
   'keyder': '010',
   'keyder salazar': '010',
   'jose': '005',
-  'mostrador': '005'
+  'jose pico': '005',
+  'pico': '005',
+  'caja': '005',
+  'mostrador': '005',
+  'mary': '001',
+  'maria': '001',
+  'maria garcia': '001',
+  'auxiliar': '032',
+  'auxiliar 1': '032',
+  'auxiliar 2': '033'
 };
 
 // --- MOTOR DE DETECCION UNIVERSAL Y CATALOGADOR DE DATOS MIXNET ---
@@ -687,7 +698,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 2. Cotizaciones y Pedidos (Carga integral para sincronización e inyección)
+  // 2. Cotizaciones y Pedidos Web (Carga integral para sincronización e inyección con renglones)
   if (pathname === '/api/pending' && req.method === 'GET') {
     try {
       // Traer las cotizaciones y pedidos más recientes (tanto web/vendedor como POS y pendientes)
@@ -696,6 +707,21 @@ const server = http.createServer(async (req, res) => {
       
       const quotes = quotesRes.data || [];
       const orders = ordersRes.data || [];
+
+      // Normalizar estructura de items para garantizar visualización de productos en la UI
+      quotes.forEach(q => {
+        if (typeof q.items === 'string') {
+          try { q.items = JSON.parse(q.items); } catch(_) { q.items = []; }
+        }
+        q.items = Array.isArray(q.items) ? q.items : [];
+      });
+
+      orders.forEach(o => {
+        if (typeof o.items === 'string') {
+          try { o.items = JSON.parse(o.items); } catch(_) { o.items = []; }
+        }
+        o.items = Array.isArray(o.items) ? o.items : [];
+      });
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({
@@ -708,6 +734,149 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, error: e.message, quotes: [], orders: [] }));
+    }
+  }
+
+  // 2.0 Documentos Oficiales Registrados en MixNet ERP (Cotizaciones, Pedidos y Facturas con Renglones)
+  if (pathname === '/api/mixnet/documents' && req.method === 'GET') {
+    try {
+      const mixDir = config.mixnet_dir;
+      const type = parsedUrl.searchParams.get('type') || 'all'; // quotes, orders, invoices, all
+
+      const results = { ok: true, quotes: [], orders: [], invoices: [] };
+
+      // 1. Cotizaciones MixNet (MXENCCOT + MXRENCOT)
+      if (type === 'all' || type === 'quotes') {
+        const encCotPath = findTableInCandidates('MXENCCOT.DBF', mixDir);
+        const renCotPath = findTableInCandidates('MXRENCOT.DBF', mixDir);
+        if (encCotPath) {
+          const encStruct = readDbfStruct(encCotPath);
+          if (encStruct) {
+            const encRows = readDbfRows(encStruct, null, 100);
+            const renStruct = renCotPath ? readDbfStruct(renCotPath) : null;
+            const renRows = renStruct ? readDbfRows(renStruct, null, 2500) : [];
+
+            const renMap = {};
+            renRows.forEach(r => {
+              const num = (r.numcot || '').trim();
+              if (!renMap[num]) renMap[num] = [];
+              renMap[num].push({
+                item: (r.item || '').trim(),
+                descrip: (r.descrip || '').trim(),
+                qty: parseFloat(r.cantidad) || 0,
+                unit: (r.unidad || 'UND').trim(),
+                price: parseFloat(r.precio) || 0,
+                total: parseFloat(r.tot_ren) || 0,
+                iva: (r.iva || 'A').trim()
+              });
+            });
+
+            results.quotes = encRows.reverse().map(row => ({
+              numcot: (row.numcot || '').trim(),
+              emision: (row.emision || '').trim(),
+              cliente: (row.cliente || '').trim(),
+              nomcli: (row.nomcli || '').trim(),
+              cif: (row.cif || '').trim(),
+              codven: (row.codven || '').trim(),
+              tot_cot: parseFloat(row.tot_cot) || 0,
+              estatus: (row.estatus || 'PE').trim(),
+              cambio: parseFloat(row.cambio) || 1,
+              moneda: (row.moneda || 'US$').trim(),
+              items: renMap[(row.numcot || '').trim()] || []
+            }));
+          }
+        }
+      }
+
+      // 2. Pedidos MixNet (MXENCPED + MXRENPED)
+      if (type === 'all' || type === 'orders') {
+        const encPedPath = findTableInCandidates('MXENCPED.DBF', mixDir);
+        const renPedPath = findTableInCandidates('MXRENPED.DBF', mixDir);
+        if (encPedPath) {
+          const encStruct = readDbfStruct(encPedPath);
+          if (encStruct) {
+            const encRows = readDbfRows(encStruct, null, 100);
+            const renStruct = renPedPath ? readDbfStruct(renPedPath) : null;
+            const renRows = renStruct ? readDbfRows(renStruct, null, 2500) : [];
+
+            const renMap = {};
+            renRows.forEach(r => {
+              const num = (r.numped || '').trim();
+              if (!renMap[num]) renMap[num] = [];
+              renMap[num].push({
+                item: (r.item || '').trim(),
+                descrip: (r.descrip || '').trim(),
+                qty: parseFloat(r.cantidad) || 0,
+                unit: (r.unidad || 'UND').trim(),
+                price: parseFloat(r.precio) || 0,
+                total: parseFloat(r.tot_ren) || 0,
+                iva: (r.iva || 'A').trim()
+              });
+            });
+
+            results.orders = encRows.reverse().map(row => ({
+              numped: (row.numped || '').trim(),
+              emision: (row.emision || '').trim(),
+              cliente: (row.cliente || '').trim(),
+              codven: (row.codven || '').trim(),
+              tot_ped: parseFloat(row.tot_ped) || 0,
+              estatus: (row.estatus || 'PE').trim(),
+              comen1: (row.comen1 || '').trim(),
+              cambio: parseFloat(row.cambio) || 1,
+              moneda: (row.moneda || 'US$').trim(),
+              items: renMap[(row.numped || '').trim()] || []
+            }));
+          }
+        }
+      }
+
+      // 3. Facturas Fiscales MixNet (MXENCFAC + MXRENFAC)
+      if (type === 'all' || type === 'invoices') {
+        const encFacPath = findTableInCandidates('MXENCFAC.DBF', mixDir);
+        const renFacPath = findTableInCandidates('MXRENFAC.DBF', mixDir);
+        if (encFacPath) {
+          const encStruct = readDbfStruct(encFacPath);
+          if (encStruct) {
+            const encRows = readDbfRows(encStruct, null, 100);
+            const renStruct = renFacPath ? readDbfStruct(renFacPath) : null;
+            const renRows = renStruct ? readDbfRows(renStruct, null, 2500) : [];
+
+            const renMap = {};
+            renRows.forEach(r => {
+              const num = (r.numfac || '').trim();
+              if (!renMap[num]) renMap[num] = [];
+              renMap[num].push({
+                item: (r.item || '').trim(),
+                descrip: (r.descrip || '').trim(),
+                qty: parseFloat(r.cantidad) || 0,
+                unit: (r.unidad || 'UND').trim(),
+                price: parseFloat(r.precio) || 0,
+                total: parseFloat(r.tot_ren) || 0,
+                iva: (r.iva || 'A').trim()
+              });
+            });
+
+            results.invoices = encRows.reverse().map(row => ({
+              numfac: (row.numfac || '').trim(),
+              emision: (row.emision || '').trim(),
+              cliente: (row.cliente || '').trim(),
+              nomcli: (row.nomcli || '').trim(),
+              cif: (row.cif || '').trim(),
+              codven: (row.codven || '').trim(),
+              tot_fac: parseFloat(row.tot_fac) || 0,
+              estatus: (row.estatus || 'FA').trim(),
+              ncontrol: (row.ncontrol || '').trim(),
+              items: renMap[(row.numfac || '').trim()] || []
+            }));
+          }
+        }
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(results));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: e.message, quotes: [], orders: [], invoices: [] }));
     }
   }
 
@@ -869,11 +1038,15 @@ const server = http.createServer(async (req, res) => {
         'P:\\Elias\\MIX\\MIX11\\MXCLA.MIX'
       ].find(p => fs.existsSync(p));
 
-      let vddPath = [
-        path.join(baseDir, 'MXCTAVDD.DBF'),
-        path.join(baseDir, 'mxctavdd.dbf'),
-        'M:\\comp01\\MXCTAVDD.dbf'
-      ].find(p => fs.existsSync(p));
+      let vddPath = findTableInCandidates('MXCTAVDD.DBF', baseDir);
+      if (!vddPath) vddPath = findTableInCandidates('mxctavdd.dbf', baseDir);
+      if (!vddPath) {
+        vddPath = [
+          path.join(baseDir, 'MXCTAVDD.DBF'),
+          path.join(baseDir, 'mxctavdd.dbf'),
+          'M:\\comp01\\MXCTAVDD.dbf'
+        ].find(p => fs.existsSync(p));
+      }
 
       // Catálogo de permisos estándar en MixNet (agrupados por módulos)
       // def: false para que un vendedor NO tenga 32 permisos por defecto, sino solo los mínimos operativos reales (2-3 permisos: crear cotización, ver stock)
@@ -951,50 +1124,171 @@ const server = http.createServer(async (req, res) => {
         try { savedPermsMap = JSON.parse(fs.readFileSync(permStorageFile, 'utf8')); } catch (_) {}
       }
 
+      // 0. Detectar y deserializar archivos binarios de usuario MXUSER*.EXT (234 bytes)
+      const extUsersMap = {};
+      let extFilesFound = 0;
+      const candidateExtDirs = [rootDir, baseDir, 'M:\\', 'C:\\RESPAMIX\\MIX11 (servidor)', 'P:\\Elias\\MIX\\MIX11'].filter(Boolean);
+      for (const d of candidateExtDirs) {
+        if (!fs.existsSync(d)) continue;
+        try {
+          const files = fs.readdirSync(d);
+          files.forEach(fn => {
+            const m = fn.match(/^MXUSER(\d+)\.EXT$/i);
+            if (m) {
+              const rawNum = parseInt(m[1], 10);
+              const paddedCode = String(rawNum).padStart(3, '0');
+              const fullPath = path.join(d, fn);
+              if (!extUsersMap[paddedCode]) {
+                try {
+                  const buf = fs.readFileSync(fullPath);
+                  extFilesFound++;
+                  let rawLogin = '';
+                  for (let bi = 0; bi < Math.min(20, buf.length); bi++) {
+                    const c = buf[bi];
+                    if (c >= 32 && c <= 126) rawLogin += String.fromCharCode(c);
+                  }
+                  rawLogin = rawLogin.trim();
+
+                  let activeFlags = 0;
+                  for (let bi = 20; bi < buf.length; bi++) {
+                    const bv = buf[bi];
+                    if (bv === 0x53 || bv === 0x31 || bv === 0x01 || bv === 0x54) { // 'S', '1', 1, 'T'
+                      activeFlags++;
+                    }
+                  }
+
+                  extUsersMap[paddedCode] = {
+                    file: fn,
+                    full_path: fullPath,
+                    size: buf.length,
+                    login: rawLogin || ('USER_' + paddedCode),
+                    native_active_flags: activeFlags,
+                    exists: true
+                  };
+                } catch (_) {}
+              }
+            }
+          });
+        } catch (_) {}
+      }
+
       // Si tenemos vendedores en nómina, mapear a cada uno como usuario del sistema
       if (vendors.length > 0) {
         userList = vendors.map((v, i) => {
-          // Determinar si es Administrador estricto (001 JJ Paper / Admin, o 010/020 Keyder Admin)
-          // Vendedores regulares (002 Luis, 004 Yovanni, 008 Marianela, 014 Andreina, 005 Caja) NO son administradores por defecto
-          const isAdmin = ['001', '010', '020'].includes(v.code) || v.name.toLowerCase().includes('administrador');
+          const isAdmin = v.code === '001' || v.name.toLowerCase().includes('administrador general');
+          const isFloor = ['005', '008', '014', '032', '033'].includes(v.code);
           
-          // Matriz de permisos base
+          let userRole = 'Vendedor / Operador';
+          let sellerType = 'Calle / Mayor';
+
+          if (isAdmin) {
+            userRole = 'Administradora General';
+            sellerType = 'Administración';
+          } else if (v.code === '005') {
+            userRole = 'Caja / Mostrador (Jose)';
+            sellerType = 'Piso / Tienda';
+          } else if (v.code === '008') {
+            userRole = 'Vendedora de Piso (Marianela)';
+            sellerType = 'Piso / Tienda';
+          } else if (v.code === '014') {
+            userRole = 'Vendedora de Piso (Andreina)';
+            sellerType = 'Piso / Tienda';
+          } else if (v.code === '032' || v.code === '033') {
+            userRole = 'Cajero Auxiliar Mostrador (' + v.code + ')';
+            sellerType = 'Piso / Tienda';
+          } else if (v.code === '002') {
+            userRole = 'Vendedor (Luis Alarcón)';
+            sellerType = 'Calle / Mayor';
+          } else if (v.code === '004' || v.code === '006') {
+            userRole = 'Vendedor (Yovanni Araujo)';
+            sellerType = 'Calle / Institucional';
+          } else if (v.code === '010' || v.code === '020') {
+            userRole = 'Zona ' + v.code + ' (Keyder Salazar)';
+            sellerType = 'Zona / Cartera';
+          }
+
+          // Matriz de permisos base: vendedor regular y caja 005 SOLO tienen 3 permisos estándar (COT_CREAR, PED_CREAR, INV_VER_STOCK)
           const perms = {};
           PERMISSIONS_CATALOG.forEach(p => {
-            // Si es admin tiene todo, si es vendedor regular SOLO sus 3 permisos estándar (COT_CREAR, PED_CREAR, INV_VER_STOCK)
             perms[p.id] = isAdmin ? true : p.def;
           });
 
-          // Si el usuario tiene permisos personalizados guardados por el admin, sobreescribir exactamente
+          // Si el usuario tiene permisos personalizados guardados en JJ_USER_PERMISSIONS.json, sobreescribir
           if (savedPermsMap[v.code] && savedPermsMap[v.code].permissions) {
             Object.assign(perms, savedPermsMap[v.code].permissions);
           }
 
-          const canVoid = perms['FAC_ANULAR'] !== undefined ? Boolean(perms['FAC_ANULAR']) : isAdmin;
-          const canModPrices = perms['FAC_MODIF_PRECIO'] !== undefined ? Boolean(perms['FAC_MODIF_PRECIO']) : isAdmin;
+          const canVoid = perms['FAC_ANULAR'] !== undefined ? Boolean(perms['FAC_ANULAR']) : false;
+          const canModPrices = perms['FAC_MODIF_PRECIO'] !== undefined ? Boolean(perms['FAC_MODIF_PRECIO']) : false;
+
+          const extInfo = extUsersMap[v.code] || null;
 
           return {
             _record: v._record,
             code: v.code,
-            username: v.name.split(' ')[0].toUpperCase() + '_' + v.code,
+            username: extInfo && extInfo.login ? extInfo.login : (v.name.split(' ')[0].toUpperCase() + '_' + v.code),
             name: v.name,
-            role: isAdmin ? 'Administrador' : 'Vendedor / Operador',
+            role: userRole,
+            seller_type: sellerType,
+            is_floor: isFloor,
+            is_active: true,
             is_admin: isAdmin,
             can_void: canVoid,
             can_modify_prices: canModPrices,
             password_masked: '••••••',
+            has_ext_file: Boolean(extInfo),
+            ext_file: extInfo ? extInfo.file : ('MXUSER' + v.code.slice(-2) + '.EXT'),
+            native_flags_count: extInfo ? extInfo.native_active_flags : null,
             permissions: perms
           };
         });
+
+        // Incluir usuarios que tengan archivo MXUSER*.EXT en el sistema pero no estén en MXCTAVDD
+        Object.keys(extUsersMap).forEach(code => {
+          const already = userList.some(u => u.code === code);
+          if (!already) {
+            const extInfo = extUsersMap[code];
+            const isAdmin = code === '001';
+            const isFloor = ['005', '008', '014', '032', '033'].includes(code);
+            const perms = {};
+            PERMISSIONS_CATALOG.forEach(p => { perms[p.id] = isAdmin ? true : p.def; });
+            if (savedPermsMap[code] && savedPermsMap[code].permissions) {
+              Object.assign(perms, savedPermsMap[code].permissions);
+            }
+            userList.push({
+              _record: userList.length + 1,
+              code: code,
+              username: extInfo.login || ('USUARIO_' + code),
+              name: 'Usuario Sistema MixNet ' + code,
+              role: isAdmin ? 'Administrador General' : 'Operador MixNet',
+              seller_type: isFloor ? 'Piso / Tienda' : 'Sistema',
+              is_floor: isFloor,
+              is_active: true,
+              is_admin: isAdmin,
+              can_void: Boolean(perms['FAC_ANULAR']),
+              can_modify_prices: Boolean(perms['FAC_MODIF_PRECIO']),
+              password_masked: '••••••',
+              has_ext_file: true,
+              ext_file: extInfo.file,
+              native_flags_count: extInfo.native_active_flags,
+              permissions: perms
+            });
+          }
+        });
       } else {
-        // Fallback a usuarios estándar de MixNet
+        // Fallback completo a la nómina real de vendedores activos en piso y calle de JJ Paper
         userList = [
-          { _record: 1, code: '001', username: 'ADMIN_001', name: 'ADMINISTRADOR GENERAL', role: 'Administrador', is_admin: true, can_void: true, can_modify_prices: true, password_masked: '••••••', permissions: {} },
-          { _record: 2, code: '002', username: 'LUIS_002', name: 'LUIS ALARCON', role: 'Vendedor', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} },
-          { _record: 3, code: '004', username: 'YOVANNI_004', name: 'YOVANNI ARAUJO', role: 'Vendedor', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} },
-          { _record: 4, code: '008', username: 'MARIANELA_008', name: 'MARIANELA', role: 'Vendedor', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} },
-          { _record: 5, code: '014', username: 'ANDREINA_014', name: 'ANDREINA', role: 'Vendedor', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} },
-          { _record: 6, code: '005', username: 'CAJA_005', name: 'MOSTRADOR / CAJA', role: 'Cajero', is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', permissions: {} }
+          { _record: 1, code: '001', username: 'MARY_001', name: 'MARY GARCIA', role: 'Administradora General', seller_type: 'Administración', is_floor: false, is_active: true, is_admin: true, can_void: true, can_modify_prices: true, password_masked: '••••••', ext_file: 'MXUSER01.EXT', permissions: {} },
+          { _record: 2, code: '005', username: 'JOSE_005', name: 'JOSE PICO / CAJA', role: 'Caja / Mostrador (Jose)', seller_type: 'Piso / Tienda', is_floor: true, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER05.EXT', permissions: {} },
+          { _record: 3, code: '008', username: 'MARIANELA_008', name: 'MARIANELA', role: 'Vendedora de Piso (Marianela)', seller_type: 'Piso / Tienda', is_floor: true, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER08.EXT', permissions: {} },
+          { _record: 4, code: '014', username: 'ANDREINA_014', name: 'ANDREINA', role: 'Vendedora de Piso (Andreina)', seller_type: 'Piso / Tienda', is_floor: true, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER14.EXT', permissions: {} },
+          { _record: 5, code: '032', username: 'AUXILIAR_032', name: 'AUXILIAR MOSTRADOR 1', role: 'Cajero Auxiliar Mostrador (032)', seller_type: 'Piso / Tienda', is_floor: true, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER32.EXT', permissions: {} },
+          { _record: 6, code: '033', username: 'AUXILIAR_033', name: 'AUXILIAR MOSTRADOR 2', role: 'Cajero Auxiliar Mostrador (033)', seller_type: 'Piso / Tienda', is_floor: true, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER33.EXT', permissions: {} },
+          { _record: 7, code: '002', username: 'LUIS_002', name: 'LUIS ALARCON', role: 'Vendedor (Luis Alarcón)', seller_type: 'Calle / Mayor', is_floor: false, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER02.EXT', permissions: {} },
+          { _record: 8, code: '004', username: 'YOVANNI_004', name: 'YOVANNI ARAUJO', role: 'Vendedor (Yovanni Araujo)', seller_type: 'Calle / Institucional', is_floor: false, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER04.EXT', permissions: {} },
+          { _record: 9, code: '006', username: 'YOVANNI_006', name: 'YOVANNI ARAUJO 2', role: 'Vendedor (Yovanni 006)', seller_type: 'Calle / Mayor', is_floor: false, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER06.EXT', permissions: {} },
+          { _record: 10, code: '010', username: 'KEYDER_010', name: 'KEYDER SALAZAR (ZONA 010)', role: 'Zona 010 (Keyder Salazar)', seller_type: 'Zona / Cartera', is_floor: false, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER10.EXT', permissions: {} },
+          { _record: 11, code: '020', username: 'KEYDER_020', name: 'KEYDER SALAZAR (ZONA 020)', role: 'Zona 020 (Keyder Salazar)', seller_type: 'Zona / Cartera', is_floor: false, is_active: true, is_admin: false, can_void: false, can_modify_prices: false, password_masked: '••••••', ext_file: 'MXUSER20.EXT', permissions: {} }
         ];
 
         userList.forEach(u => {
@@ -1012,6 +1306,7 @@ const server = http.createServer(async (req, res) => {
         source_securi: securiPath || 'No localizado',
         source_claves: claMixPath || 'No localizado',
         source_vendedores: vddPath || 'No localizado',
+        ext_files_found: extFilesFound,
         count: userList.length,
         catalog: PERMISSIONS_CATALOG,
         users: userList
@@ -1214,10 +1509,13 @@ const server = http.createServer(async (req, res) => {
           const qty = parseFloat(it.qty || it.quantity || 1) || 1;
           const price = parseFloat(it.price_usd || it.price || 0) || 0;
           const tot = parseFloat(it.total_usd) || (qty * price);
+          const unit = (it.unit || it.unidad || 'UND').trim().substring(0, 3).toUpperCase();
 
           const renValues = {
             numcot: officialNum,
             item: sku,
+            unidad: unit,
+            bulto: 0,
             descrip: name,
             cantidad: qty,
             precio: price,
@@ -1342,10 +1640,13 @@ const server = http.createServer(async (req, res) => {
           const qty = parseFloat(it.qty || it.quantity || 1) || 1;
           const price = parseFloat(it.price_usd || it.price || 0) || 0;
           const tot = parseFloat(it.total_usd) || (qty * price);
+          const unit = (it.unit || it.unidad || 'UND').trim().substring(0, 3).toUpperCase();
 
           const renValues = {
             numped: officialNum,
             item: sku,
+            unidad: unit,
+            bulto: 0,
             descrip: name,
             cantidad: qty,
             precio: price,

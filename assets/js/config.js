@@ -361,34 +361,46 @@ function genOrderNumber() {
   return String(rnd).slice(0, 8);
 }
 
-// Generador atómico de correlativo unificado JJ Paper ⇄ MixNet (8 dígitos: ej. 00112450)
+// Generador atómico de correlativo unificado JJ Paper ⇄ MixNet (8 dígitos: ej. 00053423, 00112450)
 async function fetchNextDocSerial(type = 'pedido') {
+  const isQuote = (type === 'cotizacion' || type === 'quote');
+  const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
+  const col = isQuote ? 'quote_number' : 'order_number';
+
+  // 1. Intentar RPC nativo de PostgreSQL (transaccional y atómico)
   try {
-    const { data, error } = await sbCore.rpc('jjp_next_doc_serial', { p_type: type });
-    if (!error && data) return String(data).padStart(8, '0').slice(-8);
+    const client = (typeof _rawSbCore !== 'undefined' && _rawSbCore) ? _rawSbCore : sb;
+    const { data, error } = await client.rpc('jjp_next_doc_serial', { p_type: isQuote ? 'cotizacion' : 'pedido' });
+    if (!error && data && /^\d+$/.test(String(data).trim())) {
+      let candidate = String(data).padStart(8, '0').slice(-8);
+      // Validar que no exista ya en la tabla
+      const { data: hit } = await client.from(table).select('id').eq(col, candidate).maybeSingle();
+      if (!hit) return candidate;
+      console.warn(`[fetchNextDocSerial] RPC candidate ${candidate} already exists in ${table}, calculating max...`);
+    }
   } catch (e) {
     console.warn('fetchNextDocSerial RPC error:', e);
   }
 
-  // Fallback seguro 1: consultar y avanzar jjp_settings directamente sin inventar números aleatorios
+  // 2. Fallback seguro: consultar registros recientes, obtener el mayor serial numérico y sumar 1
   try {
-    const isQuote = (type === 'cotizacion' || type === 'quote');
-    const key = isQuote ? 'mixnet_next_quote_serial' : 'mixnet_next_order_serial';
-    const { data: sRow } = await sbCore.from('jjp_settings').select('value').eq('key', key).maybeSingle();
-    const curr = parseInt(sRow?.value || (isQuote ? '53355' : '112589'), 10);
-    await sbCore.from('jjp_settings').update({ value: String(curr + 1), updated_at: new Date().toISOString() }).eq('key', key);
-    return String(curr).padStart(8, '0').slice(-8);
-  } catch (_) {}
-
-  // Fallback seguro 2: consultar el último correlativo real emitido en la tabla
-  try {
-    const isQuote = (type === 'cotizacion' || type === 'quote');
-    const table = isQuote ? 'jjp_quotes' : 'jjp_orders';
-    const col = isQuote ? 'quote_number' : 'order_number';
-    const { data: maxRow } = await sbCore.from(table).select(col).order(col, { ascending: false }).limit(1).maybeSingle();
-    const maxNum = parseInt(maxRow?.[col] || (isQuote ? '53355' : '112589'), 10);
-    return String(maxNum + 1).padStart(8, '0').slice(-8);
-  } catch (_) {}
+    const client = (typeof _rawSbCore !== 'undefined' && _rawSbCore) ? _rawSbCore : sb;
+    const { data: rows } = await client.from(table).select(col).order('created_at', { ascending: false }).limit(50);
+    let maxNum = isQuote ? 53422 : 112590;
+    if (rows && rows.length) {
+      for (const r of rows) {
+        const val = r[col];
+        if (val && /^\d+$/.test(String(val).trim())) {
+          const n = parseInt(val, 10);
+          if (n > maxNum) maxNum = n;
+        }
+      }
+    }
+    const nextNum = maxNum + 1;
+    return String(nextNum).padStart(8, '0').slice(-8);
+  } catch (e2) {
+    console.warn('fetchNextDocSerial fallback error:', e2);
+  }
 
   return String(Date.now()).slice(-8);
 }

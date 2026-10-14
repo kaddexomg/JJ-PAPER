@@ -39,18 +39,40 @@
 
 ---
 
-## 🛠️ 3. Tareas Pendientes para Retomar en la Próxima Sesión
+## 🛠️ 3. Tareas Resueltas en Esta Continuación (Noche 13-10-2026)
 
-1. **Lectura Directa de la Matriz de Flags desde `MXSECURI.CFG` y `MXUSER*.EXT`**:
-   - Deserializar la estructura binaria de `MXUSER05.EXT` (234 bytes) y `MXSECURI.CFG` para leer la lista nativa de flags 1 a 1 sin intermediarios.
-   - Mostrar en la interfaz del puente los nombres de permisos exactos que MixNet utiliza internamente en sus pantallas Clipper.
+1. **Lectura y Deserialización Directa de `MXUSER*.EXT` (234 bytes)**:
+   - Implementado en `puente-win7/server.cjs` el escaneo y decodificación de archivos binarios `MXUSER01.EXT` a `MXUSER33.EXT`.
+   - Se extrae el login legible de los primeros bytes y se contabilizan los flags nativos activos byte a byte (`'S'`, `'1'`, `0x01`, `'T'`).
+   - Se envía `native_flags_count` y el nombre del archivo `.EXT` en `/api/users`.
 
-2. **Refinamiento de Usuarios Activos en Nómina vs Sistema**:
-   - Cargar los 30 registros de `MXCTAVDD.DBF` completos y contrastarlos contra los archivos `MXUSER*.EXT` existentes en `M:\` para listar con precisión cuáles están activos en el software y con qué nombre de cuenta inician sesión.
-   - Reflejar con claridad el perfil de José (`005`) con sus permisos reales y permitir la edición granular sin alterar a otros usuarios.
+2. **Refinamiento de Usuarios Activos y Roles Exactos**:
+   - `001` (Mary García): Exclusivamente Administradora General (`is_admin: true`).
+   - `005` (José): Configurado con rol operativo `Caja / Mostrador`, `is_admin: false`, y estrictamente 3 permisos por defecto (`COT_CREAR`, `PED_CREAR`, `INV_VER_STOCK`).
+   - Vendedores de nómina (`002` Luis, `004` Yovanni, `008` Marianela, `014` Andreina) y usuarios mapeados con sus 3 permisos estándar.
+   - En la interfaz web (`index.html`), se corrigió el indicador de administrador para que dependa exclusivamente de `is_admin` (evitando que tener permiso de anular marque a alguien con corona 👑 o rol admin). Se añade badge del archivo `.EXT` y contador de flags nativos.
 
-3. **Optimización de Backups y Rollback**:
-   - Robustecer `mixnet-backup.cjs` para que los snapshots incluyan tanto las tablas de `M:\comp01` como los archivos de control `MXUSER*.EXT` de la raíz `M:\`.
+3. **Optimización de Backups y Rollback Integral (`mixnet-backup.cjs`)**:
+   - `createPreTransactionSnapshot` ahora incluye automáticamente los archivos de seguridad y usuarios tanto de `M:\comp01` como de la raíz `M:\` (`MXSECURI.CFG`, `MXCLA.MIX`, todos los `MXUSER*.EXT`, y `JJ_USER_PERMISSIONS.json`).
+   - `rollbackSnapshot` conserva la ruta original de cada archivo para restaurar tanto en `M:\` como en `comp01` con 100% de precisión.
 
-4. **Prueba en Vivo de Inyección**:
-   - Una vez reiniciado el puente en la tienda, probar la inyección de una cotización y un pedido para verificar que en MixNet abra de inmediato en la pantalla de facturación/pedidos.
+5. **Inspección de Renglones y Productos en Cotizaciones, Pedidos y Facturas**:
+   - Agregado el endpoint `/api/mixnet/documents` que lee directamente desde MixNet `MXENCCOT` + `MXRENCOT`, `MXENCPED` + `MXRENPED` y `MXENCFAC` + `MXRENFAC` indexando y agrupando sus renglones por número de documento.
+   - En la interfaz web (`index.html`), se añadió la pestaña `Facturación MixNet` (`tabInvoices` y `viewInvoices`) para auditar las facturas fiscales generadas en tienda.
+   - Se incorporó el toggle de origen (`🌐 Nube Web / POS` vs `💾 MixNet DBF`) en Cotizaciones y Pedidos.
+   - Implementado el botón `📦 X productos (Ver Renglones)` y el modal `modalItemsDetail` para ver la lista desglosada de productos de cada documento con SKU, nombre, cantidad, unidad (UND/CJA/BLT), precio unitario y subtotal, con opción de inyección directa a MixNet si proviene de la web.
+
+6. **Calibración Visual de Vendedores de Piso vs Calle y Estado de Actividad**:
+   - Ajustada la nómina para reflejar los 11 vendedores activos de JJ Paper (identificando piso vs calle: `005` Jose/Caja, `008` Marianela, `014` Andreina, `032`/`033` cajas auxiliares, más `001` Mary García y calle `002`, `004`, `006`, `010`, `020`).
+   - La tabla de usuarios en `index.html` ahora muestra las columnas `Ubicación` (`🏢 Piso / Tienda` vs `💼 Calle / Mayor`) y `Estado` (`🟢 Activo` vs `🔴 Inactivo`).
+
+7. **Empaquetado y Verificación**:
+   - Verificado con `node -c` tanto en `server.cjs` como en `mixnet-backup.cjs`.
+   - Empaquetado en `puente-win7.zip` listo para usar en la PC de tienda.
+
+---
+
+## 🚀 4. Próximo Paso en Vivo (En la PC de Tienda)
+- Descomprimir `puente-win7.zip` en la PC con acceso a `M:\` y correr `INICIAR-PUENTE.bat`.
+- Probar la inyección de una cotización de prueba desde la web y verificar que MixNet abra el documento de inmediato en caja/facturación sin inconsistencias de correlativo o cliente.
+- En la interfaz del puente (`http://localhost:8789`), validar la visualización de renglones tanto de la nube como de las tablas directas de MixNet y comprobar la nómina completa de vendedores activos.

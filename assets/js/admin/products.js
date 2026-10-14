@@ -1064,8 +1064,12 @@ async function prodStudioEjecutarBusqueda() {
     for (let i = 0; i < 14; i++) {
       await new Promise(r => setTimeout(r, 500));
       const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
-      if (ctrl?.command_res?.type === 'search_images' && ctrl.command_res.ok && Array.isArray(ctrl.command_res.results)) {
-        results = ctrl.command_res.results;
+      let resObj = ctrl?.command_res;
+      if (typeof resObj === 'string') {
+        try { resObj = JSON.parse(resObj); } catch (_) {}
+      }
+      if (resObj?.type === 'search_images' && resObj.ok && Array.isArray(resObj.results)) {
+        results = resObj.results;
         break;
       }
     }

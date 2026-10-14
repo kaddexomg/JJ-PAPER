@@ -3,8 +3,9 @@
    ====================================================== */
 
 const NAV_LINKS = [
-  { label: 'Catálogo',  href: 'catalogo.html', key: 'catalogo' },
-  { label: 'Contacto',  href: '#contacto',     key: 'contacto' },
+  { label: 'Catálogo',             href: 'catalogo.html',         key: 'catalogo' },
+  { label: '🖨️ Catálogo con QR',  href: 'catalogo_impreso.html', key: 'catalogo_impreso' },
+  { label: 'Contacto',             href: '#contacto',             key: 'contacto' },
 ];
 
 const BRAND_LOGO = 'assets/img/logo.svg';

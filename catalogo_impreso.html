@@ -236,6 +236,21 @@ body {
   justify-content: space-between;
   min-width: 0;
 }
+.item-featured-photo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--doc-c);
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  width: fit-content;
+}
 .item-category-chip {
   font-size: 9.5px;
   font-weight: 700;
@@ -384,8 +399,9 @@ body {
       <option value="todos">🔖 Todas las Familias</option>
     </select>
     <select class="tb-select" id="photoFilter" onchange="filterCatalog()">
-      <option value="todos">📸 Todos los productos</option>
-      <option value="solo_foto" selected>⭐ Solo productos con foto oficial</option>
+      <option value="todos_foto_primero" selected>⭐ Con foto oficial primero (Todos)</option>
+      <option value="solo_foto">📸 Solo productos con foto oficial</option>
+      <option value="todos">📦 Todos por orden alfabético</option>
     </select>
     <select class="tb-select" id="layoutSelect" onchange="changeLayout(this.value)">
       <option value="2">2 Columnas (Editorial)</option>
@@ -565,13 +581,31 @@ function filterCatalog() {
     return true;
   });
 
+  // Ordenamiento: FOTO OFICIAL SIEMPRE DESTACADA ARRIBA (a menos que el usuario elija alfabético estricto)
+  if (photoOpt !== 'todos') {
+    filtered.sort((a, b) => {
+      const aHas = a._hasPhoto ? 1 : 0;
+      const bHas = b._hasPhoto ? 1 : 0;
+      if (aHas !== bHas) return bHas - aHas;
+
+      const aFeat = (a.featured || a.essential) ? 1 : 0;
+      const bFeat = (b.featured || b.essential) ? 1 : 0;
+      if (aFeat !== bFeat) return bFeat - aFeat;
+
+      return a.name.localeCompare(b.name);
+    });
+  } else {
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   renderCatalogGrid(filtered);
 }
 
 function renderCatalogGrid(items) {
   const grid = document.getElementById('catalogGrid');
   const counter = document.getElementById('itemCountDisplay');
-  counter.textContent = `${items.length} productos listados`;
+  const photoCount = items.filter(p => p._hasPhoto).length;
+  counter.textContent = `${items.length} productos (${photoCount} con foto oficial al inicio)`;
 
   if (!items.length) {
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:#777">No hay productos que coincidan con los filtros seleccionados.</div>`;
@@ -584,10 +618,11 @@ function renderCatalogGrid(items) {
     const rawImg = p.image_url || p.variants.find(v => v.image_url)?.image_url;
     const catName = p.jjp_categories?.name || 'General';
     const prodUrl = `${baseUrl}/producto.html?id=${p.id}`;
+    const brandTxt = p._brands ? `🏷️ ${escapeHTML(p._brands)}` : '';
 
     return `
-      <div class="item-card">
-        <div class="item-img-box">
+      <div class="item-card ${p._hasPhoto ? 'has-official-photo' : ''}">
+        <div class="item-img-box" onclick="window.open('${prodUrl}', '_blank')" style="cursor:pointer" title="Ver ficha interactiva">
           ${rawImg ? `
             <img src="${optImg(rawImg, 250)}" alt="" loading="lazy">
           ` : `
@@ -597,8 +632,9 @@ function renderCatalogGrid(items) {
 
         <div class="item-content">
           <div>
-            <div class="item-category-chip">${escapeHTML(catName)}</div>
-            <h3 class="item-name">${escapeHTML(p.name)}</h3>
+            ${p._hasPhoto ? `<span class="item-featured-photo-tag">⭐ DESTACADO · FOTO OFICIAL</span>` : ''}
+            <div class="item-category-chip">${escapeHTML(catName)} ${brandTxt ? `· ${brandTxt}` : ''}</div>
+            <h3 class="item-name" onclick="window.open('${prodUrl}', '_blank')" style="cursor:pointer" title="Ver ficha en pantalla">${escapeHTML(p.name)}</h3>
             <div class="item-packaging-pill">📦 ${escapeHTML(p._packaging)}</div>
           </div>
           
@@ -609,8 +645,8 @@ function renderCatalogGrid(items) {
         </div>
 
         <div class="item-qr-box">
-          <div id="qr-${idx}" class="qr-target"></div>
-          <div class="item-qr-hint">Escanear</div>
+          <div id="qr-${idx}" class="qr-target" onclick="window.open('${prodUrl}', '_blank')" style="cursor:pointer" title="Abrir ficha"></div>
+          <div class="item-qr-hint">Escanear Ficha</div>
         </div>
       </div>
     `;

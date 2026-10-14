@@ -12,6 +12,12 @@ const SETTINGS_FIELDS = [
   'delivery_base_usd', 'delivery_per_km_usd', 'delivery_free_over_usd',
   // Cooldown anti-reenvío de campañas (horas sin repetirle a un cliente)
   'email_camp_cooldown_h', 'wa_camp_cooldown_h',
+  // Reglas comerciales y ventas
+  'order_min_usd', 'quote_followup_days', 'reengage_days',
+  // Correlativos oficiales
+  'mixnet_next_quote_serial', 'mixnet_next_order_serial',
+  // Servidor VPS
+  'vps_server_ip', 'vps_server_port',
   // Formato del comprobante/factura (comprobante.html)
   'business_name', 'rif', 'iva_pct', 'doc_title', 'doc_color', 'doc_accent',
   'doc_logo_url', 'doc_paper', 'doc_show_bs', 'doc_footer_legal', 'doc_footer_note',
@@ -34,6 +40,36 @@ async function loadSettingsForm() {
     ? `Última actualización: ${map.rates_updated_at}` : '';
   renderGap();
   renderMapPreview();
+  await checkVpsStatusLive();
+}
+
+async function checkVpsStatusLive() {
+  const badge = document.getElementById('vpsStatusBadge');
+  const details = document.getElementById('vpsLiveDetails');
+  if (!badge) return;
+  try {
+    const { data: srv } = await _rawSbComm.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+    if (srv) {
+      const beatMs = Date.now() - new Date(srv.heartbeat_at || srv.heartbeat || 0).getTime();
+      const isFresh = beatMs < 300_000 && (srv.status === 'online' || srv.status === 'degraded');
+      const diffSec = Math.max(0, Math.round(beatMs / 1000));
+      const ago = diffSec < 60 ? `hace ${diffSec}s` : `hace ${Math.round(diffSec/60)}m`;
+      const ip = srv.modules?.lan_ip || '166.0.112.247';
+      const host = srv.host === 'host-c2f736' ? 'Servidor VPS Truobox' : (srv.host || 'VPS');
+      
+      badge.className = isFresh ? 'badge-ok' : 'badge-err';
+      badge.style.background = isFresh ? 'rgba(46,213,115,0.15)' : 'rgba(255,82,82,0.15)';
+      badge.style.color = isFresh ? '#4cd137' : '#ff5252';
+      badge.style.border = isFresh ? '1px solid rgba(46,213,115,0.3)' : '1px solid rgba(255,82,82,0.3)';
+      badge.textContent = isFresh ? '🟢 VPS en línea' : '🔴 VPS sin señal';
+
+      if (details) {
+        details.innerHTML = `<strong>${host}</strong> (${ip}:8787) · Latido: ${ago} · WhatsApp: <strong>${srv.modules?.waSanas ?? 0} activo(s)</strong>`;
+      }
+    }
+  } catch (e) {
+    if (badge) badge.textContent = '⚪ Desconectado';
+  }
 }
 
 /* ------------------------------------------------------

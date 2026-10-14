@@ -85,6 +85,91 @@
           </p>
         </div>
 
+        <!-- Servidor VPS Central & Telemetría -->
+        <div class="form-panel" style="border-left:4px solid #10b981;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <div>
+              <h3 style="margin:0;">🖥️ Servidor Central VPS Truobox (Nube 24/7)</h3>
+              <p style="font-size:12px;color:var(--gr);margin:4px 0 0 0">
+                Instancia central que gestiona WhatsApp CRM, APIs, envíos programados y sincronización.
+              </p>
+            </div>
+            <span id="vpsStatusBadge" class="engine-badge online" style="padding:4px 12px;font-size:12px;font-weight:700;border-radius:999px;">
+              🟢 VPS en línea
+            </span>
+          </div>
+          
+          <div id="vpsLiveDetails" style="font-size:13px;color:#cbd5e1;background:rgba(0,0,0,0.2);padding:10px 14px;border-radius:8px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.06);">
+            Conectando con telemetría en tiempo real de Supabase...
+          </div>
+
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Dirección IP / Host del VPS</label>
+              <input type="text" class="fi" id="set-vps_server_ip" placeholder="166.0.112.247"></div>
+            <div class="fg"><label class="fl">Puerto del API Local</label>
+              <input type="number" class="fi" id="set-vps_server_port" placeholder="8787"></div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+            <a href="monitor.html" class="btn-o sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+              📊 Abrir Monitor de Cuotas y Servidor
+            </a>
+            <button type="button" class="btn-o sm" onclick="checkVpsStatusLive()">
+              🔄 Probar Señal
+            </button>
+          </div>
+        </div>
+
+        <!-- Políticas de Difusión & Campañas (Anti-Baneo) -->
+        <div class="form-panel">
+          <h3>📢 Políticas de Difusión & Anti-Spam</h3>
+          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
+            Reglas de protección para evitar que un mismo cliente reciba mensajes o correos repetidos en un lapso corto de tiempo.
+          </p>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Cooldown WhatsApp (Horas mínimas entre envíos)</label>
+              <input type="number" min="1" step="1" class="fi" id="set-wa_camp_cooldown_h" placeholder="48">
+              <small style="font-size:11px;color:var(--gr)">Protege la línea telefónica contra baneos. Sugerido: 48 horas.</small></div>
+            <div class="fg"><label class="fl">Cooldown Email (Horas mínimas entre envíos)</label>
+              <input type="number" min="1" step="1" class="fi" id="set-email_camp_cooldown_h" placeholder="48">
+              <small style="font-size:11px;color:var(--gr)">Evita que los destinatarios marquen como spam. Sugerido: 48 horas.</small></div>
+          </div>
+        </div>
+
+        <!-- Reglas Comerciales, Ventas & Cotizaciones -->
+        <div class="form-panel">
+          <h3>💼 Reglas de Venta y Cotizaciones</h3>
+          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
+            Control de umbrales comerciales, vencimiento de presupuestos y gestión de cartera.
+          </p>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Monto mínimo por pedido al mayor ($)</label>
+              <input type="number" min="0" step="1" class="fi" id="set-order_min_usd" placeholder="0"></div>
+            <div class="fg"><label class="fl">Días de seguimiento para Cotizaciones pendientes</label>
+              <input type="number" min="1" step="1" class="fi" id="set-quote_followup_days" placeholder="3">
+              <small style="font-size:11px;color:var(--gr)">Plazo tras el cual el CRM sugiere contactar al cliente.</small></div>
+            <div class="fg"><label class="fl">Días de inactividad para reactivación de cliente</label>
+              <input type="number" min="7" step="1" class="fi" id="set-reengage_days" placeholder="45">
+              <small style="font-size:11px;color:var(--gr)">Clientes sin compras en este lapso pasan a filtro de reactivación.</small></div>
+          </div>
+        </div>
+
+        <!-- Correlativos Oficiales del Sistema -->
+        <div class="form-panel">
+          <h3>🔢 Correlativos Oficiales de Facturación y Presupuestos</h3>
+          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
+            Numeración correlativa continua compartida entre la web y el sistema MixNet ERP de caja física.
+          </p>
+          <div class="f-grid">
+            <div class="fg"><label class="fl">Próximo Correlativo de Cotización (Web / MixNet)</label>
+              <input type="text" class="fi" id="set-mixnet_next_quote_serial" placeholder="53426">
+              <small style="font-size:11px;color:var(--gr)">Se sincroniza automáticamente con el archivo de control.</small></div>
+            <div class="fg"><label class="fl">Próximo Correlativo de Pedido (Web / MixNet)</label>
+              <input type="text" class="fi" id="set-mixnet_next_order_serial" placeholder="112677">
+              <small style="font-size:11px;color:var(--gr)">Correlativo oficial que se imprime en caja.</small></div>
+          </div>
+        </div>
+
         <!-- Pago Móvil -->
         <div class="form-panel">
           <h3>📲 Datos de Pago Móvil</h3>
@@ -269,7 +354,7 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
-<script src="../assets/js/admin/settings.js?v=20260908_cooldown"></script>
+<script src="../assets/js/admin/settings.js?v=20261014_vps_admin"></script>
 <script src="../assets/js/admin/clients.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

@@ -466,11 +466,15 @@ async function mpStudioGuardar() {
     }).eq('id', 1);
 
     let success = false;
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 20; i++) {
       await new Promise(r => setTimeout(r, 500));
       const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
-      if (ctrl?.command_res?.type === 'save_product_image') {
-        success = ctrl.command_res.ok;
+      let resObj = ctrl?.command_res;
+      if (typeof resObj === 'string') {
+        try { resObj = JSON.parse(resObj); } catch (_) {}
+      }
+      if (resObj?.type === 'save_product_image' && resObj.ok) {
+        success = true;
         break;
       }
     }

@@ -181,11 +181,11 @@ function renderModalBody() {
         <button class="btn-wa" onclick="modalOrderWA()" ${soldOut?'disabled':''} style="grid-column:1/-1;padding:14px;font-size:15px;font-weight:800">
           💬 Consultar y Pedir por WhatsApp
         </button>
+        <button class="pm-quote" onclick="modalRequestQuote()" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#065f46;color:#fff;border-color:#065f46;font-weight:700">
+          ⚡ Cotizar este Producto
+        </button>
         <button class="pm-quote" onclick="modalShare()" style="display:flex;align-items:center;justify-content:center;gap:6px">
           📋 Compartir Ficha
-        </button>
-        <button class="pm-quote" onclick="modalDownloadCatalog()" style="display:flex;align-items:center;justify-content:center;gap:6px">
-          📥 Descargar Catálogo
         </button>
       </div>
     </div>
@@ -269,14 +269,28 @@ function modalOrderWA() {
   openWA(msg);
 }
 
-function modalDownloadCatalog() {
-  if (typeof exportPDF === 'function') {
-    exportPDF();
-  } else if (typeof exportListaPrecios === 'function') {
-    exportListaPrecios();
-  } else {
-    showToast('Generando catálogo...', 'info');
-  }
+function modalRequestQuote() {
+  if (!modalProduct) return;
+  const p = modalProduct;
+  const brand = (typeof variantLabel === 'function' && modalVariant) ? variantLabel(modalVariant) : '';
+  const price = modalVariant ? +modalVariant.price_usd : +p.price_usd;
+  const unit  = p.jjp_units?.name || p.unit || 'unid';
+  const subUsd = price * modalQty;
+  const subBs  = fmtBs(subUsd);
+  const prodKey = modalVariant?.sku || p.sku || p.id;
+  const prodUrl = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+
+  const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN FORMAL*\n\n` +
+                   `Estimado equipo de JJ Paper, solicito presupuesto para:\n\n` +
+                   `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
+                   (modalVariant?.sku || p.sku ? `• *SKU / Ref:* ${modalVariant?.sku || p.sku}\n` : '') +
+                   `• *Cantidad requerida:* ${modalQty} ${unit}\n` +
+                   `• *Monto estimado:* ${fmtPrice(subUsd)} (${subBs})\n` +
+                   `• *Ficha del producto:* ${prodUrl}\n\n` +
+                   `Por favor enviar cotización membretada con vigencia y condiciones de despacho a sede.`;
+
+  openWA(quoteMsg);
+  showToast('Abriendo cotizador directo por WhatsApp... 💬', 'ok');
 }
 
 // Compartir: enlace a la ficha del producto en el catálogo (share nativo o copiar)

@@ -449,13 +449,12 @@ function shareProductToWA(productId, e) {
   const brand = p._brands?.length ? p._brands.map(b => b.name).join(', ') : '';
   const priceUsd = fmtPrice(p._minPrice);
   const priceBs  = fmtBs(p._minPrice);
-  const prodKey = p.sku || p.id;
-  const prodUrl = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+  const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
 
   let msg = `👋 *Hola JJ Paper, me interesa este producto del catálogo:*\n\n` +
             `📦 *${p.name}*${brand ? `\n🏷️ Marca: ${brand}` : ''}\n` +
             `💰 *Precio:* ${priceUsd} (${priceBs})\n` +
-            `🔗 *Ver en Catálogo:* ${prodUrl}\n`;
+            `🔗 *Ficha Oficial:* ${prodUrl}\n`;
 
   if (rawImg && rawImg.trim()) {
     msg += `🖼️ *Foto oficial:* ${rawImg}\n`;

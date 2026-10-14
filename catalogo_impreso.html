@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catálogo Impreso y Presentación Comercial | JJ Paper</title>
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<meta name="theme-color" content="#16604A">
+
+<!-- CSS Base & Typography -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --doc-c: #16604A;   /* Verde oficial JJ Paper */
+  --doc-a: #C9A24B;   /* Dorado / Latón */
+  --doc-bg: #eef2f0;
+  --doc-text: #1a1a1a;
+  --doc-card-border: #d4e0da;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+  color: var(--doc-text);
+  background: var(--doc-bg);
+  padding: 16px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Barra de Herramientas para Pantalla (no se imprime) */
+.screen-toolbar {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+  background: #ffffff;
+  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tb-input, .tb-select {
+  border: 1.5px solid #c7d6ce;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #222;
+  background: #fff;
+}
+.tb-input:focus, .tb-select:focus {
+  outline: none;
+  border-color: var(--doc-c);
+}
+.tb-btn {
+  background: var(--doc-c);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .2s;
+  text-decoration: none;
+}
+.tb-btn:hover {
+  background: #0f4636;
+  transform: translateY(-1px);
+}
+.tb-btn-gold {
+  background: var(--doc-a);
+}
+.tb-btn-gold:hover {
+  background: #b38e3a;
+}
+.tb-counter {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--doc-c);
+}
+
+/* Hoja Principal */
+.catalog-sheet {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: #ffffff;
+  padding: 24px 30px;
+  border-radius: 12px;
+  box-shadow: 0 6px 30px rgba(0,0,0,0.08);
+}
+
+/* Portada / Cabecera Comercial */
+.catalog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2.5px solid var(--doc-c);
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.header-titles h1 {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--doc-c);
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+}
+.header-titles p {
+  font-size: 12px;
+  color: #555;
+  margin-top: 3px;
+  font-weight: 500;
+}
+.header-meta {
+  text-align: right;
+  font-size: 11.5px;
+  color: #444;
+  line-height: 1.4;
+}
+.header-meta .tag-edition {
+  display: inline-block;
+  background: var(--doc-c);
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.header-meta .bcv-rate {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--doc-c);
+}
+
+/* Banner de Instrucciones para el Comerciante en la Calle */
+.street-guide-banner {
+  background: linear-gradient(135deg, #f0f7f3 0%, #e2efe8 100%);
+  border: 1px solid #cce1d5;
+  border-left: 4px solid var(--doc-a);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #2b473c;
+}
+.street-guide-banner strong {
+  color: var(--doc-c);
+}
+
+/* Grilla Editorial de Productos */
+.editorial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.editorial-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Ficha de Producto Individual para Calle / Impreso */
+.item-card {
+  background: #ffffff;
+  border: 1.5px solid var(--doc-card-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 14px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  position: relative;
+  transition: transform .2s, box-shadow .2s;
+}
+.item-card:hover {
+  box-shadow: 0 4px 16px rgba(22, 96, 74, 0.1);
+  border-color: var(--doc-c);
+}
+
+.item-img-box {
+  width: 105px;
+  height: 105px;
+  flex-shrink: 0;
+  background: #f9fbf9;
+  border: 1px solid #e1ebe5;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.item-img-box img {
+  max-width: 92%;
+  max-height: 92%;
+  object-fit: contain;
+}
+
+.item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+.item-category-chip {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--doc-c);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.item-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.25;
+  margin: 3px 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.item-packaging-pill {
+  display: inline-block;
+  background: #fbf5e6;
+  border: 1px solid #fae5b6;
+  color: #8c6a1e;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 6px;
+}
+.item-pricing {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.item-price-usd {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--doc-c);
+}
+.item-price-bs {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #555;
+}
+
+/* Caja de Código QR */
+.item-qr-box {
+  width: 74px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-left: 6px;
+  border-left: 1px dashed #d5e0da;
+}
+.item-qr-box canvas, .item-qr-box img {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 4px;
+}
+.item-qr-hint {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: #666;
+  line-height: 1.1;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+/* Pie de Página */
+.catalog-footer {
+  margin-top: 24px;
+  border-top: 1.5px solid #dbe6e0;
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  color: #666;
+}
+
+/* Estilos de Impresión (@media print) */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 8mm 8mm 8mm 8mm;
+  }
+  html, body {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  .screen-toolbar {
+    display: none !important;
+  }
+  .catalog-sheet {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .editorial-grid {
+    gap: 10px !important;
+  }
+  .item-card {
+    border: 1px solid #ccd8d2 !important;
+    padding: 8px 10px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .item-img-box {
+    width: 82px !important;
+    height: 82px !important;
+  }
+  .item-name {
+    font-size: 11.5px !important;
+    -webkit-line-clamp: 2 !important;
+  }
+  .item-price-usd {
+    font-size: 14.5px !important;
+  }
+  .item-qr-box {
+    width: 64px !important;
+  }
+  .item-qr-box canvas, .item-qr-box img {
+    width: 56px !important;
+    height: 56px !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Barra de Herramientas para Pantalla -->
+<div class="screen-toolbar">
+  <div class="tb-group">
+    <a href="catalogo.html" class="tb-btn" style="background:#555">← Volver al Catálogo</a>
+    <input type="search" class="tb-input" id="srchInput" placeholder="Buscar producto..." oninput="filterCatalog()">
+    <select class="tb-select" id="groupFilter" onchange="filterCatalog()">
+      <option value="todos">🔖 Todas las Familias</option>
+    </select>
+    <select class="tb-select" id="photoFilter" onchange="filterCatalog()">
+      <option value="todos">📸 Todos los productos</option>
+      <option value="solo_foto" selected>⭐ Solo productos con foto oficial</option>
+    </select>
+    <select class="tb-select" id="layoutSelect" onchange="changeLayout(this.value)">
+      <option value="2">2 Columnas (Editorial)</option>
+      <option value="3">3 Columnas (Compacto)</option>
+    </select>
+  </div>
+
+  <div class="tb-group">
+    <span class="tb-counter" id="itemCountDisplay">Cargando...</span>
+    <button type="button" class="tb-btn tb-btn-gold" onclick="window.print()">
+      🖨️ Imprimir / Guardar PDF
+    </button>
+  </div>
+</div>
+
+<!-- Hoja de Catálogo -->
+<main class="catalog-sheet" id="printSheet">
+  
+  <!-- Encabezado Institucional -->
+  <header class="catalog-header">
+    <div class="header-brand">
+      <img src="assets/img/logo.svg" alt="JJ Paper" class="header-logo">
+      <div class="header-titles">
+        <h1>JJ <em>Paper</em> Distribuidora</h1>
+        <p>Papelería, Artículos de Oficina, Cuadernos y Suministros al Mayor</p>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="tag-edition">Catálogo Comercial Mayorista</div>
+      <div id="dateDisplay">Fecha: --/--/----</div>
+      <div class="bcv-rate" id="rateDisplay">Tasa Oficial BCV: Bs --/USD</div>
+      <div>Atención Comercial: <strong>0412-1234567</strong> · Caracas, Venezuela</div>
+    </div>
+  </header>
+
+  <!-- Guía Rápida para el Cliente / Vendedor -->
+  <div class="street-guide-banner">
+    <div>
+      📲 <strong>Para Pedidos y Cotizaciones Inmediatas:</strong> Apunta la cámara de tu teléfono al código <strong>QR</strong> de cualquier producto para ver su galería, variantes y enviar tu orden directo a nuestro WhatsApp.
+    </div>
+    <div style="font-weight:700;white-space:nowrap;">
+      🚚 Envíos a Nivel Nacional
+    </div>
+  </div>
+
+  <!-- Grilla de Productos -->
+  <div class="editorial-grid" id="catalogGrid">
+    <div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#666;">
+      <div style="font-size:24px;margin-bottom:8px">📦</div>
+      Generando catálogo comercial con códigos QR dinámicos...
+    </div>
+  </div>
+
+  <!-- Pie de Página -->
+  <footer class="catalog-footer">
+    <div>JJ Paper C.A. · RIF: J-XXXXXXXX-X · Precios oficiales sujetos a disponibilidad y cambio sin previo aviso.</div>
+    <div>Página Web: <strong>jjpaper.pages.dev</strong> · Instagram: <strong>@jjpaper</strong></div>
+  </footer>
+
+</main>
+
+<!-- Dependencias -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js?v=20261014_v1"></script>
+<script src="assets/vendor/qrcode.min.js"></script>
+
+<script>
+let allItems = [];
+let catGroups = [];
+let currentLayout = '2';
+
+const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,image_url,active,sort_order,jjp_brands(name))';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('dateDisplay').textContent = `Emisión: ${new Date().toLocaleDateString('es-VE')}`;
+  
+  if (typeof updateExchangeRate === 'function') {
+    try { await updateExchangeRate(); } catch(_) {}
+  }
+  document.getElementById('rateDisplay').textContent = `Tasa Oficial BCV: Bs ${getRate().toFixed(2)}/USD`;
+
+  await loadGroups();
+  await loadCatalogProducts();
+});
+
+async function loadGroups() {
+  try {
+    const { data } = await sb.from('jjp_category_groups').select('id,name,slug').order('sort_order');
+    if (data) {
+      catGroups = data;
+      const sel = document.getElementById('groupFilter');
+      data.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = `📁 ${g.name}`;
+        sel.appendChild(opt);
+      });
+    }
+  } catch (e) {
+    console.warn('Error cargando familias:', e);
+  }
+}
+
+async function loadCatalogProducts() {
+  try {
+    let prods = [];
+    let from = 0;
+    const step = 999;
+    
+    while (true) {
+      const { data, error } = await sb.from('jjp_products')
+        .select(`id,name,description,price_usd,price_a,price_b,unit,image_url,emoji,stock,min_qty,category_id,jjp_categories(id,name,slug,group_id),${VARIANTS_SELECT}`)
+        .eq('active', true)
+        .range(from, from + step)
+        .order('sort_order');
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        prods = prods.concat(data);
+        if (data.length < step) break;
+        from += step;
+      } else {
+        break;
+      }
+    }
+
+    allItems = prods.map(p => {
+      const vs = (p.jjp_product_variants || []).filter(v => v.active !== false);
+      p.variants = vs;
+      const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd || 0))).filter(x => x > 0);
+      p._price = prices.length ? Math.min(...prices) : Number(p.price_b != null ? p.price_b : (p.price_usd || 0));
+      p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
+      p._packaging = detectPackaging(p.name, p.unit, vs);
+      p._brands = [...new Set(vs.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ');
+      return p;
+    });
+
+    filterCatalog();
+
+  } catch (err) {
+    console.error('Error cargando productos:', err);
+    document.getElementById('catalogGrid').innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:#c62828">
+        Error al cargar el catálogo comercial. Intente recargar la página.
+      </div>
+    `;
+  }
+}
+
+function detectPackaging(name, unit, variants) {
+  const txt = (name + ' ' + (unit || '') + ' ' + variants.map(v => v.variant_name || '').join(' ')).toUpperCase();
+  if (txt.includes('X12') || txt.includes('X 12') || txt.includes('DOCENA')) return 'Caja x 12';
+  if (txt.includes('X24') || txt.includes('X 24')) return 'Caja x 24';
+  if (txt.includes('X36') || txt.includes('X 36')) return 'Caja x 36';
+  if (txt.includes('X50') || txt.includes('X 50')) return 'Paquete x 50';
+  if (txt.includes('X100') || txt.includes('X 100')) return 'Caja x 100';
+  if (txt.includes('RESMA')) return 'Resma 500 hjs';
+  if (txt.includes('BLISTER')) return 'Blister Indiv.';
+  if (txt.includes('BULTO')) return 'Bulto Mayor';
+  return unit ? `Por ${unit}` : 'Unidad';
+}
+
+function filterCatalog() {
+  const srch = (document.getElementById('srchInput').value || '').toLowerCase().trim();
+  const groupId = document.getElementById('groupFilter').value;
+  const photoOpt = document.getElementById('photoFilter').value;
+
+  let filtered = allItems.filter(p => {
+    if (photoOpt === 'solo_foto' && !p._hasPhoto) return false;
+    if (groupId !== 'todos' && p.jjp_categories?.group_id !== groupId) return false;
+    if (srch) {
+      const match = p.name.toLowerCase().includes(srch) ||
+                    (p._brands && p._brands.toLowerCase().includes(srch)) ||
+                    (p.jjp_categories?.name && p.jjp_categories.name.toLowerCase().includes(srch));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  renderCatalogGrid(filtered);
+}
+
+function renderCatalogGrid(items) {
+  const grid = document.getElementById('catalogGrid');
+  const counter = document.getElementById('itemCountDisplay');
+  counter.textContent = `${items.length} productos listados`;
+
+  if (!items.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:#777">No hay productos que coincidan con los filtros seleccionados.</div>`;
+    return;
+  }
+
+  const baseUrl = 'https://jjpaper.pages.dev';
+
+  grid.innerHTML = items.map((p, idx) => {
+    const rawImg = p.image_url || p.variants.find(v => v.image_url)?.image_url;
+    const catName = p.jjp_categories?.name || 'General';
+    const prodUrl = `${baseUrl}/producto.html?id=${p.id}`;
+
+    return `
+      <div class="item-card">
+        <div class="item-img-box">
+          ${rawImg ? `
+            <img src="${optImg(rawImg, 250)}" alt="" loading="lazy">
+          ` : `
+            <span style="font-size:38px">${p.emoji || '📦'}</span>
+          `}
+        </div>
+
+        <div class="item-content">
+          <div>
+            <div class="item-category-chip">${escapeHTML(catName)}</div>
+            <h3 class="item-name">${escapeHTML(p.name)}</h3>
+            <div class="item-packaging-pill">📦 ${escapeHTML(p._packaging)}</div>
+          </div>
+          
+          <div class="item-pricing">
+            <span class="item-price-usd">${fmtPrice(p._price)}</span>
+            <span class="item-price-bs">Bs ${toBs(p._price)}</span>
+          </div>
+        </div>
+
+        <div class="item-qr-box">
+          <div id="qr-${idx}" class="qr-target"></div>
+          <div class="item-qr-hint">Escanear</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Generar códigos QR para cada elemento
+  items.forEach((p, idx) => {
+    const container = document.getElementById(`qr-${idx}`);
+    if (container && typeof QRCode !== 'undefined') {
+      const prodUrl = `${baseUrl}/producto.html?id=${p.id}`;
+      new QRCode(container, {
+        text: prodUrl,
+        width: 64,
+        height: 64,
+        colorDark: "#16604A",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+  });
+}
+
+function changeLayout(cols) {
+  currentLayout = cols;
+  const grid = document.getElementById('catalogGrid');
+  grid.classList.toggle('cols-3', cols === '3');
+}
+</script>
+
+</body>
+</html>

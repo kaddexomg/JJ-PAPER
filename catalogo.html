@@ -70,9 +70,10 @@
         <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
                 onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
         <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
+          <a role="menuitem" href="catalogo_impreso.html" target="_blank" style="text-decoration:none;display:block;padding:8px 12px;font-size:13px;font-weight:700;color:var(--gd,#16604A);background:#f0f7f3;border-radius:6px;margin-bottom:4px">🖨️ Catálogo para Imprimir (con QR)</a>
           <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
           <button role="menuitem" onclick="downloadCatalog('lista')">💵 Lista de precios (PDF)</button>
-            <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
+          <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
         </div>
       </div>
     </div>

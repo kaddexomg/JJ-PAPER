@@ -187,6 +187,9 @@ function renderModalBody() {
         <button class="pm-quote" onclick="modalShare()" style="display:flex;align-items:center;justify-content:center;gap:6px">
           📋 Compartir Ficha
         </button>
+        <a href="producto.html?id=${p.id}" class="pm-quote" style="display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1/-1;text-decoration:none;background:#f0f7f3;color:#16604A;border:1.5px solid #c2dbcd;font-weight:700;padding:10px">
+          🌐 Ver Ficha Oficial Completa (Fotos HD y Variantes) →
+        </a>
       </div>
     </div>
   </div>
@@ -250,8 +253,7 @@ function modalOrderWA() {
   const unit  = escapeHTML(p.jjp_units?.name || p.unit || 'unid');
   const subUsd = price * modalQty;
   const subBs  = fmtBs(subUsd);
-  const prodKey = modalVariant?.sku || p.sku || p.id;
-  const prodUrl = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+  const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
   const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) || modalVariant?.image_url || p.image_url;
 
   let msg = `📦 *Hola JJ Paper, me interesa este producto:*\n\n` +
@@ -259,7 +261,7 @@ function modalOrderWA() {
             (modalVariant?.sku || p.sku ? `• *Código/SKU:* ${modalVariant?.sku || p.sku}\n` : '') +
             `• *Cantidad:* ${modalQty} ${unit}\n` +
             `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n` +
-            `• *Ficha en Catálogo:* ${prodUrl}\n`;
+            `• *Ficha Oficial:* ${prodUrl}\n`;
 
   if (imgUrl && imgUrl.trim()) {
     msg += `• *Foto oficial:* ${imgUrl}\n`;
@@ -277,8 +279,7 @@ function modalRequestQuote() {
   const unit  = p.jjp_units?.name || p.unit || 'unid';
   const subUsd = price * modalQty;
   const subBs  = fmtBs(subUsd);
-  const prodKey = modalVariant?.sku || p.sku || p.id;
-  const prodUrl = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+  const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
 
   const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN FORMAL*\n\n` +
                    `Estimado equipo de JJ Paper, solicito presupuesto para:\n\n` +
@@ -296,8 +297,7 @@ function modalRequestQuote() {
 // Compartir: enlace a la ficha del producto en el catálogo (share nativo o copiar)
 function modalShare() {
   if (!modalProduct) return;
-  const prodKey = modalProduct.sku || modalProduct.id;
-  const url = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+  const url = `${location.origin}/producto.html?id=${encodeURIComponent(modalProduct.id)}`;
   if (navigator.share) {
     navigator.share({ title: modalProduct.name, url }).catch(() => {});
   } else if (navigator.clipboard?.writeText) {

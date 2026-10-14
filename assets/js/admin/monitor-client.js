@@ -83,22 +83,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Si estamos en la nube o PC remota, leer la IP del servidor desde jjp_server_control
   try {
-    let srvData = null;
+    let sRow = null;
     try {
-      const resB = await _rawSbComm.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
-      if (resB && resB.data) srvData = resB.data;
+      const resB = await _rawSbComm.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+      if (resB && resB.data) sRow = resB.data;
     } catch (_) {}
-    if (!srvData) {
-      const resA = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
-      if (resA && resA.data) srvData = resA.data;
+    if (!sRow) {
+      const resA = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+      if (resA && resA.data) sRow = resA.data;
     }
-    if (srvData?.modules?.tailscale_url) {
-      tailscaleServerUrl = srvData.modules.tailscale_url;
+    if (sRow?.modules?.lan_ip) {
+      localServerUrl = `http://${sRow.modules.lan_ip}:8787`;
     }
-    if (location.port !== '8787' && location.port !== '8788') {
-      if (srvData?.modules?.lan_url && !localServerUrl.includes('100.')) {
-        localServerUrl = srvData.modules.lan_url;
-      }
+    if (sRow?.modules?.tailscale_url) {
+      tailscaleServerUrl = sRow.modules.tailscale_url;
     }
   } catch (_) {}
 

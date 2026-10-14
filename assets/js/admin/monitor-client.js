@@ -724,9 +724,9 @@ async function querySupabaseDirectly() {
         buckets: cBuckets
       },
       server: {
-        name: 'Servidor Central & WhatsApp',
-        role: 'Core wa-server · APIs, Campañas & Sincronización',
-        host: srvData?.host || 'Laptop (wa-server)',
+        name: 'Servidor Central en la Nube (VPS Truobox)',
+        role: 'wa-server 24/7 · WhatsApp, APIs & Sincronización',
+        host: (srvData?.host === 'host-c2f736' || srvData?.modules?.lan_ip === '166.0.112.247') ? 'Servidor VPS Truobox' : (srvData?.host || 'Servidor Central'),
         online: isServerOnlineInCloud,
         latency: latSync,
         lastBeatAgo: (() => {
@@ -735,8 +735,9 @@ async function querySupabaseDirectly() {
           const diff = Math.max(0, Math.round((Date.now() - new Date(bt).getTime()) / 1000));
           return diff < 60 ? `Hace ${diff}s` : diff < 3600 ? `Hace ${Math.round(diff/60)}m` : `Hace ${Math.round(diff/3600)}h`;
         })(),
-        tailscaleIp: srvData?.modules?.tailscale_ip || '100.67.139.121',
-        lanIp: srvData?.modules?.lan_ip || '192.168.1.11',
+        publicIp: srvData?.modules?.lan_ip || '166.0.112.247',
+        tailscaleIp: srvData?.modules?.tailscale_ip || null,
+        lanIp: srvData?.modules?.lan_ip || '166.0.112.247',
         waSanas: srvData?.modules?.waSanas ?? 1,
         win7: win7Data ? {
           host: win7Data.host || 'WIN7-TIENDA',
@@ -966,7 +967,9 @@ function renderCardServer(server) {
   }
 
   if (latBadge) latBadge.innerText = `⚡ ${server.latency || 18} ms`;
-  if (hostTxt) hostTxt.innerText = `${server.host || 'Laptop Central'} (${server.tailscaleIp || '100.67.139.121'})`;
+  const hostLabel = server.host || 'Servidor VPS Truobox';
+  const ipLabel = server.publicIp || server.lanIp || '166.0.112.247';
+  if (hostTxt) hostTxt.innerText = `${hostLabel} (${ipLabel})`;
   if (beatTxt) beatTxt.innerText = `Latido: ${server.lastBeatAgo || 'Reciente'}`;
 
   if (bar) {
@@ -975,12 +978,11 @@ function renderCardServer(server) {
   }
 
   if (tailscaleEl) {
-    const tsIp = server.tailscaleIp || '100.67.139.121';
-    tailscaleEl.innerHTML = `<a href="http://${tsIp}:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:700;">${tsIp}:8787 ↗</a>`;
+    tailscaleEl.innerHTML = `<span style="color:var(--accent);font-weight:700;">${ipLabel}:8787 (Nube 24/7)</span>`;
   }
 
   if (lanEl) {
-    lanEl.innerText = `${server.lanIp || '192.168.1.11'}:8787`;
+    lanEl.innerText = `${hostLabel} · Ubuntu 24.04 LTS`;
   }
 
   const waSanasEl = document.getElementById('srvWaSanas');

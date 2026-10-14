@@ -769,7 +769,7 @@
           <div class="proj-header">
             <div class="proj-title">
               <h3>Infraestructura & Nodos Activos</h3>
-              <p id="srvSubtitle">Laptop Central (wa-server) & PC Tienda (Antigravity Win7)</p>
+              <p id="srvSubtitle">Servidor Central en la Nube (VPS Truobox) & PC Tienda (Puente Win7)</p>
             </div>
             <div class="proj-badges">
               <span class="badge-metric" id="srvLatency">⚡ -- ms</span>
@@ -779,7 +779,7 @@
 
           <div class="progress-wrap">
             <div class="progress-labels">
-              <span id="srvHostTxt">Laptop (wa-server)</span>
+              <span id="srvHostTxt">Servidor VPS (host-c2f736)</span>
               <span id="srvBeatTxt">Latido: Reciente</span>
             </div>
             <div class="progress-bar">
@@ -788,16 +788,22 @@
           </div>
 
           <div>
-            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">💻 Nodo 1: Servidor Central (Laptop wa-server):</div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">☁️ Nodo 1: Servidor Central (VPS Truobox 24/7):</div>
             <div class="table-list" id="srvDetailsList">
               <div class="table-row-item">
-                <span class="tbl-name">🌐 IP VPN (Tailscale)</span>
-                <span class="tbl-size" id="srvTailscaleIp"><a href="http://100.67.139.121:8787/admin/monitor.html" target="_blank" style="color:var(--accent);text-decoration:none;">100.67.139.121:8787 ↗</a></span>
+                <span class="tbl-name">🌐 IP Pública del Servidor</span>
+                <span class="tbl-size" id="srvTailscaleIp"><span style="color:var(--accent);font-weight:700;">166.0.112.247:8787</span></span>
               </div>
               <div class="table-row-item">
-                <span class="tbl-name">🏢 IP Local (LAN Laptop)</span>
-                <span class="tbl-size" id="srvLanIp">192.168.1.11:8787</span>
+                <span class="tbl-name">🏢 Hostname del Sistema</span>
+                <span class="tbl-size" id="srvLanIp">host-c2f736 (Ubuntu 24.04 LTS)</span>
               </div>
+              <div class="table-row-item">
+                <span class="tbl-name">💬 Sesiones WhatsApp</span>
+                <span class="tbl-size" id="srvWaSanas">1 configurada</span>
+              </div>
+            </div>
+          </div>
               <div class="table-row-item">
                 <span class="tbl-name">📱 Sesiones WhatsApp</span>
                 <span class="tbl-size" id="srvWaSanas">1 activa</span>
@@ -921,6 +927,6 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
-<script src="../assets/js/admin/monitor-client.js?v=20261014_vps_online"></script>
+<script src="../assets/js/admin/monitor-client.js?v=20261014_vps_online2"></script>
 </body>
 </html>

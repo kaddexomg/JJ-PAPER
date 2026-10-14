@@ -24,6 +24,53 @@
 .pos-tot.big { font-size:17px; font-weight:800; border-top:1px solid var(--theme-border-subtle); padding-top:10px; margin-top:6px; }
 .cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; display:none; max-height:270px; overflow:auto; }
 .cust-ac-item { cursor:pointer; }
+
+/* Ergonomía Móvil para Cotizador */
+@media (max-width: 900px) {
+  .cotizador-mobile-tabs { display: flex !important; }
+}
+@media (max-width: 768px) {
+  .pos-ticket-header { display: none !important; }
+  .pos-ticket-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    position: relative;
+  }
+  .pos-ticket-row > div:nth-child(1) {
+    align-self: flex-start !important;
+  }
+  .pos-ticket-row > div:nth-child(2) {
+    width: 100% !important;
+  }
+  .pos-ticket-row > div:nth-child(2) > div:first-child {
+    white-space: normal !important;
+    font-size: 14px !important;
+  }
+  .pos-ticket-row > div:nth-child(3) {
+    width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .pos-ticket-row > div:nth-child(4) {
+    width: auto !important;
+  }
+  .pos-ticket-row .qb {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 18px !important;
+  }
+  .pos-ticket-row input[type="number"] {
+    height: 34px !important;
+    font-size: 14px !important;
+  }
+  .pos-ticket-row > div:nth-child(7) {
+    align-self: flex-end !important;
+  }
+}
 </style>
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
@@ -108,14 +155,30 @@
         </div>
       </div>
 
+      <!-- Contenedor Unificado del Documento de Cotización -->
+      <div style="display:flex;flex-direction:column;gap:18px">
+
+      <!-- Selector Móvil de Pestañas (Sticky en Pantallas Pequeñas) -->
+      <div class="cotizador-mobile-tabs" id="cotizadorMobileTabs" style="display:none;margin-bottom:12px;background:#fff;padding:6px;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.04);position:sticky;top:60px;z-index:90;">
+        <button type="button" class="cm-tab active" onclick="switchCotizadorMobileTab('catalogo')" id="tabBtnCatalogo" style="flex:1;padding:10px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;background:var(--theme-accent,#16604a);color:#fff;cursor:pointer">
+          📦 Catálogo
+        </button>
+        <button type="button" class="cm-tab" onclick="switchCotizadorMobileTab('ticket')" id="tabBtnTicket" style="flex:1;padding:10px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;background:transparent;color:#475569;cursor:pointer">
+          📄 Ticket (<span id="cmTicketBadge">0</span>)
+        </button>
+        <button type="button" class="cm-tab" onclick="switchCotizadorMobileTab('cliente')" id="tabBtnCliente" style="flex:1;padding:10px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;background:transparent;color:#475569;cursor:pointer">
+          👤 Cliente
+        </button>
+      </div>
+
       <!-- Cuadrícula Principal de Cotización (2 Columnas Ergonómicas) -->
-      <div class="pos-grid" style="display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start">
+      <div class="pos-grid" id="qPosGrid" style="display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start">
         
         <!-- COLUMNA IZQUIERDA: CLIENTE + CATÁLOGO -->
-        <div style="display:flex;flex-direction:column;gap:18px">
+        <div id="qColLeft" style="display:flex;flex-direction:column;gap:18px">
           
           <!-- SECCIÓN 1: CLIENTE ASIGNADO & CÓDIGO MIXNET -->
-          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+          <div class="admin-table-wrap" id="qSecClient" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">1</span>
@@ -167,7 +230,7 @@
           </div>
 
           <!-- SECCIÓN 2: CATÁLOGO DE PRODUCTOS (AGREGAR ÍTEMS) -->
-          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+          <div class="admin-table-wrap" id="qSecCatalog" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">2</span>
@@ -197,7 +260,7 @@
         </div>
 
         <!-- COLUMNA DERECHA: RENGLONES + TOTALES & CIERRE -->
-        <div style="display:flex;flex-direction:column;gap:18px">
+        <div id="qColRight" style="display:flex;flex-direction:column;gap:18px">
 
           <!-- SECCIÓN 3: RENGLONES DE LA COTIZACIÓN -->
           <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
@@ -213,7 +276,7 @@
             </div>
 
             <!-- Encabezado de Columnas del Listado de Renglones -->
-            <div style="display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;padding:6px 14px;background:var(--theme-bg-surface-solid, #f8fafc);border-radius:8px;font-size:11px;font-weight:800;color:var(--theme-text-muted, #64748b);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
+            <div class="pos-ticket-header" style="display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;padding:6px 14px;background:var(--theme-bg-surface-solid, #f8fafc);border-radius:8px;font-size:11px;font-weight:800;color:var(--theme-text-muted, #64748b);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
               <span style="text-align:center">#</span>
               <span>Descripción del Producto</span>
               <span>Tarifa</span>

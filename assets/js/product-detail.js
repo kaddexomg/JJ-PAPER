@@ -288,6 +288,10 @@ function renderProductView() {
               <span>Pedir por WhatsApp</span>
             </button>
 
+            <button type="button" class="btn-action-quote" onclick="addToClientQuote(currentProduct, currentVariant, currentQty)" style="background:var(--gd,#16604A);color:#fff;font-weight:800;padding:12px;font-size:13.5px;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+              <span>📋 + Agregar a mi Lista de Cotización Mayorista</span>
+            </button>
+
             <div class="secondary-actions-cluster">
               <button type="button" class="btn-action-quote" onclick="openQuoteModal()">
                 <span>⚡ Solicitar Cotización Formal</span>

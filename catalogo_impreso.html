@@ -185,11 +185,11 @@ body {
 /* Grilla Editorial de Productos */
 .editorial-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 14px;
 }
 .editorial-grid.cols-3 {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
 /* Ficha de Producto Individual para Calle / Impreso */
@@ -197,12 +197,16 @@ body {
   background: #ffffff;
   border: 1.5px solid var(--doc-card-border);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: flex;
-  gap: 14px;
+  gap: 10px;
+  align-items: center;
   break-inside: avoid;
   page-break-inside: avoid;
   position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  min-width: 0;
   transition: transform .2s, box-shadow .2s;
 }
 .item-card:hover {
@@ -211,9 +215,9 @@ body {
 }
 
 .item-img-box {
-  width: 105px;
-  height: 105px;
-  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
   background: #f9fbf9;
   border: 1px solid #e1ebe5;
   border-radius: 8px;
@@ -224,84 +228,90 @@ body {
   position: relative;
 }
 .item-img-box img {
-  max-width: 92%;
-  max-height: 92%;
+  max-width: 90%;
+  max-height: 90%;
   object-fit: contain;
 }
 
 .item-content {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
+  justify-content: center;
 }
 .item-featured-photo-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background: var(--doc-c);
   color: #fff;
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
-  letter-spacing: .4px;
+  letter-spacing: .3px;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   width: fit-content;
 }
 .item-category-chip {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   color: var(--doc-c);
   text-transform: uppercase;
-  letter-spacing: .4px;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .item-name {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 800;
   color: #1a1a1a;
   line-height: 1.25;
-  margin: 3px 0 4px;
+  margin: 2px 0 3px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 .item-packaging-pill {
   display: inline-block;
   background: #fbf5e6;
   border: 1px solid #fae5b6;
   color: #8c6a1e;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 4px;
   width: fit-content;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  white-space: nowrap;
 }
 .item-pricing {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 .item-price-usd {
-  font-size: 17px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--doc-c);
 }
 .item-price-bs {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: #555;
 }
 
 /* Caja de Código QR */
 .item-qr-box {
-  width: 74px;
-  flex-shrink: 0;
+  width: 60px;
+  flex: 0 0 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -309,18 +319,19 @@ body {
   text-align: center;
   padding-left: 6px;
   border-left: 1px dashed #d5e0da;
+  overflow: hidden;
 }
-.item-qr-box canvas, .item-qr-box img {
-  width: 64px !important;
-  height: 64px !important;
+.item-qr-box .qr-target, .item-qr-box canvas, .item-qr-box img {
+  width: 52px !important;
+  height: 52px !important;
   border-radius: 4px;
 }
 .item-qr-hint {
-  font-size: 7.5px;
+  font-size: 7px;
   font-weight: 700;
   color: #666;
   line-height: 1.1;
-  margin-top: 4px;
+  margin-top: 3px;
   text-transform: uppercase;
 }
 
@@ -617,24 +628,28 @@ function renderCatalogGrid(items) {
   grid.innerHTML = items.map((p, idx) => {
     const rawImg = p.image_url || p.variants.find(v => v.image_url)?.image_url;
     const catName = p.jjp_categories?.name || 'General';
-    const prodUrl = `${baseUrl}/producto.html?id=${p.id}`;
+    const relativeUrl = `producto.html?id=${encodeURIComponent(p.id)}`;
     const brandTxt = p._brands ? `🏷️ ${escapeHTML(p._brands)}` : '';
 
     return `
       <div class="item-card ${p._hasPhoto ? 'has-official-photo' : ''}">
-        <div class="item-img-box" onclick="window.open('${prodUrl}', '_blank')" style="cursor:pointer" title="Ver ficha interactiva">
+        <a href="${relativeUrl}" target="_blank" class="item-img-box" title="Ver ficha técnica">
           ${rawImg ? `
             <img src="${optImg(rawImg, 250)}" alt="" loading="lazy">
           ` : `
-            <span style="font-size:38px">${p.emoji || '📦'}</span>
+            <span style="font-size:32px">${p.emoji || '📦'}</span>
           `}
-        </div>
+        </a>
 
         <div class="item-content">
           <div>
             ${p._hasPhoto ? `<span class="item-featured-photo-tag">⭐ DESTACADO · FOTO OFICIAL</span>` : ''}
             <div class="item-category-chip">${escapeHTML(catName)} ${brandTxt ? `· ${brandTxt}` : ''}</div>
-            <h3 class="item-name" onclick="window.open('${prodUrl}', '_blank')" style="cursor:pointer" title="Ver ficha en pantalla">${escapeHTML(p.name)}</h3>
+            <h3 class="item-name">
+              <a href="${relativeUrl}" target="_blank" style="color:inherit;text-decoration:none" title="Ver ficha oficial">
+                ${escapeHTML(p.name)}
+              </a>
+            </h3>
             <div class="item-packaging-pill">📦 ${escapeHTML(p._packaging)}</div>
           </div>
           
@@ -644,10 +659,10 @@ function renderCatalogGrid(items) {
           </div>
         </div>
 
-        <div class="item-qr-box">
-          <div id="qr-${idx}" class="qr-target" onclick="window.open('${prodUrl}', '_blank')" style="cursor:pointer" title="Abrir ficha"></div>
-          <div class="item-qr-hint">Escanear Ficha</div>
-        </div>
+        <a href="${relativeUrl}" target="_blank" class="item-qr-box" style="text-decoration:none;color:inherit" title="Escanear o ver ficha digital">
+          <div id="qr-${idx}" class="qr-target"></div>
+          <div class="item-qr-hint">Ver Ficha</div>
+        </a>
       </div>
     `;
   }).join('');
@@ -656,11 +671,11 @@ function renderCatalogGrid(items) {
   items.forEach((p, idx) => {
     const container = document.getElementById(`qr-${idx}`);
     if (container && typeof QRCode !== 'undefined') {
-      const prodUrl = `${baseUrl}/producto.html?id=${p.id}`;
+      const prodUrl = `${baseUrl}/producto.html?id=${encodeURIComponent(p.id)}`;
       new QRCode(container, {
         text: prodUrl,
-        width: 64,
-        height: 64,
+        width: 52,
+        height: 52,
         colorDark: "#16604A",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M

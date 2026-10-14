@@ -635,14 +635,83 @@ function posToggleJja(key) {
   posRenderTicket();
 }
 
+function switchCotizadorMobileTab(tab) {
+  const isMobile = window.innerWidth <= 900;
+  if (!isMobile) return;
+  const colLeft = document.getElementById('qColLeft');
+  const secClient = document.getElementById('qSecClient');
+  const secCatalog = document.getElementById('qSecCatalog');
+  const colRight = document.getElementById('qColRight');
+  const btnCat = document.getElementById('tabBtnCatalogo');
+  const btnTic = document.getElementById('tabBtnTicket');
+  const btnCli = document.getElementById('tabBtnCliente');
+
+  // Reset tab button styles
+  [btnCat, btnTic, btnCli].forEach(b => {
+    if (!b) return;
+    b.style.background = 'transparent';
+    b.style.color = '#475569';
+  });
+
+  if (tab === 'catalogo') {
+    if (colLeft) colLeft.style.display = 'flex';
+    if (secClient) secClient.style.display = 'none';
+    if (secCatalog) secCatalog.style.display = 'block';
+    if (colRight) colRight.style.display = 'none';
+    if (btnCat) {
+      btnCat.style.background = 'var(--theme-accent, #16604a)';
+      btnCat.style.color = '#fff';
+    }
+    const se = document.getElementById('posSearch');
+    if (se) setTimeout(() => se.focus(), 150);
+  } else if (tab === 'ticket') {
+    if (colLeft) colLeft.style.display = 'none';
+    if (colRight) colRight.style.display = 'flex';
+    if (btnTic) {
+      btnTic.style.background = 'var(--theme-accent, #16604a)';
+      btnTic.style.color = '#fff';
+    }
+  } else if (tab === 'cliente') {
+    if (colLeft) colLeft.style.display = 'flex';
+    if (secClient) secClient.style.display = 'block';
+    if (secCatalog) secCatalog.style.display = 'none';
+    if (colRight) colRight.style.display = 'none';
+    if (btnCli) {
+      btnCli.style.background = 'var(--theme-accent, #16604a)';
+      btnCli.style.color = '#fff';
+    }
+    const cs = document.getElementById('qCliSearch');
+    if (cs) setTimeout(() => cs.focus(), 150);
+  }
+}
+window.switchCotizadorMobileTab = switchCotizadorMobileTab;
+
+// Manejador de redimensionamiento de pantalla para restaurar layout si pasa a desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) {
+    const colLeft = document.getElementById('qColLeft');
+    const secClient = document.getElementById('qSecClient');
+    const secCatalog = document.getElementById('qSecCatalog');
+    const colRight = document.getElementById('qColRight');
+    if (colLeft) colLeft.style.display = '';
+    if (secClient) secClient.style.display = '';
+    if (secCatalog) secCatalog.style.display = '';
+    if (colRight) colRight.style.display = '';
+  }
+});
+
 function posRenderTicket() {
   const box  = document.getElementById('posTicket');
   const tots = document.getElementById('posTotals');
   const countEl = document.getElementById('posTicketCount');
+  const badgeEl = document.getElementById('cmTicketBadge');
   const lines = Object.entries(posTicket);
 
   if (countEl) {
     countEl.textContent = lines.length ? `(${lines.length} ${lines.length === 1 ? 'ítem' : 'ítems'})` : '';
+  }
+  if (badgeEl) {
+    badgeEl.textContent = lines.length;
   }
 
   if (!lines.length) {

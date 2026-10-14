@@ -502,6 +502,9 @@ function productCardHTML(p) {
   const ctrlHTML = soldOut
     ? `<div class="pc-actions-row"><span class="pc-out" style="position:static">Agotado</span></div>`
     : `<div class="pc-actions-row">
+         <button type="button" class="btn-add-to-quote" onclick="addToClientQuote(productMap['${p.id}'], null, 1); event.stopPropagation();" title="Agregar a mi lista de cotización mayorista">
+           ➕ Cotizar
+         </button>
          <button class="pc-wa-quick" title="Consultar por WhatsApp con foto y enlace" aria-label="Consultar por WhatsApp" onclick="shareProductToWA('${p.id}', event)">
            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
          </button>

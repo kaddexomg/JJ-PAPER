@@ -1,0 +1,400 @@
+/* ======================================================
+   JJ Paper — Cotizador Mayorista / Drawer Multi-Producto
+   Permite al cliente armar su lista de requerimientos (varios productos),
+   calcular totales estimados en USD y Bs a tasa BCV y enviarla por
+   WhatsApp o registrar la solicitud formal de cotización.
+   ====================================================== */
+
+const QUOTE_STORAGE_KEY = 'jjp_client_quote_list_v1';
+let clientQuoteList = {};
+
+// Cargar estado inicial
+function loadClientQuoteList() {
+  try {
+    const raw = localStorage.getItem(QUOTE_STORAGE_KEY);
+    clientQuoteList = raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    clientQuoteList = {};
+  }
+}
+
+function saveClientQuoteList() {
+  try {
+    localStorage.setItem(QUOTE_STORAGE_KEY, JSON.stringify(clientQuoteList));
+  } catch (e) {}
+  updateQuoteUI();
+}
+
+// Agregar producto a la lista de cotización
+function addToClientQuote(product, variant = null, qty = null) {
+  if (!product) return;
+  loadClientQuoteList();
+
+  const p = product;
+  const v = variant || (p.variants && p.variants[0]) || null;
+  const key = v ? `${p.id}_${v.id}` : p.id;
+  
+  const minQty = Math.max(1, (v?.min_qty ?? p.min_qty) || 1);
+  const addQty = qty ? parseInt(qty, 10) : minQty;
+  
+  const price = v 
+    ? Number(v.price_b != null ? v.price_b : (v.price_usd != null ? v.price_usd : v.price_a || 0))
+    : Number(p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : p.price_a || 0));
+
+  const brand = v?.jjp_brands?.name || p._brands?.[0]?.name || 'JJ Paper';
+  const img = v?.image_url || p.image_url || '';
+  const unit = p.jjp_units?.name || p.unit || 'unid';
+
+  if (clientQuoteList[key]) {
+    clientQuoteList[key].qty += addQty;
+  } else {
+    clientQuoteList[key] = {
+      key,
+      productId: p.id,
+      variantId: v?.id || null,
+      name: p.name,
+      brand: brand,
+      variantName: v?.variant_name || '',
+      packaging: p._packaging || (unit ? `Por ${unit}` : 'Unidad'),
+      unit: unit,
+      price: price,
+      qty: addQty,
+      minQty: minQty,
+      image: img,
+      sku: v?.sku || p.sku || 'JJ-PROD'
+    };
+  }
+
+  saveClientQuoteList();
+  
+  if (typeof showToast === 'function') {
+    showToast(`➕ Añadido a tu lista de cotización: ${p.name}`, 'ok');
+  }
+
+  // Animación del botón flotante
+  const pill = document.getElementById('quoteDrawerPill');
+  if (pill) {
+    pill.style.transform = 'scale(1.1)';
+    setTimeout(() => { pill.style.transform = 'none'; }, 200);
+  }
+}
+
+// Cambiar cantidad en el drawer
+function updateQuoteDrawerQty(key, delta) {
+  if (!clientQuoteList[key]) return;
+  const item = clientQuoteList[key];
+  const next = item.qty + delta;
+  if (next < item.minQty) {
+    removeFromClientQuote(key);
+    return;
+  }
+  item.qty = next;
+  saveClientQuoteList();
+  renderQuoteDrawerItems();
+}
+
+function removeFromClientQuote(key) {
+  if (!clientQuoteList[key]) return;
+  delete clientQuoteList[key];
+  saveClientQuoteList();
+  renderQuoteDrawerItems();
+}
+
+function clearClientQuote() {
+  if (!confirm('¿Deseas vaciar todos los productos de tu lista de cotización?')) return;
+  clientQuoteList = {};
+  saveClientQuoteList();
+  renderQuoteDrawerItems();
+}
+
+// Cálculo de Totales
+function getQuoteListTotals() {
+  const items = Object.values(clientQuoteList);
+  const totalUsd = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const rate = (typeof getRate === 'function') ? getRate() : 40;
+  const totalBs = (totalUsd * rate).toFixed(2);
+  const count = items.reduce((sum, item) => sum + item.qty, 0);
+  return { items, totalUsd, totalBs, count, linesCount: items.length, rate };
+}
+
+// Actualizar píldora y UI
+function updateQuoteUI() {
+  const totals = getQuoteListTotals();
+  const pill = document.getElementById('quoteDrawerPill');
+  const countSpan = document.getElementById('qdPillCount');
+  const totalSpan = document.getElementById('qdPillTotal');
+
+  if (pill) {
+    if (totals.linesCount > 0) {
+      pill.style.display = 'flex';
+      if (countSpan) countSpan.textContent = `${totals.linesCount} ${totals.linesCount === 1 ? 'producto' : 'productos'}`;
+      if (totalSpan) totalSpan.textContent = `$${totals.totalUsd.toFixed(2)}`;
+    } else {
+      pill.style.display = 'none';
+      closeQuoteDrawer();
+    }
+  }
+}
+
+// Abrir / Cerrar Drawer
+function toggleQuoteDrawer(open = true) {
+  const overlay = document.getElementById('quoteDrawerOverlay');
+  if (!overlay) return;
+  if (open) {
+    loadClientQuoteList();
+    renderQuoteDrawerItems();
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  } else {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+function closeQuoteDrawer() {
+  toggleQuoteDrawer(false);
+}
+
+// Renderizado de ítems en el drawer
+function renderQuoteDrawerItems() {
+  const body = document.getElementById('qdBody');
+  const footer = document.getElementById('qdFooter');
+  if (!body) return;
+
+  const totals = getQuoteListTotals();
+
+  if (!totals.items.length) {
+    body.innerHTML = `
+      <div class="qd-empty">
+        <div class="icon">📋</div>
+        <p><strong>Tu lista de cotización está vacía.</strong></p>
+        <p style="margin-top:6px;font-size:12px;color:#888;">Agrega productos desde el catálogo con el botón <strong>+ Cotizar</strong> para armar tu presupuesto mayorista.</p>
+      </div>
+    `;
+    if (footer) footer.style.display = 'none';
+    return;
+  }
+
+  if (footer) footer.style.display = 'flex';
+
+  body.innerHTML = totals.items.map(item => {
+    const subUsd = item.price * item.qty;
+    const subBs = (subUsd * totals.rate).toFixed(2);
+    const unitPriceBs = (item.price * totals.rate).toFixed(2);
+    const vTxt = item.variantName ? `(${item.variantName})` : '';
+
+    return `
+      <div class="qd-item">
+        <div class="qd-item-img">
+          ${item.image ? `<img src="${item.image}" alt="">` : `<span style="font-size:24px">📦</span>`}
+        </div>
+
+        <div class="qd-item-info">
+          <div class="qd-item-title" title="${escapeHTML(item.name)}">${escapeHTML(item.name)}</div>
+          <div class="qd-item-brand">${escapeHTML(item.brand)} ${escapeHTML(vTxt)}</div>
+          <div class="qd-item-pkg">📦 ${escapeHTML(item.packaging)}</div>
+
+          <div class="qd-item-controls">
+            <div class="qd-stepper">
+              <button type="button" onclick="updateQuoteDrawerQty('${item.key}', -1)">−</button>
+              <span>${item.qty}</span>
+              <button type="button" onclick="updateQuoteDrawerQty('${item.key}', 1)">+</button>
+            </div>
+            <span style="font-size:11px;color:#666">${escapeHTML(item.unit)}</span>
+          </div>
+        </div>
+
+        <div class="qd-item-price-col">
+          <button type="button" class="qd-del-btn" onclick="removeFromClientQuote('${item.key}')" title="Eliminar ítem">✕</button>
+          <div class="qd-item-subtotal">$${subUsd.toFixed(2)}</div>
+          <div class="qd-item-unitprice">Bs ${subBs}</div>
+          <div class="qd-item-unitprice" style="font-size:9.5px;color:#888">$${item.price.toFixed(2)} c/u</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Actualizar totales en el pie
+  const totUsdEl = document.getElementById('qdTotalUsd');
+  const totBsEl = document.getElementById('qdTotalBs');
+  if (totUsdEl) totUsdEl.textContent = `$${totals.totalUsd.toFixed(2)}`;
+  if (totBsEl) totBsEl.textContent = `Bs ${totals.totalBs}`;
+}
+
+// Enviar lista completa formateada estilo MixNet a WhatsApp
+function sendClientQuoteListWA() {
+  const totals = getQuoteListTotals();
+  if (!totals.items.length) return;
+
+  let msg = `📋 *SOLICITUD DE COTIZACIÓN MAYORISTA — JJ PAPER*\n\n` +
+            `Hola equipo JJ Paper, requiero cotización y disponibilidad para la siguiente lista de requerimientos:\n\n`;
+
+  totals.items.forEach((item, idx) => {
+    const subUsd = (item.price * item.qty).toFixed(2);
+    const subBs = (item.price * item.qty * totals.rate).toFixed(2);
+    const vTxt = item.variantName ? ` (${item.brand} - ${item.variantName})` : ` (${item.brand})`;
+    msg += `*${idx + 1}. ${item.name}*${vTxt}\n` +
+           `   • Cantidad: *${item.qty} ${item.unit}* (Presentación: ${item.packaging})\n` +
+           `   • Precio: $${item.price.toFixed(2)} c/u | Subtotal: *$${subUsd}* (Bs ${subBs})\n\n`;
+  });
+
+  msg += `💰 *TOTAL ESTIMADO:* $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n` +
+         `📊 *Tasa Referencia BCV:* Bs ${totals.rate.toFixed(2)}/USD\n\n` +
+         `Por favor confirmar tiempo de entrega, existencia y datos para concretar pedido formal.`;
+
+  const waNum = (typeof APP !== 'undefined' && APP.WA_NUM) ? APP.WA_NUM : '584121234567';
+  const url = `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+// Modal de Cotización Formal
+function openFormalQuoteModal() {
+  const modal = document.getElementById('formalQuoteModal');
+  if (modal) modal.classList.add('open');
+}
+
+function closeFormalQuoteModal() {
+  const modal = document.getElementById('formalQuoteModal');
+  if (modal) modal.classList.remove('open');
+}
+
+async function submitFormalQuoteList(event) {
+  event.preventDefault();
+  const totals = getQuoteListTotals();
+  if (!totals.items.length) return;
+
+  const btn = document.getElementById('fqSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Procesando cotización...';
+
+  const company = document.getElementById('fqCompany').value.trim();
+  const contact = document.getElementById('fqContact').value.trim();
+  const phone = document.getElementById('fqPhone').value.trim();
+  const email = document.getElementById('fqEmail').value.trim();
+  const city = document.getElementById('fqCity').value.trim();
+
+  try {
+    let sellerId = null;
+    if (typeof resolveRefSeller === 'function') {
+      sellerId = await resolveRefSeller();
+    }
+
+    const itemsSummary = totals.items.map((it, i) => 
+      `${i+1}. ${it.name} (${it.brand}) x ${it.qty} ${it.unit} ($${(it.price * it.qty).toFixed(2)})`
+    ).join('\n');
+
+    const payload = {
+      company_name: company,
+      contact_name: contact,
+      phone_1: phone,
+      email: email,
+      city: city,
+      status: 'solicito_cotizacion',
+      source: 'lista_cotizador_web',
+      seller_id: sellerId,
+      notes: `LISTA DE COTIZACIÓN MAYORISTA:\n` +
+             `Total Ítems: ${totals.items.length} líneas (${totals.count} unidades)\n` +
+             `Monto Estimado: $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n\n` +
+             `Ítems solicitados:\n${itemsSummary}`
+    };
+
+    const { error } = await sb.from('jjp_prospects').insert(payload);
+    if (error) throw error;
+
+    if (typeof showToast === 'function') {
+      showToast('¡Cotización recibida! Un asesor de JJ Paper te responderá de inmediato.');
+    } else {
+      alert('¡Cotización recibida! Te contactaremos con el presupuesto formal.');
+    }
+
+    closeFormalQuoteModal();
+    closeQuoteDrawer();
+
+  } catch (err) {
+    console.error('Error al guardar cotización:', err);
+    alert('No se pudo guardar automáticamente. Puedes enviarla directamente haciendo clic en "Enviar Lista a WhatsApp".');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Cotización Formal';
+  }
+}
+
+// Inyectar HTML del Drawer y Pill en la página
+function injectQuoteDrawer() {
+  if (document.getElementById('quoteDrawerOverlay')) return;
+
+  const html = `
+    <!-- Botón Flotante -->
+    <a href="javascript:void(0)" class="quote-drawer-pill" id="quoteDrawerPill" onclick="toggleQuoteDrawer(true)" style="display:none" title="Ver mi lista de cotización">
+      <span>📋 Mi Cotización</span>
+      <span class="pill-badge" id="qdPillCount">0</span>
+      <span class="pill-total" id="qdPillTotal">$0.00</span>
+    </a>
+
+    <!-- Overlay y Drawer -->
+    <div class="quote-drawer-overlay" id="quoteDrawerOverlay" onclick="if(event.target===this)closeQuoteDrawer()">
+      <div class="quote-drawer-panel" id="quoteDrawerPanel">
+        <div class="qd-header">
+          <h3>📋 Tu Lista de Cotización Mayorista</h3>
+          <button type="button" class="qd-close" onclick="closeQuoteDrawer()" aria-label="Cerrar">✕</button>
+        </div>
+
+        <div class="qd-body" id="qdBody"></div>
+
+        <div class="qd-footer" id="qdFooter" style="display:none">
+          <div class="qd-total-box">
+            <div class="qd-tot-label">Total Estimado:</div>
+            <div>
+              <div class="qd-tot-usd" id="qdTotalUsd">$0.00</div>
+              <div class="qd-tot-bs" id="qdTotalBs">Bs 0.00</div>
+            </div>
+          </div>
+
+          <div class="qd-actions-row">
+            <button type="button" class="btn-qd-wa" onclick="sendClientQuoteListWA()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+              <span>Enviar Lista Completa a WhatsApp</span>
+            </button>
+            <button type="button" class="btn-qd-formal" onclick="openFormalQuoteModal()">
+              <span>⚡ Solicitar Presupuesto Formal (PDF)</span>
+            </button>
+            <button type="button" class="qd-clear-btn" onclick="clearClientQuote()">
+              🗑️ Vaciar Lista
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Cotización Formal -->
+    <div class="formal-quote-modal" id="formalQuoteModal" role="dialog" aria-modal="true">
+      <div class="fq-card">
+        <div class="fq-head">
+          <h4>⚡ Solicitar Cotización Formal Membretada</h4>
+          <button type="button" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer" onclick="closeFormalQuoteModal()">✕</button>
+        </div>
+        <form class="fq-body" onsubmit="submitFormalQuoteList(event)">
+          <div style="font-size:12px;color:#555;background:#f0f5f2;padding:8px 12px;border-radius:6px">
+            Se enviará el requerimiento de los productos seleccionados para emisión de presupuesto formal membretado con validez fiscal.
+          </div>
+          <input type="text" class="fq-input" id="fqCompany" required placeholder="Empresa / Negocio / Colegio *">
+          <input type="text" class="fq-input" id="fqContact" required placeholder="Persona de Contacto *">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input type="tel" class="fq-input" id="fqPhone" required placeholder="WhatsApp / Teléfono *">
+            <input type="email" class="fq-input" id="fqEmail" required placeholder="Correo Electrónico *">
+          </div>
+          <input type="text" class="fq-input" id="fqCity" placeholder="Ciudad / Dirección de Despacho">
+          <button type="submit" class="btn-qd-formal" id="fqSubmitBtn" style="padding:12px;font-size:14px;border-radius:8px">
+            Enviar Solicitud Formal
+          </button>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  loadClientQuoteList();
+  updateQuoteUI();
+}
+
+document.addEventListener('DOMContentLoaded', injectQuoteDrawer);

@@ -18,19 +18,27 @@ import { dbInv, dbCore } from './supabase.js';
 import { SUPABASE_URL_INV } from './config.js';
 import { log } from './logger.js';
 
-// ---- Pool de API Keys Gemini (mismo que assets/js/gemini-client.js) ----
-const GEMINI_KEYS = [
-  'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-  'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
-  'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
-  'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
-  'AQ.Ab8RN6I3nhWx1f54n5rcLa1nJv238N-IqJoIRWljUjZmg3nl-Q',
-  'AQ.Ab8RN6K7DB2-YqkZma3jsV8EfCqHel0UnR07oY-r8qquxgKTsA',
-  'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
-];
+// ---- Pool dinámico de API Keys Gemini ----
+let GEMINI_KEYS = [];
+
+async function ensureGeminiKeys() {
+  if (GEMINI_KEYS.length > 0) return GEMINI_KEYS;
+  try {
+    const { data } = await dbCore.from('jjp_settings').select('value').eq('key', 'ai_gemini_keys').maybeSingle();
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        GEMINI_KEYS = parsed;
+        return GEMINI_KEYS;
+      }
+    }
+  } catch (_) {}
+  return [];
+}
 
 const GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
   'gemini-3.6-flash'
 ];
 
@@ -152,10 +160,13 @@ const BLOCKED_DOMAINS = [
  * Rota por las 7 keys y múltiples modelos para máxima disponibilidad.
  */
 async function callGeminiServer(prompt, systemInstruction = '', temperature = 0.2) {
-  const maxAttempts = GEMINI_KEYS.length * 2;
+  const keys = await ensureGeminiKeys();
+  if (!keys || keys.length === 0) return null;
+
+  const maxAttempts = keys.length * 2;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const key = GEMINI_KEYS[_geminiKeyIdx % GEMINI_KEYS.length];
+    const key = keys[_geminiKeyIdx % keys.length];
     _geminiKeyIdx++;
 
     for (const model of GEMINI_MODELS) {

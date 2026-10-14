@@ -950,38 +950,25 @@ async function prodGenerarFotoIA(productId, prodName) {
         </button>
       </div>
 
-      <!-- Pestañas de origen -->
-      <div style="display:flex;padding:0 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;gap:8px">
-        <button id="tabWebBtn" class="of-chip on" style="border:none;padding:10px 14px;font-size:12.5px;cursor:pointer;background:none;font-weight:600;border-bottom:2px solid #065f46;color:#065f46"
-                onclick="prodStudioSwitchTab('web')">
-          🌐 Fotos Reales de la Web (<span id="webPhotosCount">...</span>)
-        </button>
-        <button id="tabAiBtn" class="of-chip" style="border:none;padding:10px 14px;font-size:12.5px;cursor:pointer;background:none;font-weight:500;color:#64748b"
-                onclick="prodStudioSwitchTab('ai')">
-          🤖 Fotografía con IA (Fondo Blanco)
-        </button>
+      <!-- Barra de información y afinamiento -->
+      <div style="padding:10px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:600;color:#065f46;display:flex;align-items:center;gap:6px">
+          <span>🌐 Fotografías Oficiales en Línea</span>
+          <span style="font-size:11px;background:#e2e8f0;color:#475569;padding:1px 8px;border-radius:10px" id="webPhotosCount">...</span>
+        </div>
+        <div style="font-size:11.5px;color:#64748b">
+          💡 Selecciona la foto que coincida exactamente con marca, color y presentación
+        </div>
       </div>
 
       <!-- Contenedor de contenido -->
       <div style="flex:1;overflow-y:auto;padding:18px 20px;">
-        <!-- Panel Web -->
         <div id="panelWebPhotos">
           <div id="webLoadingSpinner" style="text-align:center;padding:40px 0;color:#64748b">
             <div style="font-size:28px;margin-bottom:8px">⏳</div>
             <div style="font-size:13px;font-weight:500">Consultando fotografías reales del producto en distribuidores...</div>
           </div>
           <div id="webPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px;"></div>
-        </div>
-
-        <!-- Panel IA -->
-        <div id="panelAiPhoto" style="display:none;text-align:center;padding:10px 0">
-          <p style="font-size:12.5px;color:#64748b;margin:0 0 12px">Fotografía hiperrealista del <strong>objeto físico individual</strong> sobre fondo blanco puro #FFFFFF (sin cajas ni renders).</p>
-          <div style="position:relative;width:280px;height:280px;margin:0 auto 14px;border-radius:10px;overflow:hidden;border:1px solid #cbd5e1;background:#f8fafc;display:flex;align-items:center;justify-content:center">
-            <img id="prodAiStandaloneImg" src="" alt="Generando..." style="max-width:100%;max-height:100%;object-fit:contain">
-          </div>
-          <button class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="prodStudioRegenerarIA()">
-            🔄 Regenerar otra versión fotográfica
-          </button>
         </div>
       </div>
 

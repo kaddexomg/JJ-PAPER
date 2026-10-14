@@ -277,15 +277,16 @@ ${brand ? `Marca detectada: ${brand}` : 'Detecta la marca si existe'}
 Responde con JSON puro (sin markdown, sin backticks):
 {
   "product_type": "tipo exacto de producto en español",
-  "brand": "marca o null",
+  "brand": "marca oficial exacta o null",
+  "color": "color exacto en español o null",
+  "presentation": "caja x12, blister x6, resma o unidad",
   "canonical_title": "título comercial limpio en español",
-  "packshot_en": "1 concise sentence in English describing the physical retail product for studio photography on pure white background",
   "queries": [
-    "query precisa con marca y producto",
-    "query con producto y fondo blanco",
-    "query en inglés para catálogo internacional"
+    "query exacta con marca, producto, color y empaque",
+    "query comercial limpia para tiendas de papeleria",
+    "query en ingles con marca y especificaciones"
   ],
-  "negative_keywords": ["palabras a excluir"]
+  "negative_keywords": ["palabras de otros colores, marcas no deseadas o consumibles equivocados"]
 }`;
 
     const aiResult = await callGeminiServer(userPrompt, sysPrompt);
@@ -297,13 +298,14 @@ Responde con JSON puro (sin markdown, sin backticks):
 
         const aiQueries = Array.isArray(parsed.queries) ? parsed.queries.filter(Boolean) : [];
         if (parsed.brand && !brand) {
-          aiQueries.unshift(`${parsed.brand} ${parsed.product_type || ''}`.trim());
+          aiQueries.unshift(`${parsed.brand} ${parsed.product_type || ''} ${parsed.color || ''}`.trim());
         }
 
         log.info({
           raw: rawProductName,
           aiQueries,
           brand: parsed.brand,
+          color: parsed.color,
           canonicalTitle: parsed.canonical_title,
           productType: parsed.product_type
         }, '🧠 Gemini deliberó y generó queries canónicas para búsqueda de imagen');
@@ -630,16 +632,39 @@ function scoreResult(result, brand, metadata) {
   if (brand) {
     const brandLower = brand.toLowerCase();
     if (title.includes(brandLower) || imgUrl.includes(brandLower)) {
-      score += 60; // Gran bonificación por marca oficial buscada
+      score += 70; // Gran bonificación por marca oficial buscada
     } else {
-      // Penalizar si menciona otra marca de papelería diferente
+      // Penalizar fuertemente si menciona otra marca de papelería diferente
       for (const other of KNOWN_BRANDS) {
         if (other !== brand && title.includes(other.toLowerCase())) {
+          score -= 50;
+          break;
+        }
+      }
+    }
+  }
+
+  // 3.1. Evaluar color exacto (evitar que un marcador rojo traiga fotos de azul o negro)
+  const targetColor = (metadata?.color || '').toLowerCase();
+  if (targetColor && targetColor.length > 2) {
+    if (title.includes(targetColor) || imgUrl.includes(targetColor)) {
+      score += 45; // Bonificación por color exacto
+    } else {
+      // Penalizar si menciona explícitamente otro color primario diferente
+      const otherColors = ['rojo', 'azul', 'negro', 'verde', 'amarillo'].filter(c => c !== targetColor);
+      for (const oc of otherColors) {
+        if (title.includes(oc)) {
           score -= 40;
           break;
         }
       }
     }
+  }
+
+  // 3.2. Evaluar empaque (caja / docena / resma)
+  const isCaja = /\b(x\s*12|docena|doc|caja|set)\b/i.test(title) || /\b(x\s*12|docena|doc|caja)\b/i.test(metadata?.presentation || '');
+  if (isCaja && /\b(x\s*12|docena|doc|caja|12u|12\s*pza)\b/i.test(title)) {
+    score += 35; // Bonificación por presentación en caja x12
   }
 
   // 4. Dominios de confianza

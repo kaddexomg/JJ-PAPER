@@ -191,6 +191,44 @@ async function runCommand(cmd) {
     return;
   }
 
+  if (cmd && (cmd.startsWith('search_images:') || cmd.startsWith('search_product_images:'))) {
+    const rawQuery = cmd.replace(/^search_images:|^search_product_images:/, '').trim();
+    log.info({ rawQuery }, 'comando de búsqueda inteligente de imágenes recibido vía Supabase');
+    try {
+      const { searchProductImagesOnWeb } = await import('./product-images.js');
+      const results = await searchProductImagesOnWeb(rawQuery);
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, type: 'search_images', query: rawQuery, results, at: new Date().toISOString() }
+      }).eq('id', 1);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error en búsqueda inteligente de imágenes');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, type: 'search_images', error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
+  if (cmd && cmd.startsWith('save_product_image:')) {
+    log.info('comando de guardado de imagen de producto recibido vía Supabase');
+    try {
+      const payload = JSON.parse(cmd.replace(/^save_product_image:/, ''));
+      const { saveProductImageToStorage } = await import('./product-images.js');
+      const res = await saveProductImageToStorage(payload.product_id, payload.image_url);
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, type: 'save_product_image', ...res, at: new Date().toISOString() }
+      }).eq('id', 1);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error guardando imagen de producto en Storage');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, type: 'save_product_image', error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd && cmd.startsWith('call:')) {
     const phone = cmd.replace(/^call:/, '').trim();
     log.info({ phone }, 'comando de llamada GSM recibido vía Supabase');

@@ -727,11 +727,25 @@ export async function searchProductImagesOnWeb(rawQuery) {
     log.warn({ err: e.message }, 'Gemini deliberation falló, usando fallback heurístico');
   }
 
+  // Integrar ontología determinística de JJ Paper para color, empaque y tipo
+  const { analyzeProductOntology } = await import('./product-ontology.js');
+  const ontology = analyzeProductOntology(rawQuery);
+
+  const metadata = smart?.metadata || {};
+  if (!metadata.brand && ontology.brand) metadata.brand = ontology.brand;
+  if (!metadata.color && ontology.color?.es) metadata.color = ontology.color.es;
+  if (!metadata.presentation && ontology.packaging?.label) metadata.presentation = ontology.packaging.label;
+  if (!metadata.product_type && ontology.productType) metadata.product_type = ontology.productType;
+
+  // Si el usuario buscó "BLANCO" o "ROJO", asegurar que la primera query contenga el color y producto
   const queries = (smart?.queries && smart.queries.length > 0)
     ? smart.queries
-    : buildManualQueries(expanded, brand);
+    : buildManualQueries(expanded, brand || ontology.brand);
 
-  const metadata = smart?.metadata || null;
+  if (metadata.color && !queries[0].toLowerCase().includes(metadata.color.toLowerCase())) {
+    queries.unshift(`${metadata.brand || ''} ${metadata.product_type || ''} ${metadata.color}`.trim());
+  }
+
   const negativeTerms = [
     ...(smart?.negative_keywords || []),
     ...getCategoryNegativeTerms(expanded, metadata?.product_type)

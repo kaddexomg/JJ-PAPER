@@ -215,10 +215,10 @@ body {
 }
 
 .item-img-box {
-  width: 90px;
-  height: 90px;
-  flex: 0 0 90px;
-  background: #f9fbf9;
+  width: 108px;
+  height: 108px;
+  flex: 0 0 108px;
+  background: #f8faf9;
   border: 1.5px solid #dce8e2;
   border-radius: 10px;
   display: flex;
@@ -228,8 +228,8 @@ body {
   position: relative;
 }
 .item-img-box img {
-  max-width: 92%;
-  max-height: 92%;
+  max-width: 95%;
+  max-height: 95%;
   object-fit: contain;
 }
 
@@ -257,7 +257,7 @@ body {
   width: fit-content;
 }
 .item-category-chip {
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
   color: var(--doc-c);
   text-transform: uppercase;
@@ -267,7 +267,7 @@ body {
   text-overflow: ellipsis;
 }
 .item-name {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 800;
   color: #1a1a1a;
   line-height: 1.25;
@@ -298,36 +298,36 @@ body {
   flex-wrap: wrap;
 }
 .item-price-usd {
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--doc-c);
 }
 .item-price-bs {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #555;
 }
 
 /* Caja de Código QR */
 .item-qr-box {
-  width: 60px;
-  flex: 0 0 60px;
+  width: 74px;
+  flex: 0 0 74px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding-left: 6px;
+  padding-left: 8px;
   border-left: 1px dashed #d5e0da;
   overflow: hidden;
 }
 .item-qr-box .qr-target, .item-qr-box canvas, .item-qr-box img {
-  width: 52px !important;
-  height: 52px !important;
+  width: 66px !important;
+  height: 66px !important;
   border-radius: 4px;
 }
 .item-qr-hint {
-  font-size: 7px;
+  font-size: 7.5px;
   font-weight: 700;
   color: #666;
   line-height: 1.1;
@@ -375,22 +375,22 @@ body {
   }
   .item-card {
     border: 1.2px solid #555555 !important;
-    padding: 7px 9px !important;
-    gap: 10px !important;
+    padding: 8px 10px !important;
+    gap: 12px !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     box-shadow: none !important;
     background: #ffffff !important;
   }
   .item-img-box {
-    width: 82px !important;
-    height: 82px !important;
-    flex: 0 0 82px !important;
+    width: 95px !important;
+    height: 95px !important;
+    flex: 0 0 95px !important;
     border: 1px solid #777777 !important;
     background: #ffffff !important;
   }
   .item-name {
-    font-size: 11.5px !important;
+    font-size: 12px !important;
     font-weight: 800 !important;
     color: #000000 !important;
     -webkit-line-clamp: 2 !important;
@@ -400,22 +400,22 @@ body {
     font-weight: 800 !important;
   }
   .item-price-usd {
-    font-size: 15px !important;
+    font-size: 16px !important;
     font-weight: 900 !important;
     color: #000000 !important;
   }
+  /* En la hoja impresa NO se imprimen los montos en bolívares (solo USD) */
   .item-price-bs {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    color: #333333 !important;
+    display: none !important;
   }
   .item-qr-box {
-    width: 60px !important;
-    flex: 0 0 60px !important;
+    width: 68px !important;
+    flex: 0 0 68px !important;
+    border-left: 1px dashed #666666 !important;
   }
   .item-qr-box canvas, .item-qr-box img {
-    width: 52px !important;
-    height: 52px !important;
+    width: 62px !important;
+    height: 62px !important;
   }
 
   /* Modo Blanco y Negro Puro en Impresión: Filtros de máxima nitidez */
@@ -817,14 +817,52 @@ const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('dateDisplay').textContent = `Emisión: ${new Date().toLocaleDateString('es-VE')}`;
   
-  if (typeof updateExchangeRate === 'function') {
-    try { await updateExchangeRate(); } catch(_) {}
-  }
-  document.getElementById('rateDisplay').textContent = `Tasa Oficial BCV: Bs ${getRate().toFixed(2)}/USD`;
+  // Cargar tasa de cambio oficial directamente desde la base de datos de JJ Paper
+  try {
+    if (typeof loadSettings === 'function') {
+      await loadSettings();
+    }
+    if (typeof ensureFreshRate === 'function') {
+      await ensureFreshRate();
+    }
+  } catch(_) {}
+  
+  const currentRate = (typeof getRate === 'function') ? getRate() : 40;
+  document.getElementById('rateDisplay').textContent = `Tasa Oficial BCV: Bs ${currentRate.toFixed(2)}/USD`;
 
   await loadGroups();
   await loadCatalogProducts();
 });
+
+// Al imprimir, asegurar que TODOS los códigos QR estén 100% generados (sin esperar scroll)
+window.addEventListener('beforeprint', () => {
+  renderAllQrsImmediately();
+});
+
+function renderAllQrsImmediately() {
+  const baseUrl = 'https://jjpaper.pages.dev';
+  const qrColor = document.body.classList.contains('print-bw-mode') ? "#000000" : "#16604A";
+  if (typeof QRCode === 'undefined') return;
+
+  document.querySelectorAll('.qr-target').forEach(target => {
+    const prodId = target.dataset.id;
+    if (prodId && !target.hasChildNodes()) {
+      const prodUrl = `${baseUrl}/producto?id=${encodeURIComponent(prodId)}`;
+      try {
+        new QRCode(target, {
+          text: prodUrl,
+          width: 66,
+          height: 66,
+          colorDark: qrColor,
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.L
+        });
+      } catch (err) {
+        console.warn('QR error on print:', err);
+      }
+    }
+  });
+}
 
 async function loadGroups() {
   try {
@@ -1021,11 +1059,11 @@ function renderCatalogGrid(items) {
             try {
               new QRCode(target, {
                 text: prodUrl,
-                width: 52,
-                height: 52,
+                width: 66,
+                height: 66,
                 colorDark: qrColor,
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.M
+                correctLevel: QRCode.CorrectLevel.L
               });
             } catch (err) {
               console.warn('QR error:', err);
@@ -1044,11 +1082,11 @@ function renderCatalogGrid(items) {
         const prodUrl = `${baseUrl}/producto?id=${encodeURIComponent(p.id)}`;
         new QRCode(container, {
           text: prodUrl,
-          width: 52,
-          height: 52,
+          width: 66,
+          height: 66,
           colorDark: qrColor,
           colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
+          correctLevel: QRCode.CorrectLevel.L
         });
       }
     });

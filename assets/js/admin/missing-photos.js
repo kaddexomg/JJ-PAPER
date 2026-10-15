@@ -318,14 +318,16 @@ async function mpStudioEjecutarBusqueda() {
   if (grid) grid.innerHTML = '';
   if (countEl) countEl.textContent = '...';
 
+  const reqId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+
   try {
     await sb.from('jjp_server_control').update({
-      command: `search_images:${q}`,
+      command: `search_images:${reqId}:${q}`,
       command_at: new Date().toISOString()
     }).eq('id', 1);
 
     let results = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 20; i++) {
       await new Promise(r => setTimeout(r, 500));
       const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
       let resObj = ctrl?.command_res;
@@ -333,6 +335,9 @@ async function mpStudioEjecutarBusqueda() {
         try { resObj = JSON.parse(resObj); } catch (_) {}
       }
       if (resObj?.type === 'search_images' && resObj.ok && Array.isArray(resObj.results)) {
+        // Validar que el resultado corresponda a ESTA búsqueda específica (por reqId o query)
+        if (resObj.reqId && resObj.reqId !== reqId) continue;
+        if (!resObj.reqId && resObj.query && resObj.query.toLowerCase().trim() !== q.toLowerCase().trim()) continue;
         results = resObj.results;
         break;
       }

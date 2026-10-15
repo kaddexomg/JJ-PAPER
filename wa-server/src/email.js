@@ -775,19 +775,21 @@ async function ingestMessage(acct, token, id) {
     }
   } else {
     // 1. Marcar interacción activa en cliente o prospecto B2B
-    if (cust?.id) {
-      await dbCore.from('jjp_customers').update({
-        last_contact_at: ts,
-        updated_at: new Date().toISOString()
-      }).eq('id', cust.id).catch(() => {});
-    } else if (prospect?.id) {
-      await dbCore.from('jjp_prospects').update({
-        status: 'respondio_email',
-        contacted: true,
-        last_contact_at: ts,
-        updated_at: new Date().toISOString()
-      }).eq('id', prospect.id).catch(() => {});
-    }
+    try {
+      if (cust?.id) {
+        await dbCore.from('jjp_customers').update({
+          last_contact_at: ts,
+          updated_at: new Date().toISOString()
+        }).eq('id', cust.id);
+      } else if (prospect?.id) {
+        await dbCore.from('jjp_prospects').update({
+          status: 'respondio_email',
+          contacted: true,
+          last_contact_at: ts,
+          updated_at: new Date().toISOString()
+        }).eq('id', prospect.id);
+      }
+    } catch (_) {}
 
     // 2. Marcar en campañas de email que este destinatario respondió
     try {

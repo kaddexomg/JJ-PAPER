@@ -192,18 +192,26 @@ async function runCommand(cmd) {
   }
 
   if (cmd && (cmd.startsWith('search_images:') || cmd.startsWith('search_product_images:'))) {
-    const rawQuery = cmd.replace(/^search_images:|^search_product_images:/, '').trim();
-    log.info({ rawQuery }, 'comando de búsqueda inteligente de imágenes recibido vía Supabase');
+    const rawRest = cmd.replace(/^search_images:|^search_product_images:/, '').trim();
+    let reqId = null;
+    let rawQuery = rawRest;
+    if (rawRest.startsWith('req_')) {
+      const parts = rawRest.split(':');
+      reqId = parts[0];
+      rawQuery = parts.slice(1).join(':').trim();
+    }
+
+    log.info({ rawQuery, reqId }, 'comando de búsqueda inteligente de imágenes recibido vía Supabase');
     try {
       const { searchProductImagesOnWeb } = await import('./product-images.js');
       const results = await searchProductImagesOnWeb(rawQuery);
       await db.from('jjp_server_control').update({
-        command_res: { ok: true, type: 'search_images', query: rawQuery, results, at: new Date().toISOString() }
+        command_res: { ok: true, type: 'search_images', reqId, query: rawQuery, results, at: new Date().toISOString() }
       }).eq('id', 1);
     } catch (e) {
       log.warn({ err: e.message }, 'Error en búsqueda inteligente de imágenes');
       await db.from('jjp_server_control').update({
-        command_res: { ok: false, type: 'search_images', error: e.message, at: new Date().toISOString() }
+        command_res: { ok: false, type: 'search_images', reqId, query: rawQuery, error: e.message, at: new Date().toISOString() }
       }).eq('id', 1);
     }
     handling = false;

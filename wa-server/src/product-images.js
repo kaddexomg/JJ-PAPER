@@ -642,15 +642,18 @@ function scoreResult(result, brand, metadata) {
   // 3. Evaluar marca
   if (brand) {
     const brandLower = brand.toLowerCase();
-    if (title.includes(brandLower) || imgUrl.includes(brandLower)) {
-      score += 70; // Gran bonificación por marca oficial buscada
+    const hasTargetBrand = title.includes(brandLower) || imgUrl.includes(brandLower);
+    if (hasTargetBrand) {
+      score += 80; // Gran bonificación por marca oficial buscada
     } else {
-      // Penalizar fuertemente si menciona otra marca de papelería diferente
-      for (const other of KNOWN_BRANDS) {
-        if (other !== brand && title.includes(other.toLowerCase())) {
-          score -= 50;
-          break;
-        }
+      score -= 30; // Si no menciona la marca buscada, penalizar
+    }
+
+    // Penalizar severamente si menciona OTRA marca de papelería diferente
+    for (const other of KNOWN_BRANDS) {
+      if (other.toLowerCase() !== brandLower && title.includes(other.toLowerCase())) {
+        score -= 200; // Descarte casi total para marcas cruzadas
+        break;
       }
     }
   }

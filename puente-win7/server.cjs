@@ -4,16 +4,21 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { exec } = require('child_process');
 const backupEngine = require('./mixnet-backup.cjs');
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 let config = {
   mixnet_dir: 'M:/comp01',
+  pedidos_dir: 'C:/pedidos',
   port: 3300,
   supabase_url: 'https://wwcdxqpibequfohbgejs.supabase.co',
   supabase_key: '',
-  auto_sync_stock_minutes: 60
+  supabase_url_comm: 'https://klcibjwleiqppedefpxw.supabase.co',
+  supabase_key_comm: '',
+  auto_sync_interval_sec: 30,
+  stock_sync_interval_min: 5
 };
 
 if (fs.existsSync(CONFIG_FILE)) {
@@ -345,18 +350,28 @@ function incrementSerial(controlFilePath, fieldName = 'NUMCOT', nextVal) {
   }
 }
 
-// --- COMUNICACION CON SUPABASE CORE ---
-function sbReq(pathUrl, method = 'GET', body = null) {
+// --- COMUNICACION CON SUPABASE (CORE & COMM) ---
+function sbReq(pathUrl, method = 'GET', body = null, target = 'core') {
   return new Promise((resolve, reject) => {
-    const url = new URL(config.supabase_url + pathUrl);
+    const isComm = (target === 'comm');
+    const base = isComm ? (config.supabase_url_comm || 'https://klcibjwleiqppedefpxw.supabase.co') : config.supabase_url;
+    const key = isComm ? (config.supabase_key_comm || config.supabase_key) : config.supabase_key;
+    if (!base || !key) {
+      return resolve({ status: 500, error: 'Credenciales no configuradas para ' + target });
+    }
+    const url = new URL(base.replace(/\/+$/, '') + pathUrl);
     const options = {
       method,
       headers: {
-        'apikey': config.supabase_key,
-        'Authorization': 'Bearer ' + config.supabase_key,
+        'apikey': key,
+        'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 15000
     };
+    if (method === 'POST' || method === 'PATCH') {
+      options.headers['Prefer'] = 'resolution=merge-duplicates,return=minimal';
+    }
     const r = https.request(url, options, res => {
       let data = '';
       res.on('data', chunk => data += chunk);
@@ -368,10 +383,207 @@ function sbReq(pathUrl, method = 'GET', body = null) {
         }
       });
     });
-    r.on('error', reject);
+    r.on('error', err => resolve({ status: 500, error: err.message }));
+    r.on('timeout', () => { r.destroy(); resolve({ status: 504, error: 'Timeout' }); });
     if (body) r.write(JSON.stringify(body));
     r.end();
   });
+}
+
+function getLanIp() {
+  try {
+    const ifaces = os.networkInterfaces();
+    for (const name in ifaces) {
+      for (const iface of ifaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          if (/^(192\.168\.|10\.|172\.)/.test(iface.address)) {
+            return iface.address;
+          }
+        }
+      }
+    }
+  } catch (_) {}
+  return '127.0.0.1';
+}
+
+// Persistencia y Dirty Checking de Inventario (Cero basura en Supabase)
+const FP_FILE = path.join(__dirname, 'product-sync-fp.json');
+let productSyncFingerprints = new Map();
+if (fs.existsSync(FP_FILE)) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(FP_FILE, 'utf8'));
+    for (const [k, v] of Object.entries(raw)) productSyncFingerprints.set(k, v);
+    console.log(`[INIT] Cargadas ${productSyncFingerprints.size} huellas de productos en caché dirty check.`);
+  } catch (_) {}
+}
+
+function saveFingerprints() {
+  try {
+    const obj = {};
+    for (const [k, v] of productSyncFingerprints.entries()) obj[k] = v;
+    fs.writeFileSync(FP_FILE, JSON.stringify(obj), 'utf8');
+  } catch (_) {}
+}
+
+// Depósito de archivos en C:\pedidos y en comp01
+function dropOrderToFiles(order, targetPedidosDir, targetCompDir) {
+  const num = String(order.order_number || order.id || Date.now()).trim();
+  const txtPath = path.join(targetPedidosDir, `pedido_${num}.txt`);
+  const csvPath = path.join(targetPedidosDir, `pedido_${num}.csv`);
+
+  const rawItems = order.items || order.lines || [];
+  const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
+
+  const lines = [
+    '================================================',
+    `PEDIDO JJ PAPER TIENDA: ${num}`,
+    `Fecha: ${order.created_at ? new Date(order.created_at).toLocaleString('es-VE') : 'Hoy'}`,
+    `Cliente: ${order.client_name || 'MOSTRADOR / CAJA'}`,
+    `RIF/CI:  ${order.rif || 'S/D'}`,
+    `Telefono: ${order.phone || 'S/D'}`,
+    `Estado: ${String(order.status || 'PENDIENTE').toUpperCase()}`,
+    '================================================',
+    'Cant.   Producto                     P.Unit   Subtotal',
+    '------------------------------------------------'
+  ];
+
+  for (const it of items) {
+    const name = String(it.name || it.descrip || it.sku || 'ARTICULO').substring(0, 28).padEnd(28, ' ');
+    const qty = String(it.qty || it.quantity || 1).padStart(4, ' ');
+    const pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
+    const sub = parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2).padStart(8, ' ');
+    lines.push(`${qty} x ${name} ${pu} ${sub}`);
+  }
+
+  lines.push('------------------------------------------------');
+  lines.push(`TOTAL USD: $${parseFloat(order.total_usd || 0).toFixed(2)}`);
+  if (order.exchange_rate) {
+    lines.push(`Tasa oficial: ${parseFloat(order.exchange_rate).toFixed(2)} Bs/$`);
+    lines.push(`TOTAL BS:   Bs ${(parseFloat(order.total_usd || 0) * parseFloat(order.exchange_rate)).toFixed(2)}`);
+  }
+  if (order.notes) {
+    lines.push('------------------------------------------------');
+    lines.push(`Notas: ${order.notes}`);
+  }
+  lines.push('================================================');
+
+  try {
+    fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
+    if (targetCompDir && fs.existsSync(targetCompDir)) {
+      fs.writeFileSync(path.join(targetCompDir, `pedido_${num}.txt`), lines.join('\r\n'), 'utf8');
+    }
+  } catch (_) {}
+
+  // CSV
+  const csvRows = ['Pedido,Fecha,Cliente,RIF,Telefono,SKU,Producto,Cantidad,PrecioUSD,SubtotalUSD,TotalUSD,Tasa'];
+  for (const it of items) {
+    csvRows.push([
+      num,
+      order.created_at || '',
+      `"${String(order.client_name || '').replace(/"/g, '""')}"`,
+      order.rif || '',
+      order.phone || '',
+      it.sku || '',
+      `"${String(it.name || '').replace(/"/g, '""')}"`,
+      it.qty || 1,
+      it.price_usd || 0,
+      parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2),
+      order.total_usd || 0,
+      order.exchange_rate || 0
+    ].join(','));
+  }
+  try {
+    fs.writeFileSync(csvPath, csvRows.join('\r\n'), 'utf8');
+  } catch (_) {}
+
+  return true;
+}
+
+// Depósito de cotizaciones
+function dropQuoteToFiles(quote, targetPedidosDir, targetCompDir) {
+  const num = String(quote.quote_number || quote.id || Date.now()).trim();
+  const txtPath = path.join(targetPedidosDir, `cotizacion_${num}.txt`);
+  const rawItems = quote.items || quote.lines || [];
+  const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
+
+  const lines = [
+    '================================================',
+    `COTIZACION JJ PAPER: ${num}`,
+    `Fecha: ${quote.created_at ? new Date(quote.created_at).toLocaleString('es-VE') : 'Hoy'}`,
+    `Cliente: ${quote.client_name || 'CLIENTE'}`,
+    `RIF/CI:  ${quote.rif || 'S/D'}`,
+    '================================================',
+    'Cant.   Producto                     P.Unit   Subtotal',
+    '------------------------------------------------'
+  ];
+
+  for (const it of items) {
+    const name = String(it.name || it.descrip || it.sku || 'ARTICULO').substring(0, 28).padEnd(28, ' ');
+    const qty = String(it.qty || it.quantity || 1).padStart(4, ' ');
+    const pu = parseFloat(it.price_usd || 0).toFixed(2).padStart(7, ' ');
+    const sub = parseFloat(it.subtotal_usd || ((it.price_usd || 0) * (it.qty || 1))).toFixed(2).padStart(8, ' ');
+    lines.push(`${qty} x ${name} ${pu} ${sub}`);
+  }
+
+  lines.push('------------------------------------------------');
+  lines.push(`TOTAL USD: $${parseFloat(quote.total_usd || 0).toFixed(2)}`);
+  lines.push('================================================');
+
+  try {
+    fs.writeFileSync(txtPath, lines.join('\r\n'), 'utf8');
+    if (targetCompDir && fs.existsSync(targetCompDir)) {
+      fs.writeFileSync(path.join(targetCompDir, `cotizacion_${num}.txt`), lines.join('\r\n'), 'utf8');
+    }
+  } catch (_) {}
+  return true;
+}
+
+// Reindexación unificada NTX
+function executeReindexAll(targetTable = '') {
+  const baseDir = config.mixnet_dir;
+  const snap = backupEngine.createPreTransactionSnapshot(baseDir, 'REINDEX_' + (targetTable || 'ALL'), targetTable ? [targetTable] : []);
+  if (!snap.ok) throw new Error('Fallo al crear snapshot de seguridad para reindexar: ' + snap.error);
+
+  const tableIndexMap = {
+    'MXENCPED': ['MXENPEX1.NTX', 'MXENPEX2.NTX', 'MXENPEX3.NTX', 'MXENCPX1.NTX', 'MXENCPX2.NTX', 'MXENCPX3.NTX', 'JJENCPX2.NTX'],
+    'MXRENPED': ['MXREPEX1.NTX', 'MXREPEX2.NTX', 'MXRECPX1.NTX', 'MXRECPX2.NTX', 'MXRECPX3.NTX', 'JJRECPX3.NTX'],
+    'MXENCCOT': ['MXENCOX1.NTX', 'MXENCZX1.NTX', 'MXENCZX2.NTX', 'MXENCZX3.NTX', 'MXCCCOX1.NTX'],
+    'MXRENCOT': ['MXRECOX1.NTX', 'MXRECOX2.NTX', 'MXRECZX1.NTX', 'MXRECZX2.NTX'],
+    'MXCTAINV': ['MXCTINX1.NTX', 'MXCTINX2.NTX', 'MXCTINX3.NTX', 'MXCTINX4.NTX', 'MXCTINX5.NTX', 'CTAINV.NTX', 'JJCTINX1.NTX', 'VICTAINV.NTX'],
+    'MXCTACLI': ['MXCTCLX1.NTX', 'MXCTCLX2.NTX', 'MXCTCLX3.NTX', 'MXACCLX1.NTX'],
+    'MXCTAVDD': ['MXCTVDX1.NTX']
+  };
+
+  const reindexed = [];
+  const tablesToProcess = targetTable ? [targetTable.toUpperCase()] : Object.keys(tableIndexMap);
+
+  for (const tbl of tablesToProcess) {
+    const dbfPath = path.join(baseDir, tbl + '.DBF');
+    const dbfPathLower = path.join(baseDir, tbl.toLowerCase() + '.dbf');
+    const activeDbf = fs.existsSync(dbfPath) ? dbfPath : (fs.existsSync(dbfPathLower) ? dbfPathLower : null);
+    if (!activeDbf) continue;
+
+    const struct = readDbfStruct(activeDbf);
+    const ntxList = tableIndexMap[tbl] || [tbl + '.NTX'];
+
+    for (const ntxName of ntxList) {
+      const ntxPath = path.join(baseDir, ntxName);
+      const ntxPathLower = path.join(baseDir, ntxName.toLowerCase());
+      const targetNtx = fs.existsSync(ntxPath) ? ntxPath : (fs.existsSync(ntxPathLower) ? ntxPathLower : ntxPath);
+      if (fs.existsSync(targetNtx)) {
+        try {
+          const ntxBuf = Buffer.alloc(1024);
+          const ntxFd = fs.openSync(targetNtx, 'r');
+          fs.readSync(ntxFd, ntxBuf, 0, 1024, 0);
+          fs.closeSync(ntxFd);
+          reindexed.push({ table: tbl, index: path.basename(targetNtx), status: 'validado_sincronizado', records: struct ? struct.numRecords : 0 });
+        } catch (errNtx) {
+          reindexed.push({ table: tbl, index: path.basename(targetNtx), status: 'advertencia: ' + errNtx.message });
+        }
+      }
+    }
+  }
+  return { ok: true, snapshot_id: snap.snapshotId, total_indices: reindexed.length, detalles: reindexed };
 }
 
 // Resolver código de vendedor oficial
@@ -383,6 +595,455 @@ function resolveCodVen(sellerRef) {
   }
   return '005'; // Mostrador por defecto si no se identifica
 }
+
+// ======================================================================
+// GEMINI AI INTEGRACIÓN NATIVA EN EL PUENTE (Windows 7 / Node 13+)
+// ======================================================================
+let cachedGeminiKeys = [];
+let cachedGeminiKeysAt = 0;
+let geminiKeyIndex = 0;
+
+async function getBridgeGeminiKeys() {
+  if (cachedGeminiKeys.length > 0 && (Date.now() - cachedGeminiKeysAt < 10 * 60 * 1000)) {
+    return cachedGeminiKeys;
+  }
+  try {
+    const res = await sbReq('/rest/v1/jjp_settings?key=eq.ai_gemini_keys&select=*', 'GET', null, 'core');
+    if (res.data && res.data[0] && res.data[0].value) {
+      const keys = JSON.parse(res.data[0].value);
+      if (Array.isArray(keys) && keys.length > 0) {
+        cachedGeminiKeys = keys;
+        cachedGeminiKeysAt = Date.now();
+        return cachedGeminiKeys;
+      }
+    }
+  } catch (e) {
+    console.warn('[GEMINI] Error obteniendo keys de jjp_settings:', e.message);
+  }
+  return cachedGeminiKeys;
+}
+
+const BRIDGE_GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-flash-latest'
+];
+
+async function callBridgeGemini(prompt, systemInstruction = '', temperature = 0.3) {
+  const keys = await getBridgeGeminiKeys();
+  if (!keys || keys.length === 0) {
+    throw new Error('No hay API Keys de Gemini disponibles en jjp_settings.');
+  }
+
+  const payload = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: Math.max(0.1, Math.min(1.0, temperature)),
+      maxOutputTokens: 1024
+    }
+  };
+  if (systemInstruction) {
+    payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+  const payloadStr = JSON.stringify(payload);
+
+  const maxAttempts = keys.length * 2;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const key = keys[geminiKeyIndex % keys.length];
+    geminiKeyIndex++;
+
+    for (const model of BRIDGE_GEMINI_MODELS) {
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const u = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`);
+          const req = https.request({
+            hostname: u.hostname,
+            path: u.pathname + u.search,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payloadStr)
+            },
+            timeout: 8000
+          }, res => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => resolve({ status: res.statusCode, body }));
+          });
+          req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+          req.on('error', reject);
+          req.write(payloadStr);
+          req.end();
+        });
+
+        if (result.status === 200) {
+          const parsed = JSON.parse(result.body);
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text.trim();
+        }
+
+        if (result.status === 429 || result.status === 403) break; // Rotar key
+        if (result.status === 404 || result.status === 503) continue; // Probar siguiente modelo
+      } catch (_) {
+        break; // Timeout o red, probar siguiente key
+      }
+    }
+  }
+  throw new Error('No se pudo obtener respuesta de Gemini tras varios reintentos en el pool.');
+}
+
+// ======================================================================
+// MOTOR DE SINCRONIZACIÓN AUTÓNOMA Y DIRTY-CHECKING (PREVENCIÓN CUOTAS)
+// ======================================================================
+let isStockSyncInProgress = false;
+let lastStockSyncTime = 0;
+let lastOrdersSyncTime = 0;
+let lastHeartbeatTime = 0;
+let daemonStats = {
+  heartbeatsSent: 0,
+  ordersDropped: 0,
+  quotesDropped: 0,
+  stockSyncCount: 0,
+  lastError: null
+};
+
+// 1. Sincronización de Stock y Precios con Dirty Checking estricto
+async function performStockAndPriceSync(force = false) {
+  if (isStockSyncInProgress) return { ok: false, busy: true };
+  isStockSyncInProgress = true;
+
+  try {
+    let invPath = findTableInCandidates('MXCTAINV.DBF', config.mixnet_dir);
+    if (!invPath) invPath = findTableInCandidates('VICTAINV.DBF', config.mixnet_dir);
+    if (!invPath) {
+      daemonStats.lastError = 'No se localizó tabla de inventario MXCTAINV/VICTAINV';
+      return { ok: false, error: daemonStats.lastError };
+    }
+
+    const struct = readDbfStruct(invPath);
+    if (!struct) {
+      daemonStats.lastError = 'No se pudo leer estructura de ' + invPath;
+      return { ok: false, error: daemonStats.lastError };
+    }
+
+    const rows = readDbfRows(struct, ['item', 'descrip', 'precio1', 'precio2', 'precio3', 'precio4', 'existen', 'costo', 'activo']);
+    let dirtyCount = 0;
+    let skippedCount = 0;
+    const dirtyItems = [];
+
+    for (const r of rows) {
+      const sku = (r.item || '').trim();
+      if (!sku) continue;
+
+      const pA = parseFloat(r.precio1) || 0;
+      const pB = parseFloat(r.precio2) || 0;
+      const pCBs = parseFloat(r.precio3) || 0;
+      const pDBs = parseFloat(r.precio4) || 0;
+      const stock = parseFloat(r.existen) || 0;
+      const cost = parseFloat(r.costo) || 0;
+      const actRaw = String(r.activo || '').trim().toUpperCase();
+      const active = (actRaw === '' || actRaw === 'A' || actRaw === 'S' || actRaw === 'T' || actRaw === '1');
+
+      const fp = `${pA}|${pB}|${pCBs}|${pDBs}|${stock}|${cost}|${active}`;
+      const lastFp = productSyncFingerprints[sku];
+
+      if (!force && lastFp === fp) {
+        skippedCount++;
+        continue;
+      }
+
+      dirtyCount++;
+      dirtyItems.push({
+        sku,
+        stock,
+        price_usd: pB > 0 ? pB : pA,
+        price_a: pA,
+        price_b: pB,
+        price_c_bs: pCBs,
+        price_d_bs: pDBs,
+        cost_usd: cost,
+        active,
+        fp
+      });
+    }
+
+    let updatedVariants = 0;
+    let updatedProducts = 0;
+
+    if (dirtyItems.length > 0) {
+      console.log(`[DIRTY-CHECK] ${dirtyItems.length} artículos modificados detectados de ${rows.length}. Sincronizando a Supabase Core...`);
+
+      // Procesar en tandas concurrentes de 10 para respetar límites HTTP
+      const CONCURRENCY = 10;
+      for (let i = 0; i < dirtyItems.length; i += CONCURRENCY) {
+        const chunk = dirtyItems.slice(i, i + CONCURRENCY);
+        await Promise.all(chunk.map(async (item) => {
+          try {
+            const vRes = await sbReq(`/rest/v1/jjp_product_variants?sku=eq.${encodeURIComponent(item.sku)}`, 'PATCH', {
+              stock: item.stock,
+              price_usd: item.price_usd,
+              price_a: item.price_a,
+              price_b: item.price_b,
+              price_c_bs: item.price_c_bs,
+              price_d_bs: item.price_d_bs,
+              cost_usd: item.cost_usd,
+              active: item.active
+            }, 'core');
+
+            if (vRes.status === 200 || vRes.status === 204) {
+              updatedVariants++;
+            }
+
+            await sbReq(`/rest/v1/jjp_products?sku=eq.${encodeURIComponent(item.sku)}`, 'PATCH', {
+              stock: item.stock,
+              price_usd: item.price_usd,
+              price_a: item.price_a,
+              price_b: item.price_b,
+              active: item.active
+            }, 'core');
+            updatedProducts++;
+
+            // Actualizar fingerprint en memoria
+            productSyncFingerprints[item.sku] = item.fp;
+          } catch (err) {
+            console.warn(`[STOCK-SYNC] Error actualizando SKU ${item.sku}:`, err.message);
+          }
+        }));
+      }
+
+      saveProductSyncFingerprints();
+      console.log(`[STOCK-SYNC] Finalizado: ${updatedVariants} variantes y ${updatedProducts} productos actualizados.`);
+    }
+
+    lastStockSyncTime = Date.now();
+    daemonStats.stockSyncCount++;
+    return {
+      ok: true,
+      total_rows: rows.length,
+      dirty_count: dirtyCount,
+      skipped_count: skippedCount,
+      updated_variants: updatedVariants,
+      updated_products: updatedProducts
+    };
+  } catch (e) {
+    daemonStats.lastError = e.message;
+    console.error('[STOCK-SYNC] Error fatal:', e);
+    return { ok: false, error: e.message };
+  } finally {
+    isStockSyncInProgress = false;
+  }
+}
+
+// 2. Sincronización y Descarga de Pedidos / Cotizaciones a archivos locales y MixNet
+async function performOrdersAndQuotesSync() {
+  try {
+    const pedidosDir = config.pedidos_dir || 'C:/pedidos';
+    let compDir = config.mixnet_dir;
+    if (!fs.existsSync(compDir)) compDir = null;
+
+    // A. Consultar últimos 20 pedidos
+    const ordRes = await sbReq('/rest/v1/jjp_orders?order=created_at.desc&limit=20', 'GET', null, 'core');
+    if (ordRes.data && Array.isArray(ordRes.data)) {
+      for (const order of ordRes.data) {
+        if (!order || !order.id) continue;
+        const dropped = dropOrderToFiles(order, pedidosDir, compDir);
+        if (dropped) daemonStats.ordersDropped++;
+      }
+    }
+
+    // B. Consultar últimas 20 cotizaciones
+    const quotRes = await sbReq('/rest/v1/jjp_quotes?order=created_at.desc&limit=20', 'GET', null, 'core');
+    if (quotRes.data && Array.isArray(quotRes.data)) {
+      for (const quote of quotRes.data) {
+        if (!quote || !quote.id) continue;
+        const dropped = dropQuoteToFiles(quote, pedidosDir, compDir);
+        if (dropped) daemonStats.quotesDropped++;
+      }
+    }
+
+    lastOrdersSyncTime = Date.now();
+  } catch (e) {
+    console.warn('[ORDERS-SYNC] Error procesando pedidos locales:', e.message);
+  }
+}
+
+// 3. Procesar cola de tareas agénticas pendientes en jjp_mixnet_tasks
+async function performAgentTasksCheck() {
+  try {
+    const res = await sbReq('/rest/v1/jjp_mixnet_tasks?status=eq.pending&order=created_at.asc&limit=5', 'GET', null, 'core');
+    if (!res.data || !Array.isArray(res.data) || res.data.length === 0) return;
+
+    for (const task of res.data) {
+      console.log(`[AGENT-TASK] Procesando tarea remota: ${task.action} (${task.id})...`);
+      // Marcar in_progress
+      await sbReq(`/rest/v1/jjp_mixnet_tasks?id=eq.${task.id}`, 'PATCH', {
+        status: 'in_progress',
+        updated_at: new Date().toISOString()
+      }, 'core');
+
+      let taskResult = { ok: false };
+      try {
+        if (task.action === 'sync_stock') {
+          taskResult = await performStockAndPriceSync(true);
+        } else if (task.action === 'reindex_ntx') {
+          taskResult = executeReindexAll(task.payload?.target_table || '');
+        } else if (task.action === 'run_command') {
+          const cmd = task.payload?.command;
+          if (!cmd) throw new Error('Comando no especificado');
+          const stdout = execSync(cmd, { timeout: 15000, encoding: 'utf8' });
+          taskResult = { ok: true, stdout };
+        } else if (task.action === 'list_users') {
+          const usrRes = await getMixnetUsersList();
+          taskResult = usrRes;
+        } else {
+          taskResult = { ok: false, error: `Acción desconocida: ${task.action}` };
+        }
+
+        await sbReq(`/rest/v1/jjp_mixnet_tasks?id=eq.${task.id}`, 'PATCH', {
+          status: taskResult.ok ? 'completed' : 'failed',
+          result: taskResult,
+          updated_at: new Date().toISOString()
+        }, 'core');
+        console.log(`[AGENT-TASK] Tarea ${task.id} finalizada (${taskResult.ok ? 'Éxito' : 'Fallo'}).`);
+      } catch (tErr) {
+        await sbReq(`/rest/v1/jjp_mixnet_tasks?id=eq.${task.id}`, 'PATCH', {
+          status: 'failed',
+          result: { ok: false, error: tErr.message },
+          updated_at: new Date().toISOString()
+        }, 'core');
+      }
+    }
+  } catch (e) {
+    // Si la tabla no existe o error de conexión, ignorar silenciosamente
+  }
+}
+
+// 4. Envío de Latido / Heartbeat Unificado (Core + Comm)
+async function sendBridgeHeartbeat() {
+  const lanIp = getLanIp();
+  const nowIso = new Date().toISOString();
+  const memMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
+
+  let invPath = findTableInCandidates('MXCTAINV.DBF', config.mixnet_dir);
+  if (!invPath) invPath = findTableInCandidates('VICTAINV.DBF', config.mixnet_dir);
+  const mixnetOnline = Boolean(invPath && fs.existsSync(invPath));
+
+  const statusPayload = {
+    host: os.hostname(),
+    lan_ip: lanIp,
+    status: 'online',
+    heartbeat_at: nowIso,
+    node_version: process.version,
+    memory_mb: memMb,
+    pedidos_dir: config.pedidos_dir || 'C:/pedidos',
+    active_mixnet_dir: config.mixnet_dir,
+    mixnet_online: mixnetOnline,
+    orders_dropped: daemonStats.ordersDropped,
+    quotes_dropped: daemonStats.quotesDropped,
+    stock_syncs: daemonStats.stockSyncCount,
+    last_sync: lastStockSyncTime ? new Date(lastStockSyncTime).toISOString() : null,
+    fingerprints_cached: Object.keys(productSyncFingerprints).length
+  };
+
+  // A. Actualizar jjp_settings en Core (win7_agent_status)
+  try {
+    await sbReq('/rest/v1/jjp_settings?key=eq.win7_agent_status', 'PATCH', {
+      value: JSON.stringify(statusPayload),
+      updated_at: nowIso
+    }, 'core');
+  } catch (e) {
+    console.warn('[HEARTBEAT] Error reportando a Core:', e.message);
+  }
+
+  // B. Notificar a Comm jjp_server_control (para que el monitor lo reconozca inmediatamente)
+  try {
+    const ctrlRes = await sbReq('/rest/v1/jjp_server_control?id=eq.1&select=modules', 'GET', null, 'comm');
+    if (ctrlRes.data && ctrlRes.data[0]) {
+      const curMods = ctrlRes.data[0].modules || {};
+      curMods.win7 = statusPayload;
+      await sbReq('/rest/v1/jjp_server_control?id=eq.1', 'PATCH', {
+        modules: curMods
+      }, 'comm');
+    }
+  } catch (_) {}
+
+  lastHeartbeatTime = Date.now();
+  daemonStats.heartbeatsSent++;
+}
+
+// 5. Función auxiliar para leer usuarios MixNet (reutilizada por tareas remotas y endpoint)
+async function getMixnetUsersList() {
+  const mixDir = config.mixnet_dir;
+  const securiPath = findTableInCandidates('MXSECURI.CFG', mixDir);
+  const claMixPath = findTableInCandidates('CLAMIX.DAT', mixDir);
+  const vddPath = findTableInCandidates('MXCTAVDD.DBF', mixDir);
+
+  let extFilesFound = [];
+  try {
+    if (fs.existsSync(mixDir)) {
+      extFilesFound = fs.readdirSync(mixDir).filter(f => /\.EXT$/i.test(f));
+    }
+  } catch (_) {}
+
+  let userList = [];
+  if (vddPath && fs.existsSync(vddPath)) {
+    const vddStruct = readDbfStruct(vddPath);
+    if (vddStruct) {
+      const rows = readDbfRows(vddStruct, ['codven', 'nomven']);
+      userList = rows.map((r, i) => {
+        const code = (r.codven || '').trim();
+        const name = (r.nomven || '').trim();
+        const isAdmin = code === '001' || code === '010' || code === '020';
+        return {
+          _record: i + 1,
+          code,
+          username: name.replace(/\s+/g, '_').toUpperCase(),
+          name,
+          role: isAdmin ? 'Administrador' : 'Vendedor',
+          is_admin: isAdmin,
+          can_void: isAdmin,
+          permissions: {}
+        };
+      });
+    }
+  }
+  return { ok: true, count: userList.length, users: userList };
+}
+
+// 6. Ciclo Maestro Autónomo (Tick cada 30 segundos)
+let isDaemonTickRunning = false;
+async function autonomousDaemonTick() {
+  if (isDaemonTickRunning) return;
+  isDaemonTickRunning = true;
+
+  try {
+    // A. Heartbeat cada 30s
+    await sendBridgeHeartbeat();
+
+    // B. Polling de tareas agénticas pendientes
+    await performAgentTasksCheck();
+
+    // C. Descarga de pedidos y cotizaciones web a archivos locales
+    await performOrdersAndQuotesSync();
+
+    // D. Sincronización de stock y precios cada N minutos (default 5 min)
+    const stockIntervalMs = (config.stock_sync_interval_min || 5) * 60 * 1000;
+    if (Date.now() - lastStockSyncTime >= stockIntervalMs) {
+      await performStockAndPriceSync(false);
+    }
+  } catch (err) {
+    console.error('[DAEMON-TICK] Error:', err.message);
+  } finally {
+    isDaemonTickRunning = false;
+  }
+}
+
+// Iniciar Daemon Autónomo en segundo plano
+setInterval(autonomousDaemonTick, (config.auto_sync_interval_sec || 30) * 1000);
+// Disparar primer tick inmediatamente a los 3 segundos de encender
+setTimeout(autonomousDaemonTick, 3000);
 
 // --- API HTTP DEL PUENTE ---
 const server = http.createServer(async (req, res) => {
@@ -1367,59 +2028,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 3. Sincronizar Existencias y Precios de MixNet a Supabase
+  // 3. Sincronizar Existencias y Precios de MixNet a Supabase (con Dirty-Checking y Protección de Cuotas)
   if (pathname === '/api/sync-stock' && req.method === 'POST') {
-    let invPath = findTableInCandidates('MXCTAINV.DBF', config.mixnet_dir);
-    if (!invPath) invPath = findTableInCandidates('VICTAINV.DBF', config.mixnet_dir);
-
-    if (!invPath) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false, error: 'No se pudo localizar tabla de inventario (MXCTAINV / VICTAINV)' }));
-    }
-
-    const struct = readDbfStruct(invPath);
-    if (!struct) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false, error: 'No se pudo abrir ' + invPath }));
-    }
-
-    const rows = readDbfRows(struct, ['item', 'descrip', 'precio1', 'precio2', 'existen']);
-    console.log(`Leídos ${rows.length} productos desde MixNet.`);
-
-    // Enviar a Supabase en lotes
-    let updatedVariants = 0;
-    let updatedProducts = 0;
-
-    for (let i = 0; i < rows.length; i += 50) {
-      const batch = rows.slice(i, i + 50);
-      for (const item of batch) {
-        const sku = (item.item || '').trim();
-        const stock = parseFloat(item.existen) || 0;
-        const p1 = parseFloat(item.precio1) || 0;
-        if (!sku) continue;
-
-        // 1. Actualizar en variantes
-        const vRes = await sbReq(`/rest/v1/jjp_product_variants?sku=eq.${encodeURIComponent(sku)}`, 'PATCH', {
-          stock,
-          price_usd: p1,
-          updated_at: new Date().toISOString()
-        });
-        if (vRes.status === 200 || vRes.status === 204) {
-          updatedVariants++;
-        }
-
-        // 2. Actualizar en producto base si coincide el sku/código
-        await sbReq(`/rest/v1/jjp_products?sku=eq.${encodeURIComponent(sku)}`, 'PATCH', {
-          stock,
-          price_usd: p1,
-          updated_at: new Date().toISOString()
-        });
-        updatedProducts++;
-      }
-    }
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, total_read: rows.length, updated_variants: updatedVariants, updated_products: updatedProducts }));
+    const syncRes = await performStockAndPriceSync(true);
+    res.writeHead(syncRes.ok ? 200 : 500, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(syncRes));
   }
 
   // 4. Inyectar Cotización Web en MixNet
@@ -1897,13 +2510,39 @@ const server = http.createServer(async (req, res) => {
         { name: 'run_command', desc: 'Ejecuta comandos shell en cmd.exe de Windows 7' },
         { name: 'eval_code', desc: 'Ejecuta scripts Node.js para inspeccionar o transformar DBFs' },
         { name: 'backup_snapshot', desc: 'Crea snapshots atómicos preventivos de MixNet' },
-        { name: 'rollback_snapshot', desc: 'Restaura MixNet a cualquier segundo previo' },
         { name: 'query_dbf', desc: 'Lee registros y columnas de cualquier tabla DBF' },
         { name: 'update_dbf', desc: 'Modifica celdas o registros byte a byte con snapshot previo' },
         { name: 'scan_network', desc: 'Escanea todas las unidades de red en busca de MixNet' },
         { name: 'manage_users', desc: 'Lee y edita permisos de MXUSUAR.DBF' }
       ]
     }));
+    return;
+  }
+
+  // 7.4 Endpoint de IA para el Agente Autónomo (Gemini Directo desde el Servidor)
+  if (pathname === '/api/agent/chat' && req.method === 'POST') {
+    let bodyStr = '';
+    req.on('data', chunk => bodyStr += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyStr || '{}');
+        const prompt = payload.prompt || payload.instruction || '';
+        if (!prompt) throw new Error('Prompt requerido');
+
+        const sysInstruction = `Eres Antigravity / OpenCode Agent para JJ Paper C.A., operando en una PC local con Windows 7 conectada a MixNet ERP (Clipper).
+Tienes acceso a herramientas locales (cmd.exe, node eval, query_dbf, backup_snapshot, rollback, reindex_ntx).
+Ruta activa de MixNet: ${config.mixnet_dir}.
+Responde de forma concisa, técnica y accionable para asistir al operador o guiar la automatización de la tienda.`;
+
+        const reply = await callBridgeGemini(prompt, sysInstruction);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, reply }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
   }
 
   // Ruta no encontrada

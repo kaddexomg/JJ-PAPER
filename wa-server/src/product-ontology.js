@@ -99,6 +99,16 @@ export function analyzeProductOntology(productName = '', unit = '') {
     productType = 'grapadora';
   } else if (/BANDEJA/i.test(cleanName)) {
     productType = 'bandeja para documentos';
+  } else if (/PEGA.*BARRA|GOMA.*BARRA|GLUE\s*STICK|BARRA\s*DE\s*PEGA/i.test(cleanName)) {
+    productType = 'pega en barra';
+  } else if (/PEGA.*LIQUIDA|GOMA.*LIQUIDA|LIQUID\s*GLUE/i.test(cleanName)) {
+    productType = 'pega líquida escolar';
+  } else if (/SILICON.*LIQUIDO/i.test(cleanName)) {
+    productType = 'silicón líquido escolar';
+  } else if (/CARPETA.*FIBRA|CARPETA.*MANILA|ARCHIVADOR/i.test(cleanName)) {
+    productType = 'carpeta de archivo y documentos';
+  } else if (/CUADERNO|LIBRETA/i.test(cleanName)) {
+    productType = 'cuaderno escolar';
   }
 
   // 5. Construcción de directiva visual e intención

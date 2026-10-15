@@ -83,6 +83,7 @@
   // Modelos oficiales Google Gemini en producción (Octubre 2026)
   // Ordenados por disponibilidad y menor tasa de 503/alta demanda
   const PRO_MODELS = [
+    'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
     'gemini-3.7-flash',
     'gemini-flash-lite-latest',
@@ -92,6 +93,7 @@
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
+    'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
     'gemini-3.7-flash',
     'gemini-flash-lite-latest',
@@ -1333,20 +1335,21 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
     const rate = getEffectiveRate();
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Familias de alta rotación que cubren el portafolio real de JJ Paper
+    // Familias de alta rotación equilibradas para representar todo el catálogo
     const groups = [
-      { kw: ['rollo', 'termico', 'pos', 'caja fiscal'] },
-      { kw: ['resma', 'papel bond', 'bond 75', 'bond 80', 'carta', 'oficio'] },
-      { kw: ['carpeta', 'fibra', 'manila', 'archivador', 'palanca'] },
-      { kw: ['sobre', 'radiografia', 'sobre manila'] },
-      { kw: ['cuaderno', 'marcador pizarra', 'boligrafo', 'resaltador', 'lapiz'] },
-      { kw: ['cinta', 'embalaje', 'empaque', 'pistola'] },
-      { kw: ['marcador', 'permanente', 'detector', 'indeleble'] }
+      { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+      { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
+      { kw: ['boligrafo', 'lapiz', 'resaltador', 'marcador'] },
+      { kw: ['cinta', 'embalaje', 'tirro', 'pega', 'silicon'] },
+      { kw: ['carpeta', 'archivador', 'sobre'] },
+      { kw: ['grapadora', 'perforadora', 'tijera'] },
+      { kw: ['rollo', 'termico', 'pos', 'caja fiscal'] }
     ];
 
     const picked = [];
     const seen = new Set();
 
+    // Extraer máximo 2 por categoría para balancear completamente el portafolio
     for (const g of groups) {
       const scored = (list || []).map(p => {
         const full = norm(`${p.name || ''} ${p.sku || ''} ${p.description || ''}`);
@@ -1355,7 +1358,7 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
         return { p, s };
       }).filter(x => x.s >= 1)
         .sort((a, b) => b.s - a.s)
-        .slice(0, 3);
+        .slice(0, 2);
 
       for (const { p } of scored) {
         if (seen.has(p.id || p.name)) continue;
@@ -1843,9 +1846,19 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
         ? `📦 Propuesta Mayorista de Suministros para ${companyName} | JJ Paper`
         : `Propuesta de abastecimiento operativo y homologación para ${companyName}`;
 
-      let bullet1 = '• *Rollos térmicos y consumibles para puntos de venta y facturación* (cero quiebres de stock).';
-      let bullet2 = '• *Carpetas de archivo reglamentarias, archivadores y resmas de papel Bond* para resguardo documental.';
-      let bullet3 = '• *Cintas de embalaje industrial de alto micraje* para almacén y despacho.';
+      let bullet1 = '';
+      let bullet2 = '';
+      let bullet3 = '';
+
+      if (realProducts && realProducts.length >= 3) {
+        bullet1 = `• *${realProducts[0].name}*: Presentación ${realProducts[0].unit || 'unidad'} · *$${realProducts[0].price_usd.toFixed(2)} USD* (Bs. ${realProducts[0].price_bs.toFixed(2)} a tasa BCV).`;
+        bullet2 = `• *${realProducts[1].name}*: Presentación ${realProducts[1].unit || 'unidad'} · *$${realProducts[1].price_usd.toFixed(2)} USD* (Bs. ${realProducts[1].price_bs.toFixed(2)} a tasa BCV).`;
+        bullet3 = `• *${realProducts[2].name}*: Presentación ${realProducts[2].unit || 'unidad'} · *$${realProducts[2].price_usd.toFixed(2)} USD* (Bs. ${realProducts[2].price_bs.toFixed(2)} a tasa BCV).`;
+      } else {
+        bullet1 = '• *Resmas de papel Bond (Carta y Oficio 75g/80g)* para facturación y documentos continuos.';
+        bullet2 = '• *Consumibles de oficina, bolígrafos por caja y marcadores* de marcas líderes con disponibilidad inmediata.';
+        bullet3 = '• *Cintas de embalaje y suministros operativos* con despacho directo a su sede.';
+      }
 
       let formattedBullets = '';
       if (hasCustomOffer) {

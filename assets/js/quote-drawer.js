@@ -265,10 +265,11 @@ async function submitFormalQuoteList(event) {
 
   const btn = document.getElementById('fqSubmitBtn');
   btn.disabled = true;
-  btn.textContent = 'Procesando cotización...';
+  btn.textContent = 'Generando cotización y PDF...';
 
   const company = document.getElementById('fqCompany').value.trim();
   const contact = document.getElementById('fqContact').value.trim();
+  const rif = (document.getElementById('fqRif')?.value || '').trim() || 'V-00000000-0';
   const phone = document.getElementById('fqPhone').value.trim();
   const email = document.getElementById('fqEmail').value.trim();
   const city = document.getElementById('fqCity').value.trim();
@@ -278,12 +279,55 @@ async function submitFormalQuoteList(event) {
     if (typeof resolveRefSeller === 'function') {
       sellerId = await resolveRefSeller();
     }
+    // Fallback al vendedor asignado predeterminado o general
+    if (!sellerId) {
+      sellerId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164'; // Keyder / Admin JJ Paper
+    }
+
+    const rate = totals.rate || (typeof getRate === 'function' ? getRate() : 879.12);
+    const quoteNum = 'COT-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    const quoteItems = totals.items.map(it => ({
+      id: it.productId,
+      variant_id: it.variantId || null,
+      sku: it.sku || 'JJ-PROD',
+      name: it.name,
+      brand: it.brand || 'Estándar',
+      unit: it.unit || 'und',
+      qty: it.qty,
+      price_usd: Number(it.price.toFixed(2)),
+      price_bs: Number((it.price * rate).toFixed(2)),
+      subtotal_usd: Number((it.price * it.qty).toFixed(2)),
+      is_custom: false
+    }));
 
     const itemsSummary = totals.items.map((it, i) => 
       `${i+1}. ${it.name} (${it.brand}) x ${it.qty} ${it.unit} ($${(it.price * it.qty).toFixed(2)})`
     ).join('\n');
 
-    const payload = {
+    // 1. REGISTRAR EN jjp_quotes (Para que aparezca de inmediato en Cotizaciones de Admin y Vendedor)
+    const quotePayload = {
+      quote_number: quoteNum,
+      client_name: company || contact,
+      rif: rif,
+      phone: phone,
+      email: email || null,
+      city: city || 'Caracas',
+      items: quoteItems,
+      estimated_total_usd: Number(totals.totalUsd.toFixed(2)),
+      exchange_rate: Number(rate.toFixed(4)),
+      discount_pct: 0,
+      status: 'pendiente',
+      source: 'web_catalogo',
+      seller_id: sellerId,
+      notes: `Solicitud web desde catálogo de ${contact} (${phone})`
+    };
+
+    const quoteRes = await sb.from('jjp_quotes').insert(quotePayload).select().maybeSingle();
+    const createdQuote = quoteRes.data || quotePayload;
+
+    // 2. REGISTRAR EN jjp_prospects (CRM)
+    const prospectPayload = {
       company_name: company,
       contact_name: contact,
       phone_1: phone,
@@ -292,19 +336,48 @@ async function submitFormalQuoteList(event) {
       status: 'solicito_cotizacion',
       source: 'lista_cotizador_web',
       seller_id: sellerId,
-      notes: `LISTA DE COTIZACIÓN MAYORISTA:\n` +
+      notes: `COTIZACIÓN WEB ${quoteNum}:\n` +
              `Total Ítems: ${totals.items.length} líneas (${totals.count} unidades)\n` +
              `Monto Estimado: $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n\n` +
              `Ítems solicitados:\n${itemsSummary}`
     };
+    await sb.from('jjp_prospects').insert(prospectPayload);
 
-    const { error } = await sb.from('jjp_prospects').insert(payload);
-    if (error) throw error;
+    // 3. REGISTRAR NOTIFICACIÓN INTERNA EN jjp_notifications
+    try {
+      await sb.from('jjp_notifications').insert({
+        type: 'nueva_cotizacion_web',
+        title: `⚡ Nueva Cotización Web: ${quoteNum}`,
+        body: `${company || contact} ha solicitado cotización de ${totals.items.length} productos por $${totals.totalUsd.toFixed(2)} (${phone}).`,
+        link: '/admin/cotizaciones.html',
+        read: false
+      });
+    } catch (_) {}
+
+    // 4. GENERAR Y DESCARGAR PDF OFICIAL AL INSTANTE
+    if (typeof docPdfDocumento === 'function') {
+      try {
+        const pdfNorm = docNormalizeQuote(createdQuote);
+        const pdfOut = await docPdfDocumento(pdfNorm, 'presupuesto');
+        if (pdfOut && pdfOut.blob) {
+          const dlUrl = URL.createObjectURL(pdfOut.blob);
+          const dlLink = document.createElement('a');
+          dlLink.href = dlUrl;
+          dlLink.download = pdfOut.filename || `Cotizacion-${quoteNum}.pdf`;
+          document.body.appendChild(dlLink);
+          dlLink.click();
+          document.body.removeChild(dlLink);
+          setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
+        }
+      } catch (pdfErr) {
+        console.warn('Fallo generando PDF automático:', pdfErr);
+      }
+    }
 
     if (typeof showToast === 'function') {
-      showToast('¡Cotización recibida! Un asesor de JJ Paper te responderá de inmediato.');
+      showToast(`✔ ¡Cotización ${quoteNum} registrada y PDF descargado!`);
     } else {
-      alert('¡Cotización recibida! Te contactaremos con el presupuesto formal.');
+      alert(`✔ ¡Cotización ${quoteNum} registrada exitosamente!\nHemos descargado tu presupuesto formal en PDF.`);
     }
 
     closeFormalQuoteModal();
@@ -312,10 +385,10 @@ async function submitFormalQuoteList(event) {
 
   } catch (err) {
     console.error('Error al guardar cotización:', err);
-    alert('No se pudo guardar automáticamente. Puedes enviarla directamente haciendo clic en "Enviar Lista a WhatsApp".');
+    alert('No se pudo guardar automáticamente en el sistema. Puedes enviarla directamente haciendo clic en "Enviar Lista a WhatsApp".');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Enviar Cotización Formal';
+    btn.textContent = 'Enviar Solicitud Formal';
   }
 }
 
@@ -377,7 +450,10 @@ function injectQuoteDrawer() {
           <div style="font-size:12px;color:#555;background:#f0f5f2;padding:8px 12px;border-radius:6px">
             Se enviará el requerimiento de los productos seleccionados para emisión de presupuesto formal membretado con validez fiscal.
           </div>
-          <input type="text" class="fq-input" id="fqCompany" required placeholder="Empresa / Negocio / Colegio *">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input type="text" class="fq-input" id="fqCompany" required placeholder="Empresa / Negocio / Colegio *">
+            <input type="text" class="fq-input" id="fqRif" placeholder="RIF o Cédula (ej. J-12345678-9)">
+          </div>
           <input type="text" class="fq-input" id="fqContact" required placeholder="Persona de Contacto *">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <input type="tel" class="fq-input" id="fqPhone" required placeholder="WhatsApp / Teléfono *">
@@ -385,7 +461,7 @@ function injectQuoteDrawer() {
           </div>
           <input type="text" class="fq-input" id="fqCity" placeholder="Ciudad / Dirección de Despacho">
           <button type="submit" class="btn-qd-formal" id="fqSubmitBtn" style="padding:12px;font-size:14px;border-radius:8px">
-            Enviar Solicitud Formal
+            ⚡ Enviar Solicitud y Descargar Presupuesto PDF
           </button>
         </form>
       </div>

@@ -436,7 +436,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../assets/js/gemini-client.js"></script>
   <script>
     let pendingQuotes = [];
     let pendingOrders = [];
@@ -818,32 +817,39 @@
           return;
         }
 
-        // 3.6 Si no encaja en herramientas directas, consultar con Gemini AI Copilot
-        if (typeof GeminiClient !== 'undefined' && GeminiClient.askCopilot) {
-          agentLog(`🤖 Razonando instrucción con Google Gemini AI...`, '#a855f7');
-          const resp = await GeminiClient.askCopilot(instruction, {
-            mixnet_dir: document.getElementById('mixDirInput')?.value,
-            users_count: mixnetUsers.length
-          });
-          agentLog(`🤖 IA: ${resp}`, '#c084fc');
-          setAgentStatus('IA Respondió', '#a855f7', '#ede9fe');
-        } else {
-          // Fallback a ejecución de shell por defecto
-          agentLog(`⚡ Ejecutando requerimiento en cmd.exe...`, '#38bdf8');
-          const res = await fetch('/api/agent/run-command', {
+        // 3.6 Si no encaja en herramientas directas, consultar con Gemini AI nativo del Puente
+        agentLog(`🤖 Razonando instrucción con Google Gemini AI en el puente...`, '#a855f7');
+        try {
+          const aiRes = await fetch('/api/agent/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: instruction })
+            body: JSON.stringify({ instruction })
           });
-          const data = await res.json();
-          if (data.ok) {
-            agentLog(`✔ Salida:`, '#10b981');
-            (data.stdout || '(Completado)').split('\n').forEach(l => { if (l.trim()) agentLog(`  ${l}`, '#e2e8f0'); });
-            setAgentStatus('Ejecutado', '#10b981', '#dcfce7');
-          } else {
-            agentLog(`❌ ${data.stderr || data.error}`, '#ef4444');
-            setAgentStatus('Fallo', '#ef4444', '#fee2e2');
+          const aiData = await aiRes.json();
+          if (aiData.ok && aiData.reply) {
+            agentLog(`🤖 IA: ${aiData.reply}`, '#c084fc');
+            setAgentStatus('IA Respondió', '#a855f7', '#ede9fe');
+            return;
           }
+        } catch (aiErr) {
+          agentLog(`⚠ Fallo en respuesta de IA: ${aiErr.message}. Probando ejecución shell...`, '#f59e0b');
+        }
+
+        // Fallback a ejecución de shell por defecto si la IA no está disponible
+        agentLog(`⚡ Ejecutando requerimiento en cmd.exe...`, '#38bdf8');
+        const res = await fetch('/api/agent/run-command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: instruction })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          agentLog(`✔ Salida:`, '#10b981');
+          (data.stdout || '(Completado)').split('\n').forEach(l => { if (l.trim()) agentLog(`  ${l}`, '#e2e8f0'); });
+          setAgentStatus('Ejecutado', '#10b981', '#dcfce7');
+        } else {
+          agentLog(`❌ ${data.stderr || data.error}`, '#ef4444');
+          setAgentStatus('Fallo', '#ef4444', '#fee2e2');
         }
       } catch (err) {
         agentLog(`❌ Excepción en ejecución del agente: ${err.message}`, '#ef4444');

@@ -38,8 +38,10 @@ async function ensureGeminiKeys() {
 
 const GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.7-flash',
   'gemini-3.8-flash',
-  'gemini-3.6-flash'
+  'gemini-flash-latest'
 ];
 
 let _geminiKeyIdx = 0;
@@ -655,6 +657,12 @@ function getCategoryNegativeTerms(text, productType) {
   if (/recibo|factura|talonario|forma continua/i.test(combined)) {
     negatives.push('excel', 'spreadsheet', 'software', 'download', 'app store', 'plantilla digital');
   }
+  // Pega en barra vs Pega líquida (evita retornar pegamento líquido cuando se busca pega en barra)
+  if (/\b(barra|stick|pegastic|glue\s*stick)\b/i.test(combined)) {
+    negatives.push('liquido', 'líquido', 'frasco', 'gotero', 'pote de pega', 'silicon liquido', 'pegante liquido');
+  } else if (/\b(liquido|líquido)\b/i.test(combined)) {
+    negatives.push('barra', 'stick', 'pegastic');
+  }
   return negatives;
 }
 
@@ -713,6 +721,17 @@ function scoreResult(result, brand, metadata) {
   if (combinedType.includes('resma') || combinedType.includes('bond')) {
     if (title.includes('shiva') || title.includes('lingam') || title.includes('temple') || title.includes('wallpaper')) {
       return -999;
+    }
+  }
+
+  // Contradicción estricta de presentación (barra vs líquido)
+  const isTargetBarra = /\b(barra|stick|pegastic|glue\s*stick)\b/i.test(metadata?.presentation || '') || /\b(barra|stick)\b/i.test(metadata?.product_type || '');
+  if (isTargetBarra) {
+    if (/\b(liquido|líquido|frasco|gotero|liquid)\b/i.test(title) || /\b(liquido|líquido|frasco)\b/i.test(imgUrl)) {
+      return -500; // Descarte total de pegamento líquido cuando se busca pega en barra
+    }
+    if (/\b(barra|stick|pegastic)\b/i.test(title)) {
+      score += 60; // Gran bonificación por presentación en barra coincidente
     }
   }
 

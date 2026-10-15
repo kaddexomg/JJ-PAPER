@@ -242,10 +242,11 @@ function sendClientQuoteListWA() {
          `📊 *Tasa Referencia BCV:* Bs ${totals.rate.toFixed(2)}/USD\n\n` +
          `Por favor confirmar tiempo de entrega, existencia y datos para concretar pedido formal.`;
 
-  const waNum = (typeof APP !== 'undefined' && APP.WA_NUM) ? APP.WA_NUM : '584121234567';
+  const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
   const url = `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
 }
+
 
 // Modal de Cotización Formal
 function openFormalQuoteModal() {
@@ -383,8 +384,21 @@ async function submitFormalQuoteList(event) {
       alert(`✔ ¡Cotización ${quoteNum} registrada exitosamente!\nHemos descargado tu presupuesto formal en PDF.`);
     }
 
+    // Ofrecer apertura directa en WhatsApp para avisar al vendedor al instante
+    const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
+    const notifyMsg = `👋 ¡Hola JJ Paper! Acabo de registrar la Solicitud Formal de Cotización *${quoteNum}* en su catálogo web.\n\n` +
+                      `👤 *Cliente:* ${company || contact}\n` +
+                      `📞 *Contacto:* ${phone}\n` +
+                      `💰 *Total Presupuesto:* $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n\n` +
+                      `Ya descargué el PDF formal. Por favor confirmar disponibilidad para coordinar despacho. ¡Gracias!`;
+    const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(notifyMsg)}`;
+    setTimeout(() => {
+      window.open(waUrl, '_blank');
+    }, 600);
+
     closeFormalQuoteModal();
     closeQuoteDrawer();
+
 
   } catch (err) {
     console.error('Error al guardar cotización:', err);

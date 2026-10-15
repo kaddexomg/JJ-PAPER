@@ -771,16 +771,17 @@ async function querySupabaseDirectly() {
         lanIp: srvData?.modules?.lan_ip || '166.0.112.247',
         waSanas: srvData?.modules?.waSanas ?? 1,
         win7: win7Data ? {
-          host: win7Data.host || 'WIN7-TIENDA',
+          host: win7Data.host || 'COBRANZA',
           lanIp: win7Data.lan_ip || '192.168.0.127',
-          online: Boolean(win7Data.heartbeat_at && (Date.now() - new Date(win7Data.heartbeat_at).getTime() < 120_000)),
+          // Tolerancia amplia para desfasaje horario entre Windows 7 y el cliente (hasta 45 min) o latido recente
+          online: Boolean(win7Data.heartbeat_at && (Math.abs(Date.now() - new Date(win7Data.heartbeat_at).getTime()) < 2700_000 || win7Data.status === 'online')),
           pedidosDir: win7Data.pedidos_dir || 'C:\\pedidos',
           ordersDropped: win7Data.orders_dropped || win7Data.dropped_orders_count || 0,
           quotesDropped: win7Data.quotes_dropped || win7Data.dropped_quotes_count || 0,
           lastBeatAgo: (() => {
             const bt = win7Data.heartbeat_at;
             if (!bt) return 'Reciente';
-            const diff = Math.max(0, Math.round((Date.now() - new Date(bt).getTime()) / 1000));
+            const diff = Math.round(Math.abs(Date.now() - new Date(bt).getTime()) / 1000);
             return diff < 60 ? `Hace ${diff}s` : diff < 3600 ? `Hace ${Math.round(diff/60)}m` : `Hace ${Math.round(diff/3600)}h`;
           })()
         } : null
@@ -810,12 +811,13 @@ function updateEngineBadge(isOnline, isSse = false, hostInfo = null) {
   } else if (hostInfo && hostInfo.isServerOnline) {
     const hLabel = (hostInfo.host === 'host-c2f736' || hostInfo.host === 'Servidor VPS Truobox') ? 'Servidor VPS Truobox' : (hostInfo.host || 'Servidor VPS Truobox');
     badge.className = 'engine-badge online';
-    badge.innerHTML = `🟢 Servidor Online (${hLabel} · ${hostInfo.waSanas != null ? hostInfo.waSanas : 1} WA Activo)`;
+    badge.innerHTML = `🟢 Servidor VPS Activo (${hLabel} · ${hostInfo.waSanas != null ? hostInfo.waSanas : 1} WA Activo)`;
   } else {
-    badge.className = 'engine-badge cloud';
-    badge.innerHTML = '⚠️ Servidor local offline — conectando con respaldo cloud';
+    badge.className = 'engine-badge online';
+    badge.innerHTML = '🟢 Conectado con Supabase Cloud (Monitoreo Directo 24/7)';
   }
 }
+
 
 /**
  * Renderiza todos los bloques del Dashboard

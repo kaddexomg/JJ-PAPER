@@ -17,6 +17,16 @@ for item in *; do
   esac
 done
 
+# Copiar paquete del puente autónomo Windows 7 para descarga directa segura HTTPS
+if [ -d "puente-win7" ]; then
+  mkdir -p dist/puente-win7
+  cp -r puente-win7/* dist/puente-win7/
+fi
+if [ -f "puente-win7.zip" ]; then
+  cp puente-win7.zip dist/puente-win7.zip
+fi
+
 # Los dotfiles (.claude, .git, .gitignore, .env…) no los toca el bucle (glob * los ignora),
 # así que jamás llegan a dist. _headers, _redirects y 404.html sí (empiezan con _/letra).
 echo "dist listo:"; ls dist
+

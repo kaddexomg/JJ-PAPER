@@ -102,12 +102,11 @@ function normalizeProduct(p) {
     const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd != null ? v.price_usd : (v.price_a != null ? v.price_a : 0)))).filter(x => x > 0);
     p._minPrice = prices.length ? Math.min(...prices) : 0;
     p._maxPrice = prices.length ? Math.max(...prices) : 0;
-    p._stock    = vs.some(v => v.stock == null || v.stock < 0)
-      ? -1 : vs.reduce((s, v) => s + (Number(v.stock) || 0), 0);
+    p._stock    = -1; // Catálogo mayorista: todos los productos están cotizables y disponibles
   } else {
     const baseP = Number(p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : (p.price_a != null ? p.price_a : 0)));
     p._minPrice = p._maxPrice = baseP;
-    p._stock    = (p.stock == null) ? -1 : (Number(p.stock) || 0);
+    p._stock    = -1; // Catálogo mayorista: todos los productos están cotizables y disponibles
   }
   p._brands = [...new Map(
     vs.filter(v => v.jjp_brands?.name).map(v => [v.jjp_brands.name, v.jjp_brands])
@@ -155,7 +154,7 @@ function normalizeProduct(p) {
 }
 
 async function loadProducts() {
-  const cacheKey = 'jjp_products_cache_v7';
+  const cacheKey = 'jjp_products_cache_v8';
   const cacheTimeKey = 'jjp_products_cache_v7_time';
   const now = Date.now();
 
@@ -451,10 +450,11 @@ function renderProds() {
         <span style="font-size:14px;font-weight:800;color:#334155">📋 Lista Mayorista Completa (${withoutPhoto.length})</span>
         <span style="font-size:11px;color:#64748b;font-weight:600">Precios actualizados oficiales</span>
       </div>`;
-      html += withoutPhoto.map(p => productCardHTML(p, false)).join('');
+      html += withoutPhoto.map(p => productCardHTML(p, true)).join('');
     }
 
     grid.innerHTML = html;
+
   } else {
     grid.innerHTML = page.map(p => productCardHTML(p, catCurrentView === 'list')).join('');
   }
@@ -496,7 +496,7 @@ function shareProductToWA(productId, e) {
   }
 }
 
-function productCardHTML(p) {
+function productCardHTML(p, asList = false) {
   if (p._minPrice === undefined) normalizeProduct(p);
   const cat     = p.jjp_categories || {};
   const bg      = cat.color || '#f2f2f2';
@@ -540,7 +540,8 @@ function productCardHTML(p) {
          <a href="producto.html?id=${p.id}" class="add-btn" title="Ver ficha oficial completa" aria-label="Ficha de ${name}" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;background:#f0f7f3;color:#16604A;border:1px solid #cce3d6">🔗</a>
        </div>`;
 
-  return `<div class="pc rv vi${soldOut ? ' is-out' : ''}">
+  return `<div class="pc rv vi${soldOut ? ' is-out' : ''}${asList ? ' as-list-row' : ''}">
+
     <div class="pc-img${hasImg ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
          role="button" tabindex="0" aria-label="Ver detalle de ${name}"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProductModal('${p.id}')}">
@@ -722,7 +723,7 @@ async function initCatalog() {
   if (!grid) return;
 
   // 1. Carga instantánea de 0ms si hay caché en localStorage
-  const cacheKey = 'jjp_products_cache_v7';
+  const cacheKey = 'jjp_products_cache_v8';
   try {
     const cached = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey);
     if (cached) {

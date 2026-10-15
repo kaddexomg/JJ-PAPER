@@ -32,6 +32,7 @@ const BRAND_CORRECTIONS = {
   'MR BOBINA': 'MISTER BOBINA',
   'MRBOBINA': 'MISTER BOBINA',
   'MISTERBOBINA': 'MISTER BOBINA',
+  'MRB': 'MISTER BOBINA',
   'OFICMA': 'OFIMAK',
   'OFIMA': 'OFIMAK',
   'OFCIMA': 'OFIMAK',
@@ -40,8 +41,9 @@ const BRAND_CORRECTIONS = {
 };
 
 const BRAND_ALIASES = {
-  'MISTER BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
-  'MR BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'MISTER BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA', 'MRB'],
+  'MR BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA', 'MRB'],
+  'MRB': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA', 'MRB'],
   'OFIMAK': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
   'OFICMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
   'OFIMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
@@ -123,7 +125,15 @@ const ABBREVIATION_MAP = {
   'PERM.': 'PERMANENTE',
   'PERM': 'PERMANENTE',
   'BOR.': 'BORRABLE',
-  'BOR': 'BORRABLE'
+  'BOR': 'BORRABLE',
+  'MRB': 'MISTER BOBINA',
+  'SEP': 'SEPARADORES',
+  'SEP.': 'SEPARADORES',
+  'DIV': 'DIVISIONES',
+  'DIV.': 'DIVISIONES',
+  '8DIV': '8 DIVISIONES',
+  '12DIV': '12 DIVISIONES',
+  '5DIV': '5 DIVISIONES'
 };
 
 const BLOCKED_DOMAINS = [
@@ -188,8 +198,10 @@ function buildOptimalQueries(rawName) {
   let coreType = '';
   if (/cinta|tirro|teipe|embalaje/i.test(expanded)) {
     coreType = 'cinta adhesiva embalaje transparente';
+  } else if (/separador/i.test(expanded)) {
+    coreType = 'separadores para carpeta 8 divisiones';
   } else if (/carpeta.*fuelle|con fuelle/i.test(expanded)) {
-    coreType = 'carpeta con fuelle oficio';
+    coreType = 'carpeta de fibra con fuelle oficio';
   } else if (/carpeta.*fibra|marron|marrón/i.test(expanded)) {
     coreType = 'carpeta de fibra marron oficio';
   } else if (/carpeta/i.test(expanded)) {
@@ -230,17 +242,23 @@ function buildOptimalQueries(rawName) {
   const specMatch = expanded.match(/\b(\d+gr|\d+g|\d+ml|\d+oz|\d+\/\d+|\d+x\d+)\b/i);
   const spec = specMatch ? specMatch[1].toLowerCase() : '';
 
+  const ensureStationery = (q) => {
+    const s = q.trim();
+    if (/papeleria|oficina|escolar|libreria/i.test(s)) return s;
+    return `${s} papeleria`;
+  };
+
   if (brand && coreType) {
-    queries.push(`${brand} ${coreType} ${spec} ${color}`.replace(/\s+/g, ' ').trim());
-    queries.push(`${brand} ${expanded.toLowerCase()}`.replace(/\s+/g, ' ').trim());
-    queries.push(`${coreType} ${brand}`.replace(/\s+/g, ' ').trim());
+    queries.push(ensureStationery(`${brand} ${coreType} ${spec} ${color}`));
+    queries.push(ensureStationery(`${brand} ${expanded.toLowerCase()}`));
+    queries.push(ensureStationery(`${coreType} ${brand}`));
   } else if (brand) {
-    queries.push(`${brand} ${expanded.toLowerCase()}`.replace(/\s+/g, ' ').trim());
+    queries.push(ensureStationery(`${brand} ${expanded.toLowerCase()}`));
   } else if (coreType) {
-    queries.push(`${coreType} ${spec} ${color} papeleria`.replace(/\s+/g, ' ').trim());
-    queries.push(`${expanded.toLowerCase()} papeleria`.replace(/\s+/g, ' ').trim());
+    queries.push(ensureStationery(`${coreType} ${spec} ${color}`));
+    queries.push(ensureStationery(`${expanded.toLowerCase()}`));
   } else {
-    queries.push(`${expanded.toLowerCase()} papeleria`.replace(/\s+/g, ' ').trim());
+    queries.push(ensureStationery(`${expanded.toLowerCase()}`));
   }
 
   const stripped = expanded
@@ -248,7 +266,7 @@ function buildOptimalQueries(rawName) {
     .replace(/\s+/g, ' ')
     .trim();
   if (stripped && !queries.includes(stripped.toLowerCase())) {
-    queries.push(stripped.toLowerCase());
+    queries.push(ensureStationery(stripped.toLowerCase()));
   }
 
   return { queries: queries.slice(0, 4), brand, coreType };
@@ -263,10 +281,41 @@ function scoreResult(result, targetBrand, coreType) {
     if (url.includes(b) || title.includes(b)) return -999;
   }
 
-  // Filtrar repuestos mecánicos, válvulas, motores o elementos ajenos a papelería
-  const JUNK_TERMS = ['valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor', 'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo'];
+  // Filtrar de raíz zapatillas, calzado, ropa, montañas, playas, paisajes y repuestos mecánicos
+  const JUNK_TERMS = [
+    'zapatillas', 'zapatos', 'calzado', 'sneakers', 'running', 'botas', 'sandalias',
+    'camisa', 'pantalon', 'vestido', 'ropa', 'apparel', 'shoes', 'boots', 'footwear',
+    'sneaker', 'mizuno', 'nike', 'adidas', 'puma', 'asics', 'tenis', 'tacones',
+    'montaña', 'montañas', 'playa', 'playas', 'turismo', 'resort', 'hotel', 'caribbean sea',
+    'mar caribe', 'isla', 'viaje', 'vacaciones', 'landscape', 'mountain', 'beach',
+    'nature', 'paisaje', 'bosque', 'flora', 'fauna', 'aurora', 'selva', 'parque nacional',
+    'valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor',
+    'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo', 'automotriz'
+  ];
   for (const jt of JUNK_TERMS) {
     if (title.includes(jt) || url.includes(jt)) return -999;
+  }
+
+  // Bonificación por contexto de papelería y suministros de oficina
+  const STATIONERY_TERMS = [
+    'carpeta', 'carpetas', 'papeleria', 'separador', 'separadores', 'boligrafo', 'boligrafos',
+    'marcador', 'marcadores', 'resma', 'resmas', 'cuaderno', 'cuadernos', 'oficina',
+    'escolar', 'libreria', 'embalaje', 'cinta', 'cintas', 'pega', 'pegamento', 'grapadora',
+    'tijera', 'tijeras', 'sobre', 'sobres', 'hojas', 'talonario', 'fuelle', 'manila', 'fibra'
+  ];
+
+  let hasStationery = false;
+  for (const st of STATIONERY_TERMS) {
+    if (title.includes(st) || url.includes(st)) {
+      score += 40;
+      hasStationery = true;
+      break;
+    }
+  }
+
+  // Si no menciona ningún término de papelería ni coincide con coreType, penalizar
+  if (!hasStationery && coreType && !title.includes(coreType.split(' ')[0])) {
+    score -= 40;
   }
 
   if (coreType && coreType.includes('grapadora')) {
@@ -286,7 +335,12 @@ function scoreResult(result, targetBrand, coreType) {
     const aliases = (BRAND_ALIASES[brandUpper] || [brandUpper]).map(a => a.toLowerCase());
     const hasTargetBrand = aliases.some(a => title.includes(a) || url.includes(a));
     if (hasTargetBrand) {
-      score += 80;
+      // Solo bonificar fuertemente la marca si tiene contexto de papelería o producto
+      if (hasStationery || (coreType && title.includes(coreType.split(' ')[0]))) {
+        score += 70;
+      } else {
+        score += 10;
+      }
     } else {
       score -= 20;
       for (const otherBrand of KNOWN_BRANDS) {
@@ -403,18 +457,22 @@ export async function onRequest(context) {
 
   const { queries, brand, coreType } = buildOptimalQueries(rawQuery);
 
+  const safeRawQuery = /papeleria|oficina|escolar|libreria/i.test(rawQuery)
+    ? rawQuery
+    : `${rawQuery} papeleria oficina`;
+
   const searchPromises = [];
-  // Siempre consultar con la query cruda del usuario en ambos motores
-  searchPromises.push(searchDuckDuckGo(rawQuery));
-  searchPromises.push(searchBing(rawQuery));
+  // Consultar con la query segura con contexto de papelería para evitar homónimos (montañas, zapatillas)
+  searchPromises.push(searchDuckDuckGo(safeRawQuery));
+  searchPromises.push(searchBing(safeRawQuery));
 
   // Consultar también las queries optimizadas
   for (const q of queries) {
-    if (q.toLowerCase() !== rawQuery.toLowerCase()) {
+    if (q.toLowerCase() !== safeRawQuery.toLowerCase()) {
       searchPromises.push(searchBing(q));
     }
   }
-  if (queries[0] && queries[0].toLowerCase() !== rawQuery.toLowerCase()) {
+  if (queries[0] && queries[0].toLowerCase() !== safeRawQuery.toLowerCase()) {
     searchPromises.push(searchDuckDuckGo(queries[0]));
   }
 
@@ -430,11 +488,8 @@ export async function onRequest(context) {
     .map(r => ({ ...r, score: scoreResult(r, brand, coreType) }))
     .sort((a, b) => b.score - a.score);
 
-  // Filtrado positivo; si no hay fotos con score positivo, relajar filtro para no dejar la vista vacía
-  let filtered = scored.filter(r => r.score > 0);
-  if (!filtered.length) {
-    filtered = scored.filter(r => r.score > -200);
-  }
+  // Filtrado estrictamente positivo (solo productos reales con puntuación válida)
+  let filtered = scored.filter(r => r.score >= 20);
 
   const seen = new Set();
   const uniqueResults = filtered.filter(r => {

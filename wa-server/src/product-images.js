@@ -672,6 +672,37 @@ function scoreResult(result, brand, metadata) {
     if (title.includes(b) || imgUrl.includes(b)) return -999;
   }
 
+  // Filtrar de raíz zapatillas, calzado, ropa, montañas, playas, paisajes y repuestos mecánicos
+  const JUNK_TERMS = [
+    'zapatillas', 'zapatos', 'calzado', 'sneakers', 'running', 'botas', 'sandalias',
+    'camisa', 'pantalon', 'vestido', 'ropa', 'apparel', 'shoes', 'boots', 'footwear',
+    'sneaker', 'mizuno', 'nike', 'adidas', 'puma', 'asics', 'tenis', 'tacones',
+    'montaña', 'montañas', 'playa', 'playas', 'turismo', 'resort', 'hotel', 'caribbean sea',
+    'mar caribe', 'isla', 'viaje', 'vacaciones', 'landscape', 'mountain', 'beach',
+    'nature', 'paisaje', 'bosque', 'flora', 'fauna', 'aurora', 'selva', 'parque nacional',
+    'valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor',
+    'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo', 'automotriz'
+  ];
+  for (const jt of JUNK_TERMS) {
+    if (title.includes(jt) || imgUrl.includes(jt)) return -999;
+  }
+
+  // Bonificación por contexto de papelería
+  const STATIONERY_TERMS = [
+    'carpeta', 'carpetas', 'papeleria', 'separador', 'separadores', 'boligrafo', 'boligrafos',
+    'marcador', 'marcadores', 'resma', 'resmas', 'cuaderno', 'cuadernos', 'oficina',
+    'escolar', 'libreria', 'embalaje', 'cinta', 'cintas', 'pega', 'pegamento', 'grapadora',
+    'tijera', 'tijeras', 'sobre', 'sobres', 'hojas', 'talonario', 'fuelle', 'manila', 'fibra'
+  ];
+  let hasStationery = false;
+  for (const st of STATIONERY_TERMS) {
+    if (title.includes(st) || imgUrl.includes(st)) {
+      score += 40;
+      hasStationery = true;
+      break;
+    }
+  }
+
   // 2. Filtro de consumibles vs herramientas
   const combinedType = ((metadata?.product_type || '') + ' ' + title).toLowerCase();
   if (combinedType.includes('grapad') || combinedType.includes('stapler')) {
@@ -691,7 +722,11 @@ function scoreResult(result, brand, metadata) {
     const aliases = (BRAND_ALIASES[brandUpper] || [brandUpper]).map(a => a.toLowerCase());
     const hasTargetBrand = aliases.some(a => title.includes(a) || imgUrl.includes(a));
     if (hasTargetBrand) {
-      score += 80; // Gran bonificación por marca oficial buscada
+      if (hasStationery || (metadata?.product_type && title.includes(metadata.product_type.split(' ')[0]))) {
+        score += 70;
+      } else {
+        score += 10;
+      }
     } else {
       score -= 30; // Si no menciona la marca buscada, penalizar
     }

@@ -86,7 +86,10 @@ echo      %NODE_CMD%
 "%NODE_CMD%" -v
 echo.
 
-echo [2/3] Verificando archivos del puente y liberando puerto 3300...
+echo [2/3] Verificando actualizaciones y archivos del puente...
+rem Auto-actualizacion transparente desde la nube si hay conexion a internet
+"%NODE_CMD%" -e "const https = require('https'); const fs = require('fs'); const path = require('path'); const target = path.join('%~dp0', 'server.cjs'); https.get('https://jjpaper.pages.dev/puente-win7/server.cjs', res => { if (res.statusCode === 200) { let data = ''; res.on('data', c => data += c); res.on('end', () => { if (data.length > 50000 && data.includes('injectQuoteToMixnet')) { fs.writeFileSync(target, data, 'utf8'); console.log('  [OK] Puente actualizado exitosamente con la ultima version oficial.'); } }); } }).on('error', () => { console.log('  [INFO] Sin conexion para auto-update, iniciando con version local.'); });" 2>nul
+
 if not exist "%~dp0server.cjs" (
     color 0c
     echo [ERROR] No se encontro el archivo server.cjs en esta carpeta.

@@ -596,6 +596,26 @@ function resolveCodVen(sellerRef) {
   return '005'; // Mostrador por defecto si no se identifica
 }
 
+const CODVEN_TO_SELLER = {
+  '010': 'bddc57dc-5bf9-4a72-9e1c-751d07b03164', // Keyder Salazar
+  '020': 'bddc57dc-5bf9-4a72-9e1c-751d07b03164', // Cartera Administrativa
+  '004': '07540d9c-4ed9-46d2-95ce-0a0200be6083', // Yovanni Araujo
+  '006': '07540d9c-4ed9-46d2-95ce-0a0200be6083', // Yovanni Araujo
+  '008': '3c9b7ddd-4b98-45c6-a646-5c557a2bc043', // Marianela
+  '014': '68c29cd3-760a-4282-8214-4e7c60413ec5', // Andreina
+  '002': 'e6957754-de00-4088-8e54-affcaa172247', // Luis Alarcón
+  '001': '86b0ef8b-a41b-4385-a8f9-314a5052cb94', // Mary García
+  '025': '7eeb41f2-55e1-4e5e-b6c2-3da87582b51b', // Ana Barajas
+  '032': '9201071b-ab77-4de3-90a4-a79c93c4213c',
+  '026': '4d76dc4c-503a-48ca-9c98-f9ea3d2af755',
+  '003': '23723fcb-b26d-4e5a-b451-c4ea118a7ce3',
+  '033': '485e3fde-f95d-4857-9175-147051a54748'
+};
+function sellerIdForCodven(codven) {
+  const cv = String(codven || '').trim();
+  return CODVEN_TO_SELLER[cv] || null;
+}
+
 // ======================================================================
 // GEMINI AI INTEGRACIÓN NATIVA EN EL PUENTE (Windows 7 / Node 13+)
 // ======================================================================
@@ -841,11 +861,15 @@ async function performStockAndPriceSync(force = false) {
 // Inyecta cotización en DBF nativo de MixNet (MXENCCOT + MXRENCOT)
 async function injectQuoteToMixnet(quote, mixDir) {
   if (!quote || !quote.id) return null;
-  const cotCtrlPath = path.join(mixDir, 'MXNUMCOT.DBF');
-  const encCotPath = path.join(mixDir, 'MXENCCOT.DBF');
-  const renCotPath = path.join(mixDir, 'MXRENCOT.DBF');
-  const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
-  if (!fs.existsSync(cotCtrlPath) || !fs.existsSync(encCotPath) || !fs.existsSync(renCotPath)) return null;
+  const activeMixDir = mixDir || autoDetectMixnetDir();
+  const cotCtrlPath = findTableInCandidates('MXNUMCOT.DBF', activeMixDir);
+  const encCotPath = findTableInCandidates('MXENCCOT.DBF', activeMixDir);
+  const renCotPath = findTableInCandidates('MXRENCOT.DBF', activeMixDir);
+  const cliTablePath = findTableInCandidates('MXCTACLI.DBF', activeMixDir);
+  if (!cotCtrlPath || !encCotPath || !renCotPath) {
+    console.warn('[INJECT-QUOTE] Tablas de cotizaciones no encontradas en', activeMixDir);
+    return null;
+  }
 
   try {
     const curSerial = getNextSerial(cotCtrlPath, 'NUMCOT');
@@ -860,7 +884,25 @@ async function injectQuoteToMixnet(quote, mixDir) {
     let nomCli = (quote.client_name || '').trim();
     let cifCli = (quote.rif || '').trim();
 
-    if (!codCli && fs.existsSync(cliTablePath)) {
+    // 1. Intentar extraer código MixNet de las notas si viene precargado
+    if (!codCli && quote.notes && quote.notes.includes('Codigo MixNet:')) {
+      const m = quote.notes.match(/Codigo MixNet:\s*([0-9-]+)/i);
+      if (m) codCli = m[1].trim();
+    }
+
+    // 2. Si tiene customer_id, buscar en jjp_customers por si tiene notas con Código MixNet
+    if (!codCli && quote.customer_id) {
+      try {
+        const cRes = await sbReq(`/rest/v1/jjp_customers?id=eq.${quote.customer_id}&select=notes`, 'GET', null, 'core');
+        if (cRes.data && cRes.data[0] && cRes.data[0].notes) {
+          const m = cRes.data[0].notes.match(/Codigo MixNet:\s*([0-9-]+)/i);
+          if (m) codCli = m[1].trim();
+        }
+      } catch (_) {}
+    }
+
+    // 3. Buscar en tabla de clientes MXCTACLI por coincidencia de RIF
+    if (!codCli && cliTablePath && fs.existsSync(cliTablePath)) {
       try {
         const cliStruct = readDbfStruct(cliTablePath);
         if (cliStruct) {
@@ -939,12 +981,19 @@ async function injectQuoteToMixnet(quote, mixDir) {
     }
     incrementSerial(cotCtrlPath, 'NUMCOT', curSerial + 1);
 
+    // Actualizar correlativo oficial en Supabase Core (jjp_quotes y jjp_settings)
     await sbReq(`/rest/v1/jjp_quotes?id=eq.${quote.id}`, 'PATCH', {
+      quote_number: officialNum,
       notes: (quote.notes ? quote.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`,
       status: 'confirmado_mixnet'
     }, 'core');
 
-    console.log(`[SYNC-MIXNET] ✅ Cotización ${quote.quote_number || quote.id} inyectada a MixNet DBF: #${officialNum} (${quote.client_name})`);
+    await sbReq('/rest/v1/jjp_settings?key=eq.mixnet_next_quote_serial', 'PATCH', {
+      value: String(curSerial + 1),
+      updated_at: new Date().toISOString()
+    }, 'core');
+
+    console.log(`[SYNC-MIXNET] ✅ Cotización inyectada exitosamente a MixNet DBF: #${officialNum} (${nomCli})`);
     return officialNum;
   } catch (err) {
     console.error(`[SYNC-MIXNET] Error inyectando cotización ${quote.id}:`, err.message);
@@ -955,11 +1004,15 @@ async function injectQuoteToMixnet(quote, mixDir) {
 // Inyecta pedido en DBF nativo de MixNet (MXENCPED + MXRENPED)
 async function injectOrderToMixnet(order, mixDir) {
   if (!order || !order.id) return null;
-  const pedCtrlPath = path.join(mixDir, 'MXNUMPED.DBF');
-  const encPedPath = path.join(mixDir, 'MXENCPED.DBF');
-  const renPedPath = path.join(mixDir, 'MXRENPED.DBF');
-  const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
-  if (!fs.existsSync(pedCtrlPath) || !fs.existsSync(encPedPath) || !fs.existsSync(renPedPath)) return null;
+  const activeMixDir = mixDir || autoDetectMixnetDir();
+  const pedCtrlPath = findTableInCandidates('MXNUMPED.DBF', activeMixDir);
+  const encPedPath = findTableInCandidates('MXENCPED.DBF', activeMixDir);
+  const renPedPath = findTableInCandidates('MXRENPED.DBF', activeMixDir);
+  const cliTablePath = findTableInCandidates('MXCTACLI.DBF', activeMixDir);
+  if (!pedCtrlPath || !encPedPath || !renPedPath) {
+    console.warn('[INJECT-ORDER] Tablas de pedidos no encontradas en', activeMixDir);
+    return null;
+  }
 
   try {
     const curSerial = getNextSerial(pedCtrlPath, 'NUMPED');
@@ -973,7 +1026,22 @@ async function injectOrderToMixnet(order, mixDir) {
     let codCli = (order.mixnet_code && order.mixnet_code !== '00') ? order.mixnet_code.trim() : '';
     let cifCli = (order.rif || '').trim();
 
-    if (!codCli && fs.existsSync(cliTablePath)) {
+    if (!codCli && order.notes && order.notes.includes('Codigo MixNet:')) {
+      const m = order.notes.match(/Codigo MixNet:\s*([0-9-]+)/i);
+      if (m) codCli = m[1].trim();
+    }
+
+    if (!codCli && order.customer_id) {
+      try {
+        const cRes = await sbReq(`/rest/v1/jjp_customers?id=eq.${order.customer_id}&select=notes`, 'GET', null, 'core');
+        if (cRes.data && cRes.data[0] && cRes.data[0].notes) {
+          const m = cRes.data[0].notes.match(/Codigo MixNet:\s*([0-9-]+)/i);
+          if (m) codCli = m[1].trim();
+        }
+      } catch (_) {}
+    }
+
+    if (!codCli && cliTablePath && fs.existsSync(cliTablePath)) {
       try {
         const cliStruct = readDbfStruct(cliTablePath);
         if (cliStruct) {
@@ -1049,11 +1117,18 @@ async function injectOrderToMixnet(order, mixDir) {
     incrementSerial(pedCtrlPath, 'NUMPED', curSerial + 1);
 
     await sbReq(`/rest/v1/jjp_orders?id=eq.${order.id}`, 'PATCH', {
+      order_number: officialNum,
       invoice_number: officialNum,
-      notes: (order.notes ? order.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`
+      notes: (order.notes ? order.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`,
+      status: 'confirmado_mixnet'
     }, 'core');
 
-    console.log(`[SYNC-MIXNET] ✅ Pedido ${order.order_number || order.id} inyectado a MixNet DBF: #${officialNum} (${order.client_name})`);
+    await sbReq('/rest/v1/jjp_settings?key=eq.mixnet_next_order_serial', 'PATCH', {
+      value: String(curSerial + 1),
+      updated_at: new Date().toISOString()
+    }, 'core');
+
+    console.log(`[SYNC-MIXNET] ✅ Pedido inyectado exitosamente a MixNet DBF: #${officialNum} (${order.client_name})`);
     return officialNum;
   } catch (err) {
     console.error(`[SYNC-MIXNET] Error inyectando pedido ${order.id}:`, err.message);
@@ -1061,12 +1136,232 @@ async function injectOrderToMixnet(order, mixDir) {
   }
 }
 
-// 2. Sincronización y Descarga de Pedidos / Cotizaciones a archivos locales y MixNet
+// 2. Calibración en tiempo real de Correlativos MixNet ➔ jjp_settings en Supabase
+async function calibrateMixnetCorrelatives() {
+  try {
+    const mixDir = autoDetectMixnetDir();
+    const cotCtrlPath = findTableInCandidates('MXNUMCOT.DBF', mixDir);
+    const pedCtrlPath = findTableInCandidates('MXNUMPED.DBF', mixDir);
+
+    if (cotCtrlPath && fs.existsSync(cotCtrlPath)) {
+      const qSerial = getNextSerial(cotCtrlPath, 'NUMCOT');
+      if (qSerial && qSerial > 0) {
+        await sbReq('/rest/v1/jjp_settings?key=eq.mixnet_next_quote_serial', 'PATCH', {
+          value: String(qSerial),
+          updated_at: new Date().toISOString()
+        }, 'core');
+        daemonStats.lastMixnetQuoteSerial = qSerial;
+      }
+    }
+
+    if (pedCtrlPath && fs.existsSync(pedCtrlPath)) {
+      const pSerial = getNextSerial(pedCtrlPath, 'NUMPED');
+      if (pSerial && pSerial > 0) {
+        await sbReq('/rest/v1/jjp_settings?key=eq.mixnet_next_order_serial', 'PATCH', {
+          value: String(pSerial),
+          updated_at: new Date().toISOString()
+        }, 'core');
+        daemonStats.lastMixnetOrderSerial = pSerial;
+      }
+    }
+  } catch (err) {
+    console.warn('[CORRELATIVOS] Error calibrando correlativos MixNet:', err.message);
+  }
+}
+
+// 3. Importación Bidireccional Automática: Cotizaciones y Pedidos MixNet ➔ Supabase Core
+async function importMixnetDocumentsToSupabase() {
+  try {
+    const mixDir = autoDetectMixnetDir();
+    const encCotPath = findTableInCandidates('MXENCCOT.DBF', mixDir);
+    const renCotPath = findTableInCandidates('MXRENCOT.DBF', mixDir);
+    const encPedPath = findTableInCandidates('MXENCPED.DBF', mixDir);
+    const renPedPath = findTableInCandidates('MXRENPED.DBF', mixDir);
+    const cliPath = findTableInCandidates('MXCTACLI.DBF', mixDir);
+
+    let cliMap = new Map();
+    if (cliPath && fs.existsSync(cliPath)) {
+      const cliStruct = readDbfStruct(cliPath);
+      if (cliStruct) {
+        const cRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif', 'tlf1']);
+        for (const c of cRows) {
+          const code = (c.codcli || '').trim();
+          if (code) cliMap.set(code, c);
+        }
+      }
+    }
+
+    // A. Sincronizar Cotizaciones Físicas de MixNet a jjp_quotes
+    if (encCotPath && fs.existsSync(encCotPath)) {
+      const encStruct = readDbfStruct(encCotPath);
+      if (encStruct && encStruct.numRecords > 0) {
+        const encRows = readDbfRows(encStruct, null, 150);
+        let renMap = new Map();
+        if (renCotPath && fs.existsSync(renCotPath)) {
+          const renStruct = readDbfStruct(renCotPath);
+          if (renStruct) {
+            const renRows = readDbfRows(renStruct, null, 3000);
+            for (const r of renRows) {
+              const num = String(r.numcot || '').trim().padStart(8, '0').slice(-8);
+              if (!num) continue;
+              if (!renMap.has(num)) renMap.set(num, []);
+              renMap.get(num).push(r);
+            }
+          }
+        }
+
+        const existingRes = await sbReq('/rest/v1/jjp_quotes?select=id,quote_number,status&order=created_at.desc&limit=300', 'GET', null, 'core');
+        const existingQuoteNums = new Set((existingRes.data || []).map(q => String(q.quote_number || '').trim()));
+
+        for (const row of encRows.reverse()) {
+          const numcot = String(row.numcot || '').trim().padStart(8, '0').slice(-8);
+          if (!numcot || numcot === '00000000') continue;
+          if (existingQuoteNums.has(numcot)) continue;
+
+          const codCli = (row.cliente || '').trim();
+          const cliInfo = cliMap.get(codCli) || {};
+          const clientName = (row.nomcli || cliInfo.nomcli || 'Cliente MixNet').trim();
+          const rif = (row.cif || cliInfo.cif || '').trim() || null;
+          const phone = (cliInfo.tlf1 || '').trim() || null;
+          const codVen = (row.codven || '').trim();
+          const sellerId = sellerIdForCodven(codVen);
+
+          const emisionStr = String(row.emision || '').trim();
+          const createdAt = (/^\d{8}$/.test(emisionStr))
+            ? new Date(+emisionStr.slice(0, 4), +emisionStr.slice(4, 6) - 1, +emisionStr.slice(6, 8), 12, 0, 0).toISOString()
+            : new Date().toISOString();
+
+          const rawRenglones = renMap.get(numcot) || [];
+          const items = rawRenglones.map(r => {
+            const sku = (r.item || '').trim();
+            const name = (r.descrip || 'Artículo').trim();
+            const qty = parseFloat(r.cantidad) || 1;
+            const price = parseFloat(r.precio) || 0;
+            const total = parseFloat(r.tot_ren) || (qty * price);
+            const unit = (r.unidad || 'UND').trim();
+            return { sku, name, qty, price_usd: price, subtotal_usd: total, unit };
+          });
+
+          const totalUsd = parseFloat(row.tot_cot) || items.reduce((s, i) => s + (i.subtotal_usd || 0), 0);
+          const estatus = (row.estatus || '').trim();
+          const status = (estatus === 'FA') ? 'convertido' : 'confirmado_mixnet';
+
+          const quotePayload = {
+            quote_number: numcot,
+            client_name: clientName,
+            rif,
+            phone,
+            items,
+            estimated_total_usd: totalUsd,
+            exchange_rate: parseFloat(row.cambio) || 1,
+            notes: (row.comen1 && row.comen1.trim()) ? row.comen1.trim() : null,
+            source: 'mixnet',
+            status,
+            seller_id: sellerId,
+            created_at: createdAt
+          };
+
+          const insRes = await sbReq('/rest/v1/jjp_quotes', 'POST', quotePayload, 'core');
+          if (insRes.status === 201) {
+            existingQuoteNums.add(numcot);
+            console.log(`[IMPORT-MIXNET] 📥 Cotización importada de MixNet a JJ Paper: #${numcot} (${clientName} - $${totalUsd.toFixed(2)})`);
+          }
+        }
+      }
+    }
+
+    // B. Sincronizar Pedidos Físicos de MixNet a jjp_orders
+    if (encPedPath && fs.existsSync(encPedPath)) {
+      const encStruct = readDbfStruct(encPedPath);
+      if (encStruct && encStruct.numRecords > 0) {
+        const encRows = readDbfRows(encStruct, null, 100);
+        let renMap = new Map();
+        if (renPedPath && fs.existsSync(renPedPath)) {
+          const renStruct = readDbfStruct(renPedPath);
+          if (renStruct) {
+            const renRows = readDbfRows(renStruct, null, 2500);
+            for (const r of renRows) {
+              const num = String(r.numped || '').trim().padStart(8, '0').slice(-8);
+              if (!num) continue;
+              if (!renMap.has(num)) renMap.set(num, []);
+              renMap.get(num).push(r);
+            }
+          }
+        }
+
+        const existingRes = await sbReq('/rest/v1/jjp_orders?select=id,order_number,invoice_number&order=created_at.desc&limit=200', 'GET', null, 'core');
+        const existingOrderNums = new Set((existingRes.data || []).map(o => String(o.order_number || o.invoice_number || '').trim()));
+
+        for (const row of encRows.reverse()) {
+          const numped = String(row.numped || '').trim().padStart(8, '0').slice(-8);
+          if (!numped || numped === '00000000') continue;
+          if (existingOrderNums.has(numped)) continue;
+
+          const codCli = (row.cliente || '').trim();
+          const cliInfo = cliMap.get(codCli) || {};
+          const clientName = (cliInfo.nomcli || 'Cliente MixNet').trim();
+          const rif = (cliInfo.cif || '').trim() || null;
+          const phone = (cliInfo.tlf1 || '').trim() || null;
+          const codVen = (row.codven || '').trim();
+          const sellerId = sellerIdForCodven(codVen);
+
+          const emisionStr = String(row.emision || '').trim();
+          const createdAt = (/^\d{8}$/.test(emisionStr))
+            ? new Date(+emisionStr.slice(0, 4), +emisionStr.slice(4, 6) - 1, +emisionStr.slice(6, 8), 12, 0, 0).toISOString()
+            : new Date().toISOString();
+
+          const rawRenglones = renMap.get(numped) || [];
+          const items = rawRenglones.map(r => {
+            const sku = (r.item || '').trim();
+            const name = (r.descrip || 'Artículo').trim();
+            const qty = parseFloat(r.cantidad) || 1;
+            const price = parseFloat(r.precio) || 0;
+            const total = parseFloat(r.tot_ren) || (qty * price);
+            const unit = (r.unidad || 'UND').trim();
+            return { sku, name, qty, price_usd: price, subtotal_usd: total, unit };
+          });
+
+          const totalUsd = parseFloat(row.tot_ped) || items.reduce((s, i) => s + (i.subtotal_usd || 0), 0);
+          const rate = parseFloat(row.cambio) || 1;
+
+          const orderPayload = {
+            order_number: numped,
+            invoice_number: numped,
+            client_name: clientName,
+            rif,
+            phone,
+            items,
+            subtotal_usd: totalUsd,
+            total_usd: totalUsd,
+            exchange_rate: rate,
+            total_bs: (totalUsd * rate).toFixed(2),
+            payment_method: 'efectivo',
+            notes: (row.comen1 && row.comen1.trim()) ? row.comen1.trim() : null,
+            source: 'pos',
+            status: 'pagado',
+            seller_id: sellerId,
+            created_at: createdAt,
+            updated_at: createdAt
+          };
+
+          const insRes = await sbReq('/rest/v1/jjp_orders', 'POST', orderPayload, 'core');
+          if (insRes.status === 201) {
+            existingOrderNums.add(numped);
+            console.log(`[IMPORT-MIXNET] 📥 Pedido importado de MixNet a JJ Paper: #${numped} (${clientName} - $${totalUsd.toFixed(2)})`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[IMPORT-MIXNET] Error importando documentos desde MixNet:', err.message);
+  }
+}
+
+// 4. Sincronización y Descarga de Pedidos / Cotizaciones a archivos locales y MixNet DBF
 async function performOrdersAndQuotesSync() {
   try {
     const pedidosDir = config.pedidos_dir || 'C:/pedidos';
-    let compDir = config.mixnet_dir;
-    if (!fs.existsSync(compDir)) compDir = null;
+    const compDir = autoDetectMixnetDir();
 
     // A. Consultar últimos 20 pedidos
     const ordRes = await sbReq('/rest/v1/jjp_orders?order=created_at.desc&limit=20', 'GET', null, 'core');
@@ -1076,8 +1371,8 @@ async function performOrdersAndQuotesSync() {
         const dropped = dropOrderToFiles(order, pedidosDir, compDir);
         if (dropped) daemonStats.ordersDropped++;
 
-        // Si compDir existe y el pedido no ha sido inyectado aún a MixNet DBF
-        if (compDir && !String(order.notes || '').includes('MixNet Oficial:') && !String(order.invoice_number || '').trim() && order.status !== 'cancelado') {
+        // Auto-inyectar a MixNet DBF si fue confirmado y aún no tiene correlativo oficial
+        if (compDir && !String(order.notes || '').includes('MixNet Oficial:') && (order.status === 'confirmado_mixnet' || order.status === 'pagado')) {
           try {
             await injectOrderToMixnet(order, compDir);
           } catch (e) {
@@ -1095,8 +1390,8 @@ async function performOrdersAndQuotesSync() {
         const dropped = dropQuoteToFiles(quote, pedidosDir, compDir);
         if (dropped) daemonStats.quotesDropped++;
 
-        // Si compDir existe y la cotización no ha sido inyectada aún a MixNet DBF
-        if (compDir && !String(quote.notes || '').includes('MixNet Oficial:') && quote.status !== 'cancelado') {
+        // Auto-inyectar a MixNet DBF si fue confirmada y aún no tiene correlativo oficial
+        if (compDir && !String(quote.notes || '').includes('MixNet Oficial:') && (quote.status === 'confirmado_mixnet' || quote.status === 'pendiente')) {
           try {
             await injectQuoteToMixnet(quote, compDir);
           } catch (e) {
@@ -1266,13 +1561,19 @@ async function autonomousDaemonTick() {
     // A. Heartbeat cada 30s
     await sendBridgeHeartbeat();
 
-    // B. Polling de tareas agénticas pendientes
+    // B. Calibrar correlativos oficiales en tiempo real de MixNet a jjp_settings
+    await calibrateMixnetCorrelatives();
+
+    // C. Importar cotizaciones y pedidos físicos de MixNet ERP a Supabase Core
+    await importMixnetDocumentsToSupabase();
+
+    // D. Polling de tareas agénticas pendientes
     await performAgentTasksCheck();
 
-    // C. Descarga de pedidos y cotizaciones web a archivos locales
+    // E. Descarga y sincronización de pedidos y cotizaciones web a MixNet DBF
     await performOrdersAndQuotesSync();
 
-    // D. Sincronización de stock y precios cada N minutos (default 5 min)
+    // F. Sincronización de stock y precios cada N minutos (default 5 min o al inicio)
     const stockIntervalMs = (config.stock_sync_interval_min || 5) * 60 * 1000;
     if (Date.now() - lastStockSyncTime >= stockIntervalMs) {
       await performStockAndPriceSync(false);
@@ -1286,8 +1587,10 @@ async function autonomousDaemonTick() {
 
 // Iniciar Daemon Autónomo en segundo plano
 setInterval(autonomousDaemonTick, (config.auto_sync_interval_sec || 30) * 1000);
-// Disparar primer tick inmediatamente a los 3 segundos de encender
-setTimeout(autonomousDaemonTick, 3000);
+// Disparar primer tick inmediatamente a los 2 segundos de encender
+setTimeout(autonomousDaemonTick, 2000);
+// Disparar sincronización inicial de catálogo completo a los 5 segundos de encender
+setTimeout(() => { performStockAndPriceSync(true).catch(() => {}); }, 5000);
 
 // --- API HTTP DEL PUENTE ---
 const server = http.createServer(async (req, res) => {

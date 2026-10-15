@@ -346,13 +346,16 @@ async function submitFormalQuoteList(event) {
     // 3. REGISTRAR NOTIFICACIÓN INTERNA EN jjp_notifications
     try {
       await sb.from('jjp_notifications').insert({
+        user_id: sellerId || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164',
         type: 'nueva_cotizacion_web',
         title: `⚡ Nueva Cotización Web: ${quoteNum}`,
         body: `${company || contact} ha solicitado cotización de ${totals.items.length} productos por $${totals.totalUsd.toFixed(2)} (${phone}).`,
         link: '/admin/cotizaciones.html',
         read: false
       });
-    } catch (_) {}
+    } catch (notifErr) {
+      console.warn('Fallo registrando notificación interna:', notifErr);
+    }
 
     // 4. GENERAR Y DESCARGAR PDF OFICIAL AL INSTANTE
     if (typeof docPdfDocumento === 'function') {

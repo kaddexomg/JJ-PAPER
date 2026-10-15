@@ -430,7 +430,35 @@ function renderProds() {
     return;
   }
 
-  grid.innerHTML = page.map(p => productCardHTML(p)).join('');
+  // Vista Híbrida: si no hay orden forzado ni búsqueda específica y estamos en modo cuadrícula
+  // separamos visualmente los productos con foto (Galería Destacada) y los productos en lista/catálogo
+  const isHybrid = !currentSort && !currentSearch && catCurrentView === 'grid';
+  if (isHybrid) {
+    const withPhoto = page.filter(p => p._hasPhoto);
+    const withoutPhoto = page.filter(p => !p._hasPhoto);
+
+    let html = '';
+    if (withPhoto.length > 0) {
+      html += `<div class="cat-section-header" style="grid-column:1/-1;margin:10px 0 14px;padding:8px 14px;background:#eef6f1;border-left:4px solid var(--gd,#16604A);border-radius:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14px;font-weight:800;color:var(--gd,#16604A)">📸 Galería Oficial con Fotografía (${withPhoto.length})</span>
+        <span style="font-size:11px;color:#558b74;font-weight:600">Fotos verificadas de almacén</span>
+      </div>`;
+      html += withPhoto.map(p => productCardHTML(p, false)).join('');
+    }
+
+    if (withoutPhoto.length > 0) {
+      html += `<div class="cat-section-header" style="grid-column:1/-1;margin:28px 0 14px;padding:8px 14px;background:#f8fafc;border-left:4px solid #64748b;border-radius:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14px;font-weight:800;color:#334155">📋 Lista Mayorista Completa (${withoutPhoto.length})</span>
+        <span style="font-size:11px;color:#64748b;font-weight:600">Precios actualizados oficiales</span>
+      </div>`;
+      html += withoutPhoto.map(p => productCardHTML(p, false)).join('');
+    }
+
+    grid.innerHTML = html;
+  } else {
+    grid.innerHTML = page.map(p => productCardHTML(p, catCurrentView === 'list')).join('');
+  }
+
   renderPag(pages);
   observeReveal(grid);
 }
@@ -771,13 +799,14 @@ let catCurrentView = 'grid';
 
 window.setCatView = function(view) {
   catCurrentView = view;
-  const grid = document.getElementById('grid');
+  const grid = document.getElementById('prodGrid') || document.getElementById('grid');
   if (grid) {
     grid.classList.toggle('list-view', view === 'list');
   }
   document.querySelectorAll('.cvt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.view === view);
   });
+  renderProds();
 };
 
 window.sendProductToClient = async function(prodId, channel = 'whatsapp') {

@@ -378,12 +378,6 @@ async function submitFormalQuoteList(event) {
       }
     }
 
-    if (typeof showToast === 'function') {
-      showToast(`✔ ¡Cotización ${quoteNum} registrada y PDF descargado!`);
-    } else {
-      alert(`✔ ¡Cotización ${quoteNum} registrada exitosamente!\nHemos descargado tu presupuesto formal en PDF.`);
-    }
-
     // Ofrecer apertura directa en WhatsApp para avisar al vendedor al instante
     const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
     const notifyMsg = `👋 ¡Hola JJ Paper! Acabo de registrar la Solicitud Formal de Cotización *${quoteNum}* en su catálogo web.\n\n` +
@@ -392,20 +386,38 @@ async function submitFormalQuoteList(event) {
                       `💰 *Total Presupuesto:* $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n\n` +
                       `Ya descargué el PDF formal. Por favor confirmar disponibilidad para coordinar despacho. ¡Gracias!`;
     const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(notifyMsg)}`;
-    setTimeout(() => {
-      window.open(waUrl, '_blank');
-    }, 600);
 
-    closeFormalQuoteModal();
-    closeQuoteDrawer();
+    // Mostrar pantalla de confirmación interactiva dentro del modal para evitar bloqueos de popup
+    const formEl = document.querySelector('#formalQuoteModal .fq-body');
+    if (formEl) {
+      formEl.innerHTML = `
+        <div style="text-align:center; padding:16px 8px;">
+          <div style="font-size:38px; margin-bottom:6px;">✅</div>
+          <h3 style="margin:0 0 6px 0; color:#16604A; font-size:17px; font-weight:700;">¡Cotización ${quoteNum} Registrada!</h3>
+          <p style="margin:0 0 16px 0; font-size:12.5px; color:#475569; line-height:1.4;">
+            El presupuesto formal membretado se ha descargado en tu dispositivo y quedó registrado en nuestro sistema comercial.
+          </p>
+          <a href="${waUrl}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; box-sizing:border-box; padding:12px; background:#25D366; border:none; color:#fff; border-radius:8px; font-weight:700; text-decoration:none; font-size:14px; margin-bottom:10px; box-shadow:0 2px 6px rgba(37,211,102,0.3);">
+            <span>📲 Abrir WhatsApp y Avisar a mi Asesor</span>
+          </a>
+          <button type="button" style="width:100%; padding:9px; border:1px solid #cbd5e1; background:#f8fafc; color:#475569; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer;" onclick="closeFormalQuoteModal(); clearClientQuote();">
+            ✕ Cerrar y Seguir en el Catálogo
+          </button>
+        </div>
+      `;
+    }
 
+    if (typeof showToast === 'function') {
+      showToast(`✔ ¡Cotización ${quoteNum} registrada y PDF descargado!`);
+    }
 
   } catch (err) {
     console.error('Error al guardar cotización:', err);
     alert('No se pudo guardar automáticamente en el sistema. Puedes enviarla directamente haciendo clic en "Enviar Lista a WhatsApp".');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Enviar Solicitud Formal';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Enviar Solicitud Formal';
+    }
   }
 }
 

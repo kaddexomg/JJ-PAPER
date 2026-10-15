@@ -838,6 +838,229 @@ async function performStockAndPriceSync(force = false) {
   }
 }
 
+// Inyecta cotización en DBF nativo de MixNet (MXENCCOT + MXRENCOT)
+async function injectQuoteToMixnet(quote, mixDir) {
+  if (!quote || !quote.id) return null;
+  const cotCtrlPath = path.join(mixDir, 'MXNUMCOT.DBF');
+  const encCotPath = path.join(mixDir, 'MXENCCOT.DBF');
+  const renCotPath = path.join(mixDir, 'MXRENCOT.DBF');
+  const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
+  if (!fs.existsSync(cotCtrlPath) || !fs.existsSync(encCotPath) || !fs.existsSync(renCotPath)) return null;
+
+  try {
+    const curSerial = getNextSerial(cotCtrlPath, 'NUMCOT');
+    if (!curSerial) return null;
+    const officialNum = String(curSerial).padStart(8, '0');
+
+    const encStruct = readDbfStruct(encCotPath);
+    if (!encStruct) return null;
+
+    const codVen = resolveCodVen(quote.seller_id || quote.seller_name);
+    let codCli = (quote.mixnet_code && quote.mixnet_code !== '00') ? quote.mixnet_code.trim() : '';
+    let nomCli = (quote.client_name || '').trim();
+    let cifCli = (quote.rif || '').trim();
+
+    if (!codCli && fs.existsSync(cliTablePath)) {
+      try {
+        const cliStruct = readDbfStruct(cliTablePath);
+        if (cliStruct) {
+          const cliRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif']);
+          const normRif = cifCli.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+          const foundCli = cliRows.find(c => {
+            const cRif = (c.cif || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            return normRif && cRif && cRif === normRif;
+          });
+          if (foundCli) {
+            codCli = foundCli.codcli;
+            nomCli = foundCli.nomcli || nomCli;
+            cifCli = foundCli.cif || cifCli;
+          }
+        }
+      } catch (_) {}
+    }
+    if (!codCli) codCli = '00';
+
+    const now = new Date();
+    const dateStr = now.toISOString().substring(0, 10).replace(/-/g, '');
+
+    const encValues = {
+      numcot: officialNum,
+      emision: dateStr,
+      cliente: codCli,
+      codven: codVen,
+      comen1: ' '.repeat(35),
+      comen2: ' '.repeat(35),
+      estatus: 'PE',
+      entrega: dateStr,
+      tot_cot: quote.estimated_total_usd || quote.total_usd || 0,
+      cambio: quote.exchange_rate || 1,
+      moneda: 'US$',
+      nomcli: nomCli.substring(0, 60),
+      cif: cifCli.substring(0, 15)
+    };
+
+    const encRecord = buildDbfRecord(encStruct, encValues);
+    const renStruct = readDbfStruct(renCotPath);
+    if (!renStruct) return null;
+
+    const rawItems = quote.items || quote.lines || [];
+    const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
+    const renRecords = [];
+
+    for (const it of items) {
+      const sku = (it.sku || it.code || it.item || 'VAR-01').trim().substring(0, 15);
+      const name = (it.name || it.descrip || it.description || 'ITEM').trim().substring(0, 50);
+      const qty = parseFloat(it.qty || it.quantity || 1) || 1;
+      const price = parseFloat(it.price_usd || it.price || 0) || 0;
+      const tot = parseFloat(it.total_usd) || (qty * price);
+      const unit = (it.unit || it.unidad || 'UND').trim().substring(0, 3).toUpperCase();
+
+      const renValues = {
+        numcot: officialNum,
+        item: sku,
+        unidad: unit,
+        bulto: 0,
+        descrip: name,
+        cantidad: qty,
+        precio: price,
+        tot_ren: tot,
+        iva: 'A',
+        cliente: codCli,
+        codven: codVen,
+        emision: dateStr,
+        estatus: 'PE'
+      };
+      renRecords.push(buildDbfRecord(renStruct, renValues));
+    }
+
+    appendDbfRecords(encCotPath, [encRecord]);
+    if (renRecords.length > 0) {
+      appendDbfRecords(renCotPath, renRecords);
+    }
+    incrementSerial(cotCtrlPath, 'NUMCOT', curSerial + 1);
+
+    await sbReq(`/rest/v1/jjp_quotes?id=eq.${quote.id}`, 'PATCH', {
+      notes: (quote.notes ? quote.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`,
+      status: 'confirmado_mixnet'
+    }, 'core');
+
+    console.log(`[SYNC-MIXNET] ✅ Cotización ${quote.quote_number || quote.id} inyectada a MixNet DBF: #${officialNum} (${quote.client_name})`);
+    return officialNum;
+  } catch (err) {
+    console.error(`[SYNC-MIXNET] Error inyectando cotización ${quote.id}:`, err.message);
+    return null;
+  }
+}
+
+// Inyecta pedido en DBF nativo de MixNet (MXENCPED + MXRENPED)
+async function injectOrderToMixnet(order, mixDir) {
+  if (!order || !order.id) return null;
+  const pedCtrlPath = path.join(mixDir, 'MXNUMPED.DBF');
+  const encPedPath = path.join(mixDir, 'MXENCPED.DBF');
+  const renPedPath = path.join(mixDir, 'MXRENPED.DBF');
+  const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
+  if (!fs.existsSync(pedCtrlPath) || !fs.existsSync(encPedPath) || !fs.existsSync(renPedPath)) return null;
+
+  try {
+    const curSerial = getNextSerial(pedCtrlPath, 'NUMPED');
+    if (!curSerial) return null;
+    const officialNum = String(curSerial).padStart(8, '0');
+
+    const encStruct = readDbfStruct(encPedPath);
+    if (!encStruct) return null;
+
+    const codVen = resolveCodVen(order.seller_id || order.seller_name);
+    let codCli = (order.mixnet_code && order.mixnet_code !== '00') ? order.mixnet_code.trim() : '';
+    let cifCli = (order.rif || '').trim();
+
+    if (!codCli && fs.existsSync(cliTablePath)) {
+      try {
+        const cliStruct = readDbfStruct(cliTablePath);
+        if (cliStruct) {
+          const cliRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif']);
+          const normRif = cifCli.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+          const foundCli = cliRows.find(c => {
+            const cRif = (c.cif || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            return normRif && cRif && cRif === normRif;
+          });
+          if (foundCli) {
+            codCli = foundCli.codcli;
+          }
+        }
+      } catch (_) {}
+    }
+    if (!codCli) codCli = '00';
+
+    const now = new Date();
+    const dateStr = now.toISOString().substring(0, 10).replace(/-/g, '');
+
+    const encValues = {
+      numped: officialNum,
+      emision: dateStr,
+      cliente: codCli,
+      codven: codVen,
+      comen1: ' '.repeat(35),
+      comen2: ' '.repeat(35),
+      tot_ped: order.total_usd || 0,
+      estatus: 'PE',
+      entrega: dateStr,
+      cambio: order.exchange_rate || 1,
+      moneda: 'US$'
+    };
+
+    const encRecord = buildDbfRecord(encStruct, encValues);
+    const renStruct = readDbfStruct(renPedPath);
+    if (!renStruct) return null;
+
+    const rawItems = order.items || order.lines || [];
+    const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
+    const renRecords = [];
+
+    for (const it of items) {
+      const sku = (it.sku || it.code || it.item || 'VAR-01').trim().substring(0, 15);
+      const name = (it.name || it.descrip || it.description || 'ITEM').trim().substring(0, 50);
+      const qty = parseFloat(it.qty || it.quantity || 1) || 1;
+      const price = parseFloat(it.price_usd || it.price || 0) || 0;
+      const tot = parseFloat(it.total_usd) || (qty * price);
+      const unit = (it.unit || it.unidad || 'UND').trim().substring(0, 3).toUpperCase();
+
+      const renValues = {
+        numped: officialNum,
+        item: sku,
+        unidad: unit,
+        bulto: 0,
+        descrip: name,
+        cantidad: qty,
+        precio: price,
+        tot_ren: tot,
+        iva: 'A',
+        cliente: codCli,
+        codven: codVen,
+        emision: dateStr,
+        estatus: 'PE'
+      };
+      renRecords.push(buildDbfRecord(renStruct, renValues));
+    }
+
+    appendDbfRecords(encPedPath, [encRecord]);
+    if (renRecords.length > 0) {
+      appendDbfRecords(renPedPath, renRecords);
+    }
+    incrementSerial(pedCtrlPath, 'NUMPED', curSerial + 1);
+
+    await sbReq(`/rest/v1/jjp_orders?id=eq.${order.id}`, 'PATCH', {
+      invoice_number: officialNum,
+      notes: (order.notes ? order.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`
+    }, 'core');
+
+    console.log(`[SYNC-MIXNET] ✅ Pedido ${order.order_number || order.id} inyectado a MixNet DBF: #${officialNum} (${order.client_name})`);
+    return officialNum;
+  } catch (err) {
+    console.error(`[SYNC-MIXNET] Error inyectando pedido ${order.id}:`, err.message);
+    return null;
+  }
+}
+
 // 2. Sincronización y Descarga de Pedidos / Cotizaciones a archivos locales y MixNet
 async function performOrdersAndQuotesSync() {
   try {
@@ -852,6 +1075,15 @@ async function performOrdersAndQuotesSync() {
         if (!order || !order.id) continue;
         const dropped = dropOrderToFiles(order, pedidosDir, compDir);
         if (dropped) daemonStats.ordersDropped++;
+
+        // Si compDir existe y el pedido no ha sido inyectado aún a MixNet DBF
+        if (compDir && !String(order.notes || '').includes('MixNet Oficial:') && !String(order.invoice_number || '').trim() && order.status !== 'cancelado') {
+          try {
+            await injectOrderToMixnet(order, compDir);
+          } catch (e) {
+            console.warn('[ORDERS-SYNC] Error auto-inyectando pedido a MixNet DBF:', e.message);
+          }
+        }
       }
     }
 
@@ -862,6 +1094,15 @@ async function performOrdersAndQuotesSync() {
         if (!quote || !quote.id) continue;
         const dropped = dropQuoteToFiles(quote, pedidosDir, compDir);
         if (dropped) daemonStats.quotesDropped++;
+
+        // Si compDir existe y la cotización no ha sido inyectada aún a MixNet DBF
+        if (compDir && !String(quote.notes || '').includes('MixNet Oficial:') && quote.status !== 'cancelado') {
+          try {
+            await injectQuoteToMixnet(quote, compDir);
+          } catch (e) {
+            console.warn('[ORDERS-SYNC] Error auto-inyectando cotización a MixNet DBF:', e.message);
+          }
+        }
       }
     }
 
@@ -2049,121 +2290,13 @@ const server = http.createServer(async (req, res) => {
         if (!quote) throw new Error('Objeto quote requerido');
 
         const mixDir = config.mixnet_dir;
-        const cotCtrlPath = path.join(mixDir, 'MXNUMCOT.DBF');
-        const encCotPath = path.join(mixDir, 'MXENCCOT.DBF');
-        const renCotPath = path.join(mixDir, 'MXRENCOT.DBF');
-        const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
-
-        // 1. Obtener correlativo oficial
-        const curSerial = getNextSerial(cotCtrlPath, 'NUMCOT');
-        if (!curSerial) throw new Error('No se pudo leer correlativo en MXNUMCOT.DBF');
-        const officialNum = String(curSerial).padStart(8, '0');
-
-        // 2. Preparar cabecera
-        const encStruct = readDbfStruct(encCotPath);
-        if (!encStruct) throw new Error('No se pudo abrir ' + encCotPath);
-
-        const codVen = resolveCodVen(quote.seller_id || quote.seller_name);
-        
-        // Resolver cliente real en MixNet por RIF o código
-        let codCli = (quote.mixnet_code && quote.mixnet_code !== '00') ? quote.mixnet_code.trim() : '';
-        let nomCli = (quote.client_name || '').trim();
-        let cifCli = (quote.rif || '').trim();
-
-        if (!codCli && fs.existsSync(cliTablePath)) {
-          try {
-            const cliStruct = readDbfStruct(cliTablePath);
-            if (cliStruct) {
-              const cliRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif']);
-              const normRif = cifCli.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-              const foundCli = cliRows.find(c => {
-                const cRif = (c.cif || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                return normRif && cRif && cRif === normRif;
-              });
-              if (foundCli) {
-                codCli = foundCli.codcli;
-                nomCli = foundCli.nomcli || nomCli;
-                cifCli = foundCli.cif || cifCli;
-              }
-            }
-          } catch (_) {}
-        }
-        if (!codCli) codCli = '00';
-
-        const now = new Date();
-        const dateStr = now.toISOString().substring(0, 10).replace(/-/g, '');
-
-        const encValues = {
-          numcot: officialNum,
-          emision: dateStr,
-          cliente: codCli,
-          codven: codVen,
-          comen1: ' '.repeat(35),
-          comen2: ' '.repeat(35),
-          estatus: 'PE',
-          entrega: dateStr,
-          tot_cot: quote.estimated_total_usd || quote.total_usd || 0,
-          cambio: quote.exchange_rate || 1,
-          moneda: 'US$',
-          nomcli: nomCli.substring(0, 60),
-          cif: cifCli.substring(0, 15)
-        };
-
-        const encRecord = buildDbfRecord(encStruct, encValues);
-
-        // 3. Preparar renglones
-        const renStruct = readDbfStruct(renCotPath);
-        if (!renStruct) throw new Error('No se pudo abrir ' + renCotPath);
-
-        const rawItems = quote.items || quote.lines || [];
-        const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
-        const renRecords = [];
-
-        for (const it of items) {
-          const sku = (it.sku || it.code || it.item || 'VAR-01').trim().substring(0, 15);
-          const name = (it.name || it.descrip || it.description || 'ITEM').trim().substring(0, 50);
-          const qty = parseFloat(it.qty || it.quantity || 1) || 1;
-          const price = parseFloat(it.price_usd || it.price || 0) || 0;
-          const tot = parseFloat(it.total_usd) || (qty * price);
-          const unit = (it.unit || it.unidad || 'UND').trim().substring(0, 3).toUpperCase();
-
-          const renValues = {
-            numcot: officialNum,
-            item: sku,
-            unidad: unit,
-            bulto: 0,
-            descrip: name,
-            cantidad: qty,
-            precio: price,
-            tot_ren: tot,
-            iva: 'A',
-            cliente: codCli,
-            codven: codVen,
-            emision: dateStr,
-            estatus: 'PE'
-          };
-          renRecords.push(buildDbfRecord(renStruct, renValues));
-        }
-
-        // 4. Escribir cabecera y renglones
-        appendDbfRecords(encCotPath, [encRecord]);
-        if (renRecords.length > 0) {
-          appendDbfRecords(renCotPath, renRecords);
-        }
-
-        // 5. Incrementar serial oficial en MixNet
-        incrementSerial(cotCtrlPath, 'NUMCOT', curSerial + 1);
-
-        // 6. Actualizar Supabase con el número oficial de MixNet
-        await sbReq(`/rest/v1/jjp_quotes?id=eq.${quote.id}`, 'PATCH', {
-          notes: (quote.notes ? quote.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`
-        });
+        const officialNum = await injectQuoteToMixnet(quote, mixDir);
+        if (!officialNum) throw new Error('No se pudo inyectar cotización en MixNet DBF');
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({
           ok: true,
-          official_number: officialNum,
-          items_count: renRecords.length
+          official_number: officialNum
         }));
       } catch (err) {
         console.error('Error inyectando cotización:', err);
@@ -2185,117 +2318,13 @@ const server = http.createServer(async (req, res) => {
         if (!order) throw new Error('Objeto order requerido');
 
         const mixDir = config.mixnet_dir;
-        const pedCtrlPath = path.join(mixDir, 'MXNUMPED.DBF');
-        const encPedPath = path.join(mixDir, 'MXENCPED.DBF');
-        const renPedPath = path.join(mixDir, 'MXRENPED.DBF');
-        const cliTablePath = path.join(mixDir, 'MXCTACLI.DBF');
-
-        // 1. Obtener correlativo oficial de pedido
-        const curSerial = getNextSerial(pedCtrlPath, 'NUMPED');
-        if (!curSerial) throw new Error('No se pudo leer correlativo en MXNUMPED.DBF');
-        const officialNum = String(curSerial).padStart(8, '0');
-
-        // 2. Cabecera
-        const encStruct = readDbfStruct(encPedPath);
-        if (!encStruct) throw new Error('No se pudo abrir ' + encPedPath);
-
-        const codVen = resolveCodVen(order.seller_id || order.seller_name);
-        
-        // Resolver cliente real en MixNet por RIF o código
-        let codCli = (order.mixnet_code && order.mixnet_code !== '00') ? order.mixnet_code.trim() : '';
-        let cifCli = (order.rif || '').trim();
-
-        if (!codCli && fs.existsSync(cliTablePath)) {
-          try {
-            const cliStruct = readDbfStruct(cliTablePath);
-            if (cliStruct) {
-              const cliRows = readDbfRows(cliStruct, ['codcli', 'nomcli', 'cif']);
-              const normRif = cifCli.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-              const foundCli = cliRows.find(c => {
-                const cRif = (c.cif || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                return normRif && cRif && cRif === normRif;
-              });
-              if (foundCli) {
-                codCli = foundCli.codcli;
-              }
-            }
-          } catch (_) {}
-        }
-        if (!codCli) codCli = '00';
-
-        const now = new Date();
-        const dateStr = now.toISOString().substring(0, 10).replace(/-/g, '');
-
-        const encValues = {
-          numped: officialNum,
-          emision: dateStr,
-          cliente: codCli,
-          codven: codVen,
-          comen1: ' '.repeat(35),
-          comen2: ' '.repeat(35),
-          tot_ped: order.total_usd || 0,
-          estatus: 'PE', // Pendiente de facturar en tienda
-          entrega: dateStr,
-          cambio: order.exchange_rate || 1,
-          moneda: 'US$'
-        };
-
-        const encRecord = buildDbfRecord(encStruct, encValues);
-
-        // 3. Renglones
-        const renStruct = readDbfStruct(renPedPath);
-        if (!renStruct) throw new Error('No se pudo abrir ' + renPedPath);
-
-        const rawItems = order.items || order.lines || [];
-        const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? JSON.parse(rawItems || '[]') : []);
-        const renRecords = [];
-
-        for (const it of items) {
-          const sku = (it.sku || it.code || it.item || 'VAR-01').trim().substring(0, 15);
-          const name = (it.name || it.descrip || it.description || 'ITEM').trim().substring(0, 50);
-          const qty = parseFloat(it.qty || it.quantity || 1) || 1;
-          const price = parseFloat(it.price_usd || it.price || 0) || 0;
-          const tot = parseFloat(it.total_usd) || (qty * price);
-          const unit = (it.unit || it.unidad || 'UND').trim().substring(0, 3).toUpperCase();
-
-          const renValues = {
-            numped: officialNum,
-            item: sku,
-            unidad: unit,
-            bulto: 0,
-            descrip: name,
-            cantidad: qty,
-            precio: price,
-            tot_ren: tot,
-            iva: 'A',
-            cliente: codCli,
-            codven: codVen,
-            emision: dateStr,
-            estatus: 'PE'
-          };
-          renRecords.push(buildDbfRecord(renStruct, renValues));
-        }
-
-        // 4. Escribir
-        appendDbfRecords(encPedPath, [encRecord]);
-        if (renRecords.length > 0) {
-          appendDbfRecords(renPedPath, renRecords);
-        }
-
-        // 5. Incrementar correlativo
-        incrementSerial(pedCtrlPath, 'NUMPED', curSerial + 1);
-
-        // 6. Actualizar Supabase
-        await sbReq(`/rest/v1/jjp_orders?id=eq.${order.id}`, 'PATCH', {
-          invoice_number: officialNum,
-          notes: (order.notes ? order.notes + ' | ' : '') + `MixNet Oficial: ${officialNum}`
-        });
+        const officialNum = await injectOrderToMixnet(order, mixDir);
+        if (!officialNum) throw new Error('No se pudo inyectar pedido en MixNet DBF');
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({
           ok: true,
-          official_number: officialNum,
-          items_count: renRecords.length
+          official_number: officialNum
         }));
       } catch (err) {
         console.error('Error inyectando pedido:', err);

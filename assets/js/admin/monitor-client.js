@@ -560,12 +560,16 @@ async function querySupabaseDirectly() {
     }
   } catch (_) {}
 
-  // 0b. Consultar telemetría del Nodo Windows 7 en jjp_settings
+  // 0b. Consultar telemetría del Nodo Windows 7 (prioriza módulos del VPS y luego jjp_settings)
   let win7Data = null;
   try {
-    const { data: wRow } = await _rawSbCore.from('jjp_settings').select('value').eq('key', 'win7_agent_status').maybeSingle();
-    if (wRow && wRow.value) {
-      win7Data = typeof wRow.value === 'string' ? JSON.parse(wRow.value) : wRow.value;
+    if (srvData?.modules?.win7) {
+      win7Data = srvData.modules.win7;
+    } else {
+      const { data: wRow } = await _rawSbCore.from('jjp_settings').select('value').eq('key', 'win7_agent_status').maybeSingle();
+      if (wRow && wRow.value) {
+        win7Data = typeof wRow.value === 'string' ? JSON.parse(wRow.value) : wRow.value;
+      }
     }
   } catch (_) {}
 

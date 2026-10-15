@@ -9,11 +9,11 @@ let _srvRow = null;
 let _win7Row = null;
 let _srvTimer = null;
 
-// 🟢 si el último latido llegó hace < 180s (late cada 30s, tolerante a desfase horario)
+// 🟢 si el último latido llegó hace < 300s (tolerante a desfase horario)
 function srvOnline(row) {
   const ts = row?.heartbeat_at || row?.heartbeat;
   if (!ts) return false;
-  return Math.abs(Date.now() - new Date(ts).getTime()) < 180_000;
+  return Math.abs(Date.now() - new Date(ts).getTime()) < 300_000 && (row?.status === 'online' || row?.status === 'degraded');
 }
 
 function srvAgo(iso) {
@@ -33,9 +33,13 @@ async function srvLoad() {
   ]);
   _srvRow = srvData;
   _win7Row = null;
-  try {
-    if (win7Data?.value) _win7Row = JSON.parse(win7Data.value);
-  } catch (_) {}
+  if (_srvRow?.modules?.win7) {
+    _win7Row = _srvRow.modules.win7;
+  } else if (win7Data?.value) {
+    try {
+      _win7Row = typeof win7Data.value === 'string' ? JSON.parse(win7Data.value) : win7Data.value;
+    } catch (_) {}
+  }
   srvRenderChip();
   srvRenderModal();
 }
@@ -43,22 +47,22 @@ async function srvLoad() {
 function srvRenderChip() {
   const chip = document.getElementById('srvChip');
   if (!chip) return;
-  const onLaptop = srvOnline(_srvRow);
-  const onWin7 = _win7Row?.heartbeat_at && Math.abs(Date.now() - new Date(_win7Row.heartbeat_at).getTime()) < 180_000;
-  const on = onLaptop || onWin7;
+  const onVps = srvOnline(_srvRow);
+  const onWin7 = Boolean(_win7Row && (_win7Row.status === 'online' || (_win7Row.heartbeat_at && Math.abs(Date.now() - new Date(_win7Row.heartbeat_at).getTime()) < 300_000)));
+  const on = onVps || onWin7;
   chip.textContent = on ? '🖥️ Servidor 🟢' : '🖥️ Servidor 🔴';
   chip.className = 'wa-chip' + (on ? ' ok' : '');
   chip.title = on
-    ? `Servidor Activo (${[onLaptop ? 'Laptop Central' : null, onWin7 ? 'Win7 Tienda' : null].filter(Boolean).join(' + ')})`
+    ? `Servidor Activo (${[onVps ? 'VPS Truobox' : null, onWin7 ? 'Win7 Tienda' : null].filter(Boolean).join(' + ')})`
     : 'El servidor está apagado o sin conexión';
 }
 
 function srvRenderModal() {
   const box = document.getElementById('srvBody');
   if (!box) return;
-  const onLaptop = srvOnline(_srvRow);
-  const onWin7 = _win7Row?.heartbeat_at && Math.abs(Date.now() - new Date(_win7Row.heartbeat_at).getTime()) < 180_000;
-  const on = onLaptop || onWin7;
+  const onVps = srvOnline(_srvRow);
+  const onWin7 = Boolean(_win7Row && (_win7Row.status === 'online' || (_win7Row.heartbeat_at && Math.abs(Date.now() - new Date(_win7Row.heartbeat_at).getTime()) < 300_000)));
+  const on = onVps || onWin7;
   const mods = _srvRow?.modules || {};
   const modLabel = { whatsapp: 'WhatsApp', email: 'Correo', rates: 'Tasas', invoices: 'Facturas', campaigns: 'Difusión', countLan: 'Conteo LAN', outbox: 'Cola de envío', mixer: 'Puente MixNet' };
   const mixerInfo = typeof mods.mixer === 'object' && mods.mixer !== null ? mods.mixer : null;
@@ -69,41 +73,41 @@ function srvRenderModal() {
 
   const hbIso = _srvRow?.heartbeat_at || _srvRow?.heartbeat;
   box.innerHTML = `
-    <!-- Nodo 1: Laptop Central -->
-    <div class="srv-state ${onLaptop ? 'on' : 'off'}" style="margin-bottom:8px;">
+    <!-- Nodo 1: Servidor VPS Cloud -->
+    <div class="srv-state ${onVps ? 'on' : 'off'}" style="margin-bottom:8px;">
       <div class="srv-dot"></div>
       <div>
-        <div style="font-weight:700;font-size:12px;">💻 Nodo 1: Laptop Central (wa-server)</div>
-        <small>${onLaptop ? '🟢 Activo · Latido ' + srvAgo(hbIso) : '⚪ Sin latidos recientes'}
+        <div style="font-weight:700;font-size:12px;">☁️ Nodo 1: Servidor VPS Central (Truobox · wa-server 24/7)</div>
+        <small>${onVps ? '🟢 Activo · Latido ' + srvAgo(hbIso) : '⚪ Sin latidos recientes'}
         ${_srvRow?.host ? ' · ' + escapeHTML(_srvRow.host) : ''}
         ${mods?.lan_ip ? ' (' + escapeHTML(mods.lan_ip) + ')' : ''}</small>
-        ${onLaptop && mods?.lan_url ? `
+        ${onVps ? `
         <div style="margin-top:6px;font-size:12px;display:flex;gap:10px;">
-          <a href="${mods.lan_url}/admin/monitor.html" target="_blank" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor Local</a>
-          <a href="${mods.lan_url}/lan/start" target="_blank" style="color:#0284c7;font-weight:600;text-decoration:none;">📱 QR Conteo Offline</a>
+          <a href="/admin/monitor.html" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor Cuotas & VPS</a>
+          <a href="/admin/whatsapp.html" style="color:#0284c7;font-weight:600;text-decoration:none;">💬 CRM WhatsApp</a>
         </div>` : ''}
       </div>
     </div>
 
-    <!-- Nodo 2: Windows 7 Tienda -->
+    <!-- Nodo 2: Micro-Nodo Windows 7 Tienda -->
     <div class="srv-state ${onWin7 ? 'on' : 'off'}" style="margin-bottom:8px;border-left-color:#0284c7;">
       <div class="srv-dot" style="${onWin7 ? 'background:#0284c7;' : ''}"></div>
       <div>
-        <div style="font-weight:700;font-size:12px;">🤖 Nodo 2: Micro-Nodo Tienda (Windows 7 / MixNet)</div>
-        <small>${onWin7 ? '🟢 Conectado · Latido ' + srvAgo(_win7Row.heartbeat_at) : '⚪ Desconectado'}
+        <div style="font-weight:700;font-size:12px;">🤖 Nodo 2: Micro-Nodo Tienda (Windows 7 / MixNet ERP)</div>
+        <small>${onWin7 ? '🟢 Conectado · Latido ' + srvAgo(_win7Row?.heartbeat_at) : '⚪ Desconectado'}
         ${_win7Row?.host ? ' · ' + escapeHTML(_win7Row.host) : ''}
         ${_win7Row?.lan_ip ? ' (' + escapeHTML(_win7Row.lan_ip) + ')' : ''}</small>
         ${_win7Row ? `
         <div style="font-size:11px;color:#64748b;margin-top:4px;">
-          📁 C:\\pedidos: <b>${_win7Row.orders_count || 0}</b> pedidos · <b>${_win7Row.quotes_count || 0}</b> cotizaciones · MixNet: <b>${_win7Row.active_mixnet_dir || 'Detectado'}</b>
+          📁 C:\\pedidos: <b>${_win7Row.orders_dropped ?? _win7Row.orders_count ?? 0}</b> pedidos · <b>${_win7Row.quotes_dropped ?? _win7Row.quotes_count ?? 0}</b> cotizaciones · MixNet: <b>${_win7Row.active_mixnet_dir || 'M:/comp01'}</b>
         </div>` : ''}
       </div>
     </div>
 
-    ${onLaptop ? `<div class="srv-mods">${modChips}</div>` : ''}
-    ${onLaptop && mixerInfo ? `
+    ${onVps ? `<div class="srv-mods">${modChips}</div>` : ''}
+    ${onVps && mixerInfo ? `
     <div style="margin: 8px 0; padding: 6px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 11px; color: #166534; line-height: 1.4;">
-      <strong>📁 Puente MixNet Activo:</strong> <code>${escapeHTML(mixerInfo.primary_dir || 'C:/JJ-PAPER-MIXER')}</code><br>
+      <strong>📁 Puente MixNet Activo:</strong> <code>${escapeHTML(mixerInfo.primary_dir || 'M:/comp01')}</code><br>
       <span>📤 Pedidos exportados: <b>${mixerInfo.exported_orders_count || 0}</b> · Cotizaciones: <b>${mixerInfo.exported_quotes_count || 0}</b> · 📥 Importados: <b>${mixerInfo.imported_count || 0}</b></span>
       ${mixerInfo.dbf_dir ? `<br><span>💾 Base de datos DBF conectada: <code>${escapeHTML(mixerInfo.dbf_dir)}</code></span>` : ''}
       <div style="margin-top:6px;display:flex;gap:8px;">
@@ -111,13 +115,13 @@ function srvRenderModal() {
       </div>
     </div>` : ''}
     ${CURRENT_PROFILE?.role === 'admin' ? `<div class="srv-actions">
-      <button class="btn-p" onclick="srvCommand('restart')" ${onLaptop ? '' : 'disabled'}>🔄 Reiniciar Laptop</button>
-      <button class="btn-o srv-stop" onclick="srvCommand('stop')" ${onLaptop ? '' : 'disabled'}>⏹️ Detener Laptop</button>
+      <button class="btn-p" onclick="srvCommand('restart')" ${onVps ? '' : 'disabled'}>🔄 Reiniciar VPS</button>
+      <button class="btn-o srv-stop" onclick="srvCommand('stop')" ${onVps ? '' : 'disabled'}>⏹️ Detener VPS</button>
     </div>` : ''}
     <div class="srv-help">
       ${on
-        ? 'Arquitectura Dual JJ Paper: El sistema opera con la Laptop Central (servicios WhatsApp/Correo) y el Micro-Nodo Windows 7 en la tienda física (MixNet ERP + C:\\pedidos).'
-        : '⚠️ Ambos nodos están desconectados. Para iniciar en la tienda: ejecuta <code>INICIAR-PANEL-TIENDA.bat</code> en la PC Windows 7 o <code>wa-server/START-SERVIDOR.bat</code> en la laptop.'}
+        ? 'Arquitectura Híbrida JJ Paper: El sistema opera con el Servidor VPS en la nube (WhatsApp/Correo/Sincronización 24/7) y el Micro-Nodo Windows 7 en la tienda física (MixNet ERP + C:\\pedidos).'
+        : '⚠️ Ambos nodos están desconectados. Para iniciar el puente en la tienda: ejecuta <code>INICIAR-PANEL-TIENDA.bat</code> en la PC Windows 7 o reinicia el servicio en el VPS.'}
     </div>`;
 }
 

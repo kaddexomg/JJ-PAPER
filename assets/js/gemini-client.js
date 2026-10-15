@@ -83,21 +83,19 @@
   // Modelos oficiales Google Gemini en producción (Octubre 2026)
   // Ordenados por disponibilidad y menor tasa de 503/alta demanda
   const PRO_MODELS = [
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite-preview',
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
-    'gemini-3.7-flash',
-    'gemini-flash-lite-latest',
-    'gemini-3.8-flash',
     'gemini-flash-latest'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite-preview',
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
-    'gemini-3.7-flash',
-    'gemini-flash-lite-latest',
-    'gemini-3.8-flash',
     'gemini-flash-latest'
   ];
 
@@ -1142,7 +1140,7 @@ ${rawText.slice(0, 50000)}
     let prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
     if (prodsList.length === 0) {
       try {
-        const fetched = await fetchRealPortfolioProducts(4);
+        const fetched = await fetchRealPortfolioProducts(4, targetSector, (customInstructions || customNotes || objective || ''));
         if (fetched && fetched.length > 0) {
           prodsList = fetched;
         }
@@ -1280,15 +1278,45 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
         return `• *${pName}*${unit}: *$${priceUsd.toFixed(2)} USD* | Bs. ${priceBs}`;
       }).join('\n');
 
+      const itemsBlock = itemsLines || (objective ? `• *${objective}*` : '• Disponibilidad inmediata de catálogo completo');
+
+      // Plantillas de respaldo diversificadas según el tono comercial seleccionado
       if (isEmail) {
-        return {
-          subject: prodsList.length === 1 ? `Propuesta Mayorista: ${prodsList[0].name} — JJ Paper C.A.` : `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`,
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
-        };
+        if (tone === 'oportunidad_mayorista') {
+          return {
+            subject: `🔥 Lote de Oportunidad Mayorista — JJ Paper C.A.`,
+            body: `{Estimado(a)|Hola} {{nombre}},\n\nLe saluda {{vendedor}} de *JJ Paper C.A.*, importador y distribuidor mayorista directo en Caracas.\n\nHoy habilitamos un lote de oportunidad con precios preferenciales de importador para entrega inmediata esta semana:\n\n*📦 SUMINISTROS DESTACADOS CON PRECIO MAYORISTA:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\n💡 *¿Requiere otros insumos o marcas?* Pídanoslos con total confianza, se los ubicamos y cotizamos de inmediato.\n\n*VENTAJAS DE TRABAJAR DIRECTO CON JJ PAPER:*\n• 🏭 Precios directos de distribuidor en Caracas (sin intermediarios)\n• 🧾 Facturación formal fiscal a Tasa Oficial BCV (${rate.toFixed(2)} Bs)\n• 🚚 Despacho prioritario 24h a su sede\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Le reservamos unidades para su próximo despacho?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          };
+        } else if (tone === 'cercano_consultivo') {
+          return {
+            subject: `🤝 Suministros y reposición de inventario para su empresa — JJ Paper`,
+            body: `{Hola|Qué tal} {{nombre}}, espero que todo marche excelente.\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Nos comunicamos para ponernos a su disposición como aliados de procura mayorista en Caracas.\n\nQueremos compartirle algunas de las referencias más solicitadas con disponibilidad inmediata:\n\n*📦 REFERENCIAS DISPONIBLES:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\n💡 *¿Tiene en mente algún producto específico?* Con mucho gusto se lo cotizamos a medida para su consumo quincenal o mensual.\n\n• 🏭 Precios de distribuidor directo\n• 🧾 Facturación legal a Tasa BCV oficial (${rate.toFixed(2)} Bs)\n• 🚚 Entrega en 24h a su sede\n\n👉 Catálogo completo: {{link}}\n\n¿Le preparamos una cotización formal?\n\nUn cordial saludo,\n{{vendedor}}\nJJ Paper C.A.`
+          };
+        } else if (tone === 'institucional_formal') {
+          return {
+            subject: `Presentación Corporativa y Propuesta de Procura Institucional — JJ Paper C.A.`,
+            body: `Estimado(a) {{nombre}},\n\nPor medio de la presente, la Gerencia Comercial de *JJ Paper C.A.* (RIF J-295375450) tiene el agrado de presentarle nuestra estructura de abastecimiento mayorista directo en Caracas.\n\nPonenemos a su disposición disponibilidad inmediata en insumos operativos de alta rotación:\n\n*PROPUESTA DE SUMINISTROS INSTITUCIONALES:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\nGARANTÍAS OPERATIVAS:\n• Facturación fiscal legal en Bolívares calculados a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• Despacho corporativo prioritario en 24 horas a sus sedes.\n• Procura especializada bajo requerimiento.\n\nCatálogo oficial en línea: {{link}}\n\nQuedamos a su entera disposición para consignar cotización formal o agendar una reunión.\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          };
+        } else {
+          return {
+            subject: prodsList.length === 1 ? `Propuesta Mayorista: ${prodsList[0].name} — JJ Paper C.A.` : `💼 Alianza de Suministros Mayoristas — JJ Paper C.A.`,
+            body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
+          };
+        }
       } else {
-        return {
-          body: `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV (${rate.toFixed(2)} Bs)\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos lista oficial con +900 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
-        };
+        if (tone === 'oportunidad_mayorista') {
+          return {
+            body: `*🔥 OPORTUNIDAD MAYORISTA DIRECTA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal} {{nombre}}, un saludo cordial 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, distribuidor directo en Caracas.\n\nHoy habilitamos inventario disponible para entrega inmediata con precios de oportunidad:\n\n*📦 PRODUCTOS DESTACADOS:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\n💡 *¿Busca algún otro artículo o marca?* Pídanoslo y se lo cotizamos de inmediato.\n\n• 🏭 Precios directos de distribuidor en Caracas\n• 🧾 Factura legal a Tasa Oficial BCV (${rate.toFixed(2)} Bs)\n• 🚚 Despacho prioritario 24h a su sede\n\n👉 Catálogo completo: {{link}}\n\n💬 ¿Le apartamos unidades para su despacho de esta semana?\n\nAtentamente,\n*{{vendedor}}* | JJ Paper C.A.`
+          };
+        } else if (tone === 'cercano_consultivo') {
+          return {
+            body: `*🤝 REPOSICIÓN Y ASESORÍA MAYORISTA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* Queremos acompañarle en la reposición de suministros para su negocio con atención directa:\n\n*📦 OPCIONES DISPONIBLES EN STOCK:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\n💡 *¿Necesita algún insumo en específico?* ¡Con total confianza indíquenos y se lo ubicamos!\n\n• 🏭 Precios mayoristas directos\n• 🧾 Facturación formal a Tasa BCV (${rate.toFixed(2)} Bs)\n• 🚚 Entrega rápida en 24h\n\n👉 Catálogo digital: {{link}}\n\n💬 ¿Desea que le preparemos una cotización formal a medida?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper`
+          };
+        } else {
+          return {
+            body: `*💼 ABASTECIMIENTO MAYORISTA DIRECTO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nPonemos a su disposición disponibilidad inmediata para su empresa:\n\n*📦 LISTADO DE PRODUCTOS EN OFERTA:*\n──────────────────────────\n${itemsBlock}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo se lo ubica y cotiza de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV (${rate.toFixed(2)} Bs)\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su sede o local\n• 📄 *Catálogo Oficial:* Más de 900 artículos disponibles\n\n👉 Ver catálogo digital y pedidos en línea: {{link}}\n\n💬 ¿Le reservamos inventario o formalizamos cotización para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
+          };
+        }
       }
     }
   }
@@ -1303,12 +1331,8 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
   let _realPortfolioCache = null;
   let _realPortfolioCacheAt = 0;
 
-  // Trae productos REALES del catálogo (con precio B real o price_usd) para que la
-  // IA escriba con datos verdaderos en vez de inventar productos y montos.
-  async function fetchRealPortfolioProducts(maxOverall = 14) {
-    if (_realPortfolioCache && (Date.now() - _realPortfolioCacheAt < 10 * 60 * 1000)) {
-      return _realPortfolioCache;
-    }
+  // Trae productos REALES del catálogo con selección dinámica según sector y objetivo
+  async function fetchRealPortfolioProducts(maxOverall = 14, targetSector = 'auto', objective = '') {
     const w = typeof window !== 'undefined' ? window : {};
     let list = (Array.isArray(w.allProducts) && w.allProducts.length) ? w.allProducts : null;
     if (!list) {
@@ -1335,32 +1359,91 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
     const rate = getEffectiveRate();
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Familias de alta rotación equilibradas para representar todo el catálogo
-    const groups = [
-      { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
-      { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
-      { kw: ['boligrafo', 'lapiz', 'resaltador', 'marcador'] },
-      { kw: ['cinta', 'embalaje', 'tirro', 'pega', 'silicon'] },
-      { kw: ['carpeta', 'archivador', 'sobre'] },
-      { kw: ['grapadora', 'perforadora', 'tijera'] },
-      { kw: ['rollo', 'termico', 'pos', 'caja fiscal'] }
-    ];
+    // Agrupaciones temáticas según sector
+    const sec = String(targetSector || '').toLowerCase();
+    let groups = [];
+
+    if (sec.includes('colegio') || sec.includes('educacion') || sec.includes('escuela')) {
+      groups = [
+        { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
+        { kw: ['marcador', 'pizarra', 'acrilico', 'recargable'] },
+        { kw: ['lapiz', 'borrador', 'sacapuntas', 'creyon', 'color'] },
+        { kw: ['resaltador', 'marcador al agua', 'punta fina'] },
+        { kw: ['tempera', 'tijera', 'pega', 'silicon'] },
+        { kw: ['hoja examen', 'papel bond', 'cartulina', 'resma'] }
+      ];
+    } else if (sec.includes('clinica') || sec.includes('salud') || sec.includes('hospital')) {
+      groups = [
+        { kw: ['carpeta', 'fibra', 'manila', 'oficio'] },
+        { kw: ['sobre', 'manila', 'blanco', 'media carta', 'oficio'] },
+        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+        { kw: ['boligrafo', 'gel', 'tinta aceite', 'lapicero'] },
+        { kw: ['grapadora', 'clip', 'perforadora'] },
+        { kw: ['rollo', 'termico', 'ticketera'] }
+      ];
+    } else if (sec.includes('supermercado') || sec.includes('retail') || sec.includes('comercio')) {
+      groups = [
+        { kw: ['rollo', 'termico', 'pos', 'caja fiscal', '57mm', '80mm'] },
+        { kw: ['cinta', 'embalaje', 'tirro', 'transparente', 'marron'] },
+        { kw: ['dispensador', 'porta tirro', 'pistola'] },
+        { kw: ['marcador', 'permanente', 'indeleble', 'gruesa'] },
+        { kw: ['talonario', 'recibo', 'nota de entrega'] },
+        { kw: ['boligrafo', 'lapicero'] }
+      ];
+    } else if (sec.includes('restaurante') || sec.includes('alimento')) {
+      groups = [
+        { kw: ['rollo', 'termico', 'comanda', '57mm', '80mm'] },
+        { kw: ['boligrafo', 'lapicero', 'negro', 'azul'] },
+        { kw: ['cinta', 'embalaje', 'tirro'] },
+        { kw: ['talonario', 'comanda', 'recibo'] }
+      ];
+    } else if (sec.includes('papeleria') || sec.includes('libreria')) {
+      groups = [
+        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+        { kw: ['cuaderno', 'libreta', 'espiral'] },
+        { kw: ['marcador', 'resaltador', 'sharpie', 'kores'] },
+        { kw: ['boligrafo', 'lapiz', 'creyones'] },
+        { kw: ['carpeta', 'sobre', 'archivador'] },
+        { kw: ['cinta', 'pega', 'silicon', 'tijera'] }
+      ];
+    } else {
+      // General equilibrado
+      groups = [
+        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+        { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
+        { kw: ['boligrafo', 'lapiz', 'resaltador', 'marcador'] },
+        { kw: ['carpeta', 'archivador', 'sobre'] },
+        { kw: ['cinta', 'embalaje', 'tirro', 'pega', 'silicon'] },
+        { kw: ['grapadora', 'perforadora', 'tijera', 'clip'] },
+        { kw: ['rollo', 'termico', 'pos', 'caja fiscal'] }
+      ];
+    }
+
+    // Si el asesor especificó un objetivo con palabras clave, anteponer ese grupo prioritario
+    const objWords = norm(objective).split(/\s+/).filter(w => w.length >= 4);
+    if (objWords.length > 0) {
+      groups.unshift({ kw: objWords });
+    }
+
+    // Barajar ligeramente grupos para asegurar variedad dinámica
+    const shuffledGroups = [...groups].sort(() => 0.5 - Math.random());
 
     const picked = [];
     const seen = new Set();
 
-    // Extraer máximo 2 por categoría para balancear completamente el portafolio
-    for (const g of groups) {
+    for (const g of shuffledGroups) {
       const scored = (list || []).map(p => {
         const full = norm(`${p.name || ''} ${p.sku || ''} ${p.description || ''}`);
         let s = 0;
         for (const kw of g.kw) if (full.includes(norm(kw))) s++;
         return { p, s };
       }).filter(x => x.s >= 1)
-        .sort((a, b) => b.s - a.s)
-        .slice(0, 2);
+        .sort((a, b) => b.s - a.s);
 
-      for (const { p } of scored) {
+      // Barajar los mejores candidatos para no elegir siempre el primero
+      const topCandidates = scored.slice(0, 4).sort(() => 0.5 - Math.random()).slice(0, 2);
+
+      for (const { p } of topCandidates) {
         if (seen.has(p.id || p.name)) continue;
         seen.add(p.id || p.name);
         const pB = Number(p.price_b || 0);
@@ -1373,15 +1456,9 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
           price_usd: priceUsd,
           price_bs: priceUsd > 0 ? priceUsd * rate : 0
         });
-        if (picked.length >= maxOverall) {
-          _realPortfolioCache = picked;
-          _realPortfolioCacheAt = Date.now();
-          return picked;
-        }
+        if (picked.length >= maxOverall) return picked;
       }
     }
-    _realPortfolioCache = picked;
-    _realPortfolioCacheAt = Date.now();
     return picked;
   }
 

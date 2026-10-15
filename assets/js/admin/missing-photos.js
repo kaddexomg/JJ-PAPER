@@ -318,30 +318,50 @@ async function mpStudioEjecutarBusqueda() {
   if (grid) grid.innerHTML = '';
   if (countEl) countEl.textContent = '...';
 
-  const reqId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  let results = [];
 
+  // 1. INTENTAR DIRECTAMENTE VÍA CLOUDFLARE EDGE API (/api/search-images)
+  // Ultra-rápida (1-2s), sin demoras de base de datos ni desincronización de procesos
   try {
-    await sb.from('jjp_server_control').update({
-      command: `search_images:${reqId}:${q}`,
-      command_at: new Date().toISOString()
-    }).eq('id', 1);
-
-    let results = [];
-    for (let i = 0; i < 20; i++) {
-      await new Promise(r => setTimeout(r, 500));
-      const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
-      let resObj = ctrl?.command_res;
-      if (typeof resObj === 'string') {
-        try { resObj = JSON.parse(resObj); } catch (_) {}
-      }
-      if (resObj?.type === 'search_images' && resObj.ok && Array.isArray(resObj.results)) {
-        // Validar que el resultado corresponda a ESTA búsqueda específica (por reqId o query)
-        if (resObj.reqId && resObj.reqId !== reqId) continue;
-        if (!resObj.reqId && resObj.query && resObj.query.toLowerCase().trim() !== q.toLowerCase().trim()) continue;
-        results = resObj.results;
-        break;
+    const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);
+    if (cfRes.ok) {
+      const cfData = await cfRes.json();
+      if (cfData.ok && Array.isArray(cfData.results) && cfData.results.length > 0) {
+        results = cfData.results;
       }
     }
+  } catch (err) {
+    console.warn('Fallback a jjp_server_control por error en /api/search-images:', err);
+  }
+
+  // 2. Si Cloudflare no devolvió fotos o falló la red, usar jjp_server_control como respaldo
+  if (!results.length) {
+    try {
+      await sb.from('jjp_server_control').update({
+        command: `search_images:${q}`,
+        command_at: new Date().toISOString()
+      }).eq('id', 1);
+
+      for (let i = 0; i < 24; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
+        let resObj = ctrl?.command_res;
+        if (typeof resObj === 'string') {
+          try { resObj = JSON.parse(resObj); } catch (_) {}
+        }
+        if (resObj?.type === 'search_images' && resObj.ok && Array.isArray(resObj.results)) {
+          const resQ = (resObj.query || '').toLowerCase().trim();
+          const cleanQ = q.toLowerCase().trim();
+          if (resQ.includes(cleanQ) || cleanQ.includes(resQ) || resObj.reqId) {
+            results = resObj.results;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error en fallback jjp_server_control:', e);
+    }
+  }
 
     if (spinner) spinner.style.display = 'none';
 

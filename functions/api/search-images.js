@@ -29,6 +29,9 @@ const BRAND_CORRECTIONS = {
   'PEGALOKA': 'PEGA-LOKA',
   'STAR-KIT': 'STAR KIT',
   'MR. BOBINA': 'MISTER BOBINA',
+  'MR BOBINA': 'MISTER BOBINA',
+  'OFICMA': 'OFIMAK',
+  'OFIMA': 'OFIMAK',
   'UNIBALL': 'UNI-BALL'
 };
 
@@ -46,8 +49,13 @@ const ABBREVIATION_MAP = {
   'T/L': 'LEGAL',
   'E/O': 'EXTRA OFICIO',
   'D/C': 'DOBLE CARTA',
+  'C/F': 'CON FUELLE',
+  'S/F': 'SIN FUELLE',
+  'C/G': 'CON GANCHO',
+  'S/G': 'SIN GANCHO',
   'C/T': 'CON TAPA',
   'S/T': 'SIN TAPA',
+  'OFIC': 'OFICIO',
   'RESALT.': 'RESALTADOR',
   'RESALT': 'RESALTADOR',
   'P/PIZARRA': 'PARA PIZARRA',
@@ -140,45 +148,61 @@ function buildOptimalQueries(rawName) {
   const queries = [];
 
   let coreType = '';
-  if (/grapadora|engrapadora/i.test(expanded)) {
+  if (/cinta|tirro|teipe|embalaje/i.test(expanded)) {
+    coreType = 'cinta adhesiva embalaje transparente';
+  } else if (/carpeta.*fuelle|con fuelle/i.test(expanded)) {
+    coreType = 'carpeta con fuelle oficio';
+  } else if (/carpeta.*fibra|marron|marrón/i.test(expanded)) {
+    coreType = 'carpeta de fibra marron oficio';
+  } else if (/carpeta/i.test(expanded)) {
+    coreType = 'carpeta manila oficio';
+  } else if (/block.*giro|talonario|recibo/i.test(expanded)) {
+    coreType = 'block talonario giro recibo de dinero papel';
+  } else if (/grapadora|engrapadora/i.test(expanded)) {
     coreType = 'grapadora metalica escritorio oficina';
   } else if (/resma|papel\s*bond/i.test(expanded)) {
     coreType = 'resma papel bond carta';
   } else if (/escarcha|purpurina|brillantina/i.test(expanded)) {
     coreType = 'escarcha escolar pote frasco';
-  } else if (/talonario|recibo|factura/i.test(expanded)) {
-    coreType = 'talonario recibo dinero papel';
   } else if (/resaltador/i.test(expanded)) {
     coreType = 'resaltador fluorescente';
-  } else if (/marcador.*pizarra/i.test(expanded)) {
+  } else if (/marcador.*pizarra|pizarra/i.test(expanded)) {
     coreType = 'marcador para pizarra acrilica';
   } else if (/marcador.*permanente/i.test(expanded)) {
-    coreType = 'marcador permanente';
+    coreType = 'marcador permanente punta gruesa';
   } else if (/marcador/i.test(expanded)) {
-    coreType = 'marcador';
+    coreType = 'marcador escolar estuche';
   } else if (/boligrafo/i.test(expanded)) {
-    coreType = 'boligrafo';
+    coreType = 'boligrafo tinta seca caja';
   } else if (/silicon/i.test(expanded)) {
     coreType = 'silicon liquido';
   } else if (/pega\s*en\s*barra|goma\s*en\s*barra/i.test(expanded)) {
     coreType = 'pega en barra';
-  } else if (/carpeta/i.test(expanded)) {
-    coreType = 'carpeta manila';
+  } else if (/sobre/i.test(expanded)) {
+    coreType = 'sobre manila';
+  } else if (/perforadora/i.test(expanded)) {
+    coreType = 'perforadora papel';
+  } else if (/tijera/i.test(expanded)) {
+    coreType = 'tijera oficina';
   }
 
   const colorMatch = expanded.match(/\b(negro|azul|rojo|verde|amarillo|rosado|naranja|morado|blanco|transparente)\b/i);
   const color = colorMatch ? colorMatch[1].toLowerCase() : '';
 
-  const specMatch = expanded.match(/\b(\d+gr|\d+g|\d+ml|\d+oz|\d+\/\d+)\b/i);
+  const specMatch = expanded.match(/\b(\d+gr|\d+g|\d+ml|\d+oz|\d+\/\d+|\d+x\d+)\b/i);
   const spec = specMatch ? specMatch[1].toLowerCase() : '';
 
   if (brand && coreType) {
     queries.push(`${brand} ${coreType} ${spec} ${color}`.replace(/\s+/g, ' ').trim());
-    queries.push(`${brand} ${expanded.toLowerCase()}`);
+    queries.push(`${brand} ${expanded.toLowerCase()}`.replace(/\s+/g, ' ').trim());
+    queries.push(`${coreType} ${brand}`.replace(/\s+/g, ' ').trim());
   } else if (brand) {
-    queries.push(`${brand} ${expanded.toLowerCase()}`);
+    queries.push(`${brand} ${expanded.toLowerCase()}`.replace(/\s+/g, ' ').trim());
   } else if (coreType) {
     queries.push(`${coreType} ${spec} ${color} papeleria`.replace(/\s+/g, ' ').trim());
+    queries.push(`${expanded.toLowerCase()} papeleria`.replace(/\s+/g, ' ').trim());
+  } else {
+    queries.push(`${expanded.toLowerCase()} papeleria`.replace(/\s+/g, ' ').trim());
   }
 
   const stripped = expanded
@@ -189,7 +213,7 @@ function buildOptimalQueries(rawName) {
     queries.push(stripped.toLowerCase());
   }
 
-  return { queries: queries.slice(0, 3), brand, coreType };
+  return { queries: queries.slice(0, 4), brand, coreType };
 }
 
 function scoreResult(result, targetBrand, coreType) {
@@ -199,6 +223,12 @@ function scoreResult(result, targetBrand, coreType) {
 
   for (const b of BLOCKED_DOMAINS) {
     if (url.includes(b) || title.includes(b)) return -999;
+  }
+
+  // Filtrar repuestos mecánicos, válvulas, motores o elementos ajenos a papelería
+  const JUNK_TERMS = ['valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor', 'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo'];
+  for (const jt of JUNK_TERMS) {
+    if (title.includes(jt) || url.includes(jt)) return -999;
   }
 
   if (coreType && coreType.includes('grapadora')) {
@@ -216,11 +246,12 @@ function scoreResult(result, targetBrand, coreType) {
   if (targetBrand) {
     const brandLower = targetBrand.toLowerCase();
     if (title.includes(brandLower) || url.includes(brandLower)) {
-      score += 60;
+      score += 80;
     } else {
+      score -= 20;
       for (const otherBrand of KNOWN_BRANDS) {
-        if (otherBrand !== targetBrand && title.includes(otherBrand.toLowerCase())) {
-          score -= 40;
+        if (otherBrand.toLowerCase() !== brandLower && title.includes(otherBrand.toLowerCase())) {
+          score -= 100;
           break;
         }
       }

@@ -1102,3 +1102,22 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
 4. **Contexto de red de la sesión**: M:\ y Z:\ NO existen en esta laptop; `\\192.168.0.185\comp01` da error 53 sin credenciales; ping OK a 192.168.0.185 y 192.168.0.127; **192.168.0.172 (Supervisor) apagado**; `http://192.168.0.185:3000` (API archivos) caída; en `192.168.0.127:3300` YA corre `mixnet-ai-panel` (ambos config.json declaran `port: 3300` → conflicto si se despliega el agente sin cambiarlo).
 5. **Fixture de pruebas local**: `JJ PAPER\agent-test-mix\comp01\` contiene `MXCTAVEN.DBF` (CODVEN|NOMBRE|LOGIN|CLAVE: 005 JOSE SALAZAR/jsalazar, 004 YOVANNI, 008 MARIANELA, 014 ANDREINA) + `CLAVES.INI` + `CONFIG.TXT` → usar para validar ANTES de tocar M:\.
 6. **Repo es git** (HEAD `1ea6806`, con modificaciones sin commit en `mixnet-ai-panel/`, `antigravity-win7.zip`, `puente-mixnet-autonomo.cjs`, etc.). No hacer commit sin pedido explícito.
+
+## Sincronización Bidireccional MixNet, Calibración de Correlativos, Inyección DBF y Despliegue Agéntico VPS/Win7 (15-10-2026)
+- **Causa Raíz Resuelta (Cotizaciones desfasadas desde el 13 de octubre)**:
+  - `puente-win7/server.cjs` únicamente realizaba sincronización unidireccional (de la Web a archivos locales y stock), careciendo de un importador periódico desde MixNet DBF.
+  - Se implementó `importMixnetDocumentsToSupabase()` en el ciclo autónomo (`autonomousDaemonTick` cada 30s): lee directamente `MXENCCOT.DBF`/`MXRENCOT.DBF` (cotizaciones) y `MXENCPED.DBF`/`MXRENPED.DBF` (pedidos), cruzando con `MXCTACLI.DBF` y asignando el `seller_id` por `codven` (010/020: Keyder, 002: Luis Alarcón, 004/006: Yovanni, 008: Marianela, 014: Andreina). Las cotizaciones y pedidos físicos emitidos en tienda se importan en tiempo real a Supabase Core.
+- **Calibración Automática de Correlativos Oficiales en Tiempo Real (`calibrateMixnetCorrelatives`)**:
+  - Evita el desfasaje donde la web generaba números provisionales 10 dígitos por delante de la caja física.
+  - En cada ciclo, el puente lee `MXNUMCOT.DBF` y `MXNUMPED.DBF` mediante `findTableInCandidates` y actualiza inmediatamente `jjp_settings` (`mixnet_next_quote_serial` y `mixnet_next_order_serial`). `fetchNextDocSerial()` en `config.js` ahora toma siempre el número oficial que sigue en MixNet.
+- **Inyección Binaria Nativa Web ➔ MixNet DBF (`injectQuoteToMixnet` & `injectOrderToMixnet`)**:
+  - Usa `findTableInCandidates` para operar en cualquier disco (`M:\comp01`, `C:\`, etc.).
+  - Resuelve clientes mediante RIF o notas (`Codigo MixNet: 003-088` como en MARBA BISUTERIA).
+  - Anexa registros en `MXENCCOT`/`MXRENCOT` (o `MXENCPED`/`MXRENPED`), incrementa el contador en `MXNUMCOT`/`MXNUMPED`, y sustituye el número web provisional por el número correlativo oficial de MixNet (`notes: 'MixNet Oficial: [NUMERO]'`).
+- **Canal de Despliegue y Auto-Actualización Transparente (Nube/VPS ➔ Windows 7)**:
+  - En `INICIAR-PUENTE.bat`, antes de arrancar Node se ejecuta una verificación HTTPS contra `https://jjpaper.pages.dev/puente-win7/server.cjs`. Si hay cambios en el repositorio, la PC con Windows 7 descarga y actualiza `server.cjs` de manera transparente y automática antes de iniciar.
+  - El paquete `puente-win7.zip` se compila y publica en `dist/` a través de `build.sh` en cada push a `main`.
+- **Ejecución Remota Agéntica de Tareas (`jjp_mixnet_tasks`)**:
+  - `performAgentTasksCheck()` sondea tareas agénticas pendientes (`sync_stock`, `reindex_ntx`, `run_command`, `self_update`).
+  - Permite al operador o al agente en el VPS / panel admin (`admin/mixnet.html` o `assets/js/admin/mixnet.js`) despachar instrucciones remotas al micro-nodo de la tienda y recibir el resultado estructurado de ejecución (`status: 'completed'`, `result`).
+

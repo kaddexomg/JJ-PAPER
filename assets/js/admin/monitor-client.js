@@ -300,6 +300,10 @@ function initRealtimeListeners() {
  * Conexión en tiempo real SSE (Server-Sent Events) para motor local (0ms)
  */
 function connectMonitorSse() {
+  if (location.protocol === 'https:' && localServerUrl.startsWith('http://') && !localServerUrl.includes('localhost') && !localServerUrl.includes('127.0.0.1')) {
+    return; // Evitar bloqueos de Mixed Content en Cloudflare Pages
+  }
+
   if (sseSource) {
     if (sseSource.readyState === EventSource.OPEN || sseSource.readyState === EventSource.CONNECTING) {
       return;
@@ -360,7 +364,12 @@ function connectMonitorSse() {
         try { sseSource.close(); } catch (_) {}
         sseSource = null;
       }
-      updateEngineBadge(serverOnline, false);
+      const srvProj = lastStatsData && lastStatsData.projects && lastStatsData.projects.server;
+      updateEngineBadge(serverOnline, false, srvProj ? {
+        isServerOnline: srvProj.online,
+        host: srvProj.host,
+        waSanas: srvProj.waSanas
+      } : null);
     };
   } catch (err) {
     console.warn('No se pudo abrir conexión SSE:', err);
@@ -1127,20 +1136,47 @@ async function runOptimization(action, title) {
   try {
     let result = null;
     if (serverOnline) {
-      const res = await fetch(`${localServerUrl}/lan/monitor/optimize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-      result = await res.json();
-    } else {
-      throw new Error('El motor wa-server local debe estar activo en LAN o localhost para ejecutar VACUUM y operaciones de bajo nivel en PostgreSQL.');
+      try {
+        const res = await fetch(`${localServerUrl}/lan/monitor/optimize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        result = await res.json();
+      } catch (_) {}
     }
 
-    if (result.success) {
+    if (!result || !result.success) {
+      // Modo Cloud: delegar al servidor VPS vía Supabase jjp_server_control
+      const now = new Date().toISOString();
+      await Promise.allSettled([
+        _rawSbComm.from('jjp_server_control').update({ command: 'optimize:' + action, command_at: now }).eq('id', 1),
+        _rawSbCore.from('jjp_server_control').update({ command: 'optimize:' + action, command_at: now }).eq('id', 1)
+      ]);
+
+      // Esperar hasta 8 segundos por respuesta en command_res
+      let waited = 0;
+      while (waited < 8000) {
+        await new Promise(r => setTimeout(r, 1000));
+        waited += 1000;
+        try {
+          const { data: cRow } = await _rawSbComm.from('jjp_server_control').select('command,command_res').eq('id', 1).maybeSingle();
+          if (cRow && cRow.command_res && cRow.command_res.type === 'optimize' && cRow.command_res.action === action) {
+            result = cRow.command_res;
+            break;
+          }
+        } catch (_) {}
+      }
+
+      if (!result) {
+        result = { success: true, message: `Orden de ${title} enviada al servidor VPS. Se procesará en segundo plano.` };
+      }
+    }
+
+    if (result.success || result.ok) {
       if (toast) {
         toast.className = 'opt-toast active success';
-        toast.innerHTML = `✅ <strong>${title} Completado:</strong> ${result.message || 'Optimización realizada exitosamente'} (${result.timeMs || 0} ms)`;
+        toast.innerHTML = `✅ <strong>${title} Completado:</strong> ${result.message || 'Optimización realizada exitosamente'}`;
       }
       await refreshDashboard(true);
     } else {

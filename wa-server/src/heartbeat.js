@@ -262,6 +262,26 @@ async function runCommand(cmd) {
     return;
   }
 
+  if (cmd && (cmd.startsWith('optimize:') || cmd === 'optimize_all' || cmd === 'vacuum_core' || cmd === 'vacuum_comm')) {
+    const action = cmd.includes(':') ? cmd.split(':')[1].trim() : cmd;
+    log.info({ action }, 'Comando de optimización PostgreSQL recibido vía Supabase');
+    try {
+      const { executeOptimization } = await import('./monitor.js');
+      const optRes = await executeOptimization(action);
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, type: 'optimize', action, ...optRes, at: new Date().toISOString() }
+      }).eq('id', 1);
+      log.info({ action, optRes }, 'Optimización PostgreSQL completada con éxito.');
+    } catch (e) {
+      log.warn({ err: e.message, action }, 'Error ejecutando optimización PostgreSQL');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, type: 'optimize', action, error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
     log.info({ cmd }, 'comando recibido — actualizando via git y reiniciando servicio');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);

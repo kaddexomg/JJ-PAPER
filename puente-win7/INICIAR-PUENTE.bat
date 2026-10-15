@@ -110,8 +110,8 @@ echo  PUENTE EN LINEA -- Deje esta ventana abierta mientras use el sistema.
 echo ====================================================================
 echo.
 
-rem Abrir la interfaz web en el navegador
-explorer "http://localhost:3300"
+rem Abrir la interfaz web tras breve pausa para garantizar que el servidor este escuchando
+start "" cmd /c "ping 127.0.0.1 -n 3 >nul & start http://localhost:3300"
 "%NODE_CMD%" "%~dp0server.cjs"
 
 set "EXIT_CODE=%errorlevel%"

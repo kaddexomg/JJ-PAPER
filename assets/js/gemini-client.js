@@ -2125,14 +2125,14 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
       }).join('\n');
     } else if (/farmacia|droguer[ií]a|farma/i.test(low)) {
       sector = 'Farmacias y Salud';
-      need = 'Rollos térmicos para cajas POS y cintas de embalar para bultos';
-      offering = 'Rollos térmicos 80x70mm y 57x40mm + Cintas de empaque 48x100m';
-      bulletPoints = `• *Rollos térmicos para cajas POS* (80x70mm y 57x40mm) de alto rendimiento.\n• *Cintas de empaque resistentes* (48mm x 100m/200m) para embalaje de medicamentos y pedidos.\n• *Consumibles de oficina y marcadores* para control de stock.`;
-    } else if (/supermercado|abasto|comercial|bodeg[oó]n|charcuter[ií]a|panader[ií]a|inversiones|automercado|minimarket|tienda/i.test(low)) {
+      need = 'Papelería operativa, resmas de informes, consumibles de caja y embalaje';
+      offering = 'Resmas Bond Carta, cintas de empaque y consumibles de despacho';
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* de alta rotación para récipes y control interno.\n• *Cintas de embalaje resistentes* (48mm x 100m) para sellado seguro de pedidos.\n• *Bolígrafos por caja, marcadores y papelería* para áreas de mostrador y administración.`;
+    } else if (/supermercado|abasto|bodeg[oó]n|charcuter[ií]a|panader[ií]a|automercado|minimarket/i.test(low)) {
       sector = 'Supermercados y Retail';
-      need = 'Cero quiebres de stock en cajas registradoras y embalaje para mercancía';
-      offering = 'Rollos térmicos de puntos de venta + Marcadores detectores de billetes';
-      bulletPoints = `• *Rollos térmicos POS* (80x70mm, 80x80mm y 57x40mm) garantizados.\n• *Marcadores detectores de billetes falsos* Kores y almohadillas dactilares.\n• *Cintas de embalaje industrial* transparentes y marrones de alto micraje.`;
+      need = 'Abastecimiento de resmas de facturación, papelería de caja y embalaje';
+      offering = 'Resmas Bond, cintas de empaque y papelería corporativa';
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* para reportes administrativos y control contable.\n• *Cintas de embalaje industrial* transparentes y marrones de alto rendimiento.\n• *Marcadores, bolígrafos por caja y papelería* para cajas y supervisión.`;
     } else if (/librer[ií]a|papeler[ií]a|bazar|variedades|copias/i.test(low)) {
       sector = 'Librerías y Papelerías';
       need = 'Surtido mayorista de alta rotación con margen de reventa';
@@ -2142,24 +2142,24 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
       sector = 'Instituciones Educativas';
       need = 'Resmas para evaluaciones pedagógicas y dotación institucional';
       offering = 'Resmas de papel Bond, marcadores de pizarra y material pedagógico';
-      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* de alta rotación para exámenes y guías.\n• *Marcadores de pizarra recargables* y borradores magnéticos.\n• *Carpetas de fibra y manila* para expedientes estudiantiles y archivo escolar.`;
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* de alta rotación para exámenes y guías.\n• *Marcadores de pizarra recargables* y borradores magnéticos.\n• *Carpetas, cuadernos y bolígrafos* para expedientes estudiantiles y profesores.`;
     } else if (/cl[ií]nica|salud|m[eé]dico|dental|laboratorio|hospital|consultorio/i.test(low)) {
       sector = 'Clínicas y Salud';
       need = 'Historias médicas, sobres radiografía y archivo confidencial';
       offering = 'Sobres radiografía 14x17, carpetas de historias médicas y resmas';
-      bulletPoints = `• *Sobres de gran formato y radiografía* (14x17, Extra Oficio y Carta).\n• *Carpetas de historias médicas de fibra* con gancho y divisiones.\n• *Resmas de papel Bond y consumibles* para áreas administrativas y de admisión.`;
+      bulletPoints = `• *Sobres de gran formato y radiografía* (14x17, Extra Oficio y Carta).\n• *Carpetas de historias médicas y separadores* para expedientes confidenciales.\n• *Resmas de papel Bond y consumibles* para áreas administrativas y de admisión.`;
     } else if (/transporte|log[ií]stica|env[ií]os|cargo|almac[eé]n|ferreter[ií]a|repuestos/i.test(low)) {
       sector = 'Logística, Ferretería y Almacén';
       need = 'Embalaje industrial de alta resistencia e identificación de bultos';
       offering = 'Cintas de alto micraje 48x100m/200m y marcadores industriales';
       bulletPoints = `• *Cintas de embalaje industrial* (48mm x 100m y 200m) de pegado extra fuerte.\n• *Marcadores industriales indelebles* (Servicio 80, Sharpie, Expo).\n• *Dispensadores tipo pistola, exactos* y sobres packing list para guías.`;
-    } else if (/banco|seguros|consultor|asesor|abogad|corporaci[oó]n|grupo/i.test(low)) {
+    } else if (/banco|seguros|consultor|asesor|abogad/i.test(low)) {
       sector = 'Corporativo, Finanzas y Legal';
-      need = 'Resguardo documental formal y archivo reglamentario a 10 años';
-      offering = 'Carpetas de fibra marrón, archivadores de palanca y resmas Bond';
-      bulletPoints = `• *Carpetas de fibra marrón reglamentarias* con gancho para expedientes auditables.\n• *Archivadores de palanca* de lomo ancho y fino con cantoneras metálicas.\n• *Resmas de papel Bond* (Carta y Oficio 75g y 80g HP/Report/Chamex).`;
+      need = 'Resguardo documental formal y archivo reglamentario';
+      offering = 'Resmas Bond de alta blancura, archivadores y papelería formal';
+      bulletPoints = `• *Resmas de papel Bond* (Carta y Oficio 75g y 80g HP/Report/Chamex).\n• *Archivadores de palanca y carpetas de archivo* para expedientes reglamentarios.\n• *Bolígrafos institucionales, sobres y papelería* para oficinas administrativas.`;
     } else {
-      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* con despacho inmediato.\n• *Artículos de papelería corporativa y archivo* con precios mayoristas.\n• *Rollos térmicos de cajas y consumibles* para soporte operativo.`;
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* con despacho inmediato en Caracas.\n• *Papelería corporativa, bolígrafos por caja, pegas y cuadernos* a precios mayoristas.\n• *Cintas de embalaje y consumibles operativos* para abastecimiento continuo.`;
     }
 
     if (!hasMultiOffer && promoProductOrCombo) {

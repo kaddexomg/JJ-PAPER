@@ -466,7 +466,7 @@
 
     async function executeBridgeCommand(forceAi = false) {
       const input = document.getElementById('bridgeCmdInput');
-      const val = (input?.value || '').trim();
+      const val = (input && input.value ? input.value : '').trim();
       if (!val) return;
       input.value = '';
 
@@ -578,11 +578,13 @@
 
     async function runAgentInstruction() {
       const inp = document.getElementById('agentInput');
-      const instruction = (inp?.value || '').trim();
+      const instruction = (inp && inp.value ? inp.value : '').trim();
       if (!instruction) return;
       const btn = document.getElementById('btnRunAgent');
-      const mode = document.getElementById('agentModeSelect')?.value || 'autonomous';
-      const autoBackup = document.getElementById('agentAutoBackupChk')?.checked !== false;
+      const modeEl = document.getElementById('agentModeSelect');
+      const mode = modeEl ? modeEl.value : 'autonomous';
+      const autoBackupEl = document.getElementById('agentAutoBackupChk');
+      const autoBackup = autoBackupEl ? autoBackupEl.checked !== false : true;
 
       btn.disabled = true;
       btn.style.opacity = '0.6';
@@ -1237,7 +1239,8 @@
     }
 
     function changeQuoteSource() {
-      quoteSource = document.getElementById('selQuoteSource')?.value || 'cloud';
+      const selQS = document.getElementById('selQuoteSource');
+      quoteSource = selQS ? selQS.value : 'cloud';
       if (quoteSource === 'mixnet' && (!mixnetQuotes || mixnetQuotes.length === 0)) {
         loadMixnetQuotes();
       } else {
@@ -1246,7 +1249,8 @@
     }
 
     function changeOrderSource() {
-      orderSource = document.getElementById('selOrderSource')?.value || 'cloud';
+      const selOS = document.getElementById('selOrderSource');
+      orderSource = selOS ? selOS.value : 'cloud';
       if (orderSource === 'mixnet' && (!mixnetOrders || mixnetOrders.length === 0)) {
         loadMixnetOrders();
       } else {
@@ -1272,7 +1276,8 @@
 
     function renderQuotes() {
       const tb = document.getElementById('tbodyQuotes');
-      const filter = document.getElementById('selQuoteFilter')?.value || 'all';
+      const selQF = document.getElementById('selQuoteFilter');
+      const filter = selQF ? selQF.value : 'all';
 
       if (quoteSource === 'mixnet') {
         document.getElementById('countQuotes').textContent = mixnetQuotes.length;
@@ -1359,7 +1364,8 @@
 
     function renderOrders() {
       const tb = document.getElementById('tbodyOrders');
-      const filter = document.getElementById('selOrderFilter')?.value || 'all';
+      const selOF = document.getElementById('selOrderFilter');
+      const filter = selOF ? selOF.value : 'all';
 
       if (orderSource === 'mixnet') {
         document.getElementById('countOrders').textContent = mixnetOrders.length;
@@ -1461,30 +1467,30 @@
       if (docType === 'cloud_quotes') {
         const q = pendingQuotes[index];
         items = q ? (Array.isArray(q.items) ? q.items : []) : [];
-        totalAmount = Number(q?.estimated_total_usd || 0);
-        subtitleEl.textContent = `Cliente: ${q?.client_name || '-'} | RIF: ${q?.rif || '00'} | Vendedor: ${q?.seller_name || 'General'}`;
+        totalAmount = Number((q && q.estimated_total_usd) || 0);
+        subtitleEl.textContent = `Cliente: ${(q && q.client_name) || '-'} | RIF: ${(q && q.rif) || '00'} | Vendedor: ${(q && q.seller_name) || 'General'}`;
         injectAction = () => { closeItemsModal(); injectQuote(index); };
       } else if (docType === 'cloud_orders') {
         const o = pendingOrders[index];
         items = o ? (Array.isArray(o.items) ? o.items : []) : [];
-        totalAmount = Number(o?.total_usd || 0);
-        subtitleEl.textContent = `Cliente: ${o?.client_name || '-'} | RIF: ${o?.rif || '00'} | Vendedor: ${o?.seller_name || 'General'}`;
+        totalAmount = Number((o && o.total_usd) || 0);
+        subtitleEl.textContent = `Cliente: ${(o && o.client_name) || '-'} | RIF: ${(o && o.rif) || '00'} | Vendedor: ${(o && o.seller_name) || 'General'}`;
         injectAction = () => { closeItemsModal(); injectOrder(index); };
       } else if (docType === 'mixnet_quotes') {
         const q = mixnetQuotes[index];
-        items = q?.items || [];
-        totalAmount = Number(q?.tot_cot || 0);
-        subtitleEl.textContent = `Cliente: ${q?.nomcli || q?.cliente || '-'} | Emisión: ${q?.emision || '-'} | Vendedor: ${q?.codven || '-'}`;
+        items = (q && q.items) || [];
+        totalAmount = Number((q && q.tot_cot) || 0);
+        subtitleEl.textContent = `Cliente: ${(q && (q.nomcli || q.cliente)) || '-'} | Emisión: ${(q && q.emision) || '-'} | Vendedor: ${(q && q.codven) || '-'}`;
       } else if (docType === 'mixnet_orders') {
         const o = mixnetOrders[index];
-        items = o?.items || [];
-        totalAmount = Number(o?.tot_ped || 0);
-        subtitleEl.textContent = `Cliente: ${o?.cliente || '-'} | Emisión: ${o?.emision || '-'} | Vendedor: ${o?.codven || '-'}`;
+        items = (o && o.items) || [];
+        totalAmount = Number((o && o.tot_ped) || 0);
+        subtitleEl.textContent = `Cliente: ${(o && o.cliente) || '-'} | Emisión: ${(o && o.emision) || '-'} | Vendedor: ${(o && o.codven) || '-'}`;
       } else if (docType === 'invoices') {
         const inv = mixnetInvoices[index];
-        items = inv?.items || [];
-        totalAmount = Number(inv?.tot_fac || 0);
-        subtitleEl.textContent = `Cliente: ${inv?.nomcli || inv?.cliente || '-'} | RIF: ${inv?.cif || '00'} | Vendedor: ${inv?.codven || '-'}`;
+        items = (inv && inv.items) || [];
+        totalAmount = Number((inv && inv.tot_fac) || 0);
+        subtitleEl.textContent = `Cliente: ${(inv && (inv.nomcli || inv.cliente)) || '-'} | RIF: ${(inv && inv.cif) || '00'} | Vendedor: ${(inv && inv.codven) || '-'}`;
       }
 
       totalEl.textContent = `Total Documento: $${totalAmount.toFixed(2)}`;

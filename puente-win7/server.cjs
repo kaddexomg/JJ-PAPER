@@ -680,7 +680,9 @@ async function callBridgeGemini(prompt, systemInstruction = '', temperature = 0.
 
         if (result.status === 200) {
           const parsed = JSON.parse(result.body);
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          const cand = (parsed && parsed.candidates && parsed.candidates[0]) ? parsed.candidates[0] : null;
+          const part = (cand && cand.content && cand.content.parts && cand.content.parts[0]) ? cand.content.parts[0] : null;
+          const text = part && part.text;
           if (text) return text.trim();
         }
 
@@ -888,9 +890,10 @@ async function performAgentTasksCheck() {
         if (task.action === 'sync_stock') {
           taskResult = await performStockAndPriceSync(true);
         } else if (task.action === 'reindex_ntx') {
-          taskResult = executeReindexAll(task.payload?.target_table || '');
+          const targetTbl = (task && task.payload && task.payload.target_table) ? task.payload.target_table : '';
+          taskResult = executeReindexAll(targetTbl);
         } else if (task.action === 'run_command') {
-          const cmd = task.payload?.command;
+          const cmd = (task && task.payload && task.payload.command) ? task.payload.command : '';
           if (!cmd) throw new Error('Comando no especificado');
           const stdout = execSync(cmd, { timeout: 15000, encoding: 'utf8' });
           taskResult = { ok: true, stdout };

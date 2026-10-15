@@ -325,6 +325,10 @@ body {
   width: 66px !important;
   height: 66px !important;
   border-radius: 4px;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  display: block;
 }
 .item-qr-hint {
   font-size: 7.5px;
@@ -416,6 +420,9 @@ body {
   .item-qr-box canvas, .item-qr-box img {
     width: 62px !important;
     height: 62px !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+    image-rendering: pixelated !important;
   }
 
   /* Modo Blanco y Negro Puro en Impresión: Filtros de máxima nitidez */
@@ -849,7 +856,7 @@ window.addEventListener('beforeprint', () => {
 
 function renderAllQrsImmediately() {
   const baseUrl = 'https://jjpaper.pages.dev';
-  const qrColor = document.body.classList.contains('print-bw-mode') ? "#000000" : "#16604A";
+  const qrColor = "#000000"; // Negro puro para máxima nitidez y cero tramado de tóner
   if (typeof QRCode === 'undefined') return;
 
   document.querySelectorAll('.qr-target').forEach(target => {
@@ -859,11 +866,11 @@ function renderAllQrsImmediately() {
       try {
         new QRCode(target, {
           text: prodUrl,
-          width: 66,
-          height: 66,
+          width: 256,
+          height: 256,
           colorDark: qrColor,
           colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.L
+          correctLevel: QRCode.CorrectLevel.M
         });
       } catch (err) {
         console.warn('QR error on print:', err);
@@ -1079,8 +1086,8 @@ function renderCatalogGrid(items) {
     `;
   }).join('');
 
-  // Generar códigos QR de forma progresiva con IntersectionObserver para ultra-rendimiento en móviles
-  const qrColor = document.body.classList.contains('print-bw-mode') ? "#000000" : "#16604A";
+  // Generar códigos QR de alta resolución con IntersectionObserver para máxima nitidez y rendimiento
+  const qrColor = "#000000"; // Negro puro para escaneo instantáneo sin tramado
   if ('IntersectionObserver' in window && typeof QRCode !== 'undefined') {
     const observer = new IntersectionObserver((entries, obs) => {
       entries.forEach(entry => {
@@ -1093,11 +1100,11 @@ function renderCatalogGrid(items) {
             try {
               new QRCode(target, {
                 text: prodUrl,
-                width: 66,
-                height: 66,
+                width: 256,
+                height: 256,
                 colorDark: qrColor,
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.L
+                correctLevel: QRCode.CorrectLevel.M
               });
             } catch (err) {
               console.warn('QR error:', err);
@@ -1116,11 +1123,11 @@ function renderCatalogGrid(items) {
         const prodUrl = `${baseUrl}/producto?id=${encodeURIComponent(p.id)}`;
         new QRCode(container, {
           text: prodUrl,
-          width: 66,
-          height: 66,
+          width: 256,
+          height: 256,
           colorDark: qrColor,
           colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.L
+          correctLevel: QRCode.CorrectLevel.M
         });
       }
     });
@@ -1155,9 +1162,9 @@ function openQrModal(idx, e) {
   canvasWrap.innerHTML = '';
   new QRCode(canvasWrap, {
     text: prodUrl,
-    width: 200,
-    height: 200,
-    colorDark: document.body.classList.contains('print-bw-mode') ? "#000000" : "#16604A",
+    width: 280,
+    height: 280,
+    colorDark: "#000000",
     colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H
   });

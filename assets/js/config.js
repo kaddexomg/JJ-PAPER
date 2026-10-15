@@ -202,7 +202,11 @@ async function ensureFreshRate() {
 
     // Aplica tasas en vivo a la sesión: BCV (precios) y paralelo (costos/brecha)
     const applyLive = (r) => {
-      if (r.bcv) APP.EXCHANGE_RATE = r.bcv;
+      if (r.bcv) {
+        APP.EXCHANGE_RATE = r.bcv;
+        try { sessionStorage.setItem(APP.RATE_KEY, String(r.bcv)); } catch (_) {}
+        window.dispatchEvent(new CustomEvent('jjp_rate_updated', { detail: { rate: r.bcv, settings: APP.SETTINGS } }));
+      }
       if (r.paralelo && APP.SETTINGS) {
         APP.SETTINGS.usdt_rate = String(Math.max(r.paralelo, r.bcv || 0));
       }

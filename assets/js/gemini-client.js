@@ -84,18 +84,18 @@
   // Ordenados por disponibilidad y menor tasa de 503/alta demanda
   const PRO_MODELS = [
     'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
+    'gemini-3.7-flash',
+    'gemini-flash-lite-latest',
     'gemini-3.8-flash',
-    'gemini-3.6-flash',
     'gemini-flash-latest'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
     'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
+    'gemini-3.7-flash',
+    'gemini-flash-lite-latest',
     'gemini-3.8-flash',
-    'gemini-3.6-flash',
     'gemini-flash-latest'
   ];
 
@@ -147,6 +147,26 @@
         escaped = (c === '\\' && !escaped);
       }
       try { return JSON.parse(out); } catch (_) {}
+    }
+
+    // 5. Intentar auto-reparar JSON truncado por límite de tokens
+    const startIdx = cleaned.indexOf('{');
+    if (startIdx !== -1) {
+      let candidate = cleaned.slice(startIdx);
+      let quotes = 0;
+      let escaped = false;
+      for (let i = 0; i < candidate.length; i++) {
+        if (candidate[i] === '"' && !escaped) quotes++;
+        escaped = (candidate[i] === '\\' && !escaped);
+      }
+      if (quotes % 2 !== 0) candidate += '"';
+      let openBraces = 0;
+      for (let i = 0; i < candidate.length; i++) {
+        if (candidate[i] === '{') openBraces++;
+        if (candidate[i] === '}') openBraces--;
+      }
+      while (openBraces > 0) { candidate += '}'; openBraces--; }
+      try { return JSON.parse(candidate); } catch (_) {}
     }
 
     throw new Error('No se pudo extraer JSON de la respuesta de IA');
@@ -1386,7 +1406,9 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
     customInstructions = '',
     msgLength = 'balanced',
     priceMode = 'with_prices',
-    ctaGoal = 'quote'
+    ctaGoal = 'quote',
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const rate = getEffectiveRate();
@@ -1401,6 +1423,25 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
 
     const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
     const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
+
+    let advisorDirective = '';
+    if (baseMessageText && baseMessageText.trim().length > 10) {
+      advisorDirective = `
+================================================================================
+🚨 DIRECTIVA MAESTRA Y OBLIGATORIA DEL ASESOR COMERCIAL:
+El asesor comercial ha configurado la siguiente PROPUESTA BASE / PLANTILLA para esta campaña:
+
+"""
+${baseMessageText.trim()}
+"""
+
+INSTRUCCIONES MANDATORIAS DE ADAPTACIÓN:
+1. TU MISIÓN ES ADAPTAR Y PERSONALIZAR ESTA PROPUESTA BASE EXACTA PARA ${companyName} (${contactName ? 'Contacto: ' + contactName : ''}).
+2. PROHIBICIÓN ESTRICTA: QUEDA TOTALMENTE PROHIBIDO sustituir los productos de esta propuesta por "rollos térmicos", "carpetas de fibra" o "resmas" a menos que la propuesta base del asesor hable de ellos. Si el asesor escribió sobre un producto específico (como cintas, marcadores, bolígrafos, cuadernos o papelería), DEBES MANTENER ESOS PRODUCTOS EXACTOS como eje central.
+3. Personaliza el saludo y la conexión con el sector de ${companyName} (${effectiveSector || 'Comercial'}), pero CONSERVA el núcleo de la oferta, los llamados a la acción, los enlaces (como {{link}} o https://jjpaper.pages.dev/catalogo) y datos de contacto.
+================================================================================
+`;
+    }
 
     // ── Catálogo REAL con precio actualizado ──
     let realProducts = [];
@@ -1518,7 +1559,9 @@ ESTRATEGIA COGNITIVA: PRESENTACIÓN INSTITUCIONAL DIRECTA (${toneConfig.name})
 Eres el Director y Estratega Comercial B2B Sénior de "JJ Paper C.A." en Caracas, Venezuela.
 Tu objetivo es analizar minuciosamente el perfil corporativo de un cliente o prospecto B2B y desarrollar una propuesta de abordaje comercial hiper-personalizada, de alta conversión y con variaciones anti-bloqueo.
 
-OBJETIVO CRÍTICO: CADA CLIENTE DEBE RECIBIR UN MENSAJE ÚNICO, HUMANO Y 100% ADAPTADO A SU REALIDAD Y SECTOR OPERATIVO. PROHIBIDO GENERAR MENSAJES GENÉRICOS O USAR LA FRASE "estimado cliente".
+OBJETIVO CRÍTICO: CADA CLIENTE DEBE RECIBIR UN MENSAJE ÚNICO, HUMANO Y 100% ADAPTADO A SU REALIDAD Y SECTOR OPERATIVO. PROHIBIDO GENERAR MENSAJES GENÉRICOS O USAR LA FRASE "estimado cliente". PROHIBIDO forzar rollos térmicos o carpetas genéricas si la propuesta del asesor o la oferta comercial seleccionada tratan de otros insumos.
+
+${advisorDirective}
 
 ${openingStrategy}
 REGLAS DE REDACCIÓN OBLIGATORIAS:
@@ -1746,11 +1789,47 @@ FLUJO DE ANÁLISIS DE PROSPECCIÓN (SIN OFERTAS ESPECÍFICAS PREVIAS):
 Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 850, mode: 'fast' });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 2048, mode: 'fast' });
       const data = extractJSON(raw);
       return data;
     } catch (e) {
       console.warn('Fallback analyzeAndDraftProspectB2B:', e);
+
+      // Si el asesor configuró una propuesta base en el editor, ADAPTAR ESA MISMA PROPUESTA
+      // en vez de imponer ofertas de rollos térmicos o carpetas.
+      if (baseMessageText && baseMessageText.trim().length > 10) {
+        let customText = baseMessageText.trim();
+        const contactDisplay = contactName || (companyName || 'Estimado(a)');
+        // 1. Reemplazar variables con llaves dobles PRIMERO
+        customText = customText
+          .replace(/\{\{nombre\}\}/gi, contactDisplay)
+          .replace(/\{\{contacto\}\}/gi, contactDisplay)
+          .replace(/\{\{empresa\}\}/gi, companyName)
+          .replace(/\{\{vendedor\}\}/gi, sellerName)
+          .replace(/\{\{telefono\}\}/gi, sellerPhone)
+          .replace(/\{\{link\}\}/gi, 'https://jjpaper.pages.dev/catalogo');
+        // 2. Resolver Spintax {A|B|C}
+        customText = customText.replace(/\{([^{}]+)\}/g, (_, choices) => {
+          const arr = choices.split('|');
+          return arr[Math.floor(Math.random() * arr.length)];
+        });
+
+        const customSubject = baseSubjectText && baseSubjectText.trim().length > 3
+          ? baseSubjectText.replace(/\{\{nombre\}\}/gi, contactDisplay).replace(/\{\{empresa\}\}/gi, companyName)
+          : `Propuesta Comercial para ${companyName} — JJ Paper C.A.`;
+
+        return {
+          sector_deducido: sector || 'Corporativo General',
+          dolor_operativo: 'Abastecimiento de insumos y consumibles de oficina',
+          insumos_core: ['Propuesta personalizada del asesor'],
+          insumo_cross_sell: '',
+          angulo_seleccionado: 'oferta_asesor',
+          subject: customSubject,
+          email_body: customText,
+          wa_body: customText
+        };
+      }
+
       // Fallback robusto con los datos directos
       const salutation = contactName 
         ? `Estimado(a) ${contactName}${contactRole ? `, ${contactRole}` : ''} en ${companyName}:`
@@ -1834,7 +1913,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     msgLength = 'balanced',
     priceMode = 'with_prices',
     ctaGoal = 'quote',
-    forceRefresh = false
+    forceRefresh = false,
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const sName = sellerName || w.CURRENT_PROFILE?.full_name || w.CURRENT_PROFILE?.name || 'Keyder José Salazar';
@@ -1931,7 +2012,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
         customInstructions,
         msgLength,
         priceMode,
-        ctaGoal
+        ctaGoal,
+        baseMessageText,
+        baseSubjectText
       });
 
       const isEmail = (channel === 'email');
@@ -1949,7 +2032,7 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     } catch (err) {
       console.warn('Fallback en analyzeCustomerAndDraftMessage:', err);
       const rate = getEffectiveRate();
-      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, products, officialPdfIncluded, isAlreadyContacted });
+      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, products, officialPdfIncluded, isAlreadyContacted, baseMessageText, baseSubjectText });
     }
   }
 
@@ -1964,7 +2047,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     promoProductOrCombo = null,
     products = [],
     officialPdfIncluded = true,
-    isAlreadyContacted = false
+    isAlreadyContacted = false,
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const custName = customer.name || customer.business_name || 'Estimado Cliente';
     const low = (custName + ' ' + (customer.notes || '') + ' ' + (customer.tags || '')).toLowerCase();
@@ -1973,6 +2058,43 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     let sector = 'Comercial General';
     let need = 'Abastecimiento de papelería mayorista y consumibles para continuidad operativa';
     let offering = 'Resmas de papel Bond, consumibles de oficina y embalaje';
+
+    // Si el asesor definió una propuesta base o plantilla en el editor, ADAPTAR ESA MISMA PROPUESTA
+    // en lugar de imponer ofertas genéricas de rollos térmicos o carpetas.
+    if (baseMessageText && baseMessageText.trim().length > 10) {
+      let customText = baseMessageText.trim();
+      const contactDisplay = customer.contact_name || custName;
+      // 1. Reemplazo inteligente de variables con llaves dobles {{...}} PRIMERO
+      customText = customText
+        .replace(/\{\{nombre\}\}/gi, contactDisplay)
+        .replace(/\{\{contacto\}\}/gi, contactDisplay)
+        .replace(/\{\{empresa\}\}/gi, custName)
+        .replace(/\{\{vendedor\}\}/gi, sName)
+        .replace(/\{\{telefono\}\}/gi, sPhone)
+        .replace(/\{\{link\}\}/gi, 'https://jjpaper.pages.dev/catalogo');
+
+      // 2. Resolver Spintax {A|B|C} para dar variabilidad humana a cada cliente
+      customText = customText.replace(/\{([^{}]+)\}/g, (_, choices) => {
+        const arr = choices.split('|');
+        return arr[Math.floor(Math.random() * arr.length)];
+      });
+
+      const customSubject = baseSubjectText && baseSubjectText.trim().length > 3
+        ? baseSubjectText.replace(/\{\{nombre\}\}/gi, contactDisplay).replace(/\{\{empresa\}\}/gi, custName)
+        : (isAlreadyContacted ? `🤝 Seguimiento Operativo para ${custName} — JJ Paper C.A.` : `📋 Propuesta Comercial para ${custName} — JJ Paper C.A.`);
+
+      return {
+        sector: sector,
+        need: need,
+        suggested_offering: 'Propuesta comercial configurada por el asesor',
+        subject: customSubject,
+        body: customText,
+        email_body: customText,
+        wa_body: customText,
+        raw_analysis: { sector_deducido: sector, dolor_operativo: need }
+      };
+    }
+
     let bulletPoints = '';
 
     const hasMultiOffer = Array.isArray(products) && products.length > 0;
@@ -2101,7 +2223,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     msgLength = 'balanced',
     priceMode = 'with_prices',
     ctaGoal = 'quote',
-    onProgress = null
+    onProgress = null,
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const results = [];
     const total = customers.length;
@@ -2148,7 +2272,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
             msgLength,
             priceMode,
             ctaGoal,
-            forceRefresh
+            forceRefresh,
+            baseMessageText,
+            baseSubjectText
           });
           completed++;
           if (typeof onProgress === 'function') {
@@ -2165,7 +2291,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
             rate: 40,
             promoProductOrCombo,
             products,
-            officialPdfIncluded
+            officialPdfIncluded,
+            baseMessageText,
+            baseSubjectText
           });
           if (typeof onProgress === 'function') {
             await onProgress({ current: completed, total, customer: cust, result: fallbackAnalysis });

@@ -532,6 +532,14 @@ window.CampaignEditor = (() => {
                   <button type="button" class="ce-var-btn" style="background:#fdf2f8;color:#9d174d;border-color:#fbcfe8;font-weight:700" onclick="CampaignEditor.insertCatalogLink('qr')" title="Insertar enlace al catálogo con códigos QR para imprimir/escanear">🖨️ Catálogo QR</button>
                 </div>
 
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;margin-bottom:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:11px;color:#166534;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span>✅</span>
+                    <span><strong>Enlace del Catálogo Oficial:</strong> <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="color:#166534;font-weight:700;text-decoration:underline;">https://jjpaper.pages.dev/catalogo</a> (Válido, público y sin login)</span>
+                  </div>
+                  <span style="font-size:10px;color:#15803d;background:#dcfce7;padding:2px 6px;border-radius:4px;font-weight:700;">Acceso Libre</span>
+                </div>
+
                 <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
                   <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.updatePreview()">
                 </div>
@@ -2337,8 +2345,8 @@ ${rawText}
       const sName = currentConfig?.seller?.name || '';
       const sPhone = currentConfig?.seller?.phone || '';
       const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
-      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
-      const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+      const baseMessageText = (document.getElementById('ceMessageInput')?.value || '').trim();
+      const baseSubjectText = (document.getElementById('ceSubjectInput')?.value || '').trim();
 
       await window.GeminiClient.analyzeCustomersBatch({
         customers: selectedAudienceList,
@@ -2357,6 +2365,8 @@ ${rawText}
         priceMode,
         ctaGoal,
         forceRefresh: true,
+        baseMessageText,
+        baseSubjectText,
         onProgress: async ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -2786,20 +2796,25 @@ ${rawText}
     formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00a884;font-weight:700;text-decoration:underline;">$1</a>');
     formatted = formatted.replace(/\n/g, '<br>');
 
-    // Tarjeta interactiva de vista previa si el mensaje incluye enlace al catálogo
+    // Vista previa visual de tarjeta que genera WhatsApp/Email al detectar el link
     const hasCatalogLink = rendered.includes('/catalogo') || rendered.includes('/producto');
     if (hasCatalogLink) {
       const isQr = rendered.includes('/catalogo_impreso');
       const catUrl = isQr ? 'https://jjpaper.pages.dev/catalogo_impreso' : 'https://jjpaper.pages.dev/catalogo';
       formatted += `
-        <a href="${catUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:8px 12px;margin-top:10px;text-decoration:none;color:#166534;box-shadow:0 2px 6px rgba(0,0,0,0.04);transition:transform .15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">
-          <span style="font-size:24px">${isQr ? '🖨️' : '📦'}</span>
-          <div style="flex:1;min-width:0;text-align:left">
-            <div style="font-size:12px;font-weight:800;color:#16604A">${isQr ? 'JJ Paper | Catálogo con Códigos QR' : 'JJ Paper | Catálogo Digital Mayorista'}</div>
-            <div style="font-size:10.5px;color:#334155;line-height:1.25">Ver fotos en alta resolución, precios oficiales y cotización directa</div>
-            <div style="font-size:9.5px;color:#16604A;font-weight:700;margin-top:2px">${catUrl.replace('https://', '')} (Acceso Libre) ↗</div>
+        <div style="margin-top:10px;background:#ffffff;border:1px solid #d1d7db;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <div style="background:#f0f2f5;padding:4px 8px;font-size:9.5px;color:#667781;font-weight:700;display:flex;align-items:center;gap:4px;border-bottom:1px solid #e9edef;">
+            <span>📲 Vista previa del enlace que verá el cliente al recibir el mensaje:</span>
           </div>
-        </a>
+          <a href="${catUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;padding:8px 10px;text-decoration:none;color:inherit;background:#fdfdfd;">
+            <span style="font-size:22px">${isQr ? '🖨️' : '📦'}</span>
+            <div style="flex:1;min-width:0;text-align:left;">
+              <div style="font-size:11.5px;font-weight:700;color:#111b21;">${isQr ? 'JJ Paper | Catálogo con Códigos QR' : 'JJ Paper | Catálogo Digital Mayorista'}</div>
+              <div style="font-size:10px;color:#54656f;line-height:1.2;">Precios oficiales, fotos HD y cotización directa sin contraseña</div>
+              <div style="font-size:9.5px;color:#00a884;font-weight:600;margin-top:2px;">${catUrl.replace('https://', '')} (Acceso Libre) ↗</div>
+            </div>
+          </a>
+        </div>
       `;
     }
 
@@ -3255,7 +3270,31 @@ ${rawText}
   /* ---------------- DESPACHO Y LANZAMIENTO ---------------- */
   function buildMinimalFallback(c, channel, sellerName, inclPdf) {
     const sName = sellerName || 'Asesor JJ Paper';
-    const shown = (c ? (c.company_name || c.name) : null) || 'Estimado Cliente';
+    const shown = (c ? (c.contact_name || c.company_name || c.name) : null) || 'Estimado Cliente';
+    const custCompany = (c ? (c.company_name || c.name) : null) || 'su empresa';
+    const sPhone = (typeof window !== 'undefined' && window.CURRENT_PROFILE?.phone) || '0412-4676073';
+
+    // 1. Si el asesor escribió o cargó una plantilla en el editor, ADAPTAR ESA MISMA PROPUESTA:
+    const currentInput = (document.getElementById('ceMessageInput')?.value || '').trim();
+    if (currentInput && currentInput.length > 10 && !currentInput.includes('Le saludamos cordialmente de JJ Paper...')) {
+      let custom = currentInput;
+      // Reemplazar variables dinámicas {{...}} PRIMERO
+      custom = custom
+        .replace(/\{\{nombre\}\}/gi, shown)
+        .replace(/\{\{contacto\}\}/gi, shown)
+        .replace(/\{\{empresa\}\}/gi, custCompany)
+        .replace(/\{\{vendedor\}\}/gi, sName)
+        .replace(/\{\{telefono\}\}/gi, sPhone)
+        .replace(/\{\{link\}\}/gi, 'https://jjpaper.pages.dev/catalogo');
+
+      // Resolver Spintax {A|B|C} para humanizar cada envío
+      custom = custom.replace(/\{([^{}]+)\}/g, (_, choices) => {
+        const arr = choices.split('|');
+        return arr[Math.floor(Math.random() * arr.length)];
+      });
+      return custom;
+    }
+
     const isContacted = Boolean(
       c && (
         c.contacted ||

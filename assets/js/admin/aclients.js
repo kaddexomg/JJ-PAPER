@@ -27,38 +27,103 @@ function _setAdminCustCache(data) {
   try {
     sessionStorage.setItem(ADMIN_CUST_CACHE_KEY, JSON.stringify(data));
     sessionStorage.setItem(ADMIN_CUST_CACHE_TIME, String(Date.now()));
-  } catch (_) {}
+  } catch (e) {
+    console.warn('No se pudo guardar la caché completa de clientes en sessionStorage (posible límite de cuota):', e);
+    try {
+      const compact = data.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        rif: c.rif,
+        zone: c.zone,
+        city: c.city,
+        total_orders: c.total_orders,
+        total_usd: c.total_usd,
+        last_order_at: c.last_order_at,
+        seller_id: c.seller_id,
+        email: c.email,
+        email_status: c.email_status
+      }));
+      sessionStorage.setItem(ADMIN_CUST_CACHE_KEY, JSON.stringify(compact));
+      sessionStorage.setItem(ADMIN_CUST_CACHE_TIME, String(Date.now()));
+    } catch (_) {}
+  }
 }
 
 async function loadAdminCustomers(force = false) {
-  const { data: profs } = await sb.from('jjp_profiles').select('id, name, role');
-  adminProfiles = profs || [];
+  const tbody = document.getElementById('adminCustBody');
+  const profsPromise = sb.from('jjp_profiles').select('id, name, role');
 
   if (!force) {
     const cached = _getAdminCustCache();
-    if (cached) {
+    if (cached && cached.length > 0) {
       adminCustomers = cached;
+      const { data: profs } = await profsPromise;
+      adminProfiles = profs || [];
       renderAdminCustomers();
       return;
     }
   }
 
-  // PostgREST corta en 1.000 filas: paginamos para cargar TODA la cartera global
-  adminCustomers = [];
-  const PAGE = 1000;
-  let from = 0;
-  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags';
-  for (;;) {
-    const { data, error } = await sb.from('jjp_customers')
-      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false })
-      .range(from, from + PAGE - 1);
-    if (error) { showToast('Error cargando clientes', 'err'); return; }
-    adminCustomers.push(...(data || []));
-    if (!data || data.length < PAGE || from > 12000) break;
-    from += PAGE;
+  if (tbody && !adminCustomers.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">⏳ Cargando cartera de clientes...</td></tr>`;
   }
-  _setAdminCustCache(adminCustomers);
-  renderAdminCustomers();
+
+  try {
+    const { data: profs } = await profsPromise;
+    adminProfiles = profs || [];
+
+    adminCustomers = [];
+    const PAGE = 1000;
+    let from = 0;
+    const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,email_status,address,notes';
+
+    // Primer lote: se renderiza de inmediato (<400ms) para respuesta ultra-rápida
+    const { data: chunk1, error: err1 } = await sb.from('jjp_customers')
+      .select(CUST_COLS)
+      .order('last_order_at', { ascending: false, nullsFirst: false })
+      .range(0, PAGE - 1);
+
+    if (err1) throw err1;
+
+    if (chunk1 && chunk1.length > 0) {
+      adminCustomers.push(...chunk1);
+      renderAdminCustomers();
+    }
+
+    // Cargar los siguientes lotes en segundo plano sin congelar la interfaz
+    if (chunk1 && chunk1.length === PAGE) {
+      from = PAGE;
+      while (from <= 12000) {
+        const { data: nextChunk, error: nextErr } = await sb.from('jjp_customers')
+          .select(CUST_COLS)
+          .order('last_order_at', { ascending: false, nullsFirst: false })
+          .range(from, from + PAGE - 1);
+
+        if (nextErr) {
+          console.warn('Error en lote secundario de clientes:', nextErr);
+          break;
+        }
+        if (!nextChunk || nextChunk.length === 0) break;
+
+        adminCustomers.push(...nextChunk);
+        from += PAGE;
+        if (nextChunk.length < PAGE) break;
+      }
+      renderAdminCustomers();
+    }
+
+    _setAdminCustCache(adminCustomers);
+  } catch (err) {
+    console.error('Error cargando clientes admin:', err);
+    showToast('Error cargando clientes: ' + (err.message || err), 'err');
+    if (tbody && !adminCustomers.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">
+        Error al cargar clientes: ${escapeHTML(err.message || String(err))}
+        <br><button class="btn-s" style="margin-top:8px;padding:4px 10px;background:#16604A;color:#fff;border-radius:6px;border:none;cursor:pointer" onclick="loadAdminCustomers(true)">🔄 Reintentar</button>
+      </td></tr>`;
+    }
+  }
 }
 
 function setAdminZone(zone) {

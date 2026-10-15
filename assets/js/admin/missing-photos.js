@@ -20,19 +20,59 @@ let mpTimer;
 
 async function mpLoad() {
   const body = document.getElementById('mpTableBody');
-  const { data, error } = await sb
-    .from('jjp_missing_photos')
-    .select('*')
-    .order('usd_parado', { ascending: false })
-    .limit(1000);
+  if (!body) return;
+  body.innerHTML = `<tr><td colspan="6" class="table-empty">⏳ Buscando productos sin foto...</td></tr>`;
 
-  if (error) {
-    body.innerHTML = `<tr><td colspan="6" class="table-empty">Error: ${error.message}</td></tr>`;
-    return;
+  try {
+    let rows = [];
+    const { data, error } = await sb
+      .from('jjp_missing_photos')
+      .select('*')
+      .order('usd_parado', { ascending: false })
+      .limit(1000);
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      rows = data;
+    } else {
+      // Fallback directo a jjp_product_variants si la vista tarda o está en actualización
+      const { data: direct } = await sb
+        .from('jjp_product_variants')
+        .select('id, sku, stock, price_usd, image_url, jjp_products!inner(id, name, image_url, jjp_categories(name))')
+        .or('image_url.is.null,image_url.eq.')
+        .order('stock', { ascending: false })
+        .limit(500);
+
+      if (direct && direct.length > 0) {
+        rows = direct
+          .filter(v => (!v.image_url || v.image_url === '') && (!v.jjp_products?.image_url || v.jjp_products?.image_url === ''))
+          .map(v => {
+            const stockVal = Number(v.stock || 0);
+            const priceVal = Number(v.price_usd || 0);
+            return {
+              variant_id: v.id,
+              sku: v.sku || '',
+              producto: v.jjp_products?.name || 'Producto sin nombre',
+              categoria: v.jjp_products?.jjp_categories?.name || 'Sin categoría',
+              stock: stockVal,
+              price_usd: priceVal,
+              usd_parado: stockVal > 0 ? Math.round(stockVal * priceVal * 100) / 100 : 0
+            };
+          });
+      }
+    }
+
+    mpRows = rows;
+    mpFillCategorias();
+    mpRender();
+  } catch (err) {
+    console.error('Error cargando cola de fotos faltantes:', err);
+    if (body) {
+      body.innerHTML = `<tr><td colspan="6" class="table-empty">
+        Error al cargar fotos faltantes: ${escapeHTML(err.message || String(err))}
+        <br><button class="btn-s" style="margin-top:8px;padding:4px 10px;background:#065f46;color:#fff;border-radius:6px;border:none;cursor:pointer" onclick="mpLoad()">🔄 Reintentar</button>
+      </td></tr>`;
+    }
   }
-  mpRows = data || [];
-  mpFillCategorias();
-  mpRender();
 }
 
 function mpFillCategorias() {
@@ -318,7 +358,8 @@ async function mpStudioEjecutarBusqueda() {
   if (grid) grid.innerHTML = '';
   if (countEl) countEl.textContent = '...';
 
-  let results = [];
+  try {
+    let results = [];
 
   // 1. INTENTAR DIRECTAMENTE VÍA CLOUDFLARE EDGE API (/api/search-images)
   // Ultra-rápida (1-2s), sin demoras de base de datos ni desincronización de procesos
@@ -331,10 +372,28 @@ async function mpStudioEjecutarBusqueda() {
       }
     }
   } catch (err) {
-    console.warn('Fallback a jjp_server_control por error en /api/search-images:', err);
+    console.warn('Fallo /api/search-images:', err);
   }
 
-  // 2. Si Cloudflare no devolvió fotos o falló la red, usar jjp_server_control como respaldo
+  // 2. Intentar servidor local LAN (wa-server en localhost:8787)
+  if (!results.length) {
+    try {
+      const lanCtl = new AbortController();
+      const lanTimer = setTimeout(() => lanCtl.abort(), 2000);
+      const lanRes = await fetch(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(q)}`, {
+        signal: lanCtl.signal
+      });
+      clearTimeout(lanTimer);
+      if (lanRes.ok) {
+        const lanData = await lanRes.json();
+        if (lanData.ok && Array.isArray(lanData.results) && lanData.results.length > 0) {
+          results = lanData.results;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 3. Fallback a jjp_server_control si aún no hay resultados (máximo 4 segundos)
   if (!results.length) {
     try {
       await sb.from('jjp_server_control').update({
@@ -342,7 +401,7 @@ async function mpStudioEjecutarBusqueda() {
         command_at: new Date().toISOString()
       }).eq('id', 1);
 
-      for (let i = 0; i < 24; i++) {
+      for (let i = 0; i < 8; i++) {
         await new Promise(r => setTimeout(r, 500));
         const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
         let resObj = ctrl?.command_res;

@@ -30,10 +30,48 @@ const BRAND_CORRECTIONS = {
   'STAR-KIT': 'STAR KIT',
   'MR. BOBINA': 'MISTER BOBINA',
   'MR BOBINA': 'MISTER BOBINA',
+  'MRBOBINA': 'MISTER BOBINA',
+  'MISTERBOBINA': 'MISTER BOBINA',
   'OFICMA': 'OFIMAK',
   'OFIMA': 'OFIMAK',
+  'OFCIMA': 'OFIMAK',
+  'OFCIMAK': 'OFIMAK',
   'UNIBALL': 'UNI-BALL'
 };
+
+const BRAND_ALIASES = {
+  'MISTER BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'MR BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'OFIMAK': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFICMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFIMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'PAPER MATE': ['PAPER MATE', 'PAPERMATE'],
+  'PAPERMATE': ['PAPER MATE', 'PAPERMATE'],
+  'FABER-CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABER CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABERCASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'PEGA-LOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'PEGALOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'STAR KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'STAR-KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'MONAMI': ['MONAMI', 'MON AMI'],
+  'MON AMI': ['MONAMI', 'MON AMI'],
+  'UNI-BALL': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNI': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNIBALL': ['UNI-BALL', 'UNI', 'UNIBALL']
+};
+
+function isSameBrand(b1, b2) {
+  if (!b1 || !b2) return false;
+  const u1 = b1.trim().toUpperCase();
+  const u2 = b2.trim().toUpperCase();
+  if (u1 === u2) return true;
+  const a1 = BRAND_ALIASES[u1];
+  if (a1 && a1.includes(u2)) return true;
+  const a2 = BRAND_ALIASES[u2];
+  if (a2 && a2.includes(u1)) return true;
+  return false;
+}
 
 const ABBREVIATION_MAP = {
   'P/G': 'PUNTA GRUESA',
@@ -244,13 +282,15 @@ function scoreResult(result, targetBrand, coreType) {
   }
 
   if (targetBrand) {
-    const brandLower = targetBrand.toLowerCase();
-    if (title.includes(brandLower) || url.includes(brandLower)) {
+    const brandUpper = targetBrand.toUpperCase();
+    const aliases = (BRAND_ALIASES[brandUpper] || [brandUpper]).map(a => a.toLowerCase());
+    const hasTargetBrand = aliases.some(a => title.includes(a) || url.includes(a));
+    if (hasTargetBrand) {
       score += 80;
     } else {
       score -= 20;
       for (const otherBrand of KNOWN_BRANDS) {
-        if (otherBrand.toLowerCase() !== brandLower && title.includes(otherBrand.toLowerCase())) {
+        if (!isSameBrand(otherBrand, targetBrand) && title.includes(otherBrand.toLowerCase())) {
           score -= 100;
           break;
         }
@@ -364,10 +404,17 @@ export async function onRequest(context) {
   const { queries, brand, coreType } = buildOptimalQueries(rawQuery);
 
   const searchPromises = [];
+  // Siempre consultar con la query cruda del usuario en ambos motores
+  searchPromises.push(searchDuckDuckGo(rawQuery));
+  searchPromises.push(searchBing(rawQuery));
+
+  // Consultar también las queries optimizadas
   for (const q of queries) {
-    searchPromises.push(searchBing(q));
+    if (q.toLowerCase() !== rawQuery.toLowerCase()) {
+      searchPromises.push(searchBing(q));
+    }
   }
-  if (queries[0]) {
+  if (queries[0] && queries[0].toLowerCase() !== rawQuery.toLowerCase()) {
     searchPromises.push(searchDuckDuckGo(queries[0]));
   }
 
@@ -381,11 +428,16 @@ export async function onRequest(context) {
 
   const scored = allResults
     .map(r => ({ ...r, score: scoreResult(r, brand, coreType) }))
-    .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score);
 
+  // Filtrado positivo; si no hay fotos con score positivo, relajar filtro para no dejar la vista vacía
+  let filtered = scored.filter(r => r.score > 0);
+  if (!filtered.length) {
+    filtered = scored.filter(r => r.score > -200);
+  }
+
   const seen = new Set();
-  const uniqueResults = scored.filter(r => {
+  const uniqueResults = filtered.filter(r => {
     if (!r.image) return false;
     const key = r.image.split('?')[0].toLowerCase();
     if (seen.has(key)) return false;

@@ -2814,8 +2814,7 @@ with (security_invoker = true) as
            or exists (select 1 from public.jjp_profiles
                       where id = auth.uid() and active) );
 
-create or replace view public.jjp_missing_photos
-with (security_invoker = true) as
+create or replace view public.jjp_missing_photos as
   select v.id               as variant_id,
          v.sku,
          p.name             as producto,
@@ -2828,16 +2827,11 @@ with (security_invoker = true) as
   from   public.jjp_product_variants v
   join   public.jjp_products p on p.id = v.product_id
   left   join public.jjp_categories c on c.id = p.category_id
-  where  coalesce(v.image_url,'') = ''
-    and  coalesce(p.image_url,'') = ''
-    and  ( auth.role() = 'service_role'
-           or exists (select 1 from public.jjp_profiles
-                      where id = auth.uid() and active) );
+  where  (v.image_url is null or v.image_url = '')
+    and  (p.image_url is null or p.image_url = '');
 
-revoke all    on public.jjp_catalog_export from anon;
-revoke all    on public.jjp_missing_photos from anon;
-grant  select on public.jjp_catalog_export to authenticated;
-grant  select on public.jjp_missing_photos to authenticated;
+grant select on public.jjp_catalog_export to authenticated;
+grant select on public.jjp_missing_photos to anon, authenticated, service_role;
 
 
 -- =========================================

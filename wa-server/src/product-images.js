@@ -71,10 +71,48 @@ const BRAND_CORRECTIONS = {
   'STAR-KIT': 'STAR KIT',
   'MR. BOBINA': 'MISTER BOBINA',
   'MR BOBINA': 'MISTER BOBINA',
+  'MRBOBINA': 'MISTER BOBINA',
+  'MISTERBOBINA': 'MISTER BOBINA',
   'OFICMA': 'OFIMAK',
   'OFIMA': 'OFIMAK',
+  'OFCIMA': 'OFIMAK',
+  'OFCIMAK': 'OFIMAK',
   'UNIBALL': 'UNI-BALL'
 };
+
+const BRAND_ALIASES = {
+  'MISTER BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'MR BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'OFIMAK': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFICMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFIMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'PAPER MATE': ['PAPER MATE', 'PAPERMATE'],
+  'PAPERMATE': ['PAPER MATE', 'PAPERMATE'],
+  'FABER-CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABER CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABERCASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'PEGA-LOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'PEGALOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'STAR KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'STAR-KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'MONAMI': ['MONAMI', 'MON AMI'],
+  'MON AMI': ['MONAMI', 'MON AMI'],
+  'UNI-BALL': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNI': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNIBALL': ['UNI-BALL', 'UNI', 'UNIBALL']
+};
+
+function isSameBrand(b1, b2) {
+  if (!b1 || !b2) return false;
+  const u1 = b1.trim().toUpperCase();
+  const u2 = b2.trim().toUpperCase();
+  if (u1 === u2) return true;
+  const a1 = BRAND_ALIASES[u1];
+  if (a1 && a1.includes(u2)) return true;
+  const a2 = BRAND_ALIASES[u2];
+  if (a2 && a2.includes(u1)) return true;
+  return false;
+}
 
 // ---- Abreviaturas venezolanas de papelería ----
 const ABBREVIATION_MAP = {
@@ -649,8 +687,9 @@ function scoreResult(result, brand, metadata) {
 
   // 3. Evaluar marca
   if (brand) {
-    const brandLower = brand.toLowerCase();
-    const hasTargetBrand = title.includes(brandLower) || imgUrl.includes(brandLower);
+    const brandUpper = brand.toUpperCase();
+    const aliases = (BRAND_ALIASES[brandUpper] || [brandUpper]).map(a => a.toLowerCase());
+    const hasTargetBrand = aliases.some(a => title.includes(a) || imgUrl.includes(a));
     if (hasTargetBrand) {
       score += 80; // Gran bonificación por marca oficial buscada
     } else {
@@ -659,7 +698,7 @@ function scoreResult(result, brand, metadata) {
 
     // Penalizar severamente si menciona OTRA marca de papelería diferente
     for (const other of KNOWN_BRANDS) {
-      if (other.toLowerCase() !== brandLower && title.includes(other.toLowerCase())) {
+      if (!isSameBrand(other, brand) && title.includes(other.toLowerCase())) {
         score -= 200; // Descarte casi total para marcas cruzadas
         break;
       }

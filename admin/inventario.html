@@ -369,8 +369,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('menuToggleBtn')?.addEventListener('click', () =>
     document.getElementById('adminAside')?.classList.toggle('op')
   );
+  mpLoad();            // cola de fotos faltantes (arranca de inmediato)
   await loadInventory();
-  mpLoad();            // cola de fotos faltantes
   loadMoves();         // kardex (no bloquea la tabla principal)
   scanStartBridge();   // recibe escaneos del teléfono (admin/escaner.html) en vivo
 });

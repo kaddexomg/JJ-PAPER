@@ -3,7 +3,7 @@
    Garantiza carga instantánea en PC, laptop y teléfono móvil.
    ====================================================== */
 
-const CACHE_NAME = 'jjp-static-v3';
+const CACHE_NAME = 'jjp-static-v4';
 const IMAGE_CACHE_NAME = 'jjp-images-v1';
 
 const STATIC_ASSETS = [
@@ -76,7 +76,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Assets estáticos locales: Stale-While-Revalidate
+  // 2. Páginas HTML de navegación: SIEMPRE IR A RED (Network First)
+  // Esto previene que al actualizar código el usuario siga viendo la versión vieja en caché
+  if (req.mode === 'navigate' || req.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/' || !url.pathname.includes('.')) {
+    event.respondWith(
+      fetch(req).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 3. Assets estáticos (CSS, JS, SVG): Stale-While-Revalidate
   if (url.origin === location.origin) {
     event.respondWith(
       caches.match(req).then((cached) => {

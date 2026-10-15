@@ -360,8 +360,20 @@ window.CampaignEditor = (() => {
                     <input type="checkbox" id="ceAttachFile" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
                     <span>📁 Subir Archivo Propio (PDF / Imagen)</span>
                   </label>
-                  <div style="margin-top:6px;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #bbf7d0;font-size:11px;color:#166534;line-height:1.35">
-                    🌐 <strong>Catálogo Digital Público:</strong> Los enlaces <code>/catalogo</code> y <code>/producto</code> son 100% de libre acceso para sus clientes: abren al instante sin pedir inicio de sesión.
+                  
+                  <!-- Bloque de Catálogo Digital Interactivo para el Cliente -->
+                  <div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border-radius:8px;border:1.5px solid #86efac;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+                      <strong style="font-size:12px;color:#166534">🌐 Catálogo Digital para el Cliente</strong>
+                      <span style="font-size:10px;background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-weight:700">Sin Registro</span>
+                    </div>
+                    <div style="font-size:11px;color:#334155;line-height:1.35;margin-bottom:8px">
+                      El cliente abre el enlace en su teléfono o PC y ve de inmediato el catálogo con fotos oficiales en alta resolución, precios en USD/Bs y cotización directa por WhatsApp.
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#166534;border:1px solid #86efac;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jjpaper.pages.dev/catalogo', '_blank')" title="Abre el catálogo exactamente como lo ve su cliente">👁️ Probar Catálogo Web ↗</button>
+                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#9d174d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jjpaper.pages.dev/catalogo_impreso', '_blank')" title="Abre el catálogo con códigos QR para imprimir o calle">🖨️ Probar Catálogo QR ↗</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2771,7 +2783,25 @@ ${rawText}
     formatted = formatted.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
     formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00a884;font-weight:700;text-decoration:underline;">$1</a>');
     formatted = formatted.replace(/\n/g, '<br>');
+
+    // Tarjeta interactiva de vista previa si el mensaje incluye enlace al catálogo
+    const hasCatalogLink = rendered.includes('/catalogo') || rendered.includes('/producto');
+    if (hasCatalogLink) {
+      const isQr = rendered.includes('/catalogo_impreso');
+      const catUrl = isQr ? 'https://jjpaper.pages.dev/catalogo_impreso' : 'https://jjpaper.pages.dev/catalogo';
+      formatted += `
+        <a href="${catUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:8px 12px;margin-top:10px;text-decoration:none;color:#166534;box-shadow:0 2px 6px rgba(0,0,0,0.04);transition:transform .15s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">
+          <span style="font-size:24px">${isQr ? '🖨️' : '📦'}</span>
+          <div style="flex:1;min-width:0;text-align:left">
+            <div style="font-size:12px;font-weight:800;color:#16604A">${isQr ? 'JJ Paper | Catálogo con Códigos QR' : 'JJ Paper | Catálogo Digital Mayorista'}</div>
+            <div style="font-size:10.5px;color:#334155;line-height:1.25">Ver fotos en alta resolución, precios oficiales y cotización directa</div>
+            <div style="font-size:9.5px;color:#16604A;font-weight:700;margin-top:2px">${catUrl.replace('https://', '')} (Acceso Libre) ↗</div>
+          </div>
+        </a>
+      `;
+    }
 
     document.getElementById('ceBubbleText').innerHTML = formatted;
     document.getElementById('ceBubbleTime').textContent = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });

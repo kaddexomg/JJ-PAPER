@@ -193,7 +193,7 @@
       ? [model, ...(isArchitect ? PRO_MODELS : FAST_MODELS).filter(m => m !== model)]
       : (isArchitect ? PRO_MODELS : FAST_MODELS);
     
-    const timeoutMs = isArchitect ? 15000 : 10000;
+    const timeoutMs = isArchitect ? 12000 : 6500;
     let lastError = null;
 
     for (let attempt = 0; attempt < keyPool.length; attempt++) {
@@ -1278,14 +1278,20 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
      y WhatsApp adaptados con Spintax.
      -------------------------------------------------------------------------- */
 
+  let _realPortfolioCache = null;
+  let _realPortfolioCacheAt = 0;
+
   // Trae productos REALES del catálogo (con precio B real o price_usd) para que la
   // IA escriba con datos verdaderos en vez de inventar productos y montos.
   async function fetchRealPortfolioProducts(maxOverall = 14) {
+    if (_realPortfolioCache && (Date.now() - _realPortfolioCacheAt < 10 * 60 * 1000)) {
+      return _realPortfolioCache;
+    }
     const w = typeof window !== 'undefined' ? window : {};
     let list = (Array.isArray(w.allProducts) && w.allProducts.length) ? w.allProducts : null;
     if (!list) {
       try {
-        const s = sessionStorage.getItem('jjp_products_cache_v4');
+        const s = sessionStorage.getItem('jjp_products_cache_v4') || sessionStorage.getItem('jjp_catalog_flat');
         if (s) list = JSON.parse(s);
       } catch (_) {}
     }
@@ -1344,9 +1350,15 @@ Redacta el mensaje comercial aplicando rigurosamente el tono "${toneConfig.name}
           price_usd: priceUsd,
           price_bs: priceUsd > 0 ? priceUsd * rate : 0
         });
-        if (picked.length >= maxOverall) return picked;
+        if (picked.length >= maxOverall) {
+          _realPortfolioCache = picked;
+          _realPortfolioCacheAt = Date.now();
+          return picked;
+        }
       }
     }
+    _realPortfolioCache = picked;
+    _realPortfolioCacheAt = Date.now();
     return picked;
   }
 
@@ -1734,7 +1746,7 @@ FLUJO DE ANÁLISIS DE PROSPECCIÓN (SIN OFERTAS ESPECÍFICAS PREVIAS):
 Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 2000, mode: 'architect' });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 850, mode: 'fast' });
       const data = extractJSON(raw);
       return data;
     } catch (e) {
@@ -2113,8 +2125,8 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
       messageType = 'Reactivación VIP / Fidelizado';
     }
 
-    // Procesar en chunks de 3 en paralelo con pool balanceado de 7 API keys
-    const CONCURRENCY = 3;
+    // Procesar en chunks de 4 en paralelo con pool balanceado de 7 API keys
+    const CONCURRENCY = 4;
     for (let i = 0; i < customers.length; i += CONCURRENCY) {
       const chunk = customers.slice(i, i + CONCURRENCY);
       const chunkPromises = chunk.map(async (cust) => {

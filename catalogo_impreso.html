@@ -817,6 +817,14 @@ const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('dateDisplay').textContent = `Emisión: ${new Date().toLocaleDateString('es-VE')}`;
   
+  // Escuchar actualizaciones de tasa en vivo
+  window.addEventListener('jjp_rate_updated', (e) => {
+    const r = e.detail?.rate || (typeof getRate === 'function' ? getRate() : 40);
+    const rateEl = document.getElementById('rateDisplay');
+    if (rateEl) rateEl.textContent = `Tasa Oficial BCV: Bs ${Number(r).toFixed(2)}/USD`;
+    if (allItems.length) filterCatalog();
+  });
+
   // Cargar tasa de cambio oficial directamente desde la base de datos de JJ Paper
   try {
     if (typeof loadSettings === 'function') {
@@ -882,8 +890,38 @@ async function loadGroups() {
   }
 }
 
+function processCatalogData(prods) {
+  allItems = prods.map(p => {
+    const vs = (p.jjp_product_variants || []).filter(v => v.active !== false);
+    p.variants = vs;
+    const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd || 0))).filter(x => x > 0);
+    p._price = prices.length ? Math.min(...prices) : Number(p.price_b != null ? p.price_b : (p.price_usd || 0));
+    p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
+    p._packaging = detectPackaging(p.name, p.unit, vs);
+    p._brands = [...new Set(vs.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ');
+    return p;
+  });
+  filterCatalog();
+}
+
 async function loadCatalogProducts() {
   const grid = document.getElementById('catalogGrid');
+  
+  // 1. Carga ultra-rápida desde caché de sesión (<30ms)
+  try {
+    const cached = sessionStorage.getItem('jjp_catalog_impreso_cache');
+    const cachedAt = parseInt(sessionStorage.getItem('jjp_catalog_impreso_at') || '0', 10);
+    const isFresh = (Date.now() - cachedAt) < 10 * 60 * 1000;
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        processCatalogData(parsed);
+        if (isFresh) return; // Si los datos tienen menos de 10 minutos, no sobrecargar la red
+      }
+    }
+  } catch (_) {}
+
+  // 2. Consulta resiliente a Supabase
   try {
     let prods = [];
     let from = 0;
@@ -902,34 +940,30 @@ async function loadCatalogProducts() {
       }
       if (data && data.length > 0) {
         prods.push(...data);
-        if (data.length <= step) break; // Menos o igual al límite, fin de datos
-        from += step + 1; // Siguiente página sin solapamiento
+        if (data.length <= step) break;
+        from += step + 1;
       } else {
         break;
       }
     }
 
     if (!prods.length) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">No se encontraron productos activos en el catálogo.</div>`;
+      if (!allItems.length) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">No se encontraron productos activos en el catálogo.</div>`;
+      }
       return;
     }
 
-    allItems = prods.map(p => {
-      const vs = (p.jjp_product_variants || []).filter(v => v.active !== false);
-      p.variants = vs;
-      const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd || 0))).filter(x => x > 0);
-      p._price = prices.length ? Math.min(...prices) : Number(p.price_b != null ? p.price_b : (p.price_usd || 0));
-      p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
-      p._packaging = detectPackaging(p.name, p.unit, vs);
-      p._brands = [...new Set(vs.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ');
-      return p;
-    });
+    try {
+      sessionStorage.setItem('jjp_catalog_impreso_cache', JSON.stringify(prods));
+      sessionStorage.setItem('jjp_catalog_impreso_at', Date.now().toString());
+    } catch (_) {}
 
-    filterCatalog();
+    processCatalogData(prods);
 
   } catch (err) {
     console.error('Error cargando productos:', err);
-    if (grid) {
+    if (!allItems.length && grid) {
       grid.innerHTML = `
         <div style="grid-column:1/-1;text-align:center;padding:40px;color:#c62828">
           Error al cargar el catálogo comercial. Intente recargar la página.

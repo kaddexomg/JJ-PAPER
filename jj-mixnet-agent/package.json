@@ -1,0 +1,12 @@
+{
+  "name": "jj-mixnet-agent",
+  "version": "3.0.0",
+  "description": "Demonio Autónomo y Agente de Red MixNet ERP para JJ Paper",
+  "main": "agent.js",
+  "type": "module",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "author": "JJ Paper C.A.",
+  "license": "UNLICENSED"
+}

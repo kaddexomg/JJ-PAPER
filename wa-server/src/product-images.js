@@ -30,8 +30,8 @@ const GEMINI_KEYS = [
 ];
 
 const GEMINI_MODELS = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.6-flash'
+  'gemini-2.5-flash',
+  'gemini-2.0-flash'
 ];
 
 let _geminiKeyIdx = 0;
@@ -139,7 +139,10 @@ const BLOCKED_DOMAINS = [
   'wikimedia', 'wikipedia', 'flickr', 'unsplash', 'pexels', 'pixabay',
   'shutterstock', 'istock', 'gettyimages', 'dreamstime', 'alamy',
   '123rf', 'depositphotos', 'lookaside.fbsbx', 'memegenerator',
-  'deviantart', 'artstation', 'tenor', 'giphy'
+  'deviantart', 'artstation', 'tenor', 'giphy',
+  'scribd', 'slidesharecdn', 'slideshare', 'issuu', 'studocu', 'docplayer',
+  'academia.edu', 'yumpu', 'calameo', 'pdfcoffee', 'dokumen', 'vdocuments',
+  'fdocuments', 'coursehero', 'monografias', 'glosario', '.pdf'
 ];
 
 
@@ -335,7 +338,13 @@ function buildManualQueries(expandedName, brand) {
   let productType = '';
   let enProductType = '';
 
-  if (/grapadora|engrapadora/i.test(clean)) {
+  if (/funda\s*protectora|protector\s*de\s*hoja|sheet\s*protector/i.test(clean)) {
+    productType = 'funda protectora plastica transparente hoja carta paquete';
+    enProductType = 'clear plastic sheet protector letter size pack';
+  } else if (/plastificar|plastico\s*carnet|mica/i.test(clean)) {
+    productType = 'micas para plastificar carnet paquete';
+    enProductType = 'laminating pouches pack';
+  } else if (/grapadora|engrapadora/i.test(clean)) {
     productType = 'grapadora metalica escritorio oficina fondo blanco';
     enProductType = 'metal desktop office stapler white background';
   } else if (/escarcha|purpurina|brillantina/i.test(clean)) {
@@ -520,20 +529,25 @@ async function searchBingImages(query, limit = 8) {
     const html = await res.text();
 
     const results = [];
-    const murlRegex = /murl&quot;:&quot;(https?:\/\/[^"]+?)&quot;/g;
-    const titleRegex = /class="(?:inflnk|iusc)"[^>]*(?:alt|aria-label)="([^"]+)"/gi;
-    let m, tMatch;
-    while ((m = murlRegex.exec(html)) !== null && results.length < limit) {
-      tMatch = titleRegex.exec(html);
-      const titleStr = tMatch ? tMatch[1] : '';
-      const imgUrl = decodeURIComponent(m[1].replace(/&amp;/g, '&'));
-      if (!isBlockedDomain(imgUrl) && imgUrl.length > 20 && imgUrl.length < 600) {
+    const tileRegex = /\bm="(\{[^"]*?murl[^"]*?\})"/g;
+    let m;
+    while ((m = tileRegex.exec(html)) !== null && results.length < limit) {
+      let meta;
+      try {
+        meta = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+      } catch (_) { continue; }
+      const imgUrl = meta.murl;
+      const pageUrl = meta.purl || '';
+      const titleStr = meta.t || meta.desc || '';
+      if (!imgUrl || isBlockedDomain(imgUrl) || (pageUrl && isBlockedDomain(pageUrl)) || (titleStr && isBlockedDomain(titleStr))) continue;
+      if (imgUrl.length > 20 && imgUrl.length < 600) {
         results.push({
           image: imgUrl,
-          thumbnail: imgUrl,
+          thumbnail: meta.turl || imgUrl,
           width: 800,
           height: 800,
           title: titleStr,
+          page: pageUrl,
           source: 'bing'
         });
       }
@@ -751,6 +765,7 @@ export async function searchProductImagesOnWeb(rawQuery) {
   }));
 
   allResults.sort((a, b) => b._score - a._score);
+  allResults = allResults.filter(r => r._score > 0);
 
   const finalResults = allResults.slice(0, 12).map(r => ({
     title: r.title || metadata?.canonical_title || metadata?.product_type || 'Foto de Producto',

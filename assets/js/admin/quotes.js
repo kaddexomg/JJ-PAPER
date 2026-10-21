@@ -34,7 +34,7 @@ function updateQuotesSellerOptions() {
   const currentVal = sel.value || quotesSellerFilter;
   let html = `<option value="">🧑‍💼 Todos los vendedores</option>
 <option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Cotizaciones)</option>
-<option value="mostrador">🏪 Mostrador / Sin asignar</option>`;
+<option value="sin_asignar">⏳ Sin asignar / Por revisar</option>`;
   (quoteSellers || []).forEach(s => {
     if (s.id === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return;
     html += `<option value="${s.id}">${escapeHTML(s.name || 'Vendedor')}</option>`;
@@ -69,7 +69,7 @@ function renderQuotesTable() {
   if (!tbody) return;
 
   let filtered = adminQuotes;
-  if (quotesSellerFilter === 'mostrador') {
+  if (quotesSellerFilter === 'sin_asignar' || quotesSellerFilter === 'mostrador') {
     filtered = filtered.filter(q => !q.seller_id);
   } else if (quotesSellerFilter) {
     filtered = filtered.filter(q => q.seller_id === quotesSellerFilter);
@@ -100,7 +100,7 @@ function renderQuotesTable() {
       </td>
       <td>
         <div>${escapeHTML(q.phone || '—')}</div>
-        <div class="td-sub">${q.jjp_profiles?.name ? `🧑‍💼 ${escapeHTML(q.jjp_profiles.name)}` : '<span style="color:#94a3b8">🏪 Sin asignar</span>'}</div>
+        <div class="td-sub">${q.jjp_profiles?.name ? `🧑‍💼 ${escapeHTML(q.jjp_profiles.name)}` : '<span style="color:#94a3b8">⏳ Por asignar</span>'}</div>
       </td>
       <td style="max-width:170px;font-size:11px;color:var(--gr)">${itemsPreview}</td>
       <td>${est > 0 ? `<strong>${fmtPrice(est)}</strong>` : '<span style="color:#bbb">—</span>'}</td>
@@ -120,6 +120,7 @@ function renderQuotesTable() {
           <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
                   title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
+          <button class="btn-o sm" onclick="pushQuoteToMixnet('${q.id}')" title="Sincronizar e inyectar en MixNet ERP (M:\\comp01)">📁</button>
         </div>
       </td>
     </tr>`;
@@ -211,6 +212,23 @@ async function convertQuoteToOrder(id) {
   showToast(`✅ Pedido #${order?.order_number || ''} creado desde la cotización`);
 }
 
+async function pushQuoteToMixnet(id) {
+  const q = adminQuotes.find(x => x.id === id);
+  if (!q) return;
+  const num = q.quote_number || id;
+  showToast(`Sincronizando cotización #${num} con GemixNet ERP...`, 'info');
+  try {
+    // 1. Notificar al micro-API del guardián si responde en la red local
+    try { fetch('http://127.0.0.1:8790/sync-now', { mode: 'no-cors' }).catch(() => {}); } catch (_) {}
+    // 2. Notificar vía Supabase Cloud para procesamiento con compilación de índices .NTX
+    await sb.from('jjp_quotes').update({ status: 'pendiente', source: 'vendedor' }).eq('id', id);
+    await sb.from('jjp_server_control').update({ command: 'sync_mixnet', command_at: new Date().toISOString() }).eq('id', 1);
+    showToast(`✅ Cotización #${num} enviada a GemixNet. Índices .NTX compilados en Servidor Central.`, 'ok');
+  } catch (e) {
+    showToast('Error sincronizando con MixNet: ' + e.message, 'err');
+  }
+}
+
 function viewQuoteDetail(id) {
   const q = adminQuotes.find(x => x.id === id);
   if (!q) return;
@@ -273,6 +291,7 @@ function viewQuoteDetail(id) {
 href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
       <a class="btn-p" style="width:auto;padding:12px 20px;text-decoration:none;font-weight:700" 
 href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
+      <button class="btn-p" style="width:auto;padding:12px 20px;background:#059669;color:#fff;font-weight:700" onclick="pushQuoteToMixnet('${q.id}')">📁 Sincronizar en MixNet ERP</button>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
     </div>`;

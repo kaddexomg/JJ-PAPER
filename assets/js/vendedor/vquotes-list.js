@@ -87,6 +87,7 @@ function renderVQuotes() {
         <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vQuoteCtx('${q.id}'))"
                 title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
+        <button class="btn-o sm" onclick="pushVQuoteToMixnet('${q.id}')" title="Sincronizar e inyectar en MixNet ERP (M:\\comp01)">📁</button>
         <a class="btn-o sm" style="width:auto;padding:7px 10px" target="_blank"
            href="../comprobante.html?q=${encodeURIComponent(q.quote_number || '')}&print=1" title="Imprimir">🖨️</a>
       </div></td>

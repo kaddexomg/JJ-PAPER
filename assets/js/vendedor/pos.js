@@ -767,7 +767,9 @@ async function posSubmit() {
       } catch (_) {}
     }
     if (!orderNumber || !/^\d{8}$/.test(String(orderNumber).trim())) {
-      orderNumber = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
+      showToast('⚠️ No se pudo reservar un correlativo oficial de MixNet (MXNUMPED). Verifique la conexión para evitar saltos o colisiones de numeración.', 'err');
+      if (btn) btn.disabled = false;
+      return;
     }
 
     const order = {

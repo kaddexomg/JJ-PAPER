@@ -1,0 +1,13 @@
+{
+  "name": "jjp-lan-daemon",
+  "version": "1.0.0",
+  "description": "Demonio autonomo 24/7 de sincronizacion ERP MixNet <-> JJ Paper",
+  "type": "module",
+  "main": "daemon.js",
+  "scripts": {
+    "start": "node daemon.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

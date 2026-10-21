@@ -8,11 +8,12 @@
 let _srvRow = null;
 let _srvTimer = null;
 
-// 🟢 si el último latido llegó hace < 90s (late cada 30s)
+// 🟢 si el último latido llegó hace < 180s (late cada 30s; tolera latencia VPS/Supabase)
 function srvOnline(row) {
+  if (row?.status === 'stopped') return false;
   const ts = row?.heartbeat_at || row?.heartbeat;
   if (!ts) return false;
-  return (Date.now() - new Date(ts).getTime()) < 90_000;
+  return (Date.now() - new Date(ts).getTime()) < 180_000;
 }
 
 function srvAgo(iso) {
@@ -25,7 +26,8 @@ function srvAgo(iso) {
 }
 
 async function srvLoad() {
-  const { data } = await sb.from('jjp_server_control').select('id,status,heartbeat_at,host,modules,started_at,command').eq('id', 1).maybeSingle();
+  const { data, error } = await sb.from('jjp_server_control').select('id,status,heartbeat_at,host,modules,started_at,command').eq('id', 1).maybeSingle();
+  if (error || !data) return; // no pisar el último estado conocido por un fallo de red puntual
   _srvRow = data;
   srvRenderChip();
   srvRenderModal();
@@ -68,33 +70,46 @@ function srvRenderModal() {
       </div>
     </div>
     ${on ? `<div class="srv-mods">${modChips}</div>` : ''}
-    ${on && mixerInfo ? `
-    <div style="margin: 8px 0; padding: 6px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 11px; color: #166534; line-height: 1.4;">
-      <strong>📁 Puente MixNet Activo:</strong> <code>${escapeHTML(mixerInfo.primary_dir || 'C:/JJ-PAPER-MIXER')}</code><br>
-      <span>📤 Pedidos exportados: <b>${mixerInfo.exported_orders_count || 0}</b> · Cotizaciones: <b>${mixerInfo.exported_quotes_count || 0}</b> · 📥 Importados: <b>${mixerInfo.imported_count || 0}</b></span>
-      ${mixerInfo.dbf_dir ? `<br><span>💾 Base de datos DBF conectada: <code>${escapeHTML(mixerInfo.dbf_dir)}</code></span>` : ''}
-      <div style="margin-top:6px;display:flex;gap:8px;">
-        <button type="button" style="background:#15803d;color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;" onclick="srvSyncMixnetNow()">🔄 Sincronizar Existencias y Precios Ahora</button>
+    ${(mixerInfo || mods.lan_bridge) ? `
+    <div style="margin: 8px 0; padding: 10px 12px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; font-size: 11.5px; color: #166534; line-height: 1.45;">
+      <div style="font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <span>📁 Puente LAN MixNet ERP: <b style="color:#059669">${mods.lan_bridge?.online ? '🟢 EN LÍNEA' : '🟡 CONECTADO'}</b></span>
+        ${mods.lan_bridge?.current_cot_serial ? `<span style="font-family: monospace; background:#dcfce7; padding: 1px 6px; border-radius: 4px;">Cotiz: #${mods.lan_bridge.current_cot_serial}</span>` : ''}
+      </div>
+      <div style="margin-top: 4px;">
+        <span>💾 <b>Carpetas DBF Activas:</b> <code>${escapeHTML(mods.lan_bridge?.active_dirs?.join(' | ') || mixerInfo?.dbf_dir || 'M:/comp01')}</code></span><br>
+        <span>📤 <b>Sincronizados:</b> Cotizaciones: <b>${mods.lan_bridge?.exported_count || mixerInfo?.exported_quotes_count || 0}</b> · Pedidos: <b>${mods.lan_bridge?.exported_count || mixerInfo?.exported_orders_count || 0}</b></span>
+        ${mods.lan_bridge?.last_exported_quote ? `<br><span>⚡ <b>Última cotización inyectada:</b> <code style="font-weight:700">${escapeHTML(mods.lan_bridge.last_exported_quote)}</code></span>` : ''}
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" style="background:#15803d;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;" onclick="srvSyncMixnetNow()">🔄 Sincronizar Existencias, Precios y Cotizaciones Ahora</button>
+        <a href="mixnet.html" style="background:#0284c7;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">📊 Panel MixNet & Agente IA</a>
       </div>
     </div>` : ''}
     ${CURRENT_PROFILE?.role === 'admin' ? `<div class="srv-actions">
-      <button class="btn-p" onclick="srvCommand('restart')" ${on ? '' : 'disabled'}>🔄 Reiniciar</button>
+      <button class="btn-p" onclick="srvCommand('restart')" ${on ? '' : 'disabled'}>🔄 Reiniciar Servidor</button>
       <button class="btn-o srv-stop" onclick="srvCommand('stop')" ${on ? '' : 'disabled'}>⏹️ Detener</button>
     </div>` : ''}
     <div class="srv-help">
       ${on
-        ? 'Reiniciar = vuelve a levantar el puente solo (útil si un chat se traba). Detener = lo apaga; para prenderlo de nuevo hay que ir a la PC de la tienda.'
-        : '⚠️ Para <strong>PRENDER</strong> el servidor no basta con la web: en la PC de la tienda haz doble clic en <code>wa-server/START-SERVIDOR.bat</code> (o déjalo en arranque automático de Windows). Mientras esté apagado, los mensajes escritos quedan en cola y salen al reconectar.'}
+        ? 'El servidor y el puente LAN se sincronizan de forma continua cada 25 segundos respetando los correlativos y las carpetas de red de MixNet.'
+        : '⚠️ Para <strong>PRENDER</strong> el puente MixNet en esta PC, haz doble clic en <code>INICIAR-PUENTE-MIXNET.bat</code> en el Escritorio. Queda configurado para arrancar solo a las 8:00 AM.'}
     </div>`;
 }
 
 async function srvSyncMixnetNow() {
-  if (!srvOnline(_srvRow)) { showToast('El servidor de la PC debe estar encendido para sincronizar con MixNet', 'warn'); return; }
+  showToast('Iniciando sincronización forzada de MixNet...', 'info');
+  // 1. Intentar trigger directo al demonio local en puerto 8790
+  try {
+    fetch('http://127.0.0.1:8790/sync-now', { mode: 'no-cors' }).catch(() => {});
+  } catch (_) {}
+
+  // 2. Orden vía Supabase jjp_server_control
   const { error } = await sb.from('jjp_server_control')
     .update({ command: 'sync_mixnet', command_at: new Date().toISOString(), command_by: CURRENT_PROFILE?.id || null })
     .eq('id', 1);
-  if (error) { showToast('Error enviando sincronización: ' + error.message, 'err'); return; }
-  showToast('Iniciando sincronización de catálogo y precios MixNet...', 'ok');
+  if (error) { showToast('Aviso: ' + error.message, 'warn'); return; }
+  showToast('✅ Sincronización lanzada con éxito hacia MixNet', 'ok');
 }
 
 async function srvCommand(cmd) {

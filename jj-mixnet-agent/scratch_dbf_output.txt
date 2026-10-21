@@ -1,0 +1,166 @@
+Total DBFs: 645
+Relevant DBFs: [
+  'AL 29112024 MXTRAINV.DBF',
+  'BMINV12.DBF',
+  'BMINV14.DBF',
+  'BUFCOTAA.DBF',
+  'BUFCOTAV.DBF',
+  'BUFCOTDM.DBF',
+  'BUFCOTIN.DBF',
+  'BUFCOTMA.DBF',
+  'BUFCOTPB.DBF',
+  'BUFCOTV5.DBF',
+  'BUFCOTY1.DBF',
+  'BUFPED04.DBF',
+  'BUFPED14.DBF',
+  'BUFPED26.DBF',
+  'BUFPED27.DBF',
+  'BUFPEDAA.DBF',
+  'BUFPEDIN.DBF',
+  'BUFPEDT1.DBF',
+  'BUFPEDT5.DBF',
+  'BUFPEDYP.DBF',
+  'CTAINV.DBF',
+  'GDRENFAC.DBF',
+  'JJCTAINV.DBF',
+  'JJRENCPA.DBF',
+  'MXCEXINV.dbf',
+  'MXCOMINV.dbf',
+  'MXCTAINV.dbf',
+  'MXENCCOT.DBF',
+  'MXENCPED.DBF',
+  'MXEQUINV.dbf',
+  'MXEXTINV.dbf',
+  'MXFACINV.dbf',
+  'MXFISINV.dbf',
+  'MXGRUINV.dbf',
+  'MXMARINV.dbf',
+  'MXNUMCOT.DBF',
+  'MXNUMPED.DBF',
+  'MXRENALB.DBF',
+  'MXRENAPA.DBF',
+  'MXRENCEX.DBF',
+  'MXRENCON.dbf',
+  'MXRENCOT.DBF',
+  'MXRENCPA.dbf',
+  'MXRENDEF.dbf',
+  'MXRENFAC.DBF',
+  'MXRENGUI.dbf',
+  'MXRENHDP.dbf',
+  'MXRENNSA.dbf',
+  'MXRENODP.dbf',
+  'MXRENORD.dbf',
+  'MXRENPED.DBF',
+  'MXRENRAP.DBF',
+  'MXRENREQ.dbf',
+  'MXRENRQC.dbf',
+  'MXRENTRF.dbf',
+  'MXSERINV.dbf',
+  'MXTRAINV.dbf',
+  'respa MXTRAINV - copia.DBF',
+  'VICTAINV.DBF',
+  'VIEMXTRAINV.DBF',
+  'XX MXTRAINV - copia.DBF',
+  'xx MXTRAINV.DBF',
+  'YPTRAINV.DBF'
+]
+
+=== STRUCTURE OF MXENCCOT.DBF (numRecords: 1807) ===
+- numcot (C, len: 8, dec: 0)
+- emision (D, len: 8, dec: 0)
+- cliente (C, len: 8, dec: 0)
+- codsuc (C, len: 2, dec: 0)
+- codven (C, len: 5, dec: 0)
+- comen1 (C, len: 35, dec: 0)
+- comen2 (C, len: 35, dec: 0)
+- transp (C, len: 10, dec: 0)
+- estatus (C, len: 2, dec: 0)
+- entrega (D, len: 8, dec: 0)
+- tot_cot (N, len: 15, dec: 2)
+- numrma (C, len: 8, dec: 0)
+- cambio (N, len: 11, dec: 2)
+- moneda (C, len: 3, dec: 0)
+- nomcli (C, len: 60, dec: 0)
+- cif (C, len: 15, dec: 0)
+- nit (C, len: 15, dec: 0)
+- direc1 (C, len: 25, dec: 0)
+- direc2 (C, len: 25, dec: 0)
+- direc3 (C, len: 25, dec: 0)
+- direc4 (C, len: 25, dec: 0)
+- tlf1 (C, len: 15, dec: 0)
+- tlf2 (C, len: 15, dec: 0)
+- fax (C, len: 15, dec: 0)
+- email (C, len: 50, dec: 0)
+
+=== STRUCTURE OF MXRENCOT.DBF (numRecords: 14876) ===
+- item (C, len: 15, dec: 0)
+- unidad (C, len: 3, dec: 0)
+- bulto (N, len: 5, dec: 0)
+- cantidad (N, len: 14, dec: 3)
+- descrip (C, len: 50, dec: 0)
+- numcot (C, len: 8, dec: 0)
+- emision (D, len: 8, dec: 0)
+- estatus (C, len: 2, dec: 0)
+- despacho (N, len: 10, dec: 3)
+- desbulto (N, len: 10, dec: 3)
+- precio (N, len: 17, dec: 2)
+- desc (N, len: 6, dec: 2)
+- tot_ren (N, len: 19, dec: 2)
+- iva (C, len: 1, dec: 0)
+- cliente (C, len: 8, dec: 0)
+- codven (C, len: 5, dec: 0)
+- codsuc (C, len: 2, dec: 0)
+- codcon (C, len: 20, dec: 0)
+- coddpto (C, len: 10, dec: 0)
+- oferta (L, len: 1, dec: 0)
+- num_cex (C, len: 8, dec: 0)
+- numrma (C, len: 8, dec: 0)
+
+=== LAST 20 ROWS IN MXENCCOT ===
+{"_recNo":1807,"numcot":"","emision":"","cliente":"","codven":"","comen1":"","comen2":"","tot_cot":"","nomcli":"","cif":""}
+{"_recNo":1806,"numcot":"00053497","emision":"20261019","cliente":"014-522","codven":"010","comen1":"","comen2":"","tot_cot":"182.60","nomcli":"AEREO TRANSPORTES DEL CARIBE,","cif":"J-401497489"}
+{"_recNo":1805,"numcot":"00053496","emision":"20261019","cliente":"012-173","codven":"008","comen1":"","comen2":"","tot_cot":"154.20","nomcli":"SUM COPY, C.A","cif":"J-00183400-1"}
+{"_recNo":1804,"numcot":"00053495","emision":"20261019","cliente":"014-522","codven":"005","comen1":"","comen2":"","tot_cot":"36.00","nomcli":"AEREO TRANSPORTES DEL CARIBE, C.A.","cif":"J-40149748-9"}
+{"_recNo":1803,"numcot":"00053495","emision":"20261016","cliente":"00","codven":"010","comen1":"","comen2":"","tot_cot":"39.44","nomcli":"AEREO TRANSPORTES DEL CARIBE,","cif":"J-401497489"}
+{"_recNo":1802,"numcot":"00053494","emision":"20261016","cliente":"00","codven":"010","comen1":"","comen2":"","tot_cot":"616.85","nomcli":"AEREO TRANSPORTES DEL CARIBE,","cif":"J-401497489"}
+{"_recNo":1801,"numcot":"00053493","emision":"20261016","cliente":"001-16","codven":"001","comen1":"","comen2":"","tot_cot":"4.81","nomcli":"MARY CRUZ GARCIA","cif":"V-01444513-2"}
+{"_recNo":1800,"numcot":"00053492","emision":"20261016","cliente":"000-001","codven":"","comen1":"","comen2":"","tot_cot":"59.61","nomcli":"CTA. RECUPERADA: 000-001","cif":""}
+{"_recNo":1799,"numcot":"00053491","emision":"20261016","cliente":"001-16","codven":"001","comen1":"LISTA ESCOLAR","comen2":"","tot_cot":"30.41","nomcli":"MARY CRUZ GARCIA","cif":"V-01444513-2"}
+{"_recNo":1798,"numcot":"00053490","emision":"20261016","cliente":"008-338","codven":"008","comen1":"","comen2":"","tot_cot":"213.66","nomcli":"PROLIMPIEZA ON LINE, C.A.","cif":"J-31332498-1"}
+{"_recNo":1797,"numcot":"00053489","emision":"20261016","cliente":"012-173","codven":"008","comen1":"","comen2":"","tot_cot":"109.27","nomcli":"SUM COPY, C.A","cif":"J-00183400-1"}
+{"_recNo":1796,"numcot":"00053488","emision":"20261016","cliente":"014-666","codven":"005","comen1":"","comen2":"","tot_cot":"26015.50","nomcli":"DALE PLAY SERVICES C.A","cif":"J-50586379-7"}
+{"_recNo":1795,"numcot":"00053487","emision":"20261016","cliente":"003-057","codven":"005","comen1":"","comen2":"","tot_cot":"152.95","nomcli":"FUNDACION VENEZOLANO ALEMANA COLEGIO HUMBOLDT","cif":"J-00007108-0"}
+{"_recNo":1794,"numcot":"00053486","emision":"20261016","cliente":"003-057","codven":"005","comen1":"","comen2":"","tot_cot":"152.95","nomcli":"FUNDACION VENEZOLANO ALEMANA COLEGIO HUMBOLDT","cif":"J-00007108-0"}
+{"_recNo":1793,"numcot":"00053485","emision":"20261016","cliente":"014-666","codven":"005","comen1":"","comen2":"","tot_cot":"26015.50","nomcli":"DALE PLAY SERVICES C.A","cif":"J-50586379-7"}
+{"_recNo":1792,"numcot":"00053484","emision":"20261016","cliente":"014-666","codven":"005","comen1":"","comen2":"","tot_cot":"26015.50","nomcli":"DALE PLAY SERVICES C.A","cif":"J-50586379-7"}
+{"_recNo":1791,"numcot":"00053483","emision":"20261016","cliente":"009-08","codven":"005","comen1":"","comen2":"","tot_cot":"20.53","nomcli":"CENTRO DE FISIOTERAPIA BODYFIS 24, C.A.","cif":"J-40758194-5"}
+{"_recNo":1790,"numcot":"00053482","emision":"20261016","cliente":"003-057","codven":"005","comen1":"","comen2":"","tot_cot":"152.95","nomcli":"FUNDACION VENEZOLANO ALEMANA COLEGIO HUMBOLDT","cif":"J-00007108-0"}
+{"_recNo":1789,"numcot":"00053481","emision":"20261016","cliente":"009-08","codven":"005","comen1":"","comen2":"","tot_cot":"20.53","nomcli":"CENTRO DE FISIOTERAPIA BODYFIS 24, C.A.","cif":"J-40758194-5"}
+{"_recNo":1788,"numcot":"00053480","emision":"20261016","cliente":"014-666","codven":"005","comen1":"","comen2":"","tot_cot":"26015.50","nomcli":"DALE PLAY SERVICES C.A","cif":"J-50586379-7"}
+
+=== LAST 25 ROWS IN MXRENCOT ===
+{"_recNo":14876,"item":"","unidad":"","cantidad":"","descrip":"","numcot":"","precio":"","tot_ren":"","iva":"","cliente":"","codven":""}
+{"_recNo":14875,"item":"CG-MD","unidad":"UND","cantidad":"1.000","descrip":"MARCADOR DETECTOR DE BILLETES X UNID","numcot":"00053497","precio":"1.41","tot_ren":"1.41","iva":"E","cliente":"014-522","codven":"010"}
+{"_recNo":14874,"item":"OS-CAC2B","unidad":"UND","cantidad":"24.000","descrip":"CARPETAS 3 AROS CARTA 2\" BCA.DELUXE","numcot":"00053497","precio":"5.00","tot_ren":"120.00","iva":"E","cliente":"014-522","codven":"010"}
+{"_recNo":14873,"item":"KO-CAO100","unidad":"UNI","cantidad":"1.000","descrip":"CARTULINA OPALINA T/CARTA x100H BLANCA 210GR JC","numcot":"00053497","precio":"16.00","tot_ren":"16.00","iva":"E","cliente":"014-522","codven":"010"}
+{"_recNo":14872,"item":"OF-PCT20","unidad":"UND","cantidad":"1.000","descrip":"PAPEL CONTACT TRANSP 45CMX20 NEW/OFFICE-V","numcot":"00053497","precio":"20.00","tot_ren":"20.00","iva":"E","cliente":"014-522","codven":"010"}
+{"_recNo":14871,"item":"SH-TRO2","unidad":"1","cantidad":"2.000","descrip":"TIRRO DE 2 PULGADAS PEQ 10.5 MTRS MR-B","numcot":"00053490","precio":"0.67","tot_ren":"1.34","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14870,"item":"ACG-T1P","unidad":"","cantidad":"2.000","descrip":"TIRRO MR.BOBINA 1PULG 24XMMX30M","numcot":"00053490","precio":"1.00","tot_ren":"2.00","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14869,"item":"GD-TI6","unidad":"12","cantidad":"1.000","descrip":"TIJERA OFICINA 7\" PRINTA  PR-0038","numcot":"00053490","precio":"1.93","tot_ren":"1.93","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14868,"item":"CP-SOB11","unidad":"500","cantidad":"1.000","descrip":"SOBRES BLANCOS #11 23*10.5 S/V X500","numcot":"00053490","precio":"53.33","tot_ren":"53.33","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14867,"item":"ACG-ISB","unidad":"1","cantidad":"24.000","descrip":"SEPARADORES BLANCOS MR/B 8 DIVISIONES","numcot":"00053490","precio":"0.76","tot_ren":"18.24","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14866,"item":"GD-SAT","unidad":"60","cantidad":"3.000","descrip":"SACAGRAPAS PRINTA/ OFIART OF-015","numcot":"00053490","precio":"0.88","tot_ren":"2.64","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14865,"item":"CP-LIGCJ","unidad":"36","cantidad":"1.000","descrip":"LIBRETA GRD 100 H CARIBE  TESIS KIDS","numcot":"00053490","precio":"1.75","tot_ren":"1.75","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14864,"item":"HP-LAM2","unidad":"12","cantidad":"2.000","descrip":"LAPIZ MONGOL No 2 CJx12 AMARILLO","numcot":"00053490","precio":"2.31","tot_ren":"4.62","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14863,"item":"HI-110","unidad":"1","cantidad":"6.000","descrip":"GANCHO DOBLE CLIP 32MM 1 1/4\" X12 UND","numcot":"00053490","precio":"1.56","tot_ren":"9.36","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14862,"item":"COP-CLM1","unidad":"1","cantidad":"12.000","descrip":"CLIPS #1 ESTOL METALICO 33MM CJA X100","numcot":"00053490","precio":"0.72","tot_ren":"8.64","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14861,"item":"CE-CIMT","unidad":"36","cantidad":"2.000","descrip":"CINTAS MORROPAC 2\"TRANSP LET/ROJA 48MMx35(2140PAT1","numcot":"00053490","precio":"5.00","tot_ren":"10.00","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14860,"item":"CE-CI3425","unidad":"96","cantidad":"12.000","descrip":"CINTAS CELOVEN 3/4 * 25 18x25","numcot":"00053490","precio":"1.27","tot_ren":"15.24","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14859,"item":"MY-CAPO","unidad":"01","cantidad":"1.000","descrip":"CARPETAS FIBRA OFICIO-POPULAR MAYKA C/F C/G","numcot":"00053490","precio":"21.67","tot_ren":"21.67","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14858,"item":"KO-BNM2","unidad":"1","cantidad":"2.000","descrip":"BOLIGRAFO KORES TRANS/NEGR K1 FINO X 12","numcot":"00053490","precio":"4.09","tot_ren":"8.18","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14857,"item":"ACG-ALC","unidad":"50","cantidad":"24.000","descrip":"ARCHIVADOR L.ANCHO CARTA MR/B","numcot":"00053490","precio":"2.28","tot_ren":"54.72","iva":"A","cliente":"008-338","codven":"008"}
+{"_recNo":14856,"item":"IN-OS","unidad":"","cantidad":"500.000","descrip":"BOLSAS PARA PAPELERA DE 30LTS","numcot":"00053495","precio":"0.04","tot_ren":"20.00","iva":"A","cliente":"014-522","codven":"005"}
+{"_recNo":14855,"item":"IN-OS","unidad":"","cantidad":"200.000","descrip":"BOLSAS MARRONES CON ASAS 30KG","numcot":"00053495","precio":"0.08","tot_ren":"16.00","iva":"A","cliente":"014-522","codven":"005"}
+{"_recNo":14854,"item":"LIBRE","unidad":"UND","cantidad":"500.000","descrip":"BOLSAS PARA PAPELERA DE 30LTS","numcot":"00053495","precio":"0.04","tot_ren":"18.00","iva":"E","cliente":"00","codven":"010"}
+{"_recNo":14853,"item":"LIBRE","unidad":"UND","cantidad":"200.000","descrip":"BOLSAS MARRONES CON ASAS 30 KG","numcot":"00053495","precio":"0.08","tot_ren":"16.00","iva":"E","cliente":"00","codven":"010"}
+{"_recNo":14852,"item":"ACG-3/4X25","unidad":"UND","cantidad":"3.000","descrip":"CINTAS TRASP MR-B 3/4X25X18MM X8","numcot":"00053494","precio":"1.67","tot_ren":"5.01","iva":"E","cliente":"00","codven":"010"}

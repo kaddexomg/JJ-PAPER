@@ -15,8 +15,8 @@ const RAW_URL_CORE = process.env.SUPABASE_URL_CORE || process.env.SUPABASE_URL |
 const IS_STALE_CORE = RAW_URL_CORE.includes('qxgdrfkobbhdzgtoiavv');
 
 export const SUPABASE_URL_CORE = IS_STALE_CORE
-  ? 'https://wwcdxqpibequfohbgejs.supabase.co'
-  : (RAW_URL_CORE || 'https://wwcdxqpibequfohbgejs.supabase.co');
+  ? 'http://166.0.112.247'
+  : (RAW_URL_CORE || 'http://166.0.112.247');
 
 export const SERVICE_KEY_CORE = IS_STALE_CORE
   ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg'
@@ -25,7 +25,7 @@ export const SERVICE_KEY_CORE = IS_STALE_CORE
 export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
 export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || 'https://nmcamjxhyysmmvgxgabo.supabase.co';
+export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || 'http://166.0.112.247';
 export const SERVICE_KEY_INV   = process.env.SUPABASE_SERVICE_ROLE_KEY_INV || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2FtanhoeXlzbW12Z3hnYWJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjA2MTQ2NCwiZXhwIjoyMDk3NjM3NDY0fQ.QvuDcLSJleatqDcglU_w0fRnXbz9N6scGaDVqCUgoXg';
 
 export const PG_CORE = {

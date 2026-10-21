@@ -55,6 +55,7 @@
     ]},
     { href: 'facturas.html', ico: '📃', label: 'Cuentas por Pagar' },
     { section: 'Sistema' },
+    { href: 'mixnet.html',     ico: '📁', label: 'Puente MixNet ERP' },
     { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
@@ -74,6 +75,7 @@
       { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
       { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
+      { href: '../admin/mixnet.html', ico: '📁', label: 'Puente MixNet ERP' },
     ]},
     { group: 'Clientes', ico: '👥', items: [
       { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },

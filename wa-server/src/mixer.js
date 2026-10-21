@@ -344,25 +344,26 @@ export async function exportOrder(o) {
   const okCsv = writeToAllDropDirs(`pedido_${o.order_number}.csv`, csvContent);
   const okTxt = writeToAllDropDirs(`pedido_${o.order_number}.txt`, txtContent);
 
-  // Escritura nativa en DBF MixNet desactivada por seguridad para proteger índices NTX e integridad
-  /*
+  // Inyección nativa en DBF MixNet (MXENCPED / MXRENPED)
+  let dbfWritten = false;
   if (activeDbfDir && !o.order_number.startsWith('MIX-')) {
     try {
       const dbfRes = await exportOrderToDbf(o);
-      if (!dbfRes.ok && dbfRes.reason && dbfRes.reason !== 'no-dbf-dir') {
+      if (dbfRes && dbfRes.ok) {
+        dbfWritten = true;
+      } else if (dbfRes && dbfRes.reason && dbfRes.reason !== 'no-dbf-tables') {
         log.warn({ err: dbfRes.reason }, 'Puente Mixer: Fallo escritura DBF de pedido, se conserva CSV/TXT');
       }
     } catch (err) {
       log.warn({ err: err.message }, 'Puente Mixer: Excepción escritura DBF de pedido');
     }
   }
-  */
 
-  if (okCsv || okTxt) {
+  if (okCsv || okTxt || dbfWritten) {
     exportedOrders.add(o.order_number);
     orderFingerprints.set(o.order_number, fp);
     saveHistories();
-    log.info(`Puente Mixer: Pedido ${o.order_number} exportado correctamente a carpetas de intercambio.`);
+    log.info(`Puente Mixer: Pedido ${o.order_number} exportado correctamente (DBF nativo: ${dbfWritten ? 'SÍ' : 'NO'}, CSV/TXT: ${okCsv || okTxt ? 'SÍ' : 'NO'}).`);
     return true;
   }
   return false;
@@ -454,25 +455,26 @@ export async function exportQuote(q) {
   const okCsv = writeToAllDropDirs(`cotizacion_${q.quote_number}.csv`, csvContent);
   const okTxt = writeToAllDropDirs(`cotizacion_${q.quote_number}.txt`, txtContent);
 
-  // Escritura nativa en DBF MixNet desactivada por seguridad para proteger índices NTX e integridad
-  /*
+  // Inyección nativa en DBF MixNet (MXENCCOT / MXRENCOT)
+  let dbfWritten = false;
   if (activeDbfDir && !q.quote_number.startsWith('MIX-')) {
     try {
       const dbfRes = await exportQuoteToDbf(q);
-      if (!dbfRes.ok && dbfRes.reason && dbfRes.reason !== 'no-dbf-dir') {
+      if (dbfRes && dbfRes.ok) {
+        dbfWritten = true;
+      } else if (dbfRes && dbfRes.reason && dbfRes.reason !== 'no-dbf-tables') {
         log.warn({ err: dbfRes.reason }, 'Puente Mixer: Fallo escritura DBF de cotización, se conserva CSV/TXT');
       }
     } catch (err) {
       log.warn({ err: err.message }, 'Puente Mixer: Excepción escritura DBF de cotización');
     }
   }
-  */
 
-  if (okCsv || okTxt) {
+  if (okCsv || okTxt || dbfWritten) {
     exportedQuotes.add(q.quote_number);
     quoteFingerprints.set(q.quote_number, fp);
     saveHistories();
-    log.info(`Puente Mixer: Cotización ${q.quote_number} exportada correctamente a carpetas de intercambio.`);
+    log.info(`Puente Mixer: Cotización ${q.quote_number} exportada correctamente (DBF nativo: ${dbfWritten ? 'SÍ' : 'NO'}, CSV/TXT: ${okCsv || okTxt ? 'SÍ' : 'NO'}).`);
     return true;
   }
   return false;
@@ -575,7 +577,7 @@ function buildQuoteDetailRecord(detStruct, q, numcot, codcli, i) {
     precio: price,
     desc: '0.00',
     tot_ren: subtotal,
-    iva: 'A',
+    iva: 'E',
     cliente: codcli,
     codven: sellerCodven,
     codsuc: '',
@@ -633,7 +635,7 @@ function buildOrderDetailRecord(detStruct, o, numped, codcli, i) {
     precio: price,
     desc: '0.00',
     tot_ren: subtotal,
-    iva: 'A',
+    iva: 'E',
     cliente: codcli,
     codven: sellerCodven,
     codsuc: '',
@@ -654,14 +656,176 @@ function dbfPath(name, dbfDir) {
 
 // Exporta una cotización JJ (jjp_quotes) al DBF nativo de MixNet: MXENCCOT + MXRENCOT.
 export async function exportQuoteToDbf(q, dbfDir) {
-  // Blindado por seguridad: jamás escribir directamente sobre DBFs de producción de MixNet
-  return { ok: false, reason: 'dbf-direct-write-disabled-for-safety' };
+  try {
+    const encPath = dbfPath('MXENCCOT.DBF', dbfDir);
+    const renPath = dbfPath('MXRENCOT.DBF', dbfDir);
+    const numPath = dbfPath('MXNUMCOT.DBF', dbfDir);
+    const cliPath = dbfPath('MXCTACLI.DBF', dbfDir);
+
+    if (!encPath || !fs.existsSync(encPath) || !renPath || !fs.existsSync(renPath)) {
+      return { ok: false, reason: 'no-dbf-tables' };
+    }
+
+    // 1. Obtener correlativo soberano de MXNUMCOT si el documento no tiene uno de 8 dígitos
+    let numcot = String(q.quote_number || '').trim().replace(/^(COT-|MIX-)/i, '');
+    let shouldAdvanceSerial = false;
+
+    if (!/^\d{8}$/.test(numcot)) {
+      if (numPath && fs.existsSync(numPath)) {
+        const curSerial = dbfGetControlSerial(numPath, 'numero');
+        if (curSerial && curSerial.num > 0) {
+          numcot = String(curSerial.num + 1).padStart(8, '0').slice(-8);
+          shouldAdvanceSerial = true;
+        }
+      }
+    } else {
+      if (numPath && fs.existsSync(numPath)) {
+        const curSerial = dbfGetControlSerial(numPath, 'numero');
+        if (curSerial && parseInt(numcot, 10) >= curSerial.num) {
+          shouldAdvanceSerial = true;
+        }
+      }
+    }
+
+    if (!/^\d{8}$/.test(numcot)) {
+      return { ok: false, reason: 'invalid-serial-number' };
+    }
+
+    // 2. Resolver o registrar el cliente en MXCTACLI
+    let codcli = '00';
+    if (cliPath && fs.existsSync(cliPath)) {
+      const cliData = clienteForDoc(q);
+      const cliRes = await dbfUpsertCliente(cliPath, cliData);
+      if (cliRes && cliRes.ok && cliRes.codcli) {
+        codcli = cliRes.codcli;
+      }
+    }
+
+    // 3. Crear registros en formato nativo DBF
+    const encStruct = dbfReadStruct(encPath);
+    const renStruct = dbfReadStruct(renPath);
+    if (!encStruct || !renStruct) return { ok: false, reason: 'invalid-dbf-struct' };
+
+    const headerRecord = buildQuoteHeaderRecord(encStruct, q, numcot, codcli);
+    const rawItems = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
+    const items = rawItems.length > 0 ? rawItems : [{ sku: 'COTIZACION', name: 'Cotización JJ Paper', qty: 1, price_usd: q.estimated_total_usd || 0 }];
+    const detailRecords = items.map(i => buildQuoteDetailRecord(renStruct, q, numcot, codcli, i));
+
+    // 4. Inyección atómica con respaldo de seguridad
+    const backupDir = path.join(path.dirname(encPath), 'backups');
+    const bkpPrefix = `SAFETY_MXENCCOT_${numcot}.DBF`;
+    const upEncRes = await dbfUpsertHeader(encPath, 'numcot', numcot, headerRecord, { backupPrefix: path.join(backupDir, bkpPrefix) });
+    if (!upEncRes.ok) return { ok: false, reason: 'failed-enc-write: ' + upEncRes.error };
+
+    const upRenRes = await dbfReplaceDetails(renPath, 'numcot', numcot, detailRecords, { backupPrefix: path.join(backupDir, `SAFETY_MXRENCOT_${numcot}.DBF`) });
+    if (!upRenRes.ok) return { ok: false, reason: 'failed-ren-write: ' + upRenRes.error };
+
+    // 5. Avanzar correlativo oficial en MXNUMCOT de forma atómica si se consumió
+    if (shouldAdvanceSerial && numPath && fs.existsSync(numPath)) {
+      const writtenSerial = parseInt(numcot, 10);
+      dbfSetSerial(numPath, writtenSerial);
+      await dbCore.from('jjp_settings').upsert({
+        key: 'mixnet_next_quote_serial',
+        value: String(writtenSerial + 1),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+    }
+
+    // 6. Registrar en historiales para evitar re-importación (guard anti round-trip)
+    registerDbfExport(true, numcot);
+    log.info(`Puente Mixer: Cotización ${numcot} inyectada nativamente con éxito en MXENCCOT / MXRENCOT.`);
+    return { ok: true, numcot };
+  } catch (err) {
+    log.error({ err: err.message }, 'Puente Mixer: Excepción inyectando cotización en DBF');
+    return { ok: false, reason: err.message };
+  }
 }
 
 // Exporta un pedido JJ (jjp_orders) al DBF nativo de MixNet: MXENCPED + MXRENPED.
 export async function exportOrderToDbf(o, dbfDir) {
-  // Blindado por seguridad: jamás escribir directamente sobre DBFs de producción de MixNet
-  return { ok: false, reason: 'dbf-direct-write-disabled-for-safety' };
+  try {
+    const encPath = dbfPath('MXENCPED.DBF', dbfDir);
+    const renPath = dbfPath('MXRENPED.DBF', dbfDir);
+    const numPath = dbfPath('MXNUMPED.DBF', dbfDir);
+    const cliPath = dbfPath('MXCTACLI.DBF', dbfDir);
+
+    if (!encPath || !fs.existsSync(encPath) || !renPath || !fs.existsSync(renPath)) {
+      return { ok: false, reason: 'no-dbf-tables' };
+    }
+
+    // 1. Obtener correlativo soberano de MXNUMPED si el documento no tiene uno de 8 dígitos
+    let numped = String(o.order_number || '').trim().replace(/^(PED-|MIX-)/i, '');
+    let shouldAdvanceSerial = false;
+
+    if (!/^\d{8}$/.test(numped)) {
+      if (numPath && fs.existsSync(numPath)) {
+        const curSerial = dbfGetControlSerial(numPath, 'numero');
+        if (curSerial && curSerial.num > 0) {
+          numped = String(curSerial.num + 1).padStart(8, '0').slice(-8);
+          shouldAdvanceSerial = true;
+        }
+      }
+    } else {
+      if (numPath && fs.existsSync(numPath)) {
+        const curSerial = dbfGetControlSerial(numPath, 'numero');
+        if (curSerial && parseInt(numped, 10) >= curSerial.num) {
+          shouldAdvanceSerial = true;
+        }
+      }
+    }
+
+    if (!/^\d{8}$/.test(numped)) {
+      return { ok: false, reason: 'invalid-serial-number' };
+    }
+
+    // 2. Resolver o registrar el cliente en MXCTACLI
+    let codcli = '00';
+    if (cliPath && fs.existsSync(cliPath)) {
+      const cliData = clienteForDoc(o);
+      const cliRes = await dbfUpsertCliente(cliPath, cliData);
+      if (cliRes && cliRes.ok && cliRes.codcli) {
+        codcli = cliRes.codcli;
+      }
+    }
+
+    // 3. Crear registros en formato nativo DBF
+    const encStruct = dbfReadStruct(encPath);
+    const renStruct = dbfReadStruct(renPath);
+    if (!encStruct || !renStruct) return { ok: false, reason: 'invalid-dbf-struct' };
+
+    const headerRecord = buildOrderHeaderRecord(encStruct, o, numped, codcli);
+    const rawItems = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
+    const items = rawItems.length > 0 ? rawItems : [{ sku: 'PEDIDO', name: 'Pedido JJ Paper', qty: 1, price_usd: o.total_usd || 0 }];
+    const detailRecords = items.map(i => buildOrderDetailRecord(renStruct, o, numped, codcli, i));
+
+    // 4. Inyección atómica con respaldo de seguridad
+    const backupDir = path.join(path.dirname(encPath), 'backups');
+    const bkpPrefix = `SAFETY_MXENCPED_${numped}.DBF`;
+    const upEncRes = await dbfUpsertHeader(encPath, 'numped', numped, headerRecord, { backupPrefix: path.join(backupDir, bkpPrefix) });
+    if (!upEncRes.ok) return { ok: false, reason: 'failed-enc-write: ' + upEncRes.error };
+
+    const upRenRes = await dbfReplaceDetails(renPath, 'numped', numped, detailRecords, { backupPrefix: path.join(backupDir, `SAFETY_MXRENPED_${numped}.DBF`) });
+    if (!upRenRes.ok) return { ok: false, reason: 'failed-ren-write: ' + upRenRes.error };
+
+    // 5. Avanzar correlativo oficial en MXNUMPED de forma atómica si se consumió
+    if (shouldAdvanceSerial && numPath && fs.existsSync(numPath)) {
+      const writtenSerial = parseInt(numped, 10);
+      dbfSetSerial(numPath, writtenSerial);
+      await dbCore.from('jjp_settings').upsert({
+        key: 'mixnet_next_order_serial',
+        value: String(writtenSerial + 1),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'key' });
+    }
+
+    // 6. Registrar en historiales para evitar re-importación (guard anti round-trip)
+    registerDbfExport(false, numped);
+    log.info(`Puente Mixer: Pedido ${numped} inyectado nativamente con éxito en MXENCPED / MXRENPED.`);
+    return { ok: true, numped };
+  } catch (err) {
+    log.error({ err: err.message }, 'Puente Mixer: Excepción inyectando pedido en DBF');
+    return { ok: false, reason: err.message };
+  }
 }
 
 // Barrido periódico saliente (JJ Paper ➔ MixNet)
@@ -1966,9 +2130,9 @@ export async function syncCorrelativesFromDbf() {
       if (s && s.num > 0) {
         await dbCore.from('jjp_settings').upsert({
           key: 'mixnet_next_order_serial',
-          value: String(s.num),
+          value: String(s.num + 1),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'key' });
       }
     }
     if (fs.existsSync(cotPath)) {
@@ -1976,13 +2140,35 @@ export async function syncCorrelativesFromDbf() {
       if (s && s.num > 0) {
         await dbCore.from('jjp_settings').upsert({
           key: 'mixnet_next_quote_serial',
-          value: String(s.num),
+          value: String(s.num + 1),
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'key' });
       }
     }
   } catch (err) {
     log.warn({ err: err.message }, 'Puente Mixer: Error sincronizando correlativos desde DBF');
+  }
+}
+
+// Obtiene el siguiente correlativo oficial soberano directo del archivo DBF (MXNUMCOT / MXNUMPED)
+export function getNextControlSerial(type = 'pedido') {
+  try {
+    if (!activeDbfDir || !fs.existsSync(activeDbfDir)) {
+      refreshEnvironmentConfig();
+    }
+    const isCot = (type === 'cotizacion' || type === 'quote');
+    const fileName = isCot ? 'MXNUMCOT.DBF' : 'MXNUMPED.DBF';
+    const filePath = dbfPath(fileName);
+    if (filePath && fs.existsSync(filePath)) {
+      const s = dbfGetControlSerial(filePath, 'numero');
+      if (s && s.num > 0) {
+        const nextVal = String(s.num + 1).padStart(8, '0').slice(-8);
+        return { ok: true, serial: nextVal, num: s.num + 1, lastRecorded: s.formatted, path: filePath };
+      }
+    }
+    return { ok: false, error: `Archivo de control ${fileName} no encontrado o no legible en ${activeDbfDir || 'ninguna ruta activa'}` };
+  } catch (err) {
+    return { ok: false, error: err.message };
   }
 }
 

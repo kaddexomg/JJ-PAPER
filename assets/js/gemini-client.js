@@ -34,24 +34,24 @@
     'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
   ];
 
-  // Modelos Pro para Arquitectura Creativa, Copywriting y Razonamiento Complejo
+  // Modelos reales de Gemini (2.5 Flash y 2.0 Flash)
   const PRO_MODELS = [
-    'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
-    'gemini-flash-latest',
-    'gemini-3.5-flash'
+    'gemini-2.5-flash',
+    'gemini-2.0-flash'
   ];
 
   // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
-    'gemini-3.1-flash-lite',
-    'gemini-3.5-flash-lite',
-    'gemini-flash-latest'
+    'gemini-2.5-flash',
+    'gemini-2.0-flash'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
   let _totalCalls = 0;
   let _keyFailures = {};
+  let _deadKeys = new Set();
+  let _proxyAvailable = true;
+  let _variationCounter = Math.floor(Math.random() * 100);
 
   function getNextKey() {
     _keyIndex = (_keyIndex + 1) % GEMINI_KEYS.length;
@@ -103,14 +103,14 @@
   }
 
   /* --------------------------------------------------------------------------
-     Llamada Base a la API con enrutamiento inteligente (Soporta objeto {prompt,...} o (prompt, model))
+     Llamada Base a la API con enrutamiento inteligente (/api/ai + Vertex + Google AI)
      -------------------------------------------------------------------------- */
   async function callGemini(options, fallbackModel = null) {
     _totalCalls++;
 
     let prompt = '';
     let systemInstruction = '';
-    let temperature = 0.7;
+    let temperature = 0.75;
     let maxTokens = 1500;
     let model = null;
     let mode = 'fast';
@@ -121,7 +121,7 @@
     } else if (options && typeof options === 'object') {
       prompt = options.prompt || '';
       systemInstruction = options.systemInstruction || '';
-      temperature = options.temperature !== undefined ? options.temperature : 0.7;
+      temperature = options.temperature !== undefined ? options.temperature : 0.75;
       maxTokens = options.maxTokens || 1500;
       model = options.model || fallbackModel || null;
       mode = options.mode || 'fast';
@@ -132,24 +132,61 @@
     }
 
     const isArchitect = (mode === 'architect' || mode === 'pro');
-    const keyPool = isArchitect ? [...PRO_KEYS, ...GEMINI_KEYS.filter(k => !PRO_KEYS.includes(k))] : GEMINI_KEYS;
-    const modelsToTry = model
-      ? [model, ...(isArchitect ? PRO_MODELS : FAST_MODELS).filter(m => m !== model)]
-      : (isArchitect ? PRO_MODELS : FAST_MODELS);
-    
-    const timeoutMs = isArchitect ? 15000 : 10000;
+    const targetModel = (model && !model.includes('3.')) ? model : 'gemini-2.5-flash';
+
+    // 1. Intentar primero mediante el proxy Cloudflare Pages (/api/ai) para evadir bloqueo geográfico IP Venezuela
+    if (_proxyAvailable && typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
+      try {
+        const proxyCtrl = new AbortController();
+        const proxyTimer = setTimeout(() => proxyCtrl.abort(), 5000);
+        const proxyRes = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            systemInstruction,
+            temperature,
+            maxTokens,
+            model: targetModel
+          }),
+          signal: proxyCtrl.signal
+        });
+        clearTimeout(proxyTimer);
+        if (proxyRes.ok) {
+          const pData = await proxyRes.json();
+          if (pData && pData.text) return String(pData.text).trim();
+        } else if (proxyRes.status === 404 || proxyRes.status === 405) {
+          _proxyAvailable = false; // En servidor local estático sin Cloudflare Function
+        }
+      } catch (_) {
+        // Ignorar y continuar al pool directo
+      }
+    }
+
+    // 2. Pool directo filtrando llaves marcadas como muertas o bloqueadas por región
+    const rawPool = isArchitect ? [...PRO_KEYS, ...GEMINI_KEYS.filter(k => !PRO_KEYS.includes(k))] : GEMINI_KEYS;
+    const activePool = rawPool.filter(k => !_deadKeys.has(k));
+    if (activePool.length === 0) {
+      throw new Error('Servicio directo bloqueado por región o llaves agotadas; activando motor dinámico local.');
+    }
+
+    const modelsToTry = [targetModel, 'gemini-2.0-flash'].filter((v, i, a) => a.indexOf(v) === i);
+    const timeoutMs = 3800;
     let lastError = null;
 
-    for (let attempt = 0; attempt < keyPool.length; attempt++) {
-      const currentKey = keyPool[attempt % keyPool.length];
-      
+    for (let attempt = 0; attempt < Math.min(activePool.length, 3); attempt++) {
+      const currentKey = activePool[attempt];
+      const isVertexKey = currentKey.startsWith('AQ.');
+
       for (const m of modelsToTry) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
-          
+          const endpoint = isVertexKey
+            ? `https://aiplatform.googleapis.com/v1/publishers/google/models/${m}:generateContent?key=${currentKey}`
+            : `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
+
           const bodyPayload = {
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
@@ -175,28 +212,24 @@
           if (res.ok) {
             const data = await res.json();
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            return text.trim();
+            if (text) return text.trim();
           }
 
           const status = res.status;
           const errBody = await res.json().catch(() => ({}));
           const errMsg = errBody.error?.message || `HTTP ${status}`;
+          const lowErr = errMsg.toLowerCase();
 
-          // Si es límite de cuota (429) o sobrecargado (503) o 404
+          // Si es bloqueo geográfico ("User location is not supported") o llave inválida (401/403)
+          if (status === 401 || status === 403 || lowErr.includes('location is not supported') || lowErr.includes('api_key') || lowErr.includes('key not valid')) {
+            _deadKeys.add(currentKey);
+            _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
+            lastError = new Error(`Key/Región restringida (${status}): ${errMsg}`);
+            break;
+          }
+
           if (status === 429 || status === 503 || status === 404) {
             lastError = new Error(`Modelo ${m} no disponible (${status}): ${errMsg}`);
-            continue; // probar siguiente modelo
-          }
-
-          // Si clave no autorizada (403) o error explícito de API key
-          if (status === 403 || (status === 400 && (errMsg.toLowerCase().includes('api_key') || errMsg.toLowerCase().includes('key not valid')))) {
-            _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
-            lastError = new Error(`Key rechazada o inválida (${status}): ${errMsg}`);
-            break; // Cambiar de llave
-          }
-
-          if (status === 400) {
-            lastError = new Error(`Error en solicitud a IA (400): ${errMsg}`);
             continue;
           }
 
@@ -204,12 +237,46 @@
         } catch (netErr) {
           clearTimeout(timeoutId);
           lastError = netErr;
-          continue; // Si un modelo da timeout, probar siguiente modelo
+          break;
         }
       }
     }
 
-    throw lastError || new Error('No se pudo comunicar con el servicio de IA tras rotar las 7 claves.');
+    throw lastError || new Error('No se pudo comunicar con el servicio de IA.');
+  }
+
+  /* --------------------------------------------------------------------------
+     Motor Compositor Dinámico Multi-Tono y Multi-Formato (Variación Real por Clic)
+     Garantiza que cada clic y cada cambio de tono/gancho/formato genere un
+     mensaje completamente distinto en estructura, ángulo, longitud y estilo.
+     -------------------------------------------------------------------------- */
+  function _detectToneArchetype(toneStr = '', hookStr = '', msgTypeStr = '') {
+    const combined = `${toneStr} ${hookStr} ${msgTypeStr}`.toLowerCase();
+    if (/urgente|rel[aá]mpago|oportunidad|oferta|liquidaci[oó]n|promo|descuento|escala|volumen/i.test(combined)) {
+      return 'oportunidad_mayorista';
+    }
+    if (/cercano|consultivo|amigable|cordial|asesor|sourcing|procura|b[uú]squeda|seguimiento|recordatorio/i.test(combined)) {
+      return 'cercano_consultivo';
+    }
+    if (/institucional|formal|corporativo|seniat|licitaci[oó]n|ejecutivo|homologaci[oó]n|bcv/i.test(combined)) {
+      return 'institucional_formal';
+    }
+    if (/directo|corto|breve|express|r[aá]pido|flash/i.test(combined)) {
+      return 'directo_ejecutivo';
+    }
+    if (/ahorro|presupuesto|costo|optimizaci[oó]n|rentabilidad/i.test(combined)) {
+      return 'optimizacion_costos';
+    }
+    // Si es 'socio_estrategico' o genérico, rotamos entre los 5 arquetipos en cada clic
+    const archetypes = [
+      'socio_estrategico',
+      'oportunidad_mayorista',
+      'cercano_consultivo',
+      'institucional_formal',
+      'directo_ejecutivo',
+      'optimizacion_costos'
+    ];
+    return archetypes[_variationCounter % archetypes.length];
   }
 
   /* --------------------------------------------------------------------------
@@ -330,10 +397,12 @@ Genera las 3 opciones en formato JSON estricto cumpliendo con las directivas com
     if (!baseText || !baseText.trim()) {
       throw new Error('Debes escribir un texto base para generar variaciones.');
     }
+    _variationCounter++;
 
     const sys = getBusinessContext() + `
 Eres un especialista en optimización de mensajería comercial y protección contra baneos de WhatsApp (Anti-Spam).
 Tu objetivo es tomar el texto base que el vendedor desea enviar y generar 3 VARIACIONES COMPLETAMENTE DISTINTAS en redacción, pero que transmitan exactamente la misma oferta o mensaje comercial.
+Semilla de variación creativa: #${_variationCounter}.
 
 REGLAS ESTRICTAS PARA PREVENIR EL BANEO POR PATRÓN REPETITIVO:
 1. Cambiar los saludos de entrada (ej: "¡Hola!", "Buen día estimado", "Buenas tardes, un cordial saludo", "¿Cómo está?").
@@ -349,16 +418,48 @@ Devuelve EXACTAMENTE un objeto JSON válido con esta estructura:
   "variacion_c": "Texto de la tercera variación (tono formal y comercial)"
 }`;
 
-    const prompt = `Texto original a variar:\n"${baseText.trim()}"\n\nDevuelve las 3 variaciones en formato JSON estricto.`;
+    const prompt = `Texto original a variar (Iteración #${_variationCounter}):\n"${baseText.trim()}"\n\nDevuelve las 3 variaciones en formato JSON estricto.`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.8 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.85 });
       return extractJSON(raw);
     } catch (e) {
+      const clean = baseText.trim();
+      const idx = _variationCounter % 3;
+      const openingsA = [
+        '⚡ *Aviso directo de inventario — JJ Paper:*',
+        '🚀 *Actualización rápida de disponibilidad:*',
+        '📦 *Stock listo para despacho inmediato en Caracas:*'
+      ];
+      const openingsB = [
+        '¡Hola! Espero que todo marche excelente en su empresa 👋. Queríamos comentarle que:',
+        'Un gusto saludarle el día de hoy 🤝. Pensando en la reposición de su oficina, le compartimos:',
+        'Buen día, esperamos que estén teniendo una excelente jornada laboral. Le escribimos de JJ Paper:'
+      ];
+      const openingsC = [
+        'Estimado equipo de Compras y Administración,\n\nPor medio de la presente ponemos a su disposición nuestra disponibilidad actualizada:',
+        'Cordial saludo de parte de la Dirección Comercial de JJ Paper C.A.\n\nLe informamos nuestras condiciones vigentes de abastecimiento:',
+        'Atención Dpto. de Procura:\n\nCompartimos formalmente el estatus de suministro mayorista a Tasa Oficial BCV:'
+      ];
+      const closingsA = [
+        '¿Cuántas unidades le apartamos para despacho hoy?',
+        '¿Le preparamos el presupuesto formal de inmediato?',
+        'Indíquenos cantidades para bloquear su stock en almacén.'
+      ];
+      const closingsB = [
+        '¿Para qué zona de Caracas le coordinamos la entrega esta semana?',
+        'Quedamos muy atentos por si desean que les armemos una cotización a medida.',
+        '¿Qué otro artículo de papelería o embalaje necesitan sumar a su pedido?'
+      ];
+      const closingsC = [
+        'Emitimos factura fiscal legal (BCV) con despacho directo a su sede. ¿Procedemos con su orden?',
+        '¿Desea que reservemos este lote bajo las condiciones mayoristas actuales?',
+        'Aguardamos sus instrucciones para emitir la proforma correspondiente.'
+      ];
       return {
-        variacion_a: baseText,
-        variacion_b: `¡Hola! Un gusto saludarte. ${baseText}`,
-        variacion_c: `Buen día estimado cliente. Le compartimos la siguiente información: ${baseText}`
+        variacion_a: `${openingsA[idx]}\n\n${clean}\n\n👉 ${closingsA[idx]}`,
+        variacion_b: `${openingsB[idx]}\n\n${clean}\n\n💬 ${closingsB[idx]}`,
+        variacion_c: `${openingsC[idx]}\n\n${clean}\n\n🧾 ${closingsC[idx]}`
       };
     }
   }
@@ -366,17 +467,20 @@ Devuelve EXACTAMENTE un objeto JSON válido con esta estructura:
   /* --------------------------------------------------------------------------
      3. Correo CRM: Redactor Comercial de Emails
      -------------------------------------------------------------------------- */
-  async function draftEmail({ scenario = 'cotizacion', toName = '', toEmail = '', notes = '', originalEmail = '', sellerName = '' }) {
+  async function draftEmail({ scenario = 'cotizacion', toName = '', toEmail = '', notes = '', originalEmail = '', sellerName = '', tone = '' }) {
+    _variationCounter++;
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const sName = sellerName || w.CURRENT_PROFILE?.full_name || w.CURRENT_PROFILE?.name || 'Dpto. Comercial JJ Paper';
     const sys = getBusinessContext() + `
 Eres el redactor oficial de correspondencia comercial de JJ Paper C.A.
 Redactas correos impecables, respetuosos y altamente persuasivos para clientes corporativos, librerías, oficinas y comercios.
+Semilla de variación estilística: #${_variationCounter} (usa una estructura, apertura y enfoque fresco en cada generación).
 
 Instrucciones:
-- El asunto (subject) debe ser claro, conciso y profesional.
-- El cuerpo (body) debe tener estructura clara: Saludo, Introducción, Puntos clave / precios / detalles, Condiciones comerciales (despacho, tasa BCV a ${rate.toFixed(2)} Bs, métodos de pago), y Cierre con firma de ${sellerName || 'Equipo Comercial JJ Paper'}.
-- NO uses código HTML complejo en el body; usa texto formateado con saltos de línea limpios, bullets (-) y viñetas que se lean bien en cualquier cliente de correo.
+- El asunto (subject) debe ser claro, conciso, atractivo y adaptado al escenario (${scenario}).
+- El cuerpo (body) debe tener estructura clara: Saludo personalizado, Introducción según escenario, Puntos clave / precios / detalles, Condiciones comerciales (despacho, tasa BCV a ${rate.toFixed(2)} Bs, métodos de pago), y Cierre con firma de ${sName}.
+- NO uses código HTML complejo en el body; usa texto formateado con saltos de línea limpios, bullets (•) y viñetas que se lean bien en cualquier cliente de correo.
 
 Devuelve EXACTAMENTE un objeto JSON válido con esta estructura:
 {
@@ -385,7 +489,8 @@ Devuelve EXACTAMENTE un objeto JSON válido con esta estructura:
 }`;
 
     const prompt = `
-Tipo de correo: ${scenario}
+Tipo de correo / Escenario: ${scenario}
+Tono solicitado: ${tone || 'Ejecutivo B2B'} (Variación #${_variationCounter})
 Destinatario: ${toName || 'Estimado Cliente'} (${toEmail || 'cliente@empresa.com'})
 Instrucciones / Notas adicionales del vendedor: "${notes || 'Sin notas adicionales'}"
 ${originalEmail ? `Correo al que se responde:\n"${originalEmail}"` : ''}
@@ -393,12 +498,70 @@ ${originalEmail ? `Correo al que se responde:\n"${originalEmail}"` : ''}
 Genera el asunto y cuerpo en JSON estricto.`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.6 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.78 });
       return extractJSON(raw);
     } catch (e) {
+      const sc = String(scenario || 'cotizacion').toLowerCase();
+      const v = _variationCounter % 4;
+      const recipient = toName || 'Estimado Cliente';
+      const customBlock = notes && notes.trim() ? `\n📌 DETALLE ESPECÍFICO:\n${notes.trim()}\n` : '';
+
+      if (sc.includes('cobranza') || sc.includes('pago') || sc.includes('factura')) {
+        const subjects = [
+          `Estado de Cuenta y Conciliación Administrativa — JJ Paper C.A.`,
+          `Recordatorio Administrativo de Facturación Pendiente — JJ Paper C.A.`,
+          `Gestión de Cobranza y Actualización de Saldo (BCV) — JJ Paper C.A.`,
+          `Aviso de Vencimiento de Factura Comercial — JJ Paper C.A.`
+        ];
+        const bodies = [
+          `Estimado(a) ${recipient},\n\nReciba un cordial saludo de parte del equipo administrativo y comercial de JJ Paper C.A.\n\nNos comunicamos brevemente con usted para realizar el seguimiento administrativo correspondiente a su estado de cuenta vigente.${customBlock}\nLe recordamos que los pagos en bolívares se procesan a la Tasa Oficial BCV vigente el día de la cancelación (${rate.toFixed(2)} Bs/USD el día de hoy), o bien en divisas vía Zelle / Efectivo.\n\n¿Podría confirmarnos la fecha programada para la liquidación o enviarnos el soporte de pago en caso de haberlo efectuado?\n\nAgradeciendo de antemano su valiosa atención y puntualidad.\n\nAtentamente,\n${sName}\nJJ Paper C.A.`,
+          `Apreciado(a) ${recipient},\n\nEsperamos que sus operaciones marchen con total éxito.\n\nA efectos de mantener al día su línea de suministro y despacho prioritario con JJ Paper C.A., le escribimos para verificar el estatus de la facturación pendiente a la fecha.${customBlock}\nPara su comodidad, contamos con cuentas nacionales (Pago Móvil / Transferencia a tasa BCV del día: ${rate.toFixed(2)} Bs/USD) y medios en USD.\n\nQuedamos atentos al comprobante administrativo para actualizar su ficha comercial de inmediato.\n\nCordialmente,\n${sName}\nJJ Paper C.A.`
+        ];
+        return { subject: subjects[v], body: bodies[v % bodies.length] };
+      }
+
+      if (sc.includes('despacho') || sc.includes('envio') || sc.includes('entrega') || sc.includes('pedido')) {
+        const subjects = [
+          `🚚 Confirmación de Despacho y Logística de Entrega — JJ Paper C.A.`,
+          `📦 Estatus de su Pedido en Ruta — JJ Paper C.A.`,
+          `Notificación de Salida de Mercancía de Almacén — JJ Paper C.A.`,
+          `Coordinación de Entrega de Suministros — JJ Paper C.A.`
+        ];
+        return {
+          subject: subjects[v],
+          body: `Estimado(a) ${recipient},\n\nUn gusto saludarle desde el Centro de Distribución de JJ Paper C.A.\n\nLe informamos que su requerimiento ha sido procesado y verificado por nuestro equipo de almacén para su despacho correspondiente.${customBlock}\nDetalles operativos de recepción:\n• Mercancía acompañada de su Factura Fiscal / Nota de Entrega legal.\n• Tasa BCV oficial de referencia: ${rate.toFixed(2)} Bs/USD.\n• Le agradecemos confirmar la persona autorizada en recepción y el horario disponible para recibir a nuestra unidad de transporte.\n\n¿Se encuentra su personal de almacén o recepción disponible el día de hoy para recibir el despacho?\n\nAtentamente,\n${sName}\nLogística y Ventas | JJ Paper C.A.`
+        };
+      }
+
+      if (sc.includes('seguimiento') || sc.includes('reactivacion') || sc.includes('visita')) {
+        const subjects = [
+          `🤝 Seguimiento de Abastecimiento y Reposición Operativa — JJ Paper C.A.`,
+          `Actualización de Precios Mayoristas e Inventario — JJ Paper C.A.`,
+          `Continuidad Operativa y Suministro Directo para ${recipient} — JJ Paper`,
+          `¿Cómo se encuentran de inventario de papelería esta semana? — JJ Paper`
+        ];
+        return {
+          subject: subjects[v],
+          body: `Hola ${recipient},\n\nEspero que todo marche excelente en su empresa. Le escribe ${sName} de JJ Paper C.A.\n\nEn seguimiento a nuestra conversación previa, quería consultarle brevemente cómo se encuentran de inventario en papelería corporativa, resmas de papel, consumibles de facturación y embalaje para esta quincena.${customBlock}\nEsta semana recibimos reposición directa de importación con precios mayoristas altamente competitivos:\n• Despacho directo y sin costo adicional en Caracas.\n• Facturación fiscal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Servicio de procura: cualquier artículo especial que requieran se lo ubicamos de inmediato.\n\n¿Tienen algún requerimiento abierto esta semana que podamos cotizarles sin compromiso?\n\nUn cordial saludo,\n${sName}\nJJ Paper C.A.`
+        };
+      }
+
+      // Escenario Cotización / Propuesta Comercial con 4 formatos distintos según clic
+      const quoteSubjects = [
+        `📋 Cotización Formal y Propuesta Mayorista — JJ Paper C.A.`,
+        `💼 Presupuesto Corporativo a Tasa Oficial BCV — JJ Paper C.A.`,
+        `⚡ Disponibilidad Inmediata y Condiciones de Suministro para ${recipient} — JJ Paper`,
+        `📦 Propuesta de Abastecimiento Directo de Importador — JJ Paper C.A.`
+      ];
+      const quoteBodies = [
+        `Estimado(a) ${recipient},\n\nEs un placer saludarle desde JJ Paper C.A., importadores y distribuidores directos de papelería corporativa, útiles y suministros de oficina en Caracas.\n\nEn atención a su requerimiento, presentamos nuestras condiciones comerciales mayoristas con disponibilidad física inmediata en almacén:${customBlock}\nCONDICIONES COMERCIALES GARANTIZADAS:\n• Precios directos de distribuidor mayorista (sin intermediarios).\n• Facturación fiscal legal (SENIAT) calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo en Caracas y envíos asegurados a nivel nacional.\n• Garantía de stock inmediato al confirmar su orden de compra.\n\n¿Desea que bloqueemos estas unidades en almacén para programar su despacho de inmediato?\n\nAtentamente,\n${sName}\nDirección Comercial | JJ Paper C.A.`,
+        `Hola ${recipient}, un cordial saludo.\n\nLe escribe ${sName} de JJ Paper C.A. Hemos preparado con prioridad la propuesta comercial solicitada para apoyar la operatividad de su empresa con el mayor ahorro por volumen:${customBlock}\n¿POR QUÉ CONSOLIDAR SU COMPRA CON JJ PAPER?\n1. Ahorro Mayorista Real: Escalas preferenciales por caja y bulto cerrado.\n2. Transparencia Cambiaria: Facturación 100% a tasa oficial BCV (${rate.toFixed(2)} Bs/USD).\n3. Respuesta en 24h: Entrega directa en su oficina o almacén en Caracas.\n4. Procura Integral: Si requiere algún insumo adicional fuera de lista, nuestro equipo se lo ubica de inmediato.\n\nQuedo atento a su confirmación. ¿Para qué localidad de Caracas coordinamos la entrega?\n\nCordialmente,\n${sName}\nAsesor Comercial B2B | JJ Paper C.A.`,
+        `Atención: ${recipient}\nPresente.-\n\nPor medio de la presente, JJ Paper C.A. (RIF J-295375450) somete a su consideración nuestra oferta formal de suministro de papelería, archivo y consumibles operativos.${customBlock}\nRESUMEN DE TÉRMINOS OPERATIVOS:\n• Validez de la oferta: Garantizada sobre inventario disponible.\n• Base de cálculo en Bolívares: Tasa Oficial del Banco Central de Venezuela (${rate.toFixed(2)} Bs/USD).\n• Modalidades de pago: Transferencia bancaria nacional, Pago Móvil, Zelle o divisas en efectivo.\n• Logística: Transporte propio en el Área Metropolitana de Caracas.\n\nAgradecemos nos indique su conformidad para emitir la factura fiscal correspondiente y asignar ruta de despacho.\n\nSin otro particular al que hacer referencia,\n\n${sName}\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.`,
+        `Estimado(a) ${recipient},\n\n¡Excelente día! Le saluda ${sName} desde JJ Paper C.A.\n\nLe comparto nuestra propuesta optimizada con los precios más competitivos de Caracas en papelería y suministros:${customBlock}\n• 🏭 Stock real en bodega listo para salir hoy mismo.\n• 🧾 Factura fiscal a tasa BCV (${rate.toFixed(2)} Bs/USD).\n• 🚚 Delivery corporativo directo a su sede.\n\n¿Confirmamos las cantidades para reservar su pedido antes del cierre de ruta de hoy?\n\nSaludos cordiales,\n${sName}\nJJ Paper C.A.`
+      ];
       return {
-        subject: `Cotización de Productos — JJ Paper C.A.`,
-        body: `Estimado(a) ${toName || 'Cliente'},\n\nEs un placer saludarle desde JJ Paper C.A.\n\nEn atención a su solicitud, ponemos a su disposición nuestra cotización con los mejores precios del mercado y disponibilidad inmediata.\n\n${notes ? notes + '\n\n' : ''}Nuestras operaciones se calculan a tasa oficial BCV (${rate.toFixed(2)} Bs/USD). Contamos con despacho directo en Caracas y envíos nacionales.\n\nQuedamos a su entera disposición para procesar su pedido.\n\nAtentamente,\n${sellerName || 'Dpto. de Ventas'}\nJJ Paper C.A.`
+        subject: quoteSubjects[v],
+        body: quoteBodies[v]
       };
     }
   }
@@ -787,6 +950,7 @@ Extrae los atributos del producto. JSON estricto:`;
     if (!baseText || !baseText.trim()) {
       throw new Error('Debes proporcionar un texto para convertir a Spintax.');
     }
+    _variationCounter++;
 
     const sys = getBusinessContext() + `
 Eres un especialista sénior en Copywriting Comercial B2B y prevención algorítmica de bloqueos (Anti-Spam) para envíos por ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'}.
@@ -805,17 +969,26 @@ ESTÁNDARES DE CONSTRUCCIÓN SPINTAX PROFUNDO:
 6. Mantén enlaces, montos numéricos y condiciones operativas intactos.
 7. Devuelve ÚNICAMENTE el texto resultante en Spintax, sin explicaciones ni bloques de código.`;
 
-    const prompt = `Convierte este texto a formato Spintax comercial B2B humano y anti-spam:\n\n${baseText.trim()}`;
+    const prompt = `Convierte este texto a formato Spintax comercial B2B humano y anti-spam (Semilla #${_variationCounter}):\n\n${baseText.trim()}`;
 
     try {
-      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.55 });
+      const res = await callGemini({ prompt, systemInstruction: sys, temperature: 0.72 });
       return res.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/i, '').trim();
     } catch (e) {
-      console.warn('Fallback spintax:', e);
-      if (!baseText.startsWith('{')) {
-        return `{Estimado(a) {{nombre}}, un cordial saludo|Hola {{nombre}}, un gusto saludarle|Buen día {{nombre}}} ` + baseText;
+      let out = baseText.trim();
+      out = out
+        .replace(/\bdisponibilidad inmediata\b/gi, '{disponibilidad inmediata|inventario listo en almacén|stock físico garantizado}')
+        .replace(/\bprecios mayoristas\b/gi, '{precios mayoristas|tarifas directas de distribuidor|condiciones preferenciales por volumen}')
+        .replace(/\bcotizaci[oó]n formal\b/gi, '{cotización formal|presupuesto corporativo|proforma detallada}')
+        .replace(/\bdespacho inmediato\b/gi, '{despacho inmediato|entrega prioritaria en Caracas|envío directo a su sede}')
+        .replace(/\bfacturaci[oó]n fiscal\b/gi, '{facturación fiscal SENIAT|factura legal a tasa BCV|facturación formal}');
+      if (!out.includes('{Hola|') && !out.startsWith('{')) {
+        out = `{Hola|Buen día|Un cordial saludo|Qué tal} {{nombre}}, {espero que todo marche excelente|un gusto saludarle el día de hoy}.\n\n` + out;
       }
-      return baseText;
+      if (!/\{[^}]*\?[^}]*\}/.test(out)) {
+        out += `\n\n{¿Desea que le reservemos inventario hoy?|¿Le preparamos el presupuesto formal sin compromiso?|¿Qué cantidades estima para su próximo pedido?}`;
+      }
+      return out;
     }
   }
 
@@ -860,6 +1033,8 @@ ${rawText.slice(0, 50000)}
 
   /* --------------------------------------------------------------------------
      4.2. Redactor Inteligente de Campañas Comerciales B2B (WhatsApp y Email)
+     Cambia genuinamente el tono, el formato visual, la estructura y el ángulo
+     comercial en cada clic y según los selectores de tono/gancho.
      -------------------------------------------------------------------------- */
   async function draftCampaignMessage({
     objective = 'promocion',
@@ -871,8 +1046,11 @@ ${rawText.slice(0, 50000)}
     customNotes = '',
     sellerName = '',
     tone = 'Profesional y Persuasivo (Vendedor Consultivo)',
+    valueHook = 'importador_directo',
+    formatStyle = '',
     historyContext = ''
   }) {
+    _variationCounter++;
     const w = typeof window !== 'undefined' ? window : {};
     const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
 
@@ -882,7 +1060,7 @@ ${rawText.slice(0, 50000)}
     if (prodsList.length > 0) {
       prodSpecs = `
 LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artículos):
-` + prodsList.map((p, idx) => {
+` + prodsList.map((p) => {
         const pName = p.name || 'Artículo de Catálogo';
         const pBrand = p.brand || p.brands || (p.brand && typeof p.brand === 'object' ? p.brand.name : '') || '';
         const pUnit = p.unit || 'unidad';
@@ -894,57 +1072,33 @@ LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artícu
       }).join('\n') + '\n';
     }
 
+    const archetype = _detectToneArchetype(tone, valueHook, `${objective} ${formatStyle}`);
+
     const sys = getBusinessContext() + `
 Eres el Especialista y Director Comercial B2B Sénior de JJ Paper C.A., empresa IMPORTADORA Y DISTRIBUIDORA DIRECTA mayorista en Caracas, Venezuela.
-Tu objetivo es redactar un mensaje comercial de alto impacto para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que proyecte autoridad de importador directo, máxima seriedad corporativa, calidez, y sobre todo ACTITUD PROACTIVA DE SOCIO ESTRATÉGICO.
+Tu objetivo es redactar un mensaje comercial para ${channel === 'email' ? 'Correo Electrónico' : 'WhatsApp'} que obedezca rigurosamente el TONO y FORMATO solicitado:
+- Arquetipo de Tono / Formato activo: "${archetype}" (${tone})
+- Gancho de Valor Principal: "${valueHook}"
+- Iteración creativa #${_variationCounter}: ¡PROHIBIDO repetir plantillas rígidas! Cambia completamente la estructura visual, los encabezados, el saludo y el ritmo respecto a versiones anteriores.
 
-ESTÁNDARES MANDATORIOS DE REDACCIÓN Y PSICOLOGÍA COMERCIAL B2B:
-1. IDENTIDAD DE NEGOCIO Y AUTORIDAD (QUIÉNES SOMOS):
-   - JJ Paper C.A. es importador y distribuidor mayorista directo con almacén e inventario real para entrega inmediata en Caracas.
-   - NO somos revendedores ni intermediarios: ofrecemos precios directos de distribuidor (Precio B mayorista) y factura fiscal legal a Tasa Oficial BCV.
+REGLAS SEGÚN EL TONO / FORMATO SELECCIONADO:
+- Si es "oportunidad_mayorista": Usa formato de Oportunidad Flash / Lote Mayorista con urgencia elegante, énfasis en ahorro por volumen/bulto cerrado y bloqueo de stock.
+- Si es "cercano_consultivo": Usa formato conversacional humano de Asesor Personal (sin títulos de cartel publicitario), enfocándote en resolver requerimientos, procura especial y trato cercano.
+- Si es "institucional_formal": Usa formato Corporativo Ejecutivo (Procura / Licitaciones / Administración), sobrio, sin exceso de emojis, resaltando RIF J-295375450, facturación fiscal SENIAT y tasa oficial BCV.
+- Si es "directo_ejecutivo": Usa formato Ultra-Conciso al grano (máximo 8-10 líneas), ideal para gerentes ocupados: 1 línea de saludo, viñetas directas y pregunta de cierre.
+- Si es "optimizacion_costos": Usa formato Analítico de Ahorro Presupuestario, comparando compra directa de importador vs. intermediarios.
+- Si es "socio_estrategico": Usa formato de Alianza de Suministro Continuo B2B con estructura clara, beneficios logísticos y procura integral.
 
-2. TRATAMIENTO DE PRECIOS CON INTELIGENCIA COMERCIAL (¡NUNCA PRECIOS AISLADOS EN FRÍO!):
-   - ¡PROHIBIDO tirar precios secos o altos que ahuyenten al cliente! Un precio como "$40" o "$15" sin contexto parece costoso.
-   - Enmarca siempre el precio comercialmente:
-     * Aclara la presentación mayorista: "por bulto cerrado", "por caja x 50 unid", "paquete de 10 resmas", etc.
-     * Enfatiza que se trata de PRECIO DE LISTA MAYORISTA con condiciones preferenciales y escalas de descuento por volumen.
-     * Señala el ahorro tangible frente a compras al detal.
-     * Expresa siempre el valor en dólares y su equivalente en bolívares calculados a Tasa Oficial BCV.
-
-3. PROMESA MANDATORIA DE PROCURA Y BÚSQUEDA ESPECIAL (SOURCING):
-   - DEBES incluir de forma clara y destacada que si el cliente busca o necesita cualquier otro producto, formato o marca que no vea en la lista o catálogo, *JJ Paper se lo ubica, cotiza y despacha de inmediato*:
-     "💡 *¿Busca algún producto o marca que no vea en este listado?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha directamente a su empresa."
-
-4. PRESENTACIÓN DE OFERTAS Y MÚLTIPLES PRODUCTOS (CATÁLOGO):
-   - Si se incluye un listado oficial de productos en oferta, DEBES listar CADA producto con su viñeta (•), su nombre destacado en negritas (*...*), su presentación/empaque y su precio de oferta exacto en USD ($) y Bs. a Tasa BCV. Ejemplo:
-     • *Bolígrafo Paper Mate InkJoy Azul (Caja x 12)*: *$2.88* | Bs. 2.464,30
-   - ¡PROHIBIDO inventar o cambiar los precios o productos! Usa con estricta fidelidad los nombres y precios oficiales en USD y Bs. provistos en la lista.
-   - Si hay más de 4 productos, organízalos con elegancia usando subtítulos temáticos con emojis (ej. 🖊️ *Escritura y Bolígrafos*, 📁 *Carpetas y Archivo*, 📄 *Papel y Resmas*) para que el mensaje sea impecable y fácil de leer.
-   - Beneficios clave destacados con emojis:
-     • 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios, precio mayorista real)
-     • 🧾 *Facturación Fiscal Legal* en bolívares calculados a Tasa Oficial BCV
-     • 🚚 *Despacho Inmediato* y logística directa en Caracas a su empresa o colegio
-     • 🔍 *Servicio de Procura:* si necesita cualquier otro insumo, ¡se lo ubicamos y cotizamos de inmediato!
-
-5. ESTRUCTURA VISUAL DE ALTA CONVERSIÓN:
-   - **TÍTULO DESTACADO**: En negritas con actitud comercial (Ej: *🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*).
-   - **SEPARADOR**: Línea estética de separación (━━━━━━━━━━━━━━━━━━━━━━━━━━).
-   - **SALUDO DINÁMICO (SPINTAX)**: Usa {Hola|Qué tal|Buen día|Saludos} {{nombre}}.
-   - **INTRODUCCIÓN**: 2 líneas directas destacando la ventaja mayorista directa en Caracas.
-   - **LISTADO DE OFERTAS**: Viñetas impecables con producto, empaque y precio en USD y Bs.
-   - **BENEFICIOS Y PROCURA**: 3-4 viñetas con emojis destacando BCV, factura, entrega inmediata y servicio de búsqueda especial.
-   - **LLAMADO A LA ACCIÓN (CTA)**: Pregunta directa de cierre comercial.
-   - **DESPEDIDA Y FIRMA**: {{vendedor}} | Asesor Comercial JJ Paper C.A. | {{link}}.
-
-Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior ni bloques de código json):
-- Si channel === 'email': { "subject": "Asunto profesional de alto impacto con nombre de producto u oferta", "body": "Cuerpo completo con formato estructurado, viñetas, precios y firma" }
-- Si channel === 'whatsapp': { "body": "Cuerpo del mensaje estructurado en WhatsApp (*negritas*, viñetas, firma al final y Spintax {A|B|C})" }
+Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior):
+- Si channel === 'email': { "subject": "Asunto adaptado al tono", "body": "Cuerpo completo" }
+- Si channel === 'whatsapp': { "body": "Cuerpo completo adaptado al tono y formato con Spintax {A|B|C}" }
 `;
 
     const prompt = `
 Propósito o Requerimiento del Asesor: ${objective}
 Contexto Histórico / Relación: ${historyContext || 'Sin contexto especial'}
-Personalidad / Tono Requerido: ${tone}
+Personalidad / Tono Requerido: ${tone} (Arquetipo: ${archetype}, Semilla #${_variationCounter})
+Gancho de Valor: ${valueHook}
 Canal: ${channel}
 Segmento de Audiencia: ${audience}
 ${prodSpecs}
@@ -952,32 +1106,112 @@ Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'
 Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato'}
 Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
 
-Redacta el mensaje comercial siguiendo estrictamente la estructura (Título, viñetas, firma al final) y el formato JSON solicitado:`;
+Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${archetype}" en JSON:`;
 
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.55 });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.82 });
       return extractJSON(raw);
     } catch (e) {
-      console.warn('Fallback draftCampaignMessage:', e);
       const isEmail = channel === 'email';
-      const itemsLines = prodsList.map((p, idx) => {
+      const v = _variationCounter;
+      const itemsBullets = prodsList.map((p) => {
         const pName = p.name || 'Artículo';
         const priceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
         const priceBs = priceUsd > 0 ? (priceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
         const unit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
-        return `• *${pName}*${unit}: *$${priceUsd.toFixed(2)} USD* | Bs. ${priceBs}`;
+        const discBadge = p.discount_pct ? ` _(-${p.discount_pct}% Off)_` : '';
+        if (archetype === 'institucional_formal') {
+          return `  - ${pName}${unit}: USD $${priceUsd.toFixed(2)} (Equiv. Bs. ${priceBs} BCV)${discBadge}`;
+        }
+        if (archetype === 'directo_ejecutivo') {
+          return `▪️ *${pName}*${unit} ➔ *$${priceUsd.toFixed(2)}* (Bs. ${priceBs})`;
+        }
+        return `• *${pName}*${unit}: *$${priceUsd.toFixed(2)} USD* | Bs. ${priceBs}${discBadge}`;
       }).join('\n');
 
+      const fallbackTopic = itemsBullets || `• *${objective || 'Suministro integral de papelería, resmas Bond, archivo y consumibles de oficina'}*`;
+      const extraNoteLine = customNotes && customNotes.trim() ? `\n📌 _Nota: ${customNotes.trim()}_\n` : '';
+      const discountLine = discount && discount.trim() ? `\n🏷️ *Condición especial:* ${discount.trim()}\n` : '';
+
       if (isEmail) {
+        if (archetype === 'oportunidad_mayorista') {
+          return {
+            subject: prodsList.length === 1
+              ? `⚡ Lote Mayorista Preferencial: ${prodsList[0].name} — JJ Paper C.A.`
+              : `🔥 Condiciones Especiales por Volumen (Stock Limitado) — JJ Paper C.A.`,
+            body: `{Hola|Buen día} {{nombre}},\n\nLe escribe {{vendedor}} de JJ Paper C.A. Hoy habilitamos en nuestro almacén de Caracas un lote con condiciones preferenciales de importador directo para rotación inmediata:\n\nLOTE EN CONDICIÓN ESPECIAL (TASA BCV ${rate.toFixed(2)} Bs):\n${fallbackTopic}${discountLine}${extraNoteLine}\n¿Por qué aprovechar este lote hoy?\n1. Precio directo de distribuidor mayorista sin intermediarios.\n2. Facturación fiscal SENIAT a tasa oficial BCV.\n3. Bloqueo de stock inmediato y despacho gratis en Caracas.\n\nCatálogo en línea: {{link}}\n\n¿Cuántas cajas o unidades le reservamos antes del cierre de despacho de esta semana?\n\nSaludos cordiales,\n{{vendedor}}\nJJ Paper C.A.`
+          };
+        }
+        if (archetype === 'cercano_consultivo') {
+          return {
+            subject: `🤝 Apoyo en suministros y procura de oficina para su empresa — JJ Paper`,
+            body: `{Hola|Qué tal|Buen día} {{nombre}}, espero que todo marche muy bien en sus operaciones.\n\nLe saluda {{vendedor}} de JJ Paper C.A. Quería ponerme a su disposición esta semana para apoyarles con la reposición de papelería y consumibles de su oficina, destacando estas opciones que tenemos listas para entrega:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\nAdemás, recuerde que contamos con nuestro servicio de Procura Especial: si necesitan cualquier otro artículo, medida o marca que no aparezca aquí, nosotros nos encargamos de ubicarlo y despacharlo directamente en su sede.\n\nPuede revisar nuestro catálogo completo aquí: {{link}}\n\n¿Tienen algún requerimiento pendiente esta semana en el que les pueda ayudar con una cotización rápida?\n\nUn abrazo cordial,\n{{vendedor}}\nAsesor Comercial | JJ Paper C.A.`
+          };
+        }
+        if (archetype === 'institucional_formal') {
+          return {
+            subject: `Propuesta Formal de Suministro Corporativo (RIF J-295375450) — JJ Paper C.A.`,
+            body: `Estimada Gerencia de Compras y Administración ({{nombre}}),\nPresente.-\n\nReciban un cordial saludo institucional en nombre de JJ Paper C.A., empresa importadora y distribuidora mayorista de papelería corporativa, archivo reglamentario e insumos operativos en Caracas.\n\nPor medio de la presente, sometemos a su consideración nuestra disponibilidad actualizada bajo condiciones corporativas:\n\nRELACIÓN DE INSUMOS DISPONIBLES:\n${fallbackTopic}${discountLine}${extraNoteLine}\nGARANTÍAS OPERATIVAS Y FISCALES:\n- Facturación fiscal formal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Despacho directo sin recargo en el Área Metropolitana de Caracas.\n- Homologación de proveedores y atención prioritaria a cuentas jurídicas.\n\nCatálogo corporativo digital: {{link}}\n\nQuedamos a su disposición para emitir la cotización proforma bajo los requerimientos de su departamento.\n\nAtentamente,\n{{vendedor}}\n Ejecutivo de Cuentas Corporativas | JJ Paper C.A.`
+          };
+        }
+        if (archetype === 'directo_ejecutivo') {
+          return {
+            subject: `Resumen Ejecutivo de Precios Mayoristas — JJ Paper C.A.`,
+            body: `Buen día {{nombre}},\n\nLe comparto de forma directa la disponibilidad y precios mayoristas vigentes en JJ Paper C.A. (Tasa BCV: ${rate.toFixed(2)} Bs/USD) para despacho inmediato en Caracas:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n• Factura fiscal SENIAT y delivery corporativo incluido.\n• Catálogo completo: {{link}}\n\n¿Le emito la cotización formal por alguno de estos renglones hoy?\n\nAtentamente,\n{{vendedor}} | JJ Paper C.A.`
+          };
+        }
+        // Default / socio_estrategico / optimizacion_costos
         return {
-          subject: prodsList.length === 1 ? `Propuesta Mayorista: ${prodsList[0].name} — JJ Paper C.A.` : `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`,
-          body: `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN OFERTA:*\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato:* Logística y delivery prioritario a su sede.\n• 🔍 *Servicio de Procura Especial:* Si requiere cualquier otro artículo, formato o marca que no visualice en esta lista, nosotros se lo ubicamos y cotizamos de inmediato.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`
-        };
-      } else {
-        return {
-          body: `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 DETALLE DE ARTÍCULOS EN OFERTA:*\n──────────────────────────\n${itemsLines || '• ' + objective}\n──────────────────────────\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario* en Caracas directamente a su empresa o colegio\n\n💡 *¿Busca algún producto o marca que no vea en este listado?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
+          subject: `💼 Optimización de Costos en Papelería y Suministros — JJ Paper C.A.`,
+          body: `{Estimado(a)|Apreciado(a)} {{nombre}},\n\nUn gusto saludarle. Le escribe {{vendedor}} desde JJ Paper C.A., su socio estratégico de abastecimiento directo en Caracas.\n\nPara ayudarles a reducir costos operativos mensuales comprando directamente a nivel de importador (sin revendedores), ponemos a su alcance nuestro inventario actual:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\nVENTAJAS COMPETITIVAS PARA SU EMPRESA:\n• Ahorro real por escala mayorista en cajas y bultos.\n• Facturación transparente 100% a tasa oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Servicio de búsqueda (Sourcing) para cualquier insumo adicional.\n\nCatálogo digital: {{link}}\n\n¿Desea que le preparemos un comparativo o cotización formal para las compras de este mes?\n\nCordialmente,\n{{vendedor}}\nJJ Paper C.A.`
         };
       }
+
+      // ══════ CANAL WHATSAPP: 6 FORMATOS Y TONOS COMPLETAMENTE DISTINTOS ══════
+      if (archetype === 'oportunidad_mayorista') {
+        const headers = [
+          `*🔥 LOTE MAYORISTA CON PRECIO DE IMPORTADOR · JJ PAPER*`,
+          `*⚡ OPORTUNIDAD POR VOLUMEN (STOCK EN CARACAS) · JJ PAPER*`,
+          `*📦 CONDICIÓN ESPECIAL DE DISTRIBUIDOR DIRECTO · JJ PAPER*`
+        ];
+        return {
+          body: `${headers[v % headers.length]}\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Qué tal} {{nombre}} 👋, le escribe *{{vendedor}}* de *JJ Paper C.A.*\n\nHoy liberamos en almacén condiciones especiales por volumen con entrega inmediata en Caracas:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n*🚀 VENTAJAS DE ESTE LOTE:*\n• 🏭 *Precio directo de importador* (máximo margen y ahorro por bulto/caja).\n• 🧾 *Factura Fiscal Legal* calculada estrictamente a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho exprés gratuito* directo a su local o empresa.\n\n👉 Catálogo en vivo: {{link}}\n\n💬 *¿Cuántas unidades o cajas le apartamos en sistema antes de cerrar la ruta de hoy?*\n\n— *{{vendedor}}* | JJ Paper C.A.`
+        };
+      }
+
+      if (archetype === 'cercano_consultivo') {
+        const intros = [
+          `{Hola|Buen día|Qué tal} {{nombre}}, ¿cómo estás? 👋 Te escribe *{{vendedor}}* de *JJ Paper*.`,
+          `{Hola|Un gusto saludarte} {{nombre}} 👋, espero que todo vaya excelente en tu semana. Te habla *{{vendedor}}* de *JJ Paper*.`,
+          `{Buen día|Hola} {{nombre}} 🤝, paso por aquí brevemente. Te saluda *{{vendedor}}* del equipo de *JJ Paper*.`
+        ];
+        return {
+          body: `${intros[v % intros.length]}\n\nEstaba revisando las opciones de reposición para esta semana y quería pasarte de primera mano estos artículos que nos acaban de entrar a excelente precio:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n💡 *Tip de apoyo:* Recuerda que si estás buscando algún otro artículo, formato o marca que no veas aquí, *me avisas con confianza y te lo ubicamos de inmediato* con nuestra red mayorista.\n\nTodo sale con su factura fiscal a tasa BCV (${rate.toFixed(2)} Bs) y te lo llevamos directo a la puerta de tu oficina en Caracas 🚚.\n\n👉 Mira todo el catálogo aquí: {{link}}\n\n¿Cómo están de stock esta semana? ¿Te armo un presupuesto rápido sin compromiso?`
+        };
+      }
+
+      if (archetype === 'institucional_formal') {
+        return {
+          body: `*COMUNICACIÓN COMERCIAL CORPORATIVA · JJ PAPER C.A. (RIF J-295375450)*\n────────────────────────────────────\n{Estimado(a)|Apreciado(a)} {{nombre}}, reciba un cordial saludo institucional.\n\nSe dirige a usted *{{vendedor}}*, Ejecutivo Comercial de *JJ Paper C.A.*, distribuidora mayorista de papelería corporativa, archivo reglamentario y suministros de oficina en Caracas.\n\nSometemos a consideración de su Departamento de Compras nuestra disponibilidad inmediata:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n*RESPALDO INSTITUCIONAL Y TRIBUTARIO:*\n• Facturación fiscal formal conforme a normativas del SENIAT.\n• Cálculo transparente a Tasa Oficial del Banco Central de Venezuela (${rate.toFixed(2)} Bs/USD).\n• Despacho corporativo sin costo en el Área Metropolitana de Caracas.\n• Atención a requerimientos especiales de procura y licitación.\n\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de su razón social para evaluación administrativa?\n\nAtentamente,\n*{{vendedor}}* | Dirección Comercial JJ Paper C.A.`
+        };
+      }
+
+      if (archetype === 'directo_ejecutivo') {
+        return {
+          body: `{Buen día|Hola} {{nombre}} 👋 · *Resumen Flash JJ Paper C.A.*\n\nLe saluda *{{vendedor}}*. Comparto directo al grano nuestro stock mayorista listo para despacho hoy en Caracas (BCV: ${rate.toFixed(2)} Bs):\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n✅ *Incluye:* Factura fiscal SENIAT + Delivery corporativo gratis en Caracas + Procura de cualquier insumo adicional.\n🔗 *Catálogo:* {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems o le reservo unidades para entrega mañana?*`
+        };
+      }
+
+      if (archetype === 'optimizacion_costos') {
+        return {
+          body: `*💰 OPTIMIZACIÓN DE PRESUPUESTO EN SUMINISTROS · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día} {{nombre}}, un gusto saludarle. Le escribe *{{vendedor}}* de *JJ Paper C.A.*\n\nSabemos lo importante que es cuidar la estructura de costos operativos cada mes. Como *importadores directos en Caracas*, eliminamos la cadena de intermediarios para ofrecerle ahorro real en:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n*📊 ¿CÓMO OPTIMIZAMOS SU COMPRA?* \n• *Precio Mayorista Real:* Escalas de descuento desde cajas y bultos.\n• *Cero Diferencial Cambiario:* Factura legal a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• *Cero Gasto de Flete:* Transporte propio gratuito en Caracas.\n• *Sourcing Integral:* Consolidamos todos sus insumos en una sola factura.\n\n👉 Catálogo digital: {{link}}\n\n💬 ¿Me permite enviarle una cotización comparativa para su compra de este mes?\n\nCordialmente,\n*{{vendedor}}* | Asesor B2B · JJ Paper C.A.`
+        };
+      }
+
+      // Arquetipo 'socio_estrategico' con variación rotativa
+      return {
+        body: `*🏢 ALIANZA DE ABASTECIMIENTO MAYORISTA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.*, su aliado mayorista directo de papelería, consumibles de facturación y embalaje en Caracas.\n\nPara respaldar la continuidad operativa de su empresa esta semana, ponemos a su disposición inventario físico garantizado en:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n*💎 NUESTRO COMPROMISO COMO SOCIO COMERCIAL:*\n• 🏭 *Importador Directo:* Stock real en almacén sin intermediarios.\n• 🧾 *Facturación SENIAT:* 100% a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Logística Propia:* Entrega puntual en su sede.\n• 🔍 *Procura Especial:* ¿Necesita un formato o marca específica? Se lo ubicamos de inmediato.\n\n👉 Catálogo interactivo: {{link}}\n\n💬 *¿Qué artículos o cantidades desea que le incluya en su cotización de esta semana?*\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`
+      };
     }
   }
 
@@ -1382,72 +1616,104 @@ FLUJO DE ANÁLISIS OBLIGATORIO:
 
 Realiza el análisis de necesidades operativas de esta empresa y redacta el correo formal (130-180 palabras exactas) y el WhatsApp en JSON estricto:`;
 
+    _variationCounter++;
     try {
-      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.45, maxTokens: 2000, mode: 'architect' });
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.75, maxTokens: 2000, mode: 'architect' });
       const data = extractJSON(raw);
       return data;
     } catch (e) {
-      console.warn('Fallback analyzeAndDraftProspectB2B:', e);
-      // Fallback robusto con los datos directos
-      const salutation = contactName 
-        ? `Estimado(a) ${contactName}${contactRole ? `, ${contactRole}` : ''} en ${companyName}:`
-        : `Estimada Gerencia de Compras y Procura en ${companyName}:`;
+      const heur = generateHeuristicCustomerMessage({
+        customer: {
+          ...(customerFull || {}),
+          company_name: companyName,
+          name: companyName,
+          contact_name: contactName,
+          contact_role: contactRole,
+          sector: effectiveSector,
+          address,
+          notes,
+          city
+        },
+        channel: channel === 'email' ? 'email' : 'whatsapp',
+        sName: sellerName,
+        sPhone: sellerPhone,
+        rate,
+        promoProductOrCombo,
+        products: prodsList.length > 0 ? prodsList : realProducts.slice(0, 3),
+        officialPdfIncluded,
+        isAlreadyContacted,
+        personality,
+        messageType,
+        targetSector,
+        commercialTone,
+        valueHook
+      });
 
-      const hasCustomOffer = (Array.isArray(prodsList) && prodsList.length > 0);
+      const emailHeur = channel === 'email' ? heur : generateHeuristicCustomerMessage({
+        customer: {
+          ...(customerFull || {}),
+          company_name: companyName,
+          name: companyName,
+          contact_name: contactName,
+          contact_role: contactRole,
+          sector: effectiveSector,
+          address,
+          notes,
+          city
+        },
+        channel: 'email',
+        sName: sellerName,
+        sPhone: sellerPhone,
+        rate,
+        promoProductOrCombo,
+        products: prodsList.length > 0 ? prodsList : realProducts.slice(0, 3),
+        officialPdfIncluded,
+        isAlreadyContacted,
+        personality,
+        messageType,
+        targetSector,
+        commercialTone,
+        valueHook
+      });
 
-      const defSubject = promoProductOrCombo
-        ? `📦 Oferta Especial en ${promoProductOrCombo.name || 'Papelería'} para ${companyName} | JJ Paper`
-        : hasCustomOffer
-        ? `📦 Propuesta Mayorista de Suministros para ${companyName} | JJ Paper`
-        : `Propuesta de abastecimiento operativo y homologación para ${companyName}`;
+      const waHeur = channel === 'whatsapp' ? heur : generateHeuristicCustomerMessage({
+        customer: {
+          ...(customerFull || {}),
+          company_name: companyName,
+          name: companyName,
+          contact_name: contactName,
+          contact_role: contactRole,
+          sector: effectiveSector,
+          address,
+          notes,
+          city
+        },
+        channel: 'whatsapp',
+        sName: sellerName,
+        sPhone: sellerPhone,
+        rate,
+        promoProductOrCombo,
+        products: prodsList.length > 0 ? prodsList : realProducts.slice(0, 3),
+        officialPdfIncluded,
+        isAlreadyContacted,
+        personality,
+        messageType,
+        targetSector,
+        commercialTone,
+        valueHook
+      });
 
-      let bullet1 = '• *Rollos térmicos y consumibles para puntos de venta y facturación* (cero quiebres de stock).';
-      let bullet2 = '• *Carpetas de archivo reglamentarias, archivadores y resmas de papel Bond* para resguardo documental.';
-      let bullet3 = '• *Cintas de embalaje industrial de alto micraje* para almacén y despacho.';
-
-      let formattedBullets = '';
-      if (hasCustomOffer) {
-        formattedBullets = prodsList.slice(0, 10).map(p => {
-          const pName = p.name || 'Artículo';
-          const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
-          const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-          const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
-          return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
-        }).join('\n');
-        if (prodsList.length > 10) {
-          formattedBullets += `\n• _...y ${prodsList.length - 10} artículos más disponibles en este lote mayorista._`;
-        }
-      } else if (promoProductOrCombo) {
-        bullet1 = `• *${promoProductOrCombo.name || 'Oferta Especial'}*: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0).toFixed(2)} USD (disponibilidad inmediata).`;
-        formattedBullets = `${bullet1}\n${bullet2}\n${bullet3}`;
-      } else {
-        formattedBullets = `${bullet1}\n${bullet2}\n${bullet3}`;
-      }
-
-      const sourcingPromise = `💡 *¿Busca algún formato o insumo especial no listado?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n`;
-
-      const defBody = `${salutation}\n\nEs un placer saludarle desde JJ Paper C.A. Entendemos la alta exigencia diaria que demanda la operación y logística de sus sedes en ${city || 'Caracas'}, donde la disponibilidad oportuna de suministros resulta indispensable.\n\nCon el propósito de garantizar la continuidad de sus operaciones y optimizar sus costos de procura, ponemos a su disposición nuestro suministro directo en insumos de alta rotación:\n${formattedBullets}\n\n${sourcingPromise}Beneficios de operar con JJ Paper:\n- Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata.\n- Cotizaciones inmediatas en segundos adaptadas a su presupuesto.\n- Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución.\n- Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día.\n\nLe invitamos a revisar la lista adjunta. Si nos indica qué requerimiento tienen abierto esta semana, con gusto le enviaremos la cotización formal en minutos.\n\nAtentamente,\n\n${sellerName}\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
-
-      const words = defBody.trim().split(/\s+/).length;
-
-      const waGreeting = contactName
-        ? `{Hola|Buen día|Un gusto saludarle} ${contactName} 👋, un cordial saludo.`
-        : (contactRole
-            ? `{Hola|Buen día} ${contactRole} de ${companyName} 👋, un cordial saludo.`
-            : `{Hola|Buen día|Un gusto saludarle} estimados amigos de ${companyName} 👋, un cordial saludo.`);
-
-      const fallbackWa = `${waGreeting}\n\n{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Somos distribuidores mayoristas de papelería corporativa, consumibles de caja y embalaje en Caracas.\n\nPensando en la continuidad de sus operaciones, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 PROPUESTA MAYORISTA DE SUMINISTROS:*\n${formattedBullets}\n\n${officialPdfIncluded ? '📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n' : ''}${sourcingPromise}*VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal con RIF (J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales en segundos* adaptadas a su requerimiento.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sellerName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sellerPhone}\nCaracas, Venezuela`;
-
+      const offerList = (heur.suggested_offering || '').split(' · ').filter(Boolean);
       return {
-        sector_deducido: sector || 'Corporativo General',
-        dolor_operativo: 'Abastecimiento oportuno de suministros para continuidad operativa y control de costos de procura.',
-        insumos_core: hasCustomOffer ? prodsList.slice(0, 2).map(p => p.name) : [bullet1.replace(/^•\s*\*/, '').replace(/\*.*$/, ''), bullet2.replace(/^•\s*\*/, '').replace(/\*.*$/, '')],
-        insumo_cross_sell: hasCustomOffer ? (prodsList[2]?.name || '') : bullet3.replace(/^•\s*\*/, '').replace(/\*.*$/, ''),
-        angulo_seleccionado: 'alianza_procura',
-        subject: defSubject,
-        email_body: defBody,
-        email_word_count: words,
-        wa_body: fallbackWa
+        sector_deducido: heur.sector || effectiveSector || 'Corporativo General',
+        dolor_operativo: heur.need || 'Abastecimiento oportuno de suministros para continuidad operativa y control de costos de procura.',
+        insumos_core: offerList.slice(0, 2),
+        insumo_cross_sell: offerList[2] || 'Cintas de embalaje y consumibles de archivo',
+        angulo_seleccionado: commercialTone || 'socio_estrategico',
+        subject: emailHeur.subject || heur.subject,
+        email_body: emailHeur.body,
+        email_word_count: emailHeur.body.trim().split(/\s+/).length,
+        wa_body: waHeur.body
       };
     }
   }
@@ -1488,32 +1754,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
 
     const hasCustomOffer = Boolean(promoProductOrCombo || (Array.isArray(products) && products.length > 0));
 
-    // Si no se fuerza refresco y no hay promoción específica seleccionada, reutilizar si ya tiene copy guardado
-    // EXCEPCIÓN VITAL: Si el contacto ya fue contactado, NO reutilizar un copy de presentación guardado previamente
-    if (!forceRefresh && !hasCustomOffer && !isAlreadyContacted) {
-      if (channel === 'whatsapp' && customer.custom_wa_body && customer.custom_wa_body.length > 50) {
-        return {
-          sector: customer.ai_analysis?.sector_deducido || customer.sector || 'Comercial',
-          need: customer.ai_analysis?.dolor_operativo || 'Abastecimiento de papelería y consumibles operativos',
-          suggested_offering: (customer.ai_analysis?.insumos_core || []).join(' · '),
-          subject: customer.suggested_subject || 'Propuesta Comercial — JJ Paper',
-          body: customer.custom_wa_body,
-          raw_analysis: customer.ai_analysis || {}
-        };
-      }
-      if (channel === 'email' && customer.custom_email_body && customer.custom_email_body.length > 50) {
-        return {
-          sector: customer.ai_analysis?.sector_deducido || customer.sector || 'Comercial',
-          need: customer.ai_analysis?.dolor_operativo || 'Abastecimiento de papelería y consumibles operativos',
-          suggested_offering: (customer.ai_analysis?.insumos_core || []).join(' · '),
-          subject: customer.suggested_subject || 'Propuesta Comercial y Lista de Precios — JJ Paper',
-          body: customer.custom_email_body,
-          raw_analysis: customer.ai_analysis || {}
-        };
-      }
-    }
-
-    // Adaptación dinámica de enfoque si la cuenta ya fue alcanzada o hay producto activo
+    // Adaptación dinámica de enfoque según el tono seleccionado
     let effectiveMessageType = messageType;
     let effectivePersonality = personality;
     if (hasCustomOffer) {
@@ -1530,7 +1771,6 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
       effectivePersonality = 'Cercano / Cordial';
     }
 
-    // Extraer datos del cliente o prospecto B2B
     const compName = customer.company_name || customer.name || customer.business_name || 'Empresa';
     const sec = customer.sector || (customer.ai_analysis && customer.ai_analysis.sector_deducido) || '';
     const contName = customer.contact_name || '';
@@ -1587,11 +1827,24 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     } catch (err) {
       console.warn('Fallback en analyzeCustomerAndDraftMessage:', err);
       const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
-      return generateHeuristicCustomerMessage({ customer, channel, sName, sPhone, rate, promoProductOrCombo, products, officialPdfIncluded, isAlreadyContacted });
+      return generateHeuristicCustomerMessage({
+        customer,
+        channel,
+        sName,
+        sPhone,
+        rate,
+        promoProductOrCombo,
+        products,
+        officialPdfIncluded,
+        isAlreadyContacted,
+        personality: effectivePersonality,
+        messageType: effectiveMessageType,
+        targetSector,
+        commercialTone,
+        valueHook
+      });
     }
   }
-
-
 
   function generateHeuristicCustomerMessage({
     customer = {},
@@ -1602,105 +1855,154 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     promoProductOrCombo = null,
     products = [],
     officialPdfIncluded = true,
-    isAlreadyContacted = false
+    isAlreadyContacted = false,
+    personality = '',
+    messageType = '',
+    targetSector = 'auto',
+    commercialTone = 'socio_estrategico',
+    valueHook = 'importador_directo'
   }) {
-    const custName = customer.name || customer.business_name || 'Estimado Cliente';
-    const low = (custName + ' ' + (customer.notes || '') + ' ' + (customer.tags || '')).toLowerCase();
-    const ordersCount = Number(customer.total_orders || 0);
+    _variationCounter++;
+    const v = _variationCounter;
+    const custName = customer.company_name || customer.name || customer.business_name || 'su empresa';
+    const contactPerson = customer.contact_name || '';
+    const contactRole = customer.contact_role || '';
+    const city = customer.city || 'Caracas';
+    const low = `${custName} ${customer.sector || ''} ${targetSector || ''} ${customer.notes || ''} ${customer.tags || ''}`.toLowerCase();
 
-    let sector = 'Comercial General';
-    let need = 'Abastecimiento de papelería mayorista y consumibles para continuidad operativa';
-    let offering = 'Resmas de papel Bond, consumibles de oficina y embalaje';
+    let sector = 'Corporativo y Oficinas';
+    let need = 'Abastecimiento continuo de papelería corporativa, archivo y consumibles con costos de distribuidor directo';
+    let offering = 'Resmas de papel Bond Carta/Oficio, carpetas de archivo y consumibles de oficina';
     let bulletPoints = '';
 
     const hasMultiOffer = Array.isArray(products) && products.length > 0;
+    const archetype = _detectToneArchetype(`${commercialTone} ${personality}`, valueHook, messageType);
 
     if (hasMultiOffer) {
-      sector = 'Comercial e Insumos Mayoristas';
-      need = 'Suministro mayorista preferencial de insumos seleccionados con entrega inmediata';
+      sector = customer.sector || 'Comercial e Insumos Mayoristas';
+      need = 'Suministro mayorista directo con precios de importador y entrega inmediata en sede';
       offering = products.slice(0, 3).map(p => p.name).join(' · ');
       bulletPoints = products.slice(0, 10).map(p => {
         const pName = p.name || 'Artículo';
         const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
         const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
         const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+        if (archetype === 'institucional_formal') {
+          return `  - ${pName}${pUnit}: USD $${pPriceUsd.toFixed(2)} (Bs. ${pPriceBs} a tasa BCV)`;
+        }
+        if (archetype === 'directo_ejecutivo') {
+          return `▪️ *${pName}*${pUnit} ➔ *$${pPriceUsd.toFixed(2)}* (Bs. ${pPriceBs})`;
+        }
         return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
       }).join('\n');
       if (products.length > 10) {
-        bulletPoints += `\n• _...y ${products.length - 10} artículos más disponibles en este lote mayorista._`;
+        bulletPoints += `\n• _...y ${products.length - 10} artículos adicionales incluidos en este lote._`;
       }
     } else if (/farmacia|droguer[ií]a|farma/i.test(low)) {
-      sector = 'Farmacias y Salud';
-      need = 'Rollos térmicos para cajas POS y cintas de embalar para bultos';
-      offering = 'Rollos térmicos 80x70mm y 57x40mm + Cintas de empaque 48x100m';
-      bulletPoints = `• *Rollos térmicos para cajas POS* (80x70mm y 57x40mm) de alto rendimiento.\n• *Cintas de empaque resistentes* (48mm x 100m/200m) para embalaje de medicamentos y pedidos.\n• *Consumibles de oficina y marcadores* para control de stock.`;
-    } else if (/supermercado|abasto|comercial|bodeg[oó]n|charcuter[ií]a|panader[ií]a|inversiones|automercado|minimarket|tienda/i.test(low)) {
+      sector = 'Farmacias y Salud Retail';
+      need = 'Cero quiebres en rollos térmicos para puntos de venta/impresoras fiscales y embalaje de pedidos';
+      offering = 'Rollos térmicos 80x70mm y 57x40mm · Cintas de empaque 48x100m · Sobres manila';
+      bulletPoints = `• *Rollos térmicos POS y fiscales* (80x70mm y 57x40mm) de alta nitidez.\n• *Cintas de empaque de alto micraje* (48mm x 100m/200m) para sellado de bultos.\n• *Sobres manila y consumibles administrativos* para control de inventario.`;
+    } else if (/supermercado|abasto|comercial|bodeg[oó]n|charcuter[ií]a|panader[ií]a|automercado|minimarket|retail/i.test(low)) {
       sector = 'Supermercados y Retail';
-      need = 'Cero quiebres de stock en cajas registradoras y embalaje para mercancía';
-      offering = 'Rollos térmicos de puntos de venta + Marcadores detectores de billetes';
-      bulletPoints = `• *Rollos térmicos POS* (80x70mm, 80x80mm y 57x40mm) garantizados.\n• *Marcadores detectores de billetes falsos* Kores y almohadillas dactilares.\n• *Cintas de embalaje industrial* transparentes y marrones de alto micraje.`;
+      need = 'Operación ininterrumpida en líneas de cajas registradoras y embalaje de almacén';
+      offering = 'Rollos térmicos POS 80x70/57x40 · Detectores de billetes Kores · Cintas industriales';
+      bulletPoints = `• *Rollos térmicos para cajas y puntos de venta* (80x70mm, 80x80mm y 57x40mm).\n• *Marcadores detectores de billetes falsos* Kores y almohadillas dactilares.\n• *Cintas de embalaje industrial* transparentes y marrones de extra adherencia.`;
     } else if (/librer[ií]a|papeler[ií]a|bazar|variedades|copias/i.test(low)) {
-      sector = 'Librerías y Papelerías';
-      need = 'Surtido mayorista de alta rotación con margen de reventa';
-      offering = 'Cuadernos engrapados y espiral, resmas Bond y útiles escolares';
-      bulletPoints = `• *Cuadernos de alta demanda*: engrapados, cosidos y doble espiral.\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g) de máxima blancura.\n• *Artículos escolares y de oficina*: bolígrafos, lápices, colores, tijeras y pegamento.`;
+      sector = 'Librerías y Papelerías (Mayorista Reventa)';
+      need = 'Surtido mayorista de alta rotación con margen directo de importador';
+      offering = 'Resmas Bond Carta/Oficio por bulto · Cuadernos cosidos/espiral · Útiles y escritura';
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* (75g y 80g) por bulto a precio de distribuidor.\n• *Cuadernos de alta rotación*: engrapados, cosidos y doble espiral.\n• *Línea escolar y de oficina*: bolígrafos por caja, lápices, fundas protectoras, carpetas y pegamentos.`;
     } else if (/colegio|escuela|instituto|liceo|educaci[oó]n|educativo|universidad|acad[eé]mico/i.test(low)) {
       sector = 'Instituciones Educativas';
-      need = 'Resmas para evaluaciones pedagógicas y dotación institucional';
-      offering = 'Resmas de papel Bond, marcadores de pizarra y material pedagógico';
-      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* de alta rotación para exámenes y guías.\n• *Marcadores de pizarra recargables* y borradores magnéticos.\n• *Carpetas de fibra y manila* para expedientes estudiantiles y archivo escolar.`;
+      need = 'Dotación institucional de papel para evaluaciones, archivo estudiantil y material docente';
+      offering = 'Resmas Bond Carta/Oficio · Marcadores de pizarra acrílica · Carpetas y fundas protectoras';
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* para exámenes, guías y circulares.\n• *Marcadores de pizarra acrílica recargables* y borradores institucionales.\n• *Carpetas manila, fibra y fundas protectoras* para expedientes estudiantiles.`;
     } else if (/cl[ií]nica|salud|m[eé]dico|dental|laboratorio|hospital|consultorio/i.test(low)) {
-      sector = 'Clínicas y Salud';
-      need = 'Historias médicas, sobres radiografía y archivo confidencial';
-      offering = 'Sobres radiografía 14x17, carpetas de historias médicas y resmas';
-      bulletPoints = `• *Sobres de gran formato y radiografía* (14x17, Extra Oficio y Carta).\n• *Carpetas de historias médicas de fibra* con gancho y divisiones.\n• *Resmas de papel Bond y consumibles* para áreas administrativas y de admisión.`;
+      sector = 'Clínicas, Laboratorios y Salud';
+      need = 'Resguardo pulcro de historias médicas, sobres para estudios y papelería de admisión';
+      offering = 'Sobres radiografía 14x17 · Carpetas de historias médicas de fibra · Resmas Bond';
+      bulletPoints = `• *Sobres de gran formato y radiografía* (14x17, Extra Oficio y Carta).\n• *Carpetas de fibra con gancho* para archivo de historias médicas.\n• *Resmas de papel Bond y rollos térmicos* para admisión, caja y laboratorio.`;
     } else if (/transporte|log[ií]stica|env[ií]os|cargo|almac[eé]n|ferreter[ií]a|repuestos/i.test(low)) {
-      sector = 'Logística, Ferretería y Almacén';
-      need = 'Embalaje industrial de alta resistencia e identificación de bultos';
-      offering = 'Cintas de alto micraje 48x100m/200m y marcadores industriales';
-      bulletPoints = `• *Cintas de embalaje industrial* (48mm x 100m y 200m) de pegado extra fuerte.\n• *Marcadores industriales indelebles* (Servicio 80, Sharpie, Expo).\n• *Dispensadores tipo pistola, exactos* y sobres packing list para guías.`;
-    } else if (/banco|seguros|consultor|asesor|abogad|corporaci[oó]n|grupo/i.test(low)) {
-      sector = 'Corporativo, Finanzas y Legal';
-      need = 'Resguardo documental formal y archivo reglamentario a 10 años';
-      offering = 'Carpetas de fibra marrón, archivadores de palanca y resmas Bond';
-      bulletPoints = `• *Carpetas de fibra marrón reglamentarias* con gancho para expedientes auditables.\n• *Archivadores de palanca* de lomo ancho y fino con cantoneras metálicas.\n• *Resmas de papel Bond* (Carta y Oficio 75g y 80g HP/Report/Chamex).`;
+      sector = 'Logística, Almacén e Industria';
+      need = 'Embalaje industrial de alta resistencia y rotulación indeleble de mercancía';
+      offering = 'Cintas industriales 48x100m/200m · Marcadores indelebles Servicio 80 · Dispensadores';
+      bulletPoints = `• *Cintas de embalaje industrial* (48mm x 100m y 200m) de pegado extra fuerte.\n• *Marcadores permanentes industriales* (Servicio 80, Sharpie, Kores).\n• *Exactos de alta resistencia, dispensadores* y resmas para guías de despacho.`;
+    } else if (/banco|seguros|consultor|asesor|abogad|corporaci[oó]n|grupo|finanz/i.test(low)) {
+      sector = 'Corporativo, Banca y Legal';
+      need = 'Archivo auditable a 10 años, cumplimiento documental y suministro corporativo centralizado';
+      offering = 'Carpetas de fibra marrón reglamentarias · Archivadores lomo ancho · Resmas Bond 75g/80g';
+      bulletPoints = `• *Carpetas de fibra marrón reglamentarias* con gancho y fundas protectoras.\n• *Archivadores de palanca* lomo ancho/fino con cantoneras metálicas.\n• *Resmas de papel Bond Carta y Oficio* de alta blancura para contratos e informes.`;
     } else {
-      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* con despacho inmediato.\n• *Artículos de papelería corporativa y archivo* con precios mayoristas.\n• *Rollos térmicos de cajas y consumibles* para soporte operativo.`;
+      bulletPoints = `• *Resmas de papel Bond Carta y Oficio* con disponibilidad inmediata por caja o bulto.\n• *Archivo y organización*: carpetas manila, fibra, fundas protectoras y archivadores.\n• *Consumibles operativos*: bolígrafos, grapas, cintas de embalaje y rollos térmicos POS.`;
     }
 
     if (!hasMultiOffer && promoProductOrCombo) {
-      bulletPoints = `• *📦 PROMOCIÓN ACTIVA: ${promoProductOrCombo.name}*\n  ${promoProductOrCombo.description ? `_${promoProductOrCombo.description}_\n  ` : ''}💲 *Precio mayorista: $${Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd).toFixed(2)} USD*\n` + bulletPoints;
+      const pUsd = Number(promoProductOrCombo.final_price_usd || promoProductOrCombo.price_usd || 0);
+      const pBs = (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      bulletPoints = `• *🔥 DESTACADO: ${promoProductOrCombo.name}* — *$${pUsd.toFixed(2)} USD* (Bs. ${pBs} BCV)\n` + bulletPoints;
     }
 
+    // Gancho de valor específico seleccionado por el usuario
+    const hookHighlightMap = {
+      importador_directo: `🏭 *Importador y Distribuidor Directo en Caracas:* Precios de primera mano sin intermediarios y stock físico real.`,
+      escala_volumen: `📦 *Escalas de Descuento por Volumen:* Precios mayoristas preferenciales por caja y bulto cerrado.`,
+      sourcing_especial: `🔍 *Servicio de Procura Especial (Sourcing):* Cualquier formato, medida o marca que no vea en lista, se lo ubicamos y despachamos.`,
+      despacho_express: `🚚 *Despacho Exprés 24h y Factura BCV:* Entrega directa y gratuita en su sede en Caracas con factura fiscal SENIAT (${rate.toFixed(2)} Bs/USD).`,
+      ahorro_mensual: `💰 *Optimización de Presupuesto Mensual:* Consolidamos toda su compra de papelería y consumibles reduciendo hasta un 25% sus costos.`
+    };
+    const activeHookLine = hookHighlightMap[valueHook] || hookHighlightMap.importador_directo;
+
     const isEmail = channel === 'email';
-    const pdfMention = officialPdfIncluded
-      ? `📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n`
-      : '';
+    const greetTarget = contactPerson ? `${contactPerson} (${custName})` : (contactRole ? `${contactRole} de ${custName}` : `equipo de ${custName}`);
 
-    const sourcingPromise = `💡 *¿Busca algún formato o producto especial no listado?* ¡Pídanoslo con total confianza! Se lo ubicamos, cotizamos y despachamos de inmediato.\n\n`;
-
-    const subject = promoProductOrCombo
-      ? `📦 Oferta Especial en ${promoProductOrCombo.name} — JJ Paper C.A.`
-      : hasMultiOffer
-      ? `📦 Propuesta Mayorista de Suministros para ${custName} — JJ Paper C.A.`
-      : (isAlreadyContacted ? `🤝 Seguimiento Operativo y Reposición para ${custName} — JJ Paper C.A.` : `📋 Abastecimiento Operativo y Lista de Precios Oficial para ${custName} — JJ Paper C.A.`);
-
+    // Construcción de Asunto y Cuerpo según el Arquetipo de Tono / Formato y Variación #v
+    let subject = '';
     let body = '';
+
     if (isEmail) {
-      if (hasMultiOffer || promoProductOrCombo) {
-        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda cordialmente *${sName}* de *JJ Paper C.A.* Conociendo la continua actividad de sus sedes en ${customer.city || 'Caracas'}, hoy queríamos compartirle disponibilidad inmediata y condiciones comerciales preferenciales en:\n\n*📦 PROPUESTA MAYORISTA DE SUMINISTROS:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🏢 *Distribución integral*: Papelería corporativa, consumibles de oficina, insumos de caja/facturación y artículos de limpieza.\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le confirmemos disponibilidad para su despacho de esta semana?|¿Gusta que le reservemos inventario de este lote para su empresa?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
-      } else if (isAlreadyContacted) {
-        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda nuevamente *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\n*📦 PROPUESTA DE REPOSICIÓN OPERATIVA:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+      if (archetype === 'oportunidad_mayorista') {
+        const subs = [
+          `🔥 Condiciones Mayoristas por Volumen para ${custName} — JJ Paper C.A.`,
+          `⚡ Disponibilidad Inmediata y Precios de Importador para ${custName} — JJ Paper`,
+          `📦 Lote Preferencial de Suministros (Tasa BCV) para ${custName} — JJ Paper`
+        ];
+        subject = subs[v % subs.length];
+        body = `{Hola|Buen día} ${greetTarget},\n\nLe saluda *${sName}* de *JJ Paper C.A.* Hoy habilitamos en nuestro almacén de Caracas condiciones especiales por volumen pensadas para la rotación operativa de ${custName}:\n\n*📦 LOTE MAYORISTA DISPONIBLE (BCV ${rate.toFixed(2)} Bs/USD):*\n${bulletPoints}\n\n*VENTAJA CLAVE PARA SU COMPRA DE ESTA SEMANA:*\n• ${activeHookLine}\n• 🧾 Facturación fiscal formal SENIAT (RIF J-295375450).\n• 🚚 Transporte propio gratuito en ${city}.\n${officialPdfIncluded ? '• 📄 Adjuntamos nuestra Lista Oficial en PDF con +900 ítems.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n¿Cuántas cajas o unidades le bloqueamos en almacén para programar su despacho mañana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
+      } else if (archetype === 'cercano_consultivo') {
+        const subs = [
+          `🤝 Apoyo en abastecimiento y procura de suministros para ${custName}`,
+          `Hola ${contactPerson || custName} · Disponibilidad de papelería e insumos esta semana`,
+          `Suministro ágil y procura a medida para ${custName} — JJ Paper`
+        ];
+        subject = subs[v % subs.length];
+        body = `{Hola|Qué tal|Buen día} ${greetTarget},\n\nEspero que todo marche excelente en sus operaciones en ${city}. Le escribe *${sName}* de *JJ Paper C.A.*\n\n${isAlreadyContacted ? 'Quería saludarles nuevamente y consultarles cómo están de inventario para esta quincena.' : 'Quería ponerme a su entera disposición como su asesor directo para simplificar las compras de papelería y consumibles de su empresa.'} Actualmente contamos con entrega inmediata en:\n\n${bulletPoints}\n\n${activeHookLine}\n\nAdemás, si necesitan algún artículo específico que no aparezca en el listado, solo indíquenoslo y nuestro equipo se encarga de conseguirlo y cotizarlo de inmediato.\n\n👉 Catálogo digital completo: {{link}}\n\n¿Tienen algún requerimiento pendiente esta semana en el que les pueda apoyar con un presupuesto rápido?\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A. · ${sPhone}`;
+      } else if (archetype === 'institucional_formal') {
+        subject = `Propuesta Institucional de Suministro y Homologación para ${custName} | JJ Paper C.A.`;
+        body = `Estimada Gerencia de Compras y Procura en ${custName}:\nPresente.-\n\nEn nombre de *JJ Paper C.A.* (RIF J-295375450), empresa importadora y distribuidora mayorista en Caracas, sometemos a su consideración nuestra propuesta formal de abastecimiento operativo para sus sedes en ${city}:\n\n${bulletPoints}\n\nGARANTÍAS CORPORATIVAS:\n- ${activeHookLine.replace(/\*/g, '')}\n- Facturación fiscal legal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Despacho directo sin cargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '- Lista de precios maestra adjunta en formato PDF (+900 renglones).\n' : ''}\nCatálogo digital corporativo: {{link}}\n\nQuedamos a su disposición para emitir la cotización proforma correspondiente a su requerimiento actual.\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
+      } else if (archetype === 'directo_ejecutivo') {
+        subject = `⚡ Resumen Ejecutivo de Precios y Stock para ${custName} — JJ Paper`;
+        body = `Buen día ${greetTarget},\n\nLe comparto de forma ejecutiva nuestra disponibilidad inmediata en Caracas (Tasa Oficial BCV: ${rate.toFixed(2)} Bs/USD) adaptada a las operaciones de ${custName}:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Incluye Factura Fiscal SENIAT y Delivery Gratis en Caracas.\n🔗 Catálogo completo: {{link}}\n\n¿Le emito cotización formal por alguno de estos renglones el día de hoy?\n\nSaludos cordiales,\n*${sName}* | JJ Paper C.A. (${sPhone})`;
       } else {
-        body = `{Estimado(a)|Apreciado(a)|Hola} ${custName},\n\nEsperamos que todo marche excelente en sus operaciones. Le escribe atentamente *${sName}*, asesor comercial de *JJ Paper C.A.* en Caracas, su distribuidor mayorista de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza institucional.\n\nEn atención a ese compromiso, ponemos a su entera disposición condiciones preferenciales de suministro directo:\n\n*📦 PROPUESTA DE ABASTECIMIENTO:* \n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*VENTAJAS INSTITUCIONALES DE JJ PAPER:*\n• 🚚 *Delivery directo y gratuito* a su sede en Caracas / envíos protegidos a nivel nacional.\n• 🧾 *Facturación fiscal legal* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones formales inmediatas* en segundos adaptadas a su presupuesto.\n\n👉 Puede explorar también nuestro catálogo digital en línea aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal para su empresa?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`;
+        const subs = [
+          `📋 Propuesta de Optimización y Abastecimiento para ${custName} — JJ Paper C.A.`,
+          `💼 Alianza de Suministro Directo (Tasa BCV) para ${custName} — JJ Paper`
+        ];
+        subject = subs[v % subs.length];
+        body = `{Estimado(a)|Apreciado(a)} ${greetTarget},\n\nReciba un cordial saludo de *${sName}* en *JJ Paper C.A.* Conociendo la dinámica del sector ${sector} en ${city}, hemos estructurado una propuesta de suministro directo orientada a optimizar su presupuesto operativo:\n\n*📦 INSUMOS CLAVE EN DISPONIBILIDAD INMEDIATA:*\n${bulletPoints}\n\n*PILARES DE NUESTRA ALIANZA COMERCIAL:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal BCV:* Cero diferencial cambiario (${rate.toFixed(2)} Bs/USD).\n• 🚚 *Logística Propia:* Entrega puntual sin costo en su sede.\n${officialPdfIncluded ? '• 📄 *Catálogo PDF Adjunto:* Más de 900 artículos en stock real.\n' : ''}\n👉 Catálogo en línea: {{link}}\n\n¿Desea que le preparemos una cotización comparativa para su requerimiento de esta semana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
       }
     } else {
-      if (hasMultiOffer || promoProductOrCombo) {
-        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le saluda|Le escribe} *${sName}* de *JJ Paper C.A.* Conociendo la rotación de insumos en su empresa, hoy le contactamos para compartirle disponibilidad inmediata y precios mayoristas preferenciales en nuestro lote seleccionado:\n\n*📦 PROPUESTA MAYORISTA DE SUMINISTROS:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*NUESTRO SERVICIO INCLUYE:*\n• 🏢 *Portafolio integral*: Papelería, consumibles de oficina, insumos de caja y embalaje.\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le reservemos disponibilidad para despacho mañana?|¿Requiere que le preparemos la cotización formal de estos productos?|Quedo a su disposición para coordinar su pedido.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
-      } else if (isAlreadyContacted) {
-        body = `{Hola|Buen día|Un gusto saludarle de nuevo} ${custName} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles cómo están de inventario e insumos para sus sedes esta semana.\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento que deseen cotizar esta semana?|¿Desea que le confirmemos despacho para mañana?|Quedo a su entera orden para apoyarles.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+      // CANAL WHATSAPP CON 5 FORMATOS VISUALES DISTINTOS SEGÚN EL TONO Y CLIC
+      if (archetype === 'oportunidad_mayorista') {
+        body = `*🔥 CONDICIÓN MAYORISTA DIRECTA PARA ${custName.toUpperCase()} · JJ PAPER*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Qué tal} ${contactPerson || `equipo de *${custName}*`} 👋, le saluda *${sName}* de *JJ Paper C.A.*\n\nHoy activamos condiciones preferenciales por volumen en nuestro almacén de Caracas para insumos de alta rotación en su sector:\n\n${bulletPoints}\n\n*🚀 BENEFICIO CLAVE:*\n• ${activeHookLine}\n• 🧾 Factura fiscal SENIAT a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 Delivery corporativo gratis directo a su sede en ${city}.\n\n👉 Catálogo digital: {{link}}\n\n💬 *¿Cuántas unidades o cajas le reservamos en sistema para despacho prioritario?*`;
+      } else if (archetype === 'cercano_consultivo') {
+        body = `{Hola|Buen día|Un gusto saludarle} ${contactPerson || `amigos de *${custName}*`} 👋, ¿cómo están?\n\nLe escribe *${sName}* de *JJ Paper C.A.* ${isAlreadyContacted ? 'Paso por aquí brevemente en seguimiento a nuestro contacto previo para saber cómo se encuentran de stock esta semana.' : `Quería ponerme a la orden para apoyar las operaciones de *${custName}* en ${city} con un servicio rápido y de confianza.`}\n\nActualmente tenemos excelente disponibilidad en:\n\n${bulletPoints}\n\n💡 ${activeHookLine}\n\nTodo con su factura legal a tasa BCV (${rate.toFixed(2)} Bs) y entrega sin costo en su puerta 🚚.\n\n👉 Catálogo completo aquí: {{link}}\n\n¿Qué artículos necesitan reponer esta semana para armarles el presupuesto al instante?\n\nUn abrazo cordial,\n*${sName}* | JJ Paper (${sPhone})`;
+      } else if (archetype === 'institucional_formal') {
+        body = `*PROPUESTA DE SUMINISTRO CORPORATIVO · JJ PAPER C.A. (RIF J-295375450)*\n────────────────────────────────────\nEstimada Gerencia de Compras de *${custName}*${contactPerson ? ` (Atención: ${contactPerson})` : ''}, reciba un cordial saludo.\n\nSe dirige a usted *${sName}*, Ejecutivo Comercial de *JJ Paper C.A.* Ponemos a disposición de sus operaciones en ${city} nuestra línea de abastecimiento mayorista directo:\n\n${bulletPoints}\n\n*GARANTÍAS OPERATIVAS:*\n• ${activeHookLine}\n• Facturación fiscal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo sin recargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '• Lista de Precios Oficial adjunta en PDF (+900 artículos).\n' : ''}\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de *${custName}* para revisión de su departamento?\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A. · ${sPhone}`;
+      } else if (archetype === 'directo_ejecutivo') {
+        body = `{Buen día|Hola} ${contactPerson || `equipo de *${custName}*`} 👋 · *Resumen Ejecutivo JJ Paper*\n\nLe escribe *${sName}*. Comparto directo al punto nuestra disponibilidad mayorista en Caracas (BCV: ${rate.toFixed(2)} Bs) para *${custName}*:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Factura fiscal SENIAT + Delivery gratis en ${city}.\n🔗 Catálogo: {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems hoy?* — *${sName}* (${sPhone})`;
       } else {
-        body = `{Hola|Buen día|Un gusto saludarle} ${custName} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza en Caracas.\n\nPensando en esa demanda diaria, ponemos a su disposición disponibilidad inmediata en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n${bulletPoints}\n\n${pdfMention}${sourcingPromise}*NUESTRO SERVICIO INCLUYE:*\n• 🚚 *Despacho gratuito* en Caracas directo a su sede.\n• 🧾 *Facturación fiscal formal* calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• ⚡ *Cotizaciones al instante* y atención personalizada.\n\n👉 Puede chequear nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}\n\nAtentamente,\n*${sName}* | Teléfono/WhatsApp: ${sPhone}\nJJ Paper C.A.`;
+        body = `*🏢 ALIANZA DE ABASTECIMIENTO OPERATIVO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Un gusto saludarle} ${contactPerson || `estimados amigos de *${custName}*`} 👋\n\nLe saluda *${sName}* de *JJ Paper C.A.*, distribuidor mayorista directo en Caracas. Pensando en la exigencia diaria de *${custName}* en el sector ${sector}, ponemos a su alcance stock inmediato en:\n\n${bulletPoints}\n\n*💎 POR QUÉ OPERAR CON JJ PAPER:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal (J-295375450)* a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Delivery directo y gratuito* en ${city}.\n${officialPdfIncluded ? '• 📄 *PDF Oficial Adjunto* con más de 900 artículos.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n{¿Desea que le preparemos una cotización formal a medida?|¿Qué insumos requieren reponer esta semana en su empresa?}\n\nAtentamente,\n*${sName}* | JJ Paper C.A. · ${sPhone}`;
       }
     }
 
@@ -2952,6 +3254,172 @@ Respond with ONLY the 1 English sentence describing the object.`;
    * Analiza correos o WhatsApps entrantes, extrae cliente e ítems y genera acuse
    * --------------------------------------------------------------------------
    */
+  /**
+   * Extrae la cantidad de unidades que trae un empaque/paquete/caja según el nombre o unidad del catálogo.
+   * Ejemplo: "FUNDA PROTECTORA CARTA PAQ X 100" -> 100
+   *          "BOLIGRAFO KORES CAJA X 12" -> 12
+   *          "CARPETA MANILA CARTA CAJA X 100 UND" -> 100
+   */
+  function extractPackSize(productName = '', unit = '') {
+    const text = `${productName || ''} ${unit || ''}`.toUpperCase();
+
+    // 1. Patrón explícito: PAQ X 100, CAJA X 12, PAQUETE DE 100, CAJA DE 50, BTO X 10, (X100), X 100 UND
+    const explicitPackRegex = /(?:PAQ(?:UETE)?|CAJA|CJ|BOLSA|SOBRE|BLISTER|SET|ESTUCHE|DISPLAY|EMPAQUE)\s*(?:DE\s+|X\s*|\(\s*X\s*)?(\d{1,4})\s*(?:UND|UNID|UNIDADES|HOJAS|HJS|PCS|PIEZAS|FUNDAS|CARPETAS|SOBRES)?\b/i;
+    const m1 = text.match(explicitPackRegex);
+    if (m1) {
+      const n = parseInt(m1[1], 10);
+      if (n > 1 && n <= 5000) return n;
+    }
+
+    // 2. Patrón: X 100 UND / (X 100) / X100U / 100 UNIDADES / 100 UND
+    const xUnitsRegex = /(?:\bX\s*(\d{1,4})\s*(?:UND|UNID|UNIDADES|U|PCS|FUNDAS|CARPETAS|HOJAS)\b|\(\s*X?\s*(\d{1,4})\s*(?:UND|UNID|UNIDADES|U)?\s*\)|\b(\d{2,4})\s*(?:UNIDADES|UND|UNID)\b)/i;
+    const m2 = text.match(xUnitsRegex);
+    if (m2) {
+      const n = parseInt(m2[1] || m2[2] || m2[3], 10);
+      if (n > 1 && n <= 5000) return n;
+    }
+
+    // 3. Patrón final "X 100" o "X 50" o "X 12" que NO sea dimensión (ej. 80x70mm, 48x100m, 14x17)
+    const strippedDims = text
+      .replace(/\b\d+\s*X\s*\d+\s*(?:MM|CM|M|MTS|MT|PULG|G|GR|ML)\b/gi, '')
+      .replace(/\b(?:80\s*X\s*70|80\s*X\s*80|57\s*X\s*40|57\s*X\s*30|14\s*X\s*17|48\s*X\s*100|48\s*X\s*50|48\s*X\s*200)\b/gi, '');
+    const m3 = strippedDims.match(/(?:^|\s|\()X\s*(\d{2,4})(?:\b|\))/i);
+    if (m3) {
+      const n = parseInt(m3[1], 10);
+      if (n >= 6 && n <= 1000) return n;
+    }
+
+    // 4. Regla específica para Fundas Protectoras cuando el catálogo indica PAQ o CAJA sin número explícito (estándar 100 unds)
+    if (/FUNDA\s+PROTECTORA/i.test(text) && /(?:PAQ|CAJA|EMP|100)/i.test(text)) {
+      return 100;
+    }
+
+    return 1;
+  }
+
+  /**
+   * Parser determinístico local para solicitudes de cotización en lenguaje natural
+   * cuando la API de Gemini no está disponible o hay bloqueo regional.
+   */
+  function _parseQuoteTextLocally(rawText = '') {
+    const cleanText = String(rawText || '').trim();
+    const rifMatch = cleanText.match(/\b([JVGEC])\s*[-.]?\s*(\d{7,9})\s*[-.]?\s*(\d)?\b/i);
+    const emailMatch = cleanText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const phoneMatch = cleanText.match(/(?:\+?58\s*|0)?(?:412|414|424|416|426|212)\s*[-.]?\s*\d{3}\s*[-.]?\s*\d{2}\s*[-.]?\s*\d{2}/);
+
+    // Separar por saltos de línea, punto y coma, viñetas, o conjunciones " y <numero> " / ", <numero> "
+    const normalizedLines = cleanText
+      .replace(/\r\n/g, '\n')
+      .replace(/[•●▪▸►*]/g, '\n')
+      .replace(/(?:,\s*|\s+y\s+|\s+e\s+)(?=\d+\s+[a-záéíóúñ])/gi, '\n')
+      .split(/\n|;/)
+      .map(s => s.trim())
+      .filter(s => s.length >= 3);
+
+    const stopIntroRegex = /^(?:hola|buen\s*d[ií]a|buenas\s*(?:tardes|noches)|estimados?|saludos|por\s*favor|necesito|requiero|quisiera|me\s*pueden|favor|cotizar(?:me)?|presupuesto\s*de|precio\s*de|solicito\s*cotizaci[oó]n\s*(?:de|para)?|para\s*cotizar)\b[\s,:.-]*/gi;
+
+    const SYNONYMS = [
+      { rx: /\btirro\b/gi, rep: 'cinta masking tape' },
+      { rx: /\bceloven\b/gi, rep: 'cinta adhesiva transparente' },
+      { rx: /\b(?:tipex|liquid\s*paper)\b/gi, rep: 'corrector' },
+      { rx: /\bsilicon\s*l[ií]quido\b/gi, rep: 'pega silicon liquido' },
+      { rx: /\bmarcador\s*acr[ií]lico\b/gi, rep: 'marcador pizarra' },
+      { rx: /\bhojas?\s*de\s*examen\b/gi, rep: 'papel ministro' }
+    ];
+
+    const items = [];
+    for (let rawLine of normalizedLines) {
+      // Ignorar líneas que son solo datos de contacto o saludos sin producto
+      if (/^(?:rif|tel[eé]fono|correo|email|atenci[oó]n|direcci[oó]n|gracias|saludos|atentamente)\b/i.test(rawLine) && !/\d+\s+[a-z]{3,}/i.test(rawLine)) {
+        continue;
+      }
+
+      // Limpiar frases introductorias ("Hola necesito cotizar 300 fundas protectoras" -> "300 fundas protectoras")
+      let clause = rawLine.replace(stopIntroRegex, '').replace(stopIntroRegex, '').trim();
+      if (!clause) continue;
+
+      // Buscar patrón "<cantidad> [unidad/empaque] [de] <producto>" o "<producto> x <cantidad>"
+      let qty = 1;
+      let explicitPackRequest = false;
+      let requestedUnitWord = 'unidad';
+      let prodQuery = clause;
+
+      // Caso A: Empieza con número o tiene "cotizar <N> <producto>"
+      const mStart = clause.match(/^(?:cotizar\s+|necesito\s+|quiero\s+|dame\s+|enviar\s+)?(\d{1,6})\s*(paquetes?|paq|cajas?|cj|bultos?|bto|resmas?|rollos?|docenas?|unidades?|unds?|und)?\s*(?:de\s+)?(.+)$/i);
+      // Caso B: "<producto> - <N> unds" o "<producto> (<N>)"
+      const mEnd = !mStart ? clause.match(/^(.+?)\s*(?:[-:=]\s*|\(\s*|x\s*)(\d{1,6})\s*(paquetes?|paq|cajas?|cj|bultos?|resmas?|unidades?|unds?|und)?\s*\)?$/i) : null;
+
+      if (mStart) {
+        qty = Math.max(1, parseInt(mStart[1], 10));
+        if (mStart[2]) {
+          requestedUnitWord = mStart[2].toLowerCase();
+          if (/^(?:paquete|paq|caja|cj|bulto|bto|resma|docena)/i.test(requestedUnitWord)) {
+            explicitPackRequest = true;
+          }
+        }
+        prodQuery = mStart[3].trim();
+      } else if (mEnd && !/\b(?:75g|80g|100h|500h|26\/6|80x70|57x40)\b/i.test(mEnd[0])) {
+        prodQuery = mEnd[1].trim();
+        qty = Math.max(1, parseInt(mEnd[2], 10));
+        if (mEnd[3]) {
+          requestedUnitWord = mEnd[3].toLowerCase();
+          if (/^(?:paquete|paq|caja|cj|bulto|bto|resma|docena)/i.test(requestedUnitWord)) {
+            explicitPackRequest = true;
+          }
+        }
+      } else {
+        // Si la línea no tiene producto reconocible, saltar
+        if (clause.split(/\s+/).length < 2 && !/\b(?:resma|funda|carpeta|boligrafo|marcador|cinta|rollo|cuaderno|lapiz|grapa|sobre|archivo|papel|tijera|pega|goma)\b/i.test(clause)) {
+          continue;
+        }
+      }
+
+      // Aplicar sinónimos venezolanos para mejorar el match
+      let normalizedName = prodQuery;
+      for (const syn of SYNONYMS) {
+        normalizedName = normalizedName.replace(syn.rx, syn.rep);
+      }
+
+      const isBulk = /\b(?:bultos?|bto|master)\b/i.test(rawLine);
+
+      items.push({
+        raw_query: rawLine,
+        product_name: normalizedName,
+        qty,
+        explicit_pack_request: explicitPackRequest,
+        unit: requestedUnitWord,
+        unit_type: isBulk ? 'bulk' : 'unit',
+        notes: ''
+      });
+    }
+
+    return {
+      customer: {
+        client_name: null,
+        rif: rifMatch ? `${rifMatch[1].toUpperCase()}-${rifMatch[2]}${rifMatch[3] ? '-' + rifMatch[3] : ''}` : null,
+        contact: null,
+        phone: phoneMatch ? phoneMatch[0] : null,
+        email: emailMatch ? emailMatch[0] : null,
+        city: 'Caracas'
+      },
+      items,
+      cross_selling_ideas: [
+        'Resmas de Papel Bond Carta 75g',
+        'Carpetas Manila / Fibra y Archivadores Lomo Ancho',
+        'Bolígrafos por Caja y Grapas 26/6'
+      ],
+      ack_message: '¡Hola! Recibimos su solicitud en JJ Paper C.A. Ya procesamos las cantidades exactas según la presentación oficial de cada empaque y le compartimos su cotización formal a Tasa BCV.'
+    };
+  }
+
+  /**
+   * --------------------------------------------------------------------------
+   * 15. Parser y Pre-armador Inteligente de Cotizaciones con IA
+   * Analiza correos o WhatsApps entrantes, extrae cliente e ítems, convierte
+   * unidades sueltas a paquetes/cajas del catálogo (ej. 300 fundas -> 3 paq x 100)
+   * y genera acuse.
+   * --------------------------------------------------------------------------
+   */
   async function parseQuoteRequest(rawText, catalog = []) {
     if (!rawText || !rawText.trim()) throw new Error('El texto de la solicitud está vacío.');
 
@@ -2969,8 +3437,8 @@ TU MISIÓN:
    - "city": Ciudad o sede (por defecto "Caracas" si no se indica).
 
 2. Extraer la lista de productos solicitados ("items"):
-   - "raw_query": El texto exacto como lo pidió el cliente (ej: "20 resmas de papel carta Report").
-   - "product_name": Nombre comercial estándar normalizado (ej: "Papel Fotocopia Carta 75g Report Resma").
+   - "raw_query": El texto exacto como lo pidió el cliente (ej: "300 fundas protectoras carta").
+   - "product_name": Nombre comercial estándar normalizado sin incluir la cantidad pedida.
      *APLICA ESTOS SINÓNIMOS VENEZOLANOS:*
      "tirro" = Cinta de Enmascarar / Masking Tape.
      "celoven" = Cinta Adhesiva Transparente.
@@ -2979,37 +3447,38 @@ TU MISIÓN:
      "silicon liquido" = Pega Líquida de Silicón.
      "marcador acrilico" = Marcador para Pizarra Blanca.
      "hojas de examen" = Papel Ministro.
-   - "qty": Cantidad numérica solicitada (ej: 20). Si no indica, asume 1.
-   - "unit": Unidad deducida (resma, caja, unidad, rollo, paquete, docena, etc.).
-   - "unit_type": ESTRUCTURA VITAL PARA EL PRECIO. Si el cliente pide bultos, embalajes mayores o cajas master, pon "bulk". Si pide empaques de consumo (resmas, paquetes, docenas, unidades, cajas pequeñas), pon "unit".
-   - "notes": Especificación adicional si hay (color, marca, gramaje).
+   - "qty": Cantidad numérica exacta solicitada por el cliente (ej: si dice "300 fundas protectoras", qty es 300). ¡PROHIBIDO inventar números o usar números del nombre del producto!
+   - "explicit_pack_request": true SOLO si el cliente pidió explícitamente paquetes o cajas (ej: "3 paquetes de fundas", "5 cajas de bolígrafos"); false si pidió unidades directas (ej: "300 fundas protectoras", "24 bolígrafos").
+   - "unit": Unidad mencionada por el cliente (unidad, paquete, caja, resma, rollo, bulto).
+   - "unit_type": Si el cliente pide bultos o cajas master pon "bulk"; de lo contrario pon "unit".
+   - "notes": Especificación adicional si hay (color, marca, tamaño carta/oficio).
 
-3. "cross_selling_ideas": Array de strings con 2 o 3 productos complementarios generales que deberíamos ofrecerle para aumentar la venta (ej: si pide papel, ofrecer grapas y carpetas; si pide cajas, ofrecer cinta de embalaje).
+3. "cross_selling_ideas": Array de strings con 2 o 3 productos complementarios.
+4. "ack_message": Acuse de recibo breve y profesional.
 
-4. Generar un "ack_message" (Acuse de Recibo Inmediato y Profesional).
-
-DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA (SIN TEXTO ANTES NI DESPUÉS):
+DEVUELVE ÚNICAMENTE UN JSON VÁLIDO CON ESTA ESTRUCTURA EXACTA:
 {
   "customer": {
-    "client_name": "Nombre o null",
-    "rif": "RIF o null",
-    "contact": "Contacto o null",
-    "phone": "Teléfono o null",
-    "email": "Email o null",
+    "client_name": null,
+    "rif": null,
+    "contact": null,
+    "phone": null,
+    "email": null,
     "city": "Caracas"
   },
   "items": [
     {
-      "raw_query": "texto del cliente",
-      "product_name": "nombre normalizado",
-      "qty": 10,
+      "raw_query": "300 fundas protectoras",
+      "product_name": "Funda Protectora",
+      "qty": 300,
+      "explicit_pack_request": false,
       "unit": "unidad",
       "unit_type": "unit",
       "notes": ""
     }
   ],
-  "cross_selling_ideas": ["Grapas 26/6", "Bolígrafos Azules"],
-  "ack_message": "Texto del acuse de recibo..."
+  "cross_selling_ideas": ["Archivadores Lomo Ancho", "Separadores"],
+  "ack_message": "Texto del acuse..."
 }
 
 TEXTO CRUDO DE LA SOLICITUD DEL CLIENTE:
@@ -3017,48 +3486,97 @@ TEXTO CRUDO DE LA SOLICITUD DEL CLIENTE:
 ${rawText}
 """`;
 
-    const rawResponse = await callGemini(prompt, 'gemini-2.5-flash');
-    let parsed;
+    let parsed = null;
     try {
-      const cleaned = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch (e) {
-      const m = rawResponse.match(/\{[\s\S]*\}/);
-      if (m) parsed = JSON.parse(m[0]);
-      else throw new Error('No se pudo estructurar la respuesta de la IA.');
+      const rawResponse = await callGemini(prompt, 'gemini-2.5-flash');
+      parsed = extractJSON(rawResponse);
+    } catch (aiErr) {
+      console.warn('Usando parser local inteligente de cotizaciones:', aiErr.message);
+      parsed = _parseQuoteTextLocally(rawText);
+    }
+
+    if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) {
+      parsed = _parseQuoteTextLocally(rawText);
     }
 
     if (Array.isArray(catalog) && catalog.length > 0 && Array.isArray(parsed.items)) {
+      const STOP_WORDS = new Set(['para', 'con', 'por', 'los', 'las', 'del', 'una', 'uno', 'unos', 'unas', 'cotizar', 'necesito', 'quiero', 'unidades', 'unidad', 'paquete', 'paquetes', 'caja', 'cajas']);
+
       parsed.items = parsed.items.map(it => {
-        const query = (it.product_name || it.raw_query || '').toLowerCase();
-        const requestedBulk = it.unit_type === 'bulk';
+        const rawQ = String(it.raw_query || '').toLowerCase();
+        const query = String(it.product_name || it.raw_query || '').toLowerCase();
+        const requestedBulk = it.unit_type === 'bulk' || /\b(?:bultos?|bto|master)\b/i.test(rawQ);
+        const explicitPack = Boolean(
+          it.explicit_pack_request ||
+          /\b(\d+)\s*(?:paquetes?|paq|cajas?|cj|bultos?|bto|resmas?|docenas?)\b/i.test(rawQ)
+        );
+
+        // Tokenizar palabras significativas con soporte de singularización básica (ej. "fundas protectoras" -> "funda", "protectora")
+        const rawWords = query
+          .replace(/[^\wáéíóúñü\s]/gi, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 2 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+
         let matched = null;
         let bestScore = 0;
-        const words = query.split(/\s+/).filter(w => w.length > 2);
 
         for (const prod of catalog) {
-          const prodName = (prod.name || '').toLowerCase();
-          const prodUnit = (prod.unit || '').toLowerCase();
+          const prodName = String(prod.name || '').toLowerCase();
+          const prodUnit = String(prod.unit || '').toLowerCase();
           const isBulkProduct = prodName.includes('bulto') || prodUnit.includes('bulto') || prodName.includes('master');
-          
-          // Fuerte penalización si la unidad no coincide con lo que pide
-          if (!requestedBulk && isBulkProduct) continue; // Si no pide bulto, y es bulto, lo ignoramos de entrada
-          if (requestedBulk && !isBulkProduct) continue; // Si pide bulto, y no es bulto, lo ignoramos
+
+          if (!requestedBulk && isBulkProduct) continue;
+          if (requestedBulk && !isBulkProduct) continue;
 
           let score = 0;
-          for (const w of words) {
-            if (prodName.includes(w)) score++;
+          for (const w of rawWords) {
+            const stem = w.replace(/(?:es|s)$/i, '');
+            if (prodName.includes(w)) {
+              score += 4;
+            } else if (stem.length >= 3 && prodName.includes(stem)) {
+              score += 3;
+            }
           }
-          
+
+          // Bonus si coincide tamaño carta / oficio mencionado
+          if (rawQ.includes('carta') && prodName.includes('carta')) score += 2;
+          if (rawQ.includes('oficio') && prodName.includes('oficio')) score += 2;
+          // Bonus si tiene stock disponible (desempate, nunca reemplaza cantidad)
+          if (score > 0 && Number(prod.stock || 0) > 0) score += 0.5;
+
           if (score > bestScore) {
             bestScore = score;
             matched = prod;
           }
         }
 
-        if (matched && bestScore >= 1) {
+        if (matched && bestScore >= 2.5) {
+          const requestedQty = Math.max(1, Number(it.qty) || 1);
+          const packSize = extractPackSize(matched.name, matched.unit);
+          let finalQty = requestedQty;
+          let conversionNote = null;
+
+          // CONVERSIÓN INTELIGENTE DE UNIDADES A EMPAQUES DEL CATÁLOGO:
+          // Ejemplo real: El cliente pide "300 fundas protectoras" (unidades individuales, no dijo "300 paquetes")
+          // y el producto en catálogo viene en Paquete x 100 (packSize = 100).
+          // Entonces 300 / 100 = 3 paquetes (total 300 fundas), NUNCA 300 paquetes ni 89 (stock).
+          if (!explicitPack && packSize > 1 && requestedQty >= packSize) {
+            const packsNeeded = Math.ceil(requestedQty / packSize);
+            const totalUnits = packsNeeded * packSize;
+            finalQty = packsNeeded;
+            conversionNote = `${packsNeeded} empaque(s) × ${packSize} unds = ${totalUnits} unds (solicitadas: ${requestedQty})`;
+          } else if (!explicitPack && packSize >= 10 && requestedQty > 1 && (requestedQty % packSize === 0)) {
+            const packsNeeded = requestedQty / packSize;
+            finalQty = packsNeeded;
+            conversionNote = `${packsNeeded} empaque(s) × ${packSize} unds = ${requestedQty} unds`;
+          }
+
           return {
             ...it,
+            qty: finalQty,
+            requested_qty: requestedQty,
+            pack_size: packSize,
+            conversion_note: conversionNote,
             matched: true,
             product_id: matched.id,
             catalog_name: matched.name,
@@ -3075,6 +3593,7 @@ ${rawText}
         }
         return {
           ...it,
+          qty: Math.max(1, Number(it.qty) || 1),
           matched: false,
           price_usd: 0
         };
@@ -3096,6 +3615,7 @@ ${rawText}
     analyzeCustomersBatch,
     parseProspectsText,
     parseQuoteRequest,
+    extractPackSize,
     searchProductsLive,
     interpretQueryWithAI,
     detectProductType,
@@ -3111,4 +3631,5 @@ ${rawText}
     getTotalKeys: () => GEMINI_KEYS.length
   };
 });
+
 

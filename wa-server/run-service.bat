@@ -10,6 +10,12 @@ cd /d "%~dp0"
 
 if not exist logs mkdir logs
 
+set "PATH=C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;C:\Windows\System32;C:\Windows;%PATH%"
+
+set "NODE_BIN=node"
+if exist "C:\Program Files\nodejs\node.exe" set "NODE_BIN=C:\Program Files\nodejs\node.exe"
+if exist "C:\Program Files (x86)\nodejs\node.exe" set "NODE_BIN=C:\Program Files (x86)\nodejs\node.exe"
+
 set LOGFILE=logs\wa-server.log
 
 :loop
@@ -23,13 +29,12 @@ if exist %LOGFILE% (
   )
 )
 
-REM Verificando entorno de MixNet...
-
+REM Asegurar que la carpeta de pedidos exista y el entorno de MixNet este configurado
 echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
-node auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
+"%NODE_BIN%" auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
 
-echo [%date% %time%] [SUPERVISOR] Iniciando servidor JJ Paper... >> "%LOGFILE%"
-node src/index.js >> "%LOGFILE%" 2>&1
+echo [%date% %time%] [SUPERVISOR] Iniciando servidor JJ Paper con "%NODE_BIN%"... >> "%LOGFILE%"
+"%NODE_BIN%" src/index.js >> "%LOGFILE%" 2>&1
 set CODE=%errorlevel%
 
 echo [%date% %time%] [SUPERVISOR] Servidor finalizo con codigo %CODE% >> "%LOGFILE%"
@@ -54,6 +59,9 @@ if "%CODE%"=="3" (
   ping -n 5 127.0.0.1 >nul
   goto loop
 )
+
+REM Mantener oculta la carpeta .JJ-PAPER
+attrib +h "%~dp0.." >nul 2>&1
 
 REM Si el servidor se cayo o se pidio reiniciar (codigo 0 o 1), auto-relanzar de inmediato
 echo [%date% %time%] [SUPERVISOR] Relanzando servidor automaticamente en 2 segundos... >> "%LOGFILE%"

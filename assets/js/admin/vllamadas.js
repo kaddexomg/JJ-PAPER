@@ -1145,25 +1145,30 @@ async function savePageCallLog() {
   // 3. Persistir en Supabase (jjp_customers o jjp_prospects)
   try {
     if (target.id && typeof sb !== 'undefined') {
-      const table = target.type === 'prospect' ? 'jjp_prospects' : 'jjp_customers';
-      const { data: record } = await sb.from(table).select('notes, contact_count').eq('id', target.id).single();
+      const isProspect = target.type === 'prospect';
+      const table = isProspect ? 'jjp_prospects' : 'jjp_customers';
+      const selectCols = isProspect ? 'notes, contact_count' : 'notes';
+      const { data: record } = await sb.from(table).select(selectCols).eq('id', target.id).single();
       const currentNotes = (record && record.notes) ? record.notes : '';
       const newNotes = currentNotes ? `${summaryEntry}\n${currentNotes}` : summaryEntry;
 
-      const updateData = {
-        notes: newNotes,
-        last_contact_at: new Date().toISOString(),
-        last_contact_channel: 'llamada_gsm',
-        contact_count: ((record && record.contact_count) || 0) + 1
-      };
-
-      if (table === 'jjp_prospects') {
-        updateData.status = outcomeCode === 'interesado' ? 'interesado' : (outcomeCode === 'cotizacion' ? 'cotizacion_solicitada' : 'contactado_llamada');
-        updateData.contacted = true;
+      if (isProspect) {
+        const updateData = {
+          notes: newNotes,
+          last_contact_at: new Date().toISOString(),
+          contact_count: ((record && record.contact_count) || 0) + 1,
+          contacted: true,
+          status: outcomeCode === 'interesado' ? 'interesado' : (outcomeCode === 'cotizacion' ? 'cotizacion_solicitada' : 'contactado_llamada')
+        };
+        await sb.from('jjp_prospects').update(updateData).eq('id', target.id);
+      } else {
+        // jjp_customers almacena el historial enriquecido dentro de notes y updated_at
+        const updateData = {
+          notes: newNotes,
+          updated_at: new Date().toISOString()
+        };
+        await sb.from('jjp_customers').update(updateData).eq('id', target.id);
       }
-      if (cbDate) updateData.scheduled_callback_at = new Date(cbDate).toISOString();
-
-      await sb.from(table).update(updateData).eq('id', target.id);
     }
   } catch (err) {
     console.warn('Error sincronizando bitácora con Supabase:', err);

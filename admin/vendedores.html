@@ -11,6 +11,57 @@
 <link rel="stylesheet" href="../assets/css/responsive.css">
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
+<style>
+  .role-segmented {
+    display: flex;
+    gap: 6px;
+    background: #00140f;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #1a4535;
+    margin-top: 5px;
+    margin-bottom: 8px;
+  }
+  .role-btn {
+    flex: 1;
+    text-align: center;
+    padding: 7px 4px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    color: #8fb5a2;
+    background: transparent;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .role-btn:hover {
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+  }
+  .role-btn.active[data-role="vendedor"] {
+    background: #0d3829;
+    color: #a3e635;
+    border-color: #235843;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .role-btn.active[data-role="supervisor"] {
+    background: #0c2d48;
+    color: #38bdf8;
+    border-color: #0284c7;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .role-btn.active[data-role="admin"] {
+    background: #3a1515;
+    color: #fca5a5;
+    border-color: #dc2626;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+</style>
 </head>
 <body class="admin-body">
 
@@ -133,6 +184,11 @@
       <button class="modal-close" onclick="closeSellerModal()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- Alerta Anti-Lockout -->
+      <div id="sl-lock-warning" style="display:none;background:rgba(255,82,82,0.14);border:1px solid rgba(255,82,82,0.4);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#ff9999;line-height:1.45">
+        🛡️ <strong>Seguridad Anti-Lockout:</strong> Este usuario es el único Administrador activo del sistema. Su rol no puede ser degradado ni desactivado para evitar la pérdida permanente de acceso administrativo.
+      </div>
+
       <div class="fg" style="margin-bottom:12px">
         <label class="fl">Nombre completo *</label>
         <input class="fi" id="sl-name" placeholder="María Pérez" onblur="suggestRefCode()">
@@ -142,11 +198,72 @@
         <input class="fi" id="sl-phone" placeholder="0412-1234567">
       </div>
       <div class="fg" style="margin-bottom:12px">
-        <label class="fl">Rol</label>
-        <select class="fi" id="sl-role">
-          <option value="vendedor">Vendedor</option>
-          <option value="admin">Administrador (máx. 4)</option>
+        <label class="fl">Rol de Usuario *</label>
+        <!-- Conmutador rápido de roles -->
+        <select class="fi" id="sl-role" onchange="updateRolePermissions(this.value)" style="margin-top:2px">
+          <option value="vendedor">🧑‍💼 Vendedor (Catálogo, POS y Cotizaciones)</option>
+          <option value="supervisor">🕵️ Supervisor (Auditoría, Zonas y Monitoreo)</option>
+          <option value="admin">🛡️ Administrador (Control Total)</option>
+          <option value="facturacion">🧾 Facturación (Caja, Facturas y Emisión)</option>
+          <option value="cobranza">💳 Cobranza (Cuentas por Cobrar y Conciliaciones)</option>
+          <option value="cajero">🪙 Cajero (Mostrador y Pagos en Efectivo / Punto)</option>
         </select>
+      </div>
+
+      <!-- Permisos Granulares RBAC -->
+      <div class="fg" style="margin-bottom:14px;background:#03140d;border:1px solid #1a4535;border-radius:8px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label class="fl" style="font-weight:700;color:var(--accent);margin:0">
+            🔐 Permisos Granulares de Usuario (RBAC)
+          </label>
+          <button type="button" onclick="resetPermissionsToRole()" style="background:none;border:none;color:var(--gr);font-size:11px;cursor:pointer;text-decoration:underline">Por defecto</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="perm-view-all-sales"> Ver todas las ventas
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="perm-edit-prices"> Modificar precios
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="perm-give-discount"> Descuentos >10%
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="perm-manage-clients"> Gestionar clientes
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="perm-billing"> Módulo Facturación
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="perm-collections"> Módulo Cobranzas
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;grid-column:1/-1">
+            <input type="checkbox" id="perm-sync-mixnet"> Sincronizar y compilar MixNet (.NTX)
+          </label>
+        </div>
+      </div>
+
+      <!-- Selector de Código de Vendedor Oficial MixNet (3 Dígitos) -->
+      <div class="fg" style="margin-bottom:12px">
+        <label class="fl">Código Oficial MixNet ERP (3 Dígitos) 📁</label>
+        <select class="fi" id="sl-mixnet-code">
+          <option value="">-- Sin código MixNet asignado --</option>
+          <option value="001">001 — Mary Garcia</option>
+          <option value="002">002 — Luis Alarcón</option>
+          <option value="004">004 — Yovanni Araujo (Zona 004)</option>
+          <option value="006">006 — Yovanni Araujo (Zona 006)</option>
+          <option value="008">008 — Marianela Ventas JJ (Zona 008)</option>
+          <option value="010">010 — Keyder Salazar (Admin / Zona 010)</option>
+          <option value="014">014 — Andreina JJ Ventas (Zona 014)</option>
+          <option value="020">020 — Keyder Salazar (Zona 020)</option>
+          <option value="025">025 — Ana Barajas</option>
+          <option value="026">026 — JJ Paper 26</option>
+          <option value="032">032 — JJ Paper 32</option>
+          <option value="033">033 — JJ Paper 33</option>
+        </select>
+        <small style="font-size:11px;color:var(--gr);margin-top:4px;display:block">
+          Asigna la correlación oficial con <code>MXCLIEN.DBF</code>, <code>MXENCCOT.DBF</code> y <code>MXENCPED.DBF</code> en Servidor Central.
+        </small>
       </div>
       <div id="sellerCredWrap">
         <div class="fg" style="margin-bottom:12px">

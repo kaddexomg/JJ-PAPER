@@ -88,7 +88,10 @@ const BLOCKED_DOMAINS = [
   'wikimedia', 'wikipedia', 'flickr', 'unsplash', 'pexels', 'pixabay',
   'shutterstock', 'istock', 'gettyimages', 'dreamstime', 'alamy',
   '123rf', 'depositphotos', 'lookaside.fbsbx', 'memegenerator',
-  'deviantart', 'artstation', 'tenor', 'giphy'
+  'deviantart', 'artstation', 'tenor', 'giphy',
+  'scribd', 'slidesharecdn', 'slideshare', 'issuu', 'studocu', 'docplayer',
+  'academia.edu', 'yumpu', 'calameo', 'pdfcoffee', 'dokumen', 'vdocuments',
+  'fdocuments', 'coursehero', 'monografias', 'glosario', '.pdf'
 ];
 
 const TRUSTED_DOMAINS = [
@@ -140,7 +143,9 @@ function buildOptimalQueries(rawName) {
   const queries = [];
 
   let coreType = '';
-  if (/grapadora|engrapadora/i.test(expanded)) {
+  if (/funda\s*protectora|protector\s*de\s*hoja/i.test(expanded)) {
+    coreType = 'funda protectora plastica transparente hoja carta';
+  } else if (/grapadora|engrapadora/i.test(expanded)) {
     coreType = 'grapadora metalica escritorio oficina';
   } else if (/resma|papel\s*bond/i.test(expanded)) {
     coreType = 'resma papel bond carta';
@@ -256,16 +261,18 @@ async function searchBing(query) {
     if (!res.ok) return [];
     const html = await res.text();
     const results = [];
-    const murlRegex = /murl&quot;:&quot;(https?:\/\/[^"]+?)&quot;/g;
-    const titleRegex = /class="(?:inflnk|iusc)"[^>]*(?:alt|aria-label)="([^"]+)"/gi;
-    let m, tMatch;
-    while ((m = murlRegex.exec(html)) !== null && results.length < 10) {
-      tMatch = titleRegex.exec(html);
-      const imgUrl = decodeURIComponent(m[1].replace(/&amp;/g, '&'));
+    const tileRegex = /\bm="(\{[^"]*?murl[^"]*?\})"/g;
+    let m;
+    while ((m = tileRegex.exec(html)) !== null && results.length < 10) {
+      let meta;
+      try { meta = JSON.parse(m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&')); } catch (_) { continue; }
+      if (!meta.murl) continue;
+      const page = (meta.purl || '').toLowerCase();
+      if (BLOCKED_DOMAINS.some(b => page.includes(b))) continue;
       results.push({
-        image: imgUrl,
-        thumbnail: imgUrl,
-        title: tMatch ? tMatch[1] : '',
+        image: meta.murl,
+        thumbnail: meta.turl || meta.murl,
+        title: meta.t || '',
         source: 'bing'
       });
     }

@@ -31,7 +31,7 @@ import {
   addMonitorSseClient, removeMonitorSseClient
 } from './monitor.js';
 import { searchProductImagesOnWeb, saveProductImageToStorage } from './product-images.js';
-import { getMixerStatus, sweepMixnetProducts } from './mixer.js';
+import { getMixerStatus, sweepMixnetProducts, getNextControlSerial } from './mixer.js';
 
 // La cámara del teléfono SOLO funciona en HTTPS o en localhost. Por eso el
 // servidor sirve la misma app+API por HTTPS (cert propio persistido en disco,
@@ -737,6 +737,13 @@ async function handle(req, res) {
 
     if (route === '/lan/mixnet/status') {
       return sendJSON(res, 200, { ok: true, status: getMixerStatus() });
+    }
+
+    if (route === '/lan/mixnet/next-serial') {
+      const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+      const type = parsedUrl.searchParams.get('type') || 'pedido';
+      const serialRes = getNextControlSerial(type);
+      return sendJSON(res, serialRes.ok ? 200 : 404, serialRes);
     }
 
     if (route === '/lan/mixnet/sync-now') {

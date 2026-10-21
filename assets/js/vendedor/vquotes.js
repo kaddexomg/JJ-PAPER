@@ -743,7 +743,10 @@ async function quoteSubmit() {
         } catch (_) {}
       }
       if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
-        qNum = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
+        showToast('⚠️ No se pudo reservar un correlativo oficial de MixNet (MXNUMCOT). Verifique la conexión para evitar saltos o colisiones de numeración.', 'err');
+        qSubmitting = false;
+        if (btn) btn.disabled = false;
+        return;
       }
       quote.quote_number = qNum;
       quote.status = 'pendiente';
@@ -1198,9 +1201,11 @@ async function processAiQuoteRequest() {
               price_c_bs: Number(it.price_c_bs || 0),
               price_d_bs: Number(it.price_d_bs || 0),
               qty: qty,
+              conversion_note: it.conversion_note || null,
               is_custom: false
             };
           }
+          if (it.conversion_note) showToast(`📦 ${it.catalog_name}: ${it.conversion_note}`);
           addedCount++;
         } else {
           const customKey = 'cust_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
@@ -1311,6 +1316,9 @@ async function processAiQuoteRequest() {
         }
 
         if (bestProd && bestScore >= Math.min(2, words.length)) {
+          const explicitPack = /\b\d+\s*(?:paquetes?|paq|cajas?|bultos?|resmas?)\b/i.test(line);
+          const packSize = (GeminiClient.extractPackSize ? GeminiClient.extractPackSize(bestProd.name, bestProd.unit) : 1);
+          if (!explicitPack && packSize > 1 && qty >= packSize) qty = Math.ceil(qty / packSize);
           const key = bestProd.id;
           if (posTicket[key]) {
             posTicket[key].qty += qty;

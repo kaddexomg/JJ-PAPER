@@ -2,16 +2,16 @@
    JJ Paper — Supabase Config & App Constants
    ====================================================== */
 
-const SUPABASE_URL = 'https://wwcdxqpibequfohbgejs.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MzAwNzQsImV4cCI6MjEwNjMwNjA3NH0.LpAugyhm57WO669WjiWKdekDYgB8l8rxFLTk0gsC0fk';
+const SUPABASE_URL = 'http://166.0.112.247';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Proyecto B — Comunicación (WhatsApp, Email, Difusión)
-const SUPABASE_URL_COMM = 'https://klcibjwleiqppedefpxw.supabase.co';
-const SUPABASE_KEY_COMM = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsY2liandsZWlxcHBlZGVmcHh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NTE3OTYsImV4cCI6MjEwMzMyNzc5Nn0.eE2UYJSX9yKK-1u2sv2aF-G1Rp7yho1Myz1-kSttz6g';
+const SUPABASE_URL_COMM = 'http://166.0.112.247';
+const SUPABASE_KEY_COMM = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Proyecto C — Storage e Inventario
-const SUPABASE_URL_INV = 'https://nmcamjxhyysmmvgxgabo.supabase.co';
-const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2FtanhoeXlzbW12Z3hnYWJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNjE0NjQsImV4cCI6MjA5NzYzNzQ2NH0.06UCJ-udrEjOpM6m66ooX14OZAgbd7wp7yw51NwsJD0';
+const SUPABASE_URL_INV = 'http://166.0.112.247';
+const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Supabase base clients
 const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -343,22 +343,79 @@ function escapeHTML(str) {
   }[c]));
 }
 
-// Generador de respaldo de 8 dígitos correlativos
-function genOrderNumber() {
-  const rnd = Math.floor(10000000 + Math.random() * 89999999);
-  return String(rnd).slice(0, 8);
+// Obtención del correlativo oficial soberano MixNet (8 dígitos: ej. 00053494 / 00112771)
+// MXNUMCOT / MXNUMPED son los dueños sagrados de la correlativa serial. Prohibido inventar números aleatorios.
+async function fetchNextDocSerial(type = 'pedido') {
+  const isCot = (type === 'cotizacion' || type === 'quote');
+  const settingKey = isCot ? 'mixnet_next_quote_serial' : 'mixnet_next_order_serial';
+
+  // 1. Intento LAN Bridge local directo (si la PC o el servidor de red están en la misma LAN)
+  const lanHosts = ['http://localhost:8787', 'http://192.168.0.172:8787', 'http://192.168.0.185:8790'];
+  for (const host of lanHosts) {
+    try {
+      const resp = await fetch(`${host}/lan/mixnet/next-serial?type=${isCot ? 'cotizacion' : 'pedido'}`, {
+        signal: AbortSignal.timeout(600)
+      });
+      if (resp.ok) {
+        const body = await resp.json();
+        if (body?.ok && body.serial && /^\d{8}$/.test(String(body.serial).trim())) {
+          return String(body.serial).trim();
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. Intento RPC atómica en Supabase Core
+  try {
+    const { data, error } = await sbCore.rpc('jjp_next_doc_serial', { p_type: isCot ? 'cotizacion' : 'pedido' });
+    if (!error && data && /^\d{1,8}$/.test(String(data).trim())) {
+      return String(data).padStart(8, '0').slice(-8);
+    }
+  } catch (e) {
+    console.warn('RPC jjp_next_doc_serial fallo:', e);
+  }
+
+  // 3. Consulta de la tabla de ajustes sincronizada por el puente LAN (jjp_settings)
+  try {
+    const { data: sRow } = await sbCore.from('jjp_settings')
+      .select('value')
+      .eq('key', settingKey)
+      .maybeSingle();
+    if (sRow?.value && /^\d{1,8}$/.test(String(sRow.value).trim())) {
+      return String(sRow.value).padStart(8, '0').slice(-8);
+    }
+  } catch (_) {}
+
+  // 4. Último registro correlativo existente en la base de datos + 1
+  try {
+    const table = isCot ? 'jjp_quotes' : 'jjp_orders';
+    const field = isCot ? 'quote_number' : 'order_number';
+    const { data: lastRows } = await sbCore.from(table)
+      .select(field)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (lastRows && lastRows.length > 0) {
+      for (const r of lastRows) {
+        const val = String(r[field] || '').trim();
+        if (/^\d{8}$/.test(val)) {
+          const nextVal = parseInt(val, 10) + 1;
+          if (!isNaN(nextVal) && nextVal > 0) {
+            return String(nextVal).padStart(8, '0').slice(-8);
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // NUNCA generar números aleatorios arbitrarios. Si no hay conexión o no se pudo
+  // obtener el serial soberano de MixNet, retorna null para alertar al operador.
+  console.error(`[MXNUM CRITICAL] No se pudo obtener el correlativo soberano de MixNet para ${type}.`);
+  return null;
 }
 
-// Generador atómico de correlativo unificado JJ Paper ⇄ MixNet (8 dígitos: ej. 00112450)
-async function fetchNextDocSerial(type = 'pedido') {
-  try {
-    const { data, error } = await sbCore.rpc('jjp_next_doc_serial', { p_type: type });
-    if (!error && data) return String(data).padStart(8, '0').slice(-8);
-  } catch (e) {
-    console.warn('fetchNextDocSerial error:', e);
-  }
-  const rnd = Math.floor(10000000 + Math.random() * 89999999);
-  return String(rnd).slice(0, 8);
+function genOrderNumber() {
+  console.warn('genOrderNumber(): funcion obsoleta. Use fetchNextDocSerial()');
+  return null;
 }
 
 /* ======================================================

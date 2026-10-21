@@ -8,7 +8,7 @@ import { log } from './logger.js';
 // (Arrancar desde apagado NO se puede por web: eso lo hace run-forever.bat
 //  en la PC de la tienda, o el arranque automático de Windows.)
 
-const HEARTBEAT_MS = 60_000;   // cada cuánto late
+const HEARTBEAT_MS = 30_000;   // cada cuánto late
 const POLL_MS      = 120_000;  // respaldo si Realtime está caído
 
 let modulesRef = {};
@@ -75,13 +75,22 @@ async function beat() {
     lan_https_url: `https://${ip}:8788`
   };
 
+  // Latido rápido primero: nunca depende de GSM ni de métricas lentas
+  const quick = new Date().toISOString();
+  await Promise.allSettled([
+    db.from('jjp_server_control').update({ heartbeat: quick, heartbeat_at: quick, status: serverStatus }).eq('id', 1),
+    dbCore.from('jjp_server_control').update({ heartbeat_at: quick, status: serverStatus }).eq('id', 1)
+  ]);
+
+  const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
+
   let gsmDevice = null;
   try {
     const { getDeviceStatus } = await import('./gsm.js');
-    gsmDevice = await getDeviceStatus();
+    gsmDevice = await withTimeout(getDeviceStatus(), 5000);
   } catch (_) {}
 
-  const monitorStats = await fetchStatsForBeat();
+  const monitorStats = await withTimeout(fetchStatsForBeat(), 8000);
 
   const now = new Date().toISOString();
   const payload = {
@@ -96,8 +105,10 @@ async function beat() {
   const { error: errB } = await db.from('jjp_server_control').update(payload).eq('id', 1);
   if (errB) log.warn({ err: errB.message }, 'heartbeat falló en Proyecto B');
 
-  // 2. Actualizar Proyecto A (Core)
-  const { error: errA } = await dbCore.from('jjp_server_control').update(payload).eq('id', 1);
+  // 2. Actualizar Proyecto A (Core) — en Proyecto A la columna es heartbeat_at, no existe 'heartbeat'
+  const payloadCore = { ...payload };
+  delete payloadCore.heartbeat;
+  const { error: errA } = await dbCore.from('jjp_server_control').update(payloadCore).eq('id', 1);
   if (errA) log.warn({ err: errA.message }, 'heartbeat falló en Proyecto A');
 }
 
@@ -202,7 +213,9 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   db.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
     if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto B');
   });
-  dbCore.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
+  const startPayloadCore = { ...startPayload };
+  delete startPayloadCore.heartbeat;
+  dbCore.from('jjp_server_control').update(startPayloadCore).eq('id', 1).then(({ error }) => {
     if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto A');
   });
 
@@ -223,12 +236,14 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
 
   // Respaldo: por si el Realtime se cae, revisar el comando periódicamente en ambos proyectos
   pollTimer = setInterval(async () => {
-    const [{ data: dataB }, { data: dataA }] = await Promise.all([
-      db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle().catch(() => ({ data: null })),
-      dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle().catch(() => ({ data: null }))
-    ]);
-    const cmd = dataB?.command || dataA?.command;
-    if (cmd) await runCommand(cmd).catch(() => {});
+    try {
+      const [{ data: dataB }, { data: dataA }] = await Promise.all([
+        db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle(),
+        dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle()
+      ]);
+      const cmd = dataB?.command || dataA?.command;
+      if (cmd) await runCommand(cmd).catch(() => {});
+    } catch (_) {}
   }, POLL_MS);
 
   log.info('heartbeat + control activos (jjp_server_control)');

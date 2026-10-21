@@ -12,10 +12,11 @@
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css?v=20260717">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20261015_v9">
 <link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css?v=20260717">
 <link rel="stylesheet" href="assets/css/glass.css?v=20260717">
+<link rel="stylesheet" href="assets/css/quote-drawer.css?v=20261015_v9">
 <link rel="stylesheet" href="assets/css/fx-buttons.css?v=20260717b">
 </head>
 <body>
@@ -35,6 +36,11 @@
       <img src="assets/img/logo.svg" alt="JJ Paper" class="hero-brand-logo">
       <h1>Nuestro <em>Catálogo</em></h1>
       <p>58+ productos de papelería, suministros y limpieza al mejor precio mayorista.</p>
+      <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+        <a href="/catalogo_impreso" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#C9A24B;color:#fff;padding:9px 20px;border-radius:24px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 4px 18px rgba(201,162,75,0.4);transition:transform .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+          📲 Abrir Catálogo con QR para Venta en Calle / Imprimir →
+        </a>
+      </div>
     </div>
   </div>
 </div>
@@ -55,23 +61,35 @@
       </div>
       <label class="sr-only" for="sortSel">Ordenar productos</label>
       <select class="sort-sel" id="sortSel" onchange="filterProds()" aria-label="Ordenar productos">
-        <option value="">Ordenar por...</option>
+        <option value="">✨ Vista Híbrida (Fotos + Lista)</option>
+        <option value="con_foto">📸 Solo productos con foto</option>
         <option value="az">Nombre A → Z</option>
         <option value="za">Nombre Z → A</option>
         <option value="pasc">Precio: menor → mayor</option>
         <option value="pdesc">Precio: mayor → menor</option>
       </select>
       <div class="cat-view-toggle" role="group" aria-label="Cambiar vista">
-        <button type="button" class="cvt-btn active" data-view="grid" onclick="setCatView('grid')" title="Vista cuadrícula">⊞</button>
-        <button type="button" class="cvt-btn" data-view="list" onclick="setCatView('list')" title="Vista lista">☰</button>
+        <button type="button" class="cvt-btn active" data-view="grid" onclick="setCatView('grid')" title="Vista cuadrícula de fotos">⊞ Cuadrícula</button>
+        <button type="button" class="cvt-btn" data-view="list" onclick="setCatView('list')" title="Vista lista compacta">☰ Lista</button>
       </div>
+
+      <a href="/catalogo_impreso" target="_blank" class="tb-print-btn" style="display:inline-flex;align-items:center;gap:6px;background:var(--gd,#16604A);color:#fff;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 2px 10px rgba(22,96,74,0.25);">
+        🖨️ Catálogo con QR
+      </a>
+
+      <button type="button" class="tb-share-btn" onclick="shareCatalogToWhatsApp()" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(37,211,102,0.25);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+        <span>📤 Compartir Catálogo</span>
+      </button>
+
       <div class="dl-wrap">
         <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
                 onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
         <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
+          <a role="menuitem" href="/catalogo_impreso" target="_blank" style="text-decoration:none;display:block;padding:8px 12px;font-size:13px;font-weight:700;color:var(--gd,#16604A);background:#f0f7f3;border-radius:6px;margin-bottom:4px">🖨️ Catálogo para Imprimir (con QR)</a>
           <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
           <button role="menuitem" onclick="downloadCatalog('lista')">💵 Lista de precios (PDF)</button>
-            <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
+          <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
         </div>
       </div>
     </div>
@@ -104,20 +122,45 @@
 <button class="btt" id="btt" aria-label="Volver arriba" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 <div class="toast-c" id="toastC"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/js/config.js?v=20261001_v1"></script>
+<script src="assets/vendor/supabase-2.58.0.js"></script>
+<script src="assets/js/config.js?v=20261015_v9"></script>
 <script src="assets/js/toast.js"></script>
-<script src="assets/js/nav.js"></script>
-<script src="assets/js/catalog.js?v=20261001_v1"></script>
+<script src="assets/js/nav.js?v=20261015_v9"></script>
+<script src="assets/js/catalog.js?v=20261015_v9"></script>
 <script src="assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="assets/js/export.js?v=20260726"></script>
-<script src="assets/js/product-modal.js?v=20261001_v1"></script>
+<script src="assets/js/quote-drawer.js?v=20261015_v9"></script>
+<script src="assets/js/product-modal.js?v=20261015_v9"></script>
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
-  injectNav('catalogo');
-  injectFooter();
-  await initCatalog();
-});
+async function bootstrapCatalog() {
+  try { if (typeof injectNav === 'function') injectNav('catalogo'); } catch (e) { console.warn('Nav init warning:', e); }
+  try { if (typeof injectFooter === 'function') injectFooter(); } catch (e) { console.warn('Footer init warning:', e); }
+  try { if (typeof initCatalog === 'function') await initCatalog(); } catch (e) { console.error('Catalog init error:', e); }
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.warn('SW registration info:', err);
+    });
+  }
+}
+
+function shareCatalogToWhatsApp() {
+  const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html';
+  const streetUrl = 'https://jjpaper.pages.dev/catalogo_impreso.html';
+  const msg = `👋 *¡Hola! Te comparto nuestro Catálogo Mayorista JJ Paper:*\n\n` +
+              `📦 *Catálogo Digital Interactivo:*\n${catalogUrl}\n\n` +
+              `📲 *Catálogo con Códigos QR (Venta en Calle / Imprimible):*\n${streetUrl}\n\n` +
+              `✨ Precios actualizados en USD y Bolívares según tasa oficial BCV. Puedes armar tu lista de requerimientos directamente en la página o consultarnos por aquí.`;
+
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, '_blank');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapCatalog);
+} else {
+  bootstrapCatalog();
+}
 </script>
 <script src="assets/js/fx-buttons.js?v=20260717b"></script>
 </body>

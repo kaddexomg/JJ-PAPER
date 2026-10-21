@@ -303,14 +303,14 @@
 <body class="admin-body">
 
 <div class="admin-wrap">
-  <!-- Aside Auto-Inyectado por sidenav.js?v=20260927_b2b_v2 -->
+  <!-- -->
   <aside class="admin-aside" id="adminAside">
     <div class="aside-brand">
       <img class="n-logo-img" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
       <span>JJ <em>Paper</em></span>
     </div>
     <nav class="aside-nav">
-      <!-- sidenav.js?v=20260927_b2b_v2 reconstruye este menú -->
+      <!-- -->
     </nav>
     <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
   </aside>
@@ -377,7 +377,7 @@
       </div>
 
       <!-- Pestañas de Estado -->
-      <div class="status-tabs" id="statusFilterTabs">
+      <div class="status-tabs" id="statusFilterTabs" style="margin-bottom:14px">
         <button class="of-tab-btn active" data-status="todos" onclick="setStatusFilter('todos')">Todos</button>
         <button class="of-tab-btn" data-status="nuevo" onclick="setStatusFilter('nuevo')">🆕 Nuevos / Sin Contacto</button>
         <button class="of-tab-btn" data-status="analizado" onclick="setStatusFilter('analizado')">🧠 Analizados con IA</button>
@@ -387,18 +387,52 @@
         <button class="of-tab-btn" data-status="ganado" onclick="setStatusFilter('ganado')">⭐ Ganados (Clientes)</button>
       </div>
 
-      <!-- Filtro por Sectores (Chips) -->
-      <div class="of-chips" id="sectorChipsContainer" style="margin-bottom:14px">
-        <!-- Renderizado dinámicamente -->
+      <!-- Barra de Filtros por Sector Empresarial & Búsqueda Unificada -->
+      <div class="admin-table-wrap" style="padding:14px 18px;margin-bottom:16px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.03)">
+        <!-- Macro-Sectores Top en píldoras rápidas -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+          <div style="font-size:12px;font-weight:800;color:var(--theme-text-muted, #64748b);text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:6px">
+            <span>🏷️ Sectores Destacados:</span>
+          </div>
+          <div id="macroSectorChips" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="of-chip on" data-macro="todos" onclick="setMacroSector('todos')">🌐 Todos</button>
+            <button type="button" class="of-chip" data-macro="salud" onclick="setMacroSector('salud')">🏥 Salud y Clínicas</button>
+            <button type="button" class="of-chip" data-macro="industrial" onclick="setMacroSector('industrial')">🏭 Industria y Fábricas</button>
+            <button type="button" class="of-chip" data-macro="banca" onclick="setMacroSector('banca')">🏦 Banca y Seguros</button>
+            <button type="button" class="of-chip" data-macro="educacion" onclick="setMacroSector('educacion')">🎓 Educación</button>
+            <button type="button" class="of-chip" data-macro="comercio" onclick="setMacroSector('comercio')">🛒 Comercio y Retail</button>
+            <button type="button" class="of-chip" data-macro="logistica" onclick="setMacroSector('logistica')">📦 Logística y Courier</button>
+          </div>
+        </div>
+
+        <!-- Controles de Filtro Específico y Búsqueda -->
+        <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:14px;align-items:center">
+          <div>
+            <label class="fl" for="sectorSelect" style="font-size:11px;font-weight:700;margin-bottom:4px;color:var(--theme-text-muted, #64748b)">Filtrar por Sector Específico (Todos los rubros)</label>
+            <select id="sectorSelect" class="fi" onchange="setSectorFilter(this.value)" style="width:100%;height:38px;font-size:13px;border-radius:8px">
+              <option value="todos">Cargando sectores…</option>
+            </select>
+          </div>
+          <div>
+            <label class="fl" for="prospectSearchInput" style="font-size:11px;font-weight:700;margin-bottom:4px;color:var(--theme-text-muted, #64748b)">Búsqueda Rápida de Cuentas B2B</label>
+            <div style="position:relative">
+              <input class="fi" id="prospectSearchInput" placeholder="🔍 Escribe nombre de empresa, contacto, cargo, teléfono o correo…" oninput="applyProspectFilters()" style="width:100%;height:38px;font-size:13px;padding-left:34px;border-radius:8px">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;opacity:0.6;pointer-events:none">🏢</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Tabla de Prospectos -->
       <div class="admin-table-wrap">
-        <div class="table-top">
-          <div style="font-weight:700;color:var(--dark);font-size:15px">
-            🏢 Directorio de Cuentas B2B
+        <div class="table-top" style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px">
+          <div style="font-weight:800;color:var(--theme-text-main, #0f172a);font-size:15px;display:flex;align-items:center;gap:8px">
+            <span>Directorio de Cuentas B2B</span>
+            <span id="prospectCountBadge" style="font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:rgba(16,185,129,0.12);color:var(--theme-accent, #16604a)">0 cuentas</span>
           </div>
-          <input class="fi" id="prospectSearchInput" placeholder="Buscar por empresa, contacto, cargo, teléfono..." oninput="applyProspectFilters()" style="max-width:320px;font-size:13px">
+          <div style="font-size:12px;color:var(--theme-text-muted, #64748b)">
+            Haz clic en los teléfonos o correos para contactar de inmediato
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="admin-table">
@@ -652,13 +686,12 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/toast.js?v=20260914_b2b"></script>
 <script src="../assets/js/admin/auth.js?v=20260914_b2b"></script>
-<script src="../assets/js/admin/sidenav.js?v=20261001_modal_scroll"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script src="../assets/js/doc-engine.js?v=20260929_launch_sync_ok"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260914_prospects"></script>
 <script src="../assets/js/vendedor/product-picker.js?v=20260914_prospects"></script>
 <script src="../assets/js/gemini-client.js?v=20260930_precios_ia"></script>
 <script src="../assets/js/vendedor/campaign-editor.js?v=20260930_precios_ia"></script>
-<script src="../assets/js/phone-dialer.js?v=20260927_free"></script>
 <script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
 <script src="../assets/js/admin/vprospectos.js?v=20260928_clean_prospects"></script>
 </body>

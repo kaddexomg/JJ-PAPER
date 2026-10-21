@@ -181,12 +181,15 @@ function renderModalBody() {
         <button class="btn-wa" onclick="modalOrderWA()" ${soldOut?'disabled':''} style="grid-column:1/-1;padding:14px;font-size:15px;font-weight:800">
           💬 Consultar y Pedir por WhatsApp
         </button>
+        <button class="pm-quote" onclick="modalRequestQuote()" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#065f46;color:#fff;border-color:#065f46;font-weight:700">
+          ⚡ Cotizar este Producto
+        </button>
         <button class="pm-quote" onclick="modalShare()" style="display:flex;align-items:center;justify-content:center;gap:6px">
           📋 Compartir Ficha
         </button>
-        <button class="pm-quote" onclick="modalDownloadCatalog()" style="display:flex;align-items:center;justify-content:center;gap:6px">
-          📥 Descargar Catálogo
-        </button>
+        <a href="producto.html?id=${p.id}" class="pm-quote" style="display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1/-1;text-decoration:none;background:#f0f7f3;color:#16604A;border:1.5px solid #c2dbcd;font-weight:700;padding:10px">
+          🌐 Ver Ficha Oficial Completa (Fotos HD y Variantes) →
+        </a>
       </div>
     </div>
   </div>
@@ -250,30 +253,51 @@ function modalOrderWA() {
   const unit  = escapeHTML(p.jjp_units?.name || p.unit || 'unid');
   const subUsd = price * modalQty;
   const subBs  = fmtBs(subUsd);
-  const msg   = `📦 *Hola JJ Paper, me interesa este producto:*\n\n` +
-                `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
-                (modalVariant?.sku || p.sku ? `• *Código:* ${modalVariant?.sku || p.sku}\n` : '') +
-                `• *Cantidad:* ${modalQty} ${unit}\n` +
-                `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n\n` +
-                `¿Tienen disponibilidad para despacho?`;
+  const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
+  const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) || modalVariant?.image_url || p.image_url;
+
+  let msg = `📦 *Hola JJ Paper, me interesa este producto:*\n\n` +
+            `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
+            (modalVariant?.sku || p.sku ? `• *Código/SKU:* ${modalVariant?.sku || p.sku}\n` : '') +
+            `• *Cantidad:* ${modalQty} ${unit}\n` +
+            `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n` +
+            `• *Ficha Oficial:* ${prodUrl}\n`;
+
+  if (imgUrl && imgUrl.trim()) {
+    msg += `• *Foto oficial:* ${imgUrl}\n`;
+  }
+
+  msg += `\n¿Tienen disponibilidad para despacho?`;
   openWA(msg);
 }
 
-function modalDownloadCatalog() {
-  if (typeof exportPDF === 'function') {
-    exportPDF();
-  } else if (typeof exportListaPrecios === 'function') {
-    exportListaPrecios();
-  } else {
-    showToast('Generando catálogo...', 'info');
-  }
+function modalRequestQuote() {
+  if (!modalProduct) return;
+  const p = modalProduct;
+  const brand = (typeof variantLabel === 'function' && modalVariant) ? variantLabel(modalVariant) : '';
+  const price = modalVariant ? +modalVariant.price_usd : +p.price_usd;
+  const unit  = p.jjp_units?.name || p.unit || 'unid';
+  const subUsd = price * modalQty;
+  const subBs  = fmtBs(subUsd);
+  const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
+
+  const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN FORMAL*\n\n` +
+                   `Estimado equipo de JJ Paper, solicito presupuesto para:\n\n` +
+                   `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
+                   (modalVariant?.sku || p.sku ? `• *SKU / Ref:* ${modalVariant?.sku || p.sku}\n` : '') +
+                   `• *Cantidad requerida:* ${modalQty} ${unit}\n` +
+                   `• *Monto estimado:* ${fmtPrice(subUsd)} (${subBs})\n` +
+                   `• *Ficha del producto:* ${prodUrl}\n\n` +
+                   `Por favor enviar cotización membretada con vigencia y condiciones de despacho a sede.`;
+
+  openWA(quoteMsg);
+  showToast('Abriendo cotizador directo por WhatsApp... 💬', 'ok');
 }
 
 // Compartir: enlace a la ficha del producto en el catálogo (share nativo o copiar)
 function modalShare() {
   if (!modalProduct) return;
-  const prodKey = modalProduct.sku || modalProduct.id;
-  const url = `${location.origin}/catalogo.html?producto=${encodeURIComponent(prodKey)}`;
+  const url = `${location.origin}/producto.html?id=${encodeURIComponent(modalProduct.id)}`;
   if (navigator.share) {
     navigator.share({ title: modalProduct.name, url }).catch(() => {});
   } else if (navigator.clipboard?.writeText) {

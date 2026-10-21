@@ -5,17 +5,16 @@
 const PAID_STATUSES = ['pagado', 'preparando', 'entregado'];
 
 async function initDashboard() {
-  const [orders, products, quotes, reviews] = await Promise.all([
+  const [orders, products, quotes] = await Promise.all([
     sb.from('jjp_orders').select('order_number,client_name,total_usd,total_bs,status,payment_method,created_at').order('created_at', { ascending: false }),
     sb.from('jjp_products').select('id,name,stock,active,price_usd').eq('active', true),
     sb.from('jjp_quotes').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
-    sb.from('jjp_reviews').select('id', { count: 'exact', head: true }).eq('approved', false),
   ]);
 
   const allOrders = orders.data || [];
   const prods     = products.data || [];
 
-  renderDashStats(allOrders, prods, quotes.count || 0, reviews.count || 0);
+  renderDashStats(allOrders, prods, quotes.count || 0);
   renderSalesChart(allOrders);
   renderStatusBreakdown(allOrders);
   renderRecentOrders(allOrders.slice(0, 6));
@@ -105,7 +104,7 @@ async function markAllNotifsRead() {
   loadNotifications();
 }
 
-function renderDashStats(orders, prods, pendingQuotes, pendingReviews) {
+function renderDashStats(orders, prods, pendingQuotes) {
   const paid    = orders.filter(o => PAID_STATUSES.includes(o.status));
   const toVerify = orders.filter(o => o.status === 'pendiente_pago' || o.status === 'verificando');
   const sales   = paid.reduce((s, o) => s + Number(o.total_usd || 0), 0);
@@ -113,11 +112,11 @@ function renderDashStats(orders, prods, pendingQuotes, pendingReviews) {
   setText('stat-sales',    fmtPrice(sales));
   setText('stat-orders',   toVerify.length);
   setText('stat-products', prods.length);
-  setText('stat-reviews',  pendingReviews);
+  setText('stat-quotes',   pendingQuotes);
 
   setText('stat-sales-sub',  `${paid.length} pedidos confirmados`);
   setText('stat-orders-sub', toVerify.length ? '¡Requieren tu atención!' : 'Todo al día ✔');
-  setText('stat-quotes-extra', pendingQuotes);
+  setText('stat-quotes-sub', pendingQuotes ? `${pendingQuotes} pendientes de aprobación` : 'Sin cotizaciones pendientes');
 }
 
 // Simple CSS bar chart: sales (USD) per day, last 7 days

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Detalle del Producto | JJ Paper Mayorista</title>
+<meta name="description" content="Ficha técnica, precio mayorista en USD y Bs, fotos oficiales y pedido directo por WhatsApp con JJ Paper.">
+<link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+<meta name="theme-color" content="#16604A">
+
+<!-- OpenGraph / Social Previews -->
+<meta property="og:type" content="product">
+<meta property="og:site_name" content="JJ Paper">
+<meta property="og:title" content="Detalle del Producto | JJ Paper">
+<meta property="og:description" content="Consulta precio mayorista en USD y Bs, empaque y disponibilidad en JJ Paper.">
+<meta property="og:image" content="assets/img/logo.svg">
+
+<!-- CSS Core -->
+<link rel="stylesheet" href="assets/css/variables.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/nav.css">
+<link rel="stylesheet" href="assets/css/glass.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+<link rel="stylesheet" href="assets/css/product.css?v=20261014_v1">
+<link rel="stylesheet" href="assets/css/quote-drawer.css?v=20261014_v1">
+</head>
+<body class="product-page">
+
+<div id="nav-placeholder"></div>
+
+<div class="product-offset">
+  <!-- Contenedor dinámico renderizado por product-detail.js -->
+  <main id="productApp" role="main">
+    <div style="max-width:1200px;margin:60px auto;padding:0 20px;text-align:center;">
+      <div class="cat-loading" style="padding:60px;font-size:16px;color:#16604A;font-weight:700;">
+        <div class="spin" style="width:36px;height:36px;border:3px solid #16604A;border-top-color:transparent;border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite;"></div>
+        Cargando ficha oficial del producto...
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal de Cotización Directa -->
+<div class="quote-modal-overlay" id="quoteModal" role="dialog" aria-modal="true" aria-labelledby="qmTitle">
+  <div class="quote-modal-card">
+    <div class="quote-modal-header">
+      <h3 id="qmTitle">⚡ Solicitar Cotización Formal</h3>
+      <button class="quote-modal-close" onclick="closeQuoteModal()" aria-label="Cerrar modal">✕</button>
+    </div>
+    <form class="quote-modal-body" onsubmit="submitQuoteForm(event)">
+      <div class="quote-modal-summary" id="qmSummary">
+        Cargando resumen del producto...
+      </div>
+      
+      <div class="form-group">
+        <label for="qmCompany">Empresa / Negocio / Colegio *</label>
+        <input type="text" id="qmCompany" required placeholder="Ej: Inversiones Los Teques, C.A.">
+      </div>
+
+      <div class="form-group">
+        <label for="qmContact">Nombre del Contacto *</label>
+        <input type="text" id="qmContact" required placeholder="Ej: Juan Pérez (Compras)">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label for="qmPhone">WhatsApp / Teléfono *</label>
+          <input type="tel" id="qmPhone" required placeholder="Ej: 0412-1234567">
+        </div>
+        <div class="form-group">
+          <label for="qmEmail">Correo Electrónico *</label>
+          <input type="email" id="qmEmail" required placeholder="correo@empresa.com">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="qmNotes">Notas o Ciudad de Entrega (Opcional)</label>
+        <textarea id="qmNotes" rows="2" placeholder="Ej: Despacho a Valencia / Requiere factura fiscal"></textarea>
+      </div>
+
+      <button type="submit" class="btn-action-primary" id="qmSubmitBtn" style="width:100%;border-radius:8px;margin-top:6px;">
+        Enviar Solicitud Formal
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal / Lightbox de Zoom -->
+<div class="img-lightbox" id="imgLightbox" role="dialog" aria-modal="true" aria-label="Vista ampliada">
+  <button class="ilb-close" onclick="closeImgLightbox()" aria-label="Cerrar vista ampliada">✕</button>
+  <div class="ilb-stage" id="ilbStage">
+    <img id="ilbImg" alt="Vista ampliada">
+  </div>
+  <p class="ilb-hint">Toca dos veces para acercar o alejar</p>
+</div>
+
+<!-- Pie de página y Toast -->
+<div id="footer-placeholder"></div>
+<div class="toast-c" id="toastC"></div>
+
+<!-- Supabase SDK & Dependencias -->
+<script src="assets/vendor/supabase-2.58.0.js"></script>
+<script src="assets/js/config.js?v=20261014_fix_client_view"></script>
+<script src="assets/js/toast.js"></script>
+<script src="assets/js/nav.js?v=20261014_fix_client_view"></script>
+<script src="assets/js/quote-drawer.js?v=20261014_fix_client_view"></script>
+<script src="assets/js/product-detail.js?v=20261014_fix_client_view"></script>
+
+<script>
+// Lightbox helpers
+function openImgLightbox(url, alt) {
+  const lb = document.getElementById('imgLightbox');
+  const img = document.getElementById('ilbImg');
+  if (!lb || !img) return;
+  img.src = encodeURI(url);
+  img.alt = alt || 'Imagen del producto';
+  lb.classList.add('op');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImgLightbox() {
+  const lb = document.getElementById('imgLightbox');
+  if (lb) {
+    lb.classList.remove('op');
+    document.body.style.overflow = '';
+  }
+}
+
+document.getElementById('ilbStage')?.addEventListener('click', (e) => {
+  if (e.target.id === 'ilbStage') closeImgLightbox();
+});
+</script>
+
+<style>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* Lightbox basic */
+.img-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 100000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.img-lightbox.op {
+  display: flex;
+}
+.ilb-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 2;
+}
+.ilb-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.ilb-stage img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+}
+.ilb-hint {
+  position: absolute;
+  bottom: 20px;
+  color: #aaa;
+  font-size: 12px;
+}
+</style>
+
+</body>
+</html>

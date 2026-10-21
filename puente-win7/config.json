@@ -1,0 +1,11 @@
+{
+  "mixnet_dir": "M:/comp01",
+  "pedidos_dir": "C:/pedidos",
+  "port": 3300,
+  "supabase_url": "https://wwcdxqpibequfohbgejs.supabase.co",
+  "supabase_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg",
+  "supabase_url_comm": "https://klcibjwleiqppedefpxw.supabase.co",
+  "supabase_key_comm": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsY2liandsZWlxcHBlZGVmcHh3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Nzc1MTc5NiwiZXhwIjoyMTAzMzI3Nzk2fQ.gk-Ch2njS3f-GUvqRzS5v4hH3tJ56bdo5ixOs_xOuWA",
+  "auto_sync_interval_sec": 30,
+  "stock_sync_interval_min": 5
+}

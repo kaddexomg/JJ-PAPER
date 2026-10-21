@@ -224,7 +224,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 130px;
+    max-width: 190px;
   }
   .tbl-rows { color: var(--text-muted); font-size: 11px; }
   .tbl-dead { color: var(--warning); font-size: 11px; font-weight: 700; }
@@ -795,6 +795,79 @@
           </div>
         </div>
 
+        <!-- INFRAESTRUCTURA DE NODOS & PUENTE MIXNET ERP -->
+        <div class="proj-card" id="srvCard">
+          <div class="proj-header">
+            <div class="proj-title">
+              <h3>Infraestructura & Nodos Activos</h3>
+              <p id="srvSubtitle">Servidor Central en la Nube (VPS Truobox) & PC Tienda (Puente Win7)</p>
+            </div>
+            <div class="proj-badges">
+              <span class="badge-metric" id="srvLatency">⚡ -- ms</span>
+              <span class="badge-metric" id="srvStatusBadge" style="background:rgba(46,213,115,0.15);color:#4cd137;border-color:rgba(46,213,115,0.35);">🟢 Online</span>
+            </div>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-labels">
+              <span id="srvHostTxt">Servidor VPS (host-c2f736)</span>
+              <span id="srvBeatTxt">Latido: Reciente</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill optimal" id="srvProgressBar" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#d1e7dd;">☁️ Nodo 1: Servidor Central (VPS Truobox 24/7):</div>
+            <div class="table-list" id="srvDetailsList">
+              <div class="table-row-item">
+                <span class="tbl-name">🌐 IP Pública del Servidor</span>
+                <span class="tbl-size" id="srvTailscaleIp"><span style="color:var(--accent);font-weight:700;">166.0.112.247:8787</span></span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">🏢 Hostname del Sistema</span>
+                <span class="tbl-size" id="srvLanIp">host-c2f736 (Ubuntu 24.04 LTS)</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">💬 Sesiones WhatsApp</span>
+                <span class="tbl-size" id="srvWaSanas">1 configurada</span>
+              </div>
+            </div>
+
+            <div style="font-size:12px;font-weight:700;margin:12px 0 6px 0;color:#00d2ff;">⚡ Nodo 2: Antigravity Micro-Node (PC Tienda Win7):</div>
+            <div class="table-list" id="win7DetailsList">
+              <div class="table-row-item">
+                <span class="tbl-name">🏢 IP Local (LAN Tienda)</span>
+                <span class="tbl-size" id="win7LanIp">192.168.0.127:3300</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">📁 Carpeta Pedidos</span>
+                <span class="tbl-size" id="win7PedidosDir">C:\pedidos (🟢 Activa)</span>
+              </div>
+              <div class="table-row-item">
+                <span class="tbl-name">💓 Estado & Latido</span>
+                <span class="tbl-size" id="win7StatusTxt">🟢 En línea</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="proj-actions" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn-action" onclick="triggerServerRemoteCmd('restart')" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid #f59e0b" title="Reiniciar proceso Node en VPS / Servidor">
+              🔄 Reiniciar
+            </button>
+            <button class="btn-action" onclick="triggerServerRemoteCmd('pull')" style="background:rgba(2,132,199,0.15);color:#38bdf8;border:1px solid #0284c7" title="Descargar último commit de GitHub y reiniciar">
+              ⚡ Git Pull
+            </button>
+            <button class="btn-action" onclick="triggerSyncMixnet()">
+              🔄 Sync MixNet
+            </button>
+            <a href="lan.html" class="btn-action" style="text-align:center;text-decoration:none;" target="_blank">
+              📡 Conteo LAN
+            </a>
+          </div>
+        </div>
+
       </div>
 
       <!-- SECCIÓN MAESTRA: ENTORNO AGÉNTICO IA & COPILOTO -->
@@ -902,8 +975,8 @@ Escribe una consulta abajo o pulsa "🩺 Diagnóstico Integral" para auditar en 
 <!-- Toast flotante -->
 <div class="opt-toast" id="optToast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../assets/js/config.js?v=20260930_core"></script>
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js?v=20261013_fix_serial"></script>
 <script src="../assets/js/admin/auth.js"></script>
 <script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
 <script src="../assets/js/gemini-client.js"></script>

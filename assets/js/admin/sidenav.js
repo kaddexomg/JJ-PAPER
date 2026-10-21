@@ -22,16 +22,14 @@
     { section: 'Principal' },
     { href: 'index.html', ico: '📊', label: 'Dashboard' },
     { group: 'Ventas', ico: '🛒', items: [
-      { href: 'pos.html',          ico: '💰', label: 'Nueva Venta (POS)' },
+      { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
       { href: 'cotizador.html',    ico: '📋', label: 'Nueva Cotización' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Pedidos' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Cotizaciones' },
       { href: 'prospectos.html',   ico: '🎯', label: 'Prospectos B2B' },
-      { href: 'promociones.html',  ico: '🔥', label: 'Promociones' },
-      { href: 'resenas.html',      ico: '⭐', label: 'Reseñas' },
+      { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
-      { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'difusion.html', ico: '📢', label: 'Difusión WA' },
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
@@ -59,7 +57,9 @@
     { href: 'monitor.html',    ico: '⚡', label: 'Monitor & Cuotas' },
     { href: 'vendedores.html', ico: '👥', label: 'Vendedores' },
     { href: 'ajustes.html',    ico: '⚙', label: 'Ajustes' },
-    { href: '../index.html',   ico: '🌐', label: 'Ver Sitio', ext: true },
+    { section: 'Sitio Público' },
+    { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+    { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
@@ -67,9 +67,10 @@
     { section: 'Ventas' },
     { href: 'index.html', ico: '📊', label: 'Mi Panel' },
     { group: 'Vender', ico: '💰', items: [
-      { href: 'pos.html',          ico: '💰', label: 'Nueva venta (POS)' },
+      { href: 'pos.html',          ico: '📋', label: 'Crear Pedido' },
       { href: 'cotizador.html',    ico: '📋', label: 'Cotizador' },
       { href: 'cotizaciones.html', ico: '📂', label: 'Mis cotizaciones' },
+      { href: 'documentos.html',   ico: '📝', label: 'Documentos & Formas' },
       { href: 'consulta.html',     ico: '🔎', label: 'Consultar stock' },
       { href: '../lista_costos.html', ico: '📄', label: 'Lista de precios', ext: true },
       { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
@@ -83,14 +84,14 @@
       { href: 'campanas-email.html', ico: '📣', label: 'Campañas Email' },
     ]},
     { group: 'Comunicación', ico: '💬', items: [
-      { href: 'llamadas.html', ico: '📞', label: 'Llamadas B2B' },
       { href: 'whatsapp.html', ico: '💬', label: 'WhatsApp' },
       { href: 'correo.html',   ico: '📧', label: 'Correo' },
     ]},
     { section: 'Mi cuenta' },
     { href: 'ajustes.html', ico: '⚙', label: 'Mis ajustes' },
-    { section: 'Sitio' },
-    { href: '../catalogo.html', ico: '🌐', label: 'Ver catálogo', ext: true },
+    { section: 'Sitio Público' },
+    { href: '/catalogo', ico: '🌐', label: 'Catálogo Cliente', ext: true },
+    { href: '/catalogo_impreso', ico: '🖨️', label: 'Catálogo con QR (Calle)', ext: true },
     { action: 'logout', ico: '🔓', label: 'Cerrar Sesión' },
   ];
 
@@ -105,10 +106,19 @@
   // los enlaces funcionen aunque estés viendo el panel de admin o el de vendedor
   // (siteURL respeta la raíz real, incluso con file:// o una subcarpeta de dominio).
   function absHref(href) {
-    if (!href || href === '#' || /^https?:/i.test(href) || href.startsWith('/')) return href;
+    if (!href || href === '#' || /^https?:/i.test(href)) return href;
+    // Si ya empieza con barra (ruta absoluta a la raíz del sitio), resolver con siteURL
+    if (href.startsWith('/')) {
+      if (typeof siteURL === 'function') return siteURL(href);
+      return href;
+    }
     let rel = href;
-    if (!rel.startsWith('..')) rel = DIR + '/' + rel;   // enlace relativo → dentro del panel del rol
-    else rel = rel.replace(/^\.\.\//, '');              // '../x' → sale del panel → raíz/x
+    if (!rel.startsWith('..')) {
+      rel = DIR + '/' + rel;   // enlace relativo dentro del panel
+    } else {
+      rel = rel.replace(/^\.\.\//, ''); // enlace que sube a la raíz
+      return typeof siteURL === 'function' ? siteURL(rel) : ('/' + rel);
+    }
     return typeof siteURL === 'function' ? siteURL(rel) : rel;
   }
 
@@ -131,17 +141,6 @@
       a.addEventListener('click', (e) => {
         e.preventDefault();
         if (window.adminLogout) window.adminLogout();
-      });
-    }
-    if (it.action === 'dialer') {
-      a.href = '#';
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (window.JJDialer) window.JJDialer.open();
-        else if (typeof loadPhoneDialer === 'function') {
-          loadPhoneDialer();
-          setTimeout(() => window.JJDialer?.open(), 100);
-        }
       });
     }
     if (isActive(it.href)) a.className = 'on';
@@ -364,14 +363,6 @@
     document.head.appendChild(s);
   }
 
-  function loadPhoneDialer() {
-    if (document.getElementById('jjp-dialer-script') || window.JJDialer) return;
-    const s = document.createElement('script');
-    s.id = 'jjp-dialer-script';
-    s.src = '../assets/js/phone-dialer.js?v=20260927_b2b_v5';
-    document.head.appendChild(s);
-  }
-
   function initCommandPalette() {
     if (window.__jjpCmdPaletteInit) return;
     window.__jjpCmdPaletteInit = true;
@@ -511,14 +502,6 @@
     function executeItem(item) {
       if (!item) return;
       closePalette();
-      if (item.action === 'dialer') {
-        if (window.JJDialer) window.JJDialer.open();
-        else if (typeof loadPhoneDialer === 'function') {
-          loadPhoneDialer();
-          setTimeout(() => window.JJDialer?.open(), 100);
-        }
-        return;
-      }
       if (item.ext) window.open(item.href, '_blank');
       else window.location.href = item.href;
     }
@@ -569,24 +552,6 @@
     });
   }
 
-  function injectTopbarDialerButton() {
-    const topbarRight = document.querySelector('.admin-topbar .topbar-right, .topbar-right, .admin-topbar');
-    if (!topbarRight || document.getElementById('topbarDialerBtn')) return;
-
-    const btn = document.createElement('a');
-    btn.id = 'topbarDialerBtn';
-    btn.href = 'llamadas.html';
-    btn.className = 'topbar-dialer-btn';
-    btn.title = 'Ir a Centralita de Llamadas B2B (o presiona Alt+P para marcador rápido)';
-    btn.innerHTML = `<span class="topbar-dialer-pulse"></span><span>📞 Llamadas B2B</span>`;
-
-    if (topbarRight.firstChild) {
-      topbarRight.insertBefore(btn, topbarRight.firstChild);
-    } else {
-      topbarRight.appendChild(btn);
-    }
-  }
-
   function initModalScrollBridge() {
     // Redirigir el scroll del ratón hacia el cuerpo del modal si el cursor está sobre la cabecera, pie o el overlay
     document.addEventListener('wheel', (e) => {
@@ -604,11 +569,8 @@
     injectCSS();
     renderNav();
     applyRole();
-    loadCopilot();
     loadKeyboardNav();
-    loadPhoneDialer();
     initCommandPalette();
-    injectTopbarDialerButton();
     initModalScrollBridge();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -29,6 +29,7 @@ dist/
 *.jpg
 *.code-workspace
 _archivo/
+_archive/
 
 # Sesiones alternativas de WhatsApp
 .wwebjs_auth/
@@ -44,12 +45,14 @@ cerebro/.obsidian/workspace.json
 
 # Repo secundario para herramientas locales de PC
 archivos-pc/
+config-puente.json
 
 # Backups y datos de negocio
 backups/
 CLIENTES/*.json
 *.docx
 *.zip
+!antigravity-win7.zip
 *.bak
 wa-server/*.txt
 wa-server/*.json
@@ -70,6 +73,10 @@ create_presentation.py
 generate_presentation.cjs
 logos_b64.json
 read_docx.ps1
+
+# Mapeos pesados locales
+MAPEO-TOTAL-MIXNET/*.json
+MAPEO-TOTAL-MIXNET/*.txt
 
 
 

@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJ Paper — Puente Autónomo MixNet ERP</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --p: #0284c7;
+      --p-hover: #0369a1;
+      --success: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 20px; font-weight: 800; color: #0369a1; display: flex; align-items: center; gap: 8px; }
+    .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .badge.green { background: #dcfce7; color: #15803d; }
+    .badge.red { background: #fee2e2; color: #b91c1c; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .card-val { font-size: 24px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+    .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .btn { background: var(--p); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn:hover { background: var(--p-hover); }
+    .btn.green { background: var(--success); }
+    .btn.green:hover { background: #059669; }
+    .btn.sm { padding: 6px 12px; font-size: 11px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+    .tab { padding: 10px 18px; font-size: 14px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.on { color: var(--p); border-bottom-color: var(--p); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { padding: 12px 14px; background: #f1f5f9; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    tr:hover { background: #f8fafc; }
+    .terminal { background: #0f172a; color: #38bdf8; padding: 14px; border-radius: 10px; font-family: monospace; font-size: 12px; height: 140px; overflow-y: auto; margin-top: 24px; }
+    .term-line { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>📦 JJ Paper ⇄ MixNet ERP</h1>
+        <p style="font-size:12px;color:var(--muted);margin-top:2px">Puente Autónomo de Tienda — Windows 7</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="statusBadge" class="badge red">Consultando...</span>
+        <button class="btn sm" style="background:#7c3aed" onclick="triggerReindexAll()" id="btnReindex" title="Verifica y calibra los árboles de índices .NTX de MixNet sin tocar datos">🗂️ Reindexar NTX MixNet</button>
+        <button class="btn green sm" onclick="syncStock()" id="btnSyncStock">⚡ Sincronizar Stock a la Nube</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-title">Directorio MixNet ERP</div>
+        <div style="display:flex;gap:6px;align-items:center;margin:6px 0">
+          <input type="text" id="mixDirInput" value="M:\comp01" style="flex:1;padding:6px 8px;font-size:13px;font-weight:700;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+          <button class="btn sm" onclick="saveMixDir()" title="Guardar y verificar ruta">💾 Probar</button>
+          <button class="btn sm" style="background:#475569" onclick="scanNetworkDrives()" id="btnScanNet" title="Escanear todas las unidades M:, C:, P:, D: en busca de MixNet">🔍 Auto-Detectar</button>
+        </div>
+        <div class="card-sub" id="mixConnSub">Verificando conexión...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Próxima Cotización (MixNet)</div>
+        <div class="card-val" id="nextCotVal">--------</div>
+        <div class="card-sub">Tabla MXNUMCOT.DBF</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Próximo Pedido (MixNet)</div>
+        <div class="card-val" id="nextPedVal">--------</div>
+        <div class="card-sub">Tabla MXNUMPED.DBF</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on" id="tabQuotes" onclick="setTab('quotes')">Cotizaciones (<span id="countQuotes">0</span>)</div>
+      <div class="tab" id="tabOrders" onclick="setTab('orders')">Pedidos (<span id="countOrders">0</span>)</div>
+      <div class="tab" id="tabInvoices" onclick="setTab('invoices')">Facturación MixNet (<span id="countInvoices">0</span>)</div>
+      <div class="tab" id="tabUsers" onclick="setTab('users')">Usuarios & Vendedores (<span id="countUsers">0</span>)</div>
+      <div class="tab" id="tabExplorer" onclick="setTab('explorer')">📁 Explorador & Editor DBF (<span id="countFiles">0</span>)</div>
+      <div class="tab" id="tabBackups" onclick="setTab('backups')">Backups y Rollback (<span id="countBackups">0</span>)</div>
+      <div class="tab" id="tabAgent" onclick="setTab('agent')" style="color:#7c3aed">🤖 Agente Ejecutor IA</div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <!-- Tabla Cotizaciones -->
+      <div id="viewQuotes">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Origen:</span>
+              <select id="selQuoteSource" onchange="changeQuoteSource()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:700;background:#fff">
+                <option value="cloud" selected>🌐 Nube Web / POS</option>
+                <option value="mixnet">💾 MixNet DBF (MXENCCOT)</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Filtrar:</span>
+              <select id="selQuoteFilter" onchange="renderQuotes()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:600">
+                <option value="all">Todas</option>
+                <option value="pendiente" selected>Solo Pendientes</option>
+                <option value="convertido">Convertidas / Aprobadas</option>
+                <option value="cancelado">Canceladas</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn sm" onclick="reloadQuotesCurrentSource()">🔄 Refrescar Cotizaciones</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente / RIF</th>
+              <th>Vendedor / Origen</th>
+              <th>Renglones / Productos</th>
+              <th>Estado</th>
+              <th>Total USD</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyQuotes">
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando cotizaciones...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tabla Pedidos -->
+      <div id="viewOrders" style="display:none">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Origen:</span>
+              <select id="selOrderSource" onchange="changeOrderSource()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:700;background:#fff">
+                <option value="cloud" selected>🌐 Nube Web / POS</option>
+                <option value="mixnet">💾 MixNet DBF (MXENCPED)</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">Filtrar:</span>
+              <select id="selOrderFilter" onchange="renderOrders()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;font-weight:600">
+                <option value="all">Todos</option>
+                <option value="pendiente" selected>Solo Pendientes</option>
+                <option value="pagado">Pagados / Aprobados</option>
+                <option value="cancelado">Cancelados</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn sm" onclick="reloadOrdersCurrentSource()">🔄 Refrescar Pedidos</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Cliente / RIF</th>
+              <th>Vendedor / Origen</th>
+              <th>Renglones / Productos</th>
+              <th>Estado</th>
+              <th>Total USD</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyOrders">
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando pedidos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tabla Facturación MixNet -->
+      <div id="viewInvoices" style="display:none">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:12px;font-weight:700;color:#0369a1">🧾 Facturación Fiscal Directa de MixNet (MXENCFAC / MXRENFAC)</span>
+            <span class="badge" style="background:#e0f2fe;color:#0369a1" id="badgeInvoiceCount">0 facturas</span>
+          </div>
+          <button class="btn sm" onclick="loadMixnetInvoices()">🔄 Refrescar Facturas</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>N° Factura</th>
+              <th>Cliente / RIF</th>
+              <th>Vendedor</th>
+              <th>Renglones / Productos</th>
+              <th>Estado</th>
+              <th>Total USD</th>
+              <th>Fecha Emisión</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyInvoices">
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando facturas de MixNet...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tabla Usuarios y Credenciales MixNet -->
+      <div id="viewUsers" style="display:none">
+        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <strong style="font-size:13px">👥 Cuentas, Credenciales y Permisos Administrativos</strong>
+            <p style="font-size:11px;color:var(--muted)" id="userTableSource">Buscando tabla de usuarios en todas las unidades activas...</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn sm" style="background:#7c3aed" onclick="deepSearchUserTables()">🔍 Búsqueda Profunda de Archivos</button>
+            <button class="btn sm" onclick="loadUsers()">🔄 Refrescar</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead id="theadUsers">
+              <tr>
+                <th>Cód</th>
+                <th>Usuario</th>
+                <th>Nombre en Nómina</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
+                <th>Rol / Nivel</th>
+                <th>Permiso Anular</th>
+                <th>Permisos Activos</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyUsers">
+              <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Cargando usuarios y matriz de seguridad...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal de Edición de Permisos Granulares (200+ flags) -->
+      <div id="modalPermissions" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:999;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <div>
+              <h3 style="font-size:16px;font-weight:800;color:#0f172a" id="permModalTitle">Gestión de Permisos — Usuario</h3>
+              <p style="font-size:12px;color:var(--muted);margin-top:2px" id="permModalSubtitle">Configuración de flags de seguridad en MixNet ERP con Snapshot de respaldo</p>
+            </div>
+            <button onclick="closePermModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">&times;</button>
+          </div>
+          
+          <div style="padding:16px 20px;overflow-y:auto;flex:1" id="permModalBody">
+            <!-- Dynamic checkboxes grouped by module -->
+          </div>
+
+          <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <span style="font-size:11px;color:var(--muted)">🛡 Modificación protegida con Snapshot preventivo automático</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn sm" style="background:#64748b" onclick="closePermModal()">Cancelar</button>
+              <button class="btn sm green" id="btnSavePermissions" onclick="saveUserPermissions()">💾 Guardar Permisos en MixNet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Inspección de Renglones / Productos -->
+      <div id="modalItemsDetail" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:999;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:12px;max-width:850px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 25px -5px rgba(0,0,0,0.2);overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <div>
+              <h3 style="font-size:16px;font-weight:800;color:#0f172a" id="itemsModalTitle">📦 Renglones del Documento</h3>
+              <p style="font-size:12px;color:var(--muted);margin-top:2px" id="itemsModalSubtitle">Detalle de productos, cantidades, unidades y precios</p>
+            </div>
+            <button onclick="closeItemsModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">&times;</button>
+          </div>
+          
+          <div style="padding:16px 20px;overflow-y:auto;flex:1">
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="padding:8px">#</th>
+                  <th style="padding:8px">Código / SKU</th>
+                  <th style="padding:8px">Descripción</th>
+                  <th style="padding:8px;text-align:center">Cant</th>
+                  <th style="padding:8px;text-align:center">Unidad</th>
+                  <th style="padding:8px;text-align:right">Precio USD</th>
+                  <th style="padding:8px;text-align:right">Total USD</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyItemsDetail">
+                <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">Sin renglones disponibles.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+            <span style="font-size:13px;font-weight:800;color:#0369a1" id="itemsModalTotal">Total: $0.00</span>
+            <div style="display:flex;gap:8px" id="itemsModalActions">
+              <button class="btn sm" style="background:#64748b" onclick="closeItemsModal()">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vista Explorador & Editor DBF -->
+      <div id="viewExplorer" style="display:none">
+        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-weight:700;font-size:12px">Tabla DBF:</label>
+            <select id="selDbfFile" onchange="inspectSelectedDbf()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;font-weight:600">
+              <option value="">Seleccionar archivo...</option>
+            </select>
+            <button class="btn sm" onclick="loadDbfFilesList()">🔄 Recargar Lista</button>
+          </div>
+          <span id="explorerSummary" style="font-size:12px;color:var(--muted)">Selecciona una tabla para ver y editar registros</span>
+        </div>
+        <div style="max-height:450px;overflow:auto">
+          <table id="tblDbfInspect">
+            <thead id="theadDbf">
+              <tr><th>Selecciona una tabla DBF arriba</th></tr>
+            </thead>
+            <tbody id="tbodyDbf">
+              <tr><td style="text-align:center;padding:24px;color:var(--muted)">Ningún archivo seleccionado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Vista Backups y Rollback -->
+      <div id="viewBackups" style="display:none">
+        <div style="padding:14px;background:#f8fafc;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <strong style="font-size:13px">🛡️ Puntos de Restauración Inmediata (Snapshots Atómicos)</strong>
+            <p style="font-size:11px;color:var(--muted)">Copias byte a byte de archivos .DBF e índices .NTX antes de cada modificación.</p>
+          </div>
+          <button class="btn sm green" onclick="createManualBackup()">➕ Crear Snapshot Ahora</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID Snapshot</th>
+              <th>Operación</th>
+              <th>Archivos Respaldados</th>
+              <th>Fecha / Hora</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyBackups">
+            <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Cargando lista de snapshots...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Vista Agente Ejecutor Autónomo (OpenCode / Antigravity) -->
+      <div id="viewAgent" style="display:none;padding:16px">
+        <div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#6b21a8;display:flex;align-items:center;gap:8px">
+                <span>⚡ Agente de Código Autónomo y Ejecutor</span>
+                <span class="badge" style="background:#ede9fe;color:#6b21a8">OpenCode / Antigravity</span>
+              </div>
+              <p style="font-size:12px;color:var(--muted);margin-top:4px">
+                Comprende instrucciones en lenguaje natural y <strong>ejecuta de verdad</strong>: corre comandos de sistema (cmd/powershell), edita archivos y tablas DBF con snapshots de seguridad, sincroniza datos y resuelve fallos.
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn sm" style="background:#0284c7" onclick="runAgentQuickTool('check_health')">🩺 Diagnóstico Sistema</button>
+              <button class="btn sm" style="background:#10b981" onclick="runAgentQuickTool('list_users_detailed')">👥 Permisos Usuarios</button>
+              <button class="btn sm" style="background:#f59e0b" onclick="runAgentQuickTool('create_backup')">🛡️ Backup Ahora</button>
+              <button class="btn sm" style="background:#64748b" onclick="document.getElementById('agentConsoleOutput').innerHTML=''">🧹 Limpiar Salida</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modo de Operación: Lenguaje Natural vs Comando Directo vs Snippet Node -->
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;font-weight:700;color:var(--muted)">Modo de Ejecución:</label>
+            <select id="agentModeSelect" style="padding:6px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font-weight:600" onchange="onAgentModeChange()">
+              <option value="autonomous">🧠 Autónomo Inteligente (Entiende y Ejecuta con IA)</option>
+              <option value="cmd">💻 Terminal Shell Directa (cmd.exe / Windows 7)</option>
+              <option value="node">⚡ REPL Node.js (Inspección & Mutación DBF)</option>
+            </select>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:auto">
+              <input type="checkbox" id="agentAutoBackupChk" checked>
+              <span style="font-size:11px;color:var(--muted)">Respaldar con Snapshot antes de mutar</span>
+            </label>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <textarea id="agentInput" rows="2" placeholder="Escribe lo que necesitas que el agente ejecute (ej: 'revisa si hay usuarios con permiso de anular', 'ejecuta dir M:\comp01', o 'comprueba el espacio en disco C:')..." style="flex:1;padding:10px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-family:inherit;resize:vertical" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();runAgentInstruction();}"></textarea>
+            <button class="btn" style="background:#7c3aed;padding:0 24px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px" id="btnRunAgent" onclick="runAgentInstruction()">
+              <span>🚀 EJECUTAR</span>
+              <span style="font-size:10px;opacity:0.8;font-weight:normal">Enter</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Consola de Salida del Agente (Terminal Negra con Salida Detallada) -->
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)">Consola de Ejecución & Trazas en Vivo:</span>
+            <span id="agentStatusBadge" class="badge" style="background:#f1f5f9;color:var(--muted);font-size:10px">Listo</span>
+          </div>
+          <div class="terminal" id="agentConsoleOutput" style="height:320px;border:1px solid #334155;border-radius:8px">
+            <div class="term-line" style="color:#a855f7">⚡ [AGENTE AUTÓNOMO JJ PAPER] Motor listo. Selecciona o escribe una instrucción para ejecutar en Windows 7 y MixNet ERP.</div>
+            <div class="term-line" style="color:#64748b">Tip: Puedes pedir acciones de sistema operativo ("dir", "ipconfig", "net use"), inspección DBF o control de usuarios.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Consola Interactiva de Comandos y Asistente IA -->
+    <div class="card" style="margin-top:16px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <strong style="font-size:13px;color:var(--text)">💻 Comandos Rápidos & Asistente IA:</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button class="btn sm" onclick="runQuickCmd('list_users')">👥 Listar Usuarios</button>
+          <button class="btn sm" onclick="createManualBackup()">🛡️ Snapshot Completo</button>
+          <button class="btn sm" onclick="scanNetworkDrives()">🔍 Escanear Red</button>
+          <button class="btn sm" style="background:#64748b" onclick="document.getElementById('termLogs').innerHTML=''">🧹 Limpiar Terminal</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="bridgeCmdInput" placeholder="Escribe un comando o pregunta a la IA (ej: ¿quiénes pueden anular?)..." style="flex:1;padding:8px 12px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg)" onkeydown="if(event.key==='Enter') executeBridgeCommand()">
+        <button class="btn sm" onclick="executeBridgeCommand()">Enviar</button>
+        <button class="btn sm" style="background:#7c3aed" onclick="executeBridgeCommand(true)" title="Consultar con Google Gemini AI">✨ IA</button>
+      </div>
+    </div>
+
+    <div class="terminal" id="termLogs">
+      <div class="term-line">📌 [SISTEMA] Puente iniciado. Conectando a MixNet y Supabase...</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    let pendingQuotes = [];
+    let pendingOrders = [];
+    let mixnetQuotes = [];
+    let mixnetOrders = [];
+    let mixnetInvoices = [];
+    let quoteSource = 'cloud';
+    let orderSource = 'cloud';
+    let mixnetUsers = [];
+    let currentTab = 'quotes';
+
+    function log(msg) {
+      const term = document.getElementById('termLogs');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'term-line';
+      div.textContent = `[${time}] ${msg}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    async function runQuickCmd(cmd) {
+      if (cmd === 'list_users') {
+        setTab('users');
+        loadUsers();
+      }
+    }
+
+    async function executeBridgeCommand(forceAi = false) {
+      const input = document.getElementById('bridgeCmdInput');
+      const val = (input && input.value ? input.value : '').trim();
+      if (!val) return;
+      input.value = '';
+
+      log(`> ${val}`);
+
+      const lower = val.toLowerCase();
+      if (lower.includes('usuario') || lower.includes('users') || lower.includes('quien') || lower.includes('permiso')) {
+        setTab('users');
+        await loadUsers();
+        if (mixnetUsers.length > 0) {
+          log(`✔ Se cargaron ${mixnetUsers.length} cuentas de usuario oficiales desde MixNet.`);
+          const anula = mixnetUsers.filter(u => u.can_void || u.is_admin);
+          if (anula.length > 0) {
+            log(`🔑 Usuarios autorizados para anular: ${anula.map(u => u.name + ' (' + u.code + ')').join(', ')}`);
+          }
+        }
+        return;
+      }
+
+      if (lower.includes('backup') || lower.includes('snapshot')) {
+        setTab('backups');
+        await createManualBackup();
+        return;
+      }
+
+      if (lower.includes('scan') || lower.includes('escanear') || lower.includes('red') || lower.includes('unidad')) {
+        await scanNetworkDrives();
+        return;
+      }
+
+      // Si no es un atajo directo, delegar al Agente Autónomo Ejecutor
+      setTab('agent');
+      const agentInput = document.getElementById('agentInput');
+      if (agentInput) agentInput.value = val;
+      await runAgentInstruction();
+    }
+
+    // --- AGENTE DE CÓDIGO AUTÓNOMO Y EJECUTOR (OpenCode / Antigravity) ---
+    function agentLog(msg, color = '#38bdf8') {
+      const term = document.getElementById('agentConsoleOutput');
+      if (!term) return;
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'term-line';
+      div.style.color = color;
+      div.textContent = `[${time}] ${msg}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function setAgentStatus(status, color = '#a855f7', bg = '#ede9fe') {
+      const b = document.getElementById('agentStatusBadge');
+      if (b) {
+        b.textContent = status;
+        b.style.color = color;
+        b.style.background = bg;
+      }
+    }
+
+    function onAgentModeChange() {
+      const mode = document.getElementById('agentModeSelect').value;
+      const inp = document.getElementById('agentInput');
+      if (!inp) return;
+      if (mode === 'cmd') {
+        inp.placeholder = 'Comando shell directo para Windows 7 (ej: dir M:\\comp01, ping 192.168.1.1, ipconfig)...';
+      } else if (mode === 'node') {
+        inp.placeholder = 'Código Node.js (ej: const list = fs.readdirSync(config.mixnet_dir); console.log("Archivos:", list.length);)...';
+      } else {
+        inp.placeholder = 'Escribe lo que necesitas que el agente ejecute en lenguaje natural (ej: "revisa permisos de usuarios", "crea un backup y busca VICTAINV")...';
+      }
+    }
+
+    async function runAgentQuickTool(tool) {
+      setTab('agent');
+      if (tool === 'check_health') {
+        agentLog('⚡ [DIAGNÓSTICO] Verificando salud del sistema operativo, puente y red...', '#38bdf8');
+        setAgentStatus('Diagnóstico en curso...', '#0284c7', '#e0f2fe');
+        try {
+          const res = await fetch('/api/agent/tools');
+          const data = await res.json();
+          agentLog(`✔ Servidor Activo: PID ${data.system.pid} en Windows (${data.system.platform}), Node ${data.system.node_version}`, '#10b981');
+          agentLog(`✔ Directorio de trabajo: ${data.system.cwd}`, '#10b981');
+          agentLog(`✔ Carpeta ERP MixNet: ${data.system.mixnet_dir}`, '#10b981');
+          agentLog(`✔ Herramientas disponibles: ${data.available_tools.map(t => t.name).join(', ')}`, '#a855f7');
+          setAgentStatus('Saludable', '#10b981', '#dcfce7');
+        } catch (e) {
+          agentLog(`❌ Error consultando salud: ${e.message}`, '#ef4444');
+          setAgentStatus('Error', '#ef4444', '#fee2e2');
+        }
+      } else if (tool === 'list_users_detailed') {
+        agentLog('⚡ [USUARIOS] Consultando nómina y permisos de usuarios de MixNet...', '#38bdf8');
+        await loadUsers();
+        if (mixnetUsers.length > 0) {
+          agentLog(`✔ ${mixnetUsers.length} usuarios oficiales activos en MixNet:`, '#10b981');
+          mixnetUsers.forEach(u => {
+            const activeCount = u.permissions ? Object.values(u.permissions).filter(Boolean).length : 0;
+            const icon = u.is_admin ? '👑 [ADMINISTRADOR]' : '👤 [VENDEDOR/OPERADOR]';
+            const permDetail = u.can_void ? 'Autorizado para anular ✔' : 'Anulación denegada ✖';
+            agentLog(`   ${icon} Cód ${u.code}: "${u.username}" (${u.name}) | ${activeCount} permisos activos | ${permDetail}`, u.is_admin ? '#f59e0b' : '#94a3b8');
+          });
+        } else {
+          agentLog('⚠ No se pudieron leer usuarios de MixNet.', '#f59e0b');
+        }
+      } else if (tool === 'create_backup') {
+        agentLog('⚡ [SEGURIDAD] Generando snapshot atómico inmediato de MixNet...', '#38bdf8');
+        await createManualBackup();
+      }
+    }
+
+    async function runAgentInstruction() {
+      const inp = document.getElementById('agentInput');
+      const instruction = (inp && inp.value ? inp.value : '').trim();
+      if (!instruction) return;
+      const btn = document.getElementById('btnRunAgent');
+      const modeEl = document.getElementById('agentModeSelect');
+      const mode = modeEl ? modeEl.value : 'autonomous';
+      const autoBackupEl = document.getElementById('agentAutoBackupChk');
+      const autoBackup = autoBackupEl ? autoBackupEl.checked !== false : true;
+
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      setAgentStatus('Ejecutando...', '#f59e0b', '#fef3c7');
+
+      agentLog(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, '#64748b');
+      agentLog(`▶ [ORDEN RECIBIDA (${mode.toUpperCase()})]: ${instruction}`, '#f8fafc');
+
+      try {
+        // MODO 1: Shell cmd.exe directo
+        if (mode === 'cmd') {
+          agentLog(`⚙ Ejecutando comando shell en Windows 7: "${instruction}"...`, '#38bdf8');
+          const res = await fetch('/api/agent/run-command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: instruction })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Salida de consola (código ${data.exit_code}, ${data.duration_ms}ms):`, '#10b981');
+            if (data.stdout) {
+              data.stdout.split('\n').forEach(line => {
+                if (line.trim()) agentLog(`  ${line}`, '#e2e8f0');
+              });
+            } else {
+              agentLog(`  (Comando ejecutado sin salida en stdout)`, '#94a3b8');
+            }
+            setAgentStatus('Comando Exitoso', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ Fallo en comando (código ${data.exit_code}):`, '#ef4444');
+            if (data.stderr) agentLog(`  ${data.stderr}`, '#ef4444');
+            setAgentStatus('Fallo en Comando', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // MODO 2: REPL Node.js Directo
+        if (mode === 'node') {
+          agentLog(`⚡ Evaluando script Node.js en vivo...`, '#38bdf8');
+          const res = await fetch('/api/agent/eval-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: instruction, auto_backup: autoBackup })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Script completado con éxito (${data.duration_ms}ms):`, '#10b981');
+            if (data.snapshot_id) agentLog(`🛡 Snapshot preventivo: ${data.snapshot_id}`, '#0284c7');
+            if (data.logs && data.logs.length) {
+              data.logs.forEach(l => agentLog(`  [LOG] ${l}`, '#e2e8f0'));
+            }
+            if (data.result !== null && data.result !== undefined) {
+              agentLog(`  [RESULTADO]: ${typeof data.result === 'object' ? JSON.stringify(data.result, null, 2) : String(data.result)}`, '#38bdf8');
+            }
+            setAgentStatus('Script Completado', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ Error de ejecución en script: ${data.error}`, '#ef4444');
+            if (data.stack) agentLog(`  ${data.stack.split('\n')[1] || ''}`, '#ef4444');
+            setAgentStatus('Error en Script', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // MODO 3: Autónomo Inteligente (Interpretación y Ejecución de Herramientas)
+        agentLog(`🧠 Analizando requerimiento y planificando herramientas de ejecución...`, '#a855f7');
+        const lower = instruction.toLowerCase();
+
+        // 3.1 Petición de Usuarios / Permisos / Quién anula
+        if (lower.includes('usuario') || lower.includes('quien') || lower.includes('quién') || lower.includes('anular') || lower.includes('permiso')) {
+          agentLog(`🔧 [HERRAMIENTA]: Consultando matriz de seguridad MXSECURI.CFG y nómina de usuarios...`, '#38bdf8');
+          await loadUsers();
+          if (mixnetUsers.length > 0) {
+            const anulan = mixnetUsers.filter(u => u.can_void || u.is_admin);
+            agentLog(`✔ ACCIÓN COMPLETADA: Se encontraron ${mixnetUsers.length} cuentas de usuario mapeadas en el sistema.`, '#10b981');
+            if (anulan.length > 0) {
+              agentLog(`🔑 USUARIOS CON PERMISOS DE ADMINISTRADOR / ANULACIÓN:`, '#f59e0b');
+              anulan.forEach(a => {
+                agentLog(`   ▶ Usuario: "${a.username}" (${a.name}) | Cód: ${a.code} | Rol: ${a.role} | Anulación: AUTORIZADO ✔`, '#fef08a');
+              });
+            } else {
+              agentLog(`ℹ Ningún usuario regular tiene permiso de anulación activo.`, '#94a3b8');
+            }
+            const regulares = mixnetUsers.filter(u => !u.can_void);
+            if (regulares.length > 0) {
+              agentLog(`👤 USUARIOS REGULARES (SIN PERMISO DE ANULAR):`, '#94a3b8');
+              regulares.forEach(r => {
+                agentLog(`   ▶ "${r.username}" (${r.name}) | Cód: ${r.code} | Anulación: DENEGADO ✖`, '#e2e8f0');
+              });
+            }
+            setAgentStatus('Usuarios Consultados', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`⚠ No se pudieron cargar usuarios de MixNet. Verifica la conexión a M:\\comp01.`, '#ef4444');
+            setAgentStatus('Error Lectura', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // 3.1b Reindexación de MixNet solicitada por lenguaje natural
+        if (lower.includes('reindex') || lower.includes('indice') || lower.includes('índice') || lower.includes('ntx')) {
+          agentLog(`🔧 [HERRAMIENTA]: Disparando reindexación y calibración de árboles NTX con snapshot...`, '#38bdf8');
+          await triggerReindexAll();
+          setAgentStatus('Reindexado', '#10b981', '#dcfce7');
+          return;
+        }
+
+        // 3.2 Modificación de Permiso / Clave de usuario por instrucción
+        if ((lower.includes('cambia') || lower.includes('modifica') || lower.includes('pon') || lower.includes('asignar') || lower.includes('quitar') || lower.includes('dar')) && (lower.includes('clave') || lower.includes('nivel') || lower.includes('permiso') || lower.includes('anular'))) {
+          agentLog(`🔧 [HERRAMIENTA]: Detectada intención de mutación de permisos. Consultando lista oficial de usuarios...`, '#38bdf8');
+          await loadUsers();
+          const target = mixnetUsers.find(u => lower.includes(String(u.code || '').toLowerCase()) || lower.includes(String(u.name || '').toLowerCase()) || lower.includes(String(u.username || '').toLowerCase()));
+          if (target) {
+            const updatedPerms = Object.assign({}, target.permissions || {});
+            const esActivar = lower.includes('dar') || lower.includes('pon') || lower.includes('activa') || lower.includes('asignar') || lower.includes('autorizar');
+            
+            if (lower.includes('anular') || lower.includes('anulacion') || lower.includes('anulación')) {
+              updatedPerms['FAC_ANULAR'] = esActivar;
+              updatedPerms['COT_ANULAR'] = esActivar;
+              updatedPerms['PED_ANULAR'] = esActivar;
+            }
+            if (lower.includes('precio') || lower.includes('precios')) {
+              updatedPerms['FAC_MODIF_PRECIO'] = esActivar;
+              updatedPerms['INV_CAMBIO_PRECIOS'] = esActivar;
+            }
+            if (lower.includes('admin') || lower.includes('administrador')) {
+              currentCatalog.forEach(p => { updatedPerms[p.id] = esActivar; });
+            }
+
+            agentLog(`🛡 Creando Snapshot atómico preventivo y guardando permisos para "${target.name}" (${target.code})...`, '#f59e0b');
+            const res = await fetch('/api/users/save-permissions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_code: target.code,
+                permissions: updatedPerms
+              })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              agentLog(`✔ ¡ÉXITO! Permisos de "${target.name}" actualizados (${data.active_permissions_count} permisos activos).`, '#10b981');
+              agentLog(`🛡 Snapshot de rollback creado: ${data.snapshot_id}`, '#0284c7');
+              loadUsers();
+              loadBackups();
+              setAgentStatus('Permisos Modificados', '#10b981', '#dcfce7');
+            } else {
+              agentLog(`❌ Error actualizando usuario: ${data.error}`, '#ef4444');
+              setAgentStatus('Error', '#ef4444', '#fee2e2');
+            }
+          } else {
+            agentLog(`⚠ No se pudo identificar al usuario en la orden. Usuarios activos en MixNet: ${mixnetUsers.map(u => u.name + ' (' + u.code + ')').join(', ')}`, '#f59e0b');
+            setAgentStatus('Esperando Usuario', '#f59e0b', '#fef3c7');
+          }
+          return;
+        }
+
+        // 3.3 Snapshot / Backup
+        if (lower.includes('backup') || lower.includes('snapshot') || lower.includes('respaldo')) {
+          agentLog(`🔧 [HERRAMIENTA]: Disparando backup atómico completo de MixNet...`, '#38bdf8');
+          await createManualBackup();
+          agentLog(`✔ Snapshot creado y verificado.`, '#10b981');
+          setAgentStatus('Backup Creado', '#10b981', '#dcfce7');
+          return;
+        }
+
+        // 3.4 Búsqueda de archivos / Escaneo Profundo de Unidades de Red y Carpetas
+        if (lower.includes('busca') || lower.includes('donde') || lower.includes('dónde') || lower.includes('escanear') || lower.includes('red') || lower.includes('archivo') || lower.includes('.dbf')) {
+          // Extraer nombre de archivo si el usuario preguntó por uno en específico
+          const fileMatch = instruction.match(/([a-zA-Z0-9_\-\*]+\.(?:dbf|ntx|txt|ini|csv|dat|bak))/i) || instruction.match(/(?:archivo|tabla|donde esta|dónde está)\s+([a-zA-Z0-9_\-]+)/i);
+          const targetName = fileMatch ? (fileMatch[1].includes('.') ? fileMatch[1] : fileMatch[1] + '.DBF') : null;
+
+          if (targetName) {
+            agentLog(`🔧 [HERRAMIENTA]: Buscando "${targetName}" en todas las unidades del sistema (C:, M:, P:, D:, etc.)...`, '#38bdf8');
+            const res = await fetch('/api/files/locate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pattern: targetName, max_depth: 4 })
+            });
+            const data = await res.json();
+            if (data.ok && data.matches.length > 0) {
+              agentLog(`✔ ¡Se encontraron ${data.matches.length} ubicaciones para "${targetName}"!`, '#10b981');
+              data.matches.forEach((m, idx) => {
+                const infoStr = m.records_count !== undefined ? `${m.records_count} registros` : `${m.size_bytes} bytes`;
+                agentLog(`   ${idx + 1}. [${m.name}] en "${m.directory}" (${infoStr})`, '#fef08a');
+                if (m.fields && m.fields.length) {
+                  agentLog(`      Campos: ${m.fields.map(f => f.name).join(', ')}`, '#94a3b8');
+                }
+              });
+              setAgentStatus('Archivo Localizado', '#10b981', '#dcfce7');
+              return;
+            } else {
+              agentLog(`⚠ No se encontró "${targetName}" en las unidades escaneadas. Probando escaneo general de carpetas ERP...`, '#f59e0b');
+            }
+          }
+
+          agentLog(`🔧 [HERRAMIENTA]: Escaneando todas las unidades de red y discos locales...`, '#38bdf8');
+          const res = await fetch('/api/scan-network', { method: 'POST' });
+          const data = await res.json();
+          if (data.ok && data.found_count > 0) {
+            agentLog(`✔ Carpetas MixNet encontradas: ${data.directories.join(', ')}`, '#10b981');
+            agentLog(`✔ Carpeta activa seleccionada: ${data.selected}`, '#10b981');
+            loadStatus();
+            loadUsers();
+            loadDbfFilesList();
+            setAgentStatus('Red Escaneada', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`⚠ No se localizaron carpetas con DBFs en las unidades mapeadas.`, '#f59e0b');
+            setAgentStatus('No Encontrado', '#f59e0b', '#fef3c7');
+          }
+          return;
+        }
+
+        // 3.5 Si es un comando típico de consola de Windows (dir, ipconfig, ping, net use, tasklist...)
+        const commonCmds = ['dir', 'ipconfig', 'ping', 'net', 'tasklist', 'taskkill', 'hostname', 'whoami', 'type', 'echo', 'mkdir', 'tree'];
+        const firstWord = instruction.split(' ')[0].toLowerCase();
+        if (commonCmds.includes(firstWord) || instruction.includes('\\') || instruction.includes('/')) {
+          agentLog(`🔧 [HERRAMIENTA]: Ejecutando como comando de consola en Windows 7...`, '#38bdf8');
+          const res = await fetch('/api/agent/run-command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: instruction })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            agentLog(`✔ Salida (${data.duration_ms}ms):`, '#10b981');
+            (data.stdout || '').split('\n').forEach(l => {
+              if (l.trim()) agentLog(`  ${l}`, '#e2e8f0');
+            });
+            setAgentStatus('Comando Exitoso', '#10b981', '#dcfce7');
+          } else {
+            agentLog(`❌ Error en comando: ${data.stderr || data.error}`, '#ef4444');
+            setAgentStatus('Fallo', '#ef4444', '#fee2e2');
+          }
+          return;
+        }
+
+        // 3.6 Si no encaja en herramientas directas, consultar con Gemini AI nativo del Puente
+        agentLog(`🤖 Razonando instrucción con Google Gemini AI en el puente...`, '#a855f7');
+        try {
+          const aiRes = await fetch('/api/agent/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instruction })
+          });
+          const aiData = await aiRes.json();
+          if (aiData.ok && aiData.reply) {
+            agentLog(`🤖 IA: ${aiData.reply}`, '#c084fc');
+            setAgentStatus('IA Respondió', '#a855f7', '#ede9fe');
+            return;
+          }
+        } catch (aiErr) {
+          agentLog(`⚠ Fallo en respuesta de IA: ${aiErr.message}. Probando ejecución shell...`, '#f59e0b');
+        }
+
+        // Fallback a ejecución de shell por defecto si la IA no está disponible
+        agentLog(`⚡ Ejecutando requerimiento en cmd.exe...`, '#38bdf8');
+        const res = await fetch('/api/agent/run-command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: instruction })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          agentLog(`✔ Salida:`, '#10b981');
+          (data.stdout || '(Completado)').split('\n').forEach(l => { if (l.trim()) agentLog(`  ${l}`, '#e2e8f0'); });
+          setAgentStatus('Ejecutado', '#10b981', '#dcfce7');
+        } else {
+          agentLog(`❌ ${data.stderr || data.error}`, '#ef4444');
+          setAgentStatus('Fallo', '#ef4444', '#fee2e2');
+        }
+      } catch (err) {
+        agentLog(`❌ Excepción en ejecución del agente: ${err.message}`, '#ef4444');
+        setAgentStatus('Excepción', '#ef4444', '#fee2e2');
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        inp.value = '';
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const b = document.getElementById('statusBadge');
+        if (data.connected) {
+          b.className = 'badge green';
+          b.textContent = '🟢 MixNet Conectado';
+          document.getElementById('mixConnSub').textContent = 'Conexión activa a base de datos DBF (' + (data.articulos_count || '0') + ' artículos)';
+        } else {
+          b.className = 'badge red';
+          b.textContent = '🔴 MixNet Desconectado';
+          document.getElementById('mixConnSub').textContent = 'No se encontró ' + data.mixnet_dir;
+        }
+        const inp = document.getElementById('mixDirInput');
+        if (inp && document.activeElement !== inp) inp.value = data.mixnet_dir;
+        document.getElementById('nextCotVal').textContent = data.cur_cotizacion || '--------';
+        document.getElementById('nextPedVal').textContent = data.cur_pedido || '--------';
+      } catch (e) {
+        log('Error consultando estado: ' + e.message);
+      }
+    }
+
+    let currentCatalog = [];
+    let selectedUserForEdit = null;
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        mixnetUsers = data.users || [];
+        currentCatalog = data.catalog || [];
+        document.getElementById('countUsers').textContent = mixnetUsers.length;
+        const tbody = document.getElementById('tbodyUsers');
+        const srcLabel = document.getElementById('userTableSource');
+
+        if (srcLabel) {
+          const extCount = data.ext_files_found || 0;
+          srcLabel.innerHTML = `Orígenes activos: Seguridad <strong style="color:#0369a1">${escapeHtml(data.source_securi ? data.source_securi.split('\\').pop() : 'MXSECURI.CFG')}</strong> | Nómina <strong style="color:#10b981">${escapeHtml(data.source_vendedores ? data.source_vendedores.split('\\').pop() : 'MXCTAVDD.DBF')}</strong> (${mixnetUsers.length} cuentas mapeadas | ${extCount} archivos MXUSER*.EXT)`;
+        }
+
+        if (!data.ok || mixnetUsers.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">${data.error || 'No hay usuarios detectados en el sistema'}</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = mixnetUsers.map((u, idx) => {
+          const userCode = u.code || u.username || '-';
+          const userName = u.name || '-';
+          const role = u.role || 'Operador';
+          const esAdmin = Boolean(u.is_admin);
+          const activePermsCount = u.permissions ? Object.values(u.permissions).filter(Boolean).length : 0;
+          const isFloor = Boolean(u.is_floor);
+          const isActive = u.is_active !== false;
+          
+          return `
+            <tr style="${esAdmin ? 'background:#fefce8' : ''}">
+              <td><strong style="font-family:monospace;color:#0369a1">${escapeHtml(userCode)}</strong></td>
+              <td>
+                <span class="badge" style="background:${esAdmin ? '#fef08a;color:#854d0e' : '#e0f2fe;color:#0369a1'}">
+                  ${escapeHtml(u.username)} ${esAdmin ? '👑' : ''}
+                </span>
+                ${u.ext_file ? `<div style="font-size:10px;color:#64748b;margin-top:2px;font-family:monospace">${escapeHtml(u.ext_file)}</div>` : ''}
+              </td>
+              <td><strong>${escapeHtml(userName)}</strong></td>
+              <td>
+                <span class="badge" style="${isFloor ? 'background:#dcfce7;color:#15803d' : 'background:#ede9fe;color:#6b21a8'}">
+                  ${isFloor ? '🏢 Piso / Tienda' : '💼 Calle / Mayor'}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${isActive ? 'green' : 'red'}" style="font-size:11px">
+                  ${isActive ? '🟢 Activo' : '🔴 Inactivo'}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${esAdmin ? 'green' : ''}" style="${!esAdmin ? 'background:#f1f5f9;color:#475569' : ''}">
+                  ${escapeHtml(role)}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${u.can_void ? 'green' : 'red'}" style="font-size:11px">
+                  ${u.can_void ? '✔ SÍ (Autorizado)' : '✖ DENEGADO'}
+                </span>
+              </td>
+              <td>
+                <span style="font-size:12px;font-weight:700;color:${activePermsCount > 10 ? '#10b981' : '#f59e0b'}">
+                  ${activePermsCount} / ${currentCatalog.length || 30} flags
+                  ${u.native_flags_count !== null && u.native_flags_count !== undefined ? `<span style="font-size:10px;color:#64748b;font-weight:normal;display:block">(${u.native_flags_count} en EXT)</span>` : ''}
+                </span>
+              </td>
+              <td>
+                <button class="btn sm" style="background:#7c3aed" onclick="openUserPermissionsModal(${idx})">
+                  🛡️ Configurar Permisos
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('tbodyUsers').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--danger)">Error cargando usuarios: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function openUserPermissionsModal(userIndex) {
+      selectedUserForEdit = mixnetUsers[userIndex];
+      if (!selectedUserForEdit) return;
+
+      document.getElementById('permModalTitle').textContent = `🛡️ Permisos para: ${selectedUserForEdit.name} (${selectedUserForEdit.code})`;
+      document.getElementById('permModalSubtitle').textContent = `Rol: ${selectedUserForEdit.role} | Cuenta: ${selectedUserForEdit.username}`;
+
+      const modalBody = document.getElementById('permModalBody');
+      const userPerms = selectedUserForEdit.permissions || {};
+
+      // Agrupar por módulo
+      const groups = {};
+      currentCatalog.forEach(p => {
+        if (!groups[p.mod]) groups[p.mod] = [];
+        groups[p.mod].push(p);
+      });
+
+      let html = '';
+      for (const [modName, items] of Object.entries(groups)) {
+        html += `
+          <div style="margin-bottom:16px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px">
+            <div style="font-size:13px;font-weight:800;color:#0369a1;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+              <span>📁 Módulo: ${escapeHtml(modName)}</span>
+              <span style="font-size:11px;color:var(--muted)">${items.length} opciones</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:8px">
+        `;
+
+        items.forEach(item => {
+          const isChecked = userPerms[item.id] !== undefined ? userPerms[item.id] : item.def;
+          const isCrit = item.critical;
+          html += `
+            <label style="display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-radius:6px;background:#fff;border:1px solid ${isCrit ? '#fef08a' : '#e2e8f0'};cursor:pointer">
+              <input type="checkbox" id="chk_perm_${item.id}" ${isChecked ? 'checked' : ''} style="margin-top:2px">
+              <div>
+                <div style="font-size:12px;font-weight:700;color:${isCrit ? '#b45309' : '#0f172a'}">
+                  ${escapeHtml(item.label)} ${isCrit ? '⚠️' : ''}
+                </div>
+                <div style="font-size:10px;font-family:monospace;color:var(--muted)">Flag ID: ${escapeHtml(item.id)}</div>
+              </div>
+            </label>
+          `;
+        });
+
+        html += `</div></div>`;
+      }
+
+      modalBody.innerHTML = html;
+      document.getElementById('modalPermissions').style.display = 'flex';
+    }
+
+    function closePermModal() {
+      document.getElementById('modalPermissions').style.display = 'none';
+      selectedUserForEdit = null;
+    }
+
+    async function saveUserPermissions() {
+      if (!selectedUserForEdit) return;
+      const btn = document.getElementById('btnSavePermissions');
+      btn.disabled = true;
+      btn.textContent = '⏳ Guardando...';
+
+      const updatedPermissions = {};
+      currentCatalog.forEach(p => {
+        const chk = document.getElementById(`chk_perm_${p.id}`);
+        if (chk) {
+          updatedPermissions[p.id] = chk.checked;
+        }
+      });
+
+      log(`Guardando matriz de permisos para usuario "${selectedUserForEdit.code}" (${selectedUserForEdit.name})...`);
+
+      try {
+        const res = await fetch('/api/users/save-permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_code: selectedUserForEdit.code,
+            permissions: updatedPermissions
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Permisos guardados! Snapshot creado: ${data.snapshot_id} (${data.active_permissions_count} flags activos).`);
+          alert(`✔ Permisos guardados con éxito en MixNet ERP.\nSnapshot de seguridad: ${data.snapshot_id}\nFlags activos: ${data.active_permissions_count}`);
+          closePermModal();
+          loadUsers();
+          loadBackups();
+        } else {
+          log('❌ Error: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción guardando permisos: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Guardar Permisos en MixNet';
+      }
+    }
+
+    async function triggerReindexAll() {
+      if (!confirm('¿Deseas verificar y calibrar los árboles de índices .NTX de MixNet?\n\nEsta operación crea un Snapshot de respaldo preventivo automático y sincroniza los punteros B-Tree.')) return;
+      const btn = document.getElementById('btnReindex');
+      btn.disabled = true;
+      btn.textContent = '⏳ Reindexando...';
+      log('🗂️ Iniciando reindexación y calibración de árboles NTX en MixNet...');
+
+      try {
+        const res = await fetch('/api/reindex', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Reindexación completada! Índices verificados: ${data.total_indices} | Snapshot: ${data.snapshot_id}`);
+          alert(`✔ Reindexación NTX completada con éxito.\nSnapshot: ${data.snapshot_id}\nÍndices procesados: ${data.total_indices}`);
+          loadStatus();
+          loadBackups();
+        } else {
+          log('❌ Error reindexando: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Error de red: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🗂️ Reindexar NTX MixNet';
+      }
+    }
+
+    async function saveMixDir() {
+      const dir = document.getElementById('mixDirInput').value.trim();
+      if (!dir) return;
+      log('Actualizando ruta de MixNet a: ' + dir + '...');
+      try {
+        const res = await fetch('/api/set-dir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mixnet_dir: dir })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(data.connected ? '✔ Ruta válida y conectada a MixNet.' : '⚠ Ruta guardada pero no se encontró MXCTAINV.DBF allí.');
+          loadStatus();
+          loadUsers();
+        } else {
+          log('❌ Error: ' + (data.error || 'No se pudo guardar'));
+        }
+      } catch (e) {
+        log('Error enviando ruta: ' + e.message);
+      }
+    }
+
+    async function scanNetworkDrives() {
+      const btn = document.getElementById('btnScanNet');
+      btn.disabled = true;
+      btn.textContent = '⏳ Escaneando...';
+      log('Iniciando escaneo universal de unidades de red y discos locales en busca de MixNet...');
+      try {
+        const res = await fetch('/api/scan-network', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok && data.found_count > 0) {
+          log(`✔ ¡MixNet detectado con éxito! Carpetas encontradas: ${data.directories.join(', ')}`);
+          log(`✔ Directorio activo configurado a: ${data.selected}`);
+          document.getElementById('mixDirInput').value = data.selected;
+          loadStatus();
+          loadUsers();
+          alert(`✔ MixNet detectado automáticamente en: ${data.selected}`);
+        } else {
+          log('⚠ No se encontraron bases de datos de MixNet en las unidades disponibles. Intenta montar la unidad de red.');
+          alert('No se detectaron carpetas con archivos DBF de MixNet en las unidades activas.');
+        }
+      } catch (e) {
+        log('❌ Error durante el escaneo: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Auto-Detectar';
+      }
+    }
+
+    async function loadPending() {
+      try {
+        const res = await fetch('/api/pending');
+        const data = await res.json();
+        pendingQuotes = data.quotes || [];
+        pendingOrders = data.orders || [];
+
+        document.getElementById('countQuotes').textContent = pendingQuotes.length;
+        document.getElementById('countOrders').textContent = pendingOrders.length;
+
+        renderQuotes();
+        renderOrders();
+      } catch (e) {
+        log('Error cargando pendientes: ' + e.message);
+      }
+    }
+
+    async function loadMixnetQuotes() {
+      try {
+        const res = await fetch('/api/mixnet/documents?type=quotes');
+        const data = await res.json();
+        if (data.ok) {
+          mixnetQuotes = data.quotes || [];
+          renderQuotes();
+        }
+      } catch (e) {
+        log('Error cargando cotizaciones MixNet: ' + e.message);
+      }
+    }
+
+    async function loadMixnetOrders() {
+      try {
+        const res = await fetch('/api/mixnet/documents?type=orders');
+        const data = await res.json();
+        if (data.ok) {
+          mixnetOrders = data.orders || [];
+          renderOrders();
+        }
+      } catch (e) {
+        log('Error cargando pedidos MixNet: ' + e.message);
+      }
+    }
+
+    async function loadMixnetInvoices() {
+      const tb = document.getElementById('tbodyInvoices');
+      tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Leyendo facturas fiscales (MXENCFAC.DBF / MXRENFAC.DBF)...</td></tr>';
+      try {
+        const res = await fetch('/api/mixnet/documents?type=invoices');
+        const data = await res.json();
+        if (data.ok) {
+          mixnetInvoices = data.invoices || [];
+          document.getElementById('countInvoices').textContent = mixnetInvoices.length;
+          const badge = document.getElementById('badgeInvoiceCount');
+          if (badge) badge.textContent = `${mixnetInvoices.length} facturas`;
+
+          if (!mixnetInvoices.length) {
+            tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay facturas registradas en MixNet o tabla vacía.</td></tr>';
+            return;
+          }
+
+          tb.innerHTML = mixnetInvoices.map((inv, idx) => {
+            const items = inv.items || [];
+            return `
+              <tr>
+                <td><strong style="font-family:monospace;color:#0369a1">${escapeHtml(inv.numfac)}</strong></td>
+                <td>
+                  <div style="font-weight:600">${escapeHtml(inv.nomcli || inv.cliente || 'Consumidor Final')}</div>
+                  <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(inv.cif || inv.cliente || '00')}</div>
+                </td>
+                <td><span class="badge" style="background:#f1f5f9;color:#475569">Ven: ${escapeHtml(inv.codven || '005')}</span></td>
+                <td>
+                  <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Factura MixNet #' + '${escapeHtml(inv.numfac)}', 'invoices', ${idx})">
+                    📦 ${items.length} productos
+                  </button>
+                </td>
+                <td><span class="badge green">Emitida / Facturada</span></td>
+                <td style="font-weight:800;color:#10b981">$${Number(inv.tot_fac || 0).toFixed(2)}</td>
+                <td style="font-size:12px;color:var(--muted)">${escapeHtml(inv.emision || '-')}</td>
+                <td><span style="font-size:11px;color:var(--muted)">MixNet ERP</span></td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger)">${data.error || 'No se pudieron leer facturas'}</td></tr>`;
+        }
+      } catch (e) {
+        tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger)">Error: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function changeQuoteSource() {
+      const selQS = document.getElementById('selQuoteSource');
+      quoteSource = selQS ? selQS.value : 'cloud';
+      if (quoteSource === 'mixnet' && (!mixnetQuotes || mixnetQuotes.length === 0)) {
+        loadMixnetQuotes();
+      } else {
+        renderQuotes();
+      }
+    }
+
+    function changeOrderSource() {
+      const selOS = document.getElementById('selOrderSource');
+      orderSource = selOS ? selOS.value : 'cloud';
+      if (orderSource === 'mixnet' && (!mixnetOrders || mixnetOrders.length === 0)) {
+        loadMixnetOrders();
+      } else {
+        renderOrders();
+      }
+    }
+
+    function reloadQuotesCurrentSource() {
+      if (quoteSource === 'mixnet') {
+        loadMixnetQuotes();
+      } else {
+        loadPending();
+      }
+    }
+
+    function reloadOrdersCurrentSource() {
+      if (orderSource === 'mixnet') {
+        loadMixnetOrders();
+      } else {
+        loadPending();
+      }
+    }
+
+    function renderQuotes() {
+      const tb = document.getElementById('tbodyQuotes');
+      const selQF = document.getElementById('selQuoteFilter');
+      const filter = selQF ? selQF.value : 'all';
+
+      if (quoteSource === 'mixnet') {
+        document.getElementById('countQuotes').textContent = mixnetQuotes.length;
+        if (!mixnetQuotes.length) {
+          tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay cotizaciones registradas en MixNet (MXENCCOT.DBF).</td></tr>`;
+          return;
+        }
+        tb.innerHTML = mixnetQuotes.map((q, idx) => {
+          const items = q.items || [];
+          return `
+            <tr>
+              <td><strong style="font-family:monospace;color:#0369a1">${escapeHtml(q.numcot)}</strong></td>
+              <td>
+                <div style="font-weight:600">${escapeHtml(q.nomcli || q.cliente || 'Sin nombre')}</div>
+                <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(q.cif || q.cliente || '00')}</div>
+              </td>
+              <td><span class="badge" style="background:#ede9fe;color:#6b21a8">MixNet (Ven ${escapeHtml(q.codven || '-')})</span></td>
+              <td>
+                <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Cotización MixNet #' + '${escapeHtml(q.numcot)}', 'mixnet_quotes', ${idx})">
+                  📦 ${items.length} productos
+                </button>
+              </td>
+              <td><span class="badge green">${escapeHtml(q.estatus || 'REG')}</span></td>
+              <td style="font-weight:700;color:#0369a1">$${Number(q.tot_cot || 0).toFixed(2)}</td>
+              <td style="font-size:12px;color:var(--muted)">${escapeHtml(q.emision || '-')}</td>
+              <td><span style="font-size:11px;color:var(--muted)">Grabado en ERP</span></td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+
+      // Origen Cloud / Web
+      let filtered = pendingQuotes;
+      if (filter !== 'all') {
+        filtered = pendingQuotes.filter(q => (q.status || '').toLowerCase() === filter);
+      }
+      document.getElementById('countQuotes').textContent = pendingQuotes.length;
+
+      if (!filtered.length) {
+        tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay cotizaciones que coincidan con el filtro "${filter}".</td></tr>`;
+        return;
+      }
+
+      tb.innerHTML = filtered.map((q, i) => {
+        const globalIdx = pendingQuotes.indexOf(q);
+        const statusColors = {
+          'pendiente': 'background:#fef08a;color:#854d0e',
+          'convertido': 'background:#dcfce7;color:#15803d',
+          'cancelado': 'background:#fee2e2;color:#b91c1c'
+        };
+        const stStyle = statusColors[q.status] || 'background:#e2e8f0;color:#334155';
+        const items = Array.isArray(q.items) ? q.items : [];
+
+        return `
+          <tr>
+            <td><strong>${escapeHtml(q.quote_number || q.id.substring(0,8))}</strong></td>
+            <td>
+              <div style="font-weight:600">${escapeHtml(q.client_name || 'Sin nombre')}</div>
+              <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(q.rif || '00')}</div>
+            </td>
+            <td>
+              <span style="font-size:11px;color:#475569">
+                ${escapeHtml(q.source || 'web')} (${escapeHtml(q.seller_name || (q.seller_id ? 'Asignado' : 'General'))})
+              </span>
+            </td>
+            <td>
+              <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Cotización Web ' + '${escapeHtml(q.quote_number || q.id.substring(0,8))}', 'cloud_quotes', ${globalIdx})">
+                📦 ${items.length} productos
+              </button>
+            </td>
+            <td>
+              <span class="badge" style="${stStyle}">${escapeHtml(q.status || 'pendiente')}</span>
+            </td>
+            <td style="font-weight:700;color:#0369a1">$${Number(q.estimated_total_usd || 0).toFixed(2)}</td>
+            <td style="font-size:12px;color:var(--muted)">${(q.created_at || '').substring(0, 10)}</td>
+            <td>
+              <button class="btn sm" onclick="injectQuote(${globalIdx})">📥 Inyectar a MixNet</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderOrders() {
+      const tb = document.getElementById('tbodyOrders');
+      const selOF = document.getElementById('selOrderFilter');
+      const filter = selOF ? selOF.value : 'all';
+
+      if (orderSource === 'mixnet') {
+        document.getElementById('countOrders').textContent = mixnetOrders.length;
+        if (!mixnetOrders.length) {
+          tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay pedidos registrados en MixNet (MXENCPED.DBF).</td></tr>`;
+          return;
+        }
+        tb.innerHTML = mixnetOrders.map((o, idx) => {
+          const items = o.items || [];
+          return `
+            <tr>
+              <td><strong style="font-family:monospace;color:#10b981">${escapeHtml(o.numped)}</strong></td>
+              <td>
+                <div style="font-weight:600">${escapeHtml(o.cliente || 'Sin nombre')}</div>
+                <div style="font-size:11px;color:var(--muted)">Comentario: ${escapeHtml(o.comen1 || '-')}</div>
+              </td>
+              <td><span class="badge" style="background:#ede9fe;color:#6b21a8">MixNet (Ven ${escapeHtml(o.codven || '-')})</span></td>
+              <td>
+                <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Pedido MixNet #' + '${escapeHtml(o.numped)}', 'mixnet_orders', ${idx})">
+                  📦 ${items.length} productos
+                </button>
+              </td>
+              <td><span class="badge green">${escapeHtml(o.estatus || 'REG')}</span></td>
+              <td style="font-weight:700;color:#10b981">$${Number(o.tot_ped || 0).toFixed(2)}</td>
+              <td style="font-size:12px;color:var(--muted)">${escapeHtml(o.emision || '-')}</td>
+              <td><span style="font-size:11px;color:var(--muted)">Grabado en ERP</span></td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+
+      // Origen Cloud / POS
+      let filtered = pendingOrders;
+      if (filter !== 'all') {
+        filtered = pendingOrders.filter(o => (o.status || '').toLowerCase() === filter);
+      }
+      document.getElementById('countOrders').textContent = pendingOrders.length;
+
+      if (!filtered.length) {
+        tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No hay pedidos que coincidan con el filtro "${filter}".</td></tr>`;
+        return;
+      }
+
+      tb.innerHTML = filtered.map((o, i) => {
+        const globalIdx = pendingOrders.indexOf(o);
+        const statusColors = {
+          'pendiente': 'background:#fef08a;color:#854d0e',
+          'pagado': 'background:#dcfce7;color:#15803d',
+          'cancelado': 'background:#fee2e2;color:#b91c1c'
+        };
+        const stStyle = statusColors[o.status] || 'background:#e2e8f0;color:#334155';
+        const items = Array.isArray(o.items) ? o.items : [];
+
+        return `
+          <tr>
+            <td><strong>${escapeHtml(o.order_number || o.id.substring(0,8))}</strong></td>
+            <td>
+              <div style="font-weight:600">${escapeHtml(o.client_name || 'Sin nombre')}</div>
+              <div style="font-size:11px;color:var(--muted)">RIF: ${escapeHtml(o.rif || '00')}</div>
+            </td>
+            <td>
+              <span style="font-size:11px;color:#475569">
+                ${escapeHtml(o.source || 'pos')} (${escapeHtml(o.seller_name || (o.seller_id ? 'Asignado' : 'General'))})
+              </span>
+            </td>
+            <td>
+              <button class="btn sm" style="background:#0284c7" onclick="openItemsModal('Pedido Web ' + '${escapeHtml(o.order_number || o.id.substring(0,8))}', 'cloud_orders', ${globalIdx})">
+                📦 ${items.length} productos
+              </button>
+            </td>
+            <td>
+              <span class="badge" style="${stStyle}">${escapeHtml(o.status || 'pendiente')}</span>
+            </td>
+            <td style="font-weight:700;color:#10b981">$${Number(o.total_usd || 0).toFixed(2)}</td>
+            <td style="font-size:12px;color:var(--muted)">${(o.created_at || '').substring(0, 10)}</td>
+            <td>
+              <button class="btn sm green" onclick="injectOrder(${globalIdx})">📥 Inyectar a MixNet</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openItemsModal(title, docType, index) {
+      const modal = document.getElementById('modalItemsDetail');
+      const titleEl = document.getElementById('itemsModalTitle');
+      const subtitleEl = document.getElementById('itemsModalSubtitle');
+      const tbody = document.getElementById('tbodyItemsDetail');
+      const totalEl = document.getElementById('itemsModalTotal');
+      const actionsEl = document.getElementById('itemsModalActions');
+
+      titleEl.textContent = title;
+
+      let items = [];
+      let totalAmount = 0;
+      let injectAction = null;
+
+      if (docType === 'cloud_quotes') {
+        const q = pendingQuotes[index];
+        items = q ? (Array.isArray(q.items) ? q.items : []) : [];
+        totalAmount = Number((q && q.estimated_total_usd) || 0);
+        subtitleEl.textContent = `Cliente: ${(q && q.client_name) || '-'} | RIF: ${(q && q.rif) || '00'} | Vendedor: ${(q && q.seller_name) || 'General'}`;
+        injectAction = () => { closeItemsModal(); injectQuote(index); };
+      } else if (docType === 'cloud_orders') {
+        const o = pendingOrders[index];
+        items = o ? (Array.isArray(o.items) ? o.items : []) : [];
+        totalAmount = Number((o && o.total_usd) || 0);
+        subtitleEl.textContent = `Cliente: ${(o && o.client_name) || '-'} | RIF: ${(o && o.rif) || '00'} | Vendedor: ${(o && o.seller_name) || 'General'}`;
+        injectAction = () => { closeItemsModal(); injectOrder(index); };
+      } else if (docType === 'mixnet_quotes') {
+        const q = mixnetQuotes[index];
+        items = (q && q.items) || [];
+        totalAmount = Number((q && q.tot_cot) || 0);
+        subtitleEl.textContent = `Cliente: ${(q && (q.nomcli || q.cliente)) || '-'} | Emisión: ${(q && q.emision) || '-'} | Vendedor: ${(q && q.codven) || '-'}`;
+      } else if (docType === 'mixnet_orders') {
+        const o = mixnetOrders[index];
+        items = (o && o.items) || [];
+        totalAmount = Number((o && o.tot_ped) || 0);
+        subtitleEl.textContent = `Cliente: ${(o && o.cliente) || '-'} | Emisión: ${(o && o.emision) || '-'} | Vendedor: ${(o && o.codven) || '-'}`;
+      } else if (docType === 'invoices') {
+        const inv = mixnetInvoices[index];
+        items = (inv && inv.items) || [];
+        totalAmount = Number((inv && inv.tot_fac) || 0);
+        subtitleEl.textContent = `Cliente: ${(inv && (inv.nomcli || inv.cliente)) || '-'} | RIF: ${(inv && inv.cif) || '00'} | Vendedor: ${(inv && inv.codven) || '-'}`;
+      }
+
+      totalEl.textContent = `Total Documento: $${totalAmount.toFixed(2)}`;
+
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Sin renglones disponibles o detalle no cargado.</td></tr>';
+      } else {
+        tbody.innerHTML = items.map((it, idx) => {
+          const sku = it.sku || it.item || it.code || it.product_id || '-';
+          const name = it.name || it.descrip || it.description || it.product_name || 'Artículo sin nombre';
+          const qty = Number(it.quantity || it.qty || it.cantidad || 0);
+          const unit = it.unit || it.unidad || 'UND';
+          const price = Number(it.price || it.unit_price || it.precio || 0);
+          const subtotal = Number(it.subtotal || it.total || it.tot_ren || (qty * price));
+
+          return `
+            <tr>
+              <td style="padding:8px;color:var(--muted)">${idx + 1}</td>
+              <td style="padding:8px"><strong style="font-family:monospace;color:#0369a1">${escapeHtml(sku)}</strong></td>
+              <td style="padding:8px"><strong>${escapeHtml(name)}</strong></td>
+              <td style="padding:8px;text-align:center;font-weight:700">${qty}</td>
+              <td style="padding:8px;text-align:center"><span class="badge" style="background:#f1f5f9;color:#475569">${escapeHtml(unit)}</span></td>
+              <td style="padding:8px;text-align:right">$${price.toFixed(2)}</td>
+              <td style="padding:8px;text-align:right;font-weight:700;color:#10b981">$${subtotal.toFixed(2)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      let actionsHtml = '<button class="btn sm" style="background:#64748b" onclick="closeItemsModal()">Cerrar</button>';
+      if (injectAction) {
+        actionsHtml += ' <button class="btn sm green" id="btnModalInjectAction">📥 Inyectar a MixNet ERP</button>';
+      }
+      actionsEl.innerHTML = actionsHtml;
+
+      if (injectAction) {
+        const actBtn = document.getElementById('btnModalInjectAction');
+        if (actBtn) actBtn.onclick = injectAction;
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function closeItemsModal() {
+      const modal = document.getElementById('modalItemsDetail');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function injectQuote(idx) {
+      const q = pendingQuotes[idx];
+      if (!q) return;
+      if (!confirm(`¿Inyectar Cotización para "${q.client_name}" a MixNet?`)) return;
+      log(`Inyectando cotización web "${q.quote_number || q.id}"...`);
+      try {
+        const res = await fetch('/api/inject-quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quote: q })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡ÉXITO! Cotización inyectada con correlativo oficial MixNet: ${data.official_number} (${data.items_count} renglones).`);
+          alert(`✔ Cotización grabada en MixNet con número oficial: ${data.official_number}`);
+          loadStatus();
+          loadPending();
+        } else {
+          log('❌ Error: ' + (data.error || 'Fallo desconocido'));
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción inyectando cotización: ' + e.message);
+      }
+    }
+
+    async function injectOrder(idx) {
+      const o = pendingOrders[idx];
+      if (!o) return;
+      if (!confirm(`¿Inyectar Pedido para "${o.client_name}" a MixNet?`)) return;
+      log(`Inyectando pedido web "${o.order_number || o.id}"...`);
+      try {
+        const res = await fetch('/api/inject-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: o })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡ÉXITO! Pedido inyectado con correlativo oficial MixNet: ${data.official_number} (${data.items_count} renglones).`);
+          alert(`✔ Pedido grabado en MixNet con número oficial: ${data.official_number}`);
+          loadStatus();
+          loadPending();
+        } else {
+          log('❌ Error: ' + (data.error || 'Fallo desconocido'));
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción inyectando pedido: ' + e.message);
+      }
+    }
+
+    async function syncStock() {
+      const btn = document.getElementById('btnSyncStock');
+      btn.disabled = true;
+      btn.textContent = '⏳ Leyendo MixNet...';
+      log('Iniciando sincronización de existencias desde MXCTAINV.DBF...');
+      try {
+        const res = await fetch('/api/sync-stock', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Existencias sincronizadas! Leídos: ${data.total_read} | Actualizados en la nube: ${data.updated}`);
+          alert(`✔ Existencias sincronizadas con éxito: ${data.updated} variantes actualizadas.`);
+        } else {
+          log('❌ Error sincronizando existencias: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Error de conexión: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Sincronizar Stock a la Nube';
+      }
+    }
+
+    let mixnetBackups = [];
+
+    async function loadBackups() {
+      try {
+        const res = await fetch('/api/backups');
+        const data = await res.json();
+        mixnetBackups = data.snapshots || [];
+        document.getElementById('countBackups').textContent = mixnetBackups.length;
+        const tbody = document.getElementById('tbodyBackups');
+
+        if (!data.ok || mixnetBackups.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No hay snapshots creados aún. Se generan automáticamente antes de cada inyección.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = mixnetBackups.map(s => {
+          const isRolled = s.status === 'rolled_back';
+          const fileCount = s.fileCount || (s.files ? s.files.length : 0);
+          const dateStr = s.createdAt ? new Date(s.createdAt).toLocaleString() : '-';
+          return `
+            <tr>
+              <td><strong style="font-family:monospace;font-size:12px">${escapeHtml(s.snapshotId)}</strong></td>
+              <td><span class="badge" style="background:#e0f2fe;color:#0369a1">${escapeHtml(s.label || 'OP')}</span></td>
+              <td>${fileCount} archivos (.DBF + .NTX)</td>
+              <td style="color:var(--muted);font-size:12px">${dateStr}</td>
+              <td>
+                <span class="badge ${isRolled ? 'red' : 'green'}">
+                  ${isRolled ? 'Restaurado (Rollback)' : 'Activo'}
+                </span>
+              </td>
+              <td>
+                <button class="btn sm" style="background:#f59e0b" onclick="triggerRollback('${escapeHtml(s.snapshotId)}')">
+                  ⏮ Rollback 1s
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('tbodyBackups').innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)">Error cargando backups: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    async function createManualBackup() {
+      log('Creando snapshot manual byte a byte de MixNet ERP...');
+      try {
+        const res = await fetch('/api/backup-now', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Snapshot creado con éxito! ID: ${data.snapshotId} (${data.fileCount} archivos protegidos).`);
+          alert(`✔ Snapshot creado exitosamente.\nID: ${data.snapshotId}`);
+          loadBackups();
+        } else {
+          log('❌ Error creando snapshot: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Error de comunicación: ' + e.message);
+      }
+    }
+
+    async function triggerRollback(snapId) {
+      if (!confirm(`¿CONFIRMAR RESTAURACIÓN (ROLLBACK)?\n\nSe sobreescribirán byte a byte todos los archivos .DBF e índices .NTX a su estado exacto en ${snapId}.`)) return;
+      log(`Ejecutando Rollback inmediato hacia el snapshot "${snapId}"...`);
+      try {
+        const res = await fetch('/api/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ snapshot_id: snapId })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡ROLLBACK EXITOSO! Se restauraron ${data.restoredCount} archivos originales.`);
+          alert(`✔ Restauración completada en 1 segundo.\n${data.restoredCount} archivos restaurados.`);
+          loadStatus();
+          loadBackups();
+          loadUsers();
+        } else {
+          log('❌ Error en rollback: ' + data.error);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log('❌ Excepción durante el rollback: ' + e.message);
+      }
+    }
+
+    let dbfFilesList = [];
+    let currentInspectedData = null;
+
+    async function loadDbfFilesList() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        dbfFilesList = data.files || [];
+        document.getElementById('countFiles').textContent = dbfFilesList.length;
+        const sel = document.getElementById('selDbfFile');
+        if (sel) {
+          sel.innerHTML = '<option value="">-- Seleccionar archivo (.DBF, .INI, .PRN, .TXT, .MEM) --</option>' +
+            dbfFilesList.map(f => {
+              const info = f.is_dbf ? `${f.records} reg | ${(f.size/1024).toFixed(0)} KB` : `${f.ext} | ${(f.size/1024).toFixed(0)} KB`;
+              return `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)} (${info})</option>`;
+            }).join('');
+        }
+      } catch (e) {
+        log('Error listando archivos: ' + e.message);
+      }
+    }
+
+    async function inspectSelectedDbf() {
+      const fileName = document.getElementById('selDbfFile').value;
+      if (!fileName) return;
+      const thead = document.getElementById('theadDbf');
+      const tbody = document.getElementById('tbodyDbf');
+      const summary = document.getElementById('explorerSummary');
+
+      summary.textContent = `Leyendo ${fileName}...`;
+      tbody.innerHTML = '<tr><td style="text-align:center;padding:20px;color:var(--muted)">Cargando contenido...</td></tr>';
+
+      try {
+        const res = await fetch('/api/file-inspect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_name: fileName })
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          summary.textContent = '❌ Error: ' + data.error;
+          tbody.innerHTML = `<tr><td style="color:var(--danger)">${escapeHtml(data.error)}</td></tr>`;
+          return;
+        }
+
+        currentInspectedData = data;
+
+        if (data.is_dbf) {
+          summary.innerHTML = `<strong>${data.file}</strong>: ${data.records_count} registros totales. Mostrando primeros ${data.rows.length}. <span style="color:#0369a1;font-weight:600">Doble clic en cualquier valor para editarlo.</span>`;
+
+          // Cabecera
+          thead.innerHTML = '<tr><th># Reg</th>' +
+            data.fields.map(f => `<th title="${f.type} (${f.len})">${escapeHtml(f.name)}</th>`).join('') +
+            '</tr>';
+
+          // Registros
+          tbody.innerHTML = data.rows.map((r, rowIdx) => {
+            const recNum = rowIdx + 1;
+            const tds = data.fields.map(f => {
+              const val = r[f.name] !== undefined ? r[f.name] : '';
+              return `<td style="cursor:pointer" ondblclick="editDbfCell('${escapeHtml(fileName)}', ${recNum}, '${escapeHtml(f.name)}', '${escapeHtml(String(val))}')" title="Doble clic para editar">${escapeHtml(String(val))}</td>`;
+            }).join('');
+            return `<tr><td><strong>#${recNum}</strong></td>${tds}</tr>`;
+          }).join('');
+        } else {
+          // Archivo de texto / configuración / memoria
+          summary.innerHTML = `<strong>${data.file}</strong>: Formato de texto / configuración (${(data.size/1024).toFixed(1)} KB)`;
+          thead.innerHTML = '<tr><th>Contenido del Archivo</th></tr>';
+          tbody.innerHTML = `<tr><td style="padding:16px"><pre style="background:#0f172a;color:#38bdf8;padding:14px;border-radius:8px;font-family:monospace;font-size:12px;overflow:auto;max-height:400px;white-space:pre-wrap">${escapeHtml(data.content)}</pre></td></tr>`;
+        }
+      } catch (e) {
+        summary.textContent = '❌ Error: ' + e.message;
+      }
+    }
+
+    async function editDbfCell(fileName, recordIdx, fieldName, currentVal) {
+      const newVal = prompt(`Editar campo [${fieldName}] en ${fileName} (Registro #${recordIdx}):\n\n(Se creará un Snapshot atómico automático antes de guardar)`, currentVal);
+      if (newVal === null || newVal === currentVal) return;
+
+      log(`Modificando registro #${recordIdx} en ${fileName}: ${fieldName} = "${newVal}"...`);
+      try {
+        const res = await fetch('/api/file-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            file_name: fileName,
+            record_index: recordIdx,
+            updates: { [fieldName]: newVal }
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          log(`✔ ¡Registro #${recordIdx} actualizado con éxito! Snapshot de seguridad: ${data.snapshot_id}`);
+          alert(`✔ Registro guardado correctamente.\nSnapshot preventivo creado: ${data.snapshot_id}`);
+          inspectSelectedDbf();
+          loadBackups();
+        } else {
+          log(`❌ Error actualizando registro: ${data.error}`);
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        log(`❌ Error: ${e.message}`);
+      }
+    }
+
+    function setTab(t) {
+      currentTab = t;
+      document.getElementById('tabQuotes').classList.toggle('on', t === 'quotes');
+      document.getElementById('tabOrders').classList.toggle('on', t === 'orders');
+      document.getElementById('tabInvoices').classList.toggle('on', t === 'invoices');
+      document.getElementById('tabUsers').classList.toggle('on', t === 'users');
+      document.getElementById('tabExplorer').classList.toggle('on', t === 'explorer');
+      document.getElementById('tabBackups').classList.toggle('on', t === 'backups');
+      document.getElementById('tabAgent').classList.toggle('on', t === 'agent');
+      document.getElementById('viewQuotes').style.display = t === 'quotes' ? 'block' : 'none';
+      document.getElementById('viewOrders').style.display = t === 'orders' ? 'block' : 'none';
+      document.getElementById('viewInvoices').style.display = t === 'invoices' ? 'block' : 'none';
+      document.getElementById('viewUsers').style.display = t === 'users' ? 'block' : 'none';
+      document.getElementById('viewExplorer').style.display = t === 'explorer' ? 'block' : 'none';
+      document.getElementById('viewBackups').style.display = t === 'backups' ? 'block' : 'none';
+      document.getElementById('viewAgent').style.display = t === 'agent' ? 'block' : 'none';
+      if (t === 'invoices') loadMixnetInvoices();
+      if (t === 'users') loadUsers();
+      if (t === 'explorer') loadDbfFilesList();
+      if (t === 'backups') loadBackups();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Inicializar
+    loadStatus();
+    loadPending();
+    loadMixnetInvoices();
+    loadUsers();
+    loadBackups();
+    loadDbfFilesList();
+    setInterval(loadStatus, 15000); // Refresca estado cada 15s
+  </script>
+</body>
+</html>

@@ -17,14 +17,27 @@
    Depende de: config.js, doc-engine.js (y wa-common.js si está).
    ====================================================== */
 
-/* ---------------- Estado del servidor ---------------- */
-// 🟢 si el último latido llegó hace menos de 90s (late cada 30s)
+/* ---------------- Estado del servidor (Dual-Node: Laptop Central o Win7 Tienda) ---------------- */
+// 🟢 si el último latido llegó hace menos de 180s (tolerante a desfase horario de PC)
 async function sendServerOnline() {
   try {
-    const { data } = await sb.from('jjp_server_control').select('heartbeat_at, heartbeat').eq('id', 1).maybeSingle();
-    const ts = data?.heartbeat_at || data?.heartbeat;
-    if (!ts) return false;
-    return (Date.now() - new Date(ts).getTime()) < 90_000;
+    const sbClient = typeof sbCore !== 'undefined' ? sbCore : sb;
+    const [{ data: srvData }, { data: win7Data }] = await Promise.all([
+      sb.from('jjp_server_control').select('heartbeat_at, heartbeat').eq('id', 1).maybeSingle(),
+      sbClient.from('jjp_settings').select('value').eq('key', 'win7_agent_status').maybeSingle().catch(() => ({ data: null }))
+    ]);
+    const tsLaptop = srvData?.heartbeat_at || srvData?.heartbeat;
+    const isLaptopOk = tsLaptop && Math.abs(Date.now() - new Date(tsLaptop).getTime()) < 180_000;
+    let isWin7Ok = false;
+    if (win7Data?.value) {
+      try {
+        const w = JSON.parse(win7Data.value);
+        if (w.heartbeat_at && Math.abs(Date.now() - new Date(w.heartbeat_at).getTime()) < 180_000) {
+          isWin7Ok = true;
+        }
+      } catch (_) {}
+    }
+    return !!(isLaptopOk || isWin7Ok);
   } catch (e) { return false; }
 }
 

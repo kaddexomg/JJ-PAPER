@@ -108,14 +108,17 @@ function renderQuotesTable() {
       <td>
         <select class="sort-sel" style="min-width:120px;padding:6px 10px;font-size:12px"
           onchange="updateQuoteStatus('${q.id}',this.value)">
-          ${['pendiente','contactado','confirmado','convertido','cancelado'].map(s =>
-            `<option value="${s}" ${q.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+          ${['pendiente','contactado','confirmado','confirmado_mixnet','convertido','cancelado'].map(s =>
+            `<option value="${s}" ${q.status===s?'selected':''}>${s === 'confirmado_mixnet' ? '✅ Confirmar → MixNet' : s.charAt(0).toUpperCase()+s.slice(1)}</option>`
           ).join('')}
         </select>
       </td>
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
+          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado'
+            ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Confirmada para MixNet">✅ MixNet</span>`
+            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
           <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
           <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
@@ -145,11 +148,18 @@ function renderQuotesPag() {
 function quotesGoPage(p) { quotePage = p; renderQuotesTable(); }
 
 async function updateQuoteStatus(id, status) {
+  if (status === 'confirmado_mixnet') {
+    if (!confirm('¿Confirmar esta cotización para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.')) {
+      renderQuotesTable();
+      return;
+    }
+  }
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
-  if (error) { showToast('Error actualizando estado', 'err'); return; }
+  if (error) { showToast('Error al actualizar estado'); renderQuotesTable(); return; }
   const q = adminQuotes.find(x => x.id === id);
   if (q) q.status = status;
-  showToast(`Estado → ${status}`);
+  showToast(status === 'confirmado_mixnet' ? '✅ Cotización confirmada · se enviará a MixNet' : `Estado → ${status}`);
+  renderQuotesTable();
 }
 
 // Pre-factura por WhatsApp con precios y totales en USD + Bs
@@ -294,6 +304,9 @@ href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar 
       <button class="btn-p" style="width:auto;padding:12px 20px;background:#059669;color:#fff;font-weight:700" onclick="pushQuoteToMixnet('${q.id}')">📁 Sincronizar en MixNet ERP</button>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
+      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado'
+        ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">✅ Confirmada para MixNet</span>`
+        : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')">✅ Confirmar → MixNet</button>`}
     </div>`;
 
   modal.classList.add('op');
@@ -374,18 +387,16 @@ function quoteCtx(id) {
 
 // Dashboard stats
 async function loadDashboardStats() {
-  const [{ count: totalProds }, { count: totalQuotes }, { count: pendingQuotes }, { count: pendingRevs }] =
+  const [{ count: totalProds }, { count: totalQuotes }, { count: pendingQuotes }] =
     await Promise.all([
       sb.from('jjp_products').select('id', { count:'exact', head:true }),
       sb.from('jjp_quotes').select('id',   { count:'exact', head:true }),
       sb.from('jjp_quotes').select('id',   { count:'exact', head:true }).eq('status','pendiente'),
-      sb.from('jjp_reviews').select('id',  { count:'exact', head:true }).eq('approved', false),
     ]);
 
   setText('stat-products', totalProds ?? 0);
   setText('stat-quotes',   totalQuotes ?? 0);
   setText('stat-pending',  pendingQuotes ?? 0);
-  setText('stat-reviews',  pendingRevs ?? 0);
 
   // Recent quotes
   const { data: recent } = await sb.from('jjp_quotes')
@@ -408,38 +419,4 @@ async function loadDashboardStats() {
 function setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
-}
-
-// Admin reviews
-async function loadAdminReviews() {
-  const { data } = await sb.from('jjp_reviews')
-    .select('*').order('created_at', { ascending: false });
-  const tbody = document.getElementById('reviewsTableBody');
-  if (!tbody || !data) return;
-  tbody.innerHTML = data.map(r => `<tr>
-    <td>${r.name}</td>
-    <td>${'★'.repeat(r.stars)}</td>
-    <td style="max-width:200px;font-size:12px">${r.text}</td>
-    <td>${fmtDate(r.created_at)}</td>
-    <td><span class="badge ${r.approved?'badge-green':'badge-yellow'}">${r.approved?'Aprobada':'Pendiente'}</span></td>
-    <td>
-      <div class="td-actions">
-        ${!r.approved ? `<button class="btn-p sm" onclick="approveReview('${r.id}')">✅ Aprobar</button>` : ''}
-        <button class="btn-danger" onclick="deleteReview('${r.id}')">🗑️</button>
-      </div>
-    </td>
-  </tr>`).join('');
-}
-
-async function approveReview(id) {
-  await sb.from('jjp_reviews').update({ approved: true }).eq('id', id);
-  showToast('Resena aprobada');
-  loadAdminReviews();
-}
-
-async function deleteReview(id) {
-  if (!confirm('¿Eliminar resena?')) return;
-  await sb.from('jjp_reviews').delete().eq('id', id);
-  showToast('Resena eliminada');
-  loadAdminReviews();
 }

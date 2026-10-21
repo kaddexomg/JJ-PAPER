@@ -210,9 +210,9 @@ async function mailLoad() {
   if (error) { showToast('Error cargando correos: ' + error.message, 'err'); return; }
   mailRows = data || [];
 
-  // Cargar cotizaciones y clientes vinculados para enriquecer la vista
+  // Cargar cotizaciones, clientes y contactos destacados para enriquecer la vista
   try {
-    const [qRes, cRes] = await Promise.all([
+    const [qRes, cRes, prosRes, custStarredRes] = await Promise.all([
       _rawSbCore.from('jjp_quotes')
         .select('id, quote_number, client_name, customer_id, email, phone, estimated_total_usd, status, created_at')
         .order('created_at', { ascending: false })
@@ -220,7 +220,15 @@ async function mailLoad() {
       _rawSbCore.from('jjp_customers')
         .select('id, name, email')
         .not('email', 'is', null)
-        .limit(500)
+        .limit(500),
+      _rawSbCore.from('jjp_prospects')
+        .select('email')
+        .or('source.eq.gmail_destacado,status.eq.destacado,notes.ilike.%Destacado en Gmail%')
+        .limit(300),
+      _rawSbCore.from('jjp_customers')
+        .select('email')
+        .contains('tags', ['destacado_gmail'])
+        .limit(300)
     ]);
     mailQuoteMap.clear();
     for (const q of qRes.data || []) {
@@ -235,8 +243,15 @@ async function mailLoad() {
       if (c.email) mailCustomerMap.set(c.email.toLowerCase().trim(), c);
       if (c.id) mailCustomerMap.set(c.id, c);
     }
+    mailStarredSet.clear();
+    for (const p of prosRes?.data || []) {
+      if (p.email) mailStarredSet.add(p.email.toLowerCase().trim());
+    }
+    for (const c of custStarredRes?.data || []) {
+      if (c.email) mailStarredSet.add(c.email.toLowerCase().trim());
+    }
   } catch (err) {
-    console.warn('Aviso cargando cotizaciones/clientes para correo:', err);
+    console.warn('Aviso cargando cotizaciones/clientes/destacados para correo:', err);
   }
 
   mailRender();
@@ -247,8 +262,9 @@ async function mailLoad() {
   }
 }
 
-let mailFilter = 'all';   // 'all' | 'in' | 'out' | 'replies'
+let mailFilter = 'all';   // 'all' | 'in' | 'out' | 'replies' | 'starred'
 let mailExpanded = null;
+const mailStarredSet = new Set();
 
 function setMailFilter(f) {
   mailFilter = f;
@@ -262,7 +278,28 @@ function mailRenderTabs() {
   const n = mailUnreadCount();
   const badge = document.getElementById('mailInBadge');
   if (badge) { badge.textContent = n || ''; badge.style.display = n ? 'inline-block' : 'none'; }
+
+  const starCount = mailRows.filter(m => {
+    const fromA = mailCleanAddr(m.from_addr);
+    const toA = mailCleanAddr(m.to_addr);
+    return (fromA && mailStarredSet.has(fromA)) || (toA && mailStarredSet.has(toA));
+  }).length;
+  const starBadge = document.getElementById('mailStarredBadge');
+  if (starBadge) {
+    starBadge.textContent = starCount || '';
+    starBadge.style.display = starCount ? 'inline-block' : 'none';
+  }
+  const starCampBtn = document.getElementById('mailCampStarredBtn');
+  if (starCampBtn) {
+    starCampBtn.style.display = (mailFilter === 'starred') ? 'inline-block' : 'none';
+  }
 }
+
+function launchCampaignForStarred() {
+  const page = MAIL_IS_ADMIN ? 'campanas-email.html' : 'campanas-email.html';
+  window.location.href = `${page}?audience=gmail_starred`;
+}
+window.launchCampaignForStarred = launchCampaignForStarred;
 
 function mailRender() {
   mailRenderTabs();
@@ -272,6 +309,11 @@ function mailRender() {
     if (mailFilter === 'all') return true;
     if (mailFilter === 'in') return m.direction === 'in';
     if (mailFilter === 'out') return m.direction === 'out';
+    if (mailFilter === 'starred') {
+      const fromA = mailCleanAddr(m.from_addr);
+      const toA = mailCleanAddr(m.to_addr);
+      return (fromA && mailStarredSet.has(fromA)) || (toA && mailStarredSet.has(toA));
+    }
     if (mailFilter === 'replies') {
       const addr = mailCleanAddr(m.from_addr);
       return m.direction === 'in' && (m.customer_id || mailQuoteMap.has(addr) || mailCustomerMap.has(addr));
@@ -292,6 +334,7 @@ function mailRender() {
     // Vincular cliente o prospecto si existe
     const cust = m.customer_id ? mailCustomerMap.get(m.customer_id) : mailCustomerMap.get(addr);
     const matchedQuote = m.customer_id ? mailQuoteMap.get(m.customer_id) : mailQuoteMap.get(addr);
+    const isStarredMsg = (addr && mailStarredSet.has(addr));
 
     const whoDisplay = cust ? `👤 ${escapeHTML(cust.name)} <span style="font-size:11px;opacity:.7">(${escapeHTML(addr)})</span>` : escapeHTML(rawWho);
 
@@ -299,10 +342,14 @@ function mailRender() {
       ? `<span class="mail-quote-pill" style="display:inline-flex;align-items:center;gap:4px;background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:6px;border:1px solid #bae6fd" title="Cotización activa vinculada">📑 Cot #${escapeHTML(matchedQuote.quote_number)} ($${Number(matchedQuote.estimated_total_usd || 0).toFixed(2)})</span>`
       : '';
 
+    const starPill = isStarredMsg
+      ? `<span class="mail-star-pill" style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#b45309;font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;margin-left:6px;border:1px solid #fde68a" title="Contacto destacado de Gmail">⭐ Destacado</span>`
+      : '';
+
     return `
     <div class="mail-item mail-${m.status}${unread ? ' mail-unread' : ''}" onclick="mailOpen('${m.id}')" style="cursor:pointer">
       <div class="mail-top">
-        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${whoDisplay}${quotePill}</span>
+        <span class="mail-to">${inbound ? '📥 ' : '📤 '}${whoDisplay}${quotePill}${starPill}</span>
         <span class="mail-st">${inbound ? (unread ? '🟢 Nuevo' : 'Recibido') : (MAIL_STATUS[m.status] || m.status)}</span>
       </div>
       <div class="mail-subj">${escapeHTML(m.subject || '(sin asunto)')}${(m.attachments && m.attachments.length) ? ` <span style="font-size:11px;color:var(--gr,#888)">📎 ${m.attachments.length}</span>` : ''}</div>
@@ -795,13 +842,15 @@ function openMailAiComposer(prefillReply = null) {
         <div class="fg">
           <label class="fl" style="font-weight:700;font-size:12px">Tipo o Intención del Correo</label>
           <select id="mailAiScenario" class="fi" style="width:100%">
-            <option value="propuesta_b2b" ${prefillReply ? '' : 'selected'}>🎯 Abordaje B2B por Necesidades (130-180 palabras | 4 Pilares)</option>
-            <option value="cotizacion">📄 Cotización / Presupuesto Formal</option>
-            <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
+            <option value="cotizacion_seguimiento" ${prefillReply ? 'selected' : ''}>📑 Acuse y Seguimiento de Cotización (Recepción inmediata / Pre-cierre)</option>
+            <option value="oferta_producto">📦 Oferta de Producto Específico (Con precios $ y Bs oficiales)</option>
+            <option value="reactivacion">🤝 Reactivación de Cliente Inactivo (Historial + beneficio flete)</option>
+            <option value="combo">🎁 Combo o Paquete Comercial (Ahorro destacado por lote)</option>
+            <option value="presentacion_b2b" ${prefillReply ? '' : 'selected'}>🏢 Presentación Corporativa B2B por Primera Vez</option>
             <option value="cobro">💳 Recordatorio Amistoso de Cobro / Pago</option>
-            <option value="promo">📣 Promoción de Catálogo / Novedades</option>
-            <option value="respuesta" ${prefillReply ? 'selected' : ''}>↩️ Respuesta Profesional a Consulta</option>
-            <option value="libre">✍️ Asunto Libre</option>
+            <option value="despacho">📦 Confirmación de Despacho / Pedido</option>
+            <option value="respuesta">↩️ Respuesta Profesional a Consulta General</option>
+            <option value="libre">✍️ Redacción Libre</option>
           </select>
         </div>
 
@@ -876,7 +925,7 @@ async function ensureGeminiClient() {
   if (!document.getElementById('geminiClientScript')) {
     const s = document.createElement('script');
     s.id = 'geminiClientScript';
-    s.src = '../assets/js/gemini-client.js?v=20260916_ai_v3';
+    s.src = '../assets/js/gemini-client.js?v=20261004_gemini38_v1';
     document.head.appendChild(s);
   }
   for (let i = 0; i < 35; i++) {
@@ -897,25 +946,66 @@ async function mailAiGenerate() {
 
   try {
     const client = await ensureGeminiClient();
+    if (typeof client.syncKeysFromSettings === 'function') await client.syncKeysFromSettings();
     const profile = window.CURRENT_PROFILE || window.MAIL_ME || {};
     let enrichedNotes = notes;
-    const cid = _mailAiReplyContext?.customerId;
-    if (cid && window.sb) {
+    let historySummary = '';
+    let targetCid = _mailAiReplyContext?.customerId;
+
+    // Buscar cliente e inyectar historial comercial si está disponible
+    if (window.sb) {
       try {
-        const { data: cust } = await sb.from('jjp_customers').select('id, name, zone, tags, notes').eq('id', cid).maybeSingle();
+        let cust = null;
+        if (targetCid) {
+          const { data } = await sb.from('jjp_customers').select('id, name, zone, tags, notes, email').eq('id', targetCid).maybeSingle();
+          cust = data;
+        } else if (to && to.includes('@')) {
+          const { data } = await sb.from('jjp_customers').select('id, name, zone, tags, notes, email').eq('email', to).maybeSingle();
+          cust = data;
+          if (cust) targetCid = cust.id;
+        }
+
         if (cust) {
           enrichedNotes = (enrichedNotes ? enrichedNotes + '\n' : '') + `[Datos CRM: ${cust.name} | Zona: ${cust.zone || 'N/A'} | Notas previas: ${cust.notes || 'Ninguna'}]`;
+          
+          // Buscar historial de compras en jjp_orders
+          const { data: pastOrders } = await sb.from('jjp_orders').select('order_num, total, items, created_at').eq('customer_id', cust.id).order('created_at', { ascending: false }).limit(3);
+          if (pastOrders && pastOrders.length > 0) {
+            const itemsList = [];
+            pastOrders.forEach(o => {
+              if (Array.isArray(o.items)) {
+                o.items.forEach(it => { if (it.name || it.product_name) itemsList.push(it.name || it.product_name); });
+              }
+            });
+            const topItems = [...new Set(itemsList)].slice(0, 4).join(', ');
+            historySummary = `Cliente recurrente con ${pastOrders.length} pedido(s) previo(s). Suele comprar: ${topItems || 'papelería general'}. Última orden: N° ${pastOrders[0].order_num || 'S/N'}.`;
+          }
         }
       } catch (_) {}
     }
 
     let result;
-    if (scenario === 'propuesta_b2b') {
+    const strategicModes = ['oferta_producto', 'reactivacion', 'combo', 'presentacion_b2b', 'cotizacion_seguimiento'];
+    if (strategicModes.includes(scenario) && typeof client.draftStrategicSalesMessage === 'function') {
+      result = await client.draftStrategicSalesMessage({
+        mode: scenario,
+        channel: 'email',
+        customer: {
+          name: to,
+          company: to,
+          email: to.includes('@') ? to : '',
+          historySummary
+        },
+        notes: enrichedNotes + (_mailAiReplyContext?.originalText ? `\n[Respondiendo al correo entrante:\n"${_mailAiReplyContext.originalText.slice(0, 300)}"]` : ''),
+        sellerName: profile.full_name || profile.name || 'Keyder Salazar',
+        sellerPhone: profile.phone || '0412-4676073'
+      });
+    } else if (scenario === 'propuesta_b2b') {
       result = await client.analyzeAndDraftProspectB2B({
         companyName: to || 'Cliente Corporativo',
         notes: enrichedNotes,
-        sellerName: profile.full_name || profile.name || 'Keyder José Salazar',
-        sellerPhone: '0412-4676073'
+        sellerName: profile.full_name || profile.name || 'Keyder Salazar',
+        sellerPhone: profile.phone || '0412-4676073'
       });
     } else {
       result = await client.draftEmail({
@@ -924,7 +1014,7 @@ async function mailAiGenerate() {
         toEmail: to.includes('@') ? to : '',
         notes: enrichedNotes,
         originalEmail: _mailAiReplyContext?.originalText || '',
-        sellerName: profile.full_name || profile.name || 'Asesor JJ Paper'
+        sellerName: profile.full_name || profile.name || 'Keyder Salazar'
       });
     }
 

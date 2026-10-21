@@ -47,7 +47,7 @@
       <span>JJ <em>Paper</em></span>
     </div>
     <nav class="aside-nav">
-      <!-- sidenav.js?v=20260927_b2b_v2 inyecta la barra lateral unificada de admin -->
+      <!-- -->
     </nav>
     <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
   </aside>
@@ -61,7 +61,10 @@
           <p>Crea campañas masivas por correo: escoge plantilla, producto y audiencia — envío automático</p>
         </div>
       </div>
-      <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-o" id="ecSyncStarredBtn" onclick="syncGmailStarredContacts()" title="Sincronizar contactos con estrella de Gmail" style="font-weight:700">⭐ Sincronizar Destacados</button>
+        <button class="btn-p" onclick="newCampaign()">＋ Nueva campaña</button>
+      </div>
     </div>
 
     <div class="admin-content">
@@ -310,7 +313,7 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/toast.js?v=20260828_v3"></script>
 <script src="../assets/js/admin/auth.js?v=20260828_v3"></script>
-<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script src="../assets/js/doc-engine.js?v=20260929_launch_sync_ok"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260828_v3"></script>
 <script src="../assets/js/vendedor/product-picker.js?v=20260828_v3"></script>

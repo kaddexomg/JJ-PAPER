@@ -27,38 +27,103 @@ function _setAdminCustCache(data) {
   try {
     sessionStorage.setItem(ADMIN_CUST_CACHE_KEY, JSON.stringify(data));
     sessionStorage.setItem(ADMIN_CUST_CACHE_TIME, String(Date.now()));
-  } catch (_) {}
+  } catch (e) {
+    console.warn('No se pudo guardar la caché completa de clientes en sessionStorage (posible límite de cuota):', e);
+    try {
+      const compact = data.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        rif: c.rif,
+        zone: c.zone,
+        city: c.city,
+        total_orders: c.total_orders,
+        total_usd: c.total_usd,
+        last_order_at: c.last_order_at,
+        seller_id: c.seller_id,
+        email: c.email,
+        email_status: c.email_status
+      }));
+      sessionStorage.setItem(ADMIN_CUST_CACHE_KEY, JSON.stringify(compact));
+      sessionStorage.setItem(ADMIN_CUST_CACHE_TIME, String(Date.now()));
+    } catch (_) {}
+  }
 }
 
 async function loadAdminCustomers(force = false) {
-  const { data: profs } = await sb.from('jjp_profiles').select('id, name, role');
-  adminProfiles = profs || [];
+  const tbody = document.getElementById('adminCustBody');
+  const profsPromise = sb.from('jjp_profiles').select('id, name, role');
 
   if (!force) {
     const cached = _getAdminCustCache();
-    if (cached) {
+    if (cached && cached.length > 0) {
       adminCustomers = cached;
+      const { data: profs } = await profsPromise;
+      adminProfiles = profs || [];
       renderAdminCustomers();
       return;
     }
   }
 
-  // PostgREST corta en 1.000 filas: paginamos para cargar TODA la cartera global
-  adminCustomers = [];
-  const PAGE = 1000;
-  let from = 0;
-  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,address,notes,tags';
-  for (;;) {
-    const { data, error } = await sb.from('jjp_customers')
-      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false })
-      .range(from, from + PAGE - 1);
-    if (error) { showToast('Error cargando clientes', 'err'); return; }
-    adminCustomers.push(...(data || []));
-    if (!data || data.length < PAGE || from > 12000) break;
-    from += PAGE;
+  if (tbody && !adminCustomers.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">⏳ Cargando cartera de clientes...</td></tr>`;
   }
-  _setAdminCustCache(adminCustomers);
-  renderAdminCustomers();
+
+  try {
+    const { data: profs } = await profsPromise;
+    adminProfiles = profs || [];
+
+    adminCustomers = [];
+    const PAGE = 1000;
+    let from = 0;
+    const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,email_status,address,notes';
+
+    // Primer lote: se renderiza de inmediato (<400ms) para respuesta ultra-rápida
+    const { data: chunk1, error: err1 } = await sb.from('jjp_customers')
+      .select(CUST_COLS)
+      .order('last_order_at', { ascending: false, nullsFirst: false })
+      .range(0, PAGE - 1);
+
+    if (err1) throw err1;
+
+    if (chunk1 && chunk1.length > 0) {
+      adminCustomers.push(...chunk1);
+      renderAdminCustomers();
+    }
+
+    // Cargar los siguientes lotes en segundo plano sin congelar la interfaz
+    if (chunk1 && chunk1.length === PAGE) {
+      from = PAGE;
+      while (from <= 12000) {
+        const { data: nextChunk, error: nextErr } = await sb.from('jjp_customers')
+          .select(CUST_COLS)
+          .order('last_order_at', { ascending: false, nullsFirst: false })
+          .range(from, from + PAGE - 1);
+
+        if (nextErr) {
+          console.warn('Error en lote secundario de clientes:', nextErr);
+          break;
+        }
+        if (!nextChunk || nextChunk.length === 0) break;
+
+        adminCustomers.push(...nextChunk);
+        from += PAGE;
+        if (nextChunk.length < PAGE) break;
+      }
+      renderAdminCustomers();
+    }
+
+    _setAdminCustCache(adminCustomers);
+  } catch (err) {
+    console.error('Error cargando clientes admin:', err);
+    showToast('Error cargando clientes: ' + (err.message || err), 'err');
+    if (tbody && !adminCustomers.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">
+        Error al cargar clientes: ${escapeHTML(err.message || String(err))}
+        <br><button class="btn-s" style="margin-top:8px;padding:4px 10px;background:#16604A;color:#fff;border-radius:6px;border:none;cursor:pointer" onclick="loadAdminCustomers(true)">🔄 Reintentar</button>
+      </td></tr>`;
+    }
+  }
 }
 
 function setAdminZone(zone) {
@@ -91,7 +156,8 @@ function renderAdminCustomers() {
 
   let list = adminCustomers;
   if (currentZoneFilter !== 'todos') {
-    if (currentZoneFilter === 'sin') list = list.filter(c => !c.zone);
+    if (currentZoneFilter === 'rebotados') list = list.filter(c => c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft');
+    else if (currentZoneFilter === 'sin') list = list.filter(c => !c.zone);
     else list = list.filter(c => c.zone === currentZoneFilter);
   }
   if (q) {
@@ -114,7 +180,7 @@ function renderAdminCustomers() {
             ${escapeHTML(c.name)} 📜
           </a>
         </div>
-        <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}${c.email_status === 'bounced_hard' ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
+        <div style="font-size:12px;color:var(--gr)">${escapeHTML(c.phone || '—')} ${c.rif ? '· ' + escapeHTML(c.rif) : ''}${(c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${getSellerName(c.seller_id)}</td>
@@ -166,7 +232,7 @@ function openAdminCustModal(id = null) {
     warnEl.style = 'color:#d32f2f;font-size:12px;margin-top:4px;font-weight:bold;';
     emailInput.parentNode.appendChild(warnEl);
   }
-  if (c?.email_status === 'bounced_hard') {
+  if (c?.email_status === 'bounced_hard' || c?.email_status === 'bounced' || c?.email_status === 'bounced_soft') {
     warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas, se habilitará de nuevo para envíos.';
   } else {
     warnEl.textContent = '';
@@ -216,10 +282,19 @@ async function saveAdminCustomer() {
     updated_at: new Date().toISOString(),
   };
   
-  if (editingAdminCustId && originalStatus === 'bounced_hard' && emailVal && emailVal !== originalEmail) {
+  const wasBounced = originalStatus === 'bounced_hard' || originalStatus === 'bounced' || originalStatus === 'bounced_soft';
+  if (editingAdminCustId && wasBounced && emailVal && emailVal !== originalEmail) {
     fields.email_status = 'valid';
     fields.bounce_reason = null;
     fields.bounced_at = null;
+    try {
+      if (originalEmail) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', originalEmail);
+      }
+      if (emailVal) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', emailVal);
+      }
+    } catch (_) {}
   }
 
   let error, insertedRow;
@@ -404,6 +479,31 @@ async function openCustomerAiFlow(customerId) {
               </div>
             </div>
           </div>
+
+          <!-- Alerta de Rebote y Recomendación de Recuperación -->
+          ${(c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') ? `
+            <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px;display:flex;gap:10px;align-items:flex-start">
+              <span style="font-size:20px">🚨</span>
+              <div style="flex:1">
+                <div style="font-weight:700;color:#991b1b;font-size:12.5px">Email Inválido / Rebotado (${escapeHTML(c.email || 'Sin correo')})</div>
+                <div style="font-size:11.5px;color:#7f1d1d;margin-top:2px;line-height:1.4">
+                  ${c.phone ? `Recomendación: Contactar al cliente vía <strong>WhatsApp o Llamada al ${escapeHTML(c.phone)}</strong> para solicitar su nuevo correo electrónico y actualizarlo.` : 'El cliente no tiene teléfono registrado. Requiere actualización manual.'}
+                </div>
+                ${c.phone ? `
+                  <div style="margin-top:6px;display:flex;gap:8px">
+                    <button class="btn-s" style="padding:4px 10px;background:#059669;color:#fff;border-radius:4px;border:none;font-size:11px;cursor:pointer;font-weight:600" onclick="switchCustomerFlowTab('wa')">
+                      💬 Usar WhatsApp para Recuperar Email
+                    </button>
+                    ${c.phone.startsWith('02') || c.phone.startsWith('2') ? `
+                      <a href="tel:${escapeHTML(c.phone)}" style="display:inline-block;padding:4px 10px;background:#0284c7;color:#fff;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600">
+                        📞 Llamar a Oficina (${escapeHTML(c.phone)})
+                      </a>
+                    ` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          ` : ''}
 
           <!-- Pestañas de Vista: Correo vs WhatsApp -->
           <div style="display:flex;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px">

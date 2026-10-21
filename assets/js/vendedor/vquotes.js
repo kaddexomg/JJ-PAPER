@@ -61,9 +61,9 @@ async function initQuoter() {
     await loadQuoteForEdit(editParam);
   }
 
-  // Autocompletado de cliente en el campo Nombre (elige → rellena tel/RIF/ciudad)
+  // Autocompletado de cliente en el omni-buscador (código MixNet, RIF, nombre o teléfono)
   custAcBind({
-    nameId: 'qCliName',
+    nameId: 'qCliSearch',
     boxId: 'qCliNameResults',
     onPick: quotePickCustomer,
   });
@@ -74,41 +74,120 @@ async function initQuoter() {
 
 async function quoteCargarCliente(id) {
   const { data: c } = await sb.from('jjp_customers')
-    .select('id,name,phone,rif,city').eq('id', id).maybeSingle();
+    .select('id,name,phone,rif,city,address,notes').eq('id', id).maybeSingle();
   if (!c) { showToast('No se encontró ese cliente', 'warn'); return; }
-  quoteCustomer = c;
-  const set = (campo, v) => { const el = document.getElementById(campo); if (el && v) el.value = v; };
-  set('qCliName', c.name); set('qCliTel', c.phone);
-  set('qCliRif', c.rif);   set('qCliCity', c.city);
+  quotePickCustomer(c);
   showToast(`Cotizando para ${c.name}`);
 }
 
 function quotePickCustomer(c) {
   quoteCustomer = c;
-  document.getElementById('qCliName').value = c.name || '';
-  document.getElementById('qCliTel').value  = c.phone || '';
-  document.getElementById('qCliRif').value  = c.rif || '';
-  document.getElementById('qCliCity').value = c.city || '';
-  document.getElementById('qCliNameResults').innerHTML =
-    `<p style="font-size:12px;color:var(--gm);margin:8px 0">✔ Cliente frecuente seleccionado: <strong>${escapeHTML(c.name)}</strong></p>`;
-  document.getElementById('qCliNameResults').style.display = 'block';
+  const set = (campo, v) => { const el = document.getElementById(campo); if (el) el.value = v || ''; };
+  const mixCode = (typeof custAcExtractMixCode === 'function' ? custAcExtractMixCode(c) : '') || c.mixnet_code || (c.rif === '00' ? '00' : '');
+
+  set('qCliCode', mixCode);
+  set('qCliName', c.name || '');
+  set('qCliTel', (c.phone && c.phone !== '00000000000') ? c.phone : (c.rif === '00' ? '00000000000' : ''));
+  set('qCliRif', c.rif || '');
+  set('qCliCity', c.city || c.address || '');
+  set('qCliSearch', `${mixCode ? `[${mixCode}] ` : ''}${c.name || ''}`);
+
+  const badgeEl = document.getElementById('qCliBadge');
+  if (badgeEl) {
+    if (mixCode) {
+      badgeEl.textContent = `MixNet: [${mixCode}]`;
+      badgeEl.style.display = 'inline-block';
+      if (mixCode === '00') {
+        badgeEl.style.background = '#fef3c7';
+        badgeEl.style.color = '#b45309';
+        badgeEl.style.border = '1px solid #fde68a';
+      } else {
+        badgeEl.style.background = '#e0f2fe';
+        badgeEl.style.color = '#0369a1';
+        badgeEl.style.border = '1px solid #bae6fd';
+      }
+    } else {
+      badgeEl.style.display = 'none';
+    }
+  }
+
+  showToast(`Cliente asignado: ${c.name} ${mixCode ? `[MixNet: ${mixCode}]` : ''}`);
+  const se = document.getElementById('posSearch');
+  if (se) {
+    setTimeout(() => { se.focus(); se.select(); }, 60);
+  }
+}
+
+function quoteResetCustomer() {
+  quoteCustomer = null;
+  ['qCliCode', 'qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qCliSearch'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const badgeEl = document.getElementById('qCliBadge');
+  if (badgeEl) badgeEl.style.display = 'none';
+  const cs = document.getElementById('qCliSearch');
+  if (cs) { cs.value = ''; cs.focus(); }
+}
+
+async function quoteOnCodeChange(val) {
+  const code = (val || '').trim();
+  if (!code) return;
+  if (code === '00' || code === '0') {
+    setCuentaRecuperada();
+    return;
+  }
+  // Intentar búsqueda directa del código en la base de datos
+  try {
+    const cleanCode = code.replace(/[%_,[\]()]/g, ' ').trim();
+    const { data: matches } = await sb.from('jjp_customers')
+      .select('id,name,phone,rif,city,address,notes,total_orders,total_usd,seller_id,zone')
+      .or(`notes.ilike.%${cleanCode}%,rif.ilike.%${cleanCode}%`)
+      .limit(5);
+
+    if (matches && matches.length === 1) {
+      quotePickCustomer(matches[0]);
+      return;
+    }
+  } catch (err) {
+    console.warn('Error en búsqueda directa de código de cliente:', err);
+  }
+
+  const cs = document.getElementById('qCliSearch');
+  if (cs) {
+    cs.value = code;
+    custAcSearch('qCliSearch', 'qCliNameResults', { minLen: 1 });
+  }
+}
+
+function setCuentaRecuperada() {
+  const cRec = {
+    id: null,
+    name: 'CUENTA RECUPERADA',
+    rif: '00',
+    phone: '00000000000',
+    city: 'Caracas',
+    address: '',
+    notes: 'Cliente no registrado en MixNet (Código 00)',
+    mixnet_code: '00',
+    is_recuperada: true
+  };
+  quotePickCustomer(cRec);
+  showToast('⚡ Cliente Oficial MixNet [00] (Cuenta Recuperada) aplicado');
 }
 
 function setConsumidorFinal() {
-  const nameEl = document.getElementById('qCliName');
-  const telEl  = document.getElementById('qCliTel');
-  const rifEl  = document.getElementById('qCliRif');
-  const cityEl = document.getElementById('qCliCity');
-
-  if (nameEl) nameEl.value = 'Consumidor Final';
-  if (telEl)  telEl.value  = '00000000000';
-  if (rifEl)  rifEl.value  = 'V-00000000';
-  if (cityEl) cityEl.value = 'Mostrador';
-
-  quoteCustomer = null;
-  const res = document.getElementById('qCliNameResults');
-  if (res) res.style.display = 'none';
-  showToast('⚡ Cliente Mostrador / Consumidor Final aplicado');
+  const cFin = {
+    id: null,
+    name: 'Consumidor Final',
+    rif: 'V-00000000',
+    phone: '00000000000',
+    city: 'Mostrador',
+    notes: 'Venta rápida de mostrador',
+    mixnet_code: '00',
+    is_recuperada: false
+  };
+  quotePickCustomer(cFin);
+  showToast('⚡ Mostrador / Consumidor Final aplicado');
 }
 
 function posOnScan(code) {
@@ -228,100 +307,73 @@ function posUpdateName(key, newName) {
   }
 }
 
-/* --- buscador (mismo patrón del POS) --- */
+/* --- buscador de productos (Panel Integrado del Catálogo) --- */
 function posSearch() {
-  posRenderResults(pfMatch(posProducts, document.getElementById('posSearch').value.trim()));
-}
-
-function posSearchKey(e) {
-  if (document.querySelector('.pf-popup-mask')) return; // popup abierto: no interferir
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    quoteNavTab(e.shiftKey ? -1 : 1);
-    return;
-  }
-  if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
-  if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
-  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
-  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
-  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
-  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
-  if (e.key === 'Escape') {
-    const se = document.getElementById('posSearch');
-    if (se && se.value.trim()) { se.value = ''; posSearch(); }
-    else clearQuote();
-    return;
-  }
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); quoteSubmit(); return; }
-  if (e.key !== 'Enter') return;
-  e.preventDefault();
-
-  const code = document.getElementById('posSearch').value.trim();
-  if (!code) {
-    // Si el buscador está vacío, permanecer en el buscador de productos
-    return;
-  }
-  const hit = pfFindByCode(posProducts, code);
-  if (hit) {
-    posAddDirect(hit.product, hit.variant);
-    return;
-  }
-
-  if (posCursor >= 0 && posCursor < posResultsList.length) {
-    posPickIdx();
-    return;
-  } else if (posResultsList.length > 0) {
-    posNavTo(0);
-    posPickIdx();
-    return;
-  }
-}
-function posScanCam() {
-  pfScanCamera(code => {
-    const hit = pfFindByCode(posProducts, code);
-    if (hit) { posAddDirect(hit.product, hit.variant); }
-    else { document.getElementById('posSearch').value = code; posSearch(); showToast('Código no está en el catálogo; búscalo manual', 'warn'); }
-  });
-}
-
-// Vacía la cotización en curso (con confirmación si tiene líneas)
-function clearQuote() {
-  if (posTicket && Object.keys(posTicket).length && !confirm('¿Vaciar esta cotización?')) return;
-  posTicket = {};
-  posRenderTicket();
   const se = document.getElementById('posSearch');
-  if (se) { se.value = ''; se.focus(); }
-  posSearch();
+  const q = se ? se.value.trim() : '';
+  const box = document.getElementById('posResults');
+  if (!box) return;
+  if (!q) {
+    posResultsList = (posProducts || []).slice(0, 40);
+    posCursor = -1;
+    posRenderResults(posResultsList, true);
+    return;
+  }
+  const matched = pfMatch(posProducts, q);
+  posRenderResults(matched, false);
 }
 
-function posRenderResults(list) {
+function posRenderResults(list, isInitial) {
   const box = document.getElementById('posResults');
+  if (!box) return;
   if (!list.length) {
-    posResultsList = []; posCursor = -1;
-    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:12px;text-align:center">Sin resultados coincidentes.</p>'; return;
+    posResultsList = [];
+    posCursor = -1;
+    box.innerHTML = `
+      <div style="padding:28px 16px;text-align:center;color:var(--theme-text-muted, #64748b)">
+        <p style="margin:0 0 8px;font-size:13.5px;font-weight:600">No se encontraron productos con esa búsqueda.</p>
+        <button type="button" class="btn sm" onclick="openCustomItemModal()" style="font-size:12px;font-weight:700">➕ Crear como Ítem Libre (Alt+I)</button>
+      </div>`;
+    box.style.display = 'block';
+    return;
   }
-  posResultsList = list; posCursor = -1;
-  box.innerHTML = list.map((p, i) => {
+  posResultsList = list;
+  posCursor = -1;
+  const headerHtml = isInitial
+    ? `<div style="padding:6px 10px;font-size:11px;font-weight:700;color:var(--theme-text-muted, #64748b);border-bottom:1px solid var(--theme-border-subtle, #f1f5f9);display:flex;justify-content:space-between;align-items:center">
+         <span>📦 Catálogo Disponible (${(posProducts || []).length} ítems)</span>
+         <span>Escribe para filtrar o pulsa para agregar</span>
+       </div>`
+    : `<div style="padding:6px 10px;font-size:11px;font-weight:700;color:var(--theme-text-muted, #64748b);border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+         <span>Resultados encontrados: ${list.length} productos</span>
+       </div>`;
+
+  box.innerHTML = headerHtml + list.map((p, i) => {
     const variants = (p.jjp_product_variants || []).filter(v => v.active);
     const img = p.image_url
-      ? `<img src="${optImg(p.image_url, 200)}" alt="" loading="lazy" decoding="async">`
-      : `<span style="font-size:22px">${p.emoji || '📦'}</span>`;
+      ? `<img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async" style="width:36px;height:36px;object-fit:cover;border-radius:6px">`
+      : `<span style="font-size:20px">${p.emoji || '📦'}</span>`;
     const vSel = variants.length
-      ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:12px;padding:4px 8px;margin-right:6px" onclick="event.stopPropagation()">
+      ? `<select class="fi" id="pv-${p.id}" style="width:auto;font-size:11px;padding:3px 6px;margin-right:6px" onclick="event.stopPropagation()">
            ${variants.map(v => `<option value="${v.id}">${escapeHTML(v.jjp_brands?.name || v.variant_name || 'Variante')} · ${fmtPrice(v.price_usd)}</option>`).join('')}
          </select>` : '';
-    return `<div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--theme-border-subtle, #e2e8f0);margin-bottom:6px;background:var(--theme-bg-surface-solid, #fff);transition:all .15s ease">
-      <div class="pr-img" style="flex:none">${img}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.3">${escapeHTML(p.name)}</div>
-        <div style="font-size:11px;color:var(--gr);margin-top:2px">${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span></div>
-      </div>
-      <div style="display:flex;align-items:center;flex:none">
-        ${vSel}
-        <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:6px 12px;font-weight:700;background:#16604a;color:#fff;border-radius:6px;display:inline-flex;align-items:center;gap:4px">Elegir Precio ➔</button>
-      </div>
-    </div>`;
+    return `
+      <div class="pos-result" data-idx="${i}" onclick="posAdd('${p.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9);transition:background .1s ease" onmouseover="this.style.background='var(--theme-bg-surface-solid, #f8fafc)'" onmouseout="this.style.background='transparent'">
+        <div class="pr-img" style="width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.03);flex:none">${img}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(p.name)}</div>
+          <div style="font-size:11px;color:var(--theme-text-muted, #64748b);margin-top:2px">
+            <span style="font-family:monospace;color:var(--theme-text-muted, #475569);margin-right:6px">${escapeHTML(p.sku || '')}</span>
+            ${pfPriceHtml(p.price_usd, p)} /${escapeHTML(p.unit || 'unid')} · <span class="${pfStockClass(p.stock, p.min_qty)}">${pfStockLabel(p.stock)}</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;flex:none">
+          ${vSel}
+          <button type="button" class="btn-p sm" onclick="event.stopPropagation(); posAdd('${p.id}')" style="white-space:nowrap;padding:4px 10px;font-size:11.5px;font-weight:700;background:var(--theme-accent, #16604a);color:#fff;border-radius:6px">➕ Agregar</button>
+        </div>
+      </div>`;
   }).join('');
+  box.style.display = 'block';
 }
 
 // Navegación por teclado sobre los resultados (↑/↓ / PgUp/PgDn / Home/End)
@@ -341,6 +393,53 @@ function posNavTo(idx) {
   posCursor = idx;
   rows.forEach((r, i) => r.classList.toggle('on', i === posCursor));
   rows[posCursor]?.scrollIntoView({ block: 'nearest' });
+}
+
+function posSearchKey(e) {
+  if (document.querySelector('.pf-popup-mask')) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); posNav(1); return; }
+  if (e.key === 'ArrowUp') { e.preventDefault(); posNav(-1); return; }
+  if (e.key === 'PageDown') { e.preventDefault(); posNav(5); return; }
+  if (e.key === 'PageUp') { e.preventDefault(); posNav(-5); return; }
+  if (e.key === 'Home') { e.preventDefault(); posNavTo(0); return; }
+  if (e.key === 'End') { e.preventDefault(); posNavTo(posResultsList.length - 1); return; }
+  if (e.key === 'Escape') {
+    const se = document.getElementById('posSearch');
+    const box = document.getElementById('posResults');
+    if (box) box.style.display = 'none';
+    if (se && se.value.trim()) { se.value = ''; posSearch(); }
+    return;
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); quoteSubmit(); return; }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+
+  const se = document.getElementById('posSearch');
+  const code = se ? se.value.trim() : '';
+  if (!code) return;
+
+  if (typeof pfFindByCode === 'function') {
+    const hit = pfFindByCode(posProducts, code);
+    if (hit) {
+      posAddAndPick(hit.product, hit.variant);
+      showToast('➕ ' + hit.product.name);
+      se.value = '';
+      posSearch();
+      return;
+    }
+  }
+
+  if (posCursor >= 0 && posCursor < posResultsList.length) {
+    posPickIdx();
+    return;
+  } else if (posResultsList.length > 0) {
+    posCursor = 0;
+    posPickIdx();
+    return;
+  }
+
+  showToast('⚠️ No se encontró producto con ese código ni nombre', 'warn');
+  se.select();
 }
 
 // Agrega o abre el selector de precio unificado para el producto/variante
@@ -520,81 +619,198 @@ function posRemoveLine(key) {
   posRenderTicket();
 }
 
+function posToggleJja(key) {
+  const l = posTicket[key];
+  if (!l || l.is_custom) return;
+  if (!l.jja_code) {
+    l.jja_code = 'JJA-1';
+    showToast('⚡ Fraccionado MixNet: JJA-1 (Unidad individual)');
+  } else if (l.jja_code === 'JJA-1') {
+    l.jja_code = 'JJA-2';
+    showToast('⚡ Fraccionado MixNet: JJA-2 (Presentación secundaria)');
+  } else {
+    l.jja_code = null;
+    showToast('📦 Modo Estándar: Empaque completo');
+  }
+  posRenderTicket();
+}
+
+function switchCotizadorMobileTab(tab) {
+  const isMobile = window.innerWidth <= 900;
+  if (!isMobile) return;
+  const colLeft = document.getElementById('qColLeft');
+  const secClient = document.getElementById('qSecClient');
+  const secCatalog = document.getElementById('qSecCatalog');
+  const colRight = document.getElementById('qColRight');
+  const btnCat = document.getElementById('tabBtnCatalogo');
+  const btnTic = document.getElementById('tabBtnTicket');
+  const btnCli = document.getElementById('tabBtnCliente');
+
+  // Reset tab button styles
+  [btnCat, btnTic, btnCli].forEach(b => {
+    if (!b) return;
+    b.style.background = 'transparent';
+    b.style.color = '#475569';
+  });
+
+  if (tab === 'catalogo') {
+    if (colLeft) colLeft.style.display = 'flex';
+    if (secClient) secClient.style.display = 'none';
+    if (secCatalog) secCatalog.style.display = 'block';
+    if (colRight) colRight.style.display = 'none';
+    if (btnCat) {
+      btnCat.style.background = 'var(--theme-accent, #16604a)';
+      btnCat.style.color = '#fff';
+    }
+    const se = document.getElementById('posSearch');
+    if (se) setTimeout(() => se.focus(), 150);
+  } else if (tab === 'ticket') {
+    if (colLeft) colLeft.style.display = 'none';
+    if (colRight) colRight.style.display = 'flex';
+    if (btnTic) {
+      btnTic.style.background = 'var(--theme-accent, #16604a)';
+      btnTic.style.color = '#fff';
+    }
+  } else if (tab === 'cliente') {
+    if (colLeft) colLeft.style.display = 'flex';
+    if (secClient) secClient.style.display = 'block';
+    if (secCatalog) secCatalog.style.display = 'none';
+    if (colRight) colRight.style.display = 'none';
+    if (btnCli) {
+      btnCli.style.background = 'var(--theme-accent, #16604a)';
+      btnCli.style.color = '#fff';
+    }
+    const cs = document.getElementById('qCliSearch');
+    if (cs) setTimeout(() => cs.focus(), 150);
+  }
+}
+window.switchCotizadorMobileTab = switchCotizadorMobileTab;
+
+// Manejador de redimensionamiento de pantalla para restaurar layout si pasa a desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) {
+    const colLeft = document.getElementById('qColLeft');
+    const secClient = document.getElementById('qSecClient');
+    const secCatalog = document.getElementById('qSecCatalog');
+    const colRight = document.getElementById('qColRight');
+    if (colLeft) colLeft.style.display = '';
+    if (secClient) secClient.style.display = '';
+    if (secCatalog) secCatalog.style.display = '';
+    if (colRight) colRight.style.display = '';
+  }
+});
+
 function posRenderTicket() {
   const box  = document.getElementById('posTicket');
   const tots = document.getElementById('posTotals');
+  const countEl = document.getElementById('posTicketCount');
+  const badgeEl = document.getElementById('cmTicketBadge');
   const lines = Object.entries(posTicket);
-  if (!lines.length) {
-    box.innerHTML = '<p style="color:#aaa;font-size:13px">Agrega productos desde el buscador.</p>';
-    tots.innerHTML = ''; return;
+
+  if (countEl) {
+    countEl.textContent = lines.length ? `(${lines.length} ${lines.length === 1 ? 'ítem' : 'ítems'})` : '';
   }
-  box.innerHTML = lines.map(([k, l], idx) => {
+  if (badgeEl) {
+    badgeEl.textContent = lines.length;
+  }
+
+  if (!lines.length) {
+    if (box) {
+      box.innerHTML = `
+        <div style="text-align:center;padding:36px 16px;color:var(--theme-text-muted, #94a3b8)">
+          <div style="font-size:32px;margin-bottom:6px">📄</div>
+          <p style="font-size:14px;font-weight:700;margin:0 0 4px;color:var(--theme-text-main, #334155)">La cotización está vacía</p>
+          <p style="font-size:12px;margin:0">Selecciona productos del catálogo a la izquierda para armar la cotización.</p>
+        </div>`;
+    }
+    if (tots) tots.innerHTML = '';
+    return;
+  }
+
+  const rate = getRate();
+
+  const rowsHtml = lines.map(([k, l], idx) => {
     const isCursor = (quoteTicketCursor === idx);
+    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
+
     const lvlBtn = (lv, lbl) => {
       const isAct = (l.price_level === lv);
       const bg = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-item-bg, #f1f5f9)';
       const col = isAct ? '#ffffff' : 'var(--theme-text-muted, #475569)';
       const bdr = isAct ? 'var(--theme-accent, #16604a)' : 'var(--theme-border-subtle, #cbd5e1)';
-      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
+      return `<button type="button" onclick="posSetPriceLevel('${k}','${lv}')" style="background:${bg};color:${col};border:1px solid ${bdr};border-radius:4px;padding:1px 5px;font-size:10.5px;font-weight:800;cursor:pointer;transition:all .1s" title="${lbl}">${lv}</button>`;
     };
-    const isCustomBadge = l.is_custom ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:800;margin-left:4px">LIBRE</span>' : '';
+
     const levelSelector = l.is_custom ? '' : `
-        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:6px;margin-top:4px">
-          <span style="font-weight:700;color:var(--theme-text-main, #334155)">Nivel:</span>
-          <div style="display:flex;gap:3px">
-            ${lvlBtn('A', 'Precio A (Detal / Menor)')}
-            ${lvlBtn('B', 'Precio B (Mayorista Frecuente ⭐)')}
-            ${lvlBtn('C', 'Precio C (Bs Oficial)')}
-            ${lvlBtn('D', 'Precio D (Bs Mayor)')}
-            ${lvlBtn('M', 'Precio M (Personalizado / Manual)')}
-          </div>
-        </div>`;
+      <div style="display:inline-flex;align-items:center;gap:2px">
+        <span style="font-size:10.5px;color:var(--theme-text-muted, #64748b);font-weight:700;margin-right:2px">Nivel:</span>
+        ${lvlBtn('A', 'Precio A (Detal)')}
+        ${lvlBtn('B', 'Precio B (Mayorista ⭐)')}
+        ${lvlBtn('C', 'Precio C (Bs Oficial)')}
+        ${lvlBtn('D', 'Precio D (Bs Mayor)')}
+        ${lvlBtn('M', 'Precio M (Manual)')}
+      </div>`;
+
+    const jjaLabel = l.jja_code ? (l.jja_code === 'JJA-1' ? '⚡ JJA-1' : '⚡ JJA-2') : `📦 ${escapeHTML(l.unit || 'unid')}`;
+    const jjaBtn = l.is_custom ? `<span>${escapeHTML(l.unit || 'unid')}</span>` : `
+      <button type="button" onclick="posToggleJja('${k}')" title="Alternar fraccionado MixNet (Estándar / JJA-1 / JJA-2)" style="background:${l.jja_code ? 'rgba(245,158,11,0.12)' : 'var(--theme-item-bg, #f1f5f9)'};color:${l.jja_code ? '#b45309' : 'var(--theme-text-main, #334155)'};border:1px solid ${l.jja_code ? '#f59e0b' : 'var(--theme-border-subtle, #cbd5e1)'};border-radius:4px;padding:1px 6px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap">
+        ${jjaLabel}
+      </button>`;
+
     const isDark = (document.documentElement.getAttribute('data-theme') === 'dark');
     const lineBg = isCursor ? (isDark ? 'rgba(16,185,129,0.16)' : '#f0fdf4') : 'var(--theme-bg-surface-solid, #ffffff)';
     const lineBdr = isCursor ? 'var(--theme-accent, #10b981)' : 'var(--theme-border-subtle, #e2e8f0)';
+
     return `
-    <div class="pos-line" style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.03);transition:all .12s ease">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:4px">
-            <input type="text" class="fi ticket-nav-input" id="name-in-${k}" data-ticket-field="name" data-ticket-idx="${idx}" data-ticket-key="${k}" value="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-glass, #cbd5e1)';this.style.background='var(--theme-input-bg, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
-            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600">(${escapeHTML(l.brand)})</small>` : ''}
+      <div class="pos-ticket-row" style="padding:10px 14px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.02)">
+        <div style="font-size:11px;font-weight:900;color:var(--theme-accent, #16604a);background:rgba(16,185,129,0.12);padding:2px 4px;border-radius:4px;text-align:center">#${idx + 1}</div>
+        
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(l.name)}">
+            ${escapeHTML(l.name)}
+            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600;margin-left:4px">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
-          ${levelSelector}
-        </div>
-        <div style="display:flex; gap:6px; align-items:center">
-          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 8px;color:#0284c7;border:1px solid rgba(2,132,199,0.3);background:var(--theme-bg-surface);cursor:pointer;font-size:11px;font-weight:700;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s" onmouseover="this.style.background='rgba(2,132,199,0.1)'" onmouseout="this.style.background='var(--theme-bg-surface)'" aria-label="Cambiar producto">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            Cambiar
-          </button>
-          <button type="button" onclick="posRemoveLine('${k}')" title="Eliminar producto" style="padding:4px 8px;color:#ef4444;border:1px solid rgba(239,68,68,0.3);background:var(--theme-bg-surface);cursor:pointer;font-size:11px;font-weight:700;border-radius:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='var(--theme-bg-surface)'" aria-label="Quitar producto">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            Quitar
-          </button>
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed var(--theme-border-subtle, #f1f5f9);margin-top:2px">
-        <div style="font-size:11px;color:var(--theme-text-muted, #64748b);display:flex;align-items:center;gap:4px">
-          <span>Precio:</span>
-          <span style="font-weight:700;color:var(--theme-text-main, #0f172a)">$</span>
-          <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:72px;font-size:12px;font-weight:700;padding:2px 4px;margin:0;height:24px;border-radius:4px" onchange="posUpdatePrice('${k}', this.value)" aria-label="Precio unitario de ${escapeHTML(l.name)}">
-          <span>/${escapeHTML(l.unit)}</span>
-          <span style="color:var(--theme-accent, #047857);font-weight:600;margin-left:4px">≈ Bs ${fmtBsNum(posLineBs(l))}</span>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="display:flex;align-items:center;gap:3px">
-            <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">−</button>
-            <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:46px;height:24px;text-align:center;padding:2px 4px;margin:0;font-size:12px;font-weight:800;border-radius:4px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}" aria-label="Cantidad">
-            <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:4px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);color:var(--theme-text-main, #0f172a);cursor:pointer;font-weight:700">＋</button>
+          <div style="font-size:11px;font-family:monospace;color:var(--theme-text-muted, #64748b);margin-top:2px">
+            SKU: ${escapeHTML(l.sku || '—')} ${l.unit ? `· ${escapeHTML(l.unit)}` : ''}
           </div>
-          <strong style="min-width:65px;text-align:right;font-size:14px;color:var(--theme-text-main, #0f172a)">${fmtPrice(l.price_usd * l.qty)}</strong>
         </div>
-      </div>
-    </div>`;
+
+        <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">
+          ${levelSelector}
+          ${jjaBtn}
+        </div>
+
+        <div style="display:inline-flex;align-items:center;gap:3px;justify-content:center">
+          <button type="button" class="qb" onclick="posQty('${k}',-1)" title="Restar 1 (-)" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);font-weight:800;cursor:pointer">−</button>
+          <input type="number" min="1" id="qty-in-${k}" data-ticket-field="qty" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.qty}" style="width:48px;height:26px;text-align:center;padding:1px 3px;font-size:13px;font-weight:800;border-radius:6px" onchange="posSetQty('${k}', this.value)" onkeydown="if(event.key==='+'||event.key==='='){event.preventDefault();posQty('${k}',1);}else if(event.key==='-'||event.key==='_'){event.preventDefault();posQty('${k}',-1);}">
+          <button type="button" class="qb" onclick="posQty('${k}',1)" title="Sumar 1 (+)" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--theme-border-subtle, #cbd5e1);background:var(--theme-bg-elevated, #fff);font-weight:800;cursor:pointer">＋</button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:3px">
+          <span style="font-size:11.5px;color:var(--theme-text-muted, #64748b);font-weight:700">$</span>
+          <input type="number" step="0.01" id="price-in-${k}" data-ticket-field="price" data-ticket-idx="${idx}" data-ticket-key="${k}" class="fi ticket-nav-input" value="${l.price_usd}" style="width:100%;height:26px;font-size:12.5px;font-weight:800;padding:1px 6px;border-radius:6px;text-align:right" onchange="posUpdatePrice('${k}', this.value)">
+        </div>
+
+        <div style="text-align:right;min-width:0">
+          <div style="font-size:13.5px;font-weight:900;color:var(--theme-text-main, #0f172a)">
+            ${fmtPrice(l.price_usd * l.qty)}
+          </div>
+          <div style="font-size:10.5px;color:var(--theme-accent, #047857);font-weight:700">
+            Bs ${fmtBsNum(posLineBs(l))}
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">
+          <button type="button" onclick="posSwapLine('${k}')" title="Reemplazar producto" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(2,132,199,0.3);background:transparent;color:#0284c7;cursor:pointer;font-size:11px">🔄</button>
+          <button type="button" onclick="posRemoveLine('${k}')" title="Quitar renglón" style="padding:4px 6px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#ef4444;cursor:pointer;font-size:11px">✕</button>
+        </div>
+      </div>`;
   }).join('');
+
+  if (box) {
+    box.innerHTML = rowsHtml;
+  }
 
   const subtotal = lines.reduce((s, [, l]) => s + l.price_usd * l.qty, 0);
   const pct   = quoteDiscountPct();
@@ -604,37 +820,38 @@ function posRenderTicket() {
   const ivaPct = (s.iva_pct !== undefined && s.iva_pct !== '') ? parseFloat(s.iva_pct) : 16;
   const montoIva = ivaPct > 0 ? (baseImponible * ivaPct / 100) : 0;
   const total = +(baseImponible + montoIva).toFixed(2);
-  const rate  = getRate();
-  tots.innerHTML = `
-    <div style="background:var(--theme-bg-surface-solid, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;margin-top:10px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--theme-text-muted, #475569)">
-        <span>Subtotal neto</span>
-        <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(subtotal)}</strong>
-      </div>
-      ${pct > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-accent, #166534)">
-          <span>Descuento propuesto (${pct}%)</span>
-          <strong>−${fmtPrice(descMonto)}</strong>
-        </div>` : ''}
-      ${ivaPct > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-text-muted, #475569)">
-          <span>Base imponible</span>
-          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(baseImponible)}</strong>
+
+  if (tots) {
+    tots.innerHTML = `
+      <div style="background:var(--theme-bg-surface-solid, #f8fafc);border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--theme-text-muted, #475569)">
+          <span>Subtotal neto</span>
+          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(subtotal)}</strong>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--theme-text-muted, #475569)">
-          <span>IVA (${ivaPct}%)</span>
-          <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(montoIva)}</strong>
-        </div>` : ''}
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--theme-border-subtle, #cbd5e1);margin-top:2px">
-        <span style="font-size:14px;font-weight:800;color:var(--theme-text-main, #0f172a)">Total estimado</span>
-        <span style="font-size:19px;font-weight:900;color:var(--theme-accent, #16604a)">${fmtPrice(total)}</span>
-      </div>
-      ${sellerShowBs() ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#047857;font-weight:700">
-          <span>En bolívares (tasa ${rate.toFixed(2)})</span>
+        ${pct > 0 ? `
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--theme-accent, #166534)">
+            <span>Descuento propuesto (${pct}%)</span>
+            <strong>−${fmtPrice(descMonto)}</strong>
+          </div>` : ''}
+        ${ivaPct > 0 ? `
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--theme-text-muted, #475569)">
+            <span>Base imponible</span>
+            <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(baseImponible)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--theme-text-muted, #475569)">
+            <span>IVA (${ivaPct}%)</span>
+            <strong style="color:var(--theme-text-main, #0f172a)">${fmtPrice(montoIva)}</strong>
+          </div>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1.5px solid var(--theme-border-subtle, #cbd5e1);margin-top:4px">
+          <span style="font-size:15px;font-weight:800;color:var(--theme-text-main, #0f172a)">Total estimado</span>
+          <span style="font-size:22px;font-weight:900;color:var(--theme-accent, #16604a)">${fmtPrice(total)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--theme-accent, #047857);font-weight:700">
+          <span>En bolívares (tasa BCV ${rate.toFixed(2)})</span>
           <span>Bs ${fmtBsNum(total * rate)}</span>
-        </div>` : ''}
-    </div>`;
+        </div>
+      </div>`;
+  }
 }
 
 function posUpdatePrice(key, val) {
@@ -703,7 +920,12 @@ async function quoteSubmit() {
       : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE)
           ? CURRENT_PROFILE
           : (window.SELLER || null));
+    // Validación estricta de UUID para seller_id y customer_id
     const sellerId = selectedSellerId || activeSeller?.id || null;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const cleanSellerId = (sellerId && uuidRegex.test(String(sellerId).trim())) ? String(sellerId).trim() : null;
+    const rawCustId = (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null;
+    const cleanCustId = (rawCustId && uuidRegex.test(String(rawCustId).trim())) ? String(rawCustId).trim() : null;
 
     const quote = {
       client_name: name,
@@ -722,25 +944,67 @@ async function quoteSubmit() {
       discount_pct: pct,
       exchange_rate: getRate(),
       notes: document.getElementById('qNotes')?.value.trim() || null,
-      seller_id: sellerId,
-      customer_id: (typeof quoteCustomer !== 'undefined' && quoteCustomer?.id) ? quoteCustomer.id : null,
+      seller_id: cleanSellerId,
+      customer_id: cleanCustId,
     };
       
     let error;
+    let savedQuoteNumber = editingQuoteNumber;
+
     if (editingQuoteId) {
       const res = await sb.from('jjp_quotes').update(quote).eq('id', editingQuoteId);
       error = res.error;
-      quote.quote_number = editingQuoteNumber; // <--- This fixes quoteShowDone(quote)
+      quote.quote_number = editingQuoteNumber;
     } else {
-      let qNum = null;
-      if (typeof fetchNextDocSerial === 'function') {
-        qNum = await fetchNextDocSerial('cotizacion');
+      let insertSuccess = false;
+      let lastInsertError = null;
+
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        let qNum = null;
+        if (typeof fetchNextDocSerial === 'function') {
+          qNum = await fetchNextDocSerial('cotizacion');
+        }
+        if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
+          try {
+            const { data: sData } = await sb.rpc('jjp_next_doc_serial', { p_type: 'cotizacion' });
+            if (sData) qNum = String(sData).padStart(8, '0').slice(-8);
+          } catch (_) {}
+        }
+        if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
+          qNum = String(Math.floor(10000000 + Math.random() * 89999999)).slice(0, 8);
+        }
+
+        quote.quote_number = qNum;
+        savedQuoteNumber = qNum;
+        quote.status = 'pendiente';
+        quote.source = 'vendedor';
+        quote.seller_id = cleanSellerId;
+
+        const res = await sb.from('jjp_quotes').insert(quote).select('id, quote_number').maybeSingle();
+        if (!res.error) {
+          insertSuccess = true;
+          error = null;
+          if (res.data?.id) {
+            editingQuoteId = res.data.id;
+            editingQuoteNumber = res.data.quote_number || qNum;
+          }
+          break;
+        }
+
+        // Si es colisión de clave única (23505), reintentar automáticamente con el siguiente serial
+        const isDuplicate = res.error.code === '23505' ||
+          (res.error.message && res.error.message.toLowerCase().includes('duplicate key'));
+        if (isDuplicate && attempt < 5) {
+          console.warn(`[quoteSubmit] Intento ${attempt}: correlativo ${qNum} ya existe en base de datos. Reintentando con nuevo correlativo...`);
+          continue;
+        }
+
+        lastInsertError = res.error;
+        break;
       }
-      if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
-        try {
-          const { data: sData } = await sb.rpc('jjp_next_doc_serial', { p_type: 'cotizacion' });
-          if (sData) qNum = String(sData).padStart(8, '0').slice(-8);
-        } catch (_) {}
+
+      if (!insertSuccess) {
+        error = lastInsertError;
       }
       if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
         showToast('⚠️ No se pudo reservar un correlativo oficial de MixNet (MXNUMCOT). Verifique la conexión para evitar saltos o colisiones de numeración.', 'err');
@@ -759,6 +1023,7 @@ async function quoteSubmit() {
     if (error) {
       console.error('quote save error:', error);
       showToast('No se pudo guardar la cotización: ' + (error.message || 'Error en base de datos'), 'err');
+      return null;
     } else {
       if (editingQuoteId && window.location.search) {
         try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
@@ -768,10 +1033,12 @@ async function quoteSubmit() {
       const subBtn = document.getElementById('qSubmitBtn');
       if (subBtn) subBtn.innerHTML = '📋 Guardar Cotización';
       quoteShowDone(quote);
+      return savedQuoteNumber;
     }
   } catch (err) {
     console.error('Error al procesar la cotización:', err);
     showToast('Error inesperado al guardar la cotización', 'err');
+    return null;
   } finally {
     qSubmitting = false;
     if (btn) { btn.disabled = false; if (!editingQuoteId) btn.textContent = '📋 Guardar Cotización'; }
@@ -850,7 +1117,7 @@ function quoteShowDone(q) {
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <a class="btn-p" style="width:auto;padding:9px 16px;background:#16604A;color:#fff;text-decoration:none;font-weight:700"
-         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">💰 Cobrar en POS</a>
+         href="pos.html?quote=${encodeURIComponent(q.quote_number)}">📋 Procesar como Pedido</a>
       <a class="btn-o" style="width:auto;padding:9px 16px" target="_blank"
          href="../comprobante.html?q=${encodeURIComponent(q.quote_number)}&print=1">🖨️ Imprimir presupuesto</a>
       ${sendHubHtml}
@@ -876,11 +1143,13 @@ function quoteReset() {
   posTicket = {};
   posRenderTicket();
   quoteCustomer = null;
-  ['qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qNotes'].forEach(id => {
+  ['qCliCode', 'qCliName', 'qCliTel', 'qCliRif', 'qCliCity', 'qCliSearch', 'qNotes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  document.getElementById('qCliNameResults').innerHTML = '';
-  document.getElementById('qCliNameResults').style.display = 'none';
+  const badgeEl = document.getElementById('qCliBadge');
+  if (badgeEl) badgeEl.style.display = 'none';
+  const nameRes = document.getElementById('qCliNameResults');
+  if (nameRes) { nameRes.innerHTML = ''; nameRes.style.display = 'none'; }
   const disc = document.getElementById('qDisc'); if (disc) disc.value = 0;
   const hint = document.getElementById('qDiscHint'); if (hint) hint.textContent = '';
   document.getElementById('qDoneModal')?.classList.remove('op');
@@ -1396,9 +1665,9 @@ function updateQuoteHeaderStatus() {
     }
     if (act) {
       act.innerHTML = `
-        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Facturar o cobrar en POS (F7)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
+        <button type="button" class="btn-p sm" onclick="quoteConvertToPos()" title="Pasar a pedido y procesar (F7)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-          Facturar en POS <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd>
+          Pasar a Pedido <kbd style="background:rgba(255,255,255,0.25);border:none;padding:1px 5px;border-radius:4px;font-size:11px">F7</kbd>
         </button>
         <button type="button" class="btn-o sm" onclick="quotePrintPdf()" title="Ver presupuesto oficial (F10)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
@@ -1427,7 +1696,7 @@ function updateQuoteHeaderStatus() {
   }
 }
 
-function quoteConvertToPos() {
+async function quoteConvertToPos() {
   if (editingQuoteNumber) {
     window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
     return;
@@ -1437,12 +1706,13 @@ function quoteConvertToPos() {
     showToast('La cotización está vacía. Agrega productos primero', 'warn');
     return;
   }
-  showToast('Guardando cotización para facturar en POS...');
-  quoteSubmit().then(() => {
-    if (editingQuoteNumber) {
-      window.location.href = `pos.html?quote=${encodeURIComponent(editingQuoteNumber)}`;
-    }
-  });
+  showToast('Guardando cotización para procesar pedido...');
+  const num = await quoteSubmit();
+  if (num) {
+    window.location.href = `pos.html?quote=${encodeURIComponent(num)}`;
+  } else {
+    showToast('No se pudo convertir a pedido porque la cotización no se guardó', 'err');
+  }
 }
 
 function quotePrintPdf() {
@@ -1568,7 +1838,10 @@ function renderQuotesInModal(list) {
             <div style="font-weight:900;font-size:13px;color:#16604a">${fmtPrice(totalUsd)}</div>
             <div style="font-size:11px;color:#059669">Bs ${fmtBsNum(totalBs)}</div>
           </div>
-          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : '#fef3c7;color:#b45309'}">${q.status || 'pendiente'}</span>
+          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : (q.status === 'confirmado_mixnet' ? '#dbeafe;color:#1d4ed8' : '#fef3c7;color:#b45309')}">${q.status === 'confirmado_mixnet' ? '✅ En MixNet' : (q.status || 'pendiente')}</span>
+          ${q.status === 'confirmado_mixnet'
+            ? `<span style="font-size:11px;color:#1d4ed8;font-weight:700">Ya enviada a MixNet</span>`
+            : `<button type="button" class="btn-p sm" onclick="event.stopPropagation();confirmQuoteToMixnet('${q.id}','${(q.quote_number||'').replace(/'/g,'')}')" title="Marcar como confirmada para enviarla a MixNet" style="padding:4px 10px;font-size:11px;background:#1d4ed8;color:#fff;border-radius:6px">✅ Confirmar → MixNet</button>`}
           <button type="button" class="btn-p sm" onclick="event.stopPropagation();selectQuoteFromModal('${q.id}')" style="padding:4px 10px;font-size:11px;background:#16604a;color:#fff;border-radius:6px">✏️ Cargar</button>
         </div>
       </div>
@@ -1579,6 +1852,24 @@ function renderQuotesInModal(list) {
 function selectQuoteFromModal(id) {
   closeQuoteSearchModal();
   loadQuoteForEdit(id);
+}
+
+// Confirmar cotización para su envío a MixNet.
+// Solo al confirmar, el agente de la Win7 la escribe con el correlativo real de MixNet.
+async function confirmQuoteToMixnet(id, quoteNumber) {
+  if (!id) return;
+  const label = quoteNumber ? '#' + quoteNumber : 'esta cotización';
+  if (!confirm(`¿Confirmar ${label} para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.`)) return;
+  try {
+    const res = await sb.from('jjp_quotes').update({ status: 'confirmado_mixnet' }).eq('id', id);
+    if (res.error) throw res.error;
+    if (typeof toast === 'function') toast('✅ Cotización confirmada · se enviará a MixNet', 'success');
+    else alert('Cotización confirmada para MixNet.');
+    if (typeof loadQuotesInModal === 'function') loadQuotesInModal();
+    else if (typeof filterQuotesInModal === 'function') filterQuotesInModal();
+  } catch (e) {
+    alert('No se pudo confirmar: ' + (e.message || e));
+  }
 }
 
 function filterQuotesInModal() {
@@ -1733,6 +2024,21 @@ function quoteInitGlobalKeys() {
         closePosPhone();
         return;
       }
+      const searchModal = document.getElementById('qSearchModal');
+      if (searchModal && searchModal.classList.contains('op')) {
+        closeQuoteSearchModal();
+        return;
+      }
+      const posRes = document.getElementById('posResults');
+      if (posRes && posRes.style.display === 'block') {
+        posRes.style.display = 'none';
+        return;
+      }
+      const custBox = document.getElementById('qCliNameResults');
+      if (custBox && custBox.style.display === 'block') {
+        custBox.style.display = 'none';
+        return;
+      }
       if (quoteTicketCursor >= 0) {
         quoteTicketCursor = -1;
         posRenderTicket();
@@ -1744,6 +2050,12 @@ function quoteInitGlobalKeys() {
       if (document.activeElement === se && se.value.trim()) {
         se.value = '';
         posSearch();
+        return;
+      }
+      const cli = document.getElementById('qCliSearch');
+      if (document.activeElement === cli && cli.value.trim()) {
+        cli.value = '';
+        quoteResetCustomer();
         return;
       }
       if (document.activeElement !== se && se) {
@@ -1767,7 +2079,7 @@ function quoteInitGlobalKeys() {
     // F3: enfocar búsqueda de cliente
     if (e.key === 'F3') {
       e.preventDefault();
-      const cli = document.getElementById('qCliName');
+      const cli = document.getElementById('qCliSearch') || document.getElementById('qCliName');
       if (cli) { cli.focus(); cli.select(); }
       return;
     }
@@ -1803,6 +2115,8 @@ function quoteInitGlobalKeys() {
     // F9 o Ctrl+Enter: guardar cotización / guardar cambios
     if (e.key === 'F9' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
+      const doneModal = document.getElementById('qDoneModal');
+      if (doneModal && doneModal.classList.contains('op')) return;
       quoteSubmit();
       return;
     }
@@ -1857,7 +2171,7 @@ function quoteShowHelpModal() {
             <b style="color:#0f172a;display:block;margin-bottom:6px">📂 Cotizaciones y Gestión</b>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F4</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+O</kbd> Abrir cotización existente</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F8</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Alt+C</kbd> Ver todas las cotizaciones</div>
-            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Facturar / Cobrar en POS</div>
+            <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F7</kbd> Pasar a Pedido</div>
             <div style="margin-bottom:4px"><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">F10</kbd> o <kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px">Ctrl+P</kbd> Ver / Imprimir PDF</div>
             <div><kbd style="background:#fff;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;font-weight:700">Alt+N</kbd> Nueva cotización / limpiar</div>
           </div>

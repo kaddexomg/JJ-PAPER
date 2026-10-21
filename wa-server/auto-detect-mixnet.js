@@ -34,6 +34,7 @@ export function discoverMixnetEnvironment() {
   ];
 
   const foundDropDirs = new Set();
+  let foundDbfDir = null;
 
   for (const d of availableDrives) {
     // Si la unidad es C:, ignorar carpetas auto-creadas previamente ya que el usuario aclaró que la info de MixNet está en la otra unidad
@@ -93,11 +94,11 @@ export function discoverMixnetEnvironment() {
   }
 
   // 2. Base de datos DBF de MixNet (comp01 con tablas MXCTAINV, PED, MXRENPED, etc.)
-  let foundDbfDir = null;
   const dbfCandidates = [
-    'M:\\MIX11\\comp01',
     'M:\\comp01',
     'M:\\COMP01',
+    'M:\\MIX11\\comp01',
+    '//servidor/comp01',
     '//servidor/MIX11/comp01',
     'M:\\mixnet',
     'M:\\',

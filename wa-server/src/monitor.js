@@ -71,7 +71,7 @@ export function recordLiveRequest(info) {
 // Semilla inicial para que el dashboard no empiece vacío
 recordLiveRequest({ type: 'SYSTEM', method: 'INIT', path: 'monitor:boot', status: 200, durationMs: 4, detail: 'Motor de monitoreo en tiempo real iniciado' });
 
-// Loop periódico que emite métricas de base de datos a clientes SSE en vivo
+// Loop periódico que emite métricas de base de datos a clientes SSE en vivo (cada 15s para no saturar poolers)
 setInterval(async () => {
   if (sseMonitorClients.size > 0) {
     try {
@@ -79,7 +79,7 @@ setInterval(async () => {
       broadcastMonitorEvent('stats', stats);
     } catch (_) {}
   }
-}, 2500);
+}, 15_000);
 
 /**
  * Calcula RPM (Requests Por Minuto) en base a los últimos 60 segundos

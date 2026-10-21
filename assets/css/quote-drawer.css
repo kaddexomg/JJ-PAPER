@@ -1,0 +1,435 @@
+/* ======================================================
+   JJ Paper — Cotizador Mayorista / Drawer de Lista de Cotización
+   Permite al cliente armar su lista multi-producto de requerimientos
+   estilo MixNet, calcular totales y despachar a WhatsApp / Presupuesto.
+   ====================================================== */
+
+/* Botón flotante de la lista */
+.quote-drawer-pill {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--gd, #16604A);
+  color: #ffffff;
+  border: 2px solid var(--am, #C9A24B);
+  border-radius: 30px;
+  padding: 12px 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 30px rgba(22, 96, 74, 0.35);
+  cursor: pointer;
+  z-index: 9998;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: all .25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-decoration: none;
+}
+.quote-drawer-pill:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 36px rgba(22, 96, 74, 0.45);
+  background: var(--gh, #0F4636);
+}
+.quote-drawer-pill .pill-badge {
+  background: var(--am, #C9A24B);
+  color: #1a1a1a;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.quote-drawer-pill .pill-total {
+  font-weight: 800;
+  color: #fff;
+}
+
+/* Overlay & Panel Drawer */
+.quote-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: none;
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.quote-drawer-overlay.open {
+  display: flex;
+  opacity: 1;
+}
+
+.quote-drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 460px;
+  background: #ffffff;
+  box-shadow: -6px 0 30px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 10001;
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+.quote-drawer-overlay.open .quote-drawer-panel {
+  transform: translateX(0);
+}
+
+/* Encabezado del Drawer */
+.qd-header {
+  background: var(--gd, #16604A);
+  color: #fff;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 3px solid var(--am, #C9A24B);
+}
+.qd-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qd-close {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .2s;
+}
+.qd-close:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Lista de Ítems */
+.qd-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8faf9;
+}
+.qd-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #777;
+}
+.qd-empty .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.qd-empty p {
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Tarjeta de Cada Producto en la Lista */
+.qd-item {
+  background: #ffffff;
+  border: 1px solid #e1e8e4;
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+.qd-item-img {
+  width: 54px;
+  height: 54px;
+  background: #f4f7f5;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #e2ece6;
+}
+.qd-item-img img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+}
+.qd-item-info {
+  min-width: 0;
+}
+.qd-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 0 2px;
+}
+.qd-item-brand {
+  font-size: 11px;
+  color: var(--gd, #16604A);
+  font-weight: 600;
+}
+.qd-item-pkg {
+  font-size: 10.5px;
+  color: #777;
+}
+.qd-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.qd-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #f0f4f2;
+  border: 1px solid #d5e0da;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.qd-stepper button {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gd, #16604A);
+  cursor: pointer;
+}
+.qd-stepper span {
+  width: 32px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+.qd-item-price-col {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.qd-item-subtotal {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--gd, #16604A);
+}
+.qd-item-unitprice {
+  font-size: 10px;
+  color: #666;
+}
+.qd-del-btn {
+  background: transparent;
+  border: none;
+  color: #e53e3e;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px;
+  opacity: .7;
+}
+.qd-del-btn:hover {
+  opacity: 1;
+}
+
+/* Pie de Totales y Despacho */
+.qd-footer {
+  background: #ffffff;
+  border-top: 1px solid #e1e8e4;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.qd-total-box {
+  background: #f0f7f3;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.qd-tot-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #444;
+}
+.qd-tot-usd {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--gd, #16604A);
+  line-height: 1.1;
+  text-align: right;
+}
+.qd-tot-bs {
+  font-size: 11.5px;
+  color: #666;
+  font-weight: 600;
+  text-align: right;
+}
+
+.qd-actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.btn-qd-wa {
+  background: #25D366;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+  text-decoration: none;
+  transition: all .2s;
+}
+.btn-qd-wa:hover {
+  background: #20bd5a;
+  transform: translateY(-1px);
+}
+.btn-qd-formal {
+  background: var(--gd, #16604A);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.btn-qd-formal:hover {
+  background: var(--gh, #0F4636);
+}
+.qd-clear-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  padding: 4px;
+}
+.qd-clear-btn:hover {
+  color: #e53e3e;
+}
+
+/* Botón Añadir a Cotización en Tarjetas del Catálogo */
+.btn-add-to-quote {
+  background: #f0f7f3;
+  color: var(--gd, #16604A);
+  border: 1.5px solid #bfe0cf;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all .2s;
+}
+.btn-add-to-quote:hover {
+  background: var(--gd, #16604A);
+  color: #fff;
+  border-color: var(--gd, #16604A);
+}
+
+/* Modal de Cotización Formal Multi-ítem */
+.formal-quote-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(5px);
+  z-index: 10005;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.formal-quote-modal.open {
+  display: flex;
+}
+.fq-card {
+  background: #fff;
+  border-radius: 14px;
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+.fq-head {
+  background: var(--gd, #16604A);
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.fq-head h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.fq-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fq-input {
+  border: 1px solid #ccd8d2;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.fq-input:focus {
+  outline: none;
+  border-color: var(--gd, #16604A);
+}
+
+@media (max-width: 600px) {
+  .quote-drawer-pill {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-radius: 16px;
+  }
+  .quote-drawer-panel {
+    max-width: 100%;
+  }
+}

@@ -344,6 +344,9 @@ const MIME = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.map': 'application/json',
+  '.zip': 'application/zip', '.bat': 'text/plain; charset=utf-8',
+  '.pdf': 'application/pdf', '.csv': 'text/csv; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 // Antes se respondía con Access-Control-Allow-Origin: * — o sea, CUALQUIER web
@@ -352,6 +355,8 @@ const MIME = {
 // servidor por LAN y localhost.
 const ALLOWED_ORIGINS = [
   'https://jj-paper.pages.dev',
+  'https://jjpaper.lat',
+  'https://www.jjpaper.lat',
   'http://localhost:8787', 'https://localhost:8788',
   'http://127.0.0.1:8787', 'https://127.0.0.1:8788',
 ];
@@ -359,10 +364,10 @@ function corsOrigin(req) {
   const o = req?.headers?.origin;
   if (!o) return '*';                                   // petición interna o sin origen
   if (ALLOWED_ORIGINS.includes(o)) return o;
-  if (o.endsWith('.pages.dev') || o.endsWith('pages.dev')) return o;
+  if (o.endsWith('.pages.dev') || o.endsWith('pages.dev') || o.endsWith('jjpaper.lat')) return o;
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) return o;
-  // El teléfono entra por la IP de la PC en la red local (192.168.x / 10.x)
-  if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
+  // El teléfono o PC entra por la IP en la red local o VPN Tailscale (192.168.x / 10.x / 172.x / 100.x)
+  if (/^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.\d{1,3}\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(o)) return o;
   return null;
 }
 // Se marca la respuesta UNA vez al entrar la petición (handle) y de ahí en
@@ -680,6 +685,112 @@ async function handle(req, res) {
     try { qr = await QRCode.toDataURL(u, { width: 320, margin: 1 }); } catch (e) {}
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(startHtml(u, qr));
+  }
+
+  // ---- Servidor de descargas directas para la PC Windows 7 / Laptop ----
+  if (pathOnly === '/descargas' || pathOnly === '/downloads') {
+    const zipPath = path.join(REPO_ROOT, 'puente-win7.zip');
+    const zipAltPath = path.join(REPO_ROOT, 'wa-server', 'puente-win7.zip');
+    const zipExists = fs.existsSync(zipPath) || fs.existsSync(zipAltPath);
+    let zipSizeMb = '0';
+    try {
+      const st = fs.existsSync(zipPath) ? fs.statSync(zipPath) : fs.statSync(zipAltPath);
+      zipSizeMb = (st.size / 1024).toFixed(1) + ' KB';
+    } catch (_) {}
+
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Servidor de Descargas — JJ Paper</title>
+<style>
+body{margin:0;min-height:100vh;background:#03130d;color:#eaf5ee;font-family:system-ui,-apple-system,sans-serif;padding:32px 16px;display:flex;justify-content:center}
+.card{max-width:540px;width:100%;background:#0a1e16;border:1px solid #1a3f30;border-radius:16px;padding:28px;box-shadow:0 10px 30px rgba(0,0,0,0.5)}
+h1{font-size:22px;margin:0 0 8px;color:#99CC33;display:flex;align-items:center;gap:10px}
+p{color:#9fc7b3;font-size:14px;line-height:1.5;margin:0 0 20px}
+.item{background:#04150e;border:1px solid #1f4a38;border-radius:12px;padding:16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.item-info{display:flex;flex-direction:column}
+.item-title{font-weight:700;color:#fff;font-size:15px}
+.item-meta{font-size:12px;color:#7ca693;margin-top:3px}
+.btn{background:#99CC33;color:#03130d;text-decoration:none;font-weight:700;padding:10px 16px;border-radius:8px;font-size:13px;transition:opacity .2s;display:inline-block}
+.btn:hover{opacity:.9}
+.steps{background:#061811;border-left:3px solid #99CC33;padding:12px 16px;border-radius:0 8px 8px 0;margin-top:20px;font-size:13px;color:#b2d4c4;line-height:1.6}
+.steps ol{margin:6px 0 0;padding-left:18px}
+.status-pill{display:inline-block;padding:3px 8px;border-radius:20px;background:#153d2c;color:#99cc33;font-size:11px;font-weight:600}
+</style></head><body>
+<div class="card">
+  <h1><span>⚡</span> Servidor Central JJ Paper</h1>
+  <p>Acceso directo de instalación y descarga para la PC de la tienda (Windows 7), laptop o móvil.</p>
+  
+  <div class="item">
+    <div class="item-info">
+      <span class="item-title">📦 puente-win7.zip</span>
+      <span class="item-meta">Micro-Puente Autónomo Node 13+ · ${zipSizeMb} · ES5 Puro</span>
+    </div>
+    <a href="/puente-win7.zip" class="btn" download>Descargar ZIP</a>
+  </div>
+
+  <div class="item">
+    <div class="item-info">
+      <span class="item-title">⚙️ INICIAR-PUENTE.bat</span>
+      <span class="item-meta">Lanzador con auto-detección y desvío de puertos</span>
+    </div>
+    <a href="/puente-win7/INICIAR-PUENTE.bat" class="btn" download>Descargar .BAT</a>
+  </div>
+
+  <div class="item">
+    <div class="item-info">
+      <span class="item-title">📱 Conteo Offline WiFi</span>
+      <span class="item-meta">Escanear inventario desde smartphone</span>
+    </div>
+    <a href="/lan/start" class="btn" style="background:#174634;color:#99cc33;border:1px solid #99cc33">Abrir QR</a>
+  </div>
+
+  <div class="steps">
+    <strong>Pasos rápidos para la PC de Windows 7:</strong>
+    <ol>
+      <li>Descarga <code>puente-win7.zip</code> en la PC de la tienda.</li>
+      <li>Descomprime el ZIP en una carpeta (ej: <code>C:\\puente-win7</code> o Escritorio).</li>
+      <li>Haz doble clic en <code>INICIAR-PUENTE.bat</code>.</li>
+      <li>Se abrirá la ventana verde y el panel en <code>http://localhost:3300</code> sincronizando automáticamente con el VPS.</li>
+    </ol>
+  </div>
+</div></body></html>`;
+
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    return res.end(html);
+  }
+
+  // Descarga directa de puente-win7.zip desde raíz o desde wa-server
+  if (pathOnly === '/puente-win7.zip' || pathOnly === '/descargas/puente-win7.zip') {
+    const pRoot = path.join(REPO_ROOT, 'puente-win7.zip');
+    const pWa = path.join(REPO_ROOT, 'wa-server', 'puente-win7.zip');
+    const chosen = fs.existsSync(pRoot) ? pRoot : fs.existsSync(pWa) ? pWa : null;
+    if (!chosen) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Archivo puente-win7.zip no disponible aún en el servidor');
+    }
+    const stat = fs.statSync(chosen);
+    res.writeHead(200, {
+      'Content-Type': 'application/zip',
+      'Content-Length': stat.size,
+      'Content-Disposition': 'attachment; filename=puente-win7.zip',
+      'Cache-Control': 'no-cache, must-revalidate'
+    });
+    return fs.createReadStream(chosen).pipe(res);
+  }
+
+  if (pathOnly === '/puente-win7/INICIAR-PUENTE.bat') {
+    const batPath = path.join(REPO_ROOT, 'puente-win7', 'INICIAR-PUENTE.bat');
+    if (!fs.existsSync(batPath)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Archivo INICIAR-PUENTE.bat no encontrado');
+    }
+    const stat = fs.statSync(batPath);
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Length': stat.size,
+      'Content-Disposition': 'attachment; filename=INICIAR-PUENTE.bat'
+    });
+    return fs.createReadStream(batPath).pipe(res);
   }
 
   if (url.startsWith('/lan/')) {

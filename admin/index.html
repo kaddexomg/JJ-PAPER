@@ -26,8 +26,6 @@
       <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
       <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
       <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
-      <a href="promociones.html"><span class="a-ico">🔥</span> Promociones</a>
-      <a href="resenas.html"><span class="a-ico">⭐</span> Resenas</a>
       <div class="divider"></div>
       <span class="a-section">Catalogo</span>
       <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
@@ -41,7 +39,7 @@
       <a href="monitor.html"><span class="a-ico">⚡</span> Monitor & Cuotas</a>
       <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
       <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
-      <a href="../index.html" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
+      <a href="/catalogo" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
       <a href="#" onclick="adminLogout()"><span class="a-ico">🔓</span> Cerrar Sesion</a>
     </nav>
     <div class="aside-ft">Sesion: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
@@ -78,8 +76,8 @@
           <div><div class="stat-n" id="stat-products">—</div><div class="stat-l">Productos activos</div></div>
         </div>
         <div class="stat-card">
-          <div class="stat-ico red">⭐</div>
-          <div><div class="stat-n" id="stat-reviews">—</div><div class="stat-l">Resenas por aprobar</div></div>
+          <div class="stat-ico blue">📋</div>
+          <div><div class="stat-n" id="stat-quotes">—</div><div class="stat-l">Cotizaciones activas</div><div class="stat-d" id="stat-quotes-sub"></div></div>
         </div>
       </div>
 
@@ -90,6 +88,22 @@
         <a href="monitor.html" class="btn-ghost" style="border-color:#16604A;color:#16604A;font-weight:700">⚡ Monitor & Cuotas</a>
         <a href="vendedores.html" class="btn-ghost">👥 Vendedores</a>
         <a href="ajustes.html" class="btn-ghost">⚙️ Configurar pagos</a>
+      </div>
+
+      <!-- Banner de Estado Servidor & MixNet -->
+      <div id="serverStatusBar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 18px;background:#07231a;border:1px solid #1a4535;border-radius:12px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="dashSrvDot" style="width:10px;height:10px;border-radius:50%;background:#2ed573;display:inline-block;box-shadow:0 0 8px #2ed573;"></span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#eaf5ee;" id="dashSrvTitle">Servidor Supervisor: En Línea · MixNet M:/comp01 Activo</div>
+            <div style="font-size:11px;color:#8fb5a2;" id="dashSrvSub">IP Tailscale: 100.103.110.44:8787 | Conexión directa a caja y base de datos</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn-ghost" onclick="sendServerRemoteCommand('restart')" id="btnSrvRestart" style="padding:6px 12px;font-size:12px;border-color:#f59e0b;color:#f59e0b;font-weight:700;background:rgba(245,158,11,0.1);cursor:pointer;border-radius:6px">🔄 Reiniciar Servidor</button>
+          <button type="button" class="btn-ghost" onclick="sendServerRemoteCommand('pull')" id="btnSrvPull" style="padding:6px 12px;font-size:12px;border-color:#0284c7;color:#38bdf8;font-weight:700;background:rgba(2,132,199,0.1);cursor:pointer;border-radius:6px">⚡ Actualizar (Git Pull)</button>
+          <a href="monitor.html" class="btn-ghost" style="padding:6px 14px;font-size:12px;border-color:#2c5647;color:#99CC33;font-weight:700;text-decoration:none;">⚡ Monitor →</a>
+        </div>
       </div>
 
       <!-- Notificaciones -->
@@ -150,7 +164,7 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
-<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script src="../assets/js/admin/invoices.js"></script>
 <script src="../assets/js/admin/dashboard.js"></script>
 <script>
@@ -168,7 +182,67 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadSettings();
   await initDashboard();
+
+  // Comprobar estado en vivo de Supervisor-Pc
+  try {
+    const { data: srv } = await sb.from('jjp_server_control').select('status, host, heartbeat_at, modules').eq('id', 1).maybeSingle();
+    if (srv) {
+      const isOnline = (Date.now() - new Date(srv.heartbeat_at || 0).getTime()) < 120_000 || srv.status === 'online';
+      const dot = document.getElementById('dashSrvDot');
+      const title = document.getElementById('dashSrvTitle');
+      const sub = document.getElementById('dashSrvSub');
+      if (dot) {
+        dot.style.background = isOnline ? '#2ed573' : '#ff5252';
+        dot.style.boxShadow = isOnline ? '0 0 8px #2ed573' : '0 0 8px #ff5252';
+      }
+      if (title) {
+        title.textContent = isOnline ? `Servidor Supervisor (${srv.host || 'Supervisor-Pc'}): En Línea · MixNet M:/comp01 Activo` : 'Servidor Supervisor: Desconectado o Reiniciando';
+      }
+      if (sub) {
+        const tsIp = srv.modules?.tailscale_ip || '100.103.110.44';
+        sub.textContent = isOnline ? `IP Privada Tailscale: ${tsIp}:8787 | Conexión directa a caja y base de datos` : 'Esperando latido de red local...';
+      }
+    }
+  } catch (_) {}
 });
+
+async function sendServerRemoteCommand(cmd) {
+  const labels = {
+    restart: 'Reiniciar Servidor',
+    pull: 'Actualizar código desde GitHub y Reiniciar'
+  };
+  const label = labels[cmd] || cmd;
+  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor?\n\nEl servicio procesará el comando de inmediato mediante Supabase y se reiniciará de forma autónoma.`)) return;
+
+  const btnRestart = document.getElementById('btnSrvRestart');
+  const btnPull = document.getElementById('btnSrvPull');
+  if (btnRestart) btnRestart.disabled = true;
+  if (btnPull) btnPull.disabled = true;
+
+  try {
+    const payload = {
+      command: cmd,
+      updated_at: new Date().toISOString()
+    };
+    // Escribir en jjp_server_control (Proyecto B y Proyecto A)
+    const { error } = await sb.from('jjp_server_control').update(payload).eq('id', 1);
+    if (error) throw error;
+
+    showToast(`✔ Comando "${cmd}" enviado con éxito. El servidor se está reiniciando...`);
+    const title = document.getElementById('dashSrvTitle');
+    if (title) title.textContent = 'Servidor: Procesando reinicio / actualización...';
+    const dot = document.getElementById('dashSrvDot');
+    if (dot) dot.style.background = '#f59e0b';
+  } catch (err) {
+    console.error('Error enviando comando remoto:', err);
+    showToast('Error al enviar comando: ' + err.message, 'err');
+  } finally {
+    setTimeout(() => {
+      if (btnRestart) btnRestart.disabled = false;
+      if (btnPull) btnPull.disabled = false;
+    }, 5000);
+  }
+}
 </script>
 </body>
 </html>

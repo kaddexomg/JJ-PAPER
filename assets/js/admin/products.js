@@ -163,6 +163,7 @@ function renderAdminProdTable() {
       </td>
       <td>
         <div class="td-actions">
+          ${!p.image_url ? `<button class="btn-s sm" style="background:#065f46;color:#fff;border-radius:4px;padding:3px 6px;font-size:11px" onclick="prodGenerarFotoIA('${p.id}','${esc}')" title="Generar packshot con IA">🤖 IA</button>` : ''}
           <button class="btn-p sm" onclick="openEditProduct('${p.id}')">✏️</button>
           <button class="btn-send sm" onclick="fichaAbrir(event,'${p.id}')"
                   title="Enviar foto + reseña + enlace de compra al cliente">📤</button>
@@ -903,4 +904,362 @@ async function recalcPrices(scope = 'all') {
   showToast(err ? `${ok} actualizados · ${err} con error` : `✅ ${ok} precios recalculados`);
   selectedIds.clear();
   await loadAdminProducts();
+}
+
+/* ---------- Generación de Packshot con IA directa desde Productos ---------- */
+/* ---------- ESTUDIO COGNITIVO DE FOTOS: Búsqueda Web Real + Fotografía IA ---------- */
+let _currentStudioProdId = null;
+let _currentStudioSelectedImg = null;
+
+async function prodGenerarFotoIA(productId, prodName) {
+  _currentStudioProdId = productId;
+  _currentStudioSelectedImg = null;
+
+  let modal = document.getElementById('prodAiModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'prodAiModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);';
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+        <div>
+          <h3 style="margin:0;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px">
+            <span>📸 Estudio Fotográfico de Producto</span>
+            <span style="font-size:11px;font-weight:600;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px">IA Multi-Fuente</span>
+          </h3>
+          <p style="margin:4px 0 0;font-size:13px;color:#64748b;font-weight:500" id="prodStudioTitle">${escapeHTML(prodName)}</p>
+        </div>
+        <button onclick="document.getElementById('prodAiModal').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">✕</button>
+      </div>
+
+      <!-- Barra de búsqueda / afinamiento -->
+      <div style="padding:12px 20px;background:#fff;border-bottom:1px solid #f1f5f9;display:flex;gap:10px;align-items:center">
+        <div style="flex:1;position:relative">
+          <input type="text" id="prodStudioSearchInput" value="${escapeHTML(prodName)}"
+                 style="width:100%;padding:8px 12px 8px 32px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none"
+                 placeholder="Escribe término de búsqueda exacto (ej. Marcador Expo rojo pizarra)...">
+          <span style="position:absolute;left:10px;top:9px;font-size:13px;color:#94a3b8">🔍</span>
+        </div>
+        <button class="btn-s" style="padding:8px 14px;background:#0f172a;color:#fff;border-radius:8px;border:none;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px"
+                onclick="prodStudioEjecutarBusqueda()">
+          Buscar Fotos
+        </button>
+      </div>
+
+      <!-- Barra de información y afinamiento -->
+      <div style="padding:10px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:600;color:#065f46;display:flex;align-items:center;gap:6px">
+          <span>🌐 Fotografías Oficiales en Línea</span>
+          <span style="font-size:11px;background:#e2e8f0;color:#475569;padding:1px 8px;border-radius:10px" id="webPhotosCount">...</span>
+        </div>
+        <div style="font-size:11.5px;color:#64748b">
+          💡 Selecciona la foto que coincida exactamente con marca, color y presentación
+        </div>
+      </div>
+
+      <!-- Contenedor de contenido -->
+      <div style="flex:1;overflow-y:auto;padding:18px 20px;">
+        <div id="panelWebPhotos">
+          <div id="webLoadingSpinner" style="text-align:center;padding:40px 0;color:#64748b">
+            <div style="font-size:28px;margin-bottom:8px">⏳</div>
+            <div style="font-size:13px;font-weight:500">Consultando fotografías reales del producto en distribuidores...</div>
+          </div>
+          <div id="webPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px;"></div>
+        </div>
+      </div>
+
+      <!-- Barra de acción inferior -->
+      <div style="padding:14px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:12.5px;color:#475569" id="studioSelectionStatus">
+          Selecciona una fotografía para asignarla al producto.
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-ghost" style="padding:8px 16px" onclick="document.getElementById('prodAiModal').style.display='none'">
+            Cancelar
+          </button>
+          <button id="studioSaveBtn" class="btn-p" style="padding:8px 20px;background:#065f46;color:#fff;border-radius:6px;border:none;cursor:pointer;font-weight:600"
+                  disabled onclick="prodStudioGuardarSeleccion()">
+            ✅ Asignar Foto al Producto
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+
+  // Iniciar la búsqueda multi-fuente
+  prodStudioEjecutarBusqueda();
+}
+
+function prodStudioSwitchTab(tab) {
+  const panelWeb = document.getElementById('panelWebPhotos');
+  const panelAi = document.getElementById('panelAiPhoto');
+  const tabWeb = document.getElementById('tabWebBtn');
+  const tabAi = document.getElementById('tabAiBtn');
+
+  if (tab === 'web') {
+    panelWeb.style.display = 'block';
+    panelAi.style.display = 'none';
+    tabWeb.style.borderBottom = '2px solid #065f46';
+    tabWeb.style.color = '#065f46';
+    tabWeb.style.fontWeight = '600';
+    tabAi.style.borderBottom = 'none';
+    tabAi.style.color = '#64748b';
+    tabAi.style.fontWeight = '500';
+  } else {
+    panelWeb.style.display = 'none';
+    panelAi.style.display = 'block';
+    tabAi.style.borderBottom = '2px solid #065f46';
+    tabAi.style.color = '#065f46';
+    tabAi.style.fontWeight = '600';
+    tabWeb.style.borderBottom = 'none';
+    tabWeb.style.color = '#64748b';
+    tabWeb.style.fontWeight = '500';
+
+    if (!document.getElementById('prodAiStandaloneImg').src || document.getElementById('prodAiStandaloneImg').src.includes('data:')) {
+      prodStudioGenerarFotoIA();
+    }
+  }
+}
+
+async function prodStudioEjecutarBusqueda() {
+  const qInput = document.getElementById('prodStudioSearchInput');
+  const q = (qInput?.value || '').trim();
+  if (!q) return;
+
+  const spinner = document.getElementById('webLoadingSpinner');
+  const grid = document.getElementById('webPhotosGrid');
+  const countEl = document.getElementById('webPhotosCount');
+
+  if (spinner) spinner.style.display = 'block';
+  if (grid) grid.innerHTML = '';
+  if (countEl) countEl.textContent = '...';
+
+  let results = [];
+
+  // 1. INTENTAR DIRECTAMENTE VÍA CLOUDFLARE EDGE API (/api/search-images)
+  try {
+    const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);
+    if (cfRes.ok) {
+      const cfData = await cfRes.json();
+      if (cfData.ok && Array.isArray(cfData.results) && cfData.results.length > 0) {
+        results = cfData.results;
+      }
+    }
+  } catch (err) {
+    console.warn('Fallback a jjp_server_control por error en /api/search-images:', err);
+  }
+
+  // 2. Si Cloudflare no devolvió fotos o falló la red, usar jjp_server_control como respaldo
+  if (!results.length) {
+    try {
+      await sb.from('jjp_server_control').update({
+        command: `search_images:${q}`,
+        command_at: new Date().toISOString()
+      }).eq('id', 1);
+
+      for (let i = 0; i < 24; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
+        let resObj = ctrl?.command_res;
+        if (typeof resObj === 'string') {
+          try { resObj = JSON.parse(resObj); } catch (_) {}
+        }
+        if (resObj?.type === 'search_images' && resObj.ok && Array.isArray(resObj.results)) {
+          const resQ = (resObj.query || '').toLowerCase().trim();
+          const cleanQ = q.toLowerCase().trim();
+          if (resQ.includes(cleanQ) || cleanQ.includes(resQ) || resObj.reqId) {
+            results = resObj.results;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error en fallback jjp_server_control:', e);
+    }
+  }
+
+  if (spinner) spinner.style.display = 'none';
+
+    if (!results || results.length === 0) {
+      if (grid) {
+        grid.innerHTML = `
+          <div style="grid-column:1/-1;text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:8px">
+            <p style="margin:0 0 8px;font-size:14px">No encontramos fotos web exactas con "${escapeHTML(q)}".</p>
+            <p style="margin:0;font-size:12px;color:#94a3b8">Prueba simplificando el nombre arriba (ej: "Expo rojo pizarra") o usa la pestaña <strong>🤖 Fotografía con IA</strong>.</p>
+          </div>`;
+      }
+      if (countEl) countEl.textContent = '0';
+      return;
+    }
+
+    if (countEl) countEl.textContent = results.length;
+
+    grid.innerHTML = results.map((r, idx) => `
+      <div class="prod-img-card" id="studio-card-${idx}" style="cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff;transition:all .15s ease"
+           onclick="prodStudioSelectImage('${escapeJsStr(r.image || r.thumbnail)}', ${idx}, '${escapeJsStr(r.title)}')">
+        <div style="width:100%;height:130px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:8px">
+          <img src="${r.thumbnail || r.image}" alt="${escapeHTML(r.title)}" style="max-width:100%;max-height:100%;object-fit:contain"
+               onerror="this.parentElement.parentElement.style.display='none'">
+        </div>
+        <div style="padding:8px;border-top:1px solid #f1f5f9;font-size:11px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(r.title)}">
+          ${escapeHTML(r.title)}
+        </div>
+      </div>
+    `).join('');
+
+    // Preseleccionar la primera imagen por defecto
+    if (results[0]) {
+      prodStudioSelectImage(results[0].image || results[0].thumbnail, 0, results[0].title);
+    }
+
+  } catch (err) {
+    if (spinner) spinner.style.display = 'none';
+    if (grid) grid.innerHTML = `<div style="grid-column:1/-1;color:#b91c1c;padding:20px;text-align:center">Aviso en búsqueda web: ${err.message}</div>`;
+  }
+}
+
+function prodStudioSelectImage(imgUrl, idx = null, title = '') {
+  _currentStudioSelectedImg = imgUrl;
+
+  document.querySelectorAll('.prod-img-card').forEach(c => {
+    c.style.borderColor = '#e2e8f0';
+    c.style.boxShadow = 'none';
+  });
+
+  if (idx !== null) {
+    const card = document.getElementById(`studio-card-${idx}`);
+    if (card) {
+      card.style.borderColor = '#065f46';
+      card.style.boxShadow = '0 0 0 2px rgba(6,95,70,0.2)';
+    }
+  }
+
+  const saveBtn = document.getElementById('studioSaveBtn');
+  const statusEl = document.getElementById('studioSelectionStatus');
+  if (saveBtn) saveBtn.disabled = false;
+  if (statusEl) {
+    statusEl.innerHTML = `✅ Foto seleccionada: <strong style="color:#0f172a">${escapeHTML(title || 'Imagen elegida')}</strong>`;
+  }
+}
+
+async function prodStudioGenerarFotoIA() {
+  const qInput = document.getElementById('prodStudioSearchInput');
+  const prodName = (qInput?.value || '').trim();
+  const imgEl = document.getElementById('prodAiStandaloneImg');
+  if (!imgEl) return;
+
+  // Análisis ontológico inteligente de empaque y presentación
+  const isCaja = /\b(X\s*12|DOCENA|DOC|C\/12|CAJA|X\s*24|PACK|SURT|SET)\b/i.test(prodName);
+  const isResma = /\b(RESMA|500\s*HJS|500\s*HOJAS|BOND)\b/i.test(prodName);
+
+  let objectPrompt = `Commercial product photography of ${prodName}, authentic stationery item, on pure solid white background #FFFFFF, studio light, sharp focus, 8k`;
+  if (isCaja) {
+    objectPrompt = `Commercial product photography of the authentic official retail box packaging of ${prodName}, displaying official brand typography and logos, with one pen or marker placed next to the box, on pure solid white background #FFFFFF, sharp focus, commercial studio photo, 8k`;
+  } else if (isResma) {
+    objectPrompt = `Commercial product photography of a factory sealed ream packaging of ${prodName}, authentic paper wrapper with printed branding, on pure solid white background #FFFFFF, studio light, 8k`;
+  } else {
+    objectPrompt = `Commercial product photography of a single individual ${prodName}, isolated on pure solid white background #FFFFFF, sharp focus on branding, natural drop shadow, commercial product photography, 8k uhd, NO BOX`;
+  }
+
+  try {
+    if (window.GeminiClient) {
+      const sys = `You are a commercial catalog photographer for an office supply company. Output a 1-sentence prompt for Flux describing the authentic commercial product photography on pure solid white background #FFFFFF. If the product name indicates a box or set of 12 (X12, docena, caja, set), describe the authentic retail box and packaging with clear brand graphics. If it is a single unit, describe ONLY the single item without packaging. Never produce generic 3D renders.`;
+      const aiPrompt = await window.GeminiClient.callGemini({ prompt: prodName, systemInstruction: sys, temperature: 0.1 });
+      if (aiPrompt && aiPrompt.length > 10 && !aiPrompt.includes('Error')) {
+        objectPrompt = aiPrompt.replace(/^["'`]|["'`]$/g, '').trim();
+      }
+    }
+  } catch (_) {}
+
+  const seed = Math.abs(hashCode(prodName + '_' + Date.now()));
+  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(objectPrompt.slice(0, 360))}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
+
+  imgEl.src = aiUrl;
+  imgEl.onload = () => {
+    prodStudioSelectImage(aiUrl, null, `Foto generada con IA (${prodName})`);
+  };
+}
+
+function prodStudioRegenerarIA() {
+  prodStudioGenerarFotoIA();
+}
+
+async function prodStudioGuardarSeleccion() {
+  if (!_currentStudioSelectedImg || !_currentStudioProdId) return;
+
+  const btn = document.getElementById('studioSaveBtn');
+  const statusEl = document.getElementById('studioSelectionStatus');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando en catálogo… ⏳'; }
+  if (statusEl) statusEl.textContent = 'Procesando imagen, comprimiendo a WebP y vinculando al producto...';
+
+  try {
+    // Ordenar al servidor VPS que descargue la imagen y la guarde en Storage
+    await sb.from('jjp_server_control').update({
+      command: `save_product_image:${JSON.stringify({ product_id: _currentStudioProdId, image_url: _currentStudioSelectedImg })}`,
+      command_at: new Date().toISOString()
+    }).eq('id', 1);
+
+    // Esperar confirmación del VPS
+    let success = false;
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
+      let resObj = ctrl?.command_res;
+      if (typeof resObj === 'string') {
+        try { resObj = JSON.parse(resObj); } catch (_) {}
+      }
+      if (resObj?.type === 'save_product_image' && resObj.ok) {
+        success = true;
+        break;
+      }
+    }
+
+    // Fallback directo por cliente si el VPS no respondió a tiempo
+    if (!success) {
+      const resp = await fetch(_currentStudioSelectedImg);
+      const blob = await resp.blob();
+      const bmp = await createImageBitmap(blob);
+      const escala = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(bmp.width * escala);
+      cv.height = Math.round(bmp.height * escala);
+      cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+      const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.85));
+
+      const path = `${_currentStudioProdId}.webp`;
+      await sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+      const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
+      const url = `${publicUrl}?v=${Date.now()}`;
+
+      await Promise.all([
+        sb.from('jjp_products').update({ image_url: url }).eq('id', _currentStudioProdId),
+        sb.from('jjp_product_variants').update({ image_url: url }).eq('product_id', _currentStudioProdId)
+      ]);
+    }
+
+    document.getElementById('prodAiModal').style.display = 'none';
+    showToast('🎉 ¡Foto de producto guardada exitosamente en el catálogo!', 'ok');
+    await loadAdminProducts();
+  } catch (e) {
+    alert('Error al guardar foto: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Asignar Foto al Producto'; }
+  }
+}
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+function escapeJsStr(str) {
+  return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
 }

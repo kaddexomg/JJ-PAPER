@@ -45,43 +45,103 @@ function _setCustCache(data) {
   try {
     sessionStorage.setItem(CUST_CACHE_KEY, JSON.stringify(data));
     sessionStorage.setItem(CUST_CACHE_TIME, String(Date.now()));
-  } catch (_) {}
+  } catch (e) {
+    console.warn('No se pudo guardar la caché completa de clientes en sessionStorage (posible límite de cuota):', e);
+    try {
+      const compact = data.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        rif: c.rif,
+        zone: c.zone,
+        city: c.city,
+        total_orders: c.total_orders,
+        total_usd: c.total_usd,
+        last_order_at: c.last_order_at,
+        seller_id: c.seller_id,
+        email: c.email,
+        email_status: c.email_status
+      }));
+      sessionStorage.setItem(CUST_CACHE_KEY, JSON.stringify(compact));
+      sessionStorage.setItem(CUST_CACHE_TIME, String(Date.now()));
+    } catch (_) {}
+  }
 }
 
 async function loadCustomers(force = false) {
+  const tbody = document.getElementById('custBody');
   const seller = getActiveSeller();
   const isAdmin = seller?.role === 'admin' || seller?.is_admin;
 
   if (!force) {
     const cached = _getCustCache();
-    if (cached) {
+    if (cached && cached.length > 0) {
       vCustomers = cached;
       renderCustomers();
       return;
     }
   }
 
-  vCustomers = [];
-  const PAGE = 1000;
-  let from = 0;
-  const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,email_status,address,notes,tags';
-  for (;;) {
-    let query = sb.from('jjp_customers')
-      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
+  if (tbody && !vCustomers.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">⏳ Cargando clientes...</td></tr>`;
+  }
 
-    // La Zona 020 es estrictamente exclusiva del Admin Keyder (no se descarga para otros vendedores)
+  try {
+    vCustomers = [];
+    const PAGE = 1000;
+    let from = 0;
+    const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,email_status,address,notes';
+
+    let query1 = sb.from('jjp_customers')
+      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
     if (!isAdmin) {
-      query = query.neq('zone', '020');
+      query1 = query1.neq('zone', '020');
     }
 
-    const { data, error } = await query.range(from, from + PAGE - 1);
-    if (error) { showToast('Error cargando clientes', 'err'); return; }
-    vCustomers.push(...(data || []));
-    if (!data || data.length < PAGE || from > 12000) break;
-    from += PAGE;
+    // Primer lote: se renderiza de inmediato (<400ms)
+    const { data: chunk1, error: err1 } = await query1.range(0, PAGE - 1);
+    if (err1) throw err1;
+
+    if (chunk1 && chunk1.length > 0) {
+      vCustomers.push(...chunk1);
+      renderCustomers();
+    }
+
+    // Lotes subsiguientes en segundo plano
+    if (chunk1 && chunk1.length === PAGE) {
+      from = PAGE;
+      while (from <= 12000) {
+        let queryNext = sb.from('jjp_customers')
+          .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
+        if (!isAdmin) {
+          queryNext = queryNext.neq('zone', '020');
+        }
+
+        const { data: nextChunk, error: nextErr } = await queryNext.range(from, from + PAGE - 1);
+        if (nextErr) {
+          console.warn('Error en lote secundario de clientes vendedor:', nextErr);
+          break;
+        }
+        if (!nextChunk || nextChunk.length === 0) break;
+
+        vCustomers.push(...nextChunk);
+        from += PAGE;
+        if (nextChunk.length < PAGE) break;
+      }
+      renderCustomers();
+    }
+
+    _setCustCache(vCustomers);
+  } catch (err) {
+    console.error('Error cargando clientes vendedor:', err);
+    showToast('Error cargando clientes: ' + (err.message || err), 'err');
+    if (tbody && !vCustomers.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="table-empty">
+        Error al cargar clientes: ${escapeHTML(err.message || String(err))}
+        <br><button class="btn-s" style="margin-top:8px;padding:4px 10px;background:#16604A;color:#fff;border-radius:6px;border:none;cursor:pointer" onclick="loadCustomers(true)">🔄 Reintentar</button>
+      </td></tr>`;
+    }
   }
-  _setCustCache(vCustomers);
-  renderCustomers();
 }
 
 function setCustFilter(f) {
@@ -120,12 +180,14 @@ function renderCustomers() {
   if (!isAdmin) {
     list = list.filter(c => c.zone !== '020');
     if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
+    if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') && c.seller_id === sellerId);
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   } else {
     // Admin Keyder: tiene su PROPIA cartera (010 y 020) en 'Mi cartera' e 'Inactivos',
     // y conserva 'Todos' y 'Sin vendedor' para la gestión global.
     if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
+    if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft'));
     if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   }
@@ -134,7 +196,8 @@ function renderCustomers() {
 
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${
-      custFilter === 'mios' ? 'Aún no tienes clientes en tu cartera. Toma los "Sin vendedor" o crea nuevos. 💪' : 'Sin resultados.'
+      custFilter === 'mios' ? 'Aún no tienes clientes en tu cartera. Toma los "Sin vendedor" o crea nuevos. 💪' : 
+      (custFilter === 'rebotados' ? 'No tienes clientes con email rebotado. ¡Todo al día! 🎉' : 'Sin resultados.')
     }</td></tr>`;
     return;
   }
@@ -147,7 +210,8 @@ function renderCustomers() {
     const mine     = c.seller_id === sellerId || isAdmin;
     const waReact  = `Hola ${c.name} 👋, le escribe ${sellerName} de JJ Paper. ¡Tenemos promociones nuevas en papelería que le pueden interesar! ¿Le envío el catálogo? ${location.origin}/catalogo.html${sellerRef ? '?ref=' + sellerRef : ''}`;
     const isMobile = c.phone && (c.phone.includes('041') || c.phone.includes('042') || c.phone.includes('584'));
-    const showRescueBtn = mine && c.email_status === 'bounced_hard' && isMobile;
+    const isBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
+    const showRescueBtn = mine && isBounced && isMobile;
     return `<tr>
       <td>
         <div class="td-name">
@@ -156,7 +220,7 @@ function renderCustomers() {
           </a>
           ${inactive ? '<span title="Sin comprar hace +60 días">😴</span>' : ''}
         </div>
-        <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}${c.email_status === 'bounced_hard' ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
+        <div class="td-sub">${escapeHTML(c.phone || '')}${mine ? '' : (c.seller_id ? ' · de otro vendedor' : ' · 🆓 sin vendedor')}${isBounced ? ' <span style="color:#ef4444;font-weight:bold;font-size:11px">🔴 Rebotado</span>' : ''}</div>
       </td>
       <td>${getZoneBadge(c.zone)}</td>
       <td>${escapeHTML(c.city || '—')}</td>
@@ -278,8 +342,8 @@ function openCustomerModal(id = null) {
     warnEl.style = 'color:#d32f2f;font-size:12px;margin-top:4px;font-weight:bold;';
     emailInput.parentNode.appendChild(warnEl);
   }
-  if (c?.email_status === 'bounced_hard') {
-    warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas, se habilitará de nuevo para envíos.';
+  if (c?.email_status === 'bounced_hard' || c?.email_status === 'bounced' || c?.email_status === 'bounced_soft') {
+    warnEl.textContent = '⚠️ Este correo rebotó. Si lo actualizas con una dirección válida, se habilitará de nuevo para envíos.';
   } else {
     warnEl.textContent = '';
   }
@@ -315,10 +379,19 @@ async function saveCustomer() {
     updated_at: new Date().toISOString(),
   };
   
-  if (editingCustId && originalStatus === 'bounced_hard' && emailVal && emailVal !== originalEmail) {
+  const wasBounced = originalStatus === 'bounced_hard' || originalStatus === 'bounced' || originalStatus === 'bounced_soft';
+  if (editingCustId && wasBounced && emailVal && emailVal !== originalEmail) {
     fields.email_status = 'valid';
     fields.bounce_reason = null;
     fields.bounced_at = null;
+    try {
+      if (originalEmail) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', originalEmail);
+      }
+      if (emailVal) {
+        await sb.from('jjp_email_suppression_list').delete().ilike('email', emailVal);
+      }
+    } catch (_) {}
   }
 
   let error, insertedRow;

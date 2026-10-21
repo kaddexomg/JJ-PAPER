@@ -86,6 +86,9 @@ function renderVOrders() {
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVOrder('${o.id}')">👁️ Ver</button>
         <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
+        ${o.status === 'confirmado_mixnet'
+          ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Ya confirmado para MixNet">✅</span>`
+          : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
         ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteVOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vOrderCtx('${o.id}'))"
                 title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -94,11 +97,27 @@ function renderVOrders() {
   }).join('');
 }
 
+// Confirmar pedido para su envío a MixNet (el agente de la Win7 le asigna el correlativo real)
+async function confirmVOrderToMixnet(id) {
+  const o = vOrders.find(x => x.id === id);
+  if (!o) return;
+  if (!confirm(`¿Confirmar el pedido ${o.order_number} para enviarlo a MixNet?\n\nSe le asignará el número correlativo real de MixNet.`)) return;
+  try {
+    const { error } = await sb.from('jjp_orders').update({ status: 'confirmado_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    o.status = 'confirmado_mixnet';
+    if (typeof showToast === 'function') showToast('✅ Pedido confirmado · se enviará a MixNet');
+    renderVOrders();
+    if (document.getElementById('vOrderModal')?.classList.contains('op')) viewVOrder(id);
+  } catch (e) {
+    alert('No se pudo confirmar: ' + (e.message || e));
+  }
+}
+
 function viewVOrder(id) {
   const o = vOrders.find(x => x.id === id);
   if (!o) return;
   const items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
-  const modal = document.getElementById('vOrderModal');
   document.getElementById('vOrderModalTitle').textContent = `Pedido ${o.order_number}`;
 
   const rows = items.map(i => `<tr>
@@ -164,6 +183,9 @@ function viewVOrder(id) {
       </tfoot>
     </table>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
+      ${o.status === 'confirmado_mixnet'
+        ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">✅ Confirmado para MixNet</span>`
+        : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Confirmar y enviar a MixNet">✅ Confirmar → MixNet</button>`}
       ${canDeliver ? `<button class="bulk-btn green" onclick="markVDelivered('${o.id}')">📦 Marcar entregado</button>` : ''}
       ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteVOrder('${o.id}')" title="Borra el pedido definitivamente">🗑️ Eliminar</button>` : ''}
       <a class="btn-o" style="width:auto;padding:9px 16px;background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:700"

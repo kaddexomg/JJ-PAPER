@@ -196,9 +196,9 @@ function refreshEnvironmentConfig() {
       activeDbfDir = cfg.dbf_dir || null;
     }
 
-    // Auto-sanación: si activeDbfDir es null o no existe, verificar si M:/MIX11/comp01 o primaryDir tienen DBFs
-    if (!activeDbfDir || !fs.existsSync(activeDbfDir)) {
-      const dbfCandidates = ['M:/MIX11/comp01', 'M:\\MIX11\\comp01', 'M:/comp01', 'M:\\comp01', activePrimaryDir, '//servidor/MIX11/comp01'].filter(Boolean);
+    // Auto-sanación: si activeDbfDir es null o no existe, verificar si M:/comp01 o primaryDir tienen DBFs
+    if (!activeDbfDir || !fs.existsSync(activeDbfDir) || activeDbfDir.includes('MIX11')) {
+      const dbfCandidates = ['M:/comp01', 'M:\\comp01', 'M:/COMP01', 'M:\\COMP01', 'M:/MIX11/comp01', 'M:\\MIX11\\comp01', activePrimaryDir, '//servidor/comp01', '//servidor/MIX11/comp01'].filter(Boolean);
       for (const cand of dbfCandidates) {
         try {
           if (fs.existsSync(cand) && (fs.existsSync(path.join(cand, 'MXCTAINV.DBF')) || fs.existsSync(path.join(cand, 'mxctainv.dbf')))) {
@@ -2082,6 +2082,20 @@ function setupRealtimeListeners() {
         if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
         if (p.new.source === 'mixnet') return;
         log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
+
+        // Si es cotización web, registrar notificación formal en jjp_notifications
+        if (p.new.source === 'web_catalogo' || p.new.source === 'web') {
+          dbCore.from('jjp_notifications').insert({
+            user_id: p.new.seller_id || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164',
+            type: 'nueva_cotizacion_web',
+            title: `⚡ Nueva Cotización Web: ${p.new.quote_number}`,
+            body: `${p.new.client_name} ha solicitado cotización web por $${Number(p.new.estimated_total_usd || 0).toFixed(2)} (${p.new.phone || 'S/D'}).`,
+            link: '/admin/cotizaciones.html',
+            read: false
+          }).then(() => log.info(`Alerta de cotización web ${p.new.quote_number} registrada en jjp_notifications`))
+            .catch(e => log.warn({ err: e.message }, 'Error registrando notificación de cotización'));
+        }
+
         exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
       }
     )

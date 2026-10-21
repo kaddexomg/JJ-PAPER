@@ -18,16 +18,23 @@ import { dbInv, dbCore } from './supabase.js';
 import { SUPABASE_URL_INV } from './config.js';
 import { log } from './logger.js';
 
-// ---- Pool de API Keys Gemini (mismo que assets/js/gemini-client.js) ----
-const GEMINI_KEYS = [
-  'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-  'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
-  'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
-  'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
-  'AQ.Ab8RN6I3nhWx1f54n5rcLa1nJv238N-IqJoIRWljUjZmg3nl-Q',
-  'AQ.Ab8RN6K7DB2-YqkZma3jsV8EfCqHel0UnR07oY-r8qquxgKTsA',
-  'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
-];
+// ---- Pool dinámico de API Keys Gemini ----
+let GEMINI_KEYS = [];
+
+async function ensureGeminiKeys() {
+  if (GEMINI_KEYS.length > 0) return GEMINI_KEYS;
+  try {
+    const { data } = await dbCore.from('jjp_settings').select('value').eq('key', 'ai_gemini_keys').maybeSingle();
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        GEMINI_KEYS = parsed;
+        return GEMINI_KEYS;
+      }
+    }
+  } catch (_) {}
+  return [];
+}
 
 const GEMINI_MODELS = [
   'gemini-2.5-flash',
@@ -62,8 +69,49 @@ const BRAND_CORRECTIONS = {
   'PEGALOKA': 'PEGA-LOKA',
   'STAR-KIT': 'STAR KIT',
   'MR. BOBINA': 'MISTER BOBINA',
+  'MR BOBINA': 'MISTER BOBINA',
+  'MRBOBINA': 'MISTER BOBINA',
+  'MISTERBOBINA': 'MISTER BOBINA',
+  'OFICMA': 'OFIMAK',
+  'OFIMA': 'OFIMAK',
+  'OFCIMA': 'OFIMAK',
+  'OFCIMAK': 'OFIMAK',
   'UNIBALL': 'UNI-BALL'
 };
+
+const BRAND_ALIASES = {
+  'MISTER BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'MR BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA'],
+  'OFIMAK': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFICMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFIMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'PAPER MATE': ['PAPER MATE', 'PAPERMATE'],
+  'PAPERMATE': ['PAPER MATE', 'PAPERMATE'],
+  'FABER-CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABER CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABERCASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'PEGA-LOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'PEGALOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'STAR KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'STAR-KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'MONAMI': ['MONAMI', 'MON AMI'],
+  'MON AMI': ['MONAMI', 'MON AMI'],
+  'UNI-BALL': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNI': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNIBALL': ['UNI-BALL', 'UNI', 'UNIBALL']
+};
+
+function isSameBrand(b1, b2) {
+  if (!b1 || !b2) return false;
+  const u1 = b1.trim().toUpperCase();
+  const u2 = b2.trim().toUpperCase();
+  if (u1 === u2) return true;
+  const a1 = BRAND_ALIASES[u1];
+  if (a1 && a1.includes(u2)) return true;
+  const a2 = BRAND_ALIASES[u2];
+  if (a2 && a2.includes(u1)) return true;
+  return false;
+}
 
 // ---- Abreviaturas venezolanas de papelería ----
 const ABBREVIATION_MAP = {
@@ -80,8 +128,13 @@ const ABBREVIATION_MAP = {
   'T/L': 'LEGAL',
   'E/O': 'EXTRA OFICIO',
   'D/C': 'DOBLE CARTA',
+  'C/F': 'CON FUELLE',
+  'S/F': 'SIN FUELLE',
+  'C/G': 'CON GANCHO',
+  'S/G': 'SIN GANCHO',
   'C/T': 'CON TAPA',
   'S/T': 'SIN TAPA',
+  'OFIC': 'OFICIO',
   'RESALT.': 'RESALTADOR',
   'RESALT': 'RESALTADOR',
   'P/PIZARRA': 'PARA PIZARRA',
@@ -155,10 +208,13 @@ const BLOCKED_DOMAINS = [
  * Rota por las 7 keys y múltiples modelos para máxima disponibilidad.
  */
 async function callGeminiServer(prompt, systemInstruction = '', temperature = 0.2) {
-  const maxAttempts = GEMINI_KEYS.length * 2;
+  const keys = await ensureGeminiKeys();
+  if (!keys || keys.length === 0) return null;
+
+  const maxAttempts = keys.length * 2;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const key = GEMINI_KEYS[_geminiKeyIdx % GEMINI_KEYS.length];
+    const key = keys[_geminiKeyIdx % keys.length];
     _geminiKeyIdx++;
 
     for (const model of GEMINI_MODELS) {
@@ -280,15 +336,16 @@ ${brand ? `Marca detectada: ${brand}` : 'Detecta la marca si existe'}
 Responde con JSON puro (sin markdown, sin backticks):
 {
   "product_type": "tipo exacto de producto en español",
-  "brand": "marca o null",
+  "brand": "marca oficial exacta o null",
+  "color": "color exacto en español o null",
+  "presentation": "caja x12, blister x6, resma o unidad",
   "canonical_title": "título comercial limpio en español",
-  "packshot_en": "1 concise sentence in English describing the physical retail product for studio photography on pure white background",
   "queries": [
-    "query precisa con marca y producto",
-    "query con producto y fondo blanco",
-    "query en inglés para catálogo internacional"
+    "query exacta con marca, producto, color y empaque",
+    "query comercial limpia para tiendas de papeleria",
+    "query en ingles con marca y especificaciones"
   ],
-  "negative_keywords": ["palabras a excluir"]
+  "negative_keywords": ["palabras de otros colores, marcas no deseadas o consumibles equivocados"]
 }`;
 
     const aiResult = await callGeminiServer(userPrompt, sysPrompt);
@@ -300,13 +357,14 @@ Responde con JSON puro (sin markdown, sin backticks):
 
         const aiQueries = Array.isArray(parsed.queries) ? parsed.queries.filter(Boolean) : [];
         if (parsed.brand && !brand) {
-          aiQueries.unshift(`${parsed.brand} ${parsed.product_type || ''}`.trim());
+          aiQueries.unshift(`${parsed.brand} ${parsed.product_type || ''} ${parsed.color || ''}`.trim());
         }
 
         log.info({
           raw: rawProductName,
           aiQueries,
           brand: parsed.brand,
+          color: parsed.color,
           canonicalTitle: parsed.canonical_title,
           productType: parsed.product_type
         }, '🧠 Gemini deliberó y generó queries canónicas para búsqueda de imagen');
@@ -610,6 +668,12 @@ function getCategoryNegativeTerms(text, productType) {
   if (/recibo|factura|talonario|forma continua/i.test(combined)) {
     negatives.push('excel', 'spreadsheet', 'software', 'download', 'app store', 'plantilla digital');
   }
+  // Pega en barra vs Pega líquida (evita retornar pegamento líquido cuando se busca pega en barra)
+  if (/\b(barra|stick|pegastic|glue\s*stick)\b/i.test(combined)) {
+    negatives.push('liquido', 'líquido', 'frasco', 'gotero', 'pote de pega', 'silicon liquido', 'pegante liquido');
+  } else if (/\b(liquido|líquido)\b/i.test(combined)) {
+    negatives.push('barra', 'stick', 'pegastic');
+  }
   return negatives;
 }
 
@@ -627,6 +691,37 @@ function scoreResult(result, brand, metadata) {
     if (title.includes(b) || imgUrl.includes(b)) return -999;
   }
 
+  // Filtrar de raíz zapatillas, calzado, ropa, montañas, playas, paisajes y repuestos mecánicos
+  const JUNK_TERMS = [
+    'zapatillas', 'zapatos', 'calzado', 'sneakers', 'running', 'botas', 'sandalias',
+    'camisa', 'pantalon', 'vestido', 'ropa', 'apparel', 'shoes', 'boots', 'footwear',
+    'sneaker', 'mizuno', 'nike', 'adidas', 'puma', 'asics', 'tenis', 'tacones',
+    'montaña', 'montañas', 'playa', 'playas', 'turismo', 'resort', 'hotel', 'caribbean sea',
+    'mar caribe', 'isla', 'viaje', 'vacaciones', 'landscape', 'mountain', 'beach',
+    'nature', 'paisaje', 'bosque', 'flora', 'fauna', 'aurora', 'selva', 'parque nacional',
+    'valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor',
+    'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo', 'automotriz'
+  ];
+  for (const jt of JUNK_TERMS) {
+    if (title.includes(jt) || imgUrl.includes(jt)) return -999;
+  }
+
+  // Bonificación por contexto de papelería
+  const STATIONERY_TERMS = [
+    'carpeta', 'carpetas', 'papeleria', 'separador', 'separadores', 'boligrafo', 'boligrafos',
+    'marcador', 'marcadores', 'resma', 'resmas', 'cuaderno', 'cuadernos', 'oficina',
+    'escolar', 'libreria', 'embalaje', 'cinta', 'cintas', 'pega', 'pegamento', 'grapadora',
+    'tijera', 'tijeras', 'sobre', 'sobres', 'hojas', 'talonario', 'fuelle', 'manila', 'fibra'
+  ];
+  let hasStationery = false;
+  for (const st of STATIONERY_TERMS) {
+    if (title.includes(st) || imgUrl.includes(st)) {
+      score += 40;
+      hasStationery = true;
+      break;
+    }
+  }
+
   // 2. Filtro de consumibles vs herramientas
   const combinedType = ((metadata?.product_type || '') + ' ' + title).toLowerCase();
   if (combinedType.includes('grapad') || combinedType.includes('stapler')) {
@@ -640,20 +735,62 @@ function scoreResult(result, brand, metadata) {
     }
   }
 
+  // Contradicción estricta de presentación (barra vs líquido)
+  const isTargetBarra = /\b(barra|stick|pegastic|glue\s*stick)\b/i.test(metadata?.presentation || '') || /\b(barra|stick)\b/i.test(metadata?.product_type || '');
+  if (isTargetBarra) {
+    if (/\b(liquido|líquido|frasco|gotero|liquid)\b/i.test(title) || /\b(liquido|líquido|frasco)\b/i.test(imgUrl)) {
+      return -500; // Descarte total de pegamento líquido cuando se busca pega en barra
+    }
+    if (/\b(barra|stick|pegastic)\b/i.test(title)) {
+      score += 60; // Gran bonificación por presentación en barra coincidente
+    }
+  }
+
   // 3. Evaluar marca
   if (brand) {
-    const brandLower = brand.toLowerCase();
-    if (title.includes(brandLower) || imgUrl.includes(brandLower)) {
-      score += 60; // Gran bonificación por marca oficial buscada
+    const brandUpper = brand.toUpperCase();
+    const aliases = (BRAND_ALIASES[brandUpper] || [brandUpper]).map(a => a.toLowerCase());
+    const hasTargetBrand = aliases.some(a => title.includes(a) || imgUrl.includes(a));
+    if (hasTargetBrand) {
+      if (hasStationery || (metadata?.product_type && title.includes(metadata.product_type.split(' ')[0]))) {
+        score += 70;
+      } else {
+        score += 10;
+      }
     } else {
-      // Penalizar si menciona otra marca de papelería diferente
-      for (const other of KNOWN_BRANDS) {
-        if (other !== brand && title.includes(other.toLowerCase())) {
+      score -= 30; // Si no menciona la marca buscada, penalizar
+    }
+
+    // Penalizar severamente si menciona OTRA marca de papelería diferente
+    for (const other of KNOWN_BRANDS) {
+      if (!isSameBrand(other, brand) && title.includes(other.toLowerCase())) {
+        score -= 200; // Descarte casi total para marcas cruzadas
+        break;
+      }
+    }
+  }
+
+  // 3.1. Evaluar color exacto (evitar que un marcador rojo traiga fotos de azul o negro)
+  const targetColor = (metadata?.color || '').toLowerCase();
+  if (targetColor && targetColor.length > 2) {
+    if (title.includes(targetColor) || imgUrl.includes(targetColor)) {
+      score += 45; // Bonificación por color exacto
+    } else {
+      // Penalizar si menciona explícitamente otro color primario diferente
+      const otherColors = ['rojo', 'azul', 'negro', 'verde', 'amarillo'].filter(c => c !== targetColor);
+      for (const oc of otherColors) {
+        if (title.includes(oc)) {
           score -= 40;
           break;
         }
       }
     }
+  }
+
+  // 3.2. Evaluar empaque (caja / docena / resma)
+  const isCaja = /\b(x\s*12|docena|doc|caja|set)\b/i.test(title) || /\b(x\s*12|docena|doc|caja)\b/i.test(metadata?.presentation || '');
+  if (isCaja && /\b(x\s*12|docena|doc|caja|12u|12\s*pza)\b/i.test(title)) {
+    score += 35; // Bonificación por presentación en caja x12
   }
 
   // 4. Dominios de confianza
@@ -716,11 +853,25 @@ export async function searchProductImagesOnWeb(rawQuery) {
     log.warn({ err: e.message }, 'Gemini deliberation falló, usando fallback heurístico');
   }
 
+  // Integrar ontología determinística de JJ Paper para color, empaque y tipo
+  const { analyzeProductOntology } = await import('./product-ontology.js');
+  const ontology = analyzeProductOntology(rawQuery);
+
+  const metadata = smart?.metadata || {};
+  if (!metadata.brand && ontology.brand) metadata.brand = ontology.brand;
+  if (!metadata.color && ontology.color?.es) metadata.color = ontology.color.es;
+  if (!metadata.presentation && ontology.packaging?.label) metadata.presentation = ontology.packaging.label;
+  if (!metadata.product_type && ontology.productType) metadata.product_type = ontology.productType;
+
+  // Si el usuario buscó "BLANCO" o "ROJO", asegurar que la primera query contenga el color y producto
   const queries = (smart?.queries && smart.queries.length > 0)
     ? smart.queries
-    : buildManualQueries(expanded, brand);
+    : buildManualQueries(expanded, brand || ontology.brand);
 
-  const metadata = smart?.metadata || null;
+  if (metadata.color && !queries[0].toLowerCase().includes(metadata.color.toLowerCase())) {
+    queries.unshift(`${metadata.brand || ''} ${metadata.product_type || ''} ${metadata.color}`.trim());
+  }
+
   const negativeTerms = [
     ...(smart?.negative_keywords || []),
     ...getCategoryNegativeTerms(expanded, metadata?.product_type)
@@ -833,14 +984,35 @@ export async function saveProductImageToStorage(productId, imageUrl) {
     throw new Error('El archivo de imagen está vacío o corrupto');
   }
 
-  const ext = contentType.includes('webp') ? 'webp' : (contentType.includes('png') ? 'png' : 'jpg');
+  // Optimización estricta con Sharp: Cuadrado max 800x800, WebP calidad 82 (peso < 150 KB)
+  let optimizedBuffer = buffer;
+  let finalContentType = contentType;
+  let ext = 'webp';
+
+  try {
+    const sharp = (await import('sharp')).default;
+    optimizedBuffer = await sharp(buffer)
+      .resize(800, 800, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: 82, effort: 4 })
+      .toBuffer();
+    finalContentType = 'image/webp';
+    ext = 'webp';
+    log.info({ originalBytes: buffer.length, optimizedBytes: optimizedBuffer.length }, 'Imagen optimizada a WebP con Sharp');
+  } catch (sharpErr) {
+    log.warn({ err: sharpErr.message }, 'Sharp no disponible o error procesando, usando buffer original');
+    ext = contentType.includes('webp') ? 'webp' : (contentType.includes('png') ? 'png' : 'jpg');
+  }
+
   const filePath = `${productId}.${ext}`;
 
   // 2. Subir al bucket jjp-products en Proyecto C (Inventario & Storage)
   const { error: uploadErr } = await dbInv.storage
     .from('jjp-products')
-    .upload(filePath, buffer, {
-      contentType,
+    .upload(filePath, optimizedBuffer, {
+      contentType: finalContentType,
       upsert: true
     });
 

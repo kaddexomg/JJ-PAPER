@@ -640,7 +640,40 @@
   .sheet.density-ultra-compact .fisc-footer-note { margin-top: 2px; padding: 1.5px 4px; font-size: 6.8px; line-height: 1.2; }
 
   /* ==========================================================
-     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA (A4 EXACTO 1 HOJA LÁSER B/N)
+     MODO MULTIPÁGINA INTELIGENTE (27+ renglones: 2 o más hojas limpias y continuas)
+     ========================================================== */
+  .sheet.density-multipage .fisc-head { padding-bottom: 2.5px; margin-bottom: 3px; }
+  .sheet.density-multipage .fisc-biz img { width: 36px; height: 36px; }
+  .sheet.density-multipage .fisc-biz .biz-name { font-size: 13px; }
+  .sheet.density-multipage .fisc-biz .biz-sub { font-size: 7.8px; }
+  .sheet.density-multipage .fisc-biz .biz-dir { font-size: 7.8px; line-height: 1.2; margin-top: 1px; }
+  .sheet.density-multipage .fisc-doc-box { min-width: 200px; max-width: 220px; }
+  .sheet.density-multipage .fisc-doc-box .doc-title { font-size: 9.5px; padding: 2px 4px; }
+  .sheet.density-multipage .fisc-doc-box .doc-row { padding: 1.2px 4px; font-size: 8px; }
+  .sheet.density-multipage .fisc-doc-box .doc-row.num-row .val { font-size: 11.5px; }
+  .sheet.density-multipage .fisc-client-box { margin-top: 2.5px; }
+  .sheet.density-multipage .fisc-client-box .box-header { padding: 2px 5px; font-size: 7.8px; }
+  .sheet.density-multipage .fisc-client-box .box-body { padding: 2px 5px; gap: 1px 6px; }
+  .sheet.density-multipage .fisc-client-box .f-field { font-size: 8px; line-height: 1.15; }
+  .sheet.density-multipage .fisc-items-table { margin-top: 3px; width: 100%; border-collapse: collapse; }
+  .sheet.density-multipage .fisc-items-table thead th { padding: 2px 3.5px; font-size: 7.8px; font-weight: 800; }
+  .sheet.density-multipage .fisc-items-table tbody td { padding: 1.4px 3.5px; font-size: 8px; line-height: 1.12; }
+  .sheet.density-multipage .fisc-items-table tbody td.sku-cell { font-size: 7.5px; }
+  .sheet.density-multipage .fisc-items-table { margin-bottom: 0 !important; }
+  .sheet.density-multipage .fisc-bottom-group { margin-top: 1px; }
+  .sheet.density-multipage .fisc-tot-wrap { margin-top: 0; gap: 3px; }
+  .sheet.density-multipage .fisc-tot-notice { font-size: 7.6px; padding: 1.5px 3px; }
+  .sheet.density-multipage .fisc-tot-table td { padding: 1px 3px; font-size: 8.6px; }
+  .sheet.density-multipage .fisc-tot-table tr.grand-usd td { font-size: 10.2px; padding: 1.5px 3px; }
+  .sheet.density-multipage .fisc-tot-table tr.grand-bs td { font-size: 11px; padding: 1.5px 3px; }
+  .sheet.density-multipage .fisc-sign-area { margin-top: 1px; gap: 3px; }
+  .sheet.density-multipage .fisc-sign-box { padding: 1.5px 3px; font-size: 7px; line-height: 1.12; }
+  .sheet.density-multipage .fisc-sign-box .box-tit { font-size: 6.8px; padding-bottom: 1px; margin-bottom: 1px; }
+  .sheet.density-multipage .fisc-interactive-sign { height: 32px; margin-top: 1px; }
+  .sheet.density-multipage .fisc-footer-note { margin-top: 1px; padding: 1px 3px; font-size: 6.6px; line-height: 1.2; }
+
+  /* ==========================================================
+     OPTIMIZACIÓN DE IMPRESIÓN DIRECTA MULTIPÁGINA INTELIGENTE
      ========================================================== */
   @media print { 
     * { 
@@ -658,35 +691,96 @@
     .toolbar { display: none !important; }
     
     @page { 
-      size: a4 portrait; 
-      margin: 3.5mm 5mm 3.5mm 5mm; 
+      size: letter portrait; 
+      margin: 5mm 6mm 5mm 6mm; 
     }
     
     .sheet { 
       box-shadow: none !important; 
       border: none !important; 
       padding: 0 !important; 
+      margin: 0 auto !important;
       max-width: 100% !important; 
       width: 100% !important; 
       border-radius: 0 !important; 
-      page-break-after: avoid !important; 
-      page-break-inside: avoid !important; 
-      break-inside: avoid !important; 
+      overflow: visible !important;
+      position: static !important;
+      page-break-after: auto !important; 
+      break-after: auto !important;
+      page-break-inside: auto !important; 
+      break-inside: auto !important; 
       height: auto !important;
     }
-    
-    table, tr, td, th { 
+
+    .sheet-inner {
+      position: static !important;
+      overflow: visible !important;
+      z-index: auto !important;
+    }
+
+    /* La cabecera institucional y datos del cliente siempre juntos */
+    .fisc-head, .fisc-client-box { 
       page-break-inside: avoid !important; 
       break-inside: avoid !important; 
     }
 
-    .fisc-sign-area { 
+    /* La tabla principal permite partición fluida entre páginas */
+    table.fisc-items-table { 
+      page-break-inside: auto !important; 
+      break-inside: auto !important; 
+      page-break-before: auto !important;
+      break-before: auto !important;
+      border-collapse: collapse !important;
+      width: 100% !important;
+    }
+
+    /* Repetir cabecera de la tabla al inicio de cada nueva página impresa */
+    table.fisc-items-table thead { 
+      display: table-header-group !important; 
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    table.fisc-items-table thead tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    table.fisc-items-table tbody { 
+      display: table-row-group !important; 
+    }
+
+    /* Cada fila individual de producto no se corta horizontalmente pero fluye entre páginas */
+    table.fisc-items-table tbody tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    /* Bloque final unificado: Totales, Firmas y Nota Legal protegidos */
+    .fisc-bottom-group {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      page-break-before: auto !important;
+      break-before: auto !important;
+    }
+
+    .fisc-tot-wrap,
+    .fisc-tot-table,
+    .fisc-sign-area,
+    .fisc-footer-note { 
       page-break-inside: avoid !important; 
       break-inside: avoid !important; 
     }
 
+    /* Filigrana tenue fija en cada hoja */
     .watermark-bg {
-      opacity: 0.075 !important;
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      opacity: 0.04 !important;
+      pointer-events: none !important;
+      z-index: 0 !important;
+      width: 320px !important;
+      height: 320px !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
@@ -722,8 +816,32 @@
 
 <script src="assets/vendor/supabase-2.58.0.js"></script>
 <script src="assets/js/config.js?v=20260930_core"></script>
-<script src="assets/js/admin/auth.js"></script>
 <script>
+// Helpers de formateo con fallbacks inmediatos
+if (typeof window.escapeHTML !== 'function') {
+  window.escapeHTML = function(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+}
+if (typeof window.fmtPrice !== 'function') {
+  window.fmtPrice = function(usd) {
+    return '$' + (Number(usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+}
+if (typeof window.fmtBsNum !== 'function') {
+  window.fmtBsNum = function(bs) {
+    return (Number(bs) || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+}
+if (typeof window.fmtDate !== 'function') {
+  window.fmtDate = function(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d) ? String(iso) : d.toLocaleDateString('es-VE');
+  };
+}
+
 let ORDER = null;
 let DOC_TYPE = 'comprobante';
 
@@ -827,70 +945,142 @@ async function resolveCustomerFiscal(doc) {
 
 (async () => {
   const content = document.getElementById('content');
-  const session = await requireAuth('vendedor');
-  if (!session) return;
-  await loadSettings();
-
-  const params = new URLSearchParams(location.search);
-  const orderNum = params.get('n');
-  const quoteNum = params.get('q');
-  const facNum   = params.get('fac');
-
-  if (!orderNum && !quoteNum && !facNum) { 
-    content.innerHTML = '<div class="err">Falta el número de documento (?n=..., ?q=... o ?fac=...)</div>'; 
-    return; 
-  }
-
-  const s = APP.SETTINGS || {};
-  const f = params.get('f') || s.doc_paper || 'carta';
-  setFormat(f === 'ticket');
-
-  let docData;
-  if (quoteNum) {
-    DOC_TYPE = 'presupuesto';
-    const { data: q, error } = await sbCore.from('jjp_quotes').select('*').eq('quote_number', quoteNum).maybeSingle();
-    if (error || !q) { content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; return; }
-    docData = normalizeQuote(q);
-  } else {
-    let t = (params.get('t') || (facNum ? 'factura' : 'comprobante')).toLowerCase().trim();
-    DOC_TYPE = ['factura', 'recibo', 'comprobante', 'presupuesto'].includes(t) ? t : 'comprobante';
-
-    let o = null;
-    if (orderNum) {
-      const res = await sbCore.from('jjp_orders').select('*').eq('order_number', orderNum).maybeSingle();
-      o = res.data;
-      if (!o) {
-        const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', orderNum).maybeSingle();
-        if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+  try {
+    // Carga de configuración no bloqueante con timeout
+    try {
+      if (typeof loadSettings === 'function') {
+        await Promise.race([
+          loadSettings(),
+          new Promise(r => setTimeout(r, 1200))
+        ]);
       }
-    } else if (facNum) {
-      const facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', facNum).maybeSingle();
-      o = facRes.data;
-      DOC_TYPE = 'factura';
+    } catch (e) {
+      console.warn('loadSettings warning:', e);
     }
 
-    if (!o) { content.innerHTML = '<div class="err">No se encontró el pedido o factura ' + escapeHTML(orderNum || facNum) + '.</div>'; return; }
-    docData = o;
-  }
+    const params = new URLSearchParams(location.search);
+    const orderNum = params.get('n');
+    const quoteNum = params.get('q');
+    const facNum   = params.get('fac');
 
-  // Resolver cliente real
-  docData.customer = await resolveCustomerFiscal(docData);
+    if (!orderNum && !quoteNum && !facNum) { 
+      content.innerHTML = `
+        <div class="err" style="margin:40px auto;max-width:520px;text-align:center;padding:24px;background:#fff;border-radius:8px;border:1.5px solid #000;box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+          <h3 style="margin-bottom:8px;color:#111;font-size:17px">Visualizador de Comprobantes JJ Paper</h3>
+          <p style="color:#666;font-size:13px;margin-bottom:16px">Indique el número de cotización o pedido para visualizarlo e imprimirlo:</p>
+          <form onsubmit="event.preventDefault(); location.search = '?q=' + encodeURIComponent(document.getElementById('docInput').value.trim());" style="display:flex;gap:8px;justify-content:center">
+            <input type="text" id="docInput" placeholder="Ej: 00053362" value="00053362" style="padding:8px 12px;border:1.5px solid #000;border-radius:4px;font-size:14px;font-weight:700">
+            <button type="submit" class="btn btn-p" style="padding:8px 16px;cursor:pointer">Cargar Documento</button>
+          </form>
+        </div>`; 
+      return; 
+    }
 
-  // Obtener vendedor si existe
-  if (docData.seller_id) {
+    const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
+    const f = params.get('f') || s.doc_paper || 'carta';
+    setFormat(f === 'ticket');
+
+    let docData;
+    if (quoteNum) {
+      DOC_TYPE = 'presupuesto';
+      const cleanQ = quoteNum.trim();
+      const paddedQ = cleanQ.padStart(8, '0');
+
+      let q = null;
+      try {
+        const res = await sbCore.from('jjp_quotes').select('*').eq('quote_number', cleanQ).maybeSingle();
+        q = res.data;
+        if (!q && cleanQ !== paddedQ) {
+          const resP = await sbCore.from('jjp_quotes').select('*').eq('quote_number', paddedQ).maybeSingle();
+          q = resP.data;
+        }
+        if (!q && /^[0-9a-f-]{36}$/i.test(cleanQ)) {
+          const resId = await sbCore.from('jjp_quotes').select('*').eq('id', cleanQ).maybeSingle();
+          q = resId.data;
+        }
+      } catch (errQ) {
+        console.warn('Error consultando Supabase jjp_quotes:', errQ);
+      }
+
+      if (!q) { 
+        content.innerHTML = '<div class="err">No se encontró la cotización ' + escapeHTML(quoteNum) + '.</div>'; 
+        return; 
+      }
+      docData = normalizeQuote(q);
+    } else {
+      let t = (params.get('t') || (facNum ? 'factura' : 'comprobante')).toLowerCase().trim();
+      DOC_TYPE = ['factura', 'recibo', 'comprobante', 'presupuesto'].includes(t) ? t : 'comprobante';
+
+      let o = null;
+      if (orderNum) {
+        const cleanN = orderNum.trim();
+        const paddedN = cleanN.padStart(8, '0');
+        const res = await sbCore.from('jjp_orders').select('*').eq('order_number', cleanN).maybeSingle();
+        o = res.data;
+        if (!o && cleanN !== paddedN) {
+          const resP = await sbCore.from('jjp_orders').select('*').eq('order_number', paddedN).maybeSingle();
+          o = resP.data;
+        }
+        if (!o) {
+          let facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', cleanN).maybeSingle();
+          if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+          else if (cleanN !== paddedN) {
+            facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', paddedN).maybeSingle();
+            if (facRes.data) { o = facRes.data; DOC_TYPE = 'factura'; }
+          }
+        }
+      } else if (facNum) {
+        const cleanF = facNum.trim();
+        const paddedF = cleanF.padStart(8, '0');
+        let facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', cleanF).maybeSingle();
+        o = facRes.data;
+        if (!o && cleanF !== paddedF) {
+          facRes = await sbCore.from('jjp_orders').select('*').eq('invoice_number', paddedF).maybeSingle();
+          o = facRes.data;
+        }
+        DOC_TYPE = 'factura';
+      }
+
+      if (!o) { 
+        content.innerHTML = '<div class="err">No se encontró el pedido o factura ' + escapeHTML(orderNum || facNum) + '.</div>'; 
+        return; 
+      }
+      docData = o;
+    }
+
+    // Resolver cliente real sin bloquear
     try {
-      const { data: sRow } = await sbCore.from('jjp_profiles').select('name').eq('id', docData.seller_id).maybeSingle();
-      if (sRow?.name) docData.seller_name = sRow.name;
-    } catch (_) {}
-  }
+      docData.customer = await resolveCustomerFiscal(docData);
+    } catch (e) {
+      console.warn('resolveCustomerFiscal error:', e);
+    }
 
-  ORDER = docData;
-  render(docData);
-  document.getElementById('toolbar').style.display = 'flex';
-  
-  const ds = document.getElementById('docSel');
-  if (ds && DOC_TYPE !== 'presupuesto') { ds.value = DOC_TYPE; ds.style.display = ''; }
-  if (params.get('print') === '1') setTimeout(() => window.print(), 400);
+    // Obtener vendedor si existe
+    if (docData.seller_id) {
+      try {
+        const { data: sRow } = await sbCore.from('jjp_profiles').select('name').eq('id', docData.seller_id).maybeSingle();
+        if (sRow?.name) docData.seller_name = sRow.name;
+      } catch (_) {}
+    }
+
+    ORDER = docData;
+    render(docData);
+    const tb = document.getElementById('toolbar');
+    if (tb) tb.style.display = 'flex';
+    
+    const ds = document.getElementById('docSel');
+    if (ds && DOC_TYPE !== 'presupuesto') { ds.value = DOC_TYPE; ds.style.display = ''; }
+    if (params.get('print') === '1') setTimeout(() => window.print(), 400);
+
+  } catch (err) {
+    console.error('CRITICAL ERROR in comprobante.html:', err);
+    content.innerHTML = `
+      <div class="err" style="margin:40px auto;max-width:600px;text-align:center;padding:24px;background:#fff;border-radius:8px;border:1.5px solid #b91c1c;box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+        <h3 style="color:#b91c1c;margin-bottom:8px">Error al cargar el comprobante</h3>
+        <p style="color:#374151;font-size:13px">${escapeHTML(err.message || String(err))}</p>
+        <button class="btn btn-p" onclick="location.reload()" style="margin-top:14px;cursor:pointer">Reintentar</button>
+      </div>`;
+  }
 })();
 
 function setDocType(t) { DOC_TYPE = t; if (ORDER) render(ORDER); }
@@ -899,14 +1089,15 @@ function normalizeQuote(q) {
   const items = typeof q.items === 'string' ? JSON.parse(q.items) : (q.items || []);
   const subtotal = items.reduce((sum, i) => sum + Number(i.subtotal_usd ?? ((Number(i.price_usd) || 0) * (Number(i.qty) || 0))), 0);
   const total = Number(q.estimated_total_usd) || subtotal;
+  const currentRate = Number(q.exchange_rate) || (typeof getRate === 'function' ? getRate() : (typeof APP !== 'undefined' && APP.EXCHANGE_RATE ? APP.EXCHANGE_RATE : 1));
   return {
     order_number: q.quote_number,
     client_name: q.client_name, rif: q.rif, phone: q.phone, email: q.email,
     city: q.city, address: q.address,
     customer_id: q.customer_id, seller_id: q.seller_id,
     items, subtotal_usd: subtotal, total_usd: total,
-    total_bs: total * (Number(q.exchange_rate) || getRate()),
-    exchange_rate: Number(q.exchange_rate) || getRate(),
+    total_bs: total * currentRate,
+    exchange_rate: currentRate,
     discount_pct: Number(q.discount_pct) || 0,
     discount_status: Number(q.discount_pct) > 0 ? 'approved' : 'none',
     status: q.status, notes: q.notes, created_at: q.created_at,
@@ -921,7 +1112,7 @@ function setFormat(isTicket) {
   if (ps) {
     ps.textContent = isTicket
       ? '@page { size: 80mm auto; margin: 3mm; }'
-      : '@page { size: letter portrait; margin: 7mm 8mm 7mm 8mm; }';
+      : '@page { size: letter portrait; margin: 5mm 6mm 5mm 6mm; }';
   }
 }
 
@@ -930,14 +1121,15 @@ function toggleFormat() {
 }
 
 function render(o) {
-  const s = APP.SETTINGS || {};
+  const s = (typeof APP !== 'undefined' && APP.SETTINGS) ? APP.SETTINGS : {};
   const isInvoice = DOC_TYPE === 'factura' || !!o.invoice_number;
   const isQuote   = DOC_TYPE === 'presupuesto';
   const isReceipt = DOC_TYPE === 'recibo';
   const voided    = ['rechazado', 'cancelado'].includes(o.status);
 
   // Tasa oficial aplicada
-  const rate = Number(o.invoice_rate || o.exchange_rate || s.rate_bcv || s.exchange_rate) || getRate() || 1;
+  const defaultRate = (typeof getRate === 'function') ? getRate() : (typeof APP !== 'undefined' && APP.EXCHANGE_RATE ? APP.EXCHANGE_RATE : 1);
+  const rate = Number(o.invoice_rate || o.exchange_rate || s.rate_bcv || s.exchange_rate) || defaultRate || 1;
 
   // Datos del Cliente Resuelto
   const cust = o.customer || {
@@ -958,6 +1150,15 @@ function render(o) {
   } else {
     items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
   }
+
+  const itemCount = items.length;
+
+  // Densidad adaptativa según cantidad de ítems: 1 hoja limpia (hasta 26 ítems) o multipágina balanceada (27+ ítems)
+  let densityClass = 'density-normal';
+  if (itemCount > 26) densityClass = 'density-multipage';
+  else if (itemCount > 20) densityClass = 'density-ultra-compact';
+  else if (itemCount > 13) densityClass = 'density-compact';
+  else if (itemCount > 8) densityClass = 'density-medium';
 
   const rows = items.map((i, idx) => {
     const qty = Number(i.qty || 1);
@@ -989,7 +1190,7 @@ function render(o) {
 
   // Renglones de relleno sutiles (Punto Medio) para que facturas de pocos ítems llenen armónicamente la hoja
   let emptyRows = '';
-  if (items.length < 6) {
+  if (itemCount <= 26 && items.length < 6) {
     const need = 6 - items.length;
     for (let k = 0; k < need; k++) {
       emptyRows += `<tr>
@@ -1005,12 +1206,7 @@ function render(o) {
     }
   }
 
-  // Densidad adaptativa según cantidad de ítems para encajar siempre en 1 hoja A4
-  const itemCount = items.length;
-  let densityClass = 'density-normal';
-  if (itemCount > 22) densityClass = 'density-ultra-compact';
-  else if (itemCount > 13) densityClass = 'density-compact';
-  else if (itemCount > 8) densityClass = 'density-medium';
+  // (Densidad ya calculada arriba con itemCount)
 
   // Cálculos Fiscales
   let baseImponibleUsd, ivaUsd, totalUsd, baseImponibleBs, ivaBs, totalBs;
@@ -1154,88 +1350,91 @@ function render(o) {
         </tbody>
       </table>
 
-      <!-- TOTALES Y LIQUIDACIÓN TRIBUTARIA FORMAL -->
-      <div class="fisc-tot-wrap">
-        <div class="fisc-tot-notice">
-          <strong>Tasa oficial BCV:</strong> Bs ${rate.toFixed(2)} por USD · <strong>Alícuota I.V.A.:</strong> 16.00% según Providencias Administrativas SENIAT.
+      <!-- BLOQUE FINAL UNIFICADO: TOTALES, FIRMAS Y NOTA LEGAL -->
+      <div class="fisc-bottom-group">
+        <!-- TOTALES Y LIQUIDACIÓN TRIBUTARIA FORMAL -->
+        <div class="fisc-tot-wrap">
+          <div class="fisc-tot-notice">
+            <strong>Tasa oficial BCV:</strong> Bs ${rate.toFixed(2)} por USD · <strong>Alícuota I.V.A.:</strong> 16.00% según Providencias Administrativas SENIAT.
+          </div>
+
+          <table class="fisc-tot-table">
+            <tr>
+              <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
+              <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
+            </tr>
+            <tr>
+              <td class="lbl">I.V.A. (16.00%)</td>
+              <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
+            </tr>
+            <tr class="grand-usd">
+              <td class="lbl">TOTAL A PAGAR (USD)</td>
+              <td class="val">${fmtPrice(totalUsd)}</td>
+            </tr>
+            <tr class="grand-bs">
+              <td class="lbl">TOTAL FACTURA (Bs.)</td>
+              <td class="val">${fmtBsNum(totalBs)} Bs.</td>
+            </tr>
+          </table>
         </div>
 
-        <table class="fisc-tot-table">
-          <tr>
-            <td class="lbl">SUBTOTAL / BASE IMPONIBLE</td>
-            <td class="val"><strong>${fmtPrice(baseImponibleUsd)}</strong> &nbsp;|&nbsp; Bs ${fmtBsNum(baseImponibleBs)}</td>
-          </tr>
-          <tr>
-            <td class="lbl">I.V.A. (16.00%)</td>
-            <td class="val">${fmtPrice(ivaUsd)} &nbsp;|&nbsp; Bs ${fmtBsNum(ivaBs)}</td>
-          </tr>
-          <tr class="grand-usd">
-            <td class="lbl">TOTAL A PAGAR (USD)</td>
-            <td class="val">${fmtPrice(totalUsd)}</td>
-          </tr>
-          <tr class="grand-bs">
-            <td class="lbl">TOTAL FACTURA (Bs.)</td>
-            <td class="val">${fmtBsNum(totalBs)} Bs.</td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- ÁREA DE FIRMAS Y CONFORMIDAD (DESTACADA, CON ESPACIO CLARO PARA FIRMA Y SELLO) -->
-      <div class="fisc-sign-area">
-        <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
-        <div class="fisc-sign-box">
-          <div class="box-tit">CONFORME CLIENTE / RECEPCIÓN DE MERCANCÍA</div>
-          <div class="data-line"><strong>Empresa / Razón Social:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(cust.name)}</span></div>
-          <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
-          <div class="data-line" style="margin-top:2px">Recibido por (Nombre y Apellido): ____________________________________</div>
-          <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
-          <div class="fisc-interactive-sign">
-            <div class="sign-col-stamp">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-              <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
+        <!-- ÁREA DE FIRMAS Y CONFORMIDAD (DESTACADA, CON ESPACIO CLARO PARA FIRMA Y SELLO) -->
+        <div class="fisc-sign-area">
+          <!-- RECEPTOR PERSONALIZADO POR EMPRESA -->
+          <div class="fisc-sign-box">
+            <div class="box-tit">CONFORME CLIENTE / RECEPCIÓN DE MERCANCÍA</div>
+            <div class="data-line"><strong>Empresa / Razón Social:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(cust.name)}</span></div>
+            <div class="data-line"><strong>R.I.F. / C.I. Fiscal:</strong> <strong>${escapeHTML(cust.rif)}</strong></div>
+            <div class="data-line" style="margin-top:2px">Recibido por (Nombre y Apellido): ____________________________________</div>
+            <div class="data-line" style="margin-top:2px">C.I. del Receptor: __________________ &nbsp; Fecha Recibido: ____ / ____ / 2026</div>
+            <div class="fisc-interactive-sign">
+              <div class="sign-col-stamp">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span class="stamp-watermark">ESPACIO PARA SELLO HÚMEDO</span>
+              </div>
+              <div class="sign-col-sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">FIRMA DE CONFORMIDAD RECEPTOR</div>
+                <div class="sig-hint">Recibí conforme a entera satisfacción</div>
+              </div>
             </div>
-            <div class="sign-col-sig">
-              <div class="sig-line"></div>
-              <div class="sig-label">FIRMA DE CONFORMIDAD RECEPTOR</div>
-              <div class="sig-hint">Recibí conforme a entera satisfacción</div>
+          </div>
+
+          <!-- EMISOR JJ PAPER -->
+          <div class="fisc-sign-box">
+            <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y DESPACHO</div>
+            <div class="data-line"><strong>Facturado y Despachado por:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(bizName)}</span></div>
+            <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
+            <div class="data-line" style="margin-top:2px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
+            <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
+            <div class="fisc-interactive-sign">
+              <div class="sign-col-stamp">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
+                  <circle cx="12" cy="12" r="9"/>
+                  <path d="M9 12l2 2 4-4"/>
+                </svg>
+                <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
+              </div>
+              <div class="sign-col-sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">FIRMA AUTORIZADA Y REVISIÓN</div>
+                <div class="sig-hint">Almacén Central y Facturación</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- EMISOR JJ PAPER -->
-        <div class="fisc-sign-box">
-          <div class="box-tit">EMISOR / CONTROL ADMINISTRATIVO Y DESPACHO</div>
-          <div class="data-line"><strong>Facturado y Despachado por:</strong> <span style="font-weight:800;font-size:9.5px">${escapeHTML(bizName)}</span></div>
-          <div class="data-line"><strong>R.I.F. Emisor:</strong> <strong>${escapeHTML(bizRif)}</strong> · Almacén Central y Facturación</div>
-          <div class="data-line" style="margin-top:2px">Condición de Venta: <strong>${escapeHTML(condicionPago)}</strong> &nbsp; Emisión: <strong>${fmtDate(fechaEmision)}</strong></div>
-          <div class="data-line" style="margin-top:2px">Asesor Comercial / Despacho: <strong>${escapeHTML(o.seller_name || 'Ventas Central')}</strong></div>
-          <div class="fisc-interactive-sign">
-            <div class="sign-col-stamp">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="1.8" style="opacity:0.75;margin-bottom:1px">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M9 12l2 2 4-4"/>
-              </svg>
-              <span class="stamp-watermark">SELLO AUTORIZADO JJ PAPER</span>
-            </div>
-            <div class="sign-col-sig">
-              <div class="sig-line"></div>
-              <div class="sig-label">FIRMA AUTORIZADA Y REVISIÓN</div>
-              <div class="sig-hint">Almacén Central y Facturación</div>
-            </div>
-          </div>
+        <!-- PIE LEGAL SENIAT -->
+        <div class="fisc-footer-note">
+          ${isInvoice
+            ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema integrado JJ Paper & MixNet. Documento válido para fines tributarios y contables.`
+            : isQuote
+              ? `<strong>PRESUPUESTO COMERCIAL N° ${escapeHTML(docNumberMain)}</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
+              : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO N° ${escapeHTML(docNumberMain)}</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
+          }
         </div>
-      </div>
-
-      <!-- PIE LEGAL SENIAT -->
-      <div class="fisc-footer-note">
-        ${isInvoice
-          ? `<strong>FACTURA FISCAL OFICIAL N° ${escapeHTML(docNumberMain)}</strong> · Emitida conforme a las Providencias Administrativas del SENIAT mediante sistema integrado JJ Paper & MixNet. Documento válido para fines tributarios y contables.`
-          : isQuote
-            ? `<strong>PRESUPUESTO COMERCIAL N° ${escapeHTML(docNumberMain)}</strong> · Documento cotizatorio informativo sin valor fiscal. Precios y disponibilidad sujetos a confirmación a la tasa oficial BCV del día.`
-            : `<strong>ORDEN DE ENTREGA / RECIBO INTERNO N° ${escapeHTML(docNumberMain)}</strong> · Documento de traslado y recepción conforme de almacén. No sustituye la factura fiscal del SENIAT.`
-        }
       </div>
     </div>
   </div>`;

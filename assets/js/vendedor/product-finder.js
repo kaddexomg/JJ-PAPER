@@ -18,8 +18,8 @@ async function pfLoad(force) {
 
   if (!force) {
     try {
-      const cached = sessionStorage.getItem(PF_CACHE_KEY);
-      const cachedTime = sessionStorage.getItem(PF_CACHE_TIME);
+      const cached = localStorage.getItem(PF_CACHE_KEY) || sessionStorage.getItem(PF_CACHE_KEY);
+      const cachedTime = localStorage.getItem(PF_CACHE_TIME) || sessionStorage.getItem(PF_CACHE_TIME);
       if (cached && cachedTime && (now - parseInt(cachedTime, 10) < PF_TTL)) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -61,9 +61,14 @@ async function pfLoad(force) {
 
     if (allData.length > 0) {
       try {
-        sessionStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
-        sessionStorage.setItem(PF_CACHE_TIME, String(now));
-      } catch (_) {}
+        localStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
+        localStorage.setItem(PF_CACHE_TIME, String(now));
+      } catch (_) {
+        try {
+          sessionStorage.setItem(PF_CACHE_KEY, JSON.stringify(allData));
+          sessionStorage.setItem(PF_CACHE_TIME, String(now));
+        } catch (_) {}
+      }
     }
   }
   
@@ -227,17 +232,19 @@ function pfPriceHtml(usd, p) {
 // (tabla jjp_pos_scans, vía Realtime) dispara onCode(code). RLS ya limita a lo
 // del propio vendedor. NO afecta inventario ni conteo.
 function pfPhoneBridge(onCode) {
-  const owner = (typeof SELLER !== 'undefined' && SELLER?.id) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id) || 'me';
-  // Rescata escaneos recientes que llegaron antes de abrir la caja
-  sb.from('jjp_pos_scans').select('id,code').eq('consumed', false)
-    .gte('created_at', new Date(Date.now() - 120000).toISOString())
-    .order('created_at', { ascending: true })
-    .then(({ data }) => (data || []).forEach(r => { onCode(r.code); sb.from('jjp_pos_scans').update({ consumed: true }).eq('id', r.id); }));
-
-  return sb.channel('pos-scan-' + owner)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_pos_scans' },
-      p => { onCode(p.new.code); sb.from('jjp_pos_scans').update({ consumed: true }).eq('id', p.new.id); })
-    .subscribe();
+  // Función opcional de puente móvil; salvaguardada si la tabla no está en el DDL
+  try {
+    const owner = (typeof SELLER !== 'undefined' && SELLER?.id) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.id) || 'me';
+    sb.from('jjp_pos_scans').select('id,code').eq('consumed', false)
+      .gte('created_at', new Date(Date.now() - 120000).toISOString())
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (error) return; // Tabla no existe en este proyecto, omitir silenciosamente
+        (data || []).forEach(r => { onCode(r.code); sb.from('jjp_pos_scans').update({ consumed: true }).eq('id', r.id); });
+      })
+      .catch(() => {});
+  } catch (_) {}
+  return null;
 }
 
 // URL de la página del teléfono-escáner (para el QR / enlace en la PC)

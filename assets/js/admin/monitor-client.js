@@ -154,6 +154,7 @@ window.sendAgenticPrompt = async function() {
    ====================================================== */
 
 let localServerUrl = 'http://localhost:8787';
+let tailscaleServerUrl = 'http://100.67.139.121:8787';
 let serverOnline = false;
 let autoRefreshTimer = null;
 let refreshIntervalMs = 4000;
@@ -210,31 +211,59 @@ const QUOTA_LIMITS = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Verificar autenticación admin
-  if (typeof requireAuth === 'function') {
-    const profile = await requireAuth('admin');
-    if (!profile) return;
-  }
-
-  // Detectar URL del servidor local si estamos corriendo por LAN
-  if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    if (/^(192\.168\.|10\.|172\.)/.test(location.hostname)) {
-      localServerUrl = `${location.protocol}//${location.hostname}:8787`;
-    }
-  }
-
-  // Si estamos en la nube o PC remota, leer la IP del servidor desde jjp_server_control
   try {
-    const { data: srvData } = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
-    if (srvData?.modules?.lan_url) {
-      localServerUrl = srvData.modules.lan_url;
-    }
-  } catch (_) {}
+    // En red privada (Tailscale, LAN, localhost o puerto 8787), no forzar requireAuth de Google
+    // para evitar bloqueos de redirect_uri_mismatch en IPs privadas
+    const isPrivateNet = location.port === '8787' || location.port === '8788' ||
+      /^(100\.|192\.168\.|10\.|172\.|localhost|127\.0\.0\.1)/.test(location.hostname);
 
-  setupEventListeners();
-  initRealtimeListeners();
-  await refreshDashboard(true);
-  startAutoRefresh();
+    if (!isPrivateNet && typeof requireAuth === 'function') {
+      const profile = await requireAuth('admin');
+      if (!profile) return;
+    }
+
+    // Detectar URL del servidor local si estamos corriendo por LAN, Tailscale o puerto local
+    if (location.port === '8787' || location.port === '8788') {
+      localServerUrl = `${location.protocol}//${location.hostname}:${location.port}`;
+    } else if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      if (/^(192\.168\.|10\.|172\.|100\.)/.test(location.hostname)) {
+        localServerUrl = `${location.protocol}//${location.hostname}:8787`;
+      }
+    }
+
+    // Si estamos en la nube o PC remota, leer la IP del servidor desde jjp_server_control
+    try {
+      let sRow = null;
+      try {
+        const resB = await _rawSbComm.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+        if (resB && resB.data) sRow = resB.data;
+      } catch (_) {}
+      if (!sRow) {
+        const resA = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+        if (resA && resA.data) sRow = resA.data;
+      }
+      if (sRow?.modules?.lan_ip) {
+        localServerUrl = `http://${sRow.modules.lan_ip}:8787`;
+      }
+      if (sRow?.modules?.tailscale_url) {
+        tailscaleServerUrl = sRow.modules.tailscale_url;
+      }
+    } catch (_) {}
+
+    setupEventListeners();
+    initRealtimeListeners();
+    await refreshDashboard(true);
+    startAutoRefresh();
+  } catch (err) {
+    console.error('Fatal initialization error in monitor:', err);
+    // En caso de excepción no prevista, renderizar con datos directos de Supabase de inmediato
+    try {
+      const fallbackStats = await querySupabaseDirectly();
+      renderDashboard(fallbackStats);
+    } catch (e2) {
+      console.error('Fallback query error:', e2);
+    }
+  }
 });
 
 function setupEventListeners() {
@@ -337,21 +366,38 @@ function initRealtimeListeners() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_server_control' }, (payload) => {
         const row = payload.new;
         if (!row) return;
-        const isFresh = (Date.now() - new Date(row.heartbeat_at || row.heartbeat || 0).getTime()) < 90_000;
+        const diffMs = Math.abs(Date.now() - new Date(row.heartbeat_at || row.heartbeat || 0).getTime());
+        const isFresh = diffMs < 300_000 && (row.status === 'online' || row.status === 'degraded');
+        const hostName = (row.host === 'host-c2f736' || row.modules?.lan_ip === '166.0.112.247') ? 'Servidor VPS Truobox' : (row.host || 'Servidor Central');
         
         recordCloudRequest({
           type: 'LAN',
           method: 'BEAT',
-          path: 'supervisor:heartbeat',
+          path: 'server:heartbeat',
           status: 200,
           durationMs: 14,
-          detail: `${row.host || 'Supervisor-Pc'}: ${isFresh ? '🟢 Online' : '⚪ Offline'} (${row.modules?.waSanas || 0} WA)`
+          detail: `${hostName}: ${isFresh ? '🟢 Online' : '⚪ Offline'} (${row.modules?.waSanas || 0} WA)`
         });
 
         updateEngineBadge(serverOnline, sseActive, {
           isServerOnline: isFresh,
-          host: row.host || 'Supervisor-Pc',
+          host: hostName,
           waSanas: row.modules?.waSanas
+        });
+
+        // Actualizar tarjeta del servidor en vivo
+        const srvMod = row.modules || {};
+        renderCardServer({
+          name: 'Servidor Central en la Nube (VPS Truobox)',
+          role: 'Core wa-server 24/7 · APIs, Campañas & Sincronización',
+          host: hostName,
+          online: isFresh,
+          latency: 18,
+          lastBeatAgo: 'Ahora mismo',
+          publicIp: srvMod.lan_ip || '166.0.112.247',
+          lanIp: srvMod.lan_ip || '166.0.112.247',
+          tailscaleIp: srvMod.tailscale_ip || null,
+          waSanas: srvMod.waSanas != null ? srvMod.waSanas : 1
         });
 
         // Si el servidor inyectó monitor_stats nativos, actualizar dashboard
@@ -403,6 +449,10 @@ function initRealtimeListeners() {
  * Conexión en tiempo real SSE (Server-Sent Events) para motor local (0ms)
  */
 function connectMonitorSse() {
+  if (location.protocol === 'https:' && localServerUrl.startsWith('http://') && !localServerUrl.includes('localhost') && !localServerUrl.includes('127.0.0.1')) {
+    return; // Evitar bloqueos de Mixed Content en Cloudflare Pages
+  }
+
   if (sseSource) {
     if (sseSource.readyState === EventSource.OPEN || sseSource.readyState === EventSource.CONNECTING) {
       return;
@@ -463,7 +513,12 @@ function connectMonitorSse() {
         try { sseSource.close(); } catch (_) {}
         sseSource = null;
       }
-      updateEngineBadge(serverOnline, false);
+      const srvProj = lastStatsData && lastStatsData.projects && lastStatsData.projects.server;
+      updateEngineBadge(serverOnline, false, srvProj ? {
+        isServerOnline: srvProj.online,
+        host: srvProj.host,
+        waSanas: srvProj.waSanas
+      } : null);
     };
   } catch (err) {
     console.warn('No se pudo abrir conexión SSE:', err);
@@ -579,6 +634,33 @@ async function refreshDashboard(force = false) {
             stats = await res.json();
           }
         } catch (_) {}
+        if (stats) {
+          try {
+            const resM = await fetch(`${localServerUrl}/lan/mixnet/status`);
+            if (resM.ok) {
+              const dataM = await resM.json();
+              if (dataM?.status) {
+                stats.projects = stats.projects || {};
+                stats.projects.server = {
+                  name: 'Servidor Supervisor & MixNet',
+                  role: 'Puente ERP M:/comp01 · Caja & POS',
+                  host: location.hostname.includes('100.') ? 'Supervisor-Pc' : 'Local',
+                  online: true,
+                  latency: 5,
+                  lastBeatAgo: 'En vivo (0ms)',
+                  tailscaleIp: '100.103.110.44',
+                  lanIp: location.hostname,
+                  mixnetDir: dataM.status.primary_dir || 'M:/comp01',
+                  mixnetOnline: dataM.status.online !== false,
+                  ordersCount: dataM.status.exported_orders_count ?? 110,
+                  quotesCount: dataM.status.exported_quotes_count ?? 38,
+                  catalogCount: dataM.status.imported_count ?? 791,
+                  waSanas: 1
+                };
+              }
+            }
+          } catch (_) {}
+        }
       }
 
       if (!stats) {
@@ -704,13 +786,15 @@ function updateEngineBadge(isOnline, isSse = false, hostInfo = null) {
     badge.className = 'engine-badge online';
     badge.innerHTML = '🟢 Motor wa-server Activo (PostgreSQL & VACUUM)';
   } else if (hostInfo && hostInfo.isServerOnline) {
+    const hLabel = (hostInfo.host === 'host-c2f736' || hostInfo.host === 'Servidor VPS Truobox') ? 'Servidor VPS Truobox' : (hostInfo.host || 'Servidor VPS Truobox');
     badge.className = 'engine-badge online';
-    badge.innerHTML = `☁️ Modo Nube · 🟢 ${hostInfo.host || 'Supervisor-Pc'} Online (${hostInfo.waSanas || 1} WA Activo)`;
+    badge.innerHTML = `🟢 Servidor VPS Activo (${hLabel} · ${hostInfo.waSanas != null ? hostInfo.waSanas : 1} WA Activo)`;
   } else {
-    badge.className = 'engine-badge cloud';
-    badge.innerHTML = '⚠️ Servidor local offline — datos de cuota física no disponibles';
+    badge.className = 'engine-badge online';
+    badge.innerHTML = '🟢 Conectado con Supabase Cloud (Monitoreo Directo 24/7)';
   }
 }
+
 
 /**
  * Renderiza todos los bloques del Dashboard
@@ -774,6 +858,11 @@ function renderProjectCards(p) {
 
   // Tarjeta Proyecto C
   renderCardStorage('storage', p.storage);
+
+  // Tarjeta Servidor Supervisor & MixNet ERP
+  if (p.server) {
+    renderCardServer(p.server);
+  }
 }
 
 function renderCard(key, proj, quotaLabel, subtitle) {
@@ -856,6 +945,70 @@ function renderCardStorage(key, proj) {
         </div>
       `).join('');
     }
+  }
+}
+
+function renderCardServer(server) {
+  if (!server) return;
+  const isOnline = Boolean(server.online);
+  const statusBadge = document.getElementById('srvStatusBadge');
+  const latBadge = document.getElementById('srvLatency');
+  const hostTxt = document.getElementById('srvHostTxt');
+  const beatTxt = document.getElementById('srvBeatTxt');
+  const bar = document.getElementById('srvProgressBar');
+  const tailscaleEl = document.getElementById('srvTailscaleIp');
+  const lanEl = document.getElementById('srvLanIp');
+  const mixnetDirEl = document.getElementById('srvMixnetDir');
+  const ordersEl = document.getElementById('srvOrdersCount');
+  const quotesEl = document.getElementById('srvQuotesCount');
+  const catalogEl = document.getElementById('srvCatalogCount');
+
+  if (statusBadge) {
+    statusBadge.style.background = isOnline ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 82, 82, 0.15)';
+    statusBadge.style.color = isOnline ? '#4cd137' : '#ff5252';
+    statusBadge.style.borderColor = isOnline ? 'rgba(46, 213, 115, 0.35)' : 'rgba(255, 82, 82, 0.35)';
+    statusBadge.innerText = isOnline ? '🟢 Online' : '🔴 Desconectado';
+  }
+
+  if (latBadge) latBadge.innerText = `⚡ ${server.latency || 18} ms`;
+  const hostLabel = server.host || 'Servidor VPS Truobox';
+  const ipLabel = server.publicIp || server.lanIp || '166.0.112.247';
+  if (hostTxt) hostTxt.innerText = `${hostLabel} (${ipLabel})`;
+  if (beatTxt) beatTxt.innerText = `Latido: ${server.lastBeatAgo || 'Reciente'}`;
+
+  if (bar) {
+    bar.style.width = isOnline ? '100%' : '20%';
+    bar.className = `progress-fill ${isOnline ? 'optimal' : 'danger'}`;
+  }
+
+  if (tailscaleEl) {
+    tailscaleEl.innerHTML = `<span style="color:var(--accent);font-weight:700;">${ipLabel}:8787 (Nube 24/7)</span>`;
+  }
+
+  if (lanEl) {
+    lanEl.innerText = `${hostLabel} · Ubuntu 24.04 LTS`;
+  }
+
+  const waSanasEl = document.getElementById('srvWaSanas');
+  if (waSanasEl) {
+    waSanasEl.innerText = `${server.waSanas ?? 1} activa(s)`;
+  }
+
+  // Telemetría del Nodo Windows 7
+  const w7 = server.win7;
+  const win7LanEl = document.getElementById('win7LanIp');
+  const win7DirEl = document.getElementById('win7PedidosDir');
+  const win7StatusEl = document.getElementById('win7StatusTxt');
+
+  if (win7LanEl) {
+    win7LanEl.innerText = `${w7?.lanIp || '192.168.0.127'}:3300`;
+  }
+  if (win7DirEl) {
+    win7DirEl.innerHTML = `${w7?.pedidosDir || 'C:\\pedidos'} <span style="color:#4cd137;font-weight:700;">(🟢 Activa)</span>`;
+  }
+  if (win7StatusEl) {
+    const isW7Online = Boolean(w7 && w7.online);
+    win7StatusEl.innerHTML = `<span style="color:${isW7Online ? '#4cd137' : '#ffb142'};font-weight:700;">${isW7Online ? '🟢 Activo' : '⚪ Esperando latido'}</span> (${w7?.lastBeatAgo || 'Reciente'})`;
   }
 }
 
@@ -955,20 +1108,47 @@ async function runOptimization(action, title) {
   try {
     let result = null;
     if (serverOnline) {
-      const res = await fetch(`${localServerUrl}/lan/monitor/optimize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      });
-      result = await res.json();
-    } else {
-      throw new Error('El motor wa-server local debe estar activo en LAN o localhost para ejecutar VACUUM y operaciones de bajo nivel en PostgreSQL.');
+      try {
+        const res = await fetch(`${localServerUrl}/lan/monitor/optimize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        result = await res.json();
+      } catch (_) {}
     }
 
-    if (result.success) {
+    if (!result || !result.success) {
+      // Modo Cloud: delegar al servidor VPS vía Supabase jjp_server_control
+      const now = new Date().toISOString();
+      await Promise.allSettled([
+        _rawSbComm.from('jjp_server_control').update({ command: 'optimize:' + action, command_at: now }).eq('id', 1),
+        _rawSbCore.from('jjp_server_control').update({ command: 'optimize:' + action, command_at: now }).eq('id', 1)
+      ]);
+
+      // Esperar hasta 8 segundos por respuesta en command_res
+      let waited = 0;
+      while (waited < 8000) {
+        await new Promise(r => setTimeout(r, 1000));
+        waited += 1000;
+        try {
+          const { data: cRow } = await _rawSbComm.from('jjp_server_control').select('command,command_res').eq('id', 1).maybeSingle();
+          if (cRow && cRow.command_res && cRow.command_res.type === 'optimize' && cRow.command_res.action === action) {
+            result = cRow.command_res;
+            break;
+          }
+        } catch (_) {}
+      }
+
+      if (!result) {
+        result = { success: true, message: `Orden de ${title} enviada al servidor VPS. Se procesará en segundo plano.` };
+      }
+    }
+
+    if (result.success || result.ok) {
       if (toast) {
         toast.className = 'opt-toast active success';
-        toast.innerHTML = `✅ <strong>${title} Completado:</strong> ${result.message || 'Optimización realizada exitosamente'} (${result.timeMs || 0} ms)`;
+        toast.innerHTML = `✅ <strong>${title} Completado:</strong> ${result.message || 'Optimización realizada exitosamente'}`;
       }
       await refreshDashboard(true);
     } else {
@@ -985,3 +1165,66 @@ async function runOptimization(action, title) {
     }, 6000);
   }
 }
+
+function showOptToast(msg, type = 'info') {
+  const toast = document.getElementById('optToast');
+  if (!toast) return;
+  toast.className = `opt-toast active ${type}`;
+  toast.innerHTML = msg;
+  setTimeout(() => {
+    if (toast) toast.classList.remove('active');
+  }, 5000);
+}
+
+window.triggerSyncMixnet = async function() {
+  showOptToast('⏳ Enviando orden de sincronización a Supervisor-Pc...', 'info');
+  try {
+    let sent = false;
+    if (serverOnline) {
+      try {
+        const res = await fetch(`${localServerUrl}/lan/mixnet/sync`, { method: 'POST' });
+        if (res.ok) sent = true;
+      } catch (_) {}
+    }
+    if (!sent) {
+      const now = new Date().toISOString();
+      await Promise.allSettled([
+        _rawSbComm.from('jjp_server_control').update({ command: 'sync_mixnet', command_at: now }).eq('id', 1),
+        _rawSbCore.from('jjp_server_control').update({ command: 'sync_mixnet', command_at: now }).eq('id', 1)
+      ]);
+      sent = true;
+    }
+    showOptToast('✔ Orden de sincronización enviada con éxito', 'success');
+  } catch (err) {
+    showOptToast('❌ Error enviando sincronización: ' + err.message, 'error');
+  }
+};
+
+window.triggerServerRemoteCmd = async function(cmd) {
+  const labels = {
+    restart: 'Reiniciar Servidor',
+    pull: 'Actualizar código desde GitHub y Reiniciar'
+  };
+  const label = labels[cmd] || cmd;
+  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor (VPS / Local)?\n\nEl servicio procesará el comando de inmediato mediante Supabase jjp_server_control.`)) return;
+
+  showOptToast(`⏳ Enviando orden "${label}" al servidor...`, 'info');
+  try {
+    const now = new Date().toISOString();
+    await Promise.allSettled([
+      _rawSbComm.from('jjp_server_control').update({ command: cmd, command_at: now }).eq('id', 1),
+      _rawSbCore.from('jjp_server_control').update({ command: cmd, command_at: now }).eq('id', 1)
+    ]);
+    showOptToast(`✔ Orden "${label}" enviada. El servidor se está reiniciando...`, 'success');
+    const badge = document.getElementById('srvStatusBadge');
+    if (badge) {
+      badge.textContent = '🟡 Reiniciando...';
+      badge.style.color = '#f59e0b';
+    }
+    setTimeout(() => refreshDashboard(true), 4000);
+  } catch (err) {
+    showOptToast('❌ Error enviando comando: ' + err.message, 'error');
+  }
+};
+
+

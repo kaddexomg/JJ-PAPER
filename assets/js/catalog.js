@@ -2,6 +2,17 @@
    JJ Paper — Catalog (Supabase + filter/sort/paginate)
    ====================================================== */
 
+// Fallback / safe reveal observer for cards (.rv)
+function observeReveal(root = document) {
+  try {
+    const elements = root.querySelectorAll ? root.querySelectorAll('.rv, .rv-up, .rv-left, .rv-right, .rv-zoom') : [];
+    if (!elements || !elements.length) return;
+    elements.forEach(el => el.classList.add('vi'));
+  } catch (err) {
+    console.warn('observeReveal fallback error:', err);
+  }
+}
+
 let allProducts  = [];
 let categories   = [];
 let catGroups    = [];
@@ -10,6 +21,7 @@ let currentCat   = 'todos';
 let currentPage  = 1;
 let currentSearch= '';
 let currentSort  = '';
+
 
 // ---- Load data ----
 // El catálogo tiene 2 niveles: 8 familias (jjp_category_groups) que agrupan
@@ -90,12 +102,11 @@ function normalizeProduct(p) {
     const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd != null ? v.price_usd : (v.price_a != null ? v.price_a : 0)))).filter(x => x > 0);
     p._minPrice = prices.length ? Math.min(...prices) : 0;
     p._maxPrice = prices.length ? Math.max(...prices) : 0;
-    p._stock    = vs.some(v => v.stock == null || v.stock < 0)
-      ? -1 : vs.reduce((s, v) => s + (Number(v.stock) || 0), 0);
+    p._stock    = -1; // Catálogo mayorista: todos los productos están cotizables y disponibles
   } else {
     const baseP = Number(p.price_b != null ? p.price_b : (p.price_usd != null ? p.price_usd : (p.price_a != null ? p.price_a : 0)));
     p._minPrice = p._maxPrice = baseP;
-    p._stock    = (p.stock == null) ? -1 : (Number(p.stock) || 0);
+    p._stock    = -1; // Catálogo mayorista: todos los productos están cotizables y disponibles
   }
   p._brands = [...new Map(
     vs.filter(v => v.jjp_brands?.name).map(v => [v.jjp_brands.name, v.jjp_brands])
@@ -103,6 +114,7 @@ function normalizeProduct(p) {
   p._brandNames = p._brands.map(b => b.name).join(' ');
   p._skus = vs.map(v => v.sku).filter(Boolean).join(' ');
   p._varNames = vs.map(v => v.variant_name).filter(Boolean).join(' ');
+  p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
 
   // Auto-generate a short emoji description if missing
   if (!p.description || p.description.trim() === '') {
@@ -142,27 +154,37 @@ function normalizeProduct(p) {
 }
 
 async function loadProducts() {
-  const cacheKey = 'jjp_products_cache_v5';
-  const cacheTimeKey = 'jjp_products_cache_v5_time';
-  const cached = sessionStorage.getItem(cacheKey);
-  const cachedTime = sessionStorage.getItem(cacheTimeKey);
+  const cacheKey = 'jjp_products_cache_v8';
+  const cacheTimeKey = 'jjp_products_cache_v7_time';
   const now = Date.now();
-  if (cached && cachedTime && (now - parseInt(cachedTime, 10) < 3600000)) {
+
+  // 1. Revisar caché persistente (localStorage primero para carga instantánea 0ms)
+  let cached = null;
+  let cachedTime = null;
+  try {
+    cached = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey);
+    cachedTime = localStorage.getItem(cacheTimeKey) || sessionStorage.getItem(cacheTimeKey);
+  } catch (_) {}
+
+  if (cached) {
     try {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
         allProducts = parsed.map(normalizeProduct);
         allProducts.forEach(p => { productMap[p.id] = p; });
-        return;
+        // Si el caché tiene menos de 2 horas, usar directamente
+        if (cachedTime && (now - parseInt(cachedTime, 10) < 7200000)) {
+          return;
+        }
       }
     } catch (_) {}
   }
 
+  // 2. Consulta a Supabase
   let allData = [];
   let from = 0;
   const step = 999;
   while (true) {
-    // Consulta aplanada ultra-rápida vía vista materializada (~150ms-700ms en vez de ~2888ms)
     const { data, error } = await sb.from('jjp_catalog_flat')
       .select('*')
       .range(from, from + step)
@@ -175,7 +197,11 @@ async function loadProducts() {
         .eq('active', true)
         .range(from, from + step)
         .order('sort_order');
-      if (fbErr) { console.error(fbErr); return; }
+      if (fbErr) {
+        console.error(fbErr);
+        if (allProducts.length > 0) return;
+        break;
+      }
       if (!fbData || fbData.length === 0) break;
       allData.push(...fbData);
       if (fbData.length <= step) break;
@@ -185,17 +211,37 @@ async function loadProducts() {
 
     if (!data || data.length === 0) break;
     allData.push(...data);
+
+    // Renderizado progresivo inmediato: tan pronto llega el primer bloque, pintar productos
+    if (allProducts.length === 0 && allData.length > 0) {
+      allProducts = allData.map(normalizeProduct);
+      allProducts.forEach(p => { productMap[p.id] = p; });
+      try {
+        if (typeof renderProds === 'function' && document.getElementById('prodGrid')) {
+          renderProds();
+        }
+      } catch (_) {}
+    }
+
     if (data.length <= step) break;
     from += step + 1;
   }
   
-  allProducts = allData.map(normalizeProduct);
-  // Populate lookup map for safe cart/modal calls from any page
-  allProducts.forEach(p => { productMap[p.id] = p; });
-  try {
-    sessionStorage.setItem(cacheKey, JSON.stringify(allData));
-    sessionStorage.setItem(cacheTimeKey, String(now));
-  } catch (_) {}
+  if (allData.length > 0) {
+    allProducts = allData.map(normalizeProduct);
+    allProducts.forEach(p => { productMap[p.id] = p; });
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(allData));
+      localStorage.setItem(cacheTimeKey, String(now));
+      sessionStorage.setItem(cacheKey, JSON.stringify(allData));
+      sessionStorage.setItem(cacheTimeKey, String(now));
+    } catch (_) {}
+    try {
+      if (typeof renderProds === 'function' && document.getElementById('prodGrid')) {
+        renderProds();
+      }
+    } catch (_) {}
+  }
 }
 
 // ---- Filter + Sort ----
@@ -245,13 +291,17 @@ function getFiltered() {
     return false;
   });
 
-  if      (currentSort === 'az')    list.sort((a,b) => a.name.localeCompare(b.name));
+  if      (currentSort === 'con_foto') list = list.filter(p => p._hasPhoto);
+  else if (currentSort === 'az')    list.sort((a,b) => a.name.localeCompare(b.name));
   else if (currentSort === 'za')    list.sort((a,b) => b.name.localeCompare(a.name));
   else if (currentSort === 'pasc')  list.sort((a,b) => a._minPrice - b._minPrice);
   else if (currentSort === 'pdesc') list.sort((a,b) => b._minPrice - a._minPrice);
-  // Orden por defecto: los esenciales copan la página 1. El sort es estable,
-  // así que dentro de cada bloque se respeta el sort_order de la consulta.
-  else list.sort((a,b) => (b.essential ? 1 : 0) - (a.essential ? 1 : 0));
+  // Orden por defecto: los productos con foto oficial copan la página 1 primero, luego esenciales
+  else list.sort((a,b) => {
+    const photoDiff = (b._hasPhoto ? 1 : 0) - (a._hasPhoto ? 1 : 0);
+    if (photoDiff !== 0) return photoDiff;
+    return (b.essential ? 1 : 0) - (a.essential ? 1 : 0);
+  });
   return list;
 }
 
@@ -379,12 +429,74 @@ function renderProds() {
     return;
   }
 
-  grid.innerHTML = page.map(p => productCardHTML(p)).join('');
+  // Vista Híbrida: si no hay orden forzado ni búsqueda específica y estamos en modo cuadrícula
+  // separamos visualmente los productos con foto (Galería Destacada) y los productos en lista/catálogo
+  const isHybrid = !currentSort && !currentSearch && catCurrentView === 'grid';
+  if (isHybrid) {
+    const withPhoto = page.filter(p => p._hasPhoto);
+    const withoutPhoto = page.filter(p => !p._hasPhoto);
+
+    let html = '';
+    if (withPhoto.length > 0) {
+      html += `<div class="cat-section-header" style="grid-column:1/-1;margin:10px 0 14px;padding:8px 14px;background:#eef6f1;border-left:4px solid var(--gd,#16604A);border-radius:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14px;font-weight:800;color:var(--gd,#16604A)">📸 Galería Oficial con Fotografía (${withPhoto.length})</span>
+        <span style="font-size:11px;color:#558b74;font-weight:600">Fotos verificadas de almacén</span>
+      </div>`;
+      html += withPhoto.map(p => productCardHTML(p, false)).join('');
+    }
+
+    if (withoutPhoto.length > 0) {
+      html += `<div class="cat-section-header" style="grid-column:1/-1;margin:28px 0 14px;padding:8px 14px;background:#f8fafc;border-left:4px solid #64748b;border-radius:6px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14px;font-weight:800;color:#334155">📋 Lista Mayorista Completa (${withoutPhoto.length})</span>
+        <span style="font-size:11px;color:#64748b;font-weight:600">Precios actualizados oficiales</span>
+      </div>`;
+      html += withoutPhoto.map(p => productCardHTML(p, true)).join('');
+    }
+
+    grid.innerHTML = html;
+
+  } else {
+    grid.innerHTML = page.map(p => productCardHTML(p, catCurrentView === 'list')).join('');
+  }
+
   renderPag(pages);
   observeReveal(grid);
 }
 
-function productCardHTML(p) {
+// ---- WhatsApp Direct Share Bridge ----
+function shareProductToWA(productId, e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+  const p = (typeof productMap !== 'undefined' && productMap[productId]) ||
+            allProducts.find(x => x.id === productId);
+  if (!p) return;
+
+  const rawImg = p.image_url || (p.variants && p.variants.find(v => v.image_url)?.image_url) || null;
+  const brand = p._brands?.length ? p._brands.map(b => b.name).join(', ') : '';
+  const priceUsd = fmtPrice(p._minPrice);
+  const priceBs  = fmtBs(p._minPrice);
+  const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
+
+  let msg = `👋 *Hola JJ Paper, me interesa este producto del catálogo:*\n\n` +
+            `📦 *${p.name}*${brand ? `\n🏷️ Marca: ${brand}` : ''}\n` +
+            `💰 *Precio:* ${priceUsd} (${priceBs})\n` +
+            `🔗 *Ficha Oficial:* ${prodUrl}\n`;
+
+  if (rawImg && rawImg.trim()) {
+    msg += `🖼️ *Foto oficial:* ${rawImg}\n`;
+  }
+  msg += `\n¿Tienen disponibilidad para despacho?`;
+
+  if (typeof openWA === 'function') {
+    openWA(msg);
+  } else {
+    window.open(`https://wa.me/${APP.WA_NUM || '584121234567'}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+}
+
+function productCardHTML(p, asList = false) {
   if (p._minPrice === undefined) normalizeProduct(p);
   const cat     = p.jjp_categories || {};
   const bg      = cat.color || '#f2f2f2';
@@ -394,8 +506,11 @@ function productCardHTML(p) {
   const tagHTML = p.tag
     ? `<span class="pc-tag">${escapeHTML(p.tag)}</span>` : '';
 
-  const imgHTML = p.image_url
-    ? `<img src="${optImg(p.image_url, 400)}" alt="${name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'pc-img-emoji\\'>${productIcon(p)}</span>'">`
+  const rawImg = p.image_url || (p.variants && p.variants.find(v => v.image_url)?.image_url) || null;
+  const hasImg = Boolean(rawImg && rawImg.trim());
+
+  const imgHTML = hasImg
+    ? `<img src="${optImg(rawImg, 400)}" alt="${name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'pc-img-emoji\\'>${productIcon(p)}</span>'">`
     : `<span class="pc-img-emoji">${productIcon(p)}</span>`;
 
   // Marcas disponibles: 1 → nombre+logo; varias → chip "N marcas"
@@ -413,11 +528,21 @@ function productCardHTML(p) {
     ? `<span class="price-from">desde</span> ` : '';
 
   const ctrlHTML = soldOut
-    ? `<span class="pc-out" style="position:static">Agotado</span>`
-    : `<button class="add-btn" title="Ver detalle y consultar" aria-label="Ver detalle de ${name}" onclick="openProductModal('${p.id}')">👁</button>`;
+    ? `<div class="pc-actions-row"><span class="pc-out" style="position:static">Agotado</span></div>`
+    : `<div class="pc-actions-row">
+         <button type="button" class="btn-add-to-quote" onclick="addToClientQuote(productMap['${p.id}'], null, 1); event.stopPropagation();" title="Agregar a mi lista de cotización mayorista">
+           ➕ Cotizar
+         </button>
+         <button class="pc-wa-quick" title="Consultar por WhatsApp con foto y enlace" aria-label="Consultar por WhatsApp" onclick="shareProductToWA('${p.id}', event)">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+         </button>
+         <button class="add-btn" title="Ver detalle rápido" aria-label="Ver detalle de ${name}" onclick="openProductModal('${p.id}')">👁</button>
+         <a href="producto.html?id=${p.id}" class="add-btn" title="Ver ficha oficial completa" aria-label="Ficha de ${name}" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:12px;background:#f0f7f3;color:#16604A;border:1px solid #cce3d6">🔗</a>
+       </div>`;
 
-  return `<div class="pc rv${soldOut ? ' is-out' : ''}">
-    <div class="pc-img${p.image_url ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
+  return `<div class="pc rv vi${soldOut ? ' is-out' : ''}${asList ? ' as-list-row' : ''}">
+
+    <div class="pc-img${hasImg ? ' has-img' : ''}" style="background:${bg}" onclick="openProductModal('${p.id}')"
          role="button" tabindex="0" aria-label="Ver detalle de ${name}"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProductModal('${p.id}')}">
       ${imgHTML}
@@ -597,10 +722,41 @@ async function initCatalog() {
   const grid = document.getElementById('prodGrid');
   if (!grid) return;
 
-  grid.innerHTML = skeletonGridHTML(APP.PER_PAGE);
+  // 1. Carga instantánea de 0ms si hay caché en localStorage
+  const cacheKey = 'jjp_products_cache_v8';
+  try {
+    const cached = localStorage.getItem(cacheKey) || sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        allProducts = parsed.map(normalizeProduct);
+        allProducts.forEach(p => { productMap[p.id] = p; });
+        renderProds();
+      }
+    }
+  } catch (_) {}
 
-  await loadSettings();
-  await Promise.all([loadCatGroups(), loadCategories(), loadProducts()]);
+  // Si no había datos previos en caché, mostrar skeleton elegante
+  if (!allProducts.length) {
+    grid.innerHTML = skeletonGridHTML(APP.PER_PAGE);
+  }
+
+  try {
+    await loadSettings();
+    await Promise.all([loadCatGroups(), loadCategories(), loadProducts()]);
+  } catch (err) {
+    console.error('Error cargando catálogo:', err);
+    if (!allProducts || !allProducts.length) {
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:50px 20px;background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin:20px 0;">
+          <div style="font-size:42px;margin-bottom:12px;">📡</div>
+          <h3 style="color:#2d3748;margin-bottom:8px;">No se pudo conectar al catálogo</h3>
+          <p style="color:#718096;font-size:14px;max-width:420px;margin:0 auto 18px;">Hubo un problema de conexión al cargar los productos. Por favor recarga la página o verifica tu conexión.</p>
+          <button class="btn-p" style="padding:10px 24px;font-weight:700;cursor:pointer;" onclick="location.reload()">🔄 Recargar catálogo</button>
+        </div>`;
+      return;
+    }
+  }
 
   // Params de entrada: ?grupo= (familia), ?cat= (categoría fina) y ?q= (búsqueda).
   // ?cat= abre además su familia — lo resuelve setCat().
@@ -621,9 +777,6 @@ async function initCatalog() {
   if (urlCat) setCat(urlCat);
   else renderProds();
 
-  // Fase 6.1: Cargar y renderizar promociones destacadas de jjp_promos
-  loadAndRenderPromos();
-
   // Fase 6.3: Enlace directo a producto por SKU o ID (?producto=SKU123)
   const urlProd = qs.get('producto') || qs.get('sku') || qs.get('p');
   if (urlProd) {
@@ -639,47 +792,6 @@ async function initCatalog() {
   }
 }
 
-async function loadAndRenderPromos() {
-  const wrap = document.getElementById('promoBanner');
-  if (!wrap) return;
-  try {
-    const { data: promos, error } = await sb.from('jjp_promos')
-      .select('*')
-      .eq('active', true)
-      .order('sort_order', { ascending: true })
-      .limit(6);
-
-    if (error || !promos || !promos.length) {
-      wrap.style.display = 'none';
-      return;
-    }
-
-    wrap.innerHTML = `
-      <div style="background:linear-gradient(135deg,#0d4b38,#16604a);color:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 4px 15px rgba(22,96,74,0.15);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-          <div style="font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;">
-            <span>🔥</span> Ofertas y Promociones Especiales
-          </div>
-          <span style="font-size:12px;background:rgba(255,255,255,0.15);padding:3px 10px;border-radius:20px;">Precios en Bs al cambio oficial BCV</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
-          ${promos.map(pr => `
-            <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.2s;"
-                 onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'"
-                 onclick="${pr.product_id ? `openProductModal('${pr.product_id}')` : ''}">
-              <span style="display:inline-block;background:#fbbf24;color:#78350f;font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;margin-bottom:6px;">${escapeHTML(pr.badge || 'OFERTA')}</span>
-              <div style="font-weight:600;font-size:14px;color:#fff;">${escapeHTML(pr.title)}</div>
-              <div style="font-size:12px;color:#d1fae5;margin-top:4px;">${escapeHTML(pr.description || '')}</div>
-            </div>
-          `).join('')}
-        </div>
-      </div>`;
-    wrap.style.display = 'block';
-  } catch (_) {
-    wrap.style.display = 'none';
-  }
-}
-
 /* ======================================================
    Catálogo: Toggle Grid/Lista & Envío Rápido a Clientes
    ====================================================== */
@@ -688,13 +800,14 @@ let catCurrentView = 'grid';
 
 window.setCatView = function(view) {
   catCurrentView = view;
-  const grid = document.getElementById('grid');
+  const grid = document.getElementById('prodGrid') || document.getElementById('grid');
   if (grid) {
     grid.classList.toggle('list-view', view === 'list');
   }
   document.querySelectorAll('.cvt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.view === view);
   });
+  renderProds();
 };
 
 window.sendProductToClient = async function(prodId, channel = 'whatsapp') {

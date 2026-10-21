@@ -96,6 +96,10 @@ window.CampaignEditor = (() => {
             .range(from, from + 999);
           if (error) break;
           for (const r of data || []) {
+            // EXCLUSIÓN ESTRICTA: Solo entran en cooldown destinatarios a quienes REALMENTE se les envió el mensaje
+            const isSent = (r.status === 'sent' || r.status === 'enviado' || Boolean(r.sent_at));
+            if (!isSent) continue;
+
             const timeAt = r.sent_at || r.created_at;
             if (r.customer_id) {
               cooldownExcluded.customer.add(r.customer_id);
@@ -254,16 +258,17 @@ window.CampaignEditor = (() => {
                 </div>
                 <div>
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">🎭 Tono & Actitud Comercial:</label>
-                  <select class="ce-select" id="ceCommercialTone">
+                  <select class="ce-select" id="ceCommercialTone" onchange="CampaignEditor.onSectorStrategyChange()">
                     <option value="socio_estrategico" selected>💼 Ejecutivo & Socio Estratégico (Seguridad y Factura BCV)</option>
                     <option value="oportunidad_mayorista">🔥 Oferta Mayorista & Volumen (Actitud de Cierre y Ahorro)</option>
                     <option value="cercano_consultivo">🤝 Cercano, Asesor y Resolutivo (Atención directa y Sourcing)</option>
                     <option value="institucional_formal">🏢 Institucional Formal (Procura y Compras)</option>
+                    <option value="fidelizado_reactivacion">💎 Cliente VIP / Fidelizado (Trato Preferencial y Confianza)</option>
                   </select>
                 </div>
                 <div>
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">⭐ Propuesta de Valor / Gancho Principal:</label>
-                  <select class="ce-select" id="ceValueHook">
+                  <select class="ce-select" id="ceValueHook" onchange="CampaignEditor.onSectorStrategyChange()">
                     <option value="importador_directo" selected>🏭 Importador Directo en Caracas (Mejores precios sin intermediarios)</option>
                     <option value="escala_volumen">📦 Escala y Descuento por Volumen (Ahorro por bulto/caja)</option>
                     <option value="sourcing_especial">🔍 Búsqueda de Insumos Especiales ("Te conseguimos lo que no esté en lista")</option>
@@ -271,6 +276,7 @@ window.CampaignEditor = (() => {
                     <option value="ahorro_mensual">💰 Optimización de Presupuesto Mensual de Suministros</option>
                   </select>
                 </div>
+                <div id="ceStrategyStatus" style="font-size:11px; color:#0369a1; background:#e0f2fe; padding:5px 8px; border-radius:6px; display:none;"></div>
               </div>
             </div>
 
@@ -284,6 +290,7 @@ window.CampaignEditor = (() => {
                   <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
                   <option value="prospectos_b2b">🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
                   <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
+                  <option value="gmail_starred">⭐ Destacados en Gmail (Clientes y Cuentas Prioritarias)</option>
                   <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
                   <option value="respondieron">💬 Clientes/Prospectos que han Respondido</option>
                   <option value="inactivos">😴 Inactivos (sin compras &gt;30d)</option>
@@ -319,7 +326,7 @@ window.CampaignEditor = (() => {
                     <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
                     <span>Omitir contactados recientemente:</span>
                   </label>
-                  <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onAudienceChange()" style="font-size:12px; padding:4px 8px; background:#fff;">
+                  <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onCooldownHoursChange()" style="font-size:12px; padding:4px 8px; background:#fff;">
                     <option value="24">⏱️ En las últimas 24 horas (1 día)</option>
                     <option value="72" selected>⏱️ En los últimos 3 días (72h — Recomendado)</option>
                     <option value="168">⏱️ En los últimos 7 días (1 semana)</option>
@@ -353,6 +360,21 @@ window.CampaignEditor = (() => {
                     <input type="checkbox" id="ceAttachFile" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
                     <span>📁 Subir Archivo Propio (PDF / Imagen)</span>
                   </label>
+                  
+                  <!-- Bloque de Catálogo Digital Interactivo para el Cliente -->
+                  <div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border-radius:8px;border:1.5px solid #86efac;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+                      <strong style="font-size:12px;color:#166534">🌐 Catálogo Digital para el Cliente</strong>
+                      <span style="font-size:10px;background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-weight:700">Sin Registro</span>
+                    </div>
+                    <div style="font-size:11px;color:#334155;line-height:1.35;margin-bottom:8px">
+                      El cliente abre el enlace en su teléfono o PC y ve de inmediato el catálogo con fotos oficiales en alta resolución, precios en USD/Bs y cotización directa por WhatsApp.
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#166534;border:1px solid #86efac;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jjpaper.pages.dev/catalogo', '_blank')" title="Abre el catálogo exactamente como lo ve su cliente">👁️ Probar Catálogo Web ↗</button>
+                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#9d174d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jjpaper.pages.dev/catalogo_impreso', '_blank')" title="Abre el catálogo con códigos QR para imprimir o calle">🖨️ Probar Catálogo QR ↗</button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div id="ceCustomFileWrap" style="display:none; margin-top:6px;">
@@ -506,6 +528,16 @@ window.CampaignEditor = (() => {
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('descuento')">🔖 {{descuento}}</button>
                   <button type="button" class="ce-var-btn" onclick="CampaignEditor.insertVar('link')">🔗 {{link}}</button>
                   <button type="button" class="ce-var-btn" style="background:#fef3c7;color:#92400e;border-color:#fcd34d" onclick="CampaignEditor.insertSpintax()" title="Variar saludos para evitar bloqueos">🎲 Spintax</button>
+                  <button type="button" class="ce-var-btn" style="background:#f0fdf4;color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.insertCatalogLink('web')" title="Insertar enlace directo al catálogo público y fichas (sin login)">🌐 Catálogo Web (Sin Login)</button>
+                  <button type="button" class="ce-var-btn" style="background:#fdf2f8;color:#9d174d;border-color:#fbcfe8;font-weight:700" onclick="CampaignEditor.insertCatalogLink('qr')" title="Insertar enlace al catálogo con códigos QR para imprimir/escanear">🖨️ Catálogo QR</button>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;margin-bottom:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:11px;color:#166534;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span>✅</span>
+                    <span><strong>Enlace del Catálogo Oficial:</strong> <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="color:#166534;font-weight:700;text-decoration:underline;">https://jjpaper.pages.dev/catalogo</a> (Válido, público y sin login)</span>
+                  </div>
+                  <span style="font-size:10px;color:#15803d;background:#dcfce7;padding:2px 6px;border-radius:4px;font-weight:700;">Acceso Libre</span>
                 </div>
 
                 <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
@@ -644,24 +676,12 @@ window.CampaignEditor = (() => {
         console.warn('Aviso cargando productos en CampaignEditor:', e);
       }
     }
-    if ((!config.combos || config.combos.length === 0) && typeof sb !== 'undefined') {
-      try {
-        const { data: promos } = await sb.from('jjp_promos')
-          .select('*')
-          .eq('active', true)
-          .order('sort_order')
-          .limit(100);
-        config.combos = promos || [];
-      } catch (e) {
-        console.warn('Aviso cargando combos en CampaignEditor:', e);
-      }
-    }
+    config.combos = [];
     if ((!config.templates || config.templates.length === 0) && typeof sb !== 'undefined') {
       try {
-        const { data: tpls } = await sb.from('jjp_campaign_templates')
+        const { data: tpls } = await sb.from('jjp_wa_templates')
           .select('*')
-          .eq('active', true)
-          .order('created_at', { ascending: false });
+          .order('name', { ascending: true });
         config.templates = tpls || [];
       } catch (e) {
         console.warn('Aviso cargando plantillas en CampaignEditor:', e);
@@ -716,8 +736,8 @@ window.CampaignEditor = (() => {
       const sName = config.seller?.name || 'Asesor JJ Paper';
       const sPhone = config.seller?.phone || '0412-4676073';
       document.getElementById('ceMessageInput').value = isEmail 
-        ? `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, del equipo comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de suministro mayorista directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Consumibles de línea de caja*: rollos térmicos para POS y cajas registradoras (80x70 y 57x40mm).\n• *Carpetas de fibra, sobres y archivadores* para resguardo documental de oficina.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal adaptada a sus necesidades?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`
-        : `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋, le saluda *${sName}* de *JJ Paper C.A.*\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata al mayor en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Rollos térmicos para puntos de venta (POS)*: 80x70 y 57x40mm garantizados.\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura.\n• *Cintas de embalaje industrial* y papelería escolar y de oficina.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista en PDF* con más de 900 artículos disponibles.\n\n👉 Puede consultar nuestro catálogo digital aquí:\n{{link}}\n\n¿Desea que le verifiquemos disponibilidad o le preparemos una cotización formal?`;
+        ? `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, del equipo comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de importador y suministro mayorista directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Papelería corporativa y útiles escolares*: bolígrafos por caja, cuadernos, pegas y marcadores de marcas reconocidas.\n• *Insumos de embalaje y despacho*: cintas de embalar de alto micraje y consumibles operativos.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal adaptada a sus necesidades?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`
+        : `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋, le saluda *${sName}* de *JJ Paper C.A.*\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata al mayor en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura y marcas líderes.\n• *Papelería corporativa, bolígrafos, cuadernos y pegas* a precio mayorista.\n• *Cintas de embalaje industrial* y consumibles de oficina con despacho en 24h.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista en PDF* con más de 900 artículos disponibles.\n\n👉 Puede consultar nuestro catálogo digital aquí:\n{{link}}\n\n¿Desea que le verifiquemos disponibilidad o le preparemos una cotización formal?`;
     }
 
     if (isEmail) {
@@ -843,6 +863,44 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
+  function onSectorStrategyChange() {
+    const sec = document.getElementById('ceTargetSector')?.value || 'auto';
+    const tone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const hook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+
+    const toneNames = {
+      socio_estrategico: '💼 Socio Estratégico',
+      oportunidad_mayorista: '🔥 Oferta Mayorista',
+      cercano_consultivo: '🤝 Cercano y Consultivo',
+      institucional_formal: '🏢 Institucional Formal',
+      fidelizado_reactivacion: '💎 Cliente VIP / Fidelizado'
+    };
+
+    const statusEl = document.getElementById('ceStrategyStatus');
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `✨ <strong>Estrategia Activa:</strong> ${toneNames[tone] || tone} · Sector: ${sec.toUpperCase()}`;
+    }
+
+    const aud = document.getElementById('ceAudienceSelect')?.value;
+    if (aud === 'sector' && sec !== 'auto') {
+      const secSel = document.getElementById('ceSectorSelect');
+      if (secSel && secSel.value !== sec) {
+        secSel.value = sec;
+        onAudienceChange();
+      }
+    }
+  }
+
+  async function onCooldownHoursChange() {
+    const hoursSelectVal = document.getElementById('ceCooldownHours')?.value;
+    const hours = hoursSelectVal !== undefined ? parseInt(hoursSelectVal, 10) : 72;
+    cooldownHours = hours;
+    currentLoadedCooldownHours = null;
+    await reloadCooldown(true);
+    await onAudienceChange();
+  }
+
   function renderSelectedCard() {
     const cardWrap = document.getElementById('ceSelectedCardWrap');
     const type = document.getElementById('ceTypeSelect')?.value;
@@ -953,28 +1011,25 @@ window.CampaignEditor = (() => {
     const isEmail = currentConfig?.channel === 'email';
     const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
 
-    const itemsWaLines = selectedProductsList.map((p, idx) => {
+    const itemsLines = selectedProductsList.map((p, idx) => {
       const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
       const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
       const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
       return `• *${p.name}*${unitStr}: *$${pUsd.toFixed(2)} USD* | Bs. ${pBs}`;
     }).join('\n');
 
-    const itemsEmailLines = selectedProductsList.map((p, idx) => {
-      const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
-      const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
-      const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
-      return `  • ${p.name}${unitStr} — $${pUsd.toFixed(2)} USD (Bs. ${pBs})`;
-    }).join('\n');
-
     let msg = '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de distribución mayorista directa en Caracas.\n\nPara apoyar la operatividad y abastecimiento de su empresa esta semana, le presentamos nuestra selección de *ofertas especiales de inventario físico* con precios preferenciales de importador:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER:*\n─────────────────────────────\n${itemsEmailLines}\n─────────────────────────────\n\n*CONDICIONES Y BENEFICIOS OPERATIVOS:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express garantizado en Caracas a su sede / almacén.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 Servicio de Procura Especial: si requiere algún insumo, medida o formato específico fuera de lista, ¡se lo ubicamos y cotizamos de inmediato!\n\n👉 Puede consultar detalles y gestionar su pedido en línea:\n{{link}}\n\n¿Desea que le reservemos inventario de estos ítems o prefiere que le elaboremos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
-      document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      if (document.getElementById('ceSubjectInput')) {
+        document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
+      }
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* Compartimos con usted nuestro lote de *ofertas mayoristas destacadas* con disponibilidad física para entrega inmediata esta semana:\n\n*🔥 OFERTAS MAYORISTAS DESTACADAS — JJ PAPER*\n─────────────────────────────\n${itemsWaLines}\n─────────────────────────────\n\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🚚 *Despacho prioritario* en Caracas a su sede / comercio\n• 🧾 *Facturación fiscal legal* al cambio oficial BCV\n• 🔍 *Servicio de Procura:* si requiere cualquier otro producto o marca que no vea en lista, ¡se lo conseguimos de inmediato!\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?`;
+      msg = `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos lista oficial con +900 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`;
     }
-    document.getElementById('ceMessageInput').value = msg;
+    if (document.getElementById('ceMessageInput')) {
+      document.getElementById('ceMessageInput').value = msg;
+    }
     onAttachChange();
     updatePreview();
   }
@@ -1617,27 +1672,33 @@ ${rawText}
     let bouncedCount = 0;
 
     selectedAudienceList = contacts.filter(c => {
-      if (!isEmail && (!c.phone || !isMobileNum(c.phone))) {
-        const best = getBestMobilePhone(c);
-        if (best) c.phone = best;
-      }
-      if (isEmail && !c.email) return false;
-      if (!isEmail && !c.phone) return false;
-      if (isEmail && c.email_opt_out) return false;
-      
-      // Filtro anti-rebotes
-      if (isEmail && (c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft')) {
-        bouncedCount++;
-        return false;
-      }
-
-      if (!isEmail && (c.opt_out || c.wa_opt_out || knownNoWaPhones.has(normPhoneKey(c.phone)))) {
-        nonMobileCount++;
-        return false;
+      // 1. Validaciones técnicas estrictas de canal (Email)
+      if (isEmail) {
+        if (!c.email) return false;
+        const cleanEm = String(c.email).trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEm)) return false;
+        if (c.email_opt_out) return false;
+        
+        // Filtro anti-rebotes riguroso (bounced, bounced_hard, bounced_soft)
+        const isBounced = c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft';
+        if (isBounced) {
+          bouncedCount++;
+          return false;
+        }
       }
 
-      // Validar móvil WhatsApp
+      // 2. Validaciones técnicas estrictas de canal (WhatsApp)
       if (!isEmail) {
+        if (!c.phone || !isMobileNum(c.phone)) {
+          const best = getBestMobilePhone(c);
+          if (best) c.phone = best;
+        }
+        if (!c.phone) return false;
+        if (c.opt_out || c.wa_opt_out || knownNoWaPhones.has(normPhoneKey(c.phone))) {
+          nonMobileCount++;
+          return false;
+        }
+
         let isMob = false;
         if (typeof parsePhoneInfo === 'function') {
           const pInfo = parsePhoneInfo(c.phone);
@@ -1651,7 +1712,7 @@ ${rawText}
         }
       }
 
-      // Si el usuario aplicó una selección manual con checkboxes, priorizarla absolutamente
+      // Si el usuario aplicó una selección manual con checkboxes, priorizarla (ya pasó filtros técnicos)
       if (manualSelectedIds && manualSelectedIds.size > 0) {
         return manualSelectedIds.has(c.id);
       }
@@ -1677,6 +1738,16 @@ ${rawText}
       }
       if (aud === 'prospectos_b2b') return Boolean(c.is_prospect_b2b);
       if (aud === 'solo_clientes') return !c.is_prospect_b2b;
+      if (aud === 'gmail_starred') {
+        return Boolean(
+          c.is_gmail_starred ||
+          (Array.isArray(c.tags) && (c.tags.includes('destacado_gmail') || c.tags.includes('vip') || c.tags.includes('cliente_activo'))) ||
+          c.source === 'gmail_destacado' ||
+          c.status === 'destacado' ||
+          c.ai_analysis?.destacado_gmail ||
+          (typeof c.notes === 'string' && (c.notes.includes('Destacado en Gmail') || c.notes.includes('Compras activas verificadas')))
+        );
+      }
       if (aud === 'inactivos') return (c.total_orders > 0 && c.days_since_last > 30);
       if (aud === 'prospectos') return (!c.total_orders || c.total_orders === 0) && !c.is_prospect_b2b;
       if (aud === 'sector' && sectorVal) {
@@ -1791,6 +1862,7 @@ ${rawText}
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
               <span style="font-size:11px;font-weight:600;color:#64748b">Filtros rápidos:</span>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('todos')">🌐 Todos</button>
+              <button type="button" class="ce-card-action-btn" style="color:#b45309;background:#fef3c7;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('destacados_gmail')">⭐ Destacados Gmail</button>
               <button type="button" class="ce-card-action-btn" style="color:#065f46;background:#ecfdf5;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('b2b')">🎯 Prospectos B2B</button>
               <button type="button" class="ce-card-action-btn" onclick="CampaignEditor.setPickerQuickFilter('clientes')">👥 Solo Clientes</button>
               <button type="button" class="ce-card-action-btn" style="color:#0369a1;background:#f0f9ff;font-weight:700" onclick="CampaignEditor.setPickerQuickFilter('con_cotizacion')">📑 Con Cotización (&lt;30d)</button>
@@ -1855,6 +1927,17 @@ ${rawText}
       if (!isEmail && !c.phone) return false;
 
       // Filtros rápidos
+      if (pickerQuickFilter === 'destacados_gmail') {
+        const isStarred = Boolean(
+          c.is_gmail_starred ||
+          (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) ||
+          c.source === 'gmail_destacado' ||
+          c.status === 'destacado' ||
+          c.ai_analysis?.destacado_gmail ||
+          (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail'))
+        );
+        if (!isStarred) return false;
+      }
       if (pickerQuickFilter === 'b2b' && !c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'clientes' && c.is_prospect_b2b) return false;
       if (pickerQuickFilter === 'con_cotizacion') {
@@ -1904,6 +1987,21 @@ ${rawText}
         ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="${escapeHTML(recentReply?.snippet || 'Respuesta reciente recibida')}">💬 Respondió</span>`
         : '';
 
+      const isStarredContact = Boolean(
+        c.is_gmail_starred ||
+        (Array.isArray(c.tags) && c.tags.includes('destacado_gmail')) ||
+        c.source === 'gmail_destacado' ||
+        c.status === 'destacado' ||
+        c.ai_analysis?.destacado_gmail ||
+        (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail'))
+      );
+      const starredBadge = isStarredContact
+        ? `<span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700;margin-left:6px" title="Contacto destacado con estrella en Gmail">⭐ Destacado Gmail</span>`
+        : '';
+      const starredNote = isStarredContact && (c.suggested_subject || (typeof c.notes === 'string' && c.notes.includes('Destacado en Gmail')))
+        ? `<div style="font-size:11px;color:#b45309;font-weight:600;margin-top:2px">⭐ Seguimiento: ${escapeHTML(c.suggested_subject || c.notes.split('\n')[0].replace('⭐ Destacado en Gmail:', '').trim())}</div>`
+        : '';
+
       const isCooling = cooldownExcluded.customer.has(c.id) ||
         (isEmail ? cooldownExcluded.email.has(String(c.email || '').toLowerCase().trim()) : cooldownExcluded.phone.has(normPhoneKey(c.phone)));
       const cooldownDetail = isCooling ? (cooldownExcluded.details.get(c.id) || (isEmail ? cooldownExcluded.details.get(String(c.email || '').toLowerCase().trim()) : cooldownExcluded.details.get(normPhoneKey(c.phone)))) : null;
@@ -1930,11 +2028,13 @@ ${rawText}
             <div style="font-size:13px; font-weight:700; color:#1e293b; display:flex; align-items:center; flex-wrap:wrap; gap:4px">
               <span>${escapeHTML(c.name || 'Sin Nombre')}</span>
               ${b2bBadge}
+              ${starredBadge}
               ${quoteBadge}
               ${replyBadge}
               ${cooldownBadge}
             </div>
             ${contactDetail}
+            ${starredNote}
             <div style="font-size:11px; color:#64748b; margin-top:2px">
               ${c.rif ? `RIF: ${escapeHTML(c.rif)} · ` : ''}
               ${c.city ? `📍 ${escapeHTML(c.city)} · ` : ''}
@@ -2015,47 +2115,104 @@ ${rawText}
       modal.id = 'campAiToneModal';
       modal.className = 'ce-picker-overlay';
       modal.innerHTML = `
-        <div class="ce-picker-dialog" style="max-width:500px; height:auto">
+        <div class="ce-picker-dialog">
           <div class="ce-picker-header">
-            <h3>🤖 Actitud y Enfoque de la IA</h3>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:20px;">🤖</span>
+              <div>
+                <h3 style="margin:0; font-size:16px; font-weight:700;">Actitud, Enfoque y Control de la IA</h3>
+                <span style="font-size:11.5px; color:#64748b;">Configura cómo la IA redactará y personalizará la propuesta para cada cuenta</span>
+              </div>
+            </div>
             <button type="button" class="ce-btn-close" id="btnCloseAiToneTop">✕</button>
           </div>
-          <div style="padding:20px; font-size:14px; color:#334155;">
+          <div class="ce-picker-body">
             <div id="ceAiToneNotice" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:12.5px; line-height:1.45;"></div>
-            <p style="margin-top:0; margin-bottom:15px;">¿Qué tipo de mensaje debe redactar la IA para estos prospectos?</p>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="presentacion" checked style="margin-top:3px">
-                <div>
-                  <strong>🚀 Presentación Comercial (Primer contacto)</strong><br>
-                  <span style="font-size:12px; color:#64748b">Presenta a JJ Paper desde cero y enfoca el catálogo en las necesidades de su rubro.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="seguimiento" style="margin-top:3px">
-                <div>
-                  <strong>👀 Seguimiento (Warm up)</strong><br>
-                  <span style="font-size:12px; color:#64748b">Retoma el contacto de forma cordial preguntando cómo le ha ido con su inventario.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="recordatorio" style="margin-top:3px">
-                <div>
-                  <strong>⏰ Recordatorio de Compra</strong><br>
-                  <span style="font-size:12px; color:#64748b">Directo al punto: recuerda que estamos listos para despachar su próximo pedido.</span>
-                </div>
-              </label>
-              <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
-                <input type="radio" name="ai_tone" value="oferta" style="margin-top:3px">
-                <div>
-                  <strong>🔥 Oferta Relámpago</strong><br>
-                  <span style="font-size:12px; color:#64748b">Crea urgencia sobre una promoción o producto específico con alta disponibilidad.</span>
-                </div>
-              </label>
+            
+            <div style="margin-bottom:16px;">
+              <label style="display:block; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:6px;">1. Enfoque / Actitud de la Comunicación</label>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="presentacion" checked style="margin-top:3px">
+                  <div>
+                    <strong>🚀 Presentación Comercial (Primer contacto)</strong><br>
+                    <span style="font-size:12px; color:#64748b">Presenta a JJ Paper desde cero y enfoca el catálogo en las necesidades de su rubro.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="seguimiento" style="margin-top:3px">
+                  <div>
+                    <strong>👀 Seguimiento (Warm up)</strong><br>
+                    <span style="font-size:12px; color:#64748b">Retoma el contacto de forma cordial preguntando cómo le ha ido con su inventario.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="recordatorio" style="margin-top:3px">
+                  <div>
+                    <strong>⏰ Recordatorio de Compra</strong><br>
+                    <span style="font-size:12px; color:#64748b">Directo al punto: recuerda que estamos listos para despachar su próximo pedido.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="oferta" style="margin-top:3px">
+                  <div>
+                    <strong>🔥 Oferta Relámpago / Oportunidad Mayorista</strong><br>
+                    <span style="font-size:12px; color:#64748b">Crea urgencia comercial, destaca precios de importador directo y ahorro por volumen.</span>
+                  </div>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;">
+                  <input type="radio" name="ai_tone" value="fidelizado" style="margin-top:3px">
+                  <div>
+                    <strong>💎 Cliente VIP / Fidelizado (Reactivación de la Casa)</strong><br>
+                    <span style="font-size:12px; color:#64748b">Trato preferencial exclusivo: agradece la preferencia, destaca precios oficiales BCV y entrega prioritaria.</span>
+                  </div>
+                </label>
+              </div>
             </div>
-            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+
+            <div style="margin-bottom:16px;">
+              <label style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:6px;">
+                <span>2. Instrucciones Específicas / Petición del Asesor <span style="font-weight:normal; font-size:11px; color:#64748b;">(Opcional pero prioritario)</span></span>
+              </label>
+              <textarea id="ceAiCustomInstructionsBatch" rows="2" placeholder="Ej: Menciona despacho gratis hoy, ofrece crédito a 7 días, o haz énfasis en que somos distribuidores directos de resmas..." style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:12.5px; border:1px solid #cbd5e1; border-radius:8px; resize:vertical; line-height:1.4; font-family:inherit;"></textarea>
+              <span style="display:block; font-size:11px; color:#64748b; margin-top:3px;">La IA obedecerá estas indicaciones de forma estricta al generar cada mensaje.</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">📏 Longitud</label>
+                <select id="ceAiMsgLengthBatch" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="balanced" selected>Equilibrado (B2B)</option>
+                  <option value="short">Ultra-Conciso (3-5 lín)</option>
+                  <option value="detailed">Detallado y Formal</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">💰 Manejo Precios</label>
+                <select id="ceAiPriceModeBatch" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="with_prices" selected>Con Precios ($ / Bs)</option>
+                  <option value="no_prices">Solo Disponibilidad</option>
+                  <option value="bulk_only">Enfocar por Bulto</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">🎯 Llamado Acción</label>
+                <select id="ceAiCtaGoalBatch" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="quote" selected>Pedir Cotización</option>
+                  <option value="inventory">Reponer Inventario</option>
+                  <option value="catalog">Solicitar Catálogo</option>
+                  <option value="meeting">Coordinar Asesoría</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="ce-picker-footer">
+            <div style="font-size:12px; color:#64748b;">
+              <span id="ceAiBatchCountHint"></span>
+            </div>
+            <div style="display:flex; gap:10px;">
               <button type="button" class="ce-btn btn-sec" id="btnCancelAiTone">Cancelar</button>
-              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiTone">Empezar Análisis ⚡</button>
+              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiTone" style="background:#16604A; border-color:#16604A;">Empezar Análisis ⚡</button>
             </div>
           </div>
         </div>
@@ -2071,8 +2228,18 @@ ${rawText}
       document.getElementById('btnConfirmAiTone').onclick = () => {
         const toneEl = document.querySelector('input[name="ai_tone"]:checked');
         const tone = toneEl ? toneEl.value : 'presentacion';
+        const customInstructions = document.getElementById('ceAiCustomInstructionsBatch')?.value || '';
+        const msgLength = document.getElementById('ceAiMsgLengthBatch')?.value || 'balanced';
+        const priceMode = document.getElementById('ceAiPriceModeBatch')?.value || 'with_prices';
+        const ctaGoal = document.getElementById('ceAiCtaGoalBatch')?.value || 'quote';
         closeAiToneModal();
-        startAiAnalysisBatch(tone);
+        startAiAnalysisBatch({
+          selectedTone: tone,
+          customInstructions,
+          msgLength,
+          priceMode,
+          ctaGoal
+        });
       };
     }
 
@@ -2084,15 +2251,38 @@ ${rawText}
       Number(c.total_orders) > 0
     ).length;
 
+    const hintEl = document.getElementById('ceAiBatchCountHint');
+    if (hintEl) {
+      hintEl.textContent = `🎯 ${totalSelected} destinatario${totalSelected === 1 ? '' : 's'} seleccionado${totalSelected === 1 ? '' : 's'}`;
+    }
+
+    const commTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const targetSec = document.getElementById('ceTargetSector')?.value || 'auto';
+
     let defaultTone = 'presentacion';
+    if (commTone === 'fidelizado_reactivacion') defaultTone = 'fidelizado';
+    else if (commTone === 'oportunidad_mayorista') defaultTone = 'oferta';
+    else if (commTone === 'cercano_consultivo') defaultTone = 'seguimiento';
+    else if (selectedProductOrCombo) defaultTone = 'oferta';
+    else if (contactedCount > 0) defaultTone = 'seguimiento';
+
+    const toneNames = {
+      socio_estrategico: '💼 Socio Estratégico',
+      oportunidad_mayorista: '🔥 Oferta Mayorista',
+      cercano_consultivo: '🤝 Cercano y Consultivo',
+      institucional_formal: '🏢 Institucional Formal',
+      fidelizado_reactivacion: '💎 Cliente VIP / Fidelizado'
+    };
+
+    let stratPill = `<div style="margin-bottom:8px; font-weight:700; color:#0369a1; background:#f0f9ff; padding:4px 8px; border-radius:6px; font-size:12px;">🎯 Estrategia Activa: <u>${toneNames[commTone] || commTone}</u> · Sector: <u>${targetSec.toUpperCase()}</u></div>`;
     let noticeHtml = '';
 
     if (selectedProductOrCombo) {
-      defaultTone = 'oferta';
-      noticeHtml = `💡 <strong>Producto seleccionado:</strong> La IA redactará una oferta comercial directa de <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em> destacando disponibilidad inmediata en 24h y cotización oficial en Bs (Tasa BCV).`;
+      noticeHtml = `${stratPill}💡 <strong>Producto seleccionado:</strong> La IA redactará una oferta comercial directa de <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em> con el tono <strong>${toneNames[commTone] || commTone}</strong>, destacando disponibilidad en 24h y cotización en Bs (Tasa BCV).`;
     } else if (contactedCount > 0) {
-      defaultTone = 'seguimiento';
-      noticeHtml = `👀 <strong>Contactos previos detectados:</strong> ${contactedCount} de ${totalSelected} destinatarios ya recibieron un mensaje anterior. La IA redactará automáticamente un <em>Seguimiento cordial</em> de reposición sin repetir la presentación inicial.`;
+      noticeHtml = `${stratPill}👀 <strong>Contactos previos detectados:</strong> ${contactedCount} de ${totalSelected} destinatarios ya recibieron un mensaje anterior. La IA redactará un <em>Seguimiento cordial</em> sin repetir la presentación inicial.`;
+    } else {
+      noticeHtml = `${stratPill}🚀 <strong>Nuevos destinatarios:</strong> La IA analizará la actividad de cada cuenta y adaptará el mensaje con el tono <strong>${toneNames[commTone] || commTone}</strong>.`;
     }
 
     const noticeEl = document.getElementById('ceAiToneNotice');
@@ -2115,12 +2305,19 @@ ${rawText}
     requestAnimationFrame(() => modal.classList.add('op'));
   }
 
-  async function startAiAnalysisBatch(selectedTone = 'presentacion') {
+  async function startAiAnalysisBatch(opts = {}) {
     if (isAnalyzingBatch) return;
     if (!selectedAudienceList.length) {
       alert('Por favor selecciona primero los prospectos o clientes a los que dirigirás la campaña.');
       return;
     }
+
+    const options = (typeof opts === 'string') ? { selectedTone: opts } : (opts || {});
+    const selectedTone = options.selectedTone || 'presentacion';
+    const customInstructions = options.customInstructions || '';
+    const msgLength = options.msgLength || 'balanced';
+    const priceMode = options.priceMode || 'with_prices';
+    const ctaGoal = options.ctaGoal || 'quote';
 
     const btn = document.getElementById('ceStartAiAnalysisBtn');
     const origBtnTxt = btn ? btn.innerHTML : '';
@@ -2148,8 +2345,8 @@ ${rawText}
       const sName = currentConfig?.seller?.name || '';
       const sPhone = currentConfig?.seller?.phone || '';
       const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
-      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
-      const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+      const baseMessageText = (document.getElementById('ceMessageInput')?.value || '').trim();
+      const baseSubjectText = (document.getElementById('ceSubjectInput')?.value || '').trim();
 
       await window.GeminiClient.analyzeCustomersBatch({
         customers: selectedAudienceList,
@@ -2163,7 +2360,13 @@ ${rawText}
         targetSector,
         commercialTone,
         valueHook,
+        customInstructions,
+        msgLength,
+        priceMode,
+        ctaGoal,
         forceRefresh: true,
+        baseMessageText,
+        baseSubjectText,
         onProgress: async ({ current, total, customer, result }) => {
           const pct = Math.round((current / total) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -2273,6 +2476,10 @@ ${rawText}
       const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
       const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
       const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+      const customInstructions = document.getElementById('ceAiCustomInstructionsBatch')?.value || '';
+      const msgLength = document.getElementById('ceAiMsgLengthBatch')?.value || 'balanced';
+      const priceMode = document.getElementById('ceAiPriceModeBatch')?.value || 'with_prices';
+      const ctaGoal = document.getElementById('ceAiCtaGoalBatch')?.value || 'quote';
 
       const res = await window.GeminiClient.analyzeCustomerAndDraftMessage({
         customer: cust,
@@ -2285,6 +2492,10 @@ ${rawText}
         targetSector,
         commercialTone,
         valueHook,
+        customInstructions,
+        msgLength,
+        priceMode,
+        ctaGoal,
         forceRefresh: true
       });
 
@@ -2501,9 +2712,9 @@ ${rawText}
     const isCombo = selectedProductOrCombo?.type === 'combo';
     const link = selectedProductOrCombo
       ? (isCombo
-          ? `${publicBase}/catalogo.html`
-          : (prodSku ? `${publicBase}/catalogo.html?producto=${encodeURIComponent(prodSku)}` : (prodId ? `${publicBase}/catalogo.html?producto=${encodeURIComponent(prodId)}` : `${publicBase}/catalogo.html?q=${encodeURIComponent(selectedProductOrCombo.name || '')}`)))
-      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo.html`) : `${publicBase}/catalogo.html`);
+          ? `${publicBase}/catalogo`
+          : (prodId ? `${publicBase}/producto?id=${encodeURIComponent(prodId)}` : (prodSku ? `${publicBase}/producto?sku=${encodeURIComponent(prodSku)}` : `${publicBase}/catalogo`)))
+      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
 
     let rawText = '';
     let subjectText = '';
@@ -2582,7 +2793,30 @@ ${rawText}
     formatted = formatted.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
     formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00a884;font-weight:700;text-decoration:underline;">$1</a>');
     formatted = formatted.replace(/\n/g, '<br>');
+
+    // Vista previa visual de tarjeta que genera WhatsApp/Email al detectar el link
+    const hasCatalogLink = rendered.includes('/catalogo') || rendered.includes('/producto');
+    if (hasCatalogLink) {
+      const isQr = rendered.includes('/catalogo_impreso');
+      const catUrl = isQr ? 'https://jjpaper.pages.dev/catalogo_impreso' : 'https://jjpaper.pages.dev/catalogo';
+      formatted += `
+        <div style="margin-top:10px;background:#ffffff;border:1px solid #d1d7db;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+          <div style="background:#f0f2f5;padding:4px 8px;font-size:9.5px;color:#667781;font-weight:700;display:flex;align-items:center;gap:4px;border-bottom:1px solid #e9edef;">
+            <span>📲 Vista previa del enlace que verá el cliente al recibir el mensaje:</span>
+          </div>
+          <a href="${catUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;padding:8px 10px;text-decoration:none;color:inherit;background:#fdfdfd;">
+            <span style="font-size:22px">${isQr ? '🖨️' : '📦'}</span>
+            <div style="flex:1;min-width:0;text-align:left;">
+              <div style="font-size:11.5px;font-weight:700;color:#111b21;">${isQr ? 'JJ Paper | Catálogo con Códigos QR' : 'JJ Paper | Catálogo Digital Mayorista'}</div>
+              <div style="font-size:10px;color:#54656f;line-height:1.2;">Precios oficiales, fotos HD y cotización directa sin contraseña</div>
+              <div style="font-size:9.5px;color:#00a884;font-weight:600;margin-top:2px;">${catUrl.replace('https://', '')} (Acceso Libre) ↗</div>
+            </div>
+          </a>
+        </div>
+      `;
+    }
 
     document.getElementById('ceBubbleText').innerHTML = formatted;
     document.getElementById('ceBubbleTime').textContent = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
@@ -2620,17 +2854,209 @@ ${rawText}
     updatePreview();
   }
 
-  async function aiDraftTemplate() {
+  function insertCatalogLink(type = 'web') {
+    const textarea = document.getElementById('ceMessageInput');
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    let snippet = '';
+    if (type === 'qr') {
+      snippet = `\n\n📲 *Catálogo Interactivo con Códigos QR (para ver o imprimir):*\nhttps://jjpaper.pages.dev/catalogo_impreso\n`;
+    } else {
+      snippet = `\n\n👉 *Catálogo Digital Completo y Fichas Técnicas (Acceso libre sin registro):*\nhttps://jjpaper.pages.dev/catalogo\n`;
+    }
+    textarea.value = text.substring(0, start) + snippet + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
+    updatePreview();
+  }
+
+  function closeAiDraftModal() {
+    const modal = document.getElementById('campAiDraftModal');
+    if (modal) {
+      modal.classList.remove('op');
+      modal.style.display = 'none';
+    }
+  }
+
+  function openAiDraftModal() {
+    let modal = document.getElementById('campAiDraftModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'campAiDraftModal';
+      modal.className = 'ce-picker-overlay';
+      modal.innerHTML = `
+        <div class="ce-picker-dialog">
+          <div class="ce-picker-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:20px;">🪄</span>
+              <div>
+                <h3 style="margin:0; font-size:16px; font-weight:700;">Redactar Propuesta Comercial con IA</h3>
+                <span style="font-size:11.5px; color:#64748b;">Control total de redacción, argumentos comerciales y personalización</span>
+              </div>
+            </div>
+            <button type="button" class="ce-btn-close" id="btnCloseAiDraftTop">✕</button>
+          </div>
+          <div class="ce-picker-body">
+            <!-- Info contextual -->
+            <div id="ceAiDraftContextBox" style="margin-bottom:14px; padding:10px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; font-size:12.5px; color:#0369a1;"></div>
+
+            <!-- 1. Objetivo / Propuesta Base -->
+            <div style="margin-bottom:14px;">
+              <label style="display:block; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:5px;">1. Objetivo o Propuesta Comercial a Presentar</label>
+              <input type="text" id="ceAiDraftObjective" style="width:100%; box-sizing:border-box; padding:8px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px;" placeholder="Ej: Actualización de precios de resmas, reposición para oficina, oferta escolar...">
+            </div>
+
+            <!-- 2. Instrucciones Personalizadas (Control Total) -->
+            <div style="margin-bottom:14px;">
+              <label style="display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:13px; color:#1e293b; margin-bottom:5px;">
+                <span>2. Instrucciones Específicas / Petición del Asesor <span style="font-weight:normal; font-size:11px; color:#64748b;">(Opcional pero prioritario)</span></span>
+              </label>
+              <textarea id="ceAiDraftCustomInstructions" rows="3" placeholder="Ej: Haz énfasis en entrega en 24h a toda Caracas, resalta que emitimos factura fiscal y tasa BCV, o menciona que tenemos bultos cerrados a precio especial..." style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:12.5px; border:1px solid #cbd5e1; border-radius:8px; resize:vertical; line-height:1.4; font-family:inherit;"></textarea>
+              <span style="display:block; font-size:11px; color:#64748b; margin-top:3px;">La IA obedecerá fielmente tus directivas sin añadir rellenos innecesarios.</span>
+            </div>
+
+            <!-- 3. Parámetros Estratégicos -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">💼 Tono Comercial</label>
+                <select id="ceAiDraftTone" style="width:100%; box-sizing:border-box; padding:7px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="socio_estrategico">💼 Socio Estratégico (Profesional B2B)</option>
+                  <option value="oportunidad_mayorista">🔥 Oferta Mayorista (Oportunidad y ahorro)</option>
+                  <option value="cercano_consultivo">🤝 Cercano y Consultivo (Asesor amigo)</option>
+                  <option value="institucional_formal">🏢 Institucional Formal (Corporativo)</option>
+                  <option value="fidelizado_reactivacion">💎 Cliente VIP / Fidelizado</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">🎯 Sector Objetivo</label>
+                <select id="ceAiDraftSector" style="width:100%; box-sizing:border-box; padding:7px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="auto">🌐 Detectar / Adaptar Automático</option>
+                  <option value="oficinas">🏢 Oficinas y Empresas</option>
+                  <option value="colegios">🏫 Colegios e Institutos</option>
+                  <option value="papelerias">📚 Papelerías y Librerías</option>
+                  <option value="clinicas">🏥 Clínicas y Salud</option>
+                  <option value="restaurantes">🍽️ Restaurantes y Alimentos</option>
+                  <option value="retail">🛒 Supermercados y Retail</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 4. Ajustes Finos de Estructura -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">📏 Longitud</label>
+                <select id="ceAiDraftLength" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="balanced" selected>Equilibrado (B2B)</option>
+                  <option value="short">Ultra-Conciso (3-5 lín)</option>
+                  <option value="detailed">Detallado y Formal</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">💰 Precios</label>
+                <select id="ceAiDraftPriceMode" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="with_prices" selected>Con Precios ($ y Bs BCV)</option>
+                  <option value="no_prices">Solo Disponibilidad (Sin precios)</option>
+                  <option value="bulk_only">Enfocar Precios por Bulto</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">🎯 Llamado Acción</label>
+                <select id="ceAiDraftCta" style="width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                  <option value="quote" selected>Pedir Cotización</option>
+                  <option value="inventory">Reponer Inventario</option>
+                  <option value="catalog">Solicitar Catálogo</option>
+                  <option value="meeting">Coordinar Asesoría</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="ce-picker-footer">
+            <div style="font-size:11.5px; color:#64748b;">
+              <span>Se insertará automáticamente en el editor con soporte Spintax</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="button" class="ce-btn btn-sec" id="btnCancelAiDraft">Cancelar</button>
+              <button type="button" class="ce-btn btn-pri" id="btnConfirmAiDraft" style="background:#16604A; border-color:#16604A;">Redactar Mensaje 🪄</button>
+            </div>
+          </div>
+        </div>
+      `;
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeAiDraftModal();
+      });
+      document.body.appendChild(modal);
+
+      document.getElementById('btnCloseAiDraftTop').onclick = closeAiDraftModal;
+      document.getElementById('btnCancelAiDraft').onclick = closeAiDraftModal;
+
+      document.getElementById('btnConfirmAiDraft').onclick = () => {
+        const objective = document.getElementById('ceAiDraftObjective')?.value?.trim() || '';
+        const customInstructions = document.getElementById('ceAiDraftCustomInstructions')?.value?.trim() || '';
+        const tone = document.getElementById('ceAiDraftTone')?.value || 'socio_estrategico';
+        const targetSector = document.getElementById('ceAiDraftSector')?.value || 'auto';
+        const msgLength = document.getElementById('ceAiDraftLength')?.value || 'balanced';
+        const priceMode = document.getElementById('ceAiDraftPriceMode')?.value || 'with_prices';
+        const ctaGoal = document.getElementById('ceAiDraftCta')?.value || 'quote';
+
+        // Sincronizar selectores principales de la pantalla si el usuario los cambió en el modal
+        const mainTone = document.getElementById('ceCommercialTone');
+        if (mainTone && tone) mainTone.value = tone;
+        const mainSec = document.getElementById('ceTargetSector');
+        if (mainSec && targetSector) mainSec.value = targetSector;
+        onSectorStrategyChange();
+
+        closeAiDraftModal();
+        executeAiDraftTemplate({
+          objective,
+          customInstructions,
+          tone,
+          targetSector,
+          msgLength,
+          priceMode,
+          ctaGoal
+        });
+      };
+    }
+
+    // Context box y valores por defecto
+    const contextBox = document.getElementById('ceAiDraftContextBox');
+    const objInput = document.getElementById('ceAiDraftObjective');
+    const toneSelect = document.getElementById('ceAiDraftTone');
+    const secSelect = document.getElementById('ceAiDraftSector');
+
+    const activeTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const activeSec = document.getElementById('ceTargetSector')?.value || 'auto';
+    if (toneSelect) toneSelect.value = activeTone;
+    if (secSelect) secSelect.value = activeSec;
+
+    let defaultObj = '';
+    let contextHtml = '';
+    if (selectedProductsList && selectedProductsList.length > 0) {
+      defaultObj = `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`;
+      contextHtml = `📦 <strong>${selectedProductsList.length} artículos seleccionados</strong> en el editor. La IA incluirá sus especificaciones y precios actualizados.`;
+    } else if (selectedProductOrCombo) {
+      defaultObj = `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name || selectedProductOrCombo.title}`;
+      contextHtml = `💡 <strong>Producto seleccionado:</strong> <em>"${escapeHTML(selectedProductOrCombo.name || selectedProductOrCombo.title)}"</em>. La IA lo destacará como protagonista comercial.`;
+    } else {
+      defaultObj = 'Actualización de condiciones mayoristas y reposición de inventario';
+      contextHtml = `🚀 <strong>Catálogo General JJ Paper:</strong> La IA redactará una propuesta corporativa destacando nuestro rol como importador directo y despacho en 24h.`;
+    }
+
+    if (objInput) objInput.value = defaultObj;
+    if (contextBox) contextBox.innerHTML = contextHtml;
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('op'));
+  }
+
+  function aiDraftTemplate() {
+    openAiDraftModal();
+  }
+
+  async function executeAiDraftTemplate(params = {}) {
     const isEmail = currentConfig?.channel === 'email';
-    const defPrompt = (selectedProductsList && selectedProductsList.length > 1)
-      ? `Lote especial de promociones mayoristas (${selectedProductsList.length} artículos destacados con precios de importador)`
-      : selectedProductOrCombo
-      ? `Disponibilidad y suministro mayorista de ${selectedProductOrCombo.name}`
-      : 'Actualización de condiciones mayoristas y reposición de inventario';
-
-    const obj = prompt('✨ ¿Qué propuesta comercial deseas presentar?\n(Ej: Suministro corporativo de resmas y papel, Reposición para el año escolar, Rollos térmicos para cajas)', defPrompt);
-    if (!obj || !obj.trim()) return;
-
     const btn = document.getElementById('ceAiDraftBtn');
     const origText = btn ? btn.textContent : '';
     if (btn) {
@@ -2640,21 +3066,26 @@ ${rawText}
 
     try {
       await ensureGeminiClient();
-      const targetSector = document.getElementById('ceTargetSector')?.value || 'auto';
-      const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+      if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
+
       const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
 
       const result = await window.GeminiClient.draftCampaignMessage({
-        objective: obj.trim(),
+        objective: (params.objective || 'Actualización de condiciones mayoristas y reposición de inventario').trim(),
+        customInstructions: params.customInstructions || '',
         product: selectedProductOrCombo,
         products: selectedProductsList,
         discount: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '',
         audience: document.getElementById('ceAudienceSelect')?.value || 'todos',
         channel: currentConfig?.channel || 'whatsapp',
         sellerName: currentConfig?.seller?.name || '',
-        targetSector,
-        tone: commercialTone,
-        valueHook
+        targetSector: params.targetSector || 'auto',
+        tone: params.tone || 'socio_estrategico',
+        valueHook,
+        msgLength: params.msgLength || 'balanced',
+        priceMode: params.priceMode || 'with_prices',
+        ctaGoal: params.ctaGoal || 'quote',
+        includeSourcing: true
       });
 
       if (isEmail && result.subject && document.getElementById('ceSubjectInput')) {
@@ -2839,7 +3270,31 @@ ${rawText}
   /* ---------------- DESPACHO Y LANZAMIENTO ---------------- */
   function buildMinimalFallback(c, channel, sellerName, inclPdf) {
     const sName = sellerName || 'Asesor JJ Paper';
-    const shown = (c ? (c.company_name || c.name) : null) || 'Estimado Cliente';
+    const shown = (c ? (c.contact_name || c.company_name || c.name) : null) || 'Estimado Cliente';
+    const custCompany = (c ? (c.company_name || c.name) : null) || 'su empresa';
+    const sPhone = (typeof window !== 'undefined' && window.CURRENT_PROFILE?.phone) || '0412-4676073';
+
+    // 1. Si el asesor escribió o cargó una plantilla en el editor, ADAPTAR ESA MISMA PROPUESTA:
+    const currentInput = (document.getElementById('ceMessageInput')?.value || '').trim();
+    if (currentInput && currentInput.length > 10 && !currentInput.includes('Le saludamos cordialmente de JJ Paper...')) {
+      let custom = currentInput;
+      // Reemplazar variables dinámicas {{...}} PRIMERO
+      custom = custom
+        .replace(/\{\{nombre\}\}/gi, shown)
+        .replace(/\{\{contacto\}\}/gi, shown)
+        .replace(/\{\{empresa\}\}/gi, custCompany)
+        .replace(/\{\{vendedor\}\}/gi, sName)
+        .replace(/\{\{telefono\}\}/gi, sPhone)
+        .replace(/\{\{link\}\}/gi, 'https://jjpaper.pages.dev/catalogo');
+
+      // Resolver Spintax {A|B|C} para humanizar cada envío
+      custom = custom.replace(/\{([^{}]+)\}/g, (_, choices) => {
+        const arr = choices.split('|');
+        return arr[Math.floor(Math.random() * arr.length)];
+      });
+      return custom;
+    }
+
     const isContacted = Boolean(
       c && (
         c.contacted ||
@@ -2856,9 +3311,9 @@ ${rawText}
 
     let base = '';
     if (isContacted) {
-      base = `{Hola|Buen día|Un gusto saludarle de nuevo} ${shown} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nSomos distribuidores mayoristas de papelería corporativa, consumibles de oficina, insumos de caja y productos de limpieza. Además, *si requiere algún insumo especial que no visualice en nuestra lista de precios, nosotros se lo conseguimos y gestionamos directamente* para garantizar el abastecimiento continuo de su negocio.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje industrial*, consumibles de oficina y artículos de limpieza institucional.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedo a su disposición para coordinar lo que necesite.}`;
+      base = `{Hola|Buen día|Un gusto saludarle de nuevo} ${shown} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nSomos importadores y distribuidores directos de papelería corporativa, útiles escolares, consumibles de oficina y embalaje. Además, *si requiere algún insumo especial que no visualice en nuestra lista de precios, nuestro equipo se lo ubica y gestiona directamente* para garantizar el abastecimiento continuo de su negocio.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Papelería corporativa, bolígrafos por caja, cuadernos y pegas* a precio mayorista.\n• *Cintas de embalaje industrial*, consumibles operativos y artículos de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedo a su disposición para coordinar lo que necesite.}`;
     } else {
-      base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista en Caracas de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza. Además, *si requiere cualquier otro producto que no esté en la lista de precios, nosotros se lo conseguimos directamente* para apoyar la operatividad de su empresa.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Rollos térmicos para puntos de venta* (POS y cajas registradoras).\n• *Resmas de papel Bond Carta y Oficio* y cuadernos de alta rotación.\n• *Cintas de embalaje industrial*, consumibles de oficina y artículos de limpieza institucional.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}`;
+      base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista en Caracas de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza. Además, *si requiere cualquier otro producto que no esté en la lista de precios, nosotros se lo conseguimos directamente* para apoyar la operatividad de su empresa.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura y marcas líderes.\n• *Papelería corporativa, bolígrafos por caja, cuadernos y pegas* a precio mayorista.\n• *Cintas de embalaje industrial*, consumibles operativos y artículos de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}`;
     }
 
     if (channel === 'email') {
@@ -3024,15 +3479,21 @@ ${rawText}
     handleAiOfferFileUpload,
     processAiOffersRequest,
     onTypeChange,
+    onSectorStrategyChange,
+    onCooldownHoursChange,
     onTemplateChange,
     onAudienceChange,
     onAttachChange,
     onCustomFileChange,
     insertVar,
     insertSpintax,
+    insertCatalogLink,
     updatePreview,
     launch,
     aiDraftTemplate,
+    openAiDraftModal,
+    closeAiDraftModal,
+    executeAiDraftTemplate,
     aiSectorPitch,
     aiAntiSpamSpintax,
     aiDesignFlyer

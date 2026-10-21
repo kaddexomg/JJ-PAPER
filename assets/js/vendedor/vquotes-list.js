@@ -19,6 +19,8 @@ const VQ_STATUS_LABEL = {
   pendiente:  'Pendiente',
   contactado: 'Contactado',
   confirmado: 'Confirmado',
+  confirmado_mixnet: '✅ En MixNet',
+  mixnet_enviado: '📤 En MixNet',
   convertido: 'Convertido en venta',
   cancelado:  'Anulado',
   rechazado:  'Rechazado',
@@ -84,7 +86,10 @@ function renderVQuotes() {
       <td><div class="td-actions">
         <button class="btn-p sm" onclick="viewVQuote('${q.id}')" title="Ver detalle">👁️ Ver</button>
         <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
-        <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
+        <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Pasar a Pedido">📋</a>
+        ${q.status === 'confirmado_mixnet'
+          ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Ya confirmada para MixNet">✅</span>`
+          : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVQuoteToMixnet('${q.id}')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vQuoteCtx('${q.id}'))"
                 title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
         <button class="btn-o sm" onclick="pushVQuoteToMixnet('${q.id}')" title="Sincronizar e inyectar en MixNet ERP (M:\\comp01)">📁</button>
@@ -155,7 +160,7 @@ function viewVQuote(id) {
       ${sendBotonHTML(`vQuoteCtx('${q.id}')`)}
       ${closed ? '' : `
         <a class="btn-o" style="width:auto;padding:9px 16px;text-decoration:none" href="cotizador.html?edit=${q.id}">✏️ Editar</a>
-        <a class="btn-p" style="width:auto;padding:9px 16px;text-decoration:none;font-weight:700" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
+        <a class="btn-p" style="width:auto;padding:9px 16px;text-decoration:none;font-weight:700" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">📋 Pasar a Pedido</a>
         <button class="btn-o" onclick="convertVQuote('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
           style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">⚡ Venta directa</button>`}
       <a class="btn-wa" style="width:auto;padding:9px 16px" target="_blank"
@@ -228,12 +233,21 @@ function vQuoteCtx(id) {
 }
 
 async function updateVQuoteStatus(id, status) {
+  if (status === 'confirmado_mixnet' && !confirm('¿Confirmar esta cotización para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.')) { renderVQuotes(); return; }
   const { error } = await sb.from('jjp_quotes').update({ status }).eq('id', id);
   if (error) { showToast('No se pudo actualizar el estado', 'err'); return; }
   const q = vQuotes.find(x => x.id === id);
   if (q) q.status = status;
-  showToast(status === 'cancelado' ? 'Cotización anulada' : `Estado → ${VQ_STATUS_LABEL[status] || status}`);
+  showToast(status === 'cancelado' ? 'Cotización anulada' : (status === 'confirmado_mixnet' ? '✅ Cotización confirmada · se enviará a MixNet' : `Estado → ${VQ_STATUS_LABEL[status] || status}`));
   renderVQuotes();
+}
+
+// Confirmar cotización para su envío a MixNet (el agente de la Win7 asigna el correlativo real)
+async function confirmVQuoteToMixnet(id) {
+  const q = vQuotes.find(x => x.id === id);
+  const label = q?.quote_number ? '#' + q.quote_number : 'esta cotización';
+  if (!confirm(`¿Confirmar ${label} para enviarla a MixNet?`)) return;
+  await updateVQuoteStatus(id, 'confirmado_mixnet');
 }
 
 /* ---------- Convertir cotización en venta ----------

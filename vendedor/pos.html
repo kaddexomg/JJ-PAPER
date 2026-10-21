@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nueva Venta (POS) | JJ Paper Vendedor</title>
+<title>Crear / Procesar Pedido | JJ Paper Vendedor</title>
 <link rel="stylesheet" href="../assets/css/variables.css">
 <link rel="stylesheet" href="../assets/css/components.css">
 <link rel="stylesheet" href="../assets/css/catalog.css">
@@ -39,7 +39,7 @@
     <nav class="aside-nav">
       <span class="a-section">Ventas</span>
       <a href="index.html"><span class="a-ico">📊</span> Mi Panel <span id="vNotifBadge" style="display:none;background:var(--gm);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px;margin-left:4px"></span></a>
-      <a href="pos.html" class="on"><span class="a-ico">💰</span> Nueva venta (POS)</a>
+      <a href="pos.html" class="on"><span class="a-ico">📋</span> Crear Pedido</a>
       <a href="cotizador.html"><span class="a-ico">📋</span> Cotizador</a>
       <a href="pedidos.html"><span class="a-ico">🛒</span> Mis pedidos</a>
       <a href="clientes.html"><span class="a-ico">👥</span> Mis clientes</a>
@@ -49,7 +49,7 @@
       <a href="difusion.html"><span class="a-ico">📢</span> Difusión WA</a>
       <div class="divider"></div>
       <span class="a-section">Sitio</span>
-      <a href="../catalogo.html" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
+      <a href="/catalogo" target="_blank"><span class="a-ico">🌐</span> Ver catálogo</a>
       <a href="#" onclick="adminLogout()"><span class="a-ico">🔓</span> Cerrar Sesion</a>
     </nav>
     <div class="aside-ft">Vendedor: <strong id="sellerName" style="color:#fff">—</strong></div>
@@ -60,8 +60,8 @@
       <div class="topbar-left">
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
-          <h2>Nueva venta</h2>
-          <p>Arma el pedido de tu cliente en segundos</p>
+          <h2>Crear / Procesar Pedido</h2>
+          <p>Carga cotizaciones o arma pedidos directos para almacén y MixNet</p>
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -71,47 +71,116 @@
             <option value="">Cargando vendedores...</option>
           </select>
         </div>
-        <button type="button" class="btn-o sm" onclick="posOpenLoadQuoteModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:7px 14px">📋 Cargar Cotización</button>
+        <button type="button" class="btn-p sm" onclick="posOpenLoadQuoteModal()" style="font-weight:800;display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:var(--theme-accent, #16604a);color:#fff;box-shadow:0 2px 8px rgba(22,96,74,0.3)">📋 Cargar desde Cotización (F11)</button>
       </div>
     </div>
 
     <div class="admin-content">
-      <div class="pos-grid">
+      <!-- Cuadrícula Principal de Pedido POS (2 Columnas Ergonómicas) -->
+      <div class="pos-grid" style="display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start">
 
-        <!-- Columna izquierda: Sección 1 - Catálogo y Buscador -->
-        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">1</span>
-              <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Catálogo de Productos</h3>
+        <!-- COLUMNA IZQUIERDA: CLIENTE + CATÁLOGO -->
+        <div style="display:flex;flex-direction:column;gap:18px">
+
+          <!-- SECCIÓN 1: CLIENTE ASIGNADO & CÓDIGO MIXNET -->
+          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">1</span>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Cliente Asignado</h3>
+                <span id="posCliBadge" style="display:none;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" class="btn-g sm" onclick="posResetCustomer()" title="Limpiar datos del cliente (Esc o F3)" style="font-size:11.5px;color:var(--theme-text-muted, #64748b)">✕ Limpiar</button>
+              </div>
             </div>
-            <button type="button" class="btn-o sm" onclick="posOpenCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (F12 o Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px">➕ Ítem Libre / Servicio</button>
+
+            <!-- Buscador Omni-canal de Cliente (con soporte de código MixNet, RIF, Nombre y Teléfono) -->
+            <div style="position:relative;margin-bottom:12px">
+              <div style="position:relative">
+                <input class="fi" id="posCliSearch" placeholder="🔍 Escribe Código MixNet (ej: 00, 008-872), RIF (J-...), Nombre o Teléfono... [F3]" autocomplete="off" style="width:100%;height:42px;font-size:13.5px;padding:8px 12px 8px 38px;border-radius:10px;border:1.5px solid var(--theme-border-accent, #10b981);box-shadow:0 2px 6px rgba(0,0,0,0.02)">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;opacity:0.6;pointer-events:none">👤</span>
+              </div>
+              <!-- Dropdown de autocompletado -->
+              <div id="posCliNameResults" class="cust-ac-box" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:999;max-height:280px;overflow-y:auto;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.18)"></div>
+            </div>
+
+            <!-- Campos Visibles y Estructurados del Cliente -->
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label class="fl" for="posCliCode" style="font-size:11px;font-weight:700;margin-bottom:3px">Cód. MixNet</label>
+                <input class="fi" id="posCliCode" placeholder="Ej: 00" style="width:100%;height:36px;font-size:13px;font-weight:800;font-family:monospace;border-radius:8px" onchange="posOnCodeChange(this.value)">
+              </div>
+              <div>
+                <label class="fl" for="posCliName" style="font-size:11px;font-weight:700;margin-bottom:3px">Razón Social / Nombre</label>
+                <input class="fi" id="posCliName" placeholder="Nombre del cliente o empresa" style="width:100%;height:36px;font-size:13px;font-weight:600;border-radius:8px">
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label class="fl" for="posCliRif" style="font-size:11px;font-weight:700;margin-bottom:3px">RIF / Cédula</label>
+                <input class="fi" id="posCliRif" placeholder="J-12345678-9 o 00" style="width:100%;height:36px;font-size:13px;border-radius:8px">
+              </div>
+              <div>
+                <label class="fl" for="posCliTel" style="font-size:11px;font-weight:700;margin-bottom:3px">Teléfono de Contacto</label>
+                <input class="fi" id="posCliTel" placeholder="0412... o 0414..." style="width:100%;height:36px;font-size:13px;border-radius:8px">
+              </div>
+            </div>
+
+            <div>
+              <label class="fl" for="posCliCity" style="font-size:11px;font-weight:700;margin-bottom:3px">Ciudad / Dirección de Despacho</label>
+              <input class="fi" id="posCliCity" placeholder="Caracas, Maracay, Valencia..." style="width:100%;height:36px;font-size:13px;border-radius:8px">
+            </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <input class="fi" id="posSearch" placeholder="Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:8px">
-            <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📷</button>
-            <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📱</button>
+
+          <!-- SECCIÓN 2: CATÁLOGO Y BÚSQUEDA DE PRODUCTOS -->
+          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">2</span>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">📦 Catálogo de Productos</h3>
+              </div>
+              <button type="button" class="btn-o sm" onclick="posOpenCustomItemModal()" title="Agregar flete, servicio o ítem libre (F12 o Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border-radius:8px">➕ Ítem Libre / Servicio</button>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input class="fi" id="posSearch" placeholder="🔍 Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--theme-border-accent, #10b981)">
+              <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;border-radius:8px">📷</button>
+              <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;border-radius:8px">📱</button>
+            </div>
+            <!-- Lista integrada fluida de productos -->
+            <div id="posResults" style="max-height:480px;overflow-y:auto;margin-top:12px;padding-right:4px">
+              <p style="color:#aaa;font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
+            </div>
           </div>
-          <div id="posResults" style="max-height:560px;overflow-y:auto;margin-top:12px">
-            <p style="color:#aaa;font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
-          </div>
+
         </div>
 
-        <!-- Columna derecha: Secciones 2, 3 y 4 -->
-        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:16px">
-          
-          <!-- Sección 2: Ticket de Venta -->
-          <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+        <!-- COLUMNA DERECHA: RENGLONES DEL PEDIDO + CIERRE -->
+        <div style="display:flex;flex-direction:column;gap:18px">
+
+          <!-- SECCIÓN 3: RENGLONES DEL PEDIDO -->
+          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">2</span>
-                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Ticket de Venta</h3>
+                <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">3</span>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">🛒 Renglones del Pedido</h3>
               </div>
               <button type="button" class="btn-g sm" onclick="clearPos()" style="font-size:11px;color:var(--theme-text-muted, #64748b)">Vaciar</button>
             </div>
             
-            <div id="posTicket" style="max-height:360px;overflow-y:auto">
-              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
+            <!-- Encabezado de Columnas del Listado de Renglones -->
+            <div style="display:grid;grid-template-columns:1.8fr 110px 105px 95px 105px 44px;gap:10px;padding:6px 12px;background:var(--theme-bg-surface-solid, #f8fafc);border-radius:8px;font-size:11px;font-weight:800;color:var(--theme-text-muted, #64748b);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
+              <span>Descripción del Producto</span>
+              <span>Tarifa</span>
+              <span style="text-align:center">Cantidad</span>
+              <span style="text-align:right">Precio $</span>
+              <span style="text-align:right">Subtotal</span>
+              <span style="text-align:right">Acción</span>
+            </div>
+
+            <div id="posTicket" style="max-height:360px;overflow-y:auto;padding-right:4px">
+              <p style="color:#aaa;font-size:13px;text-align:center;padding:16px">Agrega productos desde el catálogo o carga una cotización.</p>
             </div>
 
             <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:var(--theme-bg-surface-solid, #f8fafc);padding:8px 12px;border-radius:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
@@ -122,43 +191,32 @@
             <div id="posTotals"></div>
           </div>
 
-          <!-- Sección 3: Datos del Cliente -->
-          <div style="border-top:1px solid var(--theme-border-subtle, #e2e8f0);padding-top:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">3</span>
-                <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Datos del Cliente</h3>
-              </div>
-              <button type="button" class="btn-o sm" onclick="posSetConsumidorFinal()" title="Venta mostrador / consumidor final en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
+          <!-- SECCIÓN 4: CONDICIONES Y PROCESAMIENTO -->
+          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+              <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">4</span>
+              <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Condiciones y Procesamiento del Pedido</h3>
             </div>
-            <input class="fi" id="posCliSearch" placeholder="Buscar cliente por nombre o teléfono..." oninput="posSearchCustomer()" autocomplete="off" style="margin-bottom:8px;height:36px">
-            <div id="posCliResults"></div>
-            <div style="position:relative;margin:6px 0 8px">
-              <input class="fi" id="posCliName" placeholder="Nombre completo o razón social *" style="width:100%;height:38px;padding:8px 12px">
-              <div id="posCliNameResults" class="cust-ac-box"></div>
+            <div>
+              <label class="fl" for="posMethod" style="font-size:11px;font-weight:700;margin-bottom:3px">Forma de Pago Acordada</label>
+              <select class="fi" id="posMethod" style="height:38px;width:100%;border-radius:8px">
+                <option value="por_convenir">🤝 Acuerdo comercial / Por convenir</option>
+                <option value="transferencia">🏦 Transferencia bancaria</option>
+                <option value="pago_movil">📲 Pago Móvil</option>
+                <option value="efectivo">💵 Efectivo</option>
+                <option value="credito">⏳ Crédito comercial</option>
+              </select>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <input class="fi" id="posCliTel" placeholder="Teléfono *" style="height:36px">
-              <input class="fi" id="posCliRif" placeholder="RIF / CI" style="height:36px">
-              <input class="fi" id="posCliCity" placeholder="Ciudad" style="grid-column:span 2;height:36px">
+            <div style="margin-top:10px">
+              <label class="fl" for="posPayRef" style="font-size:11px;font-weight:700;margin-bottom:3px">Referencia / Comprobante (opcional)</label>
+              <input class="fi" id="posPayRef" placeholder="N° de referencia / comprobante de pago" style="width:100%;height:36px;border-radius:8px">
             </div>
-          </div>
+            <div style="margin-top:10px">
+              <label class="fl" for="posNotes" style="font-size:11px;font-weight:700;margin-bottom:3px">Observaciones de Entrega / Despacho</label>
+              <textarea class="fi" id="posNotes" placeholder="Observaciones de entrega, transporte o despacho (opcional)" rows="2" style="width:100%;border-radius:8px"></textarea>
+            </div>
 
-          <!-- Sección 4: Pago y Registro -->
-          <div style="border-top:1px solid var(--theme-border-subtle, #e2e8f0);padding-top:14px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="background:var(--theme-accent-soft, #ecfdf5);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-border-accent, #a7f3d0)">4</span>
-              <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Método de Pago y Registro</h3>
-            </div>
-            <select class="fi" id="posMethod" style="height:38px">
-              <option value="efectivo">💵 Efectivo</option>
-              <option value="pago_movil">📲 Pago Móvil</option>
-              <option value="transferencia">🏦 Transferencia</option>
-            </select>
-            <input class="fi" id="posPayRef" placeholder="N° de referencia del pago (si aplica)" style="margin-top:8px;height:36px">
-            <textarea class="fi" id="posNotes" placeholder="Notas del pedido (opcional)" rows="2" style="margin-top:8px;width:100%"></textarea>
-
-            <button class="btn-p" id="posSubmitBtn" onclick="posSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:44px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">✅ Registrar Venta (Ctrl + Enter)</button>
+            <button class="btn-p" id="posSubmitBtn" onclick="posSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:46px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">📋 Procesar Pedido (Ctrl + Enter)</button>
           </div>
 
         </div>
@@ -188,9 +246,9 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="posDoneModal">
+<div class="modal-overlay" id="posDoneModal" onclick="if(event.target===this)posReset()">
   <div class="modal-box">
-    <div class="modal-hd"><h3>✅ Venta registrada</h3><button class="modal-close" onclick="posReset()">✕</button></div>
+    <div class="modal-hd"><h3>✅ Pedido Procesado</h3><button class="modal-close" onclick="posReset()">✕</button></div>
     <div class="modal-body" id="posDoneBody"></div>
   </div>
 </div>
@@ -201,7 +259,7 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
-<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script src="../assets/js/vendedor/vcommon.js"></script>
 <script src="../assets/js/vendedor/product-finder.js?v=20260930_cache_60m"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>

@@ -6,6 +6,7 @@
    ====================================================== */
 
 let _srvRow = null;
+let _win7Row = null;
 let _srvTimer = null;
 
 // 🟢 si el último latido llegó hace < 180s (late cada 30s; tolera latencia VPS/Supabase)
@@ -18,7 +19,7 @@ function srvOnline(row) {
 
 function srvAgo(iso) {
   if (!iso) return '—';
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  const s = Math.floor(Math.abs(Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return `hace ${s}s`;
   if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
   if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
@@ -36,16 +37,22 @@ async function srvLoad() {
 function srvRenderChip() {
   const chip = document.getElementById('srvChip');
   if (!chip) return;
-  const on = srvOnline(_srvRow);
+  const onVps = srvOnline(_srvRow);
+  const onWin7 = Boolean(_win7Row && (_win7Row.status === 'online' || (_win7Row.heartbeat_at && Math.abs(Date.now() - new Date(_win7Row.heartbeat_at).getTime()) < 300_000)));
+  const on = onVps || onWin7;
   chip.textContent = on ? '🖥️ Servidor 🟢' : '🖥️ Servidor 🔴';
   chip.className = 'wa-chip' + (on ? ' ok' : '');
-  chip.title = on ? 'El servidor está corriendo' : 'El servidor está apagado o sin conexión';
+  chip.title = on
+    ? `Servidor Activo (${[onVps ? 'VPS Truobox' : null, onWin7 ? 'Win7 Tienda' : null].filter(Boolean).join(' + ')})`
+    : 'El servidor está apagado o sin conexión';
 }
 
 function srvRenderModal() {
   const box = document.getElementById('srvBody');
   if (!box) return;
-  const on = srvOnline(_srvRow);
+  const onVps = srvOnline(_srvRow);
+  const onWin7 = Boolean(_win7Row && (_win7Row.status === 'online' || (_win7Row.heartbeat_at && Math.abs(Date.now() - new Date(_win7Row.heartbeat_at).getTime()) < 300_000)));
+  const on = onVps || onWin7;
   const mods = _srvRow?.modules || {};
   const modLabel = { whatsapp: 'WhatsApp', email: 'Correo', rates: 'Tasas', invoices: 'Facturas', campaigns: 'Difusión', countLan: 'Conteo LAN', outbox: 'Cola de envío', mixer: 'Puente MixNet' };
   const mixerInfo = typeof mods.mixer === 'object' && mods.mixer !== null ? mods.mixer : null;
@@ -56,16 +63,18 @@ function srvRenderModal() {
 
   const hbIso = _srvRow?.heartbeat_at || _srvRow?.heartbeat;
   box.innerHTML = `
-    <div class="srv-state ${on ? 'on' : 'off'}">
+    <!-- Nodo 1: Servidor VPS Cloud -->
+    <div class="srv-state ${onVps ? 'on' : 'off'}" style="margin-bottom:8px;">
       <div class="srv-dot"></div>
       <div>
-        <small>${on ? 'Último latido ' + srvAgo(hbIso) : 'Sin latidos recientes'}
-        ${_srvRow?.host ? ' · PC: ' + escapeHTML(_srvRow.host) : ''}
+        <div style="font-weight:700;font-size:12px;">☁️ Nodo 1: Servidor VPS Central (Truobox · wa-server 24/7)</div>
+        <small>${onVps ? '🟢 Activo · Latido ' + srvAgo(hbIso) : '⚪ Sin latidos recientes'}
+        ${_srvRow?.host ? ' · ' + escapeHTML(_srvRow.host) : ''}
         ${mods?.lan_ip ? ' (' + escapeHTML(mods.lan_ip) + ')' : ''}</small>
-        ${on && mods?.lan_url ? `
+        ${onVps ? `
         <div style="margin-top:6px;font-size:12px;display:flex;gap:10px;">
-          <a href="${mods.lan_url}/admin/monitor.html" target="_blank" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor Local</a>
-          <a href="${mods.lan_url}/lan/start" target="_blank" style="color:#0284c7;font-weight:600;text-decoration:none;">📱 QR Conteo Offline</a>
+          <a href="/admin/monitor.html" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor Cuotas & VPS</a>
+          <a href="/admin/whatsapp.html" style="color:#0284c7;font-weight:600;text-decoration:none;">💬 CRM WhatsApp</a>
         </div>` : ''}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import os from 'node:os';
+import { execSync } from 'node:child_process';
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 
@@ -35,6 +36,20 @@ function getLanIp() {
 }
 
 
+function getTailscaleIp() {
+  try {
+    const ifaces = os.networkInterfaces();
+    for (const name of Object.keys(ifaces)) {
+      if (/tailscale/i.test(name)) {
+        for (const i of ifaces[name] || []) {
+          if (i.family === 'IPv4' && !i.internal) return i.address;
+        }
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
 let lastStatsData = null;
 let lastStatsFetchTime = 0;
 const STATS_BEAT_TTL = 300_000; // Recalcular métricas de Postgres cada 5 minutos
@@ -69,10 +84,14 @@ async function beat() {
   if (waSesiones > 0 && waSanas === 0) serverStatus = 'degraded';
 
   const ip = getLanIp();
+  const tsIp = getTailscaleIp();
   const lanInfo = {
     lan_ip: ip,
     lan_url: `http://${ip}:8787`,
-    lan_https_url: `https://${ip}:8788`
+    lan_https_url: `https://${ip}:8788`,
+    tailscale_ip: tsIp,
+    tailscale_url: tsIp ? `http://${tsIp}:8787` : null,
+    tailscale_https_url: tsIp ? `https://${tsIp}:8788` : null
   };
 
   // Latido rápido primero: nunca depende de GSM ni de métricas lentas
@@ -98,10 +117,17 @@ async function beat() {
     heartbeat_at: now,
     status: serverStatus,
     host: os.hostname(),
-    modules: { ...modulesRef, ...extra, ...lanInfo, ...(gsmDevice ? { gsm_device: gsmDevice } : {}), ...(monitorStats ? { monitor_stats: monitorStats } : {}) }
+    modules: {
+      ...modulesRef,
+      ...extra,
+      ...lanInfo,
+      ...(mixerStatus ? { mixer_status: mixerStatus } : {}),
+      ...(gsmDevice ? { gsm_device: gsmDevice } : {}),
+      ...(monitorStats ? { monitor_stats: monitorStats } : {})
+    }
   };
 
-  // 1. Actualizar Proyecto B (Comunicación)
+  // 1. Actualizar Proyecto B (Comunicación - donde el frontend consulta jjp_server_control)
   const { error: errB } = await db.from('jjp_server_control').update(payload).eq('id', 1);
   if (errB) log.warn({ err: errB.message }, 'heartbeat falló en Proyecto B');
 
@@ -147,6 +173,72 @@ async function runCommand(cmd) {
     return;
   }
 
+  if (cmd === 'sync_gmail_starred' || (cmd && cmd.startsWith('sync_gmail_starred:'))) {
+    const profileId = cmd.includes(':') ? cmd.split(':')[1].trim() : null;
+    log.info({ profileId }, 'comando de sincronización de contactos destacados de Gmail recibido vía Supabase');
+    try {
+      const { syncGmailStarred } = await import('./email.js');
+      const res = await syncGmailStarred(profileId);
+      log.info({ count: res.syncedCount }, 'Sincronización de destacados de Gmail completada.');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, count: res.syncedCount, at: new Date().toISOString() }
+      }).eq('id', 1);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error ejecutando sincronización de destacados de Gmail');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
+  if (cmd && (cmd.startsWith('search_images:') || cmd.startsWith('search_product_images:'))) {
+    const rawRest = cmd.replace(/^search_images:|^search_product_images:/, '').trim();
+    let reqId = null;
+    let rawQuery = rawRest;
+    if (rawRest.startsWith('req_')) {
+      const parts = rawRest.split(':');
+      reqId = parts[0];
+      rawQuery = parts.slice(1).join(':').trim();
+    }
+
+    log.info({ rawQuery, reqId }, 'comando de búsqueda inteligente de imágenes recibido vía Supabase');
+    try {
+      const { searchProductImagesOnWeb } = await import('./product-images.js');
+      const results = await searchProductImagesOnWeb(rawQuery);
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, type: 'search_images', reqId, query: rawQuery, results, at: new Date().toISOString() }
+      }).eq('id', 1);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error en búsqueda inteligente de imágenes');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, type: 'search_images', reqId, query: rawQuery, error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
+  if (cmd && cmd.startsWith('save_product_image:')) {
+    log.info('comando de guardado de imagen de producto recibido vía Supabase');
+    try {
+      const payload = JSON.parse(cmd.replace(/^save_product_image:/, ''));
+      const { saveProductImageToStorage } = await import('./product-images.js');
+      const res = await saveProductImageToStorage(payload.product_id, payload.image_url);
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, type: 'save_product_image', ...res, at: new Date().toISOString() }
+      }).eq('id', 1);
+    } catch (e) {
+      log.warn({ err: e.message }, 'Error guardando imagen de producto en Storage');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, type: 'save_product_image', error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd && cmd.startsWith('call:')) {
     const phone = cmd.replace(/^call:/, '').trim();
     log.info({ phone }, 'comando de llamada GSM recibido vía Supabase');
@@ -172,10 +264,36 @@ async function runCommand(cmd) {
     return;
   }
 
+  if (cmd && (cmd.startsWith('optimize:') || cmd === 'optimize_all' || cmd === 'vacuum_core' || cmd === 'vacuum_comm')) {
+    const action = cmd.includes(':') ? cmd.split(':')[1].trim() : cmd;
+    log.info({ action }, 'Comando de optimización PostgreSQL recibido vía Supabase');
+    try {
+      const { executeOptimization } = await import('./monitor.js');
+      const optRes = await executeOptimization(action);
+      await db.from('jjp_server_control').update({
+        command_res: { ok: true, type: 'optimize', action, ...optRes, at: new Date().toISOString() }
+      }).eq('id', 1);
+      log.info({ action, optRes }, 'Optimización PostgreSQL completada con éxito.');
+    } catch (e) {
+      log.warn({ err: e.message, action }, 'Error ejecutando optimización PostgreSQL');
+      await db.from('jjp_server_control').update({
+        command_res: { ok: false, type: 'optimize', action, error: e.message, at: new Date().toISOString() }
+      }).eq('id', 1);
+    }
+    handling = false;
+    return;
+  }
+
   if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
-    log.info({ cmd }, 'comando recibido — saliendo para recargar (el supervisor sincroniza y relanza)');
+    log.info({ cmd }, 'comando recibido — actualizando via git y reiniciando servicio');
     await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);
-    process.exit(0);   // código 0 → el supervisor relanza con git pull
+    try {
+      execSync('git pull origin main', { stdio: 'ignore', timeout: 20000 });
+      log.info('git pull completado exitosamente antes de reiniciar.');
+    } catch (e) {
+      log.warn({ err: e.message }, 'git pull fallo o timed out, reiniciando igualmente');
+    }
+    process.exit(0);   // código 0 → el supervisor relanza
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
     const stopPayload = {

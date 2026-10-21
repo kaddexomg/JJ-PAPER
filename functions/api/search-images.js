@@ -29,8 +29,51 @@ const BRAND_CORRECTIONS = {
   'PEGALOKA': 'PEGA-LOKA',
   'STAR-KIT': 'STAR KIT',
   'MR. BOBINA': 'MISTER BOBINA',
+  'MR BOBINA': 'MISTER BOBINA',
+  'MRBOBINA': 'MISTER BOBINA',
+  'MISTERBOBINA': 'MISTER BOBINA',
+  'MRB': 'MISTER BOBINA',
+  'OFICMA': 'OFIMAK',
+  'OFIMA': 'OFIMAK',
+  'OFCIMA': 'OFIMAK',
+  'OFCIMAK': 'OFIMAK',
   'UNIBALL': 'UNI-BALL'
 };
+
+const BRAND_ALIASES = {
+  'MISTER BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA', 'MRB'],
+  'MR BOBINA': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA', 'MRB'],
+  'MRB': ['MR BOBINA', 'MR. BOBINA', 'MISTER BOBINA', 'MRBOBINA', 'MISTERBOBINA', 'MRB'],
+  'OFIMAK': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFICMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'OFIMA': ['OFIMAK', 'OFICMA', 'OFCIMA', 'OFIMA', 'OFICMAK'],
+  'PAPER MATE': ['PAPER MATE', 'PAPERMATE'],
+  'PAPERMATE': ['PAPER MATE', 'PAPERMATE'],
+  'FABER-CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABER CASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'FABERCASTELL': ['FABER-CASTELL', 'FABER CASTELL', 'FABERCASTELL'],
+  'PEGA-LOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'PEGALOKA': ['PEGA-LOKA', 'PEGALOKA', 'PEGA LOKA'],
+  'STAR KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'STAR-KIT': ['STAR KIT', 'STAR-KIT', 'STARKIT'],
+  'MONAMI': ['MONAMI', 'MON AMI'],
+  'MON AMI': ['MONAMI', 'MON AMI'],
+  'UNI-BALL': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNI': ['UNI-BALL', 'UNI', 'UNIBALL'],
+  'UNIBALL': ['UNI-BALL', 'UNI', 'UNIBALL']
+};
+
+function isSameBrand(b1, b2) {
+  if (!b1 || !b2) return false;
+  const u1 = b1.trim().toUpperCase();
+  const u2 = b2.trim().toUpperCase();
+  if (u1 === u2) return true;
+  const a1 = BRAND_ALIASES[u1];
+  if (a1 && a1.includes(u2)) return true;
+  const a2 = BRAND_ALIASES[u2];
+  if (a2 && a2.includes(u1)) return true;
+  return false;
+}
 
 const ABBREVIATION_MAP = {
   'P/G': 'PUNTA GRUESA',
@@ -46,8 +89,13 @@ const ABBREVIATION_MAP = {
   'T/L': 'LEGAL',
   'E/O': 'EXTRA OFICIO',
   'D/C': 'DOBLE CARTA',
+  'C/F': 'CON FUELLE',
+  'S/F': 'SIN FUELLE',
+  'C/G': 'CON GANCHO',
+  'S/G': 'SIN GANCHO',
   'C/T': 'CON TAPA',
   'S/T': 'SIN TAPA',
+  'OFIC': 'OFICIO',
   'RESALT.': 'RESALTADOR',
   'RESALT': 'RESALTADOR',
   'P/PIZARRA': 'PARA PIZARRA',
@@ -77,7 +125,15 @@ const ABBREVIATION_MAP = {
   'PERM.': 'PERMANENTE',
   'PERM': 'PERMANENTE',
   'BOR.': 'BORRABLE',
-  'BOR': 'BORRABLE'
+  'BOR': 'BORRABLE',
+  'MRB': 'MISTER BOBINA',
+  'SEP': 'SEPARADORES',
+  'SEP.': 'SEPARADORES',
+  'DIV': 'DIVISIONES',
+  'DIV.': 'DIVISIONES',
+  '8DIV': '8 DIVISIONES',
+  '12DIV': '12 DIVISIONES',
+  '5DIV': '5 DIVISIONES'
 };
 
 const BLOCKED_DOMAINS = [
@@ -151,39 +207,51 @@ function buildOptimalQueries(rawName) {
     coreType = 'resma papel bond carta';
   } else if (/escarcha|purpurina|brillantina/i.test(expanded)) {
     coreType = 'escarcha escolar pote frasco';
-  } else if (/talonario|recibo|factura/i.test(expanded)) {
-    coreType = 'talonario recibo dinero papel';
   } else if (/resaltador/i.test(expanded)) {
     coreType = 'resaltador fluorescente';
-  } else if (/marcador.*pizarra/i.test(expanded)) {
+  } else if (/marcador.*pizarra|pizarra/i.test(expanded)) {
     coreType = 'marcador para pizarra acrilica';
   } else if (/marcador.*permanente/i.test(expanded)) {
-    coreType = 'marcador permanente';
+    coreType = 'marcador permanente punta gruesa';
   } else if (/marcador/i.test(expanded)) {
-    coreType = 'marcador';
+    coreType = 'marcador escolar estuche';
   } else if (/boligrafo/i.test(expanded)) {
-    coreType = 'boligrafo';
+    coreType = 'boligrafo tinta seca caja';
   } else if (/silicon/i.test(expanded)) {
     coreType = 'silicon liquido';
   } else if (/pega\s*en\s*barra|goma\s*en\s*barra/i.test(expanded)) {
     coreType = 'pega en barra';
-  } else if (/carpeta/i.test(expanded)) {
-    coreType = 'carpeta manila';
+  } else if (/sobre/i.test(expanded)) {
+    coreType = 'sobre manila';
+  } else if (/perforadora/i.test(expanded)) {
+    coreType = 'perforadora papel';
+  } else if (/tijera/i.test(expanded)) {
+    coreType = 'tijera oficina';
   }
 
   const colorMatch = expanded.match(/\b(negro|azul|rojo|verde|amarillo|rosado|naranja|morado|blanco|transparente)\b/i);
   const color = colorMatch ? colorMatch[1].toLowerCase() : '';
 
-  const specMatch = expanded.match(/\b(\d+gr|\d+g|\d+ml|\d+oz|\d+\/\d+)\b/i);
+  const specMatch = expanded.match(/\b(\d+gr|\d+g|\d+ml|\d+oz|\d+\/\d+|\d+x\d+)\b/i);
   const spec = specMatch ? specMatch[1].toLowerCase() : '';
 
+  const ensureStationery = (q) => {
+    const s = q.trim();
+    if (/papeleria|oficina|escolar|libreria/i.test(s)) return s;
+    return `${s} papeleria`;
+  };
+
   if (brand && coreType) {
-    queries.push(`${brand} ${coreType} ${spec} ${color}`.replace(/\s+/g, ' ').trim());
-    queries.push(`${brand} ${expanded.toLowerCase()}`);
+    queries.push(ensureStationery(`${brand} ${coreType} ${spec} ${color}`));
+    queries.push(ensureStationery(`${brand} ${expanded.toLowerCase()}`));
+    queries.push(ensureStationery(`${coreType} ${brand}`));
   } else if (brand) {
-    queries.push(`${brand} ${expanded.toLowerCase()}`);
+    queries.push(ensureStationery(`${brand} ${expanded.toLowerCase()}`));
   } else if (coreType) {
-    queries.push(`${coreType} ${spec} ${color} papeleria`.replace(/\s+/g, ' ').trim());
+    queries.push(ensureStationery(`${coreType} ${spec} ${color}`));
+    queries.push(ensureStationery(`${expanded.toLowerCase()}`));
+  } else {
+    queries.push(ensureStationery(`${expanded.toLowerCase()}`));
   }
 
   const stripped = expanded
@@ -191,10 +259,10 @@ function buildOptimalQueries(rawName) {
     .replace(/\s+/g, ' ')
     .trim();
   if (stripped && !queries.includes(stripped.toLowerCase())) {
-    queries.push(stripped.toLowerCase());
+    queries.push(ensureStationery(stripped.toLowerCase()));
   }
 
-  return { queries: queries.slice(0, 3), brand, coreType };
+  return { queries: queries.slice(0, 4), brand, coreType };
 }
 
 function scoreResult(result, targetBrand, coreType) {
@@ -204,6 +272,43 @@ function scoreResult(result, targetBrand, coreType) {
 
   for (const b of BLOCKED_DOMAINS) {
     if (url.includes(b) || title.includes(b)) return -999;
+  }
+
+  // Filtrar de raíz zapatillas, calzado, ropa, montañas, playas, paisajes y repuestos mecánicos
+  const JUNK_TERMS = [
+    'zapatillas', 'zapatos', 'calzado', 'sneakers', 'running', 'botas', 'sandalias',
+    'camisa', 'pantalon', 'vestido', 'ropa', 'apparel', 'shoes', 'boots', 'footwear',
+    'sneaker', 'mizuno', 'nike', 'adidas', 'puma', 'asics', 'tenis', 'tacones',
+    'montaña', 'montañas', 'playa', 'playas', 'turismo', 'resort', 'hotel', 'caribbean sea',
+    'mar caribe', 'isla', 'viaje', 'vacaciones', 'landscape', 'mountain', 'beach',
+    'nature', 'paisaje', 'bosque', 'flora', 'fauna', 'aurora', 'selva', 'parque nacional',
+    'valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor',
+    'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo', 'automotriz'
+  ];
+  for (const jt of JUNK_TERMS) {
+    if (title.includes(jt) || url.includes(jt)) return -999;
+  }
+
+  // Bonificación por contexto de papelería y suministros de oficina
+  const STATIONERY_TERMS = [
+    'carpeta', 'carpetas', 'papeleria', 'separador', 'separadores', 'boligrafo', 'boligrafos',
+    'marcador', 'marcadores', 'resma', 'resmas', 'cuaderno', 'cuadernos', 'oficina',
+    'escolar', 'libreria', 'embalaje', 'cinta', 'cintas', 'pega', 'pegamento', 'grapadora',
+    'tijera', 'tijeras', 'sobre', 'sobres', 'hojas', 'talonario', 'fuelle', 'manila', 'fibra'
+  ];
+
+  let hasStationery = false;
+  for (const st of STATIONERY_TERMS) {
+    if (title.includes(st) || url.includes(st)) {
+      score += 40;
+      hasStationery = true;
+      break;
+    }
+  }
+
+  // Si no menciona ningún término de papelería ni coincide con coreType, penalizar
+  if (!hasStationery && coreType && !title.includes(coreType.split(' ')[0])) {
+    score -= 40;
   }
 
   if (coreType && coreType.includes('grapadora')) {
@@ -219,13 +324,21 @@ function scoreResult(result, targetBrand, coreType) {
   }
 
   if (targetBrand) {
-    const brandLower = targetBrand.toLowerCase();
-    if (title.includes(brandLower) || url.includes(brandLower)) {
-      score += 60;
+    const brandUpper = targetBrand.toUpperCase();
+    const aliases = (BRAND_ALIASES[brandUpper] || [brandUpper]).map(a => a.toLowerCase());
+    const hasTargetBrand = aliases.some(a => title.includes(a) || url.includes(a));
+    if (hasTargetBrand) {
+      // Solo bonificar fuertemente la marca si tiene contexto de papelería o producto
+      if (hasStationery || (coreType && title.includes(coreType.split(' ')[0]))) {
+        score += 70;
+      } else {
+        score += 10;
+      }
     } else {
+      score -= 20;
       for (const otherBrand of KNOWN_BRANDS) {
-        if (otherBrand !== targetBrand && title.includes(otherBrand.toLowerCase())) {
-          score -= 40;
+        if (!isSameBrand(otherBrand, targetBrand) && title.includes(otherBrand.toLowerCase())) {
+          score -= 100;
           break;
         }
       }
@@ -339,11 +452,22 @@ export async function onRequest(context) {
 
   const { queries, brand, coreType } = buildOptimalQueries(rawQuery);
 
+  const safeRawQuery = /papeleria|oficina|escolar|libreria/i.test(rawQuery)
+    ? rawQuery
+    : `${rawQuery} papeleria oficina`;
+
   const searchPromises = [];
+  // Consultar con la query segura con contexto de papelería para evitar homónimos (montañas, zapatillas)
+  searchPromises.push(searchDuckDuckGo(safeRawQuery));
+  searchPromises.push(searchBing(safeRawQuery));
+
+  // Consultar también las queries optimizadas
   for (const q of queries) {
-    searchPromises.push(searchBing(q));
+    if (q.toLowerCase() !== safeRawQuery.toLowerCase()) {
+      searchPromises.push(searchBing(q));
+    }
   }
-  if (queries[0]) {
+  if (queries[0] && queries[0].toLowerCase() !== safeRawQuery.toLowerCase()) {
     searchPromises.push(searchDuckDuckGo(queries[0]));
   }
 
@@ -357,11 +481,13 @@ export async function onRequest(context) {
 
   const scored = allResults
     .map(r => ({ ...r, score: scoreResult(r, brand, coreType) }))
-    .filter(r => r.score > 0)
     .sort((a, b) => b.score - a.score);
 
+  // Filtrado estrictamente positivo (solo productos reales con puntuación válida)
+  let filtered = scored.filter(r => r.score >= 20);
+
   const seen = new Set();
-  const uniqueResults = scored.filter(r => {
+  const uniqueResults = filtered.filter(r => {
     if (!r.image) return false;
     const key = r.image.split('?')[0].toLowerCase();
     if (seen.has(key)) return false;

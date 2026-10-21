@@ -285,7 +285,15 @@ export class WaSession {
           }
           return message;
         },
-        syncFullHistory: true,
+        syncFullHistory: false,
+        shouldSyncHistoryMessage: (historyMsg) => {
+          // Si el tipo de sincronización es FULL (historial completo de meses/años), descartarlo
+          // proto.HistorySync.HistorySyncType.FULL = 2
+          if (historyMsg?.syncType === 2) return false;
+          // Permitir sincronización RECENT/BOOTSTRAP (el filtrado a 7 días y exclusión de grupos se hace en onHistory)
+          return true;
+        },
+        shouldIgnoreJid: (jid) => !jid || jid === 'status@broadcast' || jid.endsWith('@g.us') || jid.endsWith('@newsletter'),
         markOnlineOnConnect: false,
         msgRetryCounterCache: new RetryCounterCache(),
         getMessage: async (key) => {
@@ -488,8 +496,21 @@ export class WaSession {
       if (jid.endsWith('@lid')) {
         // jid anónimo: usar el número real si Baileys lo trae
         const alt = key.senderPn || key.participantPn || key.remoteJidAlt;
-        if (!alt) { log.warn({ jid }, 'mensaje @lid sin número real, ignorado'); continue; }
+        if (!alt) {
+          if (!this.warnedLids) this.warnedLids = new Set();
+          if (!this.warnedLids.has(jid)) {
+            this.warnedLids.add(jid);
+            log.debug({ jid }, 'mensaje @lid sin número real, ignorado');
+          }
+          continue;
+        }
         jid = alt;
+      }
+
+      // Descartar mensajes si tienen más de 5 días (evita re-ingreso de histórico viejo en reconexión)
+      const tsSec = Number(msg.messageTimestamp || 0);
+      if (tsSec && (Math.floor(Date.now() / 1000) - tsSec > 5 * 86400)) {
+        continue;
       }
 
       // Reacción entrante (👍❤️…): no es un mensaje nuevo, actualiza el reaccionado
@@ -560,7 +581,9 @@ export class WaSession {
   // el hilo la muestra como "📷 Foto/🎥 Video…". Los mensajes nuevos sí traen media completa.
   async onHistory({ messages }) {
     if (!messages?.length) return;
-    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial…');
+    const nowSec = Math.floor(Date.now() / 1000);
+    const MAX_HISTORY_SEC = 5 * 86400; // Máximo 5 días de mensajes anteriores
+    log.info({ profile: this.profileId, n: messages.length }, 'sincronizando historial (máx 5 días)…');
     const chats = new Map();   // jid -> { chat, ts, preview, from }
     let batch = [];
     let saved = 0;
@@ -575,6 +598,8 @@ export class WaSession {
         jid = alt;
       }
       if (!key.id) continue;                 // sin id no se puede deduplicar
+      const tsSec = Number(msg.messageTimestamp || 0);
+      if (tsSec && (nowSec - tsSec > MAX_HISTORY_SEC)) continue; // descartar mensaje si tiene más de 7 días
       if (msg.message) this.saveMessageToStore(key.id, msg.message);
       const parsed = parseMessage(msg);
       if (!parsed) continue;
@@ -588,7 +613,6 @@ export class WaSession {
       }
 
       const fromMe = !!key.fromMe;
-      const tsSec = Number(msg.messageTimestamp || 0);
       batch.push({
         chat_id: entry.chat.id,
         owner_id: this.profileId,
@@ -723,17 +747,34 @@ export class WaSession {
       }
     }
 
-    // 2. Presencia composing humana
+    // 2. Presencia humana realista (Anti-Baneo de WhatsApp):
     try {
-      await this.sock.sendPresenceUpdate('composing', jid);
-      await new Promise(r => setTimeout(r, 600));
+      if (this.sock?.sendPresenceUpdate) {
+        await this.sock.sendPresenceUpdate('composing', jid);
+        const textPayload = (content && (content.text || content.caption)) || '';
+        const len = typeof textPayload === 'string' ? textPayload.length : 0;
+        let humanDelayMs;
+        if (len === 0) {
+          // Documento o archivo multimedia sin texto: simular tiempo de selección y adjunto
+          humanDelayMs = 2500 + Math.floor(Math.random() * 1800); // 2.5s a 4.3s
+        } else if (len < 80) {
+          humanDelayMs = 1800 + Math.floor(Math.random() * 1500); // 1.8s a 3.3s
+        } else if (len < 400) {
+          humanDelayMs = 3200 + Math.floor(Math.random() * 2200); // 3.2s a 5.4s
+        } else {
+          humanDelayMs = 4500 + Math.floor(Math.random() * 3200); // 4.5s a 7.7s
+        }
+        await new Promise(r => setTimeout(r, humanDelayMs));
+      }
     } catch (_) {}
 
     const res = await this.sock.sendMessage(jid, content, options);
 
     // Detener estado composing
     try {
-      await this.sock.sendPresenceUpdate('paused', jid);
+      if (this.sock?.sendPresenceUpdate) {
+        await this.sock.sendPresenceUpdate('paused', jid);
+      }
     } catch (_) {}
 
     if (res?.key?.id && res?.message) {

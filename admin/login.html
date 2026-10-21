@@ -71,7 +71,7 @@
       Continuar con Google
     </button>
     <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--gr)">
-      <a href="../index.html" style="color:var(--gm)">← Volver al sitio</a>
+      <a href="/catalogo" style="color:var(--gm)">← Volver al sitio</a>
     </p>
   </div>
 </div>
@@ -81,7 +81,7 @@
 <script src="../assets/js/config.js?v=20260930_core"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js?v=20260930_core"></script>
-<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script>
 // Si ya hay sesión activa (incluye el regreso del login con Google), va a su
 // panel según el rol; si la cuenta aún no está activa, lo avisa y cierra sesión.
@@ -130,10 +130,15 @@ routeIfSession();
 async function loginWithGoogle() {
   const btn = document.getElementById('googleBtn');
   if (btn) { btn.disabled = true; btn.style.opacity = .6; btn.textContent = 'Abriendo Google…'; }
+  const isPublicDomain = window.location.origin.includes('pages.dev') || window.location.origin.includes('jjpaper');
+  const redirectTarget = isPublicDomain
+    ? window.location.origin + '/admin/login.html'
+    : 'https://jj-paper.pages.dev/admin/login.html';
+
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/admin/login.html'
+      redirectTo: redirectTarget
     }
   });
   if (error) {

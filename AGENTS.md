@@ -1040,3 +1040,84 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - Raíz MixNet: `Z:\` (`\\servidor\MIX11`) con base de datos en `Z:\comp01\`.
   - Unidad alternativa: `M:\` (`\\servidor\d`) con base de datos en `M:\MIX11\comp01\`.
 
+## Control Granular de Redacción IA, Reparación de Modales y Arquitectura Maestra (04-10-2026)
+- **Reparación del Scroll en Modal "Actitud y Enfoque" (`campAiToneModal`)**:
+  - Causa raíz: `.ce-picker-dialog` poseía una altura fija sin scroll en el contenedor hijo, truncando el modal tras "Cliente VIP" en pantallas <= 800px o con escalado de Windows (125%/150%) y ocultando los botones de acción.
+  - Solución: Reestructuración en 3 capas (`.ce-picker-header` fijo, `.ce-picker-body` con `max-height: calc(90vh - 130px); overflow-y: auto; -webkit-overflow-scrolling: touch;`, y `.ce-picker-footer` fijo anclado).
+- **Control Total y Granular de Redacción con IA**:
+  - `gemini-client.js`: Nuevos parámetros `customInstructions`, `msgLength`, `priceMode`, `ctaGoal` inyectados en `draftCampaignMessage`, `analyzeAndDraftProspectB2B`, `analyzeCustomerAndDraftMessage` y `analyzeCustomersBatch`.
+  - `campaign-editor.js`: Nuevo modal `campAiDraftModal` (`openAiDraftModal`) que reemplaza el primitivo `prompt()`, permitiendo configurar directivas del asesor, longitud (equilibrado / ultra-conciso / detallado), manejo de precios (con precios $ y Bs / solo disponibilidad / por bulto) y llamado a la acción (cotización / inventario / catálogo / visita).
+  - Sincronización en tiempo real con los selectores de pantalla `ceCommercialTone`, `ceTargetSector`, `ceValueHook`.
+- **Manual Maestro de Arquitectura Total y Prevención de Fallas**:
+  - Consolidado [`ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md`](file:///C:/Users/PC/Desktop/JJ%20PAPER/ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md) (y copia en `C:\Users\PC\Desktop\ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md`).
+  - Documenta la topología de red completa con Mermaid, contraste Frontend vs Backend (`wa-server`) vs Nube (Supabase Multi-proyecto), matriz de las 8 fallas operativas y plan de migración a VPS.
+
+## Asistente de Voz Interactivo, Generador Comercial de Packshots IA y Modernización del Clasificador (04-10-2026)
+- **Asistente de Voz Inteligente con Razonamiento y Web Speech API (`web/enlazar.js`, `enlazar.py`)**:
+  - Integración nativa de síntesis de voz (TTS) y reconocimiento de voz (STT) en español (`es-VE`/`es-ES`/`es-MX`).
+  - Botón interactivo `[ 🎙️ ]` en cada tarjeta de la cola que abre el modal `#voice-consult-modal`.
+  - Endpoint `POST /api/link/voice-consult`: Consulta a Gemini analizando el producto visto vs los candidatos del catálogo y devuelve `pregunta_voz`, `dilema_tecnico` y `opciones` con SKUs y acciones estructuradas.
+  - El asistente verbaliza el dilema técnico y la pregunta en voz alta. Al finalizar la locución activa automáticamente el micrófono y escucha la respuesta del operador ("sí", "primera opción", "buscar otro", "descartar"), ejecutando la acción de inmediato o permitiendo selección táctil/ratón.
+- **Generador Comercial de Fotos con IA Estilo Packshot de Estudio (`POST /api/link/generate-photo`, `POST /api/link/approve-generated-photo`)**:
+  - Resuelve la carencia de fotos para los 2.111 productos sin imagen en el catálogo de JJ Paper.
+  - Traducción asistida por Gemini: traduce títulos de papelería venezolana ("Resma Caribe 75g", "Carpeta Marrón con Gancho Oficio", "Borrador Pizarra") a descripciones en inglés para fotografía comercial de retail, con negativos estrictos contra personas, manos, oficinas o muebles.
+  - Renderizado de packshot 800×800 con iluminación softbox de estudio sobre fondo blanco puro (`#FFFFFF`) o verde esmeralda institucional JJ Paper (`#0B3327`).
+  - Modal `#ai-generate-photo-modal`: Permite previsualizar la foto, cambiar el tema de fondo, editar el prompt y regenerar.
+  - Aprobación en 1 clic: Descarga la imagen, la optimiza a WebP (800px máx, calidad 80), la sube al bucket `jjp-products` en Proyecto C (Storage), actualiza `image_url` en `jjp_products` y `jjp_product_variants` en Proyecto A (Core) y guarda una copia local en `Clasificadas/`.
+- **Modernización y Rediseño de Alta Densidad del Clasificador (`web/index.html`, `web/style.css`, `web/enlazar.js`)**:
+  - Cuadrícula compacta y ergonómica (`repeat(auto-fill, minmax(285px, 1fr))`) que muestra 10–12 tarjetas por pantalla con selector de densidad (24 / 48 / 96) y conmutador Grilla / Lista.
+  - Selector de candidatos alternativos en línea (`.lk-candidate-select`) para cambiar de producto sin abrir modales.
+  - Botón verde directo `[⚡ Enlazar]` con conversión inmediata a WebP 800px y animación de confirmación.
+  - Botón `[ 🎨 Generar con IA ]` integrado tanto en la vista de productos faltantes como en los resultados del buscador de catálogo para productos sin foto.
+
+## Cockpit Colaborativo Continuo Humano + IA y Priorización Visual en Catálogo Público (05-10-2026)
+- **Sala Colaborativa Continua Humano + IA (`#collab-modal`, `web/enlazar.js`, `enlazar.py`)**:
+  - **Flujo Ininterrumpido Manos Libres**: El operador y la IA analizan juntos las fotos pendientes en una sesión continua. La IA observa el empaque con Gemini Vision, identifica marcas, modelos, medidas (x12, x24, carta, oficio, 23/10, etc.), formula dilemas técnicos y preguntas en voz alta con acento natural en español, y escucha la instrucción del usuario.
+  - **Control por Voz y Teclado**: Soporte para comandos por voz con Web Speech API ("opción 1", "la dos", "sí", "confirmar", "saltar", "descartar", "buscar grapas") y atajos de teclado rápidos (`1`, `2`, `3`, `Enter`, `S` para saltar, `D` para descartar, `Barra espaciadora` para repetir mensaje).
+  - **Cockpit Visual de 2 Columnas**:
+    - **Panel Izquierdo**: Previsualización ampliada con zoom suave, badges de resolución, nombre de archivo, panel de extracción OCR (marca, medidas, cantidades, colores y texto de empaque) y visualizador dinámico de ondas sonoras de voz.
+    - **Panel Derecho**: Diálogo con el Copiloto JJ, tarjeta de diagnóstico visual y dilema técnico, tarjetas interactivas de candidatos numeradas `[1]`, `[2]`, `[3]` con porcentaje de coincidencia, barra de transcripción en tiempo real, buscador rápido de catálogo y acceso directo al Generador Packshot IA.
+  - **Persistencia y Avance Automático**: Al confirmar una opción, la imagen se optimiza a WebP 800px q=80, se sube a Supabase Storage (`jjp-products`), se actualiza la base de datos, se refresca la vista materializada y la sala avanza automáticamente al siguiente ítem sin pausas ni clics adicionales.
+- **Priorización Front-and-Center de Productos con Foto en Catálogo Público (`catalogo.html`, `assets/js/catalog.js`)**:
+  - **Diagnóstico y Saneamiento de `jjp_catalog_flat`**: La vista materializada en PostgreSQL (Core Proyecto A `wwcdxqpibequfohbgejs`) tenía 0 imágenes debido a que nunca se había ejecutado un `REFRESH`. Se ejecutó `REFRESH MATERIALIZED VIEW jjp_catalog_flat;` restaurando de golpe las 284 fotos oficiales y se creó la RPC `refresh_catalog_flat()` para auto-actualización inmediata tras cada enlace.
+  - **Dominio de Página 1 (`_hasPhoto`)**: `normalizeProduct` clasifica la disponibilidad de foto (`p._hasPhoto = Boolean(p.image_url || vs.some(v => v.image_url))`), y el algoritmo por defecto en `getFiltered` ubica todos los productos con fotografía oficial en las primeras páginas de la tienda pública, desplazando los ítems sin foto al final.
+  - **Selector de Filtro Rápido**: Incorporada la opción `📸 Solo con foto oficial` en el desplegable de ordenación de `catalogo.html`.
+  - **Cache-Busting `jjp_products_cache_v6`**: Invalida cachés obsoletas de navegador, asegurando que todos los clientes visualicen las fotografías WebP nítidas al instante.
+
+
+
+
+
+## Configuración de Modelos Locales Ollama en opencode (08-10-2026)
+- **Tarea completada**: opencode quedó configurado para usar modelos locales de Ollama como **opción disponible** (decisión del usuario: NO como modelo por defecto; el default de opencode permanece intacto).
+- **Archivo editado**: `C:\Users\PC\.config\opencode\opencode.jsonc` → se añadió el provider `ollama` con `npm: "@ai-sdk/openai-compatible"`, `name: "Ollama (local)"`, `options.baseURL: "http://localhost:11434/v1"` y modelo `qwen2.5-coder:1.5b` (display name "Qwen 2.5 Coder 1.5B (local)", `limit: { context: 32768, output: 8192 }`). Sin clave `model` raíz (no es default). JSON validado con `node -e JSON.parse`.
+- **Uso**: reiniciar opencode (la config solo se carga al arrancar) → `/models` → `ollama/qwen2.5-coder:1.5b`. La primera selección descarga automáticamente el paquete npm `@ai-sdk/openai-compatible`.
+- **Verificación**: Ollama 0.40.1 corriendo en `C:\Users\PC\AppData\Local\Programs\Ollama\ollama.exe` (127.0.0.1:11434), `GET /v1/models` → HTTP 200 con `qwen2.5-coder:1.5b` (capabilities: completion, tools, insert; ctx 32k). Hardware de esta laptop: **7.3 GB RAM (0.5 GB libres), 8 hilos** → SOLO viable el modelo 1.5B (~1 GB RAM); un 7B exigiría ~5 GB y es inviable con RAM actual.
+- **Referencia oficial**: https://opencode.ai/docs/providers/#ollama (patrón `npm: @ai-sdk/openai-compatible`). Schema de config: https://opencode.ai/config.json. Skill `customize-opencode` aplicable a cambios futuros en opencode.
+
+## Pendientes Activos al Cerrar Sesión 08-10-2026 (Retomar en el Siguiente Arranque)
+1. **Paquete de transferencia a la PC Win7 (192.168.0.127, COBRANZA)**: `JJ PAPER\antigravity-win7-LISTO.zip` está **DESACTUALIZADO** (server.js 74.534 B e index.html 73.424 B del 07/10 15:25 vs carpeta actual `antigravity-win7-agent\` con server.js 94.545 B e index.html 98,3 KB). Plan aprobado en borrador: crear `C:\Users\PC\Desktop\PARA-PC-WIN7\` con zip fresco + `LEEME-INSTALACION-WIN7.txt` + `INSTALAR-EN-WIN7.bat`. **Pregunta abierta sin responder por el usuario**: ¿el paquete debe contener solo el agente, agente+puente, o esperar al sistema unificado?
+2. **Plan de fusión "sistema unificado" Win7 (Fases 0-6) presentado, esperando aprobación**: carpeta propuesta `mixnet-unificado/` (un solo puerto 3300) con `lib/dbf.js`, `lib/ntx_guard.js`, `lib/creds.js`, `lib/sync.js`, `lib/gemini.js`, `lib/tools.js`, `public/index.html`, `INICIAR-UNIFICADO.bat`, `INSTALAR-AUTO-ARRANQUE.bat`. Decisiones del usuario ya tomadas: (a) destino = PC Tienda Win7 192.168.0.127; (b) credenciales MixNet **híbridas** (auto+validación manual); (c) escritura DBF **directa con snapshots obligatorios** (.DBF+.NTX+.DBT, borrado lógico 0x2A, reindex obligatorio); (d) **un solo servidor unificado**.
+3. **Decisiones técnicas pendientes del usuario**: (a) ¿qué significa el código `005` en nómina? (mixnet-ai-panel/server.js ~2100 dice "Keyder Salazar", AGENTS.md dice "Jose mostrador" — verificar antes de tocar); (b) ¿quién es dueño del sync de productos/clientes si Supervisor-Pc (192.168.0.172) vuelve? (propuesto: lock `jjp_settings` `mixnet_sync_owner` para evitar doble sync con `wa-server/mixer.js`); (c) ¿contraseña de acceso al panel mixnet-ai-panel? (hoy expone credenciales Supabase/bancos **sin autenticación** en LAN).
+4. **Contexto de red de la sesión**: M:\ y Z:\ NO existen en esta laptop; `\\192.168.0.185\comp01` da error 53 sin credenciales; ping OK a 192.168.0.185 y 192.168.0.127; **192.168.0.172 (Supervisor) apagado**; `http://192.168.0.185:3000` (API archivos) caída; en `192.168.0.127:3300` YA corre `mixnet-ai-panel` (ambos config.json declaran `port: 3300` → conflicto si se despliega el agente sin cambiarlo).
+5. **Fixture de pruebas local**: `JJ PAPER\agent-test-mix\comp01\` contiene `MXCTAVEN.DBF` (CODVEN|NOMBRE|LOGIN|CLAVE: 005 JOSE SALAZAR/jsalazar, 004 YOVANNI, 008 MARIANELA, 014 ANDREINA) + `CLAVES.INI` + `CONFIG.TXT` → usar para validar ANTES de tocar M:\.
+6. **Repo es git** (HEAD `1ea6806`, con modificaciones sin commit en `mixnet-ai-panel/`, `antigravity-win7.zip`, `puente-mixnet-autonomo.cjs`, etc.). No hacer commit sin pedido explícito.
+
+## Sincronización Bidireccional MixNet, Calibración de Correlativos, Inyección DBF y Despliegue Agéntico VPS/Win7 (15-10-2026)
+- **Causa Raíz Resuelta (Cotizaciones desfasadas desde el 13 de octubre)**:
+  - `puente-win7/server.cjs` únicamente realizaba sincronización unidireccional (de la Web a archivos locales y stock), careciendo de un importador periódico desde MixNet DBF.
+  - Se implementó `importMixnetDocumentsToSupabase()` en el ciclo autónomo (`autonomousDaemonTick` cada 30s): lee directamente `MXENCCOT.DBF`/`MXRENCOT.DBF` (cotizaciones) y `MXENCPED.DBF`/`MXRENPED.DBF` (pedidos), cruzando con `MXCTACLI.DBF` y asignando el `seller_id` por `codven` (010/020: Keyder, 002: Luis Alarcón, 004/006: Yovanni, 008: Marianela, 014: Andreina). Las cotizaciones y pedidos físicos emitidos en tienda se importan en tiempo real a Supabase Core.
+- **Calibración Automática de Correlativos Oficiales en Tiempo Real (`calibrateMixnetCorrelatives`)**:
+  - Evita el desfasaje donde la web generaba números provisionales 10 dígitos por delante de la caja física.
+  - En cada ciclo, el puente lee `MXNUMCOT.DBF` y `MXNUMPED.DBF` mediante `findTableInCandidates` y actualiza inmediatamente `jjp_settings` (`mixnet_next_quote_serial` y `mixnet_next_order_serial`). `fetchNextDocSerial()` en `config.js` ahora toma siempre el número oficial que sigue en MixNet.
+- **Inyección Binaria Nativa Web ➔ MixNet DBF (`injectQuoteToMixnet` & `injectOrderToMixnet`)**:
+  - Usa `findTableInCandidates` para operar en cualquier disco (`M:\comp01`, `C:\`, etc.).
+  - Resuelve clientes mediante RIF o notas (`Codigo MixNet: 003-088` como en MARBA BISUTERIA).
+  - Anexa registros en `MXENCCOT`/`MXRENCOT` (o `MXENCPED`/`MXRENPED`), incrementa el contador en `MXNUMCOT`/`MXNUMPED`, y sustituye el número web provisional por el número correlativo oficial de MixNet (`notes: 'MixNet Oficial: [NUMERO]'`).
+- **Canal de Despliegue y Auto-Actualización Transparente (Nube/VPS ➔ Windows 7)**:
+  - En `INICIAR-PUENTE.bat`, antes de arrancar Node se ejecuta una verificación HTTPS contra `https://jjpaper.pages.dev/puente-win7/server.cjs`. Si hay cambios en el repositorio, la PC con Windows 7 descarga y actualiza `server.cjs` de manera transparente y automática antes de iniciar.
+  - El paquete `puente-win7.zip` se compila y publica en `dist/` a través de `build.sh` en cada push a `main`.
+- **Ejecución Remota Agéntica de Tareas (`jjp_mixnet_tasks`)**:
+  - `performAgentTasksCheck()` sondea tareas agénticas pendientes (`sync_stock`, `reindex_ntx`, `run_command`, `self_update`).
+  - Permite al operador o al agente en el VPS / panel admin (`admin/mixnet.html` o `assets/js/admin/mixnet.js`) despachar instrucciones remotas al micro-nodo de la tienda y recibir el resultado estructurado de ejecución (`status: 'completed'`, `result`).
+

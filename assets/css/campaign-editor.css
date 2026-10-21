@@ -980,4 +980,57 @@
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
+/* Modales de Control de IA (Scroll fluido, Cabecera y Footer fijos) */
+#campAiToneModal .ce-picker-dialog,
+#campAiDraftModal .ce-picker-dialog {
+  max-width: 620px !important;
+  width: 95% !important;
+  height: auto !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: 14px !important;
+}
+
+#campAiToneModal .ce-picker-header,
+#campAiDraftModal .ce-picker-header {
+  flex: 0 0 auto !important;
+}
+
+#campAiToneModal .ce-picker-body,
+#campAiDraftModal .ce-picker-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  max-height: calc(90vh - 130px) !important;
+  padding: 16px 20px !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+#campAiToneModal .ce-picker-footer,
+#campAiDraftModal .ce-picker-footer {
+  flex: 0 0 auto !important;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+[data-theme="dark"] #campAiToneModal .ce-picker-footer,
+[data-theme="dark"] #campAiDraftModal .ce-picker-footer {
+  background: #161f2e !important;
+  border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] #campAiToneModal textarea,
+[data-theme="dark"] #campAiToneModal select,
+[data-theme="dark"] #campAiDraftModal textarea,
+[data-theme="dark"] #campAiDraftModal select {
+  background: #1a2332 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
 

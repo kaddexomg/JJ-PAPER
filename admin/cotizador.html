@@ -24,6 +24,53 @@
 .pos-tot.big { font-size:17px; font-weight:800; border-top:1px solid var(--theme-border-subtle); padding-top:10px; margin-top:6px; }
 .cust-ac-box { position:absolute; left:0; right:0; top:100%; z-index:60; margin-top:4px; display:none; max-height:270px; overflow:auto; }
 .cust-ac-item { cursor:pointer; }
+
+/* Ergonomía Móvil para Cotizador */
+@media (max-width: 900px) {
+  .cotizador-mobile-tabs { display: flex !important; }
+}
+@media (max-width: 768px) {
+  .pos-ticket-header { display: none !important; }
+  .pos-ticket-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    position: relative;
+  }
+  .pos-ticket-row > div:nth-child(1) {
+    align-self: flex-start !important;
+  }
+  .pos-ticket-row > div:nth-child(2) {
+    width: 100% !important;
+  }
+  .pos-ticket-row > div:nth-child(2) > div:first-child {
+    white-space: normal !important;
+    font-size: 14px !important;
+  }
+  .pos-ticket-row > div:nth-child(3) {
+    width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .pos-ticket-row > div:nth-child(4) {
+    width: auto !important;
+  }
+  .pos-ticket-row .qb {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 18px !important;
+  }
+  .pos-ticket-row input[type="number"] {
+    height: 34px !important;
+    font-size: 14px !important;
+  }
+  .pos-ticket-row > div:nth-child(7) {
+    align-self: flex-end !important;
+  }
+}
 </style>
 <link rel="stylesheet" href="../assets/css/perf.css">
 <script src="../assets/js/perf.js"></script>
@@ -37,7 +84,7 @@
       <span>JJ <em>Paper</em></span>
     </div>
     <nav class="aside-nav">
-      <!-- Generado dinámicamente por sidenav.js?v=20260927_b2b_v2 -->
+      <!-- -->
     </nav>
     <div class="aside-ft">Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
   </aside>
@@ -95,95 +142,177 @@
         </div>
       </div>
 
-      <div class="pos-grid">
+      <!-- Contenedor Unificado del Documento de Cotización -->
+      <div style="display:flex;flex-direction:column;gap:18px">
 
-        <!-- Columna izquierda: ENTRADA (Sección 1: Cliente + Sección 2: Catálogo) -->
-        <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- Selector Móvil de Pestañas (Sticky en Pantallas Pequeñas) -->
+      <div class="cotizador-mobile-tabs" id="cotizadorMobileTabs" style="display:none;margin-bottom:12px;background:#fff;padding:6px;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.04);position:sticky;top:60px;z-index:90;">
+        <button type="button" class="cm-tab active" onclick="switchCotizadorMobileTab('catalogo')" id="tabBtnCatalogo" style="flex:1;padding:10px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;background:var(--theme-accent,#16604a);color:#fff;cursor:pointer">
+          📦 Catálogo
+        </button>
+        <button type="button" class="cm-tab" onclick="switchCotizadorMobileTab('ticket')" id="tabBtnTicket" style="flex:1;padding:10px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;background:transparent;color:#475569;cursor:pointer">
+          📄 Ticket (<span id="cmTicketBadge">0</span>)
+        </button>
+        <button type="button" class="cm-tab" onclick="switchCotizadorMobileTab('cliente')" id="tabBtnCliente" style="flex:1;padding:10px 4px;border:none;border-radius:8px;font-size:12px;font-weight:800;background:transparent;color:#475569;cursor:pointer">
+          👤 Cliente
+        </button>
+      </div>
+
+      <!-- Cuadrícula Principal de Cotización (2 Columnas Ergonómicas) -->
+      <div class="pos-grid" id="qPosGrid" style="display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start">
+        
+        <!-- COLUMNA IZQUIERDA: CLIENTE + CATÁLOGO -->
+        <div id="qColLeft" style="display:flex;flex-direction:column;gap:18px">
           
-          <!-- Sección 1: Datos del Cliente -->
-          <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+          <!-- SECCIÓN 1: CLIENTE ASIGNADO & CÓDIGO MIXNET -->
+          <div id="qSecClient" class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">1</span>
-                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Datos del Cliente (Mi Cartera)</h3>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Cliente Asignado</h3>
+                <span id="qCliBadge" style="display:none;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd"></span>
               </div>
-              <button type="button" class="btn-o sm" onclick="setConsumidorFinal()" title="Venta rápida / mostrador en 1 clic" style="font-weight:700;padding:4px 10px;font-size:11px">⚡ Consumidor Final</button>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button type="button" class="btn-g sm" onclick="quoteResetCustomer()" title="Limpiar datos del cliente (Esc o F3)" style="font-size:11.5px;color:var(--theme-text-muted, #64748b)">✕ Limpiar</button>
+              </div>
             </div>
-            <div style="position:relative;margin-bottom:8px">
-              <input class="fi" id="qCliName" placeholder="Escribe para buscar cliente o razón social… (F3)" style="width:100%;height:38px;padding:8px 12px;font-size:13px;border-radius:8px">
-              <div id="qCliNameResults" class="cust-ac-box"></div>
+
+            <!-- Buscador Omni-canal de Cliente (con soporte de código MixNet, RIF, Nombre y Teléfono) -->
+            <div style="position:relative;margin-bottom:12px">
+              <div style="position:relative">
+                <input class="fi" id="qCliSearch" placeholder="🔍 Escribe Código MixNet (ej: 00, 008-872), RIF (J-...), Nombre o Teléfono... [F3]" autocomplete="off" style="width:100%;height:42px;font-size:13.5px;padding:8px 12px 8px 38px;border-radius:10px;border:1.5px solid var(--theme-border-accent, #10b981);box-shadow:0 2px 6px rgba(0,0,0,0.02)">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;opacity:0.6;pointer-events:none">👤</span>
+              </div>
+              <!-- Dropdown de autocompletado -->
+              <div id="qCliNameResults" class="cust-ac-box" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:999;max-height:280px;overflow-y:auto;background:var(--theme-bg-surface-solid, #fff);border:1.5px solid var(--theme-border-accent, #10b981);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.18)"></div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <input class="fi" id="qCliTel" placeholder="Teléfono (opcional mostrador)" style="height:36px;font-size:13px">
-              <input class="fi" id="qCliRif" placeholder="RIF / CI" style="height:36px;font-size:13px">
-              <input class="fi" id="qCliCity" placeholder="Ciudad / Destino" style="grid-column:span 2;height:36px;font-size:13px">
+
+            <!-- Campos Visibles y Estructurados del Cliente -->
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label class="fl" for="qCliCode" style="font-size:11px;font-weight:700;margin-bottom:3px">Cód. MixNet</label>
+                <input class="fi" id="qCliCode" placeholder="Ej: 00" style="width:100%;height:36px;font-size:13px;font-weight:800;font-family:monospace;border-radius:8px" onchange="quoteOnCodeChange(this.value)">
+              </div>
+              <div>
+                <label class="fl" for="qCliName" style="font-size:11px;font-weight:700;margin-bottom:3px">Razón Social / Nombre</label>
+                <input class="fi" id="qCliName" placeholder="Nombre del cliente o empresa" style="width:100%;height:36px;font-size:13px;font-weight:600;border-radius:8px">
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div>
+                <label class="fl" for="qCliRif" style="font-size:11px;font-weight:700;margin-bottom:3px">RIF / Cédula</label>
+                <input class="fi" id="qCliRif" placeholder="J-12345678-9 o 00" style="width:100%;height:36px;font-size:13px;border-radius:8px">
+              </div>
+              <div>
+                <label class="fl" for="qCliTel" style="font-size:11px;font-weight:700;margin-bottom:3px">Teléfono de Contacto</label>
+                <input class="fi" id="qCliTel" placeholder="0412... o 0414..." style="width:100%;height:36px;font-size:13px;border-radius:8px">
+              </div>
+            </div>
+
+            <div>
+              <label class="fl" for="qCliCity" style="font-size:11px;font-weight:700;margin-bottom:3px">Ciudad / Dirección de Despacho</label>
+              <input class="fi" id="qCliCity" placeholder="Caracas, Maracay, Valencia..." style="width:100%;height:36px;font-size:13px;border-radius:8px">
             </div>
           </div>
 
-          <!-- Sección 2: Catálogo y Búsqueda de Productos -->
-          <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+          <!-- SECCIÓN 2: CATÁLOGO DE PRODUCTOS (AGREGAR ÍTEMS) -->
+          <div id="qSecCatalog" class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">2</span>
                 <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Catálogo de Productos</h3>
               </div>
-              <div style="display:flex;gap:6px;align-items:center">
-                <button type="button" class="btn-p sm" onclick="openAiQuoteModal()" title="Pegar correo o requerimiento y pre-armar cotización con IA" style="font-weight:800;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-size:12px;background:var(--theme-accent, #16604a)">⚡ Pre-armar con IA</button>
-                <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem no registrado (Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;font-size:12px">➕ Ítem Libre <kbd style="background:var(--theme-item-bg, #f1f5f9);border:1px solid var(--theme-border-subtle, #cbd5e1);padding:1px 4px;border-radius:3px;font-size:10px">Alt+I</kbd></button>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button type="button" class="btn-p sm" onclick="openAiQuoteModal()" title="Pegar requerimiento y pre-armar cotización con IA" style="font-weight:800;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;background:var(--theme-accent, #16604a);border-radius:8px">⚡ Pre-armar con IA</button>
+                <button type="button" class="btn-o sm" onclick="openCustomItemModal()" title="Agregar flete, servicio o ítem libre (Alt+I)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border-radius:8px">➕ Ítem Libre <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:1px 4px;border-radius:3px;font-size:10px">Alt+I</kbd></button>
               </div>
             </div>
-            <div style="display:flex;gap:8px">
-              <input class="fi" id="posSearch" placeholder="Escribe nombre, código o SKU… (F2 o /)" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="flex:1;height:42px;font-size:14px;padding:8px 12px;border-radius:8px">
-              <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📷</button>
-              <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px">📱</button>
+
+            <!-- Buscador de Catálogo -->
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+              <div style="position:relative;flex:1">
+                <input class="fi" id="posSearch" placeholder="🔍 Escribe código, SKU, nombre o marca del producto… [F2 o /]" oninput="posSearch()" onkeydown="posSearchKey(event)" autocomplete="off" style="width:100%;height:42px;font-size:13.5px;padding:8px 12px 8px 38px;border-radius:10px;border:1.5px solid var(--theme-border-accent, #10b981);box-shadow:0 2px 6px rgba(0,0,0,0.02)">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;opacity:0.6;pointer-events:none">📦</span>
+              </div>
+              <button class="btn-o" onclick="posScanCam()" title="Escanear con esta cámara" aria-label="Escanear con la cámara" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;border-radius:10px">📷</button>
+              <button class="btn-o" onclick="posPhone()" title="Usar el teléfono como escáner" aria-label="Vincular teléfono escáner" style="height:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;border-radius:10px">📱</button>
             </div>
-            <div id="posResults" style="max-height:480px;overflow-y:auto;margin-top:12px">
-              <p style="color:var(--theme-text-muted, #aaa);font-size:13px;padding:8px 0;text-align:center">Cargando catálogo...</p>
+
+            <!-- Lista Fluyente de Productos del Catálogo -->
+            <div id="posResults" style="max-height:420px;overflow-y:auto;border:1px solid var(--theme-border-subtle, #e2e8f0);border-radius:10px;padding:6px;background:var(--theme-bg-surface-solid, #ffffff)">
+              <p style="color:var(--theme-text-muted, #aaa);font-size:13px;padding:24px 0;text-align:center">Cargando catálogo de productos...</p>
             </div>
           </div>
-
         </div>
 
-        <!-- Columna derecha: REVISIÓN Y CIERRE (Sección 3: Ticket + Sección 4: Totales y Cierre) -->
-        <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:16px">
-          
-          <!-- Sección 3: Resumen del Ticket -->
-          <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
+        <!-- COLUMNA DERECHA: RENGLONES + TOTALES & CIERRE -->
+        <div id="qColRight" style="display:flex;flex-direction:column;gap:18px">
+
+          <!-- SECCIÓN 3: RENGLONES DE LA COTIZACIÓN -->
+          <div class="admin-table-wrap" style="padding:16px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">3</span>
-                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Resumen de Cotización</h3>
+                <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Renglones de la Cotización</h3>
+                <span id="posTicketCount" style="font-size:11.5px;color:var(--theme-text-muted, #64748b);font-weight:700"></span>
               </div>
-              <button type="button" class="btn-g sm" onclick="clearQuote()" style="font-size:11px;color:var(--theme-text-muted, #64748b)">Vaciar</button>
-            </div>
-            
-            <div id="posTicket" style="max-height:380px;overflow-y:auto">
-              <p style="color:var(--theme-text-muted, #aaa);font-size:13px;text-align:center;padding:16px">Agrega productos desde el buscador.</p>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button type="button" class="btn-g sm" onclick="clearQuote()" style="font-size:11.5px;color:#ef4444">Vaciar</button>
+              </div>
             </div>
 
-            <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;background:var(--theme-bg-surface-solid, #f8fafc);padding:8px 12px;border-radius:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
-              <label class="fl" for="qDisc" style="margin:0;font-size:12px">Descuento propuesto % (Alt+D)</label>
+            <!-- Encabezado de Columnas del Listado de Renglones -->
+            <div class="pos-ticket-header" style="display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;padding:6px 14px;background:var(--theme-bg-surface-solid, #f8fafc);border-radius:8px;font-size:11px;font-weight:800;color:var(--theme-text-muted, #64748b);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
+              <span style="text-align:center">#</span>
+              <span>Descripción del Producto</span>
+              <span>Tarifa</span>
+              <span style="text-align:center">Cantidad</span>
+              <span style="text-align:right">Precio $</span>
+              <span style="text-align:right">Subtotal</span>
+              <span style="text-align:right">Acción</span>
+            </div>
+
+            <!-- Listado de Renglones Elegante y Ergonómico -->
+            <div id="posTicket" style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+              <p style="color:var(--theme-text-muted, #aaa);font-size:13px;text-align:center;padding:32px">Agrega productos desde el catálogo para armar la cotización.</p>
+            </div>
+
+            <!-- Descuento propuesto en % -->
+            <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;background:var(--theme-bg-surface-solid, #f8fafc);padding:10px 14px;border-radius:10px;border:1px solid var(--theme-border-subtle, #e2e8f0)">
+              <label class="fl" for="qDisc" style="margin:0;font-size:13px;font-weight:700">Descuento propuesto % (Alt+D)</label>
               <div style="display:flex;align-items:center;gap:8px">
-                <input class="fi" type="number" id="qDisc" min="0" max="100" step="0.5" value="0" oninput="posRenderTicket()" style="width:65px;height:30px;padding:2px 6px;text-align:center;font-weight:800;font-size:13px">
+                <input class="fi" type="number" id="qDisc" min="0" max="100" step="0.5" value="0" oninput="posRenderTicket()" style="width:70px;height:32px;padding:2px 8px;text-align:center;font-weight:800;font-size:14px;border-radius:6px">
                 <span id="qDiscHint" style="font-size:11px;color:var(--gr)"></span>
               </div>
             </div>
-
-            <div id="posTotals"></div>
           </div>
 
-          <!-- Sección 4: Condiciones y Cierre -->
-          <div style="border-top:1px solid var(--theme-border-subtle, #e2e8f0);padding-top:14px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <!-- SECCIÓN 4: TOTALES, CONDICIONES Y GUARDAR -->
+          <div class="admin-table-wrap" style="padding:18px 20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--theme-border-subtle, #f1f5f9)">
               <span style="background:rgba(16,185,129,0.14);color:var(--theme-accent, #16604a);font-weight:900;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid var(--theme-accent, #a7f3d0)">4</span>
-              <h3 style="margin:0;font-size:15px;color:var(--theme-text-main, #0f172a)">Notas y Condiciones</h3>
+              <h3 style="margin:0;font-size:16px;color:var(--theme-text-main, #0f172a)">Totales y Condiciones Comerciales</h3>
             </div>
-            <textarea class="fi" id="qNotes" placeholder="Validez de la oferta (ej. 3 días), condiciones de despacho, entrega en almacén..." rows="2" style="width:100%"></textarea>
 
-            <button class="btn-p" id="qSubmitBtn" onclick="quoteSubmit()" style="width:100%;justify-content:center;margin-top:14px;height:44px;font-size:15px;font-weight:800;border-radius:10px;background:#16604a;color:#fff;box-shadow:0 4px 14px rgba(22,96,74,0.3)">📋 Guardar Cotización (Ctrl + Enter)</button>
+            <!-- Desglose de Totales Financieros -->
+            <div id="posTotals"></div>
+
+            <!-- Notas de la Oferta -->
+            <div style="margin-top:14px">
+              <label class="fl" for="qNotes" style="font-size:12px;font-weight:700;margin-bottom:4px">Notas y Condiciones de Entrega</label>
+              <textarea class="fi" id="qNotes" placeholder="Validez de la oferta (ej. 3 días hábiles), condiciones de transporte o despacho..." rows="2" style="width:100%;border-radius:8px"></textarea>
+            </div>
+
+            <!-- Botón Principal Guardar Cotización -->
+            <button class="btn-p" id="qSubmitBtn" onclick="quoteSubmit()" style="width:100%;justify-content:center;margin-top:16px;height:48px;font-size:16px;font-weight:900;border-radius:12px;background:#16604a;color:#fff;box-shadow:0 4px 16px rgba(22,96,74,0.35);display:flex;align-items:center;gap:8px">
+              📋 Guardar Cotización <kbd style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:4px;font-size:11px">Ctrl + Enter</kbd>
+            </button>
           </div>
 
         </div>
+
+      </div>
 
       </div>
     </div>
@@ -220,18 +349,17 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
-<script src="../assets/js/config.js?v=20260930_core"></script>
+<script src="../assets/js/config.js?v=20261013_fix_serial"></script>
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js"></script>
-<script src="../assets/js/admin/sidenav.js?v=20260927_b2b_v2"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script src="../assets/js/vendedor/vcommon.js"></script>
 <script src="../assets/js/vendedor/product-finder.js?v=20260930_cache_60m"></script>
 <script src="../assets/js/doc-engine.js?v=20260917_lista_ok"></script>
 <script src="../assets/js/send-hub.js"></script>
 <script src="../assets/js/vendedor/cust-autocomplete.js?v=20260929_seller_assign"></script>
 <script src="../assets/js/gemini-client.js?v=20260928_v2_ok"></script>
-<script src="../assets/js/phone-dialer.js?v=20260927_free"></script>
-<script src="../assets/js/vendedor/vquotes.js?v=20260930_v2"></script>
+<script src="../assets/js/vendedor/vquotes.js?v=20261013_fix_serial"></script>
 <script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {

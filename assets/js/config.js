@@ -118,37 +118,65 @@ const APP = {
   SETTINGS:      {},             // full settings map, populated by loadSettings()
 };
 
-// Load settings from Supabase, cache for session
-async function loadSettings() {
-  const cached = sessionStorage.getItem('jjp_settings');
-  if (cached) {
-    const map = JSON.parse(cached);
-    applySettings(map);
-    await ensureFreshRate();
-    return map;
+// Load settings from Supabase, cache with 15-minute TTL and background revalidation
+async function loadSettings(force = false) {
+  const cached = sessionStorage.getItem('jjp_settings') || localStorage.getItem('jjp_settings');
+  const cachedAt = parseInt(sessionStorage.getItem('jjp_settings_at') || localStorage.getItem('jjp_settings_at') || '0', 10);
+  const isFresh = (Date.now() - cachedAt) < 15 * 60 * 1000;
+
+  if (cached && !force) {
+    try {
+      const map = JSON.parse(cached);
+      applySettings(map);
+      if (isFresh) {
+        ensureFreshRate().catch(() => {});
+        return map;
+      }
+    } catch (_) {}
   }
 
-  const { data, error } = await sb.from('jjp_settings').select('key,value');
-  if (error || !data) return {};
+  try {
+    const { data, error } = await sb.from('jjp_settings').select('key,value');
+    if (!error && data) {
+      const map = {};
+      data.forEach(r => { map[r.key] = r.value; });
+      try {
+        const now = Date.now().toString();
+        localStorage.setItem('jjp_settings', JSON.stringify(map));
+        localStorage.setItem('jjp_settings_at', now);
+        sessionStorage.setItem('jjp_settings', JSON.stringify(map));
+        sessionStorage.setItem('jjp_settings_at', now);
+      } catch (_) {}
+      applySettings(map);
+      ensureFreshRate().catch(() => {});
+      return map;
+    }
+  } catch (e) {
+    console.warn('loadSettings network warning:', e);
+  }
 
-  const map = {};
-  data.forEach(r => { map[r.key] = r.value; });
-  sessionStorage.setItem('jjp_settings', JSON.stringify(map));
-  applySettings(map);
-  await ensureFreshRate();
-  return map;
+  ensureFreshRate().catch(() => {});
+  return {};
 }
 
 // Expose settings on APP for the whole app
 function applySettings(map) {
   APP.SETTINGS = map;
-  if (map.exchange_rate) APP.EXCHANGE_RATE = parseFloat(map.exchange_rate);
+  const rateVal = parseFloat(map.exchange_rate || map.rate_bcv || 0);
+  if (rateVal > 0) {
+    APP.EXCHANGE_RATE = rateVal;
+    try { sessionStorage.setItem(APP.RATE_KEY, String(rateVal)); } catch (_) {}
+  }
   if (map.whatsapp_number) APP.WA_NUM = map.whatsapp_number;
   if (map.whatsapp_message) APP.WA_MSG = map.whatsapp_message;
   // Todos los enlaces marcados con data-wa-msg usan el número configurado
   document.querySelectorAll('[data-wa-msg]').forEach(el => {
     el.href = `https://wa.me/${APP.WA_NUM}?text=${encodeURIComponent(el.dataset.waMsg || APP.WA_MSG)}`;
   });
+  // Disparar evento de actualización de tasa para componentes reactivos
+  try {
+    window.dispatchEvent(new CustomEvent('jjp_rate_updated', { detail: { rate: getRate(), settings: map } }));
+  } catch (_) {}
   // Keep injected footer/contact info in sync (nav.js)
   if (typeof refreshContactUI === 'function') refreshContactUI();
 }
@@ -174,7 +202,11 @@ async function ensureFreshRate() {
 
     // Aplica tasas en vivo a la sesión: BCV (precios) y paralelo (costos/brecha)
     const applyLive = (r) => {
-      if (r.bcv) APP.EXCHANGE_RATE = r.bcv;
+      if (r.bcv) {
+        APP.EXCHANGE_RATE = r.bcv;
+        try { sessionStorage.setItem(APP.RATE_KEY, String(r.bcv)); } catch (_) {}
+        window.dispatchEvent(new CustomEvent('jjp_rate_updated', { detail: { rate: r.bcv, settings: APP.SETTINGS } }));
+      }
       if (r.paralelo && APP.SETTINGS) {
         APP.SETTINGS.usdt_rate = String(Math.max(r.paralelo, r.bcv || 0));
       }

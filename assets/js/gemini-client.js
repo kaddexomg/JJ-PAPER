@@ -16,23 +16,42 @@
   }
 })(typeof window !== 'undefined' ? window : this, function () {
 
-  // Pool oficial de 7 API Keys proporcionadas por el usuario
-  // Pool oficial de 7 API Keys proporcionadas por el usuario
-  // Con prioridad a las llaves Pro identificadas para tareas arquitectónicas
-  const PRO_KEYS = [
-    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-    'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E'
-  ];
+  // Pool dinámico de API Keys de Google Gemini.
+  // Protegido: Las claves se sincronizan dinámicamente desde la base de datos (jjp_settings: 'ai_gemini_keys')
+  // y se respaldan en caché local. NUNCA se comitean en texto plano en Git para evitar revocaciones de Google.
+  let GEMINI_KEYS = [];
 
-  const GEMINI_KEYS = [
-    'AIzaSyAMnb_StjFGymJtvytbwRI4EWZk1ZL6-Kw',
-    'AIzaSyABK4eanXioE1kJmRMhJ14AqosSNJ5cz_E',
-    'AQ.Ab8RN6IsSWjE9mHK9IRjNyauqgMLHLWLCJnwiEHU7Uo6sC0cNA',
-    'AQ.Ab8RN6LOFt4ga-GPIkdVcDya_L2DSSrfqWTyPK3QSzM1e5pVfQ',
-    'AQ.Ab8RN6I3nhWx1f54n5rcLa1nJv238N-IqJoIRWljUjZmg3nl-Q',
-    'AQ.Ab8RN6K7DB2-YqkZma3jsV8EfCqHel0UnR07oY-r8qquxgKTsA',
-    'AQ.Ab8RN6L0PS4XofEO8X9lbsE8P1sYD6jqItzCRvb0QbX1KvdEOw'
-  ];
+  // En entorno Node (servidor o pruebas), cargar desde process.env o archivo .env si está disponible
+  function loadNodeEnvKeys() {
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env.GEMINI_API_KEYS) {
+        try {
+          const parsed = JSON.parse(process.env.GEMINI_API_KEYS);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (_) {}
+      }
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const envPaths = [
+          path.join(process.cwd(), 'wa-server', '.env'),
+          path.join(process.cwd(), '.env'),
+          path.join(__dirname || '', '..', '..', 'wa-server', '.env')
+        ];
+        for (const ep of envPaths) {
+          if (fs.existsSync(ep)) {
+            const content = fs.readFileSync(ep, 'utf8');
+            const match = content.match(/GEMINI_API_KEYS\s*=\s*(\[[\s\S]*?\])/);
+            if (match) {
+              const parsed = JSON.parse(match[1]);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    return [];
+  }
 
   // Modelos reales de Gemini (2.5 Flash y 2.0 Flash)
   const PRO_MODELS = [
@@ -97,6 +116,26 @@
         escaped = (c === '\\' && !escaped);
       }
       try { return JSON.parse(out); } catch (_) {}
+    }
+
+    // 5. Intentar auto-reparar JSON truncado por límite de tokens
+    const startIdx = cleaned.indexOf('{');
+    if (startIdx !== -1) {
+      let candidate = cleaned.slice(startIdx);
+      let quotes = 0;
+      let escaped = false;
+      for (let i = 0; i < candidate.length; i++) {
+        if (candidate[i] === '"' && !escaped) quotes++;
+        escaped = (candidate[i] === '\\' && !escaped);
+      }
+      if (quotes % 2 !== 0) candidate += '"';
+      let openBraces = 0;
+      for (let i = 0; i < candidate.length; i++) {
+        if (candidate[i] === '{') openBraces++;
+        if (candidate[i] === '}') openBraces--;
+      }
+      while (openBraces > 0) { candidate += '}'; openBraces--; }
+      try { return JSON.parse(candidate); } catch (_) {}
     }
 
     throw new Error('No se pudo extraer JSON de la respuesta de IA');
@@ -279,12 +318,24 @@
     return archetypes[_variationCounter % archetypes.length];
   }
 
+  function getEffectiveRate() {
+    const w = typeof window !== 'undefined' ? window : {};
+    let r = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 0);
+    if (!r || r < 100) {
+      try {
+        const cached = (typeof localStorage !== 'undefined') ? (localStorage.getItem('jjp_exchange_rate') || localStorage.getItem('jjp_rate_bcv')) : null;
+        if (cached && Number(cached) > 100) r = Number(cached);
+      } catch (_) {}
+    }
+    return (r && r > 100) ? r : 866.56;
+  }
+
   /* --------------------------------------------------------------------------
      Contexto Maestro del Negocio (JJ Paper)
      -------------------------------------------------------------------------- */
   function getBusinessContext() {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const seller = w.CURRENT_PROFILE || w.WA_ME || w.MAIL_ME || {};
     const sellerName = seller.full_name || seller.name || 'Asesor JJ Paper';
     const sellerRef = seller.ref_code || '';
@@ -567,6 +618,114 @@ Genera el asunto y cuerpo en JSON estricto.`;
   }
 
   /* --------------------------------------------------------------------------
+     3.1. SUITE DE 5 MODOS ESTRATÉGICOS DE VENTAS (JJ PAPER)
+     1. oferta_producto: Oferta de Producto Específico
+     2. reactivacion: Reactivación de Clientes Inactivos
+     3. combo: Combo o Paquete Comercial
+     4. presentacion_b2b: Presentación Corporativa B2B por Primera Vez
+     5. cotizacion_seguimiento: Respuesta Rápida y Cierre de Cotización
+     -------------------------------------------------------------------------- */
+  async function draftStrategicSalesMessage({
+    mode = 'oferta_producto',
+    channel = 'email', // 'email' o 'whatsapp'
+    customer = {},     // { name, company, email, phone, tags, notes, historySummary }
+    product = {},      // { name, price_usd, price_bs, unit, brand, sku, description }
+    combo = {},        // { name, items, price_usd, price_bs, savings_usd }
+    quote = {},        // { quote_num, items, total_usd, total_bs, validity_days }
+    notes = '',        // Notas libres del vendedor
+    sellerName = 'Equipo Comercial JJ Paper',
+    sellerPhone = '0412-2830185'
+  }) {
+    const w = typeof window !== 'undefined' ? window : {};
+    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 866.56);
+    
+    const clientName = customer.name || customer.company || 'Estimado Cliente';
+    const isWa = channel === 'whatsapp';
+
+    let modeInstructions = '';
+    if (mode === 'oferta_producto') {
+      const prodName = product.name || 'Producto Destacado';
+      const pUsd = (product.price_usd || 0).toFixed(2);
+      const pBs = (product.price_bs || (product.price_usd || 0) * rate).toFixed(2);
+      const unit = product.unit || 'unidad';
+      modeInstructions = `MODO: Oferta de Producto Específico.
+- Producto: ${prodName} ${product.brand ? `(Marca: ${product.brand})` : ''}
+- Presentación / Unidad: ${unit}
+- Precio Oficial: $${pUsd} USD (Bs ${pBs} a tasa oficial BCV de ${rate.toFixed(2)} Bs).
+- Beneficios a destacar: Disponibilidad inmediata en almacén, calidad garantizada, despacho directo en Caracas o envíos nacionales con factura fiscal SENIAT.
+- Objetivo: Presentar el producto de forma contundente y cerrar el pedido o consultar cuántas unidades apartar.`;
+    } else if (mode === 'reactivacion') {
+      modeInstructions = `MODO: Reactivación de Cliente Inactivo.
+- Historial / Notas del Cliente: ${customer.historySummary || customer.notes || 'Cliente recurrente que hace un tiempo no repone inventario con nosotros.'}
+- Beneficio de Reactivación: Flete preferencial o bonificado en Caracas a partir de compras mínimas, precios congelados a tasa oficial BCV (${rate.toFixed(2)} Bs).
+- Tono: Muy cordial, humano y cercano. Reconocer la relación previa sin reproches ni sonar insistente.
+- Objetivo: Consultar cómo están de stock de papelería/suministros esta semana y ofrecer enviar lista de precios o cotización formal.`;
+    } else if (mode === 'combo') {
+      const comboName = combo.name || 'Combo Especial JJ Paper';
+      const comboItems = combo.items || 'Suministros varios de oficina y papelería';
+      const comboUsd = (combo.price_usd || 0).toFixed(2);
+      const comboBs = (combo.price_bs || (combo.price_usd || 0) * rate).toFixed(2);
+      modeInstructions = `MODO: Combo o Paquete Comercial.
+- Nombre del Combo: ${comboName}
+- Contenido incluido: ${comboItems}
+- Precio especial combo: $${comboUsd} USD (Bs ${comboBs} a tasa BCV).
+- Ahorro destacado: Ahorro comprobado vs compra individual ${combo.savings_usd ? `(Ahorras aprox $${combo.savings_usd})` : ''}.
+- Objetivo: Mostrar el desglose con viñetas limpias, urgencia por cupos/lotes limitados y botón de reserva.`;
+    } else if (mode === 'presentacion_b2b') {
+      modeInstructions = `MODO: Presentación Corporativa B2B por Primera Vez (Prospección).
+- Empresa / Contacto: ${clientName}
+- Perfil / Rubro: ${customer.rubro || customer.company || 'Empresa / Institución'}
+- Pilares JJ Paper C.A.: Mayoristas directos de papelería, oficina y escolar en Caracas; facturación fiscal SENIAT; despacho directo; tasa oficial BCV sin sobreprecio; crédito corporativo sujeto a evaluación.
+- Tono: Corporativo, respetuoso, enfocado en solucionar abastecimiento y optimizar presupuestos.
+- Objetivo: Invitar cordialmente a enviarnos una lista de insumos de uso frecuente para emitirles una cotización comparativa sin compromiso.`;
+    } else if (mode === 'cotizacion_seguimiento') {
+      modeInstructions = `MODO: Respuesta Rápida y Seguimiento a Cotización.
+- Datos de Cotización: ${quote.quote_num ? `Cotización N° ${quote.quote_num}` : 'Cotización de materiales'} ${quote.total_usd ? `por un total de $${quote.total_usd.toFixed(2)} USD (Bs ${(quote.total_usd * rate).toFixed(2)})` : ''}.
+- Puntos: Confirmar disponibilidad en almacén, validez de precios a tasa oficial BCV (${rate.toFixed(2)} Bs), y tiempos de entrega estimada.
+- Objetivo: Acelerar la confirmación de la orden de compra o responder cualquier duda para proceder al despacho.`;
+    }
+
+    const sys = getBusinessContext() + `
+Eres el Director Comercial Senior de JJ Paper C.A.
+Generas correspondencia comercial de altísimo nivel, persuasiva, limpia, orientada al cierre y respetuosa.
+
+CANAL: ${isWa ? 'WhatsApp (mensajes directos, con viñetas, negritas con asteriscos, emojis bien dosificados, máx 120-150 palabras)' : 'Email Corporativo (asunto potente y cuerpo formal con saludo, introducción, desglose, términos y firma)'}.
+
+${modeInstructions}
+
+Notas adicionales del asesor: "${notes || 'Sin notas adicionales'}"
+Vendedor responsable: ${sellerName} | Teléfono: ${sellerPhone}
+
+Devuelve EXACTAMENTE un objeto JSON válido:
+{
+  "subject": "${isWa ? '' : 'Asunto profesional y atractivo para el correo'}",
+  "body": "Texto completo del mensaje listo para enviar al cliente",
+  "spintax": "Versión alternativa con Spintax {A|B} para envíos masivos anti-bloqueo"
+}`;
+
+    const prompt = `Genera la propuesta en formato JSON estricto para ${clientName}.`;
+
+    try {
+      const raw = await callGemini({ prompt, systemInstruction: sys, temperature: 0.65 });
+      const parsed = extractJSON(raw);
+      return {
+        subject: parsed.subject || (isWa ? '' : `Propuesta Comercial — JJ Paper C.A.`),
+        body: parsed.body || '',
+        spintax: parsed.spintax || parsed.body || ''
+      };
+    } catch (e) {
+      console.warn('Fallback en draftStrategicSalesMessage:', e.message);
+      return {
+        subject: isWa ? '' : `Propuesta de Papelería y Suministros — JJ Paper C.A.`,
+        body: isWa
+          ? `¡Hola, ${clientName}! 👋 Te saluda ${sellerName} de JJ Paper C.A.\n\nQueremos poner a tu disposición nuestra lista mayorista con entrega directa en Caracas y tasa oficial BCV (${rate.toFixed(2)} Bs).\n\n¿Deseas que te compartamos nuestro catálogo o coticemos algún producto en específico?\n\n¡Quedo atento!`
+          : `Estimado(a) ${clientName},\n\nEs un placer saludarle de parte de JJ Paper C.A., distribuidores mayoristas de papelería y suministros de oficina en Caracas.\n\nPonenemos a su disposición nuestras mejores condiciones comerciales con facturación SENIAT, tasa oficial BCV (${rate.toFixed(2)} Bs) y despacho directo.\n\nQuedamos a su entera disposición para cotizar los materiales que requiera su empresa.\n\nAtentamente,\n${sellerName}\nJJ Paper C.A. | ${sellerPhone}`,
+        spintax: ''
+      };
+    }
+  }
+
+  /* --------------------------------------------------------------------------
      4. Motor Inteligente de Búsqueda de Productos (IA + Scoring Estructural)
      Utiliza Gemini para interpretar la consulta y extraer atributos,
      luego aplica scoring ponderado con descarte obligatorio por tipo base.
@@ -731,7 +890,7 @@ Extrae los atributos del producto. JSON estricto:`;
     const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'para', 'con', 'sin', 'por', 'dame', 'busca', 'quiero', 'necesito', 'muestra', 'imagen', 'flyer', 'foto']);
     const tokens = rawTokens.filter(t => !STOPWORDS.has(t));
     const searchTokens = tokens.length > 0 ? tokens : rawTokens;
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
 
     // ══════ PASO 1: Interpretar la consulta con IA (lanzar en paralelo) ══════
     let aiInterpretation = null;
@@ -1032,6 +1191,64 @@ ${rawText.slice(0, 50000)}
   }
 
   /* --------------------------------------------------------------------------
+     4.1. Taxonomías y Directivas de Negocio (Tonos, Sectores y Ganchos B2B)
+     -------------------------------------------------------------------------- */
+  const COMMERCIAL_TONE_DIRECTIVES = {
+    socio_estrategico: {
+      name: '💼 Ejecutivo & Socio Estratégico (Seguridad y Factura BCV)',
+      attitude: 'Alianza corporativa a largo plazo, seriedad absoluta, solvencia institucional y confianza.',
+      style: 'Formal, respetuoso y ejecutivo. Se enfoca en la continuidad operativa de las sedes del cliente, despacho directo garantizado y facturación legal SENIAT a tasa oficial BCV.',
+      opening: '{Hola|Buen día|Un cordial saludo} {{nombre}}, un gusto saludarle.',
+      closing: 'Quedamos a su entera disposición para coordinar sus requerimientos operativos o formalizar su cotización formal.'
+    },
+    oportunidad_mayorista: {
+      name: '🔥 Oferta Mayorista & Volumen (Actitud de Cierre y Ahorro)',
+      attitude: 'Comercial directa, dinámica, orientada al margen de ganancia, ahorro tangible por bulto/caja y cierre asertivo.',
+      style: 'Enérgico y enfocado en la rentabilidad. Destaca el precio de importador directo, el ahorro por escala cerrada y la conveniencia económica frente a compras al detal.',
+      opening: '{Hola|Buen día} {{nombre}} 👋, le contactamos con una excelente oportunidad de abastecimiento mayorista.',
+      closing: '¿Cuántas cajas o bultos le apartamos para su despacho de esta semana?'
+    },
+    cercano_consultivo: {
+      name: '🤝 Cercano, Asesor y Resolutivo (Atención Directa y Sourcing)',
+      attitude: 'Cálida, cordial, de asesor personal accesible que busca resolver cualquier necesidad ("te conseguimos lo que necesites").',
+      style: 'Amistoso, atento y servicial. Hace hincapié en que si el cliente busca una marca, gramaje o medida que no esté listada, JJ Paper se lo ubica y cotiza de inmediato.',
+      opening: '{Hola|Qué tal} {{nombre}} 👋, ¡un gran gusto saludarte!',
+      closing: '¿Qué insumos o papelería estás necesitando en tu sede para apoyarte y pasarte opciones hoy mismo?'
+    },
+    institucional_formal: {
+      name: '🏢 Institucional Formal (Procura y Compras)',
+      attitude: 'Protocolar, sobria y orientada a comités de compras, licitaciones, homologación de proveedores y administración.',
+      style: 'Estrictamente profesional y sobrio. Pone de relieve la documentación fiscal en regla (RIF J-295375450), cotizaciones formales membretadas y estándares de archivo reglamentario.',
+      opening: 'Estimada Gerencia y Dpto. de Compras de {{empresa}}, un cordial saludo.',
+      closing: 'Quedamos a la disposición de su departamento de compras para consignar nuestra cotización formal membretada.'
+    },
+    fidelizado_reactivacion: {
+      name: '💎 Cliente VIP / Fidelizado (Trato Preferencial y Confianza)',
+      attitude: 'Agradecida, cordial, exclusiva y de reencuentro con un cliente de la casa ("es un placer volver a atenderles").',
+      style: 'Afectuoso y distinguido. Trata al cliente como cuenta prioritaria con beneficios exclusivos: reserva de inventario, delivery prioritario bonificado y precios congelados a tasa oficial BCV.',
+      opening: '{Hola|Buen día|Un placer saludarle de nuevo} {{nombre}} 👋, es un gusto reencontrarnos.',
+      closing: '¿Cómo se encuentran de inventario para esta quincena? Con gusto le coordinamos su entrega con prioridad.'
+    }
+  };
+
+  const SECTOR_NAMES = {
+    colegios: 'Colegios, Universidades y Educación',
+    clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
+    oficinas: 'Empresas, Oficinas y Corporativo',
+    retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
+    logistica: 'Industrias, Almacenes y Logística de Distribución',
+    papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
+  };
+
+  const VALUE_HOOK_DESCS = {
+    importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
+    escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
+    sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
+    despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
+    ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
+  };
+
+  /* --------------------------------------------------------------------------
      4.2. Redactor Inteligente de Campañas Comerciales B2B (WhatsApp y Email)
      Cambia genuinamente el tono, el formato visual, la estructura y el ángulo
      comercial en cada clic y según los selectores de tono/gancho.
@@ -1044,6 +1261,7 @@ ${rawText.slice(0, 50000)}
     audience = 'todos',
     channel = 'whatsapp',
     customNotes = '',
+    customInstructions = '',
     sellerName = '',
     tone = 'Profesional y Persuasivo (Vendedor Consultivo)',
     valueHook = 'importador_directo',
@@ -1052,11 +1270,58 @@ ${rawText.slice(0, 50000)}
   }) {
     _variationCounter++;
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
+
+    let prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
+    if (prodsList.length === 0) {
+      try {
+        const fetched = await fetchRealPortfolioProducts(4, targetSector, (customInstructions || customNotes || objective || ''));
+        if (fetched && fetched.length > 0) {
+          prodsList = fetched;
+        }
+      } catch (_) {}
+    }
+
+    const effectiveSector = (targetSector && targetSector !== 'auto' && SECTOR_NAMES[targetSector])
+      ? SECTOR_NAMES[targetSector]
+      : (targetSector !== 'auto' ? targetSector : 'Empresas y Comercios B2B');
+
+    const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[tone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
+
+    // Directivas de control del usuario
+    let customDirectives = '';
+    const userDirectives = (customInstructions || customNotes || '').trim();
+    if (userDirectives) {
+      customDirectives += `\n⭐ INSTRUCCIONES ESPECÍFICAS Y MANDATORIAS DEL ASESOR (MÁXIMA PRIORIDAD):\n"${userDirectives}"\nDEBES CUMPLIR ESTAS INDICACIONES ESTRICTAMENTE EN EL MENSAJE.\n`;
+    }
+    if (msgLength === 'short') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: ULTRA-CONCISO (máximo 4 a 6 renglones en WhatsApp, o menos de 75 palabras en Email). Sin introducciones largas, ve directo al grano.\n`;
+    } else if (msgLength === 'detailed') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: DETALLADO Y COMPLETO. Desarrolla a fondo beneficios, especificaciones de los insumos y formalidades operativas.\n`;
+    } else {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: EQUILIBRADO B2B. Estructura comercial estándar, ágil y ejecutiva.\n`;
+    }
+    if (priceMode === 'no_prices') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: ¡ESTRICTAMENTE PROHIBIDO COLOCAR PRECIOS NUMÉRICOS! Solo menciona la disponibilidad de los artículos y ofrece cotizar a medida según su consumo o volumen.\n`;
+    } else if (priceMode === 'bulk_only') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: Enfatiza los precios y descuentos por bulto cerrado o caja master.\n`;
+    } else {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: Expresa el precio oficial en USD y su equivalente en Bs a Tasa Oficial BCV.\n`;
+    }
+    if (ctaGoal === 'quote') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Ofrecer consignar una cotización formal membretada de inmediato.\n`;
+    } else if (ctaGoal === 'inventory') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Preguntar de forma consultiva por su reposición quincenal de inventario.\n`;
+    } else if (ctaGoal === 'catalog') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Invitar a revisar el catálogo digital o la lista PDF oficial.\n`;
+    } else if (ctaGoal === 'meeting') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Proponer coordinar una llamada breve o una visita con muestras en su sede corporativa.\n`;
+    }
 
     // Extracción de especificaciones técnicas y comerciales del producto o combo / listado múltiple
     let prodSpecs = '';
-    const prodsList = (Array.isArray(products) && products.length > 0) ? products : (product ? [product] : []);
+    const showPrices = (priceMode !== 'no_prices');
     if (prodsList.length > 0) {
       prodSpecs = `
 LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artículos):
@@ -1068,7 +1333,8 @@ LISTADO OFICIAL DE PRODUCTOS EN OFERTA / PROMOCIÓN (${prodsList.length} artícu
         const priceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
         const priceBs = priceUsd > 0 ? (priceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
         const disc = p.discount_pct ? `[${p.discount_pct}% desc.]` : '';
-        return `• ${pName} ${pBrand ? `· Marca: ${pBrand}` : ''} ${pSku} | Presentación: ${pUnit} | Precio Oferta: $${priceUsd.toFixed(2)} USD (Bs. ${priceBs}) ${disc}`;
+        const priceTxt = showPrices ? `Precio Oferta: $${priceUsd.toFixed(2)} USD (Bs. ${priceBs}) ${disc}` : `Disponibilidad inmediata para cotización formal`;
+        return `• ${pName} ${pBrand ? `· Marca: ${pBrand}` : ''} ${pSku} | Presentación: ${pUnit} | ${priceTxt}`;
       }).join('\n') + '\n';
     }
 
@@ -1095,6 +1361,9 @@ Devuelve EXACTAMENTE un objeto JSON válido (sin markdown exterior):
 `;
 
     const prompt = `
+Sector Objetivo: ${effectiveSector}
+Propuesta de Valor / Gancho Principal: ${effectiveHook}
+Tono y Actitud Comercial: ${toneConfig.name} (${toneConfig.style})
 Propósito o Requerimiento del Asesor: ${objective}
 Contexto Histórico / Relación: ${historyContext || 'Sin contexto especial'}
 Personalidad / Tono Requerido: ${tone} (Arquetipo: ${archetype}, Semilla #${_variationCounter})
@@ -1103,8 +1372,8 @@ Canal: ${channel}
 Segmento de Audiencia: ${audience}
 ${prodSpecs}
 Condición Especial: ${discount || 'Precios directos de distribuidora mayorista'}
-Notas adicionales: ${customNotes || 'Atención personalizada, despacho inmediato'}
 Asesor emisor: ${sellerName || 'Equipo Comercial JJ Paper'}
+${customDirectives}
 
 Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${archetype}" en JSON:`;
 
@@ -1222,14 +1491,16 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
      y WhatsApp adaptados con Spintax.
      -------------------------------------------------------------------------- */
 
-  // Trae productos REALES del catálogo (con precio B real o price_usd) para que la
-  // IA escriba con datos verdaderos en vez de inventar productos y montos.
-  async function fetchRealPortfolioProducts(maxOverall = 14) {
+  let _realPortfolioCache = null;
+  let _realPortfolioCacheAt = 0;
+
+  // Trae productos REALES del catálogo con selección dinámica según sector y objetivo
+  async function fetchRealPortfolioProducts(maxOverall = 14, targetSector = 'auto', objective = '') {
     const w = typeof window !== 'undefined' ? window : {};
     let list = (Array.isArray(w.allProducts) && w.allProducts.length) ? w.allProducts : null;
     if (!list) {
       try {
-        const s = sessionStorage.getItem('jjp_products_cache_v4');
+        const s = sessionStorage.getItem('jjp_products_cache_v4') || sessionStorage.getItem('jjp_catalog_flat');
         if (s) list = JSON.parse(s);
       } catch (_) {}
     }
@@ -1248,34 +1519,94 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
       }
     }
 
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Familias de alta rotación que cubren el portafolio real de JJ Paper
-    const groups = [
-      { kw: ['rollo', 'termico', 'pos', 'caja fiscal'] },
-      { kw: ['resma', 'papel bond', 'bond 75', 'bond 80', 'carta', 'oficio'] },
-      { kw: ['carpeta', 'fibra', 'manila', 'archivador', 'palanca'] },
-      { kw: ['sobre', 'radiografia', 'sobre manila'] },
-      { kw: ['cuaderno', 'marcador pizarra', 'boligrafo', 'resaltador', 'lapiz'] },
-      { kw: ['cinta', 'embalaje', 'empaque', 'pistola'] },
-      { kw: ['marcador', 'permanente', 'detector', 'indeleble'] }
-    ];
+    // Agrupaciones temáticas según sector
+    const sec = String(targetSector || '').toLowerCase();
+    let groups = [];
+
+    if (sec.includes('colegio') || sec.includes('educacion') || sec.includes('escuela')) {
+      groups = [
+        { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
+        { kw: ['marcador', 'pizarra', 'acrilico', 'recargable'] },
+        { kw: ['lapiz', 'borrador', 'sacapuntas', 'creyon', 'color'] },
+        { kw: ['resaltador', 'marcador al agua', 'punta fina'] },
+        { kw: ['tempera', 'tijera', 'pega', 'silicon'] },
+        { kw: ['hoja examen', 'papel bond', 'cartulina', 'resma'] }
+      ];
+    } else if (sec.includes('clinica') || sec.includes('salud') || sec.includes('hospital')) {
+      groups = [
+        { kw: ['carpeta', 'fibra', 'manila', 'oficio'] },
+        { kw: ['sobre', 'manila', 'blanco', 'media carta', 'oficio'] },
+        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+        { kw: ['boligrafo', 'gel', 'tinta aceite', 'lapicero'] },
+        { kw: ['grapadora', 'clip', 'perforadora'] },
+        { kw: ['rollo', 'termico', 'ticketera'] }
+      ];
+    } else if (sec.includes('supermercado') || sec.includes('retail') || sec.includes('comercio')) {
+      groups = [
+        { kw: ['rollo', 'termico', 'pos', 'caja fiscal', '57mm', '80mm'] },
+        { kw: ['cinta', 'embalaje', 'tirro', 'transparente', 'marron'] },
+        { kw: ['dispensador', 'porta tirro', 'pistola'] },
+        { kw: ['marcador', 'permanente', 'indeleble', 'gruesa'] },
+        { kw: ['talonario', 'recibo', 'nota de entrega'] },
+        { kw: ['boligrafo', 'lapicero'] }
+      ];
+    } else if (sec.includes('restaurante') || sec.includes('alimento')) {
+      groups = [
+        { kw: ['rollo', 'termico', 'comanda', '57mm', '80mm'] },
+        { kw: ['boligrafo', 'lapicero', 'negro', 'azul'] },
+        { kw: ['cinta', 'embalaje', 'tirro'] },
+        { kw: ['talonario', 'comanda', 'recibo'] }
+      ];
+    } else if (sec.includes('papeleria') || sec.includes('libreria')) {
+      groups = [
+        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+        { kw: ['cuaderno', 'libreta', 'espiral'] },
+        { kw: ['marcador', 'resaltador', 'sharpie', 'kores'] },
+        { kw: ['boligrafo', 'lapiz', 'creyones'] },
+        { kw: ['carpeta', 'sobre', 'archivador'] },
+        { kw: ['cinta', 'pega', 'silicon', 'tijera'] }
+      ];
+    } else {
+      // General equilibrado
+      groups = [
+        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
+        { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
+        { kw: ['boligrafo', 'lapiz', 'resaltador', 'marcador'] },
+        { kw: ['carpeta', 'archivador', 'sobre'] },
+        { kw: ['cinta', 'embalaje', 'tirro', 'pega', 'silicon'] },
+        { kw: ['grapadora', 'perforadora', 'tijera', 'clip'] },
+        { kw: ['rollo', 'termico', 'pos', 'caja fiscal'] }
+      ];
+    }
+
+    // Si el asesor especificó un objetivo con palabras clave, anteponer ese grupo prioritario
+    const objWords = norm(objective).split(/\s+/).filter(w => w.length >= 4);
+    if (objWords.length > 0) {
+      groups.unshift({ kw: objWords });
+    }
+
+    // Barajar ligeramente grupos para asegurar variedad dinámica
+    const shuffledGroups = [...groups].sort(() => 0.5 - Math.random());
 
     const picked = [];
     const seen = new Set();
 
-    for (const g of groups) {
+    for (const g of shuffledGroups) {
       const scored = (list || []).map(p => {
         const full = norm(`${p.name || ''} ${p.sku || ''} ${p.description || ''}`);
         let s = 0;
         for (const kw of g.kw) if (full.includes(norm(kw))) s++;
         return { p, s };
       }).filter(x => x.s >= 1)
-        .sort((a, b) => b.s - a.s)
-        .slice(0, 3);
+        .sort((a, b) => b.s - a.s);
 
-      for (const { p } of scored) {
+      // Barajar los mejores candidatos para no elegir siempre el primero
+      const topCandidates = scored.slice(0, 4).sort(() => 0.5 - Math.random()).slice(0, 2);
+
+      for (const { p } of topCandidates) {
         if (seen.has(p.id || p.name)) continue;
         seen.add(p.id || p.name);
         const pB = Number(p.price_b || 0);
@@ -1314,35 +1645,46 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
     messageType = 'Presentación Inicial',
     targetSector = 'auto',
     commercialTone = 'socio_estrategico',
-    valueHook = 'importador_directo'
+    valueHook = 'importador_directo',
+    customInstructions = '',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
 
     const prodsList = (Array.isArray(products) && products.length > 0)
       ? products
       : (promoProductOrCombo ? (Array.isArray(promoProductOrCombo.products) ? promoProductOrCombo.products : [promoProductOrCombo]) : []);
 
-    const SECTOR_NAMES = {
-      colegios: 'Colegios, Universidades y Educación',
-      clinicas: 'Clínicas, Hospitales, Salud y Farmacias',
-      oficinas: 'Empresas, Oficinas y Corporativo',
-      retail: 'Supermercados, Abastos y Retail / Puntos de Venta',
-      logistica: 'Industrias, Almacenes y Logística de Distribución',
-      papelerias: 'Papelerías y Comercios (Mayorista Reventa)'
-    };
     const effectiveSector = (targetSector && targetSector !== 'auto' && SECTOR_NAMES[targetSector])
       ? SECTOR_NAMES[targetSector]
       : (sector || 'Sector Comercial B2B');
 
-    const VALUE_HOOK_DESCS = {
-      importador_directo: '🏭 IMPORTADOR DIRECTO EN CARACAS: Enfatiza que somos importadores mayoristas sin intermediarios, con bodega física en Caracas y disponibilidad inmediata.',
-      escala_volumen: '📦 ESCALA Y DESCUENTO POR VOLUMEN: Enfatiza el ahorro significativo por bulto/caja cerrada y precio preferencial escalonado para pedidos empresariales.',
-      sourcing_especial: '🔍 PROCURA ESPECIAL DE INSUMOS: Deja muy claro que si la empresa requiere alguna medida, gramaje o artículo no listado, nuestro equipo de importación se lo consigue y cotiza directamente.',
-      despacho_express: '🚚 DESPACHO EXPRESS 24H Y FACTURA BCV: Enfatiza la entrega rápida y directa en su sede en Caracas y facturación legal en bolívares a tasa oficial BCV.',
-      ahorro_mensual: '💰 OPTIMIZACIÓN DE PRESUPUESTO: Enfatiza la asesoría para consolidar compras mensuales de suministros reduciendo costos operativos.'
-    };
     const effectiveHook = VALUE_HOOK_DESCS[valueHook] || VALUE_HOOK_DESCS.importador_directo;
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
+
+    let advisorDirective = '';
+    if (baseMessageText && baseMessageText.trim().length > 10) {
+      advisorDirective = `
+================================================================================
+🚨 DIRECTIVA MAESTRA Y OBLIGATORIA DEL ASESOR COMERCIAL:
+El asesor comercial ha configurado la siguiente PROPUESTA BASE / PLANTILLA para esta campaña:
+
+"""
+${baseMessageText.trim()}
+"""
+
+INSTRUCCIONES MANDATORIAS DE ADAPTACIÓN:
+1. TU MISIÓN ES ADAPTAR Y PERSONALIZAR ESTA PROPUESTA BASE EXACTA PARA ${companyName} (${contactName ? 'Contacto: ' + contactName : ''}).
+2. PROHIBICIÓN ESTRICTA: QUEDA TOTALMENTE PROHIBIDO sustituir los productos de esta propuesta por "rollos térmicos", "carpetas de fibra" o "resmas" a menos que la propuesta base del asesor hable de ellos. Si el asesor escribió sobre un producto específico (como cintas, marcadores, bolígrafos, cuadernos o papelería), DEBES MANTENER ESOS PRODUCTOS EXACTOS como eje central.
+3. Personaliza el saludo y la conexión con el sector de ${companyName} (${effectiveSector || 'Comercial'}), pero CONSERVA el núcleo de la oferta, los llamados a la acción, los enlaces (como {{link}} o https://jjpaper.pages.dev/catalogo) y datos de contacto.
+================================================================================
+`;
+    }
 
     // ── Catálogo REAL con precio actualizado ──
     let realProducts = [];
@@ -1371,7 +1713,7 @@ ATENCIÓN CRÍTICA - OFERTA / PRODUCTOS COMERCIALES SELECCIONADOS POR EL ASESOR 
         const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
         return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* (Bs. ${pPriceBs})`;
       }).join('\n') + `
-DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENTE estos productos con sus precios. NO sustituyas estos productos por otros artículos ni inventes precios. Personaliza el saludo y conecta con la actividad de ${companyName}, pero mantén esta oferta intacta como el centro de la propuesta.`;
+DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENTE estos productos con sus precios bajo el tono "${toneConfig.name}". NO sustituyas estos productos por otros artículos ni inventes precios. Personaliza el saludo y conecta con la actividad de ${companyName}, pero mantén esta oferta intacta como el centro de la propuesta.`;
     }
 
     const isAlreadyContacted = Boolean(
@@ -1394,51 +1736,75 @@ DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENT
         return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* | Bs. ${pPriceBs}`;
       }).join('\n');
 
+      let toneGreeting = `{Hola|Buen día|Un gusto saludarle} ${contactName || companyName} 👋, un cordial saludo.`;
+      let toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:`;
+      let toneClosing = `{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su pedido.}`;
+
+      if (commercialTone === 'fidelizado_reactivacion') {
+        toneGreeting = `{Hola|Buen día|Un placer saludarle de nuevo} ${contactName || companyName} 👋, ¡un gran gusto saludarles de nuevo!`;
+        toneOpening = `{Le escribe|Le contacta} *${sellerName}* de *JJ Paper C.A.* Como cuenta preferencial y de la casa, pasamos por aquí para presentarle en exclusiva este lote de insumos con condiciones preferenciales y flete prioritario:`;
+        toneClosing = `{¿Cómo se encuentran de inventario en sus sedes para esta quincena? Con gusto le reservamos disponibilidad inmediata.|¿Gusta que le preparemos su despacho con las condiciones preferenciales de su cuenta?}`;
+      } else if (commercialTone === 'oportunidad_mayorista') {
+        toneGreeting = `{Hola|Buen día} ${contactName || companyName} 👋, un saludo comercial.`;
+        toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo el volumen y consumo de ${companyName} en ${city || 'Caracas'}, hoy le presentamos una oportunidad mayorista con precios de escala cerrada y entrega inmediata:`;
+        toneClosing = `{¿Cuántos bultos o cajas le apartamos para su entrega de esta semana?|¿Desea que le facturemos a tasa oficial BCV (${rate.toFixed(2)} Bs) para despacho mañana?}`;
+      } else if (commercialTone === 'cercano_consultivo') {
+        toneGreeting = `{Hola|Qué tal} ${contactName || companyName} 👋, ¡un gran saludo!`;
+        toneOpening = `Por aquí te escribe *${sellerName}* de *JJ Paper C.A.* Quería saludarte y pasarte de primera mano estas opciones que tenemos listas para despacharte en tu sede:`;
+        toneClosing = `{¿Qué insumos estás necesitando reponer en tu sede para apoyarte hoy mismo? Recuerda que si buscas algo que no veas en lista te lo conseguimos de inmediato.|¿Te preparo la cotización formal en bolívares a tasa BCV?}`;
+      } else if (commercialTone === 'institucional_formal') {
+        toneGreeting = `Estimada Gerencia de Compras y Administración en ${companyName}:`;
+        toneOpening = `Le saluda atentamente *${sellerName}* de *JJ Paper C.A.* En atención a las operaciones y suministro de sus sedes en ${city || 'Caracas'}, ponemos a su disposición el siguiente lote mayorista con disponibilidad para entrega inmediata:`;
+        toneClosing = `Quedamos a la disposición de su departamento de compras para consignar nuestra cotización formal membretada y atender su orden de compra.`;
+      }
+
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA DIRECTA DE PRODUCTOS / COMBO PREPARADO POR EL ASESOR
-El mensaje gira 100% en torno a presentar la oferta de insumos seleccionada:
+ESTRATEGIA COGNITIVA DE COMUNICACIÓN (${toneConfig.name}):
+- Actitud y estilo: ${toneConfig.attitude} — ${toneConfig.style}.
+- Objetivo: Presentar la oferta comercial con máxima persuasión y naturalidad humana.
 ${itemsFormatted}
 
-DIRECTIVAS ESTRICTAS DE REDACCIÓN:
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} ${contactName || companyName} 👋, un cordial saludo."
-2. Apertura directa: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:"
-3. Presentar los productos con sus viñetas (•), nombres en negrita (*...*) y precios oficiales en USD y Bs BCV.
-4. Cláusula obligatoria de procura: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato."
-5. Cierre: Pregunta directa para coordinar pedido o despacho formal.`;
+PAUTAS COGNITIVAS DE REDACCIÓN:
+1. Saludo y Apertura: Redacta un saludo y apertura ORIGINALES adaptados al rubro de ${companyName} y al tono "${toneConfig.name}". Prohibido repetir saludos robóticos o estructuras prefabricadas. Conecta con su operación real.
+2. Presentación de Oferta: Presenta los productos de la oferta con viñetas claras (•), destacando nombres y precios oficiales en USD y Bs a tasa BCV (${rate.toFixed(2)} Bs).
+3. Respaldo JJ Paper: Menciona de forma orgánica y fluida los beneficios clave (importador directo en Caracas, delivery a su sede, facturación fiscal formal).
+4. Cláusula de Procura: Indica de manera natural que si buscan alguna medida, gramaje o artículo fuera de lista, el equipo mayorista se lo localiza de inmediato.
+5. Cierre Comercial: Formula una pregunta de cierre persuasiva que invite a responder (ej. solicitar cotización formal, apartar disponibilidad o coordinar despacho).`;
     } else if (messageType.includes('Seguimiento') || isAlreadyContacted) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: SEGUIMIENTO COMERCIAL (ESTA CUENTA YA FUE CONTACTADA ANTERIORMENTE)
-¡ATENCIÓN CRÍTICA! Esta empresa YA RECIBIÓ una presentación previa de JJ Paper. ¡ESTRICTAMENTE PROHIBIDO VOLVER A PRESENTARSE DESDE CERO! Prohibido decir "vinimos a presentarnos", "le escribimos para darnos a conocer", etc.
-1. Saludo: "{Hola|Buen día|Un gusto saludarle de nuevo} {contacto o empresa} 👋. Esperamos que todo marche excelente en sus operaciones."
-2. Reconocimiento de seguimiento: "{Le saluda atentamente|Le escribe nuevamente} *${sellerName}* de *JJ Paper C.A.* En seguimiento a nuestra propuesta anterior / Quería consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana."
-3. Propuesta de abastecimiento: "{Pensando en sus requerimientos de reposición continua|Para apoyar la logística de ${companyName}}, tenemos despacho garantizado en 24h en:" presentar 3 insumos de alta rotación para su sector con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.
-4. Cierre: "{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su entrega.}"`;
+ESTRATEGIA COGNITIVA: SEGUIMIENTO COMERCIAL (${toneConfig.name})
+¡ATENCIÓN! Esta empresa ya tiene relación previa con JJ Paper. Prohibido presentarse como desconocido.
+1. Saludo cordial reconociendo la relación continua con ${contactName || companyName}.
+2. Consulta ágil sobre reposición de inventario o seguimiento a propuestas previas.
+3. Propuesta de 3 insumos clave para su sector con precio exacto en USD y Bs BCV (${rate.toFixed(2)} Bs).
+4. Cierre enfocado en facilitar el pedido de esta semana.`;
     } else if (messageType.includes('Recordatorio')) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: RECORDATORIO DE REPOSICIÓN OPERATIVA
-1. Saludo: "{Hola|Buen día} {contacto o empresa} 👋, un cordial saludo."
-2. Recordatorio directo: "{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Pasamos por aquí brevemente para coordinar la reposición de papelería, consumibles de caja y embalaje para ${companyName} de esta quincena."
-3. 3 insumos clave para reposición con precio BCV ${rate.toFixed(2)} Bs.
-4. Cierre: "{¿Nos indica qué insumos requieren reponer esta semana para procesar su cotización formal?|¿Desea que le confirmemos despacho para mañana?}"`;
+ESTRATEGIA COGNITIVA: RECORDATORIO DE REPOSICIÓN (${toneConfig.name})
+1. Enfoque ágil y proactivo para la reposición quincenal/mensual de ${companyName}.
+2. Presentar 3 insumos de alta rotación con precio exacto en USD y Bs BCV (${rate.toFixed(2)} Bs).
+3. Cierre directo para apartar stock antes de que agote lote.`;
     } else if (messageType.includes('Oferta')) {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: OFERTA RELÁMPAGO / CONDICIONES PREFERENCIALES
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋."
-2. Oportunidad: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.* Queríamos compartirle una oportunidad de abastecimiento mayorista con entrega prioritaria para ${companyName}:"
-3. 3 productos destacados con precio especial en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.`;
+ESTRATEGIA COGNITIVA: OPORTUNIDAD MAYORISTA (${toneConfig.name})
+1. Enfoque de lote especial o escala preferencial para ${companyName}.
+2. Presentar los productos con ventajas de volumen y precio oficial.
+3. Cierre invitando a confirmar bultos o despacho prioritario.`;
     } else {
       openingStrategy = `
-ESTRUCTURA DE APERTURA: PRESENTACIÓN COMERCIAL INSTITUCIONAL (PRIMER CONTACTO - CUENTA NUEVA)
-1. Saludo: "{Hola|Buen día|Un gusto saludarle} {contacto o empresa} 👋, un cordial saludo."
-2. Presentación institucional: "{Le escribe|Le saluda} *${sellerName}* de *JJ Paper C.A.*, su distribuidor mayorista de papelería corporativa, consumibles de caja y embalaje en Caracas. {Le contactamos|Nos acercamos} con el propósito de abastecer cada necesidad operativa de ${companyName} con entrega en 24h, precios de distribuidor y facturación formal legal."
-3. 3 productos acordes a su giro de negocio con precio exacto en USD y Bs a tasa BCV ${rate.toFixed(2)} Bs.`;
+ESTRATEGIA COGNITIVA: PRESENTACIÓN INSTITUCIONAL DIRECTA (${toneConfig.name})
+1. Apertura institucional y respetuosa presentando a JJ Paper como importador y distribuidor directo en Caracas.
+2. Presentar 3 soluciones operativas esenciales para el rubro de ${companyName} con precios exactos en USD y Bs BCV (${rate.toFixed(2)} Bs).
+3. Cierre invitando a recibir catálogo completo o cotización formal membretada.`;
     }
 
     const sys = getBusinessContext() + `
 Eres el Director y Estratega Comercial B2B Sénior de "JJ Paper C.A." en Caracas, Venezuela.
 Tu objetivo es analizar minuciosamente el perfil corporativo de un cliente o prospecto B2B y desarrollar una propuesta de abordaje comercial hiper-personalizada, de alta conversión y con variaciones anti-bloqueo.
 
-OBJETIVO CRÍTICO: CADA CLIENTE DEBE RECIBIR UN MENSAJE ÚNICO, HUMANO Y 100% ADAPTADO A SU REALIDAD Y SECTOR OPERATIVO. PROHIBIDO GENERAR MENSAJES GENÉRICOS O USAR LA FRASE "estimado cliente".
+OBJETIVO CRÍTICO: CADA CLIENTE DEBE RECIBIR UN MENSAJE ÚNICO, HUMANO Y 100% ADAPTADO A SU REALIDAD Y SECTOR OPERATIVO. PROHIBIDO GENERAR MENSAJES GENÉRICOS O USAR LA FRASE "estimado cliente". PROHIBIDO forzar rollos térmicos o carpetas genéricas si la propuesta del asesor o la oferta comercial seleccionada tratan de otros insumos.
+
+${advisorDirective}
 
 ${openingStrategy}
 REGLAS DE REDACCIÓN OBLIGATORIAS:
@@ -1525,10 +1891,14 @@ DIRECTRICES CRÍTICAS PARA WHATSAPP (ESTRUCTURA DE ALTA CONVERSIÓN):
    Menciona que le saluda *${sellerName}* de *JJ Paper C.A.* y reconoce de forma natural su actividad en ${city || 'Caracas'}.
 3. Título de sección en negrita destacada:
    *📦 PROPUESTA DE ABASTECIMIENTO OPERATIVO:*
-4. Viñetas de productos con nombre en negrita (*...*) y enfoque comercial de volumen:
-   - MÁXIMO 3 viñetas con formato:
-     • *Nombre del Insumo*: Presentación/especificación · *Precio mayorista: $X.XX USD* (Bs. Y a tasa BCV) con escala preferencial por volumen/bulto y beneficio para ${companyName}.
-   ${promoProductOrCombo ? '- La PRIMERA viñeta DEBE ser la promoción/producto seleccionado: *' + (promoProductOrCombo.name || 'Promoción') + '* con su precio mayorista y descuento.' : ''}
+4. Viñetas de productos:
+${prodsList.length > 0 ? `   - DEBES listar CADA UNO de los ${prodsList.length} productos en promoción seleccionados por el asesor en el ESTRICTO ORDEN secuencial en que fueron suministrados. ¡PROHIBIDO recortar u omitir ninguno!
+   - Formato por cada viñeta:
+     • *Nombre del Producto* (Presentación): *$X.XX USD* | Bs. Y,YY
+   - Aclara antes de la lista: "_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_"
+   - Puedes sugerir brevemente qué otros suministros de alta rotación para su rubro (${effectiveSector}) puede solicitar de nuestro catálogo general.` : `   - MÁXIMO 3 viñetas con formato:
+     • *Nombre del Insumo*: Presentación/especificación · *Precio mayorista: $X.XX USD* (Bs. Y a tasa BCV) con beneficio para ${companyName}.
+   ${promoProductOrCombo ? '- La PRIMERA viñeta DEBE ser la promoción/producto seleccionado: *' + (promoProductOrCombo.name || 'Promoción') + '* con su precio mayorista y descuento.' : ''}`}
    - ¡PROHIBIDO poner precios en seco o que luzcan elevados sin explicar la presentación por bulto/caja/paquete!
    - PROHIBIDO usar etiquetas técnicas como "Core 1:", "Core 2:" o "Cross-sell:". Redacta con dinamismo comercial.
 5. Mención obligatoria de la Lista de Precios Oficial en PDF y Procura Especial:
@@ -1587,6 +1957,33 @@ FORMATO DE RESPUESTA REQUERIDO (DEVUELVE ÚNICAMENTE UN OBJETO JSON VÁLIDO SIN 
   "wa_body": "Mensaje adaptado a WhatsApp con negritas (*...*), viñetas (•), dobles saltos, PDF adjunto y Spintax {A|B|C}"
 }`;
 
+    let customDirectives = '';
+    const userDirectives = (customInstructions || notes || '').trim();
+    if (userDirectives) {
+      customDirectives += `\n⭐ INSTRUCCIONES ESPECÍFICAS Y MANDATORIAS DEL ASESOR (MÁXIMA PRIORIDAD):\n"${userDirectives}"\nDEBES CUMPLIR ESTAS INDICACIONES ESTRICTAMENTE EN EL MENSAJE.\n`;
+    }
+    if (msgLength === 'short') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: ULTRA-CONCISO (máximo 4 a 6 renglones en WhatsApp, o menos de 75 palabras en Email). Sin introducciones largas, ve directo al grano.\n`;
+    } else if (msgLength === 'detailed') {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: DETALLADO Y COMPLETO. Desarrolla a fondo beneficios, especificaciones de los insumos y formalidades operativas.\n`;
+    } else {
+      customDirectives += `\n📏 LONGITUD REQUERIDA: EQUILIBRADO B2B. Estructura comercial estándar, ágil y ejecutiva.\n`;
+    }
+    if (priceMode === 'no_prices') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: ¡ESTRICTAMENTE PROHIBIDO COLOCAR PRECIOS NUMÉRICOS! Solo menciona la disponibilidad de los artículos y ofrece cotizar a medida según su consumo o volumen.\n`;
+    } else if (priceMode === 'bulk_only') {
+      customDirectives += `\n💰 MANEJO DE PRECIOS: Enfatiza los precios y descuentos por bulto cerrado o caja master.\n`;
+    }
+    if (ctaGoal === 'quote') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Ofrecer consignar una cotización formal membretada de inmediato.\n`;
+    } else if (ctaGoal === 'inventory') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Preguntar de forma consultiva por su reposición quincenal de inventario.\n`;
+    } else if (ctaGoal === 'catalog') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Invitar a revisar el catálogo digital o la lista PDF oficial.\n`;
+    } else if (ctaGoal === 'meeting') {
+      customDirectives += `\n🎯 CIERRE / LLAMADO A LA ACCIÓN (CTA): Proponer coordinar una llamada breve o una visita con muestras en su sede corporativa.\n`;
+    }
+
     const prompt = `
 DATOS DEL CLIENTE A ANALIZAR:
 - Empresa: "${companyName}"
@@ -1595,26 +1992,44 @@ DATOS DEL CLIENTE A ANALIZAR:
 - Cargo / Departamento: "${contactRole || 'No indicado'}"
 - Dirección / Sede: "${address || 'Caracas, Venezuela'}"
 - Ciudad: "${city || 'Caracas'}"
-- Notas previas / Intereses: "${notes || 'Ninguna nota previa'}"
+- Historial en JJ Paper: ${histTxt}
 
 CONFIGURACIÓN DE REDACCIÓN SELECCIONADA POR EL ASESOR:
-- Tono / Actitud Comercial: "${personality}"
-- Tipo de Mensaje: "${messageType}"
+- Tono / Actitud Comercial Requerida: "${toneConfig.name}" (${toneConfig.attitude} — ${toneConfig.style})
 - Propuesta de Valor / Gancho de Negocio: "${effectiveHook}"
+- Sector Objetivo: "${effectiveSector}"
+${customDirectives}
 
-HISTORIAL DE COMPRAS EN JJ PAPER:
-${histTxt}
+${prodsList.length > 0 ? `
+========================================================================
+¡DIRECTIVA MANDATORIA - CAMPAÑA DE OFERTAS SELECCIONADAS (${prodsList.length} ARTÍCULOS)!
+========================================================================
+El asesor preparó esta campaña con este listado específico de productos en oferta:
+${prodsList.map((p, idx) => {
+  const pName = p.name || 'Artículo';
+  const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
+  const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+  const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
+  return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* | Bs. ${pPriceBs}`;
+}).join('\n')}
 
-CATÁLOGO REAL DISPONIBLE (USA EXCLUSIVAMENTE ESTOS PRODUCTOS CON SUS PRECIOS EXACTOS; PROHIBIDO INVENTAR PRODUCTOS O MONTOS QUE NO APAREZCAN AQUÍ):
+REGLAS DE ORO INMUTABLES:
+1. ¡PROHIBIDO REEMPLAZAR O SUSTITUIR ESTOS PRODUCTOS! La lista de ofertas en el cuerpo del mensaje DEBE SER EXACTAMENTE ESTA, con CADA UNO de los ${prodsList.length} artículos en este mismo orden correlativo.
+2. Aclara antes del listado: "_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_".
+3. Adapta el saludo y la apertura a ${companyName} reconociendo su presencia en ${city || 'Caracas'} y su rubro (${effectiveSector}).
+4. Incluye la promesa obligatoria de búsqueda: "💡 *¿Busca algún producto o marca que no vea en esta lista?* ¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato."
+5. Incluye las ventajas de JJ Paper (importador directo, delivery 24h, factura SENIAT con RIF), mención de lista PDF y firma con ${sellerName}.
+` : `
+CATÁLOGO REAL DISPONIBLE:
 ${realProdInfo}
 
-FLUJO DE ANÁLISIS OBLIGATORIO:
+FLUJO DE ANÁLISIS DE PROSPECCIÓN (SIN OFERTAS ESPECÍFICAS PREVIAS):
 1. LEE al cliente: analiza nombre, sector, notas, ciudad e historial para determinar con precisión a qué se dedica.
 2. DEDUCE su giro y su punto de dolor operativo (ej: negocio de caja → rollos térmicos POS y detectores de billetes; clínica → sobres radiografía 14x17 y carpetas de historias médicas; colegio → resmas y marcadores de pizarra; logística → cintas industriales y marcadores indelebles).
 3. OFRECE exactamente 3 productos de la CATÁLOGO REAL alineados con ese giro (máximo 1 de apoyo), siempre con su precio exacto en USD y su equivalente en Bs a Tasa Oficial BCV.
-4. REDACTA el mensaje final respetando estrictamente el FORMATO DE PRESENTACIÓN OBLIGATORIO del system prompt.
+`}
 
-Realiza el análisis de necesidades operativas de esta empresa y redacta el correo formal (130-180 palabras exactas) y el WhatsApp en JSON estricto:`;
+Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`;
 
     _variationCounter++;
     try {
@@ -1736,7 +2151,13 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     targetSector = 'auto',
     commercialTone = 'socio_estrategico',
     valueHook = 'importador_directo',
-    forceRefresh = false
+    customInstructions = '',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
+    forceRefresh = false,
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const w = typeof window !== 'undefined' ? window : {};
     const sName = sellerName || w.CURRENT_PROFILE?.full_name || w.CURRENT_PROFILE?.name || 'Keyder José Salazar';
@@ -1756,19 +2177,10 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
 
     // Adaptación dinámica de enfoque según el tono seleccionado
     let effectiveMessageType = messageType;
-    let effectivePersonality = personality;
     if (hasCustomOffer) {
       effectiveMessageType = 'Oferta Especial';
-      effectivePersonality = 'Persuasivo / Comercial';
-    } else if (commercialTone === 'oportunidad_mayorista') {
-      effectivePersonality = 'Oferta Mayorista / Oportunidad (Actitud de cierre comercial, escala por volumen)';
-    } else if (commercialTone === 'cercano_consultivo') {
-      effectivePersonality = 'Cercano / Asesor Resolutivo (Atención directa de confianza, búsqueda y sourcing)';
-    } else if (commercialTone === 'institucional_formal') {
-      effectivePersonality = 'Institucional / Formal (Procura corporativa y formalidad SENIAT)';
     } else if (isAlreadyContacted && (messageType === 'Presentación Inicial' || messageType === 'presentacion')) {
       effectiveMessageType = 'Seguimiento de Contacto Previo';
-      effectivePersonality = 'Cercano / Cordial';
     }
 
     const compName = customer.company_name || customer.name || customer.business_name || 'Empresa';
@@ -1809,7 +2221,13 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
         messageType: effectiveMessageType,
         targetSector,
         commercialTone,
-        valueHook
+        valueHook,
+        customInstructions,
+        msgLength,
+        priceMode,
+        ctaGoal,
+        baseMessageText,
+        baseSubjectText
       });
 
       const isEmail = (channel === 'email');
@@ -1882,7 +2300,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
       sector = customer.sector || 'Comercial e Insumos Mayoristas';
       need = 'Suministro mayorista directo con precios de importador y entrega inmediata en sede';
       offering = products.slice(0, 3).map(p => p.name).join(' · ');
-      bulletPoints = products.slice(0, 10).map(p => {
+      bulletPoints = products.map(p => {
         const pName = p.name || 'Artículo';
         const pPriceUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
         const pPriceBs = pPriceUsd > 0 ? (pPriceUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
@@ -2040,7 +2458,13 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     targetSector = 'auto',
     commercialTone = 'socio_estrategico',
     valueHook = 'importador_directo',
-    onProgress = null
+    customInstructions = '',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
+    onProgress = null,
+    baseMessageText = '',
+    baseSubjectText = ''
   }) {
     const results = [];
     const total = customers.length;
@@ -2048,28 +2472,24 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
 
     const hasCustomOffer = Boolean(promoProductOrCombo || (Array.isArray(products) && products.length > 0));
 
-    // Mapeo de la actitud seleccionada a perfil psicológico y apertura
-    let personality = 'Profesional / Formal';
+    // Mapeo de la actitud y tono comercial seleccionados
+    const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
+    let personality = toneConfig.name;
     let messageType = 'Presentación Inicial';
     if (hasCustomOffer) {
-      personality = 'Persuasivo / Comercial';
-      messageType = 'Reactivación / Oferta Especial';
-    } else if (commercialTone === 'oportunidad_mayorista' || attitude === 'oferta') {
-      personality = 'Oferta Mayorista / Oportunidad (Actitud de cierre comercial, escala por volumen)';
+      messageType = 'Oferta Especial';
+    } else if (attitude === 'oferta') {
       messageType = 'Oportunidad de Abastecimiento Mayorista';
-    } else if (commercialTone === 'cercano_consultivo' || attitude === 'seguimiento') {
-      personality = 'Cercano / Asesor Resolutivo (Atención directa de confianza, búsqueda y sourcing)';
+    } else if (attitude === 'seguimiento') {
       messageType = 'Seguimiento y Procura de Insumos';
-    } else if (commercialTone === 'institucional_formal') {
-      personality = 'Institucional / Formal (Procura corporativa y formalidad SENIAT)';
-      messageType = 'Presentación Corporativa Formal';
     } else if (attitude === 'recordatorio') {
-      personality = 'Directo / Ejecutivo';
       messageType = 'Recordatorio de Insumos';
+    } else if (attitude === 'fidelizado') {
+      messageType = 'Reactivación VIP / Fidelizado';
     }
 
-    // Procesar en chunks de 3 en paralelo con pool balanceado de 7 API keys
-    const CONCURRENCY = 3;
+    // Procesar en chunks de 4 en paralelo con pool balanceado de 7 API keys
+    const CONCURRENCY = 4;
     for (let i = 0; i < customers.length; i += CONCURRENCY) {
       const chunk = customers.slice(i, i + CONCURRENCY);
       const chunkPromises = chunk.map(async (cust) => {
@@ -2087,7 +2507,13 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             targetSector,
             commercialTone,
             valueHook,
-            forceRefresh
+            customInstructions,
+            msgLength,
+            priceMode,
+            ctaGoal,
+            forceRefresh,
+            baseMessageText,
+            baseSubjectText
           });
           completed++;
           if (typeof onProgress === 'function') {
@@ -2104,7 +2530,9 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
             rate: 40,
             promoProductOrCombo,
             products,
-            officialPdfIncluded
+            officialPdfIncluded,
+            baseMessageText,
+            baseSubjectText
           });
           if (typeof onProgress === 'function') {
             await onProgress({ current: completed, total, customer: cust, result: fallbackAnalysis });
@@ -2123,9 +2551,28 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
   /* --------------------------------------------------------------------------
      5. Copiloto JJ Paper (Chat Inteligente)
      -------------------------------------------------------------------------- */
-  async function askCopilot({ message, chatHistory = [], userRole = 'vendedor', userName = '' }) {
+  async function askCopilot(param, extra = {}) {
+    let message = '';
+    let chatHistory = [];
+    let userRole = 'vendedor';
+    let userName = '';
+
+    if (typeof param === 'string') {
+      message = param;
+      if (extra && typeof extra === 'object') {
+        chatHistory = extra.chatHistory || [];
+        userRole = extra.userRole || 'vendedor';
+        userName = extra.userName || '';
+      }
+    } else if (param && typeof param === 'object') {
+      message = param.message || '';
+      chatHistory = param.chatHistory || [];
+      userRole = param.userRole || 'vendedor';
+      userName = param.userName || '';
+    }
+
     let productContext = '';
-    const keywords = message.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}/g) || [];
+    const keywords = (message || '').match(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}/g) || [];
     const searchTerms = keywords.filter(w => !['hola', 'precio', 'costo', 'tienen', 'cuanto', 'como', 'donde', 'para'].includes(w.toLowerCase()));
 
     if (searchTerms.length > 0) {
@@ -2137,7 +2584,7 @@ Realiza el análisis de necesidades operativas de esta empresa y redacta el corr
     }
 
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const sys = getBusinessContext() + `
 Eres el Asistente Oficial y Copiloto Comercial de JJ Paper para el personal (${userRole}).
 - Responde de forma concisa, útil, respetuosa y comercial.
@@ -2697,7 +3144,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
     canvas = null
   }) {
     const w = typeof window !== 'undefined' ? window : {};
-    const rate = (typeof getRate === 'function') ? getRate() : (w.APP?.EXCHANGE_RATE || 40);
+    const rate = getEffectiveRate();
     const cvs = canvas || document.createElement('canvas');
     cvs.width = 800;
     cvs.height = 800;
@@ -3625,8 +4072,13 @@ ${rawText}
     searchRealProductPhoto,
     askCopilot,
     renderProductCard,
-    renderMarketingFlyer,
-    renderProductStudioPackshot,
+    draftStrategicSalesMessage,
+    COMMERCIAL_TONE_DIRECTIVES,
+    SECTOR_NAMES,
+    VALUE_HOOK_DESCS,
+    syncKeysFromSettings,
+    setKeys: (newKeys) => { if (Array.isArray(newKeys) && newKeys.length > 0) GEMINI_KEYS = newKeys; },
+    getKeys: () => [...GEMINI_KEYS],
     getCurrentKeyIndex: () => _keyIndex,
     getTotalKeys: () => GEMINI_KEYS.length
   };

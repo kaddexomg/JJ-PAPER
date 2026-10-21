@@ -91,6 +91,8 @@ const V_STATUS_LABEL = {
   pagado:         'Pagado',
   preparando:     'Preparando',
   entregado:      'Entregado',
+  confirmado_mixnet: '✅ Confirmar → MixNet',
+  mixnet_enviado: '📤 En MixNet',
   rechazado:      'Rechazado',
   cancelado:      'Cancelado',
 };

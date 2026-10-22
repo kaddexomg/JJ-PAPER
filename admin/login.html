@@ -155,8 +155,8 @@ async function loginWithGoogle() {
   if (btn) { btn.disabled = true; btn.style.opacity = .6; btn.textContent = 'Abriendo Google…'; }
   const isPublicDomain = window.location.origin.includes('pages.dev') || window.location.origin.includes('jjpaper');
   const redirectTarget = isPublicDomain
-    ? window.location.origin + '/admin/login.html'
-    : 'https://jjpaper.pages.dev/admin/login.html';
+    ? window.location.origin + '/admin/login'
+    : 'https://jjpaper.pages.dev/admin/login';
 
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',

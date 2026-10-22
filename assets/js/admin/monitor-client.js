@@ -9,7 +9,7 @@ window.runAiDiagnosticFromMonitor = async function() {
   
   c.textContent += `[1/4] Verificando Servidor VPS Ubuntu (166.0.112.247)...\n`;
   try {
-    const res = await fetch('http://166.0.112.247/auth/v1/telemetry', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch('https://166-0-112-247.sslip.io/auth/v1/telemetry', { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const t = await res.json();
       c.textContent += `      🟢 VPS ONLINE · RAM: ${t.vps.ram.usage_pct}% · Disco: ${t.vps.disk.usage_pct}% · PostgreSQL: ${(t.database.size_bytes/(1024*1024)).toFixed(1)} MB (${t.database.total_dead_tuples} tuplas muertas) · Conexiones: ${t.database.active_connections}\n`;
@@ -685,7 +685,7 @@ async function querySupabaseDirectly() {
   const tStart = Date.now();
   let telem = null;
   try {
-    const res = await fetch('http://166.0.112.247/auth/v1/telemetry', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch('https://166-0-112-247.sslip.io/auth/v1/telemetry', { signal: AbortSignal.timeout(3000) });
     if (res.ok) telem = await res.json();
   } catch (_) {}
 

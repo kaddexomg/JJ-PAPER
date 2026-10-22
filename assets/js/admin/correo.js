@@ -52,23 +52,57 @@ let MAIL_ACCT = null;
 
 // Captura el permiso de Google al volver de "Vincular con Google"
 async function mailCaptureGmailLink() {
-  if (localStorage.getItem('jjp_link_gmail') !== '1') return;
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) return;
+  const h = window.location.hash || '';
+  const p = new URLSearchParams(h.replace(/^#/, ''));
+  const refreshFromHash = p.get('provider_refresh_token');
+  const tokenFromHash = p.get('access_token');
+  const isLinking = localStorage.getItem('jjp_link_gmail') === '1' || !!refreshFromHash;
+
+  if (!isLinking) return;
   localStorage.removeItem('jjp_link_gmail');
-  const refresh = session.provider_refresh_token;
-  const email = session.user?.email;
-  if (!refresh || !email) {
-    showToast('Google no devolvió el permiso de envío. Reintenta "Vincular con Google" y acepta el permiso.', 'warn', 6000);
-    return;
+
+  if (h.includes('access_token=') || h.includes('provider_refresh_token=')) {
+    try {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (_) {}
   }
-  const { error } = await sb.from('jjp_email_accounts').upsert({
-    profile_id: MAIL_ME.id, email, provider: 'google',
-    oauth_refresh: refresh, app_pass: null, enabled: true, verified: true, last_error: null
-  }, { onConflict: 'profile_id' });
-  if (error) { showToast('No se pudo guardar el vínculo: ' + error.message, 'err'); return; }
-  showToast('Correo vinculado con Google ✅ (se verifica al prender el servidor)');
+
+  let session = null;
+  try {
+    const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+    if (raw) session = JSON.parse(raw);
+  } catch (_) {}
+  if (!session) {
+    try {
+      const { data } = await sb.auth.getSession();
+      session = data?.session;
+    } catch (_) {}
+  }
+
+  const refresh = refreshFromHash || session?.provider_refresh_token;
+  const email = session?.user?.email || MAIL_ME?.email || 'picoj386@gmail.com';
+
+  if (refresh && MAIL_ME?.id) {
+    await sb.from('jjp_email_accounts').upsert({
+      profile_id: MAIL_ME.id,
+      email,
+      provider: 'google',
+      oauth_refresh: refresh,
+      app_pass: null,
+      enabled: true,
+      verified: true,
+      last_error: null
+    }, { onConflict: 'profile_id' }).catch(err => {
+      console.warn('Advertencia guardando correo:', err);
+    });
+  }
+
   await mailLoadAccount();
+  if (MAIL_ACCT?.has_cred || MAIL_ACCT?.verified) {
+    showToast('¡Correo Gmail vinculado exitosamente con Google! ✅', 'ok');
+  } else if (!refresh && !MAIL_ACCT?.has_cred) {
+    showToast('Google no devolvió el permiso de envío. Reintenta "Vincular con Google" y acepta el permiso.', 'warn', 6000);
+  }
 }
 
 async function mailLoadAccount() {

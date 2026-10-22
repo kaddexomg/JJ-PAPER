@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Credenciales Oficiales Supabase Core (Proyecto A)
-export const SUPABASE_URL = process.env.SUPABASE_URL_CORE || 'http://166.0.112.247';
+export const SUPABASE_URL = process.env.SUPABASE_URL_CORE || 'https://166-0-112-247.sslip.io';
 export const SERVICE_KEY  = process.env.SERVICE_KEY_CORE  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjk1MDAwMDAsImV4cCI6MjA0NTAwMDAwMH0.Re_nlxR74OCn2LLRN78SKEHt8FxFYanYLsZr2Cvyf8s';
 
 export const AGENT_PORT = parseInt(process.env.AGENT_PORT || '8790', 10);

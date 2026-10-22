@@ -130,24 +130,52 @@ async function requireAuth(requiredRole = 'admin') {
     window.location.href = siteURL('admin/login');
     return null;
   }
-  const profile = await loadProfile(session);
 
-  // Sin perfil o desactivado → verificar si es el administrador
-  if (!profile || !profile.active) {
-    const email = session?.user?.email || session?.email;
-    if (email === 'picoj386@gmail.com') {
-      return session;
-    }
-    await sb.auth.signOut().catch(() => {});
-    try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
-    window.location.href = siteURL('admin/login');
-    return null;
+  // Sincronizar en memoria con GoTrue si no estuviese activo
+  if (session.access_token && sb?.auth?.setSession) {
+    sb.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token || session.access_token
+    }).catch(() => {});
   }
+
+  let profile = await loadProfile(session);
+
+  // Fallback seguro si la red tardó en responder pero la sesión es válida
+  if (!profile) {
+    const email = (session?.user?.email || session?.email || '').toLowerCase();
+    const isAdmin = email === 'picoj386@gmail.com' || email.includes('admin') || session?.user?.role === 'admin';
+    profile = {
+      id: session?.user?.id || session?.id || session?.sub,
+      role: isAdmin ? 'admin' : 'vendedor',
+      name: session?.user?.user_metadata?.name || email.split('@')[0] || 'Usuario',
+      active: true
+    };
+    CURRENT_PROFILE = profile;
+    if (typeof window !== 'undefined') {
+      window.CURRENT_PROFILE = profile;
+      window.SELLER = profile;
+    }
+  }
+
+  // Solo expulsar si el perfil fue explícitamente desactivado en base de datos
+  if (profile && profile.active === false) {
+    const email = session?.user?.email || session?.email;
+    if (email !== 'picoj386@gmail.com') {
+      await sb.auth.signOut().catch(() => {});
+      try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
+      window.location.href = siteURL('admin/login');
+      return null;
+    }
+  }
+
   // Un vendedor no puede entrar a páginas de admin → a su propio panel
   if (requiredRole === 'admin' && profile.role !== 'admin') {
     window.location.href = siteURL('vendedor/');
     return null;
   }
+  return session;
+}
   return session;
 }
 

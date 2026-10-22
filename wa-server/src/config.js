@@ -15,8 +15,8 @@ const RAW_URL_CORE = process.env.SUPABASE_URL_CORE || process.env.SUPABASE_URL |
 const IS_STALE_CORE = RAW_URL_CORE.includes('qxgdrfkobbhdzgtoiavv');
 
 export const SUPABASE_URL_CORE = IS_STALE_CORE
-  ? 'http://166.0.112.247'
-  : (RAW_URL_CORE || 'http://166.0.112.247');
+  ? 'https://166-0-112-247.sslip.io'
+  : (RAW_URL_CORE || 'https://166-0-112-247.sslip.io');
 
 export const SERVICE_KEY_CORE = IS_STALE_CORE
   ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg'
@@ -25,24 +25,24 @@ export const SERVICE_KEY_CORE = IS_STALE_CORE
 export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
 export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || 'http://166.0.112.247';
+export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || 'https://166-0-112-247.sslip.io';
 export const SERVICE_KEY_INV   = process.env.SUPABASE_SERVICE_ROLE_KEY_INV || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2FtanhoeXlzbW12Z3hnYWJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjA2MTQ2NCwiZXhwIjoyMDk3NjM3NDY0fQ.QvuDcLSJleatqDcglU_w0fRnXbz9N6scGaDVqCUgoXg';
 
 export const PG_CORE = {
-  host: process.env.PG_HOST_CORE || 'aws-0-ca-central-1.pooler.supabase.com',
+  host: process.env.PG_HOST_CORE || '166.0.112.247',
   port: parseInt(process.env.PG_PORT_CORE || '5432', 10),
-  user: process.env.PG_USER_CORE || 'postgres.wwcdxqpibequfohbgejs',
-  password: process.env.PG_PASS_CORE || 'Samily*2030909109',
-  database: 'postgres',
+  user: process.env.PG_USER_CORE || 'jjpaper_admin',
+  password: process.env.PG_PASS_CORE || 'samily31657900',
+  database: 'jjpaper_db',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000
 };
 
 export const PG_COMM = {
-  host: process.env.PG_HOST_COMM || 'aws-0-us-east-2.pooler.supabase.com',
+  host: process.env.PG_HOST_COMM || '166.0.112.247',
   port: parseInt(process.env.PG_PORT_COMM || '5432', 10),
-  user: process.env.PG_USER_COMM || 'postgres.klcibjwleiqppedefpxw',
-  password: process.env.PG_PASS_COMM || 'Samily*30909109',
+  user: process.env.PG_USER_COMM || 'jjpaper_admin',
+  password: process.env.PG_PASS_COMM || 'samily31657900',
   database: 'postgres',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000

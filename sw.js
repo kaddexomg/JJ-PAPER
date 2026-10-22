@@ -3,8 +3,8 @@
    Garantiza carga instantánea en PC, laptop y teléfono móvil.
    ====================================================== */
 
-const CACHE_NAME = 'jjp-static-v4';
-const IMAGE_CACHE_NAME = 'jjp-images-v1';
+const CACHE_NAME = 'jjp-static-v5';
+const IMAGE_CACHE_NAME = 'jjp-images-v2';
 
 const STATIC_ASSETS = [
   './',
@@ -57,7 +57,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
 
   // 1. Caché persistente de Imágenes de Productos (Supabase Storage WebP)
-  if (url.hostname.includes('supabase.co') && url.pathname.includes('/storage/v1/object/public/jjp-products')) {
+  if ((url.hostname.includes('166-0-112-247.sslip.io') || url.hostname.includes('166.0.112.247')) && url.pathname.includes('/storage/v1/object/public/jjp-products')) {
     event.respondWith(
       caches.open(IMAGE_CACHE_NAME).then(async (cache) => {
         const cached = await cache.match(req);

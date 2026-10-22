@@ -13,16 +13,44 @@ const SUPABASE_KEY_COMM = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5v
 const SUPABASE_URL_INV = 'https://166-0-112-247.sslip.io';
 const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
-// Supabase base clients
+// Helper universal para extraer token Bearer de sesión de forma síncrona y segura
+function getAuthToken() {
+  try {
+    const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-166-0-112-247-auth-token') : null;
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p && p.access_token) return p.access_token;
+    }
+  } catch (_) {}
+  return SUPABASE_KEY;
+}
+
+// Supabase base clients con inyección directa y dinámica de token Bearer en cada petición
 const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
+    storageKey: 'sb-166-0-112-247-auth-token',
     detectSessionInUrl: false,
     persistSession: true,
     autoRefreshToken: false
-  }
+  },
+  accessToken: async () => getAuthToken()
 });
 const _rawSbComm = _rawSbCore;
 const _rawSbInv  = _rawSbCore;
+
+// Sincronizar token guardado de inmediato con supabase-js en memoria
+try {
+  const _rawStorageToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-166-0-112-247-auth-token') : null;
+  if (_rawStorageToken) {
+    const _parsedTok = JSON.parse(_rawStorageToken);
+    if (_parsedTok && _parsedTok.access_token) {
+      _rawSbCore.auth.setSession({
+        access_token: _parsedTok.access_token,
+        refresh_token: _parsedTok.refresh_token || _parsedTok.access_token
+      }).catch(() => {});
+    }
+  }
+} catch (_) {}
 
 // Tablas dedicadas a Proyecto B (Comunicación)
 const COMM_TABLES = new Set([

@@ -15,12 +15,8 @@ const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vb
 
 // Supabase base clients
 const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const _rawSbComm = supabase.createClient(SUPABASE_URL_COMM, SUPABASE_KEY_COMM, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-});
-const _rawSbInv  = supabase.createClient(SUPABASE_URL_INV,  SUPABASE_KEY_INV, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-});
+const _rawSbComm = _rawSbCore;
+const _rawSbInv  = _rawSbCore;
 
 // Tablas dedicadas a Proyecto B (Comunicación)
 const COMM_TABLES = new Set([

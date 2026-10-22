@@ -2,15 +2,15 @@
    JJ Paper — Supabase Config & App Constants
    ====================================================== */
 
-const SUPABASE_URL = 'http://166.0.112.247';
+const SUPABASE_URL = 'https://166-0-112-247.sslip.io';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Proyecto B — Comunicación (WhatsApp, Email, Difusión)
-const SUPABASE_URL_COMM = 'http://166.0.112.247';
+const SUPABASE_URL_COMM = 'https://166-0-112-247.sslip.io';
 const SUPABASE_KEY_COMM = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Proyecto C — Storage e Inventario
-const SUPABASE_URL_INV = 'http://166.0.112.247';
+const SUPABASE_URL_INV = 'https://166-0-112-247.sslip.io';
 const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Supabase base clients

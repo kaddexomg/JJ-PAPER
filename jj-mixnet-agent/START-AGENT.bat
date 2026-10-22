@@ -3,21 +3,17 @@ title JJ-MIXNET-AGENT — Demonio Autonomo de Sincronizacion MixNet ERP
 color 0A
 
 cd /d "%~dp0"
-
-echo ======================================================================
-echo    JJ Paper — Demonio Autonomo y Guardian de Red MixNet ERP
-echo ======================================================================
-echo Directorio: %CD%
-echo Iniciando agente de sincronizacion y tareas...
+if not exist "%~dp0logs" mkdir "%~dp0logs"
+set "LOGFILE=%~dp0logs\agent.log"
 
 :LOOP
+echo [%date% %time%] [INICIO] Arrancando agente MixNet... >> "%LOGFILE%"
 if exist "%~dp0node.exe" (
-  "%~dp0node.exe" agent.js
+  "%~dp0node.exe" agent.js >> "%LOGFILE%" 2>&1
 ) else (
-  node agent.js
+  node agent.js >> "%LOGFILE%" 2>&1
 )
-echo.
-echo [ALERTA] El proceso del agente finalizo a las %TIME%.
-echo Reiniciando automaticamente en 3 segundos...
-timeout /t 3 /nobreak >nul
+
+echo [%date% %time%] [ALERTA] El proceso del agente finalizo. Reiniciando en 3 segundos... >> "%LOGFILE%"
+ping -n 4 127.0.0.1 >nul
 goto LOOP

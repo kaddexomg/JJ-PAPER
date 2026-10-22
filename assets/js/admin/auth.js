@@ -23,10 +23,13 @@ function siteURL(rel) {
 async function loadProfile() {
   if (CURRENT_PROFILE) return CURRENT_PROFILE;
   const { data: { session } } = await sb.auth.getSession();
-  if (!session) return null;
-  const { data } = await sb.from('jjp_profiles')
+  if (!session?.user?.id) return null;
+  const { data, error } = await sb.from('jjp_profiles')
     .select('id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active')
     .eq('id', session.user.id).single();
+  if (error) {
+    console.warn('loadProfile error from PostgREST:', error);
+  }
   CURRENT_PROFILE = data || null;
   if (typeof window !== 'undefined') {
     window.CURRENT_PROFILE = CURRENT_PROFILE;

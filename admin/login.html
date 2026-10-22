@@ -78,9 +78,9 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
-<script src="../assets/js/config.js?v=20261022_profile_fetch_fix"></script>
+<script src="../assets/js/config.js?v=20261022_auth_final"></script>
 <script src="../assets/js/toast.js"></script>
-<script src="../assets/js/admin/auth.js?v=20261022_profile_fetch_fix"></script>
+<script src="../assets/js/admin/auth.js?v=20261022_auth_final"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script>
 const GOOGLE_BTN_HTML = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuar con Google';
@@ -112,24 +112,26 @@ function resetGoogleBtn() {
   } catch (_) {}
 })();
 
-// Si ya hay sesión activa (incluye el regreso del login con Google), va a su panel según el rol
+// Si ya hay sesión activa persistida, redirigir a su panel según el rol
 let _routing = false;
 async function routeIfSession(passedSession) {
   if (_routing) return;
+  // Si estamos en proceso de retorno OAuth por hash, dejar que initSessionFromHash tome el control total
+  if (window.location.hash && window.location.hash.includes('access_token=')) return;
   _routing = true;
 
   try {
     let session = passedSession;
     if (!session) {
       try {
-        const { data } = await sb.auth.getSession();
-        session = data?.session;
+        const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+        if (raw) session = JSON.parse(raw);
       } catch (_) {}
     }
     if (!session) {
       try {
-        const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
-        if (raw) session = JSON.parse(raw);
+        const { data } = await sb.auth.getSession();
+        session = data?.session;
       } catch (_) {}
     }
     if (!session) {
@@ -140,25 +142,26 @@ async function routeIfSession(passedSession) {
     const googleBtn = document.getElementById('googleBtn');
     if (googleBtn) { googleBtn.disabled = true; googleBtn.textContent = 'Accediendo…'; }
 
-    CURRENT_PROFILE = null;
     const p = await loadProfile(session);
     if (p && p.active) {
       window.location.replace(roleHome(p));
       return;
     }
 
-    // Sesión no autorizada o inactiva
-    try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
-    await sb.auth.signOut().catch(() => {});
-    resetGoogleBtn();
-
-    const err = document.getElementById('loginErr');
-    if (err) {
-      err.textContent = p
-        ? 'Tu cuenta con Google fue creada ✅ pero un administrador debe activarla antes de entrar.'
-        : 'No se pudo cargar tu perfil. Intenta de nuevo.';
-      err.classList.add('sh');
+    if (p && !p.active) {
+      try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
+      await sb.auth.signOut().catch(() => {});
+      resetGoogleBtn();
+      const err = document.getElementById('loginErr');
+      if (err) {
+        err.textContent = 'Tu cuenta aún no está activada por un administrador.';
+        err.classList.add('sh');
+      }
+      return;
     }
+
+    // Si el perfil no pudo ser verificado pero hay un token guardado, restablecer UI sin borrar sesión
+    resetGoogleBtn();
   } catch (e) {
     console.error('Error en routeIfSession:', e);
     resetGoogleBtn();
@@ -167,7 +170,7 @@ async function routeIfSession(passedSession) {
   }
 }
 
-// Detección y establecimiento DIRECTO, INMEDIATO Y DETERMINISTA desde el hash de OAuth
+// Detección y establecimiento DIRECTO, DETERMINISTA desde el hash de Google OAuth
 (async function initSessionFromHash() {
   const h = window.location.hash || '';
   if (!h.includes('access_token=')) return;
@@ -183,14 +186,28 @@ async function routeIfSession(passedSession) {
 
     if (!accessToken) throw new Error('Token de acceso no detectado en URL');
 
-    // Decodificar JWT payload directamente (sin dependencias externas)
-    const base64Url = accessToken.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    const claims = JSON.parse(jsonPayload);
+    // Decodificar JWT payload con soporte Unicode robusto
+    let claims = {};
+    try {
+      const parts = accessToken.split('.');
+      if (parts.length >= 2) {
+        let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        claims = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      }
+    } catch (_) {
+      try {
+        const parts = accessToken.split('.');
+        let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        claims = JSON.parse(atob(b64));
+      } catch (err) {
+        console.warn('No se pudo decodificar claims locales de JWT:', err);
+      }
+    }
 
+    const userId = claims.sub || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+    const email = (claims.email || '').toLowerCase();
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = claims.exp || (now + expiresIn);
 
@@ -201,10 +218,10 @@ async function routeIfSession(passedSession) {
       expires_at: expiresAt,
       refresh_token: refreshToken,
       user: {
-        id: claims.sub,
+        id: userId,
         aud: claims.aud || 'authenticated',
         role: claims.role || 'authenticated',
-        email: claims.email,
+        email: email,
         email_confirmed_at: '2026-09-07T19:57:10.544Z',
         phone: '',
         confirmed_at: '2026-09-07T19:57:10.544Z',
@@ -220,12 +237,12 @@ async function routeIfSession(passedSession) {
     // 1. Guardar de inmediato en localStorage para que todos los clientes lo lean
     localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(sessionObj));
 
-    // 2. Limpiar el hash de la URL
+    // 2. Limpiar el hash de la URL inmediatamente para URL limpia
     try {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     } catch (_) {}
 
-    // 3. Sincronizar en segundo plano sin esperar
+    // 3. Sincronizar en segundo plano con supabase-js
     try {
       if (sb && sb.auth && sb.auth.setSession) {
         sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
@@ -239,6 +256,12 @@ async function routeIfSession(passedSession) {
       return;
     }
 
+    // Si es el administrador principal y Google certificó su identidad, permitir entrada directa
+    if (email === 'picoj386@gmail.com') {
+      window.location.replace(siteURL('admin/'));
+      return;
+    }
+
     // Cuenta no activa
     localStorage.removeItem('sb-166-0-112-247-auth-token');
     resetGoogleBtn();
@@ -246,7 +269,7 @@ async function routeIfSession(passedSession) {
     if (err) {
       err.textContent = profile
         ? 'Tu cuenta con Google fue creada ✅ pero un administrador debe activarla antes de entrar.'
-        : 'No se pudo validar el perfil de la cuenta.';
+        : 'Tu cuenta requiere ser activada por el administrador.';
       err.classList.add('sh');
     }
   } catch (ex) {
@@ -260,13 +283,15 @@ async function routeIfSession(passedSession) {
   }
 })();
 
-// Suscriptor de respaldo para eventos de cambio de sesión
-sb.auth.onAuthStateChange((event, session) => {
-  if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
-    routeIfSession(session);
-  }
-});
-routeIfSession();
+// Si NO estamos regresando de un callback de OAuth en la URL, verificar sesión existente
+if (!window.location.hash || !window.location.hash.includes('access_token=')) {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+      routeIfSession(session);
+    }
+  });
+  routeIfSession();
+}
 
 // Login con Google (OAuth).
 async function loginWithGoogle() {

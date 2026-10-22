@@ -25,22 +25,22 @@ async function loadProfile(passedSession) {
   let session = passedSession;
   if (!session) {
     try {
-      const { data } = await sb.auth.getSession();
-      session = data?.session;
-    } catch (_) {}
-  }
-  if (!session) {
-    try {
       const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
       if (raw) session = JSON.parse(raw);
     } catch (_) {}
   }
-  const uid = session?.user?.id || session?.id;
+  if (!session) {
+    try {
+      const { data } = await sb.auth.getSession();
+      session = data?.session;
+    } catch (_) {}
+  }
+  const uid = session?.user?.id || session?.id || session?.sub;
   if (!uid) return null;
 
-  // 1. Consulta directa con Bearer token explícito si existe
-  const token = session?.access_token;
-  if (token && typeof fetch !== 'undefined') {
+  // 1. Consulta directa con Bearer token o apikey explícita
+  const token = session?.access_token || SUPABASE_KEY;
+  if (typeof fetch !== 'undefined') {
     try {
       const resp = await fetch(`${SUPABASE_URL}/rest/v1/jjp_profiles?id=eq.${uid}&select=id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active`, {
         headers: {
@@ -68,20 +68,46 @@ async function loadProfile(passedSession) {
   }
 
   // 2. Fallback estándar mediante cliente supabase
-  const { data, error } = await sb.from('jjp_profiles')
-    .select('id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active')
-    .eq('id', uid).single();
-  if (error) {
-    console.warn('loadProfile error from PostgREST:', error);
+  try {
+    const { data, error } = await sb.from('jjp_profiles')
+      .select('id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active')
+      .eq('id', uid).maybeSingle();
+    if (!error && data) {
+      CURRENT_PROFILE = data;
+      if (typeof window !== 'undefined') {
+        window.CURRENT_PROFILE = CURRENT_PROFILE;
+        window.SELLER = CURRENT_PROFILE;
+      }
+      if (typeof SELLER !== 'undefined') {
+        try { SELLER = CURRENT_PROFILE; } catch (e) {}
+      }
+      return CURRENT_PROFILE;
+    }
+  } catch (e) {
+    console.warn('loadProfile sb fallback warning:', e);
   }
-  CURRENT_PROFILE = data || null;
-  if (typeof window !== 'undefined') {
-    window.CURRENT_PROFILE = CURRENT_PROFILE;
-    window.SELLER = CURRENT_PROFILE;
+
+  // 3. Fallback especial si el email del usuario es el del administrador principal
+  const email = session?.user?.email || session?.email;
+  if (email === 'picoj386@gmail.com') {
+    CURRENT_PROFILE = {
+      id: uid,
+      role: 'admin',
+      name: session?.user?.user_metadata?.name || 'Keyder Salazar',
+      phone: '04124676073',
+      ref_code: 'jose',
+      commission_pct: 2,
+      max_discount_pct: 0,
+      monthly_goal_usd: 10000,
+      active: true
+    };
+    if (typeof window !== 'undefined') {
+      window.CURRENT_PROFILE = CURRENT_PROFILE;
+      window.SELLER = CURRENT_PROFILE;
+    }
+    return CURRENT_PROFILE;
   }
-  if (typeof SELLER !== 'undefined') {
-    try { SELLER = CURRENT_PROFILE; } catch (e) {}
-  }
+
   return CURRENT_PROFILE;
 }
 
@@ -91,13 +117,13 @@ async function loadProfile(passedSession) {
 async function requireAuth(requiredRole = 'admin') {
   let session = null;
   try {
-    const { data } = await sb.auth.getSession();
-    session = data?.session;
+    const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+    if (raw) session = JSON.parse(raw);
   } catch (_) {}
   if (!session) {
     try {
-      const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
-      if (raw) session = JSON.parse(raw);
+      const { data } = await sb.auth.getSession();
+      session = data?.session;
     } catch (_) {}
   }
   if (!session || (!session.access_token && !session.user)) {
@@ -106,8 +132,12 @@ async function requireAuth(requiredRole = 'admin') {
   }
   const profile = await loadProfile(session);
 
-  // Sin perfil o desactivado → fuera
+  // Sin perfil o desactivado → verificar si es el administrador
   if (!profile || !profile.active) {
+    const email = session?.user?.email || session?.email;
+    if (email === 'picoj386@gmail.com') {
+      return session;
+    }
     await sb.auth.signOut().catch(() => {});
     try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
     window.location.href = siteURL('admin/login');

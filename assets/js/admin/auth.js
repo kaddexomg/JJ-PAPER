@@ -37,6 +37,37 @@ async function loadProfile(passedSession) {
   }
   const uid = session?.user?.id || session?.id;
   if (!uid) return null;
+
+  // 1. Consulta directa con Bearer token explícito si existe
+  const token = session?.access_token;
+  if (token && typeof fetch !== 'undefined') {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/jjp_profiles?id=eq.${uid}&select=id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (resp.ok) {
+        const rows = await resp.json();
+        if (rows && rows.length > 0) {
+          CURRENT_PROFILE = rows[0];
+          if (typeof window !== 'undefined') {
+            window.CURRENT_PROFILE = CURRENT_PROFILE;
+            window.SELLER = CURRENT_PROFILE;
+          }
+          if (typeof SELLER !== 'undefined') {
+            try { SELLER = CURRENT_PROFILE; } catch (e) {}
+          }
+          return CURRENT_PROFILE;
+        }
+      }
+    } catch (e) {
+      console.warn('loadProfile direct fetch warning:', e);
+    }
+  }
+
+  // 2. Fallback estándar mediante cliente supabase
   const { data, error } = await sb.from('jjp_profiles')
     .select('id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active')
     .eq('id', uid).single();

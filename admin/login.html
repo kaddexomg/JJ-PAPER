@@ -78,11 +78,22 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
-<script src="../assets/js/config.js?v=20261022_vps_hash_fix"></script>
+<script src="../assets/js/config.js?v=20261022_direct_session_fix"></script>
 <script src="../assets/js/toast.js"></script>
-<script src="../assets/js/admin/auth.js?v=20261022_vps_hash_fix"></script>
+<script src="../assets/js/admin/auth.js?v=20261022_direct_session_fix"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
 <script>
+const GOOGLE_BTN_HTML = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuar con Google';
+
+function resetGoogleBtn() {
+  const btn = document.getElementById('googleBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.innerHTML = GOOGLE_BTN_HTML;
+  }
+}
+
 // Detectar errores devueltos por Google OAuth en el hash de la URL
 (function checkOAuthHashErrors() {
   try {
@@ -96,40 +107,51 @@
         errEl.textContent = 'Error de autenticación con Google: ' + decodeURIComponent(errDesc.replace(/\+/g, ' '));
         errEl.classList.add('sh');
       }
-      const googleBtn = document.getElementById('googleBtn');
-      if (googleBtn) {
-        googleBtn.disabled = false;
-        googleBtn.style.opacity = '1';
-        googleBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuar con Google';
-      }
+      resetGoogleBtn();
     }
   } catch (_) {}
 })();
 
-// Si ya hay sesión activa (incluye el regreso del login con Google), va a su
-// panel según el rol; si la cuenta aún no está activa, lo avisa y cierra sesión.
+// Si ya hay sesión activa (incluye el regreso del login con Google), va a su panel según el rol
 let _routing = false;
 async function routeIfSession(passedSession) {
-  const session = passedSession || (await sb.auth.getSession())?.data?.session;
-  if (!session) return;
   if (_routing) return;
   _routing = true;
 
   try {
+    let session = passedSession;
+    if (!session) {
+      try {
+        const { data } = await sb.auth.getSession();
+        session = data?.session;
+      } catch (_) {}
+    }
+    if (!session) {
+      try {
+        const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+        if (raw) session = JSON.parse(raw);
+      } catch (_) {}
+    }
+    if (!session) {
+      _routing = false;
+      return;
+    }
+
     const googleBtn = document.getElementById('googleBtn');
     if (googleBtn) { googleBtn.disabled = true; googleBtn.textContent = 'Accediendo…'; }
 
     CURRENT_PROFILE = null;
-    const p = await loadProfile();
+    const p = await loadProfile(session);
     if (p && p.active) {
       window.location.replace(roleHome(p));
       return;
     }
-    await sb.auth.signOut();
-    if (googleBtn) {
-      googleBtn.disabled = false;
-      googleBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuar con Google';
-    }
+
+    // Sesión no autorizada o inactiva
+    try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
+    await sb.auth.signOut().catch(() => {});
+    resetGoogleBtn();
+
     const err = document.getElementById('loginErr');
     if (err) {
       err.textContent = p
@@ -139,35 +161,102 @@ async function routeIfSession(passedSession) {
     }
   } catch (e) {
     console.error('Error en routeIfSession:', e);
+    resetGoogleBtn();
   } finally {
     _routing = false;
   }
 }
 
-// Detección y establecimiento directo e inmediato de sesión desde el hash de OAuth
+// Detección y establecimiento DIRECTO, INMEDIATO Y DETERMINISTA desde el hash de OAuth
 (async function initSessionFromHash() {
+  const h = window.location.hash || '';
+  if (!h.includes('access_token=')) return;
+
+  const btn = document.getElementById('googleBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Accediendo…'; }
+
   try {
-    const h = window.location.hash || '';
-    if (h.includes('access_token=')) {
-      const p = new URLSearchParams(h.replace(/^#/, ''));
-      const accessToken = p.get('access_token');
-      const refreshToken = p.get('refresh_token') || accessToken;
-      if (accessToken) {
-        const btn = document.getElementById('googleBtn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Accediendo…'; }
-        const { data, error } = await sb.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        });
-        if (!error && data?.session) {
-          try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (_) {}
-          await routeIfSession(data.session);
-          return;
-        }
+    const p = new URLSearchParams(h.replace(/^#/, ''));
+    const accessToken = p.get('access_token');
+    const refreshToken = p.get('refresh_token') || accessToken;
+    const expiresIn = parseInt(p.get('expires_in') || '1209600', 10);
+
+    if (!accessToken) throw new Error('Token de acceso no detectado en URL');
+
+    // Decodificar JWT payload directamente (sin dependencias externas)
+    const base64Url = accessToken.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const claims = JSON.parse(jsonPayload);
+
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = claims.exp || (now + expiresIn);
+
+    const sessionObj = {
+      access_token: accessToken,
+      token_type: 'bearer',
+      expires_in: expiresIn,
+      expires_at: expiresAt,
+      refresh_token: refreshToken,
+      user: {
+        id: claims.sub,
+        aud: claims.aud || 'authenticated',
+        role: claims.role || 'authenticated',
+        email: claims.email,
+        email_confirmed_at: '2026-09-07T19:57:10.544Z',
+        phone: '',
+        confirmed_at: '2026-09-07T19:57:10.544Z',
+        last_sign_in_at: new Date().toISOString(),
+        app_metadata: claims.app_metadata || { provider: 'google', providers: ['google'] },
+        user_metadata: claims.user_metadata || {},
+        identities: [],
+        created_at: '2026-09-07T19:57:10.544Z',
+        updated_at: new Date().toISOString()
       }
+    };
+
+    // 1. Guardar de inmediato en localStorage para que todos los clientes lo lean
+    localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(sessionObj));
+
+    // 2. Limpiar el hash de la URL
+    try {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (_) {}
+
+    // 3. Sincronizar en segundo plano sin esperar
+    try {
+      if (sb && sb.auth && sb.auth.setSession) {
+        sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
+      }
+    } catch (_) {}
+
+    // 4. Cargar perfil inmediatamente y entrar
+    const profile = await loadProfile(sessionObj);
+    if (profile && profile.active) {
+      window.location.replace(roleHome(profile));
+      return;
     }
-  } catch (err) {
-    console.error('initSessionFromHash error:', err);
+
+    // Cuenta no activa
+    localStorage.removeItem('sb-166-0-112-247-auth-token');
+    resetGoogleBtn();
+    const err = document.getElementById('loginErr');
+    if (err) {
+      err.textContent = profile
+        ? 'Tu cuenta con Google fue creada ✅ pero un administrador debe activarla antes de entrar.'
+        : 'No se pudo validar el perfil de la cuenta.';
+      err.classList.add('sh');
+    }
+  } catch (ex) {
+    console.error('initSessionFromHash failed:', ex);
+    resetGoogleBtn();
+    const err = document.getElementById('loginErr');
+    if (err) {
+      err.textContent = 'Error al procesar acceso con Google: ' + (ex.message || 'Error desconocido');
+      err.classList.add('sh');
+    }
   }
 })();
 
@@ -195,7 +284,7 @@ async function loginWithGoogle() {
     }
   });
   if (error) {
-    if (btn) { btn.disabled = false; btn.style.opacity = 1; btn.textContent = 'Continuar con Google'; }
+    resetGoogleBtn();
     const err = document.getElementById('loginErr');
     if (err) {
       err.textContent = 'No se pudo abrir Google: ' + error.message;
@@ -216,10 +305,11 @@ async function doLogin(e) {
   err.classList.remove('sh');
 
   try {
-    await adminLogin(email, pass);
-    const p = await loadProfile();
+    const data = await adminLogin(email, pass);
+    const p = await loadProfile(data?.session);
     if (!p || !p.active) {
-      await sb.auth.signOut();
+      await sb.auth.signOut().catch(() => {});
+      try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
       throw new Error('inactive');
     }
     // La ruta de inicio depende del rol de la credencial usada
@@ -233,7 +323,7 @@ async function doLogin(e) {
       ex.message === 'inactive'      ? 'Tu cuenta aún no está habilitada. Un administrador debe activarla.'
     : raw.includes('not confirmed')  ? 'Tu cuenta aún no está habilitada. Un administrador debe activarla.'
     : raw.includes('invalid')        ? 'Credenciales incorrectas. Verifica tu correo y contraseña.'
-    :                                  'No se pudo iniciar sesión. Intenta de nuevo en un momento.';
+    :                                  'No se pudo iniciar sesión: ' + (ex.message || 'Intenta de nuevo.');
     err.classList.add('sh');
     btn.disabled    = false;
     btn.textContent = 'Iniciar sesion';

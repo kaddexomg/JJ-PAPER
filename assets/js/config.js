@@ -14,7 +14,13 @@ const SUPABASE_URL_INV = 'https://166-0-112-247.sslip.io';
 const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
 // Supabase base clients
-const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    detectSessionInUrl: false,
+    persistSession: true,
+    autoRefreshToken: false
+  }
+});
 const _rawSbComm = _rawSbCore;
 const _rawSbInv  = _rawSbCore;
 

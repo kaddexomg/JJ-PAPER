@@ -20,13 +20,26 @@ function siteURL(rel) {
 }
 
 // Carga (y cachea) el perfil del usuario logueado desde jjp_profiles
-async function loadProfile() {
+async function loadProfile(passedSession) {
   if (CURRENT_PROFILE) return CURRENT_PROFILE;
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session?.user?.id) return null;
+  let session = passedSession;
+  if (!session) {
+    try {
+      const { data } = await sb.auth.getSession();
+      session = data?.session;
+    } catch (_) {}
+  }
+  if (!session) {
+    try {
+      const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+      if (raw) session = JSON.parse(raw);
+    } catch (_) {}
+  }
+  const uid = session?.user?.id || session?.id;
+  if (!uid) return null;
   const { data, error } = await sb.from('jjp_profiles')
     .select('id,role,name,phone,ref_code,commission_pct,max_discount_pct,monthly_goal_usd,active')
-    .eq('id', session.user.id).single();
+    .eq('id', uid).single();
   if (error) {
     console.warn('loadProfile error from PostgREST:', error);
   }
@@ -45,16 +58,27 @@ async function loadProfile() {
 //  - requiredRole 'admin': solo admins (vendedor es redirigido a su panel)
 //  - requiredRole 'vendedor': staff activo (vendedor o admin)
 async function requireAuth(requiredRole = 'admin') {
-  const { data: { session } } = await sb.auth.getSession();
+  let session = null;
+  try {
+    const { data } = await sb.auth.getSession();
+    session = data?.session;
+  } catch (_) {}
   if (!session) {
+    try {
+      const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+      if (raw) session = JSON.parse(raw);
+    } catch (_) {}
+  }
+  if (!session || (!session.access_token && !session.user)) {
     window.location.href = siteURL('admin/login');
     return null;
   }
-  const profile = await loadProfile();
+  const profile = await loadProfile(session);
 
   // Sin perfil o desactivado → fuera
   if (!profile || !profile.active) {
-    await sb.auth.signOut();
+    await sb.auth.signOut().catch(() => {});
+    try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
     window.location.href = siteURL('admin/login');
     return null;
   }
@@ -74,13 +98,16 @@ async function adminLogin(email, password) {
 
 async function adminLogout() {
   CURRENT_PROFILE = null;
-  await sb.auth.signOut();
+  try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
+  await sb.auth.signOut().catch(() => {});
   window.location.href = siteURL('admin/login');
 }
 
 function renderUserBar(session) {
   const el = document.getElementById('adminUserEmail');
-  if (el && session?.user) el.textContent = CURRENT_PROFILE?.name || session.user.email;
+  if (el && (session?.user || session)) {
+    el.textContent = CURRENT_PROFILE?.name || session?.user?.email || session?.email || '—';
+  }
 }
 
 // Ruta principal según el rol con el que se inició sesión (post-login)

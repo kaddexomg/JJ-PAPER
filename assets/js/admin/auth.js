@@ -47,7 +47,7 @@ async function loadProfile() {
 async function requireAuth(requiredRole = 'admin') {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) {
-    window.location.href = siteURL('admin/login.html');
+    window.location.href = siteURL('admin/login');
     return null;
   }
   const profile = await loadProfile();
@@ -55,12 +55,12 @@ async function requireAuth(requiredRole = 'admin') {
   // Sin perfil o desactivado → fuera
   if (!profile || !profile.active) {
     await sb.auth.signOut();
-    window.location.href = siteURL('admin/login.html');
+    window.location.href = siteURL('admin/login');
     return null;
   }
   // Un vendedor no puede entrar a páginas de admin → a su propio panel
   if (requiredRole === 'admin' && profile.role !== 'admin') {
-    window.location.href = siteURL('vendedor/index.html');
+    window.location.href = siteURL('vendedor/');
     return null;
   }
   return session;
@@ -75,7 +75,7 @@ async function adminLogin(email, password) {
 async function adminLogout() {
   CURRENT_PROFILE = null;
   await sb.auth.signOut();
-  window.location.href = siteURL('admin/login.html');
+  window.location.href = siteURL('admin/login');
 }
 
 function renderUserBar(session) {
@@ -85,5 +85,5 @@ function renderUserBar(session) {
 
 // Ruta principal según el rol con el que se inició sesión (post-login)
 function roleHome(profile) {
-  return siteURL(profile?.role === 'admin' ? 'admin/index.html' : 'vendedor/index.html');
+  return siteURL(profile?.role === 'admin' ? 'admin/' : 'vendedor/');
 }

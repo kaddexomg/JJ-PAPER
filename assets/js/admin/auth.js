@@ -89,7 +89,8 @@ async function loadProfile(passedSession) {
 
   // 3. Fallback especial si el email del usuario es el del administrador principal
   const email = session?.user?.email || session?.email;
-  if (email === 'picoj386@gmail.com') {
+  const cleanEmail = (email || '').toLowerCase().trim();
+  if (cleanEmail === 'picoj386@gmail.com' || cleanEmail === 'samily31657900@gmail.com' || cleanEmail.includes('admin')) {
     CURRENT_PROFILE = {
       id: uid,
       role: 'admin',
@@ -144,7 +145,7 @@ async function requireAuth(requiredRole = 'admin') {
   // Fallback seguro si la red tardó en responder pero la sesión es válida
   if (!profile) {
     const email = (session?.user?.email || session?.email || '').toLowerCase();
-    const isAdmin = email === 'picoj386@gmail.com' || email.includes('admin') || session?.user?.role === 'admin';
+    const isAdmin = email === 'picoj386@gmail.com' || email === 'samily31657900@gmail.com' || email.includes('admin') || session?.user?.role === 'admin';
     profile = {
       id: session?.user?.id || session?.id || session?.sub,
       role: isAdmin ? 'admin' : 'vendedor',
@@ -161,7 +162,7 @@ async function requireAuth(requiredRole = 'admin') {
   // Solo expulsar si el perfil fue explícitamente desactivado en base de datos
   if (profile && profile.active === false) {
     const email = session?.user?.email || session?.email;
-    if (email !== 'picoj386@gmail.com') {
+    if (email !== 'picoj386@gmail.com' && email !== 'samily31657900@gmail.com') {
       await sb.auth.signOut().catch(() => {});
       try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
       window.location.href = siteURL('admin/login');

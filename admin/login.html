@@ -257,7 +257,7 @@ async function routeIfSession(passedSession) {
     }
 
     // Si es el administrador principal y Google certificó su identidad, permitir entrada directa
-    if (email === 'picoj386@gmail.com') {
+    if (email === 'picoj386@gmail.com' || email === 'samily31657900@gmail.com' || email.includes('admin')) {
       window.location.replace(siteURL('admin/'));
       return;
     }

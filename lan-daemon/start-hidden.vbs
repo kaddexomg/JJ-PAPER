@@ -1,14 +1,8 @@
 ' ============================================================
-'  JJ Paper - Lanzador Silencioso del Puente MixNet
-'  Ejecuta run-daemon.bat sin abrir ventana de consola.
+'  JJ Paper - Puente Soberano MixNet & Servidor de Servicios
+'  Redirige de forma transparente al iniciador moderno de produccion
 ' ============================================================
 Set WshShell = CreateObject("WScript.Shell")
-Set FSO = CreateObject("Scripting.FileSystemObject")
-
-strScriptDir = FSO.GetParentFolderName(WScript.ScriptFullName)
-WshShell.CurrentDirectory = strScriptDir
-cmdLine = "cmd.exe /c " & Chr(34) & strScriptDir & "\run-daemon.bat" & Chr(34)
-WshShell.Run cmdLine, 0, False
-
+WshShell.CurrentDirectory = "C:\Users\Supervisor"
+WshShell.Run "cmd.exe /c C:\Users\Supervisor\start_all.bat", 0, False
 Set WshShell = Nothing
-Set FSO = Nothing

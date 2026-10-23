@@ -201,6 +201,10 @@ function startMicroApi() {
   });
 
   server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      log(`Micro-API (puerto ${AGENT_PORT}) ya est├í en uso por otra instancia. Saliendo limpiamente.`, 'WARN');
+      process.exit(0);
+    }
     log(`Aviso en Micro-API (puerto ${AGENT_PORT}): ${err.message}`, 'WARN');
   });
 }

@@ -166,3 +166,24 @@ Para garantizar la operación continua al 100%, los siguientes pasos deben ser t
 | **2. Ejecución de `INSTALL-SERVER-SERVICE.bat` en Servidor Físico** | **Alta** | Acceder físicamente o por Escritorio Remoto a la máquina `\\servidor` (`192.168.0.185`) y ejecutar como Administrador el archivo `D:\jj-mixnet-agent\INSTALL-SERVER-SERVICE.bat`. Esto garantiza que el demonio quede fijado como tarea programada al arranque (`ONSTART`), blindando la sincronización contra cualquier apagado de workstations. |
 | **3. Reemplazo / Renovación de Llaves Gemini Expuestas** | **Baja** | Se verificó que algunas llaves históricas del pool fueron marcadas por Google como filtradas. Se recomienda generar 1 o 2 nuevas llaves en Google AI Studio (`aistudio.google.com`) y agregarlas al array `GEMINI_KEYS` en `assets/js/gemini-client.js`. |
 | **4. Mantener la Limpieza Operativa** | **Baja** | No volver a crear scripts con inyección de comentarios en `comen1` de las tablas `.DBF` ni utilizar la ruta obsoleta `M:\comp01`. Usar siempre las herramientas provistas en `admin/mixnet.html` y `admin/monitor.html`. |
+
+
+---
+
+## 6. Consolidación Operativa, Sincronización Real y Blindaje (23 de Octubre de 2026)
+
+### A. Resultados de la Sincronización Real con MixNet ERP
+- **Catálogo e Inventario:** 1.827 artículos leídos de `M:\MIX11\comp01\MXCTAINV.DBF` y 1.823 productos actualizados en VPS con existencias físicas, precios A/B/C/D y costos reales.
+- **Clientes Reales:** 6.185 registros de `M:\MIX11\comp01\MXCTACLI.DBF` evaluados, incorporando 844 nuevos clientes a PostgreSQL (`jjpaper_db`), para un gran total de **6.552 clientes** clasificados con su respectivo asesor.
+- **Segregación Estricta de Escritura:** Desactivada cualquier llamada de escritura en los bucles periódicos del agente (`agent.js`). Las tablas `.DBF` e índices `.NTX` solo reciben escrituras cuando un usuario pulsa expresamente un botón de inyección.
+
+### B. Correcciones Críticas de Autenticación y Campañas
+- **Persistencia de Sesión:** Corregido [`assets/js/admin/auth.js`](file:///C:/Users/Supervisor/.JJ-PAPER/assets/js/admin/auth.js) y [`admin/login.html`](file:///C:/Users/Supervisor/.JJ-PAPER/admin/login.html) para reconocer con rango de Administrador Maestro tanto a `samily31657900@gmail.com` como a `picoj386@gmail.com`, eliminando los cierres y expulsiones inesperadas de sesión.
+- **Sintaxis Frontend:** Eliminado error de sintaxis por bloque duplicado en `auth.js` y balanceado bloque `try` en `products.js`. Auditoría total de código JS arrojó cero errores.
+- **Vinculación Gmail para Campañas:** Agregada la restricción faltante `UNIQUE (profile_id)` a la tabla `public.jjp_email_accounts` en PostgreSQL, habilitando el guardado correcto de credenciales OAuth de Google.
+
+### C. Mantenimiento y Respaldo Autónomo en VPS
+- Registrado script autónomo `/opt/scripts/daily-maintenance.sh` en crontab (`0 5 * * *` UTC):
+  - Ejecución diaria de `VACUUM ANALYZE` en PostgreSQL.
+  - Creación de respaldo comprimido `.sql.gz` en `/var/backups/jjpaper/` (retención de 14 días).
+  - Verificación y autoreparación de servicios (`nginx`, `postgrest`, `jj-auth`, `postgresql`).

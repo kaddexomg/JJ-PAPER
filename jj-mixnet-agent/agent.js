@@ -51,9 +51,8 @@ async function runScheduledSync() {
   isSyncing = true;
   try {
     // 1. Exportar documentos pendientes creados en la web
-    const expRes = await exportPendingDocumentsToMixnet(activeCompDir);
-
-    // 2. Importar documentos nuevos creados físicamente en MixNet
+    // Exportaci├│n a DBF desactivada en segundo plano para evitar bloqueos Clipper
+// 2. Importar documentos nuevos creados físicamente en MixNet
     const impRes = await importMixnetDocuments(activeCompDir);
     syncStats.quotesImported += impRes.importedQuotes;
     syncStats.ordersImported += impRes.importedOrders;

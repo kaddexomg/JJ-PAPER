@@ -1041,6 +1041,7 @@ async function prodStudioEjecutarBusqueda() {
 
   let results = [];
 
+  try {
   // 1. INTENTAR DIRECTAMENTE VÍA CLOUDFLARE EDGE API (/api/search-images)
   try {
     const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);

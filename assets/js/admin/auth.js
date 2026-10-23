@@ -176,8 +176,6 @@ async function requireAuth(requiredRole = 'admin') {
   }
   return session;
 }
-  return session;
-}
 
 async function adminLogin(email, password) {
   const { data, error } = await sb.auth.signInWithPassword({ email, password });

@@ -16,7 +16,8 @@ function siteBase() {
 
 // URL absoluta a una ruta del sitio, respetando la raíz real
 function siteURL(rel) {
-  return location.origin + siteBase() + rel.replace(/^\/+/, '');
+  const clean = String(rel || '').replace(/^\/+/, '');
+  return location.origin + '/' + clean;
 }
 
 // Carga (y cachea) el perfil del usuario logueado desde jjp_profiles
@@ -128,7 +129,7 @@ async function requireAuth(requiredRole = 'admin') {
     } catch (_) {}
   }
   if (!session || (!session.access_token && !session.user)) {
-    window.location.href = siteURL('admin/login');
+    window.location.href = siteURL('admin/login.html');
     return null;
   }
 
@@ -165,14 +166,14 @@ async function requireAuth(requiredRole = 'admin') {
     if (email !== 'picoj386@gmail.com' && email !== 'samily31657900@gmail.com') {
       await sb.auth.signOut().catch(() => {});
       try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
-      window.location.href = siteURL('admin/login');
+      window.location.href = siteURL('admin/login.html');
       return null;
     }
   }
 
   // Un vendedor no puede entrar a páginas de admin → a su propio panel
   if (requiredRole === 'admin' && profile.role !== 'admin') {
-    window.location.href = siteURL('vendedor/');
+    window.location.href = siteURL('vendedor/index.html');
     return null;
   }
   return session;
@@ -188,7 +189,7 @@ async function adminLogout() {
   CURRENT_PROFILE = null;
   try { localStorage.removeItem('sb-166-0-112-247-auth-token'); } catch (_) {}
   await sb.auth.signOut().catch(() => {});
-  window.location.href = siteURL('admin/login');
+  window.location.href = siteURL('admin/login.html');
 }
 
 function renderUserBar(session) {

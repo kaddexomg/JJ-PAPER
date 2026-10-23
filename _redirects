@@ -5,8 +5,12 @@
 /.claude/*    /404.html  404
 /*.md         /404.html  404
 
-/checkout* /catalogo.html 301
-/pedidos* /catalogo.html 301
-/rastreo* /catalogo.html 301
-/promociones* /catalogo.html 301
+# Normalización de paneles de administración y vendedores
+/admin        /admin/index.html    301
+/admin/       /admin/index.html    200
+/vendedor     /vendedor/index.html 301
+/vendedor/    /vendedor/index.html 200
 
+# Redirecciones públicas heredadas (sin wildcards que rompan archivos .html del panel)
+/checkout     /catalogo.html       301
+/rastreo      /catalogo.html       301

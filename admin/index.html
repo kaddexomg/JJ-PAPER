@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<base href="/admin/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard | JJ Paper Admin</title>
 <link rel="stylesheet" href="../assets/css/variables.css">
@@ -22,23 +23,23 @@
     </div>
     <nav class="aside-nav">
       <span class="a-section">Principal</span>
-      <a href="index.html" class="on"><span class="a-ico">📊</span> Dashboard</a>
-      <a href="pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
-      <a href="cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
-      <a href="whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
+      <a href="/admin/index.html" class="on"><span class="a-ico">📊</span> Dashboard</a>
+      <a href="/admin/pedidos.html"><span class="a-ico">🛒</span> Pedidos</a>
+      <a href="/admin/cotizaciones.html"><span class="a-ico">📋</span> Cotizaciones</a>
+      <a href="/admin/whatsapp.html"><span class="a-ico">💬</span> WhatsApp</a>
       <div class="divider"></div>
       <span class="a-section">Catalogo</span>
-      <a href="productos.html"><span class="a-ico">📦</span> Productos</a>
+      <a href="/admin/productos.html"><span class="a-ico">📦</span> Productos</a>
       <a href="inventario.html"><span class="a-ico">📁</span> Inventario</a>
-      <a href="facturas.html"><span class="a-ico">📃</span> Cuentas por Pagar</a>
+      <a href="/admin/facturas.html"><span class="a-ico">📃</span> Cuentas por Pagar</a>
       <a href="precios.html"><span class="a-ico">💱</span> Precios</a>
       <a href="marcas.html"><span class="a-ico">🔖</span> Marcas</a>
       <a href="unidades.html"><span class="a-ico">📐</span> Unidades</a>
       <div class="divider"></div>
       <span class="a-section">Sistema</span>
-      <a href="monitor.html"><span class="a-ico">⚡</span> Monitor & Cuotas</a>
-      <a href="vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
-      <a href="ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
+      <a href="/admin/monitor.html"><span class="a-ico">⚡</span> Monitor & Cuotas</a>
+      <a href="/admin/vendedores.html"><span class="a-ico">👥</span> Vendedores</a>
+      <a href="/admin/ajustes.html"><span class="a-ico">⚙️</span> Ajustes</a>
       <a href="/catalogo" target="_blank"><span class="a-ico">🌐</span> Ver Sitio</a>
       <a href="#" onclick="adminLogout()"><span class="a-ico">🔓</span> Cerrar Sesion</a>
     </nav>
@@ -83,11 +84,11 @@
 
       <!-- Quick actions -->
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
-        <a href="pedidos.html" class="btn-p">🛒 Ver Pedidos</a>
-        <a href="productos.html" class="btn-o">+ Agregar Producto</a>
-        <a href="monitor.html" class="btn-ghost" style="border-color:#16604A;color:#16604A;font-weight:700">⚡ Monitor & Cuotas</a>
-        <a href="vendedores.html" class="btn-ghost">👥 Vendedores</a>
-        <a href="ajustes.html" class="btn-ghost">⚙️ Configurar pagos</a>
+        <a href="/admin/pedidos.html" class="btn-p">🛒 Ver Pedidos</a>
+        <a href="/admin/productos.html" class="btn-o">+ Agregar Producto</a>
+        <a href="/admin/monitor.html" class="btn-ghost" style="border-color:#16604A;color:#16604A;font-weight:700">⚡ Monitor & Cuotas</a>
+        <a href="/admin/vendedores.html" class="btn-ghost">👥 Vendedores</a>
+        <a href="/admin/ajustes.html" class="btn-ghost">⚙️ Configurar pagos</a>
       </div>
 
       <!-- Banner de Estado Servidor & MixNet -->
@@ -102,7 +103,7 @@
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button type="button" class="btn-ghost" onclick="sendServerRemoteCommand('restart')" id="btnSrvRestart" style="padding:6px 12px;font-size:12px;border-color:#f59e0b;color:#f59e0b;font-weight:700;background:rgba(245,158,11,0.1);cursor:pointer;border-radius:6px">🔄 Reiniciar Servidor</button>
           <button type="button" class="btn-ghost" onclick="sendServerRemoteCommand('pull')" id="btnSrvPull" style="padding:6px 12px;font-size:12px;border-color:#0284c7;color:#38bdf8;font-weight:700;background:rgba(2,132,199,0.1);cursor:pointer;border-radius:6px">⚡ Actualizar (Git Pull)</button>
-          <a href="monitor.html" class="btn-ghost" style="padding:6px 14px;font-size:12px;border-color:#2c5647;color:#99CC33;font-weight:700;text-decoration:none;">⚡ Monitor →</a>
+          <a href="/admin/monitor.html" class="btn-ghost" style="padding:6px 14px;font-size:12px;border-color:#2c5647;color:#99CC33;font-weight:700;text-decoration:none;">⚡ Monitor →</a>
         </div>
       </div>
 
@@ -119,7 +120,7 @@
       <div class="admin-table-wrap" style="margin-bottom:24px">
         <div class="table-top">
           <h3>📃 Facturas por pagar</h3>
-          <a href="facturas.html" class="btn-ghost">Ver todas →</a>
+          <a href="/admin/facturas.html" class="btn-ghost">Ver todas →</a>
         </div>
         <div id="dashInvoices" style="padding:4px 16px 12px"><p style="color:#aaa;font-size:13px">Cargando...</p></div>
       </div>
@@ -141,7 +142,7 @@
         <div class="admin-table-wrap">
           <div class="table-top">
             <h3>🛒 Pedidos recientes</h3>
-            <a href="pedidos.html" class="btn-ghost">Ver todos →</a>
+            <a href="/admin/pedidos.html" class="btn-ghost">Ver todos →</a>
           </div>
           <table class="admin-table">
             <thead><tr><th>N°</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
@@ -163,8 +164,8 @@
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
 <script src="../assets/js/config.js?v=20261022_vps_full"></script>
 <script src="../assets/js/toast.js"></script>
-<script src="../assets/js/admin/auth.js?v=20261022_vps_full"></script>
-<script src="../assets/js/admin/sidenav.js?v=20261014_root_fix"></script>
+<script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/invoices.js"></script>
 <script src="../assets/js/admin/dashboard.js"></script>
 <script>

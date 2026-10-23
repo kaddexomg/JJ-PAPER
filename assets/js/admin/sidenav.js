@@ -11,7 +11,7 @@
    ====================================================== */
 (function () {
   const path = location.pathname;
-  const isVendedor = /\/vendedor\//.test(path);
+  const isVendedor = /\/vendedor(\/|$)/i.test(path);
   const current = (path.split('/').pop() || 'index.html').toLowerCase() || 'index.html';
 
   /* ---- Config de navegación --------------------------------------
@@ -107,19 +107,9 @@
   // (siteURL respeta la raíz real, incluso con file:// o una subcarpeta de dominio).
   function absHref(href) {
     if (!href || href === '#' || /^https?:/i.test(href)) return href;
-    // Si ya empieza con barra (ruta absoluta a la raíz del sitio), resolver con siteURL
-    if (href.startsWith('/')) {
-      if (typeof siteURL === 'function') return siteURL(href);
-      return href;
-    }
-    let rel = href;
-    if (!rel.startsWith('..')) {
-      rel = DIR + '/' + rel;   // enlace relativo dentro del panel
-    } else {
-      rel = rel.replace(/^\.\.\//, ''); // enlace que sube a la raíz
-      return typeof siteURL === 'function' ? siteURL(rel) : ('/' + rel);
-    }
-    return typeof siteURL === 'function' ? siteURL(rel) : rel;
+    if (href.startsWith('/')) return href;
+    if (href.startsWith('../')) return '/' + href.replace(/^\.\.\//, '');
+    return '/' + DIR + '/' + href.replace(/^\/+/, '');
   }
 
   function isActive(href) {

@@ -18,16 +18,18 @@
   --doc-c: #16604A;
   --doc-a: #C9A24B;
   --doc-border: #cbd5e1;
+  --doc-font-size: 12px;
+  --doc-text-align: justify;
 }
 
 /* Layout del Estudio */
 .doc-studio-layout {
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: 460px 1fr;
   gap: 20px;
   align-items: start;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1150px) {
   .doc-studio-layout {
     grid-template-columns: 1fr;
   }
@@ -42,7 +44,7 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.04);
 }
 .panel-section-title {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--doc-c);
   text-transform: uppercase;
@@ -50,7 +52,62 @@
   margin-bottom: 10px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+}
+
+/* Asistente IA de Documentos (Chatbot Integrado) */
+.doc-ai-box {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.doc-ai-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.doc-ai-hd strong {
+  font-size: 12.5px;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.doc-ai-chip {
+  background: #ffffff;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.doc-ai-chip:hover {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+.doc-ai-input-row {
+  display: flex;
+  gap: 6px;
+}
+.doc-ai-status {
+  font-size: 11px;
+  color: #047857;
+  margin-top: 6px;
+  display: none;
 }
 
 /* Pestañas de Plantillas */
@@ -96,7 +153,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .fmt-btn, .mode-btn {
   background: #f1f5f9;
@@ -142,10 +199,10 @@
   border-color: var(--doc-c);
 }
 
-/* Autocompletado de Clientes */
+/* Autocompletado de Clientes y Productos */
 .ac-wrap {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .ac-results-box {
   position: absolute;
@@ -155,7 +212,7 @@
   background: #ffffff;
   border: 1.5px solid var(--doc-c);
   border-radius: 8px;
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
   z-index: 999;
   box-shadow: 0 8px 24px rgba(0,0,0,0.15);
@@ -194,6 +251,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .btn-del-row:hover {
   background: #fca5a5;
@@ -231,13 +289,6 @@
 .action-btn-primary:hover {
   background: #0f4636;
 }
-.action-btn-gold {
-  background: var(--doc-a);
-  color: #ffffff;
-}
-.action-btn-gold:hover {
-  background: #b58f3f;
-}
 .action-btn-wa {
   background: #25D366;
   color: #ffffff;
@@ -251,11 +302,27 @@
    ==================================================== */
 .doc-stage-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   background: #e2e8f0;
   padding: 24px;
   border-radius: 14px;
   overflow-x: auto;
+}
+.doc-stage-toolbar {
+  width: 100%;
+  max-width: 794px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #475569;
+  background: #f8fafc;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
 }
 .doc-paper-sheet {
   background: #ffffff;
@@ -265,11 +332,12 @@
   display: flex;
   flex-direction: column;
   transition: all .2s;
+  font-size: var(--doc-font-size, 12px);
 }
 
 /* Formato Carta */
 .doc-paper-sheet.fmt-carta {
-  width: 794px;         /* Aprox proporción Carta 96dpi */
+  width: 794px;
   min-height: 1024px;
   padding: 38px 44px;
 }
@@ -540,17 +608,17 @@
   margin-bottom: 16px;
 }
 .free-paragraphs p {
-  font-size: 12px;
+  font-size: var(--doc-font-size, 12px);
   line-height: 1.7;
   color: #222;
   margin-bottom: 12px;
-  text-align: justify;
+  text-align: var(--doc-text-align, justify);
 }
 
 /* Modo Blanco y Negro (Matricial / Alto Contraste) */
 .doc-paper-sheet.mode-bw {
-  --doc-c: #000000;
-  --doc-a: #000000;
+  --doc-c: #000000 !important;
+  --doc-a: #000000 !important;
 }
 .doc-paper-sheet.mode-bw .doc-header {
   border-bottom-color: #000000;
@@ -597,7 +665,7 @@
     margin: 0 !important;
     width: 100% !important;
   }
-  .admin-aside, .admin-topbar, .doc-control-panel, .toast-c, #copilotJJFloatingTrigger {
+  .admin-aside, .admin-topbar, .doc-control-panel, .doc-stage-toolbar, .toast-c, #copilotJJFloatingTrigger {
     display: none !important;
   }
   .doc-studio-layout {
@@ -639,8 +707,8 @@
       <div class="topbar-left">
         <button class="menu-toggle" id="menuToggleBtn">☰</button>
         <div class="topbar-title">
-          <h2>Estudio de Documentos & Hoja Membretada</h2>
-          <p>Genera notas de entrega, recibos, fichas de empresa y comunicados en forma libre o continua</p>
+          <h2>Estudio de Documentos & Hoja Membretada con IA</h2>
+          <p>Notas de entrega conectadas al catálogo real, recibos, fichas y redacción asistida por IA</p>
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
@@ -655,6 +723,26 @@
         
         <!-- ================= PANEL DE CONTROL ================= -->
         <div class="doc-control-panel">
+
+          <!-- ASISTENTE IA DE DOCUMENTOS (CHATBOT INTEGRADO) -->
+          <div class="doc-ai-box">
+            <div class="doc-ai-hd">
+              <strong>🪄 Copiloto Redactor de Documentos IA</strong>
+              <span style="font-size:10px;background:#059669;color:#fff;padding:2px 7px;border-radius:99px;font-weight:700">Gemini En Vivo</span>
+            </div>
+            <div class="doc-ai-chips">
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Redacta una carta de oferta comercial formal presentando resmas de papel bond, rollos térmicos y archivo corporativo con despacho en 24h')">📄 Oferta Comercial</button>
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Redacta una constancia de entrega y recepción conforme de mercancía con garantía de calidad')">📦 Acta de Conformidad</button>
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Redacta un recordatorio ejecutivo y cordial de estado de cuenta y actualización cambiaria BCV')">💳 Aviso de Cobranza</button>
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Mejora la redacción actual para que suene más ejecutiva, persuasiva y formal')">✨ Pulir Redacción</button>
+            </div>
+            <div class="doc-ai-input-row">
+              <input type="text" id="docAiPromptInput" class="fi-compact" placeholder="Ej: Haz una carta para Banco Activo o agrega 20 resmas..." onkeydown="if(event.key==='Enter'){event.preventDefault();runDocAiAssistant();}">
+              <button type="button" id="docAiRunBtn" class="btn btn-primary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="runDocAiAssistant()">✨ Redactar</button>
+            </div>
+            <div id="docAiStatus" class="doc-ai-status">⏳ Generando documento con IA...</div>
+          </div>
+
           <div class="panel-section-title">
             <span>📋 Tipo de Documento Corporativo</span>
           </div>
@@ -662,7 +750,7 @@
           <div class="tpl-tabs-grid">
             <button type="button" class="tpl-tab-btn active" data-tpl="nota_entrega" onclick="setTemplate('nota_entrega')">
               🚚 Nota de Entrega
-              <span class="sub">Despacho de mercancía con firmas</span>
+              <span class="sub">Despacho conectado al catálogo</span>
             </button>
             <button type="button" class="tpl-tab-btn" data-tpl="recibo_pago" onclick="setTemplate('recibo_pago')">
               🧾 Recibo de Pago
@@ -679,7 +767,7 @@
           </div>
 
           <div class="panel-section-title">
-            <span>📐 Formato de Hoja & Modo</span>
+            <span>📐 Formato, Estilo & Libertad de Diseño</span>
           </div>
           
           <div class="fmt-mode-grid">
@@ -700,13 +788,47 @@
             </button>
           </div>
 
+          <!-- Controles de Libertad de Diseño (Color, Tipografía, Alineación, Encabezado) -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+            <div>
+              <label style="font-size:10.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Color Tema:</label>
+              <select class="fi-compact" style="padding:5px 6px;font-size:11.5px" onchange="setDocAccentColor(this.value)">
+                <option value="#16604A">🟢 Esmeralda JJ</option>
+                <option value="#0f172a">⚫ Ejecutivo Noir</option>
+                <option value="#1e3a8a">🔵 Azul Real</option>
+                <option value="#7c2d12">🟤 Terracota</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Tamaño Letra:</label>
+              <select class="fi-compact" style="padding:5px 6px;font-size:11.5px" onchange="setDocFontSize(this.value)">
+                <option value="11px">Compacta (11px)</option>
+                <option value="12px" selected>Estándar (12px)</option>
+                <option value="13.5px">Amplia (13.5px)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px">Alineación:</label>
+              <select class="fi-compact" style="padding:5px 6px;font-size:11.5px" onchange="setDocTextAlign(this.value)">
+                <option value="justify" selected>Justificado</option>
+                <option value="left">Izquierda</option>
+                <option value="center">Centrado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group-compact">
+            <label>Título Superior del Recuadro (Personalizable):</label>
+            <input type="text" id="fieldCustomBadge" class="fi-compact" oninput="updateFormField('customDocBadge', this.value)" placeholder="Ej: NOTA DE ENTREGA / ACTA DE DESPACHO">
+          </div>
+
           <!-- Búsqueda y Selección de Cliente -->
-          <div class="panel-section-title" style="margin-top:16px;">
+          <div class="panel-section-title" style="margin-top:14px;">
             <span>👤 Cliente / Destinatario</span>
           </div>
 
           <div class="ac-wrap">
-            <input type="text" id="clientSearchInput" class="fi-compact" placeholder="🔍 Buscar cliente por nombre, RIF o teléfono...">
+            <input type="text" id="clientSearchInput" class="fi-compact" placeholder="🔍 Buscar cliente en cartera por nombre, RIF o teléfono...">
             <div id="clientSearchResults" class="ac-results-box"></div>
           </div>
 
@@ -749,38 +871,64 @@
           <!-- SECCIÓN: NOTA DE ENTREGA -->
           <div id="secNotaEntrega" style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px;">
             <div class="panel-section-title">
-              <span>🚚 Datos de Transporte & Mercancía</span>
+              <span>🚚 Datos de Transporte & Mercancía del Catálogo</span>
             </div>
+
+            <!-- Importar desde Pedido o Cotización existente -->
+            <div class="form-group-compact" style="background:#f8fafc;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:10px">
+              <label style="color:#0f766e">📥 Cargar renglones de un Pedido o Cotización reciente:</label>
+              <select id="recentOrderSelect" class="fi-compact" style="font-size:11.5px;margin-top:3px" onchange="loadItemsFromOrderOrQuote(this.value)">
+                <option value="">— Seleccionar pedido/cotización para autocompletar —</option>
+              </select>
+            </div>
+
             <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px;">
               <div class="form-group-compact">
                 <label>Chofer / Conductor:</label>
-                <input type="text" class="fi-compact" oninput="updateFormField('driverName', this.value)" placeholder="Nombre del chofer">
+                <input type="text" id="fieldDriverName" class="fi-compact" oninput="updateFormField('driverName', this.value)" placeholder="Nombre del chofer">
               </div>
               <div class="form-group-compact">
                 <label>C.I. Chofer:</label>
-                <input type="text" class="fi-compact" oninput="updateFormField('driverCi', this.value)" placeholder="V-12345678">
+                <input type="text" id="fieldDriverCi" class="fi-compact" oninput="updateFormField('driverCi', this.value)" placeholder="V-12345678">
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <div class="form-group-compact">
                 <label>Placa / Vehículo:</label>
-                <input type="text" class="fi-compact" oninput="updateFormField('driverPlate', this.value)" placeholder="Placa o modelo">
+                <input type="text" id="fieldDriverPlate" class="fi-compact" oninput="updateFormField('driverPlate', this.value)" placeholder="Placa o modelo">
               </div>
               <div class="form-group-compact">
                 <label>Destino:</label>
-                <input type="text" class="fi-compact" oninput="updateFormField('dispatchDestination', this.value)" placeholder="Ciudad o almacén">
+                <input type="text" id="fieldDispatchDest" class="fi-compact" oninput="updateFormField('dispatchDestination', this.value)" placeholder="Ciudad o almacén">
               </div>
             </div>
 
-            <label style="font-size:11.5px;font-weight:700;color:#475569;display:flex;justify-content:space-between;margin:8px 0 4px">
-              <span>Renglones de Mercancía:</span>
-              <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px" onclick="addDocItem()">+ Agregar Ítem</button>
+            <!-- BUSCADOR DE PRODUCTOS REALES DEL CATÁLOGO -->
+            <div class="form-group-compact" style="margin-top:6px;">
+              <label style="color:var(--doc-c);display:flex;justify-content:space-between;align-items:center">
+                <span>📦 Buscar y Agregar Producto del Catálogo:</span>
+                <label style="font-weight:600;font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;margin:0">
+                  <input type="checkbox" id="chkShowPricesNota" onchange="updateFormField('showPricesInNota', this.checked)"> Mostrar Precios $
+                </label>
+              </label>
+              <div class="ac-wrap" style="margin-bottom:6px;">
+                <input type="text" id="catalogProductSearchInput" class="fi-compact" placeholder="🔍 Escribe nombre o código SKU del producto del catálogo...">
+                <div id="catalogProductSearchResults" class="ac-results-box"></div>
+              </div>
+            </div>
+
+            <label style="font-size:11.5px;font-weight:700;color:#475569;display:flex;justify-content:space-between;margin:6px 0 4px">
+              <span>Renglones a Entregar (<span id="notaItemCountBadge">0</span>):</span>
+              <div style="display:flex;gap:6px">
+                <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px" onclick="clearDocItems()">🗑️ Limpiar</button>
+                <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px" onclick="addDocItem()">+ Fila Manual</button>
+              </div>
             </label>
             <div id="itemsInputList"></div>
 
             <div class="form-group-compact" style="margin-top:8px;">
               <label>Observaciones de Entrega:</label>
-              <textarea class="fi-compact" rows="2" oninput="updateFormField('deliveryNotes', this.value)">Mercancía revisada y chequeada en almacén a entera conformidad.</textarea>
+              <textarea id="fieldDeliveryNotes" class="fi-compact" rows="2" oninput="updateFormField('deliveryNotes', this.value)">Mercancía revisada y chequeada en almacén a entera conformidad.</textarea>
             </div>
           </div>
 
@@ -792,7 +940,7 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <div class="form-group-compact">
                 <label>Monto en USD ($):</label>
-                <input type="number" step="0.01" class="fi-compact" value="150" oninput="updateReceiptUsd(this.value)">
+                <input type="number" step="0.01" class="fi-compact" id="fieldReceiptUsd" value="150" oninput="updateReceiptUsd(this.value)">
               </div>
               <div class="form-group-compact">
                 <label>Tasa Oficial BCV:</label>
@@ -805,12 +953,12 @@
             </div>
             <div class="form-group-compact">
               <label>Por Concepto de:</label>
-              <input type="text" class="fi-compact" oninput="updateFormField('receiptConcept', this.value)" value="Cancelación de factura y despacho de mercancía al mayor">
+              <input type="text" id="fieldReceiptConcept" class="fi-compact" oninput="updateFormField('receiptConcept', this.value)" value="Cancelación de factura y despacho de mercancía al mayor">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
               <div class="form-group-compact">
                 <label>Método de Pago:</label>
-                <select class="fi-compact" onchange="updateFormField('paymentMethod', this.value)">
+                <select class="fi-compact" id="fieldPaymentMethod" onchange="updateFormField('paymentMethod', this.value)">
                   <option value="Transferencia">Transferencia Bancaria</option>
                   <option value="Pago Móvil">Pago Móvil</option>
                   <option value="Efectivo USD">Efectivo USD (Divisas)</option>
@@ -820,7 +968,7 @@
               </div>
               <div class="form-group-compact">
                 <label>Nº de Referencia:</label>
-                <input type="text" class="fi-compact" oninput="updateFormField('paymentRef', this.value)" placeholder="Ej: 98745612">
+                <input type="text" id="fieldPaymentRef" class="fi-compact" oninput="updateFormField('paymentRef', this.value)" placeholder="Ej: 98745612">
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -852,22 +1000,26 @@
             </div>
             <div class="form-group-compact">
               <label>Título del Documento:</label>
-              <input type="text" class="fi-compact" oninput="updateFormField('freeTitle', this.value)" value="COMUNICADO OFICIAL DE DISTRIBUCIÓN">
+              <input type="text" id="fieldFreeTitle" class="fi-compact" oninput="updateFormField('freeTitle', this.value)" value="COMUNICADO OFICIAL DE DISTRIBUCIÓN">
             </div>
             <div class="form-group-compact">
               <label>Dirigido a:</label>
-              <input type="text" class="fi-compact" oninput="updateFormField('freeRecipient', this.value)" value="A NUESTROS DISTINGUIDOS CLIENTES Y COMERCIOS ALIADOS">
+              <input type="text" id="fieldFreeRecipient" class="fi-compact" oninput="updateFormField('freeRecipient', this.value)" value="A NUESTROS DISTINGUIDOS CLIENTES Y COMERCIOS ALIADOS">
             </div>
             <div class="form-group-compact">
               <label>Cuerpo del Documento (Párrafos editables):</label>
-              <textarea class="fi-compact" rows="8" oninput="updateFormField('freeBody', this.value)"></textarea>
+              <textarea id="fieldFreeBody" class="fi-compact" rows="8" oninput="updateFormField('freeBody', this.value)"></textarea>
+            </div>
+            <div class="form-group-compact">
+              <label>Pie de Firma Principal:</label>
+              <input type="text" id="fieldFreeSignRole" class="fi-compact" oninput="updateFormField('freeSignRole', this.value)" value="DIRECCIÓN COMERCIAL & ADMINISTRACIÓN">
             </div>
           </div>
 
           <!-- Botones de Acción -->
           <div class="doc-actions-bar">
             <button type="button" class="action-btn action-btn-primary" onclick="printDocument()">
-              🖨️ Imprimir
+              🖨️ Imprimir / PDF
             </button>
             <button type="button" class="action-btn action-btn-wa" onclick="shareDocumentWhatsApp()">
               📤 Compartir WA
@@ -877,7 +1029,11 @@
 
         <!-- ================= STAGE VISUAL (HOJA REAL) ================= -->
         <div class="doc-stage-container">
-          <article class="doc-paper-sheet fmt-carta mode-color" id="docPreviewPaper">
+          <div class="doc-stage-toolbar">
+            <span>💡 <strong>Edición Directa Activada:</strong> También puedes hacer clic sobre cualquier texto de la hoja para editarlo en vivo.</span>
+            <button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:11px" onclick="renderDocumentPreview()">🔄 Refrescar Vista</button>
+          </div>
+          <article class="doc-paper-sheet fmt-carta mode-color" id="docPreviewPaper" contenteditable="true" spellcheck="false">
             <!-- Renderizado dinámicamente por documentos.js -->
           </article>
         </div>
@@ -891,12 +1047,13 @@
 
 <!-- Dependencias y Controladores -->
 <script src="../assets/vendor/supabase-2.58.0.js"></script>
-<script src="../assets/js/config.js?v=20261022_vps_full"></script>
+<script src="../assets/js/config.js?v=20261025_vps_clean"></script>
 <script src="../assets/js/toast.js"></script>
+<script src="../assets/js/gemini-client.js?v=20261025_ai_fix"></script>
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/doc-engine.js?v=20261014_root_fix"></script>
-<script src="../assets/js/admin/documentos.js?v=20261014_v1"></script>
+<script src="../assets/js/admin/documentos.js?v=20261025_studio_v2"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
@@ -916,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Rellenar valores iniciales en formulario
   document.getElementById('fieldDocDate').value = docState.docDate;
   document.getElementById('fieldReceiptRate').value = (typeof getRate === 'function') ? getRate().toFixed(2) : '36.50';
-  document.querySelector('#secFormaLibre textarea').value = docState.freeBody;
+  document.getElementById('fieldFreeBody').value = docState.freeBody;
   
   renderItemsTableInput();
   renderDocumentPreview();

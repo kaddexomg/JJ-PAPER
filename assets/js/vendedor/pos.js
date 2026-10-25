@@ -802,7 +802,7 @@ async function posSubmit() {
         total_usd: total,
         exchange_rate: rate,
         total_bs: +(total * rate).toFixed(2),
-        payment_method: document.getElementById('posMethod')?.value || 'por_convenir',
+        payment_method: (['pago_movil','transferencia','efectivo'].includes(document.getElementById('posMethod')?.value) ? document.getElementById('posMethod').value : 'transferencia'),
         payment_ref: payRef,
         notes: document.getElementById('posNotes')?.value.trim() || null,
         seller_id: sellerId,
@@ -861,7 +861,7 @@ async function posSubmit() {
       total_usd: total,
       exchange_rate: rate,
       total_bs: +(total * rate).toFixed(2),
-      payment_method: document.getElementById('posMethod')?.value || 'por_convenir',
+      payment_method: (['pago_movil','transferencia','efectivo'].includes(document.getElementById('posMethod')?.value) ? document.getElementById('posMethod').value : 'transferencia'),
       payment_ref: payRef,
       notes: document.getElementById('posNotes')?.value.trim() || null,
       seller_id: sellerId,
@@ -871,7 +871,18 @@ async function posSubmit() {
       customer_id: posCustomer?.id || null,
     };
 
-    const { data: createdOrder, error } = await sb.from('jjp_orders').insert(order).select().maybeSingle();
+    let createdOrder = null, error = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      if (attempt > 1) {
+        const nextNum = await fetchNextDocSerial('pedido');
+        if (nextNum) order.order_number = nextNum;
+        else order.order_number = String(parseInt(order.order_number, 10) + 1).padStart(8, '0').slice(-8);
+      }
+      const res = await sb.from('jjp_orders').insert(order).select().maybeSingle();
+      if (!res.error) { createdOrder = res.data; error = null; break; }
+      error = res.error;
+      if (res.error.code !== '23505' && !(res.error.message || '').includes('duplicate key')) break;
+    }
     if (error) {
       console.error('pos insert error:', error);
       showToast('No se pudo registrar el pedido: ' + (error.message || 'Error en base de datos'), 'err');

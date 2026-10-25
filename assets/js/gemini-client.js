@@ -93,14 +93,17 @@
 
   // Modelos reales de Gemini (2.5 Flash y 2.0 Flash)
   const PRO_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash'
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest'
   ];
 
-  // Modelos ultrarrápidos para sugerencias en vivo en chat y cotizaciones
   const FAST_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash'
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest'
   ];
 
   let _keyIndex = Math.floor(Math.random() * GEMINI_KEYS.length);
@@ -208,8 +211,10 @@
       throw new Error('El prompt enviado a Gemini AI está vacío o no es una cadena válida.');
     }
 
-    const isArchitect = (mode === 'architect' || mode === 'pro');
-    const targetModel = (model && !model.includes('3.')) ? model : 'gemini-2.5-flash';
+    if (!GEMINI_KEYS || GEMINI_KEYS.length === 0) {
+      try { await syncKeysFromSettings(); } catch (_) {}
+    }
+    const targetModel = (!model || model === 'gemini-2.5-flash' || model === 'gemini-2.0-flash') ? 'gemini-3.5-flash-lite' : model;
 
     // 1. Intentar primero mediante el proxy Cloudflare Pages (/api/ai) para evadir bloqueo geográfico IP Venezuela
     if (_proxyAvailable && typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
@@ -241,13 +246,13 @@
     }
 
     // 2. Pool directo filtrando llaves marcadas como muertas o bloqueadas por región
-    const rawPool = isArchitect ? [...PRO_KEYS, ...GEMINI_KEYS.filter(k => !PRO_KEYS.includes(k))] : GEMINI_KEYS;
+    const rawPool = GEMINI_KEYS;
     const activePool = rawPool.filter(k => !_deadKeys.has(k));
     if (activePool.length === 0) {
       throw new Error('Servicio directo bloqueado por región o llaves agotadas; activando motor dinámico local.');
     }
 
-    const modelsToTry = [targetModel, 'gemini-2.0-flash'].filter((v, i, a) => a.indexOf(v) === i);
+    const modelsToTry = [targetModel, 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-lite-latest'].filter((v, i, a) => a.indexOf(v) === i);
     const timeoutMs = 3800;
     let lastError = null;
 
@@ -260,9 +265,7 @@
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-          const endpoint = isVertexKey
-            ? `https://aiplatform.googleapis.com/v1/publishers/google/models/${m}:generateContent?key=${currentKey}`
-            : `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
 
           const bodyPayload = {
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -3790,6 +3793,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
     const cleanText = String(rawText || '').trim();
     const rifMatch = cleanText.match(/\b([JVGEC])\s*[-.]?\s*(\d{7,9})\s*[-.]?\s*(\d)?\b/i);
     const emailMatch = cleanText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const clientMatch = cleanText.match(/(?:empresa|cliente|raz[oó]n\s*social|para|somos|de\s+parte\s+de)\s*[:=-]?\s*([A-ZÁÉÍÓÚÑ0-9][A-Za-záéíóúñ0-9\s.,&-]{2,45})(?:\r?\n|,|\.|;|$)/i);
     const phoneMatch = cleanText.match(/(?:\+?58\s*|0)?(?:412|414|424|416|426|212)\s*[-.]?\s*\d{3}\s*[-.]?\s*\d{2}\s*[-.]?\s*\d{2}/);
 
     // Separar por saltos de línea, punto y coma, viñetas, o conjunciones " y <numero> " / ", <numero> "
@@ -3880,7 +3884,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
 
     return {
       customer: {
-        client_name: null,
+        client_name: clientMatch ? clientMatch[1].trim() : null,
         rif: rifMatch ? `${rifMatch[1].toUpperCase()}-${rifMatch[2]}${rifMatch[3] ? '-' + rifMatch[3] : ''}` : null,
         contact: null,
         phone: phoneMatch ? phoneMatch[0] : null,
@@ -3973,7 +3977,7 @@ ${rawText}
 
     let parsed = null;
     try {
-      const rawResponse = await callGemini(prompt, 'gemini-2.5-flash');
+      const rawResponse = await callGemini(prompt, 'gemini-3.5-flash-lite');
       parsed = extractJSON(rawResponse);
     } catch (aiErr) {
       console.warn('Usando parser local inteligente de cotizaciones:', aiErr.message);

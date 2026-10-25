@@ -1029,7 +1029,7 @@ async function matchCustomer(phone, rif, name) {
 // Obtener tasa oficial del sistema
 async function getActiveExchangeRate() {
   try {
-    const { data } = await dbCore.from('jjp_settings').select('bcv_rate').eq('id', 1).maybeSingle();
+    const { data } = await dbCore.from('jjp_settings').select('value').eq('key', 'bcv_rate').maybeSingle();
     return parseFloat(data?.bcv_rate || 0) || 0;
   } catch (_) {
     return 0;

@@ -1,11 +1,10 @@
-// Cloudflare Pages Function: POST /api/ai  -> proxy a Gemini (evita bloqueo geográfico en Venezuela)
-// Configurar variable de entorno GEMINI_API_KEY en Cloudflare Pages.
+// Cloudflare Pages Function: POST /api/ai -> proxy a Gemini (evita bloqueo geográfico en Venezuela)
 export async function onRequestPost({ request, env }) {
   const cors = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
   try {
-    const { prompt, systemInstruction, temperature = 0.75, maxTokens = 1500, model = 'gemini-2.5-flash' } = await request.json();
+    const { prompt, systemInstruction, temperature = 0.75, maxTokens = 1500, model = 'gemini-3.5-flash-lite', key: clientKey } = await request.json();
     if (!prompt) return new Response(JSON.stringify({ error: 'prompt vacío' }), { status: 400, headers: cors });
-    const key = env.GEMINI_API_KEY;
+    const key = env.GEMINI_API_KEY || clientKey;
     if (!key) return new Response(JSON.stringify({ error: 'GEMINI_API_KEY no configurada' }), { status: 500, headers: cors });
 
     const body = {
@@ -14,7 +13,8 @@ export async function onRequestPost({ request, env }) {
     };
     if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] };
 
-    for (const m of [model, 'gemini-2.0-flash']) {
+    const models = [model, 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-lite-latest'].filter((v, i, a) => v && !v.includes('2.') && a.indexOf(v) === i);
+    for (const m of models) {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       });

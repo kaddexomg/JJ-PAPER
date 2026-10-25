@@ -1004,20 +1004,8 @@ async function quoteSubmit() {
       }
 
       if (!insertSuccess) {
-        error = lastInsertError;
+        error = lastInsertError || new Error('No se pudo insertar la cotización tras 5 intentos');
       }
-      if (!qNum || !/^\d{8}$/.test(String(qNum).trim())) {
-        showToast('⚠️ No se pudo reservar un correlativo oficial de MixNet (MXNUMCOT). Verifique la conexión para evitar saltos o colisiones de numeración.', 'err');
-        qSubmitting = false;
-        if (btn) btn.disabled = false;
-        return;
-      }
-      quote.quote_number = qNum;
-      quote.status = 'pendiente';
-      quote.source = 'vendedor';
-      quote.seller_id = sellerId;
-      const res = await sb.from('jjp_quotes').insert(quote);
-      error = res.error;
     }
 
     if (error) {

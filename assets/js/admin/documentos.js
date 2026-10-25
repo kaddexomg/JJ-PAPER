@@ -1,25 +1,26 @@
 /* ======================================================
-   JJ Paper — Generador de Documentos Corporativos & Hoja Membretada
+   JJ Paper — Generador de Documentos Corporativos & Hoja Membretada con IA
    assets/js/admin/documentos.js
    
    Soporte para:
-   - Nota de Entrega / Despacho
+   - Nota de Entrega / Despacho conectada al Catálogo Real (jjp_products)
+     y a Pedidos / Cotizaciones existentes
    - Recibo de Pago / Comprobante de Cobro
    - Ficha Informativa / Carta de Presentación Oficial
    - Forma Libre / Hoja Membretada Corporativa
-   
-   Formatos de salida:
-   - Hoja Carta (Letter)
-   - Forma Continua / Media Carta (Continuous Form)
-   - Modo Full Color Oficial / Modo Blanco y Negro Alto Contraste
-   - Auto-completado de Clientes y Productos desde Supabase
-   - Impresión directa y Compartir por WhatsApp
+   - Copiloto Redactor de Documentos con IA (Gemini en vivo)
+   - Libertad de Diseño (Color tema, tamaño tipográfico, alineación,
+     encabezados personalizables, edición directa en hoja)
    ====================================================== */
 
 let docState = {
   template: 'nota_entrega',    // 'nota_entrega' | 'recibo_pago' | 'ficha_empresa' | 'forma_libre'
   pageFormat: 'carta',         // 'carta' | 'forma_continua'
   colorMode: 'color',          // 'color' | 'bw'
+  accentColor: '#16604A',
+  fontSize: '12px',
+  textAlign: 'justify',
+  customDocBadge: '',
   
   // Metadatos comunes
   docNumber: '',
@@ -40,9 +41,10 @@ let docState = {
   driverPlate: '',
   dispatchDestination: '',
   deliveryNotes: 'Mercancía revisada y chequeada en almacén a entera conformidad.',
+  showPricesInNota: false,
   items: [
-    { qty: 10, unit: 'Caja x 12', description: 'Resma de Papel Bond Carta 75g HP / Report', obs: 'Bulto sellado' },
-    { qty: 5, unit: 'Caja x 50', description: 'Rollo Térmico 80x70mm para Puntos de Venta (POS)', obs: 'Línea de caja' }
+    { sku: 'RES-CARTA-75', qty: 10, unit: 'Caja x 10', description: 'Resma de Papel Bond Carta 75g HP / Report', price_usd: 42.00, obs: 'Bulto sellado' },
+    { sku: 'ROL-80X70', qty: 5, unit: 'Caja x 50', description: 'Rollo Térmico 80x70mm para Puntos de Venta (POS)', price_usd: 35.00, obs: 'Línea de caja' }
   ],
   
   // Datos específicos: Recibo de Pago
@@ -66,15 +68,17 @@ let docState = {
   // Datos específicos: Forma Libre
   freeTitle: 'COMUNICADO OFICIAL DE DISTRIBUCIÓN',
   freeRecipient: 'A NUESTROS DISTINGUIDOS CLIENTES Y COMERCIOS ALIADOS',
+  freeSignRole: 'DIRECCIÓN COMERCIAL & ADMINISTRACIÓN',
   freeBody: `Por medio de la presente, JJ PAPER, C.A. hace constar que se encuentra a total disposición de su distinguida empresa para garantizar el suministro mayorista continuo y prioritario de papelería corporativa, resmas de papel bond, consumibles térmicos para puntos de venta y suministros de embalaje e higiene institucional.\n\nContamos con despacho directo en 24 horas a su sede en Caracas y envíos a nivel nacional, facturación fiscal formal a Tasa Oficial BCV y asesoría comercial dedicada.\n\nQuedamos atentos a sus requerimientos y pedidos a través de nuestros canales oficiales de atención.`
 };
 
+let _catalogItemsCache = [];
+let _recentDocsMap = new Map();
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
-  // Asegurar correlativo
   generateDocNumber();
   
-  // Cargar Tasa Oficial BCV
   if (typeof updateExchangeRate === 'function') {
     try { await updateExchangeRate(); } catch(_) {}
   }
@@ -82,10 +86,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   docState.receiptExchangeRate = rate;
   calculateReceiptBs();
 
-  // Escuchar autocompletado de clientes
   setupCustomerAutocomplete();
+  setupCatalogProductAutocomplete();
+  loadCatalogCacheForDocs();
+  loadRecentOrdersAndQuotes();
 
-  // Renderizar vista previa inicial
+  renderItemsTableInput();
   renderDocumentPreview();
 });
 
@@ -110,12 +116,10 @@ function setTemplate(tpl) {
   docState.template = tpl;
   generateDocNumber();
   
-  // Actualizar botones de plantilla
   document.querySelectorAll('.tpl-tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tpl === tpl);
   });
 
-  // Mostrar/ocultar paneles específicos en el formulario
   document.getElementById('secNotaEntrega').style.display = (tpl === 'nota_entrega') ? 'block' : 'none';
   document.getElementById('secReciboPago').style.display = (tpl === 'recibo_pago') ? 'block' : 'none';
   document.getElementById('secFichaEmpresa').style.display = (tpl === 'ficha_empresa') ? 'block' : 'none';
@@ -124,7 +128,7 @@ function setTemplate(tpl) {
   renderDocumentPreview();
 }
 
-// Cambio de formato de página (Carta vs Forma Continua)
+// Controles de Libertad de Diseño
 function setPageFormat(fmt) {
   docState.pageFormat = fmt;
   document.getElementById('docPreviewPaper').className = `doc-paper-sheet fmt-${fmt} mode-${docState.colorMode}`;
@@ -133,13 +137,30 @@ function setPageFormat(fmt) {
   });
 }
 
-// Cambio de modo de color (Color vs B&W)
 function setColorMode(mode) {
   docState.colorMode = mode;
   document.getElementById('docPreviewPaper').className = `doc-paper-sheet fmt-${docState.pageFormat} mode-${mode}`;
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
+}
+
+function setDocAccentColor(color) {
+  docState.accentColor = color || '#16604A';
+  document.documentElement.style.setProperty('--doc-c', docState.accentColor);
+  renderDocumentPreview();
+}
+
+function setDocFontSize(size) {
+  docState.fontSize = size || '12px';
+  document.documentElement.style.setProperty('--doc-font-size', docState.fontSize);
+  renderDocumentPreview();
+}
+
+function setDocTextAlign(align) {
+  docState.textAlign = align || 'justify';
+  document.documentElement.style.setProperty('--doc-text-align', docState.textAlign);
+  renderDocumentPreview();
 }
 
 // Autocompletado de Clientes
@@ -156,7 +177,7 @@ function setupCustomerAutocomplete() {
       list.style.display = 'none';
       return;
     }
-    timer = setTimeout(() => searchCustomers(q), 250);
+    timer = setTimeout(() => searchCustomers(q), 220);
   });
 
   document.addEventListener('click', (e) => {
@@ -209,6 +230,374 @@ function selectCustomer(c) {
   renderDocumentPreview();
 }
 
+// ======================================================
+// CONEXIÓN REAL CON EL CATÁLOGO DE PRODUCTOS Y PEDIDOS
+// ======================================================
+async function loadCatalogCacheForDocs() {
+  try {
+    const { data: prods } = await sb
+      .from('jjp_products')
+      .select('id,name,sku,unit,price_usd,stock,active,jjp_product_variants(id,variant_name,sku,price_usd,stock,active)')
+      .eq('active', true)
+      .order('name', { ascending: true })
+      .range(0, 1500);
+
+    const flat = [];
+    for (const p of (prods || [])) {
+      const variants = Array.isArray(p.jjp_product_variants) ? p.jjp_product_variants.filter(v => v.active !== false) : [];
+      if (variants.length > 0) {
+        for (const v of variants) {
+          const vLabel = v.variant_name || '';
+          const fullName = vLabel && vLabel.toLowerCase() !== 'estándar' && vLabel.toLowerCase() !== 'unica' && vLabel.toLowerCase() !== p.name.toLowerCase()
+            ? `${p.name} — ${vLabel}`
+            : p.name;
+          flat.push({
+            id: v.id || p.id,
+            sku: v.sku || p.sku || '',
+            name: fullName,
+            unit: p.unit || 'Unidad',
+            brand: '',
+            price_usd: Number(v.price_usd || p.price_usd || 0),
+            stock: Number(v.stock ?? p.stock ?? 0)
+          });
+        }
+      } else {
+        flat.push({
+          id: p.id,
+          sku: p.sku || '',
+          name: p.name,
+          unit: p.unit || 'Unidad',
+          brand: '',
+          price_usd: Number(p.price_usd || 0),
+          stock: Number(p.stock || 0)
+        });
+      }
+    }
+    _catalogItemsCache = flat;
+  } catch (err) {
+    console.warn('Error cargando catálogo para documentos:', err);
+  }
+}
+
+function setupCatalogProductAutocomplete() {
+  const input = document.getElementById('catalogProductSearchInput');
+  const list = document.getElementById('catalogProductSearchResults');
+  if (!input || !list) return;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) {
+      list.style.display = 'none';
+      return;
+    }
+    searchCatalogProductsForDoc(q);
+  });
+
+  input.addEventListener('focus', () => {
+    const q = input.value.trim().toLowerCase();
+    if (q) searchCatalogProductsForDoc(q);
+    else if (_catalogItemsCache.length > 0) {
+      renderCatalogResultsList(_catalogItemsCache.slice(0, 12));
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !list.contains(e.target)) {
+      list.style.display = 'none';
+    }
+  });
+}
+
+async function searchCatalogProductsForDoc(q) {
+  if (_catalogItemsCache.length === 0) {
+    await loadCatalogCacheForDocs();
+  }
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const matches = _catalogItemsCache.filter(item => {
+    const hay = `${item.name} ${item.sku} ${item.brand} ${item.unit}`.toLowerCase();
+    return tokens.every(t => hay.includes(t));
+  }).slice(0, 15);
+
+  renderCatalogResultsList(matches);
+}
+
+function renderCatalogResultsList(items) {
+  const list = document.getElementById('catalogProductSearchResults');
+  if (!list) return;
+
+  if (!items || items.length === 0) {
+    list.innerHTML = `<div class="ac-item-empty">No se encontraron productos en el catálogo</div>`;
+    list.style.display = 'block';
+    return;
+  }
+
+  list.innerHTML = items.map((p, idx) => {
+    const safeJson = JSON.stringify(p).replace(/"/g, '&quot;');
+    const priceTxt = p.price_usd > 0 ? `$${p.price_usd.toFixed(2)}` : 'Consultar';
+    return `
+      <div class="ac-item" onclick="selectCatalogProductForDoc(${safeJson})">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong>${escapeHTML(p.name)}</strong>
+          <span style="background:#e6f4ea;color:#137333;padding:2px 6px;border-radius:4px;font-weight:700;font-size:10.5px">${priceTxt}</span>
+        </div>
+        <span>SKU: ${escapeHTML(p.sku || 'S/C')} · Unidad: ${escapeHTML(p.unit || 'Und')} ${p.brand ? '· Marca: ' + escapeHTML(p.brand) : ''}</span>
+      </div>
+    `;
+  }).join('');
+  list.style.display = 'block';
+}
+
+function selectCatalogProductForDoc(p) {
+  if (!p) return;
+  // Si el ítem ya existe por SKU/nombre, sumar cantidad; si no, agregarlo
+  const existingIdx = docState.items.findIndex(it =>
+    (p.sku && it.sku === p.sku) || (it.description.toLowerCase() === p.name.toLowerCase())
+  );
+
+  if (existingIdx >= 0) {
+    docState.items[existingIdx].qty = (Number(docState.items[existingIdx].qty) || 0) + 1;
+  } else {
+    docState.items.push({
+      sku: p.sku || '',
+      qty: 1,
+      unit: p.unit || 'Unidad',
+      description: p.name,
+      price_usd: Number(p.price_usd || 0),
+      obs: p.sku ? `Cód: ${p.sku}` : ''
+    });
+  }
+
+  const input = document.getElementById('catalogProductSearchInput');
+  const list = document.getElementById('catalogProductSearchResults');
+  if (input) input.value = '';
+  if (list) list.style.display = 'none';
+
+  renderItemsTableInput();
+  renderDocumentPreview();
+  if (typeof showToast === 'function') {
+    showToast(`Agregado a Nota de Entrega: ${p.name}`, 'ok');
+  }
+}
+
+async function loadRecentOrdersAndQuotes() {
+  const sel = document.getElementById('recentOrderSelect');
+  if (!sel) return;
+  try {
+    const [ordRes, quoRes] = await Promise.all([
+      sb.from('jjp_orders').select('id,order_number,client_name,rif,phone,address,items,total_usd,created_at').order('created_at', { ascending: false }).limit(20),
+      sb.from('jjp_quotes').select('id,quote_number,client_name,rif,phone,items,estimated_total_usd,created_at').order('created_at', { ascending: false }).limit(20)
+    ]);
+
+    _recentDocsMap.clear();
+    const opts = ['<option value="">— Seleccionar pedido o cotización para cargar renglones —</option>'];
+
+    for (const o of (ordRes.data || [])) {
+      const key = `ord:${o.id}`;
+      _recentDocsMap.set(key, { type: 'order', doc: o });
+      opts.push(`<option value="${key}">🛒 Pedido #${escapeHTML(o.order_number)} — ${escapeHTML(o.client_name || 'Cliente')} ($${Number(o.total_usd || 0).toFixed(2)})</option>`);
+    }
+    for (const q of (quoRes.data || [])) {
+      const key = `quo:${q.id}`;
+      _recentDocsMap.set(key, { type: 'quote', doc: q });
+      opts.push(`<option value="${key}">📋 Cotización #${escapeHTML(q.quote_number)} — ${escapeHTML(q.client_name || 'Cliente')} ($${Number(q.estimated_total_usd || 0).toFixed(2)})</option>`);
+    }
+
+    sel.innerHTML = opts.join('');
+  } catch (err) {
+    console.warn('Error cargando pedidos/cotizaciones recientes:', err);
+  }
+}
+
+function loadItemsFromOrderOrQuote(key) {
+  if (!key || !_recentDocsMap.has(key)) return;
+  const { type, doc } = _recentDocsMap.get(key);
+
+  if (doc.client_name) {
+    docState.clientName = doc.client_name;
+    const el = document.getElementById('fieldClientName');
+    if (el) el.value = docState.clientName;
+  }
+  if (doc.rif) {
+    docState.clientRif = doc.rif;
+    const el = document.getElementById('fieldClientRif');
+    if (el) el.value = docState.clientRif;
+  }
+  if (doc.phone) {
+    docState.clientPhone = doc.phone;
+    const el = document.getElementById('fieldClientPhone');
+    if (el) el.value = docState.clientPhone;
+  }
+  if (doc.address) {
+    docState.clientAddress = doc.address;
+    const el = document.getElementById('fieldClientAddress');
+    if (el) el.value = docState.clientAddress;
+  }
+
+  let rawItems = doc.items;
+  if (typeof rawItems === 'string') {
+    try { rawItems = JSON.parse(rawItems); } catch { rawItems = []; }
+  }
+  if (Array.isArray(rawItems) && rawItems.length > 0) {
+    docState.items = rawItems.map(it => ({
+      sku: it.sku || '',
+      qty: Number(it.qty || it.quantity || 1),
+      unit: it.unit || 'Unidad',
+      description: it.name || it.description || 'Producto',
+      price_usd: Number(it.price_usd || it.price || 0),
+      obs: it.sku ? `Cód: ${it.sku}` : ''
+    }));
+  }
+
+  renderItemsTableInput();
+  renderDocumentPreview();
+  if (typeof showToast === 'function') {
+    showToast(`Cargados ${docState.items.length} renglones de ${type === 'order' ? 'Pedido' : 'Cotización'}`, 'ok');
+  }
+}
+
+// ======================================================
+// COPILOTO IA DE DOCUMENTOS (GEMINI EN VIVO)
+// ======================================================
+function applyAiQuickPrompt(promptText) {
+  const input = document.getElementById('docAiPromptInput');
+  if (input) {
+    input.value = promptText;
+    runDocAiAssistant();
+  }
+}
+
+async function runDocAiAssistant() {
+  const input = document.getElementById('docAiPromptInput');
+  const statusEl = document.getElementById('docAiStatus');
+  const btn = document.getElementById('docAiRunBtn');
+  const prompt = (input?.value || '').trim();
+
+  if (!prompt) {
+    if (typeof showToast === 'function') showToast('Escribe qué documento o cambio deseas pedirle a la IA', 'warn');
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = '⏳ El Copiloto IA está redactando y estructurando el documento...';
+  }
+  if (btn) btn.disabled = true;
+
+  try {
+    const sampleCatalog = _catalogItemsCache.slice(0, 35).map(p => `${p.name} (${p.unit}, $${p.price_usd})`).join('; ');
+    const sysPrompt = `Eres el Director de Comunicaciones y Operaciones de JJ PAPER, C.A. (RIF J-29537545-0, distribuidor mayorista de papelería, resmas, rollos térmicos y suministros de oficina en Caracas).
+El usuario está en el Estudio de Documentos Corporativos y solicita: "${prompt}".
+Estado actual del documento:
+- Plantilla actual: ${docState.template} (opciones válidas: "nota_entrega", "recibo_pago", "ficha_empresa", "forma_libre")
+- Cliente actual: ${docState.clientName || 'No especificado'} (RIF: ${docState.clientRif || 'S/R'})
+- Título actual: ${docState.freeTitle}
+- Cuerpo actual: ${docState.freeBody}
+- Muestra real del catálogo: ${sampleCatalog}
+
+Responde ÚNICAMENTE con un objeto JSON válido (sin bloques markdown \`\`\`json) con los campos que correspondan actualizar:
+{
+  "template": "forma_libre" | "nota_entrega" | "recibo_pago" | "ficha_empresa",
+  "customDocBadge": "TÍTULO DEL RECUADRO SUPERIOR",
+  "clientName": "Nombre del cliente si se menciona en la instrucción",
+  "freeTitle": "TÍTULO DEL COMUNICADO O DOCUMENTO",
+  "freeRecipient": "A QUIÉN VA DIRIGIDO",
+  "freeBody": "Párrafos formales, impecables y bien redactados separados por \\n\\n",
+  "freeSignRole": "CARGO QUE FIRMA",
+  "deliveryNotes": "Observaciones o cláusula de conformidad para nota de entrega",
+  "items": [
+    { "qty": 10, "unit": "Unidad/Caja", "description": "Nombre exacto del producto", "price_usd": 42.00, "obs": "Observación" }
+  ]
+}
+Solo incluye "items" si el usuario pide explícitamente agregar productos o armar una nota de entrega.`;
+
+    let parsed = null;
+    if (window.GeminiClient && typeof window.GeminiClient.callGemini === 'function') {
+      const raw = await window.GeminiClient.callGemini(sysPrompt, { temperature: 0.4, maxTokens: 1200 });
+      const jsonMatch = String(raw || '').match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      }
+    }
+
+    if (parsed) {
+      if (parsed.template && ['nota_entrega', 'recibo_pago', 'ficha_empresa', 'forma_libre'].includes(parsed.template)) {
+        setTemplate(parsed.template);
+      }
+      if (parsed.customDocBadge) {
+        docState.customDocBadge = parsed.customDocBadge;
+        const el = document.getElementById('fieldCustomBadge');
+        if (el) el.value = parsed.customDocBadge;
+      }
+      if (parsed.clientName && !docState.clientName) {
+        docState.clientName = parsed.clientName;
+        const el = document.getElementById('fieldClientName');
+        if (el) el.value = parsed.clientName;
+      }
+      if (parsed.freeTitle) {
+        docState.freeTitle = parsed.freeTitle;
+        const el = document.getElementById('fieldFreeTitle');
+        if (el) el.value = parsed.freeTitle;
+      }
+      if (parsed.freeRecipient) {
+        docState.freeRecipient = parsed.freeRecipient;
+        const el = document.getElementById('fieldFreeRecipient');
+        if (el) el.value = parsed.freeRecipient;
+      }
+      if (parsed.freeBody) {
+        docState.freeBody = parsed.freeBody;
+        const el = document.getElementById('fieldFreeBody');
+        if (el) el.value = parsed.freeBody;
+      }
+      if (parsed.freeSignRole) {
+        docState.freeSignRole = parsed.freeSignRole;
+        const el = document.getElementById('fieldFreeSignRole');
+        if (el) el.value = parsed.freeSignRole;
+      }
+      if (parsed.deliveryNotes) {
+        docState.deliveryNotes = parsed.deliveryNotes;
+        const el = document.getElementById('fieldDeliveryNotes');
+        if (el) el.value = parsed.deliveryNotes;
+      }
+      if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+        docState.items = parsed.items.map(it => ({
+          sku: it.sku || '',
+          qty: Number(it.qty || 1),
+          unit: it.unit || 'Unidad',
+          description: it.description || it.name || 'Producto',
+          price_usd: Number(it.price_usd || 0),
+          obs: it.obs || ''
+        }));
+        renderItemsTableInput();
+      }
+
+      renderDocumentPreview();
+      if (statusEl) {
+        statusEl.textContent = '✅ Documento redactado y actualizado en vivo por IA.';
+        setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+      }
+      if (typeof showToast === 'function') showToast('Documento actualizado con IA', 'ok');
+    } else {
+      throw new Error('No se pudo estructurar la respuesta IA');
+    }
+  } catch (err) {
+    console.warn('Fallback local en runDocAiAssistant:', err);
+    // Fallback local inteligente si el usuario pide comunicado/oferta
+    setTemplate('forma_libre');
+    docState.freeTitle = 'PROPUESTA COMERCIAL Y SUMINISTRO CORPORATIVO';
+    docState.freeRecipient = docState.clientName ? `ATENCIÓN: ${docState.clientName.toUpperCase()}` : 'A QUIEN PUEDA INTERESAR';
+    docState.freeBody = `Estimados señores:\n\nReciban un cordial saludo en nombre de JJ PAPER, C.A. (RIF J-29537545-0). En atención a su solicitud (${prompt}), ponemos a su disposición nuestra línea mayorista de papelería corporativa, resmas de papel bond, rollos térmicos y suministros de oficina con disponibilidad inmediata en nuestro almacén principal.\n\nGarantizamos despacho prioritario en 24 horas en la Gran Caracas, precios competitivos al mayor y facturación fiscal conforme a la Tasa Oficial BCV vigente.\n\nAgradeciendo de antemano su preferencia, quedamos a su entera disposición.`;
+    const bodyEl = document.getElementById('fieldFreeBody');
+    if (bodyEl) bodyEl.value = docState.freeBody;
+    renderDocumentPreview();
+    if (statusEl) {
+      statusEl.textContent = '✅ Plantilla ejecutiva aplicada.';
+      setTimeout(() => { statusEl.style.display = 'none'; }, 3500);
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // Actualización de campos de texto comunes
 function updateFormField(field, val) {
   docState[field] = val;
@@ -218,20 +607,24 @@ function updateFormField(field, val) {
 // Gestión de renglones de Nota de Entrega
 function addDocItem() {
   docState.items.push({
+    sku: '',
     qty: 1,
-    unit: 'Bulto',
+    unit: 'Unidad',
     description: 'Nuevo Producto / Suministro',
+    price_usd: 0,
     obs: ''
   });
   renderItemsTableInput();
   renderDocumentPreview();
 }
 
+function clearDocItems() {
+  docState.items = [];
+  renderItemsTableInput();
+  renderDocumentPreview();
+}
+
 function removeDocItem(idx) {
-  if (docState.items.length <= 1) {
-    alert('El documento debe tener al menos un renglón.');
-    return;
-  }
   docState.items.splice(idx, 1);
   renderItemsTableInput();
   renderDocumentPreview();
@@ -239,21 +632,32 @@ function removeDocItem(idx) {
 
 function updateDocItem(idx, key, val) {
   if (docState.items[idx]) {
-    docState.items[idx][key] = (key === 'qty') ? Number(val) || 0 : val;
+    if (key === 'qty' || key === 'price_usd') {
+      docState.items[idx][key] = Number(val) || 0;
+    } else {
+      docState.items[idx][key] = val;
+    }
     renderDocumentPreview();
   }
 }
 
 function renderItemsTableInput() {
   const container = document.getElementById('itemsInputList');
+  const countBadge = document.getElementById('notaItemCountBadge');
+  if (countBadge) countBadge.textContent = docState.items.length;
   if (!container) return;
 
+  if (docState.items.length === 0) {
+    container.innerHTML = `<div style="padding:10px;text-align:center;font-size:11.5px;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;margin-bottom:6px">Sin renglones. Busca un producto del catálogo arriba o haz clic en "+ Fila Manual".</div>`;
+    return;
+  }
+
   container.innerHTML = docState.items.map((it, idx) => `
-    <div class="item-input-row" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-      <input type="number" min="1" value="${it.qty}" style="width:65px" class="fi" oninput="updateDocItem(${idx}, 'qty', this.value)" placeholder="Cant">
-      <input type="text" value="${escapeHTML(it.unit)}" style="width:95px" class="fi" oninput="updateDocItem(${idx}, 'unit', this.value)" placeholder="Unidad">
-      <input type="text" value="${escapeHTML(it.description)}" style="flex:1" class="fi" oninput="updateDocItem(${idx}, 'description', this.value)" placeholder="Descripción del producto">
-      <input type="text" value="${escapeHTML(it.obs)}" style="width:110px" class="fi" oninput="updateDocItem(${idx}, 'obs', this.value)" placeholder="Observación">
+    <div class="item-input-row" style="display:flex;gap:5px;margin-bottom:6px;align-items:center;">
+      <input type="number" min="1" value="${it.qty}" style="width:55px;padding:5px 6px;font-size:12px" class="fi" oninput="updateDocItem(${idx}, 'qty', this.value)" title="Cantidad" placeholder="Cant">
+      <input type="text" value="${escapeHTML(it.unit)}" style="width:78px;padding:5px 6px;font-size:11.5px" class="fi" oninput="updateDocItem(${idx}, 'unit', this.value)" title="Unidad" placeholder="Unidad">
+      <input type="text" value="${escapeHTML(it.description)}" style="flex:1;padding:5px 8px;font-size:12px" class="fi" oninput="updateDocItem(${idx}, 'description', this.value)" placeholder="Descripción del producto">
+      <input type="text" value="${escapeHTML(it.obs || '')}" style="width:92px;padding:5px 6px;font-size:11.5px" class="fi" oninput="updateDocItem(${idx}, 'obs', this.value)" placeholder="Observación">
       <button type="button" class="btn-del-row" onclick="removeDocItem(${idx})" title="Eliminar">✕</button>
     </div>
   `).join('');
@@ -304,12 +708,13 @@ function renderDocumentPreview() {
     bodyHTML = renderFormaLibreHTML();
   }
 
-  const titles = {
+  const defaultTitles = {
     nota_entrega: 'NOTA DE ENTREGA / DESPACHO',
     recibo_pago: 'RECIBO DE PAGO OFICIAL',
     ficha_empresa: 'FICHA INFORMATIVA CORPORATIVA',
     forma_libre: docState.freeTitle || 'COMUNICADO OFICIAL'
   };
+  const badgeTitle = (docState.customDocBadge || '').trim() || defaultTitles[docState.template];
 
   sheet.innerHTML = `
     <!-- Encabezado Membretado Oficial -->
@@ -326,7 +731,7 @@ function renderDocumentPreview() {
         </div>
       </div>
       <div class="doc-meta-box">
-        <div class="doc-meta-title">${titles[docState.template]}</div>
+        <div class="doc-meta-title">${escapeHTML(badgeTitle)}</div>
         <div class="doc-meta-row">
           <span class="lbl">Nº Control / Doc:</span>
           <span class="val highlight">${escapeHTML(docState.docNumber)}</span>
@@ -375,7 +780,7 @@ function renderDocumentPreview() {
         ${docState.template === 'nota_entrega' ? 'La firma y sello en esta nota constituyen prueba fehaciente de recepción de la mercancía a entera conformidad.' : 'Documento emitido conforme a las políticas comerciales oficiales de JJ PAPER, C.A.'}
       </div>
       <div class="doc-footer-bottom">
-        <div>Portal Web: <strong>jjpaper.pages.dev/catalogo</strong> · Catálogo con QR para Clientes</div>
+        <div>Portal Web: <strong>jjpaper.pages.dev/catalogo</strong> · Catálogo Oficial JJ Paper</div>
         <div>Página 1 de 1</div>
       </div>
     </footer>
@@ -384,6 +789,8 @@ function renderDocumentPreview() {
 
 function renderNotaEntregaHTML() {
   const totalBultos = docState.items.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+  const totalUsd = docState.items.reduce((acc, it) => acc + ((Number(it.qty) || 0) * (Number(it.price_usd) || 0)), 0);
+  const showPrices = !!docState.showPricesInNota;
 
   return `
     <!-- Bloque de Transporte -->
@@ -402,28 +809,36 @@ function renderNotaEntregaHTML() {
     <table class="doc-table">
       <thead>
         <tr>
-          <th style="width:40px;text-align:center">#</th>
-          <th style="width:70px;text-align:center">CANT.</th>
-          <th style="width:110px;text-align:center">UNIDAD</th>
+          <th style="width:36px;text-align:center">#</th>
+          <th style="width:65px;text-align:center">CANT.</th>
+          <th style="width:95px;text-align:center">UNIDAD</th>
           <th>DESCRIPCIÓN DE LA MERCANCÍA / PRODUCTO</th>
-          <th style="width:140px;text-align:center">OBSERVACIÓN / LOTE</th>
+          ${showPrices ? '<th style="width:85px;text-align:right">P. UNIT ($)</th><th style="width:95px;text-align:right">SUBTOTAL ($)</th>' : '<th style="width:135px;text-align:center">OBSERVACIÓN / CÓD</th>'}
         </tr>
       </thead>
       <tbody>
-        ${docState.items.map((it, idx) => `
+        ${docState.items.map((it, idx) => {
+          const sub = (Number(it.qty) || 0) * (Number(it.price_usd) || 0);
+          return `
           <tr>
             <td style="text-align:center">${idx + 1}</td>
             <td style="text-align:center;font-weight:700">${it.qty}</td>
             <td style="text-align:center">${escapeHTML(it.unit)}</td>
             <td style="font-weight:600">${escapeHTML(it.description)}</td>
-            <td style="text-align:center;color:#555">${escapeHTML(it.obs || '—')}</td>
-          </tr>
-        `).join('')}
+            ${showPrices
+              ? `<td style="text-align:right">$${Number(it.price_usd || 0).toFixed(2)}</td><td style="text-align:right;font-weight:700">$${sub.toFixed(2)}</td>`
+              : `<td style="text-align:center;color:#555">${escapeHTML(it.obs || it.sku || '—')}</td>`
+            }
+          </tr>`;
+        }).join('')}
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="3" style="text-align:right;font-weight:700">TOTAL BULTOS / PIEZAS ENTREGADAS:</td>
-          <td colspan="2" style="font-weight:800;color:var(--doc-c)">${totalBultos} unidades</td>
+          <td colspan="3" style="text-align:right;font-weight:700">TOTAL UNIDADES ENTREGADAS:</td>
+          <td colspan="${showPrices ? 3 : 2}" style="font-weight:800;color:var(--doc-c);display:flex;justify-content:space-between">
+            <span>${totalBultos} unidades / bultos</span>
+            ${showPrices ? `<span>TOTAL VALORADO: $${totalUsd.toFixed(2)} USD</span>` : ''}
+          </td>
         </tr>
       </tfoot>
     </table>
@@ -567,9 +982,9 @@ function renderFormaLibreHTML() {
       </div>
 
       <div class="doc-signatures-grid" style="margin-top:50px;">
-        <div class="sig-box" style="margin:0 auto;max-width:300px">
-          <div class="sig-line"></div>
-          <div class="sig-role">DIRECCIÓN COMERCIAL & ADMINISTRACIÓN</div>
+        <div class="sig-box" style="margin:0 auto;max-width:300px;grid-column:1/-1">
+          <div class="sig-line" style="width:240px"></div>
+          <div class="sig-role">${escapeHTML(docState.freeSignRole || 'DIRECCIÓN COMERCIAL & ADMINISTRACIÓN')}</div>
           <div class="sig-sub">JJ PAPER, C.A.</div>
         </div>
       </div>
@@ -613,7 +1028,7 @@ function shareDocumentWhatsApp() {
           `📍 *Dirección de Entrega:* ${docState.clientAddress || 'Caracas'}\n` +
           `🚚 *Chofer:* ${docState.driverName || 'Transporte JJ Paper'} (Placa: ${docState.driverPlate || 'OFICIAL'})\n\n` +
           `*📦 RESUMEN DE MERCANCÍA ENTREGADA (${totalBultos} unidades):*\n` +
-          docState.items.map((it, i) => `• *${it.qty} ${it.unit}* - ${it.description}`).join('\n') + `\n\n` +
+          docState.items.map((it) => `• *${it.qty} ${it.unit}* - ${it.description}`).join('\n') + `\n\n` +
           `✨ *Observaciones:* ${docState.deliveryNotes}\n` +
           `📞 Contacto Almacén: +58 412 2830185\n` +
           `🌐 Catálogo Digital: https://jjpaper.pages.dev/catalogo`;

@@ -1,6 +1,7 @@
 /* ====================================================================
    JJ Paper — Ficha y Historial 360° del Cliente (Compras & Cotizaciones)
-   Compatible con Admin y Vendedor. Consulta RPC jjp_customer_360.
+   Compatible con Admin y Vendedor. Consulta nativa enriquecida con
+   renglones completos (items JSONB), KPIs y correspondencia RIF/Nombre.
    ==================================================================== */
 
 let currentChData = null;
@@ -76,12 +77,110 @@ async function openCustomerHistory(customerId) {
   document.getElementById('chActionsLeft').innerHTML = '';
 
   try {
-    const { data, error } = await sb.rpc('jjp_customer_360', { p_customer: customerId });
-    if (error || !data || !data.cliente) {
+    // Consulta nativa enriquecida: cliente + vendedor + pedidos reales (con items JSONB) + cotizaciones reales
+    const { data: cust, error: custErr } = await sb
+      .from('jjp_customers')
+      .select('*')
+      .eq('id', customerId)
+      .maybeSingle();
+
+    if (custErr || !cust) {
       document.getElementById('chCustName').textContent = 'Error al cargar ficha';
-      document.getElementById('chCustMeta').textContent = error?.message || 'No se encontró el registro del cliente.';
+      document.getElementById('chCustMeta').textContent = custErr?.message || 'No se encontró el registro del cliente.';
       return;
     }
+
+    // Obtener nombre del vendedor asignado y mapa de vendedores
+    const { data: profiles } = await sb.from('jjp_profiles').select('id,name,ref_code');
+    const sellerMap = new Map((profiles || []).map(p => [p.id, p.name]));
+    cust.seller_name = cust.seller_id ? (sellerMap.get(cust.seller_id) || null) : null;
+
+    // Consultar pedidos por customer_id o coincidencia exacta de RIF/nombre
+    const orFilters = [`customer_id.eq.${customerId}`];
+    const cleanRif = String(cust.rif || '').trim();
+    if (cleanRif && cleanRif.length >= 6) {
+      orFilters.push(`rif.ilike.${cleanRif}`);
+    }
+    const cleanName = String(cust.name || '').trim().replace(/[,()]/g, ' ');
+    if (cleanName && cleanName.length >= 5) {
+      orFilters.push(`client_name.ilike.${cleanName}`);
+    }
+
+    const [ordersRes, quotesRes] = await Promise.all([
+      sb.from('jjp_orders')
+        .select('*')
+        .or(orFilters.join(','))
+        .order('created_at', { ascending: false })
+        .limit(100),
+      sb.from('jjp_quotes')
+        .select('*')
+        .or(orFilters.join(','))
+        .order('created_at', { ascending: false })
+        .limit(100)
+    ]);
+
+    const rawOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+    const rawQuotes = Array.isArray(quotesRes.data) ? quotesRes.data : [];
+
+    // Deduplicar y normalizar pedidos
+    const seenOrders = new Set();
+    const orders = [];
+    for (const o of rawOrders) {
+      if (seenOrders.has(o.id)) continue;
+      seenOrders.add(o.id);
+      let items = o.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch { items = []; }
+      }
+      orders.push({
+        ...o,
+        order_number: o.order_number || o.numero || '—',
+        created_at: o.created_at || o.fecha || null,
+        status: o.status || o.estado || 'pagado',
+        total_usd: Number(o.total_usd || 0),
+        total_bs: Number(o.total_bs || 0),
+        seller_name: o.seller_id ? (sellerMap.get(o.seller_id) || 'JJ Paper') : 'JJ Paper',
+        items: Array.isArray(items) ? items : []
+      });
+    }
+
+    // Deduplicar y normalizar cotizaciones
+    const seenQuotes = new Set();
+    const quotes = [];
+    for (const q of rawQuotes) {
+      if (seenQuotes.has(q.id)) continue;
+      seenQuotes.add(q.id);
+      let items = q.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch { items = []; }
+      }
+      quotes.push({
+        ...q,
+        quote_number: q.quote_number || q.numero || '—',
+        created_at: q.created_at || q.fecha || null,
+        status: q.status || q.estado || 'enviada',
+        total_usd: Number(q.estimated_total_usd || q.total_usd || 0),
+        seller_name: q.seller_id ? (sellerMap.get(q.seller_id) || 'JJ Paper') : 'JJ Paper',
+        items: Array.isArray(items) ? items : []
+      });
+    }
+
+    const validOrders = orders.filter(o => o.status !== 'cancelado');
+    const totalSpentUsd = validOrders.reduce((s, o) => s + Number(o.total_usd || 0), 0);
+    const lastOrderAt = validOrders.length > 0 ? validOrders[0].created_at : cust.last_order_at;
+
+    const data = {
+      cliente: cust,
+      pedidos: orders,
+      cotizaciones: quotes,
+      kpis: {
+        total_orders: validOrders.length,
+        total_spent_usd: +totalSpentUsd.toFixed(2),
+        avg_ticket_usd: validOrders.length ? +(totalSpentUsd / validOrders.length).toFixed(2) : 0,
+        last_order_at: lastOrderAt,
+        total_quotes: quotes.length
+      }
+    };
 
     currentChData = data;
     renderCustomer360View(data);
@@ -197,9 +296,9 @@ function renderCustomer360View(data) {
       </div>`;
   } else {
     const rows = orders.map((o, idx) => {
-      const isMix = (o.order_number || '').startsWith('MIX-');
+      const isMix = (o.order_number || '').startsWith('MIX-') || o.source === 'mixnet';
       const originBadge = isMix
-        ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">MixNet Caja</span>'
+        ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">MixNet ERP</span>'
         : '<span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">Web POS</span>';
 
       let stColor = '#059669', stBg = '#ecfdf5', stLabel = 'Completado';
@@ -231,8 +330,8 @@ function renderCustomer360View(data) {
                       <td style="padding:4px 8px;font-family:monospace;color:#64748b">${escapeHTML(it.sku || '—')}</td>
                       <td style="padding:4px 8px;font-weight:600;color:#1e293b">${escapeHTML(it.name || 'Artículo')}</td>
                       <td style="padding:4px 8px;text-align:center;font-weight:700">${it.qty || 1}</td>
-                      <td style="padding:4px 8px;text-align:right">${fmtPrice(it.price_usd || 0)}</td>
-                      <td style="padding:4px 8px;text-align:right;font-weight:700;color:#16604A">${fmtPrice(it.subtotal_usd ?? ((it.qty || 1) * (it.price_usd || 0)))}</td>
+                      <td style="padding:4px 8px;text-align:right">${fmtPrice(it.price_usd || it.price || 0)}</td>
+                      <td style="padding:4px 8px;text-align:right;font-weight:700;color:#16604A">${fmtPrice(it.subtotal_usd ?? ((it.qty || 1) * (it.price_usd || it.price || 0)))}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -292,7 +391,7 @@ function renderCustomer360View(data) {
       </div>`;
   } else {
     const qRows = quotes.map((q, idx) => {
-      const isMix = (q.quote_number || '').startsWith('MIX-COT-');
+      const isMix = (q.quote_number || '').startsWith('MIX-COT-') || q.source === 'mixnet';
       const originBadge = isMix
         ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">MixNet Cot</span>'
         : '<span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700">Web Cot</span>';

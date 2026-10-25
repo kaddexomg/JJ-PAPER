@@ -730,7 +730,7 @@ async function ingestMessage(acct, token, id) {
   let prospect = null;
   if (!cust?.id) {
     const { data: pros } = await dbCore.from('jjp_prospects')
-      .select('id, name, company').ilike('email', from.email).limit(1).maybeSingle();
+      .select('id, contact_name, company_name, notes').ilike('email', from.email).limit(1).maybeSingle();
     prospect = pros || null;
   }
 
@@ -787,7 +787,7 @@ async function ingestMessage(acct, token, id) {
     try {
       if (cust?.id) {
         await dbCore.from('jjp_customers').update({
-          last_contact_at: ts,
+          last_email_at: ts,
           updated_at: new Date().toISOString()
         }).eq('id', cust.id);
       } else if (prospect?.id) {
@@ -877,7 +877,7 @@ async function ingestMessage(acct, token, id) {
 
     // 4. Notificación enriquecida al asesor / usuario de la cuenta
     try {
-      const senderName = cust?.name || prospect?.name || prospect?.company || from.name || from.email;
+      const senderName = cust?.name || prospect?.contact_name || prospect?.company_name || from.name || from.email;
       let notifTitle = `📩 Respuesta de ${senderName}`;
       let notifBody = `"${subject || 'Sin asunto'}" — ${(bodyText || '').slice(0, 100)}...`;
 
@@ -907,7 +907,7 @@ async function ingestMessage(acct, token, id) {
     snippet: msg.snippet || null,
     gmail_id: id, thread_id: msg.threadId || null,
     attachments: atts, attach_state: atts.length ? 'pending' : 'none',
-    customer_id: cust?.id || null, is_read: false, created_at: ts
+    is_read: false, created_at: ts
   };
   let { error } = await db.from('jjp_emails').insert(emailPayload);
   if (error && error.message && error.message.includes('customer_id')) {
@@ -1032,7 +1032,7 @@ async function dispatch(row) {
   if (!acct) {
     // Sin cuenta configurada: no reintentar en bucle, marcar claro
     await db.from('jjp_emails').update({
-      status: 'failed', error: 'Sin correo vinculado. Abre "Mi correo" y toca "Vincular con Google".'
+      status: 'failed', snippet: 'Sin correo vinculado. Abre "Mi correo" y toca "Vincular con Google".'
     }).eq('id', row.id).eq('status', 'pending');
     return;
   }
@@ -1094,15 +1094,15 @@ async function dispatch(row) {
       messageId = info.messageId || null;
     }
     await db.from('jjp_emails').update({
-      status: 'sent', message_id: messageId, error: null,
-      from_addr: usedAcct.from, sent_at: new Date().toISOString()
+      status: 'sent', message_id: messageId,
+      from_addr: usedAcct.from, from_email: usedAcct.email
     }).eq('id', row.id);
     log.info({ id: row.id, to: row.to_addr, via: usedAcct.source }, 'correo enviado');
   } catch (e) {
     const retries = (row.retry_count || 0) + 1;
     const failed = retries >= MAX_RETRIES;
     await db.from('jjp_emails').update({
-      status: failed ? 'failed' : 'pending', retry_count: retries, error: e.message
+      status: failed ? 'failed' : 'pending', retry_count: retries, snippet: (e.message || '').slice(0, 200)
     }).eq('id', row.id);
     log.warn({ id: row.id, retries, failed, err: e.message }, 'envío de correo falló');
   }

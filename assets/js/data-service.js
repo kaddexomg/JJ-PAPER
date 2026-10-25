@@ -132,8 +132,7 @@ const DataService = (() => {
     }
 
     let query = sb.from('jjp_customers')
-      .select('id,name,phone,rif,email,city,address,total_orders,total_usd,seller_id,zone,active')
-      .eq('active', true)
+      .select('id,name,phone,rif,email,city,address,total_orders,total_usd,seller_id,zone')
       .order('name');
 
     const { data, error } = await query;

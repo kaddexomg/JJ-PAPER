@@ -26,16 +26,14 @@ async function mailInit(me) {
   window.linkGmailStart = function () {
     localStorage.setItem('jjp_link_gmail', '1');
     const redirectUrl = location.href.split('#')[0];
-    const googleParams = new URLSearchParams({
-      client_id: '966811384264-4ciph62d7inqh38t90ig98omsa6jj326.apps.googleusercontent.com',
-      redirect_uri: SUPABASE_URL + '/auth/v1/callback',
-      response_type: 'code',
-      scope: 'openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly',
-      state: redirectUrl,
+    const authParams = new URLSearchParams({
+      provider: 'google',
+      redirect_to: redirectUrl,
+      scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly',
       access_type: 'offline',
       prompt: 'consent'
     });
-    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + googleParams.toString();
+    window.location.href = SUPABASE_URL + '/auth/v1/authorize?' + authParams.toString();
   };
   sb.channel('email-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },
@@ -93,6 +91,7 @@ async function mailCaptureGmailLink() {
       app_pass: null,
       enabled: true,
       verified: true,
+      has_cred: true,
       last_error: null
     }, { onConflict: 'profile_id' }).catch(err => {
       console.warn('Advertencia guardando correo:', err);
@@ -152,7 +151,7 @@ async function mailSaveCompany() {
   const passIn = document.getElementById('coPass')?.value || '';
   if (!validEmail(email)) { showToast('Correo inválido', 'warn'); return; }
   const has = !!(MAIL_COMPANY?.has_cred);
-  const row = { id: 1, email, from_name: fromName || null, enabled: true, verified: false, last_error: null };
+  const row = { id: 1, email, from_name: fromName || null, enabled: true, verified: false, has_cred: true, last_error: null };
   if (passIn) row.app_pass = passIn.replace(/\s+/g, '');
   else if (!has) { showToast('Pega la contraseña de aplicación', 'warn'); return; }
   const { error } = await sb.from('jjp_email_company').upsert(row, { onConflict: 'id' });
@@ -193,7 +192,7 @@ async function mailSaveAccount() {
   const passIn = document.getElementById('acctPass')?.value || '';
   if (!validEmail(email)) { showToast('Correo inválido', 'warn'); return; }
 
-  const row = { profile_id: MAIL_ME.id, email, from_name: fromName || null, enabled: true, verified: false, last_error: null };
+  const row = { profile_id: MAIL_ME.id, email, from_name: fromName || null, enabled: true, verified: false, has_cred: true, last_error: null };
   if (passIn) row.app_pass = passIn.replace(/\s+/g, '');   // Google muestra la app pass con espacios
   else if (!mailAcctConfigured()) { showToast('Pega tu contraseña de aplicación', 'warn'); return; }
 
@@ -221,10 +220,9 @@ async function syncGmailNow() {
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Sincronizando…'; }
   showToast('Solicitando sincronización a Gmail en segundo plano… 📥');
   try {
-    await Promise.allSettled([
-      sb.from('jjp_server_control').update({ command: 'sync_gmail' }).eq('id', 1),
-      _rawSbCore.from('jjp_server_control').update({ command: 'sync_gmail' }).eq('id', 1)
-    ]);
+    const { data: ctl } = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    const modules = Object.assign({}, ctl?.modules || {}, { command: 'sync_gmail', command_at: new Date().toISOString() });
+    await sb.from('jjp_server_control').update({ modules, updated_at: new Date().toISOString() }).eq('id', 1);
     setTimeout(async () => {
       await mailLoad();
       showToast('Bandeja de correo sincronizada con Gmail ✔');
@@ -237,7 +235,7 @@ async function syncGmailNow() {
 }
 
 async function mailLoad() {
-  const MAIL_COLS = 'id,direction,status,is_read,from_addr,to_addr,subject,snippet,attachments,attach_state,error,created_at,customer_id,owner_id';
+  const MAIL_COLS = 'id,direction,status,is_read,from_addr,to_addr,from_email,to_email,subject,snippet,attachments,attach_state,created_at,owner_id';
   let q = sb.from('jjp_emails').select(MAIL_COLS).order('created_at', { ascending: false }).limit(150);
   if (!MAIL_IS_ADMIN && MAIL_ME?.id) {
     q = q.eq('owner_id', MAIL_ME.id);
@@ -417,10 +415,10 @@ async function mailOpen(id) {
 
   // Carga on-demand de cuerpo y html para no descargar megabytes en el listado
   if (m.html === undefined && m.body === undefined) {
-    const { data: fullMail } = await sb.from('jjp_emails').select('body, html').eq('id', id).maybeSingle();
+    const { data: fullMail } = await sb.from('jjp_emails').select('body, html, body_text, body_html').eq('id', id).maybeSingle();
     if (fullMail) {
-      m.body = fullMail.body;
-      m.html = fullMail.html;
+      m.body = fullMail.body || fullMail.body_text;
+      m.html = fullMail.html || fullMail.body_html;
     }
   }
 
@@ -686,8 +684,7 @@ async function mailSend() {
 
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',
-    to_addr: to, subject: subject || '(sin asunto)', body, html: formattedHtml, status: 'pending',
-    customer_id: mailCompose.customerId || null,
+    to_addr: to, to_email: to, subject: subject || '(sin asunto)', body, body_text: body, html: formattedHtml, body_html: formattedHtml, status: 'pending',
     attachments: mailCompose.attachments
   });
   if (error) { showToast('No se pudo encolar: ' + error.message, 'err'); return; }
@@ -702,8 +699,8 @@ async function mailRetry(id) {
   if (!m) return;
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',
-    to_addr: m.to_addr, subject: m.subject, body: m.body, html: m.html, status: 'pending',
-    customer_id: m.customer_id || null, attachments: m.attachments || []
+    to_addr: m.to_addr, to_email: m.to_addr, subject: m.subject, body: m.body, body_text: m.body, html: m.html, body_html: m.html, status: 'pending',
+    attachments: m.attachments || []
   });
   if (error) showToast('No se pudo reintentar: ' + error.message, 'err');
   else showToast('Reintentando…');
@@ -1005,7 +1002,7 @@ async function mailAiGenerate() {
           enrichedNotes = (enrichedNotes ? enrichedNotes + '\n' : '') + `[Datos CRM: ${cust.name} | Zona: ${cust.zone || 'N/A'} | Notas previas: ${cust.notes || 'Ninguna'}]`;
           
           // Buscar historial de compras en jjp_orders
-          const { data: pastOrders } = await sb.from('jjp_orders').select('order_num, total, items, created_at').eq('customer_id', cust.id).order('created_at', { ascending: false }).limit(3);
+          const { data: pastOrders } = await sb.from('jjp_orders').select('order_number, total_usd, items, created_at').eq('customer_id', cust.id).order('created_at', { ascending: false }).limit(3);
           if (pastOrders && pastOrders.length > 0) {
             const itemsList = [];
             pastOrders.forEach(o => {
@@ -1014,7 +1011,7 @@ async function mailAiGenerate() {
               }
             });
             const topItems = [...new Set(itemsList)].slice(0, 4).join(', ');
-            historySummary = `Cliente recurrente con ${pastOrders.length} pedido(s) previo(s). Suele comprar: ${topItems || 'papelería general'}. Última orden: N° ${pastOrders[0].order_num || 'S/N'}.`;
+            historySummary = `Cliente recurrente con ${pastOrders.length} pedido(s) previo(s). Suele comprar: ${topItems || 'papelería general'}. Última orden: N° ${pastOrders[0].order_number || 'S/N'}.`;
           }
         }
       } catch (_) {}

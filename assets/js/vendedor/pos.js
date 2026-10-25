@@ -62,8 +62,8 @@ async function initPos() {
   await posInitSellerSelector();
   posProducts = await pfLoad();          // buscador universal (nombre/SKU/código/marca)
   posRenderResults(pfMatch(posProducts, ''));
-  posPrefillAdd();                        // ?add=<id> desde Consultar stock
-  pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
+  if (typeof posPrefillAdd === "function") posPrefillAdd(); // ?add=<id> desde Consultar stock
+  if (typeof pfPhoneBridge === 'function') pfPhoneBridge(posOnScan);               // teléfono → agrega al ticket en vivo
   posInitCustomerKeys();                  // teclado ↑/↓/Enter en resultados de cliente
   posInitGlobalKeys();                    // atajos globales (F1, F2, F3, F4, F6, F7, F8, F9, F10, F11, Esc)
   posInitTabNav();                        // flujo secuencial ordenado con Tabulador
@@ -93,6 +93,17 @@ async function initPos() {
     onPick: posPickCustomer,
     onChange: () => { posCustomer = null; },
   });
+}
+
+function posOnScan(code) {
+  if (!code) return;
+  const hit = typeof pfExactMatch === 'function' ? pfExactMatch(posProducts, code) : null;
+  if (hit && hit.product) {
+    posAddAndPick(hit.product, hit.variant);
+  } else {
+    const se = document.getElementById('posSearch');
+    if (se) { se.value = code; posSearch(); }
+  }
 }
 
 /* Llega con el cliente ya elegido desde el chat, el correo o la ficha:
@@ -984,7 +995,9 @@ function posReset() {
   if (searchInput) { searchInput.value = ''; searchInput.focus(); }
   if (typeof posSearch === 'function') posSearch();
 }
-window.posClear = clearPos;
+const clearPos = posReset;
+window.posClear = posReset;
+window.clearPos = posReset;
 
 /* ---------- Navegación Ordenada por Tabulador ---------- */
 const POS_NAV_SEQUENCE = [

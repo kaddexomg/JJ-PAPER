@@ -94,12 +94,9 @@ async function beat() {
     tailscale_https_url: tsIp ? `https://${tsIp}:8788` : null
   };
 
-  // Latido rápido primero: nunca depende de GSM ni de métricas lentas
+  // Latido rápido primero: usa únicamente columnas reales del VPS (heartbeat_at, updated_at)
   const quick = new Date().toISOString();
-  await Promise.allSettled([
-    db.from('jjp_server_control').update({ heartbeat: quick, heartbeat_at: quick, status: serverStatus }).eq('id', 1),
-    dbCore.from('jjp_server_control').update({ heartbeat_at: quick, status: serverStatus }).eq('id', 1)
-  ]);
+  await dbCore.from('jjp_server_control').update({ heartbeat_at: quick, updated_at: quick }).eq('id', 1);
 
   const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 
@@ -112,40 +109,36 @@ async function beat() {
   const monitorStats = await withTimeout(fetchStatsForBeat(), 8000);
 
   const now = new Date().toISOString();
+  const { data: curRow } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+  const curMods = (curRow?.modules && typeof curRow.modules === 'object') ? curRow.modules : {};
   const payload = {
-    heartbeat: now,
     heartbeat_at: now,
-    status: serverStatus,
-    host: os.hostname(),
+    updated_at: now,
     modules: {
+      ...curMods,
       ...modulesRef,
       ...extra,
       ...lanInfo,
+      status: serverStatus,
+      host: os.hostname(),
       ...(mixerStatus ? { mixer_status: mixerStatus } : {}),
       ...(gsmDevice ? { gsm_device: gsmDevice } : {}),
       ...(monitorStats ? { monitor_stats: monitorStats } : {})
     }
   };
-
-  // 1. Actualizar Proyecto B (Comunicación - donde el frontend consulta jjp_server_control)
-  const { error: errB } = await db.from('jjp_server_control').update(payload).eq('id', 1);
-  if (errB) log.warn({ err: errB.message }, 'heartbeat falló en Proyecto B');
-
-  // 2. Actualizar Proyecto A (Core) — en Proyecto A la columna es heartbeat_at, no existe 'heartbeat'
-  const payloadCore = { ...payload };
-  delete payloadCore.heartbeat;
-  const { error: errA } = await dbCore.from('jjp_server_control').update(payloadCore).eq('id', 1);
-  if (errA) log.warn({ err: errA.message }, 'heartbeat falló en Proyecto A');
+  const { error: errA } = await dbCore.from('jjp_server_control').update(payload).eq('id', 1);
+  if (errA) log.warn({ err: errA.message }, 'heartbeat falló en VPS');
 }
 
 async function runCommand(cmd) {
   if (handling) return;
   handling = true;
   // Limpiar el comando ANTES de ejecutarlo en ambos proyectos (evita re-disparos)
-  await Promise.allSettled([
-    db.from('jjp_server_control').update({ command: null }).eq('id', 1),
-    dbCore.from('jjp_server_control').update({ command: null }).eq('id', 1)
-  ]);
+  try {
+    const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    const mods = (cur?.modules && typeof cur.modules === 'object') ? { ...cur.modules, command: null } : { command: null };
+    await dbCore.from('jjp_server_control').update({ modules: mods, updated_at: new Date().toISOString() }).eq('id', 1);
+  } catch (_) {}
 
   if (cmd === 'sync_mixnet' || cmd === 'sync_catalog') {
     log.info('comando de sincronización manual de MixNet recibido vía Supabase');
@@ -320,21 +313,19 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
     lan_https_url: `https://${ip}:8788`
   };
   const startPayload = {
-    started_at: now,
-    heartbeat: now,
     heartbeat_at: now,
-    status: 'online',
-    host: os.hostname(),
-    modules: { ...modulesRef, ...lanInfo },
-    command: null
+    updated_at: now,
+    modules: {
+      ...modulesRef,
+      ...lanInfo,
+      started_at: now,
+      status: 'online',
+      host: os.hostname(),
+      command: null
+    }
   };
-  db.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
-    if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto B');
-  });
-  const startPayloadCore = { ...startPayload };
-  delete startPayloadCore.heartbeat;
-  dbCore.from('jjp_server_control').update(startPayloadCore).eq('id', 1).then(({ error }) => {
-    if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en Proyecto A');
+  dbCore.from('jjp_server_control').update(startPayload).eq('id', 1).then(({ error }) => {
+    if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en VPS');
   });
 
   beatTimer = setInterval(() => beat().catch(() => {}), HEARTBEAT_MS);
@@ -352,14 +343,11 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
       p => { if (p.new?.command) runCommand(p.new.command).catch(e => log.error({ err: e.message }, 'runCommand A falló')); })
     .subscribe(st => log.info({ st }, 'realtime control A'));
 
-  // Respaldo: por si el Realtime se cae, revisar el comando periódicamente en ambos proyectos
+  // Revisar comando periódicamente desde modules JSONB en jjp_server_control
   pollTimer = setInterval(async () => {
     try {
-      const [{ data: dataB }, { data: dataA }] = await Promise.all([
-        db.from('jjp_server_control').select('command').eq('id', 1).maybeSingle(),
-        dbCore.from('jjp_server_control').select('command').eq('id', 1).maybeSingle()
-      ]);
-      const cmd = dataB?.command || dataA?.command;
+      const { data: row } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+      const cmd = row?.modules?.command;
       if (cmd) await runCommand(cmd).catch(() => {});
     } catch (_) {}
   }, POLL_MS);

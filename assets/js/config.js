@@ -25,84 +25,511 @@ function getAuthToken() {
   return SUPABASE_KEY;
 }
 
-// Supabase base clients con inyección directa y dinámica de token Bearer en cada petición
-const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+// Decodifica el payload de un JWT sin dependencias externas
+function _decodeJwtPayload(token) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(atob(b64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    return JSON.parse(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+// Normaliza y lee la sesión activa desde localStorage
+function _readStoredSession() {
+  try {
+    const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-166-0-112-247-auth-token') : null;
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || (!p.access_token && !p.user && !p.id)) return null;
+    const claims = p.access_token ? (_decodeJwtPayload(p.access_token) || {}) : {};
+    const uid = p.user?.id || p.id || p.sub || claims.sub || null;
+    const email = p.user?.email || p.email || claims.email || '';
+    const role = p.user?.role || p.role || claims.user_role || claims.role || 'authenticated';
+    const user = p.user ? { ...p.user, id: uid, email, role } : {
+      id: uid,
+      email,
+      role,
+      user_metadata: p.user_metadata || claims.user_metadata || { name: p.name || email.split('@')[0] }
+    };
+    return {
+      ...p,
+      access_token: p.access_token || SUPABASE_KEY,
+      refresh_token: p.refresh_token || p.access_token || '',
+      user
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+// Fetch con inyección dinámica del JWT Bearer y limpieza de cabeceras bloqueadas por CORS en Nginx VPS
+const _sovereignFetch = async (input, init = {}) => {
+  const headers = new Headers(init.headers || {});
+  if (!headers.has('apikey')) headers.set('apikey', SUPABASE_KEY);
+  const tok = getAuthToken();
+  headers.set('Authorization', `Bearer ${tok}`);
+  // Nginx en el VPS no incluye accept-profile ni content-profile en Access-Control-Allow-Headers;
+  // PostgREST usa el esquema 'public' por defecto cuando se omiten.
+  headers.delete('Accept-Profile');
+  headers.delete('accept-profile');
+  headers.delete('Content-Profile');
+  headers.delete('content-profile');
+  return fetch(input, { ...init, headers });
+};
+
+const _pgClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     storageKey: 'sb-166-0-112-247-auth-token',
     detectSessionInUrl: false,
-    persistSession: true,
-    autoRefreshToken: true
+    persistSession: false,
+    autoRefreshToken: false
   },
-  accessToken: async () => getAuthToken()
-});
-const _rawSbComm = _rawSbCore;
-const _rawSbInv  = _rawSbCore;
-
-// Sincronizar token guardado de inmediato con supabase-js en memoria
-try {
-  const _rawStorageToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-166-0-112-247-auth-token') : null;
-  if (_rawStorageToken) {
-    const _parsedTok = JSON.parse(_rawStorageToken);
-    if (_parsedTok && _parsedTok.access_token) {
-      _rawSbCore.auth.setSession({
-        access_token: _parsedTok.access_token,
-        refresh_token: _parsedTok.refresh_token || _parsedTok.access_token
-      }).catch(() => {});
-    }
+  global: {
+    fetch: _sovereignFetch
   }
+});
+
+// Adaptador nativo de autenticación para el VPS soberano (compatible con las 30 llamadas a sb.auth.*)
+const _authListeners = new Set();
+function _notifyAuth(event, session) {
+  for (const cb of _authListeners) {
+    try { cb(event, session); } catch (_) {}
+  }
+}
+
+const _sovereignAuth = {
+  async getSession() {
+    return { data: { session: _readStoredSession() }, error: null };
+  },
+  async getUser() {
+    const s = _readStoredSession();
+    return { data: { user: s?.user || null }, error: null };
+  },
+  async setSession(tokens = {}) {
+    try {
+      const current = _readStoredSession() || {};
+      const nextTok = tokens.access_token || current.access_token;
+      if (nextTok) {
+        const claims = _decodeJwtPayload(nextTok) || {};
+        const merged = {
+          ...current,
+          ...tokens,
+          access_token: nextTok,
+          refresh_token: tokens.refresh_token || current.refresh_token || nextTok,
+          user: current.user || {
+            id: claims.sub || current.id,
+            email: claims.email || current.email || '',
+            role: claims.user_role || claims.role || 'authenticated',
+            user_metadata: claims.user_metadata || {}
+          }
+        };
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(merged));
+        }
+        _notifyAuth('TOKEN_REFRESHED', merged);
+        return { data: { session: merged, user: merged.user }, error: null };
+      }
+    } catch (_) {}
+    const s = _readStoredSession();
+    return { data: { session: s, user: s?.user || null }, error: null };
+  },
+  async signInWithPassword({ email, password }) {
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/auth/v1/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ email, password })
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok || !body.access_token) {
+        return {
+          data: { user: null, session: null },
+          error: new Error(body.error_description || body.msg || body.error || 'Credenciales inválidas')
+        };
+      }
+      const claims = _decodeJwtPayload(body.access_token) || {};
+      const userObj = body.user || {
+        id: claims.sub,
+        email: claims.email || email,
+        role: claims.user_role || claims.role || 'authenticated',
+        user_metadata: claims.user_metadata || {}
+      };
+      const sessionObj = {
+        access_token: body.access_token,
+        refresh_token: body.refresh_token || body.access_token,
+        token_type: 'bearer',
+        expires_in: body.expires_in || 604800,
+        user: userObj
+      };
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(sessionObj));
+      }
+      _notifyAuth('SIGNED_IN', sessionObj);
+      return { data: { user: userObj, session: sessionObj }, error: null };
+    } catch (err) {
+      return { data: { user: null, session: null }, error: err };
+    }
+  },
+  async signInWithOAuth({ provider = 'google', options = {} } = {}) {
+    const redirectTo = options.redirectTo || (typeof window !== 'undefined' ? window.location.origin + '/admin/login.html' : '');
+    const qp = new URLSearchParams({ provider, redirect_to: redirectTo });
+    if (options.scopes) qp.set('scopes', options.scopes);
+    if (options.queryParams) {
+      for (const [k, v] of Object.entries(options.queryParams)) qp.set(k, v);
+    }
+    const url = `${SUPABASE_URL}/auth/v1/authorize?${qp.toString()}`;
+    if (typeof window !== 'undefined') window.location.href = url;
+    return { data: { provider, url }, error: null };
+  },
+  async signOut() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('sb-166-0-112-247-auth-token');
+      }
+      _notifyAuth('SIGNED_OUT', null);
+    } catch (_) {}
+    return { error: null };
+  },
+  async updateUser(attrs = {}) {
+    const s = _readStoredSession();
+    if (s && s.user) {
+      s.user = { ...s.user, ...attrs, user_metadata: { ...(s.user.user_metadata || {}), ...(attrs.data || {}) } };
+      try { localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(s)); } catch (_) {}
+    }
+    return { data: { user: s?.user || null }, error: null };
+  },
+  onAuthStateChange(cb) {
+    if (typeof cb === 'function') {
+      _authListeners.add(cb);
+      setTimeout(() => {
+        const s = _readStoredSession();
+        if (s) {
+          try { cb('INITIAL_SESSION', s); } catch (_) {}
+        }
+      }, 0);
+    }
+    return {
+      data: {
+        subscription: {
+          unsubscribe() { _authListeners.delete(cb); }
+        }
+      }
+    };
+  }
+};
+
+try {
+  Object.defineProperty(_pgClient, 'auth', {
+    value: _sovereignAuth,
+    writable: true,
+    configurable: true
+  });
+} catch (_) {
+  _pgClient.auth = _sovereignAuth;
+}
+
+// Adaptador soberano de Storage para el VPS (convierte subidas a Data URI + KV en jjp_settings)
+const _localMediaStore = new Map();
+
+function _blobToDataUri(fileOrBlob, fallbackMime) {
+  return new Promise((resolve, reject) => {
+    if (typeof fileOrBlob === 'string') {
+      if (fileOrBlob.startsWith('data:')) return resolve(fileOrBlob);
+      return resolve(`data:${fallbackMime || 'application/octet-stream'};base64,${btoa(unescape(encodeURIComponent(fileOrBlob)))}`);
+    }
+    if (typeof FileReader !== 'undefined' && fileOrBlob instanceof Blob) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(fileOrBlob);
+      return;
+    }
+    reject(new Error('Objeto de archivo no soportado para conversión Base64'));
+  });
+}
+
+function _createSovereignBucket(bucketName) {
+  return {
+    async upload(path, fileOrBlob, opts = {}) {
+      try {
+        const mime = opts.contentType || fileOrBlob?.type || 'application/octet-stream';
+        const dataUri = await _blobToDataUri(fileOrBlob, mime);
+        const cleanPath = String(path || '').replace(/^\/+/, '');
+        const fullKey = `${bucketName}/${cleanPath}`;
+        _localMediaStore.set(fullKey, dataUri);
+
+        const settingKey = `storage:${bucketName}:${cleanPath}`;
+        try {
+          await _sovereignFetch(`${SUPABASE_URL}/rest/v1/jjp_settings?on_conflict=key`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates,return=minimal'
+            },
+            body: JSON.stringify({ key: settingKey, value: dataUri })
+          });
+        } catch (_) {}
+
+        return { data: { path: cleanPath, id: cleanPath, fullPath: fullKey, dataUri }, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+    async createSignedUrl(path) {
+      if (!path) return { data: null, error: new Error('Ruta vacía') };
+      const cleanPath = String(path).replace(/^\/+/, '');
+      if (cleanPath.startsWith('data:') || /^https?:\/\//i.test(cleanPath)) {
+        return { data: { signedUrl: cleanPath }, error: null };
+      }
+      const fullKey = `${bucketName}/${cleanPath}`;
+      if (_localMediaStore.has(fullKey)) {
+        return { data: { signedUrl: _localMediaStore.get(fullKey) }, error: null };
+      }
+      try {
+        const settingKey = `storage:${bucketName}:${cleanPath}`;
+        const resp = await _sovereignFetch(`${SUPABASE_URL}/rest/v1/jjp_settings?key=eq.${encodeURIComponent(settingKey)}&select=value`);
+        if (resp.ok) {
+          const rows = await resp.json();
+          if (rows && rows[0]?.value) {
+            _localMediaStore.set(fullKey, rows[0].value);
+            return { data: { signedUrl: rows[0].value }, error: null };
+          }
+        }
+      } catch (_) {}
+      return {
+        data: { signedUrl: `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${cleanPath}` },
+        error: null
+      };
+    },
+    getPublicUrl(path) {
+      const cleanPath = String(path || '').replace(/^\/+/, '');
+      if (cleanPath.startsWith('data:') || /^https?:\/\//i.test(cleanPath)) {
+        return { data: { publicUrl: cleanPath } };
+      }
+      const fullKey = `${bucketName}/${cleanPath}`;
+      if (_localMediaStore.has(fullKey)) {
+        return { data: { publicUrl: _localMediaStore.get(fullKey) } };
+      }
+      return {
+        data: { publicUrl: `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${cleanPath}` }
+      };
+    },
+    async download(path) {
+      const { data, error } = await this.createSignedUrl(path);
+      if (error || !data?.signedUrl) return { data: null, error: error || new Error('No encontrado') };
+      try {
+        const resp = await fetch(data.signedUrl);
+        if (!resp.ok) return { data: null, error: new Error(`HTTP ${resp.status}`) };
+        return { data: await resp.blob(), error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+    async list() {
+      return { data: [], error: null };
+    },
+    async remove(paths = []) {
+      for (const p of paths) {
+        const cleanPath = String(p || '').replace(/^\/+/, '');
+        _localMediaStore.delete(`${bucketName}/${cleanPath}`);
+      }
+      return { data: paths, error: null };
+    }
+  };
+}
+
+const _sovereignStorage = {
+  from(bucketName) {
+    return _createSovereignBucket(bucketName);
+  },
+  async listBuckets() {
+    return {
+      data: [
+        { id: 'jjp-products', name: 'jjp-products', public: true },
+        { id: 'jjp-wa-media', name: 'jjp-wa-media', public: false },
+        { id: 'jjp-email-media', name: 'jjp-email-media', public: false },
+        { id: 'jjp-receipts', name: 'jjp-receipts', public: false }
+      ],
+      error: null
+    };
+  },
+  async getBucket(id) {
+    return { data: { id, name: id, public: id === 'jjp-products' }, error: null };
+  }
+};
+
+try {
+  Object.defineProperty(_pgClient, 'storage', {
+    value: _sovereignStorage,
+    writable: true,
+    configurable: true
+  });
 } catch (_) {}
 
-// Tablas dedicadas a Proyecto B (Comunicación)
-const COMM_TABLES = new Set([
-  'jjp_wa_sessions', 'jjp_wa_chats', 'jjp_wa_messages', 'jjp_wa_actions',
-  'jjp_wa_templates', 'jjp_wa_campaigns', 'jjp_wa_campaign_targets',
-  'jjp_email_accounts', 'jjp_email_company', 'jjp_emails',
-  'jjp_email_campaigns', 'jjp_email_campaign_targets', 'jjp_server_control'
-]);
+const _FLAT_CATALOG_SELECT = 'id,name,description,price_usd,price_a,price_b,price_c_bs,price_d_bs,mixnet_status,unit,image_url,emoji,tag,featured,essential,stock,min_qty,category_id,sku,sort_order,jjp_categories(name,slug,color,group_id),jjp_product_variants(id,variant_name,sku,barcode,price_usd,price_a,price_b,price_c_bs,price_d_bs,active,stock,min_qty,image_url,sort_order,jjp_brands(name,logo_url))';
 
-const COMM_RPCS = new Set([
-  'jjp_wa_ensure_chat', 'jjp_wa_delete_chat', 'jjp_wa_purge_chats',
-  'jjp_delete_campaign', 'jjp_delete_email_campaign'
-]);
+// Adaptador transparente para jjp_server_control (empaqueta/desempaqueta campos extra dentro de modules JSONB)
+function _createServerControlQuery() {
+  return {
+    select() {
+      const q = _pgClient.from('jjp_server_control').select('id,heartbeat_at,updated_at,modules');
+      const wrap = (prom) => prom.then(res => {
+        if (!res || !res.data) return res;
+        const unpack = (r) => {
+          if (!r || typeof r !== 'object') return r;
+          const m = (r.modules && typeof r.modules === 'object') ? r.modules : {};
+          return {
+            ...r,
+            heartbeat: r.heartbeat_at || m.heartbeat || null,
+            status: m.status || (r.heartbeat_at ? 'online' : 'offline'),
+            host: m.host || 'VPS-Soberano',
+            started_at: m.started_at || r.updated_at || null,
+            command: m.command || null,
+            command_res: m.command_res || null,
+            command_at: m.command_at || null
+          };
+        };
+        return {
+          ...res,
+          data: Array.isArray(res.data) ? res.data.map(unpack) : unpack(res.data)
+        };
+      });
+      const proxy = new Proxy(q, {
+        get(t, p) {
+          if (p === 'maybeSingle' || p === 'single') {
+            return (...args) => wrap(t[p](...args));
+          }
+          if (p === 'eq' || p === 'limit' || p === 'order') {
+            return (...args) => {
+              t[p](...args);
+              return proxy;
+            };
+          }
+          if (p === 'then') {
+            const w = wrap(Promise.resolve(t));
+            return w.then.bind(w);
+          }
+          const v = Reflect.get(t, p);
+          return typeof v === 'function' ? v.bind(t) : v;
+        }
+      });
+      return proxy;
+    },
+    update(patch = {}) {
+      return {
+        async eq(col, val) {
+          try {
+            const { data: cur } = await _pgClient.from('jjp_server_control').select('modules').eq(col, val).maybeSingle();
+            const curMods = (cur && cur.modules && typeof cur.modules === 'object') ? cur.modules : {};
+            const nextMods = {
+              ...curMods,
+              ...(patch.modules && typeof patch.modules === 'object' ? patch.modules : {})
+            };
+            for (const k of ['command', 'command_at', 'command_by', 'command_res', 'status', 'host', 'started_at']) {
+              if (k in patch) nextMods[k] = patch[k];
+            }
+            const dbPatch = {
+              updated_at: new Date().toISOString(),
+              modules: nextMods
+            };
+            if ('heartbeat_at' in patch) dbPatch.heartbeat_at = patch.heartbeat_at;
+            else if ('heartbeat' in patch) dbPatch.heartbeat_at = patch.heartbeat;
+            return await _pgClient.from('jjp_server_control').update(dbPatch).eq(col, val);
+          } catch (err) {
+            return { data: null, error: err };
+          }
+        }
+      };
+    },
+    upsert(patch = {}, opts = {}) {
+      return this.update(patch).eq('id', patch.id || 1);
+    }
+  };
+}
 
-// Proxy transparente en `sb`: Enruta automáticamente a Proyecto B o C según la tabla/RPC
-// sin romper absolutamente ningún código existente en los JS del frontend.
-const sb = new Proxy(_rawSbCore, {
+// Adaptador transparente para jjp_catalog_flat -> consulta jjp_products con relaciones en vivo sin errores 404
+function _createCatalogFlatQuery() {
+  const base = _pgClient.from('jjp_products');
+  return new Proxy(base, {
+    get(t, p) {
+      if (p === 'select') {
+        return function () {
+          return base.select(_FLAT_CATALOG_SELECT).eq('active', true);
+        };
+      }
+      const v = Reflect.get(t, p);
+      return typeof v === 'function' ? v.bind(t) : v;
+    }
+  });
+}
+
+// Proxy transparente en `sb` unificado para el VPS soberano
+const sb = new Proxy(_pgClient, {
   get(target, prop, receiver) {
+    if (prop === 'auth') return _sovereignAuth;
+    if (prop === 'storage') return _sovereignStorage;
     if (prop === 'from') {
       return function (tableName) {
-        if (COMM_TABLES.has(tableName)) return _rawSbComm.from(tableName);
-        return _rawSbCore.from(tableName);
+        if (tableName === 'jjp_catalog_flat') return _createCatalogFlatQuery();
+        if (tableName === 'jjp_server_control') return _createServerControlQuery();
+        return _pgClient.from(tableName);
       };
     }
     if (prop === 'rpc') {
-      return function (fnName, params, options) {
-        if (COMM_RPCS.has(fnName)) return _rawSbComm.rpc(fnName, params, options);
-        return _rawSbCore.rpc(fnName, params, options);
+      return async function (fnName, params = {}, options) {
+        if (fnName === 'jjp_next_doc_serial') {
+          const serial = await fetchNextDocSerial(params.p_type || params.p_tipo || 'pedido');
+          return { data: serial, error: serial ? null : new Error('No se pudo obtener serial') };
+        }
+        if (fnName === 'jjp_refresh_catalog_flat') {
+          try {
+            if (typeof localStorage !== 'undefined') localStorage.removeItem('jjp_products_cache_v8');
+            if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('jjp_products_cache_v8');
+          } catch (_) {}
+          return { data: true, error: null };
+        }
+        if (fnName === 'jjp_delete_order') {
+          const oid = params.p_order_id || params.p_id;
+          const { error } = await _pgClient.from('jjp_orders').delete().eq('id', oid);
+          return { data: !error, error };
+        }
+        if (fnName === 'jjp_delete_email_campaign') {
+          const cid = params.p_campaign_id || params.p_id;
+          await _pgClient.from('jjp_email_campaign_targets').delete().eq('campaign_id', cid);
+          const { error } = await _pgClient.from('jjp_email_campaigns').delete().eq('id', cid);
+          return { data: !error, error };
+        }
+        if (fnName === 'jjp_wa_delete_chat') {
+          const chatId = params.p_chat_id || params.p_id;
+          await _pgClient.from('jjp_wa_messages').delete().eq('chat_id', chatId);
+          const { error } = await _pgClient.from('jjp_wa_chats').delete().eq('id', chatId);
+          return { data: !error, error };
+        }
+        if (fnName === 'jjp_wa_purge_chats') {
+          const ownerId = params.p_owner || params.p_owner_id;
+          const { data: chats } = await _pgClient.from('jjp_wa_chats').select('id').eq('owner_id', ownerId);
+          const ids = (chats || []).map(c => c.id);
+          if (ids.length) {
+            await _pgClient.from('jjp_wa_messages').delete().in('chat_id', ids);
+            await _pgClient.from('jjp_wa_chats').delete().in('id', ids);
+          }
+          return { data: true, error: null };
+        }
+        if (fnName === 'jjp_email_request_attachments') {
+          const eid = params.p_id;
+          const { error } = await _pgClient.from('jjp_emails').update({ attach_state: 'requested' }).eq('id', eid);
+          return { data: !error, error };
+        }
+        return _pgClient.rpc(fnName, params, options);
       };
     }
     if (prop === 'channel') {
       return function (name, opts) {
-        // Canales que escuchan eventos de WhatsApp, servidor local o email van a Comm
-        if (name && (name.startsWith('wa-') || name.startsWith('difusion-') || name.startsWith('srv-') || name.includes('email'))) {
-          return _rawSbComm.channel(name, opts);
-        }
-        return _rawSbCore.channel(name, opts);
-      };
-    }
-    if (prop === 'storage') {
-      return {
-        from(bucketName) {
-          if (bucketName === 'jjp-wa-media' || bucketName === 'jjp-email-media') {
-            return _rawSbComm.storage.from(bucketName);
-          }
-          if (bucketName === 'jjp-products' || bucketName === 'jjp-receipts') {
-            return _rawSbInv.storage.from(bucketName);
-          }
-          return _rawSbCore.storage.from(bucketName);
-        },
-        listBuckets: () => _rawSbComm.storage.listBuckets(),
-        getBucket: (id) => _rawSbComm.storage.getBucket(id)
+        return _pgClient.channel(name, opts);
       };
     }
     const val = Reflect.get(target, prop, receiver);
@@ -110,9 +537,12 @@ const sb = new Proxy(_rawSbCore, {
   }
 });
 
-const sbCore = _rawSbCore;
-const sbComm = _rawSbComm;
-const sbInv  = _rawSbInv;
+const _rawSbCore = sb;
+const _rawSbComm = sb;
+const _rawSbInv  = sb;
+const sbCore = sb;
+const sbComm = sb;
+const sbInv  = sb;
 
 if (typeof window !== 'undefined') {
   window.sb = sb;
@@ -170,7 +600,7 @@ async function loadSettings(force = false) {
   }
 
   try {
-    const { data, error } = await sb.from('jjp_settings').select('key,value');
+    const { data, error } = await sb.from('jjp_settings').select('key,value').not('key', 'like', 'storage:%');
     if (!error && data) {
       const map = {};
       data.forEach(r => { map[r.key] = r.value; });
@@ -412,69 +842,67 @@ function escapeHTML(str) {
 // Obtención del correlativo oficial soberano MixNet (8 dígitos: ej. 00053494 / 00112771)
 // MXNUMCOT / MXNUMPED son los dueños sagrados de la correlativa serial. Prohibido inventar números aleatorios.
 async function fetchNextDocSerial(type = 'pedido') {
-  const isCot = (type === 'cotizacion' || type === 'quote');
+  const isCot = (type === 'cotizacion' || type === 'quote' || type === 'COT');
   const settingKey = isCot ? 'mixnet_next_quote_serial' : 'mixnet_next_order_serial';
 
-  // 1. Intento LAN Bridge local directo (si la PC o el servidor de red están en la misma LAN)
-  const lanHosts = ['http://localhost:8787', 'http://192.168.0.172:8787', 'http://192.168.0.185:8790'];
-  for (const host of lanHosts) {
-    try {
-      const resp = await fetch(`${host}/lan/mixnet/next-serial?type=${isCot ? 'cotizacion' : 'pedido'}`, {
-        signal: AbortSignal.timeout(600)
-      });
-      if (resp.ok) {
-        const body = await resp.json();
-        if (body?.ok && body.serial && /^\d{8}$/.test(String(body.serial).trim())) {
-          return String(body.serial).trim();
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 2. Intento RPC atómica en Supabase Core
-  try {
-    const { data, error } = await sbCore.rpc('jjp_next_doc_serial', { p_type: isCot ? 'cotizacion' : 'pedido' });
-    if (!error && data && /^\d{1,8}$/.test(String(data).trim())) {
-      return String(data).padStart(8, '0').slice(-8);
-    }
-  } catch (e) {
-    console.warn('RPC jjp_next_doc_serial fallo:', e);
-  }
-
-  // 3. Consulta de la tabla de ajustes sincronizada por el puente LAN (jjp_settings)
-  try {
-    const { data: sRow } = await sbCore.from('jjp_settings')
-      .select('value')
-      .eq('key', settingKey)
-      .maybeSingle();
-    if (sRow?.value && /^\d{1,8}$/.test(String(sRow.value).trim())) {
-      return String(sRow.value).padStart(8, '0').slice(-8);
-    }
-  } catch (_) {}
-
-  // 4. Último registro correlativo existente en la base de datos + 1
-  try {
-    const table = isCot ? 'jjp_quotes' : 'jjp_orders';
-    const field = isCot ? 'quote_number' : 'order_number';
-    const { data: lastRows } = await sbCore.from(table)
-      .select(field)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (lastRows && lastRows.length > 0) {
-      for (const r of lastRows) {
-        const val = String(r[field] || '').trim();
-        if (/^\d{8}$/.test(val)) {
-          const nextVal = parseInt(val, 10) + 1;
-          if (!isNaN(nextVal) && nextVal > 0) {
-            return String(nextVal).padStart(8, '0').slice(-8);
+  // 1. Si estamos en HTTP local / localhost, probar el puente LAN directo
+  if (typeof location !== 'undefined' && (location.protocol === 'http:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    const lanHosts = ['http://localhost:8787', 'http://192.168.0.185:8790'];
+    for (const host of lanHosts) {
+      try {
+        const resp = await fetch(`${host}/lan/mixnet/next-serial?type=${isCot ? 'cotizacion' : 'pedido'}`, {
+          signal: AbortSignal.timeout(450)
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          if (body?.ok && body.serial && /^\d{8}$/.test(String(body.serial).trim())) {
+            return String(body.serial).trim();
           }
         }
+      } catch (_) {}
+    }
+  }
+
+  // 2. Consultar en paralelo el serial sincronizado por MixNet en jjp_settings y el último documento en BD
+  let fromSetting = 0;
+  let fromTable = 0;
+  const table = isCot ? 'jjp_quotes' : 'jjp_orders';
+  const field = isCot ? 'quote_number' : 'order_number';
+
+  try {
+    const [sRes, tRes] = await Promise.allSettled([
+      _pgClient.from('jjp_settings').select('value').eq('key', settingKey).maybeSingle(),
+      _pgClient.from(table).select(field).order('created_at', { ascending: false }).limit(25)
+    ]);
+
+    if (sRes.status === 'fulfilled' && sRes.value?.data?.value) {
+      const sv = parseInt(String(sRes.value.data.value).replace(/\D/g, ''), 10);
+      if (!isNaN(sv) && sv > 0) fromSetting = sv;
+    }
+
+    if (tRes.status === 'fulfilled' && Array.isArray(tRes.value?.data)) {
+      for (const r of tRes.value.data) {
+        const val = String(r[field] || '').trim();
+        if (/^\d{5,8}$/.test(val)) {
+          const tv = parseInt(val, 10) + 1;
+          if (!isNaN(tv) && tv > fromTable) fromTable = tv;
+        }
       }
     }
   } catch (_) {}
 
-  // NUNCA generar números aleatorios arbitrarios. Si no hay conexión o no se pudo
-  // obtener el serial soberano de MixNet, retorna null para alertar al operador.
+  const best = Math.max(fromSetting, fromTable);
+  if (best > 0) {
+    const formatted = String(best).padStart(8, '0').slice(-8);
+    // Incrementar en jjp_settings de forma asíncrona para evitar colisión en la siguiente emisión
+    _sovereignFetch(`${SUPABASE_URL}/rest/v1/jjp_settings?on_conflict=key`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key: settingKey, value: String(best + 1) })
+    }).catch(() => {});
+    return formatted;
+  }
+
   console.error(`[MXNUM CRITICAL] No se pudo obtener el correlativo soberano de MixNet para ${type}.`);
   return null;
 }

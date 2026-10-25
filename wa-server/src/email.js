@@ -59,6 +59,9 @@ async function gmailAccessToken(refresh) {
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error_description || j.error || `token HTTP ${res.status}`);
+  if (j.scope && !j.scope.includes('gmail.send') && !j.scope.includes('mail.google.com')) {
+    throw new Error('La cuenta vinculada no tiene permiso de envío Gmail. Pulsa "Vincular con Google" en Correo y autoriza los permisos.');
+  }
   // Guardar en caché (expira 5 min antes del tiempo real, por defecto 3600s)
   const ttl = (j.expires_in ? Math.max(300, j.expires_in - 300) : 3000) * 1000;
   tokenCache.set(refresh, { token: j.access_token, expiresAt: Date.now() + ttl });
@@ -132,34 +135,40 @@ async function loadAttachments(list) {
 // Devuelve el Buffer del archivo (o null si no se pudo). Distingue URL vs bucket.
 async function fetchAttachmentBytes(path) {
   try {
-    let cleanPath = String(path || '');
-    if (cleanPath.includes('czzvsqnmxtjzqzioknnn.supabase.co')) {
-      cleanPath = cleanPath.replace('https://czzvsqnmxtjzqzioknnn.supabase.co', 'https://nmcamjxhyysmmvgxgabo.supabase.co');
+    let cleanPath = String(path || '').trim();
+    if (!cleanPath) return null;
+
+    if (cleanPath.startsWith('data:')) {
+      const sep = cleanPath.indexOf(';base64,');
+      if (sep !== -1) return Buffer.from(cleanPath.slice(sep + 8), 'base64');
     }
+
+    const vpsBase = process.env.SUPABASE_URL_CORE || 'https://166-0-112-247.sslip.io';
+    cleanPath = cleanPath.replace(/https?:\/\/[a-z0-9]+\.supabase\.co/gi, vpsBase);
+
     if (/^https?:\/\//i.test(cleanPath)) {
-      let r = await fetch(cleanPath, { redirect: 'follow', signal: AbortSignal.timeout(20_000) });
-      if (!r.ok && cleanPath.includes(SUPABASE_URL_CORE)) {
-        // Intentar en Proyecto C (Inventario/Storage)
-        const fallbackUrl = cleanPath.replace(SUPABASE_URL_CORE, 'https://nmcamjxhyysmmvgxgabo.supabase.co');
-        const r2 = await fetch(fallbackUrl, { redirect: 'follow', signal: AbortSignal.timeout(20_000) });
-        if (r2.ok) return Buffer.from(await r2.arrayBuffer());
-      }
-      if (!r.ok) { log.warn({ err: `HTTP ${r.status}`, path }, 'adjunto no descargó'); return null; }
+      const r = await fetch(cleanPath, { redirect: 'follow', signal: AbortSignal.timeout(20_000) });
+      if (!r.ok) { log.warn({ err: `HTTP ${r.status}`, path: cleanPath }, 'adjunto URL no descargó'); return null; }
       return Buffer.from(await r.arrayBuffer());
     }
-    // Probar primero en jjp-email-media (Comm)
-    const { data, error } = await db.storage.from('jjp-email-media').download(cleanPath);
+
+    // Buscar en almacén soberano KV (jjp_settings)
+    const normKey = cleanPath.replace(/^\/+/, '');
+    const { data: kvRows } = await dbCore.from('jjp_settings')
+      .select('value')
+      .in('key', [`storage:jjp-email-media:${normKey}`, `storage:jjp-wa-media:${normKey}`])
+      .limit(1);
+    if (kvRows && kvRows[0]?.value) {
+      const val = String(kvRows[0].value);
+      const sep = val.indexOf(';base64,');
+      if (sep !== -1) return Buffer.from(val.slice(sep + 8), 'base64');
+    }
+
+    // Fallback a Storage tradicional
+    const { data, error } = await db.storage.from('jjp-email-media').download(normKey);
     if (!error && data) return Buffer.from(await data.arrayBuffer());
 
-    // Fallback a jjp-wa-media (Comm)
-    const { data: d2, error: e2 } = await db.storage.from('jjp-wa-media').download(cleanPath);
-    if (!e2 && d2) return Buffer.from(await d2.arrayBuffer());
-
-    // Fallback a jjp-wa-media (Core)
-    const { data: d3, error: e3 } = await dbCore.storage.from('jjp-wa-media').download(cleanPath);
-    if (!e3 && d3) return Buffer.from(await d3.arrayBuffer());
-
-    log.warn({ err: error?.message || e2?.message || e3?.message, path }, 'adjunto no descargó');
+    log.warn({ err: error?.message || 'No encontrado en KV ni Storage', path: cleanPath }, 'adjunto no descargó');
     return null;
   } catch (e) {
     log.warn({ err: e.message, path }, 'adjunto no descargó');

@@ -1146,11 +1146,12 @@ async function launchEmailCampaignFromEditor(config) {
       const mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
       const mediaPath = `${ownerId}/campaigns/${Date.now()}-${mediaFilename}`;
       setStatus('☁️ Subiendo lista de precios a almacenamiento...');
-      const { error: upErr } = await sb.storage.from('jjp-email-media')
+      const { data: upData, error: upErr } = await sb.storage.from('jjp-email-media')
         .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
       if (upErr) throw new Error('No se pudo subir PDF a Storage: ' + upErr.message);
       attachments.push({
         path: mediaPath,
+        base64: upData?.dataUri || null,
         name: mediaFilename,
         mime: 'application/pdf',
         size: blob.size
@@ -1177,10 +1178,10 @@ async function launchEmailCampaignFromEditor(config) {
         throw new Error('Formato no permitido (usa PDF o imagen).');
       }
       const mediaPath = `${ownerId}/campaigns/${Date.now()}-${customFile.name.replace(/[^\w.-]/g, '_')}`;
-      const { error: upErr } = await sb.storage.from('jjp-email-media')
+      const { data: upData, error: upErr } = await sb.storage.from('jjp-email-media')
         .upload(mediaPath, customFile, { contentType: customFile.type || 'application/octet-stream', upsert: true });
       if (upErr) throw new Error('No se pudo subir el archivo: ' + upErr.message);
-      attachments.push({ path: mediaPath, name: customFile.name, mime: customFile.type || 'application/octet-stream', size: customFile.size });
+      attachments.push({ path: mediaPath, base64: upData?.dataUri || null, name: customFile.name, mime: customFile.type || 'application/octet-stream', size: customFile.size });
     } catch (e) {
       console.warn('Archivo propio no adjuntado:', e);
     }
@@ -1402,10 +1403,10 @@ async function launchEcCampaign() {
       const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
       const mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
       const mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
-      const { error: upErr } = await sb.storage.from('jjp-email-media')
+      const { data: upData, error: upErr } = await sb.storage.from('jjp-email-media')
         .upload(mediaPath, blob, { contentType: 'application/pdf', upsert: true });
       if (upErr) throw new Error('No se pudo guardar el PDF: ' + upErr.message);
-      attachments.push({ path: mediaPath, name: mediaFilename, mime: 'application/pdf', size: blob.size });
+      attachments.push({ path: mediaPath, base64: upData?.dataUri || null, name: mediaFilename, mime: 'application/pdf', size: blob.size });
     } catch (err) {
       showToast('Error generando PDF: ' + err.message, 'err');
       btn.disabled = false; btn.textContent = '🚀 Lanzar campaña de email';
@@ -1425,10 +1426,10 @@ async function launchEcCampaign() {
       btn.textContent = 'Subiendo archivo…';
       try {
         const mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${file.name.replace(/[^\w.-]/g, '_')}`;
-        const { error: upErr } = await sb.storage.from('jjp-email-media')
+        const { data: upData, error: upErr } = await sb.storage.from('jjp-email-media')
           .upload(mediaPath, file, { contentType: file.type || 'application/octet-stream', upsert: true });
         if (upErr) throw new Error('No se pudo subir el archivo: ' + upErr.message);
-        attachments.push({ path: mediaPath, name: file.name, mime: file.type, size: file.size });
+        attachments.push({ path: mediaPath, base64: upData?.dataUri || null, name: file.name, mime: file.type, size: file.size });
       } catch (err) {
         showToast('Error subiendo archivo: ' + err.message, 'err');
         btn.disabled = false; btn.textContent = '🚀 Lanzar campaña de email';

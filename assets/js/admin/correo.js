@@ -26,9 +26,16 @@ async function mailInit(me) {
   window.linkGmailStart = function () {
     localStorage.setItem('jjp_link_gmail', '1');
     const redirectUrl = location.href.split('#')[0];
-    const scopes = encodeURIComponent('https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly');
-    const authUrl = SUPABASE_URL + '/auth/v1/authorize?provider=google&scopes=' + scopes + '&redirect_to=' + encodeURIComponent(redirectUrl) + '&access_type=offline&prompt=consent';
-    window.location.href = authUrl;
+    const googleParams = new URLSearchParams({
+      client_id: '966811384264-4ciph62d7inqh38t90ig98omsa6jj326.apps.googleusercontent.com',
+      redirect_uri: SUPABASE_URL + '/auth/v1/callback',
+      response_type: 'code',
+      scope: 'openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly',
+      state: redirectUrl,
+      access_type: 'offline',
+      prompt: 'consent'
+    });
+    window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + googleParams.toString();
   };
   sb.channel('email-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },

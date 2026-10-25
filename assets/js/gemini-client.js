@@ -53,6 +53,44 @@
     return [];
   }
 
+  GEMINI_KEYS = loadNodeEnvKeys();
+
+  async function syncKeysFromSettings() {
+    try {
+      if (typeof window !== 'undefined') {
+        const rawSettings = (window.APP && window.APP.SETTINGS && window.APP.SETTINGS.ai_gemini_keys)
+          || (() => {
+            try {
+              const s = JSON.parse(localStorage.getItem('jjp_settings') || sessionStorage.getItem('jjp_settings') || '{}');
+              return s.ai_gemini_keys;
+            } catch (_) { return null; }
+          })();
+        if (rawSettings) {
+          const parsed = typeof rawSettings === 'string' ? JSON.parse(rawSettings) : rawSettings;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            GEMINI_KEYS = parsed;
+            return GEMINI_KEYS;
+          }
+        }
+        if (window.sb && typeof window.sb.from === 'function') {
+          const { data } = await window.sb.from('jjp_settings').select('value').eq('key', 'ai_gemini_keys').maybeSingle();
+          if (data && data.value) {
+            const parsed = JSON.parse(data.value);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              GEMINI_KEYS = parsed;
+              return GEMINI_KEYS;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return GEMINI_KEYS;
+  }
+
+  if (typeof window !== 'undefined') {
+    setTimeout(() => { syncKeysFromSettings().catch(() => {}); }, 50);
+  }
+
   // Modelos reales de Gemini (2.5 Flash y 2.0 Flash)
   const PRO_MODELS = [
     'gemini-2.5-flash',

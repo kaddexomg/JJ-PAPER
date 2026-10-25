@@ -133,13 +133,15 @@ async function requireAuth(requiredRole = 'admin') {
     return null;
   }
 
-  // Sincronizar en memoria con GoTrue si no estuviese activo
-  if (session.access_token && sb?.auth?.setSession) {
-    sb.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token || session.access_token
-    }).catch(() => {});
-  }
+  // Sincronizar en memoria de forma segura
+  try {
+    if (session.access_token && sb?.auth?.setSession) {
+      sb.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token || session.access_token
+      }).catch(() => {});
+    }
+  } catch (_) {}
 
   let profile = await loadProfile(session);
 

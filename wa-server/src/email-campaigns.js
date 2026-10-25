@@ -86,7 +86,7 @@ async function step(camp, dailyLimit) {
         // Generar HTML personalizado a partir del cuerpo renderizado único para este destinatario
         const bodyWithBr = body.replace(/\n/g, '<br>');
         const imgAtt = (camp.attachments || []).find(a => (a.mime && a.mime.startsWith('image/')) || (a.contentType && a.contentType.startsWith('image/')) || (a.path && a.path.includes('/campaigns/')));
-        const STORAGE_BASE = `https://nmcamjxhyysmmvgxgabo.supabase.co/storage/v1/object/public/`;
+        const STORAGE_BASE = `${process.env.SUPABASE_URL_CORE || "https://166-0-112-247.sslip.io"}/storage/v1/object/public/`;
         const imgUrl = imgAtt?.path ? (imgAtt.path.startsWith('http') ? imgAtt.path : `${STORAGE_BASE}${imgAtt.bucket || 'jjp-email-media'}/${imgAtt.path}`) : '';
         const imgHtml = imgUrl ? `<div style="margin:14px 0;text-align:center"><img src="${imgUrl}" style="max-width:600px;border-radius:8px"></div>` : '';
         html = `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${bodyWithBr}</div></div>`;
@@ -107,12 +107,18 @@ async function step(camp, dailyLimit) {
         return clean;
       });
 
-      const { data: em } = await db.from('jjp_emails').insert({
+      const emPayload = {
         owner_id: camp.owner_id, direction: 'out', status: 'sent',
         to_addr: toAddr, from_addr: from, subject, body, html,
         attachments: safeAttachments, customer_id: t.customer_id || null,
-        gmail_id: msgId, sent_at: new Date().toISOString()
-      }).select('id').single();
+        gmail_id: msgId, campaign_id: camp.id
+      };
+      let { data: em, error: emErr } = await db.from('jjp_emails').insert(emPayload).select('id').single();
+      if (emErr && emErr.message && emErr.message.includes('customer_id')) {
+        delete emPayload.customer_id;
+        const retry = await db.from('jjp_emails').insert(emPayload).select('id').single();
+        em = retry.data;
+      }
 
       await db.from('jjp_email_campaign_targets')
         .update({ status: 'sent', email_id: em?.id || null, sent_at: new Date().toISOString(), error: null })

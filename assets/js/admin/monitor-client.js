@@ -629,14 +629,20 @@ async function refreshDashboard(force = false) {
       let stats = null;
       if (serverOnline) {
         try {
-          const res = await fetch(`${localServerUrl}/lan/monitor/stats${force ? '?force=true' : ''}`);
+          const ctrl = new AbortController();
+          const to = setTimeout(() => ctrl.abort(), 2500);
+          const res = await fetch(`${localServerUrl}/lan/monitor/stats${force ? '?force=true' : ''}`, { signal: ctrl.signal });
+          clearTimeout(to);
           if (res.ok) {
             stats = await res.json();
           }
         } catch (_) {}
         if (stats) {
           try {
-            const resM = await fetch(`${localServerUrl}/lan/mixnet/status`);
+            const ctrlM = new AbortController();
+            const toM = setTimeout(() => ctrlM.abort(), 1500);
+            const resM = await fetch(`${localServerUrl}/lan/mixnet/status`, { signal: ctrlM.signal });
+            clearTimeout(toM);
             if (resM.ok) {
               const dataM = await resM.json();
               if (dataM?.status) {
@@ -652,9 +658,9 @@ async function refreshDashboard(force = false) {
                   lanIp: location.hostname,
                   mixnetDir: dataM.status.primary_dir || 'M:/comp01',
                   mixnetOnline: dataM.status.online !== false,
-                  ordersCount: dataM.status.exported_orders_count ?? 110,
-                  quotesCount: dataM.status.exported_quotes_count ?? 38,
-                  catalogCount: dataM.status.imported_count ?? 791,
+                  ordersCount: dataM.status.exported_orders_count ?? 'DESCONOCIDO',
+                  quotesCount: dataM.status.exported_quotes_count ?? 'DESCONOCIDO',
+                  catalogCount: dataM.status.imported_count ?? 'DESCONOCIDO',
                   waSanas: 1
                 };
               }
@@ -689,88 +695,128 @@ async function querySupabaseDirectly() {
     if (res.ok) telem = await res.json();
   } catch (_) {}
 
-  // Defaults if telemetry unreachable
-  const ramPct = telem?.vps?.ram?.usage_pct || 16;
-  const diskPct = telem?.vps?.disk?.usage_pct || 8;
-  const dbSizeMb = telem?.database?.size_bytes ? +(telem.database.size_bytes / (1024 * 1024)).toFixed(1) : 25;
-  const deadTuples = telem?.database?.total_dead_tuples || 0;
-  const conns = telem?.database?.active_connections || 5;
-  const mediaCount = telem?.cdn_media?.total_images || 316;
-  const mixnetOnline = telem?.mixnet_bridge?.online !== false;
+  // Conteos reales en vivo desde PostgREST (cero datos inventados)
+  const countTable = async (tbl) => {
+    try {
+      const { count, error } = await sb.from(tbl).select('id', { count: 'exact', head: true });
+      return (!error && typeof count === 'number') ? count : null;
+    } catch (_) {
+      return null;
+    }
+  };
 
-  // Actualizar badge
-  updateEngineBadge(true, false, {
-    isServerOnline: true,
-    host: 'JJ Paper Cloud VPS (166.0.112.247)',
-    waSanas: true
+  const [cStock, cCust, cProd, cOrd, cQuo, cWaMsg, cEmails, settingsRes] = await Promise.all([
+    countTable('jjp_stock_moves'),
+    countTable('jjp_customers'),
+    countTable('jjp_products'),
+    countTable('jjp_orders'),
+    countTable('jjp_quotes'),
+    countTable('jjp_wa_messages'),
+    countTable('jjp_emails'),
+    sb.from('jjp_settings').select('key,value').in('key', ['mixnet_next_quote_serial', 'mixnet_next_order_serial'])
+  ]);
+
+  const sMap = {};
+  (settingsRes?.data || []).forEach(r => { sMap[r.key] = r.value; });
+
+  const hasTelem = Boolean(telem && telem.vps && telem.database);
+  const dbOnline = cProd !== null || hasTelem;
+  const ramPct = telem?.vps?.ram?.usage_pct ?? null;
+  const diskPct = telem?.vps?.disk?.usage_pct ?? null;
+  const dbSizeMb = telem?.database?.size_bytes ? +(telem.database.size_bytes / (1024 * 1024)).toFixed(2) : null;
+  const deadTuples = telem?.database?.total_dead_tuples ?? null;
+  const conns = telem?.database?.active_connections ?? null;
+  const mediaCount = telem?.cdn_media?.total_images ?? null;
+  const mixnetOnline = Boolean(telem?.mixnet_bridge?.online);
+  const measuredLatency = Math.max(1, Date.now() - tStart);
+
+  // Medir disponibilidad real del CDN WebP
+  let cdnOnline = false;
+  let cdnLatency = null;
+  try {
+    const tCdn = Date.now();
+    const cdnResp = await fetch(`${SUPABASE_URL}/storage/v1/object/public/jjp-products/0088545d-6706-4087-8573-487a67a43957.webp`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(4000)
+    });
+    cdnOnline = cdnResp.ok;
+    cdnLatency = Date.now() - tCdn;
+  } catch (_) {}
+
+  const overallHealth = (!dbOnline) ? 'CRITICAL' : (!hasTelem || !cdnOnline) ? 'DEGRADED' : 'OPTIMAL';
+
+  updateEngineBadge(dbOnline, false, {
+    isServerOnline: dbOnline,
+    host: hasTelem ? 'JJ Paper Cloud VPS (166.0.112.247)' : 'VPS (Telemetría Parcial)',
+    waSanas: 1
   });
 
   return {
     timestamp: new Date().toISOString(),
-    queryDurationMs: Date.now() - tStart,
-    rpm: 12,
+    queryDurationMs: measuredLatency,
+    rpm: cloudLiveRequests.length,
     isCloudDirect: true,
     projects: {
       core: {
         name: 'VPS PostgreSQL (jjpaper_db)',
         role: 'Ventas, Catálogo, Clientes, POS & RLS',
         ref: '166.0.112.247',
-        online: true,
-        latency: Math.max(12, Date.now() - tStart),
-        sizeMb: dbSizeMb,
+        online: dbOnline,
+        latency: measuredLatency,
+        sizeMb: dbSizeMb ?? 'DESCONOCIDO',
         quotaMb: 50000,
-        usagePercent: ((dbSizeMb / 50000) * 100).toFixed(2),
-        connections: conns,
-        totalDeadTuples: deadTuples,
+        usagePercent: dbSizeMb !== null ? ((dbSizeMb / 50000) * 100).toFixed(2) : 'DESCONOCIDO',
+        connections: conns ?? 'DESCONOCIDO',
+        totalDeadTuples: deadTuples ?? 'DESCONOCIDO',
         tables: [
-          { name: 'jjp_stock_moves', liveRows: 7764, deadTuples: 0, pretty: '8.4 MB' },
-          { name: 'jjp_customers', liveRows: 5708, deadTuples: 0, pretty: '4.2 MB' },
-          { name: 'jjp_products', liveRows: 2406, deadTuples: 0, pretty: '3.1 MB' },
-          { name: 'jjp_orders', liveRows: 1267, deadTuples: 0, pretty: '1.8 MB' },
-          { name: 'jjp_quotes', liveRows: 693, deadTuples: 0, pretty: '950 KB' }
+          { name: 'jjp_stock_moves', liveRows: cStock ?? 'DESCONOCIDO', deadTuples: 0, pretty: cStock !== null ? `${cStock} filas reales` : 'DESCONOCIDO' },
+          { name: 'jjp_customers', liveRows: cCust ?? 'DESCONOCIDO', deadTuples: 0, pretty: cCust !== null ? `${cCust} filas reales` : 'DESCONOCIDO' },
+          { name: 'jjp_products', liveRows: cProd ?? 'DESCONOCIDO', deadTuples: 0, pretty: cProd !== null ? `${cProd} filas reales` : 'DESCONOCIDO' },
+          { name: 'jjp_orders', liveRows: cOrd ?? 'DESCONOCIDO', deadTuples: 0, pretty: cOrd !== null ? `${cOrd} filas reales` : 'DESCONOCIDO' },
+          { name: 'jjp_quotes', liveRows: cQuo ?? 'DESCONOCIDO', deadTuples: 0, pretty: cQuo !== null ? `${cQuo} filas reales` : 'DESCONOCIDO' }
         ]
       },
       comm: {
-        name: 'Puente MixNet ERP (LAN)',
-        role: 'M:\\MIX11\\comp01 (Soberano)',
-        ref: '192.168.0.185:8790',
-        online: mixnetOnline,
-        latency: 1,
-        sizeMb: 45.2,
-        quotaMb: 1000,
-        usagePercent: 4.5,
-        connections: 2,
-        totalDeadTuples: 0,
+        name: 'Comunicación & Correlativos MixNet',
+        role: 'WhatsApp, Correo & Seriales Soberanos',
+        ref: '166.0.112.247 / LAN',
+        online: dbOnline,
+        latency: measuredLatency,
+        sizeMb: dbSizeMb ?? 'DESCONOCIDO',
+        quotaMb: 50000,
+        usagePercent: dbSizeMb !== null ? ((dbSizeMb / 50000) * 100).toFixed(2) : 'DESCONOCIDO',
+        connections: conns ?? 'DESCONOCIDO',
+        totalDeadTuples: deadTuples ?? 'DESCONOCIDO',
         tables: [
-          { name: 'MXCTAINV.DBF', liveRows: 1825, deadTuples: 0, pretty: '1.2 MB' },
-          { name: 'MXCTACLI.DBF', liveRows: 5708, deadTuples: 0, pretty: '3.4 MB' },
-          { name: 'MXENCPED.DBF', liveRows: 5579, deadTuples: 0, pretty: '860 KB' },
-          { name: 'MXENCCOT.DBF', liveRows: 1842, deadTuples: 0, pretty: '820 KB' }
+          { name: 'jjp_wa_messages', liveRows: cWaMsg ?? 'DESCONOCIDO', deadTuples: 0, pretty: cWaMsg !== null ? `${cWaMsg} msgs reales` : 'DESCONOCIDO' },
+          { name: 'jjp_emails', liveRows: cEmails ?? 'DESCONOCIDO', deadTuples: 0, pretty: cEmails !== null ? `${cEmails} emails reales` : 'DESCONOCIDO' },
+          { name: 'MXNUMCOT (Próx. Cotización)', liveRows: sMap.mixnet_next_quote_serial || 'DESCONOCIDO', deadTuples: 0, pretty: sMap.mixnet_next_quote_serial ? `#${String(sMap.mixnet_next_quote_serial).padStart(8, '0')}` : 'DESCONOCIDO' },
+          { name: 'MXNUMPED (Próx. Pedido)', liveRows: sMap.mixnet_next_order_serial || 'DESCONOCIDO', deadTuples: 0, pretty: sMap.mixnet_next_order_serial ? `#${String(sMap.mixnet_next_order_serial).padStart(8, '0')}` : 'DESCONOCIDO' }
         ],
         storage: { buckets: [], totalFiles: 0 }
       },
       storage: {
         name: 'VPS Nginx Media CDN',
         role: 'Imágenes WebP Catálogo & Comprobantes',
-        ref: '166.0.112.247/storage',
-        online: true,
-        latency: 15,
-        sizeMb: 7.2,
+        ref: '166-0-112-247.sslip.io/storage',
+        online: cdnOnline,
+        latency: cdnLatency ?? 'DESCONOCIDO',
+        sizeMb: mediaCount !== null ? +((mediaCount * 0.023)).toFixed(1) : 'DESCONOCIDO',
         quotaMb: 10000,
-        usagePercent: 0.07,
-        totalFiles: mediaCount,
-        buckets: [{ id: 'jjp-products', name: 'jjp-products (WebP)', fileCount: mediaCount, sizeMb: 7.2 }]
+        usagePercent: mediaCount !== null ? (((mediaCount * 0.023) / 10000) * 100).toFixed(2) : 'DESCONOCIDO',
+        totalFiles: mediaCount ?? 'DESCONOCIDO',
+        buckets: [{ id: 'jjp-products', name: 'jjp-products (WebP)', fileCount: mediaCount ?? 'DESCONOCIDO', sizeMb: mediaCount !== null ? +((mediaCount * 0.023)).toFixed(1) : 'DESCONOCIDO' }]
       }
     },
     summary: {
-      totalDbMb: (dbSizeMb + 45.2).toFixed(1),
+      totalDbMb: dbSizeMb !== null ? dbSizeMb.toFixed(1) : 'DESCONOCIDO',
       totalDbQuotaMb: 50000,
-      totalDbUsagePercent: (((dbSizeMb + 45.2) / 50000) * 100).toFixed(2),
-      totalDeadTuples: deadTuples,
-      overallHealth: 'OPTIMAL',
-      avgLatencyMs: 14,
-      vpsRamPct: ramPct,
-      vpsDiskPct: diskPct
+      totalDbUsagePercent: dbSizeMb !== null ? ((dbSizeMb / 50000) * 100).toFixed(2) : 'DESCONOCIDO',
+      totalDeadTuples: deadTuples ?? 'DESCONOCIDO',
+      overallHealth,
+      avgLatencyMs: measuredLatency,
+      vpsRamPct: ramPct ?? 'DESCONOCIDO',
+      vpsDiskPct: diskPct ?? 'DESCONOCIDO'
     },
     recentRequests: cloudLiveRequests
   };

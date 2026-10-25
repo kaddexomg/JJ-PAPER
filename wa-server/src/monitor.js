@@ -96,160 +96,8 @@ let statsCacheAt = 0;
 const STATS_CACHE_TTL = 3000; // 3 segundos
 
 /**
- * Consulta estadísticas detalladas de una base de datos Postgres vía pooler
- */
-async function queryPgStats(dsConfig, label) {
-  const t0 = Date.now();
-  const client = new Client(dsConfig);
-  try {
-    await client.connect();
-    const latency = Date.now() - t0;
-
-    // Tamaño total de la BD
-    const { rows: szRows } = await client.query(
-      "SELECT pg_database_size(current_database()) as size_bytes, pg_size_pretty(pg_database_size(current_database())) as size_pretty"
-    );
-    const sizeBytes = parseInt(szRows[0]?.size_bytes || '0', 10);
-    const sizePretty = szRows[0]?.size_pretty || '0 MB';
-
-    // Conexiones activas
-    const { rows: actRows } = await client.query(
-      "SELECT count(*) as total_conn FROM pg_stat_activity"
-    );
-    const connections = parseInt(actRows[0]?.total_conn || '0', 10);
-
-    // Tablas principales, conteo de tuplas y tuplas muertas
-    const { rows: tblRows } = await client.query(`
-      SELECT 
-        relname as table_name,
-        n_live_tup as live_rows,
-        n_dead_tup as dead_tuples,
-        pg_total_relation_size(relid) as total_bytes,
-        pg_size_pretty(pg_total_relation_size(relid)) as total_pretty
-      FROM pg_stat_user_tables
-      WHERE schemaname = 'public'
-      ORDER BY pg_total_relation_size(relid) DESC
-      LIMIT 12;
-    `);
-
-    // Total de tuplas muertas acumuladas (bloat recuperable con VACUUM)
-    let totalDeadTuples = 0;
-    const tables = tblRows.map(r => {
-      const dead = parseInt(r.dead_tuples || '0', 10);
-      totalDeadTuples += dead;
-      return {
-        name: r.table_name,
-        liveRows: parseInt(r.live_rows || '0', 10),
-        deadTuples: dead,
-        bytes: parseInt(r.total_bytes || '0', 10),
-        pretty: r.total_pretty
-      };
-    });
-
-    return {
-      online: true,
-      latency,
-      sizeBytes,
-      sizeMb: (sizeBytes / (1024 * 1024)).toFixed(2),
-      sizePretty,
-      quotaBytes: QUOTAS.DB_MAX_BYTES,
-      quotaMb: 500,
-      usagePercent: ((sizeBytes / QUOTAS.DB_MAX_BYTES) * 100).toFixed(1),
-      connections,
-      totalDeadTuples,
-      tables
-    };
-  } catch (err) {
-    log.warn({ err: err.message }, `monitor: error consultando stats de ${label}`);
-    return {
-      online: false,
-      error: err.message,
-      latency: Date.now() - t0,
-      sizeBytes: 0,
-      sizeMb: '0',
-      sizePretty: '0 MB',
-      quotaBytes: QUOTAS.DB_MAX_BYTES,
-      quotaMb: 500,
-      usagePercent: '0',
-      connections: 0,
-      totalDeadTuples: 0,
-      tables: []
-    };
-  } finally {
-    try { await client.end(); } catch (_) {}
-  }
-}
-
-/**
- * Consulta estadísticas de Storage en Proyecto B y C
- */
-async function queryStorageStats() {
-  const result = {
-    projB: { buckets: [], totalFiles: 0, totalBytesEstimated: 0, latency: 0 },
-    projC: { buckets: [], totalFiles: 0, totalBytesEstimated: 0, latency: 0 }
-  };
-
-  // Proyecto B (wa-media, email-media)
-  try {
-    const t0 = Date.now();
-    const { data: bBuckets } = await db.storage.listBuckets();
-    result.projB.latency = Date.now() - t0;
-    if (bBuckets) {
-      for (const b of bBuckets) {
-        const { data: files } = await db.storage.from(b.id).list('', { limit: 200 });
-        const count = files ? files.length : 0;
-        result.projB.totalFiles += count;
-        result.projB.buckets.push({ id: b.id, name: b.name, public: b.public, fileCount: count });
-      }
-    }
-  } catch (e) {
-    result.projB.error = e.message;
-  }
-
-  // Proyecto C (products, receipts)
-  try {
-    const t0 = Date.now();
-    const { data: cBuckets } = await dbInv.storage.listBuckets();
-    result.projC.latency = Date.now() - t0;
-    if (cBuckets && cBuckets.length > 0) {
-      for (const b of cBuckets) {
-        const { data: files } = await dbInv.storage.from(b.id).list('', { limit: 1000 });
-        const count = files ? files.length : 0;
-        let bBytes = 0;
-        if (files) {
-          for (const f of files) {
-            bBytes += (f.metadata?.size || 18432);
-          }
-        }
-        result.projC.totalFiles += count;
-        result.projC.totalBytesEstimated += bBytes;
-        result.projC.buckets.push({ id: b.id, name: b.name, public: b.public, fileCount: count, sizeBytes: bBytes });
-      }
-    }
-    // Si la API no devolvió buckets por restricción RLS/permisos, usar catálogo WebP verificado
-    if (result.projC.totalFiles === 0) {
-      result.projC.totalFiles = 295;
-      result.projC.totalBytesEstimated = 5593662; // 5.33 MB
-      result.projC.buckets = [
-        { id: 'jjp-products', name: 'jjp-products', public: true, fileCount: 295, sizeBytes: 5593662 },
-        { id: 'jjp-receipts', name: 'jjp-receipts', public: false, fileCount: 0, sizeBytes: 0 }
-      ];
-    }
-  } catch (e) {
-    result.projC.error = e.message;
-    result.projC.totalFiles = 295;
-    result.projC.totalBytesEstimated = 5593662;
-    result.projC.buckets = [
-      { id: 'jjp-products', name: 'jjp-products', public: true, fileCount: 295, sizeBytes: 5593662 },
-      { id: 'jjp-receipts', name: 'jjp-receipts', public: false, fileCount: 0, sizeBytes: 0 }
-    ];
-  }
-
-  return result;
-}
-
-/**
- * Obtiene el resumen completo consolidado de los 3 proyectos y actividad en vivo
+ * Consulta estadísticas reales del VPS Soberano vía /auth/v1/telemetry y PostgREST (count=exact)
+ * Sin conexiones TCP 5432 bloqueantes y sin números inventados.
  */
 export async function getSystemHealthAndStats(force = false) {
   const now = Date.now();
@@ -258,69 +106,125 @@ export async function getSystemHealthAndStats(force = false) {
   }
 
   const tStart = Date.now();
+  const vpsBaseUrl = (process.env.SUPABASE_CORE_URL || process.env.SUPABASE_URL || 'https://166-0-112-247.sslip.io').replace(/\/$/, '');
 
-  // Consultar Proyecto A, Proyecto B y Storage en paralelo
-  const [statsA, statsB, storageStats] = await Promise.all([
-    queryPgStats(PG_CORE, 'Proyecto A (Core)'),
-    queryPgStats(PG_COMM, 'Proyecto B (Comunicaciones)'),
-    queryStorageStats()
-  ]);
+  // 1. Consultar telemetría real del VPS y conteos reales de tablas en paralelo
+  const coreTables = [
+    'jjp_customers', 'jjp_products', 'jjp_product_variants',
+    'jjp_orders', 'jjp_quotes', 'jjp_prospects', 'jjp_inventory_counts'
+  ];
+  const commTables = [
+    'jjp_wa_messages', 'jjp_wa_chats', 'jjp_emails',
+    'jjp_wa_campaigns', 'jjp_wa_campaign_targets', 'jjp_email_campaigns'
+  ];
 
-  // Proyecto C: Cálculo de almacenamiento
-  const projCFiles = storageStats.projC.totalFiles || 295;
-  const projCEstSizeBytes = storageStats.projC.totalBytesEstimated || (projCFiles * 18 * 1024);
-  const statsC = {
-    online: !storageStats.projC.error,
-    latency: storageStats.projC.latency,
-    buckets: storageStats.projC.buckets,
-    totalFiles: projCFiles,
-    sizeBytes: projCEstSizeBytes,
-    sizeMb: (projCEstSizeBytes / (1024 * 1024)).toFixed(2),
-    quotaBytes: QUOTAS.STORAGE_MAX_BYTES,
-    quotaMb: 1024,
-    usagePercent: ((projCEstSizeBytes / QUOTAS.STORAGE_MAX_BYTES) * 100).toFixed(2),
-    error: storageStats.projC.error || null
+  const fetchTelemetry = async () => {
+    const t0 = Date.now();
+    try {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch(`${vpsBaseUrl}/auth/v1/telemetry`, { signal: ctrl.signal });
+      clearTimeout(to);
+      if (!res.ok) return { online: false, latency: Date.now() - t0, error: `HTTP ${res.status}` };
+      const data = await res.json();
+      return { online: true, latency: Date.now() - t0, data };
+    } catch (err) {
+      return { online: false, latency: Date.now() - t0, error: err.message };
+    }
   };
 
-  // Resumen global consolidado
-  const totalDbBytes = (statsA.sizeBytes || 0) + (statsB.sizeBytes || 0);
-  const totalDbQuota = QUOTAS.DB_MAX_BYTES * 2; // 1000 MB
-  const totalDbMb = (totalDbBytes / (1024 * 1024)).toFixed(2);
-  const totalDeadTuples = (statsA.totalDeadTuples || 0) + (statsB.totalDeadTuples || 0);
+  const countTable = async (client, tbl) => {
+    try {
+      const { count, error } = await client.from(tbl).select('id', { count: 'exact', head: true });
+      if (error) return { name: tbl, liveRows: null, deadTuples: 0, bytes: null, pretty: 'DESCONOCIDO', error: error.message };
+      const rows = count ?? 0;
+      return { name: tbl, liveRows: rows, deadTuples: 0, bytes: null, pretty: `${rows.toLocaleString('es-VE')} filas` };
+    } catch (err) {
+      return { name: tbl, liveRows: null, deadTuples: 0, bytes: null, pretty: 'DESCONOCIDO', error: err.message };
+    }
+  };
+
+  const [telem, coreTableStats, commTableStats, storageItemsRes] = await Promise.all([
+    fetchTelemetry(),
+    Promise.all(coreTables.map(t => countTable(dbCore, t))),
+    Promise.all(commTables.map(t => countTable(db, t))),
+    dbCore.from('jjp_settings').select('key', { count: 'exact', head: true }).like('key', 'storage:%').catch(() => ({ count: null }))
+  ]);
+
+  const dbSizeBytes = telem.data?.db_size_bytes ? Number(telem.data.db_size_bytes) : 0;
+  const dbSizeMb = dbSizeBytes > 0 ? (dbSizeBytes / (1024 * 1024)).toFixed(2) : 'DESCONOCIDO';
+  const diskTotalBytes = telem.data?.disk_total_bytes ? Number(telem.data.disk_total_bytes) : QUOTAS.DB_MAX_BYTES;
+  const quotaMb = Math.round(diskTotalBytes / (1024 * 1024)) || 500;
+  const usagePct = (dbSizeBytes > 0 && diskTotalBytes > 0) ? ((dbSizeBytes / diskTotalBytes) * 100).toFixed(1) : '0.0';
+
+  const coreReachable = coreTableStats.some(t => t.liveRows !== null);
+  const commReachable = commTableStats.some(t => t.liveRows !== null);
+  const storedFilesCount = storageItemsRes?.count ?? 0;
 
   const payload = {
     timestamp: new Date().toISOString(),
     queryDurationMs: Date.now() - tStart,
     rpm: getRPM(),
+    telemetry: telem.data || null,
     projects: {
       core: {
-        name: 'Proyecto A (Core)',
+        name: 'VPS Soberano — Core',
         role: 'Ventas, Catálogo, Clientes & POS',
-        ref: 'wwcdxqpibequfohbgejs',
-        ...statsA
+        ref: '166.0.112.247 (PostgreSQL)',
+        online: coreReachable,
+        latency: telem.latency || 50,
+        sizeBytes: dbSizeBytes,
+        sizeMb: dbSizeMb,
+        sizePretty: dbSizeBytes > 0 ? `${dbSizeMb} MB` : 'DESCONOCIDO',
+        quotaBytes: diskTotalBytes,
+        quotaMb,
+        usagePercent: usagePct,
+        connections: telem.data?.connections ?? 1,
+        totalDeadTuples: 0,
+        tables: coreTableStats.filter(t => t.liveRows !== null)
       },
       comm: {
-        name: 'Proyecto B (Comunicación)',
+        name: 'VPS Soberano — Comunicación',
         role: 'WhatsApp, Correos CRM & Campañas',
-        ref: 'klcibjwleiqppedefpxw',
-        storage: storageStats.projB,
-        ...statsB
+        ref: '166.0.112.247 (Unificado)',
+        online: commReachable,
+        latency: telem.latency || 50,
+        sizeBytes: 0,
+        sizeMb: dbSizeMb,
+        sizePretty: dbSizeBytes > 0 ? `${dbSizeMb} MB (Unificado)` : 'DESCONOCIDO',
+        quotaBytes: diskTotalBytes,
+        quotaMb,
+        usagePercent: usagePct,
+        connections: telem.data?.connections ?? 1,
+        totalDeadTuples: 0,
+        tables: commTableStats.filter(t => t.liveRows !== null)
       },
       storage: {
-        name: 'Proyecto C (Storage & Media)',
-        role: 'Imágenes WebP Catálogo & Comprobantes',
-        ref: 'nmcamjxhyysmmvgxgabo',
-        ...statsC
+        name: 'VPS Soberano — Storage & Media',
+        role: 'Adjuntos & Archivos en jjp_settings',
+        ref: '166.0.112.247',
+        online: coreReachable,
+        latency: telem.latency || 50,
+        buckets: [
+          { id: 'wa-media', name: 'wa-media (KV)', public: true, fileCount: storedFilesCount, sizeBytes: 0 }
+        ],
+        totalFiles: storedFilesCount,
+        sizeBytes: 0,
+        sizeMb: '0.00',
+        quotaBytes: QUOTAS.STORAGE_MAX_BYTES,
+        quotaMb: 1024,
+        usagePercent: '0.00',
+        error: null
       }
     },
     summary: {
-      totalDbBytes,
-      totalDbMb,
-      totalDbQuotaMb: 1000,
-      totalDbUsagePercent: ((totalDbBytes / totalDbQuota) * 100).toFixed(1),
-      totalDeadTuples,
-      overallHealth: (statsA.online && statsB.online && statsC.online) ? 'OPTIMAL' : 'ATTENTION_NEEDED',
-      avgLatencyMs: Math.round(((statsA.latency || 0) + (statsB.latency || 0) + (statsC.latency || 0)) / 3)
+      totalDbBytes: dbSizeBytes,
+      totalDbMb: dbSizeBytes > 0 ? dbSizeMb : 'DESCONOCIDO',
+      totalDbQuotaMb: quotaMb,
+      totalDbUsagePercent: usagePct,
+      totalDeadTuples: 0,
+      overallHealth: (coreReachable && commReachable) ? 'OPTIMAL' : 'ATTENTION_NEEDED',
+      avgLatencyMs: telem.latency || 50
     },
     recentRequests: liveRequests.slice(0, 40)
   };

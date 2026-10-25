@@ -27,8 +27,21 @@ function srvAgo(iso) {
 }
 
 async function srvLoad() {
-  const { data, error } = await sb.from('jjp_server_control').select('id,status,heartbeat_at,host,modules,started_at,command').eq('id', 1).maybeSingle();
-  if (error || !data) return; // no pisar el último estado conocido por un fallo de red puntual
+  let { data, error } = await sb.from('jjp_server_control').select('id,status,heartbeat_at,host,modules,started_at,command').eq('id', 1).maybeSingle();
+  if (error) {
+    const res = await sb.from('jjp_server_control').select('id,heartbeat_at,modules,updated_at').eq('id', 1).maybeSingle();
+    if (res.data) {
+      data = {
+        ...res.data,
+        status: res.data.modules?.status || (res.data.heartbeat_at && (Date.now() - new Date(res.data.heartbeat_at).getTime()) < 180000 ? 'online' : 'offline'),
+        host: res.data.modules?.host || 'JJ-SERVER',
+        started_at: res.data.modules?.started_at || null,
+        command: res.data.modules?.command || null
+      };
+      error = null;
+    }
+  }
+  if (error || !data) return;
   _srvRow = data;
   srvRenderChip();
   srvRenderModal();

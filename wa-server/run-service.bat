@@ -31,8 +31,10 @@ if exist %LOGFILE% (
 )
 
 REM Asegurar que la carpeta de pedidos exista y el entorno de MixNet este configurado
-echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
-"%NODE_BIN%" auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
+if not exist mixnet-config.json (
+  echo [%date% %time%] [SUPERVISOR] Verificando entorno de MixNet... >> "%LOGFILE%"
+  "%NODE_BIN%" auto-detect-mixnet.js >> "%LOGFILE%" 2>&1
+)
 
 echo [%date% %time%] [SUPERVISOR] Iniciando servidor JJ Paper con "%NODE_BIN%"... >> "%LOGFILE%"
 "%NODE_BIN%" src/index.js >> "%LOGFILE%" 2>&1

@@ -13,9 +13,9 @@ let config = {
   mixnet_dir: 'M:/comp01',
   pedidos_dir: 'C:/pedidos',
   port: 3300,
-  supabase_url: 'https://wwcdxqpibequfohbgejs.supabase.co',
+  supabase_url: 'https://166-0-112-247.sslip.io',
   supabase_key: '',
-  supabase_url_comm: 'https://klcibjwleiqppedefpxw.supabase.co',
+  supabase_url_comm: 'https://166-0-112-247.sslip.io',
   supabase_key_comm: '',
   auto_sync_interval_sec: 30,
   stock_sync_interval_min: 5
@@ -354,7 +354,7 @@ function incrementSerial(controlFilePath, fieldName = 'NUMCOT', nextVal) {
 function sbReq(pathUrl, method = 'GET', body = null, target = 'core') {
   return new Promise((resolve, reject) => {
     const isComm = (target === 'comm');
-    const base = isComm ? (config.supabase_url_comm || 'https://klcibjwleiqppedefpxw.supabase.co') : config.supabase_url;
+    const base = isComm ? (config.supabase_url_comm || 'https://166-0-112-247.sslip.io') : config.supabase_url;
     const key = isComm ? (config.supabase_key_comm || config.supabase_key) : config.supabase_key;
     if (!base || !key) {
       return resolve({ status: 500, error: 'Credenciales no configuradas para ' + target });

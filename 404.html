@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Página no encontrada | JJ Paper C.A.</title>
+<meta name="description" content="La página que buscas no existe o ha sido movida. Explora nuestro catálogo mayorista de papelería en JJ Paper.">
+<link rel="icon" type="image/svg+xml" href="/assets/img/logo.svg">
+<meta name="theme-color" content="#16604A">
+
+<!-- Open Graph / Meta -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="JJ Paper C.A. — Papelería y Suministros al Mayor">
+<meta property="og:description" content="Distribuidores mayoristas de papelería, suministros de oficina, cuadernos y escolares en Venezuela.">
+<meta property="og:image" content="https://166-0-112-247.sslip.io/storage/v1/object/public/jjp-products/og-jjpaper.png">
+
+<link rel="stylesheet" href="/assets/css/variables.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  .card {
+    background: #ffffff;
+    max-width: 520px;
+    width: 100%;
+    padding: 40px 32px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid #e2e8f0;
+  }
+  .logo-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: #eafaf1;
+    border-radius: 24px;
+    margin-bottom: 24px;
+  }
+  .logo-wrap img {
+    width: 48px;
+    height: 48px;
+  }
+  .error-code {
+    font-size: 14px;
+    font-weight: 800;
+    color: #16604A;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 12px;
+  }
+  p {
+    font-size: 15px;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+  .btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 22px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all .2s ease;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary {
+    background: #16604A;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(22,96,74,0.3);
+  }
+  .btn-primary:hover {
+    background: #124e3c;
+    transform: translateY(-1px);
+  }
+  .btn-secondary {
+    background: #f1f5f9;
+    color: #334155;
+  }
+  .btn-secondary:hover {
+    background: #e2e8f0;
+  }
+  .footer-note {
+    margin-top: 24px;
+    font-size: 12.5px;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo-wrap">
+    <img src="/assets/img/logo.svg" alt="JJ Paper">
+  </div>
+  <div class="error-code">Error 404</div>
+  <h1>Página no encontrada</h1>
+  <p>La dirección que intentas abrir no existe, cambió de lugar o fue movida recientemente.</p>
+
+  <div class="btn-group" id="btnGroup">
+    <a href="/catalogo.html" class="btn btn-primary" id="btnMain">📗 Ir al Catálogo de Productos</a>
+    <a href="javascript:history.back()" class="btn btn-secondary">↩ Volver atrás</a>
+  </div>
+
+  <div class="footer-note">JJ Paper C.A. — Distribuidora de Papelería Mayorista</div>
+</div>
+
+<script>
+  try {
+    const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+    if (raw) {
+      const sess = JSON.parse(raw);
+      if (sess && sess.access_token) {
+        // Usuario logueado: ofrecer botón a su panel
+        const btnMain = document.getElementById('btnMain');
+        if (btnMain) {
+          btnMain.textContent = '📊 Ir a mi Panel de Control';
+          btnMain.href = '/admin/index.html';
+        }
+      }
+    }
+  } catch (_) {}
+</script>
+
+</body>
+</html>

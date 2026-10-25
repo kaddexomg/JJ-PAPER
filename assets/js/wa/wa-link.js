@@ -216,9 +216,14 @@ function waRenderLink() {
 }
 
 async function _waAction(fields, okMsg) {
+  const payload = {
+    profile_id: _waLinkMe,
+    ...fields,
+    requested_at: new Date().toISOString(),
+    enabled: true
+  };
   const { error } = await sb.from('jjp_wa_sessions')
-    .update({ ...fields, requested_at: new Date().toISOString() })
-    .eq('profile_id', _waLinkMe);
+    .upsert(payload, { onConflict: 'profile_id' });
   if (error) { showToast('No se pudo pedir la acción: ' + error.message, 'err'); return false; }
   if (okMsg) showToast(okMsg);
   return true;

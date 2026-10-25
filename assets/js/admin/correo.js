@@ -23,17 +23,12 @@ async function mailInit(me) {
   if (cb) cb.style.display = 'none';   // método empresa/SMTP retirado: ahora es OAuth por usuario
 
   // Vincular Gmail con Google (OAuth, permiso gmail.send) — sin contraseñas
-  window.linkGmailStart = async function () {
+  window.linkGmailStart = function () {
     localStorage.setItem('jjp_link_gmail', '1');
-    const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly',
-        redirectTo: location.href.split('#')[0],
-        queryParams: { access_type: 'offline', prompt: 'consent' }
-      }
-    });
-    if (error) { localStorage.removeItem('jjp_link_gmail'); showToast('No se pudo abrir Google: ' + error.message, 'err'); }
+    const redirectUrl = location.href.split('#')[0];
+    const scopes = encodeURIComponent('https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly');
+    const authUrl = SUPABASE_URL + '/auth/v1/authorize?provider=google&scopes=' + scopes + '&redirect_to=' + encodeURIComponent(redirectUrl) + '&access_type=offline&prompt=consent';
+    window.location.href = authUrl;
   };
   sb.channel('email-ui-' + MAIL_ME.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_emails' },

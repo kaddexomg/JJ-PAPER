@@ -31,7 +31,7 @@ const _rawSbCore = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     storageKey: 'sb-166-0-112-247-auth-token',
     detectSessionInUrl: false,
     persistSession: true,
-    autoRefreshToken: false
+    autoRefreshToken: true
   },
   accessToken: async () => getAuthToken()
 });

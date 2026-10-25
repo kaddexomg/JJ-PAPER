@@ -890,7 +890,7 @@ async function ingestMessage(acct, token, id) {
     } catch (_) {}
   }
 
-  const { error } = await db.from('jjp_emails').insert({
+  const emailPayload = {
     owner_id: acct.profile_id, direction: 'in', status: 'received',
     from_addr: from.name ? `${from.name} <${from.email}>` : from.email,
     to_addr: acct.email, subject: subject || '(sin asunto)',
@@ -899,7 +899,13 @@ async function ingestMessage(acct, token, id) {
     gmail_id: id, thread_id: msg.threadId || null,
     attachments: atts, attach_state: atts.length ? 'pending' : 'none',
     customer_id: cust?.id || null, is_read: false, created_at: ts
-  });
+  };
+  let { error } = await db.from('jjp_emails').insert(emailPayload);
+  if (error && error.message && error.message.includes('customer_id')) {
+    delete emailPayload.customer_id;
+    const retry = await db.from('jjp_emails').insert(emailPayload);
+    error = retry.error;
+  }
   if (error && error.code !== '23505') log.warn({ err: error.message }, 'insert entrante falló');
 }
 

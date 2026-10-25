@@ -294,8 +294,8 @@ if (!window.location.hash || !window.location.hash.includes('access_token=')) {
   routeIfSession();
 }
 
-// Login con Google (OAuth).
-async function loginWithGoogle() {
+// Login con Google (OAuth) — Redirección Directa Nativa
+function loginWithGoogle() {
   const btn = document.getElementById('googleBtn');
   if (btn) { btn.disabled = true; btn.style.opacity = .6; btn.textContent = 'Abriendo Google…'; }
   const isPublicDomain = window.location.origin.includes('pages.dev') || window.location.origin.includes('jjpaper');
@@ -303,20 +303,9 @@ async function loginWithGoogle() {
     ? window.location.origin + '/admin/login'
     : 'https://jjpaper.pages.dev/admin/login';
 
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: redirectTarget
-    }
-  });
-  if (error) {
-    resetGoogleBtn();
-    const err = document.getElementById('loginErr');
-    if (err) {
-      err.textContent = 'No se pudo abrir Google: ' + error.message;
-      err.classList.add('sh');
-    }
-  }
+  // Redirección directa y forzada al VPS sin intermediarios de librerías que se congelen
+  const authUrl = SUPABASE_URL + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(redirectTarget) + '&access_type=offline&prompt=consent';
+  window.location.href = authUrl;
 }
 
 async function doLogin(e) {

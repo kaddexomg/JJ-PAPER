@@ -1416,17 +1416,8 @@ async function waRenderSessions() {
 }
 
 async function waToggleSession(profileId, enabled) {
-  // Primero intenta update directo ya que la semilla crea la fila
-  let { error } = await sb.from('jjp_wa_sessions')
-    .update({ enabled, status: enabled ? 'starting' : 'disabled' })
-    .eq('profile_id', profileId);
-
-  // Si no existía, upsert
-  if (error) {
-    const res = await sb.from('jjp_wa_sessions')
-      .upsert({ profile_id: profileId, enabled, status: enabled ? 'starting' : 'disabled' }, { onConflict: 'profile_id' });
-    error = res.error;
-  }
+  const { error } = await sb.from('jjp_wa_sessions')
+    .upsert({ profile_id: profileId, enabled, status: enabled ? 'starting' : 'disabled' }, { onConflict: 'profile_id' });
 
   if (error) {
     const msg = error.message?.includes('policy')
@@ -1543,6 +1534,9 @@ function waToggleAiMenu(ev) {
     <div style="padding:6px 0;display:flex;flex-direction:column">
       <button class="wa-ai-item-btn" onclick="waAiSuggestReply()">
         <span>💡</span> <strong>Sugerir Respuesta</strong>
+      </button>
+      <button class="wa-ai-item-btn" onclick="waAiSmartFollowup()">
+        <span>🎯</span> <strong>Seguimiento Inteligente (Tono a Medida)</strong>
       </button>
       <button class="wa-ai-item-btn" onclick="waAiVariarText()">
         <span>🛡️</span> <strong>Variar Texto (Anti-Spam)</strong>
@@ -1709,6 +1703,101 @@ async function waAiVariarText() {
   }
 }
 window.waAiVariarText = waAiVariarText;
+
+async function waAiSmartFollowup() {
+  document.getElementById('waAiMenuPop')?.remove();
+  const clientName = waActive ? (waActive.name || waActive.phone || 'Cliente') : 'Cliente';
+
+  waOpenAiModal('🎯 Seguimiento Comercial Inteligente', `
+    <div style="font-size:12.5px;color:#64748b;margin-bottom:12px">
+      Redacta un mensaje proactivo con IA adaptado al perfil de <strong>${escapeHTML(clientName)}</strong>:
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:#16604A;margin-bottom:3px">Propósito del Mensaje:</label>
+        <select id="waAiFollowupType" class="fi" style="width:100%;font-size:13px">
+          <option value="Reactivación / Seguimiento">🎯 Reactivación (Cliente sin compras recientes)</option>
+          <option value="Seguimiento de Cotización">📋 Seguimiento a Cotización Pendiente</option>
+          <option value="Oferta Especial / Promoción">🔥 Oferta Mayorista / Papel y Cuadernos</option>
+          <option value="Consulta de Necesidades">📦 Consulta de Stock / Reposición de Inventario</option>
+          <option value="Presentación Inicial">🤝 Presentación Comercial / Saludo de Contacto</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:#16604A;margin-bottom:3px">Tono de Comunicación:</label>
+        <select id="waAiFollowupTone" class="fi" style="width:100%;font-size:13px">
+          <option value="Cálido / Amistoso">🤝 Cálido, Cercano y Consultivo</option>
+          <option value="Profesional / Formal">💼 Ejecutivo, Formal y Corporativo</option>
+          <option value="Directo / Comercial">⚡ Directo al Punto y Orientado al Cierre</option>
+          <option value="Urgencia Moderada">⏰ Oportunidad / Precios antes de ajuste</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:#16604A;margin-bottom:3px">Nota Adicional o Producto Destacado (Opcional):</label>
+        <input type="text" id="waAiFollowupNote" class="fi" placeholder="Ej: Resmas de papel, cuadernos, 10% descuento..." style="width:100%;font-size:12.5px">
+      </div>
+      <button class="btn-p" id="waAiFollowupGenBtn" onclick="waAiExecuteFollowupDraft()" style="margin-top:4px;padding:9px;font-size:13px">
+        🪄 Generar Mensaje Personalizado
+      </button>
+    </div>
+    <div id="waAiFollowupResult" style="display:none;flex-direction:column;gap:10px"></div>
+  `);
+}
+window.waAiSmartFollowup = waAiSmartFollowup;
+
+async function waAiExecuteFollowupDraft() {
+  const btn = document.getElementById('waAiFollowupGenBtn');
+  const resBox = document.getElementById('waAiFollowupResult');
+  const type = document.getElementById('waAiFollowupType')?.value || 'Reactivación';
+  const tone = document.getElementById('waAiFollowupTone')?.value || 'Cálido / Amistoso';
+  const note = document.getElementById('waAiFollowupNote')?.value || '';
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Redactando con IA… ⏳'; }
+  if (resBox) { resBox.style.display = 'none'; resBox.innerHTML = ''; }
+
+  const clientName = waActive ? (waActive.name || waActive.phone || 'Cliente') : 'Cliente';
+  const sellerName = WA_ME ? WA_ME.name : 'Asesor de Ventas';
+
+  try {
+    const analysis = await window.GeminiClient.analyzeCustomerAndDraftMessage({
+      customer: waFicha?.cliente || { name: clientName, phone: waActive?.phone },
+      channel: 'whatsapp',
+      sellerName,
+      personality: tone,
+      messageType: type,
+      customInstructions: note ? `Enfocar en: ${note}` : '',
+      officialPdfIncluded: false,
+      msgLength: 'balanced'
+    });
+
+    const drafted = analysis.message || analysis.mensaje || (typeof analysis === 'string' ? analysis : JSON.stringify(analysis));
+    if (resBox) {
+      resBox.style.display = 'flex';
+      resBox.innerHTML = `
+        <div class="wa-ai-card">
+          <div class="wa-ai-card-hd">✨ Mensaje Generado (${escapeHTML(tone)}):</div>
+          <div class="wa-ai-card-bd" id="waAiDraftedText">${escapeHTML(drafted)}</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn-p btn-sm" onclick="waAiApplyText(document.getElementById('waAiDraftedText').innerText)">
+              📝 Aplicar al Chat
+            </button>
+            <button class="btn-o btn-sm" onclick="waAiExecuteFollowupDraft()">
+              🔄 Probar otra opción
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  } catch (err) {
+    if (resBox) {
+      resBox.style.display = 'block';
+      resBox.innerHTML = `<span style="color:#b91c1c;font-size:12px">Error al redactar: ${escapeHTML(err.message)}</span>`;
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🪄 Generar Mensaje Personalizado'; }
+  }
+}
+window.waAiExecuteFollowupDraft = waAiExecuteFollowupDraft;
 
 function waAiSearchPrice() {
   document.getElementById('waAiMenuPop')?.remove();

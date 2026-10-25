@@ -8,32 +8,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config(); // fallback estándar
 
-export const SUPABASE_URL = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
-export const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const SUPABASE_URL = process.env.SUPABASE_URL || 'https://166-0-112-247.sslip.io';
+export const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjk1MDAwMDAsImV4cCI6MjA0NTAwMDAwMH0.Re_nlxR74OCn2LLRN78SKEHt8FxFYanYLsZr2Cvyf8s';
 
-const RAW_URL_CORE = process.env.SUPABASE_URL_CORE || process.env.SUPABASE_URL || '';
-const IS_STALE_CORE = RAW_URL_CORE.includes('qxgdrfkobbhdzgtoiavv');
+export const SUPABASE_URL_CORE = process.env.SUPABASE_URL_CORE || SUPABASE_URL;
+export const SERVICE_KEY_CORE  = process.env.SUPABASE_SERVICE_ROLE_KEY_CORE || SERVICE_KEY;
 
-export const SUPABASE_URL_CORE = IS_STALE_CORE
-  ? 'https://166-0-112-247.sslip.io'
-  : (RAW_URL_CORE || 'https://166-0-112-247.sslip.io');
+export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || SUPABASE_URL;
+export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || SERVICE_KEY;
 
-export const SERVICE_KEY_CORE = IS_STALE_CORE
-  ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2R4cXBpYmVxdWZvaGJnZWpzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDczMDA3NCwiZXhwIjoyMTA2MzA2MDc0fQ.FhQjv5Ay6PF6ClL4jlwV_9kYi_XnKjezAQ8L6pD04zg'
-  : (process.env.SUPABASE_SERVICE_ROLE_KEY_CORE || process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-export const SUPABASE_URL_COMM = process.env.SUPABASE_URL_COMM || process.env.SUPABASE_URL;
-export const SERVICE_KEY_COMM  = process.env.SUPABASE_SERVICE_ROLE_KEY_COMM || process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || 'https://166-0-112-247.sslip.io';
-export const SERVICE_KEY_INV   = process.env.SUPABASE_SERVICE_ROLE_KEY_INV || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2FtanhoeXlzbW12Z3hnYWJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjA2MTQ2NCwiZXhwIjoyMDk3NjM3NDY0fQ.QvuDcLSJleatqDcglU_w0fRnXbz9N6scGaDVqCUgoXg';
+export const SUPABASE_URL_INV  = process.env.SUPABASE_URL_INV || SUPABASE_URL;
+export const SERVICE_KEY_INV   = process.env.SUPABASE_SERVICE_ROLE_KEY_INV || SERVICE_KEY;
 
 export const PG_CORE = {
   host: process.env.PG_HOST_CORE || '166.0.112.247',
   port: parseInt(process.env.PG_PORT_CORE || '5432', 10),
   user: process.env.PG_USER_CORE || 'jjpaper_admin',
   password: process.env.PG_PASS_CORE || 'samily31657900',
-  database: 'jjpaper_db',
+  database: process.env.PG_DB_CORE || 'jjpaper_db',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000
 };
@@ -43,7 +35,7 @@ export const PG_COMM = {
   port: parseInt(process.env.PG_PORT_COMM || '5432', 10),
   user: process.env.PG_USER_COMM || 'jjpaper_admin',
   password: process.env.PG_PASS_COMM || 'samily31657900',
-  database: 'postgres',
+  database: process.env.PG_DB_COMM || 'jjpaper_db',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000
 };
@@ -59,9 +51,8 @@ export const COUNT_CATALOG_MS  = 300_000; // refresco del catálogo local (5 min
 export const REPO_ROOT         = path.join(__dirname, '..', '..');  // raíz del sitio (para servir la app por LAN)
 export const MIXER_EXPORT_DIR  = process.env.MIXER_EXPORT_DIR || path.join(REPO_ROOT, 'mixer_export');
 
-
 export const OUTBOX_SWEEP_MS   = 5_000;   // barrido de salientes pendientes (latencia ultra-baja)
-export const SESSIONS_SWEEP_MS = 45_000;  // barrido de requested_action perdidos
+export const SESSIONS_SWEEP_MS = 2_000;   // sondeo ultra-rápido de requested_action (2s)
 export const CAMPAIGN_SWEEP_MS = 42_000;  // tick asimétrico del despachador de difusión
 export const INVOICE_SWEEP_MS  = 60_000;  // avisos de facturas por pagar (los genera el cron de la BD)
 export const EMAIL_SWEEP_MS    = 60_000;  // barrido de correos pendientes (Gmail SMTP)
@@ -81,6 +72,5 @@ export const GMAIL_FROM     = process.env.GMAIL_FROM || '';
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY en wa-server/.env');
-  console.error('Copia .env.example como .env y pega la service_role key del dashboard de Supabase.');
   process.exit(1);
 }

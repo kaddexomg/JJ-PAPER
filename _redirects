@@ -11,6 +11,12 @@
 /vendedor     /vendedor/index.html 301
 /vendedor/    /vendedor/index.html 200
 
-# Redirecciones públicas heredadas (sin wildcards que rompan archivos .html del panel)
+# Redirección de módulos consolidados
+/admin/promociones*    /admin/ajustes.html    302
+/admin/resenas*        /admin/ajustes.html    302
+/vendedor/promociones* /vendedor/index.html   302
+/vendedor/resenas*     /vendedor/index.html   302
+
+# Redirecciones públicas heredadas
 /checkout     /catalogo.html       301
 /rastreo      /catalogo.html       301

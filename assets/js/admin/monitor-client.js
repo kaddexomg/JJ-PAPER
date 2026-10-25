@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resA = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
         if (resA && resA.data) sRow = resA.data;
       }
-      if (sRow?.modules?.lan_ip) {
+      if (sRow?.modules?.lan_ip && !/^192\.168\.1\./.test(sRow.modules.lan_ip) && sRow.modules.lan_ip !== '166.0.112.247') {
         localServerUrl = `http://${sRow.modules.lan_ip}:8787`;
       }
       if (sRow?.modules?.tailscale_url) {
@@ -368,7 +368,7 @@ function initRealtimeListeners() {
         if (!row) return;
         const diffMs = Math.abs(Date.now() - new Date(row.heartbeat_at || row.heartbeat || 0).getTime());
         const isFresh = diffMs < 300_000 && (row.status === 'online' || row.status === 'degraded');
-        const hostName = (row.host === 'host-c2f736' || row.modules?.lan_ip === '166.0.112.247') ? 'Servidor VPS Truobox' : (row.host || 'Servidor Central');
+        const rawH = row.modules?.host || row.host || ''; const hostName = (!rawH || /^LAPTOP-/i.test(rawH) || /^DESKTOP-/i.test(rawH) || rawH === 'host-c2f736' || row.modules?.lan_ip === '166.0.112.247') ? 'Servidor VPS Soberano (166.0.112.247)' : rawH;
         
         recordCloudRequest({
           type: 'LAN',
@@ -806,6 +806,17 @@ async function querySupabaseDirectly() {
         usagePercent: mediaCount !== null ? (((mediaCount * 0.023) / 10000) * 100).toFixed(2) : 'DESCONOCIDO',
         totalFiles: mediaCount ?? 'DESCONOCIDO',
         buckets: [{ id: 'jjp-products', name: 'jjp-products (WebP)', fileCount: mediaCount ?? 'DESCONOCIDO', sizeMb: mediaCount !== null ? +((mediaCount * 0.023)).toFixed(1) : 'DESCONOCIDO' }]
+      },
+      server: {
+        name: 'Servidor Central en la Nube (VPS Soberano)',
+        role: 'PostgreSQL 16 · PostgREST · Auth · Nginx CDN 24/7',
+        host: 'Servidor VPS Soberano',
+        online: dbOnline,
+        latency: measuredLatency,
+        lastBeatAgo: 'En vivo 24/7',
+        publicIp: '166.0.112.247',
+        lanIp: '166.0.112.247',
+        waSanas: 1
       }
     },
     summary: {

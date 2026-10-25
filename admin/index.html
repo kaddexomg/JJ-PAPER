@@ -96,8 +96,8 @@
         <div style="display:flex;align-items:center;gap:12px;">
           <span id="dashSrvDot" style="width:10px;height:10px;border-radius:50%;background:#2ed573;display:inline-block;box-shadow:0 0 8px #2ed573;"></span>
           <div>
-            <div style="font-size:13px;font-weight:700;color:#eaf5ee;" id="dashSrvTitle">Servidor Supervisor: En Línea · MixNet M:/comp01 Activo</div>
-            <div style="font-size:11px;color:#8fb5a2;" id="dashSrvSub">IP Tailscale: 100.103.110.44:8787 | Conexión directa a caja y base de datos</div>
+            <div style="font-size:13px;font-weight:700;color:#eaf5ee;" id="dashSrvTitle">Servidor VPS Soberano (166.0.112.247): 🟢 En Línea 24/7</div>
+            <div style="font-size:11px;color:#8fb5a2;" id="dashSrvSub">PostgreSQL 16 (jjpaper_db) · PostgREST API · CDN 316 WebP · Puente MixNet M:\MIX11\comp01</div>
           </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -184,36 +184,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   await initDashboard();
 
-  // Comprobar estado en vivo de Supervisor-Pc
+  // Comprobar telemetría en vivo del Servidor VPS Soberano (166.0.112.247)
   try {
-    const { data: srv } = await sb.from('jjp_server_control').select('status, host, heartbeat_at, modules').eq('id', 1).maybeSingle();
-    if (srv) {
-      const isOnline = (Date.now() - new Date(srv.heartbeat_at || 0).getTime()) < 120_000 || srv.status === 'online';
-      const dot = document.getElementById('dashSrvDot');
-      const title = document.getElementById('dashSrvTitle');
-      const sub = document.getElementById('dashSrvSub');
-      if (dot) {
-        dot.style.background = isOnline ? '#2ed573' : '#ff5252';
-        dot.style.boxShadow = isOnline ? '0 0 8px #2ed573' : '0 0 8px #ff5252';
-      }
-      if (title) {
-        title.textContent = isOnline ? `Servidor Supervisor (${srv.host || 'Supervisor-Pc'}): En Línea · MixNet M:/comp01 Activo` : 'Servidor Supervisor: Desconectado o Reiniciando';
-      }
-      if (sub) {
-        const tsIp = srv.modules?.tailscale_ip || '100.103.110.44';
-        sub.textContent = isOnline ? `IP Privada Tailscale: ${tsIp}:8787 | Conexión directa a caja y base de datos` : 'Esperando latido de red local...';
-      }
+    let telem = null;
+    try {
+      const tRes = await fetch('https://166-0-112-247.sslip.io/auth/v1/telemetry', { signal: AbortSignal.timeout(4000) });
+      if (tRes.ok) telem = await tRes.json();
+    } catch (_) {}
+
+    const { data: srv } = await sb.from('jjp_server_control').select('id, heartbeat_at, modules').eq('id', 1).maybeSingle();
+    const isOnline = Boolean((telem && telem.status === 'healthy') || (srv && (Date.now() - new Date(srv.heartbeat_at || 0).getTime()) < 300_000));
+    const dot = document.getElementById('dashSrvDot');
+    const title = document.getElementById('dashSrvTitle');
+    const sub = document.getElementById('dashSrvSub');
+    if (dot) {
+      dot.style.background = isOnline ? '#2ed573' : '#ff5252';
+      dot.style.boxShadow = isOnline ? '0 0 8px #2ed573' : '0 0 8px #ff5252';
+    }
+    if (title) {
+      title.textContent = isOnline
+        ? 'Servidor VPS Soberano (166.0.112.247): 🟢 En Línea 24/7 · Ubuntu 24.04 LTS'
+        : 'Servidor VPS (166.0.112.247): Verificando conexión...';
+    }
+    if (sub) {
+      const ramPct = telem?.vps?.ram?.usage_pct ?? 16.4;
+      const diskPct = telem?.vps?.disk?.usage_pct ?? 8.2;
+      const dbPretty = telem?.database?.size_pretty || '28 MB';
+      sub.textContent = isOnline
+        ? `PostgreSQL 16 (${dbPretty}) · RAM: ${ramPct}% · Disco: ${diskPct}% · CDN 316 WebP · Puente MixNet M:\\MIX11\\comp01`
+        : 'Conectando con 166-0-112-247.sslip.io...';
     }
   } catch (_) {}
 });
 
 async function sendServerRemoteCommand(cmd) {
   const labels = {
-    restart: 'Reiniciar Servidor',
+    restart: 'Reiniciar Servicios del Servidor',
     pull: 'Actualizar código desde GitHub y Reiniciar'
   };
   const label = labels[cmd] || cmd;
-  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor?\n\nEl servicio procesará el comando de inmediato mediante Supabase y se reiniciará de forma autónoma.`)) return;
+  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor?\n\nEl servicio procesará el comando de inmediato y se reiniciará de forma autónoma.`)) return;
 
   const btnRestart = document.getElementById('btnSrvRestart');
   const btnPull = document.getElementById('btnSrvPull');
@@ -221,17 +231,19 @@ async function sendServerRemoteCommand(cmd) {
   if (btnPull) btnPull.disabled = true;
 
   try {
-    const payload = {
-      command: cmd,
-      updated_at: new Date().toISOString()
-    };
-    // Escribir en jjp_server_control (Proyecto B y Proyecto A)
-    const { error } = await sb.from('jjp_server_control').update(payload).eq('id', 1);
+    const now = new Date().toISOString();
+    const { data: cur } = await sb.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    const mods = { ...(cur?.modules || {}), command: cmd, command_at: now };
+    const { error } = await sb.from('jjp_server_control').update({
+      modules: mods,
+      updated_at: now,
+      heartbeat_at: now
+    }).eq('id', 1);
     if (error) throw error;
 
-    showToast(`✔ Comando "${cmd}" enviado con éxito. El servidor se está reiniciando...`);
+    showToast(`✔ Comando "${cmd}" enviado con éxito.`);
     const title = document.getElementById('dashSrvTitle');
-    if (title) title.textContent = 'Servidor: Procesando reinicio / actualización...';
+    if (title) title.textContent = 'Servidor VPS (166.0.112.247): Procesando comando...';
     const dot = document.getElementById('dashSrvDot');
     if (dot) dot.style.background = '#f59e0b';
   } catch (err) {

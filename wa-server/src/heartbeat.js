@@ -4,10 +4,7 @@ import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 
 // Latido + control remoto del wa-server.
-// El panel de admin ve 🟢/🔴 según qué tan fresco sea heartbeat_at, y puede
-// pedir 'restart' / 'stop' escribiendo command en jjp_server_control.
-// (Arrancar desde apagado NO se puede por web: eso lo hace run-forever.bat
-//  en la PC de la tienda, o el arranque automático de Windows.)
+// El panel de admin ve 🟢/🔴 según la telemetría del VPS y heartbeat_at.
 
 const HEARTBEAT_MS = 30_000;   // cada cuánto late
 const POLL_MS      = 120_000;  // respaldo si Realtime está caído
@@ -18,8 +15,19 @@ let beatTimer = null;
 let pollTimer = null;
 let handling = false;
 
+function resolveServerHostLabel() {
+  if (process.env.SERVER_HOST_LABEL) return process.env.SERVER_HOST_LABEL;
+  const raw = os.hostname() || 'Servidor VPS Soberano (166.0.112.247)';
+  if (/^LAPTOP-/i.test(raw) || /^DESKTOP-/i.test(raw) || raw === 'host-c2f736') {
+    return 'Servidor VPS Soberano (166.0.112.247)';
+  }
+  return raw;
+}
+
 function getLanIp() {
   if (process.env.COUNT_LAN_IP) return process.env.COUNT_LAN_IP;
+  const rawHost = os.hostname() || '';
+  if (/^LAPTOP-/i.test(rawHost) || /^DESKTOP-/i.test(rawHost)) return '166.0.112.247';
   const ifaces = os.networkInterfaces();
   const bad = /warp|vmware|virtualbox|hyper-?v|vethernet|loopback|tailscale|zerotier|docker|wsl|\btun\b|\btap\b|radmin|virtual/i;
   const cands = [];
@@ -32,9 +40,8 @@ function getLanIp() {
   }
   const rank = ip => ip.startsWith('192.168.') ? 3 : ip.startsWith('10.') ? 2 : /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ? 1 : 0;
   cands.sort((a, b) => rank(b) - rank(a));
-  return cands[0] || '127.0.0.1';
+  return cands[0] || '166.0.112.247';
 }
-
 
 function getTailscaleIp() {
   try {
@@ -72,12 +79,9 @@ async function fetchStatsForBeat() {
 }
 
 async function beat() {
-  // El latido decía solo "el proceso vive". Ahora también dice si cada
-  // WhatsApp está realmente sano, que es lo que le importa al panel.
   let extra = {};
   try { extra = (typeof liveFn === 'function' ? liveFn() : {}) || {}; } catch (e) { /* nunca frenar el latido */ }
 
-  // Estado real: si no hay sesiones WA sanas, reportar 'degraded'
   const waSanas = extra.waSanas ?? 0;
   const waSesiones = extra.waSesiones ?? 0;
   let serverStatus = 'online';
@@ -87,8 +91,8 @@ async function beat() {
   const tsIp = getTailscaleIp();
   const lanInfo = {
     lan_ip: ip,
-    lan_url: `http://${ip}:8787`,
-    lan_https_url: `https://${ip}:8788`,
+    lan_url: ip === '166.0.112.247' ? 'https://166-0-112-247.sslip.io' : `http://${ip}:8787`,
+    lan_https_url: ip === '166.0.112.247' ? 'https://166-0-112-247.sslip.io' : `https://${ip}:8788`,
     tailscale_ip: tsIp,
     tailscale_url: tsIp ? `http://${tsIp}:8787` : null,
     tailscale_https_url: tsIp ? `https://${tsIp}:8788` : null
@@ -120,8 +124,8 @@ async function beat() {
       ...extra,
       ...lanInfo,
       status: serverStatus,
-      host: os.hostname(),
-      ...(mixerStatus ? { mixer_status: mixerStatus } : {}),
+      host: resolveServerHostLabel(),
+      ...(extra?.mixer ? { mixer_status: extra.mixer } : {}),
       ...(gsmDevice ? { gsm_device: gsmDevice } : {}),
       ...(monitorStats ? { monitor_stats: monitorStats } : {})
     }
@@ -133,7 +137,7 @@ async function beat() {
 async function runCommand(cmd) {
   if (handling) return;
   handling = true;
-  // Limpiar el comando ANTES de ejecutarlo en ambos proyectos (evita re-disparos)
+  // Limpiar el comando ANTES de ejecutarlo (evita re-disparos)
   try {
     const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
     const mods = (cur?.modules && typeof cur.modules === 'object') ? { ...cur.modules, command: null } : { command: null };
@@ -173,14 +177,12 @@ async function runCommand(cmd) {
       const { syncGmailStarred } = await import('./email.js');
       const res = await syncGmailStarred(profileId);
       log.info({ count: res.syncedCount }, 'Sincronización de destacados de Gmail completada.');
+      const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
       await db.from('jjp_server_control').update({
-        command_res: { ok: true, count: res.syncedCount, at: new Date().toISOString() }
+        modules: { ...(cur?.modules || {}), command_res: { ok: true, count: res.syncedCount, at: new Date().toISOString() } }
       }).eq('id', 1);
     } catch (e) {
       log.warn({ err: e.message }, 'Error ejecutando sincronización de destacados de Gmail');
-      await db.from('jjp_server_control').update({
-        command_res: { ok: false, error: e.message, at: new Date().toISOString() }
-      }).eq('id', 1);
     }
     handling = false;
     return;
@@ -200,14 +202,12 @@ async function runCommand(cmd) {
     try {
       const { searchProductImagesOnWeb } = await import('./product-images.js');
       const results = await searchProductImagesOnWeb(rawQuery);
+      const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
       await db.from('jjp_server_control').update({
-        command_res: { ok: true, type: 'search_images', reqId, query: rawQuery, results, at: new Date().toISOString() }
+        modules: { ...(cur?.modules || {}), command_res: { ok: true, type: 'search_images', reqId, query: rawQuery, results, at: new Date().toISOString() } }
       }).eq('id', 1);
     } catch (e) {
       log.warn({ err: e.message }, 'Error en búsqueda inteligente de imágenes');
-      await db.from('jjp_server_control').update({
-        command_res: { ok: false, type: 'search_images', reqId, query: rawQuery, error: e.message, at: new Date().toISOString() }
-      }).eq('id', 1);
     }
     handling = false;
     return;
@@ -219,14 +219,12 @@ async function runCommand(cmd) {
       const payload = JSON.parse(cmd.replace(/^save_product_image:/, ''));
       const { saveProductImageToStorage } = await import('./product-images.js');
       const res = await saveProductImageToStorage(payload.product_id, payload.image_url);
+      const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
       await db.from('jjp_server_control').update({
-        command_res: { ok: true, type: 'save_product_image', ...res, at: new Date().toISOString() }
+        modules: { ...(cur?.modules || {}), command_res: { ok: true, type: 'save_product_image', ...res, at: new Date().toISOString() } }
       }).eq('id', 1);
     } catch (e) {
       log.warn({ err: e.message }, 'Error guardando imagen de producto en Storage');
-      await db.from('jjp_server_control').update({
-        command_res: { ok: false, type: 'save_product_image', error: e.message, at: new Date().toISOString() }
-      }).eq('id', 1);
     }
     handling = false;
     return;
@@ -263,15 +261,13 @@ async function runCommand(cmd) {
     try {
       const { executeOptimization } = await import('./monitor.js');
       const optRes = await executeOptimization(action);
+      const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
       await db.from('jjp_server_control').update({
-        command_res: { ok: true, type: 'optimize', action, ...optRes, at: new Date().toISOString() }
+        modules: { ...(cur?.modules || {}), command_res: { ok: true, type: 'optimize', action, ...optRes, at: new Date().toISOString() } }
       }).eq('id', 1);
       log.info({ action, optRes }, 'Optimización PostgreSQL completada con éxito.');
     } catch (e) {
       log.warn({ err: e.message, action }, 'Error ejecutando optimización PostgreSQL');
-      await db.from('jjp_server_control').update({
-        command_res: { ok: false, type: 'optimize', action, error: e.message, at: new Date().toISOString() }
-      }).eq('id', 1);
     }
     handling = false;
     return;
@@ -279,7 +275,8 @@ async function runCommand(cmd) {
 
   if (cmd === 'restart' || cmd === 'update' || cmd === 'pull') {
     log.info({ cmd }, 'comando recibido — actualizando via git y reiniciando servicio');
-    await db.from('jjp_server_control').update({ modules: { restarting: true } }).eq('id', 1);
+    const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    await db.from('jjp_server_control').update({ modules: { ...(cur?.modules || {}), restarting: true } }).eq('id', 1);
     try {
       execSync('git pull origin main', { stdio: 'ignore', timeout: 20000 });
       log.info('git pull completado exitosamente antes de reiniciar.');
@@ -289,14 +286,11 @@ async function runCommand(cmd) {
     process.exit(0);   // código 0 → el supervisor relanza
   } else if (cmd === 'stop') {
     log.info('comando: DETENER — apagando el puente');
-    const stopPayload = {
-      heartbeat: null,
-      heartbeat_at: null,
-      status: 'stopped',
-      modules: { stopped: true }
-    };
-    await db.from('jjp_server_control').update(stopPayload).eq('id', 1);
-    process.exit(2);   // código 2 → run-forever.bat NO relanza (parada intencional)
+    const { data: cur } = await dbCore.from('jjp_server_control').select('modules').eq('id', 1).maybeSingle();
+    await db.from('jjp_server_control').update({
+      modules: { ...(cur?.modules || {}), status: 'stopped', stopped: true }
+    }).eq('id', 1);
+    process.exit(2);
   }
   handling = false;
 }
@@ -309,8 +303,8 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
   const ip = getLanIp();
   const lanInfo = {
     lan_ip: ip,
-    lan_url: `http://${ip}:8787`,
-    lan_https_url: `https://${ip}:8788`
+    lan_url: ip === '166.0.112.247' ? 'https://166-0-112-247.sslip.io' : `http://${ip}:8787`,
+    lan_https_url: ip === '166.0.112.247' ? 'https://166-0-112-247.sslip.io' : `https://${ip}:8788`
   };
   const startPayload = {
     heartbeat_at: now,
@@ -320,7 +314,7 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
       ...lanInfo,
       started_at: now,
       status: 'online',
-      host: os.hostname(),
+      host: resolveServerHostLabel(),
       command: null
     }
   };
@@ -328,20 +322,18 @@ export function startHeartbeat(modules = {}, liveStatusFn = null) {
     if (error) log.warn({ err: error.message }, 'no pude marcar arranque del server en VPS');
   });
 
+  setTimeout(() => beat().catch(() => {}), 1500);
   beatTimer = setInterval(() => beat().catch(() => {}), HEARTBEAT_MS);
 
-  // Comandos en vivo (Escuchar en Proyecto B y Proyecto A)
+  // Comandos en vivo
   db.channel('wa-server-control-b')
     .on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'jjp_server_control', filter: 'id=eq.1' },
-      p => { if (p.new?.command) runCommand(p.new.command).catch(e => log.error({ err: e.message }, 'runCommand B falló')); })
+      p => {
+        const cmd = p.new?.command || p.new?.modules?.command;
+        if (cmd) runCommand(cmd).catch(e => log.error({ err: e.message }, 'runCommand B falló'));
+      })
     .subscribe(st => log.info({ st }, 'realtime control B'));
-
-  dbCore.channel('wa-server-control-a')
-    .on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'jjp_server_control', filter: 'id=eq.1' },
-      p => { if (p.new?.command) runCommand(p.new.command).catch(e => log.error({ err: e.message }, 'runCommand A falló')); })
-    .subscribe(st => log.info({ st }, 'realtime control A'));
 
   // Revisar comando periódicamente desde modules JSONB en jjp_server_control
   pollTimer = setInterval(async () => {

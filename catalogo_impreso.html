@@ -3,525 +3,1078 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Catálogo Impreso y Presentación Comercial | JJ Paper</title>
-<meta name="description" content="Catálogo comercial de alta resolución para impresión en PDF y consulta mayorista de JJ Paper.">
+<title>Catálogo Comercial Tipo Libro (QR & Dúplex) | JJ Paper</title>
+<meta name="description" content="Catálogo comercial mayorista de JJ Paper diseñado para impresión doble cara tipo cuaderno/libro con alineación exacta Frente/Reverso y códigos QR.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="JJ Paper">
-<meta property="og:title" content="Catálogo Impreso y Presentación Comercial | JJ Paper">
-<meta property="og:description" content="Consulta el catálogo mayorista completo con precios oficiales en USD y Bs.">
+<meta property="og:title" content="Catálogo Comercial Tipo Libro (QR & Dúplex) | JJ Paper">
+<meta property="og:description" content="Catálogo mayorista con fotos HD, códigos QR e imposición exacta Frente y Reverso.">
 <meta property="og:image" content="assets/img/logo.svg">
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
-<meta name="theme-color" content="#16604A">
+<meta name="theme-color" content="#0F4C3A">
 
-<!-- CSS Base & Typography -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 
 <style>
 :root {
-  --doc-c: #16604A;   /* Verde oficial JJ Paper */
-  --doc-a: #C9A24B;   /* Dorado / Latón */
-  --doc-bg: #eef2f0;
-  --doc-text: #1a1a1a;
-  --doc-card-border: #d4e0da;
+  --jj-emerald-dark: #0A3628;
+  --jj-emerald: #0F4C3A;
+  --jj-emerald-mid: #16604A;
+  --jj-emerald-soft: #E8F3EE;
+  --jj-gold: #C9A24B;
+  --jj-gold-dark: #9E7822;
+  --jj-gold-soft: #FDF8EC;
+  --jj-ink: #0F172A;
+  --jj-slate: #475569;
+  --jj-border: #CBD5E1;
+  --jj-bg: #DCE5E0;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
-  color: var(--doc-text);
-  background: var(--doc-bg);
-  padding: 16px;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+  color: var(--jj-ink);
+  background: var(--jj-bg);
+  padding: 16px 12px 60px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
-/* Barra de Herramientas para Pantalla (no se imprime) */
-.screen-toolbar {
-  max-width: 1100px;
+/* ==========================================================================
+   BARRA DE CONTROL & ESTUDIO DÚPLEX (Solo en pantalla)
+   ========================================================================== */
+.studio-header {
+  max-width: 1240px;
   margin: 0 auto 16px;
   background: #ffffff;
-  padding: 14px 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(10, 54, 40, 0.10);
+  border: 1px solid #c8d8d0;
+  overflow: hidden;
+}
+
+.studio-top-row {
+  background: linear-gradient(135deg, var(--jj-emerald-dark) 0%, var(--jj-emerald-mid) 100%);
+  color: #ffffff;
+  padding: 12px 20px;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
-.tb-group {
+
+.studio-brand {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+.studio-brand h2 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+.studio-brand p {
+  font-size: 11.5px;
+  color: #cbe3d8;
+  font-weight: 500;
+}
+
+.studio-mode-pills {
+  display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
-.tb-input, .tb-select {
-  border: 1.5px solid #c7d6ce;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-family: inherit;
-  font-weight: 600;
-  color: #222;
-  background: #fff;
-}
-.tb-input:focus, .tb-select:focus {
-  outline: none;
-  border-color: var(--doc-c);
-}
-.tb-btn {
-  background: var(--doc-c);
+.mode-pill {
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  border: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
   border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 7px 14px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all .2s;
-  text-decoration: none;
+  transition: all .18s;
+  font-family: inherit;
 }
-.tb-btn:hover {
-  background: #0f4636;
-  transform: translateY(-1px);
+.mode-pill:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
-.tb-btn-gold {
-  background: var(--doc-a);
-}
-.tb-btn-gold:hover {
-  background: #b38e3a;
-}
-.tb-counter {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--doc-c);
+.mode-pill.active {
+  background: var(--jj-gold);
+  color: #111;
+  border-color: var(--jj-gold);
+  box-shadow: 0 2px 10px rgba(201, 162, 75, 0.4);
 }
 
-/* Hoja Principal */
-.catalog-sheet {
-  max-width: 1100px;
-  margin: 0 auto;
-  background: #ffffff;
-  padding: 24px 30px;
-  border-radius: 12px;
-  box-shadow: 0 6px 30px rgba(0,0,0,0.08);
-}
-
-/* Portada / Cabecera Comercial */
-.catalog-header {
+.studio-controls-row {
+  padding: 12px 20px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  border-bottom: 2.5px solid var(--doc-c);
-  padding-bottom: 14px;
-  margin-bottom: 20px;
-  gap: 20px;
-}
-.header-brand {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.header-logo {
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-}
-.header-titles h1 {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--doc-c);
-  line-height: 1.1;
-  letter-spacing: -0.3px;
-}
-.header-titles p {
-  font-size: 12px;
-  color: #555;
-  margin-top: 3px;
-  font-weight: 500;
-}
-.header-meta {
-  text-align: right;
-  font-size: 11.5px;
-  color: #444;
-  line-height: 1.4;
-}
-.header-meta .tag-edition {
-  display: inline-block;
-  background: var(--doc-c);
-  color: #fff;
-  font-weight: 700;
-  font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-}
-.header-meta .bcv-rate {
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--doc-c);
+  background: #f8fbf9;
+  border-bottom: 1px solid #e2ece7;
 }
 
-/* Banner de Instrucciones para el Comerciante en la Calle */
-.street-guide-banner {
-  background: linear-gradient(135deg, #f0f7f3 0%, #e2efe8 100%);
-  border: 1px solid #cce1d5;
-  border-left: 4px solid var(--doc-a);
-  border-radius: 8px;
-  padding: 10px 16px;
-  margin-bottom: 20px;
+.ctrl-group {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--jj-emerald);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.tb-input, .tb-select {
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--jj-ink);
+  background: #fff;
+}
+.tb-input:focus, .tb-select:focus {
+  outline: none;
+  border-color: var(--jj-emerald);
+}
+
+/* Barra Especial de Impresión Dúplex (Paso 1 Frente / Paso 2 Reverso) */
+.duplex-bar {
+  padding: 12px 20px;
+  background: #fffdf7;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.duplex-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tb-btn {
+  background: var(--jj-emerald);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
   font-size: 12px;
-  color: #2b473c;
-}
-.street-guide-banner strong {
-  color: var(--doc-c);
-}
-
-/* Grilla Editorial de Productos */
-.editorial-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: 14px;
-}
-.editorial-grid.cols-3 {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-}
-
-/* Ficha de Producto Individual para Calle / Impreso */
-.item-card {
-  background: #ffffff;
-  border: 1.5px solid var(--doc-card-border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  break-inside: avoid;
-  page-break-inside: avoid;
-  position: relative;
-  overflow: hidden;
-  box-sizing: border-box;
-  min-width: 0;
-  transition: transform .2s, box-shadow .2s;
-}
-.item-card:hover {
-  box-shadow: 0 6px 20px rgba(22, 96, 74, 0.12);
-  border-color: var(--doc-c);
-}
-
-.item-img-box {
-  width: 108px;
-  height: 108px;
-  flex: 0 0 108px;
-  background: #f8faf9;
-  border: 1.5px solid #dce8e2;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-}
-.item-img-box img {
-  max-width: 95%;
-  max-height: 95%;
-  object-fit: contain;
-}
-
-.item-content {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.item-featured-photo-tag {
+  font-weight: 700;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: var(--doc-c);
-  color: #fff;
-  font-size: 8.5px;
-  font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 4px;
-  letter-spacing: .3px;
-  text-transform: uppercase;
-  margin-bottom: 3px;
-  width: fit-content;
-}
-.item-category-chip {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--doc-c);
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.item-name {
-  font-size: 13px;
-  font-weight: 800;
-  color: #1a1a1a;
-  line-height: 1.25;
-  margin: 2px 0 3px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.item-packaging-pill {
-  display: inline-block;
-  background: #fbf5e6;
-  border: 1px solid #fae5b6;
-  color: #8c6a1e;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  width: fit-content;
-  margin-bottom: 4px;
-  white-space: nowrap;
-}
-.item-pricing {
-  display: flex;
-  align-items: baseline;
   gap: 6px;
-  flex-wrap: wrap;
+  transition: all .18s;
+  text-decoration: none;
+  font-family: inherit;
 }
-.item-price-usd {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--doc-c);
+.tb-btn:hover {
+  background: var(--jj-emerald-dark);
+  transform: translateY(-1px);
 }
-.item-price-bs {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #555;
+.tb-btn.gold {
+  background: var(--jj-gold);
+  color: #111;
+}
+.tb-btn.gold:hover {
+  background: #b58d35;
+}
+.tb-btn.step-front {
+  background: #0284c7;
+}
+.tb-btn.step-front:hover {
+  background: #0369a1;
+}
+.tb-btn.step-back {
+  background: #7c3aed;
+}
+.tb-btn.step-back:hover {
+  background: #6d28d9;
+}
+.tb-btn.outline {
+  background: #ffffff;
+  color: var(--jj-emerald);
+  border: 1.5px solid var(--jj-emerald);
+}
+.tb-btn.outline:hover {
+  background: var(--jj-emerald-soft);
 }
 
-/* Caja de Código QR */
-.item-qr-box {
-  width: 74px;
-  flex: 0 0 74px;
+.stats-badge {
+  background: var(--jj-emerald-soft);
+  color: var(--jj-emerald-dark);
+  border: 1px solid #b7d7c8;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ==========================================================================
+   MODO NAVEGACIÓN DE CUADERNO INTERACTIVO (Pasar Páginas en Pantalla)
+   ========================================================================== */
+.book-navigator-bar {
+  max-width: 1240px;
+  margin: 0 auto 14px;
+  background: var(--jj-emerald-dark);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 12px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+}
+body.view-flipbook .book-navigator-bar {
+  display: flex;
+}
+
+.nav-spread-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  text-align: center;
+}
+
+.pages-stage {
+  max-width: 1240px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding-left: 8px;
-  border-left: 1px dashed #d5e0da;
-  overflow: hidden;
-}
-.item-qr-box .qr-target, .item-qr-box canvas, .item-qr-box img {
-  width: 66px !important;
-  height: 66px !important;
-  border-radius: 4px;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-  display: block;
-}
-.item-qr-hint {
-  font-size: 7.5px;
-  font-weight: 700;
-  color: #666;
-  line-height: 1.1;
-  margin-top: 3px;
-  text-transform: uppercase;
+  gap: 24px;
 }
 
-/* Pie de Página */
-.catalog-footer {
-  margin-top: 24px;
-  border-top: 1.5px solid #dbe6e0;
-  padding-top: 12px;
+/* En Modo Cuaderno Interactivo mostramos 2 páginas abiertas lado a lado */
+body.view-flipbook .pages-stage {
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0;
+  perspective: 1500px;
+  padding: 10px 0 30px;
+}
+
+/* ==========================================================================
+   PLIEGO FÍSICO HOJA CARTA (215.9mm x 279.4mm) — COINCIDENCIA MILIMÉTRICA
+   ========================================================================== */
+.catalog-page {
+  width: 215.9mm;
+  height: 279.4mm;
+  background: #ffffff;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.14);
+  border-radius: 4px;
+  flex: 0 0 auto;
+  /* Márgenes simétricos por defecto: 10mm arriba/abajo, y margen de lomo espejo */
+  padding-top: 9mm;
+  padding-bottom: 8mm;
+}
+
+/* MODO 1: LOMO ESPEJO PARA CUADERNO / ANILLADO (Frente lomo izq, Reverso lomo der)
+   Al voltear la hoja horizontalmente en la impresora, el margen de 15mm cae en el MISMO borde físico */
+body.gutter-mirror .catalog-page.page-odd {
+  padding-left: 15mm;
+  padding-right: 9mm;
+}
+body.gutter-mirror .catalog-page.page-even {
+  padding-left: 9mm;
+  padding-right: 15mm;
+}
+
+/* MODO 2: SIMÉTRICO PURO (12mm Izq = 12mm Der, idéntico a etiqueta/generate_labels.py) */
+body.gutter-symmetric .catalog-page.page-odd,
+body.gutter-symmetric .catalog-page.page-even {
+  padding-left: 12mm;
+  padding-right: 12mm;
+}
+
+/* Indicador visual de Lomo / Perforación (solo sutil para guiar encuadernado) */
+.spine-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0.35;
+}
+body.gutter-symmetric .spine-guide {
+  display: none !important;
+}
+.catalog-page.page-odd .spine-guide {
+  left: 3mm;
+  border-right: 0.3mm dashed #94a3b8;
+}
+.catalog-page.page-even .spine-guide {
+  right: 3mm;
+  border-left: 0.3mm dashed #94a3b8;
+}
+.punch-hole {
+  width: 3.2mm;
+  height: 3.2mm;
+  border-radius: 50%;
+  border: 0.35mm solid #64748b;
+  background: #f8fafc;
+}
+
+/* Etiqueta flotante de Hoja y Cara en pantalla (no se imprime) */
+.screen-sheet-badge {
+  position: absolute;
+  top: 2.2mm;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 99px;
+  letter-spacing: 0.4px;
+  z-index: 20;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+.catalog-page.page-odd .screen-sheet-badge {
+  background: #0284c7;
+}
+.catalog-page.page-even .screen-sheet-badge {
+  background: #7c3aed;
+}
+
+/* Efecto visual de Libro Abierto cuando está en modo Flipbook en pantalla */
+body.view-flipbook .catalog-page {
+  transform-origin: center top;
+  zoom: 0.72;
+}
+body.view-flipbook .catalog-page.hidden-in-flipbook {
+  display: none !important;
+}
+body.view-flipbook .catalog-page.page-even {
+  border-radius: 6px 0 0 6px;
+  box-shadow: -8px 10px 30px rgba(0,0,0,0.18), inset -14px 0 22px -10px rgba(0,0,0,0.22);
+  border-right: 1px solid #94a3b8;
+}
+body.view-flipbook .catalog-page.page-odd {
+  border-radius: 0 6px 6px 0;
+  box-shadow: 8px 10px 30px rgba(0,0,0,0.18), inset 14px 0 22px -10px rgba(0,0,0,0.22);
+}
+
+/* ==========================================================================
+   CABECERA Y PIE DE PÁGINA CORRIDOS (ALTURA EXACTA EN CADA PÁGINA)
+   ========================================================================== */
+.page-running-header {
+  height: 11.5mm;
+  min-height: 11.5mm;
+  max-height: 11.5mm;
+  border-bottom: 0.6mm solid var(--jj-emerald);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1.8mm;
+  margin-bottom: 3.5mm;
+}
+.catalog-page.page-even .page-running-header {
+  flex-direction: row-reverse;
+}
+
+.rh-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rh-brand img {
+  width: 7.5mm;
+  height: 7.5mm;
+  object-fit: contain;
+}
+.rh-brand-txt {
+  font-size: 11pt;
+  font-weight: 900;
+  color: var(--jj-emerald-dark);
+  letter-spacing: -0.3px;
+}
+.rh-brand-txt em {
+  color: var(--jj-gold-dark);
+  font-style: normal;
+}
+
+.rh-category-pill {
+  background: var(--jj-emerald);
+  color: #ffffff;
+  font-size: 8.5pt;
+  font-weight: 800;
+  padding: 1.4mm 4mm;
+  border-radius: 1.5mm;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-left: 1.2mm solid var(--jj-gold);
+}
+
+.page-running-footer {
+  height: 7.5mm;
+  min-height: 7.5mm;
+  max-height: 7.5mm;
+  border-top: 0.35mm solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1.5mm;
+  margin-top: 3mm;
+  font-size: 7.5pt;
+  color: var(--jj-slate);
+  font-weight: 600;
+}
+.catalog-page.page-even .page-running-footer {
+  flex-direction: row-reverse;
+}
+
+.rf-page-num {
+  background: var(--jj-emerald-dark);
+  color: #fff;
+  font-weight: 800;
+  font-size: 8pt;
+  padding: 0.8mm 3mm;
+  border-radius: 1mm;
+}
+
+/* ==========================================================================
+   PORTADA EJECUTIVA + ÍNDICE DEL LIBRO (PÁGINA 1)
+   ========================================================================== */
+.cover-hero {
+  background: linear-gradient(135deg, var(--jj-emerald-dark) 0%, var(--jj-emerald) 65%, #196b52 100%);
+  color: #ffffff;
+  border-radius: 4mm;
+  padding: 7mm 8mm;
+  border-bottom: 1.6mm solid var(--jj-gold);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10.5px;
-  color: #666;
+  gap: 6mm;
+  margin-bottom: 4.5mm;
+}
+.cover-hero-left {
+  flex: 1;
+}
+.cover-badge {
+  display: inline-block;
+  background: var(--jj-gold);
+  color: #111;
+  font-size: 7.5pt;
+  font-weight: 900;
+  padding: 1mm 3mm;
+  border-radius: 1mm;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 2.5mm;
+}
+.cover-title {
+  font-size: 21pt;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  margin-bottom: 2mm;
+}
+.cover-title span {
+  color: var(--jj-gold);
+}
+.cover-sub {
+  font-size: 9pt;
+  color: #d1fae5;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.cover-qr-card {
+  background: #ffffff;
+  color: #0f172a;
+  padding: 3mm;
+  border-radius: 3mm;
+  text-align: center;
+  width: 34mm;
+  flex: 0 0 34mm;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+.cover-qr-card .qr-master-box {
+  width: 26mm;
+  height: 26mm;
+  margin: 0 auto 1.2mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cover-qr-card .qr-master-box img,
+.cover-qr-card .qr-master-box canvas {
+  width: 26mm !important;
+  height: 26mm !important;
+}
+.cover-qr-card small {
+  display: block;
+  font-size: 6.2pt;
+  font-weight: 800;
+  color: var(--jj-emerald-dark);
+  text-transform: uppercase;
+  line-height: 1.15;
 }
 
-/* Estilos de Impresión (@media print) */
+.cover-how-it-works {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3.5mm;
+  margin-bottom: 4.5mm;
+}
+.how-step {
+  background: var(--jj-emerald-soft);
+  border: 0.35mm solid #b7d7c8;
+  border-left: 1.2mm solid var(--jj-emerald);
+  border-radius: 2.2mm;
+  padding: 2.8mm 3.2mm;
+}
+.how-step strong {
+  display: block;
+  font-size: 8pt;
+  font-weight: 800;
+  color: var(--jj-emerald-dark);
+  margin-bottom: 0.8mm;
+}
+.how-step p {
+  font-size: 7pt;
+  color: #334155;
+  line-height: 1.3;
+  font-weight: 500;
+}
+
+.cover-index-box {
+  background: #ffffff;
+  border: 0.45mm solid #cbd5e1;
+  border-radius: 3mm;
+  padding: 4mm 5mm;
+  margin-bottom: 4.5mm;
+}
+.cover-index-title {
+  font-size: 9.5pt;
+  font-weight: 900;
+  color: var(--jj-emerald-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 0.4mm solid #e2e8f0;
+  padding-bottom: 1.8mm;
+  margin-bottom: 2.8mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.toc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 5mm;
+  row-gap: 1.4mm;
+}
+.toc-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 7.2pt;
+  color: #1e293b;
+  cursor: pointer;
+  padding: 0.5mm 0;
+  border-bottom: 0.25mm dotted #cbd5e1;
+}
+.toc-item:hover {
+  color: var(--jj-emerald);
+  font-weight: 700;
+}
+.toc-cat-name {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 38mm;
+}
+.toc-page-num {
+  font-weight: 900;
+  color: var(--jj-emerald-dark);
+  background: #f1f5f9;
+  padding: 0.2mm 1.4mm;
+  border-radius: 0.8mm;
+  font-size: 6.8pt;
+}
+
+/* ==========================================================================
+   GRILLA MATEMÁTICA DE PRODUCTOS POR PÁGINA (COINCIDENCIA FRENTE / REVERSO)
+   ========================================================================== */
+.sheet-grid {
+  flex: 1 1 auto;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Layout 2x3 = 6 Mega-Fichas por página (Fotos Gigantes de Exhibición) */
+.sheet-grid.grid-6 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3.5mm;
+}
+
+/* Layout 2x4 = 8 Fichas Grandes por página (Estándar Editorial Cuaderno) */
+.sheet-grid.grid-8 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 2.8mm;
+}
+
+/* Layout 3x4 = 12 Fichas Verticales por página (Compacto Fotográfico) */
+.sheet-grid.grid-12 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 2.5mm;
+}
+
+/* ==========================================================================
+   DISEÑO DE FICHA DE PRODUCTO DE ALTO IMPACTO (FOTO HD + COLOR + QR)
+   ========================================================================== */
+.book-card {
+  background: #ffffff;
+  border: 0.45mm solid #94a3b8;
+  border-radius: 2.5mm;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* En 6 y 8 por página: Ficha Horizontal de Gran Ventana Fotográfica */
+.sheet-grid.grid-6 .book-card,
+.sheet-grid.grid-8 .book-card {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+/* Ventana Fotográfica Mejorada (Fondo Puro, Alto Contraste y Nitidez) */
+.bc-photo-wrap {
+  background: #ffffff;
+  border-right: 0.35mm solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2mm;
+  position: relative;
+  overflow: hidden;
+}
+.sheet-grid.grid-6 .bc-photo-wrap {
+  width: 40mm;
+  flex: 0 0 40mm;
+}
+.sheet-grid.grid-8 .bc-photo-wrap {
+  width: 34mm;
+  flex: 0 0 34mm;
+}
+
+.bc-photo-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Realce óptico para impresión y pantalla: colores vivos y bordes definidos */
+  filter: contrast(1.06) saturate(1.10) brightness(1.02);
+  display: block;
+}
+
+.bc-photo-badge {
+  position: absolute;
+  top: 1.2mm;
+  left: 1.2mm;
+  background: var(--jj-emerald-dark);
+  color: #fff;
+  font-size: 5.5pt;
+  font-weight: 800;
+  padding: 0.4mm 1.4mm;
+  border-radius: 0.8mm;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+/* Cuerpo Central de la Ficha */
+.bc-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2.2mm 2.6mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.bc-cat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5mm;
+  margin-bottom: 0.8mm;
+}
+.bc-cat-tag {
+  font-size: 6.2pt;
+  font-weight: 800;
+  color: var(--jj-emerald);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bc-title {
+  font-size: 8.6pt;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 1.2mm;
+}
+.sheet-grid.grid-6 .bc-title {
+  font-size: 9.5pt;
+  -webkit-line-clamp: 3;
+}
+
+.bc-meta-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2mm;
+  margin-bottom: 1.2mm;
+}
+.bc-pack-pill {
+  background: var(--jj-gold-soft);
+  border: 0.3mm solid #e9c46a;
+  color: #78560c;
+  font-size: 6.4pt;
+  font-weight: 800;
+  padding: 0.4mm 1.8mm;
+  border-radius: 1mm;
+}
+.bc-brand-pill {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 6.2pt;
+  font-weight: 700;
+  padding: 0.4mm 1.6mm;
+  border-radius: 1mm;
+  max-width: 28mm;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bc-price-box {
+  display: flex;
+  align-items: baseline;
+  gap: 1.8mm;
+  padding-top: 1mm;
+  border-top: 0.25mm solid #e2e8f0;
+}
+.bc-price-usd {
+  font-size: 11.5pt;
+  font-weight: 900;
+  color: var(--jj-emerald-dark);
+  letter-spacing: -0.3px;
+}
+.sheet-grid.grid-6 .bc-price-usd {
+  font-size: 13pt;
+}
+.bc-price-bs {
+  font-size: 7pt;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* Modo Sin Precios (Catálogo Permanente Solo QR) */
+body.hide-prices .bc-price-usd,
+body.hide-prices .bc-price-bs {
+  display: none !important;
+}
+.bc-ask-price-label {
+  display: none;
+  font-size: 7pt;
+  font-weight: 800;
+  color: var(--jj-emerald);
+}
+body.hide-prices .bc-ask-price-label {
+  display: inline-block;
+}
+
+/* En impresión por defecto ocultamos Bs para que el catálogo impreso no caduque con la tasa diaria */
+body.hide-bs .bc-price-bs {
+  display: none !important;
+}
+
+/* Columna Derecha de Código QR de Alta Precisión */
+.bc-qr-col {
+  width: 21.5mm;
+  flex: 0 0 21.5mm;
+  background: #ffffff;
+  border-left: 0.35mm dashed #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5mm;
+  cursor: pointer;
+  text-align: center;
+}
+.sheet-grid.grid-6 .bc-qr-col {
+  width: 24mm;
+  flex: 0 0 24mm;
+}
+.bc-qr-col .qr-target {
+  width: 17.5mm;
+  height: 17.5mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-grid.grid-6 .bc-qr-col .qr-target {
+  width: 19.5mm;
+  height: 19.5mm;
+}
+.bc-qr-col .qr-target canvas,
+.bc-qr-col .qr-target img {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+  image-rendering: pixelated !important;
+  display: block;
+}
+.bc-qr-caption {
+  font-size: 5.4pt;
+  font-weight: 900;
+  color: #0f172a;
+  margin-top: 1mm;
+  line-height: 1.05;
+  text-transform: uppercase;
+  background: #f1f5f9;
+  padding: 0.4mm 1mm;
+  border-radius: 0.6mm;
+  width: 100%;
+}
+
+/* Ajuste para 12 Fichas Verticales por página (3x4) */
+.sheet-grid.grid-12 .book-card {
+  flex-direction: column;
+}
+.sheet-grid.grid-12 .bc-photo-wrap {
+  width: 100%;
+  height: 25mm;
+  flex: 0 0 25mm;
+  border-right: none;
+  border-bottom: 0.3mm solid #e2e8f0;
+}
+.sheet-grid.grid-12 .bc-info {
+  padding: 1.6mm 2mm;
+}
+.sheet-grid.grid-12 .bc-title {
+  font-size: 7.4pt;
+  -webkit-line-clamp: 2;
+}
+.sheet-grid.grid-12 .bc-price-usd {
+  font-size: 9.5pt;
+}
+.sheet-grid.grid-12 .bc-qr-col {
+  width: 100%;
+  flex: 0 0 auto;
+  border-left: none;
+  border-top: 0.3mm dashed #cbd5e1;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 1mm 2mm;
+}
+.sheet-grid.grid-12 .bc-qr-col .qr-target {
+  width: 12mm;
+  height: 12mm;
+}
+.sheet-grid.grid-12 .bc-qr-caption {
+  width: auto;
+  margin-top: 0;
+}
+
+/* ==========================================================================
+   ANEXO COMPACTO DE ÍNDICE DE PRECIOS + QR (Para los 967 productos sin foto)
+   ========================================================================== */
+.compact-annex-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(12, 1fr);
+  column-gap: 4mm;
+  row-gap: 1.5mm;
+}
+.annex-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2mm;
+  border: 0.3mm solid #cbd5e1;
+  border-radius: 1.5mm;
+  padding: 1mm 2mm;
+  background: #ffffff;
+}
+.annex-info {
+  flex: 1;
+  min-width: 0;
+}
+.annex-cat {
+  font-size: 5.5pt;
+  font-weight: 800;
+  color: var(--jj-emerald);
+  text-transform: uppercase;
+}
+.annex-name {
+  font-size: 7.2pt;
+  font-weight: 800;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.annex-price {
+  font-size: 8.5pt;
+  font-weight: 900;
+  color: var(--jj-emerald-dark);
+  white-space: nowrap;
+}
+body.hide-prices .annex-price {
+  display: none !important;
+}
+.annex-qr {
+  width: 12.5mm;
+  height: 12.5mm;
+  flex: 0 0 12.5mm;
+  cursor: pointer;
+}
+.annex-qr canvas, .annex-qr img {
+  width: 12.5mm !important;
+  height: 12.5mm !important;
+}
+
+/* ==========================================================================
+   MODO BLANCO Y NEGRO LÁSER (ALTA NITIDEZ)
+   ========================================================================== */
+body.print-bw-mode {
+  --jj-emerald-dark: #000000;
+  --jj-emerald: #000000;
+  --jj-emerald-mid: #111111;
+  --jj-emerald-soft: #f1f1f1;
+  --jj-gold: #333333;
+  --jj-gold-dark: #000000;
+  --jj-gold-soft: #eeeeee;
+}
+body.print-bw-mode .bc-photo-wrap img {
+  filter: grayscale(100%) contrast(1.18) brightness(1.03) !important;
+}
+body.print-bw-mode .cover-hero {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-bottom: 1.6mm solid #555555 !important;
+}
+body.print-bw-mode .cover-badge {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* ==========================================================================
+   REGLAS DE IMPRESIÓN (@media print) — FRENTE Y REVERSO PERFECTOS
+   ========================================================================== */
 @media print {
   @page {
     size: letter portrait;
-    margin: 8mm 8mm 8mm 8mm;
+    margin: 0mm !important;
   }
   html, body {
     background: #ffffff !important;
     padding: 0 !important;
     margin: 0 !important;
-    width: 100% !important;
-    color: #000000 !important;
+    width: 215.9mm !important;
   }
-  .screen-toolbar {
+  .studio-header,
+  .book-navigator-bar,
+  .screen-sheet-badge,
+  .qr-present-modal,
+  .printer-guide-modal {
     display: none !important;
   }
-  .catalog-sheet {
+  .pages-stage {
+    display: block !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .catalog-page {
+    width: 215.9mm !important;
+    height: 279.4mm !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    max-width: 100% !important;
-    padding: 0 !important;
     margin: 0 !important;
-  }
-  .editorial-grid {
-    gap: 8px !important;
-  }
-  .item-card {
-    border: 1.2px solid #555555 !important;
-    padding: 8px 10px !important;
-    gap: 12px !important;
-    break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
     page-break-inside: avoid !important;
-    box-shadow: none !important;
-    background: #ffffff !important;
+    break-inside: avoid !important;
+    zoom: 1 !important;
   }
-  .item-img-box {
-    width: 95px !important;
-    height: 95px !important;
-    flex: 0 0 95px !important;
-    border: 1px solid #777777 !important;
-    background: #ffffff !important;
+  /* Si estaba en modo flipbook en pantalla, al imprimir mostrar todas las páginas que correspondan a la pasada */
+  body.view-flipbook .catalog-page.hidden-in-flipbook {
+    display: flex !important;
   }
-  .item-name {
-    font-size: 12px !important;
-    font-weight: 800 !important;
-    color: #000000 !important;
-    -webkit-line-clamp: 2 !important;
-  }
-  .item-category-chip {
-    color: #222222 !important;
-    font-weight: 800 !important;
-  }
-  .item-price-usd {
-    font-size: 16px !important;
-    font-weight: 900 !important;
-    color: #000000 !important;
-  }
-  /* En la hoja impresa NO se imprimen los montos en bolívares (solo USD) */
-  .item-price-bs {
+  /* Filtros de Pasada de Impresión Dúplex Manual */
+  body.print-pass-fronts .catalog-page.page-even {
     display: none !important;
   }
-  .item-qr-box {
-    width: 68px !important;
-    flex: 0 0 68px !important;
-    border-left: 1px dashed #666666 !important;
+  body.print-pass-backs .catalog-page.page-odd {
+    display: none !important;
   }
-  .item-qr-box canvas, .item-qr-box img {
-    width: 62px !important;
-    height: 62px !important;
-    image-rendering: -webkit-optimize-contrast !important;
-    image-rendering: crisp-edges !important;
-    image-rendering: pixelated !important;
-  }
-
-  /* Modo Blanco y Negro Puro en Impresión: Filtros de máxima nitidez */
-  body.print-bw-mode .catalog-header {
-    border-bottom: 2.5px solid #000 !important;
-  }
-  body.print-bw-mode .header-titles h1 {
-    color: #000 !important;
-  }
-  body.print-bw-mode .header-meta .tag-edition {
-    background: #000 !important;
-    color: #fff !important;
-  }
-  body.print-bw-mode .street-guide-banner {
-    background: #f5f5f5 !important;
-    border-left: 4px solid #000 !important;
-    color: #000 !important;
-  }
-  body.print-bw-mode .item-card {
-    border: 1.2px solid #222 !important;
-  }
-  body.print-bw-mode .item-featured-photo-tag {
-    background: #000 !important;
-    color: #fff !important;
-  }
-  body.print-bw-mode .item-packaging-pill {
-    background: #eee !important;
-    border: 1px solid #999 !important;
-    color: #000 !important;
-  }
-  body.print-bw-mode .item-img-box img {
-    filter: grayscale(100%) contrast(110%) !important;
+  body.print-pass-test1 .catalog-page.not-sheet-1 {
+    display: none !important;
   }
 }
 
-/* Modo Blanco y Negro en Pantalla (Previsualización antes de imprimir) */
-body.print-bw-mode {
-  --doc-c: #000000;
-  --doc-a: #222222;
-  --doc-bg: #e6e6e6;
-  --doc-card-border: #444444;
-}
-body.print-bw-mode .catalog-header {
-  border-bottom: 2.5px solid #000;
-}
-body.print-bw-mode .header-titles h1,
-body.print-bw-mode .header-titles p,
-body.print-bw-mode .bcv-rate {
-  color: #000 !important;
-}
-body.print-bw-mode .header-meta .tag-edition {
-  background: #000 !important;
-  color: #fff !important;
-}
-body.print-bw-mode .street-guide-banner {
-  background: #f0f0f0 !important;
-  border: 1.5px solid #444 !important;
-  border-left: 5px solid #000 !important;
-  color: #000 !important;
-}
-body.print-bw-mode .item-card {
-  border: 1.5px solid #222 !important;
-}
-body.print-bw-mode .item-featured-photo-tag {
-  background: #000 !important;
-  color: #fff !important;
-}
-body.print-bw-mode .item-category-chip {
-  color: #222 !important;
-}
-body.print-bw-mode .item-price-usd {
-  color: #000 !important;
-}
-body.print-bw-mode .item-price-bs {
-  color: #333 !important;
-}
-body.print-bw-mode .item-packaging-pill {
-  background: #ededed !important;
-  border: 1.2px solid #555 !important;
-  color: #000 !important;
-}
-body.print-bw-mode .item-img-box img {
-  filter: grayscale(100%) contrast(115%) !important;
-}
-body.print-bw-mode .item-qr-box {
-  border-left: 1.5px dashed #555 !important;
-}
-
-/* Modal de Presentación QR para el Cliente / Mostrador */
-.qr-present-modal {
+/* ==========================================================================
+   MODAL GUÍA PASO A PASO PARA LA IMPRESORA & MODAL QR
+   ========================================================================== */
+.qr-present-modal,
+.printer-guide-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(10, 30, 22, 0.78);
   backdrop-filter: blur(4px);
   z-index: 99999;
   display: none;
@@ -529,293 +1082,266 @@ body.print-bw-mode .item-qr-box {
   justify-content: center;
   padding: 16px;
 }
-.qr-present-modal.active {
+.qr-present-modal.active,
+.printer-guide-modal.active {
   display: flex;
 }
-.qr-modal-content {
+.modal-card {
   background: #ffffff;
   border-radius: 16px;
-  max-width: 420px;
+  max-width: 780px;
   width: 100%;
-  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px 28px;
   position: relative;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-  text-align: center;
-  animation: qrPop .2s ease-out;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
 }
-@keyframes qrPop {
-  from { transform: scale(0.92); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-.qr-modal-close {
+.modal-close {
   position: absolute;
   top: 14px;
   right: 14px;
-  background: #f0f0f0;
+  background: #f1f5f9;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   font-size: 16px;
+  font-weight: 800;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #555;
-  transition: all .2s;
 }
-.qr-modal-close:hover {
-  background: #e0e0e0;
-  color: #000;
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
 }
-.qr-modal-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-align: left;
-  border-bottom: 1.5px solid #eee;
-  padding-bottom: 14px;
-  margin-bottom: 16px;
-}
-.qm-thumb {
-  width: 64px;
-  height: 64px;
-  border-radius: 8px;
-  object-fit: contain;
-  background: #f8fbf9;
-  border: 1px solid #dce8e2;
-  flex: 0 0 64px;
-}
-.qm-cat {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--doc-c);
-  text-transform: uppercase;
-}
-.qm-title {
-  font-size: 13.5px;
-  font-weight: 800;
-  color: #1a1a1a;
-  line-height: 1.25;
-  margin: 2px 0 4px;
-}
-.qm-price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.qm-price-usd {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--doc-c);
-}
-.qm-price-bs {
-  font-size: 11px;
-  font-weight: 600;
-  color: #666;
-}
-.qr-modal-canvas-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 16px 0;
-}
-#qmCanvas {
-  background: #fff;
-  padding: 12px;
+.guide-box {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
   border-radius: 12px;
-  border: 2px solid var(--doc-c);
-  display: inline-block;
+  padding: 16px;
 }
-#qmCanvas canvas, #qmCanvas img {
-  width: 200px !important;
-  height: 200px !important;
-}
-.qr-modal-tip {
-  font-size: 11.5px;
-  color: #555;
-  margin-top: 10px;
-  line-height: 1.35;
-  max-width: 320px;
-}
-.qr-modal-actions {
+.guide-box h4 {
+  color: var(--jj-emerald-dark);
+  font-size: 14px;
+  margin-bottom: 8px;
   display: flex;
-  gap: 10px;
-  margin-top: 16px;
+  align-items: center;
+  gap: 6px;
 }
-
-/* Optimización para Pantallas Móviles (< 768px) */
-@media screen and (max-width: 768px) {
-  body {
-    padding: 8px !important;
-  }
-  .screen-toolbar {
-    padding: 10px 12px;
-    gap: 8px;
-  }
-  .tb-group {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .tb-input, .tb-select {
-    width: 100%;
-    flex: 1 1 100%;
-  }
-  .catalog-sheet {
-    padding: 14px 12px;
-  }
-  .catalog-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .header-right {
-    text-align: left;
-  }
-  .editorial-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px;
-  }
-  .item-card {
-    padding: 8px 10px;
-    gap: 8px;
-  }
-  .item-img-box {
-    width: 74px;
-    height: 74px;
-    flex: 0 0 74px;
-  }
-  .item-name {
-    font-size: 12px;
-  }
-  .item-price-usd {
-    font-size: 14px;
-  }
-  .item-qr-box {
-    width: 58px;
-    flex: 0 0 58px;
-    padding-left: 4px;
-  }
-  .item-qr-box .qr-target, .item-qr-box canvas, .item-qr-box img {
-    width: 48px !important;
-    height: 48px !important;
-  }
+.guide-box ol {
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #334155;
+}
+.guide-box li {
+  margin-bottom: 6px;
 }
 </style>
 </head>
-<body>
+<body class="gutter-mirror hide-bs">
 
-<!-- Barra de Herramientas para Pantalla -->
-<div class="screen-toolbar">
-  <div class="tb-group">
-    <a href="/catalogo" class="tb-btn" style="background:#555">← Volver al Catálogo</a>
-    <input type="search" class="tb-input" id="srchInput" placeholder="Buscar producto..." oninput="filterCatalog()">
-    <select class="tb-select" id="groupFilter" onchange="filterCatalog()">
-      <option value="todos">🔖 Todas las Familias</option>
-    </select>
-    <select class="tb-select" id="photoFilter" onchange="filterCatalog()">
-      <option value="todos_foto_primero" selected>⭐ Con foto oficial primero (Todos)</option>
-      <option value="solo_foto">📸 Solo productos con foto oficial</option>
-      <option value="todos">📦 Todos por orden alfabético</option>
-    </select>
-    <select class="tb-select" id="layoutSelect" onchange="changeLayout(this.value)">
-      <option value="2">2 Columnas (Editorial)</option>
-      <option value="3">3 Columnas (Compacto)</option>
-    </select>
-    <select class="tb-select" id="printModeSelect" onchange="togglePrintMode(this.value)" title="Elige cómo imprimir o guardar">
-      <option value="color" selected>🎨 Modo Color (Oficial / PDF)</option>
-      <option value="bw">🖤 Blanco y Negro (Alta Nitidez)</option>
-    </select>
-  </div>
-
-  <div class="tb-group">
-    <span class="tb-counter" id="itemCountDisplay">Cargando...</span>
-    <button type="button" class="tb-btn" onclick="shareImpresoToWhatsApp()" style="background:#25D366;">
-      📤 Compartir por WA
-    </button>
-    <button type="button" class="tb-btn tb-btn-gold" onclick="window.print()">
-      🖨️ Imprimir / Guardar PDF
-    </button>
-  </div>
-</div>
-
-<!-- Hoja de Catálogo -->
-<main class="catalog-sheet" id="printSheet">
-  
-  <!-- Encabezado Institucional -->
-  <header class="catalog-header">
-    <div class="header-brand">
-      <img src="assets/img/logo.svg" alt="JJ Paper" class="header-logo">
-      <div class="header-titles">
-        <h1>JJ <em>Paper</em> Distribuidora</h1>
-        <p>Papelería, Artículos de Oficina, Cuadernos y Suministros al Mayor</p>
-      </div>
-    </div>
-    <div class="header-meta">
-      <div class="tag-edition">Catálogo Comercial Mayorista</div>
-      <div id="dateDisplay">Fecha: --/--/----</div>
-      <div class="bcv-rate" id="rateDisplay">Tasa Oficial BCV: Bs --/USD</div>
-      <div>Atención Comercial: <strong>0412-1234567</strong> · Caracas, Venezuela</div>
-    </div>
-  </header>
-
-  <!-- Guía Rápida para el Cliente / Vendedor -->
-  <div class="street-guide-banner">
-    <div>
-      📲 <strong>Para Pedidos y Cotizaciones Inmediatas:</strong> Apunta la cámara de tu teléfono al código <strong>QR</strong> de cualquier producto para ver su galería, variantes y enviar tu orden directo a nuestro WhatsApp.
-    </div>
-    <div style="font-weight:700;white-space:nowrap;">
-      🚚 Envíos a Nivel Nacional
-    </div>
-  </div>
-
-  <!-- Grilla de Productos -->
-  <div class="editorial-grid" id="catalogGrid">
-    <div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#666;">
-      <div style="font-size:24px;margin-bottom:8px">📦</div>
-      Generando catálogo comercial con códigos QR dinámicos...
-    </div>
-  </div>
-
-  <!-- Pie de Página -->
-  <footer class="catalog-footer">
-    <div>JJ Paper C.A. · RIF: J-XXXXXXXX-X · Precios oficiales sujetos a disponibilidad y cambio sin previo aviso.</div>
-    <div>Página Web: <strong>jjpaper.pages.dev</strong> · Instagram: <strong>@jjpaper</strong></div>
-  </footer>
-
-</main>
-
-<!-- Modal de Presentación de QR en Grande para el Cliente / Mostrador -->
-<div class="qr-present-modal" id="qrModal" role="dialog" aria-modal="true" aria-label="Código QR del Producto">
-  <div class="qr-modal-content">
-    <button class="qr-modal-close" onclick="closeQrModal()" aria-label="Cerrar modal">✕</button>
-    <div class="qr-modal-header">
-      <img id="qmProdImg" src="" alt="" class="qm-thumb">
+<!-- ==========================================================================
+     PANEL DE CONTROL DEL ESTUDIO DE IMPRESIÓN TIPO LIBRO
+     ========================================================================== -->
+<header class="studio-header">
+  <div class="studio-top-row">
+    <div class="studio-brand">
+      <a href="/catalogo" class="tb-btn" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);">← Catálogo Web</a>
       <div>
-        <div class="qm-cat" id="qmProdCat">CATEGORÍA</div>
-        <h3 class="qm-title" id="qmProdName">Nombre del Producto</h3>
-        <div class="qm-price-row">
-          <span class="qm-price-usd" id="qmProdUsd">$0.00</span>
-          <span class="qm-price-bs" id="qmProdBs">Bs 0.00</span>
-        </div>
+        <h2>📘 Estudio de Catálogo Impreso Tipo Libro (Frente y Reverso + QR)</h2>
+        <p>Paginación exacta en Hoja Carta con margen de encuadernado espejo (0 mm de desfase entre Cara A y Cara B)</p>
       </div>
     </div>
-    <div class="qr-modal-canvas-wrap">
-      <div id="qmCanvas"></div>
-      <p class="qr-modal-tip">📲 Apunta con la cámara de tu teléfono para abrir la ficha técnica oficial y cotizar por WhatsApp</p>
-    </div>
-    <div class="qr-modal-actions">
-      <a id="qmDirectLink" href="#" target="_blank" class="tb-btn" style="flex:1;justify-content:center;">
-        🔗 Abrir Ficha
-      </a>
-      <button type="button" class="tb-btn tb-btn-gold" onclick="copyQrLink()" style="flex:1;justify-content:center;">
-        📋 Copiar Enlace
+
+    <div class="studio-mode-pills">
+      <button type="button" class="mode-pill active" id="btnViewSheets" onclick="setScreenViewMode('sheets')">
+        🖨️ Vista Pliegos de Impresión
+      </button>
+      <button type="button" class="mode-pill" id="btnViewFlipbook" onclick="setScreenViewMode('flipbook')">
+        📖 Vista Cuaderno (Pasar Páginas)
+      </button>
+      <button type="button" class="mode-pill" onclick="openPrinterGuide()" style="border-color:var(--jj-gold);color:#fde68a;">
+        📋 Cómo Meter la Hoja en la Impresora
       </button>
     </div>
   </div>
+
+  <!-- Filtros de Contenido y Diseño -->
+  <div class="studio-controls-row">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Contenido:</span>
+      <select class="tb-select" id="photoFilter" onchange="rebuildBook()">
+        <option value="vitrina_fotos" selected>📸 Vitrina Oficial con Foto HD (297 prod. · ~38 págs)</option>
+        <option value="libro_hibrido">📘 Libro Completo: Vitrina Fotos HD + Anexo Compacto QR (1.264 prod.)</option>
+        <option value="todos_tarjetas">📦 Todos en Tarjetas Grandes (1.264 prod.)</option>
+      </select>
+
+      <select class="tb-select" id="groupFilter" onchange="rebuildBook()">
+        <option value="todos">📂 Todas las Categorías (Con Portada e Índice)</option>
+      </select>
+
+      <input type="search" class="tb-input" id="srchInput" placeholder="🔍 Filtrar producto o marca..." oninput="rebuildBook()" style="width:200px;">
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Formato de Hoja:</span>
+      <select class="tb-select" id="densitySelect" onchange="rebuildBook()" title="Cantidad de productos por página">
+        <option value="6">🖼️ 6 por Pág. (2×3 · Fotos Gigantes)</option>
+        <option value="8" selected>⭐ 8 por Pág. (2×4 · Cuaderno Estándar)</option>
+        <option value="12">📇 12 por Pág. (3×4 · Compacto)</option>
+      </select>
+
+      <select class="tb-select" id="gutterSelect" onchange="changeGutterMode(this.value)" title="Alineación Frente y Reverso">
+        <option value="mirror" selected>📒 Lomo Espejo (Cuaderno Anillado / Encuadernado)</option>
+        <option value="symmetric">📐 Simétrico Puro 0mm (Idéntico a Etiquetas)</option>
+      </select>
+
+      <select class="tb-select" id="priceDisplaySelect" onchange="changePriceMode(this.value)">
+        <option value="usd_only" selected>💲 Precio USD Oficial (Recomendado Impreso)</option>
+        <option value="usd_bs">💱 Precio USD + Bs BCV</option>
+        <option value="no_price">🔒 Sin Precios (Catálogo Permanente Solo QR)</option>
+      </select>
+
+      <select class="tb-select" id="printColorSelect" onchange="togglePrintMode(this.value)">
+        <option value="color" selected>🎨 Color Editorial HD</option>
+        <option value="bw">🖤 Blanco y Negro Láser</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Flujo Guiado de Impresión Dúplex (Paso 1 Frente -> Voltear -> Paso 2 Reverso) -->
+  <div class="duplex-bar">
+    <div class="duplex-steps">
+      <span class="ctrl-label" style="color:#92400e;">🖨️ Flujo de Impresión Doble Cara:</span>
+
+      <button type="button" class="tb-btn outline" onclick="printBookPass('test1')" title="Imprime solo la Hoja #1 (Pág 1 y 2) para probar cómo voltea tu impresora">
+        🧪 Probar 1 Hoja (Pág. 1 y 2)
+      </button>
+
+      <button type="button" class="tb-btn step-front" onclick="printBookPass('fronts')" title="Imprime SOLO las caras delanteras (Páginas Impares: 1, 3, 5, 7...)">
+        1️⃣ Paso 1: Imprimir FRENTES (Impares 1, 3, 5...)
+      </button>
+
+      <button type="button" class="tb-btn step-back" onclick="printBookPass('backs')" title="Imprime SOLO las caras traseras (Páginas Pares: 2, 4, 6, 8...) exactamente detrás de cada frente">
+        2️⃣ Paso 2: Imprimir REVERSOS (Pares 2, 4, 6...)
+      </button>
+
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:#475569;cursor:pointer;margin-left:4px;" title="Marca esta casilla si al terminar el Paso 1 la última hoja quedó arriba en la pila y no quieres reordenar las hojas a mano">
+        <input type="checkbox" id="chkReverseBacks"> Invertir orden en Paso 2 (Última a Primera)
+      </label>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="stats-badge" id="bookStatsBadge">Calculando pliegos...</span>
+      <button type="button" class="tb-btn gold" onclick="printBookPass('all')">
+        🖨️ Imprimir Libro Completo / Guardar PDF
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Barra de Navegación Interactiva cuando está en "Vista Cuaderno (Pasar Páginas)" -->
+<nav class="book-navigator-bar" id="flipbookNav">
+  <button type="button" class="tb-btn gold" onclick="turnSpread(-1)">◀ Pasar Página Anterior</button>
+  <div>
+    <div class="nav-spread-title" id="spreadLabel">Cuaderno Abierto: Portada (Pág. 1)</div>
+    <div style="font-size:11px;color:#a7f3d0;text-align:center;">Usa las flechas del teclado ⬅️ ➡️ para hojear el catálogo como un libro físico</div>
+  </div>
+  <button type="button" class="tb-btn gold" onclick="turnSpread(1)">Pasar Página Siguiente ▶</button>
+</nav>
+
+<!-- ESCENARIO DE PLIEGOS CARTA (Cada .catalog-page es una cara exacta de 215.9 x 279.4 mm) -->
+<main class="pages-stage" id="pagesStage">
+  <div style="background:#fff;padding:48px 32px;border-radius:14px;text-align:center;max-width:520px;margin:40px auto;box-shadow:0 8px 25px rgba(0,0,0,0.08);">
+    <div style="font-size:38px;margin-bottom:10px;">📘</div>
+    <h3 style="color:var(--jj-emerald-dark);margin-bottom:6px;">Maquetando Catálogo Comercial Tipo Libro...</h3>
+    <p style="font-size:13px;color:#64748b;">Organizando portada, índice por categorías, fotos HD y códigos QR en pliegos Carta Frente y Reverso.</p>
+  </div>
+</main>
+
+<!-- ==========================================================================
+     MODAL: GUÍA PASO A PASO PARA IMPRIMIR FRENTE Y REVERSO EN TU IMPRESORA
+     ========================================================================== -->
+<div class="printer-guide-modal" id="printerGuideModal" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closePrinterGuide()">✕</button>
+    <h3 style="color:var(--jj-emerald-dark);font-size:18px;font-weight:900;margin-bottom:6px;">
+      🖨️ Guía Exacta: Cómo Imprimir el Catálogo Tipo Libro (Frente y Reverso)
+    </h3>
+    <p style="font-size:13px;color:#475569;line-height:1.45;">
+      Igual que en el sistema de <strong>Etiquetas Frente y Reverso</strong>, cada página de este catálogo mide exactamente <strong>215.9 × 279.4 mm (Hoja Carta)</strong>. El margen de encuadernación (lomo) está espejado automáticamente: en las páginas impares (Frente) está a la <strong>izquierda (15 mm)</strong> y en las páginas pares (Reverso) está a la <strong>derecha (15 mm)</strong>. Así, al voltear la hoja, <strong>ambas caras calzan al milímetro (0 mm de desfase)</strong>.
+    </p>
+
+    <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px;font-size:12.5px;color:#78350f;">
+      <strong>⚙️ Ajuste Obligatorio en la Ventana de Impresión de Chrome / Edge:</strong><br>
+      • <strong>Tamaño de papel:</strong> Carta (Letter)<br>
+      • <strong>Márgenes:</strong> <u>Ninguno (None)</u> o Predeterminados (el sistema ya incluye los márgenes exactos en milímetros)<br>
+      • <strong>Escala:</strong> <u>100% (Predeterminado)</u> — <strong>No usar</strong> "Ajustar al área de impresión"<br>
+      • <strong>Gráficos de fondo:</strong> <u>Activado (☑️)</u> para imprimir los colores institucionales de portada y etiquetas.
+    </div>
+
+    <div class="guide-grid">
+      <div class="guide-box">
+        <h4>📥 Opción A: Impresora con Bandeja Superior / Trasera (Epson EcoTank, Canon, HP InkTank)</h4>
+        <ol>
+          <li>Haz clic primero en <strong>"🧪 Probar 1 Hoja"</strong> o en <strong>"1️⃣ Paso 1: Imprimir FRENTES (Impares)"</strong>.</li>
+          <li>Se imprimirán todas las caras delanteras (Pág. 1, 3, 5, 7...).</li>
+          <li>Toma el bloque de hojas impresas de la bandeja de salida: <strong>el lado impreso debe mirar hacia ABAJO (o hacia atrás)</strong> y la <strong>cabecera (el logo de JJ Paper) debe entrar PRIMERO</strong> hacia abajo en la bandeja superior.</li>
+          <li>Si la última hoja (ej. Pág. 37) quedó arriba en la pila, marca la casilla <strong>"☑️ Invertir orden en Paso 2"</strong> (o simplemente ordena el bloque para que la Pág. 1 quede arriba).</li>
+          <li>Haz clic en <strong>"2️⃣ Paso 2: Imprimir REVERSOS (Pares)"</strong>. ¡Cada página par (2, 4, 6...) se imprimirá exactamente detrás de su impar (1, 3, 5...)!</li>
+        </ol>
+      </div>
+
+      <div class="guide-box">
+        <h4>🗄️ Opción B: Impresora con Gaveta / Cassette Inferior (HP LaserJet, Brother, Ricoh)</h4>
+        <ol>
+          <li>Haz clic en <strong>"1️⃣ Paso 1: Imprimir FRENTES (Impares)"</strong>.</li>
+          <li>Saca las hojas impresas de la bandeja de salida.</li>
+          <li>Sin girar la cabecera (manteniendo el encabezado de JJ Paper apuntando hacia el fondo/delante de la gaveta), coloca las hojas en la gaveta inferior con <strong>la cara ya impresa mirando hacia ARRIBA</strong>.</li>
+          <li>Haz clic en <strong>"2️⃣ Paso 2: Imprimir REVERSOS (Pares)"</strong>.</li>
+          <li><strong>💡 Si tu impresora tiene Dúplex Automático:</strong> Solo pulsa el botón dorado <strong>"🖨️ Imprimir Libro Completo"</strong> y en tu impresora elige <em>"Imprimir en ambas caras → Voltear por el borde largo (Flip on Long Edge)"</em>.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px;">
+      <button type="button" class="tb-btn gold" onclick="closePrinterGuide()">Entendido, volver al Catálogo</button>
+    </div>
+  </div>
 </div>
 
-<!-- Dependencias Locales y Offline Resilientes -->
+<!-- ==========================================================================
+     MODAL DE PRESENTACIÓN QR EN GRANDE PARA MOSTRADOR / CLIENTE
+     ========================================================================== -->
+<div class="qr-present-modal" id="qrModal" role="dialog" aria-modal="true">
+  <div class="modal-card" style="max-width:420px;text-align:center;">
+    <button class="modal-close" onclick="closeQrModal()">✕</button>
+    <div style="display:flex;align-items:center;gap:12px;text-align:left;border-bottom:1.5px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px;">
+      <img id="qmProdImg" src="" alt="" style="width:68px;height:68px;object-fit:contain;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">
+      <div>
+        <div id="qmProdCat" style="font-size:10px;font-weight:800;color:var(--jj-emerald);text-transform:uppercase;">CATEGORÍA</div>
+        <h3 id="qmProdName" style="font-size:13.5px;font-weight:800;color:#0f172a;line-height:1.25;margin:2px 0 4px;">Producto</h3>
+        <div>
+          <span id="qmProdUsd" style="font-size:16px;font-weight:900;color:var(--jj-emerald-dark);">$0.00</span>
+          <span id="qmProdBs" style="font-size:11px;font-weight:700;color:#64748b;margin-left:6px;">Bs 0.00</span>
+        </div>
+      </div>
+    </div>
+    <div id="qmCanvas" style="display:inline-block;padding:12px;border:2px solid var(--jj-emerald);border-radius:12px;background:#fff;"></div>
+    <p style="font-size:11.5px;color:#475569;margin:10px auto 14px;max-width:320px;">
+      📲 Apunta con la cámara del teléfono para abrir la ficha oficial de este producto y pedir por WhatsApp.
+    </p>
+    <div style="display:flex;gap:10px;">
+      <a id="qmDirectLink" href="#" target="_blank" class="tb-btn" style="flex:1;justify-content:center;">🔗 Abrir Ficha</a>
+      <button type="button" class="tb-btn gold" onclick="copyQrLink()" style="flex:1;justify-content:center;">📋 Copiar Enlace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dependencias -->
 <script src="assets/vendor/supabase-2.58.0.js"></script>
 <script src="assets/js/config.js?v=20261022_vps_full"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
@@ -823,67 +1349,37 @@ body.print-bw-mode .item-qr-box {
 <script>
 let allItems = [];
 let catGroups = [];
-let currentLayout = '2';
+let currentRenderedItems = [];
+let currentModalUrl = '';
+let currentSpreadIndex = 0; // En modo flipbook: 0 = Portada (Pág 1), 1 = Págs 2-3, 2 = Págs 4-5...
+let totalGeneratedPages = 0;
 
 const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,image_url,active,sort_order,jjp_brands(name))';
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('dateDisplay').textContent = `Emisión: ${new Date().toLocaleDateString('es-VE')}`;
-  
-  // Escuchar actualizaciones de tasa en vivo
-  window.addEventListener('jjp_rate_updated', (e) => {
-    const r = e.detail?.rate || (typeof getRate === 'function' ? getRate() : 40);
-    const rateEl = document.getElementById('rateDisplay');
-    if (rateEl) rateEl.textContent = `Tasa Oficial BCV: Bs ${Number(r).toFixed(2)}/USD`;
-    if (allItems.length) filterCatalog();
+  window.addEventListener('jjp_rate_updated', () => {
+    if (allItems.length) rebuildBook();
   });
 
-  // Cargar tasa de cambio oficial directamente desde la base de datos de JJ Paper
+  // Navegación con teclado en Modo Cuaderno
+  window.addEventListener('keydown', (e) => {
+    if (!document.body.classList.contains('view-flipbook')) return;
+    if (e.key === 'ArrowRight') turnSpread(1);
+    if (e.key === 'ArrowLeft') turnSpread(-1);
+  });
+
+  window.addEventListener('beforeprint', () => {
+    renderAllQrsImmediately();
+  });
+
   try {
-    if (typeof loadSettings === 'function') {
-      await loadSettings();
-    }
-    if (typeof ensureFreshRate === 'function') {
-      await ensureFreshRate();
-    }
-  } catch(_) {}
-  
-  const currentRate = (typeof getRate === 'function') ? getRate() : 40;
-  document.getElementById('rateDisplay').textContent = `Tasa Oficial BCV: Bs ${currentRate.toFixed(2)}/USD`;
+    if (typeof loadSettings === 'function') await loadSettings();
+    if (typeof ensureFreshRate === 'function') await ensureFreshRate();
+  } catch (_) {}
 
   await loadGroups();
   await loadCatalogProducts();
 });
-
-// Al imprimir, asegurar que TODOS los códigos QR estén 100% generados (sin esperar scroll)
-window.addEventListener('beforeprint', () => {
-  renderAllQrsImmediately();
-});
-
-function renderAllQrsImmediately() {
-  const baseUrl = 'https://jjpaper.pages.dev';
-  const qrColor = "#000000"; // Negro puro para máxima nitidez y cero tramado de tóner
-  if (typeof QRCode === 'undefined') return;
-
-  document.querySelectorAll('.qr-target').forEach(target => {
-    const prodId = target.dataset.id;
-    if (prodId && !target.hasChildNodes()) {
-      const prodUrl = `${baseUrl}/producto?id=${encodeURIComponent(prodId)}`;
-      try {
-        new QRCode(target, {
-          text: prodUrl,
-          width: 256,
-          height: 256,
-          colorDark: qrColor,
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } catch (err) {
-        console.warn('QR error on print:', err);
-      }
-    }
-  });
-}
 
 async function loadGroups() {
   try {
@@ -894,95 +1390,12 @@ async function loadGroups() {
       data.forEach(g => {
         const opt = document.createElement('option');
         opt.value = g.id;
-        opt.textContent = `📁 ${g.name}`;
+        opt.textContent = `📁 Familia: ${g.name}`;
         sel.appendChild(opt);
       });
     }
   } catch (e) {
     console.warn('Error cargando familias:', e);
-  }
-}
-
-function processCatalogData(prods) {
-  allItems = prods.map(p => {
-    const vs = (p.jjp_product_variants || []).filter(v => v.active !== false);
-    p.variants = vs;
-    const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd || 0))).filter(x => x > 0);
-    p._price = prices.length ? Math.min(...prices) : Number(p.price_b != null ? p.price_b : (p.price_usd || 0));
-    p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
-    p._packaging = detectPackaging(p.name, p.unit, vs);
-    p._brands = [...new Set(vs.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ');
-    return p;
-  });
-  filterCatalog();
-}
-
-async function loadCatalogProducts() {
-  const grid = document.getElementById('catalogGrid');
-  
-  // 1. Carga ultra-rápida desde caché de sesión (<30ms)
-  try {
-    const cached = sessionStorage.getItem('jjp_catalog_impreso_cache');
-    const cachedAt = parseInt(sessionStorage.getItem('jjp_catalog_impreso_at') || '0', 10);
-    const isFresh = (Date.now() - cachedAt) < 10 * 60 * 1000;
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        processCatalogData(parsed);
-        if (isFresh) return; // Si los datos tienen menos de 10 minutos, no sobrecargar la red
-      }
-    }
-  } catch (_) {}
-
-  // 2. Consulta resiliente a Supabase
-  try {
-    let prods = [];
-    let from = 0;
-    const step = 999;
-    
-    while (true) {
-      const { data, error } = await sb.from('jjp_products')
-        .select(`id,name,description,price_usd,price_a,price_b,unit,image_url,emoji,stock,min_qty,category_id,jjp_categories(id,name,slug,group_id),${VARIANTS_SELECT}`)
-        .eq('active', true)
-        .range(from, from + step)
-        .order('sort_order');
-
-      if (error) {
-        console.warn('Error en bloque de catálogo:', error);
-        break;
-      }
-      if (data && data.length > 0) {
-        prods.push(...data);
-        if (data.length <= step) break;
-        from += step + 1;
-      } else {
-        break;
-      }
-    }
-
-    if (!prods.length) {
-      if (!allItems.length) {
-        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:#777">No se encontraron productos activos en el catálogo.</div>`;
-      }
-      return;
-    }
-
-    try {
-      sessionStorage.setItem('jjp_catalog_impreso_cache', JSON.stringify(prods));
-      sessionStorage.setItem('jjp_catalog_impreso_at', Date.now().toString());
-    } catch (_) {}
-
-    processCatalogData(prods);
-
-  } catch (err) {
-    console.error('Error cargando productos:', err);
-    if (!allItems.length && grid) {
-      grid.innerHTML = `
-        <div style="grid-column:1/-1;text-align:center;padding:40px;color:#c62828">
-          Error al cargar el catálogo comercial. Intente recargar la página.
-        </div>
-      `;
-    }
   }
 }
 
@@ -999,183 +1412,619 @@ function detectPackaging(name, unit, variants) {
   return unit ? `Por ${unit}` : 'Unidad';
 }
 
-function filterCatalog() {
-  const srch = (document.getElementById('srchInput').value || '').toLowerCase().trim();
-  const groupId = document.getElementById('groupFilter').value;
-  const photoOpt = document.getElementById('photoFilter').value;
+function processCatalogData(prods) {
+  allItems = prods.map(p => {
+    const vs = (p.jjp_product_variants || []).filter(v => v.active !== false);
+    p.variants = vs;
+    const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd || 0))).filter(x => x > 0);
+    p._price = prices.length ? Math.min(...prices) : Number(p.price_b != null ? p.price_b : (p.price_usd || 0));
+    const rawImg = (p.image_url && p.image_url.trim()) || vs.find(v => v.image_url && v.image_url.trim())?.image_url || '';
+    p._imgUrl = rawImg;
+    p._hasPhoto = Boolean(rawImg);
+    p._packaging = detectPackaging(p.name, p.unit, vs);
+    p._brands = [...new Set(vs.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ');
+    p._catName = (p.jjp_categories?.name || 'VARIOS Y GENERAL').toUpperCase();
+    return p;
+  });
+  rebuildBook();
+}
 
-  let filtered = allItems.filter(p => {
-    if (photoOpt === 'solo_foto' && !p._hasPhoto) return false;
+async function loadCatalogProducts() {
+  try {
+    const cached = sessionStorage.getItem('jjp_catalog_impreso_cache');
+    const cachedAt = parseInt(sessionStorage.getItem('jjp_catalog_impreso_at') || '0', 10);
+    const isFresh = (Date.now() - cachedAt) < 10 * 60 * 1000;
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        processCatalogData(parsed);
+        if (isFresh) return;
+      }
+    }
+  } catch (_) {}
+
+  try {
+    let prods = [];
+    let from = 0;
+    const step = 999;
+    while (true) {
+      const { data, error } = await sb.from('jjp_products')
+        .select(`id,name,description,price_usd,price_a,price_b,unit,image_url,emoji,stock,min_qty,category_id,jjp_categories(id,name,slug,group_id),${VARIANTS_SELECT}`)
+        .eq('active', true)
+        .range(from, from + step)
+        .order('sort_order');
+      if (error) break;
+      if (data && data.length > 0) {
+        prods.push(...data);
+        if (data.length <= step) break;
+        from += step + 1;
+      } else {
+        break;
+      }
+    }
+    if (prods.length) {
+      try {
+        sessionStorage.setItem('jjp_catalog_impreso_cache', JSON.stringify(prods));
+        sessionStorage.setItem('jjp_catalog_impreso_at', Date.now().toString());
+      } catch (_) {}
+      processCatalogData(prods);
+    }
+  } catch (err) {
+    console.error('Error cargando catálogo:', err);
+  }
+}
+
+/* ==========================================================================
+   MOTOR DE PAGINACIÓN FÍSICA TIPO LIBRO (PLIEGOS CARTA FRENTE Y REVERSO)
+   ========================================================================== */
+function rebuildBook() {
+  const srch = (document.getElementById('srchInput')?.value || '').toLowerCase().trim();
+  const groupId = document.getElementById('groupFilter')?.value || 'todos';
+  const mode = document.getElementById('photoFilter')?.value || 'vitrina_fotos';
+  const perPage = parseInt(document.getElementById('densitySelect')?.value || '8', 10);
+
+  let baseList = allItems.filter(p => {
     if (groupId !== 'todos' && p.jjp_categories?.group_id !== groupId) return false;
     if (srch) {
-      const match = p.name.toLowerCase().includes(srch) ||
-                    (p._brands && p._brands.toLowerCase().includes(srch)) ||
-                    (p.jjp_categories?.name && p.jjp_categories.name.toLowerCase().includes(srch));
-      if (!match) return false;
+      const m = p.name.toLowerCase().includes(srch) ||
+                (p._brands && p._brands.toLowerCase().includes(srch)) ||
+                p._catName.toLowerCase().includes(srch);
+      if (!m) return false;
     }
     return true;
   });
 
-  // Ordenamiento: FOTO OFICIAL SIEMPRE DESTACADA ARRIBA (a menos que el usuario elija alfabético estricto)
-  if (photoOpt !== 'todos') {
-    filtered.sort((a, b) => {
-      const aHas = a._hasPhoto ? 1 : 0;
-      const bHas = b._hasPhoto ? 1 : 0;
-      if (aHas !== bHas) return bHas - aHas;
+  // Ordenar por Categoría y luego alfabéticamente para estructura de libro comercial
+  const sortByCategoryAndName = (a, b) => {
+    if (a._catName !== b._catName) return a._catName.localeCompare(b._catName);
+    return a.name.localeCompare(b.name);
+  };
 
-      const aFeat = (a.featured || a.essential) ? 1 : 0;
-      const bFeat = (b.featured || b.essential) ? 1 : 0;
-      if (aFeat !== bFeat) return bFeat - aFeat;
+  let photoCards = [];
+  let annexRows = [];
 
-      return a.name.localeCompare(b.name);
-    });
+  if (mode === 'vitrina_fotos') {
+    photoCards = baseList.filter(p => p._hasPhoto).sort(sortByCategoryAndName);
+  } else if (mode === 'libro_hibrido') {
+    photoCards = baseList.filter(p => p._hasPhoto).sort(sortByCategoryAndName);
+    annexRows = baseList.filter(p => !p._hasPhoto).sort(sortByCategoryAndName);
   } else {
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
+    // todos_tarjetas: primero todos los de foto por categoría, luego el resto por categoría
+    photoCards = [
+      ...baseList.filter(p => p._hasPhoto).sort(sortByCategoryAndName),
+      ...baseList.filter(p => !p._hasPhoto).sort(sortByCategoryAndName)
+    ];
   }
 
-  renderCatalogGrid(filtered);
+  currentRenderedItems = [...photoCards, ...annexRows];
+
+  // Construir páginas lógicas
+  // Página 1: Portada Ejecutiva + Índice por Categorías + Primeras fichas destacadas
+  // Páginas 2..N: Grillas exactas de `perPage` fichas
+  const pages = [];
+
+  // Calcular en qué página empieza cada categoría para el Índice de la Portada
+  const categoryStartPage = {};
+  const coverShowcaseCount = perPage === 6 ? 2 : (perPage === 8 ? 2 : 3);
+  const coverItems = photoCards.slice(0, coverShowcaseCount);
+  const remainingPhotoCards = photoCards.slice(coverShowcaseCount);
+
+  coverItems.forEach(p => {
+    if (!categoryStartPage[p._catName]) categoryStartPage[p._catName] = 1;
+  });
+
+  const photoChunks = [];
+  for (let i = 0; i < remainingPhotoCards.length; i += perPage) {
+    const chunk = remainingPhotoCards.slice(i, i + perPage);
+    const pageNum = 2 + photoChunks.length;
+    chunk.forEach(p => {
+      if (!categoryStartPage[p._catName]) categoryStartPage[p._catName] = pageNum;
+    });
+    photoChunks.push(chunk);
+  }
+
+  // Anexo compacto (24 productos por página con mini-QR)
+  const annexPerPage = 24;
+  const annexChunks = [];
+  for (let i = 0; i < annexRows.length; i += annexPerPage) {
+    annexChunks.push(annexRows.slice(i, i + annexPerPage));
+  }
+
+  // Página 1 (Portada + Índice + Muestra)
+  pages.push({
+    type: 'cover',
+    items: coverItems,
+    toc: Object.entries(categoryStartPage).sort((a, b) => a[1] - b[1]),
+    annexStartPage: annexChunks.length ? (2 + photoChunks.length) : null
+  });
+
+  // Páginas de Vitrina Fotográfica
+  photoChunks.forEach(chunk => {
+    pages.push({
+      type: 'photo_grid',
+      items: chunk,
+      categoryLabel: getDominantCategoryLabel(chunk)
+    });
+  });
+
+  // Páginas de Anexo Compacto
+  annexChunks.forEach(chunk => {
+    pages.push({
+      type: 'annex_grid',
+      items: chunk,
+      categoryLabel: `ÍNDICE COMPACTO · ${getDominantCategoryLabel(chunk)}`
+    });
+  });
+
+  // Si el total de páginas es impar, el último reverso queda listo o podemos informar cuántas hojas físicas son
+  totalGeneratedPages = pages.length;
+  const physicalSheets = Math.ceil(totalGeneratedPages / 2);
+
+  const badge = document.getElementById('bookStatsBadge');
+  if (badge) {
+    badge.textContent = `📘 ${totalGeneratedPages} Páginas (${physicalSheets} Hojas Carta Doble Cara) · ${currentRenderedItems.length} Productos`;
+  }
+
+  renderPhysicalPages(pages, perPage);
 }
 
-function renderCatalogGrid(items) {
-  const grid = document.getElementById('catalogGrid');
-  const counter = document.getElementById('itemCountDisplay');
-  const photoCount = items.filter(p => p._hasPhoto).length;
-  counter.textContent = `${items.length} productos (${photoCount} con foto oficial al inicio)`;
+function getDominantCategoryLabel(items) {
+  if (!items || !items.length) return 'CATÁLOGO GENERAL';
+  const first = items[0]._catName;
+  const last = items[items.length - 1]._catName;
+  return first === last ? first : `${first} → ${last}`;
+}
 
-  if (!items.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:#777">No hay productos que coincidan con los filtros seleccionados.</div>`;
-    return;
-  }
+function renderSpineHoles() {
+  return `
+    <div class="spine-guide" aria-hidden="true">
+      <span class="punch-hole"></span>
+      <span class="punch-hole"></span>
+      <span class="punch-hole"></span>
+    </div>
+  `;
+}
 
-  currentRenderedItems = items;
-  const baseUrl = 'https://jjpaper.pages.dev';
-
-  grid.innerHTML = items.map((p, idx) => {
-    const rawImg = p.image_url || p.variants.find(v => v.image_url)?.image_url;
-    const catName = p.jjp_categories?.name || 'General';
-    const relativeUrl = `/producto?id=${encodeURIComponent(p.id)}`;
-    const brandTxt = p._brands ? `🏷️ ${escapeHTML(p._brands)}` : '';
-
-    return `
-      <div class="item-card ${p._hasPhoto ? 'has-official-photo' : ''}">
-        <a href="${relativeUrl}" target="_blank" class="item-img-box" title="Ver ficha técnica">
-          ${rawImg ? `
-            <img src="${optImg(rawImg, 250)}" alt="" loading="lazy">
-          ` : `
-            <span style="font-size:32px">${p.emoji || '📦'}</span>
-          `}
-        </a>
-
-        <div class="item-content">
-          <div>
-            ${p._hasPhoto ? `<span class="item-featured-photo-tag">⭐ DESTACADO · FOTO OFICIAL</span>` : ''}
-            <div class="item-category-chip">${escapeHTML(catName)} ${brandTxt ? `· ${brandTxt}` : ''}</div>
-            <h3 class="item-name">
-              <a href="${relativeUrl}" target="_blank" style="color:inherit;text-decoration:none" title="Ver ficha oficial">
-                ${escapeHTML(p.name)}
-              </a>
-            </h3>
-            <div class="item-packaging-pill">📦 ${escapeHTML(p._packaging)}</div>
+function renderCardHtml(p, globalIdx) {
+  const relativeUrl = `/producto?id=${encodeURIComponent(p.id)}`;
+  return `
+    <article class="book-card">
+      <a href="${relativeUrl}" target="_blank" class="bc-photo-wrap" title="Ver ficha de ${escapeHTML(p.name)}">
+        ${p._hasPhoto ? `
+          <img src="${optImg(p._imgUrl, 600)}" alt="${escapeHTML(p.name)}" loading="eager" decoding="sync">
+          <span class="bc-photo-badge">FOTO HD</span>
+        ` : `
+          <span style="font-size:34px">${p.emoji || '📦'}</span>
+        `}
+      </a>
+      <div class="bc-info">
+        <div>
+          <div class="bc-cat-row">
+            <span class="bc-cat-tag">${escapeHTML(p._catName)}</span>
           </div>
-          
-          <div class="item-pricing">
-            <span class="item-price-usd">${fmtPrice(p._price)}</span>
-            <span class="item-price-bs">Bs ${toBs(p._price)}</span>
+          <h3 class="bc-title">
+            <a href="${relativeUrl}" target="_blank" style="color:inherit;text-decoration:none;">
+              ${escapeHTML(p.name)}
+            </a>
+          </h3>
+          <div class="bc-meta-pills">
+            <span class="bc-pack-pill">📦 ${escapeHTML(p._packaging)}</span>
+            ${p._brands ? `<span class="bc-brand-pill">🏷️ ${escapeHTML(p._brands)}</span>` : ''}
           </div>
         </div>
-
-        <div class="item-qr-box" onclick="openQrModal(${idx}, event)" style="cursor:pointer" title="Toca para ampliar código QR y mostrar al cliente">
-          <div id="qr-${idx}" class="qr-target" data-id="${p.id}"></div>
-          <div class="item-qr-hint">🔍 Toca QR</div>
+        <div class="bc-price-box">
+          <span class="bc-price-usd">${fmtPrice(p._price)}</span>
+          <span class="bc-price-bs">Bs ${toBs(p._price)}</span>
+          <span class="bc-ask-price-label">📲 Escanea QR para precio al día</span>
         </div>
       </div>
+      <div class="bc-qr-col" onclick="openQrModal(${globalIdx}, event)" title="Toca para ampliar el código QR">
+        <div id="qr-${globalIdx}" class="qr-target" data-id="${p.id}"></div>
+        <div class="bc-qr-caption">📲 ESCANEA</div>
+      </div>
+    </article>
+  `;
+}
+
+function renderPhysicalPages(pages, perPage) {
+  const stage = document.getElementById('pagesStage');
+  const rate = (typeof getRate === 'function') ? getRate() : 40;
+  const dateStr = new Date().toLocaleDateString('es-VE');
+  let itemCursor = 0;
+
+  stage.innerHTML = pages.map((pg, idx) => {
+    const pageNum = idx + 1;
+    const isOdd = (pageNum % 2) === 1;
+    const sheetNum = Math.ceil(pageNum / 2);
+    const sideLabel = isOdd
+      ? `HOJA #${sheetNum} · FRENTE (Cara Impar — Pág. ${pageNum} de ${pages.length})`
+      : `HOJA #${sheetNum} · REVERSO (Cara Par — Pág. ${pageNum} de ${pages.length})`;
+
+    if (pg.type === 'cover') {
+      const cardsHtml = pg.items.map(p => {
+        const gIdx = itemCursor++;
+        return renderCardHtml(p, gIdx);
+      }).join('');
+
+      const tocHtml = pg.toc.slice(0, 27).map(([cat, pNum]) => `
+        <div class="toc-item" onclick="jumpToPage(${pNum})">
+          <span class="toc-cat-name">📁 ${escapeHTML(cat)}</span>
+          <span class="toc-page-num">Pág. ${pNum}</span>
+        </div>
+      `).join('');
+
+      return `
+        <section class="catalog-page ${isOdd ? 'page-odd' : 'page-even'} ${sheetNum > 1 ? 'not-sheet-1' : ''}" data-page="${pageNum}" data-sheet="${sheetNum}">
+          <div class="screen-sheet-badge">${sideLabel}</div>
+          ${renderSpineHoles()}
+
+          <div>
+            <!-- Hero de Portada -->
+            <div class="cover-hero">
+              <div class="cover-hero-left">
+                <span class="cover-badge">Catálogo Mayorista Oficial · Edición ${dateStr}</span>
+                <h1 class="cover-title">JJ <span>PAPER</span> DISTRIBUIDORA</h1>
+                <p class="cover-sub">
+                  Papelería Escolar, Artículos de Oficina, Cuadernos y Suministros al Mayor.<br>
+                  <strong>Catálogo Interactivo con Códigos QR:</strong> Escanea cualquier producto con tu celular para ver su galería y pedir directo por WhatsApp.
+                </p>
+              </div>
+              <div class="cover-qr-card">
+                <div id="qr-master-cover" class="qr-master-box"></div>
+                <small>📲 Catálogo Web<br>En Vivo</small>
+              </div>
+            </div>
+
+            <!-- Cómo Funciona en 3 Pasos -->
+            <div class="cover-how-it-works">
+              <div class="how-step">
+                <strong>1. Explora por Categoría</strong>
+                <p>Ubica la familia de productos en el índice inferior y pasa la página como un cuaderno.</p>
+              </div>
+              <div class="how-step">
+                <strong>2. Escanea el Código QR</strong>
+                <p>Apunta la cámara de tu teléfono al QR del producto para ver disponibilidad y variantes.</p>
+              </div>
+              <div class="how-step">
+                <strong>3. Pedido Inmediato</strong>
+                <p>Envía tu cotización o pedido directo a nuestro equipo comercial con despacho nacional.</p>
+              </div>
+            </div>
+
+            <!-- Índice de Categorías del Libro -->
+            <div class="cover-index-box">
+              <div class="cover-index-title">
+                <span>📑 Índice por Familias y Categorías</span>
+                <span style="font-size:7.5pt;color:#64748b;">Tasa Ref. BCV: Bs ${rate.toFixed(2)}/USD</span>
+              </div>
+              <div class="toc-grid">
+                ${tocHtml}
+                ${pg.annexStartPage ? `
+                  <div class="toc-item" onclick="jumpToPage(${pg.annexStartPage})" style="grid-column:1/-1;margin-top:1mm;background:#f8fafc;padding:1mm 2mm;border-radius:1mm;">
+                    <span class="toc-cat-name" style="max-width:none;color:var(--jj-emerald-dark);">📋 ANEXO COMPACTO: LISTA GENERAL DE PRECIOS Y QR</span>
+                    <span class="toc-page-num">Pág. ${pg.annexStartPage}</span>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Muestra de Productos Destacados en Portada -->
+          <div class="sheet-grid grid-${perPage === 12 ? 12 : 8}" style="max-height:66mm;">
+            ${cardsHtml}
+          </div>
+
+          <footer class="page-running-footer">
+            <span>JJ Paper C.A. · Distribuidora Mayorista · Despachos a Nivel Nacional · <strong>jjpaper.pages.dev</strong></span>
+            <span class="rf-page-num">PÁGINA ${pageNum} DE ${pages.length}</span>
+          </footer>
+        </section>
+      `;
+    }
+
+    if (pg.type === 'photo_grid') {
+      const cardsHtml = pg.items.map(p => {
+        const gIdx = itemCursor++;
+        return renderCardHtml(p, gIdx);
+      }).join('');
+
+      return `
+        <section class="catalog-page ${isOdd ? 'page-odd' : 'page-even'} ${sheetNum > 1 ? 'not-sheet-1' : ''}" data-page="${pageNum}" data-sheet="${sheetNum}">
+          <div class="screen-sheet-badge">${sideLabel}</div>
+          ${renderSpineHoles()}
+
+          <header class="page-running-header">
+            <div class="rh-brand">
+              <img src="assets/img/logo.svg" alt="JJ Paper">
+              <span class="rh-brand-txt">JJ <em>PAPER</em> · CATÁLOGO MAYORISTA</span>
+            </div>
+            <div class="rh-category-pill">📂 ${escapeHTML(pg.categoryLabel)}</div>
+          </header>
+
+          <div class="sheet-grid grid-${perPage}">
+            ${cardsHtml}
+          </div>
+
+          <footer class="page-running-footer">
+            <span>📲 Escanea el código QR de cualquier artículo para ver detalles y pedir por WhatsApp · <strong>jjpaper.pages.dev</strong></span>
+            <span class="rf-page-num">PÁGINA ${pageNum} DE ${pages.length}</span>
+          </footer>
+        </section>
+      `;
+    }
+
+    // Anexo compacto
+    const annexHtml = pg.items.map(p => {
+      const gIdx = itemCursor++;
+      return `
+        <div class="annex-row">
+          <div class="annex-info">
+            <div class="annex-cat">${escapeHTML(p._catName)} ${p._brands ? `· ${escapeHTML(p._brands)}` : ''}</div>
+            <div class="annex-name">${escapeHTML(p.name)}</div>
+            <div style="font-size:6pt;color:#64748b;font-weight:700;">📦 ${escapeHTML(p._packaging)}</div>
+          </div>
+          <div class="annex-price">${fmtPrice(p._price)}</div>
+          <div class="annex-qr qr-target" id="qr-${gIdx}" data-id="${p.id}" onclick="openQrModal(${gIdx}, event)"></div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <section class="catalog-page ${isOdd ? 'page-odd' : 'page-even'} ${sheetNum > 1 ? 'not-sheet-1' : ''}" data-page="${pageNum}" data-sheet="${sheetNum}">
+        <div class="screen-sheet-badge">${sideLabel}</div>
+        ${renderSpineHoles()}
+
+        <header class="page-running-header">
+          <div class="rh-brand">
+            <img src="assets/img/logo.svg" alt="JJ Paper">
+            <span class="rh-brand-txt">JJ <em>PAPER</em> · ANEXO GENERAL QR</span>
+          </div>
+          <div class="rh-category-pill">📋 ${escapeHTML(pg.categoryLabel)}</div>
+        </header>
+
+        <div class="compact-annex-grid">
+          ${annexHtml}
+        </div>
+
+        <footer class="page-running-footer">
+          <span>📲 Índice Compacto de Referencia Rápida con QR · <strong>jjpaper.pages.dev</strong></span>
+          <span class="rf-page-num">PÁGINA ${pageNum} DE ${pages.length}</span>
+        </footer>
+      </section>
     `;
   }).join('');
 
-  // Generar códigos QR de alta resolución con IntersectionObserver para máxima nitidez y rendimiento
-  const qrColor = "#000000"; // Negro puro para escaneo instantáneo sin tramado
-  if ('IntersectionObserver' in window && typeof QRCode !== 'undefined') {
-    const observer = new IntersectionObserver((entries, obs) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const target = entry.target;
-          obs.unobserve(target);
-          const prodId = target.dataset.id;
-          if (prodId && !target.hasChildNodes()) {
-            const prodUrl = `${baseUrl}/producto?id=${encodeURIComponent(prodId)}`;
-            try {
-              new QRCode(target, {
-                text: prodUrl,
-                width: 256,
-                height: 256,
-                colorDark: qrColor,
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.M
-              });
-            } catch (err) {
-              console.warn('QR error:', err);
-            }
-          }
-        }
-      });
-    }, { rootMargin: '200px 0px' });
-
-    document.querySelectorAll('.qr-target').forEach(el => observer.observe(el));
-  } else if (typeof QRCode !== 'undefined') {
-    // Fallback: renderizado inmediato para impresión o navegadores sin observer
-    items.forEach((p, idx) => {
-      const container = document.getElementById(`qr-${idx}`);
-      if (container && !container.hasChildNodes()) {
-        const prodUrl = `${baseUrl}/producto?id=${encodeURIComponent(p.id)}`;
-        new QRCode(container, {
-          text: prodUrl,
-          width: 256,
-          height: 256,
-          colorDark: qrColor,
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }
+  // Generar QR Maestro de Portada
+  const masterBox = document.getElementById('qr-master-cover');
+  if (masterBox && typeof QRCode !== 'undefined') {
+    new QRCode(masterBox, {
+      text: 'https://jjpaper.pages.dev/catalogo',
+      width: 220,
+      height: 220,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
     });
+  }
+
+  // Inicializar QRs con IntersectionObserver + pre-renderizado de las primeras páginas
+  setupQrObserver();
+
+  if (document.body.classList.contains('view-flipbook')) {
+    currentSpreadIndex = 0;
+    updateFlipbookVisibility();
   }
 }
 
-let currentRenderedItems = [];
-let currentModalProd = null;
-let currentModalUrl = '';
+function setupQrObserver() {
+  const baseUrl = 'https://jjpaper.pages.dev';
+  if (typeof QRCode === 'undefined') return;
+
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const target = entry.target;
+          observer.unobserve(target);
+          renderSingleQr(target, baseUrl);
+        }
+      });
+    }, { rootMargin: '600px 0px' });
+
+    document.querySelectorAll('.qr-target').forEach(el => obs.observe(el));
+  } else {
+    renderAllQrsImmediately();
+  }
+}
+
+function renderSingleQr(target, baseUrl = 'https://jjpaper.pages.dev') {
+  const prodId = target.dataset.id;
+  if (prodId && !target.hasChildNodes()) {
+    try {
+      new QRCode(target, {
+        text: `${baseUrl}/producto?id=${encodeURIComponent(prodId)}`,
+        width: 200,
+        height: 200,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch (_) {}
+  }
+}
+
+function renderAllQrsImmediately() {
+  const baseUrl = 'https://jjpaper.pages.dev';
+  if (typeof QRCode === 'undefined') return;
+  document.querySelectorAll('.qr-target').forEach(target => renderSingleQr(target, baseUrl));
+}
+
+/* ==========================================================================
+   MODO CUADERNO INTERACTIVO (PASAR PÁGINAS EN PANTALLA)
+   ========================================================================== */
+function setScreenViewMode(mode) {
+  const isFlip = (mode === 'flipbook');
+  document.body.classList.toggle('view-flipbook', isFlip);
+  document.getElementById('btnViewSheets')?.classList.toggle('active', !isFlip);
+  document.getElementById('btnViewFlipbook')?.classList.toggle('active', isFlip);
+
+  if (isFlip) {
+    currentSpreadIndex = 0;
+    updateFlipbookVisibility();
+  } else {
+    document.querySelectorAll('.catalog-page').forEach(el => el.classList.remove('hidden-in-flipbook'));
+  }
+}
+
+function turnSpread(delta) {
+  const maxSpread = Math.floor(totalGeneratedPages / 2);
+  currentSpreadIndex = Math.max(0, Math.min(maxSpread, currentSpreadIndex + delta));
+  updateFlipbookVisibility();
+}
+
+function jumpToPage(pageNum) {
+  if (document.body.classList.contains('view-flipbook')) {
+    // Spread 0 = Pág 1; Spread 1 = Págs 2-3; Spread 2 = Págs 4-5...
+    currentSpreadIndex = pageNum === 1 ? 0 : Math.floor(pageNum / 2);
+    updateFlipbookVisibility();
+  } else {
+    const target = document.querySelector(`.catalog-page[data-page="${pageNum}"]`);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function updateFlipbookVisibility() {
+  const leftPage = currentSpreadIndex === 0 ? null : (currentSpreadIndex * 2);
+  const rightPage = currentSpreadIndex === 0 ? 1 : (currentSpreadIndex * 2 + 1);
+
+  document.querySelectorAll('.catalog-page').forEach(el => {
+    const p = parseInt(el.dataset.page, 10);
+    const visible = (p === leftPage || p === rightPage);
+    el.classList.toggle('hidden-in-flipbook', !visible);
+    if (visible) {
+      el.querySelectorAll('.qr-target').forEach(q => renderSingleQr(q));
+    }
+  });
+
+  const lbl = document.getElementById('spreadLabel');
+  if (lbl) {
+    if (currentSpreadIndex === 0) {
+      lbl.textContent = ` Portada del Catálogo (Página 1 de ${totalGeneratedPages})`;
+    } else if (rightPage <= totalGeneratedPages) {
+      lbl.textContent = `📖 Cuaderno Abierto: Página ${leftPage} (Izquierda) y Página ${rightPage} (Derecha) de ${totalGeneratedPages}`;
+    } else {
+      lbl.textContent = `📖 Contraportada Final: Página ${leftPage} de ${totalGeneratedPages}`;
+    }
+  }
+}
+
+/* ==========================================================================
+   MOTOR DE IMPRESIÓN EN 2 PASADAS (FRENTES IMPARES / REVERSOS PARES)
+   ========================================================================== */
+function printBookPass(passType) {
+  renderAllQrsImmediately();
+
+  document.body.classList.remove('print-pass-fronts', 'print-pass-backs', 'print-pass-test1');
+
+  const stage = document.getElementById('pagesStage');
+  const reverseBacks = document.getElementById('chkReverseBacks')?.checked;
+  let restoredOrder = false;
+
+  if (passType === 'fronts') {
+    document.body.classList.add('print-pass-fronts');
+  } else if (passType === 'backs') {
+    document.body.classList.add('print-pass-backs');
+    if (reverseBacks && stage) {
+      // Invertir temporalmente el orden de los nodos en el DOM para que las páginas pares salgan de la última a la 2
+      const nodes = Array.from(stage.children);
+      nodes.reverse().forEach(n => stage.appendChild(n));
+      restoredOrder = true;
+    }
+  } else if (passType === 'test1') {
+    document.body.classList.add('print-pass-test1');
+  }
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('print-pass-fronts', 'print-pass-backs', 'print-pass-test1');
+      if (restoredOrder && stage) {
+        const nodes = Array.from(stage.children);
+        nodes.reverse().forEach(n => stage.appendChild(n));
+      }
+    }, 600);
+  }, 180);
+}
+
+function changeGutterMode(mode) {
+  document.body.classList.toggle('gutter-mirror', mode === 'mirror');
+  document.body.classList.toggle('gutter-symmetric', mode === 'symmetric');
+}
+
+function changePriceMode(mode) {
+  document.body.classList.toggle('hide-bs', mode === 'usd_only');
+  document.body.classList.toggle('hide-prices', mode === 'no_price');
+}
+
+function togglePrintMode(mode) {
+  document.body.classList.toggle('print-bw-mode', mode === 'bw');
+}
+
+function openPrinterGuide() {
+  document.getElementById('printerGuideModal')?.classList.add('active');
+}
+function closePrinterGuide() {
+  document.getElementById('printerGuideModal')?.classList.remove('active');
+}
 
 function openQrModal(idx, e) {
   if (e) e.stopPropagation();
   const p = currentRenderedItems[idx];
   if (!p) return;
-  currentModalProd = p;
 
-  const rawImg = p.image_url || p.variants.find(v => v.image_url)?.image_url;
-  const catName = p.jjp_categories?.name || 'General';
-  const price = p._price;
   const prodUrl = `https://jjpaper.pages.dev/producto?id=${encodeURIComponent(p.id)}`;
   currentModalUrl = prodUrl;
 
   const imgEl = document.getElementById('qmProdImg');
-  if (imgEl) imgEl.src = rawImg ? optImg(rawImg, 150) : 'assets/img/logo.svg';
-  document.getElementById('qmProdCat').textContent = catName;
+  if (imgEl) imgEl.src = p._hasPhoto ? optImg(p._imgUrl, 300) : 'assets/img/logo.svg';
+  document.getElementById('qmProdCat').textContent = p._catName;
   document.getElementById('qmProdName').textContent = p.name;
-  document.getElementById('qmProdUsd').textContent = fmtPrice(price);
-  document.getElementById('qmProdBs').textContent = `Bs ${toBs(price)}`;
+  document.getElementById('qmProdUsd').textContent = fmtPrice(p._price);
+  document.getElementById('qmProdBs').textContent = `Bs ${toBs(p._price)}`;
   document.getElementById('qmDirectLink').href = prodUrl;
 
   const canvasWrap = document.getElementById('qmCanvas');
   canvasWrap.innerHTML = '';
   new QRCode(canvasWrap, {
     text: prodUrl,
-    width: 280,
-    height: 280,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
+    width: 240,
+    height: 240,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.H
   });
 
-  document.getElementById('qrModal').classList.add('active');
+  document.getElementById('qrModal')?.classList.add('active');
 }
 
 function closeQrModal() {
@@ -1189,29 +2038,6 @@ function copyQrLink() {
   }).catch(() => {
     prompt('Copia este enlace de la ficha:', currentModalUrl);
   });
-}
-
-function togglePrintMode(mode) {
-  if (mode === 'bw') {
-    document.body.classList.add('print-bw-mode');
-  } else {
-    document.body.classList.remove('print-bw-mode');
-  }
-}
-
-function changeLayout(cols) {
-  currentLayout = cols;
-  const grid = document.getElementById('catalogGrid');
-  grid.classList.toggle('cols-3', cols === '3');
-}
-
-function shareImpresoToWhatsApp() {
-  const streetUrl = 'https://jjpaper.pages.dev/catalogo_impreso';
-  const msg = `📦 *Catálogo Comercial con Códigos QR | JJ Paper*\n\n` +
-              `📲 Puedes ver o imprimir nuestro catálogo con códigos QR directos para consultar cada producto:\n${streetUrl}\n\n` +
-              `✨ Cada QR te abre la ficha oficial con fotos, detalles y botón de cotización por WhatsApp.`;
-  const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-  window.open(waUrl, '_blank');
 }
 </script>
 

@@ -1028,7 +1028,8 @@ body.hide-prices .dir-price-col {
 
   async function loadCatalog() {
     try {
-      const rate = typeof getRate === 'function' ? getRate() : 36.5;
+      if (typeof loadSettings === 'function') await loadSettings();
+      const rate = typeof getRate === 'function' ? getRate() : 886.23;
       const rateEl = document.getElementById('rateBadge');
       if (rateEl) rateEl.textContent = `Tasa Oficial BCV: Bs ${rate.toFixed(2)} / USD`;
 
@@ -1546,6 +1547,14 @@ body.hide-prices .dir-price-col {
   function closeGuideModal() {
     document.getElementById('guideModal')?.classList.remove('open');
   }
+
+  window.addEventListener('jjp_rate_updated', (e) => {
+    const r = e.detail?.rate;
+    if (r && r > 0) {
+      const badge = document.getElementById('rateBadge');
+      if (badge) badge.textContent = `Tasa Oficial BCV: Bs ${r.toFixed(2)} / USD`;
+    }
+  });
 
   // Iniciar carga del catálogo
   loadCatalog();

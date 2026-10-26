@@ -909,7 +909,8 @@ function normTxt(str) {
 // ajustes en vcommon.js); si no, se usa la oficial (BCV) global del negocio.
 function getRate() {
   if (APP.SELLER_RATE) return APP.SELLER_RATE;
-  return APP.EXCHANGE_RATE || parseFloat(sessionStorage.getItem(APP.RATE_KEY)) || 40;
+  const cached = APP.EXCHANGE_RATE || parseFloat(sessionStorage.getItem(APP.RATE_KEY)) || parseFloat(APP.SETTINGS?.exchange_rate) || parseFloat(APP.SETTINGS?.rate_bcv);
+  return (cached && cached > 0) ? cached : 886.23;
 }
 
 // Convert USD → Bs

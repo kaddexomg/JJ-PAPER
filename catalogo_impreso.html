@@ -24,6 +24,8 @@
   --sheet-w: 215.9mm;      /* Tamaño Carta US Letter */
   --sheet-h: 279.4mm;
   --spine-w: 22mm;         /* Margen de lomo libre para perforaciones sin tocar texto */
+  --duplex-even-shift-x: 0mm;  /* Calibración milimétrica X para calce a contraluz */
+  --duplex-even-shift-y: 0mm;  /* Calibración milimétrica Y para calce a contraluz */
   --outer-w: 8mm;
   --top-h: 6mm;
   --bot-h: 6mm;
@@ -1013,12 +1015,12 @@ body.hide-prices .dir-price-col {
     <div class="guide-step" style="border-left:4px solid #d97706;background:#fffbeb">
       <div class="step-num" style="background:#d97706">2</div>
       <div class="step-content">
-        <h4 style="color:#b45309">Paso 2: Dar la vuelta a la hoja expulsada</h4>
+        <h4 style="color:#b45309">Paso 2: Giro 180° Tipo Volante</h4>
         <p style="line-height:1.5">
-          1. Retira la hoja expulsada de la bandeja de salida.<br>
-          2. <strong>Gírala sobre su eje largo</strong> (como pasando la página de un cuaderno, de derecha a izquierda).<br>
-          3. <strong>NO la gires de cabeza</strong> (el encabezado debe entrar primero o según el alimentador de tu impresora).<br>
-          4. Colócala nuevamente en la bandeja de entrada para imprimir en la cara en blanco.
+          1. Retira la hoja recién expulsada de la bandeja de salida.<br>
+          2. <strong>Dale un giro de 180° tipo volante</strong> (rotándola en el plano para que lo que salió primero entre después).<br>
+          3. <strong>Voltéala hacia la cara blanca</strong> y colócala en la bandeja de entrada.<br>
+          <em>El sistema adaptará automáticamente el lomo de la Cara 2 para que coincida en el mismo lado.</em>
         </p>
       </div>
     </div>
@@ -1027,10 +1029,15 @@ body.hide-prices .dir-price-col {
       <div class="step-num" style="background:#16604a">3</div>
       <div class="step-content">
         <h4 style="color:#16604a">Paso 3: Imprimir Reverso de Prueba (Página 2)</h4>
-        <p>Presiona el botón verde abajo. Se imprimirá la página 2 detrás de la página 1, con el margen de lomo espejado hacia la <strong>derecha</strong> para que coincidan perfectamente.</p>
-        <button type="button" class="tb-btn tb-btn-step2" style="margin-top:8px;padding:7px 14px;font-size:12px;background:#16604a" onclick="printTestSheet('even')">
-          🖨️ 2️⃣ Imprimir Reverso (Pág 2)
-        </button>
+        <p>Presiona el botón verde abajo. Se imprimirá la Página 2 adaptada al giro de volante de tu impresora.</p>
+        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+          <button type="button" class="tb-btn tb-btn-step2" style="padding:7px 14px;font-size:12px;background:#16604a" onclick="printTestSheet('even')">
+            🖨️ 2️⃣ Imprimir Reverso (Pág 2)
+          </button>
+          <button type="button" class="tb-btn" style="background:#475569;color:#fff;font-size:12px;padding:7px 14px" onclick="openCalibrationModal()">
+            🎛️ Calibrar Milímetros a Contraluz
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1049,6 +1056,85 @@ body.hide-prices .dir-price-col {
       <button type="button" class="tb-btn" style="background:#f1f5f9;color:#334155" onclick="closeTestSheetModal()">Cerrar</button>
       <button type="button" class="tb-btn tb-btn-gold" onclick="closeTestSheetModal();document.getElementById('batchSelect').value='1-5';onBatchSelectChange();">
         ✅ Calibración Lista, Iniciar Tanda 1
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL DE CALIBRACIÓN A CONTRALUZ -->
+<div class="guide-modal" id="calibrationModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeCalibrationModal()">
+  <div class="modal-box" style="max-width:580px">
+    <div class="modal-header">
+      <h3 style="color:#0284c7">🎛️ Calibración de Calce Dúplex a Contraluz</h3>
+      <button type="button" class="modal-close" onclick="closeCalibrationModal()">✕</button>
+    </div>
+
+    <p style="font-size:12.5px;color:#475569;margin-bottom:14px;line-height:1.5">
+      Ajusta los milímetros de la <strong>Cara 2 (Reverso)</strong> para que las perforaciones de encuadernado y los márgenes coincidan con exactitud milimétrica al poner la hoja a contraluz.
+    </p>
+
+    <!-- Selector de Giro -->
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;padding:12px;border-radius:8px;margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:#0369a1;display:block;margin-bottom:6px">
+        1. Método de giro de tu impresora:
+      </label>
+      <select class="tb-select" id="calibFlipModeSelect" onchange="onCalibFlipModeChange()" style="width:100%;font-weight:700;background:#fff;border-color:#0284c7;color:#0369a1">
+        <option value="volante">🔄 Giro 180° Tipo Volante (Lomo siempre en el mismo lado Izq/Izq · Tu Impresora)</option>
+        <option value="book">📖 Giro Libro Estándar (Lomo alternado Izq/Der)</option>
+      </select>
+      <div style="font-size:11px;color:#64748b;margin-top:4px">
+        💡 En modo <strong>Volante 180°</strong>, el lomo de ambas caras se imprime a la izquierda para empatar con la rotación física que haces al alimentar el papel.
+      </div>
+    </div>
+
+    <!-- Ajustes Milimétricos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <!-- Offset X -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">↔️ Desplazamiento Lomo (X)</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <button type="button" class="tb-btn" style="padding:4px 10px;font-size:14px;font-weight:800;background:#e2e8f0;color:#1e293b" onclick="stepDuplexShift('x', -0.5)">-</button>
+          <span id="txtShiftValX" style="font-size:16px;font-weight:800;font-family:monospace;color:#0284c7;min-width:65px">0.0 mm</span>
+          <button type="button" class="tb-btn" style="padding:4px 10px;font-size:14px;font-weight:800;background:#e2e8f0;color:#1e293b" onclick="stepDuplexShift('x', 0.5)">+</button>
+        </div>
+        <span style="font-size:10.5px;color:#64748b;margin-top:4px;display:block">Mueve Cara 2 horizontalmente</span>
+      </div>
+
+      <!-- Offset Y -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px">↕️ Desplazamiento Vertical (Y)</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <button type="button" class="tb-btn" style="padding:4px 10px;font-size:14px;font-weight:800;background:#e2e8f0;color:#1e293b" onclick="stepDuplexShift('y', -0.5)">-</button>
+          <span id="txtShiftValY" style="font-size:16px;font-weight:800;font-family:monospace;color:#0284c7;min-width:65px">0.0 mm</span>
+          <button type="button" class="tb-btn" style="padding:4px 10px;font-size:14px;font-weight:800;background:#e2e8f0;color:#1e293b" onclick="stepDuplexShift('y', 0.5)">+</button>
+        </div>
+        <span style="font-size:10.5px;color:#64748b;margin-top:4px;display:block">Sube / baja Cara 2 milimétricamente</span>
+      </div>
+    </div>
+
+    <!-- Checkbox rotación 180 -->
+    <div style="margin-bottom:14px;background:#fffbeb;border:1px solid #fde68a;padding:10px 12px;border-radius:6px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="chkRotate180" onchange="toggleRotate180(this.checked)" style="width:16px;height:16px;cursor:pointer">
+      <label for="chkRotate180" style="font-size:12px;color:#92400e;font-weight:700;cursor:pointer">
+        🙃 Invertir Cara 2 patas arriba (Giro 180° si sale de cabeza)
+      </label>
+    </div>
+
+    <!-- Simulación a contraluz en pantalla -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f1f5f9;border-radius:6px;margin-bottom:16px">
+      <span style="font-size:12px;color:#475569;font-weight:600">Simulación en pantalla:</span>
+      <button type="button" class="tb-btn" id="btnToggleLightbox" onclick="toggleLightboxSimulation()" style="background:#0284c7;color:#fff;font-size:11.5px;padding:6px 12px">
+        💡 Simular Contraluz en Pantalla
+      </button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <button type="button" class="tb-btn" style="background:#e2e8f0;color:#334155;font-size:12px" onclick="resetDuplexCalibration()">
+        🔄 Restablecer a 0.0 mm
+      </button>
+      <button type="button" class="tb-btn tb-btn-gold" onclick="closeCalibrationModal();saveDuplexCalibration();">
+        💾 Guardar Calibración en esta PC
       </button>
     </div>
   </div>
@@ -1714,6 +1800,110 @@ body.hide-prices .dir-price-col {
     }
   });
 
+
+  let DUPLEX_CONFIG = {
+    flipMode: localStorage.getItem('jjp_duplex_flip_mode') || 'volante',
+    shiftX: parseFloat(localStorage.getItem('jjp_duplex_shift_x') || '0'),
+    shiftY: parseFloat(localStorage.getItem('jjp_duplex_shift_y') || '0'),
+    rotate180: localStorage.getItem('jjp_duplex_rotate_180') === 'true'
+  };
+
+  function applyDuplexConfig() {
+    document.body.classList.toggle('flip-mode-volante', DUPLEX_CONFIG.flipMode === 'volante');
+    document.body.classList.toggle('even-rotate-180', DUPLEX_CONFIG.rotate180);
+
+    document.documentElement.style.setProperty('--duplex-even-shift-x', `${DUPLEX_CONFIG.shiftX}mm`);
+    document.documentElement.style.setProperty('--duplex-even-shift-y', `${DUPLEX_CONFIG.shiftY}mm`);
+
+    const selMain = document.getElementById('flipModeSelect');
+    if (selMain) selMain.value = DUPLEX_CONFIG.flipMode;
+    const selCalib = document.getElementById('calibFlipModeSelect');
+    if (selCalib) selCalib.value = DUPLEX_CONFIG.flipMode;
+
+    const chk = document.getElementById('chkRotate180');
+    if (chk) chk.checked = DUPLEX_CONFIG.rotate180;
+
+    const valX = document.getElementById('txtShiftValX');
+    if (valX) valX.textContent = `${DUPLEX_CONFIG.shiftX > 0 ? '+' : ''}${DUPLEX_CONFIG.shiftX.toFixed(1)} mm`;
+    const valY = document.getElementById('txtShiftValY');
+    if (valY) valY.textContent = `${DUPLEX_CONFIG.shiftY > 0 ? '+' : ''}${DUPLEX_CONFIG.shiftY.toFixed(1)} mm`;
+
+    const badge = document.getElementById('txtShiftBadge');
+    if (badge) badge.textContent = `X:${DUPLEX_CONFIG.shiftX.toFixed(1)} Y:${DUPLEX_CONFIG.shiftY.toFixed(1)}`;
+  }
+
+  function onFlipModeChange(mode) {
+    const val = mode || document.getElementById('flipModeSelect')?.value || 'volante';
+    DUPLEX_CONFIG.flipMode = val;
+    localStorage.setItem('jjp_duplex_flip_mode', val);
+    applyDuplexConfig();
+  }
+
+  function onCalibFlipModeChange() {
+    const val = document.getElementById('calibFlipModeSelect')?.value || 'volante';
+    onFlipModeChange(val);
+  }
+
+  function stepDuplexShift(axis, delta) {
+    if (axis === 'x') {
+      DUPLEX_CONFIG.shiftX = parseFloat((DUPLEX_CONFIG.shiftX + delta).toFixed(1));
+      if (Math.abs(DUPLEX_CONFIG.shiftX) > 20) DUPLEX_CONFIG.shiftX = Math.sign(DUPLEX_CONFIG.shiftX) * 20;
+    } else if (axis === 'y') {
+      DUPLEX_CONFIG.shiftY = parseFloat((DUPLEX_CONFIG.shiftY + delta).toFixed(1));
+      if (Math.abs(DUPLEX_CONFIG.shiftY) > 20) DUPLEX_CONFIG.shiftY = Math.sign(DUPLEX_CONFIG.shiftY) * 20;
+    }
+    applyDuplexConfig();
+    saveDuplexCalibration();
+  }
+
+  function toggleRotate180(val) {
+    DUPLEX_CONFIG.rotate180 = Boolean(val);
+    applyDuplexConfig();
+    saveDuplexCalibration();
+  }
+
+  function saveDuplexCalibration() {
+    localStorage.setItem('jjp_duplex_flip_mode', DUPLEX_CONFIG.flipMode);
+    localStorage.setItem('jjp_duplex_shift_x', String(DUPLEX_CONFIG.shiftX));
+    localStorage.setItem('jjp_duplex_shift_y', String(DUPLEX_CONFIG.shiftY));
+    localStorage.setItem('jjp_duplex_rotate_180', String(DUPLEX_CONFIG.rotate180));
+  }
+
+  function resetDuplexCalibration() {
+    DUPLEX_CONFIG.shiftX = 0;
+    DUPLEX_CONFIG.shiftY = 0;
+    DUPLEX_CONFIG.rotate180 = false;
+    applyDuplexConfig();
+    saveDuplexCalibration();
+  }
+
+  function openCalibrationModal() {
+    applyDuplexConfig();
+    document.getElementById('calibrationModal')?.classList.add('open');
+  }
+  function closeCalibrationModal() {
+    document.getElementById('calibrationModal')?.classList.remove('open');
+    const stage = document.getElementById('catalogStage');
+    if (stage) stage.classList.remove('lightbox-mode');
+    const btn = document.getElementById('btnToggleLightbox');
+    if (btn) {
+      btn.textContent = '💡 Simular Contraluz en Pantalla';
+      btn.style.background = '#0284c7';
+    }
+  }
+
+  function toggleLightboxSimulation() {
+    const stage = document.getElementById('catalogStage');
+    const btn = document.getElementById('btnToggleLightbox');
+    if (!stage) return;
+    const isLb = stage.classList.toggle('lightbox-mode');
+    if (btn) {
+      btn.textContent = isLb ? '👁️ Modo Normal de Hojas' : '💡 Simular Contraluz en Pantalla';
+      btn.style.background = isLb ? '#16604a' : '#0284c7';
+    }
+  }
+
+  applyDuplexConfig();
   // Iniciar carga del catálogo
   loadCatalog();
 </script>

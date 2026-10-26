@@ -1121,3 +1121,20 @@ Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del siste
   - `performAgentTasksCheck()` sondea tareas agénticas pendientes (`sync_stock`, `reindex_ntx`, `run_command`, `self_update`).
   - Permite al operador o al agente en el VPS / panel admin (`admin/mixnet.html` o `assets/js/admin/mixnet.js`) despachar instrucciones remotas al micro-nodo de la tienda y recibir el resultado estructurado de ejecución (`status: 'completed'`, `result`).
 
+
+
+## Consolidación del Catálogo Impreso Dúplex, Tasas Oficiales BCV en Vivo y Campañas (26-10-2026)
+- **Tasas de Cambio Oficiales BCV (`assets/js/config.js` y `wa-server/src/rates.js`)**:
+  - En JJ Paper, la moneda de cobro oficial y cara al cliente es estrictamente la tasa **BCV** (`rate_bcv` / `exchange_rate`).
+  - Se eliminó por completo el fallback estático de `40` Bs en `getRate()`. Si la sesión o el navegador aún no tienen la tasa cargada, `getRate()` consulta `APP.SETTINGS.exchange_rate` / `rate_bcv` o toma el valor oficial activo (`886.23 Bs / USD`).
+  - `catalogo_impreso.html` invoca obligatoriamente `await loadSettings()` al montar la página y escucha el evento `jjp_rate_updated`, asegurando que los precios en Bs y la insignia de tasa oficial reflejen siempre el valor real del BCV publicado vía `dolarapi` / `wa-server`.
+  - `wa-server/src/rates.js` mantiene activo el cron horario de actualización contra `https://ve.dolarapi.com/v1/dolares` y CriptoYa (Binance P2P), persistiendo en `jjp_settings` (`rate_bcv`, `exchange_rate`, `usdt_rate`, `rate_binance`, `rate_monitor`, `rate_eur`).
+- **Catálogo Impreso Tipo Libro / Cuaderno (`catalogo_impreso.html`)**:
+  - **Identidad Corporativa JJ Paper**: Restaurada la estética nativa en Verde (`#16604A`), Dorado (`#C9A24B`), fondo suave de escritorio (`#eef2f0`) y hojas Carta en blanco puro (`#ffffff`).
+  - **Conexión Nativa VPS**: Incluye `assets/vendor/supabase-2.58.0.js` antes de `assets/js/config.js`, erradicando el error `sb is not defined` y cargando los productos directamente desde el VPS PostgreSQL (`166.0.112.247`).
+  - **Imposición Dúplex para Encuadernación**: Margen libre de lomo de `22mm` a la izquierda en frentes (impares) y a la derecha en reversos (pares), con marcas de corte/perforación configurables para carpeta de 3 anillos (108 mm), archivador de 2 huecos (80 mm), espiral 3:1 o sin marcas. 0% de corte o solapamiento sobre fotos, nombres o precios.
+  - **Flujo de Impresión por Tandas**: Selector por lotes de 5 hojas físicas Carta (= 10 páginas) con botones secuenciales `1️⃣ Imprimir FRENTES` y `2️⃣ Imprimir REVERSOS`, acompañado de la guía modal de reinserción de papel en bandeja de entrada.
+  - **Modo Híbrido de Alta Densidad**: Vitrina de 8 productos/pág con foto cuadrada 520x520 en alta resolución y QR individual de pedido, combinada con lista comercial compacta de 28 productos/pág para artículos sin foto, optimizando el uso de papel.
+- **Unificación de Catálogo Oficial para Campañas (`assets/js/doc-engine.js`, `campaign-editor.js`, `vdifusion.js`, `vcampanas-email.js`)**:
+  - El PDF oficial adjunto en campañas de WhatsApp y Correo se genera como `Catalogo_y_Lista_de_Precios_JJ_Paper.pdf` con título `Catálogo Comercial y Lista Oficial de Precios · JJ Paper C.A.`.
+  - Incluye todas las líneas activas (incorporando las 6 categorías de Higiene y Limpieza: Químicos, Papelería e Higiene, Paños y Coletos, Utensilios, Bolsas y Descartables) con precios oficiales en USD y Bs a tasa BCV, e incorpora en la portada el enlace directo y QR al catálogo interactivo (`https://jj-paper.pages.dev/catalogo_impreso.html`).

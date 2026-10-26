@@ -8,7 +8,7 @@ mkdir -p dist
 
 for item in *; do
   case "$item" in
-    wa-server|jj-mixnet-agent|lan-daemon|puente-win7|sql|dist|node_modules|scripts|_archive|_archivo|backups|audits|CLIENTES|functions|MAPEO-TOTAL-MIXNET|tools) continue ;; # nunca publicar
+    wa-server|jj-mixnet-agent|lan-daemon|puente-win7|sql|dist|node_modules|scripts|_archive|_archivo|backups|audits|CLIENTES|functions|MAPEO-TOTAL-MIXNET|tools|scratch) continue ;; # nunca publicar
     docs|cerebro|planes)             continue ;; # documentación interna del negocio
     build.sh|skills-lock.json)       continue ;; # herramientas del repo
     *.md|*.code-workspace|*.bat|*.vbs|*.zip|*.bundle) continue ;; # docs / launchers / zips

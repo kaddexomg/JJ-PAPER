@@ -432,6 +432,7 @@ async function searchDuckDuckGo(query) {
 export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
+  const proxyUrl = url.searchParams.get('proxy_url') || '';
   const rawQuery = url.searchParams.get('q') || '';
 
   const corsHeaders = {
@@ -444,6 +445,37 @@ export async function onRequest(context) {
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Proxy seguro para descargar imagen externa sin bloqueo CORS al comprimir a WebP en el navegador
+  if (proxyUrl && /^https?:\/\//i.test(proxyUrl)) {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 8000);
+      const imgRes = await fetch(proxyUrl, {
+        headers: {
+          'User-Agent': UA,
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(t);
+      if (!imgRes.ok) {
+        return new Response(JSON.stringify({ ok: false, error: `HTTP ${imgRes.status}` }), { status: 502, headers: corsHeaders });
+      }
+      const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+      const buf = await imgRes.arrayBuffer();
+      return new Response(buf, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400'
+        }
+      });
+    } catch (err) {
+      return new Response(JSON.stringify({ ok: false, error: err.message || 'Proxy error' }), { status: 502, headers: corsHeaders });
+    }
   }
 
   if (!rawQuery.trim()) {

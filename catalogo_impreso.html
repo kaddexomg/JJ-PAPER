@@ -3,2043 +3,2047 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Catálogo Comercial Tipo Libro (QR & Dúplex) | JJ Paper</title>
-<meta name="description" content="Catálogo comercial mayorista de JJ Paper diseñado para impresión doble cara tipo cuaderno/libro con alineación exacta Frente/Reverso y códigos QR.">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="JJ Paper">
-<meta property="og:title" content="Catálogo Comercial Tipo Libro (QR & Dúplex) | JJ Paper">
-<meta property="og:description" content="Catálogo mayorista con fotos HD, códigos QR e imposición exacta Frente y Reverso.">
-<meta property="og:image" content="assets/img/logo.svg">
+<title>Catálogo Libro Impreso QR (Por Tandas y A Medida) | Corporación JJ Paper C.A.</title>
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
-<meta name="theme-color" content="#0F4C3A">
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="assets/vendor/qrcode.min.js"></script>
 <style>
-:root {
-  --jj-emerald-dark: #0A3628;
-  --jj-emerald: #0F4C3A;
-  --jj-emerald-mid: #16604A;
-  --jj-emerald-soft: #E8F3EE;
-  --jj-gold: #C9A24B;
-  --jj-gold-dark: #9E7822;
-  --jj-gold-soft: #FDF8EC;
-  --jj-ink: #0F172A;
-  --jj-slate: #475569;
-  --jj-border: #CBD5E1;
-  --jj-bg: #DCE5E0;
-}
+  :root {
+    --ink: #0f172a;
+    --ink-2: #1e293b;
+    --slate: #475569;
+    --muted: #64748b;
+    --line: #cbd5e1;
+    --line-soft: #e2e8f0;
+    --surface: #f8fafc;
+    --brand: #065f46;
+    --brand-dark: #064e3b;
+    --brand-light: #ecfdf5;
+    --brand-border: #a7f3d0;
+    --accent: #d97706;
+    --gold: #f59e0b;
+    --sheet-w: 215.9mm;
+    --sheet-h: 279.4mm;
+    --spine-pad: 22mm;   /* zona libre del lomo: huecos (centro a 11mm) + 5mm de tolerancia al voltear */
+    --outer-pad: 8mm;
+    --top-pad: 8mm;
+    --bot-pad: 8mm;
+  }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
-  color: var(--jj-ink);
-  background: var(--jj-bg);
-  padding: 16px 12px 60px;
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
-}
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    background: #1e293b;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    min-height: 100vh;
+  }
 
-/* ==========================================================================
-   BARRA DE CONTROL & ESTUDIO DÚPLEX (Solo en pantalla)
-   ========================================================================== */
-.studio-header {
-  max-width: 1240px;
-  margin: 0 auto 16px;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 8px 30px rgba(10, 54, 40, 0.10);
-  border: 1px solid #c8d8d0;
-  overflow: hidden;
-}
+  /* =========================================================
+     BARRA DE CONTROL SUPERIOR (NO SE IMPRIME)
+     ========================================================= */
+  .studio-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  }
+  .studio-row-main {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .studio-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .studio-brand img {
+    width: 36px;
+    height: 36px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .studio-brand h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 16.5px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: #fff;
+  }
+  .studio-brand p {
+    font-size: 11px;
+    color: #34d399;
+    font-weight: 600;
+  }
 
-.studio-top-row {
-  background: linear-gradient(135deg, var(--jj-emerald-dark) 0%, var(--jj-emerald-mid) 100%);
-  color: #ffffff;
-  padding: 12px 20px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
+  .studio-controls {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  .ctrl-group label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ctrl-select, .ctrl-input {
+    background: #0f172a;
+    color: #fff;
+    border: 1px solid #334155;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-family: inherit;
+    font-weight: 600;
+    outline: none;
+  }
+  .ctrl-input { width: 135px; }
+  .ctrl-select:focus, .ctrl-input:focus { border-color: #10b981; }
 
-.studio-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.studio-brand h2 {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.2px;
-}
-.studio-brand p {
-  font-size: 11.5px;
-  color: #cbe3d8;
-  font-weight: 500;
-}
+  .btn-ui {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 11px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-ui-dark { background: #334155; color: #f8fafc; border-color: #475569; }
+  .btn-ui-dark:hover { background: #475569; }
+  .btn-ui-dark.active { background: #059669; color: #fff; border-color: #34d399; }
+  .btn-ui-custom { background: #1e3a8a; color: #eff6ff; border-color: #3b82f6; }
+  .btn-ui-custom:hover { background: #1d4ed8; }
+  .btn-ui-step1 { background: #2563eb; color: #fff; box-shadow: 0 2px 10px rgba(37,99,235,0.35); }
+  .btn-ui-step1:hover { background: #1d4ed8; }
+  .btn-ui-step2 { background: #d97706; color: #fff; box-shadow: 0 2px 10px rgba(217,119,6,0.35); }
+  .btn-ui-step2:hover { background: #b45309; }
+  .btn-ui-all { background: #10b981; color: #052e16; font-weight: 800; }
+  .btn-ui-all:hover { background: #059669; color: #fff; }
 
-.studio-mode-pills {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.mode-pill {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  border-radius: 8px;
-  padding: 7px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all .18s;
-  font-family: inherit;
-}
-.mode-pill:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-.mode-pill.active {
-  background: var(--jj-gold);
-  color: #111;
-  border-color: var(--jj-gold);
-  box-shadow: 0 2px 10px rgba(201, 162, 75, 0.4);
-}
+  /* Sub-barra de Impresión por Tandas (Batch Duplex Bar) */
+  .studio-row-duplex {
+    background: #090e1a;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 8px 18px;
+  }
+  .duplex-inner {
+    max-width: 1480px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .duplex-steps {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .duplex-badge {
+    font-size: 11px;
+    font-weight: 800;
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.14);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stats-pill {
+    font-size: 11.5px;
+    color: #cbd5e1;
+    background: rgba(255,255,255,0.06);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .stats-pill strong { color: #34d399; }
 
-.studio-controls-row {
-  padding: 12px 20px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  background: #f8fbf9;
-  border-bottom: 1px solid #e2ece7;
-}
+  /* =========================================================
+     MODAL GUÍA DE IMPRESIÓN Y MODAL SELECTOR A MEDIDA
+     ========================================================= */
+  .guide-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .guide-overlay.open { display: flex; }
+  .guide-card {
+    background: #fff;
+    color: var(--ink);
+    max-width: 860px;
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.45);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .guide-head {
+    background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%);
+    color: #fff;
+    padding: 16px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .guide-head h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+  }
+  .guide-body {
+    padding: 20px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .guide-step {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 15px;
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 42px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .guide-num {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 800;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .guide-step h3 { font-size: 14px; font-weight: 800; margin-bottom: 4px; color: var(--ink); }
+  .guide-step p { font-size: 12.5px; color: var(--slate); line-height: 1.5; }
+  .guide-diagram {
+    margin-top: 8px;
+    background: #fff;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #0f172a;
+    line-height: 1.45;
+  }
 
-.ctrl-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
+  /* Selector de Categorías y Productos Específicos */
+  .custom-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
+    max-height: 210px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+  .custom-cat-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 9px;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .custom-cat-item:hover { border-color: var(--brand); }
+  .custom-prod-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 6px;
+    background: #f8fafc;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
 
-.ctrl-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--jj-emerald);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
+  /* =========================================================
+     CONTENEDOR DE PÁGINAS Y MODO LIBRO (FLIPBOOK)
+     ========================================================= */
+  .book-stage {
+    padding: 24px 16px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
 
-.tb-input, .tb-select {
-  border: 1.5px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 12.5px;
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--jj-ink);
-  background: #fff;
-}
-.tb-input:focus, .tb-select:focus {
-  outline: none;
-  border-color: var(--jj-emerald);
-}
+  .book-stage.flipbook-mode {
+    padding-top: 18px;
+  }
+  .flipbook-nav {
+    display: none;
+    align-items: center;
+    gap: 14px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 18px;
+    border-radius: 999px;
+    color: #fff;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  }
+  .book-stage.flipbook-mode .flipbook-nav {
+    display: inline-flex;
+  }
+  .book-spread {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+  }
+  .book-stage.flipbook-mode .book-spread {
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0;
+    overflow-x: auto;
+    padding: 8px;
+  }
 
-/* Barra Especial de Impresión Dúplex (Paso 1 Frente / Paso 2 Reverso) */
-.duplex-bar {
-  padding: 12px 20px;
-  background: #fffdf7;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
+  /* =========================================================
+     HOJA CARTA EXACTA (215.9mm x 279.4mm) CON LOMO SIMÉTRICO
+     ========================================================= */
+  .catalog-sheet {
+    width: var(--sheet-w);
+    height: var(--sheet-h);
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    page-break-after: always;
+    break-after: page;
+    flex-shrink: 0;
+  }
 
-.duplex-steps {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
+  /* IMPARES (Frente de la hoja): Lomo de perforación/anillado a la IZQUIERDA (15mm) */
+  .catalog-sheet.odd-sheet {
+    padding: var(--top-pad) var(--outer-pad) var(--bot-pad) var(--spine-pad);
+    border-radius: 2px 6px 6px 2px;
+  }
+  /* PARES (Reverso de la hoja): Lomo de perforación/anillado a la DERECHA (15mm) */
+  .catalog-sheet.even-sheet {
+    padding: var(--top-pad) var(--spine-pad) var(--bot-pad) var(--outer-pad);
+    border-radius: 6px 2px 2px 6px;
+  }
 
-.tb-btn {
-  background: var(--jj-emerald);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all .18s;
-  text-decoration: none;
-  font-family: inherit;
-}
-.tb-btn:hover {
-  background: var(--jj-emerald-dark);
-  transform: translateY(-1px);
-}
-.tb-btn.gold {
-  background: var(--jj-gold);
-  color: #111;
-}
-.tb-btn.gold:hover {
-  background: #b58d35;
-}
-.tb-btn.step-front {
-  background: #0284c7;
-}
-.tb-btn.step-front:hover {
-  background: #0369a1;
-}
-.tb-btn.step-back {
-  background: #7c3aed;
-}
-.tb-btn.step-back:hover {
-  background: #6d28d9;
-}
-.tb-btn.outline {
-  background: #ffffff;
-  color: var(--jj-emerald);
-  border: 1.5px solid var(--jj-emerald);
-}
-.tb-btn.outline:hover {
-  background: var(--jj-emerald-soft);
-}
+  /* =========================================================
+     LOMO DE ENCUADERNACIÓN CON HUECOS EN POSICIÓN FÍSICA EXACTA
+     Los huecos se ubican en milímetros reales de la hoja Carta,
+     así coinciden con la perforadora / carpeta de anillos.
+     En el reverso (página par) el lomo queda a la DERECHA porque
+     es el mismo borde físico de la hoja visto por detrás.
+     ========================================================= */
+  .spine-gutter {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20mm;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .catalog-sheet.odd-sheet .spine-gutter { left: 0; }
+  .catalog-sheet.even-sheet .spine-gutter { right: 0; }
+  /* Línea guía del límite de la zona de perforación */
+  .spine-line {
+    position: absolute;
+    top: 6mm;
+    bottom: 6mm;
+    width: 0;
+    border-left: 0.6px dashed #cbd5e1;
+  }
+  .catalog-sheet.odd-sheet .spine-line { left: 18.5mm; }
+  .catalog-sheet.even-sheet .spine-line { right: 18.5mm; }
+  .punch-hole {
+    position: absolute;
+    width: var(--hole-d, 6.5mm);
+    height: var(--hole-d, 6.5mm);
+    border-radius: 50%;
+    border: 0.8px solid #94a3b8;
+    background: #fff;
+    transform: translate(-50%, -50%);
+  }
+  .punch-hole::after {
+    /* cruz de centrado para perforar exacto */
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 2mm; height: 2mm;
+    transform: translate(-50%, -50%);
+    background:
+      linear-gradient(#94a3b8, #94a3b8) center/100% 0.4px no-repeat,
+      linear-gradient(#94a3b8, #94a3b8) center/0.4px 100% no-repeat;
+  }
+  .punch-hole.spiral {
+    --hole-d: 3.6mm;
+    border-radius: 1mm;
+    width: 3.6mm; height: 4.6mm;
+  }
+  .punch-hole.spiral::after { display: none; }
+  .catalog-sheet.odd-sheet .punch-hole { left: var(--hole-x, 11mm); }
+  .catalog-sheet.even-sheet .punch-hole { left: calc(20mm - var(--hole-x, 11mm)); }
+  /* Marca de borde del lomo (flecha) para saber qué borde va a la perforadora */
+  .spine-tag {
+    position: absolute;
+    top: 50%;
+    font-size: 5.5pt;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .catalog-sheet.odd-sheet .spine-tag { left: 16.4mm; transform: translate(-50%, -50%) rotate(-90deg); }
+  .catalog-sheet.even-sheet .spine-tag { right: 16.4mm; transform: translate(50%, -50%) rotate(90deg); }
+  body.hide-holes .punch-hole,
+  body.hide-holes .spine-line,
+  body.hide-holes .spine-tag { display: none !important; }
 
-.stats-badge {
-  background: var(--jj-emerald-soft);
-  color: var(--jj-emerald-dark);
-  border: 1px solid #b7d7c8;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 800;
-}
+  /* Cabecera de cada página */
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 2.2mm;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 2.5mm;
+    min-height: 11mm;
+    flex-shrink: 0;
+  }
+  .catalog-sheet.even-sheet .sheet-header {
+    flex-direction: row-reverse;
+  }
+  .sh-brand {
+    display: flex;
+    align-items: center;
+    gap: 2.2mm;
+  }
+  .sh-brand img {
+    width: 7.5mm;
+    height: 7.5mm;
+  }
+  .sh-brand-title {
+    font-family: 'Fraunces', serif;
+    font-size: 10.5pt;
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .sh-brand-sub {
+    font-size: 6.5pt;
+    color: var(--brand);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 0.6mm;
+  }
+  .sh-cat-pill {
+    background: var(--ink);
+    color: #fff;
+    padding: 1.3mm 3.5mm;
+    border-radius: 4px;
+    font-size: 8pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 1.5mm;
+  }
 
-/* ==========================================================================
-   MODO NAVEGACIÓN DE CUADERNO INTERACTIVO (Pasar Páginas en Pantalla)
-   ========================================================================== */
-.book-navigator-bar {
-  max-width: 1240px;
-  margin: 0 auto 14px;
-  background: var(--jj-emerald-dark);
-  color: #fff;
-  padding: 10px 18px;
-  border-radius: 12px;
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.14);
-}
-body.view-flipbook .book-navigator-bar {
-  display: flex;
-}
+  /* Portada / Membrete en Página 1 */
+  .cover-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+    color: #fff;
+    border-radius: 8px;
+    padding: 4.2mm 5mm;
+    margin-bottom: 2.5mm;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4mm;
+    align-items: center;
+    border-bottom: 3px solid var(--gold);
+    flex-shrink: 0;
+  }
+  .cover-banner h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 14pt;
+    font-weight: 900;
+    letter-spacing: -0.3px;
+    color: #fff;
+    margin-bottom: 1mm;
+  }
+  .cover-banner p {
+    font-size: 7.5pt;
+    color: #d1fae5;
+    line-height: 1.35;
+    max-width: 132mm;
+  }
+  .cover-meta-pills {
+    display: flex;
+    gap: 2mm;
+    margin-top: 2mm;
+    flex-wrap: wrap;
+  }
+  .cover-pill {
+    background: rgba(255,255,255,0.13);
+    border: 1px solid rgba(255,255,255,0.22);
+    color: #fff;
+    font-size: 6.5pt;
+    font-weight: 700;
+    padding: 0.8mm 2.2mm;
+    border-radius: 4px;
+  }
+  .cover-qr-box {
+    background: #fff;
+    color: var(--ink);
+    padding: 2mm;
+    border-radius: 6px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8mm;
+  }
+  .cover-qr-box span {
+    font-size: 5.5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--brand-dark);
+  }
 
-.nav-spread-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #f8fafc;
-  text-align: center;
-}
+  /* Índice Rápido de Categorías en Página 1 */
+  .toc-strip {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2mm 3mm;
+    margin-bottom: 2.5mm;
+    flex-shrink: 0;
+  }
+  .toc-title {
+    font-size: 6.5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--slate);
+    letter-spacing: 0.5px;
+    margin-bottom: 1.2mm;
+    display: flex;
+    justify-content: space-between;
+  }
+  .toc-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2mm 2.2mm;
+  }
+  .toc-item {
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    padding: 0.5mm 1.8mm;
+    border-radius: 3px;
+  }
+  .toc-item b {
+    color: var(--brand);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 1mm;
+  }
 
-.pages-stage {
-  max-width: 1240px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-}
+  /* Cuerpo de la página */
+  .sheet-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-/* En Modo Cuaderno Interactivo mostramos 2 páginas abiertas lado a lado */
-body.view-flipbook .pages-stage {
-  flex-direction: row;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 0;
-  perspective: 1500px;
-  padding: 10px 0 30px;
-}
+  /* GRILLA DE TARJETAS CON FILAS FIJAS (CERO PÁGINAS DISPAREJAS) */
+  .sheet-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.6mm;
+    align-content: stretch;
+    min-height: 0;
+  }
+  .sheet-grid.rows-4 { grid-template-rows: repeat(4, minmax(0, 1fr)); }
+  .sheet-grid.rows-3 { grid-template-rows: repeat(3, minmax(0, 1fr)); }
+  .sheet-grid.rows-2 { grid-template-rows: repeat(2, minmax(0, 1fr)); }
 
-/* ==========================================================================
-   PLIEGO FÍSICO HOJA CARTA (215.9mm x 279.4mm) — COINCIDENCIA MILIMÉTRICA
-   ========================================================================== */
-.catalog-page {
-  width: 215.9mm;
-  height: 279.4mm;
-  background: #ffffff;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.14);
-  border-radius: 4px;
-  flex: 0 0 auto;
-  /* Márgenes simétricos por defecto: 10mm arriba/abajo, y margen de lomo espejo */
-  padding-top: 9mm;
-  padding-bottom: 8mm;
-}
+  /* TARJETA DE PRODUCTO CON FOTO */
+  .p-card {
+    border: 1.2px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 2.2mm 2.6mm;
+    display: grid;
+    grid-template-columns: 31mm 1fr 20mm;
+    gap: 2.4mm;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+  }
+  .sheet-grid.density-6 .p-card {
+    grid-template-columns: 38mm 1fr 22mm;
+    padding: 2.8mm 3mm;
+  }
 
-/* MODO 1: LOMO ESPEJO PARA CUADERNO / ANILLADO (Frente lomo izq, Reverso lomo der)
-   Al voltear la hoja horizontalmente en la impresora, el margen de 15mm cae en el MISMO borde físico */
-body.gutter-mirror .catalog-page.page-odd {
-  padding-left: 15mm;
-  padding-right: 9mm;
-}
-body.gutter-mirror .catalog-page.page-even {
-  padding-left: 9mm;
-  padding-right: 15mm;
-}
+  .p-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1.2mm;
+    background: var(--brand);
+  }
 
-/* MODO 2: SIMÉTRICO PURO (12mm Izq = 12mm Der, idéntico a etiqueta/generate_labels.py) */
-body.gutter-symmetric .catalog-page.page-odd,
-body.gutter-symmetric .catalog-page.page-even {
-  padding-left: 12mm;
-  padding-right: 12mm;
-}
+  /* Caja de Fotografía Nítida y Luminosa */
+  .p-photo-box {
+    width: 100%;
+    height: 100%;
+    min-height: 28mm;
+    max-height: 48mm;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.2mm;
+    overflow: hidden;
+    position: relative;
+  }
+  .p-photo-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: contrast(1.05) brightness(1.02) saturate(1.06);
+  }
+  .p-photo-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #f8fafc 0%, #ecfdf5 100%);
+    padding: 2mm;
+  }
+  .p-photo-fallback .fb-emoji { font-size: 18pt; line-height: 1; margin-bottom: 1mm; }
+  .p-photo-fallback .fb-cat {
+    font-size: 5.5pt;
+    font-weight: 800;
+    color: var(--brand-dark);
+    text-transform: uppercase;
+  }
 
-/* Indicador visual de Lomo / Perforación (solo sutil para guiar encuadernado) */
-.spine-guide {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6mm;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0.35;
-}
-body.gutter-symmetric .spine-guide {
-  display: none !important;
-}
-.catalog-page.page-odd .spine-guide {
-  left: 3mm;
-  border-right: 0.3mm dashed #94a3b8;
-}
-.catalog-page.page-even .spine-guide {
-  right: 3mm;
-  border-left: 0.3mm dashed #94a3b8;
-}
-.punch-hole {
-  width: 3.2mm;
-  height: 3.2mm;
-  border-radius: 50%;
-  border: 0.35mm solid #64748b;
-  background: #f8fafc;
-}
+  /* Botón flotante para cambiar/buscar foto con IA directamente desde la vista previa */
+  .btn-card-ai {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(15, 23, 42, 0.84);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .p-card:hover .btn-card-ai,
+  .dir-row:hover .btn-row-ai {
+    opacity: 1;
+  }
 
-/* Etiqueta flotante de Hoja y Cara en pantalla (no se imprime) */
-.screen-sheet-badge {
-  position: absolute;
-  top: 2.2mm;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #0f172a;
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 800;
-  padding: 2px 10px;
-  border-radius: 99px;
-  letter-spacing: 0.4px;
-  z-index: 20;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  white-space: nowrap;
-}
-.catalog-page.page-odd .screen-sheet-badge {
-  background: #0284c7;
-}
-.catalog-page.page-even .screen-sheet-badge {
-  background: #7c3aed;
-}
+  /* Centro de información del producto */
+  .p-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    min-width: 0;
+    padding: 0.3mm 0;
+  }
+  .p-cat-tag {
+    font-size: 6pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--brand);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .p-title {
+    font-size: 8.2pt;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.18;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0.4mm 0;
+  }
+  .p-desc-short {
+    font-size: 6.2pt;
+    color: var(--slate);
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .p-variants {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8mm;
+    margin: 0.5mm 0;
+    max-height: 8.5mm;
+    overflow: hidden;
+  }
+  .p-var-chip {
+    font-size: 5.8pt;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    padding: 0.3mm 1.3mm;
+    border-radius: 2.5px;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-/* Efecto visual de Libro Abierto cuando está en modo Flipbook en pantalla */
-body.view-flipbook .catalog-page {
-  transform-origin: center top;
-  zoom: 0.72;
-}
-body.view-flipbook .catalog-page.hidden-in-flipbook {
-  display: none !important;
-}
-body.view-flipbook .catalog-page.page-even {
-  border-radius: 6px 0 0 6px;
-  box-shadow: -8px 10px 30px rgba(0,0,0,0.18), inset -14px 0 22px -10px rgba(0,0,0,0.22);
-  border-right: 1px solid #94a3b8;
-}
-body.view-flipbook .catalog-page.page-odd {
-  border-radius: 0 6px 6px 0;
-  box-shadow: 8px 10px 30px rgba(0,0,0,0.18), inset 14px 0 22px -10px rgba(0,0,0,0.22);
-}
+  .p-bottom {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5mm;
+    margin-top: auto;
+    padding-top: 0.8mm;
+    border-top: 1px dashed #e2e8f0;
+  }
+  .p-unit-badge {
+    font-size: 6pt;
+    font-weight: 700;
+    color: var(--slate);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.3mm 1.4mm;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .p-price-wrap { text-align: right; line-height: 1; }
+  .p-price-lbl {
+    font-size: 5pt;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    display: block;
+  }
+  .p-price-val {
+    font-family: 'Fraunces', serif;
+    font-size: 10.5pt;
+    font-weight: 900;
+    color: var(--brand-dark);
+  }
+  body.hide-prices .p-price-wrap { display: none !important; }
 
-/* ==========================================================================
-   CABECERA Y PIE DE PÁGINA CORRIDOS (ALTURA EXACTA EN CADA PÁGINA)
-   ========================================================================== */
-.page-running-header {
-  height: 11.5mm;
-  min-height: 11.5mm;
-  max-height: 11.5mm;
-  border-bottom: 0.6mm solid var(--jj-emerald);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 1.8mm;
-  margin-bottom: 3.5mm;
-}
-.catalog-page.page-even .page-running-header {
-  flex-direction: row-reverse;
-}
+  /* Columna QR de la tarjeta */
+  .p-qr-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8mm;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    padding: 1.3mm 1mm;
+    height: 100%;
+  }
+  .p-qr-box {
+    width: 16.5mm;
+    height: 16.5mm;
+    background: #fff;
+    padding: 0.7mm;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .p-qr-box canvas, .p-qr-box img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .p-qr-cta {
+    font-size: 5pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-align: center;
+    line-height: 1.05;
+  }
 
-.rh-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.rh-brand img {
-  width: 7.5mm;
-  height: 7.5mm;
-  object-fit: contain;
-}
-.rh-brand-txt {
-  font-size: 11pt;
-  font-weight: 900;
-  color: var(--jj-emerald-dark);
-  letter-spacing: -0.3px;
-}
-.rh-brand-txt em {
-  color: var(--jj-gold-dark);
-  font-style: normal;
-}
+  /* Tarjeta de Relleno Simétrico (Ficha de Notas / Pedido Rápido para que ninguna hoja quede dispareja) */
+  .p-card.filler-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f0fdf4 100%);
+    border: 1.2px dashed #94a3b8;
+    grid-template-columns: 1fr 20mm;
+  }
+  .p-card.filler-card::before { background: #64748b; }
 
-.rh-category-pill {
-  background: var(--jj-emerald);
-  color: #ffffff;
-  font-size: 8.5pt;
-  font-weight: 800;
-  padding: 1.4mm 4mm;
-  border-radius: 1.5mm;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  border-left: 1.2mm solid var(--jj-gold);
-}
+  /* =========================================================
+     MODO LISTA COMPACTA CON DESCRIPCIÓN COMERCIAL (SIN FOTO)
+     ========================================================= */
+  .sheet-directory {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(14, minmax(0, 1fr));
+    column-gap: 3.5mm;
+    row-gap: 1.2mm;
+    align-content: stretch;
+  }
+  .dir-row {
+    display: grid;
+    grid-template-columns: 1fr auto 9.5mm;
+    gap: 1.8mm;
+    align-items: center;
+    padding: 1mm 1.8mm;
+    border: 1px solid #e2e8f0;
+    border-left: 2.5px solid var(--brand);
+    border-radius: 4px;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .dir-row:nth-child(even) { background: #f8fafc; }
+  .dir-row.dir-filler {
+    border-style: dashed;
+    border-left-color: #94a3b8;
+    background: #fcfcfd;
+  }
+  .dir-main { min-width: 0; }
+  .dir-name-line {
+    display: flex;
+    align-items: center;
+    gap: 1.2mm;
+  }
+  .dir-name {
+    font-size: 7.1pt;
+    font-weight: 800;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dir-desc {
+    font-size: 5.9pt;
+    color: #334155;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.2mm;
+  }
+  .dir-meta {
+    font-size: 5.5pt;
+    color: var(--muted);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dir-price {
+    font-family: 'Fraunces', serif;
+    font-size: 8.2pt;
+    font-weight: 900;
+    color: var(--brand-dark);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .dir-unit {
+    display: block;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 5pt;
+    color: var(--slate);
+    font-weight: 700;
+  }
+  body.hide-prices .dir-price { display: none !important; }
+  .dir-qr {
+    width: 9mm;
+    height: 9mm;
+    background: #fff;
+    padding: 0.3mm;
+    border: 1px solid #cbd5e1;
+    border-radius: 2px;
+  }
+  .dir-qr canvas, .dir-qr img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .btn-row-ai {
+    position: absolute;
+    right: 11mm;
+    top: 2px;
+    background: #065f46;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 8.5px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
 
-.page-running-footer {
-  height: 7.5mm;
-  min-height: 7.5mm;
-  max-height: 7.5mm;
-  border-top: 0.35mm solid #cbd5e1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 1.5mm;
-  margin-top: 3mm;
-  font-size: 7.5pt;
-  color: var(--jj-slate);
-  font-weight: 600;
-}
-.catalog-page.page-even .page-running-footer {
-  flex-direction: row-reverse;
-}
+  /* Pie de cada página */
+  .sheet-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1.8mm;
+    border-top: 1.5px solid var(--ink);
+    margin-top: 2mm;
+    font-size: 6.8pt;
+    color: var(--slate);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .catalog-sheet.even-sheet .sheet-footer {
+    flex-direction: row-reverse;
+  }
+  .sf-folio {
+    background: var(--ink);
+    color: #fff;
+    padding: 0.8mm 2.8mm;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 7pt;
+  }
 
-.rf-page-num {
-  background: var(--jj-emerald-dark);
-  color: #fff;
-  font-weight: 800;
-  font-size: 8pt;
-  padding: 0.8mm 3mm;
-  border-radius: 1mm;
-}
-
-/* ==========================================================================
-   PORTADA EJECUTIVA + ÍNDICE DEL LIBRO (PÁGINA 1)
-   ========================================================================== */
-.cover-hero {
-  background: linear-gradient(135deg, var(--jj-emerald-dark) 0%, var(--jj-emerald) 65%, #196b52 100%);
-  color: #ffffff;
-  border-radius: 4mm;
-  padding: 7mm 8mm;
-  border-bottom: 1.6mm solid var(--jj-gold);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6mm;
-  margin-bottom: 4.5mm;
-}
-.cover-hero-left {
-  flex: 1;
-}
-.cover-badge {
-  display: inline-block;
-  background: var(--jj-gold);
-  color: #111;
-  font-size: 7.5pt;
-  font-weight: 900;
-  padding: 1mm 3mm;
-  border-radius: 1mm;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 2.5mm;
-}
-.cover-title {
-  font-size: 21pt;
-  font-weight: 900;
-  line-height: 1.08;
-  letter-spacing: -0.5px;
-  margin-bottom: 2mm;
-}
-.cover-title span {
-  color: var(--jj-gold);
-}
-.cover-sub {
-  font-size: 9pt;
-  color: #d1fae5;
-  font-weight: 500;
-  line-height: 1.35;
-}
-.cover-qr-card {
-  background: #ffffff;
-  color: #0f172a;
-  padding: 3mm;
-  border-radius: 3mm;
-  text-align: center;
-  width: 34mm;
-  flex: 0 0 34mm;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-}
-.cover-qr-card .qr-master-box {
-  width: 26mm;
-  height: 26mm;
-  margin: 0 auto 1.2mm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.cover-qr-card .qr-master-box img,
-.cover-qr-card .qr-master-box canvas {
-  width: 26mm !important;
-  height: 26mm !important;
-}
-.cover-qr-card small {
-  display: block;
-  font-size: 6.2pt;
-  font-weight: 800;
-  color: var(--jj-emerald-dark);
-  text-transform: uppercase;
-  line-height: 1.15;
-}
-
-.cover-how-it-works {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3.5mm;
-  margin-bottom: 4.5mm;
-}
-.how-step {
-  background: var(--jj-emerald-soft);
-  border: 0.35mm solid #b7d7c8;
-  border-left: 1.2mm solid var(--jj-emerald);
-  border-radius: 2.2mm;
-  padding: 2.8mm 3.2mm;
-}
-.how-step strong {
-  display: block;
-  font-size: 8pt;
-  font-weight: 800;
-  color: var(--jj-emerald-dark);
-  margin-bottom: 0.8mm;
-}
-.how-step p {
-  font-size: 7pt;
-  color: #334155;
-  line-height: 1.3;
-  font-weight: 500;
-}
-
-.cover-index-box {
-  background: #ffffff;
-  border: 0.45mm solid #cbd5e1;
-  border-radius: 3mm;
-  padding: 4mm 5mm;
-  margin-bottom: 4.5mm;
-}
-.cover-index-title {
-  font-size: 9.5pt;
-  font-weight: 900;
-  color: var(--jj-emerald-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  border-bottom: 0.4mm solid #e2e8f0;
-  padding-bottom: 1.8mm;
-  margin-bottom: 2.8mm;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.toc-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  column-gap: 5mm;
-  row-gap: 1.4mm;
-}
-.toc-item {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-size: 7.2pt;
-  color: #1e293b;
-  cursor: pointer;
-  padding: 0.5mm 0;
-  border-bottom: 0.25mm dotted #cbd5e1;
-}
-.toc-item:hover {
-  color: var(--jj-emerald);
-  font-weight: 700;
-}
-.toc-cat-name {
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 38mm;
-}
-.toc-page-num {
-  font-weight: 900;
-  color: var(--jj-emerald-dark);
-  background: #f1f5f9;
-  padding: 0.2mm 1.4mm;
-  border-radius: 0.8mm;
-  font-size: 6.8pt;
-}
-
-/* ==========================================================================
-   GRILLA MATEMÁTICA DE PRODUCTOS POR PÁGINA (COINCIDENCIA FRENTE / REVERSO)
-   ========================================================================== */
-.sheet-grid {
-  flex: 1 1 auto;
-  display: grid;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-/* Layout 2x3 = 6 Mega-Fichas por página (Fotos Gigantes de Exhibición) */
-.sheet-grid.grid-6 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 3.5mm;
-}
-
-/* Layout 2x4 = 8 Fichas Grandes por página (Estándar Editorial Cuaderno) */
-.sheet-grid.grid-8 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  gap: 2.8mm;
-}
-
-/* Layout 3x4 = 12 Fichas Verticales por página (Compacto Fotográfico) */
-.sheet-grid.grid-12 {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  gap: 2.5mm;
-}
-
-/* ==========================================================================
-   DISEÑO DE FICHA DE PRODUCTO DE ALTO IMPACTO (FOTO HD + COLOR + QR)
-   ========================================================================== */
-.book-card {
-  background: #ffffff;
-  border: 0.45mm solid #94a3b8;
-  border-radius: 2.5mm;
-  display: flex;
-  overflow: hidden;
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
-
-/* En 6 y 8 por página: Ficha Horizontal de Gran Ventana Fotográfica */
-.sheet-grid.grid-6 .book-card,
-.sheet-grid.grid-8 .book-card {
-  flex-direction: row;
-  align-items: stretch;
-}
-
-/* Ventana Fotográfica Mejorada (Fondo Puro, Alto Contraste y Nitidez) */
-.bc-photo-wrap {
-  background: #ffffff;
-  border-right: 0.35mm solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2mm;
-  position: relative;
-  overflow: hidden;
-}
-.sheet-grid.grid-6 .bc-photo-wrap {
-  width: 40mm;
-  flex: 0 0 40mm;
-}
-.sheet-grid.grid-8 .bc-photo-wrap {
-  width: 34mm;
-  flex: 0 0 34mm;
-}
-
-.bc-photo-wrap img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  /* Realce óptico para impresión y pantalla: colores vivos y bordes definidos */
-  filter: contrast(1.06) saturate(1.10) brightness(1.02);
-  display: block;
-}
-
-.bc-photo-badge {
-  position: absolute;
-  top: 1.2mm;
-  left: 1.2mm;
-  background: var(--jj-emerald-dark);
-  color: #fff;
-  font-size: 5.5pt;
-  font-weight: 800;
-  padding: 0.4mm 1.4mm;
-  border-radius: 0.8mm;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-}
-
-/* Cuerpo Central de la Ficha */
-.bc-info {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 2.2mm 2.6mm;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-}
-
-.bc-cat-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5mm;
-  margin-bottom: 0.8mm;
-}
-.bc-cat-tag {
-  font-size: 6.2pt;
-  font-weight: 800;
-  color: var(--jj-emerald);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bc-title {
-  font-size: 8.6pt;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-bottom: 1.2mm;
-}
-.sheet-grid.grid-6 .bc-title {
-  font-size: 9.5pt;
-  -webkit-line-clamp: 3;
-}
-
-.bc-meta-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.2mm;
-  margin-bottom: 1.2mm;
-}
-.bc-pack-pill {
-  background: var(--jj-gold-soft);
-  border: 0.3mm solid #e9c46a;
-  color: #78560c;
-  font-size: 6.4pt;
-  font-weight: 800;
-  padding: 0.4mm 1.8mm;
-  border-radius: 1mm;
-}
-.bc-brand-pill {
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 6.2pt;
-  font-weight: 700;
-  padding: 0.4mm 1.6mm;
-  border-radius: 1mm;
-  max-width: 28mm;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bc-price-box {
-  display: flex;
-  align-items: baseline;
-  gap: 1.8mm;
-  padding-top: 1mm;
-  border-top: 0.25mm solid #e2e8f0;
-}
-.bc-price-usd {
-  font-size: 11.5pt;
-  font-weight: 900;
-  color: var(--jj-emerald-dark);
-  letter-spacing: -0.3px;
-}
-.sheet-grid.grid-6 .bc-price-usd {
-  font-size: 13pt;
-}
-.bc-price-bs {
-  font-size: 7pt;
-  font-weight: 700;
-  color: #64748b;
-}
-
-/* Modo Sin Precios (Catálogo Permanente Solo QR) */
-body.hide-prices .bc-price-usd,
-body.hide-prices .bc-price-bs {
-  display: none !important;
-}
-.bc-ask-price-label {
-  display: none;
-  font-size: 7pt;
-  font-weight: 800;
-  color: var(--jj-emerald);
-}
-body.hide-prices .bc-ask-price-label {
-  display: inline-block;
-}
-
-/* En impresión por defecto ocultamos Bs para que el catálogo impreso no caduque con la tasa diaria */
-body.hide-bs .bc-price-bs {
-  display: none !important;
-}
-
-/* Columna Derecha de Código QR de Alta Precisión */
-.bc-qr-col {
-  width: 21.5mm;
-  flex: 0 0 21.5mm;
-  background: #ffffff;
-  border-left: 0.35mm dashed #94a3b8;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5mm;
-  cursor: pointer;
-  text-align: center;
-}
-.sheet-grid.grid-6 .bc-qr-col {
-  width: 24mm;
-  flex: 0 0 24mm;
-}
-.bc-qr-col .qr-target {
-  width: 17.5mm;
-  height: 17.5mm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sheet-grid.grid-6 .bc-qr-col .qr-target {
-  width: 19.5mm;
-  height: 19.5mm;
-}
-.bc-qr-col .qr-target canvas,
-.bc-qr-col .qr-target img {
-  width: 100% !important;
-  height: 100% !important;
-  image-rendering: -webkit-optimize-contrast !important;
-  image-rendering: crisp-edges !important;
-  image-rendering: pixelated !important;
-  display: block;
-}
-.bc-qr-caption {
-  font-size: 5.4pt;
-  font-weight: 900;
-  color: #0f172a;
-  margin-top: 1mm;
-  line-height: 1.05;
-  text-transform: uppercase;
-  background: #f1f5f9;
-  padding: 0.4mm 1mm;
-  border-radius: 0.6mm;
-  width: 100%;
-}
-
-/* Ajuste para 12 Fichas Verticales por página (3x4) */
-.sheet-grid.grid-12 .book-card {
-  flex-direction: column;
-}
-.sheet-grid.grid-12 .bc-photo-wrap {
-  width: 100%;
-  height: 25mm;
-  flex: 0 0 25mm;
-  border-right: none;
-  border-bottom: 0.3mm solid #e2e8f0;
-}
-.sheet-grid.grid-12 .bc-info {
-  padding: 1.6mm 2mm;
-}
-.sheet-grid.grid-12 .bc-title {
-  font-size: 7.4pt;
-  -webkit-line-clamp: 2;
-}
-.sheet-grid.grid-12 .bc-price-usd {
-  font-size: 9.5pt;
-}
-.sheet-grid.grid-12 .bc-qr-col {
-  width: 100%;
-  flex: 0 0 auto;
-  border-left: none;
-  border-top: 0.3mm dashed #cbd5e1;
-  flex-direction: row;
-  justify-content: space-between;
-  padding: 1mm 2mm;
-}
-.sheet-grid.grid-12 .bc-qr-col .qr-target {
-  width: 12mm;
-  height: 12mm;
-}
-.sheet-grid.grid-12 .bc-qr-caption {
-  width: auto;
-  margin-top: 0;
-}
-
-/* ==========================================================================
-   ANEXO COMPACTO DE ÍNDICE DE PRECIOS + QR (Para los 967 productos sin foto)
-   ========================================================================== */
-.compact-annex-grid {
-  flex: 1 1 auto;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(12, 1fr);
-  column-gap: 4mm;
-  row-gap: 1.5mm;
-}
-.annex-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2mm;
-  border: 0.3mm solid #cbd5e1;
-  border-radius: 1.5mm;
-  padding: 1mm 2mm;
-  background: #ffffff;
-}
-.annex-info {
-  flex: 1;
-  min-width: 0;
-}
-.annex-cat {
-  font-size: 5.5pt;
-  font-weight: 800;
-  color: var(--jj-emerald);
-  text-transform: uppercase;
-}
-.annex-name {
-  font-size: 7.2pt;
-  font-weight: 800;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.annex-price {
-  font-size: 8.5pt;
-  font-weight: 900;
-  color: var(--jj-emerald-dark);
-  white-space: nowrap;
-}
-body.hide-prices .annex-price {
-  display: none !important;
-}
-.annex-qr {
-  width: 12.5mm;
-  height: 12.5mm;
-  flex: 0 0 12.5mm;
-  cursor: pointer;
-}
-.annex-qr canvas, .annex-qr img {
-  width: 12.5mm !important;
-  height: 12.5mm !important;
-}
-
-/* ==========================================================================
-   MODO BLANCO Y NEGRO LÁSER (ALTA NITIDEZ)
-   ========================================================================== */
-body.print-bw-mode {
-  --jj-emerald-dark: #000000;
-  --jj-emerald: #000000;
-  --jj-emerald-mid: #111111;
-  --jj-emerald-soft: #f1f1f1;
-  --jj-gold: #333333;
-  --jj-gold-dark: #000000;
-  --jj-gold-soft: #eeeeee;
-}
-body.print-bw-mode .bc-photo-wrap img {
-  filter: grayscale(100%) contrast(1.18) brightness(1.03) !important;
-}
-body.print-bw-mode .cover-hero {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border-bottom: 1.6mm solid #555555 !important;
-}
-body.print-bw-mode .cover-badge {
-  background: #ffffff !important;
-  color: #000000 !important;
-}
-
-/* ==========================================================================
-   REGLAS DE IMPRESIÓN (@media print) — FRENTE Y REVERSO PERFECTOS
-   ========================================================================== */
-@media print {
+  /* =========================================================
+     REGLAS DE IMPRESIÓN EXACTA Y FILTRADO POR TANDAS
+     ========================================================= */
   @page {
     size: letter portrait;
-    margin: 0mm !important;
+    margin: 0mm;
   }
-  html, body {
-    background: #ffffff !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 215.9mm !important;
-  }
-  .studio-header,
-  .book-navigator-bar,
-  .screen-sheet-badge,
-  .qr-present-modal,
-  .printer-guide-modal {
-    display: none !important;
-  }
-  .pages-stage {
-    display: block !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .catalog-page {
-    width: 215.9mm !important;
-    height: 279.4mm !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    zoom: 1 !important;
-  }
-  /* Si estaba en modo flipbook en pantalla, al imprimir mostrar todas las páginas que correspondan a la pasada */
-  body.view-flipbook .catalog-page.hidden-in-flipbook {
-    display: flex !important;
-  }
-  /* Filtros de Pasada de Impresión Dúplex Manual */
-  body.print-pass-fronts .catalog-page.page-even {
-    display: none !important;
-  }
-  body.print-pass-backs .catalog-page.page-odd {
-    display: none !important;
-  }
-  body.print-pass-test1 .catalog-page.not-sheet-1 {
-    display: none !important;
-  }
-}
 
-/* ==========================================================================
-   MODAL GUÍA PASO A PASO PARA LA IMPRESORA & MODAL QR
-   ========================================================================== */
-.qr-present-modal,
-.printer-guide-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 30, 22, 0.78);
-  backdrop-filter: blur(4px);
-  z-index: 99999;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-.qr-present-modal.active,
-.printer-guide-modal.active {
-  display: flex;
-}
-.modal-card {
-  background: #ffffff;
-  border-radius: 16px;
-  max-width: 780px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 24px 28px;
-  position: relative;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
-}
-.modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  background: #f1f5f9;
-  border: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  font-size: 16px;
-  font-weight: 800;
-  cursor: pointer;
-}
-.guide-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-  gap: 16px;
-  margin-top: 14px;
-}
-.guide-box {
-  background: #f8fafc;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 12px;
-  padding: 16px;
-}
-.guide-box h4 {
-  color: var(--jj-emerald-dark);
-  font-size: 14px;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.guide-box ol {
-  padding-left: 18px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: #334155;
-}
-.guide-box li {
-  margin-bottom: 6px;
-}
+  @media print {
+    html, body {
+      background: #ffffff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .studio-topbar,
+    .guide-overlay,
+    .flipbook-nav,
+    .btn-card-ai,
+    .btn-row-ai,
+    #prodAiModal {
+      display: none !important;
+    }
+    .book-stage,
+    .book-spread {
+      padding: 0 !important;
+      margin: 0 !important;
+      gap: 0 !important;
+      display: block !important;
+    }
+    .catalog-sheet {
+      box-shadow: none !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+      width: 215.9mm !important;
+      height: 279.4mm !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      display: flex !important;
+    }
+    /* Ocultar hojas fuera de la Tanda activa o del Paso Dúplex (Frentes/Reversos) */
+    .catalog-sheet.print-exclude {
+      display: none !important;
+    }
+  }
 </style>
 </head>
-<body class="gutter-mirror hide-bs">
+<body>
 
-<!-- ==========================================================================
-     PANEL DE CONTROL DEL ESTUDIO DE IMPRESIÓN TIPO LIBRO
-     ========================================================================== -->
-<header class="studio-header">
-  <div class="studio-top-row">
-    <div class="studio-brand">
-      <a href="/catalogo" class="tb-btn" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);">← Catálogo Web</a>
-      <div>
-        <h2>📘 Estudio de Catálogo Impreso Tipo Libro (Frente y Reverso + QR)</h2>
-        <p>Paginación exacta en Hoja Carta con margen de encuadernado espejo (0 mm de desfase entre Cara A y Cara B)</p>
-      </div>
-    </div>
-
-    <div class="studio-mode-pills">
-      <button type="button" class="mode-pill active" id="btnViewSheets" onclick="setScreenViewMode('sheets')">
-        🖨️ Vista Pliegos de Impresión
-      </button>
-      <button type="button" class="mode-pill" id="btnViewFlipbook" onclick="setScreenViewMode('flipbook')">
-        📖 Vista Cuaderno (Pasar Páginas)
-      </button>
-      <button type="button" class="mode-pill" onclick="openPrinterGuide()" style="border-color:var(--jj-gold);color:#fde68a;">
-        📋 Cómo Meter la Hoja en la Impresora
-      </button>
-    </div>
-  </div>
-
-  <!-- Filtros de Contenido y Diseño -->
-  <div class="studio-controls-row">
-    <div class="ctrl-group">
-      <span class="ctrl-label">Contenido:</span>
-      <select class="tb-select" id="photoFilter" onchange="rebuildBook()">
-        <option value="vitrina_fotos" selected>📸 Vitrina Oficial con Foto HD (297 prod. · ~38 págs)</option>
-        <option value="libro_hibrido">📘 Libro Completo: Vitrina Fotos HD + Anexo Compacto QR (1.264 prod.)</option>
-        <option value="todos_tarjetas">📦 Todos en Tarjetas Grandes (1.264 prod.)</option>
-      </select>
-
-      <select class="tb-select" id="groupFilter" onchange="rebuildBook()">
-        <option value="todos">📂 Todas las Categorías (Con Portada e Índice)</option>
-      </select>
-
-      <input type="search" class="tb-input" id="srchInput" placeholder="🔍 Filtrar producto o marca..." oninput="rebuildBook()" style="width:200px;">
-    </div>
-
-    <div class="ctrl-group">
-      <span class="ctrl-label">Formato de Hoja:</span>
-      <select class="tb-select" id="densitySelect" onchange="rebuildBook()" title="Cantidad de productos por página">
-        <option value="6">🖼️ 6 por Pág. (2×3 · Fotos Gigantes)</option>
-        <option value="8" selected>⭐ 8 por Pág. (2×4 · Cuaderno Estándar)</option>
-        <option value="12">📇 12 por Pág. (3×4 · Compacto)</option>
-      </select>
-
-      <select class="tb-select" id="gutterSelect" onchange="changeGutterMode(this.value)" title="Alineación Frente y Reverso">
-        <option value="mirror" selected>📒 Lomo Espejo (Cuaderno Anillado / Encuadernado)</option>
-        <option value="symmetric">📐 Simétrico Puro 0mm (Idéntico a Etiquetas)</option>
-      </select>
-
-      <select class="tb-select" id="priceDisplaySelect" onchange="changePriceMode(this.value)">
-        <option value="usd_only" selected>💲 Precio USD Oficial (Recomendado Impreso)</option>
-        <option value="usd_bs">💱 Precio USD + Bs BCV</option>
-        <option value="no_price">🔒 Sin Precios (Catálogo Permanente Solo QR)</option>
-      </select>
-
-      <select class="tb-select" id="printColorSelect" onchange="togglePrintMode(this.value)">
-        <option value="color" selected>🎨 Color Editorial HD</option>
-        <option value="bw">🖤 Blanco y Negro Láser</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- Flujo Guiado de Impresión Dúplex (Paso 1 Frente -> Voltear -> Paso 2 Reverso) -->
-  <div class="duplex-bar">
-    <div class="duplex-steps">
-      <span class="ctrl-label" style="color:#92400e;">🖨️ Flujo de Impresión Doble Cara:</span>
-
-      <button type="button" class="tb-btn outline" onclick="printBookPass('test1')" title="Imprime solo la Hoja #1 (Pág 1 y 2) para probar cómo voltea tu impresora">
-        🧪 Probar 1 Hoja (Pág. 1 y 2)
-      </button>
-
-      <button type="button" class="tb-btn step-front" onclick="printBookPass('fronts')" title="Imprime SOLO las caras delanteras (Páginas Impares: 1, 3, 5, 7...)">
-        1️⃣ Paso 1: Imprimir FRENTES (Impares 1, 3, 5...)
-      </button>
-
-      <button type="button" class="tb-btn step-back" onclick="printBookPass('backs')" title="Imprime SOLO las caras traseras (Páginas Pares: 2, 4, 6, 8...) exactamente detrás de cada frente">
-        2️⃣ Paso 2: Imprimir REVERSOS (Pares 2, 4, 6...)
-      </button>
-
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:#475569;cursor:pointer;margin-left:4px;" title="Marca esta casilla si al terminar el Paso 1 la última hoja quedó arriba en la pila y no quieres reordenar las hojas a mano">
-        <input type="checkbox" id="chkReverseBacks"> Invertir orden en Paso 2 (Última a Primera)
-      </label>
-    </div>
-
-    <div class="ctrl-group">
-      <span class="stats-badge" id="bookStatsBadge">Calculando pliegos...</span>
-      <button type="button" class="tb-btn gold" onclick="printBookPass('all')">
-        🖨️ Imprimir Libro Completo / Guardar PDF
-      </button>
-    </div>
-  </div>
-</header>
-
-<!-- Barra de Navegación Interactiva cuando está en "Vista Cuaderno (Pasar Páginas)" -->
-<nav class="book-navigator-bar" id="flipbookNav">
-  <button type="button" class="tb-btn gold" onclick="turnSpread(-1)">◀ Pasar Página Anterior</button>
-  <div>
-    <div class="nav-spread-title" id="spreadLabel">Cuaderno Abierto: Portada (Pág. 1)</div>
-    <div style="font-size:11px;color:#a7f3d0;text-align:center;">Usa las flechas del teclado ⬅️ ➡️ para hojear el catálogo como un libro físico</div>
-  </div>
-  <button type="button" class="tb-btn gold" onclick="turnSpread(1)">Pasar Página Siguiente ▶</button>
-</nav>
-
-<!-- ESCENARIO DE PLIEGOS CARTA (Cada .catalog-page es una cara exacta de 215.9 x 279.4 mm) -->
-<main class="pages-stage" id="pagesStage">
-  <div style="background:#fff;padding:48px 32px;border-radius:14px;text-align:center;max-width:520px;margin:40px auto;box-shadow:0 8px 25px rgba(0,0,0,0.08);">
-    <div style="font-size:38px;margin-bottom:10px;">📘</div>
-    <h3 style="color:var(--jj-emerald-dark);margin-bottom:6px;">Maquetando Catálogo Comercial Tipo Libro...</h3>
-    <p style="font-size:13px;color:#64748b;">Organizando portada, índice por categorías, fotos HD y códigos QR en pliegos Carta Frente y Reverso.</p>
-  </div>
-</main>
-
-<!-- ==========================================================================
-     MODAL: GUÍA PASO A PASO PARA IMPRIMIR FRENTE Y REVERSO EN TU IMPRESORA
-     ========================================================================== -->
-<div class="printer-guide-modal" id="printerGuideModal" role="dialog" aria-modal="true">
-  <div class="modal-card">
-    <button class="modal-close" onclick="closePrinterGuide()">✕</button>
-    <h3 style="color:var(--jj-emerald-dark);font-size:18px;font-weight:900;margin-bottom:6px;">
-      🖨️ Guía Exacta: Cómo Imprimir el Catálogo Tipo Libro (Frente y Reverso)
-    </h3>
-    <p style="font-size:13px;color:#475569;line-height:1.45;">
-      Igual que en el sistema de <strong>Etiquetas Frente y Reverso</strong>, cada página de este catálogo mide exactamente <strong>215.9 × 279.4 mm (Hoja Carta)</strong>. El margen de encuadernación (lomo) está espejado automáticamente: en las páginas impares (Frente) está a la <strong>izquierda (15 mm)</strong> y en las páginas pares (Reverso) está a la <strong>derecha (15 mm)</strong>. Así, al voltear la hoja, <strong>ambas caras calzan al milímetro (0 mm de desfase)</strong>.
-    </p>
-
-    <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px;font-size:12.5px;color:#78350f;">
-      <strong>⚙️ Ajuste Obligatorio en la Ventana de Impresión de Chrome / Edge:</strong><br>
-      • <strong>Tamaño de papel:</strong> Carta (Letter)<br>
-      • <strong>Márgenes:</strong> <u>Ninguno (None)</u> o Predeterminados (el sistema ya incluye los márgenes exactos en milímetros)<br>
-      • <strong>Escala:</strong> <u>100% (Predeterminado)</u> — <strong>No usar</strong> "Ajustar al área de impresión"<br>
-      • <strong>Gráficos de fondo:</strong> <u>Activado (☑️)</u> para imprimir los colores institucionales de portada y etiquetas.
-    </div>
-
-    <div class="guide-grid">
-      <div class="guide-box">
-        <h4>📥 Opción A: Impresora con Bandeja Superior / Trasera (Epson EcoTank, Canon, HP InkTank)</h4>
-        <ol>
-          <li>Haz clic primero en <strong>"🧪 Probar 1 Hoja"</strong> o en <strong>"1️⃣ Paso 1: Imprimir FRENTES (Impares)"</strong>.</li>
-          <li>Se imprimirán todas las caras delanteras (Pág. 1, 3, 5, 7...).</li>
-          <li>Toma el bloque de hojas impresas de la bandeja de salida: <strong>el lado impreso debe mirar hacia ABAJO (o hacia atrás)</strong> y la <strong>cabecera (el logo de JJ Paper) debe entrar PRIMERO</strong> hacia abajo en la bandeja superior.</li>
-          <li>Si la última hoja (ej. Pág. 37) quedó arriba en la pila, marca la casilla <strong>"☑️ Invertir orden en Paso 2"</strong> (o simplemente ordena el bloque para que la Pág. 1 quede arriba).</li>
-          <li>Haz clic en <strong>"2️⃣ Paso 2: Imprimir REVERSOS (Pares)"</strong>. ¡Cada página par (2, 4, 6...) se imprimirá exactamente detrás de su impar (1, 3, 5...)!</li>
-        </ol>
-      </div>
-
-      <div class="guide-box">
-        <h4>🗄️ Opción B: Impresora con Gaveta / Cassette Inferior (HP LaserJet, Brother, Ricoh)</h4>
-        <ol>
-          <li>Haz clic en <strong>"1️⃣ Paso 1: Imprimir FRENTES (Impares)"</strong>.</li>
-          <li>Saca las hojas impresas de la bandeja de salida.</li>
-          <li>Sin girar la cabecera (manteniendo el encabezado de JJ Paper apuntando hacia el fondo/delante de la gaveta), coloca las hojas en la gaveta inferior con <strong>la cara ya impresa mirando hacia ARRIBA</strong>.</li>
-          <li>Haz clic en <strong>"2️⃣ Paso 2: Imprimir REVERSOS (Pares)"</strong>.</li>
-          <li><strong>💡 Si tu impresora tiene Dúplex Automático:</strong> Solo pulsa el botón dorado <strong>"🖨️ Imprimir Libro Completo"</strong> y en tu impresora elige <em>"Imprimir en ambas caras → Voltear por el borde largo (Flip on Long Edge)"</em>.</li>
-        </ol>
-      </div>
-    </div>
-
-    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px;">
-      <button type="button" class="tb-btn gold" onclick="closePrinterGuide()">Entendido, volver al Catálogo</button>
-    </div>
-  </div>
-</div>
-
-<!-- ==========================================================================
-     MODAL DE PRESENTACIÓN QR EN GRANDE PARA MOSTRADOR / CLIENTE
-     ========================================================================== -->
-<div class="qr-present-modal" id="qrModal" role="dialog" aria-modal="true">
-  <div class="modal-card" style="max-width:420px;text-align:center;">
-    <button class="modal-close" onclick="closeQrModal()">✕</button>
-    <div style="display:flex;align-items:center;gap:12px;text-align:left;border-bottom:1.5px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px;">
-      <img id="qmProdImg" src="" alt="" style="width:68px;height:68px;object-fit:contain;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">
-      <div>
-        <div id="qmProdCat" style="font-size:10px;font-weight:800;color:var(--jj-emerald);text-transform:uppercase;">CATEGORÍA</div>
-        <h3 id="qmProdName" style="font-size:13.5px;font-weight:800;color:#0f172a;line-height:1.25;margin:2px 0 4px;">Producto</h3>
+  <!-- BARRA DE HERRAMIENTAS DEL ESTUDIO DE IMPRESIÓN -->
+  <header class="studio-topbar">
+    <div class="studio-row-main">
+      <div class="studio-brand">
+        <img src="assets/img/logo.svg" alt="JJ Paper">
         <div>
-          <span id="qmProdUsd" style="font-size:16px;font-weight:900;color:var(--jj-emerald-dark);">$0.00</span>
-          <span id="qmProdBs" style="font-size:11px;font-weight:700;color:#64748b;margin-left:6px;">Bs 0.00</span>
+          <h1>Catálogo Libro QR · Impresión en Tandas</h1>
+          <p id="studioSubtitle">Cargando catálogo verificado...</p>
+        </div>
+      </div>
+
+      <div class="studio-controls">
+        <div class="ctrl-group">
+          <label>Buscar</label>
+          <input type="text" id="searchFilter" class="ctrl-input" placeholder="Producto, marca..." oninput="renderBook()">
+        </div>
+
+        <div class="ctrl-group">
+          <label>Categoría</label>
+          <select id="catFilter" class="ctrl-select" onchange="renderBook()">
+            <option value="all">Todas las categorías</option>
+          </select>
+        </div>
+
+        <button type="button" class="btn-ui btn-ui-custom" onclick="openCustomCatalogModal()" title="Elegir varias categorías específicas, productos puntuales o número de página inicial">
+          🎯 Armar a Medida (<span id="customSelBadge">Todo</span>)
+        </button>
+
+        <div class="ctrl-group">
+          <label>Secciones</label>
+          <select id="photoFilter" class="ctrl-select" onchange="renderBook()">
+            <option value="hybrid" selected>⭐ Completo (Fotos en Tarjeta + Sin Foto en Lista con Descripción)</option>
+            <option value="photos">📸 Solo Vitrina Fotográfica (Con Foto)</option>
+            <option value="list">📋 Todo el Catálogo en Modo Lista con Descripción (Ahorro Máximo)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label>Tarjetas/Pág</label>
+          <select id="densitySelect" class="ctrl-select" onchange="renderBook()">
+            <option value="8" selected>8 fichas/pág (Estándar)</option>
+            <option value="6">6 fichas/pág (Fotos Grandes)</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label>Encuadernación</label>
+          <select id="binderSelect" class="ctrl-select" onchange="renderBook()" title="Ubica los huecos en la posición física exacta de tu carpeta">
+            <option value="3ring" selected>🔘 Carpeta 3 anillos (108 mm)</option>
+            <option value="2hole">⚫ Archivador 2 huecos (80 mm)</option>
+            <option value="spiral">🌀 Anillado / Espiral</option>
+            <option value="none">Sin guías de huecos</option>
+          </select>
+        </div>
+
+        <div class="ctrl-group">
+          <label>Precios</label>
+          <select id="priceMode" class="ctrl-select" onchange="togglePrices(this.value)">
+            <option value="show" selected>Mostrar USD ($)</option>
+            <option value="hide">Solo QR (Sin precio)</option>
+          </select>
+        </div>
+
+        <button type="button" class="btn-ui btn-ui-dark" id="btnFlipbook" onclick="toggleFlipbookMode()">
+          📖 Vista Cuaderno
+        </button>
+
+        <button type="button" class="btn-ui btn-ui-dark" onclick="openGuideModal()">
+          ❓ Cómo Imprimir y Voltear
+        </button>
+      </div>
+    </div>
+
+    <!-- BARRA DE TANDAS E IMPRESIÓN DÚPLEX -->
+    <div class="studio-row-duplex">
+      <div class="duplex-inner">
+        <div class="duplex-steps">
+          <span class="duplex-badge">📦 IMPRESIÓN POR TANDAS:</span>
+
+          <div class="ctrl-group" style="padding:3px 7px">
+            <label>Hojas/Tanda</label>
+            <select id="batchSizeSelect" class="ctrl-select" onchange="onBatchSizeChange()">
+              <option value="5" selected>5 Hojas Físicas (10 Págs)</option>
+              <option value="10">10 Hojas Físicas (20 Págs)</option>
+              <option value="15">15 Hojas Físicas (30 Págs)</option>
+              <option value="999">Todas las hojas de una vez</option>
+            </select>
+          </div>
+
+          <div class="ctrl-group" style="padding:3px 7px">
+            <label>Tanda Activa</label>
+            <select id="activeBatchSelect" class="ctrl-select" onchange="onActiveBatchChange()" style="min-width:230px;color:#34d399">
+              <option value="all">Todas las tandas</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-ui btn-ui-step1" onclick="printDuplexBatch('odd')" title="Imprime SOLO las caras impares (Frentes) de la Tanda seleccionada">
+            1️⃣ Paso 1: Imprimir FRENTES de esta Tanda
+          </button>
+          <button type="button" class="btn-ui btn-ui-step2" onclick="printDuplexBatch('even')" title="Tras voltear el bloque de hojas de esta tanda, imprime las caras pares (Reversos)">
+            2️⃣ Paso 2: Imprimir REVERSOS de esta Tanda
+          </button>
+          <button type="button" class="btn-ui btn-ui-all" onclick="printDuplexBatch('all')" title="Imprime todas las páginas de la Tanda activa en orden consecutivo">
+            🖨️ Imprimir Tanda (Dúplex Automático)
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="stats-pill" id="sheetCounterPill">Calculando hojas...</span>
+          <a href="/catalogo.html" class="btn-ui btn-ui-dark">← Catálogo Web</a>
         </div>
       </div>
     </div>
-    <div id="qmCanvas" style="display:inline-block;padding:12px;border:2px solid var(--jj-emerald);border-radius:12px;background:#fff;"></div>
-    <p style="font-size:11.5px;color:#475569;margin:10px auto 14px;max-width:320px;">
-      📲 Apunta con la cámara del teléfono para abrir la ficha oficial de este producto y pedir por WhatsApp.
-    </p>
-    <div style="display:flex;gap:10px;">
-      <a id="qmDirectLink" href="#" target="_blank" class="tb-btn" style="flex:1;justify-content:center;">🔗 Abrir Ficha</a>
-      <button type="button" class="tb-btn gold" onclick="copyQrLink()" style="flex:1;justify-content:center;">📋 Copiar Enlace</button>
+  </header>
+
+  <!-- MODAL: ARMADOR DE CATÁLOGO A MEDIDA (CATEGORÍAS / PRODUCTOS / PÁGINA INICIAL) -->
+  <div class="guide-overlay" id="customCatalogModal" onclick="if(event.target===this)closeCustomCatalogModal()">
+    <div class="guide-card">
+      <div class="guide-head">
+        <h2>🎯 Armar Catálogo a Medida (Por Categorías, Productos o Continuación)</h2>
+        <button type="button" class="btn-ui btn-ui-dark" onclick="closeCustomCatalogModal()">✕ Cerrar</button>
+      </div>
+      <div class="guide-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;padding:12px;border-radius:10px;border:1px solid #cbd5e1">
+          <div>
+            <label style="font-size:12px;font-weight:800;color:#0f172a;display:block;margin-bottom:4px">🔢 Número de Página Inicial (Para continuar cuaderno)</label>
+            <input type="number" id="startPageNumInput" value="1" min="1" step="2" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-weight:700" onchange="renderBook()">
+            <small style="font-size:11px;color:#64748b">Usa 1 para un catálogo nuevo, o ej. 21 si estás agregando hojas nuevas a tu carpeta.</small>
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:center;gap:6px">
+            <label style="font-size:12.5px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="includeCoverChk" checked onchange="renderBook()">
+              Incluir Portada e Índice en la primera página
+            </label>
+            <label style="font-size:12.5px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="fillEmptySlotsChk" checked onchange="renderBook()">
+              Rellenar huecos finales con fichas de Notas/Pedido (Cero páginas disparejas)
+            </label>
+          </div>
+        </div>
+
+        <!-- Selección múltiple de categorías -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="font-size:13px;font-weight:800;color:#0f172a">📂 1. Elige las Categorías que deseas incluir:</label>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn-ui btn-ui-dark" style="padding:4px 8px;font-size:11px" onclick="toggleAllCustomCategories(true)">Marcar Todas</button>
+              <button type="button" class="btn-ui btn-ui-dark" style="padding:4px 8px;font-size:11px" onclick="toggleAllCustomCategories(false)">Desmarcar Todas</button>
+            </div>
+          </div>
+          <div class="custom-cat-grid" id="customCatCheckboxes"></div>
+        </div>
+
+        <!-- Selección de productos específicos -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px">
+            <label style="font-size:13px;font-weight:800;color:#0f172a">📦 2. Filtrar Productos Específicos (Opcional):</label>
+            <input type="text" id="customProdSearch" placeholder="Filtrar lista de productos..." oninput="renderCustomProductCheckboxes()" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;width:220px">
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn-ui btn-ui-dark" style="padding:4px 8px;font-size:11px" onclick="clearCustomProductSelection()">Incluir todos los de las categorías marcadas</button>
+            </div>
+          </div>
+          <div class="custom-prod-list" id="customProdCheckboxes"></div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:6px;border-top:1px solid #e2e8f0">
+          <button type="button" class="btn-ui btn-ui-all" onclick="closeCustomCatalogModal()">✅ Aplicar Selección al Catálogo</button>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Dependencias -->
-<script src="assets/vendor/supabase-2.58.0.js"></script>
-<script src="assets/js/config.js?v=20261022_vps_full"></script>
-<script src="assets/vendor/qrcode.min.js"></script>
+  <!-- MODAL: GUÍA EXACTA DE IMPRESIÓN POR TANDAS Y VOLTEO EN IMPRESORA -->
+  <div class="guide-overlay" id="guideModal" onclick="if(event.target===this)closeGuideModal()">
+    <div class="guide-card">
+      <div class="guide-head">
+        <h2>🖨️ Instrucciones Exactas para Imprimir en Tandas (Formato Libro a Doble Cara)</h2>
+        <button type="button" class="btn-ui btn-ui-dark" onclick="closeGuideModal()">✕ Cerrar</button>
+      </div>
+      <div class="guide-body">
+        <div class="guide-step">
+          <div class="guide-num">1</div>
+          <div>
+            <h3>Elige tu Tanda en la barra superior (Ej: Tanda 1 = 5 Hojas físicas / Págs. 1 a 10)</h3>
+            <p>Para no atascar la impresora ni gastar 100 hojas de golpe, el catálogo se divide automáticamente en <strong>Tandas de 5 o 10 hojas</strong>. Además, los productos con foto van en fichas grandes y los productos sin foto van en <strong>Modo Lista Compacta con Descripción</strong> (28 productos por cara).</p>
+          </div>
+        </div>
 
-<script>
-let allItems = [];
-let catGroups = [];
-let currentRenderedItems = [];
-let currentModalUrl = '';
-let currentSpreadIndex = 0; // En modo flipbook: 0 = Portada (Pág 1), 1 = Págs 2-3, 2 = Págs 4-5...
-let totalGeneratedPages = 0;
+        <div class="guide-step">
+          <div class="guide-num">2</div>
+          <div>
+            <h3>Paso 1 de la Tanda: Imprimir FRENTES (Páginas Impares de esa Tanda)</h3>
+            <p>Coloca solo las hojas en blanco de esa tanda (ej. 5 hojas Carta) y haz clic en <strong>"1️⃣ Paso 1: Imprimir FRENTES de esta Tanda"</strong>. En la ventana de impresión verifica:</p>
+            <div class="guide-diagram">
+              • Tamaño de papel: Carta (Letter 8.5" × 11") · Orientación: Vertical<br>
+              • Márgenes: Ninguno (o Predeterminados) · Escala: 100%<br>
+              • ✅ Activar casilla: "Gráficos de fondo"<br>
+              • Imprimir a una sola cara (el sistema envía solo las páginas impares 1, 3, 5, 7, 9 de la tanda).
+            </div>
+          </div>
+        </div>
 
-const VARIANTS_SELECT = 'jjp_product_variants(id,brand_id,variant_name,sku,price_usd,price_a,price_b,price_c_bs,price_d_bs,stock,min_qty,image_url,active,sort_order,jjp_brands(name))';
+        <div class="guide-step">
+          <div class="guide-num">3</div>
+          <div>
+            <h3>Cómo sacar las hojas, ordenarlas y volverlas a meter para el Reverso</h3>
+            <p>Cuando terminen de salir las 5 hojas del Paso 1, retira el bloque de la bandeja de salida:</p>
+            <div class="guide-diagram">
+              <strong>📌 Regla de Oro de Orden:</strong> Asegúrate de que la <strong>Página 1 esté de primera en el bloque</strong> (para que la Página 2 se imprima exactamente detrás de la Página 1, la 4 detrás de la 3, etc.).<br>
+              • <strong>En impresoras de bandeja frontal (Epson EcoTank / HP / Canon):</strong> Gira el bloque sobre su eje largo (como pasando la página de un libro) de modo que el borde con los 3 circulitos del lomo quede del lado opuesto y se alinee espalda con espalda.<br>
+              • <strong>Consejo seguro:</strong> Haz tu primera prueba seleccionando una Tanda de 5 hojas o probando con 1 hoja antes de lanzar el resto.
+            </div>
+          </div>
+        </div>
 
-document.addEventListener('DOMContentLoaded', async () => {
-  window.addEventListener('jjp_rate_updated', () => {
-    if (allItems.length) rebuildBook();
-  });
+        <div class="guide-step">
+          <div class="guide-num">4</div>
+          <div>
+            <h3>Paso 2 de la Tanda: Imprimir REVERSOS (Páginas Pares de esa Tanda)</h3>
+            <p>Haz clic en <strong>"2️⃣ Paso 2: Imprimir REVERSOS de esta Tanda"</strong>. El sistema enviará únicamente las páginas pares (2, 4, 6, 8, 10) con el margen del lomo espejado a la derecha (`15mm`). Al terminar, pasa a la <strong>Tanda 2</strong> en el selector y repite.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  // Navegación con teclado en Modo Cuaderno
-  window.addEventListener('keydown', (e) => {
-    if (!document.body.classList.contains('view-flipbook')) return;
-    if (e.key === 'ArrowRight') turnSpread(1);
-    if (e.key === 'ArrowLeft') turnSpread(-1);
-  });
+  <!-- ESCENARIO DEL LIBRO -->
+  <main class="book-stage" id="bookStage">
+    <div class="flipbook-nav">
+      <button type="button" class="btn-ui btn-ui-dark" onclick="flipSpread(-1)">◀ Anterior</button>
+      <span id="flipSpreadLabel" style="font-size:13px;font-weight:700;min-width:190px;text-align:center">Abierto: Págs. 1 – 2</span>
+      <button type="button" class="btn-ui btn-ui-dark" onclick="flipSpread(1)">Siguiente ▶</button>
+    </div>
 
-  window.addEventListener('beforeprint', () => {
-    renderAllQrsImmediately();
-  });
+    <div class="book-spread" id="bookSpreadContainer">
+      <!-- Hojas generadas dinámicamente -->
+    </div>
+  </main>
 
-  try {
-    if (typeof loadSettings === 'function') await loadSettings();
-    if (typeof ensureFreshRate === 'function') await ensureFreshRate();
-  } catch (_) {}
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/gemini-client.js"></script>
+  <script src="assets/js/admin/products.js"></script>
+  <script>
+    let ALL_PRODUCTS = [];
+    let ALL_CATEGORIES = [];
+    let SELECTED_CAT_IDS = new Set(); // vacío = todas
+    let SELECTED_PROD_IDS = new Set(); // vacío = todos
+    let TOTAL_SHEETS = 0; // páginas totales (1 hoja física = 2 páginas)
+    let TOTAL_PHYSICAL_SHEETS = 0;
+    let FLIP_MODE = false;
+    let CURRENT_SPREAD = 0;
 
-  await loadGroups();
-  await loadCatalogProducts();
-});
+    function isValidPhotoUrl(url) {
+      if (!url || typeof url !== 'string') return false;
+      const s = url.trim();
+      if (s.length < 12) return false;
+      if (s === 'null' || s === 'undefined') return false;
+      return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image/');
+    }
 
-async function loadGroups() {
-  try {
-    const { data } = await sb.from('jjp_category_groups').select('id,name,slug').order('sort_order');
-    if (data) {
-      catGroups = data;
-      const sel = document.getElementById('groupFilter');
-      data.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g.id;
-        opt.textContent = `📁 Familia: ${g.name}`;
-        sel.appendChild(opt);
+    // Genera una pequeña descripción comercial clara para los productos que están en modo lista sin foto
+    function buildSmartCommercialDescription(p) {
+      if (p.description && String(p.description).trim().length > 4) {
+        return String(p.description).trim();
+      }
+      const name = String(p.name || '').toUpperCase();
+      const cat = p.jjp_categories?.name || 'Suministros de Oficina';
+      const unit = (p.unit || 'UND').toUpperCase();
+      const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
+      const brands = [...new Set(variants.map(v => v.jjp_brands?.name).filter(Boolean))];
+      const pres = [...new Set(variants.map(v => v.variant_name).filter(Boolean))];
+
+      const traits = [];
+      if (/CARTA|T\/C/i.test(name)) traits.push('Formato Carta');
+      else if (/OFICIO|T\/O/i.test(name)) traits.push('Formato Oficio');
+      else if (/EXTRA\s*OFICIO|E\/O/i.test(name)) traits.push('Formato Extra Oficio');
+
+      if (/P\/F|PUNTA\s*FINA/i.test(name)) traits.push('Trazo Punta Fina');
+      else if (/P\/G|PUNTA\s*GRUESA/i.test(name)) traits.push('Trazo Punta Gruesa');
+      else if (/P\/M|PUNTA\s*MEDIA/i.test(name)) traits.push('Trazo Punta Media');
+
+      if (/PIZARRA|BORRABLE/i.test(name)) traits.push('Especial para Pizarra Acrílica');
+      else if (/PERMANENTE/i.test(name)) traits.push('Tinta Permanente de Alta Fijación');
+      else if (/FLUORESCENTE|RESALT/i.test(name)) traits.push('Tinta Fluorescente Brillante');
+
+      const packMatch = name.match(/\b(X\s*\d+|C\/\d+|\d+\s*HJS|\d+\s*HOJAS|\d+\s*ML|\d+\s*GR|\d+\s*G)\b/i);
+      if (packMatch) traits.push(`Especificación: ${packMatch[1].toUpperCase()}`);
+
+      if (brands.length) traits.push(`Marca: ${brands.slice(0, 2).join(' / ')}`);
+      if (pres.length) traits.push(`Var: ${pres.slice(0, 2).join(', ')}`);
+      if (!traits.length) traits.push(`Línea ${cat} · Despacho por ${unit}`);
+
+      return traits.join(' · ');
+    }
+
+    async function loadCatalogData() {
+      try {
+        const [{ data: cats }, { data: prods, error }] = await Promise.all([
+          sb.from('jjp_categories').select('id, name, slug, emoji, sort_order').order('sort_order'),
+          sb.from('jjp_products')
+            .select('id, name, description, price_usd, unit, emoji, image_url, tag, featured, essential, active, min_qty, category_id, jjp_categories(name, emoji, sort_order), jjp_product_variants(id, variant_name, sku, price_usd, stock, active, image_url, jjp_brands(name))')
+            .eq('active', true)
+            .range(0, 1999)
+        ]);
+
+        if (error) throw error;
+
+        ALL_CATEGORIES = cats || [];
+        const catSel = document.getElementById('catFilter');
+        ALL_CATEGORIES.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = `${c.emoji || '📦'} ${c.name}`;
+          catSel.appendChild(opt);
+        });
+
+        ALL_PRODUCTS = (prods || []).map(p => {
+          const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
+          let bestImg = isValidPhotoUrl(p.image_url) ? optImg(p.image_url) : '';
+          if (!bestImg) {
+            const vWithImg = variants.find(v => isValidPhotoUrl(v.image_url));
+            if (vWithImg) bestImg = optImg(vWithImg.image_url);
+          }
+
+          let minPrice = parseFloat(p.price_usd) || 0;
+          if (variants.length > 0) {
+            const prices = variants.map(v => parseFloat(v.price_usd)).filter(n => !isNaN(n) && n > 0);
+            if (prices.length > 0) minPrice = Math.min(...prices);
+          }
+
+          const labels = variants.map(v => {
+            const b = v.jjp_brands?.name || '';
+            const vn = v.variant_name || '';
+            return [b, vn].filter(Boolean).join(' · ');
+          }).filter(Boolean);
+
+          const parsed = {
+            ...p,
+            _img: bestImg,
+            _hasPhoto: Boolean(bestImg),
+            _minPrice: minPrice,
+            _variantLabels: [...new Set(labels)],
+            _catName: p.jjp_categories?.name || 'General',
+            _catEmoji: p.jjp_categories?.emoji || p.emoji || '📦',
+            _catSort: p.jjp_categories?.sort_order ?? 999
+          };
+          parsed._smartDesc = buildSmartCommercialDescription(parsed);
+          return parsed;
+        });
+
+        ALL_PRODUCTS.sort((a, b) => {
+          if (a._catSort !== b._catSort) return a._catSort - b._catSort;
+          if (a._catName !== b._catName) return a._catName.localeCompare(b._catName, 'es');
+          return (a.name || '').localeCompare(b.name || '', 'es');
+        });
+
+        // Cuando se guarda una foto desde el Estudio IA, actualizar de inmediato en el libro impreso
+        window._onStudioPhotoSaved = (productId, webpDataUri) => {
+          const item = ALL_PRODUCTS.find(x => x.id === productId);
+          if (item) {
+            item.image_url = webpDataUri;
+            item._img = webpDataUri;
+            item._hasPhoto = true;
+            renderBook();
+          }
+        };
+
+        initCustomModalLists();
+        renderBook();
+      } catch (err) {
+        console.error('Error cargando catálogo impreso:', err);
+        document.getElementById('studioSubtitle').textContent = 'Error al cargar catálogo: ' + err.message;
+      }
+    }
+
+    function initCustomModalLists() {
+      const catWrap = document.getElementById('customCatCheckboxes');
+      if (catWrap) {
+        catWrap.innerHTML = ALL_CATEGORIES.map(c => {
+          const count = ALL_PRODUCTS.filter(p => p.category_id === c.id).length;
+          return `
+            <label class="custom-cat-item">
+              <input type="checkbox" class="custom-cat-chk" value="${c.id}" checked onchange="onCustomCategoryToggle()">
+              <span>${c.emoji || '📦'} ${escapeHTML(c.name)} <small style="color:#64748b">(${count})</small></span>
+            </label>
+          `;
+        }).join('');
+      }
+      renderCustomProductCheckboxes();
+    }
+
+    function onCustomCategoryToggle() {
+      const chks = [...document.querySelectorAll('.custom-cat-chk')];
+      const checked = chks.filter(c => c.checked).map(c => c.value);
+      if (checked.length === chks.length) {
+        SELECTED_CAT_IDS.clear();
+      } else {
+        SELECTED_CAT_IDS = new Set(checked);
+      }
+      renderCustomProductCheckboxes();
+      updateCustomBadge();
+      renderBook();
+    }
+
+    function toggleAllCustomCategories(state) {
+      document.querySelectorAll('.custom-cat-chk').forEach(c => { c.checked = state; });
+      if (state) SELECTED_CAT_IDS.clear();
+      else SELECTED_CAT_IDS = new Set(['__none__']);
+      renderCustomProductCheckboxes();
+      updateCustomBadge();
+      renderBook();
+    }
+
+    function renderCustomProductCheckboxes() {
+      const wrap = document.getElementById('customProdCheckboxes');
+      if (!wrap) return;
+      const q = (document.getElementById('customProdSearch')?.value || '').trim().toLowerCase();
+      const pool = ALL_PRODUCTS.filter(p => {
+        if (SELECTED_CAT_IDS.size > 0 && !SELECTED_CAT_IDS.has(p.category_id)) return false;
+        if (q && !(p.name || '').toLowerCase().includes(q) && !(p._catName || '').toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      wrap.innerHTML = pool.slice(0, 160).map(p => {
+        const isChecked = SELECTED_PROD_IDS.size === 0 || SELECTED_PROD_IDS.has(p.id);
+        return `
+          <label class="custom-cat-item" style="font-size:11px;padding:4px 7px">
+            <input type="checkbox" value="${p.id}" ${isChecked ? 'checked' : ''} onchange="onCustomProdToggle('${p.id}', this.checked)">
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p._hasPhoto ? '📸' : '📋'} ${escapeHTML(p.name)}</span>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function onCustomProdToggle(prodId, checked) {
+      if (SELECTED_PROD_IDS.size === 0) {
+        // Si estaba en modo "todos", inicializar con todos menos el que se acaba de desmarcar
+        ALL_PRODUCTS.forEach(p => SELECTED_PROD_IDS.add(p.id));
+      }
+      if (checked) SELECTED_PROD_IDS.add(prodId);
+      else SELECTED_PROD_IDS.delete(prodId);
+      updateCustomBadge();
+      renderBook();
+    }
+
+    function clearCustomProductSelection() {
+      SELECTED_PROD_IDS.clear();
+      renderCustomProductCheckboxes();
+      updateCustomBadge();
+      renderBook();
+    }
+
+    function updateCustomBadge() {
+      const badge = document.getElementById('customSelBadge');
+      if (!badge) return;
+      if (SELECTED_CAT_IDS.size === 0 && SELECTED_PROD_IDS.size === 0) {
+        badge.textContent = 'Todo';
+      } else if (SELECTED_PROD_IDS.size > 0) {
+        badge.textContent = `${SELECTED_PROD_IDS.size} prods`;
+      } else {
+        badge.textContent = `${SELECTED_CAT_IDS.size} cats`;
+      }
+    }
+
+    function getFilteredProducts() {
+      const q = (document.getElementById('searchFilter')?.value || '').trim().toLowerCase();
+      const catId = document.getElementById('catFilter')?.value || 'all';
+
+      return ALL_PRODUCTS.filter(p => {
+        if (catId !== 'all' && p.category_id !== catId) return false;
+        if (SELECTED_CAT_IDS.size > 0 && !SELECTED_CAT_IDS.has(p.category_id)) return false;
+        if (SELECTED_PROD_IDS.size > 0 && !SELECTED_PROD_IDS.has(p.id)) return false;
+        if (q) {
+          const hay = `${p.name} ${p._catName} ${p._variantLabels.join(' ')} ${p._smartDesc}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
       });
     }
-  } catch (e) {
-    console.warn('Error cargando familias:', e);
-  }
-}
 
-function detectPackaging(name, unit, variants) {
-  const txt = (name + ' ' + (unit || '') + ' ' + variants.map(v => v.variant_name || '').join(' ')).toUpperCase();
-  if (txt.includes('X12') || txt.includes('X 12') || txt.includes('DOCENA')) return 'Caja x 12';
-  if (txt.includes('X24') || txt.includes('X 24')) return 'Caja x 24';
-  if (txt.includes('X36') || txt.includes('X 36')) return 'Caja x 36';
-  if (txt.includes('X50') || txt.includes('X 50')) return 'Paquete x 50';
-  if (txt.includes('X100') || txt.includes('X 100')) return 'Caja x 100';
-  if (txt.includes('RESMA')) return 'Resma 500 hjs';
-  if (txt.includes('BLISTER')) return 'Blister Indiv.';
-  if (txt.includes('BULTO')) return 'Bulto Mayor';
-  return unit ? `Por ${unit}` : 'Unidad';
-}
-
-function processCatalogData(prods) {
-  allItems = prods.map(p => {
-    const vs = (p.jjp_product_variants || []).filter(v => v.active !== false);
-    p.variants = vs;
-    const prices = vs.map(v => Number(v.price_b != null ? v.price_b : (v.price_usd || 0))).filter(x => x > 0);
-    p._price = prices.length ? Math.min(...prices) : Number(p.price_b != null ? p.price_b : (p.price_usd || 0));
-    const rawImg = (p.image_url && p.image_url.trim()) || vs.find(v => v.image_url && v.image_url.trim())?.image_url || '';
-    p._imgUrl = rawImg;
-    p._hasPhoto = Boolean(rawImg);
-    p._packaging = detectPackaging(p.name, p.unit, vs);
-    p._brands = [...new Set(vs.map(v => v.jjp_brands?.name).filter(Boolean))].join(', ');
-    p._catName = (p.jjp_categories?.name || 'VARIOS Y GENERAL').toUpperCase();
-    return p;
-  });
-  rebuildBook();
-}
-
-async function loadCatalogProducts() {
-  try {
-    const cached = sessionStorage.getItem('jjp_catalog_impreso_cache');
-    const cachedAt = parseInt(sessionStorage.getItem('jjp_catalog_impreso_at') || '0', 10);
-    const isFresh = (Date.now() - cachedAt) < 10 * 60 * 1000;
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        processCatalogData(parsed);
-        if (isFresh) return;
-      }
+    function buildProductBuyUrl(p) {
+      const base = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        ? 'https://jj-paper.pages.dev'
+        : window.location.origin;
+      return `${base}/catalogo.html?buscar=${encodeURIComponent(p.name)}`;
     }
-  } catch (_) {}
 
-  try {
-    let prods = [];
-    let from = 0;
-    const step = 999;
-    while (true) {
-      const { data, error } = await sb.from('jjp_products')
-        .select(`id,name,description,price_usd,price_a,price_b,unit,image_url,emoji,stock,min_qty,category_id,jjp_categories(id,name,slug,group_id),${VARIANTS_SELECT}`)
-        .eq('active', true)
-        .range(from, from + step)
-        .order('sort_order');
-      if (error) break;
-      if (data && data.length > 0) {
-        prods.push(...data);
-        if (data.length <= step) break;
-        from += step + 1;
-      } else {
-        break;
-      }
-    }
-    if (prods.length) {
-      try {
-        sessionStorage.setItem('jjp_catalog_impreso_cache', JSON.stringify(prods));
-        sessionStorage.setItem('jjp_catalog_impreso_at', Date.now().toString());
-      } catch (_) {}
-      processCatalogData(prods);
-    }
-  } catch (err) {
-    console.error('Error cargando catálogo:', err);
-  }
-}
+    function renderPhotoCardHTML(p) {
+      const priceStr = `$${p._minPrice.toFixed(2)}`;
+      const unitStr = (p.unit || 'UND').toUpperCase();
+      const escName = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const chips = p._variantLabels.slice(0, 3).map(lbl => `<span class="p-var-chip">${escapeHTML(lbl)}</span>`).join('');
+      const extraCount = p._variantLabels.length > 3 ? `<span class="p-var-chip">+${p._variantLabels.length - 3}</span>` : '';
 
-/* ==========================================================================
-   MOTOR DE PAGINACIÓN FÍSICA TIPO LIBRO (PLIEGOS CARTA FRENTE Y REVERSO)
-   ========================================================================== */
-function rebuildBook() {
-  const srch = (document.getElementById('srchInput')?.value || '').toLowerCase().trim();
-  const groupId = document.getElementById('groupFilter')?.value || 'todos';
-  const mode = document.getElementById('photoFilter')?.value || 'vitrina_fotos';
-  const perPage = parseInt(document.getElementById('densitySelect')?.value || '8', 10);
-
-  let baseList = allItems.filter(p => {
-    if (groupId !== 'todos' && p.jjp_categories?.group_id !== groupId) return false;
-    if (srch) {
-      const m = p.name.toLowerCase().includes(srch) ||
-                (p._brands && p._brands.toLowerCase().includes(srch)) ||
-                p._catName.toLowerCase().includes(srch);
-      if (!m) return false;
-    }
-    return true;
-  });
-
-  // Ordenar por Categoría y luego alfabéticamente para estructura de libro comercial
-  const sortByCategoryAndName = (a, b) => {
-    if (a._catName !== b._catName) return a._catName.localeCompare(b._catName);
-    return a.name.localeCompare(b.name);
-  };
-
-  let photoCards = [];
-  let annexRows = [];
-
-  if (mode === 'vitrina_fotos') {
-    photoCards = baseList.filter(p => p._hasPhoto).sort(sortByCategoryAndName);
-  } else if (mode === 'libro_hibrido') {
-    photoCards = baseList.filter(p => p._hasPhoto).sort(sortByCategoryAndName);
-    annexRows = baseList.filter(p => !p._hasPhoto).sort(sortByCategoryAndName);
-  } else {
-    // todos_tarjetas: primero todos los de foto por categoría, luego el resto por categoría
-    photoCards = [
-      ...baseList.filter(p => p._hasPhoto).sort(sortByCategoryAndName),
-      ...baseList.filter(p => !p._hasPhoto).sort(sortByCategoryAndName)
-    ];
-  }
-
-  currentRenderedItems = [...photoCards, ...annexRows];
-
-  // Construir páginas lógicas
-  // Página 1: Portada Ejecutiva + Índice por Categorías + Primeras fichas destacadas
-  // Páginas 2..N: Grillas exactas de `perPage` fichas
-  const pages = [];
-
-  // Calcular en qué página empieza cada categoría para el Índice de la Portada
-  const categoryStartPage = {};
-  const coverShowcaseCount = perPage === 6 ? 2 : (perPage === 8 ? 2 : 3);
-  const coverItems = photoCards.slice(0, coverShowcaseCount);
-  const remainingPhotoCards = photoCards.slice(coverShowcaseCount);
-
-  coverItems.forEach(p => {
-    if (!categoryStartPage[p._catName]) categoryStartPage[p._catName] = 1;
-  });
-
-  const photoChunks = [];
-  for (let i = 0; i < remainingPhotoCards.length; i += perPage) {
-    const chunk = remainingPhotoCards.slice(i, i + perPage);
-    const pageNum = 2 + photoChunks.length;
-    chunk.forEach(p => {
-      if (!categoryStartPage[p._catName]) categoryStartPage[p._catName] = pageNum;
-    });
-    photoChunks.push(chunk);
-  }
-
-  // Anexo compacto (24 productos por página con mini-QR)
-  const annexPerPage = 24;
-  const annexChunks = [];
-  for (let i = 0; i < annexRows.length; i += annexPerPage) {
-    annexChunks.push(annexRows.slice(i, i + annexPerPage));
-  }
-
-  // Página 1 (Portada + Índice + Muestra)
-  pages.push({
-    type: 'cover',
-    items: coverItems,
-    toc: Object.entries(categoryStartPage).sort((a, b) => a[1] - b[1]),
-    annexStartPage: annexChunks.length ? (2 + photoChunks.length) : null
-  });
-
-  // Páginas de Vitrina Fotográfica
-  photoChunks.forEach(chunk => {
-    pages.push({
-      type: 'photo_grid',
-      items: chunk,
-      categoryLabel: getDominantCategoryLabel(chunk)
-    });
-  });
-
-  // Páginas de Anexo Compacto
-  annexChunks.forEach(chunk => {
-    pages.push({
-      type: 'annex_grid',
-      items: chunk,
-      categoryLabel: `ÍNDICE COMPACTO · ${getDominantCategoryLabel(chunk)}`
-    });
-  });
-
-  // Si el total de páginas es impar, el último reverso queda listo o podemos informar cuántas hojas físicas son
-  totalGeneratedPages = pages.length;
-  const physicalSheets = Math.ceil(totalGeneratedPages / 2);
-
-  const badge = document.getElementById('bookStatsBadge');
-  if (badge) {
-    badge.textContent = `📘 ${totalGeneratedPages} Páginas (${physicalSheets} Hojas Carta Doble Cara) · ${currentRenderedItems.length} Productos`;
-  }
-
-  renderPhysicalPages(pages, perPage);
-}
-
-function getDominantCategoryLabel(items) {
-  if (!items || !items.length) return 'CATÁLOGO GENERAL';
-  const first = items[0]._catName;
-  const last = items[items.length - 1]._catName;
-  return first === last ? first : `${first} → ${last}`;
-}
-
-function renderSpineHoles() {
-  return `
-    <div class="spine-guide" aria-hidden="true">
-      <span class="punch-hole"></span>
-      <span class="punch-hole"></span>
-      <span class="punch-hole"></span>
-    </div>
-  `;
-}
-
-function renderCardHtml(p, globalIdx) {
-  const relativeUrl = `/producto?id=${encodeURIComponent(p.id)}`;
-  return `
-    <article class="book-card">
-      <a href="${relativeUrl}" target="_blank" class="bc-photo-wrap" title="Ver ficha de ${escapeHTML(p.name)}">
-        ${p._hasPhoto ? `
-          <img src="${optImg(p._imgUrl, 600)}" alt="${escapeHTML(p.name)}" loading="eager" decoding="sync">
-          <span class="bc-photo-badge">FOTO HD</span>
-        ` : `
-          <span style="font-size:34px">${p.emoji || '📦'}</span>
-        `}
-      </a>
-      <div class="bc-info">
-        <div>
-          <div class="bc-cat-row">
-            <span class="bc-cat-tag">${escapeHTML(p._catName)}</span>
-          </div>
-          <h3 class="bc-title">
-            <a href="${relativeUrl}" target="_blank" style="color:inherit;text-decoration:none;">
-              ${escapeHTML(p.name)}
-            </a>
-          </h3>
-          <div class="bc-meta-pills">
-            <span class="bc-pack-pill">📦 ${escapeHTML(p._packaging)}</span>
-            ${p._brands ? `<span class="bc-brand-pill">🏷️ ${escapeHTML(p._brands)}</span>` : ''}
-          </div>
-        </div>
-        <div class="bc-price-box">
-          <span class="bc-price-usd">${fmtPrice(p._price)}</span>
-          <span class="bc-price-bs">Bs ${toBs(p._price)}</span>
-          <span class="bc-ask-price-label">📲 Escanea QR para precio al día</span>
-        </div>
-      </div>
-      <div class="bc-qr-col" onclick="openQrModal(${globalIdx}, event)" title="Toca para ampliar el código QR">
-        <div id="qr-${globalIdx}" class="qr-target" data-id="${p.id}"></div>
-        <div class="bc-qr-caption">📲 ESCANEA</div>
-      </div>
-    </article>
-  `;
-}
-
-function renderPhysicalPages(pages, perPage) {
-  const stage = document.getElementById('pagesStage');
-  const rate = (typeof getRate === 'function') ? getRate() : 40;
-  const dateStr = new Date().toLocaleDateString('es-VE');
-  let itemCursor = 0;
-
-  stage.innerHTML = pages.map((pg, idx) => {
-    const pageNum = idx + 1;
-    const isOdd = (pageNum % 2) === 1;
-    const sheetNum = Math.ceil(pageNum / 2);
-    const sideLabel = isOdd
-      ? `HOJA #${sheetNum} · FRENTE (Cara Impar — Pág. ${pageNum} de ${pages.length})`
-      : `HOJA #${sheetNum} · REVERSO (Cara Par — Pág. ${pageNum} de ${pages.length})`;
-
-    if (pg.type === 'cover') {
-      const cardsHtml = pg.items.map(p => {
-        const gIdx = itemCursor++;
-        return renderCardHtml(p, gIdx);
-      }).join('');
-
-      const tocHtml = pg.toc.slice(0, 27).map(([cat, pNum]) => `
-        <div class="toc-item" onclick="jumpToPage(${pNum})">
-          <span class="toc-cat-name">📁 ${escapeHTML(cat)}</span>
-          <span class="toc-page-num">Pág. ${pNum}</span>
-        </div>
-      `).join('');
+      const fallbackHtml = `<div class="p-photo-fallback"><span class="fb-emoji">${escapeHTML(p._catEmoji)}</span><span class="fb-cat">${escapeHTML(p._catName)}</span></div>`;
+      const mediaHtml = p._hasPhoto
+        ? `<img src="${p._img}" alt="${escapeHTML(p.name)}" loading="eager" decoding="sync" onerror="this.outerHTML='${fallbackHtml.replace(/'/g, "\\'")}'">`
+        : fallbackHtml;
 
       return `
-        <section class="catalog-page ${isOdd ? 'page-odd' : 'page-even'} ${sheetNum > 1 ? 'not-sheet-1' : ''}" data-page="${pageNum}" data-sheet="${sheetNum}">
-          <div class="screen-sheet-badge">${sideLabel}</div>
-          ${renderSpineHoles()}
-
-          <div>
-            <!-- Hero de Portada -->
-            <div class="cover-hero">
-              <div class="cover-hero-left">
-                <span class="cover-badge">Catálogo Mayorista Oficial · Edición ${dateStr}</span>
-                <h1 class="cover-title">JJ <span>PAPER</span> DISTRIBUIDORA</h1>
-                <p class="cover-sub">
-                  Papelería Escolar, Artículos de Oficina, Cuadernos y Suministros al Mayor.<br>
-                  <strong>Catálogo Interactivo con Códigos QR:</strong> Escanea cualquier producto con tu celular para ver su galería y pedir directo por WhatsApp.
-                </p>
-              </div>
-              <div class="cover-qr-card">
-                <div id="qr-master-cover" class="qr-master-box"></div>
-                <small>📲 Catálogo Web<br>En Vivo</small>
-              </div>
+        <article class="p-card">
+          <div class="p-photo-box">
+            ${mediaHtml}
+            <button type="button" class="btn-card-ai" onclick="prodGenerarFotoIA('${p.id}','${escName}')" title="Cambiar o buscar foto con IA">📸 IA</button>
+          </div>
+          <div class="p-info">
+            <div>
+              <div class="p-cat-tag">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</div>
+              <h3 class="p-title">${escapeHTML(p.name)}</h3>
+              <div class="p-desc-short">${escapeHTML(p._smartDesc)}</div>
+              <div class="p-variants">${chips}${extraCount}</div>
             </div>
-
-            <!-- Cómo Funciona en 3 Pasos -->
-            <div class="cover-how-it-works">
-              <div class="how-step">
-                <strong>1. Explora por Categoría</strong>
-                <p>Ubica la familia de productos en el índice inferior y pasa la página como un cuaderno.</p>
-              </div>
-              <div class="how-step">
-                <strong>2. Escanea el Código QR</strong>
-                <p>Apunta la cámara de tu teléfono al QR del producto para ver disponibilidad y variantes.</p>
-              </div>
-              <div class="how-step">
-                <strong>3. Pedido Inmediato</strong>
-                <p>Envía tu cotización o pedido directo a nuestro equipo comercial con despacho nacional.</p>
-              </div>
-            </div>
-
-            <!-- Índice de Categorías del Libro -->
-            <div class="cover-index-box">
-              <div class="cover-index-title">
-                <span>📑 Índice por Familias y Categorías</span>
-                <span style="font-size:7.5pt;color:#64748b;">Tasa Ref. BCV: Bs ${rate.toFixed(2)}/USD</span>
-              </div>
-              <div class="toc-grid">
-                ${tocHtml}
-                ${pg.annexStartPage ? `
-                  <div class="toc-item" onclick="jumpToPage(${pg.annexStartPage})" style="grid-column:1/-1;margin-top:1mm;background:#f8fafc;padding:1mm 2mm;border-radius:1mm;">
-                    <span class="toc-cat-name" style="max-width:none;color:var(--jj-emerald-dark);">📋 ANEXO COMPACTO: LISTA GENERAL DE PRECIOS Y QR</span>
-                    <span class="toc-page-num">Pág. ${pg.annexStartPage}</span>
-                  </div>
-                ` : ''}
+            <div class="p-bottom">
+              <span class="p-unit-badge">EMPAQUE: ${escapeHTML(unitStr)}</span>
+              <div class="p-price-wrap">
+                <span class="p-price-lbl">Precio Mayor</span>
+                <span class="p-price-val">${priceStr}</span>
               </div>
             </div>
           </div>
-
-          <!-- Muestra de Productos Destacados en Portada -->
-          <div class="sheet-grid grid-${perPage === 12 ? 12 : 8}" style="max-height:66mm;">
-            ${cardsHtml}
+          <div class="p-qr-col">
+            <div class="p-qr-box" data-qr-url="${escapeHTML(buildProductBuyUrl(p))}"></div>
+            <span class="p-qr-cta">Escanear<br>y Pedir</span>
           </div>
-
-          <footer class="page-running-footer">
-            <span>JJ Paper C.A. · Distribuidora Mayorista · Despachos a Nivel Nacional · <strong>jjpaper.pages.dev</strong></span>
-            <span class="rf-page-num">PÁGINA ${pageNum} DE ${pages.length}</span>
-          </footer>
-        </section>
+        </article>
       `;
     }
 
-    if (pg.type === 'photo_grid') {
-      const cardsHtml = pg.items.map(p => {
-        const gIdx = itemCursor++;
-        return renderCardHtml(p, gIdx);
-      }).join('');
+    // Tarjeta de relleno simétrico para que la última página de fotos jamás se vea vacía o dispareja
+    function renderFillerCardHTML(idx) {
+      const waUrl = `https://wa.me/${APP?.WA_NUM || '584142234567'}?text=${encodeURIComponent('Hola JJ Paper, deseo cotizar un pedido del catálogo impreso')}`;
+      return `
+        <article class="p-card filler-card">
+          <div class="p-info">
+            <div>
+              <div class="p-cat-tag">📝 NOTAS DE PEDIDO RÁPIDO · CLIENTE</div>
+              <h3 class="p-title" style="font-size:8pt;color:#334155">Anote aquí códigos o cantidades adicionales:</h3>
+              <div style="margin-top:2mm;border-bottom:1px dotted #94a3b8;height:4.2mm"></div>
+              <div style="border-bottom:1px dotted #94a3b8;height:4.2mm"></div>
+              <div style="border-bottom:1px dotted #94a3b8;height:4.2mm"></div>
+            </div>
+            <div class="p-bottom">
+              <span class="p-unit-badge">ATENCIÓN DIRECTA</span>
+              <span style="font-size:6pt;font-weight:800;color:#065f46">Despacho garantizado</span>
+            </div>
+          </div>
+          <div class="p-qr-col">
+            <div class="p-qr-box" data-qr-url="${escapeHTML(waUrl)}"></div>
+            <span class="p-qr-cta">WhatsApp<br>Ventas</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderDirectoryRowHTML(p) {
+      const priceStr = `$${p._minPrice.toFixed(2)}`;
+      const unitStr = (p.unit || 'UND').toUpperCase();
+      const escName = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
       return `
-        <section class="catalog-page ${isOdd ? 'page-odd' : 'page-even'} ${sheetNum > 1 ? 'not-sheet-1' : ''}" data-page="${pageNum}" data-sheet="${sheetNum}">
-          <div class="screen-sheet-badge">${sideLabel}</div>
-          ${renderSpineHoles()}
-
-          <header class="page-running-header">
-            <div class="rh-brand">
-              <img src="assets/img/logo.svg" alt="JJ Paper">
-              <span class="rh-brand-txt">JJ <em>PAPER</em> · CATÁLOGO MAYORISTA</span>
+        <div class="dir-row">
+          <div class="dir-main">
+            <div class="dir-name-line">
+              <span class="dir-name">${escapeHTML(p.name)}</span>
             </div>
-            <div class="rh-category-pill">📂 ${escapeHTML(pg.categoryLabel)}</div>
+            <div class="dir-desc">${escapeHTML(p._smartDesc)}</div>
+            <div class="dir-meta">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)} · Presentación: ${escapeHTML(unitStr)}</div>
+          </div>
+          <div class="dir-price">
+            ${priceStr}
+            <span class="dir-unit">${escapeHTML(unitStr)}</span>
+          </div>
+          <div class="dir-qr" data-qr-url="${escapeHTML(buildProductBuyUrl(p))}"></div>
+          <button type="button" class="btn-row-ai" onclick="prodGenerarFotoIA('${p.id}','${escName}')" title="Buscar o generar foto con IA para pasar a vitrina">📸 +Foto IA</button>
+        </div>
+      `;
+    }
+
+    function renderDirectoryFillerRowHTML() {
+      return `
+        <div class="dir-row dir-filler">
+          <div class="dir-main">
+            <div class="dir-name" style="color:#64748b;font-weight:700">📝 Renglón libre para anotar producto adicional:</div>
+            <div class="dir-desc" style="color:#94a3b8">______________________________________________________</div>
+          </div>
+          <div class="dir-price" style="color:#94a3b8;font-size:7pt">CANT: ____</div>
+          <div style="width:9mm;height:9mm;border:1px dashed #cbd5e1;border-radius:2px"></div>
+        </div>
+      `;
+    }
+
+    // =========================================================
+    // HUECOS DE ENCUADERNACIÓN EN MEDIDAS FÍSICAS REALES (mm)
+    // Hoja Carta: 279.4 mm de alto → centro vertical 139.7 mm
+    // =========================================================
+    const BINDER_SPECS = {
+      '3ring':  { label: 'Carpeta 3 anillos (separación 108 mm)', x: 11, d: 6.5, ys: [31.7, 139.7, 247.7] },
+      '2hole':  { label: 'Archivador 2 huecos (separación 80 mm)', x: 12, d: 6,   ys: [99.7, 179.7] },
+      'spiral': { label: 'Anillado / Espiral (paso 3:1)', x: 6.5, d: 3.6, spiral: true,
+                  ys: Array.from({ length: 31 }, (_, i) => +(12.7 + i * 8.47).toFixed(2)) },
+      'none':   { label: 'Sin guías de perforación', x: 11, d: 0, ys: [] }
+    };
+
+    function buildPunchHolesHTML() {
+      const key = document.getElementById('binderSelect')?.value || '3ring';
+      const spec = BINDER_SPECS[key] || BINDER_SPECS['3ring'];
+      return spec.ys.map(y =>
+        `<span class="punch-hole${spec.spiral ? ' spiral' : ''}" style="top:${y}mm;--hole-x:${spec.x}mm;--hole-d:${spec.d}mm"></span>`
+      ).join('');
+    }
+
+    function renderSheetShell({ pageIndex, displayPageNum, totalDisplayPages, categoryTitle, bodyHtml, isFirstPage, tocItems }) {
+      const isOdd = displayPageNum % 2 === 1;
+      const sideClass = isOdd ? 'odd-sheet' : 'even-sheet';
+      const sideLabel = isOdd ? 'FRENTE (IMPAR)' : 'REVERSO (PAR)';
+      const dateStr = new Date().toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+      const physicalSheetNum = Math.ceil(pageIndex / 2);
+
+      const coverHtml = isFirstPage ? `
+        <div class="cover-banner">
+          <div>
+            <h2>CATÁLOGO COMERCIAL DE PRODUCTOS Y PRECIOS</h2>
+            <p>Papelería, Suministros de Oficina, Artículos Escolares y Embalaje al Mayor. Escanea el código QR de cualquier producto con tu celular para hacer tu pedido inmediato.</p>
+            <div class="cover-meta-pills">
+              <span class="cover-pill">📍 Guarenas – Guatire – Caracas</span>
+              <span class="cover-pill">🚚 Despacho Corporativo</span>
+              <span class="cover-pill">📅 Edición ${escapeHTML(dateStr)}</span>
+            </div>
+          </div>
+          <div class="cover-qr-box">
+            <div class="p-qr-box" style="width:17mm;height:17mm" data-qr-url="https://jj-paper.pages.dev/catalogo.html"></div>
+            <span>Catálogo Web</span>
+          </div>
+        </div>
+        ${tocItems && tocItems.length ? `
+          <div class="toc-strip">
+            <div class="toc-title">
+              <span>📑 ÍNDICE DE SECCIONES EN ESTE LIBRO</span>
+              <span>PÁGINA INICIAL</span>
+            </div>
+            <div class="toc-pills">
+              ${tocItems.slice(0, 16).map(t => `<span class="toc-item">${escapeHTML(t.name)} <b>Pág. ${t.page}</b></span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+      ` : '';
+
+      return `
+        <section class="catalog-sheet ${sideClass}" data-page="${pageIndex}" data-display-page="${displayPageNum}" data-physical-sheet="${physicalSheetNum}" data-side="${isOdd ? 'odd' : 'even'}">
+          <div class="spine-gutter">
+            ${buildPunchHolesHTML()}
+            <span class="spine-line"></span>
+            <span class="spine-tag">◀ Borde de perforación</span>
+          </div>
+
+          <header class="sheet-header">
+            <div class="sh-brand">
+              <img src="assets/img/logo.svg" alt="JJ Paper">
+              <div>
+                <div class="sh-brand-title">Corporación JJ Paper C.A.</div>
+                <div class="sh-brand-sub">RIF J-50082666-6 · Catálogo Mayorista con Pedido QR</div>
+              </div>
+            </div>
+            <div class="sh-cat-pill">${escapeHTML(categoryTitle)}</div>
           </header>
 
-          <div class="sheet-grid grid-${perPage}">
-            ${cardsHtml}
+          ${coverHtml}
+
+          <div class="sheet-body">
+            ${bodyHtml}
           </div>
 
-          <footer class="page-running-footer">
-            <span>📲 Escanea el código QR de cualquier artículo para ver detalles y pedir por WhatsApp · <strong>jjpaper.pages.dev</strong></span>
-            <span class="rf-page-num">PÁGINA ${pageNum} DE ${pages.length}</span>
+          <footer class="sheet-footer">
+            <span>🌐 jj-paper.pages.dev · Atención inmediata vía WhatsApp · Precios en USD ($)</span>
+            <span class="sf-folio">HOJA #${physicalSheetNum} · PÁGINA ${displayPageNum} (${sideLabel})</span>
           </footer>
         </section>
       `;
     }
 
-    // Anexo compacto
-    const annexHtml = pg.items.map(p => {
-      const gIdx = itemCursor++;
-      return `
-        <div class="annex-row">
-          <div class="annex-info">
-            <div class="annex-cat">${escapeHTML(p._catName)} ${p._brands ? `· ${escapeHTML(p._brands)}` : ''}</div>
-            <div class="annex-name">${escapeHTML(p.name)}</div>
-            <div style="font-size:6pt;color:#64748b;font-weight:700;">📦 ${escapeHTML(p._packaging)}</div>
-          </div>
-          <div class="annex-price">${fmtPrice(p._price)}</div>
-          <div class="annex-qr qr-target" id="qr-${gIdx}" data-id="${p.id}" onclick="openQrModal(${gIdx}, event)"></div>
-        </div>
-      `;
-    }).join('');
+    function renderBook() {
+      const container = document.getElementById('bookSpreadContainer');
+      const mode = document.getElementById('photoFilter')?.value || 'hybrid';
+      const perPage = parseInt(document.getElementById('densitySelect')?.value || '8', 10);
+      const startPageOffset = Math.max(1, parseInt(document.getElementById('startPageNumInput')?.value || '1', 10));
+      const includeCover = document.getElementById('includeCoverChk')?.checked ?? true;
+      const fillEmpty = document.getElementById('fillEmptySlotsChk')?.checked ?? true;
 
-    return `
-      <section class="catalog-page ${isOdd ? 'page-odd' : 'page-even'} ${sheetNum > 1 ? 'not-sheet-1' : ''}" data-page="${pageNum}" data-sheet="${sheetNum}">
-        <div class="screen-sheet-badge">${sideLabel}</div>
-        ${renderSpineHoles()}
+      const filtered = getFilteredProducts();
+      const photoProds = filtered.filter(p => p._hasPhoto);
+      const noPhotoProds = filtered.filter(p => !p._hasPhoto);
 
-        <header class="page-running-header">
-          <div class="rh-brand">
-            <img src="assets/img/logo.svg" alt="JJ Paper">
-            <span class="rh-brand-txt">JJ <em>PAPER</em> · ANEXO GENERAL QR</span>
-          </div>
-          <div class="rh-category-pill">📋 ${escapeHTML(pg.categoryLabel)}</div>
-        </header>
+      const pagesSpec = [];
+      const catStartPage = new Map();
 
-        <div class="compact-annex-grid">
-          ${annexHtml}
-        </div>
+      const recordCatPage = (catName, pNum) => {
+        if (catName && !catStartPage.has(catName)) {
+          catStartPage.set(catName, pNum + startPageOffset - 1);
+        }
+      };
 
-        <footer class="page-running-footer">
-          <span>📲 Índice Compacto de Referencia Rápida con QR · <strong>jjpaper.pages.dev</strong></span>
-          <span class="rf-page-num">PÁGINA ${pageNum} DE ${pages.length}</span>
-        </footer>
-      </section>
-    `;
-  }).join('');
+      // 1. Generar páginas de Vitrina Fotográfica (si mode === 'photos' o 'hybrid')
+      if (mode === 'photos' || mode === 'hybrid') {
+        const list = photoProds;
+        const firstPageCap = includeCover ? (perPage === 8 ? 4 : 4) : perPage;
+        let cursor = 0;
 
-  // Generar QR Maestro de Portada
-  const masterBox = document.getElementById('qr-master-cover');
-  if (masterBox && typeof QRCode !== 'undefined') {
-    new QRCode(masterBox, {
-      text: 'https://jjpaper.pages.dev/catalogo',
-      width: 220,
-      height: 220,
-      colorDark: '#000000',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  }
+        while (cursor < list.length) {
+          const isFirst = pagesSpec.length === 0 && includeCover;
+          const cap = isFirst ? firstPageCap : perPage;
+          const slice = list.slice(cursor, cursor + cap);
+          cursor += slice.length;
 
-  // Inicializar QRs con IntersectionObserver + pre-renderizado de las primeras páginas
-  setupQrObserver();
+          const pNum = pagesSpec.length + 1;
+          slice.forEach(item => recordCatPage(item._catName, pNum));
 
-  if (document.body.classList.contains('view-flipbook')) {
-    currentSpreadIndex = 0;
-    updateFlipbookVisibility();
-  }
-}
+          const catsInPage = [...new Set(slice.map(x => `${x._catEmoji} ${x._catName}`))];
+          const catHeader = catsInPage.length === 1
+            ? catsInPage[0]
+            : `${catsInPage[0]} + ${catsInPage.length - 1} más`;
 
-function setupQrObserver() {
-  const baseUrl = 'https://jjpaper.pages.dev';
-  if (typeof QRCode === 'undefined') return;
+          pagesSpec.push({
+            type: 'grid',
+            items: slice,
+            capacity: cap,
+            rowsCount: cap / 2,
+            catHeader: `📸 VITRINA · ${catHeader}`,
+            isFirstPage: isFirst
+          });
+        }
+      }
 
-  if ('IntersectionObserver' in window) {
-    const obs = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const target = entry.target;
-          observer.unobserve(target);
-          renderSingleQr(target, baseUrl);
+      // 2. Generar páginas de Lista Compacta con Descripción (para productos sin foto en 'hybrid', o todos en 'list')
+      if (mode === 'list' || (mode === 'hybrid' && noPhotoProds.length > 0)) {
+        const dirProds = mode === 'list' ? filtered : noPhotoProds;
+        const DIR_PER_PAGE = 28; // 2 columnas × 14 filas con descripción comercial
+        const DIR_FIRST_PAGE = 18;
+        let cursor = 0;
+
+        while (cursor < dirProds.length) {
+          const isFirst = pagesSpec.length === 0 && includeCover;
+          const cap = isFirst ? DIR_FIRST_PAGE : DIR_PER_PAGE;
+          const slice = dirProds.slice(cursor, cursor + cap);
+          cursor += slice.length;
+
+          const pNum = pagesSpec.length + 1;
+          slice.forEach(item => recordCatPage(item._catName, pNum));
+
+          const catsInPage = [...new Set(slice.map(x => `${x._catEmoji} ${x._catName}`))];
+          const catHeader = catsInPage.length === 1
+            ? `📋 LISTA COMERCIAL · ${catsInPage[0]}`
+            : `📋 LISTA COMERCIAL · ${catsInPage[0]} y más`;
+
+          pagesSpec.push({
+            type: 'directory',
+            items: slice,
+            capacity: cap,
+            catHeader,
+            isFirstPage: isFirst
+          });
+        }
+      }
+
+      // 3. Si el total de páginas es IMPAR, añadir una contraportada par de Hoja de Pedido / Notas para que toda hoja física tenga su Frente y su Reverso exacto
+      if (pagesSpec.length > 0 && pagesSpec.length % 2 === 1) {
+        pagesSpec.push({
+          type: 'backcover',
+          items: [],
+          catHeader: '📝 FORMATO DE TOMA DE PEDIDO Y CONTACTO',
+          isFirstPage: false
+        });
+      }
+
+      TOTAL_SHEETS = pagesSpec.length;
+      TOTAL_PHYSICAL_SHEETS = Math.ceil(TOTAL_SHEETS / 2);
+
+      const tocItems = [];
+      catStartPage.forEach((page, name) => tocItems.push({ name, page }));
+
+      const htmlSheets = pagesSpec.map((spec, idx) => {
+        const pageIndex = idx + 1;
+        const displayPageNum = startPageOffset + idx;
+        let bodyHtml = '';
+
+        if (spec.type === 'grid') {
+          let cardsHtml = spec.items.map(renderPhotoCardHTML).join('');
+          if (fillEmpty && spec.items.length < spec.capacity) {
+            const missing = spec.capacity - spec.items.length;
+            for (let m = 0; m < missing; m++) {
+              cardsHtml += renderFillerCardHTML(m);
+            }
+          }
+          bodyHtml = `<div class="sheet-grid density-${perPage} rows-${spec.rowsCount}">${cardsHtml}</div>`;
+        } else if (spec.type === 'directory') {
+          let rowsHtml = spec.items.map(renderDirectoryRowHTML).join('');
+          if (fillEmpty && spec.items.length < spec.capacity) {
+            const missing = spec.capacity - spec.items.length;
+            for (let m = 0; m < missing; m++) {
+              rowsHtml += renderDirectoryFillerRowHTML();
+            }
+          }
+          bodyHtml = `<div class="sheet-directory">${rowsHtml}</div>`;
+        } else {
+          // Contraportada par con hoja de pedido
+          let cardsHtml = '';
+          for (let m = 0; m < 6; m++) cardsHtml += renderFillerCardHTML(m);
+          bodyHtml = `<div class="sheet-grid density-6 rows-3">${cardsHtml}</div>`;
+        }
+
+        return renderSheetShell({
+          pageIndex,
+          displayPageNum,
+          totalDisplayPages: TOTAL_SHEETS,
+          categoryTitle: spec.catHeader,
+          bodyHtml,
+          isFirstPage: spec.isFirstPage,
+          tocItems
+        });
+      });
+
+      container.innerHTML = htmlSheets.join('');
+
+      document.getElementById('studioSubtitle').textContent =
+        `${filtered.length} productos incluidos (${photoProds.length} con foto en tarjeta · ${noPhotoProds.length} en modo lista con descripción)`;
+
+      populateBatchSelector();
+      generateAllQRCodes();
+      updateFlipbookView();
+    }
+
+    // =========================================================
+    // MOTOR DE TANDAS DE IMPRESIÓN (BATCH DUPLEX ENGINE)
+    // =========================================================
+    function populateBatchSelector() {
+      const batchSize = parseInt(document.getElementById('batchSizeSelect')?.value || '5', 10);
+      const sel = document.getElementById('activeBatchSelect');
+      if (!sel) return;
+
+      const prevVal = sel.value;
+      const totalPhysical = TOTAL_PHYSICAL_SHEETS;
+      const numBatches = Math.max(1, Math.ceil(totalPhysical / batchSize));
+
+      let opts = `<option value="all">📚 Todas las Hojas (${totalPhysical} hojas físicas = ${TOTAL_SHEETS} págs)</option>`;
+      for (let b = 0; b < numBatches; b++) {
+        const startSheet = b * batchSize + 1;
+        const endSheet = Math.min(totalPhysical, (b + 1) * batchSize);
+        const startPage = (startSheet - 1) * 2 + 1;
+        const endPage = endSheet * 2;
+        const sheetCount = endSheet - startSheet + 1;
+        opts += `<option value="${startSheet}-${endSheet}">📦 Tanda ${b + 1}: Hojas ${startSheet} a ${endSheet} (${sheetCount} hojas = Págs. ${startPage}–${endPage})</option>`;
+      }
+      sel.innerHTML = opts;
+
+      // Por defecto seleccionar Tanda 1 si hay más de 1 tanda para guiar al usuario paso a paso
+      if (prevVal && [...sel.options].some(o => o.value === prevVal)) {
+        sel.value = prevVal;
+      } else if (numBatches > 1) {
+        sel.selectedIndex = 1;
+      }
+      onActiveBatchChange();
+    }
+
+    function onBatchSizeChange() {
+      populateBatchSelector();
+    }
+
+    function onActiveBatchChange() {
+      const val = document.getElementById('activeBatchSelect')?.value || 'all';
+      const pill = document.getElementById('sheetCounterPill');
+
+      let minSheet = 1, maxSheet = TOTAL_PHYSICAL_SHEETS;
+      if (val !== 'all' && val.includes('-')) {
+        const [a, b] = val.split('-').map(Number);
+        minSheet = a;
+        maxSheet = b;
+      }
+
+      const activeSheetsCount = Math.max(0, maxSheet - minSheet + 1);
+      if (pill) {
+        pill.innerHTML = `Tanda activa: <strong>${activeSheetsCount} hojas Carta</strong> (${activeSheetsCount * 2} págs) · Total libro: <strong>${TOTAL_PHYSICAL_SHEETS} hojas</strong>`;
+      }
+
+      if (!FLIP_MODE) {
+        document.querySelectorAll('.catalog-sheet').forEach(sh => {
+          const sNum = parseInt(sh.getAttribute('data-physical-sheet'), 10);
+          const inBatch = sNum >= minSheet && sNum <= maxSheet;
+          sh.style.display = inBatch ? 'flex' : 'none';
+        });
+      }
+    }
+
+    function printDuplexBatch(sideMode) {
+      const val = document.getElementById('activeBatchSelect')?.value || 'all';
+      let minSheet = 1, maxSheet = TOTAL_PHYSICAL_SHEETS;
+      if (val !== 'all' && val.includes('-')) {
+        const [a, b] = val.split('-').map(Number);
+        minSheet = a;
+        maxSheet = b;
+      }
+
+      document.querySelectorAll('.catalog-sheet').forEach(sh => {
+        const sNum = parseInt(sh.getAttribute('data-physical-sheet'), 10);
+        const side = sh.getAttribute('data-side'); // 'odd' | 'even'
+        const inBatch = sNum >= minSheet && sNum <= maxSheet;
+        const matchSide = sideMode === 'all' || side === sideMode;
+
+        if (inBatch && matchSide) {
+          sh.classList.remove('print-exclude');
+          sh.style.display = 'flex';
+        } else {
+          sh.classList.add('print-exclude');
         }
       });
-    }, { rootMargin: '600px 0px' });
 
-    document.querySelectorAll('.qr-target').forEach(el => obs.observe(el));
-  } else {
-    renderAllQrsImmediately();
-  }
-}
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          document.querySelectorAll('.catalog-sheet').forEach(sh => sh.classList.remove('print-exclude'));
+          onActiveBatchChange();
+        }, 400);
+      }, 150);
+    }
 
-function renderSingleQr(target, baseUrl = 'https://jjpaper.pages.dev') {
-  const prodId = target.dataset.id;
-  if (prodId && !target.hasChildNodes()) {
-    try {
-      new QRCode(target, {
-        text: `${baseUrl}/producto?id=${encodeURIComponent(prodId)}`,
-        width: 200,
-        height: 200,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
+    function generateAllQRCodes() {
+      if (typeof QRCode === 'undefined') return;
+      const boxes = document.querySelectorAll('[data-qr-url]');
+      boxes.forEach(box => {
+        if (box.dataset.qrRendered === '1') return;
+        const url = box.getAttribute('data-qr-url');
+        if (!url) return;
+        box.innerHTML = '';
+        const isSmall = box.classList.contains('dir-qr');
+        try {
+          new QRCode(box, {
+            text: url,
+            width: isSmall ? 64 : 112,
+            height: isSmall ? 64 : 112,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+          box.dataset.qrRendered = '1';
+        } catch (e) {}
       });
-    } catch (_) {}
-  }
-}
-
-function renderAllQrsImmediately() {
-  const baseUrl = 'https://jjpaper.pages.dev';
-  if (typeof QRCode === 'undefined') return;
-  document.querySelectorAll('.qr-target').forEach(target => renderSingleQr(target, baseUrl));
-}
-
-/* ==========================================================================
-   MODO CUADERNO INTERACTIVO (PASAR PÁGINAS EN PANTALLA)
-   ========================================================================== */
-function setScreenViewMode(mode) {
-  const isFlip = (mode === 'flipbook');
-  document.body.classList.toggle('view-flipbook', isFlip);
-  document.getElementById('btnViewSheets')?.classList.toggle('active', !isFlip);
-  document.getElementById('btnViewFlipbook')?.classList.toggle('active', isFlip);
-
-  if (isFlip) {
-    currentSpreadIndex = 0;
-    updateFlipbookVisibility();
-  } else {
-    document.querySelectorAll('.catalog-page').forEach(el => el.classList.remove('hidden-in-flipbook'));
-  }
-}
-
-function turnSpread(delta) {
-  const maxSpread = Math.floor(totalGeneratedPages / 2);
-  currentSpreadIndex = Math.max(0, Math.min(maxSpread, currentSpreadIndex + delta));
-  updateFlipbookVisibility();
-}
-
-function jumpToPage(pageNum) {
-  if (document.body.classList.contains('view-flipbook')) {
-    // Spread 0 = Pág 1; Spread 1 = Págs 2-3; Spread 2 = Págs 4-5...
-    currentSpreadIndex = pageNum === 1 ? 0 : Math.floor(pageNum / 2);
-    updateFlipbookVisibility();
-  } else {
-    const target = document.querySelector(`.catalog-page[data-page="${pageNum}"]`);
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
-
-function updateFlipbookVisibility() {
-  const leftPage = currentSpreadIndex === 0 ? null : (currentSpreadIndex * 2);
-  const rightPage = currentSpreadIndex === 0 ? 1 : (currentSpreadIndex * 2 + 1);
-
-  document.querySelectorAll('.catalog-page').forEach(el => {
-    const p = parseInt(el.dataset.page, 10);
-    const visible = (p === leftPage || p === rightPage);
-    el.classList.toggle('hidden-in-flipbook', !visible);
-    if (visible) {
-      el.querySelectorAll('.qr-target').forEach(q => renderSingleQr(q));
     }
-  });
 
-  const lbl = document.getElementById('spreadLabel');
-  if (lbl) {
-    if (currentSpreadIndex === 0) {
-      lbl.textContent = ` Portada del Catálogo (Página 1 de ${totalGeneratedPages})`;
-    } else if (rightPage <= totalGeneratedPages) {
-      lbl.textContent = `📖 Cuaderno Abierto: Página ${leftPage} (Izquierda) y Página ${rightPage} (Derecha) de ${totalGeneratedPages}`;
-    } else {
-      lbl.textContent = `📖 Contraportada Final: Página ${leftPage} de ${totalGeneratedPages}`;
+    function togglePrices(val) {
+      document.body.classList.toggle('hide-prices', val === 'hide');
     }
-  }
-}
 
-/* ==========================================================================
-   MOTOR DE IMPRESIÓN EN 2 PASADAS (FRENTES IMPARES / REVERSOS PARES)
-   ========================================================================== */
-function printBookPass(passType) {
-  renderAllQrsImmediately();
-
-  document.body.classList.remove('print-pass-fronts', 'print-pass-backs', 'print-pass-test1');
-
-  const stage = document.getElementById('pagesStage');
-  const reverseBacks = document.getElementById('chkReverseBacks')?.checked;
-  let restoredOrder = false;
-
-  if (passType === 'fronts') {
-    document.body.classList.add('print-pass-fronts');
-  } else if (passType === 'backs') {
-    document.body.classList.add('print-pass-backs');
-    if (reverseBacks && stage) {
-      // Invertir temporalmente el orden de los nodos en el DOM para que las páginas pares salgan de la última a la 2
-      const nodes = Array.from(stage.children);
-      nodes.reverse().forEach(n => stage.appendChild(n));
-      restoredOrder = true;
+    function toggleFlipbookMode() {
+      FLIP_MODE = !FLIP_MODE;
+      const stage = document.getElementById('bookStage');
+      const btn = document.getElementById('btnFlipbook');
+      stage.classList.toggle('flipbook-mode', FLIP_MODE);
+      btn.classList.toggle('active', FLIP_MODE);
+      CURRENT_SPREAD = 0;
+      updateFlipbookView();
+      if (!FLIP_MODE) onActiveBatchChange();
     }
-  } else if (passType === 'test1') {
-    document.body.classList.add('print-pass-test1');
-  }
 
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove('print-pass-fronts', 'print-pass-backs', 'print-pass-test1');
-      if (restoredOrder && stage) {
-        const nodes = Array.from(stage.children);
-        nodes.reverse().forEach(n => stage.appendChild(n));
+    function flipSpread(delta) {
+      const maxSpread = Math.max(0, Math.ceil(TOTAL_SHEETS / 2) - 1);
+      CURRENT_SPREAD = Math.min(maxSpread, Math.max(0, CURRENT_SPREAD + delta));
+      updateFlipbookView();
+    }
+
+    function updateFlipbookView() {
+      const sheets = document.querySelectorAll('.catalog-sheet');
+      if (!FLIP_MODE) return;
+      const leftPage = CURRENT_SPREAD * 2 + 1;
+      const rightPage = leftPage + 1;
+      sheets.forEach(s => {
+        const p = parseInt(s.getAttribute('data-page'), 10);
+        s.style.display = (p === leftPage || p === rightPage) ? 'flex' : 'none';
+      });
+      const lbl = document.getElementById('flipSpreadLabel');
+      if (lbl) {
+        lbl.textContent = `Hoja #${CURRENT_SPREAD + 1} · Págs. ${leftPage} – ${Math.min(rightPage, TOTAL_SHEETS)} de ${TOTAL_SHEETS}`;
       }
-    }, 600);
-  }, 180);
-}
+    }
 
-function changeGutterMode(mode) {
-  document.body.classList.toggle('gutter-mirror', mode === 'mirror');
-  document.body.classList.toggle('gutter-symmetric', mode === 'symmetric');
-}
+    function openGuideModal() {
+      document.getElementById('guideModal')?.classList.add('open');
+    }
+    function closeGuideModal() {
+      document.getElementById('guideModal')?.classList.remove('open');
+    }
+    function openCustomCatalogModal() {
+      document.getElementById('customCatalogModal')?.classList.add('open');
+    }
+    function closeCustomCatalogModal() {
+      document.getElementById('customCatalogModal')?.classList.remove('open');
+    }
 
-function changePriceMode(mode) {
-  document.body.classList.toggle('hide-bs', mode === 'usd_only');
-  document.body.classList.toggle('hide-prices', mode === 'no_price');
-}
-
-function togglePrintMode(mode) {
-  document.body.classList.toggle('print-bw-mode', mode === 'bw');
-}
-
-function openPrinterGuide() {
-  document.getElementById('printerGuideModal')?.classList.add('active');
-}
-function closePrinterGuide() {
-  document.getElementById('printerGuideModal')?.classList.remove('active');
-}
-
-function openQrModal(idx, e) {
-  if (e) e.stopPropagation();
-  const p = currentRenderedItems[idx];
-  if (!p) return;
-
-  const prodUrl = `https://jjpaper.pages.dev/producto?id=${encodeURIComponent(p.id)}`;
-  currentModalUrl = prodUrl;
-
-  const imgEl = document.getElementById('qmProdImg');
-  if (imgEl) imgEl.src = p._hasPhoto ? optImg(p._imgUrl, 300) : 'assets/img/logo.svg';
-  document.getElementById('qmProdCat').textContent = p._catName;
-  document.getElementById('qmProdName').textContent = p.name;
-  document.getElementById('qmProdUsd').textContent = fmtPrice(p._price);
-  document.getElementById('qmProdBs').textContent = `Bs ${toBs(p._price)}`;
-  document.getElementById('qmDirectLink').href = prodUrl;
-
-  const canvasWrap = document.getElementById('qmCanvas');
-  canvasWrap.innerHTML = '';
-  new QRCode(canvasWrap, {
-    text: prodUrl,
-    width: 240,
-    height: 240,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
-  });
-
-  document.getElementById('qrModal')?.classList.add('active');
-}
-
-function closeQrModal() {
-  document.getElementById('qrModal')?.classList.remove('active');
-}
-
-function copyQrLink() {
-  if (!currentModalUrl) return;
-  navigator.clipboard.writeText(currentModalUrl).then(() => {
-    alert('¡Enlace de la ficha copiado al portapapeles!');
-  }).catch(() => {
-    prompt('Copia este enlace de la ficha:', currentModalUrl);
-  });
-}
-</script>
-
+    loadCatalogData();
+  </script>
 </body>
 </html>

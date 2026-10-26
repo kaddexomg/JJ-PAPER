@@ -12,6 +12,19 @@ let editingId       = null;
 let adminPage       = 1;
 const ADMIN_PER     = 20;
 let selectedIds     = new Set();
+let adminPhotoFilter = 'all'; // 'all' | 'missing' | 'with'
+
+function getFilteredAdminProducts() {
+  if (adminPhotoFilter === 'missing') return adminProducts.filter(p => !p.image_url);
+  if (adminPhotoFilter === 'with')    return adminProducts.filter(p => !!p.image_url);
+  return adminProducts;
+}
+
+function setProdPhotoFilter(val) {
+  adminPhotoFilter = val || 'all';
+  adminPage = 1;
+  renderAdminProdTable();
+}
 
 // Variantes del producto en edición: [{id?, brand_id, sku, cost_usd, price_usd, margin_pct, stock, active}]
 let formVariants        = [];
@@ -119,13 +132,18 @@ function renderAdminProdTable() {
   const tbody = document.getElementById('prodTableBody');
   if (!tbody) return;
 
+  const list   = getFilteredAdminProducts();
   const start  = (adminPage - 1) * ADMIN_PER;
-  const page   = adminProducts.slice(start, start + ADMIN_PER);
+  const page   = list.slice(start, start + ADMIN_PER);
   const count  = document.getElementById('prodTableCount');
-  if (count) count.textContent = `${adminProducts.length} productos`;
+  const withPhotoCount = adminProducts.filter(p => !!p.image_url).length;
+  const noPhotoCount   = adminProducts.length - withPhotoCount;
+  if (count) {
+    count.textContent = `${list.length} mostrados (${withPhotoCount} con foto · ${noPhotoCount} sin foto)`;
+  }
 
   if (!page.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="table-empty">No hay productos</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="table-empty">No hay productos para este filtro</td></tr>`;
     renderAdminProdPag();
     return;
   }
@@ -135,12 +153,13 @@ function renderAdminProdTable() {
   if (chkAll) chkAll.checked = allSel && page.length > 0;
 
   tbody.innerHTML = page.map(p => {
+    const esc  = (p.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const fallbackEmoji = escapeHTML(p.emoji || '📦');
     const img = p.image_url
-      ? `<div class="td-img"><img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async"></div>`
-      : `<div class="td-img">${p.emoji || '📦'}</div>`;
+      ? `<div class="td-img" style="cursor:pointer" title="Clic para cambiar fotografía" onclick="prodGenerarFotoIA('${p.id}','${esc}')"><img src="${optImg(p.image_url, 120)}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML='${fallbackEmoji}'"></div>`
+      : `<div class="td-img" style="cursor:pointer;border:1px dashed #cbd5e1" title="Sin foto — Clic para buscar o subir foto" onclick="prodGenerarFotoIA('${p.id}','${esc}')">${p.emoji || '📦'}</div>`;
 
     const vsum = variantSummary(p);
-    const esc  = (p.name || '').replace(/'/g, "\\'");
     const skus = (p.variants || []).map(v => v.sku).filter(Boolean);
 
     return `<tr class="${selectedIds.has(p.id) ? 'row-sel' : ''}">
@@ -163,7 +182,7 @@ function renderAdminProdTable() {
       </td>
       <td>
         <div class="td-actions">
-          ${!p.image_url ? `<button class="btn-s sm" style="background:#065f46;color:#fff;border-radius:4px;padding:3px 6px;font-size:11px" onclick="prodGenerarFotoIA('${p.id}','${esc}')" title="Generar packshot con IA">🤖 IA</button>` : ''}
+          <button class="btn-s sm" style="background:${p.image_url ? '#334155' : '#065f46'};color:#fff;border-radius:4px;padding:3px 7px;font-size:11px;font-weight:700" onclick="prodGenerarFotoIA('${p.id}','${esc}')" title="${p.image_url ? 'Cambiar o mejorar foto del producto' : 'Buscar/generar foto con IA o subir'}">${p.image_url ? '📸 Foto' : '📸 +IA'}</button>
           <button class="btn-p sm" onclick="openEditProduct('${p.id}')">✏️</button>
           <button class="btn-send sm" onclick="fichaAbrir(event,'${p.id}')"
                   title="Enviar foto + reseña + enlace de compra al cliente">📤</button>
@@ -178,7 +197,7 @@ function renderAdminProdTable() {
 
 function renderAdminProdPag() {
   const el    = document.getElementById('prodTablePag');
-  const total = adminProducts.length;
+  const total = getFilteredAdminProducts().length;
   const pages = Math.ceil(total / ADMIN_PER);
   if (!el) return;
   if (pages <= 1) { el.innerHTML = ''; return; }
@@ -485,17 +504,13 @@ async function saveProd() {
     essential:   document.getElementById('f-prod-essential')?.checked ?? false,
   };
 
-  // Upload image (comprimida client-side: max 1400px, webp/jpeg)
+  // Upload image (comprimida client-side a WebP cuadrado 520x520 fondo blanco estudio)
   const file = document.getElementById('f-prod-img')?.files?.[0];
   if (file) {
-    const { blob, ext } = await compressImage(file);
-    const path = `${editingId || Date.now()}.${ext}`;
-    const { error: upErr } = await sb.storage.from('jjp-products')
-      .upload(path, blob, { upsert: true, contentType: blob.type });
-    if (upErr) { showToast('Error al subir imagen: ' + upErr.message, 'err'); }
-    else {
-      const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
-      payload.image_url = publicUrl;
+    try {
+      payload.image_url = await convertImageToStudioWebpDataUri(file, 520);
+    } catch (upErr) {
+      showToast('Error al procesar imagen: ' + upErr.message, 'err');
     }
   }
 
@@ -509,6 +524,13 @@ async function saveProd() {
     productId = res.data?.id;
   }
   if (error || !productId) { showToast('Error: ' + (error?.message || 'sin id'), 'err'); return; }
+
+  // Sincronizar imagen con variantes si se subió nueva foto
+  if (payload.image_url && editingId) {
+    try {
+      await sb.from('jjp_product_variants').update({ image_url: payload.image_url }).eq('product_id', productId);
+    } catch (_) {}
+  }
 
   // 2) Guardar variantes (insert/update/delete)
   const vErrors = [];
@@ -906,84 +928,229 @@ async function recalcPrices(scope = 'all') {
   await loadAdminProducts();
 }
 
-/* ---------- Generación de Packshot con IA directa desde Productos ---------- */
-/* ---------- ESTUDIO COGNITIVO DE FOTOS: Búsqueda Web Real + Fotografía IA ---------- */
+/* ---------- ESTUDIO COGNITIVO DE FOTOS: Búsqueda Web + Fotografía IA + Subida/Pegado ---------- */
 let _currentStudioProdId = null;
 let _currentStudioSelectedImg = null;
+let _studioPasteHandlerBound = false;
+
+async function convertImageToStudioWebpDataUri(srcOrBlob, targetSize = 520) {
+  let blob = null;
+
+  if (srcOrBlob instanceof Blob) {
+    blob = srcOrBlob;
+  } else if (typeof srcOrBlob === 'string') {
+    const s = srcOrBlob.trim();
+    if (s.startsWith('data:') || s.startsWith('blob:')) {
+      const r = await fetch(s);
+      blob = await r.blob();
+    } else if (/^https?:\/\//i.test(s)) {
+      // Intentar 1) Proxy Cloudflare local/producción, 2) Proxy global wsrv.nl con conversión WebP y CORS, 3) Fetch directo
+      const candidates = [
+        `/api/search-images?proxy_url=${encodeURIComponent(s)}`,
+        `https://wsrv.nl/?url=${encodeURIComponent(s)}&w=${targetSize}&h=${targetSize}&fit=contain&cbg=white&output=webp`,
+        s
+      ];
+      for (const candidateUrl of candidates) {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 8500);
+          const resp = await fetch(candidateUrl, { signal: ctrl.signal });
+          clearTimeout(timer);
+          if (resp.ok) {
+            const ct = (resp.headers.get('content-type') || '').toLowerCase();
+            if (ct.includes('image') || candidateUrl.includes('wsrv.nl') || candidateUrl === s) {
+              const b = await resp.blob();
+              if (b && b.size > 400) {
+                blob = b;
+                break;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  if (!blob) {
+    throw new Error('No se pudo descargar la imagen origen (protegida o inaccesible). Prueba otra opción o pégala con Ctrl+V.');
+  }
+
+  const bmp = await createImageBitmap(blob);
+  const cv = document.createElement('canvas');
+  cv.width = targetSize;
+  cv.height = targetSize;
+  const ctx = cv.getContext('2d');
+
+  // Fondo blanco puro #FFFFFF de estudio para evitar recuadros negros en transparencias y uniformizar el catálogo impreso
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, targetSize, targetSize);
+
+  const pad = Math.round(targetSize * 0.04); // 4% margen limpio de estudio
+  const avail = targetSize - pad * 2;
+  const scale = Math.min(avail / bmp.width, avail / bmp.height);
+  const drawW = Math.round(bmp.width * scale);
+  const drawH = Math.round(bmp.height * scale);
+  const dx = Math.round((targetSize - drawW) / 2);
+  const dy = Math.round((targetSize - drawH) / 2);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, dx, dy, drawW, drawH);
+  bmp.close();
+
+  let dataUri = cv.toDataURL('image/webp', 0.82);
+  if (!dataUri.startsWith('data:image/webp')) {
+    dataUri = cv.toDataURL('image/jpeg', 0.85);
+  }
+  return dataUri;
+}
 
 async function prodGenerarFotoIA(productId, prodName) {
   _currentStudioProdId = productId;
   _currentStudioSelectedImg = null;
 
+  if (!_studioPasteHandlerBound) {
+    _studioPasteHandlerBound = true;
+    window.addEventListener('paste', async (e) => {
+      const modalEl = document.getElementById('prodAiModal');
+      if (!modalEl || modalEl.style.display === 'none') return;
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            await prodStudioHandleLocalFile(file, 'Imagen pegada del portapapeles (Ctrl+V)');
+            break;
+          }
+        }
+      }
+    });
+  }
+
   let modal = document.getElementById('prodAiModal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'prodAiModal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(4px);';
     document.body.appendChild(modal);
   }
 
   modal.innerHTML = `
-    <div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);overflow:hidden;">
-      <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+    <div style="background:#fff;border-radius:14px;max-width:860px;width:100%;max-height:93vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);overflow:hidden;font-family:'Plus Jakarta Sans',sans-serif;">
+      <div style="padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
         <div>
           <h3 style="margin:0;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px">
-            <span>📸 Estudio Fotográfico de Producto</span>
-            <span style="font-size:11px;font-weight:600;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px">IA Multi-Fuente</span>
+            <span>📸 Estudio Fotográfico de Producto (Web + IA + Subida Directa)</span>
+            <span style="font-size:11px;font-weight:700;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px">WebP Optimizado BD</span>
           </h3>
-          <p style="margin:4px 0 0;font-size:13px;color:#64748b;font-weight:500" id="prodStudioTitle">${escapeHTML(prodName)}</p>
+          <p style="margin:4px 0 0;font-size:13px;color:#334155;font-weight:600" id="prodStudioTitle">${escapeHTML(prodName)}</p>
         </div>
-        <button onclick="document.getElementById('prodAiModal').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">✕</button>
+        <button onclick="document.getElementById('prodAiModal').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;color:#64748b">✕</button>
       </div>
 
-      <!-- Barra de búsqueda / afinamiento -->
-      <div style="padding:12px 20px;background:#fff;border-bottom:1px solid #f1f5f9;display:flex;gap:10px;align-items:center">
-        <div style="flex:1;position:relative">
+      <!-- Barra de búsqueda + IA -->
+      <div style="padding:11px 20px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px;position:relative">
           <input type="text" id="prodStudioSearchInput" value="${escapeHTML(prodName)}"
+                 onkeydown="if(event.key==='Enter')prodStudioEjecutarBusqueda()"
                  style="width:100%;padding:8px 12px 8px 32px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none"
-                 placeholder="Escribe término de búsqueda exacto (ej. Marcador Expo rojo pizarra)...">
+                 placeholder="Escribe marca, producto, color o presentación (ej. Marcador Expo rojo pizarra)...">
           <span style="position:absolute;left:10px;top:9px;font-size:13px;color:#94a3b8">🔍</span>
         </div>
-        <button class="btn-s" style="padding:8px 14px;background:#0f172a;color:#fff;border-radius:8px;border:none;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px"
+        <button type="button" style="padding:8px 12px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer"
+                onclick="prodStudioOptimizarQueryIA()" id="btnOptQueryIA" title="Usa IA para traducir abreviaturas de inventario a nombre comercial claro">
+          ✨ Optimizar nombre con IA
+        </button>
+        <button type="button" style="padding:8px 14px;background:#0f172a;color:#fff;border-radius:8px;border:none;font-size:12.5px;font-weight:700;cursor:pointer"
                 onclick="prodStudioEjecutarBusqueda()">
-          Buscar Fotos
+          🌐 Buscar en Web
         </button>
       </div>
 
-      <!-- Barra de información y afinamiento -->
-      <div style="padding:10px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:13px;font-weight:600;color:#065f46;display:flex;align-items:center;gap:6px">
-          <span>🌐 Fotografías Oficiales en Línea</span>
-          <span style="font-size:11px;background:#e2e8f0;color:#475569;padding:1px 8px;border-radius:10px" id="webPhotosCount">...</span>
+      <!-- Pestañas: 1) Fotos Reales Web, 2) Generar Packshot IA, 3) Subir / Pegar Ctrl+V -->
+      <div style="padding:0 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div style="display:flex;gap:16px">
+          <button type="button" id="tabWebBtn" onclick="prodStudioSwitchTab('web')"
+                  style="padding:10px 4px;border:none;background:none;border-bottom:2.5px solid #065f46;color:#065f46;font-weight:700;font-size:12.5px;cursor:pointer">
+            🌐 Catálogos Web (<span id="webPhotosCount">...</span>)
+          </button>
+          <button type="button" id="tabAiBtn" onclick="prodStudioSwitchTab('ai')"
+                  style="padding:10px 4px;border:none;background:none;border-bottom:none;color:#64748b;font-weight:600;font-size:12.5px;cursor:pointer">
+            🤖 Generar Packshot Estudio IA
+          </button>
+          <button type="button" id="tabUploadBtn" onclick="prodStudioSwitchTab('upload')"
+                  style="padding:10px 4px;border:none;background:none;border-bottom:none;color:#64748b;font-weight:600;font-size:12.5px;cursor:pointer">
+            📤 Subir de PC / Pegar (Ctrl+V)
+          </button>
         </div>
-        <div style="font-size:11.5px;color:#64748b">
-          💡 Selecciona la foto que coincida exactamente con marca, color y presentación
+        <div style="font-size:11px;color:#64748b">
+          💡 Puedes presionar <strong>Ctrl + V</strong> en cualquier momento para pegar una foto copiada
         </div>
       </div>
 
       <!-- Contenedor de contenido -->
-      <div style="flex:1;overflow-y:auto;padding:18px 20px;">
+      <div style="flex:1;overflow-y:auto;padding:16px 20px;">
+        <!-- TAB 1: Fotos Web -->
         <div id="panelWebPhotos">
-          <div id="webLoadingSpinner" style="text-align:center;padding:40px 0;color:#64748b">
+          <div id="webLoadingSpinner" style="text-align:center;padding:36px 0;color:#64748b">
             <div style="font-size:28px;margin-bottom:8px">⏳</div>
-            <div style="font-size:13px;font-weight:500">Consultando fotografías reales del producto en distribuidores...</div>
+            <div style="font-size:13px;font-weight:600">Buscando fotografías comerciales reales del producto...</div>
           </div>
-          <div id="webPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px;"></div>
+          <div id="webPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:12px;"></div>
+        </div>
+
+        <!-- TAB 2: Packshot IA -->
+        <div id="panelAiPhoto" style="display:none;text-align:center;padding:10px 0;">
+          <div style="max-width:340px;margin:0 auto;border:2px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff">
+            <img id="prodAiStandaloneImg" alt="Packshot IA" style="width:100%;height:280px;object-fit:contain;background:#fff;border-radius:8px">
+          </div>
+          <div style="margin-top:12px;display:flex;gap:10px;justify-content:center">
+            <button type="button" onclick="prodStudioRegenerarIA()" style="padding:8px 16px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer">
+              🔄 Generar otra toma IA
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: Subir desde PC / Pegar Ctrl+V / URL Directa -->
+        <div id="panelUploadPhoto" style="display:none;padding:8px 0;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
+            <div style="border:2px dashed #94a3b8;border-radius:12px;padding:24px;text-align:center;background:#f8fafc;cursor:pointer;display:flex;flex-direction:column;justify-content:center;align-items:center"
+                 onclick="document.getElementById('studioLocalFileInput').click()">
+              <input type="file" id="studioLocalFileInput" accept="image/*" style="display:none"
+                     onchange="if(this.files[0])prodStudioHandleLocalFile(this.files[0], this.files[0].name)">
+              <div style="font-size:34px;margin-bottom:8px">📁</div>
+              <div style="font-size:13.5px;font-weight:700;color:#0f172a">Seleccionar imagen desde tu PC</div>
+              <div style="font-size:11.5px;color:#64748b;margin-top:4px">O presiona <strong>Ctrl + V</strong> para pegar una captura o imagen copiada</div>
+              <div style="margin-top:12px">
+                <label style="font-size:11px;color:#475569;display:block;margin-bottom:4px">¿Tienes el link directo de una imagen?</label>
+                <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+                  <input type="url" id="studioDirectUrlInput" placeholder="https://.../foto.jpg" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;width:190px">
+                  <button type="button" onclick="prodStudioAplicarUrlDirecta()" style="padding:6px 10px;background:#065f46;color:#fff;border:none;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer">Cargar</button>
+                </div>
+              </div>
+            </div>
+            <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px">
+              <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px">Previsualización cuadrada 520×520 (Fondo Blanco)</div>
+              <img id="studioUploadPreviewImg" style="max-width:190px;max-height:190px;object-fit:contain;border:1px solid #f1f5f9;border-radius:8px;display:none" alt="Preview">
+              <div id="studioUploadEmptyHint" style="font-size:12px;color:#94a3b8;text-align:center;padding:30px 10px">Ninguna imagen local cargada todavía</div>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Barra de acción inferior -->
-      <div style="padding:14px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:12.5px;color:#475569" id="studioSelectionStatus">
-          Selecciona una fotografía para asignarla al producto.
+      <div style="padding:13px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="font-size:12.5px;color:#475569;flex:1" id="studioSelectionStatus">
+          Selecciona una fotografía, genera con IA o pega con <strong>Ctrl+V</strong> para asignarla al producto.
         </div>
         <div style="display:flex;gap:10px">
-          <button class="btn-ghost" style="padding:8px 16px" onclick="document.getElementById('prodAiModal').style.display='none'">
+          <button type="button" class="btn-ghost" style="padding:8px 16px" onclick="document.getElementById('prodAiModal').style.display='none'">
             Cancelar
           </button>
-          <button id="studioSaveBtn" class="btn-p" style="padding:8px 20px;background:#065f46;color:#fff;border-radius:6px;border:none;cursor:pointer;font-weight:600"
+          <button type="button" id="studioSaveBtn" class="btn-p" style="padding:9px 20px;background:#065f46;color:#fff;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:13px"
                   disabled onclick="prodStudioGuardarSeleccion()">
-            ✅ Asignar Foto al Producto
+            ✅ Optimizar a WebP y Guardar Foto
           </button>
         </div>
       </div>
@@ -991,38 +1158,111 @@ async function prodGenerarFotoIA(productId, prodName) {
   `;
   modal.style.display = 'flex';
 
-  // Iniciar la búsqueda multi-fuente
+  // Iniciar búsqueda web automáticamente
   prodStudioEjecutarBusqueda();
 }
 
 function prodStudioSwitchTab(tab) {
   const panelWeb = document.getElementById('panelWebPhotos');
   const panelAi = document.getElementById('panelAiPhoto');
+  const panelUp = document.getElementById('panelUploadPhoto');
   const tabWeb = document.getElementById('tabWebBtn');
   const tabAi = document.getElementById('tabAiBtn');
+  const tabUp = document.getElementById('tabUploadBtn');
 
-  if (tab === 'web') {
-    panelWeb.style.display = 'block';
-    panelAi.style.display = 'none';
-    tabWeb.style.borderBottom = '2px solid #065f46';
-    tabWeb.style.color = '#065f46';
-    tabWeb.style.fontWeight = '600';
-    tabAi.style.borderBottom = 'none';
-    tabAi.style.color = '#64748b';
-    tabAi.style.fontWeight = '500';
-  } else {
-    panelWeb.style.display = 'none';
-    panelAi.style.display = 'block';
-    tabAi.style.borderBottom = '2px solid #065f46';
-    tabAi.style.color = '#065f46';
-    tabAi.style.fontWeight = '600';
-    tabWeb.style.borderBottom = 'none';
-    tabWeb.style.color = '#64748b';
-    tabWeb.style.fontWeight = '500';
+  if (panelWeb) panelWeb.style.display = tab === 'web' ? 'block' : 'none';
+  if (panelAi)  panelAi.style.display  = tab === 'ai' ? 'block' : 'none';
+  if (panelUp)  panelUp.style.display  = tab === 'upload' ? 'block' : 'none';
 
-    if (!document.getElementById('prodAiStandaloneImg').src || document.getElementById('prodAiStandaloneImg').src.includes('data:')) {
+  [
+    [tabWeb, tab === 'web'],
+    [tabAi,  tab === 'ai'],
+    [tabUp,  tab === 'upload']
+  ].forEach(([btn, on]) => {
+    if (!btn) return;
+    btn.style.borderBottom = on ? '2.5px solid #065f46' : 'none';
+    btn.style.color = on ? '#065f46' : '#64748b';
+    btn.style.fontWeight = on ? '700' : '600';
+  });
+
+  if (tab === 'ai') {
+    const aiImg = document.getElementById('prodAiStandaloneImg');
+    if (aiImg && !aiImg.getAttribute('src')) {
       prodStudioGenerarFotoIA();
     }
+  }
+}
+
+async function prodStudioOptimizarQueryIA() {
+  const qInput = document.getElementById('prodStudioSearchInput');
+  const btn = document.getElementById('btnOptQueryIA');
+  const raw = (qInput?.value || '').trim();
+  if (!raw) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Optimizando...'; }
+  try {
+    let optimized = raw
+      .replace(/\bP\/G\b/gi, 'punta gruesa')
+      .replace(/\bP\/F\b/gi, 'punta fina')
+      .replace(/\bP\/M\b/gi, 'punta media')
+      .replace(/\bT\/C\b/gi, 'tamaño carta')
+      .replace(/\bT\/O\b/gi, 'tamaño oficio')
+      .replace(/\bBOLIG\.?\b/gi, 'Boligrafo')
+      .replace(/\bMARC\.?\b/gi, 'Marcador')
+      .replace(/\bRESALT\.?\b/gi, 'Resaltador')
+      .replace(/\bCARP\.?\b/gi, 'Carpeta')
+      .replace(/\bSACAP\.?\b/gi, 'Sacapuntas')
+      .replace(/\bPERF\.?\b/gi, 'Perforadora')
+      .replace(/\bGRAP\.?\b/gi, 'Grapadora')
+      .replace(/\bHJS\b/gi, 'hojas')
+      .replace(/\b(STD|XUND|UND)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (window.GeminiClient) {
+      const sys = 'Eres un experto en catálogos de papelería y útiles de oficina en Latinoamérica. Convierte el nombre abreviado de inventario en una consulta de búsqueda comercial limpia de 4 a 7 palabras en español (incluyendo tipo de artículo, marca, modelo/presentación y color) para buscar su fotografía de producto. Devuelve SOLO las palabras de búsqueda, sin comillas ni explicaciones.';
+      const aiRes = await window.GeminiClient.callGemini({ prompt: raw, systemInstruction: sys, temperature: 0.1 });
+      if (aiRes && aiRes.trim().length > 3 && !/error/i.test(aiRes)) {
+        optimized = aiRes.replace(/["'`\n\r]/g, '').trim();
+      }
+    }
+
+    if (qInput) qInput.value = optimized;
+    prodStudioSwitchTab('web');
+    await prodStudioEjecutarBusqueda();
+  } catch (_) {
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Optimizar nombre con IA'; }
+  }
+}
+
+async function prodStudioHandleLocalFile(fileOrBlob, label = 'Imagen local') {
+  try {
+    const dataUri = await convertImageToStudioWebpDataUri(fileOrBlob, 520);
+    prodStudioSwitchTab('upload');
+    const prev = document.getElementById('studioUploadPreviewImg');
+    const hint = document.getElementById('studioUploadEmptyHint');
+    if (prev) { prev.src = dataUri; prev.style.display = 'block'; }
+    if (hint) { hint.style.display = 'none'; }
+    prodStudioSelectImage(dataUri, null, label);
+  } catch (err) {
+    alert('No se pudo leer la imagen: ' + err.message);
+  }
+}
+
+async function prodStudioAplicarUrlDirecta() {
+  const inp = document.getElementById('studioDirectUrlInput');
+  const url = (inp?.value || '').trim();
+  if (!url) return;
+  try {
+    const dataUri = await convertImageToStudioWebpDataUri(url, 520);
+    const prev = document.getElementById('studioUploadPreviewImg');
+    const hint = document.getElementById('studioUploadEmptyHint');
+    if (prev) { prev.src = dataUri; prev.style.display = 'block'; }
+    if (hint) { hint.style.display = 'none'; }
+    prodStudioSelectImage(dataUri, null, 'Imagen desde URL directa');
+  } catch (err) {
+    alert('Error al cargar URL: ' + err.message);
   }
 }
 
@@ -1031,6 +1271,7 @@ async function prodStudioEjecutarBusqueda() {
   const q = (qInput?.value || '').trim();
   if (!q) return;
 
+  prodStudioSwitchTab('web');
   const spinner = document.getElementById('webLoadingSpinner');
   const grid = document.getElementById('webPhotosGrid');
   const countEl = document.getElementById('webPhotosCount');
@@ -1042,56 +1283,31 @@ async function prodStudioEjecutarBusqueda() {
   let results = [];
 
   try {
-  // 1. INTENTAR DIRECTAMENTE VÍA CLOUDFLARE EDGE API (/api/search-images)
-  try {
-    const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);
-    if (cfRes.ok) {
-      const cfData = await cfRes.json();
-      if (cfData.ok && Array.isArray(cfData.results) && cfData.results.length > 0) {
-        results = cfData.results;
-      }
-    }
-  } catch (err) {
-    console.warn('Fallback a jjp_server_control por error en /api/search-images:', err);
-  }
-
-  // 2. Si Cloudflare no devolvió fotos o falló la red, usar jjp_server_control como respaldo
-  if (!results.length) {
+    // 1. Consultar vía Cloudflare Pages Function (/api/search-images)
     try {
-      await sb.from('jjp_server_control').update({
-        command: `search_images:${q}`,
-        command_at: new Date().toISOString()
-      }).eq('id', 1);
-
-      for (let i = 0; i < 24; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
-        let resObj = ctrl?.command_res;
-        if (typeof resObj === 'string') {
-          try { resObj = JSON.parse(resObj); } catch (_) {}
-        }
-        if (resObj?.type === 'search_images' && resObj.ok && Array.isArray(resObj.results)) {
-          const resQ = (resObj.query || '').toLowerCase().trim();
-          const cleanQ = q.toLowerCase().trim();
-          if (resQ.includes(cleanQ) || cleanQ.includes(resQ) || resObj.reqId) {
-            results = resObj.results;
-            break;
-          }
+      const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);
+      if (cfRes.ok) {
+        const cfData = await cfRes.json();
+        if (cfData.ok && Array.isArray(cfData.results) && cfData.results.length > 0) {
+          results = cfData.results;
         }
       }
-    } catch (e) {
-      console.warn('Error en fallback jjp_server_control:', e);
+    } catch (err) {
+      console.warn('Aviso en /api/search-images:', err);
     }
-  }
 
-  if (spinner) spinner.style.display = 'none';
+    if (spinner) spinner.style.display = 'none';
 
     if (!results || results.length === 0) {
       if (grid) {
         grid.innerHTML = `
-          <div style="grid-column:1/-1;text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:8px">
-            <p style="margin:0 0 8px;font-size:14px">No encontramos fotos web exactas con "${escapeHTML(q)}".</p>
-            <p style="margin:0;font-size:12px;color:#94a3b8">Prueba simplificando el nombre arriba (ej: "Expo rojo pizarra") o usa la pestaña <strong>🤖 Fotografía con IA</strong>.</p>
+          <div style="grid-column:1/-1;text-align:center;padding:28px;color:#475569;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+            <p style="margin:0 0 8px;font-size:14px;font-weight:700">No encontramos fotos web directas con "${escapeHTML(q)}".</p>
+            <p style="margin:0 0 14px;font-size:12.5px;color:#64748b">Haz clic en <strong>✨ Optimizar nombre con IA</strong> arriba, usa la pestaña <strong>🤖 Generar Packshot Estudio IA</strong>, o pega una foto con <strong>Ctrl + V</strong>.</p>
+            <div style="display:flex;gap:10px;justify-content:center">
+              <button type="button" onclick="prodStudioOptimizarQueryIA()" style="padding:7px 14px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✨ Optimizar Búsqueda con IA</button>
+              <button type="button" onclick="prodStudioSwitchTab('ai')" style="padding:7px 14px;background:#0f172a;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">🤖 Generar Foto con IA</button>
+            </div>
           </div>`;
       }
       if (countEl) countEl.textContent = '0';
@@ -1100,24 +1316,25 @@ async function prodStudioEjecutarBusqueda() {
 
     if (countEl) countEl.textContent = results.length;
 
-    grid.innerHTML = results.map((r, idx) => `
+    grid.innerHTML = results.map((r, idx) => {
+      const rawImg = r.image || r.thumbnail;
+      const thumbSrc = `https://wsrv.nl/?url=${encodeURIComponent(r.thumbnail || rawImg)}&w=260&h=260&fit=contain&cbg=white&output=webp`;
+      return `
       <div class="prod-img-card" id="studio-card-${idx}" style="cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fff;transition:all .15s ease"
-           onclick="prodStudioSelectImage('${escapeJsStr(r.image || r.thumbnail)}', ${idx}, '${escapeJsStr(r.title)}')">
-        <div style="width:100%;height:130px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:8px">
-          <img src="${r.thumbnail || r.image}" alt="${escapeHTML(r.title)}" style="max-width:100%;max-height:100%;object-fit:contain"
-               onerror="this.parentElement.parentElement.style.display='none'">
+           onclick="prodStudioSelectImage('${escapeJsStr(rawImg)}', ${idx}, '${escapeJsStr(r.title)}')">
+        <div style="width:100%;height:132px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px">
+          <img src="${thumbSrc}" alt="${escapeHTML(r.title)}" style="max-width:100%;max-height:100%;object-fit:contain"
+               onerror="if(this.src!=='${escapeJsStr(r.thumbnail || rawImg)}'){this.src='${escapeJsStr(r.thumbnail || rawImg)}';}else{this.parentElement.parentElement.style.display='none';}">
         </div>
-        <div style="padding:8px;border-top:1px solid #f1f5f9;font-size:11px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(r.title)}">
+        <div style="padding:7px 8px;border-top:1px solid #f1f5f9;font-size:11px;color:#334155;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(r.title)}">
           ${escapeHTML(r.title)}
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
-    // Preseleccionar la primera imagen por defecto
     if (results[0]) {
       prodStudioSelectImage(results[0].image || results[0].thumbnail, 0, results[0].title);
     }
-
   } catch (err) {
     if (spinner) spinner.style.display = 'none';
     if (grid) grid.innerHTML = `<div style="grid-column:1/-1;color:#b91c1c;padding:20px;text-align:center">Aviso en búsqueda web: ${err.message}</div>`;
@@ -1136,7 +1353,7 @@ function prodStudioSelectImage(imgUrl, idx = null, title = '') {
     const card = document.getElementById(`studio-card-${idx}`);
     if (card) {
       card.style.borderColor = '#065f46';
-      card.style.boxShadow = '0 0 0 2px rgba(6,95,70,0.2)';
+      card.style.boxShadow = '0 0 0 3px rgba(6,95,70,0.22)';
     }
   }
 
@@ -1144,7 +1361,7 @@ function prodStudioSelectImage(imgUrl, idx = null, title = '') {
   const statusEl = document.getElementById('studioSelectionStatus');
   if (saveBtn) saveBtn.disabled = false;
   if (statusEl) {
-    statusEl.innerHTML = `✅ Foto seleccionada: <strong style="color:#0f172a">${escapeHTML(title || 'Imagen elegida')}</strong>`;
+    statusEl.innerHTML = `✅ Seleccionada: <strong style="color:#0f172a">${escapeHTML(title || 'Fotografía lista')}</strong>`;
   }
 }
 
@@ -1152,24 +1369,24 @@ async function prodStudioGenerarFotoIA() {
   const qInput = document.getElementById('prodStudioSearchInput');
   const prodName = (qInput?.value || '').trim();
   const imgEl = document.getElementById('prodAiStandaloneImg');
+  const statusEl = document.getElementById('studioSelectionStatus');
   if (!imgEl) return;
 
-  // Análisis ontológico inteligente de empaque y presentación
+  if (statusEl) statusEl.innerHTML = '🎨 Generando fotografía de estudio en fondo blanco con IA...';
+
   const isCaja = /\b(X\s*12|DOCENA|DOC|C\/12|CAJA|X\s*24|PACK|SURT|SET)\b/i.test(prodName);
   const isResma = /\b(RESMA|500\s*HJS|500\s*HOJAS|BOND)\b/i.test(prodName);
 
-  let objectPrompt = `Commercial product photography of ${prodName}, authentic stationery item, on pure solid white background #FFFFFF, studio light, sharp focus, 8k`;
+  let objectPrompt = `Commercial product photography of ${prodName}, authentic stationery office supply item, centered on pure solid white background #FFFFFF, studio lighting, sharp focus, 8k`;
   if (isCaja) {
-    objectPrompt = `Commercial product photography of the authentic official retail box packaging of ${prodName}, displaying official brand typography and logos, with one pen or marker placed next to the box, on pure solid white background #FFFFFF, sharp focus, commercial studio photo, 8k`;
+    objectPrompt = `Commercial product photography of the authentic retail box packaging of ${prodName}, displaying clean brand typography, with one item placed next to the box, centered on pure solid white background #FFFFFF, studio photo, 8k`;
   } else if (isResma) {
-    objectPrompt = `Commercial product photography of a factory sealed ream packaging of ${prodName}, authentic paper wrapper with printed branding, on pure solid white background #FFFFFF, studio light, 8k`;
-  } else {
-    objectPrompt = `Commercial product photography of a single individual ${prodName}, isolated on pure solid white background #FFFFFF, sharp focus on branding, natural drop shadow, commercial product photography, 8k uhd, NO BOX`;
+    objectPrompt = `Commercial product photography of a factory sealed ream packaging of ${prodName}, authentic paper wrapper with printed branding, centered on pure solid white background #FFFFFF, studio light, 8k`;
   }
 
   try {
     if (window.GeminiClient) {
-      const sys = `You are a commercial catalog photographer for an office supply company. Output a 1-sentence prompt for Flux describing the authentic commercial product photography on pure solid white background #FFFFFF. If the product name indicates a box or set of 12 (X12, docena, caja, set), describe the authentic retail box and packaging with clear brand graphics. If it is a single unit, describe ONLY the single item without packaging. Never produce generic 3D renders.`;
+      const sys = `You are a commercial catalog photographer for an office supply company. Output a 1-sentence prompt in English for Flux describing the authentic commercial product photography on pure solid white background #FFFFFF. Never produce generic 3D renders.`;
       const aiPrompt = await window.GeminiClient.callGemini({ prompt: prodName, systemInstruction: sys, temperature: 0.1 });
       if (aiPrompt && aiPrompt.length > 10 && !aiPrompt.includes('Error')) {
         objectPrompt = aiPrompt.replace(/^["'`]|["'`]$/g, '').trim();
@@ -1178,11 +1395,11 @@ async function prodStudioGenerarFotoIA() {
   } catch (_) {}
 
   const seed = Math.abs(hashCode(prodName + '_' + Date.now()));
-  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(objectPrompt.slice(0, 360))}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
+  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(objectPrompt.slice(0, 360))}?width=640&height=640&model=flux&nologo=true&seed=${seed}`;
 
   imgEl.src = aiUrl;
   imgEl.onload = () => {
-    prodStudioSelectImage(aiUrl, null, `Foto generada con IA (${prodName})`);
+    prodStudioSelectImage(aiUrl, null, `Packshot IA (${prodName})`);
   };
 }
 
@@ -1195,60 +1412,45 @@ async function prodStudioGuardarSeleccion() {
 
   const btn = document.getElementById('studioSaveBtn');
   const statusEl = document.getElementById('studioSelectionStatus');
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando en catálogo… ⏳'; }
-  if (statusEl) statusEl.textContent = 'Procesando imagen, comprimiendo a WebP y vinculando al producto...';
+  if (btn) { btn.disabled = true; btn.textContent = 'Optimizando WebP y guardando… ⏳'; }
+  if (statusEl) statusEl.textContent = 'Encuadrando en lienzo 520×520 fondo blanco, comprimiendo a WebP ligero y guardando en BD...';
 
   try {
-    // Ordenar al servidor VPS que descargue la imagen y la guarde en Storage
-    await sb.from('jjp_server_control').update({
-      command: `save_product_image:${JSON.stringify({ product_id: _currentStudioProdId, image_url: _currentStudioSelectedImg })}`,
-      command_at: new Date().toISOString()
-    }).eq('id', 1);
+    const webpDataUri = await convertImageToStudioWebpDataUri(_currentStudioSelectedImg, 520);
 
-    // Esperar confirmación del VPS
-    let success = false;
-    for (let i = 0; i < 20; i++) {
-      await new Promise(r => setTimeout(r, 500));
-      const { data: ctrl } = await sb.from('jjp_server_control').select('command_res').eq('id', 1).maybeSingle();
-      let resObj = ctrl?.command_res;
-      if (typeof resObj === 'string') {
-        try { resObj = JSON.parse(resObj); } catch (_) {}
-      }
-      if (resObj?.type === 'save_product_image' && resObj.ok) {
-        success = true;
-        break;
-      }
+    const [resProd] = await Promise.all([
+      sb.from('jjp_products').update({ image_url: webpDataUri }).eq('id', _currentStudioProdId),
+      sb.from('jjp_product_variants').update({ image_url: webpDataUri }).eq('product_id', _currentStudioProdId)
+    ]);
+
+    if (resProd?.error) throw new Error(resProd.error.message);
+
+    // Actualizar en memoria local inmediatamente para no requerir recarga pesada
+    const targetProd = adminProducts.find(p => p.id === _currentStudioProdId);
+    if (targetProd) {
+      targetProd.image_url = webpDataUri;
+      (targetProd.variants || []).forEach(v => { v.image_url = webpDataUri; });
     }
 
-    // Fallback directo por cliente si el VPS no respondió a tiempo
-    if (!success) {
-      const resp = await fetch(_currentStudioSelectedImg);
-      const blob = await resp.blob();
-      const bmp = await createImageBitmap(blob);
-      const escala = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(bmp.width * escala);
-      cv.height = Math.round(bmp.height * escala);
-      cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
-      const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.85));
-
-      const path = `${_currentStudioProdId}.webp`;
-      await sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
-      const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
-      const url = `${publicUrl}?v=${Date.now()}`;
-
-      await Promise.all([
-        sb.from('jjp_products').update({ image_url: url }).eq('id', _currentStudioProdId),
-        sb.from('jjp_product_variants').update({ image_url: url }).eq('product_id', _currentStudioProdId)
-      ]);
-    }
+    // Invalidar caché de sessionStorage del catálogo público/impreso
+    try {
+      sessionStorage.removeItem('jjp_catalog_prods_v2');
+    } catch (_) {}
 
     document.getElementById('prodAiModal').style.display = 'none';
-    showToast('🎉 ¡Foto de producto guardada exitosamente en el catálogo!', 'ok');
-    await loadAdminProducts();
+    if (typeof showToast === 'function') {
+      showToast('✅ Fotografía WebP optimizada y guardada en la base de datos', 'ok');
+    }
+    if (typeof renderAdminProdTable === 'function') {
+      renderAdminProdTable();
+    }
+    if (typeof window._onStudioPhotoSaved === 'function') {
+      window._onStudioPhotoSaved(_currentStudioProdId, webpDataUri);
+    }
   } catch (e) {
-    alert('Error al guardar foto: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Asignar Foto al Producto'; }
+    alert('Error al procesar o guardar foto: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Optimizar a WebP y Guardar Foto'; }
   }
 }
 

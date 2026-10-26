@@ -54,6 +54,7 @@
         </div>
       </div>
       <div class="topbar-right">
+        <a href="/catalogo_impreso.html" target="_blank" class="btn-ghost" style="color:#0f172a;font-weight:700;text-decoration:none">📖 Catálogo Impreso QR</a>
         <button class="btn-ghost" style="color:#15803d;font-weight:700" onclick="syncMixnetNow()" title="Sincronizar existencias y precios desde MixNet">🔄 Sincronizar MixNet</button>
         <button class="btn-ghost" onclick="recalcPrices('all')" title="Recalcular precios según tasas actuales">🔄 Recalcular precios</button>
         <button class="btn-ghost" onclick="openImportModal()">📥 Importar CSV</button>
@@ -171,6 +172,11 @@
           <h3>📦 Catalogo de Productos</h3>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <span id="prodTableCount" style="font-size:12px;color:var(--gr)"></span>
+            <select id="prodPhotoFilterSel" class="sort-sel" style="height:36px;font-size:12.5px" onchange="setProdPhotoFilter(this.value)">
+              <option value="all">📸 Todas las fichas</option>
+              <option value="missing">⚠️ Solo SIN foto (pendientes)</option>
+              <option value="with">✅ Solo CON foto verificada</option>
+            </select>
             <div class="srch" style="min-width:210px">
               <span class="srch-ico">🔍</span>
               <input type="text" placeholder="Buscar producto..." oninput="searchProds(this.value)">

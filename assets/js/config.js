@@ -984,8 +984,19 @@ function osmLink(lat, lng, z = 16) {
 // subir, así que la URL original es suficiente. `width` se acepta por
 // compatibilidad con los call sites pero no se usa.
 function optImg(url, width) {
-  if (!url) return url;
-  return encodeURI(url);
+  if (!url) return '';
+  const s = String(url).trim();
+  if (!s) return '';
+  // Si es un Data URI base64 o blob, limpiar cualquier sufijo accidental ?v=... y devolver intacto
+  if (s.startsWith('data:')) {
+    return s.split('?v=')[0];
+  }
+  if (s.startsWith('blob:')) return s;
+  // Normalizar rutas desviadas antiguas (HTTP IP directa o proyectos Supabase dados de baja) hacia el CDN HTTPS soberano
+  const normalized = s
+    .replace(/^https?:\/\/166\.0\.112\.247(?::\d+)?/i, SUPABASE_URL)
+    .replace(/^https?:\/\/[a-z0-9]+\.supabase\.co/i, SUPABASE_URL);
+  return encodeURI(normalized);
 }
 
 // WhatsApp open

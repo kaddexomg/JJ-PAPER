@@ -904,6 +904,7 @@ body.hide-prices .dir-price-col {
         <option value="hide">🙈 Ocultar Precios</option>
       </select>
 
+      <button type="button" class="tb-btn" style="background:#0284c7;color:#fff;box-shadow:0 2px 8px rgba(2,132,199,0.3)" onclick="openTestSheetModal()" title="Imprimir 1 hoja física de prueba para calibrar el giro dúplex">🧪 Hoja de Prueba</button>
       <button type="button" class="tb-btn tb-btn-sub" onclick="openGuideModal()">
         📖 Guía Dúplex
       </button>
@@ -982,6 +983,73 @@ body.hide-prices .dir-price-col {
 
     <div style="text-align:right; margin-top:16px">
       <button type="button" class="tb-btn" onclick="closeGuideModal()">Entendido, volver al catálogo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HOJA DE PRUEBA DÚPLEX -->
+<div class="guide-modal" id="testSheetModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeTestSheetModal()">
+  <div class="modal-box" style="max-width:620px">
+    <div class="modal-header">
+      <h3>🧪 Hoja de Prueba Dúplex (Calibrar Frente y Reverso)</h3>
+      <button type="button" class="modal-close" onclick="closeTestSheetModal()">✕</button>
+    </div>
+
+    <p style="font-size:13px;color:#475569;margin-bottom:14px">
+      Haz un ciclo completo de prueba con <strong>1 sola hoja de papel</strong> antes de mandar a imprimir el lote completo. Así comprobarás que los márgenes del lomo coinciden y que el reverso no quede de cabeza.
+    </p>
+
+    <div class="guide-step" style="border-left:4px solid #0284c7;background:#f0f9ff">
+      <div class="step-num" style="background:#0284c7">1</div>
+      <div class="step-content">
+        <h4 style="color:#0369a1">Paso 1: Imprimir Frente de Prueba (Página 1)</h4>
+        <p>Coloca 1 hoja de papel en tu impresora y presiona el botón azul abajo. Se imprimirá la portada con el lomo ancho para perforación a la <strong>izquierda</strong>.</p>
+        <button type="button" class="tb-btn tb-btn-step1" style="margin-top:8px;padding:7px 14px;font-size:12px" onclick="printTestSheet('odd')">
+          🖨️ 1️⃣ Imprimir Frente (Pág 1)
+        </button>
+      </div>
+    </div>
+
+    <div class="guide-step" style="border-left:4px solid #d97706;background:#fffbeb">
+      <div class="step-num" style="background:#d97706">2</div>
+      <div class="step-content">
+        <h4 style="color:#b45309">Paso 2: Dar la vuelta a la hoja expulsada</h4>
+        <p style="line-height:1.5">
+          1. Retira la hoja expulsada de la bandeja de salida.<br>
+          2. <strong>Gírala sobre su eje largo</strong> (como pasando la página de un cuaderno, de derecha a izquierda).<br>
+          3. <strong>NO la gires de cabeza</strong> (el encabezado debe entrar primero o según el alimentador de tu impresora).<br>
+          4. Colócala nuevamente en la bandeja de entrada para imprimir en la cara en blanco.
+        </p>
+      </div>
+    </div>
+
+    <div class="guide-step" style="border-left:4px solid #16604a;background:#f0fdf4">
+      <div class="step-num" style="background:#16604a">3</div>
+      <div class="step-content">
+        <h4 style="color:#16604a">Paso 3: Imprimir Reverso de Prueba (Página 2)</h4>
+        <p>Presiona el botón verde abajo. Se imprimirá la página 2 detrás de la página 1, con el margen de lomo espejado hacia la <strong>derecha</strong> para que coincidan perfectamente.</p>
+        <button type="button" class="tb-btn tb-btn-step2" style="margin-top:8px;padding:7px 14px;font-size:12px;background:#16604a" onclick="printTestSheet('even')">
+          🖨️ 2️⃣ Imprimir Reverso (Pág 2)
+        </button>
+      </div>
+    </div>
+
+    <div class="guide-step" style="border-left:4px solid #64748b;background:#f8fafc">
+      <div class="step-num" style="background:#475569">✓</div>
+      <div class="step-content">
+        <h4 style="color:#1e293b">Paso 4: Comprobación de Calidad</h4>
+        <ul style="font-size:12px;color:#334155;margin:4px 0 0 16px;padding:0;line-height:1.5">
+          <li><strong>¿Lomo alineado?</strong> Pon la hoja a contraluz: el área gris del lomo de la Pág 1 debe coincidir exactamente con el lomo de la Pág 2.</li>
+          <li><strong>¿Página 2 derecha o de cabeza?</strong> Si la página 2 salió invertida (patas arriba), en la ventana de impresión de tu navegador selecciona la opción <em>"Voltear por borde largo"</em>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px">
+      <button type="button" class="tb-btn" style="background:#f1f5f9;color:#334155" onclick="closeTestSheetModal()">Cerrar</button>
+      <button type="button" class="tb-btn tb-btn-gold" onclick="closeTestSheetModal();document.getElementById('batchSelect').value='1-5';onBatchSelectChange();">
+        ✅ Calibración Lista, Iniciar Tanda 1
+      </button>
     </div>
   </div>
 </div>
@@ -1480,6 +1548,7 @@ body.hide-prices .dir-price-col {
     const numBatches = Math.max(1, Math.ceil(TOTAL_SHEETS / BATCH_SHEET_SIZE));
 
     let html = `<option value="all">📚 Todo el Libro (${TOTAL_SHEETS} hojas = ${TOTAL_PAGES} págs)</option>`;
+    html += `<option value="1-1">🧪 Hoja 1 de Prueba (Solo Págs 1 y 2 · Calibración Dúplex)</option>`;
     for (let b = 0; b < numBatches; b++) {
       const startS = b * BATCH_SHEET_SIZE + 1;
       const endS = Math.min(TOTAL_SHEETS, (b + 1) * BATCH_SHEET_SIZE);
@@ -1511,7 +1580,7 @@ body.hide-prices .dir-price-col {
 
     const count = maxS - minS + 1;
     if (sumEl) {
-      sumEl.innerHTML = `Tanda seleccionada: <strong>${count} hojas Carta</strong> (${count * 2} págs) · Libro completo: <strong>${TOTAL_SHEETS} hojas</strong>`;
+      sumEl.innerHTML = (val === '1-1') ? `🧪 Modo Prueba: <strong>1 hoja física Carta</strong> (Págs 1 y 2) · Imprime el frente (Pág 1), dale la vuelta por el eje largo e imprime el reverso (Pág 2).` : `Tanda seleccionada: <strong>${count} hojas Carta</strong> (${count * 2} págs) · Libro completo: <strong>${TOTAL_SHEETS} hojas</strong>`;
     }
 
     // Filtrar en pantalla las hojas visibles según la tanda
@@ -1606,6 +1675,32 @@ body.hide-prices .dir-price-col {
 
   function openGuideModal() {
     document.getElementById('guideModal')?.classList.add('open');
+  }
+  function openTestSheetModal() {
+    document.getElementById('testSheetModal')?.classList.add('open');
+  }
+  function closeTestSheetModal() {
+    document.getElementById('testSheetModal')?.classList.remove('open');
+  }
+  function printTestSheet(side) {
+    document.querySelectorAll('.catalog-sheet').forEach(sh => {
+      const sNum = parseInt(sh.getAttribute('data-sheet'), 10);
+      const shSide = sh.getAttribute('data-side');
+      if (sNum === 1 && shSide === side) {
+        sh.classList.remove('print-exclude');
+        sh.style.display = 'flex';
+      } else {
+        sh.classList.add('print-exclude');
+        sh.style.display = 'none';
+      }
+    });
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.querySelectorAll('.catalog-sheet').forEach(sh => sh.classList.remove('print-exclude'));
+        onBatchSelectChange();
+      }, 500);
+    }, 150);
   }
   function closeGuideModal() {
     document.getElementById('guideModal')?.classList.remove('open');

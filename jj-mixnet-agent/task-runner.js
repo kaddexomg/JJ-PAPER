@@ -13,6 +13,7 @@ import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-do
 import { reindexNtx } from './ntx-builder.js';
 import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct } from './dbf-driver.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
+import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
 import { SELLER_CODVEN_TO_PROFILE, log } from './config.js';
 
 /**
@@ -118,6 +119,31 @@ export async function processAgentTasks(compDir) {
         }
 
         case 'list_users': {
+          log('[AGENTE] Leyendo usuarios y permisos de MixNet (MXUSUAR.DBF)...');
+          const realUsers = getMixnetUsers(compDir);
+          if (realUsers && realUsers.ok) {
+            result = realUsers;
+          } else {
+            const userList = Object.entries(SELLER_CODVEN_TO_PROFILE).map(([codven, u]) => ({
+              codven,
+              id: u.id,
+              name: u.name
+            }));
+            result = { ok: true, count: userList.length, users: userList, fallback: true };
+          }
+          break;
+        }
+
+        case 'update_user_permissions': {
+          log(`[AGENTE] Actualizando permisos de usuario MixNet (registro #${payload.recordIndex})...`);
+          if (!payload.recordIndex || !payload.values) {
+            throw new Error('Se requiere payload.recordIndex y payload.values.');
+          }
+          const res = updateMixnetUserPermissions(compDir, Number(payload.recordIndex), payload.values);
+          result = res;
+          break;
+        }
+        case '_old_users_ignore': {
           const userList = Object.entries(SELLER_CODVEN_TO_PROFILE).map(([codven, u]) => ({
             codven,
             id: u.id,

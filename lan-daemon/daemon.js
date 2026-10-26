@@ -380,6 +380,12 @@ async function importMixnetDocuments(encFilename, detFilename, isQuote) {
   }
 }
 
+export function isTestEntity(name = '', rif = '', notes = '') {
+  const str = `${name || ''} ${rif || ''} ${notes || ''}`.toLowerCase();
+  return /\b(e2e|prueba|test|verificacion|verificación|mps|dummy|tester|testing)\b/i.test(str) ||
+         /cliente\s+(prueba|test|e2e)/i.test(str);
+}
+
 /* ═══════════════ 3. EXPORTACIÓN: JJ PAPER ➔ MIXNET (MULTI-TARGET) ═══════════════ */
 export async function exportJJQuotesToMixnet() {
   if (activeDbfDirs.length === 0) detectMixnetDirs();
@@ -394,6 +400,10 @@ export async function exportJJQuotesToMixnet() {
     for (const q of quotes) {
       let numcot = String(q.quote_number || '').trim();
       if (!/^\d{8}$/.test(numcot)) continue;
+      if (isTestEntity(q.client_name, q.rif, q.notes)) {
+        log(`[FILTRO TEST] Omitiendo cotización de prueba/E2E #${numcot} (${q.client_name}) para proteger MixNet.`, 'INFO');
+        continue;
+      }
 
       const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const totalUSD = parseFloat(q.estimated_total_usd || 0).toFixed(2);
@@ -508,6 +518,10 @@ export async function exportJJOrdersToMixnet() {
     for (const o of orders) {
       let numped = String(o.order_number || '').trim();
       if (!/^\d{8}$/.test(numped)) continue;
+      if (isTestEntity(o.client_name, o.rif, o.notes)) {
+        log(`[FILTRO TEST] Omitiendo pedido de prueba/E2E #${numped} (${o.client_name}) para proteger MixNet.`, 'INFO');
+        continue;
+      }
 
       const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const totalUSD = parseFloat(o.total_usd || 0).toFixed(2);

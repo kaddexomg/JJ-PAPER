@@ -354,7 +354,7 @@
           </div>
           <div class="stat-row">
             <span>Servidor Central (Host / IP):</span>
-            <span id="statHost"><strong style="color:#fff">192.168.0.185</strong> (Servidor Maestro)</span>
+            <span id="statHost"><strong style="color:#fff" id="txtHostIp">192.168.0.185</strong> <span id="txtHostLabel">(MixNet LAN)</span> <button onclick="configureDaemonHost()" class="btn-ghost" style="padding:1px 6px;font-size:10.5px;color:#38bdf8;border:1px solid #1a4535;border-radius:4px;cursor:pointer;margin-left:6px" title="Configurar IP LAN de la PC Supervisor o Servidor MixNet">⚙️ Cambiar IP</button></span>
           </div>
           <div class="stat-row">
             <span>Latencia de Red (Ping en vivo):</span>
@@ -553,6 +553,44 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
         </div>
       </div>
 
+      <!-- Fila 4: Gestión de Usuarios y Permisos de MixNet (MXUSUAR.DBF) -->
+      <div class="card-box" id="usersCardBox">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div>
+            <h3 style="margin:0;display:flex;align-items:center;gap:8px">
+              <span>👥 Usuarios y Permisos de GemixNet ERP (<code style="font-size:13px;color:#38bdf8">MXUSUAR.DBF</code>)</span>
+            </h3>
+            <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted)">
+              Consulta y modifica permisos de acceso, anulación de documentos, modificación de precios y funciones de usuarios en MixNet con respaldo preventivo.
+            </p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-mix btn-mix-gold" onclick="loadMixnetUsers()" style="padding:6px 14px;font-size:12px">
+              🔄 Leer Usuarios desde MixNet
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table class="mix-table">
+            <thead>
+              <tr>
+                <th style="width:50px">Rec #</th>
+                <th>Usuario / Código</th>
+                <th>Nombre / Descripción</th>
+                <th>Nivel / Rol</th>
+                <th>Permisos MixNet Detectados</th>
+                <th style="text-align:right">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="mixnetUsersTableBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">Haz clic en "Leer Usuarios desde MixNet" para consultar MXUSUAR.DBF...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
 </div>
 
 <!-- Modal de Confirmación de Rollback en 1 Clic -->
@@ -630,6 +668,37 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
   </div>
 </div>
 
+
+<!-- Modal de Edición de Permisos de Usuario MixNet -->
+<div class="modal-overlay" id="userPermModal" onclick="if(event.target===this)closeUserPermModal()" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:16px">
+  <div class="modal-box" style="background:#071a14;border:2px solid var(--accent);border-radius:14px;max-width:560px;width:100%;padding:22px;box-shadow:0 12px 35px rgba(0,0,0,0.8);color:#fff">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid rgba(76,209,55,0.3);padding-bottom:10px">
+      <h3 style="margin:0;color:#4cd137;display:flex;align-items:center;gap:8px;font-size:17px">
+        <span>⚙️ Modificar Permisos de Usuario MixNet</span>
+      </h3>
+      <button onclick="closeUserPermModal()" style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="margin-bottom:14px;font-size:13px;line-height:1.5;background:#03140d;padding:12px;border-radius:8px;border:1px solid #1a4535">
+      <div><strong>Usuario:</strong> <span id="mUserCode" style="color:#4cd137;font-family:monospace;font-weight:700">—</span> · <strong>Registro DBF:</strong> #<span id="mUserRec">—</span></div>
+      <div style="margin-top:4px"><strong>Nombre:</strong> <span id="mUserName">—</span></div>
+    </div>
+
+    <div id="mUserFieldsForm" style="display:flex;flex-direction:column;gap:12px;max-height:360px;overflow-y:auto;padding-right:4px">
+      <!-- Se inyectan dinámicamente los campos editables del usuario -->
+    </div>
+
+    <div style="background:rgba(255,177,66,0.1);border-left:3px solid #ffb142;padding:8px 12px;border-radius:4px;font-size:11.5px;color:#fcd34d;margin-top:14px">
+      🛡️ <strong>Seguridad Soberana:</strong> Se generará automáticamente un snapshot preventivo de <code>MXUSUAR.DBF</code> antes de escribir. En caso de discrepancia se ejecutará rollback instantáneo.
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+      <button onclick="closeUserPermModal()" class="btn-mix" style="background:#1e293b;color:#e2e8f0">Cancelar</button>
+      <button onclick="saveUserPermissions()" class="btn-mix btn-mix-green" id="btnSaveUserPerm">💾 Guardar Permisos en MixNet</button>
+    </div>
+  </div>
+</div>
+
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/config.js?v=20261022_vps_full"></script>
@@ -673,6 +742,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     await loadRecentQuotes();
     await loadSnapshotsList();
     await loadReconciliationClients();
+    await loadMixnetUsers();
     setInterval(refreshBridgeStatus, 10000);
   }
 
@@ -685,7 +755,16 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     // 1. Probar micro-API local en 8790 y calcular latencia ping
     try {
       const t0 = performance.now();
-      const res = await fetch('http://127.0.0.1:8790/status', { signal: AbortSignal.timeout(2500) });
+      
+      const daemonHost = getDaemonHost();
+      let res = null;
+      for (const target of ['http://127.0.0.1:8790', `http://${daemonHost}:8790`]) {
+        try {
+          const r = await fetch(`${target}/status`, { signal: AbortSignal.timeout(2000) });
+          if (r.ok) { res = r; break; }
+        } catch (_) {}
+      }
+
       const elapsed = Math.round(performance.now() - t0);
       if (res.ok) {
         localData = await res.json();
@@ -1445,6 +1524,278 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+
+  let MIXNET_USERS_CACHE = [];
+
+  function getDaemonHost() {
+    return localStorage.getItem('jjp_mixnet_host') || '192.168.0.185';
+  }
+
+  function configureDaemonHost() {
+    const current = getDaemonHost();
+    const next = prompt('Ingresa la IP LAN de la PC Supervisor o Servidor Central MixNet (puerto 8790):', current);
+    if (next && next.trim()) {
+      localStorage.setItem('jjp_mixnet_host', next.trim());
+      refreshBridgeStatus();
+      loadMixnetUsers();
+    }
+  }
+
+  function showHowToStartDaemon() {
+    alert(
+      "🚀 CÓMO ENCENDER LOS DEMONIOS LAN DE MIXNET:\n\n" +
+      "1. EN LA PC SUPERVISOR:\n" +
+      "   • Ejecuta el acceso directo 'start_all.bat' en C:\\Users\\Supervisor\\\n" +
+      "   • O abre una consola y corre: START-PUENTE-MIXNET.bat\n\n" +
+      "2. EN EL SERVIDOR CENTRAL (192.168.0.185):\n" +
+      "   • Ve a la unidad compartida M:\\jj-mixnet-agent\\\n" +
+      "   • Haz doble clic en START-AGENT.bat (o INSTALL-SERVER-SERVICE.bat para que inicie siempre al encender el servidor).\n\n" +
+      "Una vez iniciado, este panel detectará automáticamente el puerto 8790 en menos de 5 segundos."
+    );
+  }
+
+  async function loadMixnetUsers() {
+    const tbody = document.getElementById('mixnetUsersTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#38bdf8;padding:20px">⏳ Consultando MXUSUAR.DBF en MixNet...</td></tr>';
+
+    const host = getDaemonHost();
+    let usersData = null;
+
+    // 1. Probar micro-API local o LAN
+    for (const target of ['http://127.0.0.1:8790', `http://${host}:8790`]) {
+      try {
+        const res = await fetch(`${target}/users`, { signal: AbortSignal.timeout(2000) });
+        if (res.ok) {
+          usersData = await res.json();
+          if (usersData && usersData.ok) break;
+        }
+      } catch (_) {}
+    }
+
+    // 2. Si no respondió por HTTP (ej. Mixed Content en HTTPS), enviar tarea a Supabase
+    if (!usersData || !usersData.ok) {
+      try {
+        const { data: task, error: tErr } = await sbClient.from('jjp_mixnet_tasks').insert({
+          action: 'list_users',
+          payload: {},
+          status: 'pending'
+        }).select().single();
+
+        if (task && task.id) {
+          for (let i = 0; i < 8; i++) {
+            await new Promise(r => setTimeout(r, 1000));
+            const { data: polled } = await sbClient.from('jjp_mixnet_tasks').select('*').eq('id', task.id).maybeSingle();
+            if (polled && polled.status === 'completed' && polled.result) {
+              usersData = polled.result;
+              break;
+            }
+            if (polled && polled.status === 'failed') break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!usersData || !usersData.users || usersData.users.length === 0) {
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#ffb142;padding:20px">
+          ⚠️ No se pudo leer MXUSUAR.DBF directamente. Verifica que el demonio en puerto 8790 esté activo.<br>
+          <button class="btn-mix btn-mix-gold" onclick="loadMixnetUsers()" style="margin-top:8px;padding:4px 12px;font-size:11.5px">Reintentar</button>
+        </td></tr>`;
+      }
+      return;
+    }
+
+    MIXNET_USERS_CACHE = usersData.users;
+    renderMixnetUsersTable(usersData.users, usersData.fields || []);
+  }
+
+  function renderMixnetUsersTable(users, fields) {
+    const tbody = document.getElementById('mixnetUsersTableBody');
+    if (!tbody) return;
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">No hay usuarios activos en MXUSUAR.DBF.</td></tr>';
+      return;
+    }
+
+    let html = '';
+    users.forEach(u => {
+      const rec = u._record || '—';
+      const code = escapeHTML(u.USUARIO || u.CODIGO || u.CODVEN || 'USER');
+      const name = escapeHTML(u.NOMBRE || u.DESCRIP || 'Usuario MixNet');
+      const level = escapeHTML(u.NIVEL || u.ROL || '1');
+
+      const permPills = [];
+      const keys = Object.keys(u).filter(k => k !== '_record' && k !== 'CLAVE' && k !== 'PASSWORD');
+      
+      keys.forEach(k => {
+        const val = String(u[k] || '').trim().toUpperCase();
+        if (k === 'USUARIO' || k === 'CODIGO' || k === 'NOMBRE' || k === 'DESCRIP' || k === 'NIVEL') return;
+        if (val === 'S' || val === '1' || val === 'T' || val === 'SI') {
+          permPills.push(`<span class="dir-chip" style="background:#064e3b;color:#34d399;border-color:#059669">${escapeHTML(k)}: S</span>`);
+        } else if (val === 'N' || val === '0' || val === 'F' || val === 'NO') {
+          permPills.push(`<span class="dir-chip" style="background:#1e293b;color:#94a3b8;border-color:#334155">${escapeHTML(k)}: N</span>`);
+        } else if (val && val.length <= 10) {
+          permPills.push(`<span class="dir-chip" style="background:#0f172a;color:#93c5fd;border-color:#1e3a8a">${escapeHTML(k)}: ${escapeHTML(val)}</span>`);
+        }
+      });
+
+      const permHtml = permPills.length > 0 ? permPills.slice(0, 8).join(' ') : '<span style="color:var(--text-muted);font-size:11px">Sin permisos específicos</span>';
+
+      html += `<tr>
+        <td style="font-family:monospace;color:#94a3b8">#${rec}</td>
+        <td><strong style="color:#4cd137;font-family:monospace">${code}</strong></td>
+        <td>${name}</td>
+        <td><span class="engine-badge online" style="font-size:10.5px;padding:2px 8px">Nivel ${level}</span></td>
+        <td>${permHtml}</td>
+        <td style="text-align:right">
+          <button class="btn-mix" onclick="openEditUserModal(${rec})" style="padding:4px 10px;font-size:11px">
+            ⚙️ Modificar Permisos
+          </button>
+        </td>
+      </tr>`;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  let CURRENT_EDIT_USER_REC = null;
+
+  function openEditUserModal(recIndex) {
+    const user = MIXNET_USERS_CACHE.find(u => u._record === recIndex);
+    if (!user) return;
+
+    CURRENT_EDIT_USER_REC = recIndex;
+    document.getElementById('mUserRec').textContent = recIndex;
+    document.getElementById('mUserCode').textContent = user.USUARIO || user.CODIGO || 'USER';
+    document.getElementById('mUserName').textContent = user.NOMBRE || user.DESCRIP || 'Usuario MixNet';
+
+    const form = document.getElementById('mUserFieldsForm');
+    form.innerHTML = '';
+
+    const skip = ['_record', 'CLAVE', 'PASSWORD'];
+    const keys = Object.keys(user).filter(k => !skip.includes(k));
+
+    keys.forEach(k => {
+      const val = String(user[k] || '').trim();
+      const isBool = (val === 'S' || val === 'N' || val === '1' || val === '0' || val === '');
+
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.justifyContent = 'space-between';
+      row.style.alignItems = 'center';
+      row.style.background = '#0a2318';
+      row.style.padding = '8px 12px';
+      row.style.borderRadius = '6px';
+      row.style.border = '1px solid #143d2c';
+
+      if (isBool && k !== 'USUARIO' && k !== 'CODIGO' && k !== 'NOMBRE' && k !== 'NIVEL') {
+        const isChecked = (val === 'S' || val === '1');
+        row.innerHTML = `
+          <label for="fld_${k}" style="font-size:12.5px;font-weight:600;color:#e2e8f0;cursor:pointer">
+            Permiso <code style="color:#38bdf8">${escapeHTML(k)}</code>:
+          </label>
+          <select class="fi" id="fld_${k}" data-field="${k}" style="width:110px;padding:4px 8px;font-size:12px;background:#03140d;color:#fff;border:1px solid #1a4535;border-radius:6px">
+            <option value="S" ${isChecked ? 'selected' : ''}>S (Permitido)</option>
+            <option value="N" ${!isChecked ? 'selected' : ''}>N (Denegado)</option>
+          </select>
+        `;
+      } else {
+        row.innerHTML = `
+          <label for="fld_${k}" style="font-size:12.5px;font-weight:600;color:#e2e8f0">
+            Campo <code style="color:#38bdf8">${escapeHTML(k)}</code>:
+          </label>
+          <input type="text" class="fi" id="fld_${k}" data-field="${k}" value="${escapeHTML(val)}" style="width:180px;padding:4px 8px;font-size:12px;background:#03140d;color:#fff;border:1px solid #1a4535;border-radius:6px">
+        `;
+      }
+      form.appendChild(row);
+    });
+
+    document.getElementById('userPermModal').style.display = 'flex';
+  }
+
+  function closeUserPermModal() {
+    document.getElementById('userPermModal').style.display = 'none';
+  }
+
+  async function saveUserPermissions() {
+    if (!CURRENT_EDIT_USER_REC) return;
+
+    const btn = document.getElementById('btnSaveUserPerm');
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '⏳ Guardando con Snapshot...';
+    btn.disabled = true;
+
+    const values = {};
+    document.querySelectorAll('#mUserFieldsForm [data-field]').forEach(input => {
+      const f = input.getAttribute('data-field');
+      values[f] = input.value;
+    });
+
+    const host = getDaemonHost();
+    let saveOk = false;
+    let errorMsg = '';
+
+    // 1. Probar micro-API
+    for (const target of [`http://${host}:8790`, 'http://127.0.0.1:8790']) {
+      try {
+        const res = await fetch(`${target}/users/permissions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recordIndex: CURRENT_EDIT_USER_REC, values }),
+          signal: AbortSignal.timeout(4000)
+        });
+        if (res.ok) {
+          const rJson = await res.json();
+          if (rJson && rJson.ok) {
+            saveOk = true;
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Si falló por HTTP, encolar en Supabase
+    if (!saveOk) {
+      try {
+        const { data: task, error: tErr } = await sbClient.from('jjp_mixnet_tasks').insert({
+          action: 'update_user_permissions',
+          payload: { recordIndex: CURRENT_EDIT_USER_REC, values },
+          status: 'pending'
+        }).select().single();
+
+        if (task && task.id) {
+          for (let i = 0; i < 10; i++) {
+            await new Promise(r => setTimeout(r, 1000));
+            const { data: polled } = await sbClient.from('jjp_mixnet_tasks').select('*').eq('id', task.id).maybeSingle();
+            if (polled && polled.status === 'completed') {
+              saveOk = true;
+              break;
+            }
+            if (polled && polled.status === 'failed') {
+              errorMsg = polled.result?.error || 'Falló la tarea en el agente';
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        errorMsg = e.message;
+      }
+    }
+
+    btn.innerHTML = oldText;
+    btn.disabled = false;
+
+    if (saveOk) {
+      closeUserPermModal();
+      aiConsole.textContent += `\n[${new Date().toLocaleTimeString()}] ✅ Permisos de usuario (Rec #${CURRENT_EDIT_USER_REC}) guardados exitosamente en MXUSUAR.DBF con snapshot preventivo.`;
+      loadMixnetUsers();
+    } else {
+      alert(`⚠️ No se pudo guardar en MXUSUAR.DBF: ${errorMsg || 'Sin respuesta del demonio en puerto 8790'}`);
+    }
+  }
+
 </script>
 </body>
 </html>

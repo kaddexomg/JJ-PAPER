@@ -17,6 +17,7 @@ import { processAgentTasks } from './task-runner.js';
 import { syncCatalogFromMixnet } from './sync-catalog.js';
 import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
+import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
 
 let activeCompDir = null;
 let currentCotSerial = '—';
@@ -184,6 +185,36 @@ function startMicroApi() {
         const resData = rollbackBackup(activeCompDir, target);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, ...resData }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    if (url.pathname === '/users' && req.method === 'GET') {
+      try {
+        if (!activeCompDir) throw new Error('Directorio comp01 no detectado.');
+        const resData = getMixnetUsers(activeCompDir);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(resData));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+      return;
+    }
+
+    if (url.pathname === '/users/permissions' && req.method === 'POST') {
+      try {
+        if (!activeCompDir) throw new Error('Directorio comp01 no detectado.');
+        const body = await readBody();
+        if (!body.recordIndex || !body.values) {
+          throw new Error('Se requiere recordIndex y values { CAMPO: "VALOR" } en el body JSON.');
+        }
+        const resData = updateMixnetUserPermissions(activeCompDir, Number(body.recordIndex), body.values);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(resData));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: err.message }));

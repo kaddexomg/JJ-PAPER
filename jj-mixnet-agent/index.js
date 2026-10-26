@@ -10,6 +10,7 @@ export * from './sync-catalog.js';
 export * from './sync-documents.js';
 export * from './task-runner.js';
 export * from './client-reconciler.js';
+export * from './mixnet-usuar.js';
 
 // Si se ejecuta directamente desde node, arranca el agente
 import { fileURLToPath } from 'node:url';

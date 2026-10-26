@@ -21,6 +21,12 @@ import { log } from './config.js';
  *   'V-01875469-0' -> '1875469'
  *   '40678577'     -> '40678577'
  */
+export function isTestEntity(name = '', rif = '', notes = '') {
+  const str = `${name || ''} ${rif || ''} ${notes || ''}`.toLowerCase();
+  return /\b(e2e|prueba|test|verificacion|verificación|mps|dummy|tester|testing)\b/i.test(str) ||
+         /cliente\s+(prueba|test|e2e)/i.test(str);
+}
+
 export function cleanRif(raw) {
   if (!raw) return '';
   const str = String(raw).trim().toUpperCase();
@@ -99,6 +105,9 @@ export async function reconcileClients(compDir) {
   const updateQueue = [];
 
   for (const c of allCustomers) {
+    if (isTestEntity(c.name, c.rif, c.notes)) {
+      continue; // Cero sincronización de clientes de prueba / E2E
+    }
     const cr = cleanRif(c.rif);
     if (!cr || cr === '0') {
       pendingReview++;
@@ -249,6 +258,9 @@ export async function getClientsDiscrepancies(compDir) {
   // Mapear duplicados en Supabase
   const supaRifMap = new Map();
   for (const c of allCustomers) {
+    if (isTestEntity(c.name, c.rif, c.notes)) {
+      continue; // Cero sincronización de clientes de prueba / E2E
+    }
     const cr = cleanRif(c.rif);
     if (cr && cr !== '0') {
       if (!supaRifMap.has(cr)) supaRifMap.set(cr, []);
@@ -257,6 +269,9 @@ export async function getClientsDiscrepancies(compDir) {
   }
 
   for (const c of allCustomers) {
+    if (isTestEntity(c.name, c.rif, c.notes)) {
+      continue; // Cero sincronización de clientes de prueba / E2E
+    }
     const cr = cleanRif(c.rif);
     const notesStr = c.notes ? String(c.notes).trim() : '';
     const hasCode = /MixNet[:\s]+[0-9]{3}-[0-9]+/i.test(notesStr) || /Codigo MixNet/i.test(notesStr) || /MixNet:/i.test(notesStr);
@@ -361,6 +376,9 @@ export function createBackup(compDir, label = '') {
     'MXNUMCOT.DBF',
     'MXNUMPED.DBF',
     'MXCTAINV.DBF',
+    'MXUSUAR.DBF',
+    'MXUSUAR.NTX',
+    'MXUSUX1.NTX',
     'MXENCZX1.NTX',
     'MXENCZX2.NTX',
     'MXENCZX3.NTX',

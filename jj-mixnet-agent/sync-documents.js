@@ -14,6 +14,12 @@ import { readDbfStruct, readDbfRows, injectQuoteToMixnet, injectOrderToMixnet } 
 import { sbGet, sbPost, sbPatch } from './supabase-client.js';
 import { SELLER_CODVEN_TO_PROFILE, PROFILE_ID_TO_CODVEN, log } from './config.js';
 
+export function isTestEntity(name = '', rif = '', notes = '') {
+  const str = `${name || ''} ${rif || ''} ${notes || ''}`.toLowerCase();
+  return /\b(e2e|prueba|test|verificacion|verificación|mps|dummy|tester|testing)\b/i.test(str) ||
+         /cliente\s+(prueba|test|e2e)/i.test(str);
+}
+
 let importedDocuments = new Set(); // serials already processed
 
 async function resolveMixnetCustomerId(rif, nomcli) {
@@ -256,6 +262,12 @@ export async function exportPendingDocumentsToMixnet(compDir) {
         // Bloqueo atómico inmediato para evitar re-inyección en ciclos paralelos
         await sbPatch('jjp_quotes', `id=eq.${q.id}`, { status: 'procesando_mixnet' });
 
+        if (isTestEntity(q.client_name, q.rif, q.notes)) {
+          log(`[SEGURIDAD MIXNET] Omitiendo cotización de prueba/E2E #${q.quote_number || q.id} ("${q.client_name}") para proteger MixNet.`, 'INFO');
+          await sbPatch('jjp_quotes', `id=eq.${q.id}`, { status: 'ignorado_prueba' }).catch(() => {});
+          continue;
+        }
+
         // Validar datos básicos
         const items = Array.isArray(q.items) ? q.items : (typeof q.items === 'string' ? JSON.parse(q.items || '[]') : []);
         if (items.length === 0 || !q.client_name || q.client_name === '00-000' || q.client_name === '00000') {
@@ -305,6 +317,12 @@ export async function exportPendingDocumentsToMixnet(compDir) {
 
         // Bloqueo atómico inmediato
         await sbPatch('jjp_orders', `id=eq.${o.id}`, { status: 'procesando_mixnet' });
+
+        if (isTestEntity(o.client_name, o.rif, o.notes)) {
+          log(`[SEGURIDAD MIXNET] Omitiendo pedido de prueba/E2E #${o.order_number || o.id} ("${o.client_name}") para proteger MixNet.`, 'INFO');
+          await sbPatch('jjp_orders', `id=eq.${o.id}`, { status: 'ignorado_prueba' }).catch(() => {});
+          continue;
+        }
 
         const items = Array.isArray(o.items) ? o.items : (typeof o.items === 'string' ? JSON.parse(o.items || '[]') : []);
         if (items.length === 0 || !o.client_name || o.client_name === '00-000' || o.client_name === '00000') {

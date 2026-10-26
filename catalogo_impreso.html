@@ -460,69 +460,51 @@ body.hide-holes .spine-gutter {
   overflow: hidden;
 }
 
-/* Grilla de Fotos: 2 Columnas */
+/* Grilla Editorial de Productos: 6 Tarjetas por Página (2 Columnas × 3 Filas)
+   Espacio amplio de 72mm por tarjeta: FOTO GRANDE (44mm × 66mm) y CERO RECORTE INFERIOR */
 .photo-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2.2mm;
+  gap: 3mm 3mm;
   flex: 1;
-  align-content: stretch;
-}
-.photo-grid.rows-4 {
-  grid-template-rows: repeat(4, 1fr);
+  align-content: start;
 }
 .photo-grid.rows-3 {
-  grid-template-rows: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 72mm);
 }
 .photo-grid.rows-2 {
-  grid-template-rows: repeat(2, 1fr);
-}
-
-/* Tarjeta Editorial de Producto: FOTO PROMINENTE Y ALTURA CALIBRADA (CERO RECORTE) */
-.photo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.6mm;
-  flex: 1;
-  align-content: stretch;
-}
-.photo-grid.rows-4 {
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-}
-.photo-grid.rows-3 {
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-}
-.photo-grid.rows-2 {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 72mm);
 }
 
 .p-card {
   background: #ffffff;
-  border: 1px solid #d4e0da;
-  border-radius: 5px;
-  padding: 1.2mm 2mm;
+  border: 1.2px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 2.5mm 3mm;
   display: grid;
-  grid-template-columns: 33mm 1fr;
-  gap: 2mm;
+  grid-template-columns: 44mm 1fr;
+  gap: 3mm;
   align-items: center;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
-  max-height: 56mm;
+  height: 72mm;
+  max-height: 72mm;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 .p-photo-wrap {
-  width: 33mm;
-  height: 100%;
-  max-height: 52mm;
+  width: 44mm;
+  height: 66mm;
+  max-height: 66mm;
   background: #ffffff;
-  border: 0.8px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   position: relative;
-  padding: 1mm;
+  padding: 1.5mm;
   box-sizing: border-box;
 }
 .p-photo-wrap img {
@@ -542,15 +524,15 @@ body.hide-holes .spine-gutter {
   justify-content: center;
   background: #f8fafc;
   color: #64748b;
-  font-size: 16pt;
+  font-size: 22pt;
 }
 .p-info {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 100%;
+  height: 66mm;
   min-width: 0;
-  padding: 0.2mm 0;
+  padding: 0.5mm 0;
 }
 .p-cat {
   font-size: 5.5pt;
@@ -563,45 +545,46 @@ body.hide-holes .spine-gutter {
   text-overflow: ellipsis;
 }
 .p-name {
-  font-size: 6.8pt;
+  font-size: 8pt;
   font-weight: 800;
   color: #0f172a;
-  line-height: 1.15;
-  margin: 0.3mm 0;
+  line-height: 1.2;
+  margin: 0.8mm 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  max-height: 6.5mm;
+  max-height: 9mm;
 }
 .p-desc {
-  font-size: 5pt;
+  font-size: 5.8pt;
   color: #475569;
-  line-height: 1.2;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  max-height: 4.5mm;
+  max-height: 7mm;
 }
 .p-footer-line {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1.5mm;
-  border-top: 0.5px solid #f1f5f9;
-  padding-top: 0.6mm;
-  margin-top: 0.6mm;
+  gap: 2mm;
+  border-top: 0.8px solid #f1f5f9;
+  padding-top: 1mm;
+  margin-top: 1mm;
 }
 .p-unit-tag {
-  font-size: 5.5pt;
+  font-size: 5.8pt;
   font-weight: 800;
   background: var(--doc-light);
   color: var(--doc-c);
-  padding: 0.5mm 1.8mm;
-  border-radius: 2px;
+  padding: 0.6mm 2mm;
+  border-radius: 3px;
   display: inline-block;
   text-transform: uppercase;
+  margin-top: 1mm;
 }
 .p-prices {
   display: flex;
@@ -609,7 +592,7 @@ body.hide-holes .spine-gutter {
   text-align: left;
 }
 .p-price-lbl {
-  font-size: 4.8pt;
+  font-size: 5pt;
   font-weight: 800;
   text-transform: uppercase;
   color: #64748b;
@@ -617,16 +600,16 @@ body.hide-holes .spine-gutter {
 }
 .p-price-usd {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9.5pt;
+  font-size: 13pt;
   font-weight: 900;
   color: var(--doc-c);
   line-height: 1;
 }
 .p-price-bs {
-  font-size: 5.2pt;
+  font-size: 6pt;
   color: #64748b;
   font-weight: 600;
-  margin-top: 0.3mm;
+  margin-top: 0.5mm;
 }
 
 /* Columna QR del Producto */
@@ -639,8 +622,8 @@ body.hide-holes .spine-gutter {
   flex-shrink: 0;
 }
 .p-qr-canvas {
-  width: 11mm;
-  height: 11mm;
+  width: 14mm;
+  height: 14mm;
   background: #fff;
 }
 .p-qr-canvas img, .p-qr-canvas canvas {
@@ -648,12 +631,10 @@ body.hide-holes .spine-gutter {
   height: 100% !important;
 }
 .p-qr-label {
-  font-size: 4.2pt;
-  font-weight: 800;
+  font-size: 4.8pt;
+  color: #64748b;
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--doc-c);
-  text-align: center;
-  line-height: 1;
 }
 
 /* Tarjeta de Relleno Simétrico (Notas del Cliente) */
@@ -1026,6 +1007,16 @@ body.hide-prices .dir-price-col {
     'none':   { label: 'Sin perforaciones', x: 11, d: 0, ys: [] }
   };
 
+  function formatUsd(val) {
+    const n = Number(val) || 0;
+    return '$' + n.toFixed(2);
+  }
+
+  function formatBs(val) {
+    const n = Number(val) || 0;
+    return 'Bs ' + n.toFixed(2);
+  }
+
   function isValidPhoto(url) {
     if (!url || typeof url !== 'string') return false;
     const s = url.trim();
@@ -1183,15 +1174,15 @@ body.hide-prices .dir-price-col {
       pricesHtml = `
         <div class="p-prices">
           <span class="p-price-lbl">MAYORISTA</span>
-          <div class="p-price-usd">\${p._priceUsd.toFixed(2)}</div>
-          <div class="p-price-bs">Bs ${p._priceBs.toFixed(2)}</div>
+          <div class="p-price-usd">${formatUsd(p._priceUsd)}</div>
+          <div class="p-price-bs">${formatBs(p._priceBs)}</div>
         </div>
       `;
     } else if (priceMode === 'usd_only') {
       pricesHtml = `
         <div class="p-prices">
           <span class="p-price-lbl">MAYORISTA USD</span>
-          <div class="p-price-usd">\${p._priceUsd.toFixed(2)}</div>
+          <div class="p-price-usd">${formatUsd(p._priceUsd)}</div>
         </div>
       `;
     }
@@ -1254,14 +1245,14 @@ body.hide-prices .dir-price-col {
     if (priceMode === 'usd_bs') {
       pricesHtml = `
         <div class="dir-price-col">
-          <div class="dir-usd">\${p._priceUsd.toFixed(2)}</div>
-          <div class="dir-bs">Bs ${p._priceBs.toFixed(2)}</div>
+          <div class="dir-usd">${formatUsd(p._priceUsd)}</div>
+          <div class="dir-bs">${formatBs(p._priceBs)}</div>
         </div>
       `;
     } else if (priceMode === 'usd_only') {
       pricesHtml = `
         <div class="dir-price-col">
-          <div class="dir-usd">\${p._priceUsd.toFixed(2)}</div>
+          <div class="dir-usd">${formatUsd(p._priceUsd)}</div>
         </div>
       `;
     }
@@ -1370,7 +1361,7 @@ body.hide-prices .dir-price-col {
 
       while (cursor < list.length) {
         const isFirst = pagesSpec.length === 0;
-        const cap = isFirst ? 4 : 8;
+        const cap = isFirst ? 4 : 6;
         const slice = list.slice(cursor, cursor + cap);
         cursor += slice.length;
 
@@ -1384,7 +1375,7 @@ body.hide-prices .dir-price-col {
           type: 'photos',
           items: slice,
           capacity: cap,
-          rows: cap / 2,
+          rows: isFirst ? 2 : 3,
           catHeader: `📸 Vitrina · ${catHeader}`,
           isFirst: isFirst
         });

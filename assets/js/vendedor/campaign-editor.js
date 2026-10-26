@@ -350,7 +350,7 @@ window.CampaignEditor = (() => {
                 <div id="ceAttachCheckboxes" style="margin-top:2px;">
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#1e293b;padding:4px 0;cursor:pointer;font-weight:600">
                     <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px" checked>
-                    <span>📄 Adjuntar Lista de Precios PDF Oficial (+900 arts)</span>
+                    <span>📖 Adjuntar Catálogo y Lista Oficial JJ Paper (PDF con QR)</span>
                   </label>
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#334155;padding:3px 0;cursor:pointer">
                     <input type="checkbox" id="ceAttachImg" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
@@ -371,8 +371,8 @@ window.CampaignEditor = (() => {
                       El cliente abre el enlace en su teléfono o PC y ve de inmediato el catálogo con fotos oficiales en alta resolución, precios en USD/Bs y cotización directa por WhatsApp.
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
-                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#166534;border:1px solid #86efac;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jjpaper.pages.dev/catalogo', '_blank')" title="Abre el catálogo exactamente como lo ve su cliente">👁️ Probar Catálogo Web ↗</button>
-                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#9d174d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jjpaper.pages.dev/catalogo_impreso', '_blank')" title="Abre el catálogo con códigos QR para imprimir o calle">🖨️ Probar Catálogo QR ↗</button>
+                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#166534;border:1px solid #86efac;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jj-paper.pages.dev/catalogo.html', '_blank')" title="Abre el catálogo exactamente como lo ve su cliente">👁️ Probar Catálogo Web ↗</button>
+                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#9d174d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jj-paper.pages.dev/catalogo_impreso.html', '_blank')" title="Abre el catálogo con códigos QR para imprimir o calle">🖨️ Probar Catálogo QR ↗</button>
                     </div>
                   </div>
                 </div>
@@ -2772,7 +2772,7 @@ ${rawText}
     }
 
     if (attachOpts.includes('pdf_lista_precios')) {
-      previewItems.push(`<div class="ce-bubble-doc-card">📄 Lista_de_Precios_Mayorista_JJ_Paper.pdf (PDF Oficial +900 arts)</div>`);
+      previewItems.push(`<div class="ce-bubble-doc-card">📖 Catalogo_y_Lista_de_Precios_JJ_Paper.pdf (Catálogo Oficial con QR)</div>`);
     }
 
     if (attachOpts.includes('custom_file') && !generatedFlyerFile) {

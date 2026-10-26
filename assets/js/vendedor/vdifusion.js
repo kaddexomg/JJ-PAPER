@@ -1135,7 +1135,7 @@ async function launchCampaignFromEditor(config) {
     setStatus('📄 Generando lista de precios PDF...');
     try {
       if (typeof docPdfProductos === 'function') {
-        const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+        const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Catálogo Comercial y Lista Oficial' });
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 30000));
         const { blob, filename } = await Promise.race([pdfPromise, timeoutPromise]);
         const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
@@ -1372,7 +1372,7 @@ async function launchCampaign() {
     btn.textContent = 'Generando catálogo PDF…';
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+      const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Catálogo Comercial y Lista Oficial' });
       mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
       mediaMime = 'application/pdf';
       mediaType = 'document';

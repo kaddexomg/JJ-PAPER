@@ -1698,7 +1698,7 @@ async function launchProspectsCampaignFromEditor(config) {
     if (attachOpts.includes('pdf_lista_precios') && (!mediaPath || !extraMediaPath)) {
       try {
         if (typeof docPdfProductos === 'function') {
-          const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+          const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Catálogo Comercial y Lista Oficial' });
           const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
           const pdfPath = `${ownerId}/campaigns/${Date.now()}-${pdfFilename}`;
           const { error: upErr } = await sb.storage.from('jjp-wa-media')
@@ -1806,7 +1806,7 @@ async function launchProspectsCampaignFromEditor(config) {
       try {
         if (typeof docPdfProductos === 'function') {
           const { blob, filename, base64 } = await docPdfProductos({
-            conStock: false, titulo: 'Lista de Precios Mayorista', returnBase64: true
+            conStock: false, titulo: 'Catálogo Comercial y Lista Oficial', returnBase64: true
           });
           const pdfFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
           const mediaPath = `${ownerId}/campaigns/${Date.now()}-${pdfFilename}`;

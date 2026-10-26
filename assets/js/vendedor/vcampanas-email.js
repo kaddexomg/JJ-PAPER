@@ -1140,7 +1140,7 @@ async function launchEmailCampaignFromEditor(config) {
     setStatus('📄 Generando lista de precios PDF...');
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+      const pdfPromise = docPdfProductos({ conStock: false, titulo: 'Catálogo Comercial y Lista Oficial' });
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo límite generando PDF')), 30000));
       const { blob, filename } = await Promise.race([pdfPromise, timeoutPromise]);
       const mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
@@ -1400,7 +1400,7 @@ async function launchEcCampaign() {
     btn.textContent = 'Generando catálogo PDF…';
     try {
       if (typeof docPdfProductos !== 'function') throw new Error('Motor de documentos no disponible.');
-      const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Lista de Precios Mayorista' });
+      const { blob, filename } = await docPdfProductos({ conStock: false, titulo: 'Catálogo Comercial y Lista Oficial' });
       const mediaFilename = filename || 'Lista_de_Precios_JJ_Paper.pdf';
       const mediaPath = `${SELLER.id}/campaigns/${Date.now()}-${mediaFilename}`;
       const { data: upData, error: upErr } = await sb.storage.from('jjp-email-media')

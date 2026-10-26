@@ -144,7 +144,7 @@ async function docLoadCatalogRows() {
     const gid = p.jjp_categories?.group_id;
     const idx = G.findIndex(g => g.id === gid);
     const base = {
-      cat: (idx >= 0 ? G[idx].name : 'Otros'),
+      cat: (idx >= 0 ? G[idx].name : (p.jjp_categories?.name || 'General')),
       sub: p.jjp_categories?.name || '',
       ord: idx < 0 ? 99 : idx,
       essential: !!p.essential,
@@ -242,7 +242,7 @@ function docFolletoChrome(doc, { subtitulo, logoPng, rate }) {
 
 /* Folleto de productos. conStock=false → LISTA DE PRECIOS para el cliente:
    nunca lleva existencias, para no tener que decirle "Agotado" a nadie. */
-async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista', returnBase64 = false } = {}) {
+async function docPdfProductos({ conStock = false, titulo = 'Catálogo Comercial y Lista Oficial de Precios', returnBase64 = false } = {}) {
   await docEnsureSettings();
   await docEnsurePdfLib();
   const filas = await docLoadCatalogRows();
@@ -301,7 +301,7 @@ async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista'
     columnStyles: colStyles,
     didDrawPage: () => docFolletoChrome(doc, {
       rate, logoPng,
-      subtitulo: `${titulo}  ·  Calidad · Compromiso · Confianza`,
+      subtitulo: `${titulo}  ·  Papelería, Suministros, Higiene y Limpieza`,
     }),
   });
 
@@ -310,9 +310,9 @@ async function docPdfProductos({ conStock = true, titulo = 'Catálogo Mayorista'
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
   doc.text(`${filas.length} artículos disponibles  ·  ${cats.length} categorías mayoristas`, 40, 96);
   doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.setFontSize(8.5);
-  doc.text('Pedidos al mayor por WhatsApp o en jj-paper.pages.dev', pageW - 40, 96, { align: 'right' });
+  doc.text('Pedidos WhatsApp / Catálogo con QR en jj-paper.pages.dev/catalogo_impreso.html', pageW - 40, 96, { align: 'right' });
 
-  const nombre = `${conStock ? 'Catalogo' : 'Lista-de-precios'}-JJPaper-${docToday()}.pdf`;
+  const nombre = 'Catalogo_y_Lista_de_Precios_JJ_Paper.pdf';
   const blob = doc.output('blob');
   if (!returnBase64) return { blob, filename: nombre, doc };
   // Modo "adjuntar a campaña": entregar el PDF como base64 inline (data URI)

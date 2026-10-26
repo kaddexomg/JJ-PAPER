@@ -478,30 +478,34 @@ body.hide-holes .spine-gutter {
   grid-template-rows: repeat(2, 1fr);
 }
 
-/* Tarjeta de Producto con Foto */
+/* Tarjeta Editorial de Producto: FOTO PROMINENTE (4X) + INFORMACIÓN COMERCIAL */
 .p-card {
   background: #ffffff;
-  border: 1px solid #d4e0da;
-  border-radius: 5px;
-  padding: 1.8mm 2mm;
+  border: 1.2px solid #d4e0da;
+  border-radius: 6px;
+  padding: 2.2mm 2.5mm;
   display: grid;
-  grid-template-columns: 21mm 1fr 15mm;
-  gap: 2mm;
-  align-items: center;
+  grid-template-columns: 36mm 1fr;
+  gap: 2.8mm;
+  align-items: stretch;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 .p-photo-wrap {
-  width: 21mm;
-  height: 21mm;
+  width: 36mm;
+  height: 100%;
+  min-height: 48mm;
   background: #ffffff;
-  border: 0.5px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   position: relative;
+  padding: 1.5mm;
+  box-sizing: border-box;
 }
 .p-photo-wrap img {
   width: 100%;
@@ -518,7 +522,7 @@ body.hide-holes .spine-gutter {
   justify-content: center;
   background: #f8fafc;
   color: #64748b;
-  font-size: 14pt;
+  font-size: 20pt;
 }
 .p-info {
   display: flex;
@@ -561,30 +565,45 @@ body.hide-holes .spine-gutter {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-top: 0.8mm;
+  gap: 2mm;
+  border-top: 0.8px solid #f1f5f9;
+  padding-top: 1mm;
+  margin-top: 1mm;
 }
 .p-unit-tag {
   font-size: 5.5pt;
   font-weight: 800;
-  background: #f1f5f9;
-  color: #334155;
-  padding: 0.4mm 1.5mm;
+  background: var(--doc-light);
+  color: var(--doc-c);
+  padding: 0.5mm 1.8mm;
   border-radius: 2px;
+  display: inline-block;
+  text-transform: uppercase;
 }
 .p-prices {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.p-price-lbl {
+  font-size: 4.8pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.3px;
 }
 .p-price-usd {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 8.8pt;
-  font-weight: 800;
+  font-size: 11pt;
+  font-weight: 900;
   color: var(--doc-c);
   line-height: 1;
 }
 .p-price-bs {
-  font-size: 5.5pt;
+  font-size: 5.2pt;
   color: #64748b;
   font-weight: 600;
+  margin-top: 0.3mm;
 }
 
 /* Columna QR del Producto */
@@ -593,14 +612,12 @@ body.hide-holes .spine-gutter {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.6mm;
-  border-left: 1px dashed #e2e8f0;
-  padding-left: 1.8mm;
-  height: 100%;
+  gap: 0.5mm;
+  flex-shrink: 0;
 }
 .p-qr-canvas {
-  width: 13.5mm;
-  height: 13.5mm;
+  width: 13mm;
+  height: 13mm;
   background: #fff;
 }
 .p-qr-canvas img, .p-qr-canvas canvas {
@@ -608,7 +625,7 @@ body.hide-holes .spine-gutter {
   height: 100% !important;
 }
 .p-qr-label {
-  font-size: 4.5pt;
+  font-size: 4.2pt;
   font-weight: 800;
   text-transform: uppercase;
   color: var(--doc-c);
@@ -877,8 +894,9 @@ body.hide-prices .dir-price-col {
         <option value="none">📄 Sin Guías de Huecos</option>
       </select>
 
-      <select class="tb-select" id="priceVisibilitySelect" onchange="togglePrices(this.value)">
-        <option value="show" selected>💲 Con Precios (USD y Bs)</option>
+      <select class="tb-select" id="priceVisibilitySelect" onchange="filterCatalog()" title="Moneda en el documento impreso">
+        <option value="usd_only" selected>💵 Precios solo en USD ($) [Impresión]</option>
+        <option value="usd_bs">💵 USD ($) y Bolívares (Bs)</option>
         <option value="hide">🙈 Ocultar Precios</option>
       </select>
 
@@ -1131,10 +1149,29 @@ body.hide-prices .dir-price-col {
     const escName = escapeHTML(p.name);
     const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
     const buyUrl = getProductBuyUrl(p);
+    const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'usd_only';
 
     const photoHtml = p._hasPhoto
       ? `<img src="${p._photo}" alt="${escName}" loading="eager" decoding="sync">`
       : `<div class="p-photo-fallback"><span>${escapeHTML(p._catEmoji)}</span></div>`;
+
+    let pricesHtml = '';
+    if (priceMode === 'usd_bs') {
+      pricesHtml = `
+        <div class="p-prices">
+          <span class="p-price-lbl">MAYORISTA</span>
+          <div class="p-price-usd">\${p._priceUsd.toFixed(2)}</div>
+          <div class="p-price-bs">Bs ${p._priceBs.toFixed(2)}</div>
+        </div>
+      `;
+    } else if (priceMode === 'usd_only') {
+      pricesHtml = `
+        <div class="p-prices">
+          <span class="p-price-lbl">MAYORISTA USD</span>
+          <div class="p-price-usd">\${p._priceUsd.toFixed(2)}</div>
+        </div>
+      `;
+    }
 
     return `
       <article class="p-card">
@@ -1146,18 +1183,15 @@ body.hide-prices .dir-price-col {
             <div class="p-cat">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</div>
             <h3 class="p-name">${escName}</h3>
             <div class="p-desc">${escapeHTML(p._smartDesc)}</div>
+            <span class="p-unit-tag">${unitStr}</span>
           </div>
           <div class="p-footer-line">
-            <span class="p-unit-tag">${unitStr}</span>
-            <div class="p-prices">
-              <div class="p-price-usd">$${p._priceUsd.toFixed(2)}</div>
-              <div class="p-price-bs">Bs ${p._priceBs.toFixed(2)}</div>
+            ${pricesHtml}
+            <div class="p-qr-col">
+              <div class="p-qr-canvas" data-qr-url="${escapeHTML(buyUrl)}"></div>
+              <span class="p-qr-label">Pedir QR</span>
             </div>
           </div>
-        </div>
-        <div class="p-qr-col">
-          <div class="p-qr-canvas" data-qr-url="${escapeHTML(buyUrl)}"></div>
-          <span class="p-qr-label">Pedir QR</span>
         </div>
       </article>
     `;
@@ -1191,6 +1225,23 @@ body.hide-prices .dir-price-col {
     const escName = escapeHTML(p.name);
     const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
     const buyUrl = getProductBuyUrl(p);
+    const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'usd_only';
+
+    let pricesHtml = '';
+    if (priceMode === 'usd_bs') {
+      pricesHtml = `
+        <div class="dir-price-col">
+          <div class="dir-usd">\${p._priceUsd.toFixed(2)}</div>
+          <div class="dir-bs">Bs ${p._priceBs.toFixed(2)}</div>
+        </div>
+      `;
+    } else if (priceMode === 'usd_only') {
+      pricesHtml = `
+        <div class="dir-price-col">
+          <div class="dir-usd">\${p._priceUsd.toFixed(2)}</div>
+        </div>
+      `;
+    }
 
     return `
       <div class="dir-row">
@@ -1198,10 +1249,7 @@ body.hide-prices .dir-price-col {
           <div class="dir-name">${escName}</div>
           <div class="dir-meta">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)} · ${escapeHTML(p._smartDesc)} · ${unitStr}</div>
         </div>
-        <div class="dir-price-col">
-          <div class="dir-usd">$${p._priceUsd.toFixed(2)}</div>
-          <div class="dir-bs">Bs ${p._priceBs.toFixed(2)}</div>
-        </div>
+        ${pricesHtml}
         <div class="dir-qr-box" data-qr-url="${escapeHTML(buyUrl)}"></div>
       </div>
     `;
@@ -1218,10 +1266,11 @@ body.hide-prices .dir-price-col {
       <div class="cover-banner">
         <div>
           <h2>CATÁLOGO Y LISTA OFICIAL DE PRECIOS</h2>
-          <p>Papelería, Artículos de Oficina, Higiene y Limpieza Institucional. Escanea cualquier código QR con la cámara de tu celular para ordenar de inmediato por WhatsApp o ver en la web.</p>
+          <p>Papelería, Suministros de Oficina, Higiene y Limpieza Institucional. Precios oficiales al mayor expresados en Dólares (USD). Para facturación en Bolívares (Bs), se liquida a la tasa oficial BCV del día de despacho. Escanee el código QR con la cámara de su celular para ordenar directamente por WhatsApp.</p>
           <div class="cover-pills">
             <span class="cover-pill">📍 Gran Caracas y Zonas Centrales</span>
             <span class="cover-pill">🚚 Despacho Directo Corporativo</span>
+            <span class="cover-pill">💵 Precios Mayoristas USD ($)</span>
             <span class="cover-pill">📅 Edición ${escapeHTML(dateStr)}</span>
           </div>
         </div>
@@ -1269,7 +1318,7 @@ body.hide-prices .dir-price-col {
         </div>
 
         <footer class="sheet-footer">
-          <span>🌐 jj-paper.pages.dev · Atención inmediata por WhatsApp · Precios oficiales en USD y Bs</span>
+          <span>🌐 jj-paper.pages.dev · Precios oficiales al mayor en USD ($) · Facturación en Bs a tasa oficial BCV del día</span>
           <span class="sf-folio">HOJA #${physicalSheet} · PÁGINA ${pageNum} (${sideLabel})</span>
         </footer>
       </section>

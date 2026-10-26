@@ -24,9 +24,9 @@
   --sheet-w: 215.9mm;      /* Tamaño Carta US Letter */
   --sheet-h: 279.4mm;
   --spine-w: 22mm;         /* Margen de lomo libre para perforaciones sin tocar texto */
-  --outer-w: 9mm;
-  --top-h: 9mm;
-  --bot-h: 9mm;
+  --outer-w: 8mm;
+  --top-h: 6mm;
+  --bot-h: 6mm;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -306,10 +306,10 @@ body.hide-holes .spine-gutter {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 2px solid var(--doc-c);
-  padding-bottom: 2mm;
-  margin-bottom: 2.5mm;
-  min-height: 10mm;
+  border-bottom: 1.5px solid var(--doc-c);
+  padding-bottom: 1.2mm;
+  margin-bottom: 1.5mm;
+  min-height: 8mm;
   flex-shrink: 0;
 }
 .catalog-sheet.even-sheet .sheet-header {
@@ -357,14 +357,14 @@ body.hide-holes .spine-gutter {
 .cover-banner {
   background: linear-gradient(135deg, #16604A 0%, #0f4636 100%);
   color: #ffffff;
-  border-radius: 6px;
-  padding: 3.5mm 4.5mm;
-  margin-bottom: 2.5mm;
+  border-radius: 5px;
+  padding: 2.2mm 3.5mm;
+  margin-bottom: 1.5mm;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 3.5mm;
+  gap: 2.5mm;
   align-items: center;
-  border-bottom: 2.5px solid var(--doc-a);
+  border-bottom: 2px solid var(--doc-a);
   flex-shrink: 0;
 }
 .cover-banner h2 {
@@ -417,9 +417,9 @@ body.hide-holes .spine-gutter {
 .toc-box {
   background: var(--doc-light);
   border: 1px solid var(--doc-border-light);
-  border-radius: 5px;
-  padding: 2mm 3mm;
-  margin-bottom: 2.5mm;
+  border-radius: 4px;
+  padding: 1.2mm 2.2mm;
+  margin-bottom: 1.5mm;
   flex-shrink: 0;
 }
 .toc-head {
@@ -478,38 +478,58 @@ body.hide-holes .spine-gutter {
   grid-template-rows: repeat(2, 1fr);
 }
 
-/* Tarjeta Editorial de Producto: FOTO PROMINENTE (4X) + INFORMACIÓN COMERCIAL */
+/* Tarjeta Editorial de Producto: FOTO PROMINENTE Y ALTURA CALIBRADA (CERO RECORTE) */
+.photo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.6mm;
+  flex: 1;
+  align-content: stretch;
+}
+.photo-grid.rows-4 {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+.photo-grid.rows-3 {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+.photo-grid.rows-2 {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
 .p-card {
   background: #ffffff;
-  border: 1.2px solid #d4e0da;
-  border-radius: 6px;
-  padding: 2.2mm 2.5mm;
+  border: 1px solid #d4e0da;
+  border-radius: 5px;
+  padding: 1.2mm 2mm;
   display: grid;
-  grid-template-columns: 36mm 1fr;
-  gap: 2.8mm;
-  align-items: stretch;
+  grid-template-columns: 33mm 1fr;
+  gap: 2mm;
+  align-items: center;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  box-sizing: border-box;
+  max-height: 56mm;
 }
 .p-photo-wrap {
-  width: 36mm;
+  width: 33mm;
   height: 100%;
-  min-height: 48mm;
+  max-height: 52mm;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
+  border: 0.8px solid #e2e8f0;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   position: relative;
-  padding: 1.5mm;
+  padding: 1mm;
   box-sizing: border-box;
 }
 .p-photo-wrap img {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
   background: #ffffff;
 }
@@ -522,7 +542,7 @@ body.hide-holes .spine-gutter {
   justify-content: center;
   background: #f8fafc;
   color: #64748b;
-  font-size: 20pt;
+  font-size: 16pt;
 }
 .p-info {
   display: flex;
@@ -530,6 +550,7 @@ body.hide-holes .spine-gutter {
   justify-content: space-between;
   height: 100%;
   min-width: 0;
+  padding: 0.2mm 0;
 }
 .p-cat {
   font-size: 5.5pt;
@@ -542,33 +563,35 @@ body.hide-holes .spine-gutter {
   text-overflow: ellipsis;
 }
 .p-name {
-  font-size: 7.2pt;
+  font-size: 6.8pt;
   font-weight: 800;
   color: #0f172a;
   line-height: 1.15;
-  margin: 0.6mm 0;
+  margin: 0.3mm 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-height: 6.5mm;
 }
 .p-desc {
-  font-size: 5.5pt;
+  font-size: 5pt;
   color: #475569;
-  line-height: 1.25;
+  line-height: 1.2;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-height: 4.5mm;
 }
 .p-footer-line {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 2mm;
-  border-top: 0.8px solid #f1f5f9;
-  padding-top: 1mm;
-  margin-top: 1mm;
+  gap: 1.5mm;
+  border-top: 0.5px solid #f1f5f9;
+  padding-top: 0.6mm;
+  margin-top: 0.6mm;
 }
 .p-unit-tag {
   font-size: 5.5pt;
@@ -594,7 +617,7 @@ body.hide-holes .spine-gutter {
 }
 .p-price-usd {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11pt;
+  font-size: 9.5pt;
   font-weight: 900;
   color: var(--doc-c);
   line-height: 1;
@@ -616,8 +639,8 @@ body.hide-holes .spine-gutter {
   flex-shrink: 0;
 }
 .p-qr-canvas {
-  width: 13mm;
-  height: 13mm;
+  width: 11mm;
+  height: 11mm;
   background: #fff;
 }
 .p-qr-canvas img, .p-qr-canvas canvas {
@@ -718,13 +741,13 @@ body.hide-holes .spine-gutter {
    PIE DE PÁGINA
    ========================================================= */
 .sheet-footer {
-  border-top: 1px solid #d4e0da;
-  padding-top: 1.8mm;
-  margin-top: 2mm;
+  border-top: 0.8px solid #d4e0da;
+  padding-top: 1mm;
+  margin-top: 1.2mm;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 5.5pt;
+  font-size: 5.2pt;
   color: #64748b;
   flex-shrink: 0;
 }

@@ -56,7 +56,12 @@ async function loadProductData(id, sku, queryText = '') {
     } else if (sku) {
       query = query.eq('sku', sku);
     } else if (queryText) {
-      query = query.ilike('name', `%${queryText}%`).limit(1);
+      const cleanWords = queryText.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
+      if (cleanWords.length > 1) {
+        query = query.or(cleanWords.map(w => `name.ilike.%${encodeURIComponent(w)}%`).join(',')).limit(1);
+      } else {
+        query = query.ilike('name', `%${queryText}%`).limit(1);
+      }
     }
 
     const { data: rawData, error } = (id || sku) ? await query.single() : await query;

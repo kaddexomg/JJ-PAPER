@@ -131,24 +131,126 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="assets/vendor/supabase-2.58.0.js"></script>
-<script src="assets/js/config.js?v=20261022_vps_full"></script>
-<script src="assets/js/toast.js"></script>
-<script src="assets/js/nav.js?v=20261015_v9"></script>
-<script src="assets/js/catalog.js?v=20261015_v9"></script>
-<script src="assets/js/doc-engine.js?v=20260917_lista_ok"></script>
+<script src="assets/js/config.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/toast.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/nav.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/catalog.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/doc-engine.js?v=20261026_qr_live_v10"></script>
 <script src="assets/js/export.js?v=20260726"></script>
-<script src="assets/js/quote-drawer.js?v=20261015_v9"></script>
-<script src="assets/js/product-modal.js?v=20261015_v9"></script>
+<script src="assets/js/quote-drawer.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/gemini-client.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/product-modal.js?v=20261026_qr_live_v10"></script>
 <script>
 async function bootstrapCatalog() {
   try { if (typeof injectNav === 'function') injectNav('catalogo'); } catch (e) { console.warn('Nav init warning:', e); }
   try { if (typeof injectFooter === 'function') injectFooter(); } catch (e) { console.warn('Footer init warning:', e); }
+  try { if (typeof injectProductModal === 'function') injectProductModal(); } catch (e) { console.warn('Modal init warning:', e); }
   try { if (typeof initCatalog === 'function') await initCatalog(); } catch (e) { console.error('Catalog init error:', e); }
 
+  // Disparar Interceptor Autónomo de Códigos QR del Catálogo Físico
+  handleAutonomousQrInterceptor();
+
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(err => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      if (reg && typeof reg.update === 'function') reg.update();
+    }).catch(err => {
       console.warn('SW registration info:', err);
     });
+  }
+}
+
+async function handleAutonomousQrInterceptor() {
+  const qp = new URLSearchParams(location.search);
+  const rawQuery = (qp.get('buscar') || qp.get('q') || qp.get('producto') || qp.get('sku') || qp.get('p') || qp.get('id') || '').trim();
+  if (!rawQuery) return;
+
+  const isFromQr = Boolean(qp.get('buscar') || qp.get('qr') === '1' || qp.get('from_qr') === '1');
+
+  // Insertar un banner visual arriba del grid para confirmación inmediata al escanear con el teléfono
+  const grid = document.getElementById('prodGrid');
+  let banner = document.getElementById('qrScanBanner');
+  if (grid && !banner) {
+    banner = document.createElement('div');
+    banner.id = 'qrScanBanner';
+    banner.style.cssText = 'grid-column:1/-1;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:12px 16px;margin:10px 0 16px 0;display:flex;align-items:center;justify-content:space-between;color:#065f46;font-size:13px;box-shadow:0 2px 8px rgba(16,185,129,0.08);';
+    banner.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">📲</span>
+        <div>
+          <div style="font-weight:800">Escaneando producto desde Catálogo Físico Impreso:</div>
+          <div style="font-size:12px;font-weight:600;color:#047857"><u>${escapeHTML(rawQuery)}</u> — Abriendo Ficha Técnica Oficial...</div>
+        </div>
+      </div>
+      <div class="spin" style="width:20px;height:20px;border-width:2.5px;border-color:#10b981;border-top-color:transparent"></div>
+    `;
+    grid.prepend(banner);
+  }
+
+  // Esperar a que el catálogo cargue o buscar de inmediato
+  let matched = null;
+  for (let i = 0; i < 40; i++) {
+    if (typeof window.findProductByQuery === 'function' && typeof allProducts !== 'undefined' && allProducts.length > 0) {
+      matched = window.findProductByQuery(rawQuery, allProducts);
+      if (matched) break;
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+
+  // Fallback si no se encontró en allProducts: consulta directa a PostgREST
+  if (!matched && typeof sb !== 'undefined') {
+    try {
+      const cleanWords = rawQuery.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
+      if (cleanWords.length) {
+        const orFilter = cleanWords.map(w => `name.ilike.%${encodeURIComponent(w)}%`).join(',');
+        const vSelect = typeof VARIANTS_SELECT !== 'undefined' ? VARIANTS_SELECT : 'jjp_product_variants(*)';
+        const { data } = await sb.from('jjp_products')
+          .select(`id,category_id,name,description,price_usd,unit,image_url,emoji,tag,active,featured,sku,${vSelect}`)
+          .or(orFilter)
+          .limit(5);
+        if (data && data.length) {
+          matched = (typeof normalizeProduct === 'function') ? normalizeProduct(data[0]) : data[0];
+        }
+      }
+    } catch (e) {
+      console.warn('Direct DB QR lookup warning:', e);
+    }
+  }
+
+  if (matched) {
+    if (banner) {
+      banner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">✅</span>
+          <div>
+            <div style="font-weight:800">Producto localizado: ${escapeHTML(matched.name)}</div>
+            <div style="font-size:12px;color:#047857">Mostrando Ficha Técnica Oficial en pantalla...</div>
+          </div>
+        </div>
+      `;
+      setTimeout(() => banner && banner.remove(), 4000);
+    }
+    if (typeof injectProductModal === 'function') injectProductModal();
+    if (typeof openProductModal === 'function') {
+      openProductModal(matched.id, { fromQr: true, searchQuery: rawQuery });
+    }
+  } else {
+    if (banner) {
+      banner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">🔍</span>
+          <div>
+            <div style="font-weight:800">Búsqueda de Catálogo: "${escapeHTML(rawQuery)}"</div>
+            <div style="font-size:12px;color:#047857">Mostrando artículos coincidentes en el catálogo...</div>
+          </div>
+        </div>
+      `;
+    }
+    const s = document.getElementById('srch');
+    if (s) {
+      s.value = rawQuery;
+      if (typeof currentSearch !== 'undefined') currentSearch = rawQuery;
+      if (typeof renderProds === 'function') renderProds();
+    }
   }
 }
 

@@ -783,59 +783,9 @@ async function initCatalog() {
   const targetQuery = urlBuscar || qs.get('producto') || qs.get('sku') || qs.get('p') || qs.get('id') || '';
   if (targetQuery) {
     const rawTarget = targetQuery.trim();
-    const cleanNorm = (str) => String(str || '').toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, ' ')
-      .replace(/\s+/g, ' ').trim();
-
-    const targetNorm = cleanNorm(rawTarget);
-    const targetWords = targetNorm.split(' ').filter(w => w.length >= 2);
-
-    // 1. Búsqueda por ID directo
-    let found = allProducts.find(p => p.id === rawTarget);
-
-    // 2. Búsqueda por SKU exacto
-    if (!found) {
-      found = allProducts.find(p => p.sku && p.sku.toLowerCase().trim() === rawTarget.toLowerCase());
-    }
-
-    // 3. Búsqueda por variante SKU
-    if (!found) {
-      found = allProducts.find(p => p.variants && p.variants.some(v => v.sku && v.sku.toLowerCase().trim() === rawTarget.toLowerCase()));
-    }
-
-    // 4. Búsqueda por coincidencia exacta o normalizada de nombre
-    if (!found) {
-      found = allProducts.find(p => cleanNorm(p.name) === targetNorm);
-    }
-
-    // 5. Búsqueda por inclusión directa
-    if (!found) {
-      found = allProducts.find(p => {
-        const pNorm = cleanNorm(p.name);
-        return pNorm.includes(targetNorm) || targetNorm.includes(pNorm);
-      });
-    }
-
-    // 6. Búsqueda por máxima puntuación de palabras coincidentes
-    if (!found && targetWords.length > 0) {
-      let bestScore = 0;
-      let bestProd = null;
-      for (const p of allProducts) {
-        const pNorm = cleanNorm(p.name);
-        let score = 0;
-        for (const w of targetWords) {
-          if (pNorm.includes(w)) score++;
-        }
-        if (score > bestScore) {
-          bestScore = score;
-          bestProd = p;
-        }
-      }
-      if (bestScore >= Math.min(2, targetWords.length)) {
-        found = bestProd;
-      }
-    }
+    const found = (typeof window.findProductByQuery === 'function')
+      ? window.findProductByQuery(rawTarget, allProducts)
+      : null;
 
     if (found && typeof openProductModal === 'function') {
       setTimeout(() => {
@@ -846,10 +796,14 @@ async function initCatalog() {
         if (typeof showToast === 'function' && isFromPhysicalQr) {
           showToast('📱 Escaneado desde el Catálogo Físico: ' + found.name, 4000);
         }
-      }, 250);
+      }, 200);
+    } else {
+      currentSearch = rawTarget;
+      const s = document.getElementById('srch');
+      if (s) s.value = rawTarget;
+      renderProds();
     }
-  }
-}
+  }}
 
 /* ======================================================
    Catálogo: Toggle Grid/Lista & Envío Rápido a Clientes
@@ -885,4 +839,66 @@ window.sendProductToClient = async function(prodId, channel = 'whatsapp') {
   } else {
     alert(`Preparando envío de ficha para: ${p.name}`);
   }
+};
+
+/* ======================================================
+   Helper Universal de Búsqueda de Productos por Texto/QR
+   ====================================================== */
+window.findProductByQuery = function(rawTarget, products) {
+  const list = products || (typeof allProducts !== 'undefined' ? allProducts : []);
+  if (!rawTarget || !Array.isArray(list) || !list.length) return null;
+
+  const cleanNorm = (str) => String(str || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+
+  const targetNorm = cleanNorm(rawTarget);
+  const targetWords = targetNorm.split(' ').filter(w => w.length >= 2);
+
+  // 1. ID exacto
+  let found = list.find(p => p.id === rawTarget);
+  if (found) return found;
+
+  // 2. SKU exacto
+  found = list.find(p => p.sku && p.sku.toLowerCase().trim() === rawTarget.toLowerCase().trim());
+  if (found) return found;
+
+  // 3. Variante SKU
+  found = list.find(p => p.variants && p.variants.some(v => v.sku && v.sku.toLowerCase().trim() === rawTarget.toLowerCase().trim()));
+  if (found) return found;
+
+  // 4. Nombre exacto normalizado
+  found = list.find(p => cleanNorm(p.name) === targetNorm);
+  if (found) return found;
+
+  // 5. Inclusión directa
+  found = list.find(p => {
+    const pNorm = cleanNorm(p.name);
+    return pNorm.includes(targetNorm) || targetNorm.includes(pNorm);
+  });
+  if (found) return found;
+
+  // 6. Fuzzy score por palabras
+  if (targetWords.length > 0) {
+    let bestScore = 0;
+    let bestProd = null;
+    for (const p of list) {
+      const pNorm = cleanNorm(p.name);
+      const pSku  = cleanNorm(p.sku || '');
+      let score = 0;
+      for (const w of targetWords) {
+        if (pNorm.includes(w)) score += 2;
+        else if (pSku.includes(w)) score += 3;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestProd = p;
+      }
+    }
+    if (bestScore >= 2) {
+      return bestProd;
+    }
+  }
+  return null;
 };

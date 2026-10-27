@@ -3,7 +3,7 @@
    Garantiza carga instantánea en PC, laptop y teléfono móvil.
    ====================================================== */
 
-const CACHE_NAME = 'jjp-static-v5';
+const CACHE_NAME = 'jjp-static-v10';
 const IMAGE_CACHE_NAME = 'jjp-images-v2';
 
 const STATIC_ASSETS = [
@@ -23,6 +23,7 @@ const STATIC_ASSETS = [
   './assets/js/product-detail.js',
   './assets/js/nav.js',
   './assets/js/product-modal.js',
+  './assets/js/gemini-client.js',
   './assets/js/toast.js',
   './assets/img/logo.svg'
 ];
@@ -43,7 +44,10 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.filter((k) => k !== CACHE_NAME && k !== IMAGE_CACHE_NAME)
-            .map((k) => caches.delete(k))
+            .map((k) => {
+              console.log('[SW] Purgando caché obsoleta:', k);
+              return caches.delete(k);
+            })
       );
     })
   );
@@ -85,7 +89,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Assets estáticos (CSS, JS, SVG): Stale-While-Revalidate
+  // 3. Assets con parámetro de versión (?v=): SIEMPRE IR A RED (Network First)
+  // Garantiza que cuando se actualiza la versión del código (?v=...), se cargue el código nuevo de inmediato
+  if (url.searchParams.has('v')) {
+    event.respondWith(
+      fetch(req).then((netRes) => {
+        if (netRes && netRes.status === 200) {
+          const clone = netRes.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+        }
+        return netRes;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 4. Assets estáticos sin versión (CSS, JS, SVG): Stale-While-Revalidate
   if (url.origin === location.origin) {
     event.respondWith(
       caches.match(req).then((cached) => {

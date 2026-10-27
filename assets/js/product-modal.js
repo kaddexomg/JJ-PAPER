@@ -1,7 +1,7 @@
 /* ======================================================
-   JJ Paper — Product Detail Modal
-   Con selector de marca (variantes): cada marca tiene su
-   propio precio y stock.
+   JJ Paper — Product Detail Modal (Ficha Técnica Oficial)
+   Con selector de marca (variantes), resolución de fotos con IA,
+   interceptor de QR físico y productos relacionados.
    ====================================================== */
 
 let modalQty     = 1;
@@ -10,61 +10,94 @@ let modalVariant = null;
 let modalGallery = [];    // urls de la galería (producto + variantes)
 let modalImgIdx  = -1;    // miniatura elegida (-1 = imagen de la variante)
 let _modalUntrap = null;
+let _modalFromQr = false;
+let _modalScanQuery = '';
 
 function injectProductModal() {
+  if (document.getElementById('prodModal')) return;
   const html = `
 <div class="modal-overlay" id="prodModal" onclick="closeProdModal(event)">
   <div class="modal-box" id="prodModalBox" role="dialog" aria-modal="true" aria-labelledby="prodModalTitle">
     <div class="modal-hd">
-      <h3 id="prodModalTitle">Detalle del producto</h3>
+      <h3 id="prodModalTitle">Ficha Técnica Oficial del Producto</h3>
       <button class="modal-close" onclick="closeProdModal()" aria-label="Cerrar detalle del producto">✕</button>
     </div>
     <div class="modal-body" id="prodModalBody"></div>
   </div>
 </div>`;
   const placeholder = document.getElementById('prod-modal-placeholder');
-  if (placeholder) placeholder.outerHTML = html;
+  if (placeholder) {
+    placeholder.outerHTML = html;
+  } else {
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+}
+
+// Auto-inyección inmediata si el DOM ya está listo
+if (typeof document !== 'undefined') {
+  if (document.readyState !== 'loading') {
+    injectProductModal();
+  } else {
+    document.addEventListener('DOMContentLoaded', injectProductModal);
+  }
 }
 
 async function openProductModal(productId, opts = {}) {
-  _modalFromQr = Boolean(opts?.fromQr || (new URLSearchParams(location.search)).get('buscar') || (new URLSearchParams(location.search)).get('from_qr'));
-  _modalScanQuery = opts?.searchQuery || (new URLSearchParams(location.search)).get('buscar') || '';
+  injectProductModal();
+  const qp = new URLSearchParams(location.search);
+  _modalFromQr = Boolean(opts?.fromQr || qp.get('buscar') || qp.get('from_qr') || qp.get('qr') === '1' || window.__IS_FROM_PHYSICAL_QR__);
+  _modalScanQuery = opts?.searchQuery || qp.get('buscar') || window.__QR_TARGET__ || '';
+
   const modal = document.getElementById('prodModal');
   const body  = document.getElementById('prodModalBody');
   const title = document.getElementById('prodModalTitle');
 
-  // Show modal immediately with a loading state for snappy UX
-  if (title) title.textContent = 'Cargando...';
-  if (body)  body.innerHTML = `<div class="cat-loading"><div class="spin"></div>Cargando detalle...</div>`;
-  modal?.classList.add('op');
+  // Mostrar de inmediato estado de carga
+  if (title) title.textContent = 'Cargando producto...';
+  if (body)  body.innerHTML = `<div class="cat-loading"><div class="spin"></div>Cargando Ficha Técnica Oficial...</div>`;
+  if (modal) modal.classList.add('op');
   document.body.style.overflow = 'hidden';
-  // Atrapa foco en el diálogo y recuerda el elemento que lo abrió
+
   if (_modalUntrap) _modalUntrap();
   _modalUntrap = trapFocus(document.getElementById('prodModalBox'));
 
-  // Always fetch full row (with variants) so stock/prices are fresh
+  // Obtener producto de caché local o base de datos
   let p = null;
-  // Columnas explícitas: las columnas de costo no son legibles para anon
-  const { data } = await sb.from('jjp_products')
-    .select(`id,category_id,name,description,price_usd,unit,image_url,emoji,tag,active,featured,sort_order,brand_id,unit_id,sku,stock,min_qty,jjp_categories(name,slug,color),jjp_units(name,abbr),${VARIANTS_SELECT}`)
-    .eq('id', productId)
-    .single();
-  p = data ? normalizeProduct(data)
-    : (typeof productMap !== 'undefined' && productMap[productId]) ||
-      allProducts?.find(x => x.id === productId);
+  if (typeof productMap !== 'undefined' && productMap[productId]) {
+    p = productMap[productId];
+  } else if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
+    p = allProducts.find(x => x.id === productId);
+  }
+
+  // Consulta detallada a PostgREST para asegurar variantes frescas
+  if (typeof sb !== 'undefined') {
+    try {
+      const vSelect = typeof VARIANTS_SELECT !== 'undefined' ? VARIANTS_SELECT : 'jjp_product_variants(*)';
+      const { data } = await sb.from('jjp_products')
+        .select(`id,category_id,name,description,price_usd,unit,image_url,emoji,tag,active,featured,sort_order,brand_id,unit_id,sku,stock,min_qty,jjp_categories(name,slug,color),jjp_units(name,abbr),${vSelect}`)
+        .eq('id', productId)
+        .single();
+      if (data) p = normalizeProduct(data);
+    } catch (e) {
+      console.warn('DB fetch in modal warning:', e);
+    }
+  }
+
   if (!p) { closeProdModal(); return; }
-  if (p._minPrice === undefined) normalizeProduct(p);
+  if (p._minPrice === undefined && typeof normalizeProduct === 'function') normalizeProduct(p);
 
   modalProduct = p;
-  // Variante inicial: la primera con stock, o la primera de la lista
-  modalVariant = p.variants.find(v => v.stock !== 0) || p.variants[0] || null;
+  modalVariant = (p.variants && p.variants.find(v => v.stock !== 0)) || (p.variants && p.variants[0]) || null;
   modalQty = Math.max(1, (modalVariant?.min_qty ?? p.min_qty) || 1);
-  // Galería: imagen del producto + imágenes propias de cada variante (sin repetir)
-  modalGallery = [...new Set([p.image_url, ...p.variants.map(x => x.image_url)].filter(Boolean))];
+  modalGallery = [...new Set([p.image_url, ...(p.variants || []).map(x => x.image_url)].filter(Boolean))];
   modalImgIdx  = -1;
 
   if (title) title.textContent = p.name;
   renderModalBody();
+}
+
+function escapeAttr(str) {
+  return String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function renderModalBody() {
@@ -80,15 +113,17 @@ function renderModalBody() {
   const price  = v ? +v.price_usd : +p.price_usd;
   const stock  = v ? v.stock : p.stock;
   const minQty = Math.max(1, (v?.min_qty ?? p.min_qty) || 1);
-  // Imagen mostrada: miniatura elegida > imagen de la variante > imagen del producto
+
   const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) ||
                  v?.image_url || p.image_url;
 
-  const imgHTML = imgUrl
+  const hasOfficialPhoto = Boolean(imgUrl && imgUrl.trim() && !imgUrl.includes('fallback'));
+
+  const imgHTML = hasOfficialPhoto
     ? `<img src="${optImg(imgUrl, 800)}" alt="${name}" decoding="async">`
     : `<span style="font-size:90px">${p.emoji || '📦'}</span>`;
 
-  // Miniaturas (solo si hay más de una imagen distinta)
+  // Miniaturas
   const thumbsHTML = modalGallery.length > 1
     ? `<div class="pm-thumbs" role="group" aria-label="Más imágenes del producto">
         ${modalGallery.map((u, i) => `
@@ -99,10 +134,18 @@ function renderModalBody() {
       </div>`
     : '';
 
-  // Stock badge (de la variante seleccionada).
-  // Semáforo, nunca la cantidad exacta: el stock real es información
-  // interna (la competencia deduce rotación y proveedor con ella). El
-  // tope de compra sí respeta el stock — ver modalChangeQty.
+  // Bloque para resolución de fotos con IA cuando falta la imagen
+  const aiPhotoHtml = !hasOfficialPhoto ? `
+    <div class="pm-ai-photo-card" id="pmAiPhotoBox_${p.id}" style="margin-top:12px;padding:12px;background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:10px;text-align:center">
+      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px">📷 Este artículo no cuenta con fotografía oficial</div>
+      <button type="button" class="btn-action-primary" style="font-size:12px;padding:8px 14px;border-radius:6px;background:#16604A;color:#fff;border:0;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px" onclick="pmSearchAiPhoto('${p.id}', '${escapeAttr(p.name)}')">
+        <span>🧠</span> Buscar Foto Real con IA (Fondo Blanco)
+      </button>
+      <div id="pmAiPhotoFeedback_${p.id}" style="margin-top:8px;font-size:11px"></div>
+    </div>
+  ` : '';
+
+  // Stock badge
   let stockHTML;
   if (stock === null || stock === undefined || stock < 0) {
     stockHTML = `<span class="pm-stock ok">✔ Disponible</span>`;
@@ -115,9 +158,9 @@ function renderModalBody() {
   }
   const soldOut = stock === 0;
 
-  // Selector de marca/presentación (solo si hay más de una variante)
+  // Selector de marca / variante
   let variantsHTML = '';
-  if (p.variants.length > 1) {
+  if (p.variants && p.variants.length > 1) {
     const hasPres = p.variants.some(x => x.variant_name);
     variantsHTML = `<div class="pm-variants">
       <div class="pm-variants-lbl">${hasPres ? 'Opciones disponibles:' : 'Marca:'}</div>
@@ -142,30 +185,29 @@ function renderModalBody() {
 
   const metaBits = [];
   const brandName = v?.jjp_brands?.name;
-  if (p.variants.length <= 1 && brandName)
+  if (p.variants && p.variants.length <= 1 && brandName)
     metaBits.push(`<span class="pm-meta-i"><b>Marca:</b> ${v.jjp_brands.logo_url ? `<img class="pm-brand-logo" src="${escapeHTML(v.jjp_brands.logo_url)}" alt="${escapeHTML(brandName)}" loading="lazy"> ` : ''}${escapeHTML(brandName)}</span>`);
-  if (p.variants.length <= 1 && v?.variant_name)
+  if (p.variants && p.variants.length <= 1 && v?.variant_name)
     metaBits.push(`<span class="pm-meta-i"><b>Presentación:</b> ${escapeHTML(v.variant_name)}</span>`);
-  // El SKU no se muestra al público: es el código con el que compramos.
-  // Sigue siendo buscable — catalog.js indexa p._skus sin pintarlo.
   if (minQty > 1) metaBits.push(`<span class="pm-meta-i"><b>Mínimo:</b> ${minQty} ${unit}</span>`);
 
   body.innerHTML = `
 <div class="prod-modal-grid">
   <div class="pm-media">
-    <div class="prod-modal-img${imgUrl ? ' zoomable has-img' : ''}" style="background:${bg}" ${imgUrl ? 'onclick="openModalImgZoom()"' : ''}>
+    <div class="prod-modal-img${hasOfficialPhoto ? ' zoomable has-img' : ''}" style="background:${bg}" ${hasOfficialPhoto ? 'onclick="openModalImgZoom()"' : ''}>
       ${imgHTML}
       ${p.tag ? `<span class="pm-tag">${escapeHTML(p.tag)}</span>` : ''}
-      ${imgUrl ? `<button class="pm-zoom-btn" onclick="event.stopPropagation();openModalImgZoom()" aria-label="Ver imagen completa de ${name}">🔍 Ampliar</button>` : ''}
+      ${hasOfficialPhoto ? `<button class="pm-zoom-btn" onclick="event.stopPropagation();openModalImgZoom()" aria-label="Ver imagen completa de ${name}">🔍 Ampliar</button>` : ''}
     </div>
     ${thumbsHTML}
+    ${aiPhotoHtml}
   </div>
   <div class="prod-modal-info">
-    ${_modalFromQr ? `<div class="pm-qr-badge" style="display:inline-flex;align-items:center;gap:6px;background:#e8f5e9;color:#16604a;border:1.5px solid #a5d6a7;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;margin-bottom:6px">📱 Escaneado desde el Catálogo Físico Impreso</div>` : ''}
+    ${_modalFromQr ? `<div class="pm-qr-badge" style="display:inline-flex;align-items:center;gap:6px;background:#e8f5e9;color:#16604a;border:1.5px solid #a5d6a7;padding:5px 12px;border-radius:20px;font-size:11.5px;font-weight:800;margin-bottom:8px">📲 Escaneado desde el Catálogo Físico Impreso</div>` : ''}
     <div class="prod-modal-cat">${escapeHTML(cat.name || '')}</div>
     <h2 class="prod-modal-name">${name}</h2>
     ${stockHTML}
-    <p class="prod-modal-desc">${escapeHTML(p.description || 'Sin descripción disponible.')}</p>
+    <p class="prod-modal-desc">${escapeHTML(p.description || 'Artículo oficial de papelería y suministros JJ Paper.')}</p>
     ${variantsHTML}
     ${metaBits.length ? `<div class="pm-meta">${metaBits.join('')}</div>` : ''}
     <div class="prod-modal-prices">
@@ -191,17 +233,85 @@ function renderModalBody() {
           📋 Compartir Ficha
         </button>
         <a href="producto.html?id=${p.id}" class="pm-quote" style="display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1/-1;text-decoration:none;background:#f0f7f3;color:#16604A;border:1.5px solid #c2dbcd;font-weight:700;padding:10px">
-          🌐 Ver Ficha Oficial Completa (Fotos HD y Variantes) →
+          🌐 Ver Ficha Web Completa →
         </a>
       </div>
     </div>
   </div>
-</div>`;
+</div>
+
+<div class="pm-related-section" id="pmRelatedSection_${p.id}" style="margin-top:22px;border-top:1px solid #e2e8f0;padding-top:15px">
+  <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+    <span>✨ Productos Relacionados (${escapeHTML(cat.name || 'de la misma categoría')})</span>
+  </div>
+  <div class="pm-related-grid" id="pmRelatedGrid_${p.id}" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:10px">
+    <div style="color:#64748b;font-size:12px">Cargando productos relacionados...</div>
+  </div>
+</div>
+`;
 
   updateModalSubtotal();
+  loadModalRelatedProducts(p);
+
+  // Si proviene de escaneo QR y no tiene foto, disparar búsqueda automática de foto
+  if (_modalFromQr && !hasOfficialPhoto) {
+    setTimeout(() => {
+      if (typeof window.pmSearchAiPhoto === 'function') {
+        window.pmSearchAiPhoto(p.id, p.name, true);
+      }
+    }, 400);
+  }
 }
 
-// Cambia la imagen mostrada desde las miniaturas (sin resetear variante/cantidad)
+// Carga de productos relacionados dentro de la misma categoría
+async function loadModalRelatedProducts(p) {
+  const container = document.getElementById('pmRelatedGrid_' + p.id);
+  if (!container) return;
+
+  let related = [];
+  if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
+    related = allProducts.filter(x => x.category_id === p.category_id && x.id !== p.id).slice(0, 4);
+  }
+  if (!related.length && typeof sb !== 'undefined') {
+    try {
+      const vSelect = typeof VARIANTS_SELECT !== 'undefined' ? VARIANTS_SELECT : 'jjp_product_variants(*)';
+      const { data } = await sb.from('jjp_products')
+        .select(`id,category_id,name,price_usd,image_url,emoji,unit,stock,min_qty,jjp_categories(name,slug,color),${vSelect}`)
+        .eq('category_id', p.category_id)
+        .neq('id', p.id)
+        .eq('active', true)
+        .limit(4);
+      if (data && data.length) {
+        related = data.map(normalizeProduct);
+      }
+    } catch (_) {}
+  }
+
+  if (!related.length) {
+    container.innerHTML = '<div style="color:#64748b;font-size:11.5px;grid-column:1/-1">No hay más productos en esta categoría por ahora.</div>';
+    return;
+  }
+
+  container.innerHTML = related.map(rp => {
+    const rImg = rp.image_url
+      ? `<img src="${optImg(rp.image_url, 200)}" alt="${escapeHTML(rp.name)}" style="width:100%;height:85px;object-fit:contain;border-radius:6px;background:#f8fafc;margin-bottom:6px">`
+      : `<div style="width:100%;height:85px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:6px;font-size:32px;margin-bottom:6px">${rp.emoji || '📦'}</div>`;
+    const rPrice = rp._minPrice || rp.price_usd || 0;
+    return `
+      <div class="pm-related-card" style="border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;transition:transform 0.15s,box-shadow 0.15s" onclick="openProductModal('${rp.id}', { fromQr: false })" title="Ver ${escapeHTML(rp.name)}">
+        <div>
+          ${rImg}
+          <div style="font-size:11px;font-weight:700;color:#1e293b;line-height:1.25;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHTML(rp.name)}</div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#16604a">${fmtPrice(rPrice)}</div>
+          <div style="font-size:10px;color:#64748b">${fmtBs(rPrice)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function selectModalImg(i) {
   if (!modalGallery[i]) return;
   modalImgIdx = i;
@@ -212,12 +322,11 @@ function selectModalVariant(variantId) {
   const v = modalProduct?.variants.find(x => x.id === variantId);
   if (!v) return;
   modalVariant = v;
-  modalImgIdx  = -1;   // vuelve a la imagen propia de la variante
+  modalImgIdx  = -1;
   modalQty = Math.max(1, (v.min_qty ?? modalProduct.min_qty) || 1);
   renderModalBody();
 }
 
-// Live subtotal under the qty stepper
 function updateModalSubtotal() {
   const el = document.getElementById('modalSubtotal');
   if (!el || !modalProduct) return;
@@ -232,7 +341,7 @@ function closeProdModal(e) {
   document.body.style.overflow = '';
   modalProduct = null;
   modalVariant = null;
-  if (_modalUntrap) { _modalUntrap(); _modalUntrap = null; }   // suelta y restaura foco
+  if (_modalUntrap) { _modalUntrap(); _modalUntrap = null; }
 }
 
 function modalChangeQty(delta) {
@@ -240,7 +349,6 @@ function modalChangeQty(delta) {
   const stock = modalVariant ? modalVariant.stock : modalProduct?.stock;
   const max   = (typeof stock === 'number' && stock > 0) ? stock : Infinity;
   const next  = Math.max(min, modalQty + delta);
-  // Limita sin revelar el stock: el tope existe, el número no se dice.
   if (next > max) { showToast('Cantidad máxima disponible alcanzada', 'warn'); return; }
   modalQty = next;
   const el = document.getElementById('modalQtyDisplay');
@@ -259,18 +367,32 @@ function modalOrderWA() {
   const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
   const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) || modalVariant?.image_url || p.image_url;
 
-  let msg = `📦 *Hola JJ Paper, me interesa este producto:*\n\n` +
-            `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
-            (modalVariant?.sku || p.sku ? `• *Código/SKU:* ${modalVariant?.sku || p.sku}\n` : '') +
-            `• *Cantidad:* ${modalQty} ${unit}\n` +
-            `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n` +
-            `• *Ficha Oficial:* ${prodUrl}\n`;
+  let msg = _modalFromQr
+    ? `📦 *Hola JJ Paper, estoy escaneando este producto del Catálogo Impreso:*
+
+`
+    : `📦 *Hola JJ Paper, me interesa este producto:*
+
+`;
+
+  msg += `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}
+` +
+         (modalVariant?.sku || p.sku ? `• *Código/SKU:* ${modalVariant?.sku || p.sku}
+` : '') +
+         `• *Cantidad:* ${modalQty} ${unit}
+` +
+         `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}
+` +
+         `• *Ficha Oficial:* ${prodUrl}
+`;
 
   if (imgUrl && imgUrl.trim()) {
-    msg += `• *Foto oficial:* ${imgUrl}\n`;
+    msg += `• *Foto oficial:* ${imgUrl}
+`;
   }
 
-  msg += `\n¿Tienen disponibilidad para despacho?`;
+  msg += `
+¿Tienen disponibilidad para despacho?`;
   openWA(msg);
 }
 
@@ -284,20 +406,29 @@ function modalRequestQuote() {
   const subBs  = fmtBs(subUsd);
   const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
 
-  const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN FORMAL*\n\n` +
-                   `Estimado equipo de JJ Paper, solicito presupuesto para:\n\n` +
-                   `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
-                   (modalVariant?.sku || p.sku ? `• *SKU / Ref:* ${modalVariant?.sku || p.sku}\n` : '') +
-                   `• *Cantidad requerida:* ${modalQty} ${unit}\n` +
-                   `• *Monto estimado:* ${fmtPrice(subUsd)} (${subBs})\n` +
-                   `• *Ficha del producto:* ${prodUrl}\n\n` +
+  const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN FORMAL*
+
+` +
+                   `Estimado equipo de JJ Paper, solicito presupuesto para:
+
+` +
+                   `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}
+` +
+                   (modalVariant?.sku || p.sku ? `• *SKU / Ref:* ${modalVariant?.sku || p.sku}
+` : '') +
+                   `• *Cantidad requerida:* ${modalQty} ${unit}
+` +
+                   `• *Monto estimado:* ${fmtPrice(subUsd)} (${subBs})
+` +
+                   `• *Ficha del producto:* ${prodUrl}
+
+` +
                    `Por favor enviar cotización membretada con vigencia y condiciones de despacho a sede.`;
 
   openWA(quoteMsg);
   showToast('Abriendo cotizador directo por WhatsApp... 💬', 'ok');
 }
 
-// Compartir: enlace a la ficha del producto en el catálogo (share nativo o copiar)
 function modalShare() {
   if (!modalProduct) return;
   const url = `${location.origin}/producto.html?id=${encodeURIComponent(modalProduct.id)}`;
@@ -310,12 +441,7 @@ function modalShare() {
   }
 }
 
-/* ======================================================
-   Lightbox de imagen: vista completa a pantalla con zoom
-   (doble toque / doble click alterna acercamiento).
-   ====================================================== */
 let _ilbUntrap = null;
-
 function ensureImgLightbox() {
   if (document.getElementById('imgLightbox')) return;
   const lb = document.createElement('div');
@@ -335,7 +461,6 @@ function ensureImgLightbox() {
   lb.querySelector('.ilb-close').addEventListener('click', closeImgLightbox);
   stage.addEventListener('click', e => { if (e.target === stage) closeImgLightbox(); });
   img.addEventListener('dblclick', () => stage.classList.toggle('zoomed'));
-  // Doble toque en táctil (dblclick no siempre dispara en mobile)
   let lastTap = 0;
   img.addEventListener('touchend', e => {
     const now = Date.now();
@@ -359,45 +484,51 @@ function openImgLightbox(url, alt) {
   _ilbUntrap = trapFocus(lb);
 }
 
-// Devuelve true si el lightbox estaba abierto (para encadenar con ESC)
 function closeImgLightbox() {
   const lb = document.getElementById('imgLightbox');
   if (!lb?.classList.contains('op')) return false;
   lb.classList.remove('op');
-  // Si el modal de producto sigue abierto, el body debe seguir sin scroll
   const modalOpen = document.getElementById('prodModal')?.classList.contains('op');
   document.body.style.overflow = modalOpen ? 'hidden' : '';
   if (_ilbUntrap) { _ilbUntrap(); _ilbUntrap = null; }
   return true;
 }
 
-// Abre el lightbox con la imagen visible (miniatura elegida > variante > producto)
 function openModalImgZoom() {
   const url = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) ||
               modalVariant?.image_url || modalProduct?.image_url;
   if (url) openImgLightbox(url, modalProduct?.name);
 }
 
-// Close on ESC (el lightbox tiene prioridad sobre el modal)
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (closeImgLightbox()) return;
   closeProdModal();
 });
 
-document.addEventListener('DOMContentLoaded', injectProductModal);
-
-
 /* ======================================================
    Resolución de Fotos con IA en Catálogo / Ficha Técnica
    ====================================================== */
-window.pmSearchAiPhoto = async function(productId, productName) {
+window.pmSearchAiPhoto = async function(productId, productName, isAuto = false) {
   const box = document.getElementById('pmAiPhotoBox_' + productId);
+  const fb = document.getElementById('pmAiPhotoFeedback_' + productId);
   if (!box) return;
-  box.style.display = 'block';
-  box.innerHTML = '<div style="font-size:11.5px;color:#16604A;padding:6px;font-weight:600">🧠 Buscando fotografía real sobre fondo blanco...</div>';
+
+  if (fb) {
+    fb.innerHTML = '<div style="color:#16604A;font-weight:700">🧠 Buscando fotografía comercial real sobre fondo blanco...</div>';
+  }
 
   try {
+    if (!window.GeminiClient) {
+      await new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = 'assets/js/gemini-client.js?v=20261026_qr_live_v10';
+        s.onload = resolve;
+        s.onerror = resolve;
+        document.head.appendChild(s);
+      });
+    }
+
     let photoUrl = null;
     if (window.GeminiClient && typeof window.GeminiClient.searchRealProductPhoto === 'function') {
       photoUrl = await window.GeminiClient.searchRealProductPhoto(productName);
@@ -409,19 +540,22 @@ window.pmSearchAiPhoto = async function(productId, productName) {
 
     if (photoUrl) {
       box.innerHTML = `
-        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin-top:6px">
-          <img src="${photoUrl}" alt="${productName}" style="width:120px;height:120px;object-fit:contain;margin:0 auto;display:block;border-radius:4px">
-          <div style="font-size:11px;color:#166534;font-weight:700;margin:6px 0">✅ Fotografía comercial ubicada</div>
-          <button type="button" class="btn-action-primary" style="font-size:11px;padding:6px 10px;border-radius:6px;width:100%;font-weight:700;background:#16604A;color:#fff;border:0;cursor:pointer" onclick="pmSaveOfficialPhoto('${productId}', '${photoUrl}')">
-            💾 Guardar Foto Oficial en Catálogo
+        <div style="background:#fff;border:1.5px solid #10b981;border-radius:8px;padding:10px;margin-top:6px;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+          <div style="font-size:11px;color:#166534;font-weight:800;margin-bottom:6px">✅ Fotografía Comercial Real (Fondo Blanco)</div>
+          <img src="${photoUrl}" alt="${productName}" style="width:140px;height:140px;object-fit:contain;margin:0 auto;display:block;border-radius:6px;background:#fff">
+          <button type="button" class="btn-action-primary" style="margin-top:10px;font-size:12px;padding:8px 12px;border-radius:6px;width:100%;font-weight:800;background:#16604A;color:#fff;border:0;cursor:pointer" onclick="pmSaveOfficialPhoto('${productId}', '${photoUrl}')">
+            💾 Guardar Foto Oficial en Catálogo JJ Paper
           </button>
         </div>
       `;
+      if (typeof showToast === 'function') {
+        showToast('📸 Foto comercial ubicada con éxito');
+      }
     } else {
-      box.innerHTML = '<div style="font-size:11px;color:#b91c1c;padding:6px">No se ubicó foto web directa. Puedes pegar la URL desde el Copiloto JJ.</div>';
+      if (fb) fb.innerHTML = '<div style="color:#b91c1c;padding:4px">No se ubicó foto web directa. Puedes asignar una imagen desde el panel.</div>';
     }
   } catch (e) {
-    box.innerHTML = `<div style="font-size:11px;color:#b91c1c;padding:6px">Error: ${e.message}</div>`;
+    if (fb) fb.innerHTML = `<div style="color:#b91c1c;padding:4px">Error: ${e.message}</div>`;
   }
 };
 

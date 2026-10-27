@@ -182,11 +182,18 @@ function formatTextToHtml(text) {
   return `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e293b;background:#ffffff;margin:0;padding:16px;">${paragraphs}</body></html>`;
 }
 
+function chunkB64(str, maxLen = 76) {
+  if (!str) return '';
+  const chunks = str.match(new RegExp(`.{1,${maxLen}}`, 'g'));
+  return chunks ? chunks.join('\r\n') : str;
+}
+
 function buildRawEmail({ from, to, subject, text, html }, atts = []) {
   const NL = '\r\n';
   const effectiveText = text || '';
   const effectiveHtml = html || formatTextToHtml(effectiveText);
-  const textB64 = Buffer.from(effectiveText, 'utf8').toString('base64').replace(/(.{76})/g, '' + NL);  const htmlB64 = Buffer.from(effectiveHtml, 'utf8').toString('base64').replace(/(.{76})/g, '' + NL);
+  const textB64 = chunkB64(Buffer.from(effectiveText, 'utf8').toString('base64'));
+  const htmlB64 = chunkB64(Buffer.from(effectiveHtml, 'utf8').toString('base64'));
 
   const altBoundary = 'jjp_alt_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   const altBody = [
@@ -222,7 +229,7 @@ function buildRawEmail({ from, to, subject, text, html }, atts = []) {
       `Content-Type: ${a.mime}; name="${a.name}"`,
       'Content-Transfer-Encoding: base64',
       `Content-Disposition: attachment; filename="${a.name}"`, '',
-      a.b64.replace(/(.{76})/g, '$1' + NL), ''
+      chunkB64(a.b64), ''
     ].join(NL);
   }
   s += `--${mixBoundary}--`;

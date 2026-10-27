@@ -96,8 +96,11 @@ function formatBodyToCorporateHtml(text) {
   return blocks.join('');
 }
 
-function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, sellerPhone, imgUrl }) {
+export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, sellerPhone, imgUrl }) {
   const bodyHtml = formatBodyToCorporateHtml(body);
+  if (!bodyHtml || bodyHtml.trim().length < 15) {
+    throw new Error('renderCorporateEmailHtml: el cuerpo formateado no puede estar vacío');
+  }
   const sName = sellerName || 'Keyder Salazar';
   const sPhone = sellerPhone || '0412-4676073 / 0212-7531777';
 
@@ -286,9 +289,18 @@ async function step(camp, dailyLimit) {
         );
       }
 
-      // Eliminar firma de texto redundante del cuerpo ya que renderCorporateEmailHtml
-      // provee la firma oficial corporativa con logo, RIF, teléfono y footer legal
-      cleanBody = cleanBody.replace(/(?:Atentamente|Cordialmente|Saludos cordiales|Un cordial saludo)[\s\S]*?(?:Caracas|Venezuela|\d{7,}|JJ Paper[\s\S]*?$)/i, '').trim();
+      // Eliminar únicamente firmas finales redundantes al pie (ej. "\n\nAtentamente,\nKeyder...")
+      // para evitar duplicidad con la tarjeta corporativa oficial al pie
+      cleanBody = cleanBody.replace(/(?:\r?\n)+\s*(?:Atentamente|Cordialmente|Quedo a su orden|Quedamos a su orden|Saludos cordiales)\s*,?[\s\S]*$/i, '').trim();
+
+      // PROTECCIÓN CRÍTICA: NUNCA permitir que cleanBody quede vacío o excesivamente corto
+      if (!cleanBody || cleanBody.trim().length < 40) {
+        cleanBody = (body || '').trim();
+      }
+
+      if (!cleanBody || cleanBody.length < 20) {
+        throw new Error(`Cuerpo de correo vacío para destinatario ${toAddr}. Abortando preventivamente.`);
+      }
 
       // Filtrar el viejo PDF tabular de 50 páginas si está presente para no saturar bandejas
       const activeAttachments = (camp.attachments || []).filter(a => {
@@ -318,7 +330,7 @@ async function step(camp, dailyLimit) {
       });
 
       const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
-        to_addr: toAddr, subject, body, html, attachments: activeAttachments
+        to_addr: toAddr, subject, body: cleanBody, html, attachments: activeAttachments
       });
 
       // Historial en jjp_emails (aparece en "Enviados"). 
@@ -331,7 +343,7 @@ async function step(camp, dailyLimit) {
 
       const emPayload = {
         owner_id: camp.owner_id, direction: 'out', status: 'sent',
-        to_addr: toAddr, from_addr: from, subject, body, html,
+        to_addr: toAddr, from_addr: from, subject, body: cleanBody, html,
         attachments: safeAttachments, customer_id: t.customer_id || null,
         gmail_id: msgId, campaign_id: camp.id
       };

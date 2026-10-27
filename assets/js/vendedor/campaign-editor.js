@@ -509,7 +509,7 @@ window.CampaignEditor = (() => {
                   <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.updatePreview()">
                 </div>
 
-                <textarea class="ce-textarea" id="ceMessageInput" placeholder="Escribe el mensaje de la campaña..." oninput="CampaignEditor.updatePreview()"></textarea>
+                <textarea class="ce-textarea" id="ceMessageInput" placeholder="Escribe el mensaje de la campaña..." oninput="CampaignEditor.onMessageInputChange()"></textarea>
               </div>
             </div>
 
@@ -667,21 +667,11 @@ window.CampaignEditor = (() => {
     const availableTpls = (config.templates || []).filter(t => !t.channel || t.channel === config.channel || t.channel === 'both');
     tplSel.innerHTML = availableTpls.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     
-    setEditorMode('ai');
+        setEditorMode('ai');
     setCampaignMode(config.preMode || 'presentacion_b2b');
 
     if (availableTpls.length > 0 && config.preTplId) {
       onTemplateChange();
-    } else {
-      const sName = config.seller?.name || 'Asesor JJ Paper';
-      const sPhone = config.seller?.phone || '0412-4676073';
-      document.getElementById('ceMessageInput').value = isEmail 
-        ? `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEsperamos que todo marche excelente en sus operaciones. Le saluda atentamente *${sName}*, del equipo comercial de *JJ Paper C.A.* en Caracas.\n\nPoniendo a su disposición condiciones preferenciales de importador y suministro mayorista directo con entrega garantizada:\n\n*📦 PROPUESTA DE ABASTECIMIENTO MAYORISTA:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Papelería corporativa y útiles escolares*: bolígrafos por caja, cuadernos, pegas y marcadores de marcas reconocidas.\n• *Insumos de embalaje y despacho*: cintas de embalar de alto micraje y consumibles operativos.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.\n\n👉 Puede revisar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le elaboremos una cotización formal adaptada a sus necesidades?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su requerimiento.}\n\nAtentamente,\n\n*${sName}*\nDirección Comercial | JJ Paper C.A.\nTeléfono / WhatsApp: ${sPhone}\nCaracas, Venezuela`
-        : `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋, le saluda *${sName}* de *JJ Paper C.A.*\n\nPensando en el abastecimiento continuo de su negocio, ponemos a su disposición disponibilidad inmediata al mayor en:\n\n*📦 INSUMOS DE ALTA ROTACIÓN:*\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura y marcas líderes.\n• *Papelería corporativa, bolígrafos, cuadernos y pegas* a precio mayorista.\n• *Cintas de embalaje industrial* y consumibles de oficina con despacho en 24h.\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista en PDF* con más de 900 artículos disponibles.\n\n👉 Puede consultar nuestro catálogo digital aquí:\n{{link}}\n\n¿Desea que le verifiquemos disponibilidad o le preparemos una cotización formal?`;
-    }
-
-    if (isEmail) {
-      document.getElementById('ceSubjectInput').value = '📋 Propuesta de Suministro Mayorista y Lista de Precios Oficial — JJ Paper C.A.';
     }
 
     // Poblar selector de sectores B2B con los sectores reales presentes en la cartera
@@ -962,6 +952,12 @@ window.CampaignEditor = (() => {
       }
     });
 
+    // Limpiar mensajes personalizados anteriores para que toda la audiencia adopte el nuevo modo seleccionado
+    selectedAudienceList.forEach(c => {
+      delete c._custom_message;
+      delete c._custom_subject;
+    });
+
     const audSel = document.getElementById('ceAudienceSelect');
     if (audSel) {
       if (mode === 'presentacion_b2b') {
@@ -1016,6 +1012,15 @@ window.CampaignEditor = (() => {
     openAiToneModal();
   }
 
+  function onMessageInputChange() {
+    const val = document.getElementById('ceMessageInput')?.value || '';
+    const currentCust = selectedAudienceList[activePreviewIdx];
+    if (currentCust) {
+      currentCust._custom_message = val;
+    }
+    updatePreview();
+  }
+
   function applyBaseModeTemplate(mode = activeCampaignMode) {
     const isEmail = currentConfig?.channel === 'email';
     let msg = '';
@@ -1050,6 +1055,11 @@ window.CampaignEditor = (() => {
     if (msg && document.getElementById('ceMessageInput')) {
       document.getElementById('ceMessageInput').value = msg;
     }
+
+    selectedAudienceList.forEach(c => {
+      c._custom_message = msg;
+      if (subj) c._custom_subject = subj;
+    });
 
     updatePreview();
   }
@@ -2779,38 +2789,22 @@ ${rawText}
           : (prodId ? `${publicBase}/producto?id=${encodeURIComponent(prodId)}` : (prodSku ? `${publicBase}/producto?sku=${encodeURIComponent(prodSku)}` : `${publicBase}/catalogo`)))
       : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
 
-    let rawText = '';
-    let subjectText = '';
-
-    if (editorMode === 'ai') {
-      if (currentCust?._custom_message) {
-        rawText = currentCust._custom_message;
-        subjectText = currentCust._custom_subject || 'Propuesta Comercial — JJ Paper C.A.';
-      } else {
-        rawText = document.getElementById('ceMessageInput')?.value || '';
-        subjectText = document.getElementById('ceSubjectInput')?.value || 'Sin asunto';
-        
-        if (badgeWrap) {
-          badgeWrap.innerHTML = '<span style="background-color: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #ffeeba;">⚠️ Sin análisis IA — se enviará la plantilla base</span>';
-        }
-      }
-    } else {
-      rawText = document.getElementById('ceMessageInput')?.value || '';
-      subjectText = document.getElementById('ceSubjectInput')?.value || 'Sin asunto';
-    }
+    // El mensaje de la vista previa siempre proviene del texto actual del redactor o del cliente
+    let rawText = document.getElementById('ceMessageInput')?.value || currentCust?._custom_message || '';
+    let subjectText = document.getElementById('ceSubjectInput')?.value || currentCust?._custom_subject || 'Propuesta Comercial — JJ Paper C.A.';
 
     const sample = {
       nombre: currentCust?.name || 'Librería El Saber',
       empresa: currentCust?.name || 'Librería El Saber, C.A.',
       vendedor: currentConfig?.seller?.name || 'Asesor JJ Paper',
       producto: selectedProductOrCombo?.name || 'Cuaderno Universitario 100h',
-      precio: `$${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
+      precio: `${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
       descuento: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '15%',
       descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta calidad con despacho directo.',
       link
     };
 
-    // Resolver variables dobles primero
+    // Resolver variables
     let rendered = rawText.replace(/\{\{\s*([\w áéíóúñ]+?)\s*\}\}/gi,
       (_, k) => sample[k.trim().toLowerCase()] ?? '');
 
@@ -2852,12 +2846,13 @@ ${rawText}
       document.getElementById('ceEmailSubjectHeader').textContent = `Asunto: ${subjectText}`;
     }
 
+    // Formateo visual limpio sin duplicar saltos de línea (la clase .ce-bubble-text ya tiene white-space: pre-wrap)
     let formatted = escapeHTML(rendered);
     formatted = formatted.replace(/\*(.+?)\*/g, '<strong>$1</strong>');
     formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
     formatted = formatted.replace(/~(.+?)~/g, '<del>$1</del>');
     formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00a884;font-weight:700;text-decoration:underline;">$1</a>');
-    formatted = formatted.replace(/\n/g, '<br>');
+    // NOTA: NO insertar <br> porque .ce-bubble-text ya tiene white-space: pre-wrap en CSS, de lo contrario duplicaba los saltos
 
     if (isEmail && window.GeminiClient && typeof window.GeminiClient.generateInstitutionalSignatureHtml === 'function') {
       formatted += window.GeminiClient.generateInstitutionalSignatureHtml({
@@ -2866,15 +2861,15 @@ ${rawText}
       });
     }
 
-    // Vista previa visual de tarjeta que genera WhatsApp/Email al detectar el link
+    // Tarjeta visual limpia del catálogo
     const hasCatalogLink = rendered.includes('/catalogo') || rendered.includes('/producto');
     if (hasCatalogLink) {
       const isQr = rendered.includes('/catalogo_impreso');
       const catUrl = isQr ? 'https://jjpaper.pages.dev/catalogo_impreso' : 'https://jjpaper.pages.dev/catalogo';
       formatted += `
-        <div style="margin-top:10px;background:#ffffff;border:1px solid #d1d7db;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <div style="margin-top:10px;background:#ffffff;border:1px solid #d1d7db;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);white-space:normal;">
           <div style="background:#f0f2f5;padding:4px 8px;font-size:9.5px;color:#667781;font-weight:700;display:flex;align-items:center;gap:4px;border-bottom:1px solid #e9edef;">
-            <span>📲 Vista previa del enlace que verá el cliente al recibir el mensaje:</span>
+            <span>📲 Vista previa del enlace oficial:</span>
           </div>
           <a href="${catUrl}" target="_blank" style="display:flex;align-items:center;gap:10px;padding:8px 10px;text-decoration:none;color:inherit;background:#fdfdfd;">
             <span style="font-size:22px">${isQr ? '🖨️' : '📦'}</span>
@@ -3139,10 +3134,29 @@ ${rawText}
       if (!window.GeminiClient) throw new Error('Módulo GeminiClient no disponible.');
 
       const valueHook = document.getElementById('ceValueHook')?.value || 'importador_directo';
+      const userInstruction = document.getElementById('ceCustomNotesInput')?.value?.trim() || '';
+      const combinedInstructions = [params.customInstructions, userInstruction].filter(Boolean).join('. ');
+
+      let autoObjective = params.objective || '';
+      if (!autoObjective) {
+        if (activeCampaignMode === 'presentacion_b2b') {
+          autoObjective = 'Presentación institucional de JJ Paper a nueva empresa B2B con catálogo y propuesta de cotización de prueba';
+        } else if (activeCampaignMode === 'seguimiento_prospecto') {
+          autoObjective = 'Seguimiento a cotización previa y confirmación de despacho inmediato sin repetir presentación';
+        } else if (activeCampaignMode === 'reposicion_cliente') {
+          autoObjective = 'Recordatorio preventivo de reposición de papelería, oficina y limpieza para cliente activo';
+        } else if (activeCampaignMode === 'oferta_multiproducto') {
+          autoObjective = 'Oferta multi-producto de lote ahorro con precios preferenciales en USD y Bolívares a tasa BCV';
+        } else if (activeCampaignMode === 'oferta_unipromocion') {
+          autoObjective = 'Promoción de producto estrella con disponibilidad física garantizada y escala por bulto';
+        } else {
+          autoObjective = 'Propuesta comercial de abastecimiento mayorista';
+        }
+      }
 
       const result = await window.GeminiClient.draftCampaignMessage({
-        objective: (params.objective || 'Actualización de condiciones mayoristas y reposición de inventario').trim(),
-        customInstructions: params.customInstructions || '',
+        objective: autoObjective.trim(),
+        customInstructions: combinedInstructions,
         product: selectedProductOrCombo,
         products: selectedProductsList,
         discount: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '',
@@ -3516,6 +3530,7 @@ ${rawText}
     open,
     close,
     setCampaignMode,
+    onMessageInputChange,
     openCatalogPickerForActiveMode,
     startAiDraftForCampaign,
     applyBaseModeTemplate,

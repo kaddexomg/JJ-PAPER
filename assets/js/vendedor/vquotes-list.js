@@ -11,6 +11,12 @@
 
 let vQuotes = [];
 let vQuotesFilter = '';
+let vQuotesSearch = '';
+
+function onVQuotesSearch(val) {
+  vQuotesSearch = (val || '').trim();
+  renderVQuotes();
+}
 
 // Estados de cotización que ya están cerrados (no se convierten)
 const VQ_CLOSED = ['convertido', 'convertida', 'cancelado', 'rechazado'];
@@ -64,14 +70,33 @@ function renderVQuotes() {
   const tbody = document.getElementById('vQuotesBody');
   const count = document.getElementById('vQuotesCount');
   if (!tbody) return;
-  if (count) count.textContent = `${vQuotes.length} cotizaciones`;
 
-  if (!vQuotes.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">No tienes cotizaciones con este filtro.</td></tr>';
+  const qSearch = vQuotesSearch.toLowerCase();
+  const filtered = qSearch
+    ? vQuotes.filter(q => {
+        if ((q.quote_number || '').toLowerCase().includes(qSearch)) return true;
+        if ((q.client_name || '').toLowerCase().includes(qSearch)) return true;
+        if ((q.rif || '').toLowerCase().includes(qSearch)) return true;
+        if ((q.phone || '').includes(qSearch)) return true;
+        if ((q.city || '').toLowerCase().includes(qSearch)) return true;
+        const items = vqItems(q);
+        const matchItem = items.some(it => {
+          const name = (it.name || it.product || it.description || '').toLowerCase();
+          const code = (it.code || it.variant_code || '').toLowerCase();
+          return name.includes(qSearch) || code.includes(qSearch);
+        });
+        return matchItem;
+      })
+    : vQuotes;
+
+  if (count) count.textContent = `${filtered.length}${qSearch ? ' de ' + vQuotes.length : ''} cotizaciones`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="table-empty">${qSearch ? 'No se encontraron cotizaciones con esa búsqueda.' : 'No tienes cotizaciones con este filtro.'}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = vQuotes.map(q => {
+  tbody.innerHTML = filtered.map(q => {
     const items = vqItems(q);
     const preview = items.slice(0, 2).map(i => `${escapeHTML(vqItemName(i))} x${i.qty}`).join(', ')
       + (items.length > 2 ? '…' : '');

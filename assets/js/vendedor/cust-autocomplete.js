@@ -6,16 +6,62 @@
 
 let custAc = { timer: null, results: {}, sel: -1 };
 
+function isValidMixCode(code) {
+  if (!code) return false;
+  const s = String(code).trim();
+  if (s === '00' || s === '0') return true;
+  // Descartar si es palabra "zona" o si es solamente un número de 1 a 3 dígitos (ej: "004", "008", "014", "020")
+  if (/^zona\b/i.test(s)) return false;
+  if (/^[0-9]{1,3}$/.test(s)) return false;
+
+  const digits = s.replace(/\D/g, '');
+  // Teléfonos venezolanos completos (10 a 12 dígitos, ej: 0414-1234567 o 0212-7654321)
+  if (digits.length >= 10) return false;
+
+  // Teléfonos con prefijo (04... o 02...) sin guión de 8 o más dígitos
+  if ((s.startsWith('04') || s.startsWith('02') || s.startsWith('58')) && digits.length >= 8 && !s.includes('-')) {
+    return false;
+  }
+
+  // Si tiene guión y el segundo bloque tiene 7 dígitos (ej: 0414-1234567, 0212-1234567), es un teléfono
+  const parts = s.split('-');
+  if (parts.length === 2 && parts[1].length >= 7) return false;
+
+  // Formato estándar de código MixNet de cliente: XXX-YYY (ej: 003-251, 008-872, 020-0012)
+  if (/^[0-9]{2,4}-[0-9A-Za-z]{1,6}$/.test(s)) return true;
+  // Formato alfanumérico con guión (ej: C-0012)
+  if (/^[A-Za-z0-9-]{3,12}$/.test(s) && s.includes('-')) return true;
+  return false;
+}
+
 /**
- * Extrae el código MixNet desde el campo notes o propiedades del cliente
+ * Extrae el código MixNet desde el campo notes o propiedades del cliente,
+ * calibrado para ignorar zonas y números de teléfono.
  */
 function custAcExtractMixCode(c) {
   if (!c) return '';
-  if (c.mixnet_code) return String(c.mixnet_code).trim();
+  if (c.mixnet_code && isValidMixCode(c.mixnet_code)) return String(c.mixnet_code).trim();
   if (c.rif === '00' || c.is_recuperada || /recuperad/i.test(c.name || '')) return '00';
   if (c.notes) {
-    const m = c.notes.match(/(?:codigo\s*mixnet|mixnet):\s*([0-9A-Za-z-]+)/i);
-    if (m) return m[1].trim();
+    const str = String(c.notes);
+    // 1. Etiqueta explícita: "Codigo MixNet: 003-251", "MixNet: 003-251", etc.
+    const m = str.match(/(?:c[oó]digo\s*mixnet|mixnet|cod\.?\s*mixnet|c[oó]d\.?\s*cli(?:ente)?)\s*[:#-]?\s*([0-9A-Za-z-]+)/i);
+    if (m && isValidMixCode(m[1])) {
+      return m[1].trim();
+    }
+    // 2. Corchetes en notas como "[003-251]"
+    const mBracket = str.match(/\[([0-9]{2,4}-[0-9A-Za-z]+)\]/);
+    if (mBracket && isValidMixCode(mBracket[1])) {
+      return mBracket[1].trim();
+    }
+    // 3. Patrón correlativo XXX-YYY (ej: 003-251), descartando si viene precedido de teléfono (Tel, Cel, Tlf, Fax)
+    const mStandalone = str.match(/\b([0-9]{3}-[0-9]{1,6})\b/);
+    if (mStandalone) {
+      const prefix = str.slice(0, mStandalone.index);
+      if (!/(?:tel|t[eé]l|cel|fax|tlf)[^0-9]*$/i.test(prefix) && isValidMixCode(mStandalone[1])) {
+        return mStandalone[1].trim();
+      }
+    }
   }
   return '';
 }
@@ -66,18 +112,36 @@ async function custAcSearch(nameId, boxId, opts) {
   clearTimeout(custAc.timer);
   custAc.timer = setTimeout(async () => {
     const digits = q.replace(/\D/g, '');
-    const cleanQ = q.replace(/[%_,[\]()]/g, ' ').trim();
-    const orParts = [
-      `name.ilike.%${cleanQ}%`,
-      `rif.ilike.%${cleanQ}%`,
-      `notes.ilike.%${cleanQ}%`
-    ];
-    if (searchCode && searchCode !== cleanQ) {
-      orParts.push(`notes.ilike.%${searchCode}%`);
+    const cleanQ = q.replace(/[%_,[\]()"'\\;]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!cleanQ) { custAcHide(boxId); return; }
+
+    const isRecuperadaQuery = q === '00' || q === '0' || /recuperad/i.test(q);
+    const isMixCode = (searchCode && (searchCode.includes('-') || searchCode === '00')) || /^[0-9]{2,4}-[0-9A-Za-z]+$/.test(cleanQ);
+
+    const orParts = [];
+    orParts.push(`name.ilike.%${cleanQ}%`);
+    orParts.push(`rif.ilike.%${cleanQ}%`);
+
+    // Si es código MixNet (ej: 003-251 o 00), buscar específicamente ese código en notes
+    if (isMixCode) {
+      const codeToSearch = searchCode && searchCode.includes('-') ? searchCode : cleanQ;
+      orParts.push(`notes.ilike.%${codeToSearch}%`);
+    } else if (cleanQ.length >= 4 && !/^[0-9]{1,3}$/.test(cleanQ)) {
+      // Para texto general, solo buscar en notes si tiene 4 o más caracteres y no es una zona de 3 dígitos (004, 008, etc.)
+      orParts.push(`notes.ilike.%${cleanQ}%`);
     }
-    if (digits && digits.length >= 2) {
+
+    // Búsqueda por teléfono: solo si se ingresaron al menos 4 dígitos para evitar que "04" traiga todo el país
+    if (digits && digits.length >= 4) {
       orParts.push(`phone.ilike.%${digits}%`);
     }
+
+    // Caso especial Cuenta Recuperada
+    if (isRecuperadaQuery) {
+      orParts.push(`rif.eq.00`);
+      orParts.push(`name.ilike.%recuperad%`);
+    }
+
     const or = orParts.join(',');
 
     const sellerObj = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : (typeof CURRENT_PROFILE !== 'undefined' ? CURRENT_PROFILE : null);
@@ -101,7 +165,6 @@ async function custAcSearch(nameId, boxId, opts) {
     const { data, error } = await query.limit((opts && opts.limit) || 15);
     if (error) { console.error('autocompletado cliente:', error); custAcHide(boxId); return; }
 
-    const isRecuperadaQuery = q === '00' || q === '0' || /recuperad/i.test(q);
     const results = (data || []).map(c => ({
       ...c,
       mixnet_code: custAcExtractMixCode(c)
@@ -116,6 +179,10 @@ async function custAcSearch(nameId, boxId, opts) {
       if (bCode === targetCodeLow && aCode !== targetCodeLow) return 1;
       if (aCode.startsWith(targetCodeLow) && !bCode.startsWith(targetCodeLow)) return -1;
       if (bCode.startsWith(targetCodeLow) && !aCode.startsWith(targetCodeLow)) return 1;
+      const aRif = (a.rif || '').toLowerCase();
+      const bRif = (b.rif || '').toLowerCase();
+      if (aRif === targetCodeLow && bRif !== targetCodeLow) return -1;
+      if (bRif === targetCodeLow && aRif !== targetCodeLow) return 1;
       return 0;
     });
 
@@ -183,7 +250,7 @@ async function custAcSearch(nameId, boxId, opts) {
     }).join('');
 
     box.style.display = 'block';
-  }, 200);
+  }, 250);
 }
 
 function custAcPickRecuperada(boxId) {

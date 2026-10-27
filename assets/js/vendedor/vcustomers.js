@@ -4,6 +4,24 @@
    ====================================================== */
 
 let vCustomers  = [];
+
+function _indexCustomer(c) {
+  if (!c) return;
+  const mixMatch = (c.notes || '').match(/(?:MixNet|Codigo MixNet):\s*([0-9A-Za-z\-]+)/i);
+  c._mixCode = mixMatch ? mixMatch[1].trim() : '';
+  c._cleanPhone = (c.phone || '').replace(/\D/g, '');
+  c._cleanRif = (c.rif || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const nName = (typeof normTxt === 'function') ? normTxt(c.name || '') : (c.name || '').toLowerCase();
+  const nNotes = (typeof normTxt === 'function') ? normTxt(c.notes || '') : (c.notes || '').toLowerCase();
+  c._searchBlob = `${nName} ${c._cleanRif} ${(c.rif || '').toLowerCase()} ${c._cleanPhone} ${c._mixCode.toLowerCase()} ${c._mixCode.replace(/-/g, '')} ${nNotes} ${(c.city || '').toLowerCase()} ${c.zone || ''}`;
+}
+
+let _custSearchTimer = null;
+function onCustSearchInput() {
+  clearTimeout(_custSearchTimer);
+  _custSearchTimer = setTimeout(renderCustomers, 120);
+}
+
 let custFilter  = 'mios';
 let editingCustId = null;
 
@@ -167,8 +185,7 @@ function getZoneBadge(zone) {
 
 function renderCustomers() {
   const tbody = document.getElementById('custBody');
-  const q = normTxt(document.getElementById('custSearch')?.value.trim() || '');
-
+  
   let list = vCustomers;
   
   const seller = getActiveSeller();
@@ -192,7 +209,40 @@ function renderCustomers() {
     if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
   }
 
-  if (q) list = list.filter(c => normTxt(c.name).includes(q) || (c.phone || '').includes(q.replace(/\D/g, '')) || (c.zone || '').includes(q));
+  const rawQ = document.getElementById('custSearch')?.value.trim() || '';
+  const q = (typeof normTxt === 'function') ? normTxt(rawQ) : rawQ.toLowerCase();
+  const qDigits = rawQ.replace(/\D/g, '');
+  const qClean = rawQ.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  if (q) {
+    list = list.filter(c => {
+      if (!c._searchBlob) _indexCustomer(c);
+      if (c._searchBlob.includes(q)) return true;
+      if (qDigits && qDigits.length >= 3 && c._cleanPhone && c._cleanPhone.includes(qDigits)) return true;
+      if (qClean && c._cleanRif && c._cleanRif.includes(qClean)) return true;
+      return false;
+    });
+
+    // Priorizar coincidencias exactas al inicio
+    list.sort((a, b) => {
+      const aExactCode = Boolean(a._mixCode && (a._mixCode.toLowerCase() === rawQ.toLowerCase() || (qDigits && a._mixCode.replace(/-/g, '') === qDigits)));
+      const bExactCode = Boolean(b._mixCode && (b._mixCode.toLowerCase() === rawQ.toLowerCase() || (qDigits && b._mixCode.replace(/-/g, '') === qDigits)));
+      if (aExactCode && !bExactCode) return -1;
+      if (!aExactCode && bExactCode) return 1;
+
+      const aExactRif = Boolean(a._cleanRif && a._cleanRif === qClean);
+      const bExactRif = Boolean(b._cleanRif && b._cleanRif === qClean);
+      if (aExactRif && !bExactRif) return -1;
+      if (!aExactRif && bExactRif) return 1;
+
+      const aStarts = (a.name || '').toLowerCase().startsWith(rawQ.toLowerCase());
+      const bStarts = (b.name || '').toLowerCase().startsWith(rawQ.toLowerCase());
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
+      return 0;
+    });
+  }
 
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="7" class="table-empty">${

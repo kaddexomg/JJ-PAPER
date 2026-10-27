@@ -8,6 +8,13 @@ let quotePage    = 1;
 const QUOTES_PER = 20;
 let quotesSellerFilter = '';
 let currentQuotesStatusFilter = '';
+let quotesSearch = '';
+
+function onQuotesSearch(val) {
+  quotesSearch = (val || '').trim();
+  quotePage = 1;
+  renderQuotesTable();
+}
 
 async function loadQuotes(statusFilter = currentQuotesStatusFilter) {
   currentQuotesStatusFilter = statusFilter;
@@ -75,13 +82,34 @@ function renderQuotesTable() {
     filtered = filtered.filter(q => q.seller_id === quotesSellerFilter);
   }
 
-  if (count) count.textContent = `${filtered.length}${quotesSellerFilter ? ' de ' + adminQuotes.length : ''} cotizaciones`;
+  const qSearch = quotesSearch.toLowerCase();
+  if (qSearch) {
+    filtered = filtered.filter(q => {
+      if ((q.quote_number || '').toLowerCase().includes(qSearch)) return true;
+      if ((q.client_name || '').toLowerCase().includes(qSearch)) return true;
+      if ((q.rif || '').toLowerCase().includes(qSearch)) return true;
+      if ((q.phone || '').includes(qSearch)) return true;
+      if ((q.city || '').toLowerCase().includes(qSearch)) return true;
+      const items = quoteItemsOf(q);
+      const matchItem = items.some(it => {
+        const name = (it.name || it.product || it.description || '').toLowerCase();
+        const code = (it.code || it.variant_code || '').toLowerCase();
+        return name.includes(qSearch) || code.includes(qSearch);
+      });
+      return matchItem;
+    });
+  }
+
+  if (count) count.textContent = `${filtered.length}${qSearch || quotesSellerFilter ? ' de ' + adminQuotes.length : ''} cotizaciones`;
 
   const start = (quotePage - 1) * QUOTES_PER;
   const page  = filtered.slice(start, start + QUOTES_PER);
 
   if (!page.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${quotesSellerFilter ? 'No se encontraron cotizaciones para el filtro de vendedor seleccionado' : 'No hay cotizaciones'}</td></tr>`;
+    const emptyMsg = qSearch
+      ? 'No se encontraron cotizaciones con esa búsqueda.'
+      : (quotesSellerFilter ? 'No se encontraron cotizaciones para el filtro de vendedor seleccionado' : 'No hay cotizaciones');
+    tbody.innerHTML = `<tr><td colspan="8" class="table-empty">${emptyMsg}</td></tr>`;
     renderQuotesPag(filtered.length);
     return;
   }
@@ -129,12 +157,12 @@ function renderQuotesTable() {
     </tr>`;
   }).join('');
 
-  renderQuotesPag();
+  renderQuotesPag(filtered.length);
 }
 
-function renderQuotesPag() {
+function renderQuotesPag(totalCount) {
   const el    = document.getElementById('quotesPag');
-  const total = adminQuotes.length;
+  const total = typeof totalCount === 'number' ? totalCount : adminQuotes.length;
   const pages = Math.ceil(total / QUOTES_PER);
   if (!el || pages <= 1) { if(el) el.innerHTML=''; return; }
   let html = '';

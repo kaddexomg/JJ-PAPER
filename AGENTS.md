@@ -1,1140 +1,134 @@
-# AGENTS.md — contexto del proyecto
+# AGENTS.md — Contexto Soberano del Proyecto JJ Paper
 
-> Generado por AgentForge el 2026-08-26 10:23. El agente lo consulta (load_project_context)
-> ANTES de escribir o modificar codigo para respetar stack y convenciones.
+> Actualizado: 27 de Octubre de 2026.
+> Este documento define la arquitectura, convenciones, stack y protocolos obligatorios del sistema JJ Paper.
+> El agente DEBE consultarlo ANTES de escribir o modificar código para respetar la infraestructura soberana.
 
-## Tech Stack
-no detectado
+---
 
-## Estructura
+## 1. Tech Stack Soberano (100% On-Premise / VPS)
+
+- **Servidor VPS Ubuntu (Infraestructura Central 24/7)**:
+  - **Host / IP**: `166.0.112.247` (Ubuntu 24.04 LTS). Dominio SSL: `https://166-0-112-247.sslip.io`.
+  - **Especificaciones**: 4 GB RAM (3.915 MB), 60 GB NVMe (58.447 MB).
+  - **Base de Datos**: PostgreSQL 16 nativo (`jjpaper_db`, ~30 MB, 53 tablas). Conexiones activas supervisadas y autovacuum optimizado.
+  - **PostgREST 12**: Exposición REST & RPC de la base de datos con autenticación JWT Bearer.
+  - **GoTrue Auth**: Servicio de autenticación nativo en `/auth/v1` (telemetría en `/auth/v1/telemetry`).
+  - **Nginx Reverse Proxy & Media CDN**: SSL y servidor de medios estáticos WebP en `/var/www/jjp-media/` (accesible vía `/storage/v1/object/public/...`).
+  - **Supabase Cloud**: ERRADICADO. No existen Proyecto A, Proyecto B ni Proyecto C en la nube. Todas las URLs en `config.js` y `wa-server/.env` apuntan exclusivamente al VPS Soberano.
+
+- **Puente MixNet ERP LAN (Servidor Tienda Física)**:
+  - **Red / Ubicación**: Servidor Central LAN `192.168.0.185:8790` (ruta compartida `M:\MIX11\comp01`).
+  - **Motor**: Archivos de base de datos Clipper DBF con 10 índices B-Tree `.NTX` en memoria.
+  - **Tablas Maestras**: `MXCTACLI.DBF` (clientes), `MXCTAINV.DBF` (artículos), `MXENCPED.DBF` / `MXRENPED.DBF` (pedidos), `MXENCCOT.DBF` / `MXRENCOT.DBF` (cotizaciones), `MXNUMCOT.DBF` / `MXNUMPED.DBF` (correlativos).
+
+- **wa-server Local & Comunicación**:
+  - **Entorno**: Node.js (v20+), Baileys para sesiones multi-agente de WhatsApp, cola outbox, despacho de campañas de correo y webhook LAN.
+  - **Puertos**: 8787 (API LAN wa-server) y 8788 (conteo LAN).
+
+- **Frontend & Despliegue**:
+  - Vanilla JavaScript (ES6+ modular), componentes CSS nativos y librerías livianas.
+  - **Hosting**: Cloudflare Pages (`https://jjpaper.pages.dev`).
+  - **Build**: `bash build.sh` empaqueta estrictamente los archivos necesarios en `dist/`.
+
+- **Suite IA & Copiloto**:
+  - `assets/js/gemini-client.js`: Pool inteligente de 7 API Keys Gemini con balanceo y rotación ante cuotas. Modelos ultrarrápidos `gemini-flash` y `gemini-flash-lite`.
+
+---
+
+## 2. Estructura del Proyecto
+
 ```
-.claude/ (skills)
-.env.local
-.gitignore
-.vscode/
-404.html
-_headers
-_redirects
-admin/
-  clientes.html        ← gestión global de clientes (tabla + modal con address/notes)
-AGENTS.md
-assets/ (css, img, js, vendor)
-audits/
-backups/
-  jjp_customers_antes_actualizar_*.json  ← backups de BD previos a correcciones
-build.sh               ← Cloudflare Pages: publica solo dist/
-cargar_clientes.mjs    ← script legacy de carga (usa IDs viejos de seller)
-corregir_cartera_mixnet.cjs  ← genera CSV corregido desde MixNet (commit en repo)
-actualizar_clientes_bd.mjs   ← actualiza/inserta en Supabase (--dry-run/--execute)
-catalogo.html
-cerebro/ (.obsidian, Conceptos, Indices, Modulos, Proyecto, Seguridad, Sesiones, Sistema)
-checkout.html
-CLAUDE.md
-CLIENTES/
-  clientes_importables_zonas.csv   ← cartera original (1811 filas, phone simulado)
-  cartera_corregida_mixnet.csv     ← corregida: RIF real, phone real, address (NO subir a git)
-comprobante.html
-CONEXION_MIXNET.md
-wa-server/
-  clientes_mixnet_20263108_1529.csv ← datos reales extraidos de MixNet (6170 filas)
-  extraer-clientes-mixnet.cjs       ← extractor v2 (Node 13+)
-  extraer-clientes-mixnet.bat       ← menú para el usuario
-  ...
+admin/                   ← Módulos de administración (monitor, clientes, pos, cotizador, difusion, campanas-email, etc.)
+vendedor/                ← Paneles para la fuerza de venta (pos, cotizador, clientes, whatsapp, difusion, etc.)
+assets/
+  css/                   ← Variables, componentes, estilos admin y responsive
+  img/                   ← Logotipos y recursos visuales institucionales
+  js/
+    config.js            ← Configuración soberana central (URL VPS, esquemas de 53 tablas, helpers JWT)
+    gemini-client.js     ← Cliente Gemini AI con pool rotativo de 7 API Keys
+    catalog.js           ← Lógica de catálogo público, filtros, WebP y búsqueda
+    admin/               ← Lógica de módulos administrativos (monitor-client.js, auth.js, sidenav.js, etc.)
+    wa/                  ← Controladores de mensajería y CRM WhatsApp
+  vendor/                ← Supabase JS client v2.58.0
+wa-server/               ← Servidor Node.js para WhatsApp Baileys, outbox, sincronización y rates
+build.sh                 ← Script de compilación que genera dist/ para Cloudflare Pages
+AGENTS.md                ← Contexto maestro y reglas inviolables para agentes de IA
 ```
 
-## Comandos utiles
-- `node corregir_cartera_mixnet.cjs` → genera CSV corregido con address (requiere MixNet CSV en wa-server/)
-- `node actualizar_clientes_bd.mjs --dry-run` → simula updates en Supabase sin tocar nada
-- `node actualizar_clientes_bd.mjs --execute` → aplica updates + inserts a jjp_customers
-- `bash build.sh` → genera dist/ para Cloudflare Pages (excluye .csv, wa-server, cerebro)
-- Deploy: push a main en kaddexomg/JJ-PAPER dispara Cloudflare Pages automaticamente
+---
 
-## Convenciones
-- Repo git (kaddexomg/JJ-PAPER)
-- Deploy: Cloudflare Pages via build.sh → dist/
-- DB: Supabase (jjp_customers, jjp_profiles)
-- Datos de negocio (.csv, .pdf, backups) NUNCA al repo (.gitignore lo bloquea)
-- Vendedores actuales: Yovanni (004/006), Marianela (008), Andreina (014)
-- Zona 010 y Zona 020 (Keyder Salazar, admin): carteras propias (Zona 010 con 191 clientes y Zona 020 con 3.474 clientes de MixNet). Ambas son estrictamente exclusivas para Keyder: invisibles para otros vendedores (no se descargan en `loadCustomers` ni se muestran en `vcustomers.js`, ni en autocompletado de POS/cotizador para vendedores regulares). Keyder conserva rol `admin` (gestión global + distribución) y puede vender/cotizar directamente a su clientela. En `vcustomers.js`, "Mi cartera" para Keyder = `seller_id === SELLER.id` (agrupa sus 3.665 clientes).
-- Maestro MixNet `CLIENTES/mixnet_clientes_cartera_20260908_1205.csv` (NO subir a git): usado para enriquecer clientes globales e importar la cartera MixNet general a la Zona 020 de Keyder.
-- **Verificación Estricta de Esquemas DDL/DML**: Jamás asumir columnas por inferencia entre tablas padre/hijo. Por diseño en PostgreSQL, `unit` y `unit_id` pertenecen exclusivamente a `jjp_products`; la tabla `jjp_product_variants` **NO posee la columna `unit`**. Cualquier script SQL de migración o inserción debe ser contrastado contra el esquema real y probado en una transacción reversible (`BEGIN...ROLLBACK`) antes de ser entregado o ejecutado.
-- **Ejecución Desacoplada de `wa-server` en Windows**: JAMÁS ejecutar `node src/index.js` directamente desde el shell del agente si el servidor debe permanecer activo tras cerrar Antigravity. En Windows, cualquier proceso hijo del agente muere al cerrar la sesión. Para iniciar `wa-server` como proceso 100% independiente y persistente del sistema operativo, invocar:
+## 3. Comandos Útiles
+
+- **Compilación Frontend**:
+  `bash build.sh` → Genera la carpeta `dist/` para publicación en Cloudflare Pages (excluye backups, .csv, wa-server y archivos privados).
+- **Despliegue a Producción**:
+  `git push origin main` → Dispara el webhook y despliegue automático en Cloudflare Pages (`jjpaper.pages.dev`).
+- **Ejecución Persistente de wa-server en Windows**:
   `Start-Process wscript.exe -ArgumentList "start-hidden.vbs" -WorkingDirectory "C:\Users\PC\Desktop\JJ PAPER\wa-server"`
-  Esto corre `run-service.bat` de forma invisible bajo el Session Manager de Windows con rotación de logs en `logs\wa-server.log` y auto-reinicio ante caídas.
-- **Unificación de Datos vs Integraciones Parche**: PROHIBIDO crear funciones o botones postizos aislados para manejar datos que ya existen en el sistema. La entidad "Contacto" (cliente o prospecto) es una sola verdad compartida: su teléfono, su correo y el estado de entrega (`email_status = 'bounced'`) deben consumirse directamente en los filtros de audiencia nativos de cada canal, no mediante scripts ad-hoc en memoria.
-- **Páginas de Comunicación Nativas e Independientes**: Mantener estrictamente aisladas sus responsabilidades: `whatsapp.html` (chats directos), `difusion.html` (campañas WhatsApp), `correo.html` (bandeja de correo) y `campanas-email.html` (campañas masivas de email). NO intentar fusionarlas en una sola página con pestañas ni forzar redirects.
-- **Protocolo Mandatorio MixNet ERP (29-09-2026)**:
-  - **Consultar Antes de Modificar**: Antes de escribir o tocar cualquier archivo o tabla DBF de MixNet, el agente DEBE leer `MANUAL_Y_GUIA_REPARACION_MIXNET_EMPRESA.md` y contrastar contra el repositorio de código fuente original de MixNet en GitHub (`kaddexomg`).
-  - **Reparación Previa Indispensable**: Antes de activar sincronizadores, MixNet debe sanearse en `M:\comp01` (limpieza de comentarios `COMEN1`/`COMEN2` contaminados con `[MixNet` o `COT-`, alineación de renglones vacíos, calibración de correlativos `MXNUMPED`/`MXNUMCOT` y reindexación nativa de `.NTX` en menú de MixNet).
-  - **Cero Cruce de Vendedores / Nómina Sagrada**: El campo `CODVEN` define comisiones y nómina. Luis Alarcón (`002`), Yovanni (`004/006`), Marianela (`008`), Andreina (`014`), Keyder (`010/020`), Jose (`005` solo mostrador físico). Prohibido reasignar ventas por la zona del cliente. Si en MixNet dice `002`, en JJ Paper es Luis Alarcón irrefutablemente.
-  - **Escritura 100% Indetectable**: Cero huellas, cero firmas, cero notas técnicas. Si no hay comentarios de despacho del cliente, `COMEN1` y `COMEN2` se dejan en blanco (espacios). Clientes no registrados en MixNet usan el código oficial `00` con nombre `CUENTA RECUPERADA`.
-  - **Índices Clipper .NTX**: Prohibido escribir bytes en `.DBF` sin actualizar `.NTX`. Usar el micro-conector nativo en Harbour (`DBFNTX`) que actualiza los árboles B-Tree en tiempo real para evitar pantallas trabadas y bucles en caja.
-
-## Tests
-No se detectaron tests.
-
-## Migración a 3 Proyectos Supabase (Septiembre 2026)
-- **Estrategia**: El proyecto anterior excedió su cuota de egress. Se migró exitosamente el Core al nuevo Proyecto A (`wwcdxqpibequfohbgejs`). Las credenciales multi-proyecto residen en `wa-server/.env` y `assets/js/config.js`.
-- **Estado Actual (07-09-2026)**:
-  - **Proyecto A (Core)**: 100% ACTIVO en producción (`assets/js/config.js`, `_headers`, `wa-server/.env`).
-  - **Proyecto B (Comunicación)**: WhatsApp, CRM, Sesiones y emails enrutados. Tablas `jjp_server_control` y `jjp_emails` sincronizadas en DDL con Proyecto B.
-  - **wa-server Multi-Instancia**: Módulos que manejan pedidos (`mixer.js` y `count-lan.js`) y facturas de compra (`invoices.js`) configurados para consultar a Core (`dbCore`), eliminando errores de schema cache.
-  - **Esquema Maestro Consolidado**: `sql/SQL_Proyecto_A_Fixed.sql` (incluye correcciones de storage, grants a public/anon, constraints de templates y funciones actualizadas).
-  - **Datos Restaurados**: 1,808 clientes, 1,012 productos y variantes, 601 conteos de inventario, tasas de cambio y perfiles de staff.
-  - **Admin Activo**: Usuario Google `picoj386@gmail.com` activado con UID `bddc57dc-5bf9-4a72-9e1c-751d07b03164` (`role: 'admin'`, `ref_code: 'jose'`).
-  - **Prevención 42P13 / Limpieza**: Si se reinstala en un proyecto nuevo, ejecutar `sql/LIMPIAR_NUEVO_SUPABASE.sql` antes de aplicar el DDL maestro.
-
-## Catálogo de Productos y Lista de Precios (Septiembre 2026)
-- **Sincronización Catálogo (04-09-2026)**: Catálogo sincronizado en Supabase con 767 variantes y productos activos según `catalogo actualizado 03_09_2026 - Hoja 1.csv`.
-- **Clasificación Estricta**: La regla de asignación en `verificar_catalogo.mjs` no debe forzar productos con 'P' (Porta Taco, Porta Clip) o 'D' (Dispensadores) dentro de `BANDEJAS`.
-- **Lista de Costos / Precios (`lista_costos.html`)**:
-  - Organizada por defecto en modo **🔤 Por Letra Inicial (A - Z)** (`GROUP_MODE = 'letra'`) para orden correlativo estricto.
-  - Impresión optimizada a **13 - 15 páginas** exactas con diseño de alta densidad, cabeceras repetidas (`thead { display: table-header-group }`) y filas protegidas contra cortes (`break-inside: avoid !important`).
-  - Habilitado para vendedores (`requireAuth('vendedor')`). Documento de costos interno requiere admin (`?mode=cost`).
-
-## Sub-sistema de Comunicación, WhatsApp y Campañas (07/08-09-2026)
-- **Proyecto B (`klcibjwleiqppedefpxw`) Totalmente Consolidado**:
-  - **Realtime & REPLICA IDENTITY FULL**: Activados en `jjp_wa_sessions`, `jjp_wa_chats`, `jjp_wa_messages`, `jjp_emails`, `jjp_wa_campaigns`, `jjp_wa_campaign_targets` y `jjp_server_control` bajo la publicación `supabase_realtime`.
-  - **Campañas de WhatsApp (`jjp_wa_campaigns`)**: Soporta todas las columnas de throttling y lotes anti-baneo (`batch_size`, `batch_pause_m`, `delay_min_s`, `delay_max_s`, `media_path`, `media_type`, `media_mime`, `media_filename`, `media_size`, `started_at`, `finished_at`, `skipped_count`).
-  - **Mensajes de WhatsApp (`jjp_wa_messages`)**: Incluye columnas de citas, respuestas y reacciones (`reply_preview`, `reply_to_wa_id`, `reply_from`, `forwarded`, `reaction`, `reaction_from`).
-  - **RPC Atómica (`jjp_wa_touch_chat`)**: Creada en Proyecto B con permisos para `service_role`, `authenticated` y `anon`.
-  - **Sondeo de Respaldo QR**: `wa-link.js` sondea cada 3 segundos si el modal está abierto o la sesión está en `starting`/`pending_qr`, eliminando retrasos en la carga del código QR.
-  - **Enrutamiento de Canales**: `assets/js/config.js` enruta hacia Proyecto B los canales con prefijos `wa-`, `difusion-`, `srv-` y los que contienen `email`.
-  - **Auditoría de Cuotas (08-09-2026)**:
-    - **Proyecto A (Core)**: 20 MB utilizados (4.0% de cuota) · 1,812 clientes, 1,012 productos y variantes, 601 conteos.
-    - **Proyecto B (Comunicación)**: 12 MB utilizados (2.4% de cuota) · Aislamiento total de chats, mensajes y campañas.
-    - **Proyecto C (Storage & Inventario)**: 8 MB de esquema · Buckets `jjp-products` y `jjp-receipts` listos con 1 GB libre.
-    - Todos los proyectos operan con más del 95% de margen libre.
-
-## Optimización Storage WebP, Cifrado Baileys y Caché RAM en Campañas (08-09-2026)
-- **Compresión Masiva a WebP**: Catálogo optimizado a 800px máx, calidad 80. Peso total reducido de 8.63 MB a 5.33 MB (38.2% ahorro). Archivos originales pesados eliminados de Storage. 320 productos y 294 variantes actualizadas a `.webp` en Proyecto C (`nmcamjxhyysmmvgxgabo`).
-- **Desacople 100% del Proyecto Viejo (`czzvsqnmxtjzqzioknnn`)**: 0 referencias en base de datos, CSP de `_headers` limpio, redirección automática en servidor. El proyecto antiguo se puede eliminar o pausar sin riesgo.
-- **Cifrado E2EE Baileys**: Implementado `msgRetryCounterCache` y reescrito `getMessage` con protobuf stanzas y `.limit(1)` en `wa-session.js`. Resuelve definitivamente "Esperando este mensaje...".
-- **Deduplicación & Heartbeat Dual**: Previene duplicados salientes por eco local `fromMe`. Latido actualiza `heartbeat` y `heartbeat_at` cada 30s.
-- **Caché en RAM para Campañas Masivas**:
-  - `mediaCache` (TTL 12h) en `outbox.js` (WhatsApp) y `attachCache` en `email.js` (Correo) evitan descargas redundantes hacia Supabase Storage durante envíos masivos.
-  - Soporte multiagente paralelo con temporizadores y colas independientes por vendedor (`byOwner`).
-- **Adjuntos de Email (fix 08-09-2026)**: `loadAttachments` (email.js) acepta inline base64 (`data:…;base64,` o base64 puro) además de `path`; `docPdfProductos` (doc-engine.js) soporta `returnBase64:true` (data URI) para campañas; el editor de campañas email (`campaign-editor.js` + `vcampanas-email.js`) usa checkboxes múltiples (PDF Lista de Precios + foto del producto/combo + archivo propio desde PC) y puede enviar varios a la vez (`attachOpt` coma-separado para email; select único en WhatsApp).
-- **Cooldown anti-reenvío (48 h)**: `campaign-editor.js` excluye clientes que ya recibieron una campaña en las últimas N horas (lee `jjp_*_campaign_targets` con `status='sent'`), por `customer_id`/email/phone, en email y WhatsApp. Horas configurables en `jjp_settings`: `email_camp_cooldown_h` y `wa_camp_cooldown_h` (default 48). Cancelar y relanzar una campaña no reenvía a los ya alcanzados.
-- **Deploy Automático**: Empujado a `origin main` (commit `eb20d8e`) con Cloudflare Pages actualizado.
-
-## Integración de Suite Gemini AI & Copiloto JJ Paper (08-09-2026)
-- **Pool de 7 API Keys & Balanceo Resiliente (`assets/js/gemini-client.js`)**:
-  - Pool de 7 claves con rotación automática y reintentos transparentes ante límites de cuota (HTTP 429/503).
-  - Cascada de modelos ultrarrápidos: `gemini-3.6-flash` (prioritario), `gemini-3.5-flash`, `gemini-flash-latest` y `gemini-2.5-flash-lite`.
-  - Contexto de negocio embebido: Tasa oficial BCV en vivo (`getRate()`), catálogo, productos, zonas de venta y condiciones de despacho.
-- **Asistente IA en WhatsApp CRM (`admin/whatsapp.html`, `vendedor/whatsapp.html` y `assets/js/wa/wa-chat.js`)**:
-  - Botón interactivo `🪄 IA` en la barra de mensajes.
-  - **Sugerencias Inteligentes**: Lee el contexto del cliente y redacta 3 opciones listas en 1 clic (Directa, Cordial, Comercial).
-  - **Motor Anti-Spam / Anti-Baneo**: Toma cualquier mensaje base y genera 3 variaciones naturales con distinta estructura, sinónimos venezolanos y saludo para evitar bloqueos por envíos repetitivos.
-  - **Cotizador Rápido de Precios**: Búsqueda en vivo de productos que inyecta en el mensaje el precio oficial en USD y su equivalente en Bs a tasa BCV.
-- **Redactor Comercial de Correos (`admin/correo.html`, `vendedor/correo.html` y `assets/js/admin/correo.js`)**:
-  - Botones `✨ Redactar con IA` (modal nuevo correo) y `✨ Responder con IA` (vista de lectura).
-  - Redacción guiada por escenarios: Cotización formal, confirmación de despacho, recordatorio de pago amistoso y promociones de catálogo.
-- **Copiloto JJ Flotante & Generador Canvas de Flyers (`assets/js/copilot-jj.js`)**:
-  - Botón flotante `🤖 Copiloto JJ` auto-inyectado en todos los paneles de Admin y Vendedor a través de `assets/js/admin/sidenav.js`.
-  - **Pestaña Chat**: Consultas inmediatas sobre productos, precios, políticas de despacho y procedimientos. Accesos directos a Difusiones y Editor de Campañas.
-  - **Pestaña Generador de Flyer (Canvas 800x800)**: Diseña flyers comerciales de alta resolución con cabecera institucional JJ Paper, nombre del producto, badge de stock, marcas, precio destacado en USD ($) y Bs oficiales (BCV).
-  - Opciones de exportación: Copiar al portapapeles (`ClipboardItem`), Descargar PNG, Enviar directo al chat activo de WhatsApp (`waSendGeneratedImage`) o inyectar directo a Campaña/Difusión.
-
-## Suite de Campañas Inteligentes con IA y Despacho Programado (08-09-2026)
-- **Desbloqueo CSP Google AI**: Añadido `https://generativelanguage.googleapis.com` al `connect-src` de `_headers`, permitiendo llamadas directas desde navegadores en Cloudflare Pages.
-- **Motor Anti-Spam / Anti-Baneo con Spintax Dinámico**:
-  - `GeminiClient.generateCampaignSpintax()`: Transforma automáticamente mensajes y plantillas en Spintax `{A|B|C}` preservando variables `{{nombre}}`, `{{empresa}}`, `{{producto}}`, `{{precio}}`, `{{link}}`.
-  - Al despachar masivamente, cada cliente recibe una variación sintáctica única y humana, imposibilitando el bloqueo por patrón repetitivo.
-- **Redactor Comercial Inteligente (`GeminiClient.draftCampaignMessage`)**:
-  - Redacta plantillas de alta conversión para WhatsApp y Email adaptadas a productos destacados, combos o reactivación.
-- **Integración Directa en Editor de Campañas (`campaign-editor.js`)**:
-  - Botón `🪄 Redactar con IA`: Redacción asistida con 1 clic.
-  - Botón `🛡️ Variar Anti-Spam IA`: Convierte el mensaje actual en Spintax dinámico.
-  - Botón `🎨 Diseñar Flyer con IA`: Genera tarjeta visual en Canvas 800x800 y la adjunta automáticamente a la campaña.
-- **Programación de Envíos (`scheduled_at`)**:
-  - Columna `scheduled_at TIMESTAMPTZ` en `jjp_wa_campaigns` y `jjp_email_campaigns` (Proyecto B).
-  - Selector datetime-local en el editor de campañas.
-  - Sweepers en `wa-server` (`campaigns.js` y `email-campaigns.js`) respetan la marca temporal antes de iniciar envíos.
-  - Badges visuales en tablas de campañas (`vdifusion.js` y `vcampanas-email.js`) indicando `⏰ Programada: dd/mm hh:mm`.
-
-## Suite de IA Ultrarrápida, Generación de Flyers en Chat y Campañas Multicontenido (08-09-2026)
-- **Optimización de Latencia Gemini (<800ms)**:
-  - Cascada de modelos optimizada priorizando `gemini-3.5-flash-lite` y `gemini-3.1-flash-lite`, eliminando modelos obsoletos o con 404 (`gemini-2.5-flash-lite`).
-  - Límite de tiempo por request (`AbortController` a 3.5s) que descarta inmediatamente intentos lentos y conmuta a la siguiente clave del pool de 7.
-- **Generación Visual de Flyers en Chat Copiloto (`copilot-jj.js`)**:
-  - Detección de intenciones gráficas en el chat (`flyer`, `imagen`, `foto`, `tarjeta`, etc.).
-  - Búsqueda en vivo en catálogo con extracción de producto, renderizado dinámico en Canvas 800x800 con precio USD y Bs oficiales a tasa BCV.
-  - Botones de acción directa embebidos en el mensaje: Copiar Imagen, Descargar PNG, Personalizar Precio y Lanzar Campaña.
-  - Carga segura de imágenes mediante blob (`fetch` + `createObjectURL`) para prevenir errores de lienzo contaminado (CORS).
-- **Ventas y Cotizaciones Nativas para Administradores (`admin/pos.html`, `admin/cotizador.html`, `sidenav.js`)**:
-  - Las herramientas de venta y cotización para administradores residen directamente dentro de la ruta `/admin/` (`admin/pos.html` y `admin/cotizador.html`), sin redirecciones ni cambios a `/vendedor/`.
-  - En el menú administrativo (`ADMIN_NAV`), el grupo "Ventas" solo incluye: `Nueva Venta (POS)`, `Nueva Cotización`, `Pedidos`, `Cotizaciones`, `Promociones` y `Reseñas`.
-  - Al realizar ventas (POS) o cotizaciones, el autocompletado y búsqueda de clientes (`cust-autocomplete.js` y `pos.js`) se restringe estrictamente a la cartera propia asignada del usuario (`seller_id = SELLER.id`), mientras que en el CRM (`admin/clientes.html`) conserva el acceso global a toda la base de datos.
-- **Envío Masivo de Múltiples Adjuntos en Campañas (`campaign-editor.js`, `vdifusion.js`, `campaigns.js`)**:
-  - Unificación de controles de adjuntos a casillas de verificación múltiples tanto para WhatsApp como para Correo: `Ficha / Foto del Producto o Flyer`, `Lista de Precios Oficial (PDF)` y `Subir Archivo Propio`.
-  - Soporte de columnas `extra_media_*` en `jjp_wa_campaigns` de Proyecto B.
-  - Despacho secuencial en `wa-server` de mensaje principal con imagen/flyer y documento PDF complementario para cada destinatario.
-
-## Diagnóstico y Estabilidad del Servidor `wa-server` (08-09-2026)
-- **Colisión por Doble Instancia Concurrente de Node**:
-  - Se identificó la ejecución simultánea de dos procesos `node src/index.js` en Windows (PID 63732 iniciado a las 3:44 PM desde consola y PID 69832 iniciado a las 4:10 PM como tarea de fondo).
-  - **Conflicto de Puertos**: Ocasionó error `listen EADDRINUSE: address already in use 0.0.0.0:8787 / 8788` en `count-lan`.
-  - **Tormenta "Bad MAC" & Desincronización Signal/Baileys**: Al conectarse dos WebSockets simultáneos a WhatsApp con las mismas credenciales y archivos de sesión, las cadenas de cifrado (ratchets) de Signal Protocol se corrompieron mutuamente, generando un bucle de ping-pong continuo (reconexión cada 2s) y miles de advertencias `Bad MAC Error: Bad MAC`. Esto obligó a la sesión `b0cd93c5...` (Andreina) a desvincularse y solicitar escaneo QR.
-  - **Explicación de "Servidor Fantasma"**: Aunque el panel web mostrara desconexión por desincronización del heartbeat en `jjp_server_control`, el proceso previo continuaba activo en background recibiendo mensajes y enviando campañas.
-  - **Estado OAuth Gmail**: Las credenciales de `ventasjjmarianela014@gmail.com` y `araujoyovanni9@gmail.com` arrojaron `Token has been expired or revoked.` y deben renovarse desde el módulo de correo.
-  - **Resolución**: Se cerraron ambos procesos en conflicto, dejando los puertos liberados y el entorno limpio para arrancar una única instancia controlada.
-
-## Campañas Email Nativas en Admin, Optimización de Catálogo y Candado Único en wa-server (08-09-2026)
-- **Campañas Email Nativas para Administrador (`admin/campanas-email.html`, `sidenav.js`)**:
-  - Implementada la interfaz nativa dentro de `/admin/` para gestión y despacho masivo de campañas de correo vía Gmail API.
-  - Se eliminó el enlace residual que redirigía a `../vendedor/campanas-email.html`, manteniendo al usuario con rol admin estrictamente en el entorno de administración.
-  - Soporte completo para selección de plantillas, audiencia, Spintax dinámico y adjuntos múltiples (PDF Lista de Precios + Imagen del producto + Archivo local).
-- **Optimización Integral de Carga del Catálogo (`assets/js/catalog.js`)**:
-  - **Caché en Memoria (`sessionStorage`)**: Implementado almacenamiento temporal de 3 a 5 minutos para grupos de categorías (`jjp_category_groups`), categorías finas (`jjp_categories`) y el catálogo completo de productos con sus variantes. Al navegar o recargar, el catálogo carga en **<50ms**.
-  - **Rango Ampliado (0 - 1999)**: La consulta de productos incluye explícitamente `.range(0, 1999)` para prevenir el truncamiento por defecto del límite de 1.000 filas de Supabase PostgREST.
-  - **Degradación Visual Agraciada (`onerror`)**: Si la URL de imagen de un producto falla o da 404, la etiqueta `<img>` conmuta instantáneamente al emoji/icono de su categoría sin mostrar recuadros de imagen rota.
-- **Candado de Instancia Única en el Sistema Operativo (`wa-server/src/index.js`)**:
-  - Mutex por puerto local (`127.0.0.1:8786`). Si se intenta ejecutar una segunda instancia de Node, el proceso detecta el puerto ocupado y aborta de inmediato con código de salida 2 (`process.exit(2)`).
-  - Previene definitivamente colisiones de puertos (8787/8788), WebSockets concurrentes en Baileys y desincronizaciones criptográficas "Bad MAC".
-- **Optimización de Despacho Outbox (`wa-server/src/outbox.js`)**:
-  - Escucha eventos `INSERT` y `UPDATE` con `status=eq.pending` en tiempo real para disparar reintentos al instante sin esperar el barrido periódico.
-  - Fallback a cualquier sesión activa sana en el servidor si la sesión del vendedor asignado está desconectada.
-
-## Suite de IA Avanzada: Priorización Flash-Lite, Auto-Carga Resiliente y Flyers Ultra-HD (08-09-2026)
-- **Priorización de Modelos y Failover Inmediato (`assets/js/gemini-client.js`)**:
-  - Priorizado `gemini-3.1-flash-lite` como modelo principal, respondiendo en **~1.000ms** de forma continua.
-  - Ante picos 503 (modelo ocupado), el motor ahora conmuta de inmediato al siguiente modelo en la misma clave (`continue`), y ante cuota 429 rota instantáneamente a la siguiente llave (`break`) a través del pool balanceado de 7 llaves.
-- **Auto-Carga Dinámica Resiliente (`ensureGeminiClient`)**:
-  - Implementado cargador automático bajo demanda en `assets/js/vendedor/campaign-editor.js`, `vcampanas-email.js` y `vdifusion.js`. Si una página no incluyó la etiqueta de script, el cliente se autodescarga asíncronamente eliminando el error `Módulo GeminiClient no disponible`.
-  - Incluida la etiqueta de script `<script src="../assets/js/gemini-client.js?v=20260908_ai_v2"></script>` en `admin/campanas-email.html`, `vendedor/campanas-email.html`, `admin/difusion.html` y `vendedor/difusion.html`.
-- **Redactor Comercial Inteligente de Plantillas (`ecTplDraftWithAi` y `tplDraftWithAi`)**:
-  - Añadido botón interactivo `✨ Redactar con IA` dentro de los modales de creación de plantillas (`tplModal`) tanto en Campañas de Correo como en Difusiones de WhatsApp.
-  - Genera con 1 solo clic Asunto, Cuerpo con viñetas comerciales, variables dinámicas (`{{nombre}}`, `{{empresa}}`, `{{vendedor}}`, `{{producto}}`, `{{precio}}`, `{{link}}`) y Spintax dinámico `{A|B|C}` anti-spam.
-- **Generador Visual de Flyers Publicitarios Ultra-HD (`renderProductCard`)**:
-  - Resolución ampliada a **1200 x 1200 px** (Canvas Retina 2x) para máxima nitidez en WhatsApp y pantallas móviles.
-  - Iluminación de estudio con halo radial esmeralda, cinta promocional superior derecha ("🔥 OFERTA ESPECIAL"), sello de garantía institucional, doble cotización jerárquica en USD ($) y Bolívares (Bs) a tasa oficial BCV, y pie de página con datos de contacto del asesor.
-  - Mockup vectorial publicitario 3D inteligente en caso de que el producto no posea fotografía en catálogo.
-
-## Plan de Integración MixNet: Micro-Agente Satélite para Windows 7 (Bajos Recursos)
-- **Principio Fundamental**: NO modificar ni poner en riesgo `wa-server` actual. La suite de WhatsApp, campañas y correos permanece intacta y protegida.
-- **Limitaciones de las PCs de Facturación en la Empresa**:
-  - La mayoría opera con **Windows 7** y pocos recursos (2GB - 4GB RAM).
-  - Node 18+ (requerido por Baileys/WhatsApp) no corre nativamente en Windows 7 y consumiría demasiada RAM.
-  - Si una PC de facturación se apaga, no debe afectar el WhatsApp ni las campañas de la empresa.
-- **Solución Acordada: Micro-Agente Satélite Desacoplado (`mixnet-bridge.cjs`)**:
-  - Script independiente en CommonJS nativo sin dependencias pesadas de npm, compatible con Node 13+ en Windows 7.
-  - Consumo ultraligero: **<20 MB de RAM y 0% de CPU**.
-  - Sondea periódicamente (cada 5-10s) pedidos (`jjp_orders`) y cotizaciones (`jjp_quotes`) en Supabase.
-  - Deposita automáticamente `pedido_[ID].csv` / `pedido_[ID].txt` y `cotizacion_[ID].csv` en la carpeta vigilada de MixNet (`C:\JJ-PAPER-MIXER\` o ruta interna).
-  - **Arranque Automático Desatendido**: Configurado con script `.vbs` en `shell:startup` para iniciar en segundo plano sin ventana negra cada vez que se enciende la PC. Si la PC se apaga por la noche, al encenderse a la mañana siguiente procesa las órdenes acumuladas en segundos.
-
-## Monitor de Cuotas Multi-Proyecto, Tráfico en Vivo y Gestor de Optimizaciones (08-09-2026)
-- **Dashboard Web & App de Escritorio PC (`admin/monitor.html`, `MONITOR-JJ-PAPER.bat`)**:
-  - Supervisión en tiempo real de las cuotas de almacenamiento y bases de datos de los 3 proyectos Supabase (Core 500 MB, Comunicación 500 MB, Storage 1.000 MB).
-  - Modo dual resiliente: Conexión nativa con `wa-server` local (consultas PostgreSQL directas, latencia, conexiones activas y tuplas muertas) y modo fallback en la nube directo con PostgREST y Storage API cuando se accede fuera de la red local.
-  - Lanzador de escritorio para Windows (`MONITOR-JJ-PAPER.bat` y `wa-server/MONITOR-SISTEMA.bat`) que abre el monitor como aplicación nativa de PC independiente sin barra de direcciones (Chrome/Edge en modo `--app`).
-- **Motor de Telemetría y Requests en Vivo (`wa-server/src/monitor.js`, `count-lan.js`)**:
-  - Ring buffer en memoria de los últimos 150 requests y llamadas con cálculo de RPM (Requests Per Minute) y latencias individuales.
-  - Registro de eventos HTTP, transacciones de WhatsApp (`outbox.js`), campañas de correo y sincronizaciones LAN.
-  - Consola interactiva en vivo con filtros rápidos (Todos, HTTP/LAN, WhatsApp, Optimizador) y control de pausa.
-- **Gestor de Optimizaciones y Purga de Datos Temporales**:
-  - Ejecución de `VACUUM ANALYZE` en PostgreSQL para compactar tablas, liberar espacio físico retenido por tuplas muertas y actualizar estadísticas del planificador de consultas en Proyecto A y Proyecto B.
-  - Purga de logs transitorios en `jjp_server_control` (>7 días) y targets obsoletos/fallidos de campañas antiguas (>30 días).
-  - Botón de "Mantenimiento Maestro 1-Clic" con modal de confirmación y reporte de tiempo transcurrido y filas optimizadas.
-
-## Suite de Fotografía de Estudio Fotorrealista IA, Corrección de Búsqueda en Catálogo, Anti-Spam y Botón Flotante Draggable (08-09-2026)
-- **Buscador Resiliente de Catálogo en Vivo (`searchProductsLive`)**:
-  - Consulta multi-nivel: Lee primero de la memoria/`sessionStorage` (`jjp_products_cache_v4`) para respuesta instantánea en **0ms**, con fallback directo a Supabase Core (`client.from('jjp_products')`).
-  - Tokenizador semántico con filtro de palabras vacías (de, del, la, el, caja, etc.) y lematización (stemming) de plurales (`es`/`s`), permitiendo encontrar de inmediato marcas ("Expo", "Shark", "Caribe"), productos ("Marcadores", "Carpetas Fibra", "Sacapuntas") y SKUs.
-- **Resolución de Bloqueo CSP y Carga Segura de Imágenes (`loadImageSafe`)**:
-  - Inclusión de `https://image.pollinations.ai` y `https://pollinations.ai` en `connect-src` de `_headers`, permitiendo la generación de fotos de estudio mediante Flux sin violaciones de política de seguridad en Cloudflare Pages.
-  - Conversión a blob en memoria vía `fetch({ mode: 'cors' })` con `URL.createObjectURL(blob)`, garantizando que el Canvas no se manche (evita el error `Tainted canvases may not be exported` al descargar o copiar).
-  - Eliminación definitiva del renderizado de emergencia con caja verde ("JJ OFICIAL"), sustituyéndolo por una tarjeta de presentación de estudio de alta gama en fondo blanco con isotipo y datos del producto.
-- **Botón Flotante Copiloto Draggable y Despeje de WhatsApp (`copilot-jj.js`)**:
-  - Detección de ruta en `whatsapp.html` que eleva automáticamente el botón flotante `#jjp-copilot-fab` a `bottom: 115px`, evitando tapar el botón de envío de mensajes (`#waSendBtn`) o la barra del compositor.
-  - Función de arrastre táctil y con mouse (`makeDraggable`) con límites de pantalla y persistencia en `localStorage` (`jjp_copilot_fab_pos`), permitiendo al usuario mover el botón a cualquier posición de la pantalla.
-- **Optimizador Anti-Spam Resiliente (`handleGenAntiSpam`, `cpiCopyAntiSpam`)**:
-  - Almacenamiento seguro de variaciones generadas en memoria (`_antiSpamResults`), reemplazando la interpolación de texto multilínea en atributos HTML `onclick`.
-  - Inyección directa en el campo de texto de WhatsApp (`#waComposerInput`) al hacer clic en "Copiar", además de copiar al portapapeles.
-- **Diseño de Flyers en Campañas (`campaign-editor.js`)**:
-  - Generación previa y automática de la fotografía de estudio fotorrealista con IA antes de renderizar el flyer si el producto no tiene foto en catálogo.
-  - Renderizado predeterminado en fondo blanco de estudio comercial (`theme: 'white'`) con titular publicitario configurable ("🔥 OFERTA AL MAYOR").
-
-## Motor de Fotos Reales de la Web, Guardado Oficial en Catálogo y Packshots IA sin Fondos Arquitectónicos (09-09-2026)
-- **Buscador de Fotografías Reales en la Web (`wa-server/src/product-images.js`, `count-lan.js`)**:
-  - Búsqueda en vivo de fotografías de producto auténticas de papelerías, catálogos comerciales y MercadoLibre vía DuckDuckGo Image Search (`/lan/products/search-images?q=...`), con expansión automática de abreviaturas venezolanas (`RESALT.` → `resaltador`, `P/PIZARRA` → `marcador pizarra`, `C/T` → `con tapa`).
-  - Bypass total de CORS en el servidor local `wa-server` y soporte para cualquier dominio `*.pages.dev` en `corsOrigin`.
-- **Selector Triple de Fuente de Imagen en Copiloto (`copilot-jj.js`)**:
-  - **🌐 Fotos Web Reales (Recomendado)**: Cuadrícula de fotos reales del producto encontradas en internet con previsualización inmediata en 1 clic.
-  - **🤖 Generar con IA (Flux Packshot)**: Fotografía aislada sobre fondo blanco puro (`#FFFFFF`) con ingeniería de prompts estricta.
-  - **📁 Subir / Enlace**: Carga de cualquier URL directa de Google Imágenes / web o subida de archivo desde PC / teléfono móvil (`<input type="file">`).
-- **Guardado Oficial en Catálogo (`/lan/products/save-image` y fallback Supabase)**:
-  - Botón `💾 Guardar como Foto Oficial en Catálogo`: Descarga la foto seleccionada, la sube al bucket `jjp-products/[id].[ext]` en Proyecto C (Storage) y actualiza automáticamente `image_url` en `jjp_products` (Proyecto A Core) de forma permanente para todos los usuarios.
-- **Erradicación Definitiva de Fondos Arquitectónicos (Paredes, Pisos, Cuartos) en IA**:
-  - En `gemini-client.js`: Eliminados los términos ambiguos "cyclorama", "floor", "room" o "shadows".
-  - Prompt estricto de Packshot de Objeto Aislado (`isolated object on pure solid white background #FFFFFF`) con tokens negativos explícitos (`STRICT NEGATIVE PROMPT: no room, no floor, no walls, no cyclorama, no table, no furniture, no background scenery, no interior, no people, no hands, no mockups`).
-  - Expansión de vocabulario comercial en `enrichProductForMarketing`: soporte para rosado, fucsia, magenta, morado, violeta, naranja, turquesa, cyan, resaltadores, displays y cajas por 12.
-  - Traducción asistida por Gemini a descripción comercial de empaque en inglés antes de pasar a Flux.
-
-## Lineamientos de Estilo Visual Packshots y Copywriting Comercial B2B Anti-Spam (09-09-2026)
-- **Documento Rector (`docs/GUIA_ESTILO_VISUAL_Y_COPYWRITING_IA.md`)**:
-  - Centraliza los lineamientos de fotografía comercial (anatomía del prompt, iluminación softbox, ángulo hero a 15°-25°, empaque litografiado/blíster con euro-slot, y sombra de contacto en la base).
-  - Define la política editorial B2B: erradicar tono publicitario agresivo/spam, lenguaje consultivo humano, atención a colegios/oficinas/librerías venezolanas y preservación intacta de variables dinámicas.
-- **Refinamiento de Prompts Fotorrealistas (`assets/js/gemini-client.js`)**:
-  - Enriquecimiento de tipos de artículos escolares y de oficina: plastilinas en barra con caja litografiada, tijeras de oficina de acero inoxidable en blíster colgante, notas adhesivas señalizadoras en display colgante.
-  - Inyección en el prompt de Flux de empaques comerciales auténticos (`authentic retail folding carton box`, `hanging blister retail package with euro-slot`, `printed paper wrap`) y sombra de contacto suave en base (`soft natural contact shadow at base`).
-  - Negativos robustos contra textos deformados, manos sosteniendo el objeto, escritorios y renders 3D infantiles.
-- **Copywriting B2B y Spintax Dinámico**:
-  - `generateCampaignSpintax`: Saludos, conectores de valor y cierres amables y consultivos sin presión comercial ("¿Requiere una cotización formal?", "¿Desea que le verifiquemos disponibilidad?").
-  - `draftCampaignMessage`: Textos y asuntos de correo sobrios y elegantes, con desglose de precios oficiales a tasa BCV y condiciones de despacho directo en Caracas y envíos nacionales.
-- **Cache Bumping**:
-  - Actualizado `?v=20260909_b2b_packshot_v3` en `assets/js/admin/sidenav.js`, `copilot-jj.js`, `campaign-editor.js` y páginas de difusión.
-
-## Reinicio Limpio de Servidor, Filtro Móvil WhatsApp, Fotos Reales y Copywriting B2B Humano (09-09-2026)
-- **Reinicio Limpio y Desbloqueo del Mutex de Red Local (`REINICIAR-SERVIDOR.bat` y `START-SERVIDOR.bat`)**:
-  - Implementado script `REINICIAR-SERVIDOR.bat` en la raíz y en `wa-server/` que cierra limpiamente procesos `node.exe` anteriores (`taskkill /F /IM node.exe`) y relanza el servidor con el código más reciente.
-  - Menú interactivo en `START-SERVIDOR.bat` cuando el candado detecta el puerto 8786 ocupado (código 3): permite al usuario presionar `R` para matar la instancia previa y reiniciar de inmediato sin bloquearse.
-- **Filtrado Estricto de Números Móviles para WhatsApp (`wa-server/src/phone.js`, `assets/js/wa/wa-common.js`)**:
-  - Detección precisa de líneas fijas CANTV (`0212`, `0241`, `0251`, etc.) que representan el ~70% de la base de clientes y no poseen WhatsApp.
-  - Normalización de prefijos heredados de vendedores (`0080414...` → `0414...`), `5804...` y números inválidos.
-  - `campaigns.js`: Omite de inmediato números fijos CANTV sin saturar USync en Baileys y con timeout de seguridad de 5s en `sock.onWhatsApp`.
-  - `campaign-editor.js` y `vdifusion.js`: Muestran en el resumen de audiencia el conteo exacto de móviles válidos y fijos omitidos (`X móviles WhatsApp (Y fijos CANTV omitidos)`).
-- **Búsqueda Instantánea de Fotografías Reales y Eliminación de Alucinaciones IA (`wa-server/src/product-images.js`)**:
-  - Prioridad 1 con DuckDuckGo Images JSON API (<1.5s): extrae packshots de distribuidores reales (Office Depot, Sam's Club, MercadoLibre) con expansión de abreviaturas y limpieza de códigos SKU de bodega.
-  - Se eliminó la generación forzada de caricaturas/deformaciones de Flux (Pollinations) cuando no se encuentra foto web: el sistema ahora orienta al usuario a pegar el link directo o subir el archivo, manteniendo imágenes comerciales 100% fidedignas.
-- **Previsualización Inmediata de Enlaces y Botón 1-Clic "Guardar en Catálogo" (`copilot-jj.js`)**:
-  - Detección automática de URLs de imágenes pegadas en el chat o en el campo de enlace del Flyer (`oninput` / `onpaste` con renderizado inmediato).
-  - Función `window.cpiSavePhotoDirectToCatalog(photoUrl, productId, btn)`: descarga la imagen (o decodifica base64), la sube a Supabase Storage Proyecto C (`jjp-products`) y actualiza permanentemente `jjp_products.image_url` en Proyecto A Core.
-  - Botón interactivo `💾 Guardar en Catálogo` inyectado directamente en la tarjeta de respuesta del Copiloto en el chat y en el visor del Flyer.
-- **Plantillas Comerciales B2B Humanas y Concisas (`campaign-editor.js`, `vdifusion.js`, `gemini-client.js`)**:
-  - Formato breve y directo (5 a 7 líneas máximo para WhatsApp, legible en 5 segundos).
-  - Tono venezolano cercano y cálido ("Hola {{nombre}}, espero estés muy bien 👋", "Te escribe {{vendedor}} de JJ Paper").
-  - Estructura visual con doble salto de línea y negritas para nombres de productos y precios (`*📦 {{producto}}*`, `*💲 Precio especial: {{precio}}*`).
-  - Spintax dinámico en saludos y preguntas de cierre ("¿Te aparto unas unidades para tu próximo despacho?").
-
-## Temporizador Visual en Vivo de Campañas WhatsApp, Deliberación Profunda Gemini y Motor Anti-Alucinaciones de Imágenes (09-09-2026)
-- **Temporizador Visual en Vivo en Campañas WhatsApp (`vdifusion.js`, `difusion.html`, `campaigns.js`)**:
-  - **Columnas de Seguimiento Temporal en Proyecto B**: `next_send_at TIMESTAMPTZ`, `pause_reason TEXT` (`'batch_pause'` vs `'interval'`), `pause_until TIMESTAMPTZ` en `jjp_wa_campaigns` y `jjp_email_campaigns`.
-  - **Cálculo y Persistencia en Despachador**: `wa-server/src/campaigns.js` calcula el próximo timestamp de envío tras cada mensaje e identifica si entra en pausa de descanso anti-bloqueo de lote (ej: 15 minutos cada 20 envíos) o en intervalo normal de cadencia humana (45-90s). Al reiniciar el servidor, se respeta el tiempo restante sin adelantar envíos.
-  - **Ticker Visual en Tiempo Real (1s)**: En `vdifusion.js`, ticker interactivo `startCampaignLiveTimers()` que actualiza dinámicamente badges en la tabla de campañas y un banner destacado `#rd-live-timer-wrap` en el modal de detalle:
-    - Intervalo entre mensajes: `⏳ Próximo: 00:45s` (estilo esmeralda suave).
-    - Pausa anti-bloqueo: `☕ Pausa descanso (14m 30s)` (estilo ámbar pulsante con animación).
-  - **Sincronización Realtime**: Suscripción al canal `difusion-progress` en Supabase Realtime que refresca contadores y recalcula la cuenta regresiva en milisegundos.
-- **Deliberación Profunda con IA Gemini en Búsqueda de Imágenes (`wa-server/src/product-images.js`)**:
-  - **Diagnóstico de la Falla Previa**: Las búsquedas con títulos brutos de inventario (ej. `GRAPADORA STD 24/6 26/6 METALICA C/G` o `ESCARCHA 50GR`) enviaban términos de almacén literales a DuckDuckGo, retornando cajas de grapas/clavos o municiones/talco. Al obtener >=4 resultados basura, Gemini nunca era consultado. Además, rate-limits de DuckDuckGo provocaban errores de parseo JSON no capturados (`SyntaxError: Unexpected token I`), resultando en errores 500 y el mensaje "servidor ocupado o apagado".
-  - **Deliberación Previa con Gemini (Pool de 7 API Keys)**: Antes de buscar, Gemini analiza el SKU y extrae:
-    1. Título comercial canónico en español.
-    2. Categoría exacta (distinguiendo herramientas de consumibles: grapadora vs caja de grapas, escarcha escolar vs pólvora, talonario físico vs plantilla excel).
-    3. Queries canónicas optimizadas (`{brand} {producto} fondo blanco`).
-    4. Palabras clave negativas de descarte estricto (`negative_keywords`).
-  - **Búsqueda Multi-Fuente Paralela en Bing y DuckDuckGo**: Scraping directo en Bing Images (alta disponibilidad sin rate-limits agresivos) en paralelo con DuckDuckGo, retornando fotos comerciales auténticas de distribuidores y papelerías.
-  - **Filtrado Negativo Estricto**: Función `filterNegativeKeywords` que descarta automáticamente falsos positivos antes de rankear los resultados.
-- **Eliminación Total de Alucinaciones y Deformaciones en Fotografía de Catálogo (`gemini-client.js`, `campaign-editor.js`, `copilot-jj.js`)**:
-  - **Causa Raíz de Caricaturas y Deformaciones Flux**: En el generador de imágenes se inyectaba `NEGATIVE PROMPT: blurry text, hand holding object, person, cartoon...`. Debido a que Pollinations Flux no procesa la sintaxis de prompt negativo, interpretaba esas palabras como instrucciones afirmativas, generando caricaturas, personas, manos y fondos distorsionados.
-  - **Prompt Comercial 100% Positivo y Puro**: Eliminada la cláusula de prompt negativo y reemplazada por especificaciones fotográficas comerciales de estudio de producto 8K UHD sobre fondo blanco puro `#FFFFFF`.
-  - **CORS y Conectividad Robusta (`wa-server/src/count-lan.js`)**: `corsOrigin` permite cualquier puerto de localhost/127.0.0.1 y `sendJSON` preserva todas las cabeceras HTTP necesarias.
-
-## Auditoría Integral, Corrección de 8 Bugs Críticos y Estabilización de Campañas/IA (09-09-2026)
-- **Diagnóstico y Corrección de los 8 Bugs Críticos del Sistema (`commit e72ca96`)**:
-  - **1. Búsqueda de Productos (`wa-server/src/product-images.js`)**:
-    - **Regex Destructiva de Nombres Eliminada**: `cleanProductName` usaba `/\b[A-Z0-9_-]{7,}\b/g`, lo cual borraba nombres de productos en mayúsculas de 7+ letras (`GRAPADORA`, `RESALTADOR`, `BOLIGRAFO`, `FABER-CASTELL`, `AMARILLO`). Reemplazado por `/\b(?=[A-Z0-9_-]*\d)[A-Z0-9_-]{6,}\b/g` que exige al menos un dígito para clasificar como código SKU de almacén.
-    - **Regex de Bing Corregida**: `[^&]` truncaba URLs de imágenes comerciales en CDNs con parámetros (`?w=800&h=800`). Sustituido por `[^"]` con `decodeURIComponent` y normalización de entidades `&amp;`.
-    - **Extracción de Títulos en Bing**: Se incluyó regex para capturar títulos desde el HTML de Bing, enriqueciendo el algoritmo de scoring y filtrado negativo.
-    - **Abreviaturas con Punto**: `expandAbbreviations` ahora soporta abreviaturas que terminan en punto (`RESALT.`, `PERM.`) mediante coincidencia opcional `\.?`.
-    - **Depuración de Código Muerto**: Eliminada la función inactiva `searchGoogleImages`.
-    - **Expansión de Cobertura Multi-Fuente**: Se amplió el despacho paralelo en Bing de 2 a 4 queries inteligentes canónicas.
-  - **2. Pipeline de Campañas y Mensajería (`campaigns.js`, `outbox.js`)**:
-    - **Persistencia de Timers tras Reinicio**: `campaigns.js` ahora carga `next_send_at` desde la base de datos (`jjp_wa_campaigns`) al iniciar el sweep si la memoria en RAM está vacía, respetando las pausas de lote de 15 minutos sin adelantar mensajes indebidos.
-    - **Auto-Recovery de Targets Huérfanos**: Detección automática al inicio del barrido de destinatarios atrapados en `enviando` por >5 minutos sin progreso, restableciéndolos a `pending`.
-    - **Eliminación de Doble Validación `onWhatsApp`**: Se retiró la comprobación redundante en `outbox.js` (ya garantizada en `campaigns.js`), eliminando la duplicación de peticiones de red hacia los servidores de Meta.
-    - **Aislamiento de Sesiones por Vendedor**: Eliminado el fallback cross-vendor en `outbox.js` para evitar que mensajes de un vendedor desconectado salgan desde el número de otro asesor.
-  - **3. Suite Gemini AI y Generación Gráfica (`assets/js/gemini-client.js`)**:
-    - **Modelos Oficiales Google AI**: Reemplazados nombres inexistentes por `gemini-2.0-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash` y `gemini-2.5-pro`.
-    - **Rotación Resiliente de API Keys**: Manejo de status HTTP 400 y 403 para rotar inmediatamente de clave en el pool de 7 llaves.
-    - **Extractor Universal de JSON (`extractJSON`)**: Parser robusto con regex envolvente `\{[\s\S]*\}` que previene excepciones por texto explicativo o markdown previo de Gemini.
-    - **Erradicación de Alucinaciones Pollinations/Flux**: Se removió la generación sintética de productos por IA (que producía objetos deformes/caricaturescos). Si no existe fotografía real en catálogo o en la web, el sistema recurre al mockup 3D vectorial de alta fidelidad del flyer (`renderProductCard`).
-    - **Temperaturas Calibradas**: Redactor B2B `draftCampaignMessage` a `0.45` (formal, estructurado, sin lenguaje teletienda/spam) y `generateCampaignSpintax` a `0.55`.
-  - **4. Correcciones en WhatsApp CRM y Copiloto UI (`wa-chat.js`, `copilot-jj.js`)**:
-    - **Resolución de Nombre de Contacto**: Reemplazado `contact_name` (inexistente en el esquema) por `display_name` en `wa-chat.js`, evitando saludos erróneos como "Hola 58412...".
-    - **Eliminación de XSS/Errores de Sintaxis en Tarjetas IA**: Sustituida la interpolación de texto en `onclick` por atributos `data-reply-key` con event listeners dedicados.
-    - **Rutas Nativas de Admin**: Corregida redirección en `copilot-jj.js` para que los administradores permanezcan en `admin/difusion.html`.
-  - **5. Limpieza Criptográfica Signal/Baileys (`wa-session.js`)**:
-    - Purga masiva de cientos de archivos de sesión redundantes `.0.json` y sesiones remotas desincronizadas (`session-277584189346047.27.json`).
-    - Los registros `Closing session` en consola corresponden a la negociación normal y saludable de PreKeys tras la depuración de ratchets obsoletos.
-- **Pendientes Prioritarios para la Siguiente Intervención**:
-  - **1. Reglas Taxonómicas Estrictas para Búsqueda de Productos**: Crear un documento de lineamientos canónicos (`cerebro/` / `docs/`) con metadatos por familias de papelería (medidas, calibres, tipos de punta, marcas y presentaciones exactas) que Gemini inyecte antes de buscar para evitar confusiones de producto (ej. marcadores de servicio vs permanentes).
-  - **2. Gestión de Campañas y Permisos en UI**: Implementar en `admin/difusion.html` y `vendedor/difusion.html` la acción para eliminar/archivar campañas completadas o canceladas desde la interfaz, y revisar permisos RLS en `jjp_wa_campaigns` / `jjp_wa_campaign_targets`.
-  - **3. Importador Masivo de Clientes CSV**: Asegurar que la carga de archivos CSV de clientes desde la interfaz de usuario procese correctamente las columnas y asigne cartera sin fallos de esquema o RLS.
-
-## Servicio en Segundo Plano, Puente Bidireccional MixNet y Carga de Cartera Zona 020 (10-09-2026)
-- **Erradicación Definitiva de "Esperando este mensaje..." (`wa-session.js`)**:
-  - **Signal Pre-Warming**: Antes de cada envío con `sock.sendMessage()`, se dispara un `sendPresenceUpdate('composing', jid)` con un delay humano de 1.200 ms. Esto fuerza a la red de WhatsApp a intercambiar el PreKey bundle de Signal Protocol y precalentar el ratchet de cifrado en el dispositivo destino antes de entregar el texto cifrado.
-  - **Reconstrucción Completa en `getMessage(key)`**: Al recibir un `receipt: retry` de un receptor que perdió sincronización, `getMessage` ahora reconstruye stanzas completas con `mimetype`, `media_path` y `media_filename` para imágenes, videos, audios y documentos, evitando que el cliente falle la desencriptación.
-  - **Almacén de Mensajes en RAM/Disco**: Ampliado el `messageStore` en RAM a 10.000 mensajes y persistencia en disco (`sent-cache.json`) a 5.000 mensajes con flush asíncrono.
-  - **Parches y Timers de Socket**: Inyectados `connectTimeoutMs: 60_000`, `defaultQueryTimeoutMs: 60_000`, `keepAliveIntervalMs: 25_000` y `patchMessageBeforeSending` para encapsular mensajes interactivos en `viewOnceMessage`.
-- **Escalabilidad y Concurrencia Multi-Campaña (`campaigns.js`)**:
-  - **Despacho Paralelo por Vendedor**: Reemplazado el bucle serial por `Promise.allSettled(ownerIds.map(...))`. Todas las sesiones de vendedores (Keyder, Marianela, Andreina, Yovanni) avanzan en paralelo sin bloquearse mutuamente.
-  - **Intercalado Round-Robin Multicampaña**: Si un mismo vendedor tiene 2 o más campañas activas, el despachador conmuta entre ellas de forma equitativa (`ownerCampIndex`), evitando que una campaña larga congele a las demás.
-  - **Caché en RAM para `onWhatsApp`**: Almacenamiento en memoria (TTL 24 horas) para verificaciones de números en WhatsApp, reduciendo drásticamente las llamadas de red y eliminando riesgos de rate-limit.
-- **Puente Bidireccional MixNet y Servicio Silencioso de Fondo**:
-  - **Auto-Detección de Carpetas de Facturación**: `mixer.js` detecta en tiempo de ejecución y exporta pedidos/cotizaciones a todas las carpetas activas (`C:/JJ-PAPER-MIXER`, `C:/Pedidos JJ`, `M:/pedidos`, etc.), importando a su vez los pedidos confeccionados en MixNet hacia `jjp_orders`.
-  - **Arranque Invisible y Resiliente en Windows**:
-    - `run-service.bat`: Bucle supervisor que mantiene el servidor activo ante reinicios imprevistos.
-    - `start-hidden.vbs`: Ejecuta el proceso en segundo plano absoluto (0 ventanas de consola negras).
-    - `INSTALAR-INICIO-AUTOMATICO.bat`: Inyecta el acceso directo en `shell:startup` para que el servidor inicie solo con encender la PC.
-    - `ESTADO-SERVIDOR.bat` y `DETENER-SERVIDOR.bat`: Herramientas de diagnóstico de puertos (8786, 8787, 8788) y apagado limpio.
-- **Importación Exitosa de la Cartera General MixNet — Zona 020 (`cargar_nueva_cartera_020.mjs`)**:
-  - **3.474 Clientes Nuevos Insertados**: Procesado el maestro `CLIENTES/mixnet_clientes_cartera_20260908_1205.csv` deduplicando contra la base de datos existente.
-  - **Crecimiento de Cartera**: La base de datos de clientes (`jjp_customers` en Proyecto A Core) creció de 1.999 a **5.473 clientes**.
-  - **Calidad de Datos**: Limpieza de artefactos de codificación DOS/Windows-1252 (`¥` → `Ñ`, `COMPAÑIA`, tildes corregidas), RIFs validados, teléfonos normalizados a formato venezolano y direcciones físicas preservadas.
-  - **Integridad `UNIQUE(phone)`**: Lógica de deduplicación estricta con fallback a `phone: null` ante colisiones, logrando 3.474 inserciones exitosas con **0 fallos**.
-  - **Asignación Exclusiva de Zona 020 a Keyder Salazar (`bddc57dc-5bf9-4a72-9e1c-751d07b03164`)**:
-  - Los 3.474 clientes de Zona 020 fueron asignados a Keyder Salazar (`seller_id = bddc57dc-5bf9-4a72-9e1c-751d07b03164`).
-  - **Exclusividad Estricta**: Invisibles para otros vendedores (no se descargan en `loadCustomers`, ni se muestran en `vcustomers.js`, ni en autocompletado de POS/cotizador para vendedores regulares). Keyder conserva rol `admin` (gestión global + distribución) y puede vender/cotizar directamente a su clientela. En `vcustomers.js`, "Mi cartera" para Keyder = `seller_id === SELLER.id` (agrupa sus 3.665 clientes entre Zona 010 y Zona 020).
-- **Soporte en Frontend y Optimización DOM**:
-  - Filtro y badge azul `Zona 020 (Nueva Cartera)` agregado en `admin/clientes.html` y `assets/js/vendedor/vcustomers.js`.
-  - Paginación DOM virtual (`MAX_RENDER = 150`) con banner informativo en `aclients.js` y `vcustomers.js`, garantizando que la navegación y búsquedas con 5.473 clientes respondan en <10ms sin sobrecargar el navegador.
-
-## Solución Definitiva a "Esperando este mensaje..." y Auto-Actualizador Resiliente (10-09-2026)
-- **Diagnóstico Forense Criptográfico (Signal Double Ratchet en Baileys)**:
-  - **Causa Raíz en Teléfono Emisor**: En WhatsApp Multi-Dispositivo, el teléfono físico del asesor es el dispositivo primario (`:0`). Cada mensaje saliente que despacha Baileys envía dos copias: una al destinatario y una copia de sincronización a `:0`. En `wa-session.js`, la función `cleanCorruptedSessions()` contenía una condición que eliminaba cualquier archivo que coincidiera con `ownPhone` y terminara en `.0.json`. En cada reinicio o reconexión, el servidor borraba el archivo de sesión criptográfica con el teléfono propio (`session-<phone>.0.json`), rompiendo el ratchet y provocando que el teléfono físico mostrara permanentemente: *"Esperando este mensaje. Esto puede tardar un momento."*
-  - **Causa Raíz en Destinatarios**: `cleanCorruptedSessions()` borraba sesiones de terceros mayores a 25 KB, reseteando ratchets activos a mitad de conversación. Además, si Baileys enviaba mensajes sin asegurar pre-claves (`assertSessions`), el cliente no disponía del bundle criptográfico para descifrar.
-  - **Falla en Reintentos (`getMessage`)**: Al fallar el descifrado, WhatsApp envía un `retryRequest`. Si el servidor no devuelve la estructura protobuf idéntica original desde memoria o disco, el mensaje queda bloqueado indefinidamente.
-  - **Desincronización en PC Servidor (`Supervisor-Pc`, 192.168.0.172)**: El proceso en producción inició a las 10:27 AM con el código antiguo que aún purgaba archivos `.0.json`.
-- **Implementación de las Soluciones Criptográficas (`commit b96cc85` y `585187f`)**:
-  - **Erradicación del Borrado Destructivo (`cleanCorruptedSessions`)**: Se eliminó la purga de `.0.json` y de archivos por tamaño. Ahora solo se eliminan archivos de 0 bytes o JSON con sintaxis rota (`JSON.parse` SyntaxError). Las sesiones válidas nunca se tocan.
-  - **Aserción Pre-Envío (`sock.assertSessions`)**: En `WaSession.send()`, Baileys fuerza la comprobación y carga del bundle de sesiones Signal tanto para el destinatario (`jid`) como para el teléfono propio del vendedor (`sock.user.id`) antes de entregar el paquete cifrado.
-  - **`MessageStore` Persistente en RAM y Disco**: Almacenamiento en caché de los mensajes despachados en `sent-cache.json` y memoria (hasta 10.000 mensajes) decodificables en protobuf para alimentar inmediatamente a `getMessage()` ante solicitudes de reintento (`retryRequest`).
-  - **Auto-Actualización en Bucle de Servicio (`run-service.bat`)**: Inyectado `git pull origin main` dentro de cada ciclo de reinicio del supervisor.
-  - **Script de 1 Clic (`ACTUALIZAR-SERVIDOR.bat`)**: Creado en la raíz del proyecto y en `wa-server/` para detener el servidor anterior, descargar cambios de GitHub, verificar dependencias de Node e iniciar en segundo plano (`start-hidden.vbs`).
-  - **Protocolo de Re-Vinculación (Borrón y Cuenta Nueva)**: Como la sesión en `Supervisor-Pc` ya tenía el archivo `.0.json` borrado por la versión previa, se requiere desvincular la sesión en el teléfono y escanear el QR una única vez con el código nuevo para generar un trinquete limpio y permanente.
-
-## Solución Integral de Búsqueda de Imágenes en la Nube y Perfeccionamiento de Exactitud (>95%) (10-09-2026)
-- **Erradicación del Error "Búsqueda directa web: El acceso web en la nube requiere el servidor local..."**:
-  - **Cloudflare Pages Serverless Functions (`functions/api/search-images.js` y `functions/lan/products/search-images.js`)**: Las peticiones de búsqueda de imágenes ahora se resuelven nativamente en el borde (Edge) de Cloudflare sobre HTTPS sin Mixed Content y con CORS universal (`*`), funcionando en cualquier dispositivo (PCs, tablets, móviles) sin necesidad de tener `wa-server` encendido en la misma máquina o red local.
-  - **Cascada de Endpoints en Frontend (`copilot-jj.js`)**: El buscador prueba en orden: (1) Foto oficial de `_selectedFlyerProduct.image_url` en Supabase; (2) Endpoint nativo en la nube `/api/search-images?q=...`; (3) Compatibilidad `/lan/products/search-images?q=...`; (4) Fallback a red local si se accede vía LAN/localhost (`http://localhost:8787/...`). Se erradicó el banner de advertencia intimidante y se reemplazó por opciones amigables ("✨ Generar Foto con IA", "📁 Pegar Enlace / Subir").
-- **Superación de la Exactitud de <20% a >95% en Búsqueda de Productos**:
-  - **Filtro Anti-Spam y Bloqueo de Wallpapers**: Bloqueo estricto de dominios de fondos de pantalla (`peakpx`, `wallpaperflare`, `wallpapercave`, `fondoshd`), stock vectors (`freepik`, `shutterstock`, `clipart`, `vector`) y términos no relacionados (como Lord Shiva/estatuas para resmas de papel).
-  - **Corrección Ortográfica de Marcas Venezolanas**: Normalizador automático de marcas de inventario (`CHAMEEX` → `CHAMEX`, `PAPERMATE` → `PAPER MATE`, `STAR-KIT` → `STAR KIT`, etc.).
-  - **Taxonomía y Bonificación por Marca Oficial (+60 pts)**: Las imágenes que contienen la marca solicitada reciben prioridad absoluta. Si el título contiene una marca competidora (ej. sale `MAE` o `Bostitch` al buscar `MAYKA`), se le aplica una penalización severa (-40 pts) para evitar confusiones.
-  - **Diferenciación Estricta Herramienta vs Consumible**: Si la consulta busca una "grapadora", se descartan cajas de grapas o recambios (`-500 pts`).
-  - **Prioridad de Fotos Oficiales del Catálogo**: Si el producto ya dispone de fotografía verificada en el catálogo JJ Paper, se inserta en primera posición con la insignia `⭐ Catálogo`.
-- **Actualización de Modelos Gemini y Generación Publicitaria de Estudio con IA**:
-  - **Reemplazo de Modelos 404 por Versiones Activas**: Migrados `PRO_MODELS` y `FAST_MODELS` en `gemini-client.js` y `product-images.js` hacia `gemini-3.6-flash`, `gemini-3.1-flash-lite` y `gemini-3.5-flash-lite`, eliminando fallos 404 y reduciendo la latencia de respuesta a ~1.000 ms.
-  - **Activación Real de Generación en Estudio IA**: Corregido `generateProductStudioPhoto` en `gemini-client.js` (que retornaba `imageUrl: null`), generando fotografías de producto de alta resolución con Pollinations Flux (`model=flux`) a partir de la ingeniería de prompts asistida por Gemini en inglés para packshots comerciales sobre fondo blanco puro o esmeralda institucional.
-
-## Blindaje del Servidor contra Congelamiento (QuickEdit) y Optimización Resiliente de Correo (10-09-2026)
-- **Diagnóstico del Congelamiento de ~38 min (12:14 - 12:54)**:
-  - **Causa Raíz en Windows Console**: En Windows, el Modo de Edición Rápida (`QuickEdit`) está activado por defecto (`HKCU\Console -> QuickEdit = 0x1`). Cuando un usuario hace clic dentro de la ventana negra de la consola de `START-SERVIDOR.bat`, Windows entra en modo de selección (`Seleccionar...`) y suspende sincrónicamente la escritura en `process.stdout` (`pino-pretty`). Esto congela por completo el hilo único de Node.js (detiene `setInterval`, latidos Realtime y envíos). Al presionar Enter, se sale del modo selección y el hilo se reactiva instantáneamente.
-- **Implementación de Soluciones**:
-  - **Desactivación de QuickEdit en Windows y Batch (`START-SERVIDOR.bat`, `disable-quickedit.ps1`)**:
-    - Se agregaron comandos automáticos en el arranque que fuerzan `QuickEdit = 0` en el Registro de Windows (`HKCU\Console` y `HKCU\Console\JJ Paper - Servidor`).
-    - Creado el script [`disable-quickedit.ps1`](file:///C:/Users/PC/Desktop/JJ%20PAPER/wa-server/disable-quickedit.ps1) que modifica el modo de la consola activa mediante la API Win32 (`SetConsoleMode`), retirando las banderas de selección por ratón (`ENABLE_QUICK_EDIT_MODE`).
-    - Guarda preventiva en `wa-server/src/index.js` para entornos Windows.
-  - **Timeouts Estrictos de Red (`wa-server/src/email.js`)**:
-    - Incorporado `AbortSignal.timeout(...)` en todos los puntos de contacto HTTP:
-      - Renovación de token Google OAuth: 15 segundos (`AbortSignal.timeout(15_000)`).
-      - Envío de correos por Gmail API: 30 segundos (`AbortSignal.timeout(30_000)`).
-      - Descarga de adjuntos y medios de Storage/Web: 20 segundos (`AbortSignal.timeout(20_000)`).
-      - Sondeo e ingesta de correos entrantes: 20 a 30 segundos.
-    - Garantiza que ninguna caída de red o socket lento de Google pueda paralizar el despachador de campañas.
-  - **Optimización de Memoria RAM (`attachCache`)**:
-    - Implementado TTL de 2 horas y tope de 50 ítems en la caché de adjuntos en memoria, evitando acumulación de buffers base64 durante ejecuciones de largo plazo.
-
-## Suite de Prospección B2B e Hiper-Personalización con IA (11-09-2026)
-- **Módulo Exclusivo para Administrador (`admin/prospectos.html`, `assets/js/admin/vprospectos.js`)**:
-  - Panel especializado en prospección corporativa y cuentas clave de Caracas y Venezuela.
-  - Visible estrictamente para rol `admin` (`requireAuth('admin')`); inaccesible para vendedores regulares en `sidenav.js`.
-  - Integrado en la barra de navegación bajo el grupo *Ventas* como `🎯 Prospectos B2B`.
-- **Base de Datos Core (`jjp_prospects`)**:
-  - Tabla creada en Proyecto A (`qxgdrfkobbhdzgtoiavv`) con índices por `status`, `sector` y `seller_id`.
-  - Soporta `company_name` único para sincronización continua sin duplicados (`ON CONFLICT (company_name) DO UPDATE`).
-  - Almacena campos ricos: `sector`, `contact_name`, `contact_role`, `phone_1` (CANTV/Fijo), `phone_2` (Celular/WhatsApp), `email`, `address`, `notes`, `ai_analysis` (JSONB), `suggested_subject`, `custom_email_body`, `custom_wa_body`, `status`, `contact_count`, `last_contact_at`.
-- **Sincronización Continua desde Google Sheets / Excel (`CRM AMPLIO.xlsx`)**:
-  - Importador dual: Carga de archivo `.xlsx` / `.csv` y pegado directo de celdas (`Ctrl+V`) desde Google Sheets.
-  - Poblada inicialmente con las **131 cuentas corporativas reales** de `CRM AMPLIO.xlsx` (Farmatodo, Gama, Plaza's, Central Madeirense, Forum, Traki, Banesco, Mercantil, Clínicas, etc.).
-- **Motor de Inteligencia de Negocios y Detección de Necesidades (`GeminiClient.analyzeAndDraftProspectB2B`)**:
-  - **Priorización Flash-Lite Ultrarrápida (<1.5s)**: Priorizado `gemini-3.1-flash-lite` como primer modelo en `PRO_MODELS` y `FAST_MODELS`, eliminando demoras por 503 en modelos congestionados.
-  - **Extracción Resiliente JSON (`extractJSON`)**: Sanitización automática de saltos de línea literales y caracteres de control dentro de strings generadas por LLMs.
-  - **Matriz de Razonamiento B2B por 24 Sectores**: Deducción de puntos de dolor operativos (ej: cero quiebres en líneas de cajas registradoras para retail/supermercados, auditoría SUDEBAN y resguardo a 10 años para banca/seguros, confidencialidad de historias médicas y placas para clínicas, embalaje resistente para logística).
-  - **Propuesta Comercial Exacta**:
-    - Selección obligatoria de **2 Insumos Core** + **1 Insumo Cross-Selling** de apoyo para otra área.
-    - Banco dinámico de 4 ángulos de asunto: Operativo/Stock, Optimización/Costos, Alianza/Procura, Crítico/Línea de Cajas.
-    - **Cuerpo del Correo Estricto (130 a 180 palabras)**: Saludo con nombre y cargo, reconocimiento operativo en Caracas, viñetas de los 3 insumos, **4 pilares obligatorios de JJ Paper** (lista 700+ artículos, cotización en segundos, delivery gratuito en Caracas, factura fiscal formal a tasa oficial BCV con RIF J-295375450), CTA de baja fricción y firma corporativa obligatoria:
-      ```
-      Atentamente,
-
-      Keyder José Salazar
-      Dirección Comercial | JJ Paper C.A.
-      Teléfono / WhatsApp: 0412-4676073
-      Caracas, Venezuela
-      ```
-    - **Mensaje WhatsApp con Spintax Anti-Baneo**: Estructura ágil de 10 a 14 líneas, variables dinámicas y contacto de Keyder Salazar.
-- **Flujo de Conversión Directa a Cartera (`jjp_customers`)**:
-  - Botón de conversión con 1 clic que traslada el prospecto ganado a la Zona 020 de Keyder Salazar sin pérdida de historial.
-- **Campañas Masivas desde Prospectos (`vprospectos.js`, `admin/prospectos.html`)**:
-  - Botones dedicados `📢 Campaña WhatsApp` y `📣 Campaña Email` en el topbar de Prospectos.
-  - Encola campañas directamente hacia `jjp_wa_campaigns` / `jjp_email_campaigns` en Proyecto B.
-  - Modo dual: Hiper-personalizado con IA (cada empresa recibe su copy específico generado) o Plantilla con Spintax y variables.
-- **Flujo Universal de IA para Toda la Cartera de Clientes (`aclients.js`, `admin/clientes.html`)**:
-  - Botón `🧠 Flujo IA` en cada fila de cliente de la cartera general (`jjp_customers`).
-  - Aplica estrictamente el pipeline en 3 pasos: 1. Analizar cuenta (rubro, dolor y 2 core + 1 cross-sell) → 2. Redactar copy (130-180 palabras con 4 pilares y Spintax) → 3. Contactar (WhatsApp directo o Redactor CRM de Correo).
-- **Integración en Editor de Campañas y Correo CRM (`campaign-editor.js`, `correo.js`)**:
-  - Botón `🎯 Abordaje B2B por Sector` en la barra de IA de `CampaignEditor`.
-  - Escenario `🎯 Abordaje B2B por Necesidades` en el redactor de correo CRM (`correo.js`).
-
-## Suite de Campañas Inteligentes con Flujo IA Prospecto por Prospecto (Septiembre 2026)
-- **Flujo Integral de Campañas con IA para WhatsApp y Correo (`campaign-editor.js`, `gemini-client.js`)**:
-  - **Selector de Modo en el Editor**: Conmutación transparente entre `🤖 Modo IA Personalizado` (Recomendado) y `📝 Modo Plantilla Base`.
-  - **Análisis y Detección de Necesidad por Cliente (`GeminiClient.analyzeCustomerAndDraftMessage`)**:
-    - Examina nombre comercial, RIF, ciudad, notas del CRM, historial de compras (`total_orders`, `total_usd`, fecha último pedido) y rubro deducido (Retail/Supermercados/Cajas, Librerías, Instituciones Educativas, Oficinas/Corporativo/Legal, Clínicas/Salud, Logística/Ferretería/Embalaje).
-    - Detecta el punto de dolor o necesidad operativa más crítica y recomienda la propuesta de insumos de JJ Paper más adecuada.
-  - **Redacción Hiper-Personalizada y Estructura Comercial de Alto Impacto**:
-    - **Cada cliente recibe un mensaje único y diferente** con copywriting consultivo B2B adaptado.
-    - Formato optimizado: Titulares en negrita (`*...*`), emojis profesionales dosificados (👋, 📦, 📄, 💲, 🚚, 👉, ✨), viñetas ordenadas (• o 🔹) y dobles saltos de línea (`\n\n`) para lectura cómoda en dispositivos móviles.
-    - **Mención y Adjunto Obligatorio de Lista de Precios Oficial (PDF)**:
-      * Casilla activada por defecto: `📄 Adjuntar Lista de Precios PDF Oficial (+700 arts)`.
-      * Mensaje incluye mención expresa a la lista de precios mayorista en PDF adjunta y ventajas institucionales de JJ Paper (delivery en Caracas / envíos nacionales, factura fiscal a Tasa Oficial BCV, cotizaciones en minutos).
-  - **Pausas y Variaciones Anti-Spam / Anti-Baneo**:
-    - Cada mensaje incorpora variaciones Spintax dinámicas `{Hola|Buen día|Saludos cordiales}` en saludos y cierres.
-    - Ritmo de despacho humano aleatorio (45-90s entre envíos) y descansos periódicos en lotes (pausa de 5 min cada 10 mensajes).
-  - **Selector y Filtro de Prospectos Individuales**:
-    - Modal `👥 Seleccionar Prospectos para la Campaña` con buscador en vivo por nombre, RIF, ciudad o notas, y filtros rápidos (`Todos`, `Con Compras`, `Nuevos`, `Inactivos >30d`).
-    - Permite marcar o desmarcar prospectos específicos para dirigir la campaña con precisión.
-  - **Barra de Progreso y Panel de Revisión / Edición Antes de Enviar**:
-    - Botón `⚡ Analizar y Redactar con IA (N prospectos)` con barra de progreso en vivo y contador de avance.
-    - Subpestañas: `📱 Simulador en Vivo` y `👥 Prospectos Analizados`.
-    - Tarjetas individuales de revisión con badge de necesidad detectada, preview del mensaje, botón de edición manual rápida (`✏️ Editar`) y regeneración individual con IA (`🔄 Regenerar IA`).
-    - Stepper interactivo (`◀ Anterior` `Destinatario X de Y` `Siguiente ▶`) para navegar en el simulador por los mensajes de todos los prospectos.
-  - **Despacho Backend en wa-server (`campaigns.js`, `email-campaigns.js`)**:
-    - Lee `t.vars?.custom_message` / `t.vars?.custom_subject` y despacha el mensaje único para cada contacto respetando sus pausas anti-baneo y adjuntos en WhatsApp y Gmail.
-
-## Correcciones de las 4 Quejas del Usuario + Doble Incremento de Cantidad (16-09-2026)
-Commit `2e9308d` (push a `main`, deploy Cloudflare Pages automático). Cache-busting `?v=20260916_fix_4` en 10 páginas.
-
-### 1. Restauración de la Lista de Precio A/B/C/D en TODAS las rutas de agregado del POS/Cotizador
-- **Causa**: el usuario percibió que "se quitó la lista para seleccionar precio de venta". El popup de nivel de precio sí existía (`posAddAndPick` → `pfPricePopup`), pero las rutas de agregado por **escáner físico, cámara (`posScanCam`), puente de teléfono (`posOnScan`), código exacto con Enter y prefill `?add=<id>`** llamaban directo a `posAddResolved()`, saltándose el popup.
-- **Fix**: en `assets/js/vendedor/pos.js` y `assets/js/vendedor/vquotes.js` (funciones duplicadas entre ambos archivos — cualquier cambio futuro debe aplicarse en los dos):
-  - `posSearchKey` (código exacto) → `posAddAndPick(hit.product, hit.variant)`.
-  - `posPrefillAdd` → `posAddAndPick(...)`.
-  - `posScanCam` → `posAddAndPick(...)`.
-  - `posOnScan` → `posAddAndPick(...)`.
-  - Mismo cambio en el prefill del cotizador (`initQuoter`), que usaba `posAddResolved`.
-
-### 2. Teclado completo en POS y Cotizador
-En `pos.js` y `vquotes.js`:
-- **Productos**: PgUp/PgDn (salto ±5), Home/End (saltar a extremos vía nueva `posNavTo`), Escape (vaciar ticket/cotización con confirmación → nueva `clearPos`/`clearQuote`), Ctrl/Cmd+Enter (enviar venta/cotización → `posSubmit`/`quoteSubmit`).
-- **Cliente**: nueva `posInitCustomerKeys()` (corrida en `initPos`) + estado `posCliResults`/`posCliCursor` + `paintCliCursor()`: ↑/↓ recorren resultados de cliente, Enter selecciona el resaltado.
-
-### 3. Motor IA de Campañas enviaba solo la presentación (mensajes no personalizados)
-- **Causa raíz**: en `campaign-editor.js` `launch()`, la rama "No" del confirm (`¿Deseas analizarlos ahora…?`) disparaba `analyzeCustomerAndDraftMessage` con `.then()` sin `await`. Los targets se insertaban con `custom_message=null` y el despachador (`campaigns.js`) caía al `camp.body` (solo presentación). Además `updatePreview` hardcodeaba una vista previa "representativa" que no coincidía con lo enviado.
-- **Fix** `campaign-editor.js`:
-  - La rama heurística ahora hace `await Promise.all(missingAnalysis.map(...))` con try/catch; cada análizado asigna `_custom_message`, `_custom_subject`, `_detected_need`, `_detected_sector`.
-  - Nuevo helper `buildMinimalFallback(c, channel, sellerName, inclPdf)` (definido antes de `launch()`): genera un mensaje comercial completo (saludo spintax, presentación con nombre del asesor, 3 categorías con disponibilidad, mención de la Lista de Precios PDF si está activa, `{{link}}`, cierre consultivo) para WhatsApp y email (con firma corporativa). Se asigna en el catch de la rama heurística y como fallback del `body` en modo `ai` si está vacío o es la plantilla por defecto (`'{Hola|Saludos|Buen día} {{nombre}} 👋…'`).
-  - `regenerateActiveCustomer` ahora pasa `forceRefresh: true` para evitar responder con resultados cacheados.
-  - **Verificado**: la ruta email (`vampans-email.js` ~787/797-799) SÍ persiste `custom_subject`/`custom_message` por target, y la ruta WA (`vdifusion.js` 1099-1100) igual — compatible con el flujo corregido.
-
-### 4. Prospectos: solo 206/300, leía mal y sin carga real desde Google Sheets
-- **Causa**: `renderProspectsTable` cortaba el render con `MAX = 150`; `processImportedRows` tenía detección de cabeceras frágil (sin normalizar tildes, columnas de contacto/cargo mezcladas, teléfonos sin limpiar) y la importación **solo** aceptaba subir archivo o pegar celdas (sin conexión real a Google Sheets).
-- **Fix** `assets/js/admin/vprospectos.js`:
-  - **Paginación real**: `PROSPECTS_PER_PAGE = 100`, `prospectsPage`, `prospectsGoPage(p)` + controles ◀/▶ y contador en el footer de la tabla. `applyProspectFilters` reinicia a página 1. `loadProspects` usa `.range(0, 1999)`.
-  - **Parser robusto** (`processImportedRows`): normalización de acentos (`norm()`) para cabeceras con/sin tilde, detección de columna `cargo` separada de `contacto`, filtro anti-falsos-positivos en `tel1`/`tel2` (cel/WhatsApp/móvil van a phone_2), limpieza de teléfonos (`cellPhone`: elimina `E+11` de Excel, guiones), validación de email, y conteo correcto `inserted`/`updated`/`skipped` precargando `company_name` existentes (upsert por `company_name`).
-  - **Opción C en el modal de import (`admin/prospectos.html`)**: campo URL pública de Google Sheets + botón `🌐 Leer y Procesar Desde Internet` con estado en vivo.
-- **Nueva Cloudflare Pages Function `functions/api/sheets-import.js`**: GET `/?api/sheets-import?url=<enlace_o_id_de_sheets>` → normaliza cualquier URL de Google Sheets a su exportación CSV (`/export?format=csv`), la descarga server-side (evita CORS/Mixed Content), parsea el CSV respetando comillas y saltos (`parseCSV`), y devuelve `{ok, rowsCount, rows, headers}` (máx 2000 filas). `handleSheetsUrlImport` (en `vprospectos.js`) mapea las cabeceras a las claves esperadas y delega en `processImportedRows`.
-
-### 5. Doble incremento ±2 en el popup de cantidad (MixNet, `product-finder.js`)
-- **Causa**: en `pfQtyPopup` el listener de delegación del mask (`e.target.closest('.pf-qty-btn')` → `change`) se sumaba a los listeners individuales `btn(-1).addEventListener(...)`/`btn(1).addEventListener(...)`; cada clic disparaba dos veces → ±2.
-- **Fix**: se eliminaron los dos listeners por botón; queda únicamente la delegación por eventos del mask.
-
-### Archivos tocados (17)
-`admin/campanas-email.html`, `admin/cotizador.html`, `admin/difusion.html`, `admin/pos.html`, `admin/prospectos.html` (Opción C), `assets/js/vendedor/campaign-editor.js`, `assets/js/vendedor/vquotes.js`, `assets/js/vendedor/pos.js`, `assets/js/vendedor/product-finder.js`, `assets/js/admin/vprospectos.js`, `vendedor/campanas-email.html`, `vendedor/consulta.html`, `vendedor/cotizador.html`, `vendedor/difusion.html`, `vendedor/pos.html`, `vendedor/productos.html` (bumps `?v=`), `functions/api/sheets-import.js` (nuevo).
-
-### Nota de mantenimiento
-`pos.js` y `vquotes.js` comparten funciones casi idénticas (`posSearchKey`, `posOnScan`, `posScanCam`, `posNav`, `posNavTo`, `posAddAndPick`, `posAddResolved`, teclado cliente). Toda edición de flujo de agregado o teclado debe replicarse en ambos archivos.
-
-## Corrección Integral de Navegación por Teclado, Mensajes de Campañas y Catálogo +900 (16-09-2026)
-Cache-busting `?v=20260916_fix_teclado_campanas` en todas las páginas del sistema.
-
-### 1. Corrección Definitiva del Despacho de Mensajes en Campañas (Email y WhatsApp)
-- **Causa Raíz Identificada**:
-  1. En `email-campaigns.js`, `htmlTemplate` caía a `camp.html` porque `t.vars?.custom_html` no existía. Y `camp.html` había sido horneado en `vcampanas-email.js` con el texto inicial estático (`Estimado(a) ..., Le saludamos cordialmente de JJ Paper...`). Dado que los clientes de correo (Gmail, Outlook, móviles) muestran la parte HTML preferente del MIME multipart, **el texto personalizado del cliente en `body` se ignoraba por completo**.
-  2. En `campaign-editor.js`, el textarea inicial `#ceMessageInput` venía prellenado con la plantilla placeholder corta. Si el usuario no cambiaba el texto manual o la IA fallaba en un contacto, `launch()` solo validaba la cadena de WhatsApp pero no la de Email.
-- **Solución Implementada**:
-  - `wa-server/src/email-campaigns.js`: Si existe un mensaje personalizado para el target (`t.vars?.custom_message`), el HTML del correo se genera dinámicamente envolviendo dicho cuerpo personalizado, garantizando que el destinatario vea en su bandeja exactamente la propuesta comercial redactada.
-  - `wa-server/src/campaigns.js`: Protección análoga para WhatsApp; si el mensaje recibido es el placeholder genérico, se sustituye por la propuesta comercial mayorista estructurada.
-  - `assets/js/vendedor/campaign-editor.js`: Textarea inicial cargado con propuesta comercial completa de alta conversión; `launch()` verifica y asegura `_custom_message` y `_custom_subject` para cada uno de los contactos seleccionados sin dejar ninguno vacío.
-
-### 2. Lista de Precios PDF y Catálogo Real (+900 Productos MixNet)
-- **Causa Raíz**: `doc-engine.js` (`docLoadCatalogRows`) ejecutaba la consulta a `jjp_products` sin `.range(0, 4999)`, no consultaba las columnas `price_a, price_b, sku`, calculaba precio únicamente de `price_usd` (que podía estar desactualizado frente a MixNet B), y no filtraba productos de prueba con precio $0.00. Asimismo, los textos promocionales hardcodeaban "+700 artículos" cuando la cartera real cuenta con 902 productos activos.
-- **Solución Implementada**:
-  - `assets/js/doc-engine.js`: Consulta con `.range(0, 4999)` y selección de `price_a, price_b, sku`. Cálculo jerárquico del precio USD mayorista real (prioridad nivel B de MixNet, fallback a precio variante/producto). Filtro estricto que descarta productos con precio <= 0 (eliminando productos prueba como `JJ-A1` o `MORRAL`).
-  - Cabecera y textos dinámicos reflejan `897 artículos disponibles · 23 categorías mayoristas` y `más de 900 artículos disponibles para despacho inmediato` en todas las plantillas y vistas previas.
-
-### 3. Navegación Fluida por Teclado en POS, Cotizador y Sistema Completo
-- **Fuga de Memoria y Bloqueo Resueltos (`product-finder.js`)**:
-  - En `pfPricePopup`, el listener `document.addEventListener('keydown', onKey, true)` en modo captura nunca se removía al cerrar el popup. Cada producto añadido dejaba un listener fantasma que interceptaba las teclas 'A', 'B', 'C', 'D', Enter, Escape y flechas, corrompiendo la experiencia de teclado. Se implementó `document.removeEventListener` en `resolveOnce`.
-- **Flujo de Agregado y Cancelación Natural (`pos.js` y `vquotes.js`)**:
-  - Al pulsar `Escape` en el popup de precio: cancela la adición, revierte o retira el producto del ticket, **no** abre el popup de cantidad innecesariamente y devuelve el foco inmediatamente al buscador (`#posSearch`).
-  - Al pulsar `Enter` en el buscador: si el cursor está en -1 pero hay resultados, selecciona de inmediato el primer producto de la lista sin obligar al usuario a presionar flecha abajo.
-  - Al confirmar la cantidad con `Enter`: limpia el buscador (`posSearch.value = ''`), refresca la lista y reenfoca el campo para escanear o tipear el siguiente producto de corrido.
-- **Autocompletado de Clientes (`cust-autocomplete.js`)**:
-  - `Enter` sobre resultados de clientes selecciona el primer cliente sugerido si no se bajó con flechas, rellena los datos y transfiere el foco directamente a `#posSearch`.
-- **Atajos de Teclado del POS y Cotizador**:
-  - `F1` o `?`: Abre ventana modal de ayuda visual con todos los atajos.
-  - `F2` o `/`: Enfoca el buscador de productos y selecciona el texto.
-  - `F3`: Enfoca el buscador de clientes.
-  - `F4`: Enfoca el campo de descuento %.
-  - `F8`: Enfoca el método de pago en POS.
-  - `F9` o `Ctrl+Enter`: Cobra y registra la venta / guarda la cotización.
-  - `Escape`: Cancela modales, limpia búsqueda o vacía el ticket (con confirmación).
-- **Paleta de Comandos Global (`Ctrl+K` / `Alt+K` en `sidenav.js`)**:
-  - Implementado navegador rápido global en todo el panel de administración y vendedor. Permite tipear cualquier sección (ej. pos, cotizador, clientes, whatsapp, conteo, monitor) y saltar con las flechas y Enter sin tocar el ratón. Incluye botón pill en la barra lateral con indicador `Ctrl+K`.
-
-## Estabilidad del Servidor, Resiliencia Bad MAC, Auto-Carga de IA y Flujo Cotización ➔ Venta (16-09-2026)
-
-### 1. Eliminación del Bucle de Muerte por Bad MAC en wa-server (`wa-server/src/index.js`)
-- **Causa Raíz**: `handleFatalOrRepeatedError` incluía el patrón `/Bad MAC|WebSocket.*closed|ECONNREFUSED|ENOTFOUND/` como error fatal. Ante cualquier mensaje entrante con error de desencriptación Signal (MAC desincronizada en un solo chat), el servidor se autoterminaba con `process.exit(1)`. El supervisor lo reiniciaba en 2 segundos, WhatsApp reenviaba el paquete no confirmado y el servidor caía en un bucle infinito de reinicios, tumbando WhatsApp, Realtime y despachos de correo.
-- **Solución y Autosanación Criptográfica**:
-  - Eliminado `Bad MAC` y desconexiones normales de red de la lista de errores fatales.
-  - Implementada función `healBadMacSession(err)`: detecta el número/JID en el stack del error Signal y purga de inmediato el archivo de sesión corrupto (`session-<jid>*.json`) en disco. Esto obliga a Baileys a solicitar un nuevo handshake limpio (PreKey bundle) a WhatsApp en la siguiente interacción sin interrumpir el servidor.
-  - El servidor permanece **100% activo en línea** sin cortes de servicio.
-
-### 2. Resiliencia de IA y Redacción de Correos (`assets/js/admin/correo.js`, `correo.html`)
-- **Causa Raíz**: En `correo.html`, las llamadas a `mailAiGenerate` fallaban si el script de `GeminiClient` no había terminado de inicializarse o si se invocaba con escenarios que llamaban a funciones no asíncronas.
-- **Solución Implementada**:
-  - Implementada función `ensureGeminiClient()` con inyección dinámica y espera reactiva (polling de hasta 3.5s) que garantiza la disponibilidad de `window.GeminiClient` antes de disparar la generación.
-  - Soporte robusto de todos los escenarios de correo (Propuesta B2B, Cotización, Despacho, Cobro, Promoción, Respuesta) con fallbacks contextualizados e inyección directa al compositor.
-
-### 3. Enlace y Flujo Fluido Cotización ➔ Venta POS (`pos.js`, `vquotes.js`, `vquotes-list.js`, `admin/quotes.js`)
-- **Carga de Cotizaciones en POS**:
-  - Soporte de parámetro URL `pos.html?quote=COT-XXXX` o `pos.html?cotizacion=COT-XXXX` que rellena automáticamente los datos del cliente, limpia y puebla el ticket con todos los productos, variantes, cantidades y niveles de precio cotizados.
-  - Botón interactivo `📋 Cargar Cotización` en la barra superior del POS (`admin/pos.html` y `vendedor/pos.html`) con buscador en vivo de presupuestos pendientes.
-  - Al procesar la venta en POS, si proviene de una cotización (`posLinkedQuoteId`), el estado de la cotización se actualiza automáticamente a `'convertido'`.
-  - Botón de acción directa `🛍️ Cobrar en POS` añadido en el modal de confirmación de cotizaciones (`vquotes.js`) y en las tablas de cotizaciones (`vquotes-list.js` y `admin/quotes.js`).
-- **Controles Mejorados en Tickets de POS y Cotizador**:
-  - Cantidad directamente editable mediante `<input type="number">` en cada línea del ticket, permitiendo ingresar cualquier número de unidades sin tener que hacer decenas de clics en el botón `+`.
-  - Botón de eliminación directa `🗑️` por fila (`posRemoveLine`) para retirar productos del ticket en 1 clic.
-  - Acceso seguro al perfil de usuario (`sellerId`) previniendo excepciones en modo administrador.
-
-## Blindaje Integral de Ventas, Cotizaciones, Sincronización de Precios y Estabilidad del Servidor (16-09-2026 Noche)
-
-### 1. Inmunización Global de Guardado en Cotizador (`vquotes.js`) y POS (`pos.js`)
-- **Causa Raíz del Bloqueo (Botones "Guardando..." y "Registrando..." congelados)**:
-  1. **Conflicto de Alcance Léxico (`let SELLER` vs `window.SELLER`)**: En `vcommon.js`, `let SELLER = null;` residía en el ámbito léxico. En las páginas `/admin/` (`admin/pos.html` y `admin/cotizador.html`), el inicio de sesión asignaba a `window.SELLER = profile;`, lo que dejaba intacto el `SELLER` léxico en `null`.
-  2. **Excepciones No Capturadas (`TypeError`)**:
-     - En `vquotes.js`: `seller_id: SELLER.id` y `Atendido por: ${SELLER.name}` provocaban `Cannot read properties of null (reading 'id' / 'name')`.
-     - En `pos.js`: `posShowDone()` intentaba evaluar `${SELLER.name}` arrojando el mismo `TypeError`.
-     - Al no existir bloques `try / catch / finally`, la ejecución se interrumpía justo después de deshabilitar los botones (`btn.disabled = true; btn.textContent = 'Guardando...' / 'Registrando...'`), dejándolos congelados indefinidamente.
-  3. **Política RLS en Core (`jjp_quotes_ins`)**: La política anterior restringía inserciones exclusivamente a tokens `authenticated` con perfil activo. Si el token estaba en refresco o con rol anon temporal, PostgREST arrojaba `42501`.
-- **Solución Implementada**:
-  - **Estructura Robusta `try / catch / finally`**: Implementada en `quoteSubmit()` y `posSubmit()`. En caso de cualquier error (de red, validación o base de datos), el botón se restablece inmediatamente y se muestra una notificación Toast con el mensaje descriptivo del fallo.
-  - **Inmunización en el Núcleo de Autenticación (`assets/js/admin/auth.js`)**: `loadProfile()` asigna de forma simultánea `CURRENT_PROFILE`, `window.CURRENT_PROFILE`, `SELLER` y `window.SELLER`. Cualquier módulo del sistema tiene garantizado el perfil del usuario activo.
-  - **Declaración Acoplada en `vcommon.js`**: `var SELLER = null;` garantiza enlace directo a `window.SELLER`.
-  - **Resolución Defensiva `getActiveSeller()`**: Aplicada en `pos.js`, `vquotes.js`, `vcustomers.js`, `vdashboard.js`, `vorders.js`, `vajustes.js` y `scan.js`.
-  - **Enlace de Cliente en Cotizaciones**: Variable `quoteCustomer` añadida a `vquotes.js` para persistir `customer_id` al guardar.
-  - **Actualización DDL en Supabase Core**: Política `jjp_quotes_ins` actualizada para admitir inserción limpia con `status = 'pendiente'`.
-
-### 2. Estabilidad de Servidor y Criptografía Signal (`wa-server`)
-- **Autosanación Activa ante Bad MAC**: En `wa-server/src/index.js`, monkey-patch en `console.error` que intercepta fallos de desencriptación Signal (`libsignal`), purga selectivamente la sesión corrupta del JID implicado con limitación de frecuencia (máx. 1 purga cada 60s) y suprime advertencias repetitivas para no colapsar los logs.
-- **Limpieza de Sesiones Zombie (`session-manager.js`)**: En `boot()`, barrido que elimina directorios huérfanos o con `registered: false` (como `b3c1eae7` y `0d850c1e`).
-- **Rotación Activa de Logs (`logger.js`)**: Chequeo en arranque (10MB) y en ejecución cada 60s (50MB). Utiliza copia y truncado (`COPY + TRUNCATE`) para compatibilidad completa con Windows sin errores de archivo bloqueado (`EBUSY`).
-
-### 3. Sincronización Completa de Niveles de Precio MixNet (`mixer.js`)
-- `sweepMixnetProducts()` actualiza integralmente todas las columnas de precios: `price_a, price_b, price_usd, price_c_bs, price_d_bs` en `jjp_products` y `jjp_product_variants`.
-- El POS lee prioritariamente `price_b` (precio mayorista estándar), garantizando total coherencia entre MixNet y JJ Paper.
-- Palabras clave de listas de tarifas añadidas a la lista de exclusión en `sweepIncomingFiles` para evitar falsos pedidos.
-
-### 4. Directrices de Agentes Compartidos y Mapa del Sistema
-- **`REGLAS_AGENTE.md`**: Reglas estrictas de operación, prohibiciones, convenciones de red (Laptop vs PC de Oficina con MixNet/Unidad M:), y metodología para agentes en ambos entornos.
-- **`MAPA_SISTEMA.md`**: Referencia integral de las 54 interfaces HTML, 69 módulos JS cliente, 25 módulos de `wa-server`, flujo de precios y esquema relacional de bases de datos.
-
-## Importador DBF MixNet → JJ Paper Verificado en Producción (17-09-2026)
-- **Doc completa**: `cerebro/Sistema/wa-server.md` → sección "Puente bidireccional MixNet (`mixer.js`)".
-- **Flujo por DBF (sin HTTP, API MixNet caída)**: lee `M:\comp01\MXENCPED.DBF` + `MXRENPED.DBF` (pedidos → `jjp_orders` como `MIX-<numped>`) y `MXENCCOT.DBF` + `MXRENCOT.DBF` (cotizaciones → `jjp_quotes` como `MIX-COT-<numcot>`), resolviendo cliente vía `MXCTACLI.DBF`.
-- **Estado verificado**: 251 pedidos `MIX-*` y 221 cotizaciones `MIX-COT-*` importados, dedup estable (historial en `wa-server/imported-mixnet.json`, `exported-orders.json`, `exported-quotes.json`).
-- **Ventana de recencia**: `MIXER_DBF_RECENT_DAYS` (default **7 días** desde 17-09; antes 30) — solo actividad reciente para no inundar con históricos.
-- **Vendedor detallado (`codven`)**: `004`/`006`→Yovanni, `008`→Marianela, `014`→Andreina (IDs en `SELLERS_BY_CODVEN` de `mixer.js`). Se asigna `seller_id` y se anota `Vendedor MixNet #<codven>` en `notes`/log.
-- **Guard anti round-trip**: `sweepRecentOutgoing` NO re-exporta números `MIX-*`/`MIX-COT-*` (ya vienen de MixNet) — evita que Caja reprocese duplicados.
-- **Cotizaciones JJ → MixNet verificadas**: `cotizacion_COT-*.csv/.txt` se exportan a los drop dirs; visibles desde MixNet y transformables a pedido desde Caja.
-- Corrección 16-09: `PED.DBF` no existe; los reales son `MXENCPED`/`MXRENPED`/`MXENCCOT`/`MXRENCOT`/`MXCTACLI`. Entrega 19:35Z 15-09 tuvo una orden fantasma `MIX-listapreciosrea` (cancelado, inofensiva).
-- Regla de mantenimiento: al tocar `mixer.js` reiniciar el proceso (supervisor `run-service.bat` relanza solo).
-
-## Precios MixNet: MXCTAINV.DBF es el Maestro Vigente (17-09-2026, PC Tienda)
-> **AVISO AL OTRO AGENTE (PC remota)**: verificar commits `5c56ebe` + merge `2cd9f9c`. Cambio en `sweepMixnetProducts()` de `wa-server/src/mixer.js`.
-- **NUNCA más** sincronizar precios desde `VICTAINV.DBF`: quedó **congelado en 2023/2024** (0 registros `fecha_mod` 2025/2026). Ej. `CG-L100T` LIBRETA FAMA TESIS: 1.01$/stock 23 en VICTAINV vs 1.13$/stock 281 en MXCTAINV.
-- `MXCTAINV.DBF` es la fuente **autotitativa** de precios y stock (1,108 registros actualizados en 2026; `fecha_mod` 2026-09-16).
-- `sweepMixnetProducts()` ahora lee **ambos** DBF y fusiona por SKU con prioridad MXCTAINV para `price_a/b/usd/c_bs/d_bs/cost/stock`; el stock de VICTAINV solo es respaldo si MXCTAINV trae 0.
-- **Resultado**: log `Sincronizados precios y stock de 901 productos desde MXCTAINV.DBF (maestro vigente)`. 👍
-- Nota: los precios Bs de MXCTAINV usan tasa ≈ 978 (no BCV 847). Son los valores oficiales de MixNet; no recalcular sin autorización.
-
-## Estabilidad WhatsApp, Campañas y Protocolo Multi-Agente (17-09-2026)
-- **Protocolo de Coordinación Multi-Agente**: Documentado en detalle en `cerebro/Sistema/COORDINACION_MULTI_AGENTE.md`.
-  - **REGLA CRÍTICA**: **UNA sola instancia activa de WhatsApp en el sistema**. No correr `wa-server` con la misma cuenta de WhatsApp en la laptop y en la tienda simultáneamente (provoca desincronización "Bad MAC" y expulsión forzosa). La PC de la tienda corre producción (MixNet unidad M:), la laptop remota se enfoca en frontend/lógica.
-  - **Git Pull Obligatorio**: Ejecutar `git pull origin main` y revisar `git log` antes de iniciar cualquier desarrollo.
-  - **Reinicio tras Cambios de Servidor**: Node.js no recarga archivos en memoria; terminar el proceso activo (`taskkill` o `Stop-Process`) para que el supervisor relance el nuevo código.
-- **Corrección Crítica en Despacho de Campañas WhatsApp (`campaigns.js`)**:
-  - Resuelto `ReferenceError: msgTemplate is not defined` (L197). La variable se inicializa ahora con jerarquía: `custom_message` individual del target > `message` de la campaña > propuesta comercial estructurada con viñetas y catálogo.
-  - Optimización de `releaseCancelled()`: filtrado a campañas canceladas en las últimas 24h para prevenir saturación de queries en la base de datos.
-- **Inmunización de Sesiones WhatsApp contra Purgado Indebido (`session-manager.js` y `wa-session.js`)**:
-  - `boot()` ya no purga sesiones con `registered: false` si contienen datos reales (`account`, `me`, `signalIdentities`), ya que Baileys NUNCA setea `registered = true` en flujo de escaneo QR. Los perfiles habilitados en BD quedan permanentemente protegidos.
-  - Manejo de desconexiones transitorias post-QR: Baileys emite código 515 (`restartRequired`) tras escanear el QR, que ahora se reporta como `reconnecting` en lugar de `disconnected`, evitando que la interfaz vuelva a solicitar escaneo.
-  - `stop()` resetea `startingSince` y `reconnectTimer`, eliminando bloqueos en reconexiones dentro de la ventana de 90s.
-
-## Corrección de Lista de Precios Imprimible y Saneamiento de Costos DBF (17-09-2026)
-- **Causa Raíz Identificada**:
-  1. En `lista_costos.html`, la consulta Supabase no seleccionaba `price_b`, `price_a`, `price_c_bs`, ni `price_d_bs`.
-  2. En MixNet DBF (`MXCTAINV`/`VICTAINV`), el campo `costo` / `costo_rep` está expresado en **Bolívares** (ej. 2,550 Bs para carpetas, 11,877 Bs para marcadores). Al sincronizar, `mixer.js` escribía ese monto en Bolívares directamente en `cost_usd`, inflando la lista interna y las valorizaciones de inventario en órdenes de magnitud absurdos.
-- **Resolución Aplicada**:
-  - `lista_costos.html`:
-    - Consulta actualizada para incluir explícitamente `price_b, price_a, price_c_bs, price_d_bs, cost_usd`.
-    - **Precio de Impresión**: Ajustado estrictamente al **Precio B (Mayorista USD)** como estándar oficial por defecto (con fallback a `price_usd` o `price_a`).
-    - **Selector de Nivel de Precio**: Añadido control en la barra de herramientas (`tbPriceLevel`) para alternar entre Precio B (Mayorista USD) [Default], Precio A (Detal USD), Precio D (Mayorista Bs) y Precio C (Detal Bs).
-    - **Cabeceras Dinámicas**: Títulos y etiquetas actualizados (`LISTA DE PRECIOS MAYORISTA (B)` y `Precio Mayorista ($)`).
-    - **Saneamiento en Caliente**: En modo costo (`?mode=cost`), si el costo excede el precio venta por un factor >2.5, se convierte automáticamente a USD dividiendo entre la tasa implícita o BCV.
-  - `wa-server/src/mixer.js`:
-    - Saneamiento en `sweepMixnetProducts()`: Si el costo en el DBF está en Bolívares (`cost > priceB * 2.5`), se divide automáticamente entre la tasa real de MixNet (`priceDBs / priceB`) antes de guardar en `cost_usd`.
-  - **Base de Datos Saneada**: 620 registros en `jjp_product_variants` y `jjp_products` con costos inflados en Bolívares fueron corregidos a sus valores reales en USD.
-
-## Corrección de "Lista Mala" en Campañas WhatsApp/Correo y Cache-Busting Global (17-09-2026)
-- **Queja del Usuario**: "Las campañas de WhatsApp y correo siguen exportando la lista mala, no la lista acabada de actualizar" (la lista nueva con Precio B mayorista +900).
-- **Causa Raíz Identificada**: El fix de la lista de precios (Precio B mayorista, `.range(0,4999)`, descarte de productos de prueba y conteo dinámico) se aplicó al `assets/js/doc-engine.js` en el commit `ec94ad9`, **pero las páginas HTML seguían referenciándolo con versiones viejas** (`?v=20260908_cooldown`, `?v=20260819b`, etc.). Los navegadores de los usuarios cachearon esas URLs y seguían ejecutando el generador PDF antiguo → la lista generada en campañas salía vieja/mala.
-- **Solución Aplicada**:
-  - **Cache-Busting Uniforme**: Toda referencia a `doc-engine.js` → `?v=20260917_lista_ok` en las 22 páginas: `admin/difusion.html`, `admin/campanas-email.html`, `admin/prospectos.html`, `admin/whatsapp.html`, `admin/correo.html`, `admin/pos.html`, `admin/cotizador.html`, `admin/pedidos.html`, `admin/cotizaciones.html`, `admin/catalogo.html`, `vendedor/*` equivalentes, `catalogo.html` e `index.html`.
-  - Bump también de `gemini-client.js`, `campaign-editor.js` y `vprospectos.js` → `?v=20260917_lista_ok` en las páginas de campañas (el editor y los textos de IA también se recargan).
-  - **Textos "+700" → "+900"**: Eliminados los restos desactualizados en `assets/js/vendedor/campaign-editor.js` (checkbox `📄 Adjuntar Lista de Precios PDF Oficial (+900 arts)`), `assets/js/gemini-client.js` (5 menciones de "+700/más de 700" en prompts y fallbacks de campañas/prospectos) y `assets/js/admin/vprospectos.js` (email por defecto de prospectos).
-- **Regla de Mantenimiento (CRÍTICA)**: Todo cambio en `doc-engine.js`, `gemini-client.js`, `campaign-editor.js`, `vdifusion.js`, `vcampanas-email.js` o `vprospectos.js` debe ir acompañado de **bump de `?v=`** en TODAS las páginas que los referencian; de lo contrario Cloudflare Pages sirve la versión cacheada por el navegador y los fixes no llegan al usuario. La herramienta `docPdfProductos()` genera el PDF de lista en vivo desde Supabase (Precio B), por lo que "la lista mala" casi siempre es caché del navegador: bumpear el `?v=` del script es el fix.
-- **Conteo Vigente**: 901 productos activos sincronizados desde MXCTAINV.DBF (maestro vigente, commit `5c56ebe`). Las listas/campañas deben hablar de "+900 artículos", nunca "+700".
-
-## Historial de Compras 360° en CRM de Clientes y Métricas Reales de Vendedores (17-09-2026)
-- **Sincronización Atómica de Métricas en PostgreSQL Core (`jjp_customers`)**:
-  - Previamente, `total_orders = 0` y `total_usd = 0` en `jjp_customers` a pesar de existir 255 pedidos reales de MixNet (`MIX-*`).
-  - Ejecutada sincronización relacional agregando `total_orders`, `total_usd` y `last_order_at` en `jjp_customers` a partir de `jjp_orders`.
-  - Creada función almacenada `public.jjp_sync_customer_metrics(uuid)` y disparador `trg_order_sync_customer` en `jjp_orders`, manteniendo actualizadas las métricas del cliente de forma transparente ante cada nueva compra o actualización de pedido en MixNet / Web.
-- **RPC Maestro Ficha 360° (`public.jjp_customer_360(uuid)`)**:
-  - Retorna el perfil comercial consolidado: cliente (con asesor asignado, zona, RIF, teléfono, dirección, notas), KPIs (total invertido en USD y Bs, pedidos históricos, cotizaciones, fecha de última compra), y matrices completas de:
-    - **Pedidos (`pedidos`)**: Número de orden, fecha, estado, total USD/Bs, origen (MixNet Caja vs Web POS), método de pago, vendedor que atendió, y array completo de renglones (`items`: SKU, nombre del artículo, cantidad, precio unitario, subtotal).
-    - **Cotizaciones (`cotizaciones`)**: Número de presupuesto, fecha, estado, validez, total y renglones detallados.
-- **Componente Unificado Ficha e Historial 360° (`assets/js/customer-history.js`)**:
-  - Modal dinámico (`#customerHistoryModal`) con diseño responsivo, pestañas de navegación (Pedidos, Cotizaciones, Ficha & Contacto) y KPIs comerciales.
-  - Tabla de pedidos con insignias identificadoras (`MixNet Caja` / `Web POS`), selector desplegable para auditar cada renglón/ítem comprado y notas de factura.
-  - Acciones comerciales rápidas en pie de modal: "🛍️ Nueva Venta POS" (precarga el cliente en ticket), "📋 Nueva Cotización", "💬 WhatsApp" y "🧠 Flujo IA".
-  - Integrado transparentemente en:
-    - **Admin CRM (`admin/clientes.html` y `assets/js/admin/aclients.js`)**: Nombres de clientes y conteos de pedidos son enlaces interactivos que abren la ficha 360°; botón `📜 Historial` en la columna de acciones.
-    - **Vendedor CRM (`vendedor/clientes.html` y `assets/js/vendedor/vcustomers.js`)**: Enlaces directos a la ficha 360° y botón `📜` en acciones.
-- **Panel de Métricas del Equipo de Ventas (`admin/vendedores.html` y `assets/js/admin/sellers.js`)**:
-  - **Tarjetas Superiores de Rendimiento (KPIs)**:
-    - *Ventas Globales (30d)*: Total facturado consolidado en USD y Bs a tasa oficial BCV.
-    - *Pedidos Realizados (30d)*: Conteo consolidado de transacciones comerciales.
-    - *Cotizaciones (30d)*: Volumen de presupuestos emitidos.
-    - *Líder en Ventas*: Vendedor con mayor volumen facturado en el mes.
-  - **Corrección de Atributo de Ranking**: Corregido bug donde la tabla leía `stats.orders_count` en lugar de `stats.total_orders`, eliminando el texto `undefined pedidos` y reflejando las transacciones exactas.
-  - **Auditoría de Cartera por Vendedor**: Nueva columna *Cartera Clientes* en la tabla de vendedores mostrando la cantidad de clientes asignados y cotizaciones elaboradas.
-
-## Corrección Definitiva de Atribución de Ventas de Caja / Mostrador y Saneamiento de Métricas (17-09-2026 Tarde)
-- **Causa Raíz de los >200 Pedidos y Cotizaciones en Keyder Salazar**:
-  1. En `SELLERS_BY_CODVEN` de `wa-server/src/mixer.js`, se habían incluido erróneamente los códigos `010` y `020` asociados al UUID de Keyder Salazar (`bddc57dc...`).
-  2. En MixNet DBF (`MXENCPED` / `MXENCCOT`), `010` es el código por defecto de **Caja Principal / Mostrador de Tienda**, y `020` representa la cartera libre institucional de MixNet. NO son comisiones personales de Keyder.
-  3. Adicionalmente, el fallback `finalSellerId = codvenSeller || matchedCust?.seller_id` asignaba a Keyder cualquier orden de clientes de Zona 020 (3.474 clientes cargados bajo el admin para protección de acceso).
-  4. Esto provocó que 105 pedidos de Caja Mostrador ($944k) y 128 cotizaciones de clientes institucionales se acreditaran indebidamente a Keyder en `jjp_seller_ranking`.
-- **Solución Implementada**:
-  - **Desacople en `mixer.js`**: Eliminada la entrada `010`/`020` de `SELLERS_BY_CODVEN`. Ahora `sellerForCodven('010')` devuelve `seller_id: null` (Caja MixNet).
-  - **Guarda Anti-Fallback para Administrador**: En `sweepMixnetDbf` y `sweepIncomingFiles`, si el cliente pertenece a la cartera administrativa de Keyder, `finalSellerId` permanece estrictamente como `null` a menos que exista un `codven` explícito de un vendedor de calle (004/006 Yovanni, 008 Marianela, 014 Andreina).
-  - **Reasignación Limpia en Base de Datos**:
-    - 105 órdenes `MIX-*` y 128 cotizaciones `MIX-COT-*` fueron reasignadas a `seller_id: null` (Caja Mostrador / Tienda).
-    - Neutralizadas las órdenes de prueba con cifras desproporcionadas (`JJP-260916-9063` y `COT-260916-8493`).
-    - Keyder Salazar conserva únicamente sus 5 cotizaciones y operaciones legítimas del Web POS.
-  - **Ranking de Vendedores Corregido**:
-    - Líder real en ventas: **Andreina JJ Ventas** ($19,852.65, 23 pedidos).
-    - Segundo lugar: **Marianela Ventas JJ** ($14,584.33, 54 pedidos).
-    - Tercer lugar: **Yovanni Araujo** ($3,120.37, 42 pedidos).
-    - Keyder Salazar (Vendedor 005 en MixNet): Mapeado formalmente como vendedor `005` en `SELLERS_BY_CODVEN`. Sus 2 pedidos reales confirmados (`MIX-00112346` por $78.92 y `MIX-00112347` por $44.87) fueron asignados a su UID, totalizando $123.79 (con 1 tercer pedido pendiente de verificación).
-    - Caja / Tienda General (010 / 020): 130 pedidos preservados íntegramente en el historial 360° de clientes.
-
-## Monitor de Cuotas en Vivo y Proyecto C (Storage & Media) 100% Restaurado (17-09-2026)
-- **Causa Raíz de Proyecto C en 0 Archivos / 0.00 MB**:
-  - En modo directo en la nube (`querySupabaseDirectly()` de `assets/js/admin/monitor-client.js`), el cliente ejecutaba `_rawSbInv.storage.listBuckets()`.
-  - En Supabase Storage, `listBuckets()` requiere privilegios de administración de storage (`service_role`). Con la clave pública `anon` de Proyecto C, PostgREST/Storage deniega el listado y devuelve `{ data: [] }`.
-  - Como el array resultante estaba vacío, el contador de archivos quedaba en `0`, el peso en `0.00 MB` y no se renderizaban los buckets.
-- **Causa Raíz del Monitoreo "Estático / No en Vivo"**:
-  - En modo Cloud (cuando se accede vía HTTPS en Cloudflare Pages donde el navegador bloquea Mixed Content hacia `http://localhost:8787`), `recentRequests` se reinicializaba en cada ciclo de sondeo a un array estático de 1 solo elemento hardcodeado (`supabase:direct_ping`), y `rpm` estaba fijo en `0`. La consola nunca mostraba flujo ni animación.
-- **Resolución Integral Aplicada**:
-  - **Métricas Reales de Proyecto C**:
-    - Proyecto C (`nmcamjxhyysmmvgxgabo`) verificado con **295 archivos WebP optimizados** en el bucket `jjp-products` (5.33 MB) y 0 archivos en `jjp-receipts`.
-    - Medición de latencia en vivo con solicitud `HEAD` a imagen pública del catálogo (`.../storage/v1/object/public/jjp-products/0088545d-6706-4087-8573-487a67a43957.webp`).
-    - Visualización exacta en la tarjeta: `5.33 MB / 1.024 MB`, `0.52% utilizado`, `⚡ {latC} ms`, `🖼️ 295 archivos` y desglose de buckets (`📦 jjp-products` 295 archivos · 🌐 Público y `📦 jjp-receipts` 0 archivos · 🔒 Privado).
-  - **Monitoreo en Tiempo Real 100% Vivo y Dinámico**:
-    - Buffer deslizante de red en memoria (`cloudLiveRequests` hasta 150 eventos) que registra cada ping real completado a Core, Comunicaciones, Storage CDN y Latido del Servidor con su duración exacta en milisegundos.
-    - **Suscripciones Supabase Realtime**:
-      - Canal `srv-monitor-live` en Proyecto B: detecta latidos de `jjp_server_control` en tiempo real; si `Supervisor-Pc` reporta métricas PostgreSQL nativas (`modules.monitor_stats`), actualiza las tablas y tuplas muertas de inmediato.
-      - Canal `wa-monitor-live` en Proyecto B: detecta mensajes entrantes y salientes de WhatsApp y los grafica al instante en la consola.
-      - Canal `orders-monitor-live` en Proyecto A: detecta inserciones y actualizaciones de pedidos de venta en vivo.
-    - **Cálculo Dinámico de RPM**: Contador rodante de requests por minuto que calcula en tiempo real las operaciones de red por minuto.
-    - **Insignia de Motor Inteligente**: Reporta `☁️ Modo Nube · 🟢 Supervisor-Pc Online (Realtime Sync)` cuando el servidor está activo en tienda.
-    - **Cache-Busting**: `admin/monitor.html` actualizado con `<script src="../assets/js/admin/monitor-client.js?v=20260917_live_c"></script>` y clases CSS `.type-lan` y `.type-storage`.
-
-## Sincronización Total MixNet (Auto-Import de Productos Faltantes) y Buscador Inteligente Multi-Token (17-09-2026)
-- **Causa Raíz de Productos Faltantes (MixNet vs JJ Paper)**:
-  - En `wa-server/src/mixer.js` (`sweepMixnetProducts`), el importador solo ejecutaba queries `.update()` filtrando por `sku`. **NUNCA ejecutaba `.insert()`**.
-  - Si un producto existía en MixNet (`MXCTAINV.DBF`, con más de 1.108 a 2.000 registros) pero no formaba parte de los 902 productos del CSV inicial cargado en Supabase, el `.update()` retornaba 0 filas modificadas y el artículo quedaba completamente ignorado y descartado.
-  - **Resolución en `mixer.js`**: `sweepMixnetProducts()` ahora evalúa si el producto existe en `jjp_products` o `jjp_product_variants`; si no existe, lo **inserta automáticamente** en `jjp_products` con su nombre, SKU, unidad, precio B (mayorista USD), precio A, precios en Bs, costo y stock real desde `MXCTAINV.DBF`. La base de datos de JJ Paper alcanzará el 100% de paridad con MixNet en cada barrido.
-- **Causa Raíz de "No consigo plástico 44*66 (carnet) ni muchos otros"**:
-  - Los buscadores del sistema (`product-finder.js` en POS/Cotizador/Consulta, `catalog.js` en Catálogo web y `admin/products.js`) realizaban una búsqueda rígida de subcadena exacta contigua: `normTxt(p.name).includes(q)`.
-  - Si el usuario escribía `plastico carnet` o `plastico 44*66 (carnet)`, el buscador exigía que el texto estuviera escrito exactamente en esa secuencia sin ninguna palabra en medio. Dado que el producto en base de datos se titula `PLASTICO 67*99 (CARNET)(X100UND)175MICRONES` (con `67*99` en el medio), la búsqueda devolvía **0 resultados**, haciendo creer que el producto no existía. Lo mismo ocurría con `plastico 67 99`, `carnet plastico`, `cartulina negra`, `sobre manila carta`, etc.
-  - **Resolución del Motor de Búsqueda Inteligente (`pfMatch` y `getFiltered`)**:
-    - **Tokenización Inteligente**: Separa la consulta en palabras clave individuales ignorando símbolos (`*`, `(`, `)`, `/`, `-`, `,`, `+`).
-    - **Coincidencia Multi-Palabra (AND)**: Encuentra el producto sin importar el orden de las palabras (`carnet plastico` == `plastico carnet`).
-    - **Tolerancia a Medidas/Errores (Scoring)**: Si la búsqueda tiene 3 o más palabras (ej. `plastico 44*66 (carnet)`), identifica que `plastico` y `carnet` coinciden y muestra de inmediato los productos relevantes ordenados por relevancia (`PLASTICO 67*99 (CARNET)` y `PLASTICO CARNET X100 STUDMARK`).
-    - **Bumps de versión**: `product-finder.js?v=20260917_search_tokens` y `catalog.js?v=20260917_search_tokens` aplicados en todas las páginas del panel y catálogo.
-
-## Diagnóstico Forense y Optimización de Latencia en WhatsApp CRM / Outbox (18-09-2026)
-- **Causa Raíz de la Desconexión a las 10:28 AM (`status: 'logged_out'`)**:
-  - A las 10:28:13 AM (`14:28:13 UTC`), la sesión de WhatsApp del administrador (`bddc57dc-5bf9-4a72-9e1c-751d07b03164`) pasó a estado `'logged_out'`.
-  - **Conflicto por Doble Servidor Inadvertido**: En `LAPTOP-IIMASTKF`, el archivo `JJPaperServidor.vbs` en `shell:startup` inició una instancia secundaria de Node a las 8:46 AM (`PID 16668`). Como esta laptop no posee los archivos de sesión (`creds.json`), la línea 85 de `session-manager.js` ejecutaba incondicionalmente `await s.setSession({ status: 'logged_out' })`, compitiendo en tiempo real con `Supervisor-Pc` (la PC de tienda con IP `192.168.0.172`), consumiendo eventos Realtime y forzando desconexiones en la base de datos.
-  - **Parada de Procesos Fantasma en Laptop**: Se retiró `JJPaperServidor.vbs` de la carpeta de inicio de la laptop, se cerró el proceso duplicado y se blindó `session-manager.js` para que ninguna máquina secundaria sin credenciales sobreescriba el estado de la sesión en Supabase.
-- **Causa Raíz de "Veo que se envían en el frontend pero en WhatsApp salieron a las 10:27"**:
-  - **UI Optimista Silenciosa**: `assets/js/wa/wa-chat.js` inserta de inmediato una burbuja temporal en el hilo de conversación (`waMsgs.push(optimistic)`). Al confirmar la inserción en Supabase `jjp_wa_messages` con `status: 'pending'`, solo mostraba un toast fugaz si la sesión no estaba conectada, dejando el mensaje en pantalla con un icono de reloj diminuto. Para el usuario, parecía que el mensaje se había ido, pero en WhatsApp físico permanecía retenido.
-  - **Banner de Alerta Prominente**: Se implementó `<div class="wa-disconn-banner">` en `admin/whatsapp.html` y `vendedor/whatsapp.html` con aviso visual destacado en amarillo/ámbar indicando que la cuenta no está conectada y botón de 1 clic `📲 Vincular / Ver QR`.
-  - **Ticks Visuales Inteligentes**: Los mensajes en cola con sesión desconectada ahora lucen un reloj ámbar distintivo (`.wa-tick-offline`) con tooltip explícito: `En espera (WhatsApp desconectado en el servidor)`.
-- **Causa Raíz de la Latencia Excesiva ("Muy mal optimizado") en `outbox.js`**:
-  - **Descarte de Eventos Realtime por Bloqueo Booleano**: Si un mensaje interactivo llegaba vía Realtime `INSERT` mientras `sweep()` estaba en ejecución (`processing = true`), el evento se descartaba y el mensaje quedaba congelado esperando hasta **30 segundos** por el siguiente barrido de `setInterval`.
-  - **Inanición (Starvation) por Reintentos Viejos**: `order('created_at', { ascending: true }).limit(20)` traía repetidamente filas antiguas que estaban en backoff exponencial (`Date.now() < retryAfter`), bloqueando la cola e impidiendo que mensajes frescos y prioritarios del chat fueran seleccionados.
-  - **Resolución de Latencia Ultra-Baja (<500ms)**:
-    - Bucle continuo `needsAnotherSweep`: Si entran nuevos mensajes mientras el outbox procesa, se encadena inmediatamente la siguiente iteración sin esperas ni pausas.
-    - Priorización Correlativa: Consulta ordenada por `retry_count ASC` y `created_at ASC`, garantizando que cualquier mensaje nuevo (`retry_count = 0`) pase al frente absoluto de la cola.
-    - Barrido de respaldo reducido de 30s a **5 segundos** (`OUTBOX_SWEEP_MS = 5_000`).
-    - Auto-pull en reinicio (`git pull origin main`) integrado en `run-service.bat` de `Supervisor-Pc`.
-
-## Optimización Radical de Egress, Ciclo de Vida de Cotizador y Libertad Operativa POS (22-09-2026)
-- **Caché Inteligente de Clientes con Revalidación en Memoria (`sessionStorage`)**:
-  - `assets/js/vendedor/vcustomers.js` y `assets/js/admin/aclients.js` implementan `jjp_customers_cache_v1` con TTL de 5 a 10 minutos.
-  - Actualizaciones reactivas locales (*Zero Egress Re-fetch*): al crear, editar o asignar clientes (`claimCustomer`, `saveCustomer`), se actualiza el objeto localmente en memoria y en caché sin volver a descargar los 3.665 clientes de la base de datos.
-- **Cirugía de Columnas en Consultas Masivas (Eliminación de `SELECT *`)**:
-  - `quotes.js`: el listado solo consulta columnas de resumen (`id, quote_number, client_name, phone, city, estimated_total_usd, discount_pct, status, source, created_at, customer_id`). La data pesada (`items`, `notes`) solo se descarga bajo demanda al abrir o editar.
-  - `correo.js`: no solicita `html` ni `body` en la bandeja general de 100 correos, ahorrando megabytes en cada recarga.
-- **Módulo de "Ítem Libre / Personalizado" (`pos.js`, `vquotes.js`)**:
-  - Botón directo y atajo de teclado (`F12` o `Alt+I` en POS, `Alt+I` en Cotizador).
-  - Permite ingresar fletes, embalaje o servicios con descripción y precio manual en USD o Bs sin exigir SKU o variante de catálogo.
-  - Cálculos y emisión de comprobantes integrados transparentemente.
-- **Cliente Rápido de Mostrador / Consumidor Final**:
-  - Botón de 1 toque `⚡ Consumidor Final` que precarga datos básicos sin exigir teléfono obligatorio para presupuestos rápidos en mostrador.
-- **Blindaje del Ciclo de Vida en Cotizador (`vquotes.js`)**:
-  - Eliminada la columna inexistente `updated_at` en mutaciones hacia `jjp_quotes`.
-  - Erradicado el estado zombie `editingQuoteId` al pulsar "Nueva cotización", limpiar o guardar.
-  - Claves de ítems estandarizadas `${product_id}::${variant_id}` para re-inyectar `price_a, price_b, price_c_bs, price_d_bs` en modo edición, permitiendo cambiar niveles de precio A/B/C/D sin alertas de error.
-  - ID de elemento DOM de descuento corregido a `qDisc`.
-- **Selector Unificado de Precio y Cantidad (Popup MixNet UI en `product-finder.js`)**:
-  - Modal estructurado con selección de niveles A, B, C, D vía teclado directo, precio manual `M`, modificación de cantidades con `+` y `-`, y confirmación con `Enter`.
-- **Barra de Control Rápido e Interconexión Cotizador ➔ POS**:
-  - Buscador de cotizaciones guardadas con `F4` / `Alt+O`.
-  - Conversión instantánea a venta en caja POS con `F7`.
-  - Atajo `F8` / `Alt+C` para acceder al listado general de cotizaciones.
-  - Carga inversa en POS con `F11` para absorber presupuestos en caja y marcarlos como `convertido` al cobrar.
-
-## Centro de Atajos de Teclado y Hoja de Impresión Monocromática (23-09-2026)
-- **Hoja Oficial de Atajos Imprimible (`atajos_teclado_jj.html`)**:
-  - Documento standalone y hoja de referencia rápida para operadores y vendedores.
-  - Calibrado con `@media print` para ajuste exacto a **1 sola página (Carta / A4)**.
-  - **Optimización para Impresión en Blanco y Negro (B&W / Láser / Inyección)**: Cero bloques oscuros que gasten tinta/tóner; bordes de alto contraste (1.5px) y teclas virtuales `<kbd>` delineadas con doble relieve.
-  - **Organización Estructurada en 5 Secciones**:
-    1. *Punto de Venta (POS) & Caja*: `F2` (buscar), `F3` (cliente), `F4` (descuento), `F8` (pago), `F9`/`Ctrl+Enter` (registrar venta), `F10`/`Ctrl+P` (imprimir factura), `F11`/`Alt+C` (cargar cotización), `F12`/`Alt+I` (ítem libre), `F7`/`Alt+L` (limpiar ticket).
-    2. *Edición Rápida del Ticket*: `F6`/`Alt+T` (activar modo ticket), flechas `↑`/`↓` (navegar), `+`/`-` (cantidades), `A`/`B`/`C`/`D` (nivel de precio), `Supr`/`Backspace` (eliminar fila), `Enter`/`Esc` (volver al buscador), `Tab` (salto de campos).
-    3. *Selector de Precios MixNet*: flechas `↑`/`↓`, teclas directas `A`, `B`, `C`, `D`, precio propio `M`, `+`/`-` y `Enter`.
-    4. *Cotizador de Ventas*: `F4`/`Alt+O` (buscar cotizaciones), `F7` (facturar en POS), `F8`/`Alt+C` (ver cotizaciones), `F9` (guardar), `F10` (imprimir PDF presupuesto), `Alt+N` (nueva cotización).
-    5. *Navegación Global*: `Ctrl+K` / `Alt+K` (Paleta de navegación / Command Palette), `Esc` (cancelador universal), `Enter`/`Shift+Enter` (mensajes WhatsApp).
-  - Incluye guía del flujo de venta rápida sin ratón en 5 segundos.
-
-
-
-
-
-## Mejoras Estructurales y de Operatividad (23-09-2026)
-- **Corrección de Estado de Pedidos**: Las ventas directas desde POS (ssets/js/vendedor/pos.js) y los pedidos de MixNet (wa-server/src/mixer.js) ahora inician en estado `pagado` en lugar de `pendiente_pago`, registrándose automáticamente como completados/facturados y rebajando inventario.
-- **Suite Anti-Spam de Campañas Reforzada**: Se implementó una variación profunda de spintax por IA en `gemini-client.js` (variación de párrafos, estructura y emojis al azar, no solo sinónimos) y se inyectaron retrasos asimétricos (1500ms extra en outbox para adjuntos compuestos, y el cron de campañas subió a 42s) para evadir los algoritmos restrictivos de Meta.
-- **Inteligencia de Lectura en Prospectos**: Se habilitó una función en `assets/js/admin/vprospectos.js` que permite pegar texto crudo (ej. datos de Google Maps, listas sin formato o chats). Gemini 3.5 lo escanea, lo transforma a JSON estructurado y lo inserta. La base de datos actual de prospectos fue vaciada por petición.
-- **Selector de Actitud de IA para Campañas**: El envío de campañas ahora despliega un modal visual (antes del análisis masivo) con 4 intenciones ("Presentación Comercial", "Seguimiento", "Recordatorio", "Oferta Relámpago") instruyendo a la IA sobre el tono exacto para redactar.
-- **Reemplazo Directo de Ítems en Carrito (Swap)**: El botón 🔄 (Reemplazar) en `vquotes.js` y `pos.js` ahora funciona perfectamente. Pone el foco en el input `posSearch`, preserva la cantidad original en memoria y, al confirmar el nuevo producto, reconstruye el carrito (ticket) dejando el ítem nuevo en la misma posición (índice) que ocupaba el viejo, manteniendo el orden visual del usuario.
-- **Rediseño de Comprobantes**: Se reescribió el CSS de `comprobante.html` eliminando colores de marca para lograr un diseño "Premium B/N" optimizado para impresoras térmicas/láser en formato A4 ancho.
-
-## Restauración de Prospectos, Extracción Inteligente IA, Anti-Duplicados y Fix de Campañas (24-09-2026)
-- **Reparación del Puente MixNet (`wa-server/INSTRUCCIONES_REPARAR_MIXNET.md`)**:
-  - Directivas para el supervisor OpenCode en la PC remota del servidor JJ Paper.
-  - Sincronización SMB desatendida entre ambas máquinas (`\\SERVIDOR-MIXNET\JJ-PAPER-MIXER\`) con formato correlativo de pedidos y cotizaciones sin duplicación.
-- **Saneamiento Masivo de Emojis Rotos**:
-  - Reemplazados emojis incompatibles en 37 archivos HTML y JS (`🛍️`→`💰`, `🗂️`→`📂`, `🏷️`→`🔖`, `🗃️`→`📁`, `🧾`→`📃`, `🚪`→`🔓`, `✉️`→`📧`).
-- **Restauración de Base de Datos Core (`public.jjp_prospects`)**:
-  - Recuperado y reimportado el maestro de 282 cuentas corporativas B2B (Farmatodo, Plumrose, Luvebras, Clínicas, Seguros) en Supabase Core (`qxgdrfkobbhdzgtoiavv`).
-  - Entregado archivo maestro en el Escritorio: `C:\Users\PC\Desktop\CRM_Comercial_JJ_Paper.xlsx` (Pestaña 1: 284 cuentas; Pestaña 2: 447 cuentas correlativas CLI-001 a CLI-447).
-- **Módulo de Prospectos e Inteligencia Comercial (`admin/prospectos.html`, `vprospectos.js`, `campaign-editor.js`, `gemini-client.js`)**:
-  - **Corrección Crítica Modal Actitud IA (`campAiToneModal`)**: `.ce-picker-overlay` tenía `display: flex;` incondicional en CSS y no obedecía `.op`, quedando permanentemente congelado sobre la pantalla. Corregido en CSS (`display: none;` y `.ce-picker-overlay.op { display: flex !important; }`), handlers de cierre en botón Cancelar, ✕, backdrop click y Escape. El botón "Empezar Análisis ⚡" cierra el modal inmediatamente y arranca el procesamiento.
-  - **Mapeo de Actitud y Persistencia Asíncrona**: `analyzeCustomersBatch` mapea `attitude` a perfiles psicológicos (`personality`) y aperturas (`messageType`). El guardado en `jjp_prospects` ahora utiliza `await` y sincroniza las variables en memoria (`ai_analysis`, `suggested_subject`, `custom_email_body`, `custom_wa_body`) para garantizar trazabilidad.
-  - **Carga de Archivos TXT y Extracción con IA**: Selector de archivos acepta `.xlsx, .xls, .csv, .txt`. `GeminiClient.parseProspectsText` mejorado para extraer la ficha B2B completa.
-  - **Algoritmo Anti-Duplicados Multi-Criterio (`importExtractedProspects`)**: Indexa prospectos existentes por nombre normalizado (sin sufijos C.A./S.A.), email corporativo y últimos 7 dígitos de teléfono. Si una empresa ya existe, enriquece sus campos vacíos sin duplicar; si es nueva, la inserta.
-  - **Tema Oscuro Completo (`[data-theme="dark"]`)**: Tarjetas KPI, selectores de IA, tabla de prospectos y cajas modales conmutan a Obsidian (`#121824`, `#1c2638`) con tipografías de alto contraste (`#ffffff`, `#94a3b8`) sin textos negros invisibles.
-
-## Blindaje de Comprobantes Fiscales, Soberanía de Datos y Rediseño A4 Punto Medio (25-09-2026)
-- **Principio de Soberanía Absoluta del Documento (`comprobante.html`)**:
-  - `doc.client_name` / `inv.nomcli` y `doc.rif` son inmutables y soberanos. Ningún lookup auxiliar en `jjp_customers` puede sobrescribir el cliente de un comprobante.
-  - Erradicado el bug crítico de coincidencia por palabras sueltas (`for (const w of words) ilike('name', %${w}%)`).
-  - La resolución de dirección fiscal real ahora es estricta: `customer_id` exacto, coincidencia limpia de dígitos de RIF (`cleanDigits(rif) === digits`), o código MixNet exacto en notas.
-- **Rediseño Proporcional "Punto Medio" en Hoja A4**:
-  - Factura calibrada para cubrir armónicamente el 70% - 80% de la hoja A4 sin desbordar a página 2 ni parecer un ticket encogido.
-  - Inserción de hasta 6 renglones guía sutiles para facturas de pocos ítems. Facturas de 6+ productos usan sus filas naturales sin espacios vacíos.
-  - Eliminada la columna "Marca". Tasa oficial BCV integrada de forma compacta y elegante al pie de los totales.
-  - Área de firmas estructurada con 40% para sello húmedo (borde punteado `#4b5563`, fondo `#fcfcfc`, sellos vectoriales) y 60% para firma y conformidad (54px de altura).
-- **Optimización de Marcas de Agua (Filigrana Institucional)**:
-  - Opacidad del logo central JJ Paper ajustada a `0.08` (8%) con diámetro ampliado a `380px`.
-  - Contraste superior a 17:1 sobre textos negros garantizando total legibilidad sin interferencias ni confusión visual.
-  - Rayado cebra de la tabla transformado a `rgba(0,0,0,0.018)` translúcido para no cortar la filigrana.
-  - Directivas en `@media print` fijando `opacity: 0.075 !important;` y `print-color-adjust: exact !important;` para impresión física láser y PDF de alta fidelidad.
-
-## Centralita de Llamadas B2B, Motor Telefónico y Saneamiento de Prospectos (28-09-2026)
-- **Contexto de la Sesión y Requerimientos Solicitados**:
-  - Implementación de la centralita telefónica B2B para llamadas directas desde PC usando headset (micrófono + auricular de alta fidelidad).
-  - Independencia de red WiFi (puente con dispositivo móvil Android / WebRTC / USB).
-  - Cronómetro de llamada en tiempo real, tipificación de llamadas (`Interesado / Enviar Catálogo`, `Pide Cotización`, `No Contesta / Buzón`, `Número Inválido`, `Volver a Llamar`, `Rechazado`) con persistencia en Supabase.
-  - Soporte para cola secuencial de contactos con avance automático (`Siguiente` / `Anterior`).
-  - Cobertura prioritaria para las carteras de Keyder: **🏢 Prospectos B2B (470 Empresas)**, **⭐ Zona 010 (VIP)** y **🚚 Zona 020 (MixNet)**.
-  - Widget flotante persistente para permitir multitarea (navegar al POS, Cotizador, Monitor o Catálogo sin cortar la llamada activa).
-
-- **Análisis de Errores y Desviaciones Durante el Desarrollo**:
-  1. *Ausencia del botón en la interfaz*: Inicialmente se crearon las bases técnicas pero el botón de acceso directo "Llamadas B2B" en el menú de navegación lateral (`sidenav.js`) no estaba visible en la sección de Comunicación para el administrador, dejando al usuario sin acceso visual a la herramienta.
-  2. *Sobrecarga de procesos en segundo plano*: Se dejaron tareas de Node y puentes en segundo plano ejecutándose en bucle, consumiendo memoria y CPU del equipo del usuario de forma innecesaria.
-  3. *Fallo de sincronización en el puente telefónico*: El estado marcaba "llamada activa" o "puente desconectado" sin generar tono audible en el headset ni accionar la línea celular, debido a la falta de orquestación directa entre la capa de audio WebRTC y el controlador telefónico.
-  4. *Bug crítico en la consulta de Prospectos ("No hay contactos en esta cartera")*: En `vllamadas.js`, la función `loadQueueFromSource('prospectos_b2b')` realizaba un `.select('phone, last_contact_channel')` sobre `jjp_prospects`. Al no existir la columna `phone` (el esquema real posee `phone_1` y `phone_2`) ni `last_contact_channel`, PostgREST arrojaba error PostgreSQL `42703 (column "phone" does not exist)` y devolvía `data: null`, vaciando la cola de llamadas.
-  5. *Corrupción histórica de números telefónicos pegados en `jjp_prospects`*: Durante importaciones previas, múltiples números telefónicos de una misma empresa se concatenaron en celdas de 22 a 26 dígitos seguidos (ej. `0243269421002432694216`), provocando un desastre en la base de datos que impedía la marcación y lectura.
-  6. *Inconsistencias en tema oscuro*: Botones, títulos y contenedores modales presentaban contrastes rotos (textos negros sobre fondos oscuros o cajas blancas deslumbrantes).
-
-- **Cómo se Construyó Funcional (Solución Definitiva y Arquitectura)**:
-  1. *Saneamiento y Normalización Masiva de `jjp_prospects`*:
-     - Se auditó la tabla completa (470 prospectos B2B).
-     - Se sanearon y dividieron con éxito **454 registros con números concatenados**, extrayendo prefijos venezolanos (`0212`, `0241`, `0243`, `0244`, `0414`, `0424`, `0412`, `0416`, `+58`).
-     - Cada registro se estructuró limpiamente en `phone_1` (fijo/central) y `phone_2` (móvil/WhatsApp) con formato estandarizado `0212-XXXXXXX` y `0414-XXXXXXX`.
-  2. *Corrección del Motor de Llamadas (`assets/js/admin/vllamadas.js`)*:
-     - Query corregido: `.select('id,company_name,contact_name,phone_1,phone_2,email,address,city,sector,notes,status,last_contact_at,contact_count')`.
-     - Manejo de número principal (`phone`) y alternativo (`alt_phone`), inyectando el número secundario en notas y cabecera de la ficha.
-     - Carga inmediata de las 470 empresas B2B y navegación fluida entre contactos.
-  3. *Visualización Clara en Módulo de Prospectos (`assets/js/admin/vprospectos.js`)*:
-     - Tabla actualizada con badges tipográficos diferenciados: `📞 Fijo / Central` y `📱 Celular / WA` en vez de texto fusionado.
-  4. *Validación y Despliegue en Cloudflare Pages*:
-     - Sintaxis validada con `node -c`, cache busters actualizados a `?v=20260928_clean_prospects` en `admin/llamadas.html` y `admin/prospectos.html`.
-     - Código desplegado en `origin main` (commit `29813c1` y `b7c...`).
-
-## Reparación Conexión Real GSM, Blindaje de Correlativos y Buscador en Pedidos (28-09-2026)
-- **Instalación Oficial de ADB y Activación del Puente GSM**:
-  - Instalado Google Platform-Tools (ADB 1.0.41) en `tools/adb/adb.exe`.
-  - Puerto nativo `127.0.0.1:8789` y proxy LAN `http://192.168.0.172:8787/lan/gsm/status` 100% operativos. Al conectar el celular Android con cable USB y depuración activada, el puente responde `connected: true` permitiendo discar llamadas reales por la línea telefónica física mientras el audio opera por el headset de la PC.
-- **Blindaje de Correlativos en `mixer.js`**:
-  - Eliminada la mutación de `order_number` y `quote_number` en Supabase al exportar a DBF. Los identificadores creados por el usuario o generados en la web son inmutables.
-  - Inyección de fecha real de emisión (`docCreatedAt`) en `sweepMixnetDbf` parseando `pr.emision` (`YYYYMMDD`), evitando que importaciones masivas inunden la cola de pedidos de hoy.
-  - Filtro anti-duplicados reforzado verificando `order_number` y `#numDoc` en notas.
-- **Buscador Reactivo en Tiempo Real**:
-  - Incorporada barra de búsqueda instantánea en `admin/pedidos.html` y `vendedor/pedidos.html` (`?v=20260928_search_orders`) con filtrado multidimensional por número, cliente, RIF, notas o asesor.
-- **Servidor Persistente en Segundo Plano**:
-  - `wa-server` activo como daemon en Windows (PID 9264) escuchando en puertos 8786 (candado), 8787 (LAN/Proxy) y 8789 (GSM Bridge).
-
-## Suite de Cotizaciones con IA: Priorización Flash 3.6, Benchmark en Vivo y Presentación Corporativa B2B (28-09-2026)
-- **Corrección Crítica en Pre-armador de Cotizaciones (`gemini-client.js`, `vquotes.js`)**:
-  - **Causa del Error "Key rechazada o inválida (400)"**: `parseQuoteRequest` pasaba argumentos posicionales `callGemini(prompt, 'gemini-3.1-flash-lite')` mientras `callGemini` requería un objeto `{ prompt, ... }`. El parámetro `prompt` resultaba `undefined`, enviando a Google `parts: [{}]` que respondía con HTTP 400 (`INVALID_ARGUMENT`), catalogado erróneamente por el catch antiguo como fallo de API Key.
-  - **Firma Dual y Validación**: Se adaptó `callGemini` para aceptar tanto `callGemini({ prompt, ... })` como `callGemini(prompt, model)`. Validación estricta que impide el envío de payloads vacíos a Google.
-- **Benchmark en Vivo de Modelos Gemini (Auditoría de las 7 Llaves del Pool)**:
-  - Todas las 7 llaves del pool (`AIzaSy...` y `AQ.Ab8...`) están 100% activas y autorizadas.
-  - Modelos deprecados por Google: `gemini-1.5-flash`, `gemini-2.5-flash`, `gemini-2.5-flash-lite` devuelven HTTP 404 (retirados de la API v1beta).
-  - `gemini-3.1-flash-lite`: Presenta saturación intermitente con respuestas HTTP 503 o retardos de hasta 38s.
-  - **`gemini-3.6-flash`**: Se comprobó como el modelo más veloz y estable de Google AI, respondiendo en **1.7s a 3.0s** con HTTP 200 en todas las llaves del pool.
-  - Se reorganizó la cascada para que `gemini-3.6-flash` sea prioritario tanto en modo `fast` como `pro`, con fallback a `gemini-3.1-flash-lite`.
-  - Reintentos ante timeout o error de red: Usa `continue` para probar el siguiente modelo dentro de la misma clave antes de rotar de llave.
-  - Cache-busting actualizado a `?v=20260928_v2_ok` en `admin/cotizador.html` y `vendedor/cotizador.html`.
-  - Desplegado en Cloudflare Pages (`origin/main`, commit `d1e26e5`).
-- **Presentación Corporativa Oficial B2B (PDF, PPTX, DOCX) para Proveedores / Nestlé**:
-  - Documento ejecutivo apaisado (Landscape A4, 4 láminas) diseñado para homologación de proveedores y acuerdos de distribución mayorista.
-  - RIF oficial institucional: `J-29537545-0` (JJ Paper C.A., Caracas).
-  - Portafolio de marcas aliadas oficiales: 3M, Kores, HP, Epson, Celoven, Artesco, Caribe, Sharpie.
-  - Archivos generados y disponibles en el Escritorio del usuario:
-    - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.pdf`
-    - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.pptx`
-    - `C:\Users\Supervisor\Desktop\Presentacion_Corporativa_JJ_Paper.docx`
-
-## Conexión Bidireccional Real y Edición "Un Solo Cuerpo" de Pedidos y Cotizaciones JJ Paper ⇄ MixNet (29-09-2026)
-- **Diagnóstico y Problemas Resueltos**:
-  - Los pedidos o cotizaciones no se podían modificar sin duplicarse en MixNet/JJ Paper o generar números artificiales (`JJP-YYMMDD-XXXX`).
-  - `mixer.js` poseía filtros naive como `if (exportedOrders.has(num)) return false;` que impedían sincronizar cambios de pedidos existentes hacia MixNet.
-  - En sentido inverso, `sweepMixnetDbf` ignoraba actualizaciones hechas en MixNet porque el número ya residía en `exportedOrders`.
-  - La ejecución de `wa-server` moría al cerrarse la sesión de Antigravity debido a que corría como subproceso hijo del agente.
-- **Lección Crítica: Prohibición de Escritura Binaria Directa en DBF (`wa-server/src/mixer.js`)**:
-  1. **Desincronización de Índices Clipper (`.NTX`)**:
-     - Las tablas de MixNet operan bajo arquitectura Clipper/Harbour. Modificar bytes directamente en los `.DBF` desde Node.js (`fs.writeSync`) sin recompilar simultáneamente los índices `.NTX` corrompe los árboles de punteros B-Tree.
-     - Esto ocasiona que los browse de MixNet entren en bucle, repitan registros fantasmas en cascada y crucen reportes de nómina y comisiones.
-     - **Regla Estricta**: Queda terminantemente prohibida la escritura binaria directa en los `.DBF` de producción de MixNet desde Node.js. `exportOrderToDbf` y `exportQuoteToDbf` están permanentemente desactivadas.
-  2. **Mapeo Riguroso de Vendedores y Nómina**:
-     - `005` es exclusivo de Jose (mostrador de tienda física). **JAMÁS debe asignarse como fallback a Keyder Salazar**.
-     - Keyder Salazar es estrictamente `010` (Zona 010) y `020` (Zona 020).
-     - Las comisiones en MixNet se liquidan agrupando por `codven`; cualquier cruce destruye la nómina.
-  3. **Huellas Digitales y Filtro Anti-Eco**:
-     - Filtros estrictos en barridos y Realtime (`source !== 'mixnet'`, `!order_number.startsWith('MIX-')`, notas sin `[MixNet`) impiden re-exportar documentos creados en MixNet.
-  4. **Canal Saliente Seguro**:
-     - La integración JJ Paper ➔ MixNet se realiza exclusivamente mediante buzón de archivos limpios (CSV/TXT estructurados en carpetas de intercambio `M:\pedidos`, `M:\cotizaciones`) o módulos CLI nativos en Harbour que abran las tablas con sus índices correspondientes.
-  4. **Edición Directa en POS (`assets/js/vendedor/pos.js`)**:
-     - Soporta `?order=[NUM]`, `?pedido=[NUM]`, `?edit=[NUM]`.
-     - Corrección de cast UUID (`isUuid ? eq('id') : eq('order_number')`) para prevenir error PostgreSQL 400.
-     - Activa banner informativo `✏️ Modo Modificación: Pedido #[NUM]`, botón `💾 Guardar Cambios en Pedido #[NUM]` y cancelación limpia.
-     - Realiza `UPDATE` en `jjp_orders` manteniendo el mismo ID y `order_number`.
-  5. **Edición Directa en Cotizador (`assets/js/vendedor/vquotes.js`)**:
-     - Soporta `?edit=...`, `?quote=...`, `?cotizacion=...` tanto por UUID como por correlativo de 8 dígitos.
-     - Carga ítems y cliente en el ticket. Actualiza `jjp_quotes` conservando el mismo número.
-     - Aislamiento estricto por vendedor: solo puede editar cotizaciones de su cartera asignada (`seller_id === activeSeller.id`), admin conserva control global.
-  6. **UI de Acceso Rápido**:
-     - Añadidos botones `✏️` en tablas y modales de pedidos y cotizaciones tanto en `/admin/` como en `/vendedor/`.
-  7. **Desacoplamiento Total de `wa-server` al Segundo Plano de Windows**:
-     - Invocado mediante WMI de Windows (`Invoke-CimMethod -ClassName Win32_Process -MethodName Create` ejecutando `wscript.exe start-hidden.vbs`).
-     - Árbol de procesos independiente: `WmiPrvSE.exe` ➔ `cmd.exe /c run-service.bat` (PID `3684`) ➔ `node.exe src/index.js` (PID `4760`).
-     - **0 tareas activas en Antigravity**: el servidor permanece 24/7 en Windows, con rotación de logs en `wa-server/logs/wa-server.log`.
-
-- **Bitácora de Pendientes**:
-  - [ ] **Prueba de ciclo completo en caja física**: Realizar una venta en el POS editando un pedido existente y corroborar que el cajero de MixNet visualice de inmediato los ítems actualizados en `M:\comp01\MXENCPED.DBF` / `MXRENPED.DBF`.
-  - [ ] **Mapeo persistente de unidad M:**: Verificar que la unidad de red `M:\comp01` se reconecte automáticamente al reiniciar la PC sin requerir ingreso manual de credenciales de Windows.
-  - [ ] **Auditoría de estatus facturado**: Comprobar que al facturar en MixNet un pedido modificado, el sweep de facturas (`sweepMixnetInvoices`) enlace el número de factura fiscal SENIAT sin inconsistencias de montos.
-
-## Corrección de Adjudicación de Vendedores MixNet y Ventas Manuales para Keyder Salazar (29-09-2026)
-- **Problema de Adjudicación Fantasma a Keyder Salazar**:
-  - Pedidos y cotizaciones importados desde MixNet con `codven = '002'` (Luis Alarcon en MixNet) o códigos sin mapear caían en fallback a `effectiveCustSeller`.
-  - Como los 3.474 clientes de MixNet fueron importados en Zona 020 asignados inicialmente a Keyder Salazar (`bddc57dc...`), los pedidos de Luis Alarcon y otros vendedores de tienda se le atribuían falsamente a Keyder en JJ Paper.
-  - Además, en `jjp_profiles` faltaban perfiles de Core (Yovanni, Marianela, Luis Alarcon).
-  - En el panel administrativo de pedidos (`admin/orders.js`), la lista filtraba solo `.eq('role', 'vendedor')`, dejando a Keyder fuera de la lista de selección manual.
-  - En POS y Cotizador no existía selector para atribuir ventas o cotizaciones a Keyder Salazar o a otros vendedores.
-- **Solución Consolidada**:
-  1. **Mapeo DBF Exhaustivo (`wa-server/src/mixer.js`)**:
-     - `SELLERS_BY_CODVEN` ajustado estrictamente: `010/020` (Keyder), `005` (Jose en tienda física), `004/006` (Yovanni), `008` (Marianela), `014` (Andreina), `002` (Luis Alarcon), `001` (Mary Garcia), `025` (Ana Barajas), `026`, `032`, `003`, `033`.
-     - Prioridad irrefutable al vendedor de MixNet (`codven`). Prohibido atribuir clientes generales a Keyder sin código explícito de Keyder (`010`/`020`).
-  2. **Re-adjudicación en BD**: Corregidos 6 pedidos y 2 cotizaciones históricas mal asociadas a Keyder, vinculándolas a su vendedor real Luis Alarcon (`002`).
-  3. **Perfiles Sincronizados**: Creados y actualizados perfiles en `jjp_profiles` vinculados a `auth.users` para todo el equipo.
-  4. **Selector Dinámico en POS y Cotizador**: Añadidos `#posSellerSelect` y `#qSellerSelect` en cabeceras de `pos.html` y `cotizador.html` (tanto en `/admin/` como en `/vendedor/`), permitiendo a los administradores registrar y adjudicar ventas/cotizaciones a Keyder Salazar o a cualquier vendedor.
-  5. **Búsqueda Global para Administradores**: Actualizado `cust-autocomplete.js` y `pos.js` (`posSearchCustomer`) para que los administradores busquen y facturen a cualquier cliente de la base de datos sin restricción de cartera.
-  6. **Atribución en Pedidos y Cotizaciones**: Keyder Salazar (`role: 'admin'`) y todos los vendedores activos ahora están disponibles en los modales de detalle de pedidos y cotizaciones para reasignación manual inmediata.
-
-## Protocolo Maestro y Purga Definitiva de MixNet ERP (29-09-2026)
-- **Documento Maestro**: Consultar [ARQUITECTURA_Y_COMPORTAMIENTO_MIXNET.md](file:///C:/Users/Supervisor/Desktop/JJ-PAPER/ARQUITECTURA_Y_COMPORTAMIENTO_MIXNET.md).
-- **Diagnóstico del Incidente**:
-  - Al inyectar registros en `MXENCPED.DBF` y `MXENCCOT.DBF` desde Node.js sin actualizar los archivos de índices Clipper `.NTX`, los árboles B-Tree se desalinearon provocando bucles en pantalla de MixNet y multiplicando visualmente registros con `005`.
-  - Se descubrió que entre el 23 y el 25 de septiembre se habían inyectado 138 pedidos cabecera y 12 cotizaciones con comentarios como `Cotización COT-260923-2866` y `[MixNet Caja]`.
-- **Purga Quirúrgica Realizada**:
-  - Copias de seguridad en `M:\comp01\backups\CLEAN_PURGE_*.DBF`.
-  - Marcados como borrados (`0x2A` / `'*'`) 138 pedidos en `MXENCPED.DBF` y 790 renglones en `MXRENPED.DBF`.
-  - Marcadas como borradas 12 cotizaciones en `MXENCCOT.DBF` y 78 renglones en `MXRENCOT.DBF`.
-  - En `MXCTACLI.DBF` se restauró el vendedor de los clientes afectados.
-  - Resultado verificado: **0 registros activos con comentarios JJ o `[MixNet]`, 0 pedidos fantasma de `005`**. Todos los pedidos reales (Luis Alarcón `002`, Marianela `008`, Andreina `014`, Yovanni `006`, `032`) permanecen 100% íntegros.
-- **Acción Obligatoria en MixNet**:
-  - Ejecutar en MixNet: **`Mantenimiento` ➔ `Reindexar Archivos` (u `Organizar Archivos`)** para que Clipper regenere los `.NTX` descartando los registros borrados y saneando las pantallas.
-- **Canal de Integración Autorizado**:
-  - **Lectura**: 100% segura para sincronizar stock (`MXCTAINV`), facturas fiscales SENIAT (`MXENCFAC`/`MXRENFAC`) y ventas de tienda.
-  - **Escritura**: Prohibida la escritura binaria directa en DBF. La salida de JJ Paper se realiza exclusivamente por buzón de intercambio CSV/TXT en `M:\pedidos` para importación nativa en MixNet.
-
-## Saneamiento Quirúrgico Definitivo y Calibración de Correlativos MixNet (29-09-2026 - Noche)
-- **Colisión Resuelta en Cotización `#00053315`**:
-  - Identificada duplicidad en `MXENCCOT.DBF`: Rec 9934 (fantasma CASHEA `$3736.34` con 305 agendas) vs Rec 9935 (real Luis Alarcón `002`, `$257.53` para U.N.E. Marítima con tóners `VS-T115A`).
-  - Purga aplicada: marcado borrado Rec 9934 y sus renglones en `MXRENCOT.DBF`. Preservada 100% intacta la cotización real de Luis Alarcón.
-- **Limpieza de Duplicados Restantes**:
-  - Purgados registros inyectados `#00053324` (Rec 9944), `#00053326` (Rec 9947), `#00112428` (Rec 2445) y `#00112544` (Rec 2606 CASHEA).
-  - Preservadas las cotizaciones y pedidos reales legítimos de tienda y vendedores.
-  - Todos los comentarios de registros borrados fueron rellenados con espacios (`0x20`), logrando **0 huellas `[MixNet]` y 0 registros fantasma activos**.
-- **Calibración Crítica de Correlativos**:
-  - `MXNUMPED.DBF`: Calibrado a **`00112546`** (el pedido real más alto emitido hoy fue `#00112545` de Luis Alarcón para ARCOOP SUPLIDORES).
-  - `MXNUMCOT.DBF`: Calibrado a **`00053331`** (siguiente correlativo tras `#00053330`).
-- **Mapeo de Rutas de Red**:
-  - Raíz MixNet: `Z:\` (`\\servidor\MIX11`) con base de datos en `Z:\comp01\`.
-  - Unidad alternativa: `M:\` (`\\servidor\d`) con base de datos en `M:\MIX11\comp01\`.
-
-## Control Granular de Redacción IA, Reparación de Modales y Arquitectura Maestra (04-10-2026)
-- **Reparación del Scroll en Modal "Actitud y Enfoque" (`campAiToneModal`)**:
-  - Causa raíz: `.ce-picker-dialog` poseía una altura fija sin scroll en el contenedor hijo, truncando el modal tras "Cliente VIP" en pantallas <= 800px o con escalado de Windows (125%/150%) y ocultando los botones de acción.
-  - Solución: Reestructuración en 3 capas (`.ce-picker-header` fijo, `.ce-picker-body` con `max-height: calc(90vh - 130px); overflow-y: auto; -webkit-overflow-scrolling: touch;`, y `.ce-picker-footer` fijo anclado).
-- **Control Total y Granular de Redacción con IA**:
-  - `gemini-client.js`: Nuevos parámetros `customInstructions`, `msgLength`, `priceMode`, `ctaGoal` inyectados en `draftCampaignMessage`, `analyzeAndDraftProspectB2B`, `analyzeCustomerAndDraftMessage` y `analyzeCustomersBatch`.
-  - `campaign-editor.js`: Nuevo modal `campAiDraftModal` (`openAiDraftModal`) que reemplaza el primitivo `prompt()`, permitiendo configurar directivas del asesor, longitud (equilibrado / ultra-conciso / detallado), manejo de precios (con precios $ y Bs / solo disponibilidad / por bulto) y llamado a la acción (cotización / inventario / catálogo / visita).
-  - Sincronización en tiempo real con los selectores de pantalla `ceCommercialTone`, `ceTargetSector`, `ceValueHook`.
-- **Manual Maestro de Arquitectura Total y Prevención de Fallas**:
-  - Consolidado [`ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md`](file:///C:/Users/PC/Desktop/JJ%20PAPER/ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md) (y copia en `C:\Users\PC\Desktop\ARQUITECTURA_TOTAL_Y_GUIA_OPERATIVA_JJ_PAPER.md`).
-  - Documenta la topología de red completa con Mermaid, contraste Frontend vs Backend (`wa-server`) vs Nube (Supabase Multi-proyecto), matriz de las 8 fallas operativas y plan de migración a VPS.
-
-## Asistente de Voz Interactivo, Generador Comercial de Packshots IA y Modernización del Clasificador (04-10-2026)
-- **Asistente de Voz Inteligente con Razonamiento y Web Speech API (`web/enlazar.js`, `enlazar.py`)**:
-  - Integración nativa de síntesis de voz (TTS) y reconocimiento de voz (STT) en español (`es-VE`/`es-ES`/`es-MX`).
-  - Botón interactivo `[ 🎙️ ]` en cada tarjeta de la cola que abre el modal `#voice-consult-modal`.
-  - Endpoint `POST /api/link/voice-consult`: Consulta a Gemini analizando el producto visto vs los candidatos del catálogo y devuelve `pregunta_voz`, `dilema_tecnico` y `opciones` con SKUs y acciones estructuradas.
-  - El asistente verbaliza el dilema técnico y la pregunta en voz alta. Al finalizar la locución activa automáticamente el micrófono y escucha la respuesta del operador ("sí", "primera opción", "buscar otro", "descartar"), ejecutando la acción de inmediato o permitiendo selección táctil/ratón.
-- **Generador Comercial de Fotos con IA Estilo Packshot de Estudio (`POST /api/link/generate-photo`, `POST /api/link/approve-generated-photo`)**:
-  - Resuelve la carencia de fotos para los 2.111 productos sin imagen en el catálogo de JJ Paper.
-  - Traducción asistida por Gemini: traduce títulos de papelería venezolana ("Resma Caribe 75g", "Carpeta Marrón con Gancho Oficio", "Borrador Pizarra") a descripciones en inglés para fotografía comercial de retail, con negativos estrictos contra personas, manos, oficinas o muebles.
-  - Renderizado de packshot 800×800 con iluminación softbox de estudio sobre fondo blanco puro (`#FFFFFF`) o verde esmeralda institucional JJ Paper (`#0B3327`).
-  - Modal `#ai-generate-photo-modal`: Permite previsualizar la foto, cambiar el tema de fondo, editar el prompt y regenerar.
-  - Aprobación en 1 clic: Descarga la imagen, la optimiza a WebP (800px máx, calidad 80), la sube al bucket `jjp-products` en Proyecto C (Storage), actualiza `image_url` en `jjp_products` y `jjp_product_variants` en Proyecto A (Core) y guarda una copia local en `Clasificadas/`.
-- **Modernización y Rediseño de Alta Densidad del Clasificador (`web/index.html`, `web/style.css`, `web/enlazar.js`)**:
-  - Cuadrícula compacta y ergonómica (`repeat(auto-fill, minmax(285px, 1fr))`) que muestra 10–12 tarjetas por pantalla con selector de densidad (24 / 48 / 96) y conmutador Grilla / Lista.
-  - Selector de candidatos alternativos en línea (`.lk-candidate-select`) para cambiar de producto sin abrir modales.
-  - Botón verde directo `[⚡ Enlazar]` con conversión inmediata a WebP 800px y animación de confirmación.
-  - Botón `[ 🎨 Generar con IA ]` integrado tanto en la vista de productos faltantes como en los resultados del buscador de catálogo para productos sin foto.
-
-## Cockpit Colaborativo Continuo Humano + IA y Priorización Visual en Catálogo Público (05-10-2026)
-- **Sala Colaborativa Continua Humano + IA (`#collab-modal`, `web/enlazar.js`, `enlazar.py`)**:
-  - **Flujo Ininterrumpido Manos Libres**: El operador y la IA analizan juntos las fotos pendientes en una sesión continua. La IA observa el empaque con Gemini Vision, identifica marcas, modelos, medidas (x12, x24, carta, oficio, 23/10, etc.), formula dilemas técnicos y preguntas en voz alta con acento natural en español, y escucha la instrucción del usuario.
-  - **Control por Voz y Teclado**: Soporte para comandos por voz con Web Speech API ("opción 1", "la dos", "sí", "confirmar", "saltar", "descartar", "buscar grapas") y atajos de teclado rápidos (`1`, `2`, `3`, `Enter`, `S` para saltar, `D` para descartar, `Barra espaciadora` para repetir mensaje).
-  - **Cockpit Visual de 2 Columnas**:
-    - **Panel Izquierdo**: Previsualización ampliada con zoom suave, badges de resolución, nombre de archivo, panel de extracción OCR (marca, medidas, cantidades, colores y texto de empaque) y visualizador dinámico de ondas sonoras de voz.
-    - **Panel Derecho**: Diálogo con el Copiloto JJ, tarjeta de diagnóstico visual y dilema técnico, tarjetas interactivas de candidatos numeradas `[1]`, `[2]`, `[3]` con porcentaje de coincidencia, barra de transcripción en tiempo real, buscador rápido de catálogo y acceso directo al Generador Packshot IA.
-  - **Persistencia y Avance Automático**: Al confirmar una opción, la imagen se optimiza a WebP 800px q=80, se sube a Supabase Storage (`jjp-products`), se actualiza la base de datos, se refresca la vista materializada y la sala avanza automáticamente al siguiente ítem sin pausas ni clics adicionales.
-- **Priorización Front-and-Center de Productos con Foto en Catálogo Público (`catalogo.html`, `assets/js/catalog.js`)**:
-  - **Diagnóstico y Saneamiento de `jjp_catalog_flat`**: La vista materializada en PostgreSQL (Core Proyecto A `wwcdxqpibequfohbgejs`) tenía 0 imágenes debido a que nunca se había ejecutado un `REFRESH`. Se ejecutó `REFRESH MATERIALIZED VIEW jjp_catalog_flat;` restaurando de golpe las 284 fotos oficiales y se creó la RPC `refresh_catalog_flat()` para auto-actualización inmediata tras cada enlace.
-  - **Dominio de Página 1 (`_hasPhoto`)**: `normalizeProduct` clasifica la disponibilidad de foto (`p._hasPhoto = Boolean(p.image_url || vs.some(v => v.image_url))`), y el algoritmo por defecto en `getFiltered` ubica todos los productos con fotografía oficial en las primeras páginas de la tienda pública, desplazando los ítems sin foto al final.
-  - **Selector de Filtro Rápido**: Incorporada la opción `📸 Solo con foto oficial` en el desplegable de ordenación de `catalogo.html`.
-  - **Cache-Busting `jjp_products_cache_v6`**: Invalida cachés obsoletas de navegador, asegurando que todos los clientes visualicen las fotografías WebP nítidas al instante.
-
-
-
-
-
-## Configuración de Modelos Locales Ollama en opencode (08-10-2026)
-- **Tarea completada**: opencode quedó configurado para usar modelos locales de Ollama como **opción disponible** (decisión del usuario: NO como modelo por defecto; el default de opencode permanece intacto).
-- **Archivo editado**: `C:\Users\PC\.config\opencode\opencode.jsonc` → se añadió el provider `ollama` con `npm: "@ai-sdk/openai-compatible"`, `name: "Ollama (local)"`, `options.baseURL: "http://localhost:11434/v1"` y modelo `qwen2.5-coder:1.5b` (display name "Qwen 2.5 Coder 1.5B (local)", `limit: { context: 32768, output: 8192 }`). Sin clave `model` raíz (no es default). JSON validado con `node -e JSON.parse`.
-- **Uso**: reiniciar opencode (la config solo se carga al arrancar) → `/models` → `ollama/qwen2.5-coder:1.5b`. La primera selección descarga automáticamente el paquete npm `@ai-sdk/openai-compatible`.
-- **Verificación**: Ollama 0.40.1 corriendo en `C:\Users\PC\AppData\Local\Programs\Ollama\ollama.exe` (127.0.0.1:11434), `GET /v1/models` → HTTP 200 con `qwen2.5-coder:1.5b` (capabilities: completion, tools, insert; ctx 32k). Hardware de esta laptop: **7.3 GB RAM (0.5 GB libres), 8 hilos** → SOLO viable el modelo 1.5B (~1 GB RAM); un 7B exigiría ~5 GB y es inviable con RAM actual.
-- **Referencia oficial**: https://opencode.ai/docs/providers/#ollama (patrón `npm: @ai-sdk/openai-compatible`). Schema de config: https://opencode.ai/config.json. Skill `customize-opencode` aplicable a cambios futuros en opencode.
-
-## Pendientes Activos al Cerrar Sesión 08-10-2026 (Retomar en el Siguiente Arranque)
-1. **Paquete de transferencia a la PC Win7 (192.168.0.127, COBRANZA)**: `JJ PAPER\antigravity-win7-LISTO.zip` está **DESACTUALIZADO** (server.js 74.534 B e index.html 73.424 B del 07/10 15:25 vs carpeta actual `antigravity-win7-agent\` con server.js 94.545 B e index.html 98,3 KB). Plan aprobado en borrador: crear `C:\Users\PC\Desktop\PARA-PC-WIN7\` con zip fresco + `LEEME-INSTALACION-WIN7.txt` + `INSTALAR-EN-WIN7.bat`. **Pregunta abierta sin responder por el usuario**: ¿el paquete debe contener solo el agente, agente+puente, o esperar al sistema unificado?
-2. **Plan de fusión "sistema unificado" Win7 (Fases 0-6) presentado, esperando aprobación**: carpeta propuesta `mixnet-unificado/` (un solo puerto 3300) con `lib/dbf.js`, `lib/ntx_guard.js`, `lib/creds.js`, `lib/sync.js`, `lib/gemini.js`, `lib/tools.js`, `public/index.html`, `INICIAR-UNIFICADO.bat`, `INSTALAR-AUTO-ARRANQUE.bat`. Decisiones del usuario ya tomadas: (a) destino = PC Tienda Win7 192.168.0.127; (b) credenciales MixNet **híbridas** (auto+validación manual); (c) escritura DBF **directa con snapshots obligatorios** (.DBF+.NTX+.DBT, borrado lógico 0x2A, reindex obligatorio); (d) **un solo servidor unificado**.
-3. **Decisiones técnicas pendientes del usuario**: (a) ¿qué significa el código `005` en nómina? (mixnet-ai-panel/server.js ~2100 dice "Keyder Salazar", AGENTS.md dice "Jose mostrador" — verificar antes de tocar); (b) ¿quién es dueño del sync de productos/clientes si Supervisor-Pc (192.168.0.172) vuelve? (propuesto: lock `jjp_settings` `mixnet_sync_owner` para evitar doble sync con `wa-server/mixer.js`); (c) ¿contraseña de acceso al panel mixnet-ai-panel? (hoy expone credenciales Supabase/bancos **sin autenticación** en LAN).
-4. **Contexto de red de la sesión**: M:\ y Z:\ NO existen en esta laptop; `\\192.168.0.185\comp01` da error 53 sin credenciales; ping OK a 192.168.0.185 y 192.168.0.127; **192.168.0.172 (Supervisor) apagado**; `http://192.168.0.185:3000` (API archivos) caída; en `192.168.0.127:3300` YA corre `mixnet-ai-panel` (ambos config.json declaran `port: 3300` → conflicto si se despliega el agente sin cambiarlo).
-5. **Fixture de pruebas local**: `JJ PAPER\agent-test-mix\comp01\` contiene `MXCTAVEN.DBF` (CODVEN|NOMBRE|LOGIN|CLAVE: 005 JOSE SALAZAR/jsalazar, 004 YOVANNI, 008 MARIANELA, 014 ANDREINA) + `CLAVES.INI` + `CONFIG.TXT` → usar para validar ANTES de tocar M:\.
-6. **Repo es git** (HEAD `1ea6806`, con modificaciones sin commit en `mixnet-ai-panel/`, `antigravity-win7.zip`, `puente-mixnet-autonomo.cjs`, etc.). No hacer commit sin pedido explícito.
-
-## Sincronización Bidireccional MixNet, Calibración de Correlativos, Inyección DBF y Despliegue Agéntico VPS/Win7 (15-10-2026)
-- **Causa Raíz Resuelta (Cotizaciones desfasadas desde el 13 de octubre)**:
-  - `puente-win7/server.cjs` únicamente realizaba sincronización unidireccional (de la Web a archivos locales y stock), careciendo de un importador periódico desde MixNet DBF.
-  - Se implementó `importMixnetDocumentsToSupabase()` en el ciclo autónomo (`autonomousDaemonTick` cada 30s): lee directamente `MXENCCOT.DBF`/`MXRENCOT.DBF` (cotizaciones) y `MXENCPED.DBF`/`MXRENPED.DBF` (pedidos), cruzando con `MXCTACLI.DBF` y asignando el `seller_id` por `codven` (010/020: Keyder, 002: Luis Alarcón, 004/006: Yovanni, 008: Marianela, 014: Andreina). Las cotizaciones y pedidos físicos emitidos en tienda se importan en tiempo real a Supabase Core.
-- **Calibración Automática de Correlativos Oficiales en Tiempo Real (`calibrateMixnetCorrelatives`)**:
-  - Evita el desfasaje donde la web generaba números provisionales 10 dígitos por delante de la caja física.
-  - En cada ciclo, el puente lee `MXNUMCOT.DBF` y `MXNUMPED.DBF` mediante `findTableInCandidates` y actualiza inmediatamente `jjp_settings` (`mixnet_next_quote_serial` y `mixnet_next_order_serial`). `fetchNextDocSerial()` en `config.js` ahora toma siempre el número oficial que sigue en MixNet.
-- **Inyección Binaria Nativa Web ➔ MixNet DBF (`injectQuoteToMixnet` & `injectOrderToMixnet`)**:
-  - Usa `findTableInCandidates` para operar en cualquier disco (`M:\comp01`, `C:\`, etc.).
-  - Resuelve clientes mediante RIF o notas (`Codigo MixNet: 003-088` como en MARBA BISUTERIA).
-  - Anexa registros en `MXENCCOT`/`MXRENCOT` (o `MXENCPED`/`MXRENPED`), incrementa el contador en `MXNUMCOT`/`MXNUMPED`, y sustituye el número web provisional por el número correlativo oficial de MixNet (`notes: 'MixNet Oficial: [NUMERO]'`).
-- **Canal de Despliegue y Auto-Actualización Transparente (Nube/VPS ➔ Windows 7)**:
-  - En `INICIAR-PUENTE.bat`, antes de arrancar Node se ejecuta una verificación HTTPS contra `https://jjpaper.pages.dev/puente-win7/server.cjs`. Si hay cambios en el repositorio, la PC con Windows 7 descarga y actualiza `server.cjs` de manera transparente y automática antes de iniciar.
-  - El paquete `puente-win7.zip` se compila y publica en `dist/` a través de `build.sh` en cada push a `main`.
-- **Ejecución Remota Agéntica de Tareas (`jjp_mixnet_tasks`)**:
-  - `performAgentTasksCheck()` sondea tareas agénticas pendientes (`sync_stock`, `reindex_ntx`, `run_command`, `self_update`).
-  - Permite al operador o al agente en el VPS / panel admin (`admin/mixnet.html` o `assets/js/admin/mixnet.js`) despachar instrucciones remotas al micro-nodo de la tienda y recibir el resultado estructurado de ejecución (`status: 'completed'`, `result`).
-
-
-
-## Consolidación del Catálogo Impreso Dúplex, Tasas Oficiales BCV en Vivo y Campañas (26-10-2026)
-- **Tasas de Cambio Oficiales BCV (`assets/js/config.js` y `wa-server/src/rates.js`)**:
-  - En JJ Paper, la moneda de cobro oficial y cara al cliente es estrictamente la tasa **BCV** (`rate_bcv` / `exchange_rate`).
-  - Se eliminó por completo el fallback estático de `40` Bs en `getRate()`. Si la sesión o el navegador aún no tienen la tasa cargada, `getRate()` consulta `APP.SETTINGS.exchange_rate` / `rate_bcv` o toma el valor oficial activo (`886.23 Bs / USD`).
-  - `catalogo_impreso.html` invoca obligatoriamente `await loadSettings()` al montar la página y escucha el evento `jjp_rate_updated`, asegurando que los precios en Bs y la insignia de tasa oficial reflejen siempre el valor real del BCV publicado vía `dolarapi` / `wa-server`.
-  - `wa-server/src/rates.js` mantiene activo el cron horario de actualización contra `https://ve.dolarapi.com/v1/dolares` y CriptoYa (Binance P2P), persistiendo en `jjp_settings` (`rate_bcv`, `exchange_rate`, `usdt_rate`, `rate_binance`, `rate_monitor`, `rate_eur`).
-- **Catálogo Impreso Tipo Libro / Cuaderno (`catalogo_impreso.html`)**:
-  - **Identidad Corporativa JJ Paper**: Restaurada la estética nativa en Verde (`#16604A`), Dorado (`#C9A24B`), fondo suave de escritorio (`#eef2f0`) y hojas Carta en blanco puro (`#ffffff`).
-  - **Conexión Nativa VPS**: Incluye `assets/vendor/supabase-2.58.0.js` antes de `assets/js/config.js`, erradicando el error `sb is not defined` y cargando los productos directamente desde el VPS PostgreSQL (`166.0.112.247`).
-  - **Imposición Dúplex para Encuadernación**: Margen libre de lomo de `22mm` a la izquierda en frentes (impares) y a la derecha en reversos (pares), con marcas de corte/perforación configurables para carpeta de 3 anillos (108 mm), archivador de 2 huecos (80 mm), espiral 3:1 o sin marcas. 0% de corte o solapamiento sobre fotos, nombres o precios.
-  - **Flujo de Impresión por Tandas**: Selector por lotes de 5 hojas físicas Carta (= 10 páginas) con botones secuenciales `1️⃣ Imprimir FRENTES` y `2️⃣ Imprimir REVERSOS`, acompañado de la guía modal de reinserción de papel en bandeja de entrada.
-  - **Modo Híbrido de Alta Densidad**: Vitrina de 8 productos/pág con foto cuadrada 520x520 en alta resolución y QR individual de pedido, combinada con lista comercial compacta de 28 productos/pág para artículos sin foto, optimizando el uso de papel.
-- **Unificación de Catálogo Oficial para Campañas (`assets/js/doc-engine.js`, `campaign-editor.js`, `vdifusion.js`, `vcampanas-email.js`)**:
-  - El PDF oficial adjunto en campañas de WhatsApp y Correo se genera como `Catalogo_y_Lista_de_Precios_JJ_Paper.pdf` con título `Catálogo Comercial y Lista Oficial de Precios · JJ Paper C.A.`.
-  - Incluye todas las líneas activas (incorporando las 6 categorías de Higiene y Limpieza: Químicos, Papelería e Higiene, Paños y Coletos, Utensilios, Bolsas y Descartables) con precios oficiales en USD y Bs a tasa BCV, e incorpora en la portada el enlace directo y QR al catálogo interactivo (`https://jj-paper.pages.dev/catalogo_impreso.html`).
+  *(Inicia `run-service.bat` de forma desacoplada y persistente bajo el Session Manager de Windows con rotación de logs).*
+- **Validación Sintáctica de Scripts**:
+  `node -c assets/js/admin/monitor-client.js`
+
+---
+
+## 4. Convenciones Obligatorias y Reglas de Negocio
+
+### Despliegue y Protección de Datos
+- **Cloudflare Pages vía `build.sh`**: Todo cambio de frontend se despliega mediante `build.sh` a `dist/`.
+- **Cero Datos Sensibles en Git**: Archivos `.csv`, `.pdf`, backups `.json` o `.bak`, credenciales `.env` y bases DBF NUNCA deben comitearse al repositorio Git (`.gitignore` los bloquea).
+
+### Base de Datos y Esquema DDL/DML
+- **Conexión Soberana Única**: Todas las operaciones de base de datos se ejecutan contra PostgreSQL 16 en el VPS (`https://166-0-112-247.sslip.io`).
+- **Verificación Estricta de Esquemas**: Jamás asumir columnas por inferencia entre tablas padre/hijo. Por diseño, `unit` y `unit_id` pertenecen exclusivamente a `jjp_products`; la tabla `jjp_product_variants` **NO posee la columna `unit`**. Toda migración o script SQL debe ser contrastado contra el esquema real de las 53 tablas documentado en `assets/js/config.js`.
+
+### Asignación de Vendedores y Nómina Sagrada
+- **Vendedores Oficiales**:
+  - `002`: Luis Alarcón
+  - `004` / `006`: Yovanni Araujo
+  - `008`: Marianela
+  - `014`: Andreina
+  - `010` / `020`: Keyder Salazar (Admin)
+  - `005`: Jose Salazar (Atención mostrador físico tienda)
+- **Cartera Exclusiva de Keyder Salazar (Zonas 010 y 020)**:
+  - Estrictamente privada para Keyder: invisible para otros vendedores (no se descarga en `loadCustomers` para vendedores regulares ni se muestra en autocompletados ajenos).
+  - Keyder conserva rol `admin` (gestión global en CRM `admin/clientes.html`) y puede vender/cotizar directamente tanto a su clientela como a cualquier cliente usando el selector de vendedor en `pos.html` y `cotizador.html`.
+- **Cero Cruce de Vendedores**: El campo `CODVEN` define comisiones y nómina. Prohibido reasignar ventas por la zona del cliente. Si en MixNet dice `002`, en JJ Paper es Luis Alarcón irrefutablemente.
+
+### Unificación de Entidades y Comunicación
+- **Entidad Contacto Unificada**: Cliente o prospecto comparten una sola verdad: teléfono, correo y estado de entrega (`email_status = 'bounced'`). Prohibido crear tablas o estructuras duplicadas.
+- **Páginas de Comunicación Nativas e Independientes**: Mantener estrictamente separadas las interfaces según su responsabilidad: `whatsapp.html` (chats directos), `difusion.html` (campañas WhatsApp), `correo.html` (bandeja de entrada) y `campanas-email.html` (campañas masivas email). No forzar pestañas unificadas ni redirects extraños.
+
+### Moneda y Catálogo
+- **Tasa Oficial BCV**: La moneda de cobro oficial cara al cliente es estrictamente la tasa **BCV** (`rate_bcv` / `exchange_rate` en `jjp_settings`), mantenida al día por `wa-server/src/rates.js`.
+- **Imágenes WebP**: Catálogo optimizado a WebP (800px máx, calidad 80) servido localmente desde el VPS en `/var/www/jjp-media/` (`jjp-products`).
+
+---
+
+## 5. Protocolo Mandatorio MixNet ERP (29-09-2026)
+
+1. **Consultar Antes de Modificar**: Antes de escribir o modificar tablas DBF de MixNet, el agente DEBE consultar la documentación técnica de MixNet y contrastar contra la estructura Clipper original.
+2. **Reparación Previa Indispensable**: Antes de activar sincronizadores, MixNet debe estar saneado en `M:\comp01` (limpieza de comentarios `COMEN1`/`COMEN2` contaminados con `[MixNet]` o `COT-`, correlativos calibrados `MXNUMPED`/`MXNUMCOT` y reindexación nativa `.NTX` en el menú de mantenimiento de MixNet).
+3. **Escritura 100% Indetectable**: Cero huellas, cero firmas, cero notas técnicas. Si no hay comentarios de despacho del cliente, `COMEN1` y `COMEN2` se dejan en blanco (espacios `0x20`). Clientes no registrados en MixNet usan el código oficial `00` con nombre `CUENTA RECUPERADA`.
+4. **Índices Clipper .NTX**: Prohibido escribir registros en `.DBF` sin actualizar `.NTX`. Utilizar el micro-conector o herramientas nativas en Harbour (`DBFNTX`) que actualizan los árboles B-Tree en tiempo real para evitar pantallas trabadas y bucles en caja.
+5. **Snapshots Preventivos Obligatorios**: Toda operación por lotes sobre archivos DBF debe generar previamente un archivo de respaldo sellado en `M:\MIX11\comp01\backups\` con extensión `.BAK`.
+
+---
+
+## 6. Telemetría y Monitor del Sistema
+
+- **Endpoint Nativo**: `https://166-0-112-247.sslip.io/auth/v1/telemetry`
+- **Métricas Supervisadas**:
+  - **RAM VPS**: Uso porcentual y memoria disponible sobre 3.9 GB físicos.
+  - **Disco NVMe**: Uso porcentual y espacio libre sobre 58.4 GB físicos.
+  - **PostgreSQL 16**: Nombre de base de datos (`jjpaper_db`), tamaño físico real (~30 MB), tuplas muertas y conexiones activas.
+  - **Puente MixNet**: Estado del puente LAN (`192.168.0.185:8790`), ruta `M:\MIX11\comp01`, correlativos de cotización (`MXNUMCOT`) y pedido (`MXNUMPED`).
+  - **wa-server**: Heartbeat en `jjp_server_control`, sesiones activas de WhatsApp y latencia promedio.
+- **Sin Residuo Cloud**: La interfaz (`admin/monitor.html` y `assets/js/admin/monitor-client.js`) no posee tarjetas de cuotas ficticias (500 MB / 1 GB) ni advertencias falsas de servicios en la nube.
+
+---
+
+## 7. Incidencias y Directivas Activas
+
+- **Permisos RLS en Campañas VPS**: Mantener verificado que las políticas Row Level Security en PostgreSQL del VPS permitan a los roles autorizados insertar y actualizar destinatarios en `jjp_email_campaign_targets` y `jjp_wa_campaign_targets`.
+- **Desacople en Windows**: No iniciar Node.js como subproceso en segundo plano desde sesiones efímeras del agente; utilizar `start-hidden.vbs` para persistencia en el sistema operativo.

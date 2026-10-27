@@ -186,8 +186,7 @@ function buildRawEmail({ from, to, subject, text, html }, atts = []) {
   const NL = '\r\n';
   const effectiveText = text || '';
   const effectiveHtml = html || formatTextToHtml(effectiveText);
-  const textB64 = Buffer.from(effectiveText, 'utf8').toString('base64');
-  const htmlB64 = Buffer.from(effectiveHtml, 'utf8').toString('base64');
+  const textB64 = Buffer.from(effectiveText, 'utf8').toString('base64').replace(/(.{76})/g, '' + NL);  const htmlB64 = Buffer.from(effectiveHtml, 'utf8').toString('base64').replace(/(.{76})/g, '' + NL);
 
   const altBoundary = 'jjp_alt_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   const altBody = [
@@ -252,21 +251,52 @@ async function gmailApiSend(acct, m) {
 // Envío inmediato reutilizable (lo usa el despachador de campañas).
 // Lanza si el owner no tiene correo vinculado. Devuelve { id, from }.
 export async function sendEmailNow(ownerId, m) {
-  const acct = await accountFor(ownerId);
+  let acct = await accountFor(ownerId);
   if (!acct) throw new Error('Sin correo vinculado');
-  let id = null;
-  if (acct.source === 'oauth') {
-    id = await gmailApiSend(acct, m);
-  } else {
-    const atts = await loadAttachments(m.attachments);
-    const info = await buildTxFromAcct(acct).sendMail({
-      from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
-      text: m.body || '', html: m.html || undefined,
-      attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
-    });
-    id = info.messageId || null;
+  
+  try {
+    let id = null;
+    if (acct.source === 'oauth') {
+      id = await gmailApiSend(acct, m);
+    } else {
+      const atts = await loadAttachments(m.attachments);
+      const info = await buildTxFromAcct(acct).sendMail({
+        from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
+        text: m.body || '', html: m.html || undefined,
+        attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
+      });
+      id = info.messageId || null;
+    }
+    return { id, from: acct.from };
+  } catch (err) {
+    const msg = String(err.message || '').toLowerCase();
+    const isAuthError = msg.includes('token has been expired or revoked') ||
+                        msg.includes('invalid_grant') ||
+                        msg.includes('bad request') ||
+                        msg.includes('sin permiso') ||
+                        msg.includes('unauthorized');
+    if (isAuthError && !acct.isFallback) {
+      log.warn({ err: err.message, owner: ownerId, acct: acct.email }, 'Token OAuth falló en cuenta personal; conmutando a respaldo corporativo');
+      await db.from('jjp_email_accounts').update({ verified: false, last_error: err.message }).eq('email', acct.email).catch(() => {});
+      const fallback = await getFallbackAccount();
+      if (fallback && fallback.email !== acct.email) {
+        log.info({ fallback: fallback.email }, 'Reintentando envío con cuenta de respaldo activa');
+        if (fallback.source === 'oauth') {
+          const id = await gmailApiSend(fallback, m);
+          return { id, from: fallback.from };
+        } else {
+          const atts = await loadAttachments(m.attachments);
+          const info = await buildTxFromAcct(fallback).sendMail({
+            from: fallback.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
+            text: m.body || '', html: m.html || undefined,
+            attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
+          });
+          return { id: info.messageId || null, from: fallback.from };
+        }
+      }
+    }
+    throw err;
   }
-  return { id, from: acct.from };
 }
 
 // Credenciales efectivas para un owner. Orden:
@@ -274,26 +304,13 @@ export async function sendEmailNow(ownerId, m) {
 //  2) su cuenta por SMTP (si vinculó una con contraseña de app)
 //  3) respaldo con cualquier otra cuenta verificada activa en la empresa (ej. admin)
 //  4) respaldo .env por SMTP
-async function accountFor(ownerId) {
-  if (ownerId) {
-    const { data } = await db.from('jjp_email_accounts')
-      .select('email,app_pass,oauth_refresh,from_name,enabled,verified').eq('profile_id', ownerId).maybeSingle();
-    if (data?.enabled && data.email && (data.oauth_refresh || data.app_pass)) {
-      const from = data.from_name ? `${data.from_name} <${data.email}>` : data.email;
-      if (data.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-        return { email: data.email, refresh: data.oauth_refresh, from, source: 'oauth' };
-      }
-      if (data.app_pass) return { email: data.email, pass: data.app_pass, from, source: 'smtp' };
-    }
-  }
-
-  // Respaldo empresarial: buscar una cuenta verificada activa de otro usuario (ej. admin)
+async function getFallbackAccount() {
   try {
     const { data: fbList } = await db.from('jjp_email_accounts')
       .select('email,app_pass,oauth_refresh,from_name,enabled,verified')
       .eq('enabled', true)
       .eq('verified', true)
-      .limit(2);
+      .limit(3);
     for (const fb of fbList || []) {
       const from = fb.from_name ? `${fb.from_name} <${fb.email}>` : fb.email;
       if (fb.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
@@ -307,6 +324,22 @@ async function accountFor(ownerId) {
     return { email: GMAIL_USER, pass: GMAIL_APP_PASS, from: GMAIL_FROM || GMAIL_USER, source: 'smtp', isFallback: true };
   }
   return null;
+}
+
+async function accountFor(ownerId) {
+  if (ownerId) {
+    const { data } = await db.from('jjp_email_accounts')
+      .select('email,app_pass,oauth_refresh,from_name,enabled,verified').eq('profile_id', ownerId).maybeSingle();
+    // Exigir verified !== false para evitar intentar cuentas con refresh token revocado
+    if (data?.enabled && data.verified !== false && data.email && (data.oauth_refresh || data.app_pass)) {
+      const from = data.from_name ? `${data.from_name} <${data.email}>` : data.email;
+      if (data.oauth_refresh && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+        return { email: data.email, refresh: data.oauth_refresh, from, source: 'oauth' };
+      }
+      if (data.app_pass) return { email: data.email, pass: data.app_pass, from, source: 'smtp' };
+    }
+  }
+  return await getFallbackAccount();
 }
 
 // Transporter cacheado por owner; se reconstruye si cambian las credenciales

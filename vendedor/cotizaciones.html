@@ -67,9 +67,16 @@
       </div>
 
       <div class="admin-table-wrap">
-        <div class="table-top">
-          <h3>📂 Cotizaciones</h3>
-          <span id="vQuotesCount" style="font-size:12px;color:var(--gr)">—</span>
+        <div class="table-top" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:10px">
+            <h3>📂 Cotizaciones</h3>
+            <span id="vQuotesCount" style="font-size:12px;color:var(--gr)">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="search" id="vQuotesSearchInput" placeholder="🔍 Buscar cotización por N°, cliente, RIF..."
+                   style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;min-width:260px"
+                   oninput="onVQuotesSearch(this.value)">
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="admin-table">

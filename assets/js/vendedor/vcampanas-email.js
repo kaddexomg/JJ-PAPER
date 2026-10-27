@@ -4,7 +4,38 @@
    Campañas automatizadas (las despacha wa-server/email-campaigns.js)
    ====================================================== */
 
-let ecContacts = [];      // clientes con email de la cartera
+let ecContacts = [];
+
+function extractValidEmails(raw) {
+  if (!raw) return [];
+  const matches = String(raw).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  return [...new Set(matches.map(e => e.trim().toLowerCase()))];
+}
+
+function resolveBestProspectEmail(p) {
+  const all = extractValidEmails(`${p.email || ''} ${p.notes || ''}`);
+  if (!all.length) return null;
+  p.all_emails = all;
+
+  const isBounced = (p.email_status === 'bounced' || p.email_status === 'bounced_hard' || p.email_status === 'bounced_soft');
+  if (!isBounced) {
+    p.email = all[0];
+    return all[0];
+  }
+
+  // Si el principal rebotó, buscar en los alternativos
+  const bReason = String(p.bounce_reason || '').toLowerCase();
+  for (let i = 0; i < all.length; i++) {
+    const em = all[i];
+    if (i === 0 && isBounced) continue;
+    if (bReason.includes(em)) continue;
+    p.email = em;
+    p._is_fallback_email = true;
+    return em;
+  }
+  return null;
+}
+      // clientes con email de la cartera
 let ecTemplates = [];     // plantillas de email (locales + DB)
 let ecCampaigns = [];     // campañas de correo
 let ecProducts = [];      // productos para el selector de promociones
@@ -493,7 +524,7 @@ function setEcTab(t) {
 async function loadEcContacts() {
   const isAdm = SELLER?.role === 'admin';
   let q = sb.from('jjp_customers')
-    .select('id,name,phone,email,zone,tags,seller_id,email_status,email_opt_out')
+    .select('id,name,phone,email,rif,address,notes,zone,tags,seller_id,total_orders,total_usd,last_order_at,email_status,email_opt_out')
     .not('email', 'is', null)
     .neq('email', '')
     .order('name')
@@ -508,6 +539,35 @@ async function loadEcContacts() {
     showToast('Error cargando audiencia: ' + (error.message || error), 'err');
     return;
   }
+
+  // Cargar pedidos históricos recientes de jjp_orders para inyectar compras previas a la IA
+  let ordersMap = new Map();
+  try {
+    const { data: recentOrders } = await sb.from('jjp_orders')
+      .select('customer_id,client_name,rif,items,total_usd,created_at')
+      .order('created_at', { ascending: false })
+      .limit(600);
+      
+    if (Array.isArray(recentOrders)) {
+      recentOrders.forEach(o => {
+        const itemSummaries = (Array.isArray(o.items) ? o.items : []).map(it => {
+          const qty = it.qty || it.quantity || 1;
+          const name = it.name || it.product_name || 'Insumo';
+          return `${qty} ${name}`;
+        }).filter(Boolean).slice(0, 4);
+        
+        if (!itemSummaries.length) return;
+        const summary = itemSummaries.join(', ');
+        
+        if (o.customer_id && !ordersMap.has(o.customer_id)) ordersMap.set(o.customer_id, summary);
+        if (o.rif && !ordersMap.has(String(o.rif).trim().toUpperCase())) ordersMap.set(String(o.rif).trim().toUpperCase(), summary);
+        if (o.client_name && !ordersMap.has(String(o.client_name).trim().toUpperCase())) ordersMap.set(String(o.client_name).trim().toUpperCase(), summary);
+      });
+    }
+  } catch (errOrders) {
+    console.warn('Aviso cargando historial de pedidos:', errOrders);
+  }
+
   ecContacts = (data || []).filter(c => 
     !c.email_opt_out && 
     c.email_status !== 'bounced' && 
@@ -518,6 +578,12 @@ async function loadEcContacts() {
   ).map(c => {
     if (Array.isArray(c.tags) && (c.tags.includes('destacado_gmail') || c.tags.includes('vip') || c.tags.includes('cliente_activo'))) {
       c.is_gmail_starred = true;
+    }
+    const rifKey = c.rif ? String(c.rif).trim().toUpperCase() : '';
+    const nameKey = c.name ? String(c.name).trim().toUpperCase() : '';
+    const orderSum = ordersMap.get(c.id) || (rifKey ? ordersMap.get(rifKey) : null) || (nameKey ? ordersMap.get(nameKey) : null);
+    if (orderSum) {
+      c.order_history_summary = orderSum;
     }
     return c;
   });
@@ -539,7 +605,13 @@ async function loadEcContacts() {
 
     if (!pErr && Array.isArray(b2bProspects)) {
       const normProspects = b2bProspects
-        .filter(p => p.email && p.email_status !== 'bounced_hard' && p.email_status !== 'bounced_soft' && p.email.includes('@'))
+        .map(p => {
+          const validEmail = resolveBestProspectEmail(p);
+          if (!validEmail) return null;
+          p.email = validEmail;
+          return p;
+        })
+        .filter(Boolean)
         .map(p => {
           const isAlreadyContacted = Boolean(
             p.contacted || 
@@ -1193,21 +1265,32 @@ async function launchEmailCampaignFromEditor(config) {
 
   let htmlBody = body.replace(/\n/g, '<br>');
 
+  const corporateHtml = (window.CampaignEditor && window.CampaignEditor.renderCorporateEmailHtml)
+    ? window.CampaignEditor.renderCorporateEmailHtml({
+        subject: subject || name,
+        body,
+        sellerName: SELLER?.name || 'Keyder Salazar',
+        sellerPhone: SELLER?.phone || '0412-4676073',
+        imgUrl: imgSrc
+      })
+    : `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`;
+
   let payload = {
     owner_id: ownerId,
     name,
     kind: selectedProductOrCombo?.type || 'general',
     subject: subject || name,
     body,
-    html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
-    body_html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`,
+    html: corporateHtml,
+    body_html: corporateHtml,
     attachments,
     status: config.scheduled_at ? 'scheduled' : 'running',
     total: audience.length,
     sent_count: 0,
     failed_count: 0,
-    delay_min_s: delays?.min || 15,
-    delay_max_s: delays?.max || 45
+    // Ritmo optimizado para correo electrónico: 3 a 7 segundos entre envíos
+    delay_min_s: delays?.min ? Math.min(delays.min, 5) : 3,
+    delay_max_s: delays?.max ? Math.min(delays.max, 8) : 7
   };
 
   if (config.scheduled_at) {

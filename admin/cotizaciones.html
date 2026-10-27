@@ -71,12 +71,17 @@
           <button class="cf" onclick="filterQuotes('confirmado',this)">✅ Confirmado</button>
           <button class="cf" onclick="filterQuotes('cancelado',this)">❌ Cancelado</button>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="quotesSellerSelect" onchange="onQuotesSellerChange(this.value)"
                 style="padding:7px 10px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;background:#fff;cursor:pointer">
           <option value="">🧑‍💼 Todos los vendedores</option>
           <option value="bddc57dc-5bf9-4a72-9e1c-751d07b03164">⭐ Keyder Salazar (Mis Cotizaciones)</option>
           <option value="sin_asignar">⏳ Sin asignar / Por revisar</option>
         </select>
+          <input type="search" id="quotesSearchInput" placeholder="🔍 Buscar cotización por N°, cliente, RIF..."
+                 style="padding:7px 12px;font-size:13px;border:1.5px solid var(--border,#cbd5e1);border-radius:8px;outline:none;min-width:240px"
+                 oninput="onQuotesSearch(this.value)">
+        </div>
       </div>
 
       <div class="admin-table-wrap">

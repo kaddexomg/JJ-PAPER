@@ -8,10 +8,12 @@ const SETTINGS_FIELDS = [
   'email', 'address', 'map_lat', 'map_lng', 'hours_weekday', 'hours_saturday',
   'pago_movil_bank', 'pago_movil_phone', 'pago_movil_ci', 'pago_movil_name',
   'transfer_bank', 'transfer_account', 'transfer_type', 'transfer_holder', 'transfer_ci',
-  // Delivery cotizado por distancia (checkout)
-  'delivery_base_usd', 'delivery_per_km_usd', 'delivery_free_over_usd',
-  // Cooldown anti-reenvío de campañas (horas sin repetirle a un cliente)
-  'email_camp_cooldown_h', 'wa_camp_cooldown_h',
+  // Políticas reales de Despacho y Logística (Gran Caracas e Interior)
+  'delivery_free_min_usd', 'delivery_express_usd', 'delivery_national_carriers', 'delivery_base_usd', 'delivery_per_km_usd', 'delivery_free_over_usd',
+  // Cooldown anti-reenvío de campañas (horas sin repetirle a un cliente) y límites
+  'email_camp_cooldown_h', 'wa_camp_cooldown_h', 'wa_daily_limit', 'wa_react_cooldown_days',
+  // Suite de Inteligencia Artificial (Gemini AI)
+  'ai_gemini_keys', 'ai_model', 'ai_temperature',
   // Reglas comerciales y ventas
   'order_min_usd', 'quote_followup_days', 'reengage_days',
   // Correlativos oficiales
@@ -33,7 +35,22 @@ async function loadSettingsForm() {
   const map = Object.fromEntries((data || []).map(r => [r.key, r.value]));
   SETTINGS_FIELDS.forEach(k => {
     const el = document.getElementById('set-' + k);
-    if (el) el.value = map[k] || DOC_COLOR_DEFAULTS[k] || '';
+    if (!el) return;
+    if (k === 'ai_gemini_keys') {
+      try {
+        const raw = map[k];
+        if (raw) {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (Array.isArray(parsed)) {
+            el.value = parsed.join('\n');
+            return;
+          }
+        }
+      } catch (_) {}
+      el.value = map[k] || '';
+      return;
+    }
+    el.value = map[k] || DOC_COLOR_DEFAULTS[k] || '';
   });
   const upd = document.getElementById('ratesUpdatedAt');
   if (upd) upd.textContent = map.rates_updated_at
@@ -174,7 +191,23 @@ async function saveSettings() {
 
   const rows = SETTINGS_FIELDS.map(k => {
     const el = document.getElementById('set-' + k);
-    return { key: k, value: (el?.value ?? '').trim(), updated_at: new Date().toISOString() };
+    let val = (el?.value ?? '').trim();
+    if (k === 'ai_gemini_keys') {
+      if (val) {
+        if (val.startsWith('[') && val.endsWith(']')) {
+          try {
+            const arr = JSON.parse(val);
+            if (Array.isArray(arr)) val = JSON.stringify(arr);
+          } catch (_) {}
+        } else {
+          const lines = val.split('\n').map(x => x.trim()).filter(Boolean);
+          val = JSON.stringify(lines);
+        }
+      } else {
+        val = '[]';
+      }
+    }
+    return { key: k, value: val, updated_at: new Date().toISOString() };
   });
   // Timestamp of last rate update (shown in the panel)
   rows.push({ key: 'rates_updated_at',
@@ -187,5 +220,109 @@ async function saveSettings() {
   if (error) { showToast('Error al guardar: ' + error.message, 'err'); return; }
   // Bust the public-site cache so changes show immediately
   sessionStorage.removeItem('jjp_settings');
-  showToast('✅ Ajustes guardados');
+  localStorage.removeItem('jjp_settings');
+  if (typeof GeminiClient !== 'undefined' && GeminiClient.syncKeysFromSettings) {
+    try { GeminiClient.syncKeysFromSettings().catch(() => {}); } catch (_) {}
+  }
+  showToast('✅ Ajustes guardados con éxito');
+}
+
+/* ---------------- Suite de Inteligencia Artificial (Gemini) ---------------- */
+
+async function testGeminiConnection() {
+  const btn = document.getElementById('testGeminiBtn');
+  const resBox = document.getElementById('geminiTestResult');
+  const keysInput = document.getElementById('set-ai_gemini_keys')?.value || '';
+  const model = document.getElementById('set-ai_model')?.value || 'gemini-3.5-flash-lite';
+
+  let keys = [];
+  if (keysInput.trim().startsWith('[')) {
+    try { keys = JSON.parse(keysInput); } catch (_) {}
+  } else {
+    keys = keysInput.split('\n').map(k => k.trim()).filter(Boolean);
+  }
+
+  if (!keys.length) {
+    showToast('Ingresa al menos una clave de API de Gemini para probar', 'warn');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Probando API...'; }
+  if (resBox) resBox.textContent = 'Conectando con Google AI Gemini...';
+
+  const startTime = Date.now();
+  let successKey = null;
+  let errorMsg = null;
+
+  for (const key of keys) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Responde solo la palabra: "OK"' }] }],
+          generationConfig: { maxOutputTokens: 10 }
+        }),
+        signal: AbortSignal.timeout(6000)
+      });
+      if (resp.ok) {
+        successKey = key.substring(0, 6) + '...' + key.substring(key.length - 4);
+        break;
+      } else {
+        const errJson = await resp.json().catch(() => ({}));
+        errorMsg = errJson.error?.message || `HTTP ${resp.status}`;
+      }
+    } catch (e) {
+      errorMsg = e.message;
+    }
+  }
+
+  const latency = Date.now() - startTime;
+  if (btn) { btn.disabled = false; btn.textContent = '🧪 Probar Conexión con Gemini AI'; }
+
+  if (successKey) {
+    if (resBox) {
+      resBox.innerHTML = `<strong style="color:#10b981">🟢 Conexión exitosa</strong> (${latency} ms) · Modelo: <code>${model}</code> · Clave probada: <code>${successKey}</code>`;
+    }
+    showToast(`✅ Gemini AI respondió en ${latency}ms`);
+  } else {
+    if (resBox) {
+      resBox.innerHTML = `<strong style="color:#ef4444">🔴 Error de validación</strong>: ${errorMsg || 'Claves rechazadas'}`;
+    }
+    showToast(`Error validando Gemini: ${errorMsg || 'Error de conexión'}`, 'err');
+  }
+}
+
+/* ---------------- Seguridad y Contraseña Administrador ---------------- */
+
+async function changeAdminPassword() {
+  const p1 = document.getElementById('adminNewPass')?.value || '';
+  const p2 = document.getElementById('adminConfirmPass')?.value || '';
+  const btn = document.getElementById('changeAdminPassBtn');
+
+  if (!p1 || p1.length < 6) {
+    showToast('La nueva contraseña debe tener al menos 6 caracteres', 'warn');
+    return;
+  }
+  if (p1 !== p2) {
+    showToast('Las contraseñas no coinciden', 'warn');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Actualizando contraseña...'; }
+  try {
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if (error) {
+      showToast('No se pudo actualizar: ' + error.message, 'err');
+    } else {
+      showToast('✅ Contraseña actualizada exitosamente. Úsala en tu próximo inicio de sesión.');
+      document.getElementById('adminNewPass').value = '';
+      document.getElementById('adminConfirmPass').value = '';
+    }
+  } catch (err) {
+    showToast('Error inesperado: ' + err.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔒 Actualizar Contraseña'; }
+  }
 }

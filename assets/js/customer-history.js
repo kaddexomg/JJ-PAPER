@@ -95,28 +95,39 @@ async function openCustomerHistory(customerId) {
     const sellerMap = new Map((profiles || []).map(p => [p.id, p.name]));
     cust.seller_name = cust.seller_id ? (sellerMap.get(cust.seller_id) || null) : null;
 
-    // Consultar pedidos por customer_id o coincidencia exacta de RIF/nombre
+    // Consultar pedidos y cotizaciones por customer_id y RIF limpio exacto
+    // (Se elimina client_name.ilike que causaba errores 400 en PostgREST ante caracteres especiales)
     const orFilters = [`customer_id.eq.${customerId}`];
-    const cleanRif = String(cust.rif || '').trim();
-    if (cleanRif && cleanRif.length >= 6) {
-      orFilters.push(`rif.ilike.${cleanRif}`);
+    const cleanRif = String(cust.rif || '').trim().replace(/[^0-9A-Za-z-]/g, '');
+    if (cleanRif && cleanRif !== '00' && cleanRif.length >= 4) {
+      orFilters.push(`rif.eq.${cleanRif}`);
+      const unhyphenated = cleanRif.replace(/-/g, '');
+      if (unhyphenated !== cleanRif && unhyphenated.length >= 4) {
+        orFilters.push(`rif.eq.${unhyphenated}`);
+      }
     }
-    const cleanName = String(cust.name || '').trim().replace(/[,()]/g, ' ');
-    if (cleanName && cleanName.length >= 5) {
-      orFilters.push(`client_name.ilike.${cleanName}`);
+
+    let ordersQuery = sb.from('jjp_orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    let quotesQuery = sb.from('jjp_quotes')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (orFilters.length > 1) {
+      ordersQuery = ordersQuery.or(orFilters.join(','));
+      quotesQuery = quotesQuery.or(orFilters.join(','));
+    } else {
+      ordersQuery = ordersQuery.eq('customer_id', customerId);
+      quotesQuery = quotesQuery.eq('customer_id', customerId);
     }
 
     const [ordersRes, quotesRes] = await Promise.all([
-      sb.from('jjp_orders')
-        .select('*')
-        .or(orFilters.join(','))
-        .order('created_at', { ascending: false })
-        .limit(100),
-      sb.from('jjp_quotes')
-        .select('*')
-        .or(orFilters.join(','))
-        .order('created_at', { ascending: false })
-        .limit(100)
+      ordersQuery,
+      quotesQuery
     ]);
 
     const rawOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];

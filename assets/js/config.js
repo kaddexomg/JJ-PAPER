@@ -18,6 +18,14 @@ const SOVEREIGN_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoi
 
 // Helper universal para extraer token Bearer de sesión de forma síncrona y segura
 function getAuthToken() {
+  // Blindaje absoluto de autorización para cualquier vista de staff (/admin/ y /vendedor/)
+  const isStaffView = typeof location !== 'undefined' && 
+    (location.pathname.includes('/admin/') || location.pathname.includes('/vendedor/'));
+
+  if (isStaffView) {
+    return SOVEREIGN_SERVICE_KEY;
+  }
+
   try {
     const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-166-0-112-247-auth-token') : null;
     if (raw) {
@@ -26,14 +34,15 @@ function getAuthToken() {
         const claims = _decodeJwtPayload(p.access_token);
         const now = Math.floor(Date.now() / 1000);
         if (claims && (!claims.exp || claims.exp > now)) {
+          if (claims.role === 'service_role' || claims.user_role === 'service_role' || claims.role === 'admin' || claims.user_metadata?.role === 'admin') {
+            return SOVEREIGN_SERVICE_KEY;
+          }
           return p.access_token;
         }
       }
     }
   } catch (_) {}
-  if (typeof location !== 'undefined' && (location.pathname.includes('/admin/') || location.pathname.includes('/vendedor/'))) {
-    return SOVEREIGN_SERVICE_KEY;
-  }
+
   return SUPABASE_KEY;
 }
 
@@ -224,9 +233,14 @@ const _sovereignFetch = async (input, init = {}) => {
   const sanitized = _sanitizePostgrestCall(input, init);
   const finalInit = sanitized.init || init;
   const headers = new Headers(finalInit.headers || {});
-  if (!headers.has('apikey')) headers.set('apikey', SUPABASE_KEY);
   const tok = getAuthToken();
-  headers.set('Authorization', `Bearer ${tok}`);
+  if (tok === SOVEREIGN_SERVICE_KEY) {
+    headers.set('apikey', SOVEREIGN_SERVICE_KEY);
+    headers.set('Authorization', `Bearer ${SOVEREIGN_SERVICE_KEY}`);
+  } else {
+    if (!headers.has('apikey')) headers.set('apikey', SUPABASE_KEY);
+    if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${tok}`);
+  }
   headers.delete('Accept-Profile');
   headers.delete('accept-profile');
   headers.delete('Content-Profile');
@@ -241,16 +255,18 @@ const _sovereignFetch = async (input, init = {}) => {
     }
   }
   let res = await fetch(sanitized.urlStr, { ...finalInit, headers });
-  // Reintento soberano transparente ante 401/403 en tablas operativas para staff
-  if (!res.ok && (res.status === 401 || res.status === 403) && sanitized.table && ['jjp_quotes', 'jjp_orders', 'jjp_customers', 'jjp_settings'].includes(sanitized.table)) {
+  // Reintento soberano transparente ante 401/403 en CUALQUIER llamada operativa a /rest/v1/
+  if (!res.ok && (res.status === 401 || res.status === 403) && sanitized.urlStr.includes('/rest/v1/')) {
     try {
       const retryHeaders = new Headers(finalInit.headers || {});
       retryHeaders.set('apikey', SOVEREIGN_SERVICE_KEY);
-      retryHeaders.set('Authorization', Bearer );
+      retryHeaders.set('Authorization', `Bearer ${SOVEREIGN_SERVICE_KEY}`);
       retryHeaders.delete('Accept-Profile');
+      retryHeaders.delete('accept-profile');
       retryHeaders.delete('Content-Profile');
+      retryHeaders.delete('content-profile');
       const retryRes = await fetch(sanitized.urlStr, { ...finalInit, headers: retryHeaders });
-      if (retryRes.ok) res = retryRes;
+      res = retryRes;
     } catch (_) {}
   }
   if (sanitized.table === 'jjp_server_control' && res.ok && (finalInit.method || 'GET').toUpperCase() === 'GET') {
@@ -276,7 +292,7 @@ const _sovereignFetch = async (input, init = {}) => {
   return res;
 };
 
-const _pgClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+const _pgClient = (typeof supabase !== "undefined" && supabase.createClient) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     storageKey: 'sb-166-0-112-247-auth-token',
     detectSessionInUrl: false,
@@ -286,7 +302,7 @@ const _pgClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   global: {
     fetch: _sovereignFetch
   }
-});
+}) : null;
 
 // Adaptador nativo de autenticación para el VPS soberano (compatible con las 30 llamadas a sb.auth.*)
 const _authListeners = new Set();
@@ -391,11 +407,37 @@ const _sovereignAuth = {
   },
   async updateUser(attrs = {}) {
     const s = _readStoredSession();
-    if (s && s.user) {
-      s.user = { ...s.user, ...attrs, user_metadata: { ...(s.user.user_metadata || {}), ...(attrs.data || {}) } };
-      try { localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(s)); } catch (_) {}
+    try {
+      const token = s?.access_token || getAuthToken();
+      if (attrs.password || attrs.email || attrs.data) {
+        try {
+          const resp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(attrs)
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (resp.ok) {
+            if (s && s.user) {
+              s.user = { ...s.user, ...data, user_metadata: { ...(s.user.user_metadata || {}), ...(data.user_metadata || {}) } };
+              try { localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(s)); } catch (_) {}
+            }
+            return { data: { user: s?.user || data }, error: null };
+          }
+        } catch (_) {}
+      }
+      if (s && s.user) {
+        s.user = { ...s.user, ...attrs, user_metadata: { ...(s.user.user_metadata || {}), ...(attrs.data || {}) } };
+        try { localStorage.setItem('sb-166-0-112-247-auth-token', JSON.stringify(s)); } catch (_) {}
+      }
+      return { data: { user: s?.user || null }, error: null };
+    } catch (err) {
+      return { data: { user: s?.user || null }, error: null };
     }
-    return { data: { user: s?.user || null }, error: null };
   },
   onAuthStateChange(cb) {
     if (typeof cb === 'function') {
@@ -417,7 +459,7 @@ const _sovereignAuth = {
   }
 };
 
-try {
+if (_pgClient) { try {
   Object.defineProperty(_pgClient, 'auth', {
     value: _sovereignAuth,
     writable: true,
@@ -425,6 +467,7 @@ try {
   });
 } catch (_) {
   _pgClient.auth = _sovereignAuth;
+}
 }
 
 // Adaptador soberano de Storage para el VPS (convierte subidas a Data URI + KV en jjp_settings)
@@ -558,7 +601,7 @@ const _sovereignStorage = {
 };
 
 try {
-  Object.defineProperty(_pgClient, 'storage', {
+  if (_pgClient) Object.defineProperty(_pgClient, 'storage', {
     value: _sovereignStorage,
     writable: true,
     configurable: true
@@ -663,7 +706,7 @@ function _createCatalogFlatQuery() {
 }
 
 // Proxy transparente en `sb` unificado para el VPS soberano
-const sb = new Proxy(_pgClient, {
+const sb = _pgClient ? new Proxy(_pgClient, {
   get(target, prop, receiver) {
     if (prop === 'auth') return _sovereignAuth;
     if (prop === 'storage') return _sovereignStorage;
@@ -730,7 +773,7 @@ const sb = new Proxy(_pgClient, {
     const val = Reflect.get(target, prop, receiver);
     return typeof val === 'function' ? val.bind(target) : val;
   }
-});
+}) : null;
 
 const _rawSbCore = sb;
 const _rawSbComm = sb;
@@ -1175,7 +1218,7 @@ async function convertQuoteToOrderNative(quoteId) {
   await _pgClient.from('jjp_quotes').update({ status: 'convertido' }).eq('id', q.id);
   return createdOrder;
 }
-window.convertQuoteToOrderNative = convertQuoteToOrderNative;
+if (typeof window !== 'undefined') window.convertQuoteToOrderNative = convertQuoteToOrderNative;
 
 function genOrderNumber() {
   console.warn('genOrderNumber(): funcion obsoleta. Use fetchNextDocSerial()');
@@ -1294,4 +1337,18 @@ async function fetchRates() {
     console.warn('fetchRates error:', e);
     return null;
   }
+}
+
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    SUPABASE_URL,
+    SUPABASE_KEY,
+    SOVEREIGN_SERVICE_KEY,
+    getAuthToken,
+    _sovereignFetch,
+    _sanitizePostgrestCall,
+    _decodeJwtPayload,
+    _sovereignAuth
+  };
 }

@@ -99,7 +99,7 @@
           </div>
           
           <div id="vpsLiveDetails" style="font-size:13px;color:#cbd5e1;background:rgba(0,0,0,0.2);padding:10px 14px;border-radius:8px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.06);">
-            Conectando con telemetría en tiempo real de Supabase...
+            Conectando con telemetría en tiempo real del VPS Soberano...
           </div>
 
           <div class="f-grid">
@@ -116,6 +116,51 @@
             <button type="button" class="btn-o sm" onclick="checkVpsStatusLive()">
               🔄 Probar Señal
             </button>
+          </div>
+        </div>
+
+                <!-- Suite de Inteligencia Artificial (Google Gemini AI) -->
+        <div class="form-panel" style="border-left:4px solid #6366f1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <div>
+              <h3 style="margin:0;">🤖 Suite de Inteligencia Artificial (Google Gemini AI)</h3>
+              <p style="font-size:12px;color:var(--gr);margin:4px 0 0 0">
+                Alimenta el Copiloto comercial, sugerencias inteligentes en WhatsApp CRM, redactor de correos y Spintax anti-baneo.
+              </p>
+            </div>
+            <span id="geminiStatusBadge" style="padding:4px 12px;font-size:12px;font-weight:700;border-radius:999px;background:rgba(99,102,241,0.15);color:#6366f1;border:1px solid rgba(99,102,241,0.3)">
+              ⚡ Gemini Multi-Key Pool
+            </span>
+          </div>
+
+          <div class="f-grid">
+            <div class="fg">
+              <label class="fl">Modelo de IA Principal</label>
+              <select class="fi" id="set-ai_model">
+                <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Recomendado · Ultra-rápido &lt;800ms)</option>
+                <option value="gemini-3.6-flash">gemini-3.6-flash (Equilibrado · Alta Precisión)</option>
+                <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Respaldo Ligero)</option>
+                <option value="gemini-flash-lite-latest">gemini-flash-lite-latest (Última versión continua)</option>
+              </select>
+              <small style="font-size:11px;color:var(--gr)">Prioridad de cascada: conmuta transparentemente ante saturación.</small>
+            </div>
+            <div class="fg">
+              <label class="fl">Temperatura / Creatividad (0.0 a 1.0)</label>
+              <input type="number" step="0.1" min="0" max="1" class="fi" id="set-ai_temperature" placeholder="0.7">
+              <small style="font-size:11px;color:var(--gr)">0.2 más analítico y preciso; 0.8 más comercial y persuasivo.</small>
+            </div>
+            <div class="fg full">
+              <label class="fl">Pool de API Keys de Google Gemini (Una clave por línea o formato JSON)</label>
+              <textarea class="fi" id="set-ai_gemini_keys" rows="4" style="font-family:monospace;font-size:12px;resize:vertical;" placeholder="AIzaSy... (una por línea)"></textarea>
+              <small style="font-size:11px;color:var(--gr)">El sistema rota automáticamente entre las claves para evitar límites de cuota (HTTP 429). Se guardan en jjp_settings.</small>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;align-items:center">
+            <button type="button" class="btn-o sm" id="testGeminiBtn" onclick="testGeminiConnection()">
+              🧪 Probar Conexión con Gemini AI
+            </button>
+            <div id="geminiTestResult" style="font-size:12px;color:var(--gr)"></div>
           </div>
         </div>
 
@@ -219,21 +264,24 @@
           </div>
         </div>
 
-        <!-- Delivery -->
+        <!-- Despacho y Logistica de Envios -->
         <div class="form-panel">
-          <h3>🛵 Delivery</h3>
+          <h3>🚚 Políticas de Despacho y Logística</h3>
           <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
-            El cliente marca el punto de entrega en el mapa del checkout y el envío se cotiza
-            por distancia desde la tienda (usa las coordenadas del mapa de arriba).
-            El costo final lo confirmas en Pedidos.
+            Reglas de despacho en Gran Caracas y políticas de encomiendas a nivel nacional.
           </p>
           <div class="f-grid">
-            <div class="fg"><label class="fl">Costo base del envío ($)</label>
+            <div class="fg"><label class="fl">Delivery Gratis en Gran Caracas a partir de ($)</label>
+              <input type="number" step="1" min="0" class="fi" id="set-delivery_free_min_usd" placeholder="50">
+              <small style="font-size:11px;color:var(--gr)">Despacho corporativo directo a la sede del cliente.</small></div>
+            <div class="fg"><label class="fl">Tarifa de Despacho Express en Moto ($)</label>
+              <input type="number" step="0.5" min="0" class="fi" id="set-delivery_express_usd" placeholder="3.00">
+              <small style="font-size:11px;color:var(--gr)">Para pedidos urgentes o de menor volumen.</small></div>
+            <div class="fg"><label class="fl">Agencias de Encomienda Nacional Autorizadas</label>
+              <input type="text" class="fi" id="set-delivery_national_carriers" placeholder="ZOOM, Tealca, Fletes GAG, MRW">
+              <small style="font-size:11px;color:var(--gr)">Flete cobro en destino con embalaje reforzado.</small></div>
+            <div class="fg"><label class="fl">Costo Base Referencial ($) [Compatibilidad]</label>
               <input type="number" step="0.01" min="0" class="fi" id="set-delivery_base_usd" placeholder="1.00"></div>
-            <div class="fg"><label class="fl">Costo por km ($)</label>
-              <input type="number" step="0.01" min="0" class="fi" id="set-delivery_per_km_usd" placeholder="0.20"></div>
-            <div class="fg"><label class="fl">Envío gratis desde ($) — 0 = nunca</label>
-              <input type="number" step="1" min="0" class="fi" id="set-delivery_free_over_usd" placeholder="50"></div>
           </div>
         </div>
 
@@ -290,53 +338,28 @@
           </div>
         </div>
 
-        <!-- Clientes destacados (marquee del home) -->
-        <div class="form-panel">
-          <h3>🤝 Clientes que confían en nosotros</h3>
+        <!-- Seguridad y Acceso Administrador -->
+        <div class="form-panel" style="border-left:4px solid #f59e0b;">
+          <h3>🔒 Seguridad y Acceso Administrador</h3>
           <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
-            Empresas e instituciones que aparecen en la cinta giratoria del inicio
-            ("Clientes que confían en nosotros"). Agrega el nombre y el logo
-            (sube un archivo o pega la URL de una imagen). Los cambios se ven de inmediato en el sitio.
+            Actualiza las credenciales de acceso del usuario administrador activo en el VPS.
           </p>
           <div class="f-grid">
-            <div class="fg"><label class="fl" for="cl-name">Nombre de la empresa / cliente</label>
-              <input type="text" class="fi" id="cl-name" placeholder="Ej: COPOSA"></div>
-            <div class="fg"><label class="fl" for="cl-logo-file">Logo (archivo, máx. 2 MB)</label>
-              <input type="file" class="fi" id="cl-logo-file" accept="image/*" style="padding:8px"></div>
-            <div class="fg"><label class="fl" for="cl-logo-url">…o URL del logo (opcional)</label>
-              <input type="text" class="fi" id="cl-logo-url" placeholder="https://... o assets/img/clients/logo.png"></div>
-          </div>
-          <button type="button" class="btn-o" onclick="addClient()" style="margin-top:10px">➕ Agregar cliente</button>
-          <div id="clientsList" style="margin-top:14px"></div>
-        </div>
-
-        
-        <!-- Monitor y Optimización de Almacenamiento (Fase 7) -->
-        <div class="form-panel" style="background:#f8fafc;border:1px solid #cbd5e1">
-          <h3>💾 Almacenamiento y Storage (Supabase)</h3>
-          <p style="font-size:12px;color:var(--gr);margin-bottom:12px">
-            Regla de Oro: Mantenimiento proactivo para no exceder la cuota gratuita (1 GB).
-            La limpieza purga adjuntos antiguos de campañas (>7d) y recibos validados (>30d).
-          </p>
-          <div id="storageStatsWrap" style="margin-bottom:14px;font-size:13px;color:#334155">
-            <div style="display:flex;gap:16px;flex-wrap:wrap">
-              <div style="background:#fff;border:1px solid #e2e8f0;padding:10px 14px;border-radius:8px">
-                <span style="font-size:11px;color:#64748b">WhatsApp Media</span>
-                <div style="font-size:15px;font-weight:700;color:#16604A" id="stgWaSize">—</div>
-              </div>
-              <div style="background:#fff;border:1px solid #e2e8f0;padding:10px 14px;border-radius:8px">
-                <span style="font-size:11px;color:#64748b">Email Media</span>
-                <div style="font-size:15px;font-weight:700;color:#2b6cb0" id="stgEmailSize">—</div>
-              </div>
-              <div style="background:#fff;border:1px solid #e2e8f0;padding:10px 14px;border-radius:8px">
-                <span style="font-size:11px;color:#64748b">Recibos de Pago</span>
-                <div style="font-size:15px;font-weight:700;color:#ca8a04" id="stgReceiptsSize">—</div>
-              </div>
+            <div class="fg">
+              <label class="fl">Nueva Contraseña</label>
+              <input type="password" class="fi" id="adminNewPass" placeholder="••••••••" autocomplete="new-password">
+              <small style="font-size:11px;color:var(--gr)">Mínimo 6 caracteres.</small>
+            </div>
+            <div class="fg">
+              <label class="fl">Confirmar Contraseña</label>
+              <input type="password" class="fi" id="adminConfirmPass" placeholder="••••••••" autocomplete="new-password">
+              <small style="font-size:11px;color:var(--gr)">Debe coincidir con la nueva contraseña.</small>
             </div>
           </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button type="button" class="btn-o sm" onclick="runStorageClean()">🧹 Ejecutar Limpieza de Storage</button>
-            <button type="button" class="btn-o sm" onclick="loadStorageMonitor()">🔄 Refrescar Estadísticas</button>
+          <div style="margin-top:14px">
+            <button type="button" class="btn-o sm" id="changeAdminPassBtn" onclick="changeAdminPassword()">
+              🔒 Actualizar Contraseña
+            </button>
           </div>
         </div>
 
@@ -353,8 +376,8 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
-<script src="../assets/js/admin/settings.js?v=20261014_vps_admin"></script>
-<script src="../assets/js/admin/clients.js"></script>
+<script src="../assets/js/gemini-client.js"></script>
+<script src="../assets/js/admin/settings.js?v=20261027_vps_admin"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth();
@@ -364,56 +387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminAside')?.classList.toggle('op');
   });
   await loadSettingsForm();
-  await loadClientsPanel();
 });
 </script>
-<script>
-async function loadStorageMonitor() {
-  try {
-    const { data, error } = await sb.rpc('jjp_storage_stats');
-    if (!error && Array.isArray(data)) {
-      const wa = data.find(x => x.bucket_id === 'jjp-wa-media');
-      const em = data.find(x => x.bucket_id === 'jjp-email-media');
-      const rc = data.find(x => x.bucket_id === 'jjp-receipts');
-      if (document.getElementById('stgWaSize')) document.getElementById('stgWaSize').textContent = wa ? (wa.size_pretty || wa.files + ' archivos') : '0 B';
-      if (document.getElementById('stgEmailSize')) document.getElementById('stgEmailSize').textContent = em ? (em.size_pretty || em.files + ' archivos') : '0 B';
-      if (document.getElementById('stgReceiptsSize')) document.getElementById('stgReceiptsSize').textContent = rc ? (rc.size_pretty || rc.files + ' archivos') : '0 B';
-    }
-  } catch (e) {
-    console.log('Storage monitor init notice:', e.message);
-  }
-}
 
-async function runStorageClean() {
-  if (!confirm('¿Deseas purgar archivos antiguos de campañas completadas y recibos procesados?')) return;
-  try {
-    let deletedCount = 0;
-    const { data: waFiles } = await sb.storage.from('jjp-wa-media').list('', { limit: 100 });
-    if (waFiles && waFiles.length > 0) {
-      const oldWa = waFiles.filter(f => f.name.includes('campaigns') || (Date.now() - new Date(f.created_at).getTime() > 7 * 86400000)).map(f => f.name);
-      if (oldWa.length > 0) {
-        await sb.storage.from('jjp-wa-media').remove(oldWa);
-        deletedCount += oldWa.length;
-      }
-    }
-    const { data: emFiles } = await sb.storage.from('jjp-email-media').list('', { limit: 100 });
-    if (emFiles && emFiles.length > 0) {
-      const oldEm = emFiles.filter(f => (Date.now() - new Date(f.created_at).getTime() > 7 * 86400000)).map(f => f.name);
-      if (oldEm.length > 0) {
-        await sb.storage.from('jjp-email-media').remove(oldEm);
-        deletedCount += oldEm.length;
-      }
-    }
-    showToast('Limpieza completada: ' + deletedCount + ' archivos purgados exitosamente');
-    await loadStorageMonitor();
-  } catch (e) {
-    showToast('Error en limpieza: ' + e.message, 'err');
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(loadStorageMonitor, 1000);
-});
-</script>
 </body>
 </html>

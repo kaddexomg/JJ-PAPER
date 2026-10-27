@@ -758,12 +758,14 @@ async function initCatalog() {
     }
   }
 
-  // Params de entrada: ?grupo= (familia), ?cat= (categoría fina) y ?q= (búsqueda).
-  // ?cat= abre además su familia — lo resuelve setCat().
+  // Params de entrada: ?grupo=, ?cat=, ?q=, ?buscar= (QR impreso), ?producto=, ?sku=, ?p=, ?id=
   const qs       = new URLSearchParams(location.search);
   const urlGroup = qs.get('grupo');
   const urlCat   = qs.get('cat');
-  const urlQ     = qs.get('q');
+  const urlBuscar = (qs.get('buscar') || '').trim();
+  const urlQ     = (qs.get('q') || urlBuscar).trim();
+  const isFromPhysicalQr = Boolean(urlBuscar || qs.get('qr') === '1' || qs.get('from_qr') === '1');
+
   if (urlGroup && catGroups.some(g => g.slug === urlGroup)) currentGroup = urlGroup;
   if (urlQ) {
     currentSearch = urlQ;
@@ -777,17 +779,74 @@ async function initCatalog() {
   if (urlCat) setCat(urlCat);
   else renderProds();
 
-  // Fase 6.3: Enlace directo a producto por SKU o ID (?producto=SKU123)
-  const urlProd = qs.get('producto') || qs.get('sku') || qs.get('p');
-  if (urlProd) {
-    const target = urlProd.toLowerCase().trim();
-    const found = allProducts.find(p =>
-      (p.sku && p.sku.toLowerCase() === target) ||
-      p.id === urlProd ||
-      (p.slug && p.slug.toLowerCase() === target)
-    );
+  // Interceptor del Catálogo Físico Impreso (QR) y Enlace Directo a Ficha Técnica
+  const targetQuery = urlBuscar || qs.get('producto') || qs.get('sku') || qs.get('p') || qs.get('id') || '';
+  if (targetQuery) {
+    const rawTarget = targetQuery.trim();
+    const cleanNorm = (str) => String(str || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+
+    const targetNorm = cleanNorm(rawTarget);
+    const targetWords = targetNorm.split(' ').filter(w => w.length >= 2);
+
+    // 1. Búsqueda por ID directo
+    let found = allProducts.find(p => p.id === rawTarget);
+
+    // 2. Búsqueda por SKU exacto
+    if (!found) {
+      found = allProducts.find(p => p.sku && p.sku.toLowerCase().trim() === rawTarget.toLowerCase());
+    }
+
+    // 3. Búsqueda por variante SKU
+    if (!found) {
+      found = allProducts.find(p => p.variants && p.variants.some(v => v.sku && v.sku.toLowerCase().trim() === rawTarget.toLowerCase()));
+    }
+
+    // 4. Búsqueda por coincidencia exacta o normalizada de nombre
+    if (!found) {
+      found = allProducts.find(p => cleanNorm(p.name) === targetNorm);
+    }
+
+    // 5. Búsqueda por inclusión directa
+    if (!found) {
+      found = allProducts.find(p => {
+        const pNorm = cleanNorm(p.name);
+        return pNorm.includes(targetNorm) || targetNorm.includes(pNorm);
+      });
+    }
+
+    // 6. Búsqueda por máxima puntuación de palabras coincidentes
+    if (!found && targetWords.length > 0) {
+      let bestScore = 0;
+      let bestProd = null;
+      for (const p of allProducts) {
+        const pNorm = cleanNorm(p.name);
+        let score = 0;
+        for (const w of targetWords) {
+          if (pNorm.includes(w)) score++;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestProd = p;
+        }
+      }
+      if (bestScore >= Math.min(2, targetWords.length)) {
+        found = bestProd;
+      }
+    }
+
     if (found && typeof openProductModal === 'function') {
-      setTimeout(() => openProductModal(found.id), 250);
+      setTimeout(() => {
+        openProductModal(found.id, {
+          fromQr: isFromPhysicalQr,
+          searchQuery: rawTarget
+        });
+        if (typeof showToast === 'function' && isFromPhysicalQr) {
+          showToast('📱 Escaneado desde el Catálogo Físico: ' + found.name, 4000);
+        }
+      }, 250);
     }
   }
 }

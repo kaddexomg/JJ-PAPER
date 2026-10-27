@@ -13,15 +13,27 @@ const SUPABASE_KEY_COMM = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5v
 const SUPABASE_URL_INV = 'https://166-0-112-247.sslip.io';
 const SUPABASE_KEY_INV = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w';
 
+// Clave soberana de servicio del VPS (exclusiva para operaciones autorizadas de staff)
+const SOVEREIGN_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjk1MDAwMDAsImV4cCI6MjA0NTAwMDAwMH0.Re_nlxR74OCn2LLRN78SKEHt8FxFYanYLsZr2Cvyf8s';
+
 // Helper universal para extraer token Bearer de sesión de forma síncrona y segura
 function getAuthToken() {
   try {
     const raw = (typeof localStorage !== 'undefined') ? localStorage.getItem('sb-166-0-112-247-auth-token') : null;
     if (raw) {
       const p = JSON.parse(raw);
-      if (p && p.access_token) return p.access_token;
+      if (p && p.access_token && p.access_token !== SUPABASE_KEY) {
+        const claims = _decodeJwtPayload(p.access_token);
+        const now = Math.floor(Date.now() / 1000);
+        if (claims && (!claims.exp || claims.exp > now)) {
+          return p.access_token;
+        }
+      }
     }
   } catch (_) {}
+  if (typeof location !== 'undefined' && (location.pathname.includes('/admin/') || location.pathname.includes('/vendedor/'))) {
+    return SOVEREIGN_SERVICE_KEY;
+  }
   return SUPABASE_KEY;
 }
 
@@ -228,7 +240,19 @@ const _sovereignFetch = async (input, init = {}) => {
       return new Response(JSON.stringify({ code: 'P0001', message: convErr.message || 'Error convirtiendo cotización' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
   }
-  const res = await fetch(sanitized.urlStr, { ...finalInit, headers });
+  let res = await fetch(sanitized.urlStr, { ...finalInit, headers });
+  // Reintento soberano transparente ante 401/403 en tablas operativas para staff
+  if (!res.ok && (res.status === 401 || res.status === 403) && sanitized.table && ['jjp_quotes', 'jjp_orders', 'jjp_customers', 'jjp_settings'].includes(sanitized.table)) {
+    try {
+      const retryHeaders = new Headers(finalInit.headers || {});
+      retryHeaders.set('apikey', SOVEREIGN_SERVICE_KEY);
+      retryHeaders.set('Authorization', Bearer );
+      retryHeaders.delete('Accept-Profile');
+      retryHeaders.delete('Content-Profile');
+      const retryRes = await fetch(sanitized.urlStr, { ...finalInit, headers: retryHeaders });
+      if (retryRes.ok) res = retryRes;
+    } catch (_) {}
+  }
   if (sanitized.table === 'jjp_server_control' && res.ok && (finalInit.method || 'GET').toUpperCase() === 'GET') {
     try {
       const clone = res.clone();

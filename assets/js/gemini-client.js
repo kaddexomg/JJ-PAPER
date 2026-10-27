@@ -3013,7 +3013,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
       ? 'isolated product packshot on seamless pure solid white background #FFFFFF, commercial studio softbox lighting, soft natural contact shadow at base'
       : 'isolated product packshot on luxury deep emerald green #0B3327 background, subtle center backlight halo, soft natural contact shadow at base';
 
-    const photoPrompt = `Commercial retail packshot of ${englishSubject}, office supplies and stationery product, NO PEOPLE, NO CHARACTERS, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
+    const photoPrompt = `Commercial retail packshot of ${englishSubject}, office supplies and stationery product, NO PEOPLE, NO CHARACTERS, NO WINNIE THE POOH, NO PIGLET, NO CARTOONS, NO 3D GRAPHICS, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
 
     // Generar imagen con Pollinations Flux (motor de IA publicitaria)
     const cleanPrompt = photoPrompt.slice(0, 450);

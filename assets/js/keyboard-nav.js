@@ -384,8 +384,12 @@
     // F9 o Ctrl+Enter: Emitir Cotización o Procesar Venta
     if (e.key === 'F9' || (isCtrl && e.key === 'Enter')) {
       e.preventDefault();
-      // En Cotizador
-      if (typeof quoteSaveOrPrint === 'function') {
+      // En Cotizador o POS
+      if (typeof quoteSubmit === 'function') {
+        quoteSubmit();
+      } else if (typeof posSubmit === 'function') {
+        posSubmit();
+      } else if (typeof quoteSaveOrPrint === 'function') {
         quoteSaveOrPrint();
       } else if (typeof posCheckout === 'function') {
         posCheckout();

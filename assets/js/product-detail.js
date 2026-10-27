@@ -31,18 +31,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const productId = params.get('id');
   const productSku = params.get('sku');
+  const productQuery = (params.get('buscar') || params.get('q') || params.get('p') || params.get('producto') || '').trim();
 
-  if (!productId && !productSku) {
+  if (!productId && !productSku && !productQuery) {
     renderNotFound('No se especificó ningún producto.');
     return;
   }
 
-  await loadProductData(productId, productSku);
+  await loadProductData(productId, productSku, productQuery);
   setupKeyboardNavigation();
 });
 
 // Carga de producto desde Supabase
-async function loadProductData(id, sku) {
+async function loadProductData(id, sku, queryText = '') {
   const container = document.getElementById('productApp');
   if (!container) return;
 
@@ -52,11 +53,14 @@ async function loadProductData(id, sku) {
 
     if (id) {
       query = query.eq('id', id);
-    } else {
+    } else if (sku) {
       query = query.eq('sku', sku);
+    } else if (queryText) {
+      query = query.ilike('name', `%${queryText}%`).limit(1);
     }
 
-    const { data, error } = await query.single();
+    const { data: rawData, error } = (id || sku) ? await query.single() : await query;
+    const data = Array.isArray(rawData) ? rawData[0] : rawData;
     if (error || !data) {
       renderNotFound('El producto solicitado no fue encontrado o está inactivo.');
       return;

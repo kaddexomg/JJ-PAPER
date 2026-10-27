@@ -109,6 +109,26 @@ export function analyzeProductOntology(productName = '', unit = '') {
     productType = 'carpeta de archivo y documentos';
   } else if (/CUADERNO|LIBRETA/i.test(cleanName)) {
     productType = 'cuaderno escolar';
+  } else if (/LAPIZ.*(CHEQUEO|BICOLOR)|BICOLOR/i.test(cleanName)) {
+    productType = 'lápiz de chequeo bicolor rojo y azul';
+  } else if (/CARPETA.*FIBRA/i.test(cleanName)) {
+    productType = 'carpeta de fibra marrón oficio con fuelle';
+  } else if (/SOBRE.*(#11|11|VENTANA)/i.test(cleanName)) {
+    productType = 'sobre comercial blanco #11 con ventanilla';
+  } else if (/SOBRE.*MANILA/i.test(cleanName)) {
+    productType = 'sobre manila amarillo de correspondencia';
+  } else if (/CINTA.*EPSON|EPSON.*(ERC|LX|FX)/i.test(cleanName)) {
+    productType = 'cartucho de cinta matricial Epson';
+  } else if (/TIRRO/i.test(cleanName)) {
+    productType = 'tirro de papel crepé de enmascarar';
+  } else if (/CELOVEN|CELLUX/i.test(cleanName)) {
+    productType = 'cinta adhesiva transparente celoven';
+  } else if (/PAPEL.*CONTAC|CONTAC/i.test(cleanName)) {
+    productType = 'papel contac transparente autoadhesivo para forrar';
+  } else if (/REGISTRADOR.*(A-Z|LOMO)|ARCHIVADOR.*PALANCA/i.test(cleanName)) {
+    productType = 'archivador registrador de palanca lomo ancho A-Z';
+  } else if (/FUNDA.*PLASTICA|PROTECTOR.*HOJA/i.test(cleanName)) {
+    productType = 'fundas plásticas protectoras multitaladro';
   }
 
   // 5. Construcción de directiva visual e intención

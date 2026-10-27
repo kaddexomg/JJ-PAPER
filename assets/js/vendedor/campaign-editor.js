@@ -210,73 +210,55 @@ window.CampaignEditor = (() => {
               </div>
             </div>
 
-            <!-- Enfoque Comercial y Catálogo -->
+            <!-- 5 Modos Reales de Campaña Comercial JJ Paper -->
             <div class="ce-section">
               <div class="ce-section-title">
-                <span>🎯 Enfoque Comercial y Catálogo</span>
-              </div>
-              <div class="ce-field-group">
-                <select class="ce-select" id="ceTypeSelect" onchange="CampaignEditor.onTypeChange()">
-                  <option value="general">📣 General / Propuesta según Rubro del Cliente</option>
-                  <option value="producto">📦 Promoción de un Producto Específico</option>
-                  <option value="multi_oferta">🔥 Ofertas / Catálogo Multi-Producto (Sin límite)</option>
-                  <option value="combo">🎁 Promoción de un Combo / Oferta Especial</option>
-                  <option value="reactivacion">😴 Reactivación de Clientes Inactivos</option>
-                </select>
+                <span>🎯 Modo de Campaña Comercial</span>
               </div>
               
-              <div id="cePickerTriggerWrap" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:115px; background:#f0fdf4; color:#166534; border-color:#86efac; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('product')">
-                  📦 1 Producto
+              <div class="ce-mode-selector-5">
+                <button type="button" class="ce-mode-btn active" id="ceModeBtn_presentacion_b2b" data-mode="presentacion_b2b" onclick="CampaignEditor.setCampaignMode('presentacion_b2b')">
+                  <span class="ce-mode-icon">🏢</span>
+                  <span class="ce-mode-title">Presentación B2B</span>
+                  <span class="ce-mode-desc">1er contacto formal</span>
                 </button>
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:125px; background:#fff7ed; color:#c2410c; border-color:#fed7aa; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('multi')">
-                  🔥 Multi-Ofertas
+                <button type="button" class="ce-mode-btn" id="ceModeBtn_seguimiento_prospecto" data-mode="seguimiento_prospecto" onclick="CampaignEditor.setCampaignMode('seguimiento_prospecto')">
+                  <span class="ce-mode-icon">🤝</span>
+                  <span class="ce-mode-title">Seguimiento</span>
+                  <span class="ce-mode-desc">2do/3er contacto</span>
                 </button>
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:180px; background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:700; padding:6px 10px;" onclick="CampaignEditor.openAiOfferBuilderModal()">
-                  🤖 Cargar con IA / Archivo
+                <button type="button" class="ce-mode-btn" id="ceModeBtn_reposicion_cliente" data-mode="reposicion_cliente" onclick="CampaignEditor.setCampaignMode('reposicion_cliente')">
+                  <span class="ce-mode-icon">🔄</span>
+                  <span class="ce-mode-title">Reposición Stock</span>
+                  <span class="ce-mode-desc">Clientes activos</span>
                 </button>
-                <button type="button" class="ce-var-btn" style="flex:1; min-width:115px; background:#fdf2f8; color:#9d174d; border-color:#fbcfe8; font-weight:600; padding:6px 10px;" onclick="CampaignEditor.openCatalogPicker('combo')">
-                  🎁 Combo / Promo
+                <button type="button" class="ce-mode-btn" id="ceModeBtn_oferta_multiproducto" data-mode="oferta_multiproducto" onclick="CampaignEditor.setCampaignMode('oferta_multiproducto')">
+                  <span class="ce-mode-icon">🔥</span>
+                  <span class="ce-mode-title">Multi-Oferta</span>
+                  <span class="ce-mode-desc">Combo / lote ahorro</span>
                 </button>
+                <button type="button" class="ce-mode-btn" id="ceModeBtn_oferta_unipromocion" data-mode="oferta_unipromocion" onclick="CampaignEditor.setCampaignMode('oferta_unipromocion')">
+                  <span class="ce-mode-icon">⭐</span>
+                  <span class="ce-mode-title">1 Producto</span>
+                  <span class="ce-mode-desc">Producto estrella</span>
+                </button>
+              </div>
+
+              <!-- Selector de Productos Contextual según el modo -->
+              <div id="ceProductSelectorContext" style="display:none;margin-top:8px;">
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <button type="button" id="ceCatalogPickerBtn" class="ce-var-btn" style="flex:1;background:#f0fdf4;color:#166534;border-color:#86efac;font-weight:700;padding:8px 12px;" onclick="CampaignEditor.openCatalogPickerForActiveMode()">
+                    📦 Seleccionar del Catálogo
+                  </button>
+                </div>
               </div>
 
               <div id="ceSelectedCardWrap" style="display:none; margin-top:8px;"></div>
-
-              <!-- Estrategia B2B: Sector, Tono y Gancho de Propuesta Comercial -->
-              <div style="margin-top:10px; padding-top:8px; border-top:1px dashed #cbd5e1; display:flex; flex-direction:column; gap:8px;">
-                <div>
-                  <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">🏢 Sector / Rubro Objetivo:</label>
-                  <select class="ce-select" id="ceTargetSector" onchange="CampaignEditor.onSectorStrategyChange()">
-                    <option value="auto" selected>🎯 Detección Inteligente (según cada cuenta)</option>
-                    <option value="colegios">🏫 Colegios, Universidades & Educación</option>
-                    <option value="clinicas">🏥 Clínicas, Salud & Archivo Médico</option>
-                    <option value="oficinas">🏢 Empresas, Oficinas & Corporativo</option>
-                    <option value="retail">🛒 Supermercados, Abastos & Cajas POS</option>
-                    <option value="logistica">📦 Industrias, Almacenes & Logística</option>
-                    <option value="papelerias">📚 Papelerías & Comercios (Mayorista Reventa)</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">🎭 Tono & Actitud Comercial:</label>
-                  <select class="ce-select" id="ceCommercialTone" onchange="CampaignEditor.onSectorStrategyChange()">
-                    <option value="socio_estrategico" selected>💼 Ejecutivo & Socio Estratégico (Seguridad y Factura BCV)</option>
-                    <option value="oportunidad_mayorista">🔥 Oferta Mayorista & Volumen (Actitud de Cierre y Ahorro)</option>
-                    <option value="cercano_consultivo">🤝 Cercano, Asesor y Resolutivo (Atención directa y Sourcing)</option>
-                    <option value="institucional_formal">🏢 Institucional Formal (Procura y Compras)</option>
-                    <option value="fidelizado_reactivacion">💎 Cliente VIP / Fidelizado (Trato Preferencial y Confianza)</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:2px">⭐ Propuesta de Valor / Gancho Principal:</label>
-                  <select class="ce-select" id="ceValueHook" onchange="CampaignEditor.onSectorStrategyChange()">
-                    <option value="importador_directo" selected>🏭 Importador Directo en Caracas (Mejores precios sin intermediarios)</option>
-                    <option value="escala_volumen">📦 Escala y Descuento por Volumen (Ahorro por bulto/caja)</option>
-                    <option value="sourcing_especial">🔍 Búsqueda de Insumos Especiales ("Te conseguimos lo que no esté en lista")</option>
-                    <option value="despacho_express">🚚 Despacho Express 24h + Facturación Fiscal BCV</option>
-                    <option value="ahorro_mensual">💰 Optimización de Presupuesto Mensual de Suministros</option>
-                  </select>
-                </div>
-                <div id="ceStrategyStatus" style="font-size:11px; color:#0369a1; background:#e0f2fe; padding:5px 8px; border-radius:6px; display:none;"></div>
+              
+              <!-- Notas o Requerimientos adicionales para la IA -->
+              <div style="margin-top:10px;">
+                <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">💡 Instrucción o Nota Adicional para la IA (Opcional):</label>
+                <input type="text" class="ce-input" id="ceCustomNotesInput" placeholder="Ej: Resaltar entrega hoy mismo en Caracas / Facturación SENIAT / Precios válidos esta semana..." style="font-size:12px">
               </div>
             </div>
 
@@ -449,8 +431,8 @@ window.CampaignEditor = (() => {
                     <div style="font-size:11px;color:#475569" id="ceAiFlowStatusTxt">Examina el rubro de cada prospecto, detecta su necesidad y redacta su propuesta única.</div>
                   </div>
                 </div>
-                <button type="button" class="ce-ai-analyze-btn" id="ceStartAiAnalysisBtn" onclick="CampaignEditor.openAiToneModal()">
-                  ⚡ Analizar y Redactar con IA (<span id="ceAnalyzeCountSpan">0</span>)
+                <button type="button" class="ce-ai-analyze-btn" id="ceStartAiAnalysisBtn" onclick="CampaignEditor.startAiDraftForCampaign()">
+                  ⚡ Redactar Propuesta con IA (<span id="ceAnalyzeCountSpan">0</span>)
                 </button>
               </div>
               <div class="ce-progress-bar-wrap" id="ceAiProgressWrap" style="display:none;margin-top:6px;">
@@ -511,9 +493,9 @@ window.CampaignEditor = (() => {
               </div>
 
               <!-- Área de Redacción y Variables (Modo Plantilla) -->
-              <div class="ce-composer-area" id="ceComposerArea" style="display:none;">
+              <div class="ce-composer-area" id="ceComposerArea" style="display:block;">
                 <div class="ce-ai-toolbar" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-                  <button type="button" id="ceAiDraftBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.aiDraftTemplate()" title="Redactar o personalizar plantilla con IA">🪄 Redactar con IA</button>
+                  <button type="button" id="ceAiDraftBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);color:#166534;border-color:#86efac;font-weight:700" onclick="CampaignEditor.startAiDraftForCampaign()" title="Redactar propuesta con IA según el modo seleccionado">✨ Redactar con IA</button>
                   <button type="button" id="ceAiSpintaxBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%);color:#991b1b;border-color:#fecaca;font-weight:700" onclick="CampaignEditor.aiAntiSpamSpintax()" title="Generar Spintax anti-baneo automático">🛡️ Variar Anti-Spam IA</button>
                   <button type="button" id="ceAiFlyerBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%);color:#1e40af;border-color:#bfdbfe;font-weight:700" onclick="CampaignEditor.aiDesignFlyer()" title="Diseñar Flyer gráfico del producto con IA">🎨 Diseñar Flyer con IA</button>
                   <button type="button" id="ceAiSectorBtn" class="ce-var-btn" style="background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%);color:#6b21a8;border-color:#d8b4fe;font-weight:700" onclick="CampaignEditor.aiSectorPitch()" title="Generar propuesta estructurada por sector con IA">🎯 Abordaje B2B por Sector</button>
@@ -2796,6 +2778,13 @@ ${rawText}
     formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#00a884;font-weight:700;text-decoration:underline;">$1</a>');
     formatted = formatted.replace(/\n/g, '<br>');
 
+    if (isEmail && window.GeminiClient && typeof window.GeminiClient.generateInstitutionalSignatureHtml === 'function') {
+      formatted += window.GeminiClient.generateInstitutionalSignatureHtml({
+        sellerName: currentConfig?.seller?.name || '',
+        sellerPhone: currentConfig?.seller?.phone || ''
+      });
+    }
+
     // Vista previa visual de tarjeta que genera WhatsApp/Email al detectar el link
     const hasCatalogLink = rendered.includes('/catalogo') || rendered.includes('/producto');
     if (hasCatalogLink) {
@@ -3337,15 +3326,11 @@ ${rawText}
     // Si estamos en Modo IA y hay prospectos sin analizar
     if (editorMode === 'ai') {
       const missingAnalysis = selectedAudienceList.filter(c => !c._custom_message);
-      if (missingAnalysis.length > 0) {
-        const doAnalyze = confirm(`Hay ${missingAnalysis.length} prospectos sin propuesta redactada por IA.\n\n¿Deseas analizarlos ahora para que cada cliente reciba su mensaje 100% personalizado y diferente?\n(Si cancelas, se despachará de inmediato con el mensaje actual o plantilla comercial).`);
-        if (doAnalyze) {
-          openAiToneModal();
-          return;
-        } else {
-          console.log(`[CampaignEditor] Despachando ${missingAnalysis.length} prospectos con mensaje base para envío inmediato.`);
-        }
-      }
+      // Si hay prospectos sin análisis individual, asegurar que todos tengan el mensaje base de la campaña
+      selectedAudienceList.forEach(c => {
+        if (!c._custom_message) c._custom_message = body;
+        if (isEmail && !c._custom_subject) c._custom_subject = subject;
+      });
       if (!body || body.includes('Le saludamos cordialmente de JJ Paper...') || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
         body = buildMinimalFallback(null, currentConfig.channel || 'whatsapp', currentConfig.seller?.name, document.getElementById('ceAttachPdf')?.checked !== false);
       }

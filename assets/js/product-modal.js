@@ -26,7 +26,9 @@ function injectProductModal() {
   if (placeholder) placeholder.outerHTML = html;
 }
 
-async function openProductModal(productId) {
+async function openProductModal(productId, opts = {}) {
+  _modalFromQr = Boolean(opts?.fromQr || (new URLSearchParams(location.search)).get('buscar') || (new URLSearchParams(location.search)).get('from_qr'));
+  _modalScanQuery = opts?.searchQuery || (new URLSearchParams(location.search)).get('buscar') || '';
   const modal = document.getElementById('prodModal');
   const body  = document.getElementById('prodModalBody');
   const title = document.getElementById('prodModalTitle');
@@ -159,6 +161,7 @@ function renderModalBody() {
     ${thumbsHTML}
   </div>
   <div class="prod-modal-info">
+    ${_modalFromQr ? `<div class="pm-qr-badge" style="display:inline-flex;align-items:center;gap:6px;background:#e8f5e9;color:#16604a;border:1.5px solid #a5d6a7;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;margin-bottom:6px">📱 Escaneado desde el Catálogo Físico Impreso</div>` : ''}
     <div class="prod-modal-cat">${escapeHTML(cat.name || '')}</div>
     <h2 class="prod-modal-name">${name}</h2>
     ${stockHTML}
@@ -383,3 +386,58 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('DOMContentLoaded', injectProductModal);
+
+
+/* ======================================================
+   Resolución de Fotos con IA en Catálogo / Ficha Técnica
+   ====================================================== */
+window.pmSearchAiPhoto = async function(productId, productName) {
+  const box = document.getElementById('pmAiPhotoBox_' + productId);
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div style="font-size:11.5px;color:#16604A;padding:6px;font-weight:600">🧠 Buscando fotografía real sobre fondo blanco...</div>';
+
+  try {
+    let photoUrl = null;
+    if (window.GeminiClient && typeof window.GeminiClient.searchRealProductPhoto === 'function') {
+      photoUrl = await window.GeminiClient.searchRealProductPhoto(productName);
+    }
+    if (!photoUrl && window.GeminiClient && typeof window.GeminiClient.generateProductStudioPhoto === 'function') {
+      const gen = await window.GeminiClient.generateProductStudioPhoto({ product: { id: productId, name: productName } });
+      photoUrl = gen?.imageUrl;
+    }
+
+    if (photoUrl) {
+      box.innerHTML = `
+        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px;margin-top:6px">
+          <img src="${photoUrl}" alt="${productName}" style="width:120px;height:120px;object-fit:contain;margin:0 auto;display:block;border-radius:4px">
+          <div style="font-size:11px;color:#166534;font-weight:700;margin:6px 0">✅ Fotografía comercial ubicada</div>
+          <button type="button" class="btn-action-primary" style="font-size:11px;padding:6px 10px;border-radius:6px;width:100%;font-weight:700;background:#16604A;color:#fff;border:0;cursor:pointer" onclick="pmSaveOfficialPhoto('${productId}', '${photoUrl}')">
+            💾 Guardar Foto Oficial en Catálogo
+          </button>
+        </div>
+      `;
+    } else {
+      box.innerHTML = '<div style="font-size:11px;color:#b91c1c;padding:6px">No se ubicó foto web directa. Puedes pegar la URL desde el Copiloto JJ.</div>';
+    }
+  } catch (e) {
+    box.innerHTML = `<div style="font-size:11px;color:#b91c1c;padding:6px">Error: ${e.message}</div>`;
+  }
+};
+
+window.pmSaveOfficialPhoto = async function(productId, photoUrl) {
+  try {
+    const { error } = await sb.from('jjp_products').update({ image_url: photoUrl }).eq('id', productId);
+    if (error) throw error;
+    if (modalProduct && modalProduct.id === productId) {
+      modalProduct.image_url = photoUrl;
+      modalGallery = [photoUrl];
+      renderModalBody();
+    }
+    if (typeof showToast === 'function') {
+      showToast('✅ Foto guardada oficialmente en el catálogo de JJ Paper', 'success');
+    }
+  } catch (err) {
+    alert('Error guardando imagen: ' + err.message);
+  }
+};

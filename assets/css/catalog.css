@@ -740,3 +740,402 @@
 
 /* ── Resultado resaltado por teclado (MixNet style) ─────────────── */
 .pos-result.on { outline: 2px solid var(--gd); background: #ecfdf5; }
+
+/* =========================================================
+   FICHA COMERCIAL DE VENTA DE CALLE (Street Sales Showcase)
+   ========================================================= */
+.pm-street-box {
+  max-width: 540px !important;
+  width: 95% !important;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+  box-shadow: 0 25px 70px rgba(0,0,0,0.4) !important;
+  overflow: hidden !important;
+  margin: auto !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.pm-street-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pm-street-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-st-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16,185,129,0.6);
+}
+
+.pm-st-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+
+.pm-street-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #1e293b;
+  border: none;
+  font-size: 18px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pm-street-close:active, .pm-street-close:hover {
+  background: #cbd5e1;
+  color: #000;
+}
+
+.pm-street-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(88dvh - 65px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* HERO FOTO COMERCIAL CENTRADA */
+.pm-hero-media {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.pm-hero-photo-wrap {
+  width: 100%;
+  max-height: 260px;
+  height: 240px;
+  background: #ffffff;
+  border: 1.5px solid #f1f5f9;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.02);
+}
+
+.pm-hero-photo-wrap img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+}
+
+.pm-zoom-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: rgba(255,255,255,0.92);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Categoría, Marca y Disponibilidad */
+.pm-street-cat-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pm-brand-pill {
+  background: #1e293b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.pm-cat-pill {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.pm-street-qr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8f5e9;
+  color: #16604a;
+  border: 1px solid #a5d6a7;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 800;
+  width: fit-content;
+}
+
+.pm-street-prod-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.25;
+  margin: 0;
+}
+
+/* CAJA DE PRECIO MAYORISTA DE CALLE */
+.pm-street-price-card {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1.5px solid #86efac;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.08);
+}
+
+.pm-spc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pm-spc-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #166534;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+
+.pm-spc-bcv {
+  font-size: 11.5px;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.pm-spc-bcv b {
+  font-weight: 800;
+  color: #166534;
+}
+
+.pm-spc-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pm-spc-usd {
+  font-size: 32px;
+  font-weight: 900;
+  color: #065f46;
+  line-height: 1;
+}
+
+.pm-spc-bs {
+  font-size: 18px;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.pm-spc-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px dashed #bbf7d0;
+  padding-top: 6px;
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.pm-spc-unit-cost {
+  font-size: 11px;
+  font-weight: 700;
+  color: #047857;
+  background: #dcfce7;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ACCIONES DE VENTA EN CALLE */
+.pm-street-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pm-street-qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.pm-street-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-st-qb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1.5px solid #cbd5e1;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.pm-st-qb:active {
+  background: #e2e8f0;
+}
+
+.pm-st-qn {
+  font-size: 18px;
+  font-weight: 800;
+  min-width: 32px;
+  text-align: center;
+  color: #0f172a;
+}
+
+.pm-street-subtotal {
+  font-size: 13px;
+  font-weight: 800;
+  color: #065f46;
+}
+
+.btn-street-wa {
+  width: 100%;
+  background: #25D366;
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37,211,102,0.35);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.btn-street-wa:active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+
+.pm-street-btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn-street-quote {
+  background: #16604A;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-street-share {
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* SECCIÓN CROSS-SELL / RELACIONADOS */
+.pm-street-cross-sell {
+  border-top: 1px solid #e2e8f0;
+  padding: 14px 18px 18px;
+  background: #fafafa;
+}
+
+.pm-sxs-head {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 10px;
+}
+
+.pm-sxs-carousel {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pm-sxs-card {
+  min-width: 125px;
+  max-width: 125px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.pm-sxs-card:active {
+  transform: scale(0.97);
+}

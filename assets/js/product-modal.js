@@ -1,14 +1,15 @@
 /* ======================================================
-   JJ Paper — Product Detail Modal (Ficha Técnica Oficial)
-   Con selector de marca (variantes), resolución de fotos con IA,
-   interceptor de QR físico y productos relacionados.
+   JJ Paper — Ficha Comercial de Venta de Calles (Street Sales)
+   Diseño de Alto Impacto para Teléfono Móvil y Presentación al Cliente.
+   Enfocado 100% en el producto, precio mayorista en USD y Bs (BCV),
+   resolución de fotos con IA, pedido en 1 clic y venta cruzada.
    ====================================================== */
 
 let modalQty     = 1;
 let modalProduct = null;
 let modalVariant = null;
-let modalGallery = [];    // urls de la galería (producto + variantes)
-let modalImgIdx  = -1;    // miniatura elegida (-1 = imagen de la variante)
+let modalGallery = [];
+let modalImgIdx  = -1;
 let _modalUntrap = null;
 let _modalFromQr = false;
 let _modalScanQuery = '';
@@ -17,12 +18,15 @@ function injectProductModal() {
   if (document.getElementById('prodModal')) return;
   const html = `
 <div class="modal-overlay" id="prodModal" onclick="closeProdModal(event)">
-  <div class="modal-box" id="prodModalBox" role="dialog" aria-modal="true" aria-labelledby="prodModalTitle">
-    <div class="modal-hd">
-      <h3 id="prodModalTitle">Ficha Técnica Oficial del Producto</h3>
-      <button class="modal-close" onclick="closeProdModal()" aria-label="Cerrar detalle del producto">✕</button>
+  <div class="pm-street-box" id="prodModalBox" role="dialog" aria-modal="true" aria-labelledby="prodModalTitle">
+    <div class="pm-street-header">
+      <div class="pm-street-tag">
+        <span class="pm-st-dot"></span>
+        <span class="pm-st-title" id="prodModalTitle">JJ PAPER · CATÁLOGO MAYORISTA OFICIAL</span>
+      </div>
+      <button type="button" class="pm-street-close" onclick="closeProdModal()" aria-label="Cerrar ficha de producto">✕</button>
     </div>
-    <div class="modal-body" id="prodModalBody"></div>
+    <div id="prodModalBody"></div>
   </div>
 </div>`;
   const placeholder = document.getElementById('prod-modal-placeholder');
@@ -33,7 +37,6 @@ function injectProductModal() {
   }
 }
 
-// Auto-inyección inmediata si el DOM ya está listo
 if (typeof document !== 'undefined') {
   if (document.readyState !== 'loading') {
     injectProductModal();
@@ -52,16 +55,21 @@ async function openProductModal(productId, opts = {}) {
   const body  = document.getElementById('prodModalBody');
   const title = document.getElementById('prodModalTitle');
 
-  // Mostrar de inmediato estado de carga
-  if (title) title.textContent = 'Cargando producto...';
-  if (body)  body.innerHTML = `<div class="cat-loading"><div class="spin"></div>Cargando Ficha Técnica Oficial...</div>`;
+  if (title) title.textContent = 'JJ PAPER · CATÁLOGO MAYORISTA';
+  if (body) {
+    body.innerHTML = `
+      <div style="padding:40px 20px;text-align:center;">
+        <div class="spin" style="width:36px;height:36px;margin:0 auto 16px;border-width:3px;border-color:#16604A;border-top-color:transparent;"></div>
+        <div style="font-weight:800;font-size:15px;color:#0f172a;margin-bottom:4px;">Cargando Producto de Catálogo...</div>
+        <div style="font-size:12px;color:#64748b;">Consultando precios mayoristas y disponibilidad oficial en vivo</div>
+      </div>`;
+  }
   if (modal) modal.classList.add('op');
   document.body.style.overflow = 'hidden';
 
   if (_modalUntrap) _modalUntrap();
   _modalUntrap = trapFocus(document.getElementById('prodModalBox'));
 
-  // Obtener producto de caché local o base de datos
   let p = null;
   if (typeof productMap !== 'undefined' && productMap[productId]) {
     p = productMap[productId];
@@ -69,7 +77,6 @@ async function openProductModal(productId, opts = {}) {
     p = allProducts.find(x => x.id === productId);
   }
 
-  // Consulta detallada a PostgREST para asegurar variantes frescas
   if (typeof sb !== 'undefined') {
     try {
       const vSelect = typeof VARIANTS_SELECT !== 'undefined' ? VARIANTS_SELECT : 'jjp_product_variants(*)';
@@ -92,7 +99,6 @@ async function openProductModal(productId, opts = {}) {
   modalGallery = [...new Set([p.image_url, ...(p.variants || []).map(x => x.image_url)].filter(Boolean))];
   modalImgIdx  = -1;
 
-  if (title) title.textContent = p.name;
   renderModalBody();
 }
 
@@ -107,7 +113,6 @@ function renderModalBody() {
 
   const v      = modalVariant;
   const cat    = p.jjp_categories || {};
-  const bg     = cat.color || '#f2f2f2';
   const name   = escapeHTML(p.name);
   const unit   = escapeHTML(p.jjp_units?.name || p.unit || 'unid');
   const price  = v ? +v.price_usd : +p.price_usd;
@@ -119,158 +124,179 @@ function renderModalBody() {
 
   const hasOfficialPhoto = Boolean(imgUrl && imgUrl.trim() && !imgUrl.includes('fallback'));
 
+  // Hero Imagen Centrada
   const imgHTML = hasOfficialPhoto
-    ? `<img src="${optImg(imgUrl, 800)}" alt="${name}" decoding="async">`
-    : `<span style="font-size:90px">${p.emoji || '📦'}</span>`;
+    ? `<img src="${optImg(imgUrl, 800)}" alt="${name}" decoding="async" style="width:100%;height:100%;object-fit:contain;padding:10px;">`
+    : `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><span style="font-size:72px;">${p.emoji || '📦'}</span><span style="font-size:11px;font-weight:700;color:#64748b;margin-top:6px;">Fotografía Oficial en Proceso</span></div>`;
 
   // Miniaturas
   const thumbsHTML = modalGallery.length > 1
-    ? `<div class="pm-thumbs" role="group" aria-label="Más imágenes del producto">
+    ? `<div class="pm-thumbs" role="group" aria-label="Más imágenes del producto" style="display:flex;gap:8px;margin-top:10px;justify-content:center;flex-wrap:wrap;">
         ${modalGallery.map((u, i) => `
           <button class="pm-thumb${u === imgUrl ? ' on' : ''}"
-            onclick="selectModalImg(${i})" aria-label="Ver imagen ${i + 1}">
-            <img src="${optImg(u, 160)}" alt="" loading="lazy" decoding="async">
+            onclick="selectModalImg(${i})" aria-label="Ver imagen ${i + 1}" style="width:50px;height:50px;border-radius:8px;overflow:hidden;border:2px solid ${u === imgUrl ? '#16604A' : '#e2e8f0'};background:#fff;cursor:pointer;padding:2px;">
+            <img src="${optImg(u, 160)}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:contain;">
           </button>`).join('')}
       </div>`
     : '';
 
   // Bloque para resolución de fotos con IA cuando falta la imagen
   const aiPhotoHtml = !hasOfficialPhoto ? `
-    <div class="pm-ai-photo-card" id="pmAiPhotoBox_${p.id}" style="margin-top:12px;padding:12px;background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:10px;text-align:center">
-      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:6px">📷 Este artículo no cuenta con fotografía oficial</div>
-      <button type="button" class="btn-action-primary" style="font-size:12px;padding:8px 14px;border-radius:6px;background:#16604A;color:#fff;border:0;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px" onclick="pmSearchAiPhoto('${p.id}', '${escapeAttr(p.name)}')">
-        <span>🧠</span> Buscar Foto Real con IA (Fondo Blanco)
+    <div class="pm-ai-photo-card" id="pmAiPhotoBox_${p.id}" style="margin-top:10px;padding:10px 14px;background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:10px;text-align:center;width:100%;">
+      <div style="font-size:11.5px;font-weight:700;color:#334155;margin-bottom:4px;">📷 ¿Deseas ver la foto comercial oficial?</div>
+      <button type="button" class="btn-action-primary" style="font-size:11.5px;padding:6px 14px;border-radius:8px;background:#16604A;color:#fff;border:0;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;" onclick="pmSearchAiPhoto('${p.id}', '${escapeAttr(p.name)}')">
+        <span>🧠</span> Ubicar Foto Real con IA (Fondo Blanco)
       </button>
-      <div id="pmAiPhotoFeedback_${p.id}" style="margin-top:8px;font-size:11px"></div>
+      <div id="pmAiPhotoFeedback_${p.id}" style="margin-top:6px;font-size:11px;"></div>
     </div>
   ` : '';
 
   // Stock badge
-  let stockHTML;
+  let stockBadge;
   if (stock === null || stock === undefined || stock < 0) {
-    stockHTML = `<span class="pm-stock ok">✔ Disponible</span>`;
+    stockBadge = `<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;">✔ Stock Disponible</span>`;
   } else if (stock === 0) {
-    stockHTML = `<span class="pm-stock out">✕ Agotado</span>`;
+    stockBadge = `<span style="background:#fee2e2;color:#991b1b;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;">✕ Agotado Temporalmente</span>`;
   } else if (stock <= 5) {
-    stockHTML = `<span class="pm-stock low">⚠ Pocas unidades</span>`;
+    stockBadge = `<span style="background:#fef3c7;color:#92400e;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;">⚠ Pocas Unidades</span>`;
   } else {
-    stockHTML = `<span class="pm-stock ok">✔ Disponible</span>`;
+    stockBadge = `<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;">✔ Stock Disponible</span>`;
   }
   const soldOut = stock === 0;
 
-  // Selector de marca / variante
+  // Tasa BCV Oficial
+  const bcvRate = (typeof getRate === 'function') ? getRate().toFixed(2) : '886.23';
+
+  // Opciones de variantes / marcas
   let variantsHTML = '';
   if (p.variants && p.variants.length > 1) {
     const hasPres = p.variants.some(x => x.variant_name);
-    variantsHTML = `<div class="pm-variants">
-      <div class="pm-variants-lbl">${hasPres ? 'Opciones disponibles:' : 'Marca:'}</div>
-      <div class="pm-variants-list">
-        ${p.variants.map(vv => {
-          const bName = escapeHTML(vv.jjp_brands?.name || (vv.variant_name ? '' : 'Estándar'));
-          const pres  = vv.variant_name ? escapeHTML(vv.variant_name) : '';
-          const label = [bName, pres].filter(Boolean).join(' · ');
-          const out   = vv.stock === 0;
-          const on    = vv.id === v?.id;
-          return `<button class="pm-var${on ? ' on' : ''}${out ? ' out' : ''}"
-            onclick="selectModalVariant('${vv.id}')" ${out ? 'title="Agotado"' : ''}>
-            ${vv.jjp_brands?.logo_url ? `<img src="${escapeHTML(vv.jjp_brands.logo_url)}" alt="${bName}" loading="lazy">` : ''}
-            <span>${label}</span>
-            <b>${fmtPrice(vv.price_usd)}</b>
-            ${out ? '<em>Agotado</em>' : ''}
-          </button>`;
-        }).join('')}
-      </div>
-    </div>`;
+    variantsHTML = `
+      <div style="background:#f8fafc;padding:10px 12px;border-radius:12px;border:1px solid #e2e8f0;">
+        <div style="font-size:11.5px;font-weight:800;color:#475569;margin-bottom:8px;">${hasPres ? 'OPCIONES DISPONIBLES:' : 'MARCAS EN STOCK:'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${p.variants.map(vv => {
+            const bName = escapeHTML(vv.jjp_brands?.name || (vv.variant_name ? '' : 'Estándar'));
+            const pres  = vv.variant_name ? escapeHTML(vv.variant_name) : '';
+            const label = [bName, pres].filter(Boolean).join(' · ');
+            const out   = vv.stock === 0;
+            const on    = vv.id === v?.id;
+            return `<button type="button" style="padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;border:1.5px solid ${on ? '#16604A' : '#cbd5e1'};background:${on ? '#f0fdf4' : '#fff'};color:${on ? '#16604A' : '#334155'};cursor:pointer;${out ? 'opacity:0.5;' : ''}"
+              onclick="selectModalVariant('${vv.id}')">
+              ${label} · <b>${fmtPrice(vv.price_usd)}</b>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>`;
   }
 
-  const metaBits = [];
-  const brandName = v?.jjp_brands?.name;
-  if (p.variants && p.variants.length <= 1 && brandName)
-    metaBits.push(`<span class="pm-meta-i"><b>Marca:</b> ${v.jjp_brands.logo_url ? `<img class="pm-brand-logo" src="${escapeHTML(v.jjp_brands.logo_url)}" alt="${escapeHTML(brandName)}" loading="lazy"> ` : ''}${escapeHTML(brandName)}</span>`);
-  if (p.variants && p.variants.length <= 1 && v?.variant_name)
-    metaBits.push(`<span class="pm-meta-i"><b>Presentación:</b> ${escapeHTML(v.variant_name)}</span>`);
-  if (minQty > 1) metaBits.push(`<span class="pm-meta-i"><b>Mínimo:</b> ${minQty} ${unit}</span>`);
+  const brandName = v?.jjp_brands?.name || (p.brand_id ? 'Marca Oficial' : '');
 
+  // Renderizar la Ficha Comercial de Venta de Calles
   body.innerHTML = `
-<div class="prod-modal-grid">
-  <div class="pm-media">
-    <div class="prod-modal-img${hasOfficialPhoto ? ' zoomable has-img' : ''}" style="background:${bg}" ${hasOfficialPhoto ? 'onclick="openModalImgZoom()"' : ''}>
-      ${imgHTML}
-      ${p.tag ? `<span class="pm-tag">${escapeHTML(p.tag)}</span>` : ''}
-      ${hasOfficialPhoto ? `<button class="pm-zoom-btn" onclick="event.stopPropagation();openModalImgZoom()" aria-label="Ver imagen completa de ${name}">🔍 Ampliar</button>` : ''}
-    </div>
-    ${thumbsHTML}
-    ${aiPhotoHtml}
-  </div>
-  <div class="prod-modal-info">
-    ${_modalFromQr ? `<div class="pm-qr-badge" style="display:inline-flex;align-items:center;gap:6px;background:#e8f5e9;color:#16604a;border:1.5px solid #a5d6a7;padding:5px 12px;border-radius:20px;font-size:11.5px;font-weight:800;margin-bottom:8px">📲 Escaneado desde el Catálogo Físico Impreso</div>` : ''}
-    <div class="prod-modal-cat">${escapeHTML(cat.name || '')}</div>
-    <h2 class="prod-modal-name">${name}</h2>
-    ${stockHTML}
-    <p class="prod-modal-desc">${escapeHTML(p.description || 'Artículo oficial de papelería y suministros JJ Paper.')}</p>
-    ${variantsHTML}
-    ${metaBits.length ? `<div class="pm-meta">${metaBits.join('')}</div>` : ''}
-    <div class="prod-modal-prices">
-      <div class="prod-modal-usd">${fmtPrice(price)}</div>
-      <div class="prod-modal-bs">${fmtBs(price)}</div>
-      <div class="prod-modal-unit">por ${unit}</div>
-    </div>
-    <div class="prod-modal-actions">
-      <div class="prod-modal-qty">
-        <button class="qb" onclick="modalChangeQty(-1)" ${soldOut?'disabled':''} aria-label="Disminuir cantidad">−</button>
-        <span class="qn" id="modalQtyDisplay" aria-live="polite" aria-label="Cantidad">${modalQty}</span>
-        <button class="qb" onclick="modalChangeQty(1)" ${soldOut?'disabled':''} aria-label="Aumentar cantidad">+</button>
-        <span class="pm-subtotal" id="modalSubtotal"></span>
+    <div class="pm-street-body">
+      <!-- HERO: FOTO COMERCIAL CENTRADA -->
+      <div class="pm-hero-media">
+        <div class="pm-hero-photo-wrap${hasOfficialPhoto ? ' has-photo' : ' empty-photo'}" onclick="${hasOfficialPhoto ? 'openModalImgZoom()' : ''}">
+          ${imgHTML}
+          ${p.tag ? `<span style="position:absolute;top:10px;left:10px;background:#16604A;color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;">${escapeHTML(p.tag)}</span>` : ''}
+          ${hasOfficialPhoto ? `<span class="pm-zoom-hint">🔍 Toca para ampliar</span>` : ''}
+        </div>
+        ${thumbsHTML}
+        ${aiPhotoHtml}
       </div>
-      <div class="pm-act-grid">
-        <button class="btn-wa" onclick="modalOrderWA()" ${soldOut?'disabled':''} style="grid-column:1/-1;padding:14px;font-size:15px;font-weight:800">
-          💬 Consultar y Pedir por WhatsApp
-        </button>
-        <button class="pm-quote" onclick="modalRequestQuote()" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#065f46;color:#fff;border-color:#065f46;font-weight:700">
-          ⚡ Cotizar este Producto
-        </button>
-        <button class="pm-quote" onclick="modalShare()" style="display:flex;align-items:center;justify-content:center;gap:6px">
-          📋 Compartir Ficha
-        </button>
-        <a href="producto.html?id=${p.id}" class="pm-quote" style="display:flex;align-items:center;justify-content:center;gap:6px;grid-column:1/-1;text-decoration:none;background:#f0f7f3;color:#16604A;border:1.5px solid #c2dbcd;font-weight:700;padding:10px">
-          🌐 Ver Ficha Web Completa →
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="pm-related-section" id="pmRelatedSection_${p.id}" style="margin-top:22px;border-top:1px solid #e2e8f0;padding-top:15px">
-  <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px">
-    <span>✨ Productos Relacionados (${escapeHTML(cat.name || 'de la misma categoría')})</span>
-  </div>
-  <div class="pm-related-grid" id="pmRelatedGrid_${p.id}" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:10px">
-    <div style="color:#64748b;font-size:12px">Cargando productos relacionados...</div>
-  </div>
-</div>
-`;
+      <!-- INFORMACIÓN DEL PRODUCTO -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${_modalFromQr ? `<div class="pm-street-qr-badge">📲 Escaneado de Catálogo Físico Impreso</div>` : ''}
+
+        <div class="pm-street-cat-brand">
+          <span class="pm-brand-pill">${escapeHTML(brandName || 'JJ Paper Mayorista')}</span>
+          <span class="pm-cat-pill">${escapeHTML(cat.name || 'Papelería')}</span>
+          ${stockBadge}
+        </div>
+
+        <h1 class="pm-street-prod-title">${name}</h1>
+
+        <!-- CAJA DE PRECIOS MAYORISTA DE CALLE -->
+        <div class="pm-street-price-card">
+          <div class="pm-spc-top">
+            <span class="pm-spc-badge">PRECIO MAYORISTA OFICIAL</span>
+            <span class="pm-spc-bcv">BCV Oficial: <b>Bs ${bcvRate} / $</b></span>
+          </div>
+          <div class="pm-spc-main">
+            <div class="pm-spc-usd">${fmtPrice(price)}</div>
+            <div class="pm-spc-bs">${fmtBs(price)}</div>
+          </div>
+          <div class="pm-spc-bottom">
+            <span>📦 Empaque: <b>${unit}</b></span>
+            ${minQty > 1 ? `<span class="pm-spc-unit-cost">Mínimo: ${minQty} ${unit}</span>` : ''}
+          </div>
+        </div>
+
+        ${variantsHTML}
+
+        <!-- CONTROLES DE VENTA EN CALLE -->
+        <div class="pm-street-actions">
+          <div class="pm-street-qty-row">
+            <span style="font-size:12px;font-weight:700;color:#475569;">Cantidad a Despachar:</span>
+            <div class="pm-street-stepper">
+              <button type="button" class="pm-st-qb" onclick="modalChangeQty(-1)" ${soldOut ? 'disabled' : ''}>−</button>
+              <span class="pm-st-qn" id="modalQtyDisplay">${modalQty}</span>
+              <button type="button" class="pm-st-qb" onclick="modalChangeQty(1)" ${soldOut ? 'disabled' : ''}>+</button>
+            </div>
+            <div class="pm-street-subtotal" id="modalSubtotal"></div>
+          </div>
+
+          <!-- BOTÓN PRINCIPAL FACTURAR / WHATSAPP -->
+          <button type="button" class="btn-street-wa" onclick="modalOrderWA()" ${soldOut ? 'disabled' : ''}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+            <span>Facturar / Pedir por WhatsApp</span>
+          </button>
+
+          <!-- BOTONES SECUNDARIOS -->
+          <div class="pm-street-btn-grid">
+            <button type="button" class="btn-street-quote" onclick="modalRequestQuote()">
+              <span>⚡ Cotizar en Sede</span>
+            </button>
+            <button type="button" class="btn-street-share" onclick="modalShare()">
+              <span>📤 Compartir Ficha</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN DE VENTA CRUZADA / RELACIONADOS EN CALLE -->
+    <div class="pm-street-cross-sell" id="pmRelatedSection_${p.id}">
+      <div class="pm-sxs-head">
+        <span>🛍️ Complementa este pedido (Misma Categoría):</span>
+      </div>
+      <div class="pm-sxs-carousel" id="pmRelatedGrid_${p.id}">
+        <div style="color:#64748b;font-size:12px;padding:8px;">Cargando productos sugeridos...</div>
+      </div>
+    </div>
+  `;
 
   updateModalSubtotal();
   loadModalRelatedProducts(p);
 
-  // Si proviene de escaneo QR y no tiene foto, disparar búsqueda automática de foto
   if (_modalFromQr && !hasOfficialPhoto) {
     setTimeout(() => {
       if (typeof window.pmSearchAiPhoto === 'function') {
         window.pmSearchAiPhoto(p.id, p.name, true);
       }
-    }, 400);
+    }, 300);
   }
 }
 
-// Carga de productos relacionados dentro de la misma categoría
 async function loadModalRelatedProducts(p) {
   const container = document.getElementById('pmRelatedGrid_' + p.id);
   if (!container) return;
 
   let related = [];
   if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
-    related = allProducts.filter(x => x.category_id === p.category_id && x.id !== p.id).slice(0, 4);
+    related = allProducts.filter(x => x.category_id === p.category_id && x.id !== p.id).slice(0, 5);
   }
   if (!related.length && typeof sb !== 'undefined') {
     try {
@@ -280,7 +306,7 @@ async function loadModalRelatedProducts(p) {
         .eq('category_id', p.category_id)
         .neq('id', p.id)
         .eq('active', true)
-        .limit(4);
+        .limit(5);
       if (data && data.length) {
         related = data.map(normalizeProduct);
       }
@@ -288,24 +314,24 @@ async function loadModalRelatedProducts(p) {
   }
 
   if (!related.length) {
-    container.innerHTML = '<div style="color:#64748b;font-size:11.5px;grid-column:1/-1">No hay más productos en esta categoría por ahora.</div>';
+    container.innerHTML = '<div style="color:#64748b;font-size:11.5px;padding:6px;">No hay más productos sugeridos en esta categoría.</div>';
     return;
   }
 
   container.innerHTML = related.map(rp => {
     const rImg = rp.image_url
-      ? `<img src="${optImg(rp.image_url, 200)}" alt="${escapeHTML(rp.name)}" style="width:100%;height:85px;object-fit:contain;border-radius:6px;background:#f8fafc;margin-bottom:6px">`
-      : `<div style="width:100%;height:85px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:6px;font-size:32px;margin-bottom:6px">${rp.emoji || '📦'}</div>`;
+      ? `<img src="${optImg(rp.image_url, 180)}" alt="${escapeHTML(rp.name)}" style="width:100%;height:80px;object-fit:contain;background:#fff;border-radius:6px;margin-bottom:4px;">`
+      : `<div style="width:100%;height:80px;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-radius:6px;font-size:28px;margin-bottom:4px;">${rp.emoji || '📦'}</div>`;
     const rPrice = rp._minPrice || rp.price_usd || 0;
     return `
-      <div class="pm-related-card" style="border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;transition:transform 0.15s,box-shadow 0.15s" onclick="openProductModal('${rp.id}', { fromQr: false })" title="Ver ${escapeHTML(rp.name)}">
+      <div class="pm-sxs-card" onclick="openProductModal('${rp.id}', { fromQr: false })" title="Ver ${escapeHTML(rp.name)}">
         <div>
           ${rImg}
-          <div style="font-size:11px;font-weight:700;color:#1e293b;line-height:1.25;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHTML(rp.name)}</div>
+          <div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.2;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHTML(rp.name)}</div>
         </div>
         <div>
-          <div style="font-size:12px;font-weight:800;color:#16604a">${fmtPrice(rPrice)}</div>
-          <div style="font-size:10px;color:#64748b">${fmtBs(rPrice)}</div>
+          <div style="font-size:12px;font-weight:900;color:#065f46;">${fmtPrice(rPrice)}</div>
+          <div style="font-size:10px;color:#166534;font-weight:600;">${fmtBs(rPrice)}</div>
         </div>
       </div>
     `;
@@ -332,12 +358,13 @@ function updateModalSubtotal() {
   if (!el || !modalProduct) return;
   const price = modalVariant ? +modalVariant.price_usd : +modalProduct.price_usd;
   const sub = price * modalQty;
-  el.innerHTML = `${fmtPrice(sub)} <span style="color:var(--gr)">· ${fmtBs(sub)}</span>`;
+  el.innerHTML = `Total: <b>${fmtPrice(sub)}</b> <span style="color:#166534;font-size:11px;">(${fmtBs(sub)})</span>`;
 }
 
 function closeProdModal(e) {
   if (e && e.target !== document.getElementById('prodModal')) return;
-  document.getElementById('prodModal')?.classList.remove('op');
+  const m = document.getElementById('prodModal');
+  if (m) m.classList.remove('op');
   document.body.style.overflow = '';
   modalProduct = null;
   modalVariant = null;
@@ -349,7 +376,7 @@ function modalChangeQty(delta) {
   const stock = modalVariant ? modalVariant.stock : modalProduct?.stock;
   const max   = (typeof stock === 'number' && stock > 0) ? stock : Infinity;
   const next  = Math.max(min, modalQty + delta);
-  if (next > max) { showToast('Cantidad máxima disponible alcanzada', 'warn'); return; }
+  if (next > max) { showToast('Cantidad máxima en stock alcanzada', 'warn'); return; }
   modalQty = next;
   const el = document.getElementById('modalQtyDisplay');
   if (el) el.textContent = modalQty;
@@ -366,33 +393,24 @@ function modalOrderWA() {
   const subBs  = fmtBs(subUsd);
   const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
   const imgUrl = (modalImgIdx >= 0 && modalGallery[modalImgIdx]) || modalVariant?.image_url || p.image_url;
+  const bcvRate = (typeof getRate === 'function') ? getRate().toFixed(2) : '886.23';
 
   let msg = _modalFromQr
-    ? `📦 *Hola JJ Paper, estoy escaneando este producto del Catálogo Impreso:*
+    ? `📦 *Hola JJ Paper, estoy escaneando este producto del Catálogo Impreso (Venta de Calle):*\n\n`
+    : `📦 *Hola JJ Paper, deseo facturar este producto mayorista:*\n\n`;
 
-`
-    : `📦 *Hola JJ Paper, me interesa este producto:*
-
-`;
-
-  msg += `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}
-` +
-         (modalVariant?.sku || p.sku ? `• *Código/SKU:* ${modalVariant?.sku || p.sku}
-` : '') +
-         `• *Cantidad:* ${modalQty} ${unit}
-` +
-         `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}
-` +
-         `• *Ficha Oficial:* ${prodUrl}
-`;
+  msg += `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
+         (modalVariant?.sku || p.sku ? `• *SKU:* ${modalVariant?.sku || p.sku}\n` : '') +
+         `• *Cantidad:* ${modalQty} ${unit}\n` +
+         `• *Precio:* ${fmtPrice(subUsd)} · ${subBs}\n` +
+         `• *Tasa Oficial BCV:* Bs ${bcvRate} / $\n` +
+         `• *Ficha Oficial:* ${prodUrl}\n`;
 
   if (imgUrl && imgUrl.trim()) {
-    msg += `• *Foto oficial:* ${imgUrl}
-`;
+    msg += `• *Foto de producto:* ${imgUrl}\n`;
   }
 
-  msg += `
-¿Tienen disponibilidad para despacho?`;
+  msg += `\n¿Tienen disponibilidad para despacho inmediato?`;
   openWA(msg);
 }
 
@@ -405,25 +423,16 @@ function modalRequestQuote() {
   const subUsd = price * modalQty;
   const subBs  = fmtBs(subUsd);
   const prodUrl = `${location.origin}/producto.html?id=${encodeURIComponent(p.id)}`;
+  const bcvRate = (typeof getRate === 'function') ? getRate().toFixed(2) : '886.23';
 
-  const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN FORMAL*
-
-` +
-                   `Estimado equipo de JJ Paper, solicito presupuesto para:
-
-` +
-                   `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}
-` +
-                   (modalVariant?.sku || p.sku ? `• *SKU / Ref:* ${modalVariant?.sku || p.sku}
-` : '') +
-                   `• *Cantidad requerida:* ${modalQty} ${unit}
-` +
-                   `• *Monto estimado:* ${fmtPrice(subUsd)} (${subBs})
-` +
-                   `• *Ficha del producto:* ${prodUrl}
-
-` +
-                   `Por favor enviar cotización membretada con vigencia y condiciones de despacho a sede.`;
+  const quoteMsg = `📋 *SOLICITUD DE COTIZACIÓN COMERCIAL*\n\n` +
+                   `Estimado equipo de JJ Paper, solicito presupuesto para despacho:\n\n` +
+                   `• *Producto:* ${p.name}${brand ? ` (${brand})` : ''}\n` +
+                   `• *Cantidad:* ${modalQty} ${unit}\n` +
+                   `• *Monto Estimado:* ${fmtPrice(subUsd)} (${subBs})\n` +
+                   `• *Tasa BCV:* Bs ${bcvRate} / $\n` +
+                   `• *Ficha:* ${prodUrl}\n\n` +
+                   `Por favor indicar disponibilidad para entrega en sede.`;
 
   openWA(quoteMsg);
   showToast('Abriendo cotizador directo por WhatsApp... 💬', 'ok');
@@ -435,9 +444,9 @@ function modalShare() {
   if (navigator.share) {
     navigator.share({ title: modalProduct.name, url }).catch(() => {});
   } else if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(url).then(() => showToast('Enlace copiado al portapapeles 🔗'));
+    navigator.clipboard.writeText(url).then(() => showToast('Enlace de ficha copiado al portapapeles 🔗'));
   } else {
-    prompt('Copia el enlace:', url);
+    prompt('Copia el enlace para compartir:', url);
   }
 }
 
@@ -453,7 +462,7 @@ function ensureImgLightbox() {
   lb.innerHTML = `
     <button class="ilb-close" aria-label="Cerrar vista ampliada">✕</button>
     <div class="ilb-stage"><img id="ilbImg" alt="" decoding="async"></div>
-    <p class="ilb-hint">Doble toque para acercar · pellizca para zoom</p>`;
+    <p class="ilb-hint">Toca para cerrar · Pellizca para zoom</p>`;
   document.body.appendChild(lb);
 
   const stage = lb.querySelector('.ilb-stage');
@@ -461,12 +470,6 @@ function ensureImgLightbox() {
   lb.querySelector('.ilb-close').addEventListener('click', closeImgLightbox);
   stage.addEventListener('click', e => { if (e.target === stage) closeImgLightbox(); });
   img.addEventListener('dblclick', () => stage.classList.toggle('zoomed'));
-  let lastTap = 0;
-  img.addEventListener('touchend', e => {
-    const now = Date.now();
-    if (now - lastTap < 320) { e.preventDefault(); stage.classList.toggle('zoomed'); }
-    lastTap = now;
-  });
 }
 
 function openImgLightbox(url, alt) {
@@ -515,7 +518,7 @@ window.pmSearchAiPhoto = async function(productId, productName, isAuto = false) 
   if (!box) return;
 
   if (fb) {
-    fb.innerHTML = '<div style="color:#16604A;font-weight:700">🧠 Buscando fotografía comercial real sobre fondo blanco...</div>';
+    fb.innerHTML = '<div style="color:#16604A;font-weight:700;">🧠 Buscando fotografía comercial real sobre fondo blanco...</div>';
   }
 
   try {
@@ -540,10 +543,10 @@ window.pmSearchAiPhoto = async function(productId, productName, isAuto = false) 
 
     if (photoUrl) {
       box.innerHTML = `
-        <div style="background:#fff;border:1.5px solid #10b981;border-radius:8px;padding:10px;margin-top:6px;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
-          <div style="font-size:11px;color:#166534;font-weight:800;margin-bottom:6px">✅ Fotografía Comercial Real (Fondo Blanco)</div>
-          <img src="${photoUrl}" alt="${productName}" style="width:140px;height:140px;object-fit:contain;margin:0 auto;display:block;border-radius:6px;background:#fff">
-          <button type="button" class="btn-action-primary" style="margin-top:10px;font-size:12px;padding:8px 12px;border-radius:6px;width:100%;font-weight:800;background:#16604A;color:#fff;border:0;cursor:pointer" onclick="pmSaveOfficialPhoto('${productId}', '${photoUrl}')">
+        <div style="background:#fff;border:1.5px solid #10b981;border-radius:10px;padding:10px;margin-top:6px;box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+          <div style="font-size:11px;color:#166534;font-weight:800;margin-bottom:6px;">✅ Fotografía Comercial Oficial (Fondo Blanco)</div>
+          <img src="${photoUrl}" alt="${productName}" style="width:130px;height:130px;object-fit:contain;margin:0 auto;display:block;border-radius:6px;background:#fff;">
+          <button type="button" class="btn-action-primary" style="margin-top:8px;font-size:12px;padding:8px 12px;border-radius:8px;width:100%;font-weight:800;background:#16604A;color:#fff;border:0;cursor:pointer;" onclick="pmSaveOfficialPhoto('${productId}', '${photoUrl}')">
             💾 Guardar Foto Oficial en Catálogo JJ Paper
           </button>
         </div>
@@ -552,10 +555,10 @@ window.pmSearchAiPhoto = async function(productId, productName, isAuto = false) 
         showToast('📸 Foto comercial ubicada con éxito');
       }
     } else {
-      if (fb) fb.innerHTML = '<div style="color:#b91c1c;padding:4px">No se ubicó foto web directa. Puedes asignar una imagen desde el panel.</div>';
+      if (fb) fb.innerHTML = '<div style="color:#b91c1c;padding:4px;">Foto en proceso de catálogo. Puedes asignar una imagen desde el panel.</div>';
     }
   } catch (e) {
-    if (fb) fb.innerHTML = `<div style="color:#b91c1c;padding:4px">Error: ${e.message}</div>`;
+    if (fb) fb.innerHTML = `<div style="color:#b91c1c;padding:4px;">Error: ${e.message}</div>`;
   }
 };
 

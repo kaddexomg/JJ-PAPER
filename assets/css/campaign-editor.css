@@ -26,9 +26,9 @@
 .camp-editor-modal {
   background: #ffffff;
   width: 100%;
-  max-width: 1100px;
-  height: 90vh;
-  max-height: 820px;
+  max-width: 1240px;
+  height: 94vh;
+  max-height: 920px;
   border-radius: 16px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -303,22 +303,29 @@
   word-break: break-word;
 }
 
+.ce-chat-pane.email-mode .ce-bubble-container {
+  justify-content: center;
+}
+
 .ce-chat-pane.email-mode .ce-bubble {
   background: #ffffff;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  padding: 16px;
-  max-width: 90%;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+  padding: 20px 24px;
+  max-width: 680px;
+  width: 100%;
 }
 
 .ce-email-subject-badge {
   font-size: 13px;
-  font-weight: 700;
   color: #1e293b;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 8px;
-  margin-bottom: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #16604a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
 }
 
 .ce-bubble-attachment-preview {

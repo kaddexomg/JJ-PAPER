@@ -318,7 +318,7 @@ window.CampaignEditor = (() => {
               <!-- Selector de Tono Comercial -->
               <div class="ce-field-group" style="margin-bottom:8px;">
                 <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">🎭 Tono Comercial de la IA:</label>
-                <select class="ce-select" id="ceCommercialTone" style="font-size:12px;">
+                <select class="ce-select" id="ceCommercialTone" style="font-size:12px;" onchange="CampaignEditor.onToneOrNotesChange()">
                   <option value="socio_estrategico" selected>🤝 Socio Estratégico y Consultivo (Recomendado)</option>
                   <option value="institucional_formal">🏢 Institucional Formal (Compras & Licitaciones)</option>
                   <option value="oportunidad_mayorista">🔥 Oportunidad Mayorista (Margen & Volumen)</option>
@@ -329,7 +329,7 @@ window.CampaignEditor = (() => {
               <!-- Pauta o Instrucción Adicional para la IA -->
               <div>
                 <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">💡 Pauta / Instrucción Clave para la IA (Opcional):</label>
-                <input type="text" class="ce-input" id="ceCustomNotesInput" placeholder="Ej: Resaltar entrega hoy mismo en Caracas / Precios con flete gratis / Facturación SENIAT..." style="font-size:12px">
+                <input type="text" class="ce-input" id="ceCustomNotesInput" placeholder="Ej: Resaltar entrega hoy mismo en Caracas / Precios con flete gratis / Facturación SENIAT..." style="font-size:12px" oninput="CampaignEditor.onToneOrNotesChange()">
               </div>
             </div>
 
@@ -363,15 +363,37 @@ window.CampaignEditor = (() => {
                 <input type="file" id="ceCustomFileInput" class="ce-input" accept=".pdf,image/*" onchange="CampaignEditor.onCustomFileChange(this)">
               </div>
 
-              <!-- Ritmo de envío -->
-              <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;">
-                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Intervalo entre envíos:</label>
+              <!-- Ritmo de envío (WhatsApp Anti-Baneo) -->
+              <div id="ceSecuritySection" style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;">
+                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Intervalo entre envíos (WhatsApp):</label>
                 <select class="ce-select" id="ceSpeedSelect" style="font-size:11.5px;padding:3px 6px;">
                   <option value="human" selected>☕ Humano natural (45 - 90 seg aleatorio)</option>
                   <option value="safe">🐢 Seguro y prudente (25 - 55 seg aleatorio)</option>
                   <option value="ultra_safe">🛡️ Máxima protección (60 - 120 seg aleatorio)</option>
                   <option value="fast">⚡ Moderado (15 - 30 seg aleatorio)</option>
                 </select>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+                  <div>
+                    <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Pausa cada:</label>
+                    <select class="ce-select" id="ceBatchSizeSelect" style="font-size:11.5px;padding:3px 6px;">
+                      <option value="10" selected>10 mensajes</option>
+                      <option value="15">15 mensajes</option>
+                      <option value="20">20 mensajes</option>
+                      <option value="5">5 mensajes</option>
+                      <option value="0">Sin pausa larga</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Descanso de:</label>
+                    <select class="ce-select" id="ceBatchPauseSelect" style="font-size:11.5px;padding:3px 6px;">
+                      <option value="5" selected>5 minutos</option>
+                      <option value="10">10 minutos</option>
+                      <option value="15">15 minutos</option>
+                      <option value="3">3 minutos</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -480,7 +502,7 @@ window.CampaignEditor = (() => {
                 </div>
 
                 <div id="ceEmailSubjectField" style="display:none; margin-bottom:4px;">
-                  <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.updatePreview()">
+                  <input type="text" id="ceSubjectInput" class="ce-input" placeholder="Asunto del correo electrónico..." oninput="CampaignEditor.onSubjectInputChange()">
                 </div>
 
                 <textarea class="ce-textarea" id="ceMessageInput" placeholder="Escribe el mensaje de la campaña..." oninput="CampaignEditor.onMessageInputChange()"></textarea>
@@ -615,14 +637,23 @@ window.CampaignEditor = (() => {
     const bouncedOpt = document.querySelector('#ceAudienceSelect option[value="email_bounced"]');
     if (bouncedOpt) bouncedOpt.style.display = isEmail ? 'none' : '';
     const badge = document.getElementById('ceBadge');
-    badge.textContent = isEmail ? '📧 Email' : '📱 WhatsApp';
-    badge.className = 'ce-channel-badge ' + (isEmail ? 'email' : '');
+    if (badge) {
+      badge.textContent = isEmail ? '📧 Email' : '📱 WhatsApp';
+      badge.className = 'ce-channel-badge ' + (isEmail ? 'email' : '');
+    }
     
-    document.getElementById('ceChatPane').className = 'ce-chat-pane ' + (isEmail ? 'email-mode' : '');
-    document.getElementById('ceEmailSubjectField').style.display = isEmail ? 'block' : 'none';
-    document.getElementById('ceEmailSubjectHeader').style.display = isEmail ? 'block' : 'none';
-    document.getElementById('ceSecuritySection').style.display = isEmail ? 'none' : 'flex';
-    document.getElementById('ceCheckmarks').style.display = isEmail ? 'none' : 'inline';
+    const chatPane = document.getElementById('ceChatPane');
+    if (chatPane) chatPane.className = 'ce-chat-pane ' + (isEmail ? 'email-mode' : '');
+    const emailSubjField = document.getElementById('ceEmailSubjectField');
+    if (emailSubjField) emailSubjField.style.display = isEmail ? 'block' : 'none';
+    const emailSubjHdr = document.getElementById('ceEmailSubjectHeader');
+    if (emailSubjHdr) emailSubjHdr.style.display = isEmail ? 'block' : 'none';
+    const secEl = document.getElementById('ceSecuritySection');
+    if (secEl) secEl.style.display = isEmail ? 'none' : 'block';
+    const chkMarks = document.getElementById('ceCheckmarks');
+    if (chkMarks) chkMarks.style.display = isEmail ? 'none' : 'inline';
+    const bTime = document.getElementById('ceBubbleTime');
+    if (bTime) bTime.style.display = isEmail ? 'none' : 'inline';
 
     // Restablecer casillas de adjuntos (PDF activo por defecto)
     const pdfChk = document.getElementById('ceAttachPdf');
@@ -635,13 +666,18 @@ window.CampaignEditor = (() => {
     const customWrap = document.getElementById('ceCustomFileWrap');
     if (customWrap) customWrap.style.display = 'none';
 
-    document.getElementById('ceCampName').value = config.defaultName || (isEmail ? 'Campaña de Email ' : 'Difusión WhatsApp ') + new Date().toLocaleDateString('es-VE');
+    const campNameInput = document.getElementById('ceCampName');
+    if (campNameInput) {
+      campNameInput.value = config.defaultName || (isEmail ? 'Campaña de Email ' : 'Difusión WhatsApp ') + new Date().toLocaleDateString('es-VE');
+    }
 
-    const tplSel = document.getElementById('ceTemplateSelect');
     const availableTpls = (config.templates || []).filter(t => !t.channel || t.channel === config.channel || t.channel === 'both');
-    tplSel.innerHTML = availableTpls.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    const tplSel = document.getElementById('ceTemplateSelect');
+    if (tplSel) {
+      tplSel.innerHTML = availableTpls.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
     
-        setEditorMode('ai');
+    setEditorMode('ai');
     setCampaignMode(config.preMode || 'presentacion_b2b');
 
     if (availableTpls.length > 0 && config.preTplId) {
@@ -749,7 +785,8 @@ window.CampaignEditor = (() => {
   }
 
   function onTypeChange() {
-    const type = document.getElementById('ceTypeSelect').value;
+    const type = document.getElementById('ceTypeSelect')?.value;
+    if (!type) return;
     const cardWrap = document.getElementById('ceSelectedCardWrap');
 
     if (type === 'producto') {
@@ -807,9 +844,10 @@ window.CampaignEditor = (() => {
 
   function renderSelectedCard() {
     const cardWrap = document.getElementById('ceSelectedCardWrap');
+    if (!cardWrap) return;
     const type = document.getElementById('ceTypeSelect')?.value;
 
-    if (type === 'multi_oferta' && selectedProductsList.length > 0) {
+    if ((activeCampaignMode === 'oferta_multiproducto' || type === 'multi_oferta') && selectedProductsList.length > 0) {
       cardWrap.style.display = 'block';
       const itemsHtml = selectedProductsList.map((p, idx) => {
         const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0)).toFixed(2);
@@ -1013,31 +1051,62 @@ window.CampaignEditor = (() => {
     updatePreview();
   }
 
+  function onToneOrNotesChange() {
+    if (activeCampaignMode === 'oferta_multiproducto') {
+      applyMultiOfertaTemplate();
+    } else if (activeCampaignMode === 'oferta_unipromocion') {
+      applyProductTemplate();
+    } else {
+      applyBaseModeTemplate(activeCampaignMode);
+    }
+  }
+
   function applyBaseModeTemplate(mode = activeCampaignMode) {
     const isEmail = currentConfig?.channel === 'email';
+    const commercialTone = document.getElementById('ceCommercialTone')?.value || 'socio_estrategico';
+    const customNotes = (document.getElementById('ceCustomNotesInput')?.value || '').trim();
     let msg = '';
     let subj = '';
 
+    const notesExtra = customNotes ? `\n\n📌 *CONDICIÓN ESPECIAL:* ${customNotes}` : '';
+
     if (mode === 'presentacion_b2b') {
-      subj = 'Presentación Comercial: Abastecimiento y Distribución Mayorista — JJ Paper C.A.';
-      if (isEmail) {
-        msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nNos dirigimos a usted para presentar nuestra empresa como su **aliado estratégico de abastecimiento directo**. Distribuimos artículos de oficina, papelería y productos de consumo para empresas, comercios y colegios con precios directos de distribuidor.\n\n*📦 NUESTRAS LÍNEAS DE DISTRIBUCIÓN:*\n• 📄 *Papelería y Artículos de Oficina:* Resmas, carpetas, sobres, bolígrafos, archivadores y consumibles.\n• 🧹 *Artículos de Limpieza y Mantenimiento:* Desinfectantes, toallas, bolsas industriales y químicos de aseo.\n• 🎯 *Procura Especializada:* Cualquier producto o marca que su empresa requiera, **nosotros se lo conseguimos con el mejor precio del mercado**.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 Precios directos al mayor en USD ($) y Bolívares a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal legal SENIAT.\n• 🚚 Despacho prioritario en 24h directamente a su sede en Caracas.\n\n👉 *Catálogo digital completo en línea (sin registro ni login):*\n{{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 productos de alta necesidad y demanda en su empresa, y con gusto le responderemos de inmediato con una cotización a su medida y el mejor precio del mercado.\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      if (commercialTone === 'oportunidad_mayorista') {
+        subj = 'Condiciones Mayoristas y Suministro Directo — JJ Paper C.A.';
+        if (isEmail) {
+          msg = `{Estimado(a)|Hola} {{nombre}},\n\nLe saluda atentamente {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nPonemos a su disposición nuestro inventario físico con **precios de importador directo y escalas de descuento por volumen** en papelería, suministros de embalaje y consumibles operativos para {{empresa}}.\n\n*📦 LÍNEAS DE ALTA ROTACIÓN AL MAYOR:*\n• 📄 *Papelería & Resmas:* Precios por caja y bulto cerrado en formato Carta y Oficio.\n• 🧹 *Artículos de Limpieza Industrial:* Desinfectantes, bolsas reforzadas y químicos.\n• 🔍 *Procura a Medida:* Conseguimos cualquier renglón especial con el mejor costo del mercado.\n\n*💎 VENTAJAS DE COMPRA MAYORISTA:*\n• 🏭 Precios directos sin intermediarios a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal formal legal SENIAT (RIF J-50478063-0).\n• 🚚 Despacho prioritario 24h a su sede en Caracas.${notesExtra}\n\n👉 *Catálogo digital completo en línea (sin clave ni login):*\n{{link}}\n\n💡 *Prueba de precios:* Indíquenos 2 o 3 renglones de alto consumo en {{empresa}} y le enviamos cotización inmediata con el mejor precio garantizado.\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        } else {
+          msg = `*🔥 CONDICIONES MAYORISTAS DIRECTAS · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.* en Caracas.\n\nLe escribimos para ofrecerle **precios directos de importador y condiciones por volumen** en papelería y consumibles operativos para {{empresa}}.\n\n*📦 DISPONIBILIDAD INMEDIATA AL MAYOR:*\n• 📄 *Resmas y Papelería:* Descuentos por caja y bulto cerrado.\n• 🧹 *Limpieza Corporativa:* Insumos de alto rendimiento y aseo.\n• 🔍 *Procura Especial:* Conseguimos cualquier marca o insumo al mejor precio.\n\n*💎 CONDICIONES COMERCIALES:*\n• 🏭 Precios directos a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal SENIAT.\n• 🚚 Entrega en 24h en Caracas.${notesExtra}\n\n👉 *Catálogo Digital Mayorista:* {{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 artículos de alto consumo y le enviamos cotización formal al instante con el mejor precio garantizado.\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        }
+      } else if (commercialTone === 'institucional_formal') {
+        subj = 'Propuesta Institucional de Suministro Operativo — JJ Paper C.A.';
+        if (isEmail) {
+          msg = `Estimada Gerencia de Compras y Administración en {{empresa}}:\nPresente.-\n\nPor medio de la presente, {{vendedor}} en representación de *JJ Paper C.A.* (RIF J-50478063-0), empresa distribuidora e importadora mayorista en Caracas, somete a su consideración nuestra propuesta de abastecimiento integral.\n\n*📦 LÍNEAS DE SUMINISTRO DISPONIBLES:*\n• 📄 *Papelería Institucional:* Resmas de papel Bond (Carta/Oficio), carpetas, sobres de archivo y consumibles de oficina.\n• 🧹 *Insumos de Mantenimiento e Higiene:* Artículos de limpieza industrial y aseo corporativo.\n• 🎯 *Procura Especializada:* Gestión de cotización y despacho de cualquier marca o insumo específico requerido por su institución.\n\n*GARANTÍAS Y RESPALDO OPERATIVO:*\n• Facturación fiscal legal SENIAT a **Tasa Oficial BCV**.\n• Despacho prioritario en 24 horas hábiles a sus sedes en Caracas.\n• Emisión de cotizaciones proforma inmediatas para órdenes de compra y licitaciones.${notesExtra}\n\n👉 *Catálogo corporativo digital (acceso libre):*\n{{link}}\n\nQuedamos a su disposición para remitir cotización formal sobre los requerimientos actuales de su empresa.\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        } else {
+          msg = `*🏢 PROPUESTA INSTITUCIONAL DE SUMINISTRO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\nEstimada Gerencia de {{empresa}},\n\nLe saluda cordialmente *{{vendedor}}*, asesor corporativo de *JJ Paper C.A.* (RIF J-50478063-0) en Caracas.\n\nPresentamos formalmente nuestra empresa como proveedor mayorista directo para sus sedes:\n\n*📦 LÍNEAS DE ABASTECIMIENTO:*\n• 📄 *Papelería & Archivo:* Resmas Carta/Oficio, carpetas, bolígrafos y consumibles.\n• 🧹 *Limpieza y Mantenimiento:* Insumos de higiene y químicos corporativos.\n• 🎯 *Sourcing:* Conseguimos cualquier insumo operativo al mejor costo.\n\n*GARANTÍAS CORPORATIVAS:*\n• Facturación fiscal formal a **Tasa BCV**.\n• Despacho directo en 24h en Caracas.${notesExtra}\n\n👉 *Catálogo Institucional en línea:* {{link}}\n\nQuedamos atentos para prepararle una cotización proforma ajustada a sus requerimientos.\n\nAtentamente,\n*{{vendedor}}* | JJ Paper C.A. · RIF J-50478063-0`;
+        }
       } else {
-        msg = `*🏢 JJ PAPER C.A. · DISTRIBUIDOR MAYORISTA DIRECTO*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos para presentar nuestra empresa como su **aliado de abastecimiento directo**. Atendemos a empresas, oficinas y comercios con precios de importador y atención personalizada.\n\n*📦 LÍNEAS DE SUMINISTRO DISPONIBLES:*\n• 📄 *Papelería:* Resmas de papel, carpetas, sobres, bolígrafos y archivo.\n• 🧹 *Limpieza y Mantenimiento:* Toallas, bolsas, desinfectantes e higiene.\n• 🎯 *Procura a Medida:* Cualquier artículo que necesite, **nosotros se lo ubicamos al mejor precio**.\n\n*💎 BENEFICIOS DIRECTOS:*\n• 🏭 Precios al mayor en USD ($) y Bs a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal legal SENIAT.\n• 🚚 Despacho prioritario en 24h en Caracas.\n\n👉 *Revise nuestro Catálogo Digital (sin login):*\n{{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 artículos de alta demanda en su empresa y le preparamos una cotización a su medida con el mejor precio garantizado.\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        // Tono por defecto: socio_estrategico / consultivo
+        subj = 'Presentación Comercial: Abastecimiento y Distribución Mayorista — JJ Paper C.A.';
+        if (isEmail) {
+          msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nNos dirigimos a usted para presentar nuestra empresa como su **aliado estratégico de abastecimiento directo**. Distribuimos artículos de oficina, papelería y productos de consumo para empresas, comercios y colegios con precios directos de distribuidor.\n\n*📦 NUESTRAS LÍNEAS DE DISTRIBUCIÓN:*\n• 📄 *Papelería y Artículos de Oficina:* Resmas, carpetas, sobres, bolígrafos, archivadores y consumibles.\n• 🧹 *Artículos de Limpieza y Mantenimiento:* Desinfectantes, toallas, bolsas industriales y químicos de aseo.\n• 🎯 *Procura Especializada:* Cualquier producto o marca que su empresa requiera, **nosotros se lo conseguimos con el mejor precio del mercado**.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 Precios directos al mayor en USD ($) y Bolívares a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal legal SENIAT.\n• 🚚 Despacho prioritario en 24h directamente a su sede en Caracas.${notesExtra}\n\n👉 *Catálogo digital completo en línea (sin registro ni login):*\n{{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 productos de alta necesidad y demanda en su empresa, y con gusto le responderemos de inmediato con una cotización a su medida y el mejor precio del mercado.\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        } else {
+          msg = `*🏢 JJ PAPER C.A. · DISTRIBUIDOR MAYORISTA DIRECTO*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos para presentar nuestra empresa como su **aliado de abastecimiento directo**. Atendemos a empresas, oficinas y comercios con precios de importador y atención personalizada.\n\n*📦 LÍNEAS DE SUMINISTRO DISPONIBLES:*\n• 📄 *Papelería:* Resmas de papel, carpetas, sobres, bolígrafos y archivo.\n• 🧹 *Limpieza y Mantenimiento:* Toallas, bolsas, desinfectantes e higiene.\n• 🎯 *Procura a Medida:* Cualquier artículo que necesite, **nosotros se lo ubicamos al mejor precio**.\n\n*💎 BENEFICIOS DIRECTOS:*\n• 🏭 Precios al mayor en USD ($) y Bs a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal legal SENIAT.\n• 🚚 Despacho prioritario en 24h en Caracas.${notesExtra}\n\n👉 *Revise nuestro Catálogo Digital (sin login):*\n{{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 artículos de alta demanda en su empresa y le preparamos una cotización a su medida con el mejor precio garantizado.\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        }
       }
     } else if (mode === 'seguimiento_prospecto') {
       subj = 'Seguimiento de Cotización y Disponibilidad de Despacho — JJ Paper C.A.';
       if (isEmail) {
-        msg = `{Estimado(a)|Hola} {{nombre}},\n\nEspero se encuentre excelente. Le saluda nuevamente {{vendedor}} de *JJ Paper C.A.*\n\nNos comunicamos para darle seguimiento a la cotización y suministros conversados anteriormente. Queremos confirmar si tuvieron oportunidad de evaluarla o si requieren algún ajuste en cantidades, marcas o productos adicionales.\n\n*🚚 LOGÍSTICA LISTA PARA DESPACHO:*\n• Contamos con **inventario físico garantizado** para entrega hoy mismo en su sede.\n• Facturación legal y cotización oficial a **Tasa BCV**.\n• Podemos incorporar cualquier otro artículo de papelería, limpieza o consumibles en la misma entrega.\n\n👉 *Catálogo en línea siempre disponible:* {{link}}\n\n¿Desea que le reservemos la mercancía o coordinemos la orden de compra para esta semana?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        msg = `{Estimado(a)|Hola} {{nombre}},\n\nEspero se encuentre excelente. Le saluda nuevamente {{vendedor}} de *JJ Paper C.A.*\n\nNos comunicamos para darle seguimiento a la cotización y suministros conversados anteriormente. Queremos confirmar si tuvieron oportunidad de evaluarla o si requieren algún ajuste en cantidades, marcas o productos adicionales.\n\n*🚚 LOGÍSTICA LISTA PARA DESPACHO:*\n• Contamos con **inventario físico garantizado** para entrega hoy mismo en su sede.\n• Facturación legal y cotización oficial a **Tasa BCV**.\n• Podemos incorporar cualquier otro artículo de papelería, limpieza o consumibles en la misma entrega.${notesExtra}\n\n👉 *Catálogo en línea siempre disponible:* {{link}}\n\n¿Desea que le reservemos la mercancía o coordinemos la orden de compra para esta semana?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
       } else {
-        msg = `*🤝 SEGUIMIENTO COMERCIAL · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle de nuevo 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos para darle seguimiento a la cotización y suministros conversados previamente. Queremos validar si requieren algún ajuste en cantidades, marcas o artículos complementarios.\n\n*🚚 DESPACHO INMEDIATO:*\n• Mercancía disponible en almacén para entrega hoy mismo.\n• Facturación formal fiscal a **Tasa Oficial BCV**.\n• Si requiere insumos de limpieza o papelería adicional, se los sumamos a la misma entrega.\n\n👉 *Ver catálogo digital:* {{link}}\n\n¿Gusta que le reservemos el pedido o le actualicemos la cotización?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        msg = `*🤝 SEGUIMIENTO COMERCIAL · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle de nuevo 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos para darle seguimiento a la cotización y suministros conversados previamente. Queremos validar si requieren algún ajuste en cantidades, marcas o artículos complementarios.\n\n*🚚 DESPACHO INMEDIATO:*\n• Mercancía disponible en almacén para entrega hoy mismo.\n• Facturación formal fiscal a **Tasa Oficial BCV**.\n• Si requiere insumos de limpieza o papelería adicional, se los sumamos a la misma entrega.${notesExtra}\n\n👉 *Ver catálogo digital:* {{link}}\n\n¿Gusta que le reservemos el pedido o le actualicemos la cotización?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
       }
     } else if (mode === 'reposicion_cliente') {
       subj = 'Recordatorio de Reposición de Inventario y Stock — JJ Paper C.A.';
       if (isEmail) {
-        msg = `{Estimado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.* Agradecemos su constante confianza como cliente de nuestra casa.\n\nLe escribimos preventivamente para consultar cómo se encuentra su inventario de suministros para este mes y evitar que se quede sin artículos esenciales en su empresa:\n\n*📋 LÍNEAS LISTAS PARA REPOSICIÓN:*\n• Resmas de papel carta/oficio, carpetas, sobres y archivo.\n• Bolígrafos, marcadores, cintas de embalaje y artículos de escritorio.\n• Insumos de limpieza, higiene y consumibles operativos.\n\n*⚡ CONDICIONES PREFERENCIALES:*\n• Facturación inmediata a **Tasa Oficial BCV**.\n• Despacho directo y prioritario a su sede.\n\n👉 *Consulte catálogo actualizado:* {{link}}\n\n¿Le preparamos su pedido habitual o desea cotizar una reposición con algún producto nuevo?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        msg = `{Estimado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.* Agradecemos su constante confianza como cliente de nuestra casa.\n\nLe escribimos preventivamente para consultar cómo se encuentra su inventario de suministros para este mes y evitar que se quede sin artículos esenciales en su empresa:\n\n*📋 LÍNEAS LISTAS PARA REPOSICIÓN:*\n• Resmas de papel carta/oficio, carpetas, sobres y archivo.\n• Bolígrafos, marcadores, cintas de embalaje y artículos de escritorio.\n• Insumos de limpieza, higiene y consumibles operativos.\n\n*⚡ CONDICIONES PREFERENCIALES:*\n• Facturación inmediata a **Tasa Oficial BCV**.\n• Despacho directo y prioritario a su sede.${notesExtra}\n\n👉 *Consulte catálogo actualizado:* {{link}}\n\n¿Le preparamos su pedido habitual o desea cotizar una reposición con algún producto nuevo?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
       } else {
-        msg = `*🔄 REPOSICIÓN DE STOCK · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* Gracias por su preferencia constante con nosotros.\n\nLe escribimos de forma preventiva para verificar cómo está su inventario de insumos para este mes y apoyarle antes de que se agoten en su empresa:\n\n*📋 LISTOS PARA REPOSICIÓN:*\n• Papel fotocopia, carpetas, sobres y consumibles de oficina.\n• Bolígrafos, cintas de embalaje y artículos de escritorio.\n• Línea de limpieza e higiene corporativa.\n\n*⚡ BENEFICIO CLIENTE ACTIVO:*\n• Atención y despacho prioritario en Caracas.\n• Precios oficiales a **Tasa BCV**.\n\n👉 *Catálogo digital en línea:* {{link}}\n\n¿Le confirmamos su despacho habitual o requiere cotizar algún artículo nuevo?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+        msg = `*🔄 REPOSICIÓN DE STOCK · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* Gracias por su preferencia constante con nosotros.\n\nLe escribimos de forma preventiva para verificar cómo está su inventario de insumos para este mes y apoyarle antes de que se agoten en su empresa:\n\n*📋 LISTOS PARA REPOSICIÓN:*\n• Papel fotocopia, carpetas, sobres y consumibles de oficina.\n• Bolígrafos, cintas de embalaje y artículos de escritorio.\n• Línea de limpieza e higiene corporativa.\n\n*⚡ BENEFICIO CLIENTE ACTIVO:*\n• Atención y despacho prioritario en Caracas.\n• Precios oficiales a **Tasa BCV**.${notesExtra}\n\n👉 *Catálogo digital en línea:* {{link}}\n\n¿Le confirmamos su despacho habitual o requiere cotizar algún artículo nuevo?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
       }
     }
 
@@ -1069,10 +1138,11 @@ window.CampaignEditor = (() => {
     }).join('\n');
 
     let msg = '';
+    const subj = isEmail ? `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.` : '';
     if (isEmail) {
       msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo con más de 900 productos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       if (document.getElementById('ceSubjectInput')) {
-        document.getElementById('ceSubjectInput').value = `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.`;
+        document.getElementById('ceSubjectInput').value = subj;
       }
     } else {
       msg = `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos lista oficial con +900 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`;
@@ -1080,6 +1150,10 @@ window.CampaignEditor = (() => {
     if (document.getElementById('ceMessageInput')) {
       document.getElementById('ceMessageInput').value = msg;
     }
+    selectedAudienceList.forEach(c => {
+      c._custom_message = msg;
+      if (subj) c._custom_subject = subj;
+    });
     onAttachChange();
     updatePreview();
   }
@@ -1649,13 +1723,22 @@ ${rawText}
     const unitStr = p.unit ? ` (${escapeHTML(p.unit)})` : '';
 
     let msg = '';
+    const subj = isEmail ? `📦 Propuesta Mayorista: ${p.name} — JJ Paper C.A.` : '';
     if (isEmail) {
       msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nQueremos presentarle una propuesta directa de abastecimiento mayorista con disponibilidad inmediata en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? '📝 ' + p.description + '\n' : ''}*💲 Precio de Lista Mayorista: $${priceUsd} USD*${p.discount_pct > 0 ? ' _(Descuento comercial del ' + p.discount_pct + '% aplicado)_' : ' _(Condiciones preferenciales y ahorro por volumen / bulto cerrado)_'}\n\n*VENTAJAS DIRECTAS CON JJ PAPER:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 ¿Busca alguna medida o insumo especial fuera de lista? Nuestro equipo de procura se lo ubica de inmediato.\n\n👉 Puede revisar la ficha técnica y confirmar su requerimiento aquí:\n{{link}}\n\n¿Gusta que le reservemos disponibilidad o le preparemos una cotización por volumen para su empresa?\n\nAtentamente,\n{{vendedor}}\nDirección Comercial | JJ Paper C.A.`;
-      document.getElementById('ceSubjectInput').value = `📦 Propuesta Mayorista: ${p.name} — JJ Paper C.A.`;
+      if (document.getElementById('ceSubjectInput')) {
+        document.getElementById('ceSubjectInput').value = subj;
+      }
     } else {
       msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos compartirle disponibilidad inmediata y precio preferencial en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? p.description + '\n' : ''}*💲 Precio lista mayorista: $${priceUsd} USD*\n_(Condiciones preferenciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario físico sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *Procura especial:* si requiere algún formato o insumo que no esté en lista, se lo conseguimos.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?`;
     }
-    document.getElementById('ceMessageInput').value = msg;
+    if (document.getElementById('ceMessageInput')) {
+      document.getElementById('ceMessageInput').value = msg;
+    }
+    selectedAudienceList.forEach(c => {
+      c._custom_message = msg;
+      if (subj) c._custom_subject = subj;
+    });
     const imgChk1 = document.getElementById('ceAttachImg');
     if (imgChk1) imgChk1.checked = true;
     onAttachChange();
@@ -1669,13 +1752,22 @@ ${rawText}
     const priceUsd = Number(c.final_price_usd || c.price_b || c.price_usd || 0).toFixed(2);
 
     let msg = '';
+    const subj = isEmail ? `🎁 Combo Mayorista Especial: ${c.name} — JJ Paper C.A.` : '';
     if (isEmail) {
       msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nDiseñamos este combo de alta rotación para optimizar el presupuesto y flujo operativo de su empresa:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}*💲 Inversión mayorista preferencial: $${priceUsd} USD*\n_(Ahorro integrado por lote frente a compras individuales)_\n\n*VENTAJAS CLAVE:*\n• 🏭 Precios directos de distribuidor en Caracas.\n• 🚚 Entrega garantizada en su sede en 24h.\n• 🧾 Facturación fiscal en bolívares a Tasa Oficial BCV.\n• 🔍 ¿Requiere ajustar cantidades o sumar insumos? Lo adaptamos a su medida.\n\n👉 Ver detalle del combo y gestionar pedido: {{link}}\n\n¿Desea que le confirmemos despacho de este lote para su sede esta semana?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
-      document.getElementById('ceSubjectInput').value = `🎁 Combo Mayorista Especial: ${c.name} — JJ Paper C.A.`;
+      if (document.getElementById('ceSubjectInput')) {
+        document.getElementById('ceSubjectInput').value = subj;
+      }
     } else {
       msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Armamos este combo especial pensado para optimizar la reposición de su empresa con precio directo de importador:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}*💲 Inversión del combo: $${priceUsd} USD*\n_(Ahorro directo frente a compras al detal)_\n\n• 🏭 *Importador directo en Caracas*\n• 🚚 *Despacho garantizado en 24h*\n• 🧾 *Facturación formal a Tasa Oficial BCV*\n\n👉 Ver detalles o confirmar pedido directo: {{link}}\n\n¿Le reservamos este combo antes de agotar existencia del lote?`;
     }
-    document.getElementById('ceMessageInput').value = msg;
+    if (document.getElementById('ceMessageInput')) {
+      document.getElementById('ceMessageInput').value = msg;
+    }
+    selectedAudienceList.forEach(c => {
+      c._custom_message = msg;
+      if (subj) c._custom_subject = subj;
+    });
     const imgChk2 = document.getElementById('ceAttachImg');
     if (imgChk2) imgChk2.checked = true;
     onAttachChange();
@@ -2797,7 +2889,7 @@ ${rawText}
       ? (isCombo
           ? `${publicBase}/catalogo`
           : (prodId ? `${publicBase}/producto?id=${encodeURIComponent(prodId)}` : (prodSku ? `${publicBase}/producto?sku=${encodeURIComponent(prodSku)}` : `${publicBase}/catalogo`)))
-      : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
+      : ((typeof sellerRefLink === 'function') ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
 
     // Priorizar el mensaje del cliente activo si existe, o el del input
     let rawText = currentCust?._custom_message || document.getElementById('ceMessageInput')?.value || '';
@@ -2853,7 +2945,25 @@ ${rawText}
     attachPreviewEl.innerHTML = previewItems.join('');
 
     if (isEmail) {
-      document.getElementById('ceEmailSubjectHeader').textContent = `Asunto: ${subjectText}`;
+      const subjEl = document.getElementById('ceEmailSubjectHeader');
+      if (subjEl) {
+        subjEl.style.display = 'block';
+        subjEl.innerHTML = `
+          <div style="font-size:11.5px;color:#475569;margin-bottom:2px;display:flex;justify-content:space-between;">
+            <span><strong>De:</strong> ${escapeHTML(currentConfig?.seller?.name || 'JJ Paper C.A.')} &lt;ventas@jjpaper.com&gt;</span>
+            <span>${new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <div style="font-size:11.5px;color:#475569;margin-bottom:4px;">
+            <strong>Para:</strong> ${escapeHTML(currentCust?.name || 'Cliente')} ${currentCust?.email ? `&lt;${escapeHTML(currentCust.email)}&gt;` : ''}
+          </div>
+          <div style="font-size:13px;font-weight:700;color:#0f172a;border-top:1px solid #e2e8f0;padding-top:4px;">
+            <strong>Asunto:</strong> ${escapeHTML(subjectText)}
+          </div>
+        `;
+      }
+    } else {
+      const subjEl = document.getElementById('ceEmailSubjectHeader');
+      if (subjEl) subjEl.style.display = 'none';
     }
 
     // Formateo visual limpio sin duplicar saltos de línea (la clase .ce-bubble-text ya tiene white-space: pre-wrap)
@@ -2893,8 +3003,17 @@ ${rawText}
       `;
     }
 
-    document.getElementById('ceBubbleText').innerHTML = formatted;
-    document.getElementById('ceBubbleTime').textContent = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const bubbleEl = document.getElementById('ceBubbleText');
+    if (bubbleEl) bubbleEl.innerHTML = formatted;
+    const timeEl = document.getElementById('ceBubbleTime');
+    if (timeEl) {
+      timeEl.style.display = isEmail ? 'none' : 'inline';
+      timeEl.textContent = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    }
+    const chkEl = document.getElementById('ceCheckmarks');
+    if (chkEl) {
+      chkEl.style.display = isEmail ? 'none' : 'inline';
+    }
   }
 
   function escapeHTML(str) {
@@ -3540,6 +3659,7 @@ ${rawText}
     open,
     close,
     setCampaignMode,
+    onToneOrNotesChange,
     onMessageInputChange,
     onSubjectInputChange,
     openCatalogPickerForActiveMode,

@@ -913,47 +913,234 @@ let _qrScannerStream = null;
 let _qrScannerInterval = null;
 let _qrScannerTrack = null;
 let _currentZoomLevel = 2.0;
+let _torchActive = false;
+let _voiceRecognitionInstance = null;
 
+// ==========================================
+// 1. DICTADO POR VOZ (SPEECH RECOGNITION)
+// ==========================================
 window.startVoiceSearch = function() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   if (!SpeechRecognition) {
-    if (typeof showToast === 'function') showToast('Tu navegador no soporta dictado por voz. Usa el teclado para buscar.', 'warn');
+    showFallbackVoiceModal();
     return;
   }
+
+  if (_voiceRecognitionInstance) {
+    try { _voiceRecognitionInstance.abort(); } catch (_) {}
+    _voiceRecognitionInstance = null;
+  }
+
   const recog = new SpeechRecognition();
-  recog.lang = 'es-VE';
+  _voiceRecognitionInstance = recog;
+
+  recog.lang = 'es-419';
   recog.continuous = false;
-  recog.interimResults = false;
+  recog.interimResults = true;
+  recog.maxAlternatives = 3;
 
   const btn = document.getElementById('btnVoiceSearch');
   if (btn) btn.classList.add('recording');
-  if (typeof showToast === 'function') showToast('🎙️ Escuchando... Di el nombre del producto que ves en el catálogo.', 3000);
+
+  showVoiceListeningModal();
+
+  let finalTranscript = '';
 
   recog.onresult = (e) => {
-    const text = (e.results[0][0].transcript || '').trim();
-    if (btn) btn.classList.remove('recording');
-    const s = document.getElementById('srch');
-    if (s) s.value = text;
-    if (typeof showToast === 'function') showToast('🔍 Buscando: "' + text + '"', 2000);
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; ++i) {
+      if (e.results[i].isFinal) {
+        finalTranscript += e.results[i][0].transcript;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
 
-    const found = (typeof window.findProductByQuery === 'function')
-      ? window.findProductByQuery(text, allProducts)
-      : null;
+    const currentText = (finalTranscript || interim || '').trim();
+    const previewEl = document.getElementById('voiceTranscriptPreview');
+    if (previewEl && currentText) {
+      previewEl.textContent = '"' + currentText + '"';
+    }
 
-    if (found && typeof openProductModal === 'function') {
-      openProductModal(found.id, { fromQr: true, searchQuery: text });
-    } else {
-      currentSearch = text;
-      if (typeof renderProds === 'function') renderProds();
+    if (finalTranscript) {
+      const recognized = finalTranscript.trim();
+      executeVoiceSearchQuery(recognized);
     }
   };
-  recog.onerror = () => { if (btn) btn.classList.remove('recording'); };
-  recog.onend = () => { if (btn) btn.classList.remove('recording'); };
-  try { recog.start(); } catch (_) { if (btn) btn.classList.remove('recording'); }
+
+  recog.onerror = (e) => {
+    console.warn('SpeechRecognition error:', e.error);
+    if (btn) btn.classList.remove('recording');
+    const previewEl = document.getElementById('voiceTranscriptPreview');
+
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      if (previewEl) {
+        previewEl.innerHTML = '<span style="color:#f87171;">⚠️ Permiso de micrófono bloqueado.<br><small style="color:#cbd5e1;">Toca el candado en la barra del navegador y permite el Micrófono.</small></span>';
+      }
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Permite el acceso al micrófono en el candado de la barra del navegador.', 'error', 4000);
+      }
+    } else if (e.error === 'no-speech') {
+      if (previewEl) {
+        previewEl.innerHTML = '<span style="color:#fbbf24;">No se escuchó nada. Habla más cerca del teléfono e intenta de nuevo.</span>';
+      }
+    } else if (e.error === 'language-not-supported') {
+      try {
+        recog.lang = 'es-ES';
+        recog.start();
+        return;
+      } catch (_) {}
+    } else {
+      if (previewEl) {
+        previewEl.innerHTML = '<span style="color:#f87171;">Error de micrófono (' + (e.error || '') + '). Puedes escribir con el teclado.</span>';
+      }
+    }
+  };
+
+  recog.onend = () => {
+    if (btn) btn.classList.remove('recording');
+    _voiceRecognitionInstance = null;
+    if (!finalTranscript) {
+      setTimeout(() => {
+        closeVoiceListeningModal();
+      }, 2000);
+    }
+  };
+
+  try {
+    recog.start();
+  } catch (err) {
+    console.error('Error starting recognition:', err);
+    if (btn) btn.classList.remove('recording');
+    showFallbackVoiceModal();
+  }
 };
 
+function showVoiceListeningModal() {
+  closeVoiceListeningModal();
+  const modal = document.createElement('div');
+  modal.id = 'voiceSearchModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);z-index:99999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:24px;text-align:center;touch-action:none;';
+  modal.innerHTML = `
+    <div style="width:84px;height:84px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 0 35px rgba(239,68,68,0.7);animation:voicePulseAnim 1.2s infinite alternate;">
+      🎙️
+    </div>
+    <style>
+      @keyframes voicePulseAnim {
+        from { transform: scale(0.95); box-shadow: 0 0 15px rgba(239,68,68,0.5); }
+        to { transform: scale(1.08); box-shadow: 0 0 40px rgba(239,68,68,0.85); }
+      }
+    </style>
+    <h3 style="margin:20px 0 6px;font-size:22px;font-weight:800;letter-spacing:-0.5px;">Te escucho...</h3>
+    <p style="font-size:14px;color:#cbd5e1;max-width:320px;margin:0 0 18px;line-height:1.4;">
+      Di el nombre del producto que ves en el catálogo impreso.<br>
+      <span style="font-size:12px;color:#94a3b8;">Ej: <i>"Bolígrafo kilométrico"</i>, <i>"Carpeta fibra"</i>, <i>"Cinta 18"</i></span>
+    </p>
+    <div id="voiceTranscriptPreview" style="font-size:17px;color:#34d399;font-weight:800;min-height:36px;margin-bottom:24px;padding:8px 16px;background:rgba(255,255,255,0.08);border-radius:12px;width:100%;max-width:320px;">
+      Habla ahora...
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button type="button" onclick="closeVoiceListeningModal()" style="background:#334155;color:#fff;border:none;border-radius:24px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;">
+        ✕ Cancelar
+      </button>
+      <button type="button" onclick="closeVoiceListeningModal();showFallbackVoiceModal();" style="background:#16604A;color:#fff;border:none;border-radius:24px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;">
+        ⌨️ Escribir
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+window.closeVoiceListeningModal = function() {
+  const modal = document.getElementById('voiceSearchModal');
+  if (modal) modal.remove();
+  if (_voiceRecognitionInstance) {
+    try { _voiceRecognitionInstance.abort(); } catch (_) {}
+    _voiceRecognitionInstance = null;
+  }
+  const btn = document.getElementById('btnVoiceSearch');
+  if (btn) btn.classList.remove('recording');
+};
+
+function executeVoiceSearchQuery(query) {
+  closeVoiceListeningModal();
+  if (!query) return;
+
+  const s = document.getElementById('srch');
+  if (s) s.value = query;
+
+  if (typeof showToast === 'function') {
+    showToast('🔍 Buscando: "' + query + '"', 2500);
+  }
+
+  const found = (typeof window.findProductByQuery === 'function')
+    ? window.findProductByQuery(query, allProducts)
+    : null;
+
+  if (found && typeof openProductModal === 'function') {
+    openProductModal(found.id, { fromQr: true, searchQuery: query });
+  } else {
+    currentSearch = query;
+    if (typeof renderProds === 'function') renderProds();
+  }
+}
+
+function showFallbackVoiceModal() {
+  closeVoiceListeningModal();
+  const modal = document.createElement('div');
+  modal.id = 'voiceFallbackModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);z-index:99999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;text-align:center;';
+  modal.innerHTML = `
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:18px;padding:24px;max-width:380px;width:100%;box-shadow:0 15px 35px rgba(0,0,0,0.5);">
+      <div style="font-size:32px;margin-bottom:8px;">🔍</div>
+      <h3 style="margin:0 0 6px;font-size:18px;font-weight:800;color:#f8fafc;">Búsqueda Rápida de Producto</h3>
+      <p style="font-size:13px;color:#94a3b8;margin:0 0 16px;">Escribe el nombre o código del producto del catálogo:</p>
+      
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <input type="text" id="fallbackVoiceInput" placeholder="Ej: Carpeta fibra, Cinta 18, Bolígrafo..." style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #475569;background:#0f172a;color:#fff;font-size:14px;outline:none;" onkeydown="if(event.key==='Enter')window.submitFallbackSearch()">
+        <button type="button" onclick="window.submitFallbackSearch()" style="background:#16604A;color:#fff;border:none;border-radius:10px;padding:0 18px;font-weight:800;font-size:14px;cursor:pointer;">Buscar</button>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">
+        <button type="button" onclick="window.quickSearchTag('Carpetas')" style="background:#334155;color:#e2e8f0;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">📁 Carpetas</button>
+        <button type="button" onclick="window.quickSearchTag('Cintas')" style="background:#334155;color:#e2e8f0;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">📦 Cintas</button>
+        <button type="button" onclick="window.quickSearchTag('Boligrafos')" style="background:#334155;color:#e2e8f0;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">🖊️ Bolígrafos</button>
+        <button type="button" onclick="window.quickSearchTag('Sobres')" style="background:#334155;color:#e2e8f0;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">✉️ Sobres</button>
+        <button type="button" onclick="window.quickSearchTag('Resmas')" style="background:#334155;color:#e2e8f0;border:none;border-radius:14px;padding:4px 10px;font-size:11px;cursor:pointer;">📄 Resmas</button>
+      </div>
+
+      <button type="button" onclick="document.getElementById('voiceFallbackModal').remove()" style="width:100%;padding:10px;border-radius:10px;background:#475569;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;">
+        Cerrar
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => {
+    const inp = document.getElementById('fallbackVoiceInput');
+    if (inp) inp.focus();
+  }, 100);
+}
+
+window.submitFallbackSearch = function() {
+  const inp = document.getElementById('fallbackVoiceInput');
+  const q = inp ? inp.value.trim() : '';
+  const m = document.getElementById('voiceFallbackModal');
+  if (m) m.remove();
+  if (q) executeVoiceSearchQuery(q);
+};
+
+window.quickSearchTag = function(tag) {
+  const m = document.getElementById('voiceFallbackModal');
+  if (m) m.remove();
+  executeVoiceSearchQuery(tag);
+};
+
+
+// ==========================================
+// 2. LECTOR MACRO QR DE ALTA DEFINICIÓN
+// ==========================================
 window.openInAppQrScanner = async function() {
-  // 1. Limpieza estricta de cualquier modal o cámara previa
   window.closeInAppQrScanner();
 
   const modal = document.createElement('div');
@@ -961,44 +1148,66 @@ window.openInAppQrScanner = async function() {
   modal.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999999;display:flex;flex-direction:column;justify-content:space-between;color:#fff;overflow:hidden;touch-action:none;';
   modal.innerHTML = `
     <!-- Top Bar -->
-    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.85);z-index:10;">
-      <button type="button" onclick="closeInAppQrScanner()" style="display:inline-flex;align-items:center;gap:6px;background:#ef4444;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(239,68,68,0.4);">
+    <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.85);z-index:10;">
+      <button type="button" onclick="closeInAppQrScanner()" style="display:inline-flex;align-items:center;gap:6px;background:#ef4444;color:#fff;border:none;border-radius:24px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(239,68,68,0.4);">
         ✕ Salir
       </button>
-      <div style="font-weight:800;font-size:14px;color:#f8fafc;letter-spacing:0.5px;">
-        📷 LECTOR QR JJ PAPER
+      
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" id="btnRefocus" onclick="triggerQrScannerRefocus()" style="background:#334155;color:#38bdf8;border:1px solid #0284c7;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+          🎯 Enfocar
+        </button>
+        <button type="button" id="btnToggleTorch" onclick="toggleQrScannerTorch()" style="background:#334155;color:#fbbf24;border:1px solid #d97706;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+          💡 Flash
+        </button>
       </div>
-      <button type="button" id="btnToggleTorch" onclick="toggleQrScannerTorch()" style="background:#334155;color:#fff;border:none;border-radius:20px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">
-        💡 Linterna
-      </button>
     </div>
 
-    <!-- Viewfinder Area -->
-    <div style="position:relative;flex:1;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">
-      <video id="qrScanVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover;transition:transform 0.2s ease;"></video>
+    <!-- Viewfinder Area con Tap-to-Focus -->
+    <div id="qrScanViewport" onclick="handleQrScanTap(event)" style="position:relative;flex:1;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;cursor:crosshair;">
+      <video id="qrScanVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover;transition:transform 0.15s ease-out;"></video>
       <canvas id="qrScanCanvas" style="display:none;"></canvas>
 
-      <!-- Retícula animada de escaneo con esquinas verdes -->
-      <div style="position:absolute;width:240px;height:240px;box-shadow:0 0 0 4000px rgba(0,0,0,0.55);border-radius:18px;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px;">
-        <div style="position:absolute;inset:0;border:3px solid transparent;border-radius:18px;background:linear-gradient(to right, #10b981 30px, transparent 30px) top left, linear-gradient(to bottom, #10b981 30px, transparent 30px) top left, linear-gradient(to left, #10b981 30px, transparent 30px) top right, linear-gradient(to bottom, #10b981 30px, transparent 30px) top right, linear-gradient(to right, #10b981 30px, transparent 30px) bottom left, linear-gradient(to top, #10b981 30px, transparent 30px) bottom left, linear-gradient(to left, #10b981 30px, transparent 30px) bottom right, linear-gradient(to top, #10b981 30px, transparent 30px) bottom right;background-repeat:no-repeat;background-size:30px 30px;"></div>
-        <span style="font-size:11px;font-weight:800;color:#10b981;background:rgba(0,0,0,0.75);padding:4px 10px;border-radius:12px;letter-spacing:0.5px;">ENFOQUE ÓPTICO 2X</span>
-        <span style="font-size:11px;color:#f1f5f9;background:rgba(0,0,0,0.75);padding:4px 10px;border-radius:12px;text-align:center;">Mantén a 15-20 cm del papel</span>
+      <!-- Retícula animada de encuadre óptico -->
+      <div id="qrScanReticle" style="position:absolute;width:240px;height:240px;box-shadow:0 0 0 4000px rgba(0,0,0,0.6);border-radius:18px;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px;transition:border-color 0.2s;">
+        <div style="position:absolute;inset:0;border:3px solid transparent;border-radius:18px;background:linear-gradient(to right, #10b981 32px, transparent 32px) top left, linear-gradient(to bottom, #10b981 32px, transparent 32px) top left, linear-gradient(to left, #10b981 32px, transparent 32px) top right, linear-gradient(to bottom, #10b981 32px, transparent 32px) top right, linear-gradient(to right, #10b981 32px, transparent 32px) bottom left, linear-gradient(to top, #10b981 32px, transparent 32px) bottom left, linear-gradient(to left, #10b981 32px, transparent 32px) bottom right, linear-gradient(to top, #10b981 32px, transparent 32px) bottom right;background-repeat:no-repeat;background-size:32px 32px;"></div>
+        
+        <span id="qrZoomBadge" style="font-size:11px;font-weight:800;color:#10b981;background:rgba(0,0,0,0.85);padding:4px 10px;border-radius:12px;letter-spacing:0.5px;border:1px solid rgba(16,185,129,0.3);">
+          MACRO ZOOM 2X ACTIVO
+        </span>
+
+        <span style="font-size:11px;color:#f8fafc;background:rgba(0,0,0,0.85);padding:4px 10px;border-radius:12px;text-align:center;border:1px solid rgba(255,255,255,0.15);">
+          Mantén a 15-20 cm · Toca pantalla para enfocar
+        </span>
       </div>
+
+      <!-- Indicador animado de Tap-to-Focus -->
+      <div id="qrFocusRing" style="position:absolute;width:60px;height:60px;border:2px solid #38bdf8;border-radius:8px;pointer-events:none;opacity:0;transform:translate(-50%, -50%) scale(1.4);transition:opacity 0.2s, transform 0.2s;"></div>
     </div>
 
     <!-- Bottom Controls Bar -->
-    <div style="padding:16px 20px 24px;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;gap:12px;z-index:10;">
-      <!-- Zoom Selector -->
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+    <div style="padding:14px 16px 20px;background:rgba(15,23,42,0.95);backdrop-filter:blur(8px);display:flex;flex-direction:column;gap:10px;z-index:10;border-top:1px solid #334155;">
+      
+      <!-- Selector de Zoom Macro Dinámico -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <span style="font-size:12px;color:#94a3b8;font-weight:700;">Macro Zoom:</span>
-        <button type="button" class="btn-qr-zoom" id="btnZoom1" onclick="setQrScannerZoom(1.0)" style="padding:8px 16px;border-radius:20px;background:#334155;color:#fff;border:none;font-size:13px;font-weight:800;cursor:pointer;">1x</button>
-        <button type="button" class="btn-qr-zoom" id="btnZoom2" onclick="setQrScannerZoom(2.0)" style="padding:8px 16px;border-radius:20px;background:#10b981;color:#fff;border:none;font-size:13px;font-weight:800;cursor:pointer;">2x Macro</button>
-        <button type="button" class="btn-qr-zoom" id="btnZoom3" onclick="setQrScannerZoom(3.0)" style="padding:8px 16px;border-radius:20px;background:#334155;color:#fff;border:none;font-size:13px;font-weight:800;cursor:pointer;">3x</button>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn-qr-zoom" id="btnZoom1" onclick="setQrScannerZoom(1.0)" style="padding:6px 14px;border-radius:16px;background:#334155;color:#fff;border:none;font-size:12px;font-weight:800;cursor:pointer;">1x Normal</button>
+          <button type="button" class="btn-qr-zoom" id="btnZoom2" onclick="setQrScannerZoom(2.0)" style="padding:6px 14px;border-radius:16px;background:#10b981;color:#fff;border:none;font-size:12px;font-weight:800;cursor:pointer;">2x Macro</button>
+          <button type="button" class="btn-qr-zoom" id="btnZoom3" onclick="setQrScannerZoom(3.0)" style="padding:6px 14px;border-radius:16px;background:#334155;color:#fff;border:none;font-size:12px;font-weight:800;cursor:pointer;">3x Ultra</button>
+        </div>
+      </div>
+
+      <!-- Barra de Emergencia: Dictado o Teclado directo si el papel está arrugado -->
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="inScannerSearchInput" placeholder="¿No lee? Escribe código o nombre..." style="flex:1;background:#0f172a;border:1px solid #475569;border-radius:10px;padding:8px 12px;color:#fff;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')window.submitInScannerSearch()">
+        <button type="button" onclick="window.submitInScannerSearch()" style="background:#16604A;color:#fff;border:none;border-radius:10px;padding:0 14px;font-size:12px;font-weight:800;cursor:pointer;">OK</button>
+        <button type="button" onclick="closeInAppQrScanner();startVoiceSearch();" style="background:#ef4444;color:#fff;border:none;border-radius:10px;padding:0 12px;font-size:14px;cursor:pointer;" title="Dictar por voz">🎙️</button>
       </div>
 
       <!-- Botón Gigante de Salir con el Pulgar -->
-      <button type="button" onclick="closeInAppQrScanner()" style="width:100%;padding:14px;border-radius:12px;background:#334155;color:#fff;border:1px solid #475569;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-        ✕ Cerrar Cámara y Regresar al Catálogo
+      <button type="button" onclick="closeInAppQrScanner()" style="width:100%;padding:12px;border-radius:10px;background:#334155;color:#fff;border:1px solid #475569;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+        ✕ Cerrar Cámara y Volver al Catálogo
       </button>
     </div>
   `;
@@ -1007,13 +1216,16 @@ window.openInAppQrScanner = async function() {
   document.body.style.overflow = 'hidden';
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const constraints = {
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+        focusMode: { ideal: 'continuous' }
       }
-    });
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
     _qrScannerStream = stream;
     _qrScannerTrack = stream.getVideoTracks()[0];
 
@@ -1023,12 +1235,27 @@ window.openInAppQrScanner = async function() {
       video.setAttribute('playsinline', 'true');
       await video.play();
     }
+
+    if (_qrScannerTrack && typeof _qrScannerTrack.getCapabilities === 'function') {
+      const caps = _qrScannerTrack.getCapabilities();
+      const adv = {};
+      if (caps.focusMode && caps.focusMode.includes('continuous')) {
+        adv.focusMode = 'continuous';
+      }
+      if (caps.zoom) {
+        adv.zoom = Math.min(2.0, caps.zoom.max || 1);
+      }
+      if (Object.keys(adv).length > 0) {
+        _qrScannerTrack.applyConstraints({ advanced: [adv] }).catch(() => {});
+      }
+    }
+
     setQrScannerZoom(2.0);
-    startQrDetectionLoop();
+    startHighResQrDetectionLoop();
   } catch (err) {
     console.error('Camera access error:', err);
-    alert('No se pudo acceder a la cámara. Puedes usar la búsqueda por voz o escribir el nombre del producto.');
     closeInAppQrScanner();
+    showFallbackVoiceModal();
   }
 };
 
@@ -1066,6 +1293,11 @@ window.setQrScannerZoom = function(level) {
     }
   });
 
+  const badge = document.getElementById('qrZoomBadge');
+  if (badge) {
+    badge.textContent = level === 3 ? 'ULTRA-MACRO 3X (QR PEQUEÑO)' : (level === 2 ? 'MACRO ZOOM 2X ACTIVO' : 'ZOOM 1X NORMAL');
+  }
+
   if (_qrScannerTrack && typeof _qrScannerTrack.getCapabilities === 'function') {
     const caps = _qrScannerTrack.getCapabilities();
     if (caps.zoom) {
@@ -1076,11 +1308,54 @@ window.setQrScannerZoom = function(level) {
 
   const video = document.getElementById('qrScanVideo');
   if (video) {
-    video.style.transform = level > 1 ? `scale(${level})` : 'none';
+    video.style.transform = level > 1 ? 'scale(' + level + ')' : 'none';
   }
 };
 
-let _torchActive = false;
+window.triggerQrScannerRefocus = function() {
+  if (!_qrScannerTrack) return;
+  try {
+    _qrScannerTrack.applyConstraints({
+      advanced: [{ focusMode: 'continuous' }]
+    }).catch(() => {});
+  } catch (_) {}
+
+  const ring = document.getElementById('qrFocusRing');
+  if (ring) {
+    ring.style.left = '50%';
+    ring.style.top = '50%';
+    ring.style.opacity = '1';
+    ring.style.transform = 'translate(-50%, -50%) scale(1)';
+    setTimeout(() => {
+      ring.style.opacity = '0';
+      ring.style.transform = 'translate(-50%, -50%) scale(1.4)';
+    }, 400);
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('🎯 Lente re-enfocado. Mantén a 15-20 cm.', 1500);
+  }
+};
+
+window.handleQrScanTap = function(e) {
+  const vp = document.getElementById('qrScanViewport');
+  const ring = document.getElementById('qrFocusRing');
+  if (vp && ring) {
+    const rect = vp.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ring.style.left = x + 'px';
+    ring.style.top = y + 'px';
+    ring.style.opacity = '1';
+    ring.style.transform = 'translate(-50%, -50%) scale(1)';
+    setTimeout(() => {
+      ring.style.opacity = '0';
+      ring.style.transform = 'translate(-50%, -50%) scale(1.4)';
+    }, 450);
+  }
+  window.triggerQrScannerRefocus();
+};
+
 window.toggleQrScannerTorch = function() {
   if (!_qrScannerTrack) return;
   _torchActive = !_torchActive;
@@ -1088,10 +1363,24 @@ window.toggleQrScannerTorch = function() {
     advanced: [{ torch: _torchActive }]
   }).catch(() => {});
   const btn = document.getElementById('btnToggleTorch');
-  if (btn) btn.style.background = _torchActive ? '#10b981' : '#334155';
+  if (btn) {
+    btn.style.background = _torchActive ? '#f59e0b' : '#334155';
+    btn.style.color = _torchActive ? '#000' : '#fbbf24';
+  }
 };
 
-function startQrDetectionLoop() {
+window.submitInScannerSearch = function() {
+  const inp = document.getElementById('inScannerSearchInput');
+  const q = inp ? inp.value.trim() : '';
+  if (q) {
+    handleScannedQrResult(q);
+  }
+};
+
+// ==========================================
+// 3. MOTOR DE DETECCIÓN MACRO Y MULTI-PASO
+// ==========================================
+function startHighResQrDetectionLoop() {
   const video = document.getElementById('qrScanVideo');
   const canvas = document.getElementById('qrScanCanvas');
   if (!video || !canvas) return;
@@ -1101,42 +1390,91 @@ function startQrDetectionLoop() {
     ? new window.BarcodeDetector({ formats: ['qr_code'] })
     : null;
 
+  let tickCounter = 0;
+
   _qrScannerInterval = setInterval(async () => {
     if (!video || video.readyState < 2) return;
+    tickCounter++;
 
-    if (barcodeDetector) {
-      try {
-        const barcodes = await barcodeDetector.detect(video);
-        if (barcodes && barcodes.length > 0) {
-          handleScannedQrResult(barcodes[0].rawValue);
-          return;
-        }
-      } catch (_) {}
-    }
+    try {
+      const vW = video.videoWidth || 1280;
+      const vH = video.videoHeight || 720;
+      const minDim = Math.min(vW, vH);
 
-    if (typeof jsQR === 'function') {
-      try {
-        canvas.width = Math.min(640, video.videoWidth || 640);
-        canvas.height = Math.min(480, video.videoHeight || 480);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert'
+      let cropFactor = 0.35;
+      if (_currentZoomLevel === 1) cropFactor = 0.60;
+      if (_currentZoomLevel === 3) cropFactor = 0.22;
+
+      if (tickCounter % 5 === 0 && _currentZoomLevel < 3) {
+        cropFactor = 0.70;
+      }
+
+      const cropSize = Math.floor(minDim * cropFactor);
+      const cropX = Math.floor((vW - cropSize) / 2);
+      const cropY = Math.floor((vH - cropSize) / 2);
+
+      const targetDim = 600;
+      canvas.width = targetDim;
+      canvas.height = targetDim;
+
+      ctx.drawImage(video, cropX, cropY, cropSize, cropSize, 0, 0, targetDim, targetDim);
+
+      // PASO 1: BarcodeDetector nativo
+      if (barcodeDetector) {
+        try {
+          const barcodes = await barcodeDetector.detect(canvas);
+          if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+            handleScannedQrResult(barcodes[0].rawValue);
+            return;
+          }
+        } catch (_) {}
+      }
+
+      // PASO 2: jsQR con lectura directa
+      if (typeof jsQR === 'function') {
+        const imgData = ctx.getImageData(0, 0, targetDim, targetDim);
+        let code = jsQR(imgData.data, targetDim, targetDim, {
+          inversionAttempts: 'attemptBoth'
         });
         if (code && code.data) {
           handleScannedQrResult(code.data);
           return;
         }
-      } catch (_) {}
+
+        // PASO 3: Filtro Adaptativo Binarizado (Alto Contraste)
+        const d = imgData.data;
+        let minL = 255, maxL = 0;
+        for (let i = 0; i < d.length; i += 16) {
+          const lum = (d[i] * 38 + d[i+1] * 75 + d[i+2] * 15) >> 7;
+          if (lum < minL) minL = lum;
+          if (lum > maxL) maxL = lum;
+        }
+
+        if (maxL - minL > 35) {
+          const threshold = (minL + maxL) >> 1;
+          for (let i = 0; i < d.length; i += 4) {
+            const lum = (d[i] * 38 + d[i+1] * 75 + d[i+2] * 15) >> 7;
+            const v = lum > threshold ? 255 : 0;
+            d[i] = v; d[i+1] = v; d[i+2] = v;
+          }
+          code = jsQR(d, targetDim, targetDim, { inversionAttempts: 'attemptBoth' });
+          if (code && code.data) {
+            handleScannedQrResult(code.data);
+            return;
+          }
+        }
+      }
+    } catch (loopErr) {
+      console.warn('QR scan frame error:', loopErr);
     }
-  }, 160);
+  }, 130);
 }
 
 function handleScannedQrResult(rawText) {
   if (!rawText) return;
   closeInAppQrScanner();
 
-  if (navigator.vibrate) navigator.vibrate(120);
+  if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
 
   let query = rawText;
   try {
@@ -1148,7 +1486,6 @@ function handleScannedQrResult(rawText) {
 
   query = (query || rawText).trim();
 
-  // Esperar 100ms para asegurar liberación del hardware de cámara antes de abrir modal comercial
   setTimeout(() => {
     let found = (typeof window.findProductByQuery === 'function')
       ? window.findProductByQuery(query, allProducts)
@@ -1167,5 +1504,5 @@ function handleScannedQrResult(rawText) {
         showToast('🔍 Mostrando resultados para: ' + query, 3000);
       }
     }
-  }, 100);
+  }, 120);
 }

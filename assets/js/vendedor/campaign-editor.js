@@ -190,25 +190,8 @@ window.CampaignEditor = (() => {
         <div class="ce-body">
           <!-- Config Panel (Left) -->
           <div class="ce-config-pane">
-            <!-- Selector de Modo de Creación -->
-            <div class="ce-mode-tabs">
-              <button type="button" class="ce-mode-tab active" id="ceTabModeAi" onclick="CampaignEditor.setEditorMode('ai')">
-                🤖 Modo IA Personalizado
-              </button>
-              <button type="button" class="ce-mode-tab" id="ceTabModeTpl" onclick="CampaignEditor.setEditorMode('template')">
-                📝 Plantilla Base
-              </button>
-            </div>
-
-            <!-- Plantilla Base (Visible en Modo Plantilla) -->
-            <div class="ce-section" id="ceSectionTemplate" style="display:none;">
-              <div class="ce-section-title">
-                <span>📝 Plantilla Base</span>
-              </div>
-              <div class="ce-field-group">
-                <select class="ce-select" id="ceTemplateSelect" onchange="CampaignEditor.onTemplateChange()"></select>
-              </div>
-            </div>
+                        <!-- Selector de Plantilla Opcional (Oculto) -->
+            <select class="ce-select" id="ceTemplateSelect" style="display:none;"></select>
 
             <!-- 5 Modos Reales de Campaña Comercial JJ Paper -->
             <div class="ce-section">
@@ -554,43 +537,23 @@ window.CampaignEditor = (() => {
   /* ---------------- GESTIÓN DE MODOS (IA vs PLANTILLA) ---------------- */
   function setEditorMode(mode = 'ai') {
     editorMode = mode;
-    const tabAi = document.getElementById('ceTabModeAi');
-    const tabTpl = document.getElementById('ceTabModeTpl');
-    const secTpl = document.getElementById('ceSectionTemplate');
     const aiBar = document.getElementById('ceAiFlowBar');
     const rightSubtabs = document.getElementById('ceRightSubtabs');
     const simStepper = document.getElementById('ceSimStepper');
     const activeActions = document.getElementById('ceActiveCustomerActions');
     const composerArea = document.getElementById('ceComposerArea');
 
-    if (mode === 'ai') {
-      tabAi?.classList.add('active');
-      tabTpl?.classList.remove('active');
-      if (secTpl) secTpl.style.display = 'none';
-      if (aiBar) aiBar.style.display = 'flex';
-      if (rightSubtabs) rightSubtabs.style.display = 'flex';
-      if (simStepper) simStepper.style.display = 'flex';
-      if (activeActions) activeActions.style.display = 'flex';
-      if (composerArea) composerArea.style.display = 'none';
-      // Por defecto activar PDF oficial en modo IA
-      const pdfChk = document.getElementById('ceAttachPdf');
-      if (pdfChk && !pdfChk.checked) {
-        pdfChk.checked = true;
-        onAttachChange();
-      }
-    } else {
-      tabAi?.classList.remove('active');
-      tabTpl?.classList.add('active');
-      if (secTpl) secTpl.style.display = 'block';
-      if (aiBar) aiBar.style.display = 'none';
-      if (rightSubtabs) rightSubtabs.style.display = 'none';
-      if (simStepper) simStepper.style.display = 'none';
-      if (activeActions) activeActions.style.display = 'none';
-      if (composerArea) composerArea.style.display = 'flex';
-      switchRightTab('simulator');
-    }
+    if (aiBar) aiBar.style.display = 'flex';
+    if (rightSubtabs) rightSubtabs.style.display = 'flex';
+    if (simStepper) simStepper.style.display = 'flex';
+    if (activeActions) activeActions.style.display = 'flex';
+    if (composerArea) composerArea.style.display = 'block';
 
-    updatePreview();
+    const pdfChk = document.getElementById('ceAttachPdf');
+    if (pdfChk && !pdfChk.checked) {
+      pdfChk.checked = true;
+      onAttachChange();
+    }
   }
 
   function switchRightTab(tab = 'simulator') {
@@ -704,13 +667,8 @@ window.CampaignEditor = (() => {
     const availableTpls = (config.templates || []).filter(t => !t.channel || t.channel === config.channel || t.channel === 'both');
     tplSel.innerHTML = availableTpls.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     
-    if (config.preTplId) {
-      tplSel.value = config.preTplId;
-      setEditorMode('template');
-    } else {
-      // Por defecto abrir en Modo IA (Recomendado)
-      setEditorMode('ai');
-    }
+    setEditorMode('ai');
+    setCampaignMode(config.preMode || 'presentacion_b2b');
 
     if (availableTpls.length > 0 && config.preTplId) {
       onTemplateChange();
@@ -986,6 +944,114 @@ window.CampaignEditor = (() => {
     }
     renderSelectedCard();
     applyMultiOfertaTemplate();
+  }
+
+  
+  let activeCampaignMode = 'presentacion_b2b';
+
+  function setCampaignMode(mode) {
+    if (!mode) mode = 'presentacion_b2b';
+    activeCampaignMode = mode;
+
+    const modeBtns = ['presentacion_b2b', 'seguimiento_prospecto', 'reposicion_cliente', 'oferta_multiproducto', 'oferta_unipromocion'];
+    modeBtns.forEach(m => {
+      const btn = document.getElementById('ceModeBtn_' + m);
+      if (btn) {
+        if (m === mode) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    });
+
+    const audSel = document.getElementById('ceAudienceSelect');
+    if (audSel) {
+      if (mode === 'presentacion_b2b') {
+        audSel.value = 'prospectos_b2b';
+      } else if (mode === 'seguimiento_prospecto') {
+        audSel.value = 'con_cotizacion';
+      } else if (mode === 'reposicion_cliente') {
+        audSel.value = 'solo_clientes';
+      } else {
+        audSel.value = 'todos';
+      }
+      onAudienceChange();
+    }
+
+    const prodSec = document.getElementById('ceProductSelectorContext');
+    const pickerBtn = document.getElementById('ceCatalogPickerBtn');
+    const cardWrap = document.getElementById('ceSelectedCardWrap');
+
+    if (mode === 'oferta_multiproducto') {
+      if (prodSec) prodSec.style.display = 'block';
+      if (pickerBtn) pickerBtn.innerHTML = '📦 Seleccionar Productos del Lote / Catálogo';
+      if (cardWrap) cardWrap.style.display = (selectedProductsList && selectedProductsList.length) ? 'block' : 'none';
+      if (selectedProductsList && selectedProductsList.length) {
+        applyMultiOfertaTemplate();
+      } else {
+        openCatalogPickerForActiveMode();
+      }
+    } else if (mode === 'oferta_unipromocion') {
+      if (prodSec) prodSec.style.display = 'block';
+      if (pickerBtn) pickerBtn.innerHTML = '⭐ Seleccionar Producto Estrella del Catálogo';
+      if (cardWrap) cardWrap.style.display = selectedProductOrCombo ? 'block' : 'none';
+      if (selectedProductOrCombo) {
+        applyProductTemplate();
+      } else {
+        openCatalogPickerForActiveMode();
+      }
+    } else {
+      if (prodSec) prodSec.style.display = 'none';
+      applyBaseModeTemplate(mode);
+    }
+  }
+
+  function openCatalogPickerForActiveMode() {
+    if (activeCampaignMode === 'oferta_multiproducto') {
+      openCatalogPicker('multi');
+    } else {
+      openCatalogPicker('product');
+    }
+  }
+
+  function startAiDraftForCampaign() {
+    openAiToneModal();
+  }
+
+  function applyBaseModeTemplate(mode = activeCampaignMode) {
+    const isEmail = currentConfig?.channel === 'email';
+    let msg = '';
+    let subj = '';
+
+    if (mode === 'presentacion_b2b') {
+      subj = 'Presentación Comercial: Abastecimiento y Distribución Mayorista — JJ Paper C.A.';
+      if (isEmail) {
+        msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nNos dirigimos a usted para presentar nuestra empresa como su **aliado estratégico de abastecimiento directo**. Distribuimos artículos de oficina, papelería y productos de consumo para empresas, comercios y colegios con precios directos de distribuidor.\n\n*📦 NUESTRAS LÍNEAS DE DISTRIBUCIÓN:*\n• 📄 *Papelería y Artículos de Oficina:* Resmas, carpetas, sobres, bolígrafos, archivadores y consumibles.\n• 🧹 *Artículos de Limpieza y Mantenimiento:* Desinfectantes, toallas, bolsas industriales y químicos de aseo.\n• 🎯 *Procura Especializada:* Cualquier producto o marca que su empresa requiera, **nosotros se lo conseguimos con el mejor precio del mercado**.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 Precios directos al mayor en USD ($) y Bolívares a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal legal SENIAT.\n• 🚚 Despacho prioritario en 24h directamente a su sede en Caracas.\n\n👉 *Catálogo digital completo en línea (sin registro ni login):*\n{{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 productos de alta necesidad y demanda en su empresa, y con gusto le responderemos de inmediato con una cotización a su medida y el mejor precio del mercado.\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      } else {
+        msg = `*🏢 JJ PAPER C.A. · DISTRIBUIDOR MAYORISTA DIRECTO*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}*, asesor comercial de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos para presentar nuestra empresa como su **aliado de abastecimiento directo**. Atendemos a empresas, oficinas y comercios con precios de importador y atención personalizada.\n\n*📦 LÍNEAS DE SUMINISTRO DISPONIBLES:*\n• 📄 *Papelería:* Resmas de papel, carpetas, sobres, bolígrafos y archivo.\n• 🧹 *Limpieza y Mantenimiento:* Toallas, bolsas, desinfectantes e higiene.\n• 🎯 *Procura a Medida:* Cualquier artículo que necesite, **nosotros se lo ubicamos al mejor precio**.\n\n*💎 BENEFICIOS DIRECTOS:*\n• 🏭 Precios al mayor en USD ($) y Bs a **Tasa Oficial BCV**.\n• 🧾 Facturación fiscal legal SENIAT.\n• 🚚 Despacho prioritario en 24h en Caracas.\n\n👉 *Revise nuestro Catálogo Digital (sin login):*\n{{link}}\n\n💡 *Hagamos una prueba:* Indíquenos 2 o 3 artículos de alta demanda en su empresa y le preparamos una cotización a su medida con el mejor precio garantizado.\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      }
+    } else if (mode === 'seguimiento_prospecto') {
+      subj = 'Seguimiento de Cotización y Disponibilidad de Despacho — JJ Paper C.A.';
+      if (isEmail) {
+        msg = `{Estimado(a)|Hola} {{nombre}},\n\nEspero se encuentre excelente. Le saluda nuevamente {{vendedor}} de *JJ Paper C.A.*\n\nNos comunicamos para darle seguimiento a la cotización y suministros conversados anteriormente. Queremos confirmar si tuvieron oportunidad de evaluarla o si requieren algún ajuste en cantidades, marcas o productos adicionales.\n\n*🚚 LOGÍSTICA LISTA PARA DESPACHO:*\n• Contamos con **inventario físico garantizado** para entrega hoy mismo en su sede.\n• Facturación legal y cotización oficial a **Tasa BCV**.\n• Podemos incorporar cualquier otro artículo de papelería, limpieza o consumibles en la misma entrega.\n\n👉 *Catálogo en línea siempre disponible:* {{link}}\n\n¿Desea que le reservemos la mercancía o coordinemos la orden de compra para esta semana?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      } else {
+        msg = `*🤝 SEGUIMIENTO COMERCIAL · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle de nuevo 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos para darle seguimiento a la cotización y suministros conversados previamente. Queremos validar si requieren algún ajuste en cantidades, marcas o artículos complementarios.\n\n*🚚 DESPACHO INMEDIATO:*\n• Mercancía disponible en almacén para entrega hoy mismo.\n• Facturación formal fiscal a **Tasa Oficial BCV**.\n• Si requiere insumos de limpieza o papelería adicional, se los sumamos a la misma entrega.\n\n👉 *Ver catálogo digital:* {{link}}\n\n¿Gusta que le reservemos el pedido o le actualicemos la cotización?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      }
+    } else if (mode === 'reposicion_cliente') {
+      subj = 'Recordatorio de Reposición de Inventario y Stock — JJ Paper C.A.';
+      if (isEmail) {
+        msg = `{Estimado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.* Agradecemos su constante confianza como cliente de nuestra casa.\n\nLe escribimos preventivamente para consultar cómo se encuentra su inventario de suministros para este mes y evitar que se quede sin artículos esenciales en su empresa:\n\n*📋 LÍNEAS LISTAS PARA REPOSICIÓN:*\n• Resmas de papel carta/oficio, carpetas, sobres y archivo.\n• Bolígrafos, marcadores, cintas de embalaje y artículos de escritorio.\n• Insumos de limpieza, higiene y consumibles operativos.\n\n*⚡ CONDICIONES PREFERENCIALES:*\n• Facturación inmediata a **Tasa Oficial BCV**.\n• Despacho directo y prioritario a su sede.\n\n👉 *Consulte catálogo actualizado:* {{link}}\n\n¿Le preparamos su pedido habitual o desea cotizar una reposición con algún producto nuevo?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      } else {
+        msg = `*🔄 REPOSICIÓN DE STOCK · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* Gracias por su preferencia constante con nosotros.\n\nLe escribimos de forma preventiva para verificar cómo está su inventario de insumos para este mes y apoyarle antes de que se agoten en su empresa:\n\n*📋 LISTOS PARA REPOSICIÓN:*\n• Papel fotocopia, carpetas, sobres y consumibles de oficina.\n• Bolígrafos, cintas de embalaje y artículos de escritorio.\n• Línea de limpieza e higiene corporativa.\n\n*⚡ BENEFICIO CLIENTE ACTIVO:*\n• Atención y despacho prioritario en Caracas.\n• Precios oficiales a **Tasa BCV**.\n\n👉 *Catálogo digital en línea:* {{link}}\n\n¿Le confirmamos su despacho habitual o requiere cotizar algún artículo nuevo?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial\n*JJ Paper C.A.* · RIF J-50478063-0`;
+      }
+    }
+
+    if (subj && document.getElementById('ceSubjectInput')) {
+      document.getElementById('ceSubjectInput').value = subj;
+    }
+    if (msg && document.getElementById('ceMessageInput')) {
+      document.getElementById('ceMessageInput').value = msg;
+    }
+
+    updatePreview();
   }
 
   function applyMultiOfertaTemplate() {
@@ -2295,11 +2361,26 @@ ${rawText}
     }
 
     const options = (typeof opts === 'string') ? { selectedTone: opts } : (opts || {});
-    const selectedTone = options.selectedTone || 'presentacion';
-    const customInstructions = options.customInstructions || '';
-    const msgLength = options.msgLength || 'balanced';
-    const priceMode = options.priceMode || 'with_prices';
-    const ctaGoal = options.ctaGoal || 'quote';
+    const selectedTone = options.selectedTone || (
+      activeCampaignMode === 'presentacion_b2b' ? 'presentacion' :
+      activeCampaignMode === 'seguimiento_prospecto' ? 'seguimiento' :
+      activeCampaignMode === 'reposicion_cliente' ? 'fidelizado' :
+      activeCampaignMode === 'oferta_multiproducto' ? 'oferta' :
+      activeCampaignMode === 'oferta_unipromocion' ? 'oferta' : 'presentacion'
+    );
+    const commercialTone = options.commercialTone || document.getElementById('ceCommercialTone')?.value || (
+      selectedTone === 'fidelizado' ? 'fidelizado_reactivacion' :
+      selectedTone === 'oferta' ? 'oportunidad_mayorista' :
+      selectedTone === 'seguimiento' ? 'cercano_consultivo' : 'socio_estrategico'
+    );
+    const valueHook = options.valueHook || document.getElementById('ceValueHook')?.value || 'importador_directo';
+    const targetSector = options.targetSector || document.getElementById('ceTargetSector')?.value || 'auto';
+    const customInstructions = options.customInstructions || document.getElementById('ceAiCustomInstructionsBatch')?.value || document.getElementById('ceCustomNotesInput')?.value || '';
+    const msgLength = options.msgLength || document.getElementById('ceAiMsgLengthBatch')?.value || 'balanced';
+    const priceMode = options.priceMode || document.getElementById('ceAiPriceModeBatch')?.value || 'with_prices';
+    const ctaGoal = options.ctaGoal || document.getElementById('ceAiCtaGoalBatch')?.value || (
+      activeCampaignMode === 'reposicion_cliente' ? 'inventory' : 'quote'
+    );
 
     const btn = document.getElementById('ceStartAiAnalysisBtn');
     const origBtnTxt = btn ? btn.innerHTML : '';
@@ -3434,6 +3515,10 @@ ${rawText}
   return {
     open,
     close,
+    setCampaignMode,
+    openCatalogPickerForActiveMode,
+    startAiDraftForCampaign,
+    applyBaseModeTemplate,
     setEditorMode,
     switchRightTab,
     openProspectPicker,

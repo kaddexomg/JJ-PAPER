@@ -110,6 +110,8 @@ async function custAcSearch(nameId, boxId, opts) {
 
   if (q.length < ((opts && opts.minLen) || 1)) { custAcHide(boxId); return; }
   clearTimeout(custAc.timer);
+  custAc.currentReqId = (custAc.currentReqId || 0) + 1;
+  const thisReqId = custAc.currentReqId;
   custAc.timer = setTimeout(async () => {
     const digits = q.replace(/\D/g, '');
     const cleanQ = q.replace(/[%_,[\]()"'\\;]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -122,12 +124,11 @@ async function custAcSearch(nameId, boxId, opts) {
     orParts.push(`name.ilike.%${cleanQ}%`);
     orParts.push(`rif.ilike.%${cleanQ}%`);
 
-    // Si es código MixNet (ej: 003-251 o 00), buscar específicamente ese código en notes
+    // Búsqueda en notas (código MixNet completo o parcial ej: 251, o texto)
     if (isMixCode) {
       const codeToSearch = searchCode && searchCode.includes('-') ? searchCode : cleanQ;
       orParts.push(`notes.ilike.%${codeToSearch}%`);
-    } else if (cleanQ.length >= 4 && !/^[0-9]{1,3}$/.test(cleanQ)) {
-      // Para texto general, solo buscar en notes si tiene 4 o más caracteres y no es una zona de 3 dígitos (004, 008, etc.)
+    } else if (cleanQ.length >= 2) {
       orParts.push(`notes.ilike.%${cleanQ}%`);
     }
 
@@ -163,6 +164,7 @@ async function custAcSearch(nameId, boxId, opts) {
     }
 
     const { data, error } = await query.limit((opts && opts.limit) || 15);
+    if (thisReqId !== custAc.currentReqId) return; // Descartar consulta vieja si el usuario siguió escribiendo
     if (error) { console.error('autocompletado cliente:', error); custAcHide(boxId); return; }
 
     const results = (data || []).map(c => ({
@@ -170,19 +172,30 @@ async function custAcSearch(nameId, boxId, opts) {
       mixnet_code: custAcExtractMixCode(c)
     }));
 
-    // Priorizar coincidencia exacta o por inicio de código MixNet
+    // Priorizar coincidencia exacta o por código MixNet (completo o sufijo ej: -251)
     const targetCodeLow = (searchCode || q).toLowerCase();
+    const cleanQLow = cleanQ.toLowerCase();
     results.sort((a, b) => {
       const aCode = (a.mixnet_code || '').toLowerCase();
       const bCode = (b.mixnet_code || '').toLowerCase();
-      if (aCode === targetCodeLow && bCode !== targetCodeLow) return -1;
-      if (bCode === targetCodeLow && aCode !== targetCodeLow) return 1;
+      const aExact = aCode === targetCodeLow || aCode.endsWith('-' + targetCodeLow) || aCode.replace(/-/g, '') === targetCodeLow;
+      const bExact = bCode === targetCodeLow || bCode.endsWith('-' + targetCodeLow) || bCode.replace(/-/g, '') === targetCodeLow;
+      if (aExact && !bExact) return -1;
+      if (bExact && !aExact) return 1;
+
       if (aCode.startsWith(targetCodeLow) && !bCode.startsWith(targetCodeLow)) return -1;
       if (bCode.startsWith(targetCodeLow) && !aCode.startsWith(targetCodeLow)) return 1;
+
       const aRif = (a.rif || '').toLowerCase();
       const bRif = (b.rif || '').toLowerCase();
       if (aRif === targetCodeLow && bRif !== targetCodeLow) return -1;
       if (bRif === targetCodeLow && aRif !== targetCodeLow) return 1;
+
+      const aStarts = (a.name || '').toLowerCase().startsWith(cleanQLow);
+      const bStarts = (b.name || '').toLowerCase().startsWith(cleanQLow);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
       return 0;
     });
 

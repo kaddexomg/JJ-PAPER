@@ -947,7 +947,7 @@ async function openCampaignDetail(id) {
   updateLiveTimersTick();
 
   const failList = document.getElementById('rd-failed-list');
-  failList.innerHTML = '<span style="color:#777">Cargando...</span>';
+  failList.innerHTML = '<span style="color:#777">⏳ Cargando reporte...</span>';
   openDModal('reportModal');
 
   const { data, error } = await sb.from('jjp_wa_campaign_targets')
@@ -1221,12 +1221,13 @@ async function launchCampaignFromEditor(config) {
     return {
       campaign_id: camp.id,
       owner_id: ownerId,
-      customer_id: c.id || null,
+      customer_id: (c.is_prospect_b2b || c.company_name) ? null : (c.id || null),
       phone: finalPhone,
       name: c.name,
       status: 'en_cola',
       vars: {
         ...dSampleVars(c.name, extra),
+        prospect_id: (c.is_prospect_b2b || c.company_name) ? c.id : null,
         custom_message: c._custom_message || null,
         custom_body: c._custom_message || null,
         detected_need: c._detected_need || null,
@@ -1252,9 +1253,9 @@ async function launchCampaignFromEditor(config) {
 
 
   // Actualizar estado en jjp_prospects si la campaña incluyó prospectos B2B
-  const b2bTargets = targets.filter(t => audience.find(a => a.id === t.customer_id && a.is_prospect_b2b));
-  if (b2bTargets.length > 0) {
-    const pIds = b2bTargets.map(t => t.customer_id).filter(Boolean);
+  const b2bProspectIds = audience.filter(a => (a.is_prospect_b2b || a.company_name) && a.id).map(a => a.id);
+  if (b2bProspectIds.length > 0) {
+    const pIds = b2bProspectIds;
     const updatePayload = {
       contacted: true,
       status: 'contactado_wa',
@@ -1486,11 +1487,14 @@ async function launchCampaign() {
   }).map(c => ({
     campaign_id: camp.id,
     owner_id: ownerId,
-    customer_id: c.id || null,
+    customer_id: (c.is_prospect_b2b || c.company_name) ? null : (c.id || null),
     phone: c.phone,
     name: c.name,
     status: 'en_cola',
-    vars: dSampleVars(c.name, extra),
+    vars: {
+      ...dSampleVars(c.name, extra),
+      prospect_id: (c.is_prospect_b2b || c.company_name) ? c.id : null
+    },
   }));
 
   for (let i = 0; i < targets.length; i += 100) {

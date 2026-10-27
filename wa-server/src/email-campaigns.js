@@ -326,6 +326,15 @@ async function step(camp, dailyLimit) {
         .update({ status: 'sent', email_id: em?.id || null, sent_at: new Date().toISOString(), error: null })
         .eq('id', t.id);
       if (t.customer_id) await dbCore.from('jjp_customers').update({ last_email_at: new Date().toISOString() }).eq('id', t.customer_id);
+      const prospectId = t.vars?.prospect_id || (!t.customer_id && t.vars?.b2b_id) || null;
+      if (prospectId) {
+        await dbCore.from('jjp_prospects').update({
+          contacted: true,
+          status: 'contactado_email',
+          last_contact_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }).eq('id', prospectId).catch(() => {});
+      }
       await syncCounts(camp.id);
 
       // Ritmo de correo electrónico: 3 a 7 segundos entre envíos para fluidez y total seguridad con cuota Google

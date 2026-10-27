@@ -10,10 +10,14 @@ let quotesSellerFilter = '';
 let currentQuotesStatusFilter = '';
 let quotesSearch = '';
 
+let _quotesSearchTimer = null;
 function onQuotesSearch(val) {
   quotesSearch = (val || '').trim();
-  quotePage = 1;
-  renderQuotesTable();
+  clearTimeout(_quotesSearchTimer);
+  _quotesSearchTimer = setTimeout(() => {
+    quotePage = 1;
+    renderQuotesTable();
+  }, 120);
 }
 
 async function loadQuotes(statusFilter = currentQuotesStatusFilter) {
@@ -84,20 +88,7 @@ function renderQuotesTable() {
 
   const qSearch = quotesSearch.toLowerCase();
   if (qSearch) {
-    filtered = filtered.filter(q => {
-      if ((q.quote_number || '').toLowerCase().includes(qSearch)) return true;
-      if ((q.client_name || '').toLowerCase().includes(qSearch)) return true;
-      if ((q.rif || '').toLowerCase().includes(qSearch)) return true;
-      if ((q.phone || '').includes(qSearch)) return true;
-      if ((q.city || '').toLowerCase().includes(qSearch)) return true;
-      const items = quoteItemsOf(q);
-      const matchItem = items.some(it => {
-        const name = (it.name || it.product || it.description || '').toLowerCase();
-        const code = (it.code || it.variant_code || '').toLowerCase();
-        return name.includes(qSearch) || code.includes(qSearch);
-      });
-      return matchItem;
-    });
+    filtered = filtered.filter(q => q._searchBlob ? q._searchBlob.includes(qSearch) : (q.quote_number || '').toLowerCase().includes(qSearch));
   }
 
   if (count) count.textContent = `${filtered.length}${qSearch || quotesSellerFilter ? ' de ' + adminQuotes.length : ''} cotizaciones`;

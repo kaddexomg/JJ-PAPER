@@ -1100,12 +1100,19 @@ async function viewCampaignDetail(id) {
 }
 
 async function loadCampTargets(campId) {
+  const tbody = document.getElementById('detTargetsBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty">⏳ Cargando destinatarios...</td></tr>';
+
   const { data, error } = await sb.from('jjp_email_campaign_targets')
     .select('*')
     .eq('campaign_id', campId)
     .order('created_at');
     
-  if (error) { showToast('Error cargando destinatarios: ' + error.message, 'err'); return; }
+  if (error) { 
+    showToast('Error cargando destinatarios: ' + error.message, 'err');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty" style="color:var(--danger)">⚠️ Error al cargar destinatarios: ' + escapeHTML(error.message) + '</td></tr>';
+    return; 
+  }
   ecDetailTargets = data || [];
   renderCampDetail();
 }
@@ -1136,7 +1143,7 @@ function renderCampDetail() {
   if (!tbody) return;
   
   if (!ecDetailTargets.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Cargando destinatarios...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">📭 No hay destinatarios registrados en esta campaña.</td></tr>';
     return;
   }
   
@@ -1284,7 +1291,7 @@ async function launchEmailCampaignFromEditor(config) {
     html: corporateHtml,
     body_html: corporateHtml,
     attachments,
-    status: config.scheduled_at ? 'scheduled' : 'running',
+    status: 'running',
     total: audience.length,
     sent_count: 0,
     failed_count: 0,
@@ -1321,7 +1328,7 @@ async function launchEmailCampaignFromEditor(config) {
   }).map(c => ({
     campaign_id: camp.id,
     owner_id: ownerId,
-    customer_id: c.id || null,
+    customer_id: (c.is_prospect_b2b || c.company_name) ? null : (c.id || null),
     to_addr: String(c.email).trim().toLowerCase(),
     email: String(c.email).trim().toLowerCase(),
     phone: c.phone || c.phone_2 || c.phone_1 || null,
@@ -1329,6 +1336,7 @@ async function launchEmailCampaignFromEditor(config) {
     status: 'pending',
     vars: {
       ...ecSampleVars(c.name, extra),
+      prospect_id: (c.is_prospect_b2b || c.company_name) ? c.id : null,
       custom_subject: c._custom_subject || null,
       custom_message: c._custom_message || null,
       custom_body: c._custom_message || null,
@@ -1354,9 +1362,9 @@ async function launchEmailCampaignFromEditor(config) {
 
 
   // Actualizar estado en jjp_prospects si la campaña incluyó prospectos B2B
-  const b2bTargets = targets.filter(t => audience.find(a => a.id === t.customer_id && a.is_prospect_b2b));
-  if (b2bTargets.length > 0) {
-    const pIds = b2bTargets.map(t => t.customer_id).filter(Boolean);
+  const b2bProspectIds = audience.filter(a => (a.is_prospect_b2b || a.company_name) && a.id).map(a => a.id);
+  if (b2bProspectIds.length > 0) {
+    const pIds = b2bProspectIds;
     const updatePayload = {
       contacted: true,
       status: 'contactado_email',
@@ -1532,7 +1540,7 @@ async function launchEcCampaign() {
     body: tpl.body,
     html: htmlContent,
     body_html: htmlContent,
-    status: 'draft',
+    status: 'running',
     total: list.length,
     attachments
   }).select('id').single();
@@ -1546,13 +1554,16 @@ async function launchEcCampaign() {
   const targets = list.map(c => ({
     campaign_id: camp.id,
     owner_id: SELLER.id,
-    customer_id: c.id || null,
+    customer_id: (c.is_prospect_b2b || c.company_name) ? null : (c.id || null),
     to_addr: c.email,
     email: c.email,
     phone: c.phone || c.phone_2 || c.phone_1 || null,
     name: c.name || 'Cliente',
     status: 'pending',
-    vars: ecSampleVars(c.name, extra),
+    vars: {
+      ...ecSampleVars(c.name, extra),
+      prospect_id: (c.is_prospect_b2b || c.company_name) ? c.id : null
+    },
   }));
 
   for (let i = 0; i < targets.length; i += 100) {

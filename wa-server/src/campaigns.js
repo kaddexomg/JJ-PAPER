@@ -273,6 +273,15 @@ async function step(camp, dailyLimit) {
         updated_at: new Date().toISOString()
       }).eq('id', camp.id);
 
+      const prospectId = t.vars?.prospect_id || (!t.customer_id && t.vars?.b2b_id) || null;
+      if (prospectId) {
+        await dbCore.from('jjp_prospects').update({
+          contacted: true,
+          status: 'contactado_wa',
+          last_contact_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }).eq('id', prospectId).catch(() => {});
+      }
       log.info({ campaign: camp.name, to: norm, nextInS: Math.round(delayMs / 1000), isBatchPause }, 'difusión: mensaje encolado');
     } catch (e) {
       await db.from('jjp_wa_campaign_targets')

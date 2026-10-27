@@ -13,9 +13,13 @@ let vQuotes = [];
 let vQuotesFilter = '';
 let vQuotesSearch = '';
 
+let _vQuotesSearchTimer = null;
 function onVQuotesSearch(val) {
   vQuotesSearch = (val || '').trim();
-  renderVQuotes();
+  clearTimeout(_vQuotesSearchTimer);
+  _vQuotesSearchTimer = setTimeout(() => {
+    renderVQuotes();
+  }, 120);
 }
 
 // Estados de cotización que ya están cerrados (no se convierten)
@@ -73,20 +77,7 @@ function renderVQuotes() {
 
   const qSearch = vQuotesSearch.toLowerCase();
   const filtered = qSearch
-    ? vQuotes.filter(q => {
-        if ((q.quote_number || '').toLowerCase().includes(qSearch)) return true;
-        if ((q.client_name || '').toLowerCase().includes(qSearch)) return true;
-        if ((q.rif || '').toLowerCase().includes(qSearch)) return true;
-        if ((q.phone || '').includes(qSearch)) return true;
-        if ((q.city || '').toLowerCase().includes(qSearch)) return true;
-        const items = vqItems(q);
-        const matchItem = items.some(it => {
-          const name = (it.name || it.product || it.description || '').toLowerCase();
-          const code = (it.code || it.variant_code || '').toLowerCase();
-          return name.includes(qSearch) || code.includes(qSearch);
-        });
-        return matchItem;
-      })
+    ? vQuotes.filter(q => q._searchBlob ? q._searchBlob.includes(qSearch) : (q.quote_number || '').toLowerCase().includes(qSearch))
     : vQuotes;
 
   if (count) count.textContent = `${filtered.length}${qSearch ? ' de ' + vQuotes.length : ''} cotizaciones`;

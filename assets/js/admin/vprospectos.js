@@ -1847,7 +1847,7 @@ async function launchProspectsCampaignFromEditor(config) {
       body: body,
       html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px"><div>${htmlContent}</div></div>`,
       body_html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px"><div>${htmlContent}</div></div>`,
-      status: scheduled_at ? 'scheduled' : 'running',
+      status: 'running',
       delay_min_s: delays?.min || 15,
       delay_max_s: delays?.max || 45,
       total: audience.length,

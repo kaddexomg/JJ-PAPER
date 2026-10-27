@@ -193,10 +193,70 @@ window.CampaignEditor = (() => {
                         <!-- Selector de Plantilla Opcional (Oculto) -->
             <select class="ce-select" id="ceTemplateSelect" style="display:none;"></select>
 
-            <!-- 5 Modos Reales de Campaña Comercial JJ Paper -->
-            <div class="ce-section">
-              <div class="ce-section-title">
-                <span>🎯 Modo de Campaña Comercial</span>
+            <!-- 1️⃣ PASO 1: Audiencia y Destinatarios -->
+            <div class="ce-step-card" id="ceStepCard_1">
+              <div class="ce-step-header">
+                <span class="ce-step-number">1</span>
+                <div>
+                  <div class="ce-step-title">Destinatarios & Audiencia</div>
+                  <div class="ce-step-subtitle">¿A quién nos dirigiremos en esta campaña?</div>
+                </div>
+              </div>
+              <div class="ce-field-group">
+                <select class="ce-select" id="ceAudienceSelect" onchange="CampaignEditor.onAudienceChange()">
+                  <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
+                  <option value="prospectos_b2b" selected>🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
+                  <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
+                  <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
+                  <option value="gmail_starred">⭐ Destacados en Gmail (Clientes Prioritarios)</option>
+                  <option value="respondieron">💬 Contactos que han Respondido</option>
+                  <option value="inactivos">😴 Inactivos (sin compras &gt;30d)</option>
+                  <option value="sector">🏢 Filtrar por Sector B2B...</option>
+                  <option value="etiqueta">🔖 Por etiqueta / zona...</option>
+                </select>
+              </div>
+              <div class="ce-field-group" id="ceSectorWrap" style="display:none; margin-top:4px;">
+                <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:2px">Sector B2B:</label>
+                <select class="ce-select" id="ceSectorSelect" onchange="CampaignEditor.onAudienceChange()"></select>
+              </div>
+              <div class="ce-field-group" id="ceTagWrap" style="display:none;">
+                <input type="text" class="ce-input" id="ceTagInput" placeholder="Ej: 004, mayoristas..." oninput="CampaignEditor.onAudienceChange()">
+              </div>
+
+              <div style="margin-top:6px; display:flex; gap:6px;">
+                <button type="button" class="ce-var-btn" style="flex:1; background:#f8fafc; border-color:#cbd5e1; font-weight:700; padding:7px 10px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="CampaignEditor.openProspectPicker()">
+                  <span>👥 Ver / Modificar Contactos</span>
+                  <span class="ce-badge-pill" id="ceSelectedProspectsBadge">0</span>
+                </button>
+              </div>
+
+              <!-- Filtro Anti-Fatiga y Cooldown -->
+              <div style="margin-top:8px; padding:8px 10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#1e293b;cursor:pointer;font-weight:700;">
+                    <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
+                    <span>🛡️ Filtro Anti-Fatiga</span>
+                  </label>
+                  <span class="ce-badge-pill" id="ceCooldownBadge" style="background:#fee2e2;color:#991b1b;display:none;font-size:10px;">0 omitidos</span>
+                </div>
+                <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onCooldownHoursChange()" style="font-size:11.5px; padding:3px 6px; background:#fff;">
+                  <option value="24">⏱️ Omitir contactados en 24h (1 día)</option>
+                  <option value="72" selected>⏱️ Omitir contactados en 72h (3 días — Recomendado)</option>
+                  <option value="168">⏱️ Omitir contactados en 7 días (1 semana)</option>
+                  <option value="360">⏱️ Omitir contactados en 15 días</option>
+                  <option value="720">⏱️ Omitir contactados en 30 días</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 2️⃣ PASO 2: Objetivo Comercial / Modo de Campaña -->
+            <div class="ce-step-card" id="ceStepCard_2">
+              <div class="ce-step-header">
+                <span class="ce-step-number">2</span>
+                <div>
+                  <div class="ce-step-title">Objetivo Comercial</div>
+                  <div class="ce-step-subtitle">¿Qué tipo de contacto realizaremos?</div>
+                </div>
               </div>
               
               <div class="ce-mode-selector-5">
@@ -208,12 +268,12 @@ window.CampaignEditor = (() => {
                 <button type="button" class="ce-mode-btn" id="ceModeBtn_seguimiento_prospecto" data-mode="seguimiento_prospecto" onclick="CampaignEditor.setCampaignMode('seguimiento_prospecto')">
                   <span class="ce-mode-icon">🤝</span>
                   <span class="ce-mode-title">Seguimiento</span>
-                  <span class="ce-mode-desc">2do/3er contacto</span>
+                  <span class="ce-mode-desc">A cotización previa</span>
                 </button>
                 <button type="button" class="ce-mode-btn" id="ceModeBtn_reposicion_cliente" data-mode="reposicion_cliente" onclick="CampaignEditor.setCampaignMode('reposicion_cliente')">
                   <span class="ce-mode-icon">🔄</span>
                   <span class="ce-mode-title">Reposición Stock</span>
-                  <span class="ce-mode-desc">Clientes activos</span>
+                  <span class="ce-mode-desc">Clientes habituales</span>
                 </button>
                 <button type="button" class="ce-mode-btn" id="ceModeBtn_oferta_multiproducto" data-mode="oferta_multiproducto" onclick="CampaignEditor.setCampaignMode('oferta_multiproducto')">
                   <span class="ce-mode-icon">🔥</span>
@@ -226,96 +286,68 @@ window.CampaignEditor = (() => {
                   <span class="ce-mode-desc">Producto estrella</span>
                 </button>
               </div>
+            </div>
+
+            <!-- 3️⃣ PASO 3: Catálogo, Pautas & Tono para la IA -->
+            <div class="ce-step-card" id="ceStepCard_3">
+              <div class="ce-step-header">
+                <span class="ce-step-number">3</span>
+                <div>
+                  <div class="ce-step-title">Productos, Pautas & Tono IA</div>
+                  <div class="ce-step-subtitle">¿Qué insumos y ángulo comercial destacamos?</div>
+                </div>
+              </div>
 
               <!-- Selector de Productos Contextual según el modo -->
-              <div id="ceProductSelectorContext" style="display:none;margin-top:8px;">
+              <div id="ceProductSelectorContext" style="display:none;margin-bottom:8px;">
                 <div style="display:flex;gap:6px;align-items:center;">
                   <button type="button" id="ceCatalogPickerBtn" class="ce-var-btn" style="flex:1;background:#f0fdf4;color:#166534;border-color:#86efac;font-weight:700;padding:8px 12px;" onclick="CampaignEditor.openCatalogPickerForActiveMode()">
-                    📦 Seleccionar del Catálogo
+                    📦 Seleccionar del Catálogo (+900 productos)
                   </button>
                 </div>
               </div>
 
-              <div id="ceSelectedCardWrap" style="display:none; margin-top:8px;"></div>
-              
-              <!-- Notas o Requerimientos adicionales para la IA -->
-              <div style="margin-top:10px;">
-                <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">💡 Instrucción o Nota Adicional para la IA (Opcional):</label>
-                <input type="text" class="ce-input" id="ceCustomNotesInput" placeholder="Ej: Resaltar entrega hoy mismo en Caracas / Facturación SENIAT / Precios válidos esta semana..." style="font-size:12px">
-              </div>
-            </div>
+              <!-- Tarjetas de Productos Seleccionados -->
+              <div id="ceSelectedCardWrap" style="display:none; margin-bottom:8px;"></div>
 
-            <!-- Audiencia y Destinatarios -->
-            <div class="ce-section">
-              <div class="ce-section-title">
-                <span>📇 Audiencia y Destinatarios</span>
+              <!-- Aviso Inteligente para modos sin producto fijo -->
+              <div id="ceAutoSectorNotice" style="padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:11px;color:#166534;line-height:1.35;margin-bottom:8px;">
+                💡 <strong>Selección Dinámica por Rubro:</strong> La IA analizará la actividad de cada empresa y recomendará del catálogo los insumos indispensables para su sector (colegios, clínicas, comercios, oficinas, etc.) con precios oficiales en USD y Bs a tasa BCV.
               </div>
-              <div class="ce-field-group">
-                <select class="ce-select" id="ceAudienceSelect" onchange="CampaignEditor.onAudienceChange()">
-                  <option value="todos">🌐 Toda la Cartera (Clientes + Prospectos B2B)</option>
-                  <option value="prospectos_b2b">🎯 Solo Cartera de Prospectos B2B (Leads Corporativos)</option>
-                  <option value="solo_clientes">🏢 Solo Cartera Clientes Formales (jjp_customers)</option>
-                  <option value="gmail_starred">⭐ Destacados en Gmail (Clientes y Cuentas Prioritarias)</option>
-                  <option value="con_cotizacion">📑 Clientes con Cotización Reciente (Hacer Seguimiento)</option>
-                  <option value="respondieron">💬 Clientes/Prospectos que han Respondido</option>
-                  <option value="inactivos">😴 Inactivos (sin compras &gt;30d)</option>
-                  <option value="prospectos">🆕 Clientes sin compras</option>
-                  <option value="email_bounced">⚠️ Clientes con Email Rebotado / Sin Email</option>
-                  <option value="sector">🏢 Filtrar por Sector B2B...</option>
-                  <option value="etiqueta">🔖 Por etiqueta / zona...</option>
+
+              <!-- Selector de Tono Comercial -->
+              <div class="ce-field-group" style="margin-bottom:8px;">
+                <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">🎭 Tono Comercial de la IA:</label>
+                <select class="ce-select" id="ceCommercialTone" style="font-size:12px;">
+                  <option value="socio_estrategico" selected>🤝 Socio Estratégico y Consultivo (Recomendado)</option>
+                  <option value="institucional_formal">🏢 Institucional Formal (Compras & Licitaciones)</option>
+                  <option value="oportunidad_mayorista">🔥 Oportunidad Mayorista (Margen & Volumen)</option>
+                  <option value="fidelizado_reactivacion">💎 Cliente VIP / Fidelizado (Cuenta de la Casa)</option>
                 </select>
               </div>
-              <div class="ce-field-group" id="ceSectorWrap" style="display:none; margin-top:4px;">
-                <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:2px">Selecciona el sector B2B:</label>
-                <select class="ce-select" id="ceSectorSelect" onchange="CampaignEditor.onAudienceChange()"></select>
-              </div>
-              <div class="ce-field-group" id="ceTagWrap" style="display:none;">
-                <input type="text" class="ce-input" id="ceTagInput" placeholder="Ej: 004, mayoristas..." oninput="CampaignEditor.onAudienceChange()">
-              </div>
 
-              <div style="margin-top:6px; display:flex; gap:6px;">
-                <button type="button" class="ce-var-btn" style="flex:1; background:#f8fafc; border-color:#cbd5e1; font-weight:700; padding:6px 10px; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="CampaignEditor.openProspectPicker()">
-                  <span>👥 Seleccionar / Ver Destinatarios</span>
-                  <span class="ce-badge-pill" id="ceSelectedProspectsBadge">0</span>
-                </button>
-              </div>
-              
-              <!-- Filtro Anti-Fatiga y Cooldown Avanzado -->
-              <div style="margin-top:10px; padding:10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">
-                <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
-                  <span>🛡️ Filtro Anti-Fatiga y Cooldown</span>
-                  <span class="ce-badge-pill" id="ceCooldownBadge" style="background:#fee2e2;color:#991b1b;display:none;">0 omitidos</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#1e293b;cursor:pointer;font-weight:600;">
-                    <input type="checkbox" id="ceApplyCooldown" onchange="CampaignEditor.onAudienceChange()" checked>
-                    <span>Omitir contactados recientemente:</span>
-                  </label>
-                  <select class="ce-select" id="ceCooldownHours" onchange="CampaignEditor.onCooldownHoursChange()" style="font-size:12px; padding:4px 8px; background:#fff;">
-                    <option value="24">⏱️ En las últimas 24 horas (1 día)</option>
-                    <option value="72" selected>⏱️ En los últimos 3 días (72h — Recomendado)</option>
-                    <option value="168">⏱️ En los últimos 7 días (1 semana)</option>
-                    <option value="360">⏱️ En los últimos 15 días (2 semanas)</option>
-                    <option value="720">⏱️ En los últimos 30 días (1 mes)</option>
-                  </select>
-                  <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#0369a1;cursor:pointer;margin-top:2px;">
-                    <input type="checkbox" id="ceExcludeQuoted" onchange="CampaignEditor.onAudienceChange()">
-                    <span>📑 Omitir clientes con cotización reciente (&lt;30d)</span>
-                  </label>
-                </div>
+              <!-- Pauta o Instrucción Adicional para la IA -->
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">💡 Pauta / Instrucción Clave para la IA (Opcional):</label>
+                <input type="text" class="ce-input" id="ceCustomNotesInput" placeholder="Ej: Resaltar entrega hoy mismo en Caracas / Precios con flete gratis / Facturación SENIAT..." style="font-size:12px">
               </div>
             </div>
 
-            <!-- Adjuntos de Campaña -->
-            <div class="ce-section">
-              <div class="ce-section-title">
-                <span>📎 Adjuntos de Campaña</span>
+            <!-- 4️⃣ PASO 4: Adjuntos & Seguridad Anti-Baneo -->
+            <div class="ce-step-card" id="ceStepCard_4">
+              <div class="ce-step-header">
+                <span class="ce-step-number">4</span>
+                <div>
+                  <div class="ce-step-title">Adjuntos & Anti-Baneo</div>
+                  <div class="ce-step-subtitle">Documentos oficiales y protección de canal</div>
+                </div>
               </div>
+
               <div class="ce-field-group">
-                <div id="ceAttachCheckboxes" style="margin-top:2px;">
+                <div id="ceAttachCheckboxes">
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#1e293b;padding:4px 0;cursor:pointer;font-weight:600">
                     <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px" checked>
-                    <span>📖 Adjuntar Catálogo y Lista Oficial JJ Paper (PDF con QR)</span>
+                    <span>📖 Adjuntar Catálogo Oficial JJ Paper (PDF con QR)</span>
                   </label>
                   <label style="display:flex;align-items:center;font-size:12.5px;color:#334155;padding:3px 0;cursor:pointer">
                     <input type="checkbox" id="ceAttachImg" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
@@ -325,79 +357,21 @@ window.CampaignEditor = (() => {
                     <input type="checkbox" id="ceAttachFile" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
                     <span>📁 Subir Archivo Propio (PDF / Imagen)</span>
                   </label>
-                  
-                  <!-- Bloque de Catálogo Digital Interactivo para el Cliente -->
-                  <div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border-radius:8px;border:1.5px solid #86efac;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-                      <strong style="font-size:12px;color:#166534">🌐 Catálogo Digital para el Cliente</strong>
-                      <span style="font-size:10px;background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-weight:700">Sin Registro</span>
-                    </div>
-                    <div style="font-size:11px;color:#334155;line-height:1.35;margin-bottom:8px">
-                      El cliente abre el enlace en su teléfono o PC y ve de inmediato el catálogo con fotos oficiales en alta resolución, precios en USD/Bs y cotización directa por WhatsApp.
-                    </div>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#166534;border:1px solid #86efac;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jj-paper.pages.dev/catalogo.html', '_blank')" title="Abre el catálogo exactamente como lo ve su cliente">👁️ Probar Catálogo Web ↗</button>
-                      <button type="button" class="ce-card-action-btn" style="background:#ffffff;color:#9d174d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;padding:5px 8px;border-radius:6px;cursor:pointer" onclick="window.open('https://jj-paper.pages.dev/catalogo_impreso.html', '_blank')" title="Abre el catálogo con códigos QR para imprimir o calle">🖨️ Probar Catálogo QR ↗</button>
-                    </div>
-                  </div>
                 </div>
               </div>
               <div id="ceCustomFileWrap" style="display:none; margin-top:6px;">
                 <input type="file" id="ceCustomFileInput" class="ce-input" accept=".pdf,image/*" onchange="CampaignEditor.onCustomFileChange(this)">
               </div>
-            </div>
 
-            <!-- Ritmo Humano y Anti-Baneo -->
-            <div class="ce-section" id="ceSecuritySection">
-              <div class="ce-section-title">
-                <span>🛡️ Ritmo Humano y Anti-Baneo WA</span>
-              </div>
-              <div class="ce-field-group">
-                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Intervalo entre cada mensaje:</label>
-                <select class="ce-select" id="ceSpeedSelect">
+              <!-- Ritmo de envío -->
+              <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;">
+                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Intervalo entre envíos:</label>
+                <select class="ce-select" id="ceSpeedSelect" style="font-size:11.5px;padding:3px 6px;">
                   <option value="human" selected>☕ Humano natural (45 - 90 seg aleatorio)</option>
                   <option value="safe">🐢 Seguro y prudente (25 - 55 seg aleatorio)</option>
                   <option value="ultra_safe">🛡️ Máxima protección (60 - 120 seg aleatorio)</option>
                   <option value="fast">⚡ Moderado (15 - 30 seg aleatorio)</option>
                 </select>
-              </div>
-              <div class="ce-field-group" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
-                <div>
-                  <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Pausa cada:</label>
-                  <select class="ce-select" id="ceBatchSizeSelect">
-                    <option value="10" selected>10 mensajes</option>
-                    <option value="15">15 mensajes</option>
-                    <option value="20">20 mensajes</option>
-                    <option value="5">5 mensajes (cauteloso)</option>
-                    <option value="0">Sin pausa larga</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Descanso de:</label>
-                  <select class="ce-select" id="ceBatchPauseSelect">
-                    <option value="5" selected>☕ 5 minutos</option>
-                    <option value="10">☕ 10 minutos</option>
-                    <option value="15">☕ 15 minutos</option>
-                    <option value="3">☕ 3 minutos</option>
-                  </select>
-                </div>
-              </div>
-              <div style="font-size:11px;color:#166534;margin-top:4px;line-height:1.3;background:#f0fdf4;padding:6px 8px;border-radius:6px;border:1px solid #bbf7d0">
-                🛡️ <strong>Protección Anti-Baneo activa</strong>: Mensajes únicos generados por IA + Spintax dinámico + descansos humanos.
-              </div>
-            </div>
-
-            <!-- Programación Opcional -->
-            <div class="ce-section" id="ceScheduleSection">
-              <div class="ce-section-title">
-                <span>📅 Programar Envío (Opcional)</span>
-              </div>
-              <div class="ce-field-group">
-                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:2px">Fecha y hora de inicio:</label>
-                <input type="datetime-local" class="ce-input" id="ceScheduledAt" style="font-size:12px">
-                <div style="font-size:10.5px;color:#64748b;margin-top:3px;line-height:1.3">
-                  ⏰ Déjalo vacío para iniciar de inmediato al despachar.
-                </div>
               </div>
             </div>
           </div>
@@ -975,9 +949,11 @@ window.CampaignEditor = (() => {
     const prodSec = document.getElementById('ceProductSelectorContext');
     const pickerBtn = document.getElementById('ceCatalogPickerBtn');
     const cardWrap = document.getElementById('ceSelectedCardWrap');
+    const autoNotice = document.getElementById('ceAutoSectorNotice');
 
     if (mode === 'oferta_multiproducto') {
       if (prodSec) prodSec.style.display = 'block';
+      if (autoNotice) autoNotice.style.display = 'none';
       if (pickerBtn) pickerBtn.innerHTML = '📦 Seleccionar Productos del Lote / Catálogo';
       if (cardWrap) cardWrap.style.display = (selectedProductsList && selectedProductsList.length) ? 'block' : 'none';
       if (selectedProductsList && selectedProductsList.length) {
@@ -987,6 +963,7 @@ window.CampaignEditor = (() => {
       }
     } else if (mode === 'oferta_unipromocion') {
       if (prodSec) prodSec.style.display = 'block';
+      if (autoNotice) autoNotice.style.display = 'none';
       if (pickerBtn) pickerBtn.innerHTML = '⭐ Seleccionar Producto Estrella del Catálogo';
       if (cardWrap) cardWrap.style.display = selectedProductOrCombo ? 'block' : 'none';
       if (selectedProductOrCombo) {
@@ -996,6 +973,8 @@ window.CampaignEditor = (() => {
       }
     } else {
       if (prodSec) prodSec.style.display = 'none';
+      if (cardWrap) cardWrap.style.display = 'none';
+      if (autoNotice) autoNotice.style.display = 'block';
       applyBaseModeTemplate(mode);
     }
   }
@@ -1009,7 +988,11 @@ window.CampaignEditor = (() => {
   }
 
   function startAiDraftForCampaign() {
-    openAiToneModal();
+    if (!selectedAudienceList || !selectedAudienceList.length) {
+      alert('Por favor selecciona primero los destinatarios en el Paso 1 antes de redactar con IA.');
+      return;
+    }
+    startAiAnalysisBatch();
   }
 
   function onMessageInputChange() {
@@ -1017,6 +1000,15 @@ window.CampaignEditor = (() => {
     const currentCust = selectedAudienceList[activePreviewIdx];
     if (currentCust) {
       currentCust._custom_message = val;
+    }
+    updatePreview();
+  }
+
+  function onSubjectInputChange() {
+    const val = document.getElementById('ceSubjectInput')?.value || '';
+    const currentCust = selectedAudienceList[activePreviewIdx];
+    if (currentCust) {
+      currentCust._custom_subject = val;
     }
     updatePreview();
   }
@@ -2496,6 +2488,7 @@ ${rawText}
       if (statusTxt) statusTxt.textContent = '¡Listo! Cada prospecto tiene su propuesta comercial personalizada y variaciones anti-spam.';
 
       activePreviewIdx = 0;
+      syncComposerWithCurrentCustomer();
       updatePreview();
       renderProspectCards();
 
@@ -2520,16 +2513,32 @@ ${rawText}
     }
   }
 
+  function syncComposerWithCurrentCustomer() {
+    const currentCust = selectedAudienceList[activePreviewIdx];
+    if (!currentCust) return;
+    const msgInput = document.getElementById('ceMessageInput');
+    const subjInput = document.getElementById('ceSubjectInput');
+    if (currentCust._custom_message && msgInput) {
+      msgInput.value = currentCust._custom_message;
+    }
+    if (currentCust._custom_subject && subjInput) {
+      subjInput.value = currentCust._custom_subject;
+    }
+  }
+
   function stepPreviewCustomer(delta = 1) {
     if (!selectedAudienceList.length) return;
     activePreviewIdx = (activePreviewIdx + delta + selectedAudienceList.length) % selectedAudienceList.length;
+    syncComposerWithCurrentCustomer();
     updatePreview();
   }
 
   function selectPreviewCustomer(idx) {
     if (idx >= 0 && idx < selectedAudienceList.length) {
       activePreviewIdx = idx;
+      syncComposerWithCurrentCustomer();
       switchRightTab('simulator');
+      updatePreview();
     }
   }
 
@@ -2600,6 +2609,7 @@ ${rawText}
       }
 
       if (noteEl) noteEl.textContent = `✅ Propuesta regenerada exitosamente.`;
+      syncComposerWithCurrentCustomer();
       updatePreview();
       renderProspectCards();
     } catch (err) {
@@ -2789,18 +2799,18 @@ ${rawText}
           : (prodId ? `${publicBase}/producto?id=${encodeURIComponent(prodId)}` : (prodSku ? `${publicBase}/producto?sku=${encodeURIComponent(prodSku)}` : `${publicBase}/catalogo`)))
       : (sellerRefLink ? (sellerRefLink() || `${publicBase}/catalogo`) : `${publicBase}/catalogo`);
 
-    // El mensaje de la vista previa siempre proviene del texto actual del redactor o del cliente
-    let rawText = document.getElementById('ceMessageInput')?.value || currentCust?._custom_message || '';
-    let subjectText = document.getElementById('ceSubjectInput')?.value || currentCust?._custom_subject || 'Propuesta Comercial — JJ Paper C.A.';
+    // Priorizar el mensaje del cliente activo si existe, o el del input
+    let rawText = currentCust?._custom_message || document.getElementById('ceMessageInput')?.value || '';
+    let subjectText = currentCust?._custom_subject || document.getElementById('ceSubjectInput')?.value || 'Propuesta Comercial — JJ Paper C.A.';
 
     const sample = {
-      nombre: currentCust?.name || 'Librería El Saber',
-      empresa: currentCust?.name || 'Librería El Saber, C.A.',
-      vendedor: currentConfig?.seller?.name || 'Asesor JJ Paper',
-      producto: selectedProductOrCombo?.name || 'Cuaderno Universitario 100h',
+      nombre: currentCust?.contact_name || currentCust?.name || 'Cliente B2B',
+      empresa: currentCust?.name || currentCust?.company_name || 'Su Empresa',
+      vendedor: currentConfig?.seller?.name || 'Keyder José Salazar',
+      producto: selectedProductOrCombo?.name || 'Papelería y Suministros',
       precio: `${Number(selectedProductOrCombo?.final_price_usd || selectedProductOrCombo?.price_usd || 2.45).toFixed(2)} USD`,
       descuento: selectedProductOrCombo?.discount_pct ? `${selectedProductOrCombo.discount_pct}%` : '15%',
-      descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta calidad con despacho directo.',
+      descripcion: selectedProductOrCombo?.description || 'Papelería y suministros de alta rotación con despacho directo.',
       link
     };
 
@@ -3531,6 +3541,7 @@ ${rawText}
     close,
     setCampaignMode,
     onMessageInputChange,
+    onSubjectInputChange,
     openCatalogPickerForActiveMode,
     startAiDraftForCampaign,
     applyBaseModeTemplate,

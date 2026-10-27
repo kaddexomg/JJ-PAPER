@@ -1098,3 +1098,70 @@
 .ce-mode-btn.active .ce-mode-desc {
   color: #166534;
 }
+
+/* ============================================================================
+   JJ Paper — Embudo Comercial Guiado de 4 Pasos
+   ============================================================================ */
+.ce-step-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+.ce-step-card:focus-within,
+.ce-step-card:hover {
+  border-color: #cbd5e1;
+}
+.ce-step-card.active-step {
+  border-color: #16604A !important;
+  box-shadow: 0 0 0 1px #16604A, 0 4px 12px rgba(22, 96, 74, 0.08);
+}
+.ce-step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.ce-step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #16604A;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(22, 96, 74, 0.25);
+}
+.ce-step-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+.ce-step-subtitle {
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+[data-theme="dark"] .ce-step-card {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+[data-theme="dark"] .ce-step-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .ce-step-title {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .ce-step-subtitle {
+  color: #94a3b8 !important;
+}

@@ -648,7 +648,7 @@ Genera el asunto y cuerpo en JSON estricto.`;
       const quoteBodies = [
         `Estimado(a) ${recipient},\n\nEs un placer saludarle desde JJ Paper C.A., importadores y distribuidores directos de papelería corporativa, útiles y suministros de oficina en Caracas.\n\nEn atención a su requerimiento, presentamos nuestras condiciones comerciales mayoristas con disponibilidad física inmediata en almacén:${customBlock}\nCONDICIONES COMERCIALES GARANTIZADAS:\n• Precios directos de distribuidor mayorista (sin intermediarios).\n• Facturación fiscal legal (SENIAT) calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo en Caracas y envíos asegurados a nivel nacional.\n• Garantía de stock inmediato al confirmar su orden de compra.\n\n¿Desea que bloqueemos estas unidades en almacén para programar su despacho de inmediato?\n\nAtentamente,\n${sName}\nDirección Comercial | JJ Paper C.A.`,
         `Hola ${recipient}, un cordial saludo.\n\nLe escribe ${sName} de JJ Paper C.A. Hemos preparado con prioridad la propuesta comercial solicitada para apoyar la operatividad de su empresa con el mayor ahorro por volumen:${customBlock}\n¿POR QUÉ CONSOLIDAR SU COMPRA CON JJ PAPER?\n1. Ahorro Mayorista Real: Escalas preferenciales por caja y bulto cerrado.\n2. Transparencia Cambiaria: Facturación 100% a tasa oficial BCV (${rate.toFixed(2)} Bs/USD).\n3. Respuesta en 24h: Entrega directa en su oficina o almacén en Caracas.\n4. Procura Integral: Si requiere algún insumo adicional fuera de lista, nuestro equipo se lo ubica de inmediato.\n\nQuedo atento a su confirmación. ¿Para qué localidad de Caracas coordinamos la entrega?\n\nCordialmente,\n${sName}\nAsesor Comercial B2B | JJ Paper C.A.`,
-        `Atención: ${recipient}\nPresente.-\n\nPor medio de la presente, JJ Paper C.A. (RIF J-295375450) somete a su consideración nuestra oferta formal de suministro de papelería, archivo y consumibles operativos.${customBlock}\nRESUMEN DE TÉRMINOS OPERATIVOS:\n• Validez de la oferta: Garantizada sobre inventario disponible.\n• Base de cálculo en Bolívares: Tasa Oficial del Banco Central de Venezuela (${rate.toFixed(2)} Bs/USD).\n• Modalidades de pago: Transferencia bancaria nacional, Pago Móvil, Zelle o divisas en efectivo.\n• Logística: Transporte propio en el Área Metropolitana de Caracas.\n\nAgradecemos nos indique su conformidad para emitir la factura fiscal correspondiente y asignar ruta de despacho.\n\nSin otro particular al que hacer referencia,\n\n${sName}\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.`,
+        `Atención: ${recipient}\nPresente.-\n\nPor medio de la presente, JJ Paper C.A. (RIF J-50478063-0) somete a su consideración nuestra oferta formal de suministro de papelería, archivo y consumibles operativos.${customBlock}\nRESUMEN DE TÉRMINOS OPERATIVOS:\n• Validez de la oferta: Garantizada sobre inventario disponible.\n• Base de cálculo en Bolívares: Tasa Oficial del Banco Central de Venezuela (${rate.toFixed(2)} Bs/USD).\n• Modalidades de pago: Transferencia bancaria nacional, Pago Móvil, Zelle o divisas en efectivo.\n• Logística: Transporte propio en el Área Metropolitana de Caracas.\n\nAgradecemos nos indique su conformidad para emitir la factura fiscal correspondiente y asignar ruta de despacho.\n\nSin otro particular al que hacer referencia,\n\n${sName}\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.`,
         `Estimado(a) ${recipient},\n\n¡Excelente día! Le saluda ${sName} desde JJ Paper C.A.\n\nLe comparto nuestra propuesta optimizada con los precios más competitivos de Caracas en papelería y suministros:${customBlock}\n• 🏭 Stock real en bodega listo para salir hoy mismo.\n• 🧾 Factura fiscal a tasa BCV (${rate.toFixed(2)} Bs/USD).\n• 🚚 Delivery corporativo directo a su sede.\n\n¿Confirmamos las cantidades para reservar su pedido antes del cierre de ruta de hoy?\n\nSaludos cordiales,\n${sName}\nJJ Paper C.A.`
       ];
       return {
@@ -1259,7 +1259,7 @@ ${rawText.slice(0, 50000)}
     institucional_formal: {
       name: '🏢 Institucional Formal (Procura y Compras)',
       attitude: 'Protocolar, sobria y orientada a comités de compras, licitaciones, homologación de proveedores y administración.',
-      style: 'Estrictamente profesional y sobrio. Pone de relieve la documentación fiscal en regla (RIF J-295375450), cotizaciones formales membretadas y estándares de archivo reglamentario.',
+      style: 'Estrictamente profesional y sobrio. Pone de relieve la documentación fiscal en regla (RIF J-50478063-0), cotizaciones formales membretadas y estándares de archivo reglamentario.',
       opening: 'Estimada Gerencia y Dpto. de Compras de {{empresa}}, un cordial saludo.',
       closing: 'Quedamos a la disposición de su departamento de compras para consignar nuestra cotización formal membretada.'
     },
@@ -1307,7 +1307,12 @@ ${rawText.slice(0, 50000)}
     tone = 'Profesional y Persuasivo (Vendedor Consultivo)',
     valueHook = 'importador_directo',
     formatStyle = '',
-    historyContext = ''
+    historyContext = '',
+    targetSector = 'auto',
+    msgLength = 'balanced',
+    priceMode = 'with_prices',
+    ctaGoal = 'quote',
+    includeSourcing = true
   }) {
     _variationCounter++;
     const w = typeof window !== 'undefined' ? window : {};
@@ -1391,7 +1396,7 @@ Tu objetivo es redactar un mensaje comercial para ${channel === 'email' ? 'Corre
 REGLAS SEGÚN EL TONO / FORMATO SELECCIONADO:
 - Si es "oportunidad_mayorista": Usa formato de Oportunidad Flash / Lote Mayorista con urgencia elegante, énfasis en ahorro por volumen/bulto cerrado y bloqueo de stock.
 - Si es "cercano_consultivo": Usa formato conversacional humano de Asesor Personal (sin títulos de cartel publicitario), enfocándote en resolver requerimientos, procura especial y trato cercano.
-- Si es "institucional_formal": Usa formato Corporativo Ejecutivo (Procura / Licitaciones / Administración), sobrio, sin exceso de emojis, resaltando RIF J-295375450, facturación fiscal SENIAT y tasa oficial BCV.
+- Si es "institucional_formal": Usa formato Corporativo Ejecutivo (Procura / Licitaciones / Administración), sobrio, sin exceso de emojis, resaltando RIF J-50478063-0, facturación fiscal SENIAT y tasa oficial BCV.
 - Si es "directo_ejecutivo": Usa formato Ultra-Conciso al grano (máximo 8-10 líneas), ideal para gerentes ocupados: 1 línea de saludo, viñetas directas y pregunta de cierre.
 - Si es "optimizacion_costos": Usa formato Analítico de Ahorro Presupuestario, comparando compra directa de importador vs. intermediarios.
 - Si es "socio_estrategico": Usa formato de Alianza de Suministro Continuo B2B con estructura clara, beneficios logísticos y procura integral.
@@ -1460,7 +1465,7 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
         }
         if (archetype === 'institucional_formal') {
           return {
-            subject: `Propuesta Formal de Suministro Corporativo (RIF J-295375450) — JJ Paper C.A.`,
+            subject: `Propuesta Formal de Suministro Corporativo (RIF J-50478063-0) — JJ Paper C.A.`,
             body: `Estimada Gerencia de Compras y Administración ({{nombre}}),\nPresente.-\n\nReciban un cordial saludo institucional en nombre de JJ Paper C.A., empresa importadora y distribuidora mayorista de papelería corporativa, archivo reglamentario e insumos operativos en Caracas.\n\nPor medio de la presente, sometemos a su consideración nuestra disponibilidad actualizada bajo condiciones corporativas:\n\nRELACIÓN DE INSUMOS DISPONIBLES:\n${fallbackTopic}${discountLine}${extraNoteLine}\nGARANTÍAS OPERATIVAS Y FISCALES:\n- Facturación fiscal formal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Despacho directo sin recargo en el Área Metropolitana de Caracas.\n- Homologación de proveedores y atención prioritaria a cuentas jurídicas.\n\nCatálogo corporativo digital: {{link}}\n\nQuedamos a su disposición para emitir la cotización proforma bajo los requerimientos de su departamento.\n\nAtentamente,\n{{vendedor}}\n Ejecutivo de Cuentas Corporativas | JJ Paper C.A.`
           };
         }
@@ -1502,7 +1507,7 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
 
       if (archetype === 'institucional_formal') {
         return {
-          body: `*COMUNICACIÓN COMERCIAL CORPORATIVA · JJ PAPER C.A. (RIF J-295375450)*\n────────────────────────────────────\n{Estimado(a)|Apreciado(a)} {{nombre}}, reciba un cordial saludo institucional.\n\nSe dirige a usted *{{vendedor}}*, Ejecutivo Comercial de *JJ Paper C.A.*, distribuidora mayorista de papelería corporativa, archivo reglamentario y suministros de oficina en Caracas.\n\nSometemos a consideración de su Departamento de Compras nuestra disponibilidad inmediata:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n*RESPALDO INSTITUCIONAL Y TRIBUTARIO:*\n• Facturación fiscal formal conforme a normativas del SENIAT.\n• Cálculo transparente a Tasa Oficial del Banco Central de Venezuela (${rate.toFixed(2)} Bs/USD).\n• Despacho corporativo sin costo en el Área Metropolitana de Caracas.\n• Atención a requerimientos especiales de procura y licitación.\n\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de su razón social para evaluación administrativa?\n\nAtentamente,\n*{{vendedor}}* | Dirección Comercial JJ Paper C.A.`
+          body: `*COMUNICACIÓN COMERCIAL CORPORATIVA · JJ PAPER C.A. (RIF J-50478063-0)*\n────────────────────────────────────\n{Estimado(a)|Apreciado(a)} {{nombre}}, reciba un cordial saludo institucional.\n\nSe dirige a usted *{{vendedor}}*, Ejecutivo Comercial de *JJ Paper C.A.*, distribuidora mayorista de papelería corporativa, archivo reglamentario y suministros de oficina en Caracas.\n\nSometemos a consideración de su Departamento de Compras nuestra disponibilidad inmediata:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\n*RESPALDO INSTITUCIONAL Y TRIBUTARIO:*\n• Facturación fiscal formal conforme a normativas del SENIAT.\n• Cálculo transparente a Tasa Oficial del Banco Central de Venezuela (${rate.toFixed(2)} Bs/USD).\n• Despacho corporativo sin costo en el Área Metropolitana de Caracas.\n• Atención a requerimientos especiales de procura y licitación.\n\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de su razón social para evaluación administrativa?\n\nAtentamente,\n*{{vendedor}}* | Dirección Comercial JJ Paper C.A.`
         };
       }
 
@@ -1709,27 +1714,26 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
     const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
 
     let advisorDirective = '';
-    if (baseMessageText && baseMessageText.trim().length > 10) {
+    if (baseMessageText && baseMessageText.trim().length > 10 && prodsList.length === 0) {
       advisorDirective = `
 ================================================================================
-🚨 DIRECTIVA MAESTRA Y OBLIGATORIA DEL ASESOR COMERCIAL:
-El asesor comercial ha configurado la siguiente PROPUESTA BASE / PLANTILLA para esta campaña:
-
+💡 ORIENTACIÓN COMERCIAL DE REFERENCIA DEL ASESOR:
+El asesor preparó este borrador de referencia para la campaña:
 """
-${baseMessageText.trim()}
+${baseMessageText.trim().slice(0, 450)}
 """
 
-INSTRUCCIONES MANDATORIAS DE ADAPTACIÓN:
-1. TU MISIÓN ES ADAPTAR Y PERSONALIZAR ESTA PROPUESTA BASE EXACTA PARA ${companyName} (${contactName ? 'Contacto: ' + contactName : ''}).
-2. PROHIBICIÓN ESTRICTA: QUEDA TOTALMENTE PROHIBIDO sustituir los productos de esta propuesta por "rollos térmicos", "carpetas de fibra" o "resmas" a menos que la propuesta base del asesor hable de ellos. Si el asesor escribió sobre un producto específico (como cintas, marcadores, bolígrafos, cuadernos o papelería), DEBES MANTENER ESOS PRODUCTOS EXACTOS como eje central.
-3. Personaliza el saludo y la conexión con el sector de ${companyName} (${effectiveSector || 'Comercial'}), pero CONSERVA el núcleo de la oferta, los llamados a la acción, los enlaces (como {{link}} o https://jjpaper.pages.dev/catalogo) y datos de contacto.
+DIRECTIVA DE ANÁLISIS COMERCIAL POR SECTOR:
+1. TU MISIÓN ES ADAPTAR Y ENRIQUECER este enfoque para ${companyName} (${contactName ? 'Contacto: ' + contactName : ''}), analizando a fondo las necesidades operativas de su rubro (${effectiveSector || 'Comercial'}).
+2. Selecciona de nuestro CATÁLOGO REAL exactamente 2 o 3 productos indispensables para el giro de ${companyName} con sus precios oficiales en USD y Bs a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
+3. Asegura el llamado a la acción comercial según el objetivo (${messageType}), el enlace al catálogo interactivo {{link}} y la firma formal de JJ Paper C.A.
 ================================================================================
 `;
     }
 
     // ── Catálogo REAL con precio actualizado ──
     let realProducts = [];
-    try { realProducts = await fetchRealPortfolioProducts(); } catch (e) { console.warn('Catálogo real no disponible:', e); }
+    try { realProducts = await fetchRealPortfolioProducts(14, effectiveSector, (customInstructions || notes || '')); } catch (e) { console.warn('Catálogo real no disponible:', e); }
 
     const realProdInfo = realProducts.length
       ? realProducts.map(p =>
@@ -1811,32 +1815,38 @@ PAUTAS COGNITIVAS DE REDACCIÓN:
 3. Respaldo JJ Paper: Menciona de forma orgánica y fluida los beneficios clave (importador directo en Caracas, delivery a su sede, facturación fiscal formal).
 4. Cláusula de Procura: Indica de manera natural que si buscan alguna medida, gramaje o artículo fuera de lista, el equipo mayorista se lo localiza de inmediato.
 5. Cierre Comercial: Formula una pregunta de cierre persuasiva que invite a responder (ej. solicitar cotización formal, apartar disponibilidad o coordinar despacho).`;
-    } else if (messageType.includes('Seguimiento') || isAlreadyContacted) {
+    } else if (messageType.includes('Seguimiento')) {
       openingStrategy = `
-ESTRATEGIA COGNITIVA: SEGUIMIENTO COMERCIAL (${toneConfig.name})
-¡ATENCIÓN! Esta empresa ya tiene relación previa con JJ Paper. Prohibido presentarse como desconocido.
-1. Saludo cordial reconociendo la relación continua con ${contactName || companyName}.
-2. Consulta ágil sobre reposición de inventario o seguimiento a propuestas previas.
-3. Propuesta de 3 insumos clave para su sector con precio exacto en USD y Bs BCV (${rate.toFixed(2)} Bs).
-4. Cierre enfocado en facilitar el pedido de esta semana.`;
-    } else if (messageType.includes('Recordatorio')) {
+ESTRATEGIA COGNITIVA: SEGUIMIENTO COMERCIAL A COTIZACIÓN PREVIA (${toneConfig.name})
+¡ATENCIÓN CRÍTICA! Esta cuenta YA TIENE COTIZACIÓN O CONTACTO PREVIO con JJ Paper C.A. Prohibido presentarse como empresa desconocida.
+1. Saludo cordial y cercano reconociendo la relación con ${contactName || companyName}.
+2. Seguimiento concreto: preguntar de forma profesional si tuvieron oportunidad de revisar los números de la propuesta o si requieren ajustar cantidades o renglones.
+3. Respaldo: recordar que tenemos inventario físico disponible para entrega prioritaria en 24h a su sede en Caracas y facturación legal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
+4. Cierre enfocado en apartar el lote o confirmar la orden de compra de esta semana.`;
+    } else if (messageType.includes('Reposición') || messageType.includes('Recordatorio')) {
       openingStrategy = `
-ESTRATEGIA COGNITIVA: RECORDATORIO DE REPOSICIÓN (${toneConfig.name})
-1. Enfoque ágil y proactivo para la reposición quincenal/mensual de ${companyName}.
-2. Presentar 3 insumos de alta rotación con precio exacto en USD y Bs BCV (${rate.toFixed(2)} Bs).
-3. Cierre directo para apartar stock antes de que agote lote.`;
+ESTRATEGIA COGNITIVA: RECORDATORIO DE REPOSICIÓN PREVENTIVA DE STOCK (${toneConfig.name})
+¡ATENCIÓN! Esta cuenta es un cliente activo que compra periódicamente insumos con nosotros.
+1. Saludo cordial a ${contactName || companyName}, agradeciendo su confianza habitual.
+2. Enfoque preventivo: apoyarles con la reposición antes de agotar los suministros operativos de su quincena o mes.
+3. Presenta 3 insumos esenciales de alta rotación para su rubro (${effectiveSector}) con precios oficiales en USD y Bs BCV (${rate.toFixed(2)} Bs).
+4. Recuerda el servicio de Procura Especial: si requieren cualquier insumo de limpieza, embalaje o papelería adicional, se lo sumamos al despacho en su sede.
+5. Cierre directo: ¿Qué insumos están por agotar para coordinarles el despacho esta misma semana?`;
     } else if (messageType.includes('Oferta')) {
       openingStrategy = `
 ESTRATEGIA COGNITIVA: OPORTUNIDAD MAYORISTA (${toneConfig.name})
-1. Enfoque de lote especial o escala preferencial para ${companyName}.
-2. Presentar los productos con ventajas de volumen y precio oficial.
-3. Cierre invitando a confirmar bultos o despacho prioritario.`;
+1. Enfoque de lote especial o escala preferencial por bulto/volumen para ${companyName}.
+2. Presentar los productos con ventajas de volumen y precio oficial en USD y Bs BCV (${rate.toFixed(2)} Bs).
+3. Cierre invitando a confirmar bultos o despacho prioritario de 24h.`;
     } else {
       openingStrategy = `
-ESTRATEGIA COGNITIVA: PRESENTACIÓN INSTITUCIONAL DIRECTA (${toneConfig.name})
-1. Apertura institucional y respetuosa presentando a JJ Paper como importador y distribuidor directo en Caracas.
-2. Presentar 3 soluciones operativas esenciales para el rubro de ${companyName} con precios exactos en USD y Bs BCV (${rate.toFixed(2)} Bs).
-3. Cierre invitando a recibir catálogo completo o cotización formal membretada.`;
+ESTRATEGIA COGNITIVA: PRESENTACIÓN INSTITUCIONAL B2B (1ER CONTACTO) (${toneConfig.name})
+1. Saludo profesional respetuoso a ${contactName ? contactName + ' en ' + companyName : companyName}.
+2. Presentación ejecutiva de JJ Paper C.A. como importador y distribuidor mayorista directo en Caracas (cero intermediarios).
+3. Análisis de las necesidades de su rubro (${effectiveSector}) y propuesta de 3 soluciones de insumos de nuestro CATÁLOGO REAL con precios oficiales en USD y Bs a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
+4. Llamado a la acción: "Hagamos una prueba: indíquenos 2 o 3 productos de alta demanda en su empresa y le cotizaremos de inmediato con el mejor precio del mercado."
+5. Enlace directo al catálogo digital interactivo {{link}} (sin registro ni login) y promesa de Procura Especial ("Cualquier artículo especial que busque se lo conseguimos").
+6. Facturación fiscal SENIAT y entrega en 24h en Caracas.`;
     }
 
     const sys = getBusinessContext() + `
@@ -1950,7 +1960,7 @@ ${prodsList.length > 0 ? `   - DEBES listar CADA UNO de los ${prodsList.length} 
    • 🏭 *Importador y Distribuidor Directo en Caracas* — Cero intermediarios, inventario físico para entrega inmediata.
    • 📦 *Condiciones preferenciales por volumen* — Escalas de precios y ahorro significativo frente a compras al detal.
    • 🚚 *Delivery directo y gratuito* a su sede en Caracas / despachos nacionales protegidos.
-   • 🧾 *Facturación fiscal legal (RIF J-295375450)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
+   • 🧾 *Facturación fiscal legal (RIF J-50478063-0)* en bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
    • ⚡ *Cotizaciones formales en segundos* adaptadas a su presupuesto operativo.
 7. Enlace interactivo al catálogo digital:
    👉 Puede revisar nuestro catálogo digital completo aquí:
@@ -1981,7 +1991,7 @@ DIRECTRICES ESTRICTAS PARA EL CUERPO DEL CORREO (LONGITUD: 130 A 180 PALABRAS):
    - "Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata."
    - "Cotizaciones inmediatas en segundos adaptadas a su presupuesto."
    - "Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución."
-   - "Facturación fiscal formal con RIF (J-295375450) en bolívares a tasa oficial BCV del día."
+   - "Facturación fiscal formal con RIF (J-50478063-0) en bolívares a tasa oficial BCV del día."
 6. Llamado a la acción (CTA) de baja fricción.
 7. Firma corporativa obligatoria (${sellerName}).
 
@@ -2208,20 +2218,24 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
       customer.contacted ||
       customer.last_contact_at ||
       (customer.status && String(customer.status).startsWith('contactado')) ||
-      Number(customer.total_orders) > 0 ||
-      messageType.includes('Seguimiento') ||
-      messageType.includes('Recordatorio') ||
-      messageType.includes('Oferta')
+      Number(customer.total_orders) > 0
     );
 
     const hasCustomOffer = Boolean(promoProductOrCombo || (Array.isArray(products) && products.length > 0));
+    const effectivePersonality = personality || 'Socio Estratégico y Consultivo';
 
-    // Adaptación dinámica de enfoque según el tono seleccionado
+    // Adaptación dinámica de enfoque según el tono y modo seleccionado
     let effectiveMessageType = messageType;
     if (hasCustomOffer) {
       effectiveMessageType = 'Oferta Especial';
-    } else if (isAlreadyContacted && (messageType === 'Presentación Inicial' || messageType === 'presentacion')) {
-      effectiveMessageType = 'Seguimiento de Contacto Previo';
+    } else if (messageType === 'seguimiento' || messageType.includes('Seguimiento')) {
+      effectiveMessageType = 'Seguimiento de Cotización Previa';
+    } else if (messageType === 'fidelizado' || messageType === 'reposicion' || messageType.includes('Reposición') || messageType.includes('Recordatorio')) {
+      effectiveMessageType = 'Reposición de Stock Preventiva';
+    } else if (messageType === 'presentacion' || messageType.includes('Presentación')) {
+      effectiveMessageType = 'Presentación Institucional B2B';
+    } else if (isAlreadyContacted) {
+      effectiveMessageType = 'Seguimiento de Cotización Previa';
     }
 
     const compName = customer.company_name || customer.name || customer.business_name || 'Empresa';
@@ -2427,7 +2441,7 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
           `📦 Lote Preferencial de Suministros (Tasa BCV) para ${custName} — JJ Paper`
         ];
         subject = subs[v % subs.length];
-        body = `{Hola|Buen día} ${greetTarget},\n\nLe saluda *${sName}* de *JJ Paper C.A.* Hoy habilitamos en nuestro almacén de Caracas condiciones especiales por volumen pensadas para la rotación operativa de ${custName}:\n\n*📦 LOTE MAYORISTA DISPONIBLE (BCV ${rate.toFixed(2)} Bs/USD):*\n${bulletPoints}\n\n*VENTAJA CLAVE PARA SU COMPRA DE ESTA SEMANA:*\n• ${activeHookLine}\n• 🧾 Facturación fiscal formal SENIAT (RIF J-295375450).\n• 🚚 Transporte propio gratuito en ${city}.\n${officialPdfIncluded ? '• 📄 Adjuntamos nuestra Lista Oficial en PDF con +900 ítems.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n¿Cuántas cajas o unidades le bloqueamos en almacén para programar su despacho mañana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
+        body = `{Hola|Buen día} ${greetTarget},\n\nLe saluda *${sName}* de *JJ Paper C.A.* Hoy habilitamos en nuestro almacén de Caracas condiciones especiales por volumen pensadas para la rotación operativa de ${custName}:\n\n*📦 LOTE MAYORISTA DISPONIBLE (BCV ${rate.toFixed(2)} Bs/USD):*\n${bulletPoints}\n\n*VENTAJA CLAVE PARA SU COMPRA DE ESTA SEMANA:*\n• ${activeHookLine}\n• 🧾 Facturación fiscal formal SENIAT (RIF J-50478063-0).\n• 🚚 Transporte propio gratuito en ${city}.\n${officialPdfIncluded ? '• 📄 Adjuntamos nuestra Lista Oficial en PDF con +900 ítems.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n¿Cuántas cajas o unidades le bloqueamos en almacén para programar su despacho mañana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
       } else if (archetype === 'cercano_consultivo') {
         const subs = [
           `🤝 Apoyo en abastecimiento y procura de suministros para ${custName}`,
@@ -2438,7 +2452,7 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
         body = `{Hola|Qué tal|Buen día} ${greetTarget},\n\nEspero que todo marche excelente en sus operaciones en ${city}. Le escribe *${sName}* de *JJ Paper C.A.*\n\n${isAlreadyContacted ? 'Quería saludarles nuevamente y consultarles cómo están de inventario para esta quincena.' : 'Quería ponerme a su entera disposición como su asesor directo para simplificar las compras de papelería y consumibles de su empresa.'} Actualmente contamos con entrega inmediata en:\n\n${bulletPoints}\n\n${activeHookLine}\n\nAdemás, si necesitan algún artículo específico que no aparezca en el listado, solo indíquenoslo y nuestro equipo se encarga de conseguirlo y cotizarlo de inmediato.\n\n👉 Catálogo digital completo: {{link}}\n\n¿Tienen algún requerimiento pendiente esta semana en el que les pueda apoyar con un presupuesto rápido?\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A. · ${sPhone}`;
       } else if (archetype === 'institucional_formal') {
         subject = `Propuesta Institucional de Suministro y Homologación para ${custName} | JJ Paper C.A.`;
-        body = `Estimada Gerencia de Compras y Procura en ${custName}:\nPresente.-\n\nEn nombre de *JJ Paper C.A.* (RIF J-295375450), empresa importadora y distribuidora mayorista en Caracas, sometemos a su consideración nuestra propuesta formal de abastecimiento operativo para sus sedes en ${city}:\n\n${bulletPoints}\n\nGARANTÍAS CORPORATIVAS:\n- ${activeHookLine.replace(/\*/g, '')}\n- Facturación fiscal legal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Despacho directo sin cargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '- Lista de precios maestra adjunta en formato PDF (+900 renglones).\n' : ''}\nCatálogo digital corporativo: {{link}}\n\nQuedamos a su disposición para emitir la cotización proforma correspondiente a su requerimiento actual.\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
+        body = `Estimada Gerencia de Compras y Procura en ${custName}:\nPresente.-\n\nEn nombre de *JJ Paper C.A.* (RIF J-50478063-0), empresa importadora y distribuidora mayorista en Caracas, sometemos a su consideración nuestra propuesta formal de abastecimiento operativo para sus sedes en ${city}:\n\n${bulletPoints}\n\nGARANTÍAS CORPORATIVAS:\n- ${activeHookLine.replace(/\*/g, '')}\n- Facturación fiscal legal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Despacho directo sin cargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '- Lista de precios maestra adjunta en formato PDF (+900 renglones).\n' : ''}\nCatálogo digital corporativo: {{link}}\n\nQuedamos a su disposición para emitir la cotización proforma correspondiente a su requerimiento actual.\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
       } else if (archetype === 'directo_ejecutivo') {
         subject = `⚡ Resumen Ejecutivo de Precios y Stock para ${custName} — JJ Paper`;
         body = `Buen día ${greetTarget},\n\nLe comparto de forma ejecutiva nuestra disponibilidad inmediata en Caracas (Tasa Oficial BCV: ${rate.toFixed(2)} Bs/USD) adaptada a las operaciones de ${custName}:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Incluye Factura Fiscal SENIAT y Delivery Gratis en Caracas.\n🔗 Catálogo completo: {{link}}\n\n¿Le emito cotización formal por alguno de estos renglones el día de hoy?\n\nSaludos cordiales,\n*${sName}* | JJ Paper C.A. (${sPhone})`;
@@ -2457,11 +2471,11 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
       } else if (archetype === 'cercano_consultivo') {
         body = `{Hola|Buen día|Un gusto saludarle} ${contactPerson || `amigos de *${custName}*`} 👋, ¿cómo están?\n\nLe escribe *${sName}* de *JJ Paper C.A.* ${isAlreadyContacted ? 'Paso por aquí brevemente en seguimiento a nuestro contacto previo para saber cómo se encuentran de stock esta semana.' : `Quería ponerme a la orden para apoyar las operaciones de *${custName}* en ${city} con un servicio rápido y de confianza.`}\n\nActualmente tenemos excelente disponibilidad en:\n\n${bulletPoints}\n\n💡 ${activeHookLine}\n\nTodo con su factura legal a tasa BCV (${rate.toFixed(2)} Bs) y entrega sin costo en su puerta 🚚.\n\n👉 Catálogo completo aquí: {{link}}\n\n¿Qué artículos necesitan reponer esta semana para armarles el presupuesto al instante?\n\nUn abrazo cordial,\n*${sName}* | JJ Paper (${sPhone})`;
       } else if (archetype === 'institucional_formal') {
-        body = `*PROPUESTA DE SUMINISTRO CORPORATIVO · JJ PAPER C.A. (RIF J-295375450)*\n────────────────────────────────────\nEstimada Gerencia de Compras de *${custName}*${contactPerson ? ` (Atención: ${contactPerson})` : ''}, reciba un cordial saludo.\n\nSe dirige a usted *${sName}*, Ejecutivo Comercial de *JJ Paper C.A.* Ponemos a disposición de sus operaciones en ${city} nuestra línea de abastecimiento mayorista directo:\n\n${bulletPoints}\n\n*GARANTÍAS OPERATIVAS:*\n• ${activeHookLine}\n• Facturación fiscal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo sin recargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '• Lista de Precios Oficial adjunta en PDF (+900 artículos).\n' : ''}\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de *${custName}* para revisión de su departamento?\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A. · ${sPhone}`;
+        body = `*PROPUESTA DE SUMINISTRO CORPORATIVO · JJ PAPER C.A. (RIF J-50478063-0)*\n────────────────────────────────────\nEstimada Gerencia de Compras de *${custName}*${contactPerson ? ` (Atención: ${contactPerson})` : ''}, reciba un cordial saludo.\n\nSe dirige a usted *${sName}*, Ejecutivo Comercial de *JJ Paper C.A.* Ponemos a disposición de sus operaciones en ${city} nuestra línea de abastecimiento mayorista directo:\n\n${bulletPoints}\n\n*GARANTÍAS OPERATIVAS:*\n• ${activeHookLine}\n• Facturación fiscal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo sin recargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '• Lista de Precios Oficial adjunta en PDF (+900 artículos).\n' : ''}\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de *${custName}* para revisión de su departamento?\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A. · ${sPhone}`;
       } else if (archetype === 'directo_ejecutivo') {
         body = `{Buen día|Hola} ${contactPerson || `equipo de *${custName}*`} 👋 · *Resumen Ejecutivo JJ Paper*\n\nLe escribe *${sName}*. Comparto directo al punto nuestra disponibilidad mayorista en Caracas (BCV: ${rate.toFixed(2)} Bs) para *${custName}*:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Factura fiscal SENIAT + Delivery gratis en ${city}.\n🔗 Catálogo: {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems hoy?* — *${sName}* (${sPhone})`;
       } else {
-        body = `*🏢 ALIANZA DE ABASTECIMIENTO OPERATIVO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Un gusto saludarle} ${contactPerson || `estimados amigos de *${custName}*`} 👋\n\nLe saluda *${sName}* de *JJ Paper C.A.*, distribuidor mayorista directo en Caracas. Pensando en la exigencia diaria de *${custName}* en el sector ${sector}, ponemos a su alcance stock inmediato en:\n\n${bulletPoints}\n\n*💎 POR QUÉ OPERAR CON JJ PAPER:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal (J-295375450)* a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Delivery directo y gratuito* en ${city}.\n${officialPdfIncluded ? '• 📄 *PDF Oficial Adjunto* con más de 900 artículos.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n{¿Desea que le preparemos una cotización formal a medida?|¿Qué insumos requieren reponer esta semana en su empresa?}\n\nAtentamente,\n*${sName}* | JJ Paper C.A. · ${sPhone}`;
+        body = `*🏢 ALIANZA DE ABASTECIMIENTO OPERATIVO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Un gusto saludarle} ${contactPerson || `estimados amigos de *${custName}*`} 👋\n\nLe saluda *${sName}* de *JJ Paper C.A.*, distribuidor mayorista directo en Caracas. Pensando en la exigencia diaria de *${custName}* en el sector ${sector}, ponemos a su alcance stock inmediato en:\n\n${bulletPoints}\n\n*💎 POR QUÉ OPERAR CON JJ PAPER:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal (J-50478063-0)* a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Delivery directo y gratuito* en ${city}.\n${officialPdfIncluded ? '• 📄 *PDF Oficial Adjunto* con más de 900 artículos.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n{¿Desea que le preparemos una cotización formal a medida?|¿Qué insumos requieren reponer esta semana en su empresa?}\n\nAtentamente,\n*${sName}* | JJ Paper C.A. · ${sPhone}`;
       }
     }
 
@@ -2505,7 +2519,8 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     ctaGoal = 'quote',
     onProgress = null,
     baseMessageText = '',
-    baseSubjectText = ''
+    baseSubjectText = '',
+    messageType = ''
   }) {
     const results = [];
     const total = customers.length;
@@ -2516,17 +2531,19 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     // Mapeo de la actitud y tono comercial seleccionados
     const toneConfig = COMMERCIAL_TONE_DIRECTIVES[commercialTone] || COMMERCIAL_TONE_DIRECTIVES.socio_estrategico;
     let personality = toneConfig.name;
-    let messageType = 'Presentación Inicial';
-    if (hasCustomOffer) {
-      messageType = 'Oferta Especial';
-    } else if (attitude === 'oferta') {
-      messageType = 'Oportunidad de Abastecimiento Mayorista';
-    } else if (attitude === 'seguimiento') {
-      messageType = 'Seguimiento y Procura de Insumos';
-    } else if (attitude === 'recordatorio') {
-      messageType = 'Recordatorio de Insumos';
-    } else if (attitude === 'fidelizado') {
-      messageType = 'Reactivación VIP / Fidelizado';
+    let effMessageType = messageType;
+    if (!effMessageType) {
+      if (hasCustomOffer) {
+        effMessageType = 'Oferta Especial';
+      } else if (attitude === 'oferta') {
+        effMessageType = 'Oportunidad de Abastecimiento Mayorista';
+      } else if (attitude === 'seguimiento') {
+        effMessageType = 'Seguimiento de Cotización Previa';
+      } else if (attitude === 'recordatorio' || attitude === 'reposicion' || attitude === 'fidelizado') {
+        effMessageType = 'Reposición de Stock Preventiva';
+      } else {
+        effMessageType = 'Presentación Institucional B2B';
+      }
     }
 
     // Procesar en chunks de 4 en paralelo con pool balanceado de 7 API keys
@@ -2544,7 +2561,7 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
             products,
             officialPdfIncluded,
             personality,
-            messageType,
+            messageType: effMessageType,
             targetSector,
             commercialTone,
             valueHook,
@@ -3223,7 +3240,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
 
     ctx.fillStyle = '#A7F3D0';
     ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('DISTRIBUIDOR MAYORISTA EN CARACAS · RIF J-295375450', 30, 62);
+    ctx.fillText('DISTRIBUIDOR MAYORISTA EN CARACAS · RIF J-50478063-0', 30, 62);
 
     ctx.fillStyle = '#FDE68A';
     ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -3523,7 +3540,7 @@ Respond with ONLY the 1 English sentence describing the object.`;
 
     ctx.fillStyle = '#94A3B8';
     ctx.font = '500 10px -apple-system, sans-serif';
-    ctx.fillText('Precios al mayor válidos para empresas, comercios y colegios · RIF J-295375450', 30, 775);
+    ctx.fillText('Precios al mayor válidos para empresas, comercios y colegios · RIF J-50478063-0', 30, 775);
 
     // Asesor Comercial a la derecha
     ctx.textAlign = 'right';
@@ -4092,6 +4109,34 @@ ${rawText}
     return parsed;
   }
 
+  function generateInstitutionalSignatureHtml({ sellerName = 'Asesor Comercial', sellerPhone = '0412-4676073' } = {}) {
+    const sName = sellerName || 'Keyder José Salazar';
+    const sPhone = sellerPhone || '0412-4676073';
+    return `
+<div style="margin-top:24px;padding-top:16px;border-top:2px solid #16604A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;max-width:580px;">
+  <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td style="vertical-align:top;padding-right:16px;width:72px;">
+        <img src="https://jjpaper.pages.dev/assets/img/logo.svg" width="68" height="68" alt="JJ Paper" style="display:block;border-radius:50%;border:2px solid #A7D7A0;background:#16604A;">
+      </td>
+      <td style="vertical-align:top;line-height:1.45;">
+        <div style="font-size:15px;font-weight:800;color:#16604A;letter-spacing:0.3px;margin-bottom:2px;">CORPORACIÓN JJ PAPER C.A.</div>
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:6px;">RIF: J-50478063-0 · Distribuidor Mayorista Directo en Caracas</div>
+        <div style="font-size:13px;color:#1e293b;"><strong>Asesor Comercial:</strong> ${sName}</div>
+        <div style="font-size:12.5px;color:#334155;">📱 <strong>WhatsApp / Pedidos:</strong> ${sPhone} · 📍 Caracas, Venezuela</div>
+        <div style="font-size:12px;color:#059669;font-weight:700;margin-top:5px;">
+          🌐 <strong>Catálogo Digital en Línea:</strong> <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="color:#16604A;text-decoration:underline;">https://jjpaper.pages.dev/catalogo</a> (Acceso Libre, sin contraseña)
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px;">
+          🚚 Despacho prioritario 24h en Caracas · 🧾 Facturación Fiscal SENIAT a Tasa Oficial BCV
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+`;
+  }
+
   return {
     callGemini,
     suggestWhatsAppReplies,
@@ -4102,6 +4147,7 @@ ${rawText}
     analyzeAndDraftProspectB2B,
     analyzeCustomerAndDraftMessage,
     analyzeCustomersBatch,
+    generateInstitutionalSignatureHtml,
     parseProspectsText,
     parseQuoteRequest,
     extractPackSize,

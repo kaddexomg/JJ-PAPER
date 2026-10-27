@@ -520,20 +520,20 @@ window.CampaignEditor = (() => {
                   </div>
                 </div>
 
-                <!-- Membrete Corporativo JJ Paper con Logo y RIF -->
+                <!-- Cabecera Blanca y Limpia con Logo en Alta Definición y RIF -->
                 <div class="ce-email-corp-banner" id="ceEmailCorpBanner">
                   <div class="ce-email-corp-banner-inner">
                     <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" class="ce-email-corp-logo" onerror="this.style.display='none'">
                     <div>
-                      <div class="ce-email-corp-title">JJ PAPER <span style="font-size:14px;font-weight:400;color:#A7D7A0;">C.A.</span></div>
+                      <div class="ce-email-corp-title">JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A;">C.A.</span></div>
                       <div class="ce-email-corp-sub">RIF: <strong>J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo</div>
-                      <div style="font-size:10.5px;color:#a7f3d0;margin-top:2px;">📍 Caracas, Venezuela · Despacho Corporativo en 24h</div>
+                      <div style="font-size:11.5px;color:#0f766e;margin-top:3px;font-weight:500;">📍 Caracas, Venezuela · Despacho Corporativo en 24h</div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Adjuntos en el simulador (si aplica) -->
-                <div id="ceSimAttachmentWrap" style="display:none;padding:12px 24px 0 24px;"></div>
+                <div id="ceSimAttachmentWrap" style="display:none;padding:12px 28px 0 28px;"></div>
 
                 <!-- Cuerpo del Correo -->
                 <div class="ce-email-body-content" id="ceSimBodyContent"></div>
@@ -543,9 +543,9 @@ window.CampaignEditor = (() => {
                   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <div>
                       <strong>JJ PAPER C.A.</strong> · RIF: J-29537545-0 · Facturación fiscal SENIAT a Tasa Oficial BCV.<br>
-                      📞 0412-4676073 / 0212-7531777 · 📍 Caracas, Venezuela.
+                      📞 +58 412 2830185 / 0212 7531777 · 📍 Caracas, Venezuela · Despacho y Distribución Mayorista Directa
                     </div>
-                    <div style="font-size:10px;color:#94a3b8;">
+                    <div style="font-size:11px;color:#94a3b8;">
                       Comunicación Comercial B2B Oficial
                     </div>
                   </div>
@@ -3138,23 +3138,24 @@ ${rawText}
       const trimmed = line.trim();
       if (!trimmed) {
         if (currentParagraph.length) {
-          blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14.5px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+          blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
           currentParagraph = [];
         }
         continue;
       }
 
-      // Viñetas de productos / ofertas
-      if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      // Viñeta / Bloque de Solución o Insumo
+      if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('▪')) {
         if (currentParagraph.length) {
-          blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14.5px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+          blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
           currentParagraph = [];
         }
-        let content = trimmed.replace(/^[•\-*]\s*/, '');
+        let content = trimmed.replace(/^[•\-*▪]\s*/, '');
         content = content.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
+        content = content.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#16604A;font-weight:600;text-decoration:underline;">$1</a>');
         blocks.push(
-          '<div style="margin:6px 0 8px;padding:10px 14px;background:#f0fdf4;border-left:3px solid #16604A;border-radius:6px;font-size:13.5px;color:#1e293b;line-height:1.5;">' +
-            content +
+          '<div style="margin:8px 0 10px;padding:12px 16px;background-color:#ffffff;border:1px solid #e2e8f0;border-left:3px solid #16604A;border-radius:6px;font-size:14px;color:#1e293b;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' +
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td width="16" valign="top" style="color:#16604A;font-weight:bold;font-size:13px;padding-right:8px;line-height:1.6;">▪</td><td valign="top" style="font-size:14px;color:#1e293b;line-height:1.6;">' + content + '</td></tr></table>' +
           '</div>'
         );
         continue;
@@ -3163,20 +3164,23 @@ ${rawText}
       // Título de sección destacado
       if (trimmed.startsWith('*') && trimmed.endsWith('*') && trimmed.length < 80) {
         if (currentParagraph.length) {
-          blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14.5px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+          blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
           currentParagraph = [];
         }
         const title = trimmed.slice(1, -1);
-        blocks.push('<div style="font-size:14px;font-weight:700;color:#16604A;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">' + title + '</div>');
+        blocks.push('<div style="font-size:13.5px;font-weight:700;color:#16604A;margin:22px 0 10px;text-transform:uppercase;letter-spacing:0.6px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + title + '</div>');
         continue;
       }
 
-      let formatted = trimmed.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
+      let formatted = trimmed
+        .replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>')
+        .replace(/_([^_]+)_/g, '<em>$1</em>')
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#16604A;font-weight:600;text-decoration:underline;">$1</a>');
       currentParagraph.push(formatted);
     }
 
     if (currentParagraph.length) {
-      blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14.5px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+      blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
     }
 
     return blocks.join('');
@@ -3194,28 +3198,30 @@ ${rawText}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHTML(subject)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.6;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f1f5f9;padding:24px 10px;">
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.7;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8fafc;padding:32px 12px;">
     <tr>
       <td align="center">
-        <!-- Contenedor Principal (Tarjeta Corporativa) -->
-        <table role="presentation" width="100%" style="max-width:620px;background-color:#ffffff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.05);text-align:left;">
-          <!-- Banner Superior Corporativo con Logo y RIF -->
+        <!-- Tarjeta Ejecutiva Principal (680px) -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background-color:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.04);text-align:left;">
+          <!-- Cabecera Blanca y Limpia con Logo en Alta Definición y RIF -->
           <tr>
-            <td style="background:linear-gradient(135deg, #16604A 0%, #0d4433 100%);padding:22px 28px;border-bottom:3px solid #A7D7A0;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <td style="background-color:#ffffff;padding:26px 32px 22px 32px;border-bottom:2px solid #16604A;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td width="64" valign="middle">
-                    <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" width="56" height="56" style="display:block;border-radius:50%;border:2px solid #A7D7A0;background:#16604A;">
+                  <td width="64" valign="middle" style="padding-right:16px;">
+                    <a href="https://jjpaper.pages.dev" target="_blank" style="text-decoration:none;display:inline-block;">
+                      <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper C.A." height="52" style="display:block;height:52px;width:auto;border:0;outline:none;text-decoration:none;">
+                    </a>
                   </td>
-                  <td valign="middle" style="padding-left:14px;">
-                    <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:1px;line-height:1.1;font-family:'Playfair Display',Georgia,serif;">
-                      JJ PAPER <span style="font-size:14px;font-weight:400;color:#A7D7A0;letter-spacing:0.5px;">C.A.</span>
+                  <td valign="middle" align="left">
+                    <div style="font-size:20px;font-weight:800;color:#0f172a;letter-spacing:0.5px;line-height:1.2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A;">C.A.</span>
                     </div>
-                    <div style="font-size:12px;color:#d1fae5;margin-top:4px;letter-spacing:0.3px;">
-                      RIF: <strong>J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo
+                    <div style="font-size:12.5px;color:#64748b;margin-top:4px;font-weight:500;line-height:1.4;">
+                      RIF: <strong style="color:#334155;">J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo
                     </div>
-                    <div style="font-size:11px;color:#a7f3d0;margin-top:2px;">
+                    <div style="font-size:11.5px;color:#0f766e;margin-top:3px;font-weight:500;">
                       📍 Caracas, Venezuela · Despacho Corporativo en 24h
                     </div>
                   </td>
@@ -3227,54 +3233,66 @@ ${rawText}
           <!-- Asunto Formal -->
           ${subject ? `
           <tr>
-            <td style="background:#f8fafc;padding:12px 28px;border-bottom:1px solid #e2e8f0;font-size:12.5px;font-weight:700;color:#16604A;">
-              📄 ${escapeHTML(subject)}
+            <td style="background-color:#f8fafc;padding:12px 32px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#334155;">
+              <span style="color:#16604A;margin-right:6px;">📄</span> ${escapeHTML(subject)}
             </td>
           </tr>` : ''}
 
           <!-- Flyer o Imagen Adjunta (si existe) -->
           ${imgUrl ? `
           <tr>
-            <td style="padding:20px 28px 0;text-align:center;">
-              <img src="${imgUrl}" alt="Catálogo / Oferta Comercial" style="max-width:100%;height:auto;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+            <td style="padding:24px 32px 0 32px;text-align:center;">
+              <img src="${imgUrl}" alt="Catálogo / Oferta Comercial" style="max-width:100%;height:auto;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:block;margin:0 auto;">
             </td>
           </tr>` : ''}
 
           <!-- Cuerpo del Mensaje -->
           <tr>
-            <td style="padding:26px 28px 20px;font-size:14.5px;color:#1e293b;line-height:1.65;">
+            <td style="padding:28px 32px 20px 32px;font-size:15px;color:#1e293b;line-height:1.7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
               ${bodyHtml}
             </td>
           </tr>
 
-          <!-- Cuadro de Ventajas de la Empresa -->
+          <!-- Cuadro Institucional de Respaldo JJ Paper -->
           <tr>
-            <td style="padding:0 28px 20px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">
+            <td style="padding:0 32px 24px 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #16604A;border-radius:8px;padding:18px 20px;">
                 <tr>
                   <td>
-                    <div style="font-size:12px;font-weight:700;color:#16604A;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">
-                      ⭐ Respaldo &amp; Garantía JJ Paper C.A.
+                    <div style="font-size:12.5px;font-weight:700;color:#16604A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">
+                      ⭐ Respaldo &amp; Garantía Operativa JJ Paper C.A.
                     </div>
-                    <div style="font-size:12px;color:#475569;line-height:1.5;">
-                      • <strong>Facturación Fiscal Formal SENIAT</strong> en bolívares calculada a Tasa Oficial BCV.<br>
-                      • <strong>Despacho Directo en 24 Horas</strong> directamente en su sede en Caracas.<br>
-                      • <strong>Servicio de Procura Especial:</strong> si requiere algún insumo, medida o marca fuera de lista, se lo ubicamos y cotizamos de inmediato.
-                    </div>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:13.5px;color:#334155;line-height:1.65;">
+                      <tr>
+                        <td valign="top" style="padding:3px 0;">
+                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Facturación Fiscal Formal SENIAT:</strong> Emitida en bolívares calculada a Tasa Oficial BCV vigente.
+                        </td>
+                      </tr>
+                      <tr>
+                        <td valign="top" style="padding:3px 0;">
+                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Despacho Directo en 24 Horas:</strong> Entrega ágil y puntual directamente en su sede en Caracas y La Guaira.
+                        </td>
+                      </tr>
+                      <tr>
+                        <td valign="top" style="padding:3px 0;">
+                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Servicio de Procura Especial:</strong> Si requiere algún insumo, formato, medida o marca fuera de lista, se lo ubicamos y cotizamos de inmediato.
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- Botón de Acción a Catálogo -->
+          <!-- Botón de Acción Refinado al Catálogo Digital -->
           <tr>
-            <td style="padding:0 28px 26px;text-align:center;">
-              <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;">
+            <td style="padding:0 32px 28px 32px;text-align:center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
                 <tr>
-                  <td style="border-radius:8px;background:#16604A;text-align:center;">
-                    <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="display:inline-block;padding:11px 22px;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.3px;">
-                      🌐 Ver Catálogo Digital Completo (+2.000 Productos)
+                  <td style="border-radius:6px;background-color:#16604A;text-align:center;">
+                    <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="display:inline-block;padding:12px 26px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      🌐 Ver Catálogo Digital Completo (+2.000 Productos) ↗
                     </a>
                   </td>
                 </tr>
@@ -3282,29 +3300,32 @@ ${rawText}
             </td>
           </tr>
 
-          <!-- Huella de la Empresa: Firma Corporativa Formal -->
+          <!-- Firma Corporativa y Pie Legal B2B -->
           <tr>
-            <td style="background:#f8fafc;padding:22px 28px;border-top:1px solid #e2e8f0;border-bottom-left-radius:14px;border-bottom-right-radius:14px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <td style="background-color:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td valign="top">
-                    <div style="font-size:14px;font-weight:700;color:#0f172a;">
+                  <td valign="top" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    <div style="font-size:15px;font-weight:700;color:#0f172a;">
                       ${escapeHTML(sName)}
                     </div>
-                    <div style="font-size:12px;color:#475569;margin-top:2px;">
-                      Dirección Comercial &amp; Ventas Mayoristas · <strong>JJ Paper C.A.</strong>
+                    <div style="font-size:13px;color:#64748b;margin-top:2px;">
+                      Dirección Comercial &amp; Cuentas Mayoristas · <strong>JJ Paper C.A.</strong>
                     </div>
-                    <div style="font-size:12px;color:#16604A;font-weight:600;margin-top:4px;">
+                    <div style="font-size:13px;color:#16604A;font-weight:600;margin-top:6px;">
                       📱 WhatsApp / Celular: ${escapeHTML(sPhone)}
                     </div>
-                    <div style="font-size:11.5px;color:#64748b;margin-top:2px;">
-                      🏢 Central: +58 412 2830185 / 0212 7531777 · <strong>RIF: J-29537545-0</strong>
+                    <div style="font-size:12px;color:#64748b;margin-top:3px;">
+                      🏢 Central Corporativa: +58 412 2830185 / 0212 7531777 · <strong>RIF: J-29537545-0</strong>
+                    </div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px;">
+                      📍 Caracas, Venezuela · Despacho y Distribución Mayorista Directa
                     </div>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding-top:14px;font-size:10px;color:#94a3b8;line-height:1.4;border-top:1px solid #e2e8f0;margin-top:12px;">
-                    Mensaje comercial B2B remitido por JJ Paper C.A. para presentar oportunidades de abastecimiento corporativo directo. Para no recibir más comunicaciones, responda con la palabra 'Baja'.
+                  <td style="padding-top:16px;border-top:1px solid #e2e8f0;margin-top:14px;font-size:11px;color:#94a3b8;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    Este mensaje comercial B2B ha sido remitido por JJ Paper C.A. para presentar oportunidades de abastecimiento corporativo directo. Para no recibir más comunicaciones, responda con la palabra 'Baja' y su solicitud será atendida de inmediato.
                   </td>
                 </tr>
               </table>
@@ -3445,7 +3466,7 @@ ${rawText}
         const trimmed = line.trim();
         if (!trimmed) {
           if (currentParagraph.length) {
-            blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+            blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
             currentParagraph = [];
           }
           continue;
@@ -3454,21 +3475,28 @@ ${rawText}
         // Viñeta / Tarjeta de insumo
         if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('▪')) {
           if (currentParagraph.length) {
-            blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+            blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
             currentParagraph = [];
           }
           let content = trimmed.replace(/^[•\-*▪]\s*/, '');
           content = escapeHTML(content);
           content = content.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
-          content = content.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#16604A;font-weight:700;text-decoration:underline;">$1</a>');
-          blocks.push('<div class="ce-email-item-card">' + content + '</div>');
+          content = content.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#16604A;font-weight:600;text-decoration:underline;">$1</a>');
+          blocks.push(
+            '<div class="ce-email-item-card">' +
+              '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>' +
+                '<td width="16" valign="top" style="color:#16604A;font-weight:bold;font-size:13px;padding-right:8px;line-height:1.6;">▪</td>' +
+                '<td valign="top" style="font-size:14px;color:#1e293b;line-height:1.6;">' + content + '</td>' +
+              '</tr></table>' +
+            '</div>'
+          );
           continue;
         }
 
         // Título de sección destacado
         if (trimmed.startsWith('*') && trimmed.endsWith('*') && trimmed.length < 80) {
           if (currentParagraph.length) {
-            blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+            blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
             currentParagraph = [];
           }
           const title = trimmed.slice(1, -1);
@@ -3479,13 +3507,29 @@ ${rawText}
         let fLine = escapeHTML(trimmed)
           .replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>')
           .replace(/_([^_]+)_/g, '<em>$1</em>')
-          .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#16604A;font-weight:700;text-decoration:underline;">$1</a>');
+          .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color:#16604A;font-weight:600;text-decoration:underline;">$1</a>');
         currentParagraph.push(fLine);
       }
 
       if (currentParagraph.length) {
-        blocks.push('<p style="margin:0 0 14px 0;line-height:1.65;font-size:14px;color:#1e293b;">' + currentParagraph.join('<br>') + '</p>');
+        blocks.push('<p style="margin:0 0 16px 0;line-height:1.7;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' + currentParagraph.join('<br>') + '</p>');
       }
+
+      // Cuadro Institucional de Respaldo JJ Paper en el Simulador
+      blocks.push(`
+        <div class="ce-email-guarantee-card">
+          <div class="ce-email-guarantee-title">⭐ Respaldo &amp; Garantía Operativa JJ Paper C.A.</div>
+          <div class="ce-email-guarantee-item">
+            <span class="ce-email-check">✔</span> <strong>Facturación Fiscal Formal SENIAT:</strong> Emitida en bolívares calculada a Tasa Oficial BCV vigente.
+          </div>
+          <div class="ce-email-guarantee-item">
+            <span class="ce-email-check">✔</span> <strong>Despacho Directo en 24 Horas:</strong> Entrega ágil y puntual directamente en su sede en Caracas y La Guaira.
+          </div>
+          <div class="ce-email-guarantee-item">
+            <span class="ce-email-check">✔</span> <strong>Servicio de Procura Especial:</strong> Si requiere algún insumo, formato, medida o marca fuera de lista, se lo ubicamos y cotizamos de inmediato.
+          </div>
+        </div>
+      `);
 
       // Botón Destacado al Catálogo Digital (+2.000 artículos)
       blocks.push(`
@@ -3497,11 +3541,15 @@ ${rawText}
       `);
 
       // Firma Institucional con Asesor y RIF
+      const sellerDisplayName = currentConfig?.seller?.name || 'Keyder José Salazar';
+      const sellerDisplayPhone = currentConfig?.seller?.phone || '0412-4676073 / 0212-7531777';
       blocks.push(`
-        <div style="margin-top:22px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12.5px;color:#475569;line-height:1.5;">
-          <strong style="color:#0f172a;">${escapeHTML(currentConfig?.seller?.name || 'Keyder José Salazar')}</strong><br>
-          Dirección Comercial | JJ Paper C.A.<br>
-          📞 ${escapeHTML(currentConfig?.seller?.phone || '0412-4676073 / 0212-7531777')} · 📍 Caracas, Venezuela · RIF: J-29537545-0
+        <div class="ce-email-signature-card">
+          <div style="font-size:15px;font-weight:700;color:#0f172a;">${escapeHTML(sellerDisplayName)}</div>
+          <div style="font-size:13px;color:#64748b;margin-top:2px;">Dirección Comercial &amp; Cuentas Mayoristas · <strong>JJ Paper C.A.</strong></div>
+          <div style="font-size:13px;color:#16604A;font-weight:600;margin-top:6px;">📱 WhatsApp / Celular: ${escapeHTML(sellerDisplayPhone)}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:3px;">🏢 Central Corporativa: +58 412 2830185 / 0212 7531777 · <strong>RIF: J-29537545-0</strong></div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">📍 Caracas, Venezuela · Despacho y Distribución Mayorista Directa</div>
         </div>
       `);
 

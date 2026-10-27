@@ -1277,10 +1277,23 @@ async function launchEmailCampaignFromEditor(config) {
         subject: subject || name,
         body,
         sellerName: SELLER?.name || 'Keyder Salazar',
-        sellerPhone: SELLER?.phone || '0412-4676073',
+        sellerPhone: SELLER?.phone || '0412-4676073 / 0212-7531777',
         imgUrl: imgSrc
       })
-    : `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px">${imgHtml}<div>${htmlBody}</div></div>`;
+    : `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.7;max-width:680px;margin:0 auto;padding:28px 32px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.04)">
+        <div style="border-bottom:2px solid #16604A;padding-bottom:18px;margin-bottom:20px;display:flex;align-items:center;gap:16px">
+          <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" height="52" style="height:52px;width:auto;display:block">
+          <div>
+            <div style="font-size:20px;font-weight:800;color:#0f172a">JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A">C.A.</span></div>
+            <div style="font-size:12.5px;color:#64748b;margin-top:2px">RIF: <strong>J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo</div>
+          </div>
+        </div>
+        ${imgHtml}
+        <div style="font-size:15px;line-height:1.7;color:#1e293b">${htmlBody}</div>
+        <div style="margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12.5px;color:#475569">
+          <strong>${escapeHTML(SELLER?.name || 'Keyder Salazar')}</strong> · JJ Paper C.A. · 📞 ${escapeHTML(SELLER?.phone || '0412-4676073 / 0212-7531777')}
+        </div>
+      </div>`;
 
   let payload = {
     owner_id: ownerId,

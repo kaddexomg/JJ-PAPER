@@ -1320,8 +1320,8 @@
 .ce-email-simulator-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  background: #edf2f7;
+  padding: 24px 20px;
+  background: #f8fafc;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1331,9 +1331,9 @@
   width: 100%;
   max-width: 680px;
   background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1342,11 +1342,11 @@
 .ce-email-chrome {
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
-  padding: 12px 18px;
+  padding: 12px 24px;
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: #475569;
 }
 
@@ -1358,83 +1358,118 @@
 
 .ce-email-chrome-subject {
   font-size: 13.5px;
-  font-weight: 800;
+  font-weight: 700;
   color: #0f172a;
-  padding-top: 4px;
+  padding-top: 6px;
   border-top: 1px solid #e2e8f0;
   margin-top: 2px;
 }
 
-/* Membrete Corporativo JJ Paper */
+/* Membrete Corporativo JJ Paper - Cabecera Blanca y Limpia */
 .ce-email-corp-banner {
-  background: linear-gradient(135deg, #16604A 0%, #0d4433 100%);
-  padding: 20px 24px;
-  border-bottom: 3px solid #A7D7A0;
-  color: #ffffff;
+  background: #ffffff;
+  padding: 24px 32px 20px 32px;
+  border-bottom: 2px solid #16604A;
+  color: #0f172a;
 }
 
 .ce-email-corp-banner-inner {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .ce-email-corp-logo {
-  width: 52px;
   height: 52px;
-  border-radius: 50%;
-  border: 2px solid #A7D7A0;
-  background: #16604A;
+  width: auto;
   display: block;
+  border: 0;
 }
 
 .ce-email-corp-title {
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: 0.8px;
-  line-height: 1.1;
-  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .ce-email-corp-sub {
-  font-size: 11.5px;
-  color: #d1fae5;
-  margin-top: 3px;
+  font-size: 12.5px;
+  color: #64748b;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 /* Cuerpo del Correo en el Simulador */
 .ce-email-body-content {
-  padding: 24px 28px;
-  font-size: 14px;
-  line-height: 1.65;
+  padding: 28px 32px 20px 32px;
+  font-size: 15px;
+  line-height: 1.7;
   color: #1e293b;
   background: #ffffff;
   word-break: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .ce-email-item-card {
-  margin: 8px 0;
-  padding: 10px 14px;
-  background: #f0fdf4;
+  margin: 8px 0 10px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-left: 3px solid #16604A;
   border-radius: 6px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: #1e293b;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .ce-email-section-title {
   font-size: 13.5px;
-  font-weight: 800;
+  font-weight: 700;
   color: #16604A;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 16px 0 8px;
+  letter-spacing: 0.6px;
+  margin: 22px 0 10px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Cuadro Institucional de Respaldo en Simulador */
+.ce-email-guarantee-card {
+  margin: 20px 0 24px;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #16604A;
+  border-radius: 8px;
+}
+
+.ce-email-guarantee-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #16604A;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.ce-email-guarantee-item {
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.65;
+  margin: 4px 0;
+}
+
+.ce-email-check {
+  color: #16604A;
+  font-weight: bold;
+  margin-right: 6px;
 }
 
 .ce-email-catalog-btn-wrap {
   text-align: center;
-  margin: 20px 0 10px;
+  margin: 24px 0 20px;
 }
 
 .ce-email-catalog-btn {
@@ -1442,12 +1477,14 @@
   background: #16604A;
   color: #ffffff !important;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  padding: 11px 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(22, 96, 74, 0.25);
+  padding: 12px 26px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 6px rgba(22, 96, 74, 0.2);
   transition: all 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .ce-email-catalog-btn:hover {
@@ -1455,10 +1492,17 @@
   transform: translateY(-1px);
 }
 
+.ce-email-signature-card {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
+  line-height: 1.5;
+}
+
 .ce-email-footer-legal {
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
-  padding: 16px 24px;
+  padding: 16px 32px;
   font-size: 11px;
   color: #64748b;
   line-height: 1.5;

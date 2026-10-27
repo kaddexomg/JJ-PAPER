@@ -712,8 +712,10 @@ body.hide-holes .spine-gutter {
   color: #64748b;
 }
 .dir-qr-box {
-  width: 9.5mm;
-  height: 9.5mm;
+  width: 13.5mm;
+  height: 13.5mm;
+  flex-shrink: 0;
+  background: #fff;
 }
 .dir-qr-box img, .dir-qr-box canvas {
   width: 100% !important;
@@ -1734,9 +1736,9 @@ body.hide-prices .dir-price-col {
           text: url,
           width: isSmall ? 64 : 112,
           height: isSmall ? 64 : 112,
-          colorDark: '#16604A',
+          colorDark: '#000000',
           colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
+          correctLevel: QRCode.CorrectLevel.L
         });
         box.dataset.qrDone = '1';
       } catch (e) {}

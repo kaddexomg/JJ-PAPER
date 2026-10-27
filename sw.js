@@ -25,6 +25,7 @@ const STATIC_ASSETS = [
   './assets/js/product-modal.js',
   './assets/js/gemini-client.js',
   './assets/js/toast.js',
+  './assets/vendor/jsqr.min.js',
   './assets/img/logo.svg'
 ];
 

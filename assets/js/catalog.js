@@ -902,3 +902,259 @@ window.findProductByQuery = function(rawTarget, products) {
   }
   return null;
 };
+
+
+/* ======================================================
+   Lector de Códigos QR con Macro Zoom & Búsqueda por Voz
+   Diseñado para escanear códigos pequeños del catálogo impreso
+   ====================================================== */
+
+let _qrScannerStream = null;
+let _qrScannerInterval = null;
+let _qrScannerTrack = null;
+let _currentZoomLevel = 2.0;
+
+window.startVoiceSearch = function() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    if (typeof showToast === 'function') showToast('Tu navegador no soporta dictado por voz. Usa el teclado para buscar.', 'warn');
+    return;
+  }
+  const recog = new SpeechRecognition();
+  recog.lang = 'es-VE';
+  recog.continuous = false;
+  recog.interimResults = false;
+
+  const btn = document.getElementById('btnVoiceSearch');
+  if (btn) btn.classList.add('recording');
+  if (typeof showToast === 'function') showToast('🎙️ Escuchando... Di el nombre del producto que ves en el catálogo.', 3000);
+
+  recog.onresult = (e) => {
+    const text = (e.results[0][0].transcript || '').trim();
+    if (btn) btn.classList.remove('recording');
+    const s = document.getElementById('srch');
+    if (s) s.value = text;
+    if (typeof showToast === 'function') showToast('🔍 Buscando: "' + text + '"', 2000);
+
+    const found = (typeof window.findProductByQuery === 'function')
+      ? window.findProductByQuery(text, allProducts)
+      : null;
+
+    if (found && typeof openProductModal === 'function') {
+      openProductModal(found.id, { fromQr: true, searchQuery: text });
+    } else {
+      currentSearch = text;
+      if (typeof renderProds === 'function') renderProds();
+    }
+  };
+  recog.onerror = () => { if (btn) btn.classList.remove('recording'); };
+  recog.onend = () => { if (btn) btn.classList.remove('recording'); };
+  try { recog.start(); } catch (_) { if (btn) btn.classList.remove('recording'); }
+};
+
+window.openInAppQrScanner = async function() {
+  let modal = document.getElementById('inAppQrModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'inAppQrModal';
+    modal.className = 'modal-overlay op';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:15px;backdrop-filter:blur(4px);';
+    modal.innerHTML = `
+      <div style="background:#1e293b;border-radius:16px;max-width:440px;width:100%;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,0.6);color:#fff;border:1px solid #334155;">
+        <div style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #334155;background:#0f172a;">
+          <div style="font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:18px;">📷</span> Lector Macro QR JJ Paper
+          </div>
+          <button type="button" onclick="closeInAppQrScanner()" style="background:none;border:none;color:#94a3b8;font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;">✕</button>
+        </div>
+        <div style="position:relative;background:#000;width:100%;height:320px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <video id="qrScanVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover;transition:transform 0.2s ease;"></video>
+          <canvas id="qrScanCanvas" style="display:none;"></canvas>
+          <!-- Retícula focal con guía -->
+          <div style="position:absolute;width:210px;height:210px;border:2.5px dashed #10b981;border-radius:14px;box-shadow:0 0 0 4000px rgba(0,0,0,0.45);pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px;">
+            <div style="font-size:10px;font-weight:700;color:#10b981;background:rgba(0,0,0,0.7);padding:2px 8px;border-radius:4px;">Enfoque Macro</div>
+            <div style="font-size:10px;color:#a7f3d0;text-align:center;background:rgba(0,0,0,0.7);padding:2px 8px;border-radius:4px;">Centra el código aquí</div>
+          </div>
+        </div>
+        <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;background:#0f172a;gap:10px;border-top:1px solid #334155;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;color:#94a3b8;font-weight:700;">Macro Zoom:</span>
+            <button type="button" class="btn-qr-zoom" id="btnZoom1" onclick="setQrScannerZoom(1.0)" style="padding:5px 10px;border-radius:6px;background:#334155;color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;">1x</button>
+            <button type="button" class="btn-qr-zoom" id="btnZoom2" onclick="setQrScannerZoom(2.0)" style="padding:5px 10px;border-radius:6px;background:#10b981;color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;">2x</button>
+            <button type="button" class="btn-qr-zoom" id="btnZoom3" onclick="setQrScannerZoom(3.0)" style="padding:5px 10px;border-radius:6px;background:#334155;color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;">3x</button>
+          </div>
+          <button type="button" id="btnToggleTorch" onclick="toggleQrScannerTorch()" style="padding:6px 12px;border-radius:6px;background:#334155;color:#fff;border:none;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">💡 Linterna</button>
+        </div>
+        <div id="qrScannerStatus" style="padding:8px 18px 12px 18px;font-size:11px;color:#cbd5e1;text-align:center;background:#1e293b;">
+          💡 <b>Consejo óptico:</b> Mantén el teléfono a <b>15-20 cm</b> del papel (no lo pegues demasiado) para que la cámara enfoque nítido.
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const constraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    _qrScannerStream = stream;
+    _qrScannerTrack = stream.getVideoTracks()[0];
+
+    const video = document.getElementById('qrScanVideo');
+    if (video) {
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      await video.play();
+    }
+    setQrScannerZoom(2.0);
+    startQrDetectionLoop();
+  } catch (err) {
+    console.error('Error al iniciar cámara QR:', err);
+    const status = document.getElementById('qrScannerStatus');
+    if (status) {
+      status.innerHTML = '<span style="color:#f87171;">⚠️ No se pudo acceder a la cámara. Revisa los permisos o usa la búsqueda por voz.</span>';
+    }
+  }
+};
+
+window.closeInAppQrScanner = function() {
+  if (_qrScannerInterval) {
+    clearInterval(_qrScannerInterval);
+    _qrScannerInterval = null;
+  }
+  if (_qrScannerStream) {
+    _qrScannerStream.getTracks().forEach(t => t.stop());
+    _qrScannerStream = null;
+    _qrScannerTrack = null;
+  }
+  const modal = document.getElementById('inAppQrModal');
+  if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
+};
+
+window.setQrScannerZoom = function(level) {
+  _currentZoomLevel = level;
+  ['btnZoom1', 'btnZoom2', 'btnZoom3'].forEach((id, idx) => {
+    const b = document.getElementById(id);
+    if (b) {
+      const match = (idx + 1) === level;
+      b.style.background = match ? '#10b981' : '#334155';
+    }
+  });
+
+  // Intentar zoom por hardware de la cámara
+  if (_qrScannerTrack && typeof _qrScannerTrack.getCapabilities === 'function') {
+    const caps = _qrScannerTrack.getCapabilities();
+    if (caps.zoom) {
+      const targetZoom = Math.min(Math.max(level, caps.zoom.min || 1), caps.zoom.max || 3);
+      _qrScannerTrack.applyConstraints({ advanced: [{ zoom: targetZoom }] }).catch(() => {});
+    }
+  }
+
+  // Zoom digital por CSS en el visor de video
+  const video = document.getElementById('qrScanVideo');
+  if (video) {
+    video.style.transform = level > 1 ? `scale(${level})` : 'none';
+  }
+};
+
+let _torchActive = false;
+window.toggleQrScannerTorch = function() {
+  if (!_qrScannerTrack) return;
+  _torchActive = !_torchActive;
+  _qrScannerTrack.applyConstraints({
+    advanced: [{ torch: _torchActive }]
+  }).catch(() => {});
+  const btn = document.getElementById('btnToggleTorch');
+  if (btn) btn.style.background = _torchActive ? '#10b981' : '#334155';
+};
+
+function startQrDetectionLoop() {
+  const video = document.getElementById('qrScanVideo');
+  const canvas = document.getElementById('qrScanCanvas');
+  if (!video || !canvas) return;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const barcodeDetector = ('BarcodeDetector' in window)
+    ? new window.BarcodeDetector({ formats: ['qr_code'] })
+    : null;
+
+  _qrScannerInterval = setInterval(async () => {
+    if (!video || video.readyState < 2) return;
+
+    // 1. Detección por BarcodeDetector nativo (ultrarrápido por GPU)
+    if (barcodeDetector) {
+      try {
+        const barcodes = await barcodeDetector.detect(video);
+        if (barcodes && barcodes.length > 0) {
+          handleScannedQrResult(barcodes[0].rawValue);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // 2. Detección por jsQR en Canvas (fallback universal para todos los navegadores)
+    if (typeof jsQR === 'function') {
+      try {
+        canvas.width = Math.min(640, video.videoWidth || 640);
+        canvas.height = Math.min(480, video.videoHeight || 480);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert'
+        });
+        if (code && code.data) {
+          handleScannedQrResult(code.data);
+          return;
+        }
+      } catch (_) {}
+    }
+  }, 160);
+}
+
+function handleScannedQrResult(rawText) {
+  if (!rawText) return;
+  closeInAppQrScanner();
+
+  if (navigator.vibrate) navigator.vibrate(120);
+
+  // Extraer término de búsqueda del enlace QR
+  let query = rawText;
+  try {
+    if (rawText.startsWith('http')) {
+      const u = new URL(rawText);
+      query = u.searchParams.get('buscar') || u.searchParams.get('q') || u.searchParams.get('producto') || u.searchParams.get('p') || u.searchParams.get('id') || '';
+    }
+  } catch (_) {}
+
+  query = (query || rawText).trim();
+
+  if (typeof showToast === 'function') {
+    showToast('📱 Código QR escaneado con éxito', 'success');
+  }
+
+  // Buscar producto y abrir modal
+  let found = (typeof window.findProductByQuery === 'function')
+    ? window.findProductByQuery(query, allProducts)
+    : null;
+
+  if (found && typeof openProductModal === 'function') {
+    openProductModal(found.id, { fromQr: true, searchQuery: query });
+  } else {
+    // Si no es un ID único, buscar por texto en el grid
+    const s = document.getElementById('srch');
+    if (s) {
+      s.value = query;
+      currentSearch = query;
+      if (typeof renderProds === 'function') renderProds();
+    }
+  }
+}

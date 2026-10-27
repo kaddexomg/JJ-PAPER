@@ -26,6 +26,18 @@
 <link rel="stylesheet" href="assets/css/glass.css?v=20260717">
 <link rel="stylesheet" href="assets/css/quote-drawer.css?v=20261015_v9">
 <link rel="stylesheet" href="assets/css/fx-buttons.css?v=20260717b">
+
+<style>
+.srch { position: relative; flex: 1; min-width: 220px; }
+.srch input { padding-right: 78px !important; }
+.srch-actions { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; }
+.srch-tool-btn { background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all 0.15s ease; color: #334155; }
+.srch-tool-btn:hover { background: #e2e8f0; border-color: #94a3b8; }
+.srch-tool-btn.recording { background: #fee2e2; border-color: #ef4444; color: #b91c1c; animation: pulseRec 1s infinite; }
+@keyframes pulseRec { 0% { transform: scale(1); } 50% { transform: scale(1.1); box-shadow: 0 0 10px rgba(239,68,68,0.5); } 100% { transform: scale(1); } }
+.cat-paper-helper { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+</style>
+
 </head>
 <body>
 
@@ -60,12 +72,35 @@
     <!-- Banner de Promociones Destacadas -->
     <div id="promoBanner" class="cat-promos-wrap" style="display:none;margin-bottom:20px;"></div>
 
+    <!-- Banner Asistente de Catálogo Físico Impreso -->
+    <div class="cat-paper-helper" id="catPaperHelper">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">📖</span>
+        <div style="font-size:12.5px;color:#166534;">
+          <span style="font-weight:800;">¿Tienes el Catálogo Impreso en mano?</span>
+          <span style="display:block;font-size:11px;color:#15803d;font-weight:500;">Si algún código pequeño no enfoca en tu cámara, usa nuestro Lector Macro o dicta el nombre.</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" onclick="openInAppQrScanner()" style="display:inline-flex;align-items:center;gap:5px;background:#16604A;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(22,96,74,0.2);">
+          📷 Lector Macro QR
+        </button>
+        <button type="button" onclick="startVoiceSearch()" style="display:inline-flex;align-items:center;gap:5px;background:#fff;color:#16604A;border:1.5px solid #16604A;padding:5px 10px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">
+          🎙️ Dictar por Voz
+        </button>
+      </div>
+    </div>
+
     <!-- Toolbar -->
     <div class="cat-tb rv">
       <div class="srch" role="search">
         <span class="srch-ico" aria-hidden="true">🔍</span>
         <label class="sr-only" for="srch">Buscar producto</label>
-        <input type="search" id="srch" placeholder="Buscar producto..." oninput="filterProds()">
+        <input type="search" id="srch" placeholder="Buscar producto, código o dictar..." oninput="filterProds()">
+        <div class="srch-actions">
+          <button type="button" class="srch-tool-btn" id="btnVoiceSearch" onclick="startVoiceSearch()" title="Dictar por voz el producto que ves en el catálogo impreso">🎙️</button>
+          <button type="button" class="srch-tool-btn" id="btnQrScan" onclick="openInAppQrScanner()" title="Escanear código QR del catálogo con la cámara (Macro Zoom)">📷</button>
+        </div>
       </div>
       <label class="sr-only" for="sortSel">Ordenar productos</label>
       <select class="sort-sel" id="sortSel" onchange="filterProds()" aria-label="Ordenar productos">
@@ -131,6 +166,7 @@
 <div class="toast-c" id="toastC"></div>
 
 <script src="assets/vendor/supabase-2.58.0.js"></script>
+<script src="assets/vendor/jsqr.min.js"></script>
 <script src="assets/js/config.js?v=20261026_qr_live_v10"></script>
 <script src="assets/js/toast.js?v=20261026_qr_live_v10"></script>
 <script src="assets/js/nav.js?v=20261026_qr_live_v10"></script>

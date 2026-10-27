@@ -461,7 +461,7 @@ window.CampaignEditor = (() => {
                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">
                   <label style="font-size:11.5px;font-weight:700;color:#1e293b;display:block;margin-bottom:4px">📎 Documentos Adjuntos:</label>
                   <label style="display:flex;align-items:center;font-size:12px;color:#1e293b;padding:3px 0;cursor:pointer;font-weight:600">
-                    <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px" checked>
+                    <input type="checkbox" id="ceAttachPdf" onchange="CampaignEditor.onAttachChange()" style="margin-right:7px">
                     <span>📖 Adjuntar Catálogo Oficial JJ Paper (PDF con QR)</span>
                   </label>
                   <label style="display:flex;align-items:center;font-size:12px;color:#334155;padding:3px 0;cursor:pointer">
@@ -600,12 +600,6 @@ window.CampaignEditor = (() => {
     if (simStepper) simStepper.style.display = 'flex';
     if (activeActions) activeActions.style.display = 'flex';
     if (composerArea) composerArea.style.display = 'block';
-
-    const pdfChk = document.getElementById('ceAttachPdf');
-    if (pdfChk && !pdfChk.checked) {
-      pdfChk.checked = true;
-      onAttachChange();
-    }
   }
 
   function switchRightTab(tab = 'simulator') {
@@ -756,7 +750,13 @@ window.CampaignEditor = (() => {
     const cta = document.getElementById('ceCtaGoal')?.value || 'quote';
     const customUserNotes = (document.getElementById('ceCustomNotesInput')?.value || '').trim();
 
-    const greetName = contactPerson ? `${contactPerson} (${compName})` : (contactRole ? `${contactRole} de ${compName}` : `equipo de ${compName}`);
+    // Sanitización B2B: si contact_name contiene basura de scraping (ej. 'Correo directo de Compras...'), se descarta
+    const cleanPerson = (typeof window.sanitizeB2BContactName === 'function')
+      ? window.sanitizeB2BContactName(contactPerson, compName)
+      : null;
+    const greetFormal = cleanPerson ? `Estimado(a) ${cleanPerson} (${compName}):` : `Estimado equipo de ${compName}:`;
+    const greetWa = cleanPerson ? `Hola ${cleanPerson} 👋 (${compName}),` : `Estimado equipo de ${compName} 👋,`;
+    const greeting = isEmail ? greetFormal : greetWa;
 
     let subject = '';
     if (profile === 'activo_fidelizado') {
@@ -784,15 +784,15 @@ window.CampaignEditor = (() => {
 
     let message = '';
     if (profile === 'activo_fidelizado') {
-      message = `Hola ${greetName} 👋, un cordial saludo de parte de JJ Paper C.A.\n\nAgradecemos su constante confianza en nuestras soluciones de papelería y suministros. ${historyMention || 'Queríamos consultar cómo se encuentra su inventario operativo para esta quincena y apoyarles antes de que se agoten insumos clave en sus sedes:'}\n\n*📦 INSUMOS DESTACADOS PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*💎 VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Precios de primera mano sin intermediarios.\n• 🧾 *Facturación Fiscal SENIAT:* En bolívares calculados a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• 🚚 *Despacho Prioritario 24h:* Entrega gratuita directa en sus sedes en ${city}.\n• 🔍 *Procura Especial:* Conseguimos cualquier medida o formato especial que requiera.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (+2.000 artículos en stock): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
+      message = `${greeting}\n\nAgradecemos su constante confianza en nuestras soluciones de papelería y suministros. ${historyMention || 'Queríamos consultar cómo se encuentra su inventario operativo para esta quincena y apoyarles antes de que se agoten insumos clave en sus sedes:'}\n\n*📦 INSUMOS DESTACADOS PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*💎 VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Precios de primera mano sin intermediarios.\n• 🧾 *Facturación Fiscal SENIAT:* En bolívares calculados a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• 🚚 *Despacho Prioritario 24h:* Entrega gratuita directa en sus sedes en ${city}.\n• 🔍 *Procura Especial:* Conseguimos cualquier medida o formato especial que requiera.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (+2.000 artículos en stock): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
     } else if (profile === 'inactivo_recuperacion') {
-      message = `Hola ${greetName} 👋, ¡un gran gusto saludarles de nuevo!\n\nLe escribe ${sName} de *JJ Paper C.A.* Pasamos por aquí para retomar contacto con ${compName} y compartirle que hemos renovado nuestro catálogo con más de 2.000 productos de papelería, archivo corporativo y embalaje a precios mayoristas de importador directo.\n\n*📦 DISPONIBILIDAD INMEDIATA PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🛡️ CONDICIONES ESPECIALES DE REACTIVACIÓN:*\n• 🏭 Precios directos de distribuidor calculados a **Tasa Oficial BCV** (${rate.toFixed(2)} Bs).\n• 🧾 Facturación fiscal legal SENIAT y cotizaciones formales en minutos.\n• 🚚 Despacho exprés sin costo en ${city} directamente en su puerta.${notesExtra}\n\n👉 Catálogo interactivo completo sin login: {{link}}\n\n${ctaLine}\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone}`;
+      message = `${greeting}\n\nLe escribe ${sName} de *JJ Paper C.A.* Pasamos por aquí para retomar contacto con ${compName} y compartirle que hemos renovado nuestro catálogo con más de 2.000 productos de papelería, archivo corporativo y embalaje a precios mayoristas de importador directo.\n\n*📦 DISPONIBILIDAD INMEDIATA PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🛡️ CONDICIONES ESPECIALES DE REACTIVACIÓN:*\n• 🏭 Precios directos de distribuidor calculados a **Tasa Oficial BCV** (${rate.toFixed(2)} Bs).\n• 🧾 Facturación fiscal legal SENIAT y cotizaciones formales en minutos.\n• 🚚 Despacho exprés sin costo en ${city} directamente en su puerta.${notesExtra}\n\n👉 Catálogo interactivo completo sin login: {{link}}\n\n${ctaLine}\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone}`;
     } else if (tone === 'institucional_formal') {
-      message = `Estimada Gerencia de Compras y Administración en ${compName}:\nPresente.-\n\nPor medio de la presente, *JJ Paper C.A.* (RIF J-29537545-0), empresa importadora y distribuidora mayorista en Caracas, somete a su consideración nuestra propuesta formal de abastecimiento corporativo para sus operaciones en ${city}:\n\n*LÍNEAS DE SUMINISTRO DISPONIBLES (${sector.toUpperCase()}):*\n${items.join('\n')}\n\nGARANTÍAS INSTITUCIONALES:\n- Facturación fiscal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Servicio de entrega directa sin cargo en el Área Metropolitana de Caracas en 24h.\n- Lista de Precios Oficial adjunta en formato PDF con más de 900 renglones.\n- Suministro continuo y resguardo de archivo reglamentario a 10 años.${notesExtra}\n\nCatálogo digital corporativo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
+      message = `Estimada Gerencia de Compras y Administración en ${compName}:\nPresente.-\n\nPor medio de la presente, *JJ Paper C.A.* (RIF J-29537545-0), empresa importadora y distribuidora mayorista en Caracas, somete a su consideración nuestra propuesta formal de abastecimiento corporativo para sus operaciones en ${city}:\n\n*LÍNEAS DE SUMINISTRO DISPONIBLES (${sector.toUpperCase()}):*\n${items.join('\n')}\n\nGARANTÍAS INSTITUCIONALES:\n- Facturación fiscal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Servicio de entrega directa sin cargo en el Área Metropolitana de Caracas en 24h.\n- Suministro continuo y resguardo de archivo reglamentario a 10 años.${notesExtra}\n\nCatálogo digital corporativo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
     } else if (tone === 'oportunidad_mayorista') {
-      message = `Hola ${greetName} 👋, un saludo comercial de parte de JJ Paper C.A.\n\nHoy habilitamos en nuestro centro de distribución de Caracas condiciones preferenciales por volumen y escala cerrada adaptadas a ${compName}:\n\n*🔥 LOTE MAYORISTA DISPONIBLE (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🚀 BENEFICIOS DE COMPRA MAYORISTA:*\n• 🏭 Precios de primera mano de importador a **Tasa Oficial BCV** (${rate.toFixed(2)} Bs).\n• 🧾 Facturación formal SENIAT (RIF J-29537545-0).\n• 🚚 Delivery corporativo gratis y prioritario en ${city}.${notesExtra}\n\n👉 Catálogo digital completo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A.\n📞 ${sPhone}`;
+      message = `${greeting}\n\nHoy habilitamos en nuestro centro de distribución de Caracas condiciones preferenciales por volumen y escala cerrada adaptadas a ${compName}:\n\n*🔥 LOTE MAYORISTA DISPONIBLE (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🚀 BENEFICIOS DE COMPRA MAYORISTA:*\n• 🏭 Precios de primera mano de importador a **Tasa Oficial BCV** (${rate.toFixed(2)} Bs).\n• 🧾 Facturación formal SENIAT (RIF J-29537545-0).\n• 🚚 Delivery corporativo gratis y prioritario en ${city}.${notesExtra}\n\n👉 Catálogo digital completo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A.\n📞 ${sPhone}`;
     } else {
-      message = `Hola ${greetName} 👋, un cordial saludo de parte de JJ Paper C.A.\n\nConociendo las exigencias operativas del sector ${sector} en ${city}, nos ponemos a la orden como su aliado mayorista directo para optimizar sus costos en insumos esenciales y papelería diaria:\n\n*📦 SUMINISTROS ESENCIALES PARA SU OPERACIÓN:*\n${items.join('\n')}\n\n*💎 RESPALDO OPERATIVO JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Cero intermediarios y disponibilidad en almacén.\n• 🧾 *Facturación Legal SENIAT:* En bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho en 24h:* Entrega gratuita directa en su empresa.\n• 🔍 *Servicio de Procura:* Cualquier marca o medida que no vea en lista, se la ubicamos.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (sin claves ni registros): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
+      message = `${greeting}\n\nConociendo las exigencias operativas del sector ${sector} en ${city}, nos ponemos a la orden como su aliado mayorista directo para optimizar sus costos en insumos esenciales y papelería diaria:\n\n*📦 SUMINISTROS ESENCIALES PARA SU OPERACIÓN:*\n${items.join('\n')}\n\n*💎 RESPALDO OPERATIVO JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Cero intermediarios y disponibilidad en almacén.\n• 🧾 *Facturación Legal SENIAT:* En bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho en 24h:* Entrega gratuita directa en su empresa.\n• 🔍 *Servicio de Procura:* Cualquier marca o medida que no vea en lista, se la ubicamos.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (sin claves ni registros): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
     }
 
     return { subject, message, sector, need };
@@ -893,10 +893,11 @@ window.CampaignEditor = (() => {
     if (bTime) bTime.style.display = isEmail ? 'none' : 'inline';
 
     // Restablecer casillas de adjuntos (PDF activo por defecto)
+    // Restablecer casillas de adjuntos (por defecto limpio, sin PDF obsoleto)
     const pdfChk = document.getElementById('ceAttachPdf');
-    if (pdfChk) pdfChk.checked = true;
+    if (pdfChk) pdfChk.checked = false;
     const imgChk = document.getElementById('ceAttachImg');
-    if (imgChk) imgChk.checked = false;
+    if (imgChk) imgChk.checked = Boolean(selectedProductOrCombo?.image_url);
     const fileChk = document.getElementById('ceAttachFile');
     if (fileChk) fileChk.checked = false;
 

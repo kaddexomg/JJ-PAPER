@@ -1547,7 +1547,29 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
   let _realPortfolioCache = null;
   let _realPortfolioCacheAt = 0;
 
+  // Sanitizador estricto de nombres de contacto B2B para erradicar saludos robóticos
+  function sanitizeB2BContactName(rawName, companyName = '') {
+    if (!rawName || typeof rawName !== 'string') return null;
+    let n = rawName.trim();
+    if (!n || n.length < 2 || n.length > 35) return null;
+    // Si contiene correo, link o caracteres técnicos
+    if (/@|\.com|\.net|\.org|\.gob|\.ve|http|\/|\\/i.test(n)) return null;
+    // Si contiene palabras departamentales o de scraping de bases de datos
+    const invalidKeywords = /correo|compras|ventas|admin|administraci[oó]n|gerencia|departamento|contacto|atenci[oó]n|recepci[oó]n|rrhh|recursos\s+humanos|master|licitacion|licitaciones|presidencia|direcci[oó]n|suministro|suministros|almac[eé]n|caja|facturaci[oó]n|pagos|cobranza|operacion|operaciones|asistente|auxiliar|cliente|proveedor/i;
+    if (invalidKeywords.test(n)) return null;
+    // Si es idéntico o casi idéntico al nombre de la empresa
+    const normN = n.toLowerCase();
+    const normC = String(companyName || '').toLowerCase().trim();
+    if (normC && (normN === normC || normC.includes(normN) || (normN.length > 4 && normC.startsWith(normN)))) return null;
+    // Un nombre de persona física debe tener entre 1 y 4 palabras
+    const words = n.split(/\s+/).filter(Boolean);
+    if (words.length > 4) return null;
+    return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
+  if (typeof window !== 'undefined') window.sanitizeB2BContactName = sanitizeB2BContactName;
+
   // Trae productos REALES del catálogo con selección dinámica según sector y objetivo
+  // PRIORIZA PRODUCTOS MÁS VENDIDOS (FAST-MOVERS) Y CON FOTO WEB-P REAL
   async function fetchRealPortfolioProducts(maxOverall = 14, targetSector = 'auto', objective = '') {
     const w = typeof window !== 'undefined' ? window : {};
     let list = (Array.isArray(w.allProducts) && w.allProducts.length) ? w.allProducts : null;
@@ -1562,7 +1584,7 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
       if (!client) return [];
       try {
         const { data, error } = await client.from('jjp_products')
-          .select('id,name,sku,price_usd,price_a,price_b,unit,description,active')
+          .select('id,name,sku,price_usd,price_a,price_b,unit,description,active,image_url,stock,essential,featured,tag')
           .neq('active', false)
           .range(0, 1999);
         if (error || !data) return [];
@@ -1575,100 +1597,90 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
     const rate = getEffectiveRate();
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Agrupaciones temáticas según sector
+    // Agrupaciones temáticas según sector priorizando MÁS VENDIDOS (FAST-MOVERS)
     const sec = String(targetSector || '').toLowerCase();
     let groups = [];
 
     if (sec.includes('colegio') || sec.includes('educacion') || sec.includes('escuela')) {
       groups = [
-        { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'] },
-        { kw: ['marcador', 'pizarra', 'acrilico', 'recargable'] },
-        { kw: ['lapiz', 'borrador', 'sacapuntas', 'creyon', 'color'] },
-        { kw: ['resaltador', 'marcador al agua', 'punta fina'] },
-        { kw: ['tempera', 'tijera', 'pega', 'silicon'] },
-        { kw: ['hoja examen', 'papel bond', 'cartulina', 'resma'] }
+        { kw: ['resma', 'papel fotocopia', 'printon', 'report', 'carta', 'oficio'], boost: 12 },
+        { kw: ['marcador', 'pizarra', 'acrilico', 'recargable', 'printa', 'kores'], boost: 10 },
+        { kw: ['cuaderno', 'libreta', 'engrapado', 'espiral'], boost: 8 },
+        { kw: ['funda', 'protectora', 'carpeta', 'manila'], boost: 7 },
+        { kw: ['boligrafo', 'lapiz', 'resaltador'], boost: 6 }
       ];
     } else if (sec.includes('clinica') || sec.includes('salud') || sec.includes('hospital')) {
       groups = [
-        { kw: ['carpeta', 'fibra', 'manila', 'oficio'] },
-        { kw: ['sobre', 'manila', 'blanco', 'media carta', 'oficio'] },
-        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
-        { kw: ['boligrafo', 'gel', 'tinta aceite', 'lapicero'] },
-        { kw: ['grapadora', 'clip', 'perforadora'] },
-        { kw: ['rollo', 'termico', 'ticketera'] }
+        { kw: ['carpeta', 'fibra', 'gancho', 'historia medica', 'division'], boost: 12 },
+        { kw: ['sobre', 'radiografia', '14x17', 'manila', 'oficio'], boost: 12 },
+        { kw: ['resma', 'papel bond', 'carta', 'printon', 'report'], boost: 10 },
+        { kw: ['boligrafo', 'kores', 'inkjoy', 'caja'], boost: 7 },
+        { kw: ['rollo', 'termico', '57x40', '80x70'], boost: 6 }
       ];
-    } else if (sec.includes('supermercado') || sec.includes('retail') || sec.includes('comercio')) {
+    } else if (sec.includes('supermercado') || sec.includes('retail') || sec.includes('comercio') || sec.includes('panaderia') || sec.includes('abasto')) {
       groups = [
-        { kw: ['rollo', 'termico', 'pos', 'caja fiscal', '57mm', '80mm'] },
-        { kw: ['cinta', 'embalaje', 'tirro', 'transparente', 'marron'] },
-        { kw: ['dispensador', 'porta tirro', 'pistola'] },
-        { kw: ['marcador', 'permanente', 'indeleble', 'gruesa'] },
-        { kw: ['talonario', 'recibo', 'nota de entrega'] },
-        { kw: ['boligrafo', 'lapicero'] }
+        { kw: ['rollo', 'termico', 'pos', 'caja fiscal', '57x40', '80x70'], boost: 14 },
+        { kw: ['marcador', 'detector', 'billete', 'falso', 'kores'], boost: 12 },
+        { kw: ['cinta', 'embalaje', 'tirro', 'transparente', 'marron', '48mm'], boost: 10 },
+        { kw: ['boligrafo', 'kores', 'lapicero'], boost: 6 }
       ];
-    } else if (sec.includes('restaurante') || sec.includes('alimento')) {
+    } else if (sec.includes('transporte') || sec.includes('logistica') || sec.includes('almacen') || sec.includes('ferreteria')) {
       groups = [
-        { kw: ['rollo', 'termico', 'comanda', '57mm', '80mm'] },
-        { kw: ['boligrafo', 'lapicero', 'negro', 'azul'] },
-        { kw: ['cinta', 'embalaje', 'tirro'] },
-        { kw: ['talonario', 'comanda', 'recibo'] }
+        { kw: ['cinta', 'embalaje', 'industrial', '48mm', '100m', '200m', 'extra'], boost: 14 },
+        { kw: ['marcador', 'industrial', 'indeleble', 'servicio 80', 'sharpie'], boost: 12 },
+        { kw: ['dispensador', 'pistola', 'exacto'], boost: 8 },
+        { kw: ['resma', 'papel bond', 'guia'], boost: 6 }
       ];
-    } else if (sec.includes('papeleria') || sec.includes('libreria')) {
+    } else if (sec.includes('banco') || sec.includes('seguro') || sec.includes('financ')) {
       groups = [
-        { kw: ['resma', 'papel bond', 'carta', 'oficio'] },
-        { kw: ['cuaderno', 'libreta', 'espiral'] },
-        { kw: ['marcador', 'resaltador', 'sharpie', 'kores'] },
-        { kw: ['boligrafo', 'lapiz', 'creyones'] },
-        { kw: ['carpeta', 'sobre', 'archivador'] },
-        { kw: ['cinta', 'pega', 'silicon', 'tijera'] }
+        { kw: ['carpeta', '3 aros', '1 pulgada', 'deluxe', 'lomo'], boost: 12 },
+        { kw: ['carpeta', 'fibra', 'gancho', 'archivo'], boost: 12 },
+        { kw: ['archivador', 'palanca', 'lomo ancho', 'cantonera'], boost: 10 },
+        { kw: ['resma', 'papel fotocopia', 'printon', 'report', 'carta'], boost: 10 },
+        { kw: ['funda', 'protectora', 'carta', 'x100'], boost: 8 }
       ];
     } else {
-      // General Corporativo y Empresas: Variedad real de oficina y archivo (cero rollos por defecto)
+      // General Corporativo y Oficinas B2B: Insumos de máxima rotación comprobada
       groups = [
-        { kw: ['carpeta', '3 aros', '1 pulgada', 'fibra', 'funda protectora'] },
-        { kw: ['resma', 'papel bond', 'carta', 'oficio', 'printon', 'hp'] },
-        { kw: ['boligrafo', 'lapicero', 'kores', 'bic', 'k1', 'k2'] },
-        { kw: ['marcador', 'pizarra', 'acrilico', 'sharpie', 'resaltador'] },
-        { kw: ['archivador', 'archicomodo', 'sobre', 'manila'] },
-        { kw: ['cinta', 'embalaje', 'tirro', 'transparente', 'morropac', 'celoven'] },
-        { kw: ['grapadora', 'grapas', 'perforadora', 'clip', 'nota adhesiva', 'post-it'] }
+        { kw: ['carpeta', '3 aros', '1 pulgada', 'deluxe', 'lomo reforzado'], boost: 14 },
+        { kw: ['funda', 'protectora', 'carta', 'transparente', 'x100'], boost: 12 },
+        { kw: ['resma', 'papel fotocopia', 'printon', 'report', 'carta', 'oficio'], boost: 12 },
+        { kw: ['boligrafo', 'kores', 'inkjoy', 'levo', 'caja'], boost: 10 },
+        { kw: ['archivador', 'palanca', '2 anillos', 'cantonera'], boost: 8 },
+        { kw: ['cinta', 'embalaje', 'transparente'], boost: 6 }
       ];
     }
 
     // Si el asesor especificó un objetivo con palabras clave, anteponer ese grupo prioritario
-    // Si el asesor dio una instrucción u objetivo con palabras clave (ej: carpetas 3 aros, bolígrafos, resmas...)
     const objWords = norm(objective).split(/\s+/).filter(w => w.length >= 3 && !['para', 'con', 'las', 'los', 'que', 'una', 'por'].includes(w));
     if (objWords.length > 0) {
-      // Poner en primer lugar absoluto los insumos solicitados por el usuario
-      groups.unshift({ kw: objWords });
-      if (objWords.some(w => w.includes('carpeta') || w.includes('aro') || w.includes('funda'))) {
-        groups.unshift({ kw: ['carpeta', 'aro', 'funda', 'archivador'] });
-      }
-      if (objWords.some(w => w.includes('resma') || w.includes('papel') || w.includes('carta'))) {
-        groups.unshift({ kw: ['resma', 'papel', 'carta', 'oficio'] });
-      }
-      if (objWords.some(w => w.includes('boligrafo') || w.includes('lapicero') || w.includes('kores'))) {
-        groups.unshift({ kw: ['boligrafo', 'kores', 'bic', 'lapicero'] });
-      }
+      groups.unshift({ kw: objWords, boost: 20 });
     }
-
-    // Barajar ligeramente grupos para asegurar variedad dinámica
-    const shuffledGroups = [...groups].sort(() => 0.5 - Math.random());
 
     const picked = [];
     const seen = new Set();
 
-    for (const g of shuffledGroups) {
+    for (const g of groups) {
       const scored = (list || []).map(p => {
         const full = norm(`${p.name || ''} ${p.sku || ''} ${p.description || ''}`);
         let s = 0;
-        for (const kw of g.kw) if (full.includes(norm(kw))) s++;
+        for (const kw of g.kw) {
+          if (full.includes(norm(kw))) s += 2;
+        }
+        if (s > 0) {
+          s += (g.boost || 0);
+          // Bonificación a los más vendidos / indispensables
+          if (p.essential) s += 8;
+          if (p.featured) s += 6;
+          if (p.tag === 'POPULAR') s += 6;
+          if (p.image_url) s += 5; // Preferir productos con fotografía packshot WebP real
+          if (Number(p.stock) > 10) s += 3;
+        }
         return { p, s };
-      }).filter(x => x.s >= 1)
+      }).filter(x => x.s >= 4)
         .sort((a, b) => b.s - a.s);
 
-      // Barajar los mejores candidatos para no elegir siempre el primero
-      const topCandidates = scored.slice(0, 4).sort(() => 0.5 - Math.random()).slice(0, 2);
+      const topCandidates = scored.slice(0, 3);
 
       for (const { p } of topCandidates) {
         if (seen.has(p.id || p.name)) continue;
@@ -1678,8 +1690,12 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
         const priceUsd = pB > 0 ? pB : pU;
         if (priceUsd <= 0) continue;
         picked.push({
-          id: p.id, name: p.name, sku: p.sku || '',
+          id: p.id,
+          name: p.name,
+          sku: p.sku || '',
           unit: p.unit || 'unidad',
+          image_url: p.image_url || null,
+          essential: Boolean(p.essential),
           price_usd: priceUsd,
           price_bs: priceUsd > 0 ? priceUsd * rate : 0
         });
@@ -1721,6 +1737,8 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
     const w = typeof window !== 'undefined' ? window : {};
     const rate = getEffectiveRate();
 
+    const cleanContact = sanitizeB2BContactName(contactName, companyName);
+
     const prodsList = (Array.isArray(products) && products.length > 0)
       ? products
       : (promoProductOrCombo ? (Array.isArray(promoProductOrCombo.products) ? promoProductOrCombo.products : [promoProductOrCombo]) : []);
@@ -1743,14 +1761,14 @@ ${baseMessageText.trim().slice(0, 450)}
 """
 
 DIRECTIVA DE ANÁLISIS COMERCIAL POR SECTOR:
-1. TU MISIÓN ES ADAPTAR Y ENRIQUECER este enfoque para ${companyName} (${contactName ? 'Contacto: ' + contactName : ''}), analizando a fondo las necesidades operativas de su rubro (${effectiveSector || 'Comercial'}).
+1. TU MISIÓN ES ADAPTAR Y ENRIQUECER este enfoque para ${companyName} (${cleanContact ? 'Contacto: ' + cleanContact : 'Atención al equipo'}), analizando a fondo las necesidades operativas de su rubro (${effectiveSector || 'Comercial'}).
 2. Selecciona de nuestro CATÁLOGO REAL exactamente 2 o 3 productos indispensables para el giro de ${companyName} con sus precios oficiales en USD y Bs a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
 3. Asegura el llamado a la acción comercial según el objetivo (${messageType}), el enlace al catálogo interactivo {{link}} y la firma formal de JJ Paper C.A.
 ================================================================================
 `;
     }
 
-    // ── Catálogo REAL con precio actualizado ──
+    // ── Catálogo REAL con precio actualizado y más vendidos ──
     let realProducts = [];
     try { realProducts = await fetchRealPortfolioProducts(14, effectiveSector, (customInstructions || notes || '')); } catch (e) { console.warn('Catálogo real no disponible:', e); }
 
@@ -1809,20 +1827,28 @@ DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENT
         return `• *${pName}*${pUnit}: *$${pPriceUsd.toFixed(2)} USD* | Bs. ${pPriceBs}`;
       }).join('\n');
 
-      let toneGreeting = `{Hola|Buen día|Un gusto saludarle} ${contactName || companyName} 👋, un cordial saludo.`;
+      let toneGreeting = cleanContact
+        ? `{Hola|Buen día|Un gusto saludarle} ${cleanContact} (${companyName}) 👋, un cordial saludo.`
+        : `{Estimado equipo de|Un cordial saludo al equipo de} ${companyName} 👋, un cordial saludo de parte de JJ Paper C.A.`;
       let toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:`;
       let toneClosing = `{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su pedido.}`;
 
       if (commercialTone === 'fidelizado_reactivacion') {
-        toneGreeting = `{Hola|Buen día|Un placer saludarle de nuevo} ${contactName || companyName} 👋, ¡un gran gusto saludarles de nuevo!`;
+        toneGreeting = cleanContact
+          ? `{Hola|Buen día|Un placer saludarle de nuevo} ${cleanContact} (${companyName}) 👋, ¡un gran gusto saludarles de nuevo!`
+          : `{Estimado equipo de|Un placer saludarles de nuevo} ${companyName} 👋, ¡un gran gusto saludarles de nuevo!`;
         toneOpening = `{Le escribe|Le contacta} *${sellerName}* de *JJ Paper C.A.* Como cuenta preferencial y de la casa, pasamos por aquí para presentarle en exclusiva este lote de insumos con condiciones preferenciales y flete prioritario:`;
         toneClosing = `{¿Cómo se encuentran de inventario en sus sedes para esta quincena? Con gusto le reservamos disponibilidad inmediata.|¿Gusta que le preparemos su despacho con las condiciones preferenciales de su cuenta?}`;
       } else if (commercialTone === 'oportunidad_mayorista') {
-        toneGreeting = `{Hola|Buen día} ${contactName || companyName} 👋, un saludo comercial.`;
+        toneGreeting = cleanContact
+          ? `{Hola|Buen día} ${cleanContact} (${companyName}) 👋, un saludo comercial.`
+          : `{Estimado equipo de|Un cordial saludo} ${companyName} 👋, un saludo comercial.`;
         toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo el volumen y consumo de ${companyName} en ${city || 'Caracas'}, hoy le presentamos una oportunidad mayorista con precios de escala cerrada y entrega inmediata:`;
         toneClosing = `{¿Cuántos bultos o cajas le apartamos para su entrega de esta semana?|¿Desea que le facturemos a tasa oficial BCV (${rate.toFixed(2)} Bs) para despacho mañana?}`;
       } else if (commercialTone === 'cercano_consultivo') {
-        toneGreeting = `{Hola|Qué tal} ${contactName || companyName} 👋, ¡un gran saludo!`;
+        toneGreeting = cleanContact
+          ? `{Hola|Qué tal} ${cleanContact} (${companyName}) 👋, ¡un gran saludo!`
+          : `{Hola|Qué tal} equipo de ${companyName} 👋, ¡un gran saludo!`;
         toneOpening = `Por aquí te escribe *${sellerName}* de *JJ Paper C.A.* Quería saludarte y pasarte de primera mano estas opciones que tenemos listas para despacharte en tu sede:`;
         toneClosing = `{¿Qué insumos estás necesitando reponer en tu sede para apoyarte hoy mismo? Recuerda que si buscas algo que no veas en lista te lo conseguimos de inmediato.|¿Te preparo la cotización formal en bolívares a tasa BCV?}`;
       } else if (commercialTone === 'institucional_formal') {
@@ -2008,13 +2034,13 @@ DIRECTRICES ESTRICTAS PARA EL CUERPO DEL CORREO (LONGITUD: 130 A 180 PALABRAS):
    - "Propuesta de abastecimiento operativo y homologación para ${companyName} | JJ Paper"
    - "Suministro directo y disponibilidad de consumibles para ${companyName}"
    ${promoProductOrCombo ? '- "📦 Oferta Especial en ' + (promoProductOrCombo.name || 'Papelería') + ' para ' + companyName + ' | JJ Paper"' : ''}
-2. Saludo formal:
-   - Con contacto: "Estimado(a) ${contactName}${contactRole ? `, ${contactRole}` : ''} en ${companyName}:"
-   - Sin contacto: "Estimada Gerencia de Compras y Procura en ${companyName}:"
+2. Saludo formal impecable:
+   ${cleanContact ? `- Con contacto real verificado: "Estimado(a) ${cleanContact} (${companyName}):"` : `- Saludo institucional: "Estimado equipo de ${companyName}:"`}
+   - ¡PROHIBIDO TOTALMENTE escribir frases como "Hola Correo directo de Compras" o "Hola Administración General"! Si no hay un nombre de persona física verificado, saluda exclusivamente a la empresa ("Estimado equipo de ${companyName}:").
 3. Reconocimiento operativo (1-2 oraciones demostrando entender la exigencia diaria de sus sedes en ${city || 'Caracas'}).
 4. Viñetas de 3 insumos seleccionados (especificación + beneficio).
 5. 4 Pilares de JJ Paper:
-   - "Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata."
+   ${officialPdfIncluded ? '- "Le adjuntamos a este correo nuestra lista de precios oficial con más de 900 artículos disponibles para entrega inmediata."' : '- "Consulte nuestro catálogo digital interactivo en línea sin registro ni claves con fotos reales y disponibilidad de más de 2.000 artículos: {{link}}"'}
    - "Cotizaciones inmediatas en segundos adaptadas a su presupuesto."
    - "Servicio de Delivery gratuito en Caracas directamente en su sede o centro de distribución."
    - "Facturación fiscal formal con RIF (J-29537545-0) en bolívares a tasa oficial BCV del día."
@@ -2466,7 +2492,9 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
     const activeHookLine = hookHighlightMap[valueHook] || hookHighlightMap.importador_directo;
 
     const isEmail = channel === 'email';
-    const greetTarget = contactPerson ? `${contactPerson} (${custName})` : (contactRole ? `${contactRole} de ${custName}` : `equipo de ${custName}`);
+    const cleanPerson = sanitizeB2BContactName(contactPerson, custName);
+    const formalGreeting = cleanPerson ? `Estimado(a) ${cleanPerson} (${custName}):` : `Estimado equipo de ${custName}:`;
+    const waGreeting = cleanPerson ? `{Hola|Buen día} ${cleanPerson} 👋 (${custName}),` : `Estimado equipo de *${custName}* 👋,`;
 
     // Construcción de Asunto y Cuerpo según el Arquetipo de Tono / Formato y Variación #v
     let subject = '';
@@ -2480,41 +2508,41 @@ Realiza el análisis y redacta el correo formal y el WhatsApp en JSON estricto:`
           `📦 Lote Preferencial de Suministros (Tasa BCV) para ${custName} — JJ Paper`
         ];
         subject = subs[v % subs.length];
-        body = `{Hola|Buen día} ${greetTarget},\n\nLe saluda *${sName}* de *JJ Paper C.A.* Hoy habilitamos en nuestro almacén de Caracas condiciones especiales por volumen pensadas para la rotación operativa de ${custName}:\n\n*📦 LOTE MAYORISTA DISPONIBLE (BCV ${rate.toFixed(2)} Bs/USD):*\n${bulletPoints}\n\n*VENTAJA CLAVE PARA SU COMPRA DE ESTA SEMANA:*\n• ${activeHookLine}\n• 🧾 Facturación fiscal formal SENIAT (RIF J-29537545-0).\n• 🚚 Transporte propio gratuito en ${city}.\n${officialPdfIncluded ? '• 📄 Adjuntamos nuestra Lista Oficial en PDF con +900 ítems.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n¿Cuántas cajas o unidades le bloqueamos en almacén para programar su despacho mañana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
+        body = `${formalGreeting}\n\nLe saluda *${sName}* de *JJ Paper C.A.* Hoy habilitamos en nuestro almacén de Caracas condiciones especiales por volumen pensadas para la rotación operativa de ${custName}:\n\n*📦 LOTE MAYORISTA DISPONIBLE (BCV ${rate.toFixed(2)} Bs/USD):*\n${bulletPoints}\n\n*VENTAJA CLAVE PARA SU COMPRA DE ESTA SEMANA:*\n• ${activeHookLine}\n• 🧾 Facturación fiscal formal SENIAT (RIF J-29537545-0).\n• 🚚 Transporte propio gratuito en ${city}.\n${officialPdfIncluded ? '• 📄 Adjuntamos nuestra Lista Oficial en PDF con +900 ítems.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n¿Cuántas cajas o unidades le bloqueamos en almacén para programar su despacho mañana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
       } else if (archetype === 'cercano_consultivo') {
         const subs = [
           `🤝 Apoyo en abastecimiento y procura de suministros para ${custName}`,
-          `Hola ${contactPerson || custName} · Disponibilidad de papelería e insumos esta semana`,
+          `Disponibilidad de papelería e insumos esta semana — ${custName}`,
           `Suministro ágil y procura a medida para ${custName} — JJ Paper`
         ];
         subject = subs[v % subs.length];
-        body = `{Hola|Qué tal|Buen día} ${greetTarget},\n\nEspero que todo marche excelente en sus operaciones en ${city}. Le escribe *${sName}* de *JJ Paper C.A.*\n\n${isAlreadyContacted ? 'Quería saludarles nuevamente y consultarles cómo están de inventario para esta quincena.' : 'Quería ponerme a su entera disposición como su asesor directo para simplificar las compras de papelería y consumibles de su empresa.'} Actualmente contamos con entrega inmediata en:\n\n${bulletPoints}\n\n${activeHookLine}\n\nAdemás, si necesitan algún artículo específico que no aparezca en el listado, solo indíquenoslo y nuestro equipo se encarga de conseguirlo y cotizarlo de inmediato.\n\n👉 Catálogo digital completo: {{link}}\n\n¿Tienen algún requerimiento pendiente esta semana en el que les pueda apoyar con un presupuesto rápido?\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A. · ${sPhone}`;
+        body = `${formalGreeting}\n\nEspero que todo marche excelente en sus operaciones en ${city}. Le escribe *${sName}* de *JJ Paper C.A.*\n\n${isAlreadyContacted ? 'Quería saludarles nuevamente y consultarles cómo están de inventario para esta quincena.' : 'Quería ponerme a su entera disposición como su asesor directo para simplificar las compras de papelería y consumibles de su empresa.'} Actualmente contamos con entrega inmediata en:\n\n${bulletPoints}\n\n${activeHookLine}\n\nAdemás, si necesitan algún artículo específico que no aparezca en el listado, solo indíquenoslo y nuestro equipo se encarga de conseguirlo y cotizarlo de inmediato.\n\n👉 Catálogo digital completo: {{link}}\n\n¿Tienen algún requerimiento pendiente esta semana en el que les pueda apoyar con un presupuesto rápido?\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A. · ${sPhone}`;
       } else if (archetype === 'institucional_formal') {
         subject = `Propuesta Institucional de Suministro y Homologación para ${custName} | JJ Paper C.A.`;
         body = `Estimada Gerencia de Compras y Procura en ${custName}:\nPresente.-\n\nEn nombre de *JJ Paper C.A.* (RIF J-29537545-0), empresa importadora y distribuidora mayorista en Caracas, sometemos a su consideración nuestra propuesta formal de abastecimiento operativo para sus sedes en ${city}:\n\n${bulletPoints}\n\nGARANTÍAS CORPORATIVAS:\n- ${activeHookLine.replace(/\*/g, '')}\n- Facturación fiscal legal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Despacho directo sin cargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '- Lista de precios maestra adjunta en formato PDF (+900 renglones).\n' : ''}\nCatálogo digital corporativo: {{link}}\n\nQuedamos a su disposición para emitir la cotización proforma correspondiente a su requerimiento actual.\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
       } else if (archetype === 'directo_ejecutivo') {
         subject = `⚡ Resumen Ejecutivo de Precios y Stock para ${custName} — JJ Paper`;
-        body = `Buen día ${greetTarget},\n\nLe comparto de forma ejecutiva nuestra disponibilidad inmediata en Caracas (Tasa Oficial BCV: ${rate.toFixed(2)} Bs/USD) adaptada a las operaciones de ${custName}:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Incluye Factura Fiscal SENIAT y Delivery Gratis en Caracas.\n🔗 Catálogo completo: {{link}}\n\n¿Le emito cotización formal por alguno de estos renglones el día de hoy?\n\nSaludos cordiales,\n*${sName}* | JJ Paper C.A. (${sPhone})`;
+        body = `${formalGreeting}\n\nLe comparto de forma ejecutiva nuestra disponibilidad inmediata en Caracas (Tasa Oficial BCV: ${rate.toFixed(2)} Bs/USD) adaptada a las operaciones de ${custName}:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Incluye Factura Fiscal SENIAT y Delivery Gratis en Caracas.\n🔗 Catálogo completo: {{link}}\n\n¿Le emito cotización formal por alguno de estos renglones el día de hoy?\n\nSaludos cordiales,\n*${sName}* | JJ Paper C.A. (${sPhone})`;
       } else {
         const subs = [
           `📋 Propuesta de Optimización y Abastecimiento para ${custName} — JJ Paper C.A.`,
           `💼 Alianza de Suministro Directo (Tasa BCV) para ${custName} — JJ Paper`
         ];
         subject = subs[v % subs.length];
-        body = `{Estimado(a)|Apreciado(a)} ${greetTarget},\n\nReciba un cordial saludo de *${sName}* en *JJ Paper C.A.* Conociendo la dinámica del sector ${sector} en ${city}, hemos estructurado una propuesta de suministro directo orientada a optimizar su presupuesto operativo:\n\n*📦 INSUMOS CLAVE EN DISPONIBILIDAD INMEDIATA:*\n${bulletPoints}\n\n*PILARES DE NUESTRA ALIANZA COMERCIAL:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal BCV:* Cero diferencial cambiario (${rate.toFixed(2)} Bs/USD).\n• 🚚 *Logística Propia:* Entrega puntual sin costo en su sede.\n${officialPdfIncluded ? '• 📄 *Catálogo PDF Adjunto:* Más de 900 artículos en stock real.\n' : ''}\n👉 Catálogo en línea: {{link}}\n\n¿Desea que le preparemos una cotización comparativa para su requerimiento de esta semana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
+        body = `${formalGreeting}\n\nReciba un cordial saludo de *${sName}* en *JJ Paper C.A.* Conociendo la dinámica del sector ${sector} en ${city}, hemos estructurado una propuesta de suministro directo orientada a optimizar su presupuesto operativo:\n\n*📦 INSUMOS CLAVE EN DISPONIBILIDAD INMEDIATA:*\n${bulletPoints}\n\n*PILARES DE NUESTRA ALIANZA COMERCIAL:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal BCV:* Cero diferencial cambiario (${rate.toFixed(2)} Bs/USD).\n• 🚚 *Logística Propia:* Entrega puntual sin costo en su sede.\n${officialPdfIncluded ? '• 📄 *Catálogo PDF Adjunto:* Más de 900 artículos en stock real.\n' : ''}\n👉 Catálogo en línea: {{link}}\n\n¿Desea que le preparemos una cotización comparativa para su requerimiento de esta semana?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A. · ${sPhone}`;
       }
     } else {
       // CANAL WHATSAPP CON 5 FORMATOS VISUALES DISTINTOS SEGÚN EL TONO Y CLIC
       if (archetype === 'oportunidad_mayorista') {
-        body = `*🔥 CONDICIÓN MAYORISTA DIRECTA PARA ${custName.toUpperCase()} · JJ PAPER*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Qué tal} ${contactPerson || `equipo de *${custName}*`} 👋, le saluda *${sName}* de *JJ Paper C.A.*\n\nHoy activamos condiciones preferenciales por volumen en nuestro almacén de Caracas para insumos de alta rotación en su sector:\n\n${bulletPoints}\n\n*🚀 BENEFICIO CLAVE:*\n• ${activeHookLine}\n• 🧾 Factura fiscal SENIAT a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 Delivery corporativo gratis directo a su sede en ${city}.\n\n👉 Catálogo digital: {{link}}\n\n💬 *¿Cuántas unidades o cajas le reservamos en sistema para despacho prioritario?*`;
+        body = `*🔥 CONDICIÓN MAYORISTA DIRECTA PARA ${custName.toUpperCase()} · JJ PAPER*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n${waGreeting} le saluda *${sName}* de *JJ Paper C.A.*\n\nHoy activamos condiciones preferenciales por volumen en nuestro almacén de Caracas para insumos de alta rotación en su sector:\n\n${bulletPoints}\n\n*🚀 BENEFICIO CLAVE:*\n• ${activeHookLine}\n• 🧾 Factura fiscal SENIAT a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 Delivery corporativo gratis directo a su sede en ${city}.\n\n👉 Catálogo digital: {{link}}\n\n💬 *¿Cuántas unidades o cajas le reservamos en sistema para despacho prioritario?*`;
       } else if (archetype === 'cercano_consultivo') {
-        body = `{Hola|Buen día|Un gusto saludarle} ${contactPerson || `amigos de *${custName}*`} 👋, ¿cómo están?\n\nLe escribe *${sName}* de *JJ Paper C.A.* ${isAlreadyContacted ? 'Paso por aquí brevemente en seguimiento a nuestro contacto previo para saber cómo se encuentran de stock esta semana.' : `Quería ponerme a la orden para apoyar las operaciones de *${custName}* en ${city} con un servicio rápido y de confianza.`}\n\nActualmente tenemos excelente disponibilidad en:\n\n${bulletPoints}\n\n💡 ${activeHookLine}\n\nTodo con su factura legal a tasa BCV (${rate.toFixed(2)} Bs) y entrega sin costo en su puerta 🚚.\n\n👉 Catálogo completo aquí: {{link}}\n\n¿Qué artículos necesitan reponer esta semana para armarles el presupuesto al instante?\n\nUn abrazo cordial,\n*${sName}* | JJ Paper (${sPhone})`;
+        body = `${waGreeting} ¿cómo están?\n\nLe escribe *${sName}* de *JJ Paper C.A.* ${isAlreadyContacted ? 'Paso por aquí brevemente en seguimiento a nuestro contacto previo para saber cómo se encuentran de stock esta semana.' : `Quería ponerme a la orden para apoyar las operaciones de *${custName}* en ${city} con un servicio rápido y de confianza.`}\n\nActualmente tenemos excelente disponibilidad en:\n\n${bulletPoints}\n\n💡 ${activeHookLine}\n\nTodo con su factura legal a tasa BCV (${rate.toFixed(2)} Bs) y entrega sin costo en su puerta 🚚.\n\n👉 Catálogo completo aquí: {{link}}\n\n¿Qué artículos necesitan reponer esta semana para armarles el presupuesto al instante?\n\nUn abrazo cordial,\n*${sName}* | JJ Paper (${sPhone})`;
       } else if (archetype === 'institucional_formal') {
-        body = `*PROPUESTA DE SUMINISTRO CORPORATIVO · JJ PAPER C.A. (RIF J-29537545-0)*\n────────────────────────────────────\nEstimada Gerencia de Compras de *${custName}*${contactPerson ? ` (Atención: ${contactPerson})` : ''}, reciba un cordial saludo.\n\nSe dirige a usted *${sName}*, Ejecutivo Comercial de *JJ Paper C.A.* Ponemos a disposición de sus operaciones en ${city} nuestra línea de abastecimiento mayorista directo:\n\n${bulletPoints}\n\n*GARANTÍAS OPERATIVAS:*\n• ${activeHookLine}\n• Facturación fiscal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo sin recargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '• Lista de Precios Oficial adjunta en PDF (+900 artículos).\n' : ''}\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de *${custName}* para revisión de su departamento?\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A. · ${sPhone}`;
+        body = `*PROPUESTA DE SUMINISTRO CORPORATIVO · JJ PAPER C.A. (RIF J-29537545-0)*\n────────────────────────────────────\nEstimada Gerencia de Compras de *${custName}*${cleanPerson ? ` (Atención: ${cleanPerson})` : ''}, reciba un cordial saludo.\n\nSe dirige a usted *${sName}*, Ejecutivo Comercial de *JJ Paper C.A.* Ponemos a disposición de sus operaciones en ${city} nuestra línea de abastecimiento mayorista directo:\n\n${bulletPoints}\n\n*GARANTÍAS OPERATIVAS:*\n• ${activeHookLine}\n• Facturación fiscal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• Despacho directo sin recargo en el Área Metropolitana de Caracas.\n${officialPdfIncluded ? '• Lista de Precios Oficial adjunta en PDF (+900 artículos).\n' : ''}\n🔗 Catálogo Corporativo: {{link}}\n\n¿Desea que emitamos la cotización formal a nombre de *${custName}* para revisión de su departamento?\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A. · ${sPhone}`;
       } else if (archetype === 'directo_ejecutivo') {
-        body = `{Buen día|Hola} ${contactPerson || `equipo de *${custName}*`} 👋 · *Resumen Ejecutivo JJ Paper*\n\nLe escribe *${sName}*. Comparto directo al punto nuestra disponibilidad mayorista en Caracas (BCV: ${rate.toFixed(2)} Bs) para *${custName}*:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Factura fiscal SENIAT + Delivery gratis en ${city}.\n🔗 Catálogo: {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems hoy?* — *${sName}* (${sPhone})`;
+        body = `${waGreeting} · *Resumen Ejecutivo JJ Paper*\n\nLe escribe *${sName}*. Comparto directo al punto nuestra disponibilidad mayorista en Caracas (BCV: ${rate.toFixed(2)} Bs) para *${custName}*:\n\n${bulletPoints}\n\n✅ ${activeHookLine}\n✅ Factura fiscal SENIAT + Delivery gratis en ${city}.\n🔗 Catálogo: {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems hoy?* — *${sName}* (${sPhone})`;
       } else {
-        body = `*🏢 ALIANZA DE ABASTECIMIENTO OPERATIVO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Buen día|Un gusto saludarle} ${contactPerson || `estimados amigos de *${custName}*`} 👋\n\nLe saluda *${sName}* de *JJ Paper C.A.*, distribuidor mayorista directo en Caracas. Pensando en la exigencia diaria de *${custName}* en el sector ${sector}, ponemos a su alcance stock inmediato en:\n\n${bulletPoints}\n\n*💎 POR QUÉ OPERAR CON JJ PAPER:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal (J-29537545-0)* a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Delivery directo y gratuito* en ${city}.\n${officialPdfIncluded ? '• 📄 *PDF Oficial Adjunto* con más de 900 artículos.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n{¿Desea que le preparemos una cotización formal a medida?|¿Qué insumos requieren reponer esta semana en su empresa?}\n\nAtentamente,\n*${sName}* | JJ Paper C.A. · ${sPhone}`;
+        body = `*🏢 ALIANZA DE ABASTECIMIENTO OPERATIVO · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n${waGreeting}\n\nLe saluda *${sName}* de *JJ Paper C.A.*, distribuidor mayorista directo en Caracas. Pensando en la exigencia diaria de *${custName}* en el sector ${sector}, ponemos a su alcance stock inmediato en:\n\n${bulletPoints}\n\n*💎 POR QUÉ OPERAR CON JJ PAPER:*\n• ${activeHookLine}\n• 🧾 *Facturación Fiscal (J-29537545-0)* a Tasa BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Delivery directo y gratuito* en ${city}.\n${officialPdfIncluded ? '• 📄 *PDF Oficial Adjunto* con más de 900 artículos.\n' : ''}\n👉 Catálogo interactivo: {{link}}\n\n{¿Desea que le preparemos una cotización formal a medida?|¿Qué insumos requieren reponer esta semana en su empresa?}\n\nAtentamente,\n*${sName}* | JJ Paper C.A. · ${sPhone}`;
       }
     }
 
@@ -4185,6 +4213,7 @@ ${rawText}
     generateCampaignSpintax,
     draftCampaignMessage,
     draftEmail,
+    sanitizeB2BContactName,
     analyzeAndDraftProspectB2B,
     analyzeCustomerAndDraftMessage,
     analyzeCustomersBatch,

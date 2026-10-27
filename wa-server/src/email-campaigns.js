@@ -276,7 +276,27 @@ async function step(camp, dailyLimit) {
       const bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';
       const body = renderTemplate(bodyTemplate, realVars);
 
-      const imgAtt = (camp.attachments || []).find(a => 
+      // Limpieza de saludos robóticos generados por scraping de bases de datos
+      let cleanBody = body;
+      const compName = realVars.empresa || t.name || '';
+      if (cleanBody && /Hola\s+(?:Correo\s+directo|Administraci[oó]n\s+General|Atenci[oó]n\s+al\s+Cliente|Departamento|Contacto|Ventas|Compras)/i.test(cleanBody)) {
+        cleanBody = cleanBody.replace(
+          /^Hola\s+(?:Correo\s+directo|Administraci[oó]n\s+General|Atenci[oó]n\s+al\s+Cliente|Departamento|Contacto|Ventas|Compras)[^,\n]*[,\s]*(?:👋)?/im,
+          `Estimado equipo de ${compName}:`
+        );
+      }
+
+      // Eliminar firma de texto redundante del cuerpo ya que renderCorporateEmailHtml
+      // provee la firma oficial corporativa con logo, RIF, teléfono y footer legal
+      cleanBody = cleanBody.replace(/(?:Atentamente|Cordialmente|Saludos cordiales|Un cordial saludo)[\s\S]*?(?:Caracas|Venezuela|\d{7,}|JJ Paper[\s\S]*?$)/i, '').trim();
+
+      // Filtrar el viejo PDF tabular de 50 páginas si está presente para no saturar bandejas
+      const activeAttachments = (camp.attachments || []).filter(a => {
+        const name = String(a?.name || a?.filename || a?.path || '').toLowerCase();
+        return !name.includes('catalogo_y_lista_de_precios_jj_paper');
+      });
+
+      const imgAtt = (activeAttachments || []).find(a => 
         (a.mime && a.mime.startsWith('image/')) || 
         (a.contentType && a.contentType.startsWith('image/')) || 
         (a.path && a.path.includes('/campaigns/'))
@@ -290,7 +310,7 @@ async function step(camp, dailyLimit) {
       // Siempre renderizar con la huella corporativa completa: Logo oficial, RIF J-29537545-0, diseño de tabla y firma formal
       let html = renderCorporateEmailHtml({
         subject,
-        body,
+        body: cleanBody,
         toAddr,
         sellerName: sName,
         sellerPhone: sPhone,
@@ -298,7 +318,7 @@ async function step(camp, dailyLimit) {
       });
 
       const { id: msgId, from } = await sendEmailNow(camp.owner_id, {
-        to_addr: toAddr, subject, body, html, attachments: camp.attachments || []
+        to_addr: toAddr, subject, body, html, attachments: activeAttachments
       });
 
       // Historial en jjp_emails (aparece en "Enviados"). 
@@ -328,12 +348,14 @@ async function step(camp, dailyLimit) {
       if (t.customer_id) await dbCore.from('jjp_customers').update({ last_email_at: new Date().toISOString() }).eq('id', t.customer_id);
       const prospectId = t.vars?.prospect_id || (!t.customer_id && t.vars?.b2b_id) || null;
       if (prospectId) {
-        await dbCore.from('jjp_prospects').update({
-          contacted: true,
-          status: 'contactado_email',
-          last_contact_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }).eq('id', prospectId).catch(() => {});
+        try {
+          await dbCore.from('jjp_prospects').update({
+            contacted: true,
+            status: 'contactado_email',
+            last_contact_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }).eq('id', prospectId);
+        } catch (_) {}
       }
       await syncCounts(camp.id);
 

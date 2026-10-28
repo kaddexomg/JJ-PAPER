@@ -419,12 +419,37 @@ function renderProds() {
 
   if (count) count.textContent = `${total} producto${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
 
-  if (!page.length) {
-    grid.innerHTML = `<div class="no-res rv vi">
-      <div class="no-res-ico">🔍</div>
-      <p>No se encontraron productos${currentSearch ? ` para "<b>${escapeHTML(currentSearch)}</b>"` : ''}</p>
-      <button class="btn-p sm" style="margin-top:14px" onclick="resetFilters()">Limpiar filtros</button>
-    </div>`;
+    if (!page.length) {
+    const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
+    const term = (currentSearch || '').trim();
+    const waText = term
+      ? `Hola JJ Paper, estuve buscando "${term}" en su catálogo web y me gustaría cotizarlo directamente con ustedes en la cantidad que requiero.`
+      : `Hola JJ Paper, me gustaría solicitar una cotización especial para varios insumos al mayor.`;
+    const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(waText)}`;
+
+    grid.innerHTML = `
+      <div class="cat-procure-card rv vi">
+        <div class="cat-procure-badge">🏢 Procura Especial JJ Paper</div>
+        <h3 class="cat-procure-title">
+          ${term ? `¿No encuentras <em>"${escapeHTML(term)}"</em> en este momento?` : `No encontramos productos con estos filtros`}
+        </h3>
+        <p class="cat-procure-desc">
+          <strong>¡Tranquilo! En JJ Paper te lo conseguimos directamente.</strong><br>
+          Somos importadores y distribuidores directos en Caracas. Si requieres algún insumo, marca específica, medida o maquinaria que no visualices publicada, <strong>nuestro equipo de Procura Especial te lo ubica en tiempo récord y en la cantidad que necesites</strong>.
+        </p>
+        <div class="cat-procure-pricing-notice">
+          💡 <strong>Mejor oferta comercial garantizada:</strong> Todos nuestros precios mayoristas pueden ser mejorados para presentarte la mejor oferta comercial según el volumen de tu pedido. Facturación legal SENIAT liquidada a Tasa Oficial BCV.
+        </div>
+        <div class="cat-procure-actions">
+          <a href="${waUrl}" target="_blank" class="btn-wa-procure">
+            💬 ${term ? `Cotizar "${escapeHTML(term)}" por WhatsApp` : `Cotizar requerimiento por WhatsApp`} ↗
+          </a>
+          <button type="button" class="btn-reset-filters" onclick="resetFilters()">
+            🔄 Ver catálogo completo (+2.400 artículos)
+          </button>
+        </div>
+      </div>
+    `;
     document.getElementById('pagination').innerHTML = '';
     return;
   }
@@ -1505,4 +1530,20 @@ function handleScannedQrResult(rawText) {
       }
     }
   }, 120);
+}
+
+
+/* ---- Funciones Rápidas de Navegación & Procura ---- */
+function quickSearch(term) {
+  const s = document.getElementById('srch');
+  if (s) s.value = term;
+  currentSearch = term;
+  currentPage = 1;
+  renderProds();
+  document.getElementById('cat-top')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+function shareCatalogToWhatsApp() {
+  const text = 'Hola, te comparto el Catálogo Mayorista oficial de JJ Paper C.A. (+2.400 artículos de papelería, suministros y embalaje a Tasa Oficial BCV): https://jjpaper.pages.dev/catalogo';
+  window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
 }

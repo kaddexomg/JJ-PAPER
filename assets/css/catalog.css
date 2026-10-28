@@ -1139,3 +1139,208 @@
 .pm-sxs-card:active {
   transform: scale(0.97);
 }
+
+/* ======================================================================
+   JJ PAPER — MÓDULO DE PROCURA ESPECIAL & NAVEGACIÓN MEJORADA (2026)
+   ====================================================================== */
+
+/* Tarjeta Ejecutiva cuando no hay resultados en la búsqueda */
+.cat-procure-card {
+  grid-column: 1 / -1;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-top: 4px solid #16604A;
+  border-radius: 16px;
+  padding: 38px 24px;
+  text-align: center;
+  max-width: 680px;
+  margin: 20px auto 40px auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+}
+.cat-procure-badge {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #16604A;
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.cat-procure-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 14px 0;
+  line-height: 1.3;
+}
+.cat-procure-title em {
+  color: #16604A;
+  font-style: normal;
+  background: #eef8f3;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.cat-procure-desc {
+  font-size: 14.5px;
+  color: #334155;
+  line-height: 1.65;
+  margin: 0 auto 20px auto;
+  max-width: 580px;
+}
+.cat-procure-pricing-notice {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3.5px solid #C9A24B;
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 13.5px;
+  color: #1e293b;
+  line-height: 1.55;
+  text-align: left;
+  margin-bottom: 24px;
+}
+.cat-procure-pricing-notice strong {
+  color: #0f172a;
+}
+.cat-procure-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.btn-wa-procure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: #ffffff !important;
+  padding: 13px 26px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  transition: all 0.2s ease;
+}
+.btn-wa-procure:hover {
+  background: linear-gradient(135deg, #1ea952 0%, #0e7064 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+  color: #ffffff !important;
+}
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1.5px solid #cbd5e1;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-reset-filters:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Cintillo Permanente de Procura Especial JJ Paper */
+.cat-procura-banner {
+  background: linear-gradient(90deg, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%);
+  border: 1.5px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(22, 96, 74, 0.05);
+}
+.cpb-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cpb-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.cpb-text {
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.45;
+}
+.cpb-text strong {
+  color: #16604A;
+  font-weight: 800;
+  display: block;
+}
+.cpb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #16604A;
+  color: #ffffff !important;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(22, 96, 74, 0.2);
+  transition: all 0.2s ease;
+}
+.cpb-btn:hover {
+  background: #0f4b39;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(22, 96, 74, 0.3);
+  color: #ffffff !important;
+}
+
+/* Quick Search Pills (Búsquedas Rápidas) */
+.cat-quick-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px 0;
+}
+.cat-quick-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cat-quick-chip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cat-quick-chip:hover {
+  background: #f0fdf4;
+  border-color: #16604A;
+  color: #16604A;
+  transform: translateY(-1px);
+}

@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="assets/css/variables.css">
 <link rel="stylesheet" href="assets/css/components.css">
 <link rel="stylesheet" href="assets/css/nav.css">
-<link rel="stylesheet" href="assets/css/catalog.css?v=20261026_macro_v14">
+<link rel="stylesheet" href="assets/css/catalog.css?v=20261028_procura_v1">
 <link rel="stylesheet" href="assets/css/chatbot.css?v=20260710b">
 <link rel="stylesheet" href="assets/css/responsive.css?v=20260717">
 <link rel="stylesheet" href="assets/css/glass.css?v=20260717">
@@ -55,10 +55,13 @@
     <div class="page-hero-in">
       <img src="assets/img/logo.svg" alt="JJ Paper" class="hero-brand-logo">
       <h1>Nuestro <em>Catálogo</em></h1>
-      <p>58+ productos de papelería, suministros y limpieza al mejor precio mayorista.</p>
-      <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
-        <a href="/catalogo_impreso" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#C9A24B;color:#fff;padding:9px 20px;border-radius:24px;font-size:13px;font-weight:800;text-decoration:none;box-shadow:0 4px 18px rgba(201,162,75,0.4);transition:transform .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-          📲 Abrir Catálogo con QR para Venta en Calle / Imprimir →
+      <p>+2.400 artículos mayoristas de papelería, suministros, archivo, oficina y embalaje a Tasa Oficial BCV.</p>
+      <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;align-items:center;">
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#16604A;border:1.5px solid #bbf7d0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;">
+          ✨ Precios mejorables por volumen · Facturación SENIAT · Despacho en 24h
+        </span>
+        <a href="/catalogo_impreso" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#C9A24B;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 4px 14px rgba(201,162,75,0.3);transition:transform .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+          📲 Catálogo Impreso con QR →
         </a>
       </div>
     </div>
@@ -89,6 +92,33 @@
           🎙️ Dictar por Voz
         </button>
       </div>
+    </div>
+
+    
+    <!-- Banner de Procura Especial JJ Paper -->
+    <div class="cat-procura-banner" id="catProcuraBanner">
+      <div class="cpb-left">
+        <span class="cpb-icon">🏢</span>
+        <div class="cpb-text">
+          <strong>¿Buscas un producto, medida o maquinaria específica fuera de catálogo?</strong>
+          <span>Contamos con <em>Procura Especial</em>: conseguimos cualquier insumo al mayor y <strong>mejoramos precios según el volumen de tu compra</strong> a Tasa Oficial BCV.</span>
+        </div>
+      </div>
+      <a href="https://wa.me/584124676073?text=Hola%20JJ%20Paper%2C%20quisiera%20solicitar%20una%20cotizaci%C3%B3n%20especial%20por%20volumen." target="_blank" class="cpb-btn">
+        💬 Cotizar por WhatsApp ↗
+      </a>
+    </div>
+
+    <!-- Quick Search Chips (Insumos de Mayor Demanda) -->
+    <div class="cat-quick-chips">
+      <span class="cat-quick-label">⚡ Búsquedas rápidas:</span>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Resma')">📄 Resmas de Papel</button>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Carpeta')">📁 Carpetas & Archivo</button>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Boligrafo')">🖊️ Bolígrafos</button>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Rollo')">🧾 Rollos Térmicos POS</button>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Cinta')">📦 Cintas de Embalaje</button>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Marcador')">🖍️ Marcadores</button>
+      <button type="button" class="cat-quick-chip" onclick="quickSearch('Tijera')">✂️ Tijeras & Cutters</button>
     </div>
 
     <!-- Toolbar -->
@@ -167,10 +197,10 @@
 
 <script src="assets/vendor/supabase-2.58.0.js"></script>
 <script src="assets/vendor/jsqr.min.js"></script>
-<script src="assets/js/config.js?v=20261026_qr_live_v10"></script>
+<script src="assets/js/config.js?v=20261028_procura_v1"></script>
 <script src="assets/js/toast.js?v=20261026_qr_live_v10"></script>
 <script src="assets/js/nav.js?v=20261026_qr_live_v10"></script>
-<script src="assets/js/catalog.js?v=20261026_macro_v14"></script>
+<script src="assets/js/catalog.js?v=20261028_procura_v1"></script>
 <script src="assets/js/doc-engine.js?v=20261026_qr_live_v10"></script>
 <script src="assets/js/export.js?v=20260726"></script>
 <script src="assets/js/quote-drawer.js?v=20261026_qr_live_v10"></script>

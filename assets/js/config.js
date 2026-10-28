@@ -808,8 +808,8 @@ if (typeof window !== 'undefined') {
 
 // App config
 const APP = {
-  WA_NUM:        '584121234567',
-  WA_MSG:        'Hola JJ Paper, quisiera informacion sobre sus productos.',
+  WA_NUM:        '584124676073',
+  WA_MSG:        'Hola JJ Paper, quisiera información sobre sus productos mayoristas.',
   SITE_NAME:     'JJ Paper',
   STORAGE_URL:   `${SUPABASE_URL}/storage/v1/object/public/jjp-products/`,
   STORAGE_URL_INV: `${SUPABASE_URL_INV}/storage/v1/object/public/jjp-products/`,

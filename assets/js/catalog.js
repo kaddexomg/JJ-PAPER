@@ -115,6 +115,7 @@ function normalizeProduct(p) {
   p._skus = vs.map(v => v.sku).filter(Boolean).join(' ');
   p._varNames = vs.map(v => v.variant_name).filter(Boolean).join(' ');
   p._hasPhoto = Boolean((p.image_url && p.image_url.trim()) || vs.some(v => v.image_url && v.image_url.trim()));
+  p.segment = classifyProduct(p);
 
   // Auto-generate a short emoji description if missing
   if (!p.description || p.description.trim() === '') {
@@ -288,6 +289,89 @@ function formatCatTitle(str) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+
+// ========================================================
+// Segmentos Comerciales Oficiales JJ Paper 2026
+// ========================================================
+const OFFICIAL_SEGMENTS = [
+  { slug: 'todos',        name: 'Todos los Artículos', emoji: '🔖' },
+  { slug: 'papel_resmas', name: 'Papel & Resmas',      emoji: '📄' },
+  { slug: 'rollos_pos',   name: 'Rollos Térmicos & POS', emoji: '🧾' },
+  { slug: 'archivo',      name: 'Archivo & Carpetas',  emoji: '📁' },
+  { slug: 'escritura',    name: 'Escritura & Notas',   emoji: '🖊️' },
+  { slug: 'embalaje',     name: 'Embalaje & Envíos',   emoji: '📦' },
+  { slug: 'oficina',      name: 'Oficina & Escritorio', emoji: '🖇️' },
+  { slug: 'cuadernos',    name: 'Cuadernos & Libros',  emoji: '📓' },
+  { slug: 'escolar',      name: 'Escolar & Arte',      emoji: '🎨' },
+  { slug: 'higiene',      name: 'Higiene & Limpieza',  emoji: '🧹' }
+];
+
+let currentSegment = 'todos';
+
+function classifyProduct(p) {
+  const n = (p.name || '').toLowerCase();
+
+  // 1. HIGIENE & LIMPIEZA (Aislamiento total de toallas, servilletas y papel higiénico)
+  if (
+    /higienico|higiénico|higuinico|papel caricias|toallin|toallín|servilleta|toalla|rollo de mano|desinfectante|cloro|jabon|jabón|detergente|coleto|esponja|mopa|pala grande|pala limpia|palas|cepillo.*barrer|cepillo.*poceta|bolsa.*desecho|bolsa.*tobita|bolsas negras|bolsas de basura|bolsas con asa|ambientador|glade|brisol|limpiador|tapaboca|guante|vaso.*conico|vaso.*cónico|vasos|pañito|pañitos/i.test(n)
+  ) {
+    return { slug: 'higiene', name: 'Higiene & Limpieza', emoji: '🧹' };
+  }
+
+  // 2. ROLLOS TÉRMICOS & PUNTOS DE VENTA (POS / Fiscal / Sumadora exclusivamente)
+  if (
+    (/termic|pto de venta|punto de venta|maq\/fiscal|fiscal|p\.registradora|p\.sumadora|57x40|80x65|57x35|57mm.*x.*55mm|rollo.*sumadora/i.test(n)) &&
+    !/etiqueta/i.test(n)
+  ) {
+    return { slug: 'rollos_pos', name: 'Rollos Térmicos & POS', emoji: '🧾' };
+  }
+
+  // 3. PAPEL, RESMAS & IMPRESIÓN
+  if (
+    /resma|reprograf|printon|repropaper|chamex|hp paper|report|r\.fotocopia|papel bond|papel r\.bond|r\.bond|chambril|papel continuo|papel fotocopia|papel carta|papel oficio|papel extra|papel de carta|hojas ponchada|papel carbon|papel carbón|cartulina hilo|cartulina opalina|papel glossy|papel sticker|papel fotografia|paplne/i.test(n)
+  ) {
+    return { slug: 'papel_resmas', name: 'Papel & Resmas', emoji: '📄' };
+  }
+
+  // 4. EMBALAJE & ENVÍOS
+  if (
+    /cinta|tirro|embalaje|empaque|teip|tape|morropac|celoven|cellux|dispensador.*cinta|dispensador.*mayka|papel kraf|kraft|plastico burbuja|stretck|strech|fleje|marrillo/i.test(n)
+  ) {
+    return { slug: 'embalaje', name: 'Embalaje & Envíos', emoji: '📦' };
+  }
+
+  // 5. ARCHIVO, CARPETAS & SOBRES
+  if (
+    /carpeta|archivador|cartapacio|archicomodo|sobre manila|sobres|sobre blanco|legajador|funda protectora|fundas prot|carpeta fibra|carpeta marron|carpeta marrón|carpeta colgante|fuelle|separador|indice/i.test(n)
+  ) {
+    return { slug: 'archivo', name: 'Archivo & Carpetas', emoji: '📁' };
+  }
+
+  // 6. ESCRITURA & CORRECCIÓN
+  if (
+    /boligrafo|bolígrafo|lapicero|pluma|esfero|lapiz|lápiz|portamina|mina|marcador|resaltador|plumon|plumón|rotulador|borrador|goma de borrar|doma de borrar|goma borrona|borrona|nata 620|sacapunta|tajador|corrector|tinta|almohadilla|sello|roller|tiza/i.test(n)
+  ) {
+    return { slug: 'escritura', name: 'Escritura & Notas', emoji: '🖊️' };
+  }
+
+  // 7. CUADERNOS, FORMAS & LIBROS COMERCIALES
+  if (
+    /cuaderno|libreta|block|bloc|agenda|anotador|minuta|libro|libros|compro|vale|talonario|recibo|metodo palmer|caligrafia|cuento/i.test(n)
+  ) {
+    return { slug: 'cuadernos', name: 'Cuadernos & Libros', emoji: '📓' };
+  }
+
+  // 8. ESCOLAR & MANUALIDADES
+  if (
+    /creyon|creyón|crayon|color|tempera|témpera|pintura al frio|acuarela|pincel|plastilina|plastidedos|pintadedo|foami|foame|cartulina|lustrillo|papel crepe|papel seda|silicon|silicona|pega|pegamento|goma en barra|cola blanca|compas|compás|geometria|juego de geometria|cartuchera|palos de madera|paleta|fieltro|estambre|diccionario/i.test(n)
+  ) {
+    return { slug: 'escolar', name: 'Escolar & Arte', emoji: '🎨' };
+  }
+
+  // 9. OFICINA, ESCRITORIO & CORTE
+  return { slug: 'oficina', name: 'Oficina & Escritorio', emoji: '🖇️' };
+}
+
 function groupSlugOfProduct(p) {
   const gid = p.jjp_categories?.group_id;
   return gid ? (catGroups.find(g => g.id === gid)?.slug || null) : null;
@@ -447,11 +531,60 @@ function productIcon(p) {
 }
 
 // ---- Render ----
+
+function renderSegments() {
+  const wrap = document.getElementById('catSegments');
+  if (!wrap) return;
+
+  const counts = { todos: allProducts.length };
+  for (const s of OFFICIAL_SEGMENTS) {
+    if (s.slug !== 'todos') counts[s.slug] = 0;
+  }
+  for (const p of allProducts) {
+    if (p.segment && p.segment.slug) {
+      counts[p.segment.slug] = (counts[p.segment.slug] || 0) + 1;
+    }
+  }
+
+  wrap.innerHTML = OFFICIAL_SEGMENTS.map(s => {
+    const on = currentSegment === s.slug;
+    const cnt = counts[s.slug] || 0;
+    return `<button type="button" class="seg-chip${on ? ' on' : ''}" data-segment="${s.slug}" onclick="setSegment('${s.slug}')">
+      <span>${s.emoji}</span>
+      <span>${s.name}</span>
+      <span class="seg-chip-count">${cnt}</span>
+    </button>`;
+  }).join('');
+}
+
+function setSegment(slug) {
+  currentSegment = slug;
+  currentPage = 1;
+  renderSegments();
+  renderProds();
+}
+
+function handleSearchInput(val) {
+  currentSearch = val;
+  const clearBtn = document.getElementById('btnSearchClear');
+  if (clearBtn) clearBtn.style.display = val.trim() ? 'inline-flex' : 'none';
+  currentPage = 1;
+  renderProds();
+}
+
+function clearSearch() {
+  const inp = document.getElementById('srch');
+  if (inp) inp.value = '';
+  handleSearchInput('');
+  if (inp) inp.focus();
+}
+
 function renderProds() {
   const grid  = document.getElementById('prodGrid');
   const count = document.getElementById('catCount');
   if (!grid) return;
 
+  renderSegments();
   const list   = getFiltered();
   const total  = list.length;
   const pages  = Math.ceil(total / APP.PER_PAGE);
@@ -459,6 +592,12 @@ function renderProds() {
   const page   = list.slice(start, start + APP.PER_PAGE);
 
   if (count) count.textContent = `${total} producto${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`;
+  const liveCount = document.getElementById('catLiveCount');
+  if (liveCount) {
+    const segObj = OFFICIAL_SEGMENTS.find(s => s.slug === currentSegment);
+    const segName = segObj && segObj.slug !== 'todos' ? ' en ' + segObj.name : '';
+    liveCount.textContent = `📦 Mostrando ${total} producto${total !== 1 ? 's' : ''}${segName}`;
+  }
 
     if (!page.length) {
     const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
@@ -612,7 +751,7 @@ function productCardHTML(p, asList = false) {
          role="button" tabindex="0" aria-label="Ver detalle de ${name}"
          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProductModal('${p.id}')}">
       ${imgHTML}
-      <span class="pc-cat">${escapeHTML(cat.name || '')}</span>
+      <span class="pc-cat">${p.segment ? p.segment.emoji + ' ' + escapeHTML(p.segment.name) : escapeHTML(cat.name || 'Papelería')}</span>
       ${tagHTML}
       ${soldOut ? `<span class="pc-out">Agotado</span>` : ''}
       <span class="pc-eye" aria-hidden="true">👁 Ver detalle</span>
@@ -626,6 +765,7 @@ function productCardHTML(p, asList = false) {
           <div class="price-usd">${priceFrom}${fmtPrice(p._minPrice)}</div>
           <div class="price-bs">${fmtBs(p._minPrice)}</div>
           <div class="price-unit">/${escapeHTML(p.unit || 'unid')}</div>
+          <div class="price-vol-note">✨ Mejorable por volumen</div>
         </div>
         ${ctrlHTML}
       </div>
@@ -848,8 +988,9 @@ async function initCatalog() {
     if (s) s.value = urlQ;
   }
 
-  renderCatFilters();
-  renderSubFilters();
+  const clearBtn = document.getElementById('btnSearchClear');
+  if (clearBtn) clearBtn.style.display = term ? 'inline-flex' : 'none';
+  renderSegments();
 
   if (urlCat) setCat(urlCat);
   else renderProds();
@@ -1585,6 +1726,7 @@ function handleScannedQrResult(rawText) {
 
 /* ---- Funciones Rápidas de Navegación & Procura ---- */
 function quickSearch(term) {
+  currentSegment = 'todos';
   currentGroup = 'todos';
   currentCat   = 'todos';
   const s = document.getElementById('srch');

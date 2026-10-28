@@ -75,82 +75,92 @@
     <div id="promoBanner" class="cat-promos-wrap" style="display:none;margin-bottom:20px;"></div>
 
 
-    <!-- Banner de Procura Especial JJ Paper -->
-    <div class="cat-procura-banner" id="catProcuraBanner">
-      <div class="cpb-left">
-        <span class="cpb-icon">🏢</span>
-        <div class="cpb-text">
-          <strong>¿Buscas un producto, medida o maquinaria específica fuera de catálogo?</strong>
-          <span>Contamos con <em>Procura Especial</em>: conseguimos cualquier insumo al mayor y <strong>mejoramos precios según el volumen de tu compra</strong> a Tasa Oficial BCV.</span>
+    <!-- 1. Pilares Institucionales de Garantía Comercial -->
+    <div class="cat-institutional-pillars">
+      <div class="cip-card">
+        <div class="cip-icon">🏢</div>
+        <div class="cip-content">
+          <strong>Procura Especial Abierta</strong>
+          <span>¿Buscas un producto, marca o maquinaria fuera de lista? Si no está en catálogo, te lo cotizamos y conseguimos en tiempo récord.</span>
         </div>
       </div>
-      <a href="https://wa.me/584124676073?text=Hola%20JJ%20Paper%2C%20quisiera%20solicitar%20una%20cotizaci%C3%B3n%20especial%20por%20volumen." target="_blank" class="cpb-btn">
-        💬 Cotizar por WhatsApp ↗
-      </a>
-    </div>
-
-    <!-- Quick Search Chips (Insumos de Mayor Demanda) -->
-    <div class="cat-quick-chips">
-      <span class="cat-quick-label">⚡ Búsquedas rápidas:</span>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Resma')">📄 Resmas de Papel</button>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Carpeta')">📁 Carpetas & Archivo</button>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Boligrafo')">🖊️ Bolígrafos</button>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Rollo')">🧾 Rollos Térmicos POS</button>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Cinta')">📦 Cintas de Embalaje</button>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Marcador')">🖍️ Marcadores</button>
-      <button type="button" class="cat-quick-chip" onclick="quickSearch('Tijera')">✂️ Tijeras & Cutters</button>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="cat-tb rv">
-      <div class="srch" role="search">
-        <span class="srch-ico" aria-hidden="true">🔍</span>
-        <label class="sr-only" for="srch">Buscar producto</label>
-        <input type="search" id="srch" placeholder="Buscar por producto, marca, medida, código o dictar..." oninput="filterProds()">
-        <div class="srch-actions">
-          <button type="button" class="srch-tool-btn" id="btnVoiceSearch" onclick="startVoiceSearch()" title="Dictar por voz el producto que buscas">🎙️</button>
+      <div class="cip-card highlight">
+        <div class="cip-icon">💡</div>
+        <div class="cip-content">
+          <strong>Precios Mejorables por Volumen</strong>
+          <span>Precios referenciales para cotización. Envíanos tu requerimiento y mejoramos la oferta comercial según la cantidad de tu pedido.</span>
         </div>
       </div>
-      <label class="sr-only" for="sortSel">Ordenar productos</label>
-      <select class="sort-sel" id="sortSel" onchange="filterProds()" aria-label="Ordenar productos">
-        <option value="">✨ Vista Híbrida (Fotos + Lista)</option>
-        <option value="con_foto">📸 Solo productos con foto</option>
-        <option value="az">Nombre A → Z</option>
-        <option value="za">Nombre Z → A</option>
-        <option value="pasc">Precio: menor → mayor</option>
-        <option value="pdesc">Precio: mayor → menor</option>
-      </select>
-      <div class="cat-view-toggle" role="group" aria-label="Cambiar vista">
-        <button type="button" class="cvt-btn active" data-view="grid" onclick="setCatView('grid')" title="Vista cuadrícula de fotos">⊞ Cuadrícula</button>
-        <button type="button" class="cvt-btn" data-view="list" onclick="setCatView('list')" title="Vista lista compacta">☰ Lista</button>
-      </div>
-
-            <button type="button" class="tb-share-btn" onclick="shareCatalogToWhatsApp()" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(37,211,102,0.25);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
-        <span>📤 Compartir Catálogo</span>
-      </button>
-
-      <div class="dl-wrap">
-        <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
-                onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
-        <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
-                    <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
-          <button role="menuitem" onclick="downloadCatalog('lista')">💵 Lista de precios (PDF)</button>
-          <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
+      <div class="cip-card">
+        <div class="cip-icon">⚖️</div>
+        <div class="cip-content">
+          <strong>Factura SENIAT · Tasa BCV</strong>
+          <span>Despacho inmediato a tu empresa o comercio con facturación legal liquidada estrictamente a Tasa Oficial BCV del día.</span>
         </div>
       </div>
     </div>
 
-    <!-- Filtros nivel 1: familias -->
-    <div class="cat-filters rv" id="catFilters" role="group" aria-label="Familias de productos">
-      <button class="cf on" data-group="todos" onclick="setGroup('todos')">🔖 Todos</button>
+    <!-- 2. Estación Principal de Búsqueda -->
+    <div class="cat-search-station">
+      <div class="cat-search-box">
+        <span class="csb-icon" aria-hidden="true">🔍</span>
+        <input type="search" id="srch" class="csb-input" 
+               placeholder="Buscar por producto, marca o medida (ej: Resma carta, Marcador sharpie, Rollo 57x40, Cinta morropac...)" 
+               oninput="handleSearchInput(this.value)">
+        <button type="button" id="btnSearchClear" class="csb-clear-btn" onclick="clearSearch()" title="Borrar búsqueda" style="display:none;">✕</button>
+        <button type="button" class="csb-voice-btn" id="btnVoiceSearch" onclick="startVoiceSearch()" title="Dictar por voz el producto que buscas">🎙️</button>
+      </div>
+      <div class="cat-search-status">
+        <span id="catLiveCount" class="csb-count">📦 Cargando artículos...</span>
+        <span class="csb-hint">⚡ Búsqueda inteligente en tiempo real por término o segmento</span>
+      </div>
     </div>
 
-    <!-- Filtros nivel 2: categorías de la familia abierta -->
-    <div class="cat-filters sub-filters" id="subFilters" role="group" aria-label="Categorías de la familia" hidden></div>
+    <!-- 3. Barra de Segmentos Oficiales de Catálogo -->
+    <div class="cat-segments-wrapper" role="region" aria-label="Segmentos de Catálogo">
+      <div class="cat-segments-scroll" id="catSegments">
+        <!-- Renderizado dinámicamente con conteos reales en catalog.js -->
+      </div>
+    </div>
 
-    <!-- Count -->
-    <p class="cat-count" id="catCount"></p>
+    <!-- 4. Sub-controles secundarios (Orden, Vistas, Compartir, Descargas) -->
+    <div class="cat-sub-controls">
+      <div class="csc-left">
+        <label class="sr-only" for="sortSel">Ordenar productos</label>
+        <select class="sort-sel" id="sortSel" onchange="filterProds()" aria-label="Ordenar productos">
+          <option value="">✨ Vista Híbrida (Fotos + Lista)</option>
+          <option value="con_foto">📸 Solo productos con foto</option>
+          <option value="az">Nombre A → Z</option>
+          <option value="za">Nombre Z → A</option>
+          <option value="pasc">Precio: menor → mayor</option>
+          <option value="pdesc">Precio: mayor → menor</option>
+        </select>
+        <div class="cat-view-toggle" role="group" aria-label="Cambiar vista">
+          <button type="button" class="cvt-btn active" data-view="grid" onclick="setCatView('grid')" title="Vista cuadrícula">⊞ Cuadrícula</button>
+          <button type="button" class="cvt-btn" data-view="list" onclick="setCatView('list')" title="Vista lista">☰ Lista</button>
+        </div>
+      </div>
+
+      <div class="csc-right">
+        <button type="button" class="tb-share-btn" onclick="shareCatalogToWhatsApp()" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(37,211,102,0.25);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
+          <span>📤 Compartir Catálogo</span>
+        </button>
+
+        <div class="dl-wrap">
+          <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
+                  onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
+          <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
+            <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
+            <button role="menuitem" onclick="downloadCatalog('lista')">💵 Lista de precios (PDF)</button>
+            <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden fallback count for compatibility -->
+    <p class="cat-count" id="catCount" style="display:none;"></p>
 
     <!-- Grid -->
     <div class="prod-grid" id="prodGrid">

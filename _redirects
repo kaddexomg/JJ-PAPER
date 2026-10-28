@@ -17,10 +17,6 @@
 /vendedor/promociones* /vendedor/index.html   302
 /vendedor/resenas*     /vendedor/index.html   302
 
-# Redirecciones públicas heredadas y catálogo canónico
-/catalogo     /catalogo.html       301
-/catalogo/    /catalogo.html       301
-/productos    /catalogo.html       301
-/productos/   /catalogo.html       301
+# Redirecciones públicas heredadas
 /checkout     /catalogo.html       301
 /rastreo      /catalogo.html       301

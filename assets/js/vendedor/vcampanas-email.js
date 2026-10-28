@@ -1280,18 +1280,35 @@ async function launchEmailCampaignFromEditor(config) {
         sellerPhone: SELLER?.phone || '0412-4676073 / 0212-7531777',
         imgUrl: imgSrc
       })
-    : `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.7;max-width:680px;margin:0 auto;padding:28px 32px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.04)">
-        <div style="border-bottom:2px solid #16604A;padding-bottom:18px;margin-bottom:20px;display:flex;align-items:center;gap:16px">
-          <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" height="52" style="height:52px;width:auto;display:block">
+    : `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);overflow:hidden;">
+        <div style="height:5px;background:linear-gradient(90deg, #16604A 0%, #208b6b 50%, #A7D7A0 100%);"></div>
+        <div style="border-bottom:2px solid #16604A;padding:26px 32px 20px 32px;display:flex;align-items:center;gap:16px;">
+          <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" height="56" width="56" style="height:56px;width:56px;display:block;object-fit:contain;">
           <div>
-            <div style="font-size:20px;font-weight:800;color:#0f172a">JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A">C.A.</span></div>
-            <div style="font-size:12.5px;color:#64748b;margin-top:2px">RIF: <strong>J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo</div>
+            <div style="font-size:21px;font-weight:800;color:#0f172a">JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A">C.A.</span></div>
+            <div style="font-size:12.5px;color:#64748b;margin-top:2px">RIF: <strong style="color:#0f172a;">J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo</div>
+            <div style="margin-top:4px;"><span style="display:inline-block;padding:2px 8px;background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:11px;color:#16604A;font-weight:600;">📍 Caracas, Venezuela · Despacho Corporativo en 24h</span></div>
           </div>
         </div>
         ${imgHtml}
-        <div style="font-size:15px;line-height:1.7;color:#1e293b">${htmlBody}</div>
-        <div style="margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;font-size:12.5px;color:#475569">
-          <strong>${escapeHTML(SELLER?.name || 'Keyder Salazar')}</strong> · JJ Paper C.A. · 📞 ${escapeHTML(SELLER?.phone || '0412-4676073 / 0212-7531777')}
+        <div style="padding:28px 32px 20px 32px;font-size:15px;line-height:1.75;color:#1e293b">${htmlBody}</div>
+        <div style="padding:0 32px 24px 32px;">
+          <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #16604A;border-radius:8px;padding:16px 20px;">
+            <div style="font-size:12.5px;font-weight:700;color:#16604A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">🛡️ Respaldo &amp; Garantía Operativa JJ Paper C.A.</div>
+            <div style="font-size:13.5px;color:#334155;line-height:1.6;">✔ <strong>Facturación SENIAT BCV:</strong> Emitida en bolívares calculada a Tasa Oficial BCV del día.</div>
+            <div style="font-size:13.5px;color:#334155;line-height:1.6;margin-top:4px;">✔ <strong>Despacho en 24 Horas:</strong> Entrega directa y ágil en su sede (Caracas y La Guaira).</div>
+            <div style="font-size:13.5px;color:#334155;line-height:1.6;margin-top:4px;">✔ <strong>Procura Especial:</strong> Gestionamos cualquier insumo fuera de lista de inmediato.</div>
+          </div>
+        </div>
+        <div style="padding:0 32px 28px 32px;text-align:center;">
+          <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="display:inline-block;padding:14px 34px;background-color:#16604A;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(22,96,74,0.3);">
+            🌐 Ver Catálogo Digital Completo (+2.400 Productos) ↗
+          </a>
+        </div>
+        <div style="background-color:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;font-size:13px;color:#475569;">
+          <div style="font-size:15.5px;font-weight:700;color:#0f172a;">${escapeHTML(SELLER?.name || 'Keyder Salazar')}</div>
+          <div style="font-size:13px;color:#64748b;margin-top:2px;">Dirección Comercial &amp; Cuentas Corporativas · <strong>JJ Paper C.A.</strong></div>
+          <div style="font-size:13px;color:#16604A;font-weight:600;margin-top:6px;">📱 WhatsApp / Celular: ${escapeHTML(SELLER?.phone || '0412-4676073 / 0212-7531777')}</div>
         </div>
       </div>`;
 

@@ -980,6 +980,13 @@ Escribe una consulta abajo o pulsa "🩺 Diagnóstico Integral" para auditar en 
 <script src="../assets/js/config.js?v=20261022_vps_full"></script>
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
+<script>
+  // 🔒 Solo administradores. Un vendedor es devuelto a su panel.
+  document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth('admin');
+    if (!session) return;
+  });
+</script>
 <script src="../assets/js/gemini-client.js"></script>
 <script src="../assets/js/admin/monitor-client.js?v=20261022_vps_full"></script>
 </body>

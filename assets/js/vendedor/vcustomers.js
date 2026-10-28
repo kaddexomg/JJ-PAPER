@@ -44,14 +44,20 @@ function getActiveSeller() {
   return { id: null, name: 'JJ Paper', role: 'vendedor' };
 }
 
-const CUST_CACHE_KEY  = 'jjp_vcust_cache_v1';
-const CUST_CACHE_TIME = 'jjp_vcust_cache_v1_time';
+function _custCacheKey() {
+  const s = getActiveSeller();
+  return 'jjp_vcust_cache_' + (s?.id || 'anon');
+}
+function _custCacheTimeKey() {
+  const s = getActiveSeller();
+  return 'jjp_vcust_cache_time_' + (s?.id || 'anon');
+}
 const CUST_TTL        = 5 * 60 * 1000; // 5 minutos de vigencia (mantiene bajo egress y actualiza rápido)
 
 function _getCustCache() {
   try {
-    const raw = sessionStorage.getItem(CUST_CACHE_KEY);
-    const time = sessionStorage.getItem(CUST_CACHE_TIME);
+    const raw = sessionStorage.getItem(_custCacheKey());
+    const time = sessionStorage.getItem(_custCacheTimeKey());
     if (!raw || !time) return null;
     if (Date.now() - parseInt(time, 10) > CUST_TTL) return null;
     const parsed = JSON.parse(raw);
@@ -61,8 +67,8 @@ function _getCustCache() {
 
 function _setCustCache(data) {
   try {
-    sessionStorage.setItem(CUST_CACHE_KEY, JSON.stringify(data));
-    sessionStorage.setItem(CUST_CACHE_TIME, String(Date.now()));
+    sessionStorage.setItem(_custCacheKey(), JSON.stringify(data));
+    sessionStorage.setItem(_custCacheTimeKey(), String(Date.now()));
   } catch (e) {
     console.warn('No se pudo guardar la caché completa de clientes en sessionStorage (posible límite de cuota):', e);
     try {
@@ -80,8 +86,8 @@ function _setCustCache(data) {
         email: c.email,
         email_status: c.email_status
       }));
-      sessionStorage.setItem(CUST_CACHE_KEY, JSON.stringify(compact));
-      sessionStorage.setItem(CUST_CACHE_TIME, String(Date.now()));
+      sessionStorage.setItem(_custCacheKey(), JSON.stringify(compact));
+      sessionStorage.setItem(_custCacheTimeKey(), String(Date.now()));
     } catch (_) {}
   }
 }
@@ -90,6 +96,12 @@ async function loadCustomers(force = false) {
   const tbody = document.getElementById('custBody');
   const seller = getActiveSeller();
   const isAdmin = seller?.role === 'admin' || seller?.is_admin;
+  const sellerId = seller?.id || null;
+
+  // Si no es admin, ocultar filtros que darían acceso global en Mis Clientes
+  if (!isAdmin) {
+    document.querySelectorAll('.of-chip[data-f="todos"], .of-chip[data-f="libres"]').forEach(el => el.style.display = 'none');
+  }
 
   if (!force) {
     const cached = _getCustCache();
@@ -101,22 +113,39 @@ async function loadCustomers(force = false) {
   }
 
   if (tbody && !vCustomers.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">⏳ Cargando clientes...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="table-empty">⏳ Cargando mi cartera de clientes...</td></tr>`;
   }
 
   try {
     vCustomers = [];
-    const PAGE = 1000;
-    let from = 0;
     const CUST_COLS = 'id,name,phone,rif,zone,city,total_orders,total_usd,last_order_at,seller_id,email,email_status,address,notes';
 
-    let query1 = sb.from('jjp_customers')
-      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
     if (!isAdmin) {
-      query1 = query1.neq('zone', '020');
+      // VENDEDOR REGULAR: Acceso estricto única y exclusivamente a su clientela asignada
+      if (!sellerId) {
+        vCustomers = [];
+        renderCustomers();
+        return;
+      }
+
+      const { data, error } = await sb.from('jjp_customers')
+        .select(CUST_COLS)
+        .eq('seller_id', sellerId)
+        .order('last_order_at', { ascending: false, nullsFirst: false });
+
+      if (error) throw error;
+      vCustomers = data || [];
+      renderCustomers();
+      _setCustCache(vCustomers);
+      return;
     }
 
-    // Primer lote: se renderiza de inmediato (<400ms)
+    // ADMINISTRADOR (Keyder): Gestión global
+    const PAGE = 1000;
+    let from = 0;
+    let query1 = sb.from('jjp_customers')
+      .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
+
     const { data: chunk1, error: err1 } = await query1.range(0, PAGE - 1);
     if (err1) throw err1;
 
@@ -125,21 +154,14 @@ async function loadCustomers(force = false) {
       renderCustomers();
     }
 
-    // Lotes subsiguientes en segundo plano
     if (chunk1 && chunk1.length === PAGE) {
       from = PAGE;
       while (from <= 12000) {
         let queryNext = sb.from('jjp_customers')
           .select(CUST_COLS).order('last_order_at', { ascending: false, nullsFirst: false });
-        if (!isAdmin) {
-          queryNext = queryNext.neq('zone', '020');
-        }
 
         const { data: nextChunk, error: nextErr } = await queryNext.range(from, from + PAGE - 1);
-        if (nextErr) {
-          console.warn('Error en lote secundario de clientes vendedor:', nextErr);
-          break;
-        }
+        if (nextErr) break;
         if (!nextChunk || nextChunk.length === 0) break;
 
         vCustomers.push(...nextChunk);
@@ -195,11 +217,10 @@ function renderCustomers() {
   const sellerRef = seller?.ref_code || '';
 
   if (!isAdmin) {
-    list = list.filter(c => c.zone !== '020');
-    if (custFilter === 'mios')      list = list.filter(c => c.seller_id === sellerId);
-    if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft') && c.seller_id === sellerId);
-    if (custFilter === 'libres')    list = list.filter(c => !c.seller_id);
-    if (custFilter === 'inactivos') list = list.filter(c => c.seller_id === sellerId && isInactive(c));
+    // Blindaje sagrado: un vendedor regular SOLO ve los clientes asignados a su ID
+    list = list.filter(c => c.seller_id === sellerId && c.zone !== '020');
+    if (custFilter === 'inactivos') list = list.filter(c => isInactive(c));
+    if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft'));
   } else {
     // Admin Keyder: tiene su PROPIA cartera (010 y 020) en 'Mi cartera' e 'Inactivos',
     // y conserva 'Todos' y 'Sin vendedor' para la gestión global.

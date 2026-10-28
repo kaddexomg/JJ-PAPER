@@ -69,8 +69,15 @@ function sellerShowBs() {
 async function refreshSellerNotifBadge() {
   const badge = document.getElementById('vNotifBadge');
   if (!badge) return;
+  const sellerId = SELLER?.id || CURRENT_PROFILE?.id || null;
+  if (!sellerId) {
+    badge.style.display = 'none';
+    return;
+  }
   const { count } = await sb.from('jjp_notifications')
-    .select('id', { count: 'exact', head: true }).eq('read', false);
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', sellerId)
+    .eq('read', false);
   badge.style.display = count ? 'inline-block' : 'none';
   badge.textContent = count || '';
 }
@@ -91,8 +98,8 @@ const V_STATUS_LABEL = {
   pagado:         'Pagado',
   preparando:     'Preparando',
   entregado:      'Entregado',
-  confirmado_mixnet: '✅ Confirmar → MixNet',
-  mixnet_enviado: '📤 En MixNet',
+  confirmado_mixnet: '📥 Insertar',
+  mixnet_enviado: '📥 Insertado',
   rechazado:      'Rechazado',
   cancelado:      'Cancelado',
 };

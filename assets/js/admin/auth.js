@@ -88,28 +88,10 @@ async function loadProfile(passedSession) {
     console.warn('loadProfile sb fallback warning:', e);
   }
 
-  // 3. Fallback especial si el email del usuario es el del administrador principal
-  const email = session?.user?.email || session?.email;
-  const cleanEmail = (email || '').toLowerCase().trim();
-  if (cleanEmail === 'picoj386@gmail.com' || cleanEmail === 'samily31657900@gmail.com' || cleanEmail.includes('admin')) {
-    CURRENT_PROFILE = {
-      id: uid,
-      role: 'admin',
-      name: session?.user?.user_metadata?.name || 'Keyder Salazar',
-      phone: '04124676073',
-      ref_code: 'jose',
-      commission_pct: 2,
-      max_discount_pct: 0,
-      monthly_goal_usd: 10000,
-      active: true
-    };
-    if (typeof window !== 'undefined') {
-      window.CURRENT_PROFILE = CURRENT_PROFILE;
-      window.SELLER = CURRENT_PROFILE;
-    }
-    return CURRENT_PROFILE;
-  }
-
+  // 3. SIN atajos por correo: el rol es EXCLUSIVAMENTE el de jjp_profiles.role.
+  //    Antes existía una regla que ascendía a "admin" a cualquier correo que
+  //    contuviera la palabra "admin"; eso provocaba que un vendedor entrara
+  //    al panel administrativo. Si la fila no existe, no hay perfil.
   return CURRENT_PROFILE;
 }
 
@@ -133,33 +115,27 @@ async function requireAuth(requiredRole = 'admin') {
     return null;
   }
 
-  // Sincronizar en memoria de forma segura
+  // Sincronizar en memoria de forma segura. Nunca reutilizar el access_token
+  // como refresh_token: eso corrompía la sesión y hacía que el rol "cambiara"
+  // entre páginas. Solo se restaura si la sesión trae su refresh_token real.
   try {
-    if (session.access_token && sb?.auth?.setSession) {
+    if (session.access_token && session.refresh_token && sb?.auth?.setSession) {
       sb.auth.setSession({
         access_token: session.access_token,
-        refresh_token: session.refresh_token || session.access_token
+        refresh_token: session.refresh_token
       }).catch(() => {});
     }
   } catch (_) {}
 
   let profile = await loadProfile(session);
 
-  // Fallback seguro si la red tardó en responder pero la sesión es válida
+  // Sin perfil en jjp_profiles no se asume ningún rol: se cierra la puerta.
+  // (Antes se inventaba un perfil "admin" si el correo contenía "admin".)
   if (!profile) {
-    const email = (session?.user?.email || session?.email || '').toLowerCase();
-    const isAdmin = email === 'picoj386@gmail.com' || email === 'samily31657900@gmail.com' || email.includes('admin') || session?.user?.role === 'admin';
-    profile = {
-      id: session?.user?.id || session?.id || session?.sub,
-      role: isAdmin ? 'admin' : 'vendedor',
-      name: session?.user?.user_metadata?.name || email.split('@')[0] || 'Usuario',
-      active: true
-    };
-    CURRENT_PROFILE = profile;
-    if (typeof window !== 'undefined') {
-      window.CURRENT_PROFILE = profile;
-      window.SELLER = profile;
-    }
+    CURRENT_PROFILE = null;
+    if (typeof window !== 'undefined') window.CURRENT_PROFILE = null;
+    window.location.href = siteURL('admin/login.html');
+    return null;
   }
 
   // Solo expulsar si el perfil fue explícitamente desactivado en base de datos
@@ -174,7 +150,8 @@ async function requireAuth(requiredRole = 'admin') {
   }
 
   // Un vendedor no puede entrar a páginas de admin → a su propio panel
-  if (requiredRole === 'admin' && profile.role !== 'admin') {
+  const role = String(profile.role || '').trim().toLowerCase();
+  if (requiredRole === 'admin' && role !== 'admin') {
     window.location.href = siteURL('vendedor/index.html');
     return null;
   }

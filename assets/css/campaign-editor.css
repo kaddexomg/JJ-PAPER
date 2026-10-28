@@ -1416,32 +1416,38 @@
 .ce-email-item-card {
   margin: 8px 0 10px;
   padding: 12px 16px;
-  background: #ffffff;
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-left: 3px solid #16604A;
-  border-radius: 6px;
+  border-left: 3.5px solid #16604A;
+  border-radius: 8px;
   font-size: 14px;
   color: #1e293b;
-  line-height: 1.6;
+  line-height: 1.65;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ce-email-item-card:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .ce-email-section-title {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #16604A;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  margin: 22px 0 10px;
+  letter-spacing: 0.8px;
+  margin: 24px 0 10px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* Cuadro Institucional de Respaldo en Simulador */
 .ce-email-guarantee-card {
   margin: 20px 0 24px;
-  padding: 16px 20px;
+  padding: 18px 22px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-left: 3px solid #16604A;
+  border-left: 4px solid #16604A;
   border-radius: 8px;
 }
 
@@ -1467,6 +1473,12 @@
   margin-right: 6px;
 }
 
+@keyframes ce-pulse-glow {
+  0% { box-shadow: 0 4px 14px rgba(22, 96, 74, 0.25); }
+  50% { box-shadow: 0 6px 22px rgba(22, 96, 74, 0.50); }
+  100% { box-shadow: 0 4px 14px rgba(22, 96, 74, 0.25); }
+}
+
 .ce-email-catalog-btn-wrap {
   text-align: center;
   margin: 24px 0 20px;
@@ -1474,22 +1486,52 @@
 
 .ce-email-catalog-btn {
   display: inline-block;
-  background: #16604A;
+  background: linear-gradient(135deg, #16604A 0%, #1e7a5e 100%);
   color: #ffffff !important;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 700;
-  padding: 12px 26px;
-  border-radius: 6px;
+  padding: 14px 34px;
+  border-radius: 8px;
   letter-spacing: 0.3px;
-  box-shadow: 0 2px 6px rgba(22, 96, 74, 0.2);
-  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px rgba(22, 96, 74, 0.3);
+  transition: all 0.25s ease-in-out;
+  animation: ce-pulse-glow 3s infinite ease-in-out;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .ce-email-catalog-btn:hover {
-  background: #124e3c;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #0f4b39 0%, #16604A 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(22, 96, 74, 0.5);
+}
+
+.ce-email-wa-action {
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.ce-email-wa-action a:hover {
+  color: #0f4b39 !important;
+  text-decoration: underline !important;
+}
+
+.ce-email-monogram {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background-color: #16604A;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 16px;
+  text-align: center;
+  line-height: 44px;
+  letter-spacing: 0.5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  box-shadow: 0 2px 8px rgba(22, 96, 74, 0.25);
 }
 
 .ce-email-signature-card {

@@ -41,6 +41,61 @@
   padding: 18px 20px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.04);
 }
+
+/* Asistente IA de Documentos (Chatbot Integrado) */
+.doc-ai-box {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.doc-ai-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.doc-ai-hd strong {
+  font-size: 12.5px;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.doc-ai-chip {
+  background: #ffffff;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.doc-ai-chip:hover {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+.doc-ai-input-row {
+  display: flex;
+  gap: 6px;
+}
+.doc-ai-status {
+  font-size: 11px;
+  color: #047857;
+  margin-top: 6px;
+  display: none;
+}
+
 .panel-section-title {
   font-size: 13px;
   font-weight: 800;
@@ -655,6 +710,25 @@
         
         <!-- ================= PANEL DE CONTROL ================= -->
         <div class="doc-control-panel">
+          <!-- ASISTENTE IA DE DOCUMENTOS (COPILOTO INTEGRADO) -->
+          <div class="doc-ai-box">
+            <div class="doc-ai-hd">
+              <strong>🪄 Copiloto Redactor de Documentos IA</strong>
+              <span style="font-size:10px;background:#059669;color:#fff;padding:2px 7px;border-radius:99px;font-weight:700">Gemini En Vivo</span>
+            </div>
+            <div class="doc-ai-chips">
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Redacta una propuesta comercial formal y ejecutiva para este cliente con despacho garantizado en 24h a Tasa BCV')">📄 Oferta Comercial</button>
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Redacta un acta de entrega y recepción conforme de mercancía con garantía y condiciones claras')">📦 Acta de Entrega</button>
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Redacta un recordatorio ejecutivo y cordial de estado de cuenta con actualización de tasa BCV')">💳 Estado de Cuenta</button>
+              <button type="button" class="doc-ai-chip" onclick="applyAiQuickPrompt('Mejora la redacción del documento actual para que sea impecable, formal, persuasiva y concisa')">✨ Pulir Redacción</button>
+            </div>
+            <div class="doc-ai-input-row">
+              <input type="text" id="docAiPromptInput" class="fi-compact" placeholder="Ej: Redacta una carta de oferta para este cliente o agrega despacho urgente..." onkeydown="if(event.key==='Enter'){event.preventDefault();runDocAiAssistant();}">
+              <button type="button" id="docAiRunBtn" class="btn btn-primary" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="runDocAiAssistant()">✨ Redactar</button>
+            </div>
+            <div id="docAiStatus" class="doc-ai-status">⏳ Generando documento con IA...</div>
+          </div>
+
           <div class="panel-section-title">
             <span>📋 Tipo de Documento Corporativo</span>
           </div>
@@ -896,6 +970,7 @@
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/doc-engine.js?v=20261014_root_fix"></script>
+<script src="../assets/js/gemini-client.js?v=20261027_v1"></script>
 <script src="../assets/js/admin/documentos.js?v=20261014_v1"></script>
 
 <script>

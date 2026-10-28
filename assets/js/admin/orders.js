@@ -16,8 +16,8 @@ const STATUS_LABEL = {
   pagado:         'Pagado',
   preparando:     'Preparando',
   entregado:      'Entregado',
-  confirmado_mixnet: '✅ Confirmar → MixNet',
-  mixnet_enviado: '📤 En MixNet',
+  confirmado_mixnet: '📥 Insertar',
+  mixnet_enviado: '📥 Insertado',
   rechazado:      'Rechazado',
   cancelado:      'Cancelado',
 };
@@ -186,8 +186,8 @@ function renderOrdersTable() {
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewOrder('${o.id}')">👁️ Ver</button>
           ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado'
-            ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Confirmado para MixNet">✅ MixNet</span>`
-            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','confirmado_mixnet')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
+            ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en el sistema administrativo">📥 Insertado</span>`
+            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','confirmado_mixnet')" title="Insertar en el sistema administrativo">📥 Insertar</button>`}
           <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, ordCtx('${o.id}'))"
                   title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -215,13 +215,13 @@ function ordersGoPage(p) { ordersPage = p; renderOrdersTable(); }
 
 async function updateOrderStatus(id, status) {
   if (status === 'confirmado_mixnet') {
-    if (!confirm('¿Confirmar este pedido para enviarlo a MixNet?\n\nSe le asignará el número correlativo real de MixNet.')) { renderOrdersTable(); return; }
+    if (!confirm('¿Insertar este pedido en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) { renderOrdersTable(); return; }
   }
   const { error } = await sb.from('jjp_orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) { showToast('Error actualizando estado', 'err'); return; }
   const o = adminOrders.find(x => x.id === id);
   if (o) o.status = status;
-  showToast(`Estado → ${STATUS_LABEL[status]}`);
+  showToast(status === 'confirmado_mixnet' ? '📥 Pedido insertado · se enviará a MixNet' : `Estado → ${STATUS_LABEL[status]}`);
 
   // Automatización de inventario: descuenta stock al confirmar el pago,
   // lo repone si un pedido ya descontado se rechaza o cancela.
@@ -406,9 +406,7 @@ function viewOrder(id) {
     </div>
     <div class="ord-quick">
       <button class="bulk-btn green" onclick="updateOrderStatus('${o.id}','pagado'); document.getElementById('ordModalStatus').value='pagado'">✅ Confirmar pago</button>
-      ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado'
-        ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">✅ Confirmado para MixNet</span>`
-        : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','confirmado_mixnet'); document.getElementById('ordModalStatus').value='confirmado_mixnet'">✅ Confirmar → MixNet</button>`}
+      ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado' ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','confirmado_mixnet'); document.getElementById('ordModalStatus').value='confirmado_mixnet'">📥 Insertar</button>`}
       <button class="bulk-btn red" onclick="updateOrderStatus('${o.id}','rechazado'); document.getElementById('ordModalStatus').value='rechazado'">✕ Rechazar</button>
       ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteOrder('${o.id}')" title="Borra el pedido definitivamente de la lista">🗑️ Eliminar</button>` : ''}
       <a class="btn-o" style="width:auto;padding:9px 16px;background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:700"

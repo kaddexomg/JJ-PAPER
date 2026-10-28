@@ -473,7 +473,7 @@ async function runDocAiAssistant() {
   const prompt = (input?.value || '').trim();
 
   if (!prompt) {
-    if (typeof showToast === 'function') showToast('Escribe qué documento o cambio deseas pedirle a la IA', 'warn');
+    if (typeof showToast === 'function') showToast('Escribe qué documento o redacción deseas solicitar a la IA', 'warn');
     return;
   }
 
@@ -483,36 +483,48 @@ async function runDocAiAssistant() {
   }
   if (btn) btn.disabled = true;
 
+  const activeUser = (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) || (typeof SELLER !== 'undefined' && SELLER) || null;
+  const userName = activeUser?.name || 'Asesor Comercial JJ Paper';
+  const isAdmin = Boolean(activeUser?.role === 'admin' || activeUser?.is_admin);
+  const userRole = isAdmin ? 'Dirección General / Administración' : 'Asesor Comercial / Fuerza de Ventas';
+
   try {
     const sampleCatalog = _catalogItemsCache.slice(0, 35).map(p => `${p.name} (${p.unit}, $${p.price_usd})`).join('; ');
-    const sysPrompt = `Eres el Director de Comunicaciones y Operaciones de JJ PAPER, C.A. (RIF J-29537545-0, distribuidor mayorista de papelería, resmas, rollos térmicos y suministros de oficina en Caracas).
-El usuario está en el Estudio de Documentos Corporativos y solicita: "${prompt}".
-Estado actual del documento:
-- Plantilla actual: ${docState.template} (opciones válidas: "nota_entrega", "recibo_pago", "ficha_empresa", "forma_libre")
+    const sysPrompt = `Eres el redactor ejecutivo de documentos corporativos de JJ PAPER, C.A. (RIF J-29537545-0, mayorista corporativo en Caracas).
+Emisor / Firmante oficial: ${userName} (${userRole}).
+El usuario solicita: "${prompt}".
+
+ESTADO ACTUAL DEL DOCUMENTO:
+- Plantilla actual: ${docState.template} ("nota_entrega", "recibo_pago", "ficha_empresa", "forma_libre")
 - Cliente actual: ${docState.clientName || 'No especificado'} (RIF: ${docState.clientRif || 'S/R'})
 - Título actual: ${docState.freeTitle}
 - Cuerpo actual: ${docState.freeBody}
-- Muestra real del catálogo: ${sampleCatalog}
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin bloques markdown \`\`\`json) con los campos que correspondan actualizar:
+REGLAS OBLIGATORIAS:
+1. ADAPTACIÓN ESTRICTA A LA INSTRUCCIÓN: Redacta con total fidelidad a lo que el usuario pide (memorándum, carta formal, acta de entrega, recibo, carta de presentación, etc.).
+2. CERO SESGOS O ALUCINACIONES: PROHIBIDO forzar o inventar menciones a 'resmas y rollos térmicos' si el usuario pide otro asunto (por ejemplo, trámites bancarios, reclamos, acuerdos, o productos específicos).
+3. TONO PROFESIONAL B2B: Redacción ejecutiva, impecable y concisa en español de negocios. Separa los párrafos con doble salto de línea (\\n\\n).
+4. FIRMA Y CARGO: El firmante siempre debe ser "${userName} — ${userRole}".
+
+Responde ÚNICAMENTE con un objeto JSON válido (sin bloques markdown \`\`\`json):
 {
   "template": "forma_libre" | "nota_entrega" | "recibo_pago" | "ficha_empresa",
   "customDocBadge": "TÍTULO DEL RECUADRO SUPERIOR",
-  "clientName": "Nombre del cliente si se menciona en la instrucción",
-  "freeTitle": "TÍTULO DEL COMUNICADO O DOCUMENTO",
-  "freeRecipient": "A QUIÉN VA DIRIGIDO",
+  "clientName": "Nombre del cliente si se menciona o actualiza",
+  "freeTitle": "TÍTULO DEL DOCUMENTO O COMUNICADO",
+  "freeRecipient": "A QUIÉN VA DIRIGIDO (ej: ATENCIÓN: GERENCIA DE ADMINISTRACIÓN)",
   "freeBody": "Párrafos formales, impecables y bien redactados separados por \\n\\n",
-  "freeSignRole": "CARGO QUE FIRMA",
-  "deliveryNotes": "Observaciones o cláusula de conformidad para nota de entrega",
+  "freeSignRole": "${userName} — ${userRole}",
+  "deliveryNotes": "Observaciones de entrega o cláusula de conformidad si aplica",
   "items": [
-    { "qty": 10, "unit": "Unidad/Caja", "description": "Nombre exacto del producto", "price_usd": 42.00, "obs": "Observación" }
+    { "qty": 1, "unit": "Unidad", "description": "Producto", "price_usd": 0.00 }
   ]
 }
-Solo incluye "items" si el usuario pide explícitamente agregar productos o armar una nota de entrega.`;
+Solo incluye "items" si el usuario pide explícitamente agregar o desglosar renglones de mercancía.`;
 
     let parsed = null;
     if (window.GeminiClient && typeof window.GeminiClient.callGemini === 'function') {
-      const raw = await window.GeminiClient.callGemini(sysPrompt, { temperature: 0.4, maxTokens: 1200 });
+      const raw = await window.GeminiClient.callGemini(sysPrompt, { temperature: 0.35, maxTokens: 1200 });
       const jsonMatch = String(raw || '').match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0]);
@@ -528,7 +540,7 @@ Solo incluye "items" si el usuario pide explícitamente agregar productos o arma
         const el = document.getElementById('fieldCustomBadge');
         if (el) el.value = parsed.customDocBadge;
       }
-      if (parsed.clientName && !docState.clientName) {
+      if (parsed.clientName && (!docState.clientName || docState.clientName === '—')) {
         docState.clientName = parsed.clientName;
         const el = document.getElementById('fieldClientName');
         if (el) el.value = parsed.clientName;
@@ -552,6 +564,8 @@ Solo incluye "items" si el usuario pide explícitamente agregar productos o arma
         docState.freeSignRole = parsed.freeSignRole;
         const el = document.getElementById('fieldFreeSignRole');
         if (el) el.value = parsed.freeSignRole;
+      } else {
+        docState.freeSignRole = `${userName} — ${userRole}`;
       }
       if (parsed.deliveryNotes) {
         docState.deliveryNotes = parsed.deliveryNotes;
@@ -575,19 +589,21 @@ Solo incluye "items" si el usuario pide explícitamente agregar productos o arma
         statusEl.textContent = '✅ Documento redactado y actualizado en vivo por IA.';
         setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
       }
-      if (typeof showToast === 'function') showToast('Documento actualizado con IA', 'ok');
+      if (typeof showToast === 'function') showToast('Documento redactado con éxito', 'ok');
     } else {
-      throw new Error('No se pudo estructurar la respuesta IA');
+      throw new Error('No se pudo interpretar la respuesta estructurada de la IA');
     }
   } catch (err) {
     console.warn('Fallback local en runDocAiAssistant:', err);
-    // Fallback local inteligente si el usuario pide comunicado/oferta
     setTemplate('forma_libre');
-    docState.freeTitle = 'PROPUESTA COMERCIAL Y SUMINISTRO CORPORATIVO';
+    docState.freeTitle = 'COMUNICADO CORPORATIVO OFICIAL';
     docState.freeRecipient = docState.clientName ? `ATENCIÓN: ${docState.clientName.toUpperCase()}` : 'A QUIEN PUEDA INTERESAR';
-    docState.freeBody = `Estimados señores:\n\nReciban un cordial saludo en nombre de JJ PAPER, C.A. (RIF J-29537545-0). En atención a su solicitud (${prompt}), ponemos a su disposición nuestra línea mayorista de papelería corporativa, resmas de papel bond, rollos térmicos y suministros de oficina con disponibilidad inmediata en nuestro almacén principal.\n\nGarantizamos despacho prioritario en 24 horas en la Gran Caracas, precios competitivos al mayor y facturación fiscal conforme a la Tasa Oficial BCV vigente.\n\nAgradeciendo de antemano su preferencia, quedamos a su entera disposición.`;
+    docState.freeBody = `Estimados señores:\n\nReciban un cordial saludo institucional en nombre de JJ PAPER, C.A. (RIF J-29537545-0).\n\nEn atención a su solicitud (${prompt}), formalizamos por medio de la presente nuestra plena disposición operativa y comercial para atender oportunamente sus requerimientos.\n\nReafirmamos nuestro compromiso de calidad, puntualidad en el despacho y facturación fiscal conforme a la normativa vigente a Tasa Oficial BCV.\n\nAgradeciendo su confianza y preferencia, quedamos a su entera disposición.`;
+    docState.freeSignRole = `${userName} — ${userRole}`;
     const bodyEl = document.getElementById('fieldFreeBody');
     if (bodyEl) bodyEl.value = docState.freeBody;
+    const signEl = document.getElementById('fieldFreeSignRole');
+    if (signEl) signEl.value = docState.freeSignRole;
     renderDocumentPreview();
     if (statusEl) {
       statusEl.textContent = '✅ Plantilla ejecutiva aplicada.';
@@ -598,7 +614,6 @@ Solo incluye "items" si el usuario pide explícitamente agregar productos o arma
   }
 }
 
-// Actualización de campos de texto comunes
 function updateFormField(field, val) {
   docState[field] = val;
   renderDocumentPreview();

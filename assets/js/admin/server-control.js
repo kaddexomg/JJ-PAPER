@@ -105,6 +105,9 @@ function srvRenderModal() {
   const vpsHealthy = Boolean(_vpsTelem && _vpsTelem.status === 'healthy');
   const onWa = srvWaDaemonOnline(_srvRow);
   const on = vpsHealthy || onWa;
+  // El Puente MixNet y el Monitor VPS son infraestructura administrativa:
+  // un vendedor no debe ver ni el panel ni las acciones de sincronización.
+  const isAdmin = String(CURRENT_PROFILE?.role || '').toLowerCase() === 'admin';
   const mods = _srvRow?.modules || {};
   const modLabel = {
     whatsapp: 'WhatsApp CRM',
@@ -117,7 +120,7 @@ function srvRenderModal() {
     mixer: 'Puente MixNet'
   };
   const mixerInfo = typeof mods.mixer === 'object' && mods.mixer !== null ? mods.mixer : null;
-  const modChips = Object.keys(modLabel).map(k => {
+  const modChips = Object.keys(modLabel).filter(k => isAdmin || k !== 'mixer').map(k => {
     const isAct = vpsHealthy ? true : (k === 'mixer' ? (mods.mixer === true || mixerInfo?.online === true) : !!mods[k]);
     return `<span class="srv-mod ${isAct ? 'on' : 'off'}">${isAct ? '✅' : '⛔'} ${modLabel[k]}</span>`;
   }).join('');
@@ -138,13 +141,13 @@ function srvRenderModal() {
           ⚡ <b>RAM:</b> ${ramTxt} · 💾 <b>Disco:</b> ${diskTxt} · 🗄️ <b>BD:</b> ${dbTxt}
         </div>
         <div style="margin-top:6px;font-size:12px;display:flex;gap:10px;">
-          <a href="/admin/monitor.html" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor VPS & Telemetría</a>
-          <a href="/admin/whatsapp.html" style="color:#0284c7;font-weight:600;text-decoration:none;">💬 CRM WhatsApp</a>
+          ${isAdmin ? `<a href="/admin/monitor.html" style="color:#059669;font-weight:600;text-decoration:none;">📊 Abrir Monitor VPS & Telemetría</a>
+          <a href="/admin/whatsapp.html" style="color:#0284c7;font-weight:600;text-decoration:none;">💬 CRM WhatsApp</a>` : ''}
         </div>
       </div>
     </div>
     ${on ? `<div class="srv-mods">${modChips}</div>` : ''}
-    <div style="margin: 8px 0; padding: 10px 12px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; font-size: 11.5px; color: #166534; line-height: 1.45;">
+    ${isAdmin ? `<div style="margin: 8px 0; padding: 10px 12px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; font-size: 11.5px; color: #166534; line-height: 1.45;">
       <div style="font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
         <span>📁 Nodo 2: Puente LAN MixNet ERP (Servidor Tienda 192.168.0.185)</span>
         <span style="font-family: monospace; background:#dcfce7; padding: 1px 6px; border-radius: 4px;">M:\\MIX11\\comp01</span>
@@ -156,8 +159,8 @@ function srvRenderModal() {
         <button type="button" style="background:#15803d;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;" onclick="srvSyncMixnetNow()">🔄 Sincronizar Existencias, Precios y Cotizaciones Ahora</button>
         <a href="/admin/mixnet.html" style="background:#0284c7;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">📊 Panel MixNet & Agente IA</a>
       </div>
-    </div>
-    ${CURRENT_PROFILE?.role === 'admin' ? `<div class="srv-actions">
+    </div>` : ''}
+    ${isAdmin ? `<div class="srv-actions">
       <button class="btn-p" onclick="srvCommand('restart')" ${on ? '' : 'disabled'}>🔄 Reiniciar Servicios</button>
       <button class="btn-o" onclick="srvLoad()">⚡ Refrescar Telemetría</button>
     </div>` : ''}
@@ -167,6 +170,12 @@ function srvRenderModal() {
 }
 
 async function srvSyncMixnetNow() {
+  // Doble candado: aunque alguien invoque la función por consola, solo un
+  // administrador puede disparar la escritura en el Puente MixNet.
+  if (String(CURRENT_PROFILE?.role || '').toLowerCase() !== 'admin') {
+    showToast('Solo un administrador puede sincronizar el Puente MixNet.', 'err');
+    return;
+  }
   showToast('Iniciando sincronización forzada de MixNet...', 'info');
   try {
     fetch('http://127.0.0.1:8790/sync-now', { mode: 'no-cors' }).catch(() => {});
@@ -182,6 +191,10 @@ async function srvSyncMixnetNow() {
 }
 
 async function srvCommand(cmd) {
+  if (String(CURRENT_PROFILE?.role || '').toLowerCase() !== 'admin') {
+    showToast('Solo un administrador puede reiniciar los servicios.', 'err');
+    return;
+  }
   const txt = cmd === 'stop' ? 'DETENER el servicio' : 'REINICIAR los servicios';
   if (!confirm(`¿Confirmas ${txt} en el servidor?`)) return;
   const now = new Date().toISOString();

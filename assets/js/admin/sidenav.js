@@ -76,7 +76,6 @@
       { href: 'productos.html',    ico: '💱', label: 'Mis precios' },
       { href: 'catalogo.html',     ico: '📗', label: 'Catálogo' },
       { href: 'pedidos.html',      ico: '🛒', label: 'Mis pedidos' },
-      { href: '../admin/mixnet.html', ico: '📁', label: 'Puente MixNet ERP' },
     ]},
     { group: 'Clientes', ico: '👥', items: [
       { href: 'clientes.html', ico: '👥', label: 'Mis clientes' },

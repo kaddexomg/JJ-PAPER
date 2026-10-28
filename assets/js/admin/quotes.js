@@ -128,21 +128,18 @@ function renderQuotesTable() {
         <select class="sort-sel" style="min-width:120px;padding:6px 10px;font-size:12px"
           onchange="updateQuoteStatus('${q.id}',this.value)">
           ${['pendiente','contactado','confirmado','confirmado_mixnet','convertido','cancelado'].map(s =>
-            `<option value="${s}" ${q.status===s?'selected':''}>${s === 'confirmado_mixnet' ? '✅ Confirmar → MixNet' : s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+            `<option value="${s}" ${q.status===s?'selected':''}>${s === 'confirmado_mixnet' ? '📥 Insertar' :  s.charAt(0).toUpperCase()+s.slice(1)}</option>`
           ).join('')}
         </select>
       </td>
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
-          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado'
-            ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Confirmada para MixNet">✅ MixNet</span>`
-            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
+          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
           <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
           <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
                   title="Enviar la cotización al cliente" aria-haspopup="menu">📤</button>
-          <button class="btn-o sm" onclick="pushQuoteToMixnet('${q.id}')" title="Sincronizar e inyectar en MixNet ERP (M:\\comp01)">📁</button>
         </div>
       </td>
     </tr>`;
@@ -168,7 +165,7 @@ function quotesGoPage(p) { quotePage = p; renderQuotesTable(); }
 
 async function updateQuoteStatus(id, status) {
   if (status === 'confirmado_mixnet') {
-    if (!confirm('¿Confirmar esta cotización para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.')) {
+    if (!confirm('¿Insertar esta cotización en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) {
       renderQuotesTable();
       return;
     }
@@ -177,7 +174,7 @@ async function updateQuoteStatus(id, status) {
   if (error) { showToast('Error al actualizar estado'); renderQuotesTable(); return; }
   const q = adminQuotes.find(x => x.id === id);
   if (q) q.status = status;
-  showToast(status === 'confirmado_mixnet' ? '✅ Cotización confirmada · se enviará a MixNet' : `Estado → ${status}`);
+  showToast(status === 'confirmado_mixnet' ? '📥 Cotización insertada · se enviará a MixNet' : `Estado → ${status}`);
   renderQuotesTable();
 }
 
@@ -320,12 +317,9 @@ function viewQuoteDetail(id) {
 href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
       <a class="btn-p" style="width:auto;padding:12px 20px;text-decoration:none;font-weight:700" 
 href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
-      <button class="btn-p" style="width:auto;padding:12px 20px;background:#059669;color:#fff;font-weight:700" onclick="pushQuoteToMixnet('${q.id}')">📁 Sincronizar en MixNet ERP</button>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
-      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado'
-        ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">✅ Confirmada para MixNet</span>`
-        : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')">✅ Confirmar → MixNet</button>`}
+      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')">📥 Insertar</button>`}
     </div>`;
 
   modal.classList.add('op');

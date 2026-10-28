@@ -66,6 +66,7 @@ async function initQuoter() {
     nameId: 'qCliSearch',
     boxId: 'qCliNameResults',
     onPick: quotePickCustomer,
+    sellerOnly: false, // En el cotizador se permite buscar y cotizar a toda la cartera de la empresa
   });
   quoteInitGlobalKeys();
   quoteInitTabNav();
@@ -1826,10 +1827,10 @@ function renderQuotesInModal(list) {
             <div style="font-weight:900;font-size:13px;color:#16604a">${fmtPrice(totalUsd)}</div>
             <div style="font-size:11px;color:#059669">Bs ${fmtBsNum(totalBs)}</div>
           </div>
-          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : (q.status === 'confirmado_mixnet' ? '#dbeafe;color:#1d4ed8' : '#fef3c7;color:#b45309')}">${q.status === 'confirmado_mixnet' ? '✅ En MixNet' : (q.status || 'pendiente')}</span>
+          <span style="font-size:10px;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:800;background:${q.status === 'facturada' ? '#dcfce7;color:#15803d' : (q.status === 'confirmado_mixnet' ? '#dbeafe;color:#1d4ed8' : '#fef3c7;color:#b45309')}">${q.status === 'confirmado_mixnet' ? '📥 Insertado' : (q.status || 'pendiente')}</span>
           ${q.status === 'confirmado_mixnet'
-            ? `<span style="font-size:11px;color:#1d4ed8;font-weight:700">Ya enviada a MixNet</span>`
-            : `<button type="button" class="btn-p sm" onclick="event.stopPropagation();confirmQuoteToMixnet('${q.id}','${(q.quote_number||'').replace(/'/g,'')}')" title="Marcar como confirmada para enviarla a MixNet" style="padding:4px 10px;font-size:11px;background:#1d4ed8;color:#fff;border-radius:6px">✅ Confirmar → MixNet</button>`}
+            ? `<span style="font-size:11px;color:#1d4ed8;font-weight:700">📥 Insertado</span>`
+            : `<button type="button" class="btn-p sm" onclick="event.stopPropagation();confirmQuoteToMixnet('${q.id}','${(q.quote_number||'').replace(/'/g,'')}')" title="Insertar esta cotización en el sistema administrativo" style="padding:4px 10px;font-size:11px;background:#1d4ed8;color:#fff;border-radius:6px">📥 Insertar</button>`}
           <button type="button" class="btn-p sm" onclick="event.stopPropagation();selectQuoteFromModal('${q.id}')" style="padding:4px 10px;font-size:11px;background:#16604a;color:#fff;border-radius:6px">✏️ Cargar</button>
         </div>
       </div>
@@ -1847,11 +1848,11 @@ function selectQuoteFromModal(id) {
 async function confirmQuoteToMixnet(id, quoteNumber) {
   if (!id) return;
   const label = quoteNumber ? '#' + quoteNumber : 'esta cotización';
-  if (!confirm(`¿Confirmar ${label} para enviarla a MixNet?\n\nSe le asignará el número correlativo real de MixNet.`)) return;
+  if (!confirm(`¿Insertar ${label} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
   try {
     const res = await sb.from('jjp_quotes').update({ status: 'confirmado_mixnet' }).eq('id', id);
     if (res.error) throw res.error;
-    if (typeof toast === 'function') toast('✅ Cotización confirmada · se enviará a MixNet', 'success');
+    if (typeof toast === 'function') toast('📥 Cotización insertada · se enviará a MixNet', 'success');
     else alert('Cotización confirmada para MixNet.');
     if (typeof loadQuotesInModal === 'function') loadQuotesInModal();
     else if (typeof filterQuotesInModal === 'function') filterQuotesInModal();

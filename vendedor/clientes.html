@@ -131,6 +131,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();
   if (!seller) return;
+  const isAdmin = seller.role === 'admin' || seller.is_admin;
+  if (!isAdmin) {
+    document.querySelectorAll('.of-chip[data-f="todos"], .of-chip[data-f="libres"]').forEach(el => el.style.display = 'none');
+  }
   await loadCustomers();
 });
 </script>

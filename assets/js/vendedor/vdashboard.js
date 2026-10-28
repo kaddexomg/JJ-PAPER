@@ -96,8 +96,16 @@ function renderRanking(rows) {
 async function renderSellerNotifs() {
   const box = document.getElementById('v-notifs');
   if (!box) return;
+  const sellerId = SELLER?.id || CURRENT_PROFILE?.id || null;
+  if (!sellerId) {
+    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:10px 16px">Sin notificaciones todavía.</p>';
+    return;
+  }
   const { data } = await sb.from('jjp_notifications')
-    .select('*').order('created_at', { ascending: false }).limit(10);
+    .select('*')
+    .eq('user_id', sellerId)
+    .order('created_at', { ascending: false })
+    .limit(10);
   if (!data?.length) {
     box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:10px 16px">Sin notificaciones todavía.</p>';
     return;
@@ -107,21 +115,26 @@ async function renderSellerNotifs() {
          border-bottom:1px solid #f0f0f0;${n.read ? 'opacity:.55' : 'background:#fbf7ef'}">
       <div style="flex:1">
         <div style="font-weight:${n.read ? '500' : '700'};font-size:13px">${escapeHTML(n.title)}</div>
-        ${n.body ? `<div style="font-size:12px;color:var(--gr)">${escapeHTML(n.body)}</div>` : ''}
-        <div style="font-size:11px;color:#bbb;margin-top:3px">${fmtDate(n.created_at)}</div>
+        <div style="font-size:12px;color:var(--gm);margin-top:2px">${escapeHTML(n.body || '')}</div>
+        <div style="font-size:10px;color:var(--gr);margin-top:4px">${fmtDate(n.created_at)}</div>
       </div>
-      ${n.read ? '' : '<span style="width:8px;height:8px;border-radius:50%;background:var(--gm);margin-top:6px"></span>'}
-    </div>`).join('');
+    </div>
+  `).join('');
 }
 
 async function vOpenNotif(id) {
-  await sb.from('jjp_notifications').update({ read: true }).eq('id', id);
+  const sellerId = SELLER?.id || CURRENT_PROFILE?.id || null;
+  let q = sb.from('jjp_notifications').update({ read: true }).eq('id', id);
+  if (sellerId) q = q.eq('user_id', sellerId);
+  await q;
   renderSellerNotifs();
   refreshSellerNotifBadge();
 }
 
 async function vMarkAllRead() {
-  await sb.from('jjp_notifications').update({ read: true }).eq('read', false);
+  const sellerId = SELLER?.id || CURRENT_PROFILE?.id || null;
+  if (!sellerId) return;
+  await sb.from('jjp_notifications').update({ read: true }).eq('user_id', sellerId).eq('read', false);
   renderSellerNotifs();
   refreshSellerNotifBadge();
 }

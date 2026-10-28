@@ -183,6 +183,13 @@
 <script src="../assets/js/toast.js"></script>
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
+<script>
+  // 🔒 Solo administradores. Un vendedor es devuelto a su panel.
+  document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth('admin');
+    if (!session) return;
+  });
+</script>
 <script src="../assets/js/admin/vlistas-precios.js?v=20260930_precios_ia"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../assets/css/admin.css">
 <link rel="stylesheet" href="../assets/css/responsive.css?v=20261001_modal_scroll">
 <link rel="stylesheet" href="../assets/css/perf.css">
-<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20261026_funnel_v20">
+<link rel="stylesheet" href="../assets/css/campaign-editor.css?v=20261027_corp_email_v3">
 <link rel="stylesheet" href="../assets/css/product-picker.css">
 <script src="../assets/js/perf.js"></script>
 
@@ -688,11 +688,18 @@
 <script src="../assets/js/toast.js?v=20260914_b2b"></script>
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
+<script>
+  // 🔒 Solo administradores. Un vendedor es devuelto a su panel.
+  document.addEventListener('DOMContentLoaded', async () => {
+    const session = await requireAuth('admin');
+    if (!session) return;
+  });
+</script>
 <script src="../assets/js/doc-engine.js?v=20260929_launch_sync_ok"></script>
 <script src="../assets/js/vendedor/vcommon.js?v=20260914_prospects"></script>
 <script src="../assets/js/vendedor/product-picker.js?v=20260914_prospects"></script>
-<script src="../assets/js/gemini-client.js?v=20261026_funnel_v18"></script>
-<script src="../assets/js/vendedor/campaign-editor.js?v=20261026_funnel_v20"></script>
+<script src="../assets/js/gemini-client.js?v=20261027_corp_email_v3"></script>
+<script src="../assets/js/vendedor/campaign-editor.js?v=20261027_corp_email_v3"></script>
 <script src="../assets/js/keyboard-nav.js?v=20260927_hub"></script>
 <script src="../assets/js/admin/vprospectos.js?v=20260928_clean_prospects"></script>
 </body>

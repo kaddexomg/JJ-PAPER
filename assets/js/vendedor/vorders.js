@@ -87,8 +87,8 @@ function renderVOrders() {
         <button class="btn-p sm" onclick="viewVOrder('${o.id}')">👁️ Ver</button>
         <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
         ${o.status === 'confirmado_mixnet'
-          ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Ya confirmado para MixNet">✅</span>`
-          : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Confirmar y enviar a MixNet">✅ MixNet</button>`}
+          ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en MixNet">📥 Insertado</span>`
+          : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Insertar en MixNet">📥 Insertar</button>`}
         ${['rechazado','cancelado'].includes(o.status) ? `<button class="btn-danger sm" onclick="deleteVOrder('${o.id}')" title="Eliminar definitivamente">🗑️</button>` : ''}
         <button class="btn-send sm" onclick="sendMenuAbrir(event, vOrderCtx('${o.id}'))"
                 title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -97,20 +97,20 @@ function renderVOrders() {
   }).join('');
 }
 
-// Confirmar pedido para su envío a MixNet (el agente de la Win7 le asigna el correlativo real)
+// Confirmar pedido para su inserción en MixNet (el puente le asigna el correlativo real)
 async function confirmVOrderToMixnet(id) {
   const o = vOrders.find(x => x.id === id);
   if (!o) return;
-  if (!confirm(`¿Confirmar el pedido ${o.order_number} para enviarlo a MixNet?\n\nSe le asignará el número correlativo real de MixNet.`)) return;
+  if (!confirm(`¿Insertar el pedido ${o.order_number} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
   try {
     const { error } = await sb.from('jjp_orders').update({ status: 'confirmado_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
     o.status = 'confirmado_mixnet';
-    if (typeof showToast === 'function') showToast('✅ Pedido confirmado · se enviará a MixNet');
+    if (typeof showToast === 'function') showToast('📥 Pedido insertado · se enviará a MixNet');
     renderVOrders();
     if (document.getElementById('vOrderModal')?.classList.contains('op')) viewVOrder(id);
   } catch (e) {
-    alert('No se pudo confirmar: ' + (e.message || e));
+    alert('No se pudo insertar: ' + (e.message || e));
   }
 }
 
@@ -184,8 +184,8 @@ function viewVOrder(id) {
     </table>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px">
       ${o.status === 'confirmado_mixnet'
-        ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">✅ Confirmado para MixNet</span>`
-        : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Confirmar y enviar a MixNet">✅ Confirmar → MixNet</button>`}
+        ? `<span class="bulk-btn" style="background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>`
+        : `<button class="bulk-btn" style="background:#1d4ed8;color:#fff" onclick="confirmVOrderToMixnet('${o.id}')" title="Insertar en MixNet">📥 Insertar</button>`}
       ${canDeliver ? `<button class="bulk-btn green" onclick="markVDelivered('${o.id}')">📦 Marcar entregado</button>` : ''}
       ${['rechazado','cancelado'].includes(o.status) ? `<button class="bulk-btn red" onclick="deleteVOrder('${o.id}')" title="Borra el pedido definitivamente">🗑️ Eliminar</button>` : ''}
       <a class="btn-o" style="width:auto;padding:9px 16px;background:#fef3c7;color:#92400e;border-color:#f59e0b;font-weight:700"
@@ -238,7 +238,7 @@ function viewVOrder(id) {
         const rifEl   = document.getElementById('vOrdModalRif');
         const phoneEl = document.getElementById('vOrdModalPhone');
         const emailEl = document.getElementById('vOrdModalEmail');
-        if (addrEl && cust.address && (!o.address || o.address === '—')) addrEl.textContent = cust.address;
+        if (addrEl && cust.address && (!o.address || q.address === '—')) addrEl.textContent = cust.address;
         if (cityEl && cust.city && (!o.city || o.city === '—')) cityEl.textContent = cust.city;
         if (rifEl && cust.rif && (!o.rif || o.rif === '—')) rifEl.innerHTML = `<strong>${escapeHTML(cust.rif)}</strong>`;
         if (phoneEl && cust.phone && (!o.phone || o.phone === '—')) phoneEl.textContent = cust.phone;

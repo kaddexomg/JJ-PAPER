@@ -182,7 +182,7 @@ async function routeIfSession(passedSession) {
   try {
     const p = new URLSearchParams(h.replace(/^#/, ''));
     const accessToken = p.get('access_token');
-    const refreshToken = p.get('refresh_token') || accessToken;
+    const refreshToken = p.get('refresh_token') || '';
     const expiresIn = parseInt(p.get('expires_in') || '1209600', 10);
 
     if (!accessToken) throw new Error('Token de acceso no detectado en URL');
@@ -207,7 +207,8 @@ async function routeIfSession(passedSession) {
       }
     }
 
-    const userId = claims.sub || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
+    const userId = claims.sub;
+    if (!userId) throw new Error('Token sin identificador de usuario (sub)');
     const email = (claims.email || '').toLowerCase();
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = claims.exp || (now + expiresIn);
@@ -245,7 +246,7 @@ async function routeIfSession(passedSession) {
 
     // 3. Sincronizar en segundo plano con supabase-js
     try {
-      if (sb && sb.auth && sb.auth.setSession) {
+      if (sb && sb.auth && sb.auth.setSession && refreshToken) {
         sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
       }
     } catch (_) {}
@@ -257,11 +258,8 @@ async function routeIfSession(passedSession) {
       return;
     }
 
-    // Si es el administrador principal y Google certificó su identidad, permitir entrada directa
-    if (email === 'picoj386@gmail.com' || email === 'samily31657900@gmail.com' || email.includes('admin')) {
-      window.location.replace(siteURL('admin/'));
-      return;
-    }
+    // Sin atajos por correo: si no hay ficha activa en jjp_profiles, no entra.
+    // (Antes cualquier correo que contuviera "admin" entraba directo al panel.)
 
     // Cuenta no activa
     localStorage.removeItem('sb-166-0-112-247-auth-token');

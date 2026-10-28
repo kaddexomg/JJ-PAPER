@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#eab308"/>
+  <!-- Lápiz Mongol amarillo 482 -->
+  <rect x="18" y="28" width="26" height="10" fill="#18181b"/>
+  <polygon points="44,28 54,33 44,38" fill="#fed7aa"/>
+  <polygon points="50,31 54,33 50,35" fill="#18181b"/>
+  <text x="130" y="45" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="28" fill="#18181b" text-anchor="middle" letter-spacing="3">MONGOL</text>
+</svg>

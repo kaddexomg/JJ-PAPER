@@ -1,5 +1,6 @@
 /* ======================================================
-   JJ Paper Vendedor — Dashboard (ventas, meta, ranking)
+   JJ Paper Vendedor — Dashboard Personal Soberano
+   (ventas personales, meta personal, desempeño comercial)
    ====================================================== */
 
 function getActiveSeller() {
@@ -14,12 +15,34 @@ async function initSellerDashboard() {
   const monthStart = new Date();
   monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
-  const [{ data: orders }, rank] = await Promise.all([
-    // RLS: solo devuelve pedidos del vendedor logueado
-    sb.from('jjp_orders')
-      .select('order_number,client_name,total_usd,delivery_fee_usd,status,created_at')
-      .order('created_at', { ascending: false }),
-    sb.rpc('jjp_seller_ranking', { p_days: 30 }),
+  // Consulta pedidos estrictamente del vendedor logueado
+  let ordersQuery = sb.from('jjp_orders')
+    .select('order_number,client_name,total_usd,delivery_fee_usd,status,created_at')
+    .order('created_at', { ascending: false });
+
+  if (seller?.id) {
+    ordersQuery = ordersQuery.eq('seller_id', seller.id);
+  }
+
+  // Consulta cotizaciones del mes para este vendedor
+  let quotesQuery = sb.from('jjp_quotes')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', monthStart.toISOString());
+  if (seller?.id) {
+    quotesQuery = quotesQuery.eq('seller_id', seller.id);
+  }
+
+  // Consulta clientes en la cartera del vendedor
+  let custQuery = sb.from('jjp_customers')
+    .select('id', { count: 'exact', head: true });
+  if (seller?.id) {
+    custQuery = custQuery.eq('seller_id', seller.id);
+  }
+
+  const [{ data: orders }, { count: monthQuotesCount }, { count: myCustCount }] = await Promise.all([
+    ordersQuery,
+    quotesQuery,
+    custQuery
   ]);
 
   const all   = orders || [];
@@ -27,6 +50,7 @@ async function initSellerDashboard() {
   const paid  = month.filter(o => V_PAID.includes(o.status));
   const pend  = month.filter(o => ['pendiente_pago', 'verificando'].includes(o.status));
   const sales = paid.reduce((s, o) => s + Number(o.total_usd || 0), 0);
+  
   // Comisión sobre productos: el envío no comisiona
   const commBase = paid.reduce((s, o) => s + Number(o.total_usd || 0) - Number(o.delivery_fee_usd || 0), 0);
   const comm  = commBase * (Number(seller.commission_pct) || 0) / 100;
@@ -36,11 +60,16 @@ async function initSellerDashboard() {
   setV('v-orders',  month.length);
   setV('v-pending', pend.length);
 
+  // Estadísticas comerciales personales (sin exponer ranking a terceros)
+  const avgTicket = paid.length > 0 ? (sales / paid.length) : (all.length > 0 ? (sales / all.length) : 0);
+  setV('v-stat-cust', `${myCustCount || 0} clientes`);
+  setV('v-stat-quotes', `${monthQuotesCount || 0} emitidas`);
+  setV('v-stat-avg', fmtPrice(avgTicket));
+
   renderGoal(sales);
   renderRefLink();
-  renderRanking(rank.data || []);
   renderSellerNotifs();
-  renderRecentSellerOrders(all.slice(0, 6));
+  renderRecentSellerOrders(all.slice(0, 8));
 }
 
 function setV(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
@@ -79,19 +108,12 @@ function renderRefLink() {
     </div>`;
 }
 
-function renderRanking(rows) {
-  const box = document.getElementById('v-ranking');
-  if (!box) return;
-  if (!rows.length) { box.innerHTML = '<p style="color:#aaa;font-size:13px">Aún no hay datos del equipo.</p>'; return; }
-  const seller = getActiveSeller();
-  const medals = ['🥇', '🥈', '🥉'];
-  box.innerHTML = rows.slice(0, 8).map((r, i) => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;
-                border-bottom:1px solid #f2f2f2;${r.seller_id === seller.id ? 'font-weight:700;color:var(--gd)' : ''}">
-      <span>${medals[i] || (i + 1) + '.'} ${escapeHTML(r.seller_name)}${r.seller_id === seller.id ? ' (tú)' : ''}</span>
-      <span>${fmtPrice(r.total_usd)} <small style="color:var(--gr)">· ${r.orders_count} ped.</small></span>
-    </div>`).join('');
-}
+// Lista de dominios y orígenes no comerciales para no contaminar notificaciones de ventas
+const NON_COMMERCIAL_NOTIF_FILTER = [
+  'linkedin', 'glassdoor', 'dazn', 'netflix', 'disney', 'okx', 'twitch',
+  'coursera', 'apple', 'google', 'red hat', 'slate digital', 'adobe',
+  'panini', 'ollama', 'weremoto', 'movistar', 'bancoplaza'
+];
 
 async function renderSellerNotifs() {
   const box = document.getElementById('v-notifs');
@@ -101,16 +123,27 @@ async function renderSellerNotifs() {
     box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:10px 16px">Sin notificaciones todavía.</p>';
     return;
   }
+
   const { data } = await sb.from('jjp_notifications')
     .select('*')
     .eq('user_id', sellerId)
     .order('created_at', { ascending: false })
-    .limit(10);
-  if (!data?.length) {
-    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:10px 16px">Sin notificaciones todavía.</p>';
+    .limit(30);
+
+  // Filtramos notificaciones relevantes a ventas y clientes
+  const validNotifs = (data || []).filter(n => {
+    const title = (n.title || '').toLowerCase();
+    const isSpamDomain = NON_COMMERCIAL_NOTIF_FILTER.some(d => title.includes(d));
+    if (isSpamDomain) return false;
+    return true;
+  }).slice(0, 8);
+
+  if (!validNotifs.length) {
+    box.innerHTML = '<p style="color:#aaa;font-size:13px;padding:10px 16px">Sin notificaciones comerciales pendientes.</p>';
     return;
   }
-  box.innerHTML = data.map(n => `
+
+  box.innerHTML = validNotifs.map(n => `
     <div onclick="vOpenNotif('${n.id}')" style="display:flex;gap:10px;padding:10px 16px;cursor:pointer;
          border-bottom:1px solid #f0f0f0;${n.read ? 'opacity:.55' : 'background:#fbf7ef'}">
       <div style="flex:1">
@@ -143,7 +176,7 @@ function renderRecentSellerOrders(recent) {
   const tbody = document.getElementById('v-recent');
   if (!tbody) return;
   if (!recent.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Aún no tienes pedidos. ¡Haz tu primera venta desde el POS! 🛍️</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Aún no tienes pedidos registrados en tu cartera. ¡Haz tu primera venta desde el POS! 🛍️</td></tr>';
     return;
   }
   tbody.innerHTML = recent.map(o => `<tr>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#1e293b"/>
+  <circle cx="28" cy="32" r="10" fill="#f43f5e"/>
+  <circle cx="44" cy="22" r="7" fill="#fbbf24"/>
+  <circle cx="44" cy="42" r="7" fill="#06b6d4"/>
+  <text x="130" y="44" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="28" fill="#ffffff" text-anchor="middle" letter-spacing="1">J-COLOR</text>
+</svg>

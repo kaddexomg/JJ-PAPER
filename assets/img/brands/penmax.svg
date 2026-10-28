@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#be123c"/>
+  <circle cx="30" cy="32" r="10" fill="#ffffff"/>
+  <path d="M25 32 L35 32 M30 27 L30 37" stroke="#be123c" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="126" y="44" font-family="'Arial Black', sans-serif" font-weight="900" font-size="26" fill="#ffffff" text-anchor="middle" letter-spacing="1">PENMAX</text>
+</svg>

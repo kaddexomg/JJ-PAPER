@@ -1073,11 +1073,7 @@ async function prodGenerarFotoIA(productId, prodName) {
         <div style="display:flex;gap:16px">
           <button type="button" id="tabWebBtn" onclick="prodStudioSwitchTab('web')"
                   style="padding:10px 4px;border:none;background:none;border-bottom:2.5px solid #065f46;color:#065f46;font-weight:700;font-size:12.5px;cursor:pointer">
-            🌐 Catálogos Web (<span id="webPhotosCount">...</span>)
-          </button>
-          <button type="button" id="tabAiBtn" onclick="prodStudioSwitchTab('ai')"
-                  style="padding:10px 4px;border:none;background:none;border-bottom:none;color:#64748b;font-weight:600;font-size:12.5px;cursor:pointer">
-            🤖 Generar Packshot Estudio IA
+            🌐 Catálogos y Fotos Reales Web (<span id="webPhotosCount">...</span>)
           </button>
           <button type="button" id="tabUploadBtn" onclick="prodStudioSwitchTab('upload')"
                   style="padding:10px 4px;border:none;background:none;border-bottom:none;color:#64748b;font-weight:600;font-size:12.5px;cursor:pointer">
@@ -1100,17 +1096,7 @@ async function prodGenerarFotoIA(productId, prodName) {
           <div id="webPhotosGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:12px;"></div>
         </div>
 
-        <!-- TAB 2: Packshot IA -->
-        <div id="panelAiPhoto" style="display:none;text-align:center;padding:10px 0;">
-          <div style="max-width:340px;margin:0 auto;border:2px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff">
-            <img id="prodAiStandaloneImg" alt="Packshot IA" style="width:100%;height:280px;object-fit:contain;background:#fff;border-radius:8px">
-          </div>
-          <div style="margin-top:12px;display:flex;gap:10px;justify-content:center">
-            <button type="button" onclick="prodStudioRegenerarIA()" style="padding:8px 16px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer">
-              🔄 Generar otra toma IA
-            </button>
-          </div>
-        </div>
+
 
         <!-- TAB 3: Subir desde PC / Pegar Ctrl+V / URL Directa -->
         <div id="panelUploadPhoto" style="display:none;padding:8px 0;">
@@ -1164,32 +1150,22 @@ async function prodGenerarFotoIA(productId, prodName) {
 
 function prodStudioSwitchTab(tab) {
   const panelWeb = document.getElementById('panelWebPhotos');
-  const panelAi = document.getElementById('panelAiPhoto');
   const panelUp = document.getElementById('panelUploadPhoto');
   const tabWeb = document.getElementById('tabWebBtn');
-  const tabAi = document.getElementById('tabAiBtn');
   const tabUp = document.getElementById('tabUploadBtn');
 
   if (panelWeb) panelWeb.style.display = tab === 'web' ? 'block' : 'none';
-  if (panelAi)  panelAi.style.display  = tab === 'ai' ? 'block' : 'none';
   if (panelUp)  panelUp.style.display  = tab === 'upload' ? 'block' : 'none';
 
-  [
-    [tabWeb, tab === 'web'],
-    [tabAi,  tab === 'ai'],
-    [tabUp,  tab === 'upload']
-  ].forEach(([btn, on]) => {
-    if (!btn) return;
-    btn.style.borderBottom = on ? '2.5px solid #065f46' : 'none';
-    btn.style.color = on ? '#065f46' : '#64748b';
-    btn.style.fontWeight = on ? '700' : '600';
-  });
-
-  if (tab === 'ai') {
-    const aiImg = document.getElementById('prodAiStandaloneImg');
-    if (aiImg && !aiImg.getAttribute('src')) {
-      prodStudioGenerarFotoIA();
-    }
+  if (tabWeb) {
+    tabWeb.style.borderBottom = (tab === 'web') ? '2.5px solid #065f46' : 'none';
+    tabWeb.style.color = (tab === 'web') ? '#065f46' : '#64748b';
+    tabWeb.style.fontWeight = (tab === 'web') ? '700' : '600';
+  }
+  if (tabUp) {
+    tabUp.style.borderBottom = (tab === 'upload') ? '2.5px solid #065f46' : 'none';
+    tabUp.style.color = (tab === 'upload') ? '#065f46' : '#64748b';
+    tabUp.style.fontWeight = (tab === 'upload') ? '700' : '600';
   }
 }
 

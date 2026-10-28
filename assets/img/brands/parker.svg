@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#18181b"/>
+  <!-- Flecha icónica de Parker en dorado -->
+  <path d="M18 32 L44 32 M36 24 L44 32 L36 40" stroke="#d4af37" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="132" y="43" font-family="'Cinzel', 'Times New Roman', Georgia, serif" font-weight="700" font-size="26" fill="#d4af37" text-anchor="middle" letter-spacing="4">PARKER</text>
+</svg>

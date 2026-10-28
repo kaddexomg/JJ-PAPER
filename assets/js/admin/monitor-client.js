@@ -175,7 +175,7 @@ const cloudLiveRequests = [
     timeStr: new Date().toLocaleTimeString('es-VE', { hour12: false }),
     type: 'HTTP',
     method: 'INIT',
-    path: 'supabase:core/connect',
+    path: 'vps:core/connect',
     status: 200,
     durationMs: 42,
     detail: 'VPS Soberano (jjpaper_db) enlazado'
@@ -186,7 +186,7 @@ const cloudLiveRequests = [
     timeStr: new Date().toLocaleTimeString('es-VE', { hour12: false }),
     type: 'WA',
     method: 'INIT',
-    path: 'supabase:comm/connect',
+    path: 'vps:comm/connect',
     status: 200,
     durationMs: 38,
     detail: 'Puente MixNet LAN (192.168.0.185:8790) enlazado'
@@ -197,7 +197,7 @@ const cloudLiveRequests = [
     timeStr: new Date().toLocaleTimeString('es-VE', { hour12: false }),
     type: 'HTTP',
     method: 'INIT',
-    path: 'supabase:storage/connect',
+    path: 'vps:storage/connect',
     status: 200,
     durationMs: 55,
     detail: 'CDN Media Nginx (316 WebP Catálogo) enlazado'
@@ -362,7 +362,7 @@ function initRealtimeListeners() {
 
   try {
     // 1. Latidos y cambios de control del servidor en jjp_server_control
-    _rawSbComm.channel('srv-monitor-live')
+    sb.channel('srv-monitor-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_server_control' }, (payload) => {
         const row = payload.new;
         if (!row) return;
@@ -412,7 +412,7 @@ function initRealtimeListeners() {
       .subscribe();
 
     // 2. Actividad de WhatsApp en jjp_wa_messages
-    _rawSbComm.channel('wa-monitor-live')
+    sb.channel('wa-monitor-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_wa_messages' }, (payload) => {
         const m = payload.new || {};
         recordCloudRequest({
@@ -427,7 +427,7 @@ function initRealtimeListeners() {
       .subscribe();
 
     // 3. Actividad de Pedidos y Ventas en jjp_orders
-    _rawSbCore.channel('orders-monitor-live')
+    sb.channel('orders-monitor-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'jjp_orders' }, (payload) => {
         const ord = payload.new || {};
         recordCloudRequest({
@@ -755,6 +755,24 @@ async function querySupabaseDirectly() {
     waSanas: 1
   });
 
+  recordCloudRequest({
+    type: 'HTTP',
+    method: 'GET',
+    path: '/auth/v1/telemetry',
+    status: hasTelem ? 200 : 503,
+    durationMs: measuredLatency,
+    detail: hasTelem ? `VPS RAM: ${ramPct}% · Disco: ${diskPct}% · PG: ${dbSizeMb}MB` : 'VPS Telemetry offline'
+  });
+
+  recordCloudRequest({
+    type: 'HTTP',
+    method: 'HEAD',
+    path: '/storage/v1/object/public/jjp-products',
+    status: cdnOnline ? 200 : 500,
+    durationMs: cdnLatency || 15,
+    detail: `Media CDN WebP: ${mediaCount} fotos`
+  });
+
   return {
     timestamp: new Date().toISOString(),
     queryDurationMs: measuredLatency,
@@ -1066,6 +1084,36 @@ function renderCardStorage(key, proj) {
   }
 }
 
+
+function renderRecentRequests(requests) {
+  const container = document.getElementById('liveRequestsContainer');
+  if (!container) return;
+  const list = Array.isArray(requests) ? requests : [];
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-feed">Esperando actividad de red y llamadas del sistema...</div>';
+    return;
+  }
+  container.innerHTML = '';
+  list.slice(0, 35).forEach(req => {
+    const latColor = req.durationMs > 800 ? 'lat-slow' : req.durationMs > 300 ? 'lat-med' : 'lat-fast';
+    const statusColor = req.status >= 400 ? 'badge-err' : 'badge-ok';
+    const typeColor = req.type === 'WA' ? 'type-wa' : (req.type === 'OPTIMIZE' ? 'type-opt' : (req.type === 'LAN' ? 'type-lan' : 'type-http'));
+
+    const item = document.createElement('div');
+    item.className = 'req-item';
+    item.innerHTML = `
+      <span class="req-time">${req.timeStr || ''}</span>
+      <span class="req-type ${typeColor}">${req.type}</span>
+      <span class="req-method">${req.method}</span>
+      <span class="req-path" title="${escapeHTML(req.path)}">${escapeHTML(req.path)}</span>
+      <span class="req-detail">${escapeHTML(req.detail || '')}</span>
+      <span class="req-status ${statusColor}">${req.status}</span>
+      <span class="req-lat ${latColor}">${req.durationMs}ms</span>
+    `;
+    container.appendChild(item);
+  });
+}
+
 function renderOptimizationInfo(data) {
   const dead = data.summary?.totalDeadTuples ?? (data.projects?.core?.totalDeadTuples ?? 45);
   const statusEl = document.getElementById('optimizationSummaryText');
@@ -1135,7 +1183,7 @@ async function runOptimization(action, title) {
     }
 
     if (!result || !result.success) {
-      // Modo Cloud: delegar al servidor VPS vía Supabase jjp_server_control
+      // Modo VPS: delegar al servidor VPS vía jjp_server_control
       const now = new Date().toISOString();
       await Promise.allSettled([
         sb.from('jjp_server_control').update({ command: 'optimize:' + action, command_at: now }).eq('id', 1),
@@ -1222,7 +1270,7 @@ window.triggerServerRemoteCmd = async function(cmd) {
     pull: 'Actualizar código desde GitHub y Reiniciar'
   };
   const label = labels[cmd] || cmd;
-  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor (VPS / Local)?\n\nEl servicio procesará el comando de inmediato mediante Supabase jjp_server_control.`)) return;
+  if (!confirm(`¿Confirmas enviar la orden de "${label}" al servidor (VPS / Local)?\n\nEl servicio procesará el comando de inmediato mediante el VPS Soberano (jjp_server_control).`)) return;
 
   showOptToast(`⏳ Enviando orden "${label}" al servidor...`, 'info');
   try {

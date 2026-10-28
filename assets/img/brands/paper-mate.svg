@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+  <!-- Doble corazón rojo emblemático -->
+  <path d="M22 28 C22 23, 27 20, 31 24 C35 20, 40 23, 40 28 C40 35, 31 41, 31 41 C31 41, 22 35, 22 28 Z" fill="#e11d48"/>
+  <path d="M34 26 C34 22, 38 19, 41 22 C44 19, 48 22, 48 26 C48 32, 41 37, 41 37 C41 37, 34 32, 34 26 Z" fill="#be123c"/>
+  <text x="130" y="42" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="22" fill="#0f172a" text-anchor="middle" letter-spacing="0.5">Paper<tspan fill="#e11d48">:</tspan>Mate</text>
+</svg>

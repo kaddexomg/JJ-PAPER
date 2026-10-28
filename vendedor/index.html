@@ -95,10 +95,23 @@
           <p style="font-size:13px;color:var(--gr);line-height:1.6">Comparte este link: todo cliente que entre por él queda atribuido a ti por 30 días, y sus compras suman a tu comisión.</p>
           <div id="v-reflink-box"></div>
         </div>
-        <!-- Ranking -->
+        <!-- Resumen de Desempeño Personal -->
         <div class="dash-card">
-          <h3>🏆 Ranking del equipo (30 días)</h3>
-          <div id="v-ranking"><p style="color:#aaa;font-size:13px">Cargando...</p></div>
+          <h3>🎯 Mi Desempeño Comercial</h3>
+          <div id="v-my-stats" style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px">
+              <span style="font-size:13px;color:var(--gr)">👥 Clientes en mi cartera:</span>
+              <strong id="v-stat-cust" style="font-size:15px;color:var(--gd)">—</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px">
+              <span style="font-size:13px;color:var(--gr)">📋 Cotizaciones este mes:</span>
+              <strong id="v-stat-quotes" style="font-size:15px;color:var(--gm)">—</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px">
+              <span style="font-size:13px;color:var(--gr)">🏷️ Ticket promedio de venta:</span>
+              <strong id="v-stat-avg" style="font-size:15px;color:#0f172a">—</strong>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -135,7 +148,7 @@
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/vendedor/vcommon.js"></script>
-<script src="../assets/js/vendedor/vdashboard.js"></script>
+<script src="../assets/js/vendedor/vdashboard.js?v=20261028_soberano_v2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const seller = await initSellerPage();

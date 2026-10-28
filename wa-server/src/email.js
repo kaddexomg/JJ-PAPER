@@ -915,27 +915,43 @@ async function ingestMessage(acct, token, id) {
       log.warn({ err: aiErr.message }, 'Aviso en análisis cognitivo de correo entrante');
     }
 
-    // 4. Notificación enriquecida al asesor / usuario de la cuenta
+    // 4. Notificación comercial al asesor / usuario de la cuenta (solo clientes, prospectos o cotizaciones)
     try {
-      const senderName = cust?.name || prospect?.contact_name || prospect?.company_name || from.name || from.email;
-      let notifTitle = `📩 Respuesta de ${senderName}`;
-      let notifBody = `"${subject || 'Sin asunto'}" — ${(bodyText || '').slice(0, 100)}...`;
+      const fromLower = ((from.email || '') + ' ' + (from.name || '')).toLowerCase();
+      const ignoredDomains = [
+        'linkedin.com', 'glassdoor.com', 'netflix.com', 'disneyplus.com', 'dazn.com',
+        'google.com', 'apple.com', 'okx.com', 'twitch.tv', 'coursera.org',
+        'noreply', 'no-reply', 'postmaster', 'mailer-daemon', 'newsletter',
+        'weremoto.com', 'movistar.com.ve', 'bancoplaza.com', 'turboscribe.ai',
+        'codedex.io', 'n8n.io', 'kick.com', 'atentamentebpo.com', 'respond.io',
+        'slatedigital.com', 'redhat.com', 'adobe.com', 'panini', 'wink.com', 'wink'
+      ];
+      const isAutomatedSpam = ignoredDomains.some(d => fromLower.includes(d));
 
-      if (aiMeta?.is_email_change) {
-        notifTitle = `🔄 ${senderName} cambió su correo`;
-        notifBody = `Nuevo correo actualizado: ${aiMeta.new_email}`;
-      } else if (aiMeta?.is_quote_request) {
-        notifTitle = `📋 Solicitud de cotización: ${senderName}`;
-        notifBody = `Pide: ${(aiMeta.requested_items || []).map(i => i.item).slice(0, 3).join(', ')}`;
+      // Solo notificar si es un cliente registrado, un prospecto real o una solicitud de cotización formal
+      const isCommercial = !isAutomatedSpam && (cust || prospect || aiMeta?.is_quote_request);
+
+      if (isCommercial) {
+        const senderName = cust?.name || prospect?.contact_name || prospect?.company_name || from.name || from.email;
+        let notifTitle = `📩 Respuesta comercial: ${senderName}`;
+        let notifBody = `"${subject || 'Sin asunto'}" — ${(bodyText || '').slice(0, 100)}...`;
+
+        if (aiMeta?.is_email_change) {
+          notifTitle = `🔄 ${senderName} cambió su correo`;
+          notifBody = `Nuevo correo actualizado: ${aiMeta.new_email}`;
+        } else if (aiMeta?.is_quote_request) {
+          notifTitle = `📋 Solicitud de cotización: ${senderName}`;
+          notifBody = `Pide: ${(aiMeta.requested_items || []).map(i => i.item).slice(0, 3).join(', ')}`;
+        }
+
+        await dbCore.from('jjp_notifications').insert({
+          user_id: acct.profile_id,
+          type: aiMeta?.is_quote_request ? 'quote_request' : 'email_reply',
+          title: notifTitle,
+          body: notifBody,
+          link: '/vendedor/correo.html'
+        });
       }
-
-      await dbCore.from('jjp_notifications').insert({
-        user_id: acct.profile_id,
-        type: aiMeta?.is_quote_request ? 'quote_request' : 'email_reply',
-        title: notifTitle,
-        body: notifBody,
-        link: '/vendedor/correo.html'
-      });
     } catch (_) {}
   }
 

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#0d5c3a"/>
+  <!-- Sol amarillo -->
+  <circle cx="34" cy="32" r="14" fill="#fbbf24"/>
+  <path d="M34 12 L34 16 M34 48 L34 52 M14 32 L18 32 M50 32 L54 32 M20 18 L23 21 M45 43 L48 46 M20 46 L23 43 M45 21 L48 18" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="126" y="44" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="30" fill="#ffffff" text-anchor="middle" letter-spacing="1">Solita</text>
+  <circle cx="178" cy="24" r="3" fill="#fbbf24"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#1e3a8a"/>
+  <!-- Martillo estilizado -->
+  <path d="M22 26 L34 26 L34 22 L40 22 L40 38 L34 38 L34 34 L22 34 Z" fill="#f59e0b"/>
+  <rect x="26" y="32" width="5" height="18" fill="#cbd5e1" rx="1"/>
+  <text x="130" y="44" font-family="'Arial Black', Impact, sans-serif" font-weight="900" font-size="28" fill="#ffffff" text-anchor="middle" letter-spacing="2">HAMMER</text>
+</svg>

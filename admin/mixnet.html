@@ -332,7 +332,7 @@
       <div class="bridge-header">
         <div>
           <span style="font-size:13px;color:var(--text-muted)">Arquitectura:</span>
-          <strong style="color:#fff;margin-left:4px">JJ-MIXNET-AGENT v3.0.0-PROD Autónomo 24/7 (Puerto 8790) ↔ Servidor Central ↔ Supabase Cloud</strong>
+          <strong style="color:#fff;margin-left:4px">JJ-MIXNET-AGENT v3.0.0-PROD Autónomo 24/7 (Puerto 8790) ↔ Servidor Central (192.168.0.185) ↔ VPS Soberano</strong>
         </div>
         <div style="font-size:12px;color:var(--text-muted)">
           Compilador B-Tree NTX nativo en memoria · Correlativo soberano sin saltos
@@ -428,7 +428,7 @@
           </div>
         </div>
         <div class="ai-console" id="aiConsole">Cargando telemetría del Guardián Autónomo...
-Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con el servidor 192.168.0.185, los índices .NTX y la sincronización Supabase.</div>
+Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con el servidor 192.168.0.185, los índices .NTX y la sincronización VPS PostgreSQL.</div>
       </div>
 
       <!-- Fila: Entorno Agéntico IA (Backups & Rollback en 1 Clic) -->
@@ -605,7 +605,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     <div style="font-size:13px;line-height:1.6;color:#eaf5ee">
       <div style="background:rgba(255,82,82,0.12);border:1px solid rgba(255,82,82,0.3);border-radius:8px;padding:12px;margin-bottom:16px;color:#ffb4b4">
         ⚠️ <strong>ADVERTENCIA DE SEGURIDAD OPERATIVA:</strong><br>
-        Esta acción restaurará las tablas maestras <code>MXNUMCOT.DBF</code>, <code>MXNUMPED.DBF</code>, <code>MXCLIEN.DBF</code> y compilará los 10 índices <code>.NTX</code> al estado exacto del snapshot seleccionado. Los documentos web posteriores se sincronizarán desde Supabase sin pérdida de datos.
+        Esta acción restaurará las tablas maestras <code>MXNUMCOT.DBF</code>, <code>MXNUMPED.DBF</code>, <code>MXCLIEN.DBF</code> y compilará los 10 índices <code>.NTX</code> al estado exacto del snapshot seleccionado. Los documentos web posteriores se sincronizarán desde el VPS Soberano sin pérdida de datos.
       </div>
       <div class="fg" style="margin-bottom:14px">
         <label class="fl" style="font-weight:700;color:var(--text-muted);display:block;margin-bottom:6px">Seleccionar Snapshot de Restauración:</label>
@@ -700,7 +700,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
 </div>
 
 <!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
 <script src="../assets/js/config.js?v=20261022_vps_full"></script>
 <script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
 <script src="../assets/js/admin/sidenav.js?v=20261023_nav_absolute"></script>
@@ -807,7 +807,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
       if (localOk && pingMs !== null) {
         elPing.innerHTML = `<span class="pulse-dot"></span> <strong style="color:#4cd137">${pingMs} ms</strong> (LAN / 192.168.0.185:8790)`;
       } else if (agentMod.online) {
-        elPing.innerHTML = `<span class="pulse-dot"></span> <strong style="color:#38bdf8">~28 ms</strong> (Servidor 192.168.0.185 vía Supabase)`;
+        elPing.innerHTML = `<span class="pulse-dot"></span> <strong style="color:#38bdf8">~28 ms</strong> (Servidor 192.168.0.185 vía VPS Soberano / PostgREST)`;
       } else {
         elPing.innerHTML = `<span style="color:#ff5252">Timeout / Sin Conexión</span>`;
       }
@@ -873,7 +873,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
 
   async function triggerForcedSync() {
     const aiConsole = document.getElementById('aiConsole');
-    aiConsole.textContent = `[${new Date().toLocaleTimeString()}] 🚀 Ordenando sincronización bidireccional inmediata...\n- Transmitiendo señal a Micro-API http://127.0.0.1:8790/sync-now\n- Notificando a Supabase Cloud (jjp_server_control)...`;
+    aiConsole.textContent = `[${new Date().toLocaleTimeString()}] 🚀 Ordenando sincronización bidireccional inmediata...\n- Transmitiendo señal a Micro-API http://127.0.0.1:8790/sync-now\n- Notificando al VPS Soberano (jjp_server_control)...`;
 
     try {
       fetch('http://127.0.0.1:8790/sync-now', { mode: 'no-cors' }).catch(() => {});
@@ -942,11 +942,11 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
         aiConsole.textContent += `RESPUESTA HTTP ${res.status}\n`;
       }
     } catch (_) {
-      aiConsole.textContent += `NO RESPONDE EN PUERTO 8790 (Consultando Supabase)...\n`;
+      aiConsole.textContent += `NO RESPONDE EN PUERTO 8790 (Consultando VPS Soberano)...\n`;
     }
 
     // Paso 2: Supabase Server Control
-    aiConsole.textContent += `[Paso 2/4] Consultando telemetría en Supabase Cloud... `;
+    aiConsole.textContent += `[Paso 2/4] Consultando telemetría en VPS Soberano (PostgreSQL)... `;
     try {
       const { data } = await sbClient.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
       const mod = data?.modules?.mixnet_agent || {};
@@ -1386,7 +1386,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
     const btn = document.getElementById('btnReconcileClients');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Conciliando...'; }
 
-    aiConsole.textContent = `[${new Date().toLocaleTimeString()}] 🤝 INICIANDO CONCILIACIÓN AUTOMÁTICA DE CLIENTES (MixNet ↔ JJ Paper)...\n======================================================================\n- Llamando a Micro-API en http://127.0.0.1:8790/clients/reconcile...\n- Encolando tarea 'reconcile_clients' en Supabase...`;
+    aiConsole.textContent = `[${new Date().toLocaleTimeString()}] 🤝 INICIANDO CONCILIACIÓN AUTOMÁTICA DE CLIENTES (MixNet ↔ JJ Paper)...\n======================================================================\n- Llamando a Micro-API en http://127.0.0.1:8790/clients/reconcile...\n- Encolando tarea 'reconcile_clients' en VPS Soberano...`;
 
     try {
       fetch('http://127.0.0.1:8790/clients/reconcile', {
@@ -1432,7 +1432,7 @@ Pulse "🩺 Diagnóstico Integral" para auditar en tiempo real la conexión con 
 
     setStoredClientCodes(stored);
 
-    aiConsole.textContent += `\n[${new Date().toLocaleTimeString()}] ✅ CONCILIACIÓN DE CLIENTES COMPLETADA:\n- ${reconciledCount} clientes nuevos vinculados con código oficial MixNet (MXCLIEN.DBF).\n- ${fixRifCount} formatos de RIF estandarizados al formato SENIAT.\n- Base de datos en memoria y Supabase sincronizadas.`;
+    aiConsole.textContent += `\n[${new Date().toLocaleTimeString()}] ✅ CONCILIACIÓN DE CLIENTES COMPLETADA:\n- ${reconciledCount} clientes nuevos vinculados con código oficial MixNet (MXCLIEN.DBF).\n- ${fixRifCount} formatos de RIF estandarizados al formato SENIAT.\n- Base de datos en memoria y VPS PostgreSQL sincronizadas.`;
 
     if (btn) { btn.disabled = false; btn.textContent = '🤝 Conciliar Clientes con Mixnet'; }
 

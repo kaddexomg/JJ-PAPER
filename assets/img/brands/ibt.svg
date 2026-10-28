@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#0284c7"/>
+  <rect x="20" y="16" width="30" height="33" rx="4" fill="#ffffff"/>
+  <path d="M26 24 L44 24 M26 32 L38 32 M26 40 L44 40" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="126" y="46" font-family="'Arial Black', sans-serif" font-weight="900" font-size="34" fill="#ffffff" text-anchor="middle" letter-spacing="4">IBT</text>
+</svg>

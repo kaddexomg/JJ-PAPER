@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#f59e0b"/>
+  <!-- Personaje Bic emblemático con bolígrafo -->
+  <circle cx="30" cy="26" r="9" fill="#000000"/>
+  <path d="M26 35 L34 35 L36 50 L24 50 Z" fill="#000000"/>
+  <path d="M38 20 L44 48" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="126" y="46" font-family="'Arial Black', 'Helvetica', sans-serif" font-style="italic" font-weight="900" font-size="36" fill="#000000" text-anchor="middle" letter-spacing="2">BiC</text>
+</svg>

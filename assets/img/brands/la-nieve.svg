@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 65" width="220" height="65">
+  <rect width="220" height="65" rx="8" fill="#0369a1"/>
+  <!-- Pico nevado -->
+  <path d="M16 46 L34 20 L52 46 Z" fill="#38bdf8"/>
+  <path d="M28 29 L34 20 L40 29 L36 27 L34 31 L32 27 Z" fill="#ffffff"/>
+  <text x="130" y="43" font-family="'Arial Black', 'Trebuchet MS', sans-serif" font-weight="900" font-size="24" fill="#ffffff" text-anchor="middle" letter-spacing="1">LA NIEVE</text>
+</svg>

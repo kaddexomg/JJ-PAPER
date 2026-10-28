@@ -76,10 +76,10 @@ function computeDocFingerprint(doc) {
 }
 
 // Códigos de vendedor MixNet (MXENCPED.codven / MXENCCOT.codven) → vendedor JJ Paper
-// En MixNet: 005 es Mostrador Físico / Caja de tienda. Keyder Salazar es 010.
+// En MixNet: Keyder Salazar es CODVEN 005. 010 y 020 son zonas/carteras artificiales en JJ Paper.
 const SELLERS_BY_CODVEN = new Map([
-  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['010']],               // Keyder Salazar (010 en MixNet)
-  ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006']],        // Yovanni Araujo
+  ['bddc57dc-5bf9-4a72-9e1c-751d07b03164', ['005']],               // Keyder Salazar (005 en MixNet)
+  ['07540d9c-4ed9-46d2-95ce-0a0200be6083', ['004', '006', '009']], // Yovanni Araujo
   ['3c9b7ddd-4b98-45c6-a646-5c557a2bc043', ['008']],               // Marianela (marianela08)
   ['68c29cd3-760a-4282-8214-4e7c60413ec5', ['014']],               // Andreina (andreina)
   ['e6957754-de00-4088-8e54-affcaa172247', ['002']],               // Luis Alarcon (002 en MixNet)
@@ -91,10 +91,8 @@ const SELLERS_BY_CODVEN = new Map([
   ['485e3fde-f95d-4857-9175-147051a54748', ['033']],               // JJ Paper 33 (033 en MixNet)
 ]);
 const CODVEN_HINT = new Map([
-  ['005', 'Mostrador Físico (005)'],
-  ['010', 'Keyder Salazar (Zona 010)'],
-  ['020', 'Zona 020 (Cartera Administrativa)'],
-  ['004', 'Yovanni'], ['006', 'Yovanni'],
+  ['005', 'Keyder Salazar (005)'],
+  ['004', 'Yovanni'], ['006', 'Yovanni'], ['009', 'Yovanni'],
   ['008', 'Marianela'], ['014', 'Andreina'],
   ['002', 'Luis Alarcon (002)'],
   ['001', 'Mary Garcia (001)'],
@@ -113,7 +111,7 @@ function sellerForCodven(codven) {
 }
 function codvenForSeller(sellerId) {
   if (!sellerId) return '';
-  if (sellerId === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return '010';
+  if (sellerId === 'bddc57dc-5bf9-4a72-9e1c-751d07b03164') return '005';
   for (const [sid, codes] of SELLERS_BY_CODVEN.entries()) {
     if (sid === sellerId) return codes[0];
   }
@@ -1393,32 +1391,12 @@ async function sweepMixnetDbf() {
         const KEYDER_ID = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
         const clientNorm = String(clientName || '').toLowerCase();
         
-        // 1. Cuentas y ventas directas de Keyder Salazar:
-        // - Colegio Agustiniano Cristo Rey (incluso si en MixNet se registró bajo Andreina 014)
-        // - Colegio Eugenia Ravasco
-        // - Cahersi Motors / Multiservicios
-        // - Calzado Rindal
-        // - Clientes de cartera directa Zona 010
+        // 1. Cero cruce de vendedores: CODVEN en MixNet define la autoría irrefutablemente
         let finalSellerId = null;
-        if (
-          clientNorm.includes('agustiniano') || clientNorm.includes('cristo rey') ||
-          clientNorm.includes('eugenia ravasco') || clientNorm.includes('ravasco') ||
-          clientNorm.includes('cahersi') ||
-          clientNorm.includes('rindal') ||
-          clientNorm.includes('catuv') || clientNorm.includes('c.a.t.u') ||
-          clientNorm.includes('cashea') ||
-          clientNorm.includes('lindo sol') ||
-          matchedCust?.zone === '010'
-        ) {
-          finalSellerId = KEYDER_ID;
-        } else if (codvenSeller) {
-          // 2. Vendedor explícito por CODVEN de MixNet (002, 004, 006, 008, 014, 010, etc.)
+        if (codvenSeller) {
           finalSellerId = codvenSeller;
-        } else if (matchedCust?.seller_id && ['002', '004', '006', '008', '014'].includes(matchedCust?.zone)) {
-          // 3. Vendedores regulares según su zona exclusiva (Luis 002, Yovanni 004/006, Marianela 008, Andreina 014)
-          finalSellerId = matchedCust.seller_id;
         } else {
-          // 4. Mostrador Físico / Caja de tienda (005) o cartera administrativa general
+          // Mostrador Físico / Caja de tienda sin vendedor o sin asignar
           finalSellerId = null;
         }
         // Extraer comentarios legítimos del documento en MixNet (COMEN1, COMEN2), sin marcas artificiales

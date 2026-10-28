@@ -1,8 +1,8 @@
 /* ======================================================================
    JJ Paper — JJ-MIXNET-AGENT: Demonio Autónomo y Guardián de Red
    ======================================================================
-   Diseñado para correr de forma permanente en el servidor central de
-   MixNet (192.168.0.185). Cero dependencia de PCs cliente encendidas.
+   Diseñado para correr de forma permanente en Supervisor-Pc o Servidor Central
+   MixNet (192.168.0.185). Cero dependencia de la laptop personal.
    ====================================================================== */
 
 import http from 'node:http';
@@ -15,6 +15,7 @@ import {
 import { reportAgentHeartbeat } from './supabase-client.js';
 import { processAgentTasks } from './task-runner.js';
 import { syncCatalogFromMixnet } from './sync-catalog.js';
+import { syncSuppliersFromMixnet } from './sync-suppliers.js';
 import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
 import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
@@ -23,7 +24,7 @@ let activeCompDir = null;
 let currentCotSerial = '—';
 let currentPedSerial = '—';
 let lastSyncTime = null;
-let syncStats = { quotesImported: 0, ordersImported: 0, productsUpdated: 0 };
+let syncStats = { quotesImported: 0, ordersImported: 0, productsUpdated: 0, suppliersSynced: 0 };
 let isSyncing = false;
 
 function refreshCorrelatives() {
@@ -51,14 +52,10 @@ async function runScheduledSync() {
   if (isSyncing || !activeCompDir) return;
   isSyncing = true;
   try {
-    // 1. Exportar documentos pendientes creados en la web
-    // Exportaci├│n a DBF desactivada en segundo plano para evitar bloqueos Clipper
-// 2. Importar documentos nuevos creados físicamente en MixNet
     const impRes = await importMixnetDocuments(activeCompDir);
     syncStats.quotesImported += impRes.importedQuotes;
     syncStats.ordersImported += impRes.importedOrders;
 
-    // 3. Refrescar correlativos
     refreshCorrelatives();
     lastSyncTime = new Date().toISOString();
   } catch (err) {
@@ -81,12 +78,23 @@ async function runScheduledCatalogSync() {
   }
 }
 
+async function runScheduledSupplierSync() {
+  if (!activeCompDir) return;
+  try {
+    const res = await syncSuppliersFromMixnet(activeCompDir);
+    if (res && res.ok) {
+      syncStats.suppliersSynced = (res.created || 0) + (res.updated || 0);
+    }
+  } catch (err) {
+    log(`Aviso en ciclo de proveedores: ${err.message}`, 'WARN');
+  }
+}
+
 /**
  * Servidor Micro-API HTTP local en puerto 8790
  */
 function startMicroApi() {
   const server = http.createServer(async (req, res) => {
-    // CORS headers para acceso desde admin/mixnet.html
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -126,7 +134,6 @@ function startMicroApi() {
       return;
     }
 
-    // Helper para leer body JSON
     const readBody = () => new Promise(resolve => {
       let raw = '';
       req.on('data', chunk => { raw += chunk; });
@@ -209,9 +216,6 @@ function startMicroApi() {
       try {
         if (!activeCompDir) throw new Error('Directorio comp01 no detectado.');
         const body = await readBody();
-        if (!body.recordIndex || !body.values) {
-          throw new Error('Se requiere recordIndex y values { CAMPO: "VALOR" } en el body JSON.');
-        }
         const resData = updateMixnetUserPermissions(activeCompDir, Number(body.recordIndex), body.values);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(resData));
@@ -232,7 +236,7 @@ function startMicroApi() {
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      log(`Micro-API (puerto ${AGENT_PORT}) ya est├í en uso por otra instancia. Saliendo limpiamente.`, 'WARN');
+      log(`Micro-API (puerto ${AGENT_PORT}) ya está en uso por otra instancia. Saliendo limpiamente.`, 'WARN');
       process.exit(0);
     }
     log(`Aviso en Micro-API (puerto ${AGENT_PORT}): ${err.message}`, 'WARN');
@@ -286,7 +290,14 @@ async function main() {
     }
   }, 60000);
 
-  // 5. Bucle de Heartbeat hacia Supabase (cada 15 segundos)
+  // 5. Bucle de Sincronización de Proveedores (cada 5 minutos)
+  setInterval(async () => {
+    if (activeCompDir) {
+      await runScheduledSupplierSync();
+    }
+  }, 300000);
+
+  // 6. Bucle de Heartbeat hacia Supabase (cada 15 segundos)
   setInterval(async () => {
     refreshCorrelatives();
     await reportAgentHeartbeat({
@@ -302,6 +313,7 @@ async function main() {
   // Ejecución inicial inmediata
   if (activeCompDir) {
     await runScheduledSync();
+    await runScheduledSupplierSync();
   }
 
   log('Agente MixNet iniciado y en modo guardián autónomo 24/7.');

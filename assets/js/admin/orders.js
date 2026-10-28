@@ -104,7 +104,7 @@ function renderOrdersStats() {
     const paid = all.filter(o => ['pagado', 'preparando', 'entregado'].includes(o.status));
     box.innerHTML = `
       <div class="ost"><span class="ost-n">${all.length}</span><span class="ost-l">Pedidos totales</span></div>
-      <div class="ost ok" style="border-left:4px solid #059669;cursor:pointer" onclick="setOrdersFilter('facturado')" title="Filtrar pedidos facturados en MixNet"><span class="ost-n" style="color:#059669">${invoiced.length}</span><span class="ost-l">🧾 Facturados MixNet</span></div>
+      <div class="ost ok" style="border-left:4px solid #059669;cursor:pointer" onclick="setOrdersFilter('facturado')" title="Filtrar pedidos facturados"><span class="ost-n" style="color:#059669">${invoiced.length}</span><span class="ost-l">🧾 Facturados</span></div>
       <div class="ost warn"><span class="ost-n">${pend.length}</span><span class="ost-l">Por verificar</span></div>
       <div class="ost ok"><span class="ost-n">${paid.length}</span><span class="ost-l">Confirmados</span></div>
       <div class="ost money"><span class="ost-n">${fmtPrice(sum(paid))}</span><span class="ost-l">Ventas confirmadas</span></div>`;

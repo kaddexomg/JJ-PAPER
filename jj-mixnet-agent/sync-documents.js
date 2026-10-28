@@ -6,6 +6,7 @@
    reindexación automática de los archivos .NTX.
    Incluye normalización monetaria (Bolívares -> USD cuando cambio > 30)
    y vinculación automática de customer_id por RIF / Razón Social.
+   REGLA SAGRADA: Cero cruce de vendedores. CODVEN define la autoría.
    ====================================================================== */
 
 import path from 'node:path';
@@ -86,8 +87,8 @@ export async function importMixnetDocuments(compDir) {
         }
 
         const codven = String(r.codven || '').trim();
-        const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || SELLER_CODVEN_TO_PROFILE['010'];
-        const sellerId = sellerProfile.id;
+        const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || null;
+        const sellerId = sellerProfile ? sellerProfile.id : null;
         const rate = parseFloat(String(r.cambio || '0').replace(/,/g, '.')) || 0;
         const moneda = String(r.moneda || '').trim().toUpperCase();
 
@@ -134,7 +135,7 @@ export async function importMixnetDocuments(compDir) {
           await sbPost('jjp_quotes', payload);
           importedDocuments.add(docKey);
           importedQuotes++;
-          log(`Cotización #${num} importada de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile.name}]`);
+          log(`Cotización #${num} importada de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile ? sellerProfile.name : (codven || 'Sin asignar')}]`);
         } catch (err) {
           log(`Aviso importando cotización #${num}: ${err.message}`, 'WARN');
         }
@@ -179,8 +180,8 @@ export async function importMixnetDocuments(compDir) {
         }
 
         const codven = String(r.codven || '').trim();
-        const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || SELLER_CODVEN_TO_PROFILE['010'];
-        const sellerId = sellerProfile.id;
+        const sellerProfile = SELLER_CODVEN_TO_PROFILE[codven] || null;
+        const sellerId = sellerProfile ? sellerProfile.id : null;
         const rate = parseFloat(String(r.cambio || '0').replace(/,/g, '.')) || 0;
         const moneda = String(r.moneda || '').trim().toUpperCase();
 
@@ -230,7 +231,7 @@ export async function importMixnetDocuments(compDir) {
           await sbPost('jjp_orders', payload);
           importedDocuments.add(docKey);
           importedOrders++;
-          log(`Pedido #${num} importado de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile.name}]`);
+          log(`Pedido #${num} importado de MixNet: $${total.toFixed(2)} USD [Vendedor: ${sellerProfile ? sellerProfile.name : (codven || 'Sin asignar')}]`);
         } catch (err) {
           log(`Aviso importando pedido #${num}: ${err.message}`, 'WARN');
         }

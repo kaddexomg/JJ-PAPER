@@ -7,14 +7,19 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
+import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { pollPendingTasks, updateTaskStatus } from './supabase-client.js';
 import { syncCatalogFromMixnet } from './sync-catalog.js';
+import { syncSuppliersFromMixnet } from './sync-suppliers.js';
 import { importMixnetDocuments, exportPendingDocumentsToMixnet } from './sync-documents.js';
 import { reindexNtx } from './ntx-builder.js';
 import { injectQuoteToMixnet, injectOrderToMixnet, readDbfStruct } from './dbf-driver.js';
 import { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup } from './client-reconciler.js';
 import { getMixnetUsers, updateMixnetUserPermissions } from './mixnet-usuar.js';
 import { SELLER_CODVEN_TO_PROFILE, log } from './config.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Procesa la cola de tareas pendientes en jjp_mixnet_tasks
@@ -37,13 +42,21 @@ export async function processAgentTasks(compDir) {
           const catRes = await syncCatalogFromMixnet(compDir, payload.force === true);
           const docRes = await importMixnetDocuments(compDir);
           const expRes = await exportPendingDocumentsToMixnet(compDir);
-          result = { ok: true, catalog: catRes, imported: docRes, exported: expRes };
+          const supRes = await syncSuppliersFromMixnet(compDir);
+          result = { ok: true, catalog: catRes, imported: docRes, exported: expRes, suppliers: supRes };
           break;
         }
 
         case 'sync_inventory':
         case 'sync_catalog': {
           const res = await syncCatalogFromMixnet(compDir, payload.force === true);
+          result = { ok: true, ...res };
+          break;
+        }
+
+        case 'sync_suppliers': {
+          log('[AGENTE] Sincronizando catálogo de proveedores de MixNet...');
+          const res = await syncSuppliersFromMixnet(compDir);
           result = { ok: true, ...res };
           break;
         }
@@ -119,7 +132,7 @@ export async function processAgentTasks(compDir) {
         }
 
         case 'list_users': {
-          log('[AGENTE] Leyendo usuarios y permisos de MixNet (MXUSUAR.DBF)...');
+          log('[AGENTE] Leyendo usuarios de MixNet (MXUSUAR.DBF)...');
           const realUsers = getMixnetUsers(compDir);
           if (realUsers && realUsers.ok) {
             result = realUsers;
@@ -135,21 +148,9 @@ export async function processAgentTasks(compDir) {
         }
 
         case 'update_user_permissions': {
-          log(`[AGENTE] Actualizando permisos de usuario MixNet (registro #${payload.recordIndex})...`);
-          if (!payload.recordIndex || !payload.values) {
-            throw new Error('Se requiere payload.recordIndex y payload.values.');
-          }
+          log(`[AGENTE] Solicitud de modificación de usuario en MixNet recibida...`);
           const res = updateMixnetUserPermissions(compDir, Number(payload.recordIndex), payload.values);
           result = res;
-          break;
-        }
-        case '_old_users_ignore': {
-          const userList = Object.entries(SELLER_CODVEN_TO_PROFILE).map(([codven, u]) => ({
-            codven,
-            id: u.id,
-            name: u.name
-          }));
-          result = { ok: true, count: userList.length, users: userList };
           break;
         }
 
@@ -202,6 +203,30 @@ export async function processAgentTasks(compDir) {
           break;
         }
 
+        case 'git_pull':
+        case 'self_update': {
+          log('[AGENTE] Ejecutando auto-actualización vía git pull...');
+          let pullOutput = '';
+          const repoRoot = path.resolve(__dirname, '..');
+          try {
+            pullOutput = execSync('git pull origin main', {
+              cwd: repoRoot,
+              encoding: 'utf8',
+              timeout: 30000
+            });
+          } catch (e) {
+            pullOutput = `git pull falló: ${e.message}\n${e.stdout || ''}\n${e.stderr || ''}`;
+          }
+          result = { ok: true, output: pullOutput.trim() };
+          await updateTaskStatus(id, 'completed', result);
+          log(`[AGENTE] Auto-actualización completada: ${pullOutput.trim()}`);
+          if (payload.restart !== false) {
+            log('[AGENTE] Reiniciando proceso para cargar el código actualizado...');
+            setTimeout(() => process.exit(1), 1000);
+          }
+          return tasks.length;
+        }
+
         default:
           throw new Error(`Acción agéntica desconocida: '${action}'`);
       }
@@ -217,5 +242,4 @@ export async function processAgentTasks(compDir) {
   return tasks.length;
 }
 
-export { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup };
-
+export { reconcileClients, getClientsDiscrepancies, createBackup, rollbackBackup, syncSuppliersFromMixnet };

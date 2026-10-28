@@ -1,16 +1,15 @@
 /* ======================================================================
-   JJ Paper — JJ-MIXNET-AGENT: Administrador de Usuarios y Permisos
+   JJ Paper — JJ-MIXNET-AGENT: Consulta de Usuarios (Solo Lectura)
    ======================================================================
-   Gestiona la tabla maestra de usuarios de GemixNet (MXUSUAR.DBF).
-   Permite listar usuarios, consultar sus roles/permisos y modificar
-   permisos (anulación, cambio de precios, reportes, caja, nivel de acceso)
-   con snapshot de respaldo atómico y rollback ante cualquier error.
+   REGLA DE ORO DE MIXNET:
+   Cero modificaciones en MXUSUAR.DBF, cero modificaciones a permisos,
+   cero alteración de código fuente Clipper / PRG.
+   MixNet es el dueño soberano de sus usuarios y permisos nativos.
    ====================================================================== */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { readDbfStruct, readDbfRows } from './dbf-driver.js';
-import { createBackup, rollbackBackup } from './client-reconciler.js';
+import { readDbfStruct } from './dbf-driver.js';
 import { log } from './config.js';
 
 function readDbfFields(buf, headerLen) {
@@ -46,7 +45,7 @@ function decodeField(buf, start, len) {
 }
 
 /**
- * Lee todos los usuarios registrados en MXUSUAR.DBF
+ * Lee todos los usuarios registrados en MXUSUAR.DBF (Solo Lectura)
  * @param {string} dbfDir - Directorio comp01 de MixNet
  */
 export function getMixnetUsers(dbfDir) {
@@ -95,98 +94,13 @@ export function getMixnetUsers(dbfDir) {
 }
 
 /**
- * Modifica campos y permisos de un usuario específico en MXUSUAR.DBF
- * con respaldo preventivo y rollback automático en caso de fallo.
- * @param {string} dbfDir - Directorio comp01 de MixNet
- * @param {number} recordIndex - Número de registro en el DBF (1-indexed)
- * @param {object} updatedValues - Mapa de campos y valores { ANULAR: 'S', PRECIO: 'S', NIVEL: '1' }
+ * Modificación de usuarios y permisos BLOQUEADA por protocolo de soberanía.
  */
 export function updateMixnetUserPermissions(dbfDir, recordIndex, updatedValues) {
-  let targetFile = path.join(dbfDir, 'MXUSUAR.DBF');
-  if (!fs.existsSync(targetFile)) {
-    targetFile = path.join(dbfDir, 'mxusuar.dbf');
-  }
-  if (!fs.existsSync(targetFile)) {
-    return { ok: false, error: `MXUSUAR.DBF no encontrado en ${dbfDir}` };
-  }
-
-  // 1. Snapshot preventivo antes de tocar el archivo
-  const snap = createBackup(dbfDir, `UPDATE_USUAR_REC_${recordIndex}`);
-  if (!snap.ok) {
-    return { ok: false, error: `Fallo al crear snapshot preventivo: ${snap.error}` };
-  }
-
-  let fd = null;
-  try {
-    fd = fs.openSync(targetFile, 'r+');
-    const headerBuf = Buffer.alloc(32);
-    fs.readSync(fd, headerBuf, 0, 32, 0);
-
-    const numRecords = headerBuf.readUInt32LE(4);
-    const headerLen  = headerBuf.readUInt16LE(8);
-    const recordLen  = headerBuf.readUInt16LE(10);
-
-    if (recordIndex < 1 || recordIndex > numRecords) {
-      fs.closeSync(fd);
-      fd = null;
-      rollbackBackup(dbfDir, snap.snapshot);
-      return { ok: false, error: `Índice de registro fuera de rango: ${recordIndex} (total: ${numRecords})` };
-    }
-
-    const fieldsBuf = Buffer.alloc(headerLen);
-    fs.readSync(fd, fieldsBuf, 0, headerLen, 0);
-    const fields = readDbfFields(fieldsBuf, headerLen);
-
-    const offset = headerLen + ((recordIndex - 1) * recordLen);
-    const recBuf = Buffer.alloc(recordLen);
-    fs.readSync(fd, recBuf, 0, recordLen, offset);
-
-    // Verificar si el registro está borrado
-    if (recBuf[0] === 0x2A) {
-      fs.closeSync(fd);
-      fd = null;
-      rollbackBackup(dbfDir, snap.snapshot);
-      return { ok: false, error: `El registro ${recordIndex} está marcado como borrado (*)` };
-    }
-
-    // Aplicar las modificaciones
-    for (const [key, value] of Object.entries(updatedValues)) {
-      const normKey = key.toUpperCase().trim();
-      const fld = fields.find(f => f.name === normKey);
-
-      if (fld) {
-        const strVal = String(value ?? '').trim();
-        const valBuf = Buffer.alloc(fld.len, 0x20, 'latin1');
-        const inBytes = Buffer.from(strVal, 'latin1');
-        inBytes.copy(valBuf, 0, 0, Math.min(inBytes.length, fld.len));
-        valBuf.copy(recBuf, fld.pos);
-      }
-    }
-
-    // Escribir en el DBF y forzar vaciado a disco
-    fs.writeSync(fd, recBuf, 0, recordLen, offset);
-    fs.fsyncSync(fd);
-    fs.closeSync(fd);
-    fd = null;
-
-    log(`[USUARIOS] Permisos actualizados en MXUSUAR.DBF registro #${recordIndex}: ${JSON.stringify(updatedValues)}`);
-
-    return {
-      ok: true,
-      snapshot: snap.snapshot,
-      recordIndex,
-      updatedFields: Object.keys(updatedValues)
-    };
-  } catch (err) {
-    if (fd) {
-      try { fs.closeSync(fd); } catch (_) {}
-    }
-    // Rollback automático
-    rollbackBackup(dbfDir, snap.snapshot);
-    log(`[USUARIOS] Error actualizando permisos. Rollback ejecutado: ${err.message}`, 'ERROR');
-    return {
-      ok: false,
-      error: `Error actualizando MXUSUAR (Rollback ejecutado): ${err.message}`
-    };
-  }
+  log(`[GUARDRAIL MIXNET] Modificación de MXUSUAR.DBF rechazada: operación prohibida por seguridad ERP.`, 'WARN');
+  return {
+    ok: false,
+    blocked: true,
+    message: 'Operación no permitida: Los usuarios y permisos de MixNet se gestionan exclusivamente dentro del menú de MixNet en Clipper. Cero alteraciones externas a MXUSUAR.DBF.'
+  };
 }

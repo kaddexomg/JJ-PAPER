@@ -1,7 +1,7 @@
 @echo off
 title JJ-MIXNET-AGENT — Demonio Autonomo de Sincronizacion MixNet ERP
 cd /d "%~dp0"
-set "PATH=C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;C:\Windows\System32;C:\Windows;%PATH%"
+set "PATH=C:\Program Files\nodejs;C:\Program Files (x86)\nodejs;C:\Program Files\Git\cmd;C:\Windows\System32;C:\Windows;%PATH%"
 
 set "NODE_BIN=node"
 if exist "C:\Program Files\nodejs\node.exe" set "NODE_BIN=C:\Program Files\nodejs\node.exe"
@@ -10,6 +10,9 @@ if not exist "%~dp0logs" mkdir "%~dp0logs"
 set "LOGFILE=%~dp0logs\agent.log"
 
 :LOOP
+echo [%date% %time%] [GIT] Verificando actualizaciones de repositorio... >> "%LOGFILE%"
+git pull origin main >> "%LOGFILE%" 2>&1
+
 echo [%date% %time%] [INICIO] Arrancando agente MixNet con "%NODE_BIN%"... >> "%LOGFILE%"
 "%NODE_BIN%" agent.js >> "%LOGFILE%" 2>&1
 set CODE=%errorlevel%

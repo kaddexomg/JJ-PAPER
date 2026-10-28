@@ -247,6 +247,47 @@ async function loadProducts() {
 // ---- Filter + Sort ----
 // Un producto pertenece a la familia de su categoría. El id del grupo viene
 // embebido en jjp_categories(group_id); lo resolvemos contra catGroups.
+
+// ========================================================
+// Normalización, Lematización y Sinónimos en Español
+// ========================================================
+function stemSpanish(word) {
+  let w = (typeof normTxt === 'function' ? normTxt(word) : String(word || '').toLowerCase().trim());
+  if (w.length <= 3) return w;
+  if (w === 'lapices') return 'lapiz';
+  if (w === 'resmas') return 'resma';
+  if (w === 'cintas') return 'cinta';
+  if (w === 'rollos') return 'rollo';
+  if (w === 'termicos' || w === 'termicas') return 'termic';
+  if (w === 'termico' || w === 'termica') return 'termic';
+
+  if (w.endsWith('ces')) return w.slice(0, -3) + 'z';
+  if (w.endsWith('es') && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith('s') && !w.endsWith('is') && !w.endsWith('us') && w.length > 3) return w.slice(0, -1);
+  return w;
+}
+
+const CATALOG_SYNONYMS = {
+  resma: ['resma', 'r.fotocopia', 'rfotocopia', 'fotocopia', 'bond', 'papel'],
+  resmas: ['resma', 'r.fotocopia', 'rfotocopia', 'fotocopia', 'bond', 'papel'],
+  papel: ['papel', 'bond', 'fotocopia', 'resma'],
+  embalaje: ['embalaje', 'empaque', 'cinta', 'cintas', 'morropac', 'celoven'],
+  empaque: ['empaque', 'embalaje', 'cinta', 'cintas'],
+  pos: ['pos', 'pto de venta', 'termico', 'registradora', 'sumadora'],
+  boligrafo: ['boligrafo', 'boligrafos', 'lapicero', 'pluma', 'pen'],
+  marcador: ['marcador', 'marcadores', 'resaltador', 'plumon', 'rotulador', 'sharpie'],
+  tijera: ['tijera', 'tijeras', 'cortador', 'cutter', 'exacto'],
+  carpeta: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'legajador', 'sobre'],
+  cinta: ['cinta', 'cintas', 'embalaje', 'morropac', 'celoven', 'teip', 'tape']
+};
+
+const SPANISH_STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'en', 'para', 'con', 'y', 'o', 'un', 'una', 'unos', 'unas']);
+
+function formatCatTitle(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 function groupSlugOfProduct(p) {
   const gid = p.jjp_categories?.group_id;
   return gid ? (catGroups.find(g => g.id === gid)?.slug || null) : null;
@@ -609,11 +650,18 @@ function renderPag(pages) {
 function renderCatFilters() {
   const wrap = document.getElementById('catFilters');
   if (!wrap) return;
+
+  // Filtrar solo grupos que tengan al menos 1 producto en catálogo
+  const usedCatIds = new Set(allProducts.map(p => p.category_id));
+  const usedGroupIds = new Set(categories.filter(c => usedCatIds.has(c.id)).map(c => c.group_id));
+  const activeGroups = catGroups.filter(g => usedGroupIds.has(g.id));
+
   const on = s => currentGroup === s;
   const todos = `<button class="cf${on('todos') ? ' on' : ''}" data-group="todos" aria-pressed="${on('todos')}" onclick="setGroup('todos')">🏷️ Todos</button>`;
-  const btns  = catGroups.map(g =>
-    `<button class="cf${on(g.slug) ? ' on' : ''}" data-group="${g.slug}" aria-pressed="${on(g.slug)}" onclick="setGroup('${g.slug}')">${g.emoji} ${g.name}</button>`
-  ).join('');
+  const btns  = activeGroups.map(g => {
+    const emo = (g.emoji && g.emoji !== 'null') ? g.emoji : '📁';
+    return `<button class="cf${on(g.slug) ? ' on' : ''}" data-group="${escapeHTML(g.slug)}" aria-pressed="${on(g.slug)}" onclick="setGroup('${escapeHTML(g.slug)}')">${emo} ${escapeHTML(g.name)}</button>`;
+  }).join('');
   wrap.innerHTML = todos + btns;
 }
 
@@ -630,9 +678,11 @@ function renderSubFilters() {
 
   const on = s => currentCat === s;
   const todas = `<button class="cf sub${on('todos') ? ' on' : ''}" data-cat="todos" aria-pressed="${on('todos')}" onclick="setCat('todos')">Todas</button>`;
-  const btns  = subs.map(c =>
-    `<button class="cf sub${on(c.slug) ? ' on' : ''}" data-cat="${c.slug}" aria-pressed="${on(c.slug)}" onclick="setCat('${c.slug}')">${c.emoji} ${c.name}</button>`
-  ).join('');
+  const btns  = subs.map(c => {
+    const emo = (c.emoji && c.emoji !== 'null') ? c.emoji : (inferIcon(c.name) || '📁');
+    const title = formatCatTitle(c.name);
+    return `<button class="cf sub${on(c.slug) ? ' on' : ''}" data-cat="${escapeHTML(c.slug)}" aria-pressed="${on(c.slug)}" onclick="setCat('${escapeHTML(c.slug)}')">${emo} ${escapeHTML(title)}</button>`;
+  }).join('');
   wrap.innerHTML = todas + btns;
   wrap.hidden = false;
 }
@@ -1535,12 +1585,16 @@ function handleScannedQrResult(rawText) {
 
 /* ---- Funciones Rápidas de Navegación & Procura ---- */
 function quickSearch(term) {
+  currentGroup = 'todos';
+  currentCat   = 'todos';
   const s = document.getElementById('srch');
   if (s) s.value = term;
   currentSearch = term;
   currentPage = 1;
+  renderCatFilters();
+  renderSubFilters();
   renderProds();
-  document.getElementById('cat-top')?.scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
 }
 
 function shareCatalogToWhatsApp() {

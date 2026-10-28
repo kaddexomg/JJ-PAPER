@@ -29,13 +29,12 @@
 
 <style>
 .srch { position: relative; flex: 1; min-width: 220px; }
-.srch input { padding-right: 78px !important; }
+.srch input { padding-right: 44px !important; }
 .srch-actions { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; }
 .srch-tool-btn { background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; transition: all 0.15s ease; color: #334155; }
 .srch-tool-btn:hover { background: #e2e8f0; border-color: #94a3b8; }
 .srch-tool-btn.recording { background: #fee2e2; border-color: #ef4444; color: #b91c1c; animation: pulseRec 1s infinite; }
 @keyframes pulseRec { 0% { transform: scale(1); } 50% { transform: scale(1.1); box-shadow: 0 0 10px rgba(239,68,68,0.5); } 100% { transform: scale(1); } }
-.cat-paper-helper { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 </style>
 
 </head>
@@ -60,8 +59,8 @@
         <span style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#16604A;border:1.5px solid #bbf7d0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;">
           ✨ Precios mejorables por volumen · Facturación SENIAT · Despacho en 24h
         </span>
-        <a href="/catalogo_impreso" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#C9A24B;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 4px 14px rgba(201,162,75,0.3);transition:transform .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-          📲 Catálogo Impreso con QR →
+        <a href="https://wa.me/584124676073?text=Hola%20JJ%20Paper%2C%20quisiera%20solicitar%20una%20cotizaci%C3%B3n%20mayorista." target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#16604A;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 4px 14px rgba(22,96,74,0.25);transition:transform .2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+          💬 Contactar Asesor WhatsApp →
         </a>
       </div>
     </div>
@@ -75,26 +74,7 @@
     <!-- Banner de Promociones Destacadas -->
     <div id="promoBanner" class="cat-promos-wrap" style="display:none;margin-bottom:20px;"></div>
 
-    <!-- Banner Asistente de Catálogo Físico Impreso -->
-    <div class="cat-paper-helper" id="catPaperHelper">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:22px;">📖</span>
-        <div style="font-size:12.5px;color:#166534;">
-          <span style="font-weight:800;">¿Tienes el Catálogo Impreso en mano?</span>
-          <span style="display:block;font-size:11px;color:#15803d;font-weight:500;">Si algún código pequeño no enfoca en tu cámara, usa nuestro Lector Macro o dicta el nombre.</span>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button type="button" onclick="openInAppQrScanner()" style="display:inline-flex;align-items:center;gap:5px;background:#16604A;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(22,96,74,0.2);">
-          📷 Lector Macro QR
-        </button>
-        <button type="button" onclick="startVoiceSearch()" style="display:inline-flex;align-items:center;gap:5px;background:#fff;color:#16604A;border:1.5px solid #16604A;padding:5px 10px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;">
-          🎙️ Dictar por Voz
-        </button>
-      </div>
-    </div>
 
-    
     <!-- Banner de Procura Especial JJ Paper -->
     <div class="cat-procura-banner" id="catProcuraBanner">
       <div class="cpb-left">
@@ -126,10 +106,9 @@
       <div class="srch" role="search">
         <span class="srch-ico" aria-hidden="true">🔍</span>
         <label class="sr-only" for="srch">Buscar producto</label>
-        <input type="search" id="srch" placeholder="Buscar producto, código o dictar..." oninput="filterProds()">
+        <input type="search" id="srch" placeholder="Buscar por producto, marca, medida, código o dictar..." oninput="filterProds()">
         <div class="srch-actions">
-          <button type="button" class="srch-tool-btn" id="btnVoiceSearch" onclick="startVoiceSearch()" title="Dictar por voz el producto que ves en el catálogo impreso">🎙️</button>
-          <button type="button" class="srch-tool-btn" id="btnQrScan" onclick="openInAppQrScanner()" title="Escanear código QR del catálogo con la cámara (Macro Zoom)">📷</button>
+          <button type="button" class="srch-tool-btn" id="btnVoiceSearch" onclick="startVoiceSearch()" title="Dictar por voz el producto que buscas">🎙️</button>
         </div>
       </div>
       <label class="sr-only" for="sortSel">Ordenar productos</label>
@@ -146,11 +125,7 @@
         <button type="button" class="cvt-btn" data-view="list" onclick="setCatView('list')" title="Vista lista compacta">☰ Lista</button>
       </div>
 
-      <a href="/catalogo_impreso" target="_blank" class="tb-print-btn" style="display:inline-flex;align-items:center;gap:6px;background:var(--gd,#16604A);color:#fff;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 2px 10px rgba(22,96,74,0.25);">
-        🖨️ Catálogo con QR
-      </a>
-
-      <button type="button" class="tb-share-btn" onclick="shareCatalogToWhatsApp()" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(37,211,102,0.25);">
+            <button type="button" class="tb-share-btn" onclick="shareCatalogToWhatsApp()" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(37,211,102,0.25);">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.477-.15-.678.15-.2.301-.778.978-.954 1.179-.176.2-.351.226-.652.075s-1.272-.469-2.423-1.496c-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.678-1.635-.929-2.241-.244-.59-.492-.51-.678-.52-.176-.008-.376-.01-.577-.01-.2 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.229 3.11.15.2 2.122 3.24 5.141 4.544.718.31 1.279.495 1.716.634.721.23 1.377.197 1.896.12.577-.087 1.78-.727 2.031-1.43.251-.703.251-1.305.176-1.43-.075-.125-.276-.201-.577-.351zM12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/></svg>
         <span>📤 Compartir Catálogo</span>
       </button>
@@ -159,8 +134,7 @@
         <button class="dl-btn" id="dlBtn" aria-haspopup="true" aria-expanded="false"
                 onpointerenter="prefetchPdfLib()" onclick="toggleDlMenu()">⬇️ Descargar catálogo</button>
         <div class="dl-menu" id="dlMenu" role="menu" aria-label="Formato de descarga" hidden>
-          <a role="menuitem" href="/catalogo_impreso" target="_blank" style="text-decoration:none;display:block;padding:8px 12px;font-size:13px;font-weight:700;color:var(--gd,#16604A);background:#f0f7f3;border-radius:6px;margin-bottom:4px">🖨️ Catálogo para Imprimir (con QR)</a>
-          <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
+                    <button role="menuitem" onclick="downloadCatalog('pdf')">📄 PDF (folleto)</button>
           <button role="menuitem" onclick="downloadCatalog('lista')">💵 Lista de precios (PDF)</button>
           <button role="menuitem" onclick="downloadCatalog('csv')">📊 Excel (.xlsx)</button>
         </div>
@@ -213,8 +187,8 @@ async function bootstrapCatalog() {
   try { if (typeof injectProductModal === 'function') injectProductModal(); } catch (e) { console.warn('Modal init warning:', e); }
   try { if (typeof initCatalog === 'function') await initCatalog(); } catch (e) { console.error('Catalog init error:', e); }
 
-  // Disparar Interceptor Autónomo de Códigos QR del Catálogo Físico
-  handleAutonomousQrInterceptor();
+  // Leer parámetros de búsqueda en URL (?buscar= o ?q=)
+  handleCatalogUrlParams();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').then(reg => {
@@ -225,108 +199,24 @@ async function bootstrapCatalog() {
   }
 }
 
-async function handleAutonomousQrInterceptor() {
+function handleCatalogUrlParams() {
   const qp = new URLSearchParams(location.search);
   const rawQuery = (qp.get('buscar') || qp.get('q') || qp.get('producto') || qp.get('sku') || qp.get('p') || qp.get('id') || '').trim();
   if (!rawQuery) return;
 
-  const isFromQr = Boolean(qp.get('buscar') || qp.get('qr') === '1' || qp.get('from_qr') === '1');
-
-  // Insertar un banner visual arriba del grid para confirmación inmediata al escanear con el teléfono
-  const grid = document.getElementById('prodGrid');
-  let banner = document.getElementById('qrScanBanner');
-  if (grid && !banner) {
-    banner = document.createElement('div');
-    banner.id = 'qrScanBanner';
-    banner.style.cssText = 'grid-column:1/-1;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:12px 16px;margin:10px 0 16px 0;display:flex;align-items:center;justify-content:space-between;color:#065f46;font-size:13px;box-shadow:0 2px 8px rgba(16,185,129,0.08);';
-    banner.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:24px">📲</span>
-        <div>
-          <div style="font-weight:800">Escaneando producto desde Catálogo Físico Impreso:</div>
-          <div style="font-size:12px;font-weight:600;color:#047857"><u>${escapeHTML(rawQuery)}</u> — Abriendo Ficha Técnica Oficial...</div>
-        </div>
-      </div>
-      <div class="spin" style="width:20px;height:20px;border-width:2.5px;border-color:#10b981;border-top-color:transparent"></div>
-    `;
-    grid.prepend(banner);
-  }
-
-  // Esperar a que el catálogo cargue o buscar de inmediato
-  let matched = null;
-  for (let i = 0; i < 40; i++) {
-    if (typeof window.findProductByQuery === 'function' && typeof allProducts !== 'undefined' && allProducts.length > 0) {
-      matched = window.findProductByQuery(rawQuery, allProducts);
-      if (matched) break;
-    }
-    await new Promise(r => setTimeout(r, 100));
-  }
-
-  // Fallback si no se encontró en allProducts: consulta directa a PostgREST
-  if (!matched && typeof sb !== 'undefined') {
-    try {
-      const cleanWords = rawQuery.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, ' ').split(/\s+/).filter(w => w.length >= 2);
-      if (cleanWords.length) {
-        const orFilter = cleanWords.map(w => `name.ilike.%${encodeURIComponent(w)}%`).join(',');
-        const vSelect = typeof VARIANTS_SELECT !== 'undefined' ? VARIANTS_SELECT : 'jjp_product_variants(*)';
-        const { data } = await sb.from('jjp_products')
-          .select(`id,category_id,name,description,price_usd,unit,image_url,emoji,tag,active,featured,sku,${vSelect}`)
-          .or(orFilter)
-          .limit(5);
-        if (data && data.length) {
-          matched = (typeof normalizeProduct === 'function') ? normalizeProduct(data[0]) : data[0];
-        }
-      }
-    } catch (e) {
-      console.warn('Direct DB QR lookup warning:', e);
-    }
-  }
-
-  if (matched) {
-    if (banner) {
-      banner.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:24px">✅</span>
-          <div>
-            <div style="font-weight:800">Producto localizado: ${escapeHTML(matched.name)}</div>
-            <div style="font-size:12px;color:#047857">Mostrando Ficha Técnica Oficial en pantalla...</div>
-          </div>
-        </div>
-      `;
-      setTimeout(() => banner && banner.remove(), 4000);
-    }
-    if (typeof injectProductModal === 'function') injectProductModal();
-    if (typeof openProductModal === 'function') {
-      openProductModal(matched.id, { fromQr: true, searchQuery: rawQuery });
-    }
-  } else {
-    if (banner) {
-      banner.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:24px">🔍</span>
-          <div>
-            <div style="font-weight:800">Búsqueda de Catálogo: "${escapeHTML(rawQuery)}"</div>
-            <div style="font-size:12px;color:#047857">Mostrando artículos coincidentes en el catálogo...</div>
-          </div>
-        </div>
-      `;
-    }
-    const s = document.getElementById('srch');
-    if (s) {
-      s.value = rawQuery;
-      if (typeof currentSearch !== 'undefined') currentSearch = rawQuery;
-      if (typeof renderProds === 'function') renderProds();
-    }
+  const s = document.getElementById('srch');
+  if (s) {
+    s.value = rawQuery;
+    if (typeof currentSearch !== 'undefined') currentSearch = rawQuery;
+    if (typeof renderProds === 'function') renderProds();
   }
 }
 
 function shareCatalogToWhatsApp() {
   const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html';
-  const streetUrl = 'https://jjpaper.pages.dev/catalogo_impreso.html';
   const msg = `👋 *¡Hola! Te comparto nuestro Catálogo Mayorista JJ Paper:*\n\n` +
-              `📦 *Catálogo Digital Interactivo:*\n${catalogUrl}\n\n` +
-              `📲 *Catálogo con Códigos QR (Venta en Calle / Imprimible):*\n${streetUrl}\n\n` +
-              `✨ Precios actualizados en USD y Bolívares según tasa oficial BCV. Puedes armar tu lista de requerimientos directamente en la página o consultarnos por aquí.`;
+              `📦 *Catálogo Digital Interactivo (+2.400 artículos a Tasa Oficial BCV):*\n${catalogUrl}\n\n` +
+              `✨ Precios al mayor en USD y Bolívares. Contamos con Procura Especial y mejoramos precios según el volumen de tu compra.`;
 
   const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
   window.open(waUrl, '_blank');

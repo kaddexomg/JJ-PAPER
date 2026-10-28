@@ -100,7 +100,7 @@ export async function boot() {
 
   db.channel('wa-server-sessions')
     .on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'jjp_wa_sessions' },
+      { event: '*', schema: 'public', table: 'jjp_wa_sessions' },
       payload => handleRow(payload.new).catch(e => log.error({ err: e.message }, 'handleRow falló')))
     .subscribe(st => log.info({ st }, 'realtime sesiones'));
 

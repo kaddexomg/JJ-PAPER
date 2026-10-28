@@ -259,7 +259,7 @@ export class WaSession {
         },
         logger: baileysLogger,
         printQRInTerminal: false,
-        browser: Browsers.ubuntu('Chrome'),
+        browser: ['JJ Paper', 'Vendedor-' + this.profileId.slice(0, 4), '1.0.0'],
         connectTimeoutMs: 60_000,
         defaultQueryTimeoutMs: 60_000,
         keepAliveIntervalMs: 25_000,

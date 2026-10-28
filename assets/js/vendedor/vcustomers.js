@@ -130,8 +130,7 @@ async function loadCustomers(force = false) {
 
       const { data, error } = await sb.from('jjp_customers')
         .select(CUST_COLS)
-        .eq('seller_id', sellerId)
-        .order('last_order_at', { ascending: false, nullsFirst: false });
+        .eq('seller_id', sellerId).not('zone', 'in', '("010","020")').order('last_order_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
       vCustomers = data || [];
@@ -218,7 +217,7 @@ function renderCustomers() {
 
   if (!isAdmin) {
     // Blindaje sagrado: un vendedor regular SOLO ve los clientes asignados a su ID
-    list = list.filter(c => c.seller_id === sellerId && c.zone !== '020');
+    list = list.filter(c => c.seller_id === sellerId && c.zone !== '020' && c.zone !== '010');
     if (custFilter === 'inactivos') list = list.filter(c => isInactive(c));
     if (custFilter === 'rebotados') list = list.filter(c => (c.email_status === 'bounced' || c.email_status === 'bounced_hard' || c.email_status === 'bounced_soft'));
   } else {

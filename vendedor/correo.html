@@ -98,8 +98,6 @@
         </div>
       </div>
       <div class="wa-topbar-right">
-        <span class="wa-chip" id="srvChip" onclick="openSrvModal()" role="button" tabindex="0"
-              title="Estado del servidor" style="cursor:pointer">🖥️ Servidor…</span>
         <span class="wa-chip" id="mailAcctChip" onclick="openMailAccount()" role="button" tabindex="0"
               title="Configurar mi correo" style="cursor:pointer">📧 Mi correo…</span>
         <button class="btn-o" id="syncGmailBtn" onclick="syncGmailNow()" title="Sincronizar bandeja con Gmail en tiempo real">🔄 Sincronizar Gmail</button>
@@ -264,15 +262,7 @@
   </div>
 </div>
 
-<!-- Modal: control del servidor -->
-<div class="modal-overlay" id="srvModal" onclick="if(event.target===this)closeSrvModal()">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="srvTitle" style="max-width:520px">
-    <div class="modal-hd">
-      <h3 id="srvTitle">🖥️ Servidor JJ Paper</h3>
-      <button class="modal-close" onclick="closeSrvModal()" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="modal-body" id="srvBody">Cargando estado…</div>
-  </div>
+
 </div>
 
 <div class="toast-c" id="toastC"></div>
@@ -286,7 +276,6 @@
 <script src="../assets/js/send-hub.js?v=20260908_v3"></script>
 <script src="../assets/js/gemini-client.js?v=20260921_personalidad_b2b"></script>
 <script src="../assets/js/admin/correo.js?v=20261022_vps_full"></script>
-<script src="../assets/js/admin/server-control.js?v=20260930_v2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await requireAuth('vendedor');
@@ -297,7 +286,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   await loadSettings();
   await mailInit(CURRENT_PROFILE);
-  srvInit();
 });
 </script>
 </body>

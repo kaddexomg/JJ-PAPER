@@ -22,14 +22,13 @@ function scheduleNextPoll() {
   }
 
   _waPollAttempts++;
-  // Si ya pasaron más de 15 intentos (~2 minutos) sin respuesta, pausar el sondeo
-  if (_waPollAttempts > 15) {
-    console.warn('[wa-link] Sondeo pausado: el servidor no responde tras múltiples intentos.');
+  if (_waPollAttempts > 120) {
+    console.warn('[wa-link] Sondeo pausado tras 4 minutos. Pulsa "Recargar QR" para renovar.');
     return;
   }
 
-  // Intervalo progresivo: 3s los primeros 5 intentos, luego 10s
-  const delay = _waPollAttempts <= 5 ? 3000 : 10000;
+  // Sondeo cada 2 segundos mientras conecta/espera QR para respuesta instantánea
+  const delay = isActivelyConnecting ? 2000 : 4000;
   _waPollInterval = setTimeout(async () => {
     await waLoadSession();
     scheduleNextPoll();
@@ -104,7 +103,11 @@ function waRenderLink() {
   if (!box) return;
 
   if (!WA_SESSION) {
-    box.innerHTML = '<p class="wa-link-note">No tienes sesión de WhatsApp creada. Pide al administrador que la habilite.</p>';
+    box.innerHTML = `
+      <p class="wa-link-note">Tu cuenta está lista para vincularse con WhatsApp.</p>
+      <div class="wa-link-actions" style="margin-top:14px">
+        <button class="btn-p" onclick="waRequestConnect()">📷 Generar código QR</button>
+      </div>`;
     return;
   }
   if (!WA_SESSION.enabled) {

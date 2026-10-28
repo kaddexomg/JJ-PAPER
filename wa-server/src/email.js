@@ -177,9 +177,60 @@ async function fetchAttachmentBytes(path) {
 }
 
 function formatTextToHtml(text) {
-  const escaped = String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const paragraphs = escaped.split(/\r?\n\r?\n/).map(p => `<p style="margin:0 0 12px 0;">${p.replace(/\r?\n/g, '<br>')}</p>`).join('');
-  return `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1e293b;background:#ffffff;margin:0;padding:16px;">${paragraphs}</body></html>`;
+  const paragraphs = String(text || '').split(/\n\n+/).map(p => {
+    let clean = escapeHtml(p).replace(/\n/g, '<br>');
+    clean = clean.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+    return `<p style="margin:0 0 16px 0;line-height:1.75;font-size:15px;color:#1e293b;">${clean}</p>`;
+  }).join('');
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JJ Paper C.A. — Comunicación Oficial</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f1f5f9;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+          <!-- Header Branded -->
+          <tr>
+            <td style="background:linear-gradient(135deg, #0d3d2e 0%, #16604A 100%);padding:22px 28px;border-bottom:3px solid #22c55e;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td>
+                    <div style="font-size:19px;font-weight:900;color:#ffffff;letter-spacing:0.5px;">JJ PAPER, C.A.</div>
+                    <div style="font-size:12px;color:#a7f3d0;font-weight:600;margin-top:2px;">Importador & Distribuidor Mayorista Directo · Caracas</div>
+                  </td>
+                  <td align="right" style="font-size:11.5px;color:#ffffff;background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:6px;font-weight:700;">
+                    TASA OFICIAL BCV
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Body Content -->
+          <tr>
+            <td style="padding:32px 30px 24px 30px;font-size:15px;color:#1e293b;line-height:1.75;">
+              ${paragraphs}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;padding:20px 30px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;line-height:1.6;text-align:center;">
+              <strong>JJ PAPER C.A.</strong> · RIF J-29537545-0<br>
+              Centro de Distribución Mayorista · Caracas, Venezuela<br>
+              <a href="https://jjpaper.pages.dev" target="_blank" style="color:#16604A;text-decoration:none;font-weight:700;">🌐 Catálogo Interactivo: jjpaper.pages.dev</a> · 📞 0412-4676073
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 function chunkB64(str, maxLen = 76) {

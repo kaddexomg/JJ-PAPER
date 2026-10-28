@@ -272,17 +272,27 @@ const CATALOG_SYNONYMS = {
   resma: ['resma', 'r.fotocopia', 'rfotocopia', 'fotocopia', 'bond', 'papel'],
   resmas: ['resma', 'r.fotocopia', 'rfotocopia', 'fotocopia', 'bond', 'papel'],
   papel: ['papel', 'bond', 'fotocopia', 'resma'],
-  embalaje: ['embalaje', 'empaque', 'cinta', 'cintas', 'morropac', 'celoven'],
-  empaque: ['empaque', 'embalaje', 'cinta', 'cintas'],
-  pos: ['pos', 'pto de venta', 'termico', 'registradora', 'sumadora'],
-  boligrafo: ['boligrafo', 'boligrafos', 'lapicero', 'pluma', 'pen'],
+  embalaje: ['embalaje', 'empaque', 'cinta', 'cintas', 'morropac', 'celoven', 'tirro', 'strech'],
+  empaque: ['empaque', 'embalaje', 'cinta', 'cintas', 'morropac', 'tirro'],
+  pos: ['pos', 'pto de venta', 'termic', 'registradora', 'sumadora', 'fiscal'],
+  termico: ['termic', 'termica', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
+  termica: ['termic', 'termica', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
+  termic: ['termic', 'termica', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
+  boligrafo: ['boligrafo', 'boligrafos', 'bolig', 'lapicero', 'pluma', 'pen', 'bic', 'kores'],
+  boligrafos: ['boligrafo', 'boligrafos', 'bolig', 'lapicero', 'pluma', 'pen', 'bic', 'kores'],
   marcador: ['marcador', 'marcadores', 'resaltador', 'plumon', 'rotulador', 'sharpie'],
+  marcadores: ['marcador', 'marcadores', 'resaltador', 'plumon', 'rotulador', 'sharpie'],
   tijera: ['tijera', 'tijeras', 'cortador', 'cutter', 'exacto'],
+  tijeras: ['tijera', 'tijeras', 'cortador', 'cutter', 'exacto'],
   carpeta: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'legajador', 'sobre'],
-  cinta: ['cinta', 'cintas', 'embalaje', 'morropac', 'celoven', 'teip', 'tape']
+  carpetas: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'legajador', 'sobre'],
+  cinta: ['cinta', 'cintas', 'embalaje', 'morropac', 'celoven', 'tirro', 'teip', 'tape'],
+  cintas: ['cinta', 'cintas', 'embalaje', 'morropac', 'celoven', 'tirro', 'teip', 'tape'],
+  rollo: ['rollo', 'rollos', 'termic', 'sumadora', 'pos'],
+  rollos: ['rollo', 'rollos', 'termic', 'sumadora', 'pos']
 };
 
-const SPANISH_STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'en', 'para', 'con', 'y', 'o', 'un', 'una', 'unos', 'unas']);
+const SPANISH_STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'en', 'para', 'con', 'y', 'o', 'un', 'una', 'del', 'al', 'por']);
 
 function formatCatTitle(str) {
   if (!str) return '';
@@ -313,15 +323,15 @@ function classifyProduct(p) {
 
   // 1. HIGIENE & LIMPIEZA (Aislamiento total de toallas, servilletas y papel higiénico)
   if (
-    /higienico|higiénico|higuinico|papel caricias|toallin|toallín|servilleta|toalla|rollo de mano|desinfectante|cloro|jabon|jabón|detergente|coleto|esponja|mopa|pala grande|pala limpia|palas|cepillo.*barrer|cepillo.*poceta|bolsa.*desecho|bolsa.*tobita|bolsas negras|bolsas de basura|bolsas con asa|ambientador|glade|brisol|limpiador|tapaboca|guante|vaso.*conico|vaso.*cónico|vasos|pañito|pañitos/i.test(n)
+    /higienico|higiénico|higuinico|caricias|toallin|toallín|servilleta|toalla|rollo.*(?:mano|hig|limp|cocina|institucional)|rollo de papel|desinfectante|cloro|jabon|jabón|detergente|coleto|esponja|mopa|pala|cepillo.*barrer|cepillo.*poceta|bolsa.*desecho|bolsa.*tobita|bolsas negras|bolsas de basura|bolsas con asa|ambientador|glade|brisol|limpiador|tapaboca|guante|vaso.*conico|vaso.*cónico|vasos|pañito|pañitos/i.test(n)
   ) {
     return { slug: 'higiene', name: 'Higiene & Limpieza', emoji: '🧹' };
   }
 
   // 2. ROLLOS TÉRMICOS & PUNTOS DE VENTA (POS / Fiscal / Sumadora exclusivamente)
   if (
-    (/termic|pto de venta|punto de venta|maq\/fiscal|fiscal|p\.registradora|p\.sumadora|57x40|80x65|57x35|57mm.*x.*55mm|rollo.*sumadora/i.test(n)) &&
-    !/etiqueta/i.test(n)
+    (/termic|pto de venta|punto de venta|maq\/fiscal|fiscal|p\.registradora|p\.sumadora|57x40|80x65|57x35|57mm|80mm|rollo.*sumadora|rollo.*pos/i.test(n)) &&
+    !/etiqueta|mano|toall|higien|servilleta/i.test(n)
   ) {
     return { slug: 'rollos_pos', name: 'Rollos Térmicos & POS', emoji: '🧾' };
   }
@@ -379,9 +389,15 @@ function groupSlugOfProduct(p) {
 
 function getFiltered() {
   const q = normTxt(currentSearch);
-  const rawTokens = q ? q.split(/[\s,()\*\/+\-]+/).filter(t => t.length > 0) : [];
+  const rawTokens = q ? q.split(/[\s,()\*\/+\-]+/).filter(t => t.length > 0 && !SPANISH_STOP_WORDS.has(t)) : [];
 
   let list = allProducts.filter(p => {
+    // 1. Filtro Mandatorio por Segmento Comercial
+    if (currentSegment && currentSegment !== 'todos') {
+      const segSlug = p.segment ? p.segment.slug : classifyProduct(p).slug;
+      if (segSlug !== currentSegment) return false;
+    }
+
     const grpOk = currentGroup === 'todos' || groupSlugOfProduct(p) === currentGroup;
     const catOk = currentCat === 'todos' || p.jjp_categories?.slug === currentCat;
     if (!grpOk || !catOk) return false;
@@ -395,22 +411,25 @@ function getFiltered() {
       p._varNames
     ].join(' '));
 
-    // Tokens coincidentes en el producto
+    // Tokens coincidentes con lematización y sinónimos comerciales
     const matchingTokens = rawTokens.filter(tok => {
+      const stemmed = stemWord(tok);
+      if (pText.includes(tok) || pText.includes(stemmed)) return true;
+      const syns = CATALOG_SYNONYMS[tok] || CATALOG_SYNONYMS[stemmed];
+      if (syns && syns.some(s => pText.includes(s))) return true;
       if (tok.length <= 2) {
         const re = new RegExp('(^|[^a-z0-9])' + tok + '([^a-z0-9]|$)', 'i');
         return re.test(pText);
       }
-      return pText.includes(tok);
+      return false;
     });
 
-    // 1. Todos los tokens coinciden
+    // 1. Todos los tokens significativos coinciden
     if (matchingTokens.length === rawTokens.length) return true;
 
-    // 2. Coincidencia parcial para 3+ palabras si coinciden al menos 2 significativas
+    // 2. Coincidencia parcial para 3+ palabras si coinciden al menos 2
     if (rawTokens.length >= 3 && matchingTokens.length >= 2) {
-      const significant = matchingTokens.filter(t => t.length >= 3).length;
-      if (significant >= 2) return true;
+      return true;
     }
 
     return false;
@@ -559,7 +578,9 @@ function renderSegments() {
 
 function setSegment(slug) {
   currentSegment = slug;
-  currentPage = 1;
+  currentGroup   = 'todos';
+  currentCat     = 'todos';
+  currentPage    = 1;
   renderSegments();
   renderProds();
 }
@@ -841,11 +862,17 @@ function skeletonGridHTML(n = 8) {
 }
 
 function resetFilters() {
-  currentSearch = '';
-  currentSort   = '';
-  const s = document.getElementById('srch');     if (s) s.value = '';
-  const o = document.getElementById('sortSel');  if (o) o.value = '';
-  setGroup('todos');
+  currentSearch  = '';
+  currentSort    = '';
+  currentSegment = 'todos';
+  currentGroup   = 'todos';
+  currentCat     = 'todos';
+  currentPage    = 1;
+  const s = document.getElementById('srch'); if (s) s.value = '';
+  const o = document.getElementById('sortSel'); if (o) o.value = '';
+  const clearBtn = document.getElementById('btnSearchClear'); if (clearBtn) clearBtn.style.display = 'none';
+  renderSegments();
+  renderProds();
 }
 
 // ---- Featured products (used on index.html) ----
@@ -989,7 +1016,11 @@ async function initCatalog() {
   }
 
   const clearBtn = document.getElementById('btnSearchClear');
-  if (clearBtn) clearBtn.style.display = term ? 'inline-flex' : 'none';
+  if (clearBtn) clearBtn.style.display = urlQ ? 'inline-flex' : 'none';
+  const urlSeg = qs.get('segmento') || qs.get('segment');
+  if (urlSeg && OFFICIAL_SEGMENTS.some(s => s.slug === urlSeg)) {
+    currentSegment = urlSeg;
+  }
   renderSegments();
 
   if (urlCat) setCat(urlCat);

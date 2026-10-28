@@ -1,9 +1,14 @@
 /* ======================================================================
-   JJ Paper — JJ-MIXNET-AGENT: Sincronizador de Proveedores MixNet ERP
+   JJ Paper — JJ-MIXNET-AGENT: Sincronizador Seguro de Proveedores
    ======================================================================
-   Lee el maestro de proveedores físicos de MixNet (MXCTAPRO.DBF / MXPROV.DBF)
-   y los sincroniza de forma transparente hacia jjp_suppliers en el VPS.
-   Conecta directamente con Cuentas por Pagar (admin/facturas.html).
+   REGLA DE ORO DE JJ PAPER:
+   Cero cruce entre clientes y proveedores.
+   MXCTAPRO.DBF es un histórico de cuentas que contiene tanto proveedores
+   como clientes de cuentas bilaterales. Esta sincronización NUNCA debe
+   ejecutarse a ciegas ni en bucles automáticos.
+   Solo procesa proveedores activos (ESTATUS === 'A') y DESCARTA
+   estrictamente cualquier entidad que coincida en RIF o razón social
+   con la cartera de clientes de JJ Paper (jjp_customers).
    ====================================================================== */
 
 import path from 'node:path';
@@ -12,8 +17,14 @@ import { readDbfStruct, readDbfRows } from './dbf-driver.js';
 import { sbGet, sbPost, sbPatch } from './supabase-client.js';
 import { log } from './config.js';
 
+function cleanRif(raw) {
+  if (!raw) return '';
+  return String(raw).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 /**
- * Detecta y sincroniza proveedores desde MixNet a jjp_suppliers.
+ * Sincroniza proveedores reales de MixNet hacia jjp_suppliers en VPS,
+ * con filtro estricto anti-contaminación de clientes.
  */
 export async function syncSuppliersFromMixnet(compDir) {
   const candidateFiles = ['MXCTAPRO.DBF', 'mxctapro.dbf', 'MXPROV.DBF', 'mxprov.dbf', 'MXPROVE.DBF'];
@@ -28,7 +39,7 @@ export async function syncSuppliersFromMixnet(compDir) {
   }
 
   if (!supplierFilePath) {
-    log(`[PROVEEDORES] No se encontró tabla de proveedores en ${compDir} (probados: ${candidateFiles.join(', ')}).`, 'WARN');
+    log(`[PROVEEDORES] No se encontró tabla de proveedores en ${compDir}.`, 'INFO');
     return { ok: false, message: 'Archivo de proveedores no encontrado en comp01' };
   }
 
@@ -37,13 +48,30 @@ export async function syncSuppliersFromMixnet(compDir) {
     return { ok: true, synced: 0, message: 'Tabla de proveedores vacía' };
   }
 
-  // Detectar nombres de campos dinámicamente
   const fieldNames = s.fields.map(f => f.name.toLowerCase());
   const rows = readDbfRows(s, fieldNames, s.numRecords, false);
 
-  log(`[PROVEEDORES] Leídos ${rows.length} registros desde ${path.basename(supplierFilePath)}.`);
+  log(`[PROVEEDORES] Inspeccionando ${rows.length} registros en ${path.basename(supplierFilePath)}...`);
 
-  // Cargar proveedores existentes en Supabase
+  // 1. Cargar catálogo de clientes de JJ Paper para filtro anti-colisión
+  let custRifs = new Set();
+  let custNames = new Set();
+  try {
+    const custs = await sbGet('jjp_customers', 'select=name,rif&limit=10000');
+    if (Array.isArray(custs)) {
+      for (const c of custs) {
+        const cr = cleanRif(c.rif);
+        if (cr.length > 5) custRifs.add(cr);
+        const cn = (c.name || '').trim().toLowerCase();
+        if (cn.length > 3) custNames.add(cn);
+      }
+    }
+    log(`[PROVEEDORES] Filtro anti-colisión activo con ${custRifs.size} RIFs y ${custNames.size} nombres de clientes.`);
+  } catch (err) {
+    log(`Aviso cargando clientes para filtro de proveedores: ${err.message}`, 'WARN');
+  }
+
+  // 2. Cargar proveedores existentes en VPS
   const existing = await sbGet('jjp_suppliers', 'select=id,name,notes');
   const existingMap = new Map();
   for (const sup of (existing || [])) {
@@ -53,32 +81,43 @@ export async function syncSuppliersFromMixnet(compDir) {
 
   let createdCount = 0;
   let updatedCount = 0;
+  let discardedCustomersCount = 0;
+  let inactiveSkipped = 0;
 
   for (const r of rows) {
-    // Resolver código
-    const code = String(r.codpro || r.codigo || r.cod_pro || r.cod || '').trim();
-    // Resolver nombre
-    const name = String(r.nompro || r.nombre || r.nom_pro || r.razon || r.nomcli || '').trim();
+    // 1. Filtrar inactivos (en Clipper MixNet ESTATUS === 'A' es Activo)
+    const status = String(r.estatus || '').trim().toUpperCase();
+    if (status && status !== 'A') {
+      inactiveSkipped++;
+      continue;
+    }
+
+    const code = String(r.codcli || r.codpro || r.codigo || r.cod_pro || r.cod || '').trim();
+    const name = String(r.nomcli || r.nompro || r.nombre || r.nom_pro || r.razon || '').trim();
     if (!name || name.length < 3) continue;
 
-    // Resolver RIF / CIF
-    const rif = String(r.cif || r.rif || r.cedula || '').trim();
-    // Resolver teléfono
-    const phone = String(r.telefono || r.tlf || r.telef || '').trim();
-    // Resolver contacto
-    const contact = String(r.contacto || r.contac || rif || '').trim();
-    // Resolver plazo habitual
-    const daysRaw = String(r.dias || r.plazo || r.credito || '30').trim();
+    const rawRif = String(r.cif || r.rif || r.cedula || '').trim();
+    const cRif = cleanRif(rawRif);
+    const normName = name.toLowerCase();
+
+    // 2. GUARDA ABSOLUTA ANTI-CLIENTES:
+    // Si la entidad existe en jjp_customers por RIF o Nombre exacto, DESCARTAR.
+    if ((cRif && custRifs.has(cRif)) || custNames.has(normName)) {
+      discardedCustomersCount++;
+      continue;
+    }
+
+    const phone = String(r.tlf1 || r.telefono || r.tlf || r.telef || '').trim();
+    const contact = String(r.contacto || r.contac || rawRif || '').trim();
+    const daysRaw = String(r.dia_cre || r.dias || r.plazo || '30').trim();
     const default_terms_days = parseInt(daysRaw, 10) || 30;
 
-    const normName = name.toLowerCase();
     const notesStr = [
       code ? `MixNet: ${code}` : '',
-      rif ? `RIF: ${rif}` : ''
+      rawRif ? `RIF: ${rawRif}` : ''
     ].filter(Boolean).join(' | ');
 
     if (existingMap.has(normName)) {
-      // Actualizar si no tiene código MixNet en notas
       const curr = existingMap.get(normName);
       if (notesStr && (!curr.notes || !curr.notes.includes(code))) {
         await sbPatch('jjp_suppliers', `id=eq.${curr.id}`, {
@@ -89,7 +128,6 @@ export async function syncSuppliersFromMixnet(compDir) {
         updatedCount++;
       }
     } else {
-      // Crear nuevo proveedor en jjp_suppliers
       await sbPost('jjp_suppliers', {
         name,
         phone: phone || null,
@@ -105,12 +143,14 @@ export async function syncSuppliersFromMixnet(compDir) {
     }
   }
 
-  log(`[PROVEEDORES] Sincronización finalizada: ${createdCount} creados, ${updatedCount} actualizados.`);
+  log(`[PROVEEDORES] Sincronización finalizada: ${createdCount} creados, ${updatedCount} actualizados, ${discardedCustomersCount} clientes descartados, ${inactiveSkipped} inactivos omitidos.`);
   return {
     ok: true,
     file: path.basename(supplierFilePath),
     totalRows: rows.length,
     created: createdCount,
-    updated: updatedCount
+    updated: updatedCount,
+    discardedCustomers: discardedCustomersCount,
+    inactiveSkipped
   };
 }

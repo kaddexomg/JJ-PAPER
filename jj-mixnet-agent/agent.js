@@ -216,7 +216,9 @@ function startMicroApi() {
       try {
         if (!activeCompDir) throw new Error('Directorio comp01 no detectado.');
         const body = await readBody();
-        const resData = updateMixnetUserPermissions(activeCompDir, Number(body.recordIndex), body.values);
+        const userCode = body.user_code || body.code || body.userCode || (body.recordIndex ? String(body.recordIndex).padStart(3, '0') : '');
+        const permissions = body.permissions || body.values || {};
+        const resData = await updateMixnetUserPermissions(activeCompDir, userCode, permissions);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(resData));
       } catch (err) {
@@ -290,14 +292,7 @@ async function main() {
     }
   }, 60000);
 
-  // 5. Bucle de Sincronización de Proveedores (cada 5 minutos)
-  setInterval(async () => {
-    if (activeCompDir) {
-      await runScheduledSupplierSync();
-    }
-  }, 300000);
-
-  // 6. Bucle de Heartbeat hacia Supabase (cada 15 segundos)
+  // 5. Bucle de Heartbeat hacia Supabase (cada 15 segundos)
   setInterval(async () => {
     refreshCorrelatives();
     await reportAgentHeartbeat({
@@ -310,10 +305,9 @@ async function main() {
     });
   }, 15000);
 
-  // Ejecución inicial inmediata
+  // Ejecución inicial inmediata (documentos prioritarios)
   if (activeCompDir) {
     await runScheduledSync();
-    await runScheduledSupplierSync();
   }
 
   log('Agente MixNet iniciado y en modo guardián autónomo 24/7.');

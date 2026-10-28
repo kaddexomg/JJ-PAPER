@@ -1,8 +1,8 @@
 /* ==========================================================================
    JJ Paper Admin — Controlador de Interfaz Puente MixNet ERP
    --------------------------------------------------------------------------
-   Conecta con public.jjp_mixnet_tasks en Supabase Proyecto A para enviar
-   comandos a la PC Cobranza, ejecutar backups y administrar MXUSUAR.DBF.
+   Conecta con public.jjp_mixnet_tasks en el VPS Soberano para enviar
+   comandos a Supervisor-Pc / Servidor Central, ejecutar backups y administrar seguridad.
    ========================================================================== */
 
 let activeTab = 'console';
@@ -211,9 +211,9 @@ async function processWithAi(instruction) {
     }
 
     const systemPrompt = `Eres el Agente Autónomo de MixNet ERP para JJ Paper.
-Tu rol es interpretar órdenes en lenguaje natural del administrador y traducirlas a acciones concretas en las tablas de MixNet:
-- Tablas disponibles: MXUSUAR (usuarios/permisos), MXCTAINV (inventario), MXENCPED (pedidos), MXENCCOT (cotizaciones).
-- Reglas: Cero escrituras directas invasivas sin backup preventivo; siempre usar códigos de vendedor estrictos.
+Tu rol es interpretar órdenes en lenguaje natural del administrador y traducirlas a acciones concretas en MixNet:
+- Módulos disponibles: Nómina y Permisos (MXCTAVDD.DBF, MXUSER*.EXT, MXSECURI.CFG), Inventario (MXCTAINV), Pedidos (MXENCPED), Cotizaciones (MXENCCOT).
+- Reglas: Cero escrituras directas invasivas sin backup preventivo; siempre usar códigos de vendedor canónicos.
 Responde ÚNICAMENTE en JSON con este formato:
 { "action": "list_users" | "update_user_permissions" | "crear_backup" | "buscar_archivo", "payload": { ... }, "explanation": "Breve explicación en español" }`;
 
@@ -230,42 +230,46 @@ Responde ÚNICAMENTE en JSON con este formato:
   }
 }
 
-// ─── PESTAÑA: USUARIOS MIXNET (MXUSUAR) ───
+// ─── PESTAÑA: USUARIOS Y PERMISOS MIXNET (MXCTAVDD + MXUSER*.EXT) ───
 async function loadMixnetUsers() {
   const container = document.getElementById('usersContainer');
-  if (container) container.innerHTML = '<p style="color:var(--theme-accent, #047857)">⏳ Leyendo MXUSUAR.DBF desde la PC Cobranza...</p>';
+  if (container) container.innerHTML = '<p style="color:var(--theme-accent, #047857)">⏳ Consultando seguridad y nómina de MixNet...</p>';
 
   const res = await sendTask('list_users');
   if (!res || !res.users) {
-    if (container) container.innerHTML = '<p style="color:#ef4444">No se pudo cargar la lista de usuarios. Verifica que la PC Cobranza esté encendida.</p>';
+    if (container) container.innerHTML = '<p style="color:#ef4444">No se pudo cargar la lista de usuarios. Verifica que el demonio en puerto 8790 esté activo.</p>';
     return;
   }
 
   const users = res.users;
   if (!users.length) {
-    if (container) container.innerHTML = '<p style="color:var(--theme-text-muted, #64748b)">No hay registros activos en MXUSUAR.DBF.</p>';
+    if (container) container.innerHTML = '<p style="color:var(--theme-text-muted, #64748b)">No hay vendedores activos registrados.</p>';
     return;
   }
 
-  const fields = res.fields || [];
   let html = `<table class="snap-table"><thead><tr>
-    <th>Rec #</th>
-    <th>Usuario / Código</th>
-    <th>Nombre / Rol</th>
-    <th>Campos y Permisos</th>
+    <th>#</th>
+    <th>Código / Login</th>
+    <th>Vendedor / Rol</th>
+    <th>Permisos Clave MixNet</th>
     <th>Acción</th>
   </tr></thead><tbody>`;
 
   users.forEach(u => {
-    const rawKeys = Object.keys(u).filter(k => k !== '_record');
-    const summary = rawKeys.slice(0, 5).map(k => `<strong>${k}:</strong> ${escapeHTML(u[k])}`).join(' | ');
+    const code = escapeHTML(u.code || '000');
+    const name = escapeHTML(u.name || 'Vendedor');
+    const role = escapeHTML(u.role || 'Vendedor');
+    const perms = u.permissions || {};
+    const activePerms = Object.keys(perms).filter(k => Boolean(perms[k]));
+    const permSummary = activePerms.slice(0, 4).join(', ') + (activePerms.length > 4 ? ` (+${activePerms.length - 4} más)` : '');
+
     html += `<tr>
-      <td>${u._record}</td>
-      <td><strong>${escapeHTML(u.USUARIO || u.CODIGO || u.NOMBRE || 'USER')}</strong></td>
-      <td>${escapeHTML(u.NOMBRE || u.DESCRIP || '—')}</td>
-      <td style="font-size:11px;font-family:monospace;color:var(--theme-text-muted, #475569)">${summary}</td>
+      <td>${u._record || '—'}</td>
+      <td><strong>${code}</strong> <small style="color:#94a3b8">(${escapeHTML(u.username || ('USER_' + code))})</small></td>
+      <td><strong>${name}</strong><br><small style="color:#38bdf8">${role}</small></td>
+      <td style="font-size:11.5px;color:#a3e635;font-family:monospace">${permSummary || 'Sin permisos'}</td>
       <td>
-        <button class="btn-o sm" onclick="promptEditUserPermission(${u._record})">⚙️ Modificar</button>
+        <button class="btn-o sm" onclick="promptEditUserPermission('${code}')">⚙️ Permisos</button>
       </td>
     </tr>`;
   });
@@ -274,15 +278,14 @@ async function loadMixnetUsers() {
   if (container) container.innerHTML = html;
 }
 
-function promptEditUserPermission(recIndex) {
-  const field = prompt('¿Qué campo de permiso deseas modificar en MXUSUAR? (Ej: ANULAR, PRECIO, NIVEL)');
-  if (!field) return;
-  const val = prompt(`Nuevo valor para ${field.toUpperCase()}:`);
-  if (val === null) return;
+function promptEditUserPermission(userCode) {
+  const permKey = prompt(`Modificar permiso para vendedor [${userCode}].\nIngresa la clave del permiso (ej: COT_CREAR, PED_CREAR, INV_VER_STOCK, FAC_ANULAR):`);
+  if (!permKey) return;
+  const allow = confirm(`¿Deseas HABILITAR (Aceptar) o DENEGAR (Cancelar) el permiso "${permKey.trim().toUpperCase()}" para el usuario ${userCode}?`);
 
   const payload = {
-    recordIndex: recIndex,
-    values: { [field.toUpperCase()]: val }
+    user_code: userCode,
+    permissions: { [permKey.trim().toUpperCase()]: allow }
   };
   sendTask('update_user_permissions', payload).then(() => {
     loadMixnetUsers();

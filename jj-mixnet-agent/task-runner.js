@@ -42,8 +42,7 @@ export async function processAgentTasks(compDir) {
           const catRes = await syncCatalogFromMixnet(compDir, payload.force === true);
           const docRes = await importMixnetDocuments(compDir);
           const expRes = await exportPendingDocumentsToMixnet(compDir);
-          const supRes = await syncSuppliersFromMixnet(compDir);
-          result = { ok: true, catalog: catRes, imported: docRes, exported: expRes, suppliers: supRes };
+          result = { ok: true, catalog: catRes, imported: docRes, exported: expRes };
           break;
         }
 
@@ -132,24 +131,17 @@ export async function processAgentTasks(compDir) {
         }
 
         case 'list_users': {
-          log('[AGENTE] Leyendo usuarios de MixNet (MXUSUAR.DBF)...');
+          log('[AGENTE] Consultando seguridad y nómina de MixNet (MXCTAVDD + MXUSER*.EXT + MXSECURI)...');
           const realUsers = getMixnetUsers(compDir);
-          if (realUsers && realUsers.ok) {
-            result = realUsers;
-          } else {
-            const userList = Object.entries(SELLER_CODVEN_TO_PROFILE).map(([codven, u]) => ({
-              codven,
-              id: u.id,
-              name: u.name
-            }));
-            result = { ok: true, count: userList.length, users: userList, fallback: true };
-          }
+          result = realUsers;
           break;
         }
 
         case 'update_user_permissions': {
-          log(`[AGENTE] Solicitud de modificación de usuario en MixNet recibida...`);
-          const res = updateMixnetUserPermissions(compDir, Number(payload.recordIndex), payload.values);
+          log(`[AGENTE] Solicitud de modificación de permisos de usuario recibida...`);
+          const userCode = payload.user_code || payload.code || (payload.recordIndex ? String(payload.recordIndex).padStart(3, '0') : '');
+          const permissions = payload.permissions || payload.values || {};
+          const res = await updateMixnetUserPermissions(compDir, userCode, permissions);
           result = res;
           break;
         }

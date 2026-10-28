@@ -4197,7 +4197,7 @@ ${rawText}
       )
     );
     const pdf = inclPdf !== false
-      ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 900 artículos disponibles para despacho inmediato.'
+      ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 2.400 artículos disponibles para despacho inmediato.'
       : '';
 
     let base = '';
@@ -4236,7 +4236,7 @@ ${rawText}
       if (!body || body.includes('Le saludamos cordialmente de JJ Paper...') || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
         body = buildMinimalFallback(null, currentConfig.channel || 'whatsapp', currentConfig.seller?.name, document.getElementById('ceAttachPdf')?.checked !== false);
       }
-      if (isEmail && !subject) subject = '📋 Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.';
+      if (isEmail && !subject) subject = '📋 Propuesta de Suministro y Optimización Operativa — JJ Paper C.A.';
 
       // Asegurar que cada contacto de la lista tenga su mensaje y asunto listos sin dejar ninguno vacío
       const isPdfActive = document.getElementById('ceAttachPdf')?.checked !== false;
@@ -4250,7 +4250,7 @@ ${rawText}
         if (isEmail && !c._custom_subject) {
           c._custom_subject = isContacted
             ? `🤝 Seguimiento Operativo y Reposición para ${c.name || 'su empresa'} — JJ Paper C.A.`
-            : (subject || '📋 Propuesta Comercial y Lista de Precios Oficial — JJ Paper C.A.');
+            : (subject || '📋 Propuesta de Suministro y Optimización Operativa — JJ Paper C.A.');
         }
       });
     } else {

@@ -43,7 +43,24 @@ function escapeHtml(str) {
 
 function formatBodyToCorporateHtml(text) {
   if (!text) return '';
-  const lines = String(text).split(/\r?\n/);
+  let sanitized = String(text);
+
+  // Sanitización de bloques legacy "Ventajas de operar..." y viñetas repetitivas ya provistas en la plantilla
+  sanitized = sanitized.replace(/Ventajas(?:\s+de\s+operar|\s+directas)?\s+con\s+JJ\s+Paper:?[\s\S]*?(?=\n\n\s*¿|\n\s*¿|¿Desea|¿Cuáles|¿Qué|¿Podríamos|¿Con\s+quién|Atentamente|Cordialmente|Saludos|$)/gi, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Adjuntamos\s+nuestro\s+catálogo\s+oficial\s+en\s+PDF[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Servicio\s+de\s+Procura\s+Especial:[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Facturación\s+fiscal\s+formal\s+SENIAT[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Importador\s+directo:[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Despacho\s+propio[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Precios\s+de\s+importador[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Disponibilidad\s+inmediata\s+en\s+nuestro\s+almacén[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Precios\s+transparentes[^\n]*/gim, '');
+  sanitized = sanitized.replace(/^[•\-*▪]\s*Despacho\s+puntual[^\n]*/gim, '');
+  sanitized = sanitized.replace(/👉\s*(?:Puede\s+consultar|Revise)[^\n]*\n?\{\{link\}\}/gim, '');
+  sanitized = sanitized.replace(/(?:^|\n)\s*https?:\/\/jjpaper\.pages\.dev[^\s]*/gim, '');
+  sanitized = sanitized.replace(/(?:\r?\n)+\s*(?:Atentamente|Cordialmente|Quedo a su orden|Quedamos a su orden|Saludos cordiales)\s*,?[\s\S]*$/i, '').trim();
+
+  const lines = sanitized.split(/\r?\n/);
   const blocks = [];
   let currentParagraph = [];
 
@@ -159,9 +176,16 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
     ? (nameParts[0][0] + nameParts[nameParts.length - 1][0])
     : nameParts[0].slice(0, 2)).toUpperCase();
 
-  // Limpiar teléfono para WhatsApp directo
-  const cleanPhoneDigits = (sPhone.split('/')[0] || sPhone).replace(/\D/g, '');
-  const waNumber = cleanPhoneDigits.startsWith('0') ? '58' + cleanPhoneDigits.slice(1) : (cleanPhoneDigits.startsWith('58') ? cleanPhoneDigits : '58' + cleanPhoneDigits);
+  // Limpiar teléfono para WhatsApp directo y garantizar formato internacional E.164
+  const rawPhone = String(sellerPhone || '0412-4676073');
+  const cleanPhoneDigits = (rawPhone.split('/')[0] || rawPhone).replace(/\D/g, '');
+  let waNumber = cleanPhoneDigits;
+  if (waNumber.startsWith('0')) {
+    waNumber = '58' + waNumber.slice(1);
+  } else if (!waNumber.startsWith('58')) {
+    waNumber = '58' + waNumber;
+  }
+  if (waNumber.length < 10) waNumber = '584124676073';
 
   // Mensaje inteligente hiper-personalizado para WhatsApp
   const cleanCompName = String(companyName || '').trim();
@@ -546,8 +570,20 @@ async function step(camp, dailyLimit) {
       const STORAGE_BASE = `${process.env.SUPABASE_URL_CORE || "https://166-0-112-247.sslip.io"}/storage/v1/object/public/`;
       const imgUrl = imgAtt?.path ? (imgAtt.path.startsWith('http') ? imgAtt.path : `${STORAGE_BASE}${imgAtt.bucket || 'jjp-email-media'}/${imgAtt.path}`) : '';
       
-      const sName = (camp.seller_name || realVars.vendedor || 'Keyder Salazar');
-      const sPhone = (camp.seller_phone || '0412-4676073');
+      // Obtener datos del asesor desde jjp_profiles si no vienen en la campaña
+      let sellerProf = null;
+      if (camp.owner_id) {
+        try {
+          const { data: prof } = await dbCore.from('jjp_profiles')
+            .select('id, full_name, phone')
+            .eq('id', camp.owner_id)
+            .maybeSingle();
+          sellerProf = prof;
+        } catch (_) {}
+      }
+
+      const sName = (camp.seller_name || sellerProf?.full_name || realVars.vendedor || 'Keyder Salazar');
+      const sPhone = (camp.seller_phone || sellerProf?.phone || realVars.telefono || '0412-4676073');
 
       // 3. Cascada de despacho multi-correo sobre availableEmails
       let sendSuccess = false;

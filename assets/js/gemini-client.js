@@ -338,6 +338,9 @@
      -------------------------------------------------------------------------- */
   function _detectToneArchetype(toneStr = '', hookStr = '', msgTypeStr = '') {
     const combined = `${toneStr} ${hookStr} ${msgTypeStr}`.toLowerCase();
+    if (/destacado|destacados|habitual|recompra|seguimiento/i.test(combined)) {
+      return 'seguimiento_destacados';
+    }
     if (/urgente|rel[aá]mpago|oportunidad|oferta|liquidaci[oó]n|promo|descuento|escala|volumen/i.test(combined)) {
       return 'oportunidad_mayorista';
     }
@@ -355,6 +358,7 @@
     }
     // Si es 'socio_estrategico' o genérico, rotamos entre los 5 arquetipos en cada clic
     const archetypes = [
+      'seguimiento_destacados',
       'socio_estrategico',
       'oportunidad_mayorista',
       'cercano_consultivo',
@@ -1207,6 +1211,13 @@ ${rawText.slice(0, 50000)}
      4.1. Taxonomías y Directivas de Negocio (Tonos, Sectores y Ganchos B2B)
      -------------------------------------------------------------------------- */
   const COMMERCIAL_TONE_DIRECTIVES = {
+    seguimiento_destacados: {
+      name: '⭐ Seguimiento & Destacados (Clientes Habituales y Cotizaciones Previas)',
+      attitude: 'Cercana, ejecutiva, consultiva y empática, hablando con quien ya nos conoce y valora el servicio.',
+      style: 'Cercano pero empresarial. Comparte la lista de precios actualizada y novedades para que estén al día con la reposición de su empresa o negocio, presenta ofertas puntuales de lote y recuerda la procura abierta a Tasa Oficial BCV.',
+      opening: '{Hola|Qué tal} {{nombre}} 👋, te escribo de JJ Paper para saludarte y compartirte nuestra lista actualizada de precios:',
+      closing: '¿Cómo andan de inventario esta quincena? Si necesitas cotizar cualquier renglón o aprovechar precios por volumen, me avisas y te preparo la cotización formal de inmediato.'
+    },
     directo_ejecutivo: {
       name: '💼 Resumen Ejecutivo Directo (Sin Rodeos)',
       attitude: 'Conciso, al grano, pragmático, respetando el tiempo del tomador de decisiones.',
@@ -1373,6 +1384,7 @@ Tu objetivo es redactar un mensaje comercial para ${channel === 'email' ? 'Corre
 - Iteración creativa #${_variationCounter}: ¡PROHIBIDO repetir plantillas rígidas! Cambia completamente la estructura visual, los encabezados, el saludo y el ritmo respecto a versiones anteriores.
 
 REGLAS SEGÚN EL TONO / FORMATO SELECCIONADO:
+- Si es "seguimiento_destacados": Usa formato de Asesor Cercano y Consultivo para clientes destacados o con compras/cotizaciones previas: saluda con naturalidad ("Hola [Nombre], te escribo de JJ Paper para saludarte..."), comparte la lista de precios actualizada y novedades en catálogo para apoyar la reposición de su empresa/negocio, presenta las condiciones de lote u ofertas vigentes, recuerda el respaldo de factura SENIAT a Tasa BCV y la Procura Especial ("si necesitas algo que no veas en catálogo te lo conseguimos de inmediato") e incluye el link con ref al catálogo para armar su lista de cotización web. Cierre cercano y sin presiones burocráticas.
 - Si es "oportunidad_mayorista": Usa formato de Oportunidad Flash / Lote Mayorista con urgencia elegante, énfasis en ahorro por volumen/bulto cerrado y bloqueo de stock.
 - Si es "cercano_consultivo": Usa formato conversacional humano de Asesor Personal (sin títulos de cartel publicitario), enfocándote en resolver requerimientos, procura especial y trato cercano.
 - Si es "institucional_formal": Usa formato Corporativo Ejecutivo (Procura / Licitaciones / Administración), sobrio, sin exceso de emojis, resaltando RIF J-29537545-0, facturación fiscal SENIAT y tasa oficial BCV.
@@ -1428,6 +1440,12 @@ Redacta el mensaje comercial obedeciendo estrictamente el tono y formato "${arch
       const discountLine = discount && discount.trim() ? `\n🏷️ *Condición especial:* ${discount.trim()}\n` : '';
 
       if (isEmail) {
+        if (archetype === 'seguimiento_destacados') {
+          return {
+            subject: `📋 Lista de Precios Actualizada y Novedades para su Reposición — JJ Paper`,
+            body: `{Hola|Qué tal} {{nombre}},\n\nTe escribo de JJ Paper para saludarte y compartirte nuestra lista actualizada de precios e inventario para que la tengas a la mano para la reposición de tu empresa.\n\nAprovecho de comentarte que en este momento tenemos excelentes condiciones de importador directo en insumos de alta rotación:\n\n${fallbackTopic}${discountLine}${extraNoteLine}\nRecuerda que si necesitas cualquier insumo, papelería o equipo que no veas en catálogo, te lo conseguimos directamente con nuestro servicio de procura abierta a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n\nPuedes revisar el catálogo y armar tu lista de requerimientos directamente aquí: {{link}}\n\n¿Cómo andan de inventario esta semana? Si necesitas cotizar cualquier renglón o revisar precios por volumen me avisas y te preparo la cotización formal de inmediato.\n\nSaludos cordiales,\n{{vendedor}}\nJJ Paper C.A.`
+          };
+        }
         if (archetype === 'oportunidad_mayorista') {
           return {
             subject: prodsList.length === 1
@@ -1818,7 +1836,13 @@ DIRECTIVA MANDATORIA DE OFERTA: La propuesta comercial DEBE presentar EXACTAMENT
       let toneOpening = `{Le saluda|Le escribe} *${sellerName}* de *JJ Paper C.A.* Conociendo la continua actividad de ${companyName} en ${city || 'Caracas'}, hoy queríamos presentarle condiciones mayoristas preferenciales y disponibilidad inmediata en nuestro lote seleccionado:`;
       let toneClosing = `{¿Desea que le preparemos una cotización formal para su empresa?|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?|Quedamos a su entera disposición para coordinar su pedido.}`;
 
-      if (commercialTone === 'fidelizado_reactivacion') {
+      if (commercialTone === 'seguimiento_destacados') {
+        toneGreeting = cleanContact
+          ? `{Hola|Qué tal} ${cleanContact} (${companyName}) 👋, ¡un gran saludo!`
+          : `{Hola|Qué tal} equipo de ${companyName} 👋, ¡un gran saludo!`;
+        toneOpening = `Por aquí te escribe *${sellerName}* de *JJ Paper C.A.* Te contacto para saludarte y compartirte nuestra lista actualizada de precios y novedades en catálogo para que la tengas a la mano para la reposición de tu empresa:`;
+        toneClosing = `{¿Cómo andan de inventario esta semana? Si necesitas cotizar cualquier renglón o revisar precios por volumen me avisas y te preparo la cotización formal de inmediato.|¿Gusta que le reservemos disponibilidad para su despacho de esta semana?}`;
+      } else if (commercialTone === 'fidelizado_reactivacion') {
         toneGreeting = cleanContact
           ? `{Hola|Buen día|Un placer saludarle de nuevo} ${cleanContact} (${companyName}) 👋, ¡un gran gusto saludarles de nuevo!`
           : `{Estimado equipo de|Un placer saludarles de nuevo} ${companyName} 👋, ¡un gran gusto saludarles de nuevo!`;
@@ -1854,14 +1878,20 @@ PAUTAS COGNITIVAS DE REDACCIÓN:
 3. Respaldo JJ Paper: Menciona de forma orgánica y fluida los beneficios clave (importador directo en Caracas, delivery a su sede, facturación fiscal formal).
 4. Cláusula de Procura: Indica de manera natural que si buscan alguna medida, gramaje o artículo fuera de lista, el equipo mayorista se lo localiza de inmediato.
 5. Cierre Comercial: Formula una pregunta de cierre persuasiva que invite a responder (ej. solicitar cotización formal, apartar disponibilidad o coordinar despacho).`;
-    } else if (messageType.includes('Seguimiento')) {
+    } else if (messageType.includes('Seguimiento') || commercialTone === 'seguimiento_destacados') {
       openingStrategy = `
-ESTRATEGIA COGNITIVA: SEGUIMIENTO COMERCIAL A COTIZACIÓN PREVIA (${toneConfig.name})
-¡ATENCIÓN CRÍTICA! Esta cuenta YA TIENE COTIZACIÓN O CONTACTO PREVIO con JJ Paper C.A. Prohibido presentarse como empresa desconocida.
-1. Saludo cordial y cercano reconociendo la relación con ${contactName || companyName}.
-2. Seguimiento concreto: preguntar de forma profesional si tuvieron oportunidad de revisar los números de la propuesta o si requieren ajustar cantidades o renglones.
-3. Respaldo: recordar que tenemos inventario físico disponible para entrega prioritaria en 24h a su sede en Caracas y facturación legal SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs).
-4. Cierre enfocado en apartar el lote o confirmar la orden de compra de esta semana.`;
+ESTRATEGIA COGNITIVA: SEGUIMIENTO A CONTACTOS DESTACADOS / CLIENTES HABITUALES (${toneConfig.name})
+¡ATENCIÓN CRÍTICA! Esta cuenta es un CONTACTO DESTACADO, CLIENTE HABITUAL O YA HA COTIZADO con JJ Paper C.A. Prohibido presentarse como empresa desconocida o usar saludos fríos de captación inicial.
+1. Saludo cercano, respetuoso y cálido reconociendo la relación previa:
+   - "Hola ${cleanContact ? cleanContact : 'equipo de ' + companyName}, te escribo de JJ Paper para saludarte..."
+2. Propósito de valor proactivo:
+   - Compartir nuestra lista de precios actualizada y novedades en catálogo para que la tengan a mano al momento de la reposición quincenal o mensual de su empresa/negocio.
+3. Presentación natural de ofertas u oportunidades vigentes:
+   - Mencionar que en este momento tenemos disponibilidad inmediata y precios preferenciales en lotes clave (o los artículos seleccionados), por si están por reponer stock.
+4. Respaldo y Procura Abierta:
+   - Recordar con naturalidad que si requieren cualquier insumo, papelería, archivo o maquinaria fuera de lista, nuestro servicio de Procura Especial se lo ubica directamente con entrega en su sede a Tasa Oficial BCV.
+5. Cierre consultivo de baja fricción:
+   - "¿Cómo andan de inventario esta semana? Si necesitas cotizar cualquier renglón o revisar costos por volumen, me avisas y con gusto te armo la cotización formal."`;
     } else if (messageType.includes('Reposición') || messageType.includes('Recordatorio')) {
       openingStrategy = `
 ESTRATEGIA COGNITIVA: RECORDATORIO DE REPOSICIÓN PREVENTIVA DE STOCK (${toneConfig.name})

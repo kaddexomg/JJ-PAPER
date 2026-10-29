@@ -928,17 +928,20 @@ async function ensureFreshRate() {
 }
 
 /* ------------------------------------------------------
-   Atribución de vendedor por link de referido (?ref=codigo)
-   Se guarda 30 días: toda compra en ese lapso se atribuye.
+   Atribución de vendedor por link de referido (?ref=005, ?v=005, ?ref=jose)
+   Se guarda 30 días: toda compra o cotización en ese lapso se atribuye.
+   Soporta códigos MixNet ('005', '002', '004', '008', '014', '010', '020') y alias ('jose', 'yovanni', etc.)
    ------------------------------------------------------ */
 const REF_KEY = 'jjp_ref';
 const REF_TTL = 30 * 86400e3;   // 30 días
 
 (function captureRef() {
   try {
-    const code = new URLSearchParams(location.search).get('ref');
-    if (code && /^[a-z0-9_-]{2,30}$/i.test(code)) {
-      localStorage.setItem(REF_KEY, JSON.stringify({ code: code.toLowerCase(), at: Date.now() }));
+    const qp = new URLSearchParams(location.search);
+    const raw = (qp.get('ref') || qp.get('v') || qp.get('seller') || qp.get('codven') || '').trim();
+    if (raw && /^[a-z0-9_-]{1,30}$/i.test(raw)) {
+      const normCode = /^\d{1,2}$/.test(raw) ? raw.padStart(3, '0') : raw.toLowerCase();
+      localStorage.setItem(REF_KEY, JSON.stringify({ code: normCode, at: Date.now() }));
     }
   } catch (e) {}
 })();
@@ -952,17 +955,52 @@ function getRefCode() {
   } catch (e) { return null; }
 }
 
-// Resuelve el seller_id del código vigente (RPC pública, cachea por sesión)
-async function resolveRefSeller() {
+// Resuelve la información completa del vendedor vigente (cachea en sesión)
+async function getRefSellerInfo() {
   const code = getRefCode();
   if (!code) return null;
   try {
-    const cached = JSON.parse(sessionStorage.getItem('jjp_ref_seller') || 'null');
-    if (cached && cached.code === code) return cached.id;
+    const cached = JSON.parse(sessionStorage.getItem('jjp_ref_seller_info') || 'null');
+    if (cached && (cached.code === code || cached.mixnet_code === code || cached.ref_code === code)) {
+      return cached;
+    }
+
+    if (typeof sb !== 'undefined') {
+      const { data: prof } = await sb.from('jjp_profiles')
+        .select('id, name, phone, ref_code, mixnet_code, role')
+        .or('ref_code.eq.' + code + ',mixnet_code.eq.' + code)
+        .limit(1)
+        .maybeSingle();
+
+      if (prof?.id) {
+        const info = {
+          id: prof.id,
+          name: prof.name,
+          phone: prof.phone || '04124676073',
+          code: code,
+          ref_code: prof.ref_code,
+          mixnet_code: prof.mixnet_code
+        };
+        sessionStorage.setItem('jjp_ref_seller_info', JSON.stringify(info));
+        sessionStorage.setItem('jjp_ref_seller', JSON.stringify({ code, id: prof.id }));
+        return info;
+      }
+    }
+
+    // Fallback RPC legacy si aplica
     const { data } = await sb.rpc('jjp_seller_by_ref', { p_code: code });
-    if (data) sessionStorage.setItem('jjp_ref_seller', JSON.stringify({ code, id: data }));
-    return data || null;
+    if (data) {
+      sessionStorage.setItem('jjp_ref_seller', JSON.stringify({ code, id: data }));
+      return { id: data, code };
+    }
+    return null;
   } catch (e) { return null; }
+}
+
+// Resuelve el seller_id del código vigente (compatible retroactivamente)
+async function resolveRefSeller() {
+  const info = await getRefSellerInfo();
+  return info?.id || null;
 }
 
 // Normaliza texto para búsquedas sin distinguir acentos/mayúsculas

@@ -151,7 +151,7 @@ export function buildDefaultCorporateEmailBody(vars = {}) {
     `Compártannos su lista de los insumos de mayor concurrencia o rotación en su empresa para enviarles una cotización formal comparativa a Tasa Oficial BCV.`;
 }
 
-export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, sellerPhone, imgUrl, companyName, suggestedProducts }) {
+export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, sellerPhone, sellerCode, imgUrl, companyName, suggestedProducts }) {
   let bodyHtml = formatBodyToCorporateHtml(body);
   if (!bodyHtml || bodyHtml.trim().length < 15) {
     throw new Error('renderCorporateEmailHtml: el cuerpo formateado no puede estar vacío');
@@ -233,6 +233,8 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
 
   const sName = sellerName || 'Keyder Salazar';
   const sPhone = sellerPhone || '0412-4676073 / 0212-7531777';
+  const sCode = sellerCode || '005';
+  const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
 
   // Iniciales del asesor para el monograma ejecutivo
   const nameParts = sName.trim().split(/\s+/);
@@ -430,6 +432,27 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
             </td>
           </tr>
 
+          <!-- Cuadro de Cotización Web Directa desde el Catálogo -->
+          <tr>
+            <td style="padding:0 32px 24px 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#ffffff;border:1.5px solid #16604A;border-radius:10px;padding:16px 20px;box-shadow:0 4px 12px rgba(22,96,74,0.08);">
+                <tr>
+                  <td>
+                    <div style="font-size:14px;font-weight:700;color:#16604A;margin-bottom:6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      🛒 Cotización Web Directa desde Nuestro Catálogo
+                    </div>
+                    <div style="font-size:13.5px;color:#334155;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      En nuestro catálogo en línea puede armar su lista de requerimientos (como un carrito de compras) y enviarla directamente a su asesor asignado (<strong>${escapeHtml(sName)}</strong>). Con un simple clic procesamos su cotización formal con mejores costos por volumen liquidada a <strong>Tasa Oficial BCV</strong>.
+                    </div>
+                    <div style="margin-top:8px;font-size:12px;color:#64748b;font-style:italic;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      💡 Nota: Los precios mostrados en el catálogo son referenciales. Se pueden mejorar y aplicar descuentos adicionales por volumen corporativo al procesar su solicitud.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
           <!-- Botones de Acción Principal (Dual CTA: WhatsApp Directo + Catálogo Digital - Bulletproof) -->
           <tr>
             <td style="padding:0 32px 28px 32px;text-align:center;">
@@ -448,7 +471,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#16604A" style="border-radius:8px;background-color:#16604A;">
-                          <a href="https://jjpaper.pages.dev/catalogo" target="_blank" class="jjp-btn-cta" style="background-color:#16604A;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.3px;">🌐 Ver Catálogo Digital (+2.400) ↗</a>
+                          <a href="${catalogUrl}" target="_blank" class="jjp-btn-cta" style="background-color:#16604A;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.3px;">🌐 Armar Cotización en Catálogo ↗</a>
                         </td>
                       </tr>
                     </table>
@@ -491,7 +514,12 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding-top:16px;border-top:1px solid #e2e8f0;margin-top:14px;font-size:11px;color:#94a3b8;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                  <td colspan="2" style="padding-top:14px;border-top:1px solid #e2e8f0;margin-top:12px;font-size:11.5px;color:#475569;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    🛒 <strong>Cotice directamente desde nuestro catálogo digital:</strong> Ingrese a <a href="${catalogUrl}" target="_blank" style="color:#16604A;font-weight:700;text-decoration:underline;">jjpaper.pages.dev/catalogo.html?ref=${encodeURIComponent(sCode)}</a> para armar su requerimiento y despacharlo a su asesor comercial asignado. Precios mejorables por volumen.
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top:10px;font-size:11px;color:#94a3b8;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
                     Este mensaje institucional B2B ha sido remitido por JJ Paper C.A. exclusivamente para presentar oportunidades de suministro corporativo directo. Si no desea recibir más comunicaciones, responda con la palabra 'Baja' y su dirección será excluida de inmediato.
                   </td>
                 </tr>
@@ -660,15 +688,16 @@ async function step(camp, dailyLimit) {
       if (camp.owner_id) {
         try {
           const { data: prof } = await dbCore.from('jjp_profiles')
-            .select('id, full_name, phone')
+            .select('id, name, phone, ref_code, mixnet_code')
             .eq('id', camp.owner_id)
             .maybeSingle();
           sellerProf = prof;
         } catch (_) {}
       }
 
-      const sName = (camp.seller_name || sellerProf?.full_name || realVars.vendedor || 'Keyder Salazar');
+      const sName = (camp.seller_name || sellerProf?.name || realVars.vendedor || 'Keyder Salazar');
       const sPhone = (camp.seller_phone || sellerProf?.phone || realVars.telefono || '0412-4676073');
+      const sCode = (sellerProf?.mixnet_code || sellerProf?.ref_code || camp.seller_code || '005');
 
       // 3. Cascada de despacho multi-correo sobre availableEmails
       let sendSuccess = false;
@@ -686,6 +715,7 @@ async function step(camp, dailyLimit) {
           toAddr: currentEmail,
           sellerName: sName,
           sellerPhone: sPhone,
+          sellerCode: sCode,
           imgUrl,
           companyName: compName,
           suggestedProducts: realVars.productos_oferta || realVars.insumos_core

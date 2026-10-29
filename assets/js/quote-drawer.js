@@ -143,12 +143,32 @@ function toggleQuoteDrawer(open = true) {
   if (open) {
     loadClientQuoteList();
     renderQuoteDrawerItems();
+    updateQuoteDrawerAdvisor();
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
   } else {
     overlay.classList.remove('open');
     document.body.style.overflow = '';
   }
+}
+
+
+// Actualiza el banner del asesor asignado en el drawer
+async function updateQuoteDrawerAdvisor() {
+  try {
+    const banner = document.getElementById('qdAdvisorBanner');
+    const nameEl = document.getElementById('qdAdvisorName');
+    const codeEl = document.getElementById('qdAdvisorCode');
+    if (!banner) return;
+    const seller = (typeof getRefSellerInfo === 'function') ? await getRefSellerInfo() : null;
+    if (seller && seller.name) {
+      banner.style.display = 'flex';
+      if (nameEl) nameEl.textContent = seller.name;
+      if (codeEl) codeEl.textContent = 'Asesor: ' + (seller.code || seller.mixnet_code || '005');
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (_) {}
 }
 
 function closeQuoteDrawer() {
@@ -221,13 +241,16 @@ function renderQuoteDrawerItems() {
   if (totBsEl) totBsEl.textContent = `Bs ${totals.totalBs}`;
 }
 
-// Enviar lista completa formateada estilo MixNet a WhatsApp
-function sendClientQuoteListWA() {
+// Enviar lista completa formateada estilo MixNet a WhatsApp (enrutada al asesor asignado)
+async function sendClientQuoteListWA() {
   const totals = getQuoteListTotals();
   if (!totals.items.length) return;
 
+  const seller = (typeof getRefSellerInfo === 'function') ? await getRefSellerInfo() : null;
+  const sellerGreeting = seller?.name ? `Hola ${seller.name}` : 'Hola equipo JJ Paper';
+
   let msg = `📋 *SOLICITUD DE COTIZACIÓN MAYORISTA — JJ PAPER*\n\n` +
-            `Hola equipo JJ Paper, requiero cotización y disponibilidad para la siguiente lista de requerimientos:\n\n`;
+            `${sellerGreeting}, requiero cotización y confirmación de disponibilidad para la siguiente lista de requerimientos:\n\n`;
 
   totals.items.forEach((item, idx) => {
     const subUsd = (item.price * item.qty).toFixed(2);
@@ -235,15 +258,24 @@ function sendClientQuoteListWA() {
     const vTxt = item.variantName ? ` (${item.brand} - ${item.variantName})` : ` (${item.brand})`;
     msg += `*${idx + 1}. ${item.name}*${vTxt}\n` +
            `   • Cantidad: *${item.qty} ${item.unit}* (Presentación: ${item.packaging})\n` +
-           `   • Precio: $${item.price.toFixed(2)} c/u | Subtotal: *$${subUsd}* (Bs ${subBs})\n\n`;
+           `   • Precio ref: ${item.price.toFixed(2)} c/u | Subtotal: *${subUsd}* (Bs ${subBs})\n\n`;
   });
 
-  msg += `💰 *TOTAL ESTIMADO:* $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n` +
-         `📊 *Tasa Referencia BCV:* Bs ${totals.rate.toFixed(2)}/USD\n\n` +
-         `Por favor confirmar tiempo de entrega, existencia y datos para concretar pedido formal.`;
+  msg += `💰 *TOTAL ESTIMADO REFERENCIAL:* ${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n` +
+         `📊 *Tasa Oficial BCV:* Bs ${totals.rate.toFixed(2)}/USD\n`;
 
-  const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
-  const url = `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
+  if (seller?.code) {
+    msg += `💼 *Asesor Asignado:* ${seller.name} (Código: ${seller.code})\n`;
+  }
+  msg += `\n*Nota:* Solicito revisión de precios por volumen o escala mayorista para mi empresa. Por favor confirmar disponibilidad para coordinar despacho.`;
+
+  let rawPhone = seller?.phone || (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567' ? APP.WA_NUM : '584124676073');
+  let cleanPhone = String(rawPhone).split('/')[0].replace(/\D/g, '');
+  if (cleanPhone.startsWith('0')) cleanPhone = '58' + cleanPhone.slice(1);
+  if (!cleanPhone.startsWith('58')) cleanPhone = '58' + cleanPhone;
+  if (cleanPhone.length < 10) cleanPhone = '584124676073';
+
+  const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');
 }
 
@@ -276,13 +308,17 @@ async function submitFormalQuoteList(event) {
   const city = document.getElementById('fqCity').value.trim();
 
   try {
-    let sellerId = null;
-    if (typeof resolveRefSeller === 'function') {
+    let seller = null;
+    if (typeof getRefSellerInfo === 'function') {
+      seller = await getRefSellerInfo();
+    }
+    let sellerId = seller?.id || null;
+    if (!sellerId && typeof resolveRefSeller === 'function') {
       sellerId = await resolveRefSeller();
     }
-    // Fallback al vendedor asignado predeterminado o general
+    // Fallback al vendedor asignado predeterminado o general (005 Keyder / Jose Salazar)
     if (!sellerId) {
-      sellerId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164'; // Keyder / Admin JJ Paper
+      sellerId = 'bddc57dc-5bf9-4a72-9e1c-751d07b03164';
     }
 
     const rate = totals.rate || (typeof getRate === 'function' ? getRate() : 879.12);
@@ -321,7 +357,7 @@ async function submitFormalQuoteList(event) {
       status: 'pendiente',
       source: 'web_catalogo',
       seller_id: sellerId,
-      notes: `Solicitud web desde catálogo de ${contact} (${phone})`
+      notes: `Solicitud web desde catálogo - Asesor: ${seller?.name || 'Comercial'} (${seller?.code || '005'}) - ${contact} (${phone})`
     };
 
     const quoteRes = await sb.from('jjp_quotes').insert(quotePayload).select().maybeSingle();
@@ -347,11 +383,11 @@ async function submitFormalQuoteList(event) {
     // 3. REGISTRAR NOTIFICACIÓN INTERNA EN jjp_notifications
     try {
       await sb.from('jjp_notifications').insert({
-        user_id: sellerId || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164',
+        user_id: sellerId,
         type: 'nueva_cotizacion_web',
         title: `⚡ Nueva Cotización Web: ${quoteNum}`,
-        body: `${company || contact} ha solicitado cotización de ${totals.items.length} productos por $${totals.totalUsd.toFixed(2)} (${phone}).`,
-        link: '/admin/cotizaciones.html',
+        body: `${company || contact} solicitó cotización de ${totals.items.length} productos por ${totals.totalUsd.toFixed(2)} (${phone}). Asesor: ${seller?.name || 'Comercial'} (${seller?.code || '005'}).`,
+        link: '/vendedor/cotizador.html',
         read: false
       });
     } catch (notifErr) {
@@ -378,8 +414,13 @@ async function submitFormalQuoteList(event) {
       }
     }
 
-    // Ofrecer apertura directa en WhatsApp para avisar al vendedor al instante
-    const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
+    // Ofrecer apertura directa en WhatsApp con el asesor asignado
+    let rawPhone = seller?.phone || (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567' ? APP.WA_NUM : '584124676073');
+    let cleanPhone = String(rawPhone).split('/')[0].replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) cleanPhone = '58' + cleanPhone.slice(1);
+    if (!cleanPhone.startsWith('58')) cleanPhone = '58' + cleanPhone;
+    if (cleanPhone.length < 10) cleanPhone = '584124676073';
+    const waNum = cleanPhone;
     const notifyMsg = `👋 ¡Hola JJ Paper! Acabo de registrar la Solicitud Formal de Cotización *${quoteNum}* en su catálogo web.\n\n` +
                       `👤 *Cliente:* ${company || contact}\n` +
                       `📞 *Contacto:* ${phone}\n` +
@@ -439,6 +480,14 @@ function injectQuoteDrawer() {
         <div class="qd-header">
           <h3>📋 Tu Lista de Cotización Mayorista</h3>
           <button type="button" class="qd-close" onclick="closeQuoteDrawer()" aria-label="Cerrar">✕</button>
+        </div>
+
+        <div class="qd-advisor-banner" id="qdAdvisorBanner" style="display:none;background:#ecfdf5;border-bottom:1px solid #a7f3d0;padding:8px 16px;font-size:12px;color:#065f46;display:flex;align-items:center;justify-content:space-between;">
+          <span>💼 Asesor Asignado: <strong id="qdAdvisorName">JJ Paper</strong></span>
+          <span style="font-size:10.5px;background:#10b981;color:#fff;padding:2px 7px;border-radius:4px;font-weight:700" id="qdAdvisorCode">005</span>
+        </div>
+        <div style="background:#fffbeb;border-bottom:1px solid #fef3c7;padding:8px 16px;font-size:11.5px;color:#92400e;line-height:1.4;">
+          💡 <strong>Precios referenciales:</strong> El costo unitario se puede mejorar sustancialmente y aplicar descuentos adicionales por volumen corporativo al procesar la cotización con su asesor comercial.
         </div>
 
         <div class="qd-body" id="qdBody"></div>

@@ -386,6 +386,7 @@ window.CampaignEditor = (() => {
                 <div class="ce-field-group" style="margin-bottom:8px;">
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">🎭 Tono Comercial &amp; Estilo:</label>
                   <select class="ce-select" id="ceCommercialTone" style="font-size:12px;" onchange="CampaignEditor.onToneOrNotesChange()">
+                    <option value="seguimiento_destacados">⭐ Seguimiento a Destacados &amp; Clientes Habituales (Reposición y Novedades)</option>
                     <option value="socio_estrategico" selected>🤝 Socio Estratégico y Consultivo (Recomendado)</option>
                     <option value="oportunidad_mayorista">🔥 Oportunidad Mayorista (Precios de Escala &amp; Volumen)</option>
                     <option value="cercano_consultivo">⚡ Consultivo Cercano &amp; Ágil</option>
@@ -399,6 +400,7 @@ window.CampaignEditor = (() => {
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">🎯 Finalidad / Llamada a la Acción (CTA):</label>
                   <select class="ce-select" id="ceCtaGoal" style="font-size:12px;" onchange="CampaignEditor.onToneOrNotesChange()">
                     <option value="quote" selected>📋 Cotización Rápida (Indíquenos qué insumos evalúa para presupuestar)</option>
+                    <option value="reposicion_novedades">⭐ Reposición &amp; Novedades (Pase de lista actualizada a la mano)</option>
                     <option value="inventory">📦 Reposición Preventiva (¿Qué insumos están por agotar esta quincena?)</option>
                     <option value="catalog">🌐 Catálogo Digital (Invite a explorar +2.000 artículos en línea)</option>
                     <option value="procura">🔍 Procura Especial (Cualquier formato o medida atípica se la ubicamos)</option>
@@ -3220,10 +3222,12 @@ ${rawText}
     return blocks.join('');
   }
 
-  function renderCorporateEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '', imgUrl = '' } = {}) {
+  function renderCorporateEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '', sellerCode = '', imgUrl = '' } = {}) {
     const bodyHtml = formatBodyToCorporateHtml(body);
     const sName = sellerName || currentConfig?.seller?.name || 'Keyder Salazar';
     const sPhone = sellerPhone || currentConfig?.seller?.phone || '0412-4676073 / 0212-7531777';
+    const sCode = sellerCode || currentConfig?.seller?.mixnet_code || currentConfig?.seller?.ref_code || currentConfig?.seller?.code || '005';
+    const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
 
     // Iniciales del asesor para el monograma ejecutivo
     const nameParts = sName.trim().split(/\s+/);
@@ -3384,14 +3388,35 @@ ${rawText}
             </td>
           </tr>
 
+          <!-- Cuadro de Cotización Web Directa desde el Catálogo -->
+          <tr>
+            <td style="padding:0 32px 24px 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#ffffff;border:1.5px solid #16604A;border-radius:10px;padding:16px 20px;box-shadow:0 4px 12px rgba(22,96,74,0.08);">
+                <tr>
+                  <td>
+                    <div style="font-size:14px;font-weight:700;color:#16604A;margin-bottom:6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      🛒 Cotización Web Directa desde Nuestro Catálogo
+                    </div>
+                    <div style="font-size:13.5px;color:#334155;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      En nuestro catálogo en línea puede armar su lista de requerimientos (como un carrito de compras) y enviarla directamente a su asesor asignado (<strong>${escapeHTML(sName)}</strong>). Con un simple clic procesamos su cotización formal con mejores costos por volumen liquidada a <strong>Tasa Oficial BCV</strong>.
+                    </div>
+                    <div style="margin-top:8px;font-size:12px;color:#64748b;font-style:italic;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      💡 Nota: Los precios mostrados en el catálogo son referenciales. Se pueden mejorar y aplicar descuentos adicionales por volumen corporativo al procesar su solicitud.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
           <!-- Botón de Acción Principal (CTA con Redirección y Animación) -->
           <tr>
             <td style="padding:0 32px 28px 32px;text-align:center;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
                 <tr>
                   <td align="center" style="border-radius:8px;background-color:#16604A;">
-                    <a href="https://jjpaper.pages.dev/catalogo" target="_blank" class="jjp-btn-cta" style="display:inline-block;padding:14px 34px;background-color:#16604A;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-shadow:0 4px 14px rgba(22,96,74,0.3);text-align:center;">
-                      🌐 Ver Catálogo Digital Completo (+2.400 Productos) ↗
+                    <a href="${catalogUrl}" target="_blank" class="jjp-btn-cta" style="display:inline-block;padding:14px 34px;background-color:#16604A;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-shadow:0 4px 14px rgba(22,96,74,0.3);text-align:center;">
+                      🌐 Armar Cotización en Catálogo ↗
                     </a>
                   </td>
                 </tr>
@@ -3432,7 +3457,12 @@ ${rawText}
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding-top:16px;border-top:1px solid #e2e8f0;margin-top:14px;font-size:11px;color:#94a3b8;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                  <td colspan="2" style="padding-top:14px;border-top:1px solid #e2e8f0;margin-top:12px;font-size:11.5px;color:#475569;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    🛒 <strong>Cotice directamente desde nuestro catálogo digital:</strong> Ingrese a <a href="${catalogUrl}" target="_blank" style="color:#16604A;font-weight:700;text-decoration:underline;">jjpaper.pages.dev/catalogo.html?ref=${encodeURIComponent(sCode)}</a> para armar su requerimiento y despacharlo a su asesor comercial asignado. Precios mejorables por volumen.
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top:10px;font-size:11px;color:#94a3b8;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
                     Este mensaje institucional B2B ha sido remitido por JJ Paper C.A. exclusivamente para presentar oportunidades de suministro corporativo directo. Si no desea recibir más comunicaciones, responda con la palabra 'Baja' y su dirección será excluida de inmediato.
                   </td>
                 </tr>

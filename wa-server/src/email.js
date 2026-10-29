@@ -320,7 +320,7 @@ export async function sendEmailNow(ownerId, m) {
       const atts = await loadAttachments(m.attachments);
       const info = await buildTxFromAcct(acct).sendMail({
         from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
-        text: m.body || '', html: m.html || undefined,
+        text: m.body || '', html: m.html || formatTextToHtml(m.body || ''),
         attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
       });
       id = info.messageId || null;
@@ -346,7 +346,7 @@ export async function sendEmailNow(ownerId, m) {
           const atts = await loadAttachments(m.attachments);
           const info = await buildTxFromAcct(fallback).sendMail({
             from: fallback.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
-            text: m.body || '', html: m.html || undefined,
+            text: m.body || '', html: m.html || formatTextToHtml(m.body || ''),
             attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
           });
           return { id: info.messageId || null, from: fallback.from };
@@ -1178,7 +1178,7 @@ async function dispatch(row) {
               const info = await buildTxFromAcct(usedAcct).sendMail({
                 from: usedAcct.from, to: row.to_addr,
                 subject: row.subject || '(sin asunto)',
-                text: row.body || '', html: row.html || undefined,
+                text: row.body || '', html: row.html || formatTextToHtml(row.body || ''),
                 attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
               });
               messageId = info.messageId || null;
@@ -1195,7 +1195,7 @@ async function dispatch(row) {
       const info = await buildTxFromAcct(usedAcct).sendMail({  // SMTP (app pass / .env)
         from: usedAcct.from, to: row.to_addr,
         subject: row.subject || '(sin asunto)',
-        text: row.body || '', html: row.html || undefined,
+        text: row.body || '', html: row.html || formatTextToHtml(row.body || ''),
         attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
       });
       messageId = info.messageId || null;

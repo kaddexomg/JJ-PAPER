@@ -79,7 +79,7 @@ Le escribimos para presentarle una oportunidad comercial destacada en nuestro in
 🏢 Respaldo JJ Paper:
 • Importador directo en Caracas (inventario real para entrega inmediata).
 • Despacho a su sede y facturación fiscal formal a Tasa Oficial BCV.
-• Procura especial: si requiere algún formato, medida o marca específica fuera de catálogo, nuestro equipo de procura se lo ubica directamente.
+• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.
 
 👉 Puede consultar disponibilidad y gestionar su pedido en línea aquí:
 {{link}}
@@ -445,7 +445,7 @@ async function initEmailCampaigns() {
         _rtTimer = setTimeout(() => {
           loadEcCampaigns(true);
           if (ecViewingCamp) {
-            loadCampTargets(ecViewingCamp.id);
+            loadCampTargets(ecViewingCamp.id, true);
           }
         }, 350);
       })
@@ -900,8 +900,9 @@ function ecSampleVars(name = 'Distribuidora Alfa, C.A.', extraContext = {}) {
     precio:      prodPrice,
     descripcion: prodDesc,
     link:        prodLink,
-    productos_oferta: extraContext.multiOffersText ||
-      '• Resma Carta Report 75g: $4.95 USD (Bs. 198,00)\n• Cuaderno 1 Línea 100h: $0.85 USD (Bs. 34,00)\n• Marcadores Acrílicos x4: $2.10 USD (Bs. 84,00)',
+    productos_oferta: extraContext.multiOffersText || (bcv && bcv > 0
+      ? `• Resma Carta Report 75g: $4.95 USD (Bs. ${(4.95 * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} a Tasa Oficial BCV)\n• Cuaderno 1 Línea 100h: $0.85 USD (Bs. ${(0.85 * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} a Tasa Oficial BCV)\n• Marcadores Acrílicos x4: $2.10 USD (Bs. ${(2.10 * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} a Tasa Oficial BCV)`
+      : `• Resmas de papel Bond Carta y Oficio (Report / Chamex / HP) — Cotización por bulto a Tasa Oficial BCV\n• Cuadernos y libretas escolares/corporativas — Escala mayorista a Tasa Oficial BCV\n• Marcadores acrílicos y consumibles de oficina — Disponibilidad inmediata con cotización comparativa`),
   };
 }
 
@@ -978,6 +979,39 @@ async function deleteEcTpl(id) {
 
 /* ================== CAMPAÑAS ================== */
 let _loadingEcCampaigns = false;
+let _ecPollingTimer = null;
+
+function hasActiveEcCampaigns() {
+  const activeStatuses = ['sending', 'enviando', 'en_cola', 'running', 'pending'];
+  return (ecCampaigns || []).some(c => activeStatuses.includes(String(c?.status || '').toLowerCase()));
+}
+
+function updateEcSmartPolling() {
+  if (hasActiveEcCampaigns()) {
+    if (!_ecPollingTimer) {
+      _ecPollingTimer = setInterval(async () => {
+        if (!hasActiveEcCampaigns()) {
+          stopEcSmartPolling();
+          return;
+        }
+        await loadEcCampaigns(true);
+        if (ecViewingCamp) {
+          await loadCampTargets(ecViewingCamp.id, true);
+        }
+      }, 3500);
+    }
+  } else {
+    stopEcSmartPolling();
+  }
+}
+
+function stopEcSmartPolling() {
+  if (_ecPollingTimer) {
+    clearInterval(_ecPollingTimer);
+    _ecPollingTimer = null;
+  }
+}
+
 async function loadEcCampaigns(isBackground = false) {
   if (_loadingEcCampaigns) return;
   _loadingEcCampaigns = true;
@@ -999,6 +1033,20 @@ async function loadEcCampaigns(isBackground = false) {
     }
     ecCampaigns = data || [];
     renderEcCampaigns();
+
+    // Mantener ecViewingCamp sincronizado si está en pantalla
+    if (ecViewingCamp) {
+      const fresh = ecCampaigns.find(x => x.id === ecViewingCamp.id);
+      if (fresh) {
+        ecViewingCamp = fresh;
+        const nameEl = document.getElementById('detCampName');
+        if (nameEl) nameEl.textContent = fresh.name || 'Detalle de Campaña';
+        const subEl = document.getElementById('detCampSub');
+        if (subEl) subEl.textContent = `Tipo: ${fresh.kind} · Asunto: "${fresh.subject}" · Creada: ${fmtDate(fresh.created_at)}`;
+      }
+    }
+
+    updateEcSmartPolling();
   } catch (err) {
     console.warn('Excepción cargando campañas:', err);
   } finally {
@@ -1099,9 +1147,11 @@ async function viewCampaignDetail(id) {
   await loadCampTargets(id);
 }
 
-async function loadCampTargets(campId) {
+async function loadCampTargets(campId, isBackground = false) {
   const tbody = document.getElementById('detTargetsBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty">⏳ Cargando destinatarios...</td></tr>';
+  if (tbody && !isBackground && (!ecDetailTargets || !ecDetailTargets.length)) {
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">⏳ Cargando destinatarios...</td></tr>';
+  }
 
   const { data, error } = await sb.from('jjp_email_campaign_targets')
     .select('*')
@@ -1109,11 +1159,17 @@ async function loadCampTargets(campId) {
     .order('created_at');
     
   if (error) { 
-    showToast('Error cargando destinatarios: ' + error.message, 'err');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty" style="color:var(--danger)">⚠️ Error al cargar destinatarios: ' + escapeHTML(error.message) + '</td></tr>';
+    if (!isBackground) {
+      showToast('Error cargando destinatarios: ' + error.message, 'err');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="table-empty" style="color:var(--danger)">⚠️ Error al cargar destinatarios: ' + escapeHTML(error.message) + '</td></tr>';
+    }
     return; 
   }
   ecDetailTargets = data || [];
+  if (ecViewingCamp && ecViewingCamp.id === campId) {
+    const updated = ecCampaigns.find(x => x.id === campId);
+    if (updated) ecViewingCamp = updated;
+  }
   renderCampDetail();
 }
 

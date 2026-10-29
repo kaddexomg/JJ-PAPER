@@ -1884,7 +1884,7 @@ ESTRATEGIA COGNITIVA: REACTIVACIÓN DE CUENTA INACTIVA (MIXNET) (${toneConfig.na
 ESTRATEGIA COGNITIVA: GRAN CUENTA CORPORATIVA / COMPRAS CENTRALIZADAS (${toneConfig.name})
 1. Dirigirse formalmente a la Gerencia de Administración y Compras de ${companyName}.
 2. Presentar a JJ Paper C.A. como proveedor homologado con facturación SENIAT legal a Tasa BCV (${rate.toFixed(2)} Bs).
-3. Enfocarse en insumos de alto estándar: carpetas 3 aros de 1 pulgada, fundas protectoras, archivadores de palanca reglamentarios y resmas Bond.
+3. Enfocarse en abastecimiento integral corporativo: Resmas Bond de alta blancura para balances y contratos, bolígrafos por caja, destructoras de documentos confidenciales, archivo reglamentario y consumibles de oficina.
 4. Cierre formal: consignar cotización proforma membretada para evaluación del departamento.`;
     } else if (messageType.includes('Oferta')) {
       openingStrategy = `
@@ -1975,9 +1975,17 @@ PORTAFOLIO INTEGRAL Y CAPACIDADES DE JJ PAPER (IMPORTADOR Y DISTRIBUIDOR DIRECTO
 6. Consumibles POS y Cajas: Rollos térmicos (80x70mm, 57x40mm) y marcadores detectores de billetes falsos Kores (ÚNICAMENTE para retail, supermercados o comercios con caja registradora / terminal de cobro).
 7. Procura Especial: "Lo que no esté a la vista, se lo ubicamos, cotizamos y despachamos de inmediato con nuestra red de importación".
 
-PROHIBICIÓN ESTRICTA ANTI-SESGO Y PREVALENCIA DE GIRO:
-- Si el nombre de la empresa incluye términos mercantiles genéricos como "Inversiones", "Comercializadora", "Consorcio", "Grupo" o "Corporación", ¡PROHIBIDO ASUMIR QUE ES UNA FINANCIERA O BANCO! Analiza el nombre completo, las notas y el sector (ej: si incluye "Motors", "Taller", "Repuestos", "Auto", "Mecánica", clasifícalo y trátalo estrictamente como sector Automotriz, Concesionarios y Talleres).
-- ¡PROHIBIDO ofrecer rollos térmicos o detectores de billetes a oficinas corporativas, consultorías, clínicas, bufetes, aseguradoras, talleres o colegios! Esos insumos son exclusivos para comercios retail con punto de venta o cajas registradoras. Para oficinas y empresas ofrece: carpetas 3 aros, fundas protectoras, archivadores de palanca, resmas Bond, bolígrafos por caja y destructoras de papel.
+PROHIBICIÓN ESTRICTA ANTI-SESGO Y REGLA DE VARIEDAD GLOBAL:
+- ¡PROHIBIDO REPETIR MONÓTONAMENTE LOS MISMOS 2 O 3 PRODUCTOS PARA TODAS LAS EMPRESAS! En sesiones pasadas se cometió el grave error de ofrecer rollos térmicos a todo el mundo, y luego se corrigió erróneamente ofreciendo únicamente carpetas y ganchos a todas las empresas. ¡EVITA AMBOS EXTREMOS!
+- JJ Paper cuenta con un catálogo de más de 2.400 artículos clasificados en 9 líneas principales (Papel & Resmas, Escritura por caja, Higiene institucional, Embalaje industrial, Archivo corporativo, Equipos y destructoras, Escolar, Cuadernos y Rollos POS).
+- CADA EMPRESA DEBE RECIBIR UNA PROPUESTA VARIADA Y DIRECTAMENTE PERTINENTE A SU OPERACIÓN REAL:
+  * Oficinas y Sedes Administrativas: Diversificar entre Resmas Bond (Carta/Oficio), bolígrafos por caja, notas adhesivas, destructoras de documentos, higiene institucional y archivo. Prohibido limitarse a carpetas y ganchos.
+  * Clínicas y Salud: Sobres de radiografía 14x17, resmas para informes médicos, higiene institucional (toallines/papel), carpetas de historias médicas y bolígrafos.
+  * Industrias y Almacenes: Cintas de embalaje industrial (100m/200m), film stretch, marcadores industriales permanentes, resmas para guías y dispensadores.
+  * Colegios y Educación: Resmas para evaluaciones, marcadores de pizarra acrílica recargables con tintas, borradores, plastificadoras y cartulinas.
+  * Comercios y Retail con Cajas: Rollos térmicos para punto de venta (80x70, 57x40), detectores de billetes falsos Kores, cintas de empaque y bolígrafos de mostrador.
+  * Papelerías y Reventa: Enfoque 100% mayorista por bulto/caja con alto margen (resmas, cuadernos, bolígrafos por caja Bic/Kores, pegas, tijeras).
+- ¡PROHIBIDO FIJAR PRECIOS UNITARIOS RÍGIDOS EN FRÍO! No amarres al prospecto con precios unitarios fijos que puedan quedar desactualizados. Presenta las líneas de insumos estratégicos con viñetas concisas y oferta una cotización formal comparativa o lista mayorista con entrega directa y Tasa Oficial BCV.
 
 MATRIZ DE DIAGNÓSTICO PROFUNDO POR SECTOR OPERATIVO:
 1. Oficinas Corporativas, Sedes Administrativas, Empresas B2B, Consultoras y Bufetes:

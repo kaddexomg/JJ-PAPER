@@ -59,6 +59,10 @@ function formatBodyToCorporateHtml(text) {
   sanitized = sanitized.replace(/👉\s*(?:Puede\s+consultar|Revise)[^\n]*\n?\{\{link\}\}/gim, '');
   sanitized = sanitized.replace(/(?:^|\n)\s*https?:\/\/jjpaper\.pages\.dev[^\s]*/gim, '');
   sanitized = sanitized.replace(/(?:\r?\n)+\s*(?:Atentamente|Cordialmente|Quedo a su orden|Quedamos a su orden|Saludos cordiales)\s*,?[\s\S]*$/i, '').trim();
+  // Erradicación de precios fijos obsoletos legacy (ej. "Bs. 198,00", "198,00 Bs") y textos viejos
+  sanitized = sanitized.replace(/Bs\.?\s*198(?:[,.]00)?/gi, 'Tasa Oficial BCV');
+  sanitized = sanitized.replace(/\b198[,.]00\s*Bs\.?/gi, 'Tasa Oficial BCV');
+  sanitized = sanitized.replace(/(?:más\s+de\s+|\+)?900\s+artículos/gi, 'más de 2.400 artículos');
 
   const lines = sanitized.split(/\r?\n/);
   const blocks = [];
@@ -119,6 +123,34 @@ function formatBodyToCorporateHtml(text) {
   return blocks.join('');
 }
 
+export function buildDefaultCorporateEmailBody(vars = {}) {
+  const rubro = String(vars.rubro || vars.sector || vars.tipo || vars.empresa || '').toLowerCase();
+  const isReseller = rubro.includes('papeleria') || rubro.includes('libreria') || rubro.includes('quincalla') ||
+                     rubro.includes('bazar') || rubro.includes('reventa') || rubro.includes('detal') || rubro.includes('comercio');
+
+  if (isReseller) {
+    return `Estimado equipo de {{empresa}}:\n\n` +
+      `Nos dirigimos a ustedes desde JJ Paper C.A., importador y distribuidor mayorista directo en Caracas, con el fin de presentarles nuestras condiciones comerciales y escala de precios por bulto cerrado diseñadas para comercios, librerías y papelerías.\n\n` +
+      `Disponemos de inventario físico con más de 2.400 artículos de alta rotación para su mostrador:\n\n` +
+      `• *Resmas de Papel Bond:* Carta y Oficio (HP, Chamex, Report, Printon 75g/80g) por bulto cerrado y paleta con margen de distribuidor directo.\n` +
+      `• *Rollos Térmicos POS:* Medidas estándar 80x70mm y 57x40mm para puntos de venta y cajas fiscales.\n` +
+      `• *Consumibles Escolares y de Mostrador:* Bolígrafos por caja, marcadores, adhesivos, carpetas y cuadernos.\n` +
+      `• *Embalaje y Despacho:* Cintas de empaque industrial de alto micraje, tirro y film stretch.\n\n` +
+      `Todos nuestros despachos cuentan con facturación fiscal formal SENIAT calculada a Tasa Oficial BCV del día y entrega ágil en 24 horas en su local comercial.\n\n` +
+      `¿Cuáles son los productos escolares o de papelería que más rápido rotan en su mostrador para enviarles nuestra lista de precios mayorista por bulto?`;
+  }
+
+  return `Estimado equipo de {{empresa}}:\n\n` +
+    `Nos dirigimos a ustedes desde JJ Paper C.A., su aliado en suministro corporativo directo en Caracas, con el objetivo de optimizar la reposición de insumos de oficina y archivo en sus instalaciones.\n\n` +
+    `Mantenemos disponibilidad inmediata en nuestro inventario físico con más de 2.400 artículos en stock:\n\n` +
+    `• *Papel y Resmas Bond:* Carta y Oficio (HP, Report, Printon 75g/80g) de alta blancura para impresión continua y facturación sin atascos.\n` +
+    `• *Organización y Archivo Reglamentario:* Carpetas de fibra marrón con gancho, carpetas 3 aros, fundas transparentes y archivadores.\n` +
+    `• *Rollos Térmicos POS:* Formatos 80x70mm y 57x40mm para puntos de cobro y registros administrativos.\n` +
+    `• *Dotación y Escritorio:* Bolígrafos por caja, marcadores especializados y consumibles operativos diarios.\n\n` +
+    `Garantizamos facturación fiscal formal SENIAT liquidada a Tasa Oficial BCV del día y despacho directo en 24 horas a su sede.\n\n` +
+    `Compártannos su lista de los insumos de mayor concurrencia o rotación en su empresa para enviarles una cotización formal comparativa a Tasa Oficial BCV.`;
+}
+
 export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, sellerPhone, imgUrl, companyName, suggestedProducts }) {
   let bodyHtml = formatBodyToCorporateHtml(body);
   if (!bodyHtml || bodyHtml.trim().length < 15) {
@@ -156,7 +188,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
         );
       }).join('');
 
-      bodyHtml += (
+      const solutionsBlock = (
         '<div style="margin:22px 0 14px;">' +
           '<div style="font-size:12.5px;font-weight:700;color:#16604A;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.7px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' +
             '📦 Soluciones e Insumos Clave para su Sede:' +
@@ -164,6 +196,38 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
           boxesHtml +
         '</div>'
       );
+
+      const lastPQuestion = bodyHtml.match(/<p[^>]*>\s*¿[\s\S]*?<\/p>\s*$/i);
+      if (lastPQuestion) {
+        const pIdx = bodyHtml.lastIndexOf(lastPQuestion[0]);
+        bodyHtml = bodyHtml.slice(0, pIdx) + solutionsBlock + bodyHtml.slice(pIdx);
+      } else {
+        bodyHtml += solutionsBlock;
+      }
+    }
+  }
+
+  // REGLA 2: Bloque destacado de Procura Especial JJ Paper en el cuerpo del correo antes de la despedida
+  const procuraTableHtml = '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f0fdf4;border:1.5px solid #bbf7d0;border-left:5px solid #16604A;border-radius:8px;padding:16px 20px;margin:20px 0;">' +
+    '<tr>' +
+      '<td style="font-size:14px;color:#1e293b;line-height:1.65;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">' +
+        '<strong>🏢 Servicio de Procura Especial JJ Paper:</strong> ¿Su empresa o comercio requiere algún insumo, medida de papel, maquinaria de oficina, destructoras o consumible fuera de catálogo? Nuestro equipo de Procura se lo ubica directamente y se lo entrega en su sede a Tasa Oficial BCV.' +
+      '</td>' +
+    '</tr>' +
+  '</table>';
+
+  if (!bodyHtml.includes('Servicio de Procura Especial JJ Paper')) {
+    const lastPQuestion = bodyHtml.match(/<p[^>]*>\s*¿[\s\S]*?<\/p>\s*$/i);
+    if (lastPQuestion) {
+      const pIdx = bodyHtml.lastIndexOf(lastPQuestion[0]);
+      bodyHtml = bodyHtml.slice(0, pIdx) + procuraTableHtml + bodyHtml.slice(pIdx);
+    } else {
+      const lastPIdx = bodyHtml.lastIndexOf('<p');
+      if (lastPIdx > 0) {
+        bodyHtml = bodyHtml.slice(0, lastPIdx) + procuraTableHtml + bodyHtml.slice(lastPIdx);
+      } else {
+        bodyHtml += procuraTableHtml;
+      }
     }
   }
 
@@ -217,9 +281,10 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
     }
     .jjp-btn-wa-main {
       display: inline-block !important;
+      background-color: #25D366 !important;
       background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
       color: #ffffff !important;
-      padding: 13px 26px !important;
+      padding: 12px 24px !important;
       font-size: 14.5px !important;
       font-weight: 700 !important;
       text-decoration: none !important;
@@ -238,9 +303,10 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
     }
     .jjp-btn-cta {
       display: inline-block !important;
+      background-color: #16604A !important;
       background: linear-gradient(135deg, #16604A 0%, #1e7a5e 100%) !important;
       color: #ffffff !important;
-      padding: 13px 26px !important;
+      padding: 12px 24px !important;
       font-size: 14.5px !important;
       font-weight: 700 !important;
       text-decoration: none !important;
@@ -364,20 +430,28 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
             </td>
           </tr>
 
-          <!-- Botones de Acción Principal (Dual CTA: WhatsApp Directo + Catálogo Digital) -->
+          <!-- Botones de Acción Principal (Dual CTA: WhatsApp Directo + Catálogo Digital - Bulletproof) -->
           <tr>
             <td style="padding:0 32px 28px 32px;text-align:center;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;max-width:100%;">
                 <tr>
-                  <td align="center" class="jjp-cta-cell" style="padding:4px 6px;">
-                    <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waCustomMessage)}" target="_blank" class="jjp-btn-wa-main">
-                      💬 Solicitar Cotización por WhatsApp ↗
-                    </a>
+                  <td align="center" class="jjp-cta-cell" style="padding:6px 6px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#25D366" style="border-radius:8px;background-color:#25D366;">
+                          <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waCustomMessage)}" target="_blank" class="jjp-btn-wa-main" style="background-color:#25D366;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.3px;">💬 Solicitar Cotización por WhatsApp ↗</a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
-                  <td align="center" class="jjp-cta-cell" style="padding:4px 6px;">
-                    <a href="https://jjpaper.pages.dev/catalogo" target="_blank" class="jjp-btn-cta">
-                      🌐 Ver Catálogo Digital (+2.400) ↗
-                    </a>
+                  <td align="center" class="jjp-cta-cell" style="padding:6px 6px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#16604A" style="border-radius:8px;background-color:#16604A;">
+                          <a href="https://jjpaper.pages.dev/catalogo" target="_blank" class="jjp-btn-cta" style="background-color:#16604A;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.3px;">🌐 Ver Catálogo Digital (+2.400) ↗</a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -527,9 +601,15 @@ async function step(camp, dailyLimit) {
         empresa: (t.vars || {}).empresa || t.name || prospectRecord?.company_name || customerRecord?.name || '',
       };
 
-      const subjTemplate = t.vars?.custom_subject || t.custom_subject || camp.subject || '';
+      let subjTemplate = t.vars?.custom_subject || t.custom_subject || camp.subject || '';
+      if (!subjTemplate || subjTemplate.trim().length < 5) {
+        subjTemplate = 'Propuesta de Suministro Directo y Catálogo Corporativo | JJ Paper C.A.';
+      }
       const subject = renderTemplate(subjTemplate, realVars);
-      const bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';
+      let bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';
+      if (!bodyTemplate || bodyTemplate.trim().length < 20) {
+        bodyTemplate = buildDefaultCorporateEmailBody(realVars);
+      }
       const body = renderTemplate(bodyTemplate, realVars);
 
       // Limpieza de saludos robóticos generados por scraping de bases de datos
@@ -542,12 +622,17 @@ async function step(camp, dailyLimit) {
         );
       }
 
+      // Sanitizar precios obsoletos y textos viejos
+      cleanBody = cleanBody.replace(/Bs\.?\s*198(?:[,.]00)?/gi, 'Tasa Oficial BCV');
+      cleanBody = cleanBody.replace(/\b198[,.]00\s*Bs\.?/gi, 'Tasa Oficial BCV');
+      cleanBody = cleanBody.replace(/(?:más\s+de\s+|\+)?900\s+artículos/gi, 'más de 2.400 artículos');
+
       // Eliminar firmas finales redundantes al pie
       cleanBody = cleanBody.replace(/(?:\r?\n)+\s*(?:Atentamente|Cordialmente|Quedo a su orden|Quedamos a su orden|Saludos cordiales)\s*,?[\s\S]*$/i, '').trim();
 
       // PROTECCIÓN CRÍTICA: NUNCA permitir que cleanBody quede vacío o excesivamente corto
       if (!cleanBody || cleanBody.trim().length < 40) {
-        cleanBody = (body || '').trim();
+        cleanBody = renderTemplate(buildDefaultCorporateEmailBody(realVars), realVars);
       }
 
       if (!cleanBody || cleanBody.length < 20) {

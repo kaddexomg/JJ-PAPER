@@ -353,7 +353,7 @@ window.CampaignEditor = (() => {
                 <div id="ceAutoSectorNotice" style="padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:11.5px;color:#166534;line-height:1.45;">
                   💡 <strong>Propuestas Inteligentes &amp; Variedad Real:</strong><br>
                   • Si agregas productos arriba, la propuesta incluirá esos insumos específicos con su precio promocional.<br>
-                  • Si dejas este catálogo general libre, el sistema seleccionará automáticamente los 2 o 3 insumos ideales para el rubro de cada cliente (carpetas 3 aros de 1", resmas bond, bolígrafos, archivadores, sobres radiografía, cintas, etc., sin forzar rollos térmicos).
+                  • Si dejas este catálogo general libre, el sistema seleccionará automáticamente los insumos prioritarios según el sector real de cada cliente (salud, educación, logística, comercio o corporativo, sin imponer un producto fijo).
                 </div>
               </div>
             </div>
@@ -408,7 +408,7 @@ window.CampaignEditor = (() => {
                 <!-- Textarea de Instrucciones Libres a la IA -->
                 <div style="margin-bottom:10px;">
                   <label style="font-size:11px;font-weight:700;color:#1e293b;display:block;margin-bottom:3px">💡 Instrucción Específica para la IA:</label>
-                  <textarea class="ce-textarea" id="ceCustomNotesInput" placeholder="Ej: Enfócate en carpetas 3 aros de 1 pulgada, fundas protectoras y bolígrafos Kores. No menciones rollos térmicos. Tono consultivo y resalta entrega gratis hoy en Caracas..." style="min-height:56px;font-size:12px;padding:8px 10px;resize:vertical;" oninput="CampaignEditor.onToneOrNotesChange()"></textarea>
+                  <textarea class="ce-textarea" id="ceCustomNotesInput" placeholder="Ej: Enfócate en resmas bond, marcadores acrílicos y embalaje industrial. Resalta entrega gratis hoy en Caracas a Tasa Oficial BCV..." style="min-height:56px;font-size:12px;padding:8px 10px;resize:vertical;" oninput="CampaignEditor.onToneOrNotesChange()"></textarea>
                 </div>
 
                 <!-- Botones de Acción IA -->
@@ -648,7 +648,7 @@ window.CampaignEditor = (() => {
     const isEmail = currentConfig?.channel === 'email';
     const sName = currentConfig?.seller?.name || 'Keyder José Salazar';
     const sPhone = currentConfig?.seller?.phone || '0412-4676073 / 0212-7531777';
-    const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
+    const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 0);
 
     const compName = cust.company_name || cust.name || 'su empresa';
     const contactPerson = cust.contact_name || '';
@@ -671,7 +671,7 @@ window.CampaignEditor = (() => {
 
     // 2. Detección de Rubro y Selección de Insumos Reales (+2.000 artículos en catálogo)
     let sector = 'Oficinas y Corporativo';
-    let need = 'Archivo reglamentario de expedientes, carpetas 3 aros y resmas con despacho en 24h';
+    let need = 'Abastecimiento continuo de resmas, archivo contable SENIAT y consumibles de escritorio';
     let items = [];
 
     const hasCustomProds = (selectedProductsList && selectedProductsList.length > 0) || Boolean(selectedProductOrCombo);
@@ -684,66 +684,83 @@ window.CampaignEditor = (() => {
       need = 'Suministro mayorista directo con precios de importador y entrega inmediata';
       items = pList.map(p => {
         const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_usd || 0));
-        const pBs = (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const pBs = (rate > 0 && pUsd > 0)
+          ? ` (Bs. ${(pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} a Tasa Oficial BCV)`
+          : ' (Cotización formal a Tasa Oficial BCV)';
         const pUnit = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
-        return `• *${p.name || 'Artículo'}*${pUnit} ➔ *$${pUsd.toFixed(2)} USD* (Bs. ${pBs} a Tasa Oficial BCV)`;
+        return `• *${p.name || 'Artículo'}*${pUnit} ➔ *$${pUsd.toFixed(2)} USD*${pBs}`;
       });
     } else if (/farmacia|droguer[ií]a|farma/i.test(low)) {
       sector = 'Farmacias y Salud Retail';
-      need = 'Cero quiebres en rollos para puntos de venta fiscales y embalaje de bultos';
+      need = 'Cero quiebres en rollos para puntos de venta fiscales, resmas de facturación y embalaje de bultos';
       items = [
-        `• *Rollos térmicos fiscales y POS* (80x70mm y 57x40mm) ➔ Alta nitidez y libre de pelusa.`,
-        `• *Cintas de embalaje transparente y marrón* (48mm x 100m) ➔ Sellado seguro de bultos.`,
-        `• *Sobres manila y resmas Bond* ➔ Archivo de récipes, reportes diarios y facturación.`
+        `• *Rollos térmicos certificados libres de polvillo* (80×70mm y 57×40mm) ➔ Alta nitidez para cajas y POS.`,
+        `• *Sobres manila y resmas de papel Bond* ➔ Archivo de récipes, reportes diarios y facturación.`,
+        `• *Cintas de embalaje transparente y marrón (48mm × 100m)* ➔ Sellado seguro y entrega de despachos.`
       ];
-    } else if (/supermercado|abasto|bodeg[oó]n|charcuter[ií]a|panader[ií]a|automercado|minimarket|viveres|alimentos/i.test(low)) {
-      sector = 'Supermercados y Retail';
-      need = 'Continuidad en líneas de cajas registradoras y resguardo de billetes';
-      items = [
-        `• *Rollos térmicos para cajas registradoras* (80x70mm y 80x80mm) ➔ Papel térmico grado A.`,
-        `• *Marcadores detectores de billetes falsos Kores* ➔ Protección inmediata en cobros.`,
-        `• *Cintas de embalaje industrial 48x100m* ➔ Cierre firme de bultos y paquetes de almacén.`
-      ];
-    } else if (/colegio|escuela|instituto|liceo|educaci[oó]n|educativo|universidad|acad[eé]mico/i.test(low)) {
-      sector = 'Instituciones Educativas';
-      need = 'Dotación institucional de papel para evaluaciones continuas y material de aula';
-      items = [
-        `• *Resmas de papel Bond Carta y Oficio* (75g y 80g) ➔ Precios mayoristas por bulto cerrado.`,
-        `• *Marcadores de pizarra acrílica recargables y borradores* ➔ Insumos docentes de alta duración.`,
-        `• *Carpetas manila, cartulinas y fundas protectoras* ➔ Expedientes estudiantiles y evaluaciones.`
-      ];
-    } else if (/cl[ií]nica|salud|m[eé]dico|dental|laboratorio|hospital|consultorio|sanatorio/i.test(low)) {
+    } else if (/cl[ií]nica|salud|m[eé]dico|dental|laboratorio|hospital|consultorio|sanatorio|odontol/i.test(low)) {
       sector = 'Clínicas, Salud y Laboratorios';
-      need = 'Historias médicas protegidas, sobres de estudios y papelería de admisión';
+      need = 'Historias médicas protegidas, sobres de estudios diagnósticos y papelería de admisión';
       items = [
-        `• *Carpetas de fibra marrón con gancho* ➔ Resguardo reglamentario de historias médicas.`,
-        `• *Sobres para estudios y radiografías (14x17 y Oficio)* ➔ Entrega profesional de resultados.`,
-        `• *Resmas de papel Bond Carta/Oficio* ➔ Informes médicos, recetas y órdenes de admisión.`
+        `• *Sobres para estudios y radiografías (14×17 y Oficio)* ➔ Entrega profesional de resultados y placas.`,
+        `• *Carpetas de historias médicas con divisiones y ganchos* ➔ Resguardo normativo clínico a largo plazo.`,
+        `• *Resmas de papel Bond Carta y Oficio (75g/80g)* ➔ Informes médicos, récipes y órdenes de admisión sin atascos.`
       ];
-    } else if (/transporte|log[ií]stica|env[ií]os|cargo|almac[eé]n|ferreter[ií]a|repuestos|distribuidora/i.test(low)) {
+    } else if (/colegio|escuela|instituto|liceo|educaci[oó]n|educativo|universidad|acad[eé]mico|docente|plantel/i.test(low)) {
+      sector = 'Instituciones Educativas';
+      need = 'Dotación institucional de papel para evaluaciones continuas y material docente de aula';
+      items = [
+        `• *Resmas de papel Bond Carta y Oficio (75g y 80g)* ➔ Precios mayoristas por bulto cerrado para exámenes y guías.`,
+        `• *Marcadores de pizarra acrílica recargables y borradores* ➔ Insumos docentes de alta duración y pigmentación.`,
+        `• *Carpetas de expedientes estudiantiles, cartulinas y cuadernos* ➔ Dotación y archivo académico continuo.`
+      ];
+    } else if (/transporte|log[ií]stica|env[ií]os|cargo|almac[eé]n|ferreter[ií]a|repuestos|distribuidora|aduana|embalaje/i.test(low)) {
       sector = 'Logística, Almacenes y Envíos';
-      need = 'Embalaje industrial de alta resistencia y rotulación indeleble en traslados';
+      need = 'Embalaje industrial de alta resistencia y rotulación indeleble en traslados y despacho';
       items = [
-        `• *Cintas de embalaje de alto micraje (48mm x 100m/200m)* ➔ Adhesivo extra-fuerte para bultos pesados.`,
-        `• *Marcadores industriales permanentes (Servicio 80 / Sharpie)* ➔ Rotulación resistente al agua y roce.`,
-        `• *Dispensadores tipo pistola y exactos metálicos* ➔ Agilidad y seguridad en despacho.`
+        `• *Cintas de embalaje de alto micraje (48mm × 100m/200m marrón y transparente)* ➔ Adhesivo extra-fuerte para bultos pesados.`,
+        `• *Marcadores industriales permanentes (Servicio 80 / Sharpie)* ➔ Rotulación indeleble resistente al agua y roce.`,
+        `• *Dispensadores tipo pistola, exactos metálicos y tirros* ➔ Agilidad y seguridad en cerrado de paletas y cajas.`
       ];
-    } else if (/librer[ií]a|papeler[ií]a|bazar|variedades|copias/i.test(low)) {
+    } else if (/librer[ií]a|papeler[ií]a|bazar|quincalla|variedades|copias|comercio|detal/i.test(low)) {
       sector = 'Librerías y Papelerías (Reventa Mayorista)';
-      need = 'Margen de ganancia directo de importador y marcas de alta rotación';
+      need = 'Margen de ganancia directo de importador y marcas líderes de alta rotación de mostrador';
       items = [
-        `• *Resmas de papel Bond Carta y Oficio por bulto* ➔ Costo mayorista de primera mano.`,
-        `• *Cuadernos engrapados, cosidos y doble espiral* ➔ Surtido escolar y corporativo.`,
-        `• *Línea escolar y oficina (bolígrafos, carpetas, pegas, tijeras)* ➔ Precios de distribuidor.`
+        `• *Resmas de papel Bond Carta y Oficio por bulto cerrado* ➔ Costo mayorista de importador para maximizar margen.`,
+        `• *Cuadernos engrapados, cosidos y espiral* ➔ Surtido escolar y corporativo de rápida salida en vitrina.`,
+        `• *Línea escolar y oficina (bolígrafos por caja, carpetas, pegas, tijeras)* ➔ Precios de distribuidor directo.`
+      ];
+    } else if (/supermercado|abasto|bodeg[oó]n|charcuter[ií]a|panader[ií]a|automercado|minimarket|viveres|alimentos|restaurante|caf[eé]/i.test(low)) {
+      sector = 'Supermercados, Alimentos y Retail';
+      need = 'Continuidad en líneas de cajas registradoras, resguardo de billetes y empaque';
+      items = [
+        `• *Rollos térmicos certificados para cajas registradoras (80×70mm y 80×80mm)* ➔ Papel térmico puro sin pelusa.`,
+        `• *Marcadores detectores de billetes falsos Kores* ➔ Protección inmediata en cobros de caja.`,
+        `• *Cintas de embalaje industrial y resmas de facturación interna* ➔ Cierre firme de bultos y administración.`
+      ];
+    } else if (/banco|seguros|financier|consultor|asesor|legal|abogad|contab|inmobiliari/i.test(low)) {
+      sector = 'Banca, Seguros y Servicios Financieros';
+      need = 'Resguardo documental normativo SENIAT/SUDEBAN y papel de alta presentación';
+      items = [
+        `• *Archivadores de palanca de 3" con cantoneras metálicas* ➔ Organización reglamentaria y resguardo a 10 años.`,
+        `• *Resmas de papel Bond Carta y Oficio (80g)* ➔ Máxima blancura y pulcritud para contratos e informes ejecutivos.`,
+        `• *Carpetas de fibra marrón con ganchos y bolígrafos ejecutivos* ➔ Suministro continuo para oficinas y firmas.`
+      ];
+    } else if (/construc|ingenier|arquitect|metal|industri|f[aá]brica|planta|manufactur/i.test(low)) {
+      sector = 'Industria, Manufactura y Construcción';
+      need = 'Suministros de empaque pesado, rotulación de planta y papelería de control técnico';
+      items = [
+        `• *Cintas de embalaje industrial reforzadas (48mm × 100m/200m)* ➔ Adhesión duradera sobre bultos de carga pesada.`,
+        `• *Marcadores industriales permanentes y pintura sólida* ➔ Rotulación técnica resistente a polvo y humedad.`,
+        `• *Resmas de papel Bond para planos, especificaciones e informes* ➔ Abastecimiento continuo de oficina y planta.`
       ];
     } else {
       sector = 'Oficinas Corporativas y Empresas B2B';
-      need = 'Archivo corporativo impecable, carpetas 3 aros y suministros de alta rotación';
+      need = 'Abastecimiento continuo de resmas, archivo contable SENIAT y consumibles de escritorio';
       items = [
-        `• *Carpetas 3 aros de 1 pulgada (lomo reforzado)* ➔ Organización ejecutiva de expedientes y contratos.`,
-        `• *Fundas protectoras plásticas transparentes (Carta)* ➔ Conservación pulcra de documentos y contratos.`,
-        `• *Resmas de papel Bond Carta y Oficio (75g/80g)* ➔ Alta blancura para impresión láser e inyección.`,
-        `• *Bolígrafos por caja (Kores / Kilométrico)* y archivadores de palanca con cantoneras metálicas.`
+        `• *Resmas de papel Bond Carta y Oficio (75g/80g)* ➔ Máxima blancura para impresión continua de contratos e informes.`,
+        `• *Archivadores de palanca de 3 pulgadas y carpetas de archivo* ➔ Resguardo normativo y organización contable SENIAT.`,
+        `• *Consumibles de escritorio (bolígrafos por caja, grapas 26/6, notas adhesivas)* ➔ Dotación completa para su personal.`
       ];
     }
 
@@ -788,18 +805,20 @@ window.CampaignEditor = (() => {
     }
 
     let notesExtra = customUserNotes ? `\n\n📌 *CONDICIÓN ESPECIAL:* ${customUserNotes}` : '';
+    const rateBcvStr = rate > 0 ? ` (${rate.toFixed(2)} Bs/USD)` : '';
+    const rateBsStr = rate > 0 ? ` (${rate.toFixed(2)} Bs)` : '';
 
     let message = '';
     if (profile === 'activo_fidelizado') {
-      message = `${greeting}\n\nAgradecemos su constante confianza en nuestras soluciones de papelería y suministros. ${historyMention || 'Queríamos consultar cómo se encuentra su inventario operativo para esta quincena y apoyarles antes de que se agoten insumos clave en sus sedes:'}\n\n*📦 INSUMOS DESTACADOS PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*💎 VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Precios de primera mano sin intermediarios.\n• 🧾 *Facturación Fiscal SENIAT:* En bolívares calculados a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n• 🚚 *Despacho Prioritario 24h:* Entrega gratuita directa en sus sedes en ${city}.\n• 🔍 *Procura Especial:* Conseguimos cualquier medida o formato especial que requiera.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (+2.000 artículos en stock): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
+      message = `${greeting}\n\nAgradecemos su constante confianza en nuestras soluciones de papelería y suministros. ${historyMention || 'Queríamos consultar cómo se encuentra su inventario operativo para esta quincena y apoyarles antes de que se agoten insumos clave en sus sedes:'}\n\n*📦 INSUMOS DESTACADOS PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*💎 VENTAJAS DE OPERAR CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Precios de primera mano sin intermediarios.\n• 🧾 *Facturación Fiscal SENIAT:* En bolívares calculados a Tasa Oficial BCV${rateBcvStr}.\n• 🚚 *Despacho Prioritario 24h:* Entrega gratuita directa en sus sedes en ${city}.\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (+2.000 artículos en stock): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
     } else if (profile === 'inactivo_recuperacion') {
-      message = `${greeting}\n\nLe escribe ${sName} de *JJ Paper C.A.* Pasamos por aquí para retomar contacto con ${compName} y compartirle que hemos renovado nuestro catálogo con más de 2.000 productos de papelería, archivo corporativo y embalaje a precios mayoristas de importador directo.\n\n*📦 DISPONIBILIDAD INMEDIATA PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🛡️ CONDICIONES ESPECIALES DE REACTIVACIÓN:*\n• 🏭 Precios directos de distribuidor calculados a **Tasa Oficial BCV** (${rate.toFixed(2)} Bs).\n• 🧾 Facturación fiscal legal SENIAT y cotizaciones formales en minutos.\n• 🚚 Despacho exprés sin costo en ${city} directamente en su puerta.${notesExtra}\n\n👉 Catálogo interactivo completo sin login: {{link}}\n\n${ctaLine}\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone}`;
+      message = `${greeting}\n\nLe escribe ${sName} de *JJ Paper C.A.* Pasamos por aquí para retomar contacto con ${compName} y compartirle que hemos renovado nuestro catálogo con más de 2.000 productos de papelería, archivo corporativo y embalaje a precios mayoristas de importador directo.\n\n*📦 DISPONIBILIDAD INMEDIATA PARA SU SECTOR (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🛡️ CONDICIONES ESPECIALES DE REACTIVACIÓN:*\n• 🏭 Precios directos de distribuidor calculados a **Tasa Oficial BCV**${rateBsStr}.\n• 🧾 Facturación fiscal legal SENIAT y cotizaciones formales en minutos.\n• 🚚 Despacho exprés sin costo en ${city} directamente en su puerta.\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.${notesExtra}\n\n👉 Catálogo interactivo completo sin login: {{link}}\n\n${ctaLine}\n\nUn cordial saludo,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone}`;
     } else if (tone === 'institucional_formal') {
-      message = `Estimada Gerencia de Compras y Administración en ${compName}:\nPresente.-\n\nPor medio de la presente, *JJ Paper C.A.* (RIF J-29537545-0), empresa importadora y distribuidora mayorista en Caracas, somete a su consideración nuestra propuesta formal de abastecimiento corporativo para sus operaciones en ${city}:\n\n*LÍNEAS DE SUMINISTRO DISPONIBLES (${sector.toUpperCase()}):*\n${items.join('\n')}\n\nGARANTÍAS INSTITUCIONALES:\n- Facturación fiscal conforme a normativas del SENIAT a Tasa Oficial BCV (${rate.toFixed(2)} Bs/USD).\n- Servicio de entrega directa sin cargo en el Área Metropolitana de Caracas en 24h.\n- Suministro continuo y resguardo de archivo reglamentario a 10 años.${notesExtra}\n\nCatálogo digital corporativo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
+      message = `Estimada Gerencia de Compras y Administración en ${compName}:\nPresente.-\n\nPor medio de la presente, *JJ Paper C.A.* (RIF J-29537545-0), empresa importadora y distribuidora mayorista en Caracas, somete a su consideración nuestra propuesta formal de abastecimiento corporativo para sus operaciones en ${city}:\n\n*LÍNEAS DE SUMINISTRO DISPONIBLES (${sector.toUpperCase()}):*\n${items.join('\n')}\n\nGARANTÍAS INSTITUCIONALES:\n- Facturación fiscal conforme a normativas del SENIAT a Tasa Oficial BCV${rateBcvStr}.\n- Servicio de entrega directa sin cargo en el Área Metropolitana de Caracas en 24h.\n- Suministro continuo y resguardo de archivo reglamentario a 10 años.\n- 🔍 ¿Requiere un insumo, medida o maquinaria fuera de catálogo? Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.${notesExtra}\n\nCatálogo digital corporativo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nEjecutivo de Cuentas Corporativas | JJ Paper C.A.\nTeléfono: ${sPhone} · Caracas, Venezuela`;
     } else if (tone === 'oportunidad_mayorista') {
-      message = `${greeting}\n\nHoy habilitamos en nuestro centro de distribución de Caracas condiciones preferenciales por volumen y escala cerrada adaptadas a ${compName}:\n\n*🔥 LOTE MAYORISTA DISPONIBLE (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🚀 BENEFICIOS DE COMPRA MAYORISTA:*\n• 🏭 Precios de primera mano de importador a **Tasa Oficial BCV** (${rate.toFixed(2)} Bs).\n• 🧾 Facturación formal SENIAT (RIF J-29537545-0).\n• 🚚 Delivery corporativo gratis y prioritario en ${city}.${notesExtra}\n\n👉 Catálogo digital completo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A.\n📞 ${sPhone}`;
+      message = `${greeting}\n\nHoy habilitamos en nuestro centro de distribución de Caracas condiciones preferenciales por volumen y escala cerrada adaptadas a ${compName}:\n\n*🔥 LOTE MAYORISTA DISPONIBLE (${sector.toUpperCase()}):*\n${items.join('\n')}\n\n*🚀 BENEFICIOS DE COMPRA MAYORISTA:*\n• 🏭 Precios de primera mano de importador a **Tasa Oficial BCV**${rateBsStr}.\n• 🧾 Facturación formal SENIAT (RIF J-29537545-0).\n• 🚚 Delivery corporativo gratis y prioritario en ${city}.\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.${notesExtra}\n\n👉 Catálogo digital completo: {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}* | Dirección Comercial JJ Paper C.A.\n📞 ${sPhone}`;
     } else {
-      message = `${greeting}\n\nConociendo las exigencias operativas del sector ${sector} en ${city}, nos ponemos a la orden como su aliado mayorista directo para optimizar sus costos en insumos esenciales y papelería diaria:\n\n*📦 SUMINISTROS ESENCIALES PARA SU OPERACIÓN:*\n${items.join('\n')}\n\n*💎 RESPALDO OPERATIVO JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Cero intermediarios y disponibilidad en almacén.\n• 🧾 *Facturación Legal SENIAT:* En bolívares calculada a Tasa Oficial BCV (${rate.toFixed(2)} Bs).\n• 🚚 *Despacho en 24h:* Entrega gratuita directa en su empresa.\n• 🔍 *Servicio de Procura:* Cualquier marca o medida que no vea en lista, se la ubicamos.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (sin claves ni registros): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
+      message = `${greeting}\n\nConociendo las exigencias operativas del sector ${sector} en ${city}, nos ponemos a la orden como su aliado mayorista directo para optimizar sus costos en insumos esenciales y papelería diaria:\n\n*📦 SUMINISTROS ESENCIALES PARA SU OPERACIÓN:*\n${items.join('\n')}\n\n*💎 RESPALDO OPERATIVO JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo:* Cero intermediarios y disponibilidad en almacén.\n• 🧾 *Facturación Legal SENIAT:* En bolívares calculada a Tasa Oficial BCV${rateBsStr}.\n• 🚚 *Despacho en 24h:* Entrega gratuita directa en su empresa.\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.${notesExtra}\n\n👉 Revise nuestro Catálogo Digital Oficial (sin claves ni registros): {{link}}\n\n${ctaLine}\n\nAtentamente,\n*${sName}*\nAsesor Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
     }
 
     return { subject, message, sector, need };
@@ -1337,9 +1356,9 @@ window.CampaignEditor = (() => {
       } else if (commercialTone === 'directo_ejecutivo') {
         subj = 'Disponibilidad Mayorista Inmediata en Caracas — JJ Paper C.A.';
         if (isEmail) {
-          msg = `Buen día {{nombre}},\n\nLe saluda {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nComparto directo al grano nuestra disponibilidad mayorista para despacho inmediato en su sede:\n\n• 📄 *Papelería Corporativa:* Resmas Bond Carta/Oficio por bulto a Tasa Oficial BCV.\n• 📁 *Archivo y Oficina:* Carpetas 3 aros de 1", fundas protectoras y bolígrafos por caja.\n• 🧹 *Consumibles Operativos:* Rollos térmicos POS, cintas de embalaje y limpieza corporativa.${notesExtra}\n\n*BENEFICIOS INMEDIATOS:*\n✅ Facturación fiscal SENIAT (RIF J-29537545-0)\n✅ Delivery corporativo gratis en Caracas en 24h\n✅ Procura especial: cualquier insumo adicional se lo ubicamos al mejor precio\n\nCatálogo completo: {{link}}\n\n¿Le emitimos cotización formal hoy sobre los insumos que requiera?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.*`;
+          msg = `Buen día {{nombre}},\n\nLe saluda {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nComparto directo al grano nuestra disponibilidad mayorista para despacho inmediato en su sede:\n\n• 📄 *Papelería Corporativa:* Resmas Bond Carta/Oficio por bulto a Tasa Oficial BCV.\n• 📁 *Archivo y Oficina:* Archivadores de palanca, carpetas manila/fibra y consumibles de escritorio.\n• 🧹 *Consumibles Operativos:* Rollos térmicos POS, cintas de embalaje y limpieza corporativa.${notesExtra}\n\n*BENEFICIOS INMEDIATOS:*\n✅ Facturación fiscal SENIAT (RIF J-29537545-0)\n✅ Delivery corporativo gratis en Caracas en 24h\n✅ Procura especial: cualquier insumo adicional se lo ubicamos al mejor precio\n\nCatálogo completo: {{link}}\n\n¿Le emitimos cotización formal hoy sobre los insumos que requiera?\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.*`;
         } else {
-          msg = `{Buen día|Hola} {{nombre}} 👋 · *Resumen Mayorista JJ Paper*\n\nLe saluda *{{vendedor}}*. Comparto directo al grano nuestro stock para despacho inmediato en Caracas:\n\n• 📄 Resmas Carta/Oficio por bulto\n• 📁 Carpetas 3 aros de 1", fundas y archivo\n• 📦 Cintas de embalaje y consumibles${notesExtra}\n\n✅ *Factura fiscal SENIAT + Tasa BCV*\n✅ *Delivery prioritario gratis en Caracas*\n🔗 *Catálogo:* {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems hoy?*\n— *{{vendedor}}* | JJ Paper C.A.`;
+          msg = `{Buen día|Hola} {{nombre}} 👋 · *Resumen Mayorista JJ Paper*\n\nLe saluda *{{vendedor}}*. Comparto directo al grano nuestro stock para despacho inmediato en Caracas:\n\n• 📄 Resmas Carta/Oficio por bulto\n• 📁 Archivadores de palanca, carpetas y suministros de oficina\n• 📦 Cintas de embalaje y consumibles${notesExtra}\n\n✅ *Factura fiscal SENIAT + Tasa BCV*\n✅ *Delivery prioritario gratis en Caracas*\n🔗 *Catálogo:* {{link}}\n\n⚡ *¿Le cotizo formalmente alguno de estos ítems hoy?*\n— *{{vendedor}}* | JJ Paper C.A.`;
         }
       } else if (commercialTone === 'cercano_consultivo') {
         subj = 'Apoyo en Suministros y Papelería para su Empresa — JJ Paper C.A.';
@@ -1391,24 +1410,28 @@ window.CampaignEditor = (() => {
   function applyMultiOfertaTemplate() {
     if (!selectedProductsList || !selectedProductsList.length) return;
     const isEmail = currentConfig?.channel === 'email';
-    const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
+    const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 0);
 
     const itemsLines = selectedProductsList.map((p, idx) => {
       const pUsd = Number(p.final_price_usd != null ? p.final_price_usd : (p.price_b || p.price_usd || 0));
-      const pBs = pUsd > 0 ? (pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
+      const pBsStr = (pUsd > 0 && rate > 0)
+        ? ` | Bs. ${(pUsd * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Tasa BCV)`
+        : ' | Cotización formal a Tasa BCV';
       const unitStr = p.unit && p.unit !== 'unid' ? ` (${p.unit})` : '';
-      return `• *${p.name}*${unitStr}: *$${pUsd.toFixed(2)} USD* | Bs. ${pBs}`;
+      return pUsd > 0
+        ? `• *${p.name}*${unitStr}: *$${pUsd.toFixed(2)} USD*${pBsStr}`
+        : `• *${p.name}*${unitStr}: *Cotización comparativa a Tasa Oficial BCV*`;
     }).join('\n');
 
     let msg = '';
     const subj = isEmail ? `🔥 Ofertas Mayoristas Especiales — JJ Paper C.A.` : '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo oficial con más de 2.400 artículos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda atentamente {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nPara apoyar la operatividad de su empresa y optimizar costos de procura, ponemos a su disposición disponibilidad inmediata con precios preferenciales de importador en:\n\n*📦 LISTADO DE SUMINISTROS EN PROMOCIÓN:*\n_(Precios unitarios promocionales — no es combo cerrado, puede solicitar los artículos y cantidades que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n*VENTAJAS DIRECTAS DE TRABAJAR CON JJ PAPER:*\n• 🏭 *Importador Directo:* Precios directos de distribuidor en Caracas (sin intermediarios).\n• 🧾 *Facturación Legal:* Facturación formal fiscal a Tasa Oficial BCV.\n• 🚚 *Despacho Inmediato 24h:* Logística y delivery prioritario a su sede.\n• 📄 *Lista Oficial en PDF:* Le adjuntamos nuestro catálogo oficial con más de 2.400 artículos disponibles.\n\n👉 Catálogo digital en línea: {{link}}\n\n¿Desea que le reservemos inventario de estos productos o le preparemos una cotización formal?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       if (document.getElementById('ceSubjectInput')) {
         document.getElementById('ceSubjectInput').value = subj;
       }
     } else {
-      msg = `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n💡 *¿Busca algún producto o marca que no vea en esta lista?*\n¡Pídanoslo con total confianza! Nuestro equipo mayorista se lo ubica, cotiza y despacha de inmediato.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos nuestro catálogo oficial en PDF con más de 2.400 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`;
+      msg = `*🔥 OPORTUNIDAD MAYORISTA EXCLUSIVA · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe saluda *{{vendedor}}* de *JJ Paper C.A.*, su importador y distribuidor mayorista directo en Caracas.\n\nHoy queremos presentarle nuestro lote seleccionado de *ofertas especiales* con inventario físico para entrega inmediata esta semana:\n\n*📦 LISTADO DE PRODUCTOS EN PROMOCIÓN ESPECIAL:*\n_(Precios unitarios promocionales — no es combo cerrado, solicite los artículos que requiera)_\n──────────────────────────\n${itemsLines}\n──────────────────────────\n\n🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n*💎 VENTAJAS OPERATIVAS CON JJ PAPER:*\n• 🏭 *Importador y Distribuidor Directo* en Caracas (sin intermediarios)\n• 🧾 *Facturación formal fiscal* al cambio oficial BCV\n• 🚚 *Despacho prioritario 24h* en Caracas directamente a su empresa o colegio\n• 📄 *Catálogo Completo en PDF:* Le adjuntamos nuestro catálogo oficial en PDF con más de 2.400 artículos disponibles\n\n👉 Ver catálogo digital completo y hacer pedido directo: {{link}}\n\n💬 ¿Le reservamos unidades de alguno de estos productos para su próximo despacho?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`;
     }
     if (document.getElementById('ceMessageInput')) {
       document.getElementById('ceMessageInput').value = msg;
@@ -1988,12 +2011,12 @@ ${rawText}
     let msg = '';
     const subj = isEmail ? `📦 Propuesta Mayorista: ${p.name} — JJ Paper C.A.` : '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nQueremos presentarle una propuesta directa de abastecimiento mayorista con disponibilidad inmediata en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? '📝 ' + p.description + '\n' : ''}*💲 Precio de Lista Mayorista: $${priceUsd} USD*${p.discount_pct > 0 ? ' _(Descuento comercial del ' + p.discount_pct + '% aplicado)_' : ' _(Condiciones preferenciales y ahorro por volumen / bulto cerrado)_'}\n\n*VENTAJAS DIRECTAS CON JJ PAPER:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 ¿Busca alguna medida o insumo especial fuera de lista? Nuestro equipo de procura se lo ubica de inmediato.\n\n👉 Puede revisar la ficha técnica y confirmar su requerimiento aquí:\n{{link}}\n\n¿Gusta que le reservemos disponibilidad o le preparemos una cotización por volumen para su empresa?\n\nAtentamente,\n{{vendedor}}\nDirección Comercial | JJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nQueremos presentarle una propuesta directa de abastecimiento mayorista con disponibilidad inmediata en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? '📝 ' + p.description + '\n' : ''}*💲 Precio de Lista Mayorista: $${priceUsd} USD*${p.discount_pct > 0 ? ' _(Descuento comercial del ' + p.discount_pct + '% aplicado)_' : ' _(Condiciones preferenciales y ahorro por volumen / bulto cerrado)_'}\n\n*VENTAJAS DIRECTAS CON JJ PAPER:*\n• 🏭 Precios directos de importador en Caracas sin intermediarios.\n• 🚚 Delivery express gratuito en Caracas a su sede.\n• 🧾 Facturación fiscal formal a Tasa Oficial BCV.\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n👉 Puede revisar la ficha técnica y confirmar su requerimiento aquí:\n{{link}}\n\n¿Gusta que le reservemos disponibilidad o le preparemos una cotización por volumen para su empresa?\n\nAtentamente,\n{{vendedor}}\nDirección Comercial | JJ Paper C.A.`;
       if (document.getElementById('ceSubjectInput')) {
         document.getElementById('ceSubjectInput').value = subj;
       }
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos compartirle disponibilidad inmediata y precio preferencial en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? p.description + '\n' : ''}*💲 Precio lista mayorista: $${priceUsd} USD*\n_(Condiciones preferenciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario físico sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *Procura especial:* si requiere algún formato o insumo que no esté en lista, se lo conseguimos.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un cordial saludo 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos compartirle disponibilidad inmediata y precio preferencial en:\n\n*📦 ${p.name}${unitStr}*\n${p.description ? p.description + '\n' : ''}*💲 Precio lista mayorista: $${priceUsd} USD*\n_(Condiciones preferenciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario físico sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?`;
     }
     if (document.getElementById('ceMessageInput')) {
       document.getElementById('ceMessageInput').value = msg;
@@ -2017,12 +2040,13 @@ ${rawText}
     let msg = '';
     const subj = isEmail ? `🎁 Combo Mayorista Especial: ${c.name} — JJ Paper C.A.` : '';
     if (isEmail) {
-      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nDiseñamos este combo de alta rotación para optimizar el presupuesto y flujo operativo de su empresa:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}*💲 Inversión mayorista preferencial: $${priceUsd} USD*\n_(Ahorro integrado por lote frente a compras individuales)_\n\n*VENTAJAS CLAVE:*\n• 🏭 Precios directos de distribuidor en Caracas.\n• 🚚 Entrega garantizada en su sede en 24h.\n• 🧾 Facturación fiscal en bolívares a Tasa Oficial BCV.\n• 🔍 ¿Requiere ajustar cantidades o sumar insumos? Lo adaptamos a su medida.\n\n👉 Ver detalle del combo y gestionar pedido: {{link}}\n\n¿Desea que le confirmemos despacho de este lote para su sede esta semana?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
+      msg = `{Estimado(a)|Apreciado(a)|Hola} {{nombre}},\n\nEspero se encuentre muy bien. Le saluda {{vendedor}} de *JJ Paper C.A.*, su aliado de abastecimiento mayorista directo en Caracas.\n\nDiseñamos este combo de alta rotación para optimizar el presupuesto y flujo operativo de su empresa:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 Incluye: ' + c.description + '\n' : ''}*💲 Inversión mayorista preferencial: $${priceUsd} USD*\n_(Ahorro integrado por lote frente a compras individuales)_\n\n*VENTAJAS CLAVE:*\n• 🏭 Precios directos de distribuidor en Caracas.\n• 🚚 Entrega garantizada en su sede en 24h.\n• 🧾 Facturación fiscal en bolívares a Tasa Oficial BCV.\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n👉 Ver detalle del combo y gestionar pedido: {{link}}\n\n¿Desea que le confirmemos despacho de este lote para su sede esta semana?\n\nAtentamente,\n{{vendedor}}\nJJ Paper C.A.`;
       if (document.getElementById('ceSubjectInput')) {
         document.getElementById('ceSubjectInput').value = subj;
       }
     } else {
-      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Armamos este combo especial pensado para optimizar la reposición de su empresa con precio directo de importador:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}*💲 Inversión del combo: $${priceUsd} USD*\n_(Ahorro directo frente a compras al detal)_\n\n• 🏭 *Importador directo en Caracas*\n• 🚚 *Despacho garantizado en 24h*\n• 🧾 *Facturación formal a Tasa Oficial BCV*\n\n👉 Ver detalles o confirmar pedido directo: {{link}}\n\n¿Le reservamos este combo antes de agotar existencia del lote?`;
+      msg = `{Hola|Qué tal|Buen día} {{nombre}}, un gusto saludarle 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Armamos este combo especial pensado para optimizar la reposición de su empresa con precio directo de importador:\n\n*🎁 COMBO OPERATIVO: ${c.name}*\n${c.description ? '📝 ' + c.description + '\n' : ''}*💲 Inversión del combo: $${priceUsd} USD*\n_(Ahorro directo frente a compras al detal)_\n\n• 🏭 *Importador directo en Caracas*\n• 🚚 *Despacho garantizado en 24h*\n• 🧾 *Facturación formal a Tasa Oficial BCV*
+• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n👉 Ver detalles o confirmar pedido directo: {{link}}\n\n¿Le reservamos este combo antes de agotar existencia del lote?`;
     }
     if (document.getElementById('ceMessageInput')) {
       document.getElementById('ceMessageInput').value = msg;
@@ -3350,7 +3374,7 @@ ${rawText}
                       </tr>
                       <tr>
                         <td valign="top" style="padding:3px 0;">
-                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Servicio de Procura Especial:</strong> Si requiere algún insumo, medida o formato fuera de lista, se lo ubicamos y cotizamos de inmediato.
+                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Servicio de Procura Especial:</strong> ¿Requiere un insumo, medida o maquinaria fuera de catálogo? Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.
                         </td>
                       </tr>
                     </table>
@@ -3610,7 +3634,7 @@ ${rawText}
             <span class="ce-email-check">✔</span> <strong>Despacho Directo en 24 Horas:</strong> Flota propia con entrega ágil y puntual en su sede (Caracas y La Guaira).
           </div>
           <div class="ce-email-guarantee-item">
-            <span class="ce-email-check">✔</span> <strong>Servicio de Procura Especial:</strong> Si requiere algún insumo, medida o formato fuera de lista, se lo ubicamos y cotizamos de inmediato.
+            <span class="ce-email-check">✔</span> <strong>Servicio de Procura Especial:</strong> ¿Requiere un insumo, medida o maquinaria fuera de catálogo? Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.
           </div>
         </div>
       `);
@@ -4200,11 +4224,73 @@ ${rawText}
       ? '\n\n📄 *Le adjuntamos nuestra Lista de Precios Mayorista completa en PDF* con más de 2.400 artículos disponibles para despacho inmediato.'
       : '';
 
+    function getSectorProposalLines(contact) {
+      if (!contact) {
+        return [
+          '• *Resmas de papel Bond Carta y Oficio* (75g y 80g de máxima blancura).',
+          '• *Archivadores de palanca, carpetas y suministros de oficina y escritorio*.',
+          '• *Cintas de embalaje industrial*, bolígrafos por caja y artículos de archivo.'
+        ];
+      }
+      const raw = `${contact.company_name || ''} ${contact.name || ''} ${contact.sector || ''} ${contact.notes || ''} ${contact.tags || ''}`.toLowerCase();
+
+      if (/cl[ií]nica|salud|m[eé]dico|dental|laboratorio|hospital|consultorio|sanatorio|odontol|farmacia|droguer/i.test(raw)) {
+        return [
+          '• *Sobres para radiografía y estudios (14×17 y Oficio)* — Entrega profesional de resultados y placas.',
+          '• *Carpetas de historias médicas con divisiones y gancho* — Cumplimiento reglamentario y resguardo clínico.',
+          '• *Resmas de papel Bond y rollos térmicos certificados libres de polvillo* — Cero atascos en informes y admisión.'
+        ];
+      }
+      if (/colegio|escuela|instituto|liceo|educaci[oó]n|educativo|universidad|acad[eé]mico|docente|plantel/i.test(raw)) {
+        return [
+          '• *Resmas de papel Bond Carta y Oficio (75g y 80g)* — Blancura y rendimiento para guías y evaluaciones masivas.',
+          '• *Marcadores de pizarra acrílica recargables y borradores* — Alta pigmentación para el equipo docente.',
+          '• *Carpetas de expedientes estudiantiles, cuadernos y archivo escolar* — Precios mayoristas por volumen.'
+        ];
+      }
+      if (/transporte|log[ií]stica|env[ií]os|cargo|almac[eé]n|ferreter[ií]a|repuestos|distribuidora|aduana|embalaje/i.test(raw)) {
+        return [
+          '• *Cintas de embalaje industrial marrón y transparente (48mm × 100m/200m)* — Adhesivo de alto agarre sobre cartón corrugado.',
+          '• *Marcadores industriales permanentes (Servicio 80 / Sharpie)* — Tinta indeleble para rotulación de bultos.',
+          '• *Dispensadores tipo pistola, exactos de trabajo pesado y tirros* — Agilidad en despacho y paletizado.'
+        ];
+      }
+      if (/librer[ií]a|papeler[ií]a|bazar|quincalla|variedades|copias|comercio|detal/i.test(raw)) {
+        return [
+          '• *Resmas de papel Bond Carta y Oficio por bulto cerrado* — Precio mayorista de importador para maximizar su margen.',
+          '• *Línea escolar y oficina de alta rotación* — Cuadernos, bolígrafos por caja, pegas y marcadores.',
+          '• *Surtido continuo y reposición rápida en su mostrador* — Despacho directo a su local en Caracas.'
+        ];
+      }
+      if (/supermercado|abasto|bodeg[oó]n|charcuter[ií]a|panader[ií]a|automercado|minimarket|viveres|alimentos|restaurante/i.test(raw)) {
+        return [
+          '• *Rollos térmicos fiscales y para puntos de venta (80×70mm y 57×40mm)* — Nitidez pura y cero atascos en caja.',
+          '• *Marcadores detectores de billetes falsos Kores* — Protección y resguardo inmediato en cobros.',
+          '• *Cintas de embalaje industrial y resmas para facturación y control interno* — Entrega inmediata en su sede.'
+        ];
+      }
+      if (/banco|seguros|financier|consultor|asesor|legal|abogad|contab/i.test(raw)) {
+        return [
+          '• *Archivadores de palanca de 3" con cantoneras metálicas* — Organización reglamentaria y resguardo SENIAT a 10 años.',
+          '• *Resmas de papel Bond Carta y Oficio (80g)* — Máxima blancura y pulcritud para contratos e informes ejecutivos.',
+          '• *Carpetas de fibra marrón con ganchos y bolígrafos ejecutivos* — Suministro continuo para oficinas.'
+        ];
+      }
+      // Corporativo general / empresas
+      return [
+        '• *Resmas de papel Bond Carta y Oficio (75g/80g)* — Gramaje y blancura ideal para impresión de contratos e informes.',
+        '• *Archivadores de palanca y carpetas de archivo* — Resguardo reglamentario y organización contable SENIAT.',
+        '• *Consumibles de escritorio* — Bolígrafos por caja, grapas 26/6, notas adhesivas y suministros diarios.'
+      ];
+    }
+
+    const sectorLines = getSectorProposalLines(c);
+
     let base = '';
     if (isContacted) {
-      base = `{Hola|Buen día|Un gusto saludarle de nuevo} ${shown} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nSomos importadores y distribuidores directos de papelería corporativa, útiles escolares, consumibles de oficina y embalaje. Además, *si requiere algún insumo especial que no visualice en nuestra lista de precios, nuestro equipo se lo ubica y gestiona directamente* para garantizar el abastecimiento continuo de su negocio.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Resmas de papel Bond Carta y Oficio* (75g y 80g HP/Report/Chamex).\n• *Papelería corporativa, bolígrafos por caja, cuadernos y pegas* a precio mayorista.\n• *Cintas de embalaje industrial*, consumibles operativos y artículos de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedo a su disposición para coordinar lo que necesite.}`;
+      base = `{Hola|Buen día|Un gusto saludarle de nuevo} ${shown} 👋, un cordial saludo.\n\n{Le saluda atentamente|Le escribe nuevamente} *${sName}* de *JJ Paper C.A.* En seguimiento a nuestra comunicación previa, queríamos consultarles brevemente cómo se encuentran de stock e insumos para sus sedes esta semana.\n\nSomos importadores y distribuidores directos de papelería corporativa, útiles de oficina, consumibles de caja y embalaje con facturación a Tasa Oficial BCV.\n\n🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n${sectorLines.join('\n')}${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Tienen algún requerimiento o cotización abierta esta semana en la que podamos apoyarles?|¿Gusta que le reservemos inventario para su despacho de esta semana?|Quedo a su disposición para coordinar lo que necesite.}`;
     } else {
-      base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista en Caracas de papelería corporativa, consumibles de oficina, insumos de caja/facturación y productos de limpieza. Además, *si requiere cualquier otro producto que no esté en la lista de precios, nosotros se lo conseguimos directamente* para apoyar la operatividad de su empresa.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n• *Resmas de papel Bond Carta y Oficio* de máxima blancura y marcas líderes.\n• *Papelería corporativa, bolígrafos por caja, cuadernos y pegas* a precio mayorista.\n• *Cintas de embalaje industrial*, consumibles operativos y artículos de oficina.${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}`;
+      base = `{Hola|Buen día|Un gusto saludarle} ${shown} 👋, un cordial saludo.\n\n{Le escribe|Le saluda} *${sName}* de *JJ Paper C.A.*, su distribuidor mayorista directo en Caracas de papelería corporativa, consumibles de oficina, insumos de caja/facturación y suministros operativos.\n\n🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n*📦 DISPONIBILIDAD INMEDIATA EN:*\n${sectorLines.join('\n')}${pdf}\n\n👉 Puede consultar nuestro catálogo digital completo aquí:\n{{link}}\n\n{¿Desea que le verifiquemos disponibilidad para su pedido?|¿Requiere que le preparemos una cotización formal para su empresa?|Quedo a su disposición para apoyarle en lo que necesite.}`;
     }
 
     if (channel === 'email') {

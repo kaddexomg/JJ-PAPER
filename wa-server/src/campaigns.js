@@ -9,13 +9,32 @@ import { normVePhone, localVePhone, phoneToJid, parsePhoneInfo } from './phone.j
 // El envío real lo hace outbox.js: aquí solo se crea el chat (si falta) y se
 // encola la fila 'pending' en jjp_wa_messages con la plantilla ya renderizada.
 
+export function sanitizeCampaignText(text) {
+  if (!text || typeof text !== 'string') return text;
+  let s = text;
+  // Erradicar precios fijos obsoletos legacy (ej. "Bs. 198,00", "198,00 Bs", etc.)
+  s = s.replace(/Bs\.?\s*198(?:[,.]00)?/gi, 'Tasa Oficial BCV');
+  s = s.replace(/\b198[,.]00\s*Bs\.?/gi, 'Tasa Oficial BCV');
+  // Reemplazar menciones obsoletas de inventario antiguo (+900 artículos)
+  s = s.replace(/(?:más\s+de\s+|\+)?900\s+artículos/gi, 'más de 2.400 artículos');
+  return s;
+}
+
 function buildFullCommercialMessage(vars, camp) {
   const sName = vars.vendedor || 'Keyder Salazar';
   const sPhone = vars.telefono || '0412-4676073';
   const hasPdf = Boolean(camp && (camp.media_path && camp.media_type === 'document')) || Boolean(camp && camp.extra_media_path);
   const pdfText = hasPdf ? '\n\n📄 *Le adjuntamos nuestro catálogo oficial en PDF* con inventario verificado para entrega inmediata.' : '';
+
+  const rubro = String(vars.rubro || vars.sector || vars.tipo || vars.empresa || '').toLowerCase();
+  const isReseller = rubro.includes('papeleria') || rubro.includes('libreria') || rubro.includes('quincalla') ||
+                     rubro.includes('bazar') || rubro.includes('reventa') || rubro.includes('detal') || rubro.includes('comercio');
+
+  if (isReseller) {
+    return `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda ${sName} de *JJ Paper C.A.*, importador y distribuidor mayorista directo en Caracas.\n\nPonemos a su disposición nuestro inventario físico con más de 2.400 artículos con margen comercial y rotación garantizada para su mostrador:\n\n• 📄 *Papel por Bulto y Paleta:* Resmas Bond Carta y Oficio (HP, Chamex, Report, Printon 75g/80g) a precio de escala cerrado de importador.\n• 🧾 *Rollos Térmicos POS:* Medidas estándar 80x70mm y 57x40mm para puntos de venta y cajas fiscales.\n• ✏️ *Escolar & Escritorio:* Bolígrafos por caja, lápices de grafito, cuadernos engrapados y espiral, marcadores y pegas.\n• 📁 *Carpetas & Archivo:* Fibra marrón, carpetas manila, transparentes y archivadores de palanca.\n• 📦 *Embalaje & Cintas:* Cintas de empaque industrial de alto micraje, tirro y film stretch.${pdfText}\n\n💎 *Ventajas Directas para su Comercio:*\n• 🏭 Precios directos de importador por bulto cerrado para maximizar su margen.\n• 🧾 Facturación fiscal formal SENIAT calculada a Tasa Oficial BCV del día.\n• 🚚 Despacho ágil en 24 horas a su tienda en Caracas para reposición inmediata.\n• 🔍 *Procura Especial:* Lo que sus clientes le pidan fuera de lista, se lo ubicamos y entregamos en su comercio.\n\n👉 Catálogo digital interactivo: {{link}}\n\n¿Cuáles son los productos escolares o de papelería que más rápido rotan en su mostrador para enviarles nuestra lista de precios mayorista por bulto?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
+  }
   
-  return `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda ${sName} de *JJ Paper C.A.*, su importador y distribuidor directo en Caracas.\n\nPonemos a su disposición nuestro inventario físico con más de 2.400 artículos en stock y condiciones comerciales directas para su empresa:\n\n• 📄 *Papel & Resmas:* Carta y Oficio (HP, Chamex, Report, Printon 75g/80g) de alta blancura y cero atascos.\n• 🧾 *Rollos Térmicos POS:* Medidas estándar 80x70mm y 57x40mm para puntos de venta y cajas fiscales.\n• 📁 *Archivo & Carpetas:* Carpetas 3 aros, fundas plásticas transparentes, fibra marrón y archivadores de palanca.\n• 📦 *Embalaje & Envíos:* Cintas de embalaje industrial alto micraje (100m/200m), tirro y film stretch.\n• 🧹 *Higiene Institucional:* Toallines, papel higiénico institucional, desinfectantes y limpieza corporativa.${pdfText}\n\n💎 *Garantías y Respaldo Operativo:*\n• 🏭 Precios mayoristas de importador directo (mejorables por volumen / bulto cerrado).\n• 🧾 Facturación fiscal formal SENIAT liquidada a Tasa Oficial BCV del día.\n• 🚚 Despacho directo en 24 horas a sus instalaciones en Caracas.\n• 🔍 *Procura Especial Abierta:* Si requiere algún insumo, medida o equipo fuera de catálogo, nuestro equipo de procura se lo ubica directamente.\n\n👉 Catálogo interactivo en línea: {{link}}\n\n¿Desea compartirnos su lista de insumos de mayor rotación para prepararles una cotización formal comparativa?\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
+  return `{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda ${sName} de *JJ Paper C.A.*, su importador y distribuidor corporativo directo en Caracas.\n\nPonemos a su disposición nuestro inventario físico con más de 2.400 artículos en stock y condiciones comerciales directas para su empresa:\n\n• 📄 *Papel & Resmas:* Carta y Oficio (HP, Chamex, Report, Printon 75g/80g) de alta blancura y cero atascos en impresión y facturación.\n• 🧾 *Rollos Térmicos POS:* Medidas estándar 80x70mm y 57x40mm para puntos de venta y cajas fiscales.\n• 📁 *Archivo & Expedientes:* Carpetas de fibra marrón con gancho, 3 aros, fundas transparentes y archivadores de palanca.\n• 📦 *Embalaje & Envíos:* Cintas de embalaje industrial alto micraje (100m/200m), tirro y film stretch para almacén.\n• 🧹 *Higiene Institucional:* Toallines, papel higiénico institucional, desinfectantes y dotación corporativa.${pdfText}\n\n💎 *Garantías y Respaldo Operativo:*\n• 🏭 Precios mayoristas de importador directo (mejorables por volumen / consumo continuo).\n• 🧾 Facturación fiscal formal SENIAT liquidada a Tasa Oficial BCV del día.\n• 🚚 Despacho directo en 24 horas a sus instalaciones en Caracas.\n• 🔍 *Servicio de Procura Especial:* Si requiere algún insumo, medida o equipo fuera de catálogo, nuestro equipo de procura se lo ubica directamente.\n\n👉 Catálogo interactivo en línea: {{link}}\n\nCompártannos su lista de los insumos de mayor concurrencia o rotación en su empresa para enviarles una cotización formal comparativa a Tasa Oficial BCV.\n\nAtentamente,\n*${sName}*\nDirección Comercial | JJ Paper C.A.\n📞 ${sPhone} · Caracas, Venezuela`;
 }
 
 let manager = null;
@@ -204,8 +223,10 @@ async function step(camp, dailyLimit) {
       // Resolver plantilla: prioridad custom_message del target > message de la campaña > fallback comercial
       let msgTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.message || camp.body || '';
 
-      if (!msgTemplate) {
+      if (!msgTemplate || msgTemplate.trim().length < 20) {
         msgTemplate = buildFullCommercialMessage(realVars, camp);
+      } else {
+        msgTemplate = sanitizeCampaignText(msgTemplate);
       }
       
       const body = renderTemplate(msgTemplate, realVars);

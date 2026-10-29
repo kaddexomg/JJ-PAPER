@@ -1254,6 +1254,32 @@
   color: #0f172a;
 }
 
+@media (max-width: 640px) {
+  .cat-procure-card {
+    padding: 24px 16px;
+    margin: 16px 8px 32px 8px;
+    border-radius: 14px;
+  }
+  .cat-procure-title {
+    font-size: 19px;
+  }
+  .cat-procure-desc {
+    font-size: 13.5px;
+  }
+  .cat-procure-pricing-notice {
+    padding: 12px 14px;
+    font-size: 12.5px;
+  }
+  .cat-procure-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .btn-wa-procure, .btn-reset-filters {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Cintillo Permanente de Procura Especial JJ Paper */
 .cat-procura-banner {
   background: linear-gradient(90deg, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%);

@@ -13,13 +13,13 @@ function observeReveal(root = document) {
   }
 }
 
-let allProducts  = [];
+var allProducts  = [];
 let categories   = [];
 let catGroups    = [];
 let currentGroup = 'todos';
 let currentCat   = 'todos';
-let currentPage  = 1;
-let currentSearch= '';
+var currentPage  = 1;
+var currentSearch= '';
 let currentSort  = '';
 
 
@@ -249,16 +249,53 @@ async function loadProducts() {
 // Un producto pertenece a la familia de su categoría. El id del grupo viene
 // embebido en jjp_categories(group_id); lo resolvemos contra catGroups.
 
-// ========================================================
 // Normalización, Lematización y Sinónimos en Español
 // ========================================================
+function normalizeTextForSearch(str) {
+  let s = (typeof normTxt === 'function' ? normTxt(str) : String(str || '').toLowerCase().trim());
+  // Medidas compuestas comunes: 57 x 40 -> 57x40, 80 x 70 -> 80x70, 80 x 65 -> 80x65, 57 x 35 -> 57x35
+  s = s.replace(/(\b\d{1,3})\s*[xX*]\s*(\d{1,3}\b)/g, '$1x$2');
+  // Medidas con mm: 57 mm -> 57mm, 80 mm -> 80mm
+  s = s.replace(/(\b\d{1,3})\s*mm\b/g, '$1mm');
+  // Fracciones compuestas: 3 / 4 -> 3/4, 1 / 2 -> 1/2, 1 / 4 -> 1/4
+  s = s.replace(/(\b\d+)\s*\/\s*(\d+\b)/g, '$1/$2');
+  return s;
+}
+
+function escapeRegex(str) {
+  return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function tokenizeSearchQuery(query) {
+  const norm = normalizeTextForSearch(query);
+  if (!norm) return [];
+  // Preservar medidas compuestas y fracciones numéricas (3/4, 1/2), separando por puntuación irrelevante
+  const cleaned = norm.replace(/[,\(\)\*\+\-]+/g, ' ')
+                      .replace(/(?<!\d)\/|\/(?!\d)/g, ' ');
+  return cleaned.split(/\s+/).filter(t => t.length > 0 && !SPANISH_STOP_WORDS.has(t));
+}
+
 function stemSpanish(word) {
   let w = (typeof normTxt === 'function' ? normTxt(word) : String(word || '').toLowerCase().trim());
   if (w.length <= 3) return w;
+
+  // Excepciones y formas irregulares frecuentes (singular y plural)
   if (w === 'lapices') return 'lapiz';
   if (w === 'resmas') return 'resma';
   if (w === 'cintas') return 'cinta';
   if (w === 'rollos') return 'rollo';
+  if (w === 'sobres') return 'sobre';
+  if (w === 'sacapuntas') return 'sacapunta';
+  if (w === 'papeles') return 'papel';
+  if (w === 'colores') return 'color';
+  if (w === 'pinceles') return 'pincel';
+  if (w === 'creyones') return 'creyon';
+  if (w === 'plumones') return 'plumon';
+  if (w === 'coletos') return 'coleto';
+  if (w === 'toallines') return 'toallin';
+  if (w === 'servilletas') return 'servilleta';
+  if (w === 'guantes') return 'guante';
+  if (w === 'talonarios') return 'talonario';
   if (w === 'termicos' || w === 'termicas') return 'termic';
   if (w === 'termico' || w === 'termica') return 'termic';
 
@@ -268,28 +305,131 @@ function stemSpanish(word) {
   return w;
 }
 
-const CATALOG_SYNONYMS = {
-  resma: ['resma', 'r.fotocopia', 'rfotocopia', 'fotocopia', 'bond', 'papel'],
-  resmas: ['resma', 'r.fotocopia', 'rfotocopia', 'fotocopia', 'bond', 'papel'],
-  papel: ['papel', 'bond', 'fotocopia', 'resma'],
-  embalaje: ['embalaje', 'empaque', 'cinta', 'cintas', 'morropac', 'celoven', 'tirro', 'strech'],
-  empaque: ['empaque', 'embalaje', 'cinta', 'cintas', 'morropac', 'tirro'],
-  pos: ['pos', 'pto de venta', 'termic', 'registradora', 'sumadora', 'fiscal'],
-  termico: ['termic', 'termica', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
-  termica: ['termic', 'termica', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
-  termic: ['termic', 'termica', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
-  boligrafo: ['boligrafo', 'boligrafos', 'bolig', 'lapicero', 'pluma', 'pen', 'bic', 'kores'],
-  boligrafos: ['boligrafo', 'boligrafos', 'bolig', 'lapicero', 'pluma', 'pen', 'bic', 'kores'],
-  marcador: ['marcador', 'marcadores', 'resaltador', 'plumon', 'rotulador', 'sharpie'],
-  marcadores: ['marcador', 'marcadores', 'resaltador', 'plumon', 'rotulador', 'sharpie'],
-  tijera: ['tijera', 'tijeras', 'cortador', 'cutter', 'exacto'],
-  tijeras: ['tijera', 'tijeras', 'cortador', 'cutter', 'exacto'],
-  carpeta: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'legajador', 'sobre'],
-  carpetas: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'legajador', 'sobre'],
-  cinta: ['cinta', 'cintas', 'embalaje', 'morropac', 'celoven', 'tirro', 'teip', 'tape'],
-  cintas: ['cinta', 'cintas', 'embalaje', 'morropac', 'celoven', 'tirro', 'teip', 'tape'],
-  rollo: ['rollo', 'rollos', 'termic', 'sumadora', 'pos'],
-  rollos: ['rollo', 'rollos', 'termic', 'sumadora', 'pos']
+// Alias mandatorio de lematización
+function stemWord(word) { return stemSpanish(word); }
+if (typeof window !== "undefined") window.stemWord = stemSpanish;
+if (typeof global !== "undefined") global.stemWord = stemSpanish;
+
+var CATALOG_SYNONYMS = {
+
+  // --- Papel, Resmas y Marcas Clave (Printon, Chamex, Report, Kores) ---
+  resma: ['resma', 'resmas', 'r.fotocopia', 'rfotocopia', 'r.fotoc', 'fotocopia', 'fotoc', 'bond', 'papel', 'printon', 'chamex', 'report', 'reprograf', 'repropaper'],
+  resmas: ['resma', 'resmas', 'r.fotocopia', 'rfotocopia', 'r.fotoc', 'fotocopia', 'fotoc', 'bond', 'papel', 'printon', 'chamex', 'report', 'reprograf', 'repropaper'],
+  papel: ['papel', 'papeles', 'bond', 'fotocopia', 'resma', 'resmas', 'carta', 'oficio'],
+  papeles: ['papel', 'papeles', 'bond', 'fotocopia', 'resma', 'resmas', 'carta', 'oficio'],
+  bond: ['bond', 'r.bond', 'papel', 'resma', 'fotocopia'],
+  fotocopia: ['fotocopia', 'r.fotocopia', 'rfotocopia', 'r.fotoc', 'resma', 'papel', 'bond'],
+  printon: ['printon', 'resma', 'papel', 'fotocopia', 'bond'],
+  chamex: ['chamex', 'resma', 'papel', 'fotocopia', 'bond'],
+  report: ['report', 'suzano', 'resma', 'papel', 'fotocopia', 'bond'],
+  reprograf: ['reprograf', 'resma', 'papel', 'bond'],
+  repropaper: ['repropaper', 'resma', 'papel', 'bond'],
+  chambril: ['chambril', 'cartulina', 'papel'],
+
+  // --- Medidas Compuestas Frecuentes y Rollos POS ---
+  '57x40': ['57x40', '57 x 40', '57*40', '57mmx40', '57mm x 40mm'],
+  '80x70': ['80x70', '80 x 70', '80*70', '80mmx70', '80mm x 70mm'],
+  '80x65': ['80x65', '80 x 65', '80*65', '80mmx65', '80mm x 65mm'],
+  '57x35': ['57x35', '57 x 35', '57*35', '57mmx35', '57mm x 35mm'],
+  '75x60': ['75x60', '75 x 60', '75*60', '75mmx60', '75mm x 60mm'],
+  '80x80': ['80x80', '80 x 80', '80*80', '80mmx80'],
+  '80x60': ['80x60', '80 x 60', '80*60', '80mmx60'],
+  '3/4': ['3/4', '3 / 4', '3/4"', '3/4in', '3-4'],
+  '1/2': ['1/2', '1 / 2', '1/2"', '1/2in'],
+  '1/4': ['1/4', '1 / 4', '1/4"'],
+  '2 1/4': ['2 1/4', '2.1/4', '57mm', 'sumadora'],
+  pos: ['pos', 'pto de venta', 'punto de venta', 'termic', 'registradora', 'sumadora', 'fiscal'],
+  fiscal: ['fiscal', 'maq/fiscal', 'registradora', 'termic', '80x65', '80x70'],
+  sumadora: ['sumadora', 'p.sumadora', 'calculadora', 'caculadora', 'rollo', 'termic', '57x40', '57x55', '57x35', '75x60'],
+  termico: ['termic', 'termica', 'termicos', 'termicas', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
+  termica: ['termic', 'termica', 'termicos', 'termicas', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
+  termic: ['termic', 'termica', 'termicos', 'termicas', 'pos', 'pto de venta', 'fiscal', 'sumadora'],
+  rollo: ['rollo', 'rollos', 'termic', 'sumadora', 'pos', 'bobina'],
+  rollos: ['rollo', 'rollos', 'termic', 'sumadora', 'pos', 'bobina'],
+  bobina: ['bobina', 'rollo', 'rollos', 'termic'],
+
+  // --- Escritura y Marcas Clave (Bic, Kores, Solita, Sharpie) ---
+  bic: ['bic', 'boligrafo', 'boligrafos', 'pluma'],
+  kores: ['kores', 'pega', 'pegamento', 'barra', 'marcador', 'corrector', 'cinta', 'boligrafo'],
+  solita: ['solita', 'tempera', 'pintura', 'escolar', 'pincel', 'tijera', 'color', 'colores'],
+  sharpie: ['sharpie', 'marcador', 'marcadores', 'resaltador'],
+  boligrafo: ['boligrafo', 'boligrafos', 'bolig', 'lapicero', 'lapiceros', 'pluma', 'plumas', 'pen', 'bic', 'kores', 'kilometrico'],
+  boligrafos: ['boligrafo', 'boligrafos', 'bolig', 'lapicero', 'lapiceros', 'pluma', 'plumas', 'pen', 'bic', 'kores', 'kilometrico'],
+  lapicero: ['lapicero', 'lapiceros', 'boligrafo', 'boligrafos', 'pluma'],
+  lapiceros: ['lapicero', 'lapiceros', 'boligrafo', 'boligrafos', 'pluma'],
+  pluma: ['pluma', 'plumas', 'boligrafo', 'boligrafos', 'lapicero'],
+  plumas: ['pluma', 'plumas', 'boligrafo', 'boligrafos', 'lapicero'],
+  marcador: ['marcador', 'marcadores', 'resaltador', 'resaltadores', 'plumon', 'plumones', 'rotulador', 'sharpie', 'kores', 'solita', 'pizarra'],
+  marcadores: ['marcador', 'marcadores', 'resaltador', 'resaltadores', 'plumon', 'plumones', 'rotulador', 'sharpie', 'kores', 'solita', 'pizarra'],
+  resaltador: ['resaltador', 'resaltadores', 'marcador', 'marcadores', 'plumon', 'sharpie', 'kores'],
+  resaltadores: ['resaltador', 'resaltadores', 'marcador', 'marcadores', 'plumon', 'sharpie', 'kores'],
+  plumon: ['plumon', 'plumones', 'marcador', 'marcadores'],
+  plumones: ['plumon', 'plumones', 'marcador', 'marcadores'],
+  lapiz: ['lapiz', 'lapices', 'grafito', 'mongol', 'portamina', 'portaminas', 'kores'],
+  lapices: ['lapiz', 'lapices', 'grafito', 'mongol', 'portamina', 'portaminas', 'kores'],
+  borrador: ['borrador', 'borradores', 'goma', 'gomas', 'borrona', 'nata'],
+  borradores: ['borrador', 'borradores', 'goma', 'gomas', 'borrona', 'nata'],
+  sacapunta: ['sacapunta', 'sacapuntas', 'tajador', 'tajadores', 'afilador'],
+  sacapuntas: ['sacapunta', 'sacapuntas', 'tajador', 'tajadores', 'afilador'],
+  corrector: ['corrector', 'correctores', 'tippex', 'kores'],
+  correctores: ['corrector', 'correctores', 'tippex', 'kores'],
+
+  // --- Archivo, Carpetas y Sobres (Singular y Plural) ---
+  carpeta: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'cartapacio', 'legajador', 'sobre', 'manila', 'fibra'],
+  carpetas: ['carpeta', 'carpetas', 'archivador', 'archivadores', 'cartapacio', 'legajador', 'sobre', 'manila', 'fibra'],
+  archivador: ['archivador', 'archivadores', 'archicomodo', 'carpeta', 'carpetas', 'legajador', 'fuelle'],
+  archivadores: ['archivador', 'archivadores', 'archicomodo', 'carpeta', 'carpetas', 'legajador', 'fuelle'],
+  sobre: ['sobre', 'sobres', 'manila', 'blanco', 'funda'],
+  sobres: ['sobre', 'sobres', 'manila', 'blanco', 'funda'],
+  separador: ['separador', 'separadores', 'indice', 'indices'],
+  separadores: ['separador', 'separadores', 'indice', 'indices'],
+
+  // --- Embalaje y Cintas (Singular y Plural) ---
+  cinta: ['cinta', 'cintas', 'embalaje', 'empaque', 'morropac', 'celoven', 'cellux', 'tirro', 'teip', 'tape'],
+  cintas: ['cinta', 'cintas', 'embalaje', 'empaque', 'morropac', 'celoven', 'cellux', 'tirro', 'teip', 'tape'],
+  embalaje: ['embalaje', 'empaque', 'cinta', 'cintas', 'morropac', 'celoven', 'cellux', 'tirro', 'strech'],
+  empaque: ['empaque', 'embalaje', 'cinta', 'cintas', 'morropac', 'celoven', 'tirro'],
+  tirro: ['tirro', 'tirros', 'masking', 'cinta', 'cintas', 'teip', 'celoven'],
+  morropac: ['morropac', 'cinta', 'cintas', 'embalaje', 'empaque'],
+  celoven: ['celoven', 'cinta', 'cintas', 'tirro', 'adhesivo'],
+  cellux: ['cellux', 'cinta', 'cintas', 'tirro'],
+
+  // --- Cuadernos y Libros Comerciales ---
+  cuaderno: ['cuaderno', 'cuadernos', 'libreta', 'libretas', 'block', 'bloc', 'espiral', 'grapado'],
+  cuadernos: ['cuaderno', 'cuadernos', 'libreta', 'libretas', 'block', 'bloc', 'espiral', 'grapado'],
+  libreta: ['libreta', 'libretas', 'cuaderno', 'cuadernos', 'anotador'],
+  libretas: ['libreta', 'libretas', 'cuaderno', 'cuadernos', 'anotador'],
+  block: ['block', 'blocks', 'bloc', 'talonario', 'hojas'],
+  blocks: ['block', 'blocks', 'bloc', 'talonario', 'hojas'],
+  talonario: ['talonario', 'talonarios', 'recibo', 'recibos', 'vale', 'vales', 'factura'],
+  talonarios: ['talonario', 'talonarios', 'recibo', 'recibos', 'vale', 'vales', 'factura'],
+
+  // --- Oficina y Corte ---
+  tijera: ['tijera', 'tijeras', 'cortador', 'cutter', 'cuter', 'exacto', 'cuchilla'],
+  tijeras: ['tijera', 'tijeras', 'cortador', 'cutter', 'cuter', 'exacto', 'cuchilla'],
+  grapa: ['grapa', 'grapas', 'grapadora', 'grapadoras', 'perforadora'],
+  grapas: ['grapa', 'grapas', 'grapadora', 'grapadoras', 'perforadora'],
+  grapadora: ['grapadora', 'grapadoras', 'engrapadora', 'grapa', 'grapas'],
+  grapadoras: ['grapadora', 'grapadoras', 'engrapadora', 'grapa', 'grapas'],
+  clip: ['clip', 'clips', 'gancho', 'ganchos', 'chinche', 'chinches', 'mariposa', 'sujetador'],
+  clips: ['clip', 'clips', 'gancho', 'ganchos', 'chinche', 'chinches', 'mariposa', 'sujetador'],
+  gancho: ['gancho', 'ganchos', 'clip', 'clips', 'sujetador', 'carpeta'],
+  ganchos: ['gancho', 'ganchos', 'clip', 'clips', 'sujetador', 'carpeta'],
+  pega: ['pega', 'pegas', 'pegamento', 'pegamentos', 'silicon', 'silicona', 'cola', 'adhesivo', 'kores'],
+  pegamento: ['pega', 'pegamento', 'pegamentos', 'silicon', 'silicona', 'cola', 'kores'],
+  regla: ['regla', 'reglas', 'escuadra', 'escuadras', 'geometria'],
+  reglas: ['regla', 'reglas', 'escuadra', 'escuadras', 'geometria'],
+
+  // --- Higiene y Limpieza (Aislamiento Estricto) ---
+  higienico: ['higienico', 'higiénico', 'higuinico', 'papel higienico', 'caricias', 'sanitisu', 'rosal', 'scott', 'napa'],
+  toallin: ['toallin', 'toallín', 'toallines', 'toalla', 'toallas', 'sanitisu', 'caricias'],
+  toallines: ['toallin', 'toallín', 'toallines', 'toalla', 'toallas', 'sanitisu', 'caricias'],
+  servilleta: ['servilleta', 'servilletas', 'fuente de soda', 'soda'],
+  servilletas: ['servilleta', 'servilletas', 'fuente de soda', 'soda'],
+  jabon: ['jabon', 'jabón', 'jabones', 'limpiador', 'detergente'],
+  cloro: ['cloro', 'desinfectante', 'limpiador'],
+  desinfectante: ['desinfectante', 'desinfectantes', 'cloro', 'limpiador', 'brisol'],
+  bolsa: ['bolsa', 'bolsas', 'tobita', 'basura', 'desecho', 'negras']
 };
 
 const SPANISH_STOP_WORDS = new Set(['de', 'la', 'el', 'los', 'las', 'en', 'para', 'con', 'y', 'o', 'un', 'una', 'del', 'al', 'por']);
@@ -303,7 +443,8 @@ function formatCatTitle(str) {
 // ========================================================
 // Segmentos Comerciales Oficiales JJ Paper 2026
 // ========================================================
-const OFFICIAL_SEGMENTS = [
+var OFFICIAL_SEGMENTS = [
+
   { slug: 'todos',        name: 'Todos los Artículos', emoji: '🔖' },
   { slug: 'papel_resmas', name: 'Papel & Resmas',      emoji: '📄' },
   { slug: 'rollos_pos',   name: 'Rollos Térmicos & POS', emoji: '🧾' },
@@ -318,27 +459,42 @@ const OFFICIAL_SEGMENTS = [
 
 let currentSegment = 'todos';
 
+function isHygieneProduct(name) {
+  const n = String(name || '').toLowerCase();
+  // Exclusiones: creyones de cera, almohadillas dactilares/cerámicas son escolar/oficina, no higiene
+  if (/creyon|crayon|dactilar|almohadilla|ceramica|cerámica/i.test(n)) return false;
+
+  return /higienico|higiénico|higuinico|caricias|sanitisu|rosal|scott|napa|toallin|toallín|toalla|toallas|servilleta|servilletas|secamano|secamanos|institucional|papel higienico|papel higiénico|rollo.*(?:mano|hig|limp|cocina|secamano|institucional)|rollo de papel.*(?:mano|hig|secamano|institucional|toalla)|desinfectante|desinfectantes|cloro|jabon|jabón|jabones|jabonosa|detergente|coleto|coletos|esponja|esponjas|mopa|mopas|pala.*(?:grande|basura)|cepillo.*barrer|cepillo.*poceta|bolsa.*desecho|bolsa.*tobita|bolsas negras|bolsas de basura|bolsas con asa|ambientador|glade|brisol|limpiador|limpiadores|tapaboca|tapabocas|guante|guantes|vaso.*conico|vaso.*cónico|vasos|pañito|pañitos|quimico|químico|quimicos|químicos|cera.*(?:piso|auto|liquida)|lavaplatos|desengrasante/i.test(n);
+}
+
+function isPosRollProduct(name) {
+  const n = String(name || '').toLowerCase();
+  // Aislamiento absoluto: ningún producto de higiene debe caer en rollos_pos
+  if (isHygieneProduct(n)) return false;
+  if (/higien|toall|servillet|secamano|mano|jabon|cloro|desinfect|limpieza|quimic|bolsa/i.test(n)) return false;
+
+  // Exclusiones de etiquetas autoadhesivas
+  if (/etiqueta/i.test(n)) return false;
+
+  return /termic|pto de venta|punto de venta|maq\/fiscal|fiscal|p\.registradora|p\.sumadora|57x40|80x70|80x65|57x35|75x60|80x80|80x60|57mm|80mm|rollo.*sumadora|rollo.*pos|rollo.*termic|bobina.*termic/i.test(n);
+}
+
 function classifyProduct(p) {
   const n = (p.name || '').toLowerCase();
 
-  // 1. HIGIENE & LIMPIEZA (Aislamiento total de toallas, servilletas y papel higiénico)
-  if (
-    /higienico|higiénico|higuinico|caricias|toallin|toallín|servilleta|toalla|rollo.*(?:mano|hig|limp|cocina|institucional)|rollo de papel|desinfectante|cloro|jabon|jabón|detergente|coleto|esponja|mopa|pala|cepillo.*barrer|cepillo.*poceta|bolsa.*desecho|bolsa.*tobita|bolsas negras|bolsas de basura|bolsas con asa|ambientador|glade|brisol|limpiador|tapaboca|guante|vaso.*conico|vaso.*cónico|vasos|pañito|pañitos/i.test(n)
-  ) {
+  // 1. HIGIENE & LIMPIEZA (Aislamiento total y exclusivo de papel higiénico institucional, toallines, rollos secamanos, servilletas y químicos)
+  if (isHygieneProduct(n)) {
     return { slug: 'higiene', name: 'Higiene & Limpieza', emoji: '🧹' };
   }
 
-  // 2. ROLLOS TÉRMICOS & PUNTOS DE VENTA (POS / Fiscal / Sumadora exclusivamente)
-  if (
-    (/termic|pto de venta|punto de venta|maq\/fiscal|fiscal|p\.registradora|p\.sumadora|57x40|80x65|57x35|57mm|80mm|rollo.*sumadora|rollo.*pos/i.test(n)) &&
-    !/etiqueta|mano|toall|higien|servilleta/i.test(n)
-  ) {
+  // 2. ROLLOS TÉRMICOS & PUNTOS DE VENTA (Rollos 57x40, 80x70, 80x65, fiscal, sumadora, pos, pto de venta exclusivamente)
+  if (isPosRollProduct(n)) {
     return { slug: 'rollos_pos', name: 'Rollos Térmicos & POS', emoji: '🧾' };
   }
 
   // 3. PAPEL, RESMAS & IMPRESIÓN
   if (
-    /resma|reprograf|printon|repropaper|chamex|hp paper|report|r\.fotocopia|papel bond|papel r\.bond|r\.bond|chambril|papel continuo|papel fotocopia|papel carta|papel oficio|papel extra|papel de carta|hojas ponchada|papel carbon|papel carbón|cartulina hilo|cartulina opalina|papel glossy|papel sticker|papel fotografia|paplne/i.test(n)
+    /resma|reprograf|printon|repropaper|chamex|hp paper|report|r\.fotocopia|r\.fotoc|papel bond|papel r\.bond|r\.bond|chambril|papel continuo|papel fotocopia|papel carta|papel oficio|papel extra|papel de carta|hojas ponchada|papel carbon|papel carbón|cartulina hilo|cartulina opalina|papel glossy|papel sticker|papel fotografia|paplne/i.test(n)
   ) {
     return { slug: 'papel_resmas', name: 'Papel & Resmas', emoji: '📄' };
   }
@@ -388,8 +544,7 @@ function groupSlugOfProduct(p) {
 }
 
 function getFiltered() {
-  const q = normTxt(currentSearch);
-  const rawTokens = q ? q.split(/[\s,()\*\/+\-]+/).filter(t => t.length > 0 && !SPANISH_STOP_WORDS.has(t)) : [];
+  const rawTokens = tokenizeSearchQuery(currentSearch);
 
   let list = allProducts.filter(p => {
     // 1. Filtro Mandatorio por Segmento Comercial
@@ -403,7 +558,7 @@ function getFiltered() {
     if (!grpOk || !catOk) return false;
     if (!rawTokens.length) return true;
 
-    const pText = normTxt([
+    const pText = normalizeTextForSearch([
       p.name,
       p.description,
       p._brandNames,
@@ -413,14 +568,23 @@ function getFiltered() {
 
     // Tokens coincidentes con lematización y sinónimos comerciales
     const matchingTokens = rawTokens.filter(tok => {
-      const stemmed = stemWord(tok);
-      if (pText.includes(tok) || pText.includes(stemmed)) return true;
-      const syns = CATALOG_SYNONYMS[tok] || CATALOG_SYNONYMS[stemmed];
-      if (syns && syns.some(s => pText.includes(s))) return true;
-      if (tok.length <= 2) {
-        const re = new RegExp('(^|[^a-z0-9])' + tok + '([^a-z0-9]|$)', 'i');
-        return re.test(pText);
+      const stemmed = stemSpanish(tok);
+      if (tok.length <= 3) {
+        const re = new RegExp('(^|[^a-z0-9])' + escapeRegex(tok) + '([^a-z0-9]|$)', 'i');
+        if (re.test(pText)) return true;
+      } else {
+        if (pText.includes(tok) || pText.includes(stemmed)) return true;
       }
+
+      const syns = CATALOG_SYNONYMS[tok] || CATALOG_SYNONYMS[stemmed];
+      if (syns && syns.some(s => {
+        if (s.length <= 3) {
+          const re = new RegExp('(^|[^a-z0-9])' + escapeRegex(s) + '([^a-z0-9]|$)', 'i');
+          return re.test(pText);
+        }
+        return pText.includes(s);
+      })) return true;
+
       return false;
     });
 
@@ -624,8 +788,8 @@ function renderProds() {
     const waNum = (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567') ? APP.WA_NUM : '584124676073';
     const term = (currentSearch || '').trim();
     const waText = term
-      ? `Hola JJ Paper, estuve buscando "${term}" en su catálogo web y me gustaría cotizarlo directamente con ustedes en la cantidad que requiero.`
-      : `Hola JJ Paper, me gustaría solicitar una cotización especial para varios insumos al mayor.`;
+      ? `Hola JJ Paper, busco cotizar ${term} al mayor...`
+      : `Hola JJ Paper, busco cotizar insumos al mayor...`;
     const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(waText)}`;
 
     grid.innerHTML = `
@@ -1314,22 +1478,29 @@ function executeVoiceSearchQuery(query) {
   closeVoiceListeningModal();
   if (!query) return;
 
+  const cleaned = query.trim();
   const s = document.getElementById('srch');
-  if (s) s.value = query;
+  if (s) s.value = cleaned;
+
+  currentSearch = cleaned;
+  currentPage = 1;
+
+  const clearBtn = document.getElementById('btnSearchClear');
+  if (clearBtn) clearBtn.style.display = cleaned ? 'inline-flex' : 'none';
 
   if (typeof showToast === 'function') {
-    showToast('🔍 Buscando: "' + query + '"', 2500);
+    showToast('🎙️ Búsqueda por voz: "' + cleaned + '"', 2500);
   }
 
-  const found = (typeof window.findProductByQuery === 'function')
-    ? window.findProductByQuery(query, allProducts)
-    : null;
+  // Renderizar catálogo en tiempo real con los resultados de la búsqueda
+  if (typeof renderProds === 'function') {
+    renderProds();
+  }
 
-  if (found && typeof openProductModal === 'function') {
-    openProductModal(found.id, { fromQr: true, searchQuery: query });
-  } else {
-    currentSearch = query;
-    if (typeof renderProds === 'function') renderProds();
+  // Desplazar suavemente a la cuadrícula de productos
+  const targetEl = document.getElementById('catalogo') || document.getElementById('cat-top');
+  if (targetEl) {
+    targetEl.scrollIntoView({ behavior: 'smooth' });
   }
 }
 

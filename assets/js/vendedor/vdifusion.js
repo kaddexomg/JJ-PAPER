@@ -38,7 +38,7 @@ async function initDifusion() {
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'jjp_wa_campaigns' },
       (payload) => {
-        loadDCampaigns().then(() => {
+        loadDCampaigns(true).then(() => {
           if (currentReportCampaignId && payload.new?.id === currentReportCampaignId) {
             updateReportModalFromCamp(payload.new);
           }
@@ -342,7 +342,7 @@ const DEFAULT_GLOBAL_TEMPLATES = [
     name: '📦 Propuesta Mayorista: Producto Destacado',
     kind: 'producto',
     owner_id: null,
-    body: '{Hola|Buen día|Qué tal} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos presentarle disponibilidad inmediata y precio preferencial en:\n\n📦 *{{producto}}*\n📝 {{descripcion}}\n💲 *Precio lista mayorista: {{precio}}*\n_(Condiciones comerciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario real sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *Procura especial:* si requiere algún formato o insumo que no esté en lista, se lo conseguimos.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?'
+    body: '{Hola|Buen día|Qué tal} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.* Como importadores y distribuidores mayoristas directos en Caracas, hoy queremos presentarle disponibilidad inmediata y precio preferencial en:\n\n📦 *{{producto}}*\n📝 {{descripcion}}\n💲 *Precio lista mayorista: {{precio}}*\n_(Condiciones comerciales y escala de descuento por volumen / bulto cerrado)_\n\n• 🏭 *Importador directo en Caracas* (inventario real sin intermediarios)\n• 🚚 *Delivery a su sede* y factura fiscal formal a tasa oficial BCV\n• 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n👉 Ficha completa y pedido en línea: {{link}}\n\n¿Le reservamos unidades o le preparamos una cotización formal para su empresa?'
   },
   {
     id: 'tpl-promo-combo',
@@ -405,7 +405,7 @@ const DEFAULT_GLOBAL_TEMPLATES = [
     name: '🔍 Búsqueda de Insumos Especiales (Procura)',
     kind: 'sourcing',
     owner_id: null,
-    body: '{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nAdemás de nuestro catálogo regular (más de 2.400 artículos en resmas, consumibles de caja, archivo y embalaje), ponemos a su disposición nuestro *Servicio de Procura Especial*:\n\n🔍 *¿Requiere un insumo, medida o formato específico para su empresa?*\nSi no lo encuentra en el mercado o no está en nuestra lista de precios, *nuestro equipo de importación se lo ubica y cotiza directamente* con las mejores condiciones comerciales.\n\n• 🚚 Entrega en su sede en Caracas\n• 🧾 Facturación fiscal legal a Tasa Oficial BCV\n• ⚡ Respuesta y cotización en tiempo récord\n\n👉 Revise nuestro catálogo base: {{link}}\n\n¿Qué requerimiento o material tiene abierto actualmente en el que podamos apoyarle?'
+    body: '{Hola|Buen día|Un gusto saludarle} {{nombre}} 👋\n\nLe saluda {{vendedor}} de *JJ Paper C.A.*, su importador y distribuidor mayorista en Caracas.\n\nAdemás de nuestro catálogo regular (más de 2.400 artículos en resmas, consumibles de caja, archivo y embalaje), ponemos a su disposición nuestro *Servicio de Procura Especial*:\n\n🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n• 🚚 Entrega en su sede en Caracas\n• 🧾 Facturación fiscal legal a Tasa Oficial BCV\n• ⚡ Respuesta y cotización en tiempo récord\n\n👉 Revise nuestro catálogo base: {{link}}\n\n¿Qué requerimiento o material tiene abierto actualmente en el que podamos apoyarle?'
   },
   {
     id: 'tpl-reactivacion',
@@ -419,7 +419,7 @@ const DEFAULT_GLOBAL_TEMPLATES = [
     name: '🏢 Catálogo Digital y Lista de Precios B2B',
     kind: 'general',
     owner_id: null,
-    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 📃 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con más de 2.400 artículos disponibles con precios de lista distribuidor\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto y requerimiento\n3️⃣ 🚚 Delivery GRATIS en toda Caracas a su sede\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n5️⃣ 🔍 Si no ve un producto en lista, nuestro equipo de procura se lo ubica directamente\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
+    body: '{Hola|Buen día|Saludos} {{nombre}} 👋\n\nLe escribe {{vendedor}} de *JJ Paper C.A.*, su distribuidor directo de papelería, insumos de oficina y consumibles en Caracas.\n\n📦 *Tenemos disponibilidad inmediata en:*\n\n• 🖨️ *Resmas de papel Bond* — Carta y Oficio, diferentes gramajes\n• 📃 *Rollos térmicos POS* — 80x70mm y 57x40mm para puntos de venta\n• 📎 *Cintas de embalaje industrial* — 48x100m y 48x200m, alto micraje\n• 📁 *Carpetas, archivadores y sobres* — Fibra marrón, manila, radiografía\n• ✏️ *Material escolar y de escritorio* — Cuadernos, bolígrafos, marcadores\n\n✅ *¿Por qué elegirnos?*\n1️⃣ Catálogo con más de 2.400 artículos disponibles con precios de lista distribuidor\n2️⃣ Cotizaciones al instante adaptadas a su presupuesto y requerimiento\n3️⃣ 🚚 Delivery GRATIS en toda Caracas a su sede\n4️⃣ Facturación fiscal formal (RIF J-295375450) en Bs a tasa BCV oficial\n5️⃣ 🔍 *¿Requiere un insumo, medida o maquinaria fuera de catálogo?* Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.\n\n👉 Catálogo digital: {{link}}\n\n{Quedo a su orden|Estamos para servirle|A su completa disposición} para cualquier cotización o consulta.\n\n{{vendedor}}\n📞 0412-4676073\n*JJ Paper C.A.* — Distribución directa en Caracas'
   }
 ];
 
@@ -688,16 +688,55 @@ async function deleteTpl(id) {
 }
 
 /* ================== CAMPAÑAS ================== */
-async function loadDCampaigns() {
+let _dPollingTimer = null;
+
+function hasActiveDCampaigns() {
+  const activeStatuses = ['enviando', 'sending', 'en_cola', 'pending', 'running'];
+  return (dCampaigns || []).some(c => activeStatuses.includes(String(c?.status || '').toLowerCase()));
+}
+
+function updateDPollingState() {
+  if (hasActiveDCampaigns()) {
+    if (!_dPollingTimer) {
+      _dPollingTimer = setInterval(async () => {
+        if (!hasActiveDCampaigns()) {
+          stopDPolling();
+          return;
+        }
+        await loadDCampaigns(true);
+        if (currentReportCampaignId) {
+          const camp = dCampaigns.find(c => c.id === currentReportCampaignId);
+          if (camp) updateReportModalFromCamp(camp);
+        }
+      }, 3500);
+    }
+  } else {
+    stopDPolling();
+  }
+}
+
+function stopDPolling() {
+  if (_dPollingTimer) {
+    clearInterval(_dPollingTimer);
+    _dPollingTimer = null;
+  }
+}
+
+async function loadDCampaigns(isBackground = false) {
   const isAdm = SELLER?.role === 'admin';
   let q = sb.from('jjp_wa_campaigns').select('*').order('created_at', { ascending: false }).limit(50);
   if (!isAdm && SELLER?.id) {
     q = q.eq('owner_id', SELLER.id);
   }
   const { data, error } = await q;
-  if (error) { showToast('Error cargando campañas', 'err'); return; }
+  if (error) {
+    console.warn('Aviso cargando campañas de difusión:', error);
+    if (!isBackground) showToast('Error cargando campañas', 'err');
+    return;
+  }
   dCampaigns = data || [];
   renderDCampaigns();
+  updateDPollingState();
 }
 
 function renderDCampaigns() {

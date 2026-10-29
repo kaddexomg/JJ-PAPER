@@ -1327,6 +1327,7 @@ window.CampaignEditor = (() => {
   }
 
   function onToneOrNotesChange() {
+    applyBaseModeTemplate();
     populateAudienceUniqueProposals(true);
     updatePreview();
   }
@@ -1340,7 +1341,15 @@ window.CampaignEditor = (() => {
 
     const notesExtra = customNotes ? `\n\n📌 *CONDICIÓN ESPECIAL:* ${customNotes}` : '';
 
-    if (mode === 'presentacion_b2b') {
+    // CASO 1: CONTACTOS DESTACADOS / CLIENTES HABITUALES (Cálido, conocido, reposición y ofertas)
+    if (commercialTone === 'seguimiento_destacados' || mode === 'seguimiento_destacados') {
+      subj = 'Lista de Precios Actualizada y Novedades de Suministro — JJ Paper C.A.';
+      if (isEmail) {
+        msg = `{Estimado(a)|Hola} {{nombre}},\n\n¡Un gran gusto saludarle! Le escribe atentamente {{vendedor}} de *JJ Paper C.A.* en Caracas.\n\nNos comunicamos directamente para hacerle llegar nuestra **lista de precios actualizada y catálogo digital** para estar al pendiente y apoyar la reposición oportuna de insumos y consumibles en {{empresa}}.\n\n*📦 DISPONIBILIDAD INMEDIATA PARA SU EMPRESA:*\n• 📄 *Papelería & Resmas:* Formatos Carta y Oficio con precios preferenciales de distribución directa.\n• 📁 *Archivo & Oficina:* Carpetas, archivadores de palanca, bolígrafos por caja y consumibles.\n• 🧹 *Higiene & Aseo Corporativo:* Insumos de alto rendimiento para el mantenimiento de sus instalaciones.\n\n📌 *OPORTUNIDADES Y CONDICIONES VIGENTES:*\nEn este momento disponemos de **condiciones especiales y descuentos por escala de volumen** en nuestras líneas de mayor rotación por si se encuentran planificando compras o reposición esta quincena.${notesExtra}\n\n🔍 *PROCURA ESPECIAL ABIERTA:*\nSi requiere algún producto, formato de papel atípico, consumible específico o maquinaria de oficina que no visualice en el catálogo, con gusto nuestro equipo de procura se lo ubica y cotiza de inmediato.\n\n*💎 NUESTRAS GARANTÍAS:*\n• Facturación formal fiscal SENIAT liquidada a **Tasa Oficial BCV**.\n• Despacho prioritario directo a su sede en Caracas en 24 horas.\n\n👉 *Catálogo digital en línea con cotizador web directo:*\n{{link}}\n\n💡 *Cotice a su medida:* Puede responder a este mensaje con los renglones que evalúa reponer o armar su requerimiento en el catálogo para emitirle cotización formal con mejores costos por volumen.\n\nAtentamente,\n{{vendedor}}\n*JJ Paper C.A.* · RIF J-29537545-0`;
+      } else {
+        msg = `*⭐ SEGUIMIENTO & REPOSICIÓN · JJ PAPER C.A.*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n{Hola|Qué tal|Buen día} {{nombre}}, ¡un gusto saludarle de nuevo! 👋\n\nLe escribe *{{vendedor}}* de *JJ Paper C.A.* en Caracas.\n\nPor acá le hago llegar nuestra **lista de precios actualizada y catálogo digital** para estar al pendiente y apoyar la reposición de insumos en {{empresa}}:\n\n• 📄 *Resmas & Papelería:* Disponibilidad por bulto a precios de importador directo.\n• 📁 *Archivo & Escritorio:* Carpetas, archivadores, bolígrafos y consumibles.\n• 🧹 *Higiene y Limpieza:* Insumos corporativos de alto rendimiento.\n\n⚡ *OPORTUNIDAD VIGENTE:*\nEn este momento tenemos **condiciones especiales y descuentos por escala de volumen** en insumos clave por si están planificando compras esta quincena.${notesExtra}\n\n🔍 *Procura Especial:* Si buscas algún producto o equipo que no veas en catálogo, ¡te lo conseguimos de inmediato!\n\n✅ Facturación formal legal SENIAT a **Tasa Oficial BCV**\n✅ Despacho prioritario en 24h a su sede en Caracas\n\n👉 *Ver catálogo digital y cotizar en línea:*\n{{link}}\n\n¿Qué insumos tienen pendientes por reponer para coordinarles una cotización formal con descuento por volumen?\n\nAtentamente,\n*{{vendedor}}* | Asesor Comercial JJ Paper C.A.`;
+      }
+    } else if (mode === 'presentacion_b2b') {
       if (commercialTone === 'oportunidad_mayorista') {
         subj = 'Condiciones Mayoristas y Suministro Directo — JJ Paper C.A.';
         if (isEmail) {
@@ -2237,6 +2246,19 @@ ${rawText}
       } else {
         cooldownBadge.style.display = 'none';
       }
+    }
+
+    // Si la audiencia es contactos destacados de Gmail, sincronizar tono y plantilla de seguimiento
+    if (aud === 'gmail_starred') {
+      const toneSel = document.getElementById('ceCommercialTone');
+      if (toneSel && toneSel.value !== 'seguimiento_destacados') {
+        toneSel.value = 'seguimiento_destacados';
+      }
+      const ctaSel = document.getElementById('ceCtaGoal');
+      if (ctaSel && ctaSel.value !== 'reposicion_novedades') {
+        ctaSel.value = 'reposicion_novedades';
+      }
+      applyBaseModeTemplate();
     }
 
     populateAudienceUniqueProposals(false);

@@ -7,6 +7,8 @@ let posProducts = [];
 let posTicket   = {};
 let editingQuoteId = null;
 let editingQuoteNumber = null;
+let editingQuoteSource = null;
+let qsFilterMode = '';
 let posCursor = -1;        // índice del resultado resaltado por teclado
 let posResultsList = [];   // lista de resultados actualmente renderizada
 let quoteCustomer = null;  // cliente seleccionado para asociar ID
@@ -71,6 +73,7 @@ async function initQuoter() {
   quoteInitGlobalKeys();
   quoteInitTabNav();
   updateQuoteHeaderStatus();
+  checkPendingWebQuotes();
 }
 
 async function quoteCargarCliente(id) {
@@ -229,6 +232,7 @@ async function loadQuoteForEdit(val) {
   
   editingQuoteId = q.id;
   editingQuoteNumber = q.quote_number;
+  editingQuoteSource = q.source || null;
   
   const cliName = document.getElementById('qCliName');
   const cliTel  = document.getElementById('qCliTel');
@@ -1120,6 +1124,7 @@ function quoteShowDone(q) {
 function quoteReset() {
   editingQuoteId = null;
   editingQuoteNumber = null;
+  editingQuoteSource = null;
   if (window.location.search) {
     try { history.replaceState({}, '', window.location.pathname); } catch (_) {}
   }
@@ -1640,6 +1645,7 @@ function updateQuoteHeaderStatus() {
     if (ind) {
       ind.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${editingQuoteSource === 'web_catalogo' ? '<span style="background:rgba(16,185,129,0.15);color:#065f46;border:1px solid #a7f3d0;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:4px">🌐 Solicitud Web del Catálogo</span>' : ''}
           <span style="background:rgba(245,158,11,0.15);color:#d97706;border:1px solid rgba(245,158,11,0.35);font-size:12px;font-weight:800;padding:5px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             Editando: <strong style="font-family:monospace;font-size:13px">${escapeHTML(editingQuoteNumber)}</strong>
@@ -1661,6 +1667,9 @@ function updateQuoteHeaderStatus() {
         <button type="button" class="btn-o sm" onclick="quotePrintPdf()" title="Ver presupuesto oficial (F10)" style="border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
           Presupuesto PDF <kbd style="background:rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.1);padding:1px 5px;border-radius:4px;font-size:11px">F10</kbd>
+        </button>
+        <button type="button" class="btn-p sm" onclick="confirmQuoteToMixnet(editingQuoteId, editingQuoteNumber)" title="Insertar esta cotización en MixNet ERP" style="background:#1d4ed8;color:#fff;border-radius:999px;font-weight:700;padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
+          📥 Insertar en MixNet
         </button>
         <button type="button" class="btn-g sm" onclick="quoteReset()" title="Salir del modo edición (Alt+N)" style="border-radius:999px;color:#dc2626;border:1px solid rgba(220,38,38,0.3);padding:6px 14px;display:inline-flex;align-items:center;gap:6px">
           ✕ Cancelar <kbd style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);padding:1px 5px;border-radius:4px;font-size:11px">Alt+N</kbd>
@@ -1720,7 +1729,10 @@ function goToAllQuotes() {
 let qsQuotesList = [];
 let qsCursor = 0;
 
-async function openQuoteSearchModal() {
+async function openQuoteSearchModal(filterType = '') {
+  qsFilterMode = filterType || '';
+  const qsIn = document.getElementById('qsInput');
+  if (qsIn) qsIn.value = (filterType === 'web_catalogo') ? 'web' : '';
   let modal = document.getElementById('quoteSearchModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -1779,9 +1791,13 @@ async function fetchRecentQuotesForModal() {
     const isAdmin = activeSeller?.role === 'admin';
     
     let query = sb.from('jjp_quotes')
-      .select('id, quote_number, client_name, phone, rif, city, estimated_total_usd, discount_pct, status, created_at, seller_id')
+      .select('id, quote_number, client_name, phone, rif, city, estimated_total_usd, discount_pct, status, created_at, seller_id, source')
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(35);
+      
+    if (qsFilterMode === 'web_catalogo') {
+      query = query.eq('source', 'web_catalogo');
+    }
       
     if (!isAdmin && activeSeller?.id) {
       query = query.eq('seller_id', activeSeller.id);
@@ -1818,7 +1834,7 @@ function renderQuotesInModal(list) {
         <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1">
           <span style="font-family:monospace;font-weight:900;background:#0f172a;color:#fff;padding:3px 8px;border-radius:6px;font-size:12px">${escapeHTML(q.quote_number || 'S/N')}</span>
           <div style="min-width:0">
-            <div style="font-weight:700;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(q.client_name || 'Sin nombre')}</div>
+            <div style="font-weight:700;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px">${escapeHTML(q.client_name || 'Sin nombre')} ${q.source === 'web_catalogo' ? '<span style="font-size:9.5px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:1px 5px;border-radius:4px;font-weight:800">🌐 Web</span>' : ''}</div>
             <div style="font-size:11px;color:#64748b">${dateStr} ${q.phone ? '· 📞 ' + escapeHTML(q.phone) : ''} ${q.city ? '· 📍 ' + escapeHTML(q.city) : ''}</div>
           </div>
         </div>
@@ -1831,7 +1847,7 @@ function renderQuotesInModal(list) {
           ${q.status === 'confirmado_mixnet'
             ? `<span style="font-size:11px;color:#1d4ed8;font-weight:700">📥 Insertado</span>`
             : `<button type="button" class="btn-p sm" onclick="event.stopPropagation();confirmQuoteToMixnet('${q.id}','${(q.quote_number||'').replace(/'/g,'')}')" title="Insertar esta cotización en el sistema administrativo" style="padding:4px 10px;font-size:11px;background:#1d4ed8;color:#fff;border-radius:6px">📥 Insertar</button>`}
-          <button type="button" class="btn-p sm" onclick="event.stopPropagation();selectQuoteFromModal('${q.id}')" style="padding:4px 10px;font-size:11px;background:#16604a;color:#fff;border-radius:6px">✏️ Cargar</button>
+          <button type="button" class="btn-p sm" onclick="event.stopPropagation();selectQuoteFromModal('${q.id}')" style="padding:4px 10px;font-size:11px;background:${q.source === 'web_catalogo' ? '#10b981' : '#16604a'};color:#fff;border-radius:6px">${q.source === 'web_catalogo' ? '⚡ Cargar Web' : '✏️ Cargar'}</button>
         </div>
       </div>
     `;
@@ -2196,3 +2212,55 @@ function quoteShowHelpModal() {
   }
   modal.style.display = 'flex';
 }
+
+
+// Comprobación de solicitudes de cotización web pendientes desde el catálogo
+async function checkPendingWebQuotes() {
+  try {
+    const activeSeller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) ? CURRENT_PROFILE : window.SELLER);
+    if (!activeSeller?.id) return;
+    const isAdmin = activeSeller?.role === 'admin' || activeSeller?.is_admin;
+    let q = sb.from('jjp_quotes')
+      .select('id, quote_number, client_name, estimated_total_usd, created_at, seller_id')
+      .eq('source', 'web_catalogo')
+      .eq('status', 'pendiente')
+      .order('created_at', { ascending: false });
+    if (!isAdmin) {
+      q = q.eq('seller_id', activeSeller.id);
+    }
+    const { data: webQuotes, error } = await q.limit(10);
+    const banner = document.getElementById('qWebQuotesBanner');
+    if (!banner) return;
+    if (error || !webQuotes || !webQuotes.length) {
+      banner.style.display = 'none';
+      return;
+    }
+    banner.style.display = 'flex';
+    const countEl = document.getElementById('qWebQuotesCount');
+    if (countEl) countEl.textContent = webQuotes.length;
+    const latest = webQuotes[0];
+    const titleEl = document.getElementById('qWebQuotesBannerTitle');
+    const subEl = document.getElementById('qWebQuotesBannerSub');
+    if (titleEl) {
+      titleEl.innerHTML = `🛒 ${webQuotes.length} Solicitud(es) Web Pendiente(s) desde el Catálogo`;
+    }
+    if (subEl) {
+      const tot = Number(latest.estimated_total_usd) || 0;
+      subEl.innerHTML = `Última recibida: <strong>${escapeHTML(latest.client_name || 'Cliente')}</strong> (${latest.quote_number}) por <strong>${fmtPrice(tot)}</strong>. Pulsa para cargarla y despachar a MixNet.`;
+    }
+    window._latestWebQuoteId = latest.id;
+  } catch (err) {
+    console.warn('Aviso comprobando cotizaciones web:', err);
+  }
+}
+
+function loadLatestWebQuote() {
+  if (window._latestWebQuoteId) {
+    loadQuoteForEdit(window._latestWebQuoteId);
+    showToast('Cargando solicitud web del cliente... 🛒');
+  } else {
+    openQuoteSearchModal('web_catalogo');
+  }
+}
+window.loadLatestWebQuote = loadLatestWebQuote;
+window.checkPendingWebQuotes = checkPendingWebQuotes;

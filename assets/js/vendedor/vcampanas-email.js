@@ -1236,6 +1236,8 @@ function newEcCampaign(preTplId = null, defaultAudience = null) {
     window.CampaignEditor.open({
       channel: 'email',
       preTplId,
+      preAudience: defaultAudience,
+      preMode: defaultAudience === 'gmail_starred' ? 'seguimiento_destacados' : 'presentacion_b2b',
       products: ecProducts,
       combos: ecCombos,
       templates: ecTemplates,
@@ -1245,15 +1247,6 @@ function newEcCampaign(preTplId = null, defaultAudience = null) {
         await launchEmailCampaignFromEditor(config);
       }
     });
-    if (defaultAudience) {
-      setTimeout(() => {
-        const audSel = document.getElementById('ceAudienceSelect');
-        if (audSel) {
-          audSel.value = defaultAudience;
-          if (window.CampaignEditor.onAudienceChange) window.CampaignEditor.onAudienceChange();
-        }
-      }, 100);
-    }
     return;
   }
   openEcModal('campModal');

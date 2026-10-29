@@ -84,9 +84,44 @@ async function refreshSellerNotifBadge() {
 
 // Link de venta del vendedor (atribución por referido)
 function sellerRefLink() {
-  if (!SELLER?.ref_code) return null;
-  return `${location.origin}/catalogo.html?ref=${encodeURIComponent(SELLER.ref_code)}`;
+  const seller = (typeof SELLER !== 'undefined' && SELLER) ? SELLER : ((typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE) ? CURRENT_PROFILE : (window.SELLER || null));
+  const rawCode = seller?.ref_code || seller?.mixnet_code || seller?.code || '005';
+  const normCode = /^\d{1,2}$/.test(String(rawCode).trim()) ? String(rawCode).trim().padStart(3, '0') : String(rawCode).trim().toLowerCase();
+  return `${location.origin}/catalogo.html?ref=${encodeURIComponent(normCode)}`;
 }
+
+async function copySellerCatalogLink(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const link = sellerRefLink();
+  try {
+    await navigator.clipboard.writeText(link);
+    if (typeof showToast === 'function') {
+      showToast('📋 Link personal del catálogo copiado: ' + link, 'ok', 4500);
+    } else if (typeof toast === 'function') {
+      toast('📋 Link personal copiado al portapapeles', 'success');
+    } else {
+      alert('Link copiado: ' + link);
+    }
+  } catch (_) {
+    prompt('Copia tu enlace personal del catálogo:', link);
+  }
+}
+window.sellerRefLink = sellerRefLink;
+window.copySellerCatalogLink = copySellerCatalogLink;
+
+// Actualizar automáticamente los enlaces de "Ver catálogo" para incluir la atribución del vendedor
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    try {
+      const links = document.querySelectorAll('a[href="/catalogo"], a[href="/catalogo.html"]');
+      const refUrl = sellerRefLink();
+      links.forEach(a => {
+        a.href = refUrl;
+        a.title = 'Abrir catálogo con mi atribución comercial';
+      });
+    } catch (_) {}
+  }, 350);
+});
 
 // Estados que cuentan como venta confirmada
 const V_PAID = ['pagado', 'preparando', 'entregado'];

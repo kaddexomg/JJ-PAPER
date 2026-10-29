@@ -45,7 +45,11 @@ async function loadVQuotes(statusFilter = vQuotesFilter) {
   if (sid) {
     q = q.eq('seller_id', sid);
   }
-  if (statusFilter) q = q.eq('status', statusFilter);
+  if (statusFilter === 'web_catalogo') {
+    q = q.eq('source', 'web_catalogo');
+  } else if (statusFilter) {
+    q = q.eq('status', statusFilter);
+  }
   const { data, error } = await q;
   if (error) { showToast('Error cargando cotizaciones', 'err'); return; }
   vQuotes = data || [];
@@ -93,7 +97,7 @@ function renderVQuotes() {
       + (items.length > 2 ? '…' : '');
     const total = vqTotal(q);
     return `<tr>
-      <td><strong>${escapeHTML(q.quote_number || '—')}</strong><div class="td-sub">${fmtDate(q.created_at)}</div></td>
+      <td><strong>${escapeHTML(q.quote_number || '—')}</strong>${q.source === 'web_catalogo' ? '<div style="margin-top:2px"><span style="display:inline-block;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:9.5px;font-weight:800;padding:1px 5px;border-radius:4px">🌐 Solicitud Web</span></div>' : ''}<div class="td-sub">${fmtDate(q.created_at)}</div></td>
       <td><div class="td-name">${escapeHTML(q.client_name)}</div><div class="td-sub">${escapeHTML(q.phone || '')}</div></td>
       <td style="max-width:170px;font-size:11px;color:var(--gr)">${preview}</td>
       <td>${total > 0 ? `<strong>${fmtPrice(total)}</strong>` : '<span style="color:#bbb">—</span>'}

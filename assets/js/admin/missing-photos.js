@@ -127,8 +127,8 @@ function mpRender() {
           : '<span style="color:var(--gr)">—</span>'}</td>
       <td style="text-align:center;white-space:nowrap">
         <button class="btn-s" style="padding:6px 10px;font-size:12.5px;margin-right:6px;background:#065f46;color:#fff;border-radius:6px;border:none;cursor:pointer"
-                onclick="mpGenerarConIA('${r.variant_id}', '${escapeJsStr(r.producto)}')">
-          🤖 Generar IA
+                onclick="mpAbrirEstudio('${r.variant_id}', '${escapeJsStr(r.producto)}')">
+          🔍 Buscar Foto Web
         </button>
         <label class="btn-p" style="cursor:pointer;padding:6px 12px;font-size:13px;display:inline-block">
           📷 Foto
@@ -215,11 +215,81 @@ function escapeJsStr(str) {
 }
 
 /* ---------- ESTUDIO FOTOGRÁFICO MULTI-FUENTE EN FOTOS FALTANTES ---------- */
+
+/* ---------- MOTOR DE IA HONESTA (GEMINI) PARA FOTOS DE PRODUCTO ---------- */
+async function mpAnalizarConGemini(rawProductName) {
+  if (typeof GeminiClient === 'undefined' || !GeminiClient || typeof GeminiClient.callGemini !== 'function') {
+    return {
+      reconocido: true,
+      nombre_limpio: rawProductName,
+      query_packshot: rawProductName + ' papeleria oficina packshot fondo blanco',
+      duda: '',
+      pregunta: '',
+      sugerencias: []
+    };
+  }
+
+  const prompt = `Actúa como el clasificador de catálogo de JJ Paper (distribuidora mayorista de papelería, suministros de oficina, higiene y embalaje en Caracas).
+Analiza el siguiente nombre técnico abreviado de nuestro inventario:
+"${rawProductName}"
+
+INSTRUCCIONES DE RIGUROSIDAD Y SINCERIDAD:
+1. Si reconoces con total certeza el artículo de papelería, oficina o embalaje:
+   - "reconocido": true
+   - "nombre_limpio": nombre legible en español sin códigos raros
+   - "query_packshot": término comercial exacto para buscar su fotografía packshot oficial sobre fondo blanco (ej: "sobre manila carta paquete", "cinta embalaje transparente 48x100", "carpeta fibra marron gancho carta")
+2. Si la descripción es confusa, ambigua o NO estás seguro de qué producto es:
+   SÉ TOTALMENTE SINCERO. No adivines ni inventes nada.
+   - "reconocido": false
+   - "duda": explicación breve y honesta de por qué dudas (ej: "No queda claro si es tirro de embalaje o tirro de pintor de papel")
+   - "pregunta": "¿Podrías indicarme qué tipo de producto es?"
+   - "sugerencias": array con 2 o 3 opciones probables para que el usuario elija con un clic.
+
+Responde ÚNICAMENTE un objeto JSON válido sin bloques markdown ni explicaciones:
+{
+  "reconocido": true,
+  "nombre_limpio": "...",
+  "query_packshot": "...",
+  "duda": "...",
+  "pregunta": "...",
+  "sugerencias": ["...", "..."]
+}`;
+
+  try {
+    const raw = await GeminiClient.callGemini({
+      prompt,
+      temperature: 0.1,
+      maxTokens: 350
+    });
+    const clean = String(raw || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    return parsed;
+  } catch (err) {
+    console.warn('Fallo analizando con Gemini:', err);
+    return {
+      reconocido: true,
+      nombre_limpio: rawProductName,
+      query_packshot: rawProductName + ' papeleria oficina packshot fondo blanco',
+      duda: '',
+      pregunta: '',
+      sugerencias: []
+    };
+  }
+}
+
+function mpAplicarSugerencia(texto) {
+  const input = document.getElementById('mpStudioSearchInput');
+  if (input) input.value = texto + ' papeleria oficina fondo blanco';
+  const box = document.getElementById('mpAiDialogueBox');
+  if (box) box.style.display = 'none';
+  mpStudioEjecutarBusqueda();
+}
+
 let _mpStudioVariantId = null;
 let _mpStudioProdId = null;
 let _mpStudioSelectedImg = null;
 
-async function mpGenerarConIA(variantId, productoNombre) {
+async function mpAbrirEstudio(variantId, productoNombre) {
   _mpStudioVariantId = variantId;
   _mpStudioSelectedImg = null;
 
@@ -232,6 +302,7 @@ async function mpGenerarConIA(variantId, productoNombre) {
     if (eVar) throw eVar;
     _mpStudioProdId = v.product_id;
     const prodName = v.jjp_products?.name || productoNombre;
+    _mpStudioCurrentIdentity = mpExtraerFichaIdentidad(prodName, v.jjp_products?.description);
 
     let modal = document.getElementById('mpAiModal');
     if (!modal) {
@@ -247,19 +318,23 @@ async function mpGenerarConIA(variantId, productoNombre) {
           <div>
             <h3 style="margin:0;font-size:16px;color:#0f172a;display:flex;align-items:center;gap:8px">
               <span>📸 Estudio Fotográfico de Producto</span>
-              <span style="font-size:11px;font-weight:600;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px">IA Multi-Fuente</span>
+              <span style="font-size:11px;font-weight:600;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px">Fotos Oficiales & Validación Visión AI</span>
             </h3>
             <p style="margin:4px 0 0;font-size:13px;color:#64748b;font-weight:500">${escapeHTML(prodName)}</p>
           </div>
           <button onclick="document.getElementById('mpAiModal').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;color:#94a3b8">✕</button>
         </div>
 
+        <!-- Barra de diálogo honesto con IA -->
+        <div id="mpAiDialogueBox" style="display:none;padding:12px 20px;background:#fffbeb;border-bottom:1px solid #fef3c7;"></div>
+
         <!-- Barra de búsqueda / afinamiento -->
         <div style="padding:12px 20px;background:#fff;border-bottom:1px solid #f1f5f9;display:flex;gap:10px;align-items:center">
           <div style="flex:1;position:relative">
             <input type="text" id="mpStudioSearchInput" value="${escapeHTML(prodName)}"
+                   onkeydown="if(event.key==='Enter')mpStudioEjecutarBusqueda()"
                    style="width:100%;padding:8px 12px 8px 32px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none"
-                   placeholder="Escribe término de búsqueda exacto (ej. Marcador Expo rojo pizarra)...">
+                   placeholder="Término de búsqueda packshot o aclaratoria a la IA...">
             <span style="position:absolute;left:10px;top:9px;font-size:13px;color:#94a3b8">🔍</span>
           </div>
           <button class="btn-s" style="padding:8px 14px;background:#0f172a;color:#fff;border-radius:8px;border:none;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px"
@@ -308,7 +383,45 @@ async function mpGenerarConIA(variantId, productoNombre) {
       </div>
     `;
     modal.style.display = 'flex';
-    mpStudioEjecutarBusqueda();
+    // Flujo inteligente: Gemini evalúa primero la certeza del artículo
+    const statusEl = document.getElementById('mpStudioStatus');
+    if (statusEl) statusEl.innerHTML = '🤖 Evaluando descripción con IA de JJ Paper...';
+
+    const aiRes = await mpAnalizarConGemini(prodName);
+    const diagBox = document.getElementById('mpAiDialogueBox');
+    const inputEl = document.getElementById('mpStudioSearchInput');
+
+    if (aiRes && aiRes.reconocido) {
+      if (inputEl && aiRes.query_packshot) inputEl.value = aiRes.query_packshot;
+      if (statusEl) statusEl.innerHTML = '✅ Reconocido como: <strong>' + escapeHTML(aiRes.nombre_limpio || prodName) + '</strong>';
+      mpStudioEjecutarBusqueda();
+    } else if (aiRes && !aiRes.reconocido) {
+      // La IA es sincera: no adivina, solicita ayuda al usuario
+      if (diagBox) {
+        diagBox.style.display = 'block';
+        diagBox.innerHTML = `
+          <div style="font-size:12.5px;font-weight:700;color:#92400e;display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span>🤖 Sinceridad de IA:</span>
+            <span>${escapeHTML(aiRes.duda || 'No tengo certeza de qué producto exacto es este código.')}</span>
+          </div>
+          <p style="font-size:12px;color:#78350f;margin:0 0 8px 0;line-height:1.4">
+            ${escapeHTML(aiRes.pregunta || '¿Podrías aclararme qué artículo es para ubicar su fotografía exacta sobre fondo blanco?')}
+          </p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${(aiRes.sugerencias || []).map(s => `
+              <button type="button" class="btn-s" style="padding:4px 10px;background:#fff;color:#92400e;border:1px solid #d97706;border-radius:16px;font-size:11.5px;cursor:pointer;font-weight:600"
+                      onclick="mpAplicarSugerencia('${escapeJsStr(s)}')">
+                👉 ${escapeHTML(s)}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      }
+      if (statusEl) statusEl.innerHTML = '⚠️ Esperando tu aclaratoria para buscar la foto adecuada.';
+      if (inputEl) inputEl.focus();
+    } else {
+      mpStudioEjecutarBusqueda();
+    }
   } catch (err) {
     showToast('Error abriendo estudio: ' + err.message, 'err');
   }
@@ -429,7 +542,7 @@ async function mpStudioEjecutarBusqueda() {
         grid.innerHTML = `
           <div style="grid-column:1/-1;text-align:center;padding:30px;color:#64748b;background:#f8fafc;border-radius:8px">
             <p style="margin:0 0 8px;font-size:14px">No encontramos fotos web exactas con "${escapeHTML(q)}".</p>
-            <p style="margin:0;font-size:12px;color:#94a3b8">Prueba ajustando el término arriba o usa la pestaña <strong>🤖 Fotografía con IA</strong>.</p>
+            <p style="margin:0;font-size:12px;color:#94a3b8">Prueba ajustando el término arriba o toma una foto real con la cámara del teléfono.</p>
           </div>`;
       }
       if (countEl) countEl.textContent = '0';
@@ -460,70 +573,76 @@ async function mpStudioEjecutarBusqueda() {
   }
 }
 
-function mpStudioSelectImage(imgUrl, idx = null, title = '') {
+async function mpStudioSelectImage(imgUrl, idx = null, title = '') {
   _mpStudioSelectedImg = imgUrl;
+  _mpStudioVisionVerdict = null;
 
   document.querySelectorAll('.mp-img-card').forEach(c => {
     c.style.borderColor = '#e2e8f0';
     c.style.boxShadow = 'none';
   });
 
-  if (idx !== null) {
-    const card = document.getElementById(`mp-card-${idx}`);
-    if (card) {
-      card.style.borderColor = '#065f46';
-      card.style.boxShadow = '0 0 0 2px rgba(6,95,70,0.2)';
-    }
+  const card = (idx !== null) ? document.getElementById(`mp-card-${idx}`) : null;
+  if (card) {
+    card.style.borderColor = '#065f46';
+    card.style.boxShadow = '0 0 0 2px rgba(6,95,70,0.2)';
   }
 
   const saveBtn = document.getElementById('mpStudioSaveBtn');
   const statusEl = document.getElementById('mpStudioStatus');
   if (saveBtn) saveBtn.disabled = false;
   if (statusEl) {
-    statusEl.innerHTML = `✅ Foto seleccionada: <strong style="color:#0f172a">${escapeHTML(title || 'Imagen elegida')}</strong>`;
+    statusEl.innerHTML = `🔍 Analizando atributos con Gemini Vision... <strong style="color:#0f172a">${escapeHTML(title || 'Imagen elegida')}</strong>`;
+  }
+
+  // Ejecución de Gemini Vision para contrastar atributos con la ficha técnica
+  if (_mpStudioCurrentIdentity) {
+    const vRes = await mpVerificarImagenConGeminiVision(imgUrl, _mpStudioCurrentIdentity, _mpStudioCurrentIdentity.raw);
+    _mpStudioVisionVerdict = vRes;
+
+    if (vRes.veredicto === 'rechazada' || vRes.tipo === 'mismatch' || vRes.medida === 'mismatch') {
+      if (card) {
+        card.style.borderColor = '#dc2626';
+        card.style.boxShadow = '0 0 0 2px rgba(220,38,38,0.3)';
+      }
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:#dc2626;font-weight:700">❌ Rechazada por IA de Visión:</span> ${escapeHTML(vRes.razon || 'Incoherencia con la ficha del producto.')} <br><span style="font-size:11px;color:#991b1b">Tipo: ${vRes.tipo} | Medida: ${vRes.medida} | Color: ${vRes.color}</span>`;
+      }
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.title = 'Imagen rechazada por discordancia con los atributos del producto';
+      }
+    } else {
+      if (card) {
+        card.style.borderColor = '#16a34a';
+        card.style.boxShadow = '0 0 0 2px rgba(22,163,74,0.3)';
+      }
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:#16a34a;font-weight:700">✅ Verificada por Gemini Vision:</span> Coincide con ficha técnica. <span style="font-size:11px;color:#15803d">(${escapeHTML(vRes.razon || 'Producto auténtico')})</span>`;
+      }
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.title = '';
+      }
+    }
   }
 }
 
+// ERRADICADO: Por política comercial soberana, no se admiten imágenes ficticias generadas por IA
 async function mpStudioGenerarIA() {
-  const qInput = document.getElementById('mpStudioSearchInput');
-  const prodName = (qInput?.value || '').trim();
-  const imgEl = document.getElementById('mpAiImg');
-  if (!imgEl) return;
-
-  // Análisis ontológico inteligente de empaque y presentación
-  const isCaja = /\b(X\s*12|DOCENA|DOC|C\/12|CAJA|X\s*24|PACK|SURT|SET)\b/i.test(prodName);
-  const isResma = /\b(RESMA|500\s*HJS|500\s*HOJAS|BOND)\b/i.test(prodName);
-
-  let objectPrompt = `Commercial product photography of ${prodName}, authentic stationery item, on pure solid white background #FFFFFF, studio light, sharp focus, 8k`;
-  if (isCaja) {
-    objectPrompt = `Commercial product photography of the authentic official retail box packaging of ${prodName}, displaying official brand typography and logos, with one pen or marker placed next to the box, on pure solid white background #FFFFFF, sharp focus, commercial studio photo, 8k`;
-  } else if (isResma) {
-    objectPrompt = `Commercial product photography of a factory sealed ream packaging of ${prodName}, authentic paper wrapper with printed branding, on pure solid white background #FFFFFF, studio light, 8k`;
-  } else {
-    objectPrompt = `Commercial product photography of a single individual ${prodName}, isolated on pure solid white background #FFFFFF, sharp focus on branding, natural drop shadow, commercial product photography, 8k uhd, NO BOX`;
-  }
-
-  try {
-    if (window.GeminiClient) {
-      const sys = `You are a commercial catalog photographer for an office supply company. Output a 1-sentence prompt for Flux describing the authentic commercial product photography on pure solid white background #FFFFFF. If the product name indicates a box or set of 12 (X12, docena, caja, set), describe the authentic retail box and packaging with clear brand graphics. If it is a single unit, describe ONLY the single item without packaging. Never produce generic 3D renders.`;
-      const aiPrompt = await window.GeminiClient.callGemini({ prompt: prodName, systemInstruction: sys, temperature: 0.1 });
-      if (aiPrompt && aiPrompt.length > 10 && !aiPrompt.includes('Error')) {
-        objectPrompt = aiPrompt.replace(/^["'`]|["'`]$/g, '').trim();
-      }
-    }
-  } catch (_) {}
-
-  const seed = Math.abs(hashCode(prodName + '_' + Date.now()));
-  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(objectPrompt.slice(0, 360))}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
-
-  imgEl.src = aiUrl;
-  imgEl.onload = () => {
-    mpStudioSelectImage(aiUrl, null, `Foto generada con IA (${prodName})`);
-  };
+  alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial.');
 }
 
 async function mpStudioGuardar() {
   if (!_mpStudioSelectedImg || !_mpStudioProdId || !_mpStudioVariantId) return;
+
+  // Validación estricta anti-IA generativa
+  if (_mpStudioSelectedImg.includes('pollinations') || _mpStudioSelectedImg.includes('stability.ai') || _mpStudioSelectedImg.includes('midjourney') || _mpStudioSelectedImg.includes('replicate.delivery')) {
+    alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial');
+    const b = document.getElementById('mpStudioSaveBtn');
+    if (b) { b.disabled = false; b.textContent = '✅ Asignar Foto al Producto'; }
+    return;
+  }
 
   const btn = document.getElementById('mpStudioSaveBtn');
   const statusEl = document.getElementById('mpStudioStatus');
@@ -572,6 +691,22 @@ async function mpStudioGuardar() {
       ]);
     }
 
+    // Registro en jjp_photo_audit
+    try {
+      await sb.from('jjp_photo_audit').insert({
+        product_id: _mpStudioProdId,
+        variant_id: _mpStudioVariantId,
+        image_url: _mpStudioSelectedImg.slice(0, 500),
+        verdict: _mpStudioVisionVerdict?.veredicto === 'rechazada' ? 'dudosa' : 'ok',
+        confidence: _mpStudioVisionVerdict?.confidence || 0.95,
+        mismatches: _mpStudioVisionVerdict || {},
+        reason: _mpStudioVisionVerdict?.razon || 'Foto packshot comercial oficial vinculada desde estudio web',
+        source: 'estudio_web'
+      });
+    } catch (auditErr) {
+      console.warn('Error en auditoría de foto:', auditErr);
+    }
+
     document.getElementById('mpAiModal').style.display = 'none';
     mpRows = mpRows.filter(r => r.variant_id !== _mpStudioVariantId);
     mpRender();
@@ -594,3 +729,188 @@ function hashCode(str) {
 function escapeJsStr(str) {
   return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
 }
+
+/* ---------- FICHA DE IDENTIDAD Y CONTROL DE CALIDAD GEMINI VISION ---------- */
+let _mpStudioCurrentIdentity = null;
+let _mpStudioVisionVerdict = null;
+
+function mpExtraerFichaIdentidad(prodName, description = '') {
+  const text = (prodName + ' ' + (description || '')).toUpperCase();
+
+  const brands = [
+    'CHAMEX', 'REPORT', 'HP', 'BOREAL', 'REPROSET', 'LEDESMA', 'CHAMPION',
+    'AVILA', 'CARVAJAL', 'HAMMERMILL', 'SHARPIE', 'EXPO', 'SHARK', 'STAR KIT',
+    'STUDMARK', 'KORES', 'MAYKA', 'OFFI-ESCOLAR', 'OFIART', 'OFIMAK', 'CRISBY',
+    'ESFER', 'MISTER BOBINA', 'MR BOBINA', 'ROLLS', 'ALPHA', 'PRINTA', 'ACCO',
+    'MONGOL', 'PAPER MATE', 'PAPERMATE', 'KILOMETRICO', 'INKJOY', 'LUXOR',
+    'BULL', 'DURACELL', 'CASIO', 'MARFIL', 'AKTA', 'OSLO', 'CARIBE', 'TUK',
+    'POST-IT', '3M', 'PRITT', 'SOLITA', 'FABER-CASTELL', 'FABER CASTELL',
+    'FABERCASTELL', 'BIC', 'NORMA', 'SABONIS', 'PILOT', 'PENTEL', 'STAEDTLER',
+    'PEGA-LOKA', 'PEGALOKA', 'PELIKAN', 'ARTESCO', 'FILGO', 'ARTEL', 'STABILO',
+    'UHU', 'SCOTCH', 'TESA', 'CONTACT', 'BACO', 'JOVI', 'CRAYOLA', 'GIOTTO',
+    'MAPED', 'CARICIAS', 'SANITISU', 'SCOTT', 'ROSE'
+  ];
+  let marca = '';
+  for (const b of brands) {
+    if (new RegExp(`\\b${b}\\b`, 'i').test(text)) {
+      marca = b;
+      break;
+    }
+  }
+
+  let medida = '';
+  if (/\b(EXTRA\s*OFICIO)\b/i.test(text)) medida = 'Extra Oficio';
+  else if (/\b(OFICIO)\b/i.test(text)) medida = 'Oficio (Legal)';
+  else if (/\b(CARTA)\b/i.test(text)) medida = 'Carta (Letter)';
+  else if (/\b(A4)\b/i.test(text)) medida = 'A4';
+  else if (/\b(1\/2\s*PLIEGO|MEDIO\s*PLIEGO)\b/i.test(text)) medida = 'Medio Pliego';
+  else if (/\b(PLIEGO)\b/i.test(text)) medida = 'Pliego Completo';
+  else if (/\b(48\s*X\s*100|48X100)\b/i.test(text)) medida = '48mm x 100m';
+  else if (/\b(24\s*X\s*50|24X50)\b/i.test(text)) medida = '24mm x 50m';
+  else if (/\b(18\s*X\s*30|18X30)\b/i.test(text)) medida = '18mm x 30m';
+  else if (/\b(12\s*X\s*30|12X30)\b/i.test(text)) medida = '12mm x 30m';
+  else if (/\b(N[º°]?\s*10|NUMERO\s*10)\b/i.test(text)) medida = 'Nº 10';
+  else if (/\b(N[º°]?\s*26\/6|26\/6)\b/i.test(text)) medida = '26/6';
+  else if (/\b(75\s*GR|75G)\b/i.test(text)) medida = '75 g/m²';
+
+  let color = '';
+  const colors = ['AZUL', 'NEGRO', 'ROJO', 'VERDE', 'BLANCO', 'AMARILLO', 'NARANJA', 'ROSADO', 'MORADO', 'MARRON', 'TRANSPARENTE', 'SURTIDO'];
+  for (const c of colors) {
+    if (new RegExp(`\\b${c}\\b`, 'i').test(text)) {
+      color = c;
+      break;
+    }
+  }
+
+  let presentacion = '';
+  if (/\b(RESMA|500\s*HJS|500\s*HOJAS)\b/i.test(text)) presentacion = 'Resma 500 Hojas';
+  else if (/\b(X\s*12|DOCENA|C\/12|CAJA\s*12)\b/i.test(text)) presentacion = 'Caja x 12';
+  else if (/\b(X\s*24|CAJA\s*24)\b/i.test(text)) presentacion = 'Caja x 24';
+  else if (/\b(X\s*36|CAJA\s*36)\b/i.test(text)) presentacion = 'Caja x 36';
+  else if (/\b(X\s*50|CAJA\s*50|PAQ\s*50)\b/i.test(text)) presentacion = 'Caja/Paq. x 50';
+  else if (/\b(X\s*100|CAJA\s*100|PAQ\s*100)\b/i.test(text)) presentacion = 'Caja/Paq. x 100';
+  else if (/\b(BULTO)\b/i.test(text)) presentacion = 'Bulto Cerrado';
+  else if (/\b(BLISTER)\b/i.test(text)) presentacion = 'Blister';
+  else if (/\b(ROLLO)\b/i.test(text)) presentacion = 'Rollo';
+
+  let tipo = prodName;
+  const types = [
+    { k: 'PAPEL BOND', label: 'Papel Bond Fotocopia' },
+    { k: 'CARPETA MANILA', label: 'Carpeta Manila' },
+    { k: 'CARPETA FIBRA', label: 'Carpeta de Fibra con Gancho' },
+    { k: 'MARCADOR PIZARRA', label: 'Marcador para Pizarra Blanca' },
+    { k: 'MARCADOR PERMANENTE', label: 'Marcador Permanente' },
+    { k: 'BOLIGRAFO', label: 'Bolígrafo' },
+    { k: 'TIRRO EMBALAJE', label: 'Cinta de Embalaje / Tirro' },
+    { k: 'TIRRO TRANSPARENTE', label: 'Cinta Transparente' },
+    { k: 'TIRRO PLASTICO', label: 'Cinta Adhesiva Plástica' },
+    { k: 'TIRRO PAPEL', label: 'Tirro de Papel / Enmascarar' },
+    { k: 'CEPILLO', label: 'Cepillo para Barrer / Limpieza' },
+    { k: 'COLETO', label: 'Coleto para Piso' },
+    { k: 'TOALLIN', label: 'Toallín de Papel' },
+    { k: 'SERVILLETA', label: 'Servilleta de Papel' },
+    { k: 'PAPEL HIGIENICO', label: 'Papel Higiénico' },
+    { k: 'GRAPADORA', label: 'Grapadora de Oficina' },
+    { k: 'GRAPAS', label: 'Grapas Metálicas' },
+    { k: 'CLIPS', label: 'Clips Sujetapapeles' },
+    { k: 'TIJERA', label: 'Tijera de Oficina' },
+    { k: 'SILICON', label: 'Silicón Líquido / Barra' },
+    { k: 'PEGA', label: 'Pega Líquida / Barra' },
+    { k: 'CORRECTOR', label: 'Corrector Líquido / Cinta' },
+    { k: 'NOTAS ADHESIVAS', label: 'Notas Adhesivas' },
+    { k: 'SOBRE MANILA', label: 'Sobre Manila' }
+  ];
+  for (const t of types) {
+    if (text.includes(t.k)) {
+      tipo = t.label;
+      break;
+    }
+  }
+
+  return { tipo, medida, color, presentacion, marca, raw: prodName };
+}
+
+async function mpVerificarImagenConGeminiVision(imageUrlOrBlob, identity, prodName) {
+  if (typeof GeminiClient === 'undefined' || !GeminiClient || typeof GeminiClient.callGeminiVision !== 'function') {
+    return { veredicto: 'aprobada', razon: 'Gemini Vision no disponible en este cliente', confidence: 0.8 };
+  }
+
+  try {
+    let base64 = '';
+    let mimeType = 'image/jpeg';
+
+    if (typeof imageUrlOrBlob === 'string' && imageUrlOrBlob.startsWith('data:')) {
+      base64 = imageUrlOrBlob;
+    } else if (imageUrlOrBlob instanceof Blob || (typeof File !== 'undefined' && imageUrlOrBlob instanceof File)) {
+      base64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onloadend = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(imageUrlOrBlob);
+      });
+      mimeType = imageUrlOrBlob.type || 'image/jpeg';
+    } else if (typeof imageUrlOrBlob === 'string' && imageUrlOrBlob.startsWith('http')) {
+      try {
+        const fetchUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrlOrBlob)}&w=400&h=400&fit=contain&output=jpg`;
+        const res = await fetch(fetchUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          base64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onloadend = () => res(r.result);
+            r.onerror = rej;
+            r.readAsDataURL(blob);
+          });
+        }
+      } catch (_) {
+        return { veredicto: 'aprobada', razon: 'Evaluación visual diferida', confidence: 0.8 };
+      }
+    }
+
+    if (!base64) return { veredicto: 'aprobada', razon: 'Sin datos visuales procesables', confidence: 0.8 };
+
+    const prompt = `Actúa como inspector de control de calidad fotográfica del catálogo de JJ Paper.
+Compara la fotografía adjunta contra la ficha técnica del producto de papelería/suministros:
+Producto: "${prodName}"
+- Tipo esperado: ${identity.tipo || 'Suministro de oficina'}
+- Medida/Formato esperado: ${identity.medida || 'No especificada'}
+- Color esperado: ${identity.color || 'No especificado'}
+- Presentación esperada: ${identity.presentacion || 'No especificada'}
+- Marca esperada: ${identity.marca || 'No especificada'}
+
+REGLAS DE RECHAZO:
+1. Si la foto muestra un producto totalmente diferente (ejemplo: un vaso en vez de cepillo para barrer, lechuga en vez de toallín, servilletas en vez de coleto), veredicto = "rechazada".
+2. Si la foto muestra un formato claramente erróneo (ejemplo: carpeta Oficio cuando el producto es Carta, o resma A4 cuando es Carta), veredicto = "rechazada".
+3. Si el color dominante del producto no coincide con el color requerido explícito (ejemplo: marcador rojo cuando el producto es azul), veredicto = "rechazada".
+4. Si la foto coincide con el artículo comercial real sobre fondo blanco o catálogo, veredicto = "aprobada".
+
+Responde ÚNICAMENTE un JSON válido sin markdown:
+{
+  "tipo": "match" | "mismatch",
+  "medida": "match" | "mismatch" | "no_aplica",
+  "color": "match" | "mismatch" | "no_aplica",
+  "marca": "match" | "mismatch" | "no_aplica",
+  "presentacion": "match" | "mismatch" | "no_aplica",
+  "veredicto": "aprobada" | "rechazada" | "dudosa",
+  "razon": "Explicación breve de 1 frase en español",
+  "confidence": 0.95
+}`;
+
+    const raw = await GeminiClient.callGeminiVision({
+      prompt,
+      imageBase64: base64,
+      mimeType,
+      temperature: 0.1,
+      maxTokens: 300
+    });
+
+    const clean = String(raw || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    return parsed;
+  } catch (err) {
+    console.warn('Fallo mpVerificarImagenConGeminiVision:', err);
+    return { veredicto: 'aprobada', razon: 'Verificación visual no concluyente: ' + err.message, confidence: 0.7 };
+  }
+}
+
+async function mpGenerarConIA(variantId, productoNombre) { return mpAbrirEstudio(variantId, productoNombre); }

@@ -8,7 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   --doc-c: #16604A;        /* Verde corporativo oficial JJ Paper */
@@ -23,7 +23,7 @@
   --doc-card-bg: #ffffff;
   --sheet-w: 215.9mm;      /* Tamaño Carta US Letter */
   --sheet-h: 279.4mm;
-  --spine-w: 22mm;         /* Margen de lomo libre para perforaciones sin tocar texto */
+  --spine-w: 25mm;         /* Margen de lomo libre para perforaciones sin tocar contenido */
   --duplex-even-shift-x: 0mm;  /* Calibración milimétrica X para calce a contraluz */
   --duplex-even-shift-y: 0mm;  /* Calibración milimétrica Y para calce a contraluz */
   --outer-w: 8mm;
@@ -55,7 +55,7 @@ body {
   box-shadow: 0 4px 18px rgba(0,0,0,0.08);
 }
 .tb-main-row {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 10px 18px;
   display: flex;
@@ -151,12 +151,12 @@ body {
   background: #1e40af;
 }
 .tb-btn-step2 {
-  background: #b45309;
+  background: #16604a;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.25);
+  box-shadow: 0 2px 8px rgba(22, 96, 74, 0.25);
 }
 .tb-btn-step2:hover {
-  background: #92400e;
+  background: #0f4636;
 }
 
 /* Fila de Tandas e Imposición Dúplex */
@@ -166,7 +166,7 @@ body {
   padding: 8px 18px;
 }
 .tb-duplex-inner {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -220,13 +220,17 @@ body {
   break-after: page;
 }
 
-/* Hoja Impar: Frente (Lomo a la Izquierda) */
+/* Hoja Impar: Frente (Lomo a la Izquierda, QR a la Derecha) */
 .catalog-sheet.odd-sheet {
   padding: var(--top-h) var(--outer-w) var(--bot-h) var(--spine-w);
 }
-/* Hoja Par: Reverso (Lomo a la Derecha) */
+/* Hoja Par: Reverso (Lomo a la Derecha, QR a la Izquierda) */
 .catalog-sheet.even-sheet {
   padding: var(--top-h) var(--spine-w) var(--bot-h) var(--outer-w);
+  transform: translate(var(--duplex-even-shift-x, 0mm), var(--duplex-even-shift-y, 0mm));
+}
+body.even-rotate-180 .catalog-sheet.even-sheet {
+  transform: translate(var(--duplex-even-shift-x, 0mm), var(--duplex-even-shift-y, 0mm)) rotate(180deg);
 }
 
 /* Línea de Lomo y Perforaciones Físicas */
@@ -302,6 +306,69 @@ body.hide-holes .spine-gutter {
 }
 
 /* =========================================================
+   PESTAÑA DE COLOR EN BORDE EXTERIOR (HOJEO RÁPIDO)
+   ========================================================= */
+.cat-edge-tab {
+  position: absolute;
+  width: 6.5mm;
+  height: 36mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 5.6pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  writing-mode: vertical-rl;
+  z-index: 15;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  pointer-events: none;
+  overflow: hidden;
+  padding: 2mm 0;
+  box-sizing: border-box;
+}
+.odd-sheet .cat-edge-tab {
+  right: 0;
+  border-radius: 3px 0 0 3px;
+  transform: rotate(180deg);
+}
+.even-sheet .cat-edge-tab {
+  left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+/* =========================================================
+   MARCA DE CONTROL / REGISTRO DE CALCE A CONTRALUZ
+   ========================================================= */
+.duplex-reg-mark {
+  position: absolute;
+  bottom: 1.8mm;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 5pt;
+  font-weight: 800;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 1.2mm;
+  pointer-events: none;
+  z-index: 20;
+  letter-spacing: 0.5px;
+}
+.odd-sheet .duplex-reg-mark {
+  right: 3.5mm;
+}
+.even-sheet .duplex-reg-mark {
+  left: 3.5mm;
+}
+.reg-cross {
+  font-size: 8pt;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1;
+}
+
+/* =========================================================
    CABECERA DE CADA PÁGINA
    ========================================================= */
 .sheet-header {
@@ -351,6 +418,9 @@ body.hide-holes .spine-gutter {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* =========================================================
@@ -371,21 +441,21 @@ body.hide-holes .spine-gutter {
 }
 .cover-banner h2 {
   font-family: 'Playfair Display', serif;
-  font-size: 13.5pt;
+  font-size: 13pt;
   font-weight: 900;
   color: #ffffff;
-  margin-bottom: 0.8mm;
+  margin-bottom: 0.6mm;
   letter-spacing: -0.2px;
 }
 .cover-banner p {
-  font-size: 7pt;
+  font-size: 6.8pt;
   color: #d1fae5;
   line-height: 1.35;
 }
 .cover-pills {
   display: flex;
   gap: 2mm;
-  margin-top: 1.8mm;
+  margin-top: 1.6mm;
   flex-wrap: wrap;
 }
 .cover-pill {
@@ -394,22 +464,22 @@ body.hide-holes .spine-gutter {
   color: #ffffff;
   font-size: 6pt;
   font-weight: 700;
-  padding: 0.7mm 2mm;
+  padding: 0.6mm 2mm;
   border-radius: 3px;
 }
 .cover-qr-box {
   background: #ffffff;
   color: var(--doc-c);
-  padding: 1.8mm;
+  padding: 1.6mm;
   border-radius: 5px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6mm;
+  gap: 0.5mm;
 }
 .cover-qr-box span {
-  font-size: 5pt;
+  font-size: 4.8pt;
   font-weight: 800;
   text-transform: uppercase;
   color: var(--doc-c);
@@ -432,7 +502,7 @@ body.hide-holes .spine-gutter {
   color: var(--doc-c);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 1mm;
+  margin-bottom: 0.8mm;
 }
 .toc-list {
   display: flex;
@@ -440,7 +510,7 @@ body.hide-holes .spine-gutter {
   gap: 1.2mm 2.5mm;
 }
 .toc-pill {
-  font-size: 6.2pt;
+  font-size: 6pt;
   background: #ffffff;
   border: 1px solid var(--doc-border-light);
   padding: 0.6mm 2mm;
@@ -452,39 +522,60 @@ body.hide-holes .spine-gutter {
 }
 
 /* =========================================================
-   CUERPO DE LA HOJA (GRID O LISTA)
+   CUERPO DE LA HOJA: SISTEMA MODULAR DE 3 UNIDADES (72mm c/u)
+   Total: 3 x 72mm = 216mm (Calce exacto en hoja Carta)
    ========================================================= */
 .sheet-body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   min-height: 0;
   overflow: hidden;
 }
 
-/* Grilla Editorial de Productos: 6 Tarjetas por Página (2 Columnas × 3 Filas)
-   Espacio amplio de 72mm por tarjeta: FOTO GRANDE (44mm × 66mm) y CERO RECORTE INFERIOR */
-.photo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3mm 3mm;
-  flex: 1;
-  align-content: start;
-}
-.photo-grid.rows-3 {
-  grid-template-rows: repeat(3, 72mm);
-}
-.photo-grid.rows-2 {
-  grid-template-rows: repeat(2, 72mm);
+.book-row {
+  height: 72mm;
+  max-height: 72mm;
+  box-sizing: border-box;
 }
 
+/* Fila de Tarjetas con Foto (2 tarjetas por fila) */
+.book-photo-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3mm;
+  height: 72mm;
+}
+
+/* Fila de Lista Compacta (4 productos por unidad: 2 por columna) */
+.book-list-quad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3.5mm;
+  height: 72mm;
+}
+.book-list-quad .dir-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2mm;
+  height: 72mm;
+}
+.book-list-quad .dir-row {
+  height: 35mm;
+  max-height: 35mm;
+}
+
+/* =========================================================
+   TARJETA CON FOTO (p-card)
+   ========================================================= */
 .p-card {
   background: #ffffff;
   border: 1.2px solid #cbd5e1;
   border-radius: 6px;
   padding: 2.5mm 3mm;
   display: grid;
-  grid-template-columns: 44mm 1fr;
   gap: 3mm;
   align-items: center;
   position: relative;
@@ -494,8 +585,23 @@ body.hide-holes .spine-gutter {
   max-height: 72mm;
   box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
+
+/* Espejado de Tarjeta: QR siempre en Borde Exterior */
+.odd-sheet .p-card {
+  grid-template-columns: 38mm 1fr; /* Foto a la izq (lomo), Info y QR a la der (borde exterior) */
+}
+.even-sheet .p-card {
+  grid-template-columns: 1fr 38mm; /* Info y QR a la izq (borde exterior), Foto a la der (lomo) */
+}
+.even-sheet .p-photo-wrap {
+  order: 2;
+}
+.even-sheet .p-info {
+  order: 1;
+}
+
 .p-photo-wrap {
-  width: 44mm;
+  width: 38mm;
   height: 66mm;
   max-height: 66mm;
   background: #ffffff;
@@ -528,6 +634,7 @@ body.hide-holes .spine-gutter {
   color: #64748b;
   font-size: 22pt;
 }
+
 .p-info {
   display: flex;
   flex-direction: column;
@@ -551,7 +658,7 @@ body.hide-holes .spine-gutter {
   font-weight: 800;
   color: #0f172a;
   line-height: 1.2;
-  margin: 0.8mm 0;
+  margin: 0.6mm 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -577,21 +684,31 @@ body.hide-holes .spine-gutter {
   padding-top: 1mm;
   margin-top: 1mm;
 }
+.odd-sheet .p-footer-line {
+  flex-direction: row; /* Precios izq, QR der */
+}
+.even-sheet .p-footer-line {
+  flex-direction: row-reverse; /* QR izq (borde exterior), Precios der */
+}
+
 .p-unit-tag {
-  font-size: 5.8pt;
+  font-size: 5.6pt;
   font-weight: 800;
   background: var(--doc-light);
   color: var(--doc-c);
-  padding: 0.6mm 2mm;
+  padding: 0.5mm 1.8mm;
   border-radius: 3px;
   display: inline-block;
   text-transform: uppercase;
-  margin-top: 1mm;
+  margin-top: 0.8mm;
 }
 .p-prices {
   display: flex;
   flex-direction: column;
   text-align: left;
+}
+.even-sheet .p-prices {
+  text-align: right;
 }
 .p-price-lbl {
   font-size: 5pt;
@@ -614,28 +731,49 @@ body.hide-holes .spine-gutter {
   margin-top: 0.5mm;
 }
 
-/* Columna QR del Producto */
+/* Columna QR en Tarjeta con Foto (26mm) */
 .p-qr-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5mm;
+  gap: 0.4mm;
   flex-shrink: 0;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  padding: 1.2mm;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 .p-qr-canvas {
-  width: 14mm;
-  height: 14mm;
-  background: #fff;
+  width: 26mm;
+  height: 26mm;
+  background: #ffffff;
 }
-.p-qr-canvas img, .p-qr-canvas canvas {
-  width: 100% !important;
-  height: 100% !important;
+.p-qr-canvas canvas, .p-qr-canvas img {
+  width: 26mm !important;
+  height: 26mm !important;
+  display: block;
+}
+.p-qr-sku {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 5.2pt;
+  font-weight: 800;
+  color: #000000;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 26mm;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+  line-height: 1;
+  margin-top: 0.4mm;
 }
 .p-qr-label {
-  font-size: 4.8pt;
-  color: #64748b;
-  font-weight: 700;
+  font-size: 4.5pt;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
 }
 
@@ -643,7 +781,6 @@ body.hide-holes .spine-gutter {
 .p-card.filler-card {
   background: #fbfdfc;
   border: 1px dashed #bbf7d0;
-  grid-template-columns: 1fr 14mm;
 }
 .filler-title {
   font-size: 6.5pt;
@@ -656,70 +793,148 @@ body.hide-holes .spine-gutter {
 }
 
 /* =========================================================
-   LISTA COMERCIAL COMPACTA (PRODUCTOS SIN FOTO)
-   2 Columnas × 14 Filas = 28 Productos por Página
+   FILA DE LISTA COMPACTA (dir-row)
    ========================================================= */
-.directory-wrap {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2.2mm;
-  flex: 1;
-  align-content: stretch;
-}
-.dir-col {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2mm;
-}
 .dir-row {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 1.2mm 2mm;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 2.2mm 2.8mm;
   display: grid;
-  grid-template-columns: 1fr auto 10.5mm;
-  gap: 1.8mm;
+  gap: 2.5mm;
   align-items: center;
+  height: 35mm;
+  max-height: 35mm;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
+
+/* Espejado de Lista: QR siempre en Borde Exterior */
+.odd-sheet .dir-row {
+  grid-template-columns: 1fr auto 26mm; /* Info -> Precios -> QR (Derecha / Borde Exterior) */
+}
+.even-sheet .dir-row {
+  grid-template-columns: 26mm auto 1fr; /* QR (Izquierda / Borde Exterior) -> Precios -> Info */
+}
+.even-sheet .dir-qr-col {
+  order: 1;
+}
+.even-sheet .dir-price-col {
+  order: 2;
+  text-align: left;
+  padding-left: 1mm;
+  padding-right: 0;
+}
+.even-sheet .dir-row > div:first-child {
+  order: 3;
+}
+
 .dir-name {
-  font-size: 6.5pt;
+  font-size: 8.2pt;
   font-weight: 800;
   color: #0f172a;
-  white-space: nowrap;
+  line-height: 1.2;
+  margin-bottom: 0.6mm;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  max-height: 8.5mm;
 }
 .dir-meta {
-  font-size: 5pt;
-  color: #64748b;
-  white-space: nowrap;
+  font-size: 5.8pt;
+  color: #475569;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+.dir-unit {
+  font-weight: 800;
+  color: var(--doc-c);
+  background: var(--doc-light);
+  padding: 0.3mm 1.5mm;
+  border-radius: 2px;
+  text-transform: uppercase;
 }
 .dir-price-col {
   text-align: right;
   white-space: nowrap;
+  padding-right: 1mm;
 }
 .dir-usd {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 7.2pt;
-  font-weight: 800;
+  font-size: 11pt;
+  font-weight: 900;
   color: var(--doc-c);
   line-height: 1;
 }
 .dir-bs {
-  font-size: 4.8pt;
+  font-size: 5.8pt;
   color: #64748b;
+  font-weight: 600;
+  margin-top: 0.4mm;
+}
+
+/* Columna QR en Lista Compacta (22mm) */
+.dir-qr-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3mm;
+  flex-shrink: 0;
+  width: 26mm;
 }
 .dir-qr-box {
-  width: 13.5mm;
-  height: 13.5mm;
+  width: 22mm;
+  height: 22mm;
   flex-shrink: 0;
-  background: #fff;
+  background: #ffffff;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  padding: 1mm;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
-.dir-qr-box img, .dir-qr-box canvas {
-  width: 100% !important;
-  height: 100% !important;
+.dir-qr-box canvas, .dir-qr-box img {
+  width: 20mm !important;
+  height: 20mm !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  display: block;
+}
+.dir-qr-sku {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 4.8pt;
+  font-weight: 800;
+  color: #000000;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 24mm;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+  line-height: 1;
+  margin-top: 0.3mm;
+}
+.dir-qr-label {
+  font-size: 4.2pt;
+  font-weight: 800;
+  color: #475569;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Fila de Relleno en Lista (Procura Abierta) */
+.dir-row.dir-filler-row {
+  background: #fbfdfc;
+  border: 1px dashed #bbf7d0;
 }
 
 /* =========================================================
@@ -754,7 +969,7 @@ body.hide-prices .dir-price-col {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(4px);
   z-index: 2000;
   align-items: center;
@@ -798,38 +1013,54 @@ body.hide-prices .dir-price-col {
   cursor: pointer;
   font-weight: 800;
 }
-.guide-step {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 16px;
-  padding: 12px;
+
+/* Estilos de Pasos del Asistente */
+.assistant-step-card {
   background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  transition: all .15s ease;
 }
-.step-num {
-  width: 32px;
-  height: 32px;
+.step-header-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.step-badge-icon {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--doc-c);
   color: #fff;
+  font-weight: 800;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 13px;
   flex-shrink: 0;
 }
-.step-content h4 {
-  font-size: 13px;
+.step-header-badge h4 {
+  font-size: 13.5px;
   font-weight: 800;
   color: #0f172a;
-  margin-bottom: 4px;
 }
-.step-content p {
+.assistant-step-card p {
   font-size: 12px;
   color: #475569;
-  line-height: 1.4;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.flip-illustration-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px 10px;
+  margin: 10px 0;
+  text-align: center;
 }
 
 /* =========================================================
@@ -885,12 +1116,22 @@ body.hide-prices .dir-price-col {
     <div class="tb-controls">
       <input type="search" class="tb-input" id="srchInput" placeholder="🔍 Buscar producto..." oninput="filterCatalog()" style="width:170px">
       
+      <select class="tb-select" id="sellerSelect" onchange="onSellerChange()" title="Vendedor asignado a los códigos QR" style="font-weight:700;border-color:#16604a;color:#16604a">
+        <option value="005">👤 Vendedor: 005 · Jose / Keyder Salazar (Tienda)</option>
+        <option value="002">👤 Vendedor: 002 · Luis Alarcón</option>
+        <option value="004">👤 Vendedor: 004 · Yovanni Araujo</option>
+        <option value="008">👤 Vendedor: 008 · Marianela</option>
+        <option value="014">👤 Vendedor: 014 · Andreina</option>
+        <option value="010">👤 Vendedor: 010 · Keyder Salazar (Admin Corporativo)</option>
+        <option value="020">👤 Vendedor: 020 · Cartera Exclusiva Keyder</option>
+      </select>
+
       <select class="tb-select" id="catFilter" onchange="filterCatalog()">
         <option value="all">📦 Todas las Categorías</option>
       </select>
 
       <select class="tb-select" id="viewModeSelect" onchange="filterCatalog()">
-        <option value="hybrid" selected>📖 Híbrido (Fotos + Lista compacta)</option>
+        <option value="hybrid" selected>📖 Híbrido (Fotos + Lista por Categoría)</option>
         <option value="photos">📸 Solo Vitrina con Fotos</option>
         <option value="list">📋 Solo Lista Alta Densidad (Ahorro)</option>
       </select>
@@ -908,13 +1149,20 @@ body.hide-prices .dir-price-col {
         <option value="hide">🙈 Ocultar Precios</option>
       </select>
 
-      <button type="button" class="tb-btn" style="background:#0284c7;color:#fff;box-shadow:0 2px 8px rgba(2,132,199,0.3)" onclick="openTestSheetModal()" title="Imprimir 1 hoja física de prueba para calibrar el giro dúplex">🧪 Hoja de Prueba</button>
-      <button type="button" class="tb-btn tb-btn-sub" onclick="openGuideModal()">
-        📖 Guía Dúplex
+      <button type="button" class="tb-btn tb-btn-gold" style="box-shadow:0 3px 10px rgba(201,162,75,0.35);font-size:12.5px" onclick="openDuplexAssistantModal()">
+        🖨️ Asistente Dúplex Guiado
       </button>
 
-      <button type="button" class="tb-btn tb-btn-gold" onclick="printAllDuplex()">
-        🖨️ Imprimir Todo
+      <button type="button" class="tb-btn" style="background:#0284c7;color:#fff" onclick="openTestSheetModal()" title="Imprimir 1 hoja física de prueba para calibrar el giro dúplex">
+        🧪 Hoja de Prueba
+      </button>
+
+      <button type="button" class="tb-btn tb-btn-sub" onclick="openCalibrationModal()" title="Ajustar desplazamiento milimétrico X/Y">
+        🎛️ Calibrar X/Y
+      </button>
+
+      <button type="button" class="tb-btn tb-btn-sub" onclick="openGuideModal()">
+        📖 Guía
       </button>
     </div>
   </div>
@@ -928,17 +1176,8 @@ body.hide-prices .dir-price-col {
       </div>
 
       <div class="tb-controls">
-        <label style="font-size:12px;font-weight:700;color:#334155">Tanda:</label>
-        <select class="tb-select" id="batchSelect" onchange="onBatchSelectChange()" style="font-weight:700">
-          <option value="all">📚 Todo el libro</option>
-        </select>
-
-        <button type="button" class="tb-btn tb-btn-step1" onclick="printDuplexBatch('odd')">
-          1️⃣ Paso 1: Imprimir FRENTES (Impares)
-        </button>
-
-        <button type="button" class="tb-btn tb-btn-step2" onclick="printDuplexBatch('even')">
-          2️⃣ Paso 2: Imprimir REVERSOS (Pares)
+        <button type="button" class="tb-btn tb-btn-step1" onclick="openDuplexAssistantModal()">
+          🚀 Iniciar Impresión Dúplex por Tandas (Paso a Paso)
         </button>
       </div>
     </div>
@@ -948,45 +1187,133 @@ body.hide-prices .dir-price-col {
 <!-- ESCENARIO DE HOJAS FÍSICAS -->
 <main class="catalog-stage" id="catalogStage">
   <div style="padding: 60px 20px; text-align: center; color: var(--doc-c); font-weight: 700;">
-    ⏳ Conectando al servidor y maquetando libro comercial...
+    ⏳ Conectando al servidor VPS y maquetando libro comercial...
   </div>
 </main>
 
-<!-- MODAL GUÍA DE IMPRESIÓN DÚPLEX -->
-<div class="guide-modal" id="guideModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeGuideModal()">
-  <div class="modal-box">
+<!-- =========================================================
+     MODAL ASISTENTE DE IMPRESIÓN DÚPLEX (FRENTES PRIMERO, LUEGO REVERSOS)
+     ========================================================= -->
+<div class="guide-modal" id="duplexAssistantModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeDuplexAssistantModal()">
+  <div class="modal-box" style="max-width:720px">
     <div class="modal-header">
-      <h3>📖 Guía de Impresión por Tandas (Frente y Reverso sin atascos)</h3>
-      <button type="button" class="modal-close" onclick="closeGuideModal()">✕</button>
+      <h3 style="color:var(--doc-c);display:flex;align-items:center;gap:8px">
+        🖨️ Asistente de Impresión Dúplex (Frentes primero, luego Reversos)
+      </h3>
+      <button type="button" class="modal-close" onclick="closeDuplexAssistantModal()">✕</button>
     </div>
 
-    <div class="guide-step">
-      <div class="step-num">1</div>
-      <div class="step-content">
-        <h4>Paso 1: Imprimir los FRENTES de la tanda</h4>
-        <p>Selecciona en el menú la <strong>Tanda 1 (Hojas 1 a 5)</strong> y presiona el botón azul <strong>"1️⃣ Paso 1: Imprimir FRENTES"</strong>. La impresora expulsará las hojas con el lomo del lado izquierdo.</p>
+    <!-- PASO 1: SELECCIONAR TANDA E IMPRIMIR FRENTES -->
+    <div class="assistant-step-card" style="border-left:4px solid #1d4ed8;background:#f0f9ff">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#1d4ed8">1</div>
+        <h4 style="color:#1e40af">Paso 1: Seleccionar Tanda e Imprimir FRENTES (Caras Impares)</h4>
+      </div>
+      <p>
+        Elige la tanda de hojas Carta que deseas imprimir. Para evitar atascos, se recomienda imprimir en bloques de <strong>5 hojas físicas</strong> (10 páginas).
+      </p>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <label style="font-size:12px;font-weight:700;color:#1e40af">Tanda a imprimir:</label>
+        <select class="tb-select" id="assistantBatchSelect" onchange="onAssistantBatchChange()" style="flex:1;font-weight:700;border-color:#1d4ed8">
+          <option value="all">📚 Todo el libro</option>
+        </select>
+      </div>
+
+      <button type="button" class="tb-btn tb-btn-step1" style="width:100%;justify-content:center;padding:10px;font-size:13px;border-radius:8px" onclick="printAssistantStep('odd')">
+        🖨️ 1️⃣ Imprimir FRENTES de esta Tanda (Caras Impares)
+      </button>
+      <div style="font-size:11px;color:#64748b;margin-top:6px">
+        📄 Se imprimirán solo las páginas impares (Lomo a la izquierda, QR en el borde exterior derecho).
       </div>
     </div>
 
-    <div class="guide-step">
-      <div class="step-num">2</div>
-      <div class="step-content">
-        <h4>Paso 2: Cómo retirar el fajo y volverlo a meter</h4>
-        <p>Retira las 5 hojas de la bandeja de salida <strong>en el mismo orden en que salieron (la Página 1 debe quedar arriba)</strong>.<br>
-        Gira el bloque sobre su eje largo (como pasando la página de un libro) para que el reverso quede listo para imprimir y colócalo nuevamente en la bandeja de entrada.</p>
+    <!-- PASO 2: INSTRUCCIÓN VISUAL DE GIRO DEL FAJO -->
+    <div class="assistant-step-card" style="border-left:4px solid #d97706;background:#fffbeb">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#d97706">2</div>
+        <h4 style="color:#b45309">Paso 2: Retirar y Girar el Fajo de Hojas (Instrucción Gráfica)</h4>
+      </div>
+      <p>
+        Una vez expulsadas las hojas con los frentes listos, <strong>tome el bloque completo de la bandeja de salida</strong>, dele la vuelta sobre su eje largo (como pasando la página de un libro) e insértelo en la bandeja de entrada:
+      </p>
+
+      <div class="flip-illustration-box">
+        <svg viewBox="0 0 340 100" style="width:100%;max-width:340px;height:auto;display:block;margin:0 auto">
+          <!-- Bandeja de salida -->
+          <g transform="translate(15, 15)">
+            <rect x="0" y="25" width="80" height="40" rx="4" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+            <rect x="6" y="12" width="68" height="26" rx="2" fill="#ffffff" stroke="#1d4ed8" stroke-width="2"/>
+            <text x="40" y="29" font-size="7.5" font-weight="bold" fill="#1d4ed8" text-anchor="middle">FRENTES (1,3,5)</text>
+            <text x="40" y="75" font-size="7.5" fill="#475569" font-weight="700" text-anchor="middle">1. Salida de hojas</text>
+          </g>
+
+          <!-- Flecha de Giro 180° -->
+          <g transform="translate(125, 20)">
+            <path d="M 10 32 C 10 8, 70 8, 70 32" fill="none" stroke="#d97706" stroke-width="3" stroke-dasharray="4,2"/>
+            <polygon points="76,28 70,40 64,28" fill="#d97706"/>
+            <circle cx="40" cy="18" r="13" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+            <text x="40" y="22" font-size="10" font-weight="bold" fill="#b45309" text-anchor="middle">180°</text>
+            <text x="40" y="60" font-size="7.5" font-weight="bold" fill="#b45309" text-anchor="middle">2. Dar vuelta al fajo</text>
+            <text x="40" y="70" font-size="6.5" fill="#64748b" text-anchor="middle">(como pasar de página)</text>
+          </g>
+
+          <!-- Bandeja de entrada -->
+          <g transform="translate(245, 15)">
+            <rect x="0" y="10" width="80" height="55" rx="4" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+            <rect x="6" y="20" width="68" height="26" rx="2" fill="#ffffff" stroke="#16604a" stroke-width="2"/>
+            <text x="40" y="37" font-size="7.5" font-weight="bold" fill="#16604a" text-anchor="middle">CARA BLANCA</text>
+            <text x="40" y="75" font-size="7.5" fill="#475569" font-weight="700" text-anchor="middle">3. Bandeja entrada</text>
+          </g>
+        </svg>
       </div>
     </div>
 
-    <div class="guide-step">
-      <div class="step-num">3</div>
-      <div class="step-content">
-        <h4>Paso 3: Imprimir los REVERSOS de esa misma tanda</h4>
-        <p>Presiona el botón marrón <strong>"2️⃣ Paso 2: Imprimir REVERSOS"</strong>. La Página 2 se imprimirá exactamente detrás de la Página 1, con el margen de lomo espejado a la derecha. Cuando terminen, pasa a la <strong>Tanda 2</strong>.</p>
+    <!-- PASO 3: CONFIGURACIÓN DE BANDEJA Y APILADO DE IMPRESORA -->
+    <div class="assistant-step-card" style="border-left:4px solid #7c3aed;background:#f5f3ff">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#7c3aed">3</div>
+        <h4 style="color:#6d28d9">Paso 3: Selector de Apilado de su Impresora</h4>
+      </div>
+      <p>
+        Indica cómo deposita el papel la bandeja de salida de tu impresora. El sistema ajustará la secuencia automáticamente para que no tengas que barajar las hojas.
+      </p>
+
+      <div style="margin-bottom:8px">
+        <select class="tb-select" id="printerStackSelect" onchange="onPrinterStackSelectChange()" style="width:100%;font-weight:700;border-color:#7c3aed;background:#fff;color:#5b21b6">
+          <option value="face_down" selected>📥 Mi impresora expulsa BOCA ABAJO (Cara impresa oculta · Estándar en láser y multifuncionales)</option>
+          <option value="face_up">📤 Mi impresora expulsa BOCA ARRIBA (Cara impresa visible · Inyección de tinta)</option>
+        </select>
+      </div>
+
+      <div id="stackModeExplanation" style="background:#ffffff;border:1px solid #ddd6fe;padding:8px 12px;border-radius:6px;font-size:11px;color:#5b21b6;line-height:1.4">
+        ✨ <strong>Protección de secuencia activa:</strong> Al imprimir los reversos se enviarán en <strong>ORDEN INVERSO (Pág 10, 8, 6, 4, 2)</strong> para que calcen exactamente detrás de cada frente sin desfasar la tanda.
       </div>
     </div>
 
-    <div style="text-align:right; margin-top:16px">
-      <button type="button" class="tb-btn" onclick="closeGuideModal()">Entendido, volver al catálogo</button>
+    <!-- PASO 4: IMPRIMIR REVERSOS -->
+    <div class="assistant-step-card" style="border-left:4px solid #16604a;background:#f0fdf4">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#16604a">4</div>
+        <h4 style="color:#16604a">Paso 4: Imprimir REVERSOS (Caras Pares)</h4>
+      </div>
+      <p>
+        Presiona el botón verde. Se imprimirán las caras pares correspondientes a la misma tanda seleccionada, con el lomo espejado a la derecha y el QR en el borde exterior izquierdo.
+      </p>
+
+      <button type="button" class="tb-btn tb-btn-step2" style="width:100%;justify-content:center;padding:10px;font-size:13px;border-radius:8px" onclick="printAssistantStep('even')">
+        🖨️ 2️⃣ Imprimir REVERSOS de esta Tanda (Caras Pares)
+      </button>
+      <div style="font-size:11px;color:#64748b;margin-top:6px">
+        ✅ Al terminar este paso, tu tanda estará completa, perforada y lista para encuadernar.
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px">
+      <button type="button" class="tb-btn" style="background:#f1f5f9;color:#334155" onclick="closeDuplexAssistantModal()">Cerrar Asistente</button>
+      <button type="button" class="tb-btn" style="background:#0284c7;color:#fff" onclick="closeDuplexAssistantModal();openTestSheetModal();">
+        🧪 Hacer Prueba Previa (1 Hoja)
+      </button>
     </div>
   </div>
 </div>
@@ -1003,66 +1330,53 @@ body.hide-prices .dir-price-col {
       Haz un ciclo completo de prueba con <strong>1 sola hoja de papel</strong> antes de mandar a imprimir el lote completo. Así comprobarás que los márgenes del lomo coinciden y que el reverso no quede de cabeza.
     </p>
 
-    <div class="guide-step" style="border-left:4px solid #0284c7;background:#f0f9ff">
-      <div class="step-num" style="background:#0284c7">1</div>
-      <div class="step-content">
+    <div class="assistant-step-card" style="border-left:4px solid #0284c7;background:#f0f9ff">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#0284c7">1</div>
         <h4 style="color:#0369a1">Paso 1: Imprimir Frente de Prueba (Página 1)</h4>
-        <p>Coloca 1 hoja de papel en tu impresora y presiona el botón azul abajo. Se imprimirá la portada con el lomo ancho para perforación a la <strong>izquierda</strong>.</p>
-        <button type="button" class="tb-btn tb-btn-step1" style="margin-top:8px;padding:7px 14px;font-size:12px" onclick="printTestSheet('odd')">
-          🖨️ 1️⃣ Imprimir Frente (Pág 1)
-        </button>
       </div>
+      <p>Coloca 1 hoja de papel en tu impresora y presiona el botón azul abajo. Se imprimirá la portada con el lomo ancho para perforación a la <strong>izquierda</strong>.</p>
+      <button type="button" class="tb-btn tb-btn-step1" style="margin-top:4px;padding:7px 14px;font-size:12px" onclick="printTestSheet('odd')">
+        🖨️ 1️⃣ Imprimir Frente (Pág 1)
+      </button>
     </div>
 
-    <div class="guide-step" style="border-left:4px solid #d97706;background:#fffbeb">
-      <div class="step-num" style="background:#d97706">2</div>
-      <div class="step-content">
+    <div class="assistant-step-card" style="border-left:4px solid #d97706;background:#fffbeb">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#d97706">2</div>
         <h4 style="color:#b45309">Paso 2: Giro 180° Tipo Volante</h4>
-        <p style="line-height:1.5">
-          1. Retira la hoja recién expulsada de la bandeja de salida.<br>
-          2. <strong>Dale un giro de 180° tipo volante</strong> (rotándola en el plano para que lo que salió primero entre después).<br>
-          3. <strong>Voltéala hacia la cara blanca</strong> y colócala en la bandeja de entrada.<br>
-          <em>El sistema adaptará automáticamente el lomo de la Cara 2 para que coincida en el mismo lado.</em>
-        </p>
       </div>
+      <p style="line-height:1.5">
+        1. Retira la hoja recién expulsada de la bandeja de salida.<br>
+        2. <strong>Gírala sobre su eje largo</strong> (como pasando de página) para que la cara en blanco quede lista.<br>
+        3. Colócala nuevamente en la bandeja de entrada.
+      </p>
     </div>
 
-    <div class="guide-step" style="border-left:4px solid #16604a;background:#f0fdf4">
-      <div class="step-num" style="background:#16604a">3</div>
-      <div class="step-content">
+    <div class="assistant-step-card" style="border-left:4px solid #16604a;background:#f0fdf4">
+      <div class="step-header-badge">
+        <div class="step-badge-icon" style="background:#16604a">3</div>
         <h4 style="color:#16604a">Paso 3: Imprimir Reverso de Prueba (Página 2)</h4>
-        <p>Presiona el botón verde abajo. Se imprimirá la Página 2 adaptada al giro de volante de tu impresora.</p>
-        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
-          <button type="button" class="tb-btn tb-btn-step2" style="padding:7px 14px;font-size:12px;background:#16604a" onclick="printTestSheet('even')">
-            🖨️ 2️⃣ Imprimir Reverso (Pág 2)
-          </button>
-          <button type="button" class="tb-btn" style="background:#475569;color:#fff;font-size:12px;padding:7px 14px" onclick="openCalibrationModal()">
-            🎛️ Calibrar Milímetros a Contraluz
-          </button>
-        </div>
       </div>
-    </div>
-
-    <div class="guide-step" style="border-left:4px solid #64748b;background:#f8fafc">
-      <div class="step-num" style="background:#475569">✓</div>
-      <div class="step-content">
-        <h4 style="color:#1e293b">Paso 4: Comprobación de Calidad</h4>
-        <ul style="font-size:12px;color:#334155;margin:4px 0 0 16px;padding:0;line-height:1.5">
-          <li><strong>¿Lomo alineado?</strong> Pon la hoja a contraluz: el área gris del lomo de la Pág 1 debe coincidir exactamente con el lomo de la Pág 2.</li>
-          <li><strong>¿Página 2 derecha o de cabeza?</strong> Si la página 2 salió invertida (patas arriba), en la ventana de impresión de tu navegador selecciona la opción <em>"Voltear por borde largo"</em>.</li>
-        </ul>
+      <p>Presiona el botón verde abajo. Se imprimirá la Página 2 adaptada al lomo de tu encuadernación.</p>
+      <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+        <button type="button" class="tb-btn tb-btn-step2" style="padding:7px 14px;font-size:12px;background:#16604a" onclick="printTestSheet('even')">
+          🖨️ 2️⃣ Imprimir Reverso (Pág 2)
+        </button>
+        <button type="button" class="tb-btn" style="background:#475569;color:#fff;font-size:12px;padding:7px 14px" onclick="openCalibrationModal()">
+          🎛️ Calibrar Milímetros a Contraluz
+        </button>
       </div>
     </div>
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px">
       <button type="button" class="tb-btn" style="background:#f1f5f9;color:#334155" onclick="closeTestSheetModal()">Cerrar</button>
-      <button type="button" class="tb-btn tb-btn-gold" onclick="closeTestSheetModal();document.getElementById('batchSelect').value='1-5';onBatchSelectChange();">
-        ✅ Calibración Lista, Iniciar Tanda 1
+      <button type="button" class="tb-btn tb-btn-gold" onclick="closeTestSheetModal();openDuplexAssistantModal();">
+        ✅ Iniciar Asistente de Impresión
       </button>
     </div>
   </div>
 </div>
-
 
 <!-- MODAL DE CALIBRACIÓN A CONTRALUZ -->
 <div class="guide-modal" id="calibrationModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeCalibrationModal()">
@@ -1073,22 +1387,8 @@ body.hide-prices .dir-price-col {
     </div>
 
     <p style="font-size:12.5px;color:#475569;margin-bottom:14px;line-height:1.5">
-      Ajusta los milímetros de la <strong>Cara 2 (Reverso)</strong> para que las perforaciones de encuadernado y los márgenes coincidan con exactitud milimétrica al poner la hoja a contraluz.
+      Ajusta los milímetros de la <strong>Cara 2 (Reverso)</strong> para que las marcas de registro <strong>⊕ H-F / ⊕ H-R</strong> coincidan con exactitud milimétrica al poner la hoja a contraluz.
     </p>
-
-    <!-- Selector de Giro -->
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;padding:12px;border-radius:8px;margin-bottom:14px">
-      <label style="font-size:12px;font-weight:700;color:#0369a1;display:block;margin-bottom:6px">
-        1. Método de giro de tu impresora:
-      </label>
-      <select class="tb-select" id="calibFlipModeSelect" onchange="onCalibFlipModeChange()" style="width:100%;font-weight:700;background:#fff;border-color:#0284c7;color:#0369a1">
-        <option value="volante">🔄 Giro 180° Tipo Volante (Lomo siempre en el mismo lado Izq/Izq · Tu Impresora)</option>
-        <option value="book">📖 Giro Libro Estándar (Lomo alternado Izq/Der)</option>
-      </select>
-      <div style="font-size:11px;color:#64748b;margin-top:4px">
-        💡 En modo <strong>Volante 180°</strong>, el lomo de ambas caras se imprime a la izquierda para empatar con la rotación física que haces al alimentar el papel.
-      </div>
-    </div>
 
     <!-- Ajustes Milimétricos -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
@@ -1123,14 +1423,6 @@ body.hide-prices .dir-price-col {
       </label>
     </div>
 
-    <!-- Simulación a contraluz en pantalla -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f1f5f9;border-radius:6px;margin-bottom:16px">
-      <span style="font-size:12px;color:#475569;font-weight:600">Simulación en pantalla:</span>
-      <button type="button" class="tb-btn" id="btnToggleLightbox" onclick="toggleLightboxSimulation()" style="background:#0284c7;color:#fff;font-size:11.5px;padding:6px 12px">
-        💡 Simular Contraluz en Pantalla
-      </button>
-    </div>
-
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <button type="button" class="tb-btn" style="background:#e2e8f0;color:#334155;font-size:12px" onclick="resetDuplexCalibration()">
         🔄 Restablecer a 0.0 mm
@@ -1142,9 +1434,38 @@ body.hide-prices .dir-price-col {
   </div>
 </div>
 
+<!-- MODAL GUÍA DE IMPRESIÓN GENERAL -->
+<div class="guide-modal" id="guideModal" role="dialog" aria-modal="true" onclick="if(event.target===this)closeGuideModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>📖 Guía de Encuadernación y Venta con Códigos QR</h3>
+      <button type="button" class="modal-close" onclick="closeGuideModal()">✕</button>
+    </div>
+
+    <div class="assistant-step-card">
+      <h4 style="color:#0f172a;margin-bottom:6px">⭕ Márgenes de Lomo y Anillado</h4>
+      <p>Todas las páginas pares e impares tienen reservados <strong>25 mm de margen interno libre</strong> para que ninguna espiral o perforadora toque textos, fotos ni códigos QR.</p>
+    </div>
+
+    <div class="assistant-step-card">
+      <h4 style="color:#0f172a;margin-bottom:6px">📱 Códigos QR en el Borde Exterior</h4>
+      <p>Los códigos QR están colocados siempre en el extremo exterior de la hoja (lejos del anillado). Al abrir el cuaderno, el cliente o vendedor puede escanear con su teléfono cómodamente sin estorbo de los anillos.</p>
+    </div>
+
+    <div class="assistant-step-card">
+      <h4 style="color:#0f172a;margin-bottom:6px">🏷️ Código SKU Visible</h4>
+      <p>Debajo de cada código QR se incluye en negrita el SKU oficial (ej: <code>SKU: CP-BN3</code>) para soporte manual y toma de pedido rápida si el cliente no dispone de cámara.</p>
+    </div>
+
+    <div style="text-align:right; margin-top:16px">
+      <button type="button" class="tb-btn" onclick="closeGuideModal()">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <!-- LIBRERÍAS NATIVAS -->
 <script src="assets/vendor/supabase-2.58.0.js"></script>
-<script src="assets/js/config.js?v=20261022_vps_full"></script>
+<script src="assets/js/config.js?v=20261031_qr_v1"></script>
 <script src="assets/vendor/qrcode.min.js"></script>
 
 <script>
@@ -1153,6 +1474,22 @@ body.hide-prices .dir-price-col {
   let TOTAL_PAGES = 0;
   let TOTAL_SHEETS = 0;
   const BATCH_SHEET_SIZE = 5; // 5 hojas físicas Carta por tanda (= 10 páginas)
+
+  // Paleta armónica y distinguible para pestañas de hojeo en borde exterior
+  const CATEGORY_COLORS = [
+    '#16604a', '#0284c7', '#b45309', '#7c3aed', '#dc2626',
+    '#059669', '#d97706', '#4f46e5', '#db2777', '#0891b2',
+    '#ea580c', '#334155', '#65a30d', '#9333ea', '#0d9488',
+    '#e11d48', '#2563eb', '#ca8a04', '#475569', '#15803d'
+  ];
+
+  function getCategoryColor(name, index) {
+    if (!name) return CATEGORY_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash << 5) - hash + name.charCodeAt(i);
+    const idx = Math.abs(hash) % CATEGORY_COLORS.length;
+    return CATEGORY_COLORS[idx];
+  }
 
   // Medidas de huecos físicos en mm para hoja Carta (279.4 mm de alto)
   const HOLE_SPECS = {
@@ -1180,11 +1517,14 @@ body.hide-prices .dir-price-col {
     return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image/');
   }
 
+  // Genera URL corta /q/{code}?v={sellerCode} para códigos QR ultra-nítidos (~29x29)
   function getProductBuyUrl(p) {
     const origin = (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1'))
-      ? 'https://jj-paper.pages.dev'
+      ? 'https://jjpaper.pages.dev'
       : window.location.origin;
-    return `${origin}/catalogo.html?buscar=${encodeURIComponent(p.name)}`;
+    const selCode = document.getElementById('sellerSelect')?.value || '005';
+    const code = p._shortCode || (p.sku || '').trim() || (p.id ? p.id.replace(/-/g, '').slice(0, 8) : 'item');
+    return `${origin}/q/${encodeURIComponent(code)}?v=${encodeURIComponent(selCode)}`;
   }
 
   // Genera descripción comercial estructurada para artículos en modo lista
@@ -1222,9 +1562,9 @@ body.hide-prices .dir-price-col {
       if (rateEl) rateEl.textContent = `Tasa Oficial BCV: Bs ${rate.toFixed(2)} / USD`;
 
       const [{ data: cats, error: errCats }, { data: prods, error: errProds }] = await Promise.all([
-        sb.from('jjp_categories').select('id, name, slug, emoji, sort_order').order('sort_order'),
+        sb.from('jjp_categories').select('id, name, slug, emoji, sort_order, color').order('sort_order'),
         sb.from('jjp_products')
-          .select('id, name, description, price_usd, unit, emoji, image_url, category_id, essential, active, sort_order, jjp_categories(name, emoji, sort_order), jjp_product_variants(id, variant_name, price_usd, active, image_url, jjp_brands(name))')
+          .select('id, name, sku, description, price_usd, unit, emoji, image_url, category_id, essential, active, sort_order, jjp_categories(id, name, emoji, sort_order, color), jjp_product_variants(id, variant_name, sku, price_usd, active, image_url, jjp_brands(name))')
           .eq('active', true)
           .range(0, 1999)
       ]);
@@ -1241,7 +1581,7 @@ body.hide-prices .dir-price-col {
         catSel.appendChild(opt);
       });
 
-      RAW_PRODUCTS = (prods || []).map(p => {
+      RAW_PRODUCTS = (prods || []).map((p, idx) => {
         const variants = (p.jjp_product_variants || []).filter(v => v.active !== false);
         let photo = isValidPhoto(p.image_url) ? optImg(p.image_url) : '';
         if (!photo) {
@@ -1256,9 +1596,15 @@ body.hide-prices .dir-price-col {
         }
 
         const brands = [...new Set(variants.map(v => v.jjp_brands?.name).filter(Boolean))];
+        const cleanSku = (p.sku || '').trim();
+        const shortCode = cleanSku || (p.id ? p.id.replace(/-/g, '').slice(0, 8) : `P${idx}`);
+        const skuDisplay = cleanSku ? `SKU: ${cleanSku}` : `CÓD: ${shortCode.toUpperCase()}`;
 
         return {
           ...p,
+          _cleanSku: cleanSku,
+          _shortCode: shortCode,
+          _skuDisplay: skuDisplay,
           _photo: photo,
           _hasPhoto: Boolean(photo),
           _priceUsd: priceUsd,
@@ -1267,6 +1613,7 @@ body.hide-prices .dir-price-col {
           _catName: p.jjp_categories?.name || 'General',
           _catEmoji: p.jjp_categories?.emoji || p.emoji || '📦',
           _catSort: p.jjp_categories?.sort_order ?? 999,
+          _catColor: p.jjp_categories?.color || getCategoryColor(p.jjp_categories?.name, idx),
           _smartDesc: getCommercialDescription(p)
         };
       });
@@ -1300,7 +1647,7 @@ body.hide-prices .dir-price-col {
     return RAW_PRODUCTS.filter(p => {
       if (catId !== 'all' && p.category_id !== catId) return false;
       if (q) {
-        const text = `${p.name} ${p._catName} ${p._smartDesc} ${p._brands.join(' ')}`.toLowerCase();
+        const text = `${p.name} ${p._catName} ${p._smartDesc} ${p._cleanSku} ${p._brands.join(' ')}`.toLowerCase();
         if (!text.includes(q)) return false;
       }
       return true;
@@ -1359,6 +1706,7 @@ body.hide-prices .dir-price-col {
             ${pricesHtml}
             <div class="p-qr-col">
               <div class="p-qr-canvas" data-qr-url="${escapeHTML(buyUrl)}"></div>
+              <div class="p-qr-sku">${escapeHTML(p._skuDisplay)}</div>
               <span class="p-qr-label">Pedir QR</span>
             </div>
           </div>
@@ -1367,13 +1715,13 @@ body.hide-prices .dir-price-col {
     `;
   }
 
-  function renderFillerCardHTML() {
-    const waUrl = `https://wa.me/584121234567?text=${encodeURIComponent('Hola JJ Paper, deseo cotizar un pedido del catálogo impreso')}`;
+  function renderFillerCardHTML(catName) {
+    const waUrl = `https://wa.me/584124676073?text=${encodeURIComponent('Hola JJ Paper, deseo cotizar pedidos de ' + (catName || 'suministros'))}`;
     return `
       <article class="p-card filler-card">
         <div class="p-info">
           <div>
-            <div class="filler-title">📝 NOTAS DE PEDIDO ADICIONAL · CLIENTE</div>
+            <div class="filler-title">📝 NOTAS DE PEDIDO · ${escapeHTML(catName || 'CLIENTE')}</div>
             <div class="filler-line"></div>
             <div class="filler-line"></div>
             <div class="filler-line"></div>
@@ -1381,11 +1729,12 @@ body.hide-prices .dir-price-col {
           <div class="p-footer-line">
             <span class="p-unit-tag">ATENCIÓN DIRECTA</span>
             <span style="font-size:5.5pt;font-weight:800;color:var(--doc-c)">Despacho Garantizado</span>
+            <div class="p-qr-col">
+              <div class="p-qr-canvas" data-qr-url="${escapeHTML(waUrl)}"></div>
+              <div class="p-qr-sku">WHATSAPP</div>
+              <span class="p-qr-label">Contacto</span>
+            </div>
           </div>
-        </div>
-        <div class="p-qr-col">
-          <div class="p-qr-canvas" data-qr-url="${escapeHTML(waUrl)}"></div>
-          <span class="p-qr-label">WhatsApp</span>
         </div>
       </article>
     `;
@@ -1417,26 +1766,54 @@ body.hide-prices .dir-price-col {
       <div class="dir-row">
         <div>
           <div class="dir-name">${escName}</div>
-          <div class="dir-meta">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)} · ${escapeHTML(p._smartDesc)} · ${unitStr}</div>
+          <div class="dir-meta">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)} · ${escapeHTML(p._smartDesc)} · <span class="dir-unit">${unitStr}</span></div>
         </div>
         ${pricesHtml}
-        <div class="dir-qr-box" data-qr-url="${escapeHTML(buyUrl)}"></div>
+        <div class="dir-qr-col">
+          <div class="dir-qr-box" data-qr-url="${escapeHTML(buyUrl)}"></div>
+          <div class="dir-qr-sku">${escapeHTML(p._skuDisplay)}</div>
+          <span class="dir-qr-label">ESCANEAR</span>
+        </div>
       </div>
     `;
   }
 
-  function renderSheetShell({ pageNum, totalPages, categoryTitle, bodyHtml, isFirstPage, tocItems }) {
+  function renderFillerRowHTML(cat) {
+    const waUrl = 'https://wa.me/584124676073?text=' + encodeURIComponent('Hola JJ Paper, deseo cotizar productos de ' + (cat?.name || 'suministros'));
+    return `
+      <div class="dir-row dir-filler-row">
+        <div>
+          <div class="dir-name" style="color:var(--doc-c)">📝 Pedido Especial / Procura Abierta</div>
+          <div class="dir-meta">${cat ? `${cat.emoji} ${cat.name}` : 'Suministros'} · ¿Buscas otro modelo o marca? Lo conseguimos directamente de fábrica.</div>
+        </div>
+        <div class="dir-price-col">
+          <span class="p-unit-tag" style="background:#e8f5ef;color:var(--doc-c)">A CONVENIR</span>
+        </div>
+        <div class="dir-qr-col">
+          <div class="dir-qr-box" data-qr-url="${escapeHTML(waUrl)}"></div>
+          <div class="dir-qr-sku">CONSULTA</div>
+          <span class="dir-qr-label">WHATSAPP</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSheetShell({ pageNum, totalPages, categoryTitle, catColor, catIndex, bodyHtml, isFirstPage, tocItems }) {
     const isOdd = pageNum % 2 === 1;
     const sideClass = isOdd ? 'odd-sheet' : 'even-sheet';
-    const sideLabel = isOdd ? 'Frente (Impar)' : 'Reverso (Par)';
+    const sideLabel = isOdd ? 'Frente' : 'Reverso';
     const physicalSheet = Math.ceil(pageNum / 2);
     const dateStr = new Date().toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+
+    // Pestaña de color escalonada en el borde exterior (6 posiciones verticales)
+    const slotIdx = (catIndex || 0) % 6;
+    const tabTop = 20 + slotIdx * 39; // 20mm, 59mm, 98mm, 137mm, 176mm, 215mm
 
     const coverHtml = isFirstPage ? `
       <div class="cover-banner">
         <div>
           <h2>CATÁLOGO Y LISTA OFICIAL DE PRECIOS</h2>
-          <p>Papelería, Suministros de Oficina, Higiene y Limpieza Institucional. Precios oficiales al mayor expresados en Dólares (USD). Para facturación en Bolívares (Bs), se liquida a la tasa oficial BCV del día de despacho. Escanee el código QR con la cámara de su celular para ordenar directamente por WhatsApp.</p>
+          <p>Papelería, Suministros de Oficina, Higiene y Limpieza Institucional. Precios oficiales al mayor expresados en Dólares (USD). Facturación en Bs a tasa oficial BCV. Escanee el código QR con su celular para ordenar directamente por WhatsApp.</p>
           <div class="cover-pills">
             <span class="cover-pill">📍 Gran Caracas y Zonas Centrales</span>
             <span class="cover-pill">🚚 Despacho Directo Corporativo</span>
@@ -1445,7 +1822,7 @@ body.hide-prices .dir-price-col {
           </div>
         </div>
         <div class="cover-qr-box">
-          <div class="p-qr-canvas" style="width:17mm;height:17mm" data-qr-url="https://jj-paper.pages.dev/catalogo.html"></div>
+          <div class="p-qr-canvas" style="width:17mm;height:17mm" data-qr-url="https://jjpaper.pages.dev/catalogo.html"></div>
           <span>Catálogo Web</span>
         </div>
       </div>
@@ -1453,7 +1830,7 @@ body.hide-prices .dir-price-col {
       ${tocItems && tocItems.length ? `
         <div class="toc-box">
           <div class="toc-head">
-            <span>📑 Secciones Principales en este Libro</span>
+            <span>📑 Secciones Principales en este Cuaderno</span>
             <span>Página</span>
           </div>
           <div class="toc-list">
@@ -1470,6 +1847,16 @@ body.hide-prices .dir-price-col {
           <span class="spine-tag">◀ Lomo de Encuadernación</span>
         </div>
 
+        <!-- Pestaña de color en el borde exterior para hojeo rápido con el cuaderno cerrado -->
+        <div class="cat-edge-tab" style="background:${catColor || '#16604a'};top:${tabTop}mm;">
+          <span>${escapeHTML(categoryTitle)}</span>
+        </div>
+
+        <!-- Marca de control y registro para calce a contraluz -->
+        <div class="duplex-reg-mark">
+          <span class="reg-cross">⊕</span> H${physicalSheet}-${isOdd ? 'F' : 'R'}
+        </div>
+
         <header class="sheet-header">
           <div class="sh-brand">
             <img src="assets/img/logo.svg" alt="JJ Paper">
@@ -1478,7 +1865,9 @@ body.hide-prices .dir-price-col {
               <div class="sh-sub">RIF J-50082666-6 · Distribuidora Mayorista</div>
             </div>
           </div>
-          <div class="sh-pill">${escapeHTML(categoryTitle)}</div>
+          <div class="sh-pill" style="background:${catColor || 'var(--doc-c)'}">
+            ${escapeHTML(categoryTitle)}
+          </div>
         </header>
 
         ${coverHtml}
@@ -1488,89 +1877,132 @@ body.hide-prices .dir-price-col {
         </div>
 
         <footer class="sheet-footer">
-          <span>🌐 jj-paper.pages.dev · Precios oficiales al mayor en USD ($) · Facturación en Bs a tasa oficial BCV del día</span>
+          <span>🌐 jjpaper.pages.dev · Precios oficiales al mayor en USD ($) · Facturación en Bs a tasa BCV del día</span>
           <span class="sf-folio">HOJA #${physicalSheet} · PÁGINA ${pageNum} (${sideLabel})</span>
         </footer>
       </section>
     `;
   }
 
+  // =========================================================
+  // ORGANIZACIÓN DEL CUADERNO POR CATEGORÍA DE FORMA CONTINUA
+  // Primero fotos de esa categoría, luego lista sin foto de esa misma categoría
+  // =========================================================
   function renderBook() {
     const container = document.getElementById('catalogStage');
     const viewMode = document.getElementById('viewModeSelect')?.value || 'hybrid';
     const filtered = getFilteredProducts();
 
-    const photoProds = filtered.filter(p => p._hasPhoto);
-    const noPhotoProds = filtered.filter(p => !p._hasPhoto);
+    // 1. Agrupar productos por categoría preservando orden oficial
+    const catMap = new Map();
+    const catOrder = [];
 
+    filtered.forEach(p => {
+      const catId = p.category_id || 'general';
+      if (!catMap.has(catId)) {
+        const cObj = {
+          id: catId,
+          name: p._catName,
+          emoji: p._catEmoji,
+          sort: p._catSort,
+          color: p._catColor || getCategoryColor(p._catName, catOrder.length),
+          photoItems: [],
+          noPhotoItems: []
+        };
+        catMap.set(catId, cObj);
+        catOrder.push(cObj);
+      }
+      const cObj = catMap.get(catId);
+      if (p._hasPhoto) {
+        cObj.photoItems.push(p);
+      } else {
+        cObj.noPhotoItems.push(p);
+      }
+    });
+
+    // 2. Construir flujo continuo de Unidades Modulares (72mm cada una)
+    // Cada unidad es:
+    // - 'photo-row': 2 tarjetas con foto (72mm)
+    // - 'list-quad': 4 productos en lista compacta (72mm)
+    const modularUnits = [];
+
+    catOrder.forEach((cat, cIdx) => {
+      const showPhotos = (viewMode === 'hybrid' || viewMode === 'photos');
+      const showList = (viewMode === 'hybrid' || viewMode === 'list');
+
+      // A) Primero las tarjetas con foto de esa categoría
+      if (showPhotos && cat.photoItems.length > 0) {
+        let pCursor = 0;
+        while (pCursor < cat.photoItems.length) {
+          const item1 = cat.photoItems[pCursor];
+          const item2 = cat.photoItems[pCursor + 1] || null;
+          pCursor += 2;
+
+          modularUnits.push({
+            type: 'photo-row',
+            cat: cat,
+            catIdx: cIdx,
+            items: item2 ? [item1, item2] : [item1]
+          });
+        }
+      }
+
+      // B) Luego la lista sin foto de esa misma categoría
+      const listSource = (viewMode === 'list') ? [...cat.photoItems, ...cat.noPhotoItems] : cat.noPhotoItems;
+      if (showList && listSource.length > 0) {
+        let lCursor = 0;
+        while (lCursor < listSource.length) {
+          const quad = listSource.slice(lCursor, lCursor + 4);
+          lCursor += 4;
+
+          modularUnits.push({
+            type: 'list-quad',
+            cat: cat,
+            catIdx: cIdx,
+            items: quad
+          });
+        }
+      }
+    });
+
+    // 3. Empacar unidades modulares en Páginas Carta Exactas
+    // Página 1: Banner de portada + 2 unidades modulares (144mm)
+    // Páginas siguientes: 3 unidades modulares (216mm)
     const pagesSpec = [];
     const catStartPage = new Map();
+    let uCursor = 0;
 
-    const recordCat = (catName, pNum) => {
-      if (catName && !catStartPage.has(catName)) catStartPage.set(catName, pNum);
-    };
+    while (uCursor < modularUnits.length) {
+      const isFirst = pagesSpec.length === 0;
+      const capacity = isFirst ? 2 : 3;
+      const pageUnits = modularUnits.slice(uCursor, uCursor + capacity);
+      uCursor += capacity;
 
-    // 1. Vitrina Fotográfica (8 productos por página, 4 en primera página con portada)
-    if (viewMode === 'photos' || viewMode === 'hybrid') {
-      const list = photoProds;
-      let cursor = 0;
+      const pNum = pagesSpec.length + 1;
+      const mainCat = pageUnits[0]?.cat || catOrder[0];
 
-      while (cursor < list.length) {
-        const isFirst = pagesSpec.length === 0;
-        const cap = isFirst ? 4 : 6;
-        const slice = list.slice(cursor, cursor + cap);
-        cursor += slice.length;
+      // Registrar página de inicio para el índice rápido
+      pageUnits.forEach(u => {
+        if (u.cat && !catStartPage.has(u.cat.name)) {
+          catStartPage.set(u.cat.name, pNum);
+        }
+      });
 
-        const pNum = pagesSpec.length + 1;
-        slice.forEach(item => recordCat(item._catName, pNum));
-
-        const catsInPage = [...new Set(slice.map(x => `${x._catEmoji} ${x._catName}`))];
-        const catHeader = catsInPage.length === 1 ? catsInPage[0] : `${catsInPage[0]} + ${catsInPage.length - 1} más`;
-
-        pagesSpec.push({
-          type: 'photos',
-          items: slice,
-          capacity: cap,
-          rows: isFirst ? 2 : 3,
-          catHeader: `📸 Vitrina · ${catHeader}`,
-          isFirst: isFirst
-        });
-      }
+      pagesSpec.push({
+        units: pageUnits,
+        mainCat: mainCat,
+        catIdx: pageUnits[0]?.catIdx || 0,
+        isFirst: isFirst
+      });
     }
 
-    // 2. Lista Comercial de Alta Densidad (28 productos por página, 18 en primera página)
-    if (viewMode === 'list' || (viewMode === 'hybrid' && noPhotoProds.length > 0)) {
-      const dirProds = viewMode === 'list' ? filtered : noPhotoProds;
-      let cursor = 0;
-
-      while (cursor < dirProds.length) {
-        const isFirst = pagesSpec.length === 0;
-        const cap = isFirst ? 18 : 28;
-        const slice = dirProds.slice(cursor, cursor + cap);
-        cursor += slice.length;
-
-        const pNum = pagesSpec.length + 1;
-        slice.forEach(item => recordCat(item._catName, pNum));
-
-        const catsInPage = [...new Set(slice.map(x => `${x._catEmoji} ${x._catName}`))];
-        const catHeader = catsInPage.length === 1 ? catsInPage[0] : `${catsInPage[0]} y más`;
-
-        pagesSpec.push({
-          type: 'list',
-          items: slice,
-          capacity: cap,
-          catHeader: `📋 Lista Comercial · ${catHeader}`,
-          isFirst: isFirst
-        });
-      }
-    }
-
-    // 3. Si el total de páginas es IMPAR, añadir un reverso útil de Toma de Pedido para que toda hoja física sea par
+    // 4. Si el total de páginas es IMPAR, añadir contraportada útil para que toda hoja física sea par (Dúplex)
     if (pagesSpec.length > 0 && pagesSpec.length % 2 === 1) {
       pagesSpec.push({
-        type: 'backcover',
-        items: [],
-        catHeader: '📝 FORMATO DE PEDIDO Y CONTACTO',
+        units: [],
+        mainCat: { name: 'NOTAS Y PEDIDOS', emoji: '📝', color: '#16604a' },
+        catIdx: 0,
+        isBackcover: true,
         isFirst: false
       });
     }
@@ -1581,38 +2013,78 @@ body.hide-prices .dir-price-col {
     const tocItems = [];
     catStartPage.forEach((page, name) => tocItems.push({ name, page }));
 
+    // 5. Renderizar HTML de las Hojas Físicas
     const sheetsHtml = pagesSpec.map((spec, idx) => {
       const pageNum = idx + 1;
       let bodyHtml = '';
 
-      if (spec.type === 'photos') {
-        let cardsHtml = spec.items.map(renderProductCardHTML).join('');
-        if (spec.items.length < spec.capacity) {
-          const missing = spec.capacity - spec.items.length;
-          for (let m = 0; m < missing; m++) cardsHtml += renderFillerCardHTML();
+      if (spec.isBackcover) {
+        // Contraportada útil: 3 filas de notas y QR de contacto WhatsApp
+        const rows = [];
+        for (let r = 0; r < 3; r++) {
+          rows.push(`
+            <div class="book-row book-photo-row">
+              ${renderFillerCardHTML(spec.mainCat.name)}
+              ${renderFillerCardHTML(spec.mainCat.name)}
+            </div>
+          `);
         }
-        bodyHtml = `<div class="photo-grid rows-${spec.rows}">${cardsHtml}</div>`;
-      } else if (spec.type === 'list') {
-        const half = Math.ceil(spec.items.length / 2);
-        const col1 = spec.items.slice(0, half).map(renderDirectoryRowHTML).join('');
-        const col2 = spec.items.slice(half).map(renderDirectoryRowHTML).join('');
-        bodyHtml = `
-          <div class="directory-wrap">
-            <div class="dir-col">${col1}</div>
-            <div class="dir-col">${col2}</div>
-          </div>
-        `;
+        bodyHtml = rows.join('');
       } else {
-        // Contraportada par con formato de notas
-        let cardsHtml = '';
-        for (let m = 0; m < 6; m++) cardsHtml += renderFillerCardHTML();
-        bodyHtml = `<div class="photo-grid rows-3">${cardsHtml}</div>`;
+        const renderedRows = spec.units.map(unit => {
+          if (unit.type === 'photo-row') {
+            const card1 = renderProductCardHTML(unit.items[0]);
+            const card2 = unit.items[1] ? renderProductCardHTML(unit.items[1]) : renderFillerCardHTML(unit.cat.name);
+            return `
+              <div class="book-row book-photo-row">
+                ${card1}
+                ${card2}
+              </div>
+            `;
+          } else {
+            // list-quad: 4 items (2 en col 1, 2 en col 2)
+            const itms = [...unit.items];
+            while (itms.length < 4) itms.push(null);
+            const row1 = itms[0] ? renderDirectoryRowHTML(itms[0]) : renderFillerRowHTML(unit.cat);
+            const row2 = itms[1] ? renderDirectoryRowHTML(itms[1]) : renderFillerRowHTML(unit.cat);
+            const row3 = itms[2] ? renderDirectoryRowHTML(itms[2]) : renderFillerRowHTML(unit.cat);
+            const row4 = itms[3] ? renderDirectoryRowHTML(itms[3]) : renderFillerRowHTML(unit.cat);
+
+            return `
+              <div class="book-row book-list-quad">
+                <div class="dir-col">
+                  ${row1}
+                  ${row2}
+                </div>
+                <div class="dir-col">
+                  ${row3}
+                  ${row4}
+                </div>
+              </div>
+            `;
+          }
+        });
+
+        // Rellenar filas faltantes en última página para simetría
+        const targetCapacity = spec.isFirst ? 2 : 3;
+        while (renderedRows.length < targetCapacity) {
+          renderedRows.push(`
+            <div class="book-row book-photo-row">
+              ${renderFillerCardHTML(spec.mainCat.name)}
+              ${renderFillerCardHTML(spec.mainCat.name)}
+            </div>
+          `);
+        }
+
+        bodyHtml = renderedRows.join('');
       }
 
       return renderSheetShell({
         pageNum,
         totalPages: TOTAL_PAGES,
-        categoryTitle: spec.catHeader,
+        categoryTitle: `${spec.mainCat.emoji || '📦'} ${spec.mainCat.name}`,
+        catColor: spec.mainCat.color || '#16604a',
+        catIndex: spec.catIdx,
         bodyHtml,
         isFirstPage: spec.isFirst,
         tocItems
@@ -1621,18 +2093,21 @@ body.hide-prices .dir-price-col {
 
     container.innerHTML = sheetsHtml.join('');
 
+    const photoCount = filtered.filter(p => p._hasPhoto).length;
+    const listCount = filtered.length - photoCount;
     document.getElementById('tbSubtitle').textContent =
-      `${filtered.length} productos listos (${photoProds.length} con foto · ${noPhotoProds.length} en lista compacta) · Total: ${TOTAL_SHEETS} hojas físicas (${TOTAL_PAGES} páginas)`;
+      `${filtered.length} productos organizados por categoría (${photoCount} con foto · ${listCount} en lista compacta) · Total: ${TOTAL_SHEETS} hojas físicas (${TOTAL_PAGES} páginas)`;
 
     buildBatchSelector();
     generateAllQRCodes();
   }
 
   function buildBatchSelector() {
-    const sel = document.getElementById('batchSelect');
-    if (!sel) return;
+    const selectors = [
+      document.getElementById('batchSelect'),
+      document.getElementById('assistantBatchSelect')
+    ].filter(Boolean);
 
-    const prev = sel.value;
     const numBatches = Math.max(1, Math.ceil(TOTAL_SHEETS / BATCH_SHEET_SIZE));
 
     let html = `<option value="all">📚 Todo el Libro (${TOTAL_SHEETS} hojas = ${TOTAL_PAGES} págs)</option>`;
@@ -1645,18 +2120,22 @@ body.hide-prices .dir-price-col {
       const count = endS - startS + 1;
       html += `<option value="${startS}-${endS}">📦 Tanda ${b + 1}: Hojas ${startS} a ${endS} (${count} hojas = Págs ${startP}–${endP})</option>`;
     }
-    sel.innerHTML = html;
 
-    if (prev && [...sel.options].some(o => o.value === prev)) {
-      sel.value = prev;
-    } else if (numBatches > 1) {
-      sel.selectedIndex = 1; // Seleccionar Tanda 1 por defecto para orientar al usuario
-    }
+    selectors.forEach(sel => {
+      const prev = sel.value;
+      sel.innerHTML = html;
+      if (prev && [...sel.options].some(o => o.value === prev)) {
+        sel.value = prev;
+      } else if (numBatches > 1) {
+        sel.selectedIndex = 2; // Seleccionar Tanda 1 por defecto (índice 2: all, 1-1, tanda 1)
+      }
+    });
+
     onBatchSelectChange();
   }
 
   function onBatchSelectChange() {
-    const val = document.getElementById('batchSelect')?.value || 'all';
+    const val = document.getElementById('assistantBatchSelect')?.value || document.getElementById('batchSelect')?.value || 'all';
     const sumEl = document.getElementById('batchSummaryText');
 
     let minS = 1, maxS = TOTAL_SHEETS;
@@ -1668,7 +2147,9 @@ body.hide-prices .dir-price-col {
 
     const count = maxS - minS + 1;
     if (sumEl) {
-      sumEl.innerHTML = (val === '1-1') ? `🧪 Modo Prueba: <strong>1 hoja física Carta</strong> (Págs 1 y 2) · Imprime el frente (Pág 1), dale la vuelta por el eje largo e imprime el reverso (Pág 2).` : `Tanda seleccionada: <strong>${count} hojas Carta</strong> (${count * 2} págs) · Libro completo: <strong>${TOTAL_SHEETS} hojas</strong>`;
+      sumEl.innerHTML = (val === '1-1')
+        ? `🧪 Modo Prueba: <strong>1 hoja física Carta</strong> (Págs 1 y 2) · Calibración y giro dúplex.`
+        : `Tanda activa: <strong>${count} hojas Carta</strong> (${count * 2} págs) · Libro completo: <strong>${TOTAL_SHEETS} hojas</strong>`;
     }
 
     // Filtrar en pantalla las hojas visibles según la tanda
@@ -1679,8 +2160,18 @@ body.hide-prices .dir-price-col {
     });
   }
 
+  function onAssistantBatchChange() {
+    const aVal = document.getElementById('assistantBatchSelect')?.value;
+    const bSel = document.getElementById('batchSelect');
+    if (bSel && aVal) bSel.value = aVal;
+    onBatchSelectChange();
+  }
+
+  // =========================================================
+  // IMPRESIÓN DÚPLEX CON INVERSIÓN AUTOMÁTICA DE REVERSOS
+  // =========================================================
   function printDuplexBatch(sideMode) {
-    const val = document.getElementById('batchSelect')?.value || 'all';
+    const val = document.getElementById('assistantBatchSelect')?.value || document.getElementById('batchSelect')?.value || 'all';
     let minS = 1, maxS = TOTAL_SHEETS;
     if (val !== 'all' && val.includes('-')) {
       const [a, b] = val.split('-').map(Number);
@@ -1688,7 +2179,14 @@ body.hide-prices .dir-price-col {
       maxS = b;
     }
 
-    document.querySelectorAll('.catalog-sheet').forEach(sh => {
+    const stackMode = localStorage.getItem('jjp_duplex_stack_mode') || 'face_down';
+    const shouldReverseEven = (sideMode === 'even' && stackMode === 'face_down');
+
+    const stage = document.getElementById('catalogStage');
+    const allSheets = Array.from(document.querySelectorAll('.catalog-sheet'));
+
+    const activeSheets = [];
+    allSheets.forEach(sh => {
       const sNum = parseInt(sh.getAttribute('data-sheet'), 10);
       const side = sh.getAttribute('data-side'); // 'odd' o 'even'
       const inBatch = sNum >= minS && sNum <= maxS;
@@ -1697,52 +2195,78 @@ body.hide-prices .dir-price-col {
       if (inBatch && matchSide) {
         sh.classList.remove('print-exclude');
         sh.style.display = 'flex';
+        activeSheets.push(sh);
       } else {
         sh.classList.add('print-exclude');
         sh.style.display = 'none';
       }
     });
 
+    // Si la impresora apila BOCA ABAJO, invertimos el orden de los reversos en el DOM
+    // (Ej: Pág 10 primero, luego 8, 6, 4, 2) para que coincida con el fajo sin barajar
+    if (shouldReverseEven && activeSheets.length > 1) {
+      activeSheets.sort((a, b) => {
+        const pA = parseInt(a.getAttribute('data-page'), 10);
+        const pB = parseInt(b.getAttribute('data-page'), 10);
+        return pB - pA;
+      });
+      activeSheets.forEach(sh => stage.appendChild(sh));
+    }
+
     setTimeout(() => {
       window.print();
       setTimeout(() => {
-        document.querySelectorAll('.catalog-sheet').forEach(sh => sh.classList.remove('print-exclude'));
+        // Restaurar orden natural ascendente de las hojas en el DOM
+        allSheets.sort((a, b) => {
+          const pA = parseInt(a.getAttribute('data-page'), 10);
+          const pB = parseInt(b.getAttribute('data-page'), 10);
+          return pA - pB;
+        });
+        allSheets.forEach(sh => {
+          stage.appendChild(sh);
+          sh.classList.remove('print-exclude');
+        });
         onBatchSelectChange();
-      }, 500);
+      }, 600);
     }, 150);
   }
 
-  function printAllDuplex() {
-    document.querySelectorAll('.catalog-sheet').forEach(sh => {
-      sh.classList.remove('print-exclude');
-      sh.style.display = 'flex';
-    });
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => onBatchSelectChange(), 500);
-    }, 150);
+  function printAssistantStep(sideMode) {
+    printDuplexBatch(sideMode);
   }
 
+  // Generador de códigos QR nítidos de alto contraste (Nivel M, 26mm vitrina / 22mm lista)
   function generateAllQRCodes() {
     if (typeof QRCode === 'undefined') return;
     document.querySelectorAll('[data-qr-url]').forEach(box => {
       if (box.dataset.qrDone === '1') return;
       const url = box.getAttribute('data-qr-url');
       if (!url) return;
+      const isList = box.classList.contains('dir-qr-box');
+      const pixelSize = isList ? 140 : 165;
       box.innerHTML = '';
-      const isSmall = box.classList.contains('dir-qr-box');
       try {
         new QRCode(box, {
           text: url,
-          width: isSmall ? 64 : 112,
-          height: isSmall ? 64 : 112,
+          width: pixelSize,
+          height: pixelSize,
           colorDark: '#000000',
           colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.L
+          correctLevel: QRCode.CorrectLevel.M
         });
         box.dataset.qrDone = '1';
-      } catch (e) {}
+      } catch (e) {
+        console.warn('QR render error:', e);
+      }
     });
+  }
+
+  function onSellerChange() {
+    const v = document.getElementById('sellerSelect')?.value;
+    if (v) {
+      try { localStorage.setItem('jjp_seller_ref', v); } catch (_) {}
+    }
+    renderBook();
   }
 
   function filterCatalog() {
@@ -1757,19 +2281,55 @@ body.hide-prices .dir-price-col {
     });
   }
 
-  function togglePrices(val) {
-    document.body.classList.toggle('hide-prices', val === 'hide');
+  // =========================================================
+  // CONTROL DE MODALES
+  // =========================================================
+  function openDuplexAssistantModal() {
+    buildBatchSelector();
+    const savedStack = localStorage.getItem('jjp_duplex_stack_mode') || 'face_down';
+    const sel = document.getElementById('printerStackSelect');
+    if (sel) sel.value = savedStack;
+    updateStackModeExplanation(savedStack);
+    document.getElementById('duplexAssistantModal')?.classList.add('open');
+  }
+  function closeDuplexAssistantModal() {
+    document.getElementById('duplexAssistantModal')?.classList.remove('open');
+  }
+
+  function onPrinterStackSelectChange() {
+    const val = document.getElementById('printerStackSelect')?.value || 'face_down';
+    localStorage.setItem('jjp_duplex_stack_mode', val);
+    updateStackModeExplanation(val);
+  }
+
+  function updateStackModeExplanation(val) {
+    const exp = document.getElementById('stackModeExplanation');
+    if (!exp) return;
+    if (val === 'face_down') {
+      exp.innerHTML = `✨ <strong>Protección de secuencia activa:</strong> Al imprimir los reversos se enviarán en <strong>ORDEN INVERSO (Pág 10, 8, 6, 4, 2)</strong> para que calcen exactamente detrás de cada frente sin necesidad de reordenar las hojas a mano.`;
+      exp.style.borderColor = '#ddd6fe';
+      exp.style.color = '#5b21b6';
+    } else {
+      exp.innerHTML = `ℹ️ <strong>Modo directo activo:</strong> Los reversos se imprimirán en orden directo (Pág 2, 4, 6, 8, 10).`;
+      exp.style.borderColor = '#bae6fd';
+      exp.style.color = '#0369a1';
+    }
   }
 
   function openGuideModal() {
     document.getElementById('guideModal')?.classList.add('open');
   }
+  function closeGuideModal() {
+    document.getElementById('guideModal')?.classList.remove('open');
+  }
+
   function openTestSheetModal() {
     document.getElementById('testSheetModal')?.classList.add('open');
   }
   function closeTestSheetModal() {
     document.getElementById('testSheetModal')?.classList.remove('open');
   }
+
   function printTestSheet(side) {
     document.querySelectorAll('.catalog-sheet').forEach(sh => {
       const sNum = parseInt(sh.getAttribute('data-sheet'), 10);
@@ -1790,37 +2350,20 @@ body.hide-prices .dir-price-col {
       }, 500);
     }, 150);
   }
-  function closeGuideModal() {
-    document.getElementById('guideModal')?.classList.remove('open');
-  }
 
-  window.addEventListener('jjp_rate_updated', (e) => {
-    const r = e.detail?.rate;
-    if (r && r > 0) {
-      const badge = document.getElementById('rateBadge');
-      if (badge) badge.textContent = `Tasa Oficial BCV: Bs ${r.toFixed(2)} / USD`;
-    }
-  });
-
-
+  // =========================================================
+  // CALIBRACIÓN MILIMÉTRICA X/Y A CONTRALUZ
+  // =========================================================
   let DUPLEX_CONFIG = {
-    flipMode: localStorage.getItem('jjp_duplex_flip_mode') || 'volante',
     shiftX: parseFloat(localStorage.getItem('jjp_duplex_shift_x') || '0'),
     shiftY: parseFloat(localStorage.getItem('jjp_duplex_shift_y') || '0'),
     rotate180: localStorage.getItem('jjp_duplex_rotate_180') === 'true'
   };
 
   function applyDuplexConfig() {
-    document.body.classList.toggle('flip-mode-volante', DUPLEX_CONFIG.flipMode === 'volante');
     document.body.classList.toggle('even-rotate-180', DUPLEX_CONFIG.rotate180);
-
     document.documentElement.style.setProperty('--duplex-even-shift-x', `${DUPLEX_CONFIG.shiftX}mm`);
     document.documentElement.style.setProperty('--duplex-even-shift-y', `${DUPLEX_CONFIG.shiftY}mm`);
-
-    const selMain = document.getElementById('flipModeSelect');
-    if (selMain) selMain.value = DUPLEX_CONFIG.flipMode;
-    const selCalib = document.getElementById('calibFlipModeSelect');
-    if (selCalib) selCalib.value = DUPLEX_CONFIG.flipMode;
 
     const chk = document.getElementById('chkRotate180');
     if (chk) chk.checked = DUPLEX_CONFIG.rotate180;
@@ -1829,21 +2372,6 @@ body.hide-prices .dir-price-col {
     if (valX) valX.textContent = `${DUPLEX_CONFIG.shiftX > 0 ? '+' : ''}${DUPLEX_CONFIG.shiftX.toFixed(1)} mm`;
     const valY = document.getElementById('txtShiftValY');
     if (valY) valY.textContent = `${DUPLEX_CONFIG.shiftY > 0 ? '+' : ''}${DUPLEX_CONFIG.shiftY.toFixed(1)} mm`;
-
-    const badge = document.getElementById('txtShiftBadge');
-    if (badge) badge.textContent = `X:${DUPLEX_CONFIG.shiftX.toFixed(1)} Y:${DUPLEX_CONFIG.shiftY.toFixed(1)}`;
-  }
-
-  function onFlipModeChange(mode) {
-    const val = mode || document.getElementById('flipModeSelect')?.value || 'volante';
-    DUPLEX_CONFIG.flipMode = val;
-    localStorage.setItem('jjp_duplex_flip_mode', val);
-    applyDuplexConfig();
-  }
-
-  function onCalibFlipModeChange() {
-    const val = document.getElementById('calibFlipModeSelect')?.value || 'volante';
-    onFlipModeChange(val);
   }
 
   function stepDuplexShift(axis, delta) {
@@ -1865,7 +2393,6 @@ body.hide-prices .dir-price-col {
   }
 
   function saveDuplexCalibration() {
-    localStorage.setItem('jjp_duplex_flip_mode', DUPLEX_CONFIG.flipMode);
     localStorage.setItem('jjp_duplex_shift_x', String(DUPLEX_CONFIG.shiftX));
     localStorage.setItem('jjp_duplex_shift_y', String(DUPLEX_CONFIG.shiftY));
     localStorage.setItem('jjp_duplex_rotate_180', String(DUPLEX_CONFIG.rotate180));
@@ -1885,28 +2412,17 @@ body.hide-prices .dir-price-col {
   }
   function closeCalibrationModal() {
     document.getElementById('calibrationModal')?.classList.remove('open');
-    const stage = document.getElementById('catalogStage');
-    if (stage) stage.classList.remove('lightbox-mode');
-    const btn = document.getElementById('btnToggleLightbox');
-    if (btn) {
-      btn.textContent = '💡 Simular Contraluz en Pantalla';
-      btn.style.background = '#0284c7';
-    }
   }
 
-  function toggleLightboxSimulation() {
-    const stage = document.getElementById('catalogStage');
-    const btn = document.getElementById('btnToggleLightbox');
-    if (!stage) return;
-    const isLb = stage.classList.toggle('lightbox-mode');
-    if (btn) {
-      btn.textContent = isLb ? '👁️ Modo Normal de Hojas' : '💡 Simular Contraluz en Pantalla';
-      btn.style.background = isLb ? '#16604a' : '#0284c7';
+  window.addEventListener('jjp_rate_updated', (e) => {
+    const r = e.detail?.rate;
+    if (r && r > 0) {
+      const badge = document.getElementById('rateBadge');
+      if (badge) badge.textContent = `Tasa Oficial BCV: Bs ${r.toFixed(2)} / USD`;
     }
-  }
+  });
 
   applyDuplexConfig();
-  // Iniciar carga del catálogo
   loadCatalog();
 </script>
 </body>

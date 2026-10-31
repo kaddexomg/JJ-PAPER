@@ -3808,12 +3808,9 @@ ${rawText}
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
-    let snippet = '';
-    if (type === 'qr') {
-      snippet = `\n\n📲 *Catálogo Interactivo con Códigos QR (para ver o imprimir):*\nhttps://jjpaper.pages.dev/catalogo_impreso\n`;
-    } else {
-      snippet = `\n\n👉 *Catálogo Digital Completo y Fichas Técnicas (Acceso libre sin registro):*\nhttps://jjpaper.pages.dev/catalogo\n`;
-    }
+    const sellerRef = (window.SELLER && (window.SELLER.ref_code || window.SELLER.mixnet_code)) ? ('?ref=' + (window.SELLER.ref_code || window.SELLER.mixnet_code)) : '';
+    const linkStr = 'https://jjpaper.pages.dev/catalogo' + sellerRef;
+    const snippet = '\n\n👉 *Catálogo Digital Completo y Cotizador en Línea:*\n' + linkStr + '\n';
     textarea.value = text.substring(0, start) + snippet + text.substring(end);
     textarea.focus();
     textarea.selectionStart = textarea.selectionEnd = start + snippet.length;

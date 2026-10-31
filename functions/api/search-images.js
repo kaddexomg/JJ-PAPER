@@ -274,16 +274,31 @@ function scoreResult(result, targetBrand, coreType) {
     if (url.includes(b) || title.includes(b)) return -999;
   }
 
-  // Filtrar de raíz zapatillas, calzado, ropa, montañas, playas, paisajes y repuestos mecánicos
+  // Filtrar de raíz calzado, ropa, naturaleza, caricaturas, anatomía y repuestos
   const JUNK_TERMS = [
+    // Calzado, ropa y accesorios
     'zapatillas', 'zapatos', 'calzado', 'sneakers', 'running', 'botas', 'sandalias',
     'camisa', 'pantalon', 'vestido', 'ropa', 'apparel', 'shoes', 'boots', 'footwear',
     'sneaker', 'mizuno', 'nike', 'adidas', 'puma', 'asics', 'tenis', 'tacones',
+    // Turismo, paisajes y naturaleza
     'montaña', 'montañas', 'playa', 'playas', 'turismo', 'resort', 'hotel', 'caribbean sea',
     'mar caribe', 'isla', 'viaje', 'vacaciones', 'landscape', 'mountain', 'beach',
     'nature', 'paisaje', 'bosque', 'flora', 'fauna', 'aurora', 'selva', 'parque nacional',
+    // Mecánica, automotriz y ferretería pesada
     'valve', 'bleeder', 'pneumatic', 'screw', 'forklift', 'hydraulic', 'motor',
-    'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo', 'automotriz'
+    'sensor', 'pipe', 'carro', 'auto parts', 'tatuaje', 'tattoo', 'automotriz',
+    // Caricaturas, personajes infantiles y juguetes (causa de Peppa Pig, Winnie Pooh, etc.)
+    'peppa', 'peppa pig', 'winnie', 'pooh', 'winnie the pooh', 'disney', 'mickey', 'minnie',
+    'paw patrol', 'barbie', 'princesas', 'frozen', 'superman', 'batman', 'spiderman', 'spider-man',
+    'marvel', 'avengers', 'anime', 'manga', 'dibujos animados', 'peluche', 'juguete', 'toy', 'bebe',
+    'baby', 'cumpleaños infantil', 'cotillon infantil', 'disfraz',
+    // Anatomía, medicina y biología (causa de falsos positivos en "sobre", "carpeta", etc.)
+    'anatomia', 'anatomico', 'anatomica', 'organo', 'corazon', 'pulmon', 'esqueleto', 'craneo',
+    'celula', 'biologia', 'medico', 'medicina', 'enfermedad', 'cirugia', 'patologia', 'farmaco',
+    'clinica estetica', 'hospitalario',
+    // Obras literarias, ensayos, películas y música
+    'pelicula', 'trailer', 'serie', 'cancion', 'album', 'musica', 'poesia', 'ensayo sobre',
+    'reflexion sobre', 'resumen del libro', 'sinopsis'
   ];
   for (const jt of JUNK_TERMS) {
     if (title.includes(jt) || url.includes(jt)) return -999;

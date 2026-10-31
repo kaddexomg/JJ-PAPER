@@ -88,11 +88,10 @@ AGENTS.md                ← Contexto maestro y reglas inviolables para agentes 
   - `004` / `006`: Yovanni Araujo
   - `008`: Marianela
   - `014`: Andreina
-  - `010` / `020`: Keyder Salazar (Admin)
-  - `005`: Jose Salazar (Atención mostrador físico tienda)
-- **Cartera Exclusiva de Keyder Salazar (Zonas 010 y 020)**:
-  - Estrictamente privada para Keyder: invisible para otros vendedores (no se descarga en `loadCustomers` para vendedores regulares ni se muestra en autocompletados ajenos).
-  - Keyder conserva rol `admin` (gestión global en CRM `admin/clientes.html`) y puede vender/cotizar directamente tanto a su clientela como a cualquier cliente usando el selector de vendedor en `pos.html` y `cotizador.html`.
+  - `005` / `010` / `020`: Keyder Salazar (Admin / Atención mostrador físico y operaciones — los tres códigos corresponden a Keyder Salazar)
+- **Cartera de Zonas 010 y 020**:
+  - Estrictamente delimitada: anteriormente construida por otro vendedor que desarrolló esos clientes; las ventas asociadas a esos clientes respetan su `CODVEN` histórico.
+  - Keyder conserva rol `admin` (gestión global en CRM `admin/clientes.html`) y puede operar, vender y cotizar en mostrador físico y a clientes autorizados usando los selectores en `pos.html` y `cotizador.html`.
 - **Cero Cruce de Vendedores**: El campo `CODVEN` define comisiones y nómina. Prohibido reasignar ventas por la zona del cliente. Si en MixNet dice `002`, en JJ Paper es Luis Alarcón irrefutablemente.
 
 ### Unificación de Entidades y Comunicación

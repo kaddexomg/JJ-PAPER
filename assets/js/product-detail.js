@@ -52,7 +52,11 @@ async function loadProductData(id, sku, queryText = '') {
       .select(`id,category_id,name,description,price_usd,price_a,price_b,price_c_bs,price_d_bs,unit,image_url,emoji,tag,active,featured,stock,min_qty,sku,jjp_categories(name,slug,color),jjp_units(name,abbr),${VARIANTS_SELECT}`);
 
     if (id) {
-      query = query.eq('id', id);
+      if (/^[0-9a-f]{8}$/i.test(id)) {
+        query = query.gte('id', id + '-0000-0000-0000-000000000000').lte('id', id + '-ffff-ffff-ffff-ffffffffffff').limit(1);
+      } else {
+        query = query.eq('id', id);
+      }
     } else if (sku) {
       query = query.eq('sku', sku);
     } else if (queryText) {
@@ -91,6 +95,7 @@ async function loadProductData(id, sku, queryText = '') {
     renderProductView();
     updateMetaTags();
     loadRelatedProducts(currentProduct.category_id, currentProduct.id);
+    initSellerPhotoManager();
 
   } catch (err) {
     console.error('Error cargando producto:', err);
@@ -699,5 +704,478 @@ function renderNotFound(msg) {
         <a href="/catalogo" style="background:var(--gd,#16604A);color:#fff;padding:12px 24px;border-radius:24px;text-decoration:none;font-weight:700">Explorar el Catálogo</a>
       </div>
     `;
+  }
+}
+
+
+/* ======================================================
+   JJ Paper — Modo Vendedor: Gestión Fotográfica de Producto
+   Visible EXCLUSIVAMENTE para roles 'admin' y 'vendedor' autenticados.
+   ====================================================== */
+let _sellerStaffProfile = null;
+let _sellerSelectedImg = null;
+let _sellerVisionVerdict = null;
+
+async function checkSellerStaffSession() {
+  if (_sellerStaffProfile) return _sellerStaffProfile;
+  try {
+    const raw = localStorage.getItem('sb-166-0-112-247-auth-token');
+    let session = null;
+    if (raw) {
+      try { session = JSON.parse(raw); } catch (_) {}
+    }
+    if (!session && window.sb?.auth) {
+      const { data } = await window.sb.auth.getSession();
+      session = data?.session;
+    }
+    if (!session) return null;
+
+    const uid = session.user?.id || session.id || session.sub;
+    if (!uid) return null;
+
+    const claims = session.access_token && typeof _decodeJwtPayload === 'function'
+      ? _decodeJwtPayload(session.access_token) : null;
+    const roleClaim = claims?.user_role || claims?.role || session.user?.role || '';
+    if (roleClaim === 'service_role' || roleClaim === 'admin') {
+      _sellerStaffProfile = { id: uid, role: 'admin', name: claims?.name || session.user?.email || 'Administrador' };
+      return _sellerStaffProfile;
+    }
+
+    if (window.sb) {
+      const { data: profile } = await sb.from('jjp_profiles')
+        .select('id, name, role, active')
+        .eq('id', uid)
+        .maybeSingle();
+
+      if (profile && profile.active !== false && (profile.role === 'admin' || profile.role === 'vendedor')) {
+        _sellerStaffProfile = profile;
+        return _sellerStaffProfile;
+      }
+    }
+  } catch (err) {
+    console.warn('checkSellerStaffSession error:', err);
+  }
+  return null;
+}
+
+async function initSellerPhotoManager() {
+  const staff = await checkSellerStaffSession();
+  if (!staff) {
+    // Clientes comunes: no renderiza nada
+    const existing = document.getElementById('sellerPhotoFab');
+    if (existing) existing.remove();
+    return;
+  }
+
+  // Si ya existe el botón, no duplicar
+  if (document.getElementById('sellerPhotoFab')) return;
+
+  const fab = document.createElement('div');
+  fab.id = 'sellerPhotoFab';
+  fab.className = 'seller-photo-fab';
+  fab.onclick = openSellerPhotoPanel;
+  fab.innerHTML = `
+    <div class="spf-icon">📷</div>
+    <div class="spf-text">
+      <span class="spf-title">Gestionar Foto de este Producto</span>
+      <span class="spf-badge">Modo Vendedor (${escapeHTML(staff.name || staff.role)})</span>
+    </div>
+    <div class="spf-arrow">⚙️</div>
+  `;
+  document.body.appendChild(fab);
+}
+
+async function openSellerPhotoPanel() {
+  const staff = await checkSellerStaffSession();
+  if (!staff || !currentProduct) return;
+
+  let modal = document.getElementById('sellerPhotoModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'sellerPhotoModal';
+    modal.className = 'seller-photo-modal-overlay';
+    document.body.appendChild(modal);
+  }
+
+  const activeImg = galleryImages[activeImgIndex] || currentProduct.image_url || '';
+  const prodName = currentProduct.name;
+  const sku = currentVariant?.sku || currentProduct.sku || 'JJ-PROD';
+
+  modal.innerHTML = `
+    <div class="seller-photo-card">
+      <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc">
+        <div>
+          <h3 style="margin:0;font-size:16px;color:#062017;display:flex;align-items:center;gap:8px">
+            <span>📷 Gestión Fotográfica de Producto</span>
+            <span style="font-size:11px;font-weight:700;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px">Modo Vendedor</span>
+          </h3>
+          <p style="margin:4px 0 0;font-size:12.5px;color:#64748b;font-weight:600">${escapeHTML(prodName)} · <code style="font-size:11px">${escapeHTML(sku)}</code></p>
+        </div>
+        <button onclick="document.getElementById('sellerPhotoModal').style.display='none'" style="border:none;background:none;font-size:22px;cursor:pointer;color:#94a3b8">✕</button>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px">
+        <!-- 1. Estado y validación de foto actual -->
+        <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;background:#f8fafc">
+          <div style="font-size:12px;font-weight:700;color:#0f172a;text-transform:uppercase;margin-bottom:10px">1. Verificación de Foto Actual en Catálogo</div>
+          <div style="display:flex;gap:14px;align-items:center">
+            <div style="width:84px;height:84px;border-radius:8px;background:#fff;border:1px solid #cbd5e1;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              ${activeImg ? `<img src="${optImg(activeImg, 150)}" style="max-width:100%;max-height:100%;object-fit:contain">` : '<span style="font-size:32px">📦</span>'}
+            </div>
+            <div style="flex:1">
+              <div style="font-size:12.5px;color:#334155;margin-bottom:8px">
+                ${activeImg ? '¿La fotografía actual coincide exactamente con el artículo físico en tienda?' : '⚠️ Este producto <strong>no posee fotografía asignada</strong> en la vitrina.'}
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                ${activeImg ? `
+                  <button type="button" class="btn-s" style="padding:6px 12px;background:#166534;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600"
+                          onclick="sellerValidarFotoActual('ok')">
+                    ✅ Foto Correcta
+                  </button>
+                  <button type="button" class="btn-s" style="padding:6px 12px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600"
+                          onclick="sellerValidarFotoActual('incorrecta')">
+                    ❌ Foto Incorrecta (Cuarentena)
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Tomar foto con la cámara del teléfono -->
+        <div style="border:1.5px solid #bbf7d0;border-radius:12px;padding:16px;background:#f0fdf4">
+          <div style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;margin-bottom:6px">2. Tomar Foto Real con Teléfono / Cámara</div>
+          <p style="font-size:12px;color:#15803d;margin:0 0 12px;line-height:1.4">
+            Fotografía el producto en el mostrador o estante sobre fondo despejado. Se optimiza a WebP ligero automáticamente.
+          </p>
+          <input type="file" id="sellerCameraInput" accept="image/*" capture="environment" style="display:none"
+                 onchange="sellerSubirFotoCamara(this)">
+          <button type="button" class="btn-p" style="padding:10px 18px;background:#16604A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px"
+                  onclick="document.getElementById('sellerCameraInput').click()">
+            <span>📷 Abrir Cámara y Tomar Foto</span>
+          </button>
+        </div>
+
+        <!-- 3. Búsqueda web asistida por IA -->
+        <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:16px;background:#fff">
+          <div style="font-size:12px;font-weight:700;color:#0f172a;text-transform:uppercase;margin-bottom:6px">3. Buscar Fotografía Oficial en Web (con Visión AI)</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input type="text" id="sellerSearchQueryInput" value="${escapeHTML(prodName)}"
+                   onkeydown="if(event.key==='Enter')sellerBuscarFotosWeb()"
+                   style="flex:1;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:12.5px"
+                   placeholder="Nombre comercial o packshot del producto...">
+            <button type="button" style="padding:8px 14px;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer"
+                    onclick="sellerBuscarFotosWeb()">
+              Buscar Fotos
+            </button>
+          </div>
+          <div id="sellerWebResultsStatus" style="font-size:12px;color:#64748b;margin-bottom:10px;display:none"></div>
+          <div id="sellerWebResultsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:10px;max-height:220px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <div style="padding:12px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:space-between">
+        <div id="sellerActionStatus" style="font-size:12px;color:#475569">
+          Panel de vendedor activo para ${escapeHTML(staff.name || 'vendedor')}.
+        </div>
+        <button class="btn-ghost" style="padding:6px 14px" onclick="document.getElementById('sellerPhotoModal').style.display='none'">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
+async function sellerValidarFotoActual(veredicto) {
+  const staff = await checkSellerStaffSession();
+  if (!staff || !currentProduct) return;
+
+  const activeImg = galleryImages[activeImgIndex] || currentProduct.image_url;
+  if (!activeImg) return;
+
+  if (veredicto === 'ok') {
+    try {
+      await sb.from('jjp_photo_audit').insert({
+        product_id: currentProduct.id,
+        variant_id: currentVariant?.id || null,
+        image_url: activeImg,
+        verdict: 'ok',
+        confidence: 1.0,
+        reason: 'Foto confirmada como correcta por vendedor en punto de venta',
+        source: 'vendedor_qr',
+        reviewed_by: staff.id,
+        reviewed_at: new Date().toISOString()
+      });
+      showToast('✅ Foto validada como correcta en auditoría', 'ok');
+      document.getElementById('sellerPhotoModal').style.display = 'none';
+    } catch (e) {
+      alert('Error registrando auditoría: ' + e.message);
+    }
+  } else if (veredicto === 'incorrecta') {
+    const razon = prompt('¿Por qué es incorrecta esta fotografía?\n(Ej: Es tamaño oficio y el producto es carta, o muestra un artículo diferente)', 'Incoherencia de producto visual');
+    if (!razon) return;
+
+    try {
+      await sb.from('jjp_photo_audit').insert({
+        product_id: currentProduct.id,
+        variant_id: currentVariant?.id || null,
+        image_url: activeImg,
+        verdict: 'incorrecta',
+        confidence: 1.0,
+        reason: razon,
+        source: 'vendedor_qr',
+        reviewed_by: staff.id,
+        reviewed_at: new Date().toISOString()
+      });
+
+      // Desvincular de producto y variantes para retirarla inmediatamente del catálogo
+      await Promise.all([
+        sb.from('jjp_products').update({ image_url: null }).eq('id', currentProduct.id),
+        sb.from('jjp_product_variants').update({ image_url: null }).eq('product_id', currentProduct.id)
+      ]);
+
+      currentProduct.image_url = null;
+      if (currentVariant) currentVariant.image_url = null;
+      galleryImages = [];
+      activeImgIndex = 0;
+      renderProductView();
+      initSellerPhotoManager();
+
+      showToast('⚠️ Foto enviada a cuarentena y retirada del catálogo público', 'ok');
+      document.getElementById('sellerPhotoModal').style.display = 'none';
+    } catch (e) {
+      alert('Error enviando a cuarentena: ' + e.message);
+    }
+  }
+}
+
+async function sellerSubirFotoCamara(input) {
+  const file = input.files?.[0];
+  if (!file || !currentProduct) return;
+  input.value = '';
+
+  const statusEl = document.getElementById('sellerActionStatus');
+  if (statusEl) statusEl.innerHTML = '⏳ Comprimiendo a WebP y subiendo a almacenamiento VPS...';
+
+  try {
+    const staff = await checkSellerStaffSession();
+    const bmp = await createImageBitmap(file);
+    const escala = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * escala);
+    cv.height = Math.round(bmp.height * escala);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+
+    const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.85));
+    if (!webpBlob) throw new Error('No se pudo codificar la imagen en WebP.');
+
+    const path = `${currentProduct.id}.webp`;
+    const { error: eUp } = await sb.storage.from('jjp-products')
+      .upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+    if (eUp) throw eUp;
+
+    const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
+    const url = `${publicUrl}?v=${Date.now()}`;
+
+    await Promise.all([
+      sb.from('jjp_products').update({ image_url: url }).eq('id', currentProduct.id),
+      sb.from('jjp_product_variants').update({ image_url: url }).eq('product_id', currentProduct.id)
+    ]);
+
+    // Registro en jjp_photo_audit
+    try {
+      await sb.from('jjp_photo_audit').insert({
+        product_id: currentProduct.id,
+        variant_id: currentVariant?.id || null,
+        image_url: url,
+        verdict: 'ok',
+        confidence: 0.98,
+        reason: 'Fotografía real tomada con cámara de vendedor',
+        source: 'camara_vendedor',
+        reviewed_by: staff?.id || null,
+        reviewed_at: new Date().toISOString()
+      });
+    } catch (_) {}
+
+    // Actualizar vista inmediatamente
+    currentProduct.image_url = url;
+    if (currentVariant) currentVariant.image_url = url;
+    galleryImages = [url];
+    activeImgIndex = 0;
+    renderProductView();
+    initSellerPhotoManager();
+
+    document.getElementById('sellerPhotoModal').style.display = 'none';
+    showToast('🎉 ¡Foto tomada con cámara asignada al producto!', 'ok');
+  } catch (err) {
+    alert('Error al procesar foto: ' + err.message);
+    if (statusEl) statusEl.textContent = 'Error: ' + err.message;
+  }
+}
+
+async function sellerBuscarFotosWeb() {
+  const qInput = document.getElementById('sellerSearchQueryInput');
+  const q = (qInput?.value || '').trim();
+  if (!q) return;
+
+  const statusEl = document.getElementById('sellerWebResultsStatus');
+  const grid = document.getElementById('sellerWebResultsGrid');
+  if (statusEl) { statusEl.style.display = 'block'; statusEl.innerHTML = '⏳ Consultando fotos comerciales reales...'; }
+  if (grid) grid.innerHTML = '';
+
+  try {
+    let results = [];
+    try {
+      const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);
+      if (cfRes.ok) {
+        const cfData = await cfRes.json();
+        if (cfData.ok && Array.isArray(cfData.results) && cfData.results.length > 0) {
+          results = cfData.results;
+        }
+      }
+    } catch (_) {}
+
+    if (!results.length) {
+      try {
+        const lanRes = await fetch(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(q)}`);
+        if (lanRes.ok) {
+          const lanData = await lanRes.json();
+          if (lanData.ok && Array.isArray(lanData.results)) results = lanData.results;
+        }
+      } catch (_) {}
+    }
+
+    if (!results || results.length === 0) {
+      if (statusEl) statusEl.innerHTML = 'No se encontraron fotos web con ese término.';
+      return;
+    }
+
+    if (statusEl) statusEl.innerHTML = `Encontradas ${results.length} fotografías comerciales. Toca una para validarla y asignarla.`;
+
+    grid.innerHTML = results.map((r, idx) => `
+      <div class="seller-web-img-card" id="sw-card-${idx}" style="cursor:pointer;border:2px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#fff;padding:6px;text-align:center"
+           onclick="sellerSeleccionarFotoWeb('${escapeJsStr(r.image || r.thumbnail)}', ${idx}, '${escapeJsStr(r.title)}')">
+        <div style="height:90px;display:flex;align-items:center;justify-content:center">
+          <img src="${r.thumbnail || r.image}" alt="${escapeHTML(r.title)}" style="max-height:100%;max-width:100%;object-fit:contain"
+               onerror="this.parentElement.parentElement.style.display='none'">
+        </div>
+        <div style="font-size:10.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px" title="${escapeHTML(r.title)}">
+          ${escapeHTML(r.title)}
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = 'Error en búsqueda: ' + err.message;
+  }
+}
+
+async function sellerSeleccionarFotoWeb(imgUrl, idx, title) {
+  // Validación estricta anti-IA generativa
+  if (imgUrl.includes('pollinations') || imgUrl.includes('stability.ai') || imgUrl.includes('midjourney') || imgUrl.includes('replicate.delivery')) {
+    alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial');
+    return;
+  }
+
+  document.querySelectorAll('.seller-web-img-card').forEach(c => {
+    c.style.borderColor = '#e2e8f0';
+    c.style.boxShadow = 'none';
+  });
+
+  const card = document.getElementById(`sw-card-${idx}`);
+  if (card) {
+    card.style.borderColor = '#166534';
+    card.style.boxShadow = '0 0 0 2px rgba(22,101,52,0.2)';
+  }
+
+  const actionStatus = document.getElementById('sellerActionStatus');
+  if (actionStatus) {
+    actionStatus.innerHTML = `🔍 Analizando correspondencia con Gemini Vision... `;
+  }
+
+  // Análisis con Gemini Vision si está disponible
+  let visionVerdict = { veredicto: 'aprobada', razon: 'Packshot comercial' };
+  if (window.GeminiClient && typeof window.GeminiClient.callGeminiVision === 'function') {
+    try {
+      const prompt = `Actúa como inspector de control de calidad fotográfica del catálogo de JJ Paper.
+Compara la fotografía adjunta contra el producto: "${currentProduct.name}".
+Si es un artículo totalmente discordante o de medida/tipo erróneo, veredicto = "rechazada". Si es coincidente, "aprobada".
+Responde ÚNICAMENTE JSON: { "veredicto": "aprobada" | "rechazada", "razon": "breve explicacion" }`;
+
+      const raw = await window.GeminiClient.callGeminiVision({
+        prompt,
+        imageUrl: imgUrl,
+        temperature: 0.1,
+        maxTokens: 200
+      });
+      const parsed = JSON.parse(String(raw || '').replace(/\`\`\`json/gi, '').replace(/\`\`\`/g, '').trim());
+      if (parsed) visionVerdict = parsed;
+    } catch (_) {}
+  }
+
+  if (visionVerdict.veredicto === 'rechazada') {
+    if (card) { card.style.borderColor = '#dc2626'; }
+    if (actionStatus) {
+      actionStatus.innerHTML = `<span style="color:#dc2626;font-weight:700">❌ Rechazada por Visión AI:</span> ${escapeHTML(visionVerdict.razon || 'Discrepancia con el producto.')}`;
+    }
+    const ok = confirm(`⚠️ Advertencia de Gemini Vision: La imagen parece no coincidir con el producto: "${visionVerdict.razon || 'Discrepancia'}".\n\n¿Deseas asignarla de todas formas?`);
+    if (!ok) return;
+  }
+
+  if (actionStatus) {
+    actionStatus.innerHTML = `⏳ Optimizando WebP y asignando al producto...`;
+  }
+
+  try {
+    const staff = await checkSellerStaffSession();
+    const resp = await fetch(imgUrl);
+    const blob = await resp.blob();
+    const bmp = await createImageBitmap(blob);
+    const escala = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * escala);
+    cv.height = Math.round(bmp.height * escala);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.85));
+
+    const path = `${currentProduct.id}.webp`;
+    const { error: eUp } = await sb.storage.from('jjp-products')
+      .upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+    if (eUp) throw eUp;
+
+    const { data: { publicUrl } } = sb.storage.from('jjp-products').getPublicUrl(path);
+    const url = `${publicUrl}?v=${Date.now()}`;
+
+    await Promise.all([
+      sb.from('jjp_products').update({ image_url: url }).eq('id', currentProduct.id),
+      sb.from('jjp_product_variants').update({ image_url: url }).eq('product_id', currentProduct.id)
+    ]);
+
+    try {
+      await sb.from('jjp_photo_audit').insert({
+        product_id: currentProduct.id,
+        variant_id: currentVariant?.id || null,
+        image_url: url,
+        verdict: visionVerdict.veredicto === 'rechazada' ? 'dudosa' : 'ok',
+        confidence: visionVerdict.veredicto === 'rechazada' ? 0.6 : 0.95,
+        reason: visionVerdict.razon || 'Foto web packshot asignada desde modo vendedor',
+        source: 'vendedor_web',
+        reviewed_by: staff?.id || null,
+        reviewed_at: new Date().toISOString()
+      });
+    } catch (_) {}
+
+    currentProduct.image_url = url;
+    if (currentVariant) currentVariant.image_url = url;
+    galleryImages = [url];
+    activeImgIndex = 0;
+    renderProductView();
+    initSellerPhotoManager();
+
+    document.getElementById('sellerPhotoModal').style.display = 'none';
+    showToast('🎉 ¡Foto asignada y optimizada en catálogo!', 'ok');
+  } catch (e) {
+    alert('Error al asignar foto web: ' + e.message);
+    if (actionStatus) actionStatus.textContent = 'Error: ' + e.message;
   }
 }

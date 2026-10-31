@@ -1230,6 +1230,12 @@ async function prodStudioAplicarUrlDirecta() {
   const inp = document.getElementById('studioDirectUrlInput');
   const url = (inp?.value || '').trim();
   if (!url) return;
+
+  if (url.includes('pollinations') || url.includes('stability.ai') || url.includes('midjourney') || url.includes('replicate.delivery')) {
+    alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial');
+    return;
+  }
+
   try {
     const dataUri = await convertImageToStudioWebpDataUri(url, 520);
     const prev = document.getElementById('studioUploadPreviewImg');
@@ -1279,10 +1285,9 @@ async function prodStudioEjecutarBusqueda() {
         grid.innerHTML = `
           <div style="grid-column:1/-1;text-align:center;padding:28px;color:#475569;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
             <p style="margin:0 0 8px;font-size:14px;font-weight:700">No encontramos fotos web directas con "${escapeHTML(q)}".</p>
-            <p style="margin:0 0 14px;font-size:12.5px;color:#64748b">Haz clic en <strong>✨ Optimizar nombre con IA</strong> arriba, usa la pestaña <strong>🤖 Generar Packshot Estudio IA</strong>, o pega una foto con <strong>Ctrl + V</strong>.</p>
+            <p style="margin:0 0 14px;font-size:12.5px;color:#64748b">Haz clic en <strong>✨ Optimizar nombre con IA</strong> arriba, o sube una foto oficial de tu PC / portapapeles con <strong>Ctrl + V</strong>.</p>
             <div style="display:flex;gap:10px;justify-content:center">
               <button type="button" onclick="prodStudioOptimizarQueryIA()" style="padding:7px 14px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">✨ Optimizar Búsqueda con IA</button>
-              <button type="button" onclick="prodStudioSwitchTab('ai')" style="padding:7px 14px;background:#0f172a;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">🤖 Generar Foto con IA</button>
             </div>
           </div>`;
       }
@@ -1342,41 +1347,7 @@ function prodStudioSelectImage(imgUrl, idx = null, title = '') {
 }
 
 async function prodStudioGenerarFotoIA() {
-  const qInput = document.getElementById('prodStudioSearchInput');
-  const prodName = (qInput?.value || '').trim();
-  const imgEl = document.getElementById('prodAiStandaloneImg');
-  const statusEl = document.getElementById('studioSelectionStatus');
-  if (!imgEl) return;
-
-  if (statusEl) statusEl.innerHTML = '🎨 Generando fotografía de estudio en fondo blanco con IA...';
-
-  const isCaja = /\b(X\s*12|DOCENA|DOC|C\/12|CAJA|X\s*24|PACK|SURT|SET)\b/i.test(prodName);
-  const isResma = /\b(RESMA|500\s*HJS|500\s*HOJAS|BOND)\b/i.test(prodName);
-
-  let objectPrompt = `Commercial product photography of ${prodName}, authentic stationery office supply item, centered on pure solid white background #FFFFFF, studio lighting, sharp focus, 8k`;
-  if (isCaja) {
-    objectPrompt = `Commercial product photography of the authentic retail box packaging of ${prodName}, displaying clean brand typography, with one item placed next to the box, centered on pure solid white background #FFFFFF, studio photo, 8k`;
-  } else if (isResma) {
-    objectPrompt = `Commercial product photography of a factory sealed ream packaging of ${prodName}, authentic paper wrapper with printed branding, centered on pure solid white background #FFFFFF, studio light, 8k`;
-  }
-
-  try {
-    if (window.GeminiClient) {
-      const sys = `You are a commercial catalog photographer for an office supply company. Output a 1-sentence prompt in English for Flux describing the authentic commercial product photography on pure solid white background #FFFFFF. Never produce generic 3D renders.`;
-      const aiPrompt = await window.GeminiClient.callGemini({ prompt: prodName, systemInstruction: sys, temperature: 0.1 });
-      if (aiPrompt && aiPrompt.length > 10 && !aiPrompt.includes('Error')) {
-        objectPrompt = aiPrompt.replace(/^["'`]|["'`]$/g, '').trim();
-      }
-    }
-  } catch (_) {}
-
-  const seed = Math.abs(hashCode(prodName + '_' + Date.now()));
-  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(objectPrompt.slice(0, 360))}?width=640&height=640&model=flux&nologo=true&seed=${seed}`;
-
-  imgEl.src = aiUrl;
-  imgEl.onload = () => {
-    prodStudioSelectImage(aiUrl, null, `Packshot IA (${prodName})`);
-  };
+  alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial. Utilice fotografías comerciales auténticas o tome una foto con la cámara.');
 }
 
 function prodStudioRegenerarIA() {
@@ -1385,6 +1356,11 @@ function prodStudioRegenerarIA() {
 
 async function prodStudioGuardarSeleccion() {
   if (!_currentStudioSelectedImg || !_currentStudioProdId) return;
+
+  if (_currentStudioSelectedImg.includes('pollinations') || _currentStudioSelectedImg.includes('stability.ai') || _currentStudioSelectedImg.includes('midjourney') || _currentStudioSelectedImg.includes('replicate.delivery')) {
+    alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial');
+    return;
+  }
 
   const btn = document.getElementById('studioSaveBtn');
   const statusEl = document.getElementById('studioSelectionStatus');
@@ -1411,6 +1387,18 @@ async function prodStudioGuardarSeleccion() {
     // Invalidar caché de sessionStorage del catálogo público/impreso
     try {
       sessionStorage.removeItem('jjp_catalog_prods_v2');
+    } catch (_) {}
+
+    // Registro en auditoría de fotos
+    try {
+      await sb.from('jjp_photo_audit').insert({
+        product_id: _currentStudioProdId,
+        image_url: webpDataUri.slice(0, 500),
+        verdict: 'ok',
+        confidence: 0.95,
+        reason: 'Foto oficial optimizada a WebP guardada desde gestión de productos',
+        source: 'admin_products'
+      });
     } catch (_) {}
 
     document.getElementById('prodAiModal').style.display = 'none';

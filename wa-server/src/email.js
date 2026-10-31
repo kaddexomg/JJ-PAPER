@@ -1,3 +1,4 @@
+import { ARCADE_RUNNER_GIF, ARCADE_RUNNER_CID, ARCADE_RUNNER_FILENAME, getArcadeRunnerAttachment } from './arcade-gif-data.js';
 import nodemailer from 'nodemailer';
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
@@ -108,13 +109,15 @@ async function loadAttachments(list) {
     if (!a) continue;
     let name = String(a.name || a.filename || 'archivo').replace(/[\r\n"]/g, '');
     let mime = (a.mime || a.contentType || 'application/octet-stream').split(';')[0];
+    const cid = a.cid || null;
+    const inline = !!a.inline || !!a.cid;
 
-    if (a.base64) {
-      let b64 = String(a.base64).trim();
+    if (a.base64 || a.b64) {
+      let b64 = String(a.base64 || a.b64).trim();
       const sep = b64.indexOf(';base64,');
       if (sep !== -1) b64 = b64.slice(sep + 8);
       if (!b64) continue;
-      out.push({ name, mime, b64 });
+      out.push({ name, mime, b64, cid, inline });
       continue;
     }
 
@@ -127,7 +130,7 @@ async function loadAttachments(list) {
     }
     const item = attachCache.get(key);
     if (!item?.b64) continue;
-    out.push({ name, mime, b64: item.b64 });
+    out.push({ name, mime, b64: item.b64, cid, inline });
   }
   return out;
 }
@@ -179,33 +182,81 @@ async function fetchAttachmentBytes(path) {
 function formatTextToHtml(text) {
   const paragraphs = String(text || '').split(/\n\n+/).map(p => {
     let clean = escapeHtml(p).replace(/\n/g, '<br>');
-    clean = clean.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
-    return `<p style="margin:0 0 16px 0;line-height:1.75;font-size:15px;color:#1e293b;">${clean}</p>`;
+    clean = clean.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
+    return `<p style="margin:0 0 16px 0;line-height:1.75;font-size:15px;color:#1e293b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${clean}</p>`;
   }).join('');
 
   return `<!doctype html>
-<html lang="es">
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JJ Paper C.A. — Comunicación Oficial</title>
+  <style>
+    @keyframes jjp-arcade-marquee {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes jjp-pulse-arcade {
+      0% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); transform: scale(1); }
+      50% { box-shadow: 0 0 22px rgba(16, 185, 129, 0.8); transform: scale(1.015); }
+      100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); transform: scale(1); }
+    }
+    .jjp-btn-wa-main {
+      display: inline-block !important;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+      color: #ffffff !important;
+      padding: 12px 24px !important;
+      font-size: 14.5px !important;
+      font-weight: 800 !important;
+      text-decoration: none !important;
+      border-radius: 8px !important;
+      letter-spacing: 0.3px !important;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.4) !important;
+      animation: jjp-pulse-arcade 3s infinite ease-in-out !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f1f5f9;padding:24px 12px;">
+<body style="margin:0;padding:0;background-color:#090d16;background-image:radial-gradient(circle at 50% 20%, #111a2e 0%, #060911 100%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#090d16;padding:28px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
-          <!-- Header Branded -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 0 25px rgba(16,185,129,0.2), 0 10px 25px rgba(0,0,0,0.5);border:1.5px solid #10b981;">
+          <!-- Barra Arcade Superior -->
           <tr>
-            <td style="background:linear-gradient(135deg, #0d3d2e 0%, #16604A 100%);padding:22px 28px;border-bottom:3px solid #22c55e;">
+            <td style="height:6px;background:linear-gradient(90deg, #10b981, #06b6d4, #f59e0b, #10b981);background-size:250% 250%;animation:jjp-arcade-marquee 4s ease infinite;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <!-- Header Branded Arcade HUD -->
+          <tr>
+            <td style="background:linear-gradient(180deg, #0b1523 0%, #0d1e30 100%);padding:22px 28px;border-bottom:2px solid #10b981;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td>
-                    <div style="font-size:19px;font-weight:900;color:#ffffff;letter-spacing:0.5px;">JJ PAPER, C.A.</div>
-                    <div style="font-size:12px;color:#a7f3d0;font-weight:600;margin-top:2px;">Importador & Distribuidor Mayorista Directo · Caracas</div>
+                    <div style="font-size:20px;font-weight:900;color:#ffffff;letter-spacing:0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      JJ PAPER <span style="font-size:13px;color:#10b981;font-weight:700;">C.A.</span>
+                    </div>
+                    <div style="font-size:12px;color:#94a3b8;font-weight:600;margin-top:2px;">Importador &amp; Distribuidor Mayorista Directo · Caracas</div>
                   </td>
-                  <td align="right" style="font-size:11.5px;color:#ffffff;background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:6px;font-weight:700;">
-                    TASA OFICIAL BCV
+                  <td align="right">
+                    <span style="font-size:11px;color:#34d399;background:rgba(16,185,129,0.15);padding:4px 10px;border-radius:6px;font-weight:800;border:1px solid #10b981;">
+                      🪙 TASA OFICIAL BCV
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Franja Animada Arcade: Personajes de Papelería (Lápiz Corredor, Sacapuntas y Monograma JJ) -->
+              <div style="margin-top:12px;background:#060a12;border:1.5px solid rgba(16,185,129,0.45);border-radius:8px;padding:0;text-align:center;overflow:hidden;box-shadow:0 0 16px rgba(16,185,129,0.25);">
+                <img src="cid:${ARCADE_RUNNER_CID}" alt="Personajes Papelería JJ Paper: Lápiz Corredor, Sacapuntas y Monograma JJ" width="600" height="64" style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;image-rendering:pixelated;border-radius:6px;">
+              </div>
+
+              <!-- Marcador HUD Arcade Retroiluminado -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:12px;background:#030712;border:1.5px solid #10b981;border-radius:8px;padding:8px 12px;box-shadow:0 0 12px rgba(16,185,129,0.35);">
+                <tr>
+                  <td align="center" style="font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:11.5px;color:#34d399;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;line-height:1.4;">
+                    🕹️ NIVEL: MAYORISTA &nbsp;·&nbsp; ⚙️ PROCURA: ON &nbsp;·&nbsp; 🪙 TASA: BCV
                   </td>
                 </tr>
               </table>
@@ -213,16 +264,73 @@ function formatTextToHtml(text) {
           </tr>
           <!-- Body Content -->
           <tr>
-            <td style="padding:32px 30px 24px 30px;font-size:15px;color:#1e293b;line-height:1.75;">
+            <td style="padding:32px 30px 24px 30px;font-size:15px;color:#1e293b;line-height:1.75;background:#ffffff;">
               ${paragraphs}
             </td>
           </tr>
-          <!-- Footer -->
+
+          <!-- Separador Arcade de Monedas & Power-Up -->
           <tr>
-            <td style="background:#f8fafc;padding:20px 30px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;line-height:1.6;text-align:center;">
-              <strong>JJ PAPER C.A.</strong> · RIF J-29537545-0<br>
-              Centro de Distribución Mayorista · Caracas, Venezuela<br>
-              <a href="https://jjpaper.pages.dev" target="_blank" style="color:#16604A;text-decoration:none;font-weight:700;">🌐 Catálogo Interactivo: jjpaper.pages.dev</a> · 📞 0412-4676073
+            <td style="padding:0 30px 18px 30px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:linear-gradient(90deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.15) 50%, rgba(16,185,129,0.08) 100%);border-top:1px dashed #10b981;border-bottom:1px dashed #06b6d4;padding:8px 12px;text-align:center;">
+                <tr>
+                  <td align="center" style="font-family:'Courier New',Courier,monospace,sans-serif;font-size:11px;font-weight:800;color:#0e7490;letter-spacing:1px;text-transform:uppercase;">
+                    🪙 🪙 🪙 &nbsp;<span style="color:#059669;">POWER-UP:</span> PRECIOS DE IMPORTADOR POR BULTO CERRADO &nbsp;🪙 🪙 🪙
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Botones Arcade Dual CTA (PRESS START + CONTINUE) -->
+          <tr>
+            <td style="padding:0 30px 22px 30px;text-align:center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;max-width:100%;">
+                <tr>
+                  <td align="center" style="padding:6px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#10b981" style="border-radius:8px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);box-shadow:0 0 16px rgba(16,185,129,0.45);border:1px solid #34d399;">
+                          <a href="https://jjpaper.pages.dev/catalogo.html" target="_blank" style="display:inline-block;padding:12px 22px;color:#ffffff !important;font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:13.5px;font-weight:900;text-decoration:none;letter-spacing:0.8px;text-transform:uppercase;">
+                            ▶ PRESS START · Ver Catálogo y Cotizar
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="center" style="padding:6px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#0f172a" style="border-radius:8px;background:#0f172a;border:1.5px solid #06b6d4;box-shadow:0 0 14px rgba(6,182,212,0.35);">
+                          <a href="https://wa.me/584124676073?text=Hola%20JJ%20Paper%2C%20deseo%20solicitar%20cotizaci%C3%B3n" target="_blank" style="display:inline-block;padding:12px 22px;color:#38bdf8 !important;font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:13.5px;font-weight:900;text-decoration:none;letter-spacing:0.8px;text-transform:uppercase;">
+                            CONTINUE? ▶ Escríbenos
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Cuadro de Garantía Oficial -->
+          <tr>
+            <td style="padding:0 30px 20px 30px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f172a;border:1.5px solid #10b981;border-radius:10px;padding:14px 18px;">
+                <tr>
+                  <td style="font-size:13px;color:#e2e8f0;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    <strong style="color:#34d399;">🛡️ Garantía Operativa JJ Paper:</strong> Facturación Fiscal SENIAT liquidada a Tasa BCV del día · Despacho directo con flota propia en 24 horas · Servicio de Procura Especial para insumos fuera de lista.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer Arcade High-End -->
+          <tr>
+            <td style="background:linear-gradient(180deg, #0b1523 0%, #060a12 100%);padding:20px 30px;border-top:2px solid #10b981;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
+              <strong style="color:#ffffff;">JJ PAPER C.A.</strong> · RIF J-29537545-0 · Caracas, Venezuela<br>
+              <a href="https://jjpaper.pages.dev/catalogo.html" target="_blank" style="color:#34d399;text-decoration:none;font-weight:700;">🌐 Catálogo Interactivo en Línea: jjpaper.pages.dev</a> · 📞 0412-4676073
             </td>
           </tr>
         </table>
@@ -257,33 +365,63 @@ function buildRawEmail({ from, to, subject, text, html }, atts = []) {
     `--${altBoundary}--`
   ].join(NL);
 
-  if (!atts?.length) {
-    const s = [
-      `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
+  const inlineAtts = (atts || []).filter(a => a.cid || a.inline);
+  const regularAtts = (atts || []).filter(a => !a.cid && !a.inline);
+
+  let relatedBody = altBody;
+  let rootContentType = `multipart/alternative; boundary="${altBoundary}"`;
+
+  // Si hay adjuntos inline (como el banner arcade con CID), envolver con multipart/related
+  if (inlineAtts.length > 0) {
+    const relBoundary = 'jjp_rel_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    rootContentType = `multipart/related; boundary="${relBoundary}"; type="text/html"`;
+    let relParts = [
+      `--${relBoundary}`,
       `Content-Type: multipart/alternative; boundary="${altBoundary}"`, '',
-      altBody
+      altBody, ''
+    ];
+    for (const a of inlineAtts) {
+      relParts.push(
+        `--${relBoundary}`,
+        `Content-Type: ${a.mime}; name="${a.name}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-ID: <${a.cid || 'jjp-arcade-runner'}>`,
+        `Content-Disposition: inline; filename="${a.name}"`, '',
+        chunkB64(a.b64), ''
+      );
+    }
+    relParts.push(`--${relBoundary}--`);
+    relatedBody = relParts.join(NL);
+  }
+
+  // Si hay adjuntos regulares (como catálogos PDF), envolver todo en multipart/mixed
+  if (regularAtts.length > 0) {
+    const mixBoundary = 'jjp_mix_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    let s = [
+      `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${mixBoundary}"`, '',
+      `--${mixBoundary}`,
+      `Content-Type: ${rootContentType}`, '',
+      relatedBody, ''
     ].join(NL);
+    for (const a of regularAtts) {
+      s += [
+        `--${mixBoundary}`,
+        `Content-Type: ${a.mime}; name="${a.name}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${a.name}"`, '',
+        chunkB64(a.b64), ''
+      ].join(NL);
+    }
+    s += `--${mixBoundary}--`;
     return b64url(Buffer.from(s, 'utf8'));
   }
 
-  const mixBoundary = 'jjp_mix_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-  let s = [
+  const s = [
     `From: ${from}`, `To: ${to}`, `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0',
-    `Content-Type: multipart/mixed; boundary="${mixBoundary}"`, '',
-    `--${mixBoundary}`,
-    `Content-Type: multipart/alternative; boundary="${altBoundary}"`, '',
-    altBody, ''
+    `Content-Type: ${rootContentType}`, '',
+    relatedBody
   ].join(NL);
-  for (const a of atts) {
-    s += [
-      `--${mixBoundary}`,
-      `Content-Type: ${a.mime}; name="${a.name}"`,
-      'Content-Transfer-Encoding: base64',
-      `Content-Disposition: attachment; filename="${a.name}"`, '',
-      chunkB64(a.b64), ''
-    ].join(NL);
-  }
-  s += `--${mixBoundary}--`;
   return b64url(Buffer.from(s, 'utf8'));
 }
 
@@ -311,17 +449,41 @@ async function gmailApiSend(acct, m) {
 export async function sendEmailNow(ownerId, m) {
   let acct = await accountFor(ownerId);
   if (!acct) throw new Error('Sin correo vinculado');
+
+  // Asegurar que el GIF arcade esté disponible como adjunto inline si el HTML contiene cid:jjp-arcade-runner
+  const userAtts = Array.isArray(m.attachments) ? [...m.attachments] : [];
+  const needsArcadeRunner = (m.html && m.html.includes(ARCADE_RUNNER_CID)) || (!m.html && (!m.body || m.body.length > 0));
+  const alreadyHasRunner = userAtts.some(a => (a.cid === ARCADE_RUNNER_CID || a.name === ARCADE_RUNNER_FILENAME || a.filename === ARCADE_RUNNER_FILENAME));
+
+  if (needsArcadeRunner && !alreadyHasRunner) {
+    userAtts.push(getArcadeRunnerAttachment());
+  }
   
   try {
     let id = null;
     if (acct.source === 'oauth') {
-      id = await gmailApiSend(acct, m);
+      id = await gmailApiSend(acct, { ...m, attachments: userAtts });
     } else {
-      const atts = await loadAttachments(m.attachments);
+      const atts = await loadAttachments(userAtts);
+      const mailAttachments = atts.map(a => {
+        const item = {
+          filename: a.name,
+          content: Buffer.from(a.b64, 'base64'),
+          contentType: a.mime
+        };
+        if (a.cid) {
+          item.cid = a.cid;
+          item.contentDisposition = 'inline';
+        } else {
+          item.contentDisposition = 'attachment';
+        }
+        return item;
+      });
+
       const info = await buildTxFromAcct(acct).sendMail({
         from: acct.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
         text: m.body || '', html: m.html || formatTextToHtml(m.body || ''),
-        attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
+        attachments: mailAttachments
       });
       id = info.messageId || null;
     }
@@ -340,14 +502,29 @@ export async function sendEmailNow(ownerId, m) {
       if (fallback && fallback.email !== acct.email) {
         log.info({ fallback: fallback.email }, 'Reintentando envío con cuenta de respaldo activa');
         if (fallback.source === 'oauth') {
-          const id = await gmailApiSend(fallback, m);
+          const id = await gmailApiSend(fallback, { ...m, attachments: userAtts });
           return { id, from: fallback.from };
         } else {
-          const atts = await loadAttachments(m.attachments);
+          const atts = await loadAttachments(userAtts);
+          const mailAttachments = atts.map(a => {
+            const item = {
+              filename: a.name,
+              content: Buffer.from(a.b64, 'base64'),
+              contentType: a.mime
+            };
+            if (a.cid) {
+              item.cid = a.cid;
+              item.contentDisposition = 'inline';
+            } else {
+              item.contentDisposition = 'attachment';
+            }
+            return item;
+          });
+
           const info = await buildTxFromAcct(fallback).sendMail({
             from: fallback.from, to: m.to_addr, subject: m.subject || '(sin asunto)',
             text: m.body || '', html: m.html || formatTextToHtml(m.body || ''),
-            attachments: atts.map(a => ({ filename: a.name, content: Buffer.from(a.b64, 'base64'), contentType: a.mime }))
+            attachments: mailAttachments
           });
           return { id: info.messageId || null, from: fallback.from };
         }
@@ -827,9 +1004,23 @@ async function ingestMessage(acct, token, id) {
 
   const fromLower = from.email.toLowerCase();
   const subjLower = (subject || '').toLowerCase();
-  const isBounce = fromLower.includes('mailer-daemon') || subjLower.includes('delivery status notification') || subjLower.includes('undelivered mail');
+  const textLower = ((bodyText || '') + ' ' + subjLower).toLowerCase();
 
-  if (isBounce) {
+  const isAutoResponder = textLower.includes('out of office') || textLower.includes('fuera de la oficina') || textLower.includes('auto-reply') || textLower.includes('autoreply') || textLower.includes('vacaciones') || textLower.includes('absence notice') || textLower.includes('automatic reply');
+  const isBounce = !isAutoResponder && (fromLower.includes('mailer-daemon') || subjLower.includes('delivery status notification') || subjLower.includes('undelivered mail') || textLower.includes('undeliverable') || textLower.includes('failed to deliver'));
+
+  if (isAutoResponder) {
+    log.info({ from: from.email }, 'Respuesta automática de ausencia detectada (sin supresión)');
+    if (prospect?.id) {
+      await dbCore.from('jjp_prospects').update({
+        notes: `${prospect.notes || ''} [Ausencia temporal/Vacaciones detectada el ${new Date().toLocaleDateString('es-VE')}]`,
+        updated_at: new Date().toISOString()
+      }).eq('id', prospect.id).catch(() => {});
+    }
+  } else if (isBounce) {
+    const isSoftBounce = textLower.includes('mailbox full') || textLower.includes('quota exceeded') || textLower.includes('storage full') || textLower.includes('over quota') || textLower.includes('insufficient storage') || textLower.includes('452');
+    const bounceType = isSoftBounce ? 'soft' : 'hard';
+
     // Extraer el destinatario que realmente falló (excluyendo mailer-daemon y remitentes internos)
     let bouncedEmail = null;
     const finalRecip = bodyText.match(/(?:Final-Recipient|Original-Recipient|Recipient):\s*(?:rfc822;\s*)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
@@ -850,25 +1041,28 @@ async function ingestMessage(acct, token, id) {
         await dbCore.from('jjp_email_suppression_list').upsert({
           email: bouncedEmail,
           reason: bodyText.slice(0, 300),
-          bounce_type: 'hard',
+          bounce_type: bounceType,
           source: 'bounce_inbox',
           created_at: new Date().toISOString()
         }, { onConflict: 'email' });
         
+        const statusField = isSoftBounce ? 'bounced_soft' : 'bounced_hard';
+        const reasonText = isSoftBounce ? 'Bandeja llena / Capacidad excedida (Reintentar)' : 'Mailer Daemon / DSN Dirección inválida';
+
         await Promise.allSettled([
           dbCore.from('jjp_customers').update({
-            email_status: 'bounced_hard',
-            bounce_reason: 'Mailer Daemon / DSN',
+            email_status: statusField,
+            bounce_reason: reasonText,
             bounced_at: new Date().toISOString()
           }).ilike('email', bouncedEmail),
           dbCore.from('jjp_prospects').update({
-            email_status: 'bounced_hard',
-            bounce_reason: 'Mailer Daemon / DSN',
+            email_status: statusField,
+            bounce_reason: reasonText,
             bounced_at: new Date().toISOString()
           }).ilike('email', bouncedEmail)
         ]);
         
-        log.info({ bouncedEmail }, 'Rebote procesado en suppression list, jjp_customers y jjp_prospects');
+        log.info({ bouncedEmail, bounceType }, 'Rebote clasificado y procesado en suppression list y CRM');
       } catch (err) {
         log.error({ err: err.message }, 'Error al procesar rebote en ingestMessage');
       }
@@ -966,7 +1160,99 @@ async function ingestMessage(acct, token, id) {
       log.warn({ err: aiErr.message }, 'Aviso en análisis cognitivo de correo entrante');
     }
 
-    // 4. Notificación comercial al asesor / usuario de la cuenta (solo clientes, prospectos o cotizaciones)
+    // 4. Auto-Respuesta IA Inmediata a Clientes Reales (con cooldown anti-spam de 24h)
+    try {
+      const fromLowerAll = ((from.email || '') + ' ' + (from.name || '')).toLowerCase();
+      const ignoredDomains = [
+        'linkedin.com', 'glassdoor.com', 'netflix.com', 'disneyplus.com', 'dazn.com',
+        'google.com', 'apple.com', 'okx.com', 'twitch.tv', 'coursera.org',
+        'noreply', 'no-reply', 'postmaster', 'mailer-daemon', 'newsletter',
+        'weremoto.com', 'movistar.com.ve', 'bancoplaza.com', 'turboscribe.ai',
+        'codedex.io', 'n8n.io', 'kick.com', 'atentamentebpo.com', 'respond.io',
+        'slatedigital.com', 'redhat.com', 'adobe.com', 'panini', 'wink.com', 'wink'
+      ];
+      const isAutomatedSpam = ignoredDomains.some(d => fromLowerAll.includes(d));
+
+      const isEligibleForAutoReply = !isAutomatedSpam &&
+        !aiMeta?.is_opt_out &&
+        !isAutoResponder &&
+        (aiMeta?.is_quote_request || aiMeta?.sentiment === 'interesado' || aiMeta?.sentiment === 'consulta');
+
+      if (isEligibleForAutoReply && from.email.includes('@')) {
+        // Verificar si ya se le envió un correo saliente en las últimas 24 horas (cooldown)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentSent } = await db.from('jjp_emails')
+          .select('id')
+          .ilike('to_addr', from.email)
+          .eq('direction', 'out')
+          .gte('created_at', oneDayAgo)
+          .limit(1);
+
+        if (!recentSent?.length) {
+          log.info({ to: from.email }, '🚀 Disparando auto-respuesta IA a cliente real');
+
+          let replyBody = aiMeta?.draft_reply;
+          if (!replyBody || replyBody.length < 25) {
+            const senderDisplayName = cust?.name || prospect?.company_name || from.name || 'Cliente';
+            const isReseller = /papeler[ií]a|librer[ií]a|quincalla|bazar|reventa|detal|comercio/i.test(
+              (cust?.company_name || prospect?.company_name || from.name || '') + ' ' + (subject || '') + ' ' + (bodyText || '')
+            );
+
+            const ctaClosing = isReseller
+              ? '¿Cuáles son los productos escolares o de papelería que más rápido rotan en su mostrador para hacerles llegar nuestra lista de precios mayorista por bulto cerrado?'
+              : '¿Podrían compartirnos su lista de los insumos de mayor concurrencia o rotación en su empresa para prepararles una cotización formal comparativa a Tasa Oficial BCV?';
+
+            replyBody = `Hola, estimado equipo de ${senderDisplayName}:\n\n` +
+              `Un gusto saludarles. En JJ Paper C.A. confirmamos la recepción de su comunicación y estamos a su entera disposición para atender sus requerimientos de papelería y suministros.\n\n` +
+              `Somos importadores y distribuidores directos en Caracas: ofrecemos precios mayoristas por bulto cerrado liquidados a Tasa Oficial BCV del día, con facturación fiscal formal SENIAT y despacho ágil en 24 horas con flota propia en Caracas y La Guaira.\n\n` +
+              `Les invitamos a explorar nuestro Catálogo Interactivo en línea con más de 2.400 artículos en https://jjpaper.pages.dev/catalogo.html, donde pueden armar su lista de cotización en 1 solo clic y enviárnosla directamente.\n\n` +
+              `Adicionalmente, contamos con servicio de Procura Abierta: si requieren cualquier insumo, equipo de oficina o medida fuera de catálogo, se lo ubicamos y suministramos de inmediato.\n\n` +
+              `${ctaClosing}\n\n` +
+              `Atentamente,\n` +
+              `Equipo Comercial · JJ Paper C.A.`;
+          }
+
+          if (aiMeta?.matched_catalog_items?.length) {
+            replyBody += `\n\n📌 Artículos preliminares identificados en nuestro inventario:\n` +
+              aiMeta.matched_catalog_items.map(it => `• ${it.name} (Cant: ${it.quantity} ${it.unit || 'unid'})`).join('\n');
+          }
+
+          const replySubject = subject.toLowerCase().startsWith('re:') ? subject : `Re: ${subject}`;
+          const replyHtml = formatTextToHtml(replyBody);
+
+          const { id: sentMsgId } = await sendEmailNow(acct.profile_id, {
+            to_addr: from.email,
+            subject: replySubject,
+            body: replyBody,
+            html: replyHtml,
+            thread_id: msg.threadId || null
+          });
+
+          await db.from('jjp_emails').insert({
+            owner_id: acct.profile_id,
+            direction: 'out',
+            status: 'sent',
+            from_addr: acct.email,
+            to_addr: from.email,
+            subject: replySubject,
+            body: replyBody,
+            html: replyHtml,
+            gmail_id: sentMsgId || null,
+            thread_id: msg.threadId || null,
+            is_read: true,
+            created_at: new Date().toISOString()
+          }).catch(e => log.warn({ err: e.message }, 'No se pudo guardar registro de auto-reply en jjp_emails'));
+
+          log.info({ to: from.email, sentMsgId }, '✅ Auto-respuesta IA enviada exitosamente');
+        } else {
+          log.info({ to: from.email }, 'Cooldown de 24h activo: se omite auto-respuesta duplicada');
+        }
+      }
+    } catch (autoErr) {
+      log.warn({ err: autoErr.message }, 'Error en proceso de auto-respuesta IA');
+    }
+
+    // 5. Notificación comercial al asesor / usuario de la cuenta (solo clientes, prospectos o cotizaciones)
     try {
       const fromLower = ((from.email || '') + ' ' + (from.name || '')).toLowerCase();
       const ignoredDomains = [

@@ -300,12 +300,12 @@ async function submitFormalQuoteList(event) {
   btn.disabled = true;
   btn.textContent = 'Generando cotización y PDF...';
 
-  const company = document.getElementById('fqCompany').value.trim();
   const contact = document.getElementById('fqContact').value.trim();
-  const rif = (document.getElementById('fqRif')?.value || '').trim() || 'V-00000000-0';
+  const company = (document.getElementById('fqCompany')?.value || '').trim();
   const phone = document.getElementById('fqPhone').value.trim();
-  const email = document.getElementById('fqEmail').value.trim();
-  const city = document.getElementById('fqCity').value.trim();
+  const rif = 'V-00000000-0';
+  const email = '';
+  const city = 'Caracas';
 
   try {
     let seller = null;
@@ -394,49 +394,29 @@ async function submitFormalQuoteList(event) {
       console.warn('Fallo registrando notificación interna:', notifErr);
     }
 
-    // 4. GENERAR Y DESCARGAR PDF OFICIAL AL INSTANTE
-    if (typeof docPdfDocumento === 'function') {
-      try {
-        const pdfNorm = docNormalizeQuote(createdQuote);
-        const pdfOut = await docPdfDocumento(pdfNorm, 'presupuesto');
-        if (pdfOut && pdfOut.blob) {
-          const dlUrl = URL.createObjectURL(pdfOut.blob);
-          const dlLink = document.createElement('a');
-          dlLink.href = dlUrl;
-          dlLink.download = pdfOut.filename || `Cotizacion-${quoteNum}.pdf`;
-          document.body.appendChild(dlLink);
-          dlLink.click();
-          document.body.removeChild(dlLink);
-          setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
-        }
-      } catch (pdfErr) {
-        console.warn('Fallo generando PDF automático:', pdfErr);
-      }
-    }
-
-    // Ofrecer apertura directa en WhatsApp con el asesor asignado
+    // El cliente NO descarga PDF: el asesor recibe la solicitud, evalúa descuentos por volumen y emite la cotización formal.
     let rawPhone = seller?.phone || (typeof APP !== 'undefined' && APP.WA_NUM && APP.WA_NUM !== '584121234567' ? APP.WA_NUM : '584124676073');
     let cleanPhone = String(rawPhone).split('/')[0].replace(/\D/g, '');
     if (cleanPhone.startsWith('0')) cleanPhone = '58' + cleanPhone.slice(1);
     if (!cleanPhone.startsWith('58')) cleanPhone = '58' + cleanPhone;
     if (cleanPhone.length < 10) cleanPhone = '584124676073';
     const waNum = cleanPhone;
-    const notifyMsg = `👋 ¡Hola JJ Paper! Acabo de registrar la Solicitud Formal de Cotización *${quoteNum}* en su catálogo web.\n\n` +
-                      `👤 *Cliente:* ${company || contact}\n` +
-                      `📞 *Contacto:* ${phone}\n` +
-                      `💰 *Total Presupuesto:* $${totals.totalUsd.toFixed(2)} (Bs ${totals.totalBs})\n\n` +
-                      `Ya descargué el PDF formal. Por favor confirmar disponibilidad para coordinar despacho. ¡Gracias!`;
+    const notifyMsg = `👋 ¡Hola ${seller?.name || 'JJ Paper'}! Acabo de registrar mi requerimiento de cotización *${quoteNum}* en su catálogo web.\n\n` +
+                      `👤 *Contacto:* ${contact}${company ? ' (' + company + ')' : ''}\n` +
+                      `📞 *Teléfono:* ${phone}\n` +
+                      `📦 *Líneas Solicitadas:* ${totals.items.length} productos (${totals.totalUsd.toFixed(2)} referencial)\n\n` +
+                      `Por favor evaluar mejores costos por volumen y disponibilidad para remitir cotización formal. ¡Muchas gracias!`;
     const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(notifyMsg)}`;
 
-    // Mostrar pantalla de confirmación interactiva dentro del modal para evitar bloqueos de popup
+    // Mostrar pantalla de confirmación interactiva dentro del modal
     const formEl = document.querySelector('#formalQuoteModal .fq-body');
     if (formEl) {
       formEl.innerHTML = `
         <div style="text-align:center; padding:16px 8px;">
           <div style="font-size:38px; margin-bottom:6px;">✅</div>
-          <h3 style="margin:0 0 6px 0; color:#16604A; font-size:17px; font-weight:700;">¡Cotización ${quoteNum} Registrada!</h3>
+          <h3 style="margin:0 0 6px 0; color:#16604A; font-size:17px; font-weight:700;">¡Requerimiento ${quoteNum} Enviado!</h3>
           <p style="margin:0 0 16px 0; font-size:12.5px; color:#475569; line-height:1.4;">
-            El presupuesto formal membretado se ha descargado en tu dispositivo y quedó registrado en nuestro sistema comercial.
+            Tu lista de <strong>${totals.items.length} productos</strong> fue remitida a tu asesor asignado (<strong>${escapeHTML(seller?.name || 'JJ Paper')}</strong>). Prepararemos tu cotización formal con mejores costos por volumen a Tasa Oficial BCV.
           </p>
           <a href="${waUrl}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; box-sizing:border-box; padding:12px; background:#25D366; border:none; color:#fff; border-radius:8px; font-weight:700; text-decoration:none; font-size:14px; margin-bottom:10px; box-shadow:0 2px 6px rgba(37,211,102,0.3);">
             <span>📲 Abrir WhatsApp y Avisar a mi Asesor</span>
@@ -449,7 +429,7 @@ async function submitFormalQuoteList(event) {
     }
 
     if (typeof showToast === 'function') {
-      showToast(`✔ ¡Cotización ${quoteNum} registrada y PDF descargado!`);
+      showToast(`✔ ¡Requerimiento ${quoteNum} enviado a tu asesor!`);
     }
 
   } catch (err) {
@@ -507,7 +487,7 @@ function injectQuoteDrawer() {
               <span>Enviar Lista Completa a WhatsApp</span>
             </button>
             <button type="button" class="btn-qd-formal" onclick="openFormalQuoteModal()">
-              <span>⚡ Solicitar Presupuesto Formal (PDF)</span>
+              <span>⚡ Enviar Requerimiento a mi Asesor</span>
             </button>
             <button type="button" class="qd-clear-btn" onclick="clearClientQuote()">
               🗑️ Vaciar Lista
@@ -517,29 +497,22 @@ function injectQuoteDrawer() {
       </div>
     </div>
 
-    <!-- Modal Cotización Formal -->
+    <!-- Modal Envío de Requerimiento al Asesor -->
     <div class="formal-quote-modal" id="formalQuoteModal" role="dialog" aria-modal="true">
       <div class="fq-card">
         <div class="fq-head">
-          <h4>⚡ Solicitar Cotización Formal Membretada</h4>
+          <h4>⚡ Enviar Requerimiento a mi Asesor</h4>
           <button type="button" style="background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer" onclick="closeFormalQuoteModal()">✕</button>
         </div>
         <form class="fq-body" onsubmit="submitFormalQuoteList(event)">
-          <div style="font-size:12px;color:#555;background:#f0f5f2;padding:8px 12px;border-radius:6px">
-            Se enviará el requerimiento de los productos seleccionados para emisión de presupuesto formal membretado con validez fiscal.
+          <div style="font-size:12px;color:#16604a;background:#ecfdf5;border:1px solid #a7f3d0;padding:10px 14px;border-radius:8px;line-height:1.5">
+            📦 Envía tu lista seleccionada a tu asesor asignado. Evaluaremos tu pedido para ofrecerte <strong>mejores costos y descuentos por volumen</strong> a Tasa Oficial BCV.
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input type="text" class="fq-input" id="fqCompany" required placeholder="Empresa / Negocio / Colegio *">
-            <input type="text" class="fq-input" id="fqRif" placeholder="RIF o Cédula (ej. J-12345678-9)">
-          </div>
-          <input type="text" class="fq-input" id="fqContact" required placeholder="Persona de Contacto *">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <input type="tel" class="fq-input" id="fqPhone" required placeholder="WhatsApp / Teléfono *">
-            <input type="email" class="fq-input" id="fqEmail" required placeholder="Correo Electrónico *">
-          </div>
-          <input type="text" class="fq-input" id="fqCity" placeholder="Ciudad / Dirección de Despacho">
+          <input type="text" class="fq-input" id="fqContact" required placeholder="Tu Nombre / Persona de Contacto *">
+          <input type="text" class="fq-input" id="fqCompany" placeholder="Empresa, Negocio o Colegio (Opcional)">
+          <input type="tel" class="fq-input" id="fqPhone" required placeholder="Número de WhatsApp o Teléfono *">
           <button type="submit" class="btn-qd-formal" id="fqSubmitBtn" style="padding:12px;font-size:14px;border-radius:8px">
-            ⚡ Enviar Solicitud y Descargar Presupuesto PDF
+            ⚡ Enviar Requerimiento a mi Asesor
           </button>
         </form>
       </div>

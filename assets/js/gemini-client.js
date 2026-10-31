@@ -271,8 +271,28 @@
         try {
           const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
 
+          const parts = [{ text: prompt }];
+          if (options && typeof options === 'object' && (options.imageBase64 || options.inline_data)) {
+            let b64 = options.imageBase64 || options.inline_data?.data || '';
+            let mime = options.mimeType || options.inline_data?.mime_type || 'image/jpeg';
+            if (b64.includes('base64,')) {
+              const sp = b64.split('base64,');
+              b64 = sp[1];
+              const mm = sp[0].match(/data:([^;]+);/);
+              if (mm) mime = mm[1];
+            }
+            if (b64) {
+              parts.push({
+                inline_data: {
+                  mime_type: mime,
+                  data: b64
+                }
+              });
+            }
+          }
+
           const bodyPayload = {
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            contents: [{ role: 'user', parts }],
             generationConfig: {
               temperature: Math.max(0.1, Math.min(1.0, temperature)),
               maxOutputTokens: maxTokens
@@ -329,6 +349,165 @@
     }
 
     throw lastError || new Error('No se pudo comunicar con el servicio de IA.');
+  }
+
+  /* --------------------------------------------------------------------------
+     Gemini Vision API: Análisis Multimodal de Imágenes y Atributos de Producto
+     -------------------------------------------------------------------------- */
+  async function callGeminiVision(options) {
+    let prompt = '';
+    let imageBase64 = '';
+    let mimeType = 'image/jpeg';
+    let imageUrl = '';
+    let systemInstruction = '';
+    let temperature = 0.1;
+    let maxTokens = 800;
+
+    if (options && typeof options === 'object') {
+      prompt = options.prompt || '';
+      imageBase64 = options.imageBase64 || '';
+      mimeType = options.mimeType || 'image/jpeg';
+      imageUrl = options.imageUrl || '';
+      systemInstruction = options.systemInstruction || '';
+      temperature = options.temperature !== undefined ? options.temperature : 0.1;
+      maxTokens = options.maxTokens || 800;
+    }
+
+    if (!prompt) {
+      throw new Error('callGeminiVision requiere un prompt de análisis.');
+    }
+
+    // Si se pasa imageUrl y no imageBase64, convertir la imagen a base64
+    if (!imageBase64 && imageUrl) {
+      try {
+        if (imageUrl.startsWith('data:')) {
+          imageBase64 = imageUrl;
+        } else if (typeof fetch !== 'undefined') {
+          const res = await fetch(imageUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            if (blob.type) mimeType = blob.type;
+            if (typeof FileReader !== 'undefined') {
+              imageBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            } else {
+              const arrayBuf = await blob.arrayBuffer();
+              imageBase64 = Buffer.from(arrayBuf).toString('base64');
+            }
+          }
+        }
+      } catch (fetchErr) {
+        console.warn('callGeminiVision: no se pudo descargar imageUrl:', fetchErr);
+      }
+    }
+
+    let cleanData = imageBase64;
+    if (cleanData && cleanData.includes('base64,')) {
+      const parts = cleanData.split('base64,');
+      cleanData = parts[1];
+      const mMatch = parts[0].match(/data:([^;]+);/);
+      if (mMatch) mimeType = mMatch[1];
+    }
+
+    if (!cleanData) {
+      throw new Error('callGeminiVision requiere datos válidos de imagen (base64 o URL).');
+    }
+
+    if (!GEMINI_KEYS || GEMINI_KEYS.length === 0) {
+      try { await syncKeysFromSettings(); } catch (_) {}
+    }
+
+    const rawPool = GEMINI_KEYS;
+    const activePool = rawPool.filter(k => !_deadKeys.has(k));
+    if (activePool.length === 0) {
+      throw new Error('No hay llaves de Gemini disponibles para análisis de visión.');
+    }
+
+    const visionModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
+    const timeoutMs = 9000;
+    const startKeyIdx = Math.abs(_keyIndex++) % activePool.length;
+    const maxAttempts = activePool.length;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const currentKey = activePool[(startKeyIdx + attempt) % activePool.length];
+
+      for (const m of visionModels) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${currentKey}`;
+
+          const parts = [
+            { text: prompt },
+            {
+              inline_data: {
+                mime_type: mimeType,
+                data: cleanData
+              }
+            }
+          ];
+
+          const bodyPayload = {
+            contents: [{ role: 'user', parts }],
+            generationConfig: {
+              temperature: Math.max(0.0, Math.min(1.0, temperature)),
+              maxOutputTokens: maxTokens
+            }
+          };
+
+          if (systemInstruction) {
+            bodyPayload.systemInstruction = {
+              parts: [{ text: systemInstruction }]
+            };
+          }
+
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyPayload),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (text) return text.trim();
+          }
+
+          const status = res.status;
+          const errBody = await res.json().catch(() => ({}));
+          const errMsg = errBody.error?.message || `HTTP ${status}`;
+          const lowErr = errMsg.toLowerCase();
+
+          if (status === 401 || status === 403 || lowErr.includes('location is not supported') || lowErr.includes('api_key') || lowErr.includes('key not valid')) {
+            _deadKeys.add(currentKey);
+            _keyFailures[currentKey] = (_keyFailures[currentKey] || 0) + 1;
+            lastError = new Error(`Key restringida (${status}): ${errMsg}`);
+            break;
+          }
+
+          if (status === 429 || status === 503 || status === 404) {
+            lastError = new Error(`Modelo ${m} cuota (${status}): ${errMsg}`);
+            continue;
+          }
+
+          lastError = new Error(`Error en API Vision (${status}): ${errMsg}`);
+        } catch (netErr) {
+          clearTimeout(timeoutId);
+          lastError = netErr;
+          break;
+        }
+      }
+    }
+
+    throw lastError || new Error('Fallaron los intentos de análisis en Gemini Vision.');
   }
 
   /* --------------------------------------------------------------------------
@@ -3194,19 +3373,17 @@ Respond with ONLY the 1 English sentence describing the object.`;
 
     const photoPrompt = `Commercial retail packshot of ${englishSubject}, office supplies and stationery product, NO PEOPLE, NO CHARACTERS, NO WINNIE THE POOH, NO PIGLET, NO CARTOONS, NO 3D GRAPHICS, isolated centered front hero angle, ${bgPrompt}, crisp pristine packaging condition, razor-sharp focus on branding typography, professional commercial advertising photography, 8k uhd`;
 
-    // Generar imagen con Pollinations Flux (motor de IA publicitaria)
-    const cleanPrompt = photoPrompt.slice(0, 450);
-    const seed = Math.abs(hashCode(name + (forceNew ? Date.now() : '')));
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=800&height=800&model=flux&nologo=true&seed=${seed}`;
-
+    // ERRADICADO: Por política comercial oficial de JJ Paper, se prohíben imágenes ficticias
+    // generadas por difusión de texto (Flux / Pollinations). El catálogo sólo admite fotos reales o cámara.
     const result = {
-      imageUrl,
-      prompt: photoPrompt,
+      imageUrl: null,
+      prompt: '',
       specs: enriched,
-      isAiGenerated: true
+      isAiGenerated: false,
+      disabled: true,
+      error: 'No se permiten imágenes ficticias de IA generativa en el catálogo oficial'
     };
 
-    _studioPhotoCache.set(cacheKey, result);
     return result;
   }
 
@@ -3286,32 +3463,12 @@ Respond with ONLY the 1 English sentence describing the object.`;
     }
 
     if (!imgToLoad && product) {
-      imgToLoad = product._studio_photo_url;
-      if (!imgToLoad) {
-        try {
-          const studioRes = await generateProductStudioPhoto({ product, theme });
-          if (studioRes?.imageUrl) {
-            imgToLoad = studioRes.imageUrl;
-            product._studio_photo_url = imgToLoad;
-          }
-        } catch (e) {
-          console.warn('No se pudo pregenerar foto de estudio:', e);
-        }
-      }
+      imgToLoad = product._studio_photo_url || null;
     }
 
     if (imgToLoad) {
       try {
         let img = await loadImageSafe(imgToLoad);
-        if (!img && imgToLoad !== product?._studio_photo_url && product) {
-          try {
-            const studioRes = await generateProductStudioPhoto({ product, theme });
-            if (studioRes?.imageUrl) {
-              product._studio_photo_url = studioRes.imageUrl;
-              img = await loadImageSafe(studioRes.imageUrl);
-            }
-          } catch (_) {}
-        }
 
         if (img && img.width > 10 && img.height > 10) {
           const scale = Math.min(maxImgW / img.width, maxImgH / img.height, 1);
@@ -4301,6 +4458,7 @@ ${rawText}
 
   return {
     callGemini,
+    callGeminiVision,
     suggestWhatsAppReplies,
     generateAntiSpamVariations,
     generateCampaignSpintax,

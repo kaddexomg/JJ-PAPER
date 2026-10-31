@@ -310,7 +310,7 @@ async function docPdfProductos({ conStock = false, titulo = 'Catálogo Comercial
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
   doc.text(`${filas.length} artículos disponibles  ·  ${cats.length} categorías mayoristas`, 40, 96);
   doc.setFont('helvetica', 'normal'); doc.setTextColor(120); doc.setFontSize(8.5);
-  doc.text('Pedidos WhatsApp / Catálogo con QR en jj-paper.pages.dev/catalogo_impreso.html', pageW - 40, 96, { align: 'right' });
+  doc.text('Pedidos WhatsApp / Catálogo Digital en jjpaper.pages.dev/catalogo', pageW - 40, 96, { align: 'right' });
 
   const nombre = 'Catalogo_y_Lista_de_Precios_JJ_Paper.pdf';
   const blob = doc.output('blob');

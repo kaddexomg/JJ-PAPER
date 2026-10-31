@@ -82,3 +82,6 @@ MAPEO-TOTAL-MIXNET/*.txt
 
 
 scratch/
+wa-server/*.mjs
+wa-server/test-*.js
+

@@ -68,7 +68,7 @@ async function loadProductData(id, sku, queryText = '') {
       }
     }
 
-    const { data: rawData, error } = (id || sku) ? await query.single() : await query;
+    const { data: rawData, error } = await query.limit(1);
     const data = Array.isArray(rawData) ? rawData[0] : rawData;
     if (error || !data) {
       renderNotFound('El producto solicitado no fue encontrado o está inactivo.');
@@ -230,7 +230,7 @@ function renderProductView() {
         
         <!-- Galería Izquierda -->
         <div class="prod-gallery-wrap">
-          <div class="prod-stage" id="stageContainer" onclick="openZoomModal()">
+          <div class="prod-stage" id="stageContainer" onclick="${activeImg ? 'openZoomModal()' : ''}" style="${activeImg ? '' : 'cursor:default;background:linear-gradient(145deg,#062017 0%,#0f3828 60%,#16604A 100%);padding:24px;'}">
             <div class="stage-badges">
               <span class="badge-tag cat">${escapeHTML(cat.name)}</span>
               ${p._packaging ? `<span class="badge-tag packaging">📦 ${escapeHTML(p._packaging)}</span>` : ''}
@@ -244,11 +244,26 @@ function renderProductView() {
 
             ${activeImg ? `
               <img id="mainStageImg" src="${optImg(activeImg, 800)}" alt="${escapeHTML(p.name)}" decoding="async">
+              <span class="stage-zoom-hint">🔍 Toca para ampliar</span>
             ` : `
-              <span style="font-size:90px">${p.emoji || '📦'}</span>
+              <div style="width:100%;max-width:360px;background:rgba(255,255,255,0.97);border:2px solid #99CC33;border-radius:16px;padding:24px 20px;text-align:center;box-shadow:0 16px 36px rgba(0,0,0,0.28);color:#0f172a">
+                <div style="display:inline-flex;align-items:center;gap:6px;background:#062017;color:#99CC33;font-size:10.5px;font-weight:900;padding:4px 12px;border-radius:99px;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:12px">
+                  ✔ Ficha Oficial Mayorista · JJ Paper C.A.
+                </div>
+                <div style="font-size:18px;font-weight:900;color:#062017;line-height:1.25;margin-bottom:10px">
+                  ${escapeHTML(p.name)}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:12px">
+                  <div><span style="color:#64748b;font-size:10px;display:block;text-transform:uppercase">Código SKU</span><strong style="color:#0f172a">${escapeHTML(sku)}</strong></div>
+                  <div><span style="color:#64748b;font-size:10px;display:block;text-transform:uppercase">Presentación</span><strong style="color:#0f172a">${escapeHTML(p._packaging || unit)}</strong></div>
+                  <div><span style="color:#64748b;font-size:10px;display:block;text-transform:uppercase">Línea</span><strong style="color:#16604A">${escapeHTML(cat.name)}</strong></div>
+                  <div><span style="color:#64748b;font-size:10px;display:block;text-transform:uppercase">Facturación</span><strong style="color:#0f172a">SENIAT / Tasa BCV</strong></div>
+                </div>
+                <div style="font-size:11.5px;color:#166534;font-weight:700;background:#f0fdf4;border:1px solid #bbf7d0;padding:7px 10px;border-radius:8px">
+                  ⚡ Disponible para Cotización y Despacho Inmediato
+                </div>
+              </div>
             `}
-
-            <span class="stage-zoom-hint">🔍 Toca para ampliar</span>
           </div>
 
           ${thumbsHTML}
@@ -783,6 +798,18 @@ async function initSellerPhotoManager() {
     <div class="spf-arrow">⚙️</div>
   `;
   document.body.appendChild(fab);
+
+  // Si el producto escaneado por el vendedor/admin NO tiene foto, abrir el asistente automáticamente y lanzar búsqueda IA
+  const hasPhotoNow = Boolean((galleryImages && galleryImages.length > 0) || (currentProduct && currentProduct.image_url));
+  if (!hasPhotoNow && !window._autoOpenedSellerPanel) {
+    window._autoOpenedSellerPanel = true;
+    setTimeout(async () => {
+      await openSellerPhotoPanel();
+      if (typeof sellerBuscarFotosWeb === 'function') {
+        sellerBuscarFotosWeb();
+      }
+    }, 350);
+  }
 }
 
 async function openSellerPhotoPanel() {
@@ -815,6 +842,20 @@ async function openSellerPhotoPanel() {
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px">
+        <!-- 0. Editor Rápido de Precio en Vivo ($ USD) -->
+        <div style="border:1.5px solid #bae6fd;border-radius:12px;padding:14px;background:#f0f9ff">
+          <div style="font-size:12px;font-weight:800;color:#0369a1;text-transform:uppercase;margin-bottom:8px">💲 Actualizar Precio Mayorista ($ USD) en Vivo</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="number" step="0.01" min="0" id="sellerLivePriceInput" value="${Number(currentVariant?.price_usd ?? currentProduct?.price_usd ?? 0).toFixed(2)}"
+                   style="width:140px;padding:8px 12px;border:1.5px solid #0284c7;border-radius:8px;font-size:15px;font-weight:800;color:#0f172a;background:#fff">
+            <button type="button" onclick="sellerGuardarPrecioEnVivo()"
+                    style="padding:9px 16px;background:#0284c7;color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer">
+              💾 Guardar Nuevo Precio ($)
+            </button>
+            <span style="font-size:11.5px;color:#0369a1">Se actualiza al instante en la ficha y en el catálogo.</span>
+          </div>
+        </div>
+
         <!-- 1. Estado y validación de foto actual -->
         <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;background:#f8fafc">
           <div style="font-size:12px;font-weight:700;color:#0f172a;text-transform:uppercase;margin-bottom:10px">1. Verificación de Foto Actual en Catálogo</div>
@@ -1177,5 +1218,32 @@ Responde ÚNICAMENTE JSON: { "veredicto": "aprobada" | "rechazada", "razon": "br
   } catch (e) {
     alert('Error al asignar foto web: ' + e.message);
     if (actionStatus) actionStatus.textContent = 'Error: ' + e.message;
+  }
+}
+
+
+async function sellerGuardarPrecioEnVivo() {
+  const inp = document.getElementById('sellerLivePriceInput');
+  const newPrice = parseFloat(inp?.value);
+  if (isNaN(newPrice) || newPrice < 0 || !currentProduct) {
+    alert('Ingresa un precio válido en USD.');
+    return;
+  }
+  const statusEl = document.getElementById('sellerActionStatus');
+  if (statusEl) statusEl.innerHTML = '⏳ Actualizando precio en el servidor VPS...';
+  try {
+    await sb.from('jjp_products').update({ price_usd: newPrice, price_b: newPrice }).eq('id', currentProduct.id);
+    if (currentVariant && currentVariant.id) {
+      await sb.from('jjp_product_variants').update({ price_usd: newPrice, price_b: newPrice }).eq('id', currentVariant.id);
+      currentVariant.price_usd = newPrice;
+      currentVariant.price_b = newPrice;
+    }
+    currentProduct.price_usd = newPrice;
+    currentProduct.price_b = newPrice;
+    renderProductView();
+    if (statusEl) statusEl.innerHTML = '✅ Precio actualizado a $' + newPrice.toFixed(2) + ' USD.';
+    if (typeof showToast === 'function') showToast('✅ Precio actualizado a $' + newPrice.toFixed(2), 'ok');
+  } catch (e) {
+    alert('Error actualizando precio: ' + e.message);
   }
 }

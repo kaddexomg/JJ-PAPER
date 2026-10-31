@@ -993,10 +993,21 @@ body.hide-prices .dir-price-col {
         <option value="none">📄 Sin Guías de Huecos</option>
       </select>
 
-      <select class="tb-select" id="priceVisibilitySelect" onchange="filterCatalog()" title="Moneda en el documento impreso">
-        <option value="usd_only" selected>💵 Precios solo en USD ($) [Impresión]</option>
-        <option value="usd_bs">💵 USD ($) y Bolívares (Bs)</option>
+      <select class="tb-select" id="priceVisibilitySelect" onchange="filterCatalog()" title="Formato de precios en el catálogo impreso (Sin Bs impresos)">
+        <option value="usd_only" selected>💵 Precio $ USD (Clic en precio para editar · Sin Bs)</option>
+        <option value="qr_live">📲 Precio Dinámico en QR (Cambiar luego sin reimprimir)</option>
+        <option value="blank_box">🏷️ Casilla $ ______ (Para anotar o etiquetar luego)</option>
         <option value="hide">🙈 Ocultar Precios</option>
+      </select>
+
+      <select class="tb-select" id="priceAdjustPctSelect" onchange="filterCatalog()" title="Ajustar margen porcentual sobre los precios antes de imprimir">
+        <option value="0" selected>💲 Ajuste: 0% (Precio Base)</option>
+        <option value="-10">💲 Ajuste: -10% Descuento</option>
+        <option value="-5">💲 Ajuste: -5% Descuento</option>
+        <option value="5">💲 Ajuste: +5% Margen</option>
+        <option value="10">💲 Ajuste: +10% Margen</option>
+        <option value="15">💲 Ajuste: +15% Margen</option>
+        <option value="20">💲 Ajuste: +20% Margen</option>
       </select>
 
       <a href="admin/estudio-fotos.html" target="_blank" class="tb-btn" style="background:#7c3aed;color:#fff;text-decoration:none;box-shadow:0 2px 8px rgba(124,58,237,0.35)" title="Abrir interfaz de entrenamiento IA, verificación de fotos y categorías">🧠 Estudio IA de Fotos</a>
@@ -1278,7 +1289,7 @@ body.hide-prices .dir-price-col {
       ? 'https://jjpaper.pages.dev'
       : window.location.origin;
     const selCode = document.getElementById('sellerSelect')?.value || '005';
-    const shortCode = (p.sku && String(p.sku).trim()) ? String(p.sku).trim() : String(p.id || '').slice(0, 8);
+    const shortCode = String(p.id || '').slice(0, 8);
     return `${origin}/q/${encodeURIComponent(shortCode)}?v=${encodeURIComponent(selCode)}`;
   }
 
@@ -1420,20 +1431,33 @@ body.hide-prices .dir-price-col {
       ? `<img src="${p._photo}" alt="${escName}" loading="eager" decoding="sync">`
       : `<div class="p-photo-fallback"><span>${escapeHTML(p._catEmoji)}</span></div>`;
 
+    const adjPct = parseFloat(document.getElementById('priceAdjustPctSelect')?.value || '0') || 0;
+    const effectiveUsd = +(Number(p._priceUsd || 0) * (1 + adjPct / 100)).toFixed(2);
     let pricesHtml = '';
-    if (priceMode === 'usd_bs') {
+    if (priceMode === 'usd_only') {
       pricesHtml = `
-        <div class="p-prices">
-          <span class="p-price-lbl">MAYORISTA</span>
-          <div class="p-price-usd">${formatUsd(p._priceUsd)}</div>
-          <div class="p-price-bs">${formatBs(p._priceBs)}</div>
+        <div class="p-prices" onclick="editProductPriceInline('${p.id}')" style="cursor:pointer" title="Haz clic para cambiar el precio en USD antes de imprimir">
+          <span class="p-price-lbl">REF. MAYORISTA USD ✏️</span>
+          <div class="p-price-usd">${formatUsd(effectiveUsd)}</div>
+          <div class="p-price-bs" style="color:#059669;font-weight:700">📲 Cotizar / Bs en QR</div>
         </div>
       `;
-    } else if (priceMode === 'usd_only') {
+    } else if (priceMode === 'qr_live') {
       pricesHtml = `
         <div class="p-prices">
-          <span class="p-price-lbl">MAYORISTA USD</span>
-          <div class="p-price-usd">${formatUsd(p._priceUsd)}</div>
+          <span class="p-price-lbl">PRECIO AL DÍA</span>
+          <div style="font-size:8pt;font-weight:900;color:#062017;background:#f0fdf4;border:1px solid #86efac;padding:3px 6px;border-radius:4px;margin-top:2px">
+            📲 Ver Precio y Cotizar en QR
+          </div>
+        </div>
+      `;
+    } else if (priceMode === 'blank_box') {
+      pricesHtml = `
+        <div class="p-prices">
+          <span class="p-price-lbl">REF. MAYORISTA</span>
+          <div style="font-size:10pt;font-weight:900;color:#0f172a;border:1.5px dashed #64748b;padding:2px 8px;border-radius:4px;min-width:24mm;margin-top:2px">
+            $ _________
+          </div>
         </div>
       `;
     }
@@ -1492,18 +1516,30 @@ body.hide-prices .dir-price-col {
     const buyUrl = getProductBuyUrl(p);
     const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'usd_only';
 
+    const adjPct = parseFloat(document.getElementById('priceAdjustPctSelect')?.value || '0') || 0;
+    const effectiveUsd = +(Number(p._priceUsd || 0) * (1 + adjPct / 100)).toFixed(2);
     let pricesHtml = '';
-    if (priceMode === 'usd_bs') {
+    if (priceMode === 'usd_only') {
       pricesHtml = `
-        <div class="dir-price-col">
-          <div class="dir-usd">${formatUsd(p._priceUsd)}</div>
-          <div class="dir-bs">${formatBs(p._priceBs)}</div>
+        <div class="dir-price-col" onclick="editProductPriceInline('${p.id}')" style="cursor:pointer" title="Haz clic para cambiar este precio en USD">
+          <div class="dir-usd">${formatUsd(effectiveUsd)}</div>
+          <div class="dir-bs" style="color:#059669;font-weight:700">📲 Cotizar en QR</div>
         </div>
       `;
-    } else if (priceMode === 'usd_only') {
+    } else if (priceMode === 'qr_live') {
       pricesHtml = `
         <div class="dir-price-col">
-          <div class="dir-usd">${formatUsd(p._priceUsd)}</div>
+          <div style="font-size:7.5pt;font-weight:900;color:#062017;background:#f0fdf4;border:1px solid #86efac;padding:3px 6px;border-radius:4px">
+            📲 Precio en QR
+          </div>
+        </div>
+      `;
+    } else if (priceMode === 'blank_box') {
+      pricesHtml = `
+        <div class="dir-price-col">
+          <div style="font-size:9.5pt;font-weight:900;color:#0f172a;border:1.5px dashed #64748b;padding:2px 7px;border-radius:4px">
+            $ ________
+          </div>
         </div>
       `;
     }
@@ -1544,7 +1580,7 @@ body.hide-prices .dir-price-col {
           </div>
         </div>
         <div class="cover-qr-box">
-          <div class="p-qr-canvas" style="width:17mm;height:17mm" data-qr-url="https://jj-paper.pages.dev/catalogo.html"></div>
+          <div class="p-qr-canvas" style="width:17mm;height:17mm" data-qr-url="https://jjpaper.pages.dev/catalogo.html"></div>
           <span>Catálogo Web</span>
         </div>
       </div>
@@ -1587,11 +1623,40 @@ body.hide-prices .dir-price-col {
         </div>
 
         <footer class="sheet-footer">
-          <span>🌐 jj-paper.pages.dev · Precios oficiales al mayor en USD ($) · Facturación en Bs a tasa oficial BCV del día</span>
+          <span>🌐 jjpaper.pages.dev · Precios oficiales al mayor en USD ($) · Facturación en Bs a tasa oficial BCV del día</span>
           <span class="sf-folio">HOJA #${physicalSheet} · PÁGINA ${pageNum} (${sideLabel})</span>
         </footer>
       </section>
     `;
+  }
+
+  
+  async function editProductPriceInline(productId) {
+    const prod = RAW_PRODUCTS.find(x => x.id === productId);
+    if (!prod) return;
+    const currentVal = Number(prod._priceUsd || prod.price_usd || 0).toFixed(2);
+    const input = prompt(
+      `💲 Cambiar precio oficial de:\n"${prod.name}" (SKU: ${prod.sku || 'S/SKU'})\n\nIngresa el nuevo precio en USD ($):`,
+      currentVal
+    );
+    if (input === null) return;
+    const newPrice = parseFloat(String(input).replace(',', '.').replace(/[^0-9.]/g, ''));
+    if (isNaN(newPrice) || newPrice < 0) {
+      alert('Precio inválido.');
+      return;
+    }
+    prod.price_usd = newPrice;
+    prod.price_b = newPrice;
+    prod._priceUsd = newPrice;
+    renderBook();
+    try {
+      const client = window.sb || window._pgClient || (typeof getSupabase === 'function' ? getSupabase() : null);
+      if (client) {
+        await client.from('jjp_products').update({ price_usd: newPrice, price_b: newPrice }).eq('id', prod.id);
+      }
+    } catch (e) {
+      console.warn('No se pudo guardar en BD:', e);
+    }
   }
 
   function renderBook() {

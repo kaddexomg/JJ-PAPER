@@ -824,8 +824,10 @@ body.hide-holes .spine-gutter {
 }
 
 body.hide-prices .p-prices,
-body.hide-prices .dir-price-col {
-  display: none !important;
+body.hide-prices .dir-price-col,
+body.hide-prices .p-price-stack,
+body.hide-prices .dir-price-strip {
+  visibility: hidden !important;
 }
 
 /* =========================================================
@@ -950,67 +952,213 @@ body.hide-prices .dir-price-col {
 }
 
 /* =========================================================
-   REDISEÑO CREATIVO POR FAMILIAS + RIEL FÍSICO DE PRECIO ESCALABLE
+   REDISEÑO EJECUTIVO MILIMÉTRICO POR JERARQUÍA COMERCIAL
+   1º Oficina y Papel -> 2º Escolar y Arte -> 3º Limpieza e Higiene
+   Cero desborde · QR Fijos · Riel de Precio Alineado
    ========================================================= */
+
+/* TARJETA CON FOTO (.p-card: 89mm ancho × 71mm alto) */
+.p-card {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-top: 3.2px solid var(--fam-c, #16604A) !important;
+  border-radius: 7px !important;
+  padding: 2mm 2.2mm !important;
+  display: grid !important;
+  grid-template-columns: 36mm minmax(0, 1fr) !important;
+  gap: 2.2mm !important;
+  align-items: stretch !important;
+  height: 71mm !important;
+  max-height: 71mm !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+.p-photo-wrap {
+  width: 36mm !important;
+  height: 65mm !important;
+  max-height: 65mm !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 5px !important;
+  padding: 1.2mm !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+.p-info {
+  display: grid !important;
+  grid-template-rows: 5mm 1fr 25.5mm !important;
+  gap: 1mm !important;
+  height: 65mm !important;
+  max-height: 65mm !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.p-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1mm;
+  height: 5mm;
+  overflow: hidden;
+}
+.p-mid-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 0;
+  overflow: hidden;
+}
+.p-name {
+  font-size: 7.8pt !important;
+  font-weight: 900 !important;
+  color: #0f172a !important;
+  line-height: 1.2 !important;
+  margin: 0 0 0.8mm 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  max-height: 13mm !important;
+}
+.p-desc {
+  font-size: 5.5pt !important;
+  color: #475569 !important;
+  line-height: 1.22 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  max-height: 6.5mm !important;
+  margin-bottom: 1mm !important;
+}
+.p-unit-tag {
+  font-size: 5.4pt !important;
+  font-weight: 800 !important;
+  background: var(--fam-bg, #ecfdf5) !important;
+  color: var(--fam-c, #047857) !important;
+  border: 0.8px solid rgba(15,23,42,0.12) !important;
+  padding: 0.4mm 1.5mm !important;
+  border-radius: 3px !important;
+  align-self: flex-start !important;
+  margin-top: auto !important;
+}
+
+/* Pie de Tarjeta con Foto: Columna Izquierda (Precios Apilados 20.5mm) + Columna Derecha (QR Fijo 23.5mm) */
+.p-bottom-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 23.5mm !important;
+  gap: 1.5mm !important;
+  align-items: stretch !important;
+  height: 25.5mm !important;
+  max-height: 25.5mm !important;
+  padding-top: 1mm !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-sizing: border-box !important;
+}
+.p-price-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1mm;
+  height: 24mm;
+  min-width: 0;
+}
+.p-qr-col {
+  width: 23.5mm !important;
+  height: 24mm !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.4mm !important;
+  background: #ffffff !important;
+  border: 1.4px solid #0f172a !important;
+  border-radius: 4px !important;
+  padding: 0.8mm !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+.p-qr-canvas {
+  width: 19.5mm !important;
+  height: 19.5mm !important;
+}
+.p-qr-canvas img, .p-qr-canvas canvas {
+  width: 19.5mm !important;
+  height: 19.5mm !important;
+}
+
+/* TARJETA SIN FOTO (.dir-row: 89mm ancho × 41mm alto, 2 columnas × 5 filas = 10 por página) */
 .dir-row {
   background: #ffffff !important;
   border: 1.5px solid #cbd5e1 !important;
-  border-left: 4px solid var(--fam-c, var(--doc-c)) !important;
+  border-left: 4px solid var(--fam-c, #16604A) !important;
   border-radius: 7px !important;
-  padding: 2mm 2.4mm !important;
+  padding: 1.8mm 2.2mm !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 27.5mm !important;
-  gap: 2.2mm !important;
+  grid-template-columns: minmax(0, 1fr) 27mm !important;
+  gap: 2mm !important;
   align-items: stretch !important;
   height: 41mm !important;
   max-height: 41mm !important;
   width: 100% !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04) !important;
 }
 .dir-left-col {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  height: 100%;
+  display: grid !important;
+  grid-template-rows: 4.8mm 18.2mm 12mm !important;
+  gap: 0.8mm !important;
+  height: 36.6mm !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
 }
 .dir-top-badges {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5mm;
-  margin-bottom: 0.8mm;
+  gap: 1mm;
+  height: 4.8mm;
+  overflow: hidden;
 }
 .dir-cat-pill {
-  font-size: 5.4pt;
+  font-size: 5.2pt;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  padding: 0.4mm 1.6mm;
+  letter-spacing: 0.2px;
+  padding: 0.3mm 1.4mm;
   border-radius: 3px;
   background: var(--fam-bg, #ecfdf5);
   color: var(--fam-c, #047857);
-  border: 0.8px solid rgba(15,23,42,0.1);
+  border: 0.8px solid rgba(15,23,42,0.12);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 38mm;
+  max-width: 31mm;
 }
 .dir-sku-pill {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 5.4pt;
+  font-size: 5.1pt;
   font-weight: 800;
   color: #334155;
   background: #f1f5f9;
   border: 0.8px solid #cbd5e1;
-  padding: 0.3mm 1.4mm;
+  padding: 0.3mm 1.2mm;
   border-radius: 3px;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+.dir-mid-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+  height: 18.2mm;
 }
 .dir-name {
-  font-size: 8.2pt !important;
+  font-size: 8pt !important;
   font-weight: 900 !important;
   color: #0f172a !important;
   line-height: 1.18 !important;
@@ -1018,10 +1166,11 @@ body.hide-prices .dir-price-col {
   -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
+  max-height: 9.2mm !important;
   margin-bottom: 0.6mm !important;
 }
 .dir-meta {
-  font-size: 5.8pt !important;
+  font-size: 5.6pt !important;
   color: #475569 !important;
   font-weight: 600 !important;
   white-space: nowrap !important;
@@ -1029,68 +1178,92 @@ body.hide-prices .dir-price-col {
   text-overflow: ellipsis !important;
 }
 
-/* Riel Físico de Precio Escalable (Precio Base + Casilla Nuevo Precio / Sticker) */
-.price-revision-strip {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.4mm;
-  align-items: stretch;
-  margin-top: auto;
-  padding-top: 1mm;
-  border-top: 1px solid #e2e8f0;
+/* Riel Horizontal de Precio en Tarjeta Sin Foto (55mm de ancho, a la izquierda del QR) */
+.dir-price-strip {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 1.4mm !important;
+  align-items: stretch !important;
+  height: 11.8mm !important;
+  padding-top: 0.8mm !important;
+  border-top: 1px solid #e2e8f0 !important;
+  box-sizing: border-box !important;
 }
 .prs-box-base {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  padding: 0.6mm 1.5mm;
+  padding: 0.5mm 1.3mm;
   display: flex;
   flex-direction: column;
   justify-content: center;
   cursor: pointer;
+  overflow: hidden;
 }
 .prs-box-base .prs-lbl {
-  font-size: 4.5pt;
+  font-size: 4.3pt;
   font-weight: 800;
   color: #475569;
   text-transform: uppercase;
-  letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 .prs-box-base .prs-val {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9.8pt;
+  font-size: 9.2pt;
   font-weight: 900;
   color: var(--fam-c, #062017);
   line-height: 1.05;
+  white-space: nowrap;
 }
 .prs-box-new {
   background: #ffffff;
-  border: 1.2px dashed #64748b;
+  border: 1.1px dashed #64748b;
   border-radius: 4px;
-  padding: 0.6mm 1.5mm;
+  padding: 0.5mm 1.3mm;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow: hidden;
 }
 .prs-box-new .prs-lbl {
-  font-size: 4.4pt;
+  font-size: 4.2pt;
   font-weight: 900;
   color: #0f172a;
   text-transform: uppercase;
-  letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 .prs-box-new .prs-write {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 7.5pt;
+  font-size: 7pt;
   font-weight: 800;
   color: #94a3b8;
-  border-bottom: 1px dotted #94a3b8;
-  line-height: 1.1;
-  padding-bottom: 0.3mm;
+  border-bottom: 0.8px dotted #94a3b8;
+  line-height: 1.05;
+  white-space: nowrap;
 }
 
-.p-card {
-  border-top: 3px solid var(--fam-c, var(--doc-c)) !important;
+.dir-qr-col {
+  width: 27mm !important;
+  height: 36.6mm !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.6mm !important;
+  background: #ffffff !important;
+  border: 1.5px solid #0f172a !important;
+  border-radius: 5px !important;
+  padding: 1mm !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+.dir-qr-box {
+  width: 24mm !important;
+  height: 24mm !important;
+}
+.dir-qr-box img, .dir-qr-box canvas {
+  width: 24mm !important;
+  height: 24mm !important;
 }
 
 </style>
@@ -1430,7 +1603,8 @@ body.hide-prices .dir-price-col {
     const s = url.trim();
     if (s.length < 12 || s === 'null' || s === 'undefined') return false;
     if (/pollinations|stability\.ai|midjourney|replicate\.delivery/i.test(s)) return false;
-    return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image/');
+    if (s.startsWith('data:image/')) return false;
+    return s.startsWith('http://') || s.startsWith('https://');
   }
 
   function getProductBuyUrl(p) {
@@ -1485,31 +1659,54 @@ body.hide-prices .dir-price-col {
           .range(0, 1999)
       ]);
 
-      const FAMILY_PALETTE = {
-        'papel':      { c: '#047857', bg: '#ecfdf5' },
-        'escritura':  { c: '#0369a1', bg: '#f0f9ff' },
-        'archivo':    { c: '#4338ca', bg: '#eef2ff' },
-        'escolar':    { c: '#d97706', bg: '#fffbeb' },
-        'embalaje':   { c: '#b45309', bg: '#fef3c7' },
-        'limpieza':   { c: '#0e7490', bg: '#ecfeff' },
-        'tecnologia': { c: '#334155', bg: '#f1f5f9' },
-        'contab':     { c: '#6d28d9', bg: '#f5f3ff' }
-      };
-      const GROUP_MAP = {};
-      const famSel = document.getElementById('familyFilter');
-      (groups || []).forEach(g => {
-        const slugKey = Object.keys(FAMILY_PALETTE).find(k => (g.slug || g.name || '').toLowerCase().includes(k)) || 'papel';
-        GROUP_MAP[g.id] = { ...g, color: FAMILY_PALETTE[slugKey].c, bg: FAMILY_PALETTE[slugKey].bg };
-        if (famSel) {
-          const o = document.createElement('option');
-          o.value = g.id;
-          o.textContent = `${g.emoji || '🗂️'} ${g.name}`;
-          famSel.appendChild(o);
-        }
-      });
+      // Jerarquía Comercial Oficial de JJ Paper:
+      // 1º Nivel (10-29): Suministros de Oficina, Papel y Archivo (Destacado Principal)
+      // 2º Nivel (30-49): Artículos Escolares, Cuadernos, Arte y Manualidades
+      // 3º Nivel (50-69): Limpieza, Higiene, Cafetería y Complementos
+      function getCommercialHierarchy(catNameRaw) {
+        const c = String(catNameRaw || '').toUpperCase().trim();
+        // NIVEL 1: OFICINA, PAPEL Y ARCHIVO
+        if (c === 'PAPEL') return { famId: '1_oficina_papel', famName: '1. Oficina · Papel y Resmas', famEmoji: '📄', famSort: 10, catSort: 10, color: '#047857', bg: '#ecfdf5' };
+        if (c === 'ARCHIVADORES') return { famId: '1_oficina_archivo', famName: '1. Oficina · Archivo y Carpetas', famEmoji: '🗂️', famSort: 11, catSort: 11, color: '#1e40af', bg: '#eff6ff' };
+        if (c === 'CARPETAS') return { famId: '1_oficina_archivo', famName: '1. Oficina · Archivo y Carpetas', famEmoji: '🗂️', famSort: 11, catSort: 12, color: '#1e40af', bg: '#eff6ff' };
+        if (c === 'SOBRES' || c === 'FUNDAS PROTECTORES' || c === 'PORTACARNET') return { famId: '1_oficina_archivo', famName: '1. Oficina · Archivo y Carpetas', famEmoji: '🗂️', famSort: 11, catSort: 13, color: '#1e40af', bg: '#eff6ff' };
+        if (c === 'BOLIGRAFOS') return { famId: '1_oficina_escritura', famName: '1. Oficina · Escritura Corporativa', famEmoji: '🖊️', famSort: 12, catSort: 14, color: '#0369a1', bg: '#f0f9ff' };
+        if (c === 'MARCADORES' || c === 'CORRECTORES') return { famId: '1_oficina_escritura', famName: '1. Oficina · Escritura Corporativa', famEmoji: '🖊️', famSort: 12, catSort: 15, color: '#0369a1', bg: '#f0f9ff' };
+        if (c === 'ENGRAPADORAS' || c === 'PERFORADORAS') return { famId: '1_oficina_desk', famName: '1. Oficina · Equipamiento y Sujeción', famEmoji: '📎', famSort: 13, catSort: 16, color: '#4338ca', bg: '#eef2ff' };
+        if (c === 'CLIPS GANCHOS' || c === 'CHINCHES') return { famId: '1_oficina_desk', famName: '1. Oficina · Equipamiento y Sujeción', famEmoji: '📎', famSort: 13, catSort: 17, color: '#4338ca', bg: '#eef2ff' };
+        if (c === 'NOTAS ADHESIVAS') return { famId: '1_oficina_desk', famName: '1. Oficina · Equipamiento y Sujeción', famEmoji: '📎', famSort: 13, catSort: 18, color: '#4338ca', bg: '#eef2ff' };
+        if (c === 'TINTA SELLOS') return { famId: '1_oficina_desk', famName: '1. Oficina · Equipamiento y Sujeción', famEmoji: '📎', famSort: 13, catSort: 19, color: '#4338ca', bg: '#eef2ff' };
+        if (c === 'CINTAS') return { famId: '1_oficina_embalaje', famName: '1. Oficina · Cintas y Embalaje', famEmoji: '📦', famSort: 14, catSort: 20, color: '#b45309', bg: '#fef3c7' };
+        if (c === 'TIJERAS') return { famId: '1_oficina_desk', famName: '1. Oficina · Equipamiento y Sujeción', famEmoji: '✂️', famSort: 13, catSort: 21, color: '#4338ca', bg: '#eef2ff' };
+        if (c === 'BANDEJAS' || c === 'MAQUINAS OFICINA' || c === 'CALCULADORAS' || c === 'SUMADORAS' || c === 'PILAS') return { famId: '1_oficina_equipos', famName: '1. Oficina · Equipos y Organización', famEmoji: '🖨️', famSort: 15, catSort: 22, color: '#334155', bg: '#f1f5f9' };
+        if (c === 'LIBROS CONTABLES' || c === 'FORMULARIOS') return { famId: '1_oficina_contab', famName: '1. Oficina · Contabilidad y Formas', famEmoji: '🧾', famSort: 16, catSort: 24, color: '#6d28d9', bg: '#f5f3ff' };
 
-      if (errCats) throw errCats;
-      if (errProds) throw errProds;
+        // NIVEL 2: ESCOLAR, CUADERNOS, ARTE Y MANUALIDADES
+        if (c === 'CUADERNOS') return { famId: '2_escolar_cuadernos', famName: '2. Escolar · Cuadernos, Libretas y Blocks', famEmoji: '📓', famSort: 30, catSort: 30, color: '#059669', bg: '#ecfdf5' };
+        if (c === 'LAPICES') return { famId: '2_escolar_utiles', famName: '2. Escolar · Útiles y Dibujo', famEmoji: '✏️', famSort: 31, catSort: 31, color: '#d97706', bg: '#fffbeb' };
+        if (c === 'CREYONES') return { famId: '2_escolar_utiles', famName: '2. Escolar · Útiles y Dibujo', famEmoji: '🖍️', famSort: 31, catSort: 32, color: '#d97706', bg: '#fffbeb' };
+        if (c === 'BORRADORES' || c === 'TAJALAPICES') return { famId: '2_escolar_utiles', famName: '2. Escolar · Útiles y Dibujo', famEmoji: '✏️', famSort: 31, catSort: 33, color: '#d97706', bg: '#fffbeb' };
+        if (c === 'PEGAMENTOS') return { famId: '2_escolar_utiles', famName: '2. Escolar · Útiles y Dibujo', famEmoji: '🧴', famSort: 31, catSort: 34, color: '#d97706', bg: '#fffbeb' };
+        if (c === 'REGLAS' || c === 'COMPASES') return { famId: '2_escolar_utiles', famName: '2. Escolar · Útiles y Dibujo', famEmoji: '📐', famSort: 31, catSort: 35, color: '#d97706', bg: '#fffbeb' };
+        if (c === 'PINTURAS' || c === 'MANUALIDADES' || c === 'FOAMI' || c === 'CARTELERA' || c === 'TIZAS' || c === 'PIZARRAS') return { famId: '2_escolar_arte', famName: '2. Escolar · Arte y Manualidades', famEmoji: '🎨', famSort: 32, catSort: 36, color: '#ea580c', bg: '#fff7ed' };
+        if (c === 'CARTUCHERAS' || c === 'FORROS' || c === 'LIBROS CUENTOS' || c === 'JUEGOS DIDACTICOS') return { famId: '2_escolar_accesorios', famName: '2. Escolar · Textos y Accesorios', famEmoji: '🎒', famSort: 33, catSort: 38, color: '#ea580c', bg: '#fff7ed' };
+
+        // NIVEL 3: LIMPIEZA, HIGIENE Y COMPLEMENTOS
+        if (c.includes('LIMPIEZA') || c.includes('HIGIENE') || c.includes('COLETOS') || c.includes('UTENSILIOS') || c.includes('DESECHOS') || c.includes('PROTECCION')) {
+          return { famId: '3_limpieza', famName: '3. Limpieza, Higiene y Mantenimiento', famEmoji: '🧹', famSort: 50, catSort: 50, color: '#0e7490', bg: '#ecfeff' };
+        }
+        return { famId: '1_oficina_general', famName: '1. Oficina · Suministros Generales', famEmoji: '📦', famSort: 25, catSort: 25, color: '#334155', bg: '#f1f5f9' };
+      }
+
+      const famSel = document.getElementById('familyFilter');
+      if (famSel) {
+        famSel.innerHTML = `
+          <option value="all">🗂️ Todos los Segmentos (1º Oficina · 2º Escolar · 3º Limpieza)</option>
+          <option value="1_oficina">🏢 1. Artículos de Oficina, Papel y Archivo (Destacado)</option>
+          <option value="2_escolar">🎒 2. Artículos Escolares, Cuadernos y Arte</option>
+          <option value="3_limpieza">🧹 3. Limpieza, Higiene y Mantenimiento</option>
+        `;
+      }
 
       CATEGORIES = cats || [];
       const catSel = document.getElementById('catFilter');
@@ -1535,6 +1732,8 @@ body.hide-prices .dir-price-col {
         }
 
         const brands = [...new Set(variants.map(v => v.jjp_brands?.name).filter(Boolean))];
+        const catName = p.jjp_categories?.name || 'General';
+        const hier = getCommercialHierarchy(catName);
 
         return {
           ...p,
@@ -1543,20 +1742,20 @@ body.hide-prices .dir-price-col {
           _priceUsd: priceUsd,
           _priceBs: priceUsd * rate,
           _brands: brands,
-          _catName: p.jjp_categories?.name || 'General',
-          _catEmoji: p.jjp_categories?.emoji || p.emoji || '📦',
-          _catSort: p.jjp_categories?.sort_order ?? 999,
-          _famId: p.jjp_categories?.group_id || '',
-          _famName: GROUP_MAP[p.jjp_categories?.group_id]?.name || 'Línea General',
-          _famEmoji: GROUP_MAP[p.jjp_categories?.group_id]?.emoji || '📦',
-          _famSort: GROUP_MAP[p.jjp_categories?.group_id]?.sort_order ?? 99,
-          _famColor: GROUP_MAP[p.jjp_categories?.group_id]?.color || '#16604A',
-          _famBg: GROUP_MAP[p.jjp_categories?.group_id]?.bg || '#ecfdf5',
+          _catName: catName,
+          _catEmoji: p.jjp_categories?.emoji || p.emoji || hier.famEmoji,
+          _catSort: hier.catSort,
+          _famId: hier.famId,
+          _famName: hier.famName,
+          _famEmoji: hier.famEmoji,
+          _famSort: hier.famSort,
+          _famColor: hier.color,
+          _famBg: hier.bg,
           _smartDesc: getCommercialDescription(p)
         };
       });
 
-      // Ordenar estrictamente por Familia Maestra -> Categoría -> Alfabético
+      // Ordenar estrictamente: 1º Oficina -> 2º Escolar -> 3º Limpieza -> Categoría -> Nombre
       RAW_PRODUCTS.sort((a, b) => {
         if (a._famSort !== b._famSort) return a._famSort - b._famSort;
         if (a._catSort !== b._catSort) return a._catSort - b._catSort;
@@ -1585,7 +1784,7 @@ body.hide-prices .dir-price-col {
     const catId = document.getElementById('catFilter')?.value || 'all';
 
     return RAW_PRODUCTS.filter(p => {
-      if (famId !== 'all' && p._famId !== famId) return false;
+      if (famId !== 'all' && !String(p._famId || '').startsWith(famId)) return false;
       if (catId !== 'all' && p.category_id !== catId) return false;
       if (q) {
         const text = `${p.name} ${p._catName} ${p._smartDesc} ${p._brands.join(' ')}`.toLowerCase();
@@ -1603,7 +1802,7 @@ body.hide-prices .dir-price-col {
     ).join('');
   }
 
-  function buildScalablePriceBlockHTML(p, isCompact = false) {
+  function buildScalablePriceBlockHTML(p, isPhotoCard = false) {
     const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'dual_revision';
     const adjPct = parseFloat(document.getElementById('priceAdjustPctSelect')?.value || '0') || 0;
     const effectiveUsd = +(Number(p._priceUsd || 0) * (1 + adjPct / 100)).toFixed(2);
@@ -1612,13 +1811,29 @@ body.hide-prices .dir-price-col {
     if (priceMode === 'hide') return '';
 
     if (priceMode === 'dual_revision') {
+      // En tarjeta con foto (.p-card) se apila verticalmente (20.5mm ancho x 24mm alto) a la izquierda del QR
+      // En tarjeta sin foto (.dir-row) va en riel horizontal de 2 columnas (55mm ancho x 11.8mm alto) a la izquierda del QR
+      if (isPhotoCard) {
+        return `
+          <div class="p-price-stack">
+            <div class="prs-box-base" onclick="editProductPriceInline('${p.id}')" title="Clic para editar este precio antes de imprimir">
+              <span class="prs-lbl">REF. USD ✏️</span>
+              <span class="prs-val">${formatUsd(effectiveUsd)}</span>
+            </div>
+            <div class="prs-box-new" title="Casilla para actualizar precio en físico sin tachar feo">
+              <span class="prs-lbl">NUEVO $:</span>
+              <span class="prs-write">$ _______</span>
+            </div>
+          </div>
+        `;
+      }
       return `
-        <div class="price-revision-strip">
+        <div class="dir-price-strip">
           <div class="prs-box-base" onclick="editProductPriceInline('${p.id}')" title="Clic para editar este precio antes de imprimir">
             <span class="prs-lbl">REF. USD (${unitStr}) ✏️</span>
             <span class="prs-val">${formatUsd(effectiveUsd)}</span>
           </div>
-          <div class="prs-box-new" title="Casilla física para actualizar o anotar nuevo precio en calle sin tachar feo">
+          <div class="prs-box-new" title="Casilla física para anotar nuevo precio en calle">
             <span class="prs-lbl">NUEVO $ / DESC.</span>
             <span class="prs-write">$ _________</span>
           </div>
@@ -1628,32 +1843,27 @@ body.hide-prices .dir-price-col {
 
     if (priceMode === 'usd_only') {
       return `
-        <div class="p-prices" onclick="editProductPriceInline('${p.id}')" style="cursor:pointer" title="Haz clic para cambiar el precio en USD antes de imprimir">
-          <span class="p-price-lbl">REF. MAYORISTA (${unitStr}) ✏️</span>
-          <div class="p-price-usd">${formatUsd(effectiveUsd)}</div>
-          <div class="p-price-bs" style="color:#059669;font-weight:700">📲 Cotizar en QR</div>
+        <div class="prs-box-base" style="height:100%" onclick="editProductPriceInline('${p.id}')" title="Clic para cambiar el precio en USD">
+          <span class="prs-lbl">MAYORISTA (${unitStr}) ✏️</span>
+          <span class="prs-val" style="font-size:11pt">${formatUsd(effectiveUsd)}</span>
         </div>
       `;
     }
 
     if (priceMode === 'qr_live') {
       return `
-        <div class="p-prices">
-          <span class="p-price-lbl">PRECIO EN VIVO (${unitStr})</span>
-          <div style="font-size:7.5pt;font-weight:900;color:#062017;background:#f0fdf4;border:1px solid #86efac;padding:2.5px 6px;border-radius:4px;margin-top:1px">
-            📲 Ver Precio y Cotizar en QR
-          </div>
+        <div class="prs-box-base" style="height:100%;background:#f0fdf4;border-color:#86efac">
+          <span class="prs-lbl" style="color:#166534">PRECIO EN VIVO (${unitStr})</span>
+          <span style="font-size:7.5pt;font-weight:900;color:#062017">📲 Cotizar en QR</span>
         </div>
       `;
     }
 
     if (priceMode === 'blank_box') {
       return `
-        <div class="p-prices">
-          <span class="p-price-lbl">PRECIO (${unitStr})</span>
-          <div style="font-size:9.5pt;font-weight:900;color:#0f172a;border:1.5px dashed #64748b;padding:2px 8px;border-radius:4px;margin-top:1px">
-            $ ___________
-          </div>
+        <div class="prs-box-new" style="height:100%">
+          <span class="prs-lbl">PRECIO (${unitStr})</span>
+          <span class="prs-write" style="font-size:9pt">$ __________</span>
         </div>
       `;
     }
@@ -1670,7 +1880,7 @@ body.hide-prices .dir-price-col {
       ? `<img src="${p._photo}" alt="${escName}" loading="eager" decoding="sync">`
       : `<div class="p-photo-fallback"><span>${escapeHTML(p._catEmoji)}</span></div>`;
 
-    const pricesHtml = buildScalablePriceBlockHTML(p, false);
+    const pricesHtml = buildScalablePriceBlockHTML(p, true);
 
     return `
       <article class="p-card" style="--fam-c:${p._famColor};--fam-bg:${p._famBg}">
@@ -1678,20 +1888,20 @@ body.hide-prices .dir-price-col {
           ${photoHtml}
         </div>
         <div class="p-info">
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:1mm;margin-bottom:0.8mm">
-              <span class="dir-cat-pill">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</span>
-              <span class="dir-sku-pill">${skuStr}</span>
-            </div>
+          <div class="p-top-bar">
+            <span class="dir-cat-pill">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</span>
+            <span class="dir-sku-pill">${skuStr}</span>
+          </div>
+          <div class="p-mid-body">
             <h3 class="p-name">${escName}</h3>
             <div class="p-desc">${escapeHTML(p._smartDesc)}</div>
             <span class="p-unit-tag">EMPAQUE: ${unitStr}</span>
           </div>
-          <div class="p-footer-line" style="align-items:flex-end">
-            <div style="flex:1;min-width:0">${pricesHtml}</div>
+          <div class="p-bottom-grid">
+            <div>${pricesHtml}</div>
             <div class="p-qr-col">
               <div class="p-qr-canvas" data-qr-url="${escapeHTML(buyUrl)}"></div>
-              <span class="p-qr-label">📲 Cotizar QR</span>
+              <span class="p-qr-label">📲 COTIZAR QR</span>
             </div>
           </div>
         </div>
@@ -1703,7 +1913,7 @@ body.hide-prices .dir-price-col {
     const waUrl = `https://wa.me/584121234567?text=${encodeURIComponent('Hola JJ Paper, deseo cotizar un pedido del catálogo impreso')}`;
     return `
       <article class="p-card filler-card">
-        <div class="p-info">
+        <div class="p-info" style="display:flex !important;flex-direction:column !important;justify-content:space-between !important">
           <div>
             <div class="filler-title">📝 NOTAS DE PEDIDO Y ACTUALIZACIÓN DE PRECIOS</div>
             <div class="filler-line"></div>
@@ -1728,18 +1938,18 @@ body.hide-prices .dir-price-col {
     const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
     const buyUrl = getProductBuyUrl(p);
     const skuStr = escapeHTML(p.sku || String(p.id || '').slice(0, 8).toUpperCase());
-    const pricesHtml = buildScalablePriceBlockHTML(p, true);
+    const pricesHtml = buildScalablePriceBlockHTML(p, false);
 
     return `
       <div class="dir-row" style="--fam-c:${p._famColor};--fam-bg:${p._famBg}">
         <div class="dir-left-col">
-          <div>
-            <div class="dir-top-badges">
-              <span class="dir-cat-pill">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</span>
-              <span class="dir-sku-pill">SKU: ${skuStr}</span>
-            </div>
+          <div class="dir-top-badges">
+            <span class="dir-cat-pill">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</span>
+            <span class="dir-sku-pill">SKU: ${skuStr}</span>
+          </div>
+          <div class="dir-mid-info">
             <div class="dir-name">${escName}</div>
-            <div class="dir-meta">${escapeHTML(p._famEmoji)} ${escapeHTML(p._famName)} · Empaque: <b>${unitStr}</b></div>
+            <div class="dir-meta">${escapeHTML(p._famName)} · Empaque: <b>${unitStr}</b></div>
           </div>
           ${pricesHtml}
         </div>

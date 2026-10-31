@@ -948,6 +948,151 @@ body.hide-prices .dir-price-col {
     display: none !important;
   }
 }
+
+/* =========================================================
+   REDISEÑO CREATIVO POR FAMILIAS + RIEL FÍSICO DE PRECIO ESCALABLE
+   ========================================================= */
+.dir-row {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-left: 4px solid var(--fam-c, var(--doc-c)) !important;
+  border-radius: 7px !important;
+  padding: 2mm 2.4mm !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 27.5mm !important;
+  gap: 2.2mm !important;
+  align-items: stretch !important;
+  height: 41mm !important;
+  max-height: 41mm !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04) !important;
+}
+.dir-left-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  height: 100%;
+}
+.dir-top-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5mm;
+  margin-bottom: 0.8mm;
+}
+.dir-cat-pill {
+  font-size: 5.4pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 0.4mm 1.6mm;
+  border-radius: 3px;
+  background: var(--fam-bg, #ecfdf5);
+  color: var(--fam-c, #047857);
+  border: 0.8px solid rgba(15,23,42,0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 38mm;
+}
+.dir-sku-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 5.4pt;
+  font-weight: 800;
+  color: #334155;
+  background: #f1f5f9;
+  border: 0.8px solid #cbd5e1;
+  padding: 0.3mm 1.4mm;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.dir-name {
+  font-size: 8.2pt !important;
+  font-weight: 900 !important;
+  color: #0f172a !important;
+  line-height: 1.18 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  margin-bottom: 0.6mm !important;
+}
+.dir-meta {
+  font-size: 5.8pt !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Riel Físico de Precio Escalable (Precio Base + Casilla Nuevo Precio / Sticker) */
+.price-revision-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4mm;
+  align-items: stretch;
+  margin-top: auto;
+  padding-top: 1mm;
+  border-top: 1px solid #e2e8f0;
+}
+.prs-box-base {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 0.6mm 1.5mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  cursor: pointer;
+}
+.prs-box-base .prs-lbl {
+  font-size: 4.5pt;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+.prs-box-base .prs-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.8pt;
+  font-weight: 900;
+  color: var(--fam-c, #062017);
+  line-height: 1.05;
+}
+.prs-box-new {
+  background: #ffffff;
+  border: 1.2px dashed #64748b;
+  border-radius: 4px;
+  padding: 0.6mm 1.5mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.prs-box-new .prs-lbl {
+  font-size: 4.4pt;
+  font-weight: 900;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+.prs-box-new .prs-write {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7.5pt;
+  font-weight: 800;
+  color: #94a3b8;
+  border-bottom: 1px dotted #94a3b8;
+  line-height: 1.1;
+  padding-bottom: 0.3mm;
+}
+
+.p-card {
+  border-top: 3px solid var(--fam-c, var(--doc-c)) !important;
+}
+
 </style>
 </head>
 <body>
@@ -976,6 +1121,9 @@ body.hide-prices .dir-price-col {
         <option value="020">👤 Vendedor: 020 · Cartera 020</option>
       </select>
 
+      <select class="tb-select" id="familyFilter" onchange="filterCatalog()" style="font-weight:800;border-color:#059669">
+        <option value="all">🗂️ Todas las Familias (8 Segmentos)</option>
+      </select>
       <select class="tb-select" id="catFilter" onchange="filterCatalog()">
         <option value="all">📦 Todas las Categorías</option>
       </select>
@@ -993,10 +1141,11 @@ body.hide-prices .dir-price-col {
         <option value="none">📄 Sin Guías de Huecos</option>
       </select>
 
-      <select class="tb-select" id="priceVisibilitySelect" onchange="filterCatalog()" title="Formato de precios en el catálogo impreso (Sin Bs impresos)">
-        <option value="usd_only" selected>💵 Precio $ USD (Clic en precio para editar · Sin Bs)</option>
-        <option value="qr_live">📲 Precio Dinámico en QR (Cambiar luego sin reimprimir)</option>
-        <option value="blank_box">🏷️ Casilla $ ______ (Para anotar o etiquetar luego)</option>
+      <select class="tb-select" id="priceVisibilitySelect" onchange="filterCatalog()" title="Formato físico de precios en la hoja impresa">
+        <option value="dual_revision" selected>🔄 Escalable: Precio $ + Casilla "Nuevo $ ___" (Ideal Calle)</option>
+        <option value="usd_only">💵 Solo Precio $ USD (Clic para editar · Sin Bs)</option>
+        <option value="qr_live">📲 Precio Dinámico en QR (Sin precios fijos en papel)</option>
+        <option value="blank_box">🏷️ Casilla $ ______ en Blanco (Para Etiquetadora)</option>
         <option value="hide">🙈 Ocultar Precios</option>
       </select>
 
@@ -1327,13 +1476,37 @@ body.hide-prices .dir-price-col {
       const rateEl = document.getElementById('rateBadge');
       if (rateEl) rateEl.textContent = `Tasa Oficial BCV: Bs ${rate.toFixed(2)} / USD`;
 
-      const [{ data: cats, error: errCats }, { data: prods, error: errProds }] = await Promise.all([
-        sb.from('jjp_categories').select('id, name, slug, emoji, sort_order').order('sort_order'),
+      const [{ data: groups }, { data: cats, error: errCats }, { data: prods, error: errProds }] = await Promise.all([
+        sb.from('jjp_category_groups').select('id, name, slug, emoji, sort_order').order('sort_order'),
+        sb.from('jjp_categories').select('id, name, slug, emoji, sort_order, group_id').order('sort_order'),
         sb.from('jjp_products')
-          .select('id, sku, name, description, price_usd, unit, emoji, image_url, category_id, essential, active, sort_order, jjp_categories(name, emoji, sort_order), jjp_product_variants(id, variant_name, price_usd, active, image_url, jjp_brands(name))')
+          .select('id, sku, name, description, price_usd, unit, emoji, image_url, category_id, essential, active, sort_order, jjp_categories(name, emoji, sort_order, group_id), jjp_product_variants(id, variant_name, price_usd, active, image_url, jjp_brands(name))')
           .eq('active', true)
           .range(0, 1999)
       ]);
+
+      const FAMILY_PALETTE = {
+        'papel':      { c: '#047857', bg: '#ecfdf5' },
+        'escritura':  { c: '#0369a1', bg: '#f0f9ff' },
+        'archivo':    { c: '#4338ca', bg: '#eef2ff' },
+        'escolar':    { c: '#d97706', bg: '#fffbeb' },
+        'embalaje':   { c: '#b45309', bg: '#fef3c7' },
+        'limpieza':   { c: '#0e7490', bg: '#ecfeff' },
+        'tecnologia': { c: '#334155', bg: '#f1f5f9' },
+        'contab':     { c: '#6d28d9', bg: '#f5f3ff' }
+      };
+      const GROUP_MAP = {};
+      const famSel = document.getElementById('familyFilter');
+      (groups || []).forEach(g => {
+        const slugKey = Object.keys(FAMILY_PALETTE).find(k => (g.slug || g.name || '').toLowerCase().includes(k)) || 'papel';
+        GROUP_MAP[g.id] = { ...g, color: FAMILY_PALETTE[slugKey].c, bg: FAMILY_PALETTE[slugKey].bg };
+        if (famSel) {
+          const o = document.createElement('option');
+          o.value = g.id;
+          o.textContent = `${g.emoji || '🗂️'} ${g.name}`;
+          famSel.appendChild(o);
+        }
+      });
 
       if (errCats) throw errCats;
       if (errProds) throw errProds;
@@ -1373,12 +1546,19 @@ body.hide-prices .dir-price-col {
           _catName: p.jjp_categories?.name || 'General',
           _catEmoji: p.jjp_categories?.emoji || p.emoji || '📦',
           _catSort: p.jjp_categories?.sort_order ?? 999,
+          _famId: p.jjp_categories?.group_id || '',
+          _famName: GROUP_MAP[p.jjp_categories?.group_id]?.name || 'Línea General',
+          _famEmoji: GROUP_MAP[p.jjp_categories?.group_id]?.emoji || '📦',
+          _famSort: GROUP_MAP[p.jjp_categories?.group_id]?.sort_order ?? 99,
+          _famColor: GROUP_MAP[p.jjp_categories?.group_id]?.color || '#16604A',
+          _famBg: GROUP_MAP[p.jjp_categories?.group_id]?.bg || '#ecfdf5',
           _smartDesc: getCommercialDescription(p)
         };
       });
 
-      // Ordenar por categoría oficial, luego esenciales y alfabético
+      // Ordenar estrictamente por Familia Maestra -> Categoría -> Alfabético
       RAW_PRODUCTS.sort((a, b) => {
+        if (a._famSort !== b._famSort) return a._famSort - b._famSort;
         if (a._catSort !== b._catSort) return a._catSort - b._catSort;
         if (a._catName !== b._catName) return a._catName.localeCompare(b._catName, 'es');
         if (b.essential !== a.essential) return (b.essential ? 1 : 0) - (a.essential ? 1 : 0);
@@ -1401,9 +1581,11 @@ body.hide-prices .dir-price-col {
 
   function getFilteredProducts() {
     const q = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
+    const famId = document.getElementById('familyFilter')?.value || 'all';
     const catId = document.getElementById('catFilter')?.value || 'all';
 
     return RAW_PRODUCTS.filter(p => {
+      if (famId !== 'all' && p._famId !== famId) return false;
       if (catId !== 'all' && p.category_id !== catId) return false;
       if (q) {
         const text = `${p.name} ${p._catName} ${p._smartDesc} ${p._brands.join(' ')}`.toLowerCase();
@@ -1421,64 +1603,95 @@ body.hide-prices .dir-price-col {
     ).join('');
   }
 
-  function renderProductCardHTML(p) {
-    const escName = escapeHTML(p.name);
-    const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
-    const buyUrl = getProductBuyUrl(p);
-    const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'usd_only';
-
-    const photoHtml = p._hasPhoto
-      ? `<img src="${p._photo}" alt="${escName}" loading="eager" decoding="sync">`
-      : `<div class="p-photo-fallback"><span>${escapeHTML(p._catEmoji)}</span></div>`;
-
+  function buildScalablePriceBlockHTML(p, isCompact = false) {
+    const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'dual_revision';
     const adjPct = parseFloat(document.getElementById('priceAdjustPctSelect')?.value || '0') || 0;
     const effectiveUsd = +(Number(p._priceUsd || 0) * (1 + adjPct / 100)).toFixed(2);
-    let pricesHtml = '';
-    if (priceMode === 'usd_only') {
-      pricesHtml = `
-        <div class="p-prices" onclick="editProductPriceInline('${p.id}')" style="cursor:pointer" title="Haz clic para cambiar el precio en USD antes de imprimir">
-          <span class="p-price-lbl">REF. MAYORISTA USD ✏️</span>
-          <div class="p-price-usd">${formatUsd(effectiveUsd)}</div>
-          <div class="p-price-bs" style="color:#059669;font-weight:700">📲 Cotizar / Bs en QR</div>
-        </div>
-      `;
-    } else if (priceMode === 'qr_live') {
-      pricesHtml = `
-        <div class="p-prices">
-          <span class="p-price-lbl">PRECIO AL DÍA</span>
-          <div style="font-size:8pt;font-weight:900;color:#062017;background:#f0fdf4;border:1px solid #86efac;padding:3px 6px;border-radius:4px;margin-top:2px">
-            📲 Ver Precio y Cotizar en QR
+    const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
+
+    if (priceMode === 'hide') return '';
+
+    if (priceMode === 'dual_revision') {
+      return `
+        <div class="price-revision-strip">
+          <div class="prs-box-base" onclick="editProductPriceInline('${p.id}')" title="Clic para editar este precio antes de imprimir">
+            <span class="prs-lbl">REF. USD (${unitStr}) ✏️</span>
+            <span class="prs-val">${formatUsd(effectiveUsd)}</span>
           </div>
-        </div>
-      `;
-    } else if (priceMode === 'blank_box') {
-      pricesHtml = `
-        <div class="p-prices">
-          <span class="p-price-lbl">REF. MAYORISTA</span>
-          <div style="font-size:10pt;font-weight:900;color:#0f172a;border:1.5px dashed #64748b;padding:2px 8px;border-radius:4px;min-width:24mm;margin-top:2px">
-            $ _________
+          <div class="prs-box-new" title="Casilla física para actualizar o anotar nuevo precio en calle sin tachar feo">
+            <span class="prs-lbl">NUEVO $ / DESC.</span>
+            <span class="prs-write">$ _________</span>
           </div>
         </div>
       `;
     }
 
+    if (priceMode === 'usd_only') {
+      return `
+        <div class="p-prices" onclick="editProductPriceInline('${p.id}')" style="cursor:pointer" title="Haz clic para cambiar el precio en USD antes de imprimir">
+          <span class="p-price-lbl">REF. MAYORISTA (${unitStr}) ✏️</span>
+          <div class="p-price-usd">${formatUsd(effectiveUsd)}</div>
+          <div class="p-price-bs" style="color:#059669;font-weight:700">📲 Cotizar en QR</div>
+        </div>
+      `;
+    }
+
+    if (priceMode === 'qr_live') {
+      return `
+        <div class="p-prices">
+          <span class="p-price-lbl">PRECIO EN VIVO (${unitStr})</span>
+          <div style="font-size:7.5pt;font-weight:900;color:#062017;background:#f0fdf4;border:1px solid #86efac;padding:2.5px 6px;border-radius:4px;margin-top:1px">
+            📲 Ver Precio y Cotizar en QR
+          </div>
+        </div>
+      `;
+    }
+
+    if (priceMode === 'blank_box') {
+      return `
+        <div class="p-prices">
+          <span class="p-price-lbl">PRECIO (${unitStr})</span>
+          <div style="font-size:9.5pt;font-weight:900;color:#0f172a;border:1.5px dashed #64748b;padding:2px 8px;border-radius:4px;margin-top:1px">
+            $ ___________
+          </div>
+        </div>
+      `;
+    }
+    return '';
+  }
+
+  function renderProductCardHTML(p) {
+    const escName = escapeHTML(p.name);
+    const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
+    const buyUrl = getProductBuyUrl(p);
+    const skuStr = escapeHTML(p.sku || String(p.id || '').slice(0, 8).toUpperCase());
+
+    const photoHtml = p._hasPhoto
+      ? `<img src="${p._photo}" alt="${escName}" loading="eager" decoding="sync">`
+      : `<div class="p-photo-fallback"><span>${escapeHTML(p._catEmoji)}</span></div>`;
+
+    const pricesHtml = buildScalablePriceBlockHTML(p, false);
+
     return `
-      <article class="p-card">
+      <article class="p-card" style="--fam-c:${p._famColor};--fam-bg:${p._famBg}">
         <div class="p-photo-wrap">
           ${photoHtml}
         </div>
         <div class="p-info">
           <div>
-            <div class="p-cat">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1mm;margin-bottom:0.8mm">
+              <span class="dir-cat-pill">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</span>
+              <span class="dir-sku-pill">${skuStr}</span>
+            </div>
             <h3 class="p-name">${escName}</h3>
             <div class="p-desc">${escapeHTML(p._smartDesc)}</div>
-            <span class="p-unit-tag">${unitStr}</span>
+            <span class="p-unit-tag">EMPAQUE: ${unitStr}</span>
           </div>
-          <div class="p-footer-line">
-            ${pricesHtml}
+          <div class="p-footer-line" style="align-items:flex-end">
+            <div style="flex:1;min-width:0">${pricesHtml}</div>
             <div class="p-qr-col">
               <div class="p-qr-canvas" data-qr-url="${escapeHTML(buyUrl)}"></div>
-              <span class="p-qr-label">Pedir QR</span>
+              <span class="p-qr-label">📲 Cotizar QR</span>
             </div>
           </div>
         </div>
@@ -1492,7 +1705,7 @@ body.hide-prices .dir-price-col {
       <article class="p-card filler-card">
         <div class="p-info">
           <div>
-            <div class="filler-title">📝 NOTAS DE PEDIDO ADICIONAL · CLIENTE</div>
+            <div class="filler-title">📝 NOTAS DE PEDIDO Y ACTUALIZACIÓN DE PRECIOS</div>
             <div class="filler-line"></div>
             <div class="filler-line"></div>
             <div class="filler-line"></div>
@@ -1514,47 +1727,25 @@ body.hide-prices .dir-price-col {
     const escName = escapeHTML(p.name);
     const unitStr = escapeHTML((p.unit || 'UND').toUpperCase());
     const buyUrl = getProductBuyUrl(p);
-    const priceMode = document.getElementById('priceVisibilitySelect')?.value || 'usd_only';
-
-    const adjPct = parseFloat(document.getElementById('priceAdjustPctSelect')?.value || '0') || 0;
-    const effectiveUsd = +(Number(p._priceUsd || 0) * (1 + adjPct / 100)).toFixed(2);
-    let pricesHtml = '';
-    if (priceMode === 'usd_only') {
-      pricesHtml = `
-        <div class="dir-price-col" onclick="editProductPriceInline('${p.id}')" style="cursor:pointer" title="Haz clic para cambiar este precio en USD">
-          <div class="dir-usd">${formatUsd(effectiveUsd)}</div>
-          <div class="dir-bs" style="color:#059669;font-weight:700">📲 Cotizar en QR</div>
-        </div>
-      `;
-    } else if (priceMode === 'qr_live') {
-      pricesHtml = `
-        <div class="dir-price-col">
-          <div style="font-size:7.5pt;font-weight:900;color:#062017;background:#f0fdf4;border:1px solid #86efac;padding:3px 6px;border-radius:4px">
-            📲 Precio en QR
-          </div>
-        </div>
-      `;
-    } else if (priceMode === 'blank_box') {
-      pricesHtml = `
-        <div class="dir-price-col">
-          <div style="font-size:9.5pt;font-weight:900;color:#0f172a;border:1.5px dashed #64748b;padding:2px 7px;border-radius:4px">
-            $ ________
-          </div>
-        </div>
-      `;
-    }
+    const skuStr = escapeHTML(p.sku || String(p.id || '').slice(0, 8).toUpperCase());
+    const pricesHtml = buildScalablePriceBlockHTML(p, true);
 
     return `
-      <div class="dir-row">
-        <div style="min-width:0">
-          <div class="dir-name">${escName}</div>
-          <div class="dir-meta">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)} · ${escapeHTML(p._smartDesc)}</div>
-          <span class="dir-unit">EMPAQUE: ${unitStr}</span>
+      <div class="dir-row" style="--fam-c:${p._famColor};--fam-bg:${p._famBg}">
+        <div class="dir-left-col">
+          <div>
+            <div class="dir-top-badges">
+              <span class="dir-cat-pill">${escapeHTML(p._catEmoji)} ${escapeHTML(p._catName)}</span>
+              <span class="dir-sku-pill">SKU: ${skuStr}</span>
+            </div>
+            <div class="dir-name">${escName}</div>
+            <div class="dir-meta">${escapeHTML(p._famEmoji)} ${escapeHTML(p._famName)} · Empaque: <b>${unitStr}</b></div>
+          </div>
+          ${pricesHtml}
         </div>
-        ${pricesHtml}
         <div class="dir-qr-col">
           <div class="dir-qr-box" data-qr-url="${escapeHTML(buyUrl)}"></div>
-          <span class="dir-qr-label">ESCANEAR QR</span>
+          <span class="dir-qr-label">📲 COTIZAR QR</span>
         </div>
       </div>
     `;
@@ -1688,15 +1879,16 @@ body.hide-prices .dir-price-col {
         const pNum = pagesSpec.length + 1;
         slice.forEach(item => recordCat(item._catName, pNum));
 
+        const famTitle = `${slice[0]._famEmoji} ${slice[0]._famName.toUpperCase()}`;
         const catsInPage = [...new Set(slice.map(x => `${x._catEmoji} ${x._catName}`))];
-        const catHeader = catsInPage.length === 1 ? catsInPage[0] : `${catsInPage[0]} + ${catsInPage.length - 1} más`;
+        const catHeader = catsInPage.length === 1 ? `${famTitle} › ${catsInPage[0]}` : `${famTitle} › ${catsInPage[0]} (+${catsInPage.length - 1})`;
 
         pagesSpec.push({
           type: 'photos',
           items: slice,
           capacity: cap,
           rows: isFirst ? 2 : 3,
-          catHeader: `📸 Vitrina · ${catHeader}`,
+          catHeader: `${catHeader}`,
           isFirst: isFirst
         });
       }
@@ -1716,14 +1908,15 @@ body.hide-prices .dir-price-col {
         const pNum = pagesSpec.length + 1;
         slice.forEach(item => recordCat(item._catName, pNum));
 
+        const famTitle = `${slice[0]._famEmoji} ${slice[0]._famName.toUpperCase()}`;
         const catsInPage = [...new Set(slice.map(x => `${x._catEmoji} ${x._catName}`))];
-        const catHeader = catsInPage.length === 1 ? catsInPage[0] : `${catsInPage[0]} y más`;
+        const catHeader = catsInPage.length === 1 ? `${famTitle} › ${catsInPage[0]}` : `${famTitle} › ${catsInPage[0]} (+${catsInPage.length - 1})`;
 
         pagesSpec.push({
           type: 'list',
           items: slice,
           capacity: cap,
-          catHeader: `📋 Lista Comercial · ${catHeader}`,
+          catHeader: `${catHeader}`,
           isFirst: isFirst
         });
       }

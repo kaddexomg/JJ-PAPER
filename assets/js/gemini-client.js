@@ -427,7 +427,7 @@
       throw new Error('No hay llaves de Gemini disponibles para análisis de visión.');
     }
 
-    const visionModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
+    const visionModels = ['gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.6-flash'];
     const timeoutMs = 9000;
     const startKeyIdx = Math.abs(_keyIndex++) % activePool.length;
     const maxAttempts = activePool.length;

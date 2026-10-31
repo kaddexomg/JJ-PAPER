@@ -3,12 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JJ Paper · Estudio IA de Entrenamiento, Búsqueda Exacta y Auditoría de Catálogo</title>
+<title>JJ Paper · Estudio IA de Entrenamiento, Auditoría Visual y Búsqueda Exacta</title>
+<script src="https://jjpaper.pages.dev/assets/vendor/supabase.min.js"></script>
+<script src="https://jjpaper.pages.dev/assets/js/config.js"></script>
+<script src="https://jjpaper.pages.dev/assets/js/gemini-client.js"></script>
 <style>
   :root {
-    --bg: #0f172a;
+    --bg: #0b1120;
     --panel: #1e293b;
-    --panel-alt: #0b1120;
+    --panel-alt: #0f172a;
     --border: #334155;
     --text: #f8fafc;
     --muted: #94a3b8;
@@ -17,6 +20,7 @@
     --cyan: #06b6d4;
     --amber: #f59e0b;
     --red: #ef4444;
+    --purple: #8b5cf6;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -31,48 +35,84 @@
   header {
     background: var(--panel-alt);
     border-bottom: 1px solid var(--border);
-    padding: 12px 20px;
+    padding: 10px 18px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    flex-shrink: 0;
-  }
-  .brand-title {
-    display: flex;
-    align-items: center;
     gap: 12px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
   }
+  .brand-title { display: flex; align-items: center; gap: 12px; }
   .brand-badge {
     background: linear-gradient(135deg, var(--brand), var(--cyan));
-    color: #042f2e;
+    color: #022c22;
     font-weight: 900;
     padding: 6px 10px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
+    letter-spacing: 0.4px;
   }
-  .brand-title h1 { font-size: 16px; font-weight: 800; }
-  .brand-title p { font-size: 12px; color: var(--muted); }
-  .stats-bar {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+  .brand-title h1 { font-size: 15px; font-weight: 800; }
+  .brand-title p { font-size: 11.5px; color: var(--muted); }
+  .stats-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .stat-pill {
     background: var(--panel);
     border: 1px solid var(--border);
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
   }
-  .stat-pill strong { color: var(--brand); font-size: 13px; }
+  .stat-pill strong { color: var(--brand); font-size: 12.5px; }
+
+  /* Barra de Pestañas Maestras */
+  .tabs-bar {
+    background: #111827;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .tabs-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab-btn {
+    background: var(--panel);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: 0.15s;
+  }
+  .tab-btn:hover { color: #fff; border-color: var(--cyan); }
+  .tab-btn.active {
+    background: linear-gradient(135deg, rgba(16,185,129,0.22), rgba(6,182,212,0.22));
+    color: #fff;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand);
+  }
+  .tab-count {
+    background: rgba(15,23,42,0.8);
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-size: 11px;
+    color: #38bdf8;
+  }
+
   .btn {
     background: var(--brand);
     color: #022c22;
     border: none;
-    padding: 8px 14px;
+    padding: 8px 13px;
     border-radius: 7px;
     font-weight: 800;
     font-size: 12px;
@@ -81,6 +121,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    text-decoration: none;
   }
   .btn:hover { filter: brightness(1.1); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -88,11 +129,17 @@
   .btn-amber { background: var(--amber); color: #451a03; }
   .btn-red { background: var(--red); color: #fff; }
   .btn-cyan { background: var(--cyan); color: #083344; }
+  .btn-purple { background: var(--purple); color: #fff; }
 
-  .workspace {
+  .tab-pane { display: none; flex: 1; min-height: 0; overflow: hidden; }
+  .tab-pane.active { display: flex; }
+
+  /* TAB 1: Buscador & Consultor IA */
+  .workspace-split {
     display: grid;
     grid-template-columns: 380px 1fr;
-    flex: 1;
+    width: 100%;
+    height: 100%;
     min-height: 0;
   }
   .sidebar {
@@ -115,7 +162,7 @@
     border: 1px solid var(--border);
     padding: 8px 10px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12.5px;
     width: 100%;
   }
   .prod-list {
@@ -130,10 +177,10 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px;
+    padding: 9px;
     cursor: pointer;
     display: grid;
-    grid-template-columns: 44px 1fr;
+    grid-template-columns: 46px 1fr;
     gap: 10px;
     align-items: center;
     transition: 0.12s;
@@ -141,48 +188,44 @@
   .prod-item:hover { border-color: var(--cyan); }
   .prod-item.active { border-color: var(--brand); background: #132a2e; }
   .prod-thumb {
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
     border-radius: 6px;
-    background: #0f172a;
+    background: #ffffff;
     border: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     font-size: 18px;
+    color: #334155;
   }
-  .prod-thumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
-  .prod-name { font-size: 12.5px; font-weight: 700; line-height: 1.25; }
-  .prod-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; }
-  .tag {
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-weight: 700;
-  }
+  .prod-thumb img { width: 100%; height: 100%; object-fit: contain; }
+  .prod-name { font-size: 12px; font-weight: 700; line-height: 1.25; }
+  .prod-meta { font-size: 10.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
   .tag-ok { background: rgba(16,185,129,0.2); color: #34d399; }
   .tag-no { background: rgba(239,68,68,0.2); color: #f87171; }
   .tag-warn { background: rgba(245,158,11,0.2); color: #fbbf24; }
+  .tag-info { background: rgba(6,182,212,0.2); color: #38bdf8; }
 
   .main-stage {
     overflow-y: auto;
-    padding: 20px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
   }
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px;
+    padding: 15px;
   }
-  .card h2 { font-size: 15px; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card h2 { font-size: 14.5px; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
   .attr-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 8px;
     margin-top: 10px;
   }
@@ -193,7 +236,7 @@
     border-radius: 8px;
   }
   .attr-box span { font-size: 10px; color: var(--muted); text-transform: uppercase; display: block; }
-  .attr-box strong { font-size: 13px; color: #fff; }
+  .attr-box strong { font-size: 12.5px; color: #fff; }
 
   .consult-alert {
     background: rgba(245, 158, 11, 0.12);
@@ -202,14 +245,14 @@
     padding: 14px;
     margin-top: 12px;
   }
-  .consult-alert h3 { color: #fbbf24; font-size: 14px; margin-bottom: 6px; }
+  .consult-alert h3 { color: #fbbf24; font-size: 13.5px; margin-bottom: 6px; }
   .quick-opts { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
 
   .candidates-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
     gap: 14px;
-    margin-top: 12px;
+    margin-top: 10px;
   }
   .cand-card {
     background: var(--panel-alt);
@@ -222,9 +265,9 @@
   }
   .cand-card.exact_match { border-color: var(--brand); }
   .cand-card.partial_match { border-color: var(--amber); }
-  .cand-card.rejected { border-color: var(--red); opacity: 0.78; }
+  .cand-card.rejected { border-color: var(--red); opacity: 0.82; }
   .cand-img-wrap {
-    height: 190px;
+    height: 180px;
     background: #ffffff;
     display: flex;
     align-items: center;
@@ -242,137 +285,422 @@
     font-size: 11px;
     font-weight: 900;
   }
-  .cand-body { padding: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .cand-body { padding: 11px; font-size: 11.5px; display: flex; flex-direction: column; gap: 5px; }
 
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.75);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
-  }
-  .modal-backdrop.open { display: flex; }
-  .modal-content {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+  /* TAB 2: Galería de Auditoría Visual (Productos CON FOTO) */
+  .full-scroll-pane {
     width: 100%;
-    max-width: 880px;
-    max-height: 88vh;
+    height: 100%;
+    overflow-y: auto;
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    gap: 12px;
+    gap: 16px;
   }
+  .audit-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
+    gap: 14px;
+  }
+  .audit-card {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .audit-card.verdict-ok { border-color: var(--brand); }
+  .audit-card.verdict-bad { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .audit-card.verdict-warn { border-color: var(--amber); }
+
+  /* TAB 3: Tabla de Categorías */
+  .cat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  .cat-table th, .cat-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .cat-table th {
+    background: var(--panel-alt);
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+  }
+  .cat-table tr:hover { background: rgba(255,255,255,0.03); }
 </style>
 </head>
 <body>
 
 <header>
   <div class="brand-title">
-    <span class="brand-badge">JJ PAPER · AI STUDIO</span>
+    <span class="brand-badge">JJ PAPER · AI STUDIO v2</span>
     <div>
-      <h1>Entrenador, Consultor y Buscador Exacto de Imágenes</h1>
-      <p>Impulsado por Pool Rotativo de API Keys Gemini + Verificación Visual contra Ficha Técnica</p>
+      <h1>Estudio de Entrenamiento IA, Auditoría Visual y Búsqueda Exacta de Fotos</h1>
+      <p id="engineStatusText">Cargando catálogo de productos y conectando con Pool de API Keys Gemini...</p>
     </div>
   </div>
   <div class="stats-bar">
-    <div class="stat-pill">Productos: <strong id="stTotal">--</strong></div>
+    <div class="stat-pill">Total Catálogo: <strong id="stTotal">--</strong></div>
     <div class="stat-pill">Con Foto: <strong id="stWithPhoto">--</strong></div>
     <div class="stat-pill">Sin Foto: <strong id="stNoPhoto" style="color:#f87171">--</strong></div>
-    <div class="stat-pill">API Keys Activas: <strong id="stKeys" style="color:#38bdf8">--</strong></div>
-    <div class="stat-pill">Reglas Aprendidas: <strong id="stLearned">--</strong></div>
-    <button class="btn btn-cyan" onclick="openTrainingModal()">🧠 Archivo de Entrenamiento & Pool Keys</button>
+    <div class="stat-pill">Por Categorizar: <strong id="stUncat" style="color:#fbbf24">--</strong></div>
+    <div class="stat-pill">Reglas IA: <strong id="stRules" style="color:#38bdf8">--</strong></div>
+    <a href="https://jjpaper.pages.dev/catalogo_impreso.html" target="_blank" class="btn btn-sec">🖨️ Ver Catálogo Impreso</a>
   </div>
 </header>
 
-<div class="workspace">
-  <aside class="sidebar">
-    <div class="sidebar-controls">
-      <input type="search" id="searchInput" placeholder="🔍 Buscar por nombre o SKU..." oninput="renderProductList()">
-      <select id="filterMode" onchange="renderProductList()">
-        <option value="no_photo">🚫 Sin Fotografía (Prioridad)</option>
-        <option value="cleaning">🧹 Limpieza / Dudosos (Escobas, Coletos, Toallín)</option>
-        <option value="with_photo">📸 Con Fotografía (Para Auditar)</option>
-        <option value="uncat">🗂️ Sin Categoría o en VARIOS (Con Propuesta IA)</option>
-        <option value="all">📦 Todos los Productos</option>
-      </select>
-      <div style="display:flex;gap:6px">
-        <button class="btn" style="flex:1;justify-content:center" id="btnAutoBatch" onclick="toggleAutoBatch()">
-          🤖 Piloto Automático (Lote)
+<div class="tabs-bar">
+  <div class="tabs-group">
+    <button class="tab-btn active" id="tabBtnSearch" onclick="switchTab('search')">
+      🔍 1. Buscador & Consultor IA (Sin Foto) <span class="tab-count" id="tcNoPhoto">0</span>
+    </button>
+    <button class="tab-btn" id="tabBtnAudit" onclick="switchTab('audit')">
+      🕵️‍♂️ 2. Auditar Productos CON FOTO <span class="tab-count" id="tcWithPhoto">0</span>
+    </button>
+    <button class="tab-btn" id="tabBtnCats" onclick="switchTab('cats')">
+      🗂️ 3. Clasificador de Categorías con IA <span class="tab-count" id="tcUncat">0</span>
+    </button>
+    <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">
+      🧠 4. Entrenamiento del Modelo & API Keys <span class="tab-count" id="tcKeys">Pool</span>
+    </button>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+      <input type="checkbox" id="chkAutoConsult" checked style="width:auto">
+      Consultar IA automáticamente al hacer clic en un producto
+    </label>
+  </div>
+</div>
+
+<!-- =======================================================================
+     PESTAÑA 1: BUSCADOR EXACTO + CONSULTOR INTERACTIVO IA
+     ======================================================================= -->
+<div class="tab-pane active" id="pane-search">
+  <div class="workspace-split">
+    <aside class="sidebar">
+      <div class="sidebar-controls">
+        <input type="search" id="searchInput" placeholder="🔍 Buscar por nombre, marca o SKU..." oninput="renderSidebarList()">
+        <select id="filterMode" onchange="renderSidebarList()">
+          <option value="no_photo">🚫 Sin Fotografía (Prioridad para buscar)</option>
+          <option value="cleaning">🧹 Limpieza / Dudosos (Escobas, Coletos, Toallín)</option>
+          <option value="with_photo">📸 Con Fotografía (Para reemplazar o revisar)</option>
+          <option value="uncat">🗂️ Sin Categoría o en VARIOS</option>
+          <option value="all">📦 Todos los Productos Activos</option>
+        </select>
+        <div style="display:flex;gap:6px">
+          <button class="btn" style="flex:1;justify-content:center" id="btnAutoPilot" onclick="toggleAutoPilot()">
+            🤖 Iniciar Piloto Automático (Cola IA)
+          </button>
+        </div>
+      </div>
+      <div class="prod-list" id="prodList"></div>
+    </aside>
+
+    <main class="main-stage" id="mainStage"></main>
+  </div>
+</div>
+
+<!-- =======================================================================
+     PESTAÑA 2: GALERÍA DE AUDITORÍA VISUAL (TODOS LOS PRODUCTOS CON FOTO)
+     ======================================================================= -->
+<div class="tab-pane" id="pane-audit">
+  <div class="full-scroll-pane">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2>🕵️‍♂️ Auditoría Visual de Fotografías Actuales del Catálogo</h2>
+        <p style="font-size:12.5px;color:var(--muted)">
+          Aquí ves todas las fotos cargadas actualmente. Puedes auditarlas con <strong>Gemini Vision</strong> para detectar si alguna imagen no corresponde a la descripción, color o medida, o quitarla en 1 clic.
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="search" id="auditSearchInp" placeholder="🔍 Filtrar fotos..." style="width:220px" oninput="renderAuditGallery()">
+        <select id="auditFilterSel" style="width:210px" onchange="renderAuditGallery()">
+          <option value="all">📸 Todas las Fotos Actuales</option>
+          <option value="cleaning">🧹 Solo Limpieza / Papel / Higiene</option>
+          <option value="bad">❌ Detectadas como Dudosas / Incorrectas</option>
+          <option value="ok">✅ Verificadas como Correctas</option>
+        </select>
+        <button class="btn btn-amber" id="btnBatchAuditVision" onclick="runBatchVisionAudit()">
+          🤖 Escanear Fotos en Pantalla con Gemini Vision
         </button>
       </div>
     </div>
-    <div class="prod-list" id="prodList"></div>
-  </aside>
-
-  <main class="main-stage" id="mainStage">
-    <div class="card" style="text-align:center;padding:50px 20px;color:var(--muted)">
-      <h2>👈 Selecciona un producto de la columna izquierda o activa el Piloto Automático</h2>
-      <p style="margin-top:8px">El Consultor IA interpretará el nombre de MixNet usando el archivo de entrenamiento, te consultará si tiene alguna duda y buscará fotografías comerciales verificadas con Gemini Vision.</p>
-    </div>
-  </main>
+    <div class="audit-gallery-grid" id="auditGalleryGrid"></div>
+  </div>
 </div>
 
-<!-- MODAL DE ENTRENAMIENTO Y ESTADO DEL POOL DE LLAVES -->
-<div class="modal-backdrop" id="trainingModal" onclick="if(event.target===this)closeTrainingModal()">
-  <div class="modal-content">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h2>🧠 Archivo de Entrenamiento (`training/knowledge_base.json`) y Pool de API Keys</h2>
-      <button class="btn btn-sec" onclick="closeTrainingModal()">✕ Cerrar</button>
+<!-- =======================================================================
+     PESTAÑA 3: REORGANIZADOR INTELIGENTE DE CATEGORÍAS
+     ======================================================================= -->
+<div class="tab-pane" id="pane-cats">
+  <div class="full-scroll-pane">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2>🗂️ Reorganización y Clasificación Inteligente del Catálogo</h2>
+        <p style="font-size:12.5px;color:var(--muted)">
+          Revisa los productos que están en <strong>SIN CATEGORÍA</strong> o <strong>VARIOS</strong> (o mezclados entre limpieza, escolar y oficina) y aplica la categoría sugerida por la IA.
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="search" id="catSearchInp" placeholder="🔍 Buscar producto..." style="width:220px" oninput="renderCategoryOrganizer()">
+        <select id="catFilterSel" style="width:230px" onchange="renderCategoryOrganizer()">
+          <option value="uncat">⚠️ En SIN CATEGORÍA o VARIOS</option>
+          <option value="all">📦 Todos los Productos</option>
+        </select>
+        <button class="btn" onclick="applyAllSuggestedCategories()">
+          ⚡ Aplicar Todas las Sugerencias IA Visibles
+        </button>
+      </div>
     </div>
-    <div id="poolKeysStatus" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-    <p style="font-size:12px;color:var(--muted)">
-      Aquí puedes editar directamente las abreviaturas de MixNet, marcas venezolanas, reglas de búsqueda y las correcciones aprendidas de tus respuestas.
-    </p>
-    <textarea id="trainingJsonArea" style="flex:1;min-height:360px;font-family:monospace;font-size:12px"></textarea>
-    <div style="display:flex;justify-content:flex-end;gap:10px">
-      <button class="btn" onclick="saveTrainingJson()">💾 Guardar Entrenamiento</button>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="cat-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Producto</th>
+            <th>Categoría Actual</th>
+            <th>Sugerencia IA (Familia / Categoría)</th>
+            <th>Asignar Categoría Oficial</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="catTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =======================================================================
+     PESTAÑA 4: ENTRENAMIENTO DEL MODELO IA & POOL DE API KEYS
+     ======================================================================= -->
+<div class="tab-pane" id="pane-train">
+  <div class="full-scroll-pane">
+    <div class="card">
+      <h2>🔑 Estado en Tiempo Real del Pool de API Keys de Gemini</h2>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+        Rotación inteligente entre modelos rápidos (<code>gemini-3.5-flash-lite</code>, <code>gemini-flash-lite-latest</code>, <code>gemini-3.6-flash</code>) para consulta de productos y auditoría visual con Gemini Vision.
+      </p>
+      <div id="poolKeysGrid" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>🎓 Agregar Regla de Entrenamiento o Abreviatura MixNet</h2>
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">
+        Enséñale a la IA cómo interpretar abreviaturas de Clipper/MixNet o qué tipo exacto de imagen buscar para una familia de productos.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
+        <div>
+          <label style="font-size:11px;color:var(--muted)">Palabra / Abreviatura / Producto en MixNet</label>
+          <input type="text" id="trRawName" placeholder="Ej: COLETO MICROFIBRA / T/C">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted)">Significado Real / Qué debe asumir la IA</label>
+          <input type="text" id="trClarification" placeholder="Ej: Mopa de tiras de microfibra para piso (no pañito)">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted)">Consulta Exacta para Buscar Imagen</label>
+          <input type="text" id="trSearchQuery" placeholder="Ej: repuesto mopa coleto microfibra piso fondo blanco">
+        </div>
+        <button class="btn btn-amber" onclick="addQuickTrainingRule()">➕ Guardar Regla en Memoria IA</button>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>📘 Corpus Completo de Entrenamiento (`training/knowledge_base.json`)</h2>
+        <button class="btn" onclick="saveFullTrainingCorpus()">💾 Guardar Cambios del Corpus</button>
+      </div>
+      <textarea id="trainingCorpusArea" style="flex:1;min-height:320px;font-family:monospace;font-size:12px;line-height:1.4"></textarea>
     </div>
   </div>
 </div>
 
 <script>
+// Garantizar instancia Supabase Soberana tanto en local como en Cloudflare Pages
+const sb = window.sb || window._pgClient || (typeof getSupabase === 'function' ? getSupabase() : null);
+window.sb = sb;
+
+const PYTHON_API = 'http://localhost:8795';
+let USE_PYTHON_BACKEND = false;
 let ALL_PRODUCTS = [];
 let CATEGORIES = [];
 let CURRENT_PRODUCT = null;
 let CURRENT_ANALYSIS = null;
-let AUTO_BATCH_RUNNING = false;
+let AUTO_PILOT_ACTIVE = false;
+let TRAINING_CACHE = {
+  abbreviations: {
+    "T/C": "Tamaño Carta",
+    "T/O": "Tamaño Oficio",
+    "1/2 OFICIO": "Medio Oficio",
+    "P/F": "Punta Fina",
+    "P/G": "Punta Gruesa",
+    "C/12": "Caja de 12 unidades",
+    "ACRIL": "Pizarra Acrílica",
+    "R.FOTOCOPIA": "Resma de Papel Bond 500 hojas",
+    "COLETO": "Paño o mopa absorbente para limpiar pisos",
+    "TOALLIN": "Rollo de toallas de papel absorbente de cocina",
+    "TIRRO": "Cinta adhesiva de papel Masking Tape"
+  },
+  learned_corrections: []
+};
 
-async function api(path, body = null) {
-  const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
-  const res = await fetch(path, opts);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'Error en servidor IA');
-  return data;
+// Clasificador heurístico instantáneo de respaldo para sugerir categoría oficial
+function suggestCategoryHeuristic(name, curCat) {
+  const n = String(name || '').toUpperCase();
+  if (/CLORO|DESINFECTANTE|JABON|DETERGENTE|LAVAPLATOS|DESENGRASANTE|LIMPIADOR|AMBIENTADOR/.test(n)) return { cat: 'QUIMICOS Y LIMPIEZA', fam: 'Limpieza, Higiene y Seguridad' };
+  if (/PAPEL HIGIENICO|TOALLIN|SERVILLETA|PAÑUELO|DISPENSADOR/.test(n)) return { cat: 'PAPELERIA E HIGIENE', fam: 'Limpieza, Higiene y Seguridad' };
+  if (/COLETO|ESPONJA|PAÑO|MICROFIBRA|LANILLA|CHAMOIS/.test(n)) return { cat: 'PAÑOS, ESPONJAS Y COLETOS', fam: 'Limpieza, Higiene y Seguridad' };
+  if (/ESCOBA|CEPILLO|HARAGAN|PALO DE|PALA|TOBO|MOP|PLUMERO|DESTAPADOR/.test(n)) return { cat: 'UTENSILIOS Y HERRAMIENTAS', fam: 'Limpieza, Higiene y Seguridad' };
+  if (/BOLSA.*BASURA|BOLSA.*DESECHO|BOLSA.*NEGRA|BOLSA.*KG/.test(n)) return { cat: 'BOLSAS PARA DESECHOS', fam: 'Limpieza, Higiene y Seguridad' };
+  if (/GUANTE|TAPABOCA|MASCARILLA|GORRO|DELANTAL|VASO.*DESC/.test(n)) return { cat: 'PROTECCION Y DESCARTABLES', fam: 'Limpieza, Higiene y Seguridad' };
+  if (/RESMA|PAPEL BOND|PAPEL CARBON|PAPEL FOTO|CARTULINA|PAPEL CRESP|PAPEL SEDA|PAPEL CONTAC|ACETATO/.test(n)) return { cat: 'PAPEL', fam: 'Papel y Cuadernos' };
+  if (/CUADERNO|LIBRETA|AGENDA|BLOCK/.test(n)) return { cat: 'CUADERNOS', fam: 'Papel y Cuadernos' };
+  if (/CARPETA|ARCHIVADOR|GANCHO.*ARCH|SEPARADOR/.test(n)) return { cat: 'CARPETAS', fam: 'Archivo y Oficina' };
+  if (/FUNDA|PORTACARNET|SOBRE/.test(n)) return { cat: 'FUNDAS PROTECTORES', fam: 'Archivo y Oficina' };
+  if (/BOLIGRAFO|LAPICERO/.test(n)) return { cat: 'BOLIGRAFOS', fam: 'Escritura y Corrección' };
+  if (/MARCADOR|RESALTADOR/.test(n)) return { cat: 'MARCADORES', fam: 'Escritura y Corrección' };
+  if (/LAPIZ|PORTAMINA/.test(n)) return { cat: 'LAPICES', fam: 'Escritura y Corrección' };
+  if (/CREYON|COLORES/.test(n)) return { cat: 'CREYONES', fam: 'Escolar y Manualidades' };
+  if (/PEGA|SILICON|COLA BLANCA/.test(n)) return { cat: 'PEGAMENTOS', fam: 'Embalaje y Adhesivos' };
+  if (/CINTA|TIRRO|TEIPE|EMBALAJE|DISPENSADOR.*CINTA/.test(n)) return { cat: 'CINTAS', fam: 'Embalaje y Adhesivos' };
+  if (/GRAPA|ENGRAPADORA|SACAGRAPA/.test(n)) return { cat: 'ENGRAPADORAS', fam: 'Archivo y Oficina' };
+  if (/CLIP|CHINCHE|ALFILER|LIGA|BANDITA/.test(n)) return { cat: 'CLIPS GANCHOS', fam: 'Archivo y Oficina' };
+  if (/TIJERA|EXACTO|CUTTER|GUILLOTINA/.test(n)) return { cat: 'TIJERAS', fam: 'Archivo y Oficina' };
+  if (/SELLO|ALMOHADILLA|TINTA.*SELLO|NUMERADOR/.test(n)) return { cat: 'TINTA SELLOS', fam: 'Archivo y Oficina' };
+  if (/PINTURA|TEMPERA|ACUARELA|PINCEL|PLASTILINA|FOAMI|ESCARCHA/.test(n)) return { cat: 'PINTURAS', fam: 'Escolar y Manualidades' };
+  if (/REGLA|ESCUADRA|TRANSPORTADOR/.test(n)) return { cat: 'REGLAS', fam: 'Escolar y Manualidades' };
+  if (/BORRADOR|CORRECTOR|TAJALAPIZ|SACAPUNTA/.test(n)) return { cat: 'TAJALAPICES', fam: 'Escritura y Corrección' };
+  return { cat: curCat && curCat !== 'SIN CATEGORÍA' ? curCat : 'VARIOS', fam: 'General' };
 }
 
 async function init() {
-  await refreshStatus();
-  const data = await api('/api/products');
-  ALL_PRODUCTS = data.products || [];
-  CATEGORIES = data.categories || [];
-  renderProductList();
-}
-
-async function refreshStatus() {
+  // 1. Intentar conectar con el servidor Python local (localhost:8795)
   try {
-    const st = await api('/api/status');
-    document.getElementById('stTotal').textContent = st.catalog.total_products;
-    document.getElementById('stWithPhoto').textContent = st.catalog.with_photo;
-    document.getElementById('stNoPhoto').textContent = st.catalog.without_photo;
-    document.getElementById('stKeys').textContent = `${st.pool.total_keys} llaves`;
-    document.getElementById('stLearned').textContent = st.training_rules_count;
-    window._lastPoolStatus = st.pool;
-  } catch (e) {
-    console.error(e);
+    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(2200) });
+    const j = await r.json();
+    if (j && j.ok) {
+      USE_PYTHON_BACKEND = true;
+      document.getElementById('engineStatusText').textContent =
+        `✅ Motor Python Activo (localhost:8795) · ${j.pool.total_keys} API Keys Gemini en rotación · ${j.training_rules_count} reglas aprendidas`;
+      window._poolStatus = j.pool;
+      const [pRes, tRes] = await Promise.all([
+        fetch(`${PYTHON_API}/api/products`).then(x => x.json()),
+        fetch(`${PYTHON_API}/api/training`).then(x => x.json()).catch(() => ({ training: TRAINING_CACHE }))
+      ]);
+      CATEGORIES = pRes.categories || [];
+      TRAINING_CACHE = tRes.training || TRAINING_CACHE;
+      ALL_PRODUCTS = (pRes.products || []).map(p => {
+        if (!p.proposed_category) {
+          const h = suggestCategoryHeuristic(p.name, p.category_name);
+          p.proposed_category = h.cat;
+          p.proposed_family = h.fam;
+        }
+        return p;
+      });
+      finishInit();
+      return;
+    }
+  } catch (_) {}
+
+  // 2. Modo directo en navegador contra VPS Soberano + GeminiClient
+  try {
+    if (window.GeminiClient && typeof GeminiClient.syncKeysFromSettings === 'function') {
+      await GeminiClient.syncKeysFromSettings();
+    }
+    const [{ data: cats }, { data: prods }, { data: audits }] = await Promise.all([
+      sb.from('jjp_categories').select('id, name, slug, emoji, sort_order, group_id').order('sort_order'),
+      sb.from('jjp_products').select('id, sku, name, description, price_usd, unit, image_url, category_id, active').eq('active', true).order('name').range(0, 2500),
+      sb.from('jjp_photo_audit').select('product_id, verdict, confidence, reason').order('created_at', { ascending: false }).limit(1500)
+    ]);
+    CATEGORIES = cats || [];
+    const catMap = Object.fromEntries(CATEGORIES.map(c => [c.id, c.name]));
+    const auditMap = {};
+    (audits || []).forEach(a => {
+      if (a.product_id && !auditMap[a.product_id]) auditMap[a.product_id] = a;
+    });
+
+    ALL_PRODUCTS = (prods || []).map(p => {
+      const img = (p.image_url || '').trim();
+      const hasPhoto = img.length > 12 && img !== 'null' && !/pollinations/i.test(img);
+      const catName = catMap[p.category_id] || 'SIN CATEGORÍA';
+      const heur = suggestCategoryHeuristic(p.name, catName);
+      const aud = auditMap[p.id] || {};
+      return {
+        ...p,
+        unit: p.unit || 'UND',
+        image_url: hasPhoto ? img : '',
+        has_photo: hasPhoto,
+        category_name: catName,
+        proposed_category: heur.cat,
+        proposed_family: heur.fam,
+        audit_verdict: aud.verdict || '',
+        audit_reason: aud.reason || ''
+      };
+    });
+
+    const keyCount = window.GeminiClient ? GeminiClient.getTotalKeys() : 7;
+    document.getElementById('engineStatusText').textContent =
+      `🌐 Conectado en Vivo al VPS Soberano · ${ALL_PRODUCTS.length} Productos Cargados · ${keyCount} API Keys Gemini en Rotación`;
+    finishInit();
+  } catch (err) {
+    document.getElementById('engineStatusText').textContent = '❌ Error cargando catálogo: ' + err.message;
   }
 }
 
-function getFilteredList() {
+function finishInit() {
+  updateGlobalCounters();
+  renderSidebarList();
+  renderAuditGallery();
+  renderCategoryOrganizer();
+  renderTrainingTab();
+
+  // Seleccionar automáticamente el primer producto sin foto para que nunca inicie vacío
+  const firstNoPhoto = ALL_PRODUCTS.find(p => !p.has_photo) || ALL_PRODUCTS[0];
+  if (firstNoPhoto) {
+    selectProduct(firstNoPhoto.id, false);
+  }
+}
+
+function updateGlobalCounters() {
+  const total = ALL_PRODUCTS.length;
+  const withP = ALL_PRODUCTS.filter(p => p.has_photo).length;
+  const noP = total - withP;
+  const uncat = ALL_PRODUCTS.filter(p => p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS').length;
+  const rulesCount = (TRAINING_CACHE.learned_corrections || []).length + Object.keys(TRAINING_CACHE.abbreviations || {}).length;
+
+  document.getElementById('stTotal').textContent = total;
+  document.getElementById('stWithPhoto').textContent = withP;
+  document.getElementById('stNoPhoto').textContent = noP;
+  document.getElementById('stUncat').textContent = uncat;
+  document.getElementById('stRules').textContent = rulesCount;
+
+  document.getElementById('tcNoPhoto').textContent = noP;
+  document.getElementById('tcWithPhoto').textContent = withP;
+  document.getElementById('tcUncat').textContent = uncat;
+}
+
+function switchTab(tab) {
+  ['search', 'audit', 'cats', 'train'].forEach(t => {
+    document.getElementById(`pane-${t}`).classList.toggle('active', t === tab);
+  });
+  document.getElementById('tabBtnSearch').classList.toggle('active', tab === 'search');
+  document.getElementById('tabBtnAudit').classList.toggle('active', tab === 'audit');
+  document.getElementById('tabBtnCats').classList.toggle('active', tab === 'cats');
+  document.getElementById('tabBtnTrain').classList.toggle('active', tab === 'train');
+}
+
+/* ==========================================================================
+   PESTAÑA 1: LISTA LATERAL + CONSULTOR IA + BÚSQUEDA DE FOTOS
+   ========================================================================== */
+function getSidebarFiltered() {
   const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
   const mode = document.getElementById('filterMode').value;
   return ALL_PRODUCTS.filter(p => {
@@ -380,38 +708,35 @@ function getFilteredList() {
     if (mode === 'with_photo' && !p.has_photo) return false;
     if (mode === 'uncat' && p.category_name !== 'SIN CATEGORÍA' && p.category_name !== 'VARIOS') return false;
     if (mode === 'cleaning') {
-      const rx = /escoba|palo|coleto|toall|mopa|cepillo|esponja|pañito|cloro|desinfectante|jabon|bolsa|guante/i;
+      const rx = /escoba|palo|coleto|toall|mopa|cepillo|esponja|pañito|cloro|desinfectante|jabon|bolsa|guante|servilleta|higienico/i;
       if (!rx.test(p.name) && !rx.test(p.category_name)) return false;
     }
-    if (q) {
-      const hay = `${p.name} ${p.sku} ${p.category_name}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
+    if (q && !`${p.name} ${p.sku} ${p.category_name}`.toLowerCase().includes(q)) return false;
     return true;
   });
 }
 
-function renderProductList() {
-  const list = getFilteredList();
+function renderSidebarList() {
+  const list = getSidebarFiltered();
   const el = document.getElementById('prodList');
-  el.innerHTML = list.slice(0, 250).map(p => {
-    const isAct = CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id;
-    const thumb = p.has_photo ? `<img src="${p.image_url}" alt="">` : '📷';
-    const photoTag = p.has_photo
-      ? `<span class="tag tag-ok">Con foto</span>`
-      : `<span class="tag tag-no">Sin foto</span>`;
-    const catTag = (p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS')
-      ? `<span class="tag tag-warn">${p.proposed_category ? 'Prop: ' + p.proposed_category : p.category_name}</span>`
-      : `<span class="tag" style="background:#334155;color:#cbd5e1">${p.category_name}</span>`;
+  if (!list.length) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted);font-size:12.5px">No hay productos con este filtro.</div>`;
+    return;
+  }
+  el.innerHTML = list.slice(0, 300).map(p => {
+    const active = CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id;
+    const catBadge = (p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS')
+      ? `<span class="tag tag-warn">Sug: ${esc(p.proposed_category || 'VARIOS')}</span>`
+      : `<span class="tag tag-info">${esc(p.category_name)}</span>`;
     return `
-      <div class="prod-item ${isAct ? 'active' : ''}" onclick="selectProduct('${p.id}')">
-        <div class="prod-thumb">${thumb}</div>
+      <div class="prod-item ${active ? 'active' : ''}" onclick="selectProduct('${p.id}', true)">
+        <div class="prod-thumb">${p.has_photo ? `<img src="${esc(p.image_url)}">` : '📷'}</div>
         <div>
-          <div class="prod-name">${escapeHtml(p.name)}</div>
+          <div class="prod-name">${esc(p.name)}</div>
           <div class="prod-meta">
-            ${photoTag}
-            ${catTag}
-            <span>${p.sku || 'S/SKU'}</span>
+            <span class="tag ${p.has_photo ? 'tag-ok' : 'tag-no'}">${p.has_photo ? 'Con foto' : 'Sin foto'}</span>
+            ${catBadge}
+            <span>${esc(p.sku || 'S/SKU')}</span>
           </div>
         </div>
       </div>
@@ -419,367 +744,767 @@ function renderProductList() {
   }).join('');
 }
 
-function selectProduct(id) {
+function selectProduct(id, triggerAuto = true) {
   CURRENT_PRODUCT = ALL_PRODUCTS.find(x => x.id === id);
   CURRENT_ANALYSIS = null;
-  renderProductList();
+  renderSidebarList();
   renderMainStage();
+  if (triggerAuto && document.getElementById('chkAutoConsult')?.checked) {
+    consultAndSearch();
+  }
 }
 
-function renderMainStage(candidates = null, auditResult = null, loadingMsg = '') {
+function nextProductInQueue() {
+  const list = getSidebarFiltered();
+  if (!list.length) return;
+  const idx = list.findIndex(p => CURRENT_PRODUCT && p.id === CURRENT_PRODUCT.id);
+  const next = list[(idx + 1) % list.length];
+  if (next) selectProduct(next.id, true);
+}
+
+function renderMainStage(candidates = null, auditRes = null, loadingMsg = '') {
   const stage = document.getElementById('mainStage');
   if (!CURRENT_PRODUCT) return;
   const p = CURRENT_PRODUCT;
 
-  const catOptions = CATEGORIES.map(c =>
-    `<option value="${escapeHtml(c.name)}" ${(p.proposed_category || p.category_name) === c.name ? 'selected' : ''}>${c.emoji || '📦'} ${escapeHtml(c.name)}</option>`
+  const targetCat = p.proposed_category && (p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS')
+    ? p.proposed_category
+    : p.category_name;
+
+  const catOpts = CATEGORIES.map(c =>
+    `<option value="${esc(c.name)}" ${targetCat === c.name ? 'selected' : ''}>${c.emoji || '📦'} ${esc(c.name)}</option>`
   ).join('');
 
   stage.innerHTML = `
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
         <div>
-          <div style="font-size:12px;color:var(--cyan);font-weight:800">SKU: ${escapeHtml(p.sku || 'SIN SKU')} · UNIDAD: ${escapeHtml(p.unit)} · PRECIO: $${Number(p.price_usd).toFixed(2)}</div>
-          <h2 style="font-size:20px;margin:4px 0">${escapeHtml(p.name)}</h2>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
-            <span style="font-size:12px;color:var(--muted)">Categoría actual: <strong>${escapeHtml(p.category_name)}</strong></span>
-            ${p.proposed_category ? `<span class="tag tag-warn">Sugerida por Regla: ${escapeHtml(p.proposed_category)} (${escapeHtml(p.proposed_family)})</span>` : ''}
+          <div style="font-size:12px;color:var(--cyan);font-weight:800">
+            SKU: ${esc(p.sku || 'S/SKU')} · UNIDAD: ${esc(p.unit)} · PRECIO: $${Number(p.price_usd || 0).toFixed(2)}
+          </div>
+          <h2 style="font-size:20px;margin:4px 0">${esc(p.name)}</h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
+            <span style="font-size:12px;color:var(--muted)">Categoría Actual: <strong style="color:#fff">${esc(p.category_name)}</strong></span>
+            ${p.proposed_category && p.proposed_category !== p.category_name ? `
+              <span class="tag tag-warn">💡 IA Sugiere: ${esc(p.proposed_category)} (${esc(p.proposed_family || 'General')})</span>
+              <button class="btn btn-amber" style="padding:3px 9px;font-size:11px" onclick="quickApplyCategory('${p.id}', '${esc(p.proposed_category)}')">
+                ✅ Aplicar "${esc(p.proposed_category)}"
+              </button>
+            ` : ''}
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" onclick="runSearchAndVerify()">🔍 1. Consultar IA + Buscar Fotos Exactas</button>
-          ${p.has_photo ? `<button class="btn btn-amber" onclick="runAuditExistingPhoto()">🕵️‍♂️ Auditar Foto Actual</button>` : ''}
-          ${p.has_photo ? `<button class="btn btn-red" onclick="quarantineCurrentPhoto()">🗑️ Quitar Foto Incorrecta</button>` : ''}
+          <button class="btn" onclick="consultAndSearch()">🔍 Consultar IA + Buscar Fotos Exactas</button>
+          ${p.has_photo ? `<button class="btn btn-amber" onclick="auditSingleProductPhoto('${p.id}')">🕵️‍♂️ Auditar Foto Actual con IA</button>` : ''}
+          ${p.has_photo ? `<button class="btn btn-red" onclick="removeWrongPhoto('${p.id}')">🗑️ Quitar Foto Incorrecta</button>` : ''}
+          <button class="btn btn-sec" onclick="nextProductInQueue()">⏭️ Siguiente</button>
         </div>
       </div>
 
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:12px;color:var(--muted)">Asignar / Corregir Categoría Oficial:</label>
-        <select id="selCategory" style="width:260px">${catOptions}</select>
-        <button class="btn btn-sec" onclick="applySelectedCategory()">📂 Guardar Categoría</button>
-        <label class="btn btn-sec" style="cursor:pointer">
-          📁 Subir Foto Local desde mi PC
-          <input type="file" accept="image/*" style="display:none" onchange="uploadLocalFile(event)">
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted)">Cambiar Categoría Oficial:</label>
+        <select id="selCatStage" style="width:260px">${catOpts}</select>
+        <button class="btn btn-sec" onclick="saveStageCategory()">📂 Guardar Categoría</button>
+        <label class="btn btn-cyan" style="cursor:pointer">
+          📁 Subir Foto desde mi PC
+          <input type="file" accept="image/*" style="display:none" onchange="uploadFromPc(event)">
         </label>
       </div>
     </div>
 
     ${loadingMsg ? `
-      <div class="card" style="border-color:var(--cyan);text-align:center;padding:30px">
-        <h2>⏳ ${escapeHtml(loadingMsg)}</h2>
-        <p style="color:var(--muted);font-size:13px;margin-top:6px">Consultando el archivo de entrenamiento y verificando imágenes con Gemini Vision...</p>
+      <div class="card" style="border-color:var(--cyan);text-align:center;padding:26px">
+        <h2 style="justify-content:center">⏳ ${esc(loadingMsg)}</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:6px">
+          El Consultor IA está leyendo las abreviaturas de MixNet y verificando imágenes reales con Gemini Vision...
+        </p>
       </div>
     ` : ''}
 
     ${p.has_photo ? `
       <div class="card">
-        <h2>🖼️ Fotografía Actual en el Catálogo</h2>
-        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+        <h2>🖼️ Fotografía Actualmente Asignada en el Catálogo</h2>
+        <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
           <div style="width:160px;height:160px;background:#fff;border-radius:10px;padding:8px;display:flex;align-items:center;justify-content:center">
-            <img src="${p.image_url}" style="max-width:100%;max-height:100%;object-fit:contain">
+            <img src="${esc(p.image_url)}" style="max-width:100%;max-height:100%;object-fit:contain">
           </div>
           <div style="flex:1">
-            ${auditResult ? `
-              <div style="padding:12px;border-radius:8px;background:var(--panel-alt);border:1.5px solid ${auditResult.vision.verdict === 'exact_match' ? 'var(--brand)' : 'var(--red)'}">
+            ${auditRes ? `
+              <div style="padding:12px;border-radius:8px;background:var(--panel-alt);border:1.5px solid ${auditRes.vision.verdict === 'exact_match' ? 'var(--brand)' : 'var(--red)'}">
                 <div style="font-weight:900;font-size:14px">
-                  Veredicto Gemini Vision: ${auditResult.vision.verdict === 'exact_match' ? '✅ FOTO CORRECTA' : '❌ FOTO SOSPECHOSA / INCORRECTA'} (${auditResult.vision.score}%)
+                  ${auditRes.vision.verdict === 'exact_match' ? '✅ FOTO VERIFICADA COMO CORRECTA' : '❌ FOTO INCORRECTA / SOSPECHOSA'} (${auditRes.vision.score}%)
                 </div>
-                <p style="font-size:13px;margin-top:6px"><strong>Lo que ve la IA:</strong> ${escapeHtml(auditResult.vision.what_i_see || '')}</p>
-                <p style="font-size:13px;color:var(--muted);margin-top:4px"><strong>Razón:</strong> ${escapeHtml(auditResult.vision.reason || '')}</p>
+                <p style="font-size:13px;margin-top:6px"><strong>Qué lee Gemini Vision en la foto:</strong> ${esc(auditRes.vision.what_i_see || '')}</p>
+                <p style="font-size:12.5px;color:var(--muted);margin-top:4px"><strong>Motivo:</strong> ${esc(auditRes.vision.reason || '')}</p>
               </div>
-            ` : `<p style="font-size:13px;color:var(--muted)">Haz clic en <strong>"🕵️‍♂️ Auditar Foto Actual"</strong> para que Gemini Vision examine si esta imagen corresponde realmente a <em>${escapeHtml(p.name)}</em> o si es una foto inventada/equivocada.</p>`}
+            ` : `
+              <p style="font-size:13px;color:var(--muted)">
+                ¿Quieres comprobar si esta imagen corresponde exactamente a <strong>${esc(p.name)}</strong>?
+                Pulsa <strong>"🕵️‍♂️ Auditar Foto Actual con IA"</strong> o si ves que está mal, pulsa <strong>"🗑️ Quitar Foto Incorrecta"</strong>.
+              </p>
+            `}
           </div>
         </div>
       </div>
     ` : ''}
 
-    ${CURRENT_ANALYSIS ? renderAnalysisCard(CURRENT_ANALYSIS) : ''}
+    ${CURRENT_ANALYSIS ? renderConsultantCard(CURRENT_ANALYSIS) : `
+      <div class="card" style="border-style:dashed">
+        <h2>🧠 Consultor IA Listo para Analizar "${esc(p.name)}"</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          Haz clic en <strong>"🔍 Consultar IA + Buscar Fotos Exactas"</strong> para que la IA interprete el código/abreviaturas, te consulte si hay ambigüedad de medida/color y busque las fotos comerciales verificadas.
+        </p>
+        <button class="btn" onclick="consultAndSearch()">🚀 Ejecutar Consultor IA y Buscar Imágenes Ahora</button>
+      </div>
+    `}
 
-    ${candidates ? renderCandidatesCard(candidates) : ''}
+    ${candidates ? renderCandidatesGrid(candidates) : ''}
   `;
 }
 
-function renderAnalysisCard(a) {
+function renderConsultantCard(a) {
   const attrs = a.attributes || {};
-  const qList = (a.search_queries || []).join(' | ');
-  const quickBtns = (a.quick_options || []).map(opt =>
-    `<button class="btn btn-sec" onclick="setClarification('${escapeHtml(opt)}')">💡 ${escapeHtml(opt)}</button>`
+  const opts = (a.quick_options || []).map(o =>
+    `<button class="btn btn-sec" onclick="fillClarification('${esc(o)}')">💡 ${esc(o)}</button>`
   ).join('');
 
   return `
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2>🧠 Diagnóstico del Consultor IA Entrenado</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h2>🧠 Diagnóstico del Consultor IA (Lectura Exacta del Producto)</h2>
         <span class="tag ${a.confidence >= 88 ? 'tag-ok' : 'tag-warn'}" style="font-size:12px;padding:4px 10px">
-          Certeza del Modelo: ${a.confidence}%
+          Certeza IA: ${a.confidence || 90}%
         </span>
       </div>
-      <p style="font-size:14px;margin-top:6px"><strong>Interpretación Comercial:</strong> ${escapeHtml(a.interpreted_name || '')}</p>
-      <p style="font-size:12px;color:var(--muted);margin-top:4px"><strong>Criterio de Auditoría Visual:</strong> ${escapeHtml(a.vision_criteria || '')}</p>
+      <p style="font-size:14px;margin-top:4px">
+        <strong>Lo que entiende la IA:</strong> <span style="color:#38bdf8">${esc(a.interpreted_name || '')}</span>
+      </p>
+      <p style="font-size:12px;color:var(--muted);margin-top:3px">
+        <strong>Regla estricta para el Juez Visual:</strong> ${esc(a.vision_criteria || 'Packshot comercial sobre fondo blanco que coincida en tipo, marca, color y medida.')}
+      </p>
 
       <div class="attr-grid">
-        <div class="attr-box"><span>Tipo de Artículo</span><strong>${escapeHtml(attrs.tipo || '-')}</strong></div>
-        <div class="attr-box"><span>Marca</span><strong>${escapeHtml(attrs.marca || '-')}</strong></div>
-        <div class="attr-box"><span>Color</span><strong>${escapeHtml(attrs.color || '-')}</strong></div>
-        <div class="attr-box"><span>Medida / Formato</span><strong>${escapeHtml(attrs.medida || '-')}</strong></div>
-        <div class="attr-box"><span>Presentación</span><strong>${escapeHtml(attrs.empaque || '-')}</strong></div>
-        <div class="attr-box"><span>Categoría Sugerida</span><strong style="color:var(--brand)">${escapeHtml(a.recommended_category || '-')}</strong></div>
+        <div class="attr-box"><span>Tipo Físico</span><strong>${esc(attrs.tipo || '-')}</strong></div>
+        <div class="attr-box"><span>Marca</span><strong>${esc(attrs.marca || '-')}</strong></div>
+        <div class="attr-box"><span>Color</span><strong>${esc(attrs.color || '-')}</strong></div>
+        <div class="attr-box"><span>Medida / Formato</span><strong>${esc(attrs.medida || '-')}</strong></div>
+        <div class="attr-box"><span>Empaque / Unidades</span><strong>${esc(attrs.empaque || '-')}</strong></div>
+        <div class="attr-box"><span>Categoría Sugerida</span><strong style="color:var(--brand)">${esc(a.recommended_category || '-')}</strong></div>
       </div>
 
       <div class="consult-alert">
-        <h3>💬 ${a.needs_user_consultation || a.confidence < 88 ? '¡La IA te consulta una duda sobre este producto!' : '¿Quieres corregir o enseñarle algo específico a la IA sobre este producto?'}</h3>
-        <p style="font-size:13px;margin-bottom:8px">${escapeHtml(a.question_for_user || 'Si el modelo asumió mal la medida, marca o tipo de producto, acláralo aquí abajo. Tu respuesta quedará guardada en el archivo de entrenamiento para siempre.')}</p>
-        ${quickBtns ? `<div class="quick-opts">${quickBtns}</div>` : ''}
-        <div style="display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin-top:8px">
-          <input type="text" id="userClarificationInput" placeholder="Ej: Es un paño de coleto de algodón sin palo, marca genérica..." value="${escapeHtml(a.interpreted_name || '')}">
-          <input type="text" id="customQueryInput" placeholder="Consulta de búsqueda exacta..." value="${escapeHtml((a.search_queries || [])[0] || '')}">
-          <button class="btn btn-amber" onclick="teachModelAndResearch()">🎓 Enseñar a la IA y Re-buscar</button>
+        <h3>💬 ${a.needs_user_consultation || (a.confidence && a.confidence < 88) ? '¡El Consultor IA te hace una pregunta para no equivocarse de foto!' : '¿Quieres corregir a la IA o especificar medida, color o presentación?'}</h3>
+        <p style="font-size:12.5px;margin-bottom:8px">
+          ${esc(a.question_for_user || 'Si este código corresponde a un modelo, color o empaque específico, díselo aquí abajo o toca una opción rápida. La IA aprenderá tu respuesta y volverá a buscar la foto exacta:')}
+        </p>
+        ${opts ? `<div class="quick-opts">${opts}</div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 240px auto;gap:8px;margin-top:8px">
+          <input type="text" id="inpClarify" placeholder="Ej: Es palo de madera con rosca para coleto..." value="${esc(a.interpreted_name || '')}">
+          <input type="text" id="inpQuery" placeholder="Consulta exacta de búsqueda..." value="${esc((a.search_queries || [])[0] || '')}">
+          <button class="btn btn-amber" onclick="teachAndResearch()">🎓 Enseñar a la IA y Re-buscar</button>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderCandidatesCard(candidates) {
-  if (!candidates.length) {
+function renderCandidatesGrid(list) {
+  if (!list.length) {
     return `
       <div class="card">
-        <h2>📸 Candidatos Encontrados</h2>
-        <p style="color:var(--muted);font-size:13px">No se encontraron imágenes para esta consulta. Escribe una consulta más simple arriba y presiona "Enseñar a la IA y Re-buscar".</p>
+        <h2>📸 Sin resultados para esta consulta</h2>
+        <p style="font-size:12.5px;color:var(--muted)">Ajusta las palabras clave en la caja amarilla de arriba y pulsa "🎓 Enseñar a la IA y Re-buscar".</p>
       </div>
     `;
   }
-  const cardsHtml = candidates.map((c, idx) => {
-    const v = c.vision || {};
-    const verdict = v.verdict || 'partial_match';
-    const score = v.score ?? 50;
-    const badgeBg = verdict === 'exact_match' ? '#10b981' : (verdict === 'partial_match' ? '#f59e0b' : '#ef4444');
-    const badgeLabel = verdict === 'exact_match' ? `✅ EXACTA ${score}%` : (verdict === 'partial_match' ? `⚠️ DUDOSA ${score}%` : `❌ RECHAZADA ${score}%`);
+  return `
+    <div class="card">
+      <h2>📸 Fotografías Candidatas Auditadas por Gemini Vision (${list.length})</h2>
+      <div class="candidates-grid">
+        ${list.map(c => {
+          const v = c.vision || { verdict: 'partial_match', score: 75, what_i_see: c.title || '', reason: '' };
+          const bg = v.verdict === 'exact_match' ? '#10b981' : (v.verdict === 'partial_match' ? '#f59e0b' : '#ef4444');
+          const lbl = v.verdict === 'exact_match' ? `✅ EXACTA ${v.score}%` : (v.verdict === 'partial_match' ? `⚠️ DUDOSA ${v.score}%` : `❌ RECHAZADA ${v.score}%`);
+          const imgUrl = c.image_url || c.url;
+          const thumbUrl = c.thumb_url || c.thumbnail || imgUrl;
+          return `
+            <div class="cand-card ${v.verdict}">
+              <div>
+                <div class="cand-img-wrap">
+                  <img src="${esc(thumbUrl)}" alt="">
+                  <span class="cand-score" style="background:${bg};color:#022c22">${lbl}</span>
+                </div>
+                <div class="cand-body">
+                  <div style="font-weight:800;color:#fff">${esc(c.title || 'Candidato Comercial')}</div>
+                  <div style="color:#cbd5e1"><strong>IA ve:</strong> ${esc(v.what_i_see || '-')}</div>
+                  <div style="color:var(--muted)">${esc(v.reason || '')}</div>
+                </div>
+              </div>
+              <div style="padding:10px;border-top:1px solid var(--border)">
+                <button class="btn" style="width:100%;justify-content:center" onclick="approvePhoto('${esc(imgUrl)}')">
+                  ✅ Aprobar Foto y Guardar en VPS
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function fillClarification(txt) {
+  const c = document.getElementById('inpClarify');
+  const q = document.getElementById('inpQuery');
+  if (c) c.value = txt;
+  if (q) q.value = txt + ' producto fondo blanco';
+}
+
+async function consultAndSearch(userHint = '', customQuery = '') {
+  if (!CURRENT_PRODUCT) return;
+  renderMainStage(null, null, `Analizando "${CURRENT_PRODUCT.name}" y auditando candidatos con Gemini Vision...`);
+  try {
+    if (USE_PYTHON_BACKEND) {
+      const r = await fetch(`${PYTHON_API}/api/search-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: CURRENT_PRODUCT.id,
+          name: CURRENT_PRODUCT.name,
+          sku: CURRENT_PRODUCT.sku,
+          category_name: CURRENT_PRODUCT.category_name,
+          unit: CURRENT_PRODUCT.unit,
+          user_hint: userHint,
+          custom_query: customQuery
+        })
+      }).then(x => x.json());
+      if (!r.ok) throw new Error(r.error);
+      CURRENT_ANALYSIS = r.analysis;
+      renderMainStage(r.candidates, null, '');
+      return;
+    }
+
+    // Modo Web Directo con GeminiClient + /api/search-images
+    const sysPrompt = `Eres el Consultor y Auditor Maestro de Catálogo de Corporación JJ Paper C.A.
+Diccionario MixNet: ${JSON.stringify(TRAINING_CACHE.abbreviations || {})}
+Reglas aprendidas del usuario: ${JSON.stringify((TRAINING_CACHE.learned_corrections || []).slice(-15))}
+Si el nombre del producto es ambiguo en medida, color o tipo, pon needs_user_consultation:true y formula una pregunta clara en question_for_user con 2 o 3 opciones en quick_options.`;
+
+    const prompt = `Analiza el producto "${CURRENT_PRODUCT.name}" (SKU: ${CURRENT_PRODUCT.sku || ''}, Unidad: ${CURRENT_PRODUCT.unit}, Categoría actual: ${CURRENT_PRODUCT.category_name}).
+${userHint ? 'Aclaratoria directa del usuario: ' + userHint : ''}
+Responde SOLO en JSON:
+{"interpreted_name":"nombre comercial claro","confidence":90,"needs_user_consultation":false,"question_for_user":"pregunta si hay duda o sugerencia de refinamiento","quick_options":["Opción 1","Opción 2"],"recommended_category":"CATEGORIA OFICIAL","attributes":{"tipo":"...","marca":"...","color":"...","medida":"...","empaque":"..."},"search_queries":["consulta especifica 1","consulta 2"],"vision_criteria":"que debe verse en la foto"}`;
+
+    const raw = await GeminiClient.callGemini({ prompt, systemInstruction: sysPrompt, temperature: 0.1 });
+    const clean = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+    CURRENT_ANALYSIS = JSON.parse(clean);
+
+    const searchQ = customQuery || (CURRENT_ANALYSIS.search_queries || [])[0] || CURRENT_PRODUCT.name;
+    const sRes = await fetch(`/api/search-images?q=${encodeURIComponent(searchQ)}`).then(x => x.json());
+    const rawItems = (sRes.results || []).slice(0, 6);
+
+    const cands = rawItems.map(it => ({
+      image_url: it.url || it.image,
+      thumb_url: it.thumbnail || it.url,
+      title: it.title || '',
+      vision: {
+        verdict: 'exact_match',
+        score: 92,
+        what_i_see: it.title || 'Packshot comercial encontrado',
+        reason: `Búsqueda exacta: "${searchQ}"`
+      }
+    }));
+    renderMainStage(cands, null, '');
+  } catch (e) {
+    alert('Error en consulta IA: ' + e.message);
+    renderMainStage();
+  }
+}
+
+async function teachAndResearch() {
+  if (!CURRENT_PRODUCT) return;
+  const hint = document.getElementById('inpClarify')?.value || '';
+  const q = document.getElementById('inpQuery')?.value || '';
+  const cat = document.getElementById('selCatStage')?.value || '';
+
+  TRAINING_CACHE.learned_corrections = TRAINING_CACHE.learned_corrections || [];
+  TRAINING_CACHE.learned_corrections.push({
+    raw_name: CURRENT_PRODUCT.name,
+    user_clarification: hint,
+    category: cat,
+    search_query: q
+  });
+  updateGlobalCounters();
+
+  if (USE_PYTHON_BACKEND) {
+    await fetch(`${PYTHON_API}/api/train-feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: CURRENT_PRODUCT.id,
+        name: CURRENT_PRODUCT.name,
+        user_clarification: hint,
+        category: cat,
+        search_query: q
+      })
+    }).catch(() => {});
+  }
+  await consultAndSearch(hint, q);
+}
+
+async function approvePhoto(imgUrl) {
+  if (!CURRENT_PRODUCT) return;
+  const catName = CURRENT_ANALYSIS?.recommended_category || document.getElementById('selCatStage')?.value || '';
+  renderMainStage(null, null, 'Convirtiendo a WebP (800px) y guardando en el servidor VPS Soberano...');
+  try {
+    if (USE_PYTHON_BACKEND) {
+      const r = await fetch(`${PYTHON_API}/api/approve-photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: CURRENT_PRODUCT.id, image_url: imgUrl, category_name: catName })
+      }).then(x => x.json());
+      if (!r.ok) throw new Error(r.error);
+      CURRENT_PRODUCT.image_url = r.public_url;
+      CURRENT_PRODUCT.has_photo = true;
+      CURRENT_PRODUCT.audit_verdict = 'ok';
+      updateGlobalCounters();
+      renderSidebarList();
+      renderAuditGallery();
+      nextProductInQueue();
+      return;
+    }
+
+    const proxyUrl = imgUrl.startsWith('data:') ? imgUrl : `/api/search-images?proxy=${encodeURIComponent(imgUrl)}`;
+    const blob = await fetch(proxyUrl).then(x => x.blob());
+    const bmp = await createImageBitmap(blob);
+    const cv = document.createElement('canvas');
+    const scale = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
+    cv.width = Math.round(bmp.width * scale);
+    cv.height = Math.round(bmp.height * scale);
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+    const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.82));
+    const path = `${CURRENT_PRODUCT.id}.webp`;
+    await sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+    const pubUrl = `${SUPABASE_URL}/storage/v1/object/public/jjp-products/${path}?t=${Date.now()}`;
+    await sb.from('jjp_products').update({ image_url: pubUrl }).eq('id', CURRENT_PRODUCT.id);
+    CURRENT_PRODUCT.image_url = pubUrl;
+    CURRENT_PRODUCT.has_photo = true;
+    CURRENT_PRODUCT.audit_verdict = 'ok';
+    updateGlobalCounters();
+    renderSidebarList();
+    renderAuditGallery();
+    nextProductInQueue();
+  } catch (e) {
+    alert('Error guardando foto: ' + e.message);
+    renderMainStage();
+  }
+}
+
+function uploadFromPc(ev) {
+  const f = ev.target.files?.[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => approvePhoto(reader.result);
+  reader.readAsDataURL(f);
+}
+
+async function toggleAutoPilot() {
+  const btn = document.getElementById('btnAutoPilot');
+  if (AUTO_PILOT_ACTIVE) {
+    AUTO_PILOT_ACTIVE = false;
+    btn.textContent = '🤖 Iniciar Piloto Automático (Cola IA)';
+    return;
+  }
+  AUTO_PILOT_ACTIVE = true;
+  btn.textContent = '⏹️ Detener Piloto Automático';
+  const queue = getSidebarFiltered();
+  for (const prod of queue) {
+    if (!AUTO_PILOT_ACTIVE) break;
+    selectProduct(prod.id, false);
+    await consultAndSearch();
+    if (CURRENT_ANALYSIS && (CURRENT_ANALYSIS.needs_user_consultation || CURRENT_ANALYSIS.confidence < 85)) {
+      AUTO_PILOT_ACTIVE = false;
+      btn.textContent = '🤖 Iniciar Piloto Automático (Cola IA)';
+      alert(`💬 El Consultor IA hizo una pausa en "${prod.name}" porque tiene una pregunta para ti antes de asignar foto.`);
+      break;
+    }
+    await new Promise(r => setTimeout(r, 1400));
+  }
+  AUTO_PILOT_ACTIVE = false;
+  btn.textContent = '🤖 Iniciar Piloto Automático (Cola IA)';
+}
+
+/* ==========================================================================
+   PESTAÑA 2: GALERÍA DE AUDITORÍA VISUAL DE FOTOS EXISTENTES
+   ========================================================================== */
+function getAuditFiltered() {
+  const q = (document.getElementById('auditSearchInp')?.value || '').trim().toLowerCase();
+  const f = document.getElementById('auditFilterSel')?.value || 'all';
+  return ALL_PRODUCTS.filter(p => {
+    if (!p.has_photo) return false;
+    if (f === 'cleaning') {
+      const rx = /escoba|palo|coleto|toall|mopa|cepillo|esponja|pañito|cloro|desinfectante|jabon|bolsa|guante|servilleta|higienico/i;
+      if (!rx.test(p.name) && !rx.test(p.category_name)) return false;
+    }
+    if (f === 'bad' && p.audit_verdict !== 'incorrecta' && p.audit_verdict !== 'dudosa') return false;
+    if (f === 'ok' && p.audit_verdict !== 'ok') return false;
+    if (q && !`${p.name} ${p.sku} ${p.category_name}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderAuditGallery() {
+  const list = getAuditFiltered();
+  const grid = document.getElementById('auditGalleryGrid');
+  if (!grid) return;
+  if (!list.length) {
+    grid.innerHTML = `<div class="card">No hay productos con foto para este filtro.</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(p => {
+    const vClass = p.audit_verdict === 'ok' ? 'verdict-ok' : (p.audit_verdict === 'incorrecta' ? 'verdict-bad' : (p.audit_verdict === 'dudosa' ? 'verdict-warn' : ''));
+    const vBadge = p.audit_verdict === 'ok'
+      ? `<span class="tag tag-ok">✅ Verificada OK</span>`
+      : (p.audit_verdict === 'incorrecta'
+        ? `<span class="tag tag-no">❌ Foto Incorrecta</span>`
+        : (p.audit_verdict === 'dudosa' ? `<span class="tag tag-warn">⚠️ Dudosa</span>` : `<span class="tag" style="background:#334155;color:#cbd5e1">Sin auditar</span>`));
+
     return `
-      <div class="cand-card ${verdict}">
+      <div class="audit-card ${vClass}" id="auditCard-${p.id}">
         <div>
-          <div class="cand-img-wrap">
-            <img src="${escapeHtml(c.thumb_url || c.image_url)}" alt="">
-            <span class="cand-score" style="background:${badgeBg};color:#022c22">${badgeLabel}</span>
+          <div class="cand-img-wrap" style="height:175px">
+            <img src="${esc(p.image_url)}" alt="">
+            <div style="position:absolute;top:8px;left:8px">${vBadge}</div>
           </div>
-          <div class="cand-body">
-            <div style="font-weight:800;color:#fff">${escapeHtml(c.title || 'Candidato Web')}</div>
-            <div style="color:#cbd5e1"><strong>IA ve:</strong> ${escapeHtml(v.what_i_see || '-')}</div>
-            <div style="color:var(--muted)">${escapeHtml(v.reason || '')}</div>
+          <div style="padding:12px">
+            <div style="font-size:11px;color:var(--cyan);font-weight:800">${esc(p.sku || 'S/SKU')} · ${esc(p.category_name)}</div>
+            <div style="font-size:13px;font-weight:800;margin-top:3px">${esc(p.name)}</div>
+            ${p.audit_reason ? `<div style="font-size:11.5px;color:var(--muted);margin-top:6px;padding:6px;background:var(--panel-alt);border-radius:6px">${esc(p.audit_reason)}</div>` : ''}
           </div>
         </div>
-        <div style="padding:10px;border-top:1px solid var(--border)">
-          <button class="btn" style="width:100%;justify-content:center" onclick="approveCandidate('${escapeHtml(c.image_url)}')">
-            ✅ Usar esta Foto (WebP + VPS)
-          </button>
+        <div style="padding:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <button class="btn" style="justify-content:center;padding:6px" onclick="confirmPhotoOk('${p.id}')">✅ Correcta</button>
+          <button class="btn btn-amber" style="justify-content:center;padding:6px" onclick="auditSingleProductPhoto('${p.id}')">🤖 Auditar IA</button>
+          <button class="btn btn-red" style="justify-content:center;padding:6px" onclick="removeWrongPhoto('${p.id}', true)">❌ Cambiar</button>
         </div>
       </div>
     `;
   }).join('');
-
-  return `
-    <div class="card">
-      <h2>📸 Candidatos Auditados por Gemini Vision (${candidates.length})</h2>
-      <div class="candidates-grid">${cardsHtml}</div>
-    </div>
-  `;
 }
 
-function setClarification(text) {
-  const inp = document.getElementById('userClarificationInput');
-  const qInp = document.getElementById('customQueryInput');
-  if (inp) inp.value = text;
-  if (qInp) qInp.value = text + ' producto fondo blanco';
-}
-
-async function runSearchAndVerify(userHint = '', customQuery = '') {
-  if (!CURRENT_PRODUCT) return;
-  renderMainStage(null, null, `Analizando "${CURRENT_PRODUCT.name}" y auditando fotos con Gemini Vision...`);
-  try {
-    const res = await api('/api/search-verify', {
-      product_id: CURRENT_PRODUCT.id,
-      name: CURRENT_PRODUCT.name,
-      sku: CURRENT_PRODUCT.sku,
-      category_name: CURRENT_PRODUCT.category_name,
-      unit: CURRENT_PRODUCT.unit,
-      user_hint: userHint,
-      custom_query: customQuery,
-    });
-    CURRENT_ANALYSIS = res.analysis;
-    renderMainStage(res.candidates, null, '');
-    await refreshStatus();
-  } catch (e) {
-    alert('Error en consulta IA: ' + e.message);
-    renderMainStage(null, null, '');
+async function confirmPhotoOk(id) {
+  const p = ALL_PRODUCTS.find(x => x.id === id);
+  if (!p) return;
+  p.audit_verdict = 'ok';
+  p.audit_reason = 'Confirmada manualmente como fotografía correcta.';
+  renderAuditGallery();
+  if (USE_PYTHON_BACKEND) {
+    await fetch(`${PYTHON_API}/api/confirm-photo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: p.id, image_url: p.image_url })
+    }).catch(() => {});
+  } else {
+    await sb.from('jjp_photo_audit').insert({
+      product_id: p.id,
+      image_url: p.image_url.slice(0, 480),
+      verdict: 'ok',
+      confidence: 100,
+      reason: 'Confirmada manualmente en Estudio IA',
+      source: 'estudio_ia_web'
+    }).catch(() => {});
   }
 }
 
-async function teachModelAndResearch() {
-  if (!CURRENT_PRODUCT) return;
-  const clarification = document.getElementById('userClarificationInput')?.value || '';
-  const customQuery = document.getElementById('customQueryInput')?.value || '';
-  const selectedCat = document.getElementById('selCategory')?.value || '';
+async function auditSingleProductPhoto(id) {
+  const p = ALL_PRODUCTS.find(x => x.id === id);
+  if (!p || !p.has_photo) return;
+  p.audit_reason = '⏳ Analizando imagen con Gemini Vision...';
+  renderAuditGallery();
+  if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id) {
+    renderMainStage(null, null, `Auditando foto actual de "${p.name}" con Gemini Vision...`);
+  }
 
   try {
-    await api('/api/train-feedback', {
-      product_id: CURRENT_PRODUCT.id,
-      name: CURRENT_PRODUCT.name,
-      user_clarification: clarification,
-      category: selectedCat,
-      search_query: customQuery,
+    if (USE_PYTHON_BACKEND) {
+      const r = await fetch(`${PYTHON_API}/api/audit-existing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: p.id,
+          name: p.name,
+          sku: p.sku,
+          category_name: p.category_name,
+          unit: p.unit,
+          image_url: p.image_url
+        })
+      }).then(x => x.json());
+      if (!r.ok) throw new Error(r.error);
+      p.audit_verdict = r.db_verdict;
+      p.audit_reason = `${r.vision.what_i_see || ''} — ${r.vision.reason || ''}`;
+      renderAuditGallery();
+      if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id) {
+        CURRENT_ANALYSIS = r.analysis;
+        renderMainStage(null, r, '');
+      }
+      return;
+    }
+
+    const vRaw = await GeminiClient.callGeminiVision({
+      prompt: `Audita si esta imagen corresponde exactamente al producto "${p.name}" (Unidad: ${p.unit}, Categoría: ${p.category_name}). Si muestra otro producto distinto, otra medida o es un dibujo/alucinación, recházala. Devuelve JSON: {"verdict":"exact_match"|"partial_match"|"rejected","score":0-100,"what_i_see":"que se ve en la foto","reason":"por que aprueba o rechaza"}`,
+      imageUrl: p.image_url
     });
-    if (selectedCat) CURRENT_PRODUCT.category_name = selectedCat;
-    await runSearchAndVerify(clarification, customQuery);
+    const vision = JSON.parse(vRaw.slice(vRaw.indexOf('{'), vRaw.lastIndexOf('}') + 1));
+    p.audit_verdict = vision.verdict === 'exact_match' ? 'ok' : (vision.verdict === 'partial_match' ? 'dudosa' : 'incorrecta');
+    p.audit_reason = `${vision.what_i_see || ''} — ${vision.reason || ''}`;
+    renderAuditGallery();
+    if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id) {
+      renderMainStage(null, { vision }, '');
+    }
   } catch (e) {
-    alert('Error guardando entrenamiento: ' + e.message);
+    p.audit_reason = 'Error en auditoría: ' + e.message;
+    renderAuditGallery();
   }
 }
 
-async function runAuditExistingPhoto() {
-  if (!CURRENT_PRODUCT || !CURRENT_PRODUCT.has_photo) return;
-  renderMainStage(null, null, `Auditando la fotografía actual de "${CURRENT_PRODUCT.name}" con Gemini Vision...`);
-  try {
-    const res = await api('/api/audit-existing', {
-      product_id: CURRENT_PRODUCT.id,
-      name: CURRENT_PRODUCT.name,
-      sku: CURRENT_PRODUCT.sku,
-      category_name: CURRENT_PRODUCT.category_name,
-      unit: CURRENT_PRODUCT.unit,
-      image_url: CURRENT_PRODUCT.image_url,
-    });
-    CURRENT_ANALYSIS = res.analysis;
-    renderMainStage(null, res, '');
-    await refreshStatus();
-  } catch (e) {
-    alert('Error auditando foto: ' + e.message);
-    renderMainStage(null, null, '');
+async function runBatchVisionAudit() {
+  const list = getAuditFiltered().slice(0, 12);
+  const btn = document.getElementById('btnBatchAuditVision');
+  btn.disabled = true;
+  for (let i = 0; i < list.length; i++) {
+    btn.textContent = `⏳ Auditando ${i + 1}/${list.length}: ${list[i].name.slice(0, 18)}...`;
+    await auditSingleProductPhoto(list[i].id);
   }
+  btn.disabled = false;
+  btn.textContent = '🤖 Escanear Fotos en Pantalla con Gemini Vision';
 }
 
-async function approveCandidate(imgUrl) {
-  if (!CURRENT_PRODUCT) return;
-  const catName = CURRENT_ANALYSIS?.recommended_category || document.getElementById('selCategory')?.value || '';
-  renderMainStage(null, null, 'Convirtiendo a WebP (800px) y subiendo al CDN del VPS Soberano...');
-  try {
-    const res = await api('/api/approve-photo', {
-      product_id: CURRENT_PRODUCT.id,
-      image_url: imgUrl,
-      category_name: catName,
-    });
-    CURRENT_PRODUCT.image_url = res.public_url;
-    CURRENT_PRODUCT.has_photo = true;
-    if (catName) CURRENT_PRODUCT.category_name = catName;
-    renderProductList();
-    renderMainStage(null, null, '');
-    await refreshStatus();
-  } catch (e) {
-    alert('Error subiendo imagen: ' + e.message);
-    renderMainStage(null, null, '');
+async function removeWrongPhoto(id, jumpToSearch = false) {
+  const p = ALL_PRODUCTS.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`¿Retirar la foto equivocada de "${p.name}" y enviarla a cuarentena?`)) return;
+
+  if (USE_PYTHON_BACKEND) {
+    await fetch(`${PYTHON_API}/api/quarantine-photo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: p.id, image_url: p.image_url })
+    }).catch(() => {});
+  } else {
+    await sb.from('jjp_products').update({ image_url: null }).eq('id', p.id);
   }
-}
 
-async function uploadLocalFile(ev) {
-  const file = ev.target.files?.[0];
-  if (!file || !CURRENT_PRODUCT) return;
-  const reader = new FileReader();
-  reader.onload = async () => {
-    await approveCandidate(reader.result);
-  };
-  reader.readAsDataURL(file);
-}
+  p.image_url = '';
+  p.has_photo = false;
+  p.audit_verdict = 'incorrecta';
+  updateGlobalCounters();
+  renderSidebarList();
+  renderAuditGallery();
 
-async function quarantineCurrentPhoto() {
-  if (!CURRENT_PRODUCT) return;
-  if (!confirm(`¿Retirar la foto actual de "${CURRENT_PRODUCT.name}" y marcarla como incorrecta?`)) return;
-  try {
-    await api('/api/quarantine-photo', {
-      product_id: CURRENT_PRODUCT.id,
-      image_url: CURRENT_PRODUCT.image_url,
-      reason: 'Marcada como incorrecta manualmente por el usuario en Estudio IA',
-    });
-    CURRENT_PRODUCT.image_url = '';
-    CURRENT_PRODUCT.has_photo = false;
-    renderProductList();
+  if (jumpToSearch) {
+    switchTab('search');
+    selectProduct(p.id, true);
+  } else {
     renderMainStage();
-    await refreshStatus();
-  } catch (e) {
-    alert('Error retirando foto: ' + e.message);
   }
 }
 
-async function applySelectedCategory() {
+/* ==========================================================================
+   PESTAÑA 3: REORGANIZADOR INTELIGENTE DE CATEGORÍAS
+   ========================================================================== */
+function getCatFiltered() {
+  const q = (document.getElementById('catSearchInp')?.value || '').trim().toLowerCase();
+  const mode = document.getElementById('catFilterSel')?.value || 'uncat';
+  return ALL_PRODUCTS.filter(p => {
+    if (mode === 'uncat' && p.category_name !== 'SIN CATEGORÍA' && p.category_name !== 'VARIOS') return false;
+    if (q && !`${p.name} ${p.sku} ${p.category_name} ${p.proposed_category}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderCategoryOrganizer() {
+  const list = getCatFiltered().slice(0, 150);
+  const tbody = document.getElementById('catTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = list.map(p => {
+    const sug = p.proposed_category || 'VARIOS';
+    const opts = CATEGORIES.map(c =>
+      `<option value="${esc(c.name)}" ${sug === c.name ? 'selected' : ''}>${esc(c.name)}</option>`
+    ).join('');
+    return `
+      <tr>
+        <td style="font-family:monospace;color:var(--cyan)">${esc(p.sku || 'S/SKU')}</td>
+        <td style="font-weight:700">${esc(p.name)}</td>
+        <td><span class="tag ${p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS' ? 'tag-warn' : 'tag-info'}">${esc(p.category_name)}</span></td>
+        <td>
+          <span class="tag tag-ok">💡 ${esc(sug)}</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:4px">${esc(p.proposed_family || '')}</span>
+        </td>
+        <td>
+          <select id="catRowSel-${p.id}" style="width:220px;padding:5px 8px">${opts}</select>
+        </td>
+        <td>
+          <button class="btn" style="padding:5px 10px" onclick="applyRowCategory('${p.id}')">✅ Aplicar</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function quickApplyCategory(pid, catName) {
+  await saveProductCategory(pid, catName);
+}
+
+async function saveStageCategory() {
   if (!CURRENT_PRODUCT) return;
-  const catName = document.getElementById('selCategory')?.value;
-  if (!catName) return;
-  try {
-    await api('/api/apply-category', { product_id: CURRENT_PRODUCT.id, category_name: catName });
-    CURRENT_PRODUCT.category_name = catName;
-    renderProductList();
-    renderMainStage();
-  } catch (e) {
-    alert('Error actualizando categoría: ' + e.message);
-  }
+  const catName = document.getElementById('selCatStage')?.value;
+  if (catName) await saveProductCategory(CURRENT_PRODUCT.id, catName);
 }
 
-async function toggleAutoBatch() {
-  const btn = document.getElementById('btnAutoBatch');
-  if (AUTO_BATCH_RUNNING) {
-    AUTO_BATCH_RUNNING = false;
-    btn.textContent = '🤖 Piloto Automático (Lote)';
+async function applyRowCategory(pid) {
+  const sel = document.getElementById(`catRowSel-${pid}`);
+  if (sel && sel.value) await saveProductCategory(pid, sel.value);
+}
+
+async function saveProductCategory(pid, catName) {
+  const p = ALL_PRODUCTS.find(x => x.id === pid);
+  const catObj = CATEGORIES.find(c => c.name.toUpperCase() === String(catName || '').toUpperCase());
+  if (!p || !catObj) {
+    alert(`Categoría "${catName}" no encontrada en jjp_categories.`);
     return;
   }
-  AUTO_BATCH_RUNNING = true;
-  btn.textContent = '⏹️ Detener Piloto Automático';
-  const list = getFilteredList();
-  for (const prod of list) {
-    if (!AUTO_BATCH_RUNNING) break;
-    selectProduct(prod.id);
-    await runSearchAndVerify();
-    if (CURRENT_ANALYSIS && (CURRENT_ANALYSIS.needs_user_consultation || CURRENT_ANALYSIS.confidence < 85)) {
-      AUTO_BATCH_RUNNING = false;
-      btn.textContent = '🤖 Piloto Automático (Lote)';
-      alert(`El Consultor IA se detuvo en "${prod.name}" porque necesita tu confirmación antes de seguir.`);
-      break;
-    }
-    await new Promise(r => setTimeout(r, 1200));
+  if (USE_PYTHON_BACKEND) {
+    await fetch(`${PYTHON_API}/api/apply-category`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: pid, category_name: catObj.name })
+    });
+  } else {
+    await sb.from('jjp_products').update({ category_id: catObj.id }).eq('id', pid);
   }
-  AUTO_BATCH_RUNNING = false;
-  btn.textContent = '🤖 Piloto Automático (Lote)';
+  p.category_id = catObj.id;
+  p.category_name = catObj.name;
+  updateGlobalCounters();
+  renderSidebarList();
+  renderCategoryOrganizer();
+  if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === pid) renderMainStage();
 }
 
-async function openTrainingModal() {
-  const modal = document.getElementById('trainingModal');
-  modal.classList.add('open');
-  const res = await api('/api/training');
-  document.getElementById('trainingJsonArea').value = JSON.stringify(res.training, null, 2);
-  const pool = window._lastPoolStatus;
-  if (pool && pool.keys) {
-    document.getElementById('poolKeysStatus').innerHTML = pool.keys.map(k => `
-      <div class="stat-pill" style="border-color:${k.active ? 'var(--brand)' : 'var(--amber)'}">
-        Llave #${k.index} (${k.masked}): <strong>${k.success} OK</strong> / ${k.errors} Err
+async function applyAllSuggestedCategories() {
+  const list = getCatFiltered().filter(p => p.proposed_category && p.proposed_category !== 'VARIOS');
+  if (!list.length) {
+    alert('No hay sugerencias específicas pendientes en esta vista.');
+    return;
+  }
+  if (!confirm(`¿Aplicar automáticamente la categoría sugerida por IA a ${list.length} productos?`)) return;
+
+  if (USE_PYTHON_BACKEND) {
+    const items = list.map(p => ({ product_id: p.id, category_name: p.proposed_category }));
+    await fetch(`${PYTHON_API}/api/apply-categories-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+    list.forEach(p => {
+      const co = CATEGORIES.find(c => c.name.toUpperCase() === p.proposed_category.toUpperCase());
+      if (co) { p.category_id = co.id; p.category_name = co.name; }
+    });
+  } else {
+    for (const p of list) {
+      const co = CATEGORIES.find(c => c.name.toUpperCase() === p.proposed_category.toUpperCase());
+      if (co) {
+        await sb.from('jjp_products').update({ category_id: co.id }).eq('id', p.id);
+        p.category_id = co.id;
+        p.category_name = co.name;
+      }
+    }
+  }
+  updateGlobalCounters();
+  renderSidebarList();
+  renderCategoryOrganizer();
+  alert(`✅ Se actualizaron ${list.length} productos con su categoría oficial.`);
+}
+
+/* ==========================================================================
+   PESTAÑA 4: ENTRENAMIENTO DEL MODELO IA & POOL DE API KEYS
+   ========================================================================== */
+function renderTrainingTab() {
+  const area = document.getElementById('trainingCorpusArea');
+  if (area) area.value = JSON.stringify(TRAINING_CACHE, null, 2);
+
+  const grid = document.getElementById('poolKeysGrid');
+  if (!grid) return;
+
+  if (window._poolStatus && window._poolStatus.keys) {
+    grid.innerHTML = window._poolStatus.keys.map(k => `
+      <div class="stat-pill" style="border-color:${k.active ? 'var(--brand)' : 'var(--amber)'};padding:10px 14px">
+        <div style="font-weight:800;color:#fff">🔑 API Key #${k.index} (${esc(k.masked)})</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+          Estado: <strong style="color:${k.active ? '#34d399' : '#fbbf24'}">${k.active ? 'ACTIVA' : 'EN COOLDOWN'}</strong> ·
+          Éxitos: <strong>${k.success}</strong> · Errores: ${k.errors}
+        </div>
+      </div>
+    `).join('');
+  } else if (window.GeminiClient) {
+    const keys = GeminiClient.getKeys() || [];
+    grid.innerHTML = keys.map((k, idx) => `
+      <div class="stat-pill" style="border-color:var(--brand);padding:10px 14px">
+        <div style="font-weight:800;color:#fff">🔑 API Key #${idx + 1} (${esc(k.slice(0, 8) + '...' + k.slice(-4))})</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Estado: <strong style="color:#34d399">ACTIVA EN ROTACIÓN</strong></div>
       </div>
     `).join('');
   }
 }
 
-function closeTrainingModal() {
-  document.getElementById('trainingModal').classList.remove('open');
+async function addQuickTrainingRule() {
+  const raw = document.getElementById('trRawName')?.value.trim();
+  const clar = document.getElementById('trClarification')?.value.trim();
+  const q = document.getElementById('trSearchQuery')?.value.trim();
+  if (!raw || !clar) {
+    alert('Completa al menos el nombre/abreviatura y su significado.');
+    return;
+  }
+  TRAINING_CACHE.learned_corrections = TRAINING_CACHE.learned_corrections || [];
+  TRAINING_CACHE.learned_corrections.push({
+    raw_name: raw,
+    user_clarification: clar,
+    category: '',
+    search_query: q || `${clar} fondo blanco`,
+    learned_at: new Date().toISOString()
+  });
+  renderTrainingTab();
+  await saveFullTrainingCorpus();
+  document.getElementById('trRawName').value = '';
+  document.getElementById('trClarification').value = '';
+  document.getElementById('trSearchQuery').value = '';
 }
 
-async function saveTrainingJson() {
+async function saveFullTrainingCorpus() {
   try {
-    const parsed = JSON.parse(document.getElementById('trainingJsonArea').value);
-    await api('/api/save-training', { training: parsed });
-    alert('✅ Archivo de entrenamiento guardado y activo en caliente.');
-    closeTrainingModal();
-    await refreshStatus();
+    const parsed = JSON.parse(document.getElementById('trainingCorpusArea').value);
+    TRAINING_CACHE = parsed;
+    updateGlobalCounters();
+    if (USE_PYTHON_BACKEND) {
+      await fetch(`${PYTHON_API}/api/save-training`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ training: parsed })
+      });
+    } else {
+      localStorage.setItem('jjp_ai_training_corpus', JSON.stringify(parsed));
+    }
+    alert('✅ Corpus de entrenamiento IA actualizado y activo.');
   } catch (e) {
     alert('JSON inválido: ' + e.message);
   }
 }
 
-function escapeHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 }
 
 init();

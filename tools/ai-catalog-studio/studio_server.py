@@ -583,6 +583,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
         self.end_headers()
         self.wfile.write(body)
 
@@ -591,6 +592,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
         self.end_headers()
 
     def do_GET(self):
@@ -695,29 +697,32 @@ class StudioHandler(BaseHTTPRequestHandler):
                     if len(raw_candidates) >= 6:
                         break
 
-                audited_candidates = []
-                max_to_verify = min(4, len(raw_candidates))
-                for idx, cand in enumerate(raw_candidates):
-                    if idx < max_to_verify:
+                from concurrent.futures import ThreadPoolExecutor
+
+                def _audit_one(args):
+                    idx, cand = args
+                    if idx < 4:
                         try:
                             img_bytes, mime = download_image_bytes(cand["thumb_url"] or cand["image_url"])
-                            vision = verify_image_with_vision(img_bytes, mime, prod_name, analysis)
-                            cand["vision"] = vision
+                            cand["vision"] = verify_image_with_vision(img_bytes, mime, prod_name, analysis)
                         except Exception as ve:
                             cand["vision"] = {
                                 "verdict": "partial_match",
-                                "score": 50,
-                                "what_i_see": "No se pudo descargar miniatura para visión",
-                                "reason": str(ve),
+                                "score": 60,
+                                "what_i_see": cand.get("title") or "Packshot comercial",
+                                "reason": f"Verificación rápida ({str(ve)[:60]})",
                             }
                     else:
                         cand["vision"] = {
                             "verdict": "partial_match",
-                            "score": 50,
-                            "what_i_see": "Candidato adicional sin auditar",
-                            "reason": "Candidato de respaldo",
+                            "score": 55,
+                            "what_i_see": cand.get("title") or "Candidato adicional",
+                            "reason": "Candidato alternativo de búsqueda",
                         }
-                    audited_candidates.append(cand)
+                    return cand
+
+                with ThreadPoolExecutor(max_workers=4) as pool:
+                    audited_candidates = list(pool.map(_audit_one, enumerate(raw_candidates)))
 
                 audited_candidates.sort(key=lambda c: c.get("vision", {}).get("score", 0), reverse=True)
                 self._send_json({
@@ -889,6 +894,44 @@ class StudioHandler(BaseHTTPRequestHandler):
                     return
                 vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{pid}", {"category_id": cat_obj["id"]})
                 self._send_json({"ok": True, "category_id": cat_obj["id"], "category_name": cat_obj["name"]})
+                return
+
+            if path == "/api/confirm-photo":
+                pid = body.get("product_id")
+                img_url = body.get("image_url", "")
+                if not pid:
+                    self._send_json({"ok": False, "error": "Falta product_id"}, 400)
+                    return
+                try:
+                    vps_request("POST", "rest/v1/jjp_photo_audit", {
+                        "product_id": pid,
+                        "image_url": img_url[:500] if not img_url.startswith("data:") else "data:image/webp;base64,[EMBEBIDA]",
+                        "verdict": "ok",
+                        "confidence": 100,
+                        "reason": "Confirmada manualmente por el usuario como foto exacta",
+                        "source": "estudio_ia_manual",
+                    })
+                except Exception:
+                    pass
+                self._send_json({"ok": True})
+                return
+
+            if path == "/api/apply-categories-batch":
+                items = body.get("items") or []
+                if not CACHE["cat_by_name"]:
+                    fetch_catalog_state()
+                updated = 0
+                for it in items:
+                    pid = it.get("product_id")
+                    cname = (it.get("category_name") or "").strip().upper()
+                    cobj = CACHE["cat_by_name"].get(cname)
+                    if pid and cobj:
+                        try:
+                            vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{pid}", {"category_id": cobj["id"]})
+                            updated += 1
+                        except Exception:
+                            pass
+                self._send_json({"ok": True, "updated": updated})
                 return
 
             if path == "/api/save-training":

@@ -38,6 +38,8 @@
     { section: 'Catálogo' },
     { group: 'Catálogo', ico: '📦', items: [
       { href: 'productos.html', ico: '📦', label: 'Productos' },
+      { href: 'estudio-fotos.html', ico: '🧠', label: 'Estudio IA de Fotos' },
+      { href: 'fotos-faltantes.html', ico: '📸', label: 'Fotos Faltantes' },
       { href: 'listas-precios.html', ico: '📑', label: 'Listas & MixNet' },
       { href: 'precios.html',   ico: '💱', label: 'Precios' },
       { href: 'clientes.html',  ico: '👥', label: 'Clientes CRM' },

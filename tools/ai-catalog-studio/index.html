@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JJ Paper · Estudio IA de Entrenamiento, Búsqueda Exacta y Auditoría de Catálogo</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-alt: #0b1120;
+    --border: #334155;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --brand: #10b981;
+    --brand-dark: #059669;
+    --cyan: #06b6d4;
+    --amber: #f59e0b;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    background: var(--panel-alt);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .brand-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-badge {
+    background: linear-gradient(135deg, var(--brand), var(--cyan));
+    color: #042f2e;
+    font-weight: 900;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .brand-title h1 { font-size: 16px; font-weight: 800; }
+  .brand-title p { font-size: 12px; color: var(--muted); }
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .stat-pill {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .stat-pill strong { color: var(--brand); font-size: 13px; }
+  .btn {
+    background: var(--brand);
+    color: #022c22;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 7px;
+    font-weight: 800;
+    font-size: 12px;
+    cursor: pointer;
+    transition: 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sec { background: #334155; color: #f8fafc; }
+  .btn-amber { background: var(--amber); color: #451a03; }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-cyan { background: var(--cyan); color: #083344; }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+  .sidebar {
+    background: var(--panel-alt);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .sidebar-controls {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  input, select, textarea {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+  }
+  .prod-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .prod-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 10px;
+    align-items: center;
+    transition: 0.12s;
+  }
+  .prod-item:hover { border-color: var(--cyan); }
+  .prod-item.active { border-color: var(--brand); background: #132a2e; }
+  .prod-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 18px;
+  }
+  .prod-thumb img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .prod-name { font-size: 12.5px; font-weight: 700; line-height: 1.25; }
+  .prod-meta { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .tag-ok { background: rgba(16,185,129,0.2); color: #34d399; }
+  .tag-no { background: rgba(239,68,68,0.2); color: #f87171; }
+  .tag-warn { background: rgba(245,158,11,0.2); color: #fbbf24; }
+
+  .main-stage {
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .card h2 { font-size: 15px; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .attr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .attr-box {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+  .attr-box span { font-size: 10px; color: var(--muted); text-transform: uppercase; display: block; }
+  .attr-box strong { font-size: 13px; color: #fff; }
+
+  .consult-alert {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1.5px solid var(--amber);
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 12px;
+  }
+  .consult-alert h3 { color: #fbbf24; font-size: 14px; margin-bottom: 6px; }
+  .quick-opts { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+
+  .candidates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+  }
+  .cand-card {
+    background: var(--panel-alt);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .cand-card.exact_match { border-color: var(--brand); }
+  .cand-card.partial_match { border-color: var(--amber); }
+  .cand-card.rejected { border-color: var(--red); opacity: 0.78; }
+  .cand-img-wrap {
+    height: 190px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    position: relative;
+  }
+  .cand-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .cand-score {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .cand-body { padding: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal-content {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 880px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-title">
+    <span class="brand-badge">JJ PAPER · AI STUDIO</span>
+    <div>
+      <h1>Entrenador, Consultor y Buscador Exacto de Imágenes</h1>
+      <p>Impulsado por Pool Rotativo de API Keys Gemini + Verificación Visual contra Ficha Técnica</p>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-pill">Productos: <strong id="stTotal">--</strong></div>
+    <div class="stat-pill">Con Foto: <strong id="stWithPhoto">--</strong></div>
+    <div class="stat-pill">Sin Foto: <strong id="stNoPhoto" style="color:#f87171">--</strong></div>
+    <div class="stat-pill">API Keys Activas: <strong id="stKeys" style="color:#38bdf8">--</strong></div>
+    <div class="stat-pill">Reglas Aprendidas: <strong id="stLearned">--</strong></div>
+    <button class="btn btn-cyan" onclick="openTrainingModal()">🧠 Archivo de Entrenamiento & Pool Keys</button>
+  </div>
+</header>
+
+<div class="workspace">
+  <aside class="sidebar">
+    <div class="sidebar-controls">
+      <input type="search" id="searchInput" placeholder="🔍 Buscar por nombre o SKU..." oninput="renderProductList()">
+      <select id="filterMode" onchange="renderProductList()">
+        <option value="no_photo">🚫 Sin Fotografía (Prioridad)</option>
+        <option value="cleaning">🧹 Limpieza / Dudosos (Escobas, Coletos, Toallín)</option>
+        <option value="with_photo">📸 Con Fotografía (Para Auditar)</option>
+        <option value="uncat">🗂️ Sin Categoría o en VARIOS (Con Propuesta IA)</option>
+        <option value="all">📦 Todos los Productos</option>
+      </select>
+      <div style="display:flex;gap:6px">
+        <button class="btn" style="flex:1;justify-content:center" id="btnAutoBatch" onclick="toggleAutoBatch()">
+          🤖 Piloto Automático (Lote)
+        </button>
+      </div>
+    </div>
+    <div class="prod-list" id="prodList"></div>
+  </aside>
+
+  <main class="main-stage" id="mainStage">
+    <div class="card" style="text-align:center;padding:50px 20px;color:var(--muted)">
+      <h2>👈 Selecciona un producto de la columna izquierda o activa el Piloto Automático</h2>
+      <p style="margin-top:8px">El Consultor IA interpretará el nombre de MixNet usando el archivo de entrenamiento, te consultará si tiene alguna duda y buscará fotografías comerciales verificadas con Gemini Vision.</p>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL DE ENTRENAMIENTO Y ESTADO DEL POOL DE LLAVES -->
+<div class="modal-backdrop" id="trainingModal" onclick="if(event.target===this)closeTrainingModal()">
+  <div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2>🧠 Archivo de Entrenamiento (`training/knowledge_base.json`) y Pool de API Keys</h2>
+      <button class="btn btn-sec" onclick="closeTrainingModal()">✕ Cerrar</button>
+    </div>
+    <div id="poolKeysStatus" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    <p style="font-size:12px;color:var(--muted)">
+      Aquí puedes editar directamente las abreviaturas de MixNet, marcas venezolanas, reglas de búsqueda y las correcciones aprendidas de tus respuestas.
+    </p>
+    <textarea id="trainingJsonArea" style="flex:1;min-height:360px;font-family:monospace;font-size:12px"></textarea>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn" onclick="saveTrainingJson()">💾 Guardar Entrenamiento</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let ALL_PRODUCTS = [];
+let CATEGORIES = [];
+let CURRENT_PRODUCT = null;
+let CURRENT_ANALYSIS = null;
+let AUTO_BATCH_RUNNING = false;
+
+async function api(path, body = null) {
+  const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+  const res = await fetch(path, opts);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Error en servidor IA');
+  return data;
+}
+
+async function init() {
+  await refreshStatus();
+  const data = await api('/api/products');
+  ALL_PRODUCTS = data.products || [];
+  CATEGORIES = data.categories || [];
+  renderProductList();
+}
+
+async function refreshStatus() {
+  try {
+    const st = await api('/api/status');
+    document.getElementById('stTotal').textContent = st.catalog.total_products;
+    document.getElementById('stWithPhoto').textContent = st.catalog.with_photo;
+    document.getElementById('stNoPhoto').textContent = st.catalog.without_photo;
+    document.getElementById('stKeys').textContent = `${st.pool.total_keys} llaves`;
+    document.getElementById('stLearned').textContent = st.training_rules_count;
+    window._lastPoolStatus = st.pool;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function getFilteredList() {
+  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  const mode = document.getElementById('filterMode').value;
+  return ALL_PRODUCTS.filter(p => {
+    if (mode === 'no_photo' && p.has_photo) return false;
+    if (mode === 'with_photo' && !p.has_photo) return false;
+    if (mode === 'uncat' && p.category_name !== 'SIN CATEGORÍA' && p.category_name !== 'VARIOS') return false;
+    if (mode === 'cleaning') {
+      const rx = /escoba|palo|coleto|toall|mopa|cepillo|esponja|pañito|cloro|desinfectante|jabon|bolsa|guante/i;
+      if (!rx.test(p.name) && !rx.test(p.category_name)) return false;
+    }
+    if (q) {
+      const hay = `${p.name} ${p.sku} ${p.category_name}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderProductList() {
+  const list = getFilteredList();
+  const el = document.getElementById('prodList');
+  el.innerHTML = list.slice(0, 250).map(p => {
+    const isAct = CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id;
+    const thumb = p.has_photo ? `<img src="${p.image_url}" alt="">` : '📷';
+    const photoTag = p.has_photo
+      ? `<span class="tag tag-ok">Con foto</span>`
+      : `<span class="tag tag-no">Sin foto</span>`;
+    const catTag = (p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS')
+      ? `<span class="tag tag-warn">${p.proposed_category ? 'Prop: ' + p.proposed_category : p.category_name}</span>`
+      : `<span class="tag" style="background:#334155;color:#cbd5e1">${p.category_name}</span>`;
+    return `
+      <div class="prod-item ${isAct ? 'active' : ''}" onclick="selectProduct('${p.id}')">
+        <div class="prod-thumb">${thumb}</div>
+        <div>
+          <div class="prod-name">${escapeHtml(p.name)}</div>
+          <div class="prod-meta">
+            ${photoTag}
+            ${catTag}
+            <span>${p.sku || 'S/SKU'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectProduct(id) {
+  CURRENT_PRODUCT = ALL_PRODUCTS.find(x => x.id === id);
+  CURRENT_ANALYSIS = null;
+  renderProductList();
+  renderMainStage();
+}
+
+function renderMainStage(candidates = null, auditResult = null, loadingMsg = '') {
+  const stage = document.getElementById('mainStage');
+  if (!CURRENT_PRODUCT) return;
+  const p = CURRENT_PRODUCT;
+
+  const catOptions = CATEGORIES.map(c =>
+    `<option value="${escapeHtml(c.name)}" ${(p.proposed_category || p.category_name) === c.name ? 'selected' : ''}>${c.emoji || '📦'} ${escapeHtml(c.name)}</option>`
+  ).join('');
+
+  stage.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12px;color:var(--cyan);font-weight:800">SKU: ${escapeHtml(p.sku || 'SIN SKU')} · UNIDAD: ${escapeHtml(p.unit)} · PRECIO: $${Number(p.price_usd).toFixed(2)}</div>
+          <h2 style="font-size:20px;margin:4px 0">${escapeHtml(p.name)}</h2>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+            <span style="font-size:12px;color:var(--muted)">Categoría actual: <strong>${escapeHtml(p.category_name)}</strong></span>
+            ${p.proposed_category ? `<span class="tag tag-warn">Sugerida por Regla: ${escapeHtml(p.proposed_category)} (${escapeHtml(p.proposed_family)})</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="runSearchAndVerify()">🔍 1. Consultar IA + Buscar Fotos Exactas</button>
+          ${p.has_photo ? `<button class="btn btn-amber" onclick="runAuditExistingPhoto()">🕵️‍♂️ Auditar Foto Actual</button>` : ''}
+          ${p.has_photo ? `<button class="btn btn-red" onclick="quarantineCurrentPhoto()">🗑️ Quitar Foto Incorrecta</button>` : ''}
+        </div>
+      </div>
+
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted)">Asignar / Corregir Categoría Oficial:</label>
+        <select id="selCategory" style="width:260px">${catOptions}</select>
+        <button class="btn btn-sec" onclick="applySelectedCategory()">📂 Guardar Categoría</button>
+        <label class="btn btn-sec" style="cursor:pointer">
+          📁 Subir Foto Local desde mi PC
+          <input type="file" accept="image/*" style="display:none" onchange="uploadLocalFile(event)">
+        </label>
+      </div>
+    </div>
+
+    ${loadingMsg ? `
+      <div class="card" style="border-color:var(--cyan);text-align:center;padding:30px">
+        <h2>⏳ ${escapeHtml(loadingMsg)}</h2>
+        <p style="color:var(--muted);font-size:13px;margin-top:6px">Consultando el archivo de entrenamiento y verificando imágenes con Gemini Vision...</p>
+      </div>
+    ` : ''}
+
+    ${p.has_photo ? `
+      <div class="card">
+        <h2>🖼️ Fotografía Actual en el Catálogo</h2>
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+          <div style="width:160px;height:160px;background:#fff;border-radius:10px;padding:8px;display:flex;align-items:center;justify-content:center">
+            <img src="${p.image_url}" style="max-width:100%;max-height:100%;object-fit:contain">
+          </div>
+          <div style="flex:1">
+            ${auditResult ? `
+              <div style="padding:12px;border-radius:8px;background:var(--panel-alt);border:1.5px solid ${auditResult.vision.verdict === 'exact_match' ? 'var(--brand)' : 'var(--red)'}">
+                <div style="font-weight:900;font-size:14px">
+                  Veredicto Gemini Vision: ${auditResult.vision.verdict === 'exact_match' ? '✅ FOTO CORRECTA' : '❌ FOTO SOSPECHOSA / INCORRECTA'} (${auditResult.vision.score}%)
+                </div>
+                <p style="font-size:13px;margin-top:6px"><strong>Lo que ve la IA:</strong> ${escapeHtml(auditResult.vision.what_i_see || '')}</p>
+                <p style="font-size:13px;color:var(--muted);margin-top:4px"><strong>Razón:</strong> ${escapeHtml(auditResult.vision.reason || '')}</p>
+              </div>
+            ` : `<p style="font-size:13px;color:var(--muted)">Haz clic en <strong>"🕵️‍♂️ Auditar Foto Actual"</strong> para que Gemini Vision examine si esta imagen corresponde realmente a <em>${escapeHtml(p.name)}</em> o si es una foto inventada/equivocada.</p>`}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    ${CURRENT_ANALYSIS ? renderAnalysisCard(CURRENT_ANALYSIS) : ''}
+
+    ${candidates ? renderCandidatesCard(candidates) : ''}
+  `;
+}
+
+function renderAnalysisCard(a) {
+  const attrs = a.attributes || {};
+  const qList = (a.search_queries || []).join(' | ');
+  const quickBtns = (a.quick_options || []).map(opt =>
+    `<button class="btn btn-sec" onclick="setClarification('${escapeHtml(opt)}')">💡 ${escapeHtml(opt)}</button>`
+  ).join('');
+
+  return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>🧠 Diagnóstico del Consultor IA Entrenado</h2>
+        <span class="tag ${a.confidence >= 88 ? 'tag-ok' : 'tag-warn'}" style="font-size:12px;padding:4px 10px">
+          Certeza del Modelo: ${a.confidence}%
+        </span>
+      </div>
+      <p style="font-size:14px;margin-top:6px"><strong>Interpretación Comercial:</strong> ${escapeHtml(a.interpreted_name || '')}</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:4px"><strong>Criterio de Auditoría Visual:</strong> ${escapeHtml(a.vision_criteria || '')}</p>
+
+      <div class="attr-grid">
+        <div class="attr-box"><span>Tipo de Artículo</span><strong>${escapeHtml(attrs.tipo || '-')}</strong></div>
+        <div class="attr-box"><span>Marca</span><strong>${escapeHtml(attrs.marca || '-')}</strong></div>
+        <div class="attr-box"><span>Color</span><strong>${escapeHtml(attrs.color || '-')}</strong></div>
+        <div class="attr-box"><span>Medida / Formato</span><strong>${escapeHtml(attrs.medida || '-')}</strong></div>
+        <div class="attr-box"><span>Presentación</span><strong>${escapeHtml(attrs.empaque || '-')}</strong></div>
+        <div class="attr-box"><span>Categoría Sugerida</span><strong style="color:var(--brand)">${escapeHtml(a.recommended_category || '-')}</strong></div>
+      </div>
+
+      <div class="consult-alert">
+        <h3>💬 ${a.needs_user_consultation || a.confidence < 88 ? '¡La IA te consulta una duda sobre este producto!' : '¿Quieres corregir o enseñarle algo específico a la IA sobre este producto?'}</h3>
+        <p style="font-size:13px;margin-bottom:8px">${escapeHtml(a.question_for_user || 'Si el modelo asumió mal la medida, marca o tipo de producto, acláralo aquí abajo. Tu respuesta quedará guardada en el archivo de entrenamiento para siempre.')}</p>
+        ${quickBtns ? `<div class="quick-opts">${quickBtns}</div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin-top:8px">
+          <input type="text" id="userClarificationInput" placeholder="Ej: Es un paño de coleto de algodón sin palo, marca genérica..." value="${escapeHtml(a.interpreted_name || '')}">
+          <input type="text" id="customQueryInput" placeholder="Consulta de búsqueda exacta..." value="${escapeHtml((a.search_queries || [])[0] || '')}">
+          <button class="btn btn-amber" onclick="teachModelAndResearch()">🎓 Enseñar a la IA y Re-buscar</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCandidatesCard(candidates) {
+  if (!candidates.length) {
+    return `
+      <div class="card">
+        <h2>📸 Candidatos Encontrados</h2>
+        <p style="color:var(--muted);font-size:13px">No se encontraron imágenes para esta consulta. Escribe una consulta más simple arriba y presiona "Enseñar a la IA y Re-buscar".</p>
+      </div>
+    `;
+  }
+  const cardsHtml = candidates.map((c, idx) => {
+    const v = c.vision || {};
+    const verdict = v.verdict || 'partial_match';
+    const score = v.score ?? 50;
+    const badgeBg = verdict === 'exact_match' ? '#10b981' : (verdict === 'partial_match' ? '#f59e0b' : '#ef4444');
+    const badgeLabel = verdict === 'exact_match' ? `✅ EXACTA ${score}%` : (verdict === 'partial_match' ? `⚠️ DUDOSA ${score}%` : `❌ RECHAZADA ${score}%`);
+    return `
+      <div class="cand-card ${verdict}">
+        <div>
+          <div class="cand-img-wrap">
+            <img src="${escapeHtml(c.thumb_url || c.image_url)}" alt="">
+            <span class="cand-score" style="background:${badgeBg};color:#022c22">${badgeLabel}</span>
+          </div>
+          <div class="cand-body">
+            <div style="font-weight:800;color:#fff">${escapeHtml(c.title || 'Candidato Web')}</div>
+            <div style="color:#cbd5e1"><strong>IA ve:</strong> ${escapeHtml(v.what_i_see || '-')}</div>
+            <div style="color:var(--muted)">${escapeHtml(v.reason || '')}</div>
+          </div>
+        </div>
+        <div style="padding:10px;border-top:1px solid var(--border)">
+          <button class="btn" style="width:100%;justify-content:center" onclick="approveCandidate('${escapeHtml(c.image_url)}')">
+            ✅ Usar esta Foto (WebP + VPS)
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="card">
+      <h2>📸 Candidatos Auditados por Gemini Vision (${candidates.length})</h2>
+      <div class="candidates-grid">${cardsHtml}</div>
+    </div>
+  `;
+}
+
+function setClarification(text) {
+  const inp = document.getElementById('userClarificationInput');
+  const qInp = document.getElementById('customQueryInput');
+  if (inp) inp.value = text;
+  if (qInp) qInp.value = text + ' producto fondo blanco';
+}
+
+async function runSearchAndVerify(userHint = '', customQuery = '') {
+  if (!CURRENT_PRODUCT) return;
+  renderMainStage(null, null, `Analizando "${CURRENT_PRODUCT.name}" y auditando fotos con Gemini Vision...`);
+  try {
+    const res = await api('/api/search-verify', {
+      product_id: CURRENT_PRODUCT.id,
+      name: CURRENT_PRODUCT.name,
+      sku: CURRENT_PRODUCT.sku,
+      category_name: CURRENT_PRODUCT.category_name,
+      unit: CURRENT_PRODUCT.unit,
+      user_hint: userHint,
+      custom_query: customQuery,
+    });
+    CURRENT_ANALYSIS = res.analysis;
+    renderMainStage(res.candidates, null, '');
+    await refreshStatus();
+  } catch (e) {
+    alert('Error en consulta IA: ' + e.message);
+    renderMainStage(null, null, '');
+  }
+}
+
+async function teachModelAndResearch() {
+  if (!CURRENT_PRODUCT) return;
+  const clarification = document.getElementById('userClarificationInput')?.value || '';
+  const customQuery = document.getElementById('customQueryInput')?.value || '';
+  const selectedCat = document.getElementById('selCategory')?.value || '';
+
+  try {
+    await api('/api/train-feedback', {
+      product_id: CURRENT_PRODUCT.id,
+      name: CURRENT_PRODUCT.name,
+      user_clarification: clarification,
+      category: selectedCat,
+      search_query: customQuery,
+    });
+    if (selectedCat) CURRENT_PRODUCT.category_name = selectedCat;
+    await runSearchAndVerify(clarification, customQuery);
+  } catch (e) {
+    alert('Error guardando entrenamiento: ' + e.message);
+  }
+}
+
+async function runAuditExistingPhoto() {
+  if (!CURRENT_PRODUCT || !CURRENT_PRODUCT.has_photo) return;
+  renderMainStage(null, null, `Auditando la fotografía actual de "${CURRENT_PRODUCT.name}" con Gemini Vision...`);
+  try {
+    const res = await api('/api/audit-existing', {
+      product_id: CURRENT_PRODUCT.id,
+      name: CURRENT_PRODUCT.name,
+      sku: CURRENT_PRODUCT.sku,
+      category_name: CURRENT_PRODUCT.category_name,
+      unit: CURRENT_PRODUCT.unit,
+      image_url: CURRENT_PRODUCT.image_url,
+    });
+    CURRENT_ANALYSIS = res.analysis;
+    renderMainStage(null, res, '');
+    await refreshStatus();
+  } catch (e) {
+    alert('Error auditando foto: ' + e.message);
+    renderMainStage(null, null, '');
+  }
+}
+
+async function approveCandidate(imgUrl) {
+  if (!CURRENT_PRODUCT) return;
+  const catName = CURRENT_ANALYSIS?.recommended_category || document.getElementById('selCategory')?.value || '';
+  renderMainStage(null, null, 'Convirtiendo a WebP (800px) y subiendo al CDN del VPS Soberano...');
+  try {
+    const res = await api('/api/approve-photo', {
+      product_id: CURRENT_PRODUCT.id,
+      image_url: imgUrl,
+      category_name: catName,
+    });
+    CURRENT_PRODUCT.image_url = res.public_url;
+    CURRENT_PRODUCT.has_photo = true;
+    if (catName) CURRENT_PRODUCT.category_name = catName;
+    renderProductList();
+    renderMainStage(null, null, '');
+    await refreshStatus();
+  } catch (e) {
+    alert('Error subiendo imagen: ' + e.message);
+    renderMainStage(null, null, '');
+  }
+}
+
+async function uploadLocalFile(ev) {
+  const file = ev.target.files?.[0];
+  if (!file || !CURRENT_PRODUCT) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    await approveCandidate(reader.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function quarantineCurrentPhoto() {
+  if (!CURRENT_PRODUCT) return;
+  if (!confirm(`¿Retirar la foto actual de "${CURRENT_PRODUCT.name}" y marcarla como incorrecta?`)) return;
+  try {
+    await api('/api/quarantine-photo', {
+      product_id: CURRENT_PRODUCT.id,
+      image_url: CURRENT_PRODUCT.image_url,
+      reason: 'Marcada como incorrecta manualmente por el usuario en Estudio IA',
+    });
+    CURRENT_PRODUCT.image_url = '';
+    CURRENT_PRODUCT.has_photo = false;
+    renderProductList();
+    renderMainStage();
+    await refreshStatus();
+  } catch (e) {
+    alert('Error retirando foto: ' + e.message);
+  }
+}
+
+async function applySelectedCategory() {
+  if (!CURRENT_PRODUCT) return;
+  const catName = document.getElementById('selCategory')?.value;
+  if (!catName) return;
+  try {
+    await api('/api/apply-category', { product_id: CURRENT_PRODUCT.id, category_name: catName });
+    CURRENT_PRODUCT.category_name = catName;
+    renderProductList();
+    renderMainStage();
+  } catch (e) {
+    alert('Error actualizando categoría: ' + e.message);
+  }
+}
+
+async function toggleAutoBatch() {
+  const btn = document.getElementById('btnAutoBatch');
+  if (AUTO_BATCH_RUNNING) {
+    AUTO_BATCH_RUNNING = false;
+    btn.textContent = '🤖 Piloto Automático (Lote)';
+    return;
+  }
+  AUTO_BATCH_RUNNING = true;
+  btn.textContent = '⏹️ Detener Piloto Automático';
+  const list = getFilteredList();
+  for (const prod of list) {
+    if (!AUTO_BATCH_RUNNING) break;
+    selectProduct(prod.id);
+    await runSearchAndVerify();
+    if (CURRENT_ANALYSIS && (CURRENT_ANALYSIS.needs_user_consultation || CURRENT_ANALYSIS.confidence < 85)) {
+      AUTO_BATCH_RUNNING = false;
+      btn.textContent = '🤖 Piloto Automático (Lote)';
+      alert(`El Consultor IA se detuvo en "${prod.name}" porque necesita tu confirmación antes de seguir.`);
+      break;
+    }
+    await new Promise(r => setTimeout(r, 1200));
+  }
+  AUTO_BATCH_RUNNING = false;
+  btn.textContent = '🤖 Piloto Automático (Lote)';
+}
+
+async function openTrainingModal() {
+  const modal = document.getElementById('trainingModal');
+  modal.classList.add('open');
+  const res = await api('/api/training');
+  document.getElementById('trainingJsonArea').value = JSON.stringify(res.training, null, 2);
+  const pool = window._lastPoolStatus;
+  if (pool && pool.keys) {
+    document.getElementById('poolKeysStatus').innerHTML = pool.keys.map(k => `
+      <div class="stat-pill" style="border-color:${k.active ? 'var(--brand)' : 'var(--amber)'}">
+        Llave #${k.index} (${k.masked}): <strong>${k.success} OK</strong> / ${k.errors} Err
+      </div>
+    `).join('');
+  }
+}
+
+function closeTrainingModal() {
+  document.getElementById('trainingModal').classList.remove('open');
+}
+
+async function saveTrainingJson() {
+  try {
+    const parsed = JSON.parse(document.getElementById('trainingJsonArea').value);
+    await api('/api/save-training', { training: parsed });
+    alert('✅ Archivo de entrenamiento guardado y activo en caliente.');
+    closeTrainingModal();
+    await refreshStatus();
+  } catch (e) {
+    alert('JSON inválido: ' + e.message);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+init();
+</script>
+</body>
+</html>

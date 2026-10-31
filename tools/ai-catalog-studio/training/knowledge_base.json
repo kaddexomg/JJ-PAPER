@@ -1,0 +1,146 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-10-31T15:40:00Z",
+  "system_role": "Eres el Consultor y Auditor Maestro de Catálogo de Corporación JJ Paper C.A. (mayorista de papelería, artículos de oficina, escolar y suministros de limpieza en Caracas, Venezuela). Tu trabajo es interpretar con precisión quirúrgica las descripciones técnicas abreviadas del ERP Clipper/MixNet, clasificar cada producto en una de las 43 categorías oficiales, formular consultas de búsqueda para hallar fotografías comerciales reales (packshots de estudio en fondo blanco) y auditar visualmente cada imagen candidata para garantizar que corresponda al 100% en tipo de artículo, marca, color, medida y unidad de empaque. Si tienes cualquier duda sobre qué es un código abreviado, NUNCA inventes ni adivines a ciegas: formula una pregunta clara al usuario con 2 o 3 opciones concretas para aprender de su respuesta.",
+  "abbreviations": {
+    "T/C": "Tamaño Carta (8.5 x 11 pulgadas)",
+    "T/O": "Tamaño Oficio (8.5 x 13 pulgadas)",
+    "1/2 OF": "Medio Oficio",
+    "EXTRA OFICIO": "Tamaño Extra Oficio",
+    "P/F": "Punta Fina",
+    "P/G": "Punta Gruesa",
+    "P/M": "Punta Media",
+    "C/12": "Caja de 12 unidades (Docena)",
+    "X 12": "Empaque de 12 unidades",
+    "X12": "Empaque de 12 unidades",
+    "CJA X10": "Caja de 10 unidades",
+    "PAQ X 100": "Paquete de 100 unidades",
+    "C/LOMO": "Con lomo reforzado",
+    "S/LOMO": "Sin lomo",
+    "C/GANCHO": "Con gancho metálico archivador",
+    "S/GANCHO": "Sin gancho",
+    "C/DEP": "Con depósito (sacapuntas con envase recolector)",
+    "ACRIL": "Para Pizarra Acrílica (borrable en seco)",
+    "PERM": "Tinta Permanente",
+    "RESMA": "Paquete sellado de 500 hojas de papel bond",
+    "R.FOTOCOPIA": "Resma de papel bond blanco para fotocopiadora/impresora",
+    "DOMA DE BORRAR": "Goma de borrar / Borrador escolar",
+    "PAPLNE": "Papel Lustrillo color Negro",
+    "FOAME": "Foamy / Goma EVA en láminas para manualidades",
+    "TIRRO": "Cinta adhesiva de papel masking tape (tirro)",
+    "COLETO": "Paño absorbente para trapear pisos (coleto venezolano)"
+  },
+  "venezuelan_brands": [
+    "Kores", "Ofimak", "Ofiart", "Printa", "Celoven", "Cellux", "Caribe",
+    "La Nieve", "Ideoffice", "Artesco", "Solita", "Paper Mate", "Sharpie",
+    "Pelikan", "Reprograf", "Printon", "HP", "Chamex", "Report", "Sanitisu",
+    "Rosal", "Caricias", "Mayka", "Liderpen", "Bull", "Shark Kids", "Estol",
+    "Kromas", "Yogui", "Acoffice", "Ofimax", "Dislace", "Alpha", "Giotto"
+  ],
+  "image_search_rules": {
+    "must_have": [
+      "Fotografía real de producto comercial (packshot) sobre fondo blanco o neutro limpio.",
+      "Coincidencia exacta del TIPO de producto (ej. un coleto es un paño de piso de algodón/microfibra, NO una toalla de mano ni un cepillo).",
+      "Coincidencia de MARCA si el nombre del producto especifica marca (ej. Kores, Ofimak, Reprograf, Sanitisu).",
+      "Coincidencia de COLOR si el nombre especifica un color (ej. Amarillo, Azul, Negro, Rojo, Verde Navidad). Si dice 'Varios Colores' o 'Surtido', debe mostrar empaque surtido.",
+      "Coincidencia de PRESENTACIÓN: si dice 'CAJA X 12' o 'RESMA' o 'BULTO', priorizar la foto de la caja/empaque comercial; si es unidad individual, mostrar el artículo individual."
+    ],
+    "strictly_forbidden": [
+      "Imágenes generadas por IA (Pollinations, Midjourney, Flux, renders 3D irreales).",
+      "Caricaturas, dibujos animados, juguetes infantiles, portadas de películas o cuentos (salvo que la categoría sea LIBROS CUENTOS).",
+      "Ilustraciones médicas, anatomía, memes, capturas de pantalla con texto promocional invasivo o marcas de agua gigantes.",
+      "Productos de otra medida o categoría (ej. no usar foto de carpeta colgante para una carpeta manila carta)."
+    ]
+  },
+  "official_categories": [
+    "ARCHIVADORES", "BANDEJAS", "BOLIGRAFOS", "BOLSAS PARA DESECHOS", "CALCULADORAS",
+    "CARPETAS", "CARTELERA", "CARTUCHERAS", "CHINCHES", "CINTAS", "CLIPS GANCHOS",
+    "COMPASES", "CORRECTORES", "CREYONES", "CUADERNOS", "ENGRAPADORAS", "ETIQUETAS",
+    "FORMULARIOS", "FUNDAS PROTECTORES", "LAPICES", "LIBROS CONTABLES", "LIBROS CUENTOS",
+    "MANUALIDADES", "MARCADORES", "MULTIMEDIA", "NOTAS ADHESIVAS", "PAPEL",
+    "PAPELERIA E HIGIENE", "PAÑOS, ESPONJAS Y COLETOS", "PEGAMENTOS", "PERFORADORAS",
+    "PILAS", "PINTURAS", "PROTECCION Y DESCARTABLES", "QUIMICOS Y LIMPIEZA",
+    "REGLAS", "SOBRES", "TAJALAPICES", "TIJERAS", "TINTA SELLOS", "TIZAS",
+    "UTENSILIOS Y HERRAMIENTAS", "VARIOS"
+  ],
+  "few_shot_examples": [
+    {
+      "raw_name": "BOLIGRAFO TRANS KORES ROJO FINO K1",
+      "interpreted_product": "Bolígrafo transparente marca Kores modelo K1, tinta color rojo, punta fina",
+      "category": "BOLIGRAFOS",
+      "attributes": { "tipo": "Bolígrafo", "marca": "Kores", "modelo": "K1", "color": "Rojo", "medida": "Punta Fina (0.7mm)", "empaque": "Unidad o Caja Kores K1" },
+      "optimal_queries": [
+        "boligrafo Kores K1 rojo punta fina fondo blanco",
+        "Kores K1 red ballpoint pen packshot"
+      ],
+      "vision_criteria": "Debe ser un bolígrafo de cuerpo transparente marca Kores (K1) con tapa y tinta de color ROJO. Rechazar si es azul o negro."
+    },
+    {
+      "raw_name": "PAPEL R.FOTOCOPIA CARTA REPROGRAF",
+      "interpreted_product": "Resma de papel bond blanco tamaño Carta (500 hojas, 75g) marca Reprograf",
+      "category": "PAPEL",
+      "attributes": { "tipo": "Resma de Papel Bond", "marca": "Reprograf", "color": "Blanco", "medida": "Carta", "empaque": "Resma 500 hojas" },
+      "optimal_queries": [
+        "resma de papel carta Reprograf 500 hojas",
+        "papel fotocopia Reprograf tamaño carta empaque"
+      ],
+      "vision_criteria": "Empaque sellado de resma de papel marca Reprograf que indique claramente Tamaño Carta. Rechazar si el empaque dice Oficio o es de otra marca."
+    },
+    {
+      "raw_name": "COLETO RAYADO (3 RAYAS MEDIANO)",
+      "interpreted_product": "Paño de coleto de algodón absorbente clásico con 3 rayas de color, tamaño mediano para limpieza de pisos",
+      "category": "PAÑOS, ESPONJAS Y COLETOS",
+      "attributes": { "tipo": "Paño de coleto", "marca": "Genérico", "color": "Blanco crudo con 3 rayas", "medida": "Mediano", "empaque": "Unidad" },
+      "optimal_queries": [
+        "paño de coleto rayado 3 rayas limpieza piso venezuela",
+        "coleto de algodon rayado para piso"
+      ],
+      "vision_criteria": "Paño grueso de algodón tejido con franjas/rayas de color en los bordes (coleto tradicional venezolano). Rechazar pañitos pequeños de microfibra de cocina o mopas plásticas."
+    },
+    {
+      "raw_name": "PALOS DE MADERA",
+      "interpreted_product": "Palo de madera cilíndrico con rosca para escoba, cepillo de barrer o coleto",
+      "category": "UTENSILIOS Y HERRAMIENTAS",
+      "attributes": { "tipo": "Palo de madera para escoba", "marca": "Genérico", "color": "Madera natural", "medida": "Estándar 1.20m", "empaque": "Unidad" },
+      "optimal_queries": [
+        "palo de madera para escoba con rosca fondo blanco",
+        "mango cabo de madera para cepillo de barrer"
+      ],
+      "vision_criteria": "Bastón/palo largo de madera para escoba o cepillo de barrer. Rechazar palitos de altura/brochetas o paletas de helado, y consultar al usuario si hubiera ambigüedad."
+    },
+    {
+      "raw_name": "TOALLIN CARICIAS (80 HOJAS)",
+      "interpreted_product": "Rollo de toallín absorbente de papel para cocina/manos marca Caricias de 80 hojas",
+      "category": "PAPELERIA E HIGIENE",
+      "attributes": { "tipo": "Toallín de papel en rollo", "marca": "Caricias", "color": "Blanco", "medida": "80 hojas", "empaque": "Rollo" },
+      "optimal_queries": [
+        "toallin absorbente Caricias 80 hojas venezuela",
+        "toalla de cocina papel Caricias 80 hojas"
+      ],
+      "vision_criteria": "Rollo de papel absorbente de cocina marca Caricias con su envoltorio impreso diciendo Caricias y 80 hojas. Rechazar papel higiénico o servilletas sueltas."
+    },
+    {
+      "raw_name": "CEPILLOS PARA BARRER",
+      "interpreted_product": "Cepillo plástico con cerdas para barrer pisos (cabezal de escoba/cepillo)",
+      "category": "UTENSILIOS Y HERRAMIENTAS",
+      "attributes": { "tipo": "Cepillo de barrer", "marca": "Genérico", "color": "Varios", "medida": "Estándar", "empaque": "Unidad" },
+      "optimal_queries": [
+        "cepillo para barrer pisos cerdas plasticas fondo blanco",
+        "escoba cepillo de barrer sin palo producto"
+      ],
+      "vision_criteria": "Cepillo o escoba real con cerdas para barrer pisos. Rechazar vasos, cepillos dentales o cepillos de cabello."
+    },
+    {
+      "raw_name": "TIRRO DE 1\"X24MMX 30 MTRS ACOFFICE",
+      "interpreted_product": "Rollo de cinta adhesiva de papel (tirro / masking tape) de 1 pulgada (24mm) por 30 metros marca Acoffice",
+      "category": "CINTAS",
+      "attributes": { "tipo": "Tirro / Masking tape", "marca": "Acoffice", "color": "Crema / Beige", "medida": "1 pulgada (24mm x 30m)", "empaque": "Rollo" },
+      "optimal_queries": [
+        "tirro masking tape 24mm x 30m Acoffice",
+        "cinta tirro de papel 1 pulgada 24mm"
+      ],
+      "vision_criteria": "Rollo de cinta de papel color crema (tirro/masking tape) de ~24mm de ancho. Rechazar cinta transparente o cinta de embalaje marrón."
+    }
+  ],
+  "learned_corrections": []
+}

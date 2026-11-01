@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JJ Paper · Estudio IA v4 — Búsqueda con Navegador, Auditoría Visual y Cola de Aprobación</title>
-<script src="https://jjpaper.pages.dev/assets/vendor/supabase.min.js"></script>
-<script src="https://jjpaper.pages.dev/assets/js/config.js"></script>
-<script src="https://jjpaper.pages.dev/assets/js/gemini-client.js"></script>
+<script src="../assets/vendor/supabase-2.58.0.js" onerror="this.onerror=null;this.src='/assets/vendor/supabase-2.58.0.js'"></script>
+<script src="../assets/js/config.js" onerror="this.onerror=null;this.src='/assets/js/config.js'"></script>
+<script src="../assets/js/gemini-client.js" onerror="this.onerror=null;this.src='/assets/js/gemini-client.js'"></script>
 <style>
   :root {
     --bg: #0b1120;
@@ -578,6 +578,136 @@
     border: 1px solid var(--border);
   }
   .modal-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* ==========================================================================
+     CATÁLOGO VISUAL EN CUADRÍCULA (GALERÍA RESPONSIVA)
+     ========================================================================== */
+  .catalog-view-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+  }
+  .catalog-toolbar {
+    background: var(--panel-alt);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .catalog-grid-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .catalog-card {
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .catalog-card:hover {
+    border-color: var(--brand);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0,0,0,0.4);
+  }
+  .catalog-card-img-wrap {
+    height: 190px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+  .catalog-card-img-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.2s;
+  }
+  .catalog-card:hover .catalog-card-img-wrap img {
+    transform: scale(1.04);
+  }
+  .catalog-placeholder-no-photo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .catalog-card-badges {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+  }
+  .catalog-card-body {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+  .catalog-card-title {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #f8fafc;
+    cursor: pointer;
+  }
+  .catalog-card-price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+  }
+  .catalog-card-actions {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 0.8fr;
+    gap: 5px;
+    padding: 8px 12px 10px 12px;
+    background: rgba(15, 23, 42, 0.45);
+    border-top: 1px solid var(--border);
+  }
+  .quick-act-btn {
+    padding: 5px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+  }
+
 </style>
 </head>
 <body>
@@ -616,27 +746,70 @@
 </div>
 
 <nav class="nav-tabs" role="tablist">
-  <button class="tab-btn active" id="tabBtnSearch" onclick="switchTab('search')" role="tab" aria-selected="true">
-    🔍 1. Búsqueda Exacta & Consultor IA <span class="tab-count" id="tcNoPhoto">0</span>
+  <button class="tab-btn active" id="tabBtnCatalog" onclick="switchTab('catalog')" role="tab" aria-selected="true">
+    🖼️ 1. Catálogo Visual de Productos <span class="tab-count" id="tcCatalog">0</span>
+  </button>
+  <button class="tab-btn" id="tabBtnSearch" onclick="switchTab('search')" role="tab" aria-selected="false">
+    🛠️ 2. Ficha de Trabajo & Estudio IA <span class="tab-count" id="tcNoPhoto">0</span>
   </button>
   <button class="tab-btn" id="tabBtnQueue" onclick="switchTab('queue')" role="tab" aria-selected="false">
-    📋 2. Cola de Aprobación (Modo Lote) <span class="tab-count" id="tcQueue">0</span>
+    📋 3. Cola de Aprobación (Modo Lote) <span class="tab-count" id="tcQueue">0</span>
   </button>
   <button class="tab-btn" id="tabBtnAudit" onclick="switchTab('audit')" role="tab" aria-selected="false">
-    🕵️‍♂️ 3. Auditar Productos CON FOTO <span class="tab-count" id="tcWithPhoto">0</span>
+    🕵️‍♂️ 4. Auditar Fotos Existentes <span class="tab-count" id="tcWithPhoto">0</span>
   </button>
   <button class="tab-btn" id="tabBtnCats" onclick="switchTab('cats')" role="tab" aria-selected="false">
-    🗂️ 4. Clasificador de Categorías <span class="tab-count" id="tcUncat">0</span>
+    🗂️ 5. Reorganizar Categorías <span class="tab-count" id="tcUncat">0</span>
   </button>
   <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')" role="tab" aria-selected="false">
-    🧠 5. Entrenamiento & Pool de API Keys
+    🧠 6. Memoria IA & Pool de API Keys
   </button>
 </nav>
 
 <!-- =======================================================================
      PESTAÑA 1: MOTOR DE BÚSQUEDA + STEPPER + CONSULTOR IA
      ======================================================================= -->
-<div class="tab-pane active" id="pane-search" role="tabpanel">
+<!-- =======================================================================
+     PESTAÑA 1: CATÁLOGO VISUAL DE PRODUCTOS (GALERÍA RESPONSIVA)
+     ======================================================================= -->
+<div class="tab-pane active" id="pane-catalog" role="tabpanel">
+  <div class="catalog-view-container">
+    <div class="catalog-toolbar">
+      <div style="flex: 1; min-width: 260px; position: relative;">
+        <input type="search" id="catalogSearchInp" placeholder="🔍 Buscar por nombre, SKU, marca..." oninput="filterVisualCatalog()" style="padding-left: 10px;">
+      </div>
+      <select id="catalogStateFilter" onchange="filterVisualCatalog()" style="width: 220px;">
+        <option value="all">📦 Todos los productos</option>
+        <option value="no_photo" selected>📷 Prioridad: SIN FOTO</option>
+        <option value="with_photo">🖼️ Con Foto</option>
+        <option value="cleaning">🧹 Caso Limpieza</option>
+        <option value="uncat">⚠️ Sin Categoría / Varios</option>
+      </select>
+      <select id="catalogCatFilter" onchange="filterVisualCatalog()" style="width: 210px;">
+        <option value="all">📂 Todas las categorías</option>
+      </select>
+      <select id="catalogSortFilter" onchange="filterVisualCatalog()" style="width: 170px;">
+        <option value="name_asc">Nombre (A → Z)</option>
+        <option value="no_photo_first">Sin foto primero</option>
+        <option value="with_photo_first">Con foto primero</option>
+        <option value="price_desc">Precio ($ Mayor a menor)</option>
+        <option value="price_asc">Precio ($ Menor a mayor)</option>
+      </select>
+      <div class="stat-pill" style="white-space: nowrap;">
+        Mostrando: <strong id="catalogVisibleCount">0</strong>
+      </div>
+    </div>
+    
+    <div class="catalog-grid-wrap">
+      <div class="catalog-grid" id="catalogGrid"></div>
+      <div id="catalogLoadMoreContainer" style="text-align: center; padding: 20px 0; display: none;">
+        <button class="btn btn-sec" onclick="loadMoreCatalogItems()">⬇️ Cargar Más Productos</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-pane" id="pane-search" role="tabpanel">
   <div class="workspace">
     <aside class="sidebar">
       <div class="sidebar-controls">
@@ -956,8 +1129,11 @@
 </div>
 
 <script>
-const sb = window.sb || window._pgClient || (typeof getSupabase === 'function' ? getSupabase() : null);
-window.sb = sb;
+// Usar el cliente sb de config.js sin redeclararlo como const para evitar SyntaxError
+var appSb = window.sb || window._pgClient || null;
+var CURRENT_VIEW_MODE = 'catalog'; // 'catalog' o 'detail'
+let CATALOG_CURRENT_LIMIT = 60;
+let URL_ASSIGN_PRODUCT_ID = null;
 
 const PYTHON_API = 'http://127.0.0.1:8795';
 let USE_PYTHON_BACKEND = false;
@@ -1076,7 +1252,7 @@ async function init() {
 
   // 1. Intentar conectar con el motor Python local (localhost:8795)
   try {
-    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(6000) });
+    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(3000) });
     const j = await r.json();
     if (j && j.ok) {
       USE_PYTHON_BACKEND = true;
@@ -1123,33 +1299,40 @@ async function init() {
       return;
     }
   } catch (err) {
-    logMotor(`ℹ️ Motor local en :8795 no alcanzado (${err.message}). Mostrando estado honesto.`, '#fcd34d');
+    logMotor(`ℹ️ Motor local en :8795 no alcanzado (${err.message}). Cargando Catálogo Soberano Directo.`, '#fcd34d');
   }
 
-  // 2. Si el motor Python no responde: mostrar estado honesto
+  // 2. Si el motor Python no responde: Cargar catálogo soberano directamente desde el VPS PostgreSQL
   USE_PYTHON_BACKEND = false;
   if (offlineBanner) offlineBanner.style.display = 'flex';
   document.getElementById('engineStatusText').textContent =
-    `🔴 Motor de Búsqueda Desconectado (localhost:8795) — Ejecuta iniciar-estudio-ia.bat`;
-  document.getElementById('badgeActiveEngine').textContent = `MOTOR APAGADO`;
+    `🌐 Catálogo Soberano Activo (VPS PostgreSQL) · Puedes explorar y gestionar`;
+  document.getElementById('badgeActiveEngine').textContent = `MODO DIRECTO VPS`;
 
   try {
     if (window.GeminiClient && typeof GeminiClient.syncKeysFromSettings === 'function') {
-      await GeminiClient.syncKeysFromSettings();
+      await GeminiClient.syncKeysFromSettings().catch(() => {});
     }
-    const [{ data: cats }, { data: prods }, { data: audits }] = await Promise.all([
-      sb.from('jjp_categories').select('id, name, slug, emoji, sort_order, group_id').order('sort_order'),
-      sb.from('jjp_products').select('id, sku, name, description, price_usd, unit, image_url, category_id, active').eq('active', true).order('name').range(0, 2500),
-      sb.from('jjp_photo_audit').select('product_id, verdict, confidence, reason').order('created_at', { ascending: false }).limit(1500)
+
+    // Usar fetch directo resiliente a PostgREST en el VPS (cero dependencias de librerías)
+    const vpsUrl = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : 'https://166-0-112-247.sslip.io';
+    const vpsKey = typeof SOVEREIGN_SERVICE_KEY !== 'undefined' ? SOVEREIGN_SERVICE_KEY : (typeof SUPABASE_KEY !== 'undefined' ? SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w');
+    const reqHeaders = { 'apikey': vpsKey, 'Authorization': 'Bearer ' + vpsKey };
+
+    const [cats, prods, audits] = await Promise.all([
+      fetch(`${vpsUrl}/rest/v1/jjp_categories?select=id,name,slug,emoji,sort_order,group_id&order=sort_order`, { headers: reqHeaders }).then(r => r.json()).catch(() => []),
+      fetch(`${vpsUrl}/rest/v1/jjp_products?select=id,sku,name,description,price_usd,unit,image_url,category_id,active&active=eq.true&order=name&limit=3000`, { headers: reqHeaders }).then(r => r.json()).catch(() => []),
+      fetch(`${vpsUrl}/rest/v1/jjp_photo_audit?select=product_id,verdict,confidence,reason&order=created_at.desc&limit=1500`, { headers: reqHeaders }).then(r => r.json()).catch(() => [])
     ]);
-    CATEGORIES = cats || [];
+
+    CATEGORIES = Array.isArray(cats) ? cats : [];
     const catMap = Object.fromEntries(CATEGORIES.map(c => [c.id, c.name]));
     const auditMap = {};
-    (audits || []).forEach(a => {
+    (Array.isArray(audits) ? audits : []).forEach(a => {
       if (a.product_id && !auditMap[a.product_id]) auditMap[a.product_id] = a;
     });
 
-    ALL_PRODUCTS = (prods || []).map(p => {
+    ALL_PRODUCTS = (Array.isArray(prods) ? prods : []).map(p => {
       const img = String(p.image_url || '').trim();
       const hasPhoto = img.length > 12 && img !== 'null' && !img.startsWith('data:image/') && !/pollinations/i.test(img);
       const catName = catMap[p.category_id] || 'SIN CATEGORÍA';
@@ -1170,6 +1353,7 @@ async function init() {
 
     populateBatchCategorySelect();
     finishInit();
+    logMotor(`✅ ${ALL_PRODUCTS.length} productos cargados desde el VPS Soberano. El catálogo está listo para navegarse y gestionarse.`, '#34d399');
   } catch (err) {
     document.getElementById('engineStatusText').textContent = '❌ Error cargando catálogo soberano: ' + err.message;
     logMotor('❌ Error cargando catálogo soberano: ' + err.message, '#fca5a5');
@@ -1178,11 +1362,12 @@ async function init() {
 
 function finishInit() {
   updateGlobalCounters();
+  populateCatalogCategorySelect();
+  renderVisualCatalog();
   renderSidebarList();
   renderAuditGallery();
   renderCategoryOrganizer();
   renderTrainingTab();
-
   const firstNoPhoto = ALL_PRODUCTS.find(p => !p.has_photo) || ALL_PRODUCTS[0];
   if (firstNoPhoto && !CURRENT_PRODUCT) {
     selectProduct(firstNoPhoto.id, false);
@@ -1203,6 +1388,8 @@ function updateGlobalCounters() {
   document.getElementById('tcNoPhoto').textContent = noP;
   document.getElementById('tcWithPhoto').textContent = withP;
   document.getElementById('tcUncat').textContent = uncat;
+  const tcCat = document.getElementById('tcCatalog');
+  if (tcCat) tcCat.textContent = total;
 }
 
 function updateQueueBadge() {
@@ -1230,17 +1417,20 @@ function toggleBatchCatSelect() {
 }
 
 function switchTab(tab) {
-  ['search', 'queue', 'audit', 'cats', 'train'].forEach(t => {
+  ['catalog', 'search', 'queue', 'audit', 'cats', 'train'].forEach(t => {
     const pane = document.getElementById(`pane-${t}`);
     if (pane) pane.classList.toggle('active', t === tab);
   });
+  document.getElementById('tabBtnCatalog')?.classList.toggle('active', tab === 'catalog');
   document.getElementById('tabBtnSearch')?.classList.toggle('active', tab === 'search');
   document.getElementById('tabBtnQueue')?.classList.toggle('active', tab === 'queue');
   document.getElementById('tabBtnAudit')?.classList.toggle('active', tab === 'audit');
   document.getElementById('tabBtnCats')?.classList.toggle('active', tab === 'cats');
   document.getElementById('tabBtnTrain')?.classList.toggle('active', tab === 'train');
 
-  if (tab === 'queue') {
+  if (tab === 'catalog') {
+    renderVisualCatalog();
+  } else if (tab === 'queue') {
     loadReviewQueue();
   }
 }
@@ -1395,10 +1585,10 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
           </div>
         </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <button class="btn" onclick="executeFullFlow()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python en http://localhost:8795"' : ''}>
+          <button class="btn" onclick="executeFullFlow()" >
             🚀 Ejecutar Flujo Completo (1 -> 2 -> 3)
           </button>
-          <button class="btn btn-cyan" onclick="directImageSearchOnly()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python"' : ''}>
+          <button class="btn btn-cyan" onclick="directImageSearchOnly()" >
             🔎 Búsqueda Rápida
           </button>
           ${p.has_photo ? `<button class="btn btn-amber" onclick="auditSingleProductPhoto('${p.id}')">🕵️‍♂️ Auditar Foto Actual</button>` : ''}
@@ -1413,9 +1603,28 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
         <button class="btn btn-sec" onclick="saveStageCategory()">📂 Guardar Categoría</button>
         <div style="display:flex;gap:6px;flex:1;min-width:260px">
           <input type="text" id="manualSearchBox" placeholder="Escribir búsqueda manual (ej: carpeta manila carta caja 100)..." value="${esc(p.name)}">
-          <button class="btn btn-amber" onclick="runManualQueryButton()" ${!USE_PYTHON_BACKEND ? 'disabled' : ''}>🔍 Buscar</button>
+          <button class="btn btn-amber" onclick="runManualQueryButton()" >🔍 Buscar</button>
         </div>
-        <label class="btn btn-cyan" style="cursor:pointer">
+        <button class="btn btn-sec" onclick="switchTab('catalog')">🖼️ Ver Galería</button>
+      </div>
+    </div>
+
+    <!-- BLOQUE DE HERRAMIENTAS MANUALES: ASIGNAR URL O SUBIR DE PC -->
+    <div class="card" style="border: 1.5px solid var(--cyan); background: rgba(6, 182, 212, 0.05);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
+        <h2 style="color: #67e8f9; margin-bottom:0">🔗 Asignar Foto Manualmente (URL o PC)</h2>
+        <button class="btn btn-sec" style="padding:4px 9px; font-size:11px" onclick="switchTab('catalog')">
+          🖼️ Volver a Galería de Productos
+        </button>
+      </div>
+      <p style="font-size: 12px; color: var(--muted); margin: 6px 0 8px 0;">
+        Abre Google Imágenes en una pestaña nueva con 1 clic, copia la dirección de la imagen que desees y pégala aquí:
+      </p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <input type="url" id="inpDirectImageUrl" placeholder="🔗 Pega el enlace de la imagen (https://...jpg o .png)..." style="flex:1; min-width:260px">
+        <button class="btn btn-cyan" onclick="applyDirectImageUrl()">💾 Guardar en VPS</button>
+        <button class="btn btn-amber" onclick="openGoogleImagesForCurrentProduct()">🌐 Abrir en Google Imágenes</button>
+        <label class="btn btn-sec" style="cursor:pointer">
           📁 Subir desde PC
           <input type="file" accept="image/*" style="display:none" onchange="uploadFromPc(event)">
         </label>
@@ -1464,10 +1673,10 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
           Ejecuta el flujo para que Gemini interprete abreviaturas, extraiga atributos comerciales (tipo, marca, color, medida) y busque fotografías exactas en la web mediante el navegador Playwright Edge sin bloqueos.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" onclick="executeFullFlow()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python"' : ''}>
+          <button class="btn" onclick="executeFullFlow()" >
             🚀 Ejecutar Flujo Completo (1. Interpretar -> 2. Buscar -> 3. Auditar)
           </button>
-          <button class="btn btn-cyan" onclick="directImageSearchOnly()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python"' : ''}>
+          <button class="btn btn-cyan" onclick="directImageSearchOnly()" >
             🔎 Búsqueda Rápida de Imágenes
           </button>
         </div>
@@ -1624,6 +1833,10 @@ function applyQuickOptionByIndex(idx) {
 function runManualQueryButton() {
   const q = document.getElementById('manualSearchBox')?.value.trim();
   if (!q) return;
+  if (!USE_PYTHON_BACKEND) {
+    openGoogleImagesForProduct(q);
+    return;
+  }
   directImageSearchOnly(q);
 }
 
@@ -1651,11 +1864,13 @@ function rejectAllCandidates() {
 
 async function executeFullFlow(userHint = '', customQuery = '') {
   if (!CURRENT_PRODUCT) return;
+  const prod = CURRENT_PRODUCT;
+
   if (!USE_PYTHON_BACKEND) {
-    alert('El motor de búsqueda Playwright Edge no está conectado. Inicia iniciar-estudio-ia.bat en la oficina.');
+    logMotor(`ℹ️ Ejecutando análisis comercial con Gemini AI en el navegador para "${prod.name}"...`, '#67e8f9');
+    await interpretProductWithBrowserGemini(prod, userHint);
     return;
   }
-  const prod = CURRENT_PRODUCT;
 
   // PASO 1: INTERPRETAR CON CONSULTOR GEMINI
   CURRENT_STEP = 1;
@@ -1806,11 +2021,12 @@ async function executeFullFlow(userHint = '', customQuery = '') {
 
 async function directImageSearchOnly(customQuery = '') {
   if (!CURRENT_PRODUCT) return;
+  const q = customQuery || document.getElementById('manualSearchBox')?.value.trim() || CURRENT_PRODUCT.name;
   if (!USE_PYTHON_BACKEND) {
-    alert('El motor de búsqueda requiere Python en localhost:8795.');
+    logMotor(`🌐 Abriendo Google Imágenes en pestaña para: "${q}"...`, '#67e8f9');
+    openGoogleImagesForProduct(q);
     return;
   }
-  const q = customQuery || document.getElementById('manualSearchBox')?.value.trim() || CURRENT_PRODUCT.name;
   logMotor(`🔎 [Búsqueda Rápida] Buscando imágenes para: "${q}"...`, '#67e8f9');
   renderMainStage(null, `Buscando fotografías para "${q}"...`);
 
@@ -2816,8 +3032,438 @@ function esc(s) {
   return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 }
 
+
+/* ==========================================================================
+   LÓGICA DEL CATÁLOGO VISUAL DE PRODUCTOS (GALERÍA RESPONSIVA)
+   ========================================================================== */
+function populateCatalogCategorySelect() {
+  const sel = document.getElementById('catalogCatFilter');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">📂 Todas las categorías</option>' +
+    CATEGORIES.map(c => `<option value="${esc(c.name)}" ${cur === c.name ? 'selected' : ''}>${c.emoji || '📦'} ${esc(c.name)}</option>`).join('');
+}
+
+function filterVisualCatalog() {
+  CATALOG_CURRENT_LIMIT = 60;
+  renderVisualCatalog();
+}
+
+function getVisualCatalogFiltered() {
+  const q = (document.getElementById('catalogSearchInp')?.value || '').trim().toLowerCase();
+  const state = document.getElementById('catalogStateFilter')?.value || 'no_photo';
+  const cat = document.getElementById('catalogCatFilter')?.value || 'all';
+  const sort = document.getElementById('catalogSortFilter')?.value || 'name_asc';
+
+  let list = ALL_PRODUCTS.filter(p => {
+    if (state === 'no_photo' && p.has_photo) return false;
+    if (state === 'with_photo' && !p.has_photo) return false;
+    if (state === 'cleaning') {
+      const rx = /escoba|palo|coleto|toall|mopa|cepillo|esponja|pañito|cloro|desinfectante|jabon|bolsa|guante|servilleta|higienico/i;
+      if (!rx.test(p.name) && !rx.test(p.category_name)) return false;
+    }
+    if (state === 'uncat' && p.category_name !== 'SIN CATEGORÍA' && p.category_name !== 'VARIOS') return false;
+    if (cat !== 'all' && p.category_name !== cat) return false;
+    if (q && !`${p.name} ${p.sku || ''} ${p.category_name}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if (sort === 'name_asc') {
+    list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  } else if (sort === 'no_photo_first') {
+    list.sort((a, b) => (a.has_photo === b.has_photo ? 0 : a.has_photo ? 1 : -1));
+  } else if (sort === 'with_photo_first') {
+    list.sort((a, b) => (a.has_photo === b.has_photo ? 0 : a.has_photo ? -1 : 1));
+  } else if (sort === 'price_desc') {
+    list.sort((a, b) => Number(b.price_usd || 0) - Number(a.price_usd || 0));
+  } else if (sort === 'price_asc') {
+    list.sort((a, b) => Number(a.price_usd || 0) - Number(b.price_usd || 0));
+  }
+
+  return list;
+}
+
+function renderVisualCatalog() {
+  const grid = document.getElementById('catalogGrid');
+  if (!grid) return;
+  const list = getVisualCatalogFiltered();
+  const visibleCountEl = document.getElementById('catalogVisibleCount');
+  if (visibleCountEl) visibleCountEl.textContent = `${list.length} de ${ALL_PRODUCTS.length}`;
+
+  if (!list.length) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--panel); border: 1px dashed var(--border); border-radius: 12px;">
+        <span style="font-size: 36px;">🔍</span>
+        <h3 style="margin-top: 10px; color: #f8fafc;">No se encontraron productos con estos filtros</h3>
+        <p style="color: var(--muted); font-size: 13px; margin-top: 4px;">Prueba cambiando el buscador o seleccionando "Todos los productos".</p>
+      </div>
+    `;
+    document.getElementById('catalogLoadMoreContainer').style.display = 'none';
+    return;
+  }
+
+  const itemsToShow = list.slice(0, CATALOG_CURRENT_LIMIT);
+  const rate = (typeof getRate === 'function') ? getRate() : (window.APP?.EXCHANGE_RATE || 40);
+
+  grid.innerHTML = itemsToShow.map(p => {
+    const priceUsd = Number(p.price_usd || 0).toFixed(2);
+    const priceBs = (Number(p.price_usd || 0) * rate).toFixed(2);
+    const imgHtml = p.has_photo
+      ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`
+      : `<div class="catalog-placeholder-no-photo"><span style="font-size:32px">📷</span><span>Sin Fotografía</span></div>`;
+
+    return `
+      <div class="catalog-card" id="card-${p.id}">
+        <div class="catalog-card-img-wrap" onclick="openProductInEditor('${p.id}')" title="Clic para abrir en Estudio y Ficha Técnica">
+          ${imgHtml}
+          <div class="catalog-card-badges">
+            <span class="tag tag-info" style="font-family:monospace;letter-spacing:0.5px">${esc(p.sku || 'S/SKU')}</span>
+            <span class="tag ${p.has_photo ? 'tag-ok' : 'tag-no'}">${p.has_photo ? '✅ Con Foto' : '❌ Sin Foto'}</span>
+          </div>
+        </div>
+        <div class="catalog-card-body">
+          <div class="catalog-card-title" onclick="openProductInEditor('${p.id}')" title="${esc(p.name)}">
+            ${esc(p.name)}
+          </div>
+          <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px">
+            <span>📂 ${esc(p.category_name)}</span>
+            <span>·</span>
+            <span>${esc(p.unit || 'UND')}</span>
+          </div>
+          <div class="catalog-card-price-row">
+            <div>
+              <span style="font-size:15px;font-weight:900;color:#34d399">${priceUsd}</span>
+              <span style="font-size:11px;color:var(--muted);margin-left:4px">~Bs. ${priceBs}</span>
+            </div>
+            ${p.proposed_category && p.proposed_category !== p.category_name ? `<span class="tag tag-warn" title="Sugerencia IA: ${esc(p.proposed_category)}">💡 IA</span>` : ''}
+          </div>
+        </div>
+        <div class="catalog-card-actions">
+          <button class="quick-act-btn btn" onclick="openProductInEditor('${p.id}')" title="Abrir ficha técnica y trabajar con IA">
+            🛠️ Ficha
+          </button>
+          <button class="quick-act-btn btn-amber" onclick="openGoogleImagesForProduct('${esc(p.name)}')" title="Buscar packshots en Google Imágenes">
+            🌐 Google
+          </button>
+          <button class="quick-act-btn btn-cyan" onclick="openUrlAssignModal('${p.id}')" title="Pegar enlace directo de imagen">
+            🔗 URL
+          </button>
+          <label class="quick-act-btn btn-sec" style="cursor:pointer" title="Subir foto desde mi PC">
+            📁 Subir
+            <input type="file" accept="image/*" style="display:none" onchange="uploadFromPcForProduct('${p.id}', event)">
+          </label>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const loadMoreBox = document.getElementById('catalogLoadMoreContainer');
+  if (loadMoreBox) {
+    loadMoreBox.style.display = list.length > CATALOG_CURRENT_LIMIT ? 'block' : 'none';
+  }
+}
+
+function loadMoreCatalogItems() {
+  CATALOG_CURRENT_LIMIT += 60;
+  renderVisualCatalog();
+}
+
+function openProductInEditor(productId) {
+  switchTab('search');
+  selectProduct(productId, false);
+  const stage = document.getElementById('mainStage');
+  if (stage) stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openGoogleImagesForProduct(productName) {
+  const q = productName + ' packshot fondo blanco';
+  window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(q), '_blank');
+}
+
+function openGoogleImagesForCurrentProduct() {
+  if (!CURRENT_PRODUCT) return;
+  const q = document.getElementById('manualSearchBox')?.value.trim() || CURRENT_PRODUCT.name;
+  openGoogleImagesForProduct(q);
+}
+
+function openUrlAssignModal(productId) {
+  const p = ALL_PRODUCTS.find(x => x.id === productId);
+  if (!p) return;
+  URL_ASSIGN_PRODUCT_ID = productId;
+
+  const infoEl = document.getElementById('urlAssignProdInfo');
+  if (infoEl) {
+    infoEl.textContent = `SKU: ${p.sku || 'S/SKU'} · ${p.name} (${p.category_name})`;
+  }
+  const inp = document.getElementById('inpModalDirectUrl');
+  if (inp) inp.value = '';
+  const previewBox = document.getElementById('urlModalPreviewBox');
+  if (previewBox) previewBox.style.display = 'none';
+
+  const modal = document.getElementById('urlAssignModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeUrlAssignModal() {
+  const modal = document.getElementById('urlAssignModal');
+  if (modal) modal.style.display = 'none';
+  URL_ASSIGN_PRODUCT_ID = null;
+}
+
+function previewModalDirectUrl() {
+  const url = document.getElementById('inpModalDirectUrl')?.value.trim();
+  const box = document.getElementById('urlModalPreviewBox');
+  const img = document.getElementById('imgModalPreview');
+  if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'))) {
+    img.src = url;
+    box.style.display = 'flex';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function confirmUrlAssignModal() {
+  const url = document.getElementById('inpModalDirectUrl')?.value.trim();
+  if (!url || (!url.startsWith('http') && !url.startsWith('data:image/'))) {
+    alert('Ingresa una URL de imagen válida (ej: https://...jpg).');
+    return;
+  }
+  const pid = URL_ASSIGN_PRODUCT_ID;
+  closeUrlAssignModal();
+  await saveProductPhotoUnified(pid, url);
+}
+
+function applyDirectImageUrl() {
+  if (!CURRENT_PRODUCT) return;
+  const url = document.getElementById('inpDirectImageUrl')?.value.trim();
+  if (!url || (!url.startsWith('http') && !url.startsWith('data:image/'))) {
+    alert('Ingresa una URL de imagen válida en el campo de texto.');
+    return;
+  }
+  saveProductPhotoUnified(CURRENT_PRODUCT.id, url);
+}
+
+function uploadFromPcForProduct(productId, ev) {
+  const f = ev.target.files?.[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    saveProductPhotoUnified(productId, reader.result);
+  };
+  reader.readAsDataURL(f);
+}
+
+/* ==========================================================================
+   GUARDADO UNIFICADO Y RESILIENTE EN VPS POSTGRESQL & STORAGE
+   ========================================================================== */
+async function saveProductPhotoUnified(productId, imageSource, catName = null) {
+  const p = ALL_PRODUCTS.find(x => x.id === productId);
+  if (!p || !imageSource) return;
+
+  logMotor(`💾 Asignando fotografía para "${p.name}"...`, '#67e8f9');
+
+  // Si el motor Python está activo, delegar la conversión y publicación
+  if (USE_PYTHON_BACKEND) {
+    try {
+      const r = await fetch(`${PYTHON_API}/api/approve-photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: p.id,
+          image_url: imageSource,
+          category_name: catName || p.category_name
+        })
+      }).then(x => x.json());
+
+      if (r && r.ok) {
+        p.image_url = r.public_url || imageSource;
+        p.has_photo = true;
+        p.audit_verdict = 'ok';
+        if (catName) p.category_name = catName;
+        logMotor(`✅ Foto publicada en VPS: ${p.image_url}`, '#34d399');
+        updateGlobalCounters();
+        renderSidebarList();
+        renderVisualCatalog();
+        renderAuditGallery();
+        if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id) renderMainStage();
+        return;
+      }
+    } catch (e) {
+      logMotor(`⚠️ Fallo temporal en motor Python (${e.message}). Pasando a guardado directo Soberano VPS.`, '#fcd34d');
+    }
+  }
+
+  // Guardado directo en VPS Soberano (PostgREST + Supabase Storage)
+  const vpsUrl = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : 'https://166-0-112-247.sslip.io';
+  const vpsKey = typeof SOVEREIGN_SERVICE_KEY !== 'undefined' ? SOVEREIGN_SERVICE_KEY : (typeof SUPABASE_KEY !== 'undefined' ? SUPABASE_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzI5NTAwMDAwLCJleHAiOjIwNDUwMDAwMDB9.N8ryyUns5c8oPlrV281Elg110i1eqZ8i5pN604bPW6w');
+  const reqHeaders = { 'apikey': vpsKey, 'Authorization': 'Bearer ' + vpsKey, 'Content-Type': 'application/json' };
+
+  let finalUrl = imageSource;
+
+  // Intentar optimizar a WebP en el navegador si es un DataURL
+  if (imageSource.startsWith('data:image/')) {
+    try {
+      const img = new Image();
+      img.src = imageSource;
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+      const cv = document.createElement('canvas');
+      const scale = Math.min(1, 800 / Math.max(img.width || 800, img.height || 800));
+      cv.width = Math.round((img.width || 800) * scale);
+      cv.height = Math.round((img.height || 800) * scale);
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.82));
+
+      const path = `${p.id}.webp`;
+      if (window.sb && window.sb.storage) {
+        const { error: upErr } = await window.sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+        if (!upErr) {
+          finalUrl = `${vpsUrl}/storage/v1/object/public/jjp-products/${path}?t=${Date.now()}`;
+        }
+      }
+    } catch (e) {
+      logMotor(`ℹ️ Usando imagen directa sin redimensión: ${e.message}`, '#94a3b8');
+    }
+  }
+
+  // Actualizar tabla jjp_products en PostgreSQL vía PostgREST
+  try {
+    const patchBody = { image_url: finalUrl };
+    if (catName) {
+      const catObj = CATEGORIES.find(c => c.name.toUpperCase() === String(catName).toUpperCase());
+      if (catObj) patchBody.category_id = catObj.id;
+    }
+
+    const r = await fetch(`${vpsUrl}/rest/v1/jjp_products?id=eq.${p.id}`, {
+      method: 'PATCH',
+      headers: reqHeaders,
+      body: JSON.stringify(patchBody)
+    });
+
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(t);
+    }
+
+    p.image_url = finalUrl;
+    p.has_photo = true;
+    p.audit_verdict = 'ok';
+    if (catName) p.category_name = catName;
+
+    logMotor(`✅ Fotografía oficial guardada con éxito en VPS Soberano para "${p.name}".`, '#34d399');
+    updateGlobalCounters();
+    renderSidebarList();
+    renderVisualCatalog();
+    renderAuditGallery();
+    if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id) renderMainStage();
+  } catch (err) {
+    logMotor(`❌ Error guardando en base de datos VPS: ${err.message}`, '#fca5a5');
+    alert('Error al guardar en base de datos: ' + err.message);
+  }
+}
+
+/* ==========================================================================
+   CONSULTOR GEMINI EN EL NAVEGADOR (MODO HÍBRIDO SIN BLOQUEOS)
+   ========================================================================== */
+async function interpretProductWithBrowserGemini(prod, userHint = '') {
+  logMotor(`🧠 [Gemini Navegador] Interpretando "${prod.name}"...`, '#67e8f9');
+  CURRENT_STEP = 1;
+  renderMainStage(null, 'Interpretando producto con Gemini AI en el navegador...');
+
+  const tStart = performance.now();
+  try {
+    if (!window.GeminiClient) throw new Error('Cliente Gemini no disponible en navegador');
+
+    const prompt = `Analiza el siguiente artículo del catálogo comercial de JJ Paper (papelería, oficina, escolar o limpieza):
+Nombre original en sistema: "${prod.name}"
+SKU: "${prod.sku || 'S/SKU'}"
+Unidad: "${prod.unit || 'UND'}"
+Categoría actual: "${prod.category_name}"
+Aclaratoria del operador: "${userHint || 'Ninguna'}"
+
+Desglosa abreviaturas venezolanas (T/C=Tamaño Carta, T/O=Tamaño Oficio, C/12=Caja 12, P/F=Punta Fina, etc.).
+Genera dos búsquedas idóneas para encontrar packshots limpios sobre fondo blanco.
+Devuelve EXCLUSIVAMENTE un objeto JSON válido con esta estructura:
+{
+  "interpreted_name": "Nombre comercial claro y descriptivo",
+  "attributes": {
+    "tipo": "Tipo físico exacto del artículo",
+    "marca": "Marca si aplica o Comercial",
+    "color": "Color o Transparente o Surtido",
+    "medida": "Medida o Formato o Peso",
+    "empaque": "Caja, Paquete o Unidad"
+  },
+  "recommended_category": "Categoría sugerida",
+  "search_queries": [
+    "consulta exacta 1 packshot fondo blanco",
+    "consulta exacta 2 producto oficial"
+  ],
+  "vision_criteria": "Qué debe exigir Gemini Vision para dar veredicto exact_match",
+  "confidence": 92,
+  "needs_user_consultation": false,
+  "question_for_user": "",
+  "quick_options": ["Opción A", "Opción B"]
+}`;
+
+    const raw = await GeminiClient.callGemini({
+      prompt,
+      temperature: 0.1,
+      jsonMode: true
+    });
+
+    const jsonStr = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+    const parsed = JSON.parse(jsonStr);
+    CURRENT_ANALYSIS = parsed;
+    STEP_TIMINGS.step1 = Math.round(performance.now() - tStart);
+
+    logMotor(`✅ [Gemini Navegador] "${parsed.interpreted_name}" (Certeza: ${parsed.confidence}%)`, '#34d399');
+    renderMainStage(null, '');
+  } catch (err) {
+    logMotor(`⚠️ Error en Gemini Navegador: ${err.message}. Usando heurística local.`, '#fcd34d');
+    const heur = suggestCategoryHeuristic(prod.name, prod.category_name);
+    CURRENT_ANALYSIS = {
+      interpreted_name: prod.name,
+      attributes: { tipo: 'Artículo comercial', marca: 'Genérico', color: 'Estándar', medida: 'Estándar', empaque: prod.unit || 'UND' },
+      recommended_category: heur.cat,
+      search_queries: [`${prod.name} packshot fondo blanco`, `${prod.name} producto oficial`],
+      vision_criteria: 'Packshot comercial sobre fondo blanco.',
+      confidence: 85,
+      needs_user_consultation: false,
+      question_for_user: '',
+      quick_options: []
+    };
+    renderMainStage(null, '');
+  }
+}
+
 // Inicializar la interfaz al cargar
 init();
 </script>
+<!-- =======================================================================
+     MODAL DE ASIGNACIÓN RÁPIDA DE FOTO POR URL
+     ======================================================================= -->
+<div class="modal-backdrop" id="urlAssignModal" role="dialog" aria-modal="true">
+  <div class="modal-box" style="max-width: 500px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="color:var(--brand); font-size:16px;">🔗 Asignar Foto por URL Directa</h3>
+      <button class="btn btn-sec" style="padding:2px 7px;" onclick="closeUrlAssignModal()">✕</button>
+    </div>
+    <div id="urlAssignProdInfo" style="font-size:12px; color:var(--cyan); font-weight:700;"></div>
+    <div>
+      <label style="font-size:11.5px; color:var(--muted); display:block; margin-bottom:4px;">Pega el enlace web de la imagen (de Google, distribuidor o tienda):</label>
+      <input type="url" id="inpModalDirectUrl" placeholder="https://ejemplo.com/imagen.jpg" oninput="previewModalDirectUrl()">
+    </div>
+    <div id="urlModalPreviewBox" style="height:190px; background:#fff; border-radius:8px; display:none; align-items:center; justify-content:center; padding:8px; border:1px solid var(--border);">
+      <img id="imgModalPreview" src="" style="max-width:100%; max-height:100%; object-fit:contain;" alt="Vista previa">
+    </div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:6px;">
+      <button class="btn btn-sec" onclick="closeUrlAssignModal()">Cancelar</button>
+      <button class="btn" id="btnConfirmUrlAssign" onclick="confirmUrlAssignModal()">💾 Publicar Foto en VPS</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

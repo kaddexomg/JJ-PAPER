@@ -63,7 +63,8 @@ scripts/
 !scripts/gsm-bridge.cjs
 
 # Herramientas binarias locales (ADB portable, ejecutables)
-tools/
+tools/*
+!tools/ai-catalog-studio/
 *.exe
 
 # Scripts temporales de generación de documentos
@@ -85,3 +86,7 @@ scratch/
 wa-server/*.mjs
 wa-server/test-*.js
 
+tools/ai-catalog-studio/data/
+
+__pycache__/
+*.pyc

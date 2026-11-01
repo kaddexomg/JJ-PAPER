@@ -504,6 +504,10 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
  * Busca imágenes en DuckDuckGo Image Search (API JSON).
  */
 async function searchDuckDuckGoImages(query, limit = 8) {
+  // @deprecated OBSOLETO: El raspado directo es bloqueado por DuckDuckGo
+  return [];
+}
+async function _legacy_searchDuckDuckGoImages(query, limit = 8) {
   try {
     const tokenUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(query);
     const controller1 = new AbortController();
@@ -568,6 +572,10 @@ async function searchDuckDuckGoImages(query, limit = 8) {
  * Busca en Bing Images (scraping HTML directo, ultra confiable sin rate-limits agresivos).
  */
 async function searchBingImages(query, limit = 8) {
+  // @deprecated OBSOLETO: El raspado directo es bloqueado por Bing
+  return [];
+}
+async function _legacy_searchBingImages(query, limit = 8) {
   try {
     const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC3&first=1`;
     const controller = new AbortController();
@@ -836,6 +844,139 @@ function deduplicateResults(results) {
  * 3. Filtrado negativo, rankeo comercial y deduplicación
  */
 export async function searchProductImagesOnWeb(rawQuery) {
+  if (!rawQuery || !rawQuery.trim()) {
+    throw new Error('Debe especificar un término de búsqueda para consultar imágenes');
+  }
+
+  const query = rawQuery.trim();
+  const startTime = Date.now();
+  log.info({ query }, '🔍 Consultando motor del Estudio IA (:8795/api/search)');
+
+  let resp;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    resp = await fetch('http://127.0.0.1:8795/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: query,
+        custom_query: query,
+        limit: 20
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+  } catch (err) {
+    log.error({ err: err.message, query }, 'Motor de búsqueda del Estudio IA (:8795) no responde');
+    throw new Error(`Motor de búsqueda del Estudio IA apagado en el PC de la oficina (${err.message})`);
+  }
+
+  if (!resp.ok) {
+    let errDetail = '';
+    try {
+      const errJson = await resp.json();
+      errDetail = errJson.error || resp.statusText;
+    } catch (_) {
+      errDetail = resp.statusText;
+    }
+    throw new Error(`Motor de búsqueda del Estudio IA respondió con error HTTP ${resp.status}: ${errDetail}`);
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    throw new Error(`Respuesta inválida del motor de búsqueda: ${err.message}`);
+  }
+
+  if (!data || !data.ok) {
+    throw new Error(data?.error || 'Error devuelto por el motor de búsqueda del Estudio IA');
+  }
+
+  const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+  if (candidates.length === 0) {
+    const errHints = data.errors && Object.keys(data.errors).length > 0
+      ? ` (${Object.entries(data.errors).map(([s, m]) => `${s}: ${m}`).join(', ')})`
+      : '';
+    throw new Error(`No se encontraron imágenes comerciales para "${query}"${errHints}. Intenta con otro término o toma la foto con la cámara.`);
+  }
+
+  const finalResults = candidates.map((c, idx) => ({
+    id: c.id || `cand_${idx}`,
+    title: c.title || query,
+    image: c.image_url || c.image || '',
+    thumbnail: c.thumb_url || c.thumbnail || c.image_url || c.image || '',
+    image_url: c.image_url || c.image || '',
+    thumb_url: c.thumb_url || c.thumbnail || c.image_url || c.image || '',
+    page_url: c.page_url || '',
+    source: c.source || '',
+    domain: c.domain || '',
+    width: c.width || 800,
+    height: c.height || 800,
+    rank: c.rank || (idx + 1),
+    score: c.vision?.score != null ? c.vision.score : (c.score != null ? c.score : Math.max(10, 100 - idx * 3)),
+    vision: c.vision || null
+  }));
+
+  log.info({
+    query,
+    totalFound: finalResults.length,
+    elapsedMs: Date.now() - startTime
+  }, '✅ Búsqueda en motor Estudio IA completada con éxito');
+
+  return finalResults;
+}
+
+/**
+ * Proxy hacia POST http://127.0.0.1:8795/api/search-verify
+ * Busca imágenes y las audita directamente con Gemini Vision antes de entregarlas.
+ */
+export async function searchProductVerifyOnWeb(payload = {}) {
+  const startTime = Date.now();
+  log.info({ payload }, '🔍 Consultando motor del Estudio IA (:8795/api/search-verify)');
+
+  let resp;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    resp = await fetch('http://127.0.0.1:8795/api/search-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+  } catch (err) {
+    log.error({ err: err.message }, 'Motor de búsqueda del Estudio IA (:8795/api/search-verify) no responde');
+    throw new Error(`Motor de búsqueda del Estudio IA apagado en el PC de la oficina (${err.message})`);
+  }
+
+  if (!resp.ok) {
+    let errDetail = '';
+    try {
+      const errJson = await resp.json();
+      errDetail = errJson.error || resp.statusText;
+    } catch (_) {
+      errDetail = resp.statusText;
+    }
+    throw new Error(`Motor de búsqueda del Estudio IA respondió con error HTTP ${resp.status}: ${errDetail}`);
+  }
+
+  const data = await resp.json();
+  if (!data || !data.ok) {
+    throw new Error(data?.error || 'Error devuelto por /api/search-verify');
+  }
+
+  log.info({
+    candidatesCount: data.candidates?.length || 0,
+    elapsedMs: Date.now() - startTime
+  }, '✅ Verificación de candidatos completada');
+
+  return data;
+}
+
+async function _legacy_searchProductImagesOnWeb(rawQuery) {
   if (!rawQuery || !rawQuery.trim()) return [];
 
   const startTime = Date.now();
@@ -943,6 +1084,33 @@ export async function searchProductImagesOnWeb(rawQuery) {
  * y actualiza la URL del producto en jjp_products
  */
 export async function saveProductImageToStorage(productId, imageUrl) {
+  // Intento 1: Delegar al motor Estudio IA Python (:8795/api/approve-photo) para auditoría centralizada
+  if (productId && imageUrl) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const pyResp = await fetch('http://127.0.0.1:8795/api/approve-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, image_url: imageUrl }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (pyResp.ok) {
+        const pyData = await pyResp.json();
+        if (pyData && pyData.ok && pyData.public_url) {
+          log.info({ productId, publicUrl: pyData.public_url }, 'Foto aprobada y subida mediante motor Estudio IA (:8795)');
+          return {
+            success: true,
+            publicUrl: pyData.public_url,
+            format: 'webp'
+          };
+        }
+      }
+    } catch (_) {
+      // Si el motor Python no está disponible, continuar con el flujo local Sharp + Storage
+    }
+  }
   if (!productId || !imageUrl) {
     throw new Error('productId e imageUrl requeridos');
   }

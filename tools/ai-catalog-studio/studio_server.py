@@ -1,20 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-JJ Paper C.A. — AI Catalog Image Search, Training & Audit Studio
-================================================================
+JJ Paper C.A. — AI Catalog Image Search, Training & Audit Studio v4
+===================================================================
 Servidor local en Python (puerto 8795) impulsado por el Pool de API Keys de Gemini
-y entrenado con el corpus de papelería, oficina, escolar y limpieza (`training/knowledge_base.json`).
-
-Funciones principales:
-1. Pool inteligente de API Keys de Gemini con rotación automática, failover de modelos y telemetría.
-2. Consultor IA interactivo: interpreta nombres abreviados de MixNet, detecta dudas (<90% certeza),
-   pregunta al usuario y guarda cada respuesta en `training/knowledge_base.json` (aprendizaje continuo).
-3. Buscador Exacto + Auditoría Visual con Gemini Vision: busca packshots comerciales reales y verifica
-   imagen por imagen si coinciden en Tipo, Marca, Color, Medida y Presentación.
-4. Auditor de Fotos Existentes y Categorías: examina las fotos actuales del catálogo para detectar
-   imágenes equivocadas o inventadas y permite aplicar las 8 familias y 43 categorías oficiales.
-5. Compresión nativa a WebP (800px, calidad 82) con Pillow y subida directa al VPS Soberano.
+y el Motor de Búsqueda Web con Navegador Real (Edge / Chrome) para catálogo de
+papelería, oficina, escolar y limpieza.
 """
 
 import base64
@@ -22,6 +13,7 @@ import csv
 import html
 import io
 import json
+import mimetypes
 import os
 import re
 import ssl
@@ -31,6 +23,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -54,6 +47,10 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
+
+# Importar el motor de búsqueda real y gestor de lotes
+from image_search import SEARCH_ENGINE
+from batch_worker import REVIEW_QUEUE, BATCH_MANAGER
 
 
 # ==============================================================================
@@ -95,13 +92,29 @@ def load_env_config():
 
 CONFIG = load_env_config()
 
+# Parámetros en vivo del Motor IA (configurables desde la interfaz)
+AI_ENGINE_PARAMS = {
+    "model": "gemini-3.5-flash-lite",
+    "temperature": 0.1,
+    "min_confidence": 88,
+    "vision_min_score": 78,
+    "vision_strictness": "alta",
+    "search_suffix": "producto packshot fondo blanco -cartoon -clipart -dibujo",
+    "max_candidates": 6,
+    "custom_instructions": (
+        "Prioriza packshots comerciales limpios sobre fondo blanco. "
+        "Distingue con exactitud entre unidades sueltas, cajas, bultos, medidas (Carta vs Oficio) "
+        "y utensilios reales (ej. coleto/mopa vs pañito de microfibra, palo de madera vs escoba completa)."
+    ),
+}
+
 
 def vps_request(method, path, body=None, extra_headers=None, is_binary=False):
     url = f"{CONFIG['SUPABASE_URL'].rstrip('/')}/{path.lstrip('/')}"
     headers = {
         "apikey": CONFIG["SUPABASE_KEY"],
         "Authorization": f"Bearer {CONFIG['SUPABASE_KEY']}",
-        "User-Agent": "JJPaper-AI-Studio/1.0",
+        "User-Agent": "JJPaper-AI-Studio/4.0",
     }
     if not is_binary:
         headers["Content-Type"] = "application/json"
@@ -139,7 +152,7 @@ sync_keys_from_vps()
 
 
 class GeminiPool:
-    """Balanceador rotativo para las API Keys de Gemini con soporte de texto y visión."""
+    """Balanceador rotativo para las API Keys de Gemini con soporte de texto, visión y telemetría."""
 
     MODELS = [
         "gemini-3.5-flash-lite",
@@ -151,6 +164,7 @@ class GeminiPool:
         self.lock = threading.Lock()
         self.keys = list(keys)
         self.idx = 0
+        self.last_trace = {}
         self.stats = {
             i: {"masked": f"{k[:8]}...{k[-4:]}", "calls": 0, "success": 0, "errors": 0, "cooldown_until": 0}
             for i, k in enumerate(self.keys)
@@ -170,7 +184,13 @@ class GeminiPool:
                     "active": now >= st["cooldown_until"],
                     "cooldown_sec": max(0, int(st["cooldown_until"] - now)),
                 })
-            return {"total_keys": len(self.keys), "models": self.MODELS, "keys": out}
+            return {
+                "total_keys": len(self.keys),
+                "models": self.MODELS,
+                "active_params": AI_ENGINE_PARAMS,
+                "last_trace": self.last_trace,
+                "keys": out,
+            }
 
     def _next_key(self):
         with self.lock:
@@ -183,11 +203,24 @@ class GeminiPool:
                 self.idx = (self.idx + 1) % n
                 if now >= self.stats[i]["cooldown_until"]:
                     return i, self.keys[i]
-            # Si todas están en cooldown, usar la que venza más pronto
             soonest = min(self.stats.keys(), key=lambda k: self.stats[k]["cooldown_until"])
             return soonest, self.keys[soonest]
 
-    def generate(self, prompt, system_instruction="", image_bytes=None, mime_type="image/jpeg", temperature=0.1, json_mode=True):
+    def generate(
+        self,
+        prompt,
+        system_instruction="",
+        image_bytes=None,
+        mime_type="image/jpeg",
+        temperature=None,
+        json_mode=True,
+        preferred_model=None,
+    ):
+        t0 = time.time()
+        temp = AI_ENGINE_PARAMS["temperature"] if temperature is None else float(temperature)
+        pref_model = preferred_model or AI_ENGINE_PARAMS.get("model") or self.MODELS[0]
+        models_order = [pref_model] + [m for m in self.MODELS if m != pref_model]
+
         parts = [{"text": prompt}]
         if image_bytes:
             b64 = base64.b64encode(image_bytes).decode("ascii")
@@ -195,7 +228,7 @@ class GeminiPool:
 
         payload = {
             "contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": 1200},
+            "generationConfig": {"temperature": temp, "maxOutputTokens": 1500},
         }
         if json_mode:
             payload["generationConfig"]["responseMimeType"] = "application/json"
@@ -206,7 +239,7 @@ class GeminiPool:
         max_attempts = max(4, len(self.keys))
         for attempt in range(max_attempts):
             key_idx, api_key = self._next_key()
-            model = self.MODELS[attempt % len(self.MODELS)]
+            model = models_order[attempt % len(models_order)]
             endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
             with self.lock:
                 self.stats[key_idx]["calls"] += 1
@@ -218,18 +251,32 @@ class GeminiPool:
                     headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
                     method="POST",
                 )
-                with urllib.request.urlopen(req, timeout=25, context=SSL_CTX) as resp:
+                with urllib.request.urlopen(req, timeout=22, context=SSL_CTX) as resp:
                     res_data = json.loads(resp.read().decode("utf-8", errors="replace"))
-                text = (
+
+                # Concatenar todas las partes de texto recibidas de Gemini
+                cand_parts = (
                     res_data.get("candidates", [{}])[0]
                     .get("content", {})
-                    .get("parts", [{}])[0]
-                    .get("text", "")
+                    .get("parts", [])
                 )
+                text = "".join(p.get("text", "") for p in cand_parts if "text" in p)
+
                 if not text:
                     raise RuntimeError("Respuesta vacía de Gemini")
+
+                elapsed_ms = int((time.time() - t0) * 1000)
                 with self.lock:
                     self.stats[key_idx]["success"] += 1
+                    self.last_trace = {
+                        "key_index": key_idx + 1,
+                        "key_masked": self.stats[key_idx]["masked"],
+                        "model": model,
+                        "temperature": temp,
+                        "elapsed_ms": elapsed_ms,
+                        "has_vision": bool(image_bytes),
+                        "timestamp": time.strftime("%H:%M:%S"),
+                    }
                 return text
             except urllib.error.HTTPError as he:
                 err_body = he.read().decode("utf-8", errors="replace")
@@ -256,114 +303,62 @@ GEMINI_POOL = GeminiPool(CONFIG["GEMINI_KEYS"])
 # ==============================================================================
 def load_training():
     if not TRAINING_FILE.exists():
-        return {}
-    return json.loads(TRAINING_FILE.read_text(encoding="utf-8"))
+        return {"abbreviations": {}, "visual_audit_rules": [], "learned_corrections": []}
+    try:
+        return json.loads(TRAINING_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"abbreviations": {}, "visual_audit_rules": [], "learned_corrections": []}
 
 
 def save_training(data):
-    data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     TRAINING_FILE.parent.mkdir(parents=True, exist_ok=True)
     TRAINING_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def build_trained_system_prompt():
     kb = load_training()
-    abbr_str = "\n".join(f"- {k}: {v}" for k, v in kb.get("abbreviations", {}).items())
-    brands_str = ", ".join(kb.get("venezuelan_brands", []))
-    must_have = "\n".join(f"- {r}" for r in kb.get("image_search_rules", {}).get("must_have", []))
-    forbidden = "\n".join(f"- {r}" for r in kb.get("image_search_rules", {}).get("strictly_forbidden", []))
-    cats_str = ", ".join(kb.get("official_categories", []))
+    abbr = kb.get("abbreviations", {})
+    rules = kb.get("visual_audit_rules", [])
+    learned = kb.get("learned_corrections", [])[-30:]
 
-    examples_str = ""
-    for ex in kb.get("few_shot_examples", [])[:10]:
-        examples_str += (
-            f"\n* Producto MixNet: '{ex['raw_name']}' -> Interpretación: {ex['interpreted_product']} "
-            f"| Categoría: {ex['category']} | Consultas: {ex['optimal_queries']} "
-            f"| Criterio Visual: {ex['vision_criteria']}"
-        )
+    abbr_str = "\n".join(f"  - {k}: {v}" for k, v in abbr.items())
+    rules_str = "\n".join(f"  * {r}" for r in rules)
+    learned_str = "\n".join(
+        f"  * Producto '{item.get('raw_name')}' -> Es '{item.get('user_clarification')}' "
+        f"(Categoría: {item.get('category')}, Buscar: '{item.get('search_query')}')"
+        for item in learned
+    )
 
-    learned_str = ""
-    for lc in kb.get("learned_corrections", [])[-25:]:
-        learned_str += (
-            f"\n* CORRECCIÓN APRENDIDA DEL USUARIO sobre '{lc.get('raw_name')}': "
-            f"Es '{lc.get('user_clarification')}' | Categoría oficial: {lc.get('category')} "
-            f"| Buscar como: '{lc.get('search_query')}'"
-        )
+    return f"""Eres el Consultor Maestro de Catálogo y Auditor Visual de Corporación JJ Paper C.A. (Mayorista de Papelería, Oficina, Escolar y Limpieza en Caracas).
 
-    return f"""{kb.get('system_role', '')}
+PARÁMETROS ACTIVOS DEL MOTOR IA:
+- Certeza mínima exigida para no preguntar al usuario: {AI_ENGINE_PARAMS.get('min_confidence', 88)}%
+- Nivel de rigor en auditoría visual: {AI_ENGINE_PARAMS.get('vision_strictness', 'alta').upper()}
+- Directriz del operador: {AI_ENGINE_PARAMS.get('custom_instructions', '')}
 
-=== DICCIONARIO DE ABREVIATURAS MIXNET / CLIPPER ===
+1. DICCIONARIO DE ABREVIATURAS DE NUESTRO ERP MIXNET:
 {abbr_str}
 
-=== MARCAS COMERCIALES REALES EN VENEZUELA ===
-{brands_str}
+2. REGLAS INVIOLABLES DE EXACTITUD FOTOGRÁFICA:
+{rules_str}
 
-=== 43 CATEGORÍAS OFICIALES DE JJ PAPER ===
-{cats_str}
-
-=== REGLAS OBLIGATORIAS DE BÚSQUEDA Y AUDITORÍA VISUAL ===
-DEBE CUMPLIR:
-{must_have}
-
-ESTRICTAMENTE PROHIBIDO:
-{forbidden}
-
-=== EJEMPLOS DE ENTRENAMIENTO ===
-{examples_str}
-
-=== LECCIONES APRENDIDAS DIRECTAMENTE DEL USUARIO (PRIORIDAD MÁXIMA) ===
-{learned_str if learned_str else '(Ninguna corrección adicional registrada aún)'}
+3. CORRECCIONES APRENDIDAS DEL USUARIO (MEMORIA ACTIVA):
+{learned_str if learned_str else '  (Sin correcciones previas aún)'}
 """
 
 
 # ==============================================================================
-# 3. BÚSQUEDA WEB DE IMÁGENES COMERCIALES Y DESCARGA SEGURA
+# 3. PROCESAMIENTO Y OPTIMIZACIÓN DE IMÁGENES
 # ==============================================================================
-JUNK_WORDS = re.compile(
-    r"winnie|pooh|peppa|disney|cartoon|caricatura|anime|manga|meme|anatomia|anatomy|"
-    r"medical|cirugia|organo|tattoo|wallpaper|coloring\s*page|dibujo\s*para\s*colorear|"
-    r"pollinations|midjourney|stable\s*diffusion|roblox|minecraft",
-    re.IGNORECASE,
-)
-
-
 def search_web_images(query, max_results=6):
-    """Busca packshots reales en Bing Images y filtra resultados basura."""
-    clean_q = f"{query} producto -cartoon -clipart -dibujo"
-    url = f"https://www.bing.com/images/search?q={urllib.parse.quote(clean_q)}&form=HDRSC2&first=1"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "es-VE,es;q=0.9"})
-    results = []
-    try:
-        with urllib.request.urlopen(req, timeout=12, context=SSL_CTX) as resp:
-            page = resp.read().decode("utf-8", errors="ignore")
-        matches = re.findall(r'm="(\{[^"]*murl[^"]*\})"', page)
-        seen = set()
-        for raw_m in matches:
-            try:
-                info = json.loads(html.unescape(raw_m))
-                img_url = info.get("murl", "")
-                thumb_url = info.get("turl", "") or img_url
-                title = info.get("t", "") or ""
-                if not img_url or img_url in seen:
-                    continue
-                if JUNK_WORDS.search(title) or JUNK_WORDS.search(img_url):
-                    continue
-                seen.add(img_url)
-                results.append({
-                    "image_url": img_url,
-                    "thumb_url": thumb_url,
-                    "title": title,
-                })
-                if len(results) >= max_results:
-                    break
-            except Exception:
-                continue
-    except Exception as e:
-        print(f"[WARN] Error buscando en Bing '{query}': {e}")
-    return results
+    """Wrapper de compatibilidad que utiliza el nuevo motor con navegador real."""
+    res = SEARCH_ENGINE.search([query], limit=max_results)
+    return res.get("candidates", [])
 
 
 def download_image_bytes(url):
+    if not url:
+        raise ValueError("URL de imagen vacía")
     if url.startswith("data:image/"):
         header, b64 = url.split(",", 1)
         mime = header.split(";")[0].replace("data:", "")
@@ -377,7 +372,29 @@ def download_image_bytes(url):
         return raw, ctype
 
 
+def prepare_vision_image(raw_bytes, max_side=512):
+    """Optimiza y redimensiona la imagen a <=512px para reducir latencia y costo en Gemini Vision."""
+    if not HAS_PILLOW or not raw_bytes:
+        return raw_bytes, "image/jpeg"
+    try:
+        img = Image.open(io.BytesIO(raw_bytes))
+        if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+            rgba = img.convert("RGBA")
+            bg = Image.new("RGB", rgba.size, (255, 255, 255))
+            bg.paste(rgba, mask=rgba.split()[3])
+            img = bg
+        else:
+            img = img.convert("RGB")
+        img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        img.save(out, format="JPEG", quality=85)
+        return out.getvalue(), "image/jpeg"
+    except Exception:
+        return raw_bytes, "image/jpeg"
+
+
 def convert_to_webp_bytes(raw_bytes, max_side=800):
+    """Convierte a WebP (800px máx, calidad 80) según la convención obligatoria de JJ Paper."""
     if not HAS_PILLOW:
         return raw_bytes, "image/jpeg"
     img = Image.open(io.BytesIO(raw_bytes))
@@ -390,14 +407,17 @@ def convert_to_webp_bytes(raw_bytes, max_side=800):
         img = img.convert("RGB")
     img.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
     out = io.BytesIO()
-    img.save(out, format="WEBP", quality=82, method=4)
+    img.save(out, format="WEBP", quality=80, method=4)
     return out.getvalue(), "image/webp"
 
 
 # ==============================================================================
-# 4. CACHÉ DE PRODUCTOS, CATEGORÍAS Y PROPUESTAS CSV
+# 4. CACHÉ EN MEMORIA DE PRODUCTOS Y CATEGORÍAS
 # ==============================================================================
 CACHE = {
+    "lock": threading.Lock(),
+    "last_fetch": 0,
+    "products": [],
     "categories": [],
     "cat_by_id": {},
     "cat_by_name": {},
@@ -418,11 +438,15 @@ def load_csv_proposals():
     return proposals
 
 
-def fetch_catalog_state():
+def fetch_catalog_state(force=False):
+    now = time.time()
+    with CACHE["lock"]:
+        if not force and CACHE["products"] and (now - CACHE["last_fetch"] < 180):
+            return CACHE["products"], CACHE["categories"]
+
     cats = vps_request("GET", "rest/v1/jjp_categories?select=id,name,slug,emoji,sort_order,group_id&order=sort_order") or []
-    CACHE["categories"] = cats
-    CACHE["cat_by_id"] = {c["id"]: c for c in cats}
-    CACHE["cat_by_name"] = {c["name"].upper(): c for c in cats}
+    cat_by_id = {c["id"]: c for c in cats}
+    cat_by_name = {c["name"].upper(): c for c in cats}
 
     prods = vps_request(
         "GET",
@@ -439,14 +463,14 @@ def fetch_catalog_state():
     except Exception:
         pass
 
-    proposals = load_csv_proposals()
+    proposals = CACHE["csv_proposals"] or load_csv_proposals()
     enriched = []
     for p in prods:
         pid = p["id"]
-        cat_obj = CACHE["cat_by_id"].get(p.get("category_id"))
+        cat_obj = cat_by_id.get(p.get("category_id"))
         cat_name = cat_obj["name"] if cat_obj else "SIN CATEGORÍA"
         img = (p.get("image_url") or "").strip()
-        has_photo = len(img) > 12 and img not in ("null", "undefined")
+        has_photo = len(img) > 12 and img not in ("null", "undefined") and not img.startswith("data:image/")
         is_embedded_b64 = img.startswith("data:image/")
         prop = proposals.get(pid, {})
         aud = audits.get(pid, {})
@@ -468,11 +492,26 @@ def fetch_catalog_state():
             "audit_verdict": aud.get("verdict", ""),
             "audit_reason": aud.get("reason", ""),
         })
+
+    with CACHE["lock"]:
+        CACHE["categories"] = cats
+        CACHE["cat_by_id"] = cat_by_id
+        CACHE["cat_by_name"] = cat_by_name
+        CACHE["products"] = enriched
+        CACHE["last_fetch"] = time.time()
     return enriched, cats
 
 
+def update_cached_product(pid, **fields):
+    with CACHE["lock"]:
+        for p in CACHE["products"]:
+            if p["id"] == pid:
+                p.update(fields)
+                break
+
+
 # ==============================================================================
-# 5. CONSULTOR IA Y AUDITOR VISUAL CON GEMINI
+# 5. CONSULTOR IA Y AUDITOR VISUAL HONESTO CON GEMINI
 # ==============================================================================
 def parse_json_response(raw_text):
     clean = raw_text.strip()
@@ -486,7 +525,8 @@ def parse_json_response(raw_text):
 
 
 def consult_product_with_ai(product_name, sku="", current_cat="", unit="UND", user_hint=""):
-    """Analiza un producto con el modelo entrenado: devuelve ficha, consultas y pregunta si hay duda."""
+    """Analiza un producto con Gemini y devuelve ficha técnica y consultas optimizadas."""
+    min_conf = int(AI_ENGINE_PARAMS.get("min_confidence", 88))
     sys_prompt = build_trained_system_prompt()
     prompt = f"""Analiza el siguiente producto del inventario de JJ Paper C.A.:
 - Nombre en sistema: "{product_name}"
@@ -500,9 +540,9 @@ Devuelve ESTRICTAMENTE un objeto JSON con esta estructura:
   "interpreted_name": "Nombre comercial claro y completo en español de lo que es realmente este artículo",
   "confidence": 95,
   "needs_user_consultation": false,
-  "question_for_user": "Si confidence < 88, escribe aquí la pregunta directa y honesta para el usuario explicando tu duda. Si tienes certeza >= 88, deja cadena vacía",
-  "quick_options": ["Opción 1 para el usuario", "Opción 2 para el usuario"],
-  "recommended_category": "UNA DE LAS 43 CATEGORÍAS OFICIALES EXACTAS",
+  "question_for_user": "Si confidence < {min_conf} o hay ambigüedad de medida/color/presentación, escribe aquí una pregunta directa para el usuario. Si no, sugiere cómo afinar la búsqueda",
+  "quick_options": ["Opción rápida 1 (ej. Medida Carta)", "Opción rápida 2 (ej. Medida Oficio)", "Opción rápida 3 (ej. Caja x 12 unidades)"],
+  "recommended_category": "UNA DE LAS CATEGORÍAS OFICIALES EXACTAS",
   "category_reason": "Por qué pertenece a esta categoría",
   "attributes": {{
     "tipo": "Tipo físico exacto de producto",
@@ -518,18 +558,27 @@ Devuelve ESTRICTAMENTE un objeto JSON con esta estructura:
   "vision_criteria": "Regla exacta de qué debe verse en la fotografía y qué rechazar (color, medida, tipo, marca)"
 }}"""
 
-    raw = GEMINI_POOL.generate(prompt=prompt, system_instruction=sys_prompt, temperature=0.1, json_mode=True)
-    return parse_json_response(raw)
+    raw = GEMINI_POOL.generate(
+        prompt=prompt,
+        system_instruction=sys_prompt,
+        json_mode=True,
+        preferred_model="gemini-3.5-flash-lite",
+    )
+    parsed = parse_json_response(raw)
+    if int(parsed.get("confidence", 90)) < min_conf:
+        parsed["needs_user_consultation"] = True
+    return parsed
 
 
 def verify_image_with_vision(image_bytes, mime_type, product_name, analysis):
-    """Pasa una imagen candidata (o actual) por Gemini Vision contra la ficha de atributos del producto."""
+    """Audita una imagen con Gemini Vision (gemini-3.6-flash) de forma estricta y honesta."""
     sys_prompt = build_trained_system_prompt()
-    attrs = analysis.get("attributes", {})
-    criteria = analysis.get("vision_criteria", "")
-    interp = analysis.get("interpreted_name", product_name)
+    attrs = (analysis or {}).get("attributes", {})
+    criteria = (analysis or {}).get("vision_criteria", "")
+    interp = (analysis or {}).get("interpreted_name", product_name)
+    strictness = AI_ENGINE_PARAMS.get("vision_strictness", "alta")
 
-    prompt = f"""Audita visualmente esta imagen candidata para el catálogo de JJ Paper C.A.
+    prompt = f"""Audita visualmente esta imagen para el catálogo de JJ Paper C.A. (Rigor: {strictness.upper()}).
 Producto buscado: "{product_name}" ({interp})
 Atributos requeridos:
 - Tipo de artículo: {attrs.get('tipo', 'N/A')}
@@ -539,16 +588,16 @@ Atributos requeridos:
 - Empaque: {attrs.get('empaque', 'N/A')}
 Criterio estricto: {criteria}
 
-Evalúa la imagen con rigor absoluto:
+Evalúa la imagen:
 1. ¿Muestra exactamente el mismo TIPO de producto? (Ej. si pide coleto y muestra pañitos de microfibra o un vaso, es REJECTED).
-2. ¿Es una fotografía real de producto comercial (y NO una imagen generada por IA como Pollinations, ni caricatura, ni meme)?
+2. ¿Es una fotografía real de producto comercial (y NO una imagen generada por IA, ni caricatura, ni meme)?
 3. ¿Coincide en color, medida y marca (o es un packshot comercial limpio y fiel)?
 
 Responde ESTRICTAMENTE en JSON:
 {{
   "verdict": "exact_match" | "partial_match" | "rejected",
   "score": 0 a 100,
-  "what_i_see": "Descripción breve de lo que se ve realmente en la foto",
+  "what_i_see": "Descripción breve en español de lo que se ve realmente en la foto",
   "matches": {{
     "tipo": true,
     "marca": true,
@@ -566,8 +615,215 @@ Responde ESTRICTAMENTE en JSON:
         mime_type=mime_type,
         temperature=0.05,
         json_mode=True,
+        preferred_model="gemini-3.6-flash",
     )
     return parse_json_response(raw)
+
+
+def audit_candidate_single(cand, product_name, analysis):
+    """Audita un único candidato. Si falla, reporta status 'failed' y score None. Cero inventos."""
+    cand_id = cand.get("id")
+    img_target = cand.get("thumb_url") or cand.get("image_url")
+    if not img_target:
+        return cand_id, {
+            "status": "failed",
+            "verdict": None,
+            "score": None,
+            "what_i_see": "",
+            "matches": {},
+            "reason": "Candidato sin URL válida",
+        }
+
+    try:
+        raw_b, mime = download_image_bytes(img_target)
+        prep_b, prep_mime = prepare_vision_image(raw_b, max_side=512)
+        v_res = verify_image_with_vision(prep_b, prep_mime, product_name, analysis)
+        raw_score = v_res.get("score")
+        score_val = int(raw_score) if (raw_score is not None and str(raw_score).isdigit()) else None
+        return cand_id, {
+            "status": "verified",
+            "verdict": v_res.get("verdict"),
+            "score": score_val,
+            "what_i_see": v_res.get("what_i_see", ""),
+            "matches": v_res.get("matches", {}),
+            "reason": v_res.get("reason", ""),
+        }
+    except Exception as e:
+        # Si falló thumb_url, intentar una vez con image_url completo
+        if cand.get("thumb_url") and cand.get("image_url") and cand["thumb_url"] != cand["image_url"]:
+            try:
+                raw_b, mime = download_image_bytes(cand["image_url"])
+                prep_b, prep_mime = prepare_vision_image(raw_b, max_side=512)
+                v_res = verify_image_with_vision(prep_b, prep_mime, product_name, analysis)
+                raw_score = v_res.get("score")
+                score_val = int(raw_score) if (raw_score is not None and str(raw_score).isdigit()) else None
+                return cand_id, {
+                    "status": "verified",
+                    "verdict": v_res.get("verdict"),
+                    "score": score_val,
+                    "what_i_see": v_res.get("what_i_see", ""),
+                    "matches": v_res.get("matches", {}),
+                    "reason": v_res.get("reason", ""),
+                }
+            except Exception:
+                pass
+
+        return cand_id, {
+            "status": "failed",
+            "verdict": None,
+            "score": None,
+            "what_i_see": "",
+            "matches": {},
+            "reason": f"Fallo al auditar imagen ({str(e)[:80]})",
+        }
+
+
+def audit_candidates_parallel(candidates, product_name, analysis):
+    """Audita todos los candidatos en paralelo utilizando el pool de Gemini Keys."""
+    results = {}
+    if not candidates:
+        return results
+
+    workers = min(7, max(1, len(GEMINI_POOL.keys)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [
+            pool.submit(audit_candidate_single, c, product_name, analysis)
+            for c in candidates[:20]
+        ]
+        for fut in futures:
+            cid, v_obj = fut.result()
+            results[cid] = v_obj
+    return results
+
+
+def search_verify_product(
+    product_id=None,
+    name="",
+    sku="",
+    unit="UND",
+    category_name="",
+    user_hint="",
+    custom_query="",
+    analysis=None,
+    limit=6,
+):
+    """Realiza consult + search + vision-verify completo y ordena por score honesto."""
+    if not analysis:
+        analysis = consult_product_with_ai(
+            product_name=name,
+            sku=sku,
+            current_cat=category_name,
+            unit=unit,
+            user_hint=user_hint,
+        )
+
+    queries = list(analysis.get("search_queries") or [name])
+    custom_q = (custom_query or "").strip()
+    if custom_q:
+        queries = [custom_q] + [q for q in queries if q != custom_q]
+
+    search_res = SEARCH_ENGINE.search(queries, limit=limit)
+    candidates = search_res.get("candidates", [])
+
+    if candidates:
+        results = audit_candidates_parallel(candidates, name, analysis)
+        for c in candidates:
+            c["vision"] = results.get(c["id"])
+
+        def _sort_key(c):
+            v = c.get("vision") or {}
+            score = v.get("score")
+            status = v.get("status")
+            if status == "verified" and score is not None:
+                return (2, score)
+            elif status != "failed":
+                return (1, 0)
+            else:
+                return (0, 0)
+
+        candidates.sort(key=_sort_key, reverse=True)
+
+    return {
+        "ok": True,
+        "analysis": analysis,
+        "candidates": candidates,
+        "trace": GEMINI_POOL.last_trace,
+    }
+
+
+def approve_photo_action(product_id, image_url, category_name=None, vision=None):
+    """Descarga, optimiza a WebP 800px, sube al VPS, actualiza DB y photo audit."""
+    if not product_id or not image_url:
+        raise ValueError("Faltan product_id o image_url")
+
+    if re.search(r"pollinations|midjourney|stability\.ai|replicate\.delivery", image_url, re.I):
+        raise ValueError("Bloqueado: No se permiten imágenes generadas por IA")
+
+    raw_bytes, _ = download_image_bytes(image_url)
+    webp_bytes, content_type = convert_to_webp_bytes(raw_bytes, max_side=800)
+    ext = "webp"
+    storage_path = f"storage/v1/object/jjp-products/{product_id}.{ext}"
+
+    # Copia local en disco para resguardo
+    local_dir = BASE_DIR / "data" / "images"
+    local_dir.mkdir(parents=True, exist_ok=True)
+    (local_dir / f"{product_id}.{ext}").write_bytes(webp_bytes)
+
+    # Subida al VPS Storage
+    try:
+        vps_request(
+            "POST",
+            storage_path,
+            body=webp_bytes,
+            extra_headers={"Content-Type": content_type, "x-upsert": "true"},
+            is_binary=True,
+        )
+    except Exception as e:
+        print(f"[WARN] Error en POST storage VPS: {e}")
+
+    public_url = f"{CONFIG['SUPABASE_URL'].rstrip('/')}/storage/v1/object/public/jjp-products/{product_id}.{ext}?v={int(time.time())}"
+
+    patch_payload = {"image_url": public_url}
+    new_cat_name = (category_name or "").strip().upper()
+    if new_cat_name:
+        if not CACHE["cat_by_name"]:
+            fetch_catalog_state()
+        cat_obj = CACHE["cat_by_name"].get(new_cat_name)
+        if cat_obj:
+            patch_payload["category_id"] = cat_obj["id"]
+
+    vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{product_id}", patch_payload)
+    update_cached_product(product_id, image_url=public_url, has_photo=True, audit_verdict="ok")
+
+    # Registro en jjp_photo_audit
+    try:
+        conf_val = 100
+        matches_val = {}
+        reason_val = "Aprobada por operador en Estudio IA v4"
+        if vision and isinstance(vision, dict):
+            if vision.get("score") is not None:
+                conf_val = vision.get("score")
+            if vision.get("matches"):
+                matches_val = vision.get("matches")
+            if vision.get("reason"):
+                reason_val = vision.get("reason")
+
+        vps_request("POST", "rest/v1/jjp_photo_audit", {
+            "product_id": product_id,
+            "image_url": public_url,
+            "verdict": "ok",
+            "confidence": conf_val,
+            "mismatches": matches_val,
+            "reason": reason_val,
+            "source": "estudio_ia_v4",
+            "reviewed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
+    except Exception as ae:
+        print(f"[WARN] Error registrando jjp_photo_audit: {ae}")
+
+    # Remover de la cola de revisión
+    REVIEW_QUEUE.remove(product_id)
+    return public_url
 
 
 # ==============================================================================
@@ -598,20 +854,24 @@ class StudioHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        qs = urllib.parse.parse_qs(parsed.query)
 
-        if path in ("/", "/index.html"):
-            index_file = BASE_DIR / "index.html"
+        if path in ("/", "/index.html", "/admin/estudio-fotos.html"):
+            index_file = ROOT_DIR / "admin" / "estudio-fotos.html"
+            if not index_file.exists():
+                index_file = BASE_DIR / "index.html"
             content = index_file.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(content)))
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(content)
             return
 
         if path == "/api/status":
             try:
-                prods, cats = fetch_catalog_state()
+                prods, cats = fetch_catalog_state(force=False)
                 with_photo = sum(1 for p in prods if p["has_photo"])
                 no_photo = len(prods) - with_photo
                 uncat = sum(1 for p in prods if p["category_name"] in ("SIN CATEGORÍA", "VARIOS"))
@@ -619,6 +879,8 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self._send_json({
                     "ok": True,
                     "pool": GEMINI_POOL.get_status(),
+                    "search_engine": SEARCH_ENGINE.get_status(),
+                    "ai_params": AI_ENGINE_PARAMS,
                     "catalog": {
                         "total_products": len(prods),
                         "with_photo": with_photo,
@@ -635,17 +897,58 @@ class StudioHandler(BaseHTTPRequestHandler):
 
         if path == "/api/products":
             try:
-                prods, cats = fetch_catalog_state()
+                force = qs.get("refresh", ["0"])[0] == "1"
+                prods, cats = fetch_catalog_state(force=force)
                 self._send_json({"ok": True, "products": prods, "categories": cats})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, 500)
             return
 
-        if path == "/api/training":
-            self._send_json({"ok": True, "training": load_training()})
+        if path == "/api/review-queue":
+            try:
+                items = REVIEW_QUEUE.get_items()
+                self._send_json({"ok": True, "items": items})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
             return
 
-        self._send_json({"ok": False, "error": "Ruta no encontrada"}, 404)
+        if path == "/api/batch/status":
+            try:
+                job_id = qs.get("job_id", [None])[0]
+                status_res = BATCH_MANAGER.get_status(job_id)
+                self._send_json(status_res)
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        if path == "/api/training":
+            self._send_json({"ok": True, "training": load_training(), "ai_params": AI_ENGINE_PARAMS})
+            return
+
+        if path == "/api/ai-params":
+            self._send_json({
+                "ok": True,
+                "ai_params": AI_ENGINE_PARAMS,
+                "pool": GEMINI_POOL.get_status(),
+                "search_engine": SEARCH_ENGINE.get_status(),
+            })
+            return
+
+        # Servir archivos estáticos del proyecto (/assets/..., etc.)
+        rel = path.lstrip("/")
+        static_file = (ROOT_DIR / rel).resolve()
+        if str(static_file).startswith(str(ROOT_DIR.resolve())) and static_file.is_file():
+            ctype, _ = mimetypes.guess_type(str(static_file))
+            content = static_file.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", ctype or "application/octet-stream")
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(content)
+            return
+
+        self._send_json({"ok": False, "error": f"Ruta no encontrada: {path}"}, 404)
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -658,6 +961,24 @@ class StudioHandler(BaseHTTPRequestHandler):
             body = {}
 
         try:
+            if path == "/api/ai-params":
+                for k in ("model", "vision_strictness", "search_suffix", "custom_instructions"):
+                    if k in body and isinstance(body[k], str):
+                        AI_ENGINE_PARAMS[k] = body[k].strip()
+                for k in ("temperature",):
+                    if k in body:
+                        AI_ENGINE_PARAMS[k] = max(0.0, min(1.0, float(body[k])))
+                for k in ("min_confidence", "vision_min_score", "max_candidates"):
+                    if k in body:
+                        AI_ENGINE_PARAMS[k] = int(body[k])
+                self._send_json({
+                    "ok": True,
+                    "ai_params": AI_ENGINE_PARAMS,
+                    "pool": GEMINI_POOL.get_status(),
+                    "search_engine": SEARCH_ENGINE.get_status(),
+                })
+                return
+
             if path == "/api/consult":
                 res = consult_product_with_ai(
                     product_name=body.get("name", ""),
@@ -666,70 +987,147 @@ class StudioHandler(BaseHTTPRequestHandler):
                     unit=body.get("unit", "UND"),
                     user_hint=body.get("user_hint", ""),
                 )
-                self._send_json({"ok": True, "analysis": res})
+                self._send_json({
+                    "ok": True,
+                    "analysis": res,
+                    "trace": GEMINI_POOL.last_trace,
+                })
+                return
+
+            if path in ("/api/search", "/api/search-candidates"):
+                queries = body.get("queries") or []
+                custom_q = (body.get("custom_query") or "").strip()
+                if custom_q:
+                    queries = [custom_q] + [q for q in queries if q != custom_q]
+                if not queries and body.get("name"):
+                    queries = [body.get("name")]
+
+                limit = int(body.get("limit") or AI_ENGINE_PARAMS.get("max_candidates", 6))
+                sources = body.get("sources")
+                search_res = SEARCH_ENGINE.search(queries, limit=limit, sources=sources)
+                self._send_json({
+                    "ok": search_res.get("ok", True),
+                    "queries_executed": search_res.get("queries_executed", queries),
+                    "candidates": search_res.get("candidates", []),
+                    "timings": search_res.get("timings", {}),
+                    "errors": search_res.get("errors", {}),
+                })
+                return
+
+            if path == "/api/vision-verify":
+                prod_name = body.get("name", "")
+                analysis = body.get("analysis") or {}
+                candidates = body.get("candidates") or []
+                results = audit_candidates_parallel(candidates, prod_name, analysis)
+                self._send_json({
+                    "ok": True,
+                    "results": results,
+                    "trace": GEMINI_POOL.last_trace,
+                })
+                return
+
+            if path == "/api/vision-verify-one":
+                prod_name = body.get("name", "")
+                analysis = body.get("analysis") or {}
+                img_url = body.get("thumb_url") or body.get("image_url") or ""
+                cid, vision = audit_candidate_single(
+                    {"id": "one", "image_url": img_url, "thumb_url": img_url},
+                    prod_name,
+                    analysis,
+                )
+                self._send_json({
+                    "ok": True,
+                    "vision": vision,
+                    "trace": GEMINI_POOL.last_trace,
+                })
                 return
 
             if path == "/api/search-verify":
-                prod_name = body.get("name", "")
-                analysis = body.get("analysis")
-                if not analysis:
-                    analysis = consult_product_with_ai(
-                        product_name=prod_name,
-                        sku=body.get("sku", ""),
-                        current_cat=body.get("category_name", ""),
-                        unit=body.get("unit", "UND"),
-                        user_hint=body.get("user_hint", ""),
-                    )
-                queries = analysis.get("search_queries") or [prod_name]
-                custom_q = (body.get("custom_query") or "").strip()
-                if custom_q:
-                    queries = [custom_q] + queries
+                limit = int(body.get("limit") or AI_ENGINE_PARAMS.get("max_candidates", 6))
+                res = search_verify_product(
+                    product_id=body.get("product_id"),
+                    name=body.get("name", ""),
+                    sku=body.get("sku", ""),
+                    unit=body.get("unit", "UND"),
+                    category_name=body.get("category_name", ""),
+                    user_hint=body.get("user_hint", ""),
+                    custom_query=body.get("custom_query", ""),
+                    analysis=body.get("analysis"),
+                    limit=limit,
+                )
+                self._send_json(res)
+                return
 
-                raw_candidates = []
-                seen_urls = set()
-                for q in queries[:2]:
-                    for item in search_web_images(q, max_results=5):
-                        if item["image_url"] not in seen_urls:
-                            seen_urls.add(item["image_url"])
-                            raw_candidates.append(item)
-                        if len(raw_candidates) >= 6:
-                            break
-                    if len(raw_candidates) >= 6:
-                        break
+            if path == "/api/approve-photo":
+                pid = body.get("product_id")
+                img_url = body.get("image_url", "")
+                cat_name = (body.get("category_name") or "").strip().upper()
+                vision = body.get("vision")
+                public_url = approve_photo_action(
+                    product_id=pid,
+                    image_url=img_url,
+                    category_name=cat_name,
+                    vision=vision,
+                )
+                self._send_json({"ok": True, "public_url": public_url})
+                return
 
-                from concurrent.futures import ThreadPoolExecutor
+            if path == "/api/batch/start":
+                pids = body.get("product_ids") or []
+                filter_type = body.get("filter", "sin_foto")
+                limit = int(body.get("limit") or 50)
+                min_score = int(body.get("min_score") or 85)
 
-                def _audit_one(args):
-                    idx, cand = args
-                    if idx < 4:
-                        try:
-                            img_bytes, mime = download_image_bytes(cand["thumb_url"] or cand["image_url"])
-                            cand["vision"] = verify_image_with_vision(img_bytes, mime, prod_name, analysis)
-                        except Exception as ve:
-                            cand["vision"] = {
-                                "verdict": "partial_match",
-                                "score": 60,
-                                "what_i_see": cand.get("title") or "Packshot comercial",
-                                "reason": f"Verificación rápida ({str(ve)[:60]})",
-                            }
-                    else:
-                        cand["vision"] = {
-                            "verdict": "partial_match",
-                            "score": 55,
-                            "what_i_see": cand.get("title") or "Candidato adicional",
-                            "reason": "Candidato alternativo de búsqueda",
-                        }
-                    return cand
+                prods, _ = fetch_catalog_state()
+                if pids:
+                    pid_set = {str(x) for x in pids}
+                    target_prods = [p for p in prods if str(p["id"]) in pid_set]
+                elif filter_type == "sin_foto":
+                    target_prods = [p for p in prods if not p["has_photo"]]
+                else:
+                    target_prods = prods
 
-                with ThreadPoolExecutor(max_workers=4) as pool:
-                    audited_candidates = list(pool.map(_audit_one, enumerate(raw_candidates)))
+                batch_res = BATCH_MANAGER.start(
+                    products=target_prods,
+                    min_score=min_score,
+                    limit=limit,
+                    consult_fn=consult_product_with_ai,
+                    search_verify_fn=search_verify_product,
+                )
+                self._send_json(batch_res)
+                return
 
-                audited_candidates.sort(key=lambda c: c.get("vision", {}).get("score", 0), reverse=True)
-                self._send_json({
-                    "ok": True,
-                    "analysis": analysis,
-                    "candidates": audited_candidates,
-                })
+            if path == "/api/batch/stop":
+                job_id = body.get("job_id")
+                self._send_json(BATCH_MANAGER.stop(job_id))
+                return
+
+            if path == "/api/review-queue/decide":
+                pid = body.get("product_id")
+                action = (body.get("action") or "").lower()
+                img_url = body.get("image_url")
+                cat_name = body.get("category_name")
+
+                if not pid or action not in ("approve", "reject", "skip"):
+                    self._send_json({"ok": False, "error": "Acción inválida o falta product_id"}, 400)
+                    return
+
+                if action == "approve":
+                    if not img_url:
+                        items = REVIEW_QUEUE.get_items()
+                        for it in items:
+                            if str(it.get("product_id")) == str(pid):
+                                img_url = (it.get("best") or {}).get("image_url")
+                                break
+                    if not img_url:
+                        self._send_json({"ok": False, "error": "No se encontró imagen para aprobar"}, 400)
+                        return
+                    pub_url = approve_photo_action(pid, img_url, category_name=cat_name)
+                    self._send_json({"ok": True, "public_url": pub_url})
+                    return
+
+                REVIEW_QUEUE.remove(pid)
+                self._send_json({"ok": True})
                 return
 
             if path == "/api/audit-existing":
@@ -746,12 +1144,15 @@ class StudioHandler(BaseHTTPRequestHandler):
                     current_cat=body.get("category_name", ""),
                     unit=body.get("unit", "UND"),
                 )
-                img_bytes, mime = download_image_bytes(img_url)
-                vision = verify_image_with_vision(img_bytes, mime, prod_name, analysis)
+                raw_b, mime = download_image_bytes(img_url)
+                prep_b, prep_mime = prepare_vision_image(raw_b, max_side=512)
+                vision = verify_image_with_vision(prep_b, prep_mime, prod_name, analysis)
 
                 db_verdict = "ok" if vision.get("verdict") == "exact_match" else (
                     "dudosa" if vision.get("verdict") == "partial_match" else "incorrecta"
                 )
+                reason_str = f"{vision.get('what_i_see', '')} — {vision.get('reason', '')}"
+                update_cached_product(pid, audit_verdict=db_verdict, audit_reason=reason_str)
                 try:
                     vps_request("POST", "rest/v1/jjp_photo_audit", {
                         "product_id": pid,
@@ -759,7 +1160,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                         "verdict": db_verdict,
                         "confidence": vision.get("score", 0),
                         "mismatches": vision.get("matches", {}),
-                        "reason": f"{vision.get('what_i_see', '')} — {vision.get('reason', '')}",
+                        "reason": reason_str,
                         "source": "auditoria_estudio_ia",
                     })
                 except Exception:
@@ -770,6 +1171,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     "analysis": analysis,
                     "vision": vision,
                     "db_verdict": db_verdict,
+                    "trace": GEMINI_POOL.last_trace,
                 })
                 return
 
@@ -790,7 +1192,6 @@ class StudioHandler(BaseHTTPRequestHandler):
                 })
                 save_training(kb)
 
-                # Si se indicó categoría oficial y product_id, actualizar en PostgreSQL
                 updated_cat = False
                 if product_id and category_name:
                     if not CACHE["cat_by_name"]:
@@ -802,6 +1203,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                             f"rest/v1/jjp_products?id=eq.{product_id}",
                             {"category_id": cat_obj["id"]},
                         )
+                        update_cached_product(product_id, category_id=cat_obj["id"], category_name=cat_obj["name"])
                         updated_cat = True
 
                 self._send_json({
@@ -811,57 +1213,6 @@ class StudioHandler(BaseHTTPRequestHandler):
                 })
                 return
 
-            if path == "/api/approve-photo":
-                pid = body.get("product_id")
-                img_url = body.get("image_url", "")
-                new_cat_name = (body.get("category_name") or "").strip().upper()
-                if not pid or not img_url:
-                    self._send_json({"ok": False, "error": "Faltan product_id o image_url"}, 400)
-                    return
-
-                if re.search(r"pollinations|midjourney|stability\.ai", img_url, re.I):
-                    self._send_json({"ok": False, "error": "Bloqueado: No se permiten imágenes generadas por IA"}, 400)
-                    return
-
-                raw_bytes, _ = download_image_bytes(img_url)
-                webp_bytes, content_type = convert_to_webp_bytes(raw_bytes, max_side=800)
-                ext = "webp" if content_type == "image/webp" else "jpg"
-                storage_path = f"storage/v1/object/jjp-products/{pid}.{ext}"
-
-                vps_request(
-                    "POST",
-                    storage_path,
-                    body=webp_bytes,
-                    extra_headers={"Content-Type": content_type, "x-upsert": "true"},
-                    is_binary=True,
-                )
-                public_url = f"{CONFIG['SUPABASE_URL'].rstrip('/')}/storage/v1/object/public/jjp-products/{pid}.{ext}?t={int(time.time())}"
-
-                patch_payload = {"image_url": public_url}
-                if new_cat_name:
-                    if not CACHE["cat_by_name"]:
-                        fetch_catalog_state()
-                    cat_obj = CACHE["cat_by_name"].get(new_cat_name)
-                    if cat_obj:
-                        patch_payload["category_id"] = cat_obj["id"]
-
-                vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{pid}", patch_payload)
-
-                try:
-                    vps_request("POST", "rest/v1/jjp_photo_audit", {
-                        "product_id": pid,
-                        "image_url": public_url,
-                        "verdict": "ok",
-                        "confidence": 100,
-                        "reason": "Aprobada y verificada en Estudio IA JJ Paper",
-                        "source": "estudio_ia_python",
-                    })
-                except Exception:
-                    pass
-
-                self._send_json({"ok": True, "public_url": public_url})
-                return
-
             if path == "/api/quarantine-photo":
                 pid = body.get("product_id")
                 reason = body.get("reason", "Retirada por auditoría en Estudio IA")
@@ -869,6 +1220,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     self._send_json({"ok": False, "error": "Falta product_id"}, 400)
                     return
                 vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{pid}", {"image_url": None})
+                update_cached_product(pid, image_url="", has_photo=False, audit_verdict="incorrecta", audit_reason=reason)
                 try:
                     vps_request("POST", "rest/v1/jjp_photo_audit", {
                         "product_id": pid,
@@ -893,6 +1245,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     self._send_json({"ok": False, "error": f"Categoría '{cat_name}' no encontrada"}, 400)
                     return
                 vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{pid}", {"category_id": cat_obj["id"]})
+                update_cached_product(pid, category_id=cat_obj["id"], category_name=cat_obj["name"])
                 self._send_json({"ok": True, "category_id": cat_obj["id"], "category_name": cat_obj["name"]})
                 return
 
@@ -902,6 +1255,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if not pid:
                     self._send_json({"ok": False, "error": "Falta product_id"}, 400)
                     return
+                update_cached_product(pid, audit_verdict="ok", audit_reason="Confirmada manualmente como fotografía correcta.")
                 try:
                     vps_request("POST", "rest/v1/jjp_photo_audit", {
                         "product_id": pid,
@@ -928,6 +1282,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     if pid and cobj:
                         try:
                             vps_request("PATCH", f"rest/v1/jjp_products?id=eq.{pid}", {"category_id": cobj["id"]})
+                            update_cached_product(pid, category_id=cobj["id"], category_name=cobj["name"])
                             updated += 1
                         except Exception:
                             pass
@@ -950,18 +1305,21 @@ class StudioHandler(BaseHTTPRequestHandler):
 
 def main():
     print("=" * 68)
-    print("  JJ PAPER C.A. — ESTUDIO DE ENTRENAMIENTO, BÚSQUEDA Y AUDITORÍA IA")
+    print("  JJ PAPER C.A. — ESTUDIO DE ENTRENAMIENTO, BÚSQUEDA Y AUDITORÍA IA v4")
     print("=" * 68)
     print(f"  * VPS Soberano:     {CONFIG['SUPABASE_URL']}")
     print(f"  * Pool Gemini Keys: {len(CONFIG['GEMINI_KEYS'])} llaves activas en rotación")
+    print(f"  * Navegador Motor:  {SEARCH_ENGINE.browser_name}")
     print(f"  * Archivo Corpus:   {TRAINING_FILE}")
     print(f"  * Interfaz Web:     http://localhost:{PORT}")
     print("=" * 68)
+    threading.Thread(target=lambda: fetch_catalog_state(force=True), daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), StudioHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nCerrando Estudio IA...")
+        SEARCH_ENGINE.close()
         server.server_close()
 
 

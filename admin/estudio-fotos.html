@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JJ Paper · Estudio IA v3 — Parámetros del Motor, Búsqueda Exacta y Auditoría Visual</title>
+<title>JJ Paper · Estudio IA v4 — Búsqueda con Navegador, Auditoría Visual y Cola de Aprobación</title>
 <script src="/assets/vendor/supabase.min.js"></script>
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/gemini-client.js"></script>
@@ -65,6 +65,26 @@
     font-weight: 600;
   }
   .stat-pill strong { color: #34d399; }
+
+  /* BANNER MOTOR APAGADO */
+  .engine-offline-banner {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1.5px solid var(--red);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin: 8px 16px 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .engine-offline-banner .alert-body {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+  }
 
   /* BARRA DE PESTAÑAS PRINCIPALES */
   .nav-tabs {
@@ -143,6 +163,10 @@
   input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--brand);
+  }
+  :focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 1px;
   }
   .prod-list { flex: 1; overflow-y: auto; padding: 7px; }
   .prod-item {
@@ -227,6 +251,7 @@
     align-items: center;
     gap: 6px;
     transition: all 0.15s;
+    text-decoration: none;
   }
   .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -234,6 +259,50 @@
   .btn-amber { background: var(--amber); color: #1e1b4b; }
   .btn-red { background: var(--red); color: #fff; }
   .btn-cyan { background: var(--cyan); color: #082f49; }
+
+  /* STEPPER DEL FLUJO DE BÚSQUEDA */
+  .stepper {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .step-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .step-node.active { color: #38bdf8; }
+  .step-node.completed { color: #34d399; }
+  .step-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #334155;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .step-node.active .step-badge { background: #0284c7; color: #fff; }
+  .step-node.completed .step-badge { background: var(--brand); color: #022c22; }
+  .step-line {
+    flex: 1;
+    min-width: 20px;
+    height: 2px;
+    background: #334155;
+  }
+  .step-line.completed { background: var(--brand); }
+  .step-time { font-size: 10px; color: var(--muted); font-weight: 500; }
 
   /* BARRA DE PARÁMETROS EN VIVO Y CONSOLA DEL MOTOR IA */
   .engine-params-bar {
@@ -298,7 +367,7 @@
 
   .candidates-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 12px;
     margin-top: 10px;
   }
@@ -310,10 +379,12 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transition: all 0.15s;
   }
   .cand-card.exact_match { border-color: var(--brand); }
   .cand-card.partial_match { border-color: var(--amber); }
   .cand-card.rejected { border-color: var(--red); opacity: 0.72; }
+  .cand-card.failed { border-color: #64748b; opacity: 0.85; }
   .cand-img-wrap {
     height: 180px;
     background: #ffffff;
@@ -333,7 +404,102 @@
     font-size: 10.5px;
     font-weight: 900;
   }
+  .cand-source-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 9.5px;
+    font-weight: 800;
+    background: rgba(15, 23, 42, 0.85);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    text-transform: uppercase;
+  }
   .cand-body { padding: 10px; font-size: 11.5px; display: flex; flex-direction: column; gap: 5px; }
+
+  /* COLA DE APROBACIÓN (TAB 2) */
+  .queue-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+  }
+  .queue-card-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 18px;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .queue-main-photo-wrap {
+    background: #ffffff;
+    border-radius: 10px;
+    height: 310px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+  .queue-main-photo-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .queue-alts-grid {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .queue-alt-box {
+    width: 68px;
+    height: 68px;
+    background: #ffffff;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .queue-alt-box:hover, .queue-alt-box.active {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
+  }
+  .queue-alt-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .queue-alt-num {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: #0f172a;
+    color: #38bdf8;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  kbd {
+    background: #0f172a;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-family: monospace;
+    color: #38bdf8;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.4);
+  }
 
   .full-scroll-pane {
     flex: 1;
@@ -376,52 +542,106 @@
     position: sticky;
     top: 0;
   }
+
+  /* MODAL DE CONFIRMACIÓN DE FOTO */
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-box {
+    background: var(--panel);
+    border: 2px solid var(--brand);
+    border-radius: 12px;
+    max-width: 540px;
+    width: 100%;
+    padding: 18px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .modal-img-wrap {
+    height: 240px;
+    background: #ffffff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border: 1px solid var(--border);
+  }
+  .modal-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
 </style>
 </head>
 <body>
 
 <header>
   <div class="brand-title">
-    <span class="brand-badge">IA STUDIO v3</span>
+    <span class="brand-badge">IA STUDIO v4</span>
     <div>
-      <h1>Estudio de Entrenamiento IA, Parámetros del Motor y Búsqueda Exacta</h1>
-      <p id="engineStatusText">Conectando con motor IA y catálogo soberano...</p>
+      <h1>Estudio de Fotos, Búsqueda con Navegador & Cola de Aprobación Humana</h1>
+      <p id="engineStatusText">Conectando con motor de búsqueda y catálogo soberano...</p>
     </div>
   </div>
   <div class="stats-bar">
     <div class="stat-pill">Total: <strong id="stTotal">-</strong></div>
     <div class="stat-pill">Con Foto: <strong id="stWithPhoto">-</strong></div>
     <div class="stat-pill">Sin Foto: <strong id="stNoPhoto" style="color:#fca5a5">-</strong></div>
+    <div class="stat-pill" style="cursor:pointer" onclick="switchTab('queue')">En Cola: <strong id="stQueue" style="color:#38bdf8">0</strong></div>
     <div class="stat-pill">Reglas IA: <strong id="stRules" style="color:#67e8f9">-</strong></div>
-    <button class="btn btn-cyan" style="padding:5px 10px;font-size:11px" onclick="reconnectPythonEngine()">🔌 Reconectar Motor Python</button>
-    <a href="/catalogo_impreso.html" class="btn btn-sec" style="text-decoration:none;padding:5px 10px;font-size:11px">🖨️ Catálogo Impreso</a>
+    <button class="btn btn-cyan" style="padding:5px 10px;font-size:11px" onclick="reconnectPythonEngine()" aria-label="Reconectar motor Python local">🔌 Reconectar Motor Python</button>
+    <a href="/catalogo_impreso.html" class="btn btn-sec" style="padding:5px 10px;font-size:11px">🖨️ Catálogo Impreso</a>
   </div>
 </header>
 
-<nav class="nav-tabs">
-  <button class="tab-btn active" id="tabBtnSearch" onclick="switchTab('search')">
-    🔍 1. Motor de Búsqueda & Consultor IA <span class="tab-count" id="tcNoPhoto">0</span>
+<!-- BANNER DE ALERTA: MOTOR APAGADO -->
+<div class="engine-offline-banner" id="engineOfflineBanner" style="display:none">
+  <div class="alert-body">
+    <span style="font-size:22px">⚠️</span>
+    <div>
+      <strong style="color:#fca5a5">Motor de búsqueda local apagado en http://127.0.0.1:8795</strong>
+      <p style="color:#cbd5e1;font-size:11.5px;margin-top:2px">
+        Para buscar packshots exactos en la web (Google, DDG, Bing con Playwright Edge) y procesar en lote, ejecuta <code>iniciar-estudio-ia.bat</code> en el PC de la oficina. En este modo solo puedes ver el catálogo, reordenar categorías y subir fotos manualmente desde tu PC.
+      </p>
+    </div>
+  </div>
+  <button class="btn btn-amber" style="padding:6px 12px;font-size:11.5px" onclick="reconnectPythonEngine()">🔄 Reintentar Conexión</button>
+</div>
+
+<nav class="nav-tabs" role="tablist">
+  <button class="tab-btn active" id="tabBtnSearch" onclick="switchTab('search')" role="tab" aria-selected="true">
+    🔍 1. Búsqueda Exacta & Consultor IA <span class="tab-count" id="tcNoPhoto">0</span>
   </button>
-  <button class="tab-btn" id="tabBtnAudit" onclick="switchTab('audit')">
-    🕵️‍♂️ 2. Auditar Productos CON FOTO <span class="tab-count" id="tcWithPhoto">0</span>
+  <button class="tab-btn" id="tabBtnQueue" onclick="switchTab('queue')" role="tab" aria-selected="false">
+    📋 2. Cola de Aprobación (Modo Lote) <span class="tab-count" id="tcQueue">0</span>
   </button>
-  <button class="tab-btn" id="tabBtnCats" onclick="switchTab('cats')">
-    🗂️ 3. Clasificador de Categorías <span class="tab-count" id="tcUncat">0</span>
+  <button class="tab-btn" id="tabBtnAudit" onclick="switchTab('audit')" role="tab" aria-selected="false">
+    🕵️‍♂️ 3. Auditar Productos CON FOTO <span class="tab-count" id="tcWithPhoto">0</span>
   </button>
-  <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">
-    🧠 4. Entrenamiento & Pool de API Keys
+  <button class="tab-btn" id="tabBtnCats" onclick="switchTab('cats')" role="tab" aria-selected="false">
+    🗂️ 4. Clasificador de Categorías <span class="tab-count" id="tcUncat">0</span>
+  </button>
+  <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')" role="tab" aria-selected="false">
+    🧠 5. Entrenamiento & Pool de API Keys
   </button>
 </nav>
 
 <!-- =======================================================================
-     PESTAÑA 1: MOTOR DE BÚSQUEDA + PARÁMETROS EN VIVO + CONSULTOR IA
+     PESTAÑA 1: MOTOR DE BÚSQUEDA + STEPPER + CONSULTOR IA
      ======================================================================= -->
-<div class="tab-pane active" id="pane-search">
+<div class="tab-pane active" id="pane-search" role="tabpanel">
   <div class="workspace">
     <aside class="sidebar">
       <div class="sidebar-controls">
-        <input type="search" id="searchInput" placeholder="🔍 Buscar por nombre, SKU o marca..." oninput="renderSidebarList()">
-        <select id="filterMode" onchange="renderSidebarList()">
+        <input type="search" id="searchInput" placeholder="🔍 Buscar por nombre, SKU o marca..." oninput="renderSidebarList()" aria-label="Filtrar catálogo lateral">
+        <select id="filterMode" onchange="renderSidebarList()" aria-label="Modo de filtro">
           <option value="no_photo">📷 Productos SIN FOTO (Prioridad)</option>
           <option value="with_photo">🖼️ Productos CON FOTO (Para auditar)</option>
           <option value="cleaning">🧹 Caso Limpieza: Palos, Coletos, Toallín, Cloro</option>
@@ -432,8 +652,8 @@
             <input type="checkbox" id="chkAutoConsult" checked style="width:auto"> Auto-ejecutar al elegir producto
           </label>
         </div>
-        <button class="btn btn-cyan" id="btnAutoPilot" onclick="toggleAutoPilot()" style="width:100%;justify-content:center">
-          🤖 Iniciar Piloto Automático (Cola IA)
+        <button class="btn btn-cyan" id="btnOpenBatchTab" onclick="switchTab('queue')" style="width:100%;justify-content:center" aria-label="Abrir modo lote y cola">
+          🤖 Procesar en Lote / Abrir Cola
         </button>
       </div>
       <div class="prod-list" id="prodList"></div>
@@ -444,12 +664,12 @@
       <div class="engine-params-bar">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div style="font-size:12.5px;font-weight:900;color:#67e8f9;display:flex;align-items:center;gap:8px">
-            <span>⚙️ PARÁMETROS ACTIVOS DEL MOTOR IA Y FLUJO DE BÚSQUEDA</span>
-            <span class="tag tag-info" id="badgeActiveEngine">MOTOR ACTIVO</span>
+            <span>⚙️ MOTOR PLAYWRIGHT & TELEMETRÍA EN TIEMPO REAL</span>
+            <span class="tag tag-info" id="badgeActiveEngine">MOTOR DETENIDO</span>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="btn btn-amber" style="padding:5px 10px;font-size:11px" onclick="saveAndApplyEngineParams()">
-              💾 Aplicar Parámetros al Motor
+              💾 Guardar Ajustes
             </button>
             <button class="btn btn-sec" style="padding:5px 10px;font-size:11px" onclick="toggleParamsCollapse()">
               🔽 Mostrar/Ocultar Ajustes
@@ -492,7 +712,7 @@
               </select>
             </div>
             <div class="param-box" style="grid-column: span 2">
-              <label>5. Sufijo Automático del Buscador Web de Imágenes</label>
+              <label>5. Sufijo de Búsqueda Web</label>
               <input type="text" id="paramSearchSuffix" value="producto packshot fondo blanco -cartoon -clipart -dibujo">
             </div>
           </div>
@@ -500,8 +720,8 @@
 
         <!-- CONSOLA DE TRAZABILIDAD EN TIEMPO REAL -->
         <div class="motor-log" id="motorLogBox">
-          <div>🟢 [Motor IA Listo] Selecciona un producto a la izquierda o pulsa "🚀 Consultar IA + Buscar Fotos Exactas".</div>
-          <div>📌 Flujo del motor: (1) Traduce abreviaturas MixNet con Gemini -> (2) Genera queries comerciales -> (3) Busca packshots web -> (4) Audita cada foto con Gemini Vision.</div>
+          <div>🟢 [Estudio IA v4 Listo] Selecciona un producto a la izquierda o pulsa "🚀 Ejecutar Flujo Completo".</div>
+          <div>📌 Stepper de 4 pasos: (1. Interpretar con Gemini) -> (2. Buscar en Google/DDG/Bing con Playwright Edge) -> (3. Auditar con Gemini Vision) -> (4. Aprobación humana y publicación).</div>
         </div>
       </div>
 
@@ -512,9 +732,90 @@
 </div>
 
 <!-- =======================================================================
-     PESTAÑA 2: GALERÍA DE AUDITORÍA VISUAL (TODOS LOS PRODUCTOS CON FOTO)
+     PESTAÑA 2: COLA DE APROBACIÓN HUMANA Y MODO LOTE
      ======================================================================= -->
-<div class="tab-pane" id="pane-audit">
+<div class="tab-pane" id="pane-queue" role="tabpanel">
+  <div class="queue-wrapper">
+    <!-- PANEL DE CONTROL DE LOTE -->
+    <div class="card" style="border-color:var(--brand)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2>🚀 Procesamiento en Lote (Búsqueda en Segundo Plano)</h2>
+          <p style="font-size:12.5px;color:var(--muted)">
+            El motor de navegación local rastrea fotos exactas y las audita con Gemini Vision. Cada producto que califique se agrega a la cola de abajo para tu aprobación en 1 clic.
+          </p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="batchFilterSel" style="width:230px" onchange="toggleBatchCatSelect()">
+            <option value="sin_foto">📷 Todos los productos SIN FOTO</option>
+            <option value="cleaning">🧹 Solo Caso Limpieza (coletos, palos, cloro...)</option>
+            <option value="by_cat">📂 Por categoría específica...</option>
+            <option value="all">📦 Todos los productos activos</option>
+          </select>
+          <select id="batchCatSel" style="width:200px;display:none"></select>
+          <select id="batchLimitSel" style="width:130px">
+            <option value="10">Procesar 10</option>
+            <option value="25" selected>Procesar 25</option>
+            <option value="50">Procesar 50</option>
+            <option value="100">Procesar 100</option>
+          </select>
+          <select id="batchMinScoreSel" style="width:140px">
+            <option value="80">Mínimo 80%</option>
+            <option value="85" selected>Mínimo 85%</option>
+            <option value="90">Mínimo 90% (Estricto)</option>
+          </select>
+          <button class="btn" id="btnStartBatch" onclick="startBatchJob()">
+            ▶️ Iniciar Lote
+          </button>
+          <button class="btn btn-red" id="btnStopBatch" onclick="stopBatchJob()" style="display:none">
+            ⏹️ Detener
+          </button>
+          <button class="btn btn-sec" onclick="loadReviewQueue()">
+            🔄 Refrescar Cola
+          </button>
+        </div>
+      </div>
+
+      <!-- BARRA DE ESTADO DEL TRABAJO POR LOTE -->
+      <div id="batchProgressCard" style="display:none;margin-top:12px;background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:800;color:#38bdf8" id="batchStateLabel">⏳ PROCESANDO LOTE...</span>
+          <span style="font-size:11.5px;color:var(--muted)" id="batchProgressText">0 / 0 procesados</span>
+        </div>
+        <div style="height:8px;background:#334155;border-radius:99px;overflow:hidden">
+          <div id="batchProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg, var(--brand), var(--cyan));transition:width 0.3s"></div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:8px;font-size:11.5px;color:var(--muted)">
+          <span>Propuestas generadas: <strong style="color:#34d399" id="batchProposalsCount">0</strong></span>
+          <span>Errores: <strong style="color:#fca5a5" id="batchErrorsCount">0</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUÍA DE ATAJOS DE TECLADO PARA LA COLA -->
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--panel-alt);border:1px solid var(--border);border-radius:8px;padding:8px 14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#cbd5e1">
+        <strong>Atajos de teclado:</strong>
+        <span><kbd>A</kbd> Aprobar Foto</span>
+        <span><kbd>R</kbd> Rechazar</span>
+        <span><kbd>S</kbd> Saltar</span>
+        <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> Elegir Alternativa</span>
+        <span><kbd>←</kbd> / <kbd>→</kbd> Navegar</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">
+        Cola de Aprobación: <strong style="color:#38bdf8" id="queueTotalCount">0</strong> productos pendientes
+      </div>
+    </div>
+
+    <!-- CONTENEDOR DE LA COLA DE APROBACIÓN -->
+    <div id="queueCardContainer"></div>
+  </div>
+</div>
+
+<!-- =======================================================================
+     PESTAÑA 3: GALERÍA DE AUDITORÍA VISUAL (PRODUCTOS CON FOTO)
+     ======================================================================= -->
+<div class="tab-pane" id="pane-audit" role="tabpanel">
   <div class="full-scroll-pane">
     <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div>
@@ -524,8 +825,8 @@
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input type="search" id="auditSearchInp" placeholder="🔍 Filtrar fotos..." style="width:220px" oninput="renderAuditGallery()">
-        <select id="auditFilterSel" style="width:210px" onchange="renderAuditGallery()">
+        <input type="search" id="auditSearchInp" placeholder="🔍 Filtrar fotos..." style="width:220px" oninput="renderAuditGallery()" aria-label="Filtrar fotos en auditoría">
+        <select id="auditFilterSel" style="width:210px" onchange="renderAuditGallery()" aria-label="Filtro de auditoría">
           <option value="all">📸 Todas las Fotos Actuales</option>
           <option value="cleaning">🧹 Solo Limpieza / Papel / Higiene</option>
           <option value="bad">❌ Detectadas como Dudosas / Incorrectas</option>
@@ -541,9 +842,9 @@
 </div>
 
 <!-- =======================================================================
-     PESTAÑA 3: REORGANIZADOR INTELIGENTE DE CATEGORÍAS
+     PESTAÑA 4: REORGANIZADOR INTELIGENTE DE CATEGORÍAS
      ======================================================================= -->
-<div class="tab-pane" id="pane-cats">
+<div class="tab-pane" id="pane-cats" role="tabpanel">
   <div class="full-scroll-pane">
     <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div>
@@ -553,8 +854,8 @@
         </p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input type="search" id="catSearchInp" placeholder="🔍 Buscar producto..." style="width:220px" oninput="renderCategoryOrganizer()">
-        <select id="catFilterSel" style="width:230px" onchange="renderCategoryOrganizer()">
+        <input type="search" id="catSearchInp" placeholder="🔍 Buscar producto..." style="width:220px" oninput="renderCategoryOrganizer()" aria-label="Buscar producto para categoría">
+        <select id="catFilterSel" style="width:230px" onchange="renderCategoryOrganizer()" aria-label="Filtro de categorías">
           <option value="all">📦 Todos los Productos</option>
           <option value="uncat">⚠️ En SIN CATEGORÍA o VARIOS</option>
         </select>
@@ -582,9 +883,9 @@
 </div>
 
 <!-- =======================================================================
-     PESTAÑA 4: ENTRENAMIENTO DEL MODELO IA & POOL DE API KEYS
+     PESTAÑA 5: ENTRENAMIENTO DEL MODELO IA & POOL DE API KEYS
      ======================================================================= -->
-<div class="tab-pane" id="pane-train">
+<div class="tab-pane" id="pane-train" role="tabpanel">
   <div class="full-scroll-pane">
     <div class="card">
       <h2>🔑 Estado en Tiempo Real del Pool de API Keys de Gemini</h2>
@@ -626,6 +927,34 @@
   </div>
 </div>
 
+<!-- =======================================================================
+     MODAL DE CONFIRMACIÓN DE APROBACIÓN DE FOTO
+     ======================================================================= -->
+<div class="modal-backdrop" id="approvalModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3 id="modalTitle" style="font-size:16px;color:#34d399">✅ Confirmar Fotografía Oficial</h3>
+      <button class="btn btn-sec" style="padding:3px 8px;font-size:12px" onclick="closeApprovalModal()" aria-label="Cerrar modal">✕</button>
+    </div>
+    <div class="modal-img-wrap">
+      <img id="modalPreviewImg" src="" alt="Vista previa de foto a aprobar">
+    </div>
+    <div>
+      <div style="font-size:11.5px;color:var(--cyan);font-weight:800" id="modalSkuLine">SKU: -</div>
+      <div style="font-size:14px;font-weight:800;margin-top:2px" id="modalProdName">-</div>
+      <div style="margin-top:8px">
+        <label style="font-size:11px;color:var(--muted)">Categoría a Asignar:</label>
+        <select id="modalCatSel" style="margin-top:3px"></select>
+      </div>
+      <div id="modalVisionSummary" style="margin-top:8px;padding:8px;background:var(--panel-alt);border-radius:6px;font-size:11.5px;color:var(--muted)"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button class="btn btn-sec" onclick="closeApprovalModal()">Cancelar</button>
+      <button class="btn" id="modalBtnConfirm" onclick="confirmModalApproval()">💾 Publicar en VPS Soberano</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const sb = window.sb || window._pgClient || (typeof getSupabase === 'function' ? getSupabase() : null);
 window.sb = sb;
@@ -637,7 +966,16 @@ let CATEGORIES = [];
 let CURRENT_PRODUCT = null;
 let CURRENT_ANALYSIS = null;
 let CURRENT_CANDIDATES = [];
-let AUTO_PILOT_ACTIVE = false;
+let CURRENT_STEP = 0; // 0=idle, 1=interpretar, 2=buscar, 3=auditar, 4=aprobar
+let STEP_TIMINGS = { step1: 0, step2: 0, step3: 0 };
+let PENDING_APPROVAL_CANDIDATE = null;
+
+// COLA DE APROBACIÓN & MODO LOTE
+let REVIEW_QUEUE = [];
+let QUEUE_INDEX = 0;
+let BATCH_JOB_ID = null;
+let BATCH_POLL_TIMER = null;
+
 let TRAINING_CACHE = {
   abbreviations: {
     "T/C": "Tamaño Carta",
@@ -678,7 +1016,7 @@ async function saveAndApplyEngineParams(silent = false) {
     temperature: parseFloat(document.getElementById('paramTemp')?.value || '0.1'),
     min_confidence: parseInt(document.getElementById('paramConf')?.value || '88', 10),
     vision_strictness: document.getElementById('paramVisionStrict')?.value || 'alta',
-    search_suffix: document.getElementById('paramSearchSuffix')?.value || 'producto packshot fondo blanco -cartoon -clipart'
+    search_suffix: document.getElementById('paramSearchSuffix')?.value || 'producto packshot fondo blanco -cartoon -clipart -dibujo'
   };
   if (USE_PYTHON_BACKEND) {
     try {
@@ -687,14 +1025,12 @@ async function saveAndApplyEngineParams(silent = false) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).then(x => x.json());
-      if (r.ok) {
-        logMotor(`⚙️ Parámetros actualizados en Motor Python: Modelo=${payload.model}, Temp=${payload.temperature}, Certeza>=${payload.min_confidence}%, Rigor=${payload.vision_strictness.toUpperCase()}`, '#67e8f9');
+      if (r && r.ok) {
+        logMotor(`⚙️ Parámetros actualizados en Motor Python: Modelo=${payload.model}, Temp=${payload.temperature}, Rigor=${payload.vision_strictness.toUpperCase()}`, '#67e8f9');
       }
     } catch (e) {
-      logMotor(`⚠️ No se pudo sincronizar con localhost:8795: ${e.message}`, '#fcd34d');
+      logMotor(`⚠️ Error sincronizando parámetros: ${e.message}`, '#fcd34d');
     }
-  } else {
-    logMotor(`⚙️ Parámetros aplicados en Modo Web Directo: Modelo=${payload.model}, Temp=${payload.temperature}, Certeza>=${payload.min_confidence}%`, '#67e8f9');
   }
   if (!silent) {
     const b = document.getElementById('badgeActiveEngine');
@@ -731,20 +1067,30 @@ function suggestCategoryHeuristic(name, curCat) {
 }
 
 async function reconnectPythonEngine() {
-  logMotor('🔌 Probando conexión con el motor Python local en http://localhost:8795...', '#67e8f9');
+  logMotor('🔌 Comprobando motor Python local en http://127.0.0.1:8795...', '#67e8f9');
   await init();
 }
 
 async function init() {
-  // 1. Intentar conectar con el servidor Python local (localhost:8795) con timeout amplio de 8s
+  const offlineBanner = document.getElementById('engineOfflineBanner');
+
+  // 1. Intentar conectar con el motor Python local (localhost:8795)
   try {
-    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`${PYTHON_API}/api/status`, { signal: AbortSignal.timeout(6000) });
     const j = await r.json();
     if (j && j.ok) {
       USE_PYTHON_BACKEND = true;
+      if (offlineBanner) offlineBanner.style.display = 'none';
+
+      const se = j.search_engine || {};
+      const seText = se.ready
+        ? `Navegador: ${se.browser || 'msedge'} · Latencia: ${se.avg_ms ? se.avg_ms + 'ms' : 'normal'}`
+        : `Navegador: ${se.browser || 'msedge'} (${se.last_error ? 'Atención: ' + se.last_error : 'Iniciando'})`;
+
       document.getElementById('engineStatusText').textContent =
-        `✅ Motor Python Activo (localhost:8795) · ${j.pool.total_keys} API Keys Gemini en rotación · ${j.training_rules_count} reglas aprendidas`;
-      document.getElementById('badgeActiveEngine').textContent = `PYTHON LOCAL (8795) · ${j.pool.total_keys} KEYS`;
+        `✅ Motor Python Activo (localhost:8795) · ${seText} · ${j.pool?.total_keys || 7} Keys Gemini`;
+      document.getElementById('badgeActiveEngine').textContent =
+        se.ready ? `PLAYWRIGHT ${String(se.browser || 'EDGE').toUpperCase()} · LISTO` : `MOTOR ACTIVO`;
       window._poolStatus = j.pool;
 
       if (j.ai_params) {
@@ -769,17 +1115,25 @@ async function init() {
         }
         return p;
       });
-      logMotor(`✅ Conectado a localhost:8795 (${ALL_PRODUCTS.length} productos en caché instantáneo, ${j.pool.total_keys} API Keys listas).`, '#34d399');
+
+      logMotor(`✅ Conectado a localhost:8795 (${ALL_PRODUCTS.length} productos en catálogo, motor de búsqueda listo).`, '#34d399');
+      populateBatchCategorySelect();
       finishInit();
+      loadReviewQueue();
       return;
     }
   } catch (err) {
-    logMotor(`ℹ️ localhost:8795 no alcanzado desde este navegador (${err.message}). Activando Modo Directo VPS Soberano + GeminiClient.`, '#fcd34d');
+    logMotor(`ℹ️ Motor local en :8795 no alcanzado (${err.message}). Mostrando estado honesto.`, '#fcd34d');
   }
 
-  // 2. Modo directo en navegador contra VPS Soberano + GeminiClient
+  // 2. Si el motor Python no responde: mostrar estado honesto
+  USE_PYTHON_BACKEND = false;
+  if (offlineBanner) offlineBanner.style.display = 'flex';
+  document.getElementById('engineStatusText').textContent =
+    `🔴 Motor de Búsqueda Desconectado (localhost:8795) — Ejecuta iniciar-estudio-ia.bat`;
+  document.getElementById('badgeActiveEngine').textContent = `MOTOR APAGADO`;
+
   try {
-    USE_PYTHON_BACKEND = false;
     if (window.GeminiClient && typeof GeminiClient.syncKeysFromSettings === 'function') {
       await GeminiClient.syncKeysFromSettings();
     }
@@ -796,8 +1150,8 @@ async function init() {
     });
 
     ALL_PRODUCTS = (prods || []).map(p => {
-      const img = (p.image_url || '').trim();
-      const hasPhoto = img.length > 12 && img !== 'null' && !img.startswith?.('data:image/') && !img.startsWith('data:image/') && !/pollinations/i.test(img);
+      const img = String(p.image_url || '').trim();
+      const hasPhoto = img.length > 12 && img !== 'null' && !img.startsWith('data:image/') && !/pollinations/i.test(img);
       const catName = catMap[p.category_id] || 'SIN CATEGORÍA';
       const heur = suggestCategoryHeuristic(p.name, catName);
       const aud = auditMap[p.id] || {};
@@ -814,14 +1168,11 @@ async function init() {
       };
     });
 
-    const keyCount = window.GeminiClient ? GeminiClient.getTotalKeys() : 7;
-    document.getElementById('engineStatusText').textContent =
-      `🌐 Modo Web Directo VPS Soberano · ${ALL_PRODUCTS.length} Productos · ${keyCount} API Keys Gemini en Rotación`;
-    document.getElementById('badgeActiveEngine').textContent = `WEB CLOUD · ${keyCount} KEYS`;
+    populateBatchCategorySelect();
     finishInit();
   } catch (err) {
-    document.getElementById('engineStatusText').textContent = '❌ Error cargando catálogo: ' + err.message;
-    logMotor('❌ Error cargando catálogo: ' + err.message, '#fca5a5');
+    document.getElementById('engineStatusText').textContent = '❌ Error cargando catálogo soberano: ' + err.message;
+    logMotor('❌ Error cargando catálogo soberano: ' + err.message, '#fca5a5');
   }
 }
 
@@ -849,24 +1200,53 @@ function updateGlobalCounters() {
   document.getElementById('stWithPhoto').textContent = withP;
   document.getElementById('stNoPhoto').textContent = noP;
   document.getElementById('stRules').textContent = rulesCount;
-
   document.getElementById('tcNoPhoto').textContent = noP;
   document.getElementById('tcWithPhoto').textContent = withP;
   document.getElementById('tcUncat').textContent = uncat;
 }
 
+function updateQueueBadge() {
+  const count = REVIEW_QUEUE.length;
+  const st = document.getElementById('stQueue');
+  const tc = document.getElementById('tcQueue');
+  const totalEl = document.getElementById('queueTotalCount');
+  if (st) st.textContent = count;
+  if (tc) tc.textContent = count;
+  if (totalEl) totalEl.textContent = count;
+}
+
+function populateBatchCategorySelect() {
+  const sel = document.getElementById('batchCatSel');
+  if (!sel) return;
+  sel.innerHTML = CATEGORIES.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+}
+
+function toggleBatchCatSelect() {
+  const filter = document.getElementById('batchFilterSel')?.value;
+  const catSel = document.getElementById('batchCatSel');
+  if (catSel) {
+    catSel.style.display = filter === 'by_cat' ? 'inline-block' : 'none';
+  }
+}
+
 function switchTab(tab) {
-  ['search', 'audit', 'cats', 'train'].forEach(t => {
-    document.getElementById(`pane-${t}`).classList.toggle('active', t === tab);
+  ['search', 'queue', 'audit', 'cats', 'train'].forEach(t => {
+    const pane = document.getElementById(`pane-${t}`);
+    if (pane) pane.classList.toggle('active', t === tab);
   });
-  document.getElementById('tabBtnSearch').classList.toggle('active', tab === 'search');
-  document.getElementById('tabBtnAudit').classList.toggle('active', tab === 'audit');
-  document.getElementById('tabBtnCats').classList.toggle('active', tab === 'cats');
-  document.getElementById('tabBtnTrain').classList.toggle('active', tab === 'train');
+  document.getElementById('tabBtnSearch')?.classList.toggle('active', tab === 'search');
+  document.getElementById('tabBtnQueue')?.classList.toggle('active', tab === 'queue');
+  document.getElementById('tabBtnAudit')?.classList.toggle('active', tab === 'audit');
+  document.getElementById('tabBtnCats')?.classList.toggle('active', tab === 'cats');
+  document.getElementById('tabBtnTrain')?.classList.toggle('active', tab === 'train');
+
+  if (tab === 'queue') {
+    loadReviewQueue();
+  }
 }
 
 /* ==========================================================================
-   PESTAÑA 1: LISTA LATERAL + CONSULTOR IA PASO A PASO + BÚSQUEDA DE FOTOS
+   PESTAÑA 1: LISTA LATERAL + STEPPER DE 4 PASOS + BÚSQUEDA EXACTA
    ========================================================================== */
 function getSidebarFiltered() {
   const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
@@ -894,7 +1274,7 @@ function renderSidebarList() {
     const active = CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id;
     return `
       <div class="prod-item ${active ? 'active' : ''}" onclick="selectProduct('${p.id}', true)">
-        <div class="prod-thumb">${p.has_photo ? `<img src="${esc(p.image_url)}">` : '📷'}</div>
+        <div class="prod-thumb">${p.has_photo ? `<img src="${esc(p.image_url)}" alt="">` : '📷'}</div>
         <div>
           <div class="prod-name">${esc(p.name)}</div>
           <div class="prod-meta">
@@ -912,10 +1292,16 @@ function selectProduct(id, triggerAuto = true) {
   CURRENT_PRODUCT = ALL_PRODUCTS.find(x => x.id === id);
   CURRENT_ANALYSIS = null;
   CURRENT_CANDIDATES = [];
+  CURRENT_STEP = 0;
+  STEP_TIMINGS = { step1: 0, step2: 0, step3: 0 };
   renderSidebarList();
   renderMainStage();
   if (triggerAuto && document.getElementById('chkAutoConsult')?.checked) {
-    consultAndSearch();
+    if (USE_PYTHON_BACKEND) {
+      executeFullFlow();
+    } else {
+      logMotor(`⚠️ Motor Python no está corriendo en :8795. No se puede auto-consultar.`, '#fcd34d');
+    }
   }
 }
 
@@ -927,9 +1313,59 @@ function nextProductInQueue() {
   if (next) selectProduct(next.id, true);
 }
 
+function nextProductWithoutPhoto() {
+  const list = ALL_PRODUCTS.filter(p => !p.has_photo);
+  if (!list.length) return;
+  const idx = list.findIndex(p => CURRENT_PRODUCT && p.id === CURRENT_PRODUCT.id);
+  const next = list[(idx + 1) % list.length];
+  if (next) selectProduct(next.id, true);
+}
+
+function renderStepperHtml() {
+  const s = CURRENT_STEP;
+  return `
+    <div class="stepper">
+      <div class="step-node ${s >= 1 ? (s > 1 ? 'completed' : 'active') : ''}">
+        <span class="step-badge">${s > 1 ? '✓' : '1'}</span>
+        <div>
+          <div>1. Interpretar Producto</div>
+          ${STEP_TIMINGS.step1 ? `<div class="step-time">${STEP_TIMINGS.step1}ms · Gemini</div>` : ''}
+        </div>
+      </div>
+      <div class="step-line ${s > 1 ? 'completed' : ''}"></div>
+      <div class="step-node ${s >= 2 ? (s > 2 ? 'completed' : 'active') : ''}">
+        <span class="step-badge">${s > 2 ? '✓' : '2'}</span>
+        <div>
+          <div>2. Buscar Packshots Web</div>
+          ${STEP_TIMINGS.step2 ? `<div class="step-time">${STEP_TIMINGS.step2}ms · Playwright Edge</div>` : ''}
+        </div>
+      </div>
+      <div class="step-line ${s > 2 ? 'completed' : ''}"></div>
+      <div class="step-node ${s >= 3 ? (s > 3 ? 'completed' : 'active') : ''}">
+        <span class="step-badge">${s > 3 ? '✓' : '3'}</span>
+        <div>
+          <div>3. Auditar con Gemini Vision</div>
+          ${STEP_TIMINGS.step3 ? `<div class="step-time">${STEP_TIMINGS.step3}ms · Juez Vision</div>` : ''}
+        </div>
+      </div>
+      <div class="step-line ${s >= 4 ? 'completed' : ''}"></div>
+      <div class="step-node ${s >= 4 ? 'completed' : ''}">
+        <span class="step-badge">${s >= 4 ? '✓' : '4'}</span>
+        <div>
+          <div>4. Aprobación Humana</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderMainStage(auditRes = null, loadingMsg = '') {
   const stage = document.getElementById('mainStage');
-  if (!CURRENT_PRODUCT) return;
+  if (!stage) return;
+  if (!CURRENT_PRODUCT) {
+    stage.innerHTML = `<div class="card"><p style="color:var(--muted)">Selecciona un producto en la lista lateral para comenzar.</p></div>`;
+    return;
+  }
   const p = CURRENT_PRODUCT;
 
   const targetCat = p.proposed_category && (p.category_name === 'SIN CATEGORÍA' || p.category_name === 'VARIOS')
@@ -959,11 +1395,15 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
           </div>
         </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <button class="btn" onclick="consultAndSearch()">🚀 Consultar IA + Buscar Fotos Exactas</button>
-          <button class="btn btn-cyan" onclick="directImageSearchOnly()">🔎 Búsqueda Rápida de Imágenes</button>
-          ${p.has_photo ? `<button class="btn btn-amber" onclick="auditSingleProductPhoto('${p.id}')">🕵️‍♂️ Auditar Foto Actual con IA</button>` : ''}
+          <button class="btn" onclick="executeFullFlow()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python en http://localhost:8795"' : ''}>
+            🚀 Ejecutar Flujo Completo (1 -> 2 -> 3)
+          </button>
+          <button class="btn btn-cyan" onclick="directImageSearchOnly()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python"' : ''}>
+            🔎 Búsqueda Rápida
+          </button>
+          ${p.has_photo ? `<button class="btn btn-amber" onclick="auditSingleProductPhoto('${p.id}')">🕵️‍♂️ Auditar Foto Actual</button>` : ''}
           ${p.has_photo ? `<button class="btn btn-red" onclick="removeWrongPhoto('${p.id}')">🗑️ Quitar Foto Incorrecta</button>` : ''}
-          <button class="btn btn-sec" onclick="nextProductInQueue()">⏭️ Siguiente</button>
+          <button class="btn btn-sec" onclick="nextProductWithoutPhoto()">⏭️ Siguiente Sin Foto</button>
         </div>
       </div>
 
@@ -973,7 +1413,7 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
         <button class="btn btn-sec" onclick="saveStageCategory()">📂 Guardar Categoría</button>
         <div style="display:flex;gap:6px;flex:1;min-width:260px">
           <input type="text" id="manualSearchBox" placeholder="Escribir búsqueda manual (ej: carpeta manila carta caja 100)..." value="${esc(p.name)}">
-          <button class="btn btn-amber" onclick="runManualQueryButton()">🔍 Buscar</button>
+          <button class="btn btn-amber" onclick="runManualQueryButton()" ${!USE_PYTHON_BACKEND ? 'disabled' : ''}>🔍 Buscar</button>
         </div>
         <label class="btn btn-cyan" style="cursor:pointer">
           📁 Subir desde PC
@@ -981,6 +1421,9 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
         </label>
       </div>
     </div>
+
+    <!-- STEPPER VISIBLE -->
+    ${renderStepperHtml()}
 
     ${loadingMsg ? `
       <div class="card" style="border-color:var(--cyan);text-align:center;padding:18px">
@@ -990,23 +1433,23 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
 
     ${p.has_photo ? `
       <div class="card">
-        <h2>🖼️ Fotografía Actualmente Asignada en el Catálogo</h2>
+        <h2>🖼️ Fotografía Asignada Actualmente en el Catálogo</h2>
         <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-          <div style="width:145px;height:145px;background:#fff;border-radius:10px;padding:8px;display:flex;align-items:center;justify-content:center">
-            <img src="${esc(p.image_url)}" style="max-width:100%;max-height:100%;object-fit:contain">
+          <div style="width:145px;height:145px;background:#fff;border-radius:10px;padding:8px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border)">
+            <img src="${esc(p.image_url)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="">
           </div>
           <div style="flex:1">
-            ${auditRes ? `
+            ${auditRes && auditRes.vision ? `
               <div style="padding:12px;border-radius:8px;background:var(--panel-alt);border:1.5px solid ${auditRes.vision.verdict === 'exact_match' ? 'var(--brand)' : 'var(--red)'}">
                 <div style="font-weight:900;font-size:14px">
-                  ${auditRes.vision.verdict === 'exact_match' ? '✅ FOTO VERIFICADA COMO CORRECTA' : '❌ FOTO INCORRECTA / SOSPECHOSA'} (${auditRes.vision.score}%)
+                  ${auditRes.vision.verdict === 'exact_match' ? '✅ FOTO VERIFICADA COMO CORRECTA' : '❌ FOTO INCORRECTA / SOSPECHOSA'} (${auditRes.vision.score || 0}%)
                 </div>
                 <p style="font-size:13px;margin-top:6px"><strong>Qué lee Gemini Vision en la foto:</strong> ${esc(auditRes.vision.what_i_see || '')}</p>
                 <p style="font-size:12.5px;color:var(--muted);margin-top:4px"><strong>Motivo:</strong> ${esc(auditRes.vision.reason || '')}</p>
               </div>
             ` : `
               <p style="font-size:13px;color:var(--muted)">
-                Pulsa <strong>"🕵️‍♂️ Auditar Foto Actual con IA"</strong> para que Gemini Vision verifique si la foto corresponde exactamente a <strong>${esc(p.name)}</strong>, o pulsa <strong>"🗑️ Quitar Foto Incorrecta"</strong>.
+                Foto publicada en el VPS. Pulsa <strong>"🕵️‍♂️ Auditar Foto Actual"</strong> para verificar con Gemini Vision o <strong>"🗑️ Quitar Foto Incorrecta"</strong> para descartarla.
               </p>
             `}
           </div>
@@ -1016,14 +1459,17 @@ function renderMainStage(auditRes = null, loadingMsg = '') {
 
     ${CURRENT_ANALYSIS ? renderConsultantCard(CURRENT_ANALYSIS) : `
       <div class="card" style="border-style:dashed">
-        <h2>🧠 Consultor IA Listo para Analizar "${esc(p.name)}"</h2>
+        <h2>🧠 Consultor IA: Análisis Pendiente para "${esc(p.name)}"</h2>
         <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
-          Pulsa <strong>"🚀 Consultar IA + Buscar Fotos Exactas"</strong> para ejecutar los 3 pasos del motor:
-          (1) Interpretar código MixNet y extraer atributos -> (2) Buscar packshots reales -> (3) Auditar cada imagen con Gemini Vision.
+          Ejecuta el flujo para que Gemini interprete abreviaturas, extraiga atributos comerciales (tipo, marca, color, medida) y busque fotografías exactas en la web mediante el navegador Playwright Edge sin bloqueos.
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn" onclick="consultAndSearch()">🚀 Ejecutar Consultor IA + Búsqueda Exacta</button>
-          <button class="btn btn-cyan" onclick="directImageSearchOnly()">🔎 Buscar Fotos Directamente sin Esperar</button>
+          <button class="btn" onclick="executeFullFlow()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python"' : ''}>
+            🚀 Ejecutar Flujo Completo (1. Interpretar -> 2. Buscar -> 3. Auditar)
+          </button>
+          <button class="btn btn-cyan" onclick="directImageSearchOnly()" ${!USE_PYTHON_BACKEND ? 'disabled title="Requiere motor Python"' : ''}>
+            🔎 Búsqueda Rápida de Imágenes
+          </button>
         </div>
       </div>
     `}
@@ -1043,16 +1489,16 @@ function renderConsultantCard(a) {
   return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <h2>🧠 Diagnóstico del Consultor IA (Lectura Exacta del Producto)</h2>
+        <h2>🧠 Paso 1: Diagnóstico del Consultor IA (Lectura Exacta)</h2>
         <span class="tag ${a.confidence >= 88 ? 'tag-ok' : 'tag-warn'}" style="font-size:12px;padding:4px 10px">
           Certeza IA: ${a.confidence || 90}%
         </span>
       </div>
       <p style="font-size:13.5px;margin-top:4px">
-        <strong>Lo que interpreta el modelo:</strong> <span style="color:#38bdf8">${esc(a.interpreted_name || '')}</span>
+        <strong>Nombre comercial interpretado:</strong> <span style="color:#38bdf8">${esc(a.interpreted_name || '')}</span>
       </p>
       <p style="font-size:11.5px;color:var(--muted);margin-top:3px">
-        <strong>Criterio enviado al Juez Gemini Vision:</strong> ${esc(a.vision_criteria || 'Packshot comercial sobre fondo blanco que coincida en tipo, marca, color y medida.')}
+        <strong>Criterio para Gemini Vision:</strong> ${esc(a.vision_criteria || 'Packshot comercial sobre fondo blanco que coincida en tipo, marca, color y medida.')}
       </p>
 
       <div class="attr-grid">
@@ -1060,14 +1506,14 @@ function renderConsultantCard(a) {
         <div class="attr-box"><span>Marca</span><strong>${esc(attrs.marca || '-')}</strong></div>
         <div class="attr-box"><span>Color</span><strong>${esc(attrs.color || '-')}</strong></div>
         <div class="attr-box"><span>Medida / Formato</span><strong>${esc(attrs.medida || '-')}</strong></div>
-        <div class="attr-box"><span>Empaque / Unidades</span><strong>${esc(attrs.empaque || '-')}</strong></div>
+        <div class="attr-box"><span>Empaque / Presentación</span><strong>${esc(attrs.empaque || '-')}</strong></div>
         <div class="attr-box"><span>Categoría Sugerida</span><strong style="color:var(--brand)">${esc(a.recommended_category || '-')}</strong></div>
       </div>
 
       <div class="consult-alert">
-        <h3>💬 ${a.needs_user_consultation ? '¡El Consultor IA te hace una pregunta para no equivocarse de foto!' : '¿Quieres corregir a la IA o especificar medida, color o presentación?'}</h3>
+        <h3>💬 ${a.needs_user_consultation ? '¡El Consultor IA requiere confirmación para evitar fotos erradas!' : '¿Quieres corregir o precisar medida, color o empaque?'}</h3>
         <p style="font-size:12px;margin-bottom:8px">
-          ${esc(a.question_for_user || 'Si este código corresponde a un modelo, color o empaque específico, díselo aquí abajo o toca una opción rápida. La IA guardará tu regla en memoria y volverá a buscar la foto exacta:')}
+          ${esc(a.question_for_user || 'Si este código requiere un modelo, color o presentación específica, pulsa una opción rápida o escribe una aclaratoria. La IA la guardará y volverá a buscar:')}
         </p>
         ${opts ? `<div class="quick-opts">${opts}</div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 240px auto;gap:8px;margin-top:8px">
@@ -1085,39 +1531,73 @@ function renderCandidatesGrid(list) {
     return `
       <div class="card">
         <h2>📸 Sin resultados para esta consulta</h2>
-        <p style="font-size:12.5px;color:var(--muted)">Escribe otra palabra clave en el buscador manual de arriba y pulsa "🔍 Buscar".</p>
+        <p style="font-size:12.5px;color:var(--muted)">Prueba con otra palabra clave en el buscador manual de arriba y pulsa "🔍 Buscar".</p>
       </div>
     `;
   }
   return `
     <div class="card">
-      <h2>📸 Fotografías Candidatas Encontradas y Auditadas por Gemini Vision (${list.length})</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h2>📸 Fotografías Candidatas Encontradas (${list.length})</h2>
+        <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="rejectAllCandidates()">
+          🚫 Ninguna sirve (Descartar y Reformular)
+        </button>
+      </div>
       <div class="candidates-grid">
         ${list.map((c, idx) => {
-          const v = c.vision || { verdict: 'pending', score: 0, what_i_see: '⏳ Auditando imagen con Gemini Vision...', reason: 'Verificando tipo, color y medida...' };
-          const bg = v.verdict === 'exact_match' ? '#10b981' : (v.verdict === 'partial_match' ? '#f59e0b' : (v.verdict === 'rejected' ? '#ef4444' : '#06b6d4'));
-          const lbl = v.verdict === 'exact_match'
-            ? `✅ EXACTA ${v.score}%`
-            : (v.verdict === 'partial_match'
-              ? `⚠️ DUDOSA ${v.score}%`
-              : (v.verdict === 'rejected' ? `❌ RECHAZADA ${v.score}%` : `⏳ AUDITANDO...`));
+          const v = c.vision;
+          let vClass = 'pending';
+          let badgeText = '⏳ AUDITANDO...';
+          let badgeBg = '#06b6d4';
+          let badgeColor = '#082f49';
+
+          if (v) {
+            if (v.status === 'failed' || v.verdict === null) {
+              vClass = 'failed';
+              badgeText = '⚠️ NO VERIFICABLE';
+              badgeBg = '#64748b';
+              badgeColor = '#ffffff';
+            } else if (v.verdict === 'exact_match') {
+              vClass = 'exact_match';
+              badgeText = `✅ EXACTA ${typeof v.score === 'number' ? v.score + '%' : ''}`;
+              badgeBg = '#10b981';
+              badgeColor = '#022c22';
+            } else if (v.verdict === 'partial_match') {
+              vClass = 'partial_match';
+              badgeText = `🟡 PARCIAL ${typeof v.score === 'number' ? v.score + '%' : ''}`;
+              badgeBg = '#f59e0b';
+              badgeColor = '#1e1b4b';
+            } else if (v.verdict === 'rejected') {
+              vClass = 'rejected';
+              badgeText = `❌ RECHAZADA ${typeof v.score === 'number' ? v.score + '%' : ''}`;
+              badgeBg = '#ef4444';
+              badgeColor = '#ffffff';
+            }
+          }
+
           const thumbUrl = c.thumb_url || c.thumbnail || c.image_url || c.url;
           return `
-            <div class="cand-card ${v.verdict}" id="candCard-${idx}">
+            <div class="cand-card ${vClass}" id="candCard-${idx}">
               <div>
                 <div class="cand-img-wrap">
-                  <img src="${esc(thumbUrl)}" alt="">
-                  <span class="cand-score" style="background:${bg};color:#022c22">${lbl}</span>
+                  <img src="${esc(thumbUrl)}" alt="" loading="lazy">
+                  <span class="cand-score" style="background:${badgeBg};color:${badgeColor}">${badgeText}</span>
+                  ${c.source ? `<span class="cand-source-badge">${esc(c.source)}</span>` : ''}
                 </div>
                 <div class="cand-body">
                   <div style="font-weight:800;color:#fff">${esc(c.title || 'Candidato Comercial')}</div>
-                  <div style="color:#cbd5e1"><strong>IA ve:</strong> ${esc(v.what_i_see || '-')}</div>
-                  <div style="color:var(--muted)">${esc(v.reason || '')}</div>
+                  <div style="color:#94a3b8;font-size:10px">${esc(c.domain || '')}</div>
+                  ${v ? `
+                    <div style="color:#cbd5e1"><strong>IA ve:</strong> ${esc(v.what_i_see || '-')}</div>
+                    <div style="color:var(--muted)">${esc(v.reason || '')}</div>
+                  ` : `
+                    <div style="color:var(--muted)">Esperando auditoría Gemini Vision...</div>
+                  `}
                 </div>
               </div>
               <div style="padding:10px;border-top:1px solid var(--border);display:flex;gap:6px">
-                <button class="btn" style="flex:1;justify-content:center" onclick="approveCandidateByIndex(${idx})">
-                  ✅ Aprobar y Guardar
+                <button class="btn" style="flex:1;justify-content:center" onclick="openApprovalModalByIndex(${idx})">
+                  ✅ Aprobar y Publicar
                 </button>
                 <button class="btn btn-sec" style="padding:6px 9px" title="Re-auditar esta imagen con Gemini Vision" onclick="auditSingleCandidateByIndex(${idx})">
                   👁️
@@ -1147,36 +1627,223 @@ function runManualQueryButton() {
   directImageSearchOnly(q);
 }
 
+function rejectAllCandidates() {
+  if (!CURRENT_PRODUCT) return;
+  logMotor(`🚫 Ninguna fotografía sirvió para "${CURRENT_PRODUCT.name}". El operador solicita reformular.`, '#fca5a5');
+  const manualBox = document.getElementById('manualSearchBox');
+  if (manualBox) {
+    manualBox.focus();
+    manualBox.select();
+  }
+  const cont = document.getElementById('candidatesContainer');
+  if (cont) {
+    cont.innerHTML = `
+      <div class="card" style="border-color:var(--amber);background:rgba(245, 158, 11, 0.08);padding:18px">
+        <h3 style="color:#fcd34d">🚫 Fotografías descartadas</h3>
+        <p style="font-size:12.5px;color:var(--muted);margin:6px 0">
+          Ninguna imagen cumplió las especificaciones para <strong>${esc(CURRENT_PRODUCT.name)}</strong>.
+          Escribe una consulta personalizada en el cuadro manual de arriba y pulsa "🔍 Buscar", o sube una foto real desde tu PC.
+        </p>
+      </div>
+    `;
+  }
+}
+
+async function executeFullFlow(userHint = '', customQuery = '') {
+  if (!CURRENT_PRODUCT) return;
+  if (!USE_PYTHON_BACKEND) {
+    alert('El motor de búsqueda Playwright Edge no está conectado. Inicia iniciar-estudio-ia.bat en la oficina.');
+    return;
+  }
+  const prod = CURRENT_PRODUCT;
+
+  // PASO 1: INTERPRETAR CON CONSULTOR GEMINI
+  CURRENT_STEP = 1;
+  renderMainStage(null, `Paso 1/4: Interpretando código MixNet con Gemini...`);
+  logMotor(`🚀 [Paso 1/4 · Interpretar] Analizando "${prod.name}" (SKU: ${prod.sku || 'S/SKU'}, Unidad: ${prod.unit})...`, '#67e8f9');
+
+  const t1Start = performance.now();
+  let analysis = null;
+  try {
+    const cRes = await fetch(`${PYTHON_API}/api/consult`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: prod.id,
+        name: prod.name,
+        sku: prod.sku,
+        category_name: prod.category_name,
+        unit: prod.unit,
+        user_hint: userHint
+      })
+    }).then(x => x.json());
+
+    if (!cRes.ok) throw new Error(cRes.error || 'Error en consultor Gemini');
+    analysis = cRes.analysis;
+    CURRENT_ANALYSIS = analysis;
+    STEP_TIMINGS.step1 = Math.round(performance.now() - t1Start);
+
+    logMotor(
+      `✅ [Paso 1 Completado en ${STEP_TIMINGS.step1}ms] -> "${analysis.interpreted_name}" (Certeza: ${analysis.confidence}%)`,
+      '#34d399'
+    );
+  } catch (err) {
+    logMotor(`❌ Error en Paso 1 (Interpretar): ${err.message}`, '#fca5a5');
+    renderMainStage(null, `Error en interpretación: ${err.message}`);
+    return;
+  }
+
+  // Si requiere consulta al usuario, pausar aquí para que el operador elija
+  if (analysis.needs_user_consultation && !userHint) {
+    CURRENT_STEP = 1;
+    renderMainStage(null, '');
+    logMotor(`💬 Pausa: El Consultor IA requiere confirmación antes de buscar fotos para evitar errores.`, '#fcd34d');
+    return;
+  }
+
+  // PASO 2: BUSCAR CANDIDATOS CON PLAYWRIGHT EDGE
+  CURRENT_STEP = 2;
+  renderMainStage(null, `Paso 2/4: Buscando packshots comerciales en Google, DuckDuckGo y Bing con Playwright Edge...`);
+  const queries = customQuery ? [customQuery] : (analysis.search_queries || [analysis.interpreted_name || prod.name]);
+  logMotor(`🔎 [Paso 2/4 · Buscar] Ejecutando queries: ${queries.join(' | ')}...`, '#67e8f9');
+
+  const t2Start = performance.now();
+  let candidates = [];
+  try {
+    // Intentar /api/search o fallback /api/search-candidates
+    let sRes = await fetch(`${PYTHON_API}/api/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: prod.name,
+        queries,
+        custom_query: customQuery,
+        limit: 20
+      })
+    }).then(x => x.json()).catch(() => null);
+
+    if (!sRes || !sRes.ok) {
+      sRes = await fetch(`${PYTHON_API}/api/search-candidates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: prod.name, queries, custom_query: customQuery })
+      }).then(x => x.json());
+    }
+
+    if (!sRes || !sRes.ok) throw new Error(sRes?.error || 'No se pudieron obtener candidatos');
+
+    candidates = (sRes.candidates || []).map(c => ({
+      ...c,
+      vision: null
+    }));
+    CURRENT_CANDIDATES = candidates;
+    STEP_TIMINGS.step2 = Math.round(performance.now() - t2Start);
+
+    const timingsText = sRes.timings
+      ? Object.entries(sRes.timings).map(([k, v]) => `${k}:${v}ms`).join(' ')
+      : `${STEP_TIMINGS.step2}ms`;
+
+    logMotor(`📸 [Paso 2 Completado en ${STEP_TIMINGS.step2}ms] ${candidates.length} fotos encontradas (${timingsText}).`, '#34d399');
+
+    if (sRes.errors && Object.keys(sRes.errors).length) {
+      logMotor(`⚠️ Advertencias por fuente: ${JSON.stringify(sRes.errors)}`, '#fcd34d');
+    }
+
+    if (!candidates.length) {
+      renderMainStage(null, '');
+      return;
+    }
+  } catch (err) {
+    logMotor(`❌ Error en Paso 2 (Buscar): ${err.message}`, '#fca5a5');
+    renderMainStage(null, `Error buscando imágenes: ${err.message}`);
+    return;
+  }
+
+  // PASO 3: AUDITAR CON GEMINI VISION
+  CURRENT_STEP = 3;
+  renderMainStage(null, `Paso 3/4: Auditando ${candidates.length} fotos con Gemini Vision en paralelo...`);
+  logMotor(`👁️ [Paso 3/4 · Vision] Evaluando coincidencia exacta de tipo, color, marca y empaque...`, '#67e8f9');
+
+  const t3Start = performance.now();
+  try {
+    // Intentar /api/vision-verify (batch)
+    let vRes = await fetch(`${PYTHON_API}/api/vision-verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: prod.name,
+        analysis,
+        candidates: candidates.map(c => ({ id: c.id, image_url: c.image_url, thumb_url: c.thumb_url }))
+      })
+    }).then(x => x.json()).catch(() => null);
+
+    if (vRes && vRes.ok && vRes.results) {
+      candidates.forEach(c => {
+        c.vision = vRes.results[c.id] || { status: 'failed', verdict: null, score: null, reason: 'Sin veredicto' };
+      });
+    } else {
+      // Fallback a auditoría progresiva con /api/vision-verify-one
+      await auditAllCandidatesProgressively();
+    }
+
+    STEP_TIMINGS.step3 = Math.round(performance.now() - t3Start);
+    CURRENT_STEP = 4;
+
+    // Ordenar candidatos: exact_match con mayor puntaje arriba, fallidos sin puntaje al final
+    CURRENT_CANDIDATES.sort((a, b) => {
+      const sa = (a.vision && a.vision.status !== 'failed' && typeof a.vision.score === 'number') ? a.vision.score : -1;
+      const sb = (b.vision && b.vision.status !== 'failed' && typeof b.vision.score === 'number') ? b.vision.score : -1;
+      return sb - sa;
+    });
+
+    logMotor(`🏁 [Paso 3 Completado en ${STEP_TIMINGS.step3}ms] Auditoría terminada. Esperando aprobación humana.`, '#34d399');
+    renderMainStage(null, '');
+  } catch (err) {
+    logMotor(`❌ Error en Paso 3 (Vision): ${err.message}`, '#fca5a5');
+    renderMainStage(null, '');
+  }
+}
+
 async function directImageSearchOnly(customQuery = '') {
   if (!CURRENT_PRODUCT) return;
+  if (!USE_PYTHON_BACKEND) {
+    alert('El motor de búsqueda requiere Python en localhost:8795.');
+    return;
+  }
   const q = customQuery || document.getElementById('manualSearchBox')?.value.trim() || CURRENT_PRODUCT.name;
-  logMotor(`🔎 [Paso Directo] Buscando imágenes comerciales para: "${q}"...`, '#67e8f9');
-  renderMainStage(null, `Buscando fotografías reales para "${q}"...`);
+  logMotor(`🔎 [Búsqueda Rápida] Buscando imágenes para: "${q}"...`, '#67e8f9');
+  renderMainStage(null, `Buscando fotografías para "${q}"...`);
+
+  CURRENT_STEP = 2;
+  const tStart = performance.now();
   try {
-    if (USE_PYTHON_BACKEND) {
-      const sRes = await fetch(`${PYTHON_API}/api/search-candidates`, {
+    let sRes = await fetch(`${PYTHON_API}/api/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: CURRENT_PRODUCT.name, custom_query: q, queries: [q], limit: 20 })
+    }).then(x => x.json()).catch(() => null);
+
+    if (!sRes || !sRes.ok) {
+      sRes = await fetch(`${PYTHON_API}/api/search-candidates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: CURRENT_PRODUCT.name, custom_query: q, queries: [q] })
       }).then(x => x.json());
-      CURRENT_CANDIDATES = (sRes.candidates || []).map(c => ({
-        ...c,
-        vision: { verdict: 'partial_match', score: 85, what_i_see: c.title || 'Packshot encontrado', reason: `Consulta: "${q}"` }
-      }));
-      logMotor(`📸 Se encontraron ${CURRENT_CANDIDATES.length} fotografías candidatas. Iniciando auditoría Gemini Vision en paralelo...`, '#34d399');
-      renderMainStage(null, '');
-      auditAllCandidatesProgressively();
-      return;
     }
 
-    const sRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`).then(x => x.json());
-    CURRENT_CANDIDATES = (sRes.results || []).slice(0, 6).map(it => ({
-      image_url: it.image || it.url,
-      thumb_url: it.thumbnail || it.image || it.url,
-      title: it.title || 'Packshot Comercial',
-      vision: { verdict: 'exact_match', score: 90, what_i_see: it.title || 'Packshot encontrado', reason: `Consulta: "${q}"` }
+    if (!sRes || !sRes.ok) throw new Error(sRes?.error || 'Sin resultados');
+
+    CURRENT_CANDIDATES = (sRes.candidates || []).map(c => ({
+      ...c,
+      vision: null
     }));
-    logMotor(`📸 Se encontraron ${CURRENT_CANDIDATES.length} fotografías candidatas.`, '#34d399');
+    STEP_TIMINGS.step2 = Math.round(performance.now() - tStart);
+    logMotor(`📸 Se encontraron ${CURRENT_CANDIDATES.length} fotos. Iniciando auditoría visual...`, '#34d399');
+    renderMainStage(null, '');
+
+    CURRENT_STEP = 3;
+    await auditAllCandidatesProgressively();
+    CURRENT_STEP = 4;
     renderMainStage(null, '');
   } catch (e) {
     logMotor(`❌ Error en búsqueda rápida: ${e.message}`, '#fca5a5');
@@ -1184,116 +1851,19 @@ async function directImageSearchOnly(customQuery = '') {
   }
 }
 
-async function consultAndSearch(userHint = '', customQuery = '') {
-  if (!CURRENT_PRODUCT) return;
-  const prod = CURRENT_PRODUCT;
-  logMotor(`🚀 [Paso 1/3 · Consultor Gemini] Analizando "${prod.name}" (SKU: ${prod.sku || 'S/SKU'}, Unidad: ${prod.unit})...`, '#67e8f9');
-  renderMainStage(null, `Paso 1/3: Analizando "${prod.name}" con Consultor Gemini...`);
-
-  try {
-    if (USE_PYTHON_BACKEND) {
-      // PASO 1: Consultor Gemini (1.2s)
-      const cRes = await fetch(`${PYTHON_API}/api/consult`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product_id: prod.id,
-          name: prod.name,
-          sku: prod.sku,
-          category_name: prod.category_name,
-          unit: prod.unit,
-          user_hint: userHint
-        })
-      }).then(x => x.json());
-      if (!cRes.ok) throw new Error(cRes.error);
-
-      CURRENT_ANALYSIS = cRes.analysis;
-      const tr = cRes.trace || {};
-      logMotor(
-        `✅ [Paso 1 Completado en ${tr.elapsed_ms || 0}ms · Key #${tr.key_index || 1} (${tr.model || 'gemini'})] -> Interpretado: "${CURRENT_ANALYSIS.interpreted_name}" (Certeza: ${CURRENT_ANALYSIS.confidence}%)`,
-        '#34d399'
-      );
-      renderMainStage(null, `Paso 2/3: Buscando fotos con queries: ${(CURRENT_ANALYSIS.search_queries || []).join(' | ')}...`);
-
-      // PASO 2: Buscar candidatos web (1.0s)
-      const queries = CURRENT_ANALYSIS.search_queries || [prod.name];
-      const sRes = await fetch(`${PYTHON_API}/api/search-candidates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: prod.name,
-          queries,
-          custom_query: customQuery
-        })
-      }).then(x => x.json());
-      if (!sRes.ok) throw new Error(sRes.error);
-
-      CURRENT_CANDIDATES = (sRes.candidates || []).map(c => ({
-        ...c,
-        vision: {
-          verdict: 'pending',
-          score: 0,
-          what_i_see: '⏳ Analizando con Gemini Vision...',
-          reason: 'Comprobando coincidencia de tipo, color, marca y medida...'
-        }
-      }));
-      logMotor(`📸 [Paso 2 Completado] ${CURRENT_CANDIDATES.length} fotos encontradas para ${(sRes.queries_executed || []).join(', ')}. Ejecutando Paso 3 (Auditoría Gemini Vision)...`, '#67e8f9');
-      renderMainStage(null, '');
-
-      // PASO 3: Auditar cada candidato con Gemini Vision de forma progresiva
-      await auditAllCandidatesProgressively();
-      return;
-    }
-
-    // Modo Web Directo
-    const sysPrompt = `Eres el Consultor y Auditor Maestro de Catálogo de Corporación JJ Paper C.A.
-Diccionario MixNet: ${JSON.stringify(TRAINING_CACHE.abbreviations || {})}
-Reglas aprendidas: ${JSON.stringify((TRAINING_CACHE.learned_corrections || []).slice(-15))}
-Si el nombre del producto es ambiguo en medida, color o tipo, pon needs_user_consultation:true y formula una pregunta clara en question_for_user con 2 o 3 opciones en quick_options.`;
-
-    const prompt = `Analiza el producto "${prod.name}" (SKU: ${prod.sku || ''}, Unidad: ${prod.unit}, Categoría actual: ${prod.category_name}).
-${userHint ? 'Aclaratoria directa del usuario: ' + userHint : ''}
-Responde SOLO en JSON:
-{"interpreted_name":"nombre comercial claro","confidence":90,"needs_user_consultation":false,"question_for_user":"pregunta si hay duda","quick_options":["Opción 1","Opción 2"],"recommended_category":"CATEGORIA OFICIAL","attributes":{"tipo":"...","marca":"...","color":"...","medida":"...","empaque":"..."},"search_queries":["consulta especifica 1","consulta 2"],"vision_criteria":"que debe verse en la foto"}`;
-
-    const raw = await GeminiClient.callGemini({ prompt, systemInstruction: sysPrompt, temperature: 0.1 });
-    const clean = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
-    CURRENT_ANALYSIS = JSON.parse(clean);
-    logMotor(`✅ [Paso 1 Completado] Interpretado: "${CURRENT_ANALYSIS.interpreted_name}" (${CURRENT_ANALYSIS.confidence}%)`, '#34d399');
-
-    const searchQ = customQuery || (CURRENT_ANALYSIS.search_queries || [])[0] || prod.name;
-    const sRes = await fetch(`/api/search-images?q=${encodeURIComponent(searchQ)}`).then(x => x.json());
-    const rawItems = (sRes.results || []).slice(0, 6);
-
-    CURRENT_CANDIDATES = rawItems.map(it => ({
-      image_url: it.image || it.url,
-      thumb_url: it.thumbnail || it.image || it.url,
-      title: it.title || '',
-      vision: {
-        verdict: 'exact_match',
-        score: 92,
-        what_i_see: it.title || 'Packshot comercial encontrado',
-        reason: `Búsqueda exacta: "${searchQ}"`
-      }
-    }));
-    logMotor(`📸 [Paso 2 Completado] ${CURRENT_CANDIDATES.length} fotos encontradas para "${searchQ}".`, '#34d399');
-    renderMainStage(null, '');
-  } catch (e) {
-    logMotor(`❌ Error en Consultor IA: ${e.message}`, '#fca5a5');
-    renderMainStage(null, '');
-  }
-}
-
 async function auditAllCandidatesProgressively() {
   if (!USE_PYTHON_BACKEND || !CURRENT_PRODUCT || !CURRENT_CANDIDATES.length) return;
   const prodId = CURRENT_PRODUCT.id;
-  const tasks = CURRENT_CANDIDATES.slice(0, 4).map((_, idx) => auditSingleCandidateByIndex(idx, prodId));
+  const tasks = CURRENT_CANDIDATES.slice(0, 6).map((_, idx) => auditSingleCandidateByIndex(idx, prodId));
   await Promise.allSettled(tasks);
   if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === prodId) {
-    CURRENT_CANDIDATES.sort((a, b) => (b.vision?.score || 0) - (a.vision?.score || 0));
+    CURRENT_CANDIDATES.sort((a, b) => {
+      const sa = (a.vision && a.vision.status !== 'failed' && typeof a.vision.score === 'number') ? a.vision.score : -1;
+      const sb = (b.vision && b.vision.status !== 'failed' && typeof b.vision.score === 'number') ? b.vision.score : -1;
+      return sb - sa;
+    });
     const container = document.getElementById('candidatesContainer');
     if (container) container.innerHTML = renderCandidatesGrid(CURRENT_CANDIDATES);
-    logMotor(`🏁 [Paso 3/3 Completado] Auditoría visual de candidatos terminada y ordenada por puntaje.`, '#34d399');
   }
 }
 
@@ -1314,21 +1884,25 @@ async function auditSingleCandidateByIndex(idx, expectedProdId = null) {
           thumb_url: cand.thumb_url
         })
       }).then(x => x.json());
-      if (r.ok && r.vision) {
+
+      if (r && r.ok && r.vision) {
         cand.vision = r.vision;
         const tr = r.trace || {};
+        const scoreTxt = typeof r.vision.score === 'number' ? `(${r.vision.score}%)` : '';
         logMotor(
-          `👁️ [Gemini Vision · Foto #${idx + 1} · Key #${tr.key_index || 1}] ${r.vision.verdict.toUpperCase()} (${r.vision.score}%): ${r.vision.what_i_see || ''}`,
+          `👁️ [Gemini Vision · Foto #${idx + 1}] ${String(r.vision.verdict || 'VERIFICADO').toUpperCase()} ${scoreTxt}: ${r.vision.what_i_see || ''}`,
           r.vision.verdict === 'exact_match' ? '#34d399' : (r.vision.verdict === 'partial_match' ? '#fcd34d' : '#fca5a5')
         );
+      } else {
+        cand.vision = { status: 'failed', verdict: null, score: null, reason: r?.error || 'Fallo de verificación' };
       }
     }
   } catch (e) {
     cand.vision = {
-      verdict: 'partial_match',
-      score: 70,
-      what_i_see: cand.title || 'Packshot comercial',
-      reason: 'Verificada por título comercial'
+      status: 'failed',
+      verdict: null,
+      score: null,
+      reason: 'Error al contactar motor Vision: ' + e.message
     };
   }
   const container = document.getElementById('candidatesContainer');
@@ -1341,14 +1915,15 @@ async function teachAndResearch() {
   const q = document.getElementById('inpQuery')?.value || '';
   const cat = document.getElementById('selCatStage')?.value || '';
 
-  logMotor(`🎓 Aprendiendo regla del usuario para "${CURRENT_PRODUCT.name}": "${hint}" (Query: "${q}")`, '#fcd34d');
+  logMotor(`🎓 Aprendiendo regla para "${CURRENT_PRODUCT.name}": "${hint}" (Query: "${q}")`, '#fcd34d');
 
   TRAINING_CACHE.learned_corrections = TRAINING_CACHE.learned_corrections || [];
   TRAINING_CACHE.learned_corrections.push({
     raw_name: CURRENT_PRODUCT.name,
     user_clarification: hint,
     category: cat,
-    search_query: q
+    search_query: q,
+    learned_at: new Date().toISOString()
   });
   updateGlobalCounters();
 
@@ -1365,40 +1940,103 @@ async function teachAndResearch() {
       })
     }).catch(() => {});
   }
-  await consultAndSearch(hint, q);
+  await executeFullFlow(hint, q);
 }
 
-async function approveCandidateByIndex(idx) {
+/* ==========================================================================
+   MODAL DE APROBACIÓN DE FOTO INDIVIDUAL
+   ========================================================================== */
+function openApprovalModalByIndex(idx) {
   const cand = CURRENT_CANDIDATES[idx];
-  if (!cand) return;
-  const imgUrl = cand.image_url || cand.url || cand.thumb_url;
-  await approvePhoto(imgUrl);
+  if (!cand || !CURRENT_PRODUCT) return;
+  PENDING_APPROVAL_CANDIDATE = cand;
+
+  const modal = document.getElementById('approvalModal');
+  const previewImg = document.getElementById('modalPreviewImg');
+  const skuLine = document.getElementById('modalSkuLine');
+  const prodName = document.getElementById('modalProdName');
+  const catSel = document.getElementById('modalCatSel');
+  const visionSummary = document.getElementById('modalVisionSummary');
+
+  const p = CURRENT_PRODUCT;
+  const imgUrl = cand.image_url || cand.thumb_url;
+
+  previewImg.src = imgUrl;
+  skuLine.textContent = `SKU: ${p.sku || 'S/SKU'} · UNIDAD: ${p.unit} · PRECIO: $${Number(p.price_usd || 0).toFixed(2)}`;
+  prodName.textContent = p.name;
+
+  const targetCat = CURRENT_ANALYSIS?.recommended_category || p.category_name;
+  catSel.innerHTML = CATEGORIES.map(c =>
+    `<option value="${esc(c.name)}" ${targetCat === c.name ? 'selected' : ''}>${esc(c.name)}</option>`
+  ).join('');
+
+  const v = cand.vision;
+  if (v && v.status !== 'failed' && v.verdict) {
+    visionSummary.innerHTML = `
+      <div><strong>Veredicto Vision:</strong> <span style="color:#34d399">${esc(v.verdict.toUpperCase())} (${v.score || 0}%)</span></div>
+      <div style="margin-top:2px"><strong>Lo que ve la IA:</strong> ${esc(v.what_i_see || '-')}</div>
+      <div style="margin-top:2px"><strong>Motivo:</strong> ${esc(v.reason || '-')}</div>
+    `;
+  } else {
+    visionSummary.innerHTML = `<div><strong>Fuente:</strong> ${esc(cand.source || 'Web')} (${esc(cand.domain || '')})</div>`;
+  }
+
+  modal.style.display = 'flex';
 }
 
-async function approvePhoto(imgUrl) {
+function closeApprovalModal() {
+  const modal = document.getElementById('approvalModal');
+  if (modal) modal.style.display = 'none';
+  PENDING_APPROVAL_CANDIDATE = null;
+}
+
+async function confirmModalApproval() {
+  if (!PENDING_APPROVAL_CANDIDATE || !CURRENT_PRODUCT) return;
+  const cand = PENDING_APPROVAL_CANDIDATE;
+  const catName = document.getElementById('modalCatSel')?.value || CURRENT_PRODUCT.category_name;
+  const imgUrl = cand.image_url || cand.thumb_url;
+
+  closeApprovalModal();
+  await approvePhoto(imgUrl, catName, cand.vision);
+}
+
+async function approvePhoto(imgUrl, catName = '', vision = null) {
   if (!CURRENT_PRODUCT || !imgUrl) return;
-  const catName = CURRENT_ANALYSIS?.recommended_category || document.getElementById('selCatStage')?.value || '';
-  logMotor(`💾 Convirtiendo imagen a WebP (800px) y subiendo al VPS Soberano para "${CURRENT_PRODUCT.name}"...`, '#67e8f9');
-  renderMainStage(null, 'Convirtiendo a WebP (800px) y guardando en el servidor VPS Soberano...');
+  const p = CURRENT_PRODUCT;
+  const finalCat = catName || document.getElementById('selCatStage')?.value || p.category_name;
+
+  logMotor(`💾 Convirtiendo a WebP (800px) y publicando en el VPS Soberano para "${p.name}"...`, '#67e8f9');
+  renderMainStage(null, 'Convirtiendo imagen a WebP y guardando en VPS Soberano...');
+
   try {
     if (USE_PYTHON_BACKEND) {
       const r = await fetch(`${PYTHON_API}/api/approve-photo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: CURRENT_PRODUCT.id, image_url: imgUrl, category_name: catName })
+        body: JSON.stringify({
+          product_id: p.id,
+          image_url: imgUrl,
+          category_name: finalCat,
+          vision: vision
+        })
       }).then(x => x.json());
-      if (!r.ok) throw new Error(r.error);
-      CURRENT_PRODUCT.image_url = r.public_url;
-      CURRENT_PRODUCT.has_photo = true;
-      CURRENT_PRODUCT.audit_verdict = 'ok';
-      logMotor(`✅ Foto guardada exitosamente en VPS: ${r.public_url}`, '#34d399');
+
+      if (!r.ok) throw new Error(r.error || 'Error en servidor Python');
+
+      p.image_url = r.public_url;
+      p.has_photo = true;
+      p.audit_verdict = 'ok';
+      if (finalCat) p.category_name = finalCat;
+
+      logMotor(`✅ Foto publicada exitosamente en VPS: ${r.public_url}`, '#34d399');
       updateGlobalCounters();
       renderSidebarList();
       renderAuditGallery();
-      nextProductInQueue();
+      nextProductWithoutPhoto();
       return;
     }
 
+    // Modo directo (upload manual desde PC / cámara)
     const proxyUrl = imgUrl.startsWith('data:') ? imgUrl : `/api/search-images?proxy_url=${encodeURIComponent(imgUrl)}`;
     const blob = await fetch(proxyUrl).then(x => x.blob());
     const bmp = await createImageBitmap(blob);
@@ -1411,21 +2049,22 @@ async function approvePhoto(imgUrl) {
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
     const webpBlob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.82));
-    const path = `${CURRENT_PRODUCT.id}.webp`;
+    const path = `${p.id}.webp`;
     await sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
     const pubUrl = `${SUPABASE_URL}/storage/v1/object/public/jjp-products/${path}?t=${Date.now()}`;
-    await sb.from('jjp_products').update({ image_url: pubUrl }).eq('id', CURRENT_PRODUCT.id);
-    CURRENT_PRODUCT.image_url = pubUrl;
-    CURRENT_PRODUCT.has_photo = true;
-    CURRENT_PRODUCT.audit_verdict = 'ok';
-    logMotor(`✅ Foto guardada en VPS: ${pubUrl}`, '#34d399');
+    await sb.from('jjp_products').update({ image_url: pubUrl }).eq('id', p.id);
+
+    p.image_url = pubUrl;
+    p.has_photo = true;
+    p.audit_verdict = 'ok';
+    logMotor(`✅ Foto publicada en VPS: ${pubUrl}`, '#34d399');
     updateGlobalCounters();
     renderSidebarList();
     renderAuditGallery();
-    nextProductInQueue();
+    nextProductWithoutPhoto();
   } catch (e) {
     logMotor(`❌ Error guardando foto: ${e.message}`, '#fca5a5');
-    alert('Error guardando foto: ' + e.message);
+    alert('Error al publicar foto: ' + e.message);
     renderMainStage();
   }
 }
@@ -1434,41 +2073,372 @@ function uploadFromPc(ev) {
   const f = ev.target.files?.[0];
   if (!f) return;
   const reader = new FileReader();
-  reader.onload = () => approvePhoto(reader.result);
+  reader.onload = () => {
+    approvePhoto(reader.result);
+  };
   reader.readAsDataURL(f);
 }
 
-async function toggleAutoPilot() {
-  const btn = document.getElementById('btnAutoPilot');
-  if (AUTO_PILOT_ACTIVE) {
-    AUTO_PILOT_ACTIVE = false;
-    btn.textContent = '🤖 Iniciar Piloto Automático (Cola IA)';
-    logMotor('⏹️ Piloto automático detenido por el usuario.', '#fcd34d');
+/* ==========================================================================
+   PESTAÑA 2: COLA DE APROBACIÓN & MODO LOTE
+   ========================================================================== */
+async function startBatchJob() {
+  if (!USE_PYTHON_BACKEND) {
+    alert('El procesamiento por lote requiere el motor Python en localhost:8795.');
     return;
   }
-  AUTO_PILOT_ACTIVE = true;
-  btn.textContent = '⏹️ Detener Piloto Automático';
-  logMotor('🤖 Iniciando Piloto Automático sobre la cola filtrada...', '#34d399');
-  const queue = getSidebarFiltered();
-  for (const prod of queue) {
-    if (!AUTO_PILOT_ACTIVE) break;
-    selectProduct(prod.id, false);
-    await consultAndSearch();
-    const minConf = parseInt(document.getElementById('paramConf')?.value || '88', 10);
-    if (CURRENT_ANALYSIS && (CURRENT_ANALYSIS.needs_user_consultation || CURRENT_ANALYSIS.confidence < minConf)) {
-      AUTO_PILOT_ACTIVE = false;
-      btn.textContent = '🤖 Iniciar Piloto Automático (Cola IA)';
-      logMotor(`💬 Pausa en "${prod.name}": El Consultor IA requiere tu confirmación antes de asignar imagen.`, '#fcd34d');
-      break;
-    }
-    await new Promise(r => setTimeout(r, 1200));
+  const filter = document.getElementById('batchFilterSel')?.value || 'sin_foto';
+  const limit = parseInt(document.getElementById('batchLimitSel')?.value || '25', 10);
+  const minScore = parseInt(document.getElementById('batchMinScoreSel')?.value || '85', 10);
+  const categoryId = filter === 'by_cat' ? document.getElementById('batchCatSel')?.value : null;
+
+  try {
+    const res = await fetch(`${PYTHON_API}/api/batch/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filter,
+        limit,
+        min_score: minScore,
+        category_id: categoryId
+      })
+    }).then(x => x.json());
+
+    if (!res.ok) throw new Error(res.error || 'Error iniciando lote');
+
+    BATCH_JOB_ID = res.job_id;
+    logMotor(`🚀 Trabajo por lote iniciado (Job ID: ${BATCH_JOB_ID}). Procesando hasta ${limit} productos...`, '#34d399');
+
+    document.getElementById('btnStartBatch').style.display = 'none';
+    document.getElementById('btnStopBatch').style.display = 'inline-flex';
+    document.getElementById('batchProgressCard').style.display = 'block';
+
+    if (BATCH_POLL_TIMER) clearInterval(BATCH_POLL_TIMER);
+    BATCH_POLL_TIMER = setInterval(pollBatchStatus, 3000);
+    pollBatchStatus();
+  } catch (e) {
+    logMotor(`❌ Error iniciando lote: ${e.message}`, '#fca5a5');
+    alert('No se pudo iniciar el lote: ' + e.message);
   }
-  AUTO_PILOT_ACTIVE = false;
-  btn.textContent = '🤖 Iniciar Piloto Automático (Cola IA)';
 }
 
+async function stopBatchJob() {
+  if (!BATCH_JOB_ID) return;
+  try {
+    await fetch(`${PYTHON_API}/api/batch/stop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: BATCH_JOB_ID })
+    });
+    logMotor('⏹️ Detención de lote solicitada.', '#fcd34d');
+    if (BATCH_POLL_TIMER) clearInterval(BATCH_POLL_TIMER);
+    document.getElementById('btnStartBatch').style.display = 'inline-flex';
+    document.getElementById('btnStopBatch').style.display = 'none';
+    document.getElementById('batchStateLabel').textContent = '⏹️ LOTE DETENIDO';
+    loadReviewQueue();
+  } catch (e) {
+    logMotor(`⚠️ Error al detener lote: ${e.message}`, '#fca5a5');
+  }
+}
+
+async function pollBatchStatus() {
+  if (!BATCH_JOB_ID || !USE_PYTHON_BACKEND) return;
+  try {
+    const res = await fetch(`${PYTHON_API}/api/batch/status?job_id=${encodeURIComponent(BATCH_JOB_ID)}`).then(x => x.json());
+    if (res && res.ok) {
+      const { state, processed, total, proposals, errors } = res;
+      const pct = total > 0 ? Math.round((processed / total) * 100) : 0;
+
+      document.getElementById('batchProgressBar').style.width = `${pct}%`;
+      document.getElementById('batchProgressText').textContent = `${processed} / ${total} (${pct}%)`;
+      document.getElementById('batchProposalsCount').textContent = proposals || 0;
+      document.getElementById('batchErrorsCount').textContent = errors || 0;
+      document.getElementById('batchStateLabel').textContent =
+        state === 'running' ? '⏳ PROCESANDO LOTE...' : (state === 'done' ? '✅ LOTE COMPLETADO' : '⏹️ LOTE EN PAUSA');
+
+      if (state === 'done') {
+        if (BATCH_POLL_TIMER) clearInterval(BATCH_POLL_TIMER);
+        document.getElementById('btnStartBatch').style.display = 'inline-flex';
+        document.getElementById('btnStopBatch').style.display = 'none';
+        logMotor(`🏁 Trabajo por lote finalizado. Se encontraron ${proposals || 0} propuestas para revisión.`, '#34d399');
+        loadReviewQueue();
+      } else {
+        loadReviewQueue();
+      }
+    }
+  } catch (e) {
+    // Silencioso en poll
+  }
+}
+
+async function loadReviewQueue() {
+  if (!USE_PYTHON_BACKEND) {
+    renderReviewQueue();
+    return;
+  }
+  try {
+    const res = await fetch(`${PYTHON_API}/api/review-queue`).then(x => x.json());
+    if (res && res.ok) {
+      REVIEW_QUEUE = res.items || [];
+      if (QUEUE_INDEX >= REVIEW_QUEUE.length) QUEUE_INDEX = Math.max(0, REVIEW_QUEUE.length - 1);
+      updateQueueBadge();
+      renderReviewQueue();
+    }
+  } catch (e) {
+    logMotor(`⚠️ Error cargando cola de revisión: ${e.message}`, '#fcd34d');
+  }
+}
+
+function renderReviewQueue() {
+  const container = document.getElementById('queueCardContainer');
+  if (!container) return;
+
+  if (!USE_PYTHON_BACKEND) {
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:32px">
+        <h3 style="color:#fca5a5">⚠️ Motor Python Apagado</h3>
+        <p style="color:var(--muted);font-size:13px;margin:8px 0">
+          La cola de aprobación se gestiona en <code>tools/ai-catalog-studio/data/review_queue.json</code> mediante el servidor Python local.
+          Ejecuta <code>iniciar-estudio-ia.bat</code> en la oficina para cargar y procesar propuestas.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  if (!REVIEW_QUEUE.length) {
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:36px;border-style:dashed">
+        <h3 style="color:#34d399">🎉 ¡Cola de Aprobación Vacía!</h3>
+        <p style="color:var(--muted);font-size:13px;margin:8px 0">
+          No hay propuestas pendientes de revisión en este momento.
+          Inicia un trabajo por lote arriba o busca productos individualmente en la pestaña <strong>"1. Búsqueda Exacta"</strong>.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  const item = REVIEW_QUEUE[QUEUE_INDEX] || REVIEW_QUEUE[0];
+  const prod = ALL_PRODUCTS.find(p => p.id === item.product_id) || {
+    name: item.name || 'Producto',
+    sku: item.sku || 'S/SKU',
+    unit: 'UND',
+    category_name: 'GENERAL',
+    price_usd: 0
+  };
+
+  const selectedCand = item.selectedCandidate || item.best || (item.alternatives && item.alternatives[0]) || {};
+  const v = selectedCand.vision || {};
+  const scoreTxt = typeof v.score === 'number' ? `${v.score}%` : '';
+
+  const alts = [item.best, ...(item.alternatives || [])].filter(Boolean);
+  // Eliminar duplicados por image_url
+  const uniqueAlts = [];
+  const seenUrls = new Set();
+  alts.forEach(a => {
+    const u = a.image_url || a.thumb_url;
+    if (u && !seenUrls.has(u)) {
+      seenUrls.add(u);
+      uniqueAlts.push(a);
+    }
+  });
+
+  const altsHtml = uniqueAlts.map((alt, idx) => {
+    const isCur = (alt.image_url || alt.thumb_url) === (selectedCand.image_url || selectedCand.thumb_url);
+    const thumbUrl = alt.thumb_url || alt.image_url;
+    return `
+      <div class="queue-alt-box ${isCur ? 'active' : ''}" onclick="selectQueueAlternative(${idx})" title="Alternativa #${idx + 1} (${alt.vision?.score || 0}%)">
+        <span class="queue-alt-num">${idx + 1}</span>
+        <img src="${esc(thumbUrl)}" alt="">
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="queue-card-layout">
+      <!-- FOTO PRINCIPAL Y MINIATURAS DE ALTERNATIVAS -->
+      <div>
+        <div class="queue-main-photo-wrap">
+          <img src="${esc(selectedCand.image_url || selectedCand.thumb_url)}" alt="">
+          <span class="cand-score" style="background:#10b981;color:#022c22">
+            ✅ MATCH ${scoreTxt}
+          </span>
+          ${selectedCand.source ? `<span class="cand-source-badge">${esc(selectedCand.source)}</span>` : ''}
+        </div>
+        ${uniqueAlts.length > 1 ? `
+          <div style="margin-top:8px;font-size:11px;color:var(--muted)">Alternativas encontradas (pulsa 1, 2 o 3 para elegir):</div>
+          <div class="queue-alts-grid">${altsHtml}</div>
+        ` : ''}
+      </div>
+
+      <!-- DETALLES DEL PRODUCTO Y ACCIONES -->
+      <div style="display:flex;flex-direction:column;justify-content:space-between;gap:12px">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--cyan);font-weight:800">
+              SKU: ${esc(prod.sku || 'S/SKU')} · UNIDAD: ${esc(prod.unit)} · PRECIO: $${Number(prod.price_usd || 0).toFixed(2)}
+            </span>
+            <span class="tag tag-info">Item ${QUEUE_INDEX + 1} de ${REVIEW_QUEUE.length}</span>
+          </div>
+
+          <h2 style="font-size:19px;color:#fff">${esc(prod.name)}</h2>
+
+          ${item.analysis?.interpreted_name ? `
+            <div style="font-size:13px;color:#38bdf8;margin-top:3px">
+              <strong>Interpretado por IA:</strong> ${esc(item.analysis.interpreted_name)}
+            </div>
+          ` : ''}
+
+          <div style="margin-top:10px;padding:12px;background:var(--panel-alt);border-radius:8px;border:1px solid var(--border);font-size:12px;display:flex;flex-direction:column;gap:5px">
+            <div><strong>Título comercial:</strong> ${esc(selectedCand.title || 'Foto de producto')}</div>
+            <div><strong>Dominio / Origen:</strong> <span style="color:#67e8f9">${esc(selectedCand.domain || selectedCand.page_url || '-')}</span></div>
+            ${v.what_i_see ? `<div><strong>Qué lee Gemini Vision:</strong> ${esc(v.what_i_see)}</div>` : ''}
+            ${v.reason ? `<div style="color:var(--muted)"><strong>Motivo:</strong> ${esc(v.reason)}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid var(--border)">
+          <button class="btn" style="flex:1;padding:10px 14px;font-size:13px;justify-content:center" onclick="approveCurrentQueueItem()" aria-label="Aprobar fotografía actual">
+            <kbd style="color:#022c22;background:#34d399;border-color:#059669">A</kbd> ✅ Aprobar y Publicar
+          </button>
+          <button class="btn btn-red" style="padding:10px 14px;font-size:13px" onclick="rejectCurrentQueueItem()" aria-label="Rechazar propuesta">
+            <kbd style="color:#fff;background:#991b1b;border-color:#b91c1c">R</kbd> ❌ Rechazar
+          </button>
+          <button class="btn btn-sec" style="padding:10px 14px;font-size:13px" onclick="skipCurrentQueueItem()" aria-label="Saltar al siguiente">
+            <kbd>S</kbd> ⏭️ Saltar
+          </button>
+          <button class="btn btn-cyan" style="padding:10px 14px;font-size:13px" onclick="openQueueItemInSearch()" title="Abrir en editor individual">
+            🔍 Editar
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectQueueAlternative(altIdx) {
+  const item = REVIEW_QUEUE[QUEUE_INDEX];
+  if (!item) return;
+  const alts = [item.best, ...(item.alternatives || [])].filter(Boolean);
+  if (alts[altIdx]) {
+    item.selectedCandidate = alts[altIdx];
+    renderReviewQueue();
+  }
+}
+
+async function approveCurrentQueueItem() {
+  const item = REVIEW_QUEUE[QUEUE_INDEX];
+  if (!item || !USE_PYTHON_BACKEND) return;
+  const selectedCand = item.selectedCandidate || item.best || {};
+  const imgUrl = selectedCand.image_url || selectedCand.thumb_url;
+
+  try {
+    const res = await fetch(`${PYTHON_API}/api/review-queue/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: item.product_id,
+        action: 'approve',
+        image_url: imgUrl
+      })
+    }).then(x => x.json());
+
+    if (!res.ok) throw new Error(res.error || 'Error al aprobar');
+
+    const p = ALL_PRODUCTS.find(x => x.id === item.product_id);
+    if (p) {
+      p.has_photo = true;
+      p.image_url = res.public_url || imgUrl;
+      p.audit_verdict = 'ok';
+    }
+
+    logMotor(`✅ Propuesta aprobada y publicada para "${item.name}".`, '#34d399');
+    REVIEW_QUEUE.splice(QUEUE_INDEX, 1);
+    if (QUEUE_INDEX >= REVIEW_QUEUE.length) QUEUE_INDEX = Math.max(0, REVIEW_QUEUE.length - 1);
+    updateGlobalCounters();
+    updateQueueBadge();
+    renderSidebarList();
+    renderReviewQueue();
+  } catch (e) {
+    logMotor(`❌ Error al aprobar propuesta: ${e.message}`, '#fca5a5');
+    alert('Error al aprobar: ' + e.message);
+  }
+}
+
+async function rejectCurrentQueueItem() {
+  const item = REVIEW_QUEUE[QUEUE_INDEX];
+  if (!item || !USE_PYTHON_BACKEND) return;
+  try {
+    await fetch(`${PYTHON_API}/api/review-queue/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: item.product_id, action: 'reject' })
+    });
+    logMotor(`❌ Propuesta rechazada para "${item.name}".`, '#fca5a5');
+    REVIEW_QUEUE.splice(QUEUE_INDEX, 1);
+    if (QUEUE_INDEX >= REVIEW_QUEUE.length) QUEUE_INDEX = Math.max(0, REVIEW_QUEUE.length - 1);
+    updateQueueBadge();
+    renderReviewQueue();
+  } catch (e) {
+    logMotor(`⚠️ Error al rechazar: ${e.message}`, '#fca5a5');
+  }
+}
+
+function skipCurrentQueueItem() {
+  if (!REVIEW_QUEUE.length) return;
+  QUEUE_INDEX = (QUEUE_INDEX + 1) % REVIEW_QUEUE.length;
+  renderReviewQueue();
+}
+
+function prevQueueItem() {
+  if (!REVIEW_QUEUE.length) return;
+  QUEUE_INDEX = (QUEUE_INDEX - 1 + REVIEW_QUEUE.length) % REVIEW_QUEUE.length;
+  renderReviewQueue();
+}
+
+function openQueueItemInSearch() {
+  const item = REVIEW_QUEUE[QUEUE_INDEX];
+  if (!item) return;
+  switchTab('search');
+  selectProduct(item.product_id, true);
+}
+
+// ATAJOS DE TECLADO PARA LA COLA DE APROBACIÓN
+window.addEventListener('keydown', (e) => {
+  const queuePane = document.getElementById('pane-queue');
+  if (!queuePane || !queuePane.classList.contains('active')) return;
+
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  const key = e.key.toUpperCase();
+  if (key === 'A') {
+    e.preventDefault();
+    approveCurrentQueueItem();
+  } else if (key === 'R') {
+    e.preventDefault();
+    rejectCurrentQueueItem();
+  } else if (key === 'S') {
+    e.preventDefault();
+    skipCurrentQueueItem();
+  } else if (key === '1') {
+    selectQueueAlternative(0);
+  } else if (key === '2') {
+    selectQueueAlternative(1);
+  } else if (key === '3') {
+    selectQueueAlternative(2);
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    skipCurrentQueueItem();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    prevQueueItem();
+  }
+});
+
 /* ==========================================================================
-   PESTAÑA 2: GALERÍA DE AUDITORÍA VISUAL DE FOTOS EXISTENTES
+   PESTAÑA 3: GALERÍA DE AUDITORÍA VISUAL DE FOTOS EXISTENTES
    ========================================================================== */
 function getAuditFiltered() {
   const q = (document.getElementById('auditSearchInp')?.value || '').trim().toLowerCase();
@@ -1573,10 +2543,10 @@ async function auditSingleProductPhoto(id) {
           image_url: p.image_url
         })
       }).then(x => x.json());
-      if (!r.ok) throw new Error(r.error);
+      if (!r.ok) throw new Error(r.error || 'Error en auditoría');
       p.audit_verdict = r.db_verdict;
-      p.audit_reason = `${r.vision.what_i_see || ''} — ${r.vision.reason || ''}`;
-      logMotor(`👁️ Veredicto para "${p.name}": ${r.db_verdict.toUpperCase()} (${r.vision.score}%) — ${r.vision.what_i_see}`, r.db_verdict === 'ok' ? '#34d399' : '#fca5a5');
+      p.audit_reason = `${r.vision?.what_i_see || ''} — ${r.vision?.reason || ''}`;
+      logMotor(`👁️ Veredicto para "${p.name}": ${String(r.db_verdict).toUpperCase()} (${r.vision?.score || 0}%) — ${r.vision?.what_i_see || ''}`, r.db_verdict === 'ok' ? '#34d399' : '#fca5a5');
       renderAuditGallery();
       if (CURRENT_PRODUCT && CURRENT_PRODUCT.id === p.id) {
         CURRENT_ANALYSIS = r.analysis;
@@ -1647,7 +2617,7 @@ async function removeWrongPhoto(id, jumpToSearch = false) {
 }
 
 /* ==========================================================================
-   PESTAÑA 3: REORGANIZADOR INTELIGENTE DE CATEGORÍAS
+   PESTAÑA 4: REORGANIZADOR INTELIGENTE DE CATEGORÍAS
    ========================================================================== */
 function getCatFiltered() {
   const q = (document.getElementById('catSearchInp')?.value || '').trim().toLowerCase();
@@ -1768,7 +2738,7 @@ async function applyAllSuggestedCategories() {
 }
 
 /* ==========================================================================
-   PESTAÑA 4: ENTRENAMIENTO DEL MODELO IA & POOL DE API KEYS
+   PESTAÑA 5: ENTRENAMIENTO DEL MODELO IA & POOL DE API KEYS
    ========================================================================== */
 function renderTrainingTab() {
   const area = document.getElementById('trainingCorpusArea');
@@ -1846,6 +2816,7 @@ function esc(s) {
   return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 }
 
+// Inicializar la interfaz al cargar
 init();
 </script>
 </body>

@@ -30,7 +30,7 @@ import {
   getSystemHealthAndStats, executeOptimization, recordLiveRequest,
   addMonitorSseClient, removeMonitorSseClient
 } from './monitor.js';
-import { searchProductImagesOnWeb, saveProductImageToStorage } from './product-images.js';
+import { searchProductImagesOnWeb, searchProductVerifyOnWeb, saveProductImageToStorage } from './product-images.js';
 import { getMixerStatus, sweepMixnetProducts, getNextControlSerial } from './mixer.js';
 
 // La cámara del teléfono SOLO funciona en HTTPS o en localhost. Por eso el
@@ -860,6 +860,26 @@ p{color:#9fc7b3;font-size:14px;line-height:1.5;margin:0 0 20px}
     if (route === '/lan/mixnet/sync-now') {
       sweepMixnetProducts().catch(() => {});
       return sendJSON(res, 200, { ok: true, message: 'Sincronización manual de productos y catálogo MixNet iniciada en segundo plano con Dirty Check.' });
+    }
+
+    if (route === '/lan/products/search-verify') {
+      try {
+        let payload = {};
+        if (method === 'POST') {
+          payload = await readBody(req);
+        } else {
+          const parsedUrl = new URL(url, `http://${req.headers.host || 'localhost'}`);
+          payload = {
+            name: parsedUrl.searchParams.get('q') || parsedUrl.searchParams.get('name') || '',
+            product_id: parsedUrl.searchParams.get('product_id') || null
+          };
+        }
+        const verifyData = await searchProductVerifyOnWeb(payload);
+        return sendJSON(res, 200, verifyData);
+      } catch (e) {
+        log.warn({ err: e.message }, 'Error en /lan/products/search-verify');
+        return sendJSON(res, 502, { ok: false, error: e.message });
+      }
     }
 
     if (route === '/lan/products/search-images') {

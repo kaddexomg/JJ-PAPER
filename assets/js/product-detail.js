@@ -1055,63 +1055,243 @@ async function sellerSubirFotoCamara(input) {
   }
 }
 
+function normalizeMixNetSearchTerm(raw) {
+  let s = String(raw || '').toUpperCase().trim();
+  const map = {
+    'ACRILCA': 'ACRILICA',
+    'ACRIL': 'ACRILICA',
+    'ACRI': 'ACRILICA',
+    'MR/B': 'MISTER BOBINA',
+    'C/MARCO': 'MARCO',
+    'C/MARCOS': 'MARCO',
+    'ALUMIMIO': 'ALUMINIO',
+    'MARACADOR': 'MARCADOR',
+    'BORRDOR': 'BORRADOR',
+    'T/C': 'CARTA',
+    'T/O': 'OFICIO',
+    'P/F': 'PUNTA FINA',
+    'P/G': 'PUNTA GRUESA',
+    'P/PIZARRA': 'PARA PIZARRA'
+  };
+  for (const [k, v] of Object.entries(map)) {
+    const rx = new RegExp('(?:^|\\b)' + k.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&') + '(?:\\b|$)', 'gi');
+    s = s.replace(rx, ' ' + v + ' ');
+  }
+  s = s.replace(/\b(OK|STD|XUND|UND|CJA|PQTE|NACION)\b/gi, ' ');
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function sellerConfigurarIpLan() {
+  const actual = localStorage.getItem('jjp_lan_ip') || '192.168.0.185';
+  const nueva = prompt('Ingresa la dirección IP de la PC en la red local de la tienda:', actual);
+  if (nueva && nueva.trim()) {
+    localStorage.setItem('jjp_lan_ip', nueva.trim());
+    if (typeof showToast === 'function') showToast('IP LAN guardada: ' + nueva.trim(), 'ok');
+    sellerBuscarFotosWeb();
+  }
+}
+
 async function sellerBuscarFotosWeb() {
   const qInput = document.getElementById('sellerSearchQueryInput');
-  const q = (qInput?.value || '').trim();
-  if (!q) return;
+  const rawQ = (qInput?.value || '').trim();
+  if (!rawQ) return;
 
   const statusEl = document.getElementById('sellerWebResultsStatus');
   const grid = document.getElementById('sellerWebResultsGrid');
-  if (statusEl) { statusEl.style.display = 'block'; statusEl.innerHTML = '⏳ Consultando fotos comerciales reales...'; }
+  let cleanQ = normalizeMixNetSearchTerm(rawQ);
+
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = `⏳ Consultando motor del Estudio IA para <strong>"${escapeHTML(cleanQ)}"</strong>...`;
+  }
   if (grid) grid.innerHTML = '';
 
   try {
-    let results = [];
+    const payload = {
+      product_id: currentProduct?.id || null,
+      name: cleanQ,
+      sku: currentVariant?.sku || currentProduct?.sku || '',
+      unit: currentProduct?.unit || '',
+      category_name: currentProduct?.category_name || currentProduct?.category?.name || '',
+      custom_query: cleanQ
+    };
+
+    // Orden de intento:
+    // (a) Mismo origen si se sirve desde wa-server (8787 o 8788 o localhost)
+    const endpointsToTry = [];
+    const isWaPort = window.location.port === '8787' || window.location.port === '8788';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (isWaPort) {
+      endpointsToTry.push(`${window.location.origin}/lan/products/search-verify`);
+    }
+    if (isLocal) {
+      endpointsToTry.push('http://127.0.0.1:8787/lan/products/search-verify');
+      endpointsToTry.push('http://127.0.0.1:8795/api/search-verify');
+    }
+
+    // (b) https://<IP-LAN>:8788 o http://<IP-LAN>:8787 si está en localStorage o jjp_settings
+    const savedLanIp = localStorage.getItem('jjp_lan_ip') || localStorage.getItem('jjp_server_ip');
+    let settingsLanIp = null;
     try {
-      const cfRes = await fetch(`/api/search-images?q=${encodeURIComponent(q)}`);
-      if (cfRes.ok) {
-        const cfData = await cfRes.json();
-        if (cfData.ok && Array.isArray(cfData.results) && cfData.results.length > 0) {
-          results = cfData.results;
-        }
-      }
+      const s = JSON.parse(localStorage.getItem('jjp_settings') || sessionStorage.getItem('jjp_settings') || '{}');
+      settingsLanIp = s.lan_ip || s.server_lan_ip || s.wa_server_ip;
     } catch (_) {}
 
-    if (!results.length) {
+    const ips = [savedLanIp, settingsLanIp, '192.168.0.185'].filter(Boolean);
+    for (const ip of ips) {
+      endpointsToTry.push(`https://${ip}:8788/lan/products/search-verify`);
+      endpointsToTry.push(`http://${ip}:8787/lan/products/search-verify`);
+      endpointsToTry.push(`http://${ip}:8795/api/search-verify`);
+    }
+
+    const uniqueEndpoints = Array.from(new Set(endpointsToTry));
+
+    let candidates = null;
+    let endpointSuccess = null;
+
+    for (const ep of uniqueEndpoints) {
       try {
-        const lanRes = await fetch(`http://localhost:8787/lan/products/search-images?q=${encodeURIComponent(q)}`);
-        if (lanRes.ok) {
-          const lanData = await lanRes.json();
-          if (lanData.ok && Array.isArray(lanData.results)) results = lanData.results;
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 6000);
+        const res = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: ctl.signal
+        });
+        clearTimeout(t);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.ok && Array.isArray(data.candidates) && data.candidates.length > 0) {
+            candidates = data.candidates;
+            endpointSuccess = ep;
+            break;
+          }
         }
       } catch (_) {}
     }
 
-    if (!results || results.length === 0) {
-      if (statusEl) statusEl.innerHTML = 'No se encontraron fotos web con ese término.';
+    // Respaldo secundario en LAN a /lan/products/search-images simple
+    if (!candidates || candidates.length === 0) {
+      const searchSimpleEndpoints = uniqueEndpoints.map(ep => ep.replace('/search-verify', '/search-images'));
+      for (const ep of searchSimpleEndpoints) {
+        try {
+          const ctl = new AbortController();
+          const t = setTimeout(() => ctl.abort(), 5000);
+          const sepUrl = ep.includes('?') ? `${ep}&q=${encodeURIComponent(cleanQ)}` : `${ep}?q=${encodeURIComponent(cleanQ)}`;
+          const res = await fetch(sepUrl, { signal: ctl.signal });
+          clearTimeout(t);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.ok && Array.isArray(data.results) && data.results.length > 0) {
+              candidates = data.results.map(r => ({
+                id: r.id,
+                image_url: r.image || r.image_url,
+                thumb_url: r.thumbnail || r.thumb_url || r.image,
+                title: r.title || cleanQ,
+                source: r.source || 'web',
+                vision: r.vision || null
+              }));
+              endpointSuccess = ep;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    // (c) Si nada responde: degradación honesta
+    if (!candidates || candidates.length === 0) {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = `
+          <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:14px;color:#92400e;margin-top:6px">
+            <div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px">
+              <span>📡</span>
+              <span>La búsqueda automática solo funciona en la red de la tienda</span>
+            </div>
+            <p style="margin:6px 0 12px;font-size:12px;line-height:1.4">
+              El motor con navegador del Estudio IA se ejecuta en la PC de la tienda. Si estás fuera de la LAN o el servidor está apagado, toma la foto física con la cámara del teléfono:
+            </p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button type="button" class="btn-p" style="padding:10px 18px;background:#16604A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px"
+                      onclick="document.getElementById('sellerCameraInput').click()">
+                <span>📷 Abrir Cámara y Tomar Foto</span>
+              </button>
+              <button type="button" style="padding:8px 12px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;font-size:11.5px;color:#475569;cursor:pointer"
+                      onclick="sellerConfigurarIpLan()">
+                ⚙️ Configurar IP LAN (${escapeHTML(savedLanIp || '192.168.0.185')})
+              </button>
+            </div>
+          </div>
+        `;
+      }
       return;
     }
 
-    if (statusEl) statusEl.innerHTML = `Encontradas ${results.length} fotografías comerciales. Toca una para validarla y asignarla.`;
+    window._sellerFoundImages = candidates;
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `✅ Encontradas <strong>${candidates.length} fotografías</strong> evaluadas. Toca una para asignarla al catálogo:`;
+    }
 
-    grid.innerHTML = results.map((r, idx) => `
-      <div class="seller-web-img-card" id="sw-card-${idx}" style="cursor:pointer;border:2px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#fff;padding:6px;text-align:center"
-           onclick="sellerSeleccionarFotoWeb('${escapeJsStr(r.image || r.thumbnail)}', ${idx}, '${escapeJsStr(r.title)}')">
-        <div style="height:90px;display:flex;align-items:center;justify-content:center">
-          <img src="${r.thumbnail || r.image}" alt="${escapeHTML(r.title)}" style="max-height:100%;max-width:100%;object-fit:contain"
-               onerror="this.parentElement.parentElement.style.display='none'">
+    // Renderizar insignias de visión honestas
+    grid.innerHTML = candidates.map((c, idx) => {
+      const imgUrl = c.thumb_url || c.image_url || c.image || '';
+      const title = c.title || 'Foto de Producto';
+      const vision = c.vision;
+
+      let badgeHtml = '';
+      let borderCol = '#e2e8f0';
+
+      if (vision && vision.verdict === 'exact_match') {
+        badgeHtml = `<span style="background:#dcfce7;color:#166534;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block">✅ Exacta ${vision.score != null ? vision.score + '%' : ''}</span>`;
+        borderCol = '#86efac';
+      } else if (vision && vision.verdict === 'partial_match') {
+        badgeHtml = `<span style="background:#fef3c7;color:#92400e;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block">⚠️ Parcial ${vision.score != null ? vision.score + '%' : ''}</span>`;
+        borderCol = '#fde68a';
+      } else if (vision && vision.verdict === 'rejected') {
+        badgeHtml = `<span style="background:#fee2e2;color:#991b1b;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block">❌ Rechazada</span>`;
+        borderCol = '#fca5a5';
+      } else {
+        badgeHtml = `<span style="background:#f1f5f9;color:#64748b;font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:4px;display:inline-block">⚪ No verificable</span>`;
+      }
+
+      const tooltip = vision?.what_i_see || vision?.reason || title;
+
+      return `
+        <div class="seller-web-img-card" id="sw-card-${idx}"
+             style="cursor:pointer;border:2px solid ${borderCol};border-radius:8px;overflow:hidden;background:#fff;padding:6px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;position:relative"
+             title="${escapeHTML(tooltip)}"
+             onclick="sellerSeleccionarFotoPorIndice(${idx})">
+          <div style="height:90px;display:flex;align-items:center;justify-content:center;background:#fafafa;border-radius:4px">
+            <img src="${imgUrl}" alt="${escapeHTML(title)}" style="max-height:100%;max-width:100%;object-fit:contain"
+                 loading="lazy"
+                 onerror="this.parentElement.parentElement.style.opacity='0.4'">
+          </div>
+          <div style="margin-top:6px">
+            ${badgeHtml}
+          </div>
+          <div style="font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px" title="${escapeHTML(title)}">
+            ${escapeHTML(title)}
+          </div>
         </div>
-        <div style="font-size:10.5px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px" title="${escapeHTML(r.title)}">
-          ${escapeHTML(r.title)}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   } catch (err) {
     if (statusEl) statusEl.innerHTML = 'Error en búsqueda: ' + err.message;
   }
 }
 
-async function sellerSeleccionarFotoWeb(imgUrl, idx, title) {
+function sellerSeleccionarFotoPorIndice(idx) {
+  const item = (window._sellerFoundImages || [])[idx];
+  if (!item) return;
+  const imgUrl = item.image_url || item.image || item.thumb_url;
+  sellerSeleccionarFotoWeb(imgUrl, idx, item.title || '', item.vision);
+}
+
+async function sellerSeleccionarFotoWeb(imgUrl, idx, title, visionData) {
   // Validación estricta anti-IA generativa
   if (imgUrl.includes('pollinations') || imgUrl.includes('stability.ai') || imgUrl.includes('midjourney') || imgUrl.includes('replicate.delivery')) {
     alert('No se permiten imágenes ficticias de IA generativa en el catálogo oficial');
@@ -1130,13 +1310,18 @@ async function sellerSeleccionarFotoWeb(imgUrl, idx, title) {
   }
 
   const actionStatus = document.getElementById('sellerActionStatus');
-  if (actionStatus) {
-    actionStatus.innerHTML = `🔍 Analizando correspondencia con Gemini Vision... `;
-  }
 
-  // Análisis con Gemini Vision si está disponible
-  let visionVerdict = { veredicto: 'aprobada', razon: 'Packshot comercial' };
-  if (window.GeminiClient && typeof window.GeminiClient.callGeminiVision === 'function') {
+  // Si ya viene verificado desde el motor v4
+  let visionVerdict = visionData ? {
+    veredicto: visionData.verdict === 'rejected' ? 'rechazada' : 'aprobada',
+    razon: visionData.reason || visionData.what_i_see || 'Auditada por Estudio IA'
+  } : null;
+
+  // Si no tenía veredicto previo y GeminiClient está disponible en el navegador
+  if (!visionVerdict && window.GeminiClient && typeof window.GeminiClient.callGeminiVision === 'function') {
+    if (actionStatus) {
+      actionStatus.innerHTML = `🔍 Analizando correspondencia con Gemini Vision...`;
+    }
     try {
       const prompt = `Actúa como inspector de control de calidad fotográfica del catálogo de JJ Paper.
 Compara la fotografía adjunta contra el producto: "${currentProduct.name}".
@@ -1154,7 +1339,7 @@ Responde ÚNICAMENTE JSON: { "veredicto": "aprobada" | "rechazada", "razon": "br
     } catch (_) {}
   }
 
-  if (visionVerdict.veredicto === 'rechazada') {
+  if (visionVerdict && visionVerdict.veredicto === 'rechazada') {
     if (card) { card.style.borderColor = '#dc2626'; }
     if (actionStatus) {
       actionStatus.innerHTML = `<span style="color:#dc2626;font-weight:700">❌ Rechazada por Visión AI:</span> ${escapeHTML(visionVerdict.razon || 'Discrepancia con el producto.')}`;
@@ -1169,7 +1354,15 @@ Responde ÚNICAMENTE JSON: { "veredicto": "aprobada" | "rechazada", "razon": "br
 
   try {
     const staff = await checkSellerStaffSession();
-    const resp = await fetch(imgUrl);
+    let resp;
+    try {
+      resp = await fetch(imgUrl);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    } catch (_) {
+      // Fallback transparente a proxy CORS de Cloudflare Pages Function
+      resp = await fetch(`/api/search-images?proxy_url=${encodeURIComponent(imgUrl)}`);
+    }
+
     const blob = await resp.blob();
     const bmp = await createImageBitmap(blob);
     const escala = Math.min(1, 800 / Math.max(bmp.width, bmp.height));
@@ -1197,9 +1390,9 @@ Responde ÚNICAMENTE JSON: { "veredicto": "aprobada" | "rechazada", "razon": "br
         product_id: currentProduct.id,
         variant_id: currentVariant?.id || null,
         image_url: url,
-        verdict: visionVerdict.veredicto === 'rechazada' ? 'dudosa' : 'ok',
-        confidence: visionVerdict.veredicto === 'rechazada' ? 0.6 : 0.95,
-        reason: visionVerdict.razon || 'Foto web packshot asignada desde modo vendedor',
+        verdict: visionVerdict?.veredicto === 'rechazada' ? 'dudosa' : 'ok',
+        confidence: visionVerdict?.veredicto === 'rechazada' ? 0.6 : 0.95,
+        reason: visionVerdict?.razon || 'Foto web packshot asignada desde modo vendedor',
         source: 'vendedor_web',
         reviewed_by: staff?.id || null,
         reviewed_at: new Date().toISOString()

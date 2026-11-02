@@ -15,6 +15,7 @@ import { startWaActions } from './wa-actions.js';
 import { startRetention } from './retention.js';
 import { startMixer, getMixerStatus } from './mixer.js';
 import { startGsmBridge } from './gsm.js';
+import { startVpsAgentRunner } from './agent-runner.js';
 
 // Candado de Instancia Única (Mutex de Red Local 127.0.0.1:8786):
 // Previene terminantemente la ejecución de dos instancias simultáneas de wa-server.
@@ -64,6 +65,7 @@ const emailOn = startEmail();   // envío + recepción de correos del CRM (Gmail
 startEmailCampaigns();          // campañas de correo (seguimiento/captación) con throttle
 startRetention();               // purga storage de correo/WA (adjuntos y html viejos → re-traíbles de Gmail)
 startMixer();                   // exportador de pedidos local para el Mixer de facturación
+startVpsAgentRunner();          // servicio de ejecución agéntica en VPS (Ubuntu)
 // startGsmBridge();            // Conexión GSM para móvil desactivada (no se está utilizando)
 
 // Latido + control remoto (panel de admin ve estado y puede reiniciar/detener).

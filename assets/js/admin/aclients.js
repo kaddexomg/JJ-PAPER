@@ -164,7 +164,9 @@ function getZoneBadge(zone) {
   if (zone === '008') color = '#e67e22'; // Marianela
   else if (zone === '014') color = '#9b59b6'; // Andreina
   else if (zone === '006' || zone === '004') color = '#2ecc71'; // Giovanni
-  else if (zone === '010' || zone === '020') color = '#16a085'; // Keyder
+  else if (zone === '005') color = '#16a085'; // Keyder (005)
+  else if (zone === '010') color = '#64748b'; // Zona 010 (Histórica)
+  else if (zone === '020') color = '#94a3b8'; // Zona 020 (Artificial)
   return `<span style="background:${color};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold;">Zona ${escapeHTML(zone)}</span>`;
 }
 
@@ -310,8 +312,12 @@ async function saveAdminCustomer() {
     seller_id = findSeller(/andreina/);
   } else if (zone === '006' || zone === '004') {
     seller_id = findSeller(/yovanni|giovanni|006.*004|004.*006|araujo/);
-  } else if (zone === '010' || zone === '020') {
+  } else if (zone === '005') {
     seller_id = findSeller(/keyder|salazar/) || adminProfiles.find(x => x.role === 'admin')?.id || null;
+  } else if (zone === '010' || zone === '020') {
+    // Zona 020 es completamente artificial; Zona 010 es histórica.
+    // Cero auto-adjudicación a Keyder: la venta solo se atribuye si CODVEN en MixNet dice 005.
+    seller_id = null;
   }
   
   const emailInput = document.getElementById('ac-email');

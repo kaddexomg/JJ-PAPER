@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<base href="/admin/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Consola Agéntica OpenCode | JJ Paper Admin</title>
+<link rel="icon" href="../assets/img/logo.svg">
+<link rel="stylesheet" href="../assets/css/variables.css">
+<link rel="stylesheet" href="../assets/css/components.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
+<link rel="stylesheet" href="../assets/css/responsive.css">
+<link rel="stylesheet" href="../assets/css/perf.css">
+<style>
+  :root {
+    --bg-dark: #070d18;
+    --card-bg: rgba(13, 23, 40, 0.75);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --accent: #10b981;
+    --accent-glow: rgba(16, 185, 129, 0.4);
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+
+  body.admin-body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .agent-wrap {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    height: calc(100vh - 40px);
+  }
+
+  .agent-topbar-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .agent-title-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .agent-icon-badge {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+  }
+
+  .agent-title-block h1 {
+    font-size: 19px;
+    font-weight: 800;
+    margin: 0;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+
+  .agent-title-block p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+  }
+
+  /* Selector de Destino */
+  .target-selector {
+    display: flex;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .target-pill {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+  }
+
+  .target-pill:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .target-pill.active {
+    background: #10b981;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+  }
+
+  /* Estado de salud */
+  .health-badges {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .health-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 5px 12px;
+    font-size: 11.5px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+  .status-dot.warn { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+
+  /* Toolbar de acciones rápidas */
+  .quick-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn-quick {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #e2e8f0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+  }
+
+  .btn-quick:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.22);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  /* Terminal Window */
+  .terminal-box {
+    flex: 1;
+    background: #030712;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .terminal-hd {
+    background: #0b1523;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .term-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .term-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .td-red { background: #ef4444; }
+  .td-yel { background: #f59e0b; }
+  .td-grn { background: #10b981; }
+
+  .terminal-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    font-family: "Fira Code", Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+
+  .term-line {
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .term-info { color: #94a3b8; }
+  .term-cmd { color: #38bdf8; font-weight: 700; margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 6px; }
+  .term-out { color: #e2e8f0; }
+  .term-err { color: #f87171; font-weight: 600; }
+  .term-ok  { color: #34d399; font-weight: 700; }
+
+  /* Input bar */
+  .terminal-ft {
+    background: #0b1523;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mode-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .mode-pill {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+
+  .mode-pill:hover { color: #fff; background: rgba(255,255,255,0.05); }
+  .mode-pill.active {
+    background: rgba(6, 182, 212, 0.2);
+    border-color: #06b6d4;
+    color: #38bdf8;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .ag-input {
+    flex: 1;
+    background: #030712;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 13.5px;
+    font-family: "Fira Code", Consolas, monospace;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+
+  .ag-input:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+  }
+
+  .btn-exec {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: 1px solid #34d399;
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+  }
+
+  .btn-exec:hover:not(:disabled) {
+    background: linear-gradient(135deg, #34d399, #10b981);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.45);
+  }
+
+  .btn-exec:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body class="admin-body">
+
+<div class="admin-wrap">
+  <aside class="admin-aside" id="adminAside">
+    <div class="aside-brand">
+      <div class="aside-brand-left">
+        <img class="n-logo-img jjp-logo-animated" src="../assets/img/logo.svg" alt="JJ Paper" width="38" height="38">
+        <span>JJ <em>Paper</em></span>
+      </div>
+    </div>
+    <nav class="aside-nav"></nav>
+    <div class="aside-ft">
+      <div>Sesión: <strong id="adminUserEmail" style="color:#fff">—</strong></div>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <div class="agent-wrap">
+      
+      <!-- Topbar del Agente -->
+      <div class="agent-topbar-card">
+        <div class="agent-title-block">
+          <div class="agent-icon-badge">🤖</div>
+          <div>
+            <h1>Consola Agéntica OpenCode</h1>
+            <p id="agTargetLabel">Supervisor-PC (Windows LAN · M:\comp01)</p>
+          </div>
+        </div>
+
+        <!-- Selector de Destino -->
+        <div class="target-selector" role="group" aria-label="Destino de ejecución">
+          <button type="button" class="target-pill active" data-target="supervisor" onclick="agSetTarget('supervisor')">
+            💻 Supervisor-PC (Windows)
+          </button>
+          <button type="button" class="target-pill" data-target="vps" onclick="agSetTarget('vps')">
+            ☁️ VPS Ubuntu (Soberano)
+          </button>
+          <button type="button" class="target-pill" data-target="all" onclick="agSetTarget('all')">
+            🌐 Ambos (Distribuido)
+          </button>
+        </div>
+
+        <!-- Estado de Motores -->
+        <div class="health-badges">
+          <div class="health-chip" title="Estado del Agente en Tienda Física">
+            <span class="status-dot online" id="agLanStatusDot"></span>
+            <span>Supervisor: <strong id="agLanStatusTxt">Conectado</strong></span>
+          </div>
+          <div class="health-chip" title="Estado del Agente en el VPS Cloud">
+            <span class="status-dot online" id="agVpsStatusDot"></span>
+            <span>VPS: <strong id="agVpsStatusTxt">Online</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions Toolbar -->
+      <div class="quick-toolbar">
+        <button type="button" class="btn-quick" onclick="agQuickAction('git_pull')">
+          ⚡ Git Pull & Auto-Restart
+        </button>
+        <button type="button" class="btn-quick" onclick="agQuickAction('backup', { label: 'manual_console' })">
+          💾 Snapshot Preventivo (.BAK)
+        </button>
+        <button type="button" class="btn-quick" onclick="agQuickAction('reindex_all')">
+          🔄 Reindexar 10 Índices .NTX
+        </button>
+        <button type="button" class="btn-quick" onclick="agQuickAction('audit_health')">
+          🩺 Auditoría de Salud MixNet
+        </button>
+        <button type="button" class="btn-quick" onclick="agQuickAction('exec_cmd', { command: 'dir M:\\MIX11\\comp01\\*.DBF', cwd: 'comp01' })">
+          📁 Listar Tablas DBF
+        </button>
+        <button type="button" class="btn-quick" style="margin-left:auto;color:#94a3b8" onclick="agClearTerminal()">
+          🧹 Limpiar Pantalla
+        </button>
+      </div>
+
+      <!-- Ventana de Terminal -->
+      <div class="terminal-box">
+        <div class="terminal-hd">
+          <div class="term-dots">
+            <span class="term-dot td-red"></span>
+            <span class="term-dot td-yel"></span>
+            <span class="term-dot td-grn"></span>
+          </div>
+          <div>jjpaper@terminal: ~ (bash / powershell / open-code)</div>
+          <div>UTF-8 · UTF-16LE · ANSI</div>
+        </div>
+        <div class="terminal-body" id="agTerminalOutput"></div>
+        
+        <div class="terminal-ft">
+          <div class="mode-row">
+            <span style="font-size:11px;color:#64748b;font-weight:600">MODO:</span>
+            <button type="button" class="mode-pill active" data-mode="ai" onclick="agSetMode('ai')">✨ Asistente IA (Razonamiento)</button>
+            <button type="button" class="mode-pill" data-mode="cmd" onclick="agSetMode('cmd')">⚡ Terminal Directo (PowerShell / Bash)</button>
+            <button type="button" class="mode-pill" data-mode="python" onclick="agSetMode('python')">🐍 Python</button>
+            <button type="button" class="mode-pill" data-mode="node" onclick="agSetMode('node')">🟢 Node.js</button>
+          </div>
+          <div class="input-row">
+            <input type="text" class="ag-input" id="agCommandInput" placeholder="Escribe una instrucción en lenguaje natural o comando de terminal directo..." autocomplete="off">
+            <button type="button" class="btn-exec" id="agExecBtn" onclick="agExecute()">
+              <span>Ejecutar</span>
+              <span>↵</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="../assets/vendor/supabase-2.58.0.js"></script>
+<script src="../assets/js/config.js?v=20261022_vps_full"></script>
+<script src="../assets/js/toast.js?v=20260828_v3"></script>
+<script src="../assets/js/admin/auth.js?v=20261023_nav_absolute"></script>
+<script src="../assets/js/admin/sidenav.js?v=20261102_liquid_glass_v1"></script>
+<script src="../assets/js/gemini-client.js?v=20261027_corp_email_v3"></script>
+<script src="../assets/js/admin/agent-console.js?v=20261102_opencode_v1"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  renderUserBar(session);
+});
+</script>
+</body>
+</html>

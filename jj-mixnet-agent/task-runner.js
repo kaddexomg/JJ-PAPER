@@ -29,7 +29,11 @@ export async function processAgentTasks(compDir) {
   if (tasks.length === 0) return 0;
 
   for (const task of tasks) {
-    const { id, action, payload = {} } = task;
+        const { id, action, payload = {} } = task;
+    // Si la tarea está destinada exclusivamente al VPS, Supervisor-PC la ignora
+    if (payload.target && payload.target !== 'supervisor' && payload.target !== 'lan' && payload.target !== 'all') {
+      continue;
+    }
     log(`[AGENTE] Iniciando tarea agéntica #${id}: '${action}'`);
     await updateTaskStatus(id, 'running');
 
@@ -192,6 +196,170 @@ export async function processAgentTasks(compDir) {
           log(`[AGENTE] Ejecutando rollback al snapshot: ${payload.snapshot || payload.snapshotId}...`);
           const res = rollbackBackup(compDir, payload.snapshot || payload.snapshotId);
           result = { ok: true, ...res };
+          break;
+        }
+
+                case 'exec_cmd':
+        case 'terminal_command':
+        case 'run_command': {
+          const cmd = payload.command || payload.cmd;
+          if (!cmd) throw new Error('Falta payload.command para ejecutar.');
+          log(`[AGENTE] Ejecutando comando de terminal en Supervisor-Pc: ${cmd}`);
+          const repoRoot = path.resolve(__dirname, '..');
+          const runCwd = payload.cwd === 'comp01' ? compDir : (payload.cwd || repoRoot);
+          let stdout = '';
+          let stderr = '';
+          let code = 0;
+          try {
+            stdout = execSync(cmd, {
+              cwd: runCwd,
+              encoding: 'utf8',
+              timeout: payload.timeout || 45000,
+              windowsHide: true
+            });
+          } catch (e) {
+            code = e.status || 1;
+            stdout = e.stdout ? String(e.stdout) : '';
+            stderr = e.stderr ? String(e.stderr) : e.message;
+          }
+          result = {
+            ok: code === 0,
+            exitCode: code,
+            stdout: stdout.trim(),
+            stderr: stderr.trim(),
+            target: 'supervisor',
+            platform: process.platform,
+            executedAt: new Date().toISOString()
+          };
+          break;
+        }
+
+        case 'exec_python': {
+          const pyCode = payload.code || payload.script;
+          if (!pyCode) throw new Error('Falta payload.code para ejecutar Python.');
+          log('[AGENTE] Ejecutando script Python en Supervisor-Pc...');
+          const repoRoot = path.resolve(__dirname, '..');
+          const scratchDir = path.join(repoRoot, 'scratch');
+          if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+          const tmpScript = path.join(scratchDir, `agent_py_${Date.now()}.py`);
+          fs.writeFileSync(tmpScript, pyCode, 'utf8');
+          let stdout = '';
+          let stderr = '';
+          let code = 0;
+          try {
+            stdout = execSync(`python "${tmpScript}"`, {
+              cwd: repoRoot,
+              encoding: 'utf8',
+              timeout: payload.timeout || 45000,
+              windowsHide: true
+            });
+          } catch (e) {
+            code = e.status || 1;
+            stdout = e.stdout ? String(e.stdout) : '';
+            stderr = e.stderr ? String(e.stderr) : e.message;
+          } finally {
+            try { fs.unlinkSync(tmpScript); } catch (_) {}
+          }
+          result = {
+            ok: code === 0,
+            exitCode: code,
+            stdout: stdout.trim(),
+            stderr: stderr.trim(),
+            target: 'supervisor'
+          };
+          break;
+        }
+
+        case 'exec_node': {
+          const jsCode = payload.code || payload.script;
+          if (!jsCode) throw new Error('Falta payload.code para ejecutar Node.js.');
+          log('[AGENTE] Ejecutando script Node.js en Supervisor-Pc...');
+          const repoRoot = path.resolve(__dirname, '..');
+          const scratchDir = path.join(repoRoot, 'scratch');
+          if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
+          const tmpScript = path.join(scratchDir, `agent_node_${Date.now()}.cjs`);
+          fs.writeFileSync(tmpScript, jsCode, 'utf8');
+          let stdout = '';
+          let stderr = '';
+          let code = 0;
+          try {
+            stdout = execSync(`node "${tmpScript}"`, {
+              cwd: repoRoot,
+              encoding: 'utf8',
+              timeout: payload.timeout || 45000,
+              windowsHide: true
+            });
+          } catch (e) {
+            code = e.status || 1;
+            stdout = e.stdout ? String(e.stdout) : '';
+            stderr = e.stderr ? String(e.stderr) : e.message;
+          } finally {
+            try { fs.unlinkSync(tmpScript); } catch (_) {}
+          }
+          result = {
+            ok: code === 0,
+            exitCode: code,
+            stdout: stdout.trim(),
+            stderr: stderr.trim(),
+            target: 'supervisor'
+          };
+          break;
+        }
+
+        case 'read_file': {
+          const relPath = payload.path || payload.filePath;
+          if (!relPath) throw new Error('Falta payload.path para leer archivo.');
+          const repoRoot = path.resolve(__dirname, '..');
+          const fullPath = path.isAbsolute(relPath) ? relPath : path.join(repoRoot, relPath);
+          if (!fs.existsSync(fullPath)) throw new Error(`Archivo no encontrado: ${relPath}`);
+          const content = fs.readFileSync(fullPath, 'utf8');
+          result = {
+            ok: true,
+            path: relPath,
+            sizeBytes: Buffer.byteLength(content, 'utf8'),
+            content: content.slice(0, 500000)
+          };
+          break;
+        }
+
+        case 'patch_file': {
+          const relPath = payload.path || payload.filePath;
+          if (!relPath) throw new Error('Falta payload.path para modificar.');
+          const repoRoot = path.resolve(__dirname, '..');
+          const fullPath = path.isAbsolute(relPath) ? relPath : path.join(repoRoot, relPath);
+          if (!fs.existsSync(fullPath)) throw new Error(`Archivo no encontrado: ${relPath}`);
+          
+          const bakPath = fullPath + '.bak';
+          fs.copyFileSync(fullPath, bakPath);
+          
+          let content = fs.readFileSync(fullPath, 'utf8');
+          if (payload.target && payload.replacement !== undefined) {
+            if (!content.includes(payload.target)) {
+              throw new Error('Target no encontrado en el archivo para reemplazar.');
+            }
+            content = content.replace(payload.target, payload.replacement);
+          } else if (payload.content !== undefined) {
+            content = payload.content;
+          }
+          fs.writeFileSync(fullPath, content, 'utf8');
+          
+          let syntaxCheck = 'skipped';
+          if (fullPath.endsWith('.js') || fullPath.endsWith('.mjs') || fullPath.endsWith('.cjs')) {
+            try {
+              execSync(`node -c "${fullPath}"`, { timeout: 10000, encoding: 'utf8' });
+              syntaxCheck = 'passed';
+            } catch (syntErr) {
+              fs.copyFileSync(bakPath, fullPath);
+              throw new Error(`Autocorrección abortada: Falló verificación de sintaxis (${syntErr.message}). Archivo restaurado desde .bak.`);
+            }
+          }
+          result = {
+            ok: true,
+            path: relPath,
+            syntaxCheck,
+            backupCreated: bakPath,
+            modifiedAt: new Date().toISOString()
+          };
           break;
         }
 

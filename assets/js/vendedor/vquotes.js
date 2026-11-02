@@ -262,42 +262,58 @@ async function loadQuoteForEdit(val) {
     notes.value = q.notes;
   }
   
-  posTicket = {};
-  if (Array.isArray(q.items)) {
-    q.items.forEach(item => {
-      const pid = item.product_id || item.id;
-      const vid = item.variant_id || null;
-      const key = vid ? `${pid}::${vid}` : pid;
-
-      // Buscar el producto y variante original en posProducts para reinyectar precios A/B/C/D y stock
-      const p = posProducts.find(x => x.id === pid);
-      let variant = null;
-      if (p && vid && p.jjp_product_variants) {
-        variant = p.jjp_product_variants.find(v => v.id === vid);
-      }
-      const src = variant || p;
-
-      posTicket[key] = {
-        id: pid,
-        product_id: pid,
-        variant_id: vid,
-        name: item.name || p?.name || '—',
-        sku: item.sku || variant?.sku || p?.sku || '',
-        brand: item.brand || (variant ? (variant.jjp_brands?.name || variant.variant_name || null) : null),
-        unit: item.unit || p?.unit || 'unid',
-        price_usd: Number(item.price_usd ?? src?.price_usd ?? 0),
-        price_level: item.price_level || 'B',
-        price_a: Number(src?.price_a ?? 0),
-        price_b: Number(src?.price_b ?? 0),
-        price_c_bs: Number(src?.price_c_bs ?? 0),
-        price_d_bs: Number(src?.price_d_bs ?? 0),
-        qty: Number(item.qty || item.quantity || 1),
-        stock: variant ? variant.stock : (p ? p.stock : 0),
-        is_custom: item.is_custom || false,
-      };
-    });
-  }
+    posTicket = {};
+  const items = typeof q.items === 'string' ? JSON.parse(q.items) : (Array.isArray(q.items) ? q.items : []);
   
+  items.forEach((item, idx) => {
+    const pid = item.product_id || item.id || null;
+    const vid = item.variant_id || null;
+    
+    // Generar baseKey único para evitar colisiones entre ítems
+    let baseKey = null;
+    if (pid && !item.is_custom) {
+      baseKey = vid ? `${pid}::${vid}` : String(pid);
+    } else {
+      // Ítem libre, personalizado o sin id en catálogo
+      baseKey = `custom_${idx + 1}`;
+    }
+
+    let key = baseKey;
+    let counter = 1;
+    while (posTicket[key]) {
+      key = `${baseKey}_${counter++}`;
+    }
+
+    // Buscar el producto y variante original en posProducts para reinyectar precios A/B/C/D y stock
+    const p = (pid && !item.is_custom) ? posProducts.find(x => x.id === pid) : null;
+    let variant = null;
+    if (p && vid && p.jjp_product_variants) {
+      variant = p.jjp_product_variants.find(v => v.id === vid);
+    }
+    const src = variant || p;
+
+    const priceUsd = Number(item.price_usd != null ? item.price_usd : (src?.price_usd || 0));
+    const isCustom = !!(item.is_custom || !pid);
+
+    posTicket[key] = {
+      id: pid,
+      product_id: pid,
+      variant_id: vid,
+      name: item.name || p?.name || '—',
+      sku: item.sku || variant?.sku || p?.sku || (isCustom ? 'IN-OS' : ''),
+      brand: item.brand || (variant ? (variant.jjp_brands?.name || variant.variant_name || null) : (isCustom ? 'Personalizado' : null)),
+      unit: item.unit || p?.unit || 'unid',
+      price_usd: +priceUsd.toFixed(2),
+      price_level: item.price_level || (isCustom ? 'M' : 'B'),
+      price_a: Number(src?.price_a ?? item.price_a ?? priceUsd),
+      price_b: Number(src?.price_b ?? item.price_b ?? priceUsd),
+      price_c_bs: Number(src?.price_c_bs ?? item.price_c_bs ?? 0),
+      price_d_bs: Number(src?.price_d_bs ?? item.price_d_bs ?? 0),
+      qty: Math.max(1, Number(item.qty || item.quantity) || 1),
+      stock: variant ? variant.stock : (p ? p.stock : 0),
+      is_custom: isCustom,
+    };
+  });
   posRenderTicket();
   
   const btn = document.getElementById('qSubmitBtn');
@@ -1125,7 +1141,24 @@ function quoteShowDone(q) {
   document.getElementById('qDoneModal').classList.add('op');
 }
 
+
+function clearQuote() {
+  const count = Object.keys(posTicket).length;
+  if (!count) {
+    showToast('El ticket ya está vacío', 'info');
+    return;
+  }
+  if (!confirm(`¿Vaciar todos los productos (${count}) del ticket?`)) return;
+  posTicket = {};
+  posRenderTicket();
+  showToast('Renglones vaciados con éxito');
+}
+window.clearQuote = clearQuote;
+window.quoteClear = clearQuote;
+window.clearTicket = clearQuote;
+
 function quoteReset() {
+
   editingQuoteId = null;
   editingQuoteNumber = null;
   editingQuoteSource = null;
@@ -1153,6 +1186,8 @@ function quoteReset() {
   document.getElementById('qDoneModal')?.classList.remove('op');
   updateQuoteHeaderStatus();
 }
+window.quoteReset = quoteReset;
+window.quoteResetCustomer = quoteResetCustomer;
 
 /* ---------- Control del Ticket con Teclado (F6 / Alt+T) ---------- */
 let quoteTicketCursor = -1;
@@ -2141,6 +2176,14 @@ function quoteInitGlobalKeys() {
     if (e.key.toLowerCase() === 'i' && e.altKey) {
       e.preventDefault();
       openCustomItemModal();
+      return;
+    }
+
+    // Alt+N: nueva cotización / limpiar edición
+    // Alt+V o Alt+L: Vaciar ticket
+    if ((e.key.toLowerCase() === 'v' || e.key.toLowerCase() === 'l') && e.altKey) {
+      e.preventDefault();
+      clearQuote();
       return;
     }
 

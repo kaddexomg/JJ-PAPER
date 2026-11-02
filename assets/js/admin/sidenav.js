@@ -446,6 +446,8 @@
       <div class="jjp-aurora-orb jjp-orb-emerald"></div>
       <div class="jjp-aurora-orb jjp-orb-cyan"></div>
       <div class="jjp-aurora-orb jjp-orb-violet"></div>
+      <div class="jjp-aurora-orb jjp-orb-amber"></div>
+      <div class="jjp-aurora-orb jjp-orb-pink"></div>
     `;
     document.body.prepend(aurora);
   }
@@ -455,50 +457,71 @@
     if (document.getElementById('jjp-sidenav-css')) return;
     const css = `
     /* ==============================================================
-       AUTÉNTICO LIQUID GLASS iOS 26 CON ORBES AURORA DECORATIVOS
+       AUTÉNTICO LIQUID GLASS iOS 26 CON ORBES AURORA MULTICOLOR
        ============================================================== */
     .jjp-glass-aurora {
       position: fixed; inset: 0; pointer-events: none; z-index: 1;
-      overflow: hidden; opacity: 0.55;
+      overflow: hidden; opacity: 0.85;
     }
     .jjp-aurora-orb {
       position: absolute; border-radius: 50%;
-      filter: blur(100px); mix-blend-mode: screen;
+      filter: blur(95px); mix-blend-mode: screen;
+      will-change: transform;
     }
     .jjp-orb-emerald {
-      width: 440px; height: 440px;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.5) 0%, rgba(16, 185, 129, 0) 70%);
-      top: -60px; left: -40px;
+      width: 520px; height: 520px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.65) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 70%);
+      top: -80px; left: -60px;
       animation: jjpFloatAura1 14s ease-in-out infinite alternate;
     }
     .jjp-orb-cyan {
-      width: 480px; height: 480px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.45) 0%, rgba(6, 182, 212, 0) 70%);
-      top: 35vh; left: -80px;
+      width: 540px; height: 540px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.60) 0%, rgba(6, 182, 212, 0.12) 50%, transparent 70%);
+      top: 30vh; left: -100px;
       animation: jjpFloatAura2 18s ease-in-out infinite alternate;
     }
     .jjp-orb-violet {
-      width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.45) 0%, rgba(139, 92, 246, 0) 70%);
-      bottom: -40px; left: 10px;
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.60) 0%, rgba(139, 92, 246, 0.12) 50%, transparent 70%);
+      bottom: -60px; left: 0px;
       animation: jjpFloatAura3 16s ease-in-out infinite alternate;
+    }
+    .jjp-orb-amber {
+      width: 440px; height: 440px;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.50) 0%, rgba(245, 158, 11, 0.10) 50%, transparent 70%);
+      top: 60vh; left: 80px;
+      animation: jjpFloatAura4 20s ease-in-out infinite alternate;
+    }
+    .jjp-orb-pink {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.45) 0%, rgba(236, 72, 153, 0.08) 50%, transparent 70%);
+      top: 15vh; left: 180px;
+      animation: jjpFloatAura5 22s ease-in-out infinite alternate;
     }
     @keyframes jjpFloatAura1 {
       0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(40px, 60px) scale(1.15); }
+      100% { transform: translate(45px, 65px) scale(1.15); }
     }
     @keyframes jjpFloatAura2 {
       0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(-30px, -50px) scale(1.1); }
+      100% { transform: translate(-35px, -55px) scale(1.12); }
     }
     @keyframes jjpFloatAura3 {
       0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(50px, -40px) scale(1.2); }
+      100% { transform: translate(55px, -45px) scale(1.18); }
+    }
+    @keyframes jjpFloatAura4 {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-40px, 40px) scale(1.1); }
+    }
+    @keyframes jjpFloatAura5 {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, -30px) scale(1.14); }
     }
 
     /* BARRA LATERAL LIQUID GLASS */
     .admin-aside, aside.aside {
-      background: rgba(10, 17, 30, 0.48) !important;
+      background: rgba(10, 16, 28, 0.45) !important;
       backdrop-filter: blur(32px) saturate(220%) !important;
       -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
       border-right: 1px solid rgba(255, 255, 255, 0.14) !important;
@@ -718,13 +741,13 @@
     .jjp-liquid-flyout-card {
       position: fixed;
       width: 250px;
-      background: rgba(12, 20, 36, 0.88) !important;
-      backdrop-filter: blur(36px) saturate(220%) !important;
-      -webkit-backdrop-filter: blur(36px) saturate(220%) !important;
-      border: 1.5px solid var(--cat-color, rgba(255, 255, 255, 0.25)) !important;
-      border-radius: 18px !important;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px var(--cat-glow, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.3) !important;
-      padding: 10px !important;
+      background: rgba(10, 16, 28, 0.65) !important;
+      backdrop-filter: blur(40px) saturate(240%) !important;
+      -webkit-backdrop-filter: blur(40px) saturate(240%) !important;
+      border: 1.5px solid var(--cat-color, rgba(255, 255, 255, 0.28)) !important;
+      border-radius: 20px !important;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px var(--cat-glow, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.35) !important;
+      padding: 12px !important;
       z-index: 999999 !important;
       animation: jjpFlyoutScale 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }

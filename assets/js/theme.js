@@ -3,16 +3,14 @@
  * Persistente en localStorage, sin parpadeos (FOUC) y con animaciones fluidas.
  */
 (function() {
-  const STORAGE_KEY = 'jjp_theme';
+  const STORAGE_KEY = 'jjp_theme_v2';
 
   // 1. Detectar tema inicial de inmediato para evitar flash visual
+  // Por defecto: Dark Obsidian Liquid Glass (iOS 26) para resaltar la aurora y translucidez
   function detectInitialTheme() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'dark' || saved === 'light') return saved;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
+    return 'dark';
   }
 
   const initialTheme = detectInitialTheme();

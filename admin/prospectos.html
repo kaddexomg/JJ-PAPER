@@ -615,6 +615,21 @@
         <div class="fg"><label class="fl">Teléfono 2 (Celular WhatsApp)</label><input class="fi" id="ep-tel2" placeholder="04121234567"></div>
         <div class="fg" style="grid-column: span 2"><label class="fl">Correo Electrónico</label><input class="fi" id="ep-email" type="email"></div>
         <div class="fg" style="grid-column: span 2"><label class="fl">Dirección / Sede</label><input class="fi" id="ep-address"></div>
+        <div class="fg" style="grid-column: span 2">
+          <label class="fl">Estado del Prospecto</label>
+          <select class="fi" id="ep-status">
+            <option value="nuevo">🆕 Nuevo / Sin Contacto</option>
+            <option value="analizado_ia">🧠 Analizado con IA</option>
+            <option value="contactado_email">✉️ Contactado por Correo</option>
+            <option value="contactado_wa">💬 Contactado por WhatsApp</option>
+            <option value="contactado_llamada">📞 Contactado por Llamada</option>
+            <option value="sin_respuesta">⏳ Sin Respuesta</option>
+            <option value="agotado">📴 Agotado (Sin éxito)</option>
+            <option value="descartado">⛔ Descartado</option>
+            <option value="rebotado">🔴 Rebotó Email</option>
+            <option value="ganado">⭐ Ganado / Cliente Activo</option>
+          </select>
+        </div>
         <div class="fg" style="grid-column: span 2"><label class="fl">Notas / Intereses previos</label><textarea class="fi" id="ep-notes" rows="2"></textarea></div>
       </div>
       <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">

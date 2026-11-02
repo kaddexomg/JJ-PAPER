@@ -1,4 +1,3 @@
-import { ARCADE_RUNNER_GIF, ARCADE_RUNNER_CID, ARCADE_RUNNER_FILENAME, getArcadeRunnerAttachment } from './arcade-gif-data.js';
 import nodemailer from 'nodemailer';
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
@@ -193,16 +192,7 @@ function formatTextToHtml(text) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JJ Paper C.A. — Comunicación Oficial</title>
   <style>
-    @keyframes jjp-arcade-marquee {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    @keyframes jjp-pulse-arcade {
-      0% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); transform: scale(1); }
-      50% { box-shadow: 0 0 22px rgba(16, 185, 129, 0.8); transform: scale(1.015); }
-      100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); transform: scale(1); }
-    }
+    
     .jjp-btn-wa-main {
       display: inline-block !important;
       background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
@@ -214,7 +204,7 @@ function formatTextToHtml(text) {
       border-radius: 8px !important;
       letter-spacing: 0.3px !important;
       box-shadow: 0 0 14px rgba(16, 185, 129, 0.4) !important;
-      animation: jjp-pulse-arcade 3s infinite ease-in-out !important;
+      
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     }
   </style>
@@ -224,9 +214,9 @@ function formatTextToHtml(text) {
     <tr>
       <td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 0 25px rgba(16,185,129,0.2), 0 10px 25px rgba(0,0,0,0.5);border:1.5px solid #10b981;">
-          <!-- Barra Arcade Superior -->
+          <!-- Barra Superior Institucional -->
           <tr>
-            <td style="height:6px;background:linear-gradient(90deg, #10b981, #06b6d4, #f59e0b, #10b981);background-size:250% 250%;animation:jjp-arcade-marquee 4s ease infinite;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="height:4px;background:#10b981;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
           <!-- Header Branded Arcade HUD -->
           <tr>
@@ -247,19 +237,7 @@ function formatTextToHtml(text) {
                 </tr>
               </table>
 
-              <!-- Franja Animada Arcade: Personajes de Papelería (Lápiz Corredor, Sacapuntas y Monograma JJ) -->
-              <div style="margin-top:12px;background:#060a12;border:1.5px solid rgba(16,185,129,0.45);border-radius:8px;padding:0;text-align:center;overflow:hidden;box-shadow:0 0 16px rgba(16,185,129,0.25);">
-                <img src="cid:${ARCADE_RUNNER_CID}" alt="Personajes Papelería JJ Paper: Lápiz Corredor, Sacapuntas y Monograma JJ" width="600" height="64" style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;image-rendering:pixelated;border-radius:6px;">
-              </div>
-
-              <!-- Marcador HUD Arcade Retroiluminado -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:12px;background:#030712;border:1.5px solid #10b981;border-radius:8px;padding:8px 12px;box-shadow:0 0 12px rgba(16,185,129,0.35);">
-                <tr>
-                  <td align="center" style="font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:11.5px;color:#34d399;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;line-height:1.4;">
-                    🕹️ NIVEL: MAYORISTA &nbsp;·&nbsp; ⚙️ PROCURA: ON &nbsp;·&nbsp; 🪙 TASA: BCV
-                  </td>
-                </tr>
-              </table>
+              
             </td>
           </tr>
           <!-- Body Content -->
@@ -269,20 +247,12 @@ function formatTextToHtml(text) {
             </td>
           </tr>
 
-          <!-- Separador Arcade de Monedas & Power-Up -->
-          <tr>
-            <td style="padding:0 30px 18px 30px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:linear-gradient(90deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.15) 50%, rgba(16,185,129,0.08) 100%);border-top:1px dashed #10b981;border-bottom:1px dashed #06b6d4;padding:8px 12px;text-align:center;">
-                <tr>
-                  <td align="center" style="font-family:'Courier New',Courier,monospace,sans-serif;font-size:11px;font-weight:800;color:#0e7490;letter-spacing:1px;text-transform:uppercase;">
-                    🪙 🪙 🪙 &nbsp;<span style="color:#059669;">POWER-UP:</span> PRECIOS DE IMPORTADOR POR BULTO CERRADO &nbsp;🪙 🪙 🪙
-                  </td>
-                </tr>
+          
               </table>
             </td>
           </tr>
 
-          <!-- Botones Arcade Dual CTA (PRESS START + CONTINUE) -->
+          <!-- Botones de Acción Principal B2B -->
           <tr>
             <td style="padding:0 30px 22px 30px;text-align:center;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;max-width:100%;">
@@ -292,7 +262,7 @@ function formatTextToHtml(text) {
                       <tr>
                         <td align="center" bgcolor="#10b981" style="border-radius:8px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);box-shadow:0 0 16px rgba(16,185,129,0.45);border:1px solid #34d399;">
                           <a href="https://jjpaper.pages.dev/catalogo.html" target="_blank" style="display:inline-block;padding:12px 22px;color:#ffffff !important;font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:13.5px;font-weight:900;text-decoration:none;letter-spacing:0.8px;text-transform:uppercase;">
-                            ▶ PRESS START · Ver Catálogo y Cotizar
+                            🌐 Ver Catálogo Mayorista y Cotizar
                           </a>
                         </td>
                       </tr>
@@ -303,7 +273,7 @@ function formatTextToHtml(text) {
                       <tr>
                         <td align="center" bgcolor="#0f172a" style="border-radius:8px;background:#0f172a;border:1.5px solid #06b6d4;box-shadow:0 0 14px rgba(6,182,212,0.35);">
                           <a href="https://wa.me/584124676073?text=Hola%20JJ%20Paper%2C%20deseo%20solicitar%20cotizaci%C3%B3n" target="_blank" style="display:inline-block;padding:12px 22px;color:#38bdf8 !important;font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:13.5px;font-weight:900;text-decoration:none;letter-spacing:0.8px;text-transform:uppercase;">
-                            CONTINUE? ▶ Escríbenos
+                            💬 Escribir a WhatsApp
                           </a>
                         </td>
                       </tr>
@@ -450,14 +420,7 @@ export async function sendEmailNow(ownerId, m) {
   let acct = await accountFor(ownerId);
   if (!acct) throw new Error('Sin correo vinculado');
 
-  // Asegurar que el GIF arcade esté disponible como adjunto inline si el HTML contiene cid:jjp-arcade-runner
   const userAtts = Array.isArray(m.attachments) ? [...m.attachments] : [];
-  const needsArcadeRunner = (m.html && m.html.includes(ARCADE_RUNNER_CID)) || (!m.html && (!m.body || m.body.length > 0));
-  const alreadyHasRunner = userAtts.some(a => (a.cid === ARCADE_RUNNER_CID || a.name === ARCADE_RUNNER_FILENAME || a.filename === ARCADE_RUNNER_FILENAME));
-
-  if (needsArcadeRunner && !alreadyHasRunner) {
-    userAtts.push(getArcadeRunnerAttachment());
-  }
   
   try {
     let id = null;
@@ -872,7 +835,7 @@ export async function syncGmailStarred(specificProfileId = null) {
             seller_id: acct.profile_id,
             city: 'Caracas',
             notes: `⭐ Contacto destacado en Gmail (${info.subject || 'Sin asunto'})`,
-            suggested_subject: info.subject ? (info.subject.startsWith('Re:') || info.subject.startsWith('Fwd:') ? info.subject : `Seguimiento: ${info.subject}`) : 'Seguimiento y propuesta comercial | JJ Paper',
+            suggested_subject: info.subject ? (info.subject.startsWith('Re:') || info.subject.startsWith('Fwd:') ? info.subject : `Seguimiento: ${info.subject}`) : 'Seguimiento y atención comercial | JJ Paper',
             ai_analysis: {
               dolor_operativo: 'Abastecimiento de papel y consumibles de oficina',
               sector_deducido: 'Corporativo B2B',

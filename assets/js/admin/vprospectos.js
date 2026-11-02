@@ -250,16 +250,24 @@ function applyProspectFilters() {
 
     // 3. Filtro de estado
     if (currentStatusFilter !== 'todos') {
+      const isWon = Boolean(p.status === 'ganado' || p.converted_customer_id);
+      const isBounced = Boolean(p.status === 'rebotado' || p.status === 'correo_rebotado' || p.email_status === 'bounced' || p.email_status === 'bounced_hard' || p.email_status === 'rejected' || (p.notes && p.notes.toLowerCase().includes('rebot')));
+      const isDiscarded = Boolean(p.status === 'descartado');
+      const isExhausted = Boolean(p.status === 'agotado');
+      const isNoAnswer = Boolean(p.status === 'sin_respuesta');
+
       if (currentStatusFilter === 'nuevo' && (p.status !== 'nuevo' && p.status !== 'pendiente' && (p.contact_count > 0 || p.contacted))) return false;
       if (currentStatusFilter === 'analizado' && p.status !== 'analizado_ia' && p.status !== 'borrador_creado') return false;
       if (currentStatusFilter === 'contactado' && !p.status?.startsWith('contactado') && !p.contacted && (p.contact_count || 0) === 0) return false;
       if (currentStatusFilter === 'seguimiento') {
         const isContacted = Boolean(p.contacted || p.status?.startsWith('contactado') || (p.contact_count || 0) > 0);
-        const isWon = Boolean(p.status === 'ganado' || p.converted_customer_id);
-        if (!isContacted || isWon) return false;
+        if (!isContacted || isWon || isBounced || isDiscarded || isExhausted) return false;
       }
-      if (currentStatusFilter === 'rebotado' && p.status !== 'rebotado' && p.email_status !== 'bounced' && !(p.notes && p.notes.toLowerCase().includes('rebot'))) return false;
-      if (currentStatusFilter === 'ganado' && p.status !== 'ganado' && !p.converted_customer_id) return false;
+      if (currentStatusFilter === 'sin_respuesta' && !isNoAnswer) return false;
+      if (currentStatusFilter === 'agotado' && !isExhausted) return false;
+      if (currentStatusFilter === 'descartado' && !isDiscarded) return false;
+      if (currentStatusFilter === 'rebotado' && !isBounced) return false;
+      if (currentStatusFilter === 'ganado' && !isWon) return false;
     }
 
     // 4. Buscador omni-canal
@@ -334,10 +342,21 @@ function renderProspectsTable() {
     // Insignia de estado según ciclo de vida
     let badgeClass = 'badge-gray';
     let badgeTxt = '🆕 Sin Contactar';
+    const isBouncedStatus = Boolean(p.status === 'rebotado' || p.status === 'correo_rebotado' || p.email_status === 'bounced' || p.email_status === 'bounced_hard' || p.email_status === 'rejected');
+
     if (p.status === 'ganado' || p.converted_customer_id) {
       badgeClass = 'badge-green';
       badgeTxt = '⭐ Ganado / Cliente';
-    } else if (p.status === 'rebotado' || p.email_status === 'bounced') {
+    } else if (p.status === 'descartado') {
+      badgeClass = 'badge-gray';
+      badgeTxt = '⛔ Descartado';
+    } else if (p.status === 'agotado') {
+      badgeClass = 'badge-gray';
+      badgeTxt = '📴 Agotado';
+    } else if (p.status === 'sin_respuesta') {
+      badgeClass = 'badge-amber';
+      badgeTxt = '⏳ Sin Respuesta';
+    } else if (isBouncedStatus) {
       badgeClass = 'badge-red';
       badgeTxt = '🔴 Rebotó Email';
     } else if (p.status === 'escalado_wa') {
@@ -1422,6 +1441,7 @@ function openNewProspectModal() {
   currentEditingProspectId = null;
   document.getElementById('editProspectModalTitle').textContent = 'Nuevo Prospecto B2B';
   document.getElementById('ep-company').value = '';
+  if (document.getElementById('ep-status')) document.getElementById('ep-status').value = 'nuevo';
   document.getElementById('ep-sector').value = 'Supermercados';
   document.getElementById('ep-contact').value = '';
   document.getElementById('ep-role').value = '';
@@ -1448,6 +1468,7 @@ function openEditProspectModal(prospectId) {
   document.getElementById('ep-email').value = p.email || '';
   document.getElementById('ep-address').value = p.address || '';
   document.getElementById('ep-notes').value = p.notes || '';
+  if (document.getElementById('ep-status')) document.getElementById('ep-status').value = p.status || 'nuevo';
   document.getElementById('editProspectModal').classList.add('op');
 }
 
@@ -1472,6 +1493,7 @@ async function saveManualProspect() {
     email: document.getElementById('ep-email').value.trim() || null,
     address: document.getElementById('ep-address').value.trim() || null,
     notes: document.getElementById('ep-notes').value.trim() || null,
+    status: document.getElementById('ep-status')?.value || 'nuevo',
     updated_at: new Date().toISOString()
   };
 
@@ -2073,3 +2095,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadProspects();
 });
+
+
+window.quickUpdateProspectStatus = async function(prospectId, newStatus) {
+  const p = prospectsList.find(x => x.id === prospectId);
+  if (!p) return;
+  const oldStatus = p.status;
+  p.status = newStatus;
+  renderProspectsTable();
+  const { error } = await sb.from('jjp_prospects').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', prospectId);
+  if (error) {
+    p.status = oldStatus;
+    renderProspectsTable();
+    showToast('Error actualizando estado: ' + error.message, 'err');
+  } else {
+    showToast(`Estado actualizado: ${newStatus}`, 'ok');
+  }
+};

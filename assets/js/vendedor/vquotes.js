@@ -307,10 +307,14 @@ async function loadQuoteForEdit(val) {
 }
 
 function posUpdateName(key, newName) {
-  if (posTicket[key] && newName.trim()) {
-    posTicket[key].name = newName.trim();
+  if (posTicket[key]) {
+    const clean = String(newName || '').trim();
+    if (clean) {
+      posTicket[key].name = clean;
+    }
   }
 }
+window.posUpdateName = posUpdateName;
 
 /* --- buscador de productos (Panel Integrado del Catálogo) --- */
 function posSearch() {
@@ -767,13 +771,13 @@ function posRenderTicket() {
     const lineBdr = isCursor ? 'var(--theme-accent, #10b981)' : 'var(--theme-border-subtle, #e2e8f0)';
 
     return `
-      <div class="pos-ticket-row" style="padding:10px 14px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.02)">
+      <div class="pos-ticket-row pos-line" data-ticket-line="${idx}" style="padding:10px 14px;border:1px solid ${lineBdr};border-radius:10px;background:${lineBg};display:grid;grid-template-columns:30px 1.8fr 110px 105px 95px 105px 44px;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.02)">
         <div style="font-size:11px;font-weight:900;color:var(--theme-accent, #16604a);background:rgba(16,185,129,0.12);padding:2px 4px;border-radius:4px;text-align:center">#${idx + 1}</div>
         
         <div style="min-width:0">
-          <div style="font-size:13px;font-weight:700;color:var(--theme-text-main, #0f172a);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHTML(l.name)}">
-            ${escapeHTML(l.name)}
-            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600;margin-left:4px">(${escapeHTML(l.brand)})</small>` : ''}
+          <div style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);display:flex;align-items:center;gap:4px">
+            <input type="text" class="fi ticket-nav-input" id="pos-name-in-${k}" data-ticket-field="name" data-ticket-idx="${idx}" data-ticket-key="${k}" value="${escapeHTML(l.name)}" title="${escapeHTML(l.name)}" style="font-weight:700;font-size:13px;color:var(--theme-text-main, #0f172a);padding:2px 6px;margin:0;flex:1;min-width:0;height:26px;border:1px solid transparent;background:transparent;border-radius:4px" onfocus="this.style.border='1px solid var(--theme-border-subtle, #cbd5e1)';this.style.background='var(--theme-bg-elevated, #fff)'" onblur="this.style.border='1px solid transparent';this.style.background='transparent';posUpdateName('${k}', this.value)" oninput="if(posTicket['${k}']) posTicket['${k}'].name = this.value" onchange="posUpdateName('${k}', this.value)" aria-label="Nombre del producto">
+            ${l.brand ? `<small style="color:var(--theme-text-muted, #64748b);font-weight:600;white-space:nowrap">(${escapeHTML(l.brand)})</small>` : ''}
             ${isCustomBadge}
           </div>
           <div style="font-size:11px;font-family:monospace;color:var(--theme-text-muted, #64748b);margin-top:2px">
@@ -1319,7 +1323,7 @@ function addCustomItemToTicket() {
     product_id: null,
     variant_id: null,
     name: name,
-    sku: 'LIBRE',
+    sku: 'IN-OS',
     brand: 'Personalizado',
     unit: unit,
     price_usd: priceUsd,
@@ -1477,7 +1481,7 @@ async function processAiQuoteRequest() {
             product_id: null,
             variant_id: null,
             name: it.product_name || it.raw_query || 'Ítem solicitado',
-            sku: 'SOLICITADO',
+            sku: 'IN-OS',
             brand: null,
             unit: it.unit || 'unid',
             price_usd: 0,
@@ -1866,7 +1870,7 @@ async function confirmQuoteToMixnet(id, quoteNumber) {
   const label = quoteNumber ? '#' + quoteNumber : 'esta cotización';
   if (!confirm(`¿Insertar ${label} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
   try {
-    const res = await sb.from('jjp_quotes').update({ status: 'confirmado_mixnet' }).eq('id', id);
+    const res = await sb.from('jjp_quotes').update({ status: 'pendiente_mixnet' }).eq('id', id);
     if (res.error) throw res.error;
     if (typeof toast === 'function') toast('📥 Cotización insertada · se enviará a MixNet', 'success');
     else alert('Cotización confirmada para MixNet.');

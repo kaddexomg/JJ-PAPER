@@ -217,7 +217,7 @@ export function resolveMixnetClientCode(compDir, rif, clientName) {
   }
 
   // Fallback canónico oficial para cliente sin ficha en MixNet (Cuenta Recuperada)
-  return '000-001';
+  return '00';
 }
 
 /**
@@ -259,8 +259,7 @@ export function injectQuoteToMixnet(compDir, quote) {
   const rate = parseFloat(quote.exchange_rate || 0);
 
   // 1. Cabecera (cero comentarios inventados o marcas de agua)
-  const clientName = clientCode === '000-001'
-    ? String(quote.client_name || 'CTA. RECUPERADA: 000-001').slice(0, 60)
+  const clientName = clientCode === '00' ? String(quote.client_name || 'CUENTA RECUPERADA').slice(0, 60)
     : String(quote.client_name || '').slice(0, 60);
 
   const encValues = {
@@ -269,7 +268,7 @@ export function injectQuoteToMixnet(compDir, quote) {
     cliente: clientCode,
     codsuc: '',
     codven: sellerCodven,
-    comen1: String(quote.notes || '').slice(0, 35),
+    comen1: String(quote.notes || '').replace(/\[MixNet\]/gi, '').replace(/COT-\d+/gi, '').trim().slice(0, 35),
     comen2: '',
     tot_cot: total.toFixed(2),
     estatus: 'PE',
@@ -367,8 +366,7 @@ export function injectOrderToMixnet(compDir, order) {
   const sellerCodven = order.codven || '';
   const rate = parseFloat(order.exchange_rate || 0);
 
-  const clientName = clientCode === '000-001'
-    ? String(order.client_name || 'CTA. RECUPERADA: 000-001').slice(0, 60)
+  const clientName = clientCode === '00' ? String(order.client_name || 'CUENTA RECUPERADA').slice(0, 60)
     : String(order.client_name || '').slice(0, 60);
 
   const encRecord = buildRecordBuffer(sEnc, {
@@ -377,7 +375,7 @@ export function injectOrderToMixnet(compDir, order) {
     cliente: clientCode,
     codsuc: '',
     codven: sellerCodven,
-    comen1: String(order.notes || '').slice(0, 35),
+    comen1: String(order.notes || '').replace(/\[MixNet\]/gi, '').replace(/PED-\d+/gi, '').trim().slice(0, 35),
     comen2: '',
     tot_ped: total.toFixed(2),
     estatus: 'PE',

@@ -103,7 +103,7 @@ async function confirmVOrderToMixnet(id) {
   if (!o) return;
   if (!confirm(`¿Insertar el pedido ${o.order_number} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
   try {
-    const { error } = await sb.from('jjp_orders').update({ status: 'confirmado_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await sb.from('jjp_orders').update({ status: 'pendiente_mixnet', updated_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
     o.status = 'confirmado_mixnet';
     if (typeof showToast === 'function') showToast('📥 Pedido insertado · se enviará a MixNet');

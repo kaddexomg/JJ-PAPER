@@ -135,7 +135,7 @@ function renderQuotesTable() {
       <td>
         <div class="td-actions">
           <button class="btn-p sm" onclick="viewQuoteDetail('${q.id}')" title="Ver detalle">👁️</button>
-          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
+          ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertada en MixNet">📥 Insertado</span>` : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateQuoteStatus('${q.id}','pendiente_mixnet')" title="Insertar cotización en MixNet ERP">📥 Insertar</button>`}
           <a class="btn-o sm" href="cotizador.html?edit=${q.id}" title="Editar cotización">✏️</a>
           <a class="btn-o sm" href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}" title="Cargar y facturar en POS">💰</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, quoteCtx('${q.id}'))"
@@ -164,7 +164,7 @@ function renderQuotesPag(totalCount) {
 function quotesGoPage(p) { quotePage = p; renderQuotesTable(); }
 
 async function updateQuoteStatus(id, status) {
-  if (status === 'confirmado_mixnet') {
+  if (status === 'pendiente_mixnet' || status === 'confirmado_mixnet') {
     if (!confirm('¿Insertar esta cotización en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) {
       renderQuotesTable();
       return;
@@ -319,7 +319,7 @@ href="cotizador.html?edit=${q.id}">✏️ Editar Cotización</a>
 href="pos.html?quote=${encodeURIComponent(q.quote_number || q.id)}">💰 Cargar en POS</a>
       <button class="btn-o" onclick="convertQuoteToOrder('${q.id}')" ${allPriced ? '' : 'disabled title="Todos los productos necesitan precio"'}
         style="${allPriced ? '' : 'opacity:.5;cursor:not-allowed'}">🛒 Convertir en pedido</button>
-      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','confirmado_mixnet')">📥 Insertar</button>`}
+      ${q.status === 'confirmado_mixnet' || q.status === 'mixnet_enviado' ? `<span class="btn-o" style="width:auto;padding:12px 20px;background:#dbeafe;color:#1d4ed8;cursor:default">📥 Insertado en MixNet</span>` : `<button class="btn-p" style="width:auto;padding:12px 20px;background:#1d4ed8;color:#fff;font-weight:700" onclick="updateQuoteStatus('${q.id}','pendiente_mixnet')">📥 Insertar</button>`}
     </div>`;
 
   modal.classList.add('op');

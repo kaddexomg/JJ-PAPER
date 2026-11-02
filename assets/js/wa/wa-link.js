@@ -220,13 +220,25 @@ function waRenderLink() {
 
 async function _waAction(fields, okMsg) {
   const payload = {
-    profile_id: _waLinkMe,
     ...fields,
     requested_at: new Date().toISOString(),
     enabled: true
   };
-  const { error } = await sb.from('jjp_wa_sessions')
-    .upsert(payload, { onConflict: 'profile_id' });
+  // 1. Intentar update primero (respetando permisos RLS)
+  let { data, error } = await sb.from('jjp_wa_sessions')
+    .update(payload)
+    .eq('profile_id', _waLinkMe)
+    .select('profile_id');
+
+  // 2. Si no había fila previa, insertar
+  if (!error && (!data || data.length === 0)) {
+    const resIns = await sb.from('jjp_wa_sessions').insert({
+      profile_id: _waLinkMe,
+      ...payload
+    });
+    error = resIns.error;
+  }
+
   if (error) { showToast('No se pudo pedir la acción: ' + error.message, 'err'); return false; }
   if (okMsg) showToast(okMsg);
   return true;

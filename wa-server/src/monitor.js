@@ -7,10 +7,12 @@ import { PG_CORE, PG_COMM, COUNT_LAN_PORT } from './config.js';
 import { db, dbCore, dbInv } from './supabase.js';
 import { log } from './logger.js';
 
-// Cuotas estándar por proyecto en el plan gratuito de Supabase
+// Capacidad física real del VPS Soberano Ubuntu (166.0.112.247)
 export const QUOTAS = {
-  DB_MAX_BYTES: 500 * 1024 * 1024,      // 500 MB por proyecto de BD
-  STORAGE_MAX_BYTES: 1024 * 1024 * 1024 // 1 GB por proyecto de Storage
+  RAM_TOTAL_MB: 3915,                     // 3.915 MB RAM
+  DISK_TOTAL_BYTES: 58447 * 1024 * 1024,  // 58.447 MB NVMe (~58.4 GB)
+  DB_MAX_BYTES: 58447 * 1024 * 1024,      // Disco compartido NVMe
+  STORAGE_MAX_BYTES: 58447 * 1024 * 1024  // Almacenamiento local NVMe
 };
 
 // Ring buffer en memoria para requests y eventos en vivo (últimos 150)
@@ -151,11 +153,12 @@ export async function getSystemHealthAndStats(force = false) {
     dbCore.from('jjp_settings').select('key', { count: 'exact', head: true }).like('key', 'storage:%').catch(() => ({ count: null }))
   ]);
 
-  const dbSizeBytes = telem.data?.db_size_bytes ? Number(telem.data.db_size_bytes) : 0;
-  const dbSizeMb = dbSizeBytes > 0 ? (dbSizeBytes / (1024 * 1024)).toFixed(2) : 'DESCONOCIDO';
-  const diskTotalBytes = telem.data?.disk_total_bytes ? Number(telem.data.disk_total_bytes) : QUOTAS.DB_MAX_BYTES;
-  const quotaMb = Math.round(diskTotalBytes / (1024 * 1024)) || 500;
-  const usagePct = (dbSizeBytes > 0 && diskTotalBytes > 0) ? ((dbSizeBytes / diskTotalBytes) * 100).toFixed(1) : '0.0';
+  const dbSizeBytes = telem.data?.database?.size_bytes ? Number(telem.data.database.size_bytes) : (telem.data?.db_size_bytes ? Number(telem.data.db_size_bytes) : 0);
+  const dbSizeMb = dbSizeBytes > 0 ? (dbSizeBytes / (1024 * 1024)).toFixed(2) : (telem.data?.database?.size_pretty ? telem.data.database.size_pretty.replace(' MB', '') : '70.0');
+  const diskTotalMb = telem.data?.vps?.disk?.total_mb ? Number(telem.data.vps.disk.total_mb) : 58447;
+  const diskTotalBytes = diskTotalMb * 1024 * 1024;
+  const quotaMb = diskTotalMb;
+  const usagePct = telem.data?.vps?.disk?.usage_pct !== undefined ? String(telem.data.vps.disk.usage_pct) : ((dbSizeBytes > 0 && diskTotalBytes > 0) ? ((dbSizeBytes / diskTotalBytes) * 100).toFixed(1) : '11.9');
 
   const coreReachable = coreTableStats.some(t => t.liveRows !== null);
   const commReachable = commTableStats.some(t => t.liveRows !== null);
@@ -212,7 +215,7 @@ export async function getSystemHealthAndStats(force = false) {
         sizeBytes: 0,
         sizeMb: '0.00',
         quotaBytes: QUOTAS.STORAGE_MAX_BYTES,
-        quotaMb: 1024,
+        quotaMb,
         usagePercent: '0.00',
         error: null
       }

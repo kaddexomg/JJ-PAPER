@@ -518,7 +518,7 @@ window.CampaignEditor = (() => {
                     <span><strong>Para:</strong> <span id="ceSimToEmail">cliente@empresa.com</span></span>
                   </div>
                   <div class="ce-email-chrome-subject" id="ceSimSubjectText">
-                    📄 Propuesta de Suministro Operativo Mayorista — JJ Paper C.A.
+                    📄 Catálogo y Precios Mayoristas por Bulto — JJ Paper C.A.
                   </div>
                 </div>
 
@@ -4371,7 +4371,7 @@ ${rawText}
       if (!body || body.includes('Le saludamos cordialmente de JJ Paper...') || body === '{Hola|Saludos|Buen día} {{nombre}} 👋, le saluda {{vendedor}} de JJ Paper.\n\nTenemos excelentes promociones hoy.\n👉 Catálogo: {{link}}') {
         body = buildMinimalFallback(null, currentConfig.channel || 'whatsapp', currentConfig.seller?.name, document.getElementById('ceAttachPdf')?.checked !== false);
       }
-      if (isEmail && !subject) subject = '📋 Propuesta de Suministro y Optimización Operativa — JJ Paper C.A.';
+      if (isEmail && !subject) subject = '📋 Suministro Mayorista Directo a Tasa BCV — JJ Paper C.A.';
 
       // Asegurar que cada contacto de la lista tenga su mensaje y asunto listos sin dejar ninguno vacío
       const isPdfActive = document.getElementById('ceAttachPdf')?.checked !== false;
@@ -4385,7 +4385,7 @@ ${rawText}
         if (isEmail && !c._custom_subject) {
           c._custom_subject = isContacted
             ? `🤝 Seguimiento Operativo y Reposición para ${c.name || 'su empresa'} — JJ Paper C.A.`
-            : (subject || '📋 Propuesta de Suministro y Optimización Operativa — JJ Paper C.A.');
+            : (subject || '📋 Suministro Mayorista Directo a Tasa BCV — JJ Paper C.A.');
         }
       });
     } else {

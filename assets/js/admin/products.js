@@ -933,6 +933,37 @@ let _currentStudioProdId = null;
 let _currentStudioSelectedImg = null;
 let _studioPasteHandlerBound = false;
 
+
+async function convertImageToStudioWebpBlob(srcOrBlob, targetSize = 800) {
+  let blob = null;
+  if (srcOrBlob instanceof Blob) {
+    blob = srcOrBlob;
+  } else if (typeof srcOrBlob === 'string') {
+    if (srcOrBlob.startsWith('data:')) {
+      const r = await fetch(srcOrBlob);
+      blob = await r.blob();
+    } else {
+      const proxyUrl = '/api/search-images?proxy_url=' + encodeURIComponent(srcOrBlob);
+      const r = await fetch(proxyUrl);
+      if (!r.ok) throw new Error('No se pudo descargar la imagen seleccionada');
+      blob = await r.blob();
+    }
+  }
+  const bmp = await createImageBitmap(blob);
+  const cv = document.createElement('canvas');
+  const maxDim = Math.max(bmp.width, bmp.height);
+  const scale = Math.min(1, targetSize / maxDim);
+  cv.width = Math.round(bmp.width * scale);
+  cv.height = Math.round(bmp.height * scale);
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+  return new Promise((resolve, reject) => {
+    cv.toBlob(b => b ? resolve(b) : reject(new Error('Error al generar blob WebP')), 'image/webp', 0.82);
+  });
+}
+
 async function convertImageToStudioWebpDataUri(srcOrBlob, targetSize = 520) {
   let blob = null;
 
@@ -1368,12 +1399,17 @@ async function prodStudioGuardarSeleccion() {
   if (statusEl) statusEl.textContent = 'Encuadrando en lienzo 520×520 fondo blanco, comprimiendo a WebP ligero y guardando en BD...';
 
   try {
-    const webpDataUri = await convertImageToStudioWebpDataUri(_currentStudioSelectedImg, 520);
+    const webpBlob = await convertImageToStudioWebpBlob(_currentStudioSelectedImg, 800);
+    const path = `${_currentStudioProdId}.webp`;
+    const { error: upErr } = await sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
+    if (upErr) throw new Error('Error al subir WebP al VPS: ' + upErr.message);
+    const finalPubUrl = `${SUPABASE_URL}/storage/v1/object/public/jjp-products/${path}?t=${Date.now()}`;
 
     const [resProd] = await Promise.all([
-      sb.from('jjp_products').update({ image_url: webpDataUri }).eq('id', _currentStudioProdId),
-      sb.from('jjp_product_variants').update({ image_url: webpDataUri }).eq('product_id', _currentStudioProdId)
+      sb.from('jjp_products').update({ image_url: finalPubUrl }).eq('id', _currentStudioProdId),
+      sb.from('jjp_product_variants').update({ image_url: finalPubUrl }).eq('product_id', _currentStudioProdId)
     ]);
+    const webpDataUri = finalPubUrl;
 
     if (resProd?.error) throw new Error(resProd.error.message);
 

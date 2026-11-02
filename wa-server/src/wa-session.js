@@ -415,7 +415,7 @@ export class WaSession {
       if (code === DisconnectReason.restartRequired) {
         log.info({ profile: this.profileId, code }, 'Código 515 restartRequired tras escanear QR — reconexión inmediata (1s) para consolidar sesión ✅');
         this.reconnectMs = 1000;
-        await this.setSession({ status: 'reconnecting', last_error: null, qr_data: null });
+        await this.setSession({ status: 'starting', last_error: null, qr_data: null });
         this.scheduleReconnect();
         return;
       }
@@ -426,7 +426,7 @@ export class WaSession {
         if (this.qrTimeouts <= 4) {
           log.info({ profile: this.profileId, intento: this.qrTimeouts }, 'QR expiró sin escanear. Regenerando nuevo código QR de inmediato…');
           this.reconnectMs = 1000;
-          await this.setSession({ status: 'reconnecting', qr_data: null });
+          await this.setSession({ status: 'starting', qr_data: null });
           this.scheduleReconnect();
           return;
         } else {
@@ -445,7 +445,7 @@ export class WaSession {
 
       const isExpectedRestart = code === DisconnectReason.connectionClosed
                              || code === DisconnectReason.timedOut;
-      const uiStatus = isExpectedRestart ? 'reconnecting' : 'disconnected';
+      const uiStatus = isExpectedRestart ? 'starting' : 'disconnected';
       await this.setSession({ status: uiStatus, last_error: isExpectedRestart ? null : (lastDisconnect?.error?.message || null) });
       if (isExpectedRestart) {
         log.info({ profile: this.profileId, code }, 'reconexión esperada / transitoria — reconectando…');

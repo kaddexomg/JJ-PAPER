@@ -253,7 +253,7 @@ export async function exportPendingDocumentsToMixnet(compDir) {
   try {
     const pendingQuotes = await sbGet(
       'jjp_quotes',
-      'status=eq.pendiente_mixnet&source=neq.mixnet&order=created_at.asc&limit=5'
+      'status=in.(pendiente_mixnet,confirmado_mixnet)&source=neq.mixnet&order=created_at.asc&limit=5'
     );
 
     if (Array.isArray(pendingQuotes) && pendingQuotes.length > 0) {
@@ -309,7 +309,7 @@ export async function exportPendingDocumentsToMixnet(compDir) {
   try {
     const pendingOrders = await sbGet(
       'jjp_orders',
-      'status=eq.pendiente_mixnet&source=neq.mixnet&order=created_at.asc&limit=5'
+      'status=in.(pendiente_mixnet,confirmado_mixnet)&source=neq.mixnet&order=created_at.asc&limit=5'
     );
 
     if (Array.isArray(pendingOrders) && pendingOrders.length > 0) {

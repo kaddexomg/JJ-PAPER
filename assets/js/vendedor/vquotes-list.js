@@ -264,7 +264,7 @@ async function confirmVQuoteToMixnet(id) {
   const q = vQuotes.find(x => x.id === id);
   const label = q?.quote_number ? '#' + q.quote_number : 'esta cotización';
   if (!confirm(`¿Insertar ${label} en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.`)) return;
-  await updateVQuoteStatus(id, 'confirmado_mixnet');
+  await updateVQuoteStatus(id, 'pendiente_mixnet');
   try {
     fetch('http://192.168.0.185:8790/api/inject-quote', {
       method: 'POST',

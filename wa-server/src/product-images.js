@@ -504,10 +504,6 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
  * Busca imágenes en DuckDuckGo Image Search (API JSON).
  */
 async function searchDuckDuckGoImages(query, limit = 8) {
-  // @deprecated OBSOLETO: El raspado directo es bloqueado por DuckDuckGo
-  return [];
-}
-async function _legacy_searchDuckDuckGoImages(query, limit = 8) {
   try {
     const tokenUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(query);
     const controller1 = new AbortController();
@@ -572,10 +568,6 @@ async function _legacy_searchDuckDuckGoImages(query, limit = 8) {
  * Busca en Bing Images (scraping HTML directo, ultra confiable sin rate-limits agresivos).
  */
 async function searchBingImages(query, limit = 8) {
-  // @deprecated OBSOLETO: El raspado directo es bloqueado por Bing
-  return [];
-}
-async function _legacy_searchBingImages(query, limit = 8) {
   try {
     const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC3&first=1`;
     const controller = new AbortController();

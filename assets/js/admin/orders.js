@@ -187,7 +187,7 @@ function renderOrdersTable() {
           <button class="btn-p sm" onclick="viewOrder('${o.id}')">👁️ Ver</button>
           ${o.status === 'confirmado_mixnet' || o.status === 'mixnet_enviado'
             ? `<span class="btn-o sm" style="background:#dbeafe;color:#1d4ed8;cursor:default" title="Insertado en el sistema administrativo">📥 Insertado</span>`
-            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','confirmado_mixnet')" title="Insertar en el sistema administrativo">📥 Insertar</button>`}
+            : `<button class="btn-p sm" style="background:#1d4ed8;color:#fff" onclick="updateOrderStatus('${o.id}','pendiente_mixnet')" title="Insertar en el sistema administrativo">📥 Insertar</button>`}
           <a class="btn-o sm" href="pos.html?order=${encodeURIComponent(o.order_number || o.id)}" title="Editar pedido en POS sin duplicar">✏️</a>
           <button class="btn-send sm" onclick="sendMenuAbrir(event, ordCtx('${o.id}'))"
                   title="Enviar factura, recibo o estado al cliente" aria-haspopup="menu">📤</button>
@@ -214,7 +214,7 @@ function renderOrdersPag(totalItems = adminOrders.length) {
 function ordersGoPage(p) { ordersPage = p; renderOrdersTable(); }
 
 async function updateOrderStatus(id, status) {
-  if (status === 'confirmado_mixnet') {
+  if (status === 'pendiente_mixnet' || status === 'confirmado_mixnet') {
     if (!confirm('¿Insertar este pedido en MixNet ERP?\n\nSe enviará al sistema administrativo de la tienda.')) { renderOrdersTable(); return; }
   }
   const { error } = await sb.from('jjp_orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);

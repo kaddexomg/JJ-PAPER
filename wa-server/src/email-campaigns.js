@@ -1,4 +1,3 @@
-import { ARCADE_RUNNER_GIF, ARCADE_RUNNER_CID, ARCADE_RUNNER_FILENAME } from './arcade-gif-data.js';
 import { db, dbCore } from './supabase.js';
 import { log } from './logger.js';
 import { CAMPAIGN_SWEEP_MS } from './config.js';
@@ -277,16 +276,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
   </noscript>
   <![endif]-->
   <style>
-    @keyframes jjp-arcade-marquee {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    @keyframes jjp-pulse-arcade {
-      0% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(16, 185, 129, 0.3); transform: scale(1); }
-      50% { box-shadow: 0 0 22px rgba(16, 185, 129, 0.8), 0 6px 20px rgba(6, 182, 212, 0.5); transform: scale(1.015); }
-      100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(16, 185, 129, 0.3); transform: scale(1); }
-    }
+    
     @keyframes jjp-glow-badge {
       0% { border-color: #10b981; }
       50% { border-color: #06b6d4; }
@@ -305,7 +295,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
       border: 1px solid #34d399 !important;
       box-shadow: 0 0 16px rgba(16, 185, 129, 0.45) !important;
       transition: all 0.25s ease-in-out !important;
-      animation: jjp-pulse-arcade 2.8s infinite ease-in-out !important;
+      
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
       text-align: center !important;
     }
@@ -342,7 +332,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
       .jjp-footer-cell { padding: 18px 16px !important; }
       .jjp-cta-cell { display: block !important; width: 100% !important; padding: 6px 0 !important; }
       .jjp-btn-cta, .jjp-btn-wa-main { width: 100% !important; padding: 14px 18px !important; box-sizing: border-box !important; }
-      .jjp-arcade-hud { display: block !important; }
+      
     }
   </style>
 </head>
@@ -352,9 +342,9 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
       <td align="center">
         <!-- Tarjeta Ejecutiva Principal con Borde Neón Arcade (680px) -->
         <table role="presentation" class="jjp-container" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background-color:#ffffff;border-radius:14px;border:1.5px solid #10b981;overflow:hidden;box-shadow:0 0 30px rgba(16,185,129,0.2),0 12px 30px rgba(0,0,0,0.45);text-align:left;">
-          <!-- Barra Superior Arcade Marquee en Degradé Multicolor Animado -->
+          <!-- Barra Superior Institucional -->
           <tr>
-            <td style="height:7px;background:linear-gradient(90deg, #10b981, #06b6d4, #f59e0b, #10b981);background-size:250% 250%;animation:jjp-arcade-marquee 4s ease infinite;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="height:4px;background:#10b981;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
 
           <!-- Cabecera Institucional Arcade HUD con Logo Oficial y Sprites de Papelería -->
@@ -383,16 +373,11 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
                 </tr>
               </table>
 
-              <!-- Franja Animada Arcade: Personajes de Papelería (Lápiz Corredor, Sacapuntas y Monograma JJ) -->
-              <div style="margin-top:14px;background:#060a12;border:1.5px solid rgba(16,185,129,0.45);border-radius:8px;padding:0;text-align:center;overflow:hidden;box-shadow:0 0 16px rgba(16,185,129,0.25);">
-                <img src="cid:${ARCADE_RUNNER_CID}" alt="Personajes JJ Paper: Lápiz Corredor, Sacapuntas y Monograma JJ" width="600" height="64" style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;image-rendering:pixelated;border-radius:6px;">
-              </div>
-
-              <!-- Marcador HUD Arcade Retroiluminado -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;background:#030712;border:1.5px solid #10b981;border-radius:8px;padding:8px 12px;box-shadow:0 0 12px rgba(16,185,129,0.35);">
+              <!-- Cintillo B2B Oficial -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;background:rgba(16,185,129,0.08);border:1px solid #10b981;border-radius:8px;padding:8px 14px;">
                 <tr>
-                  <td align="center" style="font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:12px;color:#34d399;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;line-height:1.4;">
-                    🕹️ NIVEL: MAYORISTA &nbsp;·&nbsp; ⚙️ PROCURA: ON &nbsp;·&nbsp; 🪙 TASA: BCV
+                  <td align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#34d399;font-weight:700;letter-spacing:0.5px;">
+                    🪙 FACTURACIÓN FISCAL SENIAT A TASA OFICIAL BCV &nbsp;·&nbsp; 🚚 DESPACHO DIRECTO EN 24H
                   </td>
                 </tr>
               </table>
@@ -422,15 +407,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
             </td>
           </tr>
 
-          <!-- Separador Arcade de Monedas & Power-Up -->
-          <tr>
-            <td style="padding:0 32px 20px 32px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:linear-gradient(90deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.15) 50%, rgba(16,185,129,0.08) 100%);border-top:1px dashed #10b981;border-bottom:1px dashed #06b6d4;padding:10px 14px;text-align:center;">
-                <tr>
-                  <td align="center" style="font-family:'Courier New',Courier,monospace,sans-serif;font-size:11.5px;font-weight:800;color:#0e7490;letter-spacing:1.2px;text-transform:uppercase;">
-                    🪙 🪙 🪙 &nbsp;<span style="color:#059669;">POWER-UP:</span> PRECIOS DE IMPORTADOR POR BULTO CERRADO &nbsp;🪙 🪙 🪙
-                  </td>
-                </tr>
+          
               </table>
             </td>
           </tr>
@@ -442,7 +419,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
                 <tr>
                   <td>
                     <div style="font-size:12.5px;font-weight:800;color:#34d399;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">
-                      🛡️ GARANTÍAS OFICIALES JJ PAPER C.A. [LEVEL COMPLETED]
+                      🛡️ RESPALDO OPERATIVO JJ PAPER C.A.
                     </div>
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:13.5px;color:#e2e8f0;line-height:1.65;">
                       <tr>
@@ -497,7 +474,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#10b981" style="border-radius:8px;background-color:#10b981;">
-                          <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waCustomMessage)}" target="_blank" class="jjp-btn-wa-main" style="background-color:#10b981;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;padding:13px 26px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.4px;">CONTINUE? ▶ Escríbenos</a>
+                          <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waCustomMessage)}" target="_blank" class="jjp-btn-wa-main" style="background-color:#10b981;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;padding:13px 26px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.4px;">💬 Escribir a WhatsApp</a>
                         </td>
                       </tr>
                     </table>
@@ -506,7 +483,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#16604A" style="border-radius:8px;background-color:#16604A;">
-                          <a href="${catalogUrl}" target="_blank" class="jjp-btn-cta" style="background-color:#16604A;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;padding:13px 26px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.4px;">▶ PRESS START · Ver Catálogo y Cotizar</a>
+                          <a href="${catalogUrl}" target="_blank" class="jjp-btn-cta" style="background-color:#16604A;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;padding:13px 26px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.4px;">🌐 Ver Catálogo Mayorista y Cotizar</a>
                         </td>
                       </tr>
                     </table>
@@ -520,14 +497,7 @@ export function renderCorporateEmailHtml({ subject, body, toAddr, sellerName, se
             </td>
           </tr>
 
-          <!-- Franja de personajes de papelería patrullando el borde inferior -->
-          <tr>
-            <td style="padding:0 32px 14px 32px;text-align:center;">
-              <div style="background:#090d16;border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:2px;overflow:hidden;">
-                <img src="cid:${ARCADE_RUNNER_CID}" alt="Mundo Papelería JJ Paper" width="600" height="64" style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;image-rendering:pixelated;border-radius:6px;">
-              </div>
-            </td>
-          </tr>
+          
 
           <!-- Firma Corporativa y Pie Institucional Arcade High-End -->
           <tr>
@@ -674,8 +644,15 @@ async function step(camp, dailyLimit) {
       };
 
       let subjTemplate = t.vars?.custom_subject || t.custom_subject || camp.subject || '';
-      if (!subjTemplate || subjTemplate.trim().length < 5) {
-        subjTemplate = 'Propuesta de Suministro Directo y Catálogo Corporativo | JJ Paper C.A.';
+      if (!subjTemplate || subjTemplate.trim().length < 5 || /propuesta/i.test(subjTemplate)) {
+        const rubro = String(realVars.rubro || realVars.sector || realVars.tipo || realVars.empresa || '').toLowerCase();
+        const isReseller = rubro.includes('papeleria') || rubro.includes('libreria') || rubro.includes('quincalla') ||
+                           rubro.includes('bazar') || rubro.includes('reventa') || rubro.includes('detal') || rubro.includes('comercio');
+        if (isReseller) {
+          subjTemplate = 'Lista mayorista por bulto cerrado — artículos escolares y papelería | JJ Paper';
+        } else {
+          subjTemplate = 'Suministro operativo directo con factura SENIAT a Tasa BCV | JJ Paper';
+        }
       }
       const subject = renderTemplate(subjTemplate, realVars);
       let bodyTemplate = t.vars?.custom_message || t.vars?.custom_body || t.custom_message || camp.body || camp.body_html || '';

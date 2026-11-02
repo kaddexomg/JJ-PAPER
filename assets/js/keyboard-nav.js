@@ -80,7 +80,7 @@
     const rowIdx = parseInt(inputEl.getAttribute('data-ticket-idx') || '-1', 10);
     if (!field || rowIdx < 0) return false;
 
-    const allRows = document.querySelectorAll('.pos-line, [data-ticket-line]');
+    const allRows = document.querySelectorAll('.pos-line, .pos-ticket-row, [data-ticket-line]');
     const totalRows = allRows.length;
     if (totalRows === 0) return false;
 

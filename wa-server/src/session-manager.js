@@ -75,6 +75,18 @@ export async function boot() {
     log.error({ err: e.message }, 'Error limpiando sesiones zombies');
   }
 
+  
+  // Asegurar que todos los perfiles staff activos tengan fila con enabled=true (vía service_role)
+  try {
+    const { data: profs } = await db.from('jjp_profiles').select('id').eq('active', true);
+    if (profs && profs.length > 0) {
+      for (const p of profs) {
+        await db.from('jjp_wa_sessions').insert({ profile_id: p.id, enabled: true }).catch(() => {});
+        await db.from('jjp_wa_sessions').update({ enabled: true }).eq('profile_id', p.id);
+      }
+    }
+  } catch (_) {}
+
   let started = 0;
   for (const row of rows || []) {
     const s = ensure(row.profile_id);

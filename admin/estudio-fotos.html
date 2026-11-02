@@ -2268,7 +2268,7 @@ async function approvePhoto(imgUrl, catName = '', vision = null) {
     const path = `${p.id}.webp`;
     await sb.storage.from('jjp-products').upload(path, webpBlob, { upsert: true, contentType: 'image/webp' });
     const pubUrl = `${SUPABASE_URL}/storage/v1/object/public/jjp-products/${path}?t=${Date.now()}`;
-    await sb.from('jjp_products').update({ image_url: pubUrl }).eq('id', p.id);
+    await Promise.all([sb.from('jjp_products').update({ image_url: pubUrl }).eq('id', p.id), sb.from('jjp_product_variants').update({ image_url: pubUrl }).eq('product_id', p.id)]);
 
     p.image_url = pubUrl;
     p.has_photo = true;
@@ -3346,6 +3346,13 @@ async function saveProductPhotoUnified(productId, imageSource, catName = null) {
       const t = await r.text();
       throw new Error(t);
     }
+
+    await fetch(`${vpsUrl}/rest/v1/jjp_product_variants?product_id=eq.${p.id}`, {
+      method: 'PATCH',
+      headers: reqHeaders,
+      body: JSON.stringify({ image_url: finalUrl })
+    }).catch(() => {});
+
 
     p.image_url = finalUrl;
     p.has_photo = true;

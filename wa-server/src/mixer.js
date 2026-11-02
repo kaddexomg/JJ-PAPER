@@ -828,58 +828,10 @@ export async function exportOrderToDbf(o, dbfDir) {
 
 // Barrido periódico saliente (JJ Paper ➔ MixNet)
 async function sweepRecentOutgoing() {
-  try {
-    lastSweepTime = new Date().toISOString();
-    const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-
-    // 1. Pedidos salientes — solo los activos (no cancelados ni rechazados)
-    const { data: orders, error: oErr } = await dbCore.from('jjp_orders')
-      .select('*')
-      .gte('created_at', windowStart)
-      .not('status', 'in', '("cancelado","rechazado")')
-      .order('created_at', { ascending: true });
-
-
-    if (!oErr && orders) {
-      let count = 0;
-      for (const o of orders) {
-        if (o.order_number && o.order_number.startsWith('MIX-')) continue;
-        if (o.source === 'mixnet') continue;
-        const fp = computeDocFingerprint(o);
-        if (orderFingerprints.get(o.order_number) !== fp) {
-          if (await exportOrder(o)) count++;
-        }
-      }
-      if (count > 0) {
-        log.info(`Puente Mixer: Barrido saliente exportó ${count} pedidos pendientes/modificados.`);
-      }
-    }
-
-    // 2. Cotizaciones salientes — solo las activas (no canceladas ni rechazadas)
-    const { data: quotes, error: qErr } = await dbCore.from('jjp_quotes')
-      .select('*')
-      .gte('created_at', windowStart)
-      .not('status', 'in', '("cancelado","rechazado")')
-      .order('created_at', { ascending: true });
-
-    if (!qErr && quotes) {
-      let qCount = 0;
-      for (const q of quotes) {
-        if (q.quote_number && q.quote_number.startsWith('MIX-')) continue;
-        if (q.source === 'mixnet') continue;
-        const fp = computeDocFingerprint(q);
-        if (quoteFingerprints.get(q.quote_number) !== fp) {
-          if (await exportQuote(q)) qCount++;
-        }
-      }
-      if (qCount > 0) {
-        log.info(`Puente Mixer: Barrido saliente exportó ${qCount} cotizaciones pendientes/modificadas.`);
-      }
-    }
-
-  } catch (err) {
-    log.error({ err: err.message }, 'Puente Mixer: Excepción en barrido saliente');
-  }
+  // DESACTIVADO POR PROTOCOLO SOBERANO MIXNET:
+  // Cero inserción automática. NADA se inyecta en MixNet DBF sin que el usuario pulse "Insertar".
+  // La inyección con reconstrucción de índices .NTX y respaldo .BAK es responsabilidad exclusiva de jj-mixnet-agent.
+  return;
 }
 
 /* ═══════════════ IMPORTACIÓN: MIXNET ➔ JJ PAPER ═══════════════ */
@@ -2025,70 +1977,23 @@ export async function sweepMixnetProducts() {
 
 /* ═══════════════ REALTIME LISTENERS ═══════════════ */
 function setupRealtimeListeners() {
-  log.info('Puente Mixer: Suscribiendo canal Realtime de pedidos (cotizaciones desactivadas — solo pedidos viajan a MixNet)...');
-
-
-  // 1. Pedidos
-  dbCore.channel('mixer-orders')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_orders' },
-      p => {
-        if (!p?.new) return;
-        if (p.new.order_number && p.new.order_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet') return;
-        log.info(`Puente Mixer: Recibida inserción de pedido ${p.new.order_number} por Realtime.`);
-        exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido'));
+  log.info('Puente Mixer: Realtime activo en modo supervisión (cero inserción automática — delegado a jj-mixnet-agent)');
+  dbCore.channel('mixer-web-quotes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_quotes' }, p => {
+      if (!p?.new) return;
+      if (p.new.source === 'web_catalogo' || p.new.source === 'web') {
+        dbCore.from('jjp_notifications').insert({
+          user_id: p.new.seller_id || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164',
+          type: 'nueva_cotizacion_web',
+          title: `⚡ Nueva Cotización Web: ${p.new.quote_number}`,
+          body: `${p.new.client_name} ha solicitado cotización web por ${Number(p.new.estimated_total_usd || 0).toFixed(2)} (${p.new.phone || 'S/D'}).`,
+          link: '/admin/cotizaciones.html',
+          read: false
+        }).then(() => log.info(`Alerta de cotización web ${p.new.quote_number} registrada en jjp_notifications`))
+          .catch(e => log.warn({ err: e.message }, 'Error registrando notificación de cotización'));
       }
-    )
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_orders' },
-      p => {
-        if (!p?.new) return;
-        if (p.new.order_number && p.new.order_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet') return;
-        log.info(`Puente Mixer: Recibida actualización de pedido ${p.new.order_number} por Realtime.`);
-        exportOrder(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando pedido (update)'));
-      }
-    )
-    .subscribe(status => {
-      log.info(`Puente Mixer: Canal Realtime de pedidos: ${status}`);
-    });
-
-  // 2. Cotizaciones
-  dbCore.channel('mixer-quotes')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jjp_quotes' },
-      p => {
-        if (!p?.new) return;
-        if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet') return;
-        log.info(`Puente Mixer: Recibida inserción de cotización ${p.new.quote_number} por Realtime.`);
-
-        // Si es cotización web, registrar notificación formal en jjp_notifications
-        if (p.new.source === 'web_catalogo' || p.new.source === 'web') {
-          dbCore.from('jjp_notifications').insert({
-            user_id: p.new.seller_id || 'bddc57dc-5bf9-4a72-9e1c-751d07b03164',
-            type: 'nueva_cotizacion_web',
-            title: `⚡ Nueva Cotización Web: ${p.new.quote_number}`,
-            body: `${p.new.client_name} ha solicitado cotización web por $${Number(p.new.estimated_total_usd || 0).toFixed(2)} (${p.new.phone || 'S/D'}).`,
-            link: '/admin/cotizaciones.html',
-            read: false
-          }).then(() => log.info(`Alerta de cotización web ${p.new.quote_number} registrada en jjp_notifications`))
-            .catch(e => log.warn({ err: e.message }, 'Error registrando notificación de cotización'));
-        }
-
-        exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización'));
-      }
-    )
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jjp_quotes' },
-      p => {
-        if (!p?.new) return;
-        if (p.new.quote_number && p.new.quote_number.startsWith('MIX-')) return;
-        if (p.new.source === 'mixnet') return;
-        log.info(`Puente Mixer: Recibida actualización de cotización ${p.new.quote_number} por Realtime.`);
-        exportQuote(p.new).catch(err => log.warn({ err: err.message }, 'Puente Mixer: Error Realtime exportando cotización (update)'));
-      }
-    )
-    .subscribe(status => {
-      log.info(`Puente Mixer: Canal Realtime de cotizaciones: ${status}`);
-    });
+    })
+    .subscribe();
 }
 
 

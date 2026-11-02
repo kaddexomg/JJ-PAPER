@@ -1867,8 +1867,24 @@ async function launchProspectsCampaignFromEditor(config) {
       kind: 'prospectos',
       subject: subject || 'Propuesta de abastecimiento operativo | JJ Paper',
       body: body,
-      html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px"><div>${htmlContent}</div></div>`,
-      body_html: `<div style="font-family:Helvetica,Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;padding:16px;background:#ffffff;border:1px solid #edf2f7;border-radius:12px"><div>${htmlContent}</div></div>`,
+      html: (window.CampaignEditor && window.CampaignEditor.renderCorporateEmailHtml)
+        ? window.CampaignEditor.renderCorporateEmailHtml({
+            subject: subject || 'Propuesta de abastecimiento operativo | JJ Paper',
+            body: body,
+            sellerName: KEYDER_PROFILE?.name || 'Keyder Salazar',
+            sellerPhone: KEYDER_PROFILE?.phone || '0412-4676073 / 0212-7531777',
+            sellerCode: KEYDER_PROFILE?.mixnet_code || KEYDER_PROFILE?.ref_code || '005'
+          })
+        : `<div style="background:#090d16;padding:20px;color:#fff">${htmlContent}</div>`,
+      body_html: (window.CampaignEditor && window.CampaignEditor.renderCorporateEmailHtml)
+        ? window.CampaignEditor.renderCorporateEmailHtml({
+            subject: subject || 'Propuesta de abastecimiento operativo | JJ Paper',
+            body: body,
+            sellerName: KEYDER_PROFILE?.name || 'Keyder Salazar',
+            sellerPhone: KEYDER_PROFILE?.phone || '0412-4676073 / 0212-7531777',
+            sellerCode: KEYDER_PROFILE?.mixnet_code || KEYDER_PROFILE?.ref_code || '005'
+          })
+        : `<div style="background:#090d16;padding:20px;color:#fff">${htmlContent}</div>`,
       status: 'running',
       delay_min_s: delays?.min || 15,
       delay_max_s: delays?.max || 45,

@@ -179,7 +179,9 @@ async function fetchAttachmentBytes(path) {
   }
 }
 
-function formatTextToHtml(text) {
+function formatTextToHtml(text, sellerCode = '005') {
+  const sCode = sellerCode || '005';
+  const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
   const paragraphs = String(text || '').split(/\n\n+/).map(p => {
     let clean = escapeHtml(p).replace(/\n/g, '<br>');
     clean = clean.replace(/\*([^*]+)\*/g, '<strong style="color:#0f172a;">$1</strong>');
@@ -291,7 +293,7 @@ function formatTextToHtml(text) {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                       <tr>
                         <td align="center" bgcolor="#10b981" style="border-radius:8px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);box-shadow:0 0 16px rgba(16,185,129,0.45);border:1px solid #34d399;">
-                          <a href="https://jjpaper.pages.dev/catalogo.html" target="_blank" style="display:inline-block;padding:12px 22px;color:#ffffff !important;font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:13.5px;font-weight:900;text-decoration:none;letter-spacing:0.8px;text-transform:uppercase;">
+                          <a href="${catalogUrl}" target="_blank" style="display:inline-block;padding:12px 22px;color:#ffffff !important;font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:13.5px;font-weight:900;text-decoration:none;letter-spacing:0.8px;text-transform:uppercase;">
                             ▶ PRESS START · Ver Catálogo y Cotizar
                           </a>
                         </td>
@@ -330,7 +332,7 @@ function formatTextToHtml(text) {
           <tr>
             <td style="background:linear-gradient(180deg, #0b1523 0%, #060a12 100%);padding:20px 30px;border-top:2px solid #10b981;font-size:12px;color:#94a3b8;line-height:1.6;text-align:center;">
               <strong style="color:#ffffff;">JJ PAPER C.A.</strong> · RIF J-29537545-0 · Caracas, Venezuela<br>
-              <a href="https://jjpaper.pages.dev/catalogo.html" target="_blank" style="color:#34d399;text-decoration:none;font-weight:700;">🌐 Catálogo Interactivo en Línea: jjpaper.pages.dev</a> · 📞 0412-4676073
+              <a href="${catalogUrl}" target="_blank" style="color:#34d399;text-decoration:none;font-weight:700;">🌐 Catálogo Interactivo en Línea: jjpaper.pages.dev</a> · 📞 0412-4676073
             </td>
           </tr>
         </table>

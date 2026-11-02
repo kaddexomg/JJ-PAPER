@@ -3244,11 +3244,11 @@ ${rawText}
     return blocks.join('');
   }
 
-  function renderCorporateEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '', sellerCode = '', imgUrl = '' } = {}) {
+  function renderCorporateEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '', sellerCode = '', imgUrl = '', companyName = '' } = {}) {
     const bodyHtml = formatBodyToCorporateHtml(body);
-    const sName = sellerName || currentConfig?.seller?.name || 'Keyder Salazar';
-    const sPhone = sellerPhone || currentConfig?.seller?.phone || '0412-4676073 / 0212-7531777';
-    const sCode = sellerCode || currentConfig?.seller?.mixnet_code || currentConfig?.seller?.ref_code || currentConfig?.seller?.code || '005';
+    const sName = sellerName || currentConfig?.seller?.name || (typeof SELLER !== 'undefined' && SELLER?.name) || 'Keyder Salazar';
+    const sPhone = sellerPhone || currentConfig?.seller?.phone || (typeof SELLER !== 'undefined' && SELLER?.phone) || '0412-4676073 / 0212-7531777';
+    const sCode = sellerCode || currentConfig?.seller?.mixnet_code || currentConfig?.seller?.ref_code || currentConfig?.seller?.code || (typeof SELLER !== 'undefined' && (SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code)) || '005';
     const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
 
     // Iniciales del asesor para el monograma ejecutivo
@@ -3259,7 +3259,17 @@ ${rawText}
 
     // Limpiar teléfono para WhatsApp directo
     const cleanPhoneDigits = (sPhone.split('/')[0] || sPhone).replace(/\D/g, '');
-    const waNumber = cleanPhoneDigits.startsWith('0') ? '58' + cleanPhoneDigits.slice(1) : (cleanPhoneDigits.startsWith('58') ? cleanPhoneDigits : '58' + cleanPhoneDigits);
+    let waNumber = cleanPhoneDigits;
+    if (waNumber.startsWith('0')) waNumber = '58' + waNumber.slice(1);
+    else if (!waNumber.startsWith('58')) waNumber = '58' + waNumber;
+    if (waNumber.length < 10) waNumber = '584124676073';
+
+    const cleanCompName = String(companyName || '').trim();
+    const waCustomMessage = cleanCompName
+      ? `Hola ${sName}, le escribo de parte de ${cleanCompName} para solicitar la cotización formal de los insumos con JJ Paper.`
+      : `Hola ${sName}, me comunico con JJ Paper para solicitar una cotización formal.`;
+
+    const runnerImgUrl = 'https://jjpaper.pages.dev/assets/img/arcade-papeleria-runner.gif';
 
     return `<!DOCTYPE html>
 <html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -3267,7 +3277,7 @@ ${rawText}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>${escapeHTML(subject)}</title>
+  <title>${escapeHTML(subject || 'Comunicación Oficial JJ Paper')}</title>
   <!--[if mso]>
   <noscript>
     <xml>
@@ -3278,88 +3288,128 @@ ${rawText}
   </noscript>
   <![endif]-->
   <style>
-    @keyframes jjp-pulse {
-      0% { box-shadow: 0 4px 14px rgba(22, 96, 74, 0.25); }
-      50% { box-shadow: 0 6px 22px rgba(22, 96, 74, 0.50); }
-      100% { box-shadow: 0 4px 14px rgba(22, 96, 74, 0.25); }
+    @keyframes jjp-arcade-marquee {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes jjp-pulse-arcade {
+      0% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(16, 185, 129, 0.3); transform: scale(1); }
+      50% { box-shadow: 0 0 22px rgba(16, 185, 129, 0.8), 0 6px 20px rgba(6, 182, 212, 0.5); transform: scale(1.015); }
+      100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(16, 185, 129, 0.3); transform: scale(1); }
+    }
+    .jjp-btn-wa-main {
+      display: inline-block !important;
+      background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%) !important;
+      color: #ffffff !important;
+      padding: 13px 26px !important;
+      font-size: 14.5px !important;
+      font-weight: 800 !important;
+      text-decoration: none !important;
+      border-radius: 8px !important;
+      letter-spacing: 0.4px !important;
+      border: 1px solid #34d399 !important;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.45) !important;
+      transition: all 0.25s ease-in-out !important;
+      animation: jjp-pulse-arcade 2.8s infinite ease-in-out !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+      text-align: center !important;
+    }
+    .jjp-btn-wa-main:hover {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+      transform: translateY(-2px) !important;
+      box-shadow: 0 0 26px rgba(16, 185, 129, 0.75) !important;
     }
     .jjp-btn-cta {
       display: inline-block !important;
-      background: linear-gradient(135deg, #16604A 0%, #1e7a5e 100%) !important;
+      background: linear-gradient(135deg, #0f4b39 0%, #16604A 50%, #0e7490 100%) !important;
       color: #ffffff !important;
-      padding: 14px 34px !important;
-      font-size: 15px !important;
-      font-weight: 700 !important;
+      padding: 13px 26px !important;
+      font-size: 14.5px !important;
+      font-weight: 800 !important;
       text-decoration: none !important;
       border-radius: 8px !important;
-      letter-spacing: 0.3px !important;
-      box-shadow: 0 4px 14px rgba(22, 96, 74, 0.3) !important;
+      letter-spacing: 0.4px !important;
+      border: 1px solid #06b6d4 !important;
+      box-shadow: 0 0 14px rgba(6, 182, 212, 0.35) !important;
       transition: all 0.25s ease-in-out !important;
-      animation: jjp-pulse 3s infinite ease-in-out !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+      text-align: center !important;
     }
     .jjp-btn-cta:hover {
-      background: linear-gradient(135deg, #0f4b39 0%, #16604A 100%) !important;
+      background: linear-gradient(135deg, #16604A 0%, #0891b2 100%) !important;
       transform: translateY(-2px) !important;
-      box-shadow: 0 8px 24px rgba(22, 96, 74, 0.5) !important;
-    }
-    .jjp-btn-wa:hover {
-      text-decoration: underline !important;
-      color: #0f4b39 !important;
+      box-shadow: 0 0 24px rgba(6, 182, 212, 0.65) !important;
     }
     @media only screen and (max-width: 620px) {
       .jjp-container { width: 100% !important; }
-      .jjp-card-body { padding: 22px 18px !important; }
-      .jjp-header-cell { padding: 20px 18px !important; }
-      .jjp-footer-cell { padding: 20px 18px !important; }
-      .jjp-btn-cta { width: 100% !important; padding: 14px 20px !important; box-sizing: border-box !important; }
+      .jjp-card-body { padding: 22px 16px !important; }
+      .jjp-header-cell { padding: 18px 16px !important; }
+      .jjp-footer-cell { padding: 18px 16px !important; }
+      .jjp-cta-cell { display: block !important; width: 100% !important; padding: 6px 0 !important; }
+      .jjp-btn-cta, .jjp-btn-wa-main { width: 100% !important; padding: 14px 18px !important; box-sizing: border-box !important; }
+      .jjp-arcade-hud { display: block !important; }
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;-webkit-font-smoothing:antialiased;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f1f5f9;padding:32px 12px;">
+<body style="margin:0;padding:0;background-color:#090d16;background-image:radial-gradient(circle at 50% 20%, #111a2e 0%, #060911 100%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;-webkit-font-smoothing:antialiased;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#090d16;padding:32px 12px;">
     <tr>
       <td align="center">
-        <!-- Tarjeta Ejecutiva Principal (680px) -->
-        <table role="presentation" class="jjp-container" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background-color:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05),0 8px 10px -6px rgba(0,0,0,0.01);text-align:left;">
-          <!-- Barra Superior Corporativa en Degradé Institucional -->
+        <!-- Tarjeta Principal con Borde Neón Arcade (680px) -->
+        <table role="presentation" class="jjp-container" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background-color:#ffffff;border-radius:14px;border:1.5px solid #10b981;overflow:hidden;box-shadow:0 0 30px rgba(16,185,129,0.2),0 12px 30px rgba(0,0,0,0.45);text-align:left;">
+          <!-- Barra Superior Arcade Marquee en Degradé Multicolor Animado -->
           <tr>
-            <td style="height:5px;background:linear-gradient(90deg, #16604A 0%, #208b6b 50%, #A7D7A0 100%);background-color:#16604A;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="height:7px;background:linear-gradient(90deg, #10b981, #06b6d4, #f59e0b, #10b981);background-size:250% 250%;animation:jjp-arcade-marquee 4s ease infinite;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
 
-          <!-- Cabecera Institucional con Logo en Alta Definición y RIF Oficial -->
+          <!-- Cabecera Institucional Arcade HUD con Logo Oficial y Sprites de Papelería -->
           <tr>
-            <td class="jjp-header-cell" style="background-color:#ffffff;padding:26px 32px 22px 32px;border-bottom:2px solid #16604A;">
+            <td class="jjp-header-cell" style="background:linear-gradient(180deg, #0b1523 0%, #0d1e30 100%);padding:24px 30px 20px 30px;border-bottom:2px solid #10b981;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td width="60" valign="middle" style="padding-right:16px;">
                     <a href="https://jjpaper.pages.dev" target="_blank" style="text-decoration:none;display:inline-block;">
-                      <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper C.A." width="56" height="56" style="display:block;width:56px;height:56px;border:0;outline:none;text-decoration:none;object-fit:contain;">
+                      <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper C.A." width="56" height="56" style="display:block;width:56px;height:56px;border:0;outline:none;text-decoration:none;object-fit:contain;filter:drop-shadow(0 0 8px rgba(16,185,129,0.5));">
                     </a>
                   </td>
                   <td valign="middle" align="left">
-                    <div style="font-size:21px;font-weight:800;color:#0f172a;letter-spacing:0.5px;line-height:1.2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                      JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A;">C.A.</span>
+                    <div style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:0.8px;line-height:1.2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      JJ PAPER <span style="font-size:14px;font-weight:700;color:#10b981;">C.A.</span>
                     </div>
-                    <div style="font-size:12.5px;color:#64748b;margin-top:4px;font-weight:500;line-height:1.4;">
-                      RIF: <strong style="color:#0f172a;">J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo
+                    <div style="font-size:12.5px;color:#94a3b8;margin-top:4px;font-weight:500;line-height:1.4;">
+                      RIF: <strong style="color:#f8fafc;">J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo
                     </div>
-                    <div style="margin-top:5px;">
-                      <span style="display:inline-block;padding:2px 8px;background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:11px;color:#16604A;font-weight:600;">
+                    <div style="margin-top:6px;">
+                      <span style="display:inline-block;padding:3px 10px;background-color:rgba(16,185,129,0.15);border:1px solid #10b981;border-radius:12px;font-size:11px;color:#34d399;font-weight:700;">
                         📍 Caracas, Venezuela · Despacho Corporativo en 24h
                       </span>
                     </div>
                   </td>
                 </tr>
               </table>
+
+              <!-- Franja Animada Arcade: Personajes de Papelería -->
+              <div style="margin-top:14px;background:#060a12;border:1.5px solid rgba(16,185,129,0.45);border-radius:8px;padding:0;text-align:center;overflow:hidden;box-shadow:0 0 16px rgba(16,185,129,0.25);">
+                <img src="${runnerImgUrl}" alt="Personajes JJ Paper: Lápiz Corredor, Sacapuntas y Monograma JJ" width="600" height="64" style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;image-rendering:pixelated;border-radius:6px;">
+              </div>
+
+              <!-- Marcador HUD Arcade Retroiluminado -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;background:#030712;border:1.5px solid #10b981;border-radius:8px;padding:8px 12px;box-shadow:0 0 12px rgba(16,185,129,0.35);">
+                <tr>
+                  <td align="center" style="font-family:'Courier New',Courier,monospace,-apple-system,sans-serif;font-size:12px;color:#34d399;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;line-height:1.4;">
+                    🕹️ NIVEL: MAYORISTA &nbsp;·&nbsp; ⚙️ PROCURA: ON &nbsp;·&nbsp; 🪙 TASA: BCV
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
-          <!-- Asunto Formal / Cintillo de Comunicación B2B -->
+          <!-- Asunto Formal / Cintillo B2B con Acento Arcade -->
           ${subject ? `
           <tr>
-            <td style="background-color:#f8fafc;padding:12px 32px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:600;color:#334155;">
-              <span style="color:#16604A;margin-right:6px;">📋</span> Ref: ${escapeHTML(subject)}
+            <td style="background:linear-gradient(90deg, #f0fdf4 0%, #ecfeff 100%);padding:12px 32px;border-bottom:1px solid #cbd5e1;font-size:13px;font-weight:700;color:#0f172a;">
+              <span style="color:#10b981;margin-right:6px;">⚡</span> Ref: ${escapeHTML(subject)}
             </td>
           </tr>` : ''}
 
@@ -3378,29 +3428,42 @@ ${rawText}
             </td>
           </tr>
 
-          <!-- Cuadro Institucional de Respaldo & Garantía Operativa JJ Paper -->
+          <!-- Separador Arcade de Monedas & Power-Up -->
+          <tr>
+            <td style="padding:0 32px 20px 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:linear-gradient(90deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.15) 50%, rgba(16,185,129,0.08) 100%);border-top:1px dashed #10b981;border-bottom:1px dashed #06b6d4;padding:10px 14px;text-align:center;">
+                <tr>
+                  <td align="center" style="font-family:'Courier New',Courier,monospace,sans-serif;font-size:11.5px;font-weight:800;color:#0e7490;letter-spacing:1.2px;text-transform:uppercase;">
+                    🪙 🪙 🪙 &nbsp;<span style="color:#059669;">POWER-UP:</span> PRECIOS DE IMPORTADOR POR BULTO CERRADO &nbsp;🪙 🪙 🪙
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Cuadro de Respaldo & Garantía Operativa JJ Paper con Bordes Arcade Neón -->
           <tr>
             <td style="padding:0 32px 24px 32px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #16604A;border-radius:8px;padding:18px 20px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f172a;border:1.5px solid #10b981;border-radius:10px;padding:18px 20px;box-shadow:0 0 16px rgba(16,185,129,0.15);">
                 <tr>
                   <td>
-                    <div style="font-size:12.5px;font-weight:700;color:#16604A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">
-                      🛡️ Respaldo &amp; Garantía Operativa JJ Paper C.A.
+                    <div style="font-size:12.5px;font-weight:800;color:#34d399;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">
+                      🛡️ GARANTÍAS OFICIALES JJ PAPER C.A. [LEVEL COMPLETED]
                     </div>
-                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:13.5px;color:#334155;line-height:1.65;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:13.5px;color:#e2e8f0;line-height:1.65;">
                       <tr>
-                        <td valign="top" style="padding:3px 0;">
-                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Facturación Fiscal Formal SENIAT:</strong> Emitida legalmente en bolívares calculada a Tasa Oficial BCV del día.
+                        <td valign="top" style="padding:4px 0;">
+                          <span style="color:#10b981;font-weight:bold;margin-right:8px;">✔</span> <strong>Facturación Fiscal Formal SENIAT:</strong> Emitida legalmente en bolívares calculada a Tasa Oficial BCV del día.
                         </td>
                       </tr>
                       <tr>
-                        <td valign="top" style="padding:3px 0;">
-                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Despacho Directo en 24 Horas:</strong> Flota propia con entrega ágil y puntual en su sede (Caracas y La Guaira).
+                        <td valign="top" style="padding:4px 0;">
+                          <span style="color:#10b981;font-weight:bold;margin-right:8px;">✔</span> <strong>Despacho Directo en 24 Horas:</strong> Flota propia con entrega ágil y puntual en su sede (Caracas y La Guaira).
                         </td>
                       </tr>
                       <tr>
-                        <td valign="top" style="padding:3px 0;">
-                          <span style="color:#16604A;font-weight:bold;margin-right:6px;">✔</span> <strong>Servicio de Procura Especial:</strong> ¿Requiere un insumo, medida o maquinaria fuera de catálogo? Nuestro equipo de Procura Especial se lo ubica directamente con entrega inmediata a Tasa Oficial BCV.
+                        <td valign="top" style="padding:4px 0;">
+                          <span style="color:#10b981;font-weight:bold;margin-right:8px;">✔</span> <strong>Servicio de Procura Especial:</strong> Si requiere algún insumo, medida o equipo fuera de catálogo, se lo ubicamos de inmediato.
                         </td>
                       </tr>
                     </table>
@@ -3410,14 +3473,14 @@ ${rawText}
             </td>
           </tr>
 
-          <!-- Cuadro de Cotización Web Directa desde el Catálogo -->
+          <!-- Cuadro Interactivo de Cotización Web Directa -->
           <tr>
             <td style="padding:0 32px 24px 32px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#ffffff;border:1.5px solid #16604A;border-radius:10px;padding:16px 20px;box-shadow:0 4px 12px rgba(22,96,74,0.08);">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#ffffff;border:1.5px solid #06b6d4;border-radius:10px;padding:16px 20px;box-shadow:0 4px 14px rgba(6,182,212,0.12);">
                 <tr>
                   <td>
-                    <div style="font-size:14px;font-weight:700;color:#16604A;margin-bottom:6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                      🛒 Cotización Web Directa desde Nuestro Catálogo
+                    <div style="font-size:14px;font-weight:800;color:#0e7490;margin-bottom:6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      🛒 Cotización Web Directa desde Nuestro Catálogo Digital
                     </div>
                     <div style="font-size:13.5px;color:#334155;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
                       En nuestro catálogo en línea puede armar su lista de requerimientos (como un carrito de compras) y enviarla directamente a su asesor asignado (<strong>${escapeHTML(sName)}</strong>). Con un simple clic procesamos su cotización formal con mejores costos por volumen liquidada a <strong>Tasa Oficial BCV</strong>.
@@ -3431,46 +3494,68 @@ ${rawText}
             </td>
           </tr>
 
-          <!-- Botón de Acción Principal (CTA con Redirección y Animación) -->
+          <!-- Botones de Acción Principal Arcade Dual CTA (WhatsApp Neón + Catálogo Digital) -->
           <tr>
             <td style="padding:0 32px 28px 32px;text-align:center;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;max-width:100%;">
                 <tr>
-                  <td align="center" style="border-radius:8px;background-color:#16604A;">
-                    <a href="${catalogUrl}" target="_blank" class="jjp-btn-cta" style="display:inline-block;padding:14px 34px;background-color:#16604A;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-shadow:0 4px 14px rgba(22,96,74,0.3);text-align:center;">
-                      🌐 Armar Cotización en Catálogo ↗
-                    </a>
+                  <td align="center" class="jjp-cta-cell" style="padding:6px 6px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#10b981" style="border-radius:8px;background-color:#10b981;">
+                          <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waCustomMessage)}" target="_blank" class="jjp-btn-wa-main" style="background-color:#10b981;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;padding:13px 26px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.4px;">CONTINUE? ▶ Escríbenos</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="center" class="jjp-cta-cell" style="padding:6px 6px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#16604A" style="border-radius:8px;background-color:#16604A;">
+                          <a href="${catalogUrl}" target="_blank" class="jjp-btn-cta" style="background-color:#16604A;color:#ffffff !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;padding:13px 26px;border-radius:8px;text-decoration:none;display:inline-block;letter-spacing:0.4px;">▶ PRESS START · Ver Catálogo y Cotizar</a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
               <div style="margin-top:14px;font-size:12.5px;color:#64748b;line-height:1.5;">
-                💬 ¿Desea atención directa o cotización formal inmediata? 
-                <a href="https://wa.me/${waNumber}?text=${encodeURIComponent('Hola, me comunico con JJ Paper para solicitar una cotización formal.')}" target="_blank" class="jjp-btn-wa" style="color:#16604A;font-weight:700;text-decoration:underline;">Escríbanos a WhatsApp (${escapeHTML(sPhone.split('/')[0].trim())})</a>
+                ¿Desea atención directa con su asesor? 
+                <a href="https://wa.me/${waNumber}?text=${encodeURIComponent(waCustomMessage)}" target="_blank" class="jjp-btn-wa" style="color:#10b981;font-weight:700;text-decoration:underline;">Escríbanos directamente a WhatsApp (${escapeHTML(sPhone.split('/')[0].trim())})</a>
               </div>
             </td>
           </tr>
 
-          <!-- Firma Corporativa y Pie Institucional B2B -->
+          <!-- Franja de personajes de papelería patrullando el borde inferior -->
           <tr>
-            <td class="jjp-footer-cell" style="background-color:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+            <td style="padding:0 32px 14px 32px;text-align:center;">
+              <div style="background:#090d16;border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:2px;overflow:hidden;">
+                <img src="${runnerImgUrl}" alt="Mundo Papelería JJ Paper" width="600" height="64" style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;image-rendering:pixelated;border-radius:6px;">
+              </div>
+            </td>
+          </tr>
+
+          <!-- Firma Corporativa y Pie Institucional Arcade High-End -->
+          <tr>
+            <td class="jjp-footer-cell" style="background:linear-gradient(180deg, #0b1523 0%, #060a12 100%);padding:24px 32px;border-top:2px solid #10b981;border-bottom-left-radius:14px;border-bottom-right-radius:14px;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td width="48" valign="top" style="padding-right:14px;">
-                    <div style="width:44px;height:44px;border-radius:50%;background-color:#16604A;color:#ffffff;font-weight:800;font-size:16px;text-align:center;line-height:44px;letter-spacing:0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg, #10b981 0%, #06b6d4 100%);color:#ffffff;font-weight:900;font-size:16px;text-align:center;line-height:44px;letter-spacing:0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-shadow:0 0 12px rgba(16,185,129,0.5);">
                       ${initials}
                     </div>
                   </td>
                   <td valign="top" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                    <div style="font-size:16px;font-weight:700;color:#0f172a;line-height:1.2;">
+                    <div style="font-size:16px;font-weight:800;color:#ffffff;line-height:1.2;">
                       ${escapeHTML(sName)}
                     </div>
-                    <div style="font-size:13px;color:#64748b;margin-top:2px;">
+                    <div style="font-size:13px;color:#94a3b8;margin-top:2px;">
                       Dirección Comercial &amp; Cuentas Corporativas · <strong>JJ Paper C.A.</strong>
                     </div>
-                    <div style="font-size:13px;color:#16604A;font-weight:600;margin-top:6px;">
-                      📱 WhatsApp / Celular: <a href="https://wa.me/${waNumber}" target="_blank" style="color:#16604A;text-decoration:none;font-weight:600;">${escapeHTML(sPhone)}</a>
+                    <div style="font-size:13px;color:#34d399;font-weight:700;margin-top:6px;">
+                      📱 WhatsApp / Celular: <a href="https://wa.me/${waNumber}" target="_blank" style="color:#34d399;text-decoration:none;font-weight:700;">${escapeHTML(sPhone)}</a>
                     </div>
-                    <div style="font-size:12px;color:#64748b;margin-top:3px;">
+                    <div style="font-size:12px;color:#94a3b8;margin-top:3px;">
                       🏢 Central Corporativa: +58 412 2830185 / 0212 7531777 · <strong>RIF: J-29537545-0</strong>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:2px;">
@@ -3479,12 +3564,12 @@ ${rawText}
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding-top:14px;border-top:1px solid #e2e8f0;margin-top:12px;font-size:11.5px;color:#475569;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                    🛒 <strong>Cotice directamente desde nuestro catálogo digital:</strong> Ingrese a <a href="${catalogUrl}" target="_blank" style="color:#16604A;font-weight:700;text-decoration:underline;">jjpaper.pages.dev/catalogo.html?ref=${encodeURIComponent(sCode)}</a> para armar su requerimiento y despacharlo a su asesor comercial asignado. Precios mejorables por volumen.
+                  <td colspan="2" style="padding-top:14px;border-top:1px solid rgba(148,163,184,0.2);margin-top:12px;font-size:11.5px;color:#cbd5e1;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    🛒 <strong>Cotice directamente desde nuestro catálogo digital:</strong> Ingrese a <a href="${catalogUrl}" target="_blank" style="color:#34d399;font-weight:700;text-decoration:underline;">jjpaper.pages.dev/catalogo.html?ref=${encodeURIComponent(sCode)}</a> para armar su requerimiento y despacharlo a su asesor comercial asignado. Precios mejorables por volumen.
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="padding-top:10px;font-size:11px;color:#94a3b8;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                  <td colspan="2" style="padding-top:10px;font-size:11px;color:#64748b;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
                     Este mensaje institucional B2B ha sido remitido por JJ Paper C.A. exclusivamente para presentar oportunidades de suministro corporativo directo. Si no desea recibir más comunicaciones, responda con la palabra 'Baja' y su dirección será excluida de inmediato.
                   </td>
                 </tr>
@@ -3699,7 +3784,7 @@ ${rawText}
 
       blocks.push(`
         <div class="ce-email-catalog-btn-wrap">
-          <a href="https://jjpaper.pages.dev/catalogo" target="_blank" class="ce-email-catalog-btn">
+          <a href="${catalogUrl}" target="_blank" class="ce-email-catalog-btn">
             🌐 Ver Catálogo Digital Completo (+2.400 Productos) ↗
           </a>
           <div class="ce-email-wa-action" style="margin-top:12px;font-size:12.5px;color:#64748b;">

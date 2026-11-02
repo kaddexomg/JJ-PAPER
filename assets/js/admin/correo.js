@@ -1,9 +1,9 @@
 
 function renderJjPaperEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '' } = {}) {
   const _esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(s) : String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
-  const sName = sellerName || (typeof SELLER !== 'undefined' && SELLER?.name) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.name) || 'Keyder Salazar';
-  const sPhone = sellerPhone || (typeof SELLER !== 'undefined' && SELLER?.phone) || '0412-4676073 / 0212-7531777';
-  const sCode = (typeof SELLER !== 'undefined' && (SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code)) || '005';
+  const sName = sellerName || (typeof SELLER !== 'undefined' && SELLER?.name) || (typeof MAIL_ME !== 'undefined' && MAIL_ME?.name) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.name) || 'Keyder Salazar';
+  const sPhone = sellerPhone || (typeof SELLER !== 'undefined' && SELLER?.phone) || (typeof MAIL_ME !== 'undefined' && MAIL_ME?.phone) || '0412-4676073 / 0212-7531777';
+  const sCode = sellerCode || (typeof SELLER !== 'undefined' && (SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code)) || (typeof MAIL_ME !== 'undefined' && (MAIL_ME?.mixnet_code || MAIL_ME?.ref_code)) || (typeof CURRENT_PROFILE !== 'undefined' && (CURRENT_PROFILE?.mixnet_code || CURRENT_PROFILE?.ref_code)) || '005';
   const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
 
   const nameParts = sName.trim().split(/\s+/);
@@ -1088,7 +1088,12 @@ async function mailSend() {
     return;
   }
 
-  const formattedHtml = renderJjPaperEmailHtml({ subject, body });
+  const formattedHtml = renderJjPaperEmailHtml({
+    subject, body,
+    sellerName: MAIL_ME?.name,
+    sellerPhone: MAIL_ME?.phone,
+    sellerCode: MAIL_ME?.mixnet_code || MAIL_ME?.ref_code || '005'
+  });
 
   const { error } = await sb.from('jjp_emails').insert({
     owner_id: MAIL_ME.id, direction: 'out',

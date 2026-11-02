@@ -1327,39 +1327,63 @@ async function launchEmailCampaignFromEditor(config) {
         body,
         sellerName: SELLER?.name || 'Keyder Salazar',
         sellerPhone: SELLER?.phone || '0412-4676073 / 0212-7531777',
+        sellerCode: SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code || '005',
         imgUrl: imgSrc
       })
-    : `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.75;max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);overflow:hidden;">
-        <div style="height:5px;background:linear-gradient(90deg, #16604A 0%, #208b6b 50%, #A7D7A0 100%);"></div>
-        <div style="border-bottom:2px solid #16604A;padding:26px 32px 20px 32px;display:flex;align-items:center;gap:16px;">
-          <img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" height="56" width="56" style="height:56px;width:56px;display:block;object-fit:contain;">
-          <div>
-            <div style="font-size:21px;font-weight:800;color:#0f172a">JJ PAPER <span style="font-size:14px;font-weight:700;color:#16604A">C.A.</span></div>
-            <div style="font-size:12.5px;color:#64748b;margin-top:2px">RIF: <strong style="color:#0f172a;">J-29537545-0</strong> · Importador &amp; Distribuidor Mayorista Directo</div>
-            <div style="margin-top:4px;"><span style="display:inline-block;padding:2px 8px;background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:11px;color:#16604A;font-weight:600;">📍 Caracas, Venezuela · Despacho Corporativo en 24h</span></div>
+    : (function() {
+        const sName = SELLER?.name || 'Keyder Salazar';
+        const sPhone = SELLER?.phone || '0412-4676073 / 0212-7531777';
+        const sCode = SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code || '005';
+        const catalogUrl = 'https://jjpaper.pages.dev/catalogo.html?ref=' + encodeURIComponent(sCode);
+        const nameParts = sName.trim().split(/\s+/);
+        const initials = (nameParts.length > 1 ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]) : nameParts[0].slice(0, 2)).toUpperCase();
+        const cleanPhone = (sPhone.split('/')[0] || sPhone).replace(/\D/g, '');
+        const waNum = cleanPhone.startsWith('0') ? '58' + cleanPhone.slice(1) : (cleanPhone.startsWith('58') ? cleanPhone : '58' + cleanPhone);
+        return `<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>${escapeHTML(subject || name)}</title></head>
+<body style="margin:0;padding:0;background-color:#090d16;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#090d16;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border-radius:14px;border:1.5px solid #10b981;overflow:hidden;">
+        <tr><td style="height:7px;background:linear-gradient(90deg, #10b981, #06b6d4, #f59e0b, #10b981);font-size:0;">&nbsp;</td></tr>
+        <tr><td style="background:linear-gradient(180deg, #0b1523 0%, #0d1e30 100%);padding:24px 30px;border-bottom:2px solid #10b981;">
+          <table width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
+            <td width="60"><img src="https://jjpaper.pages.dev/assets/img/logo.svg" alt="JJ Paper" width="56" height="56" style="display:block;"></td>
+            <td align="left" style="color:#ffffff;font-size:22px;font-weight:900;">JJ PAPER <span style="font-size:14px;color:#10b981;">C.A.</span>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px;">RIF: J-29537545-0 · Importador Mayorista Directo</div>
+            </td>
+          </tr></table>
+          <div style="margin-top:12px;text-align:center;background:#060a12;border-radius:8px;overflow:hidden;border:1px solid #10b981;">
+            <img src="https://jjpaper.pages.dev/assets/img/arcade-papeleria-runner.gif" alt="JJ Paper" style="display:block;width:100%;max-width:600px;margin:0 auto;">
           </div>
-        </div>
-        ${imgHtml}
-        <div style="padding:28px 32px 20px 32px;font-size:15px;line-height:1.75;color:#1e293b">${htmlBody}</div>
-        <div style="padding:0 32px 24px 32px;">
-          <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #16604A;border-radius:8px;padding:16px 20px;">
-            <div style="font-size:12.5px;font-weight:700;color:#16604A;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">🛡️ Respaldo &amp; Garantía Operativa JJ Paper C.A.</div>
-            <div style="font-size:13.5px;color:#334155;line-height:1.6;">✔ <strong>Facturación SENIAT BCV:</strong> Emitida en bolívares calculada a Tasa Oficial BCV del día.</div>
-            <div style="font-size:13.5px;color:#334155;line-height:1.6;margin-top:4px;">✔ <strong>Despacho en 24 Horas:</strong> Entrega directa y ágil en su sede (Caracas y La Guaira).</div>
-            <div style="font-size:13.5px;color:#334155;line-height:1.6;margin-top:4px;">✔ <strong>Procura Especial:</strong> Gestionamos cualquier insumo fuera de lista de inmediato.</div>
+          <div style="margin-top:12px;background:#030712;border:1.5px solid #10b981;border-radius:8px;padding:8px;text-align:center;font-family:monospace;font-size:12px;color:#34d399;font-weight:900;">
+            🕹️ NIVEL: MAYORISTA · ⚙️ PROCURA: ON · 🪙 TASA: BCV
           </div>
-        </div>
-        <div style="padding:0 32px 28px 32px;text-align:center;">
-          <a href="https://jjpaper.pages.dev/catalogo" target="_blank" style="display:inline-block;padding:14px 34px;background-color:#16604A;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(22,96,74,0.3);">
-            🌐 Ver Catálogo Digital Completo (+2.400 Productos) ↗
+        </td></tr>
+        <tr><td style="padding:28px 32px 20px 32px;font-size:15px;line-height:1.75;color:#1e293b;">${htmlBody}</td></tr>
+        <tr><td style="padding:0 32px 24px 32px;">
+          <div style="background:#0f172a;border:1.5px solid #10b981;border-radius:10px;padding:16px 20px;color:#e2e8f0;font-size:13.5px;line-height:1.6;">
+            <div style="color:#34d399;font-weight:800;font-size:12.5px;margin-bottom:8px;">🛡️ GARANTÍAS OFICIALES JJ PAPER C.A.</div>
+            ✔ <strong>Facturación SENIAT BCV:</strong> Emitida formalmente a Tasa BCV del día.<br>
+            ✔ <strong>Despacho en 24 Horas:</strong> Flota propia en Caracas y La Guaira.<br>
+            ✔ <strong>Procura Especial:</strong> Ubicamos cualquier insumo fuera de catálogo.
+          </div>
+        </td></tr>
+        <tr><td style="padding:0 32px 28px 32px;text-align:center;">
+          <a href="${catalogUrl}" target="_blank" style="display:inline-block;padding:13px 28px;background:#16604A;color:#ffffff;font-size:14.5px;font-weight:800;text-decoration:none;border-radius:8px;border:1px solid #06b6d4;">
+            ▶ PRESS START · Ver Catálogo y Cotizar
           </a>
-        </div>
-        <div style="background-color:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;font-size:13px;color:#475569;">
-          <div style="font-size:15.5px;font-weight:700;color:#0f172a;">${escapeHTML(SELLER?.name || 'Keyder Salazar')}</div>
-          <div style="font-size:13px;color:#64748b;margin-top:2px;">Dirección Comercial &amp; Cuentas Corporativas · <strong>JJ Paper C.A.</strong></div>
-          <div style="font-size:13px;color:#16604A;font-weight:600;margin-top:6px;">📱 WhatsApp / Celular: ${escapeHTML(SELLER?.phone || '0412-4676073 / 0212-7531777')}</div>
-        </div>
-      </div>`;
+        </td></tr>
+        <tr><td style="background:linear-gradient(180deg, #0b1523 0%, #060a12 100%);padding:22px 32px;border-top:2px solid #10b981;color:#94a3b8;font-size:12px;line-height:1.6;">
+          <strong style="color:#fff;font-size:15px;">${escapeHTML(sName)}</strong> · JJ Paper C.A.<br>
+          📱 WhatsApp: <a href="https://wa.me/${waNum}" style="color:#34d399;text-decoration:none;font-weight:700;">${escapeHTML(sPhone)}</a> · RIF: J-29537545-0<br>
+          🛒 <a href="${catalogUrl}" target="_blank" style="color:#34d399;text-decoration:underline;font-weight:700;">Catálogo digital: jjpaper.pages.dev/catalogo.html?ref=${encodeURIComponent(sCode)}</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+      })()`;
 
   let payload = {
     owner_id: ownerId,
@@ -1610,7 +1634,17 @@ async function launchEcCampaign() {
 
   btn.textContent = 'Creando campaña…';
 
-  const htmlContent = (tpl.body || '').replace(/\n/g, '<br>');
+  const sCodeManual = SELLER?.mixnet_code || SELLER?.ref_code || SELLER?.code || '005';
+  const htmlContent = (window.CampaignEditor && window.CampaignEditor.renderCorporateEmailHtml)
+    ? window.CampaignEditor.renderCorporateEmailHtml({
+        subject: tpl.subject || name,
+        body: tpl.body,
+        sellerName: SELLER?.name || 'Keyder Salazar',
+        sellerPhone: SELLER?.phone || '0412-4676073 / 0212-7531777',
+        sellerCode: sCodeManual
+      })
+    : (tpl.body || '').replace(/\n/g, '<br>');
+
   const { data: camp, error } = await sb.from('jjp_email_campaigns').insert({
     owner_id: SELLER.id,
     name,

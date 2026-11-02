@@ -228,30 +228,51 @@ Responde SOLO un objeto JSON con este formato exacto:
   // Verificación de Salud de los Motores
   async function checkEnginesHealth() {
     try {
-      // 1. VPS PostgreSQL & wa-server
-      const { data: vpsControl } = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
       const vpsDot = document.getElementById('agVpsStatusDot');
       const vpsTxt = document.getElementById('agVpsStatusTxt');
+      const lanDot = document.getElementById('agLanStatusDot');
+      const lanTxt = document.getElementById('agLanStatusTxt');
+
+      // 1. VPS PostgreSQL & wa-server
+      const { data: vpsControl } = await sb.from('jjp_server_control').select('*').eq('id', 1).maybeSingle();
+      
+      let isVpsOnline = false;
+      const lastHb = vpsControl?.heartbeat_at ? new Date(vpsControl.heartbeat_at).getTime() : 0;
+      if (lastHb > 0 && Math.abs(Date.now() - lastHb) < 120000) {
+        isVpsOnline = true;
+      } else {
+        // Fallback a telemetría nativa del VPS
+        try {
+          const tRes = await fetch('https://166-0-112-247.sslip.io/auth/v1/telemetry');
+          if (tRes.ok) {
+            const tData = await tRes.json();
+            if (tData?.status === 'healthy') isVpsOnline = true;
+          }
+        } catch (_) {}
+      }
+
       if (vpsDot && vpsTxt) {
-        const lastHb = vpsControl?.heartbeat_at ? new Date(vpsControl.heartbeat_at).getTime() : 0;
-        const isOnline = Date.now() - lastHb < 45000;
-        vpsDot.className = `status-dot ${isOnline ? 'online' : 'warn'}`;
-        vpsTxt.textContent = isOnline ? 'Online (VPS 24/7)' : 'En espera';
+        vpsDot.className = `status-dot ${isVpsOnline ? 'online' : 'warn'}`;
+        vpsTxt.textContent = isVpsOnline ? 'Online (VPS 24/7)' : 'En espera';
       }
 
       // 2. Supervisor-PC (LAN)
-      const { data: lanTasks } = await sb
-        .from('jjp_mixnet_tasks')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1);
+      const mixnetAgent = vpsControl?.modules?.mixnet_agent;
+      const lastAgentSync = mixnetAgent?.last_sync_at ? new Date(mixnetAgent.last_sync_at).getTime() : 0;
+      let isLanActive = mixnetAgent?.online === true && (lastAgentSync > 0 && Math.abs(Date.now() - lastAgentSync) < 180000);
 
-      const lanDot = document.getElementById('agLanStatusDot');
-      const lanTxt = document.getElementById('agLanStatusTxt');
-      if (lanDot && lanTxt) {
+      if (!isLanActive) {
+        const { data: lanTasks } = await sb
+          .from('jjp_mixnet_tasks')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1);
         const lastTask = lanTasks?.[0];
         const lastTime = lastTask?.updated_at ? new Date(lastTask.updated_at).getTime() : 0;
-        const isLanActive = Date.now() - lastTime < 300000; // activo en últimos 5 min
+        isLanActive = lastTime > 0 && Math.abs(Date.now() - lastTime) < 300000;
+      }
+
+      if (lanDot && lanTxt) {
         lanDot.className = `status-dot ${isLanActive ? 'online' : 'warn'}`;
         lanTxt.textContent = isLanActive ? 'Conectado (Tienda)' : 'Listo';
       }

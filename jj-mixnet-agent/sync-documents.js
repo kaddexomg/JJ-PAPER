@@ -249,11 +249,11 @@ export async function exportPendingDocumentsToMixnet(compDir) {
   let exportedQuotes = 0;
   let exportedOrders = 0;
 
-  // 1. Cotizaciones expresamente solicitadas para confirmación e inyección en MixNet
+  // 1. Cotizaciones expresamente solicitadas por clic humano ("📥 Insertar") para inyección en MixNet
   try {
     const pendingQuotes = await sbGet(
       'jjp_quotes',
-      'status=in.(pendiente_mixnet,confirmado_mixnet)&source=neq.mixnet&order=created_at.asc&limit=5'
+      'status=eq.pendiente_mixnet&source=neq.mixnet&order=created_at.asc&limit=5'
     );
 
     if (Array.isArray(pendingQuotes) && pendingQuotes.length > 0) {
@@ -305,11 +305,11 @@ export async function exportPendingDocumentsToMixnet(compDir) {
     log(`Aviso en exportación de cotizaciones: ${err.message}`, 'WARN');
   }
 
-  // 2. Pedidos expresamente solicitadas para confirmación e inyección en MixNet
+  // 2. Pedidos expresamente solicitados por clic humano ("📥 Insertar") para inyección en MixNet
   try {
     const pendingOrders = await sbGet(
       'jjp_orders',
-      'status=in.(pendiente_mixnet,confirmado_mixnet)&source=neq.mixnet&order=created_at.asc&limit=5'
+      'status=eq.pendiente_mixnet&source=neq.mixnet&order=created_at.asc&limit=5'
     );
 
     if (Array.isArray(pendingOrders) && pendingOrders.length > 0) {

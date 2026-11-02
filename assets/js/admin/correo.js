@@ -1,5 +1,5 @@
 
-function renderJjPaperEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '' } = {}) {
+function renderJjPaperEmailHtml({ subject = '', body = '', sellerName = '', sellerPhone = '', sellerCode = '' } = {}) {
   const _esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(s) : String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
   const sName = sellerName || (typeof SELLER !== 'undefined' && SELLER?.name) || (typeof MAIL_ME !== 'undefined' && MAIL_ME?.name) || (typeof CURRENT_PROFILE !== 'undefined' && CURRENT_PROFILE?.name) || 'Keyder Salazar';
   const sPhone = sellerPhone || (typeof SELLER !== 'undefined' && SELLER?.phone) || (typeof MAIL_ME !== 'undefined' && MAIL_ME?.phone) || '0412-4676073 / 0212-7531777';
@@ -368,7 +368,12 @@ function openMailPreviewModal() {
     showToast('Escribe o pega un mensaje primero para ver el diseño', 'warn');
     return;
   }
-  const html = renderJjPaperEmailHtml({ subject, body });
+  const html = renderJjPaperEmailHtml({
+    subject, body,
+    sellerName: MAIL_ME?.name,
+    sellerPhone: MAIL_ME?.phone,
+    sellerCode: MAIL_ME?.mixnet_code || MAIL_ME?.ref_code || '005'
+  });
   
   let ovl = document.getElementById('mailPreviewModalOvl');
   if (!ovl) {

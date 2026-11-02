@@ -125,7 +125,11 @@
           appendTerminal(JSON.stringify(res.details, null, 2), 'out');
         }
 
-        appendTerminal(`Ejecución finalizada con éxito en ${res.target || activeTarget} (${res.exitCode !== undefined ? 'Código ' + res.exitCode : 'OK'}).`, 'ok');
+        if (res.ok === false || (res.exitCode !== undefined && res.exitCode !== 0)) {
+          appendTerminal(`Ejecución con error en ${res.target || activeTarget} (Código ${res.exitCode || 1}).`, 'err');
+        } else {
+          appendTerminal(`Ejecución finalizada con éxito en ${res.target || activeTarget} (${res.exitCode !== undefined ? 'Código ' + res.exitCode : 'OK'}).`, 'ok');
+        }
         return res;
       } else if (tRow.status === 'failed') {
         const err = tRow.error || tRow.result?.error || 'Fallo desconocido en la ejecución';
@@ -167,35 +171,99 @@
         // MODO ASISTENTE IA: Analiza con Gemini y despacha la acción autónoma
         appendTerminal('🧠 Analizando requerimiento con el Cerebro IA...', 'info');
         
-        let planPrompt = `Eres el Agente de Desarrollo de JJ Paper (OpenCode). 
-El operador indica: "${text}".
-Destino: ${activeTarget}.
-Responde SOLO un objeto JSON con este formato exacto:
+        const agentSystemPrompt = `Eres OpenCode, el Agente de Inteligencia e Ingeniería Soberana de JJ Paper (Distribuidora Mayorista de Papelería en Venezuela).
+
+ESTRUCTURA DE INFRAESTRUCTURA:
+1. Supervisor-PC (Windows 11, LAN Tienda 192.168.0.185):
+   - Conectado a MixNet ERP en 'M:\\comp01' o '\\\\servidor\\MIX11\\comp01'.
+   - Archivos Clipper DBF:
+     * MXENCPED.DBF (pedidos encabezados): NUMPED char(8), EMISION char(8) YYYYMMDD, CLIENTE char(8) ej '008-817', CODVEN char(3), TOTNETO num, ESTADO char(2) 'OK'/'PE'.
+     * MXRENPED.DBF (líneas de pedido): NUMPED char(8), ITEM char(20), DESCRI char(40), CANTIDAD num, PRECIO num, TOTAL num.
+     * MXENCCOT.DBF & MXRENCOT.DBF (cotizaciones).
+     * MXCTACLI.DBF (clientes): CODIGO char(8), NOMBRE char(40), RIF char(15), CODVEN char(3), TELEFONO char(20), DIREC1 char(50).
+     * MXCTAINV.DBF (inventario +2400 productos): ITEM char(20), DESCRI char(40), PRECIO num, EXISTE num.
+     * MXNUMPED.DBF / MXNUMCOT.DBF (correlativos).
+   - Python 3 disponible en PATH. Con 'struct' se lee la cabecera (num_records, header_len, record_len = struct.unpack('<IHH', header[4:12])) y se extraen los registros directamente con f.seek(header_len + idx * record_len).
+2. VPS Soberano (Ubuntu 24.04 LTS, 166.0.112.247):
+   - PostgreSQL 16 ('jjpaper_db'), PostgREST, GoTrue, wa-server.
+   - Tablas: jjp_orders, jjp_quotes, jjp_products, jjp_customers, jjp_settings, etc.
+
+VENDEDORES SAGRADOS:
+- 002: Luis Alarcón | 004 / 006: Yovanni Araujo | 008: Marianela | 014: Andreina | 005: Keyder Salazar (Admin / Mostrador; Cartera 020 es artificial; Cartera 010 es histórica; ventas solo son de Keyder si CODVEN = '005').
+
+ACCIONES DISPONIBLES:
+- "direct_answer": Para preguntas conceptuales, explicaciones o saludos que no requieran consultar la máquina.
+- "exec_python": Script Python autónomo para consultar DBF en supervisor o procesar datos. Debe probar rutas [r'M:\\comp01\\' + archivo, r'\\\\servidor\\MIX11\\comp01\\' + archivo, r'M:\\MIX11\\comp01\\' + archivo].
+- "exec_cmd": Comandos terminal válidos (ej. git status, dir, ls, pm2 list).
+- "exec_node": Scripts Node.js para APIs o PostgreSQL.
+- "git_pull", "reindex_all", "audit_health", "create_backup".
+
+REGLAS CRÍTICAS:
+- NUNCA inventes comandos de shell ficticios ni envíes preguntas en lenguaje natural a la consola del sistema operativo.
+- Si el usuario pregunta por un pedido, cliente o producto de MixNet, genera SIEMPRE un script "exec_python" con target "supervisor" para consultar el archivo DBF correspondiente y mostrar la respuesta formateada con print().
+- Responde estrictamente un JSON válido.
+
+FORMATO JSON REQUERIDO:
 {
-  "action": "exec_cmd" | "git_pull" | "reindex_all" | "create_backup" | "audit_health",
-  "command": "comando de terminal específico si aplica",
-  "explanation": "breve resumen de qué harás (1 línea)"
+  "action": "direct_answer" | "exec_python" | "exec_cmd" | "exec_node" | "git_pull" | "reindex_all" | "audit_health" | "create_backup",
+  "target": "supervisor" | "vps",
+  "code": "código python o node si aplica",
+  "command": "comando de shell si aplica",
+  "answer": "texto de respuesta si action es direct_answer",
+  "explanation": "resumen en 1 línea de lo que hará"
 }`;
 
         let aiPlan = null;
         if (typeof GeminiClient !== 'undefined' && GeminiClient.callGemini) {
           try {
-            const rawJson = await GeminiClient.callGemini(planPrompt, { temperature: 0.1 });
-            const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+            const rawJson = await GeminiClient.callGemini(text, {
+              systemInstruction: agentSystemPrompt,
+              temperature: 0.1,
+              timeoutMs: 18000
+            });
+            const cleaned = rawJson.replace(/```json/gi, '').replace(/```/g, '').trim();
             aiPlan = JSON.parse(cleaned);
           } catch (e) {
-            appendTerminal(`Aviso IA: interpretando como comando directo.`, 'info');
+            appendTerminal(`Aviso IA: No se pudo interpretar el plan con Gemini (${e.message}).`, 'info');
           }
         }
 
         if (aiPlan && aiPlan.action) {
-          appendTerminal(`🤖 Plan del Agente: ${aiPlan.explanation || aiPlan.action}`, 'info');
-          const taskId = await enqueueTask(aiPlan.action, { command: aiPlan.command || text });
+          appendTerminal(`🤖 Plan IA: ${aiPlan.explanation || aiPlan.action}`, 'info');
+
+          if (aiPlan.action === 'direct_answer') {
+            appendTerminal(aiPlan.answer || aiPlan.explanation || 'Consulta procesada.', 'ok');
+            return;
+          }
+
+          let payload = {
+            target: aiPlan.target || activeTarget,
+            explanation: aiPlan.explanation
+          };
+
+          if (aiPlan.action === 'exec_python') {
+            payload.code = aiPlan.code;
+          } else if (aiPlan.action === 'exec_node') {
+            payload.code = aiPlan.code;
+          } else if (aiPlan.action === 'exec_cmd') {
+            payload.command = aiPlan.command;
+          } else if (aiPlan.action === 'create_backup') {
+            payload.label = aiPlan.label || 'ai_console';
+          }
+
+          const taskId = await enqueueTask(aiPlan.action, payload);
           await pollTaskResult(taskId);
         } else {
-          // Fallback a comando directo
-          const taskId = await enqueueTask('exec_cmd', { command: text });
-          await pollTaskResult(taskId);
+          // Si falló la IA y NO es un comando de terminal reconocible, NO enviarlo a la shell
+          const looksLikeShellCmd = /^(git\b|dir\b|ls\b|cd\b|python\b|node\b|pm2\b|npm\b|Get-|curl\b|cat\b|echo\b)/i.test(text);
+          if (looksLikeShellCmd) {
+            appendTerminal(`Ejecutando comando directo en terminal...`, 'info');
+            const taskId = await enqueueTask('exec_cmd', { command: text });
+            await pollTaskResult(taskId);
+          } else {
+            appendTerminal(`⚠️ No se pudo procesar la pregunta con la IA y no es un comando de sistema válido.`, 'err');
+            appendTerminal(`Tip: Reformule su pregunta (ej. "¿Cuál es el último pedido en MixNet?") o cambie de modo a 'Terminal Directo' para ejecutar comandos de PowerShell/Bash.`, 'info');
+          }
         }
       }
     } catch (err) {
@@ -238,7 +306,10 @@ Responde SOLO un objeto JSON con este formato exacto:
       
       let isVpsOnline = false;
       const lastHb = vpsControl?.heartbeat_at ? new Date(vpsControl.heartbeat_at).getTime() : 0;
-      if (lastHb > 0 && Math.abs(Date.now() - lastHb) < 120000) {
+      const isHbFresh = lastHb > 0 && Math.abs(Date.now() - lastHb) < 300000; // 5 minutos
+      const isStatusOnline = vpsControl?.modules?.status === 'online';
+
+      if (isHbFresh || isStatusOnline) {
         isVpsOnline = true;
       } else {
         // Fallback a telemetría nativa del VPS
@@ -259,7 +330,7 @@ Responde SOLO un objeto JSON con este formato exacto:
       // 2. Supervisor-PC (LAN)
       const mixnetAgent = vpsControl?.modules?.mixnet_agent;
       const lastAgentSync = mixnetAgent?.last_sync_at ? new Date(mixnetAgent.last_sync_at).getTime() : 0;
-      let isLanActive = mixnetAgent?.online === true && (lastAgentSync > 0 && Math.abs(Date.now() - lastAgentSync) < 180000);
+      let isLanActive = mixnetAgent?.online === true && (lastAgentSync > 0 && Math.abs(Date.now() - lastAgentSync) < 300000);
 
       if (!isLanActive) {
         const { data: lanTasks } = await sb

@@ -197,7 +197,14 @@
 
     if (typeof options === 'string') {
       prompt = options;
-      model = fallbackModel;
+      if (typeof fallbackModel === 'object' && fallbackModel !== null) {
+        temperature = fallbackModel.temperature !== undefined ? fallbackModel.temperature : 0.75;
+        maxTokens = fallbackModel.maxTokens || 1500;
+        model = fallbackModel.model || null;
+        systemInstruction = fallbackModel.systemInstruction || '';
+      } else {
+        model = fallbackModel;
+      }
     } else if (options && typeof options === 'object') {
       prompt = options.prompt || '';
       systemInstruction = options.systemInstruction || '';
@@ -214,13 +221,13 @@
     if (!GEMINI_KEYS || GEMINI_KEYS.length === 0) {
       try { await syncKeysFromSettings(); } catch (_) {}
     }
-    const targetModel = (!model || model === 'gemini-2.5-flash' || model === 'gemini-2.0-flash') ? 'gemini-3.5-flash-lite' : model;
+    const targetModel = (!model || typeof model !== 'string' || model === 'gemini-2.5-flash' || model === 'gemini-2.0-flash') ? 'gemini-3.5-flash' : model;
 
     // 1. Intentar primero mediante el proxy Cloudflare Pages (/api/ai) para evadir bloqueo geográfico IP Venezuela
     if (_proxyAvailable && typeof window !== 'undefined' && window.location && window.location.protocol.startsWith('http')) {
       try {
         const proxyCtrl = new AbortController();
-        const proxyTimer = setTimeout(() => proxyCtrl.abort(), 5000);
+        const proxyTimer = setTimeout(() => proxyCtrl.abort(), 18000);
         const proxyRes = await fetch('/api/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -252,8 +259,8 @@
       throw new Error('Servicio directo bloqueado por región o llaves agotadas; activando motor dinámico local.');
     }
 
-    const modelsToTry = [targetModel, 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.6-flash'].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
-    const timeoutMs = 4200;
+    const modelsToTry = [targetModel, 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview'].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
+    const timeoutMs = (options && typeof options === 'object' && options.timeoutMs) || (fallbackModel && typeof fallbackModel === 'object' && fallbackModel.timeoutMs) || 18000;
     let lastError = null;
 
     // Rotación equilibrada en el pool de 7 claves para balancear carga y cuotas

@@ -137,3 +137,16 @@ AGENTS.md                ← Contexto maestro y reglas inviolables para agentes 
 - **Permisos RLS en Campañas VPS**: Mantener verificado que las políticas Row Level Security en PostgreSQL del VPS permitan a los roles autorizados insertar y actualizar destinatarios en `jjp_email_campaign_targets` y `jjp_wa_campaign_targets`.
 - **Desacople en Windows**: No iniciar Node.js como subproceso en segundo plano desde sesiones efímeras del agente; utilizar `start-hidden.vbs` para persistencia en el sistema operativo.
 - **Marco Cognitivo de IA B2B (Directiva Maestra Activa)**: La IA comercial de campañas (Anaiel) debe aplicar estrictamente el diagnóstico operativo por sector y la bifurcación entre clientes corporativos (consumo interno) y revendedores comerciales (papelerías, librerías, quincallas, bazares buscando margen y rotación de mostrador). Debe activar el inventario real de +2.400 artículos (incluyendo maquinaria de oficina, destructoras, plastificadoras y embalaje), incluir la cláusula de procura abierta ("conseguimos cualquier producto o equipo fuera de lista"), usar formato visual escaneable de viñetas de 1 línea sin precios fijos en primer contacto, y cerrar con el CTA adaptado a la naturaleza del lector (margen por bulto para comercios o concurrencia para empresas). Cero textos planos enlatados, cero saludos robóticos y cero relleno. Documentado en detalle en el plan de arquitectura.
+
+---
+
+## 8. Protocolo del Entorno Agéntico Distribuido (OpenCode: Supervisor-PC & VPS)
+
+- **Manual Maestro Completo**: Consultar `docs/SUPERVISOR_PC_MANUAL.md` para la guía paso a paso de puesta en marcha, scripts y persistencia.
+- **Cola de Tareas Centralizada**: Toda ejecución remota o distribuida se orquesta mediante la tabla `jjp_mixnet_tasks` en PostgreSQL del VPS.
+- **Selectores de Destino Obligatorios**:
+  - `target = 'supervisor'`: Ejecutado por `jj-mixnet-agent/task-runner.js` en la PC física de la tienda (PowerShell, Python, Node, lectura de `M:\MIX11\comp01`).
+  - `target = 'vps'`: Ejecutado por `wa-server/src/agent-runner.js` en el VPS Ubuntu 24.04 (`166.0.112.247`) bajo Bash.
+  - `target = 'all'`: Ejecutado coordinadamente en ambos nodos.
+- **Regla de Respaldo Previo**: Cualquier agente que parchee o modifique código en vivo debe generar un archivo de respaldo con sufijo `.bak` antes de escribir y verificar sintaxis (`node -c` o `python -m py_compile`) antes de dar la tarea por completada.
+- **Regla de Nómina Estricta**: Cartera 020 es artificial; Cartera 010 es histórica. Keyder Salazar (`005`) solo comisiona o adjudica ventas si el documento en MixNet fue emitido expresamente con `CODVEN = '005'`. Prohibido asignar por código de zona.

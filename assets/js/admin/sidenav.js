@@ -443,11 +443,12 @@
     aurora.className = 'jjp-glass-aurora';
     aurora.setAttribute('aria-hidden', 'true');
     aurora.innerHTML = `
-      <div class="jjp-aurora-orb jjp-orb-emerald"></div>
       <div class="jjp-aurora-orb jjp-orb-cyan"></div>
+      <div class="jjp-aurora-orb jjp-orb-emerald"></div>
       <div class="jjp-aurora-orb jjp-orb-violet"></div>
-      <div class="jjp-aurora-orb jjp-orb-amber"></div>
       <div class="jjp-aurora-orb jjp-orb-pink"></div>
+      <div class="jjp-aurora-orb jjp-orb-amber"></div>
+      <div class="jjp-aurora-orb jjp-orb-blue"></div>
     `;
     document.body.prepend(aurora);
   }
@@ -457,66 +458,96 @@
     if (document.getElementById('jjp-sidenav-css')) return;
     const css = `
     /* ==============================================================
-       AUTÉNTICO LIQUID GLASS iOS 26 CON ORBES AURORA MULTICOLOR
+       MOTOR DE LUCES NEÓN VIVAS Y ORBES AURORA (ALTA PRESENCIA)
        ============================================================== */
     .jjp-glass-aurora {
       position: fixed; inset: 0; pointer-events: none; z-index: 1;
-      overflow: hidden; opacity: 0.85;
+      overflow: hidden; opacity: 1;
     }
     .jjp-aurora-orb {
       position: absolute; border-radius: 50%;
-      filter: blur(95px); mix-blend-mode: screen;
-      will-change: transform;
+      filter: blur(52px); mix-blend-mode: screen;
+      will-change: transform, opacity;
     }
-    .jjp-orb-emerald {
-      width: 520px; height: 520px;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.65) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 70%);
-      top: -80px; left: -60px;
-      animation: jjpFloatAura1 14s ease-in-out infinite alternate;
-    }
+    /* 1. Cyan Neón Ultrabrillante (Alrededor de logo y barra superior) */
     .jjp-orb-cyan {
-      width: 540px; height: 540px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.60) 0%, rgba(6, 182, 212, 0.12) 50%, transparent 70%);
-      top: 30vh; left: -100px;
-      animation: jjpFloatAura2 18s ease-in-out infinite alternate;
-    }
-    .jjp-orb-violet {
       width: 480px; height: 480px;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.60) 0%, rgba(139, 92, 246, 0.12) 50%, transparent 70%);
-      bottom: -60px; left: 0px;
-      animation: jjpFloatAura3 16s ease-in-out infinite alternate;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.90) 0%, rgba(6, 182, 212, 0.50) 35%, rgba(6, 182, 212, 0.15) 60%, transparent 80%);
+      top: -40px; left: 10px;
+      animation: jjpNeonGlide1 7.2s ease-in-out infinite alternate;
     }
+    /* 2. Esmeralda Láser (Cuerpo de la barra y panel central) */
+    .jjp-orb-emerald {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(0, 255, 136, 0.90) 0%, rgba(16, 185, 129, 0.50) 35%, rgba(16, 185, 129, 0.15) 60%, transparent 80%);
+      top: 32vh; left: -80px;
+      animation: jjpNeonGlide2 8.5s ease-in-out infinite alternate;
+    }
+    /* 3. Violeta Eléctrico (Pie de barra y navegación inferior) */
+    .jjp-orb-violet {
+      width: 520px; height: 520px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.90) 0%, rgba(139, 92, 246, 0.50) 35%, rgba(139, 92, 246, 0.15) 60%, transparent 80%);
+      bottom: -60px; left: 30px;
+      animation: jjpNeonGlide3 7.8s ease-in-out infinite alternate;
+    }
+    /* 4. Fucsia / Rosa Neón (Flotando por el centro de la pantalla) */
+    .jjp-orb-pink {
+      width: 460px; height: 460px;
+      background: radial-gradient(circle, rgba(255, 0, 128, 0.85) 0%, rgba(236, 72, 153, 0.48) 35%, rgba(236, 72, 153, 0.14) 60%, transparent 80%);
+      top: 18vh; left: 32vw;
+      animation: jjpNeonGlide4 9.0s ease-in-out infinite alternate;
+    }
+    /* 5. Ámbar Dorado / Fuego Solar (Iluminando el sector derecho) */
     .jjp-orb-amber {
       width: 440px; height: 440px;
-      background: radial-gradient(circle, rgba(245, 158, 11, 0.50) 0%, rgba(245, 158, 11, 0.10) 50%, transparent 70%);
-      top: 60vh; left: 80px;
-      animation: jjpFloatAura4 20s ease-in-out infinite alternate;
+      background: radial-gradient(circle, rgba(255, 183, 3, 0.85) 0%, rgba(245, 158, 11, 0.48) 35%, rgba(245, 158, 11, 0.14) 60%, transparent 80%);
+      bottom: 12vh; right: 10vw;
+      animation: jjpNeonGlide5 8.2s ease-in-out infinite alternate;
     }
-    .jjp-orb-pink {
-      width: 420px; height: 420px;
-      background: radial-gradient(circle, rgba(236, 72, 153, 0.45) 0%, rgba(236, 72, 153, 0.08) 50%, transparent 70%);
-      top: 15vh; left: 180px;
-      animation: jjpFloatAura5 22s ease-in-out infinite alternate;
+    /* 6. Zafiro Real / Azul Neón (Orbitando tarjetas principales) */
+    .jjp-orb-blue {
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.85) 0%, rgba(37, 99, 235, 0.45) 35%, rgba(37, 99, 235, 0.12) 60%, transparent 80%);
+      top: 48vh; right: 24vw;
+      animation: jjpNeonGlide6 9.8s ease-in-out infinite alternate;
     }
-    @keyframes jjpFloatAura1 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(45px, 65px) scale(1.15); }
+
+    /* TRAYECTORIAS FLUIDAS Y VISIBLES (MOVIMIENTO CONTINUO EVIDENTE) */
+    @keyframes jjpNeonGlide1 {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+      35%  { transform: translate(180px, 95px) scale(1.24) rotate(15deg); }
+      70%  { transform: translate(75px, 220px) scale(0.92) rotate(-10deg); }
+      100% { transform: translate(240px, 150px) scale(1.18) rotate(20deg); }
     }
-    @keyframes jjpFloatAura2 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(-35px, -55px) scale(1.12); }
+    @keyframes jjpNeonGlide2 {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+      40%  { transform: translate(220px, -120px) scale(1.28) rotate(-18deg); }
+      75%  { transform: translate(140px, 130px) scale(0.90) rotate(12deg); }
+      100% { transform: translate(280px, 45px) scale(1.20) rotate(-15deg); }
     }
-    @keyframes jjpFloatAura3 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(55px, -45px) scale(1.18); }
+    @keyframes jjpNeonGlide3 {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+      30%  { transform: translate(190px, -160px) scale(1.25) rotate(22deg); }
+      70%  { transform: translate(95px, -85px) scale(0.94) rotate(-14deg); }
+      100% { transform: translate(250px, -195px) scale(1.18) rotate(18deg); }
     }
-    @keyframes jjpFloatAura4 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(-40px, 40px) scale(1.1); }
+    @keyframes jjpNeonGlide4 {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+      35%  { transform: translate(-150px, 130px) scale(1.22) rotate(-20deg); }
+      70%  { transform: translate(175px, 85px) scale(0.92) rotate(15deg); }
+      100% { transform: translate(-90px, 215px) scale(1.16) rotate(-15deg); }
     }
-    @keyframes jjpFloatAura5 {
-      0% { transform: translate(0, 0) scale(1); }
-      100% { transform: translate(30px, -30px) scale(1.14); }
+    @keyframes jjpNeonGlide5 {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+      30%  { transform: translate(-190px, -95px) scale(1.25) rotate(16deg); }
+      70%  { transform: translate(-85px, 120px) scale(0.90) rotate(-18deg); }
+      100% { transform: translate(-235px, -55px) scale(1.16) rotate(14deg); }
+    }
+    @keyframes jjpNeonGlide6 {
+      0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+      40%  { transform: translate(160px, -130px) scale(1.20) rotate(-15deg); }
+      75%  { transform: translate(-130px, 65px) scale(0.93) rotate(12deg); }
+      100% { transform: translate(90px, 150px) scale(1.14) rotate(-10deg); }
     }
 
     /* BARRA LATERAL LIQUID GLASS */

@@ -232,6 +232,16 @@
       });
     }
     if (isActive(it.href)) a.className = 'on';
+    a.addEventListener('mouseenter', () => {
+      if (window.__jjpLightReaction && (it.color || '#38bdf8')) {
+        window.__jjpLightReaction(it.color || '#38bdf8', a);
+      }
+    });
+    a.addEventListener('click', () => {
+      if (window.__jjpLightReaction && (it.color || '#38bdf8')) {
+        window.__jjpLightReaction(it.color || '#38bdf8', a);
+      }
+    });
     if (it.color) a.style.setProperty('--cat-color', it.color);
     if (it.glow) a.style.setProperty('--cat-glow', it.glow);
     a.innerHTML = `<span class="a-ico">${it.ico || ''}</span> <span class="a-txt">${it.label}</span>`;
@@ -325,7 +335,15 @@
     sub.className = 'nav-sub';
     g.items.forEach((it) => sub.appendChild(linkEl(it)));
 
+    btn.addEventListener('mouseenter', () => {
+      if (window.__jjpLightReaction && g.color) {
+        window.__jjpLightReaction(g.color, btn);
+      }
+    });
     btn.addEventListener('click', (e) => {
+      if (window.__jjpLightReaction && g.color) {
+        window.__jjpLightReaction(g.color, btn);
+      }
       const aside = document.querySelector('.admin-aside') || document.querySelector('aside.aside');
       if (aside && aside.classList.contains('collapsed')) {
         // EN MODO COLAPSADO: NUNCA expandir toda la barra.
@@ -446,7 +464,7 @@
     initLivingLightsEngine(canvas);
   }
 
-  /* ---- MOTOR DE LUCES VIVAS (FÍSICA DE COLISIÓN, REBOTE Y VIDA PROPIA) ---- */
+  /* ---- MOTOR DE LUCES VIVAS (FÍSICA DE COLISIÓN, ONDAS DE CHOQUE Y REACCIÓN A CATEGORÍAS) ---- */
   function initLivingLightsEngine(canvas) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -460,40 +478,87 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // Detección sutil del cursor para interacción orgánica
     const mouse = { x: -1000, y: -1000 };
     window.addEventListener('mousemove', (e) => {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
     });
 
-    // 6 Seres de Luz Líquida con Identidad Propia
+    function hexToRgb(hex) {
+      if (!hex) return { r: 56, g: 189, b: 248 };
+      hex = hex.replace(/^#/, '');
+      if (hex.length === 3) hex = hex.split('').map(s => s + s).join('');
+      const num = parseInt(hex, 16);
+      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    // 6 Seres de Luz con dinámicas y velocidades variables para máximo dinamismo
     const SPECTRUM = [
-      { r: 0,   g: 245, b: 255 }, // Cyan Glacial
-      { r: 0,   g: 255, b: 136 }, // Esmeralda Neón
-      { r: 168, g: 85,  b: 247 }, // Violeta Cósmico
-      { r: 255, g: 0,   b: 128 }, // Fucsia Neón
-      { r: 255, g: 183, b: 3   }, // Ámbar Solar
-      { r: 56,  g: 189, b: 248 }  // Azul Eléctrico
+      { r: 0,   g: 245, b: 255, speed: 1.10, dir: 0.2 },  // Cyan Rápido
+      { r: 0,   g: 255, b: 136, speed: 0.65, dir: 1.8 },  // Esmeralda Ondulante
+      { r: 168, g: 85,  b: 247, speed: 0.90, dir: 3.4 },  // Violeta Cósmico
+      { r: 255, g: 0,   b: 128, speed: 1.25, dir: 4.8 },  // Fucsia Energético
+      { r: 255, g: 183, b: 3,   speed: 0.55, dir: 2.3 },  // Ámbar Calmado
+      { r: 56,  g: 189, b: 248, speed: 0.80, dir: 5.6 }   // Zafiro Equilibrado
     ];
 
     const lights = SPECTRUM.map((col, idx) => {
-      const angle = (idx / SPECTRUM.length) * Math.PI * 2;
-      const speed = 0.55 + Math.random() * 0.45;
       return {
-        x: (width * 0.25) + Math.cos(angle) * (width * 0.35) + (Math.random() - 0.5) * 80,
-        y: (height * 0.35) + Math.sin(angle) * (height * 0.25) + (Math.random() - 0.5) * 80,
-        vx: Math.cos(angle + 0.8) * speed,
-        vy: Math.sin(angle + 0.8) * speed,
-        baseRadius: Math.min(width, height) * 0.26 + Math.random() * 50,
-        radius: 260,
+        x: (width * 0.2) + Math.cos(col.dir) * (width * 0.3) + (Math.random() - 0.5) * 80,
+        y: (height * 0.35) + Math.sin(col.dir) * (height * 0.25) + (Math.random() - 0.5) * 80,
+        vx: Math.cos(col.dir) * col.speed,
+        vy: Math.sin(col.dir) * col.speed,
+        baseSpeed: col.speed,
+        baseRadius: Math.min(width, height) * 0.24 + Math.random() * 50,
+        radius: 240,
         phase: Math.random() * Math.PI * 2,
-        pulseSpeed: 0.014 + Math.random() * 0.01,
-        color: col,
+        pulseSpeed: 0.018 + Math.random() * 0.012,
+        color: { r: col.r, g: col.g, b: col.b },
+        targetColor: { r: col.r, g: col.g, b: col.b },
         collisionFlash: 0,
-        wanderTimer: Math.floor(Math.random() * 80)
+        wanderTimer: Math.floor(Math.random() * 90)
       };
     });
+
+    // API GLOBAL: Reacción inmediata al cambiar o posarse en una categoría
+    window.__jjpLightReaction = function(colorHex, sourceEl) {
+      if (!colorHex) return;
+      const rgb = hexToRgb(colorHex);
+      let targetX = width * 0.15;
+      let targetY = height * 0.35;
+      if (sourceEl && typeof sourceEl.getBoundingClientRect === 'function') {
+        const r = sourceEl.getBoundingClientRect();
+        targetX = Math.min(width * 0.32, r.right + 30);
+        targetY = r.top + (r.height / 2);
+      }
+
+      // Encontrar el orbe más cercano
+      let closest = lights[0];
+      let minDist = Infinity;
+      lights.forEach(l => {
+        const d = Math.hypot(l.x - targetX, l.y - targetY);
+        if (d < minDist) { minDist = d; closest = l; }
+      });
+
+      // Efecto: el orbe adopta el color de la categoría y lanza una onda de choque
+      closest.targetColor = rgb;
+      closest.collisionFlash = 1.6;
+      const pushAngle = Math.atan2(closest.y - targetY, closest.x - targetX);
+      closest.vx = Math.cos(pushAngle) * 2.2;
+      closest.vy = Math.sin(pushAngle) * 2.2;
+
+      // Ondas dinámicas a los demás orbes
+      lights.forEach(other => {
+        if (other !== closest) {
+          const dx = other.x - closest.x;
+          const dy = other.y - closest.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          other.vx += (dx / dist) * 0.9;
+          other.vy += (dy / dist) * 0.9;
+          other.collisionFlash = Math.min(1.0, other.collisionFlash + 0.35);
+        }
+      });
+    };
 
     let animId = null;
     let lastTime = performance.now();
@@ -507,115 +572,129 @@
       const dt = Math.min(2.0, (now - lastTime) / 16.66) || 1.0;
       lastTime = now;
 
-      ctx.clearRect(0, 0, width, height);
-      ctx.globalCompositeOperation = 'screen';
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-      // 1. Actualizar física, trayectorias y colisiones
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalCompositeOperation = isDark ? 'screen' : 'multiply';
+
+      // 1. Actualizar física de colisiones y trayectorias dinámicas
       for (let i = 0; i < lights.length; i++) {
         const l = lights[i];
         l.phase += l.pulseSpeed * dt;
-        l.radius = l.baseRadius * (0.86 + Math.sin(l.phase) * 0.18 + l.collisionFlash * 0.32);
+        l.radius = l.baseRadius * (0.86 + Math.sin(l.phase) * 0.16 + l.collisionFlash * 0.30);
 
         if (l.collisionFlash > 0) {
-          l.collisionFlash = Math.max(0, l.collisionFlash - 0.03 * dt);
+          l.collisionFlash = Math.max(0, l.collisionFlash - 0.035 * dt);
         }
 
-        // Variación continua de rumbo (vida propia orgánica)
+        // Transición de color suave hacia targetColor
+        l.color.r += (l.targetColor.r - l.color.r) * 0.05 * dt;
+        l.color.g += (l.targetColor.g - l.color.g) * 0.05 * dt;
+        l.color.b += (l.targetColor.b - l.color.b) * 0.05 * dt;
+
+        // Variación continua de rumbo (vida propia dinámica)
         l.wanderTimer -= dt;
         if (l.wanderTimer <= 0) {
-          l.wanderTimer = 90 + Math.random() * 140;
-          const steer = (Math.random() - 0.5) * 0.35;
-          const curSpeed = Math.hypot(l.vx, l.vy) || 0.6;
+          l.wanderTimer = 70 + Math.random() * 110;
+          const steer = (Math.random() - 0.5) * 0.45;
+          const curSpeed = Math.hypot(l.vx, l.vy) || l.baseSpeed;
           const curAngle = Math.atan2(l.vy, l.vx) + steer;
           l.vx = Math.cos(curAngle) * curSpeed;
           l.vy = Math.sin(curAngle) * curSpeed;
         }
 
-        // Interacción sutil con el ratón (se alejan suavemente)
+        // Interacción sutil con el ratón
         const dmx = l.x - mouse.x;
         const dmy = l.y - mouse.y;
         const distMouse = Math.hypot(dmx, dmy);
-        if (distMouse < 240 && distMouse > 10) {
-          const mForce = (240 - distMouse) * 0.0006 * dt;
+        if (distMouse < 220 && distMouse > 10) {
+          const mForce = (220 - distMouse) * 0.0008 * dt;
           l.vx += (dmx / distMouse) * mForce;
           l.vy += (dmy / distMouse) * mForce;
         }
 
-        // Límites de velocidad controlados
+        // Amortiguación de velocidad hacia baseSpeed
         const curSpd = Math.hypot(l.vx, l.vy);
-        if (curSpd > 1.6) {
-          l.vx = (l.vx / curSpd) * 1.6;
-          l.vy = (l.vy / curSpd) * 1.6;
+        if (curSpd > 2.0) {
+          l.vx = (l.vx / curSpd) * 2.0;
+          l.vy = (l.vy / curSpd) * 2.0;
         } else if (curSpd < 0.35) {
-          l.vx = (l.vx / (curSpd || 1)) * 0.45;
-          l.vy = (l.vy / (curSpd || 1)) * 0.45;
+          l.vx = (l.vx / (curSpd || 1)) * l.baseSpeed;
+          l.vy = (l.vy / (curSpd || 1)) * l.baseSpeed;
         }
 
         l.x += l.vx * dt;
         l.y += l.vy * dt;
 
-        // Rebote elástico en los 4 bordes de la pantalla
-        const boundPadding = l.radius * 0.22;
-        if (l.x < boundPadding) {
-          l.x = boundPadding;
-          l.vx = Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.15;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
-        } else if (l.x > width - boundPadding) {
-          l.x = width - boundPadding;
-          l.vx = -Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.15;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
+        // Rebotes elásticos en bordes
+        const pad = l.radius * 0.20;
+        if (l.x < pad) {
+          l.x = pad;
+          l.vx = Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.2;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
+        } else if (l.x > width - pad) {
+          l.x = width - pad;
+          l.vx = -Math.abs(l.vx) * 0.95 + (Math.random() - 0.5) * 0.2;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
         }
-        if (l.y < boundPadding) {
-          l.y = boundPadding;
-          l.vy = Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.15;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
-        } else if (l.y > height - boundPadding) {
-          l.y = height - boundPadding;
-          l.vy = -Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.15;
-          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.45);
+        if (l.y < pad) {
+          l.y = pad;
+          l.vy = Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.2;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
+        } else if (l.y > height - pad) {
+          l.y = height - pad;
+          l.vy = -Math.abs(l.vy) * 0.95 + (Math.random() - 0.5) * 0.2;
+          l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.4);
         }
 
-        // 2. Colisión física entre orbes (choque, repulsión elástica y destello)
+        // 2. Colisión elástica entre orbes (choque con intercambio de impulso)
         for (let j = i + 1; j < lights.length; j++) {
           const l2 = lights[j];
           const dx = l2.x - l.x;
           const dy = l2.y - l.y;
           const dist = Math.hypot(dx, dy);
-          const minDist = (l.radius + l2.radius) * 0.44;
+          const minDist = (l.radius + l2.radius) * 0.42;
 
           if (dist < minDist && dist > 1) {
             const angle = Math.atan2(dy, dx);
             const overlap = minDist - dist;
-            const force = overlap * 0.0035 * dt;
+            const force = overlap * 0.004 * dt;
 
-            // Repulsión elástica
             l.vx -= Math.cos(angle) * force;
             l.vy -= Math.sin(angle) * force;
             l2.vx += Math.cos(angle) * force;
             l2.vy += Math.sin(angle) * force;
 
-            // Destello luminoso orgánico en el momento del impacto
-            l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.55);
-            l2.collisionFlash = Math.min(1.0, l2.collisionFlash + 0.55);
+            l.collisionFlash = Math.min(1.0, l.collisionFlash + 0.5);
+            l2.collisionFlash = Math.min(1.0, l2.collisionFlash + 0.5);
           }
         }
       }
 
-      // 3. Renderizar gradientes radiales luminosos multicapa
+      // 3. Renderizar gradientes radiales optimizados (adaptados a Claro y Oscuro)
       for (let i = 0; i < lights.length; i++) {
         const l = lights[i];
         const rad = Math.max(20, l.radius);
         const grad = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, rad);
-
         const col = l.color;
-        const alphaCore = Math.min(1.0, 0.75 + l.collisionFlash * 0.25);
-        const alphaMid = 0.32 + l.collisionFlash * 0.20;
-        const alphaOuter = 0.07;
 
-        grad.addColorStop(0, `rgba(${col.r}, ${col.g}, ${col.b}, ${alphaCore})`);
-        grad.addColorStop(0.35, `rgba(${col.r}, ${col.g}, ${col.b}, ${alphaMid})`);
-        grad.addColorStop(0.70, `rgba(${col.r}, ${col.g}, ${col.b}, ${alphaOuter})`);
-        grad.addColorStop(1, `rgba(${col.r}, ${col.g}, ${col.b}, 0)`);
+        if (isDark) {
+          // Modo Oscuro: Núcleos neón ricos y destellos en screen
+          const alphaCore = Math.min(1.0, 0.65 + l.collisionFlash * 0.30);
+          const alphaMid = 0.28 + l.collisionFlash * 0.18;
+          const alphaOuter = 0.05;
+          grad.addColorStop(0, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaCore})`);
+          grad.addColorStop(0.35, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaMid})`);
+          grad.addColorStop(0.70, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaOuter})`);
+          grad.addColorStop(1, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, 0)`);
+        } else {
+          // Modo Claro: Brillo pastel translúcido que nunca oscurece ni mancha el texto
+          const alphaCore = Math.min(0.24, 0.12 + l.collisionFlash * 0.10);
+          const alphaMid = 0.06 + l.collisionFlash * 0.04;
+          grad.addColorStop(0, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaCore})`);
+          grad.addColorStop(0.40, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, ${alphaMid})`);
+          grad.addColorStop(1, `rgba(${Math.round(col.r)}, ${Math.round(col.g)}, ${Math.round(col.b)}, 0)`);
+        }
 
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -633,35 +712,41 @@
   function injectCSS() {
     if (document.getElementById('jjp-sidenav-css')) return;
     const css = `
-    /* ==============================================================
-       CANVAS DE LUCES VIVAS (FONDO ORGÁNICO EN MOVIMIENTO PERMANENTE)
-       ============================================================== */
+    /* CANVAS DE LUCES VIVAS (ADAPTADO A CLARO Y OSCURO, CERO CONSUMO) */
     .jjp-aurora-canvas {
       position: fixed; inset: 0; width: 100vw; height: 100vh;
       pointer-events: none; z-index: 1;
       opacity: 0.95;
     }
 
-    /* BARRA LATERAL LIQUID GLASS CON TRANSICIÓN APPLE FLUIDA */
+    /* BARRA LATERAL LIQUID GLASS */
     .admin-aside, aside.aside {
-      background: rgba(8, 14, 26, 0.55) !important;
+      background: rgba(8, 14, 26, 0.65) !important;
       backdrop-filter: blur(36px) saturate(220%) !important;
       -webkit-backdrop-filter: blur(36px) saturate(220%) !important;
       border-right: 1px solid rgba(255, 255, 255, 0.14) !important;
       box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08), 10px 0 35px rgba(0, 0, 0, 0.4) !important;
       width: 240px !important;
-      transition: width 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) !important;
+      transition: width 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
       z-index: 200 !important;
-      overflow-x: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    /* MODO CLARO PARA LA BARRA */
+    [data-theme="light"] .admin-aside, [data-theme="light"] aside.aside {
+      background: rgba(255, 255, 255, 0.82) !important;
+      border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.06) !important;
     }
 
     .admin-main, main.admin-main {
-      transition: margin-left 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) !important;
+      transition: margin-left 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
       position: relative; z-index: 2;
     }
     body.sidebar-collapsed .admin-main,
     body.sidebar-collapsed main.admin-main {
-      margin-left: 74px !important;
+      margin-left: 72px !important;
     }
 
     /* CABECERA DE LA BARRA */
@@ -678,7 +763,7 @@
       display: flex; align-items: center; gap: 10px; overflow: hidden; white-space: nowrap;
     }
 
-    /* BOTÓN TOGGLE CON CHEVRON GIRATORIO (CERO JUMP) */
+    /* BOTÓN TOGGLE */
     .jjp-aside-toggle {
       width: 28px; height: 28px; border-radius: 9px;
       background: rgba(255, 255, 255, 0.08);
@@ -701,7 +786,7 @@
       transform: rotate(180deg) !important;
     }
 
-    /* LOGO CON AURA VIVA RESPIRABLE */
+    /* LOGO CON AURA */
     .jjp-logo-animated {
       width: 38px; height: 38px; border-radius: 50%;
       border: 1.5px solid rgba(255, 255, 255, 0.25);
@@ -710,20 +795,13 @@
       transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
       flex-shrink: 0;
     }
-    .jjp-logo-animated:hover {
-      transform: rotate(8deg) scale(1.12);
-    }
     @keyframes jjpLogoPulse {
       0%   { filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5)); }
-      50%  { filter: drop-shadow(0 0 16px rgba(6, 182, 212, 0.85)); transform: scale(1.04) rotate(2deg); }
+      50%  { filter: drop-shadow(0 0 16px rgba(6, 182, 212, 0.85)); transform: scale(1.04); }
       100% { filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5)); }
     }
-    @media (prefers-reduced-motion: reduce) {
-      .jjp-logo-animated { animation: none !important; }
-      .jjp-aurora-canvas { display: none !important; }
-    }
 
-    /* DESVANECIMIENTO SUAVE DE TEXTOS (CERO DISPLAY:NONE ABRUPTO) */
+    /* DESVANECIMIENTO SUAVE DE TEXTOS */
     .aside-brand span,
     .aside-brand em,
     .aside-nav .a-txt,
@@ -736,83 +814,108 @@
       max-width: 170px;
       opacity: 1;
       transform: translateX(0);
-      transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-                  max-width 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-                  transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      transition: opacity 0.20s ease, max-width 0.28s ease, transform 0.20s ease !important;
       display: inline-block;
     }
 
-    /* BOTONES DE GRUPO Y NAVEGACIÓN (METAMORFOSIS SUAVE A SQUIRCLE) */
-    .aside-nav .nav-group { display: flex; flex-direction: column; position: relative }
+    /* ESTRUCTURA DE NAVEGACIÓN Y GRUPOS */
+    .aside-nav {
+      flex: 1 !important;
+      padding: 10px 0 !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 2px !important;
+    }
+
+    .aside-nav .nav-group {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    /* BOTONES EN MODO EXPANDIDO */
     .aside-nav .nav-group-btn,
     .aside-nav > a {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 14px;
-      margin: 3px 10px;
-      width: calc(100% - 20px);
-      height: 44px;
-      font-size: 13.5px; font-weight: 600;
-      color: rgba(255, 255, 255, 0.85); background: none; border: 0; cursor: pointer;
-      font-family: inherit; text-align: left;
-      border-radius: 12px;
-      box-sizing: border-box;
-      text-decoration: none;
-      transition: width 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
-                  height 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
-                  padding 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
-                  margin 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
-                  border-radius 0.35s cubic-bezier(0.2, 0.9, 0.25, 1),
-                  background 0.22s ease,
-                  box-shadow 0.22s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      padding: 10px 14px !important;
+      margin: 2px auto !important;
+      width: calc(100% - 20px) !important;
+      height: 42px !important;
+      font-size: 13.5px !important; font-weight: 600 !important;
+      color: rgba(255, 255, 255, 0.85) !important;
+      background: none !important; border: 0 !important; cursor: pointer !important;
+      font-family: inherit !important; text-align: left !important;
+      border-radius: 12px !important;
+      box-sizing: border-box !important;
+      text-decoration: none !important;
+      transition: width 0.30s cubic-bezier(0.2, 0.9, 0.3, 1),
+                  height 0.30s cubic-bezier(0.2, 0.9, 0.3, 1),
+                  padding 0.30s cubic-bezier(0.2, 0.9, 0.3, 1),
+                  border-radius 0.30s cubic-bezier(0.2, 0.9, 0.3, 1),
+                  background 0.20s ease,
+                  box-shadow 0.20s ease !important;
     }
     .aside-nav .nav-group-btn:hover,
     .aside-nav > a:hover {
-      background: rgba(255, 255, 255, 0.10); color: #fff;
-      box-shadow: 0 0 16px var(--cat-glow, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.10) !important; color: #fff !important;
+      box-shadow: 0 0 16px var(--cat-glow, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
     }
     .aside-nav .nav-group-btn .a-ico,
     .aside-nav > a .a-ico {
-      width: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      color: var(--cat-color, #10b981);
-      filter: drop-shadow(0 0 6px var(--cat-color, transparent));
-      transition: transform 0.25s ease;
+      width: 22px !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important;
+      color: var(--cat-color, #10b981) !important;
+      filter: drop-shadow(0 0 6px var(--cat-color, transparent)) !important;
+      transition: transform 0.25s ease !important;
     }
     .aside-nav .nav-group-btn .a-txt,
-    .aside-nav > a .a-txt { flex: 1 }
+    .aside-nav > a .a-txt { flex: 1 !important; }
     .aside-nav .nav-caret {
-      font-size: 11px; opacity: .7; transition: transform .28s ease; flex-shrink: 0;
+      font-size: 11px !important; opacity: .7 !important; transition: transform .28s ease !important; flex-shrink: 0 !important;
     }
-    .aside-nav .nav-group.open .nav-caret { transform: rotate(180deg) }
-    .aside-nav .nav-group.has-active > .nav-group-btn { color: #fff; font-weight: 700 }
+    .aside-nav .nav-group.open .nav-caret { transform: rotate(180deg) !important; }
+    .aside-nav .nav-group.has-active > .nav-group-btn { color: #fff !important; font-weight: 700 !important; }
 
-    /* SUBMENÚ ACORDEÓN EXPANDIBLE FLUIDO */
+    /* SUBMENÚ ACORDEÓN EXPANDIBLE */
     .aside-nav .nav-sub {
-      display: grid; grid-template-rows: 0fr;
-      transition: grid-template-rows .28s cubic-bezier(0.16, 1, 0.3, 1),
-                  opacity .2s ease;
-      background: rgba(0, 0, 0, .24);
-      border-radius: 10px; margin: 0 10px 4px 10px;
+      display: grid !important; grid-template-rows: 0fr !important;
+      transition: grid-template-rows .28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      background: rgba(0, 0, 0, .24) !important;
+      border-radius: 10px !important; margin: 0 10px 4px 10px !important;
+      width: calc(100% - 20px) !important;
     }
-    .aside-nav .nav-group.open .nav-sub { grid-template-rows: 1fr }
-    .aside-nav .nav-sub > * { min-height: 0; overflow: hidden }
+    .aside-nav .nav-group.open .nav-sub { grid-template-rows: 1fr !important; }
+    .aside-nav .nav-sub > * { min-height: 0; overflow: hidden; }
     .aside-nav .nav-sub a {
-      padding: 9px 12px 9px 36px; font-size: 12.5px;
-      color: rgba(255, 255, 255, .75);
-      transition: all 0.18s ease;
-      text-decoration: none; display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px 9px 36px !important; font-size: 12.5px !important;
+      color: rgba(255, 255, 255, .75) !important;
+      transition: all 0.18s ease !important;
+      text-decoration: none !important; display: flex !important; align-items: center !important; gap: 10px !important;
     }
-    .aside-nav .nav-sub a:hover { color: #fff; background: rgba(255, 255, 255, .12); padding-left: 40px }
+    .aside-nav .nav-sub a:hover { color: #fff !important; background: rgba(255, 255, 255, .12) !important; padding-left: 40px !important; }
     .aside-nav .nav-sub a.on {
-      background: var(--cat-glow, rgba(16, 185, 129, 0.25)); color: #fff;
-      border-left: 3px solid var(--cat-color, #10b981);
-      font-weight: 700;
+      background: var(--cat-glow, rgba(16, 185, 129, 0.25)) !important; color: #fff !important;
+      border-left: 3px solid var(--cat-color, #10b981) !important;
+      font-weight: 700 !important;
     }
 
     /* ==============================================================
-       ESTADO COLAPSADO: CUADROS LIQUID GLASS CON HALO REAL
+       ESTADO COLAPSADO: CUADROS LIQUID GLASS CON ESPACIADO HOMOGÉNEO (CERO ROTURA)
        ============================================================== */
     .admin-aside.collapsed, aside.aside.collapsed {
-      width: 74px !important;
+      width: 72px !important;
+    }
+
+    /* ELIMINAR HUECOS VERTICALES FANTASMA */
+    .admin-aside.collapsed .a-section,
+    .admin-aside.collapsed .divider {
+      display: none !important;
     }
 
     .admin-aside.collapsed .aside-brand {
@@ -823,47 +926,41 @@
       margin-bottom: 8px;
     }
     .admin-aside.collapsed .jjp-aside-toggle {
-      position: absolute; bottom: -12px; right: 23px; z-index: 10;
+      position: absolute; bottom: -12px; right: 22px; z-index: 10;
     }
 
-    /* Desvanecimiento ordenado sin cortes bruscos */
+    /* Desvanecer textos sin alterar la geometría de la barra */
     .admin-aside.collapsed .aside-brand span,
     .admin-aside.collapsed .aside-brand em,
     .admin-aside.collapsed .aside-nav .a-txt,
     .admin-aside.collapsed .aside-nav .nav-caret,
-    .admin-aside.collapsed .aside-nav .a-section,
     .admin-aside.collapsed .aside-ft .jjp-logout-txt,
     .admin-aside.collapsed .aside-ft > div:first-child {
       opacity: 0 !important;
       max-width: 0 !important;
-      transform: translateX(-14px) !important;
+      transform: translateX(-10px) !important;
       pointer-events: none !important;
       margin: 0 !important;
       padding: 0 !important;
     }
 
+    /* Ocultar submenú acordeón en colapsado (para usar tarjeta flotante) */
     .admin-aside.collapsed .nav-sub {
-      grid-template-rows: 0fr !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      margin: 0 !important;
+      display: none !important;
     }
 
-    .admin-aside.collapsed .nav-group,
-    .admin-aside.collapsed .aside-nav > a {
-      margin: 6px auto !important;
-      width: 50px !important;
-      display: flex !important;
-      justify-content: center !important;
-      position: relative !important;
+    .admin-aside.collapsed .aside-nav {
+      gap: 6px !important;
+      padding: 12px 0 !important;
     }
 
+    /* SQUIRCLES PERFECTAMENTE CENTRADOS Y COMPACTOS */
     .admin-aside.collapsed .nav-group-btn,
     .admin-aside.collapsed .aside-nav > a {
-      width: 50px !important;
-      height: 50px !important;
+      width: 48px !important;
+      height: 48px !important;
       padding: 0 !important;
-      margin: 0 !important;
+      margin: 0 auto !important;
       border-radius: 14px !important;
       justify-content: center !important;
       background: rgba(255, 255, 255, 0.06) !important;
@@ -877,9 +974,10 @@
     .admin-aside.collapsed .nav-group-btn .a-ico,
     .admin-aside.collapsed .aside-nav > a .a-ico {
       width: auto !important;
+      margin: 0 !important;
       color: var(--cat-color, #10b981) !important;
       filter: drop-shadow(0 0 8px var(--cat-color, #10b981)) !important;
-      transform: scale(1.08);
+      transform: scale(1.08) !important;
     }
 
     .admin-aside.collapsed .nav-group:hover .nav-group-btn,
@@ -887,14 +985,14 @@
       transform: scale(1.10) translateY(-2px) !important;
       background: rgba(255, 255, 255, 0.16) !important;
       border-color: var(--cat-color, rgba(255, 255, 255, 0.45)) !important;
-      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4), 0 0 26px var(--cat-glow, rgba(16, 185, 129, 0.5)) !important;
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4), 0 0 24px var(--cat-glow, rgba(16, 185, 129, 0.5)) !important;
     }
 
     .admin-aside.collapsed .nav-group.has-active .nav-group-btn,
     .admin-aside.collapsed .aside-nav > a.on {
       border-color: var(--cat-color, #10b981) !important;
       background: var(--cat-glow, rgba(16, 185, 129, 0.28)) !important;
-      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), 0 0 22px var(--cat-glow, rgba(16, 185, 129, 0.6)) !important;
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), 0 0 20px var(--cat-glow, rgba(16, 185, 129, 0.6)) !important;
     }
 
     /* ==============================================================
@@ -903,7 +1001,7 @@
     .jjp-liquid-flyout-card {
       position: fixed;
       width: 250px;
-      background: rgba(10, 16, 28, 0.75) !important;
+      background: rgba(10, 16, 28, 0.82) !important;
       backdrop-filter: blur(40px) saturate(240%) !important;
       -webkit-backdrop-filter: blur(40px) saturate(240%) !important;
       border: 1.5px solid var(--cat-color, rgba(255, 255, 255, 0.28)) !important;
@@ -911,11 +1009,22 @@
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px var(--cat-glow, transparent), inset 0 1px 2px rgba(255, 255, 255, 0.35) !important;
       padding: 12px !important;
       z-index: 999999 !important;
-      animation: jjpFlyoutScale 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: jjpFlyoutScale 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    [data-theme="light"] .jjp-liquid-flyout-card {
+      background: rgba(255, 255, 255, 0.90) !important;
+      border: 1.5px solid var(--cat-color, rgba(0, 0, 0, 0.15)) !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15), 0 0 25px var(--cat-glow, transparent) !important;
+    }
+
+    [data-theme="light"] .flyout-hd-title,
+    [data-theme="light"] .flyout-item {
+      color: #0f172a !important;
     }
 
     @keyframes jjpFlyoutScale {
-      0%   { opacity: 0; transform: translateX(-12px) scale(0.92); }
+      0%   { opacity: 0; transform: translateX(-10px) scale(0.92); }
       100% { opacity: 1; transform: translateX(0) scale(1); }
     }
 
@@ -991,10 +1100,10 @@
       box-shadow: 0 4px 18px rgba(239, 68, 68, 0.45) !important;
     }
     .admin-aside.collapsed .jjp-aside-logout-btn {
-      width: 50px !important;
-      height: 50px !important;
+      width: 48px !important;
+      height: 48px !important;
       padding: 0 !important;
-      margin: 10px auto !important;
+      margin: 8px auto !important;
       border-radius: 14px !important;
     }
     .admin-aside.collapsed .jjp-aside-logout-btn .jjp-logout-txt {
